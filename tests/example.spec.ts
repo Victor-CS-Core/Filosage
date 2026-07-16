@@ -1,18 +1,24 @@
-import { test, expect } from '@playwright/test';
+import { expect, test } from "@playwright/test";
 
-test('has title', async ({ page }) => {
-  await page.goto('https://playwright.dev/');
+test("keeps the learning library public", async ({ page }) => {
+  await page.goto("/");
 
-  // Expect a title "to contain" a substring.
-  await expect(page).toHaveTitle(/Playwright/);
+  await expect(page).toHaveTitle(/Teach/);
+  await expect(
+    page.getByRole("heading", { name: /Learn with structure/i }),
+  ).toBeVisible();
+  await expect(page.getByText("Public learning mode")).toBeVisible();
 });
 
-test('get started link', async ({ page }) => {
-  await page.goto('https://playwright.dev/');
+test("labels the owner-only studio before authentication", async ({ page }) => {
+  await page.goto("/");
 
-  // Click the get started link.
-  await page.getByRole('link', { name: 'Get started' }).click();
+  await page.getByRole("button", { name: "Owner sign in" }).click();
 
-  // Expects page to have a heading with the name of Installation.
-  await expect(page.getByRole('heading', { name: 'Installation' })).toBeVisible();
+  const dialog = page.getByRole("dialog", { name: "Enter Teach Studio" });
+  await expect(dialog).toBeVisible();
+  await expect(dialog).toContainText("viticopq12@gmail.com");
+  await expect(
+    dialog.getByRole("button", { name: "Continue with Google" }),
+  ).toBeVisible();
 });

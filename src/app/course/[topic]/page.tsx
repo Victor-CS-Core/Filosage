@@ -1,307 +1,273 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
+import {
+  ArrowLeft,
+  ArrowRight,
+  BookOpen,
+  Check,
+  ChevronDown,
+  ChevronRight,
+  Circle,
+  Globe2,
+  Layers3,
+  LoaderCircle,
+  LockKeyhole,
+  Trash2,
+} from "lucide-react";
 import AppShell from "@/components/AppShell";
 import { useAuth } from "@/components/AuthProvider";
-import dynamic from "next/dynamic";
-
-const AuthModal = dynamic(() => import("@/components/AuthModal"), { ssr: false });
-
-interface Lesson { title: string; concept: string; }
-interface Module { title: string; lessons: Lesson[]; }
-interface Course {
-  mission?: string;
-  modules: Module[];
-  courseId?: string;  // Firestore doc ID
-  isPublic?: boolean;
-  authorId?: string;
-}
+import type { Course } from "@/lib/course-types";
 
 export default function CourseMap() {
-  const params = useParams();
+  const params = useParams<{ topic: string }>();
   const router = useRouter();
-  const topic = decodeURIComponent(params.topic as string);
   const searchParams = useSearchParams();
-  const courseId = searchParams.get("id");
-  const { user } = useAuth();
-
+  const topic = decodeURIComponent(params.topic);
+  const requestedCourseId = searchParams.get("id");
+  const { user, isOwner, loading: authLoading } = useAuth();
   const [course, setCourse] = useState<Course | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [expandedMod, setExpandedMod] = useState<number | null>(0);
-  const [togglingVisibility, setTogglingVisibility] = useState(false);
-  const [showAuth, setShowAuth] = useState(false);
-  const [deleting, setDeleting] = useState(false);
+  const [expandedModule, setExpandedModule] = useState<number | null>(0);
+  const [updating, setUpdating] = useState(false);
+  const [deleteArmed, setDeleteArmed] = useState(false);
+  const [completedLessons, setCompletedLessons] = useState<string[]>([]);
 
-  const generateCourse = useCallback(async () => {
+  const getToken = useCallback(async () => (user ? user.getIdToken() : null), [user]);
+
+  const loadOrGenerate = useCallback(async () => {
+    if (authLoading) return;
+    setLoading(true);
+    setError(null);
+
     try {
-      // Get the auth token if user is signed in
-      const token = user ? await user.getIdToken() : null;
+      if (requestedCourseId) {
+        const token = await getToken();
+        const response = await fetch(`/api/courses/${requestedCourseId}`, {
+          headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+        });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.error || "The course could not be opened.");
+        setCourse({ ...data, id: requestedCourseId, courseId: requestedCourseId });
+        return;
+      }
 
-      const res = await fetch("/api/generate-course", {
+      if (!isOwner) {
+        setError("Course creation is available only in the private Teach Studio.");
+        return;
+      }
+
+      const token = await getToken();
+      const response = await fetch("/api/generate-course", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({ topic }),
       });
-
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Failed to generate course.");
-
-      // Cache locally too
-      localStorage.setItem(`course_${topic}`, JSON.stringify(data));
-      setCourse(data);
-    } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "Unknown error");
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || "The course could not be generated.");
+      const nextCourse = { ...data, topic, id: data.courseId } as Course;
+      setCourse(nextCourse);
+      if (data.courseId) router.replace(`/course/${encodeURIComponent(topic)}?id=${data.courseId}`);
+    } catch (loadError) {
+      setError(loadError instanceof Error ? loadError.message : "The course could not be opened.");
     } finally {
       setLoading(false);
     }
-  }, [topic, user]);
+  }, [authLoading, requestedCourseId, isOwner, getToken, topic, router]);
 
   useEffect(() => {
-    async function loadCourse() {
-      if (courseId) {
-        try {
-          let headers: any = {};
-          if (user) {
-            const token = await user.getIdToken();
-            headers = { Authorization: `Bearer ${token}` };
-          }
-          const res = await fetch(`/api/courses/${courseId}`, { headers });
-          if (res.ok) {
-            const data = await res.json();
-            setCourse(data);
-            // Also cache it locally so sidebar and subsequent loads are fast
-            localStorage.setItem(`course_${topic}`, JSON.stringify(data));
-            setLoading(false);
-            return;
-          }
-        } catch (e) {
-          console.error("Failed to fetch public course", e);
-        }
-      }
+    void Promise.resolve().then(loadOrGenerate);
+  }, [loadOrGenerate]);
 
-      const saved = localStorage.getItem(`course_${topic}`);
-      if (saved) {
-        setCourse(JSON.parse(saved));
-        setLoading(false);
-      } else {
-        generateCourse();
-      }
-    }
-    loadCourse();
-  }, [topic, courseId, user, generateCourse]);
+  const courseId = course?.id ?? course?.courseId ?? requestedCourseId;
 
-  const toggleVisibility = async () => {
-    if (!user) { setShowAuth(true); return; }
-    if (!course?.courseId) return;
-    setTogglingVisibility(true);
+  useEffect(() => {
+    if (!courseId) return;
     try {
-      const token = await user.getIdToken();
-      const res = await fetch(`/api/courses/${course.courseId}`, {
+      const saved = JSON.parse(localStorage.getItem(`teach-progress:${courseId}`) || "[]") as string[];
+      queueMicrotask(() => setCompletedLessons(Array.isArray(saved) ? saved : []));
+    } catch {
+      queueMicrotask(() => setCompletedLessons([]));
+    }
+  }, [courseId]);
+
+  useEffect(() => {
+    if (!deleteArmed) return;
+    const timeout = window.setTimeout(() => setDeleteArmed(false), 5_000);
+    return () => window.clearTimeout(timeout);
+  }, [deleteArmed]);
+
+  const totalLessons = useMemo(
+    () => course?.modules.reduce((sum, module) => sum + module.lessons.length, 0) ?? 0,
+    [course],
+  );
+  const progress = totalLessons ? Math.round((completedLessons.length / totalLessons) * 100) : 0;
+
+  const updateVisibility = async () => {
+    if (!isOwner || !courseId || !course) return;
+    setUpdating(true);
+    try {
+      const token = await getToken();
+      const response = await fetch(`/api/courses/${courseId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify({ isPublic: !course.isPublic }),
       });
-      if (res.ok) {
-        const updated = { ...course, isPublic: !course.isPublic };
-        setCourse(updated);
-        localStorage.setItem(`course_${topic}`, JSON.stringify(updated));
-      }
-    } catch (err) {
-      console.error(err);
-      alert("Failed to update visibility.");
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || "Visibility could not be updated.");
+      setCourse({ ...course, isPublic: data.isPublic });
+    } catch (updateError) {
+      setError(updateError instanceof Error ? updateError.message : "Visibility could not be updated.");
     } finally {
-      setTogglingVisibility(false);
+      setUpdating(false);
     }
   };
 
   const deleteCourse = async () => {
-    if (!course?.courseId || !user) return;
-    if (!confirm(`Are you sure you want to delete "${topic}"? This cannot be undone.`)) return;
-
-    setDeleting(true);
+    if (!deleteArmed) {
+      setDeleteArmed(true);
+      return;
+    }
+    if (!isOwner || !courseId) return;
+    setUpdating(true);
     try {
-      const token = await user.getIdToken();
-      const res = await fetch(`/api/courses/${course.courseId}`, {
+      const token = await getToken();
+      const response = await fetch(`/api/courses/${courseId}`, {
         method: "DELETE",
-        headers: { Authorization: `Bearer ${token}` }
+        headers: { Authorization: `Bearer ${token}` },
       });
-      if (res.ok) {
-        localStorage.removeItem(`course_${topic}`);
-        router.push("/");
-      } else {
-        const data = await res.json();
-        alert(data.error || "Failed to delete course.");
-      }
-    } catch (err) {
-      console.error(err);
-      alert("Failed to delete course.");
-    } finally {
-      setDeleting(false);
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || "The course could not be deleted.");
+      localStorage.removeItem(`teach-progress:${courseId}`);
+      router.push("/");
+    } catch (deleteError) {
+      setError(deleteError instanceof Error ? deleteError.message : "The course could not be deleted.");
+      setUpdating(false);
+      setDeleteArmed(false);
     }
   };
 
-  /* ── Error state ── */
-  if (error) {
+  if (loading || authLoading) {
     return (
-      <AppShell activeTopic={topic}>
-        <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "40px", gap: "16px" }}>
-          <div style={{ fontSize: "2.5rem" }}>⚠️</div>
-          <h2 style={{ color: "var(--error)" }}>Generation Failed</h2>
-          <p style={{ color: "var(--text-secondary)", maxWidth: "500px", textAlign: "center" }}>{error}</p>
-          <button onClick={() => router.push("/")} className="btn-secondary">← Back to Home</button>
+      <AppShell activeTopic={topic} activeCourseId={requestedCourseId}>
+        <div className="center-state course-building-state">
+          <span className="loading-orbit"><LoaderCircle size={28} /></span>
+          <h1>{requestedCourseId ? "Opening the learning path" : `Designing ${topic}`}</h1>
+          <p>{requestedCourseId ? "Gathering modules and lesson progress…" : "Structuring concepts into a focused progression…"}</p>
         </div>
       </AppShell>
     );
   }
 
-  /* ── Loading state ── */
-  if (loading) {
+  if (error || !course) {
     return (
-      <AppShell activeTopic={topic}>
-        <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: "20px" }}>
-          <div className="spinner" />
-          <p style={{ color: "var(--text-secondary)", fontSize: "1rem" }}>
-            Building your course on <strong>{topic}</strong>…
-          </p>
-        </div>
-      </AppShell>
-    );
-  }
-
-  const totalLessons = course?.modules?.reduce((acc, m) => acc + m.lessons.length, 0) ?? 0;
-  const isOwner = user && (!course?.authorId || course?.authorId === user.uid);
-
-  return (
-    <AppShell activeTopic={topic}>
-      {showAuth && <AuthModal onClose={() => setShowAuth(false)} />}
-
-      <div style={{ flex: 1, overflowY: "auto", background: "var(--bg-canvas)" }}>
-        {/* Header */}
-        <div style={{ background: "var(--bg-content)", borderBottom: "1px solid var(--border)", padding: "32px 40px 28px" }}>
-          <p style={{ fontSize: "0.8rem", color: "var(--text-muted)", marginBottom: "8px", fontWeight: 500 }}>COURSE</p>
-          <h1 style={{ fontFamily: "var(--font-display)", fontSize: "2rem", fontWeight: 700, letterSpacing: "-0.02em", color: "var(--text-primary)", marginBottom: "12px" }}>
-            {topic}
-          </h1>
-          {course?.mission && (
-            <p style={{ color: "var(--text-secondary)", fontSize: "1rem", maxWidth: "680px", lineHeight: 1.6 }}>
-              {course.mission}
-            </p>
-          )}
-
-          {/* Stats + Visibility */}
-          <div style={{ display: "flex", alignItems: "center", gap: "16px", marginTop: "20px", flexWrap: "wrap" }}>
-            <span style={{ fontSize: "0.875rem", color: "var(--text-muted)" }}>📦 {course?.modules?.length ?? 0} modules</span>
-            <span style={{ fontSize: "0.875rem", color: "var(--text-muted)" }}>📖 {totalLessons} lessons</span>
-
-            {/* Visibility badge — only for owners */}
-            {isOwner && course?.courseId && (
-              <button
-                onClick={toggleVisibility}
-                disabled={togglingVisibility}
-                style={{
-                  display: "inline-flex", alignItems: "center", gap: "6px",
-                  padding: "5px 12px",
-                  borderRadius: "var(--radius-pill)",
-                  border: `1.5px solid ${course.isPublic ? "var(--success)" : "var(--border-strong)"}`,
-                  background: course.isPublic ? "var(--success-subtle)" : "var(--bg-surface)",
-                  color: course.isPublic ? "var(--success)" : "var(--text-secondary)",
-                  fontSize: "0.8rem", fontWeight: 600, cursor: "pointer",
-                  transition: "all 0.15s",
-                }}
-              >
-                {togglingVisibility ? "…" : course.isPublic ? "🌐 Public" : "🔒 Private"}
-              </button>
-            )}
-
-            {isOwner && course?.courseId && (
-              <button
-                onClick={deleteCourse}
-                disabled={deleting}
-                style={{
-                  display: "inline-flex", alignItems: "center", gap: "6px",
-                  padding: "5px 12px",
-                  borderRadius: "var(--radius-pill)",
-                  border: "1.5px solid var(--error-subtle)",
-                  background: "var(--bg-surface)",
-                  color: "var(--error)",
-                  fontSize: "0.8rem", fontWeight: 600, cursor: "pointer",
-                  transition: "all 0.15s",
-                }}
-                onMouseEnter={(e) => {
-                  (e.currentTarget as HTMLButtonElement).style.background = "var(--error-subtle)";
-                }}
-                onMouseLeave={(e) => {
-                  (e.currentTarget as HTMLButtonElement).style.background = "var(--bg-surface)";
-                }}
-              >
-                {deleting ? "…" : "🗑️ Delete"}
-              </button>
-            )}
-
-            {/* Sign-in nudge for unauthenticated users */}
-            {!user && (
-              <button onClick={() => setShowAuth(true)} style={{ fontSize: "0.8rem", color: "var(--accent)", background: "none", border: "none", cursor: "pointer", padding: 0 }}>
-                Sign in to save this course →
-              </button>
-            )}
+      <AppShell activeTopic={topic} activeCourseId={requestedCourseId}>
+        <div className="center-state error-state">
+          <span className="state-icon"><LockKeyhole size={23} /></span>
+          <p className="overline">Course unavailable</p>
+          <h1>{requestedCourseId ? "This learning path can’t be opened" : "Private course creation"}</h1>
+          <p>{error || "The course could not be found."}</p>
+          <div className="state-actions">
+            <button className="button button-secondary" onClick={() => router.push("/")}><ArrowLeft size={16} /> Return to library</button>
+            {isOwner && <button className="button button-primary" onClick={loadOrGenerate}>Try again</button>}
           </div>
         </div>
+      </AppShell>
+    );
+  }
 
-        {/* Module Accordion */}
-        <div style={{ padding: "32px 40px", display: "flex", flexDirection: "column", gap: "16px", maxWidth: "860px" }}>
-          {course?.modules?.map((mod, modIdx) => (
-            <div key={modIdx} style={{ background: "var(--bg-content)", border: "1px solid var(--border)", borderRadius: "var(--radius-md)", overflow: "hidden", boxShadow: "var(--shadow-sm)" }}>
-              {/* Module header */}
-              <button
-                onClick={() => setExpandedMod(expandedMod === modIdx ? null : modIdx)}
-                style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "space-between", padding: "18px 24px", background: "none", border: "none", cursor: "pointer", textAlign: "left", borderBottom: expandedMod === modIdx ? "1px solid var(--border)" : "none" }}
-              >
-                <div style={{ display: "flex", alignItems: "center", gap: "14px" }}>
-                  <span style={{ width: "32px", height: "32px", borderRadius: "8px", background: "var(--accent-subtle)", border: "1px solid var(--accent-border)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "0.8rem", fontWeight: 700, color: "var(--accent)", flexShrink: 0 }}>
-                    {modIdx + 1}
-                  </span>
-                  <div>
-                    <div style={{ fontSize: "0.72rem", color: "var(--text-muted)", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: "2px" }}>Module {modIdx + 1}</div>
-                    <div style={{ fontWeight: 600, color: "var(--text-primary)", fontFamily: "var(--font-display)" }}>{mod.title}</div>
-                  </div>
-                </div>
-                <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-                  <span style={{ fontSize: "0.8rem", color: "var(--text-muted)" }}>{mod.lessons.length} lessons</span>
-                  <span style={{ color: "var(--text-muted)", fontSize: "0.9rem" }}>{expandedMod === modIdx ? "▲" : "▼"}</span>
-                </div>
-              </button>
+  return (
+    <AppShell activeTopic={topic} activeCourseId={courseId}>
+      <div className="course-page">
+        <header className="course-header">
+          <div className="course-header-topline">
+            <button className="text-button" onClick={() => router.push("/")}><ArrowLeft size={15} /> Public library</button>
+            <span className={`status-badge ${course.isPublic ? "status-public" : "status-private"}`}>
+              {course.isPublic ? <Globe2 size={14} /> : <LockKeyhole size={14} />}
+              {course.isPublic ? "Public course" : "Private draft"}
+            </span>
+          </div>
 
-              {/* Lessons list */}
-              {expandedMod === modIdx && (
-                <div>
-                  {mod.lessons.map((lesson, lesIdx) => (
-                    <button
-                      key={lesIdx}
-                      onClick={() => router.push(`/course/${encodeURIComponent(topic)}/lesson/${modIdx}-${lesIdx}`)}
-                      style={{ width: "100%", display: "flex", alignItems: "center", gap: "16px", padding: "16px 24px", background: "none", border: "none", borderBottom: lesIdx < mod.lessons.length - 1 ? "1px solid var(--border)" : "none", cursor: "pointer", textAlign: "left", transition: "background 0.15s" }}
-                      onMouseEnter={(e) => ((e.currentTarget as HTMLElement).style.background = "var(--bg-surface)")}
-                      onMouseLeave={(e) => ((e.currentTarget as HTMLElement).style.background = "none")}
-                    >
-                      <div style={{ width: "36px", height: "36px", borderRadius: "50%", border: "2px solid var(--border)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "0.8rem", color: "var(--text-muted)", flexShrink: 0 }}>
-                        {lesIdx + 1}
-                      </div>
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ fontWeight: 500, color: "var(--text-primary)", marginBottom: "2px" }}>{lesson.title}</div>
-                        <div style={{ fontSize: "0.85rem", color: "var(--text-muted)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{lesson.concept}</div>
-                      </div>
-                      <span style={{ color: "var(--text-muted)", fontSize: "0.9rem", flexShrink: 0 }}>→</span>
-                    </button>
-                  ))}
-                </div>
-              )}
+          <div className="course-title-row">
+            <div>
+              <p className="overline">Learning path</p>
+              <h1>{topic}</h1>
+              <p className="course-mission">{course.mission}</p>
             </div>
-          ))}
-        </div>
+            <div className="course-facts" aria-label="Course summary">
+              <span><Layers3 size={17} /><strong>{course.modules.length}</strong> modules</span>
+              <span><BookOpen size={17} /><strong>{totalLessons}</strong> lessons</span>
+            </div>
+          </div>
+
+          <div className="progress-strip">
+            <div><span>Course progress</span><strong>{progress}%</strong></div>
+            <div className="progress-track" aria-label={`${progress}% complete`}><span style={{ transform: `scaleX(${progress / 100})` }} /></div>
+            <p>{completedLessons.length} of {totalLessons} lessons completed on this device</p>
+          </div>
+
+          {isOwner && (
+            <div className="course-owner-actions">
+              <button className="button button-secondary" onClick={updateVisibility} disabled={updating}>
+                {updating ? <LoaderCircle className="spin" size={16} /> : course.isPublic ? <LockKeyhole size={16} /> : <Globe2 size={16} />}
+                {course.isPublic ? "Return to private" : "Publish course"}
+              </button>
+              <button className={`button ${deleteArmed ? "button-danger" : "button-quiet"}`} onClick={deleteCourse} disabled={updating}>
+                <Trash2 size={16} /> {deleteArmed ? "Confirm delete" : "Delete course"}
+              </button>
+            </div>
+          )}
+        </header>
+
+        <section className="curriculum" aria-labelledby="curriculum-title">
+          <div className="section-heading">
+            <div><p className="overline">Curriculum</p><h2 id="curriculum-title">From foundation to fluency</h2></div>
+            <p>Move in order or open the concept you need. Your completed lessons are marked locally.</p>
+          </div>
+
+          <div className="module-list">
+            {course.modules.map((module, moduleIndex) => {
+              const expanded = expandedModule === moduleIndex;
+              const completedInModule = module.lessons.filter((_, lessonIndex) => completedLessons.includes(`${moduleIndex}-${lessonIndex}`)).length;
+              return (
+                <article className={`module-section ${expanded ? "is-open" : ""}`} key={`${module.title}-${moduleIndex}`}>
+                  <button className="module-trigger" onClick={() => setExpandedModule(expanded ? null : moduleIndex)} aria-expanded={expanded}>
+                    <span className="module-sequence">Module {moduleIndex + 1}</span>
+                    <span className="module-title"><strong>{module.title}</strong><small>{module.description}</small></span>
+                    <span className="module-completion">{completedInModule}/{module.lessons.length}</span>
+                    {expanded ? <ChevronDown size={19} /> : <ChevronRight size={19} />}
+                  </button>
+
+                  {expanded && (
+                    <div className="lesson-list">
+                      {module.lessons.map((lesson, lessonIndex) => {
+                        const lessonId = `${moduleIndex}-${lessonIndex}`;
+                        const complete = completedLessons.includes(lessonId);
+                        return (
+                          <button
+                            className="lesson-row"
+                            key={lessonId}
+                            onClick={() => router.push(`/course/${encodeURIComponent(topic)}/lesson/${lessonId}${courseId ? `?id=${courseId}` : ""}`)}
+                          >
+                            <span className={`lesson-status ${complete ? "is-complete" : ""}`}>{complete ? <Check size={14} /> : <Circle size={9} />}</span>
+                            <span><strong>{lesson.title}</strong><small>{lesson.concept}</small></span>
+                            <span className="lesson-duration">Read & practice</span>
+                            <ArrowRight size={17} />
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+                </article>
+              );
+            })}
+          </div>
+        </section>
       </div>
     </AppShell>
   );

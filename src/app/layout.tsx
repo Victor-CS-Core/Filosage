@@ -1,22 +1,34 @@
-import type { Metadata } from "next";
-import { Inter, Outfit } from "next/font/google";
+import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import { ThemeProvider } from "@/components/ThemeProvider";
 import { AuthProvider } from "@/components/AuthProvider";
 
-const inter = Inter({
-  variable: "--font-inter",
-  subsets: ["latin"],
-});
-
-const outfit = Outfit({
-  variable: "--font-outfit",
-  subsets: ["latin"],
-});
-
 export const metadata: Metadata = {
-  title: "Teach App | Learn Anything",
-  description: "An AI-powered platform to learn any topic intuitively.",
+  title: {
+    default: "Teach - Learn with structure",
+    template: "%s | Teach",
+  },
+  description: "Focused learning paths with clear explanations, visual models, and retrieval practice.",
+  applicationName: "Teach",
+  category: "education",
+  openGraph: {
+    title: "Teach - Learn with structure",
+    description: "Focused learning paths designed for real understanding.",
+    type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Teach - Learn with structure",
+    description: "Focused learning paths designed for real understanding.",
+  },
+};
+
+export const viewport: Viewport = {
+  colorScheme: "light dark",
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#f7f7fa" },
+    { media: "(prefers-color-scheme: dark)", color: "#17171d" },
+  ],
 };
 
 export default function RootLayout({
@@ -26,15 +38,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <head>
-        {/* Blocking script: apply theme before first paint to prevent flash */}
-        <script
-          dangerouslySetInnerHTML={{
-            __html: `(function(){try{var t=localStorage.getItem('teach-theme');if(t){document.documentElement.setAttribute('data-theme',t);}else if(window.matchMedia('(prefers-color-scheme: dark)').matches){document.documentElement.setAttribute('data-theme','dark');}}catch(e){}})();`,
-          }}
-        />
-      </head>
-      <body className={`${inter.variable} ${outfit.variable} antialiased`} suppressHydrationWarning>
+      <body suppressHydrationWarning>
         <ThemeProvider>
           <AuthProvider>
             {children}

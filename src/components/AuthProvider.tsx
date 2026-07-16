@@ -2,38 +2,40 @@
 
 import {
   createContext,
+  useCallback,
   useContext,
   useEffect,
+  useMemo,
   useState,
-  useCallback,
 } from "react";
 import {
-  User,
   GoogleAuthProvider,
+  getRedirectResult,
+  onAuthStateChanged,
   signInWithPopup,
   signInWithRedirect,
-  getRedirectResult,
   signOut as firebaseSignOut,
-  onAuthStateChanged,
+  type User,
 } from "firebase/auth";
+import { OWNER_EMAIL } from "@/lib/auth-constants";
 import { auth } from "@/lib/firebase";
 
 interface AuthContextValue {
   user: User | null;
+  isOwner: boolean;
   loading: boolean;
+  error: string | null;
+  clearError: () => void;
   signInWithGoogle: () => Promise<void>;
   signOut: () => Promise<void>;
 }
 
-const AuthContext = createContext<AuthContextValue>({
-  user: null,
-  loading: true,
-  signInWithGoogle: async () => {},
-  signOut: async () => {},
-});
+const AuthContext = createContext<AuthContextValue | null>(null);
 
 export function useAuth() {
-  return useContext(AuthContext);
+  const value = useContext(AuthContext);
+  if (!value) throw new Error("useAuth must be used within AuthProvider.");
+  return value;
 }
 
 function isMobileBrowser() {
@@ -41,42 +43,85 @@ function isMobileBrowser() {
   return /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
 }
 
+function isOwnerAccount(user: User | null) {
+  return user?.email?.trim().toLowerCase() === OWNER_EMAIL;
+}
+
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(Boolean(auth));
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    // Handle redirect result on app load (mobile SSO flow)
-    getRedirectResult(auth).catch(() => {
-      // Redirect result errors are non-fatal (e.g. user cancelled)
-    });
+    const firebaseAuth = auth;
+    if (!firebaseAuth) {
+      return;
+    }
 
-    const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
-      setUser(firebaseUser);
+    getRedirectResult(firebaseAuth)
+      .then(async (result) => {
+        if (result?.user && !isOwnerAccount(result.user)) {
+          await firebaseSignOut(firebaseAuth);
+          setError(`Teach Studio is limited to ${OWNER_EMAIL}.`);
+        }
+      })
+      .catch(() => setError("Google sign-in could not be completed."));
+
+    return onAuthStateChanged(firebaseAuth, async (nextUser) => {
+      if (nextUser && !isOwnerAccount(nextUser)) {
+        await firebaseSignOut(firebaseAuth);
+        setUser(null);
+        setError(`Teach Studio is limited to ${OWNER_EMAIL}.`);
+      } else {
+        setUser(nextUser);
+      }
       setLoading(false);
     });
-
-    return unsubscribe;
   }, []);
 
   const signInWithGoogle = useCallback(async () => {
+    setError(null);
+    if (!auth) {
+      setError("Google sign-in is not configured in this local environment.");
+      throw new Error("Firebase is not configured.");
+    }
     const provider = new GoogleAuthProvider();
-    provider.setCustomParameters({ prompt: "select_account" });
+    provider.setCustomParameters({
+      prompt: "select_account",
+      login_hint: OWNER_EMAIL,
+    });
 
     if (isMobileBrowser()) {
       await signInWithRedirect(auth, provider);
-    } else {
-      await signInWithPopup(auth, provider);
+      return;
+    }
+
+    const result = await signInWithPopup(auth, provider);
+    if (!isOwnerAccount(result.user)) {
+      await firebaseSignOut(auth);
+      setError(`Teach Studio is limited to ${OWNER_EMAIL}.`);
+      throw new Error("Account not authorized.");
     }
   }, []);
 
   const signOut = useCallback(async () => {
+    setError(null);
+    if (!auth) return;
     await firebaseSignOut(auth);
   }, []);
 
-  return (
-    <AuthContext.Provider value={{ user, loading, signInWithGoogle, signOut }}>
-      {children}
-    </AuthContext.Provider>
+  const value = useMemo<AuthContextValue>(
+    () => ({
+      user,
+      isOwner: isOwnerAccount(user),
+      loading,
+      error,
+      clearError: () => setError(null),
+      signInWithGoogle,
+      signOut,
+    }),
+    [user, loading, error, signInWithGoogle, signOut],
   );
+
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

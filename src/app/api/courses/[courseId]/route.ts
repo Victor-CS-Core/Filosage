@@ -1,99 +1,96 @@
-import { NextResponse } from "next/server";
-import { adminAuth, adminDb } from "@/lib/firebase-admin";
 import { FieldValue } from "firebase-admin/firestore";
+import { NextResponse } from "next/server";
+import { authorizationResponse, requireOwner } from "@/lib/auth-server";
+import { getAdminDb } from "@/lib/firebase-admin";
 
 interface RouteParams {
   params: Promise<{ courseId: string }>;
 }
-
-// ── GET: fetch a single course ─────────────────────────────────────────
 export async function GET(request: Request, { params }: RouteParams) {
   const { courseId } = await params;
   try {
-    const doc = await adminDb.collection("courses").doc(courseId).get();
-    if (!doc.exists) return NextResponse.json({ error: "Not found" }, { status: 404 });
+    const doc = await getAdminDb().collection("courses").doc(courseId).get();
+    if (!doc.exists) return NextResponse.json({ error: "Course not found." }, { status: 404 });
 
     const data = doc.data()!;
-
-    // Check access: public or owner
     if (!data.isPublic) {
-      const authHeader = request.headers.get("Authorization");
-      if (!authHeader?.startsWith("Bearer ")) {
-        return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-      }
-      const decoded = await adminAuth.verifyIdToken(authHeader.slice(7));
-      if (decoded.uid !== data.authorId) {
-        return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+      const owner = await requireOwner(request);
+      if (owner.uid !== data.authorId) {
+        return NextResponse.json({ error: "You do not have access to this course." }, { status: 403 });
       }
     }
 
-    return NextResponse.json({ courseId: doc.id, ...data });
+    return NextResponse.json(
+      { courseId: doc.id, ...data },
+      data.isPublic
+        ? { headers: { "Cache-Control": "public, max-age=60, stale-while-revalidate=300" } }
+        : undefined,
+    );
   } catch (error: unknown) {
-    return NextResponse.json({ error: (error as Error).message }, { status: 500 });
+    const authResponse = authorizationResponse(error);
+    if (authResponse) return authResponse;
+    console.error("Course fetch failed:", error);
+    return NextResponse.json({ error: "The course is temporarily unavailable." }, { status: 500 });
   }
 }
 
-// ── PATCH: toggle isPublic ─────────────────────────────────────────────
 export async function PATCH(request: Request, { params }: RouteParams) {
   const { courseId } = await params;
   try {
-    const authHeader = request.headers.get("Authorization");
-    if (!authHeader?.startsWith("Bearer ")) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-    const decoded = await adminAuth.verifyIdToken(authHeader.slice(7));
-
-    const courseRef = adminDb.collection("courses").doc(courseId);
+    const owner = await requireOwner(request);
+    const courseRef = getAdminDb().collection("courses").doc(courseId);
     const courseDoc = await courseRef.get();
-    if (!courseDoc.exists) return NextResponse.json({ error: "Not found" }, { status: 404 });
-    if (courseDoc.data()?.authorId !== decoded.uid) {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    if (!courseDoc.exists) return NextResponse.json({ error: "Course not found." }, { status: 404 });
+    if (courseDoc.data()?.authorId !== owner.uid) {
+      return NextResponse.json({ error: "You do not own this course." }, { status: 403 });
     }
 
-    const { isPublic } = await request.json();
-    const batch = adminDb.batch();
+    const body = await request.json();
+    if (typeof body.isPublic !== "boolean") {
+      return NextResponse.json({ error: "Visibility must be true or false." }, { status: 400 });
+    }
 
-    // Update the course document
-    batch.update(courseRef, { isPublic, updatedAt: FieldValue.serverTimestamp() });
-
-    // Batch-update all lesson subcollection docs (denormalization sync)
-    const lessonsSnap = await courseRef.collection("lessons").get();
-    lessonsSnap.docs.forEach((lessonDoc) => {
-      batch.update(lessonDoc.ref, { isPublic });
+    const batch = getAdminDb().batch();
+    batch.update(courseRef, {
+      isPublic: body.isPublic,
+      updatedAt: FieldValue.serverTimestamp(),
     });
-
+    const lessons = await courseRef.collection("lessons").get();
+    lessons.docs.forEach((lesson) => batch.update(lesson.ref, { isPublic: body.isPublic }));
     await batch.commit();
-    return NextResponse.json({ success: true, isPublic });
+
+    return NextResponse.json({ success: true, isPublic: body.isPublic });
   } catch (error: unknown) {
-    return NextResponse.json({ error: (error as Error).message }, { status: 500 });
+    const authResponse = authorizationResponse(error);
+    if (authResponse) return authResponse;
+    console.error("Course visibility update failed:", error);
+    return NextResponse.json({ error: "Visibility could not be updated." }, { status: 500 });
   }
 }
 
-// ── DELETE: remove a course and all its lessons ────────────────────────
 export async function DELETE(request: Request, { params }: RouteParams) {
   const { courseId } = await params;
   try {
-    const authHeader = request.headers.get("Authorization");
-    if (!authHeader?.startsWith("Bearer ")) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-    const decoded = await adminAuth.verifyIdToken(authHeader.slice(7));
-
-    const courseRef = adminDb.collection("courses").doc(courseId);
+    const owner = await requireOwner(request);
+    const db = getAdminDb();
+    const courseRef = db.collection("courses").doc(courseId);
     const courseDoc = await courseRef.get();
-    if (!courseDoc.exists) return NextResponse.json({ error: "Not found" }, { status: 404 });
-    if (courseDoc.data()?.authorId !== decoded.uid) {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    if (!courseDoc.exists) return NextResponse.json({ error: "Course not found." }, { status: 404 });
+    if (courseDoc.data()?.authorId !== owner.uid) {
+      return NextResponse.json({ error: "You do not own this course." }, { status: 403 });
     }
 
-    const batch = adminDb.batch();
-    const lessonsSnap = await courseRef.collection("lessons").get();
-    lessonsSnap.docs.forEach((doc) => batch.delete(doc.ref));
+    const batch = db.batch();
+    const lessons = await courseRef.collection("lessons").get();
+    lessons.docs.forEach((lesson) => batch.delete(lesson.ref));
     batch.delete(courseRef);
     await batch.commit();
 
     return NextResponse.json({ success: true });
   } catch (error: unknown) {
-    return NextResponse.json({ error: (error as Error).message }, { status: 500 });
+    const authResponse = authorizationResponse(error);
+    if (authResponse) return authResponse;
+    console.error("Course deletion failed:", error);
+    return NextResponse.json({ error: "The course could not be deleted." }, { status: 500 });
   }
 }

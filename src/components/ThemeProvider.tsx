@@ -4,45 +4,34 @@ import { createContext, useContext, useEffect, useState } from "react";
 
 type Theme = "light" | "dark";
 
-const ThemeContext = createContext<{
-  theme: Theme;
-  toggle: () => void;
-}>({ theme: "light", toggle: () => {} });
+const ThemeContext = createContext<{ theme: Theme; toggle: () => void }>({
+  theme: "light",
+  toggle: () => undefined,
+});
 
 export function useTheme() {
   return useContext(ThemeContext);
 }
 
+function storedTheme(): Theme {
+  const stored = localStorage.getItem("teach-theme");
+  if (stored === "light" || stored === "dark") return stored;
+  return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+}
+
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const [theme, setTheme] = useState<Theme>("light");
-  const [mounted, setMounted] = useState(false);
 
-  // On mount: read persisted preference (or system preference)
   useEffect(() => {
-    const stored = localStorage.getItem("teach-theme") as Theme | null;
-    const preferred = stored
-      ?? (window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
-    setTheme(preferred);
-    document.documentElement.setAttribute("data-theme", preferred);
-    setMounted(true);
+    queueMicrotask(() => setTheme(storedTheme()));
   }, []);
 
-  const toggle = () => {
-    const next: Theme = theme === "light" ? "dark" : "light";
-    setTheme(next);
-    localStorage.setItem("teach-theme", next);
-    document.documentElement.setAttribute("data-theme", next);
-  };
+  useEffect(() => {
+    document.documentElement.setAttribute("data-theme", theme);
+    localStorage.setItem("teach-theme", theme);
+  }, [theme]);
 
-  // Render children only after mount to avoid hydration mismatch on data-theme
-  if (!mounted) {
-    // Render a transparent shell that has the same structure so layout doesn't jump
-    return <ThemeContext.Provider value={{ theme, toggle }}>{children}</ThemeContext.Provider>;
-  }
+  const toggle = () => setTheme((current) => (current === "light" ? "dark" : "light"));
 
-  return (
-    <ThemeContext.Provider value={{ theme, toggle }}>
-      {children}
-    </ThemeContext.Provider>
-  );
+  return <ThemeContext.Provider value={{ theme, toggle }}>{children}</ThemeContext.Provider>;
 }

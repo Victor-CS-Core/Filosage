@@ -1,224 +1,191 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import AppShell from "@/components/AppShell";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-
-interface Course {
-  id: string;
-  topic: string;
-  mission?: string;
-  authorName?: string;
-  authorPhoto?: string;
-}
+import {
+  ArrowRight,
+  BookMarked,
+  BookOpen,
+  BrainCircuit,
+  CheckCircle2,
+  Library,
+  RefreshCw,
+  Search,
+} from "lucide-react";
+import AppShell from "@/components/AppShell";
+import { useAuth } from "@/components/AuthProvider";
+import type { Course } from "@/lib/course-types";
 
 export default function Home() {
   const router = useRouter();
-  const [publicCourses, setPublicCourses] = useState<Course[]>([]);
+  const { isOwner } = useAuth();
+  const [courses, setCourses] = useState<Course[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [query, setQuery] = useState("");
+  const [topic, setTopic] = useState("");
+
+  const loadCourses = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const response = await fetch("/api/courses?scope=public");
+      if (!response.ok) throw new Error("The public library could not be reached.");
+      const data = (await response.json()) as { courses: Course[] };
+      setCourses(data.courses);
+    } catch (loadError) {
+      setError(loadError instanceof Error ? loadError.message : "The public library could not be reached.");
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
   useEffect(() => {
-    async function fetchPublic() {
-      try {
-        const res = await fetch("/api/courses?scope=public");
-        if (res.ok) {
-          const data = await res.json();
-          setPublicCourses(data.courses);
-        }
-      } catch (err) {
-        console.error("Failed to fetch public courses", err);
-      } finally {
-        setLoading(false);
-      }
-    }
-    fetchPublic();
-  }, []);
+    void Promise.resolve().then(loadCourses);
+  }, [loadCourses]);
+
+  const filteredCourses = useMemo(() => {
+    const normalized = query.trim().toLowerCase();
+    if (!normalized) return courses;
+    return courses.filter((course) =>
+      [course.topic, course.mission, course.authorName]
+        .filter(Boolean)
+        .some((value) => value!.toLowerCase().includes(normalized)),
+    );
+  }, [courses, query]);
+
+  const createCourse = (event: React.FormEvent) => {
+    event.preventDefault();
+    const value = topic.trim();
+    if (!value) return;
+    router.push(`/course/${encodeURIComponent(value)}`);
+  };
+
   return (
     <AppShell>
-      <div
-        style={{
-          flex: 1,
-          display: "flex",
-          flexDirection: "column",
-          alignItems: "center",
-          justifyContent: "center",
-          padding: "40px",
-          gap: "24px",
-          background: "var(--bg-canvas)",
-          overflowY: "auto",
-        }}
-      >
-        <div
-          className="animate-fade-in"
-          style={{
-            maxWidth: "560px",
-            width: "100%",
-            textAlign: "center",
-          }}
-        >
-          {/* Icon */}
-          <div
-            style={{
-              width: "72px",
-              height: "72px",
-              borderRadius: "20px",
-              background: "var(--accent-subtle)",
-              border: "1.5px solid var(--accent-border)",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              fontSize: "2rem",
-              margin: "0 auto 28px",
-            }}
-          >
-            ✦
-          </div>
-
-          <h1
-            style={{
-              fontFamily: "var(--font-display)",
-              fontSize: "2.4rem",
-              fontWeight: 700,
-              letterSpacing: "-0.03em",
-              color: "var(--text-primary)",
-              marginBottom: "12px",
-              lineHeight: 1.2,
-            }}
-          >
-            What do you want to learn?
-          </h1>
-          <p
-            style={{
-              color: "var(--text-secondary)",
-              fontSize: "1.1rem",
-              marginBottom: "40px",
-              lineHeight: 1.6,
-            }}
-          >
-            Enter any topic, skill, or subject. The AI will build you a
-            personalized course with lessons, diagrams, and quizzes.
-          </p>
-
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))",
-              gap: "10px",
-              marginBottom: "40px",
-            }}
-          >
-            {[
-              "⚛️ Quantum Physics",
-              "🧠 Machine Learning",
-              "🎸 Music Theory",
-              "📐 Linear Algebra",
-              "🌿 Plant Biology",
-              "🏛️ Roman History",
-            ].map((suggestion) => {
-              const label = suggestion.split(" ").slice(1).join(" ");
-              return (
-                <button
-                  key={label}
-                  style={{
-                    padding: "10px 14px",
-                    borderRadius: "var(--radius-md)",
-                    border: "1.5px solid var(--border)",
-                    background: "var(--bg-content)",
-                    color: "var(--text-secondary)",
-                    fontSize: "0.875rem",
-                    cursor: "pointer",
-                    transition: "all 0.15s",
-                    fontFamily: "var(--font-body)",
-                    textAlign: "left",
-                  }}
-                  onMouseEnter={(e) => {
-                    (e.target as HTMLButtonElement).style.borderColor = "var(--accent)";
-                    (e.target as HTMLButtonElement).style.color = "var(--accent)";
-                    (e.target as HTMLButtonElement).style.background = "var(--accent-subtle)";
-                  }}
-                  onMouseLeave={(e) => {
-                    (e.target as HTMLButtonElement).style.borderColor = "var(--border)";
-                    (e.target as HTMLButtonElement).style.color = "var(--text-secondary)";
-                    (e.target as HTMLButtonElement).style.background = "var(--bg-content)";
-                  }}
-                  onClick={() => router.push(`/course/${encodeURIComponent(label)}`)}
-                >
-                  {suggestion}
-                </button>
-              );
-            })}
-          </div>
-
-          <p style={{ color: "var(--text-muted)", fontSize: "0.875rem", marginBottom: "40px" }}>
-            👈 Or enter your own topic in the sidebar to get started.
-          </p>
-
-          {/* Discover Section */}
-          <div style={{ width: "100%", textAlign: "left", paddingTop: "40px", borderTop: "1px solid var(--border)" }}>
-            <h2 style={{ fontFamily: "var(--font-display)", fontSize: "1.5rem", fontWeight: 700, color: "var(--text-primary)", marginBottom: "8px" }}>
-              Discover Public Courses
-            </h2>
-            <p style={{ color: "var(--text-secondary)", fontSize: "0.95rem", marginBottom: "24px" }}>
-              Explore what others are learning.
+      <div className="home-page">
+        <section className="home-hero" aria-labelledby="home-title">
+          <div className="hero-copy">
+            <div className="hero-status"><span /> Public learning library</div>
+            <h1 id="home-title">Learn with structure.<br />Understand with depth.</h1>
+            <p>
+              Teach turns complex subjects into calm, focused learning paths—clear explanations, visual models, and retrieval practice included.
             </p>
 
-            {loading ? (
-              <div style={{ display: "flex", alignItems: "center", gap: "10px", color: "var(--text-muted)", fontSize: "0.9rem" }}>
-                <div className="spinner" style={{ width: "16px", height: "16px", borderWidth: "2px" }} /> Loading courses...
-              </div>
-            ) : publicCourses.length === 0 ? (
-              <p style={{ color: "var(--text-muted)", fontSize: "0.9rem" }}>No public courses available yet.</p>
-            ) : (
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(240px, 1fr))", gap: "16px" }}>
-                {publicCourses.map((c) => (
-                  <button
-                    key={c.id}
-                    onClick={() => router.push(`/course/${encodeURIComponent(c.topic)}?id=${c.id}`)}
-                    style={{
-                      background: "var(--bg-content)", border: "1px solid var(--border)", borderRadius: "var(--radius-md)",
-                      padding: "20px", textAlign: "left", cursor: "pointer", transition: "all 0.15s",
-                      boxShadow: "var(--shadow-sm)", display: "flex", flexDirection: "column", gap: "12px"
-                    }}
-                    onMouseEnter={(e) => {
-                      (e.currentTarget as HTMLElement).style.borderColor = "var(--accent)";
-                      (e.currentTarget as HTMLElement).style.transform = "translateY(-2px)";
-                      (e.currentTarget as HTMLElement).style.boxShadow = "var(--shadow-md)";
-                    }}
-                    onMouseLeave={(e) => {
-                      (e.currentTarget as HTMLElement).style.borderColor = "var(--border)";
-                      (e.currentTarget as HTMLElement).style.transform = "translateY(0)";
-                      (e.currentTarget as HTMLElement).style.boxShadow = "var(--shadow-sm)";
-                    }}
-                  >
-                    <h3 style={{ fontSize: "1.1rem", fontWeight: 600, color: "var(--text-primary)", lineHeight: 1.3 }}>
-                      {c.topic}
-                    </h3>
-                    {c.mission && (
-                      <p style={{ fontSize: "0.85rem", color: "var(--text-secondary)", lineHeight: 1.5, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>
-                        {c.mission}
-                      </p>
-                    )}
-                    <div style={{ display: "flex", alignItems: "center", gap: "8px", marginTop: "auto", paddingTop: "12px" }}>
-                      {c.authorPhoto ? (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img src={c.authorPhoto} alt="" style={{ width: 20, height: 20, borderRadius: "50%" }} />
-                      ) : (
-                        <div style={{ width: 20, height: 20, borderRadius: "50%", background: "var(--accent)", color: "white", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "10px", fontWeight: "bold" }}>
-                          {c.authorName?.[0] ?? "?"}
-                        </div>
-                      )}
-                      <span style={{ fontSize: "0.8rem", color: "var(--text-muted)" }}>
-                        {c.authorName ?? "Anonymous"}
-                      </span>
-                    </div>
+            {isOwner ? (
+              <form className="hero-create" onSubmit={createCourse}>
+                <label htmlFor="hero-topic">What do you want to master next?</label>
+                <div>
+                  <input
+                    id="hero-topic"
+                    value={topic}
+                    onChange={(event) => setTopic(event.target.value)}
+                    placeholder="e.g. systems thinking, music theory, molecular biology"
+                    maxLength={120}
+                  />
+                  <button className="button button-primary" type="submit" disabled={!topic.trim()}>
+                    Build course <ArrowRight size={17} />
                   </button>
-                ))}
+                </div>
+              </form>
+            ) : (
+              <div className="hero-actions">
+                <a className="button button-primary" href="#library">Explore public courses <ArrowRight size={17} /></a>
+                <span>No account required to learn.</span>
               </div>
             )}
           </div>
-        </div>
-      </div>
 
+          <div className="learning-method" aria-label="Teach learning method">
+            <div className="method-header">
+              <span>One learning loop</span>
+              <span>Built for retention</span>
+            </div>
+            <ol>
+              <li>
+                <span className="method-index">A</span>
+                <div><strong>Frame the concept</strong><p>Start with the mental model, not a wall of information.</p></div>
+                <BrainCircuit size={19} />
+              </li>
+              <li>
+                <span className="method-index">B</span>
+                <div><strong>Make it visible</strong><p>Use diagrams and examples to expose the relationships.</p></div>
+                <BookMarked size={19} />
+              </li>
+              <li>
+                <span className="method-index">C</span>
+                <div><strong>Retrieve, then advance</strong><p>Test understanding before moving to the next idea.</p></div>
+                <CheckCircle2 size={19} />
+              </li>
+            </ol>
+          </div>
+        </section>
+
+        <section className="library-section" id="library" aria-labelledby="library-title">
+          <div className="section-heading library-heading">
+            <div>
+              <p className="overline">Published by Teach</p>
+              <h2 id="library-title">Public course library</h2>
+              <p>Open a course and learn at your own pace. Progress stays on this device.</p>
+            </div>
+            <label className="search-field">
+              <Search size={17} />
+              <span className="sr-only">Search courses</span>
+              <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search the library" />
+            </label>
+          </div>
+
+          {loading ? (
+            <div className="course-list" aria-label="Loading public courses">
+              {[0, 1, 2].map((item) => <div className="course-row-skeleton" key={item} />)}
+            </div>
+          ) : error ? (
+            <div className="state-panel">
+              <RefreshCw size={22} />
+              <div><h3>Library unavailable</h3><p>{error}</p></div>
+              <button className="button button-secondary" onClick={loadCourses}>Try again</button>
+            </div>
+          ) : filteredCourses.length === 0 ? (
+            <div className="state-panel">
+              <Library size={22} />
+              <div>
+                <h3>{query ? "No matching courses" : "The first public course is coming soon"}</h3>
+                <p>{query ? "Try a broader topic or clear your search." : "Published learning paths will appear here."}</p>
+              </div>
+              {query && <button className="button button-secondary" onClick={() => setQuery("")}>Clear search</button>}
+            </div>
+          ) : (
+            <div className="course-list">
+              {filteredCourses.map((course, index) => {
+                const id = course.id ?? course.courseId;
+                const lessonCount = course.modules.reduce((sum, module) => sum + module.lessons.length, 0);
+                return (
+                  <button
+                    className="course-row"
+                    key={id ?? `${course.topic}-${index}`}
+                    onClick={() => router.push(`/course/${encodeURIComponent(course.topic)}${id ? `?id=${id}` : ""}`)}
+                  >
+                    <span className="course-row-main">
+                      <strong>{course.topic}</strong>
+                      <span>{course.mission || "A structured path from first principles to confident understanding."}</span>
+                    </span>
+                    <span className="course-row-meta">
+                      <span>{course.modules.length} modules</span>
+                      <span>{lessonCount} lessons</span>
+                    </span>
+                    <span className="course-row-action">Begin <ArrowRight size={16} /></span>
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        </section>
+
+        <footer className="home-footer">
+          <span className="brand-mark" aria-hidden="true"><BookOpen size={16} /></span>
+          <p>Designed for deliberate learning, not endless scrolling.</p>
+        </footer>
+      </div>
     </AppShell>
   );
 }

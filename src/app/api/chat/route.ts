@@ -1,33 +1,60 @@
-import { openai } from "@ai-sdk/openai";
-import { streamText } from "ai";
+import OpenAI from "openai";
+import { authorizationResponse, requireOwner } from "@/lib/auth-server";
+import { tutorInputSchema, validationMessage } from "@/lib/validation";
 
-export async function POST(req: Request) {
-  const { messages, data } = await req.json();
+const model = process.env.OPENAI_MODEL || "gpt-5.6";
 
-  const topic = data?.topic || "Unknown Topic";
-  const lessonTitle = data?.lessonTitle || "Unknown Lesson";
-  const lessonConcept = data?.lessonConcept || "Unknown Concept";
+export async function POST(request: Request) {
+  try {
+    await requireOwner(request);
+    const parsed = tutorInputSchema.safeParse(await request.json());
+    if (!parsed.success) {
+      return Response.json(
+        { error: validationMessage(parsed.error) },
+        { status: 400 },
+      );
+    }
 
-  const systemPrompt = `You are a helpful AI Tutor. You are teaching the user about "${data.topic}".
-Currently, the user is taking a lesson on "${data.lessonTitle}" focusing on the concept of "${data.lessonConcept}".
-    
-Below is the reading material the user is currently reading. Answer any questions they have based on this material, and keep your answers concise and encouraging.
-    
---- READING MATERIAL ---
-${data.lessonContent || "No reading material provided."}
-------------------------
+    const { messages, data } = parsed.data;
+    const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+    const stream = await client.responses.create({
+      model,
+      instructions: `You are a concise, encouraging AI tutor for ${data.topic}. The learner is studying "${data.lessonTitle}" with a focus on "${data.lessonConcept}". Ground every answer in the supplied lesson content. Use guided questions and small hints before giving a direct answer. Never claim to have capabilities beyond this lesson.\n\nLESSON CONTENT\n${data.lessonContent}`,
+      input: messages.map((message) => ({
+        role: message.role,
+        content: message.content,
+      })),
+      stream: true,
+      max_output_tokens: 1_500,
+    });
 
-Your goal is to guide the user to understand this concept using the Zone of Proximal Development philosophy.
-- Do not just give away the answer.
-- Ask questions to test their understanding.
-- Keep your responses concise and conversational.
-- Be encouraging.`;
+    const encoder = new TextEncoder();
+    const body = new ReadableStream<Uint8Array>({
+      async start(controller) {
+        try {
+          for await (const event of stream) {
+            if (event.type === "response.output_text.delta") {
+              controller.enqueue(encoder.encode(event.delta));
+            }
+          }
+          controller.close();
+        } catch (error) {
+          console.error("Tutor stream failed:", error);
+          controller.error(error);
+        }
+      },
+    });
 
-  const result = await streamText({
-    model: openai("gpt-4o"),
-    system: systemPrompt,
-    messages,
-  });
-
-  return result.toTextStreamResponse();
+    return new Response(body, {
+      headers: {
+        "Content-Type": "text/plain; charset=utf-8",
+        "Cache-Control": "no-store",
+      },
+    });
+  } catch (error: unknown) {
+    const authResponse = authorizationResponse(error);
+    if (authResponse) return authResponse;
+    console.error("Tutor request failed:", error);
+    return Response.json({ error: "The tutor is temporarily unavailable." }, { status: 500 });
+  }
 }

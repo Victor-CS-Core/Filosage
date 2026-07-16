@@ -6,28 +6,28 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "test:e2e": "playwright test"
   },
   "dependencies": {
-    "@ai-sdk/openai": "^3.0.74",
-    "@ai-sdk/react": "^3.0.211",
-    "ai": "^6.0.209",
-    "firebase": "^12.15.0",
+    "firebase": "^12.16.0",
     "firebase-admin": "^14.0.0",
-    "mermaid": "^11.15.0",
-    "next": "16.2.9",
-    "openai": "^6.44.0",
-    "react": "19.2.4",
-    "react-dom": "19.2.4",
-    "react-markdown": "^10.1.0"
+    "lucide-react": "^1.24.0",
+    "mermaid": "^11.16.0",
+    "next": "^16.2.10",
+    "openai": "^6.47.0",
+    "react": "^19.2.7",
+    "react-dom": "^19.2.7",
+    "react-markdown": "^10.1.0",
+    "zod": "^4.4.3"
   },
   "devDependencies": {
     "@playwright/test": "^1.61.1",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
-    "eslint": "^9",
-    "eslint-config-next": "16.2.9",
+    "eslint": "^9.39.5",
+    "eslint-config-next": "^16.2.10",
     "typescript": "^5"
   }
 }
