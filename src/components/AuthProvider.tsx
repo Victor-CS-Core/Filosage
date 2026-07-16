@@ -10,10 +10,8 @@ import {
 } from "react";
 import {
   GoogleAuthProvider,
-  getRedirectResult,
   onAuthStateChanged,
   signInWithPopup,
-  signInWithRedirect,
   signOut as firebaseSignOut,
   type User,
 } from "firebase/auth";
@@ -38,11 +36,6 @@ export function useAuth() {
   return value;
 }
 
-function isMobileBrowser() {
-  if (typeof navigator === "undefined") return false;
-  return /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
-}
-
 function isOwnerAccount(user: User | null) {
   return user?.email?.trim().toLowerCase() === OWNER_EMAIL;
 }
@@ -57,7 +50,7 @@ function authErrorMessage(error: unknown) {
     case "auth/unauthorized-domain":
       return "Google sign-in is not authorized for this site. Please contact the site owner.";
     case "auth/popup-blocked":
-      return "Your browser blocked the Google sign-in window. Allow popups for this site and try again.";
+      return "Your browser blocked the Google sign-in window. Allow popups, or open Teach in Safari or Chrome, and try again.";
     case "auth/popup-closed-by-user":
     case "auth/cancelled-popup-request":
       return "Google sign-in was canceled. You can try again when ready.";
@@ -80,15 +73,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (!firebaseAuth) {
       return;
     }
-
-    getRedirectResult(firebaseAuth)
-      .then(async (result) => {
-        if (result?.user && !isOwnerAccount(result.user)) {
-          await firebaseSignOut(firebaseAuth);
-          setError(`Teach Studio is limited to ${OWNER_EMAIL}.`);
-        }
-      })
-      .catch((redirectError) => setError(authErrorMessage(redirectError)));
 
     return onAuthStateChanged(firebaseAuth, async (nextUser) => {
       if (nextUser && !isOwnerAccount(nextUser)) {
@@ -115,11 +99,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     });
 
     try {
-      if (isMobileBrowser()) {
-        await signInWithRedirect(auth, provider);
-        return;
-      }
-
       const result = await signInWithPopup(auth, provider);
       if (!isOwnerAccount(result.user)) {
         await firebaseSignOut(auth);
