@@ -21,6 +21,7 @@ import {
 } from "lucide-react";
 import AppShell from "@/components/AppShell";
 import { useAuth } from "@/components/AuthProvider";
+import ErudozaMark from "@/components/ErudozaMark";
 import { useTheme } from "@/components/ThemeProvider";
 import type { Course, LessonData, Quiz } from "@/lib/course-types";
 import type { Confidence, CourseProgress, ProgressUpdate } from "@/lib/learning-types";
@@ -39,15 +40,24 @@ function MermaidDiagram({ chart, summary }: { chart: string; summary?: string })
   useEffect(() => {
     if (!ref.current || !chart) return;
     let cancelled = false;
-    const id = `teach-diagram-${crypto.randomUUID()}`;
+    const id = `erudoza-diagram-${crypto.randomUUID()}`;
     void import("mermaid")
       .then(({ default: mermaid }) => {
         mermaid.initialize({
           startOnLoad: false,
           securityLevel: "strict",
-          theme: theme === "dark" ? "dark" : "neutral",
-          fontFamily: "var(--font-body)",
-          themeVariables: { fontSize: "16px" },
+          theme: "base",
+          fontFamily: "Inter Variable, Inter, sans-serif",
+          themeVariables: {
+            fontSize: "16px",
+            fontFamily: "Inter Variable, Inter, sans-serif",
+            primaryColor: theme === "dark" ? "#12254D" : "#FAFAF7",
+            primaryTextColor: theme === "dark" ? "#FAFAF7" : "#0D1B3D",
+            primaryBorderColor: theme === "dark" ? "#40527A" : "#B9C3D0",
+            secondaryColor: theme === "dark" ? "#163D52" : "#E5F7F4",
+            tertiaryColor: theme === "dark" ? "#182C52" : "#EAF3FF",
+            lineColor: theme === "dark" ? "#A8B3C7" : "#43506B",
+          },
         });
         return mermaid.render(id, chart);
       })
@@ -214,7 +224,7 @@ export default function LessonView() {
   const courseId = searchParams.get("id");
   const reviewMode = searchParams.get("review") === "1";
   const [moduleIndex, lessonIndex] = lessonId.split("-").map(Number);
-  const { user, isPro, loading: authLoading } = useAuth();
+  const { user, isPro } = useAuth();
   const [course, setCourse] = useState<Course | null>(null);
   const [lessonData, setLessonData] = useState<LessonData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -231,7 +241,6 @@ export default function LessonView() {
   const getToken = useCallback(async () => (user ? user.getIdToken() : null), [user]);
 
   const loadLesson = useCallback(async () => {
-    if (authLoading) return;
     if (!courseId) {
       setError("This lesson link is missing its course reference.");
       setLoading(false);
@@ -286,7 +295,7 @@ export default function LessonView() {
     } finally {
       setLoading(false);
     }
-  }, [authLoading, courseId, getToken, moduleIndex, lessonIndex, lessonId, isPro, topic, user]);
+  }, [courseId, getToken, moduleIndex, lessonIndex, lessonId, isPro, topic, user]);
 
   useEffect(() => {
     void Promise.resolve().then(loadLesson);
@@ -434,7 +443,7 @@ export default function LessonView() {
 
   const lessonHref = (id: string) => `/course/${encodeURIComponent(topic)}/lesson/${id}${courseId ? `?id=${courseId}` : ""}`;
 
-  if (loading || authLoading) {
+  if (loading) {
     return (
       <AppShell activeTopic={topic} activeLessonId={lessonId} activeCourseId={courseId}>
         <div className="lesson-loading">
@@ -550,8 +559,8 @@ export default function LessonView() {
           {user && tutorOpen && (
             <aside className="tutor-drawer" aria-label="AI tutor">
               <div className="tutor-header">
-                <span className="tutor-avatar"><Bot size={19} /></span>
-                <div><strong>Teach Tutor</strong><small>Grounded in this lesson</small></div>
+                <span className="tutor-avatar"><ErudozaMark /></span>
+                <div><strong>Erudoza Tutor</strong><small>Grounded in this lesson</small></div>
                 <button className="icon-button" onClick={() => setTutorOpen(false)} aria-label="Close tutor"><X size={18} /></button>
               </div>
               <div className="tutor-messages" aria-live="polite">

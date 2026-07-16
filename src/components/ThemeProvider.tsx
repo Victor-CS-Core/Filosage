@@ -3,6 +3,8 @@
 import { createContext, useContext, useEffect, useState } from "react";
 
 type Theme = "light" | "dark";
+const THEME_KEY = "erudoza-theme";
+const LEGACY_THEME_KEY = "teach-theme";
 
 const ThemeContext = createContext<{ theme: Theme; toggle: () => void }>({
   theme: "light",
@@ -14,7 +16,7 @@ export function useTheme() {
 }
 
 function storedTheme(): Theme {
-  const stored = localStorage.getItem("teach-theme");
+  const stored = localStorage.getItem(THEME_KEY) ?? localStorage.getItem(LEGACY_THEME_KEY);
   if (stored === "light" || stored === "dark") return stored;
   return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
 }
@@ -28,7 +30,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     document.documentElement.setAttribute("data-theme", theme);
-    localStorage.setItem("teach-theme", theme);
+    localStorage.setItem(THEME_KEY, theme);
   }, [theme]);
 
   const toggle = () => setTheme((current) => (current === "light" ? "dark" : "light"));

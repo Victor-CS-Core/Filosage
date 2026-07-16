@@ -4,7 +4,6 @@ import dynamic from "next/dynamic";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
-  BookOpen,
   CalendarClock,
   ChevronDown,
   ChevronRight,
@@ -22,6 +21,7 @@ import {
   UserRound,
   X,
 } from "lucide-react";
+import ErudozaMark from "@/components/ErudozaMark";
 import { useAuth } from "@/components/AuthProvider";
 import { useTheme } from "@/components/ThemeProvider";
 import type { Course } from "@/lib/course-types";
@@ -141,9 +141,9 @@ export default function AppShell({
   const sidebar = (
     <aside className="sidebar" aria-label="Primary navigation">
       <div className="sidebar-brand-row">
-        <button className="brand" onClick={() => router.push("/")} aria-label="Teach home">
-          <span className="brand-mark" aria-hidden="true"><BookOpen size={18} /></span>
-          <span><strong>Teach</strong><small>Learning studio</small></span>
+        <button className="brand" onClick={() => router.push("/")} aria-label="Erudoza home">
+          <span className="brand-mark" aria-hidden="true"><ErudozaMark /></span>
+          <span><strong className="brand-wordmark">Erudoza</strong><small>Your daily dose of understanding.</small></span>
         </button>
         <button className="icon-button mobile-only" onClick={() => setMobileOpen(false)} aria-label="Close navigation">
           <X size={19} />
@@ -165,7 +165,7 @@ export default function AppShell({
         </button>
         <button className={`nav-link ${pathname === "/pricing" ? "is-active" : ""}`} onClick={() => router.push("/pricing")}>
           <Crown size={18} />
-          <span>Teach Pro</span>
+          <span>Erudoza Pro</span>
         </button>
 
         <div className="nav-rule" />
@@ -242,7 +242,7 @@ export default function AppShell({
           <div className="studio-lockup pro-lockup">
             <Sparkles size={18} />
             <div>
-              <strong>Create with Teach Pro</strong>
+              <strong>Create with Erudoza Pro</strong>
               <p>Generate private learning paths and use the lesson tutor.</p>
             </div>
             <button className="button button-secondary button-small" onClick={() => user ? router.push("/pricing") : setShowAuth(true)}>
@@ -268,7 +268,7 @@ export default function AppShell({
             )}
             <span>
               <strong>{account?.displayName ?? user.displayName ?? "Learning account"}</strong>
-              <small>{isPro ? "Teach Pro" : "Learning account"}</small>
+              <small>{isPro ? "Erudoza Pro" : "Learning account"}</small>
             </span>
             <button className="icon-button" onClick={signOut} aria-label="Sign out"><LogOut size={17} /></button>
           </div>
@@ -284,8 +284,8 @@ export default function AppShell({
       <header className="mobile-topbar">
         <button ref={mobileTriggerRef} className="icon-button" onClick={() => setMobileOpen(true)} aria-label="Open navigation" aria-expanded={mobileOpen} aria-controls="mobile-navigation"><Menu size={20} /></button>
         <button className="brand brand-mobile" onClick={() => router.push("/")}>
-          <span className="brand-mark" aria-hidden="true"><BookOpen size={17} /></span>
-          <strong>Teach</strong>
+          <span className="brand-mark" aria-hidden="true"><ErudozaMark /></span>
+          <strong className="brand-wordmark">Erudoza</strong>
         </button>
         <button className="icon-button" onClick={toggle} aria-label="Toggle theme">
           {theme === "dark" ? <Sun size={18} /> : <Moon size={18} />}

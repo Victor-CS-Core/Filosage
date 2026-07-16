@@ -1,8 +1,9 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Cloud, KeyRound, X } from "lucide-react";
+import { Cloud, X } from "lucide-react";
 import { useAuth } from "@/components/AuthProvider";
+import ErudozaMark from "@/components/ErudozaMark";
 
 interface AuthModalProps {
   onClose: () => void;
@@ -72,7 +73,7 @@ export default function AuthModal({ onClose }: AuthModalProps) {
         </button>
 
         <div className="auth-symbol" aria-hidden="true">
-          <KeyRound size={24} />
+          <ErudozaMark />
         </div>
         <p className="overline">Learner account</p>
         <h2 id="auth-title">Keep your learning in sync</h2>

@@ -6,15 +6,15 @@ product
 
 ## Users
 
-The primary user is the owner, who uses Teach as a private AI-assisted learning and course-authoring workspace. Anonymous visitors use the public experience to discover published courses, complete lessons, study diagrams, and take quizzes without gaining access to generation, tutoring, publishing, or management tools.
+The primary user is the owner, who uses Erudoza as a private AI-assisted learning and course-authoring workspace. Anonymous visitors use the public experience to discover published courses, complete lessons, study diagrams, and take quizzes without gaining access to generation, tutoring, publishing, or management tools.
 
 ## Product Purpose
 
-Teach turns any subject into a structured, high-quality learning path grounded in concise explanation, visual models, retrieval practice, and guided tutoring. Success means the owner can create and publish trustworthy courses efficiently, while public learners can move from discovery to understanding without friction.
+Erudoza turns any subject into a structured, high-quality learning path grounded in concise explanation, visual models, retrieval practice, and guided tutoring. Success means the owner can create and publish trustworthy courses efficiently, while public learners can move from discovery to understanding without friction.
 
 ## Brand Personality
 
-Focused, intelligent, and quietly premium. Teach should have Notion's clarity and calm confidence while establishing a distinctive identity of its own. The interface should feel considered, capable, and human rather than flashy or synthetic.
+Clear, curious, intelligent, and quietly premium. Erudoza should have calm, content-first confidence while establishing a distinctive identity of its own. The interface should feel considered, capable, and human rather than flashy or synthetic.
 
 ## Anti-references
 

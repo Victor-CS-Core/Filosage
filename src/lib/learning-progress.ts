@@ -2,12 +2,17 @@
 
 import type { CourseProgress, ProgressUpdate } from "@/lib/learning-types";
 
-const INDEX_KEY = "teach-learning-state-v2";
+const INDEX_KEY = "erudoza-learning-state-v2";
+const LEGACY_INDEX_KEY = "teach-learning-state-v2";
 
 function readIndex(): Record<string, CourseProgress> {
   if (typeof window === "undefined") return {};
   try {
-    const value = JSON.parse(localStorage.getItem(INDEX_KEY) || "{}");
+    const stored = localStorage.getItem(INDEX_KEY) ?? localStorage.getItem(LEGACY_INDEX_KEY) ?? "{}";
+    const value = JSON.parse(stored);
+    if (!localStorage.getItem(INDEX_KEY) && localStorage.getItem(LEGACY_INDEX_KEY)) {
+      localStorage.setItem(INDEX_KEY, JSON.stringify(value));
+    }
     return value && typeof value === "object" ? value : {};
   } catch {
     return {};
@@ -29,7 +34,11 @@ export function getLocalProgress(courseId: string, topic = "") {
 
   // Preserve progress created by the original device-only implementation.
   try {
-    const completed = JSON.parse(localStorage.getItem(`teach-progress:${courseId}`) || "[]");
+    const completed = JSON.parse(
+      localStorage.getItem(`erudoza-progress:${courseId}`)
+      ?? localStorage.getItem(`teach-progress:${courseId}`)
+      ?? "[]",
+    );
     if (Array.isArray(completed) && completed.length) {
       const migrated: CourseProgress = {
         courseId,
@@ -99,6 +108,6 @@ export function saveLocalProgress(update: ProgressUpdate) {
 
   index[update.courseId] = next;
   writeIndex(index);
-  localStorage.setItem(`teach-progress:${update.courseId}`, JSON.stringify(completedLessonIds));
+  localStorage.setItem(`erudoza-progress:${update.courseId}`, JSON.stringify(completedLessonIds));
   return next;
 }

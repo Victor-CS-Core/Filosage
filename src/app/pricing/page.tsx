@@ -27,7 +27,7 @@ export default function PricingPage() {
     <AppShell>
       <div className="pricing-page">
         <header className="pricing-header">
-          <p className="overline">Teach Pro</p>
+          <p className="overline">Erudoza Pro</p>
           <h1>Pay for focus and intelligence—not access to knowledge.</h1>
           <p>Published courses stay free. Pro funds private course creation, lesson-grounded tutoring, and the systems that help learning last.</p>
         </header>
@@ -41,7 +41,7 @@ export default function PricingPage() {
           </section>
 
           <section className="plan-column plan-pro" aria-labelledby="pro-plan-title">
-            <div className="plan-heading"><span><Crown size={19} /></span><div><h2 id="pro-plan-title">Teach Pro</h2><p>Build a private path around what matters to you.</p></div></div>
+            <div className="plan-heading"><span><Crown size={19} /></span><div><h2 id="pro-plan-title">Erudoza Pro</h2><p>Build a private path around what matters to you.</p></div></div>
             <ul>{proFeatures.map((feature) => <li key={feature}><Check size={16} /> {feature}</li>)}</ul>
             {isPro ? (
               <div className="plan-status"><Sparkles size={17} /><span><strong>Pro is active</strong><small>{outlineQuota?.remaining ?? "Unlimited"} course outline credits remaining</small></span></div>
@@ -53,7 +53,7 @@ export default function PricingPage() {
           </section>
         </div>
 
-        <p className="pricing-note">Generation credits reset each billing period and do not roll over. Teach never advertises unlimited AI usage.</p>
+        <p className="pricing-note">Generation credits reset each billing period and do not roll over. Erudoza never advertises unlimited AI usage.</p>
       </div>
     </AppShell>
   );

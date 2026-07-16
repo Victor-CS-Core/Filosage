@@ -67,7 +67,7 @@ export async function POST(request: Request) {
       ...outline,
       topicKey: topic.toLowerCase().replace(/\s+/g, " "),
       authorId: account.uid,
-      authorName: account.displayName ?? (account.isOwner ? "Teach" : "Teach learner"),
+      authorName: account.displayName ?? (account.isOwner ? "Erudoza" : "Erudoza learner"),
       authorPhoto: account.photoURL ?? null,
       isPublic: false,
     });

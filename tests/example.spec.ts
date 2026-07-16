@@ -3,9 +3,9 @@ import { expect, test } from "@playwright/test";
 test("keeps the learning library public", async ({ page }) => {
   await page.goto("/");
 
-  await expect(page).toHaveTitle(/Teach/);
+  await expect(page).toHaveTitle(/Erudoza/);
   await expect(
-    page.getByRole("heading", { name: /Learn with structure/i }),
+    page.getByRole("heading", { name: /Understand more.*Achieve more/i }),
   ).toBeVisible();
   await expect(page.getByText("Published lessons stay free.")).toBeVisible();
 });
@@ -15,8 +15,10 @@ test("offers an optional learner account without blocking public access", async 
 
   if ((page.viewportSize()?.width ?? 1000) < 820) {
     await page.getByRole("button", { name: "Open navigation" }).click();
+    await page.locator(".mobile-sidebar-layer .sidebar-footer").getByRole("button", { name: "Sign in" }).click();
+  } else {
+    await page.locator(".desktop-sidebar .sidebar-footer").getByRole("button", { name: "Sign in" }).click();
   }
-  await page.locator("button:visible").filter({ hasText: /^Sign in$/ }).first().click();
 
   const dialog = page.getByRole("dialog", { name: "Keep your learning in sync" });
   await expect(dialog).toBeVisible();
@@ -29,7 +31,7 @@ test("offers an optional learner account without blocking public access", async 
 test("keeps generation visibly metered and premium", async ({ page }) => {
   await page.goto("/pricing");
 
-  await expect(page.getByRole("heading", { name: "Teach Pro" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Erudoza Pro" })).toBeVisible();
   await expect(page.getByText("Three private course outlines each month")).toBeVisible();
   await expect(page.getByText("Thirty generated lessons each month")).toBeVisible();
   await expect(page.getByRole("button", { name: /Checkout coming next/i })).toBeDisabled();

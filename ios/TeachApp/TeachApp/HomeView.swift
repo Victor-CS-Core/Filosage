@@ -27,7 +27,7 @@ struct HomeView: View {
                     Text("What do you want to learn?")
                         .font(.largeTitle.bold())
 
-                    Text("Enter any topic, skill, or subject. Teach builds a focused course with lessons, checkpoints, and a tutor prompt.")
+                    Text("Enter any topic, skill, or subject. Erudoza builds a focused course with lessons, checkpoints, and a tutor prompt.")
                         .font(.body)
                         .foregroundStyle(.secondary)
                 }
@@ -78,7 +78,7 @@ struct HomeView: View {
             }
             .padding(24)
         }
-        .navigationTitle("Teach")
+        .navigationTitle("Erudoza")
     }
 
     private func startCourse() {

@@ -5,7 +5,6 @@ import { useRouter } from "next/navigation";
 import {
   ArrowRight,
   BookMarked,
-  BookOpen,
   BrainCircuit,
   CheckCircle2,
   Clock3,
@@ -16,6 +15,7 @@ import {
   Sparkles,
 } from "lucide-react";
 import AppShell from "@/components/AppShell";
+import ErudozaMark from "@/components/ErudozaMark";
 import { useAuth } from "@/components/AuthProvider";
 import type { Course } from "@/lib/course-types";
 import type { CourseProgress } from "@/lib/learning-types";
@@ -124,9 +124,9 @@ export default function Home() {
         <section className="home-hero" aria-labelledby="home-title">
           <div className="hero-copy">
             <div className="hero-status"><span /> Public learning library</div>
-            <h1 id="home-title">Learn with structure.<br />Understand with depth.</h1>
+            <h1 id="home-title">Understand more.<br /><span>Achieve more.</span></h1>
             <p>
-              Teach turns complex subjects into calm, focused learning paths—clear explanations, visual models, and retrieval practice included.
+              Erudoza makes complex subjects feel clear and personal, with focused learning paths, visual models, and retrieval practice that help understanding last.
             </p>
 
             {isPro ? (
@@ -148,13 +148,13 @@ export default function Home() {
             ) : (
               <div className="hero-actions">
                 <a className="button button-primary" href="#library">Explore public courses <ArrowRight size={17} /></a>
-                <button className="button button-quiet" onClick={() => router.push("/pricing")}><Crown size={16} /> Create with Pro</button>
+                <button className="button button-quiet" onClick={() => router.push("/pricing")}><Crown size={16} /> Create with Erudoza Pro</button>
                 <span>Published lessons stay free.</span>
               </div>
             )}
           </div>
 
-          <div className="learning-method" aria-label="Teach learning method">
+          <div className="learning-method" aria-label="Erudoza learning method">
             <div className="method-header">
               <span>One learning loop</span>
               <span>Built for retention</span>
@@ -182,7 +182,7 @@ export default function Home() {
         <section className="library-section" id="library" aria-labelledby="library-title">
           <div className="section-heading library-heading">
             <div>
-              <p className="overline">Published by Teach</p>
+              <p className="overline">Published by Erudoza</p>
               <h2 id="library-title">Public course library</h2>
               <p>Open a course and learn at your own pace. Progress stays on this device.</p>
             </div>
@@ -243,8 +243,8 @@ export default function Home() {
         </section>
 
         <footer className="home-footer">
-          <span className="brand-mark" aria-hidden="true"><BookOpen size={16} /></span>
-          <p>Designed for deliberate learning, not endless scrolling.</p>
+          <span className="brand-mark" aria-hidden="true"><ErudozaMark /></span>
+          <p><strong>Erudoza</strong> · Your daily dose of understanding.</p>
         </footer>
       </div>
     </AppShell>

@@ -1,11 +1,11 @@
-# TeachApp iOS
+# Erudoza iOS
 
-Native SwiftUI version of Teach App.
+Native SwiftUI version of Erudoza.
 
 ## What is included
 
 - SwiftUI navigation for topic discovery, course maps, lessons, quizzes, and the tutor sheet.
-- App Intents for opening a Teach topic and starting a study session from Shortcuts or Siri.
+- App Intents for opening an Erudoza topic and starting a study session from Shortcuts or Siri.
 - A shared Xcode scheme named `TeachApp`.
 
 ## Run

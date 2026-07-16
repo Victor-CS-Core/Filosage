@@ -2,7 +2,7 @@ rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Teach reads and writes through authenticated server routes using the
+    // Erudoza reads and writes through authenticated server routes using the
     // service account. Browser clients use Firebase Authentication only.
     match /{document=**} {
       allow read, write: if false;

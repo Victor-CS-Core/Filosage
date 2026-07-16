@@ -2,7 +2,7 @@ import AppIntents
 import Foundation
 
 struct TeachTopicEntity: AppEntity {
-    static let typeDisplayRepresentation = TypeDisplayRepresentation(name: "Teach Topic")
+    static let typeDisplayRepresentation = TypeDisplayRepresentation(name: "Erudoza Topic")
     static let defaultQuery = TeachTopicQuery()
 
     let id: String
@@ -35,8 +35,8 @@ struct TeachTopicQuery: EntityQuery {
 }
 
 struct OpenTeachTopicIntent: AppIntent {
-    static let title: LocalizedStringResource = "Open Teach Topic"
-    static let description = IntentDescription("Open Teach to a selected course topic.")
+    static let title: LocalizedStringResource = "Open Erudoza Topic"
+    static let description = IntentDescription("Open Erudoza to a selected course topic.")
     static let openAppWhenRun = true
 
     @Parameter(title: "Topic")
@@ -63,7 +63,7 @@ enum StudyMode: String, AppEnum {
 
 struct StartStudySessionIntent: AppIntent {
     static let title: LocalizedStringResource = "Start Study Session"
-    static let description = IntentDescription("Start a focused study session for a Teach topic.")
+    static let description = IntentDescription("Start a focused study session for an Erudoza topic.")
 
     @Parameter(title: "Topic")
     var topic: TeachTopicEntity

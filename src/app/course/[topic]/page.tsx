@@ -58,7 +58,7 @@ export default function CourseMap() {
       }
 
       if (!isPro) {
-        setError("Private course creation is included with Teach Pro.");
+        setError("Private course creation is included with Erudoza Pro.");
         return;
       }
 
@@ -175,6 +175,7 @@ export default function CourseMap() {
       });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || "The course could not be deleted.");
+      localStorage.removeItem(`erudoza-progress:${courseId}`);
       localStorage.removeItem(`teach-progress:${courseId}`);
       router.push("/");
     } catch (deleteError) {

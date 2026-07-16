@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { headers } from "next/headers";
+import "@fontsource-variable/inter";
 import "./globals.css";
 import { ThemeProvider } from "@/components/ThemeProvider";
 import { AuthProvider } from "@/components/AuthProvider";
@@ -34,23 +35,23 @@ export async function generateMetadata(): Promise<Metadata> {
   return {
     metadataBase: new URL(origin),
     title: {
-      default: "Teach - Learn with structure",
-      template: "%s | Teach",
+      default: "Erudoza — Your daily dose of understanding",
+      template: "%s | Erudoza",
     },
-    description: "Focused learning paths with clear explanations, visual models, and retrieval practice.",
-    applicationName: "Teach",
+    description: "Clear, focused learning paths with visual models, retrieval practice, and progress that lasts.",
+    applicationName: "Erudoza",
     category: "education",
     openGraph: {
-      title: "Teach - Learn with structure",
-      description: "Focused learning paths designed for real understanding.",
+      title: "Erudoza — Understand more. Achieve more.",
+      description: "Your daily dose of understanding, through focused learning paths built for lasting clarity.",
       type: "website",
       url: origin,
-      images: [{ url: socialImage, width: 1536, height: 1024, alt: "Teach - Learn with structure. Understand with depth." }],
+      images: [{ url: socialImage, width: 1536, height: 1024, alt: "Erudoza — Understand more. Achieve more." }],
     },
     twitter: {
       card: "summary_large_image",
-      title: "Teach - Learn with structure",
-      description: "Focused learning paths designed for real understanding.",
+      title: "Erudoza — Understand more. Achieve more.",
+      description: "Your daily dose of understanding.",
       images: [socialImage],
     },
   };
@@ -59,8 +60,8 @@ export async function generateMetadata(): Promise<Metadata> {
 export const viewport: Viewport = {
   colorScheme: "light dark",
   themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#f7f7fa" },
-    { media: "(prefers-color-scheme: dark)", color: "#17171d" },
+    { media: "(prefers-color-scheme: light)", color: "#FAFAF7" },
+    { media: "(prefers-color-scheme: dark)", color: "#071127" },
   ],
 };
 
@@ -71,6 +72,11 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning>
+      <head>
+        <link rel="preconnect" href="https://api.fontshare.com" />
+        <link rel="preconnect" href="https://cdn.fontshare.com" crossOrigin="anonymous" />
+        <link rel="stylesheet" href="https://api.fontshare.com/v2/css?f[]=satoshi@700&display=swap" />
+      </head>
       <body suppressHydrationWarning>
         <ThemeProvider>
           <AuthProvider>

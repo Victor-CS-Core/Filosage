@@ -2,27 +2,28 @@
 
 ## Direction
 
-Teach is a focused learning product with a restrained, quietly premium interface. It borrows Notion's clarity and content-first confidence without copying its visual language. The experience should feel like a well-made instrument: calm at rest, precise in use, and unmistakably Teach.
+Erudoza is a focused learning product with a restrained, quietly premium interface. Its visual identity expresses clarity, knowledge, and daily growth without overpowering the learning task. The experience should feel calm at rest, precise in use, and unmistakably Erudoza.
 
 ## Theme
 
-The light theme uses a true near-white canvas and crisp white learning surfaces for daytime study. The dark theme uses tinted near-black surfaces for sustained reading in low light. Both themes preserve hierarchy, AA contrast, and identical semantic color roles.
+The light theme uses Erudoza off-white and crisp white learning surfaces for daytime study. The dark theme uses deep navy surfaces for sustained reading in low light. Both themes preserve hierarchy, AA contrast, and identical semantic color roles.
 
 ## Color
 
-- Canvas: `oklch(97.8% 0.006 270)` light / `oklch(15.5% 0.018 270)` dark
-- Surface: `oklch(100% 0 0)` light / `oklch(19% 0.022 270)` dark
-- Ink: `oklch(20% 0.025 270)` light / `oklch(95% 0.008 270)` dark
-- Accent: ultramarine `oklch(52% 0.215 274)` light / `oklch(69% 0.175 274)` dark
-- Signal: sparingly used yellow-green `oklch(82% 0.155 98)`
+- Brand navy: `#0D1B3D`
+- Brand teal: `#14B8A6`
+- Brand blue: `#4DA6FF`
+- Brand coral: `#FF8A65`
+- Brand off-white: `#FAFAF7`
+- Accessible text/action derivatives: teal `#0F766E`, blue `#1D4ED8`
 - Semantic states: color-independent success, warning, and error treatments with icons and explanatory copy
 
-The accent is reserved for primary actions, current selection, progress, and active focus. It is not decorative.
+Exact bright brand colors are reserved for the logo, progress, and non-text signals. Navy and accessible derivatives handle text and controls.
 
 ## Typography
 
-- Interface: Inter, with a compact product scale and 600–750 weight for hierarchy
-- Reading: Source Serif 4 at 1.12rem / 1.85 line-height for long-form lessons
+- Headings: Satoshi Bold
+- Interface and reading: Inter Regular/Variable
 - Display headings cap at 5.5rem and never track tighter than `-0.04em`
 - Body prose stays within 65–70 characters per line
 

@@ -64,7 +64,7 @@ export default function ReviewPage() {
           <div>
             <p className="overline">Focused recall</p>
             <h1>{due.length ? "Three concepts. One deliberate session." : "Nothing is due right now."}</h1>
-            <p>{due.length ? "Answer before rereading. Teach will shorten or extend the next interval from your result." : "Continue a course and your next review will appear here automatically."}</p>
+            <p>{due.length ? "Answer before rereading. Erudoza will shorten or extend the next interval from your result." : "Continue a course and your next review will appear here automatically."}</p>
           </div>
           <span className="review-count"><Sparkles size={17} /> {due.length} due now</span>
         </header>

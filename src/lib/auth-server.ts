@@ -29,7 +29,7 @@ export async function getVerifiedUser(request: Request): Promise<VerifiedFirebas
 
 export async function requireOwner(request: Request): Promise<VerifiedFirebaseUser> {
   const user = await requireUser(request);
-  if (!isOwnerUser(user)) throw new AuthorizationError(403, "Only the Teach owner can publish courses.");
+  if (!isOwnerUser(user)) throw new AuthorizationError(403, "Only the Erudoza owner can publish courses.");
 
   return user;
 }
@@ -49,7 +49,7 @@ export async function requireAccount(request: Request): Promise<ServerAccount> {
 export async function requirePremium(request: Request): Promise<ServerAccount> {
   const account = await requireAccount(request);
   if (account.plan !== "pro" && !account.isOwner) {
-    throw new AuthorizationError(403, "Teach Pro is required for this feature.");
+    throw new AuthorizationError(403, "Erudoza Pro is required for this feature.");
   }
   return account;
 }
