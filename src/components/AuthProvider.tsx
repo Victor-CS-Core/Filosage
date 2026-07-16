@@ -47,6 +47,29 @@ function isOwnerAccount(user: User | null) {
   return user?.email?.trim().toLowerCase() === OWNER_EMAIL;
 }
 
+function authErrorMessage(error: unknown) {
+  const code =
+    typeof error === "object" && error !== null && "code" in error
+      ? String(error.code)
+      : "";
+
+  switch (code) {
+    case "auth/unauthorized-domain":
+      return "Google sign-in is not authorized for this site. Please contact the site owner.";
+    case "auth/popup-blocked":
+      return "Your browser blocked the Google sign-in window. Allow popups for this site and try again.";
+    case "auth/popup-closed-by-user":
+    case "auth/cancelled-popup-request":
+      return "Google sign-in was canceled. You can try again when ready.";
+    case "auth/network-request-failed":
+      return "Google sign-in could not reach the network. Check your connection and try again.";
+    case "auth/operation-not-allowed":
+      return "Google sign-in is currently unavailable for this project.";
+    default:
+      return "Google sign-in could not be completed. Please try again.";
+  }
+}
+
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(Boolean(auth));
@@ -65,7 +88,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           setError(`Teach Studio is limited to ${OWNER_EMAIL}.`);
         }
       })
-      .catch(() => setError("Google sign-in could not be completed."));
+      .catch((redirectError) => setError(authErrorMessage(redirectError)));
 
     return onAuthStateChanged(firebaseAuth, async (nextUser) => {
       if (nextUser && !isOwnerAccount(nextUser)) {
@@ -91,16 +114,27 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       login_hint: OWNER_EMAIL,
     });
 
-    if (isMobileBrowser()) {
-      await signInWithRedirect(auth, provider);
-      return;
-    }
+    try {
+      if (isMobileBrowser()) {
+        await signInWithRedirect(auth, provider);
+        return;
+      }
 
-    const result = await signInWithPopup(auth, provider);
-    if (!isOwnerAccount(result.user)) {
-      await firebaseSignOut(auth);
-      setError(`Teach Studio is limited to ${OWNER_EMAIL}.`);
-      throw new Error("Account not authorized.");
+      const result = await signInWithPopup(auth, provider);
+      if (!isOwnerAccount(result.user)) {
+        await firebaseSignOut(auth);
+        setError(`Teach Studio is limited to ${OWNER_EMAIL}.`);
+        throw new Error("Account not authorized.");
+      }
+    } catch (popupError) {
+      if (
+        popupError instanceof Error &&
+        popupError.message === "Account not authorized."
+      ) {
+        throw popupError;
+      }
+      setError(authErrorMessage(popupError));
+      throw popupError;
     }
   }, []);
 
