@@ -91,7 +91,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       return;
     }
 
-    return onAuthStateChanged(firebaseAuth, async (nextUser) => {
+    const bootTimeout = window.setTimeout(() => setLoading(false), 2500);
+    const unsubscribe = onAuthStateChanged(firebaseAuth, async (nextUser) => {
+      window.clearTimeout(bootTimeout);
       setUser(nextUser);
       try {
         await loadAccount(nextUser);
@@ -101,6 +103,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
       setLoading(false);
     });
+
+    return () => {
+      window.clearTimeout(bootTimeout);
+      unsubscribe();
+    };
   }, [loadAccount]);
 
   useEffect(() => {

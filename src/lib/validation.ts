@@ -6,6 +6,14 @@ export const topicSchema = z
   .min(2, "Enter a topic with at least 2 characters.")
   .max(120, "Keep the topic under 120 characters.");
 
+export const courseRequestSchema = z.object({
+  topic: topicSchema,
+  goal: z.string().trim().max(500).optional().default(""),
+  background: z.string().trim().max(500).optional().default(""),
+  level: z.enum(["Foundations", "Intermediate", "Advanced"]).optional(),
+  weeklyMinutes: z.number().int().min(30).max(1_200).optional(),
+});
+
 export const courseOutlineSchema = z.object({
   mission: z.string().trim().min(1).max(500),
   level: z.enum(["Foundations", "Intermediate", "Advanced"]),
@@ -88,6 +96,14 @@ export const progressUpdateSchema = z.object({
   confidence: z.enum(["low", "medium", "high"]),
   review: z.boolean().optional(),
   totalLessons: z.number().int().min(1).max(500).optional(),
+  estimatedMinutes: z.number().int().min(1).max(180).optional(),
+});
+
+export const learnerStateSchema = z.object({
+  courseBookmarks: z.array(z.string().trim().min(1).max(200)).max(500),
+  lessonBookmarks: z.array(z.string().trim().min(1).max(400)).max(2_000),
+  notes: z.record(z.string().trim().min(1).max(400), z.string().max(12_000)),
+  weeklyLessonGoal: z.number().int().min(1).max(50),
 });
 
 export function validationMessage(error: z.ZodError) {

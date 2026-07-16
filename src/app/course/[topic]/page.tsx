@@ -6,12 +6,14 @@ import {
   ArrowLeft,
   ArrowRight,
   BookOpen,
+  CheckCircle2,
   Check,
   ChevronDown,
   ChevronRight,
   Circle,
   Globe2,
   Layers3,
+  Target,
   LoaderCircle,
   LockKeyhole,
   Play,
@@ -41,7 +43,7 @@ export default function CourseMap() {
   const getToken = useCallback(async () => (user ? user.getIdToken() : null), [user]);
 
   const loadOrGenerate = useCallback(async () => {
-    if (authLoading) return;
+    if (!requestedCourseId && authLoading) return;
     setLoading(true);
     setError(null);
 
@@ -185,7 +187,7 @@ export default function CourseMap() {
     }
   };
 
-  if (loading || authLoading) {
+  if (loading || (!requestedCourseId && authLoading)) {
     return (
       <AppShell activeTopic={topic} activeCourseId={requestedCourseId}>
         <div className="center-state course-building-state">
@@ -252,6 +254,12 @@ export default function CourseMap() {
             <p>{validCompletedLessons.length} of {totalLessons} lessons learned{user ? " and synced" : " on this device"}</p>
           </div>
 
+          <div className="course-learning-brief">
+            <section><span><Target size={19} /></span><div><small>Course outcome</small><strong>{course.outcome ?? course.mission}</strong></div></section>
+            <section><span><CheckCircle2 size={19} /></span><div><small>Designed to build</small><strong>{course.modules.at(-1)?.description ?? "Confident, retrievable understanding"}</strong></div></section>
+            <section><span><BookOpen size={19} /></span><div><small>Before you begin</small><strong>{course.prerequisites?.length ? course.prerequisites.join(" · ") : "No prior knowledge required"}</strong></div></section>
+          </div>
+
           {isPro && user && course.authorId === user.uid && (
             <div className="course-owner-actions">
               {isOwner && (
@@ -281,7 +289,7 @@ export default function CourseMap() {
                 <article className={`module-section ${expanded ? "is-open" : ""}`} key={`${module.title}-${moduleIndex}`}>
                   <button className="module-trigger" onClick={() => setExpandedModule(expanded ? null : moduleIndex)} aria-expanded={expanded}>
                     <span className="module-sequence">Module {moduleIndex + 1}</span>
-                    <span className="module-title"><strong>{module.title}</strong><small>{module.description}</small></span>
+                    <span className="module-title"><h3>{module.title}</h3><small>{module.description}</small></span>
                     <span className="module-completion">{completedInModule}/{module.lessons.length}</span>
                     {expanded ? <ChevronDown size={19} /> : <ChevronRight size={19} />}
                   </button>

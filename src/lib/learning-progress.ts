@@ -46,7 +46,8 @@ export function getLocalProgress(courseId: string, topic = "") {
         lastLessonId: String(completed.at(-1) ?? ""),
         lastLessonTitle: "Continue your course",
         completedLessonIds: completed.map(String),
-        lessons: {},
+      lessons: {},
+      studyMinutes: 0,
         lastActivityAt: new Date().toISOString(),
         startedAt: new Date().toISOString(),
       };
@@ -78,6 +79,7 @@ export function saveLocalProgress(update: ProgressUpdate) {
     : intervals[nextStage];
   const nextReviewAt = new Date(now.getTime() + days * 86_400_000).toISOString();
   const completedLessonIds = Array.from(new Set([...(previous?.completedLessonIds ?? []), update.lessonId]));
+  const firstCompletion = !previousLesson?.completedAt;
 
   const next: CourseProgress = {
     courseId: update.courseId,
@@ -100,8 +102,10 @@ export function saveLocalProgress(update: ProgressUpdate) {
         nextReviewAt,
         lastStudiedAt: now.toISOString(),
         completedAt: previousLesson?.completedAt ?? now.toISOString(),
+        estimatedMinutes: update.estimatedMinutes ?? previousLesson?.estimatedMinutes,
       },
     },
+    studyMinutes: (previous?.studyMinutes ?? 0) + (firstCompletion ? (update.estimatedMinutes ?? 0) : 0),
     lastActivityAt: now.toISOString(),
     startedAt: previous?.startedAt ?? now.toISOString(),
   };

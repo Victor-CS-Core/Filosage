@@ -12,7 +12,7 @@ import {
 } from "@/lib/ai-usage";
 import {
   courseOutlineSchema,
-  topicSchema,
+  courseRequestSchema,
   validationMessage,
 } from "@/lib/validation";
 
@@ -25,15 +25,15 @@ export async function POST(request: Request) {
   try {
     const account = await requirePremium(request);
     const body = await request.json();
-    const parsedTopic = topicSchema.safeParse(body.topic);
-    if (!parsedTopic.success) {
+    const parsedRequest = courseRequestSchema.safeParse(body);
+    if (!parsedRequest.success) {
       return NextResponse.json(
-        { error: validationMessage(parsedTopic.error) },
+        { error: validationMessage(parsedRequest.error) },
         { status: 400 },
       );
     }
 
-    const topic = parsedTopic.data;
+    const { topic, goal, background, level, weeklyMinutes } = parsedRequest.data;
     const existing = await findOwnerCourse(account.uid, topic);
     if (existing) {
       return NextResponse.json({ ...existing, courseId: existing.id });
@@ -45,7 +45,14 @@ export async function POST(request: Request) {
       model,
       instructions:
         "You are a master curriculum designer. Build a focused learning path using progressive difficulty, retrieval practice, and the Zone of Proximal Development. Include a realistic level, total learning time, concrete outcome, prerequisites, category, and an estimated time for every lesson. Keep each lesson tightly scoped and free of filler. Return the requested structured course only.",
-      input: `Create a complete but efficient course outline for: ${topic}`,
+      input: [
+        `Create a complete but efficient course outline for: ${topic}`,
+        goal ? `Learner's goal: ${goal}` : "",
+        background ? `Current background: ${background}` : "",
+        level ? `Requested starting level: ${level}` : "",
+        weeklyMinutes ? `Available study time: ${weeklyMinutes} minutes per week` : "",
+        "Sequence prerequisite concepts before dependent concepts. Make every lesson earn its place and end with an observable capability.",
+      ].filter(Boolean).join("\n"),
       text: {
         format: zodTextFormat(courseOutlineSchema, "course_outline"),
       },

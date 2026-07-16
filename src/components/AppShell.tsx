@@ -1,32 +1,28 @@
 "use client";
 
-import dynamic from "next/dynamic";
 import { usePathname, useRouter } from "next/navigation";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
-  CalendarClock,
-  ChevronDown,
+  ArrowRight,
+  BookOpen,
+  CalendarCheck2,
   ChevronRight,
-  Circle,
   Compass,
   Crown,
   Home,
-  Library,
   LogOut,
-  Menu,
   Moon,
   Plus,
   Sparkles,
   Sun,
+  TrendingUp,
   UserRound,
-  X,
 } from "lucide-react";
 import ErudozaMark from "@/components/ErudozaMark";
+import AuthModal from "@/components/AuthModal";
 import { useAuth } from "@/components/AuthProvider";
 import { useTheme } from "@/components/ThemeProvider";
 import type { Course } from "@/lib/course-types";
-
-const AuthModal = dynamic(() => import("@/components/AuthModal"), { ssr: false });
 
 interface AppShellProps {
   children: React.ReactNode;
@@ -35,272 +31,159 @@ interface AppShellProps {
   activeCourseId?: string | null;
 }
 
-export default function AppShell({
-  children,
-  activeTopic,
-  activeLessonId,
-  activeCourseId,
-}: AppShellProps) {
-  const { theme, toggle } = useTheme();
-  const { user, account, isOwner, isPro, signOut } = useAuth();
+const primaryNav = [
+  { href: "/", label: "Today", icon: Home },
+  { href: "/library", label: "Explore", icon: Compass },
+  { href: "/review", label: "Review", icon: CalendarCheck2 },
+  { href: "/progress", label: "Progress", icon: TrendingUp },
+];
+
+export default function AppShell({ children, activeTopic, activeCourseId }: AppShellProps) {
   const router = useRouter();
   const pathname = usePathname();
-  const [courses, setCourses] = useState<Course[]>([]);
-  const [newTopic, setNewTopic] = useState("");
-  const [expandedCourseId, setExpandedCourseId] = useState<string | null>(activeCourseId ?? null);
+  const { theme, toggle } = useTheme();
+  const { user, account, isPro, signOut } = useAuth();
   const [showAuth, setShowAuth] = useState(false);
-  const [mobileOpen, setMobileOpen] = useState(false);
-  const mobileTriggerRef = useRef<HTMLButtonElement>(null);
-  const mobilePanelRef = useRef<HTMLDivElement>(null);
+  const [courses, setCourses] = useState<Course[]>([]);
 
   useEffect(() => {
-    if (!isPro || !user) {
+    if (!user || !isPro) {
+      queueMicrotask(() => setCourses([]));
       return;
     }
-
     let cancelled = false;
-    async function loadCourses() {
-      try {
-        const token = await user!.getIdToken();
-        const response = await fetch("/api/courses?scope=mine", {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        if (!response.ok) return;
-        const data = (await response.json()) as { courses: Course[] };
-        if (!cancelled) setCourses(data.courses);
-      } catch (error) {
-        console.error("Could not load studio courses:", error);
-      }
-    }
+    void user.getIdToken().then((token) => fetch("/api/courses?scope=mine", {
+      headers: { Authorization: `Bearer ${token}` },
+      cache: "no-store",
+    })).then(async (response) => {
+      if (!response.ok) return;
+      const data = await response.json() as { courses: Course[] };
+      if (!cancelled) setCourses(data.courses);
+    }).catch(() => undefined);
+    return () => { cancelled = true; };
+  }, [isPro, pathname, user]);
 
-    void Promise.resolve().then(loadCourses);
-    return () => {
-      cancelled = true;
-    };
-  }, [isPro, user, pathname]);
-
-  useEffect(() => {
-    if (!mobileOpen) return;
-    const mobileTrigger = mobileTriggerRef.current;
-    const previousOverflow = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    const focusable = () => Array.from(mobilePanelRef.current?.querySelectorAll<HTMLElement>(
-      "button:not([disabled]), a[href], input:not([disabled]), [tabindex]:not([tabindex='-1'])",
-    ) ?? []);
-    queueMicrotask(() => focusable()[0]?.focus());
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") setMobileOpen(false);
-      if (event.key !== "Tab") return;
-      const items = focusable();
-      if (!items.length) return;
-      const first = items[0];
-      const last = items[items.length - 1];
-      if (event.shiftKey && document.activeElement === first) {
-        event.preventDefault();
-        last.focus();
-      } else if (!event.shiftKey && document.activeElement === last) {
-        event.preventDefault();
-        first.focus();
-      }
-    };
-    window.addEventListener("keydown", onKeyDown);
-    return () => {
-      document.body.style.overflow = previousOverflow;
-      window.removeEventListener("keydown", onKeyDown);
-      mobileTrigger?.focus();
-    };
-  }, [mobileOpen]);
-
-  const totalLessons = useMemo(
-    () => courses.reduce((sum, course) => sum + course.modules.reduce((n, module) => n + module.lessons.length, 0), 0),
-    [courses],
+  const displayName = account?.displayName ?? user?.displayName ?? "Learner";
+  const firstName = displayName.split(" ")[0] || "Learner";
+  const outlineQuota = account?.quotas.find((quota) => quota.feature === "course_outline");
+  const currentCourse = useMemo(
+    () => courses.find((course) => (course.id ?? course.courseId) === activeCourseId || course.topic === activeTopic),
+    [activeCourseId, activeTopic, courses],
   );
 
-  const startCourse = (event: React.FormEvent) => {
-    event.preventDefault();
-    const topic = newTopic.trim();
-    if (!user) {
-      setShowAuth(true);
-      return;
-    }
-    if (!isPro) {
-      router.push("/pricing");
-      return;
-    }
-    if (!topic) return;
-    setNewTopic("");
-    router.push(`/course/${encodeURIComponent(topic)}`);
-  };
+  const navigate = (href: string) => router.push(href);
 
-  const navigateCourse = (course: Course) => {
-    const id = course.id ?? course.courseId;
-    setExpandedCourseId((current) => (current === id ? null : id ?? null));
-    router.push(`/course/${encodeURIComponent(course.topic)}${id ? `?id=${id}` : ""}`);
-  };
+  if (!user) {
+    return (
+      <div className="public-shell">
+        <header className="public-header">
+          <button className="brand public-brand" onClick={() => navigate("/")} aria-label="Erudoza home">
+            <span className="brand-mark" aria-hidden="true"><ErudozaMark /></span>
+            <span><strong className="brand-wordmark">Erudoza</strong><small>Your daily dose of understanding.</small></span>
+          </button>
+          <nav aria-label="Public navigation">
+            <button onClick={() => navigate("/library")}>Library</button>
+            <button onClick={() => navigate("/#method")}>How it works</button>
+            <button onClick={() => navigate("/pricing")}>Plans</button>
+          </nav>
+          <div className="public-header-actions">
+            <button className="button button-quiet" onClick={() => setShowAuth(true)}>Sign in</button>
+            <button className="button button-primary" onClick={() => navigate("/pricing")}>Try Erudoza free <ArrowRight size={15} /></button>
+          </div>
+        </header>
+        <main className="public-main">{children}</main>
+        {showAuth && <AuthModal onClose={() => setShowAuth(false)} />}
+      </div>
+    );
+  }
 
-  const sidebar = (
-    <aside className="sidebar" aria-label="Primary navigation">
-      <div className="sidebar-brand-row">
-        <button className="brand" onClick={() => router.push("/")} aria-label="Erudoza home">
+  return (
+    <div className="app-shell learner-shell">
+      <aside className="learner-sidebar" aria-label="Primary navigation">
+        <button className="brand learner-brand" onClick={() => navigate("/")} aria-label="Erudoza home">
           <span className="brand-mark" aria-hidden="true"><ErudozaMark /></span>
           <span><strong className="brand-wordmark">Erudoza</strong><small>Your daily dose of understanding.</small></span>
         </button>
-        <button className="icon-button mobile-only" onClick={() => setMobileOpen(false)} aria-label="Close navigation">
-          <X size={19} />
-        </button>
-      </div>
 
-      <nav className="sidebar-nav">
-        <button className={`nav-link ${pathname === "/" ? "is-active" : ""}`} onClick={() => router.push("/")}>
-          <Home size={18} />
-          <span>Today</span>
-        </button>
-        <button className="nav-link" onClick={() => router.push("/#library")}>
-          <Compass size={18} />
-          <span>Discover</span>
-        </button>
-        <button className={`nav-link ${pathname === "/review" ? "is-active" : ""}`} onClick={() => user ? router.push("/review") : setShowAuth(true)}>
-          <CalendarClock size={18} />
-          <span>Review</span>
-        </button>
-        <button className={`nav-link ${pathname === "/pricing" ? "is-active" : ""}`} onClick={() => router.push("/pricing")}>
-          <Crown size={18} />
-          <span>Erudoza Pro</span>
-        </button>
-
-        <div className="nav-rule" />
+        <nav className="learner-primary-nav">
+          {primaryNav.map(({ href, label, icon: Icon }) => (
+            <button key={href} className={`nav-link ${pathname === href ? "is-active" : ""}`} onClick={() => navigate(href)}>
+              <Icon size={18} /><span>{label}</span>
+            </button>
+          ))}
+          {isPro && (
+            <button className={`nav-link ${pathname === "/create" ? "is-active" : ""}`} onClick={() => navigate("/create")}>
+              <Plus size={18} /><span>Create course</span>
+            </button>
+          )}
+        </nav>
 
         {isPro ? (
-          <>
-            <div className="sidebar-heading-row">
-              <span>{isOwner ? "Studio" : "My courses"}</span>
-              <span className="sidebar-count" aria-label={`${courses.length} courses`}>{courses.length}</span>
-            </div>
-
-            <form className="new-course-form" onSubmit={startCourse}>
-              <label htmlFor="new-course-topic">Build a learning path</label>
-              <div className="compact-input-row">
-                <input
-                  id="new-course-topic"
-                  value={newTopic}
-                  onChange={(event) => setNewTopic(event.target.value)}
-                  placeholder="Enter any topic"
-                  maxLength={120}
-                />
-                <button className="icon-button icon-button-accent" type="submit" disabled={!newTopic.trim()} aria-label="Create course">
-                  <Plus size={18} />
-                </button>
-              </div>
-            </form>
-
-            <div className="course-tree" aria-label="Your courses">
-              {courses.length === 0 ? (
-                <div className="sidebar-empty">
-                  <Library size={18} />
-                  <p>Your private generated courses will appear here.</p>
-                </div>
-              ) : courses.map((course) => {
-                const id = course.id ?? course.courseId ?? course.topic;
-                const expanded = expandedCourseId === id;
-                const active = activeCourseId ? activeCourseId === id : activeTopic === course.topic;
+          <section className="sidebar-courses" aria-labelledby="sidebar-courses-title">
+            <div className="sidebar-heading-row"><span id="sidebar-courses-title">My learning paths</span><span>{courses.length}</span></div>
+            <div className="sidebar-course-list">
+              {courses.slice(0, 6).map((course) => {
+                const id = course.id ?? course.courseId;
+                const active = currentCourse === course;
                 return (
-                  <div className="course-tree-item" key={id}>
-                    <button className={`course-tree-trigger ${active ? "is-active" : ""}`} onClick={() => navigateCourse(course)}>
-                      {expanded ? <ChevronDown size={15} /> : <ChevronRight size={15} />}
-                      <span>{course.topic}</span>
-                      <span className={`visibility-dot ${course.isPublic ? "is-public" : ""}`} title={course.isPublic ? "Public" : "Private"} />
-                    </button>
-                    {expanded && course.modules.map((module, moduleIndex) => (
-                      <div className="course-tree-module" key={`${id}-${moduleIndex}`}>
-                        <p>{module.title}</p>
-                        {module.lessons.map((lesson, lessonIndex) => {
-                          const lessonId = `${moduleIndex}-${lessonIndex}`;
-                          const lessonActive = active && activeLessonId === lessonId;
-                          return (
-                            <button
-                              key={lessonId}
-                              className={`course-tree-lesson ${lessonActive ? "is-active" : ""}`}
-                              onClick={() => router.push(`/course/${encodeURIComponent(course.topic)}/lesson/${lessonId}?id=${id}`)}
-                            >
-                              <Circle size={8} fill={lessonActive ? "currentColor" : "none"} />
-                              <span>{lesson.title}</span>
-                            </button>
-                          );
-                        })}
-                      </div>
-                    ))}
-                  </div>
+                  <button key={id ?? course.topic} className={`sidebar-course ${active ? "is-active" : ""}`} onClick={() => navigate(`/course/${encodeURIComponent(course.topic)}${id ? `?id=${id}` : ""}`)}>
+                    <span className="sidebar-course-icon"><BookOpen size={15} /></span>
+                    <span><strong>{course.topic}</strong><small>{course.isPublic ? "Published" : "Private"}</small></span>
+                    <ChevronRight size={15} />
+                  </button>
                 );
               })}
+              {!courses.length && <p className="sidebar-empty-copy">Create a focused course and it will stay within reach here.</p>}
             </div>
-
-            {courses.length > 0 && (
-              <p className="sidebar-summary">{totalLessons} lessons across {courses.length} courses</p>
-            )}
-          </>
+          </section>
         ) : (
-          <div className="studio-lockup pro-lockup">
+          <section className="sidebar-upgrade">
             <Sparkles size={18} />
-            <div>
-              <strong>Create with Erudoza Pro</strong>
-              <p>Generate private learning paths and use the lesson tutor.</p>
-            </div>
-            <button className="button button-secondary button-small" onClick={() => user ? router.push("/pricing") : setShowAuth(true)}>
-              {user ? "View Pro" : "Sign in"}
-            </button>
-          </div>
+            <strong>Craft your own course</strong>
+            <p>Build a private learning path around a goal that matters to you.</p>
+            <button className="button button-primary button-small" onClick={() => navigate("/pricing")}>Explore Pro</button>
+          </section>
         )}
-      </nav>
 
-      <div className="sidebar-footer">
-        <button className="icon-button" onClick={toggle} aria-label={`Switch to ${theme === "dark" ? "light" : "dark"} mode`}>
-          {theme === "dark" ? <Sun size={18} /> : <Moon size={18} />}
-        </button>
-        {user ? (
-          <div className="account-compact">
-            {user.photoURL ? (
+        <div className="learner-sidebar-footer">
+          {isPro && outlineQuota && (
+            <button className="quota-row" onClick={() => navigate("/pricing")}>
+              <Crown size={15} /><span><strong>Erudoza Pro</strong><small>{outlineQuota.remaining ?? "Unlimited"} course credits</small></span>
+            </button>
+          )}
+          <div className="account-row">
+            {user?.photoURL ? (
               // eslint-disable-next-line @next/next/no-img-element
               <img src={user.photoURL} alt="" referrerPolicy="no-referrer" />
-            ) : account?.displayName || user.displayName ? (
-              <span className="avatar-fallback">{(account?.displayName ?? user.displayName ?? "T").slice(0, 1).toUpperCase()}</span>
-            ) : (
-              <span className="avatar-fallback" aria-hidden="true"><UserRound size={16} /></span>
-            )}
-            <span>
-              <strong>{account?.displayName ?? user.displayName ?? "Learning account"}</strong>
-              <small>{isPro ? "Erudoza Pro" : "Learning account"}</small>
-            </span>
+            ) : <span className="avatar-fallback"><UserRound size={16} /></span>}
+            <span><strong>{firstName}</strong><small>{isPro ? "Pro learning account" : "Free learning account"}</small></span>
+            <button className="icon-button" onClick={toggle} aria-label={`Use ${theme === "dark" ? "light" : "dark"} mode`}>
+              {theme === "dark" ? <Sun size={17} /> : <Moon size={17} />}
+            </button>
             <button className="icon-button" onClick={signOut} aria-label="Sign out"><LogOut size={17} /></button>
           </div>
-        ) : (
-          <button className="button button-secondary button-small" onClick={() => setShowAuth(true)}>Sign in</button>
-        )}
-      </div>
-    </aside>
-  );
+        </div>
+      </aside>
 
-  return (
-    <div className="app-shell">
-      <header className="mobile-topbar">
-        <button ref={mobileTriggerRef} className="icon-button" onClick={() => setMobileOpen(true)} aria-label="Open navigation" aria-expanded={mobileOpen} aria-controls="mobile-navigation"><Menu size={20} /></button>
-        <button className="brand brand-mobile" onClick={() => router.push("/")}>
-          <span className="brand-mark" aria-hidden="true"><ErudozaMark /></span>
-          <strong className="brand-wordmark">Erudoza</strong>
+      <header className="learner-mobile-header">
+        <button className="brand brand-mobile" onClick={() => navigate("/")} aria-label="Erudoza home">
+          <span className="brand-mark" aria-hidden="true"><ErudozaMark /></span><strong className="brand-wordmark">Erudoza</strong>
         </button>
-        <button className="icon-button" onClick={toggle} aria-label="Toggle theme">
-          {theme === "dark" ? <Sun size={18} /> : <Moon size={18} />}
-        </button>
+        <span>{isPro ? "Pro" : "Free"}</span>
+        <button className="icon-button" onClick={toggle} aria-label="Toggle color theme">{theme === "dark" ? <Sun size={18} /> : <Moon size={18} />}</button>
       </header>
 
-      {mobileOpen && (
-        <div id="mobile-navigation" className="mobile-sidebar-layer is-open" role="dialog" aria-modal="true" aria-label="Navigation" onMouseDown={() => setMobileOpen(false)}>
-          <div ref={mobilePanelRef} onMouseDown={(event) => event.stopPropagation()}>{sidebar}</div>
-        </div>
-      )}
-      <div className="desktop-sidebar">{sidebar}</div>
-
       <main className="app-main">{children}</main>
-      {showAuth && <AuthModal onClose={() => setShowAuth(false)} />}
+
+      <nav className="mobile-bottom-nav" aria-label="Mobile navigation">
+        {primaryNav.slice(0, 2).map(({ href, label, icon: Icon }) => (
+          <button key={href} className={pathname === href ? "is-active" : ""} onClick={() => navigate(href)}><Icon size={20} /><span>{label}</span></button>
+        ))}
+        <button className="mobile-create" onClick={() => navigate(isPro ? "/create" : "/pricing")} aria-label={isPro ? "Create course" : "Explore Pro"}><Plus size={22} /></button>
+        {primaryNav.slice(2).map(({ href, label, icon: Icon }) => (
+          <button key={href} className={pathname === href ? "is-active" : ""} onClick={() => navigate(href)}><Icon size={20} /><span>{label}</span></button>
+        ))}
+      </nav>
     </div>
   );
 }

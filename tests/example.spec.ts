@@ -5,20 +5,15 @@ test("keeps the learning library public", async ({ page }) => {
 
   await expect(page).toHaveTitle(/Erudoza/);
   await expect(
-    page.getByRole("heading", { name: /Understand more.*Achieve more/i }),
+    page.getByRole("heading", { name: "Understand more. Achieve more." }),
   ).toBeVisible();
-  await expect(page.getByText("Published lessons stay free.")).toBeVisible();
+  await expect(page.getByText("No account required to read")).toBeVisible();
 });
 
 test("offers an optional learner account without blocking public access", async ({ page }) => {
   await page.goto("/");
 
-  if ((page.viewportSize()?.width ?? 1000) < 820) {
-    await page.getByRole("button", { name: "Open navigation" }).click();
-    await page.locator(".mobile-sidebar-layer .sidebar-footer").getByRole("button", { name: "Sign in" }).click();
-  } else {
-    await page.locator(".desktop-sidebar .sidebar-footer").getByRole("button", { name: "Sign in" }).click();
-  }
+  await page.locator(".public-header").getByRole("button", { name: "Sign in" }).click();
 
   const dialog = page.getByRole("dialog", { name: "Keep your learning in sync" });
   await expect(dialog).toBeVisible();
@@ -78,4 +73,48 @@ test("does not complete a lesson after a wrong answer", async ({ page }) => {
   await secondCheck.getByRole("button", { name: /To see change over time/ }).click();
   await secondCheck.getByRole("button", { name: "Certain" }).click();
   await expect(page.getByText("Lesson learned")).toBeVisible();
+});
+
+test("presents public courses as a browsable learning library", async ({ page }) => {
+  await page.route("**/api/courses?scope=public", (route) => route.fulfill({ json: { courses: [{
+    id: "public-systems",
+    courseId: "public-systems",
+    topic: "Systems thinking",
+    mission: "See the feedback loops shaping everyday outcomes.",
+    level: "beginner",
+    isPublic: true,
+    modules: [{ title: "Foundations", description: "Build the model", lessons: [
+      { title: "Feedback loops", concept: "How outputs shape future inputs", estimatedMinutes: 8 },
+      { title: "Leverage points", concept: "Where small changes matter", estimatedMinutes: 10 },
+    ] }],
+  }] } }));
+
+  await page.goto("/library");
+  await expect(page.getByRole("heading", { name: "Find the next idea worth mastering." })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Systems thinking" })).toBeVisible();
+  await expect(page.getByText("2 lessons")).toBeVisible();
+  await expect(page.getByRole("button", { name: /Open Systems thinking/i })).toBeVisible();
+});
+
+test("frames each course around an outcome and mastery", async ({ page }) => {
+  const course = {
+    courseId: "demo",
+    id: "demo",
+    topic: "Systems thinking",
+    mission: "Understand feedback loops.",
+    level: "beginner",
+    isPublic: true,
+    modules: [{
+      title: "Foundations",
+      description: "Build a working mental model",
+      lessons: [{ title: "Feedback loops", concept: "How outputs influence future inputs", estimatedMinutes: 8 }],
+    }],
+  };
+  await page.route("**/api/courses/demo", (route) => route.fulfill({ json: course }));
+  await page.goto("/course/Systems%20thinking?id=demo");
+
+  await expect(page.getByText("Course outcome")).toBeVisible();
+  await expect(page.getByText("Designed to build")).toBeVisible();
+  await expect(page.getByRole("heading", { name: "From foundation to fluency" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Foundations" })).toBeVisible();
 });

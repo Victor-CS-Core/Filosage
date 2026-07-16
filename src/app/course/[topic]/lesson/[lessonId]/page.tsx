@@ -7,6 +7,7 @@ import {
   ArrowLeft,
   ArrowRight,
   Bot,
+  Bookmark,
   Check,
   CheckCircle2,
   ChevronRight,
@@ -15,6 +16,7 @@ import {
   LoaderCircle,
   LockKeyhole,
   MessageSquareText,
+  NotebookPen,
   RotateCcw,
   Send,
   X,
@@ -26,6 +28,7 @@ import { useTheme } from "@/components/ThemeProvider";
 import type { Course, LessonData, Quiz } from "@/lib/course-types";
 import type { Confidence, CourseProgress, ProgressUpdate } from "@/lib/learning-types";
 import { getLocalProgress, saveLocalProgress } from "@/lib/learning-progress";
+import { useLearnerState } from "@/components/useLearnerState";
 
 interface Message {
   id: string;
@@ -225,6 +228,7 @@ export default function LessonView() {
   const reviewMode = searchParams.get("review") === "1";
   const [moduleIndex, lessonIndex] = lessonId.split("-").map(Number);
   const { user, isPro } = useAuth();
+  const { state: learnerState, update: updateLearnerState, ready: learnerStateReady } = useLearnerState();
   const [course, setCourse] = useState<Course | null>(null);
   const [lessonData, setLessonData] = useState<LessonData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -236,7 +240,14 @@ export default function LessonView() {
   const [chatInput, setChatInput] = useState("");
   const [chatting, setChatting] = useState(false);
   const [chatError, setChatError] = useState<string | null>(null);
+  const [noteDraft, setNoteDraft] = useState("");
   const chatBottomRef = useRef<HTMLDivElement>(null);
+  const noteKey = courseId ? `${courseId}:${lessonId}` : `${topic}:${lessonId}`;
+  const lessonBookmarked = learnerState.lessonBookmarks.includes(noteKey);
+
+  useEffect(() => {
+    if (learnerStateReady) queueMicrotask(() => setNoteDraft(learnerState.notes[noteKey] ?? ""));
+  }, [learnerState.notes, learnerStateReady, noteKey]);
 
   const getToken = useCallback(async () => (user ? user.getIdToken() : null), [user]);
 
@@ -363,6 +374,7 @@ export default function LessonView() {
       confidence,
       review: reviewMode,
       totalLessons: allLessons.length,
+      estimatedMinutes: lesson.estimatedMinutes ?? 12,
     };
 
     saveLocalProgress(update);
@@ -482,6 +494,9 @@ export default function LessonView() {
           </nav>
           <div className="lesson-toolbar-actions">
             <span>{currentPosition + 1} of {allLessons.length}</span>
+            <button className={`icon-button lesson-bookmark ${lessonBookmarked ? "is-active" : ""}`} onClick={() => updateLearnerState((current) => ({ ...current, lessonBookmarks: current.lessonBookmarks.includes(noteKey) ? current.lessonBookmarks.filter((item) => item !== noteKey) : [...current.lessonBookmarks, noteKey] }))} aria-label={lessonBookmarked ? "Remove lesson bookmark" : "Bookmark lesson"} aria-pressed={lessonBookmarked}>
+              <Bookmark size={17} fill={lessonBookmarked ? "currentColor" : "none"} />
+            </button>
             {user ? (
               <button className={`button button-secondary button-small ${tutorOpen ? "is-active" : ""}`} onClick={() => setTutorOpen((open) => !open)}>
                 <MessageSquareText size={16} /> {tutorOpen ? "Close tutor" : "Ask tutor"}
@@ -555,6 +570,19 @@ export default function LessonView() {
               </nav>
             </div>
           </article>
+
+          {!tutorOpen && (
+            <aside className="lesson-study-panel" aria-label="Lesson study tools">
+              <div className="study-panel-heading"><NotebookPen size={18} /><div><strong>Study workspace</strong><small>{user ? "Synced with your account" : "Saved on this device"}</small></div></div>
+              <section className="lesson-note-section">
+                <label htmlFor="lesson-note">Your notes</label>
+                <textarea id="lesson-note" value={noteDraft} onChange={(event) => setNoteDraft(event.target.value)} onBlur={() => updateLearnerState((current) => ({ ...current, notes: { ...current.notes, [noteKey]: noteDraft } }))} maxLength={12_000} rows={9} placeholder="Capture the idea in your own words…" />
+                <span>{noteDraft.length.toLocaleString()}/12,000</span>
+              </section>
+              <section className="study-key-point"><span><Lightbulb size={17} /></span><div><strong>Core idea</strong><p>{lesson.concept}</p></div></section>
+              <section className="mastery-checklist"><strong>To master this lesson</strong><ul><li className="is-done"><Check size={15} /> Read the explanation</li><li className={lessonData.diagram ? "is-done" : ""}><Check size={15} /> Inspect the mental model</li><li className={complete ? "is-done" : ""}><Check size={15} /> Complete retrieval practice</li></ul></section>
+            </aside>
+          )}
 
           {user && tutorOpen && (
             <aside className="tutor-drawer" aria-label="AI tutor">

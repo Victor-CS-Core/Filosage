@@ -12,6 +12,7 @@ export interface LessonProgress {
   nextReviewAt: string;
   lastStudiedAt: string;
   completedAt?: string;
+  estimatedMinutes?: number;
 }
 
 export interface CourseProgress {
@@ -25,6 +26,7 @@ export interface CourseProgress {
   totalLessons?: number;
   lastActivityAt: string;
   startedAt: string;
+  studyMinutes?: number;
 }
 
 export interface ProgressUpdate {
@@ -38,4 +40,5 @@ export interface ProgressUpdate {
   confidence: Confidence;
   review?: boolean;
   totalLessons?: number;
+  estimatedMinutes?: number;
 }

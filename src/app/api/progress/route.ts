@@ -20,6 +20,7 @@ function asCourseProgress(value: Record<string, unknown>): CourseProgress {
     totalLessons: typeof value.totalLessons === "number" ? value.totalLessons : undefined,
     lastActivityAt: String(value.lastActivityAt ?? ""),
     startedAt: String(value.startedAt ?? value.lastActivityAt ?? ""),
+    studyMinutes: typeof value.studyMinutes === "number" ? value.studyMinutes : 0,
   };
 }
 
@@ -80,6 +81,7 @@ export async function POST(request: Request) {
       : intervals[intervalStage];
     const nextReviewAt = new Date(now.getTime() + intervalDays * 86_400_000).toISOString();
     const completedLessonIds = Array.from(new Set([...(previous?.completedLessonIds ?? []), update.lessonId]));
+    const firstCompletion = !previousLesson?.completedAt;
 
     const lessonProgress: LessonProgress = {
       lessonId: update.lessonId,
@@ -93,6 +95,7 @@ export async function POST(request: Request) {
       nextReviewAt,
       lastStudiedAt: now.toISOString(),
       completedAt: previousLesson?.completedAt ?? now.toISOString(),
+      estimatedMinutes: update.estimatedMinutes ?? previousLesson?.estimatedMinutes,
     };
 
     const saved = await putStoredDocument(path, {
@@ -105,6 +108,7 @@ export async function POST(request: Request) {
       lessons: { ...(previous?.lessons ?? {}), [update.lessonId]: lessonProgress },
       lastActivityAt: now.toISOString(),
       startedAt: previous?.startedAt ?? now.toISOString(),
+      studyMinutes: (previous?.studyMinutes ?? 0) + (firstCompletion ? (update.estimatedMinutes ?? 0) : 0),
     });
 
     return Response.json(
