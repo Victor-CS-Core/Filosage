@@ -2,19 +2,22 @@
 
 import dynamic from "next/dynamic";
 import { usePathname, useRouter } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   BookOpen,
+  CalendarClock,
   ChevronDown,
   ChevronRight,
   Circle,
   Compass,
+  Crown,
+  Home,
   Library,
-  LockKeyhole,
   LogOut,
   Menu,
   Moon,
   Plus,
+  Sparkles,
   Sun,
   X,
 } from "lucide-react";
@@ -38,7 +41,7 @@ export default function AppShell({
   activeCourseId,
 }: AppShellProps) {
   const { theme, toggle } = useTheme();
-  const { user, isOwner, loading: authLoading, signOut } = useAuth();
+  const { user, account, isOwner, isPro, signOut } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
   const [courses, setCourses] = useState<Course[]>([]);
@@ -46,9 +49,11 @@ export default function AppShell({
   const [expandedCourseId, setExpandedCourseId] = useState<string | null>(activeCourseId ?? null);
   const [showAuth, setShowAuth] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
+  const mobileTriggerRef = useRef<HTMLButtonElement>(null);
+  const mobilePanelRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (!isOwner || !user) {
+    if (!isPro || !user) {
       return;
     }
 
@@ -71,7 +76,39 @@ export default function AppShell({
     return () => {
       cancelled = true;
     };
-  }, [isOwner, user, pathname]);
+  }, [isPro, user, pathname]);
+
+  useEffect(() => {
+    if (!mobileOpen) return;
+    const mobileTrigger = mobileTriggerRef.current;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    const focusable = () => Array.from(mobilePanelRef.current?.querySelectorAll<HTMLElement>(
+      "button:not([disabled]), a[href], input:not([disabled]), [tabindex]:not([tabindex='-1'])",
+    ) ?? []);
+    queueMicrotask(() => focusable()[0]?.focus());
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setMobileOpen(false);
+      if (event.key !== "Tab") return;
+      const items = focusable();
+      if (!items.length) return;
+      const first = items[0];
+      const last = items[items.length - 1];
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      window.removeEventListener("keydown", onKeyDown);
+      mobileTrigger?.focus();
+    };
+  }, [mobileOpen]);
 
   const totalLessons = useMemo(
     () => courses.reduce((sum, course) => sum + course.modules.reduce((n, module) => n + module.lessons.length, 0), 0),
@@ -81,8 +118,12 @@ export default function AppShell({
   const startCourse = (event: React.FormEvent) => {
     event.preventDefault();
     const topic = newTopic.trim();
-    if (!isOwner) {
+    if (!user) {
       setShowAuth(true);
+      return;
+    }
+    if (!isPro) {
+      router.push("/pricing");
       return;
     }
     if (!topic) return;
@@ -110,16 +151,28 @@ export default function AppShell({
 
       <nav className="sidebar-nav">
         <button className={`nav-link ${pathname === "/" ? "is-active" : ""}`} onClick={() => router.push("/")}>
+          <Home size={18} />
+          <span>Today</span>
+        </button>
+        <button className="nav-link" onClick={() => router.push("/#library")}>
           <Compass size={18} />
           <span>Discover</span>
+        </button>
+        <button className={`nav-link ${pathname === "/review" ? "is-active" : ""}`} onClick={() => user ? router.push("/review") : setShowAuth(true)}>
+          <CalendarClock size={18} />
+          <span>Review</span>
+        </button>
+        <button className={`nav-link ${pathname === "/pricing" ? "is-active" : ""}`} onClick={() => router.push("/pricing")}>
+          <Crown size={18} />
+          <span>Teach Pro</span>
         </button>
 
         <div className="nav-rule" />
 
-        {isOwner ? (
+        {isPro ? (
           <>
             <div className="sidebar-heading-row">
-              <span>Studio</span>
+              <span>{isOwner ? "Studio" : "My courses"}</span>
               <span className="sidebar-count" aria-label={`${courses.length} courses`}>{courses.length}</span>
             </div>
 
@@ -143,7 +196,7 @@ export default function AppShell({
               {courses.length === 0 ? (
                 <div className="sidebar-empty">
                   <Library size={18} />
-                  <p>Your private courses will appear here.</p>
+                  <p>Your private generated courses will appear here.</p>
                 </div>
               ) : courses.map((course) => {
                 const id = course.id ?? course.courseId ?? course.topic;
@@ -185,14 +238,14 @@ export default function AppShell({
             )}
           </>
         ) : (
-          <div className="studio-lockup">
-            <LockKeyhole size={18} />
+          <div className="studio-lockup pro-lockup">
+            <Sparkles size={18} />
             <div>
-              <strong>Private Studio</strong>
-              <p>Authoring and AI tools are owner-only.</p>
+              <strong>Create with Teach Pro</strong>
+              <p>Generate private learning paths and use the lesson tutor.</p>
             </div>
-            <button className="button button-secondary button-small" onClick={() => setShowAuth(true)} disabled={authLoading}>
-              Owner sign in
+            <button className="button button-secondary button-small" onClick={() => user ? router.push("/pricing") : setShowAuth(true)}>
+              {user ? "View Pro" : "Sign in"}
             </button>
           </div>
         )}
@@ -202,7 +255,7 @@ export default function AppShell({
         <button className="icon-button" onClick={toggle} aria-label={`Switch to ${theme === "dark" ? "light" : "dark"} mode`}>
           {theme === "dark" ? <Sun size={18} /> : <Moon size={18} />}
         </button>
-        {isOwner && user ? (
+        {user ? (
           <div className="account-compact">
             {user.photoURL ? (
               // eslint-disable-next-line @next/next/no-img-element
@@ -210,11 +263,11 @@ export default function AppShell({
             ) : (
               <span className="avatar-fallback">{user.email?.slice(0, 1).toUpperCase()}</span>
             )}
-            <span><strong>Owner</strong><small>{user.email}</small></span>
+            <span><strong>{isOwner ? "Owner" : account?.plan === "pro" ? "Teach Pro" : "Learner"}</strong><small>{user.email}</small></span>
             <button className="icon-button" onClick={signOut} aria-label="Sign out"><LogOut size={17} /></button>
           </div>
         ) : (
-          <span className="public-mode-label">Public learning mode</span>
+          <button className="button button-secondary button-small" onClick={() => setShowAuth(true)}>Sign in</button>
         )}
       </div>
     </aside>
@@ -223,7 +276,7 @@ export default function AppShell({
   return (
     <div className="app-shell">
       <header className="mobile-topbar">
-        <button className="icon-button" onClick={() => setMobileOpen(true)} aria-label="Open navigation"><Menu size={20} /></button>
+        <button ref={mobileTriggerRef} className="icon-button" onClick={() => setMobileOpen(true)} aria-label="Open navigation" aria-expanded={mobileOpen} aria-controls="mobile-navigation"><Menu size={20} /></button>
         <button className="brand brand-mobile" onClick={() => router.push("/")}>
           <span className="brand-mark" aria-hidden="true"><BookOpen size={17} /></span>
           <strong>Teach</strong>
@@ -234,8 +287,8 @@ export default function AppShell({
       </header>
 
       {mobileOpen && (
-        <div className="mobile-sidebar-layer is-open" onMouseDown={() => setMobileOpen(false)}>
-          <div onMouseDown={(event) => event.stopPropagation()}>{sidebar}</div>
+        <div id="mobile-navigation" className="mobile-sidebar-layer is-open" role="dialog" aria-modal="true" aria-label="Navigation" onMouseDown={() => setMobileOpen(false)}>
+          <div ref={mobilePanelRef} onMouseDown={(event) => event.stopPropagation()}>{sidebar}</div>
         </div>
       )}
       <div className="desktop-sidebar">{sidebar}</div>

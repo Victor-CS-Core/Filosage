@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { authorizationResponse, requireOwner } from "@/lib/auth-server";
+import { authorizationResponse, requireAccount, requirePremium } from "@/lib/auth-server";
 import {
   createCourse,
   findOwnerCourse,
@@ -25,8 +25,8 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: "Unknown course scope." }, { status: 400 });
     }
 
-    const owner = await requireOwner(request);
-    const courses = await listOwnerCourses(owner.uid);
+    const account = await requireAccount(request);
+    const courses = await listOwnerCourses(account.uid);
     return NextResponse.json({ courses });
   } catch (error: unknown) {
     const authResponse = authorizationResponse(error);
@@ -37,12 +37,25 @@ export async function GET(request: Request) {
 }
 export async function POST(request: Request) {
   try {
-    const owner = await requireOwner(request);
+    const account = await requirePremium(request);
     const body = await request.json();
     const parsedTopic = topicSchema.safeParse(body.topic);
+    const normalizedModules = Array.isArray(body.modules)
+      ? body.modules.map((module: Record<string, unknown>) => ({
+        ...module,
+        lessons: Array.isArray(module.lessons)
+          ? module.lessons.map((lesson: Record<string, unknown>) => ({ estimatedMinutes: 12, ...lesson }))
+          : module.lessons,
+      }))
+      : body.modules;
     const parsedOutline = courseOutlineSchema.safeParse({
       mission: body.mission,
-      modules: body.modules,
+      level: body.level ?? "Foundations",
+      estimatedMinutes: body.estimatedMinutes ?? 60,
+      outcome: body.outcome ?? body.mission,
+      prerequisites: body.prerequisites ?? [],
+      category: body.category ?? "General",
+      modules: normalizedModules,
     });
 
     if (!parsedTopic.success) {
@@ -52,17 +65,18 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: validationMessage(parsedOutline.error) }, { status: 400 });
     }
 
-    const existing = await findOwnerCourse(owner.uid, parsedTopic.data);
+    const existing = await findOwnerCourse(account.uid, parsedTopic.data);
     if (existing) {
       return NextResponse.json({ courseId: existing.id });
     }
 
     const course = await createCourse({
       topic: parsedTopic.data,
+      topicKey: parsedTopic.data.toLowerCase().replace(/\s+/g, " "),
       ...parsedOutline.data,
-      authorId: owner.uid,
-      authorName: owner.name ?? owner.email ?? "Teach owner",
-      authorPhoto: owner.picture ?? null,
+      authorId: account.uid,
+      authorName: account.displayName ?? account.email ?? "Teach learner",
+      authorPhoto: account.photoURL ?? null,
       isPublic: false,
     });
 

@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { authorizationResponse, requireOwner } from "@/lib/auth-server";
+import { authorizationResponse, requireAccount } from "@/lib/auth-server";
 import { getCourse, getLesson } from "@/lib/firebase-server";
 
 interface RouteParams {
@@ -13,8 +13,8 @@ export async function GET(request: Request, { params }: RouteParams) {
     if (!course) return NextResponse.json({ error: "Course not found." }, { status: 404 });
 
     if (!course.isPublic) {
-      const owner = await requireOwner(request);
-      if (owner.uid !== course.authorId) {
+      const account = await requireAccount(request);
+      if (account.uid !== course.authorId && !account.isOwner) {
         return NextResponse.json({ error: "You do not have access to this lesson." }, { status: 403 });
       }
     }

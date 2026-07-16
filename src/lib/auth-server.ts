@@ -1,11 +1,11 @@
 import "server-only";
 
 import { NextResponse } from "next/server";
-import { OWNER_EMAIL } from "@/lib/auth-constants";
 import {
   verifyFirebaseIdToken,
   type VerifiedFirebaseUser,
 } from "@/lib/firebase-server";
+import { getOrCreateAccount, isOwnerUser, type ServerAccount } from "@/lib/account-server";
 
 export class AuthorizationError extends Error {
   constructor(
@@ -28,17 +28,30 @@ export async function getVerifiedUser(request: Request): Promise<VerifiedFirebas
 }
 
 export async function requireOwner(request: Request): Promise<VerifiedFirebaseUser> {
-  const user = await getVerifiedUser(request);
-  if (!user) {
-    throw new AuthorizationError(401, "Sign in with the owner account to continue.");
-  }
-
-  const email = user.email?.trim().toLowerCase();
-  if (!user.email_verified || email !== OWNER_EMAIL) {
-    throw new AuthorizationError(403, "This workspace is limited to its owner.");
-  }
+  const user = await requireUser(request);
+  if (!isOwnerUser(user)) throw new AuthorizationError(403, "Only the Teach owner can publish courses.");
 
   return user;
+}
+
+export async function requireUser(request: Request): Promise<VerifiedFirebaseUser> {
+  const user = await getVerifiedUser(request);
+  if (!user || !user.email_verified) {
+    throw new AuthorizationError(401, "Sign in with a verified account to continue.");
+  }
+  return user;
+}
+
+export async function requireAccount(request: Request): Promise<ServerAccount> {
+  return getOrCreateAccount(await requireUser(request));
+}
+
+export async function requirePremium(request: Request): Promise<ServerAccount> {
+  const account = await requireAccount(request);
+  if (account.plan !== "pro" && !account.isOwner) {
+    throw new AuthorizationError(403, "Teach Pro is required for this feature.");
+  }
+  return account;
 }
 
 export function authorizationResponse(error: unknown) {

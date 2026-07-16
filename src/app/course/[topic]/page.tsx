@@ -14,11 +14,14 @@ import {
   Layers3,
   LoaderCircle,
   LockKeyhole,
+  Play,
   Trash2,
 } from "lucide-react";
 import AppShell from "@/components/AppShell";
 import { useAuth } from "@/components/AuthProvider";
 import type { Course } from "@/lib/course-types";
+import type { CourseProgress } from "@/lib/learning-types";
+import { getLocalProgress } from "@/lib/learning-progress";
 
 export default function CourseMap() {
   const params = useParams<{ topic: string }>();
@@ -26,7 +29,7 @@ export default function CourseMap() {
   const searchParams = useSearchParams();
   const topic = decodeURIComponent(params.topic);
   const requestedCourseId = searchParams.get("id");
-  const { user, isOwner, loading: authLoading } = useAuth();
+  const { user, isOwner, isPro, loading: authLoading } = useAuth();
   const [course, setCourse] = useState<Course | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -54,8 +57,8 @@ export default function CourseMap() {
         return;
       }
 
-      if (!isOwner) {
-        setError("Course creation is available only in the private Teach Studio.");
+      if (!isPro) {
+        setError("Private course creation is included with Teach Pro.");
         return;
       }
 
@@ -65,6 +68,7 @@ export default function CourseMap() {
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
+          "Idempotency-Key": crypto.randomUUID(),
         },
         body: JSON.stringify({ topic }),
       });
@@ -78,7 +82,7 @@ export default function CourseMap() {
     } finally {
       setLoading(false);
     }
-  }, [authLoading, requestedCourseId, isOwner, getToken, topic, router]);
+  }, [authLoading, requestedCourseId, isPro, getToken, topic, router]);
 
   useEffect(() => {
     void Promise.resolve().then(loadOrGenerate);
@@ -88,13 +92,28 @@ export default function CourseMap() {
 
   useEffect(() => {
     if (!courseId) return;
-    try {
-      const saved = JSON.parse(localStorage.getItem(`teach-progress:${courseId}`) || "[]") as string[];
-      queueMicrotask(() => setCompletedLessons(Array.isArray(saved) ? saved : []));
-    } catch {
-      queueMicrotask(() => setCompletedLessons([]));
-    }
-  }, [courseId]);
+    let cancelled = false;
+    const loadProgress = async () => {
+      if (user) {
+        const token = await user.getIdToken();
+        const response = await fetch(`/api/progress?courseId=${encodeURIComponent(courseId)}`, {
+          headers: { Authorization: `Bearer ${token}` },
+          cache: "no-store",
+        });
+        if (response.ok) {
+          const data = await response.json() as { progress: CourseProgress | null };
+          if (!cancelled) setCompletedLessons(data.progress?.completedLessonIds ?? []);
+          return;
+        }
+      }
+      const local = getLocalProgress(courseId, topic);
+      if (!cancelled) setCompletedLessons(local?.completedLessonIds ?? []);
+    };
+    void loadProgress().catch(() => {
+      if (!cancelled) setCompletedLessons([]);
+    });
+    return () => { cancelled = true; };
+  }, [courseId, topic, user]);
 
   useEffect(() => {
     if (!deleteArmed) return;
@@ -106,7 +125,20 @@ export default function CourseMap() {
     () => course?.modules.reduce((sum, module) => sum + module.lessons.length, 0) ?? 0,
     [course],
   );
-  const progress = totalLessons ? Math.round((completedLessons.length / totalLessons) * 100) : 0;
+  const validLessonIds = useMemo(() => new Set(course?.modules.flatMap((module, moduleIndex) => module.lessons.map((_, lessonIndex) => `${moduleIndex}-${lessonIndex}`)) ?? []), [course]);
+  const validCompletedLessons = useMemo(
+    () => completedLessons.filter((lessonId) => validLessonIds.has(lessonId)),
+    [completedLessons, validLessonIds],
+  );
+  const progress = totalLessons ? Math.min(100, Math.round((validCompletedLessons.length / totalLessons) * 100)) : 0;
+  const firstIncompleteLesson = useMemo(() => {
+    if (!course) return null;
+    for (let moduleIndex = 0; moduleIndex < course.modules.length; moduleIndex += 1) {
+      const lessonIndex = course.modules[moduleIndex].lessons.findIndex((_, index) => !validCompletedLessons.includes(`${moduleIndex}-${index}`));
+      if (lessonIndex >= 0) return `${moduleIndex}-${lessonIndex}`;
+    }
+    return null;
+  }, [course, validCompletedLessons]);
 
   const updateVisibility = async () => {
     if (!isOwner || !courseId || !course) return;
@@ -174,7 +206,7 @@ export default function CourseMap() {
           <p>{error || "The course could not be found."}</p>
           <div className="state-actions">
             <button className="button button-secondary" onClick={() => router.push("/")}><ArrowLeft size={16} /> Return to library</button>
-            {isOwner && <button className="button button-primary" onClick={loadOrGenerate}>Try again</button>}
+            {isPro && <button className="button button-primary" onClick={loadOrGenerate}>Try again</button>}
           </div>
         </div>
       </AppShell>
@@ -202,21 +234,31 @@ export default function CourseMap() {
             <div className="course-facts" aria-label="Course summary">
               <span><Layers3 size={17} /><strong>{course.modules.length}</strong> modules</span>
               <span><BookOpen size={17} /><strong>{totalLessons}</strong> lessons</span>
+              <span><strong>{course.level ?? "Foundations"}</strong> level</span>
+              <span><strong>{Math.max(1, Math.round((course.estimatedMinutes ?? totalLessons * 12) / 60))}</strong> hours</span>
             </div>
           </div>
 
+          {firstIncompleteLesson && (
+            <button className="button button-primary course-continue" onClick={() => router.push(`/course/${encodeURIComponent(topic)}/lesson/${firstIncompleteLesson}?id=${courseId}`)}>
+              <Play size={16} /> {validCompletedLessons.length ? "Continue course" : "Start first lesson"}
+            </button>
+          )}
+
           <div className="progress-strip">
             <div><span>Course progress</span><strong>{progress}%</strong></div>
-            <div className="progress-track" aria-label={`${progress}% complete`}><span style={{ transform: `scaleX(${progress / 100})` }} /></div>
-            <p>{completedLessons.length} of {totalLessons} lessons completed on this device</p>
+            <div className="progress-track" role="progressbar" aria-label="Course progress" aria-valuemin={0} aria-valuemax={100} aria-valuenow={progress}><span style={{ transform: `scaleX(${progress / 100})` }} /></div>
+            <p>{validCompletedLessons.length} of {totalLessons} lessons learned{user ? " and synced" : " on this device"}</p>
           </div>
 
-          {isOwner && (
+          {isPro && user && course.authorId === user.uid && (
             <div className="course-owner-actions">
-              <button className="button button-secondary" onClick={updateVisibility} disabled={updating}>
-                {updating ? <LoaderCircle className="spin" size={16} /> : course.isPublic ? <LockKeyhole size={16} /> : <Globe2 size={16} />}
-                {course.isPublic ? "Return to private" : "Publish course"}
-              </button>
+              {isOwner && (
+                <button className="button button-secondary" onClick={updateVisibility} disabled={updating}>
+                  {updating ? <LoaderCircle className="spin" size={16} /> : course.isPublic ? <LockKeyhole size={16} /> : <Globe2 size={16} />}
+                  {course.isPublic ? "Return to private" : "Publish course"}
+                </button>
+              )}
               <button className={`button ${deleteArmed ? "button-danger" : "button-quiet"}`} onClick={deleteCourse} disabled={updating}>
                 <Trash2 size={16} /> {deleteArmed ? "Confirm delete" : "Delete course"}
               </button>
@@ -227,13 +269,13 @@ export default function CourseMap() {
         <section className="curriculum" aria-labelledby="curriculum-title">
           <div className="section-heading">
             <div><p className="overline">Curriculum</p><h2 id="curriculum-title">From foundation to fluency</h2></div>
-            <p>Move in order or open the concept you need. Your completed lessons are marked locally.</p>
+            <p>Move in order or open the concept you need. Reviews are scheduled after demonstrated understanding.</p>
           </div>
 
           <div className="module-list">
             {course.modules.map((module, moduleIndex) => {
               const expanded = expandedModule === moduleIndex;
-              const completedInModule = module.lessons.filter((_, lessonIndex) => completedLessons.includes(`${moduleIndex}-${lessonIndex}`)).length;
+              const completedInModule = module.lessons.filter((_, lessonIndex) => validCompletedLessons.includes(`${moduleIndex}-${lessonIndex}`)).length;
               return (
                 <article className={`module-section ${expanded ? "is-open" : ""}`} key={`${module.title}-${moduleIndex}`}>
                   <button className="module-trigger" onClick={() => setExpandedModule(expanded ? null : moduleIndex)} aria-expanded={expanded}>
@@ -247,7 +289,7 @@ export default function CourseMap() {
                     <div className="lesson-list">
                       {module.lessons.map((lesson, lessonIndex) => {
                         const lessonId = `${moduleIndex}-${lessonIndex}`;
-                        const complete = completedLessons.includes(lessonId);
+                        const complete = validCompletedLessons.includes(lessonId);
                         return (
                           <button
                             className="lesson-row"
@@ -256,7 +298,7 @@ export default function CourseMap() {
                           >
                             <span className={`lesson-status ${complete ? "is-complete" : ""}`}>{complete ? <Check size={14} /> : <Circle size={9} />}</span>
                             <span><strong>{lesson.title}</strong><small>{lesson.concept}</small></span>
-                            <span className="lesson-duration">Read & practice</span>
+                            <span className="lesson-duration">{lesson.estimatedMinutes ?? 12} min</span>
                             <ArrowRight size={17} />
                           </button>
                         );

@@ -1,12 +1,13 @@
 # Teach
 
-Teach is a premium AI-assisted learning product. Public visitors can discover published courses, read lessons, study diagrams, complete retrieval-practice quizzes, and keep device-local progress. A private owner studio creates, manages, publishes, and tutors courses.
+Teach is a premium AI-assisted learning product. Public visitors can discover and complete published courses without an account. Learner accounts add cloud progress and spaced review. Teach Pro adds metered private course generation and lesson-grounded tutoring, while publishing remains owner-only.
 
 ## Product modes
 
-- Public learning: open course discovery, published lessons, diagrams, quizzes, and local progress
-- Private studio: Google SSO restricted to `viticopq12@gmail.com`
-- Owner-only AI: course generation, lesson generation, and tutor chat are enforced on the server
+- Anonymous learning: open discovery, published lessons, diagrams, mastery checks, and device progress
+- Free learner: Google sign-in, cloud progress, review scheduling, and a small daily tutor allowance
+- Teach Pro: private course generation with monthly credits and a larger tutor allowance
+- Owner: Pro access plus publishing and unpublishing for the public library
 
 ## Stack
 
@@ -21,7 +22,9 @@ Teach is a premium AI-assisted learning product. Public visitors can discover pu
 1. Copy `.env.example` to `.env.local`.
 2. Add the Firebase browser and Admin SDK values.
 3. Add `OPENAI_API_KEY`. `OPENAI_MODEL` defaults to `gpt-5.6`.
-4. Run `npm install` and then `npm run dev`.
+4. Configure `OPENAI_MONTHLY_BUDGET_USD` and the token cost variables for the selected model.
+5. Add test Pro users to `PREMIUM_EMAILS` until subscription billing is connected.
+6. Run `npm install` and then `npm run dev`.
 
 Without local credentials, the public shell still renders for interface review, while data-backed and authenticated actions report that they are unavailable.
 
@@ -30,6 +33,7 @@ Without local credentials, the public shell still renders for interface review, 
 ```bash
 npm run lint
 npm run build
+npm run build:sites
 ```
 
 Deployment is intentionally separate from local validation. The current Sites build should be replaced only after the local redesign is approved.

@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { authorizationResponse, requireOwner } from "@/lib/auth-server";
+import { authorizationResponse, requireAccount, requireOwner } from "@/lib/auth-server";
 import {
   deleteCourse,
   getCourse,
@@ -16,8 +16,8 @@ export async function GET(request: Request, { params }: RouteParams) {
     if (!course) return NextResponse.json({ error: "Course not found." }, { status: 404 });
 
     if (!course.isPublic) {
-      const owner = await requireOwner(request);
-      if (owner.uid !== course.authorId) {
+      const account = await requireAccount(request);
+      if (account.uid !== course.authorId && !account.isOwner) {
         return NextResponse.json({ error: "You do not have access to this course." }, { status: 403 });
       }
     }
@@ -65,10 +65,10 @@ export async function PATCH(request: Request, { params }: RouteParams) {
 export async function DELETE(request: Request, { params }: RouteParams) {
   const { courseId } = await params;
   try {
-    const owner = await requireOwner(request);
+    const account = await requireAccount(request);
     const course = await getCourse(courseId);
     if (!course) return NextResponse.json({ error: "Course not found." }, { status: 404 });
-    if (course.authorId !== owner.uid) {
+    if (course.authorId !== account.uid && !account.isOwner) {
       return NextResponse.json({ error: "You do not own this course." }, { status: 403 });
     }
 

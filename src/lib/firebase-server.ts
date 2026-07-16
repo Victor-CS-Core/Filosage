@@ -24,11 +24,15 @@ interface FirestoreDocument {
   fields?: Record<string, FirestoreValue>;
 }
 
-interface StoredDocument extends Record<string, unknown> {
+export interface StoredDocument extends Record<string, unknown> {
   id: string;
   authorId?: string;
   isPublic?: boolean;
   topic?: string;
+}
+
+interface TransactionStart {
+  transaction: string;
 }
 
 interface TokenResponse {
@@ -349,11 +353,19 @@ export async function saveLesson(
   lessonId: string,
   data: Record<string, unknown>,
 ) {
+  const existing = await getLesson(courseId, lessonId);
+  const now = new Date();
   const document = await firestoreJson<FirestoreDocument>(
     `/documents/${encodeDocumentPath(`courses/${courseId}/lessons/${lessonId}`)}`,
     {
       method: "PATCH",
-      body: JSON.stringify({ fields: toFirestoreFields({ ...data, createdAt: new Date() }) }),
+      body: JSON.stringify({
+        fields: toFirestoreFields({
+          ...data,
+          createdAt: existing?.createdAt ?? now,
+          updatedAt: now,
+        }),
+      }),
     },
   );
   if (!document) throw new Error("Firestore did not return the saved lesson.");
@@ -367,6 +379,111 @@ async function commitWrites(writes: Array<Record<string, unknown>>) {
       body: JSON.stringify({ writes: writes.slice(index, index + 500) }),
     });
   }
+}
+
+export async function getStoredDocument(path: string) {
+  const document = await firestoreJson<FirestoreDocument>(
+    `/documents/${encodeDocumentPath(path)}`,
+    {},
+    true,
+  );
+  return document ? parseDocument(document) : null;
+}
+
+export async function putStoredDocument(path: string, data: Record<string, unknown>) {
+  const storedData = { ...data };
+  delete storedData.id;
+  const document = await firestoreJson<FirestoreDocument>(
+    `/documents/${encodeDocumentPath(path)}`,
+    {
+      method: "PATCH",
+      body: JSON.stringify({ fields: toFirestoreFields(storedData) }),
+    },
+  );
+  if (!document) throw new Error("Firestore did not return the saved document.");
+  return parseDocument(document);
+}
+
+export async function listStoredDocuments(path: string, pageSize = 100) {
+  const response = await firestoreJson<{ documents?: FirestoreDocument[] }>(
+    `/documents/${encodeDocumentPath(path)}?pageSize=${Math.min(Math.max(pageSize, 1), 300)}`,
+  );
+  return (response?.documents ?? []).map(parseDocument);
+}
+
+export async function createStoredDocument(
+  collectionPath: string,
+  data: Record<string, unknown>,
+  documentId?: string,
+) {
+  const storedData = { ...data };
+  delete storedData.id;
+  const query = documentId ? `?documentId=${encodeURIComponent(documentId)}` : "";
+  const document = await firestoreJson<FirestoreDocument>(
+    `/documents/${encodeDocumentPath(collectionPath)}${query}`,
+    {
+      method: "POST",
+      body: JSON.stringify({ fields: toFirestoreFields(storedData) }),
+    },
+  );
+  if (!document) throw new Error("Firestore did not return the created document.");
+  return parseDocument(document);
+}
+
+export async function runStoredDocumentTransaction<T>(
+  paths: string[],
+  update: (
+    documents: Record<string, StoredDocument | null>,
+  ) => { writes: Array<{ path: string; data: Record<string, unknown> }>; result: T },
+): Promise<T> {
+  let lastError: unknown;
+
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    try {
+      const started = await firestoreJson<TransactionStart>("/documents:beginTransaction", {
+        method: "POST",
+        body: JSON.stringify({ options: { readWrite: {} } }),
+      });
+      if (!started?.transaction) throw new Error("Firestore did not start a transaction.");
+
+      const documents: Record<string, StoredDocument | null> = {};
+      for (const path of paths) {
+        const document = await firestoreJson<FirestoreDocument>(
+          `/documents/${encodeDocumentPath(path)}?transaction=${encodeURIComponent(started.transaction)}`,
+          {},
+          true,
+        );
+        documents[path] = document ? parseDocument(document) : null;
+      }
+
+      const next = update(documents);
+      await firestoreJson("/documents:commit", {
+        method: "POST",
+        body: JSON.stringify({
+          transaction: started.transaction,
+          writes: next.writes.map((write) => {
+            const storedData = { ...write.data };
+            delete storedData.id;
+            return {
+              update: {
+                name: fullDocumentName(write.path),
+                fields: toFirestoreFields(storedData),
+              },
+            };
+          }),
+        }),
+      });
+      return next.result;
+    } catch (error) {
+      lastError = error;
+      const isRetryableFirestoreConflict = error instanceof Error
+        && /Firestore request failed \((409|412|429|503)\)/.test(error.message);
+      if (!isRetryableFirestoreConflict) throw error;
+      if (attempt < 2) await new Promise((resolve) => setTimeout(resolve, 40 * (attempt + 1)));
+    }
+  }
+
+  throw lastError;
 }
 
 export async function updateCourseVisibility(courseId: string, isPublic: boolean) {

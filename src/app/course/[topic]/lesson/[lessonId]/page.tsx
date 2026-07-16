@@ -3,7 +3,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import ReactMarkdown from "react-markdown";
-import mermaid from "mermaid";
 import {
   ArrowLeft,
   ArrowRight,
@@ -24,6 +23,8 @@ import AppShell from "@/components/AppShell";
 import { useAuth } from "@/components/AuthProvider";
 import { useTheme } from "@/components/ThemeProvider";
 import type { Course, LessonData, Quiz } from "@/lib/course-types";
+import type { Confidence, CourseProgress, ProgressUpdate } from "@/lib/learning-types";
+import { getLocalProgress, saveLocalProgress } from "@/lib/learning-progress";
 
 interface Message {
   id: string;
@@ -31,7 +32,7 @@ interface Message {
   content: string;
 }
 
-function MermaidDiagram({ chart }: { chart: string }) {
+function MermaidDiagram({ chart, summary }: { chart: string; summary?: string }) {
   const ref = useRef<HTMLDivElement>(null);
   const { theme } = useTheme();
 
@@ -39,17 +40,17 @@ function MermaidDiagram({ chart }: { chart: string }) {
     if (!ref.current || !chart) return;
     let cancelled = false;
     const id = `teach-diagram-${crypto.randomUUID()}`;
-    mermaid.initialize({
-      startOnLoad: false,
-      securityLevel: "strict",
-      theme: theme === "dark" ? "dark" : "neutral",
-      fontFamily: "var(--font-body)",
-      themeVariables: {
-        fontSize: "16px",
-      },
-    });
-    mermaid
-      .render(id, chart)
+    void import("mermaid")
+      .then(({ default: mermaid }) => {
+        mermaid.initialize({
+          startOnLoad: false,
+          securityLevel: "strict",
+          theme: theme === "dark" ? "dark" : "neutral",
+          fontFamily: "var(--font-body)",
+          themeVariables: { fontSize: "16px" },
+        });
+        return mermaid.render(id, chart);
+      })
       .then(({ svg }) => {
         if (cancelled || !ref.current) return;
 
@@ -101,35 +102,63 @@ function MermaidDiagram({ chart }: { chart: string }) {
     };
   }, [chart, theme]);
 
-  return <div className="concept-diagram" ref={ref} role="img" aria-label="Concept diagram" />;
+  return (
+    <div>
+      <div className="concept-diagram" ref={ref} role="img" aria-label={summary || "Concept diagram"} />
+      <details className="diagram-transcript">
+        <summary>View diagram as text</summary>
+        <p>{summary || chart.split("\n").filter((line) => line.includes("-->")).join("; ") || "The diagram shows the relationships described in this lesson."}</p>
+      </details>
+    </div>
+  );
+}
+
+interface QuizResult {
+  attempts: number;
+  firstAttemptCorrect: boolean;
+  confidence: Confidence;
 }
 
 function KnowledgeCheck({
   quiz,
   index,
-  onAnswered,
+  onMastered,
 }: {
   quiz: Quiz;
   index: number;
-  onAnswered: (index: number) => void;
+  onMastered: (index: number, result: QuizResult) => void;
 }) {
+  const [recall, setRecall] = useState("");
+  const [choicesVisible, setChoicesVisible] = useState(false);
   const [selected, setSelected] = useState<number | null>(null);
+  const [attempts, setAttempts] = useState(0);
+  const [mastered, setMastered] = useState(false);
+  const [submittedConfidence, setSubmittedConfidence] = useState<Confidence | null>(null);
 
   const choose = (optionIndex: number) => {
     if (selected !== null) return;
+    const nextAttempts = attempts + 1;
+    setAttempts(nextAttempts);
     setSelected(optionIndex);
-    onAnswered(index);
+    if (optionIndex === quiz.correctIndex) setMastered(true);
   };
 
   const reset = () => setSelected(null);
 
   return (
-    <article className="knowledge-check">
+    <fieldset className="knowledge-check">
       <div className="knowledge-question">
         <span>{String(index + 1).padStart(2, "0")}</span>
-        <h3>{quiz.question}</h3>
+        <legend>{quiz.question}</legend>
       </div>
-      <div className="answer-list">
+      {!choicesVisible && (
+        <div className="free-recall">
+          <label htmlFor={`recall-${index}`}>Write what you remember before seeing the choices</label>
+          <textarea id={`recall-${index}`} value={recall} onChange={(event) => setRecall(event.target.value)} rows={3} placeholder="A rough answer is enough. This private reflection is only for you." />
+          <button className="button button-secondary button-small" type="button" onClick={() => setChoicesVisible(true)}>Compare with choices</button>
+        </div>
+      )}
+      {choicesVisible && <div className="answer-list">
         {quiz.options.map((option, optionIndex) => {
           const revealed = selected !== null;
           const correct = revealed && optionIndex === quiz.correctIndex;
@@ -148,18 +177,31 @@ function KnowledgeCheck({
             </button>
           );
         })}
-      </div>
+      </div>}
       {selected !== null && (
-        <div className={`answer-explanation ${selected === quiz.correctIndex ? "is-correct" : "is-incorrect"}`} role="status">
+        <div className={`answer-explanation ${selected === quiz.correctIndex ? "is-correct" : "is-incorrect"}`} aria-live="polite">
           <div>
             {selected === quiz.correctIndex ? <CheckCircle2 size={18} /> : <Lightbulb size={18} />}
             <strong>{selected === quiz.correctIndex ? "Exactly right" : "Use this clue"}</strong>
           </div>
           <p>{quiz.explanation}</p>
           {selected !== quiz.correctIndex && <button className="text-button" onClick={reset}><RotateCcw size={14} /> Try again</button>}
+          {mastered && (
+            <div className="confidence-check" role="group" aria-label="How confident did that answer feel?">
+              <span>How confident did that feel?</span>
+              {(["low", "medium", "high"] as Confidence[]).map((confidence) => (
+                <button key={confidence} type="button" disabled={submittedConfidence !== null} className={submittedConfidence === confidence ? "is-selected" : ""} onClick={() => {
+                  setSubmittedConfidence(confidence);
+                  onMastered(index, { attempts, firstAttemptCorrect: attempts === 1, confidence });
+                }}>
+                  {confidence === "low" ? "Unsure" : confidence === "medium" ? "Mostly sure" : "Certain"}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
       )}
-    </article>
+    </fieldset>
   );
 }
 
@@ -170,13 +212,14 @@ export default function LessonView() {
   const topic = decodeURIComponent(params.topic);
   const lessonId = params.lessonId;
   const courseId = searchParams.get("id");
+  const reviewMode = searchParams.get("review") === "1";
   const [moduleIndex, lessonIndex] = lessonId.split("-").map(Number);
-  const { user, isOwner, loading: authLoading } = useAuth();
+  const { user, isPro, loading: authLoading } = useAuth();
   const [course, setCourse] = useState<Course | null>(null);
   const [lessonData, setLessonData] = useState<LessonData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [answered, setAnswered] = useState<number[]>([]);
+  const [quizResults, setQuizResults] = useState<Record<number, QuizResult>>({});
   const [complete, setComplete] = useState(false);
   const [tutorOpen, setTutorOpen] = useState(false);
   const [messages, setMessages] = useState<Message[]>([]);
@@ -215,7 +258,7 @@ export default function LessonView() {
         return;
       }
 
-      if (!isOwner) {
+      if (!isPro || resolvedCourse.authorId !== user?.uid) {
         const data = await lessonResponse.json();
         throw new Error(data.error || "This lesson has not been published yet.");
       }
@@ -225,6 +268,7 @@ export default function LessonView() {
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
+          "Idempotency-Key": crypto.randomUUID(),
         },
         body: JSON.stringify({
           topic,
@@ -242,7 +286,7 @@ export default function LessonView() {
     } finally {
       setLoading(false);
     }
-  }, [authLoading, courseId, getToken, moduleIndex, lessonIndex, lessonId, isOwner, topic]);
+  }, [authLoading, courseId, getToken, moduleIndex, lessonIndex, lessonId, isPro, topic, user]);
 
   useEffect(() => {
     void Promise.resolve().then(loadLesson);
@@ -250,40 +294,32 @@ export default function LessonView() {
 
   useEffect(() => {
     if (!courseId) return;
-    try {
-      const saved = JSON.parse(localStorage.getItem(`teach-progress:${courseId}`) || "[]") as string[];
-      queueMicrotask(() => setComplete(saved.includes(lessonId)));
-    } catch {
-      queueMicrotask(() => setComplete(false));
-    }
-  }, [courseId, lessonId]);
+    let cancelled = false;
+    const loadProgress = async () => {
+      if (user) {
+        const token = await user.getIdToken();
+        const response = await fetch(`/api/progress?courseId=${encodeURIComponent(courseId)}`, {
+          headers: { Authorization: `Bearer ${token}` },
+          cache: "no-store",
+        });
+        if (response.ok) {
+          const data = await response.json() as { progress: CourseProgress | null };
+          if (!cancelled) setComplete(!reviewMode && Boolean(data.progress?.completedLessonIds.includes(lessonId)));
+          return;
+        }
+      }
+      const local = getLocalProgress(courseId, topic);
+      if (!cancelled) setComplete(!reviewMode && Boolean(local?.completedLessonIds.includes(lessonId)));
+    };
+    void loadProgress().catch(() => {
+      if (!cancelled) setComplete(false);
+    });
+    return () => { cancelled = true; };
+  }, [courseId, lessonId, reviewMode, topic, user]);
 
   useEffect(() => {
     chatBottomRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" });
   }, [messages]);
-
-  const markComplete = useCallback(() => {
-    if (!courseId || complete) return;
-    try {
-      const key = `teach-progress:${courseId}`;
-      const saved = JSON.parse(localStorage.getItem(key) || "[]") as string[];
-      const next = Array.from(new Set([...saved, lessonId]));
-      localStorage.setItem(key, JSON.stringify(next));
-      setComplete(true);
-    } catch {
-      setComplete(true);
-    }
-  }, [complete, courseId, lessonId]);
-
-  const onAnswered = (index: number) => {
-    setAnswered((current) => {
-      const next = Array.from(new Set([...current, index]));
-      if (lessonData && next.length === lessonData.quizzes.length) {
-        window.setTimeout(markComplete, 250);
-      }
-      return next;
-    });
-  };
 
   const lesson = course?.modules[moduleIndex]?.lessons[lessonIndex];
   const currentModule = course?.modules[moduleIndex];
@@ -301,10 +337,57 @@ export default function LessonView() {
   const nextLesson = currentPosition >= 0 && currentPosition < allLessons.length - 1 ? allLessons[currentPosition + 1] : null;
   const lessonProgress = allLessons.length ? Math.round(((currentPosition + (complete ? 1 : 0)) / allLessons.length) * 100) : 0;
 
+  const markComplete = useCallback(async () => {
+    if (!courseId || complete || !lessonData || !lesson) return;
+    const results = Object.values(quizResults);
+    if (lessonData.quizzes.length && results.length !== lessonData.quizzes.length) return;
+    const confidences = results.map((result) => result.confidence);
+    const confidence: Confidence = confidences.includes("low") ? "low" : confidences.includes("medium") ? "medium" : "high";
+    const update: ProgressUpdate = {
+      courseId,
+      topic,
+      lessonId,
+      lessonTitle: lesson.title,
+      totalQuestions: lessonData.quizzes.length,
+      firstAttemptCorrect: results.filter((result) => result.firstAttemptCorrect).length,
+      attempts: results.reduce((sum, result) => sum + result.attempts, 0),
+      confidence,
+      review: reviewMode,
+      totalLessons: allLessons.length,
+    };
+
+    saveLocalProgress(update);
+    if (user) {
+      try {
+        const token = await user.getIdToken();
+        const response = await fetch("/api/progress", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+          body: JSON.stringify(update),
+        });
+        if (!response.ok) throw new Error("Cloud progress could not be saved.");
+      } catch (saveError) {
+        console.error(saveError);
+      }
+    }
+    setComplete(true);
+  }, [allLessons.length, complete, courseId, lesson, lessonData, lessonId, quizResults, reviewMode, topic, user]);
+
+  const onMastered = (index: number, result: QuizResult) => {
+    setQuizResults((current) => ({ ...current, [index]: result }));
+  };
+
+  useEffect(() => {
+    if (!lessonData?.quizzes.length || complete) return;
+    if (Object.keys(quizResults).length !== lessonData.quizzes.length) return;
+    const timeout = window.setTimeout(() => { void markComplete(); }, 250);
+    return () => window.clearTimeout(timeout);
+  }, [complete, lessonData, markComplete, quizResults]);
+
   const sendMessage = async (event: React.FormEvent) => {
     event.preventDefault();
     const input = chatInput.trim();
-    if (!input || !lessonData || !lesson || !isOwner || chatting) return;
+    if (!input || !lessonData || !lesson || !user || chatting) return;
     const nextMessages: Message[] = [...messages, { id: crypto.randomUUID(), role: "user", content: input }];
     setMessages(nextMessages);
     setChatInput("");
@@ -315,7 +398,7 @@ export default function LessonView() {
       const token = await getToken();
       const response = await fetch("/api/chat", {
         method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}`, "Idempotency-Key": crypto.randomUUID() },
         body: JSON.stringify({
           messages: nextMessages.map(({ role, content }) => ({ role, content })),
           data: {
@@ -372,7 +455,7 @@ export default function LessonView() {
           <p>{error || "The lesson could not be found."}</p>
           <div className="state-actions">
             <button className="button button-secondary" onClick={() => router.push(`/course/${encodeURIComponent(topic)}${courseId ? `?id=${courseId}` : ""}`)}><ArrowLeft size={16} /> Back to course</button>
-            {isOwner && <button className="button button-primary" onClick={loadLesson}>Try again</button>}
+            {isPro && <button className="button button-primary" onClick={loadLesson}>Try again</button>}
           </div>
         </div>
       </AppShell>
@@ -390,12 +473,12 @@ export default function LessonView() {
           </nav>
           <div className="lesson-toolbar-actions">
             <span>{currentPosition + 1} of {allLessons.length}</span>
-            {isOwner ? (
+            {user ? (
               <button className={`button button-secondary button-small ${tutorOpen ? "is-active" : ""}`} onClick={() => setTutorOpen((open) => !open)}>
                 <MessageSquareText size={16} /> {tutorOpen ? "Close tutor" : "Ask tutor"}
               </button>
             ) : (
-              <span className="owner-only-note"><LockKeyhole size={14} /> AI tutor is owner-only</span>
+              <span className="owner-only-note"><LockKeyhole size={14} /> Sign in for lesson help</span>
             )}
           </div>
         </header>
@@ -403,7 +486,7 @@ export default function LessonView() {
         <div className="lesson-workspace">
           <article className="lesson-scroll">
             <div className="reading-column">
-              <div className="lesson-progress-top"><span style={{ transform: `scaleX(${lessonProgress / 100})` }} /></div>
+              <div className="lesson-progress-top" role="progressbar" aria-label="Course progress" aria-valuemin={0} aria-valuemax={100} aria-valuenow={lessonProgress}><span style={{ transform: `scaleX(${lessonProgress / 100})` }} /></div>
               <header className="lesson-title-block">
                 <p className="overline">{currentModule?.title}</p>
                 <h1>{lesson.title}</h1>
@@ -415,7 +498,7 @@ export default function LessonView() {
               {lessonData.diagram && (
                 <section className="lesson-section" aria-labelledby="model-title">
                   <div className="lesson-section-heading"><p className="overline">Mental model</p><h2 id="model-title">See the relationships</h2></div>
-                  <MermaidDiagram chart={lessonData.diagram} />
+                  <MermaidDiagram chart={lessonData.diagram} summary={lessonData.diagramSummary} />
                 </section>
               )}
 
@@ -428,7 +511,7 @@ export default function LessonView() {
                   </div>
                   <div className="knowledge-list">
                     {lessonData.quizzes.map((quiz, index) => (
-                      <KnowledgeCheck key={`${quiz.question}-${index}`} quiz={quiz} index={index} onAnswered={onAnswered} />
+                      <KnowledgeCheck key={`${quiz.question}-${index}`} quiz={quiz} index={index} onMastered={onMastered} />
                     ))}
                   </div>
                 </section>
@@ -437,11 +520,11 @@ export default function LessonView() {
               <div className={`completion-banner ${complete ? "is-complete" : ""}`}>
                 <div>{complete ? <CheckCircle2 size={22} /> : <CircleAlert size={22} />}</div>
                 <span>
-                  <strong>{complete ? "Lesson complete" : "Finish the knowledge checks"}</strong>
-                  <small>{complete ? "Your progress is saved on this device." : "Complete each prompt to record this lesson."}</small>
+                  <strong>{complete ? (reviewMode ? "Review complete" : "Lesson learned") : "Demonstrate understanding"}</strong>
+                  <small>{complete ? (user ? "Progress synced. Your next review has been scheduled." : "Progress saved on this device. Sign in to sync it.") : "Answer every prompt correctly and rate your confidence."}</small>
                 </span>
-                {!complete && answered.length === lessonData.quizzes.length && (
-                  <button className="button button-secondary button-small" onClick={markComplete}>Mark complete</button>
+                {!complete && lessonData.quizzes.length === 0 && (
+                  <button className="button button-secondary button-small" onClick={() => void markComplete()}>Mark learned</button>
                 )}
               </div>
 
@@ -464,7 +547,7 @@ export default function LessonView() {
             </div>
           </article>
 
-          {isOwner && tutorOpen && (
+          {user && tutorOpen && (
             <aside className="tutor-drawer" aria-label="AI tutor">
               <div className="tutor-header">
                 <span className="tutor-avatar"><Bot size={19} /></span>

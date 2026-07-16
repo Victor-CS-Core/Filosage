@@ -8,22 +8,28 @@ import {
   BookOpen,
   BrainCircuit,
   CheckCircle2,
+  Clock3,
+  Crown,
   Library,
   RefreshCw,
   Search,
+  Sparkles,
 } from "lucide-react";
 import AppShell from "@/components/AppShell";
 import { useAuth } from "@/components/AuthProvider";
 import type { Course } from "@/lib/course-types";
+import type { CourseProgress } from "@/lib/learning-types";
+import { listLocalProgress } from "@/lib/learning-progress";
 
 export default function Home() {
   const router = useRouter();
-  const { isOwner } = useAuth();
+  const { user, isPro, loading: authLoading } = useAuth();
   const [courses, setCourses] = useState<Course[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [query, setQuery] = useState("");
   const [topic, setTopic] = useState("");
+  const [progress, setProgress] = useState<CourseProgress[]>([]);
 
   const loadCourses = useCallback(async () => {
     setLoading(true);
@@ -44,6 +50,24 @@ export default function Home() {
     void Promise.resolve().then(loadCourses);
   }, [loadCourses]);
 
+  useEffect(() => {
+    if (authLoading) return;
+    if (!user) {
+      queueMicrotask(() => setProgress(listLocalProgress()));
+      return;
+    }
+    let cancelled = false;
+    void user.getIdToken().then((token) => fetch("/api/progress", {
+      headers: { Authorization: `Bearer ${token}` },
+      cache: "no-store",
+    })).then(async (response) => {
+      if (!response.ok) return;
+      const data = await response.json() as { progress: CourseProgress[] };
+      if (!cancelled) setProgress(data.progress);
+    }).catch(() => undefined);
+    return () => { cancelled = true; };
+  }, [authLoading, user]);
+
   const filteredCourses = useMemo(() => {
     const normalized = query.trim().toLowerCase();
     if (!normalized) return courses;
@@ -61,9 +85,42 @@ export default function Home() {
     router.push(`/course/${encodeURIComponent(value)}`);
   };
 
+  const continueProgress = progress[0];
+  const dueReviews = progress.reduce((count, item) => count + Object.values(item.lessons).filter(
+    (lesson) => Date.parse(lesson.nextReviewAt) <= Date.now(),
+  ).length, 0);
+  const progressByCourse = useMemo(
+    () => new Map(progress.map((item) => [item.courseId, item])),
+    [progress],
+  );
+
   return (
     <AppShell>
       <div className="home-page">
+        {continueProgress && (
+          <section className="today-section" aria-labelledby="today-title">
+            <div className="today-heading">
+              <div>
+                <p className="overline">Today</p>
+                <h2 id="today-title">Pick up where understanding left off.</h2>
+              </div>
+              <span><Clock3 size={16} /> {dueReviews} review{dueReviews === 1 ? "" : "s"} due</span>
+            </div>
+            <div className="today-actions">
+              <button
+                className="continue-row"
+                onClick={() => router.push(`/course/${encodeURIComponent(continueProgress.topic)}/lesson/${continueProgress.lastLessonId}?id=${continueProgress.courseId}`)}
+              >
+                <span><small>Continue learning</small><strong>{continueProgress.topic}</strong><em>{continueProgress.lastLessonTitle}</em></span>
+                <ArrowRight size={18} />
+              </button>
+              <button className="review-row" onClick={() => user ? router.push("/review") : router.push(`/course/${encodeURIComponent(continueProgress.topic)}?id=${continueProgress.courseId}`)}>
+                <Sparkles size={18} />
+                <span><strong>{dueReviews ? `Review ${dueReviews} due concept${dueReviews === 1 ? "" : "s"}` : "Your review queue is clear"}</strong><small>{dueReviews ? "Strengthen recall before it fades." : "Learn something new and we will schedule the return."}</small></span>
+              </button>
+            </div>
+          </section>
+        )}
         <section className="home-hero" aria-labelledby="home-title">
           <div className="hero-copy">
             <div className="hero-status"><span /> Public learning library</div>
@@ -72,7 +129,7 @@ export default function Home() {
               Teach turns complex subjects into calm, focused learning paths—clear explanations, visual models, and retrieval practice included.
             </p>
 
-            {isOwner ? (
+            {isPro ? (
               <form className="hero-create" onSubmit={createCourse}>
                 <label htmlFor="hero-topic">What do you want to master next?</label>
                 <div>
@@ -91,7 +148,8 @@ export default function Home() {
             ) : (
               <div className="hero-actions">
                 <a className="button button-primary" href="#library">Explore public courses <ArrowRight size={17} /></a>
-                <span>No account required to learn.</span>
+                <button className="button button-quiet" onClick={() => router.push("/pricing")}><Crown size={16} /> Create with Pro</button>
+                <span>Published lessons stay free.</span>
               </div>
             )}
           </div>
@@ -159,6 +217,8 @@ export default function Home() {
               {filteredCourses.map((course, index) => {
                 const id = course.id ?? course.courseId;
                 const lessonCount = course.modules.reduce((sum, module) => sum + module.lessons.length, 0);
+                const courseProgress = id ? progressByCourse.get(id) : undefined;
+                const estimatedMinutes = course.estimatedMinutes ?? lessonCount * 12;
                 return (
                   <button
                     className="course-row"
@@ -170,10 +230,11 @@ export default function Home() {
                       <span>{course.mission || "A structured path from first principles to confident understanding."}</span>
                     </span>
                     <span className="course-row-meta">
-                      <span>{course.modules.length} modules</span>
+                      <span>{course.level ?? "Foundations"}</span>
+                      <span>{Math.max(1, Math.round(estimatedMinutes / 60))} hr</span>
                       <span>{lessonCount} lessons</span>
                     </span>
-                    <span className="course-row-action">Begin <ArrowRight size={16} /></span>
+                    <span className="course-row-action">{courseProgress ? "Continue" : "Begin"} <ArrowRight size={16} /></span>
                   </button>
                 );
               })}

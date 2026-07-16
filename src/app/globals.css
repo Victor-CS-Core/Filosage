@@ -456,6 +456,84 @@ button:disabled { cursor: not-allowed; opacity: 0.55; }
 .auth-dialog > .button-quiet { width: 100%; margin-top: 7px; }
 .google-mark { width: 22px; height: 22px; border-radius: 50%; display: grid; place-items: center; background: white; color: #3355cc; font-weight: 800; font-size: 0.75rem; }
 
+/* Returning learner */
+.today-section { max-width: 1152px; margin: 0 auto; padding: 50px 64px 0; }
+.today-heading { display: flex; align-items: flex-end; justify-content: space-between; gap: 24px; padding-bottom: 20px; border-bottom: 2px solid var(--ink); }
+.today-heading h2 { max-width: 18ch; margin-top: 7px; font-size: 2rem; }
+.today-heading > span { display: inline-flex; align-items: center; gap: 7px; color: var(--ink-secondary); font-size: 0.78rem; white-space: nowrap; }
+.today-actions { display: grid; grid-template-columns: minmax(0, 1.45fr) minmax(280px, 0.75fr); border-bottom: 1px solid var(--line-strong); }
+.continue-row, .review-row { min-height: 116px; border: 0; background: transparent; cursor: pointer; text-align: left; }
+.continue-row { display: flex; align-items: center; justify-content: space-between; gap: 20px; padding: 22px 24px 22px 0; border-right: 1px solid var(--line); }
+.continue-row > span { min-width: 0; display: flex; flex-direction: column; }
+.continue-row small, .review-row small { color: var(--ink-muted); font-size: 0.7rem; }
+.continue-row strong { margin-top: 4px; font-size: 1.08rem; }
+.continue-row em { color: var(--ink-secondary); font-size: 0.78rem; font-style: normal; margin-top: 4px; }
+.continue-row:hover, .review-row:hover { color: var(--accent-ink); }
+.review-row { display: grid; grid-template-columns: auto 1fr; align-items: center; gap: 12px; padding: 22px 0 22px 24px; }
+.review-row > svg { color: var(--accent); }
+.review-row span { display: flex; flex-direction: column; gap: 4px; }
+.review-row strong { font-size: 0.82rem; }
+
+/* Review */
+.review-page, .pricing-page { width: min(1040px, calc(100% - 64px)); margin: 0 auto; padding: 76px 0 100px; }
+.review-header { display: flex; align-items: flex-end; justify-content: space-between; gap: 32px; padding-bottom: 30px; border-bottom: 2px solid var(--ink); }
+.review-header > div { max-width: 690px; }
+.review-header h1 { font-size: 2.7rem; margin-top: 8px; }
+.review-header p:last-child { color: var(--ink-secondary); line-height: 1.7; margin-top: 14px; max-width: 65ch; }
+.review-count { display: inline-flex; align-items: center; gap: 8px; color: var(--accent-ink); font-size: 0.78rem; font-weight: 700; white-space: nowrap; }
+.review-list { border-bottom: 1px solid var(--line-strong); }
+.review-item { width: 100%; min-height: 112px; display: grid; grid-template-columns: 40px 1fr auto; gap: 18px; align-items: center; border: 0; border-bottom: 1px solid var(--line); background: transparent; text-align: left; cursor: pointer; padding: 18px 6px; }
+.review-item:hover { color: var(--accent-ink); }
+.review-index { width: 32px; height: 32px; border: 1px solid var(--line-strong); border-radius: 50%; display: grid; place-items: center; font-size: 0.72rem; font-weight: 800; }
+.review-item > span:nth-child(2) { display: flex; flex-direction: column; }
+.review-item small { color: var(--ink-muted); font-size: 0.7rem; }
+.review-item strong { margin-top: 4px; font-size: 0.98rem; }
+.review-item em { display: inline-flex; align-items: center; gap: 5px; color: var(--ink-secondary); font-size: 0.7rem; font-style: normal; margin-top: 7px; }
+.review-clear-state { margin-top: 36px; padding: 24px 0; display: flex; align-items: center; gap: 16px; border-bottom: 1px solid var(--line); }
+.review-clear-state > svg { color: var(--success); }
+.review-clear-state > div { flex: 1; }
+.review-clear-state strong { font-size: 0.9rem; }
+.review-clear-state p { color: var(--ink-secondary); font-size: 0.78rem; margin-top: 4px; }
+
+/* Pricing */
+.pricing-header { max-width: 780px; }
+.pricing-header h1 { font-size: 3.25rem; max-width: 18ch; margin-top: 10px; }
+.pricing-header > p:last-child { color: var(--ink-secondary); font-size: 1rem; line-height: 1.75; margin-top: 18px; max-width: 68ch; }
+.plan-comparison { display: grid; grid-template-columns: 1fr 1fr; margin-top: 54px; border-top: 2px solid var(--ink); border-bottom: 1px solid var(--line-strong); }
+.plan-column { min-height: 430px; display: flex; flex-direction: column; padding: 30px 34px 34px 0; }
+.plan-column + .plan-column { border-left: 1px solid var(--line); padding-left: 34px; padding-right: 0; }
+.plan-heading { display: flex; align-items: center; gap: 13px; }
+.plan-heading > span { width: 38px; height: 38px; border-radius: 10px; display: grid; place-items: center; background: var(--surface-subtle); color: var(--ink-secondary); }
+.plan-pro .plan-heading > span { background: var(--accent-soft); color: var(--accent); }
+.plan-heading h2 { font-size: 1.15rem; }
+.plan-heading p { color: var(--ink-muted); font-size: 0.74rem; margin-top: 3px; }
+.plan-column ul { list-style: none; padding: 0; margin: 28px 0 30px; display: flex; flex-direction: column; gap: 14px; }
+.plan-column li { display: flex; align-items: flex-start; gap: 9px; color: var(--ink-secondary); font-size: 0.82rem; line-height: 1.5; }
+.plan-column li svg { color: var(--success); margin-top: 2px; flex: 0 0 auto; }
+.plan-column > .button, .current-plan-label, .plan-status { margin-top: auto; }
+.current-plan-label { color: var(--ink-muted); font-size: 0.76rem; font-weight: 700; }
+.plan-status { display: flex; align-items: center; gap: 10px; min-height: 48px; color: var(--accent-ink); }
+.plan-status > span { display: flex; flex-direction: column; }
+.plan-status strong { font-size: 0.82rem; }
+.plan-status small { color: var(--ink-muted); font-size: 0.68rem; margin-top: 2px; }
+.pricing-note { color: var(--ink-muted); font-size: 0.72rem; line-height: 1.6; margin-top: 20px; }
+
+/* Mastery details */
+.knowledge-check { min-width: 0; margin: 0; border: 0; border-top: 2px solid var(--ink); padding: 20px 0 0; }
+.knowledge-question legend { font-size: 1.04rem; line-height: 1.45; letter-spacing: -0.012em; font-weight: 700; }
+.free-recall { margin-top: 18px; }
+.free-recall label { display: block; color: var(--ink-secondary); font-size: 0.76rem; font-weight: 650; margin-bottom: 8px; }
+.free-recall textarea { width: 100%; resize: vertical; border: 1px solid var(--line-strong); border-radius: var(--radius-sm); background: var(--surface); color: var(--ink); padding: 11px 12px; line-height: 1.5; }
+.free-recall .button { margin-top: 9px; }
+.confidence-check { margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--line); display: flex; align-items: center; gap: 7px; flex-wrap: wrap; }
+.confidence-check > span { color: var(--ink-secondary); font-size: 0.72rem; margin-right: auto; }
+.confidence-check button { min-height: 34px; border: 1px solid var(--line-strong); border-radius: var(--radius-sm); background: var(--surface); padding: 6px 9px; font-size: 0.7rem; cursor: pointer; }
+.confidence-check button:hover, .confidence-check button.is-selected { border-color: var(--accent); background: var(--accent-soft); color: var(--accent-ink); }
+.diagram-transcript { margin-top: 10px; color: var(--ink-secondary); font-size: 0.76rem; }
+.diagram-transcript summary { cursor: pointer; font-weight: 700; color: var(--accent-ink); }
+.diagram-transcript p { max-width: 70ch; line-height: 1.65; margin-top: 8px; }
+.course-continue { margin-top: 28px; }
+
 @media (max-width: 1100px) {
   .home-hero { grid-template-columns: 1fr; min-height: auto; gap: 54px; }
   .learning-method { max-width: 720px; }
@@ -477,7 +555,16 @@ button:disabled { cursor: not-allowed; opacity: 0.55; }
   .app-shell { display: block; }
   .app-main { min-height: calc(100vh - 58px); }
   .home-hero { padding: 54px 24px 64px; }
-  .hero-copy h1 { font-size: clamp(3rem, 13vw, 4.8rem); }
+  .today-section { padding: 38px 24px 0; }
+  .today-actions { grid-template-columns: 1fr; }
+  .continue-row { border-right: 0; border-bottom: 1px solid var(--line); padding-right: 0; }
+  .review-row { padding-left: 0; }
+  .review-page, .pricing-page { width: min(100% - 48px, 760px); padding-top: 54px; }
+  .review-header { align-items: flex-start; flex-direction: column; }
+  .plan-comparison { grid-template-columns: 1fr; }
+  .plan-column, .plan-column + .plan-column { min-height: 0; padding: 28px 0; }
+  .plan-column + .plan-column { border-left: 0; border-top: 1px solid var(--line); }
+  .hero-copy h1 { font-size: clamp(2.6rem, 12vw, 4.8rem); overflow-wrap: anywhere; }
   .library-section { padding: 56px 24px 64px; }
   .section-heading { align-items: flex-start; flex-direction: column; gap: 22px; }
   .search-field { width: 100%; }
@@ -489,12 +576,21 @@ button:disabled { cursor: not-allowed; opacity: 0.55; }
   .module-trigger { grid-template-columns: 78px minmax(0, 1fr) auto; gap: 14px; }
   .module-completion { display: none; }
   .lesson-list { padding-left: 92px; }
-  .lesson-page { height: calc(100vh - 58px); }
+  .lesson-page { height: calc(100vh - 58px); height: calc(100dvh - 58px); }
   .reading-column { width: min(100% - 40px, 760px); }
   .lesson-loading { min-height: calc(100vh - 58px); padding: 0 24px; }
 }
 
 @media (max-width: 620px) {
+  .icon-button { width: 44px; height: 44px; }
+  .button-small { min-height: 44px; }
+  .today-heading { align-items: flex-start; flex-direction: column; }
+  .today-heading h2 { font-size: 1.65rem; }
+  .review-page, .pricing-page { width: calc(100% - 40px); padding-top: 42px; }
+  .review-header h1, .pricing-header h1 { font-size: 2.25rem; overflow-wrap: anywhere; }
+  .review-item { grid-template-columns: 34px 1fr auto; gap: 10px; }
+  .review-clear-state { align-items: flex-start; flex-wrap: wrap; }
+  .review-clear-state .button { width: 100%; }
   .hero-create > div { flex-direction: column; }
   .learning-method li { grid-template-columns: 30px 1fr; padding: 17px 0; }
   .learning-method li > svg { display: none; }
@@ -523,7 +619,7 @@ button:disabled { cursor: not-allowed; opacity: 0.55; }
   .concept-diagram[data-orientation="landscape"] svg { width: 620px; }
   .answer-list { grid-template-columns: 1fr; }
   .lesson-navigation { grid-template-columns: 1fr; }
-  .tutor-drawer { width: 100%; top: 116px; }
+  .tutor-drawer { width: 100%; top: 58px; padding-bottom: env(safe-area-inset-bottom); }
   .auth-dialog { padding: 30px 24px 24px; }
 }
 

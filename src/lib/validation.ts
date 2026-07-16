@@ -8,6 +8,11 @@ export const topicSchema = z
 
 export const courseOutlineSchema = z.object({
   mission: z.string().trim().min(1).max(500),
+  level: z.enum(["Foundations", "Intermediate", "Advanced"]),
+  estimatedMinutes: z.number().int().min(10).max(10_000),
+  outcome: z.string().trim().min(1).max(500),
+  prerequisites: z.array(z.string().trim().min(1).max(160)).max(6),
+  category: z.string().trim().min(1).max(80),
   modules: z
     .array(
       z.object({
@@ -18,6 +23,7 @@ export const courseOutlineSchema = z.object({
             z.object({
               title: z.string().trim().min(1).max(120),
               concept: z.string().trim().min(1).max(300),
+              estimatedMinutes: z.number().int().min(3).max(90),
             }),
           )
           .min(2)
@@ -31,6 +37,7 @@ export const courseOutlineSchema = z.object({
 export const lessonDataSchema = z.object({
   content: z.string().trim().min(1).max(30_000),
   diagram: z.string().max(8_000),
+  diagramSummary: z.string().trim().min(1).max(2_000),
   quizzes: z
     .array(
       z.object({
@@ -57,17 +64,30 @@ export const tutorInputSchema = z.object({
     .array(
       z.object({
         role: z.enum(["user", "assistant"]),
-        content: z.string().trim().min(1).max(4_000),
+        content: z.string().trim().min(1).max(2_000),
       }),
     )
     .min(1)
-    .max(30),
+    .max(12),
   data: z.object({
     topic: topicSchema,
     lessonTitle: z.string().trim().min(1).max(160),
     lessonConcept: z.string().trim().min(1).max(500),
-    lessonContent: z.string().trim().min(1).max(30_000),
+    lessonContent: z.string().trim().min(1).max(16_000),
   }),
+});
+
+export const progressUpdateSchema = z.object({
+  courseId: z.string().trim().min(1).max(200),
+  topic: topicSchema,
+  lessonId: z.string().regex(/^\d+-\d+$/),
+  lessonTitle: z.string().trim().min(1).max(160),
+  totalQuestions: z.number().int().min(0).max(20),
+  firstAttemptCorrect: z.number().int().min(0).max(20),
+  attempts: z.number().int().min(0).max(100),
+  confidence: z.enum(["low", "medium", "high"]),
+  review: z.boolean().optional(),
+  totalLessons: z.number().int().min(1).max(500).optional(),
 });
 
 export function validationMessage(error: z.ZodError) {

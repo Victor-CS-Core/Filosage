@@ -9,23 +9,30 @@ import {
   useState,
 } from "react";
 import {
+  getRedirectResult,
   GoogleAuthProvider,
   onAuthStateChanged,
+  signInWithRedirect,
   signInWithPopup,
   signOut as firebaseSignOut,
   type User,
 } from "firebase/auth";
 import { OWNER_EMAIL } from "@/lib/auth-constants";
 import { auth } from "@/lib/firebase";
+import type { AccessLevel, LearnerAccount } from "@/lib/course-types";
 
 interface AuthContextValue {
   user: User | null;
   isOwner: boolean;
+  isPro: boolean;
+  access: AccessLevel;
+  account: LearnerAccount | null;
   loading: boolean;
   error: string | null;
   clearError: () => void;
   signInWithGoogle: () => Promise<void>;
   signOut: () => Promise<void>;
+  refreshAccount: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -65,8 +72,23 @@ function authErrorMessage(error: unknown) {
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
+  const [account, setAccount] = useState<LearnerAccount | null>(null);
   const [loading, setLoading] = useState(Boolean(auth));
   const [error, setError] = useState<string | null>(null);
+
+  const loadAccount = useCallback(async (nextUser: User | null) => {
+    if (!nextUser) {
+      setAccount(null);
+      return;
+    }
+    const token = await nextUser.getIdToken();
+    const response = await fetch("/api/account", {
+      headers: { Authorization: `Bearer ${token}` },
+      cache: "no-store",
+    });
+    if (!response.ok) throw new Error("Your learning account could not be loaded.");
+    setAccount(await response.json() as LearnerAccount);
+  }, []);
 
   useEffect(() => {
     const firebaseAuth = auth;
@@ -75,15 +97,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
 
     return onAuthStateChanged(firebaseAuth, async (nextUser) => {
-      if (nextUser && !isOwnerAccount(nextUser)) {
-        await firebaseSignOut(firebaseAuth);
-        setUser(null);
-        setError(`Teach Studio is limited to ${OWNER_EMAIL}.`);
-      } else {
-        setUser(nextUser);
+      setUser(nextUser);
+      try {
+        await loadAccount(nextUser);
+      } catch (accountError) {
+        setAccount(null);
+        setError(accountError instanceof Error ? accountError.message : "Your learning account could not be loaded.");
       }
       setLoading(false);
     });
+  }, [loadAccount]);
+
+  useEffect(() => {
+    if (!auth) return;
+    void getRedirectResult(auth).catch((redirectError) => setError(authErrorMessage(redirectError)));
   }, []);
 
   const signInWithGoogle = useCallback(async () => {
@@ -93,25 +120,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       throw new Error("Firebase is not configured.");
     }
     const provider = new GoogleAuthProvider();
-    provider.setCustomParameters({
-      prompt: "select_account",
-      login_hint: OWNER_EMAIL,
-    });
+    provider.setCustomParameters({ prompt: "select_account" });
 
     try {
-      const result = await signInWithPopup(auth, provider);
-      if (!isOwnerAccount(result.user)) {
-        await firebaseSignOut(auth);
-        setError(`Teach Studio is limited to ${OWNER_EMAIL}.`);
-        throw new Error("Account not authorized.");
+      const prefersRedirect = window.matchMedia("(pointer: coarse)").matches || /iPhone|iPad|Android/i.test(navigator.userAgent);
+      if (prefersRedirect) {
+        await signInWithRedirect(auth, provider);
+        return;
       }
+      await signInWithPopup(auth, provider);
     } catch (popupError) {
-      if (
-        popupError instanceof Error &&
-        popupError.message === "Account not authorized."
-      ) {
-        throw popupError;
-      }
       setError(authErrorMessage(popupError));
       throw popupError;
     }
@@ -121,19 +139,28 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setError(null);
     if (!auth) return;
     await firebaseSignOut(auth);
+    setAccount(null);
   }, []);
+
+  const refreshAccount = useCallback(async () => {
+    await loadAccount(user);
+  }, [loadAccount, user]);
 
   const value = useMemo<AuthContextValue>(
     () => ({
       user,
       isOwner: isOwnerAccount(user),
+      isPro: account?.plan === "pro" || isOwnerAccount(user),
+      access: account?.access ?? (user ? "free" : "anonymous"),
+      account,
       loading,
       error,
       clearError: () => setError(null),
       signInWithGoogle,
       signOut,
+      refreshAccount,
     }),
-    [user, loading, error, signInWithGoogle, signOut],
+    [user, account, loading, error, signInWithGoogle, signOut, refreshAccount],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
