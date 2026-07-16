@@ -44,6 +44,9 @@ function MermaidDiagram({ chart }: { chart: string }) {
       securityLevel: "strict",
       theme: theme === "dark" ? "dark" : "neutral",
       fontFamily: "var(--font-body)",
+      themeVariables: {
+        fontSize: "16px",
+      },
     });
     mermaid
       .render(id, chart)
@@ -54,8 +57,26 @@ function MermaidDiagram({ chart }: { chart: string }) {
         const svgElement = ref.current.querySelector("svg");
         if (!svgElement) return;
 
-        const viewBox = svgElement.viewBox.baseVal;
-        const aspectRatio = viewBox.height > 0 ? viewBox.width / viewBox.height : 1;
+        let fittedWidth = svgElement.viewBox.baseVal.width;
+        let fittedHeight = svgElement.viewBox.baseVal.height;
+        const graphRoot = Array.from(svgElement.children).find(
+          (child): child is SVGGElement => child.tagName.toLowerCase() === "g",
+        );
+
+        if (graphRoot) {
+          const bounds = graphRoot.getBBox();
+          if (bounds.width > 0 && bounds.height > 0) {
+            const padding = Math.max(14, Math.min(bounds.width, bounds.height) * 0.08);
+            fittedWidth = bounds.width + padding * 2;
+            fittedHeight = bounds.height + padding * 2;
+            svgElement.setAttribute(
+              "viewBox",
+              `${bounds.x - padding} ${bounds.y - padding} ${fittedWidth} ${fittedHeight}`,
+            );
+          }
+        }
+
+        const aspectRatio = fittedHeight > 0 ? fittedWidth / fittedHeight : 1;
         ref.current.dataset.orientation =
           aspectRatio < 0.8
             ? "portrait"
