@@ -173,7 +173,7 @@ export async function reserveAiUsage(
       const globalReserved = numberValue(global?.reservedCostMicros);
       const projected = globalActual + globalReserved + policy.reserveCostMicros;
       const budget = monthlyBudgetMicros();
-      if (!account.isOwner && projected >= budget) {
+      if (projected >= budget) {
         throw new AiQuotaError(503, "GLOBAL_BUDGET_REACHED", "AI generation is paused until the monthly budget resets.", {
           resetAt: globalPeriod.resetAt,
         });
