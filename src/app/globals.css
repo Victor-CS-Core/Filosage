@@ -368,8 +368,12 @@ button:disabled { cursor: not-allowed; opacity: 0.55; }
 .lesson-section { margin-top: 54px; padding-top: 46px; border-top: 1px solid var(--line); }
 .lesson-section-heading h2 { font-size: 1.8rem; margin-top: 6px; }
 .lesson-section-heading > p:last-child { color: var(--ink-secondary); font-size: 0.86rem; margin-top: 8px; }
-.concept-diagram { min-height: 240px; margin-top: 24px; padding: 26px; border: 1px solid var(--line); border-radius: var(--radius-md); background: var(--surface-raised); overflow-x: auto; display: grid; place-items: center; }
-.concept-diagram svg { max-width: 100%; height: auto; }
+.concept-diagram { min-height: 280px; margin-top: 24px; padding: clamp(18px, 3vw, 34px); border: 1px solid var(--line); border-radius: var(--radius-md); background: var(--surface-raised); overflow: auto; display: flex; align-items: center; justify-content: center; }
+.concept-diagram svg { display: block; width: min(100%, 720px); height: auto; flex: 0 0 auto; }
+.concept-diagram[data-orientation="portrait"] svg { width: min(100%, 460px); }
+.concept-diagram[data-orientation="balanced"] svg { width: min(100%, 640px); }
+.concept-diagram[data-orientation="landscape"] { justify-content: flex-start; }
+.concept-diagram[data-orientation="landscape"] svg { width: max(100%, 620px); }
 .concept-diagram p { color: var(--ink-muted); font-family: var(--font-body); font-size: 0.82rem; }
 .knowledge-list { margin-top: 28px; display: flex; flex-direction: column; gap: 34px; }
 .knowledge-check { border-top: 2px solid var(--ink); padding-top: 20px; }
@@ -513,6 +517,10 @@ button:disabled { cursor: not-allowed; opacity: 0.55; }
   .lesson-title-block { padding-top: 52px; }
   .lesson-title-block h1 { font-size: 2.65rem; }
   .markdown-content { font-size: 1.05rem; }
+  .concept-diagram { min-height: 220px; padding: 14px; scroll-padding-inline: 14px; }
+  .concept-diagram[data-orientation="portrait"] svg,
+  .concept-diagram[data-orientation="balanced"] svg { width: 100%; }
+  .concept-diagram[data-orientation="landscape"] svg { width: 540px; }
   .answer-list { grid-template-columns: 1fr; }
   .lesson-navigation { grid-template-columns: 1fr; }
   .tutor-drawer { width: 100%; top: 116px; }

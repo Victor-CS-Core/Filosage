@@ -48,17 +48,39 @@ function MermaidDiagram({ chart }: { chart: string }) {
     mermaid
       .render(id, chart)
       .then(({ svg }) => {
-        if (!cancelled && ref.current) ref.current.innerHTML = svg;
+        if (cancelled || !ref.current) return;
+
+        ref.current.innerHTML = svg;
+        const svgElement = ref.current.querySelector("svg");
+        if (!svgElement) return;
+
+        const viewBox = svgElement.viewBox.baseVal;
+        const aspectRatio = viewBox.height > 0 ? viewBox.width / viewBox.height : 1;
+        ref.current.dataset.orientation =
+          aspectRatio < 0.8
+            ? "portrait"
+            : aspectRatio > 1.55
+              ? "landscape"
+              : "balanced";
+
+        svgElement.removeAttribute("width");
+        svgElement.removeAttribute("height");
+        svgElement.style.removeProperty("max-width");
+        svgElement.setAttribute("preserveAspectRatio", "xMidYMid meet");
+        svgElement.setAttribute("aria-hidden", "true");
       })
       .catch(() => {
-        if (!cancelled && ref.current) ref.current.innerHTML = "<p>Visualization unavailable for this lesson.</p>";
+        if (!cancelled && ref.current) {
+          delete ref.current.dataset.orientation;
+          ref.current.innerHTML = "<p>Visualization unavailable for this lesson.</p>";
+        }
       });
     return () => {
       cancelled = true;
     };
   }, [chart, theme]);
 
-  return <div className="concept-diagram" ref={ref} aria-label="Concept diagram" />;
+  return <div className="concept-diagram" ref={ref} role="img" aria-label="Concept diagram" />;
 }
 
 function KnowledgeCheck({
