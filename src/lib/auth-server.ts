@@ -1,9 +1,11 @@
 import "server-only";
 
-import type { DecodedIdToken } from "firebase-admin/auth";
 import { NextResponse } from "next/server";
 import { OWNER_EMAIL } from "@/lib/auth-constants";
-import { getAdminAuth } from "@/lib/firebase-admin";
+import {
+  verifyFirebaseIdToken,
+  type VerifiedFirebaseUser,
+} from "@/lib/firebase-server";
 
 export class AuthorizationError extends Error {
   constructor(
@@ -14,18 +16,18 @@ export class AuthorizationError extends Error {
   }
 }
 
-export async function getVerifiedUser(request: Request): Promise<DecodedIdToken | null> {
+export async function getVerifiedUser(request: Request): Promise<VerifiedFirebaseUser | null> {
   const authHeader = request.headers.get("authorization");
   if (!authHeader?.startsWith("Bearer ")) return null;
 
   try {
-    return await getAdminAuth().verifyIdToken(authHeader.slice(7));
+    return await verifyFirebaseIdToken(authHeader.slice(7));
   } catch {
     return null;
   }
 }
 
-export async function requireOwner(request: Request): Promise<DecodedIdToken> {
+export async function requireOwner(request: Request): Promise<VerifiedFirebaseUser> {
   const user = await getVerifiedUser(request);
   if (!user) {
     throw new AuthorizationError(401, "Sign in with the owner account to continue.");

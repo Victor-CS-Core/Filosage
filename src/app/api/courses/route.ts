@@ -1,7 +1,11 @@
-import { FieldValue } from "firebase-admin/firestore";
 import { NextResponse } from "next/server";
 import { authorizationResponse, requireOwner } from "@/lib/auth-server";
-import { getAdminDb } from "@/lib/firebase-admin";
+import {
+  createCourse,
+  findOwnerCourse,
+  listOwnerCourses,
+  listPublicCourses,
+} from "@/lib/firebase-server";
 import { courseOutlineSchema, topicSchema, validationMessage } from "@/lib/validation";
 
 export async function GET(request: Request) {
@@ -9,16 +13,8 @@ export async function GET(request: Request) {
   const scope = searchParams.get("scope") ?? "public";
 
   try {
-    const db = getAdminDb();
     if (scope === "public") {
-      const snap = await db
-        .collection("courses")
-        .where("isPublic", "==", true)
-        .orderBy("updatedAt", "desc")
-        .limit(24)
-        .get();
-
-      const courses = snap.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+      const courses = await listPublicCourses();
       return NextResponse.json(
         { courses },
         { headers: { "Cache-Control": "public, max-age=60, stale-while-revalidate=300" } },
@@ -30,13 +26,7 @@ export async function GET(request: Request) {
     }
 
     const owner = await requireOwner(request);
-    const snap = await db
-      .collection("courses")
-      .where("authorId", "==", owner.uid)
-      .orderBy("updatedAt", "desc")
-      .get();
-
-    const courses = snap.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+    const courses = await listOwnerCourses(owner.uid);
     return NextResponse.json({ courses });
   } catch (error: unknown) {
     const authResponse = authorizationResponse(error);
@@ -62,30 +52,21 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: validationMessage(parsedOutline.error) }, { status: 400 });
     }
 
-    const db = getAdminDb();
-    const existing = await db
-      .collection("courses")
-      .where("authorId", "==", owner.uid)
-      .where("topic", "==", parsedTopic.data)
-      .limit(1)
-      .get();
-
-    if (!existing.empty) {
-      return NextResponse.json({ courseId: existing.docs[0].id });
+    const existing = await findOwnerCourse(owner.uid, parsedTopic.data);
+    if (existing) {
+      return NextResponse.json({ courseId: existing.id });
     }
 
-    const courseRef = await db.collection("courses").add({
+    const course = await createCourse({
       topic: parsedTopic.data,
       ...parsedOutline.data,
       authorId: owner.uid,
       authorName: owner.name ?? owner.email ?? "Teach owner",
       authorPhoto: owner.picture ?? null,
       isPublic: false,
-      createdAt: FieldValue.serverTimestamp(),
-      updatedAt: FieldValue.serverTimestamp(),
     });
 
-    return NextResponse.json({ courseId: courseRef.id });
+    return NextResponse.json({ courseId: course.id });
   } catch (error: unknown) {
     const authResponse = authorizationResponse(error);
     if (authResponse) return authResponse;

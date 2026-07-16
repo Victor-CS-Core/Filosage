@@ -1,9 +1,8 @@
 import { NextResponse } from "next/server";
 import OpenAI from "openai";
 import { zodTextFormat } from "openai/helpers/zod";
-import { FieldValue } from "firebase-admin/firestore";
 import { authorizationResponse, requireOwner } from "@/lib/auth-server";
-import { getAdminDb } from "@/lib/firebase-admin";
+import { createCourse, findOwnerCourse } from "@/lib/firebase-server";
 import {
   courseOutlineSchema,
   topicSchema,
@@ -25,18 +24,9 @@ export async function POST(request: Request) {
     }
 
     const topic = parsedTopic.data;
-    const db = getAdminDb();
-    const existing = await db
-      .collection("courses")
-      .where("authorId", "==", owner.uid)
-      .where("topic", "==", topic)
-      .limit(1)
-      .get();
-
-    if (!existing.empty) {
-      const doc = existing.docs[0];
-      const data = doc.data();
-      return NextResponse.json({ ...data, courseId: doc.id });
+    const existing = await findOwnerCourse(owner.uid, topic);
+    if (existing) {
+      return NextResponse.json({ ...existing, courseId: existing.id });
     }
 
     const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
@@ -59,18 +49,16 @@ export async function POST(request: Request) {
       );
     }
 
-    const courseRef = await db.collection("courses").add({
+    const course = await createCourse({
       topic,
       ...outline,
       authorId: owner.uid,
       authorName: owner.name ?? owner.email ?? "Teach owner",
       authorPhoto: owner.picture ?? null,
       isPublic: false,
-      createdAt: FieldValue.serverTimestamp(),
-      updatedAt: FieldValue.serverTimestamp(),
     });
 
-    return NextResponse.json({ ...outline, courseId: courseRef.id, isPublic: false });
+    return NextResponse.json({ ...outline, courseId: course.id, isPublic: false });
   } catch (error: unknown) {
     const authResponse = authorizationResponse(error);
     if (authResponse) return authResponse;

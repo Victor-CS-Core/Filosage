@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { authorizationResponse, requireOwner } from "@/lib/auth-server";
-import { getAdminDb } from "@/lib/firebase-admin";
+import { getCourse, getLesson } from "@/lib/firebase-server";
 
 interface RouteParams {
   params: Promise<{ courseId: string; lessonId: string }>;
@@ -9,26 +9,24 @@ interface RouteParams {
 export async function GET(request: Request, { params }: RouteParams) {
   const { courseId, lessonId } = await params;
   try {
-    const db = getAdminDb();
-    const course = await db.collection("courses").doc(courseId).get();
-    if (!course.exists) return NextResponse.json({ error: "Course not found." }, { status: 404 });
+    const course = await getCourse(courseId);
+    if (!course) return NextResponse.json({ error: "Course not found." }, { status: 404 });
 
-    const courseData = course.data()!;
-    if (!courseData.isPublic) {
+    if (!course.isPublic) {
       const owner = await requireOwner(request);
-      if (owner.uid !== courseData.authorId) {
+      if (owner.uid !== course.authorId) {
         return NextResponse.json({ error: "You do not have access to this lesson." }, { status: 403 });
       }
     }
 
-    const lesson = await course.ref.collection("lessons").doc(lessonId).get();
-    if (!lesson.exists) {
+    const lesson = await getLesson(courseId, lessonId);
+    if (!lesson) {
       return NextResponse.json({ error: "This lesson has not been published yet." }, { status: 404 });
     }
 
     return NextResponse.json(
-      lesson.data(),
-      courseData.isPublic
+      lesson,
+      course.isPublic
         ? { headers: { "Cache-Control": "public, max-age=300, stale-while-revalidate=900" } }
         : undefined,
     );

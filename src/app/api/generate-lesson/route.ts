@@ -1,9 +1,8 @@
 import { NextResponse } from "next/server";
 import OpenAI from "openai";
 import { zodTextFormat } from "openai/helpers/zod";
-import { FieldValue } from "firebase-admin/firestore";
 import { authorizationResponse, requireOwner } from "@/lib/auth-server";
-import { getAdminDb } from "@/lib/firebase-admin";
+import { getCourse, getLesson, saveLesson } from "@/lib/firebase-server";
 import {
   generateLessonInputSchema,
   lessonDataSchema,
@@ -24,24 +23,21 @@ export async function POST(request: Request) {
     }
 
     const { topic, lessonTitle, lessonConcept, courseId, lessonId } = parsed.data;
-    const db = getAdminDb();
     let coursePublic = false;
 
     if (courseId) {
-      const courseRef = db.collection("courses").doc(courseId);
-      const courseDoc = await courseRef.get();
-      if (!courseDoc.exists) {
+      const course = await getCourse(courseId);
+      if (!course) {
         return NextResponse.json({ error: "Course not found." }, { status: 404 });
       }
-      const course = courseDoc.data()!;
       if (course.authorId !== owner.uid) {
         return NextResponse.json({ error: "You do not own this course." }, { status: 403 });
       }
       coursePublic = course.isPublic === true;
 
       if (lessonId) {
-        const saved = await courseRef.collection("lessons").doc(lessonId).get();
-        if (saved.exists) return NextResponse.json(saved.data());
+        const saved = await getLesson(courseId, lessonId);
+        if (saved) return NextResponse.json(saved);
       }
     }
 
@@ -66,17 +62,11 @@ export async function POST(request: Request) {
     }
 
     if (courseId && lessonId) {
-      await db
-        .collection("courses")
-        .doc(courseId)
-        .collection("lessons")
-        .doc(lessonId)
-        .set({
+      await saveLesson(courseId, lessonId, {
           ...lesson,
           authorId: owner.uid,
           isPublic: coursePublic,
-          createdAt: FieldValue.serverTimestamp(),
-        });
+      });
     }
 
     return NextResponse.json(lesson);
