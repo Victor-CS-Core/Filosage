@@ -57,7 +57,6 @@ export interface LearnerAccount {
   access: AccessLevel;
   plan: LearnerPlan;
   isOwner: boolean;
-  email?: string;
   displayName?: string;
   photoURL?: string;
   subscriptionStatus?: "none" | "trialing" | "active" | "past_due" | "canceled";

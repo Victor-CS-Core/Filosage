@@ -2,6 +2,8 @@
 
 Teach is a premium AI-assisted learning product. Public visitors can discover and complete published courses without an account. Learner accounts add cloud progress and spaced review. Teach Pro adds metered private course generation and lesson-grounded tutoring, while publishing remains owner-only.
 
+Owner access is resolved server-side from the verified Google account matching the `OWNER_EMAIL` deployment secret. The owner email is never sent in the account API or rendered in the interface.
+
 ## Product modes
 
 - Anonymous learning: open discovery, published lessons, diagrams, mastery checks, and device progress

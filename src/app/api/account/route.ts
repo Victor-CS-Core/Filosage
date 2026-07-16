@@ -10,7 +10,6 @@ export async function GET(request: Request) {
         access: account.access,
         plan: account.plan,
         isOwner: account.isOwner,
-        email: account.email,
         displayName: account.displayName,
         photoURL: account.photoURL,
         subscriptionStatus: account.subscriptionStatus,

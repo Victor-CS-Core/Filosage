@@ -17,7 +17,6 @@ import {
   signOut as firebaseSignOut,
   type User,
 } from "firebase/auth";
-import { OWNER_EMAIL } from "@/lib/auth-constants";
 import { auth } from "@/lib/firebase";
 import type { AccessLevel, LearnerAccount } from "@/lib/course-types";
 
@@ -41,10 +40,6 @@ export function useAuth() {
   const value = useContext(AuthContext);
   if (!value) throw new Error("useAuth must be used within AuthProvider.");
   return value;
-}
-
-function isOwnerAccount(user: User | null) {
-  return user?.email?.trim().toLowerCase() === OWNER_EMAIL;
 }
 
 function authErrorMessage(error: unknown) {
@@ -149,8 +144,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const value = useMemo<AuthContextValue>(
     () => ({
       user,
-      isOwner: isOwnerAccount(user),
-      isPro: account?.plan === "pro" || isOwnerAccount(user),
+      isOwner: account?.isOwner === true,
+      isPro: account?.plan === "pro",
       access: account?.access ?? (user ? "free" : "anonymous"),
       account,
       loading,

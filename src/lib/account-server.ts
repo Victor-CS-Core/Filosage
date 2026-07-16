@@ -1,6 +1,5 @@
 import "server-only";
 
-import { OWNER_EMAIL } from "@/lib/auth-constants";
 import {
   getStoredDocument,
   putStoredDocument,
@@ -31,7 +30,8 @@ function premiumEmailSet() {
 }
 
 export function isOwnerUser(user: VerifiedFirebaseUser) {
-  return user.email_verified && user.email?.trim().toLowerCase() === OWNER_EMAIL;
+  const ownerEmail = process.env.OWNER_EMAIL?.trim().toLowerCase();
+  return Boolean(ownerEmail && user.email_verified && user.email?.trim().toLowerCase() === ownerEmail);
 }
 
 export async function getOrCreateAccount(user: VerifiedFirebaseUser): Promise<ServerAccount> {

@@ -19,6 +19,7 @@ import {
   Plus,
   Sparkles,
   Sun,
+  UserRound,
   X,
 } from "lucide-react";
 import { useAuth } from "@/components/AuthProvider";
@@ -260,10 +261,15 @@ export default function AppShell({
             {user.photoURL ? (
               // eslint-disable-next-line @next/next/no-img-element
               <img src={user.photoURL} alt="" referrerPolicy="no-referrer" />
+            ) : account?.displayName || user.displayName ? (
+              <span className="avatar-fallback">{(account?.displayName ?? user.displayName ?? "T").slice(0, 1).toUpperCase()}</span>
             ) : (
-              <span className="avatar-fallback">{user.email?.slice(0, 1).toUpperCase()}</span>
+              <span className="avatar-fallback" aria-hidden="true"><UserRound size={16} /></span>
             )}
-            <span><strong>{isOwner ? "Owner" : account?.plan === "pro" ? "Teach Pro" : "Learner"}</strong><small>{user.email}</small></span>
+            <span>
+              <strong>{account?.displayName ?? user.displayName ?? "Learning account"}</strong>
+              <small>{isPro ? "Teach Pro" : "Learning account"}</small>
+            </span>
             <button className="icon-button" onClick={signOut} aria-label="Sign out"><LogOut size={17} /></button>
           </div>
         ) : (

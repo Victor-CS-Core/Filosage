@@ -211,7 +211,11 @@ function fromFirestoreFields(fields: Record<string, FirestoreValue>) {
 
 function parseDocument(document: FirestoreDocument): StoredDocument {
   const id = document.name.split("/").pop() ?? "";
-  return { id, ...fromFirestoreFields(document.fields ?? {}) };
+  const fields = fromFirestoreFields(document.fields ?? {});
+  if (typeof fields.authorName === "string" && fields.authorName.includes("@")) {
+    fields.authorName = "Teach";
+  }
+  return { id, ...fields };
 }
 
 function fullDocumentName(path: string) {
