@@ -38,6 +38,13 @@ interface Message {
   content: string;
 }
 
+const LESSON_GENERATION_STAGES = [
+  "Structuring the lesson",
+  "Building the core explanation",
+  "Creating examples and retrieval practice",
+  "Reviewing clarity and accuracy",
+] as const;
+
 function MermaidDiagram({ chart, summary }: { chart: string; summary?: string }) {
   const ref = useRef<HTMLDivElement>(null);
   const { theme } = useTheme();
@@ -240,6 +247,8 @@ export default function LessonView() {
   const [course, setCourse] = useState<Course | null>(null);
   const [lessonData, setLessonData] = useState<LessonData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [generationProgress, setGenerationProgress] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [quizResults, setQuizResults] = useState<Record<number, QuizResult>>({});
   const [complete, setComplete] = useState(false);
@@ -252,6 +261,7 @@ export default function LessonView() {
   const [progressSyncError, setProgressSyncError] = useState<string | null>(null);
   const chatBottomRef = useRef<HTMLDivElement>(null);
   const noteHydratedRef = useRef(false);
+  const generationStartedAtRef = useRef(0);
   const noteKey = courseId ? `${courseId}:${lessonId}` : `${topic}:${lessonId}`;
   const lessonBookmarked = learnerState.lessonBookmarks.includes(noteKey);
 
@@ -283,6 +293,29 @@ export default function LessonView() {
 
   const getToken = useCallback(async () => (user ? user.getIdToken() : null), [user]);
 
+  useEffect(() => {
+    if (!isGenerating) return;
+
+    const updateEstimatedProgress = () => {
+      const elapsedSeconds = Math.max(0, (Date.now() - generationStartedAtRef.current) / 1000);
+      let nextProgress: number;
+      if (elapsedSeconds <= 6) {
+        nextProgress = 8 + (elapsedSeconds / 6) * 22;
+      } else if (elapsedSeconds <= 18) {
+        nextProgress = 30 + ((elapsedSeconds - 6) / 12) * 26;
+      } else if (elapsedSeconds <= 36) {
+        nextProgress = 56 + ((elapsedSeconds - 18) / 18) * 22;
+      } else {
+        nextProgress = 78 + Math.min(((elapsedSeconds - 36) / 60) * 14, 14);
+      }
+      setGenerationProgress((current) => Math.max(current, Math.round(nextProgress)));
+    };
+
+    updateEstimatedProgress();
+    const interval = window.setInterval(updateEstimatedProgress, 700);
+    return () => window.clearInterval(interval);
+  }, [isGenerating]);
+
   const loadLesson = useCallback(async () => {
     if (!courseId) {
       setError("This lesson link is missing its course reference.");
@@ -291,6 +324,8 @@ export default function LessonView() {
     }
 
     setLoading(true);
+    setIsGenerating(false);
+    setGenerationProgress(0);
     setError(null);
     try {
       const token = await getToken();
@@ -315,6 +350,9 @@ export default function LessonView() {
         throw new Error(data.error || "This lesson has not been published yet.");
       }
 
+      generationStartedAtRef.current = Date.now();
+      setGenerationProgress(8);
+      setIsGenerating(true);
       const generationResponse = await fetch("/api/generate-lesson", {
         method: "POST",
         headers: {
@@ -332,10 +370,12 @@ export default function LessonView() {
       });
       const generated = await generationResponse.json();
       if (!generationResponse.ok) throw new Error(generated.error || "The lesson could not be generated.");
+      setGenerationProgress(100);
       setLessonData(generated);
     } catch (loadError) {
       setError(loadError instanceof Error ? loadError.message : "The lesson could not be opened.");
     } finally {
+      setIsGenerating(false);
       setLoading(false);
     }
   }, [courseId, getToken, moduleIndex, lessonIndex, lessonId, isPro, topic, user]);
@@ -388,6 +428,7 @@ export default function LessonView() {
   const previousLesson = currentPosition > 0 ? allLessons[currentPosition - 1] : null;
   const nextLesson = currentPosition >= 0 && currentPosition < allLessons.length - 1 ? allLessons[currentPosition + 1] : null;
   const lessonProgress = allLessons.length ? Math.round(((currentPosition + (complete ? 1 : 0)) / allLessons.length) * 100) : 0;
+  const generationStageIndex = generationProgress < 30 ? 0 : generationProgress < 56 ? 1 : generationProgress < 78 ? 2 : 3;
   const normalizedContent = useMemo(
     () => lessonData && lesson ? normalizeLessonMarkdown(lessonData.content, lesson.title) : "",
     [lesson, lessonData],
@@ -496,8 +537,51 @@ export default function LessonView() {
     return (
       <AppShell activeTopic={topic} activeLessonId={lessonId} activeCourseId={courseId}>
         <div className="lesson-loading">
-          <div className="lesson-loading-bar" />
-          <div className="lesson-skeleton"><span /><span /><span /><span /><span /></div>
+          {isGenerating ? (
+            <section className="lesson-generation-status" aria-labelledby="lesson-generation-title">
+              <div className="lesson-generation-brand">
+                <span className="brand-mark" aria-hidden="true"><ErudozaMark /></span>
+                <span>Preparing your next lesson</span>
+              </div>
+              <h1 id="lesson-generation-title">{lesson?.title ?? "Building your lesson"}</h1>
+              <p className="lesson-generation-stage" aria-live="polite">
+                {LESSON_GENERATION_STAGES[generationStageIndex]}
+              </p>
+              <div className="lesson-generation-progress">
+                <div>
+                  <span>Estimated progress</span>
+                  <strong>{generationProgress}%</strong>
+                </div>
+                <div
+                  className="lesson-generation-track"
+                  role="progressbar"
+                  aria-label="Lesson generation progress"
+                  aria-valuemin={0}
+                  aria-valuemax={100}
+                  aria-valuenow={generationProgress}
+                >
+                  <span style={{ transform: `scaleX(${generationProgress / 100})` }} />
+                </div>
+              </div>
+              <ol className="lesson-generation-steps" aria-label="Lesson preparation stages">
+                {LESSON_GENERATION_STAGES.map((stage, index) => (
+                  <li
+                    key={stage}
+                    className={index < generationStageIndex ? "is-complete" : index === generationStageIndex ? "is-current" : ""}
+                  >
+                    <span aria-hidden="true">{index < generationStageIndex ? <Check size={13} /> : index + 1}</span>
+                    <small>{stage}</small>
+                  </li>
+                ))}
+              </ol>
+              <p className="lesson-generation-note">This usually takes less than a minute. Keep this page open while Erudoza prepares the explanation, visual model, and practice.</p>
+            </section>
+          ) : (
+            <>
+              <div className="lesson-loading-bar" />
+              <div className="lesson-skeleton" aria-label="Opening lesson"><span /><span /><span /><span /><span /></div>
+            </>
+          )}
         </div>
       </AppShell>
     );
