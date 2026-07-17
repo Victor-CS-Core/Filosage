@@ -14,9 +14,12 @@ const isoDateTimeSchema = z.string().regex(
 export const courseRequestSchema = z.object({
   topic: topicSchema,
   goal: z.string().trim().max(500).optional().default(""),
+  application: z.string().trim().max(500).optional().default(""),
   background: z.string().trim().max(500).optional().default(""),
   level: z.enum(["Foundations", "Intermediate", "Advanced"]).optional(),
   weeklyMinutes: z.number().int().min(30).max(1_200).optional(),
+  targetWeeks: z.number().int().min(2).max(12).optional().default(4),
+  courseStyle: z.enum(["Balanced", "Concept-first", "Project-led"]).optional().default("Balanced"),
 });
 
 export const courseOutlineSchema = z.object({

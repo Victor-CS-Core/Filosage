@@ -23,8 +23,8 @@ Owner access is resolved server-side from the verified Google account matching t
 
 1. Copy `.env.example` to `.env.local`.
 2. Add the Firebase browser and Admin SDK values.
-3. Add `OPENAI_API_KEY`. `OPENAI_MODEL` defaults to `gpt-5.6`.
-4. Configure `OPENAI_MONTHLY_BUDGET_USD` and the token cost variables for the selected model.
+3. Add `OPENAI_API_KEY`. Course outlines and lessons default to `gpt-5.6-terra`; the grounded tutor defaults to `gpt-5.6-luna`.
+4. Configure `OPENAI_MONTHLY_BUDGET_USD` and the token cost variables for the selected models. Course briefs are screened with the free `omni-moderation-latest` model before generation and generated outlines are screened again before storage.
 5. Add test Pro users to `PREMIUM_EMAILS` until subscription billing is connected.
 6. Run `npm install` and then `npm run dev`.
 

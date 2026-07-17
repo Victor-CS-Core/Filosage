@@ -139,9 +139,13 @@ test("frames each course around an outcome and mastery", async ({ page }) => {
 
   await expect(page.getByText("Course outcome")).toBeVisible();
   await expect(page.getByText("Designed to build")).toBeVisible();
+  const resumeCard = page.locator(".course-resume-card");
+  await expect(resumeCard.getByText("Continue learning")).toBeVisible();
+  await expect(resumeCard.getByRole("heading", { name: "Leverage points" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "From foundation to fluency" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Foundations" })).toBeVisible();
+  await expect(page.locator(".module-completion")).toContainText("1/2");
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
-  await page.getByRole("button", { name: /Continue course/i }).click();
+  await resumeCard.getByRole("button", { name: /Resume lesson/i }).click();
   await expect(page).toHaveURL(/lesson\/0-1\?id=demo/);
 });

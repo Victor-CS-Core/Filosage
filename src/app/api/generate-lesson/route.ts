@@ -18,7 +18,7 @@ import {
 import { findCourseLesson } from "@/lib/course-progress";
 import type { Course } from "@/lib/course-types";
 
-const model = process.env.OPENAI_MODEL || "gpt-5.6";
+const model = process.env.OPENAI_LESSON_MODEL || process.env.OPENAI_MODEL || "gpt-5.6-terra";
 
 export async function POST(request: Request) {
   let reservation: AiReservation | null = null;

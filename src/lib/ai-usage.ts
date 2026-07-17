@@ -256,13 +256,13 @@ export async function finalizeAiUsage(
   const tutorRequest = reservation.feature === "tutor";
   const inputRate = Number(
     tutorRequest
-      ? process.env.OPENAI_TUTOR_INPUT_COST_PER_MILLION ?? "2.5"
-      : process.env.OPENAI_INPUT_COST_PER_MILLION ?? "5",
+      ? process.env.OPENAI_TUTOR_INPUT_COST_PER_MILLION ?? "1"
+      : process.env.OPENAI_INPUT_COST_PER_MILLION ?? "2.5",
   );
   const outputRate = Number(
     tutorRequest
-      ? process.env.OPENAI_TUTOR_OUTPUT_COST_PER_MILLION ?? "15"
-      : process.env.OPENAI_OUTPUT_COST_PER_MILLION ?? "30",
+      ? process.env.OPENAI_TUTOR_OUTPUT_COST_PER_MILLION ?? "6"
+      : process.env.OPENAI_OUTPUT_COST_PER_MILLION ?? "15",
   );
   const actualCostMicros = Math.max(0, Math.round(inputTokens * inputRate + outputTokens * outputRate));
 

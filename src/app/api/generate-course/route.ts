@@ -15,8 +15,9 @@ import {
   courseRequestSchema,
   validationMessage,
 } from "@/lib/validation";
+import { assertSafeContent, ContentSafetyError } from "@/lib/content-safety";
 
-const model = process.env.OPENAI_MODEL || "gpt-5.6";
+const model = process.env.OPENAI_COURSE_MODEL || process.env.OPENAI_MODEL || "gpt-5.6-terra";
 
 export async function POST(request: Request) {
   let reservation: AiReservation | null = null;
@@ -33,20 +34,29 @@ export async function POST(request: Request) {
       );
     }
 
-    const { topic, goal, background, level, weeklyMinutes } = parsedRequest.data;
-    reservation = await reserveAiUsage(account, "course_outline", request.headers.get("idempotency-key"));
+    const { topic, goal, application, background, level, weeklyMinutes, targetWeeks, courseStyle } = parsedRequest.data;
+    const studyBudget = (weeklyMinutes ?? 120) * targetWeeks;
+    const approach = courseStyle === "Concept-first"
+      ? "Prioritize precise mental models and connected explanations before applied practice."
+      : courseStyle === "Project-led"
+        ? "Organize the sequence around a concrete applied result while preserving prerequisite order."
+        : "Balance mental models, worked examples, retrieval, and application throughout the path.";
     const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+    await assertSafeContent(client, [topic, goal, application, background].filter(Boolean).join("\n"));
+    reservation = await reserveAiUsage(account, "course_outline", request.headers.get("idempotency-key"));
     const response = await client.responses.parse({
       model,
       instructions:
-        "You are a master curriculum designer. Build a focused learning path using progressive difficulty, retrieval practice, and the Zone of Proximal Development. Include a realistic level, total learning time, concrete outcome, prerequisites, category, and an estimated time for every lesson. Keep each lesson tightly scoped and free of filler. Return the requested structured course only.",
+        "You are a master curriculum designer. Build a focused learning path using progressive difficulty, retrieval practice, and the Zone of Proximal Development. Include a realistic level, total learning time, concrete outcome, prerequisites, category, and an estimated time for every lesson. Keep each lesson tightly scoped, independently valuable, and free of filler. Return the requested structured course only.",
       input: [
         `Create a complete but efficient course outline for: ${topic}`,
-        goal ? `Learner's goal: ${goal}` : "",
+        goal ? `Learner's observable goal: ${goal}` : "",
+        application ? `Where the learner will apply it: ${application}` : "",
         background ? `Current background: ${background}` : "",
         level ? `Requested starting level: ${level}` : "",
-        weeklyMinutes ? `Available study time: ${weeklyMinutes} minutes per week` : "",
-        "Sequence prerequisite concepts before dependent concepts. Make every lesson earn its place and end with an observable capability.",
+        `Target plan: ${targetWeeks} weeks at ${weeklyMinutes ?? 120} minutes per week, approximately ${studyBudget} minutes total. Keep the estimated course time close to this budget rather than padding the outline.`,
+        `Teaching approach: ${courseStyle}. ${approach}`,
+        "Sequence prerequisite concepts before dependent concepts. Adapt examples and practice to the learner's intended application. Make every lesson earn its place and end with an observable capability.",
       ].filter(Boolean).join("\n"),
       text: {
         format: zodTextFormat(courseOutlineSchema, "course_outline"),
@@ -63,6 +73,7 @@ export async function POST(request: Request) {
         { status: 502 },
       );
     }
+    await assertSafeContent(client, JSON.stringify(outline));
 
     const course = await createCourse({
       topic,
@@ -88,6 +99,9 @@ export async function POST(request: Request) {
     if (quotaResponse) return quotaResponse;
     const authResponse = authorizationResponse(error);
     if (authResponse) return authResponse;
+    if (error instanceof ContentSafetyError) {
+      return NextResponse.json({ error: error.message, code: "CONTENT_NOT_ALLOWED" }, { status: 422 });
+    }
 
     console.error("Course generation failed:", error);
     return NextResponse.json(

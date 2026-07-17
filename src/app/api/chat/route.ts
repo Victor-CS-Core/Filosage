@@ -12,7 +12,7 @@ import {
   type AiReservation,
 } from "@/lib/ai-usage";
 
-const model = process.env.OPENAI_TUTOR_MODEL || process.env.OPENAI_MODEL || "gpt-5.6-terra";
+const model = process.env.OPENAI_TUTOR_MODEL || "gpt-5.6-luna";
 
 export async function POST(request: Request) {
   let reservation: AiReservation | null = null;

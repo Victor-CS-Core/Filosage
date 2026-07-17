@@ -10,6 +10,7 @@ import {
   Check,
   ChevronDown,
   ChevronRight,
+  Clock3,
   Circle,
   Globe2,
   Layers3,
@@ -142,6 +143,15 @@ export default function CourseMap() {
     }
     return null;
   }, [course, validCompletedLessons]);
+  const nextLesson = useMemo(() => {
+    if (!course || !totalLessons) return null;
+    const lessonId = firstIncompleteLesson ?? "0-0";
+    const [moduleIndex, lessonIndex] = lessonId.split("-").map(Number);
+    const lesson = course.modules[moduleIndex]?.lessons[lessonIndex];
+    if (!lesson) return null;
+    return { lessonId, lesson, moduleTitle: course.modules[moduleIndex].title };
+  }, [course, firstIncompleteLesson, totalLessons]);
+  const courseComplete = totalLessons > 0 && validCompletedLessons.length === totalLessons;
 
   const updateVisibility = async () => {
     if (!isOwner || !courseId || !course) return;
@@ -233,30 +243,37 @@ export default function CourseMap() {
             </span>
           </div>
 
-          <div className="course-title-row">
-            <div>
-              <p className="overline">Learning path</p>
+          <div className="course-hero-grid">
+            <div className="course-title-row">
+              <p className="overline">{course.category ?? "Learning path"}</p>
               <h1>{topic}</h1>
               <p className="course-mission">{course.mission}</p>
+              <dl className="course-facts" aria-label="Course summary">
+                <div><dt><Layers3 size={16} /> Modules</dt><dd>{course.modules.length}</dd></div>
+                <div><dt><BookOpen size={16} /> Lessons</dt><dd>{totalLessons}</dd></div>
+                <div><dt>Starting level</dt><dd>{course.level ?? "Foundations"}</dd></div>
+                <div><dt><Clock3 size={16} /> Study time</dt><dd>{Math.max(1, Math.round((course.estimatedMinutes ?? totalLessons * 12) / 60))} hr</dd></div>
+              </dl>
             </div>
-            <div className="course-facts" aria-label="Course summary">
-              <span><Layers3 size={17} /><strong>{course.modules.length}</strong> modules</span>
-              <span><BookOpen size={17} /><strong>{totalLessons}</strong> lessons</span>
-              <span><strong>{course.level ?? "Foundations"}</strong> level</span>
-              <span><strong>{Math.max(1, Math.round((course.estimatedMinutes ?? totalLessons * 12) / 60))}</strong> hours</span>
-            </div>
-          </div>
 
-          {firstIncompleteLesson && (
-            <button className="button button-primary course-continue" onClick={() => router.push(`/course/${encodeURIComponent(topic)}/lesson/${firstIncompleteLesson}?id=${courseId}`)}>
-              <Play size={16} /> {validCompletedLessons.length ? "Continue course" : "Start first lesson"}
-            </button>
-          )}
-
-          <div className="progress-strip">
-            <div><span>Course progress</span><strong>{progress}%</strong></div>
-            <div className="progress-track" role="progressbar" aria-label="Course progress" aria-valuemin={0} aria-valuemax={100} aria-valuenow={progress}><span style={{ transform: `scaleX(${progress / 100})` }} /></div>
-            <p>{validCompletedLessons.length} of {totalLessons} lessons learned{user ? " and synced" : " on this device"}</p>
+            {nextLesson && (
+              <aside className="course-resume-card" aria-label={courseComplete ? "Course review" : "Next lesson"}>
+                <div className="course-resume-heading">
+                  <span>{courseComplete ? "Course complete" : validCompletedLessons.length ? "Continue learning" : "Begin here"}</span>
+                  <strong>{progress}%</strong>
+                </div>
+                <p className="course-resume-module">{courseComplete ? "Keep the knowledge retrievable" : nextLesson.moduleTitle}</p>
+                <h2>{courseComplete ? "Review the course from the start" : nextLesson.lesson.title}</h2>
+                <p>{courseComplete ? "Revisit the core ideas and practice before they fade." : nextLesson.lesson.concept}</p>
+                <div className="course-resume-progress">
+                  <div className="progress-track" role="progressbar" aria-label="Course progress" aria-valuemin={0} aria-valuemax={100} aria-valuenow={progress}><span style={{ transform: `scaleX(${progress / 100})` }} /></div>
+                  <small>{validCompletedLessons.length} of {totalLessons} lessons complete{user ? " · synced" : " · this device"}</small>
+                </div>
+                <button className="button course-resume-action" onClick={() => router.push(`/course/${encodeURIComponent(topic)}/lesson/${nextLesson.lessonId}?id=${courseId}`)}>
+                  <Play size={16} /> {courseComplete ? "Review course" : validCompletedLessons.length ? "Resume lesson" : "Start course"}
+                </button>
+              </aside>
+            )}
           </div>
 
           <div className="course-learning-brief">
@@ -286,20 +303,21 @@ export default function CourseMap() {
 
         <section className="curriculum" aria-labelledby="curriculum-title">
           <div className="section-heading">
-            <div><p className="overline">Curriculum</p><h2 id="curriculum-title">From foundation to fluency</h2></div>
-            <p>Move in order or open the concept you need. Reviews are scheduled after demonstrated understanding.</p>
+            <div><p className="overline">Course map</p><h2 id="curriculum-title">From foundation to fluency</h2></div>
+            <p>{course.modules.length} modules · {totalLessons} focused lessons. Move in order or revisit any concept when you need it.</p>
           </div>
 
           <div className="module-list">
             {course.modules.map((module, moduleIndex) => {
               const expanded = expandedModule === moduleIndex;
               const completedInModule = module.lessons.filter((_, lessonIndex) => validCompletedLessons.includes(`${moduleIndex}-${lessonIndex}`)).length;
+              const moduleProgress = module.lessons.length ? Math.round((completedInModule / module.lessons.length) * 100) : 0;
               return (
                 <article className={`module-section ${expanded ? "is-open" : ""}`} key={`${module.title}-${moduleIndex}`}>
                   <button className="module-trigger" onClick={() => setExpandedModule(expanded ? null : moduleIndex)} aria-expanded={expanded}>
-                    <span className="module-sequence">Module {moduleIndex + 1}</span>
+                    <span className="module-sequence"><b>{String(moduleIndex + 1).padStart(2, "0")}</b><small>Module</small></span>
                     <span className="module-title"><h3>{module.title}</h3><small>{module.description}</small></span>
-                    <span className="module-completion">{completedInModule}/{module.lessons.length}</span>
+                    <span className="module-completion"><strong>{completedInModule}/{module.lessons.length}</strong><i><b style={{ transform: `scaleX(${moduleProgress / 100})` }} /></i></span>
                     {expanded ? <ChevronDown size={19} /> : <ChevronRight size={19} />}
                   </button>
 
@@ -314,7 +332,7 @@ export default function CourseMap() {
                             key={lessonId}
                             onClick={() => router.push(`/course/${encodeURIComponent(topic)}/lesson/${lessonId}${courseId ? `?id=${courseId}` : ""}`)}
                           >
-                            <span className={`lesson-status ${complete ? "is-complete" : ""}`}>{complete ? <Check size={14} /> : <Circle size={9} />}</span>
+                            <span className={`lesson-status ${complete ? "is-complete" : ""}`}>{complete ? <Check size={14} /> : <span>{moduleIndex + 1}.{lessonIndex + 1}</span>}</span>
                             <span><strong>{lesson.title}</strong><small>{lesson.concept}</small></span>
                             <span className="lesson-duration">{lesson.estimatedMinutes ?? 12} min</span>
                             <ArrowRight size={17} />
