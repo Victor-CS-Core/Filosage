@@ -87,7 +87,7 @@ export default function ReviewPage() {
           <div className="review-clear-state">
             <CalendarCheck2 size={27} />
             <div><strong>Your memory has breathing room.</strong><p>Start or continue a published course to schedule the next useful review.</p></div>
-            <button className="button button-secondary" onClick={() => router.push("/#library")}>Browse courses</button>
+            <button className="button button-secondary" onClick={() => router.push("/library")}>Browse courses</button>
           </div>
         )}
       </div>

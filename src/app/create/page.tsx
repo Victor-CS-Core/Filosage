@@ -34,6 +34,7 @@ export default function CreateCoursePage() {
       });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || "The learning path could not be created.");
+      window.dispatchEvent(new Event("erudoza:courses-changed"));
       router.push(`/course/${encodeURIComponent(topic.trim())}?id=${data.courseId}`);
     } catch (creationError) {
       setError(creationError instanceof Error ? creationError.message : "The learning path could not be created.");

@@ -23,6 +23,8 @@
 
 # Sites / Cloudflare local state
 /.wrangler/
+/.agents/skills/impeccable/
+/.codex/
 
 # misc
 .DS_Store

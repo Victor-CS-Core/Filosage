@@ -1,11 +1,12 @@
 "use client";
 
 import { usePathname, useRouter } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ArrowRight,
   BookOpen,
   CalendarCheck2,
+  ChevronDown,
   ChevronRight,
   Compass,
   Crown,
@@ -42,26 +43,42 @@ export default function AppShell({ children, activeTopic, activeCourseId }: AppS
   const router = useRouter();
   const pathname = usePathname();
   const { theme, toggle } = useTheme();
-  const { user, account, isPro, signOut } = useAuth();
+  const { user, account, isPro, signOut, loading: authLoading } = useAuth();
   const [showAuth, setShowAuth] = useState(false);
   const [courses, setCourses] = useState<Course[]>([]);
 
-  useEffect(() => {
+  const refreshCourses = useCallback(async () => {
     if (!user || !isPro) {
-      queueMicrotask(() => setCourses([]));
+      setCourses([]);
       return;
     }
-    let cancelled = false;
-    void user.getIdToken().then((token) => fetch("/api/courses?scope=mine", {
+    const token = await user.getIdToken();
+    const response = await fetch("/api/courses?scope=mine", {
       headers: { Authorization: `Bearer ${token}` },
       cache: "no-store",
-    })).then(async (response) => {
-      if (!response.ok) return;
-      const data = await response.json() as { courses: Course[] };
-      if (!cancelled) setCourses(data.courses);
-    }).catch(() => undefined);
-    return () => { cancelled = true; };
-  }, [isPro, pathname, user]);
+    });
+    if (!response.ok) return;
+    const data = await response.json() as { courses: Course[] };
+    setCourses(data.courses);
+  }, [isPro, user]);
+
+  useEffect(() => {
+    let active = true;
+    const load = async () => {
+      try {
+        await refreshCourses();
+      } catch {
+        if (active) setCourses([]);
+      }
+    };
+    void load();
+    const onCoursesChanged = () => { void load(); };
+    window.addEventListener("erudoza:courses-changed", onCoursesChanged);
+    return () => {
+      active = false;
+      window.removeEventListener("erudoza:courses-changed", onCoursesChanged);
+    };
+  }, [refreshCourses]);
 
   const displayName = account?.displayName ?? user?.displayName ?? "Learner";
   const firstName = displayName.split(" ")[0] || "Learner";
@@ -73,9 +90,20 @@ export default function AppShell({ children, activeTopic, activeCourseId }: AppS
 
   const navigate = (href: string) => router.push(href);
 
+  if (authLoading) {
+    return (
+      <div className="auth-boot-shell" aria-busy="true" aria-label="Restoring your Erudoza session">
+        <span className="brand-mark" aria-hidden="true"><ErudozaMark /></span>
+        <strong>Erudoza</strong>
+        <span className="auth-boot-line" />
+      </div>
+    );
+  }
+
   if (!user) {
     return (
       <div className="public-shell">
+        <a className="skip-link" href="#main-content">Skip to main content</a>
         <header className="public-header">
           <button className="brand public-brand" onClick={() => navigate("/")} aria-label="Erudoza home">
             <span className="brand-mark" aria-hidden="true"><ErudozaMark /></span>
@@ -91,7 +119,7 @@ export default function AppShell({ children, activeTopic, activeCourseId }: AppS
             <button className="button button-primary" onClick={() => navigate("/pricing")}>Try Erudoza free <ArrowRight size={15} /></button>
           </div>
         </header>
-        <main className="public-main">{children}</main>
+        <main className="public-main" id="main-content" tabIndex={-1}>{children}</main>
         {showAuth && <AuthModal onClose={() => setShowAuth(false)} />}
       </div>
     );
@@ -99,6 +127,7 @@ export default function AppShell({ children, activeTopic, activeCourseId }: AppS
 
   return (
     <div className="app-shell learner-shell">
+      <a className="skip-link" href="#main-content">Skip to main content</a>
       <aside className="learner-sidebar" aria-label="Primary navigation">
         <button className="brand learner-brand" onClick={() => navigate("/")} aria-label="Erudoza home">
           <span className="brand-mark" aria-hidden="true"><ErudozaMark /></span>
@@ -169,11 +198,25 @@ export default function AppShell({ children, activeTopic, activeCourseId }: AppS
         <button className="brand brand-mobile" onClick={() => navigate("/")} aria-label="Erudoza home">
           <span className="brand-mark" aria-hidden="true"><ErudozaMark /></span><strong className="brand-wordmark">Erudoza</strong>
         </button>
-        <span>{isPro ? "Pro" : "Free"}</span>
-        <button className="icon-button" onClick={toggle} aria-label="Toggle color theme">{theme === "dark" ? <Sun size={18} /> : <Moon size={18} />}</button>
+        <details className="mobile-account-menu">
+          <summary aria-label="Open account menu">
+            {user.photoURL ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={user.photoURL} alt="" referrerPolicy="no-referrer" />
+            ) : <span className="avatar-fallback"><UserRound size={15} /></span>}
+            <span>{isPro ? "Pro" : "Free"}</span>
+            <ChevronDown size={15} />
+          </summary>
+          <div>
+            <strong>{firstName}</strong>
+            <small>{isPro ? "Pro learning account" : "Free learning account"}</small>
+            <button type="button" onClick={toggle}>{theme === "dark" ? <Sun size={16} /> : <Moon size={16} />} {theme === "dark" ? "Light mode" : "Dark mode"}</button>
+            <button type="button" onClick={() => void signOut()}><LogOut size={16} /> Sign out</button>
+          </div>
+        </details>
       </header>
 
-      <main className="app-main">{children}</main>
+      <main className="app-main" id="main-content" tabIndex={-1}>{children}</main>
 
       <nav className="mobile-bottom-nav" aria-label="Mobile navigation">
         {primaryNav.slice(0, 2).map(({ href, label, icon: Icon }) => (

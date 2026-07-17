@@ -7,7 +7,7 @@
     "build": "next build",
     "build:sites": "vinext build",
     "start": "next start",
-    "lint": "eslint . --ignore-pattern dist --ignore-pattern .next",
+    "lint": "eslint src tests next.config.ts playwright.config.ts",
     "test:e2e": "playwright test"
   },
   "dependencies": {
@@ -37,6 +37,10 @@
     "vinext": "0.0.50",
     "vite": "8.0.13",
     "wrangler": "4.92.0"
+  },
+  "overrides": {
+    "postcss": "^8.5.10",
+    "ws": "^8.20.2"
   },
   "type": "module"
 }

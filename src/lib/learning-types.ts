@@ -21,6 +21,8 @@ export interface CourseProgress {
   topic: string;
   lastLessonId: string;
   lastLessonTitle: string;
+  nextLessonId?: string | null;
+  nextLessonTitle?: string | null;
   completedLessonIds: string[];
   lessons: Record<string, LessonProgress>;
   totalLessons?: number;
@@ -41,4 +43,6 @@ export interface ProgressUpdate {
   review?: boolean;
   totalLessons?: number;
   estimatedMinutes?: number;
+  nextLessonId?: string | null;
+  nextLessonTitle?: string | null;
 }

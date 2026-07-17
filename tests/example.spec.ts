@@ -1,9 +1,12 @@
 import { expect, test } from "@playwright/test";
 
 test("keeps the learning library public", async ({ page }) => {
-  await page.goto("/");
+  const response = await page.goto("/");
 
   await expect(page).toHaveTitle(/Erudoza/);
+  expect(response?.headers()["x-content-type-options"]).toBe("nosniff");
+  expect(response?.headers()["content-security-policy"]).toContain("frame-ancestors 'none'");
+  await expect(page.locator(".skip-link")).toHaveAttribute("href", "#main-content");
   await expect(
     page.getByRole("heading", { name: "Understand more. Achieve more." }),
   ).toBeVisible();
@@ -46,7 +49,7 @@ test("does not complete a lesson after a wrong answer", async ({ page }) => {
     }],
   };
   const lesson = {
-    content: "A **feedback loop** connects a system's output to what happens next.",
+    content: "# Feedback loops\n\nA **feedback loop** connects a system's output to what happens next.\n\n### Why it matters\n\nLoops make change visible over time.",
     diagram: "flowchart LR\nA[Action] --> B[Result]\nB --> A",
     diagramSummary: "An action creates a result, and that result influences the next action.",
     quizzes: [
@@ -58,6 +61,8 @@ test("does not complete a lesson after a wrong answer", async ({ page }) => {
   await page.route("**/api/courses/demo/lessons/0-0", (route) => route.fulfill({ json: lesson }));
   await page.goto("/course/Systems%20thinking/lesson/0-0?id=demo");
 
+  await expect(page.getByRole("heading", { name: "Feedback loops" })).toHaveCount(1);
+  await expect(page.getByRole("heading", { level: 2, name: "Why it matters" })).toBeVisible();
   const firstCheck = page.locator(".knowledge-check").first();
   await firstCheck.getByRole("button", { name: "Compare with choices" }).click();
   await firstCheck.getByRole("button", { name: /A static list/ }).click();
@@ -107,14 +112,36 @@ test("frames each course around an outcome and mastery", async ({ page }) => {
     modules: [{
       title: "Foundations",
       description: "Build a working mental model",
-      lessons: [{ title: "Feedback loops", concept: "How outputs influence future inputs", estimatedMinutes: 8 }],
+      lessons: [
+        { title: "Feedback loops", concept: "How outputs influence future inputs", estimatedMinutes: 8 },
+        { title: "Leverage points", concept: "Where small changes reshape a system", estimatedMinutes: 10 },
+      ],
     }],
   };
   await page.route("**/api/courses/demo", (route) => route.fulfill({ json: course }));
+  await page.addInitScript(() => {
+    localStorage.setItem("erudoza-learning-state-v2", JSON.stringify({
+      demo: {
+        courseId: "demo",
+        topic: "Systems thinking",
+        lastLessonId: "0-0",
+        lastLessonTitle: "Feedback loops",
+        completedLessonIds: ["0-0"],
+        lessons: {},
+        studyMinutes: 8,
+        totalLessons: 2,
+        lastActivityAt: "2026-07-16T12:00:00.000Z",
+        startedAt: "2026-07-16T12:00:00.000Z",
+      },
+    }));
+  });
   await page.goto("/course/Systems%20thinking?id=demo");
 
   await expect(page.getByText("Course outcome")).toBeVisible();
   await expect(page.getByText("Designed to build")).toBeVisible();
   await expect(page.getByRole("heading", { name: "From foundation to fluency" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Foundations" })).toBeVisible();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
+  await page.getByRole("button", { name: /Continue course/i }).click();
+  await expect(page).toHaveURL(/lesson\/0-1\?id=demo/);
 });

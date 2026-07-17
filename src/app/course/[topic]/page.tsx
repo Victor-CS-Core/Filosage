@@ -35,6 +35,7 @@ export default function CourseMap() {
   const [course, setCourse] = useState<Course | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
   const [expandedModule, setExpandedModule] = useState<number | null>(0);
   const [updating, setUpdating] = useState(false);
   const [deleteArmed, setDeleteArmed] = useState(false);
@@ -145,6 +146,7 @@ export default function CourseMap() {
   const updateVisibility = async () => {
     if (!isOwner || !courseId || !course) return;
     setUpdating(true);
+    setActionError(null);
     try {
       const token = await getToken();
       const response = await fetch(`/api/courses/${courseId}`, {
@@ -155,8 +157,9 @@ export default function CourseMap() {
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || "Visibility could not be updated.");
       setCourse({ ...course, isPublic: data.isPublic });
+      window.dispatchEvent(new Event("erudoza:courses-changed"));
     } catch (updateError) {
-      setError(updateError instanceof Error ? updateError.message : "Visibility could not be updated.");
+      setActionError(updateError instanceof Error ? updateError.message : "Visibility could not be updated.");
     } finally {
       setUpdating(false);
     }
@@ -169,6 +172,7 @@ export default function CourseMap() {
     }
     if (!isOwner || !courseId) return;
     setUpdating(true);
+    setActionError(null);
     try {
       const token = await getToken();
       const response = await fetch(`/api/courses/${courseId}`, {
@@ -179,9 +183,10 @@ export default function CourseMap() {
       if (!response.ok) throw new Error(data.error || "The course could not be deleted.");
       localStorage.removeItem(`erudoza-progress:${courseId}`);
       localStorage.removeItem(`teach-progress:${courseId}`);
+      window.dispatchEvent(new Event("erudoza:courses-changed"));
       router.push("/");
     } catch (deleteError) {
-      setError(deleteError instanceof Error ? deleteError.message : "The course could not be deleted.");
+      setActionError(deleteError instanceof Error ? deleteError.message : "The course could not be deleted.");
       setUpdating(false);
       setDeleteArmed(false);
     }
@@ -221,7 +226,7 @@ export default function CourseMap() {
       <div className="course-page">
         <header className="course-header">
           <div className="course-header-topline">
-            <button className="text-button" onClick={() => router.push("/")}><ArrowLeft size={15} /> Public library</button>
+            <button className="text-button" onClick={() => router.push("/library")}><ArrowLeft size={15} /> Public library</button>
             <span className={`status-badge ${course.isPublic ? "status-public" : "status-private"}`}>
               {course.isPublic ? <Globe2 size={14} /> : <LockKeyhole size={14} />}
               {course.isPublic ? "Public course" : "Private draft"}
@@ -261,16 +266,20 @@ export default function CourseMap() {
           </div>
 
           {isPro && user && course.authorId === user.uid && (
-            <div className="course-owner-actions">
-              {isOwner && (
-                <button className="button button-secondary" onClick={updateVisibility} disabled={updating}>
-                  {updating ? <LoaderCircle className="spin" size={16} /> : course.isPublic ? <LockKeyhole size={16} /> : <Globe2 size={16} />}
-                  {course.isPublic ? "Return to private" : "Publish course"}
+            <div className="course-owner-controls">
+              <div className="course-owner-actions">
+                {isOwner && (
+                  <button className="button button-secondary" onClick={updateVisibility} disabled={updating}>
+                    {updating ? <LoaderCircle className="spin" size={16} /> : course.isPublic ? <LockKeyhole size={16} /> : <Globe2 size={16} />}
+                    {course.isPublic ? "Return to private" : "Publish course"}
+                  </button>
+                )}
+                <button className={`button ${deleteArmed ? "button-danger" : "button-quiet"}`} onClick={deleteCourse} disabled={updating}>
+                  <Trash2 size={16} /> {deleteArmed ? "Confirm delete" : "Delete course"}
                 </button>
-              )}
-              <button className={`button ${deleteArmed ? "button-danger" : "button-quiet"}`} onClick={deleteCourse} disabled={updating}>
-                <Trash2 size={16} /> {deleteArmed ? "Confirm delete" : "Delete course"}
-              </button>
+              </div>
+              {!course.isPublic && isOwner && <p className="owner-action-hint">Open each lesson once to prepare its complete content before publishing.</p>}
+              {actionError && <p className="form-error" role="alert"><Circle size={14} /> {actionError}</p>}
             </div>
           )}
         </header>

@@ -336,7 +336,7 @@ export async function createCourse(data: Record<string, unknown>) {
   return parseDocument(document);
 }
 
-async function listLessons(courseId: string) {
+export async function listLessons(courseId: string) {
   const response = await firestoreJson<{ documents?: FirestoreDocument[] }>(
     `/documents/${encodeDocumentPath(`courses/${courseId}/lessons`)}?pageSize=300`,
   );
@@ -510,6 +510,21 @@ export async function updateCourseVisibility(courseId: string, isPublic: boolean
     })),
   ];
   await commitWrites(writes);
+}
+
+export async function getCoursePublishReadiness(
+  courseId: string,
+  expectedLessonIds: string[],
+) {
+  const lessons = await listLessons(courseId);
+  const generatedIds = new Set(lessons.map((lesson) => String(lesson.id ?? "")));
+  const missingLessonIds = expectedLessonIds.filter((lessonId) => !generatedIds.has(lessonId));
+  return {
+    ready: missingLessonIds.length === 0,
+    readyCount: expectedLessonIds.length - missingLessonIds.length,
+    totalCount: expectedLessonIds.length,
+    missingLessonIds,
+  };
 }
 
 export async function deleteCourse(courseId: string) {

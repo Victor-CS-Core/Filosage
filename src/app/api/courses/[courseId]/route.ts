@@ -2,9 +2,12 @@ import { NextResponse } from "next/server";
 import { authorizationResponse, requireAccount, requireOwner } from "@/lib/auth-server";
 import {
   deleteCourse,
+  getCoursePublishReadiness,
   getCourse,
   updateCourseVisibility,
 } from "@/lib/firebase-server";
+import { expectedLessonIds } from "@/lib/course-progress";
+import type { Course } from "@/lib/course-types";
 
 interface RouteParams {
   params: Promise<{ courseId: string }>;
@@ -25,7 +28,7 @@ export async function GET(request: Request, { params }: RouteParams) {
     return NextResponse.json(
       { courseId: course.id, ...course },
       course.isPublic
-        ? { headers: { "Cache-Control": "public, max-age=60, stale-while-revalidate=300" } }
+        ? { headers: { "Cache-Control": "no-store" } }
         : undefined,
     );
   } catch (error: unknown) {
@@ -51,9 +54,29 @@ export async function PATCH(request: Request, { params }: RouteParams) {
       return NextResponse.json({ error: "Visibility must be true or false." }, { status: 400 });
     }
 
+    if (body.isPublic) {
+      const readiness = await getCoursePublishReadiness(
+        courseId,
+        expectedLessonIds(course as unknown as Course),
+      );
+      if (!readiness.ready) {
+        return NextResponse.json(
+          {
+            error: `Generate every lesson before publishing. ${readiness.readyCount} of ${readiness.totalCount} lessons are ready.`,
+            code: "COURSE_NOT_READY",
+            ...readiness,
+          },
+          { status: 409, headers: { "Cache-Control": "no-store" } },
+        );
+      }
+    }
+
     await updateCourseVisibility(courseId, body.isPublic);
 
-    return NextResponse.json({ success: true, isPublic: body.isPublic });
+    return NextResponse.json(
+      { success: true, isPublic: body.isPublic },
+      { headers: { "Cache-Control": "no-store" } },
+    );
   } catch (error: unknown) {
     const authResponse = authorizationResponse(error);
     if (authResponse) return authResponse;

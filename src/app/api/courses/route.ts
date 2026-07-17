@@ -1,11 +1,6 @@
 import { NextResponse } from "next/server";
 import { authorizationResponse, requireAccount, requirePremium } from "@/lib/auth-server";
-import {
-  createCourse,
-  findOwnerCourse,
-  listOwnerCourses,
-  listPublicCourses,
-} from "@/lib/firebase-server";
+import { createCourse, listOwnerCourses, listPublicCourses } from "@/lib/firebase-server";
 import { courseOutlineSchema, topicSchema, validationMessage } from "@/lib/validation";
 
 export async function GET(request: Request) {
@@ -17,7 +12,7 @@ export async function GET(request: Request) {
       const courses = await listPublicCourses();
       return NextResponse.json(
         { courses },
-        { headers: { "Cache-Control": "public, max-age=60, stale-while-revalidate=300" } },
+        { headers: { "Cache-Control": "no-store" } },
       );
     }
 
@@ -63,11 +58,6 @@ export async function POST(request: Request) {
     }
     if (!parsedOutline.success) {
       return NextResponse.json({ error: validationMessage(parsedOutline.error) }, { status: 400 });
-    }
-
-    const existing = await findOwnerCourse(account.uid, parsedTopic.data);
-    if (existing) {
-      return NextResponse.json({ courseId: existing.id });
     }
 
     const course = await createCourse({

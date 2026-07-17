@@ -15,6 +15,8 @@ import {
   lessonDataSchema,
   validationMessage,
 } from "@/lib/validation";
+import { findCourseLesson } from "@/lib/course-progress";
+import type { Course } from "@/lib/course-types";
 
 const model = process.env.OPENAI_MODEL || "gpt-5.6";
 
@@ -32,32 +34,32 @@ export async function POST(request: Request) {
       );
     }
 
-    const { topic, lessonTitle, lessonConcept, courseId, lessonId } = parsed.data;
-    let coursePublic = false;
-
-    if (courseId) {
-      const course = await getCourse(courseId);
-      if (!course) {
-        return NextResponse.json({ error: "Course not found." }, { status: 404 });
-      }
-      if (course.authorId !== account.uid && !account.isOwner) {
-        return NextResponse.json({ error: "You do not own this course." }, { status: 403 });
-      }
-      coursePublic = course.isPublic === true;
-
-      if (lessonId) {
-        const saved = await getLesson(courseId, lessonId);
-        if (saved) return NextResponse.json(saved);
-      }
+    const { courseId, lessonId } = parsed.data;
+    const course = await getCourse(courseId) as Course | null;
+    if (!course) {
+      return NextResponse.json({ error: "Course not found." }, { status: 404 });
     }
+    if (course.authorId !== account.uid && !account.isOwner) {
+      return NextResponse.json({ error: "You do not own this course." }, { status: 403 });
+    }
+    const canonical = findCourseLesson(course, lessonId);
+    if (!canonical) {
+      return NextResponse.json({ error: "This lesson is not part of the course." }, { status: 400 });
+    }
+    const saved = await getLesson(courseId, lessonId);
+    if (saved) return NextResponse.json(saved);
+    const topic = course.topic;
+    const lessonTitle = canonical.lesson.title;
+    const lessonConcept = canonical.lesson.concept;
+    const coursePublic = course.isPublic === true;
 
     reservation = await reserveAiUsage(account, "lesson_generation", request.headers.get("idempotency-key"));
     const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
     const response = await client.responses.parse({
       model,
       instructions:
-        "You are a master teacher. Teach one concept with concise explanation, a useful analogy, a practical example, and retrieval practice. Write accessible Markdown. Mermaid diagrams must be syntactically valid, simple, and contain no external links or HTML. Always include a plain-language diagramSummary that communicates every relationship for learners who cannot see the diagram. Return only the requested structured lesson.",
-      input: `Course topic: ${topic}\nLesson: ${lessonTitle}\nCore concept: ${lessonConcept}`,
+        "You are a master teacher designing one rigorous, memorable lesson. Build understanding in this order: orient the learner with a concrete question, explain the mental model from first principles, work through one realistic example step by step, identify a common misconception, and end with a short transfer prompt. Write accessible Markdown with descriptive H2 sections and H3 subsections only; never repeat the lesson title as a heading. Prefer precise explanations over filler. Mermaid diagrams must be syntactically valid, simple, legible on a phone, and contain no external links or HTML. Always include a plain-language diagramSummary that communicates every relationship for learners who cannot see the diagram. Quizzes must test recall and application rather than trivia. Return only the requested structured lesson.",
+      input: `Course topic: ${topic}\nLesson: ${lessonTitle}\nCore concept: ${lessonConcept}\nCourse outcome: ${course.outcome ?? course.mission}\nModule: ${course.modules[canonical.moduleIndex]?.title ?? "Current module"}`,
       text: {
         format: zodTextFormat(lessonDataSchema, "lesson"),
       },
@@ -74,13 +76,11 @@ export async function POST(request: Request) {
       );
     }
 
-    if (courseId && lessonId) {
-      await saveLesson(courseId, lessonId, {
-          ...lesson,
-          authorId: account.uid,
-          isPublic: coursePublic,
-      });
-    }
+    await saveLesson(courseId, lessonId, {
+      ...lesson,
+      authorId: account.uid,
+      isPublic: coursePublic,
+    });
 
     await finalizeAiUsage(reservation, { ...observedUsage, responseId });
     reservation = null;

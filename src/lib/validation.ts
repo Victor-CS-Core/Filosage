@@ -6,6 +6,11 @@ export const topicSchema = z
   .min(2, "Enter a topic with at least 2 characters.")
   .max(120, "Keep the topic under 120 characters.");
 
+const isoDateTimeSchema = z.string().regex(
+  /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,3})?Z$/,
+  "Use an ISO 8601 UTC timestamp.",
+);
+
 export const courseRequestSchema = z.object({
   topic: topicSchema,
   goal: z.string().trim().max(500).optional().default(""),
@@ -60,11 +65,8 @@ export const lessonDataSchema = z.object({
 });
 
 export const generateLessonInputSchema = z.object({
-  topic: topicSchema,
-  lessonTitle: z.string().trim().min(1).max(160),
-  lessonConcept: z.string().trim().min(1).max(500),
-  courseId: z.string().trim().min(1).max(200).nullable().optional(),
-  lessonId: z.string().regex(/^\d+-\d+$/).nullable().optional(),
+  courseId: z.string().trim().min(1).max(200),
+  lessonId: z.string().regex(/^\d+-\d+$/),
 });
 
 export const tutorInputSchema = z.object({
@@ -78,10 +80,8 @@ export const tutorInputSchema = z.object({
     .min(1)
     .max(12),
   data: z.object({
-    topic: topicSchema,
-    lessonTitle: z.string().trim().min(1).max(160),
-    lessonConcept: z.string().trim().min(1).max(500),
-    lessonContent: z.string().trim().min(1).max(16_000),
+    courseId: z.string().trim().min(1).max(200),
+    lessonId: z.string().regex(/^\d+-\d+$/),
   }),
 });
 
@@ -97,13 +97,17 @@ export const progressUpdateSchema = z.object({
   review: z.boolean().optional(),
   totalLessons: z.number().int().min(1).max(500).optional(),
   estimatedMinutes: z.number().int().min(1).max(180).optional(),
+  nextLessonId: z.string().regex(/^\d+-\d+$/).nullable().optional(),
+  nextLessonTitle: z.string().trim().min(1).max(160).nullable().optional(),
 });
 
 export const learnerStateSchema = z.object({
   courseBookmarks: z.array(z.string().trim().min(1).max(200)).max(500),
   lessonBookmarks: z.array(z.string().trim().min(1).max(400)).max(2_000),
   notes: z.record(z.string().trim().min(1).max(400), z.string().max(12_000)),
+  noteUpdatedAt: z.record(z.string().trim().min(1).max(400), isoDateTimeSchema).default({}),
   weeklyLessonGoal: z.number().int().min(1).max(50),
+  updatedAt: isoDateTimeSchema.optional(),
 });
 
 export function validationMessage(error: z.ZodError) {

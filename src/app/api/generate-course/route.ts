@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import OpenAI from "openai";
 import { zodTextFormat } from "openai/helpers/zod";
 import { authorizationResponse, requirePremium } from "@/lib/auth-server";
-import { createCourse, findOwnerCourse } from "@/lib/firebase-server";
+import { createCourse } from "@/lib/firebase-server";
 import {
   aiQuotaResponse,
   extractOpenAiUsage,
@@ -34,11 +34,6 @@ export async function POST(request: Request) {
     }
 
     const { topic, goal, background, level, weeklyMinutes } = parsedRequest.data;
-    const existing = await findOwnerCourse(account.uid, topic);
-    if (existing) {
-      return NextResponse.json({ ...existing, courseId: existing.id });
-    }
-
     reservation = await reserveAiUsage(account, "course_outline", request.headers.get("idempotency-key"));
     const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
     const response = await client.responses.parse({

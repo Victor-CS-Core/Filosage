@@ -109,6 +109,11 @@ export default function Home() {
   const accuracy = totalQuestions ? Math.round((correct / totalQuestions) * 100) : 0;
   const minutes = progress.reduce((sum, item) => sum + (item.studyMinutes ?? 0), 0);
   const continueProgress = progress[0];
+  const continueHref = continueProgress
+    ? continueProgress.nextLessonId
+      ? `/course/${encodeURIComponent(continueProgress.topic)}/lesson/${continueProgress.nextLessonId}?id=${continueProgress.courseId}`
+      : `/course/${encodeURIComponent(continueProgress.topic)}?id=${continueProgress.courseId}`
+    : null;
   const startedIds = new Set(progress.map((item) => item.courseId));
   const picks = courses.filter((course) => !startedIds.has(course.id ?? course.courseId ?? "")).slice(0, 3);
   const firstName = (account?.displayName ?? user?.displayName ?? "Learner").split(" ")[0];
@@ -132,10 +137,10 @@ export default function Home() {
               <section className="dashboard-section">
                 <div className="dashboard-section-heading"><h2>Continue learning</h2>{continueProgress && <button onClick={() => router.push("/progress")}>View progress</button>}</div>
                 {continueProgress ? (
-                  <button className="continue-card" onClick={() => router.push(`/course/${encodeURIComponent(continueProgress.topic)}/lesson/${continueProgress.lastLessonId}?id=${continueProgress.courseId}`)}>
+                  <button className="continue-card" onClick={() => continueHref && router.push(continueHref)}>
                     <span className="continue-icon"><BookOpenCheck size={24} /></span>
-                    <span className="continue-copy"><small>In progress</small><strong>{continueProgress.topic}</strong><span>{continueProgress.lastLessonTitle}</span><span className="continue-progress"><i><b style={{ width: `${Math.round((continueProgress.completedLessonIds.length / Math.max(continueProgress.totalLessons ?? continueProgress.completedLessonIds.length, 1)) * 100)}%` }} /></i><em>{continueProgress.completedLessonIds.length}/{continueProgress.totalLessons ?? "—"} lessons</em></span></span>
-                    <span className="continue-action">Continue <ArrowRight size={16} /></span>
+                    <span className="continue-copy"><small>{continueProgress.nextLessonId ? "In progress" : "Course complete"}</small><strong>{continueProgress.topic}</strong><span>{continueProgress.nextLessonTitle ?? "Review your course map"}</span><span className="continue-progress"><i><b style={{ width: `${Math.round((continueProgress.completedLessonIds.length / Math.max(continueProgress.totalLessons ?? continueProgress.completedLessonIds.length, 1)) * 100)}%` }} /></i><em>{continueProgress.completedLessonIds.length}/{continueProgress.totalLessons ?? "—"} lessons</em></span></span>
+                    <span className="continue-action">{continueProgress.nextLessonId ? "Continue" : "Review"} <ArrowRight size={16} /></span>
                   </button>
                 ) : (
                   <div className="dashboard-empty"><Compass size={23} /><div><strong>Choose your first learning path</strong><p>Start with a published course or craft one around your own goal.</p></div><button className="button button-primary" onClick={() => router.push(isPro ? "/create" : "/library")}>{isPro ? "Create a course" : "Explore courses"}</button></div>
@@ -158,7 +163,7 @@ export default function Home() {
             </div>
 
             <aside className="dashboard-side-column">
-              <section className="learning-snapshot"><div><h2>Your learning snapshot</h2><span>All time</span></div><dl><div><dt><Clock3 size={18} /> Study time</dt><dd>{Math.floor(minutes / 60)}h {minutes % 60}m</dd></div><div><dt><CheckCircle2 size={18} /> Lessons learned</dt><dd>{lessons.length}</dd></div><div><dt><Flame size={18} /> Current streak</dt><dd>{streakFor(lessons)} days</dd></div><div><dt><Target size={18} /> Quiz accuracy</dt><dd>{accuracy || "—"}{accuracy ? "%" : ""}</dd></div></dl></section>
+              <section className="learning-snapshot"><div><h2>Your learning snapshot</h2><span>All time</span></div><dl><div><dt><Clock3 size={18} /> Study time</dt><dd>{Math.floor(minutes / 60)}h {minutes % 60}m</dd></div><div><dt><CheckCircle2 size={18} /> Lessons learned</dt><dd>{lessons.length}</dd></div><div><dt><Flame size={18} /> Current streak</dt><dd>{streakFor(lessons)} {streakFor(lessons) === 1 ? "day" : "days"}</dd></div><div><dt><Target size={18} /> Quiz accuracy</dt><dd>{accuracy || "—"}{accuracy ? "%" : ""}</dd></div></dl></section>
               <section className="quick-actions"><h2>Quick actions</h2><button onClick={() => router.push("/review")}><CalendarCheck2 size={18} /><span><strong>Review due concepts</strong><small>{due.length ? `${due.length} ready now` : "Queue is clear"}</small></span><ArrowRight size={15} /></button><button onClick={() => router.push("/library")}><Compass size={18} /><span><strong>Explore a new topic</strong><small>Browse published courses</small></span><ArrowRight size={15} /></button>{isPro && <button onClick={() => router.push("/create")}><BrainCircuit size={18} /><span><strong>Craft a course</strong><small>Use one course credit</small></span><ArrowRight size={15} /></button>}<button onClick={() => router.push("/progress")}><TrendingUp size={18} /><span><strong>See your progress</strong><small>{mastered} concepts mastered</small></span><ArrowRight size={15} /></button></section>
             </aside>
           </div>

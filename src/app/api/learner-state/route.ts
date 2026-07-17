@@ -6,6 +6,7 @@ const defaults = {
   courseBookmarks: [] as string[],
   lessonBookmarks: [] as string[],
   notes: {} as Record<string, string>,
+  noteUpdatedAt: {} as Record<string, string>,
   weeklyLessonGoal: 5,
 };
 
@@ -27,10 +28,7 @@ export async function PUT(request: Request) {
     const account = await requireAccount(request);
     const parsed = learnerStateSchema.safeParse(await request.json());
     if (!parsed.success) return Response.json({ error: validationMessage(parsed.error) }, { status: 400 });
-    const saved = await putStoredDocument(`users/${account.uid}/learningData/preferences`, {
-      ...parsed.data,
-      updatedAt: new Date().toISOString(),
-    });
+    const saved = await putStoredDocument(`users/${account.uid}/learningData/preferences`, parsed.data);
     return Response.json(saved, { headers: { "Cache-Control": "private, no-store" } });
   } catch (error) {
     return authorizationResponse(error) ?? Response.json({ error: "Learning preferences could not be saved." }, { status: 500 });

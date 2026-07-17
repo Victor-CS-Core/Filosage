@@ -253,8 +253,17 @@ export async function finalizeAiUsage(
   const nowIso = new Date().toISOString();
   const inputTokens = numberValue(result.inputTokens);
   const outputTokens = numberValue(result.outputTokens);
-  const inputRate = Number(process.env.OPENAI_INPUT_COST_PER_MILLION ?? "5");
-  const outputRate = Number(process.env.OPENAI_OUTPUT_COST_PER_MILLION ?? "30");
+  const tutorRequest = reservation.feature === "tutor";
+  const inputRate = Number(
+    tutorRequest
+      ? process.env.OPENAI_TUTOR_INPUT_COST_PER_MILLION ?? "2.5"
+      : process.env.OPENAI_INPUT_COST_PER_MILLION ?? "5",
+  );
+  const outputRate = Number(
+    tutorRequest
+      ? process.env.OPENAI_TUTOR_OUTPUT_COST_PER_MILLION ?? "15"
+      : process.env.OPENAI_OUTPUT_COST_PER_MILLION ?? "30",
+  );
   const actualCostMicros = Math.max(0, Math.round(inputTokens * inputRate + outputTokens * outputRate));
 
   await runStoredDocumentTransaction(

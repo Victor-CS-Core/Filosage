@@ -45,9 +45,11 @@ export function getLocalProgress(courseId: string, topic = "") {
         topic,
         lastLessonId: String(completed.at(-1) ?? ""),
         lastLessonTitle: "Continue your course",
+        nextLessonId: null,
+        nextLessonTitle: null,
         completedLessonIds: completed.map(String),
-      lessons: {},
-      studyMinutes: 0,
+        lessons: {},
+        studyMinutes: 0,
         lastActivityAt: new Date().toISOString(),
         startedAt: new Date().toISOString(),
       };
@@ -86,6 +88,8 @@ export function saveLocalProgress(update: ProgressUpdate) {
     topic: update.topic,
     lastLessonId: update.lessonId,
     lastLessonTitle: update.lessonTitle,
+    nextLessonId: update.nextLessonId ?? null,
+    nextLessonTitle: update.nextLessonTitle ?? null,
     completedLessonIds,
     totalLessons: update.totalLessons ?? previous?.totalLessons,
     lessons: {

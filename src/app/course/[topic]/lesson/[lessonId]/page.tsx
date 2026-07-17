@@ -29,6 +29,7 @@ import type { Course, LessonData, Quiz } from "@/lib/course-types";
 import type { Confidence, CourseProgress, ProgressUpdate } from "@/lib/learning-types";
 import { getLocalProgress, saveLocalProgress } from "@/lib/learning-progress";
 import { useLearnerState } from "@/components/useLearnerState";
+import { normalizeLessonMarkdown } from "@/lib/markdown";
 
 interface Message {
   id: string;
@@ -228,7 +229,13 @@ export default function LessonView() {
   const reviewMode = searchParams.get("review") === "1";
   const [moduleIndex, lessonIndex] = lessonId.split("-").map(Number);
   const { user, isPro } = useAuth();
-  const { state: learnerState, update: updateLearnerState, ready: learnerStateReady } = useLearnerState();
+  const {
+    state: learnerState,
+    update: updateLearnerState,
+    ready: learnerStateReady,
+    syncStatus: learnerSyncStatus,
+    syncError: learnerSyncError,
+  } = useLearnerState();
   const [course, setCourse] = useState<Course | null>(null);
   const [lessonData, setLessonData] = useState<LessonData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -241,13 +248,37 @@ export default function LessonView() {
   const [chatting, setChatting] = useState(false);
   const [chatError, setChatError] = useState<string | null>(null);
   const [noteDraft, setNoteDraft] = useState("");
+  const [progressSyncError, setProgressSyncError] = useState<string | null>(null);
   const chatBottomRef = useRef<HTMLDivElement>(null);
+  const noteHydratedRef = useRef(false);
   const noteKey = courseId ? `${courseId}:${lessonId}` : `${topic}:${lessonId}`;
   const lessonBookmarked = learnerState.lessonBookmarks.includes(noteKey);
 
   useEffect(() => {
-    if (learnerStateReady) queueMicrotask(() => setNoteDraft(learnerState.notes[noteKey] ?? ""));
+    noteHydratedRef.current = false;
+  }, [noteKey]);
+
+  useEffect(() => {
+    if (!learnerStateReady) return;
+    const savedNote = learnerState.notes[noteKey] ?? "";
+    queueMicrotask(() => {
+      setNoteDraft(savedNote);
+      noteHydratedRef.current = true;
+    });
   }, [learnerState.notes, learnerStateReady, noteKey]);
+
+  useEffect(() => {
+    if (!noteHydratedRef.current || noteDraft === (learnerState.notes[noteKey] ?? "")) return;
+    const timeout = window.setTimeout(() => {
+      const timestamp = new Date().toISOString();
+      updateLearnerState((current) => ({
+        ...current,
+        notes: { ...current.notes, [noteKey]: noteDraft },
+        noteUpdatedAt: { ...current.noteUpdatedAt, [noteKey]: timestamp },
+      }));
+    }, 600);
+    return () => window.clearTimeout(timeout);
+  }, [learnerState.notes, noteDraft, noteKey, updateLearnerState]);
 
   const getToken = useCallback(async () => (user ? user.getIdToken() : null), [user]);
 
@@ -356,6 +387,10 @@ export default function LessonView() {
   const previousLesson = currentPosition > 0 ? allLessons[currentPosition - 1] : null;
   const nextLesson = currentPosition >= 0 && currentPosition < allLessons.length - 1 ? allLessons[currentPosition + 1] : null;
   const lessonProgress = allLessons.length ? Math.round(((currentPosition + (complete ? 1 : 0)) / allLessons.length) * 100) : 0;
+  const normalizedContent = useMemo(
+    () => lessonData && lesson ? normalizeLessonMarkdown(lessonData.content, lesson.title) : "",
+    [lesson, lessonData],
+  );
 
   const markComplete = useCallback(async () => {
     if (!courseId || complete || !lessonData || !lesson) return;
@@ -375,9 +410,12 @@ export default function LessonView() {
       review: reviewMode,
       totalLessons: allLessons.length,
       estimatedMinutes: lesson.estimatedMinutes ?? 12,
+      nextLessonId: nextLesson?.id ?? null,
+      nextLessonTitle: nextLesson?.title ?? null,
     };
 
     saveLocalProgress(update);
+    setProgressSyncError(null);
     if (user) {
       try {
         const token = await user.getIdToken();
@@ -386,13 +424,13 @@ export default function LessonView() {
           headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
           body: JSON.stringify(update),
         });
-        if (!response.ok) throw new Error("Cloud progress could not be saved.");
+        if (!response.ok) throw new Error("Saved on this device. Cloud progress will retry when you complete another activity.");
       } catch (saveError) {
-        console.error(saveError);
+        setProgressSyncError(saveError instanceof Error ? saveError.message : "Saved on this device, but cloud sync is pending.");
       }
     }
     setComplete(true);
-  }, [allLessons.length, complete, courseId, lesson, lessonData, lessonId, quizResults, reviewMode, topic, user]);
+  }, [allLessons.length, complete, courseId, lesson, lessonData, lessonId, nextLesson, quizResults, reviewMode, topic, user]);
 
   const onMastered = (index: number, result: QuizResult) => {
     setQuizResults((current) => ({ ...current, [index]: result }));
@@ -408,7 +446,7 @@ export default function LessonView() {
   const sendMessage = async (event: React.FormEvent) => {
     event.preventDefault();
     const input = chatInput.trim();
-    if (!input || !lessonData || !lesson || !user || chatting) return;
+    if (!input || !lessonData || !lesson || !courseId || !user || chatting) return;
     const nextMessages: Message[] = [...messages, { id: crypto.randomUUID(), role: "user", content: input }];
     setMessages(nextMessages);
     setChatInput("");
@@ -423,10 +461,8 @@ export default function LessonView() {
         body: JSON.stringify({
           messages: nextMessages.map(({ role, content }) => ({ role, content })),
           data: {
-            topic,
-            lessonTitle: lesson.title,
-            lessonConcept: lesson.concept,
-            lessonContent: lessonData.content,
+            courseId,
+            lessonId,
           },
         }),
       });
@@ -517,7 +553,7 @@ export default function LessonView() {
                 <p>{lesson.concept}</p>
               </header>
 
-              <div className="markdown-content"><ReactMarkdown>{lessonData.content}</ReactMarkdown></div>
+              <div className="markdown-content"><ReactMarkdown>{normalizedContent}</ReactMarkdown></div>
 
               {lessonData.diagram && (
                 <section className="lesson-section" aria-labelledby="model-title">
@@ -545,7 +581,7 @@ export default function LessonView() {
                 <div>{complete ? <CheckCircle2 size={22} /> : <CircleAlert size={22} />}</div>
                 <span>
                   <strong>{complete ? (reviewMode ? "Review complete" : "Lesson learned") : "Demonstrate understanding"}</strong>
-                  <small>{complete ? (user ? "Progress synced. Your next review has been scheduled." : "Progress saved on this device. Sign in to sync it.") : "Answer every prompt correctly and rate your confidence."}</small>
+                  <small>{complete ? (progressSyncError || (user ? "Progress synced. Your next review has been scheduled." : "Progress saved on this device. Sign in to sync it.")) : "Answer every prompt correctly and rate your confidence."}</small>
                 </span>
                 {!complete && lessonData.quizzes.length === 0 && (
                   <button className="button button-secondary button-small" onClick={() => void markComplete()}>Mark learned</button>
@@ -576,8 +612,8 @@ export default function LessonView() {
               <div className="study-panel-heading"><NotebookPen size={18} /><div><strong>Study workspace</strong><small>{user ? "Synced with your account" : "Saved on this device"}</small></div></div>
               <section className="lesson-note-section">
                 <label htmlFor="lesson-note">Your notes</label>
-                <textarea id="lesson-note" value={noteDraft} onChange={(event) => setNoteDraft(event.target.value)} onBlur={() => updateLearnerState((current) => ({ ...current, notes: { ...current.notes, [noteKey]: noteDraft } }))} maxLength={12_000} rows={9} placeholder="Capture the idea in your own words…" />
-                <span>{noteDraft.length.toLocaleString()}/12,000</span>
+                <textarea id="lesson-note" value={noteDraft} onChange={(event) => setNoteDraft(event.target.value)} maxLength={12_000} rows={9} placeholder="Capture the idea in your own words…" />
+                <span>{noteDraft.length.toLocaleString()}/12,000 · <span role={learnerSyncStatus === "error" ? "alert" : "status"}>{learnerSyncStatus === "saving" ? "Saving…" : learnerSyncStatus === "error" ? learnerSyncError : learnerSyncStatus === "saved" ? "Saved" : user ? "Synced" : "On this device"}</span></span>
               </section>
               <section className="study-key-point"><span><Lightbulb size={17} /></span><div><strong>Core idea</strong><p>{lesson.concept}</p></div></section>
               <section className="mastery-checklist"><strong>To master this lesson</strong><ul><li className="is-done"><Check size={15} /> Read the explanation</li><li className={lessonData.diagram ? "is-done" : ""}><Check size={15} /> Inspect the mental model</li><li className={complete ? "is-done" : ""}><Check size={15} /> Complete retrieval practice</li></ul></section>

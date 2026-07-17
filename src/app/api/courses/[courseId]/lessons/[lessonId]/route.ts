@@ -27,7 +27,7 @@ export async function GET(request: Request, { params }: RouteParams) {
     return NextResponse.json(
       lesson,
       course.isPublic
-        ? { headers: { "Cache-Control": "public, max-age=300, stale-while-revalidate=900" } }
+        ? { headers: { "Cache-Control": "no-store" } }
         : undefined,
     );
   } catch (error: unknown) {
