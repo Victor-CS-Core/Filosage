@@ -110,6 +110,31 @@ export const learnerStateSchema = z.object({
   notes: z.record(z.string().trim().min(1).max(400), z.string().max(12_000)),
   noteUpdatedAt: z.record(z.string().trim().min(1).max(400), isoDateTimeSchema).default({}),
   weeklyLessonGoal: z.number().int().min(1).max(50),
+  dashboardPreferences: z.object({
+    preset: z.enum(["default", "focused", "progress", "discover", "custom"]),
+    sections: z.object({
+      nextUp: z.boolean(),
+      achievements: z.boolean(),
+      learningTip: z.boolean(),
+      snapshot: z.boolean(),
+      quickActions: z.boolean(),
+    }),
+    metrics: z.object({
+      studyTime: z.boolean(),
+      lessons: z.boolean(),
+      streak: z.boolean(),
+      accuracy: z.boolean(),
+      mastered: z.boolean(),
+    }),
+    mainOrder: z.array(z.enum(["nextUp", "achievements", "learningTip"])).length(3),
+    sideOrder: z.array(z.enum(["snapshot", "quickActions"])).length(2),
+  }).default({
+    preset: "default",
+    sections: { nextUp: true, achievements: true, learningTip: true, snapshot: true, quickActions: true },
+    metrics: { studyTime: true, lessons: true, streak: true, accuracy: true, mastered: true },
+    mainOrder: ["nextUp", "achievements", "learningTip"],
+    sideOrder: ["snapshot", "quickActions"],
+  }),
   updatedAt: isoDateTimeSchema.optional(),
 });
 

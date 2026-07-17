@@ -1,6 +1,7 @@
 import { authorizationResponse, requireAccount } from "@/lib/auth-server";
 import { getStoredDocument, putStoredDocument } from "@/lib/firebase-server";
 import { learnerStateSchema, validationMessage } from "@/lib/validation";
+import { DEFAULT_DASHBOARD_PREFERENCES } from "@/lib/dashboard-preferences";
 
 const defaults = {
   courseBookmarks: [] as string[],
@@ -8,6 +9,7 @@ const defaults = {
   notes: {} as Record<string, string>,
   noteUpdatedAt: {} as Record<string, string>,
   weeklyLessonGoal: 5,
+  dashboardPreferences: DEFAULT_DASHBOARD_PREFERENCES,
 };
 
 export async function GET(request: Request) {

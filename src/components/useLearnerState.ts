@@ -51,6 +51,7 @@ export function useLearnerState() {
           notes,
           noteUpdatedAt,
           weeklyLessonGoal: preferLocalSettings ? local.weeklyLessonGoal : cloud.weeklyLessonGoal,
+          dashboardPreferences: preferLocalSettings ? local.dashboardPreferences : cloud.dashboardPreferences,
           updatedAt: preferLocalSettings ? local.updatedAt : cloud.updatedAt,
         };
         stateRef.current = merged;

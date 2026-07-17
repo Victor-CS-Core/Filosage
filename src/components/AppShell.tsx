@@ -39,6 +39,8 @@ const primaryNav = [
   { href: "/progress", label: "Progress", icon: TrendingUp },
 ];
 
+const sidebarNav = [...primaryNav, { href: "/profile", label: "Profile", icon: UserRound }];
+
 export default function AppShell({ children, activeTopic, activeCourseId }: AppShellProps) {
   const router = useRouter();
   const pathname = usePathname();
@@ -135,7 +137,7 @@ export default function AppShell({ children, activeTopic, activeCourseId }: AppS
         </button>
 
         <nav className="learner-primary-nav">
-          {primaryNav.map(({ href, label, icon: Icon }) => (
+          {sidebarNav.map(({ href, label, icon: Icon }) => (
             <button key={href} className={`nav-link ${pathname === href ? "is-active" : ""}`} onClick={() => navigate(href)}>
               <Icon size={18} /><span>{label}</span>
             </button>
@@ -210,6 +212,7 @@ export default function AppShell({ children, activeTopic, activeCourseId }: AppS
           <div>
             <strong>{firstName}</strong>
             <small>{isPro ? "Pro learning account" : "Free learning account"}</small>
+            <button type="button" onClick={() => navigate("/profile")}><UserRound size={16} /> View profile</button>
             <button type="button" onClick={toggle}>{theme === "dark" ? <Sun size={16} /> : <Moon size={16} />} {theme === "dark" ? "Light mode" : "Dark mode"}</button>
             <button type="button" onClick={() => void signOut()}><LogOut size={16} /> Sign out</button>
           </div>

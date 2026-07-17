@@ -1,11 +1,18 @@
 "use client";
 
+import {
+  DEFAULT_DASHBOARD_PREFERENCES,
+  normalizeDashboardPreferences,
+  type DashboardPreferences,
+} from "@/lib/dashboard-preferences";
+
 export interface LearnerState {
   courseBookmarks: string[];
   lessonBookmarks: string[];
   notes: Record<string, string>;
   noteUpdatedAt: Record<string, string>;
   weeklyLessonGoal: number;
+  dashboardPreferences: DashboardPreferences;
   updatedAt?: string;
 }
 
@@ -17,6 +24,7 @@ export const EMPTY_LEARNER_STATE: LearnerState = {
   notes: {},
   noteUpdatedAt: {},
   weeklyLessonGoal: 5,
+  dashboardPreferences: DEFAULT_DASHBOARD_PREFERENCES,
 };
 
 export function readLearnerState(): LearnerState {
@@ -29,6 +37,7 @@ export function readLearnerState(): LearnerState {
       notes: value.notes && typeof value.notes === "object" ? value.notes : {},
       noteUpdatedAt: value.noteUpdatedAt && typeof value.noteUpdatedAt === "object" ? value.noteUpdatedAt : {},
       weeklyLessonGoal: Number.isInteger(value.weeklyLessonGoal) ? value.weeklyLessonGoal : 5,
+      dashboardPreferences: normalizeDashboardPreferences(value.dashboardPreferences),
       updatedAt: typeof value.updatedAt === "string" ? value.updatedAt : undefined,
     };
   } catch {

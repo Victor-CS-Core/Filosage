@@ -1,6 +1,8 @@
 import { expect, test } from "@playwright/test";
 import { readdir, readFile } from "node:fs/promises";
 import { extname, join } from "node:path";
+import { evaluateBadges } from "../src/lib/badges";
+import { normalizeDashboardPreferences } from "../src/lib/dashboard-preferences";
 
 async function sourceFiles(directory: string): Promise<string[]> {
   const entries = await readdir(directory, { withFileTypes: true });
@@ -20,6 +22,56 @@ test("keeps interface copy free of encoding artifacts", async () => {
     if (/(?:\u00E2\u20AC|\u00C2|\u00C3|\uFFFD)/u.test(content)) offenders.push(file);
   }
   expect(offenders).toEqual([]);
+});
+
+test("normalizes legacy dashboard settings without losing required defaults", () => {
+  const preferences = normalizeDashboardPreferences({
+    preset: "custom",
+    sections: { learningTip: false },
+    metrics: { streak: false },
+    mainOrder: ["achievements"],
+  });
+
+  expect(preferences.sections.learningTip).toBe(false);
+  expect(preferences.sections.nextUp).toBe(true);
+  expect(preferences.metrics.streak).toBe(false);
+  expect(preferences.metrics.lessons).toBe(true);
+  expect(preferences.mainOrder).toEqual(["achievements", "nextUp", "learningTip"]);
+});
+
+test("earns badges from real learning progress", () => {
+  const badges = evaluateBadges({
+    progress: [{
+      courseId: "systems",
+      topic: "Systems thinking",
+      lastLessonId: "0-0",
+      lastLessonTitle: "Feedback loops",
+      completedLessonIds: ["0-0"],
+      totalLessons: 1,
+      studyMinutes: 65,
+      lastActivityAt: "2026-07-16T12:00:00.000Z",
+      startedAt: "2026-07-16T12:00:00.000Z",
+      lessons: {
+        "0-0": {
+          lessonId: "0-0",
+          lessonTitle: "Feedback loops",
+          status: "learned",
+          attempts: 2,
+          totalQuestions: 2,
+          firstAttemptCorrect: 2,
+          confidence: "high",
+          intervalStage: 0,
+          nextReviewAt: "2026-07-17T12:00:00.000Z",
+          lastStudiedAt: "2026-07-16T12:00:00.000Z",
+        },
+      },
+    }],
+  });
+
+  expect(badges.find((badge) => badge.id === "first-step")?.earned).toBe(true);
+  expect(badges.find((badge) => badge.id === "study-hour")?.earned).toBe(true);
+  expect(badges.find((badge) => badge.id === "clean-sweep")?.earned).toBe(true);
+  expect(badges.find((badge) => badge.id === "course-complete")?.earned).toBe(true);
 });
 
 test("never leaves public learning behind the authentication startup screen", async ({ page }) => {
