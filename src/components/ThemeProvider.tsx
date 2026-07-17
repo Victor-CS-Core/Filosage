@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext, useEffect, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useState } from "react";
 import { deferClientTask } from "@/lib/browser-compat";
 
 type Theme = "light" | "dark";
@@ -17,24 +17,67 @@ export function useTheme() {
 }
 
 function storedTheme(): Theme {
-  const stored = localStorage.getItem(THEME_KEY) ?? localStorage.getItem(LEGACY_THEME_KEY);
-  if (stored === "light" || stored === "dark") return stored;
+  try {
+    const stored = localStorage.getItem(THEME_KEY) ?? localStorage.getItem(LEGACY_THEME_KEY);
+    if (stored === "light" || stored === "dark") return stored;
+  } catch {
+    // Storage can be unavailable in strict privacy modes; the applied theme remains usable.
+  }
+  const applied = document.documentElement.getAttribute("data-theme");
+  if (applied === "light" || applied === "dark") return applied;
   return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+}
+
+function applyTheme(theme: Theme) {
+  document.documentElement.setAttribute("data-theme", theme);
+}
+
+function persistTheme(theme: Theme) {
+  try {
+    localStorage.setItem(THEME_KEY, theme);
+  } catch {
+    // Keep the in-memory selection working when persistent storage is unavailable.
+  }
 }
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const [theme, setTheme] = useState<Theme>("light");
+  const [restored, setRestored] = useState(false);
 
   useEffect(() => {
-    deferClientTask(() => setTheme(storedTheme()));
+    const savedTheme = storedTheme();
+    applyTheme(savedTheme);
+    deferClientTask(() => {
+      setTheme(savedTheme);
+      setRestored(true);
+    });
+
+    const syncThemeAcrossTabs = (event: StorageEvent) => {
+      if (event.key !== THEME_KEY || (event.newValue !== "light" && event.newValue !== "dark")) return;
+      applyTheme(event.newValue);
+      setTheme(event.newValue);
+    };
+    window.addEventListener("storage", syncThemeAcrossTabs);
+    return () => window.removeEventListener("storage", syncThemeAcrossTabs);
   }, []);
 
   useEffect(() => {
-    document.documentElement.setAttribute("data-theme", theme);
-    localStorage.setItem(THEME_KEY, theme);
-  }, [theme]);
+    if (!restored) return;
+    applyTheme(theme);
+    persistTheme(theme);
+  }, [restored, theme]);
 
-  const toggle = () => setTheme((current) => (current === "light" ? "dark" : "light"));
+  const toggle = useCallback(() => {
+    setTheme((current) => {
+      const applied = document.documentElement.getAttribute("data-theme");
+      const activeTheme = applied === "light" || applied === "dark" ? applied : current;
+      const nextTheme = activeTheme === "light" ? "dark" : "light";
+      applyTheme(nextTheme);
+      persistTheme(nextTheme);
+      return nextTheme;
+    });
+    setRestored(true);
+  }, []);
 
   return <ThemeContext.Provider value={{ theme, toggle }}>{children}</ThemeContext.Provider>;
 }

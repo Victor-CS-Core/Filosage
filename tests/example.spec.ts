@@ -28,6 +28,18 @@ test("keeps the learning library public", async ({ page }) => {
   await expect(page.getByText("No account required to read")).toBeVisible();
 });
 
+test("preserves the selected theme across navigation and reloads", async ({ page }) => {
+  await page.goto("/");
+  await page.evaluate(() => localStorage.setItem("erudoza-theme", "dark"));
+  await page.reload();
+
+  await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
+  await page.getByRole("button", { name: "Explore published courses" }).click();
+  await expect(page).toHaveURL(/\/library$/);
+  await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
+  await expect.poll(() => page.evaluate(() => localStorage.getItem("erudoza-theme"))).toBe("dark");
+});
+
 test("offers an optional learner account without blocking public access", async ({ page }) => {
   await page.goto("/");
 
@@ -79,7 +91,8 @@ test("does not complete a lesson after a wrong answer", async ({ page }) => {
   await expect(page.getByRole("heading", { name: "Feedback loops" })).toHaveCount(1);
   await expect(page.getByRole("heading", { level: 2, name: "Why it matters" })).toBeVisible();
   const firstCheck = page.locator(".knowledge-check").first();
-  await firstCheck.getByRole("button", { name: "Compare with choices" }).click();
+  await firstCheck.getByRole("button", { name: "Reveal answer choices" }).click();
+  const firstCorrectPosition = await firstCheck.getByRole("button", { name: /Output influencing future input/ }).locator("span").textContent();
   await firstCheck.getByRole("button", { name: /A static list/ }).click();
   await expect(page.getByText("Demonstrate understanding")).toBeVisible();
   await expect(page.getByText("Lesson learned")).not.toBeVisible();
@@ -89,7 +102,9 @@ test("does not complete a lesson after a wrong answer", async ({ page }) => {
   await firstCheck.getByRole("button", { name: "Mostly sure" }).click();
 
   const secondCheck = page.locator(".knowledge-check").nth(1);
-  await secondCheck.getByRole("button", { name: "Compare with choices" }).click();
+  await secondCheck.getByRole("button", { name: "Reveal answer choices" }).click();
+  const secondCorrectPosition = await secondCheck.getByRole("button", { name: /To see change over time/ }).locator("span").textContent();
+  expect(secondCorrectPosition).not.toBe(firstCorrectPosition);
   await secondCheck.getByRole("button", { name: /To see change over time/ }).click();
   await secondCheck.getByRole("button", { name: "Certain" }).click();
   await expect(page.getByText("Lesson learned")).toBeVisible();

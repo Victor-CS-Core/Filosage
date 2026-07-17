@@ -45,6 +45,35 @@ const LESSON_GENERATION_STAGES = [
   "Reviewing clarity and accuracy",
 ] as const;
 
+function randomIndex(maximum: number) {
+  if (maximum <= 1) return 0;
+  const values = new Uint32Array(1);
+  crypto.getRandomValues(values);
+  return values[0] % maximum;
+}
+
+function randomizeQuizAnswers(lesson: LessonData): LessonData {
+  const widestQuiz = Math.max(0, ...lesson.quizzes.map((quiz) => quiz.options.length));
+  const rotation = randomIndex(widestQuiz);
+
+  return {
+    ...lesson,
+    quizzes: lesson.quizzes.map((quiz, quizIndex) => {
+      if (quiz.options.length < 2 || !quiz.options[quiz.correctIndex]) return quiz;
+      const correctOption = quiz.options[quiz.correctIndex];
+      const distractors = quiz.options.filter((_, optionIndex) => optionIndex !== quiz.correctIndex);
+      for (let index = distractors.length - 1; index > 0; index -= 1) {
+        const swapIndex = randomIndex(index + 1);
+        [distractors[index], distractors[swapIndex]] = [distractors[swapIndex], distractors[index]];
+      }
+      const correctIndex = (rotation + quizIndex) % quiz.options.length;
+      const options = [...distractors];
+      options.splice(correctIndex, 0, correctOption);
+      return { ...quiz, options, correctIndex };
+    }),
+  };
+}
+
 function MermaidDiagram({ chart, summary }: { chart: string; summary?: string }) {
   const ref = useRef<HTMLDivElement>(null);
   const { theme } = useTheme();
@@ -168,16 +197,30 @@ function KnowledgeCheck({
   const reset = () => setSelected(null);
 
   return (
-    <fieldset className="knowledge-check">
+    <fieldset className={`knowledge-check ${submittedConfidence ? "is-complete" : ""}`}>
+      <legend className="sr-only">Practice {index + 1}: {quiz.question}</legend>
+      <div className="activity-meta">
+        <span>Practice {index + 1}</span>
+        <span aria-live="polite">{submittedConfidence ? "Complete" : choicesVisible ? "Choose an answer" : "Recall first"}</span>
+      </div>
       <div className="knowledge-question">
-        <span>{String(index + 1).padStart(2, "0")}</span>
-        <legend>{quiz.question}</legend>
+        <span aria-hidden="true">{index + 1}</span>
+        <h3>{quiz.question}</h3>
       </div>
       {!choicesVisible && (
         <div className="free-recall">
-          <label htmlFor={`recall-${index}`}>Write what you remember before seeing the choices</label>
-          <textarea id={`recall-${index}`} value={recall} onChange={(event) => setRecall(event.target.value)} rows={3} placeholder="A rough answer is enough. This private reflection is only for you." />
-          <button className="button button-secondary button-small" type="button" onClick={() => setChoicesVisible(true)}>Compare with choices</button>
+          <div className="free-recall-heading">
+            <label htmlFor={`recall-${index}`}>Start from memory</label>
+            <small>Write a few words before revealing the choices. This reflection stays private.</small>
+          </div>
+          <textarea id={`recall-${index}`} value={recall} onChange={(event) => setRecall(event.target.value)} rows={2} placeholder="Capture the key idea in your own wordsâ€¦" />
+          <button className="button button-secondary button-small" type="button" onClick={() => setChoicesVisible(true)}>Reveal answer choices <ChevronRight size={15} /></button>
+        </div>
+      )}
+      {choicesVisible && recall.trim() && (
+        <div className="recall-summary">
+          <span>Your recall</span>
+          <p>{recall}</p>
         </div>
       )}
       {choicesVisible && <div className="answer-list">
@@ -191,6 +234,8 @@ function KnowledgeCheck({
               className={`answer-option ${correct ? "is-correct" : ""} ${incorrect ? "is-incorrect" : ""}`}
               onClick={() => choose(optionIndex)}
               disabled={revealed}
+              type="button"
+              aria-pressed={selected === optionIndex}
             >
               <span>{String.fromCharCode(65 + optionIndex)}</span>
               <strong>{option}</strong>
@@ -204,7 +249,7 @@ function KnowledgeCheck({
         <div className={`answer-explanation ${selected === quiz.correctIndex ? "is-correct" : "is-incorrect"}`} aria-live="polite">
           <div>
             {selected === quiz.correctIndex ? <CheckCircle2 size={18} /> : <Lightbulb size={18} />}
-            <strong>{selected === quiz.correctIndex ? "Exactly right" : "Use this clue"}</strong>
+            <strong>{selected === quiz.correctIndex ? "Correctâ€”well reasoned" : "Not quiteâ€”review the reasoning"}</strong>
           </div>
           <p>{quiz.explanation}</p>
           {selected !== quiz.correctIndex && <button className="text-button" onClick={reset}><RotateCcw size={14} /> Try again</button>}
@@ -341,7 +386,7 @@ export default function LessonView() {
 
       const lessonResponse = await fetch(`/api/courses/${courseId}/lessons/${lessonId}`, { headers });
       if (lessonResponse.ok) {
-        setLessonData(await lessonResponse.json());
+        setLessonData(randomizeQuizAnswers(await lessonResponse.json() as LessonData));
         return;
       }
 
@@ -371,7 +416,7 @@ export default function LessonView() {
       const generated = await generationResponse.json();
       if (!generationResponse.ok) throw new Error(generated.error || "The lesson could not be generated.");
       setGenerationProgress(100);
-      setLessonData(generated);
+      setLessonData(randomizeQuizAnswers(generated as LessonData));
     } catch (loadError) {
       setError(loadError instanceof Error ? loadError.message : "The lesson could not be opened.");
     } finally {
@@ -652,7 +697,7 @@ export default function LessonView() {
                   <div className="lesson-section-heading">
                     <p className="overline">Retrieval practice</p>
                     <h2 id="checks-title">Check your understanding</h2>
-                    <p>Answer from memory. Feedback appears after each choice.</p>
+                    <p>{lessonData.quizzes.length} focused activities. Retrieve first, then compare your reasoning and confidence.</p>
                   </div>
                   <div className="knowledge-list">
                     {lessonData.quizzes.map((quiz, index) => (

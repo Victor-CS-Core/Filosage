@@ -1,9 +1,25 @@
 import type { Metadata, Viewport } from "next";
 import { headers } from "next/headers";
+import Script from "next/script";
 import "@fontsource-variable/inter";
 import "./globals.css";
 import { ThemeProvider } from "@/components/ThemeProvider";
 import { AuthProvider } from "@/components/AuthProvider";
+
+const themeBootstrapScript = `
+  (function () {
+    var theme = "light";
+    try {
+      var stored = localStorage.getItem("erudoza-theme") || localStorage.getItem("teach-theme");
+      theme = stored === "light" || stored === "dark"
+        ? stored
+        : (window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+    } catch (error) {
+      theme = window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+    }
+    document.documentElement.setAttribute("data-theme", theme);
+  })();
+`;
 
 function safeRequestOrigin(headerList: Headers) {
   const configuredOrigin = process.env.NEXT_PUBLIC_SITE_URL;
@@ -73,6 +89,9 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <body suppressHydrationWarning>
+        <Script id="erudoza-theme-bootstrap" strategy="beforeInteractive">
+          {themeBootstrapScript}
+        </Script>
         <ThemeProvider>
           <AuthProvider>
             {children}
