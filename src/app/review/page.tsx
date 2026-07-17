@@ -49,8 +49,8 @@ export default function ReviewPage() {
         <div className="center-state review-signin-state">
           <span className="state-icon"><CalendarCheck2 size={23} /></span>
           <p className="overline">Review queue</p>
-          <h1>Return before the idea fades.</h1>
-          <p>Sign in to schedule concepts across devices and build durable recall. Published courses remain free without an account.</p>
+          <h1>Review concepts when they are due.</h1>
+          <p>Sign in to save your review schedule across devices. Published courses remain free without an account.</p>
           <button className="button button-primary" onClick={() => void signInWithGoogle()}>Sign in to review</button>
         </div>
       </AppShell>
@@ -63,8 +63,8 @@ export default function ReviewPage() {
         <header className="review-header">
           <div>
             <p className="overline">Focused recall</p>
-            <h1>{due.length ? "Three concepts. One deliberate session." : "Nothing is due right now."}</h1>
-            <p>{due.length ? "Answer before rereading. Erudoza will shorten or extend the next interval from your result." : "Continue a course and your next review will appear here automatically."}</p>
+            <h1>{due.length ? `${due.length} concept${due.length === 1 ? "" : "s"} due for review` : "Nothing is due right now."}</h1>
+            <p>{due.length ? "Try to answer from memory. Your result sets the next review date." : "Continue a course and your next review will appear here automatically."}</p>
           </div>
           <span className="review-count"><Sparkles size={17} /> {due.length} due now</span>
         </header>
@@ -86,7 +86,7 @@ export default function ReviewPage() {
         ) : (
           <div className="review-clear-state">
             <CalendarCheck2 size={27} />
-            <div><strong>Your memory has breathing room.</strong><p>Start or continue a published course to schedule the next useful review.</p></div>
+            <div><strong>No reviews are due.</strong><p>Start or continue a published course to schedule your next review.</p></div>
             <button className="button button-secondary" onClick={() => router.push("/library")}>Browse courses</button>
           </div>
         )}

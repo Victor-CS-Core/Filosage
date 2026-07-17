@@ -92,17 +92,18 @@ export default function CourseLibrary({ featured = false }: { featured?: boolean
           {visible.map((course, index) => {
             const id = course.id ?? course.courseId ?? `${course.topic}-${index}`;
             const lessons = course.modules.reduce((total, module) => total + module.lessons.length, 0);
+            const hours = Math.max(1, Math.round((course.estimatedMinutes ?? lessons * 12) / 60));
             const bookmarked = state.courseBookmarks.includes(id);
             return (
               <article className="course-card" key={id}>
                 <button className="course-card-open" onClick={() => router.push(`/course/${encodeURIComponent(course.topic)}?id=${id}`)} aria-label={`Open ${course.topic}`}>
                   <span className={`course-card-symbol tone-${index % 4}`}><BookOpen size={23} /></span>
-                  <span className="course-card-category">{course.category ?? "Focused learning"}</span>
+                  <span className="course-card-category">{course.category ?? "Course"}</span>
                   <h3>{course.topic}</h3>
-                  <p>{course.outcome ?? course.mission ?? "Build durable understanding through a focused sequence."}</p>
+                  <p>{course.outcome ?? course.mission ?? "Learn the subject through a structured sequence of lessons and practice."}</p>
                   <span className="course-card-meta">
                     <span><Layers3 size={14} /> {lessons} lessons</span>
-                    <span><Clock3 size={14} /> {Math.max(1, Math.round((course.estimatedMinutes ?? lessons * 12) / 60))} hr</span>
+                    <span><Clock3 size={14} /> {hours} {hours === 1 ? "hour" : "hours"}</span>
                     <span>{course.level ?? "Foundations"}</span>
                   </span>
                   <span className="course-card-cta">View course <ArrowRight size={15} /></span>

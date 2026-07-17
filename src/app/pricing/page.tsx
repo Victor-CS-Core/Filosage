@@ -8,15 +8,15 @@ const freeFeatures = [
   "Read every published course",
   "Complete lessons and retrieval practice",
   "Cloud progress and review scheduling",
-  "Three lesson-tutor prompts per day",
+  "Three tutor questions per day",
 ];
 
 const proFeatures = [
   "Everything in Free",
   "Three private course outlines each month",
   "Thirty generated lessons each month",
-  "One hundred lesson-tutor prompts each month",
-  "Adaptive review and deeper progress insight",
+  "One hundred tutor questions each month",
+  "Review scheduling and detailed progress",
 ];
 
 export default function PricingPage() {
@@ -28,8 +28,8 @@ export default function PricingPage() {
       <div className="pricing-page">
         <header className="pricing-header">
           <p className="overline">Erudoza Pro</p>
-          <h1>Pay for focus and intelligence—not access to knowledge.</h1>
-          <p>Published courses stay free. Pro funds private course creation, lesson-grounded tutoring, and the systems that help learning last.</p>
+          <h1>Learn for free. Create with Pro.</h1>
+          <p>Every published course stays free. Pro adds private course creation and more tutor questions.</p>
         </header>
 
         <div className="plan-comparison">
@@ -41,19 +41,19 @@ export default function PricingPage() {
           </section>
 
           <section className="plan-column plan-pro" aria-labelledby="pro-plan-title">
-            <div className="plan-heading"><span><Crown size={19} /></span><div><h2 id="pro-plan-title">Erudoza Pro</h2><p>Build a private path around what matters to you.</p></div></div>
+            <div className="plan-heading"><span><Crown size={19} /></span><div><h2 id="pro-plan-title">Erudoza Pro</h2><p>Create private courses for your own goals.</p></div></div>
             <ul>{proFeatures.map((feature) => <li key={feature}><Check size={16} /> {feature}</li>)}</ul>
             {isPro ? (
               <div className="plan-status"><Sparkles size={17} /><span><strong>Pro is active</strong><small>{outlineQuota?.remaining ?? "Unlimited"} course outline credits remaining</small></span></div>
             ) : (
-              <button className="button button-primary" disabled title="Billing provider and prices are being configured">
-                <LockKeyhole size={16} /> Checkout coming next
+              <button className="button button-primary" disabled title="Pro subscriptions are not available yet">
+                <LockKeyhole size={16} /> Pro subscriptions coming soon
               </button>
             )}
           </section>
         </div>
 
-        <p className="pricing-note">Generation credits reset each billing period and do not roll over. Erudoza never advertises unlimited AI usage.</p>
+        <p className="pricing-note">Generation credits reset each month and do not roll over. Monthly limits help keep course creation reliable and available.</p>
       </div>
     </AppShell>
   );

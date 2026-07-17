@@ -40,14 +40,14 @@ export async function POST(request: Request) {
       ? "Prioritize precise mental models and connected explanations before applied practice."
       : courseStyle === "Project-led"
         ? "Organize the sequence around a concrete applied result while preserving prerequisite order."
-        : "Balance mental models, worked examples, retrieval, and application throughout the path.";
+        : "Balance mental models, worked examples, retrieval, and application throughout the course.";
     const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
     await assertSafeContent(client, [topic, goal, application, background].filter(Boolean).join("\n"));
     reservation = await reserveAiUsage(account, "course_outline", request.headers.get("idempotency-key"));
     const response = await client.responses.parse({
       model,
       instructions:
-        "You are a master curriculum designer. Build a focused learning path using progressive difficulty, retrieval practice, and the Zone of Proximal Development. Include a realistic level, total learning time, concrete outcome, prerequisites, category, and an estimated time for every lesson. Keep each lesson tightly scoped, independently valuable, and free of filler. Return the requested structured course only.",
+        "Design a structured course with progressive difficulty, retrieval practice, and appropriate scaffolding. Include a realistic level, total learning time, concrete outcome, prerequisites, category, and an estimated time for every lesson. Keep each lesson tightly scoped, independently useful, and free of filler. Write titles and descriptions in plain, specific, instructional language. Avoid promotional claims, motivational slogans, vague abstractions, and repetitive phrasing. Use the term course, not learning path. Return the requested structured course only.",
       input: [
         `Create a complete but efficient course outline for: ${topic}`,
         goal ? `Learner's observable goal: ${goal}` : "",

@@ -153,6 +153,7 @@ export default function CourseMap() {
     return { lessonId, lesson, moduleTitle: course.modules[moduleIndex].title };
   }, [course, firstIncompleteLesson, totalLessons]);
   const courseComplete = totalLessons > 0 && validCompletedLessons.length === totalLessons;
+  const courseHours = Math.max(1, Math.round((course?.estimatedMinutes ?? totalLessons * 12) / 60));
 
   const updateVisibility = async () => {
     if (!isOwner || !courseId || !course) return;
@@ -208,8 +209,8 @@ export default function CourseMap() {
       <AppShell activeTopic={topic} activeCourseId={requestedCourseId}>
         <div className="center-state course-building-state">
           <span className="loading-orbit"><LoaderCircle size={28} /></span>
-          <h1>{requestedCourseId ? "Opening the learning path" : `Designing ${topic}`}</h1>
-          <p>{requestedCourseId ? "Gathering modules and lesson progress…" : "Structuring concepts into a focused progression…"}</p>
+          <h1>{requestedCourseId ? "Opening the course" : `Creating ${topic}`}</h1>
+          <p>{requestedCourseId ? "Loading the course and your progress…" : "Building your course outline…"}</p>
         </div>
       </AppShell>
     );
@@ -221,10 +222,10 @@ export default function CourseMap() {
         <div className="center-state error-state">
           <span className="state-icon"><LockKeyhole size={23} /></span>
           <p className="overline">Course unavailable</p>
-          <h1>{requestedCourseId ? "This learning path can’t be opened" : "Private course creation"}</h1>
+          <h1>{requestedCourseId ? "This course can’t be opened" : "Private course creation"}</h1>
           <p>{error || "The course could not be found."}</p>
           <div className="state-actions">
-            <button className="button button-secondary" onClick={() => router.push("/")}><ArrowLeft size={16} /> Return to library</button>
+            <button className="button button-secondary" onClick={() => router.push("/library")}><ArrowLeft size={16} /> Browse courses</button>
             {isPro && <button className="button button-primary" onClick={loadOrGenerate}>Try again</button>}
           </div>
         </div>
@@ -246,14 +247,14 @@ export default function CourseMap() {
 
           <div className="course-hero-grid">
             <div className="course-title-row">
-              <p className="overline">{course.category ?? "Learning path"}</p>
+              <p className="overline">{course.category ?? "Course"}</p>
               <h1>{topic}</h1>
               <p className="course-mission">{course.mission}</p>
               <dl className="course-facts" aria-label="Course summary">
                 <div><dt><Layers3 size={16} /> Modules</dt><dd>{course.modules.length}</dd></div>
                 <div><dt><BookOpen size={16} /> Lessons</dt><dd>{totalLessons}</dd></div>
                 <div><dt>Starting level</dt><dd>{course.level ?? "Foundations"}</dd></div>
-                <div><dt><Clock3 size={16} /> Study time</dt><dd>{Math.max(1, Math.round((course.estimatedMinutes ?? totalLessons * 12) / 60))} hr</dd></div>
+                <div><dt><Clock3 size={16} /> Study time</dt><dd>{courseHours} {courseHours === 1 ? "hour" : "hours"}</dd></div>
               </dl>
             </div>
 
@@ -263,7 +264,7 @@ export default function CourseMap() {
                   <span>{courseComplete ? "Course complete" : validCompletedLessons.length ? "Continue learning" : "Begin here"}</span>
                   <strong>{progress}%</strong>
                 </div>
-                <p className="course-resume-module">{courseComplete ? "Keep the knowledge retrievable" : nextLesson.moduleTitle}</p>
+                <p className="course-resume-module">{courseComplete ? "Review the key ideas" : nextLesson.moduleTitle}</p>
                 <h2>{courseComplete ? "Review the course from the start" : nextLesson.lesson.title}</h2>
                 <p>{courseComplete ? "Revisit the core ideas and practice before they fade." : nextLesson.lesson.concept}</p>
                 <div className="course-resume-progress">
@@ -279,7 +280,7 @@ export default function CourseMap() {
 
           <div className="course-learning-brief">
             <section><span><Target size={19} /></span><div><small>Course outcome</small><strong>{course.outcome ?? course.mission}</strong></div></section>
-            <section><span><CheckCircle2 size={19} /></span><div><small>Designed to build</small><strong>{course.modules[course.modules.length - 1]?.description ?? "Confident, retrievable understanding"}</strong></div></section>
+            <section><span><CheckCircle2 size={19} /></span><div><small>By the end</small><strong>{course.modules[course.modules.length - 1]?.description ?? "Knowledge you can explain and apply"}</strong></div></section>
             <section><span><BookOpen size={19} /></span><div><small>Before you begin</small><strong>{course.prerequisites?.length ? course.prerequisites.join(" · ") : "No prior knowledge required"}</strong></div></section>
           </div>
 
@@ -296,7 +297,7 @@ export default function CourseMap() {
                   <Trash2 size={16} /> {deleteArmed ? "Confirm delete" : "Delete course"}
                 </button>
               </div>
-              {!course.isPublic && isOwner && <p className="owner-action-hint">Open each lesson once to prepare its complete content before publishing.</p>}
+              {!course.isPublic && isOwner && <p className="owner-action-hint">Generate every lesson before publishing. Open each lesson once to create its full content.</p>}
               {actionError && <p className="form-error" role="alert"><Circle size={14} /> {actionError}</p>}
             </div>
           )}
@@ -304,8 +305,8 @@ export default function CourseMap() {
 
         <section className="curriculum" aria-labelledby="curriculum-title">
           <div className="section-heading">
-            <div><p className="overline">Course map</p><h2 id="curriculum-title">From foundation to fluency</h2></div>
-            <p>{course.modules.length} modules · {totalLessons} focused lessons. Move in order or revisit any concept when you need it.</p>
+            <div><p className="overline">Course outline</p><h2 id="curriculum-title">Modules and lessons</h2></div>
+            <p>{course.modules.length} modules · {totalLessons} lessons. Follow them in order or revisit any concept when you need it.</p>
           </div>
 
           <div className="module-list">

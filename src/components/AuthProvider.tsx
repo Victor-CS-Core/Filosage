@@ -57,7 +57,7 @@ function authErrorMessage(error: unknown) {
     case "auth/network-request-failed":
       return "Google sign-in could not reach the network. Check your connection and try again.";
     case "auth/operation-not-allowed":
-      return "Google sign-in is currently unavailable for this project.";
+      return "Google sign-in is currently unavailable.";
     case "auth/web-storage-unsupported":
     case "auth/operation-not-supported-in-this-environment":
       return "Google sign-in needs browser storage. Turn off Private Browsing or allow site storage, then try again.";
@@ -136,7 +136,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const signInWithGoogle = useCallback(async () => {
     setError(null);
     if (!auth) {
-      setError("Google sign-in is not configured in this local environment.");
+      setError("Google sign-in is not available in this local build.");
       throw new Error("Firebase is not configured.");
     }
     const provider = new GoogleAuthProvider();

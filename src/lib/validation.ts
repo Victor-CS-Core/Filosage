@@ -13,9 +13,9 @@ const isoDateTimeSchema = z.string().regex(
 
 export const courseRequestSchema = z.object({
   topic: topicSchema,
-  goal: z.string().trim().max(500).optional().default(""),
-  application: z.string().trim().max(500).optional().default(""),
-  background: z.string().trim().max(500).optional().default(""),
+  goal: z.string().trim().max(500, "Keep the learning goal under 500 characters.").optional().default(""),
+  application: z.string().trim().max(500, "Keep the application under 500 characters.").optional().default(""),
+  background: z.string().trim().max(500, "Keep your background under 500 characters.").optional().default(""),
   level: z.enum(["Foundations", "Intermediate", "Advanced"]).optional(),
   weeklyMinutes: z.number().int().min(30).max(1_200).optional(),
   targetWeeks: z.number().int().min(2).max(12).optional().default(4),
@@ -114,5 +114,5 @@ export const learnerStateSchema = z.object({
 });
 
 export function validationMessage(error: z.ZodError) {
-  return error.issues[0]?.message ?? "The request was not valid.";
+  return error.issues[0]?.message ?? "Check the form and try again.";
 }

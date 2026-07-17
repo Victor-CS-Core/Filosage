@@ -213,7 +213,7 @@ function KnowledgeCheck({
             <label htmlFor={`recall-${index}`}>Start from memory</label>
             <small>Write a few words before revealing the choices. This reflection stays private.</small>
           </div>
-          <textarea id={`recall-${index}`} value={recall} onChange={(event) => setRecall(event.target.value)} rows={2} placeholder="Capture the key idea in your own wordsâ€¦" />
+          <textarea id={`recall-${index}`} value={recall} onChange={(event) => setRecall(event.target.value)} rows={2} placeholder="Capture the key idea in your own words…" />
           <button className="button button-secondary button-small" type="button" onClick={() => setChoicesVisible(true)}>Reveal answer choices <ChevronRight size={15} /></button>
         </div>
       )}
@@ -249,7 +249,7 @@ function KnowledgeCheck({
         <div className={`answer-explanation ${selected === quiz.correctIndex ? "is-correct" : "is-incorrect"}`} aria-live="polite">
           <div>
             {selected === quiz.correctIndex ? <CheckCircle2 size={18} /> : <Lightbulb size={18} />}
-            <strong>{selected === quiz.correctIndex ? "Correctâ€”well reasoned" : "Not quiteâ€”review the reasoning"}</strong>
+            <strong>{selected === quiz.correctIndex ? "Correct" : "Not quite"}</strong>
           </div>
           <p>{quiz.explanation}</p>
           {selected !== quiz.correctIndex && <button className="text-button" onClick={reset}><RotateCcw size={14} /> Try again</button>}
@@ -588,7 +588,7 @@ export default function LessonView() {
                 <span className="brand-mark" aria-hidden="true"><ErudozaMark /></span>
                 <span>Preparing your next lesson</span>
               </div>
-              <h1 id="lesson-generation-title">{lesson?.title ?? "Building your lesson"}</h1>
+              <h1 id="lesson-generation-title">{lesson?.title ?? "Creating your lesson"}</h1>
               <p className="lesson-generation-stage" aria-live="polite">
                 {LESSON_GENERATION_STAGES[generationStageIndex]}
               </p>
@@ -697,7 +697,7 @@ export default function LessonView() {
                   <div className="lesson-section-heading">
                     <p className="overline">Retrieval practice</p>
                     <h2 id="checks-title">Check your understanding</h2>
-                    <p>{lessonData.quizzes.length} focused activities. Retrieve first, then compare your reasoning and confidence.</p>
+                    <p>{lessonData.quizzes.length} activities. Answer from memory, choose the best option, then rate your confidence.</p>
                   </div>
                   <div className="knowledge-list">
                     {lessonData.quizzes.map((quiz, index) => (
@@ -710,7 +710,7 @@ export default function LessonView() {
               <div className={`completion-banner ${complete ? "is-complete" : ""}`}>
                 <div>{complete ? <CheckCircle2 size={22} /> : <CircleAlert size={22} />}</div>
                 <span>
-                  <strong>{complete ? (reviewMode ? "Review complete" : "Lesson learned") : "Demonstrate understanding"}</strong>
+                  <strong>{complete ? (reviewMode ? "Review complete" : "Lesson complete") : "Complete the activities"}</strong>
                   <small>{complete ? (progressSyncError || (user ? "Progress synced. Your next review has been scheduled." : "Progress saved on this device. Sign in to sync it.")) : "Answer every prompt correctly and rate your confidence."}</small>
                 </span>
                 {!complete && lessonData.quizzes.length === 0 && (
@@ -746,7 +746,7 @@ export default function LessonView() {
                 <span>{noteDraft.length.toLocaleString()}/12,000 · <span role={learnerSyncStatus === "error" ? "alert" : "status"}>{learnerSyncStatus === "saving" ? "Saving…" : learnerSyncStatus === "error" ? learnerSyncError : learnerSyncStatus === "saved" ? "Saved" : user ? "Synced" : "On this device"}</span></span>
               </section>
               <section className="study-key-point"><span><Lightbulb size={17} /></span><div><strong>Core idea</strong><p>{lesson.concept}</p></div></section>
-              <section className="mastery-checklist"><strong>To master this lesson</strong><ul><li className="is-done"><Check size={15} /> Read the explanation</li><li className={lessonData.diagram ? "is-done" : ""}><Check size={15} /> Inspect the mental model</li><li className={complete ? "is-done" : ""}><Check size={15} /> Complete retrieval practice</li></ul></section>
+              <section className="mastery-checklist"><strong>Lesson checklist</strong><ul><li className="is-done"><Check size={15} /> Read the explanation</li><li className={lessonData.diagram ? "is-done" : ""}><Check size={15} /> Review the mental model</li><li className={complete ? "is-done" : ""}><Check size={15} /> Complete the activities</li></ul></section>
             </aside>
           )}
 
@@ -761,7 +761,7 @@ export default function LessonView() {
                 {messages.length === 0 && (
                   <div className="tutor-message tutor-assistant">
                     <span><Bot size={14} /></span>
-                    <div><p>I’m ready to help you reason through <strong>{lesson.title}</strong>. Ask about an idea, example, or quiz choice.</p></div>
+                    <div><p>Ask about a concept, worked example, or answer choice from <strong>{lesson.title}</strong>.</p></div>
                   </div>
                 )}
                 {messages.map((message) => (
@@ -785,7 +785,7 @@ export default function LessonView() {
                       event.currentTarget.form?.requestSubmit();
                     }
                   }}
-                  placeholder="What would you like to reason through?"
+                  placeholder="Ask about a concept, example, or answer choice"
                   rows={3}
                   maxLength={4_000}
                 />

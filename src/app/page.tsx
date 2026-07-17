@@ -68,34 +68,34 @@ export default function Home() {
             <div className="public-hero-copy">
               <span className="hero-status"><span /> Public learning library</span>
               <h1>Understand more.<br /><span>Achieve more.</span></h1>
-              <p>Focused courses that turn difficult subjects into clear mental models, deliberate practice, and knowledge you can retrieve when it matters.</p>
+              <p>Courses that explain difficult subjects with clear mental models, worked examples, and retrieval practice.</p>
               <div className="hero-actions">
                 <button className="button button-primary" onClick={() => router.push("/library")}>Explore published courses <ArrowRight size={17} /></button>
                 <button className="button button-secondary" onClick={() => void signInWithGoogle()}>Create a free account</button>
               </div>
-              <div className="public-proof"><span><CheckCircle2 size={16} /> No account required to read</span><span><CheckCircle2 size={16} /> Progress stays yours</span><span><CheckCircle2 size={16} /> Pro creation is metered</span></div>
+              <div className="public-proof"><span><CheckCircle2 size={16} /> No account required to read</span><span><CheckCircle2 size={16} /> Progress stays yours</span><span><CheckCircle2 size={16} /> Pro uses monthly credits</span></div>
             </div>
             <div className="public-hero-panel" aria-label="Erudoza learning loop">
               <div className="hero-panel-brand"><span className="brand-mark"><ErudozaMark /></span><span><small>Your daily dose of understanding.</small><strong>A course should change what you can do.</strong></span></div>
               <ol>
                 <li><span><BrainCircuit size={19} /></span><div><strong>See the structure</strong><p>Begin with the mental model and relationships.</p></div></li>
                 <li><span><BookOpenCheck size={19} /></span><div><strong>Work through examples</strong><p>Connect explanation to concrete decisions and cases.</p></div></li>
-                <li><span><Target size={19} /></span><div><strong>Retrieve, then return</strong><p>Practice from memory and revisit at the useful moment.</p></div></li>
+                <li><span><Target size={19} /></span><div><strong>Recall, then review</strong><p>Practice from memory and review concepts before you forget them.</p></div></li>
               </ol>
             </div>
           </section>
 
           <section className="public-library-preview" aria-labelledby="public-library-title">
-            <div className="section-heading"><div><p className="overline">Learn without a gate</p><h2 id="public-library-title">Explore the public library</h2><p>Start any published course now. A free account adds cloud progress, saved courses, and adaptive reviews.</p></div><button className="text-button" onClick={() => router.push("/library")}>View all courses <ArrowRight size={15} /></button></div>
+            <div className="section-heading"><div><p className="overline">Published courses</p><h2 id="public-library-title">Explore the public library</h2><p>Start any course now. A free account saves your progress, courses, and review schedule across devices.</p></div><button className="text-button" onClick={() => router.push("/library")}>View all courses <ArrowRight size={15} /></button></div>
             <CourseLibrary featured />
           </section>
 
           <section className="public-method" id="method">
-            <div><p className="overline">Built for durable learning</p><h2>Move from exposure to mastery.</h2></div>
-            <div className="method-steps"><article><span>01</span><h3>Follow a crafted sequence</h3><p>Each lesson builds the prerequisite knowledge the next lesson expects.</p></article><article><span>02</span><h3>Explain it from memory</h3><p>Free recall comes before choices, so recognition never masquerades as understanding.</p></article><article><span>03</span><h3>Return before it fades</h3><p>Confidence and performance determine when a concept appears for review.</p></article></div>
+            <div><p className="overline">How learning works</p><h2>Learn, practice, and review.</h2></div>
+            <div className="method-steps"><article><span>01</span><h3>Follow the course sequence</h3><p>Each lesson teaches the knowledge needed for the next one.</p></article><article><span>02</span><h3>Explain it from memory</h3><p>Recall comes before answer choices, so you test memory instead of recognition.</p></article><article><span>03</span><h3>Review at the right time</h3><p>Your answers and confidence determine when a concept returns for review.</p></article></div>
           </section>
 
-          <section className="public-plans-cta"><div><Crown size={22} /><h2>Read freely. Create when you need a path of your own.</h2><p>Free accounts sync learning. Erudoza Pro adds private course creation and lesson-grounded guidance with clear usage limits.</p></div><button className="button button-primary" onClick={() => router.push("/pricing")}>Compare plans <ArrowRight size={16} /></button></section>
+          <section className="public-plans-cta"><div><Crown size={22} /><h2>Read any published course. Create your own with Pro.</h2><p>Free accounts sync your learning. Erudoza Pro adds private course creation and more tutor questions with monthly limits.</p></div><button className="button button-primary" onClick={() => router.push("/pricing")}>Compare plans <ArrowRight size={16} /></button></section>
         </div>
       </AppShell>
     );
@@ -127,7 +127,7 @@ export default function Home() {
     <AppShell>
       <div className="dashboard-page">
         <header className="dashboard-heading">
-          <div><p>{new Intl.DateTimeFormat("en", { weekday: "long", month: "long", day: "numeric" }).format(new Date())}</p><h1>Good {new Date().getHours() < 12 ? "morning" : new Date().getHours() < 18 ? "afternoon" : "evening"}, {firstName}.</h1><span>What will you understand more deeply today?</span></div>
+          <div><p>{new Intl.DateTimeFormat("en", { weekday: "long", month: "long", day: "numeric" }).format(new Date())}</p><h1>Good {new Date().getHours() < 12 ? "morning" : new Date().getHours() < 18 ? "afternoon" : "evening"}, {firstName}.</h1><span>What would you like to learn today?</span></div>
           <form className="dashboard-search" onSubmit={openSearch}><Search size={18} /><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search topics, skills, or courses" aria-label="Search courses" /><button type="submit" aria-label="Search"><ArrowRight size={17} /></button></form>
         </header>
 
@@ -143,28 +143,28 @@ export default function Home() {
                     <span className="continue-action">{continueProgress.nextLessonId ? "Continue" : "Review"} <ArrowRight size={16} /></span>
                   </button>
                 ) : (
-                  <div className="dashboard-empty"><Compass size={23} /><div><strong>Choose your first learning path</strong><p>Start with a published course or craft one around your own goal.</p></div><button className="button button-primary" onClick={() => router.push(isPro ? "/create" : "/library")}>{isPro ? "Create a course" : "Explore courses"}</button></div>
+                  <div className="dashboard-empty"><Compass size={23} /><div><strong>Choose your first course</strong><p>Start a published course or create one for your own goal.</p></div><button className="button button-primary" onClick={() => router.push(isPro ? "/create" : "/library")}>{isPro ? "Create a course" : "Explore courses"}</button></div>
                 )}
               </section>
 
               <section className="dashboard-section">
-                <div className="dashboard-section-heading"><h2>Today&apos;s direction</h2><button onClick={() => router.push("/library")}>Explore library</button></div>
+                <div className="dashboard-section-heading"><h2>Next up</h2><button onClick={() => router.push("/library")}>Explore library</button></div>
                 <div className="today-picks">
                   {due.length > 0 && <button className="today-pick review-pick" onClick={() => router.push("/review")}><span><CalendarCheck2 size={20} /></span><strong>Review {due.length} concept{due.length === 1 ? "" : "s"}</strong><small>Strengthen recall before it fades.</small><em>About {Math.max(3, due.length * 3)} min</em></button>}
                   {picks.map((course, index) => {
                     const id = course.id ?? course.courseId;
-                    return <button className={`today-pick tone-${index + 1}`} key={id ?? course.topic} onClick={() => router.push(`/course/${encodeURIComponent(course.topic)}?id=${id}`)}><span><BookOpenCheck size={20} /></span><strong>{course.topic}</strong><small>{course.outcome ?? course.mission}</small><em>{course.estimatedMinutes ?? 30} min path</em></button>;
+                    return <button className={`today-pick tone-${index + 1}`} key={id ?? course.topic} onClick={() => router.push(`/course/${encodeURIComponent(course.topic)}?id=${id}`)}><span><BookOpenCheck size={20} /></span><strong>{course.topic}</strong><small>{course.outcome ?? course.mission}</small><em>{course.estimatedMinutes ?? 30} min</em></button>;
                   })}
                   {!due.length && !picks.length && <div className="dashboard-empty compact"><CheckCircle2 size={21} /><div><strong>You are caught up.</strong><p>Your next useful review will appear here.</p></div></div>}
                 </div>
               </section>
 
-              <section className="dashboard-insight"><Sparkles size={20} /><div><strong>Learning principle</strong><p>Try to explain the idea before rereading it. The effort to retrieve is part of what makes the memory durable.</p></div></section>
+              <section className="dashboard-insight"><Sparkles size={20} /><div><strong>Learning tip</strong><p>Try to explain the idea before rereading it. The effort of recalling it helps strengthen the memory.</p></div></section>
             </div>
 
             <aside className="dashboard-side-column">
               <section className="learning-snapshot"><div><h2>Your learning snapshot</h2><span>All time</span></div><dl><div><dt><Clock3 size={18} /> Study time</dt><dd>{Math.floor(minutes / 60)}h {minutes % 60}m</dd></div><div><dt><CheckCircle2 size={18} /> Lessons learned</dt><dd>{lessons.length}</dd></div><div><dt><Flame size={18} /> Current streak</dt><dd>{streakFor(lessons)} {streakFor(lessons) === 1 ? "day" : "days"}</dd></div><div><dt><Target size={18} /> Quiz accuracy</dt><dd>{accuracy || "—"}{accuracy ? "%" : ""}</dd></div></dl></section>
-              <section className="quick-actions"><h2>Quick actions</h2><button onClick={() => router.push("/review")}><CalendarCheck2 size={18} /><span><strong>Review due concepts</strong><small>{due.length ? `${due.length} ready now` : "Queue is clear"}</small></span><ArrowRight size={15} /></button><button onClick={() => router.push("/library")}><Compass size={18} /><span><strong>Explore a new topic</strong><small>Browse published courses</small></span><ArrowRight size={15} /></button>{isPro && <button onClick={() => router.push("/create")}><BrainCircuit size={18} /><span><strong>Craft a course</strong><small>Use one course credit</small></span><ArrowRight size={15} /></button>}<button onClick={() => router.push("/progress")}><TrendingUp size={18} /><span><strong>See your progress</strong><small>{mastered} concepts mastered</small></span><ArrowRight size={15} /></button></section>
+              <section className="quick-actions"><h2>Quick actions</h2><button onClick={() => router.push("/review")}><CalendarCheck2 size={18} /><span><strong>Review due concepts</strong><small>{due.length ? `${due.length} ready now` : "No reviews due"}</small></span><ArrowRight size={15} /></button><button onClick={() => router.push("/library")}><Compass size={18} /><span><strong>Explore a new topic</strong><small>Browse published courses</small></span><ArrowRight size={15} /></button>{isPro && <button onClick={() => router.push("/create")}><BrainCircuit size={18} /><span><strong>Create a course</strong><small>Use one course credit</small></span><ArrowRight size={15} /></button>}<button onClick={() => router.push("/progress")}><TrendingUp size={18} /><span><strong>See your progress</strong><small>{mastered} concepts mastered</small></span><ArrowRight size={15} /></button></section>
             </aside>
           </div>
         )}

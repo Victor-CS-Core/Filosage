@@ -10,8 +10,8 @@ import { createClientId } from "@/lib/browser-compat";
 const examples = ["Understand personal finance from first principles", "Build intuition for statistics", "Learn the foundations of music theory"];
 const courseStyles = [
   { value: "Balanced", title: "Balanced", description: "Mental models, examples, and practice in equal measure." },
-  { value: "Concept-first", title: "Concept-first", description: "Build deep intuition before moving into application." },
-  { value: "Project-led", title: "Project-led", description: "Organize the path around a concrete real-world result." },
+  { value: "Concept-first", title: "Concept-first", description: "Explain the core ideas before moving into application." },
+  { value: "Project-led", title: "Project-led", description: "Organize the course around a concrete result." },
 ] as const;
 
 export default function CreateCoursePage() {
@@ -60,21 +60,21 @@ export default function CreateCoursePage() {
         body: JSON.stringify({ topic, goal, application, background, level, weeklyMinutes, targetWeeks, courseStyle }),
       });
       const data = await response.json();
-      if (!response.ok) throw new Error(data.error || "The learning path could not be created.");
+      if (!response.ok) throw new Error(data.error || "The course could not be created.");
       setGenerationProgress(100);
       setGenerationStage("Your course map is ready");
       window.dispatchEvent(new Event("erudoza:courses-changed"));
       await new Promise((resolve) => window.setTimeout(resolve, 350));
       router.push(`/course/${encodeURIComponent(topic.trim())}?id=${data.courseId}`);
     } catch (creationError) {
-      setError(creationError instanceof Error ? creationError.message : "The learning path could not be created.");
+      setError(creationError instanceof Error ? creationError.message : "The course could not be created.");
       setSubmitting(false);
       setGenerationProgress(0);
     }
   };
 
   if (!isPro) {
-    return <AppShell><div className="center-state"><Sparkles size={26} /><p className="overline">Erudoza Pro</p><h1>Craft a private course around your goal.</h1><p>Course creation is a metered Pro feature. Published courses remain open to everyone.</p><button className="button button-primary" onClick={() => router.push("/pricing")}>View Pro</button></div></AppShell>;
+    return <AppShell><div className="center-state"><Sparkles size={26} /><p className="overline">Erudoza Pro</p><h1>Create a private course for your goal.</h1><p>Course creation uses monthly Pro credits. Published courses remain open to everyone.</p><button className="button button-primary" onClick={() => router.push("/pricing")}>View Pro</button></div></AppShell>;
   }
 
   const plannedHours = Math.max(1, Math.round((weeklyMinutes * targetWeeks) / 60));
@@ -84,7 +84,7 @@ export default function CreateCoursePage() {
   return (
     <AppShell>
       <div className="create-page">
-        <header className="create-intro"><p className="overline">Course studio</p><h1>Design a path worth finishing.</h1><p>Define the outcome, starting point, and pace. Erudoza uses this brief to create one deliberate course outline—no extra generation steps.</p></header>
+        <header className="create-intro"><p className="overline">Course studio</p><h1>Create a course for your goal.</h1><p>Define the outcome, starting point, and pace. Erudoza uses your answers to create the course outline.</p></header>
         <div className="create-layout">
           <form className="course-brief" onSubmit={create}>
             <section className="form-section">
@@ -129,23 +129,23 @@ export default function CreateCoursePage() {
               <div className="generation-progress" role="status" aria-live="polite">
                 <div><span>{generationStage}</span><strong>{generationProgress}%</strong></div>
                 <div className="progress-track" role="progressbar" aria-label="Course creation progress" aria-valuemin={0} aria-valuemax={100} aria-valuenow={generationProgress} aria-valuetext={generationStage}><span style={{ transform: `scaleX(${generationProgress / 100})` }} /></div>
-                <p>Creating one focused outline from your brief. This usually takes less than a minute.</p>
+                <p>Creating your course outline from this brief. This usually takes less than a minute.</p>
               </div>
             )}
             {error && <p className="form-error" role="alert">{error}</p>}
-            <div className="create-submit"><span><ShieldCheck size={17} /> Creates a private draft</span><button className="button button-primary" type="submit" disabled={!briefReady || submitting}>{submitting ? <><LoaderCircle className="spin" size={17} /> Crafting your sequence…</> : <>Create learning path <ArrowRight size={17} /></>}</button></div>
+            <div className="create-submit"><span><ShieldCheck size={17} /> Creates a private draft</span><button className="button button-primary" type="submit" disabled={!briefReady || submitting}>{submitting ? <><LoaderCircle className="spin" size={17} /> Creating your course…</> : <>Create course <ArrowRight size={17} /></>}</button></div>
           </form>
 
-          <aside className="course-blueprint" aria-label="Live course blueprint">
-            <div className="blueprint-header"><BrainCircuit size={22} /><div><span>Live blueprint</span><h2>{topic.trim() || "Untitled course"}</h2></div></div>
+          <aside className="course-blueprint" aria-label="Course summary">
+            <div className="blueprint-header"><BrainCircuit size={22} /><div><span>Course summary</span><h2>{topic.trim() || "Untitled course"}</h2></div></div>
             <dl className="blueprint-metrics">
               <div><dt>Plan</dt><dd>{targetWeeks} weeks</dd></div>
               <div><dt>Weekly rhythm</dt><dd>~{weeklySessions} sessions</dd></div>
               <div><dt>Study budget</dt><dd>~{plannedHours} hours</dd></div>
               <div><dt>Approach</dt><dd>{courseStyle}</dd></div>
             </dl>
-            <div className="blueprint-readiness"><div><strong>Brief readiness</strong><span>{briefReady ? "Ready" : "Needs input"}</span></div><ul><li className={topic.trim() ? "is-ready" : ""}><CheckCircle2 size={16} /> Focused subject</li><li className={goal.trim() ? "is-ready" : ""}><Target size={16} /> Observable outcome</li><li className={background.trim() ? "is-ready" : ""}><Clock3 size={16} /> Starting context <small>optional</small></li></ul></div>
-            <div className="blueprint-note"><strong>One generation, better directed</strong><p>Your full brief shapes prerequisites, examples, practice, and lesson scope in a single outline request.</p></div>
+            <div className="blueprint-readiness"><div><strong>Required information</strong><span>{briefReady ? "Ready" : "Needs input"}</span></div><ul><li className={topic.trim() ? "is-ready" : ""}><CheckCircle2 size={16} /> Specific subject</li><li className={goal.trim() ? "is-ready" : ""}><Target size={16} /> Observable outcome</li><li className={background.trim() ? "is-ready" : ""}><Clock3 size={16} /> Starting context <small>optional</small></li></ul></div>
+            <div className="blueprint-note"><strong>How your brief is used</strong><p>Erudoza uses it to choose prerequisites, examples, practice, and the scope of each lesson.</p></div>
             <div className="credit-note"><Sparkles size={16} /><span><strong>{outlineQuota?.remaining ?? "Unlimited"} outline credit{outlineQuota?.remaining === 1 ? "" : "s"} remaining</strong><small>A credit is reserved only when generation begins.</small></span></div>
           </aside>
         </div>

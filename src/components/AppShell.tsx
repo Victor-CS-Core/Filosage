@@ -149,7 +149,7 @@ export default function AppShell({ children, activeTopic, activeCourseId }: AppS
 
         {isPro ? (
           <section className="sidebar-courses" aria-labelledby="sidebar-courses-title">
-            <div className="sidebar-heading-row"><span id="sidebar-courses-title">My learning paths</span><span>{courses.length}</span></div>
+            <div className="sidebar-heading-row"><span id="sidebar-courses-title">My courses</span><span>{courses.length}</span></div>
             <div className="sidebar-course-list">
               {courses.slice(0, 6).map((course) => {
                 const id = course.id ?? course.courseId;
@@ -162,14 +162,14 @@ export default function AppShell({ children, activeTopic, activeCourseId }: AppS
                   </button>
                 );
               })}
-              {!courses.length && <p className="sidebar-empty-copy">Create a focused course and it will stay within reach here.</p>}
+              {!courses.length && <p className="sidebar-empty-copy">Courses you create will appear here.</p>}
             </div>
           </section>
         ) : (
           <section className="sidebar-upgrade">
             <Sparkles size={18} />
-            <strong>Craft your own course</strong>
-            <p>Build a private learning path around a goal that matters to you.</p>
+            <strong>Create your own course</strong>
+            <p>Create a private course for a specific learning goal.</p>
             <button className="button button-primary button-small" onClick={() => navigate("/pricing")}>Explore Pro</button>
           </section>
         )}
@@ -177,7 +177,7 @@ export default function AppShell({ children, activeTopic, activeCourseId }: AppS
         <div className="learner-sidebar-footer">
           {isPro && outlineQuota && (
             <button className="quota-row" onClick={() => navigate("/pricing")}>
-              <Crown size={15} /><span><strong>Erudoza Pro</strong><small>{outlineQuota.remaining ?? "Unlimited"} course credits</small></span>
+              <Crown size={15} /><span><strong>Erudoza Pro</strong><small>{outlineQuota.remaining == null ? "Owner course access" : `${outlineQuota.remaining} course credit${outlineQuota.remaining === 1 ? "" : "s"} remaining`}</small></span>
             </button>
           )}
           <div className="account-row">

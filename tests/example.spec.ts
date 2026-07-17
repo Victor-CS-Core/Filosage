@@ -1,4 +1,26 @@
 import { expect, test } from "@playwright/test";
+import { readdir, readFile } from "node:fs/promises";
+import { extname, join } from "node:path";
+
+async function sourceFiles(directory: string): Promise<string[]> {
+  const entries = await readdir(directory, { withFileTypes: true });
+  const files = await Promise.all(entries.map((entry) => {
+    const location = join(directory, entry.name);
+    return entry.isDirectory() ? sourceFiles(location) : [location];
+  }));
+  return files.flat();
+}
+
+test("keeps interface copy free of encoding artifacts", async () => {
+  const files = (await sourceFiles(join(process.cwd(), "src")))
+    .filter((file) => [".ts", ".tsx", ".css"].includes(extname(file)));
+  const offenders: string[] = [];
+  for (const file of files) {
+    const content = await readFile(file, "utf8");
+    if (/(?:\u00E2\u20AC|\u00C2|\u00C3|\uFFFD)/u.test(content)) offenders.push(file);
+  }
+  expect(offenders).toEqual([]);
+});
 
 test("never leaves public learning behind the authentication startup screen", async ({ page }) => {
   const pageErrors: string[] = [];
@@ -47,7 +69,7 @@ test("offers an optional learner account without blocking public access", async 
 
   const dialog = page.getByRole("dialog", { name: "Keep your learning in sync" });
   await expect(dialog).toBeVisible();
-  await expect(dialog).toContainText("Published courses remain open without an account");
+  await expect(dialog).toContainText("You can still read published courses without an account");
   await expect(
     dialog.getByRole("button", { name: "Continue with Google" }),
   ).toBeVisible();
@@ -59,7 +81,7 @@ test("keeps generation visibly metered and premium", async ({ page }) => {
   await expect(page.getByRole("heading", { name: "Erudoza Pro" })).toBeVisible();
   await expect(page.getByText("Three private course outlines each month")).toBeVisible();
   await expect(page.getByText("Thirty generated lessons each month")).toBeVisible();
-  await expect(page.getByRole("button", { name: /Checkout coming next/i })).toBeDisabled();
+  await expect(page.getByRole("button", { name: /Pro subscriptions coming soon/i })).toBeDisabled();
 });
 
 test("does not complete a lesson after a wrong answer", async ({ page }) => {
@@ -91,11 +113,13 @@ test("does not complete a lesson after a wrong answer", async ({ page }) => {
   await expect(page.getByRole("heading", { name: "Feedback loops" })).toHaveCount(1);
   await expect(page.getByRole("heading", { level: 2, name: "Why it matters" })).toBeVisible();
   const firstCheck = page.locator(".knowledge-check").first();
+  await expect(firstCheck.getByPlaceholder("Capture the key idea in your own words…")).toBeVisible();
   await firstCheck.getByRole("button", { name: "Reveal answer choices" }).click();
   const firstCorrectPosition = await firstCheck.getByRole("button", { name: /Output influencing future input/ }).locator("span").textContent();
   await firstCheck.getByRole("button", { name: /A static list/ }).click();
-  await expect(page.getByText("Demonstrate understanding")).toBeVisible();
-  await expect(page.getByText("Lesson learned")).not.toBeVisible();
+  const completionBanner = page.locator(".completion-banner");
+  await expect(completionBanner.getByText("Complete the activities")).toBeVisible();
+  await expect(completionBanner.getByText("Lesson complete")).not.toBeVisible();
 
   await firstCheck.getByRole("button", { name: "Try again" }).click();
   await firstCheck.getByRole("button", { name: /Output influencing future input/ }).click();
@@ -107,7 +131,7 @@ test("does not complete a lesson after a wrong answer", async ({ page }) => {
   expect(secondCorrectPosition).not.toBe(firstCorrectPosition);
   await secondCheck.getByRole("button", { name: /To see change over time/ }).click();
   await secondCheck.getByRole("button", { name: "Certain" }).click();
-  await expect(page.getByText("Lesson learned")).toBeVisible();
+  await expect(completionBanner.getByText("Lesson complete")).toBeVisible();
 });
 
 test("presents public courses as a browsable learning library", async ({ page }) => {
@@ -125,7 +149,7 @@ test("presents public courses as a browsable learning library", async ({ page })
   }] } }));
 
   await page.goto("/library");
-  await expect(page.getByRole("heading", { name: "Find the next idea worth mastering." })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Find your next course." })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Systems thinking" })).toBeVisible();
   await expect(page.getByText("2 lessons")).toBeVisible();
   await expect(page.getByRole("button", { name: /Open Systems thinking/i })).toBeVisible();
@@ -168,11 +192,11 @@ test("frames each course around an outcome and mastery", async ({ page }) => {
   await page.goto("/course/Systems%20thinking?id=demo");
 
   await expect(page.getByText("Course outcome")).toBeVisible();
-  await expect(page.getByText("Designed to build")).toBeVisible();
+  await expect(page.getByText("By the end")).toBeVisible();
   const resumeCard = page.locator(".course-resume-card");
   await expect(resumeCard.getByText("Continue learning")).toBeVisible();
   await expect(resumeCard.getByRole("heading", { name: "Leverage points" })).toBeVisible();
-  await expect(page.getByRole("heading", { name: "From foundation to fluency" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Modules and lessons" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Foundations" })).toBeVisible();
   await expect(page.locator(".module-completion")).toContainText("1/2");
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);

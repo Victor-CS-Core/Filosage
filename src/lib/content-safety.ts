@@ -1,7 +1,7 @@
 import OpenAI from "openai";
 
 export class ContentSafetyError extends Error {
-  constructor(message = "This request cannot be used to create a course. Revise it to focus on safe, lawful learning.") {
+  constructor(message = "We can’t create a course from this request. Revise the topic to focus on safe, lawful learning.") {
     super(message);
     this.name = "ContentSafetyError";
   }

@@ -78,19 +78,19 @@ export default function AuthModal({ onClose }: AuthModalProps) {
         <p className="overline">Learner account</p>
         <h2 id="auth-title">Keep your learning in sync</h2>
         <p className="auth-copy">
-          Sign in to continue across devices, revisit concepts at the right time, and keep a durable record of what you have mastered. Published courses remain open without an account.
+          Sign in to save progress, notes, courses, and review dates across devices. You can still read published courses without an account.
         </p>
 
         <div className="auth-identity">
           <Cloud size={16} />
-          <span>Cloud progress · review queue · saved learning</span>
+          <span>Progress · reviews · saved courses</span>
         </div>
 
         {error && <p className="form-error" role="alert">{error}</p>}
 
         <button className="button button-primary auth-submit" onClick={handleGoogle} disabled={submitting}>
           <span className="google-mark" aria-hidden="true">G</span>
-          {submitting ? "Connecting…" : "Continue with Google"}
+          {submitting ? "Signing in…" : "Continue with Google"}
         </button>
         <button className="button button-quiet" onClick={onClose}>Continue without an account</button>
       </section>
