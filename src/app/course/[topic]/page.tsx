@@ -25,6 +25,7 @@ import { useAuth } from "@/components/AuthProvider";
 import type { Course } from "@/lib/course-types";
 import type { CourseProgress } from "@/lib/learning-types";
 import { getLocalProgress } from "@/lib/learning-progress";
+import { createClientId } from "@/lib/browser-compat";
 
 export default function CourseMap() {
   const params = useParams<{ topic: string }>();
@@ -72,7 +73,7 @@ export default function CourseMap() {
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
-          "Idempotency-Key": crypto.randomUUID(),
+          "Idempotency-Key": createClientId(),
         },
         body: JSON.stringify({ topic }),
       });
@@ -278,7 +279,7 @@ export default function CourseMap() {
 
           <div className="course-learning-brief">
             <section><span><Target size={19} /></span><div><small>Course outcome</small><strong>{course.outcome ?? course.mission}</strong></div></section>
-            <section><span><CheckCircle2 size={19} /></span><div><small>Designed to build</small><strong>{course.modules.at(-1)?.description ?? "Confident, retrievable understanding"}</strong></div></section>
+            <section><span><CheckCircle2 size={19} /></span><div><small>Designed to build</small><strong>{course.modules[course.modules.length - 1]?.description ?? "Confident, retrievable understanding"}</strong></div></section>
             <section><span><BookOpen size={19} /></span><div><small>Before you begin</small><strong>{course.prerequisites?.length ? course.prerequisites.join(" · ") : "No prior knowledge required"}</strong></div></section>
           </div>
 

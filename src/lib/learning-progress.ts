@@ -43,7 +43,7 @@ export function getLocalProgress(courseId: string, topic = "") {
       const migrated: CourseProgress = {
         courseId,
         topic,
-        lastLessonId: String(completed.at(-1) ?? ""),
+        lastLessonId: String(completed[completed.length - 1] ?? ""),
         lastLessonTitle: "Continue your course",
         nextLessonId: null,
         nextLessonTitle: null,

@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { ArrowRight, BrainCircuit, CheckCircle2, Clock3, LoaderCircle, ShieldCheck, Sparkles, Target } from "lucide-react";
 import AppShell from "@/components/AppShell";
 import { useAuth } from "@/components/AuthProvider";
+import { createClientId } from "@/lib/browser-compat";
 
 const examples = ["Understand personal finance from first principles", "Build intuition for statistics", "Learn the foundations of music theory"];
 const courseStyles = [
@@ -55,7 +56,7 @@ export default function CreateCoursePage() {
       const token = await user.getIdToken();
       const response = await fetch("/api/generate-course", {
         method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}`, "Idempotency-Key": crypto.randomUUID() },
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}`, "Idempotency-Key": createClientId() },
         body: JSON.stringify({ topic, goal, application, background, level, weeklyMinutes, targetWeeks, courseStyle }),
       });
       const data = await response.json();

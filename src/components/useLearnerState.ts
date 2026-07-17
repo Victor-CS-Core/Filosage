@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useAuth } from "@/components/AuthProvider";
 import { EMPTY_LEARNER_STATE, readLearnerState, writeLearnerState, type LearnerState } from "@/lib/learner-state";
+import { deferClientTask } from "@/lib/browser-compat";
 
 export function useLearnerState() {
   const { user, loading: authLoading } = useAuth();
@@ -17,9 +18,9 @@ export function useLearnerState() {
     if (authLoading) return;
     const local = readLearnerState();
     stateRef.current = local;
-    queueMicrotask(() => setState(local));
+    deferClientTask(() => setState(local));
     if (!user) {
-      queueMicrotask(() => setReady(true));
+      deferClientTask(() => setReady(true));
       return;
     }
     let cancelled = false;

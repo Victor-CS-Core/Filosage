@@ -30,6 +30,7 @@ import type { Confidence, CourseProgress, ProgressUpdate } from "@/lib/learning-
 import { getLocalProgress, saveLocalProgress } from "@/lib/learning-progress";
 import { useLearnerState } from "@/components/useLearnerState";
 import { normalizeLessonMarkdown } from "@/lib/markdown";
+import { createClientId, deferClientTask } from "@/lib/browser-compat";
 
 interface Message {
   id: string;
@@ -44,7 +45,7 @@ function MermaidDiagram({ chart, summary }: { chart: string; summary?: string })
   useEffect(() => {
     if (!ref.current || !chart) return;
     let cancelled = false;
-    const id = `erudoza-diagram-${crypto.randomUUID()}`;
+    const id = `erudoza-diagram-${createClientId()}`;
     void import("mermaid")
       .then(({ default: mermaid }) => {
         mermaid.initialize({
@@ -261,7 +262,7 @@ export default function LessonView() {
   useEffect(() => {
     if (!learnerStateReady) return;
     const savedNote = learnerState.notes[noteKey] ?? "";
-    queueMicrotask(() => {
+    deferClientTask(() => {
       setNoteDraft(savedNote);
       noteHydratedRef.current = true;
     });
@@ -319,7 +320,7 @@ export default function LessonView() {
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
-          "Idempotency-Key": crypto.randomUUID(),
+          "Idempotency-Key": createClientId(),
         },
         body: JSON.stringify({
           topic,
@@ -447,7 +448,7 @@ export default function LessonView() {
     event.preventDefault();
     const input = chatInput.trim();
     if (!input || !lessonData || !lesson || !courseId || !user || chatting) return;
-    const nextMessages: Message[] = [...messages, { id: crypto.randomUUID(), role: "user", content: input }];
+    const nextMessages: Message[] = [...messages, { id: createClientId(), role: "user", content: input }];
     setMessages(nextMessages);
     setChatInput("");
     setChatting(true);
@@ -457,7 +458,7 @@ export default function LessonView() {
       const token = await getToken();
       const response = await fetch("/api/chat", {
         method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}`, "Idempotency-Key": crypto.randomUUID() },
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}`, "Idempotency-Key": createClientId() },
         body: JSON.stringify({
           messages: nextMessages.map(({ role, content }) => ({ role, content })),
           data: {
@@ -471,7 +472,7 @@ export default function LessonView() {
         throw new Error(data.error || "The tutor could not respond.");
       }
 
-      const assistantId = crypto.randomUUID();
+      const assistantId = createClientId();
       let content = "";
       setMessages([...nextMessages, { id: assistantId, role: "assistant", content }]);
       const reader = response.body.getReader();

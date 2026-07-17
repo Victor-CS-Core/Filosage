@@ -1,6 +1,7 @@
 "use client";
 
 import { createContext, useContext, useEffect, useState } from "react";
+import { deferClientTask } from "@/lib/browser-compat";
 
 type Theme = "light" | "dark";
 const THEME_KEY = "erudoza-theme";
@@ -25,7 +26,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const [theme, setTheme] = useState<Theme>("light");
 
   useEffect(() => {
-    queueMicrotask(() => setTheme(storedTheme()));
+    deferClientTask(() => setTheme(storedTheme()));
   }, []);
 
   useEffect(() => {

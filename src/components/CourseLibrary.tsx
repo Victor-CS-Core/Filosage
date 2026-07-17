@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import { useLearnerState } from "@/components/useLearnerState";
 import type { Course } from "@/lib/course-types";
+import { deferClientTask } from "@/lib/browser-compat";
 
 export default function CourseLibrary({ featured = false }: { featured?: boolean }) {
   const router = useRouter();
@@ -40,7 +41,7 @@ export default function CourseLibrary({ featured = false }: { featured?: boolean
   }, []);
 
   useEffect(() => {
-    queueMicrotask(() => setQuery(new URLSearchParams(window.location.search).get("q") ?? ""));
+    deferClientTask(() => setQuery(new URLSearchParams(window.location.search).get("q") ?? ""));
     void Promise.resolve().then(load);
   }, [load]);
 

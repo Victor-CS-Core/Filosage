@@ -1,5 +1,20 @@
 import { expect, test } from "@playwright/test";
 
+test("never leaves public learning behind the authentication startup screen", async ({ page }) => {
+  const pageErrors: string[] = [];
+  page.on("pageerror", (error) => pageErrors.push(error.message));
+  await page.route("**/identitytoolkit.googleapis.com/**", (route) => route.abort());
+  await page.goto("/");
+
+  await page.waitForTimeout(2800);
+  expect(pageErrors).toEqual([]);
+
+  await expect(
+    page.getByRole("heading", { name: "Understand more. Achieve more." }),
+  ).toBeVisible({ timeout: 4000 });
+  await expect(page.locator(".auth-boot-shell")).toHaveCount(0);
+});
+
 test("keeps the learning library public", async ({ page }) => {
   const response = await page.goto("/");
 

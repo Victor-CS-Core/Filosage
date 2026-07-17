@@ -9,10 +9,8 @@ import {
   useState,
 } from "react";
 import {
-  getRedirectResult,
   GoogleAuthProvider,
   onAuthStateChanged,
-  signInWithRedirect,
   signInWithPopup,
   signOut as firebaseSignOut,
   type User,
@@ -52,7 +50,7 @@ function authErrorMessage(error: unknown) {
     case "auth/unauthorized-domain":
       return "Google sign-in is not authorized for this site. Please contact the site owner.";
     case "auth/popup-blocked":
-      return "Your browser blocked the Google sign-in window. Allow popups, or open Erudoza in Safari or Chrome, and try again.";
+      return "Your browser blocked the Google sign-in window. Allow popups for Erudoza and try again.";
     case "auth/popup-closed-by-user":
     case "auth/cancelled-popup-request":
       return "Google sign-in was canceled. You can try again when ready.";
@@ -60,9 +58,19 @@ function authErrorMessage(error: unknown) {
       return "Google sign-in could not reach the network. Check your connection and try again.";
     case "auth/operation-not-allowed":
       return "Google sign-in is currently unavailable for this project.";
+    case "auth/web-storage-unsupported":
+    case "auth/operation-not-supported-in-this-environment":
+      return "Google sign-in needs browser storage. Turn off Private Browsing or allow site storage, then try again.";
     default:
       return "Google sign-in could not be completed. Please try again.";
   }
+}
+
+function withTimeout<T>(promise: Promise<T>, milliseconds: number, message: string) {
+  return new Promise<T>((resolve, reject) => {
+    const timer = window.setTimeout(() => reject(new Error(message)), milliseconds);
+    promise.then(resolve, reject).finally(() => window.clearTimeout(timer));
+  });
 }
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
@@ -76,11 +84,28 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setAccount(null);
       return;
     }
-    const token = await nextUser.getIdToken();
-    const response = await fetch("/api/account", {
-      headers: { Authorization: `Bearer ${token}` },
-      cache: "no-store",
-    });
+    const token = await withTimeout(
+      nextUser.getIdToken(),
+      6000,
+      "Your session is taking longer than expected. You can keep learning while it reconnects.",
+    );
+    const controller = new AbortController();
+    const requestTimeout = window.setTimeout(() => controller.abort(), 8000);
+    let response: Response;
+    try {
+      response = await fetch("/api/account", {
+        headers: { Authorization: `Bearer ${token}` },
+        cache: "no-store",
+        signal: controller.signal,
+      });
+    } catch (requestError) {
+      if (controller.signal.aborted) {
+        throw new Error("Your account is taking longer than expected. You can keep learning while it reconnects.");
+      }
+      throw requestError;
+    } finally {
+      window.clearTimeout(requestTimeout);
+    }
     if (!response.ok) throw new Error("Your learning account could not be loaded.");
     setAccount(await response.json() as LearnerAccount);
   }, []);
@@ -92,16 +117,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
 
     const bootTimeout = window.setTimeout(() => setLoading(false), 2500);
-    const unsubscribe = onAuthStateChanged(firebaseAuth, async (nextUser) => {
+    const unsubscribe = onAuthStateChanged(firebaseAuth, (nextUser) => {
       window.clearTimeout(bootTimeout);
       setUser(nextUser);
-      try {
-        await loadAccount(nextUser);
-      } catch (accountError) {
+      setLoading(false);
+      void loadAccount(nextUser).catch((accountError: unknown) => {
         setAccount(null);
         setError(accountError instanceof Error ? accountError.message : "Your learning account could not be loaded.");
-      }
-      setLoading(false);
+      });
     });
 
     return () => {
@@ -109,11 +132,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       unsubscribe();
     };
   }, [loadAccount]);
-
-  useEffect(() => {
-    if (!auth) return;
-    void getRedirectResult(auth).catch((redirectError) => setError(authErrorMessage(redirectError)));
-  }, []);
 
   const signInWithGoogle = useCallback(async () => {
     setError(null);
@@ -125,11 +143,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     provider.setCustomParameters({ prompt: "select_account" });
 
     try {
-      const prefersRedirect = window.matchMedia("(pointer: coarse)").matches || /iPhone|iPad|Android/i.test(navigator.userAgent);
-      if (prefersRedirect) {
-        await signInWithRedirect(auth, provider);
-        return;
-      }
       await signInWithPopup(auth, provider);
     } catch (popupError) {
       setError(authErrorMessage(popupError));

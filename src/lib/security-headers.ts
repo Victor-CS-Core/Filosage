@@ -14,8 +14,8 @@ export function securityHeaders(isDevelopment = false) {
     `connect-src 'self'${developmentConnectAllowance} https://*.googleapis.com https://*.firebaseio.com https://accounts.google.com https://securetoken.googleapis.com https://identitytoolkit.googleapis.com`,
     "frame-src 'self' https://accounts.google.com https://*.firebaseapp.com",
     "worker-src 'self' blob:",
-    "upgrade-insecure-requests",
-  ].join("; ");
+    isDevelopment ? "" : "upgrade-insecure-requests",
+  ].filter(Boolean).join("; ");
 
   return [
     { key: "Content-Security-Policy", value: contentSecurityPolicy },
