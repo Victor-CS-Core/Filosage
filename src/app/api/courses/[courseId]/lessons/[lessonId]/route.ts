@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { authorizationResponse, requireAccount } from "@/lib/auth-server";
 import { getCourse, getLesson } from "@/lib/firebase-server";
+import { toLessonDto } from "@/lib/course-dto";
 
 interface RouteParams {
   params: Promise<{ courseId: string; lessonId: string }>;
@@ -25,7 +26,7 @@ export async function GET(request: Request, { params }: RouteParams) {
     }
 
     return NextResponse.json(
-      lesson,
+      toLessonDto(lesson),
       course.isPublic
         ? { headers: { "Cache-Control": "no-store" } }
         : undefined,

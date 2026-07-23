@@ -5,7 +5,8 @@ import {
   verifyFirebaseIdToken,
   type VerifiedFirebaseUser,
 } from "@/lib/firebase-server";
-import { getOrCreateAccount, isOwnerUser, type ServerAccount } from "@/lib/account-server";
+import { getOrCreateAccount, type ServerAccount } from "@/lib/account-server";
+import { PRIVACY_VERSION, TERMS_VERSION } from "@/lib/legal";
 
 export class AuthorizationError extends Error {
   constructor(
@@ -27,13 +28,6 @@ export async function getVerifiedUser(request: Request): Promise<VerifiedFirebas
   }
 }
 
-export async function requireOwner(request: Request): Promise<VerifiedFirebaseUser> {
-  const user = await requireUser(request);
-  if (!isOwnerUser(user)) throw new AuthorizationError(403, "Only the Erudoza owner can publish courses.");
-
-  return user;
-}
-
 export async function requireUser(request: Request): Promise<VerifiedFirebaseUser> {
   const user = await getVerifiedUser(request);
   if (!user || !user.email_verified) {
@@ -46,8 +40,27 @@ export async function requireAccount(request: Request): Promise<ServerAccount> {
   return getOrCreateAccount(await requireUser(request));
 }
 
-export async function requirePremium(request: Request): Promise<ServerAccount> {
+export function hasCurrentLegalAcceptance(account: ServerAccount) {
+  return account.acceptedTermsVersion === TERMS_VERSION
+    && account.acceptedPrivacyVersion === PRIVACY_VERSION;
+}
+
+export async function requireAcceptedAccount(request: Request): Promise<ServerAccount> {
   const account = await requireAccount(request);
+  if (!hasCurrentLegalAcceptance(account)) {
+    throw new AuthorizationError(403, "Review and accept the current Terms and Privacy Notice to continue.");
+  }
+  return account;
+}
+
+export async function requireOwner(request: Request): Promise<ServerAccount> {
+  const account = await requireAcceptedAccount(request);
+  if (!account.isOwner) throw new AuthorizationError(403, "Only the Erudoza owner can publish courses.");
+  return account;
+}
+
+export async function requirePremium(request: Request): Promise<ServerAccount> {
+  const account = await requireAcceptedAccount(request);
   if (account.plan !== "pro" && !account.isOwner) {
     throw new AuthorizationError(403, "Erudoza Pro is required for this feature.");
   }

@@ -21,6 +21,7 @@ import {
 } from "lucide-react";
 import ErudozaMark from "@/components/ErudozaMark";
 import AuthModal from "@/components/AuthModal";
+import LegalConsentModal from "@/components/LegalConsentModal";
 import { useAuth } from "@/components/AuthProvider";
 import { useTheme } from "@/components/ThemeProvider";
 import type { Course } from "@/lib/course-types";
@@ -91,6 +92,7 @@ export default function AppShell({ children, activeTopic, activeCourseId }: AppS
   );
 
   const navigate = (href: string) => router.push(href);
+  const isLegalPage = ["/terms", "/privacy", "/acceptable-use"].includes(pathname);
 
   if (authLoading) {
     return (
@@ -117,11 +119,18 @@ export default function AppShell({ children, activeTopic, activeCourseId }: AppS
             <button onClick={() => navigate("/pricing")}>Plans</button>
           </nav>
           <div className="public-header-actions">
+            <button className="icon-button public-theme-toggle" onClick={toggle} aria-label={`Use ${theme === "dark" ? "light" : "dark"} mode`} title={`Use ${theme === "dark" ? "light" : "dark"} mode`}>
+              {theme === "dark" ? <Sun size={17} /> : <Moon size={17} />}
+            </button>
             <button className="button button-quiet" onClick={() => setShowAuth(true)}>Sign in</button>
             <button className="button button-primary" onClick={() => navigate("/pricing")}>Try Erudoza free <ArrowRight size={15} /></button>
           </div>
         </header>
         <main className="public-main" id="main-content" tabIndex={-1}>{children}</main>
+        <footer className="public-footer">
+          <span>© {new Date().getFullYear()} Erudoza</span>
+          <nav aria-label="Legal"><button onClick={() => navigate("/terms")}>Terms</button><button onClick={() => navigate("/privacy")}>Privacy</button><button onClick={() => navigate("/acceptable-use")}>Acceptable use</button></nav>
+        </footer>
         {showAuth && <AuthModal onClose={() => setShowAuth(false)} />}
       </div>
     );
@@ -230,6 +239,7 @@ export default function AppShell({ children, activeTopic, activeCourseId }: AppS
           <button key={href} className={pathname === href ? "is-active" : ""} onClick={() => navigate(href)}><Icon size={20} /><span>{label}</span></button>
         ))}
       </nav>
+      {account?.legalAcceptanceRequired && !isLegalPage && <LegalConsentModal />}
     </div>
   );
 }

@@ -17,6 +17,7 @@ import {
 } from "firebase/auth";
 import { auth } from "@/lib/firebase";
 import type { AccessLevel, LearnerAccount } from "@/lib/course-types";
+import { PRIVACY_VERSION, TERMS_VERSION } from "@/lib/legal";
 
 interface AuthContextValue {
   user: User | null;
@@ -27,7 +28,8 @@ interface AuthContextValue {
   loading: boolean;
   error: string | null;
   clearError: () => void;
-  signInWithGoogle: () => Promise<void>;
+  signInWithGoogle: () => Promise<User>;
+  acceptLegalTerms: (source: "signup" | "terms-update" | "subscription", targetUser?: User) => Promise<void>;
   signOut: () => Promise<void>;
   refreshAccount: () => Promise<void>;
 }
@@ -143,12 +145,29 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     provider.setCustomParameters({ prompt: "select_account" });
 
     try {
-      await signInWithPopup(auth, provider);
+      const credential = await signInWithPopup(auth, provider);
+      return credential.user;
     } catch (popupError) {
       setError(authErrorMessage(popupError));
       throw popupError;
     }
   }, []);
+
+  const acceptLegalTerms = useCallback(async (
+    source: "signup" | "terms-update" | "subscription",
+    targetUser?: User,
+  ) => {
+    const activeUser = targetUser ?? user;
+    if (!activeUser) throw new Error("Sign in before accepting the terms.");
+    const token = await activeUser.getIdToken();
+    const response = await fetch("/api/legal/acceptance", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ termsVersion: TERMS_VERSION, privacyVersion: PRIVACY_VERSION, source }),
+    });
+    if (!response.ok) throw new Error("Your acceptance could not be saved. Please try again.");
+    await loadAccount(activeUser);
+  }, [loadAccount, user]);
 
   const signOut = useCallback(async () => {
     setError(null);
@@ -172,10 +191,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       error,
       clearError: () => setError(null),
       signInWithGoogle,
+      acceptLegalTerms,
       signOut,
       refreshAccount,
     }),
-    [user, account, loading, error, signInWithGoogle, signOut, refreshAccount],
+    [user, account, loading, error, signInWithGoogle, acceptLegalTerms, signOut, refreshAccount],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

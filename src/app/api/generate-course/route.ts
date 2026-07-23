@@ -16,6 +16,8 @@ import {
   validationMessage,
 } from "@/lib/validation";
 import { assertSafeContent, ContentSafetyError } from "@/lib/content-safety";
+import { apiRequestErrorResponse, readJsonBody } from "@/lib/api-security";
+import { openAiSafetyIdentifier } from "@/lib/ai-usage";
 
 const model = process.env.OPENAI_COURSE_MODEL || process.env.OPENAI_MODEL || "gpt-5.6-terra";
 
@@ -25,7 +27,7 @@ export async function POST(request: Request) {
   let responseId: string | undefined;
   try {
     const account = await requirePremium(request);
-    const body = await request.json();
+    const body = await readJsonBody(request, 8_192);
     const parsedRequest = courseRequestSchema.safeParse(body);
     if (!parsedRequest.success) {
       return NextResponse.json(
@@ -42,8 +44,8 @@ export async function POST(request: Request) {
         ? "Organize the sequence around a concrete applied result while preserving prerequisite order."
         : "Balance mental models, worked examples, retrieval, and application throughout the course.";
     const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
-    await assertSafeContent(client, [topic, goal, application, background].filter(Boolean).join("\n"));
     reservation = await reserveAiUsage(account, "course_outline", request.headers.get("idempotency-key"));
+    await assertSafeContent(client, [topic, goal, application, background].filter(Boolean).join("\n"));
     const response = await client.responses.parse({
       model,
       instructions:
@@ -62,6 +64,7 @@ export async function POST(request: Request) {
         format: zodTextFormat(courseOutlineSchema, "course_outline"),
       },
       max_output_tokens: 4_000,
+      safety_identifier: await openAiSafetyIdentifier(account.uid),
     });
     responseId = response.id;
     observedUsage = extractOpenAiUsage(response);
@@ -99,6 +102,8 @@ export async function POST(request: Request) {
     if (quotaResponse) return quotaResponse;
     const authResponse = authorizationResponse(error);
     if (authResponse) return authResponse;
+    const requestResponse = apiRequestErrorResponse(error);
+    if (requestResponse) return requestResponse;
     if (error instanceof ContentSafetyError) {
       return NextResponse.json({ error: error.message, code: "CONTENT_NOT_ALLOWED" }, { status: 422 });
     }

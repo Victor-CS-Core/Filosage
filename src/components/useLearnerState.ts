@@ -6,7 +6,7 @@ import { EMPTY_LEARNER_STATE, readLearnerState, writeLearnerState, type LearnerS
 import { deferClientTask } from "@/lib/browser-compat";
 
 export function useLearnerState() {
-  const { user, loading: authLoading } = useAuth();
+  const { user, account, loading: authLoading } = useAuth();
   const [state, setState] = useState<LearnerState>(EMPTY_LEARNER_STATE);
   const [ready, setReady] = useState(false);
   const [syncStatus, setSyncStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
@@ -19,7 +19,7 @@ export function useLearnerState() {
     const local = readLearnerState();
     stateRef.current = local;
     deferClientTask(() => setState(local));
-    if (!user) {
+    if (!user || account?.legalAcceptanceRequired) {
       deferClientTask(() => setReady(true));
       return;
     }
@@ -60,7 +60,7 @@ export function useLearnerState() {
       }
     }).finally(() => { if (!cancelled) setReady(true); });
     return () => { cancelled = true; };
-  }, [authLoading, user]);
+  }, [account?.legalAcceptanceRequired, authLoading, user]);
 
   const update = useCallback((recipe: (current: LearnerState) => LearnerState) => {
     const next = { ...recipe(stateRef.current), updatedAt: new Date().toISOString() };

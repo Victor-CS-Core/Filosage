@@ -1,4 +1,5 @@
 import "server-only";
+import { getCatalogCourse, getCatalogLesson, PUBLIC_CATALOG } from "@/lib/public-catalog";
 
 export interface VerifiedFirebaseUser {
   uid: string;
@@ -292,11 +293,18 @@ export async function verifyFirebaseIdToken(idToken: string): Promise<VerifiedFi
   };
 }
 
-export function listPublicCourses() {
-  return runCourseQuery(courseQuery([{ field: "isPublic", value: true }], {
-    orderBy: "updatedAt",
-    limit: 24,
-  }));
+export async function listPublicCourses() {
+  let stored: StoredDocument[] = [];
+  try {
+    stored = await runCourseQuery(courseQuery([{ field: "isPublic", value: true }], {
+      orderBy: "updatedAt",
+      limit: 24,
+    }));
+  } catch (error) {
+    console.error("Stored public catalog is unavailable; serving bundled courses.", error);
+  }
+  const bundledIds = new Set(PUBLIC_CATALOG.map((course) => course.id));
+  return [...PUBLIC_CATALOG, ...stored.filter((course) => !bundledIds.has(course.id))];
 }
 
 export function listOwnerCourses(authorId: string) {
@@ -316,6 +324,8 @@ export async function findOwnerCourse(authorId: string, topic: string) {
 }
 
 export async function getCourse(courseId: string) {
+  const catalog = getCatalogCourse(courseId);
+  if (catalog) return catalog as unknown as StoredDocument;
   const document = await firestoreJson<FirestoreDocument>(
     `/documents/${encodeDocumentPath(`courses/${courseId}`)}`,
     {},
@@ -344,6 +354,8 @@ export async function listLessons(courseId: string) {
 }
 
 export async function getLesson(courseId: string, lessonId: string) {
+  const catalog = getCatalogLesson(courseId, lessonId);
+  if (catalog) return { id: lessonId, ...catalog } as unknown as StoredDocument;
   const document = await firestoreJson<FirestoreDocument>(
     `/documents/${encodeDocumentPath(`courses/${courseId}/lessons/${lessonId}`)}`,
     {},

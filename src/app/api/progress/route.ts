@@ -1,4 +1,4 @@
-import { authorizationResponse, requireAccount } from "@/lib/auth-server";
+import { authorizationResponse, requireAcceptedAccount, requireAccount } from "@/lib/auth-server";
 import {
   getCourse,
   getStoredDocument,
@@ -9,6 +9,7 @@ import { progressUpdateSchema, validationMessage } from "@/lib/validation";
 import type { CourseProgress, LessonProgress } from "@/lib/learning-types";
 import type { Course } from "@/lib/course-types";
 import { findCourseLesson, findNextLesson } from "@/lib/course-progress";
+import { apiRequestErrorResponse, readJsonBody } from "@/lib/api-security";
 
 function asCourseProgress(value: Record<string, unknown>): CourseProgress {
   const lessons = value.lessons && typeof value.lessons === "object" ? value.lessons as Record<string, LessonProgress> : {};
@@ -70,8 +71,8 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   try {
-    const account = await requireAccount(request);
-    const parsed = progressUpdateSchema.safeParse(await request.json());
+    const account = await requireAcceptedAccount(request);
+    const parsed = progressUpdateSchema.safeParse(await readJsonBody(request, 8_192));
     if (!parsed.success) {
       return Response.json({ error: validationMessage(parsed.error) }, { status: 400 });
     }
@@ -141,6 +142,8 @@ export async function POST(request: Request) {
       { headers: { "Cache-Control": "private, no-store" } },
     );
   } catch (error) {
+    const requestResponse = apiRequestErrorResponse(error);
+    if (requestResponse) return requestResponse;
     const authResponse = authorizationResponse(error);
     if (authResponse) return authResponse;
     console.error("Progress save failed:", error);

@@ -17,6 +17,9 @@ import {
 } from "@/lib/validation";
 import { findCourseLesson } from "@/lib/course-progress";
 import type { Course } from "@/lib/course-types";
+import { assertSafeContent, ContentSafetyError } from "@/lib/content-safety";
+import { apiRequestErrorResponse, readJsonBody } from "@/lib/api-security";
+import { openAiSafetyIdentifier } from "@/lib/ai-usage";
 
 const model = process.env.OPENAI_LESSON_MODEL || process.env.OPENAI_MODEL || "gpt-5.6-terra";
 
@@ -26,7 +29,7 @@ export async function POST(request: Request) {
   let responseId: string | undefined;
   try {
     const account = await requirePremium(request);
-    const parsed = generateLessonInputSchema.safeParse(await request.json());
+    const parsed = generateLessonInputSchema.safeParse(await readJsonBody(request, 2_048));
     if (!parsed.success) {
       return NextResponse.json(
         { error: validationMessage(parsed.error) },
@@ -64,6 +67,7 @@ export async function POST(request: Request) {
         format: zodTextFormat(lessonDataSchema, "lesson"),
       },
       max_output_tokens: 6_000,
+      safety_identifier: await openAiSafetyIdentifier(account.uid),
     });
     responseId = response.id;
     observedUsage = extractOpenAiUsage(response);
@@ -75,6 +79,7 @@ export async function POST(request: Request) {
         { status: 502 },
       );
     }
+    await assertSafeContent(client, JSON.stringify(lesson));
 
     await saveLesson(courseId, lessonId, {
       ...lesson,
@@ -96,6 +101,11 @@ export async function POST(request: Request) {
     if (quotaResponse) return quotaResponse;
     const authResponse = authorizationResponse(error);
     if (authResponse) return authResponse;
+    const requestResponse = apiRequestErrorResponse(error);
+    if (requestResponse) return requestResponse;
+    if (error instanceof ContentSafetyError) {
+      return NextResponse.json({ error: error.message, code: "CONTENT_NOT_ALLOWED" }, { status: 422 });
+    }
 
     console.error("Lesson generation failed:", error);
     return NextResponse.json(

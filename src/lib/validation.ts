@@ -102,13 +102,20 @@ export const progressUpdateSchema = z.object({
   estimatedMinutes: z.number().int().min(1).max(180).optional(),
   nextLessonId: z.string().regex(/^\d+-\d+$/).nullable().optional(),
   nextLessonTitle: z.string().trim().min(1).max(160).nullable().optional(),
+}).superRefine((value, context) => {
+  if (value.firstAttemptCorrect > value.totalQuestions) {
+    context.addIssue({ code: "custom", path: ["firstAttemptCorrect"], message: "Correct answers cannot exceed the question count." });
+  }
+  if (value.totalQuestions > 0 && value.attempts < value.totalQuestions) {
+    context.addIssue({ code: "custom", path: ["attempts"], message: "Attempts cannot be lower than the question count." });
+  }
 });
 
 export const learnerStateSchema = z.object({
   courseBookmarks: z.array(z.string().trim().min(1).max(200)).max(500),
   lessonBookmarks: z.array(z.string().trim().min(1).max(400)).max(2_000),
-  notes: z.record(z.string().trim().min(1).max(400), z.string().max(12_000)),
-  noteUpdatedAt: z.record(z.string().trim().min(1).max(400), isoDateTimeSchema).default({}),
+  notes: z.record(z.string().trim().min(1).max(400), z.string().max(12_000)).refine((value) => Object.keys(value).length <= 500, "Keep no more than 500 lesson notes."),
+  noteUpdatedAt: z.record(z.string().trim().min(1).max(400), isoDateTimeSchema).refine((value) => Object.keys(value).length <= 500, "Keep no more than 500 note timestamps.").default({}),
   weeklyLessonGoal: z.number().int().min(1).max(50),
   dashboardPreferences: z.object({
     preset: z.enum(["default", "focused", "progress", "discover", "custom"]),

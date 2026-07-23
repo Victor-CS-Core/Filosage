@@ -18,6 +18,8 @@ export interface ServerAccount {
   subscriptionStatus: "none" | "trialing" | "active" | "past_due" | "canceled";
   currentPeriodEnd?: string;
   billingCustomerId?: string;
+  acceptedTermsVersion?: string;
+  acceptedPrivacyVersion?: string;
 }
 
 function premiumEmailSet() {
@@ -69,5 +71,7 @@ export async function getOrCreateAccount(user: VerifiedFirebaseUser): Promise<Se
     subscriptionStatus,
     currentPeriodEnd: typeof saved.currentPeriodEnd === "string" ? saved.currentPeriodEnd : undefined,
     billingCustomerId: typeof saved.billingCustomerId === "string" ? saved.billingCustomerId : undefined,
+    acceptedTermsVersion: typeof saved.acceptedTermsVersion === "string" ? saved.acceptedTermsVersion : undefined,
+    acceptedPrivacyVersion: typeof saved.acceptedPrivacyVersion === "string" ? saved.acceptedPrivacyVersion : undefined,
   };
 }

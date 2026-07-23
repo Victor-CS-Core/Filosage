@@ -284,7 +284,7 @@ export default function CourseMap() {
             <section><span><BookOpen size={19} /></span><div><small>Before you begin</small><strong>{course.prerequisites?.length ? course.prerequisites.join(" · ") : "No prior knowledge required"}</strong></div></section>
           </div>
 
-          {isPro && user && course.authorId === user.uid && (
+          {isPro && user && course.canManage && (
             <div className="course-owner-controls">
               <div className="course-owner-actions">
                 {isOwner && (

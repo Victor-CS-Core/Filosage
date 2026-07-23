@@ -16,9 +16,10 @@ export interface Course {
   topic: string;
   mission?: string;
   modules: CourseModule[];
+  /** Server-side ownership field. Public API responses omit this value. */
   authorId?: string;
   authorName?: string;
-  authorPhoto?: string;
+  canManage?: boolean;
   isPublic?: boolean;
   level?: "Foundations" | "Intermediate" | "Advanced";
   estimatedMinutes?: number;
@@ -61,5 +62,8 @@ export interface LearnerAccount {
   photoURL?: string;
   subscriptionStatus?: "none" | "trialing" | "active" | "past_due" | "canceled";
   currentPeriodEnd?: string;
+  acceptedTermsVersion?: string;
+  acceptedPrivacyVersion?: string;
+  legalAcceptanceRequired?: boolean;
   quotas: AiQuotaSummary[];
 }

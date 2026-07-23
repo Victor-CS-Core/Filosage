@@ -1,5 +1,6 @@
-import { authorizationResponse, requireAccount } from "@/lib/auth-server";
+import { authorizationResponse, hasCurrentLegalAcceptance, requireAccount } from "@/lib/auth-server";
 import { getAiQuotaSummaries } from "@/lib/ai-usage";
+import { PRIVACY_VERSION, TERMS_VERSION } from "@/lib/legal";
 
 export async function GET(request: Request) {
   try {
@@ -14,6 +15,11 @@ export async function GET(request: Request) {
         photoURL: account.photoURL,
         subscriptionStatus: account.subscriptionStatus,
         currentPeriodEnd: account.currentPeriodEnd,
+        acceptedTermsVersion: account.acceptedTermsVersion,
+        acceptedPrivacyVersion: account.acceptedPrivacyVersion,
+        legalAcceptanceRequired: !hasCurrentLegalAcceptance(account),
+        currentTermsVersion: TERMS_VERSION,
+        currentPrivacyVersion: PRIVACY_VERSION,
         quotas,
       },
       { headers: { "Cache-Control": "private, no-store" } },

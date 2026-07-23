@@ -54,6 +54,10 @@ export default function PricingPage() {
         </div>
 
         <p className="pricing-note">Generation credits reset each month and do not roll over. Monthly limits help keep course creation reliable and available.</p>
+        <section className="billing-readiness-note" aria-labelledby="billing-readiness-title">
+          <LockKeyhole size={18} />
+          <div><h2 id="billing-readiness-title">Clear terms before any charge</h2><p>Paid checkout is not active. Before it launches, the checkout screen will show the exact price, currency, billing interval, renewal terms, included limits, trial conversion if applicable, and a simple online cancellation method before you consent.</p><p><a href="/terms">Terms of Service</a> · <a href="/privacy">Privacy Notice</a></p></div>
+        </section>
       </div>
     </AppShell>
   );

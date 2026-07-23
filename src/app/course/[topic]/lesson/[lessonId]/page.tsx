@@ -104,10 +104,23 @@ function MermaidDiagram({ chart, summary }: { chart: string; summary?: string })
       })
       .then(({ svg }) => {
         if (cancelled || !ref.current) return;
-
-        ref.current.innerHTML = svg;
-        const svgElement = ref.current.querySelector("svg");
-        if (!svgElement) return;
+        const parsed = new DOMParser().parseFromString(svg, "image/svg+xml");
+        if (parsed.querySelector("parsererror")) throw new Error("Invalid diagram output.");
+        const parsedSvg = parsed.documentElement;
+        if (parsedSvg.tagName.toLowerCase() !== "svg") throw new Error("Invalid diagram output.");
+        parsedSvg.querySelectorAll("script, foreignObject, iframe, object, embed").forEach((element) => element.remove());
+        parsedSvg.querySelectorAll("*").forEach((element) => {
+          for (const attribute of Array.from(element.attributes)) {
+            const name = attribute.name.toLowerCase();
+            if (name.startsWith("on")
+              || ((name === "href" || name === "xlink:href") && !attribute.value.startsWith("#"))
+              || (name === "style" && /url\s*\(/i.test(attribute.value))) {
+              element.removeAttribute(attribute.name);
+            }
+          }
+        });
+        const svgElement = document.importNode(parsedSvg, true) as unknown as SVGSVGElement;
+        ref.current.replaceChildren(svgElement);
 
         let fittedWidth = svgElement.viewBox.baseVal.width;
         let fittedHeight = svgElement.viewBox.baseVal.height;
@@ -145,7 +158,9 @@ function MermaidDiagram({ chart, summary }: { chart: string; summary?: string })
       .catch(() => {
         if (!cancelled && ref.current) {
           delete ref.current.dataset.orientation;
-          ref.current.innerHTML = "<p>Visualization unavailable for this lesson.</p>";
+          const message = document.createElement("p");
+          message.textContent = "Visualization unavailable for this lesson.";
+          ref.current.replaceChildren(message);
         }
       });
     return () => {
@@ -295,8 +310,8 @@ export default function LessonView() {
   const [isGenerating, setIsGenerating] = useState(false);
   const [generationProgress, setGenerationProgress] = useState(0);
   const [error, setError] = useState<string | null>(null);
-  const [quizResults, setQuizResults] = useState<Record<number, QuizResult>>({});
-  const [complete, setComplete] = useState(false);
+  const [quizResultState, setQuizResultState] = useState<{ key: string; results: Record<number, QuizResult> }>({ key: "", results: {} });
+  const [completionState, setCompletionState] = useState<{ key: string; complete: boolean }>({ key: "", complete: false });
   const [tutorOpen, setTutorOpen] = useState(false);
   const [messages, setMessages] = useState<Message[]>([]);
   const [chatInput, setChatInput] = useState("");
@@ -308,6 +323,11 @@ export default function LessonView() {
   const noteHydratedRef = useRef(false);
   const generationStartedAtRef = useRef(0);
   const noteKey = courseId ? `${courseId}:${lessonId}` : `${topic}:${lessonId}`;
+  const quizResults = useMemo(
+    () => quizResultState.key === noteKey ? quizResultState.results : {},
+    [noteKey, quizResultState],
+  );
+  const complete = completionState.key === noteKey && completionState.complete;
   const lessonBookmarked = learnerState.lessonBookmarks.includes(noteKey);
 
   useEffect(() => {
@@ -369,6 +389,10 @@ export default function LessonView() {
     }
 
     setLoading(true);
+    setMessages([]);
+    setChatInput("");
+    setChatError(null);
+    setProgressSyncError(null);
     setIsGenerating(false);
     setGenerationProgress(0);
     setError(null);
@@ -390,7 +414,7 @@ export default function LessonView() {
         return;
       }
 
-      if (!isPro || resolvedCourse.authorId !== user?.uid) {
+      if (!isPro || !resolvedCourse.canManage) {
         const data = await lessonResponse.json();
         throw new Error(data.error || "This lesson has not been published yet.");
       }
@@ -423,7 +447,7 @@ export default function LessonView() {
       setIsGenerating(false);
       setLoading(false);
     }
-  }, [courseId, getToken, moduleIndex, lessonIndex, lessonId, isPro, topic, user]);
+  }, [courseId, getToken, moduleIndex, lessonIndex, lessonId, isPro, topic]);
 
   useEffect(() => {
     void Promise.resolve().then(loadLesson);
@@ -441,18 +465,18 @@ export default function LessonView() {
         });
         if (response.ok) {
           const data = await response.json() as { progress: CourseProgress | null };
-          if (!cancelled) setComplete(!reviewMode && Boolean(data.progress?.completedLessonIds.includes(lessonId)));
+          if (!cancelled) setCompletionState({ key: noteKey, complete: !reviewMode && Boolean(data.progress?.completedLessonIds.includes(lessonId)) });
           return;
         }
       }
       const local = getLocalProgress(courseId, topic);
-      if (!cancelled) setComplete(!reviewMode && Boolean(local?.completedLessonIds.includes(lessonId)));
+      if (!cancelled) setCompletionState({ key: noteKey, complete: !reviewMode && Boolean(local?.completedLessonIds.includes(lessonId)) });
     };
     void loadProgress().catch(() => {
-      if (!cancelled) setComplete(false);
+      if (!cancelled) setCompletionState({ key: noteKey, complete: false });
     });
     return () => { cancelled = true; };
-  }, [courseId, lessonId, reviewMode, topic, user]);
+  }, [courseId, lessonId, noteKey, reviewMode, topic, user]);
 
   useEffect(() => {
     chatBottomRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" });
@@ -516,11 +540,11 @@ export default function LessonView() {
         setProgressSyncError(saveError instanceof Error ? saveError.message : "Saved on this device, but cloud sync is pending.");
       }
     }
-    setComplete(true);
-  }, [allLessons.length, complete, courseId, lesson, lessonData, lessonId, nextLesson, quizResults, reviewMode, topic, user]);
+    setCompletionState({ key: noteKey, complete: true });
+  }, [allLessons.length, complete, courseId, lesson, lessonData, lessonId, nextLesson, noteKey, quizResults, reviewMode, topic, user]);
 
   const onMastered = (index: number, result: QuizResult) => {
-    setQuizResults((current) => ({ ...current, [index]: result }));
+    setQuizResultState((current) => ({ key: noteKey, results: { ...(current.key === noteKey ? current.results : {}), [index]: result } }));
   };
 
   useEffect(() => {
@@ -701,7 +725,7 @@ export default function LessonView() {
                   </div>
                   <div className="knowledge-list">
                     {lessonData.quizzes.map((quiz, index) => (
-                      <KnowledgeCheck key={`${quiz.question}-${index}`} quiz={quiz} index={index} onMastered={onMastered} />
+                      <KnowledgeCheck key={`${noteKey}-${quiz.question}-${index}`} quiz={quiz} index={index} onMastered={onMastered} />
                     ))}
                   </div>
                 </section>

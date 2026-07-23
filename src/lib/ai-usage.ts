@@ -104,6 +104,10 @@ async function sha256(value: string) {
   return Array.from(new Uint8Array(bytes), (byte) => byte.toString(16).padStart(2, "0")).join("");
 }
 
+export async function openAiSafetyIdentifier(uid: string) {
+  return `user_${(await sha256(uid)).slice(0, 48)}`;
+}
+
 function monthlyBudgetMicros() {
   const dollars = Number(process.env.OPENAI_MONTHLY_BUDGET_USD ?? "50");
   return Math.max(1, Number.isFinite(dollars) ? dollars : 50) * 1_000_000;

@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { authorizationResponse, requireAccount, requireOwner } from "@/lib/auth-server";
+import { authorizationResponse, getVerifiedUser, requireAccount, requireAcceptedAccount, requireOwner } from "@/lib/auth-server";
 import {
   deleteCourse,
   getCoursePublishReadiness,
@@ -8,6 +8,8 @@ import {
 } from "@/lib/firebase-server";
 import { expectedLessonIds } from "@/lib/course-progress";
 import type { Course } from "@/lib/course-types";
+import { toCourseDto } from "@/lib/course-dto";
+import { apiRequestErrorResponse, assertTrustedMutation, readJsonBody } from "@/lib/api-security";
 
 interface RouteParams {
   params: Promise<{ courseId: string }>;
@@ -18,15 +20,20 @@ export async function GET(request: Request, { params }: RouteParams) {
     const course = await getCourse(courseId);
     if (!course) return NextResponse.json({ error: "Course not found." }, { status: 404 });
 
+    let canManage = false;
     if (!course.isPublic) {
       const account = await requireAccount(request);
       if (account.uid !== course.authorId && !account.isOwner) {
         return NextResponse.json({ error: "You do not have access to this course." }, { status: 403 });
       }
+      canManage = true;
+    } else {
+      const user = await getVerifiedUser(request);
+      canManage = Boolean(user && (user.uid === course.authorId));
     }
 
     return NextResponse.json(
-      { courseId: course.id, ...course },
+      toCourseDto(course, canManage),
       course.isPublic
         ? { headers: { "Cache-Control": "no-store" } }
         : undefined,
@@ -49,7 +56,7 @@ export async function PATCH(request: Request, { params }: RouteParams) {
       return NextResponse.json({ error: "You do not own this course." }, { status: 403 });
     }
 
-    const body = await request.json();
+    const body = await readJsonBody(request, 2_048) as Record<string, unknown>;
     if (typeof body.isPublic !== "boolean") {
       return NextResponse.json({ error: "Visibility must be true or false." }, { status: 400 });
     }
@@ -78,6 +85,8 @@ export async function PATCH(request: Request, { params }: RouteParams) {
       { headers: { "Cache-Control": "no-store" } },
     );
   } catch (error: unknown) {
+    const requestResponse = apiRequestErrorResponse(error);
+    if (requestResponse) return requestResponse;
     const authResponse = authorizationResponse(error);
     if (authResponse) return authResponse;
     console.error("Course visibility update failed:", error);
@@ -88,7 +97,8 @@ export async function PATCH(request: Request, { params }: RouteParams) {
 export async function DELETE(request: Request, { params }: RouteParams) {
   const { courseId } = await params;
   try {
-    const account = await requireAccount(request);
+    assertTrustedMutation(request);
+    const account = await requireAcceptedAccount(request);
     const course = await getCourse(courseId);
     if (!course) return NextResponse.json({ error: "Course not found." }, { status: 404 });
     if (course.authorId !== account.uid && !account.isOwner) {
@@ -99,6 +109,8 @@ export async function DELETE(request: Request, { params }: RouteParams) {
 
     return NextResponse.json({ success: true });
   } catch (error: unknown) {
+    const requestResponse = apiRequestErrorResponse(error);
+    if (requestResponse) return requestResponse;
     const authResponse = authorizationResponse(error);
     if (authResponse) return authResponse;
     console.error("Course deletion failed:", error);

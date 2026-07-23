@@ -104,7 +104,8 @@ test("keeps the learning library public", async ({ page }) => {
 
 test("preserves the selected theme across navigation and reloads", async ({ page }) => {
   await page.goto("/");
-  await page.evaluate(() => localStorage.setItem("erudoza-theme", "dark"));
+  await page.locator(".public-header").getByRole("button", { name: "Use dark mode" }).click();
+  await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
   await page.reload();
 
   await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
@@ -124,7 +125,26 @@ test("offers an optional learner account without blocking public access", async 
   await expect(dialog).toContainText("You can still read published courses without an account");
   await expect(
     dialog.getByRole("button", { name: "Continue with Google" }),
-  ).toBeVisible();
+  ).toBeDisabled();
+  await dialog.getByRole("checkbox").check();
+  await expect(dialog.getByRole("button", { name: "Continue with Google" })).toBeEnabled();
+  await expect(dialog.getByRole("link", { name: "Terms of Service" })).toHaveAttribute("href", "/terms");
+});
+
+test("publishes clear legal documents and a bundled public catalog", async ({ page, request }) => {
+  await page.goto("/terms");
+  await expect(page.getByRole("heading", { name: "Terms of Service" })).toBeVisible();
+  await expect(page.getByText("automatic renewal", { exact: false }).first()).toBeVisible();
+  await page.goto("/privacy");
+  await expect(page.getByRole("heading", { name: "Privacy Notice" })).toBeVisible();
+  await page.goto("/acceptable-use");
+  await expect(page.getByRole("heading", { name: "Acceptable Use Policy" })).toBeVisible();
+
+  const response = await request.get("/api/courses?scope=public");
+  expect(response.ok()).toBe(true);
+  const body = await response.json() as { courses: Array<Record<string, unknown>> };
+  expect(body.courses.length).toBeGreaterThanOrEqual(9);
+  expect(body.courses.some((course) => "authorId" in course)).toBe(false);
 });
 
 test("keeps generation visibly metered and premium", async ({ page }) => {
@@ -146,7 +166,10 @@ test("does not complete a lesson after a wrong answer", async ({ page }) => {
     modules: [{
       title: "Foundations",
       description: "Start here",
-      lessons: [{ title: "Feedback loops", concept: "How outputs influence future inputs", estimatedMinutes: 8 }],
+      lessons: [
+        { title: "Feedback loops", concept: "How outputs influence future inputs", estimatedMinutes: 8 },
+        { title: "Leverage points", concept: "Where a small change can alter behavior", estimatedMinutes: 8 },
+      ],
     }],
   };
   const lesson = {
@@ -160,6 +183,7 @@ test("does not complete a lesson after a wrong answer", async ({ page }) => {
   };
   await page.route("**/api/courses/demo", (route) => route.fulfill({ json: course }));
   await page.route("**/api/courses/demo/lessons/0-0", (route) => route.fulfill({ json: lesson }));
+  await page.route("**/api/courses/demo/lessons/0-1", (route) => route.fulfill({ json: { ...lesson, content: "## Find the leverage point\n\nLook for the relationship that changes the system's behavior." } }));
   await page.goto("/course/Systems%20thinking/lesson/0-0?id=demo");
 
   await expect(page.getByRole("heading", { name: "Feedback loops" })).toHaveCount(1);
@@ -184,6 +208,11 @@ test("does not complete a lesson after a wrong answer", async ({ page }) => {
   await secondCheck.getByRole("button", { name: /To see change over time/ }).click();
   await secondCheck.getByRole("button", { name: "Certain" }).click();
   await expect(completionBanner.getByText("Lesson complete")).toBeVisible();
+  await page.getByRole("button", { name: /Next lesson Leverage points/ }).click();
+  await expect(page).toHaveURL(/lesson\/0-1\?id=demo/);
+  await expect(page.getByRole("heading", { name: "Leverage points" })).toBeVisible();
+  await expect(page.locator(".completion-banner").getByText("Complete the activities")).toBeVisible();
+  await expect(page.locator(".completion-banner").getByText("Lesson complete")).not.toBeVisible();
 });
 
 test("presents public courses as a browsable learning library", async ({ page }) => {
