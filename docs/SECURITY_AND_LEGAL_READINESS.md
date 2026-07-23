@@ -22,7 +22,7 @@ This document is an engineering and launch-readiness record, not legal advice.
 
 1. Have a licensed attorney review the Terms, Privacy Notice, and Acceptable Use Policy for the operator's actual entity, state/country, target markets, tax posture, and dispute strategy.
 2. Replace the generic operator wording and governing-law placeholder with the formal legal entity, business address, and jurisdiction. Decide with counsel whether arbitration or a class-action waiver is appropriate; none is included now.
-3. Create and monitor `legal@erudoza.com`, define a verified privacy-request workflow, and document identity verification and deletion procedures.
+3. Monitor `legal@erudoza.com` for legal notices and privacy requests, and monitor `support@erudoza.com` for account, product, moderation, and billing help. Define a verified privacy-request workflow, and document identity verification and deletion procedures.
 4. At checkout, capture an immutable subscription-consent record containing the displayed price, currency, interval, trial terms, renewal terms, offer version, timestamp, and user ID.
 5. Verify Stripe webhook signatures, enforce event idempotency, handle failed payments, and make the Stripe customer portal or an equivalent in-app cancellation control available immediately.
 6. Send purchase confirmations and any legally required trial, renewal, annual, or price-change reminders. Keep cancellation available online at will and at least as easy as signup.
@@ -35,7 +35,7 @@ This document is an engineering and launch-readiness record, not legal advice.
 
 - The CSP permits inline scripts because the current statically optimized Sites build uses an inline theme bootstrap. A nonce-based CSP would require dynamic rendering and should be evaluated with the hosting architecture rather than applied piecemeal.
 - AI moderation reduces abuse but cannot guarantee that every unsafe or inaccurate output is detected. Publication remains owner-controlled.
-- Self-service account deletion and data export are not yet complete product flows. Privacy requests are handled through the legal contact until those controls are built.
+- Self-service account deletion and data export are not yet complete product flows. Privacy requests are handled through `legal@erudoza.com` until those controls are built.
 - Paid subscriptions are deliberately disabled. The present legal copy describes the required future flow but does not substitute for checkout implementation, consumer notices, or counsel review.
 
 ## Operational checks per release

@@ -19,6 +19,7 @@ import {
   TrendingUp,
   UserRound,
 } from "lucide-react";
+import { SUPPORT_CONTACT } from "@/lib/legal";
 import ErudozaMark from "@/components/ErudozaMark";
 import AuthModal from "@/components/AuthModal";
 import LegalConsentModal from "@/components/LegalConsentModal";
@@ -129,7 +130,7 @@ export default function AppShell({ children, activeTopic, activeCourseId }: AppS
         <main className="public-main" id="main-content" tabIndex={-1}>{children}</main>
         <footer className="public-footer">
           <span>© {new Date().getFullYear()} Erudoza</span>
-          <nav aria-label="Legal"><button onClick={() => navigate("/terms")}>Terms</button><button onClick={() => navigate("/privacy")}>Privacy</button><button onClick={() => navigate("/acceptable-use")}>Acceptable use</button></nav>
+          <nav aria-label="Support and legal"><a href={`mailto:${SUPPORT_CONTACT}`}>Support</a><button onClick={() => navigate("/terms")}>Terms</button><button onClick={() => navigate("/privacy")}>Privacy</button><button onClick={() => navigate("/acceptable-use")}>Acceptable use</button></nav>
         </footer>
         {showAuth && <AuthModal onClose={() => setShowAuth(false)} />}
       </div>

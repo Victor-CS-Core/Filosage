@@ -17,7 +17,7 @@ import {
 } from "firebase/auth";
 import { auth } from "@/lib/firebase";
 import type { AccessLevel, LearnerAccount } from "@/lib/course-types";
-import { PRIVACY_VERSION, TERMS_VERSION } from "@/lib/legal";
+import { PRIVACY_VERSION, SUPPORT_CONTACT, TERMS_VERSION } from "@/lib/legal";
 
 interface AuthContextValue {
   user: User | null;
@@ -50,7 +50,7 @@ function authErrorMessage(error: unknown) {
 
   switch (code) {
     case "auth/unauthorized-domain":
-      return "Google sign-in is not authorized for this site. Please contact the site owner.";
+      return `Google sign-in is not authorized for this site. Contact ${SUPPORT_CONTACT}.`;
     case "auth/popup-blocked":
       return "Your browser blocked the Google sign-in window. Allow popups for Erudoza and try again.";
     case "auth/popup-closed-by-user":
