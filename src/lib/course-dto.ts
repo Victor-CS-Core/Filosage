@@ -18,6 +18,10 @@ export function toCourseDto(value: Record<string, unknown> | Course, canManage =
     prerequisites: Array.isArray(raw.prerequisites) ? raw.prerequisites.filter((item): item is string => typeof item === "string") : undefined,
     category: typeof raw.category === "string" ? raw.category : undefined,
     updatedAt: typeof raw.updatedAt === "string" ? raw.updatedAt : undefined,
+    schemaVersion: typeof raw.schemaVersion === "number" ? raw.schemaVersion : undefined,
+    capstone: raw.capstone && typeof raw.capstone === "object"
+      ? raw.capstone as Course["capstone"]
+      : undefined,
     aiAssisted: raw.aiAssisted === true
       || (typeof raw.id === "string" && !raw.id.startsWith("catalog-")),
     canManage,
@@ -30,6 +34,17 @@ export function toLessonDto(value: Record<string, unknown>, courseAiAssisted = f
     diagram: String(value.diagram ?? ""),
     diagramSummary: typeof value.diagramSummary === "string" ? value.diagramSummary : undefined,
     quizzes: Array.isArray(value.quizzes) ? value.quizzes as LessonData["quizzes"] : [],
+    learningObjective: typeof value.learningObjective === "string" ? value.learningObjective : undefined,
+    connection: typeof value.connection === "string" ? value.connection : undefined,
+    keyTakeaways: Array.isArray(value.keyTakeaways)
+      ? value.keyTakeaways.filter((item): item is string => typeof item === "string")
+      : undefined,
+    guidedPractice: value.guidedPractice && typeof value.guidedPractice === "object"
+      ? value.guidedPractice as LessonData["guidedPractice"]
+      : undefined,
+    transferTask: value.transferTask && typeof value.transferTask === "object"
+      ? value.transferTask as LessonData["transferTask"]
+      : undefined,
     aiAssisted: value.aiAssisted === true || courseAiAssisted,
   };
 }

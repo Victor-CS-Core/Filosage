@@ -19,6 +19,8 @@ import {
   NotebookPen,
   RotateCcw,
   Send,
+  Target,
+  Waypoints,
   X,
 } from "lucide-react";
 import AppShell from "@/components/AppShell";
@@ -60,16 +62,27 @@ function randomizeQuizAnswers(lesson: LessonData): LessonData {
     ...lesson,
     quizzes: lesson.quizzes.map((quiz, quizIndex) => {
       if (quiz.options.length < 2 || !quiz.options[quiz.correctIndex]) return quiz;
-      const correctOption = quiz.options[quiz.correctIndex];
-      const distractors = quiz.options.filter((_, optionIndex) => optionIndex !== quiz.correctIndex);
+      const choices = quiz.options.map((option, optionIndex) => ({
+        option,
+        feedback: quiz.optionFeedback?.[optionIndex],
+      }));
+      const correctChoice = choices[quiz.correctIndex];
+      const distractors = choices.filter((_, optionIndex) => optionIndex !== quiz.correctIndex);
       for (let index = distractors.length - 1; index > 0; index -= 1) {
         const swapIndex = randomIndex(index + 1);
         [distractors[index], distractors[swapIndex]] = [distractors[swapIndex], distractors[index]];
       }
       const correctIndex = (rotation + quizIndex) % quiz.options.length;
-      const options = [...distractors];
-      options.splice(correctIndex, 0, correctOption);
-      return { ...quiz, options, correctIndex };
+      const randomized = [...distractors];
+      randomized.splice(correctIndex, 0, correctChoice);
+      return {
+        ...quiz,
+        options: randomized.map((choice) => choice.option),
+        optionFeedback: quiz.optionFeedback
+          ? randomized.map((choice) => choice.feedback ?? quiz.explanation)
+          : undefined,
+        correctIndex,
+      };
     }),
   };
 }
@@ -266,7 +279,7 @@ function KnowledgeCheck({
             {selected === quiz.correctIndex ? <CheckCircle2 size={18} /> : <Lightbulb size={18} />}
             <strong>{selected === quiz.correctIndex ? "Correct" : "Not quite"}</strong>
           </div>
-          <p>{quiz.explanation}</p>
+          <p>{quiz.optionFeedback?.[selected] ?? quiz.explanation}</p>
           {selected !== quiz.correctIndex && <button className="text-button" onClick={reset}><RotateCcw size={14} /> Try again</button>}
           {mastered && (
             <div className="confidence-check" role="group" aria-label="How confident did that answer feel?">
@@ -312,6 +325,11 @@ export default function LessonView() {
   const [error, setError] = useState<string | null>(null);
   const [quizResultState, setQuizResultState] = useState<{ key: string; results: Record<number, QuizResult> }>({ key: "", results: {} });
   const [completionState, setCompletionState] = useState<{ key: string; complete: boolean }>({ key: "", complete: false });
+  const [transferState, setTransferState] = useState<{ key: string; response: string; revealed: boolean }>({
+    key: "",
+    response: "",
+    revealed: false,
+  });
   const [tutorOpen, setTutorOpen] = useState(false);
   const [messages, setMessages] = useState<Message[]>([]);
   const [chatInput, setChatInput] = useState("");
@@ -328,6 +346,9 @@ export default function LessonView() {
     [noteKey, quizResultState],
   );
   const complete = completionState.key === noteKey && completionState.complete;
+  const transferResponse = transferState.key === noteKey ? transferState.response : "";
+  const transferRevealed = transferState.key === noteKey && transferState.revealed;
+  const transferComplete = !lessonData?.transferTask || (transferRevealed && Boolean(transferResponse.trim()));
   const lessonBookmarked = learnerState.lessonBookmarks.includes(noteKey);
 
   useEffect(() => {
@@ -504,7 +525,7 @@ export default function LessonView() {
   );
 
   const markComplete = useCallback(async () => {
-    if (!courseId || complete || !lessonData || !lesson) return;
+    if (!courseId || complete || !lessonData || !lesson || !transferComplete) return;
     const results = Object.values(quizResults);
     if (lessonData.quizzes.length && results.length !== lessonData.quizzes.length) return;
     const confidences = results.map((result) => result.confidence);
@@ -541,7 +562,7 @@ export default function LessonView() {
       }
     }
     setCompletionState({ key: noteKey, complete: true });
-  }, [allLessons.length, complete, courseId, lesson, lessonData, lessonId, nextLesson, noteKey, quizResults, reviewMode, topic, user]);
+  }, [allLessons.length, complete, courseId, lesson, lessonData, lessonId, nextLesson, noteKey, quizResults, reviewMode, topic, transferComplete, user]);
 
   const onMastered = (index: number, result: QuizResult) => {
     setQuizResultState((current) => ({ key: noteKey, results: { ...(current.key === noteKey ? current.results : {}), [index]: result } }));
@@ -550,9 +571,10 @@ export default function LessonView() {
   useEffect(() => {
     if (!lessonData?.quizzes.length || complete) return;
     if (Object.keys(quizResults).length !== lessonData.quizzes.length) return;
+    if (!transferComplete) return;
     const timeout = window.setTimeout(() => { void markComplete(); }, 250);
     return () => window.clearTimeout(timeout);
-  }, [complete, lessonData, markComplete, quizResults]);
+  }, [complete, lessonData, markComplete, quizResults, transferComplete]);
 
   const sendMessage = async (event: React.FormEvent) => {
     event.preventDefault();
@@ -714,12 +736,86 @@ export default function LessonView() {
                 </aside>
               )}
 
+              {(lessonData.learningObjective || lessonData.connection) && (
+                <section className="lesson-contract" aria-label="Lesson purpose">
+                  {lessonData.learningObjective && (
+                    <div><Target size={18} /><span><small>Learning objective</small><strong>{lessonData.learningObjective}</strong></span></div>
+                  )}
+                  {lessonData.connection && (
+                    <div><Waypoints size={18} /><span><small>Why this comes next</small><strong>{lessonData.connection}</strong></span></div>
+                  )}
+                </section>
+              )}
+
               <div className="markdown-content"><ReactMarkdown>{normalizedContent}</ReactMarkdown></div>
+
+              {lessonData.guidedPractice && (
+                <section className="lesson-section guided-practice" aria-labelledby="guided-practice-title">
+                  <div className="lesson-section-heading">
+                    <p className="overline">Guided practice</p>
+                    <h2 id="guided-practice-title">Work through the idea</h2>
+                    <p>{lessonData.guidedPractice.prompt}</p>
+                  </div>
+                  <ol>
+                    {lessonData.guidedPractice.steps.map((step, index) => (
+                      <li key={`${step}-${index}`}><span>{index + 1}</span><p>{step}</p></li>
+                    ))}
+                  </ol>
+                  <details className="model-answer">
+                    <summary>Compare with a worked response</summary>
+                    <ReactMarkdown>{lessonData.guidedPractice.modelAnswer}</ReactMarkdown>
+                  </details>
+                </section>
+              )}
 
               {lessonData.diagram && (
                 <section className="lesson-section" aria-labelledby="model-title">
                   <div className="lesson-section-heading"><p className="overline">Mental model</p><h2 id="model-title">See the relationships</h2></div>
                   <MermaidDiagram chart={lessonData.diagram} summary={lessonData.diagramSummary} />
+                </section>
+              )}
+
+              {lessonData.keyTakeaways?.length ? (
+                <section className="lesson-section key-takeaways" aria-labelledby="takeaways-title">
+                  <div className="lesson-section-heading"><p className="overline">Consolidate</p><h2 id="takeaways-title">What to retain</h2></div>
+                  <ul>{lessonData.keyTakeaways.map((takeaway) => <li key={takeaway}><Check size={16} /><span>{takeaway}</span></li>)}</ul>
+                </section>
+              ) : null}
+
+              {lessonData.transferTask && (
+                <section className="lesson-section transfer-practice" aria-labelledby="transfer-title">
+                  <div className="lesson-section-heading">
+                    <p className="overline">Transfer</p>
+                    <h2 id="transfer-title">Use it in a new situation</h2>
+                    <p>{lessonData.transferTask.prompt}</p>
+                  </div>
+                  <div className="transfer-criteria">
+                    <strong>A strong response will:</strong>
+                    <ul>{lessonData.transferTask.successCriteria.map((criterion) => <li key={criterion}>{criterion}</li>)}</ul>
+                  </div>
+                  <label htmlFor="transfer-response">Your response</label>
+                  <textarea
+                    id="transfer-response"
+                    rows={5}
+                    value={transferResponse}
+                    onChange={(event) => setTransferState({ key: noteKey, response: event.target.value, revealed: false })}
+                    placeholder="Apply the idea in your own words."
+                  />
+                  <small>This response stays on this page and is not sent to the tutor.</small>
+                  <button
+                    className="button button-secondary button-small"
+                    type="button"
+                    disabled={!transferResponse.trim()}
+                    onClick={() => setTransferState((current) => ({ ...current, key: noteKey, revealed: true }))}
+                  >
+                    Compare response
+                  </button>
+                  {transferRevealed && (
+                    <div className="transfer-model" aria-live="polite">
+                      <strong>Model response</strong>
+                      <ReactMarkdown>{lessonData.transferTask.modelResponse}</ReactMarkdown>
+                    </div>
+                  )}
                 </section>
               )}
 
@@ -742,9 +838,9 @@ export default function LessonView() {
                 <div>{complete ? <CheckCircle2 size={22} /> : <CircleAlert size={22} />}</div>
                 <span>
                   <strong>{complete ? (reviewMode ? "Review complete" : "Lesson complete") : "Complete the activities"}</strong>
-                  <small>{complete ? (progressSyncError || (user ? "Progress synced. Your next review has been scheduled." : "Progress saved on this device. Sign in to sync it.")) : "Answer every prompt correctly and rate your confidence."}</small>
+                  <small>{complete ? (progressSyncError || (user ? "Progress synced. Your next review has been scheduled." : "Progress saved on this device. Sign in to sync it.")) : lessonData.transferTask && !transferComplete ? "Complete the transfer task, then finish each retrieval check." : "Answer every prompt correctly and rate your confidence."}</small>
                 </span>
-                {!complete && lessonData.quizzes.length === 0 && (
+                {!complete && lessonData.quizzes.length === 0 && transferComplete && (
                   <button className="button button-secondary button-small" onClick={() => void markComplete()}>Mark learned</button>
                 )}
               </div>
@@ -777,7 +873,7 @@ export default function LessonView() {
                 <span>{noteDraft.length.toLocaleString()}/12,000 · <span role={learnerSyncStatus === "error" ? "alert" : "status"}>{learnerSyncStatus === "saving" ? "Saving…" : learnerSyncStatus === "error" ? learnerSyncError : learnerSyncStatus === "saved" ? "Saved" : user ? "Synced" : "On this device"}</span></span>
               </section>
               <section className="study-key-point"><span><Lightbulb size={17} /></span><div><strong>Core idea</strong><p>{lesson.concept}</p></div></section>
-              <section className="mastery-checklist"><strong>Lesson checklist</strong><ul><li className="is-done"><Check size={15} /> Read the explanation</li><li className={lessonData.diagram ? "is-done" : ""}><Check size={15} /> Review the mental model</li><li className={complete ? "is-done" : ""}><Check size={15} /> Complete the activities</li></ul></section>
+              <section className="mastery-checklist"><strong>Lesson checklist</strong><ul><li className="is-done"><Check size={15} /> Read the explanation</li>{lessonData.transferTask && <li className={transferComplete ? "is-done" : ""}><Check size={15} /> Apply the idea</li>}<li className={complete ? "is-done" : ""}><Check size={15} /> Complete the retrieval checks</li></ul></section>
             </aside>
           )}
 

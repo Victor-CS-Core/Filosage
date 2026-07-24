@@ -282,6 +282,7 @@ export async function GET(request: Request) {
             uid,
             userLabel: userLabel(uid),
             feature: featureValue(record.feature),
+            model: stringValue(record.model),
             status: stringValue(record.status) ?? "unknown",
             inputTokens: numberValue(record.inputTokens),
             cachedInputTokens: numberValue(record.cachedInputTokens),

@@ -34,12 +34,24 @@ export const courseOutlineSchema = z.object({
       z.object({
         title: z.string().trim().min(1).max(120),
         description: z.string().trim().min(1).max(300),
+        objective: z.string().trim().min(1).max(300),
+        challenge: z.object({
+          title: z.string().trim().min(1).max(120),
+          prompt: z.string().trim().min(1).max(600),
+          successCriteria: z.array(z.string().trim().min(1).max(220)).min(2).max(4),
+        }),
         lessons: z
           .array(
             z.object({
               title: z.string().trim().min(1).max(120),
               concept: z.string().trim().min(1).max(300),
               estimatedMinutes: z.number().int().min(3).max(90),
+              objective: z.string().trim().min(1).max(300),
+              lessonMode: z.enum(["concept", "worked-example", "comparison", "case-study", "practice-lab", "synthesis"]),
+              buildsOn: z.array(z.string().trim().min(1).max(120)).max(3),
+              misconception: z.string().trim().min(1).max(300),
+              practiceType: z.enum(["explain", "classify", "calculate", "decide", "create", "debug"]),
+              masteryCriteria: z.string().trim().min(1).max(300),
             }),
           )
           .min(2)
@@ -48,12 +60,31 @@ export const courseOutlineSchema = z.object({
     )
     .min(2)
     .max(6),
+  capstone: z.object({
+    title: z.string().trim().min(1).max(120),
+    brief: z.string().trim().min(1).max(800),
+    deliverable: z.string().trim().min(1).max(300),
+    successCriteria: z.array(z.string().trim().min(1).max(220)).min(3).max(5),
+  }),
 });
 
 export const lessonDataSchema = z.object({
-  content: z.string().trim().min(1).max(30_000),
+  learningObjective: z.string().trim().min(1).max(400),
+  connection: z.string().trim().min(1).max(500),
+  keyTakeaways: z.array(z.string().trim().min(1).max(240)).min(3).max(5),
+  content: z.string().trim().min(800).max(24_000),
   diagram: z.string().max(8_000),
-  diagramSummary: z.string().trim().min(1).max(2_000),
+  diagramSummary: z.string().max(2_000),
+  guidedPractice: z.object({
+    prompt: z.string().trim().min(1).max(800),
+    steps: z.array(z.string().trim().min(1).max(400)).min(2).max(5),
+    modelAnswer: z.string().trim().min(1).max(2_000),
+  }),
+  transferTask: z.object({
+    prompt: z.string().trim().min(1).max(800),
+    successCriteria: z.array(z.string().trim().min(1).max(240)).min(2).max(4),
+    modelResponse: z.string().trim().min(1).max(2_000),
+  }),
   quizzes: z
     .array(
       z.object({
@@ -61,6 +92,7 @@ export const lessonDataSchema = z.object({
         options: z.array(z.string().trim().min(1).max(300)).length(4),
         correctIndex: z.number().int().min(0).max(3),
         explanation: z.string().trim().min(1).max(1_000),
+        optionFeedback: z.array(z.string().trim().min(1).max(500)).length(4),
       }),
     )
     .min(2)

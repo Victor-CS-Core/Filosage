@@ -10,22 +10,56 @@ import {
   reserveAiUsage,
   type AiReservation,
 } from "@/lib/ai-usage";
+import type { AiUsageSample } from "@/lib/ai-pricing";
 import {
   generateLessonInputSchema,
   lessonDataSchema,
   validationMessage,
 } from "@/lib/validation";
 import { findCourseLesson } from "@/lib/course-progress";
-import type { Course } from "@/lib/course-types";
+import type { Course, LessonData } from "@/lib/course-types";
 import { AI_SAFETY_POLICY, assertSafeContent, ContentSafetyError } from "@/lib/content-safety";
 import { apiRequestErrorResponse, readJsonBody } from "@/lib/api-security";
 import { openAiSafetyIdentifier } from "@/lib/ai-usage";
 
-const model = process.env.OPENAI_LESSON_MODEL || process.env.OPENAI_MODEL || "gpt-5.6-terra";
+const model = process.env.OPENAI_LESSON_MODEL || "gpt-5.6-luna";
+const fallbackModel = process.env.OPENAI_LESSON_FALLBACK_MODEL
+  || process.env.OPENAI_COURSE_MODEL
+  || process.env.OPENAI_MODEL
+  || "gpt-5.6-terra";
+
+const lessonInstructions = `Act as a rigorous teacher and instructional designer. Create one lesson that advances a specific capability within a larger course.
+
+Use the requested lesson mode instead of forcing every lesson into the same pattern. Begin by connecting this lesson to prerequisite knowledge, then state one observable learning objective. Explain the governing mental model from first principles with one concrete example. Use the supplied misconception to create a useful contrast. Include guided practice with visible reasoning, followed by a transfer task that asks the learner to use the idea in a different situation. End with concise takeaways, not a repeated conclusion.
+
+Write direct, natural prose in accessible Markdown. Use descriptive H2 and H3 headings only and never repeat the lesson title as a heading. Target roughly 900 to 1,300 words. Avoid generic encouragement, promotional language, vague claims, invented citations, repeated conclusions, and filler.
+
+Only include a Mermaid diagram when spatial, causal, sequential, or comparative relationships are materially clearer as a visual. Otherwise return an empty diagram and diagramSummary. When used, Mermaid must be syntactically valid, simple, legible on a phone, and contain no external links or HTML. The diagramSummary must communicate every relationship in plain language.
+
+Create application-focused quizzes, not trivia. Each answer option needs feedback that explains why that specific choice is correct or incorrect. Vary the correct option positions. Return only the requested structured lesson.
+
+${AI_SAFETY_POLICY}`;
+
+function lessonQualityIssues(lesson: LessonData | null) {
+  if (!lesson) return ["No structured lesson was returned."];
+  const issues: string[] = [];
+  if (lesson.content.trim().length < 1_500) issues.push("The explanation is too shallow.");
+  if (!lesson.learningObjective?.trim()) issues.push("The observable learning objective is missing.");
+  if (!lesson.connection?.trim()) issues.push("The curricular connection is missing.");
+  if ((lesson.keyTakeaways?.length ?? 0) < 3) issues.push("At least three concrete takeaways are required.");
+  if ((lesson.guidedPractice?.steps.length ?? 0) < 2) issues.push("Guided practice needs at least two reasoning steps.");
+  if ((lesson.transferTask?.successCriteria.length ?? 0) < 2) issues.push("The transfer task needs measurable success criteria.");
+  if (lesson.diagram.trim() && !lesson.diagramSummary?.trim()) issues.push("A diagram requires an accessible summary.");
+  if (lesson.quizzes.length < 2) issues.push("At least two application-focused checks are required.");
+  if (lesson.quizzes.some((quiz) => quiz.options.length !== 4 || quiz.optionFeedback?.length !== 4)) {
+    issues.push("Every quiz option needs corresponding feedback.");
+  }
+  return issues;
+}
 
 export async function POST(request: Request) {
   let reservation: AiReservation | null = null;
-  let observedUsage = { inputTokens: 0, cachedInputTokens: 0, outputTokens: 0 };
+  const usageSamples: AiUsageSample[] = [];
   let responseId: string | undefined;
   try {
     const account = await requirePremium(request);
@@ -55,6 +89,22 @@ export async function POST(request: Request) {
     const lessonTitle = canonical.lesson.title;
     const lessonConcept = canonical.lesson.concept;
     const coursePublic = course.isPublic === true;
+    const currentModule = course.modules[canonical.moduleIndex];
+    const flattenedLessons = course.modules.flatMap((courseModule, moduleIndex) =>
+      courseModule.lessons.map((lesson, lessonIndex) => ({
+        ...lesson,
+        id: `${moduleIndex}-${lessonIndex}`,
+        moduleTitle: courseModule.title,
+      })),
+    );
+    const currentPosition = flattenedLessons.findIndex((lesson) => lesson.id === lessonId);
+    const previousLesson = currentPosition > 0 ? flattenedLessons[currentPosition - 1] : null;
+    const nextLesson = currentPosition >= 0 && currentPosition < flattenedLessons.length - 1
+      ? flattenedLessons[currentPosition + 1]
+      : null;
+    const instructionalContext = (course as Course & {
+      instructionalContext?: { goal?: string; application?: string; background?: string };
+    }).instructionalContext;
 
     reservation = await reserveAiUsage(account, "lesson_generation", request.headers.get("idempotency-key"));
     const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
@@ -63,25 +113,72 @@ export async function POST(request: Request) {
       [topic, lessonTitle, lessonConcept, course.outcome ?? course.mission ?? ""].join("\n"),
       { uid: account.uid, feature: "lesson_generation", stage: "input" },
     );
-    const response = await client.responses.parse({
-      model,
+    const safetyIdentifier = await openAiSafetyIdentifier(account.uid);
+    const lessonContext = [
+      `Course topic: ${topic}`,
+      `Course outcome: ${course.outcome ?? course.mission}`,
+      `Module: ${currentModule?.title ?? "Current module"}`,
+      `Module objective: ${currentModule?.objective ?? currentModule?.description ?? "Not specified"}`,
+      `Lesson: ${lessonTitle}`,
+      `Core concept: ${lessonConcept}`,
+      `Observable objective: ${canonical.lesson.objective ?? lessonConcept}`,
+      `Teaching mode: ${canonical.lesson.lessonMode ?? "concept"}`,
+      `Builds on: ${canonical.lesson.buildsOn?.join(", ") || previousLesson?.title || "No named prerequisite lesson"}`,
+      `Misconception to correct: ${canonical.lesson.misconception ?? "Identify the most consequential misconception for this concept."}`,
+      `Practice type: ${canonical.lesson.practiceType ?? "explain"}`,
+      `Mastery criterion: ${canonical.lesson.masteryCriteria ?? "Explain and apply the concept accurately."}`,
+      previousLesson
+        ? `Previous lesson: ${previousLesson.title} — ${previousLesson.objective ?? previousLesson.concept}`
+        : "Previous lesson: This is the opening lesson.",
+      nextLesson
+        ? `Next lesson: ${nextLesson.title} — ${nextLesson.objective ?? nextLesson.concept}`
+        : "Next lesson: This is the final lesson.",
+      currentModule?.challenge
+        ? `Module challenge: ${currentModule.challenge.prompt} Success means: ${currentModule.challenge.successCriteria.join("; ")}`
+        : "",
+      course.capstone
+        ? `Course capstone: ${course.capstone.brief} Deliverable: ${course.capstone.deliverable}`
+        : "",
+      instructionalContext?.goal ? `Learner goal: ${instructionalContext.goal}` : "",
+      instructionalContext?.application ? `Intended application: ${instructionalContext.application}` : "",
+      instructionalContext?.background ? `Learner background: ${instructionalContext.background}` : "",
+    ].filter(Boolean).join("\n");
+
+    const generate = (selectedModel: string, repairIssues: string[] = []) => client.responses.parse({
+      model: selectedModel,
       store: false,
-      instructions:
-        `Design one rigorous, memorable lesson. Build understanding in this order: orient the learner with a concrete question, explain the mental model from first principles, work through one realistic example step by step, identify a common misconception, and end with a short transfer prompt. Write direct, natural prose in accessible Markdown with descriptive H2 sections and H3 subsections only; never repeat the lesson title as a heading. Avoid generic encouragement, promotional language, vague claims, repeated conclusions, and filler. Mermaid diagrams must be syntactically valid, simple, legible on a phone, and contain no external links or HTML. Always include a plain-language diagramSummary that communicates every relationship for learners who cannot see the diagram. Quizzes must test recall and application rather than trivia. Distribute correct answers across different option positions; do not consistently place the correct answer first. Return only the requested structured lesson.\n\n${AI_SAFETY_POLICY}`,
-      input: `Course topic: ${topic}\nLesson: ${lessonTitle}\nCore concept: ${lessonConcept}\nCourse outcome: ${course.outcome ?? course.mission}\nModule: ${course.modules[canonical.moduleIndex]?.title ?? "Current module"}`,
+      instructions: lessonInstructions,
+      input: repairIssues.length
+        ? `${lessonContext}\n\nThe previous draft failed the quality gate. Correct every issue:\n- ${repairIssues.join("\n- ")}`
+        : lessonContext,
       text: {
         format: zodTextFormat(lessonDataSchema, "lesson"),
       },
-      max_output_tokens: 6_000,
-      safety_identifier: await openAiSafetyIdentifier(account.uid),
+      max_output_tokens: 4_000,
+      safety_identifier: safetyIdentifier,
     });
-    responseId = response.id;
-    observedUsage = extractOpenAiUsage(response);
 
-    const lesson = response.output_parsed;
-    if (!lesson) {
+    const primaryResponse = await generate(model);
+    responseId = primaryResponse.id;
+    usageSamples.push({ model, ...extractOpenAiUsage(primaryResponse), responseId });
+    let lesson = primaryResponse.output_parsed as LessonData | null;
+    let qualityIssues = lessonQualityIssues(lesson);
+    let usedFallback = false;
+
+    if (qualityIssues.length && fallbackModel !== model) {
+      const fallbackResponse = await generate(fallbackModel, qualityIssues);
+      responseId = fallbackResponse.id;
+      usageSamples.push({ model: fallbackModel, ...extractOpenAiUsage(fallbackResponse), responseId });
+      lesson = fallbackResponse.output_parsed as LessonData | null;
+      qualityIssues = lessonQualityIssues(lesson);
+      usedFallback = true;
+    }
+
+    if (!lesson || qualityIssues.length) {
+      await finalizeAiUsage(reservation, { usageSamples, model, responseId, failed: true });
+      reservation = null;
       return NextResponse.json(
-        { error: "The lesson could not be structured. Please try again." },
+        { error: "The lesson did not meet Erudoza's teaching-quality standard. Please try again." },
         { status: 502 },
       );
     }
@@ -96,15 +193,18 @@ export async function POST(request: Request) {
       authorId: account.uid,
       aiAssisted: true,
       isPublic: coursePublic,
+      schemaVersion: 2,
+      generationModel: usedFallback ? fallbackModel : model,
+      fallbackUsed: usedFallback,
     });
 
-    await finalizeAiUsage(reservation, { ...observedUsage, responseId });
+    await finalizeAiUsage(reservation, { usageSamples, responseId });
     reservation = null;
 
     return NextResponse.json({ ...lesson, aiAssisted: true });
   } catch (error: unknown) {
     if (reservation) {
-      await finalizeAiUsage(reservation, { ...observedUsage, responseId, failed: true }).catch((usageError) => {
+      await finalizeAiUsage(reservation, { usageSamples, model, responseId, failed: true }).catch((usageError) => {
         console.error("Lesson usage finalization failed:", usageError);
       });
     }

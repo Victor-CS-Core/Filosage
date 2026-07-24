@@ -75,11 +75,11 @@ export async function POST(request: Request) {
               observedUsage = extractOpenAiUsage(event.response);
             }
           }
-          await finalizeAiUsage(activeReservation, { ...observedUsage, responseId });
+          await finalizeAiUsage(activeReservation, { ...observedUsage, model, responseId });
           controller.close();
         } catch (error) {
           console.error("Tutor stream failed:", error);
-          await finalizeAiUsage(activeReservation, { ...observedUsage, responseId, failed: true }).catch((usageError) => {
+          await finalizeAiUsage(activeReservation, { ...observedUsage, model, responseId, failed: true }).catch((usageError) => {
             console.error("Tutor usage finalization failed:", usageError);
           });
           controller.error(error);
@@ -95,7 +95,7 @@ export async function POST(request: Request) {
     });
   } catch (error: unknown) {
     if (reservation) {
-      await finalizeAiUsage(reservation, { failed: true }).catch((usageError) => {
+      await finalizeAiUsage(reservation, { model, failed: true }).catch((usageError) => {
         console.error("Tutor usage finalization failed:", usageError);
       });
     }

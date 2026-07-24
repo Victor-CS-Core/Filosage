@@ -3,6 +3,11 @@ import "server-only";
 import type { AiQuotaSummary } from "@/lib/course-types";
 import type { ServerAccount } from "@/lib/account-server";
 import {
+  estimateAiUsageCostMicros,
+  summarizeAiUsage,
+  type AiUsageSample,
+} from "@/lib/ai-pricing";
+import {
   getStoredDocument,
   runStoredDocumentTransaction,
 } from "@/lib/firebase-server";
@@ -264,26 +269,36 @@ export async function finalizeAiUsage(
     inputTokens?: number;
     cachedInputTokens?: number;
     outputTokens?: number;
+    model?: string;
+    usageSamples?: AiUsageSample[];
     responseId?: string;
     failed?: boolean;
   },
 ) {
   const nowIso = new Date().toISOString();
-  const inputTokens = numberValue(result.inputTokens);
-  const cachedInputTokens = numberValue(result.cachedInputTokens);
-  const outputTokens = numberValue(result.outputTokens);
-  const tutorRequest = reservation.feature === "tutor";
-  const inputRate = Number(
-    tutorRequest
-      ? process.env.OPENAI_TUTOR_INPUT_COST_PER_MILLION ?? "1"
-      : process.env.OPENAI_INPUT_COST_PER_MILLION ?? "2.5",
-  );
-  const outputRate = Number(
-    tutorRequest
-      ? process.env.OPENAI_TUTOR_OUTPUT_COST_PER_MILLION ?? "6"
-      : process.env.OPENAI_OUTPUT_COST_PER_MILLION ?? "15",
-  );
-  const actualCostMicros = Math.max(0, Math.round(inputTokens * inputRate + outputTokens * outputRate));
+  const defaultModel = reservation.feature === "tutor"
+    ? process.env.OPENAI_TUTOR_MODEL || "gpt-5.6-luna"
+    : reservation.feature === "lesson_generation"
+      ? process.env.OPENAI_LESSON_MODEL || "gpt-5.6-luna"
+      : process.env.OPENAI_COURSE_MODEL || process.env.OPENAI_MODEL || "gpt-5.6-terra";
+  const samples = result.usageSamples?.length
+    ? result.usageSamples
+    : [{
+        model: result.model || defaultModel,
+        inputTokens: numberValue(result.inputTokens),
+        cachedInputTokens: numberValue(result.cachedInputTokens),
+        outputTokens: numberValue(result.outputTokens),
+        responseId: result.responseId,
+      }];
+  const usage = summarizeAiUsage(samples);
+  const inputTokens = usage.inputTokens;
+  const cachedInputTokens = Math.min(inputTokens, usage.cachedInputTokens);
+  const outputTokens = usage.outputTokens;
+  const actualCostMicros = samples.length === 1
+    ? estimateAiUsageCostMicros({ ...samples[0], cachedInputTokens })
+    : usage.actualCostMicros;
+  const models = Array.from(new Set(samples.map((sample) => sample.model)));
+  const responseIds = samples.flatMap((sample) => sample.responseId ? [sample.responseId] : []);
 
   await runStoredDocumentTransaction(
     [reservation.periodPath, reservation.requestPath, reservation.globalPath],
@@ -316,7 +331,10 @@ export async function finalizeAiUsage(
               cachedInputTokens,
               outputTokens,
               actualCostMicros,
-              responseId: result.responseId ?? null,
+              model: models.join(" → "),
+              models,
+              responseId: result.responseId ?? responseIds.at(-1) ?? null,
+              responseIds,
               updatedAt: nowIso,
             },
           },

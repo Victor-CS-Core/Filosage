@@ -91,6 +91,7 @@ export interface AdminOverview {
     uid: string;
     userLabel: string;
     feature: AiFeature;
+    model?: string;
     status: string;
     inputTokens: number;
     cachedInputTokens: number;

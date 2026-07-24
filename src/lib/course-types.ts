@@ -1,12 +1,40 @@
+export type LessonMode =
+  | "concept"
+  | "worked-example"
+  | "comparison"
+  | "case-study"
+  | "practice-lab"
+  | "synthesis";
+
+export type PracticeType =
+  | "explain"
+  | "classify"
+  | "calculate"
+  | "decide"
+  | "create"
+  | "debug";
+
 export interface LessonSummary {
   title: string;
   concept: string;
   estimatedMinutes?: number;
+  objective?: string;
+  lessonMode?: LessonMode;
+  buildsOn?: string[];
+  misconception?: string;
+  practiceType?: PracticeType;
+  masteryCriteria?: string;
 }
 
 export interface CourseModule {
   title: string;
   description?: string;
+  objective?: string;
+  challenge?: {
+    title: string;
+    prompt: string;
+    successCriteria: string[];
+  };
   lessons: LessonSummary[];
 }
 
@@ -28,6 +56,13 @@ export interface Course {
   category?: string;
   updatedAt?: string;
   aiAssisted?: boolean;
+  schemaVersion?: number;
+  capstone?: {
+    title: string;
+    brief: string;
+    deliverable: string;
+    successCriteria: string[];
+  };
 }
 
 export interface Quiz {
@@ -35,6 +70,7 @@ export interface Quiz {
   options: string[];
   correctIndex: number;
   explanation: string;
+  optionFeedback?: string[];
 }
 
 export interface LessonData {
@@ -43,6 +79,19 @@ export interface LessonData {
   diagramSummary?: string;
   quizzes: Quiz[];
   aiAssisted?: boolean;
+  learningObjective?: string;
+  connection?: string;
+  keyTakeaways?: string[];
+  guidedPractice?: {
+    prompt: string;
+    steps: string[];
+    modelAnswer: string;
+  };
+  transferTask?: {
+    prompt: string;
+    successCriteria: string[];
+    modelResponse: string;
+  };
 }
 
 export type LearnerPlan = "free" | "pro";

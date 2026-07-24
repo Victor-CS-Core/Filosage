@@ -54,7 +54,7 @@ export async function POST(request: Request) {
       model,
       store: false,
       instructions:
-        `Design a structured course with progressive difficulty, retrieval practice, and appropriate scaffolding. Include a realistic level, total learning time, concrete outcome, prerequisites, category, and an estimated time for every lesson. Keep each lesson tightly scoped, independently useful, and free of filler. Write titles and descriptions in plain, specific, instructional language. Avoid promotional claims, motivational slogans, vague abstractions, and repetitive phrasing. Use the term course, not learning path. Return the requested structured course only.\n\n${AI_SAFETY_POLICY}`,
+        `Act as an instructional designer. Build a coherent course in which every lesson prepares the learner for a later capability, not a collection of standalone articles. Sequence prerequisite knowledge explicitly. Give every module one observable objective and an applied challenge. Give every lesson one observable objective, the lesson titles it builds on, a specific misconception to correct, a suitable teaching mode, an appropriate practice type, and a clear mastery criterion. Vary lesson modes intentionally so the course does not repeat one template. End with a capstone that directly demonstrates the course outcome. Include a realistic level, total learning time, prerequisites, category, and estimated time for every lesson. Keep lessons tightly scoped and free of filler. Use plain, specific instructional language without promotional claims, motivational slogans, vague abstractions, or repetitive phrasing. Use the term course, not learning path. Return the requested structured course only.\n\n${AI_SAFETY_POLICY}`,
       input: [
         `Create a complete but efficient course outline for: ${topic}`,
         goal ? `Learner's observable goal: ${goal}` : "",
@@ -63,12 +63,13 @@ export async function POST(request: Request) {
         level ? `Requested starting level: ${level}` : "",
         `Target plan: ${targetWeeks} weeks at ${weeklyMinutes ?? 120} minutes per week, approximately ${studyBudget} minutes total. Keep the estimated course time close to this budget rather than padding the outline.`,
         `Teaching approach: ${courseStyle}. ${approach}`,
-        "Sequence prerequisite concepts before dependent concepts. Adapt examples and practice to the learner's intended application. Make every lesson earn its place and end with an observable capability.",
+        "Use concept and worked-example lessons early, guided practice in the middle, and case, lab, or synthesis work when the learner has enough prerequisite knowledge.",
+        "Module challenges and the capstone must be assessable from their success criteria. Adapt examples and practice to the learner's intended application.",
       ].filter(Boolean).join("\n"),
       text: {
         format: zodTextFormat(courseOutlineSchema, "course_outline"),
       },
-      max_output_tokens: 4_000,
+      max_output_tokens: 7_000,
       safety_identifier: await openAiSafetyIdentifier(account.uid),
     });
     responseId = response.id;
@@ -76,6 +77,8 @@ export async function POST(request: Request) {
 
     const outline = response.output_parsed;
     if (!outline) {
+      await finalizeAiUsage(reservation, { ...observedUsage, model, responseId, failed: true });
+      reservation = null;
       return NextResponse.json(
         { error: "The course could not be structured. Please try again." },
         { status: 502 },
@@ -91,6 +94,12 @@ export async function POST(request: Request) {
       topic,
       ...outline,
       topicKey: topic.toLowerCase().replace(/\s+/g, " "),
+      schemaVersion: 2,
+      instructionalContext: {
+        goal,
+        application,
+        background,
+      },
       authorId: account.uid,
       authorName: account.displayName ?? (account.isOwner ? "Erudoza" : "Erudoza learner"),
       authorPhoto: account.photoURL ?? null,
@@ -98,13 +107,13 @@ export async function POST(request: Request) {
       aiAssisted: true,
     });
 
-    await finalizeAiUsage(reservation, { ...observedUsage, responseId });
+    await finalizeAiUsage(reservation, { ...observedUsage, model, responseId });
     reservation = null;
 
     return NextResponse.json({ ...outline, courseId: course.id, isPublic: false, aiAssisted: true });
   } catch (error: unknown) {
     if (reservation) {
-      await finalizeAiUsage(reservation, { ...observedUsage, responseId, failed: true }).catch((usageError) => {
+      await finalizeAiUsage(reservation, { ...observedUsage, model, responseId, failed: true }).catch((usageError) => {
         console.error("Course usage finalization failed:", usageError);
       });
     }

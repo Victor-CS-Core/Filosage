@@ -13,6 +13,7 @@ import {
   ChevronRight,
   Clock3,
   Circle,
+  Flag,
   Globe2,
   Layers3,
   Target,
@@ -284,7 +285,7 @@ export default function CourseMap() {
 
           <div className="course-learning-brief">
             <section><span><Target size={19} /></span><div><small>Course outcome</small><strong>{course.outcome ?? course.mission}</strong></div></section>
-            <section><span><CheckCircle2 size={19} /></span><div><small>By the end</small><strong>{course.modules[course.modules.length - 1]?.description ?? "Knowledge you can explain and apply"}</strong></div></section>
+            <section><span><CheckCircle2 size={19} /></span><div><small>By the end</small><strong>{course.capstone?.deliverable ?? course.modules[course.modules.length - 1]?.description ?? "Knowledge you can explain and apply"}</strong></div></section>
             <section><span><BookOpen size={19} /></span><div><small>Before you begin</small><strong>{course.prerequisites?.length ? course.prerequisites.join(" · ") : "No prior knowledge required"}</strong></div></section>
           </div>
 
@@ -322,7 +323,7 @@ export default function CourseMap() {
                 <article className={`module-section ${expanded ? "is-open" : ""}`} key={`${module.title}-${moduleIndex}`}>
                   <button className="module-trigger" onClick={() => setExpandedModule(expanded ? null : moduleIndex)} aria-expanded={expanded}>
                     <span className="module-sequence"><b>{String(moduleIndex + 1).padStart(2, "0")}</b><small>Module</small></span>
-                    <span className="module-title"><h3>{module.title}</h3><small>{module.description}</small></span>
+                    <span className="module-title"><h3>{module.title}</h3><small>{module.objective ?? module.description}</small></span>
                     <span className="module-completion"><strong>{completedInModule}/{module.lessons.length}</strong><i><b style={{ transform: `scaleX(${moduleProgress / 100})` }} /></i></span>
                     {expanded ? <ChevronDown size={19} /> : <ChevronRight size={19} />}
                   </button>
@@ -339,18 +340,44 @@ export default function CourseMap() {
                             onClick={() => router.push(`/course/${encodeURIComponent(topic)}/lesson/${lessonId}${courseId ? `?id=${courseId}` : ""}`)}
                           >
                             <span className={`lesson-status ${complete ? "is-complete" : ""}`}>{complete ? <Check size={14} /> : <span>{moduleIndex + 1}.{lessonIndex + 1}</span>}</span>
-                            <span><strong>{lesson.title}</strong><small>{lesson.concept}</small></span>
+                            <span>
+                              <strong>{lesson.title}</strong>
+                              <small>{lesson.objective ?? lesson.concept}</small>
+                              {lesson.lessonMode && <em>{lesson.lessonMode.replace("-", " ")}</em>}
+                            </span>
                             <span className="lesson-duration">{lesson.estimatedMinutes ?? 12} min</span>
                             <ArrowRight size={17} />
                           </button>
                         );
                       })}
+                      {module.challenge && (
+                        <div className="module-challenge">
+                          <Flag size={17} />
+                          <div>
+                            <small>Module challenge</small>
+                            <strong>{module.challenge.title}</strong>
+                            <p>{module.challenge.prompt}</p>
+                          </div>
+                        </div>
+                      )}
                     </div>
                   )}
                 </article>
               );
             })}
           </div>
+          {course.capstone && (
+            <section className="course-capstone" aria-labelledby="capstone-title">
+              <Flag size={20} />
+              <div>
+                <p className="overline">Course capstone</p>
+                <h3 id="capstone-title">{course.capstone.title}</h3>
+                <p>{course.capstone.brief}</p>
+                <strong>Deliverable: {course.capstone.deliverable}</strong>
+                <ul>{course.capstone.successCriteria.map((criterion) => <li key={criterion}>{criterion}</li>)}</ul>
+              </div>
+            </section>
+          )}
         </section>
       </div>
     </AppShell>

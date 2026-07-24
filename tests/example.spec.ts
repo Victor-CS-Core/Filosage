@@ -3,6 +3,7 @@ import { readdir, readFile } from "node:fs/promises";
 import { extname, join } from "node:path";
 import { evaluateBadges } from "../src/lib/badges";
 import { normalizeDashboardPreferences } from "../src/lib/dashboard-preferences";
+import { estimateAiUsageCostMicros, summarizeAiUsage } from "../src/lib/ai-pricing";
 
 async function sourceFiles(directory: string): Promise<string[]> {
   const entries = await readdir(directory, { withFileTypes: true });
@@ -100,6 +101,25 @@ test("keeps the learning library public", async ({ page }) => {
     page.getByRole("heading", { name: "Understand more. Achieve more." }),
   ).toBeVisible();
   await expect(page.getByText("No account required to read")).toBeVisible();
+});
+
+test("prices cached input and mixed-model fallbacks accurately", () => {
+  const luna = {
+    model: "gpt-5.6-luna",
+    inputTokens: 1_000,
+    cachedInputTokens: 400,
+    outputTokens: 100,
+  };
+  const terra = { ...luna, model: "gpt-5.6-terra" };
+
+  expect(estimateAiUsageCostMicros(luna)).toBe(1_240);
+  expect(estimateAiUsageCostMicros(terra)).toBe(3_100);
+  expect(summarizeAiUsage([luna, terra])).toEqual({
+    inputTokens: 2_000,
+    cachedInputTokens: 800,
+    outputTokens: 200,
+    actualCostMicros: 4_340,
+  });
 });
 
 test("keeps the owner control room private at both page and API boundaries", async ({ page, request }) => {
@@ -232,6 +252,59 @@ test("does not complete a lesson after a wrong answer", async ({ page }) => {
   await expect(page.getByRole("heading", { name: "Leverage points" })).toBeVisible();
   await expect(page.locator(".completion-banner").getByText("Complete the activities")).toBeVisible();
   await expect(page.locator(".completion-banner").getByText("Lesson complete")).not.toBeVisible();
+});
+
+test("renders the didactic lesson contract and transfer practice", async ({ page }) => {
+  await page.route("**/api/courses/didactic-demo", (route) => route.fulfill({ json: {
+    id: "didactic-demo",
+    courseId: "didactic-demo",
+    topic: "Decision making",
+    mission: "Make defensible decisions under uncertainty.",
+    isPublic: true,
+    modules: [{
+      title: "Evidence",
+      objective: "Separate observations from assumptions.",
+      lessons: [{
+        title: "Evidence and inference",
+        concept: "How claims depend on evidence",
+        objective: "Classify statements as evidence or inference.",
+        lessonMode: "worked-example",
+        estimatedMinutes: 10,
+      }],
+    }],
+  } }));
+  await page.route("**/api/courses/didactic-demo/lessons/0-0", (route) => route.fulfill({ json: {
+    aiAssisted: true,
+    learningObjective: "Classify statements as evidence or inference.",
+    connection: "This distinction is required before comparing competing explanations.",
+    keyTakeaways: ["Evidence is observed.", "Inference interprets evidence.", "Good decisions keep the distinction visible."],
+    content: "## Begin with the claim\n\nA claim can report an observation or interpret what that observation means.",
+    diagram: "",
+    diagramSummary: "",
+    guidedPractice: {
+      prompt: "Work through a short claim.",
+      steps: ["Underline what was observed.", "Name the interpretation added to it."],
+      modelAnswer: "The measurement is evidence; the explanation is an inference.",
+    },
+    transferTask: {
+      prompt: "Apply the distinction to a workplace decision.",
+      successCriteria: ["Name the observation.", "Name the inference."],
+      modelResponse: "The missed deadline is observed; the claim that priorities are unclear is an inference.",
+    },
+    quizzes: [],
+  } }));
+
+  await page.goto("/course/Decision%20making/lesson/0-0?id=didactic-demo");
+  await expect(page.getByText("Classify statements as evidence or inference.")).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Work through the idea" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Use it in a new situation" })).toBeVisible();
+
+  const response = page.getByLabel("Your response");
+  await response.fill("The customer complaint is observed; the product diagnosis is an inference.");
+  const compare = page.getByRole("button", { name: "Compare response" });
+  await expect(compare).toBeEnabled();
+  await compare.click();
+  await expect(page.getByText("The missed deadline is observed; the claim that priorities are unclear is an inference.")).toBeVisible();
 });
 
 test("presents public courses as a browsable learning library", async ({ page }) => {

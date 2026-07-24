@@ -375,7 +375,7 @@ export default function AdminPage() {
                   <section className="admin-inspector-section">
                     <h3>Recent generation activity</h3>
                     <div className="admin-mini-log">
-                      {selectedRequests.map((request) => <div key={request.id}><Bot size={15} /><span><strong>{featureLabels[request.feature]}</strong><small>{shortDate(request.createdAt, true)}</small></span><em>{compactNumber(request.inputTokens + request.outputTokens)} tokens</em></div>)}
+                      {selectedRequests.map((request) => <div key={request.id}><Bot size={15} /><span><strong>{featureLabels[request.feature]}</strong><small>{request.model ? `${request.model} · ` : ""}{shortDate(request.createdAt, true)}</small></span><em>{compactNumber(request.inputTokens + request.outputTokens)} tokens</em></div>)}
                       {!selectedRequests.length && <p>No recent requests in the retained activity log.</p>}
                     </div>
                   </section>
@@ -422,7 +422,7 @@ export default function AdminPage() {
               <header><div><p className="overline">AI ledger</p><h2>Recent generation requests</h2></div><span>Prompts and generated text are not shown here</span></header>
               <div className="admin-log-table">
                 <div><span>Time</span><span>User</span><span>Feature</span><span>Status</span><span>Input</span><span>Output</span><span>Cost</span></div>
-                {data.recentGenerations.map((request) => <div key={request.id}><span>{shortDate(request.createdAt, true)}</span><span>{request.userLabel}</span><span>{featureLabels[request.feature]}</span><span><em className={`admin-status status-${request.status}`}>{request.status}</em></span><span>{compactNumber(request.inputTokens)}<small>{request.cachedInputTokens ? ` ${compactNumber(request.cachedInputTokens)} cached` : ""}</small></span><span>{compactNumber(request.outputTokens)}</span><span>{currency(request.costUsd)}</span></div>)}
+                {data.recentGenerations.map((request) => <div key={request.id}><span>{shortDate(request.createdAt, true)}</span><span>{request.userLabel}</span><span>{featureLabels[request.feature]}{request.model && <small>{request.model}</small>}</span><span><em className={`admin-status status-${request.status}`}>{request.status}</em></span><span>{compactNumber(request.inputTokens)}<small>{request.cachedInputTokens ? ` ${compactNumber(request.cachedInputTokens)} cached` : ""}</small></span><span>{compactNumber(request.outputTokens)}</span><span>{currency(request.costUsd)}</span></div>)}
                 {!data.recentGenerations.length && <p className="admin-empty-row">No AI requests have been recorded.</p>}
               </div>
             </section>
