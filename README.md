@@ -6,7 +6,7 @@ Owner access is resolved server-side from the verified Google account matching t
 
 ## Product modes
 
-- Anonymous learning: open discovery, published lessons, diagrams, mastery checks, and device progress
+- Anonymous learning: open discovery, published lessons, retrieval practice, mastery checks, and device progress
 - Free learner: Google sign-in, cloud progress, review scheduling, and a small daily tutor allowance
 - Erudoza Pro: private course generation with monthly credits and a larger tutor allowance
 - Owner: Pro access plus publishing and unpublishing for the public library
@@ -16,7 +16,7 @@ Owner access is resolved server-side from the verified Google account matching t
 - Next.js 16 App Router, React 19, and TypeScript
 - Firebase Authentication and Firestore
 - OpenAI Responses API with Zod Structured Outputs
-- Mermaid diagrams and Lucide icons
+- Lucide icons and prose-first lesson explanations
 - CSS design tokens with light/dark themes and WCAG 2.2 AA targets
 
 ## Local setup

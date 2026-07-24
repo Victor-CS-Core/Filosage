@@ -1,6 +1,6 @@
 "use client";
 
-import { Check, Crown, Gauge, LockKeyhole, Sparkles } from "lucide-react";
+import { Bell, Check, Crown, Gauge, LockKeyhole, Sparkles } from "lucide-react";
 import AppShell from "@/components/AppShell";
 import { useAuth } from "@/components/AuthProvider";
 import { SUPPORT_CONTACT } from "@/lib/legal";
@@ -47,9 +47,12 @@ export default function PricingPage() {
             {isPro ? (
               <div className="plan-status"><Sparkles size={17} /><span><strong>Pro is active</strong><small>{outlineQuota?.remaining ?? "Unlimited"} course outline credits remaining</small></span></div>
             ) : (
-              <button className="button button-primary" disabled title="Pro subscriptions are not available yet">
-                <LockKeyhole size={16} /> Pro subscriptions coming soon
-              </button>
+              <a
+                className="button button-primary"
+                href={`mailto:${SUPPORT_CONTACT}?subject=${encodeURIComponent("Erudoza Pro launch updates")}&body=${encodeURIComponent("Please let me know when Erudoza Pro subscriptions become available.")}`}
+              >
+                <Bell size={16} /> Join the Pro launch list
+              </a>
             )}
           </section>
         </div>

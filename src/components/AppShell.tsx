@@ -95,8 +95,15 @@ export default function AppShell({ children, activeTopic, activeCourseId }: AppS
 
   const navigate = (href: string) => router.push(href);
   const isLegalPage = ["/terms", "/privacy", "/acceptable-use"].includes(pathname);
+  const isPublicRoute = pathname === "/"
+    || pathname === "/library"
+    || pathname === "/pricing"
+    || pathname === "/privacy-center"
+    || pathname === "/copyright"
+    || pathname.startsWith("/course/")
+    || isLegalPage;
 
-  if (authLoading) {
+  if (authLoading && !isPublicRoute) {
     return (
       <div className="auth-boot-shell" aria-busy="true" aria-label="Restoring your Erudoza session">
         <span className="brand-mark" aria-hidden="true"><ErudozaMark /></span>

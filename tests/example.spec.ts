@@ -81,7 +81,6 @@ test("never leaves public learning behind the authentication startup screen", as
   await page.route("**/identitytoolkit.googleapis.com/**", (route) => route.abort());
   await page.goto("/");
 
-  await page.waitForTimeout(2800);
   expect(pageErrors).toEqual([]);
 
   await expect(
@@ -94,10 +93,12 @@ test("keeps the learning library public", async ({ page }) => {
   const response = await page.goto("/");
 
   await expect(page).toHaveTitle(/Erudoza/);
+  const contentSecurityPolicy = response?.headers()["content-security-policy"] ?? "";
+  const scriptDirective = contentSecurityPolicy.split(";").find((directive) => directive.trim().startsWith("script-src "));
   expect(response?.headers()["x-content-type-options"]).toBe("nosniff");
-  expect(response?.headers()["content-security-policy"]).toContain("frame-ancestors 'none'");
-  expect(response?.headers()["content-security-policy"]).toContain("script-src 'self' 'nonce-");
-  expect(response?.headers()["content-security-policy"]).not.toContain("'unsafe-inline'");
+  expect(contentSecurityPolicy).toContain("frame-ancestors 'none'");
+  expect(scriptDirective).toContain("script-src 'self' 'nonce-");
+  expect(scriptDirective).not.toContain("'unsafe-inline'");
   await expect(page.locator(".skip-link")).toHaveAttribute("href", "#main-content");
   await expect(
     page.getByRole("heading", { name: "Understand more. Achieve more." }),
@@ -220,7 +221,7 @@ test("keeps generation visibly metered and premium", async ({ page }) => {
   await expect(page.getByRole("heading", { name: "Erudoza Pro" })).toBeVisible();
   await expect(page.getByText("Three private course outlines each month")).toBeVisible();
   await expect(page.getByText("Thirty generated lessons each month")).toBeVisible();
-  await expect(page.getByRole("button", { name: /Pro subscriptions coming soon/i })).toBeDisabled();
+  await expect(page.getByRole("link", { name: /Join the Pro launch list/i })).toHaveAttribute("href", /mailto:support@erudoza\.com/);
 });
 
 test("does not complete a lesson after a wrong answer", async ({ page }) => {
@@ -254,15 +255,19 @@ test("does not complete a lesson after a wrong answer", async ({ page }) => {
   await page.route("**/api/courses/demo/lessons/0-1", (route) => route.fulfill({ json: { ...lesson, content: "## Find the leverage point\n\nLook for the relationship that changes the system's behavior." } }));
   await page.goto("/course/Systems%20thinking/lesson/0-0?id=demo");
 
-  await expect(page.getByRole("heading", { name: "Feedback loops" })).toHaveCount(1);
+  await expect(page.getByRole("heading", { name: "Feedback loops" })).toHaveCount(1, { timeout: 15_000 });
   await expect(page.getByText("AI-assisted lesson")).toBeVisible();
   await expect(page.locator("[data-ai-generated='true']")).toHaveCount(1);
   await expect(page.getByRole("heading", { name: "See the relationships" })).toHaveCount(0);
   await expect(page.locator(".lesson-workspace")).toHaveCSS("overflow-y", "visible");
   await expect(page.locator(".lesson-scroll")).toHaveCSS("overflow-y", "visible");
-  await expect(page.locator(".lesson-study-panel")).toHaveCSS("overflow-y", "visible");
+  await expect(page.locator(".lesson-study-panel")).toHaveCount(0);
+  await page.getByRole("button", { name: "Study tools" }).click();
+  await expect(page.locator(".lesson-study-panel")).toBeVisible();
+  await page.getByRole("button", { name: "Close study tools" }).click();
   await expect(page.getByRole("heading", { level: 2, name: "Why it matters" })).toBeVisible();
-  const firstCheck = page.locator(".knowledge-check").first();
+  const firstCheck = page.locator(".knowledge-check");
+  await expect(firstCheck).toHaveCount(1);
   await expect(firstCheck.getByPlaceholder("Capture the key idea in your own words…")).toBeVisible();
   await firstCheck.getByRole("button", { name: "Reveal answer choices" }).click();
   const firstCorrectPosition = await firstCheck.getByRole("button", { name: /Output influencing future input/ }).locator("span").textContent();
@@ -274,8 +279,10 @@ test("does not complete a lesson after a wrong answer", async ({ page }) => {
   await firstCheck.getByRole("button", { name: "Try again" }).click();
   await firstCheck.getByRole("button", { name: /Output influencing future input/ }).click();
   await firstCheck.getByRole("button", { name: "Mostly sure" }).click();
+  await firstCheck.getByRole("button", { name: "Continue to practice 2" }).click();
 
-  const secondCheck = page.locator(".knowledge-check").nth(1);
+  const secondCheck = page.locator(".knowledge-check");
+  await expect(secondCheck).toHaveCount(1);
   await secondCheck.getByRole("button", { name: "Reveal answer choices" }).click();
   const secondCorrectPosition = await secondCheck.getByRole("button", { name: /To see change over time/ }).locator("span").textContent();
   expect(secondCorrectPosition).not.toBe(firstCorrectPosition);

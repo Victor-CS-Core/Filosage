@@ -40,7 +40,7 @@ export async function generateMetadata(): Promise<Metadata> {
       default: "Erudoza — Your daily dose of understanding",
       template: "%s | Erudoza",
     },
-    description: "Clear courses with visual models, retrieval practice, scheduled reviews, and progress tracking.",
+    description: "Clear courses with focused explanations, retrieval practice, scheduled reviews, and progress tracking.",
     applicationName: "Erudoza",
     category: "education",
     openGraph: {

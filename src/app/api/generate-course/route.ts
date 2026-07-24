@@ -39,10 +39,10 @@ export async function POST(request: Request) {
     const { topic, goal, application, background, level, weeklyMinutes, targetWeeks, courseStyle } = parsedRequest.data;
     const studyBudget = (weeklyMinutes ?? 120) * targetWeeks;
     const approach = courseStyle === "Concept-first"
-      ? "Prioritize precise mental models and connected explanations before applied practice."
+      ? "Prioritize precise conceptual foundations and connected explanations before applied practice."
       : courseStyle === "Project-led"
         ? "Organize the sequence around a concrete applied result while preserving prerequisite order."
-        : "Balance mental models, worked examples, retrieval, and application throughout the course.";
+        : "Balance clear explanations, worked examples, retrieval, and application throughout the course.";
     const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
     reservation = await reserveAiUsage(account, "course_outline", request.headers.get("idempotency-key"));
     await assertSafeContent(

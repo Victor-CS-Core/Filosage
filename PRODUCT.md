@@ -6,11 +6,11 @@ product
 
 ## Users
 
-The primary user is the owner, who uses Erudoza as a private AI-assisted learning and course-authoring workspace. Anonymous visitors use the public experience to discover published courses, complete lessons, study diagrams, and take quizzes without gaining access to generation, tutoring, publishing, or management tools.
+The primary user is the owner, who uses Erudoza as a private AI-assisted learning and course-authoring workspace. Anonymous visitors use the public experience to discover published courses, complete lessons, practice retrieval, and take quizzes without gaining access to generation, tutoring, publishing, or management tools.
 
 ## Product Purpose
 
-Erudoza turns any subject into a structured, high-quality learning path grounded in concise explanation, visual models, retrieval practice, and guided tutoring. Success means the owner can create and publish trustworthy courses efficiently, while public learners can move from discovery to understanding without friction.
+Erudoza turns any subject into a structured, high-quality learning path grounded in concise explanation, worked examples, retrieval practice, and guided tutoring. Success means the owner can create and publish trustworthy courses efficiently, while public learners can move from discovery to understanding without friction.
 
 ## Brand Personality
 

@@ -442,6 +442,7 @@ button:disabled { cursor: not-allowed; opacity: 0.55; }
 .lesson-toolbar nav span { max-width: 230px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .lesson-toolbar-actions { display: flex; align-items: center; gap: 14px; }
 .lesson-toolbar-actions > span:first-child { color: var(--ink-muted); font-size: 0.7rem; }
+.study-tools-toggle.is-active { border-color: var(--accent); background: var(--accent-soft); color: var(--accent-ink); }
 .owner-only-note { display: inline-flex; align-items: center; gap: 6px; color: var(--ink-muted); font-size: 0.68rem; }
 .lesson-workspace { display: flex; align-items: stretch; }
 .lesson-scroll { flex: 1; min-width: 0; overflow: visible; background: var(--surface); }
@@ -502,6 +503,10 @@ button:disabled { cursor: not-allowed; opacity: 0.55; }
 .transfer-model > strong { font-size: 0.76rem; }
 .transfer-model > div, .transfer-model > p { margin-top: 9px; color: var(--ink-secondary); font-size: 0.82rem; line-height: 1.65; }
 .knowledge-list { margin-top: 28px; display: flex; flex-direction: column; gap: 16px; }
+.practice-sequence-status { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-top: 24px; color: var(--ink-secondary); font-size: 0.72rem; font-weight: 700; }
+.practice-sequence-status span:last-child { color: var(--ink-muted); font-weight: 600; }
+.practice-sequence-track { height: 6px; margin-top: 9px; overflow: hidden; border-radius: 999px; background: var(--surface-subtle); }
+.practice-sequence-track > span { display: block; width: 100%; height: 100%; border-radius: inherit; background: var(--brand-teal); transform-origin: left; transition: transform 220ms var(--ease-out); }
 .knowledge-check { min-width: 0; margin: 0; border: 1px solid var(--line); border-radius: var(--radius-md); background: var(--surface-raised); padding: 24px; }
 .knowledge-check.is-complete { border-color: var(--line-strong); background: var(--surface-active); }
 .activity-meta { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 18px; color: var(--ink-muted); font-size: 0.68rem; font-weight: 700; }
@@ -524,6 +529,7 @@ button:disabled { cursor: not-allowed; opacity: 0.55; }
 .answer-explanation strong { font-size: 0.8rem; }
 .answer-explanation p { color: var(--ink-secondary); font-size: 0.78rem; line-height: 1.55; margin-top: 6px; }
 .answer-explanation .text-button { margin-top: 10px; }
+.practice-continue { margin-top: 16px; }
 .answer-explanation.is-correct > div { color: var(--success); }
 .answer-explanation.is-incorrect > div { color: var(--warning); }
 .completion-banner { margin-top: 44px; padding: 18px; border: 1px solid var(--line); border-radius: var(--radius-md); display: flex; align-items: center; gap: 12px; }
@@ -1376,10 +1382,11 @@ button:disabled { cursor: not-allowed; opacity: 0.55; }
 [data-theme="dark"] .lesson-bookmark.is-active { background: var(--surface-active); }
 [data-theme="dark"] .progress-metrics article:nth-child(2) > span,
 [data-theme="dark"] .progress-metrics article:nth-child(4) > span { background: var(--surface-subtle); color: var(--ink); }
-.lesson-study-panel { flex: 0 0 310px; width: 310px; border-left: 1px solid var(--line); background: var(--surface-raised); padding: 18px; }
+.lesson-study-panel { flex: 0 0 310px; width: 310px; border-left: 1px solid var(--line); background: var(--surface-raised); padding: 18px; animation: drawer-in 190ms var(--ease-out); }
+.lesson-study-panel-backdrop { display: none; }
 .study-panel-heading { display: flex; align-items: center; gap: 9px; padding-bottom: 16px; border-bottom: 1px solid var(--line); }
 .study-panel-heading > svg { color: var(--accent-ink); }
-.study-panel-heading > div { display: flex; flex-direction: column; }
+.study-panel-heading > div { flex: 1; display: flex; flex-direction: column; }
 .study-panel-heading strong { font-size: 0.77rem; }
 .study-panel-heading small { margin-top: 2px; color: var(--ink-muted); font-size: 0.62rem; }
 .lesson-note-section { position: relative; margin-top: 18px; }
@@ -1576,7 +1583,8 @@ button:disabled { cursor: not-allowed; opacity: 0.55; }
   .create-layout { grid-template-columns: 1fr; }
   .course-blueprint { position: static; }
   .progress-metrics { grid-template-columns: 1fr 1fr; }
-  .lesson-study-panel { display: none; }
+  .lesson-study-panel-backdrop { position: fixed; inset: 0; z-index: var(--z-drawer); display: block; border: 0; background: rgb(7 17 39 / 0.48); }
+  .lesson-study-panel { position: fixed; inset: 0 0 0 auto; z-index: calc(var(--z-drawer) + 1); width: min(360px, 92vw); max-height: 100dvh; overflow-y: auto; border-left: 1px solid var(--line); box-shadow: -4px 0 8px rgb(7 17 39 / 0.18); }
   .profile-layout { grid-template-columns: 1fr; gap: 40px; }
   .profile-side { display: grid; grid-template-columns: 1fr 1fr; column-gap: 28px; }
   .admin-ledger { grid-template-columns: repeat(3, 1fr); }

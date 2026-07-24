@@ -81,7 +81,7 @@ export default function Home() {
             <div className="public-hero-copy">
               <span className="hero-status"><span /> Public learning library</span>
               <h1>Understand more.<br /><span>Achieve more.</span></h1>
-              <p>Courses that explain difficult subjects with clear mental models, worked examples, and retrieval practice.</p>
+              <p>Courses that explain difficult subjects with clear explanations, worked examples, and retrieval practice.</p>
               <div className="hero-actions">
                 <button className="button button-primary" onClick={() => router.push("/library")}>Explore published courses <ArrowRight size={17} /></button>
                 <button className="button button-secondary" onClick={() => void signInWithGoogle()}>Create a free account</button>
@@ -91,7 +91,7 @@ export default function Home() {
             <div className="public-hero-panel" aria-label="Erudoza learning loop">
               <div className="hero-panel-brand"><span className="brand-mark"><ErudozaMark /></span><span><small>Your daily dose of understanding.</small><strong>A course should change what you can do.</strong></span></div>
               <ol>
-                <li><span><BrainCircuit size={19} /></span><div><strong>See the structure</strong><p>Begin with the mental model and relationships.</p></div></li>
+                <li><span><BrainCircuit size={19} /></span><div><strong>See the structure</strong><p>Begin with the key idea and how the parts relate.</p></div></li>
                 <li><span><BookOpenCheck size={19} /></span><div><strong>Work through examples</strong><p>Connect explanation to concrete decisions and cases.</p></div></li>
                 <li><span><Target size={19} /></span><div><strong>Recall, then review</strong><p>Practice from memory and review concepts before you forget them.</p></div></li>
               </ol>

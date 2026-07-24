@@ -95,11 +95,15 @@ interface QuizResult {
 function KnowledgeCheck({
   quiz,
   index,
+  total,
   onMastered,
+  onContinue,
 }: {
   quiz: Quiz;
   index: number;
+  total: number;
   onMastered: (index: number, result: QuizResult) => void;
+  onContinue?: () => void;
 }) {
   const [recall, setRecall] = useState("");
   const [choicesVisible, setChoicesVisible] = useState(false);
@@ -122,7 +126,7 @@ function KnowledgeCheck({
     <fieldset className={`knowledge-check ${submittedConfidence ? "is-complete" : ""}`}>
       <legend className="sr-only">Practice {index + 1}: {quiz.question}</legend>
       <div className="activity-meta">
-        <span>Practice {index + 1}</span>
+        <span>Practice {index + 1} of {total}</span>
         <span aria-live="polite">{submittedConfidence ? "Complete" : choicesVisible ? "Choose an answer" : "Recall first"}</span>
       </div>
       <div className="knowledge-question">
@@ -188,6 +192,11 @@ function KnowledgeCheck({
               ))}
             </div>
           )}
+          {submittedConfidence && onContinue && (
+            <button className="button button-primary button-small practice-continue" type="button" onClick={onContinue}>
+              Continue to practice {index + 2} <ArrowRight size={15} />
+            </button>
+          )}
         </div>
       )}
     </fieldset>
@@ -225,12 +234,15 @@ export default function LessonView() {
     revealed: false,
   });
   const [tutorOpen, setTutorOpen] = useState(false);
+  const [studyToolsOpen, setStudyToolsOpen] = useState(false);
+  const [activePracticeState, setActivePracticeState] = useState<{ key: string; index: number }>({ key: "", index: 0 });
   const [messages, setMessages] = useState<Message[]>([]);
   const [chatInput, setChatInput] = useState("");
   const [chatting, setChatting] = useState(false);
   const [chatError, setChatError] = useState<string | null>(null);
   const [noteDraft, setNoteDraft] = useState("");
   const [progressSyncError, setProgressSyncError] = useState<string | null>(null);
+  const [reviewScheduleState, setReviewScheduleState] = useState<{ key: string; at: string | null }>({ key: "", at: null });
   const chatBottomRef = useRef<HTMLDivElement>(null);
   const noteHydratedRef = useRef(false);
   const generationStartedAtRef = useRef(0);
@@ -244,6 +256,8 @@ export default function LessonView() {
   const transferRevealed = transferState.key === noteKey && transferState.revealed;
   const transferComplete = !lessonData?.transferTask || (transferRevealed && Boolean(transferResponse.trim()));
   const lessonBookmarked = learnerState.lessonBookmarks.includes(noteKey);
+  const activePracticeIndex = activePracticeState.key === noteKey ? activePracticeState.index : 0;
+  const reviewScheduledAt = reviewScheduleState.key === noteKey ? reviewScheduleState.at : null;
 
   useEffect(() => {
     noteHydratedRef.current = false;
@@ -380,12 +394,18 @@ export default function LessonView() {
         });
         if (response.ok) {
           const data = await response.json() as { progress: CourseProgress | null };
-          if (!cancelled) setCompletionState({ key: noteKey, complete: !reviewMode && Boolean(data.progress?.completedLessonIds.includes(lessonId)) });
+          if (!cancelled) {
+            setCompletionState({ key: noteKey, complete: !reviewMode && Boolean(data.progress?.completedLessonIds.includes(lessonId)) });
+            setReviewScheduleState({ key: noteKey, at: data.progress?.lessons[lessonId]?.nextReviewAt ?? null });
+          }
           return;
         }
       }
       const local = getLocalProgress(courseId, topic);
-      if (!cancelled) setCompletionState({ key: noteKey, complete: !reviewMode && Boolean(local?.completedLessonIds.includes(lessonId)) });
+      if (!cancelled) {
+        setCompletionState({ key: noteKey, complete: !reviewMode && Boolean(local?.completedLessonIds.includes(lessonId)) });
+        setReviewScheduleState({ key: noteKey, at: local?.lessons[lessonId]?.nextReviewAt ?? null });
+      }
     };
     void loadProgress().catch(() => {
       if (!cancelled) setCompletionState({ key: noteKey, complete: false });
@@ -440,7 +460,8 @@ export default function LessonView() {
       nextLessonTitle: nextLesson?.title ?? null,
     };
 
-    saveLocalProgress(update);
+    const localProgress = saveLocalProgress(update);
+    setReviewScheduleState({ key: noteKey, at: localProgress.lessons[lessonId]?.nextReviewAt ?? null });
     setProgressSyncError(null);
     if (user) {
       try {
@@ -450,7 +471,9 @@ export default function LessonView() {
           headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
           body: JSON.stringify(update),
         });
+        const data = await response.json().catch(() => ({})) as { nextReviewAt?: string };
         if (!response.ok) throw new Error("Saved on this device. Cloud progress will retry when you complete another activity.");
+        if (data.nextReviewAt) setReviewScheduleState({ key: noteKey, at: data.nextReviewAt });
       } catch (saveError) {
         setProgressSyncError(saveError instanceof Error ? saveError.message : "Saved on this device, but cloud sync is pending.");
       }
@@ -460,6 +483,14 @@ export default function LessonView() {
 
   const onMastered = (index: number, result: QuizResult) => {
     setQuizResultState((current) => ({ key: noteKey, results: { ...(current.key === noteKey ? current.results : {}), [index]: result } }));
+  };
+
+  const advancePractice = () => {
+    if (!lessonData) return;
+    setActivePracticeState({
+      key: noteKey,
+      index: Math.min(activePracticeIndex + 1, lessonData.quizzes.length - 1),
+    });
   };
 
   useEffect(() => {
@@ -559,7 +590,7 @@ export default function LessonView() {
                   </li>
                 ))}
               </ol>
-              <p className="lesson-generation-note">This usually takes less than a minute. Keep this page open while Erudoza prepares the explanation, visual model, and practice.</p>
+              <p className="lesson-generation-note">This usually takes less than a minute. Keep this page open while Erudoza prepares the explanation, examples, and practice.</p>
             </section>
           ) : (
             <>
@@ -603,8 +634,23 @@ export default function LessonView() {
             <button className={`icon-button lesson-bookmark ${lessonBookmarked ? "is-active" : ""}`} onClick={() => updateLearnerState((current) => ({ ...current, lessonBookmarks: current.lessonBookmarks.includes(noteKey) ? current.lessonBookmarks.filter((item) => item !== noteKey) : [...current.lessonBookmarks, noteKey] }))} aria-label={lessonBookmarked ? "Remove lesson bookmark" : "Bookmark lesson"} aria-pressed={lessonBookmarked}>
               <Bookmark size={17} fill={lessonBookmarked ? "currentColor" : "none"} />
             </button>
+            <button
+              className={`button button-secondary button-small study-tools-toggle ${studyToolsOpen ? "is-active" : ""}`}
+              type="button"
+              aria-expanded={studyToolsOpen}
+              aria-controls="lesson-study-panel"
+              onClick={() => {
+                setStudyToolsOpen((open) => !open);
+                setTutorOpen(false);
+              }}
+            >
+              <NotebookPen size={16} /> {studyToolsOpen ? "Close tools" : "Study tools"}
+            </button>
             {user ? (
-              <button className={`button button-secondary button-small ${tutorOpen ? "is-active" : ""}`} onClick={() => setTutorOpen((open) => !open)}>
+              <button className={`button button-secondary button-small ${tutorOpen ? "is-active" : ""}`} onClick={() => {
+                setTutorOpen((open) => !open);
+                setStudyToolsOpen(false);
+              }}>
                 <MessageSquareText size={16} /> {tutorOpen ? "Close tutor" : "Ask tutor"}
               </button>
             ) : (
@@ -711,12 +757,24 @@ export default function LessonView() {
                   <div className="lesson-section-heading">
                     <p className="overline">Retrieval practice</p>
                     <h2 id="checks-title">Check your understanding</h2>
-                    <p>{lessonData.quizzes.length} activities. Answer from memory, choose the best option, then rate your confidence.</p>
+                    <p>Work through one activity at a time. Recall first, choose the best option, then rate your confidence.</p>
+                  </div>
+                  <div className="practice-sequence-status" aria-live="polite">
+                    <span>Practice {activePracticeIndex + 1} of {lessonData.quizzes.length}</span>
+                    <span>{Object.keys(quizResults).length} complete</span>
+                  </div>
+                  <div className="practice-sequence-track" role="progressbar" aria-label="Retrieval practice progress" aria-valuemin={0} aria-valuemax={lessonData.quizzes.length} aria-valuenow={Object.keys(quizResults).length}>
+                    <span style={{ transform: `scaleX(${Object.keys(quizResults).length / lessonData.quizzes.length})` }} />
                   </div>
                   <div className="knowledge-list">
-                    {lessonData.quizzes.map((quiz, index) => (
-                      <KnowledgeCheck key={`${noteKey}-${quiz.question}-${index}`} quiz={quiz} index={index} onMastered={onMastered} />
-                    ))}
+                    <KnowledgeCheck
+                      key={`${noteKey}-${activePracticeIndex}-${lessonData.quizzes[activePracticeIndex].question}`}
+                      quiz={lessonData.quizzes[activePracticeIndex]}
+                      index={activePracticeIndex}
+                      total={lessonData.quizzes.length}
+                      onMastered={onMastered}
+                      onContinue={activePracticeIndex < lessonData.quizzes.length - 1 ? advancePractice : undefined}
+                    />
                   </div>
                 </section>
               )}
@@ -725,7 +783,10 @@ export default function LessonView() {
                 <div>{complete ? <CheckCircle2 size={22} /> : <CircleAlert size={22} />}</div>
                 <span>
                   <strong>{complete ? (reviewMode ? "Review complete" : "Lesson complete") : "Complete the activities"}</strong>
-                  <small>{complete ? (progressSyncError || (user ? "Progress synced. Your next review has been scheduled." : "Progress saved on this device. Sign in to sync it.")) : lessonData.transferTask && !transferComplete ? "Complete the transfer task, then finish each retrieval check." : "Answer every prompt correctly and rate your confidence."}</small>
+                  <small>{complete ? (
+                    progressSyncError
+                    || `${user ? "Progress synced." : "Progress saved on this device."}${reviewScheduledAt ? ` Review scheduled for ${new Intl.DateTimeFormat("en", { weekday: "long", month: "short", day: "numeric" }).format(new Date(reviewScheduledAt))}.` : user ? " Your next review has been scheduled." : " Sign in to sync it."}`
+                  ) : lessonData.transferTask && !transferComplete ? "Complete the transfer task, then finish each retrieval check." : "Answer every prompt correctly and rate your confidence."}</small>
                 </span>
                 {!complete && lessonData.quizzes.length === 0 && transferComplete && (
                   <button className="button button-secondary button-small" onClick={() => void markComplete()}>Mark learned</button>
@@ -751,17 +812,20 @@ export default function LessonView() {
             </div>
           </article>
 
-          {!tutorOpen && (
-            <aside className="lesson-study-panel" aria-label="Lesson study tools">
-              <div className="study-panel-heading"><NotebookPen size={18} /><div><strong>Study workspace</strong><small>{user ? "Synced with your account" : "Saved on this device"}</small></div></div>
-              <section className="lesson-note-section">
-                <label htmlFor="lesson-note">Your notes</label>
-                <textarea id="lesson-note" value={noteDraft} onChange={(event) => setNoteDraft(event.target.value)} maxLength={12_000} rows={9} placeholder="Capture the idea in your own words…" />
-                <span>{noteDraft.length.toLocaleString()}/12,000 · <span role={learnerSyncStatus === "error" ? "alert" : "status"}>{learnerSyncStatus === "saving" ? "Saving…" : learnerSyncStatus === "error" ? learnerSyncError : learnerSyncStatus === "saved" ? "Saved" : user ? "Synced" : "On this device"}</span></span>
-              </section>
-              <section className="study-key-point"><span><Lightbulb size={17} /></span><div><strong>Core idea</strong><p>{lesson.concept}</p></div></section>
-              <section className="mastery-checklist"><strong>Lesson checklist</strong><ul><li className="is-done"><Check size={15} /> Read the explanation</li>{lessonData.transferTask && <li className={transferComplete ? "is-done" : ""}><Check size={15} /> Apply the idea</li>}<li className={complete ? "is-done" : ""}><Check size={15} /> Complete the retrieval checks</li></ul></section>
-            </aside>
+          {!tutorOpen && studyToolsOpen && (
+            <>
+              <button className="lesson-study-panel-backdrop" type="button" aria-label="Dismiss study tools" onClick={() => setStudyToolsOpen(false)} />
+              <aside className="lesson-study-panel" id="lesson-study-panel" aria-label="Lesson study tools">
+                <div className="study-panel-heading"><NotebookPen size={18} /><div><strong>Study workspace</strong><small>{user ? "Synced with your account" : "Saved on this device"}</small></div><button className="icon-button" type="button" onClick={() => setStudyToolsOpen(false)} aria-label="Close study tools"><X size={17} /></button></div>
+                <section className="lesson-note-section">
+                  <label htmlFor="lesson-note">Your notes</label>
+                  <textarea id="lesson-note" value={noteDraft} onChange={(event) => setNoteDraft(event.target.value)} maxLength={12_000} rows={9} placeholder="Capture the idea in your own words…" />
+                  <span>{noteDraft.length.toLocaleString()}/12,000 · <span role={learnerSyncStatus === "error" ? "alert" : "status"}>{learnerSyncStatus === "saving" ? "Saving…" : learnerSyncStatus === "error" ? learnerSyncError : learnerSyncStatus === "saved" ? "Saved" : user ? "Synced" : "On this device"}</span></span>
+                </section>
+                <section className="study-key-point"><span><Lightbulb size={17} /></span><div><strong>Core idea</strong><p>{lesson.concept}</p></div></section>
+                <section className="mastery-checklist"><strong>Lesson checklist</strong><ul><li className="is-done"><Check size={15} /> Read the explanation</li>{lessonData.transferTask && <li className={transferComplete ? "is-done" : ""}><Check size={15} /> Apply the idea</li>}<li className={complete ? "is-done" : ""}><Check size={15} /> Complete the retrieval checks</li></ul></section>
+              </aside>
+            </>
           )}
 
           {user && tutorOpen && (
