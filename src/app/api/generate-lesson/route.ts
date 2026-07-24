@@ -21,6 +21,7 @@ import type { Course, LessonData } from "@/lib/course-types";
 import { AI_SAFETY_POLICY, assertSafeContent, ContentSafetyError } from "@/lib/content-safety";
 import { apiRequestErrorResponse, readJsonBody } from "@/lib/api-security";
 import { openAiSafetyIdentifier } from "@/lib/ai-usage";
+import { toLessonDto } from "@/lib/course-dto";
 
 const model = process.env.OPENAI_LESSON_MODEL || "gpt-5.6-luna";
 const fallbackModel = process.env.OPENAI_LESSON_FALLBACK_MODEL
@@ -30,11 +31,11 @@ const fallbackModel = process.env.OPENAI_LESSON_FALLBACK_MODEL
 
 const lessonInstructions = `Act as a rigorous teacher and instructional designer. Create one lesson that advances a specific capability within a larger course.
 
-Use the requested lesson mode instead of forcing every lesson into the same pattern. Begin by connecting this lesson to prerequisite knowledge, then state one observable learning objective. Explain the governing mental model from first principles with one concrete example. Use the supplied misconception to create a useful contrast. Include guided practice with visible reasoning, followed by a transfer task that asks the learner to use the idea in a different situation. End with concise takeaways, not a repeated conclusion.
+Use the requested lesson mode instead of forcing every lesson into the same pattern. Begin by connecting this lesson to prerequisite knowledge, then state one observable learning objective. Explain the core idea from first principles with one concrete example. Use the supplied misconception to create a useful contrast. Include guided practice with visible reasoning, followed by a transfer task that asks the learner to use the idea in a different situation. End with concise takeaways, not a repeated conclusion.
 
 Write direct, natural prose in accessible Markdown. Use descriptive H2 and H3 headings only and never repeat the lesson title as a heading. Target roughly 900 to 1,300 words. Avoid generic encouragement, promotional language, vague claims, invented citations, repeated conclusions, and filler.
 
-Only include a Mermaid diagram when spatial, causal, sequential, or comparative relationships are materially clearer as a visual. Otherwise return an empty diagram and diagramSummary. When used, Mermaid must be syntactically valid, simple, legible on a phone, and contain no external links or HTML. The diagramSummary must communicate every relationship in plain language.
+Do not create diagrams, graphs, Mermaid syntax, or visual-model sections. Communicate every relationship clearly in prose and examples.
 
 Create application-focused quizzes, not trivia. Each answer option needs feedback that explains why that specific choice is correct or incorrect. Vary the correct option positions. Return only the requested structured lesson.
 
@@ -49,7 +50,9 @@ function lessonQualityIssues(lesson: LessonData | null) {
   if ((lesson.keyTakeaways?.length ?? 0) < 3) issues.push("At least three concrete takeaways are required.");
   if ((lesson.guidedPractice?.steps.length ?? 0) < 2) issues.push("Guided practice needs at least two reasoning steps.");
   if ((lesson.transferTask?.successCriteria.length ?? 0) < 2) issues.push("The transfer task needs measurable success criteria.");
-  if (lesson.diagram.trim() && !lesson.diagramSummary?.trim()) issues.push("A diagram requires an accessible summary.");
+  if (/```(?:mermaid|dot|graphviz)\b|^\s*(?:flowchart|graph)\s+(?:TB|TD|BT|RL|LR)\b/im.test(lesson.content)) {
+    issues.push("Remove all diagram and graph syntax; teach the relationships in prose.");
+  }
   if (lesson.quizzes.length < 2) issues.push("At least two application-focused checks are required.");
   if (lesson.quizzes.some((quiz) => quiz.options.length !== 4 || quiz.optionFeedback?.length !== 4)) {
     issues.push("Every quiz option needs corresponding feedback.");
@@ -84,7 +87,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "This lesson is not part of the course." }, { status: 400 });
     }
     const saved = await getLesson(courseId, lessonId);
-    if (saved) return NextResponse.json(saved);
+    if (saved) return NextResponse.json(toLessonDto(saved, course.aiAssisted === true));
     const topic = course.topic;
     const lessonTitle = canonical.lesson.title;
     const lessonConcept = canonical.lesson.concept;

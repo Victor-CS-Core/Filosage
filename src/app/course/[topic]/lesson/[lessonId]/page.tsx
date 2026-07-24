@@ -26,7 +26,6 @@ import {
 import AppShell from "@/components/AppShell";
 import { useAuth } from "@/components/AuthProvider";
 import ErudozaMark from "@/components/ErudozaMark";
-import { useTheme } from "@/components/ThemeProvider";
 import type { Course, LessonData, Quiz } from "@/lib/course-types";
 import type { Confidence, CourseProgress, ProgressUpdate } from "@/lib/learning-types";
 import { getLocalProgress, saveLocalProgress } from "@/lib/learning-progress";
@@ -85,114 +84,6 @@ function randomizeQuizAnswers(lesson: LessonData): LessonData {
       };
     }),
   };
-}
-
-function MermaidDiagram({ chart, summary }: { chart: string; summary?: string }) {
-  const ref = useRef<HTMLDivElement>(null);
-  const { theme } = useTheme();
-
-  useEffect(() => {
-    if (!ref.current || !chart) return;
-    let cancelled = false;
-    const id = `erudoza-diagram-${createClientId()}`;
-    void import("mermaid")
-      .then(({ default: mermaid }) => {
-        mermaid.initialize({
-          startOnLoad: false,
-          securityLevel: "strict",
-          theme: "base",
-          fontFamily: "Inter Variable, Inter, sans-serif",
-          flowchart: {
-            htmlLabels: false,
-          },
-          themeVariables: {
-            fontSize: "16px",
-            fontFamily: "Inter Variable, Inter, sans-serif",
-            primaryColor: theme === "dark" ? "#12254D" : "#FAFAF7",
-            primaryTextColor: theme === "dark" ? "#FAFAF7" : "#0D1B3D",
-            primaryBorderColor: theme === "dark" ? "#40527A" : "#B9C3D0",
-            secondaryColor: theme === "dark" ? "#163D52" : "#E5F7F4",
-            tertiaryColor: theme === "dark" ? "#182C52" : "#EAF3FF",
-            lineColor: theme === "dark" ? "#A8B3C7" : "#43506B",
-          },
-        });
-        return mermaid.render(id, chart);
-      })
-      .then(({ svg }) => {
-        if (cancelled || !ref.current) return;
-        const parsed = new DOMParser().parseFromString(svg, "image/svg+xml");
-        if (parsed.querySelector("parsererror")) throw new Error("Invalid diagram output.");
-        const parsedSvg = parsed.documentElement;
-        if (parsedSvg.tagName.toLowerCase() !== "svg") throw new Error("Invalid diagram output.");
-        parsedSvg.querySelectorAll("script, foreignObject, iframe, object, embed").forEach((element) => element.remove());
-        parsedSvg.querySelectorAll("*").forEach((element) => {
-          for (const attribute of Array.from(element.attributes)) {
-            const name = attribute.name.toLowerCase();
-            if (name.startsWith("on")
-              || ((name === "href" || name === "xlink:href") && !attribute.value.startsWith("#"))
-              || (name === "style" && /url\s*\(/i.test(attribute.value))) {
-              element.removeAttribute(attribute.name);
-            }
-          }
-        });
-        const svgElement = document.importNode(parsedSvg, true) as unknown as SVGSVGElement;
-        ref.current.replaceChildren(svgElement);
-
-        let fittedWidth = svgElement.viewBox.baseVal.width;
-        let fittedHeight = svgElement.viewBox.baseVal.height;
-        const graphRoot = Array.from(svgElement.children).find(
-          (child): child is SVGGElement => child.tagName.toLowerCase() === "g",
-        );
-
-        if (graphRoot) {
-          const bounds = graphRoot.getBBox();
-          if (bounds.width > 0 && bounds.height > 0) {
-            const padding = Math.max(14, Math.min(bounds.width, bounds.height) * 0.08);
-            fittedWidth = bounds.width + padding * 2;
-            fittedHeight = bounds.height + padding * 2;
-            svgElement.setAttribute(
-              "viewBox",
-              `${bounds.x - padding} ${bounds.y - padding} ${fittedWidth} ${fittedHeight}`,
-            );
-          }
-        }
-
-        const aspectRatio = fittedHeight > 0 ? fittedWidth / fittedHeight : 1;
-        ref.current.dataset.orientation =
-          aspectRatio < 0.8
-            ? "portrait"
-            : aspectRatio > 1.55
-              ? "landscape"
-              : "balanced";
-
-        svgElement.removeAttribute("width");
-        svgElement.removeAttribute("height");
-        svgElement.style.removeProperty("max-width");
-        svgElement.setAttribute("preserveAspectRatio", "xMidYMid meet");
-        svgElement.setAttribute("aria-hidden", "true");
-      })
-      .catch(() => {
-        if (!cancelled && ref.current) {
-          delete ref.current.dataset.orientation;
-          const message = document.createElement("p");
-          message.textContent = "Visualization unavailable for this lesson.";
-          ref.current.replaceChildren(message);
-        }
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [chart, theme]);
-
-  return (
-    <div>
-      <div className="concept-diagram" ref={ref} role="img" aria-label={summary || "Concept diagram"} />
-      <details className="diagram-transcript">
-        <summary>View diagram as text</summary>
-        <p>{summary || chart.split("\n").filter((line) => line.includes("-->")).join("; ") || "The diagram shows the relationships described in this lesson."}</p>
-      </details>
-    </div>
-  );
 }
 
 interface QuizResult {
@@ -768,13 +659,6 @@ export default function LessonView() {
                     <summary>Compare with a worked response</summary>
                     <ReactMarkdown>{lessonData.guidedPractice.modelAnswer}</ReactMarkdown>
                   </details>
-                </section>
-              )}
-
-              {lessonData.diagram && (
-                <section className="lesson-section" aria-labelledby="model-title">
-                  <div className="lesson-section-heading"><p className="overline">Mental model</p><h2 id="model-title">See the relationships</h2></div>
-                  <MermaidDiagram chart={lessonData.diagram} summary={lessonData.diagramSummary} />
                 </section>
               )}
 

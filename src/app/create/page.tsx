@@ -9,7 +9,7 @@ import { createClientId } from "@/lib/browser-compat";
 
 const examples = ["Understand personal finance from first principles", "Build intuition for statistics", "Learn the foundations of music theory"];
 const courseStyles = [
-  { value: "Balanced", title: "Balanced", description: "Mental models, examples, and practice in equal measure." },
+  { value: "Balanced", title: "Balanced", description: "Explanations, examples, and practice in equal measure." },
   { value: "Concept-first", title: "Concept-first", description: "Explain the core ideas before moving into application." },
   { value: "Project-led", title: "Project-led", description: "Organize the course around a concrete result." },
 ] as const;

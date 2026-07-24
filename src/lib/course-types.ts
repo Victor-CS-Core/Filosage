@@ -75,8 +75,6 @@ export interface Quiz {
 
 export interface LessonData {
   content: string;
-  diagram: string;
-  diagramSummary?: string;
   quizzes: Quiz[];
   aiAssisted?: boolean;
   learningObjective?: string;

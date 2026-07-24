@@ -214,7 +214,7 @@ test("does not complete a lesson after a wrong answer", async ({ page }) => {
     aiAssisted: true,
     content: "# Feedback loops\n\nA **feedback loop** connects a system's output to what happens next.\n\n### Why it matters\n\nLoops make change visible over time.",
     diagram: "flowchart LR\nA[Action] --> B[Result]\nB --> A",
-    diagramSummary: "An action creates a result, and that result influences the next action.",
+    diagramSummary: "Legacy visual data must not appear in the lesson.",
     quizzes: [
       { question: "What defines a feedback loop?", options: ["A static list", "Output influencing future input", "A deadline", "A category"], correctIndex: 1, explanation: "The result feeds back into the system." },
       { question: "Why study the loop?", options: ["To see change over time", "To remove all inputs", "To rename parts", "To avoid examples"], correctIndex: 0, explanation: "Loops explain how behavior develops over time." },
@@ -228,6 +228,11 @@ test("does not complete a lesson after a wrong answer", async ({ page }) => {
   await expect(page.getByRole("heading", { name: "Feedback loops" })).toHaveCount(1);
   await expect(page.getByText("AI-assisted lesson")).toBeVisible();
   await expect(page.locator("[data-ai-generated='true']")).toHaveCount(1);
+  await expect(page.getByRole("heading", { name: "See the relationships" })).toHaveCount(0);
+  await expect(page.locator(".app-main")).toHaveCSS("overflow-y", "auto");
+  await expect(page.locator(".lesson-workspace")).toHaveCSS("overflow-y", "visible");
+  await expect(page.locator(".lesson-scroll")).toHaveCSS("overflow-y", "visible");
+  await expect(page.locator(".lesson-study-panel")).toHaveCSS("overflow-y", "visible");
   await expect(page.getByRole("heading", { level: 2, name: "Why it matters" })).toBeVisible();
   const firstCheck = page.locator(".knowledge-check").first();
   await expect(firstCheck.getByPlaceholder("Capture the key idea in your own words…")).toBeVisible();
@@ -281,8 +286,6 @@ test("renders the didactic lesson contract and transfer practice", async ({ page
     connection: "This distinction is required before comparing competing explanations.",
     keyTakeaways: ["Evidence is observed.", "Inference interprets evidence.", "Good decisions keep the distinction visible."],
     content: "## Begin with the claim\n\nA claim can report an observation or interpret what that observation means.",
-    diagram: "",
-    diagramSummary: "",
     guidedPractice: {
       prompt: "Work through a short claim.",
       steps: ["Underline what was observed.", "Name the interpretation added to it."],

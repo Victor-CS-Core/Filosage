@@ -31,8 +31,6 @@ export function toCourseDto(value: Record<string, unknown> | Course, canManage =
 export function toLessonDto(value: Record<string, unknown>, courseAiAssisted = false): LessonData {
   return {
     content: String(value.content ?? ""),
-    diagram: String(value.diagram ?? ""),
-    diagramSummary: typeof value.diagramSummary === "string" ? value.diagramSummary : undefined,
     quizzes: Array.isArray(value.quizzes) ? value.quizzes as LessonData["quizzes"] : [],
     learningObjective: typeof value.learningObjective === "string" ? value.learningObjective : undefined,
     connection: typeof value.connection === "string" ? value.connection : undefined,

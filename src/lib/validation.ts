@@ -73,8 +73,6 @@ export const lessonDataSchema = z.object({
   connection: z.string().trim().min(1).max(500),
   keyTakeaways: z.array(z.string().trim().min(1).max(240)).min(3).max(5),
   content: z.string().trim().min(800).max(24_000),
-  diagram: z.string().max(8_000),
-  diagramSummary: z.string().max(2_000),
   guidedPractice: z.object({
     prompt: z.string().trim().min(1).max(800),
     steps: z.array(z.string().trim().min(1).max(400)).min(2).max(5),

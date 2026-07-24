@@ -44,7 +44,7 @@ const primaryNav = [
 
 const sidebarNav = [...primaryNav, { href: "/profile", label: "Profile", icon: UserRound }];
 
-export default function AppShell({ children, activeTopic, activeLessonId, activeCourseId }: AppShellProps) {
+export default function AppShell({ children, activeTopic, activeCourseId }: AppShellProps) {
   const router = useRouter();
   const pathname = usePathname();
   const { theme, toggle } = useTheme();
@@ -236,7 +236,7 @@ export default function AppShell({ children, activeTopic, activeLessonId, active
         </details>
       </header>
 
-      <main className={`app-main ${activeLessonId ? "app-main-lesson" : ""}`} id="main-content" tabIndex={-1}>
+      <main className="app-main" id="main-content" tabIndex={-1}>
         {account?.accountStatus === "suspended" && (
           <div className="account-suspended-banner" role="status">
             <ShieldCheck size={17} />
