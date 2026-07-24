@@ -11,6 +11,10 @@ import type { Course } from "@/lib/course-types";
 import { findCourseLesson, findNextLesson } from "@/lib/course-progress";
 import { apiRequestErrorResponse, readJsonBody } from "@/lib/api-security";
 
+function numberValue(value: unknown) {
+  return typeof value === "number" && Number.isFinite(value) ? value : 0;
+}
+
 function asCourseProgress(value: Record<string, unknown>): CourseProgress {
   const lessons = value.lessons && typeof value.lessons === "object" ? value.lessons as Record<string, LessonProgress> : {};
   const inferredMinutes = Object.values(lessons).reduce(
@@ -89,10 +93,14 @@ export async function POST(request: Request) {
 
     const path = `users/${account.uid}/courseProgress/${update.courseId}`;
     const now = new Date();
+    const engagementPath = `userEngagement/${account.uid}`;
+    const dailyEngagementPath = `engagementDaily/${now.toISOString().slice(0, 10)}`;
     const intervals = [1, 3, 7, 14, 30, 60];
     const firstTryRate = update.totalQuestions ? update.firstAttemptCorrect / update.totalQuestions : 1;
     let nextReviewAt = now.toISOString();
-    const saved = await runStoredDocumentTransaction([path], (documents) => {
+    const saved = await runStoredDocumentTransaction(
+      [path, engagementPath, dailyEngagementPath],
+      (documents) => {
       const previous = documents[path] ? asCourseProgress(documents[path] as Record<string, unknown>) : null;
       const previousLesson = previous?.lessons[update.lessonId];
       const successfulReview = update.review === true && firstTryRate >= 0.8;
@@ -134,7 +142,50 @@ export async function POST(request: Request) {
         startedAt: previous?.startedAt ?? now.toISOString(),
         studyMinutes: (previous?.studyMinutes ?? 0) + (firstCompletion ? (canonical.lesson.estimatedMinutes ?? update.estimatedMinutes ?? 0) : 0),
       };
-      return { writes: [{ path, data: progress as unknown as Record<string, unknown> }], result: progress };
+      const studyMinutesAdded = firstCompletion
+        ? canonical.lesson.estimatedMinutes ?? update.estimatedMinutes ?? 0
+        : 0;
+      const engagement = documents[engagementPath];
+      const daily = documents[dailyEngagementPath];
+      return {
+        writes: [
+          { path, data: progress as unknown as Record<string, unknown> },
+          {
+            path: engagementPath,
+            data: {
+              ...(engagement ?? {}),
+              uid: account.uid,
+              coursesStarted: numberValue(engagement?.coursesStarted) + (previous ? 0 : 1),
+              lessonsCompleted: numberValue(engagement?.lessonsCompleted) + (firstCompletion ? 1 : 0),
+              studyMinutes: numberValue(engagement?.studyMinutes) + studyMinutesAdded,
+              retrievalSessions: numberValue(engagement?.retrievalSessions) + 1,
+              reviewSessions: numberValue(engagement?.reviewSessions) + (update.review ? 1 : 0),
+              questionsAnswered: numberValue(engagement?.questionsAnswered) + update.totalQuestions,
+              correctAnswers: numberValue(engagement?.correctAnswers) + update.firstAttemptCorrect,
+              lastActivityAt: now.toISOString(),
+              lastCourseId: update.courseId,
+              lastTopic: course.topic,
+              updatedAt: now.toISOString(),
+            },
+          },
+          {
+            path: dailyEngagementPath,
+            data: {
+              ...(daily ?? {}),
+              date: now.toISOString().slice(0, 10),
+              coursesStarted: numberValue(daily?.coursesStarted) + (previous ? 0 : 1),
+              lessonsCompleted: numberValue(daily?.lessonsCompleted) + (firstCompletion ? 1 : 0),
+              studyMinutes: numberValue(daily?.studyMinutes) + studyMinutesAdded,
+              retrievalSessions: numberValue(daily?.retrievalSessions) + 1,
+              reviewSessions: numberValue(daily?.reviewSessions) + (update.review ? 1 : 0),
+              questionsAnswered: numberValue(daily?.questionsAnswered) + update.totalQuestions,
+              correctAnswers: numberValue(daily?.correctAnswers) + update.firstAttemptCorrect,
+              updatedAt: now.toISOString(),
+            },
+          },
+        ],
+        result: progress,
+      };
     });
 
     return Response.json(

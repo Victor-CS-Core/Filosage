@@ -47,6 +47,9 @@ export function hasCurrentLegalAcceptance(account: ServerAccount) {
 
 export async function requireAcceptedAccount(request: Request): Promise<ServerAccount> {
   const account = await requireAccount(request);
+  if (account.accountStatus === "suspended") {
+    throw new AuthorizationError(403, "This account is paused. Contact support if you believe this is an error.");
+  }
   if (!hasCurrentLegalAcceptance(account)) {
     throw new AuthorizationError(403, "Review and accept the current Terms and Privacy Notice to continue.");
   }
@@ -55,7 +58,7 @@ export async function requireAcceptedAccount(request: Request): Promise<ServerAc
 
 export async function requireOwner(request: Request): Promise<ServerAccount> {
   const account = await requireAcceptedAccount(request);
-  if (!account.isOwner) throw new AuthorizationError(403, "Only the Erudoza owner can publish courses.");
+  if (!account.isOwner) throw new AuthorizationError(403, "Owner access is required.");
   return account;
 }
 

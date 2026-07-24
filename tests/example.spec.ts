@@ -102,6 +102,21 @@ test("keeps the learning library public", async ({ page }) => {
   await expect(page.getByText("No account required to read")).toBeVisible();
 });
 
+test("keeps the owner control room private at both page and API boundaries", async ({ page, request }) => {
+  const overview = await request.get("/api/admin/overview");
+  expect(overview.status()).toBe(401);
+
+  const accountAction = await request.patch("/api/admin/users/not-an-owner", {
+    data: { action: "restore" },
+  });
+  expect(accountAction.status()).toBe(401);
+
+  await page.goto("/admin");
+  await expect(page.getByRole("heading", { name: "This page is not available." })).toBeVisible();
+  await expect(page.getByText("Owner workspace")).toHaveCount(0);
+  await expect(page.getByText("User directory")).toHaveCount(0);
+});
+
 test("preserves the selected theme across navigation and reloads", async ({ page }) => {
   await page.goto("/");
   await page.locator(".public-header").getByRole("button", { name: "Use dark mode" }).click();

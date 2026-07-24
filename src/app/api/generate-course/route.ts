@@ -15,7 +15,7 @@ import {
   courseRequestSchema,
   validationMessage,
 } from "@/lib/validation";
-import { assertSafeContent, ContentSafetyError } from "@/lib/content-safety";
+import { AI_SAFETY_POLICY, assertSafeContent, ContentSafetyError } from "@/lib/content-safety";
 import { apiRequestErrorResponse, readJsonBody } from "@/lib/api-security";
 import { openAiSafetyIdentifier } from "@/lib/ai-usage";
 
@@ -23,7 +23,7 @@ const model = process.env.OPENAI_COURSE_MODEL || process.env.OPENAI_MODEL || "gp
 
 export async function POST(request: Request) {
   let reservation: AiReservation | null = null;
-  let observedUsage = { inputTokens: 0, outputTokens: 0 };
+  let observedUsage = { inputTokens: 0, cachedInputTokens: 0, outputTokens: 0 };
   let responseId: string | undefined;
   try {
     const account = await requirePremium(request);
@@ -45,12 +45,16 @@ export async function POST(request: Request) {
         : "Balance mental models, worked examples, retrieval, and application throughout the course.";
     const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
     reservation = await reserveAiUsage(account, "course_outline", request.headers.get("idempotency-key"));
-    await assertSafeContent(client, [topic, goal, application, background].filter(Boolean).join("\n"));
+    await assertSafeContent(
+      client,
+      [topic, goal, application, background].filter(Boolean).join("\n"),
+      { uid: account.uid, feature: "course_outline", stage: "input" },
+    );
     const response = await client.responses.parse({
       model,
       store: false,
       instructions:
-        "Design a structured course with progressive difficulty, retrieval practice, and appropriate scaffolding. Include a realistic level, total learning time, concrete outcome, prerequisites, category, and an estimated time for every lesson. Keep each lesson tightly scoped, independently useful, and free of filler. Write titles and descriptions in plain, specific, instructional language. Avoid promotional claims, motivational slogans, vague abstractions, and repetitive phrasing. Use the term course, not learning path. Return the requested structured course only.",
+        `Design a structured course with progressive difficulty, retrieval practice, and appropriate scaffolding. Include a realistic level, total learning time, concrete outcome, prerequisites, category, and an estimated time for every lesson. Keep each lesson tightly scoped, independently useful, and free of filler. Write titles and descriptions in plain, specific, instructional language. Avoid promotional claims, motivational slogans, vague abstractions, and repetitive phrasing. Use the term course, not learning path. Return the requested structured course only.\n\n${AI_SAFETY_POLICY}`,
       input: [
         `Create a complete but efficient course outline for: ${topic}`,
         goal ? `Learner's observable goal: ${goal}` : "",
@@ -77,7 +81,11 @@ export async function POST(request: Request) {
         { status: 502 },
       );
     }
-    await assertSafeContent(client, JSON.stringify(outline));
+    await assertSafeContent(client, JSON.stringify(outline), {
+      uid: account.uid,
+      feature: "course_outline",
+      stage: "output",
+    });
 
     const course = await createCourse({
       topic,
@@ -107,7 +115,10 @@ export async function POST(request: Request) {
     const requestResponse = apiRequestErrorResponse(error);
     if (requestResponse) return requestResponse;
     if (error instanceof ContentSafetyError) {
-      return NextResponse.json({ error: error.message, code: "CONTENT_NOT_ALLOWED" }, { status: 422 });
+      return NextResponse.json(
+        { error: error.message, code: "CONTENT_NOT_ALLOWED", retryAt: error.retryAt },
+        { status: 422 },
+      );
     }
 
     console.error("Course generation failed:", error);

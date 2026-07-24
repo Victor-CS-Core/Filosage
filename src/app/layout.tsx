@@ -5,6 +5,7 @@ import "@fontsource-variable/inter";
 import "./globals.css";
 import { ThemeProvider } from "@/components/ThemeProvider";
 import { AuthProvider } from "@/components/AuthProvider";
+import TrafficTracker from "@/components/TrafficTracker";
 
 const themeBootstrapScript = `
   (function () {
@@ -94,6 +95,7 @@ export default function RootLayout({
         </Script>
         <ThemeProvider>
           <AuthProvider>
+            <TrafficTracker />
             {children}
           </AuthProvider>
         </ThemeProvider>

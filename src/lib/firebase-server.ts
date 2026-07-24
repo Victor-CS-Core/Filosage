@@ -446,6 +446,16 @@ export function listStoredDocumentsByField(
   });
 }
 
+export function listCollectionDocuments(collectionId: string, limit = 1_000) {
+  if (!/^[A-Za-z0-9_-]{1,80}$/.test(collectionId)) {
+    throw new Error("Invalid Firestore collection.");
+  }
+  return runCourseQuery({
+    from: [{ collectionId }],
+    limit: Math.min(Math.max(limit, 1), 2_000),
+  });
+}
+
 export async function deleteStoredDocuments(paths: string[]) {
   if (!paths.length) return;
   await commitWrites(paths.map((path) => ({ delete: fullDocumentName(path) })));

@@ -202,6 +202,7 @@ export async function reserveAiUsage(
               minuteCount: minuteCount + 1,
               reservedCostMicros: numberValue(period?.reservedCostMicros) + policy.reserveCostMicros,
               inputTokens: numberValue(period?.inputTokens),
+              cachedInputTokens: numberValue(period?.cachedInputTokens),
               outputTokens: numberValue(period?.outputTokens),
               actualCostMicros: numberValue(period?.actualCostMicros),
               activeRequestId: requestId,
@@ -242,20 +243,34 @@ export async function reserveAiUsage(
 
 export function extractOpenAiUsage(value: unknown) {
   const usage = value && typeof value === "object" && "usage" in value
-    ? (value as { usage?: { input_tokens?: number; output_tokens?: number } }).usage
+    ? (value as {
+        usage?: {
+          input_tokens?: number;
+          output_tokens?: number;
+          input_tokens_details?: { cached_tokens?: number };
+        };
+      }).usage
     : undefined;
   return {
     inputTokens: numberValue(usage?.input_tokens),
+    cachedInputTokens: numberValue(usage?.input_tokens_details?.cached_tokens),
     outputTokens: numberValue(usage?.output_tokens),
   };
 }
 
 export async function finalizeAiUsage(
   reservation: AiReservation,
-  result: { inputTokens?: number; outputTokens?: number; responseId?: string; failed?: boolean },
+  result: {
+    inputTokens?: number;
+    cachedInputTokens?: number;
+    outputTokens?: number;
+    responseId?: string;
+    failed?: boolean;
+  },
 ) {
   const nowIso = new Date().toISOString();
   const inputTokens = numberValue(result.inputTokens);
+  const cachedInputTokens = numberValue(result.cachedInputTokens);
   const outputTokens = numberValue(result.outputTokens);
   const tutorRequest = reservation.feature === "tutor";
   const inputRate = Number(
@@ -284,6 +299,7 @@ export async function finalizeAiUsage(
               ...period,
               reservedCostMicros: Math.max(0, numberValue(period.reservedCostMicros) - reservation.reserveCostMicros),
               inputTokens: numberValue(period.inputTokens) + inputTokens,
+              cachedInputTokens: numberValue(period.cachedInputTokens) + cachedInputTokens,
               outputTokens: numberValue(period.outputTokens) + outputTokens,
               actualCostMicros: numberValue(period.actualCostMicros) + actualCostMicros,
               activeRequestId: null,
@@ -297,6 +313,7 @@ export async function finalizeAiUsage(
               ...request,
               status: result.failed ? "failed" : "completed",
               inputTokens,
+              cachedInputTokens,
               outputTokens,
               actualCostMicros,
               responseId: result.responseId ?? null,

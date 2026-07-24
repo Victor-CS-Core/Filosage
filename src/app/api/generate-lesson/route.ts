@@ -17,7 +17,7 @@ import {
 } from "@/lib/validation";
 import { findCourseLesson } from "@/lib/course-progress";
 import type { Course } from "@/lib/course-types";
-import { assertSafeContent, ContentSafetyError } from "@/lib/content-safety";
+import { AI_SAFETY_POLICY, assertSafeContent, ContentSafetyError } from "@/lib/content-safety";
 import { apiRequestErrorResponse, readJsonBody } from "@/lib/api-security";
 import { openAiSafetyIdentifier } from "@/lib/ai-usage";
 
@@ -25,7 +25,7 @@ const model = process.env.OPENAI_LESSON_MODEL || process.env.OPENAI_MODEL || "gp
 
 export async function POST(request: Request) {
   let reservation: AiReservation | null = null;
-  let observedUsage = { inputTokens: 0, outputTokens: 0 };
+  let observedUsage = { inputTokens: 0, cachedInputTokens: 0, outputTokens: 0 };
   let responseId: string | undefined;
   try {
     const account = await requirePremium(request);
@@ -58,11 +58,16 @@ export async function POST(request: Request) {
 
     reservation = await reserveAiUsage(account, "lesson_generation", request.headers.get("idempotency-key"));
     const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+    await assertSafeContent(
+      client,
+      [topic, lessonTitle, lessonConcept, course.outcome ?? course.mission ?? ""].join("\n"),
+      { uid: account.uid, feature: "lesson_generation", stage: "input" },
+    );
     const response = await client.responses.parse({
       model,
       store: false,
       instructions:
-        "Design one rigorous, memorable lesson. Build understanding in this order: orient the learner with a concrete question, explain the mental model from first principles, work through one realistic example step by step, identify a common misconception, and end with a short transfer prompt. Write direct, natural prose in accessible Markdown with descriptive H2 sections and H3 subsections only; never repeat the lesson title as a heading. Avoid generic encouragement, promotional language, vague claims, repeated conclusions, and filler. Mermaid diagrams must be syntactically valid, simple, legible on a phone, and contain no external links or HTML. Always include a plain-language diagramSummary that communicates every relationship for learners who cannot see the diagram. Quizzes must test recall and application rather than trivia. Distribute correct answers across different option positions; do not consistently place the correct answer first. Return only the requested structured lesson.",
+        `Design one rigorous, memorable lesson. Build understanding in this order: orient the learner with a concrete question, explain the mental model from first principles, work through one realistic example step by step, identify a common misconception, and end with a short transfer prompt. Write direct, natural prose in accessible Markdown with descriptive H2 sections and H3 subsections only; never repeat the lesson title as a heading. Avoid generic encouragement, promotional language, vague claims, repeated conclusions, and filler. Mermaid diagrams must be syntactically valid, simple, legible on a phone, and contain no external links or HTML. Always include a plain-language diagramSummary that communicates every relationship for learners who cannot see the diagram. Quizzes must test recall and application rather than trivia. Distribute correct answers across different option positions; do not consistently place the correct answer first. Return only the requested structured lesson.\n\n${AI_SAFETY_POLICY}`,
       input: `Course topic: ${topic}\nLesson: ${lessonTitle}\nCore concept: ${lessonConcept}\nCourse outcome: ${course.outcome ?? course.mission}\nModule: ${course.modules[canonical.moduleIndex]?.title ?? "Current module"}`,
       text: {
         format: zodTextFormat(lessonDataSchema, "lesson"),
@@ -80,7 +85,11 @@ export async function POST(request: Request) {
         { status: 502 },
       );
     }
-    await assertSafeContent(client, JSON.stringify(lesson));
+    await assertSafeContent(client, JSON.stringify(lesson), {
+      uid: account.uid,
+      feature: "lesson_generation",
+      stage: "output",
+    });
 
     await saveLesson(courseId, lessonId, {
       ...lesson,
@@ -106,7 +115,10 @@ export async function POST(request: Request) {
     const requestResponse = apiRequestErrorResponse(error);
     if (requestResponse) return requestResponse;
     if (error instanceof ContentSafetyError) {
-      return NextResponse.json({ error: error.message, code: "CONTENT_NOT_ALLOWED" }, { status: 422 });
+      return NextResponse.json(
+        { error: error.message, code: "CONTENT_NOT_ALLOWED", retryAt: error.retryAt },
+        { status: 422 },
+      );
     }
 
     console.error("Lesson generation failed:", error);

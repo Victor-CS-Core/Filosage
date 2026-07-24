@@ -5,7 +5,7 @@ import {
   putStoredDocument,
   type VerifiedFirebaseUser,
 } from "@/lib/firebase-server";
-import type { AccessLevel, LearnerPlan } from "@/lib/course-types";
+import type { AccessLevel, AccountStatus, LearnerPlan } from "@/lib/course-types";
 
 export interface ServerAccount {
   uid: string;
@@ -15,6 +15,9 @@ export interface ServerAccount {
   plan: LearnerPlan;
   access: Exclude<AccessLevel, "anonymous">;
   isOwner: boolean;
+  accountStatus: AccountStatus;
+  suspensionReason?: string;
+  manualProUntil?: string;
   subscriptionStatus: "none" | "trialing" | "active" | "past_due" | "canceled";
   currentPeriodEnd?: string;
   billingCustomerId?: string;
@@ -45,8 +48,16 @@ export async function getOrCreateAccount(user: VerifiedFirebaseUser): Promise<Se
   const allowlisted = Boolean(email && premiumEmailSet().has(email));
   const subscriptionStatus = String(existing?.subscriptionStatus ?? "none") as ServerAccount["subscriptionStatus"];
   const subscribed = subscriptionStatus === "active" || subscriptionStatus === "trialing";
-  const plan: LearnerPlan = isOwner || allowlisted || subscribed ? "pro" : "free";
+  const manualProUntil = typeof existing?.manualProUntil === "string" ? existing.manualProUntil : undefined;
+  const manualProActive = manualProUntil === "permanent"
+    || (Boolean(manualProUntil) && Date.parse(manualProUntil!) > Date.now());
+  const plan: LearnerPlan = isOwner || allowlisted || subscribed || manualProActive ? "pro" : "free";
   const access: ServerAccount["access"] = isOwner ? "owner" : plan === "pro" ? "pro" : "free";
+  const accountStatus: AccountStatus = isOwner
+    ? "active"
+    : existing?.accountStatus === "suspended"
+      ? "suspended"
+      : "active";
 
   const saved = await putStoredDocument(path, {
     ...(existing ?? {}),
@@ -55,6 +66,8 @@ export async function getOrCreateAccount(user: VerifiedFirebaseUser): Promise<Se
     displayName: user.name ?? existing?.displayName ?? null,
     photoURL: user.picture ?? existing?.photoURL ?? null,
     plan,
+    accountStatus,
+    manualProUntil: manualProUntil ?? null,
     subscriptionStatus,
     createdAt: existing?.createdAt ?? now,
     updatedAt: now,
@@ -68,6 +81,9 @@ export async function getOrCreateAccount(user: VerifiedFirebaseUser): Promise<Se
     plan,
     access,
     isOwner,
+    accountStatus,
+    suspensionReason: typeof saved.suspensionReason === "string" ? saved.suspensionReason : undefined,
+    manualProUntil,
     subscriptionStatus,
     currentPeriodEnd: typeof saved.currentPeriodEnd === "string" ? saved.currentPeriodEnd : undefined,
     billingCustomerId: typeof saved.billingCustomerId === "string" ? saved.billingCustomerId : undefined,

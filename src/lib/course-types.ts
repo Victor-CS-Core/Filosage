@@ -47,6 +47,7 @@ export interface LessonData {
 
 export type LearnerPlan = "free" | "pro";
 export type AccessLevel = "anonymous" | "free" | "pro" | "owner";
+export type AccountStatus = "active" | "suspended";
 
 export interface AiQuotaSummary {
   feature: "course_outline" | "lesson_generation" | "tutor";
@@ -60,6 +61,8 @@ export interface LearnerAccount {
   access: AccessLevel;
   plan: LearnerPlan;
   isOwner: boolean;
+  accountStatus: AccountStatus;
+  suspensionReason?: string;
   displayName?: string;
   photoURL?: string;
   subscriptionStatus?: "none" | "trialing" | "active" | "past_due" | "canceled";

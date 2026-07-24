@@ -189,7 +189,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     () => ({
       user,
       isOwner: account?.isOwner === true,
-      isPro: account?.plan === "pro",
+      isPro: account?.plan === "pro" && account.accountStatus !== "suspended",
       access: account?.access ?? (user ? "free" : "anonymous"),
       account,
       loading,

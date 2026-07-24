@@ -11,6 +11,8 @@ export async function GET(request: Request) {
         access: account.access,
         plan: account.plan,
         isOwner: account.isOwner,
+        accountStatus: account.accountStatus,
+        suspensionReason: account.suspensionReason,
         displayName: account.displayName,
         photoURL: account.photoURL,
         subscriptionStatus: account.subscriptionStatus,

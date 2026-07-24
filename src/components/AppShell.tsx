@@ -15,6 +15,7 @@ import {
   Moon,
   Plus,
   Sparkles,
+  ShieldCheck,
   Sun,
   TrendingUp,
   UserRound,
@@ -47,7 +48,7 @@ export default function AppShell({ children, activeTopic, activeCourseId }: AppS
   const router = useRouter();
   const pathname = usePathname();
   const { theme, toggle } = useTheme();
-  const { user, account, isPro, signOut, loading: authLoading } = useAuth();
+  const { user, account, isOwner, isPro, signOut, loading: authLoading } = useAuth();
   const [showAuth, setShowAuth] = useState(false);
   const [courses, setCourses] = useState<Course[]>([]);
 
@@ -157,6 +158,11 @@ export default function AppShell({ children, activeTopic, activeCourseId }: AppS
               <Plus size={18} /><span>Create course</span>
             </button>
           )}
+          {isOwner && (
+            <button className={`nav-link owner-nav-link ${pathname.startsWith("/admin") ? "is-active" : ""}`} onClick={() => navigate("/admin")}>
+              <ShieldCheck size={18} /><span>Control room</span>
+            </button>
+          )}
         </nav>
 
         {isPro ? (
@@ -223,13 +229,22 @@ export default function AppShell({ children, activeTopic, activeCourseId }: AppS
             <strong>{firstName}</strong>
             <small>{isPro ? "Pro learning account" : "Free learning account"}</small>
             <button type="button" onClick={() => navigate("/profile")}><UserRound size={16} /> View profile</button>
+            {isOwner && <button type="button" onClick={() => navigate("/admin")}><ShieldCheck size={16} /> Control room</button>}
             <button type="button" onClick={toggle}>{theme === "dark" ? <Sun size={16} /> : <Moon size={16} />} {theme === "dark" ? "Light mode" : "Dark mode"}</button>
             <button type="button" onClick={() => void signOut()}><LogOut size={16} /> Sign out</button>
           </div>
         </details>
       </header>
 
-      <main className="app-main" id="main-content" tabIndex={-1}>{children}</main>
+      <main className="app-main" id="main-content" tabIndex={-1}>
+        {account?.accountStatus === "suspended" && (
+          <div className="account-suspended-banner" role="status">
+            <ShieldCheck size={17} />
+            <span><strong>Protected account features are paused.</strong> Contact <a href={`mailto:${SUPPORT_CONTACT}`}>{SUPPORT_CONTACT}</a> if you believe this is an error.</span>
+          </div>
+        )}
+        {children}
+      </main>
 
       <nav className="mobile-bottom-nav" aria-label="Mobile navigation">
         {primaryNav.slice(0, 2).map(({ href, label, icon: Icon }) => (
