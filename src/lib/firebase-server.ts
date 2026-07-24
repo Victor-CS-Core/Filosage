@@ -427,6 +427,30 @@ export async function listStoredDocuments(path: string, pageSize = 100) {
   return (response?.documents ?? []).map(parseDocument);
 }
 
+export function listStoredDocumentsByField(
+  collectionId: string,
+  field: string,
+  value: unknown,
+  limit = 300,
+) {
+  return runCourseQuery({
+    from: [{ collectionId }],
+    where: {
+      fieldFilter: {
+        field: { fieldPath: field },
+        op: "EQUAL",
+        value: toFirestoreValue(value),
+      },
+    },
+    limit: Math.min(Math.max(limit, 1), 1_000),
+  });
+}
+
+export async function deleteStoredDocuments(paths: string[]) {
+  if (!paths.length) return;
+  await commitWrites(paths.map((path) => ({ delete: fullDocumentName(path) })));
+}
+
 export async function createStoredDocument(
   collectionPath: string,
   data: Record<string, unknown>,

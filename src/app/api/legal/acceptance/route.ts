@@ -7,6 +7,7 @@ import { PRIVACY_VERSION, TERMS_VERSION } from "@/lib/legal";
 const acceptanceSchema = z.object({
   termsVersion: z.literal(TERMS_VERSION),
   privacyVersion: z.literal(PRIVACY_VERSION),
+  ageEligibilityConfirmed: z.literal(true),
   source: z.enum(["signup", "terms-update", "subscription"]),
 });
 
@@ -30,6 +31,7 @@ export async function POST(request: Request) {
         ...(existing ?? {}),
         acceptedTermsVersion: TERMS_VERSION,
         acceptedPrivacyVersion: PRIVACY_VERSION,
+        ageEligibilityConfirmed: true,
         legalAcceptedAt: acceptedAt,
         updatedAt: acceptedAt,
       }),

@@ -6,6 +6,7 @@ import {
   ArrowLeft,
   ArrowRight,
   BookOpen,
+  Bot,
   CheckCircle2,
   Check,
   ChevronDown,
@@ -239,10 +240,13 @@ export default function CourseMap() {
         <header className="course-header">
           <div className="course-header-topline">
             <button className="text-button" onClick={() => router.push("/library")}><ArrowLeft size={15} /> Public library</button>
-            <span className={`status-badge ${course.isPublic ? "status-public" : "status-private"}`}>
-              {course.isPublic ? <Globe2 size={14} /> : <LockKeyhole size={14} />}
-              {course.isPublic ? "Public course" : "Private draft"}
-            </span>
+            <div className="course-statuses">
+              {course.aiAssisted && <span className="ai-disclosure-badge" data-ai-assisted="true"><Bot size={14} /> AI-assisted course</span>}
+              <span className={`status-badge ${course.isPublic ? "status-public" : "status-private"}`}>
+                {course.isPublic ? <Globe2 size={14} /> : <LockKeyhole size={14} />}
+                {course.isPublic ? "Public course" : "Private draft"}
+              </span>
+            </div>
           </div>
 
           <div className="course-hero-grid">

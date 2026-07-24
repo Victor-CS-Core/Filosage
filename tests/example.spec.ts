@@ -137,8 +137,15 @@ test("publishes clear legal documents and a bundled public catalog", async ({ pa
   await expect(page.getByText("automatic renewal", { exact: false }).first()).toBeVisible();
   await page.goto("/privacy");
   await expect(page.getByRole("heading", { name: "Privacy Notice" })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Privacy choices" })).toHaveAttribute("href", "/privacy-center");
   await page.goto("/acceptable-use");
   await expect(page.getByRole("heading", { name: "Acceptable Use Policy" })).toBeVisible();
+  await page.goto("/copyright");
+  await expect(page.getByRole("heading", { name: "Copyright Policy" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Repeat infringement" })).toBeVisible();
+  await page.goto("/privacy-center");
+  await expect(page.getByRole("heading", { name: "Your information, under your control." })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Sign in to export" })).toBeVisible();
 
   const response = await request.get("/api/courses?scope=public");
   expect(response.ok()).toBe(true);
@@ -173,6 +180,7 @@ test("does not complete a lesson after a wrong answer", async ({ page }) => {
     }],
   };
   const lesson = {
+    aiAssisted: true,
     content: "# Feedback loops\n\nA **feedback loop** connects a system's output to what happens next.\n\n### Why it matters\n\nLoops make change visible over time.",
     diagram: "flowchart LR\nA[Action] --> B[Result]\nB --> A",
     diagramSummary: "An action creates a result, and that result influences the next action.",
@@ -187,6 +195,8 @@ test("does not complete a lesson after a wrong answer", async ({ page }) => {
   await page.goto("/course/Systems%20thinking/lesson/0-0?id=demo");
 
   await expect(page.getByRole("heading", { name: "Feedback loops" })).toHaveCount(1);
+  await expect(page.getByText("AI-assisted lesson")).toBeVisible();
+  await expect(page.locator("[data-ai-generated='true']")).toHaveCount(1);
   await expect(page.getByRole("heading", { level: 2, name: "Why it matters" })).toBeVisible();
   const firstCheck = page.locator(".knowledge-check").first();
   await expect(firstCheck.getByPlaceholder("Capture the key idea in your own words…")).toBeVisible();
@@ -223,6 +233,7 @@ test("presents public courses as a browsable learning library", async ({ page })
     mission: "See the feedback loops shaping everyday outcomes.",
     level: "beginner",
     isPublic: true,
+    aiAssisted: true,
     modules: [{ title: "Foundations", description: "Build the model", lessons: [
       { title: "Feedback loops", concept: "How outputs shape future inputs", estimatedMinutes: 8 },
       { title: "Leverage points", concept: "Where small changes matter", estimatedMinutes: 10 },
@@ -244,6 +255,7 @@ test("frames each course around an outcome and mastery", async ({ page }) => {
     mission: "Understand feedback loops.",
     level: "beginner",
     isPublic: true,
+    aiAssisted: true,
     modules: [{
       title: "Foundations",
       description: "Build a working mental model",
@@ -254,6 +266,11 @@ test("frames each course around an outcome and mastery", async ({ page }) => {
     }],
   };
   await page.route("**/api/courses/demo", (route) => route.fulfill({ json: course }));
+  await page.route("**/api/courses/demo/lessons/0-1", (route) => route.fulfill({ json: {
+    aiAssisted: true,
+    content: "# Leverage points\n\nA leverage point is a place where a focused change can reshape system behavior.",
+    quizzes: [],
+  } }));
   await page.addInitScript(() => {
     localStorage.setItem("erudoza-learning-state-v2", JSON.stringify({
       demo: {
@@ -273,6 +290,8 @@ test("frames each course around an outcome and mastery", async ({ page }) => {
   await page.goto("/course/Systems%20thinking?id=demo");
 
   await expect(page.getByText("Course outcome")).toBeVisible();
+  await expect(page.getByText("AI-assisted course")).toBeVisible();
+  await expect(page.locator("[data-ai-assisted='true']")).toHaveCount(1);
   await expect(page.getByText("By the end")).toBeVisible();
   const resumeCard = page.locator(".course-resume-card");
   await expect(resumeCard.getByText("Continue learning")).toBeVisible();

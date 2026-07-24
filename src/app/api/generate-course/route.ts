@@ -48,6 +48,7 @@ export async function POST(request: Request) {
     await assertSafeContent(client, [topic, goal, application, background].filter(Boolean).join("\n"));
     const response = await client.responses.parse({
       model,
+      store: false,
       instructions:
         "Design a structured course with progressive difficulty, retrieval practice, and appropriate scaffolding. Include a realistic level, total learning time, concrete outcome, prerequisites, category, and an estimated time for every lesson. Keep each lesson tightly scoped, independently useful, and free of filler. Write titles and descriptions in plain, specific, instructional language. Avoid promotional claims, motivational slogans, vague abstractions, and repetitive phrasing. Use the term course, not learning path. Return the requested structured course only.",
       input: [
@@ -86,12 +87,13 @@ export async function POST(request: Request) {
       authorName: account.displayName ?? (account.isOwner ? "Erudoza" : "Erudoza learner"),
       authorPhoto: account.photoURL ?? null,
       isPublic: false,
+      aiAssisted: true,
     });
 
     await finalizeAiUsage(reservation, { ...observedUsage, responseId });
     reservation = null;
 
-    return NextResponse.json({ ...outline, courseId: course.id, isPublic: false });
+    return NextResponse.json({ ...outline, courseId: course.id, isPublic: false, aiAssisted: true });
   } catch (error: unknown) {
     if (reservation) {
       await finalizeAiUsage(reservation, { ...observedUsage, responseId, failed: true }).catch((usageError) => {

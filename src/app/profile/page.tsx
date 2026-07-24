@@ -127,6 +127,11 @@ export default function ProfilePage() {
                 </section>
 
                 <section className="profile-badge-note"><Award size={19} /><div><strong>Badges reward useful work.</strong><p>There are no points to farm. Progress comes from completing lessons, recalling accurately, reviewing on time, and finishing courses.</p></div></section>
+                <section className="profile-preferences">
+                  <div className="profile-side-heading"><UserRound size={18} /><h2>Account and privacy</h2></div>
+                  <p>Download your information, submit a privacy request, or close your account.</p>
+                  <button onClick={() => router.push("/privacy-center")}>Open privacy center</button>
+                </section>
               </aside>
             </div>
           </>

@@ -60,6 +60,7 @@ export async function POST(request: Request) {
     const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
     const response = await client.responses.parse({
       model,
+      store: false,
       instructions:
         "Design one rigorous, memorable lesson. Build understanding in this order: orient the learner with a concrete question, explain the mental model from first principles, work through one realistic example step by step, identify a common misconception, and end with a short transfer prompt. Write direct, natural prose in accessible Markdown with descriptive H2 sections and H3 subsections only; never repeat the lesson title as a heading. Avoid generic encouragement, promotional language, vague claims, repeated conclusions, and filler. Mermaid diagrams must be syntactically valid, simple, legible on a phone, and contain no external links or HTML. Always include a plain-language diagramSummary that communicates every relationship for learners who cannot see the diagram. Quizzes must test recall and application rather than trivia. Distribute correct answers across different option positions; do not consistently place the correct answer first. Return only the requested structured lesson.",
       input: `Course topic: ${topic}\nLesson: ${lessonTitle}\nCore concept: ${lessonConcept}\nCourse outcome: ${course.outcome ?? course.mission}\nModule: ${course.modules[canonical.moduleIndex]?.title ?? "Current module"}`,
@@ -84,13 +85,14 @@ export async function POST(request: Request) {
     await saveLesson(courseId, lessonId, {
       ...lesson,
       authorId: account.uid,
+      aiAssisted: true,
       isPublic: coursePublic,
     });
 
     await finalizeAiUsage(reservation, { ...observedUsage, responseId });
     reservation = null;
 
-    return NextResponse.json(lesson);
+    return NextResponse.json({ ...lesson, aiAssisted: true });
   } catch (error: unknown) {
     if (reservation) {
       await finalizeAiUsage(reservation, { ...observedUsage, responseId, failed: true }).catch((usageError) => {

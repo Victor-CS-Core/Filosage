@@ -359,7 +359,9 @@ button:disabled { cursor: not-allowed; opacity: 0.55; }
 .course-page { width: min(1240px, calc(100% - 80px)); min-height: 100vh; margin: 0 auto; padding: 40px 0 96px; }
 .course-header { padding: 0; }
 .course-header-topline { display: flex; align-items: center; justify-content: space-between; gap: 20px; }
+.course-statuses { display: flex; align-items: center; justify-content: flex-end; flex-wrap: wrap; gap: 8px; }
 .status-badge { min-height: 28px; display: inline-flex; align-items: center; gap: 6px; padding: 5px 9px; border-radius: 999px; font-size: 0.72rem; font-weight: 700; }
+.ai-disclosure-badge { min-height: 28px; display: inline-flex; align-items: center; gap: 6px; padding: 5px 9px; border: 1px solid color-mix(in oklch, var(--brand-blue) 34%, var(--line)); border-radius: 999px; color: var(--brand-blue-ink); background: color-mix(in oklch, var(--accent-soft) 72%, var(--surface)); font-size: 0.72rem; font-weight: 700; }
 .status-public { color: var(--success); background: var(--success-soft); }
 .status-private { color: var(--ink-secondary); background: var(--surface-subtle); }
 .course-hero-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(320px, 380px); gap: 40px; align-items: stretch; margin-top: 26px; }
@@ -436,6 +438,11 @@ button:disabled { cursor: not-allowed; opacity: 0.55; }
 .lesson-title-block { padding: 72px 0 44px; border-bottom: 1px solid var(--line); }
 .lesson-title-block h1 { font-size: clamp(2.4rem, 5vw, 4.5rem); letter-spacing: -0.04em; max-width: 17ch; margin-top: 10px; }
 .lesson-title-block > p:last-child { color: var(--ink-secondary); font-size: 1rem; line-height: 1.7; max-width: 62ch; margin-top: 17px; }
+.lesson-ai-notice { display: flex; align-items: flex-start; gap: 10px; margin: 20px 0 -2px; padding: 11px 13px; border: 1px solid color-mix(in oklch, var(--brand-blue) 28%, var(--line)); border-radius: 12px; color: var(--brand-blue-ink); background: color-mix(in oklch, var(--accent-soft) 58%, var(--surface)); }
+.lesson-ai-notice > svg { flex: 0 0 auto; margin-top: 2px; }
+.lesson-ai-notice p { display: flex; flex-direction: column; gap: 2px; margin: 0; }
+.lesson-ai-notice strong { font-size: 0.78rem; }
+.lesson-ai-notice span { color: var(--ink-secondary); font-size: 0.72rem; line-height: 1.5; }
 .markdown-content { padding: 46px 0 24px; font-family: var(--font-reading); font-size: 1.12rem; line-height: 1.85; color: var(--ink); }
 .markdown-content > * { max-width: 70ch; }
 .markdown-content h1, .markdown-content h2, .markdown-content h3 { font-family: var(--font-heading); margin: 2.2em 0 0.75em; }
@@ -551,6 +558,7 @@ button:disabled { cursor: not-allowed; opacity: 0.55; }
 .tutor-composer label { display: block; color: var(--ink-secondary); font-size: 0.68rem; font-weight: 700; margin-bottom: 7px; }
 .tutor-composer textarea { resize: none; padding-right: 48px; font-size: 0.78rem; line-height: 1.45; }
 .tutor-composer .icon-button { position: absolute; right: 20px; bottom: 20px; }
+.tutor-disclaimer { display: block; max-width: calc(100% - 46px); margin-top: 7px; color: var(--ink-muted); font-size: 0.62rem; line-height: 1.35; }
 
 /* Auth */
 .modal-layer { position: fixed; inset: 0; z-index: var(--z-modal-backdrop); display: grid; place-items: center; padding: 20px; background: rgba(7, 17, 39, 0.68); background: oklch(8% 0.02 270 / 0.68); animation: modal-fade 160ms ease-out; }
@@ -802,6 +810,35 @@ button:disabled { cursor: not-allowed; opacity: 0.55; }
 .legal-content ul { display: grid; gap: 8px; margin: 14px 0 0; padding-left: 22px; }
 .legal-content strong { color: var(--ink); }
 .legal-page > footer { padding-top: 28px; color: var(--ink-muted); font-size: 0.76rem; }
+.privacy-center-page { width: min(980px, calc(100% - 64px)); margin: 0 auto; padding: 64px 0 100px; }
+.privacy-center-page > header { max-width: 710px; }
+.privacy-center-page > header h1 { margin-top: 9px; font-size: clamp(2.35rem, 5vw, 3.8rem); letter-spacing: -0.05em; }
+.privacy-center-page > header > p:last-child { margin-top: 15px; color: var(--ink-secondary); font-size: 0.94rem; line-height: 1.7; }
+.privacy-center-icon { width: 46px; height: 46px; display: grid; place-items: center; margin-bottom: 20px; border-radius: 14px; background: var(--accent-soft); color: var(--accent-ink); }
+.privacy-center-grid { display: grid; grid-template-columns: 1fr 1fr; margin-top: 42px; border-top: 2px solid var(--ink); }
+.privacy-center-grid > article { min-height: 250px; display: grid; grid-template-columns: 30px minmax(0, 1fr); align-content: start; gap: 17px; padding: 26px 26px 30px 0; border-bottom: 1px solid var(--line); }
+.privacy-center-grid > article:nth-child(even) { border-left: 1px solid var(--line); padding-left: 26px; padding-right: 0; }
+.privacy-center-grid > article > svg { color: var(--accent-ink); margin-top: 1px; }
+.privacy-center-grid h2 { font-size: 1rem; }
+.privacy-center-grid article > div > p { margin-top: 7px; color: var(--ink-secondary); font-size: 0.78rem; line-height: 1.65; }
+.privacy-center-grid article > .button,
+.privacy-center-owner-note,
+.privacy-owner-note,
+.privacy-delete-confirmation { grid-column: 2; justify-self: start; }
+.privacy-danger-zone { grid-column: 1 / -1; min-height: 0 !important; grid-template-columns: 30px minmax(0, 1fr) auto !important; padding-right: 0 !important; }
+.privacy-danger-zone > .button,
+.privacy-danger-zone > .privacy-owner-note,
+.privacy-danger-zone > .privacy-delete-confirmation { grid-column: 3; align-self: center; }
+.privacy-owner-note { max-width: 310px; color: var(--ink-secondary); font-size: 0.75rem; line-height: 1.55; }
+.privacy-owner-note a,
+.privacy-center-page > footer a { color: var(--brand-blue-ink); font-weight: 750; }
+.privacy-delete-confirmation { width: min(330px, 100%); display: grid; gap: 9px; }
+.privacy-delete-confirmation label { color: var(--ink-secondary); font-size: 0.7rem; }
+.privacy-delete-confirmation input { width: 100%; min-height: 42px; border: 1px solid var(--line-strong); border-radius: var(--radius-sm); background: var(--surface); color: var(--ink); padding: 9px 11px; }
+.privacy-delete-confirmation input:focus { border-color: var(--focus); outline: 3px solid color-mix(in oklch, var(--focus) 17%, transparent); }
+.privacy-delete-confirmation > div { display: flex; justify-content: flex-end; gap: 8px; }
+.privacy-center-message { margin-top: 18px; border-left: 3px solid var(--accent-ink); padding: 9px 12px; background: var(--surface-subtle); color: var(--ink-secondary); font-size: 0.76rem; }
+.privacy-center-page > footer { margin-top: 28px; color: var(--ink-muted); font-size: 0.74rem; }
 .billing-readiness-note { display: grid; grid-template-columns: 24px 1fr; gap: 13px; margin-top: 28px; padding: 20px; border: 1px solid var(--line); border-radius: var(--radius-md); background: var(--surface-subtle); color: var(--ink-secondary); }
 .billing-readiness-note > svg { color: var(--accent-ink); }
 .billing-readiness-note h2 { color: var(--ink); font-size: 0.88rem; }
@@ -813,6 +850,14 @@ button:disabled { cursor: not-allowed; opacity: 0.55; }
   .legal-page { width: calc(100% - 36px); padding-top: 42px; }
   .legal-local-nav { top: 76px; overflow-x: auto; flex-wrap: nowrap; }
   .legal-local-nav a { white-space: nowrap; }
+  .privacy-center-page { width: calc(100% - 36px); padding-top: 42px; }
+  .privacy-center-grid { grid-template-columns: 1fr; }
+  .privacy-center-grid > article,
+  .privacy-center-grid > article:nth-child(even),
+  .privacy-danger-zone { grid-column: auto; grid-template-columns: 28px minmax(0, 1fr) !important; min-height: 0; padding: 24px 0 !important; border-left: 0; }
+  .privacy-danger-zone > .button,
+  .privacy-danger-zone > .privacy-owner-note,
+  .privacy-danger-zone > .privacy-delete-confirmation { grid-column: 2; align-self: auto; }
 }
 
 /* Erudoza learner experience */

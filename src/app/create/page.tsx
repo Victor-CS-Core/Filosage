@@ -84,7 +84,7 @@ export default function CreateCoursePage() {
   return (
     <AppShell>
       <div className="create-page">
-        <header className="create-intro"><p className="overline">Course studio</p><h1>Create a course for your goal.</h1><p>Define the outcome, starting point, and pace. Erudoza uses your answers to create the course outline.</p></header>
+        <header className="create-intro"><p className="overline">Course studio</p><h1>Create a course for your goal.</h1><p>Define the outcome, starting point, and pace. Erudoza uses AI to create a private draft for you to review.</p></header>
         <div className="create-layout">
           <form className="course-brief" onSubmit={create}>
             <section className="form-section">
@@ -129,7 +129,7 @@ export default function CreateCoursePage() {
               <div className="generation-progress" role="status" aria-live="polite">
                 <div><span>{generationStage}</span><strong>{generationProgress}%</strong></div>
                 <div className="progress-track" role="progressbar" aria-label="Course creation progress" aria-valuemin={0} aria-valuemax={100} aria-valuenow={generationProgress} aria-valuetext={generationStage}><span style={{ transform: `scaleX(${generationProgress / 100})` }} /></div>
-                <p>Creating your course outline from this brief. This usually takes less than a minute.</p>
+                <p>Creating an AI-assisted private draft from this brief. Review it before relying on or publishing it.</p>
               </div>
             )}
             {error && <p className="form-error" role="alert">{error}</p>}
@@ -145,7 +145,7 @@ export default function CreateCoursePage() {
               <div><dt>Approach</dt><dd>{courseStyle}</dd></div>
             </dl>
             <div className="blueprint-readiness"><div><strong>Required information</strong><span>{briefReady ? "Ready" : "Needs input"}</span></div><ul><li className={topic.trim() ? "is-ready" : ""}><CheckCircle2 size={16} /> Specific subject</li><li className={goal.trim() ? "is-ready" : ""}><Target size={16} /> Observable outcome</li><li className={background.trim() ? "is-ready" : ""}><Clock3 size={16} /> Starting context <small>optional</small></li></ul></div>
-            <div className="blueprint-note"><strong>How your brief is used</strong><p>Erudoza uses it to choose prerequisites, examples, practice, and the scope of each lesson.</p></div>
+            <div className="blueprint-note"><strong>How your brief is used</strong><p>Erudoza sends it to its AI provider to choose prerequisites, examples, practice, and lesson scope. Review the result for accuracy.</p></div>
             <div className="credit-note"><Sparkles size={16} /><span><strong>{outlineQuota?.remaining ?? "Unlimited"} outline credit{outlineQuota?.remaining === 1 ? "" : "s"} remaining</strong><small>A credit is reserved only when generation begins.</small></span></div>
           </aside>
         </div>

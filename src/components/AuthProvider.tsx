@@ -163,7 +163,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const response = await fetch("/api/legal/acceptance", {
       method: "POST",
       headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
-      body: JSON.stringify({ termsVersion: TERMS_VERSION, privacyVersion: PRIVACY_VERSION, source }),
+      body: JSON.stringify({
+        termsVersion: TERMS_VERSION,
+        privacyVersion: PRIVACY_VERSION,
+        ageEligibilityConfirmed: true,
+        source,
+      }),
     });
     if (!response.ok) throw new Error("Your acceptance could not be saved. Please try again.");
     await loadAccount(activeUser);

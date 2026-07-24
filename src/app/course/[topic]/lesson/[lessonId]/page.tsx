@@ -707,6 +707,13 @@ export default function LessonView() {
                 <p>{lesson.concept}</p>
               </header>
 
+              {lessonData.aiAssisted && (
+                <aside className="lesson-ai-notice" data-ai-generated="true">
+                  <Bot size={17} />
+                  <p><strong>AI-assisted lesson</strong><span>Review important claims against reliable sources before relying on them.</span></p>
+                </aside>
+              )}
+
               <div className="markdown-content"><ReactMarkdown>{normalizedContent}</ReactMarkdown></div>
 
               {lessonData.diagram && (
@@ -778,18 +785,18 @@ export default function LessonView() {
             <aside className="tutor-drawer" aria-label="AI tutor">
               <div className="tutor-header">
                 <span className="tutor-avatar"><ErudozaMark /></span>
-                <div><strong>Erudoza Tutor</strong><small>Grounded in this lesson</small></div>
+                <div><strong>Erudoza AI Tutor</strong><small>AI-generated responses grounded in this lesson</small></div>
                 <button className="icon-button" onClick={() => setTutorOpen(false)} aria-label="Close tutor"><X size={18} /></button>
               </div>
               <div className="tutor-messages" aria-live="polite">
                 {messages.length === 0 && (
-                  <div className="tutor-message tutor-assistant">
+                  <div className="tutor-message tutor-assistant" data-ai-generated="true">
                     <span><Bot size={14} /></span>
                     <div><p>Ask about a concept, worked example, or answer choice from <strong>{lesson.title}</strong>.</p></div>
                   </div>
                 )}
                 {messages.map((message) => (
-                  <div className={`tutor-message tutor-${message.role}`} key={message.id}>
+                  <div className={`tutor-message tutor-${message.role}`} key={message.id} {...(message.role === "assistant" ? { "data-ai-generated": "true" } : {})}>
                     {message.role === "assistant" && <span><Bot size={14} /></span>}
                     <div><ReactMarkdown>{message.content || "…"}</ReactMarkdown></div>
                   </div>
@@ -816,6 +823,7 @@ export default function LessonView() {
                 <button className="icon-button icon-button-accent" type="submit" disabled={!chatInput.trim() || chatting} aria-label="Send question">
                   {chatting ? <LoaderCircle className="spin" size={18} /> : <Send size={18} />}
                 </button>
+                <small className="tutor-disclaimer">AI can make mistakes. Verify important information.</small>
               </form>
             </aside>
           )}

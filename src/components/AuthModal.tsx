@@ -59,7 +59,7 @@ export default function AuthModal({ onClose }: AuthModalProps) {
       {(error || acceptanceError) && <p className="form-error" role="alert">{error ?? acceptanceError}</p>}
       <label className="legal-check">
         <input type="checkbox" checked={agreed} onChange={(event) => setAgreed(event.target.checked)} />
-        <span>I agree to the <Link href="/terms" target="_blank">Terms of Service</Link> and acknowledge the <Link href="/privacy" target="_blank">Privacy Notice</Link>.</span>
+        <span>I confirm I am at least 13 and, if I am not yet the age of legal majority where I live, that my parent or guardian has reviewed and agreed to the <Link href="/terms" target="_blank">Terms of Service</Link>. I acknowledge the <Link href="/privacy" target="_blank">Privacy Notice</Link>.</span>
       </label>
       <button className="button button-primary auth-submit" onClick={handleGoogle} disabled={submitting || !agreed}>
         <span className="google-mark" aria-hidden="true">G</span>{submitting ? "Signing in…" : "Continue with Google"}

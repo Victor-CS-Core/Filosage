@@ -26,7 +26,7 @@ export async function GET(request: Request, { params }: RouteParams) {
     }
 
     return NextResponse.json(
-      toLessonDto(lesson),
+      toLessonDto(lesson, course.aiAssisted === true || !String(course.id ?? "").startsWith("catalog-")),
       course.isPublic
         ? { headers: { "Cache-Control": "no-store" } }
         : undefined,

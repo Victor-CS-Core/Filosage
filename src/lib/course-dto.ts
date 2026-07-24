@@ -18,15 +18,18 @@ export function toCourseDto(value: Record<string, unknown> | Course, canManage =
     prerequisites: Array.isArray(raw.prerequisites) ? raw.prerequisites.filter((item): item is string => typeof item === "string") : undefined,
     category: typeof raw.category === "string" ? raw.category : undefined,
     updatedAt: typeof raw.updatedAt === "string" ? raw.updatedAt : undefined,
+    aiAssisted: raw.aiAssisted === true
+      || (typeof raw.id === "string" && !raw.id.startsWith("catalog-")),
     canManage,
   };
 }
 
-export function toLessonDto(value: Record<string, unknown>): LessonData {
+export function toLessonDto(value: Record<string, unknown>, courseAiAssisted = false): LessonData {
   return {
     content: String(value.content ?? ""),
     diagram: String(value.diagram ?? ""),
     diagramSummary: typeof value.diagramSummary === "string" ? value.diagramSummary : undefined,
     quizzes: Array.isArray(value.quizzes) ? value.quizzes as LessonData["quizzes"] : [],
+    aiAssisted: value.aiAssisted === true || courseAiAssisted,
   };
 }

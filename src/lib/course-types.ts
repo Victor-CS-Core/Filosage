@@ -27,6 +27,7 @@ export interface Course {
   prerequisites?: string[];
   category?: string;
   updatedAt?: string;
+  aiAssisted?: boolean;
 }
 
 export interface Quiz {
@@ -41,6 +42,7 @@ export interface LessonData {
   diagram: string;
   diagramSummary?: string;
   quizzes: Quiz[];
+  aiAssisted?: boolean;
 }
 
 export type LearnerPlan = "free" | "pro";

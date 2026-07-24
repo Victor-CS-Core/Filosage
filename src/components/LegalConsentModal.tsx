@@ -26,7 +26,7 @@ export default function LegalConsentModal() {
       <p className="overline">Terms update</p>
       <h2 id="legal-consent-title">Review before continuing</h2>
       <p className="auth-copy">We have documented the rules for using Erudoza and how account and learning data are handled.</p>
-      <label className="legal-check"><input type="checkbox" checked={agreed} onChange={(event) => setAgreed(event.target.checked)} /><span>I agree to the <Link href="/terms">Terms of Service</Link> and acknowledge the <Link href="/privacy">Privacy Notice</Link> and <Link href="/acceptable-use">Acceptable Use Policy</Link>.</span></label>
+      <label className="legal-check"><input type="checkbox" checked={agreed} onChange={(event) => setAgreed(event.target.checked)} /><span>I confirm I am at least 13 and, if I am not yet the age of legal majority where I live, that my parent or guardian has reviewed and agreed to the <Link href="/terms">Terms of Service</Link>. I acknowledge the <Link href="/privacy">Privacy Notice</Link> and <Link href="/acceptable-use">Acceptable Use Policy</Link>.</span></label>
       {error && <p className="form-error" role="alert">{error}</p>}
       <button className="button button-primary auth-submit" disabled={!agreed || saving} onClick={accept}>{saving ? "Saving…" : "Accept and continue"}</button>
       <button className="button button-quiet" onClick={() => void signOut()}>Sign out</button>
