@@ -103,6 +103,33 @@ test("keeps the learning library public", async ({ page }) => {
   await expect(page.getByText("No account required to read")).toBeVisible();
 });
 
+test("keeps the signed-in learner shell on one scroll owner", async ({ page }) => {
+  const styles = await readFile(join(process.cwd(), "src/app/globals.css"), "utf8");
+  await page.setContent(`
+    <div class="app-shell learner-shell">
+      <main class="app-main"><div style="height: 2000px"></div></main>
+    </div>
+  `);
+  await page.addStyleTag({ content: styles });
+  const dimensions = await page.evaluate(() => {
+    const shell = document.querySelector<HTMLElement>(".learner-shell");
+    const main = document.querySelector<HTMLElement>(".app-main");
+    return {
+      bodyClientHeight: document.body.clientHeight,
+      bodyScrollHeight: document.body.scrollHeight,
+      mainClientHeight: main?.clientHeight ?? 0,
+      mainScrollHeight: main?.scrollHeight ?? 0,
+      shellOverflow: shell ? getComputedStyle(shell).overflow : "",
+      shellPosition: shell ? getComputedStyle(shell).position : "",
+    };
+  });
+
+  expect(dimensions.shellPosition).toBe("fixed");
+  expect(dimensions.shellOverflow).toBe("hidden");
+  expect(dimensions.bodyScrollHeight - dimensions.bodyClientHeight).toBeLessThanOrEqual(1);
+  expect(dimensions.mainScrollHeight).toBeGreaterThan(dimensions.mainClientHeight);
+});
+
 test("prices cached input and mixed-model fallbacks accurately", () => {
   const luna = {
     model: "gpt-5.6-luna",
@@ -229,7 +256,6 @@ test("does not complete a lesson after a wrong answer", async ({ page }) => {
   await expect(page.getByText("AI-assisted lesson")).toBeVisible();
   await expect(page.locator("[data-ai-generated='true']")).toHaveCount(1);
   await expect(page.getByRole("heading", { name: "See the relationships" })).toHaveCount(0);
-  await expect(page.locator(".app-main")).toHaveCSS("overflow-y", "auto");
   await expect(page.locator(".lesson-workspace")).toHaveCSS("overflow-y", "visible");
   await expect(page.locator(".lesson-scroll")).toHaveCSS("overflow-y", "visible");
   await expect(page.locator(".lesson-study-panel")).toHaveCSS("overflow-y", "visible");
