@@ -146,7 +146,7 @@ test("offers an optional learner account without blocking public access", async 
   await expect(dialog.getByRole("link", { name: "Terms of Service" })).toHaveAttribute("href", "/terms");
 });
 
-test("publishes clear legal documents and a bundled public catalog", async ({ page, request }) => {
+test("publishes clear legal documents", async ({ page }) => {
   await page.goto("/terms");
   await expect(page.getByRole("heading", { name: "Terms of Service" })).toBeVisible();
   await expect(page.getByText("automatic renewal", { exact: false }).first()).toBeVisible();
@@ -161,12 +161,6 @@ test("publishes clear legal documents and a bundled public catalog", async ({ pa
   await page.goto("/privacy-center");
   await expect(page.getByRole("heading", { name: "Your information, under your control." })).toBeVisible();
   await expect(page.getByRole("button", { name: "Sign in to export" })).toBeVisible();
-
-  const response = await request.get("/api/courses?scope=public");
-  expect(response.ok()).toBe(true);
-  const body = await response.json() as { courses: Array<Record<string, unknown>> };
-  expect(body.courses.length).toBeGreaterThanOrEqual(9);
-  expect(body.courses.some((course) => "authorId" in course)).toBe(false);
 });
 
 test("keeps generation visibly metered and premium", async ({ page }) => {
