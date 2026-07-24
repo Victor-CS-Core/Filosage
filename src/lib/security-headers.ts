@@ -1,13 +1,14 @@
-export function securityHeaders(isDevelopment = false) {
+export function securityHeaders(isDevelopment = false, nonce?: string) {
   const developmentScriptAllowance = isDevelopment ? " 'unsafe-eval'" : "";
   const developmentConnectAllowance = isDevelopment ? " ws: http:" : "";
+  const nonceAllowance = nonce ? ` 'nonce-${nonce}' 'strict-dynamic'` : "";
   const contentSecurityPolicy = [
     "default-src 'self'",
     "base-uri 'self'",
     "object-src 'none'",
     "frame-ancestors 'none'",
     "form-action 'self'",
-    `script-src 'self'${developmentScriptAllowance} https://apis.google.com https://accounts.google.com`,
+    `script-src 'self'${nonceAllowance}${developmentScriptAllowance} https://apis.google.com https://accounts.google.com`,
     "script-src-attr 'none'",
     "style-src 'self' 'unsafe-inline'",
     "font-src 'self' data:",

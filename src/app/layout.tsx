@@ -67,15 +67,17 @@ export const viewport: Viewport = {
   ],
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const nonce = (await headers()).get("x-nonce") ?? undefined;
+
   return (
     <html lang="en" data-scroll-behavior="smooth" suppressHydrationWarning>
       <body suppressHydrationWarning>
-        <Script id="erudoza-theme-bootstrap" src="/theme-bootstrap.js" strategy="beforeInteractive" />
+        <Script id="erudoza-theme-bootstrap" src="/theme-bootstrap.js" strategy="beforeInteractive" nonce={nonce} />
         <ThemeProvider>
           <AuthProvider>
             <TrafficTracker />

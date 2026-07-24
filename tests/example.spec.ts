@@ -96,6 +96,8 @@ test("keeps the learning library public", async ({ page }) => {
   await expect(page).toHaveTitle(/Erudoza/);
   expect(response?.headers()["x-content-type-options"]).toBe("nosniff");
   expect(response?.headers()["content-security-policy"]).toContain("frame-ancestors 'none'");
+  expect(response?.headers()["content-security-policy"]).toContain("script-src 'self' 'nonce-");
+  expect(response?.headers()["content-security-policy"]).not.toContain("'unsafe-inline'");
   await expect(page.locator(".skip-link")).toHaveAttribute("href", "#main-content");
   await expect(
     page.getByRole("heading", { name: "Understand more. Achieve more." }),
