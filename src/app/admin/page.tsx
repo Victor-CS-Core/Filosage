@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState, type CSSProperties } from "react";
 import { useRouter } from "next/navigation";
 import {
   Activity,
@@ -76,7 +76,7 @@ function SeriesBars({
     <div className={`admin-series tone-${tone}`} role="img" aria-label={label}>
       {values.map((point, index) => (
         <span className="admin-series-column" key={point.date} title={`${point.date}: ${point.value}`}>
-          <i style={{ height: `${Math.max(point.value ? 5 : 1, (point.value / maximum) * 100)}%` }} />
+          <i style={{ "--bar-scale": Math.max(point.value ? 5 : 1, (point.value / maximum) * 100) / 100 } as CSSProperties} />
           {(index === 0 || index === values.length - 1 || (values.length <= 30 && index % 7 === 0)) && (
             <small>{new Date(`${point.date}T12:00:00`).toLocaleDateString("en", { month: "short", day: "numeric" })}</small>
           )}

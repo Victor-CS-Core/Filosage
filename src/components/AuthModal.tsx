@@ -49,12 +49,12 @@ export default function AuthModal({ onClose }: AuthModalProps) {
   };
 
   return <div className="modal-layer" role="presentation" onMouseDown={onClose}>
-    <section ref={dialogRef} className="auth-dialog" role="dialog" aria-modal="true" aria-labelledby="auth-title" onMouseDown={(event) => event.stopPropagation()}>
+    <section ref={dialogRef} className="auth-dialog" role="dialog" aria-modal="true" aria-labelledby="auth-title" aria-describedby="auth-description" onMouseDown={(event) => event.stopPropagation()}>
       <button className="icon-button auth-close" onClick={onClose} aria-label="Close sign-in dialog"><X size={18} /></button>
       <div className="auth-symbol" aria-hidden="true"><ErudozaMark /></div>
       <p className="overline">Learner account</p>
       <h2 id="auth-title">Keep your learning in sync</h2>
-      <p className="auth-copy">Sign in to save progress, notes, courses, and review dates across devices. You can still read published courses without an account.</p>
+      <p id="auth-description" className="auth-copy">Sign in to save progress, notes, courses, and review dates across devices. You can still read published courses without an account.</p>
       <div className="auth-identity"><Cloud size={16} /><span>Progress · reviews · saved courses</span></div>
       {(error || acceptanceError) && <p className="form-error" role="alert">{error ?? acceptanceError}</p>}
       <label className="legal-check">

@@ -7,21 +7,6 @@ import { ThemeProvider } from "@/components/ThemeProvider";
 import { AuthProvider } from "@/components/AuthProvider";
 import TrafficTracker from "@/components/TrafficTracker";
 
-const themeBootstrapScript = `
-  (function () {
-    var theme = "light";
-    try {
-      var stored = localStorage.getItem("erudoza-theme") || localStorage.getItem("teach-theme");
-      theme = stored === "light" || stored === "dark"
-        ? stored
-        : (window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
-    } catch (error) {
-      theme = window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
-    }
-    document.documentElement.setAttribute("data-theme", theme);
-  })();
-`;
-
 function safeRequestOrigin(headerList: Headers) {
   const configuredOrigin = process.env.NEXT_PUBLIC_SITE_URL;
   if (configuredOrigin) {
@@ -90,9 +75,7 @@ export default function RootLayout({
   return (
     <html lang="en" data-scroll-behavior="smooth" suppressHydrationWarning>
       <body suppressHydrationWarning>
-        <Script id="erudoza-theme-bootstrap" strategy="beforeInteractive">
-          {themeBootstrapScript}
-        </Script>
+        <Script id="erudoza-theme-bootstrap" src="/theme-bootstrap.js" strategy="beforeInteractive" />
         <ThemeProvider>
           <AuthProvider>
             <TrafficTracker />

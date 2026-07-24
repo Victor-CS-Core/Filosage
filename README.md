@@ -28,6 +28,10 @@ Owner access is resolved server-side from the verified Google account matching t
 5. Add test Pro users to `PREMIUM_EMAILS` until subscription billing is connected.
 6. Run `npm install` and then `npm run dev`.
 
+## Release readiness
+
+Run `npm run check:release` in the deployment environment before opening traffic. It validates required configuration without printing secret values. GoDaddy can host the domain/site, but recurring Pro subscriptions require a billing provider such as Stripe; set `BILLING_PROVIDER=stripe` only after configuring provider keys, a price ID, webhook verification, and entitlement synchronization.
+
 Without local credentials, the public shell still renders for interface review, while data-backed and authenticated actions report that they are unavailable.
 
 ## Validation

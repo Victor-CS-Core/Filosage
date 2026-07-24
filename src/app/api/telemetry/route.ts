@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { apiRequestErrorResponse, readJsonBody } from "@/lib/api-security";
 import { runStoredDocumentTransaction } from "@/lib/firebase-server";
+import { enforceBestEffortRateLimit } from "@/lib/request-rate-limit";
 
 const telemetrySchema = z.object({
   route: z.enum([
@@ -32,6 +33,8 @@ function documentRouteKey(route: string) {
 }
 
 export async function POST(request: Request) {
+  const limited = enforceBestEffortRateLimit(request, "telemetry", 30);
+  if (limited) return limited;
   try {
     const parsed = telemetrySchema.safeParse(await readJsonBody(request, 512));
     if (!parsed.success) {

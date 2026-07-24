@@ -7,7 +7,7 @@ export function securityHeaders(isDevelopment = false) {
     "object-src 'none'",
     "frame-ancestors 'none'",
     "form-action 'self'",
-    `script-src 'self' 'unsafe-inline'${developmentScriptAllowance} https://apis.google.com https://accounts.google.com`,
+    `script-src 'self'${developmentScriptAllowance} https://apis.google.com https://accounts.google.com`,
     "script-src-attr 'none'",
     "style-src 'self' 'unsafe-inline'",
     "font-src 'self' data:",

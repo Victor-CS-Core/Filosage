@@ -8,7 +8,8 @@
     "build:sites": "vinext build",
     "start": "next start",
     "lint": "eslint src tests next.config.ts playwright.config.ts",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "check:release": "node scripts/check-release-env.mjs"
   },
   "dependencies": {
     "@fontsource-variable/inter": "^5.2.8",
