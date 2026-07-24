@@ -102,6 +102,9 @@ function MermaidDiagram({ chart, summary }: { chart: string; summary?: string })
           securityLevel: "strict",
           theme: "base",
           fontFamily: "Inter Variable, Inter, sans-serif",
+          flowchart: {
+            htmlLabels: false,
+          },
           themeVariables: {
             fontSize: "16px",
             fontFamily: "Inter Variable, Inter, sans-serif",
