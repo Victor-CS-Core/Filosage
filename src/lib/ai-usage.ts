@@ -208,6 +208,7 @@ export async function reserveAiUsage(
               reservedCostMicros: numberValue(period?.reservedCostMicros) + policy.reserveCostMicros,
               inputTokens: numberValue(period?.inputTokens),
               cachedInputTokens: numberValue(period?.cachedInputTokens),
+              cacheWriteTokens: numberValue(period?.cacheWriteTokens),
               outputTokens: numberValue(period?.outputTokens),
               actualCostMicros: numberValue(period?.actualCostMicros),
               activeRequestId: requestId,
@@ -252,13 +253,14 @@ export function extractOpenAiUsage(value: unknown) {
         usage?: {
           input_tokens?: number;
           output_tokens?: number;
-          input_tokens_details?: { cached_tokens?: number };
+          input_tokens_details?: { cached_tokens?: number; cache_write_tokens?: number };
         };
       }).usage
     : undefined;
   return {
     inputTokens: numberValue(usage?.input_tokens),
     cachedInputTokens: numberValue(usage?.input_tokens_details?.cached_tokens),
+    cacheWriteTokens: numberValue(usage?.input_tokens_details?.cache_write_tokens),
     outputTokens: numberValue(usage?.output_tokens),
   };
 }
@@ -268,6 +270,7 @@ export async function finalizeAiUsage(
   result: {
     inputTokens?: number;
     cachedInputTokens?: number;
+    cacheWriteTokens?: number;
     outputTokens?: number;
     model?: string;
     usageSamples?: AiUsageSample[];
@@ -287,15 +290,17 @@ export async function finalizeAiUsage(
         model: result.model || defaultModel,
         inputTokens: numberValue(result.inputTokens),
         cachedInputTokens: numberValue(result.cachedInputTokens),
+        cacheWriteTokens: numberValue(result.cacheWriteTokens),
         outputTokens: numberValue(result.outputTokens),
         responseId: result.responseId,
       }];
   const usage = summarizeAiUsage(samples);
   const inputTokens = usage.inputTokens;
   const cachedInputTokens = Math.min(inputTokens, usage.cachedInputTokens);
+  const cacheWriteTokens = Math.min(inputTokens - cachedInputTokens, usage.cacheWriteTokens);
   const outputTokens = usage.outputTokens;
   const actualCostMicros = samples.length === 1
-    ? estimateAiUsageCostMicros({ ...samples[0], cachedInputTokens })
+    ? estimateAiUsageCostMicros({ ...samples[0], cachedInputTokens, cacheWriteTokens })
     : usage.actualCostMicros;
   const models = Array.from(new Set(samples.map((sample) => sample.model)));
   const responseIds = samples.flatMap((sample) => sample.responseId ? [sample.responseId] : []);
@@ -315,6 +320,7 @@ export async function finalizeAiUsage(
               reservedCostMicros: Math.max(0, numberValue(period.reservedCostMicros) - reservation.reserveCostMicros),
               inputTokens: numberValue(period.inputTokens) + inputTokens,
               cachedInputTokens: numberValue(period.cachedInputTokens) + cachedInputTokens,
+              cacheWriteTokens: numberValue(period.cacheWriteTokens) + cacheWriteTokens,
               outputTokens: numberValue(period.outputTokens) + outputTokens,
               actualCostMicros: numberValue(period.actualCostMicros) + actualCostMicros,
               activeRequestId: null,
@@ -329,6 +335,7 @@ export async function finalizeAiUsage(
               status: result.failed ? "failed" : "completed",
               inputTokens,
               cachedInputTokens,
+              cacheWriteTokens,
               outputTokens,
               actualCostMicros,
               model: models.join(" → "),

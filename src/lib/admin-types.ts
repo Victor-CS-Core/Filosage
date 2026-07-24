@@ -6,6 +6,7 @@ export interface AdminFeatureUsage {
   requests: number;
   inputTokens: number;
   cachedInputTokens: number;
+  cacheWriteTokens: number;
   outputTokens: number;
   costUsd: number;
 }
@@ -24,6 +25,7 @@ export interface AdminUserSummary {
   requestCount: number;
   inputTokens: number;
   cachedInputTokens: number;
+  cacheWriteTokens: number;
   outputTokens: number;
   costUsd: number;
   safetyBlocks: number;
@@ -49,6 +51,7 @@ export interface AdminOverview {
     failedRequests: number;
     inputTokens: number;
     cachedInputTokens: number;
+    cacheWriteTokens: number;
     outputTokens: number;
     estimatedCostUsd: number;
     safetyBlocks: number;
@@ -95,6 +98,7 @@ export interface AdminOverview {
     status: string;
     inputTokens: number;
     cachedInputTokens: number;
+    cacheWriteTokens: number;
     outputTokens: number;
     costUsd: number;
     createdAt?: string;

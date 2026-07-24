@@ -109,12 +109,14 @@ export async function GET(request: Request) {
         requests: 0,
         inputTokens: 0,
         cachedInputTokens: 0,
+        cacheWriteTokens: 0,
         outputTokens: 0,
         costUsd: 0,
       };
       current.requests += numberValue(period.requestCount);
       current.inputTokens += numberValue(period.inputTokens);
       current.cachedInputTokens += numberValue(period.cachedInputTokens);
+      current.cacheWriteTokens += numberValue(period.cacheWriteTokens);
       current.outputTokens += numberValue(period.outputTokens);
       current.costUsd += microsToUsd(period.actualCostMicros);
       byFeature.set(feature, current);
@@ -146,6 +148,7 @@ export async function GET(request: Request) {
         requestCount: featureUsage.reduce((sum, item) => sum + item.requests, 0),
         inputTokens: featureUsage.reduce((sum, item) => sum + item.inputTokens, 0),
         cachedInputTokens: featureUsage.reduce((sum, item) => sum + item.cachedInputTokens, 0),
+        cacheWriteTokens: featureUsage.reduce((sum, item) => sum + item.cacheWriteTokens, 0),
         outputTokens: featureUsage.reduce((sum, item) => sum + item.outputTokens, 0),
         costUsd: featureUsage.reduce((sum, item) => sum + item.costUsd, 0),
         safetyBlocks: safetyCountByUser.get(user.uid) ?? 0,
@@ -232,6 +235,7 @@ export async function GET(request: Request) {
         failedRequests: requestsInRange.filter((record) => record.status === "failed").length,
         inputTokens: requestsInRange.reduce((sum, record) => sum + numberValue(record.inputTokens), 0),
         cachedInputTokens: requestsInRange.reduce((sum, record) => sum + numberValue(record.cachedInputTokens), 0),
+        cacheWriteTokens: requestsInRange.reduce((sum, record) => sum + numberValue(record.cacheWriteTokens), 0),
         outputTokens: requestsInRange.reduce((sum, record) => sum + numberValue(record.outputTokens), 0),
         estimatedCostUsd: requestsInRange.reduce((sum, record) => sum + microsToUsd(record.actualCostMicros), 0),
         safetyBlocks: safetyInRange.length,
@@ -286,6 +290,7 @@ export async function GET(request: Request) {
             status: stringValue(record.status) ?? "unknown",
             inputTokens: numberValue(record.inputTokens),
             cachedInputTokens: numberValue(record.cachedInputTokens),
+            cacheWriteTokens: numberValue(record.cacheWriteTokens),
             outputTokens: numberValue(record.outputTokens),
             costUsd: microsToUsd(record.actualCostMicros),
             createdAt: dateValue(record.createdAt),

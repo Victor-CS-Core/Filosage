@@ -2,6 +2,7 @@ export interface AiUsageSample {
   model: string;
   inputTokens: number;
   cachedInputTokens: number;
+  cacheWriteTokens: number;
   outputTokens: number;
   responseId?: string;
 }
@@ -37,13 +38,18 @@ export function estimateAiUsageCostMicros(sample: AiUsageSample) {
   const rates = ratesForModel(sample.model);
   const inputTokens = Math.max(0, sample.inputTokens);
   const cachedInputTokens = Math.min(inputTokens, Math.max(0, sample.cachedInputTokens));
-  const uncachedInputTokens = inputTokens - cachedInputTokens;
+  const cacheWriteTokens = Math.min(
+    inputTokens - cachedInputTokens,
+    Math.max(0, sample.cacheWriteTokens),
+  );
+  const uncachedInputTokens = inputTokens - cachedInputTokens - cacheWriteTokens;
   const outputTokens = Math.max(0, sample.outputTokens);
 
   // A $1-per-million-token rate is exactly one microdollar per token.
   return Math.max(0, Math.round(
     uncachedInputTokens * rates.input
       + cachedInputTokens * rates.cachedInput
+      + cacheWriteTokens * rates.input * 1.25
       + outputTokens * rates.output,
   ));
 }
@@ -53,9 +59,10 @@ export function summarizeAiUsage(samples: AiUsageSample[]) {
     (summary, sample) => ({
       inputTokens: summary.inputTokens + Math.max(0, sample.inputTokens),
       cachedInputTokens: summary.cachedInputTokens + Math.max(0, sample.cachedInputTokens),
+      cacheWriteTokens: summary.cacheWriteTokens + Math.max(0, sample.cacheWriteTokens),
       outputTokens: summary.outputTokens + Math.max(0, sample.outputTokens),
       actualCostMicros: summary.actualCostMicros + estimateAiUsageCostMicros(sample),
     }),
-    { inputTokens: 0, cachedInputTokens: 0, outputTokens: 0, actualCostMicros: 0 },
+    { inputTokens: 0, cachedInputTokens: 0, cacheWriteTokens: 0, outputTokens: 0, actualCostMicros: 0 },
   );
 }

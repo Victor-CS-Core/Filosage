@@ -108,17 +108,19 @@ test("prices cached input and mixed-model fallbacks accurately", () => {
     model: "gpt-5.6-luna",
     inputTokens: 1_000,
     cachedInputTokens: 400,
+    cacheWriteTokens: 200,
     outputTokens: 100,
   };
   const terra = { ...luna, model: "gpt-5.6-terra" };
 
-  expect(estimateAiUsageCostMicros(luna)).toBe(1_240);
-  expect(estimateAiUsageCostMicros(terra)).toBe(3_100);
+  expect(estimateAiUsageCostMicros(luna)).toBe(1_290);
+  expect(estimateAiUsageCostMicros(terra)).toBe(3_225);
   expect(summarizeAiUsage([luna, terra])).toEqual({
     inputTokens: 2_000,
     cachedInputTokens: 800,
+    cacheWriteTokens: 400,
     outputTokens: 200,
-    actualCostMicros: 4_340,
+    actualCostMicros: 4_515,
   });
 });
 

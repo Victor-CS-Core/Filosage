@@ -239,7 +239,7 @@ export default function AdminPage() {
               <article><Globe2 size={17} /><span>Page views</span><strong>{compactNumber(data.summary.pageViews)}</strong><small>{days}-day total</small></article>
               <article><Users size={17} /><span>Active learners</span><strong>{compactNumber(data.summary.activeUsers)}</strong><small>{data.summary.totalUsers} accounts</small></article>
               <article><Bot size={17} /><span>AI requests</span><strong>{compactNumber(data.summary.generations)}</strong><small>{data.summary.failedRequests} failed</small></article>
-              <article><Gauge size={17} /><span>Tokens</span><strong>{compactNumber(data.summary.inputTokens + data.summary.outputTokens)}</strong><small>{compactNumber(data.summary.cachedInputTokens)} cached input</small></article>
+              <article><Gauge size={17} /><span>Tokens</span><strong>{compactNumber(data.summary.inputTokens + data.summary.outputTokens)}</strong><small>{compactNumber(data.summary.cachedInputTokens)} cache reads · {compactNumber(data.summary.cacheWriteTokens)} writes</small></article>
               <article><Coins size={17} /><span>Estimated cost</span><strong>{currency(data.summary.estimatedCostUsd)}</strong><small>{data.budget.percentUsed.toFixed(1)}% monthly capacity</small></article>
               <article className={data.summary.safetyBlocks ? "has-warning" : ""}><ShieldCheck size={17} /><span>Safety blocks</span><strong>{data.summary.safetyBlocks}</strong><small>{data.summary.safetyBlocks ? "Review activity" : "No blocked requests"}</small></article>
             </section>
@@ -367,7 +367,7 @@ export default function AdminPage() {
                     <h3>Usage by feature</h3>
                     <div className="admin-feature-usage">
                       {selectedUser.featureUsage.length ? selectedUser.featureUsage.map((usage) => (
-                        <div key={usage.feature}><span><strong>{featureLabels[usage.feature]}</strong><small>{usage.requests} requests · {compactNumber(usage.cachedInputTokens)} cached input</small></span><span><strong>{compactNumber(usage.inputTokens + usage.outputTokens)} tokens</strong><small>{currency(usage.costUsd)}</small></span></div>
+                        <div key={usage.feature}><span><strong>{featureLabels[usage.feature]}</strong><small>{usage.requests} requests · {compactNumber(usage.cachedInputTokens)} cache reads · {compactNumber(usage.cacheWriteTokens)} writes</small></span><span><strong>{compactNumber(usage.inputTokens + usage.outputTokens)} tokens</strong><small>{currency(usage.costUsd)}</small></span></div>
                       )) : <p>No AI usage recorded.</p>}
                     </div>
                   </section>
@@ -414,7 +414,7 @@ export default function AdminPage() {
           <div className="admin-workspace">
             <section className="admin-ai-summary">
               <div className="admin-capacity-inline"><span><Gauge size={19} /> Monthly capacity</span><strong>{currency(data.budget.spentUsd + data.budget.reservedUsd)} / {currency(data.budget.limitUsd)}</strong><i><b style={{ width: `${data.budget.percentUsed}%` }} /></i><small>{data.budget.percentUsed.toFixed(1)}% used in {data.budget.month}</small></div>
-              <div><span>Input tokens</span><strong>{compactNumber(data.summary.inputTokens)}</strong><small>{compactNumber(data.summary.cachedInputTokens)} cached</small></div>
+              <div><span>Input tokens</span><strong>{compactNumber(data.summary.inputTokens)}</strong><small>{compactNumber(data.summary.cachedInputTokens)} cache reads · {compactNumber(data.summary.cacheWriteTokens)} writes</small></div>
               <div><span>Output tokens</span><strong>{compactNumber(data.summary.outputTokens)}</strong><small>{currency(data.summary.estimatedCostUsd)} estimated</small></div>
               <div><span>Completion rate</span><strong>{data.summary.generations ? `${Math.round(((data.summary.generations - data.summary.failedRequests) / data.summary.generations) * 100)}%` : "—"}</strong><small>{data.summary.failedRequests} failed requests</small></div>
             </section>
@@ -422,7 +422,7 @@ export default function AdminPage() {
               <header><div><p className="overline">AI ledger</p><h2>Recent generation requests</h2></div><span>Prompts and generated text are not shown here</span></header>
               <div className="admin-log-table">
                 <div><span>Time</span><span>User</span><span>Feature</span><span>Status</span><span>Input</span><span>Output</span><span>Cost</span></div>
-                {data.recentGenerations.map((request) => <div key={request.id}><span>{shortDate(request.createdAt, true)}</span><span>{request.userLabel}</span><span>{featureLabels[request.feature]}{request.model && <small>{request.model}</small>}</span><span><em className={`admin-status status-${request.status}`}>{request.status}</em></span><span>{compactNumber(request.inputTokens)}<small>{request.cachedInputTokens ? ` ${compactNumber(request.cachedInputTokens)} cached` : ""}</small></span><span>{compactNumber(request.outputTokens)}</span><span>{currency(request.costUsd)}</span></div>)}
+                {data.recentGenerations.map((request) => <div key={request.id}><span>{shortDate(request.createdAt, true)}</span><span>{request.userLabel}</span><span>{featureLabels[request.feature]}{request.model && <small>{request.model}</small>}</span><span><em className={`admin-status status-${request.status}`}>{request.status}</em></span><span>{compactNumber(request.inputTokens)}<small>{request.cachedInputTokens ? ` ${compactNumber(request.cachedInputTokens)} read` : ""}{request.cacheWriteTokens ? ` ${compactNumber(request.cacheWriteTokens)} written` : ""}</small></span><span>{compactNumber(request.outputTokens)}</span><span>{currency(request.costUsd)}</span></div>)}
                 {!data.recentGenerations.length && <p className="admin-empty-row">No AI requests have been recorded.</p>}
               </div>
             </section>
