@@ -221,7 +221,9 @@ test("keeps generation visibly metered and premium", async ({ page }) => {
   await expect(page.getByRole("heading", { name: "Erudoza Pro" })).toBeVisible();
   await expect(page.getByText("Three private course outlines each month")).toBeVisible();
   await expect(page.getByText("Thirty generated lessons each month")).toBeVisible();
-  await expect(page.getByRole("link", { name: /Join the Pro launch list/i })).toHaveAttribute("href", /mailto:support@erudoza\.com/);
+  await expect(page.getByText("$14.99")).toBeVisible();
+  await expect(page.getByText("Five tutor questions each month")).toBeVisible();
+  await expect(page.getByRole("button", { name: /Join the Pro launch list/i })).toBeDisabled();
 });
 
 test("does not complete a lesson after a wrong answer", async ({ page }) => {

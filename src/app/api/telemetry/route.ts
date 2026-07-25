@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { apiRequestErrorResponse, readJsonBody } from "@/lib/api-security";
-import { runStoredDocumentTransaction } from "@/lib/firebase-server";
+import { createStoredDocument, runStoredDocumentTransaction } from "@/lib/firebase-server";
 import { enforceBestEffortRateLimit } from "@/lib/request-rate-limit";
 
 const telemetrySchema = z.object({
@@ -22,7 +22,17 @@ const telemetrySchema = z.object({
     "/other",
   ]),
   source: z.enum(["direct", "internal", "external"]),
+  event: z.enum([
+    "page_view",
+    "signup_started",
+    "signup_completed",
+    "course_started",
+    "lesson_completed",
+    "pricing_interest",
+  ]).default("page_view"),
 }).strict();
+
+const TRAFFIC_SHARDS = 16;
 
 function numberValue(value: unknown) {
   return typeof value === "number" && Number.isFinite(value) ? value : 0;
@@ -46,8 +56,25 @@ export async function POST(request: Request) {
 
     const now = new Date();
     const date = now.toISOString().slice(0, 10);
-    const { route, source } = parsed.data;
-    const path = `trafficDaily/${date}__${documentRouteKey(route)}`;
+    const { route, source, event } = parsed.data;
+    if (event !== "page_view") {
+      await createStoredDocument("productEvents", {
+        date,
+        route,
+        source,
+        event,
+        createdAt: now.toISOString(),
+      });
+      return new Response(null, {
+        status: 204,
+        headers: { "Cache-Control": "no-store" },
+      });
+    }
+
+    const random = new Uint32Array(1);
+    crypto.getRandomValues(random);
+    const shard = random[0] % TRAFFIC_SHARDS;
+    const path = `trafficDailyShards/${date}__${documentRouteKey(route)}__${shard}`;
     await runStoredDocumentTransaction([path], (documents) => {
       const current = documents[path];
       return {
@@ -57,6 +84,7 @@ export async function POST(request: Request) {
             ...(current ?? {}),
             date,
             route,
+            shard,
             views: numberValue(current?.views) + 1,
             [`${source}Views`]: numberValue(current?.[`${source}Views`]) + 1,
             updatedAt: now.toISOString(),

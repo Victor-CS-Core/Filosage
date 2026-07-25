@@ -35,6 +35,17 @@ interface TransactionStart {
   transaction: string;
 }
 
+interface FirestoreDocumentList {
+  documents?: FirestoreDocument[];
+  nextPageToken?: string;
+}
+
+interface FirestoreAggregationResult {
+  result?: {
+    aggregateFields?: Record<string, FirestoreValue>;
+  };
+}
+
 interface TokenResponse {
   access_token: string;
   expires_in: number;
@@ -408,11 +419,48 @@ export async function putStoredDocument(path: string, data: Record<string, unkno
   return parseDocument(document);
 }
 
+export async function putStoredDocuments(
+  documents: Array<{ path: string; data: Record<string, unknown> }>,
+) {
+  if (!documents.length) return;
+  await commitWrites(documents.map(({ path, data }) => {
+    const storedData = { ...data };
+    delete storedData.id;
+    return {
+      update: {
+        name: fullDocumentName(path),
+        fields: toFirestoreFields(storedData),
+      },
+    };
+  }));
+}
+
 export async function listStoredDocuments(path: string, pageSize = 100) {
-  const response = await firestoreJson<{ documents?: FirestoreDocument[] }>(
+  const response = await firestoreJson<FirestoreDocumentList>(
     `/documents/${encodeDocumentPath(path)}?pageSize=${Math.min(Math.max(pageSize, 1), 300)}`,
   );
   return (response?.documents ?? []).map(parseDocument);
+}
+
+export async function listAllStoredDocuments(path: string, maximum = 500) {
+  const documents: StoredDocument[] = [];
+  let pageToken = "";
+  const limit = Math.min(Math.max(maximum, 1), 2_000);
+
+  do {
+    const remaining = limit - documents.length;
+    const query = new URLSearchParams({
+      pageSize: String(Math.min(remaining, 300)),
+      ...(pageToken ? { pageToken } : {}),
+    });
+    const response = await firestoreJson<FirestoreDocumentList>(
+      `/documents/${encodeDocumentPath(path)}?${query}`,
+    );
+    documents.push(...(response?.documents ?? []).map(parseDocument));
+    pageToken = response?.nextPageToken ?? "";
+  } while (pageToken && documents.length < limit);
+
+  return documents;
 }
 
 export function listStoredDocumentsByField(
@@ -442,6 +490,79 @@ export function listCollectionDocuments(collectionId: string, limit = 1_000) {
     from: [{ collectionId }],
     limit: Math.min(Math.max(limit, 1), 2_000),
   });
+}
+
+export function listCollectionDocumentsByRange(
+  collectionId: string,
+  field: string,
+  from: string,
+  to: string,
+  limit = 1_000,
+) {
+  if (!/^[A-Za-z0-9_-]{1,80}$/.test(collectionId) || !/^[A-Za-z0-9_.-]{1,120}$/.test(field)) {
+    throw new Error("Invalid Firestore range query.");
+  }
+  return runCourseQuery({
+    from: [{ collectionId }],
+    where: {
+      compositeFilter: {
+        op: "AND",
+        filters: [
+          {
+            fieldFilter: {
+              field: { fieldPath: field },
+              op: "GREATER_THAN_OR_EQUAL",
+              value: toFirestoreValue(from),
+            },
+          },
+          {
+            fieldFilter: {
+              field: { fieldPath: field },
+              op: "LESS_THAN_OR_EQUAL",
+              value: toFirestoreValue(to),
+            },
+          },
+        ],
+      },
+    },
+    orderBy: [{ field: { fieldPath: field }, direction: "DESCENDING" }],
+    limit: Math.min(Math.max(limit, 1), 2_000),
+  });
+}
+
+export async function countCollectionDocuments(
+  collectionId: string,
+  filters: Array<{ field: string; value: unknown }> = [],
+) {
+  if (!/^[A-Za-z0-9_-]{1,80}$/.test(collectionId)) {
+    throw new Error("Invalid Firestore collection.");
+  }
+  const fieldFilters = filters.map(({ field, value }) => ({
+    fieldFilter: {
+      field: { fieldPath: field },
+      op: "EQUAL",
+      value: toFirestoreValue(value),
+    },
+  }));
+  const structuredQuery: Record<string, unknown> = { from: [{ collectionId }] };
+  if (fieldFilters.length === 1) structuredQuery.where = fieldFilters[0];
+  if (fieldFilters.length > 1) {
+    structuredQuery.where = { compositeFilter: { op: "AND", filters: fieldFilters } };
+  }
+  const response = await firestoreJson<FirestoreAggregationResult[]>(
+    "/documents:runAggregationQuery",
+    {
+      method: "POST",
+      body: JSON.stringify({
+        structuredAggregationQuery: {
+          structuredQuery,
+          aggregations: [{ alias: "total", count: {} }],
+        },
+      }),
+    },
+  );
+  const value = response?.[0]?.result?.aggregateFields?.total;
+  return Number(fromFirestoreValue(value ?? { integerValue: "0" })) || 0;
 }
 
 export async function deleteStoredDocuments(paths: string[]) {

@@ -669,15 +669,30 @@ button:disabled { cursor: not-allowed; opacity: 0.55; }
 .plan-pro .plan-heading > span { background: var(--accent-soft); color: var(--accent); }
 .plan-heading h2 { font-size: 1.15rem; }
 .plan-heading p { color: var(--ink-muted); font-size: 0.74rem; margin-top: 3px; }
+.plan-price { display: flex; align-items: baseline; gap: 7px; flex-wrap: wrap; margin-top: 25px; }
+.plan-price strong { font-size: 2rem; letter-spacing: -0.035em; }
+.plan-price span { color: var(--ink-secondary); font-size: 0.78rem; }
+.plan-price small { width: 100%; color: var(--ink-muted); font-size: 0.68rem; }
 .plan-column ul { list-style: none; padding: 0; margin: 28px 0 30px; display: flex; flex-direction: column; gap: 14px; }
 .plan-column li { display: flex; align-items: flex-start; gap: 9px; color: var(--ink-secondary); font-size: 0.82rem; line-height: 1.5; }
 .plan-column li svg { color: var(--success); margin-top: 2px; flex: 0 0 auto; }
-.plan-column > .button, .current-plan-label, .plan-status { margin-top: auto; }
+.plan-column > .button, .current-plan-label, .plan-status, .waitlist-form, .waitlist-success { margin-top: auto; }
 .current-plan-label { color: var(--ink-muted); font-size: 0.76rem; font-weight: 700; }
 .plan-status { display: flex; align-items: center; gap: 10px; min-height: 48px; color: var(--accent-ink); }
 .plan-status > span { display: flex; flex-direction: column; }
 .plan-status strong { font-size: 0.82rem; }
 .plan-status small { color: var(--ink-muted); font-size: 0.68rem; margin-top: 2px; }
+.waitlist-form { display: grid; gap: 12px; padding-top: 18px; border-top: 1px solid var(--line); }
+.waitlist-form > label:first-child { display: grid; gap: 6px; color: var(--ink-secondary); font-size: 0.72rem; font-weight: 700; }
+.waitlist-form input[type="email"] { width: 100%; min-height: 42px; border: 1px solid var(--line-strong); border-radius: var(--radius-sm); background: var(--surface); color: var(--ink); padding: 9px 11px; }
+.waitlist-consent { display: grid; grid-template-columns: 18px minmax(0, 1fr); gap: 9px; align-items: start; color: var(--ink-secondary); font-size: 0.69rem; line-height: 1.5; cursor: pointer; }
+.waitlist-consent input { width: 17px; height: 17px; margin-top: 2px; accent-color: var(--accent); }
+.waitlist-form .button { width: 100%; }
+.waitlist-error { color: var(--danger); font-size: 0.7rem; line-height: 1.5; }
+.waitlist-success { display: flex; align-items: center; gap: 10px; min-height: 58px; border-top: 1px solid var(--line); padding-top: 16px; color: var(--success); }
+.waitlist-success > span { display: flex; flex-direction: column; }
+.waitlist-success strong { font-size: 0.82rem; }
+.waitlist-success small { margin-top: 2px; color: var(--ink-muted); font-size: 0.68rem; }
 .pricing-note { color: var(--ink-muted); font-size: 0.72rem; line-height: 1.6; margin-top: 20px; }
 
 /* Mastery details */
@@ -1482,6 +1497,13 @@ button:disabled { cursor: not-allowed; opacity: 0.55; }
 .admin-capacity-panel dl { padding: 21px 22px 24px; }
 .admin-capacity-panel dl > div { min-height: 31px; display: flex; align-items: center; justify-content: space-between; gap: 12px; border-top: 1px solid rgb(255 255 255 / 0.12); color: #C5CEDE; font-size: 0.66rem; }
 .admin-capacity-panel dd { color: white; font-weight: 700; }
+.admin-profit-panel > header > svg { color: var(--accent-ink); }
+.admin-profit-panel > strong { display: block; padding: 24px 20px 14px; font-size: 1.55rem; }
+.admin-profit-panel > strong small { color: var(--ink-muted); font-size: 0.68rem; font-weight: 600; }
+.admin-profit-panel dl { padding: 0 20px; }
+.admin-profit-panel dl > div { min-height: 34px; display: flex; align-items: center; justify-content: space-between; gap: 12px; border-top: 1px solid var(--line); color: var(--ink-secondary); font-size: 0.68rem; }
+.admin-profit-panel dd { color: var(--ink); font-weight: 750; }
+.admin-profit-panel > p { margin: 14px 20px 20px; color: var(--ink-muted); font-size: 0.64rem; line-height: 1.55; }
 .admin-generation-key { display: flex; flex-wrap: wrap; gap: 18px; padding: 15px 18px; }
 .admin-generation-key span { display: flex; align-items: center; gap: 6px; color: var(--ink-muted); font-size: 0.66rem; }
 .admin-generation-key i { width: 7px; height: 7px; border-radius: 2px; background: var(--brand-teal); }

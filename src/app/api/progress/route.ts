@@ -15,6 +15,15 @@ function numberValue(value: unknown) {
   return typeof value === "number" && Number.isFinite(value) ? value : 0;
 }
 
+function stableShard(value: string, shardCount: number) {
+  let hash = 2166136261;
+  for (const character of value) {
+    hash ^= character.charCodeAt(0);
+    hash = Math.imul(hash, 16777619);
+  }
+  return (hash >>> 0) % shardCount;
+}
+
 function asCourseProgress(value: Record<string, unknown>): CourseProgress {
   const lessons = value.lessons && typeof value.lessons === "object" ? value.lessons as Record<string, LessonProgress> : {};
   const inferredMinutes = Object.values(lessons).reduce(
@@ -94,7 +103,8 @@ export async function POST(request: Request) {
     const path = `users/${account.uid}/courseProgress/${update.courseId}`;
     const now = new Date();
     const engagementPath = `userEngagement/${account.uid}`;
-    const dailyEngagementPath = `engagementDaily/${now.toISOString().slice(0, 10)}`;
+    const engagementShard = stableShard(account.uid, 16);
+    const dailyEngagementPath = `engagementDaily/${now.toISOString().slice(0, 10)}__${engagementShard}`;
     const intervals = [1, 3, 7, 14, 30, 60];
     const firstTryRate = update.totalQuestions ? update.firstAttemptCorrect / update.totalQuestions : 1;
     let nextReviewAt = now.toISOString();
@@ -173,6 +183,7 @@ export async function POST(request: Request) {
             data: {
               ...(daily ?? {}),
               date: now.toISOString().slice(0, 10),
+              shard: engagementShard,
               coursesStarted: numberValue(daily?.coursesStarted) + (previous ? 0 : 1),
               lessonsCompleted: numberValue(daily?.lessonsCompleted) + (firstCompletion ? 1 : 0),
               studyMinutes: numberValue(daily?.studyMinutes) + studyMinutesAdded,

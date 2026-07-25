@@ -175,6 +175,21 @@ export const learnerStateSchema = z.object({
   updatedAt: isoDateTimeSchema.optional(),
 });
 
+export const learnerPreferencesSchema = learnerStateSchema.omit({
+  notes: true,
+  noteUpdatedAt: true,
+});
+
+export const learnerStateUpdateSchema = z.object({
+  preferences: learnerPreferencesSchema,
+  noteChanges: z.array(z.object({
+    key: z.string().trim().min(1).max(400),
+    content: z.string().max(12_000),
+    updatedAt: isoDateTimeSchema,
+  })).max(50),
+  deletedNoteKeys: z.array(z.string().trim().min(1).max(400)).max(50).default([]),
+}).strict();
+
 export function validationMessage(error: z.ZodError) {
   return error.issues[0]?.message ?? "Check the form and try again.";
 }

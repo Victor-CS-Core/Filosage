@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import {
   Activity,
   Ban,
+  Bell,
   BookOpenCheck,
   Bot,
   CheckCircle2,
@@ -239,7 +240,7 @@ export default function AdminPage() {
               <article><Globe2 size={17} /><span>Page views</span><strong>{compactNumber(data.summary.pageViews)}</strong><small>{days}-day total</small></article>
               <article><Users size={17} /><span>Active learners</span><strong>{compactNumber(data.summary.activeUsers)}</strong><small>{data.summary.totalUsers} accounts</small></article>
               <article><Bot size={17} /><span>AI requests</span><strong>{compactNumber(data.summary.generations)}</strong><small>{data.summary.failedRequests} failed</small></article>
-              <article><Gauge size={17} /><span>Tokens</span><strong>{compactNumber(data.summary.inputTokens + data.summary.outputTokens)}</strong><small>{compactNumber(data.summary.cachedInputTokens)} cache reads · {compactNumber(data.summary.cacheWriteTokens)} writes</small></article>
+              <article><Bell size={17} /><span>Pro launch list</span><strong>{compactNumber(data.monetization.waitlistCount)}</strong><small>consented contacts</small></article>
               <article><Coins size={17} /><span>Estimated cost</span><strong>{currency(data.summary.estimatedCostUsd)}</strong><small>{data.budget.percentUsed.toFixed(1)}% monthly capacity</small></article>
               <article className={data.summary.safetyBlocks ? "has-warning" : ""}><ShieldCheck size={17} /><span>Safety blocks</span><strong>{data.summary.safetyBlocks}</strong><small>{data.summary.safetyBlocks ? "Review activity" : "No blocked requests"}</small></article>
             </section>
@@ -280,10 +281,25 @@ export default function AdminPage() {
                 <strong>{currency(data.budget.spentUsd + data.budget.reservedUsd)} <small>of {currency(data.budget.limitUsd)}</small></strong>
                 <div className="admin-budget-track"><span style={{ width: `${data.budget.percentUsed}%` }} /></div>
                 <dl>
-                  <div><dt>Settled usage</dt><dd>{currency(data.budget.spentUsd)}</dd></div>
-                  <div><dt>In progress</dt><dd>{currency(data.budget.reservedUsd)}</dd></div>
-                  <div><dt>Remaining</dt><dd>{currency(Math.max(0, data.budget.limitUsd - data.budget.spentUsd - data.budget.reservedUsd))}</dd></div>
+                  {data.budget.pools.map((pool) => (
+                    <div key={pool.pool}>
+                      <dt>{pool.pool === "paid" ? "Pro pool" : pool.pool === "free" ? "Free pool" : "Owner pool"}</dt>
+                      <dd>{currency(pool.spentUsd + pool.reservedUsd)} / {currency(pool.limitUsd)}</dd>
+                    </div>
+                  ))}
                 </dl>
+              </section>
+
+              <section className="admin-panel admin-profit-panel">
+                <header><div><p className="overline">Unit economics</p><h2>Pro contribution model</h2></div><Coins size={20} /></header>
+                <strong>{currency(data.monetization.modeledContributionPerSubscriberUsd)} <small>per subscriber</small></strong>
+                <dl>
+                  <div><dt>Planned monthly price</dt><dd>{currency(data.monetization.plannedMonthlyPriceUsd)}</dd></div>
+                  <div><dt>Payment fee estimate</dt><dd>{currency(data.monetization.paymentFeeEstimateUsd)}</dd></div>
+                  <div><dt>AI and infrastructure model</dt><dd>{currency(data.monetization.modeledAiCostPerSubscriberUsd)}</dd></div>
+                  <div><dt>Contribution margin</dt><dd>{data.monetization.modeledContributionMarginPercent.toFixed(1)}%</dd></div>
+                </dl>
+                <p>Checkout remains intentionally disabled until the billing phase.</p>
               </section>
 
               <section className="admin-panel admin-activity-panel">

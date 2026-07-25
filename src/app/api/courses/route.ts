@@ -12,7 +12,7 @@ export async function GET(request: Request) {
       const courses = await listPublicCourses();
       return NextResponse.json(
         { courses: courses.map((course) => toCourseDto(course)) },
-        { headers: { "Cache-Control": "no-store" } },
+        { headers: { "Cache-Control": "public, max-age=60, s-maxage=300, stale-while-revalidate=3600" } },
       );
     }
 

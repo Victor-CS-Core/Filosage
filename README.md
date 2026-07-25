@@ -24,13 +24,13 @@ Owner access is resolved server-side from the verified Google account matching t
 1. Copy `.env.example` to `.env.local`.
 2. Add the Firebase browser and Admin SDK values.
 3. Add `OPENAI_API_KEY`. Course outlines and lessons default to `gpt-5.6-terra`; the grounded tutor defaults to `gpt-5.6-luna`.
-4. Configure `OPENAI_MONTHLY_BUDGET_USD` and the token cost variables for the selected models. Course briefs are screened with the free `omni-moderation-latest` model before generation and generated outlines are screened again before storage.
-5. Add test Pro users to `PREMIUM_EMAILS` until subscription billing is connected.
+4. Configure the separate Free, Pro, and owner OpenAI budget pools plus the per-account cost ceilings shown in `.env.example`. Course briefs are screened with the free `omni-moderation-latest` model before generation and generated outlines are screened again before storage.
+5. Add test Pro users to `PREMIUM_EMAILS` until subscription billing is enabled.
 6. Run `npm install` and then `npm run dev`.
 
 ## Release readiness
 
-Run `npm run check:release` in the deployment environment before opening traffic. It validates required configuration without printing secret values. GoDaddy can host the domain/site, but recurring Pro subscriptions require a billing provider such as Stripe; set `BILLING_PROVIDER=stripe` only after configuring provider keys, a price ID, webhook verification, and entitlement synchronization.
+Run `npm run check:release` in the deployment environment before opening traffic. It validates required configuration without printing secret values. GoDaddy can host the domain/site, but recurring Pro subscriptions require a billing provider such as Stripe. The Stripe implementation is intentionally disabled until `BILLING_PROVIDER=stripe`, `BILLING_ENABLED=true`, a secret key, webhook signing secret, and a monthly Price ID are all configured.
 
 Without local credentials, the public shell still renders for interface review, while data-backed and authenticated actions report that they are unavailable.
 

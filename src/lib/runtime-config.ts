@@ -22,9 +22,11 @@ export function missingRuntimeConfiguration() {
 
 export function billingConfiguration() {
   const provider = (process.env.BILLING_PROVIDER ?? "none").trim().toLowerCase();
+  const enabled = process.env.BILLING_ENABLED?.trim().toLowerCase() === "true";
   const configured = provider === "stripe"
+    && enabled
     && Boolean(process.env.STRIPE_SECRET_KEY?.trim())
     && Boolean(process.env.STRIPE_WEBHOOK_SECRET?.trim())
     && Boolean(process.env.STRIPE_PRO_MONTHLY_PRICE_ID?.trim());
-  return { provider, configured };
+  return { provider, enabled, configured };
 }

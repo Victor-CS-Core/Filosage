@@ -246,6 +246,7 @@ export default function LessonView() {
   const chatBottomRef = useRef<HTMLDivElement>(null);
   const noteHydratedRef = useRef(false);
   const generationStartedAtRef = useRef(0);
+  const generationRequestRef = useRef<{ lessonKey: string; requestId: string } | null>(null);
   const noteKey = courseId ? `${courseId}:${lessonId}` : `${topic}:${lessonId}`;
   const quizResults = useMemo(
     () => quizResultState.key === noteKey ? quizResultState.results : {},
@@ -351,12 +352,16 @@ export default function LessonView() {
       generationStartedAtRef.current = Date.now();
       setGenerationProgress(8);
       setIsGenerating(true);
+      const generationKey = `${courseId}:${lessonId}`;
+      if (generationRequestRef.current?.lessonKey !== generationKey) {
+        generationRequestRef.current = { lessonKey: generationKey, requestId: createClientId() };
+      }
       const generationResponse = await fetch("/api/generate-lesson", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
-          "Idempotency-Key": createClientId(),
+          "Idempotency-Key": generationRequestRef.current.requestId,
         },
         body: JSON.stringify({
           topic,
@@ -370,6 +375,7 @@ export default function LessonView() {
       if (!generationResponse.ok) throw new Error(generated.error || "The lesson could not be generated.");
       setGenerationProgress(100);
       setLessonData(randomizeQuizAnswers(generated as LessonData));
+      generationRequestRef.current = null;
     } catch (loadError) {
       setError(loadError instanceof Error ? loadError.message : "The lesson could not be opened.");
     } finally {
@@ -517,7 +523,7 @@ export default function LessonView() {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}`, "Idempotency-Key": createClientId() },
         body: JSON.stringify({
-          messages: nextMessages.map(({ role, content }) => ({ role, content })),
+          messages: nextMessages.slice(-11).map(({ role, content }) => ({ role, content })),
           data: {
             courseId,
             lessonId,
@@ -531,14 +537,15 @@ export default function LessonView() {
 
       const assistantId = createClientId();
       let content = "";
-      setMessages([...nextMessages, { id: assistantId, role: "assistant", content }]);
+      const visibleMessages = nextMessages.slice(-23);
+      setMessages([...visibleMessages, { id: assistantId, role: "assistant", content }]);
       const reader = response.body.getReader();
       const decoder = new TextDecoder();
       while (true) {
         const { done, value } = await reader.read();
         if (done) break;
         content += decoder.decode(value, { stream: true });
-        setMessages([...nextMessages, { id: assistantId, role: "assistant", content }]);
+        setMessages([...visibleMessages, { id: assistantId, role: "assistant", content }]);
       }
     } catch (sendError) {
       setChatError(sendError instanceof Error ? sendError.message : "The tutor could not respond.");

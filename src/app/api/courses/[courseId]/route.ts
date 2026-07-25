@@ -34,9 +34,12 @@ export async function GET(request: Request, { params }: RouteParams) {
 
     return NextResponse.json(
       toCourseDto(course, canManage),
-      course.isPublic
-        ? { headers: { "Cache-Control": "no-store" } }
-        : undefined,
+      { headers: course.isPublic && !canManage
+        ? {
+            "Cache-Control": "public, max-age=60, s-maxage=300, stale-while-revalidate=3600",
+            Vary: "Authorization",
+          }
+        : { "Cache-Control": "private, no-store" } },
     );
   } catch (error: unknown) {
     const authResponse = authorizationResponse(error);

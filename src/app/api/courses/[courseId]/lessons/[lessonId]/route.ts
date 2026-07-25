@@ -27,9 +27,9 @@ export async function GET(request: Request, { params }: RouteParams) {
 
     return NextResponse.json(
       toLessonDto(lesson, course.aiAssisted === true || !String(course.id ?? "").startsWith("catalog-")),
-      course.isPublic
-        ? { headers: { "Cache-Control": "no-store" } }
-        : undefined,
+      { headers: course.isPublic
+        ? { "Cache-Control": "public, max-age=60, s-maxage=300, stale-while-revalidate=3600" }
+        : { "Cache-Control": "private, no-store" } },
     );
   } catch (error: unknown) {
     const authResponse = authorizationResponse(error);

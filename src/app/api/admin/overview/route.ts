@@ -1,11 +1,17 @@
 import { authorizationResponse, requireOwner } from "@/lib/auth-server";
-import { listCollectionDocuments } from "@/lib/firebase-server";
+import {
+  countCollectionDocuments,
+  getStoredDocument,
+  listCollectionDocumentsByRange,
+  listStoredDocumentsByField,
+} from "@/lib/firebase-server";
 import type {
   AdminFeatureUsage,
   AdminOverview,
   AdminUserSummary,
 } from "@/lib/admin-types";
 import type { AiFeature } from "@/lib/ai-usage";
+import { aiBudgetLimitsUsd, type AiBudgetPool } from "@/lib/ai-usage";
 
 function numberValue(value: unknown) {
   return typeof value === "number" && Number.isFinite(value) ? value : 0;
@@ -53,30 +59,51 @@ export async function GET(request: Request) {
     const dates = dayKeys(days);
     const dateSet = new Set(dates);
     const fromTime = Date.parse(`${dates[0]}T00:00:00.000Z`);
+    const fromIso = `${dates[0]}T00:00:00.000Z`;
+    const nowIso = new Date().toISOString();
+    const currentMonth = nowIso.slice(0, 7);
 
     const [
       rawUsers,
       userEngagement,
       dailyEngagement,
-      traffic,
+      legacyTraffic,
+      shardedTraffic,
       usagePeriods,
       aiRequests,
       courses,
       safetyEvents,
       adminEvents,
-      systemUsage,
+      systemUsageShards,
+      legacySystemUsage,
+      ownerRecord,
+      totalUsers,
+      publicCourseCount,
+      privateCourseCount,
+      waitlistCount,
     ] = await Promise.all([
-      listCollectionDocuments("users", 1_000),
-      listCollectionDocuments("userEngagement", 1_000),
-      listCollectionDocuments("engagementDaily", 1_000),
-      listCollectionDocuments("trafficDaily", 1_000),
-      listCollectionDocuments("usagePeriods", 2_000),
-      listCollectionDocuments("aiRequests", 2_000),
-      listCollectionDocuments("courses", 1_000),
-      listCollectionDocuments("safetyEvents", 1_000),
-      listCollectionDocuments("adminEvents", 300),
-      listCollectionDocuments("systemUsage", 36),
+      listCollectionDocumentsByRange("users", "updatedAt", "1970-01-01T00:00:00.000Z", nowIso, 300),
+      listCollectionDocumentsByRange("userEngagement", "lastActivityAt", "1970-01-01T00:00:00.000Z", nowIso, 300),
+      listCollectionDocumentsByRange("engagementDaily", "date", dates[0], dates[dates.length - 1], 2_000),
+      listCollectionDocumentsByRange("trafficDaily", "date", dates[0], dates[dates.length - 1], 2_000),
+      listCollectionDocumentsByRange("trafficDailyShards", "date", dates[0], dates[dates.length - 1], 2_000),
+      listStoredDocumentsByField("usagePeriods", "periodKey", currentMonth, 2_000),
+      listCollectionDocumentsByRange("aiRequests", "createdAt", fromIso, nowIso, 2_000),
+      listCollectionDocumentsByRange("courses", "updatedAt", "1970-01-01T00:00:00.000Z", nowIso, 300),
+      listCollectionDocumentsByRange("safetyEvents", "createdAt", fromIso, nowIso, 1_000),
+      listCollectionDocumentsByRange("adminEvents", "createdAt", fromIso, nowIso, 300),
+      listStoredDocumentsByField("systemUsageShards", "periodKey", currentMonth, 1_000),
+      getStoredDocument(`systemUsage/${currentMonth}`),
+      getStoredDocument(`users/${owner.uid}`),
+      countCollectionDocuments("users"),
+      countCollectionDocuments("courses", [{ field: "isPublic", value: true }]),
+      countCollectionDocuments("courses", [{ field: "isPublic", value: false }]),
+      countCollectionDocuments("waitlist"),
     ]);
+    if (ownerRecord && !rawUsers.some((record) => record.id === owner.uid || record.uid === owner.uid)) {
+      rawUsers.unshift(ownerRecord);
+    }
+    const traffic = [...legacyTraffic, ...shardedTraffic];
 
     const userRows = rawUsers.map((record) => {
       const uid = stringValue(record.uid) ?? record.id;
@@ -204,20 +231,49 @@ export async function GET(request: Request) {
       else point.tutor += 1;
     }
 
-    const activeUsers = userRows.filter((user) =>
-      (user.lastSeenAt && Date.parse(user.lastSeenAt) >= fromTime)
-      || (dateValue(engagementByUser.get(user.uid)?.lastActivityAt)
-        && Date.parse(String(engagementByUser.get(user.uid)?.lastActivityAt)) >= fromTime),
-    ).length;
+    const activeUserIds = new Set<string>();
+    for (const user of userRows) {
+      if ((user.lastSeenAt && Date.parse(user.lastSeenAt) >= fromTime)
+        || (dateValue(engagementByUser.get(user.uid)?.lastActivityAt)
+          && Date.parse(String(engagementByUser.get(user.uid)?.lastActivityAt)) >= fromTime)) {
+        activeUserIds.add(user.uid);
+      }
+    }
+    for (const record of engagementInRange) {
+      const uid = stringValue(record.uid);
+      if (uid) activeUserIds.add(uid);
+    }
+    const activeUsers = activeUserIds.size;
     const safetyInRange = safetyEvents.filter((event) => {
       const createdAt = dateValue(event.createdAt);
       return createdAt && Date.parse(createdAt) >= fromTime;
     });
-    const currentMonth = new Date().toISOString().slice(0, 7);
-    const currentUsage = systemUsage.find((record) => record.periodKey === currentMonth);
-    const limitUsd = Math.max(1, Number(process.env.OPENAI_MONTHLY_BUDGET_USD ?? "50") || 50);
-    const spentUsd = microsToUsd(currentUsage?.actualCostMicros);
-    const reservedUsd = microsToUsd(currentUsage?.reservedCostMicros);
+    const poolLimits = aiBudgetLimitsUsd();
+    const poolUsage = (Object.keys(poolLimits) as AiBudgetPool[]).map((pool) => {
+      const records = systemUsageShards.filter((record) => record.pool === pool);
+      const spentUsd = records.reduce((sum, record) => sum + microsToUsd(record.actualCostMicros), 0);
+      const reservedUsd = records.reduce((sum, record) => sum + microsToUsd(record.reservedCostMicros), 0);
+      const limitUsd = poolLimits[pool];
+      return {
+        pool,
+        limitUsd,
+        spentUsd,
+        reservedUsd,
+        percentUsed: Math.min(100, ((spentUsd + reservedUsd) / limitUsd) * 100),
+      };
+    });
+    const legacySpentUsd = microsToUsd(legacySystemUsage?.actualCostMicros);
+    const legacyReservedUsd = microsToUsd(legacySystemUsage?.reservedCostMicros);
+    const limitUsd = poolUsage.reduce((sum, pool) => sum + pool.limitUsd, 0);
+    const spentUsd = legacySpentUsd + poolUsage.reduce((sum, pool) => sum + pool.spentUsd, 0);
+    const reservedUsd = legacyReservedUsd + poolUsage.reduce((sum, pool) => sum + pool.reservedUsd, 0);
+    const plannedMonthlyPriceUsd = 14.99;
+    const paymentFeeEstimateUsd = plannedMonthlyPriceUsd * 0.036 + 0.30;
+    const modeledAiCostPerSubscriberUsd = 1.77;
+    const modeledContributionPerSubscriberUsd = Math.max(
+      0,
+      plannedMonthlyPriceUsd - paymentFeeEstimateUsd - modeledAiCostPerSubscriberUsd,
+    );
 
     const userLabel = (uid: string) => {
       const user = users.find((candidate) => candidate.uid === uid);
@@ -230,7 +286,7 @@ export async function GET(request: Request) {
       summary: {
         pageViews: trafficInRange.reduce((sum, record) => sum + numberValue(record.views), 0),
         activeUsers,
-        totalUsers: users.length,
+        totalUsers,
         generations: requestsInRange.length,
         failedRequests: requestsInRange.filter((record) => record.status === "failed").length,
         inputTokens: requestsInRange.reduce((sum, record) => sum + numberValue(record.inputTokens), 0),
@@ -239,8 +295,8 @@ export async function GET(request: Request) {
         outputTokens: requestsInRange.reduce((sum, record) => sum + numberValue(record.outputTokens), 0),
         estimatedCostUsd: requestsInRange.reduce((sum, record) => sum + microsToUsd(record.actualCostMicros), 0),
         safetyBlocks: safetyInRange.length,
-        publicCourses: courses.filter((course) => course.isPublic === true).length,
-        privateCourses: courses.filter((course) => course.isPublic !== true).length,
+        publicCourses: publicCourseCount,
+        privateCourses: privateCourseCount,
         coursesStarted: engagementInRange.reduce((sum, record) => sum + numberValue(record.coursesStarted), 0),
         lessonsCompleted: engagementInRange.reduce((sum, record) => sum + numberValue(record.lessonsCompleted), 0),
         studyMinutes: engagementInRange.reduce((sum, record) => sum + numberValue(record.studyMinutes), 0),
@@ -258,6 +314,16 @@ export async function GET(request: Request) {
         spentUsd,
         reservedUsd,
         percentUsed: Math.min(100, ((spentUsd + reservedUsd) / limitUsd) * 100),
+        pools: poolUsage,
+      },
+      monetization: {
+        waitlistCount,
+        plannedMonthlyPriceUsd,
+        plannedAnnualPriceUsd: 149,
+        paymentFeeEstimateUsd,
+        modeledAiCostPerSubscriberUsd,
+        modeledContributionPerSubscriberUsd,
+        modeledContributionMarginPercent: (modeledContributionPerSubscriberUsd / plannedMonthlyPriceUsd) * 100,
       },
       trafficSeries: dates.map((date) => ({ date, views: trafficByDate.get(date) ?? 0 })),
       topRoutes: Array.from(routeTotals, ([route, views]) => ({ route, views }))

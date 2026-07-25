@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowRight, BrainCircuit, CheckCircle2, Clock3, LoaderCircle, ShieldCheck, Sparkles, Target } from "lucide-react";
 import AppShell from "@/components/AppShell";
@@ -28,6 +28,7 @@ export default function CreateCoursePage() {
   const [submitting, setSubmitting] = useState(false);
   const [generationProgress, setGenerationProgress] = useState(0);
   const [generationStage, setGenerationStage] = useState("Checking your course brief");
+  const requestIdentityRef = useRef<{ signature: string; key: string } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const outlineQuota = account?.quotas.find((quota) => quota.feature === "course_outline");
 
@@ -54,15 +55,21 @@ export default function CreateCoursePage() {
     setError(null);
     try {
       const token = await user.getIdToken();
+      const requestBody = { topic, goal, application, background, level, weeklyMinutes, targetWeeks, courseStyle };
+      const signature = JSON.stringify(requestBody);
+      if (requestIdentityRef.current?.signature !== signature) {
+        requestIdentityRef.current = { signature, key: createClientId() };
+      }
       const response = await fetch("/api/generate-course", {
         method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}`, "Idempotency-Key": createClientId() },
-        body: JSON.stringify({ topic, goal, application, background, level, weeklyMinutes, targetWeeks, courseStyle }),
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}`, "Idempotency-Key": requestIdentityRef.current.key },
+        body: signature,
       });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || "The course could not be created.");
       setGenerationProgress(100);
       setGenerationStage("Your course map is ready");
+      requestIdentityRef.current = null;
       window.dispatchEvent(new Event("erudoza:courses-changed"));
       await new Promise((resolve) => window.setTimeout(resolve, 350));
       router.push(`/course/${encodeURIComponent(topic.trim())}?id=${data.courseId}`);

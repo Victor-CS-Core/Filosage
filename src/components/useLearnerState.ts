@@ -63,11 +63,32 @@ export function useLearnerState() {
   }, [account?.legalAcceptanceRequired, authLoading, user]);
 
   const update = useCallback((recipe: (current: LearnerState) => LearnerState) => {
-    const next = { ...recipe(stateRef.current), updatedAt: new Date().toISOString() };
+    const previous = stateRef.current;
+    const next = { ...recipe(previous), updatedAt: new Date().toISOString() };
     stateRef.current = next;
     setState(next);
     writeLearnerState(next);
     if (user) {
+      const noteChanges = Object.keys(next.notes).flatMap((key) => {
+        if (next.notes[key] === previous.notes[key] && next.noteUpdatedAt[key] === previous.noteUpdatedAt[key]) return [];
+        return [{
+          key,
+          content: next.notes[key],
+          updatedAt: next.noteUpdatedAt[key] ?? next.updatedAt!,
+        }];
+      });
+      const deletedNoteKeys = Object.keys(previous.notes).filter((key) => !(key in next.notes));
+      const payload = {
+        preferences: {
+          courseBookmarks: next.courseBookmarks,
+          lessonBookmarks: next.lessonBookmarks,
+          weeklyLessonGoal: next.weeklyLessonGoal,
+          dashboardPreferences: next.dashboardPreferences,
+          updatedAt: next.updatedAt,
+        },
+        noteChanges,
+        deletedNoteKeys,
+      };
       setSyncStatus("saving");
       setSyncError(null);
       syncQueue.current = syncQueue.current.catch(() => undefined).then(async () => {
@@ -75,7 +96,7 @@ export function useLearnerState() {
         const response = await fetch("/api/learner-state", {
           method: "PUT",
           headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-          body: JSON.stringify(next),
+          body: JSON.stringify(payload),
         });
         if (!response.ok) throw new Error("Your latest learning changes are saved on this device but have not synced yet.");
         setSyncStatus("saved");

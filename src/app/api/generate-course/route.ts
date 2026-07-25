@@ -2,14 +2,16 @@ import { NextResponse } from "next/server";
 import OpenAI from "openai";
 import { zodTextFormat } from "openai/helpers/zod";
 import { authorizationResponse, requirePremium } from "@/lib/auth-server";
-import { createCourse } from "@/lib/firebase-server";
+import { createCourse, getCourse } from "@/lib/firebase-server";
 import {
+  AiQuotaError,
   aiQuotaResponse,
   extractOpenAiUsage,
   finalizeAiUsage,
   reserveAiUsage,
   type AiReservation,
 } from "@/lib/ai-usage";
+import { toCourseDto } from "@/lib/course-dto";
 import {
   courseOutlineSchema,
   courseRequestSchema,
@@ -107,7 +109,7 @@ export async function POST(request: Request) {
       aiAssisted: true,
     });
 
-    await finalizeAiUsage(reservation, { ...observedUsage, model, responseId });
+    await finalizeAiUsage(reservation, { ...observedUsage, model, responseId, resultId: course.id });
     reservation = null;
 
     return NextResponse.json({ ...outline, courseId: course.id, isPublic: false, aiAssisted: true });
@@ -116,6 +118,19 @@ export async function POST(request: Request) {
       await finalizeAiUsage(reservation, { ...observedUsage, model, responseId, failed: true }).catch((usageError) => {
         console.error("Course usage finalization failed:", usageError);
       });
+    }
+    if (error instanceof AiQuotaError
+      && error.code === "DUPLICATE_REQUEST"
+      && error.details.requestStatus === "completed"
+      && typeof error.details.resultId === "string") {
+      const course = await getCourse(error.details.resultId);
+      if (course) {
+        return NextResponse.json({
+          ...toCourseDto(course, true),
+          courseId: course.id,
+          recovered: true,
+        });
+      }
     }
     const quotaResponse = aiQuotaResponse(error);
     if (quotaResponse) return quotaResponse;

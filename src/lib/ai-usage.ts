@@ -13,6 +13,9 @@ import {
 } from "@/lib/firebase-server";
 
 export type AiFeature = "course_outline" | "lesson_generation" | "tutor";
+export type AiBudgetPool = "free" | "paid" | "owner";
+
+const BUDGET_SHARDS = 16;
 
 interface AiPolicy {
   limit: number | null;
@@ -29,6 +32,8 @@ export interface AiReservation {
   requestId: string;
   periodPath: string;
   globalPath: string;
+  userBudgetPath: string;
+  budgetPool: AiBudgetPool;
   requestPath: string;
   reserveCostMicros: number;
 }
@@ -53,13 +58,6 @@ function monthWindow(now: Date) {
   };
 }
 
-function dayWindow(now: Date) {
-  return {
-    key: now.toISOString().slice(0, 10),
-    resetAt: new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + 1)).toISOString(),
-  };
-}
-
 function policyFor(account: ServerAccount, feature: AiFeature, now = new Date()): AiPolicy {
   const monthly = monthWindow(now);
   if (account.isOwner) {
@@ -74,11 +72,10 @@ function policyFor(account: ServerAccount, feature: AiFeature, now = new Date())
   }
 
   if (feature === "tutor" && account.plan === "free") {
-    const daily = dayWindow(now);
     return {
-      limit: 3,
-      periodKey: daily.key,
-      resetAt: daily.resetAt,
+      limit: 5,
+      periodKey: monthly.key,
+      resetAt: monthly.resetAt,
       maxPerMinute: 2,
       reserveCostMicros: 50_000,
       lockMs: 45_000,
@@ -113,9 +110,39 @@ export async function openAiSafetyIdentifier(uid: string) {
   return `user_${(await sha256(uid)).slice(0, 48)}`;
 }
 
-function monthlyBudgetMicros() {
-  const dollars = Number(process.env.OPENAI_MONTHLY_BUDGET_USD ?? "50");
-  return Math.max(1, Number.isFinite(dollars) ? dollars : 50) * 1_000_000;
+function positiveDollars(value: string | undefined, fallback: number) {
+  const dollars = Number(value ?? fallback);
+  return Math.max(0.01, Number.isFinite(dollars) ? dollars : fallback);
+}
+
+export function aiBudgetLimitsUsd() {
+  return {
+    free: positiveDollars(process.env.OPENAI_FREE_MONTHLY_BUDGET_USD, 25),
+    paid: positiveDollars(process.env.OPENAI_PAID_MONTHLY_BUDGET_USD, 500),
+    owner: positiveDollars(
+      process.env.OPENAI_OWNER_MONTHLY_BUDGET_USD ?? process.env.OPENAI_MONTHLY_BUDGET_USD,
+      50,
+    ),
+  } satisfies Record<AiBudgetPool, number>;
+}
+
+function userBudgetLimitMicros(account: ServerAccount) {
+  if (account.isOwner) {
+    return positiveDollars(process.env.OPENAI_OWNER_USER_MONTHLY_BUDGET_USD, 50) * 1_000_000;
+  }
+  if (account.plan === "pro") {
+    return positiveDollars(process.env.OPENAI_PRO_USER_MONTHLY_BUDGET_USD, 6) * 1_000_000;
+  }
+  return positiveDollars(process.env.OPENAI_FREE_USER_MONTHLY_BUDGET_USD, 0.15) * 1_000_000;
+}
+
+function budgetPoolFor(account: ServerAccount): AiBudgetPool {
+  if (account.isOwner) return "owner";
+  return account.plan === "pro" ? "paid" : "free";
+}
+
+function budgetShardFor(requestId: string) {
+  return Number.parseInt(requestId.slice(0, 8), 16) % BUDGET_SHARDS;
 }
 
 export async function reserveAiUsage(
@@ -142,17 +169,31 @@ export async function reserveAiUsage(
   const periodPath = `usagePeriods/${account.uid}__${feature}__${policy.periodKey}`;
   const requestPath = `aiRequests/${requestId}`;
   const globalPeriod = monthWindow(now);
-  const globalPath = `systemUsage/${globalPeriod.key}`;
+  const budgetPool = budgetPoolFor(account);
+  const budgetShard = budgetShardFor(requestId);
+  const globalPath = `systemUsageShards/${budgetPool}__${globalPeriod.key}__${budgetShard}`;
+  const userBudgetPath = `userAiBudgets/${account.uid}__${globalPeriod.key}`;
   const minuteKey = nowIso.slice(0, 16);
 
   await runStoredDocumentTransaction(
-    [periodPath, requestPath, globalPath],
+    [periodPath, requestPath, userBudgetPath, globalPath],
     (documents) => {
       const period = documents[periodPath];
       const previousRequest = documents[requestPath];
+      const userBudget = documents[userBudgetPath];
       const global = documents[globalPath];
-      if (previousRequest) {
-        throw new AiQuotaError(409, "DUPLICATE_REQUEST", "This request is already being processed.");
+      if (previousRequest && previousRequest.status !== "failed") {
+        throw new AiQuotaError(
+          409,
+          "DUPLICATE_REQUEST",
+          previousRequest.status === "completed"
+            ? "This request was already completed."
+            : "This request is already being processed.",
+          {
+            requestStatus: previousRequest.status,
+            resultId: previousRequest.resultId,
+          },
+        );
       }
 
       const used = numberValue(period?.requestCount);
@@ -178,17 +219,22 @@ export async function reserveAiUsage(
         });
       }
 
-      const globalActual = numberValue(global?.actualCostMicros);
-      const globalReserved = numberValue(global?.reservedCostMicros);
-      const projected = globalActual + globalReserved + policy.reserveCostMicros;
-      const budget = monthlyBudgetMicros();
-      if (projected >= budget) {
-        throw new AiQuotaError(503, "GLOBAL_BUDGET_REACHED", "AI generation is paused until the monthly budget resets.", {
+      const userActual = numberValue(userBudget?.actualCostMicros);
+      const userReserved = numberValue(userBudget?.reservedCostMicros);
+      if (userActual + userReserved + policy.reserveCostMicros > userBudgetLimitMicros(account)) {
+        throw new AiQuotaError(429, "USER_BUDGET_REACHED", "Your monthly AI cost allowance has been reached.", {
           resetAt: globalPeriod.resetAt,
         });
       }
-      if (!account.isOwner && account.plan === "free" && projected >= budget * 0.85) {
-        throw new AiQuotaError(503, "TRIAL_BUDGET_PAUSED", "Free tutor trials are paused while capacity is limited.", {
+
+      const globalActual = numberValue(global?.actualCostMicros);
+      const globalReserved = numberValue(global?.reservedCostMicros);
+      const poolBudgetMicros = aiBudgetLimitsUsd()[budgetPool] * 1_000_000;
+      const shardBudgetMicros = poolBudgetMicros / BUDGET_SHARDS;
+      if (globalActual + globalReserved + policy.reserveCostMicros > shardBudgetMicros) {
+        throw new AiQuotaError(503, budgetPool === "free" ? "TRIAL_BUDGET_PAUSED" : "POOL_BUDGET_REACHED", budgetPool === "free"
+          ? "Free tutor trials are paused while capacity is limited."
+          : "AI generation is temporarily paused for this plan.", {
           resetAt: globalPeriod.resetAt,
         });
       }
@@ -229,9 +275,23 @@ export async function reserveAiUsage(
             },
           },
           {
+            path: userBudgetPath,
+            data: {
+              ...(userBudget ?? {}),
+              uid: account.uid,
+              plan: budgetPool,
+              periodKey: globalPeriod.key,
+              reservedCostMicros: userReserved + policy.reserveCostMicros,
+              actualCostMicros: userActual,
+              updatedAt: nowIso,
+            },
+          },
+          {
             path: globalPath,
             data: {
               ...(global ?? {}),
+              pool: budgetPool,
+              shard: budgetShard,
               periodKey: globalPeriod.key,
               reservedCostMicros: globalReserved + policy.reserveCostMicros,
               actualCostMicros: globalActual,
@@ -244,7 +304,17 @@ export async function reserveAiUsage(
     },
   );
 
-  return { uid: account.uid, feature, requestId, periodPath, requestPath, globalPath, reserveCostMicros: policy.reserveCostMicros } satisfies AiReservation;
+  return {
+    uid: account.uid,
+    feature,
+    requestId,
+    periodPath,
+    requestPath,
+    globalPath,
+    userBudgetPath,
+    budgetPool,
+    reserveCostMicros: policy.reserveCostMicros,
+  } satisfies AiReservation;
 }
 
 export function extractOpenAiUsage(value: unknown) {
@@ -275,6 +345,7 @@ export async function finalizeAiUsage(
     model?: string;
     usageSamples?: AiUsageSample[];
     responseId?: string;
+    resultId?: string;
     failed?: boolean;
   },
 ) {
@@ -306,10 +377,16 @@ export async function finalizeAiUsage(
   const responseIds = samples.flatMap((sample) => sample.responseId ? [sample.responseId] : []);
 
   await runStoredDocumentTransaction(
-    [reservation.periodPath, reservation.requestPath, reservation.globalPath],
+    [
+      reservation.periodPath,
+      reservation.requestPath,
+      reservation.userBudgetPath,
+      reservation.globalPath,
+    ],
     (documents) => {
       const period: Record<string, unknown> = documents[reservation.periodPath] ?? {};
       const request: Record<string, unknown> = documents[reservation.requestPath] ?? {};
+      const userBudget: Record<string, unknown> = documents[reservation.userBudgetPath] ?? {};
       const global: Record<string, unknown> = documents[reservation.globalPath] ?? {};
       return {
         writes: [
@@ -342,6 +419,16 @@ export async function finalizeAiUsage(
               models,
               responseId: result.responseId ?? responseIds.at(-1) ?? null,
               responseIds,
+              resultId: result.resultId ?? request.resultId ?? null,
+              updatedAt: nowIso,
+            },
+          },
+          {
+            path: reservation.userBudgetPath,
+            data: {
+              ...userBudget,
+              reservedCostMicros: Math.max(0, numberValue(userBudget.reservedCostMicros) - reservation.reserveCostMicros),
+              actualCostMicros: numberValue(userBudget.actualCostMicros) + actualCostMicros,
               updatedAt: nowIso,
             },
           },

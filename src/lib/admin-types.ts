@@ -70,6 +70,22 @@ export interface AdminOverview {
     spentUsd: number;
     reservedUsd: number;
     percentUsed: number;
+    pools: Array<{
+      pool: "free" | "paid" | "owner";
+      limitUsd: number;
+      spentUsd: number;
+      reservedUsd: number;
+      percentUsed: number;
+    }>;
+  };
+  monetization: {
+    waitlistCount: number;
+    plannedMonthlyPriceUsd: number;
+    plannedAnnualPriceUsd: number;
+    paymentFeeEstimateUsd: number;
+    modeledAiCostPerSubscriberUsd: number;
+    modeledContributionPerSubscriberUsd: number;
+    modeledContributionMarginPercent: number;
   };
   trafficSeries: Array<{ date: string; views: number }>;
   topRoutes: Array<{ route: string; views: number }>;
