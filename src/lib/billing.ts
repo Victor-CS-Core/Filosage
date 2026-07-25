@@ -8,7 +8,7 @@ export const proPlan = {
   interval: "month" as const,
   currency: "usd",
   priceUsd: 14.99,
-  annualPriceUsd: 149,
+  annualPriceUsd: 119.88,
   priceId: process.env.STRIPE_PRO_MONTHLY_PRICE_ID ?? "",
   annualPriceId: process.env.STRIPE_PRO_ANNUAL_PRICE_ID ?? "",
   features: { courseOutlines: 3, generatedLessons: 30, tutorQuestions: 100 },

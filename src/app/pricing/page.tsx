@@ -69,7 +69,7 @@ export default function PricingPage() {
 
           <section className="plan-column plan-pro" aria-labelledby="pro-plan-title">
             <div className="plan-heading"><span><Crown size={19} /></span><div><h2 id="pro-plan-title">Erudoza Pro</h2><p>Create private courses for your own goals.</p></div></div>
-            <p className="plan-price"><strong>$14.99</strong><span>per month</span><small>or $149 billed yearly</small></p>
+            <p className="plan-price"><strong>$14.99</strong><span>per month</span><small>or $9.99/month, billed annually ($119.88/year)</small></p>
             <ul>{proFeatures.map((feature) => <li key={feature}><Check size={16} /> {feature}</li>)}</ul>
             {isPro ? (
               <div className="plan-status"><Sparkles size={17} /><span><strong>Pro is active</strong><small>{outlineQuota?.remaining ?? "Unlimited"} course outline credits remaining</small></span></div>

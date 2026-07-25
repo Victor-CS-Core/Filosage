@@ -319,7 +319,7 @@ export async function GET(request: Request) {
       monetization: {
         waitlistCount,
         plannedMonthlyPriceUsd,
-        plannedAnnualPriceUsd: 149,
+        plannedAnnualPriceUsd: 119.88,
         paymentFeeEstimateUsd,
         modeledAiCostPerSubscriberUsd,
         modeledContributionPerSubscriberUsd,
