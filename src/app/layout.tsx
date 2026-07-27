@@ -37,22 +37,22 @@ export async function generateMetadata(): Promise<Metadata> {
   return {
     metadataBase: new URL(origin),
     title: {
-      default: "Erudoza — Your daily dose of understanding",
+      default: "Erudoza · Your daily dose of understanding",
       template: "%s | Erudoza",
     },
     description: "Understanding that lasts: courses held to a published teaching standard, a daily review dose that returns concepts before you forget them, and mastery earned against real criteria.",
     applicationName: "Erudoza",
     category: "education",
     openGraph: {
-      title: "Erudoza — Understanding that lasts.",
+      title: "Erudoza · Understanding that lasts.",
       description: "Courses held to a teaching standard, daily review before you forget, and mastery you earn.",
       type: "website",
       url: origin,
-      images: [{ url: socialImage, width: 1536, height: 1024, alt: "Erudoza — Understanding that lasts." }],
+      images: [{ url: socialImage, width: 1536, height: 1024, alt: "Erudoza · Understanding that lasts." }],
     },
     twitter: {
       card: "summary_large_image",
-      title: "Erudoza — Understanding that lasts.",
+      title: "Erudoza · Understanding that lasts.",
       description: "Your daily dose of understanding.",
       images: [socialImage],
     },

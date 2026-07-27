@@ -81,7 +81,7 @@ export default function Home() {
             <div className="public-hero-copy">
               <span className="hero-status"><span /> Public learning library</span>
               <h1>Understanding<br /><span>that lasts.</span></h1>
-              <p>Every course is held to a published teaching standard, every concept returns for review before you forget it, and mastery is earned against real criteria — not granted for attendance.</p>
+              <p>Every course is held to a published teaching standard, every concept returns for review before you forget it, and mastery is earned by meeting real criteria.</p>
               <div className="hero-actions">
                 <button className="button button-primary" onClick={() => router.push("/library")}>Explore published courses <ArrowRight size={17} /></button>
                 <button className="button button-secondary" onClick={() => void signInWithGoogle()}>Create a free account</button>
@@ -105,7 +105,7 @@ export default function Home() {
 
           <section className="public-method" id="method">
             <div><p className="overline">How learning works</p><h2>Understand, retain, and earn it.</h2><p className="method-standard-link">Every lesson here passes the <button className="text-button" onClick={() => router.push("/standard")}>Erudoza teaching standard</button> before you see it.</p></div>
-            <div className="method-steps"><article><span>01</span><h3>Learn against your misconceptions</h3><p>Each lesson corrects a named wrong belief and builds the knowledge the next lesson needs.</p></article><article><span>02</span><h3>Explain it from memory</h3><p>Recall comes before answer choices, so you test memory instead of recognition — and your daily dose returns each concept before it fades.</p></article><article><span>03</span><h3>Earn the capstone</h3><p>Courses end in capstone work assessed against explicit success criteria. Mastery is demonstrated, never assumed.</p></article></div>
+            <div className="method-steps"><article><span>01</span><h3>Learn against your misconceptions</h3><p>Each lesson corrects a named wrong belief and builds the knowledge the next lesson needs.</p></article><article><span>02</span><h3>Explain it from memory</h3><p>Recall comes before answer choices, so you test memory instead of recognition. Your daily dose returns each concept before it fades.</p></article><article><span>03</span><h3>Earn the capstone</h3><p>Courses end in capstone work assessed against clear success criteria, so mastery means something you demonstrated.</p></article></div>
           </section>
 
           <section className="public-plans-cta"><div><Crown size={22} /><h2>Read any published course. Create your own with Pro.</h2><p>Free accounts sync your learning. Erudoza Pro adds private course creation and more tutor questions with monthly limits.</p></div><button className="button button-primary" onClick={() => router.push("/pricing")}>Compare plans <ArrowRight size={16} /></button></section>
@@ -145,7 +145,7 @@ export default function Home() {
     studyTime: { label: "Study time", value: `${Math.floor(minutes / 60)}h ${minutes % 60}m`, icon: <Clock3 size={18} /> },
     lessons: { label: "Lessons learned", value: lessons.length, icon: <CheckCircle2 size={18} /> },
     streak: { label: "Current streak", value: `${streakFor(lessons)} ${streakFor(lessons) === 1 ? "day" : "days"}`, icon: <Flame size={18} /> },
-    accuracy: { label: "Quiz accuracy", value: accuracy ? `${accuracy}%` : "—", icon: <Target size={18} /> },
+    accuracy: { label: "Quiz accuracy", value: accuracy ? `${accuracy}%` : "N/A", icon: <Target size={18} /> },
     mastered: { label: "Concepts mastered", value: mastered, icon: <BrainCircuit size={18} /> },
   };
 
@@ -200,7 +200,7 @@ export default function Home() {
                 {continueProgress ? (
                   <button className="continue-card" onClick={() => continueHref && router.push(continueHref)}>
                     <span className="continue-icon"><BookOpenCheck size={24} /></span>
-                    <span className="continue-copy"><small>{continueProgress.nextLessonId ? "In progress" : "Course complete"}</small><strong>{continueProgress.topic}</strong><span>{continueProgress.nextLessonTitle ?? "Review your course map"}</span><span className="continue-progress"><i><b style={{ width: `${Math.round((continueProgress.completedLessonIds.length / Math.max(continueProgress.totalLessons ?? continueProgress.completedLessonIds.length, 1)) * 100)}%` }} /></i><em>{continueProgress.completedLessonIds.length}/{continueProgress.totalLessons ?? "—"} lessons</em></span></span>
+                    <span className="continue-copy"><small>{continueProgress.nextLessonId ? "In progress" : "Course complete"}</small><strong>{continueProgress.topic}</strong><span>{continueProgress.nextLessonTitle ?? "Review your course map"}</span><span className="continue-progress"><i><b style={{ width: `${Math.round((continueProgress.completedLessonIds.length / Math.max(continueProgress.totalLessons ?? continueProgress.completedLessonIds.length, 1)) * 100)}%` }} /></i><em>{continueProgress.completedLessonIds.length}/{continueProgress.totalLessons ?? "?"} lessons</em></span></span>
                     <span className="continue-action">{continueProgress.nextLessonId ? "Continue" : "Review"} <ArrowRight size={16} /></span>
                   </button>
                 ) : (

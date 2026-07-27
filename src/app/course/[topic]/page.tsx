@@ -423,7 +423,7 @@ export default function CourseMap() {
                   <div className="capstone-submit">
                     {capstoneAssessment && (
                       <div className="capstone-verdict" role="status">
-                        <div className="capstone-verdict-heading"><Circle size={17} /><strong>Not there yet — attempt {capstoneAssessment.attempts}</strong><small>Assessed {new Date(capstoneAssessment.assessedAt).toLocaleDateString()}</small></div>
+                        <div className="capstone-verdict-heading"><Circle size={17} /><strong>Not there yet · attempt {capstoneAssessment.attempts}</strong><small>Assessed {new Date(capstoneAssessment.assessedAt).toLocaleDateString()}</small></div>
                         <p>{capstoneAssessment.summary}</p>
                         <ul>{capstoneAssessment.criteria.map((criterion) => <li key={criterion.criterion} className={criterion.met ? "is-met" : ""}>{criterion.met ? <Check size={14} /> : <Circle size={14} />}<span><strong>{criterion.criterion}</strong><small>{criterion.feedback}</small></span></li>)}</ul>
                       </div>
@@ -431,7 +431,7 @@ export default function CourseMap() {
                     {courseComplete ? (
                       <>
                         <label htmlFor="capstone-submission">{capstoneAssessment ? "Revise and resubmit your capstone" : "Submit your capstone for assessment"}</label>
-                        <p className="capstone-submit-hint">Describe what you built or worked through and how it meets each success criterion. Mastery here is earned: your submission is assessed against the criteria above, not your attendance. Uses one tutor question.</p>
+                        <p className="capstone-submit-hint">Describe what you built or worked through and how it meets each success criterion. Your submission is assessed against the criteria above. This uses one tutor question.</p>
                         <textarea
                           id="capstone-submission"
                           value={capstoneSubmission}
@@ -444,16 +444,16 @@ export default function CourseMap() {
                             {capstoneBusy ? <LoaderCircle className="spin" size={16} /> : <Flag size={16} />}
                             {capstoneBusy ? "Assessing against the criteria…" : "Submit for assessment"}
                           </button>
-                          {capstoneSubmission.trim().length > 0 && capstoneSubmission.trim().length < 120 && <small>Keep going — a short paragraph gives the assessment something to verify.</small>}
+                          {capstoneSubmission.trim().length > 0 && capstoneSubmission.trim().length < 120 && <small>Add a little more detail so the assessment has something to verify.</small>}
                         </div>
                         {capstoneError && <p className="form-error" role="alert"><Circle size={14} /> {capstoneError}</p>}
                       </>
                     ) : (
-                      <p className="capstone-submit-hint">Complete every lesson to unlock capstone assessment. Mastery is earned against the success criteria above — no attendance certificates here.</p>
+                      <p className="capstone-submit-hint">Complete every lesson to unlock capstone assessment. Your work is then assessed against the success criteria above.</p>
                     )}
                   </div>
                 ) : (
-                  <p className="capstone-submit-hint">Sign in to submit this capstone for assessment when you finish the course. Erudoza mastery is earned against the criteria above, not granted for completion.</p>
+                  <p className="capstone-submit-hint">Sign in to submit this capstone for assessment when you finish the course. Passing it is how you master the course.</p>
                 )}
               </div>
             </section>

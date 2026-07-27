@@ -92,7 +92,7 @@ function stubLesson(input: string) {
   const concept = line(input, "Core concept: ") || "the core concept";
   const misconception = line(input, "Misconception to correct: ") || "a common misunderstanding";
   const body = paragraph(
-    `${concept} matters because it changes what you do, not only what you can recite. Start from the situation you already understand, and notice where the naive approach quietly fails: that failure point is exactly where ${concept.toLowerCase()} earns its keep. A common belief — ${misconception.toLowerCase()} — feels reasonable right up until you test it against a concrete case, which is why this lesson works through one slowly instead of asserting the conclusion.`,
+    `${concept} matters because it changes what you do, not only what you can recite. Start from the situation you already understand, and notice where the naive approach quietly fails: that failure point is exactly where ${concept.toLowerCase()} proves useful. A common belief, that ${misconception.toLowerCase()}, feels reasonable right up until you test it against a concrete case, which is why this lesson works through one slowly instead of asserting the conclusion.`,
     4,
   );
   return {
@@ -100,7 +100,7 @@ function stubLesson(input: string) {
     connection: `This lesson builds directly on the previous concept and prepares the ground for what follows in the course sequence.`,
     keyTakeaways: [
       `${concept} is a tool for making decisions, not a definition to memorize.`,
-      `The misconception — ${misconception.toLowerCase()} — fails on concrete cases.`,
+      `The misconception (${misconception.toLowerCase()}) fails on concrete cases.`,
       "Transfer to a new situation is the real test of understanding.",
     ],
     content: `## Why it matters\n\n${body}\n\n## Working through it\n\n${paragraph(`Take the example apart step by step and say out loud what each part contributes; the goal is reasoning you could repeat on a different example tomorrow.`, 3)}\n\n## Where it goes next\n\n${paragraph(`Once this holds, the next lesson can build on it without re-explaining the foundation.`, 2)}`,
@@ -210,7 +210,7 @@ function localAiStub() {
           "Good question. Start from what the lesson already established: ",
           "the concept is a decision tool, so test your idea against a concrete case. ",
           "Try restating the key idea in your own words, then check it against the lesson's worked example. ",
-          "(Local stub tutor — set OPENAI_API_KEY to use the real model.)",
+          "(Local stub tutor. Set OPENAI_API_KEY to use the real model.)",
         ];
         return (async function* () {
           for (const delta of chunks) {

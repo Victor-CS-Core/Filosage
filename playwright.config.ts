@@ -1,7 +1,14 @@
+import { rmSync } from "node:fs";
 import { defineConfig, devices } from "@playwright/test";
 
-const port = process.env.PLAYWRIGHT_PORT ?? "3000";
+// Tests get their own port and their own throwaway local-mode store so they
+// never reuse (or pollute) a dev server the developer is actively browsing.
+const port = process.env.PLAYWRIGHT_PORT ?? "3100";
 const baseURL = `http://127.0.0.1:${port}`;
+const testStoreDir = ".erudoza-local-test";
+if (process.env.PLAYWRIGHT_EXTERNAL_SERVER !== "1") {
+  rmSync(testStoreDir, { recursive: true, force: true });
+}
 
 export default defineConfig({
   testDir: "./tests",
@@ -34,5 +41,6 @@ export default defineConfig({
       command: `npm.cmd run dev -- --hostname 127.0.0.1 --port ${port}`,
       url: baseURL,
       reuseExistingServer: !process.env.CI,
+      env: { ERUDOZA_LOCAL_DIR: testStoreDir },
     },
 });

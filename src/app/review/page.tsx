@@ -76,7 +76,7 @@ export default function ReviewPage() {
             <p className="overline">Today&apos;s dose</p>
             <h1>{due.length ? `${due.length} concept${due.length === 1 ? "" : "s"} ready to strengthen` : "You are caught up for today."}</h1>
             <p>{due.length
-              ? `Answer from memory before it fades — about ${sessionMinutes} minutes across everything you are learning. Your result sets each concept's next return date.`
+              ? `Answer from memory before it fades. This takes about ${sessionMinutes} minutes across everything you are learning, and your result sets each concept's next return date.`
               : "Understanding lasts because concepts return right before you would forget them. Keep learning and tomorrow's dose will be waiting."}</p>
           </div>
           <div className="review-header-stats">
@@ -118,7 +118,7 @@ export default function ReviewPage() {
                 </li>
               ))}
             </ul>
-            <p>Each concept returns on its own schedule — sooner when an answer felt shaky, later as it strengthens.</p>
+            <p>Each concept returns on its own schedule: sooner when an answer felt shaky, later as it strengthens.</p>
           </section>
         )}
 

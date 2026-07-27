@@ -91,7 +91,7 @@ export default function ProfilePage() {
               <article><span><Flame size={20} /></span><div><small>Current streak</small><strong>{streak} {streak === 1 ? "day" : "days"}</strong></div></article>
               <article><span><Clock3 size={20} /></span><div><small>Tracked study time</small><strong>{Math.floor(minutes / 60)}h {minutes % 60}m</strong></div></article>
               <article><span><CheckCircle2 size={20} /></span><div><small>Concepts mastered</small><strong>{mastered}</strong></div></article>
-              <article><span><Target size={20} /></span><div><small>First-try accuracy</small><strong>{accuracy ? `${accuracy}%` : "—"}</strong></div></article>
+              <article><span><Target size={20} /></span><div><small>First-try accuracy</small><strong>{accuracy ? `${accuracy}%` : "N/A"}</strong></div></article>
             </section>
 
             <div className="profile-layout">

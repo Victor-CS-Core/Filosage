@@ -23,6 +23,7 @@
 
 # Local development store (credential-free local mode)
 /.erudoza-local/
+/.erudoza-local-test/
 
 # Sites / Cloudflare local state
 /.wrangler/

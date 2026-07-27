@@ -33,7 +33,7 @@ const lessonInstructions = `Act as a rigorous teacher and instructional designer
 
 Use the requested lesson mode instead of forcing every lesson into the same pattern. Begin by connecting this lesson to prerequisite knowledge, then state one observable learning objective. Explain the core idea from first principles with one concrete example. Use the supplied misconception to create a useful contrast. Include guided practice with visible reasoning, followed by a transfer task that asks the learner to use the idea in a different situation. End with concise takeaways, not a repeated conclusion.
 
-Write direct, natural prose in accessible Markdown. Use descriptive H2 and H3 headings only and never repeat the lesson title as a heading. Target roughly 900 to 1,300 words. Avoid generic encouragement, promotional language, vague claims, invented citations, repeated conclusions, and filler.
+Write direct, natural prose in accessible Markdown. Use descriptive H2 and H3 headings only and never repeat the lesson title as a heading. Target roughly 900 to 1,300 words. Avoid generic encouragement, promotional language, vague claims, invented citations, repeated conclusions, and filler. Never use em dashes; prefer commas, colons, or separate sentences.
 
 Do not create diagrams, graphs, Mermaid syntax, or visual-model sections. Communicate every relationship clearly in prose and examples.
 
@@ -131,10 +131,10 @@ export async function POST(request: Request) {
       `Practice type: ${canonical.lesson.practiceType ?? "explain"}`,
       `Mastery criterion: ${canonical.lesson.masteryCriteria ?? "Explain and apply the concept accurately."}`,
       previousLesson
-        ? `Previous lesson: ${previousLesson.title} — ${previousLesson.objective ?? previousLesson.concept}`
+        ? `Previous lesson: ${previousLesson.title}: ${previousLesson.objective ?? previousLesson.concept}`
         : "Previous lesson: This is the opening lesson.",
       nextLesson
-        ? `Next lesson: ${nextLesson.title} — ${nextLesson.objective ?? nextLesson.concept}`
+        ? `Next lesson: ${nextLesson.title}: ${nextLesson.objective ?? nextLesson.concept}`
         : "Next lesson: This is the final lesson.",
       currentModule?.challenge
         ? `Module challenge: ${currentModule.challenge.prompt} Success means: ${currentModule.challenge.successCriteria.join("; ")}`

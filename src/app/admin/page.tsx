@@ -255,7 +255,7 @@ export default function AdminPage() {
                     <div><dt>Study time</dt><dd>{Math.floor(data.summary.studyMinutes / 60)}h {data.summary.studyMinutes % 60}m</dd></div>
                     <div><dt>Retrieval sessions</dt><dd>{data.summary.retrievalSessions}</dd></div>
                     <div><dt>Review sessions</dt><dd>{data.summary.reviewSessions}</dd></div>
-                    <div><dt>First-try accuracy</dt><dd>{data.summary.quizAccuracy ? `${data.summary.quizAccuracy}%` : "—"}</dd></div>
+                    <div><dt>First-try accuracy</dt><dd>{data.summary.quizAccuracy ? `${data.summary.quizAccuracy}%` : "N/A"}</dd></div>
                   </dl>
                   <SeriesBars
                     tone="teal"
@@ -374,7 +374,7 @@ export default function AdminPage() {
                     <h3>Learning engagement</h3>
                     <div className="admin-feature-usage">
                       <div><span><strong>Completed learning</strong><small>{selectedUser.coursesStarted} courses started · {selectedUser.lessonsCompleted} lessons completed</small></span><span><strong>{Math.floor(selectedUser.studyMinutes / 60)}h {selectedUser.studyMinutes % 60}m</strong><small>tracked study time</small></span></div>
-                      <div><span><strong>Retrieval and review</strong><small>{selectedUser.retrievalSessions} retrieval sessions · {selectedUser.reviewSessions} scheduled reviews</small></span><span><strong>{selectedUser.quizAccuracy ? `${selectedUser.quizAccuracy}%` : "—"}</strong><small>first-try accuracy</small></span></div>
+                      <div><span><strong>Retrieval and review</strong><small>{selectedUser.retrievalSessions} retrieval sessions · {selectedUser.reviewSessions} scheduled reviews</small></span><span><strong>{selectedUser.quizAccuracy ? `${selectedUser.quizAccuracy}%` : "N/A"}</strong><small>first-try accuracy</small></span></div>
                       <div><span><strong>Last learning activity</strong><small>{selectedUser.lastLearningActivityAt ? selectedUser.displayName : "No saved activity"}</small></span><span><strong>{shortDate(selectedUser.lastLearningActivityAt, true)}</strong><small>most recent progress sync</small></span></div>
                     </div>
                   </section>
@@ -432,7 +432,7 @@ export default function AdminPage() {
               <div className="admin-capacity-inline"><span><Gauge size={19} /> Monthly capacity</span><strong>{currency(data.budget.spentUsd + data.budget.reservedUsd)} / {currency(data.budget.limitUsd)}</strong><i><b style={{ width: `${data.budget.percentUsed}%` }} /></i><small>{data.budget.percentUsed.toFixed(1)}% used in {data.budget.month}</small></div>
               <div><span>Input tokens</span><strong>{compactNumber(data.summary.inputTokens)}</strong><small>{compactNumber(data.summary.cachedInputTokens)} cache reads · {compactNumber(data.summary.cacheWriteTokens)} writes</small></div>
               <div><span>Output tokens</span><strong>{compactNumber(data.summary.outputTokens)}</strong><small>{currency(data.summary.estimatedCostUsd)} estimated</small></div>
-              <div><span>Completion rate</span><strong>{data.summary.generations ? `${Math.round(((data.summary.generations - data.summary.failedRequests) / data.summary.generations) * 100)}%` : "—"}</strong><small>{data.summary.failedRequests} failed requests</small></div>
+              <div><span>Completion rate</span><strong>{data.summary.generations ? `${Math.round(((data.summary.generations - data.summary.failedRequests) / data.summary.generations) * 100)}%` : "N/A"}</strong><small>{data.summary.failedRequests} failed requests</small></div>
             </section>
             <section className="admin-panel admin-log-panel">
               <header><div><p className="overline">AI ledger</p><h2>Recent generation requests</h2></div><span>Prompts and generated text are not shown here</span></header>
