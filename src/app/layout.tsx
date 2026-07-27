@@ -77,7 +77,9 @@ export default async function RootLayout({
   return (
     <html lang="en" data-scroll-behavior="smooth" suppressHydrationWarning>
       <body suppressHydrationWarning>
-        <Script id="erudoza-theme-bootstrap" src="/theme-bootstrap.js" strategy="beforeInteractive" nonce={nonce} />
+        {/* Browsers hide the nonce attribute from the DOM once CSP reads it,
+            so React's hydration check would always see a mismatch here. */}
+        <Script id="erudoza-theme-bootstrap" src="/theme-bootstrap.js" strategy="beforeInteractive" nonce={nonce} suppressHydrationWarning />
         <ThemeProvider>
           <AuthProvider>
             <TrafficTracker />
