@@ -30,7 +30,8 @@ import type { Course, LessonData, Quiz } from "@/lib/course-types";
 import type { Confidence, CourseProgress, ProgressUpdate } from "@/lib/learning-types";
 import { getLocalProgress, saveLocalProgress } from "@/lib/learning-progress";
 import { useLearnerState } from "@/components/useLearnerState";
-import { normalizeLessonMarkdown } from "@/lib/markdown";
+import SpeakButton from "@/components/SpeakButton";
+import { markdownToSpeech, normalizeLessonMarkdown } from "@/lib/markdown";
 import { createClientId, deferClientTask } from "@/lib/browser-compat";
 
 interface Message {
@@ -639,6 +640,12 @@ export default function LessonView() {
           </nav>
           <div className="lesson-toolbar-actions">
             <span>{currentPosition + 1} of {allLessons.length}</span>
+            {lessonData && lesson && (
+              <SpeakButton
+                label="Read this lesson aloud"
+                text={`${lesson.title}. ${markdownToSpeech(normalizedContent)}`}
+              />
+            )}
             <button className={`icon-button lesson-bookmark ${lessonBookmarked ? "is-active" : ""}`} onClick={() => updateLearnerState((current) => ({ ...current, lessonBookmarks: current.lessonBookmarks.includes(noteKey) ? current.lessonBookmarks.filter((item) => item !== noteKey) : [...current.lessonBookmarks, noteKey] }))} aria-label={lessonBookmarked ? "Remove lesson bookmark" : "Bookmark lesson"} aria-pressed={lessonBookmarked}>
               <Bookmark size={17} fill={lessonBookmarked ? "currentColor" : "none"} />
             </button>

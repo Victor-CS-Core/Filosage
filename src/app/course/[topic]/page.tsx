@@ -23,6 +23,7 @@ import {
   Trash2,
 } from "lucide-react";
 import AppShell from "@/components/AppShell";
+import SpeakButton from "@/components/SpeakButton";
 import { useAuth } from "@/components/AuthProvider";
 import type { Course } from "@/lib/course-types";
 import type { CapstoneAssessment, CourseProgress } from "@/lib/learning-types";
@@ -289,7 +290,18 @@ export default function CourseMap() {
           <div className="course-hero-grid">
             <div className="course-title-row">
               <p className="overline">{course.category ?? "Course"}</p>
-              <h1>{topic}</h1>
+              <div className="course-title-line">
+                <h1>{topic}</h1>
+                <SpeakButton
+                  label="Read the course overview aloud"
+                  text={[
+                    `${topic}.`,
+                    course.mission ?? "",
+                    course.outcome ? `Course outcome: ${course.outcome}.` : "",
+                    course.capstone ? `Capstone: ${course.capstone.brief}` : "",
+                  ].filter(Boolean).join("\n\n")}
+                />
+              </div>
               <p className="course-mission">{course.mission}</p>
               <dl className="course-facts" aria-label="Course summary">
                 <div><dt><Layers3 size={16} /> Modules</dt><dd>{course.modules.length}</dd></div>

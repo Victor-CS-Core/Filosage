@@ -1856,3 +1856,9 @@ button:disabled { cursor: not-allowed; opacity: 0.55; }
 .standard-cta { margin-top: 40px; }
 .method-standard-link { margin-top: 10px; color: var(--ink-secondary); font-size: 0.78rem; }
 .method-standard-link .text-button { font-size: inherit; }
+
+/* Read-aloud speaker button */
+.speak-button.is-active { border-color: var(--accent-ink); color: var(--accent-ink); background: var(--accent-soft); }
+.course-title-line { display: flex; align-items: center; gap: 12px; }
+.course-title-line h1 { min-width: 0; }
+.course-title-line .speak-button { flex: none; margin-top: 6px; }

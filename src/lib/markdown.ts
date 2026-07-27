@@ -1,3 +1,18 @@
+/** Flattens lesson Markdown into plain text suitable for reading aloud. */
+export function markdownToSpeech(markdown: string) {
+  return markdown
+    .replace(/```[\s\S]*?```/g, "\nCode example.\n")
+    .replace(/`([^`]+)`/g, "$1")
+    .replace(/!\[[^\]]*\]\([^)]*\)/g, "")
+    .replace(/\[([^\]]+)\]\([^)]*\)/g, "$1")
+    .replace(/^#{1,6}\s+(.+)$/gm, "$1.")
+    .replace(/^\s*(?:[-*+]|\d+\.)\s+/gm, "")
+    .replace(/^\s*>\s?/gm, "")
+    .replace(/(\*{1,3}|_{1,3}|~~)([^*_~]+)\1/g, "$2")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+}
+
 function comparableHeading(value: string) {
   return value.trim().toLocaleLowerCase().replace(/[^\p{L}\p{N}]+/gu, " ").trim();
 }

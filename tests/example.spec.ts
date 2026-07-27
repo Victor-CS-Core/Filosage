@@ -239,6 +239,40 @@ test("keeps generation visibly metered and premium", async ({ page }) => {
   await expect(page.getByRole("button", { name: /Join the Pro launch list/i })).toBeDisabled();
 });
 
+test("reads a lesson aloud from the toolbar speaker", async ({ page }) => {
+  const course = {
+    courseId: "demo",
+    id: "demo",
+    topic: "Systems thinking",
+    mission: "Understand feedback loops.",
+    isPublic: true,
+    modules: [{
+      title: "Foundations",
+      description: "Start here",
+      lessons: [{ title: "Feedback loops", concept: "How outputs influence future inputs", estimatedMinutes: 8 }],
+    }],
+  };
+  const lesson = {
+    aiAssisted: true,
+    content: "# Feedback loops\n\nA feedback loop connects a system's output to what happens next.",
+    quizzes: [],
+  };
+  await page.route("**/api/courses/demo", (route) => route.fulfill({ json: course }));
+  await page.route("**/api/courses/demo/lessons/0-0", (route) => route.fulfill({ json: lesson }));
+  await page.goto("/course/Systems%20thinking/lesson/0-0?id=demo");
+
+  const speechSupported = await page.evaluate(() => "speechSynthesis" in window);
+  test.skip(!speechSupported, "This browser build has no speech synthesis; the button hides itself.");
+
+  const speaker = page.getByRole("button", { name: "Read this lesson aloud" });
+  await expect(speaker).toBeVisible();
+  await expect(speaker).toHaveAttribute("aria-pressed", "false");
+  await speaker.click();
+  await expect(page.getByRole("button", { name: "Stop reading aloud" })).toHaveAttribute("aria-pressed", "true");
+  await page.getByRole("button", { name: "Stop reading aloud" }).click();
+  await expect(page.getByRole("button", { name: "Read this lesson aloud" })).toHaveAttribute("aria-pressed", "false");
+});
+
 test("does not complete a lesson after a wrong answer", async ({ page }) => {
   const course = {
     courseId: "demo",
