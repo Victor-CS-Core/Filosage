@@ -21,6 +21,9 @@
 /build
 /dist/
 
+# Local development store (credential-free local mode)
+/.erudoza-local/
+
 # Sites / Cloudflare local state
 /.wrangler/
 /.agents/skills/impeccable/

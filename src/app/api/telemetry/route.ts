@@ -2,6 +2,7 @@ import { z } from "zod";
 import { apiRequestErrorResponse, readJsonBody } from "@/lib/api-security";
 import { createStoredDocument, runStoredDocumentTransaction } from "@/lib/firebase-server";
 import { enforceBestEffortRateLimit } from "@/lib/request-rate-limit";
+import { isLocalMode } from "@/lib/local-mode";
 
 const telemetrySchema = z.object({
   route: z.enum([
@@ -50,7 +51,7 @@ export async function POST(request: Request) {
     if (!parsed.success) {
       return Response.json({ error: "Invalid traffic event." }, { status: 400 });
     }
-    if (!process.env.FIREBASE_PROJECT_ID || !process.env.FIREBASE_CLIENT_EMAIL || !process.env.FIREBASE_PRIVATE_KEY) {
+    if (!isLocalMode() && (!process.env.FIREBASE_PROJECT_ID || !process.env.FIREBASE_CLIENT_EMAIL || !process.env.FIREBASE_PRIVATE_KEY)) {
       return new Response(null, { status: 204 });
     }
 

@@ -36,6 +36,22 @@ interface AuthContextValue {
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
+// Development-only sign-in used when Firebase is not configured: the server
+// pairs it with a local owner account so every feature is testable offline.
+// NODE_ENV is inlined at build time, so this path cannot exist in production.
+const localAuthAvailable = !auth && process.env.NODE_ENV === "development";
+const LOCAL_SESSION_KEY = "erudoza-local-session";
+
+function localOwnerUser(): User {
+  return {
+    uid: "local-owner",
+    displayName: "Local Owner",
+    email: "owner@erudoza.local",
+    photoURL: null,
+    getIdToken: async () => "local-dev-token",
+  } as unknown as User;
+}
+
 export function useAuth() {
   const value = useContext(AuthContext);
   if (!value) throw new Error("useAuth must be used within AuthProvider.");
@@ -115,6 +131,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     const firebaseAuth = auth;
     if (!firebaseAuth) {
+      if (localAuthAvailable && localStorage.getItem(LOCAL_SESSION_KEY)) {
+        const restored = localOwnerUser();
+        void Promise.resolve().then(() => {
+          setUser(restored);
+          return loadAccount(restored);
+        }).catch(() => setAccount(null));
+      }
       return;
     }
 
@@ -138,6 +161,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const signInWithGoogle = useCallback(async () => {
     setError(null);
     if (!auth) {
+      if (localAuthAvailable) {
+        const localUser = localOwnerUser();
+        localStorage.setItem(LOCAL_SESSION_KEY, "1");
+        setUser(localUser);
+        await loadAccount(localUser).catch(() => setAccount(null));
+        return localUser;
+      }
       setError("Google sign-in is not available in this local build.");
       throw new Error("Firebase is not configured.");
     }
@@ -151,7 +181,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setError(authErrorMessage(popupError));
       throw popupError;
     }
-  }, []);
+  }, [loadAccount]);
 
   const acceptLegalTerms = useCallback(async (
     source: "signup" | "terms-update" | "subscription",
@@ -176,7 +206,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const signOut = useCallback(async () => {
     setError(null);
-    if (!auth) return;
+    if (!auth) {
+      if (localAuthAvailable) {
+        localStorage.removeItem(LOCAL_SESSION_KEY);
+        setUser(null);
+        setAccount(null);
+      }
+      return;
+    }
     await firebaseSignOut(auth);
     setAccount(null);
   }, []);

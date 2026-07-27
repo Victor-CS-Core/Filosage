@@ -1,27 +1,22 @@
 import "server-only";
 
+import {
+  fromFirestoreFields,
+  toFirestoreFields,
+  toFirestoreValue,
+  fromFirestoreValue,
+  type FirestoreDocument,
+  type FirestoreValue,
+} from "@/lib/firestore-values";
+import { isLocalMode, LOCAL_OWNER_EMAIL, LOCAL_OWNER_UID } from "@/lib/local-mode";
+import { localFirestoreJson } from "@/lib/local-store";
+
 export interface VerifiedFirebaseUser {
   uid: string;
   email?: string;
   email_verified: boolean;
   name?: string;
   picture?: string;
-}
-
-interface FirestoreValue {
-  nullValue?: null;
-  booleanValue?: boolean;
-  integerValue?: string;
-  doubleValue?: number;
-  timestampValue?: string;
-  stringValue?: string;
-  arrayValue?: { values?: FirestoreValue[] };
-  mapValue?: { fields?: Record<string, FirestoreValue> };
-}
-
-interface FirestoreDocument {
-  name: string;
-  fields?: Record<string, FirestoreValue>;
 }
 
 export interface StoredDocument extends Record<string, unknown> {
@@ -55,6 +50,7 @@ let accessToken: { value: string; expiresAt: number } | null = null;
 let accessTokenRequest: Promise<string> | null = null;
 
 function requiredEnvironment() {
+  if (isLocalMode()) return { projectId: "local", clientEmail: "local", privateKey: "local" };
   const projectId = process.env.FIREBASE_PROJECT_ID;
   const clientEmail = process.env.FIREBASE_CLIENT_EMAIL;
   const privateKey = process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, "\n");
@@ -154,6 +150,7 @@ async function firestoreJson<T>(
   init: RequestInit = {},
   allowNotFound = false,
 ): Promise<T | null> {
+  if (isLocalMode()) return localFirestoreJson<T>(path, init, allowNotFound);
   const token = await requestAccessToken();
   const response = await fetch(`${firestoreBaseUrl()}${path}`, {
     ...init,
@@ -171,53 +168,6 @@ async function firestoreJson<T>(
     throw new Error(`Firestore request failed (${response.status}).`);
   }
   return (await response.json()) as T;
-}
-
-function toFirestoreValue(value: unknown): FirestoreValue {
-  if (value === null) return { nullValue: null };
-  if (typeof value === "boolean") return { booleanValue: value };
-  if (typeof value === "string") return { stringValue: value };
-  if (typeof value === "number") {
-    return Number.isInteger(value)
-      ? { integerValue: String(value) }
-      : { doubleValue: value };
-  }
-  if (value instanceof Date) return { timestampValue: value.toISOString() };
-  if (Array.isArray(value)) {
-    return { arrayValue: { values: value.map(toFirestoreValue) } };
-  }
-  if (typeof value === "object") {
-    return { mapValue: { fields: toFirestoreFields(value as Record<string, unknown>) } };
-  }
-  throw new Error(`Unsupported Firestore value: ${typeof value}`);
-}
-
-function toFirestoreFields(data: Record<string, unknown>) {
-  return Object.fromEntries(
-    Object.entries(data)
-      .filter(([, value]) => value !== undefined)
-      .map(([key, value]) => [key, toFirestoreValue(value)]),
-  );
-}
-
-function fromFirestoreValue(value: FirestoreValue): unknown {
-  if ("nullValue" in value) return null;
-  if (value.booleanValue !== undefined) return value.booleanValue;
-  if (value.integerValue !== undefined) return Number(value.integerValue);
-  if (value.doubleValue !== undefined) return value.doubleValue;
-  if (value.timestampValue !== undefined) return value.timestampValue;
-  if (value.stringValue !== undefined) return value.stringValue;
-  if (value.arrayValue !== undefined) {
-    return (value.arrayValue.values ?? []).map(fromFirestoreValue);
-  }
-  if (value.mapValue !== undefined) return fromFirestoreFields(value.mapValue.fields ?? {});
-  return null;
-}
-
-function fromFirestoreFields(fields: Record<string, FirestoreValue>) {
-  return Object.fromEntries(
-    Object.entries(fields).map(([key, value]) => [key, fromFirestoreValue(value)]),
-  );
 }
 
 function parseDocument(document: FirestoreDocument): StoredDocument {
@@ -269,6 +219,17 @@ function courseQuery(
 }
 
 export async function verifyFirebaseIdToken(idToken: string): Promise<VerifiedFirebaseUser | null> {
+  if (isLocalMode()) {
+    // Local development sign-in: any bearer token maps to the local owner so
+    // every owner-gated feature is testable without Firebase credentials.
+    if (!idToken) return null;
+    return {
+      uid: LOCAL_OWNER_UID,
+      email: process.env.OWNER_EMAIL?.trim().toLowerCase() || LOCAL_OWNER_EMAIL,
+      email_verified: true,
+      name: "Local Owner",
+    };
+  }
   const apiKey = process.env.NEXT_PUBLIC_FIREBASE_API_KEY;
   if (!apiKey) throw new Error("Firebase web authentication is not configured.");
 

@@ -32,7 +32,11 @@ Owner access is resolved server-side from the verified Google account matching t
 
 Run `npm run check:release` in the deployment environment before opening traffic. It validates required configuration without printing secret values. GoDaddy can host the domain/site, but recurring Pro subscriptions require a billing provider such as Stripe. The Stripe implementation is intentionally disabled until `BILLING_PROVIDER=stripe`, `BILLING_ENABLED=true`, a secret key, webhook signing secret, and a monthly Price ID are all configured.
 
-Without local credentials, the public shell still renders for interface review, while data-backed and authenticated actions report that they are unavailable.
+## Local testing without credentials
+
+When Firebase Admin credentials are absent and `NODE_ENV` is not production, `npm run dev` runs in **local mode**: a file-backed document store (`.erudoza-local/store.json`, gitignored) replaces Firestore, the sign-in button signs you in as a local owner account, and AI generation is served by deterministic stubs that satisfy the real schemas and quality gates. Add only `OPENAI_API_KEY` to use real AI models against the local store.
+
+This makes every feature testable offline as the owner: course generation, lesson generation, publishing and unpublishing, the tutor, quizzes and progress, the daily review dose, misconception tracking, capstone assessment (submissions of 600+ characters pass the stub assessor; shorter ones return a needs-revision verdict), data export and deletion, legal acceptance, telemetry, and the admin control room. Billing remains disabled unless Stripe is configured. Local mode is hard-gated to development builds and never activates in production. Delete `.erudoza-local/` to reset local data.
 
 ## Validation
 

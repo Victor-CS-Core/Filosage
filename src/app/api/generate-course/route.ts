@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import OpenAI from "openai";
+import { aiClient } from "@/lib/local-ai";
 import { zodTextFormat } from "openai/helpers/zod";
 import { authorizationResponse, requirePremium } from "@/lib/auth-server";
 import { createCourse, getCourse } from "@/lib/firebase-server";
@@ -45,7 +45,7 @@ export async function POST(request: Request) {
       : courseStyle === "Project-led"
         ? "Organize the sequence around a concrete applied result while preserving prerequisite order."
         : "Balance clear explanations, worked examples, retrieval, and application throughout the course.";
-    const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+    const client = aiClient();
     reservation = await reserveAiUsage(account, "course_outline", request.headers.get("idempotency-key"));
     await assertSafeContent(
       client,

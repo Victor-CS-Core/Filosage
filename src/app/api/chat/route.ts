@@ -1,4 +1,4 @@
-import OpenAI from "openai";
+import { aiClient } from "@/lib/local-ai";
 import { authorizationResponse, requireAcceptedAccount } from "@/lib/auth-server";
 import { getCourse, getLesson } from "@/lib/firebase-server";
 import { findCourseLesson } from "@/lib/course-progress";
@@ -39,7 +39,7 @@ export async function POST(request: Request) {
     if (!canonical) return Response.json({ error: "This lesson is not part of the course." }, { status: 400 });
     const lesson = await getLesson(data.courseId, data.lessonId) as LessonData | null;
     if (!lesson) return Response.json({ error: "This lesson is not available yet." }, { status: 404 });
-    const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+    const client = aiClient();
     reservation = await reserveAiUsage(account, "tutor", request.headers.get("idempotency-key"));
     await assertSafeContent(
       client,

@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import OpenAI from "openai";
+import { aiClient } from "@/lib/local-ai";
 import { zodTextFormat } from "openai/helpers/zod";
 import { authorizationResponse, requirePremium } from "@/lib/auth-server";
 import { getCourse, getLesson, saveLesson } from "@/lib/firebase-server";
@@ -110,7 +110,7 @@ export async function POST(request: Request) {
     }).instructionalContext;
 
     reservation = await reserveAiUsage(account, "lesson_generation", request.headers.get("idempotency-key"));
-    const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+    const client = aiClient();
     await assertSafeContent(
       client,
       [topic, lessonTitle, lessonConcept, course.outcome ?? course.mission ?? ""].join("\n"),
