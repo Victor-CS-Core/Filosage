@@ -1,5 +1,7 @@
 import { authorizationResponse, requireAccount } from "@/lib/auth-server";
 import { apiRequestErrorResponse, readJsonBody } from "@/lib/api-security";
+import { billingConfiguration } from "@/lib/runtime-config";
+import { stripeClient } from "@/lib/stripe-server";
 import {
   deleteCourse,
   deleteStoredDocuments,
@@ -85,6 +87,35 @@ export async function DELETE(request: Request) {
     }
 
     const data = await collectAccountData(account.uid);
+
+    // Never orphan a paid subscription: cancel it at Stripe before removing
+    // the account, and refuse deletion if cancellation cannot be completed.
+    const subscriptionStatus = String(data.account?.subscriptionStatus ?? "none");
+    const billingSubscriptionId = typeof data.account?.billingSubscriptionId === "string"
+      ? data.account.billingSubscriptionId
+      : undefined;
+    if (["active", "trialing", "past_due"].includes(subscriptionStatus)) {
+      if (!billingConfiguration().configured || !billingSubscriptionId?.startsWith("sub_")) {
+        return Response.json(
+          { error: "Cancel your Erudoza Pro subscription before deleting your account. Contact support@erudoza.com if you need help." },
+          { status: 409 },
+        );
+      }
+      try {
+        await stripeClient().subscriptions.cancel(billingSubscriptionId);
+      } catch (cancelError) {
+        const alreadyCanceled = cancelError instanceof Error
+          && /No such subscription|canceled/i.test(cancelError.message);
+        if (!alreadyCanceled) {
+          console.error("Subscription cancellation before deletion failed:", cancelError);
+          return Response.json(
+            { error: "Your subscription could not be canceled automatically. Cancel it from the billing portal, then delete your account." },
+            { status: 409 },
+          );
+        }
+      }
+    }
+
     const courses = data.authoredCourses.map(({ course }) => course);
     await Promise.all(courses.map((course) => course.id ? deleteCourse(String(course.id)) : Promise.resolve()));
 

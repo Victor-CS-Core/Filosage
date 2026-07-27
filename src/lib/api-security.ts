@@ -18,8 +18,6 @@ function allowedOrigins(request: Request) {
     if (!value) continue;
     try { values.add(new URL(value).origin); } catch { /* Ignore malformed optional configuration. */ }
   }
-  const host = request.headers.get("x-forwarded-host") ?? request.headers.get("host");
-  if (host) values.add(`${request.headers.get("x-forwarded-proto") ?? url.protocol.replace(":", "") }://${host}`);
   return values;
 }
 

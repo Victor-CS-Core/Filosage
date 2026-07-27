@@ -1,7 +1,7 @@
 import "server-only";
 
 import Stripe from "stripe";
-import { getStoredDocument, putStoredDocument } from "@/lib/firebase-server";
+import { runStoredDocumentTransaction } from "@/lib/firebase-server";
 import type { ServerAccount } from "@/lib/account-server";
 
 type BillingInterval = "monthly" | "annual";
@@ -78,12 +78,14 @@ function subscriptionStatus(status: Stripe.Subscription.Status): ServerAccount["
   return "none";
 }
 
-export async function syncStripeSubscription(subscription: Stripe.Subscription, fallbackUid?: string) {
+export async function syncStripeSubscription(
+  subscription: Stripe.Subscription,
+  fallbackUid?: string,
+  eventCreated?: number,
+) {
   const uid = subscription.metadata.erudoza_uid || fallbackUid;
   if (!uid) return false;
 
-  const current = await getStoredDocument(`users/${uid}`);
-  if (!current) return false;
   const status = subscriptionStatus(subscription.status);
   const proEligible = supportedProPrice(subscription) && (status === "active" || status === "trialing");
   const periodEnd = subscription.items.data.reduce(
@@ -91,14 +93,32 @@ export async function syncStripeSubscription(subscription: Stripe.Subscription, 
     0,
   );
   const currentPeriodEnd = periodEnd > 0 ? new Date(periodEnd * 1_000).toISOString() : null;
-  await putStoredDocument(`users/${uid}`, {
-    ...current,
-    billingCustomerId: typeof subscription.customer === "string" ? subscription.customer : subscription.customer.id,
-    billingSubscriptionId: subscription.id,
-    subscriptionStatus: proEligible ? status : status === "past_due" ? "past_due" : "canceled",
-    currentPeriodEnd,
-    billingPriceId: subscription.items.data[0]?.price.id ?? null,
-    updatedAt: new Date().toISOString(),
+  const path = `users/${uid}`;
+
+  return runStoredDocumentTransaction([path], (documents) => {
+    const current = documents[path];
+    if (!current) return { writes: [], result: false };
+    // Stripe does not guarantee webhook order: ignore events older than the
+    // one that produced the currently stored billing state.
+    const storedEventCreated = typeof current.billingEventCreated === "number" ? current.billingEventCreated : 0;
+    if (eventCreated !== undefined && eventCreated < storedEventCreated) {
+      return { writes: [], result: true };
+    }
+    return {
+      writes: [{
+        path,
+        data: {
+          ...current,
+          billingCustomerId: typeof subscription.customer === "string" ? subscription.customer : subscription.customer.id,
+          billingSubscriptionId: subscription.id,
+          subscriptionStatus: proEligible ? status : status === "past_due" ? "past_due" : "canceled",
+          currentPeriodEnd,
+          billingPriceId: subscription.items.data[0]?.price.id ?? null,
+          billingEventCreated: eventCreated ?? storedEventCreated,
+          updatedAt: new Date().toISOString(),
+        },
+      }],
+      result: true,
+    };
   });
-  return true;
 }

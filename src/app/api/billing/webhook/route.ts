@@ -1,9 +1,33 @@
 import { billingConfiguration } from "@/lib/runtime-config";
-import { getStoredDocument, putStoredDocument } from "@/lib/firebase-server";
+import { putStoredDocument, runStoredDocumentTransaction } from "@/lib/firebase-server";
 import { stripeClient, syncStripeSubscription } from "@/lib/stripe-server";
 import type Stripe from "stripe";
 
 export const runtime = "nodejs";
+
+// A crashed handler leaves its claim in "processing"; Stripe retries are
+// allowed to reclaim it after this window because subscription syncs are
+// idempotent.
+const PROCESSING_RETRY_MS = 5 * 60_000;
+
+async function claimEvent(eventPath: string, now: Date) {
+  return runStoredDocumentTransaction([eventPath], (documents) => {
+    const existing = documents[eventPath];
+    if (existing) {
+      const processedAt = typeof existing.processedAt === "string" ? existing.processedAt : undefined;
+      const claimedAt = typeof existing.claimedAt === "string" ? Date.parse(existing.claimedAt) : 0;
+      const staleClaim = !processedAt && now.getTime() - claimedAt > PROCESSING_RETRY_MS;
+      if (!staleClaim) return { writes: [], result: false };
+    }
+    return {
+      writes: [{
+        path: eventPath,
+        data: { status: "processing", claimedAt: now.toISOString() },
+      }],
+      result: true,
+    };
+  });
+}
 
 export async function POST(request: Request) {
   if (!billingConfiguration().configured) return Response.json({ error: "Billing is not configured." }, { status: 503 });
@@ -13,32 +37,33 @@ export async function POST(request: Request) {
 
   let event: Stripe.Event;
   try {
-    event = stripeClient().webhooks.constructEvent(await request.text(), signature, secret);
+    event = await stripeClient().webhooks.constructEventAsync(await request.text(), signature, secret);
   } catch {
     return Response.json({ error: "Invalid Stripe webhook signature." }, { status: 400 });
   }
 
   const eventPath = `stripeEvents/${event.id}`;
-  if (await getStoredDocument(eventPath)) return Response.json({ received: true, duplicate: true });
+  const claimed = await claimEvent(eventPath, new Date());
+  if (!claimed) return Response.json({ received: true, duplicate: true });
 
   switch (event.type) {
     case "checkout.session.completed": {
       const session = event.data.object as Stripe.Checkout.Session;
       if (typeof session.subscription === "string") {
         const subscription = await stripeClient().subscriptions.retrieve(session.subscription);
-        await syncStripeSubscription(subscription, session.client_reference_id ?? undefined);
+        await syncStripeSubscription(subscription, session.client_reference_id ?? undefined, event.created);
       }
       break;
     }
     case "customer.subscription.created":
     case "customer.subscription.updated":
     case "customer.subscription.deleted":
-      await syncStripeSubscription(event.data.object as Stripe.Subscription);
+      await syncStripeSubscription(event.data.object as Stripe.Subscription, undefined, event.created);
       break;
     default:
       break;
   }
 
-  await putStoredDocument(eventPath, { type: event.type, processedAt: new Date().toISOString() });
+  await putStoredDocument(eventPath, { type: event.type, status: "processed", processedAt: new Date().toISOString() });
   return Response.json({ received: true });
 }
