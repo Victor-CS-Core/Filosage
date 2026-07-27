@@ -25,7 +25,7 @@ import {
 import AppShell from "@/components/AppShell";
 import { useAuth } from "@/components/AuthProvider";
 import type { Course } from "@/lib/course-types";
-import type { CourseProgress } from "@/lib/learning-types";
+import type { CapstoneAssessment, CourseProgress } from "@/lib/learning-types";
 import { getLocalProgress } from "@/lib/learning-progress";
 import { createClientId } from "@/lib/browser-compat";
 
@@ -44,6 +44,10 @@ export default function CourseMap() {
   const [updating, setUpdating] = useState(false);
   const [deleteArmed, setDeleteArmed] = useState(false);
   const [completedLessons, setCompletedLessons] = useState<string[]>([]);
+  const [capstoneAssessment, setCapstoneAssessment] = useState<CapstoneAssessment | null>(null);
+  const [capstoneSubmission, setCapstoneSubmission] = useState("");
+  const [capstoneBusy, setCapstoneBusy] = useState(false);
+  const [capstoneError, setCapstoneError] = useState<string | null>(null);
 
   const getToken = useCallback(async () => (user ? user.getIdToken() : null), [user]);
 
@@ -109,7 +113,10 @@ export default function CourseMap() {
         });
         if (response.ok) {
           const data = await response.json() as { progress: CourseProgress | null };
-          if (!cancelled) setCompletedLessons(data.progress?.completedLessonIds ?? []);
+          if (!cancelled) {
+            setCompletedLessons(data.progress?.completedLessonIds ?? []);
+            setCapstoneAssessment(data.progress?.capstone ?? null);
+          }
           return;
         }
       }
@@ -156,6 +163,10 @@ export default function CourseMap() {
   }, [course, firstIncompleteLesson, totalLessons]);
   const courseComplete = totalLessons > 0 && validCompletedLessons.length === totalLessons;
   const courseHours = Math.max(1, Math.round((course?.estimatedMinutes ?? totalLessons * 12) / 60));
+  const misconceptionCount = useMemo(
+    () => course?.modules.reduce((sum, module) => sum + module.lessons.filter((lesson) => lesson.misconception).length, 0) ?? 0,
+    [course],
+  );
 
   const updateVisibility = async () => {
     if (!isOwner || !courseId || !course) return;
@@ -203,6 +214,31 @@ export default function CourseMap() {
       setActionError(deleteError instanceof Error ? deleteError.message : "The course could not be deleted.");
       setUpdating(false);
       setDeleteArmed(false);
+    }
+  };
+
+  const submitCapstone = async () => {
+    if (!user || !courseId || capstoneBusy) return;
+    setCapstoneBusy(true);
+    setCapstoneError(null);
+    try {
+      const token = await user.getIdToken();
+      const response = await fetch("/api/assess-capstone", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+          "Idempotency-Key": createClientId(),
+        },
+        body: JSON.stringify({ courseId, submission: capstoneSubmission }),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || "The capstone could not be assessed.");
+      setCapstoneAssessment(data.assessment as CapstoneAssessment);
+    } catch (assessError) {
+      setCapstoneError(assessError instanceof Error ? assessError.message : "The capstone could not be assessed.");
+    } finally {
+      setCapstoneBusy(false);
     }
   };
 
@@ -260,13 +296,14 @@ export default function CourseMap() {
                 <div><dt><BookOpen size={16} /> Lessons</dt><dd>{totalLessons}</dd></div>
                 <div><dt>Starting level</dt><dd>{course.level ?? "Foundations"}</dd></div>
                 <div><dt><Clock3 size={16} /> Study time</dt><dd>{courseHours} {courseHours === 1 ? "hour" : "hours"}</dd></div>
+                {misconceptionCount > 0 && <div><dt><Target size={16} /> Misconceptions corrected</dt><dd>{misconceptionCount}</dd></div>}
               </dl>
             </div>
 
             {nextLesson && (
               <aside className="course-resume-card" aria-label={courseComplete ? "Course review" : "Next lesson"}>
                 <div className="course-resume-heading">
-                  <span>{courseComplete ? "Course complete" : validCompletedLessons.length ? "Continue learning" : "Begin here"}</span>
+                  <span>{capstoneAssessment?.status === "passed" ? "Course mastered" : courseComplete ? "Course complete" : validCompletedLessons.length ? "Continue learning" : "Begin here"}</span>
                   <strong>{progress}%</strong>
                 </div>
                 <p className="course-resume-module">{courseComplete ? "Review the key ideas" : nextLesson.moduleTitle}</p>
@@ -375,6 +412,49 @@ export default function CourseMap() {
                 <p>{course.capstone.brief}</p>
                 <strong>Deliverable: {course.capstone.deliverable}</strong>
                 <ul>{course.capstone.successCriteria.map((criterion) => <li key={criterion}>{criterion}</li>)}</ul>
+
+                {capstoneAssessment?.status === "passed" ? (
+                  <div className="capstone-verdict is-passed" role="status">
+                    <div className="capstone-verdict-heading"><CheckCircle2 size={19} /><strong>Course mastered</strong><small>Assessed {new Date(capstoneAssessment.assessedAt).toLocaleDateString()}</small></div>
+                    <p>{capstoneAssessment.summary}</p>
+                    <ul>{capstoneAssessment.criteria.map((criterion) => <li key={criterion.criterion} className="is-met"><Check size={14} /><span><strong>{criterion.criterion}</strong><small>{criterion.feedback}</small></span></li>)}</ul>
+                  </div>
+                ) : user ? (
+                  <div className="capstone-submit">
+                    {capstoneAssessment && (
+                      <div className="capstone-verdict" role="status">
+                        <div className="capstone-verdict-heading"><Circle size={17} /><strong>Not there yet — attempt {capstoneAssessment.attempts}</strong><small>Assessed {new Date(capstoneAssessment.assessedAt).toLocaleDateString()}</small></div>
+                        <p>{capstoneAssessment.summary}</p>
+                        <ul>{capstoneAssessment.criteria.map((criterion) => <li key={criterion.criterion} className={criterion.met ? "is-met" : ""}>{criterion.met ? <Check size={14} /> : <Circle size={14} />}<span><strong>{criterion.criterion}</strong><small>{criterion.feedback}</small></span></li>)}</ul>
+                      </div>
+                    )}
+                    {courseComplete ? (
+                      <>
+                        <label htmlFor="capstone-submission">{capstoneAssessment ? "Revise and resubmit your capstone" : "Submit your capstone for assessment"}</label>
+                        <p className="capstone-submit-hint">Describe what you built or worked through and how it meets each success criterion. Mastery here is earned: your submission is assessed against the criteria above, not your attendance. Uses one tutor question.</p>
+                        <textarea
+                          id="capstone-submission"
+                          value={capstoneSubmission}
+                          onChange={(event) => setCapstoneSubmission(event.target.value)}
+                          rows={6}
+                          placeholder="Walk through your deliverable, decision by decision…"
+                        />
+                        <div className="capstone-submit-actions">
+                          <button className="button button-primary" onClick={submitCapstone} disabled={capstoneBusy || capstoneSubmission.trim().length < 120}>
+                            {capstoneBusy ? <LoaderCircle className="spin" size={16} /> : <Flag size={16} />}
+                            {capstoneBusy ? "Assessing against the criteria…" : "Submit for assessment"}
+                          </button>
+                          {capstoneSubmission.trim().length > 0 && capstoneSubmission.trim().length < 120 && <small>Keep going — a short paragraph gives the assessment something to verify.</small>}
+                        </div>
+                        {capstoneError && <p className="form-error" role="alert"><Circle size={14} /> {capstoneError}</p>}
+                      </>
+                    ) : (
+                      <p className="capstone-submit-hint">Complete every lesson to unlock capstone assessment. Mastery is earned against the success criteria above — no attendance certificates here.</p>
+                    )}
+                  </div>
+                ) : (
+                  <p className="capstone-submit-hint">Sign in to submit this capstone for assessment when you finish the course. Erudoza mastery is earned against the criteria above, not granted for completion.</p>
+                )}
               </div>
             </section>
           )}

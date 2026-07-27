@@ -6,7 +6,7 @@ import {
   runStoredDocumentTransaction,
 } from "@/lib/firebase-server";
 import { progressUpdateSchema, validationMessage } from "@/lib/validation";
-import type { CourseProgress, LessonProgress } from "@/lib/learning-types";
+import type { CapstoneAssessment, CourseProgress, LessonProgress } from "@/lib/learning-types";
 import type { Course } from "@/lib/course-types";
 import { findCourseLesson, findNextLesson } from "@/lib/course-progress";
 import { apiRequestErrorResponse, readJsonBody } from "@/lib/api-security";
@@ -44,6 +44,7 @@ function asCourseProgress(value: Record<string, unknown>): CourseProgress {
     lastActivityAt: String(value.lastActivityAt ?? ""),
     startedAt: String(value.startedAt ?? value.lastActivityAt ?? ""),
     studyMinutes: typeof value.studyMinutes === "number" && value.studyMinutes > 0 ? value.studyMinutes : inferredMinutes,
+    capstone: value.capstone && typeof value.capstone === "object" ? value.capstone as CapstoneAssessment : undefined,
   };
 }
 
@@ -137,6 +138,7 @@ export async function POST(request: Request) {
         lastStudiedAt: now.toISOString(),
         completedAt: previousLesson?.completedAt ?? now.toISOString(),
         estimatedMinutes: canonical.lesson.estimatedMinutes ?? update.estimatedMinutes ?? previousLesson?.estimatedMinutes,
+        misconception: canonical.lesson.misconception ?? previousLesson?.misconception,
       };
       const progress: CourseProgress = {
         courseId: update.courseId,
@@ -148,6 +150,7 @@ export async function POST(request: Request) {
         completedLessonIds,
         totalLessons: course.modules.reduce((sum, courseModule) => sum + courseModule.lessons.length, 0),
         lessons: { ...(previous?.lessons ?? {}), [update.lessonId]: lessonProgress },
+        capstone: previous?.capstone,
         lastActivityAt: now.toISOString(),
         startedAt: previous?.startedAt ?? now.toISOString(),
         studyMinutes: (previous?.studyMinutes ?? 0) + (firstCompletion ? (canonical.lesson.estimatedMinutes ?? update.estimatedMinutes ?? 0) : 0),

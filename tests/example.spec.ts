@@ -84,7 +84,7 @@ test("never leaves public learning behind the authentication startup screen", as
   expect(pageErrors).toEqual([]);
 
   await expect(
-    page.getByRole("heading", { name: "Understand more. Achieve more." }),
+    page.getByRole("heading", { name: "Understanding that lasts." }),
   ).toBeVisible({ timeout: 4000 });
   await expect(page.locator(".auth-boot-shell")).toHaveCount(0);
 });
@@ -101,9 +101,18 @@ test("keeps the learning library public", async ({ page }) => {
   expect(scriptDirective).not.toContain("'unsafe-inline'");
   await expect(page.locator(".skip-link")).toHaveAttribute("href", "#main-content");
   await expect(
-    page.getByRole("heading", { name: "Understand more. Achieve more." }),
+    page.getByRole("heading", { name: "Understanding that lasts." }),
   ).toBeVisible();
   await expect(page.getByText("No account required to read")).toBeVisible();
+});
+
+test("publishes the teaching standard", async ({ page }) => {
+  await page.goto("/standard");
+
+  await expect(page.getByRole("heading", { name: "Generated is not good enough. Every lesson is held to a standard." })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "A named misconception" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Mastery is earned, not attended" })).toBeVisible();
+  await expect(page.getByRole("button", { name: /See courses held to this standard/ })).toBeVisible();
 });
 
 test("keeps the signed-in learner shell on one scroll owner", async ({ page }) => {
@@ -171,8 +180,12 @@ test("keeps the owner control room private at both page and API boundaries", asy
 
 test("preserves the selected theme across navigation and reloads", async ({ page }) => {
   await page.goto("/");
-  await page.locator(".public-header").getByRole("button", { name: "Use dark mode" }).click();
-  await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
+  // The toggle is server-rendered before React hydration attaches its click
+  // handler, so retry the click until the theme actually changes.
+  await expect(async () => {
+    await page.locator(".public-header").getByRole("button", { name: "Use dark mode" }).click();
+    await expect(page.locator("html")).toHaveAttribute("data-theme", "dark", { timeout: 1_000 });
+  }).toPass({ timeout: 15_000 });
   await page.reload();
 
   await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");

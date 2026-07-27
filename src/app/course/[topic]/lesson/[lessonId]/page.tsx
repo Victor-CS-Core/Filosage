@@ -464,6 +464,7 @@ export default function LessonView() {
       estimatedMinutes: lesson.estimatedMinutes ?? 12,
       nextLessonId: nextLesson?.id ?? null,
       nextLessonTitle: nextLesson?.title ?? null,
+      misconception: lesson.misconception,
     };
 
     const localProgress = saveLocalProgress(update);

@@ -1344,7 +1344,7 @@ button:disabled { cursor: not-allowed; opacity: 0.55; }
 .course-blueprint .credit-note { margin: 18px 22px 22px; color: var(--brand-offwhite); }
 
 /* Progress */
-.progress-metrics { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+.progress-metrics { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; }
 .progress-metrics article { min-height: 116px; display: flex; align-items: center; gap: 13px; border: 1px solid var(--line); border-radius: var(--radius-md); background: var(--surface); padding: 18px; }
 .progress-metrics article > span { width: 44px; height: 44px; display: grid; place-items: center; border-radius: 50%; background: var(--accent-soft); color: var(--accent-ink); }
 .progress-metrics article:nth-child(2) > span { background: #EAF3FF; color: #1D4ED8; }
@@ -1791,3 +1791,68 @@ button:disabled { cursor: not-allowed; opacity: 0.55; }
     font-size: 0.875rem !important;
   }
 }
+
+/* Daily dose (review) additions */
+.review-header-stats { display: flex; flex-direction: column; align-items: flex-end; gap: 8px; }
+.review-streak { display: inline-flex; align-items: center; gap: 7px; color: var(--brand-coral, #B4532A); font-size: 0.74rem; font-weight: 700; white-space: nowrap; }
+.review-upcoming { margin-top: 34px; }
+.review-upcoming h2 { font-size: 1.05rem; }
+.review-upcoming ul { margin: 14px 0 0; padding: 0; list-style: none; border-top: 1px solid var(--line); }
+.review-upcoming li { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 13px 4px; border-bottom: 1px solid var(--line); }
+.review-upcoming li span { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.review-upcoming li strong { font-size: 0.82rem; }
+.review-upcoming li small { color: var(--ink-muted); font-size: 0.68rem; }
+.review-upcoming li em { color: var(--ink-secondary); font-size: 0.72rem; font-style: normal; white-space: nowrap; }
+.review-upcoming > p { margin-top: 12px; color: var(--ink-muted); font-size: 0.72rem; line-height: 1.6; max-width: 60ch; }
+.review-sync-hint { margin-top: 26px; padding: 14px 16px; border: 1px solid var(--line); border-radius: var(--radius-md); background: var(--surface-subtle); }
+.review-sync-hint p { color: var(--ink-secondary); font-size: 0.76rem; line-height: 1.6; }
+
+/* Misconceptions corrected (progress) */
+.misconception-panel { border: 1px solid var(--line); border-radius: var(--radius-md); background: var(--surface); padding: 22px; }
+.misconception-panel .panel-heading > span { color: var(--ink-muted); font-size: 0.7rem; }
+.misconception-list { margin: 14px 0 0; padding: 0; list-style: none; }
+.misconception-list li { padding: 12px 0; border-bottom: 1px solid var(--line); }
+.misconception-list li:last-child { border-bottom: 0; }
+.misconception-list p { font-size: 0.8rem; line-height: 1.55; text-decoration: line-through; text-decoration-color: var(--ink-muted); text-decoration-thickness: 1px; color: var(--ink-secondary); }
+.misconception-list small { display: block; margin-top: 5px; color: var(--ink-muted); font-size: 0.66rem; }
+.misconception-note { margin-top: 14px; color: var(--ink-muted); font-size: 0.7rem; line-height: 1.6; }
+
+/* Capstone assessment (course page) */
+.capstone-submit { margin-top: 22px; padding-top: 18px; border-top: 1px dashed var(--line-strong); }
+.capstone-submit label { display: block; font-weight: 700; font-size: 0.82rem; }
+.capstone-submit-hint { margin-top: 8px; color: var(--ink-secondary); font-size: 0.74rem; line-height: 1.6; max-width: 72ch; }
+.capstone-submit textarea { width: 100%; margin-top: 12px; padding: 12px 14px; border: 1px solid var(--line-strong); border-radius: var(--radius-md); background: var(--surface); color: var(--ink); font: inherit; font-size: 0.8rem; line-height: 1.6; resize: vertical; }
+.capstone-submit textarea:focus-visible { outline: 2px solid var(--accent-ink); outline-offset: 1px; }
+.capstone-submit-actions { display: flex; align-items: center; gap: 14px; margin-top: 12px; flex-wrap: wrap; }
+.capstone-submit-actions small { color: var(--ink-muted); font-size: 0.68rem; }
+.capstone-verdict { margin-top: 18px; padding: 16px 18px; border: 1px solid var(--line-strong); border-radius: var(--radius-md); background: var(--surface-subtle); }
+.capstone-verdict.is-passed { border-color: var(--success, #1B7F4B); }
+.capstone-verdict-heading { display: flex; align-items: center; gap: 9px; }
+.capstone-verdict.is-passed .capstone-verdict-heading svg { color: var(--success, #1B7F4B); }
+.capstone-verdict-heading strong { font-size: 0.86rem; }
+.capstone-verdict-heading small { color: var(--ink-muted); font-size: 0.66rem; margin-left: auto; }
+.capstone-verdict > p { margin-top: 10px; color: var(--ink-secondary); font-size: 0.78rem; line-height: 1.6; }
+.capstone-verdict ul { margin: 12px 0 0; padding: 0; list-style: none; }
+.capstone-verdict ul li { display: flex; gap: 10px; padding: 9px 0; border-top: 1px solid var(--line); font-size: 0.74rem; }
+.capstone-verdict ul li > svg { flex: none; margin-top: 2px; color: var(--ink-muted); }
+.capstone-verdict ul li.is-met > svg { color: var(--success, #1B7F4B); }
+.capstone-verdict ul li span { display: flex; flex-direction: column; gap: 3px; }
+.capstone-verdict ul li small { color: var(--ink-secondary); line-height: 1.55; }
+
+/* Teaching standard page */
+.standard-page { max-width: 880px; margin: 0 auto; padding: 56px 24px 72px; }
+.standard-header h1 { margin-top: 10px; font-size: clamp(2rem, 5vw, 3rem); line-height: 1.12; }
+.standard-header > p { margin-top: 18px; color: var(--ink-secondary); font-size: 0.9rem; line-height: 1.75; max-width: 68ch; }
+.standard-list { margin-top: 44px; border-top: 2px solid var(--ink); }
+.standard-list article { display: grid; grid-template-columns: 44px minmax(0, 1fr); gap: 16px; padding: 22px 4px; border-bottom: 1px solid var(--line); }
+.standard-list article > span { width: 40px; height: 40px; display: grid; place-items: center; border-radius: 50%; background: var(--accent-soft); color: var(--accent-ink); }
+.standard-list h2 { font-size: 1rem; }
+.standard-list article p { margin-top: 6px; color: var(--ink-secondary); font-size: 0.8rem; line-height: 1.65; max-width: 66ch; }
+.standard-mastery, .standard-honesty { display: grid; grid-template-columns: 32px minmax(0, 1fr); gap: 14px; margin-top: 34px; padding: 20px 18px; border: 1px solid var(--line-strong); border-radius: var(--radius-md); background: var(--surface-subtle); }
+.standard-mastery > svg { color: var(--brand-coral, #B4532A); margin-top: 2px; }
+.standard-honesty > svg { color: var(--accent-ink); margin-top: 2px; }
+.standard-mastery h2, .standard-honesty h2 { font-size: 0.95rem; }
+.standard-mastery p, .standard-honesty p { margin-top: 7px; color: var(--ink-secondary); font-size: 0.79rem; line-height: 1.65; }
+.standard-cta { margin-top: 40px; }
+.method-standard-link { margin-top: 10px; color: var(--ink-secondary); font-size: 0.78rem; }
+.method-standard-link .text-button { font-size: inherit; }

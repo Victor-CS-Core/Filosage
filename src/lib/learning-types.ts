@@ -13,6 +13,16 @@ export interface LessonProgress {
   lastStudiedAt: string;
   completedAt?: string;
   estimatedMinutes?: number;
+  /** The misconception this lesson corrects, recorded at completion. */
+  misconception?: string;
+}
+
+export interface CapstoneAssessment {
+  status: "passed" | "needs_revision";
+  summary: string;
+  criteria: Array<{ criterion: string; met: boolean; feedback: string }>;
+  assessedAt: string;
+  attempts: number;
 }
 
 export interface CourseProgress {
@@ -29,6 +39,7 @@ export interface CourseProgress {
   lastActivityAt: string;
   startedAt: string;
   studyMinutes?: number;
+  capstone?: CapstoneAssessment;
 }
 
 export interface ProgressUpdate {
@@ -45,4 +56,5 @@ export interface ProgressUpdate {
   estimatedMinutes?: number;
   nextLessonId?: string | null;
   nextLessonTitle?: string | null;
+  misconception?: string;
 }

@@ -141,6 +141,29 @@ export const progressUpdateSchema = z.object({
   }
 });
 
+export const capstoneSubmissionSchema = z.object({
+  courseId: z.string().trim().min(1).max(200),
+  submission: z
+    .string()
+    .trim()
+    .min(120, "Describe your capstone work in at least a short paragraph so it can be assessed against the success criteria.")
+    .max(8_000, "Keep the capstone submission under 8,000 characters."),
+});
+
+export const capstoneVerdictSchema = z.object({
+  summary: z.string().trim().min(1).max(600),
+  criteria: z
+    .array(
+      z.object({
+        criterion: z.string().trim().min(1).max(240),
+        met: z.boolean(),
+        feedback: z.string().trim().min(1).max(400),
+      }),
+    )
+    .min(1)
+    .max(6),
+});
+
 export const learnerStateSchema = z.object({
   courseBookmarks: z.array(z.string().trim().min(1).max(200)).max(500),
   lessonBookmarks: z.array(z.string().trim().min(1).max(400)).max(2_000),

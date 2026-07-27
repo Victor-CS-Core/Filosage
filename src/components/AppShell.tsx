@@ -124,7 +124,7 @@ export default function AppShell({ children, activeTopic, activeCourseId }: AppS
           </button>
           <nav aria-label="Public navigation">
             <button onClick={() => navigate("/library")}>Library</button>
-            <button onClick={() => navigate("/#method")}>How it works</button>
+            <button onClick={() => navigate("/standard")}>Teaching standard</button>
             <button onClick={() => navigate("/pricing")}>Plans</button>
           </nav>
           <div className="public-header-actions">
@@ -138,7 +138,7 @@ export default function AppShell({ children, activeTopic, activeCourseId }: AppS
         <main className="public-main" id="main-content" tabIndex={-1}>{children}</main>
         <footer className="public-footer">
           <span>© {new Date().getFullYear()} Erudoza</span>
-          <nav aria-label="Support and legal"><a href={`mailto:${SUPPORT_CONTACT}`}>Support</a><button onClick={() => navigate("/privacy-center")}>Privacy choices</button><button onClick={() => navigate("/terms")}>Terms</button><button onClick={() => navigate("/privacy")}>Privacy</button><button onClick={() => navigate("/acceptable-use")}>Acceptable use</button><button onClick={() => navigate("/copyright")}>Copyright</button></nav>
+          <nav aria-label="Support and legal"><button onClick={() => navigate("/standard")}>Teaching standard</button><a href={`mailto:${SUPPORT_CONTACT}`}>Support</a><button onClick={() => navigate("/privacy-center")}>Privacy choices</button><button onClick={() => navigate("/terms")}>Terms</button><button onClick={() => navigate("/privacy")}>Privacy</button><button onClick={() => navigate("/acceptable-use")}>Acceptable use</button><button onClick={() => navigate("/copyright")}>Copyright</button></nav>
         </footer>
         {showAuth && <AuthModal onClose={() => setShowAuth(false)} />}
       </div>
