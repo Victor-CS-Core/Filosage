@@ -52,6 +52,7 @@ export function useLearnerState() {
           noteUpdatedAt,
           weeklyLessonGoal: preferLocalSettings ? local.weeklyLessonGoal : cloud.weeklyLessonGoal,
           dashboardPreferences: preferLocalSettings ? local.dashboardPreferences : cloud.dashboardPreferences,
+          reminderPreferences: preferLocalSettings ? local.reminderPreferences : cloud.reminderPreferences,
           updatedAt: preferLocalSettings ? local.updatedAt : cloud.updatedAt,
         };
         stateRef.current = merged;
@@ -84,6 +85,7 @@ export function useLearnerState() {
           lessonBookmarks: next.lessonBookmarks,
           weeklyLessonGoal: next.weeklyLessonGoal,
           dashboardPreferences: next.dashboardPreferences,
+          reminderPreferences: next.reminderPreferences,
           updatedAt: next.updatedAt,
         },
         noteChanges,

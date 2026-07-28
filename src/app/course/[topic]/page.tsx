@@ -533,6 +533,12 @@ export default function CourseMap() {
                     <div className="capstone-verdict-heading"><CheckCircle2 size={19} /><strong>Course mastered</strong><small>Assessed {new Date(capstoneAssessment.assessedAt).toLocaleDateString()}</small></div>
                     <p>{capstoneAssessment.summary}</p>
                     <ul>{capstoneAssessment.criteria.map((criterion) => <li key={criterion.criterion} className="is-met"><Check size={14} /><span><strong>{criterion.criterion}</strong><small>{criterion.feedback}</small></span></li>)}</ul>
+                    {capstoneAssessment.history && capstoneAssessment.history.length > 1 && (
+                      <details className="capstone-history">
+                        <summary>View revision history ({capstoneAssessment.history.length} attempts)</summary>
+                        <ol>{capstoneAssessment.history.map((revision) => <li key={`${revision.attempt}-${revision.assessedAt}`}><span>Attempt {revision.attempt}</span><strong>{revision.status === "passed" ? "Passed" : "Needs revision"}</strong><small>{new Date(revision.assessedAt).toLocaleDateString()} · {revision.summary}</small></li>)}</ol>
+                      </details>
+                    )}
                   </div>
                 ) : user ? (
                   <div className="capstone-submit">
@@ -541,6 +547,12 @@ export default function CourseMap() {
                         <div className="capstone-verdict-heading"><Circle size={17} /><strong>Not there yet · attempt {capstoneAssessment.attempts}</strong><small>Assessed {new Date(capstoneAssessment.assessedAt).toLocaleDateString()}</small></div>
                         <p>{capstoneAssessment.summary}</p>
                         <ul>{capstoneAssessment.criteria.map((criterion) => <li key={criterion.criterion} className={criterion.met ? "is-met" : ""}>{criterion.met ? <Check size={14} /> : <Circle size={14} />}<span><strong>{criterion.criterion}</strong><small>{criterion.feedback}</small></span></li>)}</ul>
+                        {capstoneAssessment.history && capstoneAssessment.history.length > 1 && (
+                          <details className="capstone-history">
+                            <summary>Compare {capstoneAssessment.history.length} attempts</summary>
+                            <ol>{capstoneAssessment.history.map((revision) => <li key={`${revision.attempt}-${revision.assessedAt}`}><span>Attempt {revision.attempt}</span><strong>{revision.status === "passed" ? "Passed" : "Needs revision"}</strong><small>{new Date(revision.assessedAt).toLocaleDateString()} · {revision.summary}</small></li>)}</ol>
+                          </details>
+                        )}
                       </div>
                     )}
                     {courseComplete ? (

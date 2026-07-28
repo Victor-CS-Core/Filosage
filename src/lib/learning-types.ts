@@ -1,4 +1,22 @@
 export type Confidence = "low" | "medium" | "high";
+export type ReviewKind = "spaced" | "delayed-7" | "delayed-28";
+export type ConfidenceCalibration = "calibrated" | "overconfident" | "underconfident";
+export type PerformanceBand = "fragile" | "developing" | "secure";
+
+export interface ReviewRecord {
+  kind: ReviewKind;
+  observedAt: string;
+  score: number;
+  confidence: Confidence;
+  calibration: ConfidenceCalibration;
+  performanceBand: PerformanceBand;
+  intervalStage: number;
+}
+
+export interface DelayedCheck {
+  dueAt: string;
+  completedAt?: string;
+}
 
 export interface LessonProgress {
   lessonId: string;
@@ -7,14 +25,30 @@ export interface LessonProgress {
   attempts: number;
   totalQuestions: number;
   firstAttemptCorrect: number;
+  score?: number;
   confidence: Confidence;
+  calibration?: ConfidenceCalibration;
+  performanceBand?: PerformanceBand;
   intervalStage: number;
   nextReviewAt: string;
   lastStudiedAt: string;
   completedAt?: string;
+  delayedChecks?: {
+    day7: DelayedCheck;
+    day28: DelayedCheck;
+  };
+  reviewHistory?: ReviewRecord[];
   estimatedMinutes?: number;
   /** The misconception this lesson corrects, recorded at completion. */
   misconception?: string;
+}
+
+export interface CapstoneRevision {
+  status: "passed" | "needs_revision";
+  summary: string;
+  criteria: Array<{ criterion: string; met: boolean; feedback: string }>;
+  assessedAt: string;
+  attempt: number;
 }
 
 export interface CapstoneAssessment {
@@ -23,6 +57,7 @@ export interface CapstoneAssessment {
   criteria: Array<{ criterion: string; met: boolean; feedback: string }>;
   assessedAt: string;
   attempts: number;
+  history?: CapstoneRevision[];
 }
 
 export interface BaselineAssessment {
@@ -59,6 +94,7 @@ export interface ProgressUpdate {
   attempts: number;
   confidence: Confidence;
   review?: boolean;
+  reviewKind?: ReviewKind;
   totalLessons?: number;
   estimatedMinutes?: number;
   nextLessonId?: string | null;

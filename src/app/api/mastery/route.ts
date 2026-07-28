@@ -30,6 +30,15 @@ const planSchema = z.object({
   explanation: z.string().trim().min(1).max(1_000),
   createdAt: z.string().datetime(),
   updatedAt: z.string().datetime(),
+  status: z.enum(["active", "paused"]).optional(),
+  pausedAt: z.string().datetime().optional(),
+  resumeAt: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+  scheduleHistory: z.array(z.object({
+    action: z.enum(["created", "rescheduled", "paused", "resumed"]),
+    changedAt: z.string().datetime(),
+    weeklyMinutes: z.number().int().min(30).max(1_200),
+    targetDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+  }).strict()).max(50).optional(),
   baselineAssessment: z.unknown().optional(),
 }).strict();
 

@@ -390,8 +390,23 @@ export default function AdminPage() {
               </div>
             </section>
 
+            <section className="admin-panel admin-research-summary">
+              <header><div><p className="overline">Phase 2</p><h2>Retention validation</h2></div><span>{data.retentionValidation.delayedCheckCompleters} delayed-check completers</span></header>
+              <div className="admin-research-metrics">
+                <div><span>Day 7 retention</span><strong>{data.retentionValidation.day7RetentionPercent}%</strong><small>{data.retentionValidation.day7Returned} of {data.retentionValidation.day7Eligible} eligible · target 35%</small></div>
+                <div><span>Day 28 retention</span><strong>{data.retentionValidation.day28RetentionPercent}%</strong><small>{data.retentionValidation.day28Returned} of {data.retentionValidation.day28Eligible} eligible · target 20%</small></div>
+                <div><span>Due-review completion</span><strong>{data.retentionValidation.reviewCompletionPercent}%</strong><small>{data.retentionValidation.reviewCompleters} of {data.retentionValidation.reviewDueActors} due-review learners · target 35%</small></div>
+              </div>
+              <div className="admin-acquisition-list">
+                <h3>Behavior quality</h3>
+                <div><span>Mission start rate</span><strong>{data.retentionValidation.missionStartPercent}%</strong><small>{data.retentionValidation.missionStarters} of {data.retentionValidation.missionViewers} mission viewers</small></div>
+                <div><span>Applied criterion</span><strong>{data.retentionValidation.appliedCriterionPercent}%</strong><small>Target: at least 25% of first-practice learners</small></div>
+                <div><span>Delayed checks completed</span><strong>{data.retentionValidation.delayedCheckCompleters}</strong><small>7-day and 28-day evidence checks</small></div>
+              </div>
+            </section>
+
             <section className="admin-panel admin-research-protocol">
-              <header><div><p className="overline">Go gate</p><h2>What must be true before Phase 2</h2></div><span>Review with learner feedback</span></header>
+              <header><div><p className="overline">Evidence gate</p><h2>What must be true before scaling Phase 2</h2></div><span>Engineering is active; market proof is pending</span></header>
               <ol>
                 <li><span>01</span><div><strong>Activation</strong><p>At least 50% of qualified diagnostic completers reach first practice, with a median under ten minutes.</p></div></li>
                 <li><span>02</span><div><strong>Learning improvement</strong><p>At least 60% of learners with comparable baseline and final capstones improve.</p></div></li>

@@ -1,4 +1,8 @@
-export function securityHeaders(isDevelopment = false, nonce?: string) {
+export function securityHeaders(
+  isDevelopment = false,
+  nonce?: string,
+  isSecureRequest = true,
+) {
   const developmentScriptAllowance = isDevelopment ? " 'unsafe-eval'" : "";
   const developmentConnectAllowance = isDevelopment ? " ws: http:" : "";
   const nonceAllowance = nonce ? ` 'nonce-${nonce}' 'strict-dynamic'` : "";
@@ -18,7 +22,7 @@ export function securityHeaders(isDevelopment = false, nonce?: string) {
     "worker-src 'self' blob:",
     "manifest-src 'self'",
     "media-src 'none'",
-    isDevelopment ? "" : "upgrade-insecure-requests",
+    !isDevelopment && isSecureRequest ? "upgrade-insecure-requests" : "",
   ].filter(Boolean).join("; ");
 
   return [
@@ -32,6 +36,8 @@ export function securityHeaders(isDevelopment = false, nonce?: string) {
     { key: "Cross-Origin-Opener-Policy", value: "same-origin-allow-popups" },
     { key: "Cross-Origin-Resource-Policy", value: "same-site" },
     { key: "Origin-Agent-Cluster", value: "?1" },
-    { key: "Strict-Transport-Security", value: "max-age=63072000; includeSubDomains; preload" },
-  ];
+    isSecureRequest
+      ? { key: "Strict-Transport-Security", value: "max-age=63072000; includeSubDomains; preload" }
+      : null,
+  ].filter((header): header is { key: string; value: string } => header !== null);
 }

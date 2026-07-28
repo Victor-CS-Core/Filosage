@@ -1,6 +1,7 @@
 "use client";
 
 import type { CourseProgress, ProgressUpdate } from "@/lib/learning-types";
+import { scheduleAdaptiveReview, updateDelayedChecks } from "@/lib/adaptive-learning";
 
 const INDEX_KEY = "erudoza-learning-state-v2";
 const LEGACY_INDEX_KEY = "teach-learning-state-v2";
@@ -84,23 +85,42 @@ export function removeLocalProgress(courseId: string) {
 
 export function saveLocalProgress(update: ProgressUpdate) {
   const now = new Date();
+  const observedAt = now.toISOString();
   const index = readIndex();
   const previous = index[update.courseId];
   const previousLesson = previous?.lessons[update.lessonId];
-  const intervals = [1, 3, 7, 14, 30, 60];
   const firstTryRate = update.totalQuestions
     ? update.firstAttemptCorrect / update.totalQuestions
     : 1;
-  const successfulReview = update.review && firstTryRate >= 0.8;
-  const nextStage = successfulReview
-    ? Math.min((previousLesson?.intervalStage ?? 0) + 1, intervals.length - 1)
-    : 0;
-  const days = update.confidence === "low"
-    ? Math.max(1, Math.floor(intervals[nextStage] / 2))
-    : intervals[nextStage];
-  const nextReviewAt = new Date(now.getTime() + days * 86_400_000).toISOString();
+  const schedule = scheduleAdaptiveReview({
+    score: firstTryRate,
+    confidence: update.confidence,
+    previousStage: previousLesson?.intervalStage,
+    isReview: update.review === true,
+    now,
+  });
   const completedLessonIds = Array.from(new Set([...(previous?.completedLessonIds ?? []), update.lessonId]));
   const firstCompletion = !previousLesson?.completedAt;
+  const completedAt = previousLesson?.completedAt ?? observedAt;
+  const reviewKind = update.review ? update.reviewKind ?? "spaced" : undefined;
+  const delayedChecks = updateDelayedChecks(
+    completedAt,
+    previousLesson?.delayedChecks,
+    reviewKind,
+    observedAt,
+  );
+  const reviewHistory = update.review ? [
+    ...(previousLesson?.reviewHistory ?? []),
+    {
+      kind: reviewKind ?? "spaced",
+      observedAt,
+      score: schedule.score,
+      confidence: update.confidence,
+      calibration: schedule.calibration,
+      performanceBand: schedule.performanceBand,
+      intervalStage: schedule.intervalStage,
+    },
+  ].slice(-50) : previousLesson?.reviewHistory;
 
   const next: CourseProgress = {
     courseId: update.courseId,
@@ -116,23 +136,28 @@ export function saveLocalProgress(update: ProgressUpdate) {
       [update.lessonId]: {
         lessonId: update.lessonId,
         lessonTitle: update.lessonTitle,
-        status: successfulReview ? "mastered" : "learned",
+        status: update.review && schedule.performanceBand === "secure" ? "mastered" : "learned",
         attempts: update.attempts,
         totalQuestions: update.totalQuestions,
         firstAttemptCorrect: update.firstAttemptCorrect,
+        score: schedule.score,
         confidence: update.confidence,
-        intervalStage: nextStage,
-        nextReviewAt,
-        lastStudiedAt: now.toISOString(),
-        completedAt: previousLesson?.completedAt ?? now.toISOString(),
+        calibration: schedule.calibration,
+        performanceBand: schedule.performanceBand,
+        intervalStage: schedule.intervalStage,
+        nextReviewAt: schedule.nextReviewAt,
+        lastStudiedAt: observedAt,
+        completedAt,
+        delayedChecks,
+        reviewHistory,
         estimatedMinutes: update.estimatedMinutes ?? previousLesson?.estimatedMinutes,
         misconception: update.misconception ?? previousLesson?.misconception,
       },
     },
     capstone: previous?.capstone,
     studyMinutes: (previous?.studyMinutes ?? 0) + (firstCompletion ? (update.estimatedMinutes ?? 0) : 0),
-    lastActivityAt: now.toISOString(),
-    startedAt: previous?.startedAt ?? now.toISOString(),
+    lastActivityAt: observedAt,
+    startedAt: previous?.startedAt ?? observedAt,
   };
 
   index[update.courseId] = next;

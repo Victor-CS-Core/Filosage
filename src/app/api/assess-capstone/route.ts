@@ -4,7 +4,7 @@ import { zodTextFormat } from "openai/helpers/zod";
 import { authorizationResponse, requireAcceptedAccount } from "@/lib/auth-server";
 import { getCourse, getStoredDocument, putStoredDocument } from "@/lib/firebase-server";
 import type { Course } from "@/lib/course-types";
-import type { CapstoneAssessment } from "@/lib/learning-types";
+import type { CapstoneAssessment, CapstoneRevision } from "@/lib/learning-types";
 import {
   AiQuotaError,
   aiQuotaResponse,
@@ -85,15 +85,41 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "The capstone could not be assessed. Please try again." }, { status: 502 });
     }
 
-    const previousAttempts = progress && typeof progress.capstone === "object" && progress.capstone
-      ? Number((progress.capstone as Record<string, unknown>).attempts) || 0
+    const previousCapstone = progress && typeof progress.capstone === "object" && progress.capstone
+      ? progress.capstone as unknown as CapstoneAssessment
+      : null;
+    const previousAttempts = previousCapstone
+      ? Number(previousCapstone.attempts) || 0
       : 0;
+    const status: CapstoneAssessment["status"] = verdict.criteria.every((criterion) => criterion.met)
+      ? "passed"
+      : "needs_revision";
+    const assessedAt = new Date().toISOString();
+    const priorHistory: CapstoneRevision[] = Array.isArray(previousCapstone?.history)
+      ? previousCapstone.history
+      : previousCapstone ? [{
+          status: previousCapstone.status,
+          summary: previousCapstone.summary,
+          criteria: previousCapstone.criteria,
+          assessedAt: previousCapstone.assessedAt,
+          attempt: previousAttempts,
+        }] : [];
     const assessment: CapstoneAssessment = {
-      status: verdict.criteria.every((criterion) => criterion.met) ? "passed" : "needs_revision",
+      status,
       summary: verdict.summary,
       criteria: verdict.criteria,
-      assessedAt: new Date().toISOString(),
+      assessedAt,
       attempts: previousAttempts + 1,
+      history: [
+        ...priorHistory,
+        {
+          status,
+          summary: verdict.summary,
+          criteria: verdict.criteria,
+          assessedAt,
+          attempt: previousAttempts + 1,
+        },
+      ].slice(-20),
     };
     await putStoredDocument(progressPath, {
       ...(progress ?? { courseId, topic: course.topic, completedLessonIds: [], lessons: {}, startedAt: new Date().toISOString() }),

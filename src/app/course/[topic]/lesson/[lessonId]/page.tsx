@@ -30,14 +30,25 @@ import { useAuth } from "@/components/AuthProvider";
 import { trackProductEvent } from "@/lib/product-analytics";
 import ErudozaMark from "@/components/ErudozaMark";
 import type { Course, LessonData, Quiz } from "@/lib/course-types";
-import type { Confidence, CourseProgress, ProgressUpdate } from "@/lib/learning-types";
+import type {
+  Confidence,
+  ConfidenceCalibration,
+  CourseProgress,
+  ProgressUpdate,
+  ReviewKind,
+} from "@/lib/learning-types";
 import { getLocalProgress, saveLocalProgress } from "@/lib/learning-progress";
+import { calibrationMessage, reviewKindLabel } from "@/lib/adaptive-learning";
 import { useLearnerState } from "@/components/useLearnerState";
 import SpeakButton from "@/components/SpeakButton";
 import LessonVisualRenderer from "@/components/LessonVisual";
 import LessonIntegrityPanel from "@/components/LessonIntegrityPanel";
 import { useMasteryJourney } from "@/components/useMasteryJourney";
-import { markdownToSpeech, normalizeLessonMarkdown } from "@/lib/markdown";
+import {
+  markdownToSpeech,
+  normalizeLessonMarkdown,
+  normalizeStructuredMarkdown,
+} from "@/lib/markdown";
 import { curateLessonVisuals, visualsToSpeech } from "@/lib/lesson-visuals";
 import { createClientId, deferClientTask } from "@/lib/browser-compat";
 
@@ -219,6 +230,12 @@ export default function LessonView() {
   const lessonId = params.lessonId;
   const courseId = searchParams.get("id");
   const reviewMode = searchParams.get("review") === "1";
+  const requestedCheck = searchParams.get("check");
+  const reviewKind: ReviewKind = requestedCheck === "day7"
+    ? "delayed-7"
+    : requestedCheck === "day28"
+      ? "delayed-28"
+      : "spaced";
   const [moduleIndex, lessonIndex] = lessonId.split("-").map(Number);
   const { user, isOwner, isPro } = useAuth();
   const masteryJourney = useMasteryJourney(courseId, user);
@@ -256,6 +273,10 @@ export default function LessonView() {
   const [noteDraft, setNoteDraft] = useState("");
   const [progressSyncError, setProgressSyncError] = useState<string | null>(null);
   const [reviewScheduleState, setReviewScheduleState] = useState<{ key: string; at: string | null }>({ key: "", at: null });
+  const [calibrationState, setCalibrationState] = useState<{
+    key: string;
+    value: ConfidenceCalibration | null;
+  }>({ key: "", value: null });
   const chatBottomRef = useRef<HTMLDivElement>(null);
   const noteHydratedRef = useRef(false);
   const generationStartedAtRef = useRef(0);
@@ -272,6 +293,7 @@ export default function LessonView() {
   const lessonBookmarked = learnerState.lessonBookmarks.includes(noteKey);
   const activePracticeIndex = activePracticeState.key === noteKey ? activePracticeState.index : 0;
   const reviewScheduledAt = reviewScheduleState.key === noteKey ? reviewScheduleState.at : null;
+  const confidenceCalibration = calibrationState.key === noteKey ? calibrationState.value : null;
 
   useEffect(() => {
     noteHydratedRef.current = false;
@@ -499,6 +521,7 @@ export default function LessonView() {
       attempts: results.reduce((sum, result) => sum + result.attempts, 0),
       confidence,
       review: reviewMode,
+      reviewKind: reviewMode ? reviewKind : undefined,
       totalLessons: allLessons.length,
       estimatedMinutes: lesson.estimatedMinutes ?? 12,
       nextLessonId: nextLesson?.id ?? null,
@@ -508,6 +531,7 @@ export default function LessonView() {
 
     const localProgress = saveLocalProgress(update);
     setReviewScheduleState({ key: noteKey, at: localProgress.lessons[lessonId]?.nextReviewAt ?? null });
+    setCalibrationState({ key: noteKey, value: localProgress.lessons[lessonId]?.calibration ?? null });
     setProgressSyncError(null);
     if (user) {
       try {
@@ -517,9 +541,13 @@ export default function LessonView() {
           headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
           body: JSON.stringify(update),
         });
-        const data = await response.json().catch(() => ({})) as { nextReviewAt?: string };
+        const data = await response.json().catch(() => ({})) as {
+          nextReviewAt?: string;
+          calibration?: ConfidenceCalibration;
+        };
         if (!response.ok) throw new Error("Saved on this device. Cloud progress will retry when you complete another activity.");
         if (data.nextReviewAt) setReviewScheduleState({ key: noteKey, at: data.nextReviewAt });
+        if (data.calibration) setCalibrationState({ key: noteKey, value: data.calibration });
       } catch (saveError) {
         setProgressSyncError(saveError instanceof Error ? saveError.message : "Saved on this device, but cloud sync is pending.");
       }
@@ -531,25 +559,27 @@ export default function LessonView() {
       : 1;
     setCompletionState({ key: noteKey, complete: true });
     await addMasteryEvidence([
-      {
+      ...(!reviewMode ? [{
         id: createClientId(),
         courseId,
         objectiveId,
-        type: "lesson",
-        result: "passed",
+        type: "lesson" as const,
+        result: "passed" as const,
         label: `Completed ${lesson.title}`,
         observedAt,
         lessonId,
         lessonTitle: lesson.title,
         confidence,
-      },
+      }] : []),
       ...(lessonData.quizzes.length ? [{
         id: createClientId(),
         courseId,
         objectiveId,
         type: "retrieval" as const,
         result: firstTryScore >= 0.7 ? "passed" as const : "needs_work" as const,
-        label: `Retrieval check: ${lesson.objective ?? lesson.concept}`,
+        label: reviewMode
+          ? `${reviewKindLabel(reviewKind)}: ${lesson.objective ?? lesson.concept}`
+          : `Retrieval check: ${lesson.objective ?? lesson.concept}`,
         observedAt,
         lessonId,
         lessonTitle: lesson.title,
@@ -575,6 +605,31 @@ export default function LessonView() {
       exclude: isOwner,
       oncePerSession: true,
     });
+    trackProductEvent("confidence_calibrated", {
+      route: "/lesson",
+      courseId,
+      lessonId,
+      score: firstTryScore * 100,
+      exclude: isOwner,
+    });
+    if (reviewMode) {
+      trackProductEvent("review_completed", {
+        route: "/lesson",
+        courseId,
+        lessonId,
+        score: firstTryScore * 100,
+        exclude: isOwner,
+      });
+      if (reviewKind !== "spaced") {
+        trackProductEvent("delayed_check_completed", {
+          route: "/lesson",
+          courseId,
+          lessonId,
+          score: firstTryScore * 100,
+          exclude: isOwner,
+        });
+      }
+    }
     if (!reviewMode) {
       const elapsedMs = masteryPlan?.createdAt
         ? Math.max(0, Date.now() - new Date(masteryPlan.createdAt).getTime())
@@ -606,7 +661,7 @@ export default function LessonView() {
         elapsedMs,
       });
     }
-  }, [addMasteryEvidence, allLessons.length, complete, courseId, isOwner, lesson, lessonData, lessonId, masteryPlan, moduleIndex, nextLesson, noteKey, quizResults, reviewMode, topic, transferComplete, user]);
+  }, [addMasteryEvidence, allLessons.length, complete, courseId, isOwner, lesson, lessonData, lessonId, masteryPlan, moduleIndex, nextLesson, noteKey, quizResults, reviewKind, reviewMode, topic, transferComplete, user]);
 
   const onMastered = (index: number, result: QuizResult) => {
     setQuizResultState((current) => ({ key: noteKey, results: { ...(current.key === noteKey ? current.results : {}), [index]: result } }));
@@ -828,16 +883,18 @@ export default function LessonView() {
                   <div className="lesson-section-heading">
                     <p className="overline">Guided practice</p>
                     <h2 id="guided-practice-title">Work through the idea</h2>
-                    <p>{lessonData.guidedPractice.prompt}</p>
+                    <div className="structured-markdown guided-practice-prompt">
+                      <ReactMarkdown remarkPlugins={[remarkGfm]}>{normalizeStructuredMarkdown(lessonData.guidedPractice.prompt)}</ReactMarkdown>
+                    </div>
                   </div>
                   <ol>
                     {lessonData.guidedPractice.steps.map((step, index) => (
-                      <li key={`${step}-${index}`}><span>{index + 1}</span><p>{step}</p></li>
+                      <li key={`${step}-${index}`}><span>{index + 1}</span><div className="structured-markdown guided-practice-step"><ReactMarkdown remarkPlugins={[remarkGfm]}>{normalizeStructuredMarkdown(step)}</ReactMarkdown></div></li>
                     ))}
                   </ol>
                   <details className="model-answer">
                     <summary>Compare with a worked response</summary>
-                    <ReactMarkdown remarkPlugins={[remarkGfm]}>{lessonData.guidedPractice.modelAnswer}</ReactMarkdown>
+                    <div className="structured-markdown"><ReactMarkdown remarkPlugins={[remarkGfm]}>{normalizeStructuredMarkdown(lessonData.guidedPractice.modelAnswer)}</ReactMarkdown></div>
                   </details>
                 </section>
               )}
@@ -854,7 +911,7 @@ export default function LessonView() {
                   <div className="lesson-section-heading">
                     <p className="overline">Transfer</p>
                     <h2 id="transfer-title">Use it in a new situation</h2>
-                    <p>{lessonData.transferTask.prompt}</p>
+                    <div className="structured-markdown transfer-prompt"><ReactMarkdown remarkPlugins={[remarkGfm]}>{normalizeStructuredMarkdown(lessonData.transferTask.prompt)}</ReactMarkdown></div>
                   </div>
                   <div className="transfer-criteria">
                     <strong>A strong response will:</strong>
@@ -880,7 +937,7 @@ export default function LessonView() {
                   {transferRevealed && (
                     <div className="transfer-model" aria-live="polite">
                       <strong>Model response</strong>
-                      <ReactMarkdown remarkPlugins={[remarkGfm]}>{lessonData.transferTask.modelResponse}</ReactMarkdown>
+                      <div className="structured-markdown"><ReactMarkdown remarkPlugins={[remarkGfm]}>{normalizeStructuredMarkdown(lessonData.transferTask.modelResponse)}</ReactMarkdown></div>
                     </div>
                   )}
                 </section>
@@ -916,11 +973,16 @@ export default function LessonView() {
               <div className={`completion-banner ${complete ? "is-complete" : ""}`}>
                 <div>{complete ? <CheckCircle2 size={22} /> : <CircleAlert size={22} />}</div>
                 <span>
-                  <strong>{complete ? (reviewMode ? "Review complete" : "Lesson complete") : "Complete the activities"}</strong>
+                  <strong>{complete ? (reviewMode ? `${reviewKindLabel(reviewKind)} complete` : "Lesson complete") : "Complete the activities"}</strong>
                   <small>{complete ? (
                     progressSyncError
                     || `${user ? "Progress synced." : "Progress saved on this device."}${reviewScheduledAt ? ` Review scheduled for ${new Intl.DateTimeFormat("en", { weekday: "long", month: "short", day: "numeric" }).format(new Date(reviewScheduledAt))}.` : user ? " Your next review has been scheduled." : " Sign in to sync it."}`
                   ) : lessonData.transferTask && !transferComplete ? "Complete the transfer task, then finish each retrieval check." : "Answer every prompt correctly and rate your confidence."}</small>
+                  {complete && confidenceCalibration && (
+                    <em className={`calibration-note is-${confidenceCalibration}`}>
+                      {calibrationMessage(confidenceCalibration)}
+                    </em>
+                  )}
                 </span>
                 {!complete && lessonData.quizzes.length === 0 && transferComplete && (
                   <button className="button button-secondary button-small" onClick={() => void markComplete()}>Mark learned</button>

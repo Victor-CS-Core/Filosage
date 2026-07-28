@@ -13,6 +13,7 @@ import {
   validationMessage,
 } from "@/lib/validation";
 import { DEFAULT_DASHBOARD_PREFERENCES } from "@/lib/dashboard-preferences";
+import { DEFAULT_REMINDER_PREFERENCES } from "@/lib/learning-reminders";
 import { apiRequestErrorResponse, readJsonBody } from "@/lib/api-security";
 
 const defaults = {
@@ -22,6 +23,7 @@ const defaults = {
   noteUpdatedAt: {} as Record<string, string>,
   weeklyLessonGoal: 5,
   dashboardPreferences: DEFAULT_DASHBOARD_PREFERENCES,
+  reminderPreferences: DEFAULT_REMINDER_PREFERENCES,
 };
 
 function noteDocumentId(key: string) {
@@ -86,6 +88,7 @@ export async function GET(request: Request) {
             lessonBookmarks: defaults.lessonBookmarks,
             weeklyLessonGoal: defaults.weeklyLessonGoal,
             dashboardPreferences: defaults.dashboardPreferences,
+            reminderPreferences: defaults.reminderPreferences,
             updatedAt: now,
           },
         ),
@@ -98,6 +101,7 @@ export async function GET(request: Request) {
         lessonBookmarks: defaults.lessonBookmarks,
         weeklyLessonGoal: defaults.weeklyLessonGoal,
         dashboardPreferences: defaults.dashboardPreferences,
+        reminderPreferences: defaults.reminderPreferences,
       }),
       notes,
       noteUpdatedAt,

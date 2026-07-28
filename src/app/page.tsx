@@ -30,6 +30,13 @@ import { evaluateBadges, featuredBadges } from "@/lib/badges";
 import type { DashboardMainSection, DashboardMetric, DashboardSideSection } from "@/lib/dashboard-preferences";
 import type { Course } from "@/lib/course-types";
 import type { CourseProgress, LessonProgress } from "@/lib/learning-types";
+import {
+  buildAdaptiveReviewQueue,
+  buildDailyMission,
+  buildWeeklyMilestone,
+  reviewKindLabel,
+} from "@/lib/adaptive-learning";
+import { trackProductEvent } from "@/lib/product-analytics";
 
 function streakFor(lessons: LessonProgress[]) {
   const dates = new Set(lessons.map((lesson) => lesson.lastStudiedAt.slice(0, 10)));
@@ -74,6 +81,26 @@ export default function Home() {
     return () => { cancelled = true; };
   }, [authLoading, isPro, user]);
 
+  useEffect(() => {
+    if (!user || !loaded) return;
+    const mission = buildDailyMission(progress, new Date(now));
+    if (learnerState.reminderPreferences.inAppEnabled && (mission.review || mission.forward)) {
+      trackProductEvent("daily_mission_viewed", {
+        route: "/",
+        courseId: mission.review?.courseId ?? mission.forward?.courseId,
+        lessonId: mission.review?.lessonId ?? mission.forward?.lessonId,
+        oncePerSession: true,
+      });
+    }
+    const milestone = buildWeeklyMilestone(progress, learnerState.weeklyLessonGoal, new Date(now));
+    if (milestone.isComplete) {
+      trackProductEvent("weekly_milestone_completed", {
+        route: "/",
+        oncePerSession: true,
+      });
+    }
+  }, [learnerState.reminderPreferences.inAppEnabled, learnerState.weeklyLessonGoal, loaded, now, progress, user]);
+
   if (!user) {
     return (
       <AppShell>
@@ -116,7 +143,9 @@ export default function Home() {
   }
 
   const lessons = progress.flatMap((item) => Object.values(item.lessons));
-  const due = lessons.filter((lesson) => Date.parse(lesson.nextReviewAt) <= now);
+  const due = buildAdaptiveReviewQueue(progress, new Date(now));
+  const dailyMission = buildDailyMission(progress, new Date(now));
+  const weeklyMilestone = buildWeeklyMilestone(progress, learnerState.weeklyLessonGoal, new Date(now));
   const mastered = lessons.filter((lesson) => lesson.status === "mastered").length;
   const totalQuestions = lessons.reduce((sum, lesson) => sum + lesson.totalQuestions, 0);
   const correct = lessons.reduce((sum, lesson) => sum + lesson.firstAttemptCorrect, 0);
@@ -142,6 +171,26 @@ export default function Home() {
     router.push(`/library${search.trim() ? `?q=${encodeURIComponent(search.trim())}` : ""}`);
   };
 
+  const startDailyMission = () => {
+    const task = dailyMission.review ?? dailyMission.forward;
+    if (!task) return;
+    trackProductEvent("daily_mission_started", {
+      route: "/",
+      courseId: task.courseId,
+      lessonId: task.lessonId,
+    });
+    if (dailyMission.review) {
+      const check = dailyMission.review.kind === "delayed-7"
+        ? "&check=day7"
+        : dailyMission.review.kind === "delayed-28"
+          ? "&check=day28"
+          : "";
+      router.push(`/course/${encodeURIComponent(task.topic)}/lesson/${task.lessonId}?id=${task.courseId}&review=1${check}`);
+      return;
+    }
+    router.push(`/course/${encodeURIComponent(task.topic)}/lesson/${task.lessonId}?id=${task.courseId}`);
+  };
+
   const snapshotMetrics: Record<DashboardMetric, { label: string; value: string | number; icon: React.ReactNode }> = {
     studyTime: { label: "Study time", value: `${Math.floor(minutes / 60)}h ${minutes % 60}m`, icon: <Clock3 size={18} /> },
     lessons: { label: "Lessons learned", value: lessons.length, icon: <CheckCircle2 size={18} /> },
@@ -156,12 +205,12 @@ export default function Home() {
       <section className="dashboard-section" key={section}>
         <div className="dashboard-section-heading"><h2>Next up</h2><button onClick={() => router.push("/library")}>Explore library</button></div>
         <div className="today-picks">
-          {due.length > 0 && <button className="today-pick review-pick" onClick={() => router.push("/review")}><span><CalendarCheck2 size={20} /></span><strong>Today&apos;s dose: {due.length} concept{due.length === 1 ? "" : "s"}</strong><small>Strengthen recall before it fades.</small><em>About {Math.max(3, due.length * 3)} min</em></button>}
+          {learnerState.reminderPreferences.inAppEnabled && due.length > 0 && <button className="today-pick review-pick" onClick={() => router.push("/review")}><span><CalendarCheck2 size={20} /></span><strong>Review queue: {due.length} concept{due.length === 1 ? "" : "s"}</strong><small>Ordered by retention risk and delayed evidence checks.</small><em>Start with the most fragile</em></button>}
           {picks.map((course, index) => {
             const id = course.id ?? course.courseId;
             return <button className={`today-pick tone-${index + 1}`} key={id ?? course.topic} onClick={() => router.push(`/course/${encodeURIComponent(course.topic)}?id=${id}`)}><span><BookOpenCheck size={20} /></span><strong>{course.topic}</strong><small>{course.outcome ?? course.mission}</small><em>{course.estimatedMinutes ?? 30} min</em></button>;
           })}
-          {!due.length && !picks.length && <div className="dashboard-empty compact"><CheckCircle2 size={21} /><div><strong>You are caught up.</strong><p>Your next useful review will appear here.</p></div></div>}
+          {(!learnerState.reminderPreferences.inAppEnabled || !due.length) && !picks.length && <div className="dashboard-empty compact"><CheckCircle2 size={21} /><div><strong>You are caught up.</strong><p>Your next useful review will appear here.</p></div></div>}
         </div>
       </section>
     );
@@ -196,6 +245,44 @@ export default function Home() {
         {!loaded ? <div className="dashboard-loading"><span /><span /><span /></div> : (
           <div className={`dashboard-grid ${hasVisibleSideSections ? "" : "is-single-column"}`}>
             <div className="dashboard-main-column">
+              {learnerState.reminderPreferences.inAppEnabled && (dailyMission.review || dailyMission.forward) && (
+                <section className="daily-mission" aria-labelledby="daily-mission-title">
+                  <div className="daily-mission-heading">
+                    <div>
+                      <p className="overline">{dailyMission.recovered ? "Welcome back" : "Focused session"}</p>
+                      <h2 id="daily-mission-title">Today&apos;s mission</h2>
+                      <p>{dailyMission.recovered
+                        ? "No catch-up debt. Start with the most useful action and continue from here."
+                        : "One retention check and one forward step, selected from your evidence."}</p>
+                    </div>
+                    <span><Clock3 size={15} /> About {dailyMission.estimatedMinutes} min</span>
+                  </div>
+                  <ol className="daily-mission-steps">
+                    {dailyMission.review && (
+                      <li>
+                        <span>1</span>
+                        <div><small>{reviewKindLabel(dailyMission.review.kind)}</small><strong>{dailyMission.review.lessonTitle}</strong><em>{dailyMission.review.reason}</em></div>
+                      </li>
+                    )}
+                    {dailyMission.forward && (
+                      <li>
+                        <span>{dailyMission.review ? "2" : "1"}</span>
+                        <div><small>Forward step · {dailyMission.forward.topic}</small><strong>{dailyMission.forward.lessonTitle}</strong><em>Build new capability after retrieval.</em></div>
+                      </li>
+                    )}
+                  </ol>
+                  <div className="daily-mission-footer">
+                    <div>
+                      <strong>{weeklyMilestone.completed} of {weeklyMilestone.target} this week</strong>
+                      <span><i style={{ width: `${weeklyMilestone.percent}%` }} /></span>
+                    </div>
+                    <button className="button button-primary" type="button" onClick={startDailyMission}>
+                      Start mission <ArrowRight size={16} />
+                    </button>
+                  </div>
+                </section>
+              )}
+
               <section className="dashboard-section dashboard-continue-section">
                 <div className="dashboard-section-heading"><h2>Continue learning</h2>{continueProgress && <button onClick={() => router.push("/progress")}>View progress</button>}</div>
                 {continueProgress ? (

@@ -3,6 +3,35 @@ import "server-only";
 import type { Course, LessonData } from "@/lib/course-types";
 import { curateLessonVisuals } from "@/lib/lesson-visuals";
 import { lessonVisualsEnabled } from "@/lib/feature-flags";
+import { normalizeStructuredMarkdown } from "@/lib/markdown";
+
+function structuredText(value: unknown) {
+  return typeof value === "string" ? normalizeStructuredMarkdown(value) : "";
+}
+
+function guidedPracticeDto(value: unknown): LessonData["guidedPractice"] {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return undefined;
+  const practice = value as Record<string, unknown>;
+  const prompt = structuredText(practice.prompt);
+  const modelAnswer = structuredText(practice.modelAnswer);
+  const steps = Array.isArray(practice.steps)
+    ? practice.steps.filter((item): item is string => typeof item === "string").map(normalizeStructuredMarkdown)
+    : [];
+  return prompt && modelAnswer && steps.length ? { prompt, steps, modelAnswer } : undefined;
+}
+
+function transferTaskDto(value: unknown): LessonData["transferTask"] {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return undefined;
+  const task = value as Record<string, unknown>;
+  const prompt = structuredText(task.prompt);
+  const modelResponse = structuredText(task.modelResponse);
+  const successCriteria = Array.isArray(task.successCriteria)
+    ? task.successCriteria.filter((item): item is string => typeof item === "string")
+    : [];
+  return prompt && modelResponse && successCriteria.length
+    ? { prompt, successCriteria, modelResponse }
+    : undefined;
+}
 
 export function toCourseDto(value: Record<string, unknown> | Course, canManage = false): Course {
   const raw = value as Record<string, unknown>;
@@ -59,12 +88,8 @@ export function toLessonDto(value: Record<string, unknown>, courseAiAssisted = f
       ? value.keyTakeaways.filter((item): item is string => typeof item === "string")
       : undefined,
     visuals: lessonVisualsEnabled() ? curateLessonVisuals(value.visuals) : [],
-    guidedPractice: value.guidedPractice && typeof value.guidedPractice === "object"
-      ? value.guidedPractice as LessonData["guidedPractice"]
-      : undefined,
-    transferTask: value.transferTask && typeof value.transferTask === "object"
-      ? value.transferTask as LessonData["transferTask"]
-      : undefined,
+    guidedPractice: guidedPracticeDto(value.guidedPractice),
+    transferTask: transferTaskDto(value.transferTask),
     aiAssisted: value.aiAssisted === true || courseAiAssisted,
     provenance: {
       contentVersion: `lesson-v${typeof value.schemaVersion === "number" ? value.schemaVersion : 1}`,

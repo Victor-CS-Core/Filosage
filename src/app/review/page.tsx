@@ -8,6 +8,8 @@ import { useAuth } from "@/components/AuthProvider";
 import type { CourseProgress } from "@/lib/learning-types";
 import { listLocalProgress } from "@/lib/learning-progress";
 import { removeDeletedLocalCourses } from "@/lib/local-course-data";
+import { buildAdaptiveReviewQueue, reviewKindLabel } from "@/lib/adaptive-learning";
+import { trackProductEvent } from "@/lib/product-analytics";
 
 const SESSION_SIZE = 10;
 
@@ -54,16 +56,28 @@ export default function ReviewPage() {
     courseId: course.courseId,
     topic: course.topic,
   }))), [progress]);
-  const due = useMemo(() => allLessons
-    .filter((lesson) => Date.parse(lesson.nextReviewAt) <= now)
-    .sort((a, b) => a.nextReviewAt.localeCompare(b.nextReviewAt))
-    .slice(0, SESSION_SIZE), [allLessons, now]);
+  const fullQueue = useMemo(
+    () => buildAdaptiveReviewQueue(progress, new Date(now)),
+    [now, progress],
+  );
+  const due = useMemo(() => fullQueue.slice(0, SESSION_SIZE), [fullQueue]);
   const upcoming = useMemo(() => allLessons
     .filter((lesson) => Date.parse(lesson.nextReviewAt) > now)
     .sort((a, b) => a.nextReviewAt.localeCompare(b.nextReviewAt))
     .slice(0, 3), [allLessons, now]);
   const streak = useMemo(() => streakFor(progress), [progress]);
-  const sessionMinutes = Math.max(3, due.length * 3);
+  const sessionMinutes = Math.max(3, due.reduce((sum, lesson) => sum + lesson.estimatedMinutes, 0));
+
+  useEffect(() => {
+    if (!loaded || !due.length) return;
+    const first = due[0];
+    trackProductEvent("review_due", {
+      route: "/review",
+      courseId: first.courseId,
+      lessonId: first.lessonId,
+      oncePerSession: true,
+    });
+  }, [due, loaded]);
 
   if (authLoading || !loaded) {
     return <AppShell><div className="center-state"><LoaderCircle className="spin" size={25} /><h1>Preparing today&apos;s dose</h1></div></AppShell>;
@@ -75,13 +89,13 @@ export default function ReviewPage() {
         <header className="review-header">
           <div>
             <p className="overline">Today&apos;s dose</p>
-            <h1>{due.length ? `${due.length} concept${due.length === 1 ? "" : "s"} ready to strengthen` : "You are caught up for today."}</h1>
+            <h1>{due.length ? `${fullQueue.length} concept${fullQueue.length === 1 ? "" : "s"} ready, ordered by need` : "You are caught up for today."}</h1>
             <p>{due.length
-              ? `Answer from memory before it fades. This takes about ${sessionMinutes} minutes across everything you are learning, and your result sets each concept's next return date.`
+              ? `Start with the most fragile evidence. This session takes about ${sessionMinutes} minutes, and each result recalibrates when that concept returns.`
               : "Understanding lasts because concepts return right before you would forget them. Keep learning and tomorrow's dose will be waiting."}</p>
           </div>
           <div className="review-header-stats">
-            <span className="review-count"><Sparkles size={17} /> {due.length} due now</span>
+            <span className="review-count"><Sparkles size={17} /> {fullQueue.length} due now</span>
             {streak > 0 && <span className="review-streak"><Flame size={16} /> {streak}-day streak</span>}
           </div>
         </header>
@@ -92,10 +106,18 @@ export default function ReviewPage() {
               <button
                 className="review-item"
                 key={`${lesson.courseId}-${lesson.lessonId}`}
-                onClick={() => router.push(`/course/${encodeURIComponent(lesson.topic)}/lesson/${lesson.lessonId}?id=${lesson.courseId}&review=1`)}
+                onClick={() => {
+                  const check = lesson.kind === "delayed-7" ? "&check=day7" : lesson.kind === "delayed-28" ? "&check=day28" : "";
+                  router.push(`/course/${encodeURIComponent(lesson.topic)}/lesson/${lesson.lessonId}?id=${lesson.courseId}&review=1${check}`);
+                }}
               >
                 <span className="review-index">{index + 1}</span>
-                <span><small>{lesson.topic}</small><strong>{lesson.lessonTitle}</strong><em><Clock3 size={13} /> Due {new Date(lesson.nextReviewAt).toLocaleDateString()}</em></span>
+                <span>
+                  <small>{lesson.topic}</small>
+                  <strong>{lesson.lessonTitle}</strong>
+                  <span className="review-adaptation"><b>{reviewKindLabel(lesson.kind)}</b>{lesson.reason}</span>
+                  <em><Clock3 size={13} /> Due {new Date(lesson.dueAt).toLocaleDateString()} · {lesson.estimatedMinutes} min</em>
+                </span>
                 <ArrowRight size={18} />
               </button>
             ))}

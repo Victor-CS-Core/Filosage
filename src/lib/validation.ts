@@ -139,6 +139,7 @@ export const progressUpdateSchema = z.object({
   attempts: z.number().int().min(0).max(100),
   confidence: z.enum(["low", "medium", "high"]),
   review: z.boolean().optional(),
+  reviewKind: z.enum(["spaced", "delayed-7", "delayed-28"]).optional(),
   totalLessons: z.number().int().min(1).max(500).optional(),
   estimatedMinutes: z.number().int().min(1).max(180).optional(),
   nextLessonId: z.string().regex(/^\d+-\d+$/).nullable().optional(),
@@ -149,6 +150,9 @@ export const progressUpdateSchema = z.object({
   }
   if (value.totalQuestions > 0 && value.attempts < value.totalQuestions) {
     context.addIssue({ code: "custom", path: ["attempts"], message: "Attempts cannot be lower than the question count." });
+  }
+  if (value.reviewKind && value.review !== true) {
+    context.addIssue({ code: "custom", path: ["reviewKind"], message: "A review kind can only be recorded during review." });
   }
 });
 
@@ -207,6 +211,17 @@ export const learnerStateSchema = z.object({
     metrics: { studyTime: true, lessons: true, streak: true, accuracy: true, mastered: true },
     mainOrder: ["nextUp", "achievements", "learningTip"],
     sideOrder: ["snapshot", "quickActions"],
+  }),
+  reminderPreferences: z.object({
+    cadence: z.enum(["off", "daily", "weekdays", "weekly"]),
+    preferredTime: z.string().regex(/^(?:[01]\d|2[0-3]):[0-5]\d$/),
+    timezone: z.string().trim().min(1).max(100),
+    inAppEnabled: z.boolean(),
+  }).default({
+    cadence: "off",
+    preferredTime: "09:00",
+    timezone: "UTC",
+    inAppEnabled: true,
   }),
   updatedAt: isoDateTimeSchema.optional(),
 });

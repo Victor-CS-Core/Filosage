@@ -14,6 +14,21 @@ import {
   type DiagnosticItem,
   type MasteryEvidence,
 } from "../src/lib/mastery";
+import {
+  buildAdaptiveReviewQueue,
+  buildDailyMission,
+  buildWeeklyMilestone,
+  confidenceCalibrationFor,
+  scheduleAdaptiveReview,
+  updateDelayedChecks,
+} from "../src/lib/adaptive-learning";
+import { buildLearningReminderCalendar } from "../src/lib/learning-reminders";
+import type { CourseProgress } from "../src/lib/learning-types";
+import {
+  hasCollapsedMarkdownTable,
+  normalizeStructuredMarkdown,
+} from "../src/lib/markdown";
+import { securityHeaders } from "../src/lib/security-headers";
 
 async function sourceFiles(directory: string): Promise<string[]> {
   const entries = await readdir(directory, { withFileTypes: true });
@@ -48,6 +63,18 @@ test("normalizes legacy dashboard settings without losing required defaults", ()
   expect(preferences.metrics.streak).toBe(false);
   expect(preferences.metrics.lessons).toBe(true);
   expect(preferences.mainOrder).toEqual(["achievements", "nextUp", "learningTip"]);
+});
+
+test("only upgrades insecure assets on an HTTPS request", () => {
+  const localHeaders = securityHeaders(false, "local-nonce", false);
+  const secureHeaders = securityHeaders(false, "secure-nonce", true);
+  const localPolicy = localHeaders.find((header) => header.key === "Content-Security-Policy")?.value ?? "";
+  const securePolicy = secureHeaders.find((header) => header.key === "Content-Security-Policy")?.value ?? "";
+
+  expect(localPolicy).not.toContain("upgrade-insecure-requests");
+  expect(localHeaders.some((header) => header.key === "Strict-Transport-Security")).toBe(false);
+  expect(securePolicy).toContain("upgrade-insecure-requests");
+  expect(secureHeaders.some((header) => header.key === "Strict-Transport-Security")).toBe(true);
 });
 
 test("accounts for fixed-cost image generation without token inflation", () => {
@@ -123,6 +150,7 @@ test("keeps the learning library public", async ({ page }) => {
   const scriptDirective = contentSecurityPolicy.split(";").find((directive) => directive.trim().startsWith("script-src "));
   expect(response?.headers()["x-content-type-options"]).toBe("nosniff");
   expect(contentSecurityPolicy).toContain("frame-ancestors 'none'");
+  expect(contentSecurityPolicy).not.toContain("upgrade-insecure-requests");
   expect(scriptDirective).toContain("script-src 'self' 'nonce-");
   expect(scriptDirective).not.toContain("'unsafe-inline'");
   await expect(page.locator(".skip-link")).toHaveAttribute("href", "#main-content");
@@ -492,7 +520,7 @@ test("renders the didactic lesson contract and transfer practice", async ({ page
     keyTakeaways: ["Evidence is observed.", "Inference interprets evidence.", "Good decisions keep the distinction visible."],
     content: "## Begin with the claim\n\nA claim can report an observation or interpret what that observation means.\n\n| Evidence | Inference |\n| --- | --- |\n| Measurement | Interpretation |",
     guidedPractice: {
-      prompt: "Work through a short claim.",
+      prompt: "Classify the transactions below. | Transaction | Amount | | --- | --- | | Paycheck deposit | $4,600 | | Apartment rent | $1,400 | | Groceries | $540 |",
       steps: ["Underline what was observed.", "Name the interpretation added to it."],
       modelAnswer: "The measurement is evidence; the explanation is an inference.",
     },
@@ -509,6 +537,14 @@ test("renders the didactic lesson contract and transfer practice", async ({ page
   await expect(page.getByRole("heading", { name: "Work through the idea" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Use it in a new situation" })).toBeVisible();
   await expect(page.locator(".markdown-content table")).toContainText("Measurement");
+  const practiceTable = page.locator(".guided-practice-prompt table");
+  await expect(practiceTable).toBeVisible();
+  await expect(practiceTable).toContainText("Paycheck deposit");
+  await expect(practiceTable).toContainText("$4,600");
+  await expect(page.getByText("| Transaction | Amount |", { exact: false })).toHaveCount(0);
+  expect(await page.locator(".guided-practice-prompt").evaluate((element) => (
+    element.scrollWidth <= element.clientWidth || element.querySelector("table")!.scrollWidth > element.querySelector("table")!.clientWidth
+  ))).toBe(true);
 
   const response = page.getByLabel("Your response");
   await response.fill("The customer complaint is observed; the product diagnosis is an inference.");
@@ -1267,4 +1303,167 @@ test("collects pathway usefulness only after the course has evidence", async ({ 
   await page.getByRole("button", { name: "Submit feedback" }).click();
   await expect(page.getByText("Feedback recorded")).toBeVisible();
   expect(feedback).toMatchObject({ courseId: "outcome-demo", rating: 5 });
+});
+
+test("repairs collapsed structured Markdown without changing readable prose", () => {
+  const collapsed = "Classify these items. | Item | Amount | | --- | ---: | | Rent | $1,400 | | Food | $540 |";
+  const repaired = normalizeStructuredMarkdown(collapsed);
+
+  expect(hasCollapsedMarkdownTable(collapsed)).toBe(true);
+  expect(repaired).toContain("Classify these items.\n\n| Item | Amount |");
+  expect(repaired).toContain("| Rent | $1,400 |");
+  expect(repaired.split("\n")).toHaveLength(6);
+  expect(normalizeStructuredMarkdown("Explain the result in your own words.")).toBe("Explain the result in your own words.");
+});
+
+test("adapts review timing to performance and confidence calibration", () => {
+  const now = new Date("2026-07-28T12:00:00.000Z");
+  const secure = scheduleAdaptiveReview({
+    score: 1,
+    confidence: "high",
+    previousStage: 1,
+    isReview: true,
+    now,
+  });
+  const overconfident = scheduleAdaptiveReview({
+    score: 0.4,
+    confidence: "high",
+    previousStage: 4,
+    isReview: true,
+    now,
+  });
+
+  expect(secure.performanceBand).toBe("secure");
+  expect(secure.intervalStage).toBe(2);
+  expect(secure.intervalDays).toBe(7);
+  expect(overconfident.calibration).toBe("overconfident");
+  expect(overconfident.intervalStage).toBe(0);
+  expect(overconfident.intervalDays).toBe(1);
+  expect(confidenceCalibrationFor("low", 1)).toBe("underconfident");
+});
+
+test("creates and completes seven-day and twenty-eight-day evidence checks", () => {
+  const completedAt = "2026-07-01T12:00:00.000Z";
+  const initial = updateDelayedChecks(
+    completedAt,
+    undefined,
+    undefined,
+    completedAt,
+  );
+  const afterDay7 = updateDelayedChecks(
+    completedAt,
+    initial,
+    "delayed-7",
+    "2026-07-08T12:00:00.000Z",
+  );
+
+  expect(initial.day7.dueAt).toBe("2026-07-08T12:00:00.000Z");
+  expect(initial.day28.dueAt).toBe("2026-07-29T12:00:00.000Z");
+  expect(afterDay7.day7.completedAt).toBe("2026-07-08T12:00:00.000Z");
+  expect(afterDay7.day28.completedAt).toBeUndefined();
+});
+
+test("prioritizes fragile delayed checks and pairs them with one forward step", () => {
+  const progress: CourseProgress[] = [{
+    courseId: "systems",
+    topic: "Systems thinking",
+    lastLessonId: "0-0",
+    lastLessonTitle: "Feedback loops",
+    nextLessonId: "0-1",
+    nextLessonTitle: "Leverage points",
+    completedLessonIds: ["0-0"],
+    totalLessons: 2,
+    lastActivityAt: "2026-07-20T12:00:00.000Z",
+    startedAt: "2026-07-01T12:00:00.000Z",
+    lessons: {
+      "0-0": {
+        lessonId: "0-0",
+        lessonTitle: "Feedback loops",
+        status: "learned",
+        attempts: 3,
+        totalQuestions: 2,
+        firstAttemptCorrect: 1,
+        score: 0.5,
+        confidence: "high",
+        calibration: "overconfident",
+        performanceBand: "fragile",
+        intervalStage: 0,
+        nextReviewAt: "2026-07-02T12:00:00.000Z",
+        lastStudiedAt: "2026-07-01T12:00:00.000Z",
+        completedAt: "2026-07-01T12:00:00.000Z",
+        delayedChecks: {
+          day7: { dueAt: "2026-07-08T12:00:00.000Z" },
+          day28: { dueAt: "2026-07-29T12:00:00.000Z" },
+        },
+      },
+    },
+  }];
+  const now = new Date("2026-07-28T12:00:00.000Z");
+  const queue = buildAdaptiveReviewQueue(progress, now);
+  const mission = buildDailyMission(progress, now);
+
+  expect(queue[0]).toMatchObject({
+    kind: "delayed-7",
+    performanceBand: "fragile",
+    calibration: "overconfident",
+  });
+  expect(mission.review?.lessonId).toBe("0-0");
+  expect(mission.forward?.lessonId).toBe("0-1");
+  expect(mission.recovered).toBe(true);
+});
+
+test("keeps weekly milestones finite and free of catch-up debt", () => {
+  const progress: CourseProgress[] = [{
+    courseId: "systems",
+    topic: "Systems thinking",
+    lastLessonId: "0-0",
+    lastLessonTitle: "Feedback loops",
+    completedLessonIds: ["0-0"],
+    lessons: {
+      "0-0": {
+        lessonId: "0-0",
+        lessonTitle: "Feedback loops",
+        status: "learned",
+        attempts: 1,
+        totalQuestions: 1,
+        firstAttemptCorrect: 1,
+        confidence: "medium",
+        intervalStage: 0,
+        nextReviewAt: "2026-07-29T12:00:00.000Z",
+        lastStudiedAt: "2026-07-28T12:00:00.000Z",
+      },
+    },
+    lastActivityAt: "2026-07-28T12:00:00.000Z",
+    startedAt: "2026-07-28T12:00:00.000Z",
+  }];
+
+  expect(buildWeeklyMilestone(progress, 5, new Date("2026-07-29T12:00:00.000Z"))).toMatchObject({
+    completed: 1,
+    target: 5,
+    remaining: 4,
+    percent: 20,
+    isComplete: false,
+  });
+});
+
+test("exports an opt-in recurring reminder without an email dependency", () => {
+  const calendar = buildLearningReminderCalendar({
+    title: "Erudoza learning mission",
+    description: "Complete one review and one forward step.",
+    preferences: {
+      cadence: "weekdays",
+      preferredTime: "09:00",
+      timezone: "America/New_York",
+      inAppEnabled: true,
+    },
+    now: new Date("2026-07-28T12:00:00.000Z"),
+  });
+
+  expect(calendar).toContain("RRULE:FREQ=WEEKLY;BYDAY=MO,TU,WE,TH,FR");
+  expect(calendar).toContain("SUMMARY:Erudoza learning mission");
+  expect(buildLearningReminderCalendar({
+    title: "Hidden",
+    description: "Hidden",
+    preferences: { cadence: "off", preferredTime: "09:00", timezone: "UTC", inAppEnabled: false },
+  })).toBeNull();
 });

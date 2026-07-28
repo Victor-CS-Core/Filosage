@@ -6,6 +6,11 @@ import {
   type DashboardPreferences,
 } from "@/lib/dashboard-preferences";
 import { removeCourseReferences } from "@/lib/course-deletion";
+import {
+  DEFAULT_REMINDER_PREFERENCES,
+  normalizeReminderPreferences,
+  type ReminderPreferences,
+} from "@/lib/learning-reminders";
 
 export interface LearnerState {
   courseBookmarks: string[];
@@ -14,6 +19,7 @@ export interface LearnerState {
   noteUpdatedAt: Record<string, string>;
   weeklyLessonGoal: number;
   dashboardPreferences: DashboardPreferences;
+  reminderPreferences: ReminderPreferences;
   updatedAt?: string;
 }
 
@@ -26,6 +32,7 @@ export const EMPTY_LEARNER_STATE: LearnerState = {
   noteUpdatedAt: {},
   weeklyLessonGoal: 5,
   dashboardPreferences: DEFAULT_DASHBOARD_PREFERENCES,
+  reminderPreferences: DEFAULT_REMINDER_PREFERENCES,
 };
 
 export function readLearnerState(): LearnerState {
@@ -39,6 +46,7 @@ export function readLearnerState(): LearnerState {
       noteUpdatedAt: value.noteUpdatedAt && typeof value.noteUpdatedAt === "object" ? value.noteUpdatedAt : {},
       weeklyLessonGoal: Number.isInteger(value.weeklyLessonGoal) ? value.weeklyLessonGoal : 5,
       dashboardPreferences: normalizeDashboardPreferences(value.dashboardPreferences),
+      reminderPreferences: normalizeReminderPreferences(value.reminderPreferences),
       updatedAt: typeof value.updatedAt === "string" ? value.updatedAt : undefined,
     };
   } catch {

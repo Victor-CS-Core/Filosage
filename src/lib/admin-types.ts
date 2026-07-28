@@ -118,6 +118,22 @@ export interface AdminOverview {
     usefulnessResponses: number;
     usefulnessPercent: number;
   };
+  retentionValidation: {
+    day7Eligible: number;
+    day7Returned: number;
+    day7RetentionPercent: number;
+    day28Eligible: number;
+    day28Returned: number;
+    day28RetentionPercent: number;
+    reviewDueActors: number;
+    reviewCompleters: number;
+    reviewCompletionPercent: number;
+    missionViewers: number;
+    missionStarters: number;
+    missionStartPercent: number;
+    delayedCheckCompleters: number;
+    appliedCriterionPercent: number;
+  };
   trafficSeries: Array<{ date: string; views: number }>;
   topRoutes: Array<{ route: string; views: number }>;
   generationSeries: Array<{

@@ -3,7 +3,15 @@ import { securityHeaders } from "@/lib/security-headers";
 
 export function proxy(request: NextRequest) {
   const nonce = btoa(crypto.randomUUID());
-  const responseHeaders = securityHeaders(process.env.NODE_ENV === "development", nonce);
+  const forwardedProtocol = request.headers.get("x-forwarded-proto")?.split(",", 1)[0]?.trim();
+  const isSecureRequest = forwardedProtocol
+    ? forwardedProtocol === "https"
+    : request.nextUrl.protocol === "https:";
+  const responseHeaders = securityHeaders(
+    process.env.NODE_ENV === "development",
+    nonce,
+    isSecureRequest,
+  );
   const requestHeaders = new Headers(request.headers);
 
   requestHeaders.set("x-nonce", nonce);

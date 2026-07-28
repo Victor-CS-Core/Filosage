@@ -8,7 +8,9 @@ import {
   ClipboardCheck,
   FileCheck2,
   LoaderCircle,
+  PauseCircle,
   Pencil,
+  PlayCircle,
   Target,
 } from "lucide-react";
 import type { Course } from "@/lib/course-types";
@@ -80,6 +82,19 @@ export default function OutcomePlanner({
     if (!submittedOutcome || !submittedContext || !submittedArtifact) return;
     setSaving(true);
     const now = new Date().toISOString();
+    const scheduleChanged = Boolean(
+      plan
+      && (plan.weeklyMinutes !== submittedWeeklyMinutes || (plan.targetDate ?? "") !== submittedTargetDate),
+    );
+    const scheduleHistory = [
+      ...(plan?.scheduleHistory ?? []),
+      ...(!plan || scheduleChanged ? [{
+        action: plan ? "rescheduled" as const : "created" as const,
+        changedAt: now,
+        weeklyMinutes: submittedWeeklyMinutes,
+        ...(submittedTargetDate ? { targetDate: submittedTargetDate } : {}),
+      }] : []),
+    ].slice(-50);
     const nextPlan: LearningOutcomePlan = {
       courseId,
       courseTopic: topic,
@@ -93,6 +108,10 @@ export default function OutcomePlanner({
       explanation: explainPlan(diagnostics, submittedWeeklyMinutes),
       createdAt: plan?.createdAt ?? now,
       updatedAt: now,
+      status: plan?.status ?? "active",
+      pausedAt: plan?.pausedAt,
+      resumeAt: plan?.resumeAt,
+      scheduleHistory,
       baselineAssessment: plan?.baselineAssessment,
     };
     await onSave(nextPlan);
@@ -101,6 +120,36 @@ export default function OutcomePlanner({
     trackProductEvent("outcome_defined", { route: "/course", courseId });
     trackProductEvent("diagnostic_completed", { route: "/course", courseId });
     trackProductEvent("plan_created", { route: "/course", courseId });
+    if (scheduleChanged) trackProductEvent("outcome_rescheduled", { route: "/course", courseId });
+  };
+
+  const togglePause = async () => {
+    if (!plan || saving) return;
+    setSaving(true);
+    const changedAt = new Date().toISOString();
+    const pausing = plan.status !== "paused";
+    const nextPlan: LearningOutcomePlan = {
+      ...plan,
+      status: pausing ? "paused" : "active",
+      pausedAt: pausing ? changedAt : undefined,
+      resumeAt: undefined,
+      updatedAt: changedAt,
+      scheduleHistory: [
+        ...(plan.scheduleHistory ?? []),
+        {
+          action: pausing ? "paused" as const : "resumed" as const,
+          changedAt,
+          weeklyMinutes: plan.weeklyMinutes,
+          ...(plan.targetDate ? { targetDate: plan.targetDate } : {}),
+        },
+      ].slice(-50),
+    };
+    await onSave(nextPlan);
+    trackProductEvent(pausing ? "outcome_paused" : "outcome_resumed", {
+      route: "/course",
+      courseId,
+    });
+    setSaving(false);
   };
 
   const assessBaseline = async () => {
@@ -140,22 +189,39 @@ export default function OutcomePlanner({
     return (
       <section className="outcome-plan" aria-labelledby="outcome-plan-title">
         <div className="outcome-plan-summary">
-          <p className="overline">Your outcome</p>
+          <div className="outcome-plan-status">
+            <p className="overline">Your outcome</p>
+            <span className={plan.status === "paused" ? "is-paused" : "is-active"}>
+              {plan.status === "paused" ? "Paused" : "Active"}
+            </span>
+          </div>
           <h2 id="outcome-plan-title">{plan.desiredOutcome}</h2>
-          <p>{plan.explanation}</p>
+          <p>{plan.status === "paused"
+            ? "Your route is paused. Nothing is lost, and overdue work will be reprioritized without a penalty when you resume."
+            : plan.explanation}</p>
           <dl>
             <div><dt>Use it for</dt><dd>{plan.applicationContext}</dd></div>
             <div><dt>Proof you will create</dt><dd>{plan.targetArtifact}</dd></div>
             <div><dt>Weekly pace</dt><dd>{plan.weeklyMinutes} minutes</dd></div>
           </dl>
           <div className="outcome-plan-actions">
-            <button className="button button-primary" type="button" onClick={() => router.push(`/course/${encodeURIComponent(topic)}/lesson/${plan.recommendedLessonId}?id=${courseId}`)}>
-              Start with {nextModule?.title ?? "the first module"} <ArrowRight size={16} />
-            </button>
+            {plan.status !== "paused" && (
+              <button className="button button-primary" type="button" onClick={() => router.push(`/course/${encodeURIComponent(topic)}/lesson/${plan.recommendedLessonId}?id=${courseId}`)}>
+                Start with {nextModule?.title ?? "the first module"} <ArrowRight size={16} />
+              </button>
+            )}
+            {plan.status === "paused" && (
+              <button className="button button-primary" type="button" disabled={saving} onClick={() => void togglePause()}>
+                <PlayCircle size={16} /> Resume plan
+              </button>
+            )}
             <button className="button button-secondary" type="button" onClick={() => router.push(`/evidence/${courseId}`)}>
               <FileCheck2 size={16} /> View evidence
             </button>
             <button className="text-button" type="button" onClick={() => setEditing(true)}><Pencil size={14} /> Edit plan</button>
+            {plan.status !== "paused" && (
+              <button className="text-button" type="button" disabled={saving} onClick={() => void togglePause()}><PauseCircle size={14} /> Pause plan</button>
+            )}
           </div>
           <small className="outcome-sync-status">{syncStatus === "saving" ? "Syncing plan…" : syncStatus === "error" ? "Saved on this device; account sync is pending." : user ? "Plan available across your devices." : "Plan saved on this device."}</small>
         </div>

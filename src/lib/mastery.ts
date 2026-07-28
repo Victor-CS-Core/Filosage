@@ -30,6 +30,15 @@ export interface LearningOutcomePlan {
   explanation: string;
   createdAt: string;
   updatedAt: string;
+  status?: "active" | "paused";
+  pausedAt?: string;
+  resumeAt?: string;
+  scheduleHistory?: Array<{
+    action: "created" | "rescheduled" | "paused" | "resumed";
+    changedAt: string;
+    weeklyMinutes: number;
+    targetDate?: string;
+  }>;
   baselineAssessment?: BaselineAssessment;
 }
 

@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import {
   ArrowLeft,
+  ArrowRight,
   Check,
   CheckCircle2,
   Circle,
@@ -48,6 +49,7 @@ export default function EvidenceReportPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+  const [nextCourse, setNextCourse] = useState<Course | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -60,6 +62,23 @@ export default function EvidenceReportPage() {
         if (!courseResponse.ok) throw new Error(courseData.error || "The course could not be opened.");
         if (cancelled) return;
         setCourse(courseData);
+        try {
+          const libraryResponse = await fetch("/api/courses?scope=public", { cache: "no-store" });
+          if (libraryResponse.ok) {
+            const libraryData = await libraryResponse.json() as { courses?: Course[] };
+            const candidates = (libraryData.courses ?? []).filter((item) => (
+              (item.id ?? item.courseId) !== courseId
+            ));
+            const recommendation = candidates.sort((left, right) => {
+              const leftMatch = left.category && left.category === courseData.category ? 1 : 0;
+              const rightMatch = right.category && right.category === courseData.category ? 1 : 0;
+              return rightMatch - leftMatch;
+            })[0] ?? null;
+            if (!cancelled) setNextCourse(recommendation);
+          }
+        } catch {
+          // The evidence report remains useful if catalog recommendations are unavailable.
+        }
         if (user) {
           const progressResponse = await fetch(`/api/progress?courseId=${encodeURIComponent(courseId)}`, {
             headers: headers as Record<string, string>,
@@ -196,6 +215,28 @@ export default function EvidenceReportPage() {
             courseId={courseId}
             getAuthToken={user ? () => user.getIdToken() : undefined}
           />
+        )}
+        {progress?.capstone?.status === "passed" && (
+          <section className="next-outcome-panel" aria-labelledby="next-outcome-title">
+            <div>
+              <p className="overline">Capability compounding</p>
+              <h2 id="next-outcome-title">Choose the next outcome while this evidence is fresh.</h2>
+              <p>{nextCourse
+                ? `${nextCourse.topic} is the closest published continuation in the current catalog. Start with a new diagnostic so the route reflects what you can already do.`
+                : "Use the catalog to choose a related capability, then define a new observable outcome before lesson one."}</p>
+            </div>
+            <button className="button button-primary" type="button" onClick={() => {
+              trackProductEvent("second_outcome_started", { route: "/evidence", courseId });
+              if (nextCourse) {
+                const nextId = nextCourse.id ?? nextCourse.courseId;
+                router.push(`/course/${encodeURIComponent(nextCourse.topic)}?id=${nextId}`);
+                return;
+              }
+              router.push("/library");
+            }}>
+              {nextCourse ? `Explore ${nextCourse.topic}` : "Choose next outcome"} <ArrowRight size={16} />
+            </button>
+          </section>
         )}
       </div>
     </AppShell>

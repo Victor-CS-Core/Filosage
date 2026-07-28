@@ -344,8 +344,48 @@ export async function GET(request: Request) {
     const uniqueActors = new Set(productEvents.flatMap((record) => (
       typeof record.actorId === "string" ? [record.actorId] : []
     ))).size;
+    const actorTimelines = new Map<string, number[]>();
+    for (const record of productEvents) {
+      if (typeof record.actorId !== "string") continue;
+      const createdAt = Date.parse(dateValue(record.createdAt) ?? "");
+      if (!Number.isFinite(createdAt)) continue;
+      const timeline = actorTimelines.get(record.actorId) ?? [];
+      timeline.push(createdAt);
+      actorTimelines.set(record.actorId, timeline);
+    }
+    const retentionAtDay = (day: number) => {
+      const nowTime = Date.now();
+      const eligible = Array.from(actorTimelines.values()).filter((timeline) => {
+        const first = Math.min(...timeline);
+        return first <= nowTime - day * 86_400_000;
+      });
+      const returned = eligible.filter((timeline) => {
+        const first = Math.min(...timeline);
+        const windowStart = first + (day - 1) * 86_400_000;
+        const windowEnd = first + (day + 1) * 86_400_000;
+        return timeline.some((timestamp) => timestamp >= windowStart && timestamp < windowEnd);
+      }).length;
+      return {
+        eligible: eligible.length,
+        returned,
+        percent: eligible.length ? Math.round((returned / eligible.length) * 1_000) / 10 : 0,
+      };
+    };
+    const day7Retention = retentionAtDay(7);
+    const day28Retention = retentionAtDay(28);
     const diagnosticActors = eventActors("diagnostic_completed");
     const practiceActors = eventActors("first_practice_completed");
+    const reviewDueActors = eventActors("review_due");
+    const reviewCompletedActors = eventActors("review_completed");
+    const reviewCompleters = new Set(
+      Array.from(reviewCompletedActors).filter((actorId) => reviewDueActors.has(actorId)),
+    );
+    const missionViewers = eventActors("daily_mission_viewed");
+    const missionStartedActors = eventActors("daily_mission_started");
+    const missionStarters = new Set(
+      Array.from(missionStartedActors).filter((actorId) => missionViewers.has(actorId)),
+    );
+    const criterionActors = eventActors("criterion_demonstrated");
     const diagnosticToPracticeActors = new Set(
       Array.from(practiceActors).filter((actorId) => diagnosticActors.has(actorId)),
     );
@@ -450,6 +490,28 @@ export async function GET(request: Request) {
         usefulnessResponses: outcomeFeedback.length,
         usefulnessPercent: outcomeFeedback.length
           ? Math.round((outcomeFeedback.filter((feedback) => feedback.useful === true).length / outcomeFeedback.length) * 1_000) / 10
+          : 0,
+      },
+      retentionValidation: {
+        day7Eligible: day7Retention.eligible,
+        day7Returned: day7Retention.returned,
+        day7RetentionPercent: day7Retention.percent,
+        day28Eligible: day28Retention.eligible,
+        day28Returned: day28Retention.returned,
+        day28RetentionPercent: day28Retention.percent,
+        reviewDueActors: reviewDueActors.size,
+        reviewCompleters: reviewCompleters.size,
+        reviewCompletionPercent: reviewDueActors.size
+          ? Math.round((reviewCompleters.size / reviewDueActors.size) * 1_000) / 10
+          : 0,
+        missionViewers: missionViewers.size,
+        missionStarters: missionStarters.size,
+        missionStartPercent: missionViewers.size
+          ? Math.round((missionStarters.size / missionViewers.size) * 1_000) / 10
+          : 0,
+        delayedCheckCompleters: eventActors("delayed_check_completed").size,
+        appliedCriterionPercent: practiceActors.size
+          ? Math.round((criterionActors.size / practiceActors.size) * 1_000) / 10
           : 0,
       },
       trafficSeries: dates.map((date) => ({ date, views: trafficByDate.get(date) ?? 0 })),

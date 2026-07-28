@@ -25,14 +25,15 @@ import { openAiSafetyIdentifier } from "@/lib/ai-usage";
 import { toLessonDto } from "@/lib/course-dto";
 import { curateLessonVisuals } from "@/lib/lesson-visuals";
 import { lessonVisualsEnabled } from "@/lib/feature-flags";
+import { hasCollapsedMarkdownTable } from "@/lib/markdown";
 
 const model = process.env.OPENAI_LESSON_MODEL || "gpt-5.6-luna";
 const fallbackModel = process.env.OPENAI_LESSON_FALLBACK_MODEL
   || process.env.OPENAI_COURSE_MODEL
   || process.env.OPENAI_MODEL
   || "gpt-5.6-terra";
-const LESSON_PROMPT_VERSION = "2026-07-28";
-const LESSON_QUALITY_GATE_VERSION = "didactic-v1";
+const LESSON_PROMPT_VERSION = "2026-07-28-structured-practice";
+const LESSON_QUALITY_GATE_VERSION = "didactic-v2";
 const lessonVisualsAreEnabled = lessonVisualsEnabled();
 
 const lessonInstructions = `Act as a rigorous teacher and instructional designer. Create one lesson that advances a specific capability within a larger course.
@@ -40,6 +41,8 @@ const lessonInstructions = `Act as a rigorous teacher and instructional designer
 Use the requested lesson mode instead of forcing every lesson into the same pattern. Begin by connecting this lesson to prerequisite knowledge, then state one observable learning objective. Explain the core idea from first principles with one concrete example. Use the supplied misconception to create a useful contrast. Include guided practice with visible reasoning, followed by a transfer task that asks the learner to use the idea in a different situation. End with concise takeaways, not a repeated conclusion.
 
 Write direct, natural prose in accessible Markdown. Use descriptive H2 and H3 headings only and never repeat the lesson title as a heading. Target roughly 900 to 1,300 words. Avoid generic encouragement, promotional language, vague claims, invented citations, repeated conclusions, and filler. Never use em dashes; prefer commas, colons, or separate sentences.
+
+The guided-practice prompt, each guided step, the worked response, the transfer prompt, and the model response support GitHub-flavored Markdown. Use real lists or tables when structure improves scanning. Every table must place its header, separator, and each data row on separate lines. Never compress Markdown table rows into one line or place table syntax directly after prose.
 
 Do not create diagrams, graphs, Mermaid syntax, raw SVG, HTML, or visual-model sections in Markdown. Communicate every relationship clearly in prose and examples.
 
@@ -59,6 +62,16 @@ function lessonQualityIssues(lesson: LessonData | null) {
   if (!lesson.connection?.trim()) issues.push("The curricular connection is missing.");
   if ((lesson.keyTakeaways?.length ?? 0) < 3) issues.push("At least three concrete takeaways are required.");
   if ((lesson.guidedPractice?.steps.length ?? 0) < 2) issues.push("Guided practice needs at least two reasoning steps.");
+  const structuredPractice = [
+    lesson.guidedPractice?.prompt,
+    ...(lesson.guidedPractice?.steps ?? []),
+    lesson.guidedPractice?.modelAnswer,
+    lesson.transferTask?.prompt,
+    lesson.transferTask?.modelResponse,
+  ].filter((item): item is string => Boolean(item));
+  if (structuredPractice.some(hasCollapsedMarkdownTable)) {
+    issues.push("Markdown tables in practice fields need a line break before the table and between every row.");
+  }
   if ((lesson.transferTask?.successCriteria.length ?? 0) < 2) issues.push("The transfer task needs measurable success criteria.");
   if (/```(?:mermaid|dot|graphviz)\b|^\s*(?:flowchart|graph)\s+(?:TB|TD|BT|RL|LR)\b/im.test(lesson.content)) {
     issues.push("Remove all diagram and graph syntax; teach the relationships in prose.");

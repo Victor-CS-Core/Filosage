@@ -607,6 +607,8 @@ If the gate fails:
 
 Target: Weeks 9–14
 
+Engineering status on 2026-07-28: release candidate complete. The adaptive loop, delayed checks, reminder preferences, pause/reschedule controls, quality regressions, and retention measurement are implemented. The catalog-review work and all live Day 7, Day 28, qualitative, and commercial evidence gates remain open; implementation is not evidence that the gate passed.
+
 Deliver:
 
 - Daily mission and weekly milestone.

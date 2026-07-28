@@ -16,7 +16,7 @@ Erudoza turns a real professional outcome into a focused learning path grounded 
 
 ## Current Product Contract
 
-The production experience is outcome-first: learners create a goal and diagnostic route, practice in public courses, and receive an evidence report that separates self-report from observed and assessed proof. Every lesson exposes its content-version and source-pack status and can be reported for owner review. Billing remains a separately controlled capability and is not implied by product readiness.
+The production experience is outcome-first: learners create a goal and diagnostic route, practice in public courses, return through a finite adaptive daily and weekly loop, and receive an evidence report that separates self-report from observed and assessed proof. Guided and transfer practice preserve semantic structure such as tables, lists, and headings across generated and legacy lessons. Every lesson exposes its content-version and source-pack status and can be reported for owner review. Billing remains a separately controlled capability and is not implied by product readiness.
 
 ## Brand Personality
 

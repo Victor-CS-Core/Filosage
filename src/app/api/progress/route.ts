@@ -11,6 +11,7 @@ import type { CapstoneAssessment, CourseProgress, LessonProgress } from "@/lib/l
 import type { Course } from "@/lib/course-types";
 import { findCourseLesson, findNextLesson } from "@/lib/course-progress";
 import { apiRequestErrorResponse, readJsonBody } from "@/lib/api-security";
+import { scheduleAdaptiveReview, updateDelayedChecks } from "@/lib/adaptive-learning";
 
 function numberValue(value: unknown) {
   return typeof value === "number" && Number.isFinite(value) ? value : 0;
@@ -133,40 +134,69 @@ export async function POST(request: Request) {
 
     const path = `users/${account.uid}/courseProgress/${update.courseId}`;
     const now = new Date();
+    const observedAt = now.toISOString();
     const engagementPath = `userEngagement/${account.uid}`;
     const engagementShard = stableShard(account.uid, 16);
     const dailyEngagementPath = `engagementDaily/${now.toISOString().slice(0, 10)}__${engagementShard}`;
-    const intervals = [1, 3, 7, 14, 30, 60];
     const firstTryRate = update.totalQuestions ? update.firstAttemptCorrect / update.totalQuestions : 1;
-    let nextReviewAt = now.toISOString();
+    let adaptiveResult = scheduleAdaptiveReview({
+      score: firstTryRate,
+      confidence: update.confidence,
+      isReview: update.review === true,
+      now,
+    });
     const saved = await runStoredDocumentTransaction(
       [path, engagementPath, dailyEngagementPath],
       (documents) => {
       const previous = documents[path] ? asCourseProgress(documents[path] as Record<string, unknown>) : null;
       const previousLesson = previous?.lessons[update.lessonId];
-      const successfulReview = update.review === true && firstTryRate >= 0.8;
-      const intervalStage = successfulReview
-        ? Math.min((previousLesson?.intervalStage ?? 0) + 1, intervals.length - 1)
-        : 0;
-      const intervalDays = update.confidence === "low"
-        ? Math.max(1, Math.floor(intervals[intervalStage] / 2))
-        : intervals[intervalStage];
-      nextReviewAt = new Date(now.getTime() + intervalDays * 86_400_000).toISOString();
+      adaptiveResult = scheduleAdaptiveReview({
+        score: firstTryRate,
+        confidence: update.confidence,
+        previousStage: previousLesson?.intervalStage,
+        isReview: update.review === true,
+        now,
+      });
       const completedLessonIds = Array.from(new Set([...(previous?.completedLessonIds ?? []), update.lessonId]));
       const firstCompletion = !previousLesson?.completedAt;
       const next = findNextLesson(course, completedLessonIds);
+      const completedAt = previousLesson?.completedAt ?? observedAt;
+      const reviewKind = update.review ? update.reviewKind ?? "spaced" : undefined;
+      const delayedChecks = updateDelayedChecks(
+        completedAt,
+        previousLesson?.delayedChecks,
+        reviewKind,
+        observedAt,
+      );
+      const reviewHistory = update.review ? [
+        ...(previousLesson?.reviewHistory ?? []),
+        {
+          kind: reviewKind ?? "spaced",
+          observedAt,
+          score: adaptiveResult.score,
+          confidence: update.confidence,
+          calibration: adaptiveResult.calibration,
+          performanceBand: adaptiveResult.performanceBand,
+          intervalStage: adaptiveResult.intervalStage,
+        },
+      ].slice(-50) : previousLesson?.reviewHistory;
       const lessonProgress: LessonProgress = {
         lessonId: update.lessonId,
         lessonTitle: canonical.lesson.title,
-        status: successfulReview ? "mastered" : "learned",
+        status: update.review && adaptiveResult.performanceBand === "secure" ? "mastered" : "learned",
         attempts: update.attempts,
         totalQuestions: update.totalQuestions,
         firstAttemptCorrect: update.firstAttemptCorrect,
+        score: adaptiveResult.score,
         confidence: update.confidence,
-        intervalStage,
-        nextReviewAt,
-        lastStudiedAt: now.toISOString(),
-        completedAt: previousLesson?.completedAt ?? now.toISOString(),
+        calibration: adaptiveResult.calibration,
+        performanceBand: adaptiveResult.performanceBand,
+        intervalStage: adaptiveResult.intervalStage,
+        nextReviewAt: adaptiveResult.nextReviewAt,
+        lastStudiedAt: observedAt,
+        completedAt,
+        delayedChecks,
+        reviewHistory,
         estimatedMinutes: canonical.lesson.estimatedMinutes ?? update.estimatedMinutes ?? previousLesson?.estimatedMinutes,
         misconception: canonical.lesson.misconception ?? previousLesson?.misconception,
       };
@@ -181,8 +211,8 @@ export async function POST(request: Request) {
         totalLessons: course.modules.reduce((sum, courseModule) => sum + courseModule.lessons.length, 0),
         lessons: { ...(previous?.lessons ?? {}), [update.lessonId]: lessonProgress },
         capstone: previous?.capstone,
-        lastActivityAt: now.toISOString(),
-        startedAt: previous?.startedAt ?? now.toISOString(),
+        lastActivityAt: observedAt,
+        startedAt: previous?.startedAt ?? observedAt,
         studyMinutes: (previous?.studyMinutes ?? 0) + (firstCompletion ? (canonical.lesson.estimatedMinutes ?? update.estimatedMinutes ?? 0) : 0),
       };
       const studyMinutesAdded = firstCompletion
@@ -203,6 +233,9 @@ export async function POST(request: Request) {
               studyMinutes: numberValue(engagement?.studyMinutes) + studyMinutesAdded,
               retrievalSessions: numberValue(engagement?.retrievalSessions) + 1,
               reviewSessions: numberValue(engagement?.reviewSessions) + (update.review ? 1 : 0),
+              delayedCheckSessions: numberValue(engagement?.delayedCheckSessions) + (update.reviewKind?.startsWith("delayed-") ? 1 : 0),
+              calibratedSessions: numberValue(engagement?.calibratedSessions) + (adaptiveResult.calibration === "calibrated" ? 1 : 0),
+              overconfidenceSignals: numberValue(engagement?.overconfidenceSignals) + (adaptiveResult.calibration === "overconfident" ? 1 : 0),
               questionsAnswered: numberValue(engagement?.questionsAnswered) + update.totalQuestions,
               correctAnswers: numberValue(engagement?.correctAnswers) + update.firstAttemptCorrect,
               lastActivityAt: now.toISOString(),
@@ -222,6 +255,7 @@ export async function POST(request: Request) {
               studyMinutes: numberValue(daily?.studyMinutes) + studyMinutesAdded,
               retrievalSessions: numberValue(daily?.retrievalSessions) + 1,
               reviewSessions: numberValue(daily?.reviewSessions) + (update.review ? 1 : 0),
+              delayedCheckSessions: numberValue(daily?.delayedCheckSessions) + (update.reviewKind?.startsWith("delayed-") ? 1 : 0),
               questionsAnswered: numberValue(daily?.questionsAnswered) + update.totalQuestions,
               correctAnswers: numberValue(daily?.correctAnswers) + update.firstAttemptCorrect,
               updatedAt: now.toISOString(),
@@ -233,7 +267,13 @@ export async function POST(request: Request) {
     });
 
     return Response.json(
-      { progress: saved, nextReviewAt },
+      {
+        progress: saved,
+        nextReviewAt: adaptiveResult.nextReviewAt,
+        calibration: adaptiveResult.calibration,
+        performanceBand: adaptiveResult.performanceBand,
+        intervalDays: adaptiveResult.intervalDays,
+      },
       { headers: { "Cache-Control": "private, no-store" } },
     );
   } catch (error) {

@@ -600,12 +600,26 @@ button:disabled { cursor: not-allowed; opacity: 0.55; }
 .lesson-visual strong, .lesson-visual p, .lesson-visual small, .lesson-visual th, .lesson-visual td { overflow-wrap: anywhere; }
 .lesson-section { margin-top: 54px; padding-top: 46px; border-top: 1px solid var(--line); }
 .lesson-section-heading h2 { font-size: 1.8rem; margin-top: 6px; }
-.lesson-section-heading > p:last-child { color: var(--ink-secondary); font-size: 0.86rem; margin-top: 8px; }
+.lesson-section-heading > p:last-child,
+.lesson-section-heading > .structured-markdown { color: var(--ink-secondary); font-size: 0.86rem; margin-top: 8px; }
 .guided-practice > ol { margin-top: 26px; padding: 0; list-style: none; }
 .guided-practice > ol li { display: grid; grid-template-columns: 34px minmax(0, 1fr); gap: 14px; padding: 17px 0; border-top: 1px solid var(--line); }
 .guided-practice > ol li:last-child { border-bottom: 1px solid var(--line); }
 .guided-practice > ol li > span { width: 30px; height: 30px; display: grid; place-items: center; border-radius: 50%; background: var(--accent-soft); color: var(--accent-ink); font-size: 0.7rem; font-weight: 800; }
-.guided-practice > ol p { max-width: 68ch; color: var(--ink-secondary); font-size: 0.86rem; line-height: 1.65; }
+.guided-practice > ol .guided-practice-step { max-width: 68ch; color: var(--ink-secondary); font-size: 0.86rem; line-height: 1.65; }
+.structured-markdown { min-width: 0; line-height: 1.65; overflow-wrap: anywhere; }
+.structured-markdown > :first-child { margin-top: 0; }
+.structured-markdown > :last-child { margin-bottom: 0; }
+.structured-markdown p,
+.structured-markdown ul,
+.structured-markdown ol,
+.structured-markdown blockquote { margin: 0.7em 0; }
+.structured-markdown ul,
+.structured-markdown ol { padding-left: 1.25em; }
+.structured-markdown table { display: block; width: 100%; max-width: 100%; margin: 1em 0; overflow-x: auto; border-collapse: collapse; color: var(--ink); font-size: 0.78rem; line-height: 1.45; }
+.structured-markdown th,
+.structured-markdown td { min-width: 130px; padding: 10px 12px; border: 1px solid var(--line); text-align: left; vertical-align: top; }
+.structured-markdown th { background: var(--surface-subtle); font-weight: 750; }
 .model-answer { margin-top: 18px; border: 1px solid color-mix(in oklch, var(--brand-blue) 30%, var(--line)); background: var(--surface-subtle); padding: 15px 17px; }
 .model-answer summary { color: var(--accent-ink); font-size: 0.78rem; font-weight: 750; cursor: pointer; }
 .model-answer > div, .model-answer > p { margin-top: 12px; color: var(--ink-secondary); font-size: 0.82rem; line-height: 1.65; }
@@ -2366,4 +2380,89 @@ button:disabled { cursor: not-allowed; opacity: 0.55; }
   .outcome-usefulness { padding: 20px 16px; }
   .outcome-usefulness fieldset > div { grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 4px; }
   .outcome-usefulness fieldset label { min-height: 54px; }
+}
+
+/* Adaptive learning and retention */
+.daily-mission {
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  box-shadow: inset 0 3px 0 var(--brand-teal);
+  padding: 24px;
+}
+.daily-mission-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 24px; }
+.daily-mission-heading h2 { margin-top: 4px; font-size: 1.2rem; }
+.daily-mission-heading p:last-child { max-width: 56ch; margin-top: 6px; color: var(--ink-secondary); font-size: 0.76rem; line-height: 1.55; }
+.daily-mission-heading > span { display: inline-flex; align-items: center; gap: 6px; color: var(--ink-secondary); font-size: 0.7rem; font-weight: 700; white-space: nowrap; }
+.daily-mission-steps { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0; margin: 20px 0 0; padding: 0; list-style: none; border-block: 1px solid var(--line); }
+.daily-mission-steps li { min-width: 0; display: grid; grid-template-columns: 30px minmax(0, 1fr); gap: 11px; padding: 17px 16px 17px 0; }
+.daily-mission-steps li + li { border-left: 1px solid var(--line); padding-left: 16px; }
+.daily-mission-steps li > span { width: 28px; height: 28px; display: grid; place-items: center; border-radius: 999px; background: var(--accent-soft); color: var(--accent-ink); font-size: 0.68rem; font-weight: 800; }
+.daily-mission-steps div { min-width: 0; display: flex; flex-direction: column; }
+.daily-mission-steps small { color: var(--accent-ink); font-size: 0.62rem; font-weight: 750; }
+.daily-mission-steps strong { margin-top: 4px; overflow: hidden; font-size: 0.78rem; text-overflow: ellipsis; white-space: nowrap; }
+.daily-mission-steps em { margin-top: 4px; color: var(--ink-muted); font-size: 0.65rem; font-style: normal; line-height: 1.45; }
+.daily-mission-footer { display: flex; align-items: flex-end; justify-content: space-between; gap: 20px; margin-top: 18px; }
+.daily-mission-footer > div { width: min(290px, 100%); display: flex; flex-direction: column; gap: 7px; }
+.daily-mission-footer > div > strong { color: var(--ink-secondary); font-size: 0.66rem; }
+.daily-mission-footer > div > span { height: 5px; overflow: hidden; border-radius: 999px; background: var(--surface-subtle); }
+.daily-mission-footer > div i { display: block; height: 100%; border-radius: inherit; background: var(--brand-teal); }
+
+.review-adaptation { display: flex; align-items: center; flex-wrap: wrap; gap: 7px; margin-top: 7px; color: var(--ink-secondary); font-size: 0.68rem; }
+.review-adaptation b { border: 1px solid color-mix(in oklch, var(--brand-teal) 30%, var(--line)); border-radius: 999px; background: var(--accent-soft); color: var(--accent-ink); padding: 3px 7px; font-size: 0.6rem; }
+.calibration-note { display: block; margin-top: 8px; color: var(--ink-secondary); font-size: 0.68rem; font-style: normal; line-height: 1.5; }
+.calibration-note.is-overconfident { color: var(--warning); }
+.calibration-note.is-underconfident { color: var(--accent-ink); }
+
+.learning-schedule-panel { grid-column: 1 / -1; border: 1px solid var(--line); border-radius: var(--radius-md); background: var(--surface); padding: 22px; }
+.learning-schedule-panel > p { max-width: 70ch; margin-top: 12px; color: var(--ink-secondary); font-size: 0.74rem; line-height: 1.55; }
+.schedule-saved { display: inline-flex; align-items: center; gap: 5px; color: var(--success); font-size: 0.68rem; font-weight: 700; }
+.learning-schedule-fields { display: grid; grid-template-columns: minmax(200px, 1fr) minmax(160px, 0.6fr); gap: 12px; margin-top: 18px; }
+.learning-schedule-fields label { display: flex; flex-direction: column; gap: 6px; color: var(--ink-secondary); font-size: 0.68rem; font-weight: 700; }
+.learning-schedule-fields select,
+.learning-schedule-fields input,
+.goal-adjust select { min-height: 40px; border: 1px solid var(--line-strong); border-radius: var(--radius-sm); background: var(--surface); color: var(--ink); padding: 0 10px; font: inherit; font-size: 0.75rem; }
+.schedule-toggle { display: flex; align-items: flex-start; gap: 9px; margin-top: 16px; cursor: pointer; }
+.schedule-toggle input { margin-top: 2px; accent-color: var(--accent-ink); }
+.schedule-toggle span { display: flex; flex-direction: column; }
+.schedule-toggle strong { font-size: 0.72rem; }
+.schedule-toggle small { margin-top: 3px; color: var(--ink-muted); font-size: 0.64rem; line-height: 1.45; }
+.learning-schedule-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 9px; margin-top: 17px; }
+.schedule-delivery-note { display: block; max-width: 80ch; margin-top: 12px; color: var(--ink-muted); font-size: 0.62rem; line-height: 1.5; }
+.goal-adjust { display: inline-flex; align-items: center; gap: 7px; color: var(--ink-muted); font-size: 0.65rem; }
+.goal-adjust select { min-height: 30px; padding-inline: 7px; }
+
+.outcome-plan-status { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.outcome-plan-status > span { border: 1px solid var(--line); border-radius: 999px; padding: 4px 8px; color: var(--ink-muted); font-size: 0.62rem; font-weight: 750; }
+.outcome-plan-status > span.is-active { border-color: color-mix(in oklch, var(--success) 35%, var(--line)); background: var(--success-soft); color: var(--success); }
+.outcome-plan-status > span.is-paused { background: var(--warning-soft); color: var(--warning); }
+
+.capstone-history { margin-top: 14px; border-top: 1px solid var(--line); padding-top: 12px; }
+.capstone-history summary { color: var(--accent-ink); font-size: 0.68rem; font-weight: 750; cursor: pointer; }
+.capstone-history ol { margin-top: 8px; }
+.capstone-history ol li { display: grid !important; grid-template-columns: auto auto minmax(0, 1fr); gap: 10px !important; align-items: baseline; }
+.capstone-history ol li > span,
+.capstone-history ol li > strong { font-size: 0.64rem; }
+.capstone-history ol li > small { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.next-outcome-panel { display: flex; align-items: center; justify-content: space-between; gap: 28px; margin-top: 36px; border-top: 3px solid var(--brand-blue); background: var(--surface-subtle); padding: 24px; }
+.next-outcome-panel h2 { margin-top: 5px; font-size: 1.05rem; }
+.next-outcome-panel p:last-child { max-width: 70ch; margin-top: 8px; color: var(--ink-secondary); font-size: 0.72rem; line-height: 1.55; }
+.next-outcome-panel > .button { flex: 0 0 auto; }
+
+@media (max-width: 700px) {
+  .daily-mission { padding: 20px 16px; }
+  .daily-mission-heading,
+  .daily-mission-footer,
+  .next-outcome-panel { align-items: stretch; flex-direction: column; }
+  .daily-mission-steps { grid-template-columns: 1fr; }
+  .daily-mission-steps li { padding-inline: 0; }
+  .daily-mission-steps li + li { border-top: 1px solid var(--line); border-left: 0; }
+  .daily-mission-footer > div { width: 100%; }
+  .daily-mission-footer > .button,
+  .next-outcome-panel > .button { width: 100%; justify-content: center; }
+  .learning-schedule-fields { grid-template-columns: 1fr; }
+  .learning-schedule-actions .button { width: 100%; justify-content: center; }
+  .capstone-history ol li { grid-template-columns: auto 1fr; }
+  .capstone-history ol li > small { grid-column: 1 / -1; white-space: normal; }
 }

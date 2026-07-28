@@ -5,7 +5,10 @@ const nextConfig: NextConfig = {
   async headers() {
     return [{
       source: "/:path*",
-      headers: securityHeaders(process.env.NODE_ENV === "development"),
+      // Request-aware HTTPS enforcement is added by proxy.ts. Keeping the
+      // static fallback protocol-neutral prevents local production runs from
+      // rewriting their own HTTP assets to an unavailable HTTPS origin.
+      headers: securityHeaders(process.env.NODE_ENV === "development", undefined, false),
     }];
   },
 };
