@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { aiClient } from "@/lib/local-ai";
 import { zodTextFormat } from "openai/helpers/zod";
 import { authorizationResponse, requirePremium } from "@/lib/auth-server";
-import { createCourse, getCourse } from "@/lib/firebase-server";
+import { createCourse, getCourse, updateCourseBanner } from "@/lib/firebase-server";
 import {
   AiQuotaError,
   aiQuotaResponse,
@@ -20,6 +20,8 @@ import {
 import { AI_SAFETY_POLICY, assertSafeContent, ContentSafetyError } from "@/lib/content-safety";
 import { apiRequestErrorResponse, readJsonBody } from "@/lib/api-security";
 import { openAiSafetyIdentifier } from "@/lib/ai-usage";
+import { createOrReuseCourseBanner } from "@/lib/course-banners";
+import type { AiUsageSample } from "@/lib/ai-pricing";
 
 const model = process.env.OPENAI_COURSE_MODEL || process.env.OPENAI_MODEL || "gpt-5.6-terra";
 
@@ -46,6 +48,7 @@ export async function POST(request: Request) {
         ? "Organize the sequence around a concrete applied result while preserving prerequisite order."
         : "Balance clear explanations, worked examples, retrieval, and application throughout the course.";
     const client = aiClient();
+    const safetyIdentifier = await openAiSafetyIdentifier(account.uid);
     reservation = await reserveAiUsage(account, "course_outline", request.headers.get("idempotency-key"));
     await assertSafeContent(
       client,
@@ -72,7 +75,7 @@ export async function POST(request: Request) {
         format: zodTextFormat(courseOutlineSchema, "course_outline"),
       },
       max_output_tokens: 7_000,
-      safety_identifier: await openAiSafetyIdentifier(account.uid),
+      safety_identifier: safetyIdentifier,
     });
     responseId = response.id;
     observedUsage = extractOpenAiUsage(response);
@@ -109,10 +112,47 @@ export async function POST(request: Request) {
       aiAssisted: true,
     });
 
-    await finalizeAiUsage(reservation, { ...observedUsage, model, responseId, resultId: course.id });
+    const bannerResult = await createOrReuseCourseBanner(client, {
+      topic,
+      category: outline.category,
+      outcome: outline.outcome,
+      mission: outline.mission,
+      safetyIdentifier,
+    });
+    if (bannerResult) {
+      await updateCourseBanner(course.id, {
+        ...bannerResult.banner,
+        generatedAt: bannerResult.banner.generatedAt ?? new Date().toISOString(),
+      });
+    }
+
+    const usageSamples: AiUsageSample[] = [{
+      model,
+      ...observedUsage,
+      cacheWriteTokens: 0,
+      responseId,
+    }];
+    if (bannerResult?.generated) {
+      usageSamples.push({
+        model: bannerResult.model,
+        inputTokens: 0,
+        cachedInputTokens: 0,
+        cacheWriteTokens: 0,
+        outputTokens: 0,
+        fixedCostMicros: bannerResult.costMicros,
+        responseId: undefined,
+      });
+    }
+    await finalizeAiUsage(reservation, { usageSamples, resultId: course.id });
     reservation = null;
 
-    return NextResponse.json({ ...outline, courseId: course.id, isPublic: false, aiAssisted: true });
+    return NextResponse.json({
+      ...outline,
+      courseId: course.id,
+      isPublic: false,
+      aiAssisted: true,
+      banner: bannerResult?.banner,
+    });
   } catch (error: unknown) {
     if (reservation) {
       await finalizeAiUsage(reservation, { ...observedUsage, model, responseId, failed: true }).catch((usageError) => {

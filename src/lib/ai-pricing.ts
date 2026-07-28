@@ -4,6 +4,7 @@ export interface AiUsageSample {
   cachedInputTokens: number;
   cacheWriteTokens: number;
   outputTokens: number;
+  fixedCostMicros?: number;
   responseId?: string;
 }
 
@@ -35,6 +36,9 @@ export function ratesForModel(model: string): ModelRates {
 }
 
 export function estimateAiUsageCostMicros(sample: AiUsageSample) {
+  if (typeof sample.fixedCostMicros === "number" && Number.isFinite(sample.fixedCostMicros)) {
+    return Math.max(0, Math.round(sample.fixedCostMicros));
+  }
   const rates = ratesForModel(sample.model);
   const inputTokens = Math.max(0, sample.inputTokens);
   const cachedInputTokens = Math.min(inputTokens, Math.max(0, sample.cachedInputTokens));

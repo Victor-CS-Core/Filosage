@@ -10,7 +10,6 @@ import {
   CheckCircle2,
   Check,
   ChevronDown,
-  ChevronRight,
   Clock3,
   Circle,
   Flag,
@@ -23,6 +22,7 @@ import {
   Trash2,
 } from "lucide-react";
 import AppShell from "@/components/AppShell";
+import CourseBanner from "@/components/CourseBanner";
 import SpeakButton from "@/components/SpeakButton";
 import { useAuth } from "@/components/AuthProvider";
 import type { Course } from "@/lib/course-types";
@@ -287,6 +287,8 @@ export default function CourseMap() {
             </div>
           </div>
 
+          <CourseBanner course={course} variant="hero" eager />
+
           <div className="course-hero-grid">
             <div className="course-title-row">
               <p className="overline">{course.category ?? "Course"}</p>
@@ -374,7 +376,7 @@ export default function CourseMap() {
                     <span className="module-sequence"><b>{String(moduleIndex + 1).padStart(2, "0")}</b><small>Module</small></span>
                     <span className="module-title"><h3>{module.title}</h3><small>{module.objective ?? module.description}</small></span>
                     <span className="module-completion"><strong>{completedInModule}/{module.lessons.length}</strong><i><b style={{ transform: `scaleX(${moduleProgress / 100})` }} /></i></span>
-                    {expanded ? <ChevronDown size={19} /> : <ChevronRight size={19} />}
+                    <ChevronDown size={19} />
                   </button>
 
                   {expanded && (

@@ -37,8 +37,9 @@ export default function CreateCoursePage() {
     const startedAt = Date.now();
     const timer = window.setInterval(() => {
       const elapsed = Date.now() - startedAt;
-      setGenerationProgress((current) => current >= 100 ? current : Math.min(92, 8 + Math.round(elapsed / 420)));
-      if (elapsed > 18_000) setGenerationStage("Finalizing your course map");
+      setGenerationProgress((current) => current >= 100 ? current : Math.min(95, 8 + Math.round(elapsed / 420)));
+      if (elapsed > 28_000) setGenerationStage("Finalizing your course map");
+      else if (elapsed > 18_000) setGenerationStage("Curating the course banner");
       else if (elapsed > 10_000) setGenerationStage("Balancing practice and workload");
       else if (elapsed > 4_000) setGenerationStage("Shaping the lesson sequence");
       else if (elapsed > 1_500) setGenerationStage("Mapping prerequisites");

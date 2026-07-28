@@ -41,6 +41,17 @@ test("normalizes legacy dashboard settings without losing required defaults", ()
   expect(preferences.mainOrder).toEqual(["achievements", "nextUp", "learningTip"]);
 });
 
+test("accounts for fixed-cost image generation without token inflation", () => {
+  expect(estimateAiUsageCostMicros({
+    model: "gpt-image-1-mini",
+    inputTokens: 0,
+    cachedInputTokens: 0,
+    cacheWriteTokens: 0,
+    outputTokens: 0,
+    fixedCostMicros: 6_000,
+  })).toBe(6_000);
+});
+
 test("earns badges from real learning progress", () => {
   const badges = evaluateBadges({
     progress: [{
@@ -563,6 +574,11 @@ test("renders process, comparison, and prerequisite visuals accessibly", async (
 });
 
 test("presents public courses as a browsable learning library", async ({ page }) => {
+  await page.setViewportSize({ width: 360, height: 800 });
+  await page.route("**/api/course-banners/**", (route) => route.fulfill({
+    contentType: "image/svg+xml",
+    body: "<svg xmlns='http://www.w3.org/2000/svg' width='1536' height='1024'><rect width='100%' height='100%' fill='#0D1B3D'/></svg>",
+  }));
   await page.route("**/api/courses?scope=public", (route) => route.fulfill({ json: { courses: [{
     id: "public-systems",
     courseId: "public-systems",
@@ -571,6 +587,7 @@ test("presents public courses as a browsable learning library", async ({ page })
     level: "beginner",
     isPublic: true,
     aiAssisted: true,
+    banner: { assetId: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", version: 1 },
     modules: [{ title: "Foundations", description: "Build the model", lessons: [
       { title: "Feedback loops", concept: "How outputs shape future inputs", estimatedMinutes: 8 },
       { title: "Leverage points", concept: "Where small changes matter", estimatedMinutes: 10 },
@@ -582,6 +599,35 @@ test("presents public courses as a browsable learning library", async ({ page })
   await expect(page.getByRole("heading", { name: "Systems thinking" })).toBeVisible();
   await expect(page.getByText("2 lessons")).toBeVisible();
   await expect(page.getByRole("button", { name: /Open Systems thinking/i })).toBeVisible();
+  await expect(page.locator(".course-banner-card[data-generated='true'] img")).toBeVisible();
+  const bannerLayout = await page.locator(".course-card").evaluate((card) => {
+    const bookmark = card.querySelector(".course-bookmark")?.getBoundingClientRect();
+    const heading = card.querySelector("h3")?.getBoundingClientRect();
+    const paragraph = card.querySelector(".course-card-body > p")?.getBoundingClientRect();
+    const cover = card.querySelector(".course-banner")?.getBoundingClientRect();
+    const overlaps = (left?: DOMRect, right?: DOMRect) => Boolean(
+      left && right
+      && left.left < right.right
+      && left.right > right.left
+      && left.top < right.bottom
+      && left.bottom > right.top
+    );
+    return {
+      bookmarkInsideCover: Boolean(
+        bookmark && cover
+        && bookmark.top >= cover.top
+        && bookmark.right <= cover.right
+        && bookmark.bottom <= cover.bottom,
+      ),
+      overlapsHeading: overlaps(bookmark, heading),
+      overlapsParagraph: overlaps(bookmark, paragraph),
+    };
+  });
+  expect(bannerLayout).toEqual({
+    bookmarkInsideCover: true,
+    overlapsHeading: false,
+    overlapsParagraph: false,
+  });
 });
 
 test("frames each course around an outcome and mastery", async ({ page }) => {
@@ -593,6 +639,7 @@ test("frames each course around an outcome and mastery", async ({ page }) => {
     level: "beginner",
     isPublic: true,
     aiAssisted: true,
+    banner: { assetId: "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb", version: 1 },
     modules: [{
       title: "Foundations",
       description: "Build a working mental model",
@@ -602,6 +649,10 @@ test("frames each course around an outcome and mastery", async ({ page }) => {
       ],
     }],
   };
+  await page.route("**/api/course-banners/**", (route) => route.fulfill({
+    contentType: "image/svg+xml",
+    body: "<svg xmlns='http://www.w3.org/2000/svg' width='1536' height='1024'><rect width='100%' height='100%' fill='#0D1B3D'/></svg>",
+  }));
   await page.route("**/api/courses/demo", (route) => route.fulfill({ json: course }));
   await page.route("**/api/courses/demo/lessons/0-1", (route) => route.fulfill({ json: {
     aiAssisted: true,
@@ -629,6 +680,7 @@ test("frames each course around an outcome and mastery", async ({ page }) => {
   await expect(page.getByText("Course outcome")).toBeVisible();
   await expect(page.getByText("AI-assisted course")).toBeVisible();
   await expect(page.locator("[data-ai-assisted='true']")).toHaveCount(1);
+  await expect(page.locator(".course-banner-hero[data-generated='true'] img")).toBeVisible();
   await expect(page.getByText("By the end")).toBeVisible();
   const resumeCard = page.locator(".course-resume-card");
   await expect(resumeCard.getByText("Continue learning")).toBeVisible();

@@ -40,6 +40,12 @@ export interface CourseModule {
   lessons: LessonSummary[];
 }
 
+export interface CourseBanner {
+  assetId: string;
+  version: 1;
+  generatedAt?: string;
+}
+
 export interface Course {
   id?: string;
   courseId?: string;
@@ -56,6 +62,7 @@ export interface Course {
   outcome?: string;
   prerequisites?: string[];
   category?: string;
+  banner?: CourseBanner;
   updatedAt?: string;
   aiAssisted?: boolean;
   schemaVersion?: number;

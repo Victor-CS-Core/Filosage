@@ -5,7 +5,6 @@ import { useRouter } from "next/navigation";
 import {
   ArrowRight,
   Bookmark,
-  BookOpen,
   Clock3,
   Filter,
   Layers3,
@@ -16,6 +15,7 @@ import { useLearnerState } from "@/components/useLearnerState";
 import { useAuth } from "@/components/AuthProvider";
 import type { Course } from "@/lib/course-types";
 import { deferClientTask } from "@/lib/browser-compat";
+import CourseBanner from "@/components/CourseBanner";
 
 export default function CourseLibrary({ featured = false }: { featured?: boolean }) {
   const router = useRouter();
@@ -124,13 +124,16 @@ export default function CourseLibrary({ featured = false }: { featured?: boolean
                 const lessons = course.modules.reduce((total, module) => total + module.lessons.length, 0);
                 const hours = Math.max(1, Math.round((course.estimatedMinutes ?? lessons * 12) / 60));
                 return <article className="course-card owner-course-card" key={id}>
-                  <button className="course-card-open" onClick={() => router.push(`/course/${encodeURIComponent(course.topic)}?id=${id}`)} aria-label={`Continue ${course.topic}`}>
-                    <span className="course-card-symbol tone-draft"><BookOpen size={23} /></span>
+                  <CourseBanner course={course} variant="card" />
+                  <div className="course-card-body">
                     <span className="course-card-category">Private draft</span>
                     <h3>{course.topic}</h3>
                     <p>{course.outcome ?? course.mission ?? "Continue shaping this course and generate its lessons when it is ready."}</p>
                     <span className="course-card-meta"><span><Layers3 size={14} /> {lessons} lessons</span><span><Clock3 size={14} /> {hours} {hours === 1 ? "hour" : "hours"}</span><span>{course.level ?? "Foundations"}</span></span>
                     <span className="course-card-cta">Continue editing <ArrowRight size={15} /></span>
+                  </div>
+                  <button className="course-card-open" onClick={() => router.push(`/course/${encodeURIComponent(course.topic)}?id=${id}`)} aria-label={`Continue ${course.topic}`}>
+                    <span className="sr-only">Continue {course.topic}</span>
                   </button>
                 </article>;
               })}
@@ -145,8 +148,8 @@ export default function CourseLibrary({ featured = false }: { featured?: boolean
             const bookmarked = state.courseBookmarks.includes(id);
             return (
               <article className="course-card" key={id}>
-                <button className="course-card-open" onClick={() => router.push(`/course/${encodeURIComponent(course.topic)}?id=${id}`)} aria-label={`Open ${course.topic}`}>
-                  <span className={`course-card-symbol tone-${index % 4}`}><BookOpen size={23} /></span>
+                <CourseBanner course={course} variant="card" />
+                <div className="course-card-body">
                   <span className="course-card-category">{course.category ?? "Course"}</span>
                   <h3>{course.topic}</h3>
                   <p>{course.outcome ?? course.mission ?? "Learn the subject through a structured sequence of lessons and practice."}</p>
@@ -156,6 +159,9 @@ export default function CourseLibrary({ featured = false }: { featured?: boolean
                     <span>{course.level ?? "Foundations"}</span>
                   </span>
                   <span className="course-card-cta">View course <ArrowRight size={15} /></span>
+                </div>
+                <button className="course-card-open" onClick={() => router.push(`/course/${encodeURIComponent(course.topic)}?id=${id}`)} aria-label={`Open ${course.topic}`}>
+                  <span className="sr-only">Open {course.topic}</span>
                 </button>
                 <button className={`course-bookmark ${bookmarked ? "is-active" : ""}`} onClick={() => toggleBookmark(id)} aria-label={bookmarked ? `Remove ${course.topic} from saved courses` : `Save ${course.topic}`} aria-pressed={bookmarked}>
                   <Bookmark size={17} fill={bookmarked ? "currentColor" : "none"} />

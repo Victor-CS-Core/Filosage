@@ -19,6 +19,19 @@ export function toCourseDto(value: Record<string, unknown> | Course, canManage =
     outcome: typeof raw.outcome === "string" ? raw.outcome : undefined,
     prerequisites: Array.isArray(raw.prerequisites) ? raw.prerequisites.filter((item): item is string => typeof item === "string") : undefined,
     category: typeof raw.category === "string" ? raw.category : undefined,
+    banner: raw.banner
+      && typeof raw.banner === "object"
+      && typeof (raw.banner as Record<string, unknown>).assetId === "string"
+      && /^[a-f0-9]{32}$/.test(String((raw.banner as Record<string, unknown>).assetId))
+      && (raw.banner as Record<string, unknown>).version === 1
+      ? {
+          assetId: String((raw.banner as Record<string, unknown>).assetId),
+          version: 1,
+          generatedAt: typeof (raw.banner as Record<string, unknown>).generatedAt === "string"
+            ? String((raw.banner as Record<string, unknown>).generatedAt)
+            : undefined,
+        }
+      : undefined,
     updatedAt: typeof raw.updatedAt === "string" ? raw.updatedAt : undefined,
     schemaVersion: typeof raw.schemaVersion === "number" ? raw.schemaVersion : undefined,
     capstone: raw.capstone && typeof raw.capstone === "object"

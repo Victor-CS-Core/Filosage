@@ -308,6 +308,24 @@ export async function createCourse(data: Record<string, unknown>) {
   return parseDocument(document);
 }
 
+export async function updateCourseBanner(
+  courseId: string,
+  banner: { assetId: string; version: 1; generatedAt: string },
+) {
+  const updatedAt = new Date();
+  const document = await firestoreJson<FirestoreDocument>(
+    `/documents/${encodeDocumentPath(`courses/${courseId}`)}?updateMask.fieldPaths=banner&updateMask.fieldPaths=updatedAt`,
+    {
+      method: "PATCH",
+      body: JSON.stringify({
+        fields: toFirestoreFields({ banner, updatedAt }),
+      }),
+    },
+  );
+  if (!document) throw new Error("Firestore did not return the updated course.");
+  return parseDocument(document);
+}
+
 export async function listLessons(courseId: string) {
   const response = await firestoreJson<{ documents?: FirestoreDocument[] }>(
     `/documents/${encodeDocumentPath(`courses/${courseId}/lessons`)}?pageSize=300`,
