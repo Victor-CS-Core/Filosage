@@ -10,6 +10,7 @@ import {
 } from "@/lib/firestore-values";
 import { isLocalMode, LOCAL_OWNER_EMAIL, LOCAL_OWNER_UID } from "@/lib/local-mode";
 import { localFirestoreJson } from "@/lib/local-store";
+import { lessonDataSchema } from "@/lib/validation";
 
 export interface VerifiedFirebaseUser {
   uid: string;
@@ -296,14 +297,24 @@ export async function getCourse(courseId: string) {
   return document ? parseDocument(document) : null;
 }
 
-export async function createCourse(data: Record<string, unknown>) {
+export async function createCourse(data: Record<string, unknown>, courseId?: string) {
   const now = new Date();
-  const document = await firestoreJson<FirestoreDocument>("/documents/courses", {
-    method: "POST",
-    body: JSON.stringify({
-      fields: toFirestoreFields({ ...data, createdAt: now, updatedAt: now }),
-    }),
-  });
+  const document = courseId
+    ? await firestoreJson<FirestoreDocument>(
+        `/documents/${encodeDocumentPath(`courses/${courseId}`)}`,
+        {
+          method: "PATCH",
+          body: JSON.stringify({
+            fields: toFirestoreFields({ ...data, createdAt: now, updatedAt: now }),
+          }),
+        },
+      )
+    : await firestoreJson<FirestoreDocument>("/documents/courses", {
+        method: "POST",
+        body: JSON.stringify({
+          fields: toFirestoreFields({ ...data, createdAt: now, updatedAt: now }),
+        }),
+      });
   if (!document) throw new Error("Firestore did not return the new course.");
   return parseDocument(document);
 }
@@ -651,13 +662,19 @@ export async function getCoursePublishReadiness(
   expectedLessonIds: string[],
 ) {
   const lessons = await listLessons(courseId);
-  const generatedIds = new Set(lessons.map((lesson) => String(lesson.id ?? "")));
-  const missingLessonIds = expectedLessonIds.filter((lessonId) => !generatedIds.has(lessonId));
+  const lessonsById = new Map(lessons.map((lesson) => [String(lesson.id ?? ""), lesson]));
+  const missingLessonIds = expectedLessonIds.filter((lessonId) => !lessonsById.has(lessonId));
+  const invalidLessonIds = expectedLessonIds.filter((lessonId) => {
+    const lesson = lessonsById.get(lessonId);
+    return lesson ? !lessonDataSchema.safeParse(lesson).success : false;
+  });
+  const readyCount = expectedLessonIds.length - missingLessonIds.length - invalidLessonIds.length;
   return {
-    ready: missingLessonIds.length === 0,
-    readyCount: expectedLessonIds.length - missingLessonIds.length,
+    ready: missingLessonIds.length === 0 && invalidLessonIds.length === 0,
+    readyCount,
     totalCount: expectedLessonIds.length,
     missingLessonIds,
+    invalidLessonIds,
   };
 }
 

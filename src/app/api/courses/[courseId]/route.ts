@@ -70,9 +70,12 @@ export async function PATCH(request: Request, { params }: RouteParams) {
         expectedLessonIds(course as unknown as Course),
       );
       if (!readiness.ready) {
+        const qualityMessage = readiness.invalidLessonIds.length > 0
+          ? ` ${readiness.invalidLessonIds.length} ${readiness.invalidLessonIds.length === 1 ? "lesson needs" : "lessons need"} regeneration to meet the current teaching standard.`
+          : "";
         return NextResponse.json(
           {
-            error: `Generate every lesson before publishing. ${readiness.readyCount} of ${readiness.totalCount} lessons are ready.`,
+            error: `Complete every lesson before publishing. ${readiness.readyCount} of ${readiness.totalCount} lessons are ready.${qualityMessage}`,
             code: "COURSE_NOT_READY",
             ...readiness,
           },

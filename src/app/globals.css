@@ -512,7 +512,9 @@ button:disabled { cursor: not-allowed; opacity: 0.55; }
 .lesson-toolbar nav { min-width: 0; display: flex; align-items: center; gap: 7px; color: var(--ink-muted); font-size: 0.72rem; }
 .lesson-toolbar nav button { max-width: 220px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; border: 0; background: none; color: var(--ink-secondary); cursor: pointer; font-weight: 650; }
 .lesson-toolbar nav span { max-width: 230px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.lesson-toolbar-actions { display: flex; align-items: center; gap: 14px; }
+.lesson-toolbar-actions { min-width: 0; flex: 0 0 auto; display: flex; align-items: center; gap: 14px; }
+.lesson-toolbar-actions .icon-button { flex: 0 0 auto; }
+.public-shell .lesson-toolbar { top: 76px; }
 .lesson-toolbar-actions > span:first-child { color: var(--ink-muted); font-size: 0.7rem; }
 .study-tools-toggle.is-active { border-color: var(--accent); background: var(--accent-soft); color: var(--accent-ink); }
 .owner-only-note { display: inline-flex; align-items: center; gap: 6px; color: var(--ink-muted); font-size: 0.68rem; }
@@ -549,6 +551,9 @@ button:disabled { cursor: not-allowed; opacity: 0.55; }
 .markdown-content pre { max-width: 100%; overflow-x: auto; background: var(--ink); color: var(--surface); border-radius: var(--radius-md); padding: 18px; margin: 1.4em 0; }
 .markdown-content pre code { background: none; padding: 0; }
 .markdown-content blockquote { border: 1px solid var(--line-strong); border-radius: var(--radius-sm); padding: 14px 18px; color: var(--ink-secondary); }
+.markdown-content table { display: block; width: 100%; max-width: 100%; margin: 1.5em 0; overflow-x: auto; border-collapse: collapse; font-family: var(--font-sans); font-size: 0.86rem; line-height: 1.55; }
+.markdown-content th, .markdown-content td { padding: 12px 14px; border: 1px solid var(--line); text-align: left; vertical-align: top; overflow-wrap: anywhere; }
+.markdown-content th { background: var(--surface-subtle); font-weight: 750; }
 .lesson-visual { margin: 42px 0; border-block: 1px solid var(--line-strong); padding: 28px 0 30px; }
 .lesson-visual-heading { max-width: 66ch; }
 .lesson-visual-heading h2 { margin-top: 7px; font-size: var(--text-section); }
@@ -655,12 +660,13 @@ button:disabled { cursor: not-allowed; opacity: 0.55; }
 .completion-banner small { color: var(--ink-muted); font-size: 0.72rem; margin-top: 3px; }
 .completion-banner.is-complete { background: var(--success-soft); border-color: var(--line-strong); border-color: color-mix(in oklch, var(--success) 35%, var(--line)); }
 .completion-banner.is-complete > div { background: var(--success-fill); color: var(--brand-navy); }
-.lesson-navigation { margin-top: 54px; padding-top: 26px; border-top: 1px solid var(--line); display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
-.lesson-nav-link { min-height: 78px; display: flex; align-items: center; gap: 13px; border: 1px solid var(--line); border-radius: var(--radius-md); background: var(--surface); padding: 14px; cursor: pointer; text-align: left; }
+.lesson-navigation { width: 100%; min-width: 0; margin-top: 54px; padding-top: 26px; border-top: 1px solid var(--line); display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+.lesson-nav-link { width: 100%; min-width: 0; max-width: 100%; min-height: 78px; display: flex; align-items: center; gap: 13px; overflow: hidden; border: 1px solid var(--line); border-radius: var(--radius-md); background: var(--surface); padding: 14px; cursor: pointer; text-align: left; }
+.lesson-nav-link > svg { flex: 0 0 auto; }
 .lesson-nav-link:hover { border-color: var(--accent); color: var(--accent-ink); }
 .lesson-nav-link > span { min-width: 0; display: flex; flex-direction: column; }
 .lesson-nav-link small { color: var(--ink-muted); font-size: 0.66rem; }
-.lesson-nav-link strong { font-size: 0.8rem; margin-top: 3px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.lesson-nav-link strong { max-width: 100%; font-size: 0.8rem; margin-top: 3px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .lesson-nav-next { text-align: right; justify-content: flex-end; }
 .lesson-loading { min-height: 100vh; background: var(--surface); padding: 0 max(24px, calc((100vw - 276px - 820px) / 2)); }
 .lesson-loading-bar { height: 3px; background: var(--accent); width: 100%; transform: scaleX(0.42); transform-origin: left; animation: loading-bar 1.5s var(--ease-out) infinite alternate; }
@@ -970,9 +976,14 @@ button:disabled { cursor: not-allowed; opacity: 0.55; }
   .lesson-list { padding-left: 5px; padding-right: 5px; }
   .lesson-row { grid-template-columns: 28px minmax(0, 1fr) auto; }
   .lesson-duration { display: none; }
-  .lesson-toolbar { padding: 0 12px; }
+  .lesson-toolbar { min-height: 0; flex-wrap: wrap; padding: 8px 12px; gap: 7px 10px; }
+  .public-shell .lesson-toolbar { top: 68px; }
+  .lesson-toolbar nav { flex: 1 1 100%; min-height: 32px; }
   .lesson-toolbar nav span, .lesson-toolbar nav svg { display: none; }
   .lesson-toolbar-actions > span:first-child, .owner-only-note { display: none; }
+  .lesson-toolbar-actions { width: 100%; display: flex; gap: 8px; }
+  .lesson-toolbar-actions .icon-button { width: 44px; height: 44px; }
+  .lesson-toolbar-actions .button { min-width: 0; min-height: 44px; flex: 1 1 0; padding-inline: 10px; }
   .lesson-title-block { padding-top: 52px; }
   .lesson-title-block h1 { font-size: 2.65rem; }
   .markdown-content { font-size: 1.05rem; }
@@ -984,7 +995,8 @@ button:disabled { cursor: not-allowed; opacity: 0.55; }
   .visual-prerequisite-map li.is-current { border-color: var(--accent); }
   .visual-map-connector { top: -10px; left: -18px; }
   .answer-list { grid-template-columns: 1fr; }
-  .lesson-navigation { grid-template-columns: 1fr; }
+  .lesson-navigation { grid-template-columns: minmax(0, 1fr); }
+  .lesson-nav-link strong { display: -webkit-box; overflow: hidden; text-overflow: clip; white-space: normal; overflow-wrap: anywhere; -webkit-line-clamp: 3; -webkit-box-orient: vertical; }
   .tutor-header {
     min-width: 0;
     padding-left: max(13px, env(safe-area-inset-left));
@@ -1103,8 +1115,8 @@ button:disabled { cursor: not-allowed; opacity: 0.55; }
 .public-brand .brand-wordmark { font-size: 1.28rem; }
 .public-brand small { font-size: 0.62rem; }
 .public-header nav { display: flex; align-items: center; gap: 8px; }
-.public-header nav button { min-height: 40px; border: 0; border-radius: var(--radius-sm); background: transparent; padding: 8px 12px; color: var(--ink-secondary); font-size: 0.84rem; font-weight: 650; cursor: pointer; }
-.public-header nav button:hover { background: var(--surface-subtle); color: var(--ink); }
+.public-header nav :is(a, button) { min-height: 40px; display: inline-flex; align-items: center; border: 0; border-radius: var(--radius-sm); background: transparent; padding: 8px 12px; color: var(--ink-secondary); font-size: 0.84rem; font-weight: 650; text-decoration: none; cursor: pointer; }
+.public-header nav :is(a, button):hover { background: var(--surface-subtle); color: var(--ink); }
 .public-header-actions { display: flex; align-items: center; gap: 7px; }
 .public-main { min-height: calc(100vh - 76px); }
 
@@ -1275,7 +1287,7 @@ button:disabled { cursor: not-allowed; opacity: 0.55; }
 .course-card-cta svg { transition: transform var(--motion-state) var(--ease-out); }
 .course-card:hover .course-card-cta svg,
 .course-card:focus-within .course-card-cta svg { transform: translateX(4px); }
-.course-bookmark { position: absolute; z-index: 3; top: 12px; right: 12px; width: 38px; height: 38px; display: grid; place-items: center; border: 1px solid var(--line); border-radius: 999px; background: var(--surface); color: var(--ink-muted); cursor: pointer; box-shadow: var(--shadow-control); transition: color var(--motion-state) var(--ease-out), border-color var(--motion-state) var(--ease-out), background var(--motion-state) var(--ease-out), transform var(--motion-feedback) var(--ease-out); }
+.course-bookmark { position: absolute; z-index: 3; top: 10px; right: 10px; width: 44px; height: 44px; display: grid; place-items: center; border: 1px solid var(--line); border-radius: 999px; background: var(--surface); color: var(--ink-muted); cursor: pointer; box-shadow: var(--shadow-control); transition: color var(--motion-state) var(--ease-out), border-color var(--motion-state) var(--ease-out), background var(--motion-state) var(--ease-out), transform var(--motion-feedback) var(--ease-out); }
 .course-bookmark:hover, .course-bookmark.is-active { color: var(--brand-blue-ink); border-color: var(--brand-blue); }
 .course-bookmark:active { transform: scale(0.92); }
 .course-bookmark.is-active svg { animation: bookmark-confirm 250ms var(--ease-out); }

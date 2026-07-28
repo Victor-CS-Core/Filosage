@@ -28,6 +28,7 @@ const model = process.env.OPENAI_COURSE_MODEL || process.env.OPENAI_MODEL || "gp
 export async function POST(request: Request) {
   let reservation: AiReservation | null = null;
   let observedUsage = { inputTokens: 0, cachedInputTokens: 0, outputTokens: 0 };
+  let observedUsageSamples: AiUsageSample[] | null = null;
   let responseId: string | undefined;
   try {
     const account = await requirePremium(request);
@@ -50,6 +51,22 @@ export async function POST(request: Request) {
     const client = aiClient();
     const safetyIdentifier = await openAiSafetyIdentifier(account.uid);
     reservation = await reserveAiUsage(account, "course_outline", request.headers.get("idempotency-key"));
+    const recoveredCourse = await getCourse(reservation.requestId);
+    if (recoveredCourse && recoveredCourse.authorId === account.uid) {
+      await finalizeAiUsage(reservation, {
+        inputTokens: 0,
+        cachedInputTokens: 0,
+        outputTokens: 0,
+        model,
+        resultId: recoveredCourse.id,
+      });
+      reservation = null;
+      return NextResponse.json({
+        ...toCourseDto(recoveredCourse, true),
+        courseId: recoveredCourse.id,
+        recovered: true,
+      });
+    }
     await assertSafeContent(
       client,
       [topic, goal, application, background].filter(Boolean).join("\n"),
@@ -110,7 +127,7 @@ export async function POST(request: Request) {
       authorPhoto: account.photoURL ?? null,
       isPublic: false,
       aiAssisted: true,
-    });
+    }, reservation.requestId);
 
     const bannerResult = await createOrReuseCourseBanner(client, {
       topic,
@@ -119,11 +136,17 @@ export async function POST(request: Request) {
       mission: outline.mission,
       safetyIdentifier,
     });
-    if (bannerResult) {
-      await updateCourseBanner(course.id, {
-        ...bannerResult.banner,
-        generatedAt: bannerResult.banner.generatedAt ?? new Date().toISOString(),
-      });
+    let attachedBanner = bannerResult?.banner;
+    if (attachedBanner) {
+      try {
+        await updateCourseBanner(course.id, {
+          ...attachedBanner,
+          generatedAt: attachedBanner.generatedAt ?? new Date().toISOString(),
+        });
+      } catch (bannerError) {
+        attachedBanner = undefined;
+        console.error("Course banner attachment failed:", bannerError);
+      }
     }
 
     const usageSamples: AiUsageSample[] = [{
@@ -143,6 +166,7 @@ export async function POST(request: Request) {
         responseId: undefined,
       });
     }
+    observedUsageSamples = usageSamples;
     await finalizeAiUsage(reservation, { usageSamples, resultId: course.id });
     reservation = null;
 
@@ -151,11 +175,16 @@ export async function POST(request: Request) {
       courseId: course.id,
       isPublic: false,
       aiAssisted: true,
-      banner: bannerResult?.banner,
+      banner: attachedBanner,
     });
   } catch (error: unknown) {
     if (reservation) {
-      await finalizeAiUsage(reservation, { ...observedUsage, model, responseId, failed: true }).catch((usageError) => {
+      await finalizeAiUsage(
+        reservation,
+        observedUsageSamples
+          ? { usageSamples: observedUsageSamples, responseId, failed: true }
+          : { ...observedUsage, model, responseId, failed: true },
+      ).catch((usageError) => {
         console.error("Course usage finalization failed:", usageError);
       });
     }

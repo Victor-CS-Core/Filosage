@@ -126,7 +126,7 @@ test("keeps the learning library public", async ({ page }) => {
 
   if ((page.viewportSize()?.width ?? 0) <= 620) {
     const primaryHeight = await page.getByRole("button", { name: /Explore published courses/ }).evaluate((button) => button.getBoundingClientRect().height);
-    const footerHeight = await page.locator(".public-footer").getByRole("button", { name: "Teaching standard" }).evaluate((button) => button.getBoundingClientRect().height);
+    const footerHeight = await page.locator(".public-footer").getByRole("link", { name: "Teaching standard" }).evaluate((link) => link.getBoundingClientRect().height);
     expect(primaryHeight).toBeGreaterThanOrEqual(44);
     expect(footerHeight).toBeGreaterThanOrEqual(44);
   }
@@ -243,7 +243,7 @@ test("publishes clear legal documents", async ({ page }) => {
   await expect(page.getByText("automatic renewal", { exact: false }).first()).toBeVisible();
   await page.goto("/privacy");
   await expect(page.getByRole("heading", { name: "Privacy Notice" })).toBeVisible();
-  await expect(page.getByRole("link", { name: "Privacy choices" })).toHaveAttribute("href", "/privacy-center");
+  await expect(page.getByLabel("Legal documents").getByRole("link", { name: "Privacy choices" })).toHaveAttribute("href", "/privacy-center");
   await page.goto("/acceptable-use");
   await expect(page.getByRole("heading", { name: "Acceptable Use Policy" })).toBeVisible();
   await page.goto("/copyright");
@@ -481,7 +481,7 @@ test("renders the didactic lesson contract and transfer practice", async ({ page
     learningObjective: "Classify statements as evidence or inference.",
     connection: "This distinction is required before comparing competing explanations.",
     keyTakeaways: ["Evidence is observed.", "Inference interprets evidence.", "Good decisions keep the distinction visible."],
-    content: "## Begin with the claim\n\nA claim can report an observation or interpret what that observation means.",
+    content: "## Begin with the claim\n\nA claim can report an observation or interpret what that observation means.\n\n| Evidence | Inference |\n| --- | --- |\n| Measurement | Interpretation |",
     guidedPractice: {
       prompt: "Work through a short claim.",
       steps: ["Underline what was observed.", "Name the interpretation added to it."],
@@ -499,6 +499,7 @@ test("renders the didactic lesson contract and transfer practice", async ({ page
   await expect(page.getByText("Classify statements as evidence or inference.")).toBeVisible();
   await expect(page.getByRole("heading", { name: "Work through the idea" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Use it in a new situation" })).toBeVisible();
+  await expect(page.locator(".markdown-content table")).toContainText("Measurement");
 
   const response = page.getByLabel("Your response");
   await response.fill("The customer complaint is observed; the product diagnosis is an inference.");
@@ -684,7 +685,7 @@ test("presents public courses as a browsable learning library", async ({ page })
   await expect(page.getByRole("heading", { name: "Find your next course." })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Systems thinking" })).toBeVisible();
   await expect(page.getByText("2 lessons")).toBeVisible();
-  await expect(page.getByRole("button", { name: /Open Systems thinking/i })).toBeVisible();
+  await expect(page.getByRole("link", { name: /Open Systems thinking/i })).toBeVisible();
   await expect(page.locator(".course-banner-card[data-generated='true'] img")).toBeVisible();
   await page.getByRole("button", { name: "Search and filter" }).click();
   const filterDrawer = page.getByRole("dialog", { name: "Find the right course" });
@@ -705,6 +706,8 @@ test("presents public courses as a browsable learning library", async ({ page })
       && left.bottom > right.top
     );
     return {
+      bookmarkWidth: bookmark?.width ?? 0,
+      bookmarkHeight: bookmark?.height ?? 0,
       bookmarkInsideCover: Boolean(
         bookmark && cover
         && bookmark.top >= cover.top
@@ -715,10 +718,54 @@ test("presents public courses as a browsable learning library", async ({ page })
       overlapsParagraph: overlaps(bookmark, paragraph),
     };
   });
-  expect(bannerLayout).toEqual({
+  expect(bannerLayout.bookmarkWidth).toBeGreaterThanOrEqual(43.9);
+  expect(bannerLayout.bookmarkHeight).toBeGreaterThanOrEqual(43.9);
+  expect(bannerLayout).toMatchObject({
     bookmarkInsideCover: true,
     overlapsHeading: false,
     overlapsParagraph: false,
+  });
+});
+
+test("contains long lesson navigation titles on narrow mobile screens", async ({ page }) => {
+  await page.setViewportSize({ width: 320, height: 740 });
+  const longTitle = "Common Web Risks: Injection, Browser Attacks, Access Failures, and Security Boundary Verification";
+  await page.route("**/api/courses/mobile-navigation", (route) => route.fulfill({ json: {
+    id: "mobile-navigation",
+    courseId: "mobile-navigation",
+    topic: "Web application security",
+    isPublic: true,
+    modules: [{
+      title: "Security boundaries",
+      lessons: [
+        { title: "Trust boundaries", concept: "Identify where authorization must be enforced." },
+        { title: longTitle, concept: "Apply the boundary model across common web risks." },
+      ],
+    }],
+  } }));
+  await page.route("**/api/courses/mobile-navigation/lessons/0-0", (route) => route.fulfill({ json: {
+    content: "## Trust boundaries\n\nAuthorization belongs on the server because the browser is not a trusted security boundary.",
+    quizzes: [],
+  } }));
+
+  await page.goto("/course/Web%20application%20security/lesson/0-0?id=mobile-navigation");
+  const next = page.getByRole("button", { name: new RegExp(`Next lesson ${longTitle}`) });
+  await expect(next).toBeVisible();
+  const layout = await next.evaluate((button) => {
+    const bounds = button.getBoundingClientRect();
+    const title = button.querySelector("strong");
+    return {
+      documentContained: document.documentElement.scrollWidth <= document.documentElement.clientWidth,
+      buttonContained: bounds.left >= 0 && bounds.right <= document.documentElement.clientWidth + 1,
+      buttonContentContained: button.scrollWidth <= button.clientWidth + 1,
+      titleWhiteSpace: title ? getComputedStyle(title).whiteSpace : "",
+    };
+  });
+  expect(layout).toEqual({
+    documentContained: true,
+    buttonContained: true,
+    buttonContentContained: true,
+    titleWhiteSpace: "normal",
   });
 });
 

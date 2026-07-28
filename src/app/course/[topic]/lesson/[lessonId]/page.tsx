@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 import {
   ArrowLeft,
   ArrowRight,
@@ -719,7 +720,7 @@ export default function LessonView() {
 
               {lessonVisuals.filter((visual) => visual.placement === "after-purpose").map((visual) => <LessonVisualRenderer key={visual.id} visual={visual} />)}
 
-              <div className="markdown-content"><ReactMarkdown>{normalizedContent}</ReactMarkdown></div>
+              <div className="markdown-content"><ReactMarkdown remarkPlugins={[remarkGfm]}>{normalizedContent}</ReactMarkdown></div>
 
               {lessonVisuals.filter((visual) => visual.placement === "after-explanation").map((visual) => <LessonVisualRenderer key={visual.id} visual={visual} />)}
 
@@ -739,7 +740,7 @@ export default function LessonView() {
                   </ol>
                   <details className="model-answer">
                     <summary>Compare with a worked response</summary>
-                    <ReactMarkdown>{lessonData.guidedPractice.modelAnswer}</ReactMarkdown>
+                    <ReactMarkdown remarkPlugins={[remarkGfm]}>{lessonData.guidedPractice.modelAnswer}</ReactMarkdown>
                   </details>
                 </section>
               )}
@@ -782,7 +783,7 @@ export default function LessonView() {
                   {transferRevealed && (
                     <div className="transfer-model" aria-live="polite">
                       <strong>Model response</strong>
-                      <ReactMarkdown>{lessonData.transferTask.modelResponse}</ReactMarkdown>
+                      <ReactMarkdown remarkPlugins={[remarkGfm]}>{lessonData.transferTask.modelResponse}</ReactMarkdown>
                     </div>
                   )}
                 </section>
@@ -881,7 +882,7 @@ export default function LessonView() {
                 {messages.map((message) => (
                   <div className={`tutor-message tutor-${message.role}`} key={message.id} {...(message.role === "assistant" ? { "data-ai-generated": "true" } : {})}>
                     {message.role === "assistant" && <span><Bot size={14} /></span>}
-                    <div><ReactMarkdown>{message.content || "…"}</ReactMarkdown></div>
+                    <div><ReactMarkdown remarkPlugins={[remarkGfm]}>{message.content || "…"}</ReactMarkdown></div>
                   </div>
                 ))}
                 {chatError && <p className="form-error"><CircleAlert size={15} /> {chatError}</p>}

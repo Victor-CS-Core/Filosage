@@ -1,7 +1,7 @@
 "use client";
 
+import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
 import {
   ArrowRight,
   Bookmark,
@@ -20,7 +20,6 @@ import { deferClientTask } from "@/lib/browser-compat";
 import CourseBanner from "@/components/CourseBanner";
 
 export default function CourseLibrary({ featured = false }: { featured?: boolean }) {
-  const router = useRouter();
   const [courses, setCourses] = useState<Course[]>([]);
   const [ownedCourses, setOwnedCourses] = useState<Course[]>([]);
   const [query, setQuery] = useState("");
@@ -166,15 +165,17 @@ export default function CourseLibrary({ featured = false }: { featured?: boolean
                     <span className="course-card-meta"><span><Layers3 size={14} /> {lessons} lessons</span><span><Clock3 size={14} /> {hours} {hours === 1 ? "hour" : "hours"}</span><span>{course.level ?? "Foundations"}</span></span>
                     <span className="course-card-cta">Continue editing <ArrowRight size={15} /></span>
                   </div>
-                  <button className="course-card-open" onClick={() => router.push(`/course/${encodeURIComponent(course.topic)}?id=${id}`)} aria-label={`Continue ${course.topic}`}>
+                  <Link className="course-card-open" href={`/course/${encodeURIComponent(course.topic)}?id=${id}`} aria-label={`Continue ${course.topic}`}>
                     <span className="sr-only">Continue {course.topic}</span>
-                  </button>
+                  </Link>
                 </article>;
               })}
             </div>
           </section>
         )}
-        {visible.length > 0 ? <div className="library-card-grid">
+        {visible.length > 0 ? <section aria-labelledby={!featured ? "published-courses-title" : undefined}>
+          {!featured && <h2 className="sr-only" id="published-courses-title">Published courses</h2>}
+          <div className="library-card-grid">
           {visible.map((course, index) => {
             const id = course.id ?? course.courseId ?? `${course.topic}-${index}`;
             const lessons = course.modules.reduce((total, module) => total + module.lessons.length, 0);
@@ -194,16 +195,17 @@ export default function CourseLibrary({ featured = false }: { featured?: boolean
                   </span>
                   <span className="course-card-cta">View course <ArrowRight size={15} /></span>
                 </div>
-                <button className="course-card-open" onClick={() => router.push(`/course/${encodeURIComponent(course.topic)}?id=${id}`)} aria-label={`Open ${course.topic}`}>
+                <Link className="course-card-open" href={`/course/${encodeURIComponent(course.topic)}?id=${id}`} aria-label={`Open ${course.topic}`}>
                   <span className="sr-only">Open {course.topic}</span>
-                </button>
+                </Link>
                 <button className={`course-bookmark ${bookmarked ? "is-active" : ""}`} onClick={() => toggleBookmark(id)} aria-label={bookmarked ? `Remove ${course.topic} from saved courses` : `Save ${course.topic}`} aria-pressed={bookmarked}>
                   <Bookmark size={17} fill={bookmarked ? "currentColor" : "none"} />
                 </button>
               </article>
             );
           })}
-        </div> : !featured ? <div className="state-panel"><Search size={22} /><div><h3>No matching published courses</h3><p>Your private courses are shown above. Try a broader topic or a different level.</p></div><button className="button button-secondary" onClick={() => { setQuery(""); setLevel("All levels"); }}>Clear filters</button></div> : null}
+          </div>
+        </section> : !featured ? <div className="state-panel"><Search size={22} /><div><h3>No matching published courses</h3><p>Your private courses are shown above. Try a broader topic or a different level.</p></div><button className="button button-secondary" onClick={() => { setQuery(""); setLevel("All levels"); }}>Clear filters</button></div> : null}
         </>
       ) : (
         <div className="state-panel"><Search size={22} /><div><h3>No matching courses</h3><p>Try a broader topic or a different level.</p></div><button className="button button-secondary" onClick={() => { setQuery(""); setLevel("All levels"); }}>Clear filters</button></div>

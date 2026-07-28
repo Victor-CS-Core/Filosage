@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
@@ -121,27 +122,27 @@ export default function AppShell({ children, activeTopic, activeCourseId }: AppS
       <div className="public-shell">
         <a className="skip-link" href="#main-content">Skip to main content</a>
         <header className="public-header">
-          <button className="brand public-brand" onClick={() => navigate("/")} aria-label="Erudoza home">
+          <Link className="brand public-brand" href="/" aria-label="Erudoza home">
             <span className="brand-mark" aria-hidden="true"><ErudozaMark /></span>
             <span><strong className="brand-wordmark">Erudoza</strong><small>Your daily dose of understanding.</small></span>
-          </button>
+          </Link>
           <nav aria-label="Public navigation">
-            <button onClick={() => navigate("/library")}>Library</button>
-            <button onClick={() => navigate("/standard")}>Teaching standard</button>
-            <button onClick={() => navigate("/pricing")}>Plans</button>
+            <Link href="/library">Library</Link>
+            <Link href="/standard">Teaching standard</Link>
+            <Link href="/pricing">Plans</Link>
           </nav>
           <div className="public-header-actions">
             <button className="icon-button public-theme-toggle" onClick={toggle} aria-label={`Use ${theme === "dark" ? "light" : "dark"} mode`} title={`Use ${theme === "dark" ? "light" : "dark"} mode`}>
               {theme === "dark" ? <Sun size={17} /> : <Moon size={17} />}
             </button>
             <button className="button button-quiet" onClick={() => setShowAuth(true)}>Sign in</button>
-            <button className="button button-primary" onClick={() => navigate("/pricing")}>Try Erudoza free <ArrowRight size={15} /></button>
+            <Link className="button button-primary" href="/pricing">Try Erudoza free <ArrowRight size={15} /></Link>
           </div>
         </header>
         <main className="public-main" id="main-content" tabIndex={-1}>{children}</main>
         <footer className="public-footer">
           <span>© {new Date().getFullYear()} Erudoza</span>
-          <nav aria-label="Support and legal"><button onClick={() => navigate("/standard")}>Teaching standard</button><a href={`mailto:${SUPPORT_CONTACT}`}>Support</a><button onClick={() => navigate("/privacy-center")}>Privacy choices</button><button onClick={() => navigate("/terms")}>Terms</button><button onClick={() => navigate("/privacy")}>Privacy</button><button onClick={() => navigate("/acceptable-use")}>Acceptable use</button><button onClick={() => navigate("/copyright")}>Copyright</button></nav>
+          <nav aria-label="Support and legal"><Link href="/standard">Teaching standard</Link><a href={`mailto:${SUPPORT_CONTACT}`}>Support</a><Link href="/privacy-center">Privacy choices</Link><Link href="/terms">Terms</Link><Link href="/privacy">Privacy</Link><Link href="/acceptable-use">Acceptable use</Link><Link href="/copyright">Copyright</Link></nav>
         </footer>
         {showAuth && <AuthModal onClose={() => setShowAuth(false)} />}
       </div>

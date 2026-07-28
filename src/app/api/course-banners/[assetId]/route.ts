@@ -1,4 +1,5 @@
 import { getStoredDocument } from "@/lib/firebase-server";
+import { readCourseBannerObject } from "@/lib/course-banner-storage";
 
 interface RouteParams {
   params: Promise<{ assetId: string }>;
@@ -22,19 +23,20 @@ export async function GET(request: Request, { params }: RouteParams) {
 
   try {
     const asset = await getStoredDocument(`courseBannerAssets/${assetId}`);
-    if (
-      !asset
-      || asset.contentType !== "image/webp"
-      || typeof asset.data !== "string"
-      || typeof asset.bytes !== "number"
-      || asset.bytes <= 0
-      || asset.bytes > 650_000
-    ) {
+    if (!asset || asset.contentType !== "image/webp") {
       return Response.json({ error: "Banner not found." }, { status: 404 });
     }
 
-    const bytes = decodeBase64(asset.data);
-    if (bytes.byteLength !== asset.bytes) {
+    const storedBytes = typeof asset.bytes === "number" ? asset.bytes : 0;
+    if (storedBytes <= 0 || storedBytes > 650_000) {
+      return Response.json({ error: "Banner not found." }, { status: 404 });
+    }
+    const bytes = asset.storage === "r2"
+      ? await readCourseBannerObject(assetId)
+      : typeof asset.data === "string"
+        ? decodeBase64(asset.data)
+        : null;
+    if (!bytes || bytes.byteLength !== storedBytes) {
       return Response.json({ error: "Banner unavailable." }, { status: 502 });
     }
 
