@@ -4,6 +4,7 @@ import { extname, join } from "node:path";
 import { evaluateBadges } from "../src/lib/badges";
 import { normalizeDashboardPreferences } from "../src/lib/dashboard-preferences";
 import { estimateAiUsageCostMicros, summarizeAiUsage } from "../src/lib/ai-pricing";
+import { curateLessonVisuals } from "../src/lib/lesson-visuals";
 
 async function sourceFiles(directory: string): Promise<string[]> {
   const entries = await readdir(directory, { withFileTypes: true });
@@ -394,6 +395,143 @@ test("renders the didactic lesson contract and transfer practice", async ({ page
   await expect(compare).toBeEnabled();
   await compare.click();
   await expect(page.getByText("The missed deadline is observed; the claim that priorities are unclear is an inference.")).toBeVisible();
+});
+
+test("curates visual candidates independently with deterministic placement and priority", () => {
+  const workedTrace = {
+    id: "visual-trace",
+    type: "worked-example-trace",
+    placement: "after-purpose",
+    version: 1,
+    title: "Trace the reasoning",
+    summary: "Follow the reasoning before practicing.",
+    prompt: "Classify the claim.",
+    steps: [
+      { title: "Observe", detail: "Name what is directly visible.", check: "Can it be observed?" },
+      { title: "Interpret", detail: "Name the meaning added to it.", check: "Is this an interpretation?" },
+    ],
+  };
+  const prerequisiteMap = {
+    id: "visual-map",
+    type: "prerequisite-map",
+    placement: "before-guided-practice",
+    version: 1,
+    title: "Where this fits",
+    summary: "Connect the prior idea to this one.",
+    nodes: [
+      { label: "Observation", detail: "The foundation.", role: "foundation" },
+      { label: "Inference", detail: "This lesson.", role: "current" },
+    ],
+  };
+
+  const curated = curateLessonVisuals(
+    [prerequisiteMap, "{malformed", workedTrace],
+    { lessonMode: "worked-example", buildsOn: ["Observation"], misconception: "They are identical." },
+  );
+  expect(curated).toHaveLength(1);
+  expect(curated[0]).toMatchObject({ type: "worked-example-trace", placement: "before-guided-practice" });
+
+  const serializedComparison = JSON.stringify({
+    type: "comparison-matrix",
+    title: "Compare approaches",
+    summary: "Keep the distinction visible.",
+    columns: ["Manual", "Automated"],
+    rows: [
+      { criterion: "Control", values: ["Direct", "Policy-driven"] },
+      { criterion: "Scale", values: ["Limited", "Repeatable"] },
+    ],
+  });
+  expect(curateLessonVisuals([serializedComparison], { lessonMode: "comparison" })).toMatchObject([
+    { id: "visual-comparison-matrix-1", type: "comparison-matrix", placement: "after-explanation", version: 1 },
+  ]);
+});
+
+test("renders curated visual explanations in their learning slots", async ({ page }) => {
+  await page.route("**/api/courses/visual-demo", (route) => route.fulfill({ json: {
+    id: "visual-demo", courseId: "visual-demo", topic: "Decision making", isPublic: true,
+    modules: [{ title: "Evidence", lessons: [{ title: "Evidence and inference", concept: "How claims depend on evidence", estimatedMinutes: 10 }] }],
+  } }));
+  await page.route("**/api/courses/visual-demo/lessons/0-0", (route) => route.fulfill({ json: {
+    learningObjective: "Classify statements as evidence or inference.",
+    connection: "This distinction prepares you to compare competing explanations.",
+    content: "## Begin with the claim\n\nA claim can report an observation or interpret what that observation means.",
+    visuals: [
+      {
+        id: "visual-contrast", type: "concept-contrast", placement: "after-purpose", version: 1,
+        title: "Keep the distinction visible", summary: "A short contrast before the explanation.",
+        misconception: "An inference is just another observation.", accurateView: "An inference interprets observations.", whyItMatters: "Separating them keeps a decision honest.",
+      },
+      {
+        id: "visual-trace", type: "worked-example-trace", placement: "before-guided-practice", version: 1,
+        title: "Trace the reasoning", summary: "Follow the logic before trying it yourself.", prompt: "Classify a short claim.",
+        steps: [
+          { title: "Find the observation", detail: "Underline what was directly measured.", check: "Is it directly observable?" },
+          { title: "Name the inference", detail: "Identify what the observation is being taken to mean.", check: "Does it interpret the observation?" },
+        ],
+      },
+    ],
+    guidedPractice: { prompt: "Work through a short claim.", steps: ["Underline what was observed.", "Name the interpretation."], modelAnswer: "The measurement is evidence; the explanation is an inference." },
+    quizzes: [],
+  } }));
+
+  await page.goto("/course/Decision%20making/lesson/0-0?id=visual-demo");
+  await expect(page.getByRole("heading", { name: "Keep the distinction visible" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Trace the reasoning" })).toBeVisible();
+  const visualOrder = await page.locator("[data-lesson-visual]").evaluateAll((items) => items.map((item) => item.getAttribute("data-lesson-visual")));
+  expect(visualOrder).toEqual(["concept-contrast", "worked-example-trace"]);
+  const trace = page.locator("[data-lesson-visual='worked-example-trace']");
+  await expect(trace.getByRole("button", { name: /Find the observation/ })).toHaveAttribute("aria-current", "step");
+  await trace.getByRole("button", { name: /Name the inference/ }).click();
+  await expect(trace.getByRole("button", { name: /Name the inference/ })).toHaveAttribute("aria-current", "step");
+  await expect(trace.getByText("Does it interpret the observation?")).toBeVisible();
+});
+
+test("renders process, comparison, and prerequisite visuals accessibly", async ({ page }) => {
+  const lessons = [
+    { title: "A repeatable process", concept: "Moving from framing to a checked result", estimatedMinutes: 8 },
+    { title: "Compare approaches", concept: "Choosing between two methods", estimatedMinutes: 8 },
+    { title: "Connect the foundation", concept: "Building on prerequisite knowledge", estimatedMinutes: 8 },
+  ];
+  const visualByLesson = {
+    "0-0": {
+      id: "visual-process", type: "process-flow", placement: "after-purpose", version: 1,
+      title: "Apply the method", summary: "A sequence from framing to verification.",
+      steps: [{ title: "Frame", detail: "Name the decision." }, { title: "Apply", detail: "Use the method." }, { title: "Check", detail: "Verify the result." }],
+    },
+    "0-1": {
+      id: "visual-matrix", type: "comparison-matrix", placement: "after-purpose", version: 1,
+      title: "Compare approaches", summary: "Compare the methods using the same criteria.", columns: ["Manual", "Automated"],
+      rows: [{ criterion: "Control", values: ["Direct", "Policy-driven"] }, { criterion: "Scale", values: ["Limited", "Repeatable"] }],
+    },
+    "0-2": {
+      id: "visual-prerequisites", type: "prerequisite-map", placement: "before-guided-practice", version: 1,
+      title: "Where this lesson fits", summary: "Connect the foundation to the next use.",
+      nodes: [
+        { label: "Observation", detail: "The foundation.", role: "foundation" },
+        { label: "Inference", detail: "This lesson.", role: "current" },
+        { label: "Decision", detail: "The next use.", role: "next" },
+      ],
+    },
+  } as const;
+  const baseLesson = { content: "## Explanation\n\nThe explanation remains complete without the visual aid.", quizzes: [] };
+  await page.route("**/api/courses/visual-types", (route) => route.fulfill({ json: {
+    id: "visual-types", courseId: "visual-types", topic: "Visual grammar", isPublic: true,
+    modules: [{ title: "Visual explanations", lessons }],
+  } }));
+  await page.route("**/api/courses/visual-types/lessons/*", (route) => {
+    const lessonId = route.request().url().split("/").at(-1) as keyof typeof visualByLesson;
+    return route.fulfill({ json: { ...baseLesson, visuals: [visualByLesson[lessonId]] } });
+  });
+
+  await page.goto("/course/Visual%20grammar/lesson/0-0?id=visual-types");
+  await expect(page.locator("[data-lesson-visual='process-flow']")).toContainText("Verify the result.");
+
+  await page.goto("/course/Visual%20grammar/lesson/0-1?id=visual-types");
+  await expect(page.getByRole("region", { name: "Compare approaches" })).toBeVisible();
+  await expect(page.getByRole("table", { name: "Compare approaches: Manual compared with Automated" })).toBeVisible();
+
+  await page.goto("/course/Visual%20grammar/lesson/0-2?id=visual-types");
+  await expect(page.getByRole("list", { name: "Learning sequence" })).toContainText("This lesson");
 });
 
 test("presents public courses as a browsable learning library", async ({ page }) => {

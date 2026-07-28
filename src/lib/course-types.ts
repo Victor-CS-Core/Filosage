@@ -1,3 +1,5 @@
+import type { LessonVisual } from "@/lib/lesson-visuals";
+
 export type LessonMode =
   | "concept"
   | "worked-example"
@@ -80,6 +82,11 @@ export interface LessonData {
   learningObjective?: string;
   connection?: string;
   keyTakeaways?: string[];
+  /**
+   * Curated, structured visual explanations. Legacy diagram fields are
+   * intentionally excluded: lessons now render only this safe visual grammar.
+   */
+  visuals?: LessonVisual[];
   guidedPractice?: {
     prompt: string;
     steps: string[];

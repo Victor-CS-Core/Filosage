@@ -1,6 +1,8 @@
 import "server-only";
 
 import type { Course, LessonData } from "@/lib/course-types";
+import { curateLessonVisuals } from "@/lib/lesson-visuals";
+import { lessonVisualsEnabled } from "@/lib/feature-flags";
 
 export function toCourseDto(value: Record<string, unknown> | Course, canManage = false): Course {
   const raw = value as Record<string, unknown>;
@@ -37,6 +39,7 @@ export function toLessonDto(value: Record<string, unknown>, courseAiAssisted = f
     keyTakeaways: Array.isArray(value.keyTakeaways)
       ? value.keyTakeaways.filter((item): item is string => typeof item === "string")
       : undefined,
+    visuals: lessonVisualsEnabled() ? curateLessonVisuals(value.visuals) : [],
     guidedPractice: value.guidedPractice && typeof value.guidedPractice === "object"
       ? value.guidedPractice as LessonData["guidedPractice"]
       : undefined,

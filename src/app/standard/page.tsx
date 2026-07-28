@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { ArrowRight, BookOpenCheck, CalendarCheck2, Check, Flag, Lightbulb, ShieldCheck, Target } from "lucide-react";
+import { ArrowRight, BookOpenCheck, CalendarCheck2, Check, Flag, Lightbulb, ShieldCheck, Target, Waypoints } from "lucide-react";
 import AppShell from "@/components/AppShell";
 
 const requirements = [
@@ -19,6 +19,11 @@ const requirements = [
     icon: BookOpenCheck,
     title: "Guided practice with visible reasoning",
     detail: "Worked steps show how someone who understands the idea actually thinks through it, with at least two reasoning steps. No answers pulled from thin air.",
+  },
+  {
+    icon: Waypoints,
+    title: "Purposeful visual explanation",
+    detail: "When a relationship, contrast, sequence, comparison, or prerequisite is easier to understand visually, Erudoza adds one concise, structured visual explanation. It is generated from safe data and earns its place in the lesson, never decoration or an unreviewed image.",
   },
   {
     icon: ArrowRight,

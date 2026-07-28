@@ -13,8 +13,9 @@ import {
 import type { AiUsageSample } from "@/lib/ai-pricing";
 import {
   generateLessonInputSchema,
-  lessonDataSchema,
+  lessonGenerationSchema,
   validationMessage,
+  type GeneratedLessonData,
 } from "@/lib/validation";
 import { findCourseLesson } from "@/lib/course-progress";
 import type { Course, LessonData } from "@/lib/course-types";
@@ -22,12 +23,15 @@ import { AI_SAFETY_POLICY, assertSafeContent, ContentSafetyError } from "@/lib/c
 import { apiRequestErrorResponse, readJsonBody } from "@/lib/api-security";
 import { openAiSafetyIdentifier } from "@/lib/ai-usage";
 import { toLessonDto } from "@/lib/course-dto";
+import { curateLessonVisuals } from "@/lib/lesson-visuals";
+import { lessonVisualsEnabled } from "@/lib/feature-flags";
 
 const model = process.env.OPENAI_LESSON_MODEL || "gpt-5.6-luna";
 const fallbackModel = process.env.OPENAI_LESSON_FALLBACK_MODEL
   || process.env.OPENAI_COURSE_MODEL
   || process.env.OPENAI_MODEL
   || "gpt-5.6-terra";
+const lessonVisualsAreEnabled = lessonVisualsEnabled();
 
 const lessonInstructions = `Act as a rigorous teacher and instructional designer. Create one lesson that advances a specific capability within a larger course.
 
@@ -35,7 +39,11 @@ Use the requested lesson mode instead of forcing every lesson into the same patt
 
 Write direct, natural prose in accessible Markdown. Use descriptive H2 and H3 headings only and never repeat the lesson title as a heading. Target roughly 900 to 1,300 words. Avoid generic encouragement, promotional language, vague claims, invented citations, repeated conclusions, and filler. Never use em dashes; prefer commas, colons, or separate sentences.
 
-Do not create diagrams, graphs, Mermaid syntax, or visual-model sections. Communicate every relationship clearly in prose and examples.
+Do not create diagrams, graphs, Mermaid syntax, raw SVG, HTML, or visual-model sections in Markdown. Communicate every relationship clearly in prose and examples.
+
+${lessonVisualsAreEnabled
+  ? "Return zero, one, or two candidate strings in visuals. Each string must be compact JSON for one learning aid. The app, not you, determines final placement and selection. Every object needs type, title, and summary. Type-specific fields are: concept-contrast has misconception, accurateView, whyItMatters; process-flow has steps [{title, detail}]; comparison-matrix has columns [left, right] and rows [{criterion, values:[left, right]}]; worked-example-trace has prompt and steps [{title, detail, check}]; prerequisite-map has nodes [{label, detail, role}], where role is foundation, current, or next. Use visuals: [] when no candidate materially improves understanding. Do not include id, placement, version, diagram syntax, SVG, or HTML."
+  : "Return visuals: []. The structured visual system is not enabled for this lesson yet."}
 
 Create application-focused quizzes, not trivia. Each answer option needs feedback that explains why that specific choice is correct or incorrect. Vary the correct option positions. Return only the requested structured lesson.
 
@@ -146,6 +154,16 @@ export async function POST(request: Request) {
       instructionalContext?.application ? `Intended application: ${instructionalContext.application}` : "",
       instructionalContext?.background ? `Learner background: ${instructionalContext.background}` : "",
     ].filter(Boolean).join("\n");
+    const namedBuildsOn = canonical.lesson.buildsOn?.filter((item) => item.trim()) ?? [];
+    const visualContext = {
+      lessonMode: canonical.lesson.lessonMode,
+      buildsOn: namedBuildsOn.length ? namedBuildsOn : (previousLesson ? [previousLesson.title] : []),
+      misconception: canonical.lesson.misconception,
+    };
+
+    const prepareLesson = (generated: GeneratedLessonData | null): LessonData | null => generated
+      ? { ...generated, visuals: lessonVisualsAreEnabled ? curateLessonVisuals(generated.visuals, visualContext) : [] }
+      : null;
 
     const generate = (selectedModel: string, repairIssues: string[] = []) => client.responses.parse({
       model: selectedModel,
@@ -155,7 +173,7 @@ export async function POST(request: Request) {
         ? `${lessonContext}\n\nThe previous draft failed the quality gate. Correct every issue:\n- ${repairIssues.join("\n- ")}`
         : lessonContext,
       text: {
-        format: zodTextFormat(lessonDataSchema, "lesson"),
+        format: zodTextFormat(lessonGenerationSchema, "lesson"),
       },
       max_output_tokens: 4_000,
       safety_identifier: safetyIdentifier,
@@ -164,7 +182,7 @@ export async function POST(request: Request) {
     const primaryResponse = await generate(model);
     responseId = primaryResponse.id;
     usageSamples.push({ model, ...extractOpenAiUsage(primaryResponse), responseId });
-    let lesson = primaryResponse.output_parsed as LessonData | null;
+    let lesson = prepareLesson(primaryResponse.output_parsed as GeneratedLessonData | null);
     let qualityIssues = lessonQualityIssues(lesson);
     let usedFallback = false;
 
@@ -172,7 +190,7 @@ export async function POST(request: Request) {
       const fallbackResponse = await generate(fallbackModel, qualityIssues);
       responseId = fallbackResponse.id;
       usageSamples.push({ model: fallbackModel, ...extractOpenAiUsage(fallbackResponse), responseId });
-      lesson = fallbackResponse.output_parsed as LessonData | null;
+      lesson = prepareLesson(fallbackResponse.output_parsed as GeneratedLessonData | null);
       qualityIssues = lessonQualityIssues(lesson);
       usedFallback = true;
     }
@@ -196,7 +214,7 @@ export async function POST(request: Request) {
       authorId: account.uid,
       aiAssisted: true,
       isPublic: coursePublic,
-      schemaVersion: 2,
+      schemaVersion: 3,
       generationModel: usedFallback ? fallbackModel : model,
       fallbackUsed: usedFallback,
     });

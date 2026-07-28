@@ -31,7 +31,9 @@ import type { Confidence, CourseProgress, ProgressUpdate } from "@/lib/learning-
 import { getLocalProgress, saveLocalProgress } from "@/lib/learning-progress";
 import { useLearnerState } from "@/components/useLearnerState";
 import SpeakButton from "@/components/SpeakButton";
+import LessonVisualRenderer from "@/components/LessonVisual";
 import { markdownToSpeech, normalizeLessonMarkdown } from "@/lib/markdown";
+import { curateLessonVisuals, visualsToSpeech } from "@/lib/lesson-visuals";
 import { createClientId, deferClientTask } from "@/lib/browser-compat";
 
 interface Message {
@@ -444,6 +446,22 @@ export default function LessonView() {
     () => lessonData && lesson ? normalizeLessonMarkdown(lessonData.content, lesson.title) : "",
     [lesson, lessonData],
   );
+  const lessonVisuals = useMemo(
+    () => curateLessonVisuals(lessonData?.visuals),
+    [lessonData?.visuals],
+  );
+  const lessonSpeechText = useMemo(() => {
+    if (!lesson) return "";
+    const at = (placement: "after-purpose" | "after-explanation" | "before-guided-practice") =>
+      visualsToSpeech(lessonVisuals.filter((visual) => visual.placement === placement));
+    return [
+      `${lesson.title}.`,
+      at("after-purpose"),
+      markdownToSpeech(normalizedContent),
+      at("after-explanation"),
+      at("before-guided-practice"),
+    ].filter(Boolean).join(" ");
+  }, [lesson, lessonVisuals, normalizedContent]);
 
   const markComplete = useCallback(async () => {
     if (!courseId || complete || !lessonData || !lesson || !transferComplete) return;
@@ -643,7 +661,7 @@ export default function LessonView() {
             {lessonData && lesson && (
               <SpeakButton
                 label="Read this lesson aloud"
-                text={`${lesson.title}. ${markdownToSpeech(normalizedContent)}`}
+                text={lessonSpeechText}
               />
             )}
             <button className={`icon-button lesson-bookmark ${lessonBookmarked ? "is-active" : ""}`} onClick={() => updateLearnerState((current) => ({ ...current, lessonBookmarks: current.lessonBookmarks.includes(noteKey) ? current.lessonBookmarks.filter((item) => item !== noteKey) : [...current.lessonBookmarks, noteKey] }))} aria-label={lessonBookmarked ? "Remove lesson bookmark" : "Bookmark lesson"} aria-pressed={lessonBookmarked}>
@@ -702,7 +720,13 @@ export default function LessonView() {
                 </section>
               )}
 
+              {lessonVisuals.filter((visual) => visual.placement === "after-purpose").map((visual) => <LessonVisualRenderer key={visual.id} visual={visual} />)}
+
               <div className="markdown-content"><ReactMarkdown>{normalizedContent}</ReactMarkdown></div>
+
+              {lessonVisuals.filter((visual) => visual.placement === "after-explanation").map((visual) => <LessonVisualRenderer key={visual.id} visual={visual} />)}
+
+              {lessonVisuals.filter((visual) => visual.placement === "before-guided-practice").map((visual) => <LessonVisualRenderer key={visual.id} visual={visual} />)}
 
               {lessonData.guidedPractice && (
                 <section className="lesson-section guided-practice" aria-labelledby="guided-practice-title">

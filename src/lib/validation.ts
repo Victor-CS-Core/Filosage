@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { lessonVisualsSchema } from "@/lib/lesson-visuals";
 
 export const topicSchema = z
   .string()
@@ -68,7 +69,7 @@ export const courseOutlineSchema = z.object({
   }),
 });
 
-export const lessonDataSchema = z.object({
+const lessonWithoutVisualsSchema = z.object({
   learningObjective: z.string().trim().min(1).max(400),
   connection: z.string().trim().min(1).max(500),
   keyTakeaways: z.array(z.string().trim().min(1).max(240)).min(3).max(5),
@@ -96,6 +97,16 @@ export const lessonDataSchema = z.object({
     .min(2)
     .max(3),
 });
+
+export const lessonDataSchema = lessonWithoutVisualsSchema.extend({
+  visuals: lessonVisualsSchema.optional().default([]),
+});
+
+export const lessonGenerationSchema = lessonWithoutVisualsSchema.extend({
+  visuals: z.array(z.string().trim().min(2).max(6_000)).max(2).default([]),
+});
+
+export type GeneratedLessonData = z.infer<typeof lessonGenerationSchema>;
 
 export const generateLessonInputSchema = z.object({
   courseId: z.string().trim().min(1).max(200),

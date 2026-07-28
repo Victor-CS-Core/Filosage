@@ -91,6 +91,8 @@ function stubOutline(input: string) {
 function stubLesson(input: string) {
   const concept = line(input, "Core concept: ") || "the core concept";
   const misconception = line(input, "Misconception to correct: ") || "a common misunderstanding";
+  const mode = line(input, "Teaching mode: ") || "concept";
+  const buildsOn = line(input, "Builds on: ");
   const body = paragraph(
     `${concept} matters because it changes what you do, not only what you can recite. Start from the situation you already understand, and notice where the naive approach quietly fails: that failure point is exactly where ${concept.toLowerCase()} proves useful. A common belief, that ${misconception.toLowerCase()}, feels reasonable right up until you test it against a concrete case, which is why this lesson works through one slowly instead of asserting the conclusion.`,
     4,
@@ -120,6 +122,73 @@ function stubLesson(input: string) {
       ],
       modelResponse: "A strong response picks an unfamiliar situation, maps the concept onto it explicitly, and notes one place where the mapping strains.",
     },
+    visuals: mode === "worked-example"
+      ? [{
+          id: "visual-worked-trace",
+          type: "worked-example-trace",
+          placement: "before-guided-practice",
+          title: "Trace the reasoning",
+          summary: "Follow the decision path before attempting it yourself.",
+          version: 1,
+          prompt: `Use ${concept.toLowerCase()} to make one defensible decision.`,
+          steps: [
+            { title: "Name the situation", detail: "Restate what has to be decided before choosing a method.", check: "Can you identify the decision in plain language?" },
+            { title: "Apply the concept", detail: `Use ${concept.toLowerCase()} and explain why it changes the next move.`, check: "Does each move follow from the concept?" },
+          ],
+        }]
+      : mode === "comparison"
+        ? [{
+          id: "visual-comparison",
+          type: "comparison-matrix",
+          placement: "after-explanation",
+          title: "Keep the distinction visible",
+          summary: "Compare the two ideas by the decisions they support.",
+          version: 1,
+          columns: ["Common assumption", "More accurate view"],
+          rows: [
+            { criterion: "What it treats as important", values: [misconception, concept] },
+            { criterion: "What you do next", values: ["Rely on the first impression", "Test the situation against the concept"] },
+          ],
+        }]
+        : (mode === "synthesis" || mode === "practice-lab")
+          ? [{
+            id: "visual-process-flow",
+            type: "process-flow",
+            placement: "after-explanation",
+            title: "Move from framing to a checked result",
+            summary: "A repeatable sequence for applying the lesson independently.",
+            version: 1,
+            steps: [
+              { title: "Frame", detail: "Name the decision and the evidence that matters." },
+              { title: "Apply", detail: `Use ${concept.toLowerCase()} one justified step at a time.` },
+              { title: "Check", detail: "Compare the result with the original situation and note one limitation." },
+            ],
+          }]
+          : (buildsOn && !buildsOn.startsWith("No named"))
+            ? [{
+              id: "visual-prerequisite-map",
+              type: "prerequisite-map",
+              placement: "after-purpose",
+              title: "Where this lesson fits",
+              summary: "A short map from the prior idea to the next capability.",
+              version: 1,
+              nodes: [
+                { label: buildsOn, detail: "The foundation this lesson assumes.", role: "foundation" },
+                { label: concept, detail: "The capability you are building now.", role: "current" },
+                { label: "Apply the method independently", detail: "The next use of this idea.", role: "next" },
+              ],
+            }]
+            : [{
+          id: "visual-concept-contrast",
+          type: "concept-contrast",
+          placement: "after-purpose",
+          title: "Correct the tempting shortcut",
+          summary: "A concise contrast that keeps the central distinction visible.",
+          version: 1,
+          misconception,
+          accurateView: `${concept} is a decision tool you test in a concrete situation.`,
+          whyItMatters: "The distinction changes which evidence and actions deserve attention.",
+            }],
     quizzes: [
       {
         question: `What is the most accurate description of ${concept.toLowerCase()}?`,
