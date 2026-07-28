@@ -78,11 +78,16 @@ test("earns badges from real learning progress", () => {
 
 test("never leaves public learning behind the authentication startup screen", async ({ page }) => {
   const pageErrors: string[] = [];
+  const hydrationErrors: string[] = [];
   page.on("pageerror", (error) => pageErrors.push(error.message));
+  page.on("console", (message) => {
+    if (message.type() === "error" && message.text().includes("hydrated")) hydrationErrors.push(message.text());
+  });
   await page.route("**/identitytoolkit.googleapis.com/**", (route) => route.abort());
   await page.goto("/");
 
   expect(pageErrors).toEqual([]);
+  expect(hydrationErrors).toEqual([]);
 
   await expect(
     page.getByRole("heading", { name: "Understanding that lasts." }),
@@ -105,6 +110,15 @@ test("keeps the learning library public", async ({ page }) => {
     page.getByRole("heading", { name: "Understanding that lasts." }),
   ).toBeVisible();
   await expect(page.getByText("No account required to read")).toBeVisible();
+  await expect(page.locator(".public-hero .public-proof")).toHaveCount(0);
+  await expect(page.locator(".public-home > .public-proof")).toBeVisible();
+
+  if ((page.viewportSize()?.width ?? 0) <= 620) {
+    const primaryHeight = await page.getByRole("button", { name: /Explore published courses/ }).evaluate((button) => button.getBoundingClientRect().height);
+    const footerHeight = await page.locator(".public-footer").getByRole("button", { name: "Teaching standard" }).evaluate((button) => button.getBoundingClientRect().height);
+    expect(primaryHeight).toBeGreaterThanOrEqual(44);
+    expect(footerHeight).toBeGreaterThanOrEqual(44);
+  }
 });
 
 test("publishes the teaching standard", async ({ page }) => {
@@ -477,6 +491,20 @@ test("renders curated visual explanations in their learning slots", async ({ pag
   await page.goto("/course/Decision%20making/lesson/0-0?id=visual-demo");
   await expect(page.getByRole("heading", { name: "Keep the distinction visible" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Trace the reasoning" })).toBeVisible();
+  const contrastRatio = await page.locator("[data-lesson-visual='concept-contrast'] .visual-contrast p").first().evaluate((label) => {
+    const channel = (value: number) => {
+      const normalized = value / 255;
+      return normalized <= 0.04045 ? normalized / 12.92 : ((normalized + 0.055) / 1.055) ** 2.4;
+    };
+    const luminance = (color: string) => {
+      const [red, green, blue] = color.match(/\d+(?:\.\d+)?/g)?.slice(0, 3).map(Number) ?? [0, 0, 0];
+      return 0.2126 * channel(red) + 0.7152 * channel(green) + 0.0722 * channel(blue);
+    };
+    const foreground = luminance(getComputedStyle(label).color);
+    const background = luminance(getComputedStyle(label.parentElement!).backgroundColor);
+    return (Math.max(foreground, background) + 0.05) / (Math.min(foreground, background) + 0.05);
+  });
+  expect(contrastRatio).toBeGreaterThanOrEqual(4.5);
   const visualOrder = await page.locator("[data-lesson-visual]").evaluateAll((items) => items.map((item) => item.getAttribute("data-lesson-visual")));
   expect(visualOrder).toEqual(["concept-contrast", "worked-example-trace"]);
   const trace = page.locator("[data-lesson-visual='worked-example-trace']");

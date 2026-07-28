@@ -22,8 +22,10 @@ Exact bright brand colors are reserved for the logo, progress, and non-text sign
 
 ## Typography
 
-- Headings: Satoshi Bold
-- Interface and reading: Inter Regular/Variable
+- Headings, interface, and reading: Inter Variable
+- Headings use 700 weight; body and long-form reading use regular weight
+- Core scale: caption `0.75rem`, interface `0.875rem`, body `1rem`, lead `1.125rem`, section `1.5rem`, title `2rem`
+- Sub-`1rem` text is reserved for compact interface metadata, never long-form prose or writing controls
 - Display headings cap at 5.5rem and never track tighter than `-0.04em`
 - Body prose stays within 65–70 characters per line
 

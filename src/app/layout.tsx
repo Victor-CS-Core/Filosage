@@ -1,6 +1,5 @@
 import type { Metadata, Viewport } from "next";
 import { headers } from "next/headers";
-import Script from "next/script";
 import "@fontsource-variable/inter";
 import "./globals.css";
 import { ThemeProvider } from "@/components/ThemeProvider";
@@ -77,9 +76,8 @@ export default async function RootLayout({
   return (
     <html lang="en" data-scroll-behavior="smooth" suppressHydrationWarning>
       <body suppressHydrationWarning>
-        {/* Browsers hide the nonce attribute from the DOM once CSP reads it,
-            so React's hydration check would always see a mismatch here. */}
-        <Script id="erudoza-theme-bootstrap" src="/theme-bootstrap.js" strategy="beforeInteractive" nonce={nonce} suppressHydrationWarning />
+        {/* eslint-disable-next-line @next/next/no-sync-scripts -- Theme must be set before first paint. */}
+        <script id="erudoza-theme-bootstrap" src="/theme-bootstrap.js" nonce={nonce} suppressHydrationWarning />
         <ThemeProvider>
           <AuthProvider>
             <TrafficTracker />

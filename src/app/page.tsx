@@ -86,7 +86,6 @@ export default function Home() {
                 <button className="button button-primary" onClick={() => router.push("/library")}>Explore published courses <ArrowRight size={17} /></button>
                 <button className="button button-secondary" onClick={() => void signInWithGoogle()}>Create a free account</button>
               </div>
-              <div className="public-proof"><span><CheckCircle2 size={16} /> No account required to read</span><span><CheckCircle2 size={16} /> Progress stays yours</span><span><CheckCircle2 size={16} /> Every lesson passes a quality gate</span></div>
             </div>
             <div className="public-hero-panel" aria-label="Erudoza learning loop">
               <div className="hero-panel-brand"><span className="brand-mark"><ErudozaMark /></span><span><small>Your daily dose of understanding.</small><strong>A course should change what you can do.</strong></span></div>
@@ -97,6 +96,7 @@ export default function Home() {
               </ol>
             </div>
           </section>
+          <div className="public-proof" aria-label="Why learn with Erudoza"><span><CheckCircle2 size={16} /> No account required to read</span><span><CheckCircle2 size={16} /> Progress stays yours</span><span><CheckCircle2 size={16} /> Every lesson passes a quality gate</span></div>
 
           <section className="public-library-preview" aria-labelledby="public-library-title">
             <div className="section-heading"><div><p className="overline">Published courses</p><h2 id="public-library-title">Explore the public library</h2><p>Start any course now. A free account saves your progress, courses, and review schedule across devices.</p></div><button className="text-button" onClick={() => router.push("/library")}>View all courses <ArrowRight size={15} /></button></div>
