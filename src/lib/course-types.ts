@@ -63,6 +63,7 @@ export interface Course {
   prerequisites?: string[];
   category?: string;
   banner?: CourseBanner;
+  canRegenerateBanner?: boolean;
   updatedAt?: string;
   aiAssisted?: boolean;
   schemaVersion?: number;

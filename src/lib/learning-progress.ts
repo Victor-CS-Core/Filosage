@@ -23,6 +23,17 @@ function writeIndex(index: Record<string, CourseProgress>) {
   localStorage.setItem(INDEX_KEY, JSON.stringify(index));
 }
 
+function removeFromStoredIndex(key: string, courseId: string) {
+  try {
+    const value = JSON.parse(localStorage.getItem(key) ?? "{}");
+    if (!value || typeof value !== "object" || Array.isArray(value) || !(courseId in value)) return;
+    delete value[courseId];
+    localStorage.setItem(key, JSON.stringify(value));
+  } catch {
+    localStorage.removeItem(key);
+  }
+}
+
 export function listLocalProgress() {
   return Object.values(readIndex()).sort((a, b) => b.lastActivityAt.localeCompare(a.lastActivityAt));
 }
@@ -61,6 +72,14 @@ export function getLocalProgress(courseId: string, topic = "") {
     // A damaged legacy value should not block learning.
   }
   return null;
+}
+
+export function removeLocalProgress(courseId: string) {
+  if (typeof window === "undefined") return;
+  removeFromStoredIndex(INDEX_KEY, courseId);
+  removeFromStoredIndex(LEGACY_INDEX_KEY, courseId);
+  localStorage.removeItem(`erudoza-progress:${courseId}`);
+  localStorage.removeItem(`teach-progress:${courseId}`);
 }
 
 export function saveLocalProgress(update: ProgressUpdate) {

@@ -5,6 +5,8 @@ import { evaluateBadges } from "../src/lib/badges";
 import { normalizeDashboardPreferences } from "../src/lib/dashboard-preferences";
 import { estimateAiUsageCostMicros, summarizeAiUsage } from "../src/lib/ai-pricing";
 import { curateLessonVisuals } from "../src/lib/lesson-visuals";
+import { removeCourseReferences } from "../src/lib/course-deletion";
+import { buildCourseBannerPrompt } from "../src/lib/course-banner-prompt";
 
 async function sourceFiles(directory: string): Promise<string[]> {
   const entries = await readdir(directory, { withFileTypes: true });
@@ -727,6 +729,47 @@ test("presents public courses as a browsable learning library", async ({ page })
   });
 });
 
+test("keeps generated course banners simple and text-free", () => {
+  const prompt = buildCourseBannerPrompt({
+    topic: "Retirement planning",
+    category: "Personal finance",
+  });
+
+  expect(prompt).toContain("one clear abstract metaphor");
+  expect(prompt).toContain("one thin continuous line");
+  expect(prompt).toContain("two to four simple circles or geometric shapes");
+  expect(prompt).toContain("Absolute text ban");
+  expect(prompt).toContain("currency symbols");
+  expect(prompt).toContain("Do not use detailed charts, calendars");
+  expect(prompt).not.toContain("Learning outcome:");
+  expect(prompt).not.toContain("Course focus:");
+});
+
+test("removes every learner-state reference linked to a deleted course", () => {
+  const result = removeCourseReferences({
+    courseBookmarks: ["delete-me", "keep-me"],
+    lessonBookmarks: ["delete-me:0-0", "keep-me:0-0"],
+    notes: {
+      "delete-me:0-0": "Remove this note",
+      "keep-me:0-0": "Keep this note",
+    },
+    noteUpdatedAt: {
+      "delete-me:0-0": "2026-07-20T12:00:00.000Z",
+      "keep-me:0-0": "2026-07-21T12:00:00.000Z",
+    },
+    weeklyLessonGoal: 5,
+  }, "delete-me");
+
+  expect(result.changed).toBe(true);
+  expect(result.value).toEqual({
+    courseBookmarks: ["keep-me"],
+    lessonBookmarks: ["keep-me:0-0"],
+    notes: { "keep-me:0-0": "Keep this note" },
+    noteUpdatedAt: { "keep-me:0-0": "2026-07-21T12:00:00.000Z" },
+    weeklyLessonGoal: 5,
+  });
+});
+
 test("contains long lesson navigation titles on narrow mobile screens", async ({ page }) => {
   await page.setViewportSize({ width: 320, height: 740 });
   const longTitle = "Common Web Risks: Injection, Browser Attacks, Access Failures, and Security Boundary Verification";
@@ -837,4 +880,43 @@ test("frames each course around an outcome and mastery", async ({ page }) => {
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
   await resumeCard.getByRole("button", { name: /Resume lesson/i }).click();
   await expect(page).toHaveURL(/lesson\/0-1\?id=demo/);
+});
+
+test("explains permanent course deletion before sending a delete request", async ({ page }) => {
+  let deleteRequests = 0;
+  await page.route("**/api/courses/delete-warning-demo", (route) => {
+    if (route.request().method() === "DELETE") {
+      deleteRequests += 1;
+      return route.fulfill({ json: { success: true } });
+    }
+    return route.fulfill({ json: {
+      id: "delete-warning-demo",
+      courseId: "delete-warning-demo",
+      topic: "Data literacy",
+      mission: "Read evidence with care.",
+      level: "Foundations",
+      isPublic: false,
+      canManage: true,
+      canRegenerateBanner: true,
+      modules: [{
+        title: "Foundations",
+        description: "Build a reliable reading practice.",
+        lessons: [{ title: "What a measure means", concept: "Separate a measure from its interpretation." }],
+      }],
+    } });
+  });
+
+  await page.goto("/course/Data%20literacy?id=delete-warning-demo");
+  await page.getByRole("button", { name: "Delete course", exact: true }).click();
+
+  const dialog = page.getByRole("dialog", { name: "Delete “Data literacy”?" });
+  await expect(dialog).toBeVisible();
+  await expect(dialog.getByText("This course cannot be recovered after deletion.")).toBeVisible();
+  await expect(dialog.getByText("Every learner's progress and scheduled reviews for this course")).toBeVisible();
+  await expect(dialog.getByRole("button", { name: "Permanently delete course" })).toBeVisible();
+  expect(deleteRequests).toBe(0);
+
+  await dialog.getByRole("button", { name: "Keep course", exact: true }).click();
+  await expect(dialog).not.toBeVisible();
+  expect(deleteRequests).toBe(0);
 });

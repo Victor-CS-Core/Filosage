@@ -12,7 +12,7 @@ import {
   runStoredDocumentTransaction,
 } from "@/lib/firebase-server";
 
-export type AiFeature = "course_outline" | "lesson_generation" | "tutor";
+export type AiFeature = "course_outline" | "course_banner" | "lesson_generation" | "tutor";
 export type AiBudgetPool = "free" | "paid" | "owner";
 
 const BUDGET_SHARDS = 16;
@@ -60,14 +60,15 @@ function monthWindow(now: Date) {
 
 function policyFor(account: ServerAccount, feature: AiFeature, now = new Date()): AiPolicy {
   const monthly = monthWindow(now);
+  const isBanner = feature === "course_banner";
   if (account.isOwner) {
     return {
       limit: null,
       periodKey: monthly.key,
       resetAt: monthly.resetAt,
       maxPerMinute: 20,
-      reserveCostMicros: feature === "tutor" ? 50_000 : 350_000,
-      lockMs: feature === "tutor" ? 45_000 : 180_000,
+      reserveCostMicros: isBanner ? 20_000 : feature === "tutor" ? 50_000 : 350_000,
+      lockMs: isBanner ? 90_000 : feature === "tutor" ? 45_000 : 180_000,
     };
   }
 
@@ -84,6 +85,7 @@ function policyFor(account: ServerAccount, feature: AiFeature, now = new Date())
 
   const limits: Record<AiFeature, number> = {
     course_outline: account.plan === "pro" ? 3 : 0,
+    course_banner: account.plan === "pro" ? 30 : 0,
     lesson_generation: account.plan === "pro" ? 30 : 0,
     tutor: account.plan === "pro" ? 100 : 0,
   };
@@ -92,8 +94,8 @@ function policyFor(account: ServerAccount, feature: AiFeature, now = new Date())
     periodKey: monthly.key,
     resetAt: monthly.resetAt,
     maxPerMinute: feature === "tutor" ? 6 : 2,
-    reserveCostMicros: feature === "tutor" ? 50_000 : 350_000,
-    lockMs: feature === "tutor" ? 45_000 : 180_000,
+    reserveCostMicros: isBanner ? 20_000 : feature === "tutor" ? 50_000 : 350_000,
+    lockMs: isBanner ? 90_000 : feature === "tutor" ? 45_000 : 180_000,
   };
 }
 
@@ -352,6 +354,8 @@ export async function finalizeAiUsage(
   const nowIso = new Date().toISOString();
   const defaultModel = reservation.feature === "tutor"
     ? process.env.OPENAI_TUTOR_MODEL || "gpt-5.6-luna"
+    : reservation.feature === "course_banner"
+      ? process.env.OPENAI_COURSE_IMAGE_MODEL || "gpt-image-1-mini"
     : reservation.feature === "lesson_generation"
       ? process.env.OPENAI_LESSON_MODEL || "gpt-5.6-luna"
       : process.env.OPENAI_COURSE_MODEL || process.env.OPENAI_MODEL || "gpt-5.6-terra";
@@ -450,7 +454,7 @@ export async function finalizeAiUsage(
 
 export async function getAiQuotaSummaries(account: ServerAccount): Promise<AiQuotaSummary[]> {
   const now = new Date();
-  const features: AiFeature[] = ["course_outline", "lesson_generation", "tutor"];
+  const features: AiQuotaSummary["feature"][] = ["course_outline", "lesson_generation", "tutor"];
   return Promise.all(features.map(async (feature) => {
     const policy = policyFor(account, feature, now);
     const path = `usagePeriods/${account.uid}__${feature}__${policy.periodKey}`;

@@ -17,9 +17,11 @@ import {
   Layers3,
   ListTree,
   Target,
+  TriangleAlert,
   LoaderCircle,
   LockKeyhole,
   Play,
+  RefreshCw,
   Trash2,
   X,
 } from "lucide-react";
@@ -30,7 +32,8 @@ import SpeakButton from "@/components/SpeakButton";
 import { useAuth } from "@/components/AuthProvider";
 import type { Course } from "@/lib/course-types";
 import type { CapstoneAssessment, CourseProgress } from "@/lib/learning-types";
-import { getLocalProgress } from "@/lib/learning-progress";
+import { getLocalProgress, removeLocalProgress } from "@/lib/learning-progress";
+import { removeCourseFromLearnerState } from "@/lib/learner-state";
 import { createClientId } from "@/lib/browser-compat";
 
 export default function CourseMap() {
@@ -46,13 +49,14 @@ export default function CourseMap() {
   const [actionError, setActionError] = useState<string | null>(null);
   const [expandedModule, setExpandedModule] = useState<number | null>(0);
   const [updating, setUpdating] = useState(false);
-  const [deleteArmed, setDeleteArmed] = useState(false);
+  const [bannerBusy, setBannerBusy] = useState(false);
   const [completedLessons, setCompletedLessons] = useState<string[]>([]);
   const [capstoneAssessment, setCapstoneAssessment] = useState<CapstoneAssessment | null>(null);
   const [capstoneSubmission, setCapstoneSubmission] = useState("");
   const [capstoneBusy, setCapstoneBusy] = useState(false);
   const [capstoneError, setCapstoneError] = useState<string | null>(null);
   const outlineDrawer = useAppDrawer("course-outline");
+  const deleteDrawer = useAppDrawer("course-delete-confirmation");
 
   const getToken = useCallback(async () => (user ? user.getIdToken() : null), [user]);
 
@@ -134,12 +138,6 @@ export default function CourseMap() {
     return () => { cancelled = true; };
   }, [courseId, topic, user]);
 
-  useEffect(() => {
-    if (!deleteArmed) return;
-    const timeout = window.setTimeout(() => setDeleteArmed(false), 5_000);
-    return () => window.clearTimeout(timeout);
-  }, [deleteArmed]);
-
   const totalLessons = useMemo(
     () => course?.modules.reduce((sum, module) => sum + module.lessons.length, 0) ?? 0,
     [course],
@@ -196,11 +194,7 @@ export default function CourseMap() {
   };
 
   const deleteCourse = async () => {
-    if (!deleteArmed) {
-      setDeleteArmed(true);
-      return;
-    }
-    if (!isOwner || !courseId) return;
+    if (!user || !course?.canManage || !courseId) return;
     setUpdating(true);
     setActionError(null);
     try {
@@ -211,14 +205,39 @@ export default function CourseMap() {
       });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || "The course could not be deleted.");
-      localStorage.removeItem(`erudoza-progress:${courseId}`);
-      localStorage.removeItem(`teach-progress:${courseId}`);
+      removeLocalProgress(courseId);
+      removeCourseFromLearnerState(courseId);
       window.dispatchEvent(new Event("erudoza:courses-changed"));
+      window.dispatchEvent(new CustomEvent("erudoza:course-deleted", { detail: { courseId } }));
+      deleteDrawer.closeDrawer();
       router.push("/");
     } catch (deleteError) {
       setActionError(deleteError instanceof Error ? deleteError.message : "The course could not be deleted.");
       setUpdating(false);
-      setDeleteArmed(false);
+    }
+  };
+
+  const regenerateBanner = async () => {
+    if (!user || !course?.canManage || !course.canRegenerateBanner || !courseId) return;
+    setBannerBusy(true);
+    setActionError(null);
+    try {
+      const token = await getToken();
+      const response = await fetch(`/api/courses/${courseId}/banner`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Idempotency-Key": createClientId(),
+        },
+      });
+      const data = await response.json() as Course & { error?: string };
+      if (!response.ok) throw new Error(data.error || "A new banner could not be generated.");
+      setCourse(data);
+      window.dispatchEvent(new Event("erudoza:courses-changed"));
+    } catch (bannerError) {
+      setActionError(bannerError instanceof Error ? bannerError.message : "A new banner could not be generated.");
+    } finally {
+      setBannerBusy(false);
     }
   };
 
@@ -344,19 +363,29 @@ export default function CourseMap() {
             <section><span><BookOpen size={19} /></span><div><small>Before you begin</small><strong>{course.prerequisites?.length ? course.prerequisites.join(" · ") : "No prior knowledge required"}</strong></div></section>
           </div>
 
-          {isPro && user && course.canManage && (
+          {course.canManage && (
             <div className="course-owner-controls">
               <div className="course-owner-actions">
                 {isOwner && (
-                  <button className="button button-secondary" onClick={updateVisibility} disabled={updating}>
+                  <button className="button button-secondary" onClick={updateVisibility} disabled={updating || bannerBusy}>
                     {updating ? <LoaderCircle className="spin" size={16} /> : course.isPublic ? <LockKeyhole size={16} /> : <Globe2 size={16} />}
                     {course.isPublic ? "Return to private" : "Publish course"}
                   </button>
                 )}
-                <button className={`button ${deleteArmed ? "button-danger" : "button-quiet"}`} onClick={deleteCourse} disabled={updating}>
-                  <Trash2 size={16} /> {deleteArmed ? "Confirm delete" : "Delete course"}
+                {course.canRegenerateBanner && (
+                  <button className="button button-secondary" onClick={() => void regenerateBanner()} disabled={updating || bannerBusy}>
+                    {bannerBusy ? <LoaderCircle className="spin" size={16} /> : <RefreshCw size={16} />}
+                    {bannerBusy ? "Creating simpler banner…" : "Regenerate banner once"}
+                  </button>
+                )}
+                <button className="button button-quiet" onClick={() => {
+                  setActionError(null);
+                  deleteDrawer.openDrawer();
+                }} disabled={updating || bannerBusy}>
+                  <Trash2 size={16} /> Delete course
                 </button>
               </div>
+              {course.canRegenerateBanner && <p className="owner-action-hint">One curated banner replacement is available for this course. It replaces the current image automatically.</p>}
               {!course.isPublic && isOwner && <p className="owner-action-hint">Generate every lesson before publishing. Open each lesson once to create its full content.</p>}
               {actionError && <p className="form-error" role="alert"><Circle size={14} /> {actionError}</p>}
             </div>
@@ -513,6 +542,54 @@ export default function CourseMap() {
                   </section>
                 ))}
               </div>
+            </section>
+          </AppDrawer>
+        )}
+
+        {deleteDrawer.open && (
+          <AppDrawer
+            open={deleteDrawer.open}
+            onClose={() => {
+              if (!updating) deleteDrawer.closeDrawer();
+            }}
+            labelledBy="course-delete-drawer-title"
+            size="compact"
+            mobilePlacement="bottom"
+            className="course-delete-app-drawer"
+          >
+            <section className="course-delete-drawer">
+              <header className="app-drawer-header">
+                <div>
+                  <small>Permanent action</small>
+                  <h2 id="course-delete-drawer-title">Delete &ldquo;{course.topic}&rdquo;?</h2>
+                  <p>This course cannot be recovered after deletion.</p>
+                </div>
+                <button className="icon-button" type="button" onClick={deleteDrawer.closeDrawer} aria-label="Close deletion confirmation" disabled={updating}>
+                  <X size={18} />
+                </button>
+              </header>
+              <div className="app-drawer-body course-delete-body">
+                <div className="course-delete-warning">
+                  <TriangleAlert size={20} aria-hidden="true" />
+                  <div>
+                    <strong>Erudoza will permanently delete:</strong>
+                    <ul>
+                      <li>The course and all generated lessons</li>
+                      <li>Every learner&apos;s progress and scheduled reviews for this course</li>
+                      <li>Course bookmarks, lesson bookmarks, and linked lesson notes</li>
+                    </ul>
+                  </div>
+                </div>
+                <p className="course-delete-library-note">The course banner will disappear from the app. Its reusable source asset may remain in the shared visual library when another course can use it.</p>
+                {actionError && <p className="form-error" role="alert"><Circle size={14} /> {actionError}</p>}
+              </div>
+              <footer className="app-drawer-footer">
+                <button className="button button-quiet" type="button" onClick={deleteDrawer.closeDrawer} disabled={updating}>Keep course</button>
+                <button className="button button-danger" type="button" onClick={() => void deleteCourse()} disabled={updating}>
+                  {updating ? <LoaderCircle className="spin" size={16} /> : <Trash2 size={16} />}
+                  {updating ? "Deleting course…" : "Permanently delete course"}
+                </button>
+              </footer>
             </section>
           </AppDrawer>
         )}

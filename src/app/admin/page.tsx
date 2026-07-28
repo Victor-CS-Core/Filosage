@@ -31,6 +31,7 @@ type AdminTab = "overview" | "users" | "ai" | "safety";
 
 const featureLabels = {
   course_outline: "Course outline",
+  course_banner: "Course banner",
   lesson_generation: "Lesson",
   tutor: "Tutor",
 } as const;

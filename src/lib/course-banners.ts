@@ -10,8 +10,12 @@ import {
 import {
   storeCourseBannerObject,
 } from "@/lib/course-banner-storage";
+import {
+  buildCourseBannerPrompt,
+  COURSE_BANNER_STYLE_VERSION,
+} from "@/lib/course-banner-prompt";
 
-const STYLE_VERSION = 1;
+const STYLE_VERSION = COURSE_BANNER_STYLE_VERSION;
 const MAX_STORED_IMAGE_BYTES = 650_000;
 const DEFAULT_MODEL = "gpt-image-1-mini";
 const GENERATION_LEASE_MS = 90_000;
@@ -23,6 +27,7 @@ interface CourseBannerInput {
   outcome?: string;
   mission?: string;
   safetyIdentifier: string;
+  variant?: 0 | 1;
 }
 
 export interface CourseBannerResult {
@@ -56,20 +61,6 @@ function generationCostMicros(model: string) {
   if (normalizedModel.startsWith("gpt-image-1-mini")) return 6_000;
   if (normalizedModel.startsWith("gpt-image-1")) return 16_000;
   return 16_000;
-}
-
-function promptFor(input: CourseBannerInput) {
-  return [
-    "Create a panoramic editorial course-cover image in Erudoza's standardized visual language.",
-    `Subject: ${normalized(input.topic)}.`,
-    input.category ? `Discipline: ${normalized(input.category)}.` : "",
-    input.outcome ? `Learning outcome: ${normalized(input.outcome)}.` : "",
-    input.mission ? `Course focus: ${normalized(input.mission)}.` : "",
-    "Visual direction: a refined miniature physical model or still life that expresses the subject through one clear symbolic composition. Matte paper, ceramic, wood, or architectural forms; calm studio lighting; crisp edges; restrained depth; intelligent and quietly premium.",
-    "Palette: deep navy as the anchor, with off-white, muted teal, clear blue, and at most one restrained coral detail. Keep saturation controlled and preserve readable tonal contrast in both light and dark interfaces.",
-    "Composition: landscape 3:2. Keep the meaningful subject inside the central 70 percent so the same image can crop safely to a wide banner and a 2:1 course card. Leave calm negative space near the outer edges.",
-    "Do not include text, letters, numbers, logos, watermarks, UI, frames, badges, gradients, faces, or generic stock-photo staging. Avoid visual clutter, fantasy spectacle, neon, glossy 3D, and literal classroom scenes.",
-  ].filter(Boolean).join("\n");
 }
 
 function isEnabled() {
@@ -117,10 +108,9 @@ export async function createOrReuseCourseBanner(
   const model = process.env.OPENAI_COURSE_IMAGE_MODEL?.trim() || DEFAULT_MODEL;
   const fingerprint = await sha256([
     STYLE_VERSION,
+    input.variant ?? 0,
     normalized(input.topic).toLowerCase(),
     normalized(input.category).toLowerCase(),
-    normalized(input.outcome).toLowerCase(),
-    normalized(input.mission).toLowerCase(),
   ].join("|"));
   const keyPath = `courseBannerKeys/${fingerprint}`;
   const assetId = fingerprint.slice(0, 32);
@@ -161,7 +151,7 @@ export async function createOrReuseCourseBanner(
 
     const response = await client.images.generate({
       model,
-      prompt: promptFor(input),
+      prompt: buildCourseBannerPrompt(input),
       n: 1,
       size: "1536x1024",
       quality: "low",

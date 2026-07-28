@@ -117,7 +117,9 @@ export async function DELETE(request: Request) {
     }
 
     const courses = data.authoredCourses.map(({ course }) => course);
-    await Promise.all(courses.map((course) => course.id ? deleteCourse(String(course.id)) : Promise.resolve()));
+    for (const course of courses) {
+      if (course.id) await deleteCourse(String(course.id));
+    }
 
     await deleteStoredDocuments([
       ...data.courseProgress.map((record) => `users/${account.uid}/courseProgress/${record.id}`),

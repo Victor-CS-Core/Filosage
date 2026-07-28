@@ -5,6 +5,7 @@ import {
   normalizeDashboardPreferences,
   type DashboardPreferences,
 } from "@/lib/dashboard-preferences";
+import { removeCourseReferences } from "@/lib/course-deletion";
 
 export interface LearnerState {
   courseBookmarks: string[];
@@ -47,4 +48,19 @@ export function readLearnerState(): LearnerState {
 
 export function writeLearnerState(value: LearnerState) {
   localStorage.setItem(KEY, JSON.stringify(value));
+}
+
+export function removeCourseFromLearnerState(courseId: string) {
+  if (typeof window === "undefined") return EMPTY_LEARNER_STATE;
+  const current = readLearnerState();
+  const cleaned = removeCourseReferences(
+    current as unknown as Record<string, unknown>,
+    courseId,
+  );
+  const next = {
+    ...(cleaned.value as unknown as LearnerState),
+    updatedAt: new Date().toISOString(),
+  };
+  writeLearnerState(next);
+  return next;
 }

@@ -11,6 +11,7 @@ import {
 import { isLocalMode, LOCAL_OWNER_EMAIL, LOCAL_OWNER_UID } from "@/lib/local-mode";
 import { localFirestoreJson } from "@/lib/local-store";
 import { lessonDataSchema } from "@/lib/validation";
+import { removeCourseReferences } from "@/lib/course-deletion";
 
 export interface VerifiedFirebaseUser {
   uid: string;
@@ -40,6 +41,20 @@ interface FirestoreAggregationResult {
   result?: {
     aggregateFields?: Record<string, FirestoreValue>;
   };
+}
+
+interface LocatedStoredDocument {
+  path: string;
+  data: StoredDocument;
+}
+
+export class CourseBannerRegenerationError extends Error {
+  constructor(
+    public readonly code: "NOT_FOUND" | "NOT_OWNED" | "ALREADY_USED" | "IN_PROGRESS" | "CLAIM_LOST",
+    message: string,
+  ) {
+    super(message);
+  }
 }
 
 interface TokenResponse {
@@ -180,6 +195,16 @@ function parseDocument(document: FirestoreDocument): StoredDocument {
   return { id, ...fields };
 }
 
+function parseLocatedDocument(document: FirestoreDocument): LocatedStoredDocument {
+  const marker = "/documents/";
+  const markerIndex = document.name.indexOf(marker);
+  if (markerIndex < 0) throw new Error("Firestore returned an invalid document path.");
+  return {
+    path: document.name.slice(markerIndex + marker.length),
+    data: parseDocument(document),
+  };
+}
+
 function fullDocumentName(path: string) {
   const { projectId } = requiredEnvironment();
   return `projects/${projectId}/databases/(default)/documents/${path}`;
@@ -193,6 +218,23 @@ async function runCourseQuery(structuredQuery: Record<string, unknown>) {
   return (results ?? []).flatMap((result) =>
     result.document ? [parseDocument(result.document)] : [],
   );
+}
+
+async function runLocatedQuery(structuredQuery: Record<string, unknown>) {
+  const results = await firestoreJson<Array<{ document?: FirestoreDocument }>>(
+    "/documents:runQuery",
+    { method: "POST", body: JSON.stringify({ structuredQuery }) },
+  );
+  return (results ?? []).flatMap((result) =>
+    result.document ? [parseLocatedDocument(result.document)] : [],
+  );
+}
+
+function collectionGroupFrom(collectionId: string) {
+  if (!/^[A-Za-z0-9_-]{1,80}$/.test(collectionId)) {
+    throw new Error("Invalid Firestore collection.");
+  }
+  return [{ collectionId, allDescendants: true }];
 }
 
 function courseQuery(
@@ -335,6 +377,104 @@ export async function updateCourseBanner(
   );
   if (!document) throw new Error("Firestore did not return the updated course.");
   return parseDocument(document);
+}
+
+export async function claimCourseBannerRegeneration(
+  courseId: string,
+  uid: string,
+  ownerOverride: boolean,
+  claimId: string,
+) {
+  const path = `courses/${courseId}`;
+  const now = new Date();
+  return runStoredDocumentTransaction([path], (documents) => {
+    const course = documents[path];
+    if (!course) throw new CourseBannerRegenerationError("NOT_FOUND", "Course not found.");
+    if (course.authorId !== uid && !ownerOverride) {
+      throw new CourseBannerRegenerationError("NOT_OWNED", "You do not own this course.");
+    }
+    if (Number(course.bannerRegenerationCount ?? 0) >= 1) {
+      throw new CourseBannerRegenerationError(
+        "ALREADY_USED",
+        "This course has already used its one banner regeneration.",
+      );
+    }
+    const leaseUntil = typeof course.bannerRegenerationLeaseUntil === "string"
+      ? Date.parse(course.bannerRegenerationLeaseUntil)
+      : 0;
+    if (course.bannerRegenerationStatus === "generating" && leaseUntil > now.getTime()) {
+      throw new CourseBannerRegenerationError(
+        "IN_PROGRESS",
+        "A new course banner is already being generated.",
+      );
+    }
+    return {
+      writes: [{
+        path,
+        data: {
+          ...course,
+          bannerRegenerationStatus: "generating",
+          bannerRegenerationClaimId: claimId,
+          bannerRegenerationLeaseUntil: new Date(now.getTime() + 120_000).toISOString(),
+          updatedAt: now,
+        },
+      }],
+      result: course,
+    };
+  });
+}
+
+export async function finishCourseBannerRegeneration(
+  courseId: string,
+  claimId: string,
+  banner: { assetId: string; version: 1; generatedAt: string },
+) {
+  const path = `courses/${courseId}`;
+  return runStoredDocumentTransaction([path], (documents) => {
+    const course = documents[path];
+    if (!course) throw new CourseBannerRegenerationError("NOT_FOUND", "Course not found.");
+    if (course.bannerRegenerationClaimId !== claimId) {
+      throw new CourseBannerRegenerationError("CLAIM_LOST", "The banner generation claim expired.");
+    }
+    return {
+      writes: [{
+        path,
+        data: {
+          ...course,
+          banner,
+          bannerRegenerationCount: 1,
+          bannerRegenerationStatus: null,
+          bannerRegenerationClaimId: null,
+          bannerRegenerationLeaseUntil: null,
+          updatedAt: new Date(),
+        },
+      }],
+      result: undefined,
+    };
+  });
+}
+
+export async function releaseCourseBannerRegeneration(courseId: string, claimId: string) {
+  const path = `courses/${courseId}`;
+  await runStoredDocumentTransaction([path], (documents) => {
+    const course = documents[path];
+    if (!course || course.bannerRegenerationClaimId !== claimId) {
+      return { writes: [], result: undefined };
+    }
+    return {
+      writes: [{
+        path,
+        data: {
+          ...course,
+          bannerRegenerationStatus: null,
+          bannerRegenerationClaimId: null,
+          bannerRegenerationLeaseUntil: null,
+          updatedAt: new Date(),
+        },
+      }],
+      result: undefined,
+    };
+  });
 }
 
 export async function listLessons(courseId: string) {
@@ -679,11 +819,83 @@ export async function getCoursePublishReadiness(
 }
 
 export async function deleteCourse(courseId: string) {
-  const lessons = await listLessons(courseId);
-  await commitWrites([
+  const notePrefix = `${courseId}:`;
+  const [lessons, progressDocuments, preferenceDocuments, noteDocuments] = await Promise.all([
+    listLessons(courseId),
+    runLocatedQuery({
+      from: collectionGroupFrom("courseProgress"),
+      where: {
+        fieldFilter: {
+          field: { fieldPath: "courseId" },
+          op: "EQUAL",
+          value: toFirestoreValue(courseId),
+        },
+      },
+    }),
+    runLocatedQuery({
+      from: collectionGroupFrom("learningData"),
+    }),
+    runLocatedQuery({
+      from: collectionGroupFrom("lessonNotes"),
+      where: {
+        compositeFilter: {
+          op: "AND",
+          filters: [
+            {
+              fieldFilter: {
+                field: { fieldPath: "key" },
+                op: "GREATER_THAN_OR_EQUAL",
+                value: toFirestoreValue(notePrefix),
+              },
+            },
+            {
+              fieldFilter: {
+                field: { fieldPath: "key" },
+                op: "LESS_THAN_OR_EQUAL",
+                value: toFirestoreValue(`${notePrefix}\uf8ff`),
+              },
+            },
+          ],
+        },
+      },
+    }),
+  ]);
+
+  const updatedAt = new Date().toISOString();
+  const preferenceUpdates = preferenceDocuments.flatMap(({ path, data }) => {
+    if (!path.endsWith("/learningData/preferences")) return [];
+    const cleaned = removeCourseReferences(data, courseId);
+    if (!cleaned.changed) return [];
+    const storedData: Record<string, unknown> = { ...cleaned.value, updatedAt };
+    delete storedData.id;
+    return [{
+      update: {
+        name: fullDocumentName(path),
+        fields: toFirestoreFields(storedData),
+      },
+    }];
+  });
+
+  const dependentWrites: Array<Record<string, unknown>> = [
     ...lessons.map((lesson) => ({
       delete: fullDocumentName(`courses/${courseId}/lessons/${lesson.id}`),
     })),
-    { delete: fullDocumentName(`courses/${courseId}`) },
-  ]);
+    ...progressDocuments.map(({ path }) => ({ delete: fullDocumentName(path) })),
+    ...noteDocuments
+      .filter(({ data }) => typeof data.key === "string" && data.key.startsWith(notePrefix))
+      .map(({ path }) => ({ delete: fullDocumentName(path) })),
+    ...preferenceUpdates,
+  ];
+
+  // Delete dependents first and the course record last. If cleanup is
+  // interrupted, retrying the operation safely completes the remaining work.
+  await commitWrites(dependentWrites);
+  await commitWrites([{ delete: fullDocumentName(`courses/${courseId}`) }]);
+
+  return {
+    lessons: lessons.length,
+    progressRecords: progressDocuments.length,
+    notes: noteDocuments.length,
+    learnerStates: preferenceUpdates.length,
+  };
 }

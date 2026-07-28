@@ -31,7 +31,8 @@ function microsToUsd(value: unknown) {
 }
 
 function featureValue(value: unknown): AiFeature {
-  return value === "course_outline" || value === "lesson_generation" ? value : "tutor";
+  if (value === "course_outline" || value === "course_banner") return "course_outline";
+  return value === "lesson_generation" ? value : "tutor";
 }
 
 function dayKeys(days: number) {

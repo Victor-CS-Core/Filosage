@@ -80,7 +80,7 @@ interface FieldFilter {
 }
 
 interface StructuredQuery {
-  from?: Array<{ collectionId?: string }>;
+  from?: Array<{ collectionId?: string; allDescendants?: boolean }>;
   where?: FieldFilter & { compositeFilter?: { op?: string; filters?: FieldFilter[] } };
   orderBy?: Array<{ field?: { fieldPath?: string }; direction?: string }>;
   limit?: number;
@@ -111,11 +111,15 @@ function matchesFilter(data: Record<string, unknown>, filter: FieldFilter) {
 
 function runQuery(store: StoreShape, query: StructuredQuery) {
   const collectionId = query.from?.[0]?.collectionId ?? "";
+  const allDescendants = query.from?.[0]?.allDescendants === true;
   const filters: FieldFilter[] = query.where?.compositeFilter?.filters
     ?? (query.where?.fieldFilter ? [query.where] : []);
 
   let rows = Object.entries(store)
-    .filter(([path]) => segmentCount(path) === 2 && path.startsWith(`${collectionId}/`))
+    .filter(([path]) => {
+      if (!allDescendants) return segmentCount(path) === 2 && path.startsWith(`${collectionId}/`);
+      return path.split("/").some((segment, index) => index % 2 === 0 && segment === collectionId);
+    })
     .filter(([, data]) => filters.every((filter) => matchesFilter(data, filter)))
     .map(([path, data]) => ({ path, data }));
 
