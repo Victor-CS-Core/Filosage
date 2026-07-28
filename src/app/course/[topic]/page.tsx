@@ -35,6 +35,7 @@ import type { CapstoneAssessment, CourseProgress } from "@/lib/learning-types";
 import { getLocalProgress, removeLocalProgress } from "@/lib/learning-progress";
 import { removeCourseFromLearnerState } from "@/lib/learner-state";
 import { createClientId } from "@/lib/browser-compat";
+import { trackProductEvent } from "@/lib/product-analytics";
 
 export default function CourseMap() {
   const params = useParams<{ topic: string }>();
@@ -109,6 +110,16 @@ export default function CourseMap() {
   }, [loadOrGenerate]);
 
   const courseId = course?.id ?? course?.courseId ?? requestedCourseId;
+
+  useEffect(() => {
+    if (!courseId || !course || isOwner) return;
+    trackProductEvent("course_started", {
+      route: "/course",
+      courseId,
+      contentVersion: course.updatedAt,
+      oncePerSession: true,
+    });
+  }, [course, courseId, isOwner]);
 
   useEffect(() => {
     if (!courseId) return;
@@ -258,7 +269,21 @@ export default function CourseMap() {
       });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || "The capstone could not be assessed.");
-      setCapstoneAssessment(data.assessment as CapstoneAssessment);
+      const assessment = data.assessment as CapstoneAssessment;
+      setCapstoneAssessment(assessment);
+      trackProductEvent("capstone_submitted", {
+        route: "/course",
+        courseId,
+        exclude: isOwner,
+      });
+      if (assessment.status === "passed") {
+        trackProductEvent("criterion_demonstrated", {
+          route: "/course",
+          courseId,
+          exclude: isOwner,
+          oncePerSession: true,
+        });
+      }
     } catch (assessError) {
       setCapstoneError(assessError instanceof Error ? assessError.message : "The capstone could not be assessed.");
     } finally {

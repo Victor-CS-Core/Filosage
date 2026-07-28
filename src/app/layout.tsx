@@ -32,28 +32,28 @@ function safeRequestOrigin(headerList: Headers) {
 
 export async function generateMetadata(): Promise<Metadata> {
   const origin = safeRequestOrigin(await headers());
-  const socialImage = new URL("/og.png", origin).toString();
+  const socialImage = new URL("/og-outcome.png", origin).toString();
 
   return {
     metadataBase: new URL(origin),
     title: {
-      default: "Erudoza · Your daily dose of understanding",
+      default: "Erudoza · Learn it. Use it. Prove it.",
       template: "%s | Erudoza",
     },
-    description: "Understanding that lasts: courses held to a published teaching standard, a daily review dose that returns concepts before you forget them, and mastery earned against real criteria.",
+    description: "Focused learning paths for product and data professionals: diagnose the starting point, practice on real work, and demonstrate what you can apply.",
     applicationName: "Erudoza",
     category: "education",
     openGraph: {
-      title: "Erudoza · Understanding that lasts.",
-      description: "Courses held to a teaching standard, daily review before you forget, and mastery you earn.",
+      title: "Erudoza · Learn the hard thing. Use it at work.",
+      description: "Focused learning paths for product and data professionals, built around real outcomes and demonstrated mastery.",
       type: "website",
       url: origin,
-      images: [{ url: socialImage, width: 1536, height: 1024, alt: "Erudoza · Understanding that lasts." }],
+      images: [{ url: socialImage, width: 1536, height: 1024, alt: "Erudoza · Learn it. Use it. Prove it." }],
     },
     twitter: {
       card: "summary_large_image",
-      title: "Erudoza · Understanding that lasts.",
-      description: "Your daily dose of understanding.",
+      title: "Erudoza · Learn the hard thing. Use it at work.",
+      description: "Focused professional learning built around real outcomes and demonstrated mastery.",
       images: [socialImage],
     },
   };

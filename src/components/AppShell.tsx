@@ -136,7 +136,7 @@ export default function AppShell({ children, activeTopic, activeCourseId }: AppS
               {theme === "dark" ? <Sun size={17} /> : <Moon size={17} />}
             </button>
             <button className="button button-quiet" onClick={() => setShowAuth(true)}>Sign in</button>
-            <Link className="button button-primary" href="/pricing">Try Erudoza free <ArrowRight size={15} /></Link>
+            <Link className="button button-primary" href="/library">Start learning <ArrowRight size={15} /></Link>
           </div>
         </header>
         <main className="public-main" id="main-content" tabIndex={-1}>{children}</main>

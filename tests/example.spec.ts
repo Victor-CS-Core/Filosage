@@ -103,7 +103,7 @@ test("never leaves public learning behind the authentication startup screen", as
   expect(hydrationErrors).toEqual([]);
 
   await expect(
-    page.getByRole("heading", { name: "Understanding that lasts." }),
+    page.getByRole("heading", { name: "Learn the hard thing. Use it at work." }),
   ).toBeVisible({ timeout: 4000 });
   await expect(page.locator(".auth-boot-shell")).toHaveCount(0);
 });
@@ -120,14 +120,14 @@ test("keeps the learning library public", async ({ page }) => {
   expect(scriptDirective).not.toContain("'unsafe-inline'");
   await expect(page.locator(".skip-link")).toHaveAttribute("href", "#main-content");
   await expect(
-    page.getByRole("heading", { name: "Understanding that lasts." }),
+    page.getByRole("heading", { name: "Learn the hard thing. Use it at work." }),
   ).toBeVisible();
-  await expect(page.getByText("No account required to read")).toBeVisible();
+  await expect(page.getByText("Built for product and data professionals")).toBeVisible();
   await expect(page.locator(".public-hero .public-proof")).toHaveCount(0);
   await expect(page.locator(".public-home > .public-proof")).toBeVisible();
 
   if ((page.viewportSize()?.width ?? 0) <= 620) {
-    const primaryHeight = await page.getByRole("button", { name: /Explore published courses/ }).evaluate((button) => button.getBoundingClientRect().height);
+    const primaryHeight = await page.getByRole("button", { name: "Start learning" }).evaluate((button) => button.getBoundingClientRect().height);
     const footerHeight = await page.locator(".public-footer").getByRole("link", { name: "Teaching standard" }).evaluate((link) => link.getBoundingClientRect().height);
     expect(primaryHeight).toBeGreaterThanOrEqual(44);
     expect(footerHeight).toBeGreaterThanOrEqual(44);
@@ -217,7 +217,7 @@ test("preserves the selected theme across navigation and reloads", async ({ page
   await page.reload();
 
   await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
-  await page.getByRole("button", { name: "Explore published courses" }).click();
+  await page.getByRole("button", { name: "Explore public courses" }).click();
   await expect(page).toHaveURL(/\/library$/);
   await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
   await expect.poll(() => page.evaluate(() => localStorage.getItem("erudoza-theme"))).toBe("dark");

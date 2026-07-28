@@ -3,34 +3,32 @@ import { apiRequestErrorResponse, readJsonBody } from "@/lib/api-security";
 import { createStoredDocument, runStoredDocumentTransaction } from "@/lib/firebase-server";
 import { enforceBestEffortRateLimit } from "@/lib/request-rate-limit";
 import { isLocalMode } from "@/lib/local-mode";
+import {
+  ACQUISITION_CHANNELS,
+  PRODUCT_EVENT_NAMES,
+  PRODUCT_EVENT_ROUTES,
+  PRODUCT_EVENT_SCHEMA_VERSION,
+} from "@/lib/product-events";
 
 const telemetrySchema = z.object({
-  route: z.enum([
-    "/",
-    "/lesson",
-    "/course",
-    "/library",
-    "/pricing",
-    "/progress",
-    "/review",
-    "/create",
-    "/profile",
-    "/privacy-center",
-    "/terms",
-    "/privacy",
-    "/acceptable-use",
-    "/copyright",
-    "/other",
-  ]),
+  schemaVersion: z.literal(PRODUCT_EVENT_SCHEMA_VERSION).default(PRODUCT_EVENT_SCHEMA_VERSION),
+  route: z.enum(PRODUCT_EVENT_ROUTES),
   source: z.enum(["direct", "internal", "external"]),
-  event: z.enum([
-    "page_view",
-    "signup_started",
-    "signup_completed",
-    "course_started",
-    "lesson_completed",
-    "pricing_interest",
-  ]).default("page_view"),
+  event: z.union([z.literal("page_view"), z.enum(PRODUCT_EVENT_NAMES)]).default("page_view"),
+  actorId: z.string().trim().regex(/^[A-Za-z0-9_-]{12,80}$/).optional(),
+  sessionId: z.string().trim().regex(/^[A-Za-z0-9_-]{12,80}$/).optional(),
+  acquisition: z.object({
+    channel: z.enum(ACQUISITION_CHANNELS),
+    campaign: z.string().trim().max(80).optional(),
+    medium: z.string().trim().max(80).optional(),
+    referrerHost: z.string().trim().max(120).optional(),
+    landingPath: z.string().trim().max(160),
+  }).strict().optional(),
+  experimentId: z.string().trim().max(120).optional(),
+  courseId: z.string().trim().max(120).optional(),
+  lessonId: z.string().trim().max(120).optional(),
+  objectiveId: z.string().trim().max(120).optional(),
+  contentVersion: z.string().trim().max(120).optional(),
 }).strict();
 
 const TRAFFIC_SHARDS = 16;
@@ -44,10 +42,10 @@ function documentRouteKey(route: string) {
 }
 
 export async function POST(request: Request) {
-  const limited = enforceBestEffortRateLimit(request, "telemetry", 30);
+  const limited = enforceBestEffortRateLimit(request, "telemetry", 60);
   if (limited) return limited;
   try {
-    const parsed = telemetrySchema.safeParse(await readJsonBody(request, 512));
+    const parsed = telemetrySchema.safeParse(await readJsonBody(request, 2_048));
     if (!parsed.success) {
       return Response.json({ error: "Invalid traffic event." }, { status: 400 });
     }
@@ -57,13 +55,26 @@ export async function POST(request: Request) {
 
     const now = new Date();
     const date = now.toISOString().slice(0, 10);
-    const { route, source, event } = parsed.data;
+    const { route, source, event, acquisition } = parsed.data;
     if (event !== "page_view") {
       await createStoredDocument("productEvents", {
+        schemaVersion: parsed.data.schemaVersion,
         date,
         route,
         source,
         event,
+        actorId: parsed.data.actorId,
+        sessionId: parsed.data.sessionId,
+        channel: acquisition?.channel ?? source,
+        campaign: acquisition?.campaign,
+        medium: acquisition?.medium,
+        referrerHost: acquisition?.referrerHost,
+        landingPath: acquisition?.landingPath,
+        experimentId: parsed.data.experimentId,
+        courseId: parsed.data.courseId,
+        lessonId: parsed.data.lessonId,
+        objectiveId: parsed.data.objectiveId,
+        contentVersion: parsed.data.contentVersion,
         createdAt: now.toISOString(),
       });
       return new Response(null, {
@@ -88,6 +99,9 @@ export async function POST(request: Request) {
             shard,
             views: numberValue(current?.views) + 1,
             [`${source}Views`]: numberValue(current?.[`${source}Views`]) + 1,
+            ...(acquisition?.channel ? {
+              [`${acquisition.channel}Views`]: numberValue(current?.[`${acquisition.channel}Views`]) + 1,
+            } : {}),
             updatedAt: now.toISOString(),
           },
         }],

@@ -27,6 +27,7 @@ import {
 import AppDrawer, { useAppDrawer } from "@/components/AppDrawer";
 import AppShell from "@/components/AppShell";
 import { useAuth } from "@/components/AuthProvider";
+import { trackProductEvent } from "@/lib/product-analytics";
 import ErudozaMark from "@/components/ErudozaMark";
 import type { Course, LessonData, Quiz } from "@/lib/course-types";
 import type { Confidence, CourseProgress, ProgressUpdate } from "@/lib/learning-types";
@@ -217,7 +218,7 @@ export default function LessonView() {
   const courseId = searchParams.get("id");
   const reviewMode = searchParams.get("review") === "1";
   const [moduleIndex, lessonIndex] = lessonId.split("-").map(Number);
-  const { user, isPro } = useAuth();
+  const { user, isOwner, isPro } = useAuth();
   const {
     state: learnerState,
     update: updateLearnerState,
@@ -467,6 +468,16 @@ export default function LessonView() {
     ].filter(Boolean).join(" ");
   }, [lesson, lessonVisuals, normalizedContent]);
 
+  useEffect(() => {
+    if (!courseId || !lessonData || !lesson || isOwner) return;
+    trackProductEvent("lesson_started", {
+      route: "/lesson",
+      courseId,
+      lessonId,
+      oncePerSession: true,
+    });
+  }, [courseId, isOwner, lesson, lessonData, lessonId]);
+
   const markComplete = useCallback(async () => {
     if (!courseId || complete || !lessonData || !lesson || !transferComplete) return;
     const results = Object.values(quizResults);
@@ -509,7 +520,23 @@ export default function LessonView() {
       }
     }
     setCompletionState({ key: noteKey, complete: true });
-  }, [allLessons.length, complete, courseId, lesson, lessonData, lessonId, nextLesson, noteKey, quizResults, reviewMode, topic, transferComplete, user]);
+    trackProductEvent("lesson_completed", {
+      route: "/lesson",
+      courseId,
+      lessonId,
+      exclude: isOwner,
+      oncePerSession: true,
+    });
+    if (!reviewMode) {
+      trackProductEvent("first_practice_completed", {
+        route: "/lesson",
+        courseId,
+        lessonId,
+        exclude: isOwner,
+        oncePerSession: true,
+      });
+    }
+  }, [allLessons.length, complete, courseId, isOwner, lesson, lessonData, lessonId, nextLesson, noteKey, quizResults, reviewMode, topic, transferComplete, user]);
 
   const onMastered = (index: number, result: QuizResult) => {
     setQuizResultState((current) => ({ key: noteKey, results: { ...(current.key === noteKey ? current.results : {}), [index]: result } }));

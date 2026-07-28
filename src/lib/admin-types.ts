@@ -1,5 +1,6 @@
 import type { AccountStatus, LearnerPlan } from "@/lib/course-types";
 import type { AiFeature } from "@/lib/ai-usage";
+import type { AcquisitionChannel, ProductEventName } from "@/lib/product-events";
 
 export interface AdminFeatureUsage {
   feature: AiFeature;
@@ -86,6 +87,23 @@ export interface AdminOverview {
     modeledAiCostPerSubscriberUsd: number;
     modeledContributionPerSubscriberUsd: number;
     modeledContributionMarginPercent: number;
+  };
+  growth: {
+    uniqueActors: number;
+    events: number;
+    funnel: Array<{
+      event: ProductEventName;
+      label: string;
+      events: number;
+      uniqueActors: number;
+      conversionFromPrevious: number | null;
+    }>;
+    acquisition: Array<{
+      channel: AcquisitionChannel;
+      events: number;
+      uniqueActors: number;
+      courseStarts: number;
+    }>;
   };
   trafficSeries: Array<{ date: string; views: number }>;
   topRoutes: Array<{ route: string; views: number }>;

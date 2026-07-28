@@ -5,7 +5,6 @@ import { useRouter } from "next/navigation";
 import {
   Activity,
   Ban,
-  Bell,
   BookOpenCheck,
   Bot,
   CheckCircle2,
@@ -20,6 +19,7 @@ import {
   RotateCcw,
   Search,
   ShieldCheck,
+  Target,
   TriangleAlert,
   Users,
 } from "lucide-react";
@@ -27,7 +27,7 @@ import AppShell from "@/components/AppShell";
 import { useAuth } from "@/components/AuthProvider";
 import type { AdminOverview, AdminUserSummary } from "@/lib/admin-types";
 
-type AdminTab = "overview" | "users" | "ai" | "safety";
+type AdminTab = "overview" | "research" | "users" | "ai" | "safety";
 
 const featureLabels = {
   course_outline: "Course outline",
@@ -221,6 +221,7 @@ export default function AdminPage() {
         <nav className="admin-tabs" aria-label="Control room sections">
           {([
             ["overview", Activity, "Overview"],
+            ["research", Target, "Research"],
             ["users", Users, "Users"],
             ["ai", Bot, "AI operations"],
             ["safety", ShieldCheck, "Safety"],
@@ -241,7 +242,7 @@ export default function AdminPage() {
               <article><Globe2 size={17} /><span>Page views</span><strong>{compactNumber(data.summary.pageViews)}</strong><small>{days}-day total</small></article>
               <article><Users size={17} /><span>Active learners</span><strong>{compactNumber(data.summary.activeUsers)}</strong><small>{data.summary.totalUsers} accounts</small></article>
               <article><Bot size={17} /><span>AI requests</span><strong>{compactNumber(data.summary.generations)}</strong><small>{data.summary.failedRequests} failed</small></article>
-              <article><Bell size={17} /><span>Pro launch list</span><strong>{compactNumber(data.monetization.waitlistCount)}</strong><small>consented contacts</small></article>
+              <article><Target size={17} /><span>Measured visitors</span><strong>{compactNumber(data.growth.uniqueActors)}</strong><small>{data.growth.events} outcome events</small></article>
               <article><Coins size={17} /><span>Estimated cost</span><strong>{currency(data.summary.estimatedCostUsd)}</strong><small>{data.budget.percentUsed.toFixed(1)}% monthly capacity</small></article>
               <article className={data.summary.safetyBlocks ? "has-warning" : ""}><ShieldCheck size={17} /><span>Safety blocks</span><strong>{data.summary.safetyBlocks}</strong><small>{data.summary.safetyBlocks ? "Review activity" : "No blocked requests"}</small></article>
             </section>
@@ -274,6 +275,20 @@ export default function AdminPage() {
                     const maximum = Math.max(1, data.topRoutes[0]?.views ?? 1);
                     return <div key={route.route}><span>{routeLabels[route.route] ?? route.route}</span><i><b style={{ width: `${(route.views / maximum) * 100}%` }} /></i><strong>{route.views}</strong></div>;
                   }) : <p>No traffic has been recorded for this window yet.</p>}
+                </div>
+              </section>
+
+              <section className="admin-panel admin-funnel-panel">
+                <header><div><p className="overline">Outcome funnel</p><h2>From interest to demonstrated value</h2></div><span>{data.growth.uniqueActors} measured visitors</span></header>
+                <div className="admin-funnel-list">
+                  {data.growth.funnel.map((step, index) => (
+                    <div key={step.event}>
+                      <span>{index + 1}</span>
+                      <p><strong>{step.label}</strong><small>{step.events} event{step.events === 1 ? "" : "s"}</small></p>
+                      <b>{step.uniqueActors}</b>
+                      <em>{step.conversionFromPrevious == null ? "Baseline" : `${step.conversionFromPrevious}%`}</em>
+                    </div>
+                  ))}
                 </div>
               </section>
 
@@ -327,6 +342,35 @@ export default function AdminPage() {
                 </div>
               </section>
             </div>
+          </div>
+        )}
+
+        {data && tab === "research" && (
+          <div className="admin-research-layout">
+            <section className="admin-panel admin-research-summary">
+              <header><div><p className="overline">Phase 0</p><h2>Public product validation</h2></div><span>{data.growth.events} outcome events</span></header>
+              <div className="admin-research-metrics">
+                <div><span>Landing actors</span><strong>{data.growth.funnel[0]?.uniqueActors ?? 0}</strong><small>Experiment EXP-001</small></div>
+                <div><span>Course starters</span><strong>{data.growth.funnel[1]?.uniqueActors ?? 0}</strong><small>Activation signal</small></div>
+                <div><span>First practices</span><strong>{data.growth.funnel[3]?.uniqueActors ?? 0}</strong><small>Value signal</small></div>
+              </div>
+              <div className="admin-acquisition-list">
+                <h3>Acquisition evidence</h3>
+                {data.growth.acquisition.length ? data.growth.acquisition.map((channel) => (
+                  <div key={channel.channel}><span>{channel.channel}</span><strong>{channel.uniqueActors} visitors</strong><small>{channel.courseStarts} course starts</small></div>
+                )) : <p>No acquisition evidence has been recorded yet.</p>}
+              </div>
+            </section>
+
+            <section className="admin-panel admin-research-protocol">
+              <header><div><p className="overline">Decision discipline</p><h2>What must be true before more investment</h2></div><span>Review with the interview log</span></header>
+              <ol>
+                <li><span>01</span><div><strong>Problem evidence</strong><p>Complete 15–20 interviews; at least ten people must describe the recurring problem without being led.</p></div></li>
+                <li><span>02</span><div><strong>Behavioral evidence</strong><p>Public visitors must progress from the landing page to a course, first practice, and demonstrated criterion.</p></div></li>
+                <li><span>03</span><div><strong>Commercial evidence</strong><p>Record credible willingness to pay at the planned price before enabling checkout.</p></div></li>
+                <li><span>04</span><div><strong>Decision</strong><p>Continue, narrow, pivot, or stop based on the recorded thresholds—not enthusiasm alone.</p></div></li>
+              </ol>
+            </section>
           </div>
         )}
 

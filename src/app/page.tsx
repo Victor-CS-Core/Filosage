@@ -45,7 +45,7 @@ function streakFor(lessons: LessonProgress[]) {
 
 export default function Home() {
   const router = useRouter();
-  const { user, account, isPro, loading: authLoading, signInWithGoogle } = useAuth();
+  const { user, account, isPro, loading: authLoading } = useAuth();
   const { state: learnerState, update: updateLearnerState, syncStatus } = useLearnerState();
   const [courses, setCourses] = useState<Course[]>([]);
   const [authoredCourses, setAuthoredCourses] = useState<Course[]>([]);
@@ -80,24 +80,24 @@ export default function Home() {
         <div className="public-home">
           <section className="public-hero">
             <div className="public-hero-copy">
-              <span className="hero-status"><span /> Public learning library</span>
-              <h1>Understanding<br /><span>that lasts.</span></h1>
-              <p>Every course is held to a published teaching standard, every concept returns for review before you forget it, and mastery is earned by meeting real criteria.</p>
+              <span className="hero-status"><span /> Built for product and data professionals</span>
+              <h1>Learn the hard thing.<br /><span>Use it at work.</span></h1>
+              <p>Turn a real professional challenge into a focused learning path. Erudoza diagnoses your starting point, builds durable understanding, and asks you to prove you can apply it.</p>
               <div className="hero-actions">
-                <button className="button button-primary" onClick={() => router.push("/library")}>Explore published courses <ArrowRight size={17} /></button>
-                <button className="button button-secondary" onClick={() => void signInWithGoogle()}>Create a free account</button>
+                <button className="button button-primary" onClick={() => router.push("/library")}>Start learning <ArrowRight size={17} /></button>
+                <button className="button button-secondary" onClick={() => router.push("/standard")}>See the teaching standard</button>
               </div>
             </div>
             <div className="public-hero-panel" aria-label="Erudoza learning loop">
-              <div className="hero-panel-brand"><span className="brand-mark"><ErudozaMark /></span><span><small>Your daily dose of understanding.</small><strong>A course should change what you can do.</strong></span></div>
+              <div className="hero-panel-brand"><span className="brand-mark"><ErudozaMark /></span><span><small>The Erudoza outcome loop</small><strong>A course should change what you can do.</strong></span></div>
               <ol>
-                <li><span><BrainCircuit size={19} /></span><div><strong>Correct the misconception</strong><p>Every lesson names the wrong belief it replaces, so you learn against your actual starting point.</p></div></li>
-                <li><span><BookOpenCheck size={19} /></span><div><strong>Practice with visible reasoning</strong><p>Worked steps and transfer tasks connect explanation to real decisions.</p></div></li>
-                <li><span><Target size={19} /></span><div><strong>Return before you forget</strong><p>Your daily dose brings each concept back right before it fades.</p></div></li>
+                <li><span><BrainCircuit size={19} /></span><div><strong>Diagnose the starting point</strong><p>Performance and context determine what belongs in your path—and what does not.</p></div></li>
+                <li><span><BookOpenCheck size={19} /></span><div><strong>Practice on a real decision</strong><p>Worked reasoning becomes an independent task tied to the work you need to do.</p></div></li>
+                <li><span><Target size={19} /></span><div><strong>Leave with evidence</strong><p>Recall, transfer, and capstone criteria show what you demonstrated, not merely viewed.</p></div></li>
               </ol>
             </div>
           </section>
-          <div className="public-proof" aria-label="Why learn with Erudoza"><span><CheckCircle2 size={16} /> No account required to read</span><span><CheckCircle2 size={16} /> Progress stays yours</span><span><CheckCircle2 size={16} /> Every lesson passes a quality gate</span></div>
+          <div className="public-proof" aria-label="Why learn with Erudoza"><span><CheckCircle2 size={16} /> Begin with a real work outcome</span><span><CheckCircle2 size={16} /> Private plans stay private</span><span><CheckCircle2 size={16} /> Mastery requires evidence</span></div>
 
           <section className="public-library-preview" aria-labelledby="public-library-title">
             <div className="section-heading"><div><p className="overline">Published courses</p><h2 id="public-library-title">Explore the public library</h2><p>Start any course now. A free account saves your progress, courses, and review schedule across devices.</p></div><button className="text-button" onClick={() => router.push("/library")}>View all courses <ArrowRight size={15} /></button></div>
@@ -109,7 +109,7 @@ export default function Home() {
             <div className="method-steps"><article><span>01</span><h3>Learn against your misconceptions</h3><p>Each lesson corrects a named wrong belief and builds the knowledge the next lesson needs.</p></article><article><span>02</span><h3>Explain it from memory</h3><p>Recall comes before answer choices, so you test memory instead of recognition. Your daily dose returns each concept before it fades.</p></article><article><span>03</span><h3>Earn the capstone</h3><p>Courses end in capstone work assessed against clear success criteria, so mastery means something you demonstrated.</p></article></div>
           </section>
 
-          <section className="public-plans-cta"><div><Crown size={22} /><h2>Read any published course. Create your own with Pro.</h2><p>Free accounts sync your learning. Erudoza Pro adds private course creation and more tutor questions with monthly limits.</p></div><button className="button button-primary" onClick={() => router.push("/pricing")}>Compare plans <ArrowRight size={16} /></button></section>
+          <section className="public-plans-cta"><div><Crown size={22} /><h2>Build one capability your work actually requires.</h2><p>Choose a public course, practice against a real situation, and leave with evidence of what you can apply. Reading is open; a free account keeps your progress and review schedule in sync.</p></div><button className="button button-primary" onClick={() => router.push("/library")}>Explore public courses <ArrowRight size={16} /></button></section>
         </div>
       </AppShell>
     );

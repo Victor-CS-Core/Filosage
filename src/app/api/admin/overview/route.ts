@@ -12,6 +12,11 @@ import type {
 } from "@/lib/admin-types";
 import type { AiFeature } from "@/lib/ai-usage";
 import { aiBudgetLimitsUsd, type AiBudgetPool } from "@/lib/ai-usage";
+import {
+  ACQUISITION_CHANNELS,
+  type AcquisitionChannel,
+  type ProductEventName,
+} from "@/lib/product-events";
 
 function numberValue(value: unknown) {
   return typeof value === "number" && Number.isFinite(value) ? value : 0;
@@ -34,6 +39,21 @@ function featureValue(value: unknown): AiFeature {
   if (value === "course_outline" || value === "course_banner") return "course_outline";
   return value === "lesson_generation" ? value : "tutor";
 }
+
+function acquisitionChannel(value: unknown): AcquisitionChannel {
+  return ACQUISITION_CHANNELS.includes(value as AcquisitionChannel)
+    ? value as AcquisitionChannel
+    : "direct";
+}
+
+const funnelDefinition: Array<{ event: ProductEventName; label: string }> = [
+  { event: "landing_viewed", label: "Qualified landing" },
+  { event: "course_started", label: "Course started" },
+  { event: "lesson_started", label: "Lesson started" },
+  { event: "first_practice_completed", label: "First practice completed" },
+  { event: "lesson_completed", label: "Lesson completed" },
+  { event: "criterion_demonstrated", label: "Applied criterion demonstrated" },
+];
 
 function dayKeys(days: number) {
   const today = new Date();
@@ -82,6 +102,7 @@ export async function GET(request: Request) {
       publicCourseCount,
       privateCourseCount,
       waitlistCount,
+      productEvents,
     ] = await Promise.all([
       listCollectionDocumentsByRange("users", "updatedAt", "1970-01-01T00:00:00.000Z", nowIso, 300),
       listCollectionDocumentsByRange("userEngagement", "lastActivityAt", "1970-01-01T00:00:00.000Z", nowIso, 300),
@@ -100,6 +121,7 @@ export async function GET(request: Request) {
       countCollectionDocuments("courses", [{ field: "isPublic", value: true }]),
       countCollectionDocuments("courses", [{ field: "isPublic", value: false }]),
       countCollectionDocuments("waitlist"),
+      listCollectionDocumentsByRange("productEvents", "createdAt", fromIso, nowIso, 2_000),
     ]);
     if (ownerRecord && !rawUsers.some((record) => record.id === owner.uid || record.uid === owner.uid)) {
       rawUsers.unshift(ownerRecord);
@@ -280,6 +302,42 @@ export async function GET(request: Request) {
       const user = users.find((candidate) => candidate.uid === uid);
       return user ? labelForUser(user) : "Deleted account";
     };
+    const eventActors = (event: ProductEventName) => new Set(
+      productEvents.flatMap((record) => record.event === event && typeof record.actorId === "string"
+        ? [record.actorId]
+        : []),
+    );
+    let eligibleActors: Set<string> | undefined;
+    const funnel = funnelDefinition.map(({ event, label }, index) => {
+      const events = productEvents.filter((record) => record.event === event).length;
+      const actors = eventActors(event);
+      const previous = eligibleActors?.size ?? 0;
+      const progressingActors = eligibleActors
+        ? new Set(Array.from(actors).filter((actorId) => eligibleActors?.has(actorId)))
+        : actors;
+      eligibleActors = progressingActors;
+      return {
+        event,
+        label,
+        events,
+        uniqueActors: progressingActors.size,
+        conversionFromPrevious: index === 0 || previous === 0
+          ? null
+          : Math.round((progressingActors.size / previous) * 1_000) / 10,
+      };
+    });
+    const acquisition = ACQUISITION_CHANNELS.map((channel) => {
+      const channelEvents = productEvents.filter((record) => acquisitionChannel(record.channel ?? record.source) === channel);
+      return {
+        channel,
+        events: channelEvents.length,
+        uniqueActors: new Set(channelEvents.flatMap((record) => typeof record.actorId === "string" ? [record.actorId] : [])).size,
+        courseStarts: channelEvents.filter((record) => record.event === "course_started").length,
+      };
+    }).filter((channel) => channel.events);
+    const uniqueActors = new Set(productEvents.flatMap((record) => (
+      typeof record.actorId === "string" ? [record.actorId] : []
+    ))).size;
 
     const overview: AdminOverview = {
       generatedAt: new Date().toISOString(),
@@ -325,6 +383,12 @@ export async function GET(request: Request) {
         modeledAiCostPerSubscriberUsd,
         modeledContributionPerSubscriberUsd,
         modeledContributionMarginPercent: (modeledContributionPerSubscriberUsd / plannedMonthlyPriceUsd) * 100,
+      },
+      growth: {
+        uniqueActors,
+        events: productEvents.length,
+        funnel,
+        acquisition,
       },
       trafficSeries: dates.map((date) => ({ date, views: trafficByDate.get(date) ?? 0 })),
       topRoutes: Array.from(routeTotals, ([route, views]) => ({ route, views }))
