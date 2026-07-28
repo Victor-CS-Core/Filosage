@@ -219,3 +219,12 @@ export function saveLocalMasteryJourney(
     // Learning remains usable when browser storage is unavailable.
   }
 }
+
+export function removeLocalMasteryJourney(courseId: string) {
+  if (typeof window === "undefined") return;
+  try {
+    localStorage.removeItem(storageKey(courseId));
+  } catch {
+    // Cleanup can continue even when browser storage is unavailable.
+  }
+}

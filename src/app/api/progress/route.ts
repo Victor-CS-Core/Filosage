@@ -1,5 +1,6 @@
 import { authorizationResponse, requireAcceptedAccount, requireAccount } from "@/lib/auth-server";
 import {
+  deleteStoredDocuments,
   getCourse,
   getStoredDocument,
   listStoredDocuments,
@@ -48,12 +49,23 @@ function asCourseProgress(value: Record<string, unknown>): CourseProgress {
   };
 }
 
-async function hydrateNextLesson(progress: CourseProgress) {
-  if (progress.nextLessonId !== null && progress.nextLessonId !== undefined) return progress;
+async function resolveActiveProgress(
+  progress: CourseProgress,
+  account: { uid: string; isOwner: boolean },
+) {
   const course = await getCourse(progress.courseId) as Course | null;
-  if (!course) return progress;
+  if (!course) return { status: "deleted" as const, progress: null };
+  if (!course.isPublic && course.authorId !== account.uid && !account.isOwner) {
+    return { status: "inaccessible" as const, progress: null };
+  }
+  if (progress.nextLessonId !== null && progress.nextLessonId !== undefined) {
+    return { status: "active" as const, progress };
+  }
   const next = findNextLesson(course, progress.completedLessonIds);
-  return { ...progress, nextLessonId: next?.id ?? null, nextLessonTitle: next?.title ?? null };
+  return {
+    status: "active" as const,
+    progress: { ...progress, nextLessonId: next?.id ?? null, nextLessonTitle: next?.title ?? null },
+  };
 }
 
 export async function GET(request: Request) {
@@ -62,18 +74,36 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
     const courseId = searchParams.get("courseId");
     if (courseId) {
-      const progress = await getStoredDocument(`users/${account.uid}/courseProgress/${courseId}`);
+      const path = `users/${account.uid}/courseProgress/${courseId}`;
+      const stored = await getStoredDocument(path);
+      const resolved = stored
+        ? await resolveActiveProgress(asCourseProgress(stored), account)
+        : null;
+      if (resolved?.status === "deleted") await deleteStoredDocuments([path]);
       return Response.json(
-        { progress: progress ? await hydrateNextLesson(asCourseProgress(progress)) : null },
+        { progress: resolved?.progress ?? null },
         { headers: { "Cache-Control": "private, no-store" } },
       );
     }
 
     const documents = await listStoredDocuments(`users/${account.uid}/courseProgress`, 100);
-    const progress = await Promise.all(documents
-      .map(asCourseProgress)
-      .sort((a, b) => b.lastActivityAt.localeCompare(a.lastActivityAt))
-      .map(hydrateNextLesson));
+    const records = documents
+      .map((document) => ({ document, progress: asCourseProgress(document) }))
+      .sort((left, right) => right.progress.lastActivityAt.localeCompare(left.progress.lastActivityAt));
+    const resolutions = await Promise.all(records.map(async (record) => ({
+      document: record.document,
+      courseId: record.progress.courseId,
+      resolution: await resolveActiveProgress(record.progress, account),
+    })));
+    const stalePaths = resolutions.flatMap(({ courseId: deletedCourseId, document, resolution }) =>
+      resolution.status === "deleted"
+        ? [`users/${account.uid}/courseProgress/${document.id ?? deletedCourseId}`]
+        : [],
+    );
+    await deleteStoredDocuments(stalePaths);
+    const progress = resolutions.flatMap(({ resolution }) =>
+      resolution.progress ? [resolution.progress] : [],
+    );
     return Response.json({ progress }, { headers: { "Cache-Control": "private, no-store" } });
   } catch (error) {
     const authResponse = authorizationResponse(error);

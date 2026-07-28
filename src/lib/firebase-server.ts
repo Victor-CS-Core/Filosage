@@ -820,18 +820,28 @@ export async function getCoursePublishReadiness(
 
 export async function deleteCourse(courseId: string) {
   const notePrefix = `${courseId}:`;
-  const [lessons, progressDocuments, preferenceDocuments, noteDocuments] = await Promise.all([
-    listLessons(courseId),
-    runLocatedQuery({
-      from: collectionGroupFrom("courseProgress"),
-      where: {
-        fieldFilter: {
-          field: { fieldPath: "courseId" },
-          op: "EQUAL",
-          value: toFirestoreValue(courseId),
-        },
+  const courseScopedDocuments = (collectionId: string) => runLocatedQuery({
+    from: collectionGroupFrom(collectionId),
+    where: {
+      fieldFilter: {
+        field: { fieldPath: "courseId" },
+        op: "EQUAL",
+        value: toFirestoreValue(courseId),
       },
-    }),
+    },
+  });
+  const [
+    lessons,
+    progressDocuments,
+    preferenceDocuments,
+    noteDocuments,
+    learningOutcomeDocuments,
+    masteryEvidenceDocuments,
+    contentReportDocuments,
+    outcomeFeedbackDocuments,
+  ] = await Promise.all([
+    listLessons(courseId),
+    courseScopedDocuments("courseProgress"),
     runLocatedQuery({
       from: collectionGroupFrom("learningData"),
     }),
@@ -859,6 +869,10 @@ export async function deleteCourse(courseId: string) {
         },
       },
     }),
+    courseScopedDocuments("learningOutcomes"),
+    courseScopedDocuments("masteryEvidence"),
+    courseScopedDocuments("contentReports"),
+    courseScopedDocuments("outcomeFeedback"),
   ]);
 
   const updatedAt = new Date().toISOString();
@@ -884,6 +898,10 @@ export async function deleteCourse(courseId: string) {
     ...noteDocuments
       .filter(({ data }) => typeof data.key === "string" && data.key.startsWith(notePrefix))
       .map(({ path }) => ({ delete: fullDocumentName(path) })),
+    ...learningOutcomeDocuments.map(({ path }) => ({ delete: fullDocumentName(path) })),
+    ...masteryEvidenceDocuments.map(({ path }) => ({ delete: fullDocumentName(path) })),
+    ...contentReportDocuments.map(({ path }) => ({ delete: fullDocumentName(path) })),
+    ...outcomeFeedbackDocuments.map(({ path }) => ({ delete: fullDocumentName(path) })),
     ...preferenceUpdates,
   ];
 
@@ -897,5 +915,9 @@ export async function deleteCourse(courseId: string) {
     progressRecords: progressDocuments.length,
     notes: noteDocuments.length,
     learnerStates: preferenceUpdates.length,
+    learningOutcomes: learningOutcomeDocuments.length,
+    masteryEvidence: masteryEvidenceDocuments.length,
+    contentReports: contentReportDocuments.length,
+    outcomeFeedback: outcomeFeedbackDocuments.length,
   };
 }

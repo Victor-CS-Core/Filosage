@@ -34,8 +34,8 @@ import { useMasteryJourney } from "@/components/useMasteryJourney";
 import { useAuth } from "@/components/AuthProvider";
 import type { Course } from "@/lib/course-types";
 import type { CapstoneAssessment, CourseProgress } from "@/lib/learning-types";
-import { getLocalProgress, removeLocalProgress } from "@/lib/learning-progress";
-import { removeCourseFromLearnerState } from "@/lib/learner-state";
+import { getLocalProgress } from "@/lib/learning-progress";
+import { clearLocalCourseData } from "@/lib/local-course-data";
 import { createClientId } from "@/lib/browser-compat";
 import { trackProductEvent } from "@/lib/product-analytics";
 
@@ -75,6 +75,7 @@ export default function CourseMap() {
           headers: token ? { Authorization: `Bearer ${token}` } : undefined,
         });
         const data = await response.json();
+        if (response.status === 404) clearLocalCourseData(requestedCourseId);
         if (!response.ok) throw new Error(data.error || "The course could not be opened.");
         setCourse({ ...data, id: requestedCourseId, courseId: requestedCourseId });
         return;
@@ -219,10 +220,7 @@ export default function CourseMap() {
       });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || "The course could not be deleted.");
-      removeLocalProgress(courseId);
-      removeCourseFromLearnerState(courseId);
-      window.dispatchEvent(new Event("erudoza:courses-changed"));
-      window.dispatchEvent(new CustomEvent("erudoza:course-deleted", { detail: { courseId } }));
+      clearLocalCourseData(courseId);
       deleteDrawer.closeDrawer();
       router.push("/");
     } catch (deleteError) {
@@ -642,6 +640,7 @@ export default function CourseMap() {
                       <li>The course and all generated lessons</li>
                       <li>Every learner&apos;s progress and scheduled reviews for this course</li>
                       <li>Course bookmarks, lesson bookmarks, and linked lesson notes</li>
+                      <li>Outcome plans, mastery evidence, feedback, and open content reports</li>
                     </ul>
                   </div>
                 </div>

@@ -928,6 +928,142 @@ test("explains permanent course deletion before sending a delete request", async
   expect(deleteRequests).toBe(0);
 });
 
+test("purges every local artifact when a deleted course is encountered", async ({ page }) => {
+  const courseId = "delete-cleanup-demo";
+  await page.addInitScript((deletedCourseId) => {
+    const now = "2026-07-28T12:00:00.000Z";
+    localStorage.setItem("erudoza-learning-state-v2", JSON.stringify({
+      [deletedCourseId]: {
+        courseId: deletedCourseId,
+        topic: "Obsolete course",
+        completedLessonIds: ["0-0"],
+        lessons: {},
+        studyMinutes: 10,
+        lastActivityAt: now,
+        startedAt: now,
+      },
+      "keep-course": {
+        courseId: "keep-course",
+        topic: "Keep course",
+        completedLessonIds: [],
+        lessons: {},
+        studyMinutes: 0,
+        lastActivityAt: now,
+        startedAt: now,
+      },
+    }));
+    localStorage.setItem("erudoza-learner-state-v1", JSON.stringify({
+      courseBookmarks: [deletedCourseId, "keep-course"],
+      lessonBookmarks: [`${deletedCourseId}:0-0`, "keep-course:0-0"],
+      notes: { [`${deletedCourseId}:0-0`]: "delete", "keep-course:0-0": "keep" },
+      noteUpdatedAt: { [`${deletedCourseId}:0-0`]: now, "keep-course:0-0": now },
+      weeklyLessonGoal: 5,
+    }));
+    localStorage.setItem(`erudoza-mastery-v1:${deletedCourseId}`, JSON.stringify({
+      plan: {
+        courseId: deletedCourseId,
+        courseTopic: "Obsolete course",
+        desiredOutcome: "Demonstrate the obsolete skill.",
+        applicationContext: "A test context.",
+        targetArtifact: "A test artifact.",
+        weeklyMinutes: 60,
+        diagnostics: [{
+          objectiveId: "module-0",
+          moduleIndex: 0,
+          moduleTitle: "Foundations",
+          objective: "Explain the concept.",
+          level: "new",
+        }],
+        recommendedLessonId: "0-0",
+        explanation: "Start with Foundations.",
+        createdAt: now,
+        updatedAt: now,
+      },
+      evidence: [{ courseId: deletedCourseId }],
+    }));
+    localStorage.setItem(`erudoza:outcome-feedback:${deletedCourseId}`, "sent");
+  }, courseId);
+  await page.route(`**/api/courses/${courseId}`, (route) =>
+    route.fulfill({ status: 404, json: { error: "Course not found." } }));
+
+  await page.goto(`/course/Obsolete%20course?id=${courseId}`);
+  await expect(page.getByText("Course unavailable")).toBeVisible();
+
+  const remaining = await page.evaluate((deletedCourseId) => ({
+    progress: JSON.parse(localStorage.getItem("erudoza-learning-state-v2") ?? "{}"),
+    learnerState: JSON.parse(localStorage.getItem("erudoza-learner-state-v1") ?? "{}"),
+    mastery: localStorage.getItem(`erudoza-mastery-v1:${deletedCourseId}`),
+    feedback: localStorage.getItem(`erudoza:outcome-feedback:${deletedCourseId}`),
+  }), courseId);
+  expect(Object.keys(remaining.progress)).toEqual(["keep-course"]);
+  expect(remaining.learnerState.courseBookmarks).toEqual(["keep-course"]);
+  expect(remaining.learnerState.lessonBookmarks).toEqual(["keep-course:0-0"]);
+  expect(remaining.learnerState.notes).toEqual({ "keep-course:0-0": "keep" });
+  expect(remaining.mastery).toBeNull();
+  expect(remaining.feedback).toBeNull();
+});
+
+test("removes deleted courses from the anonymous review schedule", async ({ page }) => {
+  await page.addInitScript(() => {
+    const past = "2026-07-01T12:00:00.000Z";
+    const progress = (courseId: string, topic: string, lessonTitle: string) => ({
+      courseId,
+      topic,
+      lastLessonId: "0-0",
+      lastLessonTitle: lessonTitle,
+      nextLessonId: null,
+      nextLessonTitle: null,
+      completedLessonIds: ["0-0"],
+      lessons: {
+        "0-0": {
+          lessonId: "0-0",
+          lessonTitle,
+          status: "learned",
+          attempts: 1,
+          totalQuestions: 1,
+          firstAttemptCorrect: 1,
+          confidence: "medium",
+          intervalStage: 0,
+          nextReviewAt: past,
+          lastStudiedAt: past,
+          completedAt: past,
+        },
+      },
+      studyMinutes: 10,
+      lastActivityAt: past,
+      startedAt: past,
+    });
+    localStorage.setItem("erudoza-learning-state-v2", JSON.stringify({
+      "deleted-course": progress("deleted-course", "Deleted course", "Stale lesson"),
+      "active-course": progress("active-course", "Active course", "Current lesson"),
+    }));
+    localStorage.setItem("erudoza-mastery-v1:deleted-course", JSON.stringify({
+      plan: { courseId: "deleted-course" },
+      evidence: [{ courseId: "deleted-course" }],
+    }));
+  });
+  await page.route("**/api/courses/deleted-course", (route) =>
+    route.fulfill({ status: 404, json: { error: "Course not found." } }));
+  await page.route("**/api/courses/active-course", (route) =>
+    route.fulfill({ json: {
+      id: "active-course",
+      courseId: "active-course",
+      topic: "Active course",
+      isPublic: true,
+      modules: [{ title: "Module", lessons: [{ title: "Current lesson", concept: "Concept" }] }],
+    } }));
+
+  await page.goto("/review");
+  await expect(page.getByText("Current lesson")).toBeVisible();
+  await expect(page.getByText("Stale lesson")).toHaveCount(0);
+  const localState = await page.evaluate(() => ({
+    progress: JSON.parse(localStorage.getItem("erudoza-learning-state-v2") ?? "{}"),
+    mastery: localStorage.getItem("erudoza-mastery-v1:deleted-course"),
+  }));
+  expect(Object.keys(localState.progress)).toEqual(["active-course"]);
+  expect(localState.mastery).toBeNull();
+});
+
 test("derives mastery only from observed evidence strength", () => {
   const observedAt = "2026-07-28T12:00:00.000Z";
   const evidence: MasteryEvidence[] = [

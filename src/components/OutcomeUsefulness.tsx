@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { CheckCircle2, LoaderCircle, MessageSquareText } from "lucide-react";
 import { createClientId, deferClientTask } from "@/lib/browser-compat";
+import { outcomeFeedbackStorageKey } from "@/lib/local-course-data";
 import { trackProductEvent } from "@/lib/product-analytics";
 
 export default function OutcomeUsefulness({
@@ -12,7 +13,7 @@ export default function OutcomeUsefulness({
   courseId: string;
   getAuthToken?: () => Promise<string | null>;
 }) {
-  const storageKey = `erudoza:outcome-feedback:${courseId}`;
+  const storageKey = outcomeFeedbackStorageKey(courseId);
   const [rating, setRating] = useState<number | null>(null);
   const [note, setNote] = useState("");
   const [busy, setBusy] = useState(false);

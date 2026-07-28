@@ -35,6 +35,14 @@ Billing: remains disabled
 - Public learners can report accuracy, freshness, source, clarity, or other issues.
 - The owner queue preserves the lesson version that was reported.
 
+## Deleted-course hygiene
+
+- Course deletion removes generated lessons, every learner's progress and review schedule, bookmarks, notes, outcome plans, mastery evidence, feedback, and open content reports.
+- Device storage is cleared immediately for the person deleting the course.
+- Opening a deleted course or loading an anonymous review schedule prunes stale device records.
+- Signed-in progress responses omit inaccessible courses and delete orphaned progress records, so stale entries cannot return to Continue Learning.
+- Account export and deletion include the Phase 1 outcome and mastery records.
+
 ## Measurement
 
 The owner research view now reports:

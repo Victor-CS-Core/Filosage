@@ -23,11 +23,25 @@ async function emailFingerprint(email: string) {
 }
 
 async function collectAccountData(uid: string) {
-  const [account, preferences, lessonNotes, progress, legalAcceptances, courses, usagePeriods, aiRequests, aiBudgets] = await Promise.all([
+  const [
+    account,
+    preferences,
+    lessonNotes,
+    progress,
+    learningOutcomes,
+    masteryEvidence,
+    legalAcceptances,
+    courses,
+    usagePeriods,
+    aiRequests,
+    aiBudgets,
+  ] = await Promise.all([
     getStoredDocument(`users/${uid}`),
     getStoredDocument(`users/${uid}/learningData/preferences`),
     listAllStoredDocuments(`users/${uid}/lessonNotes`, 500),
     listStoredDocuments(`users/${uid}/courseProgress`, 300),
+    listAllStoredDocuments(`users/${uid}/learningOutcomes`, 500),
+    listAllStoredDocuments(`users/${uid}/masteryEvidence`, 2_000),
     listStoredDocuments(`users/${uid}/legalAcceptances`, 300),
     listOwnerCourses(uid),
     listStoredDocumentsByField("usagePeriods", "uid", uid, 1_000),
@@ -43,6 +57,8 @@ async function collectAccountData(uid: string) {
     learningPreferences: preferences,
     lessonNotes,
     courseProgress: progress,
+    learningOutcomes,
+    masteryEvidence,
     legalAcceptances,
     authoredCourses,
     aiUsagePeriods: usagePeriods,
@@ -123,6 +139,8 @@ export async function DELETE(request: Request) {
 
     await deleteStoredDocuments([
       ...data.courseProgress.map((record) => `users/${account.uid}/courseProgress/${record.id}`),
+      ...data.learningOutcomes.map((record) => `users/${account.uid}/learningOutcomes/${record.id}`),
+      ...data.masteryEvidence.map((record) => `users/${account.uid}/masteryEvidence/${record.id}`),
       ...data.legalAcceptances.map((record) => `users/${account.uid}/legalAcceptances/${record.id}`),
       ...data.lessonNotes.map((record) => `users/${account.uid}/lessonNotes/${record.id}`),
       `users/${account.uid}/learningData/preferences`,

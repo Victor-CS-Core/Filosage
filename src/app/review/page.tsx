@@ -7,6 +7,7 @@ import AppShell from "@/components/AppShell";
 import { useAuth } from "@/components/AuthProvider";
 import type { CourseProgress } from "@/lib/learning-types";
 import { listLocalProgress } from "@/lib/learning-progress";
+import { removeDeletedLocalCourses } from "@/lib/local-course-data";
 
 const SESSION_SIZE = 10;
 
@@ -31,7 +32,7 @@ export default function ReviewPage() {
     let cancelled = false;
     const load = async (): Promise<CourseProgress[]> => {
       // Reviews work without an account: device progress carries the schedule.
-      if (!user) return listLocalProgress();
+      if (!user) return removeDeletedLocalCourses(listLocalProgress());
       const token = await user.getIdToken();
       const response = await fetch("/api/progress", {
         headers: { Authorization: `Bearer ${token}` },
