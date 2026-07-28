@@ -336,10 +336,10 @@ export default function AdminPage() {
                 <div><p className="overline">Accounts</p><h2>User directory</h2></div>
                 <label className="admin-user-search"><Search size={16} /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search name or email" aria-label="Search users" /></label>
               </header>
-              <div className="admin-user-table" role="table" aria-label="Erudoza users">
-                <div className="admin-user-table-head" role="row"><span>User</span><span>Access</span><span>Last seen</span><span>Tokens</span><span>Cost</span></div>
+              <div className="admin-user-table" role="group" aria-label="Erudoza users">
+                <div className="admin-user-table-head"><span>User</span><span>Access</span><span>Last seen</span><span>Tokens</span><span>Cost</span></div>
                 {filteredUsers.map((candidate) => (
-                  <button key={candidate.uid} className={selectedUid === candidate.uid ? "is-selected" : ""} onClick={() => { setSelectedUid(candidate.uid); setActionMessage(null); }} role="row">
+                  <button key={candidate.uid} className={selectedUid === candidate.uid ? "is-selected" : ""} onClick={() => { setSelectedUid(candidate.uid); setActionMessage(null); }}>
                     <span className="admin-user-identity">{candidate.photoURL ? (
                       // eslint-disable-next-line @next/next/no-img-element
                       <img src={candidate.photoURL} alt="" referrerPolicy="no-referrer" />

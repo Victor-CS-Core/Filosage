@@ -118,7 +118,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       });
     } catch (requestError) {
       if (controller.signal.aborted) {
-        throw new Error("Your account is taking longer than expected. You can keep learning while it reconnects.");
+        throw new Error(
+          "Your account is taking longer than expected. You can keep learning while it reconnects.",
+          { cause: requestError },
+        );
       }
       throw requestError;
     } finally {
