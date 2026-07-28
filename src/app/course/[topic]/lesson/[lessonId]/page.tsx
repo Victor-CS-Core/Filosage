@@ -35,6 +35,8 @@ import { getLocalProgress, saveLocalProgress } from "@/lib/learning-progress";
 import { useLearnerState } from "@/components/useLearnerState";
 import SpeakButton from "@/components/SpeakButton";
 import LessonVisualRenderer from "@/components/LessonVisual";
+import LessonIntegrityPanel from "@/components/LessonIntegrityPanel";
+import { useMasteryJourney } from "@/components/useMasteryJourney";
 import { markdownToSpeech, normalizeLessonMarkdown } from "@/lib/markdown";
 import { curateLessonVisuals, visualsToSpeech } from "@/lib/lesson-visuals";
 import { createClientId, deferClientTask } from "@/lib/browser-compat";
@@ -219,6 +221,9 @@ export default function LessonView() {
   const reviewMode = searchParams.get("review") === "1";
   const [moduleIndex, lessonIndex] = lessonId.split("-").map(Number);
   const { user, isOwner, isPro } = useAuth();
+  const masteryJourney = useMasteryJourney(courseId, user);
+  const masteryPlan = masteryJourney.plan;
+  const addMasteryEvidence = masteryJourney.addEvidence;
   const {
     state: learnerState,
     update: updateLearnerState,
@@ -519,7 +524,50 @@ export default function LessonView() {
         setProgressSyncError(saveError instanceof Error ? saveError.message : "Saved on this device, but cloud sync is pending.");
       }
     }
+    const observedAt = new Date().toISOString();
+    const objectiveId = `module-${moduleIndex}`;
+    const firstTryScore = lessonData.quizzes.length
+      ? update.firstAttemptCorrect / lessonData.quizzes.length
+      : 1;
     setCompletionState({ key: noteKey, complete: true });
+    await addMasteryEvidence([
+      {
+        id: createClientId(),
+        courseId,
+        objectiveId,
+        type: "lesson",
+        result: "passed",
+        label: `Completed ${lesson.title}`,
+        observedAt,
+        lessonId,
+        lessonTitle: lesson.title,
+        confidence,
+      },
+      ...(lessonData.quizzes.length ? [{
+        id: createClientId(),
+        courseId,
+        objectiveId,
+        type: "retrieval" as const,
+        result: firstTryScore >= 0.7 ? "passed" as const : "needs_work" as const,
+        label: `Retrieval check: ${lesson.objective ?? lesson.concept}`,
+        observedAt,
+        lessonId,
+        lessonTitle: lesson.title,
+        confidence,
+        score: firstTryScore,
+      }] : []),
+      ...(lessonData.transferTask ? [{
+        id: createClientId(),
+        courseId,
+        objectiveId,
+        type: "transfer" as const,
+        result: "attempted" as const,
+        label: `Transfer attempt: ${lesson.objective ?? lesson.concept}`,
+        observedAt,
+        lessonId,
+        lessonTitle: lesson.title,
+      }] : []),
+    ]);
     trackProductEvent("lesson_completed", {
       route: "/lesson",
       courseId,
@@ -528,15 +576,37 @@ export default function LessonView() {
       oncePerSession: true,
     });
     if (!reviewMode) {
+      const elapsedMs = masteryPlan?.createdAt
+        ? Math.max(0, Date.now() - new Date(masteryPlan.createdAt).getTime())
+        : undefined;
+      if (lessonData.quizzes.length) {
+        trackProductEvent("retrieval_attempted", {
+          route: "/lesson",
+          courseId,
+          lessonId,
+          objectiveId,
+          exclude: isOwner,
+        });
+      }
+      if (lessonData.transferTask) {
+        trackProductEvent("transfer_attempted", {
+          route: "/lesson",
+          courseId,
+          lessonId,
+          objectiveId,
+          exclude: isOwner,
+        });
+      }
       trackProductEvent("first_practice_completed", {
         route: "/lesson",
         courseId,
         lessonId,
         exclude: isOwner,
         oncePerSession: true,
+        elapsedMs,
       });
     }
-  }, [allLessons.length, complete, courseId, isOwner, lesson, lessonData, lessonId, nextLesson, noteKey, quizResults, reviewMode, topic, transferComplete, user]);
+  }, [addMasteryEvidence, allLessons.length, complete, courseId, isOwner, lesson, lessonData, lessonId, masteryPlan, moduleIndex, nextLesson, noteKey, quizResults, reviewMode, topic, transferComplete, user]);
 
   const onMastered = (index: number, result: QuizResult) => {
     setQuizResultState((current) => ({ key: noteKey, results: { ...(current.key === noteKey ? current.results : {}), [index]: result } }));
@@ -856,6 +926,15 @@ export default function LessonView() {
                   <button className="button button-secondary button-small" onClick={() => void markComplete()}>Mark learned</button>
                 )}
               </div>
+
+              {courseId && (
+                <LessonIntegrityPanel
+                  courseId={courseId}
+                  lessonId={lessonId}
+                  provenance={lessonData.provenance}
+                  getAuthToken={getToken}
+                />
+              )}
 
               <nav className="lesson-navigation" aria-label="Lesson navigation">
                 {previousLesson ? (

@@ -28,7 +28,9 @@ import {
 import AppDrawer, { useAppDrawer } from "@/components/AppDrawer";
 import AppShell from "@/components/AppShell";
 import CourseBanner from "@/components/CourseBanner";
+import OutcomePlanner from "@/components/OutcomePlanner";
 import SpeakButton from "@/components/SpeakButton";
+import { useMasteryJourney } from "@/components/useMasteryJourney";
 import { useAuth } from "@/components/AuthProvider";
 import type { Course } from "@/lib/course-types";
 import type { CapstoneAssessment, CourseProgress } from "@/lib/learning-types";
@@ -110,6 +112,7 @@ export default function CourseMap() {
   }, [loadOrGenerate]);
 
   const courseId = course?.id ?? course?.courseId ?? requestedCourseId;
+  const masteryJourney = useMasteryJourney(courseId, user);
 
   useEffect(() => {
     if (!courseId || !course || isOwner) return;
@@ -275,8 +278,24 @@ export default function CourseMap() {
         route: "/course",
         courseId,
         exclude: isOwner,
+        score: assessment.criteria.length
+          ? Math.round((assessment.criteria.filter((criterion) => criterion.met).length / assessment.criteria.length) * 100)
+          : 0,
       });
       if (assessment.status === "passed") {
+        if (course) {
+          const observedAt = assessment.assessedAt;
+          await masteryJourney.addEvidence(course.modules.map((courseModule, moduleIndex) => ({
+            id: createClientId(),
+            courseId,
+            objectiveId: `module-${moduleIndex}`,
+            type: "capstone" as const,
+            result: "passed" as const,
+            label: `Capstone demonstrated: ${courseModule.objective ?? courseModule.title}`,
+            observedAt,
+            criterion: course.capstone?.title,
+          })));
+        }
         trackProductEvent("criterion_demonstrated", {
           route: "/course",
           courseId,
@@ -284,6 +303,14 @@ export default function CourseMap() {
           oncePerSession: true,
         });
       }
+      assessment.criteria.filter((criterion) => criterion.met).forEach((criterion, criterionIndex) => {
+        trackProductEvent("capstone_criterion_passed", {
+          route: "/course",
+          courseId,
+          objectiveId: `criterion-${criterionIndex}`,
+          exclude: isOwner,
+        });
+      });
     } catch (assessError) {
       setCapstoneError(assessError instanceof Error ? assessError.message : "The capstone could not be assessed.");
     } finally {
@@ -291,7 +318,7 @@ export default function CourseMap() {
     }
   };
 
-  if (loading || (!requestedCourseId && authLoading)) {
+  if ((loading && !course) || (!requestedCourseId && authLoading)) {
     return (
       <AppShell activeTopic={topic} activeCourseId={requestedCourseId}>
         <div className="center-state course-building-state">
@@ -416,6 +443,19 @@ export default function CourseMap() {
             </div>
           )}
         </header>
+
+        {courseId && masteryJourney.ready && (
+          <OutcomePlanner
+            course={course}
+            courseId={courseId}
+            topic={topic}
+            user={user}
+            plan={masteryJourney.plan}
+            syncStatus={masteryJourney.syncStatus}
+            onSave={masteryJourney.savePlan}
+            onBaseline={masteryJourney.applyBaselineAssessment}
+          />
+        )}
 
         <section className="curriculum" aria-labelledby="curriculum-title">
           <div className="section-heading">

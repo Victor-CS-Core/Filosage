@@ -161,6 +161,8 @@ export const capstoneSubmissionSchema = z.object({
     .max(8_000, "Keep the capstone submission under 8,000 characters."),
 });
 
+export const baselineSubmissionSchema = capstoneSubmissionSchema;
+
 export const capstoneVerdictSchema = z.object({
   summary: z.string().trim().min(1).max(600),
   criteria: z

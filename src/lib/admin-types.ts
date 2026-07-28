@@ -105,6 +105,19 @@ export interface AdminOverview {
       courseStarts: number;
     }>;
   };
+  outcomeValidation: {
+    diagnosticCompleters: number;
+    firstPracticeCompleters: number;
+    diagnosticToPracticePercent: number;
+    medianMinutesToFirstPractice: number | null;
+    comparableCapstones: number;
+    improvedCapstones: number;
+    improvementRatePercent: number;
+    evidenceReportViews: number;
+    openContentReports: number;
+    usefulnessResponses: number;
+    usefulnessPercent: number;
+  };
   trafficSeries: Array<{ date: string; views: number }>;
   topRoutes: Array<{ route: string; views: number }>;
   generationSeries: Array<{
@@ -145,6 +158,19 @@ export interface AdminOverview {
     isPublic: boolean;
     lessonCount: number;
     updatedAt?: string;
+  }>;
+  contentReports: Array<{
+    id: string;
+    courseId: string;
+    lessonId: string;
+    topic: string;
+    lessonTitle?: string;
+    category: "accuracy" | "outdated" | "source" | "clarity" | "other";
+    note?: string;
+    contentVersion?: string;
+    status: "open" | "resolved" | "dismissed";
+    createdAt?: string;
+    reviewedAt?: string;
   }>;
   safetyEvents: Array<{
     id: string;

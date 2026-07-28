@@ -14,6 +14,10 @@ The owner uses Erudoza as a private AI-assisted learning and course-authoring wo
 
 Erudoza turns a real professional outcome into a focused learning path grounded in diagnosis, concise explanation, worked examples, retrieval practice, transfer, and capstone evidence. Success means a learner can demonstrate a capability they need at work, while the owner can create and publish trustworthy courses efficiently.
 
+## Current Product Contract
+
+The production experience is outcome-first: learners create a goal and diagnostic route, practice in public courses, and receive an evidence report that separates self-report from observed and assessed proof. Every lesson exposes its content-version and source-pack status and can be reported for owner review. Billing remains a separately controlled capability and is not implied by product readiness.
+
 ## Brand Personality
 
 Clear, curious, intelligent, and quietly premium. Erudoza should have calm, content-first confidence while establishing a distinctive identity of its own. The interface should feel considered, capable, and human rather than flashy or synthetic.

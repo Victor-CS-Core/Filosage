@@ -29,6 +29,8 @@ const telemetrySchema = z.object({
   lessonId: z.string().trim().max(120).optional(),
   objectiveId: z.string().trim().max(120).optional(),
   contentVersion: z.string().trim().max(120).optional(),
+  elapsedMs: z.number().int().min(0).max(31_536_000_000).optional(),
+  score: z.number().min(0).max(100).optional(),
 }).strict();
 
 const TRAFFIC_SHARDS = 16;
@@ -75,6 +77,8 @@ export async function POST(request: Request) {
         lessonId: parsed.data.lessonId,
         objectiveId: parsed.data.objectiveId,
         contentVersion: parsed.data.contentVersion,
+        elapsedMs: parsed.data.elapsedMs,
+        score: parsed.data.score,
         createdAt: now.toISOString(),
       });
       return new Response(null, {

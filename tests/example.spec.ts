@@ -7,6 +7,13 @@ import { estimateAiUsageCostMicros, summarizeAiUsage } from "../src/lib/ai-prici
 import { curateLessonVisuals } from "../src/lib/lesson-visuals";
 import { removeCourseReferences } from "../src/lib/course-deletion";
 import { buildCourseBannerPrompt } from "../src/lib/course-banner-prompt";
+import {
+  deriveObjectiveMastery,
+  explainPlan,
+  moduleObjectiveId,
+  type DiagnosticItem,
+  type MasteryEvidence,
+} from "../src/lib/mastery";
 
 async function sourceFiles(directory: string): Promise<string[]> {
   const entries = await readdir(directory, { withFileTypes: true });
@@ -919,4 +926,209 @@ test("explains permanent course deletion before sending a delete request", async
   await dialog.getByRole("button", { name: "Keep course", exact: true }).click();
   await expect(dialog).not.toBeVisible();
   expect(deleteRequests).toBe(0);
+});
+
+test("derives mastery only from observed evidence strength", () => {
+  const observedAt = "2026-07-28T12:00:00.000Z";
+  const evidence: MasteryEvidence[] = [
+    {
+      id: "evidence_lesson_001",
+      courseId: "systems",
+      objectiveId: moduleObjectiveId(0),
+      type: "lesson",
+      result: "passed",
+      label: "Lesson completed",
+      observedAt,
+    },
+    {
+      id: "evidence_retrieval_001",
+      courseId: "systems",
+      objectiveId: moduleObjectiveId(1),
+      type: "retrieval",
+      result: "passed",
+      label: "Retrieval passed",
+      observedAt,
+    },
+    {
+      id: "evidence_transfer_001",
+      courseId: "systems",
+      objectiveId: moduleObjectiveId(2),
+      type: "transfer",
+      result: "attempted",
+      label: "Transfer attempted",
+      observedAt,
+    },
+    {
+      id: "evidence_capstone_001",
+      courseId: "systems",
+      objectiveId: moduleObjectiveId(3),
+      type: "capstone",
+      result: "passed",
+      label: "Capstone passed",
+      observedAt,
+    },
+  ];
+
+  expect(deriveObjectiveMastery(
+    [moduleObjectiveId(0), moduleObjectiveId(1), moduleObjectiveId(2), moduleObjectiveId(3)],
+    evidence,
+  ).map((item) => item.state)).toEqual(["introduced", "practicing", "practicing", "demonstrated"]);
+});
+
+test("explains a diagnostic route without treating self-report as proof", () => {
+  const diagnostics: DiagnosticItem[] = [
+    { objectiveId: "module-0", moduleIndex: 0, moduleTitle: "Foundations", objective: "Explain the model.", level: "independent" },
+    { objectiveId: "module-1", moduleIndex: 1, moduleTitle: "Application", objective: "Use the model.", level: "guided" },
+  ];
+  const explanation = explainPlan(diagnostics, 120);
+  expect(explanation).toContain("Start with Application");
+  expect(explanation).toContain("already familiar");
+  expect(explanation).not.toContain("mastered");
+});
+
+test("creates an outcome route and opens its evidence report without an account", async ({ page }) => {
+  const course = {
+    id: "outcome-demo",
+    courseId: "outcome-demo",
+    topic: "Systems thinking",
+    mission: "Understand systems well enough to make better interventions.",
+    outcome: "Diagnose a real system and defend an intervention.",
+    level: "Foundations",
+    estimatedMinutes: 90,
+    isPublic: true,
+    modules: [
+      {
+        title: "Feedback",
+        description: "Recognize reinforcing and balancing behavior.",
+        objective: "Explain how feedback changes system behavior.",
+        lessons: [{ title: "Feedback loops", concept: "How outputs influence future inputs.", estimatedMinutes: 12 }],
+      },
+      {
+        title: "Intervention",
+        description: "Choose a leverage point.",
+        objective: "Defend an intervention using evidence and tradeoffs.",
+        lessons: [{ title: "Leverage points", concept: "Where a small change can alter behavior.", estimatedMinutes: 12 }],
+      },
+    ],
+    capstone: {
+      title: "System intervention brief",
+      brief: "Analyze a real system and propose an intervention.",
+      deliverable: "A decision brief",
+      successCriteria: ["Maps the feedback structure", "Defends a leverage point", "Addresses a tradeoff"],
+    },
+  };
+  await page.route("**/api/courses/outcome-demo", (route) => route.fulfill({ json: course }));
+  await page.goto("/course/Systems%20thinking?id=outcome-demo");
+
+  await expect(page.getByRole("heading", { name: "Turn this course into a plan for your goal." })).toBeVisible();
+  const desiredOutcomeField = page.getByPlaceholder("Make the capability specific and observable.");
+  await desiredOutcomeField.fill("Diagnose a service bottleneck and choose a defensible intervention.");
+  await expect(desiredOutcomeField).toHaveValue("Diagnose a service bottleneck and choose a defensible intervention.");
+  await page.getByLabel("Where will you use it?").fill("In a quarterly operations review.");
+  await page.getByLabel("What will prove you can do it?").fill("A two-page intervention brief.");
+  await page.getByRole("radiogroup", { name: "Current level for Feedback" }).getByText("I recognize it").click();
+  await expect(desiredOutcomeField).toHaveValue("Diagnose a service bottleneck and choose a defensible intervention.");
+  await page.getByRole("button", { name: "Build my learning route" }).click();
+
+  await expect(page.getByRole("heading", { name: "Diagnose a service bottleneck and choose a defensible intervention." })).toBeVisible();
+  await expect(page.getByText("Start with Feedback and Intervention.", { exact: false })).toBeVisible();
+  await page.getByRole("button", { name: "View evidence" }).click();
+  await expect(page).toHaveURL(/\/evidence\/outcome-demo/);
+  await expect(page.getByRole("heading", { name: "Evidence by objective" })).toBeVisible();
+  await expect(page.getByText("Self-report never marks an objective as demonstrated.")).toBeVisible();
+});
+
+test("shows lesson provenance and submits a content report", async ({ page }) => {
+  let reported: Record<string, unknown> | null = null;
+  await page.route("**/api/courses/integrity-demo", (route) => route.fulfill({ json: {
+    id: "integrity-demo",
+    courseId: "integrity-demo",
+    topic: "Decision making",
+    mission: "Make evidence-based decisions.",
+    isPublic: true,
+    modules: [{ title: "Evidence", lessons: [{ title: "Claims and evidence", concept: "Separate observations from interpretations." }] }],
+  } }));
+  await page.route("**/api/courses/integrity-demo/lessons/0-0", (route) => route.fulfill({ json: {
+    content: "## Inspect the claim\n\nA reliable decision separates what was observed from what was inferred.",
+    quizzes: [],
+    aiAssisted: true,
+    provenance: {
+      contentVersion: "lesson-v3",
+      generatedAt: "2026-07-28T12:00:00.000Z",
+      promptVersion: "2026-07-28",
+      qualityGateVersion: "didactic-v1",
+      sources: [],
+    },
+  } }));
+  await page.route("**/api/content-reports", async (route) => {
+    reported = route.request().postDataJSON() as Record<string, unknown>;
+    await route.fulfill({ json: { reported: true } });
+  });
+
+  await page.goto("/course/Decision%20making/lesson/0-0?id=integrity-demo");
+  await expect(page.getByText("Content record")).toBeVisible();
+  await expect(page.getByText("No external source pack is attached to this lesson.")).toBeVisible();
+  await page.getByRole("button", { name: "Report a content issue" }).click();
+  await page.getByLabel("Issue type").selectOption("source");
+  await page.getByLabel("What should be reviewed? Optional").fill("The central claim needs a supporting reference.");
+  await page.getByRole("button", { name: "Send report" }).click();
+  await expect(page.getByText("Report received")).toBeVisible();
+  expect(reported).toMatchObject({
+    courseId: "integrity-demo",
+    lessonId: "0-0",
+    category: "source",
+    contentVersion: "lesson-v3",
+  });
+});
+
+test("collects pathway usefulness only after the course has evidence", async ({ page }) => {
+  let feedback: Record<string, unknown> | null = null;
+  await page.addInitScript(() => {
+    const observedAt = "2026-07-28T12:00:00.000Z";
+    localStorage.setItem("erudoza-mastery-v1:outcome-demo", JSON.stringify({
+      plan: {
+        courseId: "outcome-demo",
+        courseTopic: "Systems thinking",
+        desiredOutcome: "Choose a defensible intervention.",
+        applicationContext: "Operations review.",
+        targetArtifact: "Decision brief.",
+        weeklyMinutes: 120,
+        diagnostics: [
+          { objectiveId: "module-0", moduleIndex: 0, moduleTitle: "Feedback", objective: "Explain feedback.", level: "new" },
+          { objectiveId: "module-1", moduleIndex: 1, moduleTitle: "Intervention", objective: "Choose an intervention.", level: "new" },
+        ],
+        recommendedLessonId: "0-0",
+        explanation: "Start with Feedback.",
+        createdAt: observedAt,
+        updatedAt: observedAt,
+      },
+      evidence: [
+        { id: "lesson_evidence_0001", courseId: "outcome-demo", objectiveId: "module-0", type: "lesson", result: "passed", label: "Feedback complete", lessonId: "0-0", observedAt },
+        { id: "lesson_evidence_0002", courseId: "outcome-demo", objectiveId: "module-1", type: "lesson", result: "passed", label: "Intervention complete", lessonId: "1-0", observedAt },
+      ],
+    }));
+  });
+  await page.route("**/api/courses/outcome-demo", (route) => route.fulfill({ json: {
+    id: "outcome-demo",
+    courseId: "outcome-demo",
+    topic: "Systems thinking",
+    mission: "Make better interventions.",
+    isPublic: true,
+    modules: [
+      { title: "Feedback", objective: "Explain feedback.", lessons: [{ title: "Feedback loops", concept: "Feedback." }] },
+      { title: "Intervention", objective: "Choose an intervention.", lessons: [{ title: "Leverage points", concept: "Intervention." }] },
+    ],
+  } }));
+  await page.route("**/api/outcome-feedback", async (route) => {
+    feedback = route.request().postDataJSON() as Record<string, unknown>;
+    await route.fulfill({ json: { recorded: true } });
+  });
+
+  await page.goto("/evidence/outcome-demo");
+  await expect(page.getByRole("heading", { name: "How useful was this pathway for your real goal?" })).toBeVisible();
+  await page.getByText("Very useful", { exact: true }).click();
+  await page.getByLabel("What made it useful or limited? Optional").fill("The transfer sequence matched the decision I needed to make.");
+  await page.getByRole("button", { name: "Submit feedback" }).click();
+  await expect(page.getByText("Feedback recorded")).toBeVisible();
+  expect(feedback).toMatchObject({ courseId: "outcome-demo", rating: 5 });
 });

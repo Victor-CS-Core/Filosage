@@ -105,6 +105,14 @@ export interface LessonData {
     successCriteria: string[];
     modelResponse: string;
   };
+  provenance?: {
+    contentVersion: string;
+    generatedAt?: string;
+    generationModel?: string;
+    promptVersion?: string;
+    qualityGateVersion?: string;
+    sources: Array<{ label: string; url?: string }>;
+  };
 }
 
 export type LearnerPlan = "free" | "pro";

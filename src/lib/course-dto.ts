@@ -47,6 +47,9 @@ export function toCourseDto(value: Record<string, unknown> | Course, canManage =
 }
 
 export function toLessonDto(value: Record<string, unknown>, courseAiAssisted = false): LessonData {
+  const rawSources = Array.isArray(value.sourceReferences)
+    ? value.sourceReferences.filter((item): item is Record<string, unknown> => Boolean(item) && typeof item === "object")
+    : [];
   return {
     content: String(value.content ?? ""),
     quizzes: Array.isArray(value.quizzes) ? value.quizzes as LessonData["quizzes"] : [],
@@ -63,5 +66,23 @@ export function toLessonDto(value: Record<string, unknown>, courseAiAssisted = f
       ? value.transferTask as LessonData["transferTask"]
       : undefined,
     aiAssisted: value.aiAssisted === true || courseAiAssisted,
+    provenance: {
+      contentVersion: `lesson-v${typeof value.schemaVersion === "number" ? value.schemaVersion : 1}`,
+      generatedAt: typeof value.generatedAt === "string"
+        ? value.generatedAt
+        : typeof value.createdAt === "string"
+          ? value.createdAt
+          : undefined,
+      generationModel: typeof value.generationModel === "string" ? value.generationModel : undefined,
+      promptVersion: typeof value.promptVersion === "string" ? value.promptVersion : undefined,
+      qualityGateVersion: typeof value.qualityGateVersion === "string" ? value.qualityGateVersion : undefined,
+      sources: rawSources.flatMap((item) => {
+        if (typeof item.label !== "string") return [];
+        return [{
+          label: item.label,
+          url: typeof item.url === "string" && item.url.startsWith("https://") ? item.url : undefined,
+        }];
+      }),
+    },
   };
 }

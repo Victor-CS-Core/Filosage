@@ -49,10 +49,12 @@ function acquisitionChannel(value: unknown): AcquisitionChannel {
 const funnelDefinition: Array<{ event: ProductEventName; label: string }> = [
   { event: "landing_viewed", label: "Qualified landing" },
   { event: "course_started", label: "Course started" },
-  { event: "lesson_started", label: "Lesson started" },
+  { event: "outcome_defined", label: "Outcome defined" },
+  { event: "diagnostic_completed", label: "Diagnostic completed" },
   { event: "first_practice_completed", label: "First practice completed" },
-  { event: "lesson_completed", label: "Lesson completed" },
+  { event: "capstone_submitted", label: "Capstone submitted" },
   { event: "criterion_demonstrated", label: "Applied criterion demonstrated" },
+  { event: "evidence_report_viewed", label: "Evidence report viewed" },
 ];
 
 function dayKeys(days: number) {
@@ -103,6 +105,8 @@ export async function GET(request: Request) {
       privateCourseCount,
       waitlistCount,
       productEvents,
+      contentReports,
+      outcomeFeedback,
     ] = await Promise.all([
       listCollectionDocumentsByRange("users", "updatedAt", "1970-01-01T00:00:00.000Z", nowIso, 300),
       listCollectionDocumentsByRange("userEngagement", "lastActivityAt", "1970-01-01T00:00:00.000Z", nowIso, 300),
@@ -122,6 +126,8 @@ export async function GET(request: Request) {
       countCollectionDocuments("courses", [{ field: "isPublic", value: false }]),
       countCollectionDocuments("waitlist"),
       listCollectionDocumentsByRange("productEvents", "createdAt", fromIso, nowIso, 2_000),
+      listCollectionDocumentsByRange("contentReports", "createdAt", "1970-01-01T00:00:00.000Z", nowIso, 500),
+      listCollectionDocumentsByRange("outcomeFeedback", "createdAt", fromIso, nowIso, 1_000),
     ]);
     if (ownerRecord && !rawUsers.some((record) => record.id === owner.uid || record.uid === owner.uid)) {
       rawUsers.unshift(ownerRecord);
@@ -338,6 +344,41 @@ export async function GET(request: Request) {
     const uniqueActors = new Set(productEvents.flatMap((record) => (
       typeof record.actorId === "string" ? [record.actorId] : []
     ))).size;
+    const diagnosticActors = eventActors("diagnostic_completed");
+    const practiceActors = eventActors("first_practice_completed");
+    const diagnosticToPracticeActors = new Set(
+      Array.from(practiceActors).filter((actorId) => diagnosticActors.has(actorId)),
+    );
+    const elapsedMinutes = productEvents.flatMap((record) => (
+      record.event === "first_practice_completed"
+        && typeof record.elapsedMs === "number"
+        && record.elapsedMs > 0
+        && typeof record.actorId === "string"
+        && diagnosticActors.has(record.actorId)
+        ? [record.elapsedMs / 60_000]
+        : []
+    )).sort((left, right) => left - right);
+    const medianMinutesToFirstPractice = elapsedMinutes.length
+      ? elapsedMinutes.length % 2
+        ? elapsedMinutes[Math.floor(elapsedMinutes.length / 2)]
+        : (elapsedMinutes[elapsedMinutes.length / 2 - 1] + elapsedMinutes[elapsedMinutes.length / 2]) / 2
+      : null;
+    const latestScores = (event: "baseline_assessed" | "capstone_submitted") => {
+      const scores = new Map<string, { score: number; createdAt: string }>();
+      for (const record of productEvents) {
+        if (record.event !== event || typeof record.actorId !== "string" || typeof record.score !== "number") continue;
+        const createdAt = dateValue(record.createdAt) ?? "";
+        const current = scores.get(record.actorId);
+        if (!current || createdAt >= current.createdAt) scores.set(record.actorId, { score: record.score, createdAt });
+      }
+      return scores;
+    };
+    const baselineScores = latestScores("baseline_assessed");
+    const capstoneScores = latestScores("capstone_submitted");
+    const comparableActors = Array.from(capstoneScores.keys()).filter((actorId) => baselineScores.has(actorId));
+    const improvedCapstones = comparableActors.filter((actorId) => (
+      (capstoneScores.get(actorId)?.score ?? 0) > (baselineScores.get(actorId)?.score ?? 0)
+    )).length;
 
     const overview: AdminOverview = {
       generatedAt: new Date().toISOString(),
@@ -389,6 +430,27 @@ export async function GET(request: Request) {
         events: productEvents.length,
         funnel,
         acquisition,
+      },
+      outcomeValidation: {
+        diagnosticCompleters: diagnosticActors.size,
+        firstPracticeCompleters: diagnosticToPracticeActors.size,
+        diagnosticToPracticePercent: diagnosticActors.size
+          ? Math.round((diagnosticToPracticeActors.size / diagnosticActors.size) * 1_000) / 10
+          : 0,
+        medianMinutesToFirstPractice: medianMinutesToFirstPractice === null
+          ? null
+          : Math.round(medianMinutesToFirstPractice * 10) / 10,
+        comparableCapstones: comparableActors.length,
+        improvedCapstones,
+        improvementRatePercent: comparableActors.length
+          ? Math.round((improvedCapstones / comparableActors.length) * 1_000) / 10
+          : 0,
+        evidenceReportViews: productEvents.filter((record) => record.event === "evidence_report_viewed").length,
+        openContentReports: contentReports.filter((report) => report.status !== "resolved" && report.status !== "dismissed").length,
+        usefulnessResponses: outcomeFeedback.length,
+        usefulnessPercent: outcomeFeedback.length
+          ? Math.round((outcomeFeedback.filter((feedback) => feedback.useful === true).length / outcomeFeedback.length) * 1_000) / 10
+          : 0,
       },
       trafficSeries: dates.map((date) => ({ date, views: trafficByDate.get(date) ?? 0 })),
       topRoutes: Array.from(routeTotals, ([route, views]) => ({ route, views }))
@@ -447,6 +509,27 @@ export async function GET(request: Request) {
             updatedAt: dateValue(course.updatedAt),
           };
         }),
+      contentReports: contentReports
+        .sort((a, b) => Date.parse(String(b.createdAt ?? 0)) - Date.parse(String(a.createdAt ?? 0)))
+        .slice(0, 80)
+        .map((report) => ({
+          id: report.id,
+          courseId: stringValue(report.courseId) ?? "",
+          lessonId: stringValue(report.lessonId) ?? "",
+          topic: stringValue(report.topic) ?? "Unknown course",
+          lessonTitle: stringValue(report.lessonTitle),
+          category: report.category === "outdated"
+            || report.category === "source"
+            || report.category === "clarity"
+            || report.category === "other"
+            ? report.category
+            : "accuracy",
+          note: stringValue(report.note),
+          contentVersion: stringValue(report.contentVersion),
+          status: report.status === "resolved" || report.status === "dismissed" ? report.status : "open",
+          createdAt: dateValue(report.createdAt),
+          reviewedAt: dateValue(report.reviewedAt),
+        })),
       safetyEvents: safetyEvents
         .sort((a, b) => Date.parse(String(b.createdAt ?? 0)) - Date.parse(String(a.createdAt ?? 0)))
         .slice(0, 80)

@@ -92,6 +92,7 @@ export function routeBucket(pathname: string): ProductEventRoute {
     "library",
     "pricing",
     "progress",
+    "evidence",
     "review",
     "create",
     "profile",
@@ -119,6 +120,8 @@ export interface ProductEventOptions {
   lessonId?: string;
   objectiveId?: string;
   contentVersion?: string;
+  elapsedMs?: number;
+  score?: number;
   exclude?: boolean;
   oncePerSession?: boolean;
 }
@@ -152,6 +155,8 @@ export function trackProductEvent(event: ProductEventName, options: ProductEvent
       lessonId: options.lessonId,
       objectiveId: options.objectiveId,
       contentVersion: options.contentVersion,
+      elapsedMs: options.elapsedMs,
+      score: options.score,
     }),
     keepalive: true,
   }).catch(() => {

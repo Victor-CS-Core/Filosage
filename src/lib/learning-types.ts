@@ -25,6 +25,13 @@ export interface CapstoneAssessment {
   attempts: number;
 }
 
+export interface BaselineAssessment {
+  summary: string;
+  criteria: Array<{ criterion: string; met: boolean; feedback: string }>;
+  assessedAt: string;
+  score: number;
+}
+
 export interface CourseProgress {
   id?: string;
   courseId: string;

@@ -12,6 +12,7 @@ import {
   Clock3,
   Coins,
   Crown,
+  Flag,
   Gauge,
   Globe2,
   LoaderCircle,
@@ -172,6 +173,27 @@ export default function AdminPage() {
       await load();
     } catch (actionError) {
       setActionMessage(actionError instanceof Error ? actionError.message : "The account could not be updated.");
+    } finally {
+      setActionBusy(false);
+    }
+  };
+
+  const reviewContentReport = async (reportId: string, status: "resolved" | "dismissed") => {
+    if (!user || actionBusy) return;
+    setActionBusy(true);
+    setActionMessage(null);
+    try {
+      const token = await user.getIdToken();
+      const response = await fetch(`/api/admin/content-reports/${encodeURIComponent(reportId)}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ status }),
+      });
+      const result = await response.json().catch(() => ({})) as { error?: string };
+      if (!response.ok) throw new Error(result.error ?? "The report could not be updated.");
+      await load();
+    } catch (reviewError) {
+      setActionMessage(reviewError instanceof Error ? reviewError.message : "The report could not be updated.");
     } finally {
       setActionBusy(false);
     }
@@ -348,11 +370,17 @@ export default function AdminPage() {
         {data && tab === "research" && (
           <div className="admin-research-layout">
             <section className="admin-panel admin-research-summary">
-              <header><div><p className="overline">Phase 0</p><h2>Public product validation</h2></div><span>{data.growth.events} outcome events</span></header>
+              <header><div><p className="overline">Phase 1</p><h2>Outcome validation</h2></div><span>{data.growth.events} outcome events</span></header>
               <div className="admin-research-metrics">
-                <div><span>Landing actors</span><strong>{data.growth.funnel[0]?.uniqueActors ?? 0}</strong><small>Experiment EXP-001</small></div>
-                <div><span>Course starters</span><strong>{data.growth.funnel[1]?.uniqueActors ?? 0}</strong><small>Activation signal</small></div>
-                <div><span>First practices</span><strong>{data.growth.funnel[3]?.uniqueActors ?? 0}</strong><small>Value signal</small></div>
+                <div><span>Diagnostic to practice</span><strong>{data.outcomeValidation.diagnosticToPracticePercent}%</strong><small>{data.outcomeValidation.firstPracticeCompleters} of {data.outcomeValidation.diagnosticCompleters} diagnostic completers</small></div>
+                <div><span>Median time to practice</span><strong>{data.outcomeValidation.medianMinutesToFirstPractice === null ? "Pending" : `${data.outcomeValidation.medianMinutesToFirstPractice}m`}</strong><small>Target: under ten minutes</small></div>
+                <div><span>Improved at capstone</span><strong>{data.outcomeValidation.improvementRatePercent}%</strong><small>{data.outcomeValidation.improvedCapstones} of {data.outcomeValidation.comparableCapstones} comparable attempts</small></div>
+              </div>
+              <div className="admin-acquisition-list">
+                <h3>Evidence operations</h3>
+                <div><span>Evidence reports viewed</span><strong>{data.outcomeValidation.evidenceReportViews}</strong><small>Learning record usage</small></div>
+                <div><span>Open content reports</span><strong>{data.outcomeValidation.openContentReports}</strong><small>Owner review queue</small></div>
+                <div><span>Pathway usefulness</span><strong>{data.outcomeValidation.usefulnessPercent}%</strong><small>{data.outcomeValidation.usefulnessResponses} responses · target 70%</small></div>
               </div>
               <div className="admin-acquisition-list">
                 <h3>Acquisition evidence</h3>
@@ -363,13 +391,36 @@ export default function AdminPage() {
             </section>
 
             <section className="admin-panel admin-research-protocol">
-              <header><div><p className="overline">Decision discipline</p><h2>What must be true before more investment</h2></div><span>Review with the interview log</span></header>
+              <header><div><p className="overline">Go gate</p><h2>What must be true before Phase 2</h2></div><span>Review with learner feedback</span></header>
               <ol>
-                <li><span>01</span><div><strong>Problem evidence</strong><p>Complete 15–20 interviews; at least ten people must describe the recurring problem without being led.</p></div></li>
-                <li><span>02</span><div><strong>Behavioral evidence</strong><p>Public visitors must progress from the landing page to a course, first practice, and demonstrated criterion.</p></div></li>
-                <li><span>03</span><div><strong>Commercial evidence</strong><p>Record credible willingness to pay at the planned price before enabling checkout.</p></div></li>
-                <li><span>04</span><div><strong>Decision</strong><p>Continue, narrow, pivot, or stop based on the recorded thresholds—not enthusiasm alone.</p></div></li>
+                <li><span>01</span><div><strong>Activation</strong><p>At least 50% of qualified diagnostic completers reach first practice, with a median under ten minutes.</p></div></li>
+                <li><span>02</span><div><strong>Learning improvement</strong><p>At least 60% of learners with comparable baseline and final capstones improve.</p></div></li>
+                <li><span>03</span><div><strong>Usefulness and trust</strong><p>At least 70% find the pathway useful for their stated outcome, while critical factual errors stay below the launch threshold.</p></div></li>
+                <li><span>04</span><div><strong>Decision</strong><p>Continue, narrow, or correct the course based on recorded evidence before adding retention complexity.</p></div></li>
               </ol>
+            </section>
+
+            <section className="admin-panel admin-content-reports">
+              <header><div><p className="overline">Content integrity</p><h2>Learner report queue</h2></div><span>{data.contentReports.filter((report) => report.status === "open").length} open</span></header>
+              <div>
+                {data.contentReports.length ? data.contentReports.map((report) => (
+                  <article key={report.id}>
+                    <span className="admin-list-icon"><Flag size={15} /></span>
+                    <div>
+                      <strong>{report.topic} · {report.lessonTitle ?? report.lessonId}</strong>
+                      <small>{report.category.replaceAll("_", " ")} · {report.contentVersion ?? "unknown version"} · {shortDate(report.createdAt, true)}</small>
+                      {report.note && <p>{report.note}</p>}
+                    </div>
+                    {report.status === "open" ? (
+                      <span>
+                        <button className="button button-secondary button-small" disabled={actionBusy} onClick={() => void reviewContentReport(report.id, "dismissed")}>Dismiss</button>
+                        <button className="button button-primary button-small" disabled={actionBusy} onClick={() => void reviewContentReport(report.id, "resolved")}>Resolve</button>
+                      </span>
+                    ) : <em className={`admin-status status-${report.status}`}>{report.status}</em>}
+                  </article>
+                )) : <p>No learner content reports have been submitted.</p>}
+              </div>
+              {actionMessage && <p className="admin-action-message" role="status">{actionMessage}</p>}
             </section>
           </div>
         )}

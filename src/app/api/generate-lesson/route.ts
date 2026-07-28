@@ -31,6 +31,8 @@ const fallbackModel = process.env.OPENAI_LESSON_FALLBACK_MODEL
   || process.env.OPENAI_COURSE_MODEL
   || process.env.OPENAI_MODEL
   || "gpt-5.6-terra";
+const LESSON_PROMPT_VERSION = "2026-07-28";
+const LESSON_QUALITY_GATE_VERSION = "didactic-v1";
 const lessonVisualsAreEnabled = lessonVisualsEnabled();
 
 const lessonInstructions = `Act as a rigorous teacher and instructional designer. Create one lesson that advances a specific capability within a larger course.
@@ -209,6 +211,12 @@ export async function POST(request: Request) {
       stage: "output",
     });
 
+    const generationMetadata = {
+      generatedAt: new Date().toISOString(),
+      promptVersion: LESSON_PROMPT_VERSION,
+      qualityGateVersion: LESSON_QUALITY_GATE_VERSION,
+      sourceReferences: [],
+    };
     await saveLesson(courseId, lessonId, {
       ...lesson,
       authorId: account.uid,
@@ -217,12 +225,19 @@ export async function POST(request: Request) {
       schemaVersion: 3,
       generationModel: usedFallback ? fallbackModel : model,
       fallbackUsed: usedFallback,
+      ...generationMetadata,
     });
 
     await finalizeAiUsage(reservation, { usageSamples, responseId });
     reservation = null;
 
-    return NextResponse.json({ ...lesson, aiAssisted: true });
+    return NextResponse.json(toLessonDto({
+      ...lesson,
+      aiAssisted: true,
+      schemaVersion: 3,
+      generationModel: usedFallback ? fallbackModel : model,
+      ...generationMetadata,
+    }, true));
   } catch (error: unknown) {
     if (reservation) {
       await finalizeAiUsage(reservation, { usageSamples, model, responseId, failed: true }).catch((usageError) => {
