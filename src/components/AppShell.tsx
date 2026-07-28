@@ -19,10 +19,12 @@ import {
   Sun,
   TrendingUp,
   UserRound,
+  X,
 } from "lucide-react";
 import { SUPPORT_CONTACT } from "@/lib/legal";
 import ErudozaMark from "@/components/ErudozaMark";
 import AuthModal from "@/components/AuthModal";
+import AppDrawer, { useAppDrawer } from "@/components/AppDrawer";
 import LegalConsentModal from "@/components/LegalConsentModal";
 import { useAuth } from "@/components/AuthProvider";
 import { useTheme } from "@/components/ThemeProvider";
@@ -51,6 +53,7 @@ export default function AppShell({ children, activeTopic, activeCourseId }: AppS
   const { user, account, isOwner, isPro, signOut, loading: authLoading } = useAuth();
   const [showAuth, setShowAuth] = useState(false);
   const [courses, setCourses] = useState<Course[]>([]);
+  const accountDrawer = useAppDrawer("mobile-account");
 
   const refreshCourses = useCallback(async () => {
     if (!user || !isPro) {
@@ -223,25 +226,36 @@ export default function AppShell({ children, activeTopic, activeCourseId }: AppS
         <button className="brand brand-mobile" onClick={() => navigate("/")} aria-label="Erudoza home">
           <span className="brand-mark" aria-hidden="true"><ErudozaMark /></span><strong className="brand-wordmark">Erudoza</strong>
         </button>
-        <details className="mobile-account-menu">
-          <summary aria-label="Open account menu">
-            {user.photoURL ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={user.photoURL} alt="" referrerPolicy="no-referrer" />
-            ) : <span className="avatar-fallback"><UserRound size={15} /></span>}
-            <span>{isPro ? "Pro" : "Free"}</span>
-            <ChevronDown size={15} />
-          </summary>
-          <div>
-            <strong>{firstName}</strong>
-            <small>{isPro ? "Pro learning account" : "Free learning account"}</small>
-            <button type="button" onClick={() => navigate("/profile")}><UserRound size={16} /> View profile</button>
-            {isOwner && <button type="button" onClick={() => navigate("/admin")}><ShieldCheck size={16} /> Control room</button>}
-            <button type="button" onClick={toggle}>{theme === "dark" ? <Sun size={16} /> : <Moon size={16} />} {theme === "dark" ? "Light mode" : "Dark mode"}</button>
-            <button type="button" onClick={() => void signOut()}><LogOut size={16} /> Sign out</button>
-          </div>
-        </details>
+        <button className="mobile-account-trigger" type="button" onClick={accountDrawer.openDrawer} aria-expanded={accountDrawer.open} aria-haspopup="dialog">
+          {user.photoURL ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={user.photoURL} alt="" referrerPolicy="no-referrer" />
+          ) : <span className="avatar-fallback"><UserRound size={15} /></span>}
+          <span>{isPro ? "Pro" : "Free"}</span>
+          <ChevronDown size={15} />
+        </button>
       </header>
+
+      {accountDrawer.open && (
+        <AppDrawer open={accountDrawer.open} onClose={accountDrawer.closeDrawer} labelledBy="account-drawer-title" size="compact" mobilePlacement="bottom" className="account-app-drawer">
+          <section className="account-drawer">
+            <header className="app-drawer-header">
+              <div>
+                <small>Learning account</small>
+                <h2 id="account-drawer-title">{firstName}</h2>
+                <p>{isPro ? "Erudoza Pro" : "Free learning account"}</p>
+              </div>
+              <button className="icon-button" type="button" onClick={accountDrawer.closeDrawer} aria-label="Close account menu"><X size={18} /></button>
+            </header>
+            <div className="account-drawer-actions">
+              <button type="button" onClick={() => { accountDrawer.closeDrawer(); navigate("/profile"); }}><UserRound size={18} /><span><strong>View profile</strong><small>Badges, preferences, and privacy</small></span><ChevronRight size={17} /></button>
+              {isOwner && <button type="button" onClick={() => { accountDrawer.closeDrawer(); navigate("/admin"); }}><ShieldCheck size={18} /><span><strong>Control room</strong><small>Usage, safety, and accounts</small></span><ChevronRight size={17} /></button>}
+              <button type="button" onClick={toggle}>{theme === "dark" ? <Sun size={18} /> : <Moon size={18} />}<span><strong>{theme === "dark" ? "Light mode" : "Dark mode"}</strong><small>Change the interface theme</small></span></button>
+              <button type="button" onClick={() => { accountDrawer.closeDrawer(); void signOut(); }}><LogOut size={18} /><span><strong>Sign out</strong><small>End this session</small></span></button>
+            </div>
+          </section>
+        </AppDrawer>
+      )}
 
       <main className="app-main" id="main-content" tabIndex={-1}>
         {account?.accountStatus === "suspended" && (

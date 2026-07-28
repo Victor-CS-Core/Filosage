@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
 import { ArrowDown, ArrowUp, Check, Eye, EyeOff, LockKeyhole, RotateCcw, X } from "lucide-react";
+import AppDrawer from "@/components/AppDrawer";
 import {
   cloneDashboardPreferences,
   DASHBOARD_METRICS,
@@ -54,16 +55,6 @@ function moveItem<T>(items: T[], index: number, direction: -1 | 1) {
 
 export default function DashboardCustomizer({ open, preferences, syncStatus, onClose, onSave }: DashboardCustomizerProps) {
   const [draft, setDraft] = useState(() => cloneDashboardPreferences(preferences));
-  const panelRef = useRef<HTMLElement>(null);
-  const closeRef = useRef<HTMLButtonElement>(null);
-
-  useEffect(() => {
-    if (!open) return;
-    const originalOverflow = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    window.setTimeout(() => closeRef.current?.focus(), 0);
-    return () => { document.body.style.overflow = originalOverflow; };
-  }, [open]);
 
   if (!open) return null;
 
@@ -83,17 +74,6 @@ export default function DashboardCustomizer({ open, preferences, syncStatus, onC
     });
   };
 
-  const handleKeyDown = (event: React.KeyboardEvent) => {
-    if (event.key === "Escape") onClose();
-    if (event.key !== "Tab" || !panelRef.current) return;
-    const focusable = Array.from(panelRef.current.querySelectorAll<HTMLElement>("button:not([disabled])"));
-    if (!focusable.length) return;
-    const first = focusable[0];
-    const last = focusable[focusable.length - 1];
-    if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last.focus(); }
-    if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus(); }
-  };
-
   const sectionRow = (key: DashboardMainSection | DashboardSideSection, index: number, order: Array<DashboardMainSection | DashboardSideSection>, group: "main" | "side") => (
     <li key={key}>
       <button className="visibility-toggle" type="button" role="switch" aria-checked={draft.sections[key]} onClick={() => toggleSection(key)}>
@@ -108,11 +88,11 @@ export default function DashboardCustomizer({ open, preferences, syncStatus, onC
   );
 
   return (
-    <div className="dashboard-customizer-backdrop" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}>
-      <section ref={panelRef} className="dashboard-customizer" role="dialog" aria-modal="true" aria-labelledby="customizer-title" onKeyDown={handleKeyDown}>
+    <AppDrawer open={open} onClose={onClose} labelledBy="customizer-title" className="dashboard-customizer-drawer" mobilePlacement="bottom" size="wide">
+      <section className="dashboard-customizer">
         <header>
           <div><p className="overline">Your dashboard</p><h2 id="customizer-title">Choose what helps you focus.</h2><p>Hide distractions, surface useful progress, and change the order of supporting sections.</p></div>
-          <button ref={closeRef} className="icon-button" type="button" onClick={onClose} aria-label="Close dashboard settings"><X size={19} /></button>
+          <button className="icon-button" type="button" onClick={onClose} aria-label="Close dashboard settings"><X size={19} /></button>
         </header>
 
         <div className="customizer-scroll">
@@ -146,6 +126,6 @@ export default function DashboardCustomizer({ open, preferences, syncStatus, onC
           <button className="button button-primary" type="button" onClick={() => { onSave(draft); onClose(); }}>Save dashboard</button>
         </footer>
       </section>
-    </div>
+    </AppDrawer>
   );
 }

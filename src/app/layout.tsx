@@ -4,6 +4,7 @@ import "@fontsource-variable/inter";
 import "./globals.css";
 import { ThemeProvider } from "@/components/ThemeProvider";
 import { AuthProvider } from "@/components/AuthProvider";
+import { DrawerProvider } from "@/components/AppDrawer";
 import TrafficTracker from "@/components/TrafficTracker";
 
 function safeRequestOrigin(headerList: Headers) {
@@ -80,8 +81,10 @@ export default async function RootLayout({
         <script id="erudoza-theme-bootstrap" src="/theme-bootstrap.js" nonce={nonce} suppressHydrationWarning />
         <ThemeProvider>
           <AuthProvider>
-            <TrafficTracker />
-            {children}
+            <DrawerProvider>
+              <TrafficTracker />
+              {children}
+            </DrawerProvider>
           </AuthProvider>
         </ThemeProvider>
       </body>

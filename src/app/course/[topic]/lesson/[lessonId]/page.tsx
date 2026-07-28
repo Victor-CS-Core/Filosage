@@ -23,6 +23,7 @@ import {
   Waypoints,
   X,
 } from "lucide-react";
+import AppDrawer, { useAppDrawer } from "@/components/AppDrawer";
 import AppShell from "@/components/AppShell";
 import { useAuth } from "@/components/AuthProvider";
 import ErudozaMark from "@/components/ErudozaMark";
@@ -236,8 +237,10 @@ export default function LessonView() {
     response: "",
     revealed: false,
   });
-  const [tutorOpen, setTutorOpen] = useState(false);
-  const [studyToolsOpen, setStudyToolsOpen] = useState(false);
+  const tutorDrawer = useAppDrawer("lesson-tutor");
+  const studyToolsDrawer = useAppDrawer("lesson-study-tools");
+  const tutorOpen = tutorDrawer.open;
+  const studyToolsOpen = studyToolsDrawer.open;
   const [activePracticeState, setActivePracticeState] = useState<{ key: string; index: number }>({ key: "", index: 0 });
   const [messages, setMessages] = useState<Message[]>([]);
   const [chatInput, setChatInput] = useState("");
@@ -672,18 +675,12 @@ export default function LessonView() {
               type="button"
               aria-expanded={studyToolsOpen}
               aria-controls="lesson-study-panel"
-              onClick={() => {
-                setStudyToolsOpen((open) => !open);
-                setTutorOpen(false);
-              }}
+              onClick={studyToolsDrawer.toggleDrawer}
             >
               <NotebookPen size={16} /> {studyToolsOpen ? "Close tools" : "Study tools"}
             </button>
             {user ? (
-              <button className={`button button-secondary button-small ${tutorOpen ? "is-active" : ""}`} onClick={() => {
-                setTutorOpen((open) => !open);
-                setStudyToolsOpen(false);
-              }}>
+              <button className={`button button-secondary button-small ${tutorOpen ? "is-active" : ""}`} onClick={tutorDrawer.toggleDrawer} aria-expanded={tutorOpen}>
                 <MessageSquareText size={16} /> {tutorOpen ? "Close tutor" : "Ask tutor"}
               </button>
             ) : (
@@ -852,10 +849,9 @@ export default function LessonView() {
           </article>
 
           {!tutorOpen && studyToolsOpen && (
-            <>
-              <button className="lesson-study-panel-backdrop" type="button" aria-label="Dismiss study tools" onClick={() => setStudyToolsOpen(false)} />
-              <aside className="lesson-study-panel" id="lesson-study-panel" aria-label="Lesson study tools">
-                <div className="study-panel-heading"><NotebookPen size={18} /><div><strong>Study workspace</strong><small>{user ? "Synced with your account" : "Saved on this device"}</small></div><button className="icon-button" type="button" onClick={() => setStudyToolsOpen(false)} aria-label="Close study tools"><X size={17} /></button></div>
+            <AppDrawer open={studyToolsOpen} onClose={studyToolsDrawer.closeDrawer} labelledBy="study-tools-title" size="medium" mobilePlacement="bottom" className="lesson-study-app-drawer">
+              <aside className="lesson-study-panel" id="lesson-study-panel">
+                <div className="study-panel-heading"><NotebookPen size={18} /><div><strong id="study-tools-title">Study workspace</strong><small>{user ? "Synced with your account" : "Saved on this device"}</small></div><button className="icon-button" type="button" onClick={studyToolsDrawer.closeDrawer} aria-label="Close study tools"><X size={17} /></button></div>
                 <section className="lesson-note-section">
                   <label htmlFor="lesson-note">Your notes</label>
                   <textarea id="lesson-note" value={noteDraft} onChange={(event) => setNoteDraft(event.target.value)} maxLength={12_000} rows={9} placeholder="Capture the idea in your own words…" />
@@ -864,15 +860,16 @@ export default function LessonView() {
                 <section className="study-key-point"><span><Lightbulb size={17} /></span><div><strong>Core idea</strong><p>{lesson.concept}</p></div></section>
                 <section className="mastery-checklist"><strong>Lesson checklist</strong><ul><li className="is-done"><Check size={15} /> Read the explanation</li>{lessonData.transferTask && <li className={transferComplete ? "is-done" : ""}><Check size={15} /> Apply the idea</li>}<li className={complete ? "is-done" : ""}><Check size={15} /> Complete the retrieval checks</li></ul></section>
               </aside>
-            </>
+            </AppDrawer>
           )}
 
           {user && tutorOpen && (
-            <aside className="tutor-drawer" aria-label="AI tutor">
+            <AppDrawer open={tutorOpen} onClose={tutorDrawer.closeDrawer} labelledBy="tutor-title" size="medium" mobilePlacement="full" className="tutor-app-drawer">
+            <aside className="tutor-drawer">
               <div className="tutor-header">
                 <span className="tutor-avatar"><ErudozaMark /></span>
-                <div><strong>Erudoza AI Tutor</strong><small>AI-generated responses grounded in this lesson</small></div>
-                <button className="icon-button" onClick={() => setTutorOpen(false)} aria-label="Close tutor"><X size={18} /></button>
+                <div><strong id="tutor-title">Erudoza AI Tutor</strong><small>AI-generated responses grounded in this lesson</small></div>
+                <button className="icon-button" onClick={tutorDrawer.closeDrawer} aria-label="Close tutor"><X size={18} /></button>
               </div>
               <div className="tutor-messages" aria-live="polite">
                 {messages.length === 0 && (
@@ -892,26 +889,29 @@ export default function LessonView() {
               </div>
               <form className="tutor-composer" onSubmit={sendMessage}>
                 <label htmlFor="tutor-input">Ask about this lesson</label>
-                <textarea
-                  id="tutor-input"
-                  value={chatInput}
-                  onChange={(event) => setChatInput(event.target.value)}
-                  onKeyDown={(event) => {
-                    if (event.key === "Enter" && !event.shiftKey) {
-                      event.preventDefault();
-                      event.currentTarget.form?.requestSubmit();
-                    }
-                  }}
-                  placeholder="Ask about a concept, example, or answer choice"
-                  rows={3}
-                  maxLength={4_000}
-                />
-                <button className="icon-button icon-button-accent" type="submit" disabled={!chatInput.trim() || chatting} aria-label="Send question">
-                  {chatting ? <LoaderCircle className="spin" size={18} /> : <Send size={18} />}
-                </button>
+                <div className="tutor-input-shell">
+                  <textarea
+                    id="tutor-input"
+                    value={chatInput}
+                    onChange={(event) => setChatInput(event.target.value)}
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter" && !event.shiftKey) {
+                        event.preventDefault();
+                        event.currentTarget.form?.requestSubmit();
+                      }
+                    }}
+                    placeholder="Ask about a concept, example, or answer choice"
+                    rows={3}
+                    maxLength={4_000}
+                  />
+                  <button className="icon-button icon-button-accent" type="submit" disabled={!chatInput.trim() || chatting} aria-label="Send question">
+                    {chatting ? <LoaderCircle className="spin" size={18} /> : <Send size={18} />}
+                  </button>
+                </div>
                 <small className="tutor-disclaimer">AI can make mistakes. Verify important information.</small>
               </form>
             </aside>
+            </AppDrawer>
           )}
         </div>
       </div>

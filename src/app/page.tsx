@@ -22,6 +22,7 @@ import AchievementBadge from "@/components/AchievementBadge";
 import AppShell from "@/components/AppShell";
 import CourseLibrary from "@/components/CourseLibrary";
 import DashboardCustomizer from "@/components/DashboardCustomizer";
+import { useAppDrawer } from "@/components/AppDrawer";
 import ErudozaMark from "@/components/ErudozaMark";
 import { useAuth } from "@/components/AuthProvider";
 import { useLearnerState } from "@/components/useLearnerState";
@@ -51,7 +52,7 @@ export default function Home() {
   const [progress, setProgress] = useState<CourseProgress[]>([]);
   const [loaded, setLoaded] = useState(false);
   const [search, setSearch] = useState("");
-  const [customizerOpen, setCustomizerOpen] = useState(false);
+  const dashboardCustomizer = useAppDrawer("dashboard-customizer");
   const [now] = useState(() => Date.now());
 
   useEffect(() => {
@@ -188,7 +189,7 @@ export default function Home() {
     <AppShell>
       <div className="dashboard-page">
         <header className="dashboard-heading">
-          <div className="dashboard-heading-copy"><div className="dashboard-heading-meta"><p>{new Intl.DateTimeFormat("en", { weekday: "long", month: "long", day: "numeric" }).format(new Date())}</p><button type="button" onClick={() => setCustomizerOpen(true)}><SlidersHorizontal size={15} /> Customize</button></div><h1>Good {new Date().getHours() < 12 ? "morning" : new Date().getHours() < 18 ? "afternoon" : "evening"}, {firstName}.</h1><span>What would you like to learn today?</span></div>
+          <div className="dashboard-heading-copy"><div className="dashboard-heading-meta"><p>{new Intl.DateTimeFormat("en", { weekday: "long", month: "long", day: "numeric" }).format(new Date())}</p><button type="button" onClick={dashboardCustomizer.openDrawer} aria-expanded={dashboardCustomizer.open}><SlidersHorizontal size={15} /> Customize</button></div><h1>Good {new Date().getHours() < 12 ? "morning" : new Date().getHours() < 18 ? "afternoon" : "evening"}, {firstName}.</h1><span>What would you like to learn today?</span></div>
           <form className="dashboard-search" onSubmit={openSearch}><Search size={18} /><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search topics, skills, or courses" aria-label="Search courses" /><button type="submit" aria-label="Search"><ArrowRight size={17} /></button></form>
         </header>
 
@@ -217,11 +218,11 @@ export default function Home() {
           </div>
         )}
       </div>
-      {customizerOpen && <DashboardCustomizer
-        open={customizerOpen}
+      {dashboardCustomizer.open && <DashboardCustomizer
+        open={dashboardCustomizer.open}
         preferences={preferences}
         syncStatus={syncStatus}
-        onClose={() => setCustomizerOpen(false)}
+        onClose={dashboardCustomizer.closeDrawer}
         onSave={(next) => updateLearnerState((current) => ({ ...current, dashboardPreferences: next }))}
       />}
     </AppShell>

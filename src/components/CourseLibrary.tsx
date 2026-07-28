@@ -10,7 +10,9 @@ import {
   Layers3,
   RefreshCw,
   Search,
+  X,
 } from "lucide-react";
+import AppDrawer, { useAppDrawer } from "@/components/AppDrawer";
 import { useLearnerState } from "@/components/useLearnerState";
 import { useAuth } from "@/components/AuthProvider";
 import type { Course } from "@/lib/course-types";
@@ -27,6 +29,7 @@ export default function CourseLibrary({ featured = false }: { featured?: boolean
   const [error, setError] = useState<string | null>(null);
   const { state, update } = useLearnerState();
   const { user, isPro } = useAuth();
+  const filterDrawer = useAppDrawer("library-filters");
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -91,17 +94,48 @@ export default function CourseLibrary({ featured = false }: { featured?: boolean
     <div className={`library-browser ${featured ? "is-featured" : ""}`}>
       {!featured && (
         <div className="library-controls">
-          <label className="search-field library-search">
-            <Search size={18} /><span className="sr-only">Search published courses</span>
-            <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search topics, skills, or courses" />
-          </label>
-          <label className="filter-field">
-            <Filter size={16} /><span className="sr-only">Filter by level</span>
-            <select value={level} onChange={(event) => setLevel(event.target.value)}>
-              {levels.map((item) => <option key={item}>{item}</option>)}
-            </select>
-          </label>
+          <div className="library-controls-desktop">
+            <label className="search-field library-search">
+              <Search size={18} /><span className="sr-only">Search published courses</span>
+              <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search topics, skills, or courses" />
+            </label>
+            <label className="filter-field">
+              <Filter size={16} /><span className="sr-only">Filter by level</span>
+              <select value={level} onChange={(event) => setLevel(event.target.value)}>
+                {levels.map((item) => <option key={item}>{item}</option>)}
+              </select>
+            </label>
+          </div>
+          <button className="button button-secondary library-filter-trigger" type="button" onClick={filterDrawer.openDrawer} aria-expanded={filterDrawer.open}>
+            <Filter size={17} /> Search and filter
+            {(query || level !== "All levels") && <span>{Number(Boolean(query)) + Number(level !== "All levels")}</span>}
+          </button>
         </div>
+      )}
+
+      {!featured && filterDrawer.open && (
+        <AppDrawer open={filterDrawer.open} onClose={filterDrawer.closeDrawer} labelledBy="library-filter-title" size="compact" mobilePlacement="bottom" className="library-filter-drawer">
+          <section className="library-filter-panel">
+            <header className="app-drawer-header">
+              <div><small>Course library</small><h2 id="library-filter-title">Find the right course</h2><p>Search by topic, then narrow by level.</p></div>
+              <button className="icon-button" type="button" onClick={filterDrawer.closeDrawer} aria-label="Close course filters"><X size={18} /></button>
+            </header>
+            <div className="app-drawer-body library-filter-fields">
+              <label>
+                <span>Search published courses</span>
+                <span className="search-field"><Search size={18} /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Topics, skills, or courses" /></span>
+              </label>
+              <label>
+                <span>Level</span>
+                <span className="filter-field"><Filter size={16} /><select value={level} onChange={(event) => setLevel(event.target.value)}>{levels.map((item) => <option key={item}>{item}</option>)}</select></span>
+              </label>
+            </div>
+            <footer className="app-drawer-footer">
+              <button className="button button-quiet" type="button" onClick={() => { setQuery(""); setLevel("All levels"); }}>Reset</button>
+              <button className="button button-primary" type="button" onClick={filterDrawer.closeDrawer}>Show {visible.length} {visible.length === 1 ? "course" : "courses"}</button>
+            </footer>
+          </section>
+        </AppDrawer>
       )}
 
       {loading ? (

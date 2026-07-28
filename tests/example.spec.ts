@@ -299,6 +299,92 @@ test("reads a lesson aloud from the toolbar speaker", async ({ page }) => {
   await expect(page.getByRole("button", { name: "Read this lesson aloud" })).toHaveAttribute("aria-pressed", "false");
 });
 
+test("keeps the mobile tutor contained above the lesson", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.route("**/api/courses/demo", (route) => route.fulfill({ json: {
+    courseId: "demo",
+    id: "demo",
+    topic: "Systems thinking",
+    mission: "Understand feedback loops.",
+    isPublic: true,
+    modules: [{
+      title: "Foundations",
+      description: "Start here",
+      lessons: [{ title: "Feedback loops", concept: "How outputs influence future inputs", estimatedMinutes: 8 }],
+    }],
+  } }));
+  await page.route("**/api/courses/demo/lessons/0-0", (route) => route.fulfill({ json: {
+    aiAssisted: true,
+    content: "# Feedback loops\n\nA feedback loop connects a system's output to what happens next.",
+    quizzes: [],
+  } }));
+  await page.goto("/course/Systems%20thinking/lesson/0-0?id=demo");
+  await page.locator(".lesson-workspace").evaluate((workspace) => {
+    workspace.insertAdjacentHTML("beforeend", `
+      <dialog class="app-drawer app-drawer-end app-drawer-mobile-full app-drawer-medium tutor-app-drawer" aria-labelledby="test-tutor-title">
+        <div class="app-drawer-surface">
+          <aside class="tutor-drawer">
+            <div class="tutor-header">
+              <span class="tutor-avatar"></span>
+              <div><strong id="test-tutor-title">Erudoza AI Tutor</strong><small>Grounded in this lesson</small></div>
+              <button class="icon-button" type="button" aria-label="Close tutor"></button>
+            </div>
+            <div class="tutor-messages"><div class="tutor-message tutor-assistant"><div>Ask about this lesson.</div></div></div>
+            <form class="tutor-composer">
+              <label for="test-tutor-input">Ask about this lesson</label>
+              <div class="tutor-input-shell">
+                <textarea id="test-tutor-input" rows="3"></textarea>
+                <button class="icon-button icon-button-accent" type="button" aria-label="Send question"></button>
+              </div>
+              <small class="tutor-disclaimer">AI can make mistakes. Verify important information.</small>
+            </form>
+          </aside>
+        </div>
+      </dialog>
+    `);
+    workspace.querySelector<HTMLDialogElement>(".app-drawer")?.showModal();
+  });
+
+  const drawer = page.getByRole("dialog", { name: "Erudoza AI Tutor" });
+  await expect(drawer).toBeVisible();
+  const layout = await drawer.evaluate((element) => {
+    const bounds = element.getBoundingClientRect();
+    const messages = element.querySelector(".tutor-messages")?.getBoundingClientRect();
+    const composer = element.querySelector(".tutor-composer")?.getBoundingClientRect();
+    const textarea = element.querySelector("textarea")?.getBoundingClientRect();
+    const send = element.querySelector(".tutor-input-shell .icon-button")?.getBoundingClientRect();
+    const coversBottomEdge = Boolean(
+      document.elementFromPoint(window.innerWidth / 2, window.innerHeight - 1)?.closest(".tutor-drawer"),
+    );
+    return {
+      position: getComputedStyle(element).position,
+      panelDisplay: getComputedStyle(element.querySelector(".tutor-drawer")!).display,
+      reachesViewportBottom: Math.abs(bounds.bottom - window.innerHeight) <= 1,
+      conversationHasRoom: Boolean(messages && messages.height > 120),
+      conversationEndsBeforeComposer: Boolean(messages && composer && messages.bottom <= composer.top + 1),
+      composerPinnedToBottom: Boolean(composer && Math.abs(composer.bottom - bounds.bottom) <= 1),
+      sendInsideTextarea: Boolean(
+        textarea && send
+        && send.top >= textarea.top
+        && send.right <= textarea.right
+        && send.bottom <= textarea.bottom,
+      ),
+      coversBottomEdge,
+    };
+  });
+
+  expect(layout).toEqual({
+    position: "fixed",
+    panelDisplay: "grid",
+    reachesViewportBottom: true,
+    conversationHasRoom: true,
+    conversationEndsBeforeComposer: true,
+    composerPinnedToBottom: true,
+    sendInsideTextarea: true,
+    coversBottomEdge: true,
+  });
+});
+
 test("does not complete a lesson after a wrong answer", async ({ page }) => {
   const course = {
     courseId: "demo",
@@ -600,6 +686,12 @@ test("presents public courses as a browsable learning library", async ({ page })
   await expect(page.getByText("2 lessons")).toBeVisible();
   await expect(page.getByRole("button", { name: /Open Systems thinking/i })).toBeVisible();
   await expect(page.locator(".course-banner-card[data-generated='true'] img")).toBeVisible();
+  await page.getByRole("button", { name: "Search and filter" }).click();
+  const filterDrawer = page.getByRole("dialog", { name: "Find the right course" });
+  await expect(filterDrawer).toBeVisible();
+  await expect(filterDrawer.getByRole("button", { name: "Show 1 course" })).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(filterDrawer).not.toBeVisible();
   const bannerLayout = await page.locator(".course-card").evaluate((card) => {
     const bookmark = card.querySelector(".course-bookmark")?.getBoundingClientRect();
     const heading = card.querySelector("h3")?.getBoundingClientRect();
@@ -631,6 +723,7 @@ test("presents public courses as a browsable learning library", async ({ page })
 });
 
 test("frames each course around an outcome and mastery", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
   const course = {
     courseId: "demo",
     id: "demo",
@@ -687,6 +780,12 @@ test("frames each course around an outcome and mastery", async ({ page }) => {
   await expect(resumeCard.getByRole("heading", { name: "Leverage points" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Modules and lessons" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Foundations" })).toBeVisible();
+  await page.getByRole("button", { name: "Browse outline" }).click();
+  const outlineDrawer = page.getByRole("dialog", { name: "Course outline" });
+  await expect(outlineDrawer).toBeVisible();
+  await expect(outlineDrawer.getByRole("button", { name: /Leverage points/i })).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(outlineDrawer).not.toBeVisible();
   await expect(page.locator(".module-completion")).toContainText("1/2");
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
   await resumeCard.getByRole("button", { name: /Resume lesson/i }).click();

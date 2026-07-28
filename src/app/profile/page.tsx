@@ -6,6 +6,7 @@ import { Award, BookOpenCheck, CheckCircle2, Clock3, Flame, LoaderCircle, Slider
 import AchievementBadge from "@/components/AchievementBadge";
 import AppShell from "@/components/AppShell";
 import DashboardCustomizer from "@/components/DashboardCustomizer";
+import { useAppDrawer } from "@/components/AppDrawer";
 import { useAuth } from "@/components/AuthProvider";
 import { useLearnerState } from "@/components/useLearnerState";
 import { evaluateBadges } from "@/lib/badges";
@@ -33,7 +34,7 @@ export default function ProfilePage() {
   const [authoredCourses, setAuthoredCourses] = useState<Course[]>([]);
   const [loaded, setLoaded] = useState(false);
   const [filter, setFilter] = useState<BadgeFilter>("all");
-  const [customizerOpen, setCustomizerOpen] = useState(false);
+  const dashboardCustomizer = useAppDrawer("dashboard-customizer");
   const [now] = useState(() => Date.now());
 
   useEffect(() => {
@@ -82,7 +83,7 @@ export default function ProfilePage() {
             ) : <UserRound size={30} />}
           </div>
           <div><p className="overline">Learning profile</p><h1>{displayName}</h1><span>{isPro ? "Pro learning account" : "Free learning account"}</span></div>
-          <button className="button button-secondary" onClick={() => setCustomizerOpen(true)}><SlidersHorizontal size={17} /> Customize dashboard</button>
+          <button className="button button-secondary" onClick={dashboardCustomizer.openDrawer} aria-expanded={dashboardCustomizer.open}><SlidersHorizontal size={17} /> Customize dashboard</button>
         </header>
 
         {!loaded ? <div className="dashboard-loading"><span /><span /><span /></div> : (
@@ -117,7 +118,7 @@ export default function ProfilePage() {
                 <section className="profile-preferences">
                   <div className="profile-side-heading"><SlidersHorizontal size={18} /><h2>Dashboard view</h2></div>
                   <dl><div><dt>View</dt><dd>{state.dashboardPreferences.preset === "custom" ? "Custom" : `${state.dashboardPreferences.preset[0].toUpperCase()}${state.dashboardPreferences.preset.slice(1)}`}</dd></div><div><dt>Visible sections</dt><dd>{activeSections + 1}</dd></div></dl>
-                  <button onClick={() => setCustomizerOpen(true)}>Change dashboard view</button>
+                  <button onClick={dashboardCustomizer.openDrawer} aria-expanded={dashboardCustomizer.open}>Change dashboard view</button>
                 </section>
 
                 <section className="profile-library-summary">
@@ -138,11 +139,11 @@ export default function ProfilePage() {
         )}
       </div>
 
-      {customizerOpen && <DashboardCustomizer
-        open={customizerOpen}
+      {dashboardCustomizer.open && <DashboardCustomizer
+        open={dashboardCustomizer.open}
         preferences={state.dashboardPreferences}
         syncStatus={syncStatus}
-        onClose={() => setCustomizerOpen(false)}
+        onClose={dashboardCustomizer.closeDrawer}
         onSave={(next) => update((current) => ({ ...current, dashboardPreferences: next }))}
       />}
     </AppShell>

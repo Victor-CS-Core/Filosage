@@ -15,12 +15,15 @@ import {
   Flag,
   Globe2,
   Layers3,
+  ListTree,
   Target,
   LoaderCircle,
   LockKeyhole,
   Play,
   Trash2,
+  X,
 } from "lucide-react";
+import AppDrawer, { useAppDrawer } from "@/components/AppDrawer";
 import AppShell from "@/components/AppShell";
 import CourseBanner from "@/components/CourseBanner";
 import SpeakButton from "@/components/SpeakButton";
@@ -49,6 +52,7 @@ export default function CourseMap() {
   const [capstoneSubmission, setCapstoneSubmission] = useState("");
   const [capstoneBusy, setCapstoneBusy] = useState(false);
   const [capstoneError, setCapstoneError] = useState<string | null>(null);
+  const outlineDrawer = useAppDrawer("course-outline");
 
   const getToken = useCallback(async () => (user ? user.getIdToken() : null), [user]);
 
@@ -362,7 +366,12 @@ export default function CourseMap() {
         <section className="curriculum" aria-labelledby="curriculum-title">
           <div className="section-heading">
             <div><p className="overline">Course outline</p><h2 id="curriculum-title">Modules and lessons</h2></div>
-            <p>{course.modules.length} modules · {totalLessons} lessons. Follow them in order or revisit any concept when you need it.</p>
+            <div className="curriculum-heading-actions">
+              <p>{course.modules.length} modules · {totalLessons} lessons. Follow them in order or revisit any concept when you need it.</p>
+              <button className="button button-secondary course-outline-trigger" type="button" onClick={outlineDrawer.openDrawer} aria-expanded={outlineDrawer.open}>
+                <ListTree size={17} /> Browse outline
+              </button>
+            </div>
           </div>
 
           <div className="module-list">
@@ -473,6 +482,40 @@ export default function CourseMap() {
             </section>
           )}
         </section>
+
+        {outlineDrawer.open && (
+          <AppDrawer open={outlineDrawer.open} onClose={outlineDrawer.closeDrawer} labelledBy="course-outline-drawer-title" size="medium" mobilePlacement="bottom" className="course-outline-app-drawer">
+            <section className="course-outline-drawer">
+              <header className="app-drawer-header">
+                <div><small>{course.topic}</small><h2 id="course-outline-drawer-title">Course outline</h2><p>{totalLessons} lessons across {course.modules.length} modules.</p></div>
+                <button className="icon-button" type="button" onClick={outlineDrawer.closeDrawer} aria-label="Close course outline"><X size={18} /></button>
+              </header>
+              <div className="app-drawer-body course-outline-scroll">
+                {course.modules.map((module, moduleIndex) => (
+                  <section className="course-outline-module" key={`${module.title}-drawer`}>
+                    <header><span>{String(moduleIndex + 1).padStart(2, "0")}</span><div><h3>{module.title}</h3><p>{module.objective ?? module.description}</p></div></header>
+                    <div>
+                      {module.lessons.map((lesson, lessonIndex) => {
+                        const lessonId = `${moduleIndex}-${lessonIndex}`;
+                        const complete = validCompletedLessons.includes(lessonId);
+                        return (
+                          <button type="button" key={lessonId} onClick={() => {
+                            outlineDrawer.closeDrawer();
+                            router.push(`/course/${encodeURIComponent(topic)}/lesson/${lessonId}${courseId ? `?id=${courseId}` : ""}`);
+                          }}>
+                            <span className={`lesson-status ${complete ? "is-complete" : ""}`}>{complete ? <Check size={14} /> : <span>{moduleIndex + 1}.{lessonIndex + 1}</span>}</span>
+                            <span><strong>{lesson.title}</strong><small>{lesson.objective ?? lesson.concept}</small></span>
+                            <ArrowRight size={16} />
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </section>
+                ))}
+              </div>
+            </section>
+          </AppDrawer>
+        )}
       </div>
     </AppShell>
   );
