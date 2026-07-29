@@ -51,10 +51,9 @@ export default function TeachingStandardPage() {
           <p className="overline">The Erudoza teaching standard</p>
           <h1>Generated is not good enough.<br />Every lesson is held to a standard.</h1>
           <p>
-            There are plenty of AI course generators out there. Erudoza works differently: every lesson has to help you
-            build understanding that lasts, and any lesson that falls short is rejected and rebuilt before you ever see
-            it. Here is the standard each published lesson must pass. These are the same checks the product runs on
-            every lesson.
+            There are plenty of AI course generators out there. Erudoza works differently: every published lesson has
+            to help learners build understanding that lasts. Automated checks reject or rebuild drafts that fall short,
+            and authors review their work before publication. Here is the standard each published lesson must pass.
           </p>
         </header>
 
@@ -83,9 +82,10 @@ export default function TeachingStandardPage() {
           <div>
             <h2>What we are honest about</h2>
             <p>
-              Lessons are AI-assisted and labeled as such. Drafts that fail the standard are revised or rejected before you
-              see them, briefs and outputs are screened for safety, and published courses are curated. We would rather
-              offer a small library that meets the standard than a large one that does not.
+              Lessons are AI-assisted and labeled as such. Briefs and outputs are screened for safety, language
+              consistency, structure, and teaching quality; authors must review before publishing. These controls reduce
+              mistakes but cannot guarantee factual accuracy, so important claims should still be verified. Reports can
+              trigger review, restriction, or removal, and the platform owner can unpublish any course.
             </p>
           </div>
         </section>

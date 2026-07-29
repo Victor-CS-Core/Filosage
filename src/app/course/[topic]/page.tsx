@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import {
   ArrowLeft,
@@ -44,8 +44,10 @@ export default function CourseMap() {
   const searchParams = useSearchParams();
   const topic = decodeURIComponent(params.topic);
   const requestedCourseId = searchParams.get("id");
+  const courseViewKey = `${requestedCourseId ?? "new"}:${topic}`;
   const { user, isOwner, isPro, loading: authLoading, signInWithGoogle } = useAuth();
-  const [course, setCourse] = useState<Course | null>(null);
+  const [courseRecord, setCourseRecord] = useState<{ key: string; value: Course | null }>({ key: courseViewKey, value: null });
+  const course = courseRecord.key === courseViewKey ? courseRecord.value : null;
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
@@ -60,10 +62,15 @@ export default function CourseMap() {
   const [capstoneError, setCapstoneError] = useState<string | null>(null);
   const outlineDrawer = useAppDrawer("course-outline");
   const deleteDrawer = useAppDrawer("course-delete-confirmation");
+  const closeOutlineDrawer = outlineDrawer.closeDrawer;
+  const closeDeleteDrawer = deleteDrawer.closeDrawer;
+  const activeCourseViewRef = useRef(courseViewKey);
 
   const getToken = useCallback(async () => (user ? user.getIdToken() : null), [user]);
 
   const loadOrGenerate = useCallback(async () => {
+    const requestViewKey = courseViewKey;
+    const isCurrentView = () => activeCourseViewRef.current === requestViewKey;
     if (!requestedCourseId && authLoading) return;
     setLoading(true);
     setError(null);
@@ -75,9 +82,10 @@ export default function CourseMap() {
           headers: token ? { Authorization: `Bearer ${token}` } : undefined,
         });
         const data = await response.json();
+        if (!isCurrentView()) return;
         if (response.status === 404) clearLocalCourseData(requestedCourseId);
         if (!response.ok) throw new Error(data.error || "The course could not be opened.");
-        setCourse({ ...data, id: requestedCourseId, courseId: requestedCourseId });
+        setCourseRecord({ key: requestViewKey, value: { ...data, id: requestedCourseId, courseId: requestedCourseId } });
         return;
       }
 
@@ -97,16 +105,38 @@ export default function CourseMap() {
         body: JSON.stringify({ topic }),
       });
       const data = await response.json();
+      if (!isCurrentView()) return;
       if (!response.ok) throw new Error(data.error || "The course could not be generated.");
       const nextCourse = { ...data, topic, id: data.courseId } as Course;
-      setCourse(nextCourse);
+      setCourseRecord({ key: requestViewKey, value: nextCourse });
       if (data.courseId) router.replace(`/course/${encodeURIComponent(topic)}?id=${data.courseId}`);
     } catch (loadError) {
-      setError(loadError instanceof Error ? loadError.message : "The course could not be opened.");
+      if (isCurrentView()) setError(loadError instanceof Error ? loadError.message : "The course could not be opened.");
     } finally {
-      setLoading(false);
+      if (isCurrentView()) setLoading(false);
     }
-  }, [authLoading, requestedCourseId, isPro, getToken, topic, router]);
+  }, [authLoading, courseViewKey, requestedCourseId, isPro, getToken, topic, router]);
+
+  useEffect(() => {
+    activeCourseViewRef.current = courseViewKey;
+    closeOutlineDrawer();
+    closeDeleteDrawer();
+    void Promise.resolve().then(() => {
+      if (activeCourseViewRef.current !== courseViewKey) return;
+      setLoading(true);
+      setError(null);
+      setActionError(null);
+      setExpandedModule(0);
+      setUpdating(false);
+      setBannerBusy(false);
+      setPublishAttested(false);
+      setCompletedLessons([]);
+      setCapstoneAssessment(null);
+      setCapstoneSubmission("");
+      setCapstoneBusy(false);
+      setCapstoneError(null);
+    });
+  }, [closeDeleteDrawer, closeOutlineDrawer, courseViewKey]);
 
   useEffect(() => {
     void Promise.resolve().then(loadOrGenerate);
@@ -205,11 +235,14 @@ export default function CourseMap() {
 
   const updateVisibility = async () => {
     if (!course?.canManage || !courseId) return;
+    const operationViewKey = activeCourseViewRef.current;
+    const operationCourseId = courseId;
+    const isCurrentView = () => activeCourseViewRef.current === operationViewKey;
     setUpdating(true);
     setActionError(null);
     try {
       const token = await getToken();
-      const response = await fetch(`/api/courses/${courseId}`, {
+      const response = await fetch(`/api/courses/${operationCourseId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify({
@@ -218,45 +251,55 @@ export default function CourseMap() {
         }),
       });
       const data = await response.json();
+      if (!isCurrentView()) return;
       if (!response.ok) throw new Error(data.error || "Visibility could not be updated.");
-      setCourse({ ...course, isPublic: data.isPublic });
+      setCourseRecord({ key: operationViewKey, value: { ...course, isPublic: data.isPublic } });
       setPublishAttested(false);
       window.dispatchEvent(new Event("erudoza:courses-changed"));
     } catch (updateError) {
-      setActionError(updateError instanceof Error ? updateError.message : "Visibility could not be updated.");
+      if (isCurrentView()) setActionError(updateError instanceof Error ? updateError.message : "Visibility could not be updated.");
     } finally {
-      setUpdating(false);
+      if (isCurrentView()) setUpdating(false);
     }
   };
 
   const deleteCourse = async () => {
     if (!user || !course?.canManage || !courseId) return;
+    const operationViewKey = activeCourseViewRef.current;
+    const operationCourseId = courseId;
+    const isCurrentView = () => activeCourseViewRef.current === operationViewKey;
     setUpdating(true);
     setActionError(null);
     try {
       const token = await getToken();
-      const response = await fetch(`/api/courses/${courseId}`, {
+      const response = await fetch(`/api/courses/${operationCourseId}`, {
         method: "DELETE",
         headers: { Authorization: `Bearer ${token}` },
       });
       const data = await response.json();
+      if (!isCurrentView()) return;
       if (!response.ok) throw new Error(data.error || "The course could not be deleted.");
-      clearLocalCourseData(courseId);
+      clearLocalCourseData(operationCourseId);
       deleteDrawer.closeDrawer();
       router.push("/");
     } catch (deleteError) {
-      setActionError(deleteError instanceof Error ? deleteError.message : "The course could not be deleted.");
-      setUpdating(false);
+      if (isCurrentView()) {
+        setActionError(deleteError instanceof Error ? deleteError.message : "The course could not be deleted.");
+        setUpdating(false);
+      }
     }
   };
 
   const regenerateBanner = async () => {
     if (!user || !course?.canManage || !course.canRegenerateBanner || !courseId) return;
+    const operationViewKey = activeCourseViewRef.current;
+    const operationCourseId = courseId;
+    const isCurrentView = () => activeCourseViewRef.current === operationViewKey;
     setBannerBusy(true);
     setActionError(null);
     try {
       const token = await getToken();
-      const response = await fetch(`/api/courses/${courseId}/banner`, {
+      const response = await fetch(`/api/courses/${operationCourseId}/banner`, {
         method: "POST",
         headers: {
           Authorization: `Bearer ${token}`,
@@ -264,18 +307,22 @@ export default function CourseMap() {
         },
       });
       const data = await response.json() as Course & { error?: string };
+      if (!isCurrentView()) return;
       if (!response.ok) throw new Error(data.error || "A new banner could not be generated.");
-      setCourse(data);
+      setCourseRecord({ key: operationViewKey, value: data });
       window.dispatchEvent(new Event("erudoza:courses-changed"));
     } catch (bannerError) {
-      setActionError(bannerError instanceof Error ? bannerError.message : "A new banner could not be generated.");
+      if (isCurrentView()) setActionError(bannerError instanceof Error ? bannerError.message : "A new banner could not be generated.");
     } finally {
-      setBannerBusy(false);
+      if (isCurrentView()) setBannerBusy(false);
     }
   };
 
   const submitCapstone = async () => {
     if (!user || !courseId || capstoneBusy) return;
+    const operationViewKey = activeCourseViewRef.current;
+    const operationCourseId = courseId;
+    const isCurrentView = () => activeCourseViewRef.current === operationViewKey;
     setCapstoneBusy(true);
     setCapstoneError(null);
     try {
@@ -287,9 +334,10 @@ export default function CourseMap() {
           Authorization: `Bearer ${token}`,
           "Idempotency-Key": createClientId(),
         },
-        body: JSON.stringify({ courseId, submission: capstoneSubmission }),
+        body: JSON.stringify({ courseId: operationCourseId, submission: capstoneSubmission }),
       });
       const data = await response.json();
+      if (!isCurrentView()) return;
       if (!response.ok) throw new Error(data.error || "The capstone could not be assessed.");
       const assessment = data.assessment as CapstoneAssessment;
       setCapstoneAssessment(assessment);
@@ -331,9 +379,9 @@ export default function CourseMap() {
         });
       });
     } catch (assessError) {
-      setCapstoneError(assessError instanceof Error ? assessError.message : "The capstone could not be assessed.");
+      if (isCurrentView()) setCapstoneError(assessError instanceof Error ? assessError.message : "The capstone could not be assessed.");
     } finally {
-      setCapstoneBusy(false);
+      if (isCurrentView()) setCapstoneBusy(false);
     }
   };
 
@@ -482,6 +530,7 @@ export default function CourseMap() {
 
         {user && courseId && masteryJourney.ready && (
           <OutcomePlanner
+            key={courseId}
             course={course}
             courseId={courseId}
             topic={topic}

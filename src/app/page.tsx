@@ -127,16 +127,16 @@ export default function Home() {
           <div className="public-proof" aria-label="Why learn with Erudoza"><span><CheckCircle2 size={16} /> Begin with a real work outcome</span><span><CheckCircle2 size={16} /> Private plans stay private</span><span><CheckCircle2 size={16} /> Mastery requires evidence</span></div>
 
           <section className="public-library-preview" aria-labelledby="public-library-title">
-            <div className="section-heading"><div><p className="overline">Published courses</p><h2 id="public-library-title">Explore the public library</h2><p>Start any course now. A free account saves your progress, courses, and review schedule across devices.</p></div><button className="text-button" onClick={() => router.push("/library")}>View all courses <ArrowRight size={15} /></button></div>
+            <div className="section-heading"><div><p className="overline">Published courses</p><h2 id="public-library-title">Explore the public library</h2><p>Browse every published topic and inspect the full course outline. Create a free account when you are ready to open lessons and save your progress.</p></div><button className="text-button" onClick={() => router.push("/library")}>View all courses <ArrowRight size={15} /></button></div>
             <CourseLibrary featured />
           </section>
 
           <section className="public-method" id="method">
-            <div><p className="overline">How learning works</p><h2>Understand, retain, and earn it.</h2><p className="method-standard-link">Every lesson here passes the <button className="text-button" onClick={() => router.push("/standard")}>Erudoza teaching standard</button> before you see it.</p></div>
+            <div><p className="overline">How learning works</p><h2>Understand, retain, and earn it.</h2><p className="method-standard-link">Every published lesson is checked against the <button className="text-button" onClick={() => router.push("/standard")}>Erudoza teaching standard</button> before learners open it.</p></div>
             <div className="method-steps"><article><span>01</span><h3>Learn against your misconceptions</h3><p>Each lesson corrects a named wrong belief and builds the knowledge the next lesson needs.</p></article><article><span>02</span><h3>Explain it from memory</h3><p>Recall comes before answer choices, so you test memory instead of recognition. Your daily dose returns each concept before it fades.</p></article><article><span>03</span><h3>Earn the capstone</h3><p>Courses end in capstone work assessed against clear success criteria, so mastery means something you demonstrated.</p></article></div>
           </section>
 
-          <section className="public-plans-cta"><div><Crown size={22} /><h2>Build one capability your work actually requires.</h2><p>Choose a public course, practice against a real situation, and leave with evidence of what you can apply. Reading is open; a free account keeps your progress and review schedule in sync.</p></div><button className="button button-primary" onClick={() => router.push("/library")}>Explore public courses <ArrowRight size={16} /></button></section>
+          <section className="public-plans-cta"><div><Crown size={22} /><h2>Build one capability your work actually requires.</h2><p>Inspect public course outlines before signing up. A free account opens the lessons, practice, progress tracking, and review schedule.</p></div><button className="button button-primary" onClick={() => router.push("/library")}>Explore public courses <ArrowRight size={16} /></button></section>
         </div>
       </AppShell>
     );

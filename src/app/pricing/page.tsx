@@ -7,7 +7,7 @@ import { useAuth } from "@/components/AuthProvider";
 import { SUPPORT_CONTACT } from "@/lib/legal";
 
 const freeFeatures = [
-  "Open every published lesson",
+  "Open every published lesson with a free account",
   "Complete lessons and retrieval practice",
   "Cloud progress and review scheduling",
   "Five tutor questions each month",
@@ -17,6 +17,7 @@ const proFeatures = [
   "Everything in Free",
   "Three private course outlines each month",
   "Thirty generated lessons each month",
+  "Publish courses after completing and reviewing them",
   "One hundred tutor questions each month",
   "Review scheduling and detailed progress",
 ];
@@ -92,7 +93,7 @@ export default function PricingPage() {
         <header className="pricing-header">
           <p className="overline">Erudoza Pro</p>
           <h1>Learn for free. Create with Pro.</h1>
-          <p>Every published course stays free. Pro adds private course creation and more tutor questions.</p>
+          <p>Browse public outlines before signing up. A free account opens published lessons; Pro adds course creation, staged generation, and publishing.</p>
         </header>
 
         <div className="plan-comparison">
@@ -104,7 +105,7 @@ export default function PricingPage() {
           </section>
 
           <section className="plan-column plan-pro" aria-labelledby="pro-plan-title">
-            <div className="plan-heading"><span><Crown size={19} /></span><div><h2 id="pro-plan-title">Erudoza Pro</h2><p>Create private courses for your own goals.</p></div></div>
+            <div className="plan-heading"><span><Crown size={19} /></span><div><h2 id="pro-plan-title">Erudoza Pro</h2><p>Create a course privately, then publish it when it is ready.</p></div></div>
             <p className="plan-price"><strong>$14.99</strong><span>per month</span><small>or $9.99/month, billed annually ($119.88/year)</small></p>
             <div className="billing-interval" role="group" aria-label="Billing interval">
               <button type="button" className={interval === "monthly" ? "is-selected" : ""} aria-pressed={interval === "monthly"} onClick={() => setInterval("monthly")}>Monthly</button>
@@ -145,7 +146,7 @@ export default function PricingPage() {
           </section>
         </div>
 
-        <p className="pricing-note">Generation credits reset each month and do not roll over. Monthly limits help keep course creation reliable and available.</p>
+        <p className="pricing-note">Generation credits reset each month and do not roll over. Pro authors generate lessons in sequence: complete the current lesson activities before generating the next. The platform owner can unpublish or remove material that fails the publication standard.</p>
         <section className="billing-readiness-note" aria-labelledby="billing-readiness-title">
           <LockKeyhole size={18} />
           <div><h2 id="billing-readiness-title">Clear terms before any charge</h2><p>{billingReady ? "Secure checkout shows the exact price, currency, billing interval, automatic renewal, and included limits before you consent. You can cancel online from Manage billing." : "Paid checkout is not active. Before it launches, secure checkout will show the exact price, currency, billing interval, automatic renewal, included limits, and a simple online cancellation method before you consent."}</p><p><a href="/terms">Terms of Service</a> · <a href="/privacy">Privacy Notice</a> · <a href={`mailto:${SUPPORT_CONTACT}`}>Contact support</a></p></div>

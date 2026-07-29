@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import LegalDocument from "@/components/LegalDocument";
 import { SUPPORT_CONTACT } from "@/lib/legal";
 
-export const metadata: Metadata = { title: "Acceptable Use Policy | Erudoza", description: "Rules that protect Erudoza learners and the service." };
+export const metadata: Metadata = { title: "Acceptable Use Policy", description: "Rules that protect Erudoza learners and the service." };
 
 export default function AcceptableUsePage() {
   return <LegalDocument eyebrow="Safety" title="Acceptable Use Policy" summary="Use Erudoza for lawful learning. These boundaries protect learners, creators, and the systems that make the service available.">

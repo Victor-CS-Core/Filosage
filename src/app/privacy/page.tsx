@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import LegalDocument from "@/components/LegalDocument";
 
-export const metadata: Metadata = { title: "Privacy Notice | Erudoza", description: "How Erudoza collects, uses, and protects personal information." };
+export const metadata: Metadata = { title: "Privacy Notice", description: "How Erudoza collects, uses, and protects personal information." };
 
 export default function PrivacyPage() {
   return <LegalDocument eyebrow="Privacy" title="Privacy Notice" summary="This notice explains what Erudoza collects, why it is used, where it is processed, and the choices available to learners.">

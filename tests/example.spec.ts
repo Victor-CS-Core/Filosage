@@ -260,6 +260,23 @@ test("publishes the teaching standard", async ({ page }) => {
   await expect(page.getByRole("button", { name: /See courses held to this standard/ })).toBeVisible();
 });
 
+test("describes guest access and Pro publishing consistently across public pages", async ({ page }) => {
+  await page.goto("/");
+  await expect(page.getByText("Browse every published topic and inspect the full course outline.")).toBeVisible();
+
+  await page.goto("/library");
+  await expect(page).toHaveTitle("Course Library | Erudoza");
+  await expect(page.getByText("A free account opens lessons and keeps your progress, practice, and reviews in sync.")).toBeVisible();
+
+  await page.goto("/pricing");
+  await expect(page).toHaveTitle("Plans and Pricing | Erudoza");
+  await expect(page.getByText("Publish courses after completing and reviewing them")).toBeVisible();
+  await expect(page.getByText("complete the current lesson activities before generating the next", { exact: false })).toBeVisible();
+
+  await page.goto("/create");
+  await expect(page.locator('meta[name="robots"]')).toHaveAttribute("content", "noindex, nofollow");
+});
+
 test("keeps the signed-in learner shell on one scroll owner", async ({ page }) => {
   const styles = await readFile(join(process.cwd(), "src/app/globals.css"), "utf8");
   await page.setContent(`
@@ -340,7 +357,7 @@ test("preserves the selected theme across navigation and reloads", async ({ page
   await expect.poll(() => page.evaluate(() => localStorage.getItem("erudoza-theme"))).toBe("dark");
 });
 
-test("offers an optional learner account without blocking public access", async ({ page }) => {
+test("lets guests browse outlines while clearly gating lessons behind an account", async ({ page }) => {
   await page.goto("/");
 
   await page.locator(".public-header").getByRole("button", { name: "Sign in" }).click();
@@ -1080,6 +1097,101 @@ test("explains permanent course deletion before sending a delete request", async
   await dialog.getByRole("button", { name: "Keep course", exact: true }).click();
   await expect(dialog).not.toBeVisible();
   expect(deleteRequests).toBe(0);
+});
+
+test("clears course-scoped warnings and controls when navigating between owned courses", async ({ page }) => {
+  await restoreLocalLearner(page);
+  await page.setViewportSize({ width: 1200, height: 900 });
+  const makeCourse = (id: string, topic: string) => ({
+    id,
+    courseId: id,
+    topic,
+    mission: `Build a reliable foundation in ${topic}.`,
+    level: "Foundations",
+    isPublic: false,
+    canManage: true,
+    generatedLessonIds: id === "warning-course" ? ["0-0"] : ["0-0", "0-1"],
+    modules: [{
+      title: "Foundations",
+      description: "Build the core model.",
+      lessons: [
+        { title: "First idea", concept: "Understand the starting point." },
+        { title: "Second idea", concept: "Apply the model." },
+      ],
+    }],
+  });
+  const warningCourse = makeCourse("warning-course", "Course with unfinished publishing");
+  const readyCourse = makeCourse("ready-course", "Different ready course");
+
+  await page.route("**/api/courses?scope=mine", (route) => route.fulfill({ json: { courses: [warningCourse, readyCourse] } }));
+  await page.route("**/api/courses/warning-course", (route) => {
+    if (route.request().method() === "PATCH") {
+      return route.fulfill({
+        status: 400,
+        json: { error: "Complete every lesson before publishing. 1 of 2 lessons are ready." },
+      });
+    }
+    return route.fulfill({ json: warningCourse });
+  });
+  await page.route("**/api/courses/ready-course", (route) => route.fulfill({ json: readyCourse }));
+  await page.route("**/api/progress?courseId=warning-course", (route) => route.fulfill({ json: { progress: null } }));
+  await page.route("**/api/progress?courseId=ready-course", (route) => route.fulfill({ json: { progress: null } }));
+
+  await page.goto("/course/Course%20with%20unfinished%20publishing?id=warning-course");
+  await page.getByLabel("I reviewed every lesson and confirm this course is ready for public learners.").check();
+  await page.getByRole("button", { name: "Review and publish" }).click();
+  await expect(page.locator(".course-owner-controls .form-error")).toContainText("Complete every lesson before publishing.");
+
+  await page.getByRole("button", { name: /Different ready course Private/ }).click();
+  await expect(page).toHaveURL(/Different%20ready%20course\?id=ready-course/);
+  await expect(page.getByRole("heading", { name: "Different ready course" })).toBeVisible();
+  await expect(page.getByText("Complete every lesson before publishing.", { exact: false })).toHaveCount(0);
+  await expect(page.getByLabel("I reviewed every lesson and confirm this course is ready for public learners.")).not.toBeChecked();
+});
+
+test("resets lesson-scoped content, reporting, and progression state on next-lesson navigation", async ({ page }) => {
+  await restoreLocalLearner(page);
+  const course = {
+    id: "lesson-state-course",
+    courseId: "lesson-state-course",
+    topic: "Lesson state course",
+    mission: "Keep each lesson interaction isolated.",
+    level: "Foundations",
+    isPublic: false,
+    canManage: true,
+    generatedLessonIds: ["0-0", "0-1"],
+    modules: [{
+      title: "Sequence",
+      description: "Move through two lessons.",
+      lessons: [
+        { title: "First lesson", concept: "First lesson concept." },
+        { title: "Second lesson", concept: "Second lesson concept." },
+      ],
+    }],
+  };
+  await page.route("**/api/courses?scope=mine", (route) => route.fulfill({ json: { courses: [course] } }));
+  await page.route("**/api/courses/lesson-state-course", (route) => route.fulfill({ json: course }));
+  await page.route("**/api/progress?courseId=lesson-state-course", (route) => route.fulfill({ json: { progress: null } }));
+  await page.route("**/api/courses/lesson-state-course/lessons/0-0", (route) => route.fulfill({ json: {
+    content: "## First lesson explanation\n\nOnly the first lesson should show this sentence.",
+    quizzes: [],
+  } }));
+  await page.route("**/api/courses/lesson-state-course/lessons/0-1", (route) => route.fulfill({ json: {
+    content: "## Second lesson explanation\n\nThe second lesson has fresh content and fresh controls.",
+    quizzes: [],
+  } }));
+
+  await page.goto("/course/Lesson%20state%20course/lesson/0-0?id=lesson-state-course");
+  await expect(page.getByRole("heading", { name: "First lesson", exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "Report a content issue" }).click();
+  await page.getByLabel("What should be reviewed? Optional").fill("This note belongs only to lesson one.");
+
+  await page.getByRole("button", { name: /Next lesson Second lesson/ }).click();
+  await expect(page).toHaveURL(/lesson\/0-1\?id=lesson-state-course/);
+  await expect(page.getByRole("heading", { name: "Second lesson", exact: true })).toBeVisible();
+  await expect(page.getByText("Only the first lesson should show this sentence.")).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Report a content issue" })).toBeVisible();
+  await expect(page.getByLabel("What should be reviewed? Optional")).toHaveCount(0);
 });
 
 test("purges every local artifact when a deleted course is encountered", async ({ page }) => {

@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import LegalDocument from "@/components/LegalDocument";
 import { SUPPORT_CONTACT } from "@/lib/legal";
 
-export const metadata: Metadata = { title: "Terms of Service | Erudoza", description: "The terms that govern use of Erudoza." };
+export const metadata: Metadata = { title: "Terms of Service", description: "The terms that govern use of Erudoza." };
 
 export default function TermsPage() {
   return <LegalDocument eyebrow="Legal" title="Terms of Service" summary="These terms govern your access to Erudoza, including public lessons, learner accounts, course tools, AI-assisted features, and any future paid subscription.">

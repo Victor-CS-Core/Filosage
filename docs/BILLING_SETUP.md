@@ -5,18 +5,17 @@ GoDaddy can provide the domain and hosting layer. It is not the recurring subscr
 ## Current state
 
 - `BILLING_PROVIDER=none` keeps paid checkout disabled.
+- `BILLING_ENABLED=false` is an independent activation lock and must remain false until the operational and legal launch gates are complete.
 - `/api/billing/status` exposes only non-secret readiness information.
 - `/api/billing/checkout` and `/api/billing/portal` fail closed until the provider integration is enabled.
-- `/api/billing/webhook` is intentionally not an entitlement writer yet; do not set the provider to `stripe` until signature verification and subscription synchronization are implemented and tested.
+- `/api/billing/webhook` verifies Stripe signatures, claims events transactionally, ignores duplicate and stale events, and derives Pro entitlement only from supported active or trialing subscriptions. This code is production-ready but not authorized for activation.
 
 ## Activation checklist
 
-1. Create the Pro monthly product and price in the chosen payment provider.
-2. Set `BILLING_PROVIDER=stripe`, `STRIPE_SECRET_KEY`, `STRIPE_PRO_MONTHLY_PRICE_ID`, and `STRIPE_WEBHOOK_SECRET` in the deployment secret store.
-3. Implement verified webhook handling for checkout completion, renewal, payment failure, cancellation, and subscription deletion.
-4. Store provider customer/subscription IDs and make webhook updates idempotent.
-5. Derive `ServerAccount.plan` from the synchronized subscription status, never from a client redirect or a browser-only flag.
-6. Test successful checkout, duplicate webhook delivery, failed payment, cancellation at period end, immediate cancellation, refund, and account deletion.
-7. Update the public pricing, Terms, Privacy Notice, refund policy, operator identity, currency, tax treatment, and support contact before accepting payment.
-
-No price amount is hard-coded in the repository because the owner has not selected the commercial price yet.
+1. Confirm the final monthly and annual prices, currency, taxes, and refund treatment with the legal operator.
+2. Create matching Stripe products and prices and configure `STRIPE_PRO_MONTHLY_PRICE_ID` and `STRIPE_PRO_ANNUAL_PRICE_ID`.
+3. Configure `STRIPE_SECRET_KEY` and `STRIPE_WEBHOOK_SECRET`, then keep `BILLING_ENABLED=false` while completing test-mode exercises.
+4. Test successful checkout, duplicate and out-of-order webhooks, renewal, failed payment, cancellation at period end, immediate cancellation, refund, account deletion, and portal access.
+5. Publish the operator identity, business address, governing jurisdiction, required consumer notices, and support response process.
+6. Configure uptime and webhook-failure alerts, incident ownership, and a rollback procedure.
+7. Activate with a separate explicit change to `BILLING_PROVIDER=stripe` and `BILLING_ENABLED=true`.

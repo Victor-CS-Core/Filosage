@@ -40,14 +40,19 @@ export function DrawerProvider({ children }: { children: ReactNode }) {
 export function useAppDrawer(id: string) {
   const context = useContext(DrawerContext);
   if (!context) throw new Error("useAppDrawer must be used within DrawerProvider.");
+  const { activeDrawer, closeDrawer: closeActiveDrawer, openDrawer: openActiveDrawer } = context;
+  const openDrawer = useCallback(() => openActiveDrawer(id), [id, openActiveDrawer]);
+  const closeDrawer = useCallback(() => closeActiveDrawer(id), [closeActiveDrawer, id]);
+  const toggleDrawer = useCallback(() => {
+    if (activeDrawer === id) closeActiveDrawer(id);
+    else openActiveDrawer(id);
+  }, [activeDrawer, closeActiveDrawer, id, openActiveDrawer]);
 
   return {
-    open: context.activeDrawer === id,
-    openDrawer: () => context.openDrawer(id),
-    closeDrawer: () => context.closeDrawer(id),
-    toggleDrawer: () => context.activeDrawer === id
-      ? context.closeDrawer(id)
-      : context.openDrawer(id),
+    open: activeDrawer === id,
+    openDrawer,
+    closeDrawer,
+    toggleDrawer,
   };
 }
 

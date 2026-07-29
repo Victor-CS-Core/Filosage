@@ -10,7 +10,8 @@
 | Save progress, notes, reviews, and evidence | No | Yes | Yes | Yes |
 | Use limited tutor support | No | Yes | Yes | Yes |
 | Generate private courses and lessons | No | No | Yes | Yes |
-| Publish and administer courses | No | No | No | Yes |
+| Publish courses they created after completion and review | No | No | Yes | Yes |
+| Unpublish or delete any published course | No | No | No | Yes |
 
 The lesson API is the authoritative boundary. Client-side locks explain the rule but are not relied on for authorization. Every lesson response is identity-bound and uses `private, no-store`.
 
@@ -21,6 +22,7 @@ The lesson API is the authoritative boundary. Client-side locks explain the rule
 - Firebase ID tokens are verified server-side and verified email is required.
 - Suspended accounts fail closed. Current Terms and Privacy acceptance is required for learning, generation, and billing actions.
 - Course ownership and owner privileges are checked at the data-access route, not inferred from UI state.
+- Pro authors generate lessons in order. The server requires saved completion evidence for every earlier lesson before it will generate the next; the owner is exempt from this authoring gate.
 - Firestore denies all direct browser reads and writes. Server routes use the service account and return explicit DTOs.
 
 ### Generated-content integrity
@@ -30,6 +32,7 @@ The lesson API is the authoritative boundary. Client-side locks explain the rule
 - One clean regeneration is attempted. A second failure is rejected and never stored.
 - Language courses remain supported through topic-aware script allowances. For example, Han is allowed for a Chinese course but rejected from an unrelated Spanish course.
 - Legacy output is sanitized at the DTO boundary so obvious trailing contamination is not rendered while the source record remains available for owner review.
+- Pro publication requires every lesson to exist, every lesson to be completed by the author, an explicit author attestation, and a fresh course-wide safety, language, structure, and teaching-quality review. The owner can quarantine, unpublish, or delete published material.
 
 ### Request and browser security
 

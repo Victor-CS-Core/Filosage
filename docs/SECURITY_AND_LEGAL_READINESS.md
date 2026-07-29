@@ -17,7 +17,7 @@ This document is an engineering and launch-readiness record, not legal advice.
 - Mermaid output is parsed and sanitized before insertion into the document.
 - Response headers include CSP, HSTS, clickjacking protection, MIME sniffing protection, a restrictive permissions policy, and cross-origin isolation controls compatible with Google sign-in.
 - Production dependencies have no known npm audit vulnerabilities as of the date above.
-- Account creation and future terms updates use affirmative, versioned acceptance records, including age eligibility and guardian agreement where the registrant is a minor. Public reading does not require acceptance.
+- Account creation and future terms updates use affirmative, versioned acceptance records, including age eligibility and guardian agreement where the registrant is a minor. Guests can inspect published topics and course outlines; lesson bodies require an accepted free account.
 - Signed-in non-owner users can export their account data and permanently delete their active account data after recent Google reauthentication. Owner deletion requires a manual course-control transfer or shutdown process.
 - A published Copyright Policy defines notice, counter-notice, review, removal, and repeat-infringer procedures. The app does not claim DMCA safe-harbor registration that has not been completed.
 
@@ -39,7 +39,7 @@ This document is an engineering and launch-readiness record, not legal advice.
 ## Known residual risks
 
 - The CSP permits inline scripts because the current statically optimized Sites build uses an inline theme bootstrap. A nonce-based CSP would require dynamic rendering and should be evaluated with the hosting architecture rather than applied piecemeal.
-- AI moderation reduces abuse but cannot guarantee that every unsafe or inaccurate output is detected. Publication remains owner-controlled.
+- AI moderation reduces abuse but cannot guarantee that every unsafe or inaccurate output is detected. Pro authors may publish only after sequential lesson completion, attestation, and a fresh automated publication review; the owner retains platform-wide quarantine, unpublish, and deletion control.
 - Provider security logs, abuse-monitoring records, backups, consent records, and legally required records may outlive active account deletion under the disclosed retention rules.
 - The owner account cannot be deleted automatically because doing so could orphan control of published courses. It requires a verified manual transfer or service-shutdown process.
 - The formal operator identity, business address, governing jurisdiction, and registered DMCA agent are not yet available. Paid subscriptions are deliberately disabled, and the current service should not be marketed in a jurisdiction that requires undisclosed operator details before account use.

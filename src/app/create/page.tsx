@@ -82,7 +82,7 @@ export default function CreateCoursePage() {
   };
 
   if (!isPro) {
-    return <AppShell><div className="center-state"><Sparkles size={26} /><p className="overline">Erudoza Pro</p><h1>Create a private course for your goal.</h1><p>Course creation uses monthly Pro credits. Published courses remain open to everyone.</p><button className="button button-primary" onClick={() => router.push("/pricing")}>View Pro</button></div></AppShell>;
+    return <AppShell><div className="center-state"><Sparkles size={26} /><p className="overline">Erudoza Pro</p><h1>Create a private course for your goal.</h1><p>Course creation uses monthly Pro credits. Published outlines are public to browse; a free account is required to open their lessons.</p><button className="button button-primary" onClick={() => router.push("/pricing")}>View Pro</button></div></AppShell>;
   }
 
   const plannedHours = Math.max(1, Math.round((weeklyMinutes * targetWeeks) / 60));
@@ -92,7 +92,7 @@ export default function CreateCoursePage() {
   return (
     <AppShell>
       <div className="create-page">
-        <header className="create-intro"><p className="overline">Course studio</p><h1>Create a course for your goal.</h1><p>Define the outcome, starting point, and pace. Erudoza uses AI to create a private draft for you to review.</p></header>
+        <header className="create-intro"><p className="overline">Course studio</p><h1>Create a course for your goal.</h1><p>Define the outcome, starting point, and pace. Erudoza creates a private outline first; you build, complete, review, and optionally publish the lessons in sequence.</p></header>
         <div className="create-layout">
           <form className="course-brief" onSubmit={create}>
             <section className="form-section">
@@ -153,7 +153,7 @@ export default function CreateCoursePage() {
               <div><dt>Approach</dt><dd>{courseStyle}</dd></div>
             </dl>
             <div className="blueprint-readiness"><div><strong>Required information</strong><span>{briefReady ? "Ready" : "Needs input"}</span></div><ul><li className={topic.trim() ? "is-ready" : ""}><CheckCircle2 size={16} /> Specific subject</li><li className={goal.trim() ? "is-ready" : ""}><Target size={16} /> Observable outcome</li><li className={background.trim() ? "is-ready" : ""}><Clock3 size={16} /> Starting context <small>optional</small></li></ul></div>
-            <div className="blueprint-note"><strong>How your brief is used</strong><p>Erudoza sends it to its AI provider to choose prerequisites, examples, practice, and lesson scope. Review the result for accuracy.</p></div>
+            <div className="blueprint-note"><strong>How authoring works</strong><p>Erudoza sends your brief to its AI provider to shape the outline. Lesson generation unlocks one lesson at a time after you complete the current activities. Review every lesson for accuracy and rights before publishing.</p></div>
             <div className="credit-note"><Sparkles size={16} /><span><strong>{outlineQuota?.remaining ?? "Unlimited"} outline credit{outlineQuota?.remaining === 1 ? "" : "s"} remaining</strong><small>A credit is reserved only when generation begins.</small></span></div>
           </aside>
         </div>

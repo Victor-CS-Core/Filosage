@@ -3,7 +3,7 @@ import LegalDocument from "@/components/LegalDocument";
 import { LEGAL_CONTACT } from "@/lib/legal";
 
 export const metadata: Metadata = {
-  title: "Copyright Policy | Erudoza",
+  title: "Copyright Policy",
   description: "How Erudoza handles copyright concerns and repeat infringement.",
 };
 

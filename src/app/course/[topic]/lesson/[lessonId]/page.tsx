@@ -248,8 +248,12 @@ export default function LessonView() {
     syncStatus: learnerSyncStatus,
     syncError: learnerSyncError,
   } = useLearnerState();
-  const [course, setCourse] = useState<Course | null>(null);
-  const [lessonData, setLessonData] = useState<LessonData | null>(null);
+  const noteKey = courseId ? `${courseId}:${lessonId}` : `${topic}:${lessonId}`;
+  const lessonViewKey = `${noteKey}:${reviewKind}:${reviewMode ? "review" : "learn"}`;
+  const [courseRecord, setCourseRecord] = useState<{ key: string; value: Course | null }>({ key: lessonViewKey, value: null });
+  const [lessonDataRecord, setLessonDataRecord] = useState<{ key: string; value: LessonData | null }>({ key: lessonViewKey, value: null });
+  const course = courseRecord.key === lessonViewKey ? courseRecord.value : null;
+  const lessonData = lessonDataRecord.key === lessonViewKey ? lessonDataRecord.value : null;
   const [loading, setLoading] = useState(true);
   const [isGenerating, setIsGenerating] = useState(false);
   const [generationProgress, setGenerationProgress] = useState(0);
@@ -263,6 +267,8 @@ export default function LessonView() {
   });
   const tutorDrawer = useAppDrawer("lesson-tutor");
   const studyToolsDrawer = useAppDrawer("lesson-study-tools");
+  const closeTutorDrawer = tutorDrawer.closeDrawer;
+  const closeStudyToolsDrawer = studyToolsDrawer.closeDrawer;
   const tutorOpen = tutorDrawer.open;
   const studyToolsOpen = studyToolsDrawer.open;
   const [activePracticeState, setActivePracticeState] = useState<{ key: string; index: number }>({ key: "", index: 0 });
@@ -281,7 +287,7 @@ export default function LessonView() {
   const noteHydratedRef = useRef(false);
   const generationStartedAtRef = useRef(0);
   const generationRequestRef = useRef<{ lessonKey: string; requestId: string } | null>(null);
-  const noteKey = courseId ? `${courseId}:${lessonId}` : `${topic}:${lessonId}`;
+  const activeLessonViewRef = useRef(lessonViewKey);
   const quizResults = useMemo(
     () => quizResultState.key === noteKey ? quizResultState.results : {},
     [noteKey, quizResultState],
@@ -301,11 +307,14 @@ export default function LessonView() {
 
   useEffect(() => {
     if (!learnerStateReady) return;
+    let cancelled = false;
     const savedNote = learnerState.notes[noteKey] ?? "";
     deferClientTask(() => {
+      if (cancelled) return;
       setNoteDraft(savedNote);
       noteHydratedRef.current = true;
     });
+    return () => { cancelled = true; };
   }, [learnerState.notes, learnerStateReady, noteKey]);
 
   useEffect(() => {
@@ -322,6 +331,26 @@ export default function LessonView() {
   }, [learnerState.notes, noteDraft, noteKey, updateLearnerState]);
 
   const getToken = useCallback(async () => (user ? user.getIdToken() : null), [user]);
+
+  useEffect(() => {
+    activeLessonViewRef.current = lessonViewKey;
+    closeTutorDrawer();
+    closeStudyToolsDrawer();
+    void Promise.resolve().then(() => {
+      if (activeLessonViewRef.current !== lessonViewKey) return;
+      setLoading(true);
+      setIsGenerating(false);
+      setGenerationProgress(0);
+      setError(null);
+      setMessages([]);
+      setChatInput("");
+      setChatting(false);
+      setChatError(null);
+      setNoteDraft("");
+      setProgressSyncError(null);
+      generationRequestRef.current = null;
+    });
+  }, [closeStudyToolsDrawer, closeTutorDrawer, lessonViewKey]);
 
   useEffect(() => {
     if (!isGenerating) return;
@@ -347,14 +376,18 @@ export default function LessonView() {
   }, [isGenerating]);
 
   const loadLesson = useCallback(async () => {
+    const requestViewKey = lessonViewKey;
+    const isCurrentView = () => activeLessonViewRef.current === requestViewKey;
     if (authLoading) return;
     if (!user) {
-      setLoading(false);
+      if (isCurrentView()) setLoading(false);
       return;
     }
     if (!courseId) {
-      setError("This lesson link is missing its course reference.");
-      setLoading(false);
+      if (isCurrentView()) {
+        setError("This lesson link is missing its course reference.");
+        setLoading(false);
+      }
       return;
     }
 
@@ -371,16 +404,18 @@ export default function LessonView() {
       const headers = token ? { Authorization: `Bearer ${token}` } : undefined;
       const courseResponse = await fetch(`/api/courses/${courseId}`, { headers });
       const courseData = await courseResponse.json();
+      if (!isCurrentView()) return;
       if (!courseResponse.ok) throw new Error(courseData.error || "The course could not be opened.");
 
       const resolvedCourse = { ...courseData, id: courseId, courseId } as Course;
       const lesson = resolvedCourse.modules[moduleIndex]?.lessons[lessonIndex];
       if (!lesson) throw new Error("This lesson is not part of the course.");
-      setCourse(resolvedCourse);
+      setCourseRecord({ key: requestViewKey, value: resolvedCourse });
 
       const lessonResponse = await fetch(`/api/courses/${courseId}/lessons/${lessonId}`, { headers });
       if (lessonResponse.ok) {
-        setLessonData(randomizeQuizAnswers(await lessonResponse.json() as LessonData));
+        const loadedLesson = await lessonResponse.json() as LessonData;
+        if (isCurrentView()) setLessonDataRecord({ key: requestViewKey, value: randomizeQuizAnswers(loadedLesson) });
         return;
       }
 
@@ -412,17 +447,20 @@ export default function LessonView() {
         }),
       });
       const generated = await generationResponse.json();
+      if (!isCurrentView()) return;
       if (!generationResponse.ok) throw new Error(generated.error || "The lesson could not be generated.");
       setGenerationProgress(100);
-      setLessonData(randomizeQuizAnswers(generated as LessonData));
+      setLessonDataRecord({ key: requestViewKey, value: randomizeQuizAnswers(generated as LessonData) });
       generationRequestRef.current = null;
     } catch (loadError) {
-      setError(loadError instanceof Error ? loadError.message : "The lesson could not be opened.");
+      if (isCurrentView()) setError(loadError instanceof Error ? loadError.message : "The lesson could not be opened.");
     } finally {
-      setIsGenerating(false);
-      setLoading(false);
+      if (isCurrentView()) {
+        setIsGenerating(false);
+        setLoading(false);
+      }
     }
-  }, [authLoading, courseId, getToken, moduleIndex, lessonIndex, lessonId, isPro, topic, user]);
+  }, [authLoading, courseId, getToken, moduleIndex, lessonIndex, lessonId, lessonViewKey, isPro, topic, user]);
 
   useEffect(() => {
     void Promise.resolve().then(loadLesson);
@@ -512,6 +550,8 @@ export default function LessonView() {
 
   const markComplete = useCallback(async () => {
     if (!courseId || complete || !lessonData || !lesson || !transferComplete) return;
+    const operationViewKey = activeLessonViewRef.current;
+    const isCurrentView = () => activeLessonViewRef.current === operationViewKey;
     const results = Object.values(quizResults);
     if (lessonData.quizzes.length && results.length !== lessonData.quizzes.length) return;
     const confidences = results.map((result) => result.confidence);
@@ -563,10 +603,10 @@ export default function LessonView() {
         };
         if (!response.ok) throw new Error("Saved on this device. Cloud progress will retry when you complete another activity.");
         cloudSaved = true;
-        if (data.nextReviewAt) setReviewScheduleState({ key: noteKey, at: data.nextReviewAt });
-        if (data.calibration) setCalibrationState({ key: noteKey, value: data.calibration });
+        if (isCurrentView() && data.nextReviewAt) setReviewScheduleState({ key: noteKey, at: data.nextReviewAt });
+        if (isCurrentView() && data.calibration) setCalibrationState({ key: noteKey, value: data.calibration });
       } catch (saveError) {
-        setProgressSyncError(saveError instanceof Error ? saveError.message : "Saved on this device, but cloud sync is pending.");
+        if (isCurrentView()) setProgressSyncError(saveError instanceof Error ? saveError.message : "Saved on this device, but cloud sync is pending.");
       }
     }
     if (requiresCloudAuthorCompletion && !cloudSaved) return;
@@ -575,7 +615,7 @@ export default function LessonView() {
     const firstTryScore = lessonData.quizzes.length
       ? update.firstAttemptCorrect / lessonData.quizzes.length
       : 1;
-    setCompletionState({ key: noteKey, complete: true });
+    if (isCurrentView()) setCompletionState({ key: noteKey, complete: true });
     await addMasteryEvidence([
       ...(!reviewMode ? [{
         id: createClientId(),
@@ -705,6 +745,8 @@ export default function LessonView() {
     event.preventDefault();
     const input = chatInput.trim();
     if (!input || !lessonData || !lesson || !courseId || !user || chatting) return;
+    const operationViewKey = activeLessonViewRef.current;
+    const isCurrentView = () => activeLessonViewRef.current === operationViewKey;
     const nextMessages: Message[] = [...messages, { id: createClientId(), role: "user", content: input }];
     setMessages(nextMessages);
     setChatInput("");
@@ -724,6 +766,7 @@ export default function LessonView() {
           },
         }),
       });
+      if (!isCurrentView()) return;
       if (!response.ok || !response.body) {
         const data = await response.json().catch(() => ({}));
         throw new Error(data.error || "The tutor could not respond.");
@@ -738,13 +781,17 @@ export default function LessonView() {
       while (true) {
         const { done, value } = await reader.read();
         if (done) break;
+        if (!isCurrentView()) {
+          await reader.cancel();
+          return;
+        }
         content += decoder.decode(value, { stream: true });
         setMessages([...visibleMessages, { id: assistantId, role: "assistant", content }]);
       }
     } catch (sendError) {
-      setChatError(sendError instanceof Error ? sendError.message : "The tutor could not respond.");
+      if (isCurrentView()) setChatError(sendError instanceof Error ? sendError.message : "The tutor could not respond.");
     } finally {
-      setChatting(false);
+      if (isCurrentView()) setChatting(false);
     }
   };
 
@@ -1029,6 +1076,7 @@ export default function LessonView() {
 
               {courseId && (
                 <LessonIntegrityPanel
+                  key={noteKey}
                   courseId={courseId}
                   lessonId={lessonId}
                   provenance={lessonData.provenance}

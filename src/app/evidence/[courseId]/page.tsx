@@ -238,6 +238,7 @@ export default function EvidenceReportPage() {
         </footer>
         {totalLessons > 0 && evidencedLessons >= totalLessons && (
           <OutcomeUsefulness
+            key={courseId}
             courseId={courseId}
             getAuthToken={user ? () => user.getIdToken() : undefined}
           />

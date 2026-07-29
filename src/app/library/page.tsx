@@ -13,7 +13,7 @@ export default function LibraryPage() {
     <AppShell>
       <div className="library-page">
         <header className="page-header library-page-header">
-          <div><p className="overline">Published courses</p><h1>Find your next course.</h1><p>Every published course is free to read. Sign in to save progress, schedule reviews, and continue across devices.</p></div>
+          <div><p className="overline">Published courses</p><h1>Find your next course.</h1><p>Browse every topic and inspect its complete course outline. A free account opens lessons and keeps your progress, practice, and reviews in sync.</p></div>
           {!user && <button className="button button-secondary" onClick={() => router.push("/pricing")}><Crown size={16} /> Compare free and Pro</button>}
         </header>
         <CourseLibrary />
