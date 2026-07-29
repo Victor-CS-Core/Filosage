@@ -31,6 +31,7 @@ import {
   normalizeStructuredMarkdown,
 } from "../src/lib/markdown";
 import { securityHeaders } from "../src/lib/security-headers";
+import { acquisitionChannelFor } from "../src/lib/product-analytics";
 import {
   inspectGeneratedContent,
   languagePolicyForTopic,
@@ -83,6 +84,12 @@ test("preserves Markdown structure while sanitizing generated lesson content", (
 
   expect(sanitizeGeneratedText(markdown, "Python programming")).toBe(markdown);
   expect(sanitizeGeneratedText(markdown.replace(/\n/g, "\r\n"), "Python programming")).toBe(markdown);
+});
+
+test("attributes referral links separately from partner and campaign traffic", () => {
+  expect(acquisitionChannelFor(new URL("https://erudoza.com/library?ref=abc12345"))).toBe("referral");
+  expect(acquisitionChannelFor(new URL("https://erudoza.com/library?partner=expert-network"))).toBe("partner");
+  expect(acquisitionChannelFor(new URL("https://erudoza.com/library?utm_source=launch"))).toBe("campaign");
 });
 
 test("keeps interface copy free of encoding artifacts", async () => {

@@ -19,6 +19,7 @@ const telemetrySchema = z.object({
   sessionId: z.string().trim().regex(/^[A-Za-z0-9_-]{12,80}$/).optional(),
   acquisition: z.object({
     channel: z.enum(ACQUISITION_CHANNELS),
+    referralCode: z.string().trim().regex(/^[A-Za-z0-9_-]{8,40}$/).optional(),
     campaign: z.string().trim().max(80).optional(),
     medium: z.string().trim().max(80).optional(),
     referrerHost: z.string().trim().max(120).optional(),
@@ -68,6 +69,7 @@ export async function POST(request: Request) {
         actorId: parsed.data.actorId,
         sessionId: parsed.data.sessionId,
         channel: acquisition?.channel ?? source,
+        referralCode: acquisition?.referralCode,
         campaign: acquisition?.campaign,
         medium: acquisition?.medium,
         referrerHost: acquisition?.referrerHost,

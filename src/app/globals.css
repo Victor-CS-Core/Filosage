@@ -1614,7 +1614,7 @@ button:disabled { cursor: not-allowed; opacity: 0.55; }
 .progress-metrics strong { margin-top: 3px; font-size: 1.28rem; }
 .progress-metrics em { margin-top: 2px; color: var(--ink-muted); font-size: 0.6rem; font-style: normal; }
 .progress-layout { display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(280px, 0.7fr); gap: 16px; margin-top: 18px; }
-.activity-panel, .goal-panel, .mastery-panel, .next-step-panel { border: 1px solid var(--line); border-radius: var(--radius-md); background: var(--surface); padding: 22px; }
+.activity-panel, .goal-panel, .weekly-report-panel, .mastery-panel, .next-step-panel { border: 1px solid var(--line); border-radius: var(--radius-md); background: var(--surface); padding: 22px; }
 .panel-heading { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
 .panel-heading > div { display: flex; align-items: center; gap: 8px; }
 .panel-heading svg { color: var(--accent-ink); }
@@ -1630,6 +1630,8 @@ button:disabled { cursor: not-allowed; opacity: 0.55; }
 .goal-track { height: 8px; margin-top: 14px; border-radius: 999px; background: var(--surface-subtle); overflow: hidden; }
 .goal-track span { display: block; height: 100%; border-radius: inherit; background: var(--brand-teal); }
 .goal-panel > p { margin-top: 13px; color: var(--ink-secondary); font-size: 0.74rem; line-height: 1.55; }
+.weekly-report-panel > p { margin-top: 20px; color: var(--ink-secondary); font-size: 0.76rem; line-height: 1.65; text-wrap: pretty; }
+.weekly-report-panel > .button { margin-top: 16px; }
 .mastery-list { margin-top: 14px; }
 .mastery-list > button { width: 100%; min-height: 66px; display: grid; grid-template-columns: minmax(0, 1fr) 130px 38px; gap: 12px; align-items: center; border: 0; border-top: 1px solid var(--line); background: transparent; text-align: left; cursor: pointer; }
 .mastery-list > button > span { display: flex; flex-direction: column; }

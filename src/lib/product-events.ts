@@ -31,6 +31,9 @@ export const PRODUCT_EVENT_NAMES = [
   "capstone_criterion_passed",
   "evidence_report_viewed",
   "evidence_report_shared",
+  "referral_link_copied",
+  "weekly_report_viewed",
+  "weekly_report_shared",
   "pathway_usefulness_rated",
   "pricing_viewed",
   "pricing_interest",
@@ -81,6 +84,7 @@ export type AcquisitionChannel = (typeof ACQUISITION_CHANNELS)[number];
 
 export interface AcquisitionContext {
   channel: AcquisitionChannel;
+  referralCode?: string;
   campaign?: string;
   medium?: string;
   referrerHost?: string;

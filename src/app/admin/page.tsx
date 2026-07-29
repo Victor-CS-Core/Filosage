@@ -415,6 +415,21 @@ export default function AdminPage() {
               </ol>
             </section>
 
+            <section className="admin-panel admin-research-summary">
+              <header><div><p className="overline">Phase 4</p><h2>Controlled launch and referral growth</h2></div><span>Billing activation remains separately locked</span></header>
+              <div className="admin-research-metrics">
+                <div><span>Referred visitors</span><strong>{data.paidLaunch.referredVisitors}</strong><small>{data.paidLaunch.referralLinksCopied} evidence links copied</small></div>
+                <div><span>Referral course starts</span><strong>{data.paidLaunch.referralToCoursePercent}%</strong><small>{data.paidLaunch.referredCourseStarts} starts from referred visitors</small></div>
+                <div><span>Active subscribers</span><strong>{data.paidLaunch.activeSubscribers}</strong><small>{data.paidLaunch.pastDueSubscribers} past due · {data.paidLaunch.canceledSubscribers} canceled</small></div>
+              </div>
+              <div className="admin-acquisition-list">
+                <h3>Launch health</h3>
+                <div><span>Payment processing failures</span><strong>{data.paidLaunch.failedWebhookEvents}</strong><small>Failed Stripe webhook events in this reporting window</small></div>
+                <div><span>Organic growth target</span><strong>30%</strong><small>Activated acquisition from search, referral, or partners</small></div>
+                <div><span>Paid-launch gate</span><strong>{data.paidLaunch.activeSubscribers >= 50 ? "Measure churn" : "Build cohort"}</strong><small>Churn becomes decision-grade after the first 50 paid subscribers</small></div>
+              </div>
+            </section>
+
             <section className="admin-panel admin-content-reports">
               <header><div><p className="overline">Content integrity</p><h2>Learner report queue</h2></div><span>{data.contentReports.filter((report) => report.status === "open").length} open</span></header>
               <div>

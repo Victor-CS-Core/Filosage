@@ -2,13 +2,14 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowRight, CalendarDays, CheckCircle2, Clock3, Flame, Lightbulb, LoaderCircle, Target, TrendingUp } from "lucide-react";
+import { ArrowRight, CalendarDays, CheckCircle2, Clock3, Flame, Lightbulb, LoaderCircle, Share2, Target, TrendingUp } from "lucide-react";
 import AppShell from "@/components/AppShell";
 import { useAuth } from "@/components/AuthProvider";
 import type { CourseProgress, LessonProgress } from "@/lib/learning-types";
 import { useLearnerState } from "@/components/useLearnerState";
 import LearningScheduleSettings from "@/components/LearningScheduleSettings";
 import { buildWeeklyMilestone } from "@/lib/adaptive-learning";
+import { trackProductEvent } from "@/lib/product-analytics";
 
 function dateKey(date: Date) { return date.toISOString().slice(0, 10); }
 
@@ -27,6 +28,7 @@ export default function ProgressPage() {
   const { state, update } = useLearnerState();
   const [progress, setProgress] = useState<CourseProgress[]>([]);
   const [loaded, setLoaded] = useState(false);
+  const [reportCopied, setReportCopied] = useState(false);
 
   useEffect(() => {
     if (!user) return;
@@ -52,6 +54,26 @@ export default function ProgressPage() {
   const weeklyCompleted = week.reduce((sum, day) => sum + day.count, 0);
   const weeklyMilestone = buildWeeklyMilestone(progress, state.weeklyLessonGoal);
 
+  useEffect(() => {
+    if (!loaded || !lessons.length) return;
+    trackProductEvent("weekly_report_viewed", { route: "/progress", oncePerSession: true });
+  }, [lessons.length, loaded]);
+
+  const copyWeeklyReport = async () => {
+    const report = [
+      "My Erudoza weekly learning report",
+      `Lessons studied: ${weeklyCompleted}`,
+      `Current streak: ${currentStreak(lessons)} day${currentStreak(lessons) === 1 ? "" : "s"}`,
+      `First-try accuracy: ${accuracy ? `${accuracy}%` : "Not enough evidence yet"}`,
+      `Concepts mastered: ${mastered}`,
+      `Misconceptions corrected: ${corrected.length}`,
+      `${window.location.origin}/library`,
+    ].join("\n");
+    await navigator.clipboard.writeText(report);
+    setReportCopied(true);
+    trackProductEvent("weekly_report_shared", { route: "/progress" });
+  };
+
   if (authLoading) return <AppShell><div className="center-state"><LoaderCircle className="spin" size={25} /><h1>Preparing your learning record</h1></div></AppShell>;
   if (!user) return <AppShell><div className="center-state"><TrendingUp size={26} /><p className="overline">Your progress</p><h1>Keep your learning in one place.</h1><p>Create a free account to sync progress, reviews, saved courses, and notes across devices.</p><button className="button button-primary" onClick={() => void signInWithGoogle()}>Create a free account</button></div></AppShell>;
 
@@ -65,6 +87,7 @@ export default function ProgressPage() {
             <div className="progress-layout">
               <section className="activity-panel"><div className="panel-heading"><div><CalendarDays size={19} /><h2>Learning activity</h2></div><span>Last 7 days</span></div><div className="activity-chart" aria-label={`${weeklyCompleted} lessons studied in the last seven days`}>{week.map((day) => <div key={day.key}><span className="activity-bar-track"><i style={{ height: `${Math.max(day.count ? 14 : 3, (day.count / maxDay) * 100)}%` }}><b>{day.count || ""}</b></i></span><small>{day.label}</small></div>)}</div></section>
               <section className="goal-panel"><div className="panel-heading"><div><Target size={19} /><h2>Weekly milestone</h2></div><label className="goal-adjust">Target <select aria-label="Weekly lesson target" value={state.weeklyLessonGoal} onChange={(event) => update((current) => ({ ...current, weeklyLessonGoal: Number(event.target.value) }))}>{[3, 5, 7, 10].map((goal) => <option value={goal} key={goal}>{goal}</option>)}</select></label></div><strong>{Math.min(weeklyMilestone.completed, weeklyMilestone.target)} of {weeklyMilestone.target} lessons</strong><div className="goal-track"><span style={{ width: `${weeklyMilestone.percent}%` }} /></div><p>{weeklyMilestone.isComplete ? "Weekly milestone complete. Continue only if it serves your outcome." : `${weeklyMilestone.remaining} lesson${weeklyMilestone.remaining === 1 ? "" : "s"} left. Missed days do not increase this target.`}</p></section>
+              <section className="weekly-report-panel"><div className="panel-heading"><div><TrendingUp size={19} /><h2>Weekly report</h2></div><span>Last 7 days</span></div><p>{weeklyCompleted ? `You studied ${weeklyCompleted} lesson${weeklyCompleted === 1 ? "" : "s"}, corrected ${corrected.length} misconception${corrected.length === 1 ? "" : "s"}, and maintained ${accuracy ? `${accuracy}% first-try accuracy` : "an evidence-building practice"}.` : "Complete a lesson this week to begin a shareable learning report."}</p><button className="button button-secondary" disabled={!weeklyCompleted} onClick={() => void copyWeeklyReport()}><Share2 size={15} /> {reportCopied ? "Weekly report copied" : "Copy weekly report"}</button></section>
               <LearningScheduleSettings
                 key={`${state.reminderPreferences.cadence}-${state.reminderPreferences.preferredTime}-${state.reminderPreferences.timezone}-${state.reminderPreferences.inAppEnabled}`}
                 preferences={state.reminderPreferences}

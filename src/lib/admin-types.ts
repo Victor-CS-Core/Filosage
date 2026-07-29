@@ -134,6 +134,16 @@ export interface AdminOverview {
     delayedCheckCompleters: number;
     appliedCriterionPercent: number;
   };
+  paidLaunch: {
+    referralLinksCopied: number;
+    referredVisitors: number;
+    referredCourseStarts: number;
+    referralToCoursePercent: number;
+    activeSubscribers: number;
+    pastDueSubscribers: number;
+    canceledSubscribers: number;
+    failedWebhookEvents: number;
+  };
   trafficSeries: Array<{ date: string; views: number }>;
   topRoutes: Array<{ route: string; views: number }>;
   generationSeries: Array<{

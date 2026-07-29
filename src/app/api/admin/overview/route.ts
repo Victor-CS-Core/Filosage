@@ -107,6 +107,7 @@ export async function GET(request: Request) {
       productEvents,
       contentReports,
       outcomeFeedback,
+      stripeEvents,
     ] = await Promise.all([
       listCollectionDocumentsByRange("users", "updatedAt", "1970-01-01T00:00:00.000Z", nowIso, 300),
       listCollectionDocumentsByRange("userEngagement", "lastActivityAt", "1970-01-01T00:00:00.000Z", nowIso, 300),
@@ -128,6 +129,7 @@ export async function GET(request: Request) {
       listCollectionDocumentsByRange("productEvents", "createdAt", fromIso, nowIso, 2_000),
       listCollectionDocumentsByRange("contentReports", "createdAt", "1970-01-01T00:00:00.000Z", nowIso, 500),
       listCollectionDocumentsByRange("outcomeFeedback", "createdAt", fromIso, nowIso, 1_000),
+      listCollectionDocumentsByRange("stripeEvents", "claimedAt", fromIso, nowIso, 1_000),
     ]);
     if (ownerRecord && !rawUsers.some((record) => record.id === owner.uid || record.uid === owner.uid)) {
       rawUsers.unshift(ownerRecord);
@@ -419,6 +421,13 @@ export async function GET(request: Request) {
     const improvedCapstones = comparableActors.filter((actorId) => (
       (capstoneScores.get(actorId)?.score ?? 0) > (baselineScores.get(actorId)?.score ?? 0)
     )).length;
+    const referredEvents = productEvents.filter((record) => (
+      acquisitionChannel(record.channel ?? record.source) === "referral"
+    ));
+    const referredVisitors = new Set(referredEvents.flatMap((record) => (
+      typeof record.actorId === "string" ? [record.actorId] : []
+    ))).size;
+    const referredCourseStarts = referredEvents.filter((record) => record.event === "course_started").length;
 
     const overview: AdminOverview = {
       generatedAt: new Date().toISOString(),
@@ -513,6 +522,18 @@ export async function GET(request: Request) {
         appliedCriterionPercent: practiceActors.size
           ? Math.round((criterionActors.size / practiceActors.size) * 1_000) / 10
           : 0,
+      },
+      paidLaunch: {
+        referralLinksCopied: productEvents.filter((record) => record.event === "referral_link_copied").length,
+        referredVisitors,
+        referredCourseStarts,
+        referralToCoursePercent: referredVisitors
+          ? Math.round((referredCourseStarts / referredVisitors) * 1_000) / 10
+          : 0,
+        activeSubscribers: rawUsers.filter((record) => record.subscriptionStatus === "active" || record.subscriptionStatus === "trialing").length,
+        pastDueSubscribers: rawUsers.filter((record) => record.subscriptionStatus === "past_due").length,
+        canceledSubscribers: rawUsers.filter((record) => record.subscriptionStatus === "canceled").length,
+        failedWebhookEvents: stripeEvents.filter((record) => record.status === "failed").length,
       },
       trafficSeries: dates.map((date) => ({ date, views: trafficByDate.get(date) ?? 0 })),
       topRoutes: Array.from(routeTotals, ([route, views]) => ({ route, views }))

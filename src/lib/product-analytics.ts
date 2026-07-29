@@ -25,10 +25,11 @@ function cleanValue(value: string | null, maximum = 80) {
   return cleaned || undefined;
 }
 
-function channelFor(url: URL, referrerHost?: string): AcquisitionChannel {
+export function acquisitionChannelFor(url: URL, referrerHost?: string): AcquisitionChannel {
   const medium = url.searchParams.get("utm_medium")?.toLowerCase();
   if (medium === "email" || medium === "newsletter") return "email";
-  if (url.searchParams.has("ref")) return "partner";
+  if (url.searchParams.has("ref")) return "referral";
+  if (url.searchParams.has("partner")) return "partner";
   if (url.searchParams.has("utm_source")) return "campaign";
   if (!referrerHost) return "direct";
   if (referrerHost === url.hostname) return "internal";
@@ -46,7 +47,8 @@ function currentAttribution(): AcquisitionContext {
     referrerHost = undefined;
   }
   return {
-    channel: channelFor(url, referrerHost),
+    channel: acquisitionChannelFor(url, referrerHost),
+    referralCode: cleanValue(url.searchParams.get("ref"), 40),
     campaign: cleanValue(url.searchParams.get("utm_campaign")),
     medium: cleanValue(url.searchParams.get("utm_medium")),
     referrerHost: cleanValue(referrerHost ?? null, 120),

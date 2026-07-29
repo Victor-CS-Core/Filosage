@@ -12,6 +12,7 @@ import {
   FileCheck2,
   Gauge,
   LoaderCircle,
+  Share2,
   ShieldCheck,
 } from "lucide-react";
 import AppShell from "@/components/AppShell";
@@ -49,6 +50,7 @@ export default function EvidenceReportPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+  const [sharing, setSharing] = useState(false);
   const [nextCourse, setNextCourse] = useState<Course | null>(null);
 
   useEffect(() => {
@@ -130,7 +132,25 @@ export default function EvidenceReportPage() {
 
   const copySummary = async () => {
     if (!course) return;
+    setSharing(true);
     const demonstrated = objectives.filter((item) => item.state === "demonstrated").length;
+    const courseUrl = new URL(`/course/${encodeURIComponent(course.topic)}`, window.location.origin);
+    courseUrl.searchParams.set("id", courseId);
+    if (user) {
+      try {
+        const token = await user.getIdToken();
+        const response = await fetch("/api/referrals", {
+          method: "POST",
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (response.ok) {
+          const referral = await response.json() as { code?: string };
+          if (referral.code) courseUrl.searchParams.set("ref", referral.code);
+        }
+      } catch {
+        // A clean course link remains shareable if referral attribution is unavailable.
+      }
+    }
     const summary = [
       `Erudoza evidence report: ${course.topic}`,
       journey.plan ? `Outcome: ${journey.plan.desiredOutcome}` : "",
@@ -138,10 +158,16 @@ export default function EvidenceReportPage() {
       assessedBaseline !== null ? `Assessed baseline: ${assessedBaseline}%` : "",
       assessedFinal !== null ? `Final capstone: ${assessedFinal}%` : "",
       verifiedImprovement !== null ? `Verified improvement: ${verifiedImprovement >= 0 ? "+" : ""}${verifiedImprovement} percentage points` : "",
+      `Explore the course: ${courseUrl.toString()}`,
     ].filter(Boolean).join("\n");
-    await navigator.clipboard.writeText(summary);
-    setCopied(true);
-    trackProductEvent("evidence_report_shared", { route: "/evidence", courseId });
+    try {
+      await navigator.clipboard.writeText(summary);
+      setCopied(true);
+      trackProductEvent("evidence_report_shared", { route: "/evidence", courseId });
+      trackProductEvent("referral_link_copied", { route: "/evidence", courseId });
+    } finally {
+      setSharing(false);
+    }
   };
 
   if (loading || !journey.ready) {
@@ -157,7 +183,7 @@ export default function EvidenceReportPage() {
         <header className="evidence-header">
           <button className="text-button" onClick={() => router.push(`/course/${encodeURIComponent(course.topic)}?id=${courseId}`)}><ArrowLeft size={15} /> Course overview</button>
           <div><p className="overline">Evidence report</p><h1>{course.topic}</h1><p>{journey.plan?.desiredOutcome ?? course.outcome ?? course.mission}</p></div>
-          <button className="button button-secondary" onClick={() => void copySummary()}><Clipboard size={16} /> {copied ? "Summary copied" : "Copy summary"}</button>
+          <button className="button button-secondary" disabled={sharing} onClick={() => void copySummary()}>{sharing ? <LoaderCircle className="spin" size={16} /> : copied ? <Clipboard size={16} /> : <Share2 size={16} />} {sharing ? "Preparing link" : copied ? "Share summary copied" : "Copy share summary"}</button>
         </header>
 
         <section className="evidence-metrics" aria-label="Learning evidence summary">
