@@ -3,6 +3,7 @@ import "server-only";
 import Stripe from "stripe";
 import { runStoredDocumentTransaction } from "@/lib/firebase-server";
 import type { ServerAccount } from "@/lib/account-server";
+import { PRIVACY_VERSION, TERMS_VERSION } from "@/lib/legal";
 
 type BillingInterval = "monthly" | "annual";
 
@@ -47,8 +48,23 @@ export async function createCheckoutSession(account: ServerAccount, interval: Bi
     customer,
     customer_email: customer ? undefined : account.email,
     allow_promotion_codes: true,
-    metadata: { erudoza_uid: account.uid, erudoza_plan: "pro" },
-    subscription_data: { metadata: { erudoza_uid: account.uid, erudoza_plan: "pro" } },
+    consent_collection: { terms_of_service: "required" },
+    metadata: {
+      erudoza_uid: account.uid,
+      erudoza_plan: "pro",
+      erudoza_interval: interval,
+      terms_version: TERMS_VERSION,
+      privacy_version: PRIVACY_VERSION,
+    },
+    subscription_data: {
+      metadata: {
+        erudoza_uid: account.uid,
+        erudoza_plan: "pro",
+        erudoza_interval: interval,
+        terms_version: TERMS_VERSION,
+        privacy_version: PRIVACY_VERSION,
+      },
+    },
   });
   if (!session.url) throw new Error("Stripe did not return a checkout URL.");
   return session.url;

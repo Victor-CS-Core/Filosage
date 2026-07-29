@@ -54,7 +54,7 @@ export default function AuthModal({ onClose }: AuthModalProps) {
       <div className="auth-symbol" aria-hidden="true"><ErudozaMark /></div>
       <p className="overline">Learner account</p>
       <h2 id="auth-title">Keep your learning in sync</h2>
-      <p id="auth-description" className="auth-copy">Sign in to save progress, notes, courses, and review dates across devices. You can still read published courses without an account.</p>
+      <p id="auth-description" className="auth-copy">Create a free account to open lessons and save progress, notes, courses, and review dates across devices. You can browse published topics and inspect every course outline without an account.</p>
       <div className="auth-identity"><Cloud size={16} /><span>Progress · reviews · saved courses</span></div>
       {(error || acceptanceError) && <p className="form-error" role="alert">{error ?? acceptanceError}</p>}
       <label className="legal-check">
@@ -64,7 +64,7 @@ export default function AuthModal({ onClose }: AuthModalProps) {
       <button className="button button-primary auth-submit" onClick={handleGoogle} disabled={submitting || !agreed}>
         <span className="google-mark" aria-hidden="true">G</span>{submitting ? "Signing in…" : "Continue with Google"}
       </button>
-      <button className="button button-quiet" onClick={onClose}>Continue without an account</button>
+      <button className="button button-quiet" onClick={onClose}>Continue browsing course outlines</button>
     </section>
   </div>;
 }

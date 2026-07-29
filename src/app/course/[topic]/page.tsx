@@ -34,7 +34,6 @@ import { useMasteryJourney } from "@/components/useMasteryJourney";
 import { useAuth } from "@/components/AuthProvider";
 import type { Course } from "@/lib/course-types";
 import type { CapstoneAssessment, CourseProgress } from "@/lib/learning-types";
-import { getLocalProgress } from "@/lib/learning-progress";
 import { clearLocalCourseData } from "@/lib/local-course-data";
 import { createClientId } from "@/lib/browser-compat";
 import { trackProductEvent } from "@/lib/product-analytics";
@@ -45,7 +44,7 @@ export default function CourseMap() {
   const searchParams = useSearchParams();
   const topic = decodeURIComponent(params.topic);
   const requestedCourseId = searchParams.get("id");
-  const { user, isOwner, isPro, loading: authLoading } = useAuth();
+  const { user, isOwner, isPro, loading: authLoading, signInWithGoogle } = useAuth();
   const [course, setCourse] = useState<Course | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -113,6 +112,17 @@ export default function CourseMap() {
   }, [loadOrGenerate]);
 
   const courseId = course?.id ?? course?.courseId ?? requestedCourseId;
+  const openLesson = useCallback(async (lessonId: string) => {
+    if (!courseId) return;
+    if (!user) {
+      try {
+        await signInWithGoogle();
+      } catch {
+        return;
+      }
+    }
+    router.push(`/course/${encodeURIComponent(topic)}/lesson/${lessonId}?id=${courseId}`);
+  }, [courseId, router, signInWithGoogle, topic, user]);
   const masteryJourney = useMasteryJourney(courseId, user);
 
   useEffect(() => {
@@ -144,8 +154,7 @@ export default function CourseMap() {
           return;
         }
       }
-      const local = getLocalProgress(courseId, topic);
-      if (!cancelled) setCompletedLessons(local?.completedLessonIds ?? []);
+      if (!cancelled) setCompletedLessons([]);
     };
     void loadProgress().catch(() => {
       if (!cancelled) setCompletedLessons([]);
@@ -400,9 +409,11 @@ export default function CourseMap() {
                   <div className="progress-track" role="progressbar" aria-label="Course progress" aria-valuemin={0} aria-valuemax={100} aria-valuenow={progress}><span style={{ transform: `scaleX(${progress / 100})` }} /></div>
                   <small>{validCompletedLessons.length} of {totalLessons} lessons complete{user ? " · synced" : " · this device"}</small>
                 </div>
-                <button className="button course-resume-action" onClick={() => router.push(`/course/${encodeURIComponent(topic)}/lesson/${nextLesson.lessonId}?id=${courseId}`)}>
-                  <Play size={16} /> {courseComplete ? "Review course" : validCompletedLessons.length ? "Resume lesson" : "Start course"}
+                <button className="button course-resume-action" onClick={() => void openLesson(nextLesson.lessonId)}>
+                  {user ? <Play size={16} /> : <LockKeyhole size={16} />}
+                  {user ? (courseComplete ? "Review course" : validCompletedLessons.length ? "Resume lesson" : "Start course") : "Create an account to begin"}
                 </button>
+                {!user && <small className="course-access-note">The full outline is public. A free account unlocks lesson content and saved progress.</small>}
               </aside>
             )}
           </div>
@@ -442,7 +453,7 @@ export default function CourseMap() {
           )}
         </header>
 
-        {courseId && masteryJourney.ready && (
+        {user && courseId && masteryJourney.ready && (
           <OutcomePlanner
             course={course}
             courseId={courseId}
@@ -489,7 +500,8 @@ export default function CourseMap() {
                           <button
                             className="lesson-row"
                             key={lessonId}
-                            onClick={() => router.push(`/course/${encodeURIComponent(topic)}/lesson/${lessonId}${courseId ? `?id=${courseId}` : ""}`)}
+                            onClick={() => void openLesson(lessonId)}
+                            aria-label={`${user ? "Open" : "Create an account to open"} lesson ${moduleIndex + 1}.${lessonIndex + 1}: ${lesson.title}`}
                           >
                             <span className={`lesson-status ${complete ? "is-complete" : ""}`}>{complete ? <Check size={14} /> : <span>{moduleIndex + 1}.{lessonIndex + 1}</span>}</span>
                             <span>
@@ -498,7 +510,7 @@ export default function CourseMap() {
                               {lesson.lessonMode && <em>{lesson.lessonMode.replace("-", " ")}</em>}
                             </span>
                             <span className="lesson-duration">{lesson.estimatedMinutes ?? 12} min</span>
-                            <ArrowRight size={17} />
+                            {user ? <ArrowRight size={17} /> : <LockKeyhole size={16} />}
                           </button>
                         );
                       })}
@@ -580,7 +592,7 @@ export default function CourseMap() {
                     )}
                   </div>
                 ) : (
-                  <p className="capstone-submit-hint">Sign in to submit this capstone for assessment when you finish the course. Passing it is how you master the course.</p>
+                  <p className="capstone-submit-hint">Create a free account to open lessons, save progress, and submit this capstone for assessment.</p>
                 )}
               </div>
             </section>
@@ -605,11 +617,11 @@ export default function CourseMap() {
                         return (
                           <button type="button" key={lessonId} onClick={() => {
                             outlineDrawer.closeDrawer();
-                            router.push(`/course/${encodeURIComponent(topic)}/lesson/${lessonId}${courseId ? `?id=${courseId}` : ""}`);
+                            void openLesson(lessonId);
                           }}>
                             <span className={`lesson-status ${complete ? "is-complete" : ""}`}>{complete ? <Check size={14} /> : <span>{moduleIndex + 1}.{lessonIndex + 1}</span>}</span>
                             <span><strong>{lesson.title}</strong><small>{lesson.objective ?? lesson.concept}</small></span>
-                            <ArrowRight size={16} />
+                            {user ? <ArrowRight size={16} /> : <LockKeyhole size={15} />}
                           </button>
                         );
                       })}

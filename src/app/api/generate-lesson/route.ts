@@ -26,14 +26,15 @@ import { toLessonDto } from "@/lib/course-dto";
 import { curateLessonVisuals } from "@/lib/lesson-visuals";
 import { lessonVisualsEnabled } from "@/lib/feature-flags";
 import { hasCollapsedMarkdownTable } from "@/lib/markdown";
+import { inspectGeneratedContent, languagePolicyInstruction } from "@/lib/content-language";
 
 const model = process.env.OPENAI_LESSON_MODEL || "gpt-5.6-luna";
 const fallbackModel = process.env.OPENAI_LESSON_FALLBACK_MODEL
   || process.env.OPENAI_COURSE_MODEL
   || process.env.OPENAI_MODEL
   || "gpt-5.6-terra";
-const LESSON_PROMPT_VERSION = "2026-07-28-structured-practice";
-const LESSON_QUALITY_GATE_VERSION = "didactic-v2";
+const LESSON_PROMPT_VERSION = "2026-07-28-language-integrity";
+const LESSON_QUALITY_GATE_VERSION = "didactic-v3";
 const lessonVisualsAreEnabled = lessonVisualsEnabled();
 
 const lessonInstructions = `Act as a rigorous teacher and instructional designer. Create one lesson that advances a specific capability within a larger course.
@@ -54,7 +55,7 @@ Create application-focused quizzes, not trivia. Each answer option needs feedbac
 
 ${AI_SAFETY_POLICY}`;
 
-function lessonQualityIssues(lesson: LessonData | null) {
+function lessonQualityIssues(lesson: LessonData | null, topic: string) {
   if (!lesson) return ["No structured lesson was returned."];
   const issues: string[] = [];
   if (lesson.content.trim().length < 1_500) issues.push("The explanation is too shallow.");
@@ -80,6 +81,9 @@ function lessonQualityIssues(lesson: LessonData | null) {
   if (lesson.quizzes.some((quiz) => quiz.options.length !== 4 || quiz.optionFeedback?.length !== 4)) {
     issues.push("Every quiz option needs corresponding feedback.");
   }
+  issues.push(...inspectGeneratedContent(lesson, topic).map((issue) =>
+    `${issue.path} ${issue.reason}.`,
+  ));
   return issues;
 }
 
@@ -110,7 +114,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "This lesson is not part of the course." }, { status: 400 });
     }
     const saved = await getLesson(courseId, lessonId);
-    if (saved) return NextResponse.json(toLessonDto(saved, course.aiAssisted === true));
+    if (saved) return NextResponse.json(toLessonDto(saved, course.aiAssisted === true, course.topic));
     const topic = course.topic;
     const lessonTitle = canonical.lesson.title;
     const lessonConcept = canonical.lesson.concept;
@@ -183,7 +187,7 @@ export async function POST(request: Request) {
     const generate = (selectedModel: string, repairIssues: string[] = []) => client.responses.parse({
       model: selectedModel,
       store: false,
-      instructions: lessonInstructions,
+      instructions: `${lessonInstructions}\n\n${languagePolicyInstruction(topic)}`,
       input: repairIssues.length
         ? `${lessonContext}\n\nThe previous draft failed the quality gate. Correct every issue:\n- ${repairIssues.join("\n- ")}`
         : lessonContext,
@@ -198,7 +202,7 @@ export async function POST(request: Request) {
     responseId = primaryResponse.id;
     usageSamples.push({ model, ...extractOpenAiUsage(primaryResponse), responseId });
     let lesson = prepareLesson(primaryResponse.output_parsed as GeneratedLessonData | null);
-    let qualityIssues = lessonQualityIssues(lesson);
+    let qualityIssues = lessonQualityIssues(lesson, topic);
     let usedFallback = false;
 
     if (qualityIssues.length && fallbackModel !== model) {
@@ -206,7 +210,7 @@ export async function POST(request: Request) {
       responseId = fallbackResponse.id;
       usageSamples.push({ model: fallbackModel, ...extractOpenAiUsage(fallbackResponse), responseId });
       lesson = prepareLesson(fallbackResponse.output_parsed as GeneratedLessonData | null);
-      qualityIssues = lessonQualityIssues(lesson);
+      qualityIssues = lessonQualityIssues(lesson, topic);
       usedFallback = true;
     }
 
@@ -250,7 +254,7 @@ export async function POST(request: Request) {
       schemaVersion: 3,
       generationModel: usedFallback ? fallbackModel : model,
       ...generationMetadata,
-    }, true));
+    }, true, topic));
   } catch (error: unknown) {
     if (reservation) {
       await finalizeAiUsage(reservation, { usageSamples, model, responseId, failed: true }).catch((usageError) => {

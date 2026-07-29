@@ -73,6 +73,9 @@ export interface Course {
     deliverable: string;
     successCriteria: string[];
   };
+  contentIntegrity?: {
+    repairedForDisplay: boolean;
+  };
 }
 
 export interface Quiz {

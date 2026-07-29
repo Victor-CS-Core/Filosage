@@ -1,5 +1,5 @@
 import { authorizationResponse, requireAcceptedAccount } from "@/lib/auth-server";
-import { apiRequestErrorResponse, readJsonBody } from "@/lib/api-security";
+import { apiRequestErrorResponse, assertTrustedMutation, readJsonBody } from "@/lib/api-security";
 import { billingConfiguration } from "@/lib/runtime-config";
 import { enforceBestEffortRateLimit } from "@/lib/request-rate-limit";
 import { createCheckoutSession, isBillingInterval } from "@/lib/stripe-server";
@@ -8,6 +8,7 @@ export async function POST(request: Request) {
   const limited = enforceBestEffortRateLimit(request, "billing-checkout", 8);
   if (limited) return limited;
   try {
+    assertTrustedMutation(request);
     const account = await requireAcceptedAccount(request);
     if (!billingConfiguration().configured) return Response.json({ error: "Paid subscriptions are not available yet." }, { status: 503 });
     const body = await readJsonBody(request, 1_024) as { interval?: unknown };

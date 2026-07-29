@@ -4,6 +4,7 @@ import type { Course, LessonData } from "@/lib/course-types";
 import { curateLessonVisuals } from "@/lib/lesson-visuals";
 import { lessonVisualsEnabled } from "@/lib/feature-flags";
 import { normalizeStructuredMarkdown } from "@/lib/markdown";
+import { inspectGeneratedContent, sanitizeGeneratedValue } from "@/lib/content-language";
 
 function structuredText(value: unknown) {
   return typeof value === "string" ? normalizeStructuredMarkdown(value) : "";
@@ -35,19 +36,22 @@ function transferTaskDto(value: unknown): LessonData["transferTask"] {
 
 export function toCourseDto(value: Record<string, unknown> | Course, canManage = false): Course {
   const raw = value as Record<string, unknown>;
+  const topic = String(raw.topic ?? "");
+  const repairedForDisplay = inspectGeneratedContent(raw, topic).length > 0;
+  const safe = sanitizeGeneratedValue(raw, topic) as Record<string, unknown>;
   return {
-    id: typeof raw.id === "string" ? raw.id : undefined,
-    courseId: typeof raw.id === "string" ? raw.id : undefined,
-    topic: String(raw.topic ?? ""),
-    mission: typeof raw.mission === "string" ? raw.mission : undefined,
-    modules: Array.isArray(raw.modules) ? raw.modules as Course["modules"] : [],
-    authorName: typeof raw.authorName === "string" ? raw.authorName : undefined,
+    id: typeof safe.id === "string" ? safe.id : undefined,
+    courseId: typeof safe.id === "string" ? safe.id : undefined,
+    topic,
+    mission: typeof safe.mission === "string" ? safe.mission : undefined,
+    modules: Array.isArray(safe.modules) ? safe.modules as Course["modules"] : [],
+    authorName: typeof safe.authorName === "string" ? safe.authorName : undefined,
     isPublic: raw.isPublic === true,
     level: raw.level as Course["level"],
     estimatedMinutes: typeof raw.estimatedMinutes === "number" ? raw.estimatedMinutes : undefined,
-    outcome: typeof raw.outcome === "string" ? raw.outcome : undefined,
-    prerequisites: Array.isArray(raw.prerequisites) ? raw.prerequisites.filter((item): item is string => typeof item === "string") : undefined,
-    category: typeof raw.category === "string" ? raw.category : undefined,
+    outcome: typeof safe.outcome === "string" ? safe.outcome : undefined,
+    prerequisites: Array.isArray(safe.prerequisites) ? safe.prerequisites.filter((item): item is string => typeof item === "string") : undefined,
+    category: typeof safe.category === "string" ? safe.category : undefined,
     banner: raw.banner
       && typeof raw.banner === "object"
       && typeof (raw.banner as Record<string, unknown>).assetId === "string"
@@ -66,16 +70,19 @@ export function toCourseDto(value: Record<string, unknown> | Course, canManage =
       : undefined,
     updatedAt: typeof raw.updatedAt === "string" ? raw.updatedAt : undefined,
     schemaVersion: typeof raw.schemaVersion === "number" ? raw.schemaVersion : undefined,
-    capstone: raw.capstone && typeof raw.capstone === "object"
-      ? raw.capstone as Course["capstone"]
+    capstone: safe.capstone && typeof safe.capstone === "object"
+      ? safe.capstone as Course["capstone"]
       : undefined,
     aiAssisted: raw.aiAssisted === true
       || (typeof raw.id === "string" && !raw.id.startsWith("catalog-")),
     canManage,
+    contentIntegrity: repairedForDisplay ? { repairedForDisplay: true } : undefined,
   };
 }
 
-export function toLessonDto(value: Record<string, unknown>, courseAiAssisted = false): LessonData {
+export function toLessonDto(value: Record<string, unknown>, courseAiAssisted = false, topic = ""): LessonData {
+  const safeValue = sanitizeGeneratedValue(value, topic) as Record<string, unknown>;
+  value = safeValue;
   const rawSources = Array.isArray(value.sourceReferences)
     ? value.sourceReferences.filter((item): item is Record<string, unknown> => Boolean(item) && typeof item === "object")
     : [];

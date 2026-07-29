@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { authorizationResponse, requireAccount } from "@/lib/auth-server";
+import { authorizationResponse, requireAcceptedAccount } from "@/lib/auth-server";
 import { getCourse, getLesson } from "@/lib/firebase-server";
 import { toLessonDto } from "@/lib/course-dto";
 
@@ -10,11 +10,11 @@ interface RouteParams {
 export async function GET(request: Request, { params }: RouteParams) {
   const { courseId, lessonId } = await params;
   try {
+    const account = await requireAcceptedAccount(request);
     const course = await getCourse(courseId);
     if (!course) return NextResponse.json({ error: "Course not found." }, { status: 404 });
 
     if (!course.isPublic) {
-      const account = await requireAccount(request);
       if (account.uid !== course.authorId && !account.isOwner) {
         return NextResponse.json({ error: "You do not have access to this lesson." }, { status: 403 });
       }
@@ -26,10 +26,12 @@ export async function GET(request: Request, { params }: RouteParams) {
     }
 
     return NextResponse.json(
-      toLessonDto(lesson, course.aiAssisted === true || !String(course.id ?? "").startsWith("catalog-")),
-      { headers: course.isPublic
-        ? { "Cache-Control": "public, max-age=60, s-maxage=300, stale-while-revalidate=3600" }
-        : { "Cache-Control": "private, no-store" } },
+      toLessonDto(
+        lesson,
+        course.aiAssisted === true || !String(course.id ?? "").startsWith("catalog-"),
+        String(course.topic ?? ""),
+      ),
+      { headers: { "Cache-Control": "private, no-store" } },
     );
   } catch (error: unknown) {
     const authResponse = authorizationResponse(error);

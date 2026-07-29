@@ -1,13 +1,13 @@
 "use client";
 
-import { useState } from "react";
-import { Bell, Check, Crown, Gauge, LockKeyhole, Sparkles } from "lucide-react";
+import { useEffect, useState } from "react";
+import { Bell, Check, CreditCard, Crown, Gauge, LoaderCircle, LockKeyhole, Sparkles } from "lucide-react";
 import AppShell from "@/components/AppShell";
 import { useAuth } from "@/components/AuthProvider";
 import { SUPPORT_CONTACT } from "@/lib/legal";
 
 const freeFeatures = [
-  "Read every published course",
+  "Open every published lesson",
   "Complete lessons and retrieval practice",
   "Cloud progress and review scheduling",
   "Five tutor questions each month",
@@ -22,13 +22,49 @@ const proFeatures = [
 ];
 
 export default function PricingPage() {
-  const { user, account, isPro, signInWithGoogle } = useAuth();
+  const { user, account, isPro, signInWithGoogle, acceptLegalTerms } = useAuth();
   const outlineQuota = account?.quotas.find((quota) => quota.feature === "course_outline");
   const [email, setEmail] = useState("");
   const [consent, setConsent] = useState(false);
   const [joining, setJoining] = useState(false);
   const [joined, setJoined] = useState(false);
   const [joinError, setJoinError] = useState<string | null>(null);
+  const [interval, setInterval] = useState<"monthly" | "annual">("annual");
+  const [billingReady, setBillingReady] = useState(false);
+  const [billingBusy, setBillingBusy] = useState(false);
+  const [billingError, setBillingError] = useState<string | null>(null);
+
+  useEffect(() => {
+    void fetch("/api/billing/status")
+      .then((response) => response.ok ? response.json() : Promise.reject(new Error()))
+      .then((status: { ready?: boolean }) => setBillingReady(status.ready === true))
+      .catch(() => setBillingReady(false));
+  }, []);
+
+  const openBilling = async (kind: "checkout" | "portal") => {
+    setBillingBusy(true);
+    setBillingError(null);
+    try {
+      let activeUser = user;
+      if (!activeUser) activeUser = await signInWithGoogle();
+      if (account?.legalAcceptanceRequired) await acceptLegalTerms("subscription", activeUser);
+      const token = await activeUser.getIdToken();
+      const response = await fetch(`/api/billing/${kind}`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: kind === "checkout" ? JSON.stringify({ interval }) : undefined,
+      });
+      const body = await response.json() as { url?: string; error?: string };
+      if (!response.ok || !body.url) throw new Error(body.error ?? "Billing could not be opened.");
+      window.location.assign(body.url);
+    } catch (error) {
+      setBillingError(error instanceof Error ? error.message : "Billing could not be opened.");
+      setBillingBusy(false);
+    }
+  };
 
   const joinWaitlist = async (event: React.FormEvent) => {
     event.preventDefault();
@@ -70,9 +106,23 @@ export default function PricingPage() {
           <section className="plan-column plan-pro" aria-labelledby="pro-plan-title">
             <div className="plan-heading"><span><Crown size={19} /></span><div><h2 id="pro-plan-title">Erudoza Pro</h2><p>Create private courses for your own goals.</p></div></div>
             <p className="plan-price"><strong>$14.99</strong><span>per month</span><small>or $9.99/month, billed annually ($119.88/year)</small></p>
+            <div className="billing-interval" role="group" aria-label="Billing interval">
+              <button type="button" className={interval === "monthly" ? "is-selected" : ""} aria-pressed={interval === "monthly"} onClick={() => setInterval("monthly")}>Monthly</button>
+              <button type="button" className={interval === "annual" ? "is-selected" : ""} aria-pressed={interval === "annual"} onClick={() => setInterval("annual")}>Annual <span>Save 33%</span></button>
+            </div>
             <ul>{proFeatures.map((feature) => <li key={feature}><Check size={16} /> {feature}</li>)}</ul>
             {isPro ? (
-              <div className="plan-status"><Sparkles size={17} /><span><strong>Pro is active</strong><small>{outlineQuota?.remaining ?? "Unlimited"} course outline credits remaining</small></span></div>
+              <>
+                <div className="plan-status"><Sparkles size={17} /><span><strong>Pro is active</strong><small>{outlineQuota?.remaining ?? "Unlimited"} course outline credits remaining</small></span></div>
+                <button className="button button-secondary" type="button" disabled={billingBusy || !billingReady} onClick={() => void openBilling("portal")}>
+                  {billingBusy ? <LoaderCircle className="spin" size={16} /> : <CreditCard size={16} />} Manage billing
+                </button>
+              </>
+            ) : billingReady ? (
+              <button className="button button-primary" type="button" disabled={billingBusy} onClick={() => void openBilling("checkout")}>
+                {billingBusy ? <LoaderCircle className="spin" size={16} /> : <CreditCard size={16} />}
+                {billingBusy ? "Opening secure checkout…" : `Choose Pro ${interval === "annual" ? "annual" : "monthly"}`}
+              </button>
             ) : joined ? (
               <div className="waitlist-success" role="status"><Check size={17} /><span><strong>You are on the launch list.</strong><small>We will email you when Pro checkout is ready.</small></span></div>
             ) : (
@@ -91,13 +141,14 @@ export default function PricingPage() {
                 {joinError && <p className="waitlist-error" role="alert">{joinError}</p>}
               </form>
             )}
+            {billingError && <p className="waitlist-error" role="alert">{billingError}</p>}
           </section>
         </div>
 
         <p className="pricing-note">Generation credits reset each month and do not roll over. Monthly limits help keep course creation reliable and available.</p>
         <section className="billing-readiness-note" aria-labelledby="billing-readiness-title">
           <LockKeyhole size={18} />
-          <div><h2 id="billing-readiness-title">Clear terms before any charge</h2><p>Paid checkout is not active. Before it launches, the checkout screen will show the exact price, currency, billing interval, renewal terms, included limits, trial conversion if applicable, and a simple online cancellation method before you consent.</p><p><a href="/terms">Terms of Service</a> · <a href="/privacy">Privacy Notice</a> · <a href={`mailto:${SUPPORT_CONTACT}`}>Contact support</a></p></div>
+          <div><h2 id="billing-readiness-title">Clear terms before any charge</h2><p>{billingReady ? "Secure checkout shows the exact price, currency, billing interval, automatic renewal, and included limits before you consent. You can cancel online from Manage billing." : "Paid checkout is not active. Before it launches, secure checkout will show the exact price, currency, billing interval, automatic renewal, included limits, and a simple online cancellation method before you consent."}</p><p><a href="/terms">Terms of Service</a> · <a href="/privacy">Privacy Notice</a> · <a href={`mailto:${SUPPORT_CONTACT}`}>Contact support</a></p></div>
         </section>
       </div>
     </AppShell>

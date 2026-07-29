@@ -46,22 +46,33 @@ export async function POST(request: Request) {
   const claimed = await claimEvent(eventPath, new Date());
   if (!claimed) return Response.json({ received: true, duplicate: true });
 
-  switch (event.type) {
-    case "checkout.session.completed": {
-      const session = event.data.object as Stripe.Checkout.Session;
-      if (typeof session.subscription === "string") {
-        const subscription = await stripeClient().subscriptions.retrieve(session.subscription);
-        await syncStripeSubscription(subscription, session.client_reference_id ?? undefined, event.created);
+  try {
+    switch (event.type) {
+      case "checkout.session.completed": {
+        const session = event.data.object as Stripe.Checkout.Session;
+        if (typeof session.subscription === "string") {
+          const subscription = await stripeClient().subscriptions.retrieve(session.subscription);
+          await syncStripeSubscription(subscription, session.client_reference_id ?? undefined, event.created);
+        }
+        break;
       }
-      break;
+      case "customer.subscription.created":
+      case "customer.subscription.updated":
+      case "customer.subscription.deleted":
+        await syncStripeSubscription(event.data.object as Stripe.Subscription, undefined, event.created);
+        break;
+      default:
+        break;
     }
-    case "customer.subscription.created":
-    case "customer.subscription.updated":
-    case "customer.subscription.deleted":
-      await syncStripeSubscription(event.data.object as Stripe.Subscription, undefined, event.created);
-      break;
-    default:
-      break;
+  } catch (error) {
+    await putStoredDocument(eventPath, {
+      type: event.type,
+      status: "failed",
+      failedAt: new Date().toISOString(),
+      retryable: true,
+    });
+    console.error("Stripe webhook processing failed:", event.id, event.type, error);
+    return Response.json({ error: "Webhook processing failed and will be retried." }, { status: 500 });
   }
 
   await putStoredDocument(eventPath, { type: event.type, status: "processed", processedAt: new Date().toISOString() });

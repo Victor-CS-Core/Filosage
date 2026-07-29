@@ -18,6 +18,7 @@ export function billingStatus() {
   const config = billingConfiguration();
   return {
     provider: config.provider,
+    enabled: config.enabled,
     ready: config.configured,
     plan: { ...proPlan, priceId: undefined, annualPriceId: undefined },
   };

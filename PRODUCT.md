@@ -8,7 +8,7 @@ product
 
 The launch customer is an English-speaking product manager, data or analytics professional, product-minded engineer, or adjacent knowledge worker who needs to learn a reasoning-heavy skill for a current project, role transition, interview, or promotion within 2–8 weeks.
 
-The owner uses Erudoza as a private AI-assisted learning and course-authoring workspace. Anonymous visitors discover and complete published courses without gaining access to private generation, publishing, or management tools.
+The owner uses Erudoza as a private AI-assisted learning and course-authoring workspace. Anonymous visitors can discover published topics and inspect each course outcome, modules, lesson titles, and assessment structure. Opening lesson content, saving progress, using learning tools, or submitting work requires a verified learner account. Private generation, publishing, and management remain separately authorized.
 
 ## Product Purpose
 
@@ -16,7 +16,7 @@ Erudoza turns a real professional outcome into a focused learning path grounded 
 
 ## Current Product Contract
 
-The production experience is outcome-first: learners create a goal and diagnostic route, practice in public courses, return through a finite adaptive daily and weekly loop, and receive an evidence report that separates self-report from observed and assessed proof. Guided and transfer practice preserve semantic structure such as tables, lists, and headings across generated and legacy lessons. Every lesson exposes its content-version and source-pack status and can be reported for owner review. Billing remains a separately controlled capability and is not implied by product readiness.
+The production experience is outcome-first: account holders create a goal and diagnostic route, practice in published courses, return through a finite adaptive daily and weekly loop, and receive an evidence report that separates self-report from observed and assessed proof. Guests can evaluate the complete course structure before creating an account, but lesson bodies are never delivered anonymously. Guided and transfer practice preserve semantic structure such as tables, lists, and headings across generated and legacy lessons. Generated outlines and lessons must pass safety, teaching-quality, and topic-aware language-integrity gates before storage; unrelated scripts, model-control fragments, and malformed characters are rejected and regenerated. Every lesson exposes its content-version and source-pack status and can be reported for owner review. Billing remains a separately controlled capability and is not implied by product readiness.
 
 ## Brand Personality
 

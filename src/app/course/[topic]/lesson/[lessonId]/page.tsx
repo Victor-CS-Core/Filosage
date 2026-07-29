@@ -237,7 +237,7 @@ export default function LessonView() {
       ? "delayed-28"
       : "spaced";
   const [moduleIndex, lessonIndex] = lessonId.split("-").map(Number);
-  const { user, isOwner, isPro } = useAuth();
+  const { user, isOwner, isPro, loading: authLoading, signInWithGoogle } = useAuth();
   const masteryJourney = useMasteryJourney(courseId, user);
   const masteryPlan = masteryJourney.plan;
   const addMasteryEvidence = masteryJourney.addEvidence;
@@ -347,6 +347,11 @@ export default function LessonView() {
   }, [isGenerating]);
 
   const loadLesson = useCallback(async () => {
+    if (authLoading) return;
+    if (!user) {
+      setLoading(false);
+      return;
+    }
     if (!courseId) {
       setError("This lesson link is missing its course reference.");
       setLoading(false);
@@ -417,7 +422,7 @@ export default function LessonView() {
       setIsGenerating(false);
       setLoading(false);
     }
-  }, [courseId, getToken, moduleIndex, lessonIndex, lessonId, isPro, topic]);
+  }, [authLoading, courseId, getToken, moduleIndex, lessonIndex, lessonId, isPro, topic, user]);
 
   useEffect(() => {
     void Promise.resolve().then(loadLesson);
@@ -732,7 +737,24 @@ export default function LessonView() {
 
   const lessonHref = (id: string) => `/course/${encodeURIComponent(topic)}/lesson/${id}${courseId ? `?id=${courseId}` : ""}`;
 
-  if (loading) {
+  if (!authLoading && !user) {
+    return (
+      <AppShell activeTopic={topic} activeLessonId={lessonId} activeCourseId={courseId}>
+        <div className="center-state lesson-account-gate">
+          <span className="state-icon"><LockKeyhole size={23} /></span>
+          <p className="overline">Free learner account required</p>
+          <h1>Open the lesson when you’re signed in</h1>
+          <p>You can inspect the complete course structure as a guest. Create a free account to read lessons, practice, and keep your progress.</p>
+          <div className="state-actions">
+            <button className="button button-primary" onClick={() => void signInWithGoogle()}><LockKeyhole size={16} /> Create a free account</button>
+            <button className="button button-secondary" onClick={() => router.push(`/course/${encodeURIComponent(topic)}${courseId ? `?id=${courseId}` : ""}`)}><ArrowLeft size={16} /> Back to course</button>
+          </div>
+        </div>
+      </AppShell>
+    );
+  }
+
+  if (loading || authLoading) {
     return (
       <AppShell activeTopic={topic} activeLessonId={lessonId} activeCourseId={courseId}>
         <div className="lesson-loading">

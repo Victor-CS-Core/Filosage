@@ -29,6 +29,11 @@ import {
   normalizeStructuredMarkdown,
 } from "../src/lib/markdown";
 import { securityHeaders } from "../src/lib/security-headers";
+import {
+  inspectGeneratedContent,
+  languagePolicyForTopic,
+  sanitizeGeneratedText,
+} from "../src/lib/content-language";
 
 async function sourceFiles(directory: string): Promise<string[]> {
   const entries = await readdir(directory, { withFileTypes: true });
@@ -38,6 +43,23 @@ async function sourceFiles(directory: string): Promise<string[]> {
   }));
   return files.flat();
 }
+
+async function restoreLocalLearner(page: import("@playwright/test").Page) {
+  await page.addInitScript(() => localStorage.setItem("erudoza-local-session", "1"));
+}
+
+test("rejects model-control fragments and unrelated scripts without blocking intended language courses", () => {
+  const contaminated = "Demonstrates understanding through relevant answers. 】 【assistant to=course_outline 全球彩票 时时彩 官网群";
+  const spanishIssues = inspectGeneratedContent({ successCriteria: [contaminated] }, "Spanish travel conversation");
+  expect(spanishIssues.map((issue) => issue.reason)).toContain("contains model-control or spam artifacts");
+  expect(spanishIssues.map((issue) => issue.reason)).toContain("contains unexpected Han script");
+  expect(sanitizeGeneratedText(contaminated, "Spanish travel conversation")).toBe(
+    "Demonstrates understanding through relevant answers.",
+  );
+
+  expect(languagePolicyForTopic("Beginner Mandarin Chinese").allowedScripts).toContain("Han");
+  expect(inspectGeneratedContent({ example: "你好，欢迎。" }, "Beginner Mandarin Chinese")).toEqual([]);
+});
 
 test("keeps interface copy free of encoding artifacts", async () => {
   const files = (await sourceFiles(join(process.cwd(), "src")))
@@ -265,7 +287,7 @@ test("offers an optional learner account without blocking public access", async 
 
   const dialog = page.getByRole("dialog", { name: "Keep your learning in sync" });
   await expect(dialog).toBeVisible();
-  await expect(dialog).toContainText("You can still read published courses without an account");
+  await expect(dialog).toContainText("browse published topics and inspect every course outline without an account");
   await expect(
     dialog.getByRole("button", { name: "Continue with Google" }),
   ).toBeDisabled();
@@ -303,6 +325,7 @@ test("keeps generation visibly metered and premium", async ({ page }) => {
 });
 
 test("reads a lesson aloud from the toolbar speaker", async ({ page }) => {
+  await restoreLocalLearner(page);
   const course = {
     courseId: "demo",
     id: "demo",
@@ -337,6 +360,7 @@ test("reads a lesson aloud from the toolbar speaker", async ({ page }) => {
 });
 
 test("keeps the mobile tutor contained above the lesson", async ({ page }) => {
+  await restoreLocalLearner(page);
   await page.setViewportSize({ width: 390, height: 844 });
   await page.route("**/api/courses/demo", (route) => route.fulfill({ json: {
     courseId: "demo",
@@ -423,6 +447,7 @@ test("keeps the mobile tutor contained above the lesson", async ({ page }) => {
 });
 
 test("does not complete a lesson after a wrong answer", async ({ page }) => {
+  await restoreLocalLearner(page);
   const course = {
     courseId: "demo",
     id: "demo",
@@ -495,6 +520,7 @@ test("does not complete a lesson after a wrong answer", async ({ page }) => {
 });
 
 test("renders the didactic lesson contract and transfer practice", async ({ page }) => {
+  await restoreLocalLearner(page);
   await page.route("**/api/courses/didactic-demo", (route) => route.fulfill({ json: {
     id: "didactic-demo",
     courseId: "didactic-demo",
@@ -604,6 +630,7 @@ test("curates visual candidates independently with deterministic placement and p
 });
 
 test("renders curated visual explanations in their learning slots", async ({ page }) => {
+  await restoreLocalLearner(page);
   await page.route("**/api/courses/visual-demo", (route) => route.fulfill({ json: {
     id: "visual-demo", courseId: "visual-demo", topic: "Decision making", isPublic: true,
     modules: [{ title: "Evidence", lessons: [{ title: "Evidence and inference", concept: "How claims depend on evidence", estimatedMinutes: 10 }] }],
@@ -658,6 +685,7 @@ test("renders curated visual explanations in their learning slots", async ({ pag
 });
 
 test("renders process, comparison, and prerequisite visuals accessibly", async ({ page }) => {
+  await restoreLocalLearner(page);
   const lessons = [
     { title: "A repeatable process", concept: "Moving from framing to a checked result", estimatedMinutes: 8 },
     { title: "Compare approaches", concept: "Choosing between two methods", estimatedMinutes: 8 },
@@ -772,6 +800,20 @@ test("presents public courses as a browsable learning library", async ({ page })
   });
 });
 
+test("shows guests the course structure but never delivers lesson content", async ({ page }) => {
+  let lessonRequests = 0;
+  await page.route("**/api/courses/public-preview/lessons/**", (route) => {
+    lessonRequests += 1;
+    return route.fulfill({ status: 500, json: { error: "This endpoint should not be called for a guest." } });
+  });
+
+  await page.goto("/course/Systems%20thinking/lesson/0-0?id=public-preview");
+
+  await expect(page.getByRole("heading", { name: "Open the lesson when you’re signed in" })).toBeVisible();
+  await expect(page.getByText("inspect the complete course structure as a guest")).toBeVisible();
+  expect(lessonRequests).toBe(0);
+});
+
 test("keeps generated course banners simple and text-free", () => {
   const prompt = buildCourseBannerPrompt({
     topic: "Retirement planning",
@@ -814,6 +856,7 @@ test("removes every learner-state reference linked to a deleted course", () => {
 });
 
 test("contains long lesson navigation titles on narrow mobile screens", async ({ page }) => {
+  await restoreLocalLearner(page);
   await page.setViewportSize({ width: 320, height: 740 });
   const longTitle = "Common Web Risks: Injection, Browser Attacks, Access Failures, and Security Boundary Verification";
   await page.route("**/api/courses/mobile-navigation", (route) => route.fulfill({ json: {
@@ -856,6 +899,7 @@ test("contains long lesson navigation titles on narrow mobile screens", async ({
 });
 
 test("frames each course around an outcome and mastery", async ({ page }) => {
+  await restoreLocalLearner(page);
   await page.setViewportSize({ width: 390, height: 844 });
   const course = {
     courseId: "demo",
@@ -880,6 +924,20 @@ test("frames each course around an outcome and mastery", async ({ page }) => {
     body: "<svg xmlns='http://www.w3.org/2000/svg' width='1536' height='1024'><rect width='100%' height='100%' fill='#0D1B3D'/></svg>",
   }));
   await page.route("**/api/courses/demo", (route) => route.fulfill({ json: course }));
+  await page.route("**/api/progress?courseId=demo", (route) => route.fulfill({ json: {
+    progress: {
+      courseId: "demo",
+      topic: "Systems thinking",
+      lastLessonId: "0-0",
+      lastLessonTitle: "Feedback loops",
+      completedLessonIds: ["0-0"],
+      lessons: {},
+      studyMinutes: 8,
+      totalLessons: 2,
+      lastActivityAt: "2026-07-16T12:00:00.000Z",
+      startedAt: "2026-07-16T12:00:00.000Z",
+    },
+  } }));
   await page.route("**/api/courses/demo/lessons/0-1", (route) => route.fulfill({ json: {
     aiAssisted: true,
     content: "# Leverage points\n\nA leverage point is a place where a focused change can reshape system behavior.",
@@ -1158,7 +1216,8 @@ test("explains a diagnostic route without treating self-report as proof", () => 
   expect(explanation).not.toContain("mastered");
 });
 
-test("creates an outcome route and opens its evidence report without an account", async ({ page }) => {
+test("creates an account-based outcome route and opens its evidence report", async ({ page }) => {
+  await restoreLocalLearner(page);
   const course = {
     id: "outcome-demo",
     courseId: "outcome-demo",
@@ -1211,6 +1270,7 @@ test("creates an outcome route and opens its evidence report without an account"
 });
 
 test("shows lesson provenance and submits a content report", async ({ page }) => {
+  await restoreLocalLearner(page);
   let reported: Record<string, unknown> | null = null;
   await page.route("**/api/courses/integrity-demo", (route) => route.fulfill({ json: {
     id: "integrity-demo",

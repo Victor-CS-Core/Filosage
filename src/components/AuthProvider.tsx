@@ -36,10 +36,11 @@ interface AuthContextValue {
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
-// Development-only sign-in used when Firebase is not configured: the server
-// pairs it with a local owner account so every feature is testable offline.
-// NODE_ENV is inlined at build time, so this path cannot exist in production.
-const localAuthAvailable = !auth && process.env.NODE_ENV === "development";
+// Development-only sign-in: the server pairs it with its local owner account
+// so every feature remains testable even when public Firebase values are
+// present in a developer environment. NODE_ENV is inlined at build time, so
+// this path cannot exist in production.
+const localAuthAvailable = process.env.NODE_ENV === "development";
 const LOCAL_SESSION_KEY = "erudoza-local-session";
 
 function localOwnerUser(): User {
@@ -133,14 +134,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     const firebaseAuth = auth;
+    if (localAuthAvailable && localStorage.getItem(LOCAL_SESSION_KEY)) {
+      const restored = localOwnerUser();
+      void Promise.resolve().then(() => {
+        setLoading(false);
+        setUser(restored);
+        return loadAccount(restored);
+      }).catch(() => setAccount(null));
+      return;
+    }
     if (!firebaseAuth) {
-      if (localAuthAvailable && localStorage.getItem(LOCAL_SESSION_KEY)) {
-        const restored = localOwnerUser();
-        void Promise.resolve().then(() => {
-          setUser(restored);
-          return loadAccount(restored);
-        }).catch(() => setAccount(null));
-      }
       return;
     }
 
