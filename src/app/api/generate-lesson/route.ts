@@ -25,7 +25,7 @@ import { openAiSafetyIdentifier } from "@/lib/ai-usage";
 import { toLessonDto } from "@/lib/course-dto";
 import { curateLessonVisuals } from "@/lib/lesson-visuals";
 import { lessonVisualsEnabled } from "@/lib/feature-flags";
-import { hasCollapsedMarkdownTable } from "@/lib/markdown";
+import { hasBlockMarkdownSyntax, hasCollapsedMarkdownTable } from "@/lib/markdown";
 import { inspectGeneratedContent, languagePolicyInstruction } from "@/lib/content-language";
 
 const model = process.env.OPENAI_LESSON_MODEL || "gpt-5.6-luna";
@@ -34,7 +34,7 @@ const fallbackModel = process.env.OPENAI_LESSON_FALLBACK_MODEL
   || process.env.OPENAI_MODEL
   || "gpt-5.6-terra";
 const LESSON_PROMPT_VERSION = "2026-07-28-language-integrity";
-const LESSON_QUALITY_GATE_VERSION = "didactic-v3";
+const LESSON_QUALITY_GATE_VERSION = "didactic-v4";
 const lessonVisualsAreEnabled = lessonVisualsEnabled();
 
 const lessonInstructions = `Act as a rigorous teacher and instructional designer. Create one lesson that advances a specific capability within a larger course.
@@ -43,7 +43,7 @@ Use the requested lesson mode instead of forcing every lesson into the same patt
 
 Write direct, natural prose in accessible Markdown. Use descriptive H2 and H3 headings only and never repeat the lesson title as a heading. Target roughly 900 to 1,300 words. Avoid generic encouragement, promotional language, vague claims, invented citations, repeated conclusions, and filler. Never use em dashes; prefer commas, colons, or separate sentences.
 
-The guided-practice prompt, each guided step, the worked response, the transfer prompt, and the model response support GitHub-flavored Markdown. Use real lists or tables when structure improves scanning. Every table must place its header, separator, and each data row on separate lines. Never compress Markdown table rows into one line or place table syntax directly after prose.
+The guided-practice prompt, worked response, transfer prompt, and model response support GitHub-flavored Markdown. Each guided step must be one concise prose paragraph with no heading, list, table, blockquote, code fence, raw HTML, or other block Markdown. Use real lists or tables only in the larger prompt and response fields when structure improves scanning. Every table must place its header, separator, and each data row on separate lines. Never compress Markdown table rows into one line or place table syntax directly after prose.
 
 Do not create diagrams, graphs, Mermaid syntax, raw SVG, HTML, or visual-model sections in Markdown. Communicate every relationship clearly in prose and examples.
 
@@ -63,6 +63,9 @@ function lessonQualityIssues(lesson: LessonData | null, topic: string) {
   if (!lesson.connection?.trim()) issues.push("The curricular connection is missing.");
   if ((lesson.keyTakeaways?.length ?? 0) < 3) issues.push("At least three concrete takeaways are required.");
   if ((lesson.guidedPractice?.steps.length ?? 0) < 2) issues.push("Guided practice needs at least two reasoning steps.");
+  if (lesson.guidedPractice?.steps.some(hasBlockMarkdownSyntax)) {
+    issues.push("Each guided-practice step must be one concise prose paragraph without block Markdown.");
+  }
   const structuredPractice = [
     lesson.guidedPractice?.prompt,
     ...(lesson.guidedPractice?.steps ?? []),

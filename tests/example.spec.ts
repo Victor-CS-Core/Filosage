@@ -25,7 +25,9 @@ import {
 import { buildLearningReminderCalendar } from "../src/lib/learning-reminders";
 import type { CourseProgress } from "../src/lib/learning-types";
 import {
+  hasBlockMarkdownSyntax,
   hasCollapsedMarkdownTable,
+  hasMarkdownTableSyntax,
   normalizeStructuredMarkdown,
 } from "../src/lib/markdown";
 import { securityHeaders } from "../src/lib/security-headers";
@@ -1374,6 +1376,52 @@ test("repairs collapsed structured Markdown without changing readable prose", ()
   expect(repaired).toContain("| Rent | $1,400 |");
   expect(repaired.split("\n")).toHaveLength(6);
   expect(normalizeStructuredMarkdown("Explain the result in your own words.")).toBe("Explain the result in your own words.");
+});
+
+test("detects table syntax that must not appear inside a guided-practice step", () => {
+  expect(hasMarkdownTableSyntax("| Item | Value |\n| --- | --- |\n| File | One |")).toBe(true);
+  expect(hasMarkdownTableSyntax("Item | Value\n--- | ---\nFile | One")).toBe(true);
+  expect(hasMarkdownTableSyntax("Classify this. | Item | Value | | --- | --- | | File | One |")).toBe(true);
+  expect(hasMarkdownTableSyntax("Identify whether the item contains one value or multiple values.")).toBe(false);
+  expect(hasMarkdownTableSyntax("Explain Python's `value | None` type annotation.")).toBe(false);
+  expect(hasBlockMarkdownSyntax("1. Identify the input.\n2. Classify the value.")).toBe(true);
+  expect(hasBlockMarkdownSyntax("### Identify the input")).toBe(true);
+  expect(hasBlockMarkdownSyntax("<table><tr><td>Input</td></tr></table>")).toBe(true);
+  expect(hasBlockMarkdownSyntax("Use `items[0]` to access the first value.")).toBe(false);
+});
+
+test("keeps nested Markdown lists readable inside guided-practice steps", async ({ page }) => {
+  const css = await readFile(join(process.cwd(), "src/app/globals.css"), "utf8");
+  await page.setContent(`
+    <style>${css}</style>
+    <section class="guided-practice" style="width:min(760px, calc(100vw - 32px))">
+      <ol>
+        <li>
+          <span>1</span>
+          <div class="structured-markdown guided-practice-step">
+            <ol>
+              <li>Identify whether the item contains one value or multiple values.</li>
+              <li>For file names and amounts, choose the structure that matches the data.</li>
+            </ol>
+          </div>
+        </li>
+      </ol>
+    </section>
+  `);
+
+  const outerStep = page.locator(".guided-practice > ol > li");
+  const stepContent = outerStep.locator("> .guided-practice-step");
+  const nestedItem = stepContent.locator("li").first();
+  const [outerBox, contentBox, nestedDisplay] = await Promise.all([
+    outerStep.boundingBox(),
+    stepContent.boundingBox(),
+    nestedItem.evaluate((element) => getComputedStyle(element).display),
+  ]);
+
+  expect(outerBox).not.toBeNull();
+  expect(contentBox).not.toBeNull();
+  expect(contentBox!.width).toBeGreaterThan(outerBox!.width * 0.6);
+  expect(nestedDisplay).not.toBe("grid");
 });
 
 test("adapts review timing to performance and confidence calibration", () => {

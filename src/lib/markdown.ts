@@ -64,6 +64,28 @@ export function hasCollapsedMarkdownTable(markdown: string) {
   return normalizeStructuredMarkdown(normalized) !== normalized;
 }
 
+/** Detects both valid and malformed table-like Markdown in compact prose fields. */
+export function hasMarkdownTableSyntax(markdown: string) {
+  const normalized = markdown.replace(/\r\n?/g, "\n").replace(/\\n/g, "\n").trim();
+  if (hasCollapsedMarkdownTable(normalized)) return true;
+
+  return normalized.split("\n").some((line) => {
+    const trimmed = line.trim();
+    if (/^\|.*\|$/.test(trimmed)) return true;
+    return /(?:^|\|)\s*:?-{3,}:?\s*(?:\||$)/.test(trimmed);
+  });
+}
+
+/** Detects block-level Markdown that does not belong in a single prose step. */
+export function hasBlockMarkdownSyntax(markdown: string) {
+  if (hasMarkdownTableSyntax(markdown)) return true;
+  const normalized = markdown.replace(/\r\n?/g, "\n").replace(/\\n/g, "\n").trim();
+  return normalized.split("\n").some((line) =>
+    /^\s{0,3}(?:#{1,6}\s|>\s?|```|~~~|(?:[-+*]|\d+[.)])\s+)/.test(line)
+    || /<\/?[A-Za-z][^>]*>/.test(line),
+  );
+}
+
 function comparableHeading(value: string) {
   return value.trim().toLocaleLowerCase().replace(/[^\p{L}\p{N}]+/gu, " ").trim();
 }
