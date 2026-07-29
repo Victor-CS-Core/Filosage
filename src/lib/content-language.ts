@@ -126,7 +126,10 @@ function firstArtifactIndex(value: string) {
 }
 
 export function sanitizeGeneratedText(value: string, topic: string) {
-  let sanitized = Array.from(value).filter((character) => !isMalformedCharacter(character)).join("");
+  let sanitized = Array.from(value)
+    .filter((character) => !isMalformedCharacter(character))
+    .join("")
+    .replace(/\r\n?/g, "\n");
   const artifactIndex = firstArtifactIndex(sanitized);
   if (artifactIndex >= 0) {
     sanitized = sanitized.slice(0, artifactIndex);
@@ -138,8 +141,7 @@ export function sanitizeGeneratedText(value: string, topic: string) {
   }
 
   return sanitized
-    .replace(/[【】《》)\]}>"'`:,;|\s]+$/u, "")
-    .replace(/\s{2,}/g, " ")
+    .replace(/[【】《》\s]+$/u, "")
     .trim();
 }
 

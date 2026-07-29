@@ -63,6 +63,28 @@ test("rejects model-control fragments and unrelated scripts without blocking int
   expect(inspectGeneratedContent({ example: "你好，欢迎。" }, "Beginner Mandarin Chinese")).toEqual([]);
 });
 
+test("preserves Markdown structure while sanitizing generated lesson content", () => {
+  const markdown = [
+    "## Compare expected and actual evidence",
+    "",
+    "Use these checks:",
+    "",
+    "1. Read the source rows.",
+    "2. Validate required fields.",
+    "",
+    "| Check | Expected |",
+    "| --- | --- |",
+    "| Rows read | Four |",
+    "",
+    "```python",
+    "print(f\"Rows read: {len(rows)}\")",
+    "```",
+  ].join("\n");
+
+  expect(sanitizeGeneratedText(markdown, "Python programming")).toBe(markdown);
+  expect(sanitizeGeneratedText(markdown.replace(/\n/g, "\r\n"), "Python programming")).toBe(markdown);
+});
+
 test("keeps interface copy free of encoding artifacts", async () => {
   const files = (await sourceFiles(join(process.cwd(), "src")))
     .filter((file) => [".ts", ".tsx", ".css"].includes(extname(file)));
