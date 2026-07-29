@@ -604,6 +604,8 @@ export async function GET(request: Request) {
           category: report.category === "outdated"
             || report.category === "source"
             || report.category === "clarity"
+            || report.category === "safety"
+            || report.category === "copyright"
             || report.category === "other"
             ? report.category
             : "accuracy",

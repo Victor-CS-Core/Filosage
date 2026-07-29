@@ -12,6 +12,7 @@ import { isLocalMode, LOCAL_OWNER_EMAIL, LOCAL_OWNER_UID } from "@/lib/local-mod
 import { localFirestoreJson } from "@/lib/local-store";
 import { lessonDataSchema } from "@/lib/validation";
 import { removeCourseReferences } from "@/lib/course-deletion";
+import type { PublicationLessonReview } from "@/lib/publication-review";
 
 export interface VerifiedFirebaseUser {
   uid: string;
@@ -795,6 +796,107 @@ export async function updateCourseVisibility(courseId: string, isPublic: boolean
     })),
   ];
   await commitWrites(writes);
+}
+
+export async function publishCourseWithReview(
+  courseId: string,
+  expectedLessonIds: string[],
+  review: {
+    reviewedAt: string;
+    outlineHash: string;
+    moderationModel: string;
+    reviewVersion: string;
+    factualReviewStatus: "unverified";
+    sourceUpdatedAt?: string;
+    reviews: PublicationLessonReview[];
+  },
+) {
+  const coursePath = `courses/${courseId}`;
+  const lessonPaths = expectedLessonIds.map((lessonId) => `courses/${courseId}/lessons/${lessonId}`);
+  const reviewByLessonId = new Map(review.reviews.map((item) => [item.lessonId, item]));
+  await runStoredDocumentTransaction([coursePath, ...lessonPaths], (documents) => {
+    const course = documents[coursePath];
+    if (!course) throw new Error("Course not found.");
+    if (review.sourceUpdatedAt && course.updatedAt !== review.sourceUpdatedAt) {
+      throw new Error("The course changed during publication review. Try publishing again.");
+    }
+    const now = new Date().toISOString();
+    const writes: Array<{ path: string; data: Record<string, unknown> }> = [];
+    for (const lessonId of expectedLessonIds) {
+      const path = `courses/${courseId}/lessons/${lessonId}`;
+      const lesson = documents[path];
+      const lessonReview = reviewByLessonId.get(lessonId);
+      if (!lesson || !lessonReview) throw new Error("A lesson is missing from publication review.");
+      if (lessonReview.sourceUpdatedAt && lesson.updatedAt !== lessonReview.sourceUpdatedAt) {
+        throw new Error("A lesson changed during publication review. Try publishing again.");
+      }
+      writes.push({
+        path,
+        data: {
+          ...lesson,
+          isPublic: true,
+          publicationReview: lessonReview,
+          factualReviewStatus: review.factualReviewStatus,
+          updatedAt: lesson.updatedAt ?? now,
+        },
+      });
+    }
+    writes.push({
+      path: coursePath,
+      data: {
+        ...course,
+        isPublic: true,
+        moderationStatus: "approved",
+        quarantineReason: null,
+        quarantinedAt: null,
+        publicationReview: {
+          status: "approved",
+          reviewedAt: review.reviewedAt,
+          outlineHash: review.outlineHash,
+          moderationModel: review.moderationModel,
+          reviewVersion: review.reviewVersion,
+          factualReviewStatus: review.factualReviewStatus,
+          lessonCount: review.reviews.length,
+        },
+        factualReviewStatus: review.factualReviewStatus,
+        publishedAt: now,
+        updatedAt: now,
+      },
+    });
+    return { writes, result: undefined };
+  });
+}
+
+export async function quarantineCourse(courseId: string, reason: string) {
+  const course = await getCourse(courseId);
+  if (!course) return false;
+  const lessons = await listLessons(courseId);
+  const now = new Date().toISOString();
+  await commitWrites([
+    {
+      update: {
+        name: fullDocumentName(`courses/${courseId}`),
+        fields: toFirestoreFields({
+          isPublic: false,
+          moderationStatus: "quarantined",
+          quarantineReason: reason.slice(0, 240),
+          quarantinedAt: now,
+          updatedAt: new Date(),
+        }),
+      },
+      updateMask: {
+        fieldPaths: ["isPublic", "moderationStatus", "quarantineReason", "quarantinedAt", "updatedAt"],
+      },
+    },
+    ...lessons.map((lesson) => ({
+      update: {
+        name: fullDocumentName(`courses/${courseId}/lessons/${lesson.id}`),
+        fields: toFirestoreFields({ isPublic: false }),
+      },
+      updateMask: { fieldPaths: ["isPublic"] },
+    })),
+  ]);
+  return true;
 }
 
 export async function getCoursePublishReadiness(

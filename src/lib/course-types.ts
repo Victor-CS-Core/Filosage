@@ -64,6 +64,15 @@ export interface Course {
   category?: string;
   banner?: CourseBanner;
   canRegenerateBanner?: boolean;
+  generatedLessonIds?: string[];
+  moderationStatus?: "approved" | "quarantined";
+  publicationReview?: {
+    status: "approved";
+    reviewedAt?: string;
+    moderationModel?: string;
+    reviewVersion?: string;
+    factualReviewStatus?: "unverified";
+  };
   updatedAt?: string;
   aiAssisted?: boolean;
   schemaVersion?: number;

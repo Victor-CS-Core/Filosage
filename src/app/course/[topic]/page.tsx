@@ -52,6 +52,7 @@ export default function CourseMap() {
   const [expandedModule, setExpandedModule] = useState<number | null>(0);
   const [updating, setUpdating] = useState(false);
   const [bannerBusy, setBannerBusy] = useState(false);
+  const [publishAttested, setPublishAttested] = useState(false);
   const [completedLessons, setCompletedLessons] = useState<string[]>([]);
   const [capstoneAssessment, setCapstoneAssessment] = useState<CapstoneAssessment | null>(null);
   const [capstoneSubmission, setCapstoneSubmission] = useState("");
@@ -189,6 +190,13 @@ export default function CourseMap() {
     return { lessonId, lesson, moduleTitle: course.modules[moduleIndex].title };
   }, [course, firstIncompleteLesson, totalLessons]);
   const courseComplete = totalLessons > 0 && validCompletedLessons.length === totalLessons;
+  const generatedLessonIds = useMemo(() => new Set(course?.generatedLessonIds ?? []), [course?.generatedLessonIds]);
+  const proAuthoringGateActive = Boolean(course?.canManage && !isOwner && !course.isPublic);
+  const canOpenLesson = useCallback((lessonId: string) =>
+    !proAuthoringGateActive
+    || generatedLessonIds.has(lessonId)
+    || lessonId === firstIncompleteLesson,
+  [firstIncompleteLesson, generatedLessonIds, proAuthoringGateActive]);
   const courseHours = Math.max(1, Math.round((course?.estimatedMinutes ?? totalLessons * 12) / 60));
   const misconceptionCount = useMemo(
     () => course?.modules.reduce((sum, module) => sum + module.lessons.filter((lesson) => lesson.misconception).length, 0) ?? 0,
@@ -196,7 +204,7 @@ export default function CourseMap() {
   );
 
   const updateVisibility = async () => {
-    if (!isOwner || !courseId || !course) return;
+    if (!course?.canManage || !courseId) return;
     setUpdating(true);
     setActionError(null);
     try {
@@ -204,11 +212,15 @@ export default function CourseMap() {
       const response = await fetch(`/api/courses/${courseId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ isPublic: !course.isPublic }),
+        body: JSON.stringify({
+          isPublic: !course.isPublic,
+          attested: !course.isPublic ? publishAttested : undefined,
+        }),
       });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || "Visibility could not be updated.");
       setCourse({ ...course, isPublic: data.isPublic });
+      setPublishAttested(false);
       window.dispatchEvent(new Event("erudoza:courses-changed"));
     } catch (updateError) {
       setActionError(updateError instanceof Error ? updateError.message : "Visibility could not be updated.");
@@ -426,13 +438,25 @@ export default function CourseMap() {
 
           {course.canManage && (
             <div className="course-owner-controls">
+              {!course.isPublic && (
+                <label className="publication-attestation">
+                  <input
+                    type="checkbox"
+                    checked={publishAttested}
+                    onChange={(event) => setPublishAttested(event.target.checked)}
+                  />
+                  <span>I reviewed every lesson and confirm this course is ready for public learners.</span>
+                </label>
+              )}
               <div className="course-owner-actions">
-                {isOwner && (
-                  <button className="button button-secondary" onClick={updateVisibility} disabled={updating || bannerBusy}>
+                <button
+                  className="button button-secondary"
+                  onClick={updateVisibility}
+                  disabled={updating || bannerBusy || (!course.isPublic && !publishAttested)}
+                >
                     {updating ? <LoaderCircle className="spin" size={16} /> : course.isPublic ? <LockKeyhole size={16} /> : <Globe2 size={16} />}
-                    {course.isPublic ? "Return to private" : "Publish course"}
-                  </button>
-                )}
+                    {updating && !course.isPublic ? "Reviewing for publication…" : course.isPublic ? "Unpublish course" : "Review and publish"}
+                </button>
                 {course.canRegenerateBanner && (
                   <button className="button button-secondary" onClick={() => void regenerateBanner()} disabled={updating || bannerBusy}>
                     {bannerBusy ? <LoaderCircle className="spin" size={16} /> : <RefreshCw size={16} />}
@@ -447,7 +471,10 @@ export default function CourseMap() {
                 </button>
               </div>
               {course.canRegenerateBanner && <p className="owner-action-hint">One curated banner replacement is available for this course. It replaces the current image automatically.</p>}
-              {!course.isPublic && isOwner && <p className="owner-action-hint">Generate every lesson before publishing. Open each lesson once to create its full content.</p>}
+              {!course.isPublic && <p className="owner-action-hint">{isOwner
+                ? "Every lesson must be generated. Automated safety, language, and teaching-quality checks run again before publication."
+                : "Complete each lesson’s activities to unlock generation of the next lesson. Publication runs a fresh safety, language, and teaching-quality review."}</p>}
+              {course.isPublic && <p className="owner-action-hint">Published content passed automated safety and quality review. AI-generated factual claims are not independently verified.</p>}
               {actionError && <p className="form-error" role="alert"><Circle size={14} /> {actionError}</p>}
             </div>
           )}
@@ -496,12 +523,14 @@ export default function CourseMap() {
                       {module.lessons.map((lesson, lessonIndex) => {
                         const lessonId = `${moduleIndex}-${lessonIndex}`;
                         const complete = validCompletedLessons.includes(lessonId);
+                        const unlocked = canOpenLesson(lessonId);
                         return (
                           <button
-                            className="lesson-row"
+                            className={`lesson-row ${unlocked ? "" : "is-locked"}`}
                             key={lessonId}
-                            onClick={() => void openLesson(lessonId)}
-                            aria-label={`${user ? "Open" : "Create an account to open"} lesson ${moduleIndex + 1}.${lessonIndex + 1}: ${lesson.title}`}
+                            onClick={() => unlocked && void openLesson(lessonId)}
+                            disabled={!unlocked}
+                            aria-label={`${unlocked ? (user ? "Open" : "Create an account to open") : "Locked"} lesson ${moduleIndex + 1}.${lessonIndex + 1}: ${lesson.title}`}
                           >
                             <span className={`lesson-status ${complete ? "is-complete" : ""}`}>{complete ? <Check size={14} /> : <span>{moduleIndex + 1}.{lessonIndex + 1}</span>}</span>
                             <span>
@@ -510,7 +539,7 @@ export default function CourseMap() {
                               {lesson.lessonMode && <em>{lesson.lessonMode.replace("-", " ")}</em>}
                             </span>
                             <span className="lesson-duration">{lesson.estimatedMinutes ?? 12} min</span>
-                            {user ? <ArrowRight size={17} /> : <LockKeyhole size={16} />}
+                            {user && unlocked ? <ArrowRight size={17} /> : <LockKeyhole size={16} />}
                           </button>
                         );
                       })}
@@ -614,14 +643,16 @@ export default function CourseMap() {
                       {module.lessons.map((lesson, lessonIndex) => {
                         const lessonId = `${moduleIndex}-${lessonIndex}`;
                         const complete = validCompletedLessons.includes(lessonId);
+                        const unlocked = canOpenLesson(lessonId);
                         return (
-                          <button type="button" key={lessonId} onClick={() => {
+                          <button type="button" key={lessonId} disabled={!unlocked} className={unlocked ? "" : "is-locked"} onClick={() => {
+                            if (!unlocked) return;
                             outlineDrawer.closeDrawer();
                             void openLesson(lessonId);
                           }}>
                             <span className={`lesson-status ${complete ? "is-complete" : ""}`}>{complete ? <Check size={14} /> : <span>{moduleIndex + 1}.{lessonIndex + 1}</span>}</span>
                             <span><strong>{lesson.title}</strong><small>{lesson.objective ?? lesson.concept}</small></span>
-                            {user ? <ArrowRight size={16} /> : <LockKeyhole size={15} />}
+                            {user && unlocked ? <ArrowRight size={16} /> : <LockKeyhole size={15} />}
                           </button>
                         );
                       })}

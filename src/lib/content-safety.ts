@@ -8,6 +8,7 @@ import {
 } from "@/lib/firebase-server";
 
 export type SafetyStage = "input" | "output";
+export const MODERATION_MODEL = "omni-moderation-latest";
 
 export interface SafetyContext {
   uid: string;
@@ -164,7 +165,7 @@ export async function assertSafeContent(
   }
 
   const moderation = await client.moderations.create({
-    model: "omni-moderation-latest",
+    model: MODERATION_MODEL,
     input: input.slice(0, 100_000),
   });
   const flaggedResults = moderation.results.filter((result) => result.flagged);

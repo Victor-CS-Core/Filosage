@@ -144,6 +144,15 @@ export const progressUpdateSchema = z.object({
   estimatedMinutes: z.number().int().min(1).max(180).optional(),
   nextLessonId: z.string().regex(/^\d+-\d+$/).nullable().optional(),
   nextLessonTitle: z.string().trim().min(1).max(160).nullable().optional(),
+  activityEvidence: z.object({
+    quizResults: z.array(z.object({
+      quizIndex: z.number().int().min(0).max(20),
+      attempts: z.number().int().min(1).max(20),
+      firstAttemptCorrect: z.boolean(),
+      confidence: z.enum(["low", "medium", "high"]),
+    }).strict()).max(20),
+    transferResponse: z.string().trim().max(8_000).optional(),
+  }).strict().optional(),
 }).superRefine((value, context) => {
   if (value.firstAttemptCorrect > value.totalQuestions) {
     context.addIssue({ code: "custom", path: ["firstAttemptCorrect"], message: "Correct answers cannot exceed the question count." });

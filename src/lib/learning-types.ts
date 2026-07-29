@@ -100,4 +100,13 @@ export interface ProgressUpdate {
   nextLessonId?: string | null;
   nextLessonTitle?: string | null;
   misconception?: string;
+  activityEvidence?: {
+    quizResults: Array<{
+      quizIndex: number;
+      attempts: number;
+      firstAttemptCorrect: boolean;
+      confidence: Confidence;
+    }>;
+    transferResponse?: string;
+  };
 }

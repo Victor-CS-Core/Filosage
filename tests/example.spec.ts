@@ -37,6 +37,8 @@ import {
   languagePolicyForTopic,
   sanitizeGeneratedText,
 } from "../src/lib/content-language";
+import { lessonGenerationGate } from "../src/lib/authoring-gate";
+import { lessonQualityIssues } from "../src/lib/lesson-quality";
 
 async function sourceFiles(directory: string): Promise<string[]> {
   const entries = await readdir(directory, { withFileTypes: true });
@@ -50,6 +52,33 @@ async function sourceFiles(directory: string): Promise<string[]> {
 async function restoreLocalLearner(page: import("@playwright/test").Page) {
   await page.addInitScript(() => localStorage.setItem("erudoza-local-session", "1"));
 }
+
+test("unlocks generated lessons sequentially for Pro authors while owners remain unrestricted", () => {
+  const course = {
+    modules: [
+      { title: "One", lessons: [{ title: "First", concept: "A" }, { title: "Second", concept: "B" }] },
+      { title: "Two", lessons: [{ title: "Third", concept: "C" }] },
+    ],
+  };
+  expect(lessonGenerationGate(course, "0-0", [], false)).toEqual({ allowed: true });
+  expect(lessonGenerationGate(course, "0-1", [], false)).toEqual({ allowed: false, requiredLessonId: "0-0" });
+  expect(lessonGenerationGate(course, "1-0", ["0-0"], false)).toEqual({ allowed: false, requiredLessonId: "0-1" });
+  expect(lessonGenerationGate(course, "1-0", ["0-0", "0-1"], false)).toEqual({ allowed: true });
+  expect(lessonGenerationGate(course, "1-0", [], true)).toEqual({ allowed: true });
+});
+
+test("publication quality review rejects language contamination and shallow lessons", () => {
+  const issues = lessonQualityIssues({
+    content: "Too short. å®˜ç½‘",
+    quizzes: [],
+    learningObjective: "",
+    connection: "\u5b98\u7f51",
+    keyTakeaways: [],
+  }, "Python programming");
+  expect(issues).toContain("The explanation is too shallow.");
+  expect(issues.some((issue) => issue.includes("unexpected Han script"))).toBe(true);
+  expect(issues).toContain("At least two application-focused checks are required.");
+});
 
 test("rejects model-control fragments and unrelated scripts without blocking intended language courses", () => {
   const contaminated = "Demonstrates understanding through relevant answers. 】 【assistant to=course_outline 全球彩票 时时彩 官网群";

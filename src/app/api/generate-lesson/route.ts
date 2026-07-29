@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { aiClient } from "@/lib/local-ai";
 import { zodTextFormat } from "openai/helpers/zod";
 import { authorizationResponse, requirePremium } from "@/lib/auth-server";
-import { getCourse, getLesson, saveLesson } from "@/lib/firebase-server";
+import { getCourse, getLesson, getStoredDocument, saveLesson } from "@/lib/firebase-server";
 import {
   aiQuotaResponse,
   extractOpenAiUsage,
@@ -25,8 +25,9 @@ import { openAiSafetyIdentifier } from "@/lib/ai-usage";
 import { toLessonDto } from "@/lib/course-dto";
 import { curateLessonVisuals } from "@/lib/lesson-visuals";
 import { lessonVisualsEnabled } from "@/lib/feature-flags";
-import { hasBlockMarkdownSyntax, hasCollapsedMarkdownTable } from "@/lib/markdown";
-import { inspectGeneratedContent, languagePolicyInstruction } from "@/lib/content-language";
+import { languagePolicyInstruction } from "@/lib/content-language";
+import { lessonQualityIssues, LESSON_QUALITY_GATE_VERSION } from "@/lib/lesson-quality";
+import { lessonGenerationGate } from "@/lib/authoring-gate";
 
 const model = process.env.OPENAI_LESSON_MODEL || "gpt-5.6-luna";
 const fallbackModel = process.env.OPENAI_LESSON_FALLBACK_MODEL
@@ -34,7 +35,6 @@ const fallbackModel = process.env.OPENAI_LESSON_FALLBACK_MODEL
   || process.env.OPENAI_MODEL
   || "gpt-5.6-terra";
 const LESSON_PROMPT_VERSION = "2026-07-28-language-integrity";
-const LESSON_QUALITY_GATE_VERSION = "didactic-v4";
 const lessonVisualsAreEnabled = lessonVisualsEnabled();
 
 const lessonInstructions = `Act as a rigorous teacher and instructional designer. Create one lesson that advances a specific capability within a larger course.
@@ -54,41 +54,6 @@ ${lessonVisualsAreEnabled
 Create application-focused quizzes, not trivia. Each answer option needs feedback that explains why that specific choice is correct or incorrect. Vary the correct option positions. Return only the requested structured lesson.
 
 ${AI_SAFETY_POLICY}`;
-
-function lessonQualityIssues(lesson: LessonData | null, topic: string) {
-  if (!lesson) return ["No structured lesson was returned."];
-  const issues: string[] = [];
-  if (lesson.content.trim().length < 1_500) issues.push("The explanation is too shallow.");
-  if (!lesson.learningObjective?.trim()) issues.push("The observable learning objective is missing.");
-  if (!lesson.connection?.trim()) issues.push("The curricular connection is missing.");
-  if ((lesson.keyTakeaways?.length ?? 0) < 3) issues.push("At least three concrete takeaways are required.");
-  if ((lesson.guidedPractice?.steps.length ?? 0) < 2) issues.push("Guided practice needs at least two reasoning steps.");
-  if (lesson.guidedPractice?.steps.some(hasBlockMarkdownSyntax)) {
-    issues.push("Each guided-practice step must be one concise prose paragraph without block Markdown.");
-  }
-  const structuredPractice = [
-    lesson.guidedPractice?.prompt,
-    ...(lesson.guidedPractice?.steps ?? []),
-    lesson.guidedPractice?.modelAnswer,
-    lesson.transferTask?.prompt,
-    lesson.transferTask?.modelResponse,
-  ].filter((item): item is string => Boolean(item));
-  if (structuredPractice.some(hasCollapsedMarkdownTable)) {
-    issues.push("Markdown tables in practice fields need a line break before the table and between every row.");
-  }
-  if ((lesson.transferTask?.successCriteria.length ?? 0) < 2) issues.push("The transfer task needs measurable success criteria.");
-  if (/```(?:mermaid|dot|graphviz)\b|^\s*(?:flowchart|graph)\s+(?:TB|TD|BT|RL|LR)\b/im.test(lesson.content)) {
-    issues.push("Remove all diagram and graph syntax; teach the relationships in prose.");
-  }
-  if (lesson.quizzes.length < 2) issues.push("At least two application-focused checks are required.");
-  if (lesson.quizzes.some((quiz) => quiz.options.length !== 4 || quiz.optionFeedback?.length !== 4)) {
-    issues.push("Every quiz option needs corresponding feedback.");
-  }
-  issues.push(...inspectGeneratedContent(lesson, topic).map((issue) =>
-    `${issue.path} ${issue.reason}.`,
-  ));
-  return issues;
-}
 
 export async function POST(request: Request) {
   let reservation: AiReservation | null = null;
@@ -135,6 +100,24 @@ export async function POST(request: Request) {
     const nextLesson = currentPosition >= 0 && currentPosition < flattenedLessons.length - 1
       ? flattenedLessons[currentPosition + 1]
       : null;
+    if (!account.isOwner && currentPosition > 0) {
+      const progress = await getStoredDocument(`users/${account.uid}/courseProgress/${courseId}`);
+      const completedLessonIds = new Set(
+        Array.isArray(progress?.completedLessonIds) ? progress.completedLessonIds.map(String) : [],
+      );
+      const gate = lessonGenerationGate(course, lessonId, completedLessonIds, account.isOwner);
+      if (!gate.allowed) {
+        const prerequisite = flattenedLessons.find((lesson) => lesson.id === gate.requiredLessonId);
+        return NextResponse.json(
+          {
+            error: `Complete ${prerequisite?.title ?? "the previous lesson"} and its activities before generating this lesson.`,
+            code: "PREVIOUS_LESSON_INCOMPLETE",
+            requiredLessonId: gate.requiredLessonId,
+          },
+          { status: 409, headers: { "Cache-Control": "no-store" } },
+        );
+      }
+    }
     const instructionalContext = (course as Course & {
       instructionalContext?: { goal?: string; application?: string; background?: string };
     }).instructionalContext;

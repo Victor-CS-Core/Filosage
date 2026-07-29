@@ -17,7 +17,7 @@ export default function LessonIntegrityPanel({
   getAuthToken?: () => Promise<string | null>;
 }) {
   const [reporting, setReporting] = useState(false);
-  const [category, setCategory] = useState<"accuracy" | "outdated" | "source" | "clarity" | "other">("accuracy");
+  const [category, setCategory] = useState<"accuracy" | "outdated" | "source" | "clarity" | "safety" | "copyright" | "other">("accuracy");
   const [note, setNote] = useState("");
   const [busy, setBusy] = useState(false);
   const [sent, setSent] = useState(false);
@@ -89,6 +89,8 @@ export default function LessonIntegrityPanel({
             <option value="outdated">Outdated information</option>
             <option value="source">Missing or weak source</option>
             <option value="clarity">Unclear explanation</option>
+            <option value="safety">Unsafe or inappropriate content</option>
+            <option value="copyright">Copyright or ownership concern</option>
             <option value="other">Other issue</option>
           </select>
           <label htmlFor="content-report-note">What should be reviewed? <small>Optional</small></label>

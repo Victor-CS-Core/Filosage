@@ -442,6 +442,8 @@ button:disabled { cursor: not-allowed; opacity: 0.55; }
 .course-owner-actions { display: flex; gap: 8px; margin-top: 25px; }
 .course-owner-controls { margin-top: 22px; padding-top: 20px; border-top: 1px solid var(--line); }
 .course-owner-controls .course-owner-actions { margin-top: 0; }
+.publication-attestation { display: grid; grid-template-columns: 18px minmax(0, 1fr); align-items: start; gap: 10px; max-width: 68ch; margin-bottom: 14px; color: var(--ink-secondary); font-size: 0.78rem; line-height: 1.5; cursor: pointer; }
+.publication-attestation input { width: 17px; height: 17px; margin-top: 1px; accent-color: var(--brand-teal); }
 .owner-action-hint { margin-top: 9px; color: var(--ink-muted); font-size: 0.78rem; }
 .course-owner-controls .form-error { margin-top: 10px; }
 .curriculum { margin-top: 24px; border: 1px solid var(--line); border-radius: var(--radius-lg); background: var(--surface); padding: 34px 38px 14px; }
@@ -488,6 +490,8 @@ button:disabled { cursor: not-allowed; opacity: 0.55; }
 .lesson-row { width: 100%; min-height: 78px; display: grid; grid-template-columns: 36px minmax(0, 1fr) auto auto; gap: 16px; align-items: center; text-align: left; border: 0; border-top: 1px solid var(--line); background: transparent; padding: 13px 10px; cursor: pointer; transition: background var(--motion-state) var(--ease-out), transform var(--motion-feedback) var(--ease-out); }
 .lesson-row:hover { background: var(--surface-subtle); color: var(--accent-ink); }
 .lesson-row:active { transform: translateY(1px); }
+.lesson-row.is-locked, .course-outline-module > div > button.is-locked { cursor: not-allowed; opacity: 0.58; }
+.lesson-row.is-locked:hover, .course-outline-module > div > button.is-locked:hover { background: transparent; color: var(--ink); }
 .course-access-note { display: block; margin-top: 10px; color: var(--ink-muted); font-size: 0.68rem; line-height: 1.5; }
 .lesson-account-gate { max-width: 620px; margin-inline: auto; }
 .lesson-row > span:nth-child(2) { min-width: 0; display: flex; flex-direction: column; }

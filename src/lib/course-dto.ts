@@ -68,6 +68,31 @@ export function toCourseDto(value: Record<string, unknown> | Course, canManage =
     canRegenerateBanner: canManage
       ? Number(raw.bannerRegenerationCount ?? 0) < 1
       : undefined,
+    generatedLessonIds: canManage && Array.isArray(raw.generatedLessonIds)
+      ? raw.generatedLessonIds.map(String)
+      : undefined,
+    moderationStatus: canManage && (raw.moderationStatus === "approved" || raw.moderationStatus === "quarantined")
+      ? raw.moderationStatus
+      : undefined,
+    publicationReview: raw.publicationReview
+      && typeof raw.publicationReview === "object"
+      && (raw.publicationReview as Record<string, unknown>).status === "approved"
+      ? {
+          status: "approved",
+          reviewedAt: typeof (raw.publicationReview as Record<string, unknown>).reviewedAt === "string"
+            ? String((raw.publicationReview as Record<string, unknown>).reviewedAt)
+            : undefined,
+          moderationModel: typeof (raw.publicationReview as Record<string, unknown>).moderationModel === "string"
+            ? String((raw.publicationReview as Record<string, unknown>).moderationModel)
+            : undefined,
+          reviewVersion: typeof (raw.publicationReview as Record<string, unknown>).reviewVersion === "string"
+            ? String((raw.publicationReview as Record<string, unknown>).reviewVersion)
+            : undefined,
+          factualReviewStatus: (raw.publicationReview as Record<string, unknown>).factualReviewStatus === "unverified"
+            ? "unverified"
+            : undefined,
+        }
+      : undefined,
     updatedAt: typeof raw.updatedAt === "string" ? raw.updatedAt : undefined,
     schemaVersion: typeof raw.schemaVersion === "number" ? raw.schemaVersion : undefined,
     capstone: safe.capstone && typeof safe.capstone === "object"

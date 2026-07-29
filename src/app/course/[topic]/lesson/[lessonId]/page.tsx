@@ -289,7 +289,7 @@ export default function LessonView() {
   const complete = completionState.key === noteKey && completionState.complete;
   const transferResponse = transferState.key === noteKey ? transferState.response : "";
   const transferRevealed = transferState.key === noteKey && transferState.revealed;
-  const transferComplete = !lessonData?.transferTask || (transferRevealed && Boolean(transferResponse.trim()));
+  const transferComplete = !lessonData?.transferTask || (transferRevealed && transferResponse.trim().length >= 20);
   const lessonBookmarked = learnerState.lessonBookmarks.includes(noteKey);
   const activePracticeIndex = activePracticeState.key === noteKey ? activePracticeState.index : 0;
   const reviewScheduledAt = reviewScheduleState.key === noteKey ? reviewScheduleState.at : null;
@@ -532,12 +532,23 @@ export default function LessonView() {
       nextLessonId: nextLesson?.id ?? null,
       nextLessonTitle: nextLesson?.title ?? null,
       misconception: lesson.misconception,
+      activityEvidence: {
+        quizResults: Object.entries(quizResults).map(([quizIndex, result]) => ({
+          quizIndex: Number(quizIndex),
+          attempts: result.attempts,
+          firstAttemptCorrect: result.firstAttemptCorrect,
+          confidence: result.confidence,
+        })),
+        transferResponse: lessonData.transferTask ? transferResponse.trim() : undefined,
+      },
     };
 
     const localProgress = saveLocalProgress(update);
     setReviewScheduleState({ key: noteKey, at: localProgress.lessons[lessonId]?.nextReviewAt ?? null });
     setCalibrationState({ key: noteKey, value: localProgress.lessons[lessonId]?.calibration ?? null });
     setProgressSyncError(null);
+    const requiresCloudAuthorCompletion = Boolean(course?.canManage && !isOwner);
+    let cloudSaved = !user;
     if (user) {
       try {
         const token = await user.getIdToken();
@@ -551,12 +562,14 @@ export default function LessonView() {
           calibration?: ConfidenceCalibration;
         };
         if (!response.ok) throw new Error("Saved on this device. Cloud progress will retry when you complete another activity.");
+        cloudSaved = true;
         if (data.nextReviewAt) setReviewScheduleState({ key: noteKey, at: data.nextReviewAt });
         if (data.calibration) setCalibrationState({ key: noteKey, value: data.calibration });
       } catch (saveError) {
         setProgressSyncError(saveError instanceof Error ? saveError.message : "Saved on this device, but cloud sync is pending.");
       }
     }
+    if (requiresCloudAuthorCompletion && !cloudSaved) return;
     const observedAt = new Date().toISOString();
     const objectiveId = `module-${moduleIndex}`;
     const firstTryScore = lessonData.quizzes.length
@@ -666,7 +679,7 @@ export default function LessonView() {
         elapsedMs,
       });
     }
-  }, [addMasteryEvidence, allLessons.length, complete, courseId, isOwner, lesson, lessonData, lessonId, masteryPlan, moduleIndex, nextLesson, noteKey, quizResults, reviewKind, reviewMode, topic, transferComplete, user]);
+  }, [addMasteryEvidence, allLessons.length, complete, course?.canManage, courseId, isOwner, lesson, lessonData, lessonId, masteryPlan, moduleIndex, nextLesson, noteKey, quizResults, reviewKind, reviewMode, topic, transferComplete, transferResponse, user]);
 
   const onMastered = (index: number, result: QuizResult) => {
     setQuizResultState((current) => ({ key: noteKey, results: { ...(current.key === noteKey ? current.results : {}), [index]: result } }));
@@ -951,11 +964,14 @@ export default function LessonView() {
                   <button
                     className="button button-secondary button-small"
                     type="button"
-                    disabled={!transferResponse.trim()}
+                    disabled={transferResponse.trim().length < 20}
                     onClick={() => setTransferState((current) => ({ ...current, key: noteKey, revealed: true }))}
                   >
                     Compare response
                   </button>
+                  {transferResponse.trim().length > 0 && transferResponse.trim().length < 20 && (
+                    <small>Write at least 20 characters so the response shows a meaningful attempt.</small>
+                  )}
                   {transferRevealed && (
                     <div className="transfer-model" aria-live="polite">
                       <strong>Model response</strong>

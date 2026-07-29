@@ -191,7 +191,7 @@ export interface AdminOverview {
     lessonId: string;
     topic: string;
     lessonTitle?: string;
-    category: "accuracy" | "outdated" | "source" | "clarity" | "other";
+    category: "accuracy" | "outdated" | "source" | "clarity" | "safety" | "copyright" | "other";
     note?: string;
     contentVersion?: string;
     status: "open" | "resolved" | "dismissed";

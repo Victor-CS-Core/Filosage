@@ -443,10 +443,11 @@ export default function AdminPage() {
                     </div>
                     {report.status === "open" ? (
                       <span>
+                        <button className="button button-quiet button-small" disabled={actionBusy} onClick={() => router.push(`/course/${encodeURIComponent(report.topic)}?id=${encodeURIComponent(report.courseId)}`)}>Open course</button>
                         <button className="button button-secondary button-small" disabled={actionBusy} onClick={() => void reviewContentReport(report.id, "dismissed")}>Dismiss</button>
                         <button className="button button-primary button-small" disabled={actionBusy} onClick={() => void reviewContentReport(report.id, "resolved")}>Resolve</button>
                       </span>
-                    ) : <em className={`admin-status status-${report.status}`}>{report.status}</em>}
+                    ) : <span><button className="button button-quiet button-small" onClick={() => router.push(`/course/${encodeURIComponent(report.topic)}?id=${encodeURIComponent(report.courseId)}`)}>Open course</button><em className={`admin-status status-${report.status}`}>{report.status}</em></span>}
                   </article>
                 )) : <p>No learner content reports have been submitted.</p>}
               </div>

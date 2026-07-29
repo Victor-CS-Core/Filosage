@@ -2,6 +2,7 @@ import { authorizationResponse, requireAcceptedAccount, requireAccount } from "@
 import {
   deleteStoredDocuments,
   getCourse,
+  getLesson,
   getStoredDocument,
   listStoredDocuments,
   runStoredDocumentTransaction,
@@ -117,20 +118,57 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   try {
     const account = await requireAcceptedAccount(request);
-    const parsed = progressUpdateSchema.safeParse(await readJsonBody(request, 8_192));
+    const parsed = progressUpdateSchema.safeParse(await readJsonBody(request, 16_384));
     if (!parsed.success) {
       return Response.json({ error: validationMessage(parsed.error) }, { status: 400 });
     }
 
-    const update = parsed.data;
-    const course = await getCourse(update.courseId) as Course | null;
+    const submitted = parsed.data;
+    const course = await getCourse(submitted.courseId) as Course | null;
     if (!course) return Response.json({ error: "Course not found." }, { status: 404 });
     if (!course.isPublic && course.authorId !== account.uid && !account.isOwner) {
       return Response.json({ error: "You do not have access to this course." }, { status: 403 });
     }
 
-    const canonical = findCourseLesson(course, update.lessonId);
+    const canonical = findCourseLesson(course, submitted.lessonId);
     if (!canonical) return Response.json({ error: "This lesson is not part of the course." }, { status: 400 });
+    const lesson = await getLesson(submitted.courseId, submitted.lessonId);
+    if (!lesson) return Response.json({ error: "Generate or open the lesson before completing it." }, { status: 409 });
+
+    const quizzes = Array.isArray(lesson.quizzes) ? lesson.quizzes : [];
+    const evidence = submitted.activityEvidence;
+    const quizEvidence = evidence?.quizResults ?? [];
+    const evidenceIndexes = new Set(quizEvidence.map((result) => result.quizIndex));
+    const evidenceIsComplete = evidenceIndexes.size === quizzes.length
+      && quizEvidence.length === quizzes.length
+      && quizEvidence.every((result) => result.quizIndex < quizzes.length);
+    const transferTaskRequired = Boolean(
+      lesson.transferTask
+      && typeof lesson.transferTask === "object"
+      && !Array.isArray(lesson.transferTask),
+    );
+    const transferResponse = evidence?.transferResponse?.trim() ?? "";
+    if (!submitted.review && (!evidence || !evidenceIsComplete || (transferTaskRequired && transferResponse.length < 20))) {
+      return Response.json(
+        { error: "Complete every retrieval check and provide a meaningful transfer response before finishing the lesson." },
+        { status: 409, headers: { "Cache-Control": "no-store" } },
+      );
+    }
+
+    const totalQuestions = quizEvidence.length;
+    const firstAttemptCorrect = quizEvidence.filter((result) => result.firstAttemptCorrect).length;
+    const attempts = quizEvidence.reduce((sum, result) => sum + result.attempts, 0);
+    const confidences = quizEvidence.map((result) => result.confidence);
+    const confidence = confidences.includes("low") ? "low"
+      : confidences.includes("medium") ? "medium"
+        : submitted.confidence;
+    const update = {
+      ...submitted,
+      totalQuestions,
+      firstAttemptCorrect,
+      attempts,
+      confidence,
+    };
 
     const path = `users/${account.uid}/courseProgress/${update.courseId}`;
     const now = new Date();
