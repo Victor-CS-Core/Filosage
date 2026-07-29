@@ -10,9 +10,9 @@ import {
 } from "@/lib/firestore-values";
 import { isLocalMode, LOCAL_OWNER_EMAIL, LOCAL_OWNER_UID } from "@/lib/local-mode";
 import { localFirestoreJson } from "@/lib/local-store";
-import { lessonDataSchema } from "@/lib/validation";
 import { removeCourseReferences } from "@/lib/course-deletion";
 import type { PublicationLessonReview } from "@/lib/publication-review";
+import { inspectCoursePublishReadiness } from "@/lib/publication-readiness";
 
 export interface VerifiedFirebaseUser {
   uid: string;
@@ -902,22 +902,10 @@ export async function quarantineCourse(courseId: string, reason: string) {
 export async function getCoursePublishReadiness(
   courseId: string,
   expectedLessonIds: string[],
+  topic: string,
 ) {
   const lessons = await listLessons(courseId);
-  const lessonsById = new Map(lessons.map((lesson) => [String(lesson.id ?? ""), lesson]));
-  const missingLessonIds = expectedLessonIds.filter((lessonId) => !lessonsById.has(lessonId));
-  const invalidLessonIds = expectedLessonIds.filter((lessonId) => {
-    const lesson = lessonsById.get(lessonId);
-    return lesson ? !lessonDataSchema.safeParse(lesson).success : false;
-  });
-  const readyCount = expectedLessonIds.length - missingLessonIds.length - invalidLessonIds.length;
-  return {
-    ready: missingLessonIds.length === 0 && invalidLessonIds.length === 0,
-    readyCount,
-    totalCount: expectedLessonIds.length,
-    missingLessonIds,
-    invalidLessonIds,
-  };
+  return inspectCoursePublishReadiness(lessons, expectedLessonIds, topic);
 }
 
 export async function deleteCourse(courseId: string) {

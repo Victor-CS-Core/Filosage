@@ -69,7 +69,7 @@ export async function POST(request: Request) {
       );
     }
 
-    const { courseId, lessonId } = parsed.data;
+    const { courseId, lessonId, regenerate } = parsed.data;
     const course = await getCourse(courseId) as Course | null;
     if (!course) {
       return NextResponse.json({ error: "Course not found." }, { status: 404 });
@@ -82,7 +82,13 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "This lesson is not part of the course." }, { status: 400 });
     }
     const saved = await getLesson(courseId, lessonId);
-    if (saved) return NextResponse.json(toLessonDto(saved, course.aiAssisted === true, course.topic));
+    if (saved && !regenerate) return NextResponse.json(toLessonDto(saved, course.aiAssisted === true, course.topic));
+    if (saved && course.isPublic) {
+      return NextResponse.json(
+        { error: "Unpublish this course before regenerating a lesson." },
+        { status: 409, headers: { "Cache-Control": "no-store" } },
+      );
+    }
     const topic = course.topic;
     const lessonTitle = canonical.lesson.title;
     const lessonConcept = canonical.lesson.concept;

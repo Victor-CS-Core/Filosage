@@ -446,6 +446,16 @@ button:disabled { cursor: not-allowed; opacity: 0.55; }
 .publication-attestation input { width: 17px; height: 17px; margin-top: 1px; accent-color: var(--brand-teal); }
 .owner-action-hint { margin-top: 9px; color: var(--ink-muted); font-size: 0.78rem; }
 .course-owner-controls .form-error { margin-top: 10px; }
+.publication-failures { max-width: 760px; margin-top: 18px; padding: 17px 0 0; border-top: 1px solid var(--line); }
+.publication-failures > div { display: flex; gap: 10px; align-items: flex-start; }
+.publication-failures > div > svg { flex: 0 0 auto; margin-top: 2px; color: var(--warning); }
+.publication-failures h2 { font-size: 0.88rem; }
+.publication-failures p { max-width: 68ch; margin-top: 4px; color: var(--ink-secondary); font-size: 0.78rem; line-height: 1.55; }
+.publication-failures > ul { display: grid; gap: 10px; margin: 14px 0 0; padding: 0; list-style: none; }
+.publication-failures > ul > li { display: flex; align-items: center; justify-content: space-between; gap: 18px; border: 1px solid var(--line); border-radius: var(--radius-md); background: var(--surface-subtle); padding: 13px 14px; }
+.publication-failures strong { font-size: 0.78rem; }
+.publication-failures ul ul { margin: 5px 0 0; padding-left: 18px; color: var(--ink-secondary); font-size: 0.71rem; line-height: 1.45; }
+.publication-failures .button { flex: 0 0 auto; }
 .curriculum { margin-top: 24px; border: 1px solid var(--line); border-radius: var(--radius-lg); background: var(--surface); padding: 34px 38px 14px; }
 .curriculum > .section-heading, .module-list { max-width: none; }
 .curriculum .section-heading h2 { margin-top: 6px; font-size: 1.65rem; }

@@ -4,7 +4,8 @@ import type OpenAI from "openai";
 import type { Course, LessonData } from "@/lib/course-types";
 import { assertSafeContent, MODERATION_MODEL } from "@/lib/content-safety";
 import { inspectGeneratedContent } from "@/lib/content-language";
-import { lessonQualityIssues, LESSON_QUALITY_GATE_VERSION } from "@/lib/lesson-quality";
+import { LESSON_QUALITY_GATE_VERSION } from "@/lib/lesson-quality";
+import { inspectCoursePublishReadiness, type PublicationLessonFailure } from "@/lib/publication-readiness";
 import { courseOutlineSchema, lessonDataSchema } from "@/lib/validation";
 
 export const PUBLICATION_REVIEW_VERSION = "publication-v1";
@@ -27,6 +28,7 @@ export class PublicationReviewError extends Error {
   constructor(
     message: string,
     public readonly invalidLessonIds: string[] = [],
+    public readonly invalidLessons: PublicationLessonFailure[] = [],
   ) {
     super(message);
     this.name = "PublicationReviewError";
@@ -66,28 +68,23 @@ export async function reviewCourseForPublication(
     throw new PublicationReviewError("The course outline contains language or generation artifacts that must be corrected.");
   }
 
-  const lessonsById = new Map(lessons.map((lesson) => [String(lesson.id ?? ""), lesson]));
-  const missingLessonIds = expectedLessonIds.filter((lessonId) => !lessonsById.has(lessonId));
-  if (missingLessonIds.length) {
-    throw new PublicationReviewError("Generate every lesson before publishing.", missingLessonIds);
+  const readiness = inspectCoursePublishReadiness(lessons, expectedLessonIds, course.topic);
+  if (readiness.missingLessonIds.length) {
+    throw new PublicationReviewError("Generate every lesson before publishing.", readiness.missingLessonIds);
   }
-
-  const invalidLessonIds: string[] = [];
+  if (readiness.invalidLessonIds.length) {
+    throw new PublicationReviewError(
+      "One or more lessons must be regenerated to meet the current teaching and language standard.",
+      readiness.invalidLessonIds,
+      readiness.invalidLessons,
+    );
+  }
+  const lessonsById = new Map(lessons.map((lesson) => [String(lesson.id ?? ""), lesson]));
   const parsedLessons = expectedLessonIds.flatMap((lessonId) => {
     const raw = lessonsById.get(lessonId);
     const parsed = lessonDataSchema.safeParse(raw);
-    if (!raw || !parsed.success || lessonQualityIssues(parsed.success ? parsed.data : null, course.topic).length) {
-      invalidLessonIds.push(lessonId);
-      return [];
-    }
-    return [{ lessonId, raw, lesson: parsed.data as LessonData }];
+    return raw && parsed.success ? [{ lessonId, raw, lesson: parsed.data as LessonData }] : [];
   });
-  if (invalidLessonIds.length) {
-    throw new PublicationReviewError(
-      "One or more lessons must be regenerated to meet the current teaching and language standard.",
-      invalidLessonIds,
-    );
-  }
 
   await assertSafeContent(client, JSON.stringify(parsedOutline.data), {
     uid: reviewer.uid,

@@ -80,6 +80,52 @@ test("publication quality review rejects language contamination and shallow less
   expect(issues).toContain("At least two application-focused checks are required.");
 });
 
+test("shows failed lesson titles, reasons, and a regeneration action after publication review", async ({ page }) => {
+  await restoreLocalLearner(page);
+  const course = {
+    id: "publication-review-course",
+    courseId: "publication-review-course",
+    topic: "Python programming",
+    mission: "Write small Python programs with confidence.",
+    level: "Foundations",
+    isPublic: false,
+    canManage: true,
+    generatedLessonIds: ["0-0"],
+    modules: [{
+      title: "Foundations",
+      description: "Build the core model.",
+      lessons: [{ title: "Trace a Python expression", concept: "Follow each evaluation step." }],
+    }],
+  };
+  await page.route("**/api/courses/publication-review-course", (route) => {
+    if (route.request().method() === "PATCH") {
+      return route.fulfill({
+        status: 409,
+        json: {
+          error: "One or more lessons must be regenerated to meet the current teaching and language standard.",
+          invalidLessons: [{
+            lessonId: "0-0",
+            issues: ["Each guided-practice step must be one concise prose paragraph without block Markdown."],
+          }],
+        },
+      });
+    }
+    return route.fulfill({ json: course });
+  });
+  await page.route("**/api/progress?courseId=publication-review-course", (route) => route.fulfill({ json: { progress: null } }));
+  await page.route("**/api/generate-lesson", (route) => route.fulfill({ json: { content: "Replacement lesson" } }));
+
+  await page.goto("/course/Python%20programming?id=publication-review-course");
+  await page.getByLabel("I reviewed every lesson and confirm this course is ready for public learners.").check();
+  await page.getByRole("button", { name: "Review and publish" }).click();
+  await expect(page.getByRole("heading", { name: "Publication review needs attention" })).toBeVisible();
+  const reviewPanel = page.getByLabel("Publication review needs attention");
+  await expect(reviewPanel.getByText("Trace a Python expression")).toBeVisible();
+  await expect(reviewPanel.getByText("Each guided-practice step must be one concise prose paragraph without block Markdown.")).toBeVisible();
+  await reviewPanel.getByRole("button", { name: "Regenerate lesson" }).click();
+  await expect(reviewPanel.getByRole("button", { name: "Regenerate lesson" })).toHaveCount(0);
+});
+
 test("rejects model-control fragments and unrelated scripts without blocking intended language courses", () => {
   const contaminated = "Demonstrates understanding through relevant answers. 】 【assistant to=course_outline 全球彩票 时时彩 官网群";
   const spanishIssues = inspectGeneratedContent({ successCriteria: [contaminated] }, "Spanish travel conversation");

@@ -111,6 +111,7 @@ export type GeneratedLessonData = z.infer<typeof lessonGenerationSchema>;
 export const generateLessonInputSchema = z.object({
   courseId: z.string().trim().min(1).max(200),
   lessonId: z.string().regex(/^\d+-\d+$/),
+  regenerate: z.boolean().optional().default(false),
 });
 
 export const tutorInputSchema = z.object({

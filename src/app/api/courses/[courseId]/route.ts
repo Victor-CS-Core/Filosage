@@ -95,6 +95,7 @@ export async function PATCH(request: Request, { params }: RouteParams) {
       const readiness = await getCoursePublishReadiness(
         courseId,
         lessonIds,
+        course.topic ?? "",
       );
       if (!readiness.ready) {
         const qualityMessage = readiness.invalidLessonIds.length > 0
@@ -137,7 +138,12 @@ export async function PATCH(request: Request, { params }: RouteParams) {
     if (authResponse) return authResponse;
     if (error instanceof PublicationReviewError) {
       return NextResponse.json(
-        { error: error.message, code: "PUBLICATION_REVIEW_FAILED", invalidLessonIds: error.invalidLessonIds },
+        {
+          error: error.message,
+          code: "PUBLICATION_REVIEW_FAILED",
+          invalidLessonIds: error.invalidLessonIds,
+          invalidLessons: error.invalidLessons,
+        },
         { status: 409, headers: { "Cache-Control": "no-store" } },
       );
     }

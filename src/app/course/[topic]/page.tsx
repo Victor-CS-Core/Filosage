@@ -34,6 +34,7 @@ import { useMasteryJourney } from "@/components/useMasteryJourney";
 import { useAuth } from "@/components/AuthProvider";
 import type { Course } from "@/lib/course-types";
 import type { CapstoneAssessment, CourseProgress } from "@/lib/learning-types";
+import type { PublicationLessonFailure } from "@/lib/publication-readiness";
 import { clearLocalCourseData } from "@/lib/local-course-data";
 import { createClientId } from "@/lib/browser-compat";
 import { trackProductEvent } from "@/lib/product-analytics";
@@ -55,6 +56,8 @@ export default function CourseMap() {
   const [updating, setUpdating] = useState(false);
   const [bannerBusy, setBannerBusy] = useState(false);
   const [publishAttested, setPublishAttested] = useState(false);
+  const [publicationFailures, setPublicationFailures] = useState<PublicationLessonFailure[]>([]);
+  const [regeneratingLessonId, setRegeneratingLessonId] = useState<string | null>(null);
   const [completedLessons, setCompletedLessons] = useState<string[]>([]);
   const [capstoneAssessment, setCapstoneAssessment] = useState<CapstoneAssessment | null>(null);
   const [capstoneSubmission, setCapstoneSubmission] = useState("");
@@ -130,6 +133,8 @@ export default function CourseMap() {
       setUpdating(false);
       setBannerBusy(false);
       setPublishAttested(false);
+      setPublicationFailures([]);
+      setRegeneratingLessonId(null);
       setCompletedLessons([]);
       setCapstoneAssessment(null);
       setCapstoneSubmission("");
@@ -240,6 +245,7 @@ export default function CourseMap() {
     const isCurrentView = () => activeCourseViewRef.current === operationViewKey;
     setUpdating(true);
     setActionError(null);
+    setPublicationFailures([]);
     try {
       const token = await getToken();
       const response = await fetch(`/api/courses/${operationCourseId}`, {
@@ -252,7 +258,17 @@ export default function CourseMap() {
       });
       const data = await response.json();
       if (!isCurrentView()) return;
-      if (!response.ok) throw new Error(data.error || "Visibility could not be updated.");
+      if (!response.ok) {
+        if (Array.isArray(data.invalidLessons)) {
+          setPublicationFailures(data.invalidLessons.filter((item: unknown): item is PublicationLessonFailure =>
+            Boolean(item)
+            && typeof item === "object"
+            && typeof (item as PublicationLessonFailure).lessonId === "string"
+            && Array.isArray((item as PublicationLessonFailure).issues),
+          ));
+        }
+        throw new Error(data.error || "Visibility could not be updated.");
+      }
       setCourseRecord({ key: operationViewKey, value: { ...course, isPublic: data.isPublic } });
       setPublishAttested(false);
       window.dispatchEvent(new Event("erudoza:courses-changed"));
@@ -260,6 +276,35 @@ export default function CourseMap() {
       if (isCurrentView()) setActionError(updateError instanceof Error ? updateError.message : "Visibility could not be updated.");
     } finally {
       if (isCurrentView()) setUpdating(false);
+    }
+  };
+
+  const regenerateLesson = async (lessonId: string) => {
+    if (!user || !course?.canManage || !courseId || course.isPublic) return;
+    const operationViewKey = activeCourseViewRef.current;
+    const operationCourseId = courseId;
+    const isCurrentView = () => activeCourseViewRef.current === operationViewKey;
+    setRegeneratingLessonId(lessonId);
+    setActionError(null);
+    try {
+      const token = await getToken();
+      const response = await fetch("/api/generate-lesson", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+          "Idempotency-Key": createClientId(),
+        },
+        body: JSON.stringify({ courseId: operationCourseId, lessonId, regenerate: true }),
+      });
+      const data = await response.json() as { error?: string };
+      if (!isCurrentView()) return;
+      if (!response.ok) throw new Error(data.error || "The lesson could not be regenerated.");
+      setPublicationFailures((current) => current.filter((failure) => failure.lessonId !== lessonId));
+    } catch (regenerationError) {
+      if (isCurrentView()) setActionError(regenerationError instanceof Error ? regenerationError.message : "The lesson could not be regenerated.");
+    } finally {
+      if (isCurrentView()) setRegeneratingLessonId(null);
     }
   };
 
@@ -522,8 +567,42 @@ export default function CourseMap() {
               {!course.isPublic && <p className="owner-action-hint">{isOwner
                 ? "Every lesson must be generated. Automated safety, language, and teaching-quality checks run again before publication."
                 : "Complete each lesson’s activities to unlock generation of the next lesson. Publication runs a fresh safety, language, and teaching-quality review."}</p>}
-              {course.isPublic && <p className="owner-action-hint">Published content passed automated safety and quality review. AI-generated factual claims are not independently verified.</p>}
-              {actionError && <p className="form-error" role="alert"><Circle size={14} /> {actionError}</p>}
+               {course.isPublic && <p className="owner-action-hint">Published content passed automated safety and quality review. AI-generated factual claims are not independently verified.</p>}
+               {publicationFailures.length > 0 && (
+                 <section className="publication-failures" aria-labelledby="publication-failures-title">
+                   <div>
+                     <TriangleAlert size={18} aria-hidden="true" />
+                     <div>
+                       <h2 id="publication-failures-title">Publication review needs attention</h2>
+                       <p>Regenerate the listed lessons, then review and publish again. The current lesson stays available unless a replacement passes the teaching standard.</p>
+                     </div>
+                   </div>
+                   <ul>
+                     {publicationFailures.map((failure) => {
+                       const [moduleIndex, lessonIndex] = failure.lessonId.split("-").map(Number);
+                       const lesson = course.modules[moduleIndex]?.lessons[lessonIndex];
+                       const regenerating = regeneratingLessonId === failure.lessonId;
+                       return (
+                         <li key={failure.lessonId}>
+                           <div>
+                             <strong>{lesson?.title ?? `Lesson ${failure.lessonId}`}</strong>
+                             <ul>{failure.issues.map((issue) => <li key={issue}>{issue}</li>)}</ul>
+                           </div>
+                           <button
+                             className="button button-secondary"
+                             onClick={() => void regenerateLesson(failure.lessonId)}
+                             disabled={updating || bannerBusy || regeneratingLessonId !== null}
+                           >
+                             {regenerating ? <LoaderCircle className="spin" size={16} /> : <RefreshCw size={16} />}
+                             {regenerating ? "Regenerating…" : "Regenerate lesson"}
+                           </button>
+                         </li>
+                       );
+                     })}
+                   </ul>
+                 </section>
+               )}
+               {actionError && <p className="form-error" role="alert"><Circle size={14} /> {actionError}</p>}
             </div>
           )}
         </header>
