@@ -5,7 +5,7 @@ export const revalidate = 3600;
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const base = (process.env.NEXT_PUBLIC_SITE_URL ?? "https://erudoza.com").replace(/\/$/, "");
-  const staticRoutes: MetadataRoute.Sitemap = ["", "/library", "/standard", "/pricing", "/terms", "/privacy", "/acceptable-use", "/copyright"].map((path) => ({
+  const staticRoutes: MetadataRoute.Sitemap = ["", "/library", "/standard", "/pricing", "/support", "/terms", "/privacy", "/acceptable-use", "/copyright"].map((path) => ({
     url: `${base}${path}`,
     changeFrequency: path === "/library" ? "daily" : "monthly",
     priority: path === "" ? 1 : 0.5,

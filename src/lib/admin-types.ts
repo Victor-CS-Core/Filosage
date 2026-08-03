@@ -144,6 +144,26 @@ export interface AdminOverview {
     canceledSubscribers: number;
     failedWebhookEvents: number;
   };
+  launchReadiness: {
+    mode: "closed" | "open";
+    billingLockActive: boolean;
+    paymentProviderConfigured: boolean;
+    activityReceiptsConfigured: boolean;
+    operationsAlertsConfigured: boolean;
+    managedBackupsConfigured: boolean;
+    productionHealthMonitorConfigured: boolean;
+    supportChannelConfigured: boolean;
+    lifecycleMessagingConfigured: boolean;
+    openContentReports: number;
+    pricingIntent: {
+      total: number;
+      readyNow: number;
+      within30Days: number;
+      researching: number;
+      monthlyPreferred: number;
+      annualPreferred: number;
+    };
+  };
   trafficSeries: Array<{ date: string; views: number }>;
   topRoutes: Array<{ route: string; views: number }>;
   generationSeries: Array<{

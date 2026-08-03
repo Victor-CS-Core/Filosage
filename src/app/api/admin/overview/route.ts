@@ -12,6 +12,8 @@ import type {
 } from "@/lib/admin-types";
 import type { AiFeature } from "@/lib/ai-usage";
 import { aiBudgetLimitsUsd, type AiBudgetPool } from "@/lib/ai-usage";
+import { SUPPORT_CONTACT } from "@/lib/legal";
+import { billingConfiguration } from "@/lib/runtime-config";
 import {
   ACQUISITION_CHANNELS,
   type AcquisitionChannel,
@@ -108,6 +110,7 @@ export async function GET(request: Request) {
       contentReports,
       outcomeFeedback,
       stripeEvents,
+      pricingIntents,
     ] = await Promise.all([
       listCollectionDocumentsByRange("users", "updatedAt", "1970-01-01T00:00:00.000Z", nowIso, 300),
       listCollectionDocumentsByRange("userEngagement", "lastActivityAt", "1970-01-01T00:00:00.000Z", nowIso, 300),
@@ -130,6 +133,7 @@ export async function GET(request: Request) {
       listCollectionDocumentsByRange("contentReports", "createdAt", "1970-01-01T00:00:00.000Z", nowIso, 500),
       listCollectionDocumentsByRange("outcomeFeedback", "createdAt", fromIso, nowIso, 1_000),
       listCollectionDocumentsByRange("stripeEvents", "claimedAt", fromIso, nowIso, 1_000),
+      listCollectionDocumentsByRange("pricingIntents", "updatedAt", "1970-01-01T00:00:00.000Z", nowIso, 2_000),
     ]);
     if (ownerRecord && !rawUsers.some((record) => record.id === owner.uid || record.uid === owner.uid)) {
       rawUsers.unshift(ownerRecord);
@@ -428,6 +432,16 @@ export async function GET(request: Request) {
       typeof record.actorId === "string" ? [record.actorId] : []
     ))).size;
     const referredCourseStarts = referredEvents.filter((record) => record.event === "course_started").length;
+    const billing = billingConfiguration();
+    const openContentReportCount = contentReports.filter((report) => report.status !== "resolved" && report.status !== "dismissed").length;
+    const pricingIntent = {
+      total: pricingIntents.length,
+      readyNow: pricingIntents.filter((record) => record.readiness === "ready_now").length,
+      within30Days: pricingIntents.filter((record) => record.readiness === "within_30_days").length,
+      researching: pricingIntents.filter((record) => record.readiness === "researching").length,
+      monthlyPreferred: pricingIntents.filter((record) => record.interval === "monthly").length,
+      annualPreferred: pricingIntents.filter((record) => record.interval === "annual").length,
+    };
 
     const overview: AdminOverview = {
       generatedAt: new Date().toISOString(),
@@ -495,7 +509,7 @@ export async function GET(request: Request) {
           ? Math.round((improvedCapstones / comparableActors.length) * 1_000) / 10
           : 0,
         evidenceReportViews: productEvents.filter((record) => record.event === "evidence_report_viewed").length,
-        openContentReports: contentReports.filter((report) => report.status !== "resolved" && report.status !== "dismissed").length,
+        openContentReports: openContentReportCount,
         usefulnessResponses: outcomeFeedback.length,
         usefulnessPercent: outcomeFeedback.length
           ? Math.round((outcomeFeedback.filter((feedback) => feedback.useful === true).length / outcomeFeedback.length) * 1_000) / 10
@@ -534,6 +548,19 @@ export async function GET(request: Request) {
         pastDueSubscribers: rawUsers.filter((record) => record.subscriptionStatus === "past_due").length,
         canceledSubscribers: rawUsers.filter((record) => record.subscriptionStatus === "canceled").length,
         failedWebhookEvents: stripeEvents.filter((record) => record.status === "failed").length,
+      },
+      launchReadiness: {
+        mode: billing.configured ? "open" : "closed",
+        billingLockActive: !billing.enabled,
+        paymentProviderConfigured: billing.providerReady,
+        activityReceiptsConfigured: Boolean(process.env.ACTIVITY_RECEIPT_SECRET?.trim()),
+        operationsAlertsConfigured: Boolean(process.env.OPERATIONS_ALERT_WEBHOOK_URL?.trim()),
+        managedBackupsConfigured: Boolean(process.env.FIRESTORE_BACKUP_BUCKET?.trim()),
+        productionHealthMonitorConfigured: Boolean(process.env.PRODUCTION_HEALTH_URL?.trim()),
+        supportChannelConfigured: Boolean(SUPPORT_CONTACT.trim()),
+        lifecycleMessagingConfigured: false,
+        openContentReports: openContentReportCount,
+        pricingIntent,
       },
       trafficSeries: dates.map((date) => ({ date, views: trafficByDate.get(date) ?? 0 })),
       topRoutes: Array.from(routeTotals, ([route, views]) => ({ route, views }))

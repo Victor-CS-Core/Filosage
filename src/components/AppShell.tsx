@@ -102,6 +102,7 @@ export default function AppShell({ children, activeTopic, activeCourseId }: AppS
   const isPublicRoute = pathname === "/"
     || pathname === "/library"
     || pathname === "/pricing"
+    || pathname === "/support"
     || pathname === "/privacy-center"
     || pathname === "/copyright"
     || pathname.startsWith("/course/")
@@ -142,7 +143,7 @@ export default function AppShell({ children, activeTopic, activeCourseId }: AppS
         <main className="public-main" id="main-content" tabIndex={-1}>{children}</main>
         <footer className="public-footer">
           <span>© {new Date().getFullYear()} Erudoza</span>
-          <nav aria-label="Support and legal"><Link href="/standard">Teaching standard</Link><a href={`mailto:${SUPPORT_CONTACT}`}>Support</a><Link href="/privacy-center">Privacy choices</Link><Link href="/terms">Terms</Link><Link href="/privacy">Privacy</Link><Link href="/acceptable-use">Acceptable use</Link><Link href="/copyright">Copyright</Link></nav>
+          <nav aria-label="Support and legal"><Link href="/standard">Teaching standard</Link><Link href="/support">Support</Link><Link href="/privacy-center">Privacy choices</Link><Link href="/terms">Terms</Link><Link href="/privacy">Privacy</Link><Link href="/acceptable-use">Acceptable use</Link><Link href="/copyright">Copyright</Link></nav>
         </footer>
         {showAuth && <AuthModal onClose={() => setShowAuth(false)} />}
       </div>

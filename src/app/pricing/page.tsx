@@ -34,6 +34,11 @@ export default function PricingPage() {
   const [billingReady, setBillingReady] = useState(false);
   const [billingBusy, setBillingBusy] = useState(false);
   const [billingError, setBillingError] = useState<string | null>(null);
+  const [intentReadiness, setIntentReadiness] = useState<"ready_now" | "within_30_days" | "researching">("within_30_days");
+  const [launchEmailConsent, setLaunchEmailConsent] = useState(false);
+  const [intentSaving, setIntentSaving] = useState(false);
+  const [intentSaved, setIntentSaved] = useState(false);
+  const [intentError, setIntentError] = useState<string | null>(null);
 
   useEffect(() => {
     void fetch("/api/billing/status")
@@ -41,6 +46,26 @@ export default function PricingPage() {
       .then((status: { ready?: boolean }) => setBillingReady(status.ready === true))
       .catch(() => setBillingReady(false));
   }, []);
+
+  useEffect(() => {
+    if (!user || isPro || account?.legalAcceptanceRequired) return;
+    let active = true;
+    void user.getIdToken()
+      .then((token) => fetch("/api/pricing-intent", {
+        headers: { Authorization: `Bearer ${token}` },
+        cache: "no-store",
+      }))
+      .then((response) => response.ok ? response.json() : Promise.reject(new Error()))
+      .then((body: { intent?: { interval?: "monthly" | "annual"; readiness?: "ready_now" | "within_30_days" | "researching"; launchEmailConsent?: boolean } | null }) => {
+        if (!active || !body.intent) return;
+        if (body.intent.interval) setInterval(body.intent.interval);
+        if (body.intent.readiness) setIntentReadiness(body.intent.readiness);
+        setLaunchEmailConsent(body.intent.launchEmailConsent === true);
+        setIntentSaved(true);
+      })
+      .catch(() => undefined);
+    return () => { active = false; };
+  }, [account?.legalAcceptanceRequired, isPro, user]);
 
   const openBilling = async (kind: "checkout" | "portal") => {
     setBillingBusy(true);
@@ -87,6 +112,31 @@ export default function PricingPage() {
     }
   };
 
+  const savePricingIntent = async (event: React.FormEvent) => {
+    event.preventDefault();
+    if (!user) return;
+    setIntentSaving(true);
+    setIntentError(null);
+    try {
+      const token = await user.getIdToken();
+      const response = await fetch("/api/pricing-intent", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ interval, readiness: intentReadiness, launchEmailConsent }),
+      });
+      const body = await response.json().catch(() => ({})) as { error?: string };
+      if (!response.ok) throw new Error(body.error ?? "Your launch preference could not be saved.");
+      setIntentSaved(true);
+    } catch (error) {
+      setIntentError(error instanceof Error ? error.message : "Your launch preference could not be saved.");
+    } finally {
+      setIntentSaving(false);
+    }
+  };
+
   return (
     <AppShell>
       <div className="pricing-page">
@@ -124,13 +174,31 @@ export default function PricingPage() {
                 {billingBusy ? <LoaderCircle className="spin" size={16} /> : <CreditCard size={16} />}
                 {billingBusy ? "Opening secure checkout…" : `Choose Pro ${interval === "annual" ? "annual" : "monthly"}`}
               </button>
+            ) : user ? (
+              <form className="pricing-intent-form" onSubmit={savePricingIntent}>
+                <fieldset>
+                  <legend>When would you consider Pro?</legend>
+                  <label aria-label="I would consider Pro when it opens"><input type="radio" name="readiness" value="ready_now" checked={intentReadiness === "ready_now"} onChange={() => setIntentReadiness("ready_now")} /><span><strong>When it opens</strong><small>I would seriously consider subscribing.</small></span></label>
+                  <label aria-label="I would consider Pro within 30 days"><input type="radio" name="readiness" value="within_30_days" checked={intentReadiness === "within_30_days"} onChange={() => setIntentReadiness("within_30_days")} /><span><strong>Within 30 days</strong><small>I need a little time or more proof.</small></span></label>
+                  <label aria-label="I am just researching Pro"><input type="radio" name="readiness" value="researching" checked={intentReadiness === "researching"} onChange={() => setIntentReadiness("researching")} /><span><strong>Just researching</strong><small>I am comparing the offer for now.</small></span></label>
+                </fieldset>
+                <label className="waitlist-consent">
+                  <input type="checkbox" checked={launchEmailConsent} onChange={(event) => setLaunchEmailConsent(event.target.checked)} />
+                  <span>Also email me when Pro opens. I can unsubscribe at any time.</span>
+                </label>
+                <button className="button button-primary" type="submit" disabled={intentSaving}>
+                  {intentSaving ? <LoaderCircle className="spin" size={16} /> : <Check size={16} />} {intentSaving ? "Saving..." : intentSaved ? "Update my preference" : "Save my preference"}
+                </button>
+                {intentSaved && !intentError && <p className="pricing-intent-success" role="status">Preference saved. This is research only; no subscription was created.</p>}
+                {intentError && <p className="waitlist-error" role="alert">{intentError}</p>}
+              </form>
             ) : joined ? (
               <div className="waitlist-success" role="status"><Check size={17} /><span><strong>You are on the launch list.</strong><small>We will email you when Pro checkout is ready.</small></span></div>
             ) : (
               <form className="waitlist-form" onSubmit={joinWaitlist}>
                 <label>
                   <span>Email address</span>
-                  <input type="email" autoComplete="email" value={email || user?.email || ""} onChange={(event) => setEmail(event.target.value)} required maxLength={254} placeholder="you@example.com" />
+                  <input type="email" autoComplete="email" value={email} onChange={(event) => setEmail(event.target.value)} required maxLength={254} placeholder="you@example.com" />
                 </label>
                 <label className="waitlist-consent">
                   <input type="checkbox" checked={consent} onChange={(event) => setConsent(event.target.checked)} required />

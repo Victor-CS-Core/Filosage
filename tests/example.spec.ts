@@ -41,6 +41,7 @@ import { lessonGenerationGate } from "../src/lib/authoring-gate";
 import { lessonQualityIssues } from "../src/lib/lesson-quality";
 import { PRIVACY_VERSION, TERMS_VERSION } from "../src/lib/legal";
 import { signActivityReceipt, validateActivityReceipt } from "../src/lib/activity-receipt-crypto";
+import { evaluateBillingConfiguration } from "../src/lib/billing-lock";
 
 async function sourceFiles(directory: string): Promise<string[]> {
   const entries = await readdir(directory, { withFileTypes: true });
@@ -64,6 +65,32 @@ async function restoreLocalLearner(page: import("@playwright/test").Page) {
   expect(acceptance.ok()).toBe(true);
   await page.addInitScript(() => localStorage.setItem("erudoza-local-session", "1"));
 }
+
+test("keeps checkout closed until the independent billing lock is enabled", () => {
+  const stripeObjects = {
+    BILLING_PROVIDER: "stripe",
+    STRIPE_SECRET_KEY: "sk_live_example",
+    STRIPE_WEBHOOK_SECRET: "whsec_example",
+    STRIPE_PRO_MONTHLY_PRICE_ID: "price_monthly",
+    STRIPE_PRO_ANNUAL_PRICE_ID: "price_annual",
+  };
+
+  expect(evaluateBillingConfiguration({ ...stripeObjects, BILLING_ENABLED: "false" })).toMatchObject({
+    providerReady: true,
+    enabled: false,
+    configured: false,
+  });
+  expect(evaluateBillingConfiguration({ ...stripeObjects, BILLING_ENABLED: "true" })).toMatchObject({
+    providerReady: true,
+    enabled: true,
+    configured: true,
+  });
+  expect(evaluateBillingConfiguration({
+    ...stripeObjects,
+    BILLING_ENABLED: "true",
+    STRIPE_PRO_ANNUAL_PRICE_ID: "",
+  })).toMatchObject({ providerReady: false, configured: false });
+});
 
 test("unlocks generated lessons sequentially for Pro authors while owners remain unrestricted", () => {
   const course = {
@@ -104,7 +131,8 @@ test("binds creator activity receipts to the exact user, course, lesson, and qui
     lessonId: claims.lessonId,
     quizIndex: claims.quizIndex,
   })).resolves.toBeNull();
-  await expect(validateActivityReceipt(secret, `${receipt.slice(0, -1)}x`, {
+  const tamperedReceipt = `${receipt.slice(0, -1)}${receipt.endsWith("x") ? "y" : "x"}`;
+  await expect(validateActivityReceipt(secret, tamperedReceipt, {
     uid: claims.uid,
     courseId: claims.courseId,
     lessonId: claims.lessonId,

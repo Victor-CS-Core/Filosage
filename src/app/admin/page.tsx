@@ -16,6 +16,7 @@ import {
   Gauge,
   Globe2,
   LoaderCircle,
+  LockKeyhole,
   RefreshCw,
   RotateCcw,
   Search,
@@ -28,7 +29,7 @@ import AppShell from "@/components/AppShell";
 import { useAuth } from "@/components/AuthProvider";
 import type { AdminOverview, AdminUserSummary } from "@/lib/admin-types";
 
-type AdminTab = "overview" | "research" | "users" | "ai" | "safety";
+type AdminTab = "overview" | "research" | "launch" | "users" | "ai" | "safety";
 
 const featureLabels = {
   course_outline: "Course outline",
@@ -63,6 +64,16 @@ function shortDate(value?: string, includeTime = false) {
   return new Intl.DateTimeFormat("en", includeTime
     ? { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }
     : { month: "short", day: "numeric", year: "numeric" }).format(new Date(value));
+}
+
+function ReadinessItem({ ready, label, detail }: { ready: boolean; label: string; detail: string }) {
+  return (
+    <article className={ready ? "is-ready" : "needs-work"}>
+      {ready ? <CheckCircle2 size={18} /> : <TriangleAlert size={18} />}
+      <span><strong>{label}</strong><small>{detail}</small></span>
+      <em>{ready ? "Ready" : "Action needed"}</em>
+    </article>
+  );
 }
 
 function SeriesBars({
@@ -223,7 +234,7 @@ export default function AdminPage() {
           <div>
             <span className="admin-eyebrow"><ShieldCheck size={15} /> Owner workspace</span>
             <h1>Control room</h1>
-            <p>Traffic, learning operations, AI capacity, and account safety in one private view.</p>
+            <p>Traffic, learning operations, commercial readiness, AI capacity, and account safety in one private view.</p>
           </div>
           <div className="admin-header-actions">
             <label>
@@ -244,6 +255,7 @@ export default function AdminPage() {
           {([
             ["overview", Activity, "Overview"],
             ["research", Target, "Research"],
+            ["launch", LockKeyhole, "Launch readiness"],
             ["users", Users, "Users"],
             ["ai", Bot, "AI operations"],
             ["safety", ShieldCheck, "Safety"],
@@ -453,6 +465,65 @@ export default function AdminPage() {
               </div>
               {actionMessage && <p className="admin-action-message" role="status">{actionMessage}</p>}
             </section>
+          </div>
+        )}
+
+        {data && tab === "launch" && (
+          <div className="admin-workspace admin-launch-layout">
+            <section className={`admin-launch-lock ${data.launchReadiness.billingLockActive ? "is-locked" : "is-open"}`}>
+              <span><LockKeyhole size={22} /></span>
+              <div>
+                <p className="overline">Commercial master lock</p>
+                <h2>{data.launchReadiness.mode === "closed" ? "Subscriptions are closed" : "Subscriptions are open"}</h2>
+                <p>{data.launchReadiness.billingLockActive
+                  ? "Phase 4B can collect evidence and prepare operations, but no checkout route can create a subscription while the billing lock remains off."
+                  : "The billing lock is on. Confirm every launch gate below before sending traffic to checkout."}</p>
+              </div>
+              <em>{data.launchReadiness.billingLockActive ? "Protected" : "Live commerce"}</em>
+            </section>
+
+            <div className="admin-launch-grid">
+              <section className="admin-panel admin-launch-panel">
+                <header><div><p className="overline">Demand evidence</p><h2>Account-bound pricing intent</h2></div><span>Deduplicated by verified account</span></header>
+                <div className="admin-launch-metrics">
+                  <div><span>Total responses</span><strong>{data.launchReadiness.pricingIntent.total}</strong><small>Free accounts with a saved preference</small></div>
+                  <div><span>Ready at launch</span><strong>{data.launchReadiness.pricingIntent.readyNow}</strong><small>Strongest stated purchase intent</small></div>
+                  <div><span>Within 30 days</span><strong>{data.launchReadiness.pricingIntent.within30Days}</strong><small>Interested but not immediate</small></div>
+                  <div><span>Annual preference</span><strong>{data.launchReadiness.pricingIntent.annualPreferred}</strong><small>{data.launchReadiness.pricingIntent.monthlyPreferred} prefer monthly</small></div>
+                </div>
+                <p className="admin-launch-note">These are stated preferences, not revenue. Treat them as directional until real checkout conversion, refunds, and churn can be measured.</p>
+              </section>
+
+              <section className="admin-panel admin-launch-panel">
+                <header><div><p className="overline">Infrastructure</p><h2>Production operations</h2></div><span>Secret values are never shown</span></header>
+                <div className="admin-readiness-list">
+                  <ReadinessItem ready={data.launchReadiness.activityReceiptsConfigured} label="Signed activity receipts" detail="Creator progression is bound to verified lesson activity." />
+                  <ReadinessItem ready={data.launchReadiness.productionHealthMonitorConfigured} label="Production health target" detail="A deployment health URL is configured for release checks." />
+                  <ReadinessItem ready={data.launchReadiness.operationsAlertsConfigured} label="Operational alerts" detail="Critical health and billing failures need an external alert destination." />
+                  <ReadinessItem ready={data.launchReadiness.managedBackupsConfigured} label="Managed Firestore backups" detail="A backup bucket is required before paid customer data is accepted." />
+                </div>
+              </section>
+
+              <section className="admin-panel admin-launch-panel">
+                <header><div><p className="overline">Commerce lifecycle</p><h2>Payments and recovery</h2></div><span>{data.launchReadiness.billingLockActive ? "Checkout disabled" : "Checkout enabled"}</span></header>
+                <div className="admin-readiness-list">
+                  <ReadinessItem ready={data.launchReadiness.billingLockActive} label="Closed-launch billing lock" detail="Payment routes remain unavailable during preparation." />
+                  <ReadinessItem ready={data.launchReadiness.paymentProviderConfigured} label="Stripe production objects" detail="Keys, webhook secret, and both plan price IDs must be present." />
+                  <ReadinessItem ready={data.paidLaunch.failedWebhookEvents === 0} label="Webhook processing" detail={`${data.paidLaunch.failedWebhookEvents} failed event${data.paidLaunch.failedWebhookEvents === 1 ? "" : "s"} in this reporting window.`} />
+                  <ReadinessItem ready={data.launchReadiness.lifecycleMessagingConfigured} label="Lifecycle messaging" detail="Receipts, renewal notices, payment recovery, and suppression handling still need a delivery provider." />
+                </div>
+              </section>
+
+              <section className="admin-panel admin-launch-panel">
+                <header><div><p className="overline">Customer protection</p><h2>Support and content response</h2></div><span>Human review remains required</span></header>
+                <div className="admin-readiness-list">
+                  <ReadinessItem ready={data.launchReadiness.supportChannelConfigured} label="Support channel" detail="Account, billing, privacy, and course issues have a published contact path." />
+                  <ReadinessItem ready={data.launchReadiness.openContentReports === 0} label="Content report queue" detail={`${data.launchReadiness.openContentReports} open report${data.launchReadiness.openContentReports === 1 ? "" : "s"} require owner review.`} />
+                  <ReadinessItem ready={data.paidLaunch.pastDueSubscribers === 0} label="Past-due accounts" detail={`${data.paidLaunch.pastDueSubscribers} account${data.paidLaunch.pastDueSubscribers === 1 ? "" : "s"} currently require recovery handling.`} />
+                </div>
+                <div className="admin-launch-actions"><button className="button button-secondary" onClick={() => router.push("/support")}>Open support center</button><button className="button button-quiet" onClick={() => setTab("safety")}>Review safety activity</button></div>
+              </section>
+            </div>
           </div>
         )}
 
