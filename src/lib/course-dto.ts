@@ -5,6 +5,7 @@ import { curateLessonVisuals } from "@/lib/lesson-visuals";
 import { lessonVisualsEnabled } from "@/lib/feature-flags";
 import { normalizeStructuredMarkdown } from "@/lib/markdown";
 import { inspectGeneratedContent, sanitizeGeneratedValue } from "@/lib/content-language";
+import { isSafePublicSourceUrl } from "@/lib/source-safety";
 
 function structuredText(value: unknown) {
   return typeof value === "string" ? normalizeStructuredMarkdown(value) : "";
@@ -52,6 +53,33 @@ export function toCourseDto(value: Record<string, unknown> | Course, canManage =
     outcome: typeof safe.outcome === "string" ? safe.outcome : undefined,
     prerequisites: Array.isArray(safe.prerequisites) ? safe.prerequisites.filter((item): item is string => typeof item === "string") : undefined,
     category: typeof safe.category === "string" ? safe.category : undefined,
+    audience: typeof safe.audience === "string" ? safe.audience : undefined,
+    artifact: safe.artifact && typeof safe.artifact === "object"
+      ? safe.artifact as Course["artifact"]
+      : undefined,
+    scenario: safe.scenario && typeof safe.scenario === "object"
+      ? safe.scenario as Course["scenario"]
+      : undefined,
+    sourcePack: Array.isArray(safe.sourcePack)
+      ? safe.sourcePack.flatMap((item) => {
+          if (!item || typeof item !== "object") return [];
+          const source = item as Record<string, unknown>;
+          if (typeof source.id !== "string" || typeof source.label !== "string") return [];
+          const kind = ["primary", "official", "licensed", "author-provided"].includes(String(source.kind))
+            ? source.kind as NonNullable<Course["sourcePack"]>[number]["kind"]
+            : "author-provided";
+          const rights = ["link-only", "public-domain", "licensed", "author-owned"].includes(String(source.rights))
+            ? source.rights as NonNullable<Course["sourcePack"]>[number]["rights"]
+            : "link-only";
+          return [{
+            id: source.id,
+            label: source.label,
+            url: typeof source.url === "string" && isSafePublicSourceUrl(source.url) ? source.url : undefined,
+            kind,
+            rights,
+          }];
+        })
+      : undefined,
     banner: raw.banner
       && typeof raw.banner === "object"
       && typeof (raw.banner as Record<string, unknown>).assetId === "string"
@@ -119,6 +147,9 @@ export function toLessonDto(value: Record<string, unknown>, courseAiAssisted = f
     keyTakeaways: Array.isArray(value.keyTakeaways)
       ? value.keyTakeaways.filter((item): item is string => typeof item === "string")
       : undefined,
+    experience: value.experience && typeof value.experience === "object"
+      ? value.experience as LessonData["experience"]
+      : undefined,
     visuals: lessonVisualsEnabled() ? curateLessonVisuals(value.visuals) : [],
     guidedPractice: guidedPracticeDto(value.guidedPractice),
     transferTask: transferTaskDto(value.transferTask),
@@ -137,7 +168,7 @@ export function toLessonDto(value: Record<string, unknown>, courseAiAssisted = f
         if (typeof item.label !== "string") return [];
         return [{
           label: item.label,
-          url: typeof item.url === "string" && item.url.startsWith("https://") ? item.url : undefined,
+          url: typeof item.url === "string" && isSafePublicSourceUrl(item.url) ? item.url : undefined,
         }];
       }),
     },

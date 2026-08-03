@@ -149,9 +149,21 @@ export async function POST(request: Request) {
       && !Array.isArray(lesson.transferTask),
     );
     const transferResponse = evidence?.transferResponse?.trim() ?? "";
-    if (!submitted.review && (!evidence || !evidenceIsComplete || (transferTaskRequired && transferResponse.length < 20))) {
+    const expectedExperienceType = lesson.experience
+      && typeof lesson.experience === "object"
+      && !Array.isArray(lesson.experience)
+      && typeof (lesson.experience as Record<string, unknown>).type === "string"
+      ? String((lesson.experience as Record<string, unknown>).type)
+      : null;
+    const experienceEvidence = evidence?.experienceEvidence;
+    const experienceIsComplete = !expectedExperienceType || Boolean(
+      experienceEvidence?.completed
+      && experienceEvidence.type === expectedExperienceType
+      && experienceEvidence.response.trim().length >= 20,
+    );
+    if (!submitted.review && (!evidence || !evidenceIsComplete || !experienceIsComplete || (transferTaskRequired && transferResponse.length < 20))) {
       return Response.json(
-        { error: "Complete every retrieval check and provide a meaningful transfer response before finishing the lesson." },
+        { error: "Complete the active lesson response, every retrieval check, and the transfer task before finishing the lesson." },
         { status: 409, headers: { "Cache-Control": "no-store" } },
       );
     }
@@ -265,6 +277,7 @@ export async function POST(request: Request) {
         reviewHistory,
         estimatedMinutes: canonical.lesson.estimatedMinutes ?? update.estimatedMinutes ?? previousLesson?.estimatedMinutes,
         misconception: canonical.lesson.misconception ?? previousLesson?.misconception,
+        experienceEvidence: update.activityEvidence?.experienceEvidence ?? previousLesson?.experienceEvidence,
       };
       const progress: CourseProgress = {
         courseId: update.courseId,

@@ -208,7 +208,9 @@ export interface AdminOverview {
   contentReports: Array<{
     id: string;
     courseId: string;
-    lessonId: string;
+      lessonId?: string;
+      sourceId?: string;
+      sourceLabel?: string;
     topic: string;
     lessonTitle?: string;
     category: "accuracy" | "outdated" | "source" | "clarity" | "safety" | "copyright" | "other";

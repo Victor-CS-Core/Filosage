@@ -92,10 +92,16 @@ export async function PATCH(request: Request, { params }: RouteParams) {
         );
       }
       const lessonIds = expectedLessonIds(course as unknown as Course);
+      const expectedModesByLessonId = Object.fromEntries(
+        (course as unknown as Course).modules.flatMap((courseModule, moduleIndex) =>
+          courseModule.lessons.map((lesson, lessonIndex) => [`${moduleIndex}-${lessonIndex}`, lesson.lessonMode]),
+        ),
+      );
       const readiness = await getCoursePublishReadiness(
         courseId,
         lessonIds,
         course.topic ?? "",
+        expectedModesByLessonId,
       );
       if (!readiness.ready) {
         const qualityMessage = readiness.invalidLessonIds.length > 0

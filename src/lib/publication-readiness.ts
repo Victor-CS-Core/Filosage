@@ -1,3 +1,4 @@
+import type { LessonMode } from "@/lib/course-types";
 import { lessonQualityIssues } from "@/lib/lesson-quality";
 import { lessonDataSchema } from "@/lib/validation";
 
@@ -29,6 +30,7 @@ export function inspectCoursePublishReadiness(
   lessons: Array<Record<string, unknown>>,
   expectedLessonIds: string[],
   topic: string,
+  expectedModesByLessonId: Readonly<Record<string, LessonMode | undefined>> = {},
 ): CoursePublishReadiness {
   const lessonsById = new Map(lessons.map((lesson) => [String(lesson.id ?? ""), lesson]));
   const missingLessonIds = expectedLessonIds.filter((lessonId) => !lessonsById.has(lessonId));
@@ -36,7 +38,11 @@ export function inspectCoursePublishReadiness(
     const raw = lessonsById.get(lessonId);
     if (!raw) return [];
     const parsed = schemaIssues(raw);
-    const issues = parsed.lesson ? lessonQualityIssues(parsed.lesson, topic) : parsed.issues;
+    const schemaVersion = typeof raw.schemaVersion === "number" ? raw.schemaVersion : 1;
+    const expectedMode = schemaVersion >= 4 || Boolean(raw.experience)
+      ? expectedModesByLessonId[lessonId]
+      : undefined;
+    const issues = parsed.lesson ? lessonQualityIssues(parsed.lesson, topic, expectedMode) : parsed.issues;
     return issues.length ? [{ lessonId, issues }] : [];
   });
   const invalidLessonIds = invalidLessons.map((lesson) => lesson.lessonId);

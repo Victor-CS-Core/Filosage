@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { lessonVisualsSchema } from "@/lib/lesson-visuals";
+import { isSafePublicSourceUrl } from "@/lib/source-safety";
 
 export const topicSchema = z
   .string()
@@ -21,6 +22,20 @@ export const courseRequestSchema = z.object({
   weeklyMinutes: z.number().int().min(30).max(1_200).optional(),
   targetWeeks: z.number().int().min(2).max(12).optional().default(4),
   courseStyle: z.enum(["Balanced", "Concept-first", "Project-led"]).optional().default("Balanced"),
+  artifactPreference: z.string().trim().max(500, "Keep the artifact preference under 500 characters.").optional().default(""),
+  scenarioPreference: z.string().trim().max(500, "Keep the scenario under 500 characters.").optional().default(""),
+  sourcePack: z.array(z.object({
+    id: z.string().trim().regex(/^source-[a-z0-9-]{1,40}$/),
+    label: z.string().trim().min(2).max(120),
+    url: z.string().url().startsWith("https://").max(500)
+      .refine(isSafePublicSourceUrl, "Use a public HTTPS address without credentials, local hosts, or raw IP addresses.")
+      .optional(),
+    kind: z.enum(["primary", "official", "licensed", "author-provided"]),
+    rights: z.enum(["link-only", "public-domain", "licensed", "author-owned"]),
+    note: z.string().trim().max(800).optional(),
+  }).superRefine((source, context) => {
+    if (!source.url && !source.note) context.addIssue({ code: "custom", message: "Add a source URL or a short source note." });
+  })).max(5).optional().default([]),
 });
 
 export const courseOutlineSchema = z.object({
@@ -30,6 +45,17 @@ export const courseOutlineSchema = z.object({
   outcome: z.string().trim().min(1).max(500),
   prerequisites: z.array(z.string().trim().min(1).max(160)).max(6),
   category: z.string().trim().min(1).max(80),
+  audience: z.string().trim().min(1).max(240),
+  artifact: z.object({
+    title: z.string().trim().min(1).max(120),
+    description: z.string().trim().min(1).max(500),
+    format: z.string().trim().min(1).max(120),
+  }),
+  scenario: z.object({
+    title: z.string().trim().min(1).max(120),
+    context: z.string().trim().min(1).max(500),
+    stakes: z.string().trim().min(1).max(300),
+  }),
   modules: z
     .array(
       z.object({
@@ -40,6 +66,11 @@ export const courseOutlineSchema = z.object({
           title: z.string().trim().min(1).max(120),
           prompt: z.string().trim().min(1).max(600),
           successCriteria: z.array(z.string().trim().min(1).max(220)).min(2).max(4),
+        }),
+        milestone: z.object({
+          title: z.string().trim().min(1).max(120),
+          deliverable: z.string().trim().min(1).max(300),
+          evidence: z.string().trim().min(1).max(300),
         }),
         lessons: z
           .array(
@@ -53,6 +84,8 @@ export const courseOutlineSchema = z.object({
               misconception: z.string().trim().min(1).max(300),
               practiceType: z.enum(["explain", "classify", "calculate", "decide", "create", "debug"]),
               masteryCriteria: z.string().trim().min(1).max(300),
+              activityPreview: z.string().trim().min(1).max(300),
+              artifactContribution: z.string().trim().min(1).max(300),
             }),
           )
           .min(2)
@@ -98,12 +131,61 @@ const lessonWithoutVisualsSchema = z.object({
     .max(3),
 });
 
+const lessonExperienceSchema = z.discriminatedUnion("type", [
+  z.object({
+    type: z.literal("concept"),
+    predictionPrompt: z.string().trim().min(1).max(600),
+    mentalModel: z.object({
+      title: z.string().trim().min(1).max(160),
+      parts: z.array(z.object({ label: z.string().trim().min(1).max(120), role: z.string().trim().min(1).max(300) })).min(2).max(5),
+    }),
+    misconceptionCheck: z.object({ claim: z.string().trim().min(1).max(300), correction: z.string().trim().min(1).max(600) }),
+  }),
+  z.object({
+    type: z.literal("worked-example"),
+    scenario: z.string().trim().min(1).max(800),
+    steps: z.array(z.object({ title: z.string().trim().min(1).max(120), reasoning: z.string().trim().min(1).max(500), output: z.string().trim().min(1).max(500) })).min(3).max(6),
+    fadingPrompt: z.string().trim().min(1).max(800),
+  }),
+  z.object({
+    type: z.literal("comparison"),
+    options: z.tuple([z.string().trim().min(1).max(120), z.string().trim().min(1).max(120)]),
+    criteria: z.array(z.object({ criterion: z.string().trim().min(1).max(120), first: z.string().trim().min(1).max(300), second: z.string().trim().min(1).max(300) })).min(3).max(6),
+    boundaryCase: z.object({ prompt: z.string().trim().min(1).max(600), resolution: z.string().trim().min(1).max(600) }),
+  }),
+  z.object({
+    type: z.literal("case-study"),
+    brief: z.string().trim().min(1).max(800),
+    evidence: z.array(z.object({ label: z.string().trim().min(1).max(120), detail: z.string().trim().min(1).max(500) })).min(3).max(6),
+    interpretations: z.array(z.string().trim().min(1).max(400)).min(2).max(4),
+    decisionPrompt: z.string().trim().min(1).max(800),
+  }),
+  z.object({
+    type: z.literal("practice-lab"),
+    brief: z.string().trim().min(1).max(800),
+    materials: z.array(z.string().trim().min(1).max(300)).min(2).max(6),
+    tasks: z.array(z.string().trim().min(1).max(400)).min(3).max(7),
+    artifactPrompt: z.string().trim().min(1).max(800),
+    successCriteria: z.array(z.string().trim().min(1).max(240)).min(2).max(5),
+  }),
+  z.object({
+    type: z.literal("synthesis"),
+    challenge: z.string().trim().min(1).max(800),
+    connections: z.array(z.object({ concept: z.string().trim().min(1).max(120), contribution: z.string().trim().min(1).max(400) })).min(2).max(6),
+    capstoneContribution: z.string().trim().min(1).max(600),
+    reflectionPrompt: z.string().trim().min(1).max(600),
+  }),
+]);
+
 export const lessonDataSchema = lessonWithoutVisualsSchema.extend({
   visuals: lessonVisualsSchema.optional().default([]),
+  experience: lessonExperienceSchema.optional(),
 });
 
 export const lessonGenerationSchema = lessonWithoutVisualsSchema.extend({
   visuals: z.array(z.string().trim().min(2).max(6_000)).max(2).default([]),
+  experience: lessonExperienceSchema,
+  sourceReferences: z.array(z.string().trim().regex(/^source-[a-z0-9-]{1,40}$/)).max(5).default([]),
 });
 
 export type GeneratedLessonData = z.infer<typeof lessonGenerationSchema>;
@@ -154,6 +236,11 @@ export const progressUpdateSchema = z.object({
       receipt: z.string().min(40).max(2_000).optional(),
     }).strict()).max(20),
     transferResponse: z.string().trim().max(8_000).optional(),
+    experienceEvidence: z.object({
+      type: z.enum(["concept", "worked-example", "comparison", "case-study", "practice-lab", "synthesis"]),
+      response: z.string().trim().min(20).max(8_000),
+      completed: z.literal(true),
+    }).strict().optional(),
   }).strict().optional(),
 }).superRefine((value, context) => {
   if (value.firstAttemptCorrect > value.totalQuestions) {

@@ -13,11 +13,16 @@ import type { Course } from "@/lib/course-types";
 
 const reportSchema = z.object({
   courseId: z.string().trim().min(1).max(200),
-  lessonId: z.string().regex(/^\d+-\d+$/),
+  lessonId: z.string().regex(/^\d+-\d+$/).optional(),
+  sourceId: z.string().trim().regex(/^source-[a-z0-9-]{1,40}$/).optional(),
   category: z.enum(["accuracy", "outdated", "source", "clarity", "safety", "copyright", "other"]),
   note: z.string().trim().max(1_000).optional().default(""),
   contentVersion: z.string().trim().max(120).optional(),
-}).strict();
+}).strict().superRefine((value, context) => {
+  if (Boolean(value.lessonId) === Boolean(value.sourceId)) {
+    context.addIssue({ code: "custom", message: "Choose one lesson or source to report." });
+  }
+});
 
 function lessonTitle(course: Course, lessonId: string) {
   const [moduleIndex, lessonIndex] = lessonId.split("-").map(Number);
@@ -33,7 +38,7 @@ export async function POST(request: Request) {
     if (!parsed.success) {
       return Response.json({ error: parsed.error.issues[0]?.message ?? "Check the report and try again." }, { status: 400 });
     }
-    const { courseId, lessonId } = parsed.data;
+    const { courseId, lessonId, sourceId } = parsed.data;
     const course = await getCourse(courseId);
     if (!course) return Response.json({ error: "Course not found." }, { status: 404 });
     if (!course.isPublic) {
@@ -41,13 +46,17 @@ export async function POST(request: Request) {
         return Response.json({ error: "You do not have access to this lesson." }, { status: 403 });
       }
     }
-    const lesson = await getLesson(courseId, lessonId);
-    if (!lesson) return Response.json({ error: "Lesson not found." }, { status: 404 });
+    const lesson = lessonId ? await getLesson(courseId, lessonId) : null;
+    if (lessonId && !lesson) return Response.json({ error: "Lesson not found." }, { status: 404 });
+    const typedCourse = course as unknown as Course;
+    const source = sourceId ? (typedCourse.sourcePack ?? []).find((item) => item.id === sourceId) : null;
+    if (sourceId && !source) return Response.json({ error: "Source not found." }, { status: 404 });
 
     const existingReports = await listStoredDocumentsByField("contentReports", "courseId", courseId, 500);
     const duplicate = existingReports.some((report) =>
       report.reporterUid === account.uid
       && report.lessonId === lessonId
+      && report.sourceId === sourceId
       && report.category === parsed.data.category
       && report.status !== "dismissed",
     );
@@ -62,7 +71,9 @@ export async function POST(request: Request) {
       ...parsed.data,
       reporterUid: account.uid,
       topic: course.topic,
-      lessonTitle: lessonTitle(course as unknown as Course, lessonId),
+      lessonTitle: lessonId ? lessonTitle(typedCourse, lessonId) : undefined,
+      sourceLabel: source?.label,
+      sourceUrl: source?.url,
       status: "open",
       createdAt: new Date().toISOString(),
     });

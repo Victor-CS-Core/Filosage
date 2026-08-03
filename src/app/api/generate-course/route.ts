@@ -23,6 +23,8 @@ import { openAiSafetyIdentifier } from "@/lib/ai-usage";
 import { createOrReuseCourseBanner } from "@/lib/course-banners";
 import type { AiUsageSample } from "@/lib/ai-pricing";
 import { inspectGeneratedContent, languagePolicyInstruction } from "@/lib/content-language";
+import { courseQualityIssues, COURSE_QUALITY_GATE_VERSION } from "@/lib/course-quality";
+import { sourcePackPromptBlock } from "@/lib/source-safety";
 
 const model = process.env.OPENAI_COURSE_MODEL || process.env.OPENAI_MODEL || "gpt-5.6-terra";
 
@@ -33,7 +35,7 @@ export async function POST(request: Request) {
   let responseId: string | undefined;
   try {
     const account = await requirePremium(request);
-    const body = await readJsonBody(request, 8_192);
+    const body = await readJsonBody(request, 16_384);
     const parsedRequest = courseRequestSchema.safeParse(body);
     if (!parsedRequest.success) {
       return NextResponse.json(
@@ -42,7 +44,10 @@ export async function POST(request: Request) {
       );
     }
 
-    const { topic, goal, application, background, level, weeklyMinutes, targetWeeks, courseStyle } = parsedRequest.data;
+    const {
+      topic, goal, application, background, level, weeklyMinutes, targetWeeks, courseStyle,
+      artifactPreference, scenarioPreference, sourcePack,
+    } = parsedRequest.data;
     const studyBudget = (weeklyMinutes ?? 120) * targetWeeks;
     const approach = courseStyle === "Concept-first"
       ? "Prioritize precise conceptual foundations and connected explanations before applied practice."
@@ -70,7 +75,7 @@ export async function POST(request: Request) {
     }
     await assertSafeContent(
       client,
-      [topic, goal, application, background].filter(Boolean).join("\n"),
+      [topic, goal, application, background, artifactPreference, scenarioPreference, ...sourcePack.flatMap((source) => [source.label, source.note ?? "", source.url ?? ""])].filter(Boolean).join("\n"),
       { uid: account.uid, feature: "course_outline", stage: "input" },
     );
     const outlineInput = [
@@ -81,6 +86,9 @@ export async function POST(request: Request) {
         level ? `Requested starting level: ${level}` : "",
         `Target plan: ${targetWeeks} weeks at ${weeklyMinutes ?? 120} minutes per week, approximately ${studyBudget} minutes total. Keep the estimated course time close to this budget rather than padding the outline.`,
         `Teaching approach: ${courseStyle}. ${approach}`,
+        artifactPreference ? `Preferred real-world artifact: ${artifactPreference}` : "Choose one concrete professional artifact that can demonstrate the course outcome.",
+        scenarioPreference ? `Scenario spine: ${scenarioPreference}` : "Choose one realistic scenario that can develop across modules without inventing factual claims.",
+        sourcePackPromptBlock(sourcePack, "No source pack was provided. Do not invent citations or imply external verification."),
         "Use concept and worked-example lessons early, guided practice in the middle, and case, lab, or synthesis work when the learner has enough prerequisite knowledge.",
         "Module challenges and the capstone must be assessable from their success criteria. Adapt examples and practice to the learner's intended application.",
       ].filter(Boolean).join("\n");
@@ -88,7 +96,7 @@ export async function POST(request: Request) {
       model,
       store: false,
       instructions:
-        `Act as an instructional designer. Build a coherent course in which every lesson prepares the learner for a later capability, not a collection of standalone articles. Sequence prerequisite knowledge explicitly. Give every module one observable objective and an applied challenge. Give every lesson one observable objective, the lesson titles it builds on, a specific misconception to correct, a suitable teaching mode, an appropriate practice type, and a clear mastery criterion. Vary lesson modes intentionally so the course does not repeat one template. End with a capstone that directly demonstrates the course outcome. Include a realistic level, total learning time, prerequisites, category, and estimated time for every lesson. Keep lessons tightly scoped and free of filler. Use plain, specific instructional language without promotional claims, motivational slogans, vague abstractions, or repetitive phrasing. Use the term course, not learning path. Return the requested structured course only.\n\n${languagePolicyInstruction(topic)}\n\n${AI_SAFETY_POLICY}`,
+        `Act as an instructional designer. Build a guided apprenticeship, not a collection of standalone articles. Start with a concrete artifact and one realistic scenario spine. Every module must produce an inspectable milestone that advances that artifact, and every lesson must state the activity the learner will perform and its contribution to the artifact. Sequence prerequisite knowledge explicitly. Give every module one observable objective and an applied challenge. Give every lesson one observable objective, the lesson titles it builds on, a specific misconception to correct, a suitable teaching mode, an appropriate practice type, and a clear mastery criterion. Vary lesson modes intentionally so the course does not repeat one template. End with a capstone that directly demonstrates the course outcome. Include the intended audience, a realistic level, total learning time, prerequisites, category, and estimated time for every lesson. Richness must come from prediction, explanation, classification, comparison, decision, creation, critique, or defense, not longer prose. Keep lessons tightly scoped and free of filler. Use plain, specific instructional language without promotional claims, motivational slogans, vague abstractions, invented citations, or repetitive phrasing. Use the term course, not learning path. Return the requested structured course only.\n\n${languagePolicyInstruction(topic)}\n\n${AI_SAFETY_POLICY}`,
       input: repairIssues.length
         ? `${outlineInput}\n\nThe previous draft failed the content-integrity gate. Produce a clean replacement and correct every issue:\n- ${repairIssues.join("\n- ")}`
         : outlineInput,
@@ -104,13 +112,18 @@ export async function POST(request: Request) {
 
     let outline = response.output_parsed;
     let integrityIssues = outline ? inspectGeneratedContent(outline, topic) : [];
-    if (outline && integrityIssues.length) {
-      response = await generateOutline(integrityIssues.map((issue) => `${issue.path} ${issue.reason}`));
+    let outlineQualityIssues = outline ? courseQualityIssues(outline) : [];
+    if (outline && (integrityIssues.length || outlineQualityIssues.length)) {
+      response = await generateOutline([
+        ...integrityIssues.map((issue) => `${issue.path} ${issue.reason}`),
+        ...outlineQualityIssues,
+      ]);
       responseId = response.id;
       observedUsage = extractOpenAiUsage(response);
       outlineUsageSamples.push({ model, ...observedUsage, cacheWriteTokens: 0, responseId });
       outline = response.output_parsed;
       integrityIssues = outline ? inspectGeneratedContent(outline, topic) : [];
+      outlineQualityIssues = outline ? courseQualityIssues(outline) : [];
     }
     observedUsageSamples = outlineUsageSamples;
 
@@ -122,11 +135,11 @@ export async function POST(request: Request) {
         { status: 502 },
       );
     }
-    if (integrityIssues.length) {
+    if (integrityIssues.length || outlineQualityIssues.length) {
       await finalizeAiUsage(reservation, { usageSamples: outlineUsageSamples, responseId, failed: true });
       reservation = null;
       return NextResponse.json(
-        { error: "The course contained unexpected language or generation artifacts and was not saved. Please try again." },
+        { error: "The course did not meet Erudoza's sequencing and content-quality standard and was not saved. Please try again." },
         { status: 502 },
       );
     }
@@ -140,11 +153,15 @@ export async function POST(request: Request) {
       topic,
       ...outline,
       topicKey: topic.toLowerCase().replace(/\s+/g, " "),
-      schemaVersion: 2,
+      schemaVersion: 4,
+      courseQualityGateVersion: COURSE_QUALITY_GATE_VERSION,
+      sourcePack,
       instructionalContext: {
         goal,
         application,
         background,
+        artifactPreference,
+        scenarioPreference,
       },
       authorId: account.uid,
       authorName: account.displayName ?? (account.isOwner ? "Erudoza" : "Erudoza learner"),

@@ -449,7 +449,7 @@ export default function AdminPage() {
                   <article key={report.id}>
                     <span className="admin-list-icon"><Flag size={15} /></span>
                     <div>
-                      <strong>{report.topic} · {report.lessonTitle ?? report.lessonId}</strong>
+                      <strong>{report.topic} · {report.sourceLabel ? `Source: ${report.sourceLabel}` : report.lessonTitle ?? report.lessonId ?? "Course content"}</strong>
                       <small>{report.category.replaceAll("_", " ")} · {report.contentVersion ?? "unknown version"} · {shortDate(report.createdAt, true)}</small>
                       {report.note && <p>{report.note}</p>}
                     </div>

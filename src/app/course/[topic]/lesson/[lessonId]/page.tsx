@@ -42,6 +42,7 @@ import { calibrationMessage, reviewKindLabel } from "@/lib/adaptive-learning";
 import { useLearnerState } from "@/components/useLearnerState";
 import SpeakButton from "@/components/SpeakButton";
 import LessonVisualRenderer from "@/components/LessonVisual";
+import LessonExperience, { type LessonExperienceState } from "@/components/LessonExperience";
 import LessonIntegrityPanel from "@/components/LessonIntegrityPanel";
 import { useMasteryJourney } from "@/components/useMasteryJourney";
 import {
@@ -296,6 +297,7 @@ export default function LessonView() {
     response: "",
     revealed: false,
   });
+  const [experienceState, setExperienceState] = useState<{ key: string; value: LessonExperienceState | null }>({ key: "", value: null });
   const tutorDrawer = useAppDrawer("lesson-tutor");
   const studyToolsDrawer = useAppDrawer("lesson-study-tools");
   const closeTutorDrawer = tutorDrawer.closeDrawer;
@@ -327,6 +329,12 @@ export default function LessonView() {
   const transferResponse = transferState.key === noteKey ? transferState.response : "";
   const transferRevealed = transferState.key === noteKey && transferState.revealed;
   const transferComplete = !lessonData?.transferTask || (transferRevealed && transferResponse.trim().length >= 20);
+  const experienceValue = useMemo(() => lessonData?.experience
+    ? experienceState.key === noteKey && experienceState.value?.type === lessonData.experience.type
+      ? experienceState.value
+      : { type: lessonData.experience.type, response: "", completed: false }
+    : null, [experienceState, lessonData, noteKey]);
+  const experienceComplete = reviewMode || !lessonData?.experience || experienceValue?.completed === true;
   const lessonBookmarked = learnerState.lessonBookmarks.includes(noteKey);
   const activePracticeIndex = activePracticeState.key === noteKey ? activePracticeState.index : 0;
   const reviewScheduledAt = reviewScheduleState.key === noteKey ? reviewScheduleState.at : null;
@@ -335,6 +343,47 @@ export default function LessonView() {
   useEffect(() => {
     noteHydratedRef.current = false;
   }, [noteKey]);
+
+  useEffect(() => {
+    if (!lessonData?.experience) return;
+    let cancelled = false;
+    const expectedType = lessonData.experience.type;
+    deferClientTask(() => {
+      if (cancelled) return;
+      let saved: LessonExperienceState | null = null;
+      try {
+        const parsed = JSON.parse(localStorage.getItem(`erudoza-experience-draft:${noteKey}`) ?? "null") as Partial<LessonExperienceState> | null;
+        if (parsed?.type === expectedType && typeof parsed.response === "string") {
+          saved = { type: expectedType, response: parsed.response.slice(0, 8_000), completed: parsed.completed === true && parsed.response.trim().length >= 20 };
+        }
+      } catch {
+        localStorage.removeItem(`erudoza-experience-draft:${noteKey}`);
+      }
+      setExperienceState((current) => current.key === noteKey
+        ? current
+        : { key: noteKey, value: saved ?? { type: expectedType, response: "", completed: false } });
+    });
+    return () => { cancelled = true; };
+  }, [lessonData?.experience, noteKey]);
+
+  useEffect(() => {
+    if (!lessonData?.transferTask || transferState.key === noteKey) return;
+    deferClientTask(() => {
+      try {
+        const parsed = JSON.parse(localStorage.getItem(`erudoza-transfer-draft:${noteKey}`) ?? "null") as { response?: unknown; revealed?: unknown } | null;
+        const savedResponse = parsed?.response;
+        if (typeof savedResponse === "string") {
+          setTransferState((current) => current.key === noteKey ? current : {
+            key: noteKey,
+            response: savedResponse.slice(0, 8_000),
+            revealed: parsed?.revealed === true && savedResponse.trim().length >= 20,
+          });
+        }
+      } catch {
+        localStorage.removeItem(`erudoza-transfer-draft:${noteKey}`);
+      }
+    });
+  }, [lessonData?.transferTask, noteKey, transferState.key]);
 
   useEffect(() => {
     if (!learnerStateReady) return;
@@ -511,7 +560,11 @@ export default function LessonView() {
           const data = await response.json() as { progress: CourseProgress | null };
           if (!cancelled) {
             setCompletionState({ key: noteKey, complete: !reviewMode && Boolean(data.progress?.completedLessonIds.includes(lessonId)) });
-            setReviewScheduleState({ key: noteKey, at: data.progress?.lessons[lessonId]?.nextReviewAt ?? null });
+            const savedLesson = data.progress?.lessons[lessonId];
+            setReviewScheduleState({ key: noteKey, at: savedLesson?.nextReviewAt ?? null });
+            if (savedLesson?.experienceEvidence) {
+              setExperienceState({ key: noteKey, value: { ...savedLesson.experienceEvidence, completed: true } });
+            }
           }
           return;
         }
@@ -519,7 +572,11 @@ export default function LessonView() {
       const local = getLocalProgress(courseId, topic);
       if (!cancelled) {
         setCompletionState({ key: noteKey, complete: !reviewMode && Boolean(local?.completedLessonIds.includes(lessonId)) });
-        setReviewScheduleState({ key: noteKey, at: local?.lessons[lessonId]?.nextReviewAt ?? null });
+        const savedLesson = local?.lessons[lessonId];
+        setReviewScheduleState({ key: noteKey, at: savedLesson?.nextReviewAt ?? null });
+        if (savedLesson?.experienceEvidence) {
+          setExperienceState({ key: noteKey, value: { ...savedLesson.experienceEvidence, completed: true } });
+        }
       }
     };
     void loadProgress().catch(() => {
@@ -580,7 +637,7 @@ export default function LessonView() {
   }, [courseId, isOwner, lesson, lessonData, lessonId]);
 
   const markComplete = useCallback(async () => {
-    if (!courseId || complete || !lessonData || !lesson || !transferComplete) return;
+    if (!courseId || complete || !lessonData || !lesson || !transferComplete || !experienceComplete) return;
     const operationViewKey = activeLessonViewRef.current;
     const isCurrentView = () => activeLessonViewRef.current === operationViewKey;
     const results = Object.values(quizResults);
@@ -612,6 +669,9 @@ export default function LessonView() {
           receipt: result.receipt,
         })),
         transferResponse: lessonData.transferTask ? transferResponse.trim() : undefined,
+        experienceEvidence: !reviewMode && lessonData.experience && experienceValue?.completed
+          ? { type: lessonData.experience.type, response: experienceValue.response.trim(), completed: true }
+          : undefined,
       },
     };
 
@@ -648,6 +708,10 @@ export default function LessonView() {
       ? update.firstAttemptCorrect / lessonData.quizzes.length
       : 1;
     if (isCurrentView()) setCompletionState({ key: noteKey, complete: true });
+    if (cloudSaved) {
+      localStorage.removeItem(`erudoza-experience-draft:${noteKey}`);
+      localStorage.removeItem(`erudoza-transfer-draft:${noteKey}`);
+    }
     await addMasteryEvidence([
       ...(!reviewMode ? [{
         id: createClientId(),
@@ -751,7 +815,7 @@ export default function LessonView() {
         elapsedMs,
       });
     }
-  }, [addMasteryEvidence, allLessons.length, complete, course?.canManage, courseId, isOwner, lesson, lessonData, lessonId, masteryPlan, moduleIndex, nextLesson, noteKey, quizResults, reviewKind, reviewMode, topic, transferComplete, transferResponse, user]);
+  }, [addMasteryEvidence, allLessons.length, complete, course?.canManage, courseId, experienceComplete, experienceValue, isOwner, lesson, lessonData, lessonId, masteryPlan, moduleIndex, nextLesson, noteKey, quizResults, reviewKind, reviewMode, topic, transferComplete, transferResponse, user]);
 
   const onMastered = (index: number, result: QuizResult) => {
     setQuizResultState((current) => ({ key: noteKey, results: { ...(current.key === noteKey ? current.results : {}), [index]: result } }));
@@ -768,10 +832,10 @@ export default function LessonView() {
   useEffect(() => {
     if (!lessonData?.quizzes.length || complete) return;
     if (Object.keys(quizResults).length !== lessonData.quizzes.length) return;
-    if (!transferComplete) return;
+    if (!transferComplete || !experienceComplete) return;
     const timeout = window.setTimeout(() => { void markComplete(); }, 250);
     return () => window.clearTimeout(timeout);
-  }, [complete, lessonData, markComplete, quizResults, transferComplete]);
+  }, [complete, experienceComplete, lessonData, markComplete, quizResults, transferComplete]);
 
   const sendMessage = async (event: React.FormEvent) => {
     event.preventDefault();
@@ -826,6 +890,25 @@ export default function LessonView() {
       if (isCurrentView()) setChatting(false);
     }
   };
+
+  const updateExperienceEvidence = useCallback((value: LessonExperienceState) => {
+    setExperienceState({ key: noteKey, value });
+    try {
+      localStorage.setItem(`erudoza-experience-draft:${noteKey}`, JSON.stringify(value));
+    } catch {
+      // Storage can be unavailable in private browsing; the in-memory draft still works.
+    }
+  }, [noteKey]);
+
+  const updateTransferDraft = useCallback((response: string, revealed: boolean) => {
+    const value = { key: noteKey, response, revealed };
+    setTransferState(value);
+    try {
+      localStorage.setItem(`erudoza-transfer-draft:${noteKey}`, JSON.stringify({ response, revealed }));
+    } catch {
+      // Storage can be unavailable in private browsing; the in-memory draft still works.
+    }
+  }, [noteKey]);
 
   const verifyAuthorAnswer = useCallback(async (quizIndex: number, optionIndex: number) => {
     if (!courseId || !lessonData) throw new Error("This activity is not ready.");
@@ -1017,6 +1100,10 @@ export default function LessonView() {
 
               {lessonVisuals.filter((visual) => visual.placement === "after-purpose").map((visual) => <LessonVisualRenderer key={visual.id} visual={visual} />)}
 
+              {lessonData.experience && experienceValue && (
+                <LessonExperience experience={lessonData.experience} value={experienceValue} onChange={updateExperienceEvidence} />
+              )}
+
               <div className="markdown-content"><ReactMarkdown remarkPlugins={[remarkGfm]}>{normalizedContent}</ReactMarkdown></div>
 
               {lessonVisuals.filter((visual) => visual.placement === "after-explanation").map((visual) => <LessonVisualRenderer key={visual.id} visual={visual} />)}
@@ -1067,15 +1154,15 @@ export default function LessonView() {
                     id="transfer-response"
                     rows={5}
                     value={transferResponse}
-                    onChange={(event) => setTransferState({ key: noteKey, response: event.target.value, revealed: false })}
+                    onChange={(event) => updateTransferDraft(event.target.value, false)}
                     placeholder="Apply the idea in your own words."
                   />
-                  <small>This response stays on this page and is not sent to the tutor.</small>
+                  <small>This draft is saved on this device. On completion, it becomes part of your private learning evidence and is not sent to the tutor.</small>
                   <button
                     className="button button-secondary button-small"
                     type="button"
                     disabled={transferResponse.trim().length < 20}
-                    onClick={() => setTransferState((current) => ({ ...current, key: noteKey, revealed: true }))}
+                    onClick={() => updateTransferDraft(transferResponse.trim(), true)}
                   >
                     Compare response
                   </button>
@@ -1128,14 +1215,14 @@ export default function LessonView() {
                   <small>{complete ? (
                     progressSyncError
                     || `${user ? "Progress synced." : "Progress saved on this device."}${reviewScheduledAt ? ` Review scheduled for ${new Intl.DateTimeFormat("en", { weekday: "long", month: "short", day: "numeric" }).format(new Date(reviewScheduledAt))}.` : user ? " Your next review has been scheduled." : " Sign in to sync it."}`
-                  ) : lessonData.transferTask && !transferComplete ? "Complete the transfer task, then finish each retrieval check." : "Answer every prompt correctly and rate your confidence."}</small>
+                  ) : !experienceComplete ? "Complete and save the active lesson response before finishing the transfer and retrieval checks." : lessonData.transferTask && !transferComplete ? "Complete the transfer task, then finish each retrieval check." : "Answer every prompt correctly and rate your confidence."}</small>
                   {complete && confidenceCalibration && (
                     <em className={`calibration-note is-${confidenceCalibration}`}>
                       {calibrationMessage(confidenceCalibration)}
                     </em>
                   )}
                 </span>
-                {!complete && lessonData.quizzes.length === 0 && transferComplete && (
+                {!complete && lessonData.quizzes.length === 0 && transferComplete && experienceComplete && (
                   <button className="button button-secondary button-small" onClick={() => void markComplete()}>Mark learned</button>
                 )}
               </div>
@@ -1179,7 +1266,7 @@ export default function LessonView() {
                   <span>{noteDraft.length.toLocaleString()}/12,000 · <span role={learnerSyncStatus === "error" ? "alert" : "status"}>{learnerSyncStatus === "saving" ? "Saving…" : learnerSyncStatus === "error" ? learnerSyncError : learnerSyncStatus === "saved" ? "Saved" : user ? "Synced" : "On this device"}</span></span>
                 </section>
                 <section className="study-key-point"><span><Lightbulb size={17} /></span><div><strong>Core idea</strong><p>{lesson.concept}</p></div></section>
-                <section className="mastery-checklist"><strong>Lesson checklist</strong><ul><li className="is-done"><Check size={15} /> Read the explanation</li>{lessonData.transferTask && <li className={transferComplete ? "is-done" : ""}><Check size={15} /> Apply the idea</li>}<li className={complete ? "is-done" : ""}><Check size={15} /> Complete the retrieval checks</li></ul></section>
+                <section className="mastery-checklist"><strong>Lesson checklist</strong><ul><li className="is-done"><Check size={15} /> Read the explanation</li>{lessonData.experience && <li className={experienceComplete ? "is-done" : ""}><Check size={15} /> Save the active lesson evidence</li>}{lessonData.transferTask && <li className={transferComplete ? "is-done" : ""}><Check size={15} /> Apply the idea</li>}<li className={complete ? "is-done" : ""}><Check size={15} /> Complete the retrieval checks</li></ul></section>
               </aside>
             </AppDrawer>
           )}

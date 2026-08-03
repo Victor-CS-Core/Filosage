@@ -38,6 +38,7 @@ import type { PublicationLessonFailure } from "@/lib/publication-readiness";
 import { clearLocalCourseData } from "@/lib/local-course-data";
 import { createClientId } from "@/lib/browser-compat";
 import { trackProductEvent } from "@/lib/product-analytics";
+import { sourceHostname } from "@/lib/source-safety";
 
 export default function CourseMap() {
   const params = useParams<{ topic: string }>();
@@ -63,6 +64,11 @@ export default function CourseMap() {
   const [capstoneSubmission, setCapstoneSubmission] = useState("");
   const [capstoneBusy, setCapstoneBusy] = useState(false);
   const [capstoneError, setCapstoneError] = useState<string | null>(null);
+  const [reportingSourceId, setReportingSourceId] = useState<string | null>(null);
+  const [sourceReportNote, setSourceReportNote] = useState("");
+  const [sourceReportCategory, setSourceReportCategory] = useState<"source" | "copyright" | "safety">("source");
+  const [sourceReportBusy, setSourceReportBusy] = useState(false);
+  const [sourceReportStatus, setSourceReportStatus] = useState<string | null>(null);
   const outlineDrawer = useAppDrawer("course-outline");
   const deleteDrawer = useAppDrawer("course-delete-confirmation");
   const closeOutlineDrawer = outlineDrawer.closeDrawer;
@@ -140,6 +146,11 @@ export default function CourseMap() {
       setCapstoneSubmission("");
       setCapstoneBusy(false);
       setCapstoneError(null);
+      setReportingSourceId(null);
+      setSourceReportNote("");
+      setSourceReportCategory("source");
+      setSourceReportBusy(false);
+      setSourceReportStatus(null);
     });
   }, [closeDeleteDrawer, closeOutlineDrawer, courseViewKey]);
 
@@ -276,6 +287,31 @@ export default function CourseMap() {
       if (isCurrentView()) setActionError(updateError instanceof Error ? updateError.message : "Visibility could not be updated.");
     } finally {
       if (isCurrentView()) setUpdating(false);
+    }
+  };
+
+  const reportSource = async (event: React.FormEvent, sourceId: string) => {
+    event.preventDefault();
+    if (!user || !courseId || sourceReportBusy) return;
+    setSourceReportBusy(true);
+    setSourceReportStatus(null);
+    try {
+      const token = await user.getIdToken();
+      const response = await fetch("/api/content-reports", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ courseId, sourceId, category: sourceReportCategory, note: sourceReportNote.trim() }),
+      });
+      const data = await response.json() as { error?: string };
+      if (!response.ok) throw new Error(data.error || "The source report could not be sent.");
+      setSourceReportStatus("Source report received for owner review.");
+      setReportingSourceId(null);
+      setSourceReportNote("");
+      setSourceReportCategory("source");
+    } catch (reportError) {
+      setSourceReportStatus(reportError instanceof Error ? reportError.message : "The source report could not be sent.");
+    } finally {
+      setSourceReportBusy(false);
     }
   };
 
@@ -529,6 +565,37 @@ export default function CourseMap() {
             <section><span><BookOpen size={19} /></span><div><small>Before you begin</small><strong>{course.prerequisites?.length ? course.prerequisites.join(" · ") : "No prior knowledge required"}</strong></div></section>
           </div>
 
+          {(course.artifact || course.scenario || course.modules[0]?.lessons[0]?.activityPreview) && (
+            <section className="course-apprenticeship" aria-labelledby="course-apprenticeship-title">
+              <div className="course-apprenticeship-intro">
+                <p>What you will make</p>
+                <h2 id="course-apprenticeship-title">The course advances one piece of meaningful work.</h2>
+                <span>Each module adds evidence to the final artifact, so progress is visible in what you can produce, not only what you have read.</span>
+              </div>
+              <div className="course-apprenticeship-grid">
+                {course.artifact && <article className="artifact-preview"><span><Flag size={18} /> Final artifact</span><h3>{course.artifact.title}</h3><p>{course.artifact.description}</p><small>Format: {course.artifact.format}</small></article>}
+                {course.scenario && <article><span><Layers3 size={18} /> Scenario spine</span><h3>{course.scenario.title}</h3><p>{course.scenario.context}</p><small>Why it matters: {course.scenario.stakes}</small></article>}
+                {course.modules[0]?.lessons[0]?.activityPreview && <article><span><Target size={18} /> First active move</span><h3>{course.modules[0].lessons[0].title}</h3><p>{course.modules[0].lessons[0].activityPreview}</p><small>{course.modules[0].lessons[0].artifactContribution}</small></article>}
+              </div>
+              {course.sourcePack?.length ? <div className="course-source-strip">
+                <strong>Author-provided references</strong>
+                <p>These links were supplied by the course author. A listed URL is not proof that Erudoza retrieved or verified its contents. Lessons identify references they actually used.</p>
+                <ul>{course.sourcePack.map((source) => <li key={source.id}>
+                  <div>{source.url ? <a href={source.url} target="_blank" rel="nofollow ugc noreferrer" aria-label={`${source.label}, opens ${sourceHostname(source.url)} in a new tab`}>{source.label}</a> : <span>{source.label}</span>}<small>{source.url ? `${sourceHostname(source.url)} · ` : ""}{source.kind.replace("-", " ")} · {source.rights.replace("-", " ")}</small></div>
+                  {user && <button className="text-button" type="button" onClick={() => { setReportingSourceId(source.id); setSourceReportNote(""); setSourceReportCategory("source"); setSourceReportStatus(null); }}><Flag size={13} /> Report source</button>}
+                  {reportingSourceId === source.id && <form className="source-report-form" onSubmit={(event) => void reportSource(event, source.id)}>
+                    <label htmlFor={`source-report-category-${source.id}`}>Issue type</label>
+                    <select id={`source-report-category-${source.id}`} value={sourceReportCategory} onChange={(event) => setSourceReportCategory(event.target.value as typeof sourceReportCategory)}><option value="source">Misleading or weak source</option><option value="copyright">Copyright or usage-right concern</option><option value="safety">Unsafe destination or content</option></select>
+                    <label htmlFor={`source-report-${source.id}`}>What should the owner review?</label>
+                    <textarea id={`source-report-${source.id}`} rows={2} maxLength={1_000} value={sourceReportNote} onChange={(event) => setSourceReportNote(event.target.value)} placeholder="For example: misleading destination, weak evidence, or rights concern." />
+                    <div><button className="button button-quiet button-small" type="button" onClick={() => setReportingSourceId(null)}>Cancel</button><button className="button button-secondary button-small" type="submit" disabled={sourceReportBusy}>{sourceReportBusy ? <LoaderCircle className="spin" size={14} /> : <Flag size={14} />} Send report</button></div>
+                  </form>}
+                </li>)}</ul>
+                {sourceReportStatus && <small role="status">{sourceReportStatus}</small>}
+              </div> : null}
+            </section>
+          )}
+
           {course.canManage && (
             <div className="course-owner-controls">
               {!course.isPublic && (
@@ -538,7 +605,7 @@ export default function CourseMap() {
                     checked={publishAttested}
                     onChange={(event) => setPublishAttested(event.target.checked)}
                   />
-                  <span>I reviewed every lesson and confirm this course is ready for public learners.</span>
+                  <span>I reviewed every lesson, reference link, factual claim, and usage right, and confirm this course is ready for public learners.</span>
                 </label>
               )}
               <div className="course-owner-actions">
@@ -621,6 +688,13 @@ export default function CourseMap() {
           />
         )}
 
+        {course.modules.some((module) => module.milestone) && (
+          <section className="capability-map" aria-labelledby="capability-map-title">
+            <div className="section-heading"><div><p className="overline">Capability map</p><h2 id="capability-map-title">How your artifact develops</h2></div><p>Every milestone leaves behind inspectable evidence of progress.</p></div>
+            <ol>{course.modules.map((module, index) => <li key={`${module.title}-${index}`}><span>{index + 1}</span><div><small>{module.title}</small><h3>{module.milestone?.title ?? module.challenge?.title ?? module.objective}</h3><p>{module.milestone?.deliverable ?? module.challenge?.prompt}</p>{module.milestone?.evidence && <strong>Evidence: {module.milestone.evidence}</strong>}</div></li>)}</ol>
+          </section>
+        )}
+
         <section className="curriculum" aria-labelledby="curriculum-title">
           <div className="section-heading">
             <div><p className="overline">Course outline</p><h2 id="curriculum-title">Modules and lessons</h2></div>
@@ -681,6 +755,7 @@ export default function CourseMap() {
                           </div>
                         </div>
                       )}
+                      {module.milestone && <div className="module-milestone"><CheckCircle2 size={17} /><div><small>Milestone output</small><strong>{module.milestone.deliverable}</strong><p>Evidence: {module.milestone.evidence}</p></div></div>}
                     </div>
                   )}
                 </article>

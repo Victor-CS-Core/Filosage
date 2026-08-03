@@ -7,6 +7,8 @@ import { inspectGeneratedContent } from "@/lib/content-language";
 import { LESSON_QUALITY_GATE_VERSION } from "@/lib/lesson-quality";
 import { inspectCoursePublishReadiness, type PublicationLessonFailure } from "@/lib/publication-readiness";
 import { courseOutlineSchema, lessonDataSchema } from "@/lib/validation";
+import { courseQualityIssues } from "@/lib/course-quality";
+import { sourcePackQualityIssues } from "@/lib/source-safety";
 
 export const PUBLICATION_REVIEW_VERSION = "publication-v1";
 
@@ -67,8 +69,18 @@ export async function reviewCourseForPublication(
   if (outlineIntegrity.length) {
     throw new PublicationReviewError("The course outline contains language or generation artifacts that must be corrected.");
   }
+  const outlineQuality = courseQualityIssues(parsedOutline.data);
+  const sourceIssues = sourcePackQualityIssues(course.sourcePack);
+  if (outlineQuality.length || sourceIssues.length) {
+    throw new PublicationReviewError(
+      `The course outline needs review before publication: ${[...outlineQuality, ...sourceIssues].slice(0, 3).join(" ")}`,
+    );
+  }
 
-  const readiness = inspectCoursePublishReadiness(lessons, expectedLessonIds, course.topic);
+  const expectedModesByLessonId = Object.fromEntries(course.modules.flatMap((courseModule, moduleIndex) =>
+    courseModule.lessons.map((lesson, lessonIndex) => [`${moduleIndex}-${lessonIndex}`, lesson.lessonMode]),
+  ));
+  const readiness = inspectCoursePublishReadiness(lessons, expectedLessonIds, course.topic, expectedModesByLessonId);
   if (readiness.missingLessonIds.length) {
     throw new PublicationReviewError("Generate every lesson before publishing.", readiness.missingLessonIds);
   }

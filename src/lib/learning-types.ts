@@ -1,3 +1,5 @@
+import type { LessonMode } from "@/lib/course-types";
+
 export type Confidence = "low" | "medium" | "high";
 export type ReviewKind = "spaced" | "delayed-7" | "delayed-28";
 export type ConfidenceCalibration = "calibrated" | "overconfident" | "underconfident";
@@ -41,6 +43,13 @@ export interface LessonProgress {
   estimatedMinutes?: number;
   /** The misconception this lesson corrects, recorded at completion. */
   misconception?: string;
+  experienceEvidence?: ExperienceEvidence;
+}
+
+export interface ExperienceEvidence {
+  type: LessonMode;
+  response: string;
+  completed: true;
 }
 
 export interface CapstoneRevision {
@@ -109,5 +118,6 @@ export interface ProgressUpdate {
       receipt?: string;
     }>;
     transferResponse?: string;
+    experienceEvidence?: ExperienceEvidence;
   };
 }

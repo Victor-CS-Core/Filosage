@@ -943,9 +943,10 @@ export async function getCoursePublishReadiness(
   courseId: string,
   expectedLessonIds: string[],
   topic: string,
+  expectedModesByLessonId: Readonly<Record<string, import("@/lib/course-types").LessonMode | undefined>> = {},
 ) {
   const lessons = await listLessons(courseId);
-  return inspectCoursePublishReadiness(lessons, expectedLessonIds, topic);
+  return inspectCoursePublishReadiness(lessons, expectedLessonIds, topic, expectedModesByLessonId);
 }
 
 export async function deleteCourse(courseId: string) {

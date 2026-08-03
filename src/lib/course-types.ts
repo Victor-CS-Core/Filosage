@@ -16,6 +16,26 @@ export type PracticeType =
   | "create"
   | "debug";
 
+export type SourceKind = "primary" | "official" | "licensed" | "author-provided";
+export type SourceRights = "link-only" | "public-domain" | "licensed" | "author-owned";
+
+export interface CourseSource {
+  id: string;
+  label: string;
+  url?: string;
+  kind: SourceKind;
+  rights: SourceRights;
+  note?: string;
+}
+
+export type LessonExperience =
+  | { type: "concept"; predictionPrompt: string; mentalModel: { title: string; parts: Array<{ label: string; role: string }> }; misconceptionCheck: { claim: string; correction: string } }
+  | { type: "worked-example"; scenario: string; steps: Array<{ title: string; reasoning: string; output: string }>; fadingPrompt: string }
+  | { type: "comparison"; options: [string, string]; criteria: Array<{ criterion: string; first: string; second: string }>; boundaryCase: { prompt: string; resolution: string } }
+  | { type: "case-study"; brief: string; evidence: Array<{ label: string; detail: string }>; interpretations: string[]; decisionPrompt: string }
+  | { type: "practice-lab"; brief: string; materials: string[]; tasks: string[]; artifactPrompt: string; successCriteria: string[] }
+  | { type: "synthesis"; challenge: string; connections: Array<{ concept: string; contribution: string }>; capstoneContribution: string; reflectionPrompt: string };
+
 export interface LessonSummary {
   title: string;
   concept: string;
@@ -26,6 +46,8 @@ export interface LessonSummary {
   misconception?: string;
   practiceType?: PracticeType;
   masteryCriteria?: string;
+  activityPreview?: string;
+  artifactContribution?: string;
 }
 
 export interface CourseModule {
@@ -36,6 +58,11 @@ export interface CourseModule {
     title: string;
     prompt: string;
     successCriteria: string[];
+  };
+  milestone?: {
+    title: string;
+    deliverable: string;
+    evidence: string;
   };
   lessons: LessonSummary[];
 }
@@ -62,6 +89,10 @@ export interface Course {
   outcome?: string;
   prerequisites?: string[];
   category?: string;
+  audience?: string;
+  artifact?: { title: string; description: string; format: string };
+  scenario?: { title: string; context: string; stakes: string };
+  sourcePack?: CourseSource[];
   banner?: CourseBanner;
   canRegenerateBanner?: boolean;
   generatedLessonIds?: string[];
@@ -81,6 +112,11 @@ export interface Course {
     brief: string;
     deliverable: string;
     successCriteria: string[];
+  };
+  milestone?: {
+    title: string;
+    deliverable: string;
+    evidence: string;
   };
   contentIntegrity?: {
     repairedForDisplay: boolean;
@@ -102,6 +138,7 @@ export interface LessonData {
   learningObjective?: string;
   connection?: string;
   keyTakeaways?: string[];
+  experience?: LessonExperience;
   /**
    * Curated, structured visual explanations. Legacy diagram fields are
    * intentionally excluded: lessons now render only this safe visual grammar.

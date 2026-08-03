@@ -28,20 +28,21 @@ import { lessonVisualsEnabled } from "@/lib/feature-flags";
 import { languagePolicyInstruction } from "@/lib/content-language";
 import { lessonQualityIssues, LESSON_QUALITY_GATE_VERSION } from "@/lib/lesson-quality";
 import { lessonGenerationGate } from "@/lib/authoring-gate";
+import { sourcePackPromptBlock } from "@/lib/source-safety";
 
 const model = process.env.OPENAI_LESSON_MODEL || "gpt-5.6-luna";
 const fallbackModel = process.env.OPENAI_LESSON_FALLBACK_MODEL
   || process.env.OPENAI_COURSE_MODEL
   || process.env.OPENAI_MODEL
   || "gpt-5.6-terra";
-const LESSON_PROMPT_VERSION = "2026-07-28-language-integrity";
+const LESSON_PROMPT_VERSION = "2026-08-03-guided-apprenticeship";
 const lessonVisualsAreEnabled = lessonVisualsEnabled();
 
 const lessonInstructions = `Act as a rigorous teacher and instructional designer. Create one lesson that advances a specific capability within a larger course.
 
-Use the requested lesson mode instead of forcing every lesson into the same pattern. Begin by connecting this lesson to prerequisite knowledge, then state one observable learning objective. Explain the core idea from first principles with one concrete example. Use the supplied misconception to create a useful contrast. Include guided practice with visible reasoning, followed by a transfer task that asks the learner to use the idea in a different situation. End with concise takeaways, not a repeated conclusion.
+Use the requested lesson mode instead of forcing every lesson into the same pattern. The experience object is the lesson's central activity and its type must exactly match the requested teaching mode. For concept, ask for a prediction before revealing a mental model and misconception correction. For worked-example, expose at least three expert reasoning steps, then fade support. For comparison, use explicit criteria and a difficult boundary case. For case-study, provide an evidence packet, competing interpretations, and a decision prompt. For practice-lab, provide usable materials, ordered tasks, and an artifact with criteria. For synthesis, connect prior concepts and advance the course capstone. Begin by connecting this lesson to prerequisite knowledge, then state one observable learning objective. Explain only what the learner needs in order to do the activity. Include guided practice with visible reasoning, followed by a transfer task that asks the learner to use the idea in a different situation. End with concise takeaways, not a repeated conclusion.
 
-Write direct, natural prose in accessible Markdown. Use descriptive H2 and H3 headings only and never repeat the lesson title as a heading. Target roughly 900 to 1,300 words. Avoid generic encouragement, promotional language, vague claims, invented citations, repeated conclusions, and filler. Never use em dashes; prefer commas, colons, or separate sentences.
+Write direct, natural prose in accessible Markdown. Use descriptive H2 and H3 headings only and never repeat the lesson title as a heading. Target roughly 650 to 1,000 words because the activity, not prose length, should carry the cognitive work. Avoid generic encouragement, promotional language, vague claims, invented citations, repeated conclusions, and filler. Never use em dashes; prefer commas, colons, or separate sentences.
 
 The guided-practice prompt, worked response, transfer prompt, and model response support GitHub-flavored Markdown. Each guided step must be one concise prose paragraph with no heading, list, table, blockquote, code fence, raw HTML, or other block Markdown. Use real lists or tables only in the larger prompt and response fields when structure improves scanning. Every table must place its header, separator, and each data row on separate lines. Never compress Markdown table rows into one line or place table syntax directly after prose.
 
@@ -92,6 +93,7 @@ export async function POST(request: Request) {
     const topic = course.topic;
     const lessonTitle = canonical.lesson.title;
     const lessonConcept = canonical.lesson.concept;
+    const expectedMode = canonical.lesson.lessonMode ?? "concept";
     const coursePublic = course.isPublic === true;
     const currentModule = course.modules[canonical.moduleIndex];
     const flattenedLessons = course.modules.flatMap((courseModule, moduleIndex) =>
@@ -145,6 +147,8 @@ export async function POST(request: Request) {
       `Core concept: ${lessonConcept}`,
       `Observable objective: ${canonical.lesson.objective ?? lessonConcept}`,
       `Teaching mode: ${canonical.lesson.lessonMode ?? "concept"}`,
+      `Activity preview: ${canonical.lesson.activityPreview ?? "Create a concrete mode-specific activity."}`,
+      `Artifact contribution: ${canonical.lesson.artifactContribution ?? course.artifact?.description ?? course.capstone?.deliverable ?? "A useful piece of demonstrated work."}`,
       `Builds on: ${canonical.lesson.buildsOn?.join(", ") || previousLesson?.title || "No named prerequisite lesson"}`,
       `Misconception to correct: ${canonical.lesson.misconception ?? "Identify the most consequential misconception for this concept."}`,
       `Practice type: ${canonical.lesson.practiceType ?? "explain"}`,
@@ -158,6 +162,16 @@ export async function POST(request: Request) {
       currentModule?.challenge
         ? `Module challenge: ${currentModule.challenge.prompt} Success means: ${currentModule.challenge.successCriteria.join("; ")}`
         : "",
+      currentModule?.milestone
+        ? `Module milestone: ${currentModule.milestone.deliverable}. Evidence: ${currentModule.milestone.evidence}`
+        : "",
+      course.scenario
+        ? `Course scenario: ${course.scenario.title}. ${course.scenario.context} Stakes: ${course.scenario.stakes}`
+        : "",
+      course.artifact
+        ? `Course artifact: ${course.artifact.title}, ${course.artifact.format}. ${course.artifact.description}`
+        : "",
+      sourcePackPromptBlock(course.sourcePack ?? [], "No source pack is available. Return sourceReferences: [] and do not invent citations."),
       course.capstone
         ? `Course capstone: ${course.capstone.brief} Deliverable: ${course.capstone.deliverable}`
         : "",
@@ -172,9 +186,13 @@ export async function POST(request: Request) {
       misconception: canonical.lesson.misconception,
     };
 
-    const prepareLesson = (generated: GeneratedLessonData | null): LessonData | null => generated
-      ? { ...generated, visuals: lessonVisualsAreEnabled ? curateLessonVisuals(generated.visuals, visualContext) : [] }
-      : null;
+    let selectedSourceIds: string[] = [];
+    const prepareLesson = (generated: GeneratedLessonData | null): LessonData | null => {
+      if (!generated) return null;
+      const { visuals, sourceReferences, ...lesson } = generated;
+      selectedSourceIds = sourceReferences;
+      return { ...lesson, visuals: lessonVisualsAreEnabled ? curateLessonVisuals(visuals, visualContext) : [] };
+    };
 
     const generate = (selectedModel: string, repairIssues: string[] = []) => client.responses.parse({
       model: selectedModel,
@@ -186,7 +204,7 @@ export async function POST(request: Request) {
       text: {
         format: zodTextFormat(lessonGenerationSchema, "lesson"),
       },
-      max_output_tokens: 4_000,
+      max_output_tokens: 6_000,
       safety_identifier: safetyIdentifier,
     });
 
@@ -194,7 +212,7 @@ export async function POST(request: Request) {
     responseId = primaryResponse.id;
     usageSamples.push({ model, ...extractOpenAiUsage(primaryResponse), responseId });
     let lesson = prepareLesson(primaryResponse.output_parsed as GeneratedLessonData | null);
-    let qualityIssues = lessonQualityIssues(lesson, topic);
+    let qualityIssues = lessonQualityIssues(lesson, topic, expectedMode);
     let usedFallback = false;
 
     if (qualityIssues.length && fallbackModel !== model) {
@@ -202,7 +220,7 @@ export async function POST(request: Request) {
       responseId = fallbackResponse.id;
       usageSamples.push({ model: fallbackModel, ...extractOpenAiUsage(fallbackResponse), responseId });
       lesson = prepareLesson(fallbackResponse.output_parsed as GeneratedLessonData | null);
-      qualityIssues = lessonQualityIssues(lesson, topic);
+      qualityIssues = lessonQualityIssues(lesson, topic, expectedMode);
       usedFallback = true;
     }
 
@@ -220,18 +238,21 @@ export async function POST(request: Request) {
       stage: "output",
     });
 
+    const sourceReferences = (course.sourcePack ?? [])
+      .filter((source) => selectedSourceIds.includes(source.id))
+      .map((source) => ({ label: source.label, url: source.url }));
     const generationMetadata = {
       generatedAt: new Date().toISOString(),
       promptVersion: LESSON_PROMPT_VERSION,
       qualityGateVersion: LESSON_QUALITY_GATE_VERSION,
-      sourceReferences: [],
+      sourceReferences,
     };
     await saveLesson(courseId, lessonId, {
       ...lesson,
       authorId: account.uid,
       aiAssisted: true,
       isPublic: coursePublic,
-      schemaVersion: 3,
+      schemaVersion: 4,
       generationModel: usedFallback ? fallbackModel : model,
       fallbackUsed: usedFallback,
       ...generationMetadata,
@@ -243,7 +264,7 @@ export async function POST(request: Request) {
     return NextResponse.json(toLessonDto({
       ...lesson,
       aiAssisted: true,
-      schemaVersion: 3,
+      schemaVersion: 4,
       generationModel: usedFallback ? fallbackModel : model,
       ...generationMetadata,
     }, true, topic));

@@ -21,7 +21,7 @@ This document is an engineering and launch-readiness record, not legal advice.
 - The production and full installed dependency graphs reported zero known npm audit vulnerabilities on the date above.
 - Signup and future terms updates use an affirmative, versioned acceptance record for the registrant's stated age eligibility and, where applicable, stated guardian review. This is not independent age assurance or verified guardian consent. Guests can inspect published topics and course outlines; lesson bodies require an accepted free account.
 - Signed-in non-owner users can export their account data and permanently delete their active account data after recent Google reauthentication. The deletion route independently enforces a five-minute Firebase `auth_time` window on the server; the client reauthentication prompt is not the security boundary. Owner deletion requires a manual course-control transfer or shutdown process.
-- A published Copyright Policy defines notice, counter-notice, review, removal, and repeat-infringer procedures. The app does not claim DMCA safe-harbor registration that has not been completed.
+- A published Copyright Policy defines notice, counter-notice, review, removal, and an adopted repeat-infringer termination procedure. Content reports and owner enforcement actions preserve the operational record used to apply it. The app does not claim DMCA safe-harbor registration that has not been completed.
 - Optional first-party product analytics are off until the visitor makes a choice. Refusal and later withdrawal remove Erudoza's optional browser identifiers; the choice remains available in the Privacy Center.
 
 ## Automated account export and deletion boundary

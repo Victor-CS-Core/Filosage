@@ -27,6 +27,18 @@ Do not enable billing until all of the following are true:
 
 For an ordinary closed-billing release, set `SITE_VERSION` to the exact Git commit SHA and run `npm.cmd run check:release`; this check requires `BILLING_ENABLED=false`. After deployment, run `npm.cmd run check:production -- https://your-domain.example <exact-sha>` so a healthy datastore cannot mask a stale or unidentified build. Only after separate billing authorization, run `node scripts/check-release-env.mjs --billing-activation`; that mode requires the Stripe product, webhook, management, and checkout configuration plus `BILLING_ENABLED=true`.
 
+## Course-generation release acceptance
+
+Before deploying a course-schema or generation-prompt change, use production-like Firebase and OpenAI credentials to create one private flagship course through the user interface. Record the course ID, release SHA, models, reviewer, and test time without copying secrets or private learner text. The acceptance record must confirm:
+
+1. The outline passes the current course quality gate and visibly advances one artifact through distinct milestones.
+2. At least one generated lesson for each of the six teaching modes opens, reloads, preserves its draft, and stores meaningful active-lesson evidence at completion.
+3. Author-provided references are labeled as provided, only references used by a lesson appear in its content record, and source-report submission reaches the owner queue.
+4. Sequential authoring unlocks correctly, a private lesson can be regenerated without losing the current lesson on failure, and the final course can pass publication review.
+5. The published course can be opened by a non-owner learner, completed through capstone evidence, unpublished, and returned to private authoring without exposing private source notes.
+
+Fixture-backed Playwright coverage is necessary but does not satisfy this live acceptance gate.
+
 ## Payment lifecycle test matrix
 
 Run these scenarios in Stripe test mode before any Live activation:

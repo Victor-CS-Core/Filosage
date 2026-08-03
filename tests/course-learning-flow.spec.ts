@@ -17,6 +17,18 @@ const course: Course = {
   level: "Foundations",
   estimatedMinutes: 35,
   category: "Product",
+  audience: "Product practitioners making consequential decisions with incomplete evidence.",
+  artifact: {
+    title: "Evidence-backed decision brief",
+    description: "A concise decision record that separates observations from interpretation and defines a reversible action.",
+    format: "One-page decision memo",
+  },
+  scenario: {
+    title: "Onboarding release review",
+    context: "A product team must decide how to respond to weaker onboarding completion after a release.",
+    stakes: "Acting too broadly wastes effort, while waiting too long leaves a real user problem unresolved.",
+  },
+  sourcePack: [{ id: "source-1", label: "Decision quality field guide", url: "https://example.com/decision-quality", kind: "author-provided", rights: "link-only" }],
   isPublic: true,
   aiAssisted: true,
   modules: [{
@@ -28,6 +40,11 @@ const course: Course = {
       prompt: "Explain which evidence changes the decision.",
       successCriteria: ["Names the evidence", "Explains the tradeoff"],
     },
+    milestone: {
+      title: "Evidence and action checkpoint",
+      deliverable: "A classified evidence record and bounded next action",
+      evidence: "Every claim is labeled as observation or interpretation, with a rollback condition.",
+    },
     lessons: [
       {
         title: "Evidence before inference",
@@ -37,6 +54,8 @@ const course: Course = {
         lessonMode: "worked-example",
         practiceType: "classify",
         misconception: "A plausible explanation is the same as an observation.",
+        activityPreview: "Trace an expert as they separate a measured change from the story attached to it.",
+        artifactContribution: "Produces the evidence section of the final decision brief.",
       },
       {
         title: "Choose the next action",
@@ -46,6 +65,8 @@ const course: Course = {
         lessonMode: "case-study",
         practiceType: "decide",
         misconception: "Every uncertain decision needs more research before acting.",
+        activityPreview: "Review an evidence packet, compare competing interpretations, and choose a bounded action.",
+        artifactContribution: "Produces the recommendation and rollback section of the final decision brief.",
       },
     ],
   }],
@@ -65,6 +86,16 @@ const lessonOne: LessonData = {
   aiAssisted: true,
   learningObjective: "Classify evidence and inference in a decision record.",
   connection: "This distinction prevents a plausible story from being treated as proof.",
+  experience: {
+    type: "worked-example",
+    scenario: "A support queue grew immediately after a release, and the team is ready to blame the new workflow.",
+    steps: [
+      { title: "Record the observation", reasoning: "Use only what the queue record can verify.", output: "The queue increased from 20 to 34 items." },
+      { title: "Isolate the inference", reasoning: "Name the causal story that has not yet been tested.", output: "The release caused the increase." },
+      { title: "Choose the next check", reasoning: "Look for evidence that could distinguish the release from other explanations.", output: "Compare arrival volume, handling time, and affected issue types." },
+    ],
+    fadingPrompt: "A second team reports slower handoffs after the same release. Complete the classification and name the next discriminating check without using the worked labels.",
+  },
   content: "## Inspect the record\n\nEvidence reports what was observed. An inference explains what that observation may mean.",
   guidedPractice: {
     prompt: "A support queue grew from 20 to 34 items after a release. Classify the observation and the interpretation.",
@@ -123,6 +154,20 @@ const lessonTwo: LessonData = {
   aiAssisted: true,
   learningObjective: "Choose a reversible action under uncertainty.",
   connection: "Once evidence and inference are separate, the next action can match what is actually known.",
+  experience: {
+    type: "case-study",
+    brief: "Onboarding completion fell after new copy shipped, but the release also changed eligibility and traffic mix.",
+    evidence: [
+      { label: "Completion", detail: "Completion fell from 72% to 65% in the first week." },
+      { label: "Traffic mix", detail: "The share of first-time mobile visitors rose by 18%." },
+      { label: "Support", detail: "Questions about eligibility increased, while copy-related questions did not." },
+    ],
+    interpretations: [
+      "The copy may contribute, but the traffic and eligibility changes prevent a confident causal claim.",
+      "A segmented pilot can distinguish the copy effect while limiting downside.",
+    ],
+    decisionPrompt: "Choose a next action and identify which evidence makes it proportionate.",
+  },
   content: "## Match action to evidence\n\nPrefer a reversible step when the evidence is incomplete and the cost of learning is low.",
   guidedPractice: {
     prompt: "A new workflow may reduce handoff time, but only one team has tried it.",
@@ -225,6 +270,7 @@ test("completes a published course from discovery through evidence", async ({ pa
   const baselineSubmissions: string[] = [];
   const capstoneSubmissions: string[] = [];
   const tutorQuestions: string[] = [];
+  const sourceReports: Array<{ sourceId: string; category: string; note: string }> = [];
   let capstoneAssessment: CapstoneAssessment | undefined;
 
   const currentProgress = (): CourseProgress | null => completedLessonIds.length || capstoneAssessment
@@ -373,11 +419,28 @@ test("completes a published course from discovery through evidence", async ({ pa
       body: "Evidence is observed; an inference is the explanation added to it.",
     });
   });
+  await page.route("**/api/content-reports", async (route) => {
+    sourceReports.push(route.request().postDataJSON() as { sourceId: string; category: string; note: string });
+    return route.fulfill({ json: { reported: true, quarantined: false } });
+  });
 
   await page.goto("/library");
   await expect(page.getByRole("heading", { name: "Find your next course." })).toBeVisible();
   await page.getByRole("link", { name: /Open Decision quality/i }).click();
   await expect(page.getByRole("heading", { level: 1, name: topic })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "The course advances one piece of meaningful work." })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Evidence-backed decision brief" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "How your artifact develops" })).toBeVisible();
+  await expect(page.getByLabel("How your artifact develops").getByText("A classified evidence record and bounded next action")).toBeVisible();
+  const sourceLink = page.getByRole("link", { name: /Decision quality field guide/ });
+  await expect(page.getByText("Author-provided references")).toBeVisible();
+  await expect(sourceLink).toHaveAttribute("href", "https://example.com/decision-quality");
+  await expect(sourceLink).toHaveAttribute("rel", "nofollow ugc noreferrer");
+  await page.getByRole("button", { name: "Report source" }).click();
+  await page.getByLabel("What should the owner review?").fill("Confirm that this destination still supports the author note.");
+  await page.getByRole("button", { name: "Send report" }).click();
+  await expect(page.getByText("Source report received for owner review.")).toBeVisible();
+  expect(sourceReports).toEqual([{ courseId, sourceId: "source-1", category: "source", note: "Confirm that this destination still supports the author note." }]);
   await expect(page.getByText("Complete every lesson to unlock capstone assessment.")).toBeVisible();
   await expect(page.getByText("Decision checkpoint")).toBeVisible();
 
@@ -399,6 +462,12 @@ test("completes a published course from discovery through evidence", async ({ pa
 
   await page.getByRole("button", { name: "Start with Evidence and action" }).click();
   await expect(page.getByRole("heading", { level: 1, name: "Evidence before inference" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Follow the expert reasoning" })).toBeVisible();
+  await expect(page.getByText("Compare arrival volume, handling time, and affected issue types.")).toBeVisible();
+  const workedExampleEvidence = "I would compare the second team's arrival volume, handling time, and issue mix before attributing slower handoffs to the release.";
+  await page.getByLabel("Your unsupported finish").fill(workedExampleEvidence);
+  await page.getByRole("button", { name: "Save unsupported finish" }).click();
+  await expect(page.getByText("Ready for lesson completion.")).toBeVisible();
   await expect(page.getByRole("heading", { name: "Work through the idea" })).toBeVisible();
   await page.getByText("Compare with a worked response").click();
   await expect(page.getByText("The queue increase is observed; the claim that the release caused it is an inference.")).toBeVisible();
@@ -427,6 +496,7 @@ test("completes a published course from discovery through evidence", async ({ pa
     confidence: "medium",
     activityEvidence: {
       transferResponse: firstTransfer,
+      experienceEvidence: { type: "worked-example", response: workedExampleEvidence, completed: true },
       quizResults: [
         { quizIndex: 0, attempts: 2, firstAttemptCorrect: false, confidence: "medium" },
         { quizIndex: 1, attempts: 1, firstAttemptCorrect: true, confidence: "high" },
@@ -444,6 +514,15 @@ test("completes a published course from discovery through evidence", async ({ pa
 
   await page.getByRole("button", { name: /Next lesson Choose the next action/ }).click();
   await expect(page.getByRole("heading", { level: 1, name: "Choose the next action" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Make sense of the evidence" })).toBeVisible();
+  const caseStudy = page.locator(".experience-case-study");
+  const caseStudyEvidence = "Run a segmented copy pilot because traffic mix and eligibility changed at the same time, then roll back if completion worsens.";
+  await caseStudy.getByLabel("Your decision").fill(caseStudyEvidence);
+  await page.reload();
+  await expect(page.locator(".experience-case-study").getByLabel("Your decision")).toHaveValue(caseStudyEvidence);
+  const reloadedCaseStudy = page.locator(".experience-case-study");
+  await reloadedCaseStudy.getByRole("button", { name: "Compare interpretations" }).click();
+  await expect(reloadedCaseStudy.getByText("A segmented pilot can distinguish the copy effect while limiting downside.")).toBeVisible();
   const secondTransfer = "I would pilot the onboarding copy with one segment and roll it back if completion or support demand worsens after two weeks.";
   await completeTransfer(page, secondTransfer, lessonTwo.transferTask!.modelResponse);
   await completeQuiz(page, {
@@ -464,7 +543,10 @@ test("completes a published course from discovery through evidence", async ({ pa
     totalQuestions: 2,
     firstAttemptCorrect: 2,
     attempts: 2,
-    activityEvidence: { transferResponse: secondTransfer },
+    activityEvidence: {
+      transferResponse: secondTransfer,
+      experienceEvidence: { type: "case-study", response: caseStudyEvidence, completed: true },
+    },
   });
 
   await page.locator(".lesson-toolbar nav").getByRole("button", { name: topic }).click();
@@ -491,6 +573,89 @@ test("completes a published course from discovery through evidence", async ({ pa
   await expect(page.getByText("+67 pts")).toBeVisible();
   await expect(page.getByText("Demonstrated", { exact: true })).toBeVisible();
   await expect(page.getByText("Capstone demonstrated: Separate evidence from inference and choose a proportionate action.")).toBeVisible();
+});
+
+test("completes every rich lesson mode and records its active evidence", async ({ page }) => {
+  await restoreLocalLearner(page);
+  await mockFreeLearnerAccount(page);
+  const richCourseId = "six-mode-course";
+  const richTopic = "Applied reasoning studio";
+  const experiences: Array<NonNullable<LessonData["experience"]>> = [
+    { type: "concept", predictionPrompt: "Predict what changes the decision.", mentalModel: { title: "Decision model", parts: [{ label: "Evidence", role: "Constrains the claim" }, { label: "Action", role: "Matches confidence" }] }, misconceptionCheck: { claim: "More confidence means more evidence.", correction: "Confidence should follow evidence, not replace it." } },
+    { type: "worked-example", scenario: "A team investigates a falling metric.", steps: [{ title: "Observe", reasoning: "Record the change.", output: "The metric fell." }, { title: "Compare", reasoning: "Check segments.", output: "One segment changed." }, { title: "Act", reasoning: "Limit downside.", output: "Run a pilot." }], fadingPrompt: "Finish the analysis for a second segment without the worked labels." },
+    { type: "comparison", options: ["Pilot", "Full rollout"], criteria: [{ criterion: "Reversibility", first: "High", second: "Low" }, { criterion: "Learning", first: "Focused", second: "Confounded" }, { criterion: "Reach", first: "Limited", second: "Broad" }], boundaryCase: { prompt: "Choose when the evidence is strong but downside remains material.", resolution: "Use a staged rollout with an explicit stop condition." } },
+    { type: "case-study", brief: "A release changed copy and audience eligibility together.", evidence: [{ label: "Completion", detail: "Completion fell." }, { label: "Mix", detail: "Traffic mix shifted." }, { label: "Support", detail: "Eligibility questions rose." }], interpretations: ["Copy may contribute.", "Eligibility may explain the shift."], decisionPrompt: "Choose a bounded next action and defend it." },
+    { type: "practice-lab", brief: "Create a decision record.", materials: ["Metric extract", "Release notes"], tasks: ["Classify claims", "Name uncertainty", "Define rollback"], artifactPrompt: "Produce a one-page decision record.", successCriteria: ["Evidence is labeled", "Rollback is measurable"] },
+    { type: "synthesis", challenge: "Combine the evidence, tradeoff, and rollback into one recommendation.", connections: [{ concept: "Evidence", contribution: "Bounds confidence" }, { concept: "Reversibility", contribution: "Limits downside" }], capstoneContribution: "Complete the final recommendation.", reflectionPrompt: "Explain how the combined reasoning changes the action." },
+  ];
+  const labels = ["Your prediction", "Your unsupported finish", "Your boundary-case decision", "Your decision", "Your artifact record", "Your reflection"];
+  const submitLabels = ["Reveal the mental model", "Save unsupported finish", "Compare with the resolution", "Compare interpretations", "Save artifact evidence", "Save synthesis evidence"];
+  const richCourse: Course = {
+    id: richCourseId,
+    courseId: richCourseId,
+    topic: richTopic,
+    mission: "Practice six forms of applied reasoning.",
+    outcome: "Choose and defend a proportionate action.",
+    isPublic: true,
+    modules: [{
+      title: "Reasoning modes",
+      description: "Move from prediction to synthesis.",
+      lessons: experiences.map((experience, index) => ({ title: `Mode ${index + 1}: ${experience.type}`, concept: `Practice ${experience.type} reasoning.`, lessonMode: experience.type, estimatedMinutes: 5 })),
+    }],
+  };
+  const lessons = experiences.map((experience): LessonData => ({
+    content: "## Apply the mode\n\nUse the activity to produce evidence of your reasoning.",
+    quizzes: [],
+    experience,
+  }));
+  const completedLessonIds: string[] = [];
+  const updates: ProgressUpdate[] = [];
+  const progress = (): CourseProgress | null => completedLessonIds.length ? {
+    courseId: richCourseId,
+    topic: richTopic,
+    lastLessonId: completedLessonIds.at(-1) ?? "",
+    lastLessonTitle: "Rich mode",
+    completedLessonIds: [...completedLessonIds],
+    lessons: {},
+    lastActivityAt: assessedAt,
+    startedAt: assessedAt,
+  } : null;
+
+  await page.route(`**/api/courses/${richCourseId}`, (route) => route.fulfill({ json: richCourse }));
+  await page.route(`**/api/courses/${richCourseId}/lessons/*`, (route) => {
+    const currentLessonId = route.request().url().split("/").at(-1) ?? "0-0";
+    const currentLessonIndex = Number(currentLessonId.split("-")[1]);
+    return route.fulfill({ json: lessons[currentLessonIndex] });
+  });
+  await page.route("**/api/progress*", async (route) => {
+    if (route.request().method() === "GET") return route.fulfill({ json: { progress: progress() } });
+    const update = route.request().postDataJSON() as ProgressUpdate;
+    updates.push(update);
+    if (!completedLessonIds.includes(update.lessonId)) completedLessonIds.push(update.lessonId);
+    return route.fulfill({ json: { progress: progress(), nextReviewAt: "2026-08-10T14:00:00.000Z", calibration: "calibrated" } });
+  });
+  await page.route("**/api/mastery*", (route) => route.fulfill({ json: route.request().method() === "GET" ? { plan: null, evidence: [] } : { saved: true } }));
+
+  await page.goto(`/course/${encodeURIComponent(richTopic)}?id=${richCourseId}`);
+  await page.evaluate(() => { document.documentElement.style.fontSize = "200%"; });
+  await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1)).toBe(true);
+  await page.emulateMedia({ forcedColors: "active" });
+  await expect(page.getByRole("button", { name: "Start course" })).toBeVisible();
+  await page.emulateMedia({ forcedColors: "none" });
+  await page.evaluate(() => { document.documentElement.style.fontSize = ""; });
+  await page.getByRole("button", { name: "Start course" }).click();
+  for (let index = 0; index < experiences.length; index += 1) {
+    const response = `Meaningful ${experiences[index].type} evidence that explains the learner's decision boundary.`;
+    await page.getByLabel(labels[index]).fill(response);
+    await page.getByRole("button", { name: submitLabels[index] }).click();
+    await page.getByRole("button", { name: "Mark learned" }).click();
+    await expect(page.locator(".completion-banner").getByText("Lesson complete")).toBeVisible();
+    if (index < experiences.length - 1) await page.getByRole("button", { name: new RegExp(`Next lesson Mode ${index + 2}:`) }).click();
+  }
+  expect(updates).toHaveLength(6);
+  expect(updates.map((update) => update.activityEvidence?.experienceEvidence?.type)).toEqual(experiences.map((experience) => experience.type));
+  await page.locator(".lesson-toolbar nav").getByRole("button", { name: richTopic }).click();
+  await expect(page.getByRole("progressbar", { name: "Course progress" })).toHaveAttribute("aria-valuenow", "100");
 });
 
 test("completes a due seven-day retention check from the review queue", async ({ page }) => {

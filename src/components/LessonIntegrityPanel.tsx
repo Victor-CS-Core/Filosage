@@ -70,11 +70,11 @@ export default function LessonIntegrityPanel({
       </div>
       <p>
         {provenance?.sources.length
-          ? `${provenance.sources.length} source ${provenance.sources.length === 1 ? "reference is" : "references are"} attached to this version.`
+          ? `${provenance.sources.length} author-provided ${provenance.sources.length === 1 ? "reference was" : "references were"} used by this lesson version.`
           : "No external source pack is attached to this lesson. Verify consequential claims before relying on them."}
       </p>
       {provenance?.sources.length ? (
-        <ul>{provenance.sources.map((source) => <li key={`${source.label}-${source.url ?? ""}`}>{source.url ? <a href={source.url} target="_blank" rel="noreferrer">{source.label}</a> : source.label}</li>)}</ul>
+        <><strong>Used by this lesson</strong><ul>{provenance.sources.map((source) => <li key={`${source.label}-${source.url ?? ""}`}>{source.url ? <a href={source.url} target="_blank" rel="nofollow ugc noreferrer">{source.label}</a> : source.label}</li>)}</ul></>
       ) : null}
       {!reporting && !sent && (
         <button className="text-button" type="button" onClick={() => setReporting(true)}><Flag size={14} /> Report a content issue</button>

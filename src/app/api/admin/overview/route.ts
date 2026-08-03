@@ -625,7 +625,9 @@ export async function GET(request: Request) {
         .map((report) => ({
           id: report.id,
           courseId: stringValue(report.courseId) ?? "",
-          lessonId: stringValue(report.lessonId) ?? "",
+          lessonId: stringValue(report.lessonId),
+          sourceId: stringValue(report.sourceId),
+          sourceLabel: stringValue(report.sourceLabel),
           topic: stringValue(report.topic) ?? "Unknown course",
           lessonTitle: stringValue(report.lessonTitle),
           category: report.category === "outdated"

@@ -1,10 +1,10 @@
-import type { LessonData } from "@/lib/course-types";
+import type { LessonData, LessonMode } from "@/lib/course-types";
 import { inspectGeneratedContent } from "@/lib/content-language";
 import { hasBlockMarkdownSyntax, hasCollapsedMarkdownTable } from "@/lib/markdown";
 
-export const LESSON_QUALITY_GATE_VERSION = "didactic-v5-publication";
+export const LESSON_QUALITY_GATE_VERSION = "apprenticeship-v7-mode-contract";
 
-export function lessonQualityIssues(lesson: LessonData | null, topic: string) {
+export function lessonQualityIssues(lesson: LessonData | null, topic: string, expectedMode?: LessonMode) {
   if (!lesson) return ["No structured lesson was returned."];
   const issues: string[] = [];
   if (lesson.content.trim().length < 1_500) issues.push("The explanation is too shallow.");
@@ -34,6 +34,20 @@ export function lessonQualityIssues(lesson: LessonData | null, topic: string) {
   if (lesson.quizzes.length < 2) issues.push("At least two application-focused checks are required.");
   if (lesson.quizzes.some((quiz) => quiz.options.length !== 4 || quiz.optionFeedback?.length !== 4)) {
     issues.push("Every quiz option needs corresponding feedback.");
+  }
+  if (expectedMode && !lesson.experience) {
+    issues.push("The lesson is missing its mode-specific activity.");
+  } else if (expectedMode && lesson.experience?.type !== expectedMode) {
+    issues.push(`The activity must use the ${expectedMode} teaching mode.`);
+  }
+  if (lesson.experience?.type === "worked-example" && lesson.experience.steps.length < 3) {
+    issues.push("The worked example needs at least three visible reasoning steps.");
+  }
+  if (lesson.experience?.type === "case-study" && lesson.experience.evidence.length < 3) {
+    issues.push("The case study needs at least three distinct evidence items.");
+  }
+  if (lesson.experience?.type === "practice-lab" && lesson.experience.tasks.length < 3) {
+    issues.push("The practice lab needs a real sequence of tasks.");
   }
   issues.push(...inspectGeneratedContent(lesson, topic).map((issue) =>
     `${issue.path} ${issue.reason}.`,
