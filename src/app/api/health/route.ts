@@ -1,6 +1,8 @@
 import { missingRuntimeConfiguration } from "@/lib/runtime-config";
+import { getStoredDocument } from "@/lib/firebase-server";
+import { reportOperationalEvent } from "@/lib/operational-alerts";
 
-export function GET() {
+export async function GET() {
   const missing = missingRuntimeConfiguration();
   const version = (
     process.env.SITE_VERSION
@@ -12,10 +14,26 @@ export function GET() {
   // Configuration names are operational detail: log them for the operator
   // instead of listing them in the public response.
   if (missing.length) console.error("Runtime configuration incomplete:", missing.join(", "));
+  let datastoreOk = false;
+  if (!missing.length) {
+    try {
+      await getStoredDocument("system/health");
+      datastoreOk = true;
+    } catch (error) {
+      datastoreOk = false;
+      console.error("Health check datastore probe failed:", error);
+      await reportOperationalEvent({
+        severity: "critical",
+        code: "health.datastore_unavailable",
+        message: "The production health check could not reach Firestore.",
+      });
+    }
+  }
+  const ok = missing.length === 0 && datastoreOk;
   return Response.json(
-    { ok: missing.length === 0, version },
+    { ok, version, checks: { configuration: missing.length === 0, datastore: datastoreOk } },
     {
-      status: missing.length ? 503 : 200,
+      status: ok ? 200 : 503,
       headers: {
         "Cache-Control": "no-store",
         ...(version ? { "X-Erudoza-Version": version } : {}),

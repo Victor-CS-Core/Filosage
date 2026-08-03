@@ -1,6 +1,6 @@
 # Erudoza security and legal readiness
 
-Updated: 2026-07-23
+Updated: 2026-07-29
 
 This document is an engineering and launch-readiness record, not legal advice.
 
@@ -10,12 +10,14 @@ This document is an engineering and launch-readiness record, not legal advice.
 - Browser Firestore access is denied; privileged database access remains server-side.
 - Public course and lesson responses use explicit data-transfer objects. Internal user IDs, topic keys, service timestamps, and author profile URLs are not returned.
 - State-changing JSON requests require an allowed origin, `application/json`, and an endpoint-specific body limit.
-- Progress totals are validated so correct answers and attempts cannot exceed their logical bounds.
+- Progress totals are validated so correct answers and attempts cannot exceed their logical bounds. Non-owner Pro authors must also present short-lived HMAC-signed activity receipts bound to their user, course, lesson, and quiz before a lesson can unlock the next generation step.
 - AI course, lesson, and tutor inputs use moderation. Generated course and lesson content is moderated before storage. Requests include a pseudonymous OpenAI safety identifier.
 - AI generation uses per-plan quotas, per-minute limits, active-request locks, idempotency keys, and a global monthly budget.
 - OpenAI Responses requests disable application-state storage. Direct AI interactions and AI-assisted course or lesson content are visibly identified and include machine-readable disclosure attributes.
 - Mermaid output is parsed and sanitized before insertion into the document.
 - Response headers include CSP, HSTS, clickjacking protection, MIME sniffing protection, a restrictive permissions policy, and cross-origin isolation controls compatible with Google sign-in.
+- `/api/health` performs a live Firestore probe. Critical datastore and verified billing-event failures can be sent to an operator webhook with sanitized metadata and an optional HMAC signature.
+- Managed Firestore export and guarded import scripts support backups and recovery drills. Restore is dry-run by default and requires both `--apply` and the exact project ID.
 - Production dependencies have no known npm audit vulnerabilities as of the date above.
 - Account creation and future terms updates use affirmative, versioned acceptance records, including age eligibility and guardian agreement where the registrant is a minor. Guests can inspect published topics and course outlines; lesson bodies require an accepted free account.
 - Signed-in non-owner users can export their account data and permanently delete their active account data after recent Google reauthentication. Owner deletion requires a manual course-control transfer or shutdown process.
@@ -39,7 +41,7 @@ This document is an engineering and launch-readiness record, not legal advice.
 ## Known residual risks
 
 - The CSP permits inline scripts because the current statically optimized Sites build uses an inline theme bootstrap. A nonce-based CSP would require dynamic rendering and should be evaluated with the hosting architecture rather than applied piecemeal.
-- AI moderation reduces abuse but cannot guarantee that every unsafe or inaccurate output is detected. Pro authors may publish only after sequential lesson completion, attestation, and a fresh automated publication review; the owner retains platform-wide quarantine, unpublish, and deletion control.
+- AI moderation reduces abuse but cannot guarantee that every unsafe or inaccurate output is detected. Pro authors may publish only after server-verified sequential lesson completion, attestation, and a fresh automated publication review; the owner retains platform-wide quarantine, unpublish, and deletion control.
 - Provider security logs, abuse-monitoring records, backups, consent records, and legally required records may outlive active account deletion under the disclosed retention rules.
 - The owner account cannot be deleted automatically because doing so could orphan control of published courses. It requires a verified manual transfer or service-shutdown process.
 - The formal operator identity, business address, governing jurisdiction, and registered DMCA agent are not yet available. Paid subscriptions are deliberately disabled, and the current service should not be marketed in a jurisdiction that requires undisclosed operator details before account use.

@@ -157,7 +157,7 @@ export default function CourseLibrary({ featured = false }: { featured?: boolean
                 const lessons = course.modules.reduce((total, module) => total + module.lessons.length, 0);
                 const hours = Math.max(1, Math.round((course.estimatedMinutes ?? lessons * 12) / 60));
                 return <article className="course-card owner-course-card" key={id}>
-                  <CourseBanner course={course} variant="card" />
+                  <CourseBanner course={course} variant="card" eager={index === 0} />
                   <div className="course-card-body">
                     <span className="course-card-category">Private draft</span>
                     <h3>{course.topic}</h3>
@@ -183,7 +183,7 @@ export default function CourseLibrary({ featured = false }: { featured?: boolean
             const bookmarked = state.courseBookmarks.includes(id);
             return (
               <article className="course-card" key={id}>
-                <CourseBanner course={course} variant="card" />
+                <CourseBanner course={course} variant="card" eager={index === 0 && drafts.length === 0} />
                 <div className="course-card-body">
                   <span className="course-card-category">{course.category ?? "Course"}</span>
                   <h3>{course.topic}</h3>

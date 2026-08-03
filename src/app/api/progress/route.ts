@@ -13,6 +13,7 @@ import type { Course } from "@/lib/course-types";
 import { findCourseLesson, findNextLesson } from "@/lib/course-progress";
 import { apiRequestErrorResponse, readJsonBody } from "@/lib/api-security";
 import { scheduleAdaptiveReview, updateDelayedChecks } from "@/lib/adaptive-learning";
+import { verifyActivityReceipt } from "@/lib/activity-receipts";
 
 function numberValue(value: unknown) {
   return typeof value === "number" && Number.isFinite(value) ? value : 0;
@@ -155,9 +156,36 @@ export async function POST(request: Request) {
       );
     }
 
+    const requiresVerifiedAuthorActivity = !submitted.review
+      && !account.isOwner
+      && course.authorId === account.uid
+      && !course.isPublic;
+    const verifiedClaims = requiresVerifiedAuthorActivity
+      ? await Promise.all(quizEvidence.map((result) =>
+        result.receipt
+          ? verifyActivityReceipt(result.receipt, {
+            uid: account.uid,
+            courseId: submitted.courseId,
+            lessonId: submitted.lessonId,
+            quizIndex: result.quizIndex,
+          })
+          : Promise.resolve(null),
+      ))
+      : [];
+    if (requiresVerifiedAuthorActivity && verifiedClaims.some((claims) => !claims)) {
+      return Response.json(
+        { error: "Complete each lesson activity in this session before unlocking the next lesson." },
+        { status: 409, headers: { "Cache-Control": "no-store" } },
+      );
+    }
+
     const totalQuestions = quizEvidence.length;
-    const firstAttemptCorrect = quizEvidence.filter((result) => result.firstAttemptCorrect).length;
-    const attempts = quizEvidence.reduce((sum, result) => sum + result.attempts, 0);
+    const firstAttemptCorrect = requiresVerifiedAuthorActivity
+      ? verifiedClaims.filter((claims) => claims?.firstAttemptCorrect).length
+      : quizEvidence.filter((result) => result.firstAttemptCorrect).length;
+    const attempts = requiresVerifiedAuthorActivity
+      ? verifiedClaims.reduce((sum, claims) => sum + (claims?.attempts ?? 0), 0)
+      : quizEvidence.reduce((sum, result) => sum + result.attempts, 0);
     const confidences = quizEvidence.map((result) => result.confidence);
     const confidence = confidences.includes("low") ? "low"
       : confidences.includes("medium") ? "medium"

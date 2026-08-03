@@ -39,6 +39,8 @@ import {
 } from "../src/lib/content-language";
 import { lessonGenerationGate } from "../src/lib/authoring-gate";
 import { lessonQualityIssues } from "../src/lib/lesson-quality";
+import { PRIVACY_VERSION, TERMS_VERSION } from "../src/lib/legal";
+import { signActivityReceipt, validateActivityReceipt } from "../src/lib/activity-receipt-crypto";
 
 async function sourceFiles(directory: string): Promise<string[]> {
   const entries = await readdir(directory, { withFileTypes: true });
@@ -50,6 +52,16 @@ async function sourceFiles(directory: string): Promise<string[]> {
 }
 
 async function restoreLocalLearner(page: import("@playwright/test").Page) {
+  const acceptance = await page.request.post("/api/legal/acceptance", {
+    headers: { Authorization: "Bearer playwright-local-owner" },
+    data: {
+      termsVersion: TERMS_VERSION,
+      privacyVersion: PRIVACY_VERSION,
+      ageEligibilityConfirmed: true,
+      source: "signup",
+    },
+  });
+  expect(acceptance.ok()).toBe(true);
   await page.addInitScript(() => localStorage.setItem("erudoza-local-session", "1"));
 }
 
@@ -65,6 +77,39 @@ test("unlocks generated lessons sequentially for Pro authors while owners remain
   expect(lessonGenerationGate(course, "1-0", ["0-0"], false)).toEqual({ allowed: false, requiredLessonId: "0-1" });
   expect(lessonGenerationGate(course, "1-0", ["0-0", "0-1"], false)).toEqual({ allowed: true });
   expect(lessonGenerationGate(course, "1-0", [], true)).toEqual({ allowed: true });
+});
+
+test("binds creator activity receipts to the exact user, course, lesson, and quiz", async () => {
+  const claims = {
+    version: 1 as const,
+    uid: "pro-author",
+    courseId: "creator-course",
+    lessonId: "0-0",
+    quizIndex: 1,
+    attempts: 2,
+    firstAttemptCorrect: false,
+    issuedAt: Date.now(),
+  };
+  const secret = "test-only-activity-receipt-secret";
+  const receipt = await signActivityReceipt(secret, claims);
+  await expect(validateActivityReceipt(secret, receipt, {
+    uid: claims.uid,
+    courseId: claims.courseId,
+    lessonId: claims.lessonId,
+    quizIndex: claims.quizIndex,
+  })).resolves.toMatchObject(claims);
+  await expect(validateActivityReceipt(secret, receipt, {
+    uid: "another-user",
+    courseId: claims.courseId,
+    lessonId: claims.lessonId,
+    quizIndex: claims.quizIndex,
+  })).resolves.toBeNull();
+  await expect(validateActivityReceipt(secret, `${receipt.slice(0, -1)}x`, {
+    uid: claims.uid,
+    courseId: claims.courseId,
+    lessonId: claims.lessonId,
+    quizIndex: claims.quizIndex,
+  })).resolves.toBeNull();
 });
 
 test("publication quality review rejects language contamination and shallow lessons", () => {

@@ -151,6 +151,7 @@ export const progressUpdateSchema = z.object({
       attempts: z.number().int().min(1).max(20),
       firstAttemptCorrect: z.boolean(),
       confidence: z.enum(["low", "medium", "high"]),
+      receipt: z.string().min(40).max(2_000).optional(),
     }).strict()).max(20),
     transferResponse: z.string().trim().max(8_000).optional(),
   }).strict().optional(),

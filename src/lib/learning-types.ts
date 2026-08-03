@@ -106,6 +106,7 @@ export interface ProgressUpdate {
       attempts: number;
       firstAttemptCorrect: boolean;
       confidence: Confidence;
+      receipt?: string;
     }>;
     transferResponse?: string;
   };

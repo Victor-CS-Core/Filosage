@@ -2,6 +2,7 @@ import { billingConfiguration } from "@/lib/runtime-config";
 import { putStoredDocument, runStoredDocumentTransaction } from "@/lib/firebase-server";
 import { stripeClient, syncStripeSubscription } from "@/lib/stripe-server";
 import type Stripe from "stripe";
+import { reportOperationalEvent } from "@/lib/operational-alerts";
 
 export const runtime = "nodejs";
 
@@ -72,6 +73,12 @@ export async function POST(request: Request) {
       retryable: true,
     });
     console.error("Stripe webhook processing failed:", event.id, event.type, error);
+    await reportOperationalEvent({
+      severity: "critical",
+      code: "billing.webhook_failed",
+      message: "A verified Stripe event failed during entitlement synchronization.",
+      context: { eventId: event.id, eventType: event.type },
+    });
     return Response.json({ error: "Webhook processing failed and will be retried." }, { status: 500 });
   }
 

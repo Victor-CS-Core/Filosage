@@ -1,0 +1,95 @@
+import { authorizationResponse, requireAcceptedAccount } from "@/lib/auth-server";
+import { apiRequestErrorResponse, readJsonBody } from "@/lib/api-security";
+import {
+  activityDocumentId,
+  issueActivityReceipt,
+  type ActivityReceiptClaims,
+} from "@/lib/activity-receipts";
+import { getCourse, getLesson, runStoredDocumentTransaction } from "@/lib/firebase-server";
+import type { Course, LessonData } from "@/lib/course-types";
+import { z } from "zod";
+import { enforceBestEffortRateLimit } from "@/lib/request-rate-limit";
+
+const activityAttemptSchema = z.object({
+  courseId: z.string().trim().min(1).max(200),
+  lessonId: z.string().regex(/^\d+-\d+$/),
+  quizIndex: z.number().int().min(0).max(20),
+  selectedOption: z.string().trim().min(1).max(1_000),
+}).strict();
+
+function numberValue(value: unknown) {
+  return typeof value === "number" && Number.isInteger(value) ? value : 0;
+}
+
+export async function POST(request: Request) {
+  const limited = enforceBestEffortRateLimit(request, "lesson-activity", 60);
+  if (limited) return limited;
+  try {
+    const account = await requireAcceptedAccount(request);
+    const parsed = activityAttemptSchema.safeParse(await readJsonBody(request, 4_096));
+    if (!parsed.success) {
+      return Response.json({ error: "This activity attempt is not valid." }, { status: 400 });
+    }
+
+    const { courseId, lessonId, quizIndex, selectedOption } = parsed.data;
+    const course = await getCourse(courseId) as Course | null;
+    if (!course) return Response.json({ error: "Course not found." }, { status: 404 });
+    if (course.authorId !== account.uid && !account.isOwner) {
+      return Response.json({ error: "Only this course's author can verify creator progression." }, { status: 403 });
+    }
+    const lesson = await getLesson(courseId, lessonId) as LessonData | null;
+    const quiz = lesson?.quizzes?.[quizIndex];
+    if (!lesson || !quiz) return Response.json({ error: "Activity not found." }, { status: 404 });
+
+    const correct = quiz.options[quiz.correctIndex] === selectedOption;
+    const documentId = await activityDocumentId(courseId, lessonId, quizIndex);
+    const path = `users/${account.uid}/lessonActivity/${documentId}`;
+    const now = Date.now();
+    const result = await runStoredDocumentTransaction([path], (documents) => {
+      const previous = documents[path];
+      const attempts = Math.min(20, numberValue(previous?.attempts) + 1);
+      const firstAttemptCorrect = previous?.firstAttemptCorrect === true || (attempts === 1 && correct);
+      return {
+        writes: [{
+          path,
+          data: {
+            courseId,
+            lessonId,
+            quizIndex,
+            attempts,
+            firstAttemptCorrect,
+            mastered: previous?.mastered === true || correct,
+            lastAttemptAt: new Date(now).toISOString(),
+          },
+        }],
+        result: { attempts, firstAttemptCorrect },
+      };
+    });
+
+    let receipt: string | undefined;
+    if (correct) {
+      const claims: ActivityReceiptClaims = {
+        version: 1,
+        uid: account.uid,
+        courseId,
+        lessonId,
+        quizIndex,
+        attempts: result.attempts,
+        firstAttemptCorrect: result.firstAttemptCorrect,
+        issuedAt: now,
+      };
+      receipt = await issueActivityReceipt(claims);
+    }
+    return Response.json(
+      { correct, attempts: result.attempts, firstAttemptCorrect: result.firstAttemptCorrect, receipt },
+      { headers: { "Cache-Control": "private, no-store" } },
+    );
+  } catch (error) {
+    const authResponse = authorizationResponse(error);
+    if (authResponse) return authResponse;
+    const requestError = apiRequestErrorResponse(error);
+    if (requestError) return requestError;
+    console.error("Lesson activity verification failed:", error);
+    return Response.json({ error: "This activity could not be verified. Try again." }, { status: 500 });
+  }
+}

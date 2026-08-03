@@ -38,7 +38,10 @@ export default defineConfig({
   webServer: process.env.PLAYWRIGHT_EXTERNAL_SERVER === "1"
     ? undefined
     : {
-      command: `npm.cmd run dev -- --hostname 127.0.0.1 --port ${port}`,
+      // Launch Next directly so Playwright owns the actual server process.
+      // npm.cmd leaves a Windows child process alive after the tests finish,
+      // which prevents release runs from returning a final pass/fail result.
+      command: `node node_modules/next/dist/bin/next dev --hostname 127.0.0.1 --port ${port}`,
       url: baseURL,
       reuseExistingServer: !process.env.CI,
       env: { ERUDOZA_LOCAL_DIR: testStoreDir },

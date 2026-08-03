@@ -13,6 +13,7 @@ const requiredInProduction = [
   "NEXT_PUBLIC_FIREBASE_APP_ID",
   "OPENAI_API_KEY",
   "OWNER_EMAIL",
+  "ACTIVITY_RECEIPT_SECRET",
 ] as const;
 
 export function missingRuntimeConfiguration() {

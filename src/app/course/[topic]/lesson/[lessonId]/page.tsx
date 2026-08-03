@@ -109,6 +109,7 @@ interface QuizResult {
   attempts: number;
   firstAttemptCorrect: boolean;
   confidence: Confidence;
+  receipt?: string;
 }
 
 function KnowledgeCheck({
@@ -117,12 +118,19 @@ function KnowledgeCheck({
   total,
   onMastered,
   onContinue,
+  verifyAnswer,
 }: {
   quiz: Quiz;
   index: number;
   total: number;
   onMastered: (index: number, result: QuizResult) => void;
   onContinue?: () => void;
+  verifyAnswer?: (optionIndex: number) => Promise<{
+    correct: boolean;
+    attempts: number;
+    firstAttemptCorrect: boolean;
+    receipt?: string;
+  }>;
 }) {
   const [recall, setRecall] = useState("");
   const [choicesVisible, setChoicesVisible] = useState(false);
@@ -130,13 +138,35 @@ function KnowledgeCheck({
   const [attempts, setAttempts] = useState(0);
   const [mastered, setMastered] = useState(false);
   const [submittedConfidence, setSubmittedConfidence] = useState<Confidence | null>(null);
+  const [firstAttemptCorrect, setFirstAttemptCorrect] = useState(false);
+  const [receipt, setReceipt] = useState<string | undefined>();
+  const [checking, setChecking] = useState(false);
+  const [verificationError, setVerificationError] = useState<string | null>(null);
 
-  const choose = (optionIndex: number) => {
-    if (selected !== null) return;
+  const choose = async (optionIndex: number) => {
+    if (selected !== null || checking) return;
     const nextAttempts = attempts + 1;
-    setAttempts(nextAttempts);
-    setSelected(optionIndex);
-    if (optionIndex === quiz.correctIndex) setMastered(true);
+    setVerificationError(null);
+    if (!verifyAnswer) {
+      setAttempts(nextAttempts);
+      setFirstAttemptCorrect(nextAttempts === 1 && optionIndex === quiz.correctIndex);
+      setSelected(optionIndex);
+      if (optionIndex === quiz.correctIndex) setMastered(true);
+      return;
+    }
+    setChecking(true);
+    try {
+      const verified = await verifyAnswer(optionIndex);
+      setAttempts(verified.attempts);
+      setFirstAttemptCorrect(verified.firstAttemptCorrect);
+      setReceipt(verified.receipt);
+      setSelected(optionIndex);
+      setMastered(verified.correct);
+    } catch (error) {
+      setVerificationError(error instanceof Error ? error.message : "This answer could not be verified.");
+    } finally {
+      setChecking(false);
+    }
   };
 
   const reset = () => setSelected(null);
@@ -177,8 +207,8 @@ function KnowledgeCheck({
             <button
               key={`${option}-${optionIndex}`}
               className={`answer-option ${correct ? "is-correct" : ""} ${incorrect ? "is-incorrect" : ""}`}
-              onClick={() => choose(optionIndex)}
-              disabled={revealed}
+              onClick={() => void choose(optionIndex)}
+              disabled={revealed || checking}
               type="button"
               aria-pressed={selected === optionIndex}
             >
@@ -190,6 +220,7 @@ function KnowledgeCheck({
           );
         })}
       </div>}
+      {verificationError && <p className="form-error" role="alert">{verificationError}</p>}
       {selected !== null && (
         <div className={`answer-explanation ${selected === quiz.correctIndex ? "is-correct" : "is-incorrect"}`} aria-live="polite">
           <div>
@@ -204,7 +235,7 @@ function KnowledgeCheck({
               {(["low", "medium", "high"] as Confidence[]).map((confidence) => (
                 <button key={confidence} type="button" disabled={submittedConfidence !== null} className={submittedConfidence === confidence ? "is-selected" : ""} onClick={() => {
                   setSubmittedConfidence(confidence);
-                  onMastered(index, { attempts, firstAttemptCorrect: attempts === 1, confidence });
+                  onMastered(index, { attempts, firstAttemptCorrect, confidence, receipt });
                 }}>
                   {confidence === "low" ? "Unsure" : confidence === "medium" ? "Mostly sure" : "Certain"}
                 </button>
@@ -578,6 +609,7 @@ export default function LessonView() {
           attempts: result.attempts,
           firstAttemptCorrect: result.firstAttemptCorrect,
           confidence: result.confidence,
+          receipt: result.receipt,
         })),
         transferResponse: lessonData.transferTask ? transferResponse.trim() : undefined,
       },
@@ -794,6 +826,37 @@ export default function LessonView() {
       if (isCurrentView()) setChatting(false);
     }
   };
+
+  const verifyAuthorAnswer = useCallback(async (quizIndex: number, optionIndex: number) => {
+    if (!courseId || !lessonData) throw new Error("This activity is not ready.");
+    const token = await getToken();
+    const response = await fetch("/api/lesson-activity", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+      body: JSON.stringify({
+        courseId,
+        lessonId,
+        quizIndex,
+        selectedOption: lessonData.quizzes[quizIndex]?.options[optionIndex],
+      }),
+    });
+    const data = await response.json().catch(() => ({})) as {
+      error?: string;
+      correct?: boolean;
+      attempts?: number;
+      firstAttemptCorrect?: boolean;
+      receipt?: string;
+    };
+    if (!response.ok || typeof data.correct !== "boolean" || typeof data.attempts !== "number") {
+      throw new Error(data.error || "This answer could not be verified.");
+    }
+    return {
+      correct: data.correct,
+      attempts: data.attempts,
+      firstAttemptCorrect: data.firstAttemptCorrect === true,
+      receipt: data.receipt,
+    };
+  }, [courseId, getToken, lessonData, lessonId]);
 
   const lessonHref = (id: string) => `/course/${encodeURIComponent(topic)}/lesson/${id}${courseId ? `?id=${courseId}` : ""}`;
 
@@ -1050,6 +1113,9 @@ export default function LessonView() {
                       total={lessonData.quizzes.length}
                       onMastered={onMastered}
                       onContinue={activePracticeIndex < lessonData.quizzes.length - 1 ? advancePractice : undefined}
+                      verifyAnswer={course?.canManage && !course.isPublic && !isOwner
+                        ? (optionIndex) => verifyAuthorAnswer(activePracticeIndex, optionIndex)
+                        : undefined}
                     />
                   </div>
                 </section>
