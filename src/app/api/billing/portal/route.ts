@@ -10,7 +10,7 @@ export async function POST(request: Request) {
   try {
     assertTrustedMutation(request);
     const account = await requireAcceptedAccount(request);
-    if (!billingConfiguration().configured) return Response.json({ error: "Billing management is not available yet." }, { status: 503 });
+    if (!billingConfiguration().managementReady) return Response.json({ error: "Billing management is not available yet." }, { status: 503 });
     const url = await createBillingPortalSession(account);
     return Response.json({ url }, { headers: { "Cache-Control": "private, no-store" } });
   } catch (error) {

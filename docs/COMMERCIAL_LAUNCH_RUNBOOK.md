@@ -6,7 +6,8 @@ This runbook prepares Erudoza for paid plans without opening subscriptions. The 
 
 - Pricing preferences and launch-list consent are research signals. They do not create a Stripe customer, Checkout Session, subscription, invoice, or entitlement.
 - The pricing-intent API is account-bound, server-authorized, rate-limited, body-limited, same-origin protected, and deduplicated by user ID.
-- Checkout and billing-portal routes must return unavailable until the payment provider is complete and the separate billing lock is enabled.
+- Checkout must remain unavailable until the payment provider is complete and the separate billing lock is enabled. The billing portal remains available to existing subscribers whenever Stripe account-management credentials are configured, even while new checkout is closed.
+- The billing lock controls new checkout only. After any subscription exists, turning the lock off must leave signed webhooks, the customer portal, payment-state synchronization, and cancellation available for existing subscribers.
 - Pro access during preparation remains owner-granted or allowlisted. It is not proof of a paid subscription.
 
 ## Owner launch gate
@@ -23,6 +24,8 @@ Do not enable billing until all of the following are true:
 8. Open high-risk content or safety reports are resolved.
 9. Pricing-intent evidence is reviewed as directional research, not presented as conversion or revenue.
 10. The owner makes a separate, explicit decision to change `BILLING_ENABLED` from `false` to `true`.
+
+For an ordinary closed-billing release, set `SITE_VERSION` to the exact Git commit SHA and run `npm.cmd run check:release`; this check requires `BILLING_ENABLED=false`. After deployment, run `npm.cmd run check:production -- https://your-domain.example <exact-sha>` so a healthy datastore cannot mask a stale or unidentified build. Only after separate billing authorization, run `node scripts/check-release-env.mjs --billing-activation`; that mode requires the Stripe product, webhook, management, and checkout configuration plus `BILLING_ENABLED=true`.
 
 ## Payment lifecycle test matrix
 
@@ -63,6 +66,7 @@ Record the test time, test customer, event IDs, observed account state, and revi
 For a material payment, data, or account-access incident:
 
 1. Keep or return `BILLING_ENABLED=false` to stop new purchases.
+   Existing subscriber lifecycle processing and cancellation must remain online while new checkout is closed.
 2. Preserve logs, event IDs, deployment version, and timestamps.
 3. Confirm whether the incident affects checkout, entitlement, learning data, or all three.
 4. Restore service from a known-good release or backup only after validating the target and recovery point.

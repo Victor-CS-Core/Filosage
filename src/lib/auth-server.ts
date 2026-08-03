@@ -5,8 +5,9 @@ import {
   verifyFirebaseIdToken,
   type VerifiedFirebaseUser,
 } from "@/lib/firebase-server";
-import { getOrCreateAccount, type ServerAccount } from "@/lib/account-server";
+import { getExistingAccount, type ServerAccount } from "@/lib/account-server";
 import { PRIVACY_VERSION, TERMS_VERSION } from "@/lib/legal";
+import { hasRecentFirebaseAuthentication } from "@/lib/recent-auth";
 
 export class AuthorizationError extends Error {
   constructor(
@@ -37,7 +38,21 @@ export async function requireUser(request: Request): Promise<VerifiedFirebaseUse
 }
 
 export async function requireAccount(request: Request): Promise<ServerAccount> {
-  return getOrCreateAccount(await requireUser(request));
+  const account = await getExistingAccount(await requireUser(request));
+  if (!account) {
+    throw new AuthorizationError(403, "Complete account setup and accept the current Terms and Privacy Notice to continue.");
+  }
+  return account;
+}
+
+export async function requireRecentlyAuthenticatedAccount(request: Request): Promise<ServerAccount> {
+  const user = await requireUser(request);
+  if (!hasRecentFirebaseAuthentication(user.auth_time)) {
+    throw new AuthorizationError(401, "Sign in again before permanently deleting your account.");
+  }
+  const account = await getExistingAccount(user);
+  if (!account) throw new AuthorizationError(403, "Complete account setup before managing account data.");
+  return account;
 }
 
 export function hasCurrentLegalAcceptance(account: ServerAccount) {

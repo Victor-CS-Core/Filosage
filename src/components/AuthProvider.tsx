@@ -207,6 +207,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }),
     });
     if (!response.ok) throw new Error("Your acceptance could not be saved. Please try again.");
+    setError(null);
     await loadAccount(activeUser);
   }, [loadAccount, user]);
 

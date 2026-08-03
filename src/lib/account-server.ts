@@ -44,7 +44,16 @@ export function isOwnerUser(user: VerifiedFirebaseUser) {
 // account state changes always write regardless.
 const LAST_SEEN_REFRESH_MS = 15 * 60_000;
 
-export async function getOrCreateAccount(user: VerifiedFirebaseUser): Promise<ServerAccount> {
+interface ResolvedAccountState {
+  saved: Record<string, unknown>;
+  plan: LearnerPlan;
+  access: ServerAccount["access"];
+  accountStatus: AccountStatus;
+}
+
+async function resolveAccount(
+  user: VerifiedFirebaseUser,
+): Promise<ServerAccount | null> {
   const path = `users/${user.uid}`;
   const now = new Date().toISOString();
   const email = user.email?.trim().toLowerCase();
@@ -54,8 +63,9 @@ export async function getOrCreateAccount(user: VerifiedFirebaseUser): Promise<Se
   // Read and write inside one transaction so a concurrent billing webhook
   // update conflicts (and retries) instead of being overwritten with stale
   // subscription state.
-  const { saved, plan, access, accountStatus } = await runStoredDocumentTransaction([path], (documents) => {
+  const resolved = await runStoredDocumentTransaction<ResolvedAccountState | null>([path], (documents) => {
     const existing = documents[path];
+    if (!existing) return { writes: [], result: null };
     const subscriptionStatus = String(existing?.subscriptionStatus ?? "none") as ServerAccount["subscriptionStatus"];
     const subscribed = subscriptionStatus === "active" || subscriptionStatus === "trialing";
     const manualProUntil = typeof existing?.manualProUntil === "string" ? existing.manualProUntil : undefined;
@@ -94,6 +104,8 @@ export async function getOrCreateAccount(user: VerifiedFirebaseUser): Promise<Se
       result: { saved: next as Record<string, unknown>, plan, access, accountStatus },
     };
   });
+  if (!resolved) return null;
+  const { saved, plan, access, accountStatus } = resolved;
 
   return {
     uid: user.uid,
@@ -112,4 +124,8 @@ export async function getOrCreateAccount(user: VerifiedFirebaseUser): Promise<Se
     acceptedTermsVersion: typeof saved.acceptedTermsVersion === "string" ? saved.acceptedTermsVersion : undefined,
     acceptedPrivacyVersion: typeof saved.acceptedPrivacyVersion === "string" ? saved.acceptedPrivacyVersion : undefined,
   };
+}
+
+export function getExistingAccount(user: VerifiedFirebaseUser) {
+  return resolveAccount(user);
 }

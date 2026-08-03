@@ -14,16 +14,30 @@ function present(value: string | undefined) {
 export function evaluateBillingConfiguration(environment: BillingEnvironment) {
   const provider = (environment.BILLING_PROVIDER ?? "none").trim().toLowerCase();
   const enabled = environment.BILLING_ENABLED?.trim().toLowerCase() === "true";
-  const providerReady = provider === "stripe"
-    && present(environment.STRIPE_SECRET_KEY)
-    && present(environment.STRIPE_WEBHOOK_SECRET)
+  const managementReady = provider === "stripe"
+    && present(environment.STRIPE_SECRET_KEY);
+  const webhookReady = managementReady
+    && present(environment.STRIPE_WEBHOOK_SECRET);
+  const productReady = managementReady
     && present(environment.STRIPE_PRO_MONTHLY_PRICE_ID)
     && present(environment.STRIPE_PRO_ANNUAL_PRICE_ID);
+  const providerReady = webhookReady && productReady;
+  const checkoutReady = enabled && providerReady;
 
   return {
     provider,
     enabled,
+    managementReady,
+    webhookReady,
+    productReady,
     providerReady,
-    configured: enabled && providerReady,
+    checkoutReady,
+    // Compatibility alias for release checks that predate capability-specific
+    // readiness. New purchase paths should use checkoutReady explicitly.
+    configured: checkoutReady,
   };
+}
+
+export function subscriptionBlocksCheckout(status: string | null | undefined) {
+  return status === "active" || status === "trialing" || status === "past_due";
 }

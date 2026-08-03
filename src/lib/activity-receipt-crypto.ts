@@ -61,10 +61,12 @@ export async function validateActivityReceipt(
   const [payload, signature, extra] = receipt.split(".");
   if (!payload || !signature || extra) return null;
   try {
+    const signatureBytes = decodeBase64Url(signature);
+    if (base64Url(signatureBytes) !== signature) return null;
     const valid = await crypto.subtle.verify(
       "HMAC",
       await signingKey(secret),
-      decodeBase64Url(signature),
+      signatureBytes,
       new TextEncoder().encode(payload),
     );
     if (!valid) return null;

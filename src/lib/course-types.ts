@@ -152,5 +152,6 @@ export interface LearnerAccount {
   acceptedTermsVersion?: string;
   acceptedPrivacyVersion?: string;
   legalAcceptanceRequired?: boolean;
+  applicationAccountExists?: boolean;
   quotas: AiQuotaSummary[];
 }

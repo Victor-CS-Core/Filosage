@@ -1,14 +1,15 @@
 import "server-only";
 
 import { billingConfiguration } from "@/lib/runtime-config";
+import { PRO_OFFER } from "@/lib/billing-offer";
 
 export const proPlan = {
   id: "pro_monthly",
   name: "Erudoza Pro",
   interval: "month" as const,
-  currency: "usd",
-  priceUsd: 14.99,
-  annualPriceUsd: 119.88,
+  currency: PRO_OFFER.currency,
+  priceUsd: PRO_OFFER.monthly.amountMinor / 100,
+  annualPriceUsd: PRO_OFFER.annual.amountMinor / 100,
   priceId: process.env.STRIPE_PRO_MONTHLY_PRICE_ID ?? "",
   annualPriceId: process.env.STRIPE_PRO_ANNUAL_PRICE_ID ?? "",
   features: { courseOutlines: 3, generatedLessons: 30, tutorQuestions: 100 },
@@ -19,7 +20,9 @@ export function billingStatus() {
   return {
     provider: config.provider,
     enabled: config.enabled,
-    ready: config.configured,
+    managementReady: config.managementReady,
+    checkoutReady: config.checkoutReady,
+    ready: config.checkoutReady,
     plan: { ...proPlan, priceId: undefined, annualPriceId: undefined },
   };
 }

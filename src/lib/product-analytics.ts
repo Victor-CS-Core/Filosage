@@ -11,6 +11,49 @@ import {
 const ACTOR_KEY = "erudoza:analytics:actor";
 const SESSION_KEY = "erudoza:analytics:session";
 const ATTRIBUTION_KEY = "erudoza:analytics:first-touch";
+const CONSENT_KEY = "erudoza:analytics:consent:v1";
+export const ANALYTICS_CONSENT_CHANGED_EVENT = "erudoza:analytics-consent-changed";
+
+export type AnalyticsConsent = "accepted" | "declined";
+
+export function subscribeAnalyticsConsent(onChange: () => void) {
+  if (typeof window === "undefined") return () => undefined;
+  window.addEventListener(ANALYTICS_CONSENT_CHANGED_EVENT, onChange);
+  return () => window.removeEventListener(ANALYTICS_CONSENT_CHANGED_EVENT, onChange);
+}
+
+export function readAnalyticsConsent(): AnalyticsConsent | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const value = localStorage.getItem(CONSENT_KEY);
+    return value === "accepted" || value === "declined" ? value : null;
+  } catch {
+    return null;
+  }
+}
+
+function clearOptionalAnalyticsStorage() {
+  try {
+    localStorage.removeItem(ACTOR_KEY);
+    localStorage.removeItem(ATTRIBUTION_KEY);
+    sessionStorage.removeItem(SESSION_KEY);
+    for (let index = sessionStorage.length - 1; index >= 0; index -= 1) {
+      const key = sessionStorage.key(index);
+      if (key?.startsWith("erudoza:event:") || key?.startsWith("erudoza:traffic:")) {
+        sessionStorage.removeItem(key);
+      }
+    }
+  } catch {
+    // Consent still applies even when storage is unavailable.
+  }
+}
+
+export function setAnalyticsConsent(value: AnalyticsConsent) {
+  if (typeof window === "undefined") return;
+  try { localStorage.setItem(CONSENT_KEY, value); } catch { /* Storage is optional. */ }
+  if (value === "declined") clearOptionalAnalyticsStorage();
+  window.dispatchEvent(new Event(ANALYTICS_CONSENT_CHANGED_EVENT));
+}
 
 function safeIdentifier(storage: Storage, key: string) {
   const current = storage.getItem(key);
@@ -129,7 +172,7 @@ export interface ProductEventOptions {
 }
 
 export function trackProductEvent(event: ProductEventName, options: ProductEventOptions = {}) {
-  if (options.exclude || typeof window === "undefined") return;
+  if (options.exclude || typeof window === "undefined" || readAnalyticsConsent() !== "accepted") return;
   const route = options.route ?? routeBucket(window.location.pathname);
   const onceKey = `erudoza:event:${PRODUCT_EVENT_SCHEMA_VERSION}:${event}:${route}`;
   if (options.oncePerSession) {
@@ -167,7 +210,7 @@ export function trackProductEvent(event: ProductEventName, options: ProductEvent
 }
 
 export function trackPageView(pathname: string, exclude = false) {
-  if (exclude) return;
+  if (exclude || readAnalyticsConsent() !== "accepted") return;
   const route = routeBucket(pathname);
   const day = new Date().toISOString().slice(0, 10);
   const storageKey = `erudoza:traffic:${day}:${route}`;

@@ -3,7 +3,10 @@
 import { useEffect } from "react";
 import { usePathname } from "next/navigation";
 import { useAuth } from "@/components/AuthProvider";
-import { trackPageView } from "@/lib/product-analytics";
+import {
+  ANALYTICS_CONSENT_CHANGED_EVENT,
+  trackPageView,
+} from "@/lib/product-analytics";
 
 export default function TrafficTracker() {
   const pathname = usePathname();
@@ -11,7 +14,10 @@ export default function TrafficTracker() {
 
   useEffect(() => {
     if (loading) return;
-    trackPageView(pathname, isOwner);
+    const track = () => trackPageView(pathname, isOwner);
+    track();
+    window.addEventListener(ANALYTICS_CONSENT_CHANGED_EVENT, track);
+    return () => window.removeEventListener(ANALYTICS_CONSENT_CHANGED_EVENT, track);
   }, [isOwner, loading, pathname]);
 
   return null;

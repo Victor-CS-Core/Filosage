@@ -22,12 +22,22 @@ function allowedOrigins(request: Request) {
 }
 
 export function assertTrustedMutation(request: Request) {
-  if (request.headers.get("sec-fetch-site") === "cross-site") {
+  const fetchSite = request.headers.get("sec-fetch-site");
+  if (fetchSite === "cross-site") {
     throw new ApiRequestError(403, "This request did not originate from Erudoza.");
   }
   const origin = request.headers.get("origin");
   if (origin && !allowedOrigins(request).has(origin)) {
     throw new ApiRequestError(403, "This request did not originate from Erudoza.");
+  }
+  // Browsers send Origin for JSON POSTs and/or an unforgeable Fetch Metadata
+  // header. In production, accepting neither would let non-browser clients
+  // bypass the documented same-origin boundary accidentally.
+  if (process.env.NODE_ENV === "production"
+    && !origin
+    && fetchSite !== "same-origin"
+    && fetchSite !== "same-site") {
+    throw new ApiRequestError(403, "This request did not include trusted origin metadata.");
   }
 }
 

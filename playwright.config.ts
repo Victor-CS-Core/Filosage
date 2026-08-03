@@ -1,49 +1,79 @@
-import { rmSync } from "node:fs";
+import { resolve } from "node:path";
 import { defineConfig, devices } from "@playwright/test";
+import { playwrightServerSettings } from "./tests/fixtures/playwright-server";
 
-// Tests get their own port and their own throwaway local-mode store so they
-// never reuse (or pollute) a dev server the developer is actively browsing.
-const port = process.env.PLAYWRIGHT_PORT ?? "3100";
-const baseURL = `http://127.0.0.1:${port}`;
-const testStoreDir = ".erudoza-local-test";
-if (process.env.PLAYWRIGHT_EXTERNAL_SERVER !== "1") {
-  rmSync(testStoreDir, { recursive: true, force: true });
-}
+// Owned runs get fixed loopback ports plus isolated Next build/lock files and
+// local-mode stores per browser project. External mode starts and deletes nothing.
+const server = playwrightServerSettings();
+const projectServer = (offset: number) => {
+  if (server.external) return server;
+  const port = server.port + offset;
+  if (port > 65_535) {
+    throw new Error(`PLAYWRIGHT_PORT must leave room for three project servers; received ${server.port}.`);
+  }
+  return { ...server, port, id: String(port), baseURL: `http://127.0.0.1:${port}` };
+};
+const ownedProjects = [
+  { name: "chromium", server: projectServer(0), device: devices["Desktop Chrome"] },
+  { name: "mobile-chromium", server: projectServer(1), device: devices["Pixel 7"] },
+  { name: "mobile-webkit", server: projectServer(2), device: devices["iPhone 13"] },
+].map((project) => {
+  const testStoreDir = `.erudoza-local-test/${project.server.id}`;
+  return {
+    ...project,
+    testStoreDir,
+    testDistDir: `.next/playwright-${project.server.id}`,
+    lifecycleDir: resolve(testStoreDir, "server"),
+  };
+});
+
+const browserState = (baseURL: string) => ({
+  baseURL,
+  storageState: {
+    cookies: [],
+    origins: [{
+      origin: baseURL,
+      localStorage: [{ name: "erudoza:analytics:consent:v1", value: "declined" }],
+    }],
+  },
+});
 
 export default defineConfig({
   testDir: "./tests",
+  globalTeardown: server.external ? undefined : "./tests/fixtures/playwright-global-teardown.ts",
+  metadata: server.external
+    ? {}
+    : { erudozaPlaywrightLifecycleDirs: ownedProjects.map((project) => project.lifecycleDir) },
+  // This spec owns a separate vinext production server via its own config.
+  testIgnore: "sites-smoke.spec.ts",
   fullyParallel: true,
   forbidOnly: Boolean(process.env.CI),
   retries: process.env.CI ? 2 : 0,
   workers: process.env.CI ? 1 : 2,
   reporter: "html",
   use: {
-    baseURL,
     trace: "on-first-retry",
   },
-  projects: [
-    {
-      name: "chromium",
-      use: { ...devices["Desktop Chrome"] },
-    },
-    {
-      name: "mobile-chromium",
-      use: { ...devices["Pixel 7"] },
-    },
-    {
-      name: "mobile-webkit",
-      use: { ...devices["iPhone 13"] },
-    },
-  ],
-  webServer: process.env.PLAYWRIGHT_EXTERNAL_SERVER === "1"
+  projects: ownedProjects.map((project) => ({
+    name: project.name,
+    use: { ...project.device, ...browserState(project.server.baseURL) },
+  })),
+  webServer: server.external
     ? undefined
-    : {
-      // Launch Next directly so Playwright owns the actual server process.
-      // npm.cmd leaves a Windows child process alive after the tests finish,
-      // which prevents release runs from returning a final pass/fail result.
-      command: `node node_modules/next/dist/bin/next dev --hostname 127.0.0.1 --port ${port}`,
-      url: baseURL,
-      reuseExistingServer: !process.env.CI,
-      env: { ERUDOZA_LOCAL_DIR: testStoreDir },
-    },
+    : ownedProjects.map((project) => ({
+      // The test-only custom server avoids Next CLI's forked Windows process;
+      // global teardown asks this exact owned process to close before the
+      // Playwright web-server plugin performs its final cleanup.
+      command: "node scripts/playwright-next-server.mjs",
+      url: project.server.baseURL,
+      reuseExistingServer: false,
+      timeout: 120_000,
+      env: {
+        ERUDOZA_LOCAL_DIR: project.testStoreDir,
+        ERUDOZA_NEXT_DIST_DIR: project.testDistDir,
+        ERUDOZA_PLAYWRIGHT_LIFECYCLE_DIR: project.lifecycleDir,
+        HOSTNAME: "127.0.0.1",
+        PORT: String(project.server.port),
+      },
+    })),
 });

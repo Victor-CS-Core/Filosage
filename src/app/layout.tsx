@@ -6,6 +6,7 @@ import { ThemeProvider } from "@/components/ThemeProvider";
 import { AuthProvider } from "@/components/AuthProvider";
 import { DrawerProvider } from "@/components/AppDrawer";
 import TrafficTracker from "@/components/TrafficTracker";
+import AnalyticsConsent from "@/components/AnalyticsConsent";
 
 function safeRequestOrigin(headerList: Headers) {
   const configuredOrigin = process.env.NEXT_PUBLIC_SITE_URL;
@@ -84,6 +85,7 @@ export default async function RootLayout({
             <DrawerProvider>
               <TrafficTracker />
               {children}
+              <AnalyticsConsent />
             </DrawerProvider>
           </AuthProvider>
         </ThemeProvider>

@@ -39,9 +39,9 @@ import {
 } from "../src/lib/content-language";
 import { lessonGenerationGate } from "../src/lib/authoring-gate";
 import { lessonQualityIssues } from "../src/lib/lesson-quality";
-import { PRIVACY_VERSION, TERMS_VERSION } from "../src/lib/legal";
 import { signActivityReceipt, validateActivityReceipt } from "../src/lib/activity-receipt-crypto";
 import { evaluateBillingConfiguration } from "../src/lib/billing-lock";
+import { restoreLocalLearner } from "./fixtures/local-learner";
 
 async function sourceFiles(directory: string): Promise<string[]> {
   const entries = await readdir(directory, { withFileTypes: true });
@@ -50,20 +50,6 @@ async function sourceFiles(directory: string): Promise<string[]> {
     return entry.isDirectory() ? sourceFiles(location) : [location];
   }));
   return files.flat();
-}
-
-async function restoreLocalLearner(page: import("@playwright/test").Page) {
-  const acceptance = await page.request.post("/api/legal/acceptance", {
-    headers: { Authorization: "Bearer playwright-local-owner" },
-    data: {
-      termsVersion: TERMS_VERSION,
-      privacyVersion: PRIVACY_VERSION,
-      ageEligibilityConfirmed: true,
-      source: "signup",
-    },
-  });
-  expect(acceptance.ok()).toBe(true);
-  await page.addInitScript(() => localStorage.setItem("erudoza-local-session", "1"));
 }
 
 test("keeps checkout closed until the independent billing lock is enabled", () => {

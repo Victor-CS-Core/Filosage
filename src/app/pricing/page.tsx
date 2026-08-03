@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { Bell, Check, CreditCard, Crown, Gauge, LoaderCircle, LockKeyhole, Sparkles } from "lucide-react";
 import AppShell from "@/components/AppShell";
 import { useAuth } from "@/components/AuthProvider";
+import { subscriptionBlocksCheckout } from "@/lib/billing-lock";
 import { SUPPORT_CONTACT } from "@/lib/legal";
 
 const freeFeatures = [
@@ -25,6 +26,7 @@ const proFeatures = [
 export default function PricingPage() {
   const { user, account, isPro, signInWithGoogle, acceptLegalTerms } = useAuth();
   const outlineQuota = account?.quotas.find((quota) => quota.feature === "course_outline");
+  const subscriptionRequiresManagement = subscriptionBlocksCheckout(account?.subscriptionStatus);
   const [email, setEmail] = useState("");
   const [consent, setConsent] = useState(false);
   const [joining, setJoining] = useState(false);
@@ -32,6 +34,7 @@ export default function PricingPage() {
   const [joinError, setJoinError] = useState<string | null>(null);
   const [interval, setInterval] = useState<"monthly" | "annual">("annual");
   const [billingReady, setBillingReady] = useState(false);
+  const [billingManagementReady, setBillingManagementReady] = useState(false);
   const [billingBusy, setBillingBusy] = useState(false);
   const [billingError, setBillingError] = useState<string | null>(null);
   const [intentReadiness, setIntentReadiness] = useState<"ready_now" | "within_30_days" | "researching">("within_30_days");
@@ -43,12 +46,18 @@ export default function PricingPage() {
   useEffect(() => {
     void fetch("/api/billing/status")
       .then((response) => response.ok ? response.json() : Promise.reject(new Error()))
-      .then((status: { ready?: boolean }) => setBillingReady(status.ready === true))
-      .catch(() => setBillingReady(false));
+      .then((status: { ready?: boolean; managementReady?: boolean }) => {
+        setBillingReady(status.ready === true);
+        setBillingManagementReady(status.managementReady === true);
+      })
+      .catch(() => {
+        setBillingReady(false);
+        setBillingManagementReady(false);
+      });
   }, []);
 
   useEffect(() => {
-    if (!user || isPro || account?.legalAcceptanceRequired) return;
+    if (!user || isPro || subscriptionRequiresManagement || account?.legalAcceptanceRequired) return;
     let active = true;
     void user.getIdToken()
       .then((token) => fetch("/api/pricing-intent", {
@@ -65,7 +74,7 @@ export default function PricingPage() {
       })
       .catch(() => undefined);
     return () => { active = false; };
-  }, [account?.legalAcceptanceRequired, isPro, user]);
+  }, [account?.legalAcceptanceRequired, isPro, subscriptionRequiresManagement, user]);
 
   const openBilling = async (kind: "checkout" | "portal") => {
     setBillingBusy(true);
@@ -162,13 +171,15 @@ export default function PricingPage() {
               <button type="button" className={interval === "annual" ? "is-selected" : ""} aria-pressed={interval === "annual"} onClick={() => setInterval("annual")}>Annual <span>Save 33%</span></button>
             </div>
             <ul>{proFeatures.map((feature) => <li key={feature}><Check size={16} /> {feature}</li>)}</ul>
-            {isPro ? (
+            {subscriptionRequiresManagement ? (
               <>
-                <div className="plan-status"><Sparkles size={17} /><span><strong>Pro is active</strong><small>{outlineQuota?.remaining ?? "Unlimited"} course outline credits remaining</small></span></div>
-                <button className="button button-secondary" type="button" disabled={billingBusy || !billingReady} onClick={() => void openBilling("portal")}>
+                <div className="plan-status"><Sparkles size={17} /><span><strong>{account?.subscriptionStatus === "past_due" ? "Payment needs attention" : "Pro is active"}</strong><small>{account?.subscriptionStatus === "past_due" ? "Update your payment method to restore Pro access." : `${outlineQuota?.remaining ?? "Unlimited"} course outline credits remaining`}</small></span></div>
+                <button className="button button-secondary" type="button" disabled={billingBusy || !billingManagementReady} onClick={() => void openBilling("portal")}>
                   {billingBusy ? <LoaderCircle className="spin" size={16} /> : <CreditCard size={16} />} Manage billing
                 </button>
               </>
+            ) : isPro ? (
+              <div className="plan-status"><Sparkles size={17} /><span><strong>Pro is active</strong><small>{outlineQuota?.remaining ?? "Unlimited"} course outline credits remaining</small></span></div>
             ) : billingReady ? (
               <button className="button button-primary" type="button" disabled={billingBusy} onClick={() => void openBilling("checkout")}>
                 {billingBusy ? <LoaderCircle className="spin" size={16} /> : <CreditCard size={16} />}
@@ -189,7 +200,13 @@ export default function PricingPage() {
                 <button className="button button-primary" type="submit" disabled={intentSaving}>
                   {intentSaving ? <LoaderCircle className="spin" size={16} /> : <Check size={16} />} {intentSaving ? "Saving..." : intentSaved ? "Update my preference" : "Save my preference"}
                 </button>
-                {intentSaved && !intentError && <p className="pricing-intent-success" role="status">Preference saved. This is research only; no subscription was created.</p>}
+                {intentSaved && !intentError && (
+                  <p className="pricing-intent-success" role="status">
+                    {launchEmailConsent
+                      ? "Preference saved. Launch email consent is active; no subscription was created."
+                      : "Preference saved. Launch email consent is withdrawn; no subscription was created."}
+                  </p>
+                )}
                 {intentError && <p className="waitlist-error" role="alert">{intentError}</p>}
               </form>
             ) : joined ? (

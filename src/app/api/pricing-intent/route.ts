@@ -74,7 +74,9 @@ export async function POST(request: Request) {
     const now = new Date().toISOString();
     const intentPath = `pricingIntents/${account.uid}`;
     const eventPath = `productEvents/pricing-interest-${account.uid}`;
-    const waitlistPath = parsed.data.launchEmailConsent && account.email
+    // Always read an existing waitlist record when an account has an email so
+    // a later unchecked consent box can withdraw consent and suppress sends.
+    const waitlistPath = account.email
       ? `waitlist/${await emailFingerprint(account.email)}`
       : null;
     const paths = [intentPath, eventPath, ...(waitlistPath ? [waitlistPath] : [])];
@@ -86,7 +88,7 @@ export async function POST(request: Request) {
         uid: account.uid,
         interval: parsed.data.interval,
         readiness: parsed.data.readiness,
-        launchEmailConsent: parsed.data.launchEmailConsent || existingIntent?.launchEmailConsent === true,
+        launchEmailConsent: parsed.data.launchEmailConsent,
         offerVersion: "pro-v1-closed-launch",
         plannedMonthlyPriceUsd: 14.99,
         plannedAnnualPriceUsd: 119.88,
@@ -105,6 +107,7 @@ export async function POST(request: Request) {
             channel: "internal",
             event: "pricing_interest",
             actorId: account.uid,
+            launchEmailConsent: parsed.data.launchEmailConsent,
             createdAt: typeof existingEvent?.createdAt === "string" ? existingEvent.createdAt : now,
             updatedAt: now,
           },
@@ -112,18 +115,35 @@ export async function POST(request: Request) {
       ];
       if (waitlistPath && account.email) {
         const existingWaitlist = documents[waitlistPath];
-        writes.push({
-          path: waitlistPath,
-          data: {
-            email: account.email,
-            status: "waiting",
-            source: "pricing-intent",
-            marketingConsent: true,
-            consentedAt: typeof existingWaitlist?.consentedAt === "string" ? existingWaitlist.consentedAt : now,
-            createdAt: typeof existingWaitlist?.createdAt === "string" ? existingWaitlist.createdAt : now,
-            updatedAt: now,
-          },
-        });
+        if (parsed.data.launchEmailConsent) {
+          writes.push({
+            path: waitlistPath,
+            data: {
+              email: account.email,
+              status: "waiting",
+              source: "pricing-intent",
+              marketingConsent: true,
+              consentedAt: existingWaitlist?.marketingConsent === true
+                && typeof existingWaitlist.consentedAt === "string"
+                ? existingWaitlist.consentedAt
+                : now,
+              withdrawnAt: null,
+              createdAt: typeof existingWaitlist?.createdAt === "string" ? existingWaitlist.createdAt : now,
+              updatedAt: now,
+            },
+          });
+        } else if (existingWaitlist) {
+          writes.push({
+            path: waitlistPath,
+            data: {
+              ...existingWaitlist,
+              status: "unsubscribed",
+              marketingConsent: false,
+              withdrawnAt: now,
+              updatedAt: now,
+            },
+          });
+        }
       }
       return { writes, result: nextIntent };
     });

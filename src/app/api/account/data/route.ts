@@ -1,17 +1,27 @@
-import { authorizationResponse, requireAccount } from "@/lib/auth-server";
+import {
+  authorizationResponse,
+  requireAccount,
+  requireRecentlyAuthenticatedAccount,
+} from "@/lib/auth-server";
 import { apiRequestErrorResponse, readJsonBody } from "@/lib/api-security";
+import {
+  accountDeletionDocumentPaths,
+  AUTOMATED_ACCOUNT_DELETION_RETENTION,
+} from "@/lib/account-data-policy";
 import { billingConfiguration } from "@/lib/runtime-config";
 import { stripeClient } from "@/lib/stripe-server";
 import {
+  countCollectionDocuments,
   deleteCourse,
   deleteStoredDocuments,
   getStoredDocument,
   listAllStoredDocuments,
-  listLessons,
   listOwnerCourses,
-  listStoredDocuments,
   listStoredDocumentsByField,
 } from "@/lib/firebase-server";
+
+const ACCOUNT_SUBCOLLECTION_LIMIT = 2_000;
+const ACCOUNT_FIELD_QUERY_LIMIT = 1_000;
 
 function downloadName() {
   return `erudoza-data-${new Date().toISOString().slice(0, 10)}.json`;
@@ -22,48 +32,106 @@ async function emailFingerprint(email: string) {
   return Array.from(new Uint8Array(bytes), (byte) => byte.toString(16).padStart(2, "0")).join("");
 }
 
+async function listCompleteAccountSubcollection(path: string) {
+  const documents = await listAllStoredDocuments(path, ACCOUNT_SUBCOLLECTION_LIMIT);
+  if (documents.length === ACCOUNT_SUBCOLLECTION_LIMIT) {
+    throw new Error(`Automated account export limit reached for ${path}.`);
+  }
+  return documents;
+}
+
+async function listCompleteAccountRecordsByField(collectionId: string, field: string, value: string) {
+  const [documents, total] = await Promise.all([
+    listStoredDocumentsByField(collectionId, field, value, ACCOUNT_FIELD_QUERY_LIMIT),
+    countCollectionDocuments(collectionId, [{ field, value }]),
+  ]);
+  if (documents.length !== total) {
+    throw new Error(`Automated account export limit reached for ${collectionId}.${field}.`);
+  }
+  return documents;
+}
+
 async function collectAccountData(uid: string) {
   const [
     account,
     preferences,
     lessonNotes,
+    lessonActivityRecords,
     progress,
     learningOutcomes,
     masteryEvidence,
     legalAcceptances,
+    billingConsents,
+    billingCheckout,
     courses,
     usagePeriods,
     aiRequests,
     aiBudgets,
+    userEngagement,
+    pricingIntent,
+    accountLinkedProductEvents,
+    referralCodes,
+    safetySummary,
+    safetyEvents,
+    contentReports,
+    adminActionRecords,
   ] = await Promise.all([
     getStoredDocument(`users/${uid}`),
     getStoredDocument(`users/${uid}/learningData/preferences`),
-    listAllStoredDocuments(`users/${uid}/lessonNotes`, 500),
-    listStoredDocuments(`users/${uid}/courseProgress`, 300),
-    listAllStoredDocuments(`users/${uid}/learningOutcomes`, 500),
-    listAllStoredDocuments(`users/${uid}/masteryEvidence`, 2_000),
-    listStoredDocuments(`users/${uid}/legalAcceptances`, 300),
+    listCompleteAccountSubcollection(`users/${uid}/lessonNotes`),
+    listCompleteAccountSubcollection(`users/${uid}/lessonActivity`),
+    listCompleteAccountSubcollection(`users/${uid}/courseProgress`),
+    listCompleteAccountSubcollection(`users/${uid}/learningOutcomes`),
+    listCompleteAccountSubcollection(`users/${uid}/masteryEvidence`),
+    listCompleteAccountSubcollection(`users/${uid}/legalAcceptances`),
+    listCompleteAccountSubcollection(`users/${uid}/billingConsents`),
+    getStoredDocument(`users/${uid}/billingCheckout/current`),
     listOwnerCourses(uid),
-    listStoredDocumentsByField("usagePeriods", "uid", uid, 1_000),
-    listStoredDocumentsByField("aiRequests", "uid", uid, 1_000),
-    listStoredDocumentsByField("userAiBudgets", "uid", uid, 1_000),
+    listCompleteAccountRecordsByField("usagePeriods", "uid", uid),
+    listCompleteAccountRecordsByField("aiRequests", "uid", uid),
+    listCompleteAccountRecordsByField("userAiBudgets", "uid", uid),
+    getStoredDocument(`userEngagement/${uid}`),
+    getStoredDocument(`pricingIntents/${uid}`),
+    listCompleteAccountRecordsByField("productEvents", "actorId", uid),
+    listCompleteAccountRecordsByField("referralCodes", "ownerUid", uid),
+    getStoredDocument(`userSafety/${uid}`),
+    listCompleteAccountRecordsByField("safetyEvents", "uid", uid),
+    listCompleteAccountRecordsByField("contentReports", "reporterUid", uid),
+    listCompleteAccountRecordsByField("adminEvents", "targetUid", uid),
   ]);
   const authoredCourses = await Promise.all(courses.map(async (course) => ({
     course,
-    lessons: course.id ? await listLessons(String(course.id)) : [],
+    lessons: course.id
+      ? await listCompleteAccountSubcollection(`courses/${String(course.id)}/lessons`)
+      : [],
   })));
+  const launchWaitlistRecord = typeof account?.email === "string"
+    ? await getStoredDocument(`waitlist/${await emailFingerprint(account.email)}`)
+    : null;
   return {
     account,
     learningPreferences: preferences,
     lessonNotes,
+    lessonActivityRecords,
     courseProgress: progress,
     learningOutcomes,
     masteryEvidence,
     legalAcceptances,
+    billingConsents,
+    billingCheckout,
     authoredCourses,
     aiUsagePeriods: usagePeriods,
     aiRequestRecords: aiRequests,
     aiBudgetRecords: aiBudgets,
+    userEngagement,
+    pricingIntent,
+    launchWaitlistRecord,
+    accountLinkedProductEvents,
+    referralCodes,
+    safetySummary,
+    safetyEvents,
+    contentReports,
+    adminActionRecords,
   };
 }
 
@@ -72,8 +140,9 @@ export async function GET(request: Request) {
     const account = await requireAccount(request);
     const data = await collectAccountData(account.uid);
     return new Response(JSON.stringify({
-      exportFormat: "erudoza-account-data-v1",
+      exportFormat: "erudoza-account-data-v2",
       exportedAt: new Date().toISOString(),
+      automatedDeletionRetention: AUTOMATED_ACCOUNT_DELETION_RETENTION,
       data,
     }, null, 2), {
       headers: {
@@ -90,7 +159,7 @@ export async function GET(request: Request) {
 
 export async function DELETE(request: Request) {
   try {
-    const account = await requireAccount(request);
+    const account = await requireRecentlyAuthenticatedAccount(request);
     if (account.isOwner) {
       return Response.json(
         { error: "Owner account deletion requires a manual transfer or shutdown review. Contact legal@erudoza.com." },
@@ -111,7 +180,7 @@ export async function DELETE(request: Request) {
       ? data.account.billingSubscriptionId
       : undefined;
     if (["active", "trialing", "past_due"].includes(subscriptionStatus)) {
-      if (!billingConfiguration().configured || !billingSubscriptionId?.startsWith("sub_")) {
+      if (!billingConfiguration().managementReady || !billingSubscriptionId?.startsWith("sub_")) {
         return Response.json(
           { error: "Cancel your Erudoza Pro subscription before deleting your account. Contact support@erudoza.com if you need help." },
           { status: 409 },
@@ -137,22 +206,16 @@ export async function DELETE(request: Request) {
       if (course.id) await deleteCourse(String(course.id));
     }
 
-    await deleteStoredDocuments([
-      ...data.courseProgress.map((record) => `users/${account.uid}/courseProgress/${record.id}`),
-      ...data.learningOutcomes.map((record) => `users/${account.uid}/learningOutcomes/${record.id}`),
-      ...data.masteryEvidence.map((record) => `users/${account.uid}/masteryEvidence/${record.id}`),
-      ...data.legalAcceptances.map((record) => `users/${account.uid}/legalAcceptances/${record.id}`),
-      ...data.lessonNotes.map((record) => `users/${account.uid}/lessonNotes/${record.id}`),
-      `users/${account.uid}/learningData/preferences`,
-      ...data.aiUsagePeriods.map((record) => `usagePeriods/${record.id}`),
-      ...data.aiRequestRecords.map((record) => `aiRequests/${record.id}`),
-      ...data.aiBudgetRecords.map((record) => `userAiBudgets/${record.id}`),
-      ...(account.email ? [`waitlist/${await emailFingerprint(account.email)}`] : []),
-      `users/${account.uid}`,
-    ]);
+    const waitlistPath = account.email
+      ? `waitlist/${await emailFingerprint(account.email)}`
+      : undefined;
+    await deleteStoredDocuments(accountDeletionDocumentPaths(account.uid, data, waitlistPath));
 
     return Response.json(
-      { deleted: true },
+      {
+        deleted: true,
+        automatedDeletionRetention: AUTOMATED_ACCOUNT_DELETION_RETENTION,
+      },
       { headers: { "Cache-Control": "private, no-store" } },
     );
   } catch (error) {

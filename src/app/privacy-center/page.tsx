@@ -2,21 +2,41 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useState, useSyncExternalStore } from "react";
 import { deleteUser, GoogleAuthProvider, reauthenticateWithPopup } from "firebase/auth";
-import { Download, LoaderCircle, LockKeyhole, ShieldCheck, Trash2 } from "lucide-react";
+import { BarChart3, Download, LoaderCircle, LockKeyhole, ShieldCheck, Trash2 } from "lucide-react";
 import AppShell from "@/components/AppShell";
 import { useAuth } from "@/components/AuthProvider";
 import { LEGAL_CONTACT, SUPPORT_CONTACT } from "@/lib/legal";
+import {
+  readAnalyticsConsent,
+  setAnalyticsConsent,
+  subscribeAnalyticsConsent,
+  type AnalyticsConsent as AnalyticsConsentValue,
+} from "@/lib/product-analytics";
+
+function serverConsentSnapshot() { return null; }
 
 export default function PrivacyCenterPage() {
   const router = useRouter();
-  const { user, isOwner, loading, signInWithGoogle } = useAuth();
+  const { user, isOwner, loading, signInWithGoogle, signOut } = useAuth();
   const [exporting, setExporting] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [deleteArmed, setDeleteArmed] = useState(false);
   const [confirmation, setConfirmation] = useState("");
   const [message, setMessage] = useState<string | null>(null);
+  const analyticsChoice = useSyncExternalStore(
+    subscribeAnalyticsConsent,
+    readAnalyticsConsent,
+    serverConsentSnapshot,
+  );
+
+  const chooseAnalytics = (choice: AnalyticsConsentValue) => {
+    setAnalyticsConsent(choice);
+    setMessage(choice === "accepted"
+      ? "Optional first-party analytics are on. No lesson text is included."
+      : "Optional analytics are off and their browser identifiers were removed.");
+  };
 
   const downloadData = async () => {
     if (!user || exporting) return;
@@ -65,7 +85,12 @@ export default function PrivacyCenterPage() {
       });
       const body = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(body.error || "Your account data could not be deleted.");
-      await deleteUser(user);
+      try {
+        await deleteUser(user);
+      } catch {
+        await signOut();
+        throw new Error(`Your Erudoza application data was deleted, but the sign-in identity could not be removed. Contact ${LEGAL_CONTACT} to finish the identity request.`);
+      }
       router.replace("/");
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Your account could not be deleted.");
@@ -85,8 +110,17 @@ export default function PrivacyCenterPage() {
 
         <section className="privacy-center-grid" aria-label="Privacy controls">
           <article>
+            <BarChart3 size={20} />
+            <div><h2>Optional analytics</h2><p>Choose whether Erudoza may store first-party identifiers and measure page and learning-feature use. This never includes lesson text and is off until you allow it.</p></div>
+            <div className="privacy-analytics-actions" role="group" aria-label="Optional analytics preference">
+              <button className="button button-secondary" type="button" aria-pressed={analyticsChoice === "declined"} onClick={() => chooseAnalytics("declined")}>Keep analytics off</button>
+              <button className="button button-secondary" type="button" aria-pressed={analyticsChoice === "accepted"} onClick={() => chooseAnalytics("accepted")}>Allow analytics</button>
+            </div>
+          </article>
+
+          <article>
             <Download size={20} />
-            <div><h2>Download your data</h2><p>Get your profile, preferences, notes, bookmarks, progress, legal acceptances, courses, and AI usage records as JSON.</p></div>
+            <div><h2>Download your data</h2><p>Get your profile, lesson activity and progress, courses, AI usage, launch preferences, account-linked product events, legal and billing consent records, reports, and safety or enforcement records as JSON.</p></div>
             {user ? (
               <button className="button button-secondary" onClick={() => void downloadData()} disabled={exporting}>
                 {exporting ? <LoaderCircle className="spin" size={16} /> : <Download size={16} />} Download my data
@@ -104,7 +138,7 @@ export default function PrivacyCenterPage() {
 
           <article className="privacy-danger-zone">
             <Trash2 size={20} />
-            <div><h2>Delete your account</h2><p>This permanently removes your Erudoza learning data and private courses. This cannot be undone. Some records may be retained only when required by law.</p></div>
+            <div><h2>Delete your account</h2><p>This permanently removes your active profile, learning data, authored courses, launch preferences, waitlist entry, and account-linked analytics. Limited legal-acceptance, completed billing-consent, payment-processor, safety, report, and enforcement records may be retained only for the purposes described in your export and Privacy Notice. This cannot be undone.</p></div>
             {!user ? (
               <button className="button button-secondary" onClick={() => void signInWithGoogle()}>Sign in to manage account</button>
             ) : isOwner ? (

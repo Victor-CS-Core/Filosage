@@ -13,14 +13,31 @@ import { localFirestoreJson } from "@/lib/local-store";
 import { removeCourseReferences } from "@/lib/course-deletion";
 import type { PublicationLessonReview } from "@/lib/publication-review";
 import { inspectCoursePublishReadiness } from "@/lib/publication-readiness";
+import { firebaseAuthenticationClaimsFromIdToken } from "@/lib/recent-auth";
 
 export interface VerifiedFirebaseUser {
   uid: string;
   email?: string;
   email_verified: boolean;
+  auth_time?: number;
   name?: string;
   picture?: string;
 }
+
+const LOCAL_PLAYWRIGHT_LEARNERS = new Map<string, { uid: string; email: string }>([
+  ["playwright-free-learner", {
+    uid: "local-free-learner",
+    email: "learner@erudoza.local",
+  }],
+  ["playwright-free-learner-mobile-chromium", {
+    uid: "local-free-learner-mobile-chromium",
+    email: "learner-mobile-chromium@erudoza.local",
+  }],
+  ["playwright-free-learner-mobile-webkit", {
+    uid: "local-free-learner-mobile-webkit",
+    email: "learner-mobile-webkit@erudoza.local",
+  }],
+]);
 
 export interface StoredDocument extends Record<string, unknown> {
   id: string;
@@ -264,15 +281,35 @@ function courseQuery(
 
 export async function verifyFirebaseIdToken(idToken: string): Promise<VerifiedFirebaseUser | null> {
   if (isLocalMode()) {
-    // Local development sign-in: any bearer token maps to the local owner so
-    // every owner-gated feature is testable without Firebase credentials.
-    if (!idToken) return null;
-    return {
-      uid: LOCAL_OWNER_UID,
-      email: process.env.OWNER_EMAIL?.trim().toLowerCase() || LOCAL_OWNER_EMAIL,
-      email_verified: true,
-      name: "Local Owner",
-    };
+    const auth_time = Math.floor(Date.now() / 1_000);
+    if (idToken === "local-dev-token" || idToken === "playwright-local-owner") {
+      return {
+        uid: LOCAL_OWNER_UID,
+        email: process.env.OWNER_EMAIL?.trim().toLowerCase() || LOCAL_OWNER_EMAIL,
+        email_verified: true,
+        auth_time,
+        name: "Local Owner",
+      };
+    }
+    const playwrightLearner = LOCAL_PLAYWRIGHT_LEARNERS.get(idToken);
+    if (playwrightLearner) {
+      return {
+        ...playwrightLearner,
+        email_verified: true,
+        auth_time,
+        name: "Playwright Learner",
+      };
+    }
+    if (idToken === "playwright-preaccount-learner") {
+      return {
+        uid: "local-preaccount-learner",
+        email: "preaccount@erudoza.local",
+        email_verified: true,
+        auth_time,
+        name: "Pre-account Learner",
+      };
+    }
+    return null;
   }
   const apiKey = process.env.NEXT_PUBLIC_FIREBASE_API_KEY;
   if (!apiKey) throw new Error("Firebase web authentication is not configured.");
@@ -298,11 +335,14 @@ export async function verifyFirebaseIdToken(idToken: string): Promise<VerifiedFi
   };
   const user = body.users?.[0];
   if (!user) return null;
+  const authentication = firebaseAuthenticationClaimsFromIdToken(idToken);
+  if (authentication.subject && authentication.subject !== user.localId) return null;
 
   return {
     uid: user.localId,
     email: user.email,
     email_verified: user.emailVerified === true,
+    auth_time: authentication.authTime,
     name: user.displayName,
     picture: user.photoUrl,
   };
