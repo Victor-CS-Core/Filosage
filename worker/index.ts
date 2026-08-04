@@ -4,12 +4,13 @@ import {
   handleImageOptimization,
 } from "vinext/server/image-optimization";
 import handler from "vinext/server/app-router-entry";
+import { populateProcessEnvFromBindings } from "./runtime-env";
 
 interface Fetcher {
   fetch(input: RequestInfo | URL, init?: RequestInit): Promise<Response>;
 }
 
-interface Env {
+interface Env extends Record<string, unknown> {
   ASSETS: Fetcher;
   COURSE_BANNERS?: {
     get(key: string): Promise<{ size: number; arrayBuffer(): Promise<ArrayBuffer> } | null>;
@@ -38,6 +39,7 @@ interface ExecutionContext {
 
 const worker = {
   async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
+    populateProcessEnvFromBindings(env);
     globalThis.__ERUDOZA_COURSE_BANNERS__ = env.COURSE_BANNERS;
     const url = new URL(request.url);
 
