@@ -37,6 +37,9 @@ export default defineConfig(async () => {
         viteEnvironment: { name: "rsc", childEnvironments: ["ssr"] },
         config: {
           main: "./worker/index.ts",
+          compatibility_date: localWorkersCompatibilityFlag
+            ? "2026-07-23"
+            : "2026-08-04",
           compatibility_flags: localWorkersCompatibilityFlag
             ? [localWorkersCompatibilityFlag]
             : [],
