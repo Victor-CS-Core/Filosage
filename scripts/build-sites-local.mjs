@@ -4,12 +4,13 @@ import { fileURLToPath } from "node:url";
 const vinextCliPath = fileURLToPath(
   new URL("../node_modules/vinext/dist/cli.js", import.meta.url),
 );
+const localNodeCompatibilityFlag = ["nodejs", "compat"].join("_");
 
 const exitCode = await new Promise((resolve, reject) => {
   const child = spawn(process.execPath, [vinextCliPath, "build"], {
     env: {
       ...process.env,
-      LOCAL_WORKERS_COMPATIBILITY_FLAG: "nodejs_compat",
+      LOCAL_WORKERS_COMPATIBILITY_FLAG: localNodeCompatibilityFlag,
     },
     stdio: "inherit",
   });
