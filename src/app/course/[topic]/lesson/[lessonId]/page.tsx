@@ -320,6 +320,7 @@ export default function LessonView() {
   const noteHydratedRef = useRef(false);
   const generationStartedAtRef = useRef(0);
   const generationRequestRef = useRef<{ lessonKey: string; requestId: string } | null>(null);
+  const lessonLoadsInFlightRef = useRef(new Set<string>());
   const activeLessonViewRef = useRef(lessonViewKey);
   const quizResults = useMemo(
     () => quizResultState.key === noteKey ? quizResultState.results : {},
@@ -470,6 +471,8 @@ export default function LessonView() {
       }
       return;
     }
+    if (lessonLoadsInFlightRef.current.has(requestViewKey)) return;
+    lessonLoadsInFlightRef.current.add(requestViewKey);
 
     setLoading(true);
     setMessages([]);
@@ -499,7 +502,7 @@ export default function LessonView() {
         return;
       }
 
-      if (!isPro || !resolvedCourse.canManage) {
+      if (!resolvedCourse.canManage) {
         const data = await lessonResponse.json();
         throw new Error(data.error || "This lesson has not been published yet.");
       }
@@ -518,6 +521,7 @@ export default function LessonView() {
           Authorization: `Bearer ${token}`,
           "Idempotency-Key": generationRequestRef.current.requestId,
         },
+        keepalive: true,
         body: JSON.stringify({
           topic,
           lessonTitle: lesson.title,
@@ -535,12 +539,13 @@ export default function LessonView() {
     } catch (loadError) {
       if (isCurrentView()) setError(loadError instanceof Error ? loadError.message : "The lesson could not be opened.");
     } finally {
+      lessonLoadsInFlightRef.current.delete(requestViewKey);
       if (isCurrentView()) {
         setIsGenerating(false);
         setLoading(false);
       }
     }
-  }, [authLoading, courseId, getToken, moduleIndex, lessonIndex, lessonId, lessonViewKey, isPro, topic, user]);
+  }, [authLoading, courseId, getToken, moduleIndex, lessonIndex, lessonId, lessonViewKey, topic, user]);
 
   useEffect(() => {
     void Promise.resolve().then(loadLesson);

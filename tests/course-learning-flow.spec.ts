@@ -257,6 +257,42 @@ async function completeTransfer(page: Page, response: string, modelResponse: str
   await expect(transfer.getByText(modelResponse)).toBeVisible();
 }
 
+test("starts one resilient generation request for an owner-only lesson", async ({ page }) => {
+  await restoreLocalLearner(page);
+  await page.route("**/api/account", (route) => route.fulfill({
+    json: {
+      access: "pro",
+      plan: "pro",
+      isOwner: true,
+      accountStatus: "active",
+      displayName: "Playwright Owner",
+      legalAcceptanceRequired: false,
+      quotas: [],
+    },
+  }));
+  await page.route("**/api/courses?scope=mine", (route) => route.fulfill({ json: { courses: [] } }));
+  await page.route(`**/api/courses/${courseId}`, (route) => route.fulfill({
+    json: { ...course, isPublic: false, canManage: true },
+  }));
+
+  let generated = false;
+  let generationRequests = 0;
+  await page.route(`**/api/courses/${courseId}/lessons/0-0`, (route) => generated
+    ? route.fulfill({ json: lessonOne })
+    : route.fulfill({ status: 404, json: { error: "This lesson has not been published yet." } }));
+  await page.route("**/api/generate-lesson", async (route) => {
+    generationRequests += 1;
+    await new Promise((resolve) => setTimeout(resolve, 450));
+    generated = true;
+    return route.fulfill({ json: lessonOne });
+  });
+
+  await page.goto(`/course/${encodeURIComponent(topic)}/lesson/0-0?id=${courseId}`);
+  await expect(page.getByText("Preparing your next lesson")).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Evidence before inference" })).toBeVisible();
+  expect(generationRequests).toBe(1);
+});
+
 test("completes a published course from discovery through evidence", async ({ page }) => {
   test.slow();
   await restoreLocalLearner(page);
