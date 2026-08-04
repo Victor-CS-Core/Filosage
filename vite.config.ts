@@ -4,6 +4,8 @@ import { defineConfig } from "vite";
 import hostingConfig from "./.openai/hosting.json";
 
 const isCodexSeatbeltSandbox = process.env.CODEX_SANDBOX === "seatbelt";
+const localWorkersCompatibilityFlag =
+  process.env.LOCAL_WORKERS_COMPATIBILITY_FLAG;
 const { r2 } = hostingConfig;
 
 export default defineConfig(async () => {
@@ -35,7 +37,9 @@ export default defineConfig(async () => {
         viteEnvironment: { name: "rsc", childEnvironments: ["ssr"] },
         config: {
           main: "./worker/index.ts",
-          compatibility_flags: ["nodejs_compat"],
+          compatibility_flags: localWorkersCompatibilityFlag
+            ? [localWorkersCompatibilityFlag]
+            : [],
           r2_buckets: r2
             ? [{ binding: r2, bucket_name: "site-creator-r2" }]
             : [],
