@@ -1,4 +1,5 @@
 import type { LessonVisual } from "@/lib/lesson-visuals";
+import type { LessonInteraction } from "@/lib/lesson-interactions";
 
 export type LessonMode =
   | "concept"
@@ -145,6 +146,8 @@ export interface LessonData {
    * intentionally excluded: lessons now render only this safe visual grammar.
    */
   visuals?: LessonVisual[];
+  /** Safe, optional practice widgets selected from the app's interaction grammar. */
+  interactions?: LessonInteraction[];
   guidedPractice?: {
     prompt: string;
     steps: string[];

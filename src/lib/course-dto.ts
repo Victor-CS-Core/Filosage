@@ -2,6 +2,7 @@ import "server-only";
 
 import type { Course, LessonData } from "@/lib/course-types";
 import { curateLessonVisuals } from "@/lib/lesson-visuals";
+import { curateLessonInteractions } from "@/lib/lesson-interactions";
 import { lessonVisualsEnabled } from "@/lib/feature-flags";
 import { normalizeStructuredMarkdown } from "@/lib/markdown";
 import { inspectGeneratedContent, sanitizeGeneratedValue } from "@/lib/content-language";
@@ -179,6 +180,7 @@ export function toLessonDto(value: Record<string, unknown>, courseAiAssisted = f
       : undefined,
     experience: lessonExperienceDto(value.experience),
     visuals: lessonVisualsEnabled() ? curateLessonVisuals(value.visuals) : [],
+    interactions: curateLessonInteractions(value.interactions),
     guidedPractice: guidedPracticeDto(value.guidedPractice),
     transferTask: transferTaskDto(value.transferTask),
     aiAssisted: value.aiAssisted === true || courseAiAssisted,

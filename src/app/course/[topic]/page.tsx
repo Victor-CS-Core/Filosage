@@ -29,6 +29,7 @@ import AppDrawer, { useAppDrawer } from "@/components/AppDrawer";
 import AppShell from "@/components/AppShell";
 import CourseBanner from "@/components/CourseBanner";
 import CourseDisclosure from "@/components/CourseDisclosure";
+import CourseJourneyMap from "@/components/CourseJourneyMap";
 import OutcomePlanner from "@/components/OutcomePlanner";
 import SpeakButton from "@/components/SpeakButton";
 import { useMasteryJourney } from "@/components/useMasteryJourney";
@@ -696,17 +697,7 @@ export default function CourseMap() {
           />
         )}
 
-        {course.modules.some((module) => module.milestone) && (
-          <CourseDisclosure
-            className="capability-map"
-            description="Every milestone leaves behind inspectable evidence of progress."
-            eyebrow="Capability map"
-            headingId="capability-map-title"
-            title="How your artifact develops"
-          >
-            <ol>{course.modules.map((module, index) => <li key={`${module.title}-${index}`}><span>{index + 1}</span><div><small>{module.title}</small><h3>{module.milestone?.title ?? module.challenge?.title ?? module.objective}</h3><p>{module.milestone?.deliverable ?? module.challenge?.prompt}</p>{module.milestone?.evidence && <strong>Evidence: {module.milestone.evidence}</strong>}</div></li>)}</ol>
-          </CourseDisclosure>
-        )}
+        <CourseJourneyMap course={course} completedLessonIds={validCompletedLessons} canOpenLesson={canOpenLesson} onOpenLesson={(lessonId) => void openLesson(lessonId)} />
 
         <section className="curriculum" aria-labelledby="curriculum-title">
           <div className="section-heading">

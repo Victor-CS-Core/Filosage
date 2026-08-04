@@ -86,6 +86,20 @@ const lessonOne: LessonData = {
   aiAssisted: true,
   learningObjective: "Classify evidence and inference in a decision record.",
   connection: "This distinction prevents a plausible story from being treated as proof.",
+  interactions: [{
+    id: "interaction-classification-test",
+    type: "classification",
+    title: "Sort the decision record",
+    summary: "Separate direct observations from explanations added to them.",
+    version: 1,
+    prompt: "Classify each statement before continuing.",
+    groups: ["Evidence", "Inference"],
+    items: [
+      { label: "Three users abandoned the flow", groupIndex: 0, explanation: "This is a recorded observation." },
+      { label: "The copy caused abandonment", groupIndex: 1, explanation: "This adds a causal explanation." },
+      { label: "Support contacts rose by 12%", groupIndex: 0, explanation: "This is a measurable record." },
+    ],
+  }],
   experience: {
     type: "worked-example",
     scenario: "A support queue grew immediately after a release, and the team is ready to blame the new workflow.",
@@ -96,7 +110,7 @@ const lessonOne: LessonData = {
     ],
     fadingPrompt: "A second team reports slower handoffs after the same release. Complete the classification and name the next discriminating check without using the worked labels.",
   },
-  content: "## Inspect the record\n\nEvidence reports what was observed. An inference explains what that observation may mean.",
+  content: "## Inspect the record\n\nEvidence reports what was observed. An inference explains what that observation may mean.\n\n## Test the explanation\n\nLook for a second observation that could distinguish the plausible stories.",
   guidedPractice: {
     prompt: "A support queue grew from 20 to 34 items after a release. Classify the observation and the interpretation.",
     steps: ["Underline the measured change.", "Name the explanation that still needs support."],
@@ -361,6 +375,7 @@ test("completes a published course from discovery through evidence", async ({ pa
       lastStudiedAt: assessedAt,
       completedAt: assessedAt,
       estimatedMinutes: update.estimatedMinutes,
+      experienceEvidence: update.activityEvidence?.experienceEvidence,
     };
     return route.fulfill({
       json: {
@@ -469,10 +484,9 @@ test("completes a published course from discovery through evidence", async ({ pa
   await artifactDisclosure.locator("summary").press("Enter");
   await expect(artifactDisclosure).toHaveAttribute("open", "");
   await expect(page.getByRole("heading", { name: "Evidence-backed decision brief" })).toBeVisible();
-  const capabilityDisclosure = page.locator("details.capability-map");
-  await expect(capabilityDisclosure).not.toHaveAttribute("open", "");
-  await capabilityDisclosure.locator("summary").click();
-  await expect(capabilityDisclosure.getByText("A classified evidence record and bounded next action")).toBeVisible();
+  const journey = page.getByRole("region", { name: "See what each stage unlocks" });
+  await expect(journey).toBeVisible();
+  await expect(journey.getByText("A classified evidence record and bounded next action")).toBeVisible();
   const sourceLink = page.getByRole("link", { name: /Decision quality field guide/ });
   await expect(page.getByText("Author-provided references")).toBeVisible();
   await expect(sourceLink).toHaveAttribute("href", "https://example.com/decision-quality");
@@ -510,6 +524,13 @@ test("completes a published course from discovery through evidence", async ({ pa
 
   await page.getByRole("button", { name: "Start with Evidence and action" }).click();
   await expect(page.getByRole("heading", { level: 1, name: "Evidence before inference" })).toBeVisible();
+  await expect(page.getByRole("navigation", { name: "Lesson sections" })).toBeVisible();
+  const classification = page.getByRole("region", { name: "Sort the decision record" });
+  await classification.getByRole("group", { name: "Classify Three users abandoned the flow" }).getByRole("button", { name: "Evidence" }).click();
+  await classification.getByRole("group", { name: "Classify The copy caused abandonment" }).getByRole("button", { name: "Inference" }).click();
+  await classification.getByRole("group", { name: "Classify Support contacts rose by 12%" }).getByRole("button", { name: "Evidence" }).click();
+  await classification.getByRole("button", { name: "Check classification" }).click();
+  await expect(classification.getByText("3 of 3 placed correctly.")).toBeVisible();
   await page.getByRole("tab", { name: /Activities/ }).click();
   await expect(page.getByRole("heading", { name: "Follow the expert reasoning" })).toBeVisible();
   await expect(page.getByText("Compare arrival volume, handling time, and affected issue types.")).toBeVisible();
@@ -629,6 +650,21 @@ test("completes a published course from discovery through evidence", async ({ pa
   await expect(page.getByText("+67 pts")).toBeVisible();
   await expect(page.getByText("Demonstrated", { exact: true })).toBeVisible();
   await expect(page.getByText("Capstone demonstrated: Separate evidence from inference and choose a proportionate action.")).toBeVisible();
+
+  await page.goto("/progress");
+  await expect(page.getByRole("heading", { name: "How your understanding is holding up" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "What you can now produce" })).toBeVisible();
+  await expect(page.getByText(workedExampleEvidence)).toBeVisible();
+});
+
+test("recovers when the review schedule cannot be loaded", async ({ page }) => {
+  await restoreLocalLearner(page);
+  await mockFreeLearnerAccount(page);
+  await page.route("**/api/progress*", (route) => route.fulfill({ status: 503, json: { error: "Temporarily unavailable" } }));
+  await page.goto("/review");
+  await expect(page.getByRole("heading", { name: "Your schedule is safe." })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Try again" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Explore courses" })).toBeVisible();
 });
 
 test("completes every rich lesson mode and records its active evidence", async ({ page }) => {

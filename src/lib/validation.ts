@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { lessonVisualsSchema } from "@/lib/lesson-visuals";
+import { lessonInteractionsSchema } from "@/lib/lesson-interactions";
 import { isSafePublicSourceUrl } from "@/lib/source-safety";
 
 export const topicSchema = z
@@ -179,11 +180,13 @@ const lessonExperienceSchema = z.discriminatedUnion("type", [
 
 export const lessonDataSchema = lessonWithoutVisualsSchema.extend({
   visuals: lessonVisualsSchema.optional().default([]),
+  interactions: lessonInteractionsSchema.optional().default([]),
   experience: lessonExperienceSchema.optional(),
 });
 
 export const lessonGenerationSchema = lessonWithoutVisualsSchema.extend({
   visuals: z.array(z.string().trim().min(2).max(6_000)).max(2),
+  interactions: z.array(z.string().trim().min(2).max(6_000)).max(1),
   experience: lessonExperienceSchema,
   sourceReferences: z.array(z.string().trim().regex(/^source-[a-z0-9-]{1,40}$/)).max(5),
 });

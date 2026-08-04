@@ -190,6 +190,21 @@ function stubLesson(input: string) {
           accurateView: `${concept} is a decision tool you test in a concrete situation.`,
           whyItMatters: "The distinction changes which evidence and actions deserve attention.",
             }],
+    interactions: mode === "practice-lab"
+      ? [{
+          id: "interaction-sequence-local",
+          type: "sequence",
+          title: "Rebuild the method",
+          summary: "Arrange the practice workflow before using it independently.",
+          version: 1,
+          prompt: `Put the essential moves for ${concept.toLowerCase()} in a defensible order.`,
+          steps: [
+            { label: "Frame", detail: "Name the decision and the evidence that matters." },
+            { label: "Apply", detail: `Use ${concept.toLowerCase()} one justified move at a time.` },
+            { label: "Check", detail: "Compare the result with the original goal and note one limitation." },
+          ],
+        }]
+      : [],
     quizzes: [
       {
         question: `What is the most accurate description of ${concept.toLowerCase()}?`,

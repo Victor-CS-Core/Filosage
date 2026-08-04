@@ -46,6 +46,8 @@ import SpeakButton from "@/components/SpeakButton";
 import LessonVisualRenderer from "@/components/LessonVisual";
 import LessonExperience, { type LessonExperienceState } from "@/components/LessonExperience";
 import LessonIntegrityPanel from "@/components/LessonIntegrityPanel";
+import InteractiveLessonBlock from "@/components/InteractiveLessonBlock";
+import LessonSectionNavigator from "@/components/LessonSectionNavigator";
 import { useMasteryJourney } from "@/components/useMasteryJourney";
 import {
   markdownToSpeech,
@@ -53,6 +55,7 @@ import {
   normalizeStructuredMarkdown,
 } from "@/lib/markdown";
 import { curateLessonVisuals, visualsToSpeech } from "@/lib/lesson-visuals";
+import { deriveLessonInteractions, interactionsToSpeech } from "@/lib/lesson-interactions";
 import { createClientId, deferClientTask } from "@/lib/browser-compat";
 
 interface Message {
@@ -679,6 +682,10 @@ export default function LessonView() {
     () => curateLessonVisuals(lessonData?.visuals),
     [lessonData?.visuals],
   );
+  const lessonInteractions = useMemo(
+    () => lessonData ? deriveLessonInteractions(lessonData) : [],
+    [lessonData],
+  );
   const lessonSpeechText = useMemo(() => {
     if (!lesson) return "";
     const at = (placement: "after-purpose" | "after-explanation" | "before-guided-practice") =>
@@ -688,9 +695,10 @@ export default function LessonView() {
       at("after-purpose"),
       markdownToSpeech(normalizedContent),
       at("after-explanation"),
+      interactionsToSpeech(lessonInteractions),
       at("before-guided-practice"),
     ].filter(Boolean).join(" ");
-  }, [lesson, lessonVisuals, normalizedContent]);
+  }, [lesson, lessonInteractions, lessonVisuals, normalizedContent]);
 
   useEffect(() => {
     if (!courseId || !lessonData || !lesson || isOwner) return;
@@ -1195,13 +1203,17 @@ export default function LessonView() {
 
               {lessonPane === "learn" && lessonVisuals.filter((visual) => visual.placement === "after-purpose").map((visual) => <LessonVisualRenderer key={visual.id} visual={visual} />)}
 
+              {lessonPane === "learn" && <LessonSectionNavigator markdown={normalizedContent} containerId="lesson-explanation" />}
+
               {lessonPane === "activities" && activeActivityId === "experience" && lessonData.experience && experienceValue && (
                 <div id="lesson-active-activity" role="tabpanel" aria-labelledby="activity-experience-tab"><LessonExperience experience={lessonData.experience} value={experienceValue} onChange={updateExperienceEvidence} /></div>
               )}
 
-              {lessonPane === "learn" && <div className="markdown-content"><ReactMarkdown remarkPlugins={[remarkGfm]}>{normalizedContent}</ReactMarkdown></div>}
+              {lessonPane === "learn" && <div className="markdown-content" id="lesson-explanation"><ReactMarkdown remarkPlugins={[remarkGfm]} components={{ h2: ({ children }) => <h2 tabIndex={-1}>{children}</h2>, h3: ({ children }) => <h3 tabIndex={-1}>{children}</h3> }}>{normalizedContent}</ReactMarkdown></div>}
 
               {lessonPane === "learn" && lessonVisuals.filter((visual) => visual.placement === "after-explanation").map((visual) => <LessonVisualRenderer key={visual.id} visual={visual} />)}
+
+              {lessonPane === "learn" && lessonInteractions.map((interaction) => <InteractiveLessonBlock key={interaction.id} interaction={interaction} />)}
 
               {lessonPane === "activities" && activeActivityId === "guided" && lessonData.guidedPractice && (
                 <div id="lesson-active-activity" className="guided-activity-panel" role="tabpanel" aria-labelledby="activity-guided-tab">
@@ -1355,7 +1367,7 @@ export default function LessonView() {
                 />
               )}
 
-              {lessonPane === "activities" && <nav className="lesson-navigation" aria-label="Lesson navigation">
+              <nav className="lesson-navigation" aria-label="Lesson navigation">
                 {previousLesson ? (
                   <button className="lesson-nav-link lesson-nav-previous" onClick={() => router.push(lessonHref(previousLesson.id))}>
                     <ArrowLeft size={17} /><span><small>Previous</small><strong>{previousLesson.title}</strong></span>
@@ -1370,7 +1382,7 @@ export default function LessonView() {
                     <span><small>Next lesson</small><strong>{nextLesson.title}</strong></span><ArrowRight size={17} />
                   </button>
                 )}
-              </nav>}
+              </nav>
               </div>
             </div>
           </article>

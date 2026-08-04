@@ -136,25 +136,36 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const firebaseAuth = auth;
     if (localAuthAvailable && localStorage.getItem(LOCAL_SESSION_KEY)) {
       const restored = localOwnerUser();
-      void Promise.resolve().then(() => {
-        setLoading(false);
+      void Promise.resolve().then(async () => {
         setUser(restored);
-        return loadAccount(restored);
-      }).catch(() => setAccount(null));
+        try {
+          await loadAccount(restored);
+        } catch (accountError) {
+          setAccount(null);
+          setError(accountError instanceof Error ? accountError.message : "Your learning account could not be loaded.");
+        } finally {
+          setLoading(false);
+        }
+      });
       return;
     }
     if (!firebaseAuth) {
       return;
     }
 
-    const bootTimeout = window.setTimeout(() => setLoading(false), 2500);
+    const bootTimeout = window.setTimeout(() => {
+      setError("Your session is taking longer than expected. Refresh to try again.");
+      setLoading(false);
+    }, 10000);
     const unsubscribe = onAuthStateChanged(firebaseAuth, (nextUser) => {
       window.clearTimeout(bootTimeout);
       setUser(nextUser);
-      setLoading(false);
+      setLoading(true);
       void loadAccount(nextUser).catch((accountError: unknown) => {
         setAccount(null);
         setError(accountError instanceof Error ? accountError.message : "Your learning account could not be loaded.");
+      }).finally(() => {
+        setLoading(false);
       });
     });
 

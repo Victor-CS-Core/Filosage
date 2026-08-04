@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowRight, CalendarCheck2, Clock3, Flame, LoaderCircle, Sparkles } from "lucide-react";
+import { ArrowRight, CalendarCheck2, Clock3, Flame, RefreshCw, Sparkles } from "lucide-react";
 import AppShell from "@/components/AppShell";
 import { useAuth } from "@/components/AuthProvider";
 import type { CourseProgress } from "@/lib/learning-types";
@@ -27,11 +27,15 @@ export default function ReviewPage() {
   const { user, loading: authLoading, signInWithGoogle } = useAuth();
   const [progress, setProgress] = useState<CourseProgress[]>([]);
   const [loaded, setLoaded] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [loadAttempt, setLoadAttempt] = useState(0);
   const [now] = useState(() => Date.now());
 
   useEffect(() => {
     if (authLoading) return;
     let cancelled = false;
+    const controller = new AbortController();
+    const timeout = window.setTimeout(() => controller.abort(), 8000);
     const load = async (): Promise<CourseProgress[]> => {
       // Reviews work without an account: device progress carries the schedule.
       if (!user) return removeDeletedLocalCourses(listLocalProgress());
@@ -39,17 +43,29 @@ export default function ReviewPage() {
       const response = await fetch("/api/progress", {
         headers: { Authorization: `Bearer ${token}` },
         cache: "no-store",
+        signal: controller.signal,
       });
-      if (!response.ok) return [];
+      if (!response.ok) throw new Error("Your review schedule could not be loaded.");
       const data = await response.json() as { progress: CourseProgress[] };
       return data.progress;
     };
     void load()
-      .then((result) => { if (!cancelled) setProgress(result); })
-      .catch(() => undefined)
-      .finally(() => { if (!cancelled) setLoaded(true); });
-    return () => { cancelled = true; };
-  }, [authLoading, user]);
+      .then((result) => { if (!cancelled) { setProgress(result); setLoadError(null); } })
+      .catch((error: unknown) => {
+        if (!cancelled) setLoadError(controller.signal.aborted
+          ? "Your review schedule took too long to respond."
+          : error instanceof Error ? error.message : "Your review schedule could not be loaded.");
+      })
+      .finally(() => {
+        window.clearTimeout(timeout);
+        if (!cancelled) setLoaded(true);
+      });
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timeout);
+      controller.abort();
+    };
+  }, [authLoading, loadAttempt, user]);
 
   const allLessons = useMemo(() => progress.flatMap((course) => Object.values(course.lessons).map((lesson) => ({
     ...lesson,
@@ -80,7 +96,11 @@ export default function ReviewPage() {
   }, [due, loaded]);
 
   if (authLoading || !loaded) {
-    return <AppShell><div className="center-state"><LoaderCircle className="spin" size={25} /><h1>Preparing today&apos;s dose</h1></div></AppShell>;
+    return <AppShell><div className="review-page review-loading-state" aria-busy="true" aria-label="Preparing today's review"><header><span /><span /><span /></header><div><span /><span /><span /></div></div></AppShell>;
+  }
+
+  if (loadError) {
+    return <AppShell><div className="review-page"><section className="review-recovery" role="alert"><CalendarCheck2 size={28} /><p className="overline">Review unavailable</p><h1>Your schedule is safe.</h1><p>{loadError} Try again without losing any learning progress.</p><div><button className="button button-primary" onClick={() => { setLoaded(false); setLoadError(null); setLoadAttempt((attempt) => attempt + 1); }}><RefreshCw size={15} /> Try again</button><button className="button button-secondary" onClick={() => router.push("/library")}>Explore courses</button></div></section></div></AppShell>;
   }
 
   return (

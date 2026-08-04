@@ -24,6 +24,7 @@ export default function CourseLibrary({ featured = false }: { featured?: boolean
   const [ownedCourses, setOwnedCourses] = useState<Course[]>([]);
   const [query, setQuery] = useState("");
   const [level, setLevel] = useState("All levels");
+  const [commitment, setCommitment] = useState("Any commitment");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const { state, update } = useLearnerState();
@@ -74,12 +75,18 @@ export default function CourseLibrary({ featured = false }: { featured?: boolean
     const normalized = query.trim().toLowerCase();
     const filtered = courses.filter((course) => {
       const matchesLevel = level === "All levels" || course.level === level;
+      const lessons = course.modules.reduce((total, courseModule) => total + courseModule.lessons.length, 0);
+      const hours = Math.max(1, Math.round((course.estimatedMinutes ?? lessons * 12) / 60));
+      const matchesCommitment = commitment === "Any commitment"
+        || (commitment === "Up to 3 hours" && hours <= 3)
+        || (commitment === "4 to 6 hours" && hours > 3 && hours <= 6)
+        || (commitment === "More than 6 hours" && hours > 6);
       const matchesQuery = !normalized || [course.topic, course.mission, course.category, course.outcome]
         .filter(Boolean).some((value) => value!.toLowerCase().includes(normalized));
-      return matchesLevel && matchesQuery;
+      return matchesLevel && matchesCommitment && matchesQuery;
     });
     return featured ? filtered.slice(0, 4) : filtered;
-  }, [courses, featured, level, query]);
+  }, [commitment, courses, featured, level, query]);
   const drafts = useMemo(() => ownedCourses.filter((course) => !course.isPublic), [ownedCourses]);
 
   const toggleBookmark = (courseId: string) => update((current) => ({
@@ -104,10 +111,16 @@ export default function CourseLibrary({ featured = false }: { featured?: boolean
                 {levels.map((item) => <option key={item}>{item}</option>)}
               </select>
             </label>
+            <label className="filter-field">
+              <Clock3 size={16} /><span className="sr-only">Filter by time commitment</span>
+              <select value={commitment} onChange={(event) => setCommitment(event.target.value)}>
+                {["Any commitment", "Up to 3 hours", "4 to 6 hours", "More than 6 hours"].map((item) => <option key={item}>{item}</option>)}
+              </select>
+            </label>
           </div>
           <button className="button button-secondary library-filter-trigger" type="button" onClick={filterDrawer.openDrawer} aria-expanded={filterDrawer.open}>
             <Filter size={17} /> Search and filter
-            {(query || level !== "All levels") && <span>{Number(Boolean(query)) + Number(level !== "All levels")}</span>}
+            {(query || level !== "All levels" || commitment !== "Any commitment") && <span>{Number(Boolean(query)) + Number(level !== "All levels") + Number(commitment !== "Any commitment")}</span>}
           </button>
         </div>
       )}
@@ -116,7 +129,7 @@ export default function CourseLibrary({ featured = false }: { featured?: boolean
         <AppDrawer open={filterDrawer.open} onClose={filterDrawer.closeDrawer} labelledBy="library-filter-title" size="compact" mobilePlacement="bottom" className="library-filter-drawer">
           <section className="library-filter-panel">
             <header className="app-drawer-header">
-              <div><small>Course library</small><h2 id="library-filter-title">Find the right course</h2><p>Search by topic, then narrow by level.</p></div>
+              <div><small>Course library</small><h2 id="library-filter-title">Find the right course</h2><p>Search by outcome, then narrow by level and time.</p></div>
               <button className="icon-button" type="button" onClick={filterDrawer.closeDrawer} aria-label="Close course filters"><X size={18} /></button>
             </header>
             <div className="app-drawer-body library-filter-fields">
@@ -125,12 +138,16 @@ export default function CourseLibrary({ featured = false }: { featured?: boolean
                 <span className="search-field"><Search size={18} /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Topics, skills, or courses" /></span>
               </label>
               <label>
+                <span>Time commitment</span>
+                <span className="filter-field"><Clock3 size={16} /><select value={commitment} onChange={(event) => setCommitment(event.target.value)}>{["Any commitment", "Up to 3 hours", "4 to 6 hours", "More than 6 hours"].map((item) => <option key={item}>{item}</option>)}</select></span>
+              </label>
+              <label>
                 <span>Level</span>
                 <span className="filter-field"><Filter size={16} /><select value={level} onChange={(event) => setLevel(event.target.value)}>{levels.map((item) => <option key={item}>{item}</option>)}</select></span>
               </label>
             </div>
             <footer className="app-drawer-footer">
-              <button className="button button-quiet" type="button" onClick={() => { setQuery(""); setLevel("All levels"); }}>Reset</button>
+              <button className="button button-quiet" type="button" onClick={() => { setQuery(""); setLevel("All levels"); setCommitment("Any commitment"); }}>Reset</button>
               <button className="button button-primary" type="button" onClick={filterDrawer.closeDrawer}>Show {visible.length} {visible.length === 1 ? "course" : "courses"}</button>
             </footer>
           </section>
@@ -175,7 +192,7 @@ export default function CourseLibrary({ featured = false }: { featured?: boolean
         )}
         {visible.length > 0 ? <section aria-labelledby={!featured ? "published-courses-title" : undefined}>
           {!featured && <h2 className="sr-only" id="published-courses-title">Published courses</h2>}
-          <div className="library-card-grid">
+          <div className={`library-card-grid ${!featured && visible.length === 1 ? "is-single-course" : ""}`}>
           {visible.map((course, index) => {
             const id = course.id ?? course.courseId ?? `${course.topic}-${index}`;
             const lessons = course.modules.reduce((total, module) => total + module.lessons.length, 0);
@@ -188,6 +205,7 @@ export default function CourseLibrary({ featured = false }: { featured?: boolean
                   <span className="course-card-category">{course.category ?? "Course"}</span>
                   <h3>{course.topic}</h3>
                   <p>{course.outcome ?? course.mission ?? "Learn the subject through a structured sequence of lessons and practice."}</p>
+                  {(course.artifact?.title || course.capstone?.title) && <span className="course-card-artifact"><small>What you&apos;ll make</small><strong>{course.artifact?.title ?? course.capstone?.title}</strong></span>}
                   <span className="course-card-meta">
                     <span><Layers3 size={14} /> {lessons} lessons</span>
                     <span><Clock3 size={14} /> {hours} {hours === 1 ? "hour" : "hours"}</span>
@@ -205,10 +223,10 @@ export default function CourseLibrary({ featured = false }: { featured?: boolean
             );
           })}
           </div>
-        </section> : !featured ? <div className="state-panel"><Search size={22} /><div><h3>No matching published courses</h3><p>Your private courses are shown above. Try a broader topic or a different level.</p></div><button className="button button-secondary" onClick={() => { setQuery(""); setLevel("All levels"); }}>Clear filters</button></div> : null}
+        </section> : !featured ? <div className="state-panel"><Search size={22} /><div><h3>No matching published courses</h3><p>Your private courses are shown above. Try a broader topic, level, or time commitment.</p></div><button className="button button-secondary" onClick={() => { setQuery(""); setLevel("All levels"); setCommitment("Any commitment"); }}>Clear filters</button></div> : null}
         </>
       ) : (
-        <div className="state-panel"><Search size={22} /><div><h3>No matching courses</h3><p>Try a broader topic or a different level.</p></div><button className="button button-secondary" onClick={() => { setQuery(""); setLevel("All levels"); }}>Clear filters</button></div>
+        <div className="state-panel"><Search size={22} /><div><h3>No matching courses</h3><p>Try a broader topic, level, or time commitment.</p></div><button className="button button-secondary" onClick={() => { setQuery(""); setLevel("All levels"); setCommitment("Any commitment"); }}>Clear filters</button></div>
       )}
     </div>
   );

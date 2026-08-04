@@ -54,37 +54,44 @@ export default function AppShell({ children, activeTopic, activeCourseId }: AppS
   const { user, account, isOwner, isPro, signOut, loading: authLoading } = useAuth();
   const [showAuth, setShowAuth] = useState(false);
   const [courses, setCourses] = useState<Course[]>([]);
+  const [coursesLoading, setCoursesLoading] = useState(false);
   const accountDrawer = useAppDrawer("mobile-account");
 
   const refreshCourses = useCallback(async () => {
     if (!user || !isPro) {
       setCourses([]);
+      setCoursesLoading(false);
       return;
     }
-    const token = await user.getIdToken();
-    const response = await fetch("/api/courses?scope=mine", {
-      headers: { Authorization: `Bearer ${token}` },
-      cache: "no-store",
-    });
-    if (!response.ok) return;
-    const data = await response.json() as { courses: Course[] };
-    setCourses(data.courses);
+    setCoursesLoading(true);
+    const controller = new AbortController();
+    const timeout = window.setTimeout(() => controller.abort(), 8000);
+    try {
+      const token = await user.getIdToken();
+      const response = await fetch("/api/courses?scope=mine", {
+        headers: { Authorization: `Bearer ${token}` },
+        cache: "no-store",
+        signal: controller.signal,
+      });
+      if (!response.ok) throw new Error("Courses could not be loaded.");
+      const data = await response.json() as { courses: Course[] };
+      setCourses(data.courses);
+    } finally {
+      window.clearTimeout(timeout);
+      setCoursesLoading(false);
+    }
   }, [isPro, user]);
 
   useEffect(() => {
-    let active = true;
     const load = async () => {
       try {
         await refreshCourses();
-      } catch {
-        if (active) setCourses([]);
-      }
+      } catch { /* Preserve the last known course list during transient failures. */ }
     };
     void load();
     const onCoursesChanged = () => { void load(); };
     window.addEventListener("erudoza:courses-changed", onCoursesChanged);
     return () => {
-      active = false;
       window.removeEventListener("erudoza:courses-changed", onCoursesChanged);
     };
   }, [refreshCourses]);
@@ -99,16 +106,8 @@ export default function AppShell({ children, activeTopic, activeCourseId }: AppS
 
   const navigate = (href: string) => router.push(href);
   const isLegalPage = ["/terms", "/privacy", "/acceptable-use"].includes(pathname);
-  const isPublicRoute = pathname === "/"
-    || pathname === "/library"
-    || pathname === "/pricing"
-    || pathname === "/support"
-    || pathname === "/privacy-center"
-    || pathname === "/copyright"
-    || pathname.startsWith("/course/")
-    || isLegalPage;
 
-  if (authLoading && !isPublicRoute) {
+  if (authLoading) {
     return (
       <div className="auth-boot-shell" aria-busy="true" aria-label="Restoring your Erudoza session">
         <span className="brand-mark" aria-hidden="true"><ErudozaMark /></span>
@@ -181,6 +180,9 @@ export default function AppShell({ children, activeTopic, activeCourseId }: AppS
           <section className="sidebar-courses" aria-labelledby="sidebar-courses-title">
             <div className="sidebar-heading-row"><span id="sidebar-courses-title">My courses</span><span>{courses.length}</span></div>
             <div className="sidebar-course-list">
+              {coursesLoading && !courses.length && Array.from({ length: 3 }, (_, index) => (
+                <span className="sidebar-course-skeleton" key={index} aria-hidden="true"><i /><b /></span>
+              ))}
               {courses.slice(0, 6).map((course) => {
                 const id = course.id ?? course.courseId;
                 const active = currentCourse === course;
@@ -192,7 +194,7 @@ export default function AppShell({ children, activeTopic, activeCourseId }: AppS
                   </button>
                 );
               })}
-              {!courses.length && <p className="sidebar-empty-copy">Courses you create will appear here.</p>}
+              {!coursesLoading && !courses.length && <p className="sidebar-empty-copy">Courses you create will appear here.</p>}
             </div>
           </section>
         ) : (

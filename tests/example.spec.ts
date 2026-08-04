@@ -5,6 +5,7 @@ import { evaluateBadges } from "../src/lib/badges";
 import { normalizeDashboardPreferences } from "../src/lib/dashboard-preferences";
 import { estimateAiUsageCostMicros, summarizeAiUsage } from "../src/lib/ai-pricing";
 import { curateLessonVisuals } from "../src/lib/lesson-visuals";
+import { curateLessonInteractions, deriveLessonInteractions } from "../src/lib/lesson-interactions";
 import { removeCourseReferences } from "../src/lib/course-deletion";
 import { buildCourseBannerPrompt } from "../src/lib/course-banner-prompt";
 import {
@@ -82,6 +83,23 @@ test("keeps checkout closed until the independent billing lock is enabled", () =
     BILLING_ENABLED: "true",
     STRIPE_PRO_ANNUAL_PRICE_ID: "",
   })).toMatchObject({ providerReady: false, configured: false });
+});
+
+test("accepts only safe lesson interactions and derives a signal studio from timing notation", () => {
+  expect(curateLessonInteractions([JSON.stringify({
+    type: "sequence",
+    title: "Order the method",
+    summary: "Rebuild the method before practice.",
+    prompt: "Arrange the steps.",
+    steps: [{ label: "Frame", detail: "Name the goal." }, { label: "Apply", detail: "Use the method." }, { label: "Check", detail: "Test the result." }],
+  })])).toMatchObject([{ type: "sequence", id: "interaction-sequence-1", version: 1 }]);
+  expect(curateLessonInteractions([JSON.stringify({ type: "signal", title: "Unsafe", summary: "No scripts.", prompt: "Play it.", patterns: [{ label: "Bad", value: "<script>" }, { label: "Also bad", value: "https://example.com" }] })])).toEqual([]);
+
+  const derived = deriveLessonInteractions({
+    content: "## Hear the rhythm\n\nCompare `... --- ...` with `.-` before sending.",
+    quizzes: [],
+  });
+  expect(derived).toMatchObject([{ type: "signal", title: "Signal studio", patterns: [{ value: "... --- ..." }, { value: ".-" }] }]);
 });
 
 test("unlocks generated lessons sequentially for Pro authors while owners remain unrestricted", () => {
@@ -1012,7 +1030,6 @@ test("renders curated visual explanations in their learning slots", async ({ pag
 
   await page.goto("/course/Decision%20making/lesson/0-0?id=visual-demo");
   await expect(page.getByRole("heading", { name: "Keep the distinction visible" })).toBeVisible();
-  await expect(page.getByRole("heading", { name: "Trace the reasoning" })).toBeVisible();
   const contrastRatio = await page.locator("[data-lesson-visual='concept-contrast'] .visual-contrast p").first().evaluate((label) => {
     const channel = (value: number) => {
       const normalized = value / 255;
@@ -1027,8 +1044,13 @@ test("renders curated visual explanations in their learning slots", async ({ pag
     return (Math.max(foreground, background) + 0.05) / (Math.min(foreground, background) + 0.05);
   });
   expect(contrastRatio).toBeGreaterThanOrEqual(4.5);
-  const visualOrder = await page.locator("[data-lesson-visual]").evaluateAll((items) => items.map((item) => item.getAttribute("data-lesson-visual")));
-  expect(visualOrder).toEqual(["concept-contrast", "worked-example-trace"]);
+  const learningVisuals = await page.locator("[data-lesson-visual]").evaluateAll((items) => items.map((item) => item.getAttribute("data-lesson-visual")));
+  expect(learningVisuals).toEqual(["concept-contrast"]);
+  await page.getByRole("tab", { name: /Activities/ }).click();
+  await page.getByRole("tab", { name: /Guided practice/ }).click();
+  await expect(page.getByRole("heading", { name: "Trace the reasoning" })).toBeVisible();
+  const activityVisuals = await page.locator("[data-lesson-visual]").evaluateAll((items) => items.map((item) => item.getAttribute("data-lesson-visual")));
+  expect(activityVisuals).toEqual(["worked-example-trace"]);
   const trace = page.locator("[data-lesson-visual='worked-example-trace']");
   await expect(trace.getByRole("button", { name: /Find the observation/ })).toHaveAttribute("aria-current", "step");
   await trace.getByRole("button", { name: /Name the inference/ }).click();
