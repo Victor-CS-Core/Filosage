@@ -7,6 +7,7 @@ import remarkGfm from "remark-gfm";
 import {
   ArrowLeft,
   ArrowRight,
+  BookOpenText,
   Bot,
   Bookmark,
   Check,
@@ -14,6 +15,7 @@ import {
   ChevronRight,
   CircleAlert,
   Lightbulb,
+  ListChecks,
   LoaderCircle,
   LockKeyhole,
   MessageSquareText,
@@ -111,6 +113,15 @@ interface QuizResult {
   firstAttemptCorrect: boolean;
   confidence: Confidence;
   receipt?: string;
+}
+
+type LessonPane = "learn" | "activities";
+type ActivitySectionId = "experience" | "guided" | "transfer" | "checks";
+
+interface ActivitySection {
+  id: ActivitySectionId;
+  label: string;
+  description: string;
 }
 
 function KnowledgeCheck({
@@ -305,6 +316,9 @@ export default function LessonView() {
   const tutorOpen = tutorDrawer.open;
   const studyToolsOpen = studyToolsDrawer.open;
   const [activePracticeState, setActivePracticeState] = useState<{ key: string; index: number }>({ key: "", index: 0 });
+  const [lessonPaneState, setLessonPaneState] = useState<{ key: string; pane: LessonPane }>({ key: "", pane: "learn" });
+  const [activitySectionState, setActivitySectionState] = useState<{ key: string; id: ActivitySectionId | null }>({ key: "", id: null });
+  const [guidedPracticeState, setGuidedPracticeState] = useState<{ key: string; complete: boolean }>({ key: "", complete: false });
   const [messages, setMessages] = useState<Message[]>([]);
   const [chatInput, setChatInput] = useState("");
   const [chatting, setChatting] = useState(false);
@@ -336,10 +350,57 @@ export default function LessonView() {
       : { type: lessonData.experience.type, response: "", completed: false }
     : null, [experienceState, lessonData, noteKey]);
   const experienceComplete = reviewMode || !lessonData?.experience || experienceValue?.completed === true;
+  const lessonPane = lessonPaneState.key === noteKey ? lessonPaneState.pane : reviewMode ? "activities" : "learn";
+  const guidedPracticeComplete = !lessonData?.guidedPractice
+    || (guidedPracticeState.key === noteKey && guidedPracticeState.complete);
   const lessonBookmarked = learnerState.lessonBookmarks.includes(noteKey);
   const activePracticeIndex = activePracticeState.key === noteKey ? activePracticeState.index : 0;
   const reviewScheduledAt = reviewScheduleState.key === noteKey ? reviewScheduleState.at : null;
   const confidenceCalibration = calibrationState.key === noteKey ? calibrationState.value : null;
+  const activitySections = useMemo<ActivitySection[]>(() => {
+    if (!lessonData) return [];
+    return [
+      ...(lessonData.experience ? [{ id: "experience" as const, label: "Active lesson", description: "Create evidence while you learn" }] : []),
+      ...(lessonData.guidedPractice ? [{ id: "guided" as const, label: "Guided practice", description: "Work through the method" }] : []),
+      ...(lessonData.transferTask ? [{ id: "transfer" as const, label: "Transfer task", description: "Apply it in a new situation" }] : []),
+      ...(lessonData.quizzes.length ? [{ id: "checks" as const, label: "Knowledge checks", description: `${lessonData.quizzes.length} retrieval ${lessonData.quizzes.length === 1 ? "check" : "checks"}` }] : []),
+    ];
+  }, [lessonData]);
+  const requestedActivityId = activitySectionState.key === noteKey ? activitySectionState.id : null;
+  const activeActivityId = activitySections.some((section) => section.id === requestedActivityId)
+    ? requestedActivityId
+    : activitySections[0]?.id ?? null;
+  const activeActivityIndex = Math.max(0, activitySections.findIndex((section) => section.id === activeActivityId));
+  const checksComplete = Boolean(lessonData?.quizzes.length)
+    && Object.keys(quizResults).length === lessonData?.quizzes.length;
+  const completedActivityIds = useMemo(() => new Set<ActivitySectionId>([
+    ...(complete ? activitySections.map((section) => section.id) : []),
+    ...(!complete && lessonData?.experience && experienceComplete ? ["experience" as const] : []),
+    ...(!complete && lessonData?.guidedPractice && guidedPracticeComplete ? ["guided" as const] : []),
+    ...(!complete && lessonData?.transferTask && transferComplete ? ["transfer" as const] : []),
+    ...(!complete && lessonData?.quizzes.length && checksComplete ? ["checks" as const] : []),
+  ]), [activitySections, checksComplete, complete, experienceComplete, guidedPracticeComplete, lessonData, transferComplete]);
+  const completedActivityCount = activitySections.filter((section) => completedActivityIds.has(section.id)).length;
+
+  const selectLessonPane = (pane: LessonPane) => {
+    setLessonPaneState({ key: noteKey, pane });
+  };
+
+  const selectActivitySection = (id: ActivitySectionId) => {
+    if (activeActivityId === "guided" && id !== "guided") {
+      setGuidedPracticeState({ key: noteKey, complete: true });
+    }
+    setActivitySectionState({ key: noteKey, id });
+  };
+
+  const moveThroughActivities = (direction: -1 | 1) => {
+    if (!activeActivityId) return;
+    if (activeActivityId === "guided" && direction > 0) {
+      setGuidedPracticeState({ key: noteKey, complete: true });
+    }
+    const next = activitySections[activeActivityIndex + direction];
+    if (next) selectActivitySection(next.id);
+  };
 
   useEffect(() => {
     noteHydratedRef.current = false;
@@ -1077,7 +1138,7 @@ export default function LessonView() {
 
         <div className="lesson-workspace">
           <article className="lesson-scroll">
-            <div className="reading-column">
+            <div className={`reading-column lesson-${lessonPane}-pane`}>
               <div className="lesson-progress-top" role="progressbar" aria-label="Course progress" aria-valuemin={0} aria-valuemax={100} aria-valuenow={lessonProgress}><span style={{ transform: `scaleX(${lessonProgress / 100})` }} /></div>
               <header className="lesson-title-block">
                 <p className="overline">{currentModule?.title}</p>
@@ -1085,14 +1146,43 @@ export default function LessonView() {
                 <p>{lesson.concept}</p>
               </header>
 
-              {lessonData.aiAssisted && (
+              <div className="lesson-mode-tabs" role="tablist" aria-label="Lesson workspace">
+                <button id="lesson-learn-tab" type="button" role="tab" aria-selected={lessonPane === "learn"} aria-controls="lesson-pane-content" className={lessonPane === "learn" ? "is-active" : ""} onClick={() => selectLessonPane("learn")}>
+                  <BookOpenText size={17} /><span><strong>Learn</strong><small>Explanation and key ideas</small></span>
+                </button>
+                <button id="lesson-activities-tab" type="button" role="tab" aria-selected={lessonPane === "activities"} aria-controls="lesson-pane-content" className={lessonPane === "activities" ? "is-active" : ""} onClick={() => selectLessonPane("activities")}>
+                  <ListChecks size={17} /><span><strong>Activities</strong><small>{completedActivityCount} of {activitySections.length} complete</small></span>
+                </button>
+              </div>
+
+              {lessonPane === "activities" && (
+                <div className="lesson-activities-header">
+                  <header><div><p>Practice studio</p><h2>Turn the lesson into evidence</h2><span>Complete one focused activity at a time. Your drafts stay private.</span></div><strong>{completedActivityCount}/{activitySections.length}</strong></header>
+                  {activitySections.length > 0 && (
+                    <div className="activity-section-tabs" role="tablist" aria-label="Lesson activities">
+                      {activitySections.map((section, index) => {
+                        const sectionComplete = completedActivityIds.has(section.id);
+                        return (
+                          <button key={section.id} id={`activity-${section.id}-tab`} type="button" role="tab" aria-selected={activeActivityId === section.id} aria-controls="lesson-active-activity" className={`${activeActivityId === section.id ? "is-active" : ""} ${sectionComplete ? "is-complete" : ""}`} onClick={() => selectActivitySection(section.id)}>
+                            <span>{sectionComplete ? <Check size={15} /> : index + 1}</span><strong>{section.label}</strong><small>{section.description}</small>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              <div id="lesson-pane-content" className="lesson-pane-content" role="tabpanel" aria-labelledby={lessonPane === "learn" ? "lesson-learn-tab" : "lesson-activities-tab"}>
+
+              {lessonPane === "learn" && lessonData.aiAssisted && (
                 <aside className="lesson-ai-notice" data-ai-generated="true">
                   <Bot size={17} />
                   <p><strong>AI-assisted lesson</strong><span>Review important claims against reliable sources before relying on them.</span></p>
                 </aside>
               )}
 
-              {(lessonData.learningObjective || lessonData.connection) && (
+              {lessonPane === "learn" && (lessonData.learningObjective || lessonData.connection) && (
                 <section className="lesson-contract" aria-label="Lesson purpose">
                   {lessonData.learningObjective && (
                     <div><Target size={18} /><span><small>Learning objective</small><strong>{lessonData.learningObjective}</strong></span></div>
@@ -1103,48 +1193,56 @@ export default function LessonView() {
                 </section>
               )}
 
-              {lessonVisuals.filter((visual) => visual.placement === "after-purpose").map((visual) => <LessonVisualRenderer key={visual.id} visual={visual} />)}
+              {lessonPane === "learn" && lessonVisuals.filter((visual) => visual.placement === "after-purpose").map((visual) => <LessonVisualRenderer key={visual.id} visual={visual} />)}
 
-              {lessonData.experience && experienceValue && (
-                <LessonExperience experience={lessonData.experience} value={experienceValue} onChange={updateExperienceEvidence} />
+              {lessonPane === "activities" && activeActivityId === "experience" && lessonData.experience && experienceValue && (
+                <div id="lesson-active-activity" role="tabpanel" aria-labelledby="activity-experience-tab"><LessonExperience experience={lessonData.experience} value={experienceValue} onChange={updateExperienceEvidence} /></div>
               )}
 
-              <div className="markdown-content"><ReactMarkdown remarkPlugins={[remarkGfm]}>{normalizedContent}</ReactMarkdown></div>
+              {lessonPane === "learn" && <div className="markdown-content"><ReactMarkdown remarkPlugins={[remarkGfm]}>{normalizedContent}</ReactMarkdown></div>}
 
-              {lessonVisuals.filter((visual) => visual.placement === "after-explanation").map((visual) => <LessonVisualRenderer key={visual.id} visual={visual} />)}
+              {lessonPane === "learn" && lessonVisuals.filter((visual) => visual.placement === "after-explanation").map((visual) => <LessonVisualRenderer key={visual.id} visual={visual} />)}
 
-              {lessonVisuals.filter((visual) => visual.placement === "before-guided-practice").map((visual) => <LessonVisualRenderer key={visual.id} visual={visual} />)}
-
-              {lessonData.guidedPractice && (
-                <section className="lesson-section guided-practice" aria-labelledby="guided-practice-title">
-                  <div className="lesson-section-heading">
-                    <p className="overline">Guided practice</p>
-                    <h2 id="guided-practice-title">Work through the idea</h2>
-                    <div className="structured-markdown guided-practice-prompt">
-                      <ReactMarkdown remarkPlugins={[remarkGfm]}>{normalizeStructuredMarkdown(lessonData.guidedPractice.prompt)}</ReactMarkdown>
+              {lessonPane === "activities" && activeActivityId === "guided" && lessonData.guidedPractice && (
+                <div id="lesson-active-activity" className="guided-activity-panel" role="tabpanel" aria-labelledby="activity-guided-tab">
+                  {lessonVisuals.filter((visual) => visual.placement === "before-guided-practice").map((visual) => <LessonVisualRenderer key={visual.id} visual={visual} />)}
+                  <section className="lesson-section guided-practice" aria-labelledby="guided-practice-title">
+                    <div className="lesson-section-heading">
+                      <p className="overline">Guided practice</p>
+                      <h2 id="guided-practice-title">Work through the idea</h2>
+                      <div className="structured-markdown guided-practice-prompt">
+                        <ReactMarkdown remarkPlugins={[remarkGfm]}>{normalizeStructuredMarkdown(lessonData.guidedPractice.prompt)}</ReactMarkdown>
+                      </div>
                     </div>
-                  </div>
-                  <ol>
-                    {lessonData.guidedPractice.steps.map((step, index) => (
-                      <li key={`${step}-${index}`}><span>{index + 1}</span><div className="structured-markdown guided-practice-step"><ReactMarkdown remarkPlugins={[remarkGfm]}>{normalizeStructuredMarkdown(step)}</ReactMarkdown></div></li>
-                    ))}
-                  </ol>
-                  <details className="model-answer">
-                    <summary>Compare with a worked response</summary>
-                    <div className="structured-markdown"><ReactMarkdown remarkPlugins={[remarkGfm]}>{normalizeStructuredMarkdown(lessonData.guidedPractice.modelAnswer)}</ReactMarkdown></div>
-                  </details>
-                </section>
+                    <ol>
+                      {lessonData.guidedPractice.steps.map((step, index) => (
+                        <li key={`${step}-${index}`}><span>{index + 1}</span><div className="structured-markdown guided-practice-step"><ReactMarkdown remarkPlugins={[remarkGfm]}>{normalizeStructuredMarkdown(step)}</ReactMarkdown></div></li>
+                      ))}
+                    </ol>
+                    <details className="model-answer">
+                      <summary>Compare with a worked response</summary>
+                      <div className="structured-markdown"><ReactMarkdown remarkPlugins={[remarkGfm]}>{normalizeStructuredMarkdown(lessonData.guidedPractice.modelAnswer)}</ReactMarkdown></div>
+                    </details>
+                  </section>
+                </div>
               )}
 
-              {lessonData.keyTakeaways?.length ? (
+              {lessonPane === "learn" && lessonData.keyTakeaways?.length ? (
                 <section className="lesson-section key-takeaways" aria-labelledby="takeaways-title">
                   <div className="lesson-section-heading"><p className="overline">Consolidate</p><h2 id="takeaways-title">What to retain</h2></div>
                   <ul>{lessonData.keyTakeaways.map((takeaway) => <li key={takeaway}><Check size={16} /><span>{takeaway}</span></li>)}</ul>
                 </section>
               ) : null}
 
-              {lessonData.transferTask && (
-                <section className="lesson-section transfer-practice" aria-labelledby="transfer-title">
+              {lessonPane === "learn" && (
+                <div className="lesson-pane-continue">
+                  <span><strong>Ready to use the idea?</strong><small>Move into a focused activity sequence without losing your place.</small></span>
+                  <button className="button button-primary" type="button" onClick={() => selectLessonPane("activities")}>Open activities <ArrowRight size={16} /></button>
+                </div>
+              )}
+
+              {lessonPane === "activities" && activeActivityId === "transfer" && lessonData.transferTask && (
+                <section id="lesson-active-activity" className="lesson-section transfer-practice" role="tabpanel" aria-labelledby="activity-transfer-tab transfer-title">
                   <div className="lesson-section-heading">
                     <p className="overline">Transfer</p>
                     <h2 id="transfer-title">Use it in a new situation</h2>
@@ -1183,8 +1281,8 @@ export default function LessonView() {
                 </section>
               )}
 
-              {lessonData.quizzes.length > 0 && (
-                <section className="lesson-section checks-section" aria-labelledby="checks-title">
+              {lessonPane === "activities" && activeActivityId === "checks" && lessonData.quizzes.length > 0 && (
+                <section id="lesson-active-activity" className="lesson-section checks-section" role="tabpanel" aria-labelledby="activity-checks-tab checks-title">
                   <div className="lesson-section-heading">
                     <p className="overline">Retrieval practice</p>
                     <h2 id="checks-title">Check your understanding</h2>
@@ -1213,7 +1311,22 @@ export default function LessonView() {
                 </section>
               )}
 
-              <div className={`completion-banner ${complete ? "is-complete" : ""}`}>
+              {lessonPane === "activities" && activitySections.length === 0 && (
+                <div className="lesson-activities-empty"><CheckCircle2 size={22} /><div><strong>No additional activities</strong><p>Confirm that you reviewed the explanation to finish this lesson.</p></div></div>
+              )}
+
+              {lessonPane === "activities" && activitySections.length > 0 && (
+                <div className="activity-panel-navigation">
+                  <button className="button button-secondary" type="button" disabled={activeActivityIndex === 0} onClick={() => moveThroughActivities(-1)}><ArrowLeft size={16} /> Previous activity</button>
+                  {activeActivityIndex < activitySections.length - 1 ? (
+                    <button className="button button-primary" type="button" onClick={() => moveThroughActivities(1)}>Next activity <ArrowRight size={16} /></button>
+                  ) : activeActivityId === "guided" && !guidedPracticeComplete ? (
+                    <button className="button button-primary" type="button" onClick={() => setGuidedPracticeState({ key: noteKey, complete: true })}><Check size={16} /> Mark practice reviewed</button>
+                  ) : null}
+                </div>
+              )}
+
+              {lessonPane === "activities" && <div className={`completion-banner ${complete ? "is-complete" : ""}`}>
                 <div>{complete ? <CheckCircle2 size={22} /> : <CircleAlert size={22} />}</div>
                 <span>
                   <strong>{complete ? (reviewMode ? `${reviewKindLabel(reviewKind)} complete` : "Lesson complete") : "Complete the activities"}</strong>
@@ -1230,9 +1343,9 @@ export default function LessonView() {
                 {!complete && lessonData.quizzes.length === 0 && transferComplete && experienceComplete && (
                   <button className="button button-secondary button-small" onClick={() => void markComplete()}>Mark learned</button>
                 )}
-              </div>
+              </div>}
 
-              {courseId && (
+              {lessonPane === "learn" && courseId && (
                 <LessonIntegrityPanel
                   key={noteKey}
                   courseId={courseId}
@@ -1242,7 +1355,7 @@ export default function LessonView() {
                 />
               )}
 
-              <nav className="lesson-navigation" aria-label="Lesson navigation">
+              {lessonPane === "activities" && <nav className="lesson-navigation" aria-label="Lesson navigation">
                 {previousLesson ? (
                   <button className="lesson-nav-link lesson-nav-previous" onClick={() => router.push(lessonHref(previousLesson.id))}>
                     <ArrowLeft size={17} /><span><small>Previous</small><strong>{previousLesson.title}</strong></span>
@@ -1257,7 +1370,8 @@ export default function LessonView() {
                     <span><small>Next lesson</small><strong>{nextLesson.title}</strong></span><ArrowRight size={17} />
                   </button>
                 )}
-              </nav>
+              </nav>}
+              </div>
             </div>
           </article>
 

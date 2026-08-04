@@ -837,6 +837,7 @@ test("does not complete a lesson after a wrong answer", async ({ page }) => {
   await expect(page.locator(".lesson-study-panel")).toBeVisible();
   await page.getByRole("button", { name: "Close study tools" }).click();
   await expect(page.getByRole("heading", { level: 2, name: "Why it matters" })).toBeVisible();
+  await page.getByRole("tab", { name: /Activities/ }).click();
   const firstCheck = page.locator(".knowledge-check");
   await expect(firstCheck).toHaveCount(1);
   await expect(firstCheck.getByPlaceholder("Capture the key idea in your own words…")).toBeVisible();
@@ -863,6 +864,7 @@ test("does not complete a lesson after a wrong answer", async ({ page }) => {
   await page.getByRole("button", { name: /Next lesson Leverage points/ }).click();
   await expect(page).toHaveURL(/lesson\/0-1\?id=demo/);
   await expect(page.getByRole("heading", { name: "Leverage points" })).toBeVisible();
+  await page.getByRole("tab", { name: /Activities/ }).click();
   await expect(page.locator(".completion-banner").getByText("Complete the activities")).toBeVisible();
   await expect(page.locator(".completion-banner").getByText("Lesson complete")).not.toBeVisible();
 });
@@ -908,9 +910,9 @@ test("renders the didactic lesson contract and transfer practice", async ({ page
 
   await page.goto("/course/Decision%20making/lesson/0-0?id=didactic-demo");
   await expect(page.getByText("Classify statements as evidence or inference.")).toBeVisible();
-  await expect(page.getByRole("heading", { name: "Work through the idea" })).toBeVisible();
-  await expect(page.getByRole("heading", { name: "Use it in a new situation" })).toBeVisible();
   await expect(page.locator(".markdown-content table")).toContainText("Measurement");
+  await page.getByRole("tab", { name: /Activities/ }).click();
+  await expect(page.getByRole("heading", { name: "Work through the idea" })).toBeVisible();
   const practiceTable = page.locator(".guided-practice-prompt table");
   await expect(practiceTable).toBeVisible();
   await expect(practiceTable).toContainText("Paycheck deposit");
@@ -920,6 +922,8 @@ test("renders the didactic lesson contract and transfer practice", async ({ page
     element.scrollWidth <= element.clientWidth || element.querySelector("table")!.scrollWidth > element.querySelector("table")!.clientWidth
   ))).toBe(true);
 
+  await page.getByRole("tab", { name: /Transfer task/ }).click();
+  await expect(page.getByRole("heading", { name: "Use it in a new situation" })).toBeVisible();
   const response = page.getByLabel("Your response");
   await response.fill("The customer complaint is observed; the product diagnosis is an inference.");
   const compare = page.getByRole("button", { name: "Compare response" });

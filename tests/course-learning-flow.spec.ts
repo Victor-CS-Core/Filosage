@@ -510,17 +510,21 @@ test("completes a published course from discovery through evidence", async ({ pa
 
   await page.getByRole("button", { name: "Start with Evidence and action" }).click();
   await expect(page.getByRole("heading", { level: 1, name: "Evidence before inference" })).toBeVisible();
+  await page.getByRole("tab", { name: /Activities/ }).click();
   await expect(page.getByRole("heading", { name: "Follow the expert reasoning" })).toBeVisible();
   await expect(page.getByText("Compare arrival volume, handling time, and affected issue types.")).toBeVisible();
   const workedExampleEvidence = "I would compare the second team's arrival volume, handling time, and issue mix before attributing slower handoffs to the release.";
   await page.getByLabel("Your unsupported finish").fill(workedExampleEvidence);
   await page.getByRole("button", { name: "Save unsupported finish" }).click();
   await expect(page.getByText("Ready for lesson completion.")).toBeVisible();
+  await page.getByRole("tab", { name: /Guided practice/ }).click();
   await expect(page.getByRole("heading", { name: "Work through the idea" })).toBeVisible();
   await page.getByText("Compare with a worked response").click();
   await expect(page.getByText("The queue increase is observed; the claim that the release caused it is an inference.")).toBeVisible();
   const firstTransfer = "Three of ten users abandoned the flow is observed; confusing copy caused it is an inference I still need to test.";
+  await page.getByRole("tab", { name: /Transfer task/ }).click();
   await completeTransfer(page, firstTransfer, lessonOne.transferTask!.modelResponse);
+  await page.getByRole("tab", { name: /Knowledge checks/ }).click();
   await completeQuiz(page, {
     recall: "A recorded observation can be checked directly.",
     wrongAnswer: "The release confused customers",
@@ -562,17 +566,21 @@ test("completes a published course from discovery through evidence", async ({ pa
 
   await page.getByRole("button", { name: /Next lesson Choose the next action/ }).click();
   await expect(page.getByRole("heading", { level: 1, name: "Choose the next action" })).toBeVisible();
+  await page.getByRole("tab", { name: /Activities/ }).click();
   await expect(page.getByRole("heading", { name: "Make sense of the evidence" })).toBeVisible();
   const caseStudy = page.locator(".experience-case-study");
   const caseStudyEvidence = "Run a segmented copy pilot because traffic mix and eligibility changed at the same time, then roll back if completion worsens.";
   await caseStudy.getByLabel("Your decision").fill(caseStudyEvidence);
   await page.reload();
+  await page.getByRole("tab", { name: /Activities/ }).click();
   await expect(page.locator(".experience-case-study").getByLabel("Your decision")).toHaveValue(caseStudyEvidence);
   const reloadedCaseStudy = page.locator(".experience-case-study");
   await reloadedCaseStudy.getByRole("button", { name: "Compare interpretations" }).click();
   await expect(reloadedCaseStudy.getByText("A segmented pilot can distinguish the copy effect while limiting downside.")).toBeVisible();
   const secondTransfer = "I would pilot the onboarding copy with one segment and roll it back if completion or support demand worsens after two weeks.";
+  await page.getByRole("tab", { name: /Transfer task/ }).click();
   await completeTransfer(page, secondTransfer, lessonTwo.transferTask!.modelResponse);
+  await page.getByRole("tab", { name: /Knowledge checks/ }).click();
   await completeQuiz(page, {
     recall: "Use a bounded experiment when evidence is promising but incomplete.",
     correctAnswer: "Run a bounded pilot with a rollback point",
@@ -624,6 +632,7 @@ test("completes a published course from discovery through evidence", async ({ pa
 });
 
 test("completes every rich lesson mode and records its active evidence", async ({ page }) => {
+  test.slow();
   await restoreLocalLearner(page);
   await mockFreeLearnerAccount(page);
   const richCourseId = "six-mode-course";
@@ -693,6 +702,8 @@ test("completes every rich lesson mode and records its active evidence", async (
   await page.evaluate(() => { document.documentElement.style.fontSize = ""; });
   await page.getByRole("button", { name: "Start course" }).click();
   for (let index = 0; index < experiences.length; index += 1) {
+    await expect(page.getByRole("heading", { level: 1, name: `Mode ${index + 1}: ${experiences[index].type}` })).toBeVisible();
+    await page.getByRole("tab", { name: /Activities/ }).click();
     const response = `Meaningful ${experiences[index].type} evidence that explains the learner's decision boundary.`;
     await page.getByLabel(labels[index]).fill(response);
     await page.getByRole("button", { name: submitLabels[index] }).click();
