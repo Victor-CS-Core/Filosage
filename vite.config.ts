@@ -6,6 +6,9 @@ import hostingConfig from "./.openai/hosting.json";
 const isCodexSeatbeltSandbox = process.env.CODEX_SANDBOX === "seatbelt";
 const localWorkersCompatibilityFlag =
   process.env.LOCAL_WORKERS_COMPATIBILITY_FLAG;
+// Sites currently rejects a provider-injected nodejs_compat flag at 2026-08-04+.
+// Keep production pinned until the Sites publish bridge no longer injects it.
+const sitesProductionCompatibilityDate = "2026-08-03";
 const { r2 } = hostingConfig;
 
 export default defineConfig(async () => {
@@ -39,7 +42,7 @@ export default defineConfig(async () => {
           main: "./worker/index.ts",
           compatibility_date: localWorkersCompatibilityFlag
             ? "2026-07-23"
-            : "2026-08-04",
+            : sitesProductionCompatibilityDate,
           compatibility_flags: localWorkersCompatibilityFlag
             ? [localWorkersCompatibilityFlag]
             : [],

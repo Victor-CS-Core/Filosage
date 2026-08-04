@@ -10,7 +10,7 @@ import {
   reserveAiUsage,
   type AiReservation,
 } from "@/lib/ai-usage";
-import type { AiUsageSample } from "@/lib/ai-pricing";
+import { summarizeAiUsage, type AiUsageSample } from "@/lib/ai-pricing";
 import {
   generateLessonInputSchema,
   lessonGenerationSchema,
@@ -29,14 +29,16 @@ import { languagePolicyInstruction } from "@/lib/content-language";
 import { lessonQualityIssues, LESSON_QUALITY_GATE_VERSION } from "@/lib/lesson-quality";
 import { lessonGenerationGate } from "@/lib/authoring-gate";
 import { sourcePackPromptBlock } from "@/lib/source-safety";
-import { runWithModelFallback, safeModelErrorDetails } from "@/lib/model-fallback";
+import { safeModelErrorDetails } from "@/lib/model-fallback";
+import {
+  aiUsageProfileMetadata,
+  openAiExecutionProfile,
+  type AiExecutionProfile,
+} from "@/lib/openai-generation";
 
-const model = process.env.OPENAI_LESSON_MODEL || "gpt-5.6-luna";
-const fallbackModel = process.env.OPENAI_LESSON_FALLBACK_MODEL
-  || process.env.OPENAI_COURSE_MODEL
-  || process.env.OPENAI_MODEL
-  || "gpt-5.6-terra";
-const LESSON_PROMPT_VERSION = "2026-08-03-guided-apprenticeship";
+const standardProfile = openAiExecutionProfile("lesson.standard");
+const fallbackProfile = openAiExecutionProfile("lesson.fallback");
+const recoveryProfile = openAiExecutionProfile("lesson.recovery");
 const lessonVisualsAreEnabled = lessonVisualsEnabled();
 
 const lessonInstructions = `Act as a rigorous teacher and instructional designer. Create one lesson that advances a specific capability within a larger course.
@@ -195,8 +197,8 @@ export async function POST(request: Request) {
       return { ...lesson, visuals: lessonVisualsAreEnabled ? curateLessonVisuals(visuals, visualContext) : [] };
     };
 
-    const generate = (selectedModel: string, repairIssues: string[] = []) => client.responses.parse({
-      model: selectedModel,
+    const generate = (profile: AiExecutionProfile, repairIssues: string[] = []) => client.responses.parse({
+      model: profile.model,
       store: false,
       instructions: `${lessonInstructions}\n\n${languagePolicyInstruction(topic)}`,
       input: repairIssues.length
@@ -204,43 +206,76 @@ export async function POST(request: Request) {
         : lessonContext,
       text: {
         format: zodTextFormat(lessonGenerationSchema, "lesson"),
+        verbosity: profile.textVerbosity,
       },
+      reasoning: { effort: profile.reasoningEffort },
+      prompt_cache_key: profile.promptCacheKey,
       max_output_tokens: 6_000,
       safety_identifier: safetyIdentifier,
     });
 
-    const initialAttempt = await runWithModelFallback({
-      primaryModel: model,
-      fallbackModel,
-      generate,
-      onPrimaryError: (error) => {
-        console.warn("Primary lesson model failed; trying fallback:", {
-          model,
-          fallbackModel,
-          ...safeModelErrorDetails(error),
+    const generateAndRecord = async (profile: AiExecutionProfile, repairIssues: string[] = []) => {
+      const generated = await generate(profile, repairIssues);
+      responseId = generated.id;
+      usageSamples.push({
+        model: profile.model,
+        ...extractOpenAiUsage(generated),
+        responseId,
+        ...aiUsageProfileMetadata(profile),
+      });
+      return generated;
+    };
+
+    let activeProfile = standardProfile;
+    let primaryResponse;
+    try {
+      primaryResponse = await generateAndRecord(standardProfile);
+    } catch (primaryError) {
+      console.warn("Primary lesson model failed; trying Terra fallback:", {
+        model: standardProfile.model,
+        fallbackModel: fallbackProfile.model,
+        ...safeModelErrorDetails(primaryError),
+      });
+      try {
+        activeProfile = fallbackProfile;
+        primaryResponse = await generateAndRecord(fallbackProfile, ["The standard generation attempt failed before producing a usable lesson."]);
+      } catch (fallbackError) {
+        console.warn("Lesson fallback model failed; using Sol recovery:", {
+          model: fallbackProfile.model,
+          recoveryModel: recoveryProfile.model,
+          ...safeModelErrorDetails(fallbackError),
         });
-      },
-    });
-    const primaryResponse = initialAttempt.result;
-    responseId = primaryResponse.id;
-    usageSamples.push({ model: initialAttempt.model, ...extractOpenAiUsage(primaryResponse), responseId });
+        activeProfile = recoveryProfile;
+        primaryResponse = await generateAndRecord(recoveryProfile, ["The standard and fallback generation attempts failed before producing a usable lesson."]);
+      }
+    }
     let lesson = prepareLesson(primaryResponse.output_parsed as GeneratedLessonData | null);
     let qualityIssues = lessonQualityIssues(lesson, topic, expectedMode);
-    let usedFallback = initialAttempt.usedFallback;
-    let generationModel = initialAttempt.model;
 
-    if (qualityIssues.length && fallbackModel !== generationModel) {
-      const fallbackResponse = await generate(fallbackModel, qualityIssues);
-      responseId = fallbackResponse.id;
-      usageSamples.push({ model: fallbackModel, ...extractOpenAiUsage(fallbackResponse), responseId });
-      lesson = prepareLesson(fallbackResponse.output_parsed as GeneratedLessonData | null);
+    if (qualityIssues.length && activeProfile.id === standardProfile.id) {
+      try {
+        activeProfile = fallbackProfile;
+        const fallbackResponse = await generateAndRecord(fallbackProfile, qualityIssues);
+        lesson = prepareLesson(fallbackResponse.output_parsed as GeneratedLessonData | null);
+      } catch (error) {
+        console.warn("Lesson quality repair failed; using Sol recovery:", {
+          model: fallbackProfile.model,
+          recoveryModel: recoveryProfile.model,
+          ...safeModelErrorDetails(error),
+        });
+      }
       qualityIssues = lessonQualityIssues(lesson, topic, expectedMode);
-      usedFallback = true;
-      generationModel = fallbackModel;
+    }
+
+    if (qualityIssues.length && !activeProfile.recovery) {
+      activeProfile = recoveryProfile;
+      const recoveryResponse = await generateAndRecord(recoveryProfile, qualityIssues);
+      lesson = prepareLesson(recoveryResponse.output_parsed as GeneratedLessonData | null);
+      qualityIssues = lessonQualityIssues(lesson, topic, expectedMode);
     }
 
     if (!lesson || qualityIssues.length) {
-      await finalizeAiUsage(reservation, { usageSamples, model, responseId, failed: true });
+      await finalizeAiUsage(reservation, { usageSamples, responseId, failed: true });
       reservation = null;
       return NextResponse.json(
         { error: "The lesson did not meet Erudoza's teaching-quality standard. Please try again." },
@@ -258,7 +293,7 @@ export async function POST(request: Request) {
       .map((source) => ({ label: source.label, url: source.url }));
     const generationMetadata = {
       generatedAt: new Date().toISOString(),
-      promptVersion: LESSON_PROMPT_VERSION,
+      promptVersion: activeProfile.promptVersion,
       qualityGateVersion: LESSON_QUALITY_GATE_VERSION,
       sourceReferences,
     };
@@ -268,24 +303,46 @@ export async function POST(request: Request) {
       aiAssisted: true,
       isPublic: coursePublic,
       schemaVersion: 4,
-      generationModel,
-      fallbackUsed: usedFallback,
+      generationModel: activeProfile.model,
+      generationProfile: activeProfile.id,
+      reasoningEffort: activeProfile.reasoningEffort,
+      promptCacheKey: activeProfile.promptCacheKey,
+      fallbackUsed: usageSamples.length > 1 || activeProfile.id !== standardProfile.id,
       ...generationMetadata,
     });
 
     await finalizeAiUsage(reservation, { usageSamples, responseId });
     reservation = null;
 
-    return NextResponse.json(toLessonDto({
+    const lessonDto = toLessonDto({
       ...lesson,
       aiAssisted: true,
       schemaVersion: 4,
-      generationModel,
+      generationModel: activeProfile.model,
       ...generationMetadata,
-    }, true, topic));
+    }, true, topic);
+    return NextResponse.json({
+      ...lessonDto,
+      evaluation: account.isOwner && request.headers.get("x-erudoza-model-evaluation") === "1"
+        ? {
+            profile: activeProfile.id,
+            model: activeProfile.model,
+            promptVersion: activeProfile.promptVersion,
+            recoveryUsed: activeProfile.recovery,
+            attempts: usageSamples.length,
+            usage: summarizeAiUsage(usageSamples),
+          }
+        : undefined,
+    });
   } catch (error: unknown) {
     if (reservation) {
-      await finalizeAiUsage(reservation, { usageSamples, model, responseId, failed: true }).catch((usageError) => {
+      await finalizeAiUsage(reservation, {
+        usageSamples,
+        model: standardProfile.model,
+        responseId,
+        failed: true,
+        ...aiUsageProfileMetadata(standardProfile),
+      }).catch((usageError) => {
         console.error("Lesson usage finalization failed:", usageError);
       });
     }

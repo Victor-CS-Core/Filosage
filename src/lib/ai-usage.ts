@@ -349,6 +349,10 @@ export async function finalizeAiUsage(
     responseId?: string;
     resultId?: string;
     failed?: boolean;
+    promptVersion?: string;
+    profile?: string;
+    reasoningEffort?: string;
+    promptCacheKey?: string;
   },
 ) {
   const nowIso = new Date().toISOString();
@@ -368,6 +372,10 @@ export async function finalizeAiUsage(
         cacheWriteTokens: numberValue(result.cacheWriteTokens),
         outputTokens: numberValue(result.outputTokens),
         responseId: result.responseId,
+        promptVersion: result.promptVersion,
+        profile: result.profile,
+        reasoningEffort: result.reasoningEffort,
+        promptCacheKey: result.promptCacheKey,
       }];
   const usage = summarizeAiUsage(samples);
   const inputTokens = usage.inputTokens;
@@ -379,6 +387,23 @@ export async function finalizeAiUsage(
     : usage.actualCostMicros;
   const models = Array.from(new Set(samples.map((sample) => sample.model)));
   const responseIds = samples.flatMap((sample) => sample.responseId ? [sample.responseId] : []);
+  const promptVersions = Array.from(new Set(samples.flatMap((sample) => sample.promptVersion ? [sample.promptVersion] : [])));
+  const profiles = Array.from(new Set(samples.flatMap((sample) => sample.profile ? [sample.profile] : [])));
+  const reasoningEfforts = Array.from(new Set(samples.flatMap((sample) => sample.reasoningEffort ? [sample.reasoningEffort] : [])));
+  const promptCacheKeys = Array.from(new Set(samples.flatMap((sample) => sample.promptCacheKey ? [sample.promptCacheKey] : [])));
+  const attempts = samples.map((sample) => ({
+    model: sample.model,
+    promptVersion: sample.promptVersion ?? null,
+    profile: sample.profile ?? null,
+    reasoningEffort: sample.reasoningEffort ?? null,
+    promptCacheKey: sample.promptCacheKey ?? null,
+    responseId: sample.responseId ?? null,
+    inputTokens: Math.max(0, sample.inputTokens),
+    cachedInputTokens: Math.max(0, sample.cachedInputTokens),
+    cacheWriteTokens: Math.max(0, sample.cacheWriteTokens),
+    outputTokens: Math.max(0, sample.outputTokens),
+    costMicros: estimateAiUsageCostMicros(sample),
+  }));
 
   await runStoredDocumentTransaction(
     [
@@ -419,8 +444,17 @@ export async function finalizeAiUsage(
               cacheWriteTokens,
               outputTokens,
               actualCostMicros,
-              model: models.join(" → "),
+              model: models.join(" -> "),
               models,
+              promptVersion: promptVersions.at(-1) ?? null,
+              promptVersions,
+              profile: profiles.at(-1) ?? null,
+              profiles,
+              reasoningEfforts,
+              promptCacheKeys,
+              attemptCount: attempts.length,
+              recoveryUsed: samples.some((sample) => sample.profile?.endsWith(".recovery") === true),
+              attempts,
               responseId: result.responseId ?? responseIds.at(-1) ?? null,
               responseIds,
               resultId: result.resultId ?? request.resultId ?? null,

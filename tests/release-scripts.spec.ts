@@ -1,4 +1,5 @@
 import { spawnSync } from "node:child_process";
+import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { expect, test } from "@playwright/test";
 
@@ -68,4 +69,16 @@ test("release checks bind Firebase and production health to one full Git SHA", (
   });
   expect(abbreviatedExpectedVersion.status).toBe(1);
   expect(abbreviatedExpectedVersion.stderr).toContain("full 40-character Git commit SHA");
+});
+
+test("pins the Sites compatibility date below the nodejs_compat rejection boundary", ({ request }, testInfo) => {
+  void request;
+  test.skip(testInfo.project.name !== "chromium", "One deployment metadata contract is sufficient.");
+
+  const viteConfig = readFileSync(resolve(root, "vite.config.ts"), "utf8");
+  const packagePreparation = readFileSync(resolve(root, "scripts/prepare-sites-package.mjs"), "utf8");
+  expect(viteConfig).toContain('const sitesProductionCompatibilityDate = "2026-08-03"');
+  expect(viteConfig).not.toContain('const sitesProductionCompatibilityDate = "2026-08-04"');
+  expect(packagePreparation).toContain("delete wranglerConfig.compatibility_flags");
+  expect(packagePreparation).toContain('const nodeCompatibilityFlag = ["nodejs", "compat"].join("_")');
 });

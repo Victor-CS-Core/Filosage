@@ -6,6 +6,10 @@ export interface AiUsageSample {
   outputTokens: number;
   fixedCostMicros?: number;
   responseId?: string;
+  promptVersion?: string;
+  profile?: string;
+  reasoningEffort?: string;
+  promptCacheKey?: string;
 }
 
 interface ModelRates {
