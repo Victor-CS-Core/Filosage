@@ -1,10 +1,32 @@
 import { expect, test } from "@playwright/test";
+import { zodTextFormat } from "openai/helpers/zod";
 import {
   AI_PROMPT_VERSIONS,
   aiUsageProfileMetadata,
   openAiExecutionProfile,
   stablePromptCacheKey,
 } from "../src/lib/openai-generation";
+import { lessonGenerationSchema } from "../src/lib/validation";
+
+function findUnsupportedLessonSchemaShape(value: unknown, path = "$schema"): string | null {
+  if (!value || typeof value !== "object") return null;
+  const record = value as Record<string, unknown>;
+  if (Object.hasOwn(record, "default")) return `${path}.default`;
+  if (Array.isArray(record.items)) return `${path}.items`;
+  for (const [key, child] of Object.entries(record)) {
+    if (key === "default") continue;
+    if (Array.isArray(child)) {
+      for (let index = 0; index < child.length; index += 1) {
+        const match = findUnsupportedLessonSchemaShape(child[index], `${path}.${key}[${index}]`);
+        if (match) return match;
+      }
+      continue;
+    }
+    const match = findUnsupportedLessonSchemaShape(child, `${path}.${key}`);
+    if (match) return match;
+  }
+  return null;
+}
 
 test("keeps Sol off normal generation paths and reserves it for recovery", () => {
   const environment = {} as NodeJS.ProcessEnv;
@@ -67,4 +89,11 @@ test("honors model overrides without changing workload policy", () => {
   expect(recovery.reasoningEffort).toBe("high");
   expect(assessment.model).toBe("gpt-5.6-terra");
   expect(assessment.reasoningEffort).toBe("medium");
+});
+
+test("keeps the lesson response format inside the OpenAI strict JSON Schema subset", () => {
+  const format = zodTextFormat(lessonGenerationSchema, "lesson");
+  expect(findUnsupportedLessonSchemaShape(format.schema)).toBeNull();
+  expect(format.schema.required).toContain("visuals");
+  expect(format.schema.required).toContain("sourceReferences");
 });

@@ -31,7 +31,7 @@ export interface CourseSource {
 export type LessonExperience =
   | { type: "concept"; predictionPrompt: string; mentalModel: { title: string; parts: Array<{ label: string; role: string }> }; misconceptionCheck: { claim: string; correction: string } }
   | { type: "worked-example"; scenario: string; steps: Array<{ title: string; reasoning: string; output: string }>; fadingPrompt: string }
-  | { type: "comparison"; options: [string, string]; criteria: Array<{ criterion: string; first: string; second: string }>; boundaryCase: { prompt: string; resolution: string } }
+  | { type: "comparison"; options: string[]; criteria: Array<{ criterion: string; first: string; second: string }>; boundaryCase: { prompt: string; resolution: string } }
   | { type: "case-study"; brief: string; evidence: Array<{ label: string; detail: string }>; interpretations: string[]; decisionPrompt: string }
   | { type: "practice-lab"; brief: string; materials: string[]; tasks: string[]; artifactPrompt: string; successCriteria: string[] }
   | { type: "synthesis"; challenge: string; connections: Array<{ concept: string; contribution: string }>; capstoneContribution: string; reflectionPrompt: string };

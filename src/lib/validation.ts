@@ -149,7 +149,7 @@ const lessonExperienceSchema = z.discriminatedUnion("type", [
   }),
   z.object({
     type: z.literal("comparison"),
-    options: z.tuple([z.string().trim().min(1).max(120), z.string().trim().min(1).max(120)]),
+    options: z.array(z.string().trim().min(1).max(120)).length(2),
     criteria: z.array(z.object({ criterion: z.string().trim().min(1).max(120), first: z.string().trim().min(1).max(300), second: z.string().trim().min(1).max(300) })).min(3).max(6),
     boundaryCase: z.object({ prompt: z.string().trim().min(1).max(600), resolution: z.string().trim().min(1).max(600) }),
   }),
@@ -183,9 +183,9 @@ export const lessonDataSchema = lessonWithoutVisualsSchema.extend({
 });
 
 export const lessonGenerationSchema = lessonWithoutVisualsSchema.extend({
-  visuals: z.array(z.string().trim().min(2).max(6_000)).max(2).default([]),
+  visuals: z.array(z.string().trim().min(2).max(6_000)).max(2),
   experience: lessonExperienceSchema,
-  sourceReferences: z.array(z.string().trim().regex(/^source-[a-z0-9-]{1,40}$/)).max(5).default([]),
+  sourceReferences: z.array(z.string().trim().regex(/^source-[a-z0-9-]{1,40}$/)).max(5),
 });
 
 export type GeneratedLessonData = z.infer<typeof lessonGenerationSchema>;
