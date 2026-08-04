@@ -428,10 +428,15 @@ test("completes a published course from discovery through evidence", async ({ pa
   await expect(page.getByRole("heading", { name: "Find your next course." })).toBeVisible();
   await page.getByRole("link", { name: /Open Decision quality/i }).click();
   await expect(page.getByRole("heading", { level: 1, name: topic })).toBeVisible();
-  await expect(page.getByRole("heading", { name: "The course advances one piece of meaningful work." })).toBeVisible();
+  const artifactDisclosure = page.locator("details.course-apprenticeship");
+  await expect(artifactDisclosure).not.toHaveAttribute("open", "");
+  await artifactDisclosure.locator("summary").press("Enter");
+  await expect(artifactDisclosure).toHaveAttribute("open", "");
   await expect(page.getByRole("heading", { name: "Evidence-backed decision brief" })).toBeVisible();
-  await expect(page.getByRole("heading", { name: "How your artifact develops" })).toBeVisible();
-  await expect(page.getByLabel("How your artifact develops").getByText("A classified evidence record and bounded next action")).toBeVisible();
+  const capabilityDisclosure = page.locator("details.capability-map");
+  await expect(capabilityDisclosure).not.toHaveAttribute("open", "");
+  await capabilityDisclosure.locator("summary").click();
+  await expect(capabilityDisclosure.getByText("A classified evidence record and bounded next action")).toBeVisible();
   const sourceLink = page.getByRole("link", { name: /Decision quality field guide/ });
   await expect(page.getByText("Author-provided references")).toBeVisible();
   await expect(sourceLink).toHaveAttribute("href", "https://example.com/decision-quality");
@@ -443,6 +448,13 @@ test("completes a published course from discovery through evidence", async ({ pa
   expect(sourceReports).toEqual([{ courseId, sourceId: "source-1", category: "source", note: "Confirm that this destination still supports the author note." }]);
   await expect(page.getByText("Complete every lesson to unlock capstone assessment.")).toBeVisible();
   await expect(page.getByText("Decision checkpoint")).toBeVisible();
+
+  const outcomeDisclosure = page.locator("details.outcome-onboarding");
+  await expect(outcomeDisclosure).toHaveAttribute("open", "");
+  await outcomeDisclosure.locator("summary").press("Enter");
+  await expect(outcomeDisclosure).not.toHaveAttribute("open", "");
+  await outcomeDisclosure.locator("summary").press("Enter");
+  await expect(outcomeDisclosure).toHaveAttribute("open", "");
 
   await page.getByPlaceholder("Make the capability specific and observable.").fill(
     "Diagnose a risky product decision and defend a reversible next action.",

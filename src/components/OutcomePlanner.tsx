@@ -26,6 +26,7 @@ import {
 } from "@/lib/mastery";
 import { createClientId } from "@/lib/browser-compat";
 import { trackProductEvent } from "@/lib/product-analytics";
+import CourseDisclosure from "@/components/CourseDisclosure";
 
 interface OutcomePlannerProps {
   course: Course;
@@ -264,11 +265,15 @@ export default function OutcomePlanner({
   }
 
   return (
-    <section className="outcome-onboarding" aria-labelledby="outcome-onboarding-title">
-      <header>
-        <span><Target size={21} /></span>
-        <div><p className="overline">Before lesson one</p><h2 id="outcome-onboarding-title">Turn this course into a plan for your goal.</h2><p>About two minutes. Your answers choose a starting point; they do not lock any lessons.</p></div>
-      </header>
+    <CourseDisclosure
+      className="outcome-onboarding"
+      defaultOpen
+      description="About two minutes. Your answers choose a starting point; they do not lock any lessons."
+      eyebrow="Before lesson one"
+      headingId="outcome-onboarding-title"
+      leading={<Target size={21} />}
+      title="Turn this course into a plan for your goal."
+    >
       <form onSubmit={save}>
         <div className="outcome-fields">
           <label>What do you want to be able to do?
@@ -322,6 +327,6 @@ export default function OutcomePlanner({
           </button>
         </div>
       </form>
-    </section>
+    </CourseDisclosure>
   );
 }

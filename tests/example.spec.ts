@@ -45,6 +45,7 @@ import { inspectCoursePublishReadiness } from "../src/lib/publication-readiness"
 import { sourcePackPromptBlock } from "../src/lib/source-safety";
 import { signActivityReceipt, validateActivityReceipt } from "../src/lib/activity-receipt-crypto";
 import { evaluateBillingConfiguration } from "../src/lib/billing-lock";
+import { runWithModelFallback, safeModelErrorDetails } from "../src/lib/model-fallback";
 import { restoreLocalLearner } from "./fixtures/local-learner";
 
 async function sourceFiles(directory: string): Promise<string[]> {
@@ -94,6 +95,39 @@ test("unlocks generated lessons sequentially for Pro authors while owners remain
   expect(lessonGenerationGate(course, "1-0", ["0-0"], false)).toEqual({ allowed: false, requiredLessonId: "0-1" });
   expect(lessonGenerationGate(course, "1-0", ["0-0", "0-1"], false)).toEqual({ allowed: true });
   expect(lessonGenerationGate(course, "1-0", [], true)).toEqual({ allowed: true });
+});
+
+test("uses the configured fallback when the primary lesson model rejects a request", async () => {
+  const attemptedModels: string[] = [];
+  const primaryError = Object.assign(new Error("Model is unavailable"), {
+    name: "APIError",
+    status: 404,
+    code: "model_not_found",
+    request_id: "req_test_123",
+  });
+  const result = await runWithModelFallback({
+    primaryModel: "primary-model",
+    fallbackModel: "fallback-model",
+    generate: async (selectedModel) => {
+      attemptedModels.push(selectedModel);
+      if (selectedModel === "primary-model") throw primaryError;
+      return { id: "response-from-fallback" };
+    },
+  });
+
+  expect(attemptedModels).toEqual(["primary-model", "fallback-model"]);
+  expect(result).toEqual({
+    model: "fallback-model",
+    result: { id: "response-from-fallback" },
+    usedFallback: true,
+  });
+  expect(safeModelErrorDetails(primaryError)).toEqual({
+    name: "APIError",
+    status: 404,
+    code: "model_not_found",
+    type: undefined,
+    requestId: "req_test_123",
+  });
 });
 
 test("binds creator activity receipts to the exact user, course, lesson, and quiz", async () => {
@@ -276,6 +310,7 @@ test("shows failed lesson titles, reasons, and a regeneration action after publi
   await page.route("**/api/generate-lesson", (route) => route.fulfill({ json: { content: "Replacement lesson" } }));
 
   await page.goto("/course/Python%20programming?id=publication-review-course");
+  await page.locator("details.course-owner-controls > summary").click();
   await page.getByLabel("I reviewed every lesson, reference link, factual claim, and usage right, and confirm this course is ready for public learners.").check();
   await page.getByRole("button", { name: "Review and publish" }).click();
   await expect(page.getByRole("heading", { name: "Publication review needs attention" })).toBeVisible();
@@ -1083,6 +1118,31 @@ test("presents public courses as a browsable learning library", async ({ page })
   });
 });
 
+test("plays the course-banner sheen when a desktop pointer hovers a card", async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await page.route("**/api/courses?scope=public", (route) => route.fulfill({ json: { courses: [{
+    id: "desktop-sheen-course",
+    courseId: "desktop-sheen-course",
+    topic: "Morse Code",
+    mission: "Recognize and send practical Morse Code messages.",
+    level: "Foundations",
+    isPublic: true,
+    modules: [{ title: "Signals", lessons: [{ title: "Dots and dashes", concept: "Signal timing" }] }],
+  }] } }));
+
+  await page.goto("/library");
+  const card = page.locator(".course-card").filter({ hasText: "Morse Code" });
+  const sheen = card.locator(".course-banner-sheen");
+  await expect(card).toBeVisible();
+  await card.hover();
+  await expect(sheen).toHaveCSS("animation-name", "course-banner-sheen-through");
+  await expect(sheen).toHaveCSS("animation-duration", "0.82s");
+  const earlyTransform = await sheen.evaluate((element) => getComputedStyle(element).transform);
+  await page.waitForTimeout(160);
+  const laterTransform = await sheen.evaluate((element) => getComputedStyle(element).transform);
+  expect(laterTransform).not.toBe(earlyTransform);
+});
+
 test("shows guests the course structure but never delivers lesson content", async ({ page }) => {
   let lessonRequests = 0;
   await page.route("**/api/courses/public-preview/lessons/**", (route) => {
@@ -1291,6 +1351,7 @@ test("explains permanent course deletion before sending a delete request", async
   });
 
   await page.goto("/course/Data%20literacy?id=delete-warning-demo");
+  await page.locator("details.course-owner-controls > summary").click();
   await page.getByRole("button", { name: "Delete course", exact: true }).click();
 
   const dialog = page.getByRole("dialog", { name: "Delete “Data literacy”?" });
@@ -1344,6 +1405,7 @@ test("clears course-scoped warnings and controls when navigating between owned c
   await page.route("**/api/progress?courseId=ready-course", (route) => route.fulfill({ json: { progress: null } }));
 
   await page.goto("/course/Course%20with%20unfinished%20publishing?id=warning-course");
+  await page.locator("details.course-owner-controls > summary").click();
   await page.getByLabel("I reviewed every lesson, reference link, factual claim, and usage right, and confirm this course is ready for public learners.").check();
   await page.getByRole("button", { name: "Review and publish" }).click();
   await expect(page.locator(".course-owner-controls .form-error")).toContainText("Complete every lesson before publishing.");

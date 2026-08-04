@@ -29,6 +29,7 @@ import { languagePolicyInstruction } from "@/lib/content-language";
 import { lessonQualityIssues, LESSON_QUALITY_GATE_VERSION } from "@/lib/lesson-quality";
 import { lessonGenerationGate } from "@/lib/authoring-gate";
 import { sourcePackPromptBlock } from "@/lib/source-safety";
+import { runWithModelFallback, safeModelErrorDetails } from "@/lib/model-fallback";
 
 const model = process.env.OPENAI_LESSON_MODEL || "gpt-5.6-luna";
 const fallbackModel = process.env.OPENAI_LESSON_FALLBACK_MODEL
@@ -208,20 +209,34 @@ export async function POST(request: Request) {
       safety_identifier: safetyIdentifier,
     });
 
-    const primaryResponse = await generate(model);
+    const initialAttempt = await runWithModelFallback({
+      primaryModel: model,
+      fallbackModel,
+      generate,
+      onPrimaryError: (error) => {
+        console.warn("Primary lesson model failed; trying fallback:", {
+          model,
+          fallbackModel,
+          ...safeModelErrorDetails(error),
+        });
+      },
+    });
+    const primaryResponse = initialAttempt.result;
     responseId = primaryResponse.id;
-    usageSamples.push({ model, ...extractOpenAiUsage(primaryResponse), responseId });
+    usageSamples.push({ model: initialAttempt.model, ...extractOpenAiUsage(primaryResponse), responseId });
     let lesson = prepareLesson(primaryResponse.output_parsed as GeneratedLessonData | null);
     let qualityIssues = lessonQualityIssues(lesson, topic, expectedMode);
-    let usedFallback = false;
+    let usedFallback = initialAttempt.usedFallback;
+    let generationModel = initialAttempt.model;
 
-    if (qualityIssues.length && fallbackModel !== model) {
+    if (qualityIssues.length && fallbackModel !== generationModel) {
       const fallbackResponse = await generate(fallbackModel, qualityIssues);
       responseId = fallbackResponse.id;
       usageSamples.push({ model: fallbackModel, ...extractOpenAiUsage(fallbackResponse), responseId });
       lesson = prepareLesson(fallbackResponse.output_parsed as GeneratedLessonData | null);
       qualityIssues = lessonQualityIssues(lesson, topic, expectedMode);
       usedFallback = true;
+      generationModel = fallbackModel;
     }
 
     if (!lesson || qualityIssues.length) {
@@ -253,7 +268,7 @@ export async function POST(request: Request) {
       aiAssisted: true,
       isPublic: coursePublic,
       schemaVersion: 4,
-      generationModel: usedFallback ? fallbackModel : model,
+      generationModel,
       fallbackUsed: usedFallback,
       ...generationMetadata,
     });
@@ -265,7 +280,7 @@ export async function POST(request: Request) {
       ...lesson,
       aiAssisted: true,
       schemaVersion: 4,
-      generationModel: usedFallback ? fallbackModel : model,
+      generationModel,
       ...generationMetadata,
     }, true, topic));
   } catch (error: unknown) {
@@ -287,7 +302,7 @@ export async function POST(request: Request) {
       );
     }
 
-    console.error("Lesson generation failed:", error);
+    console.error("Lesson generation failed:", safeModelErrorDetails(error));
     return NextResponse.json(
       { error: "Lesson generation is temporarily unavailable." },
       { status: 500 },

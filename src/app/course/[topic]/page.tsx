@@ -28,6 +28,7 @@ import {
 import AppDrawer, { useAppDrawer } from "@/components/AppDrawer";
 import AppShell from "@/components/AppShell";
 import CourseBanner from "@/components/CourseBanner";
+import CourseDisclosure from "@/components/CourseDisclosure";
 import OutcomePlanner from "@/components/OutcomePlanner";
 import SpeakButton from "@/components/SpeakButton";
 import { useMasteryJourney } from "@/components/useMasteryJourney";
@@ -566,12 +567,13 @@ export default function CourseMap() {
           </div>
 
           {(course.artifact || course.scenario || course.modules[0]?.lessons[0]?.activityPreview) && (
-            <section className="course-apprenticeship" aria-labelledby="course-apprenticeship-title">
-              <div className="course-apprenticeship-intro">
-                <p>What you will make</p>
-                <h2 id="course-apprenticeship-title">The course advances one piece of meaningful work.</h2>
-                <span>Each module adds evidence to the final artifact, so progress is visible in what you can produce, not only what you have read.</span>
-              </div>
+            <CourseDisclosure
+              className="course-apprenticeship"
+              description="Each module adds evidence to the final artifact, so progress is visible in what you can produce, not only what you have read."
+              eyebrow="What you will make"
+              headingId="course-apprenticeship-title"
+              title="The course advances one piece of meaningful work."
+            >
               <div className="course-apprenticeship-grid">
                 {course.artifact && <article className="artifact-preview"><span><Flag size={18} /> Final artifact</span><h3>{course.artifact.title}</h3><p>{course.artifact.description}</p><small>Format: {course.artifact.format}</small></article>}
                 {course.scenario && <article><span><Layers3 size={18} /> Scenario spine</span><h3>{course.scenario.title}</h3><p>{course.scenario.context}</p><small>Why it matters: {course.scenario.stakes}</small></article>}
@@ -593,11 +595,17 @@ export default function CourseMap() {
                 </li>)}</ul>
                 {sourceReportStatus && <small role="status">{sourceReportStatus}</small>}
               </div> : null}
-            </section>
+            </CourseDisclosure>
           )}
 
           {course.canManage && (
-            <div className="course-owner-controls">
+            <CourseDisclosure
+              className="course-owner-controls"
+              description="Publication review, banner refresh, and course management stay separate from the learner journey."
+              eyebrow="Creator tools"
+              headingId="course-owner-controls-title"
+              title="Course studio"
+            >
               {!course.isPublic && (
                 <label className="publication-attestation">
                   <input
@@ -670,7 +678,7 @@ export default function CourseMap() {
                  </section>
                )}
                {actionError && <p className="form-error" role="alert"><Circle size={14} /> {actionError}</p>}
-            </div>
+            </CourseDisclosure>
           )}
         </header>
 
@@ -689,10 +697,15 @@ export default function CourseMap() {
         )}
 
         {course.modules.some((module) => module.milestone) && (
-          <section className="capability-map" aria-labelledby="capability-map-title">
-            <div className="section-heading"><div><p className="overline">Capability map</p><h2 id="capability-map-title">How your artifact develops</h2></div><p>Every milestone leaves behind inspectable evidence of progress.</p></div>
+          <CourseDisclosure
+            className="capability-map"
+            description="Every milestone leaves behind inspectable evidence of progress."
+            eyebrow="Capability map"
+            headingId="capability-map-title"
+            title="How your artifact develops"
+          >
             <ol>{course.modules.map((module, index) => <li key={`${module.title}-${index}`}><span>{index + 1}</span><div><small>{module.title}</small><h3>{module.milestone?.title ?? module.challenge?.title ?? module.objective}</h3><p>{module.milestone?.deliverable ?? module.challenge?.prompt}</p>{module.milestone?.evidence && <strong>Evidence: {module.milestone.evidence}</strong>}</div></li>)}</ol>
-          </section>
+          </CourseDisclosure>
         )}
 
         <section className="curriculum" aria-labelledby="curriculum-title">
