@@ -2,7 +2,7 @@ import "server-only";
 
 import type OpenAI from "openai";
 import type { Course, LessonData } from "@/lib/course-types";
-import { assertSafeContent, MODERATION_MODEL } from "@/lib/content-safety";
+import { assertSafeContentBatch, MODERATION_MODEL } from "@/lib/content-safety";
 import { inspectGeneratedContent } from "@/lib/content-language";
 import { LESSON_QUALITY_GATE_VERSION } from "@/lib/lesson-quality";
 import { inspectCoursePublishReadiness, type PublicationLessonFailure } from "@/lib/publication-readiness";
@@ -98,7 +98,10 @@ export async function reviewCourseForPublication(
     return raw && parsed.success ? [{ lessonId, raw, lesson: parsed.data as LessonData }] : [];
   });
 
-  await assertSafeContent(client, JSON.stringify(parsedOutline.data), {
+  await assertSafeContentBatch(client, [
+    JSON.stringify(parsedOutline.data),
+    ...parsedLessons.map(({ lesson }) => JSON.stringify(lesson)),
+  ], {
     uid: reviewer.uid,
     feature: "lesson_generation",
     stage: "output",
@@ -106,12 +109,7 @@ export async function reviewCourseForPublication(
 
   const reviewedAt = new Date().toISOString();
   const reviews: PublicationLessonReview[] = [];
-  for (const { lessonId, raw, lesson } of parsedLessons) {
-    await assertSafeContent(client, JSON.stringify(lesson), {
-      uid: reviewer.uid,
-      feature: "lesson_generation",
-      stage: "output",
-    });
+  for (const { lessonId, raw } of parsedLessons) {
     reviews.push({
       lessonId,
       contentHash: await generatedContentHash(raw),

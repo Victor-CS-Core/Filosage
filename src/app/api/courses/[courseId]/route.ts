@@ -159,8 +159,16 @@ export async function PATCH(request: Request, { params }: RouteParams) {
         { status: 409, headers: { "Cache-Control": "no-store" } },
       );
     }
-    console.error("Course visibility update failed:", error);
-    return NextResponse.json({ error: "Visibility could not be updated." }, { status: 500 });
+    console.error(JSON.stringify({
+      event: "course_visibility_update_failed",
+      courseId,
+      errorName: error instanceof Error ? error.name : "UnknownError",
+      errorMessage: error instanceof Error ? error.message : String(error),
+    }));
+    return NextResponse.json(
+      { error: "Visibility could not be updated.", code: "VISIBILITY_UPDATE_FAILED" },
+      { status: 500, headers: { "Cache-Control": "no-store" } },
+    );
   }
 }
 

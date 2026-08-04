@@ -152,31 +152,49 @@ async function recordBlockedRequest(
   return result;
 }
 
-export async function assertSafeContent(
+export async function assertSafeContentBatch(
+  client: OpenAI,
+  inputs: string[],
+  context: SafetyContext,
+) {
+  if (!inputs.length) return;
+  await assertNoCooldown(context);
+
+  const localMatches = inputs.flatMap((input) => {
+    const categories = localPolicyFlags(input);
+    return categories.length ? [{ input, categories }] : [];
+  });
+  if (localMatches.length) {
+    const localFlags = Array.from(new Set(localMatches.flatMap(({ categories }) => categories)));
+    const blockedInput = localMatches.map(({ input }) => input.slice(0, 20_000)).join("\n\n").slice(0, 100_000);
+    const result = await recordBlockedRequest(blockedInput, context, localFlags);
+    throw new ContentSafetyError(undefined, result.cooldownUntil ?? undefined);
+  }
+
+  const normalizedInputs = inputs.map((input) => input.slice(0, 100_000));
+  const moderation = await client.moderations.create({
+    model: MODERATION_MODEL,
+    input: normalizedInputs,
+  });
+  const flaggedResults = moderation.results.flatMap((result, index) => result.flagged
+    ? [{ result, input: normalizedInputs[index] ?? "" }]
+    : []);
+  if (!flaggedResults.length) return;
+
+  const categories = Array.from(new Set(flaggedResults.flatMap((result) =>
+    Object.entries(result.result.categories)
+      .filter(([, flagged]) => flagged)
+      .map(([category]) => category),
+  )));
+  const blockedInput = flaggedResults.map(({ input }) => input.slice(0, 20_000)).join("\n\n").slice(0, 100_000);
+  const result = await recordBlockedRequest(blockedInput, context, categories.length ? categories : ["moderation/flagged"]);
+  throw new ContentSafetyError(undefined, result.cooldownUntil ?? undefined);
+}
+
+export function assertSafeContent(
   client: OpenAI,
   input: string,
   context: SafetyContext,
 ) {
-  await assertNoCooldown(context);
-
-  const localFlags = localPolicyFlags(input);
-  if (localFlags.length) {
-    const result = await recordBlockedRequest(input, context, localFlags);
-    throw new ContentSafetyError(undefined, result.cooldownUntil ?? undefined);
-  }
-
-  const moderation = await client.moderations.create({
-    model: MODERATION_MODEL,
-    input: input.slice(0, 100_000),
-  });
-  const flaggedResults = moderation.results.filter((result) => result.flagged);
-  if (!flaggedResults.length) return;
-
-  const categories = Array.from(new Set(flaggedResults.flatMap((result) =>
-    Object.entries(result.categories)
-      .filter(([, flagged]) => flagged)
-      .map(([category]) => category),
-  )));
-  const result = await recordBlockedRequest(input, context, categories.length ? categories : ["moderation/flagged"]);
-  throw new ContentSafetyError(undefined, result.cooldownUntil ?? undefined);
+  return assertSafeContentBatch(client, [input], context);
 }

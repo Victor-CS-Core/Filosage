@@ -178,6 +178,16 @@ test("publication quality review rejects language contamination and shallow less
   expect(issues).toContain("The lesson is missing its mode-specific activity.");
 });
 
+test("batches full-course publication moderation into one provider request", async () => {
+  const reviewSource = await readFile("src/lib/publication-review.ts", "utf8");
+  const safetySource = await readFile("src/lib/content-safety.ts", "utf8");
+
+  expect(reviewSource).toContain("await assertSafeContentBatch(client, [");
+  expect(reviewSource).toContain("...parsedLessons.map(({ lesson }) => JSON.stringify(lesson))");
+  expect(reviewSource).not.toContain("await assertSafeContent(client");
+  expect(safetySource).toContain("input: normalizedInputs");
+});
+
 test("course source packs accept secure attributed links and reject insecure URLs", () => {
   const valid = courseRequestSchema.safeParse({
     topic: "Decision quality",
