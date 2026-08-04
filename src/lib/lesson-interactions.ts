@@ -106,7 +106,14 @@ export function deriveLessonInteractions(lesson: LessonData): LessonInteraction[
     }];
   }
 
-  if ((lesson.guidedPractice?.steps.length ?? 0) >= 3) {
+  const practiceSteps = lesson.guidedPractice?.steps ?? [];
+  if (practiceSteps.length >= 2) {
+    const sequenceSteps = practiceSteps.length >= 3
+      ? practiceSteps.map((detail, index) => ({ label: `Step ${index + 1}`, detail }))
+      : [
+          { label: "Frame the task", detail: lesson.guidedPractice!.prompt },
+          ...practiceSteps.map((detail, index) => ({ label: `Step ${index + 1}`, detail })),
+        ];
     return [{
       id: "interaction-sequence-derived",
       type: "sequence",
@@ -114,7 +121,7 @@ export function deriveLessonInteractions(lesson: LessonData): LessonInteraction[
       summary: "Reconstruct the workflow before beginning guided practice.",
       version: 1,
       prompt: lesson.guidedPractice?.prompt ?? "Arrange the steps into a defensible sequence.",
-      steps: lesson.guidedPractice!.steps.map((detail, index) => ({ label: `Step ${index + 1}`, detail })),
+      steps: sequenceSteps,
     }];
   }
 

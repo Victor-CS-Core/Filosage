@@ -3,6 +3,23 @@ export interface CourseReferenceCleanup {
   value: Record<string, unknown>;
 }
 
+export const COURSE_DELETION_COLLECTION_GROUP_INDEXES = [
+  { collectionGroup: "courseProgress", fieldPath: "courseId" },
+  { collectionGroup: "learningOutcomes", fieldPath: "courseId" },
+  { collectionGroup: "masteryEvidence", fieldPath: "courseId" },
+  { collectionGroup: "contentReports", fieldPath: "courseId" },
+  { collectionGroup: "outcomeFeedback", fieldPath: "courseId" },
+  { collectionGroup: "lessonNotes", fieldPath: "key" },
+] as const;
+
+export const COURSE_SCOPED_COLLECTION_GROUPS = {
+  progress: "courseProgress",
+  learningOutcomes: "learningOutcomes",
+  masteryEvidence: "masteryEvidence",
+  contentReports: "contentReports",
+  outcomeFeedback: "outcomeFeedback",
+} as const;
+
 function removePrefixedKeys(value: unknown, prefix: string) {
   if (!value || typeof value !== "object" || Array.isArray(value)) {
     return { changed: false, value };

@@ -24,7 +24,7 @@ import { apiRequestErrorResponse, readJsonBody } from "@/lib/api-security";
 import { openAiSafetyIdentifier } from "@/lib/ai-usage";
 import { toLessonDto } from "@/lib/course-dto";
 import { curateLessonVisuals } from "@/lib/lesson-visuals";
-import { curateLessonInteractions } from "@/lib/lesson-interactions";
+import { curateLessonInteractions, deriveLessonInteractions } from "@/lib/lesson-interactions";
 import { lessonVisualsEnabled } from "@/lib/feature-flags";
 import { languagePolicyInstruction } from "@/lib/content-language";
 import { lessonQualityIssues, LESSON_QUALITY_GATE_VERSION } from "@/lib/lesson-quality";
@@ -51,7 +51,7 @@ ${lessonVisualsAreEnabled
   ? "Return zero, one, or two candidate strings in visuals. Each string must be compact JSON for one learning aid. The app, not you, determines final placement and selection. Every object needs type, title, and summary. Type-specific fields are: concept-contrast has misconception, accurateView, whyItMatters; process-flow has steps [{title, detail}]; comparison-matrix has columns [left, right] and rows [{criterion, values:[left, right]}]; worked-example-trace has prompt and steps [{title, detail, check}]; prerequisite-map has nodes [{label, detail, role}], where role is foundation, current, or next. Use visuals: [] when no candidate materially improves understanding. Do not include id, placement, version, diagram syntax, SVG, or HTML."
   : "Return visuals: []. The structured visual system is not enabled for this lesson yet."}
 
-Return zero or one candidate string in interactions. The string must be compact JSON for a practice widget and must materially improve active learning. Every object needs type, title, summary, and prompt. Available types are: classification with groups and items [{label, groupIndex, explanation}]; sequence with steps [{label, detail}] in the correct order; scenario with options [{label, consequence}], recommendedIndex, and explanation; signal with patterns [{label, value}], where value contains only dots, dashes, spaces, and slashes. Use signal only when auditory timing or symbolic pulses are part of the lesson. Use interactions: [] when a widget would duplicate the quizzes or add busywork. Do not include id, version, HTML, scripts, URLs, or executable content.
+Return exactly one candidate string in interactions. The string must be compact JSON for a practice widget and must materially improve active learning. Every object needs type, title, summary, and prompt. Available types are: classification with groups and items [{label, groupIndex, explanation}]; sequence with steps [{label, detail}] in the correct order; scenario with options [{label, consequence}], recommendedIndex, and explanation; signal with patterns [{label, value}], where value contains only dots, dashes, spaces, and slashes. Use signal only when auditory timing or symbolic pulses are part of the lesson. Choose the lowest-friction widget that lets the learner manipulate, decide, classify, sequence, or hear the idea without duplicating the quizzes. Do not include id, version, HTML, scripts, URLs, or executable content.
 
 Create application-focused quizzes, not trivia. Each answer option needs feedback that explains why that specific choice is correct or incorrect. Vary the correct option positions. Return only the requested structured lesson.
 
@@ -196,11 +196,12 @@ export async function POST(request: Request) {
       if (!generated) return null;
       const { visuals, interactions, sourceReferences, ...lesson } = generated;
       selectedSourceIds = sourceReferences;
-      return {
+      const prepared: LessonData = {
         ...lesson,
         visuals: lessonVisualsAreEnabled ? curateLessonVisuals(visuals, visualContext) : [],
         interactions: curateLessonInteractions(interactions),
       };
+      return { ...prepared, interactions: deriveLessonInteractions(prepared) };
     };
 
     const generate = (profile: AiExecutionProfile, repairIssues: string[] = []) => client.responses.parse({

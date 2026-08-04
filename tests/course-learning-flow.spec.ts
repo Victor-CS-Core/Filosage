@@ -479,6 +479,14 @@ test("completes a published course from discovery through evidence", async ({ pa
   await expect(page.getByRole("heading", { name: "Find your next course." })).toBeVisible();
   await page.getByRole("link", { name: /Open Decision quality/i }).click();
   await expect(page.getByRole("heading", { level: 1, name: topic })).toBeVisible();
+  await expect(page.locator("details.course-disclosure[open]")).toHaveCount(0);
+  const curriculum = page.getByRole("region", { name: "Modules and lessons" });
+  const firstModule = curriculum.getByRole("button", { name: /01 Module Evidence and action/ });
+  await expect(firstModule).toHaveAttribute("aria-expanded", "false");
+  await expect(curriculum.getByRole("button", { name: /Open lesson 1.1/ })).toHaveCount(0);
+  await firstModule.click();
+  await expect(firstModule).toHaveAttribute("aria-expanded", "true");
+  await expect(curriculum.getByRole("button", { name: /Open lesson 1.1/ })).toBeVisible();
   const artifactDisclosure = page.locator("details.course-apprenticeship");
   await expect(artifactDisclosure).not.toHaveAttribute("open", "");
   await artifactDisclosure.locator("summary").press("Enter");
@@ -486,6 +494,19 @@ test("completes a published course from discovery through evidence", async ({ pa
   await expect(page.getByRole("heading", { name: "Evidence-backed decision brief" })).toBeVisible();
   const journey = page.getByRole("region", { name: "See what each stage unlocks" });
   await expect(journey).toBeVisible();
+  const currentStage = journey.getByRole("button", { name: /Current stage/ });
+  await expect(currentStage).toHaveAttribute("aria-expanded", "false");
+  if ((page.viewportSize()?.width ?? 0) >= 900) {
+    const triggerBox = await currentStage.boundingBox();
+    const copyBox = await currentStage.locator(".journey-stage-copy").boundingBox();
+    const progressBox = await currentStage.locator(".journey-stage-progress").boundingBox();
+    expect(triggerBox?.height).toBeLessThan(150);
+    expect(copyBox?.width).toBeGreaterThan(240);
+    expect(progressBox?.width).toBeLessThan(190);
+  }
+  await expect(journey.getByText("A classified evidence record and bounded next action")).not.toBeVisible();
+  await currentStage.click();
+  await expect(currentStage).toHaveAttribute("aria-expanded", "true");
   await expect(journey.getByText("A classified evidence record and bounded next action")).toBeVisible();
   const sourceLink = page.getByRole("link", { name: /Decision quality field guide/ });
   await expect(page.getByText("Author-provided references")).toBeVisible();
@@ -500,8 +521,6 @@ test("completes a published course from discovery through evidence", async ({ pa
   await expect(page.getByText("Decision checkpoint")).toBeVisible();
 
   const outcomeDisclosure = page.locator("details.outcome-onboarding");
-  await expect(outcomeDisclosure).toHaveAttribute("open", "");
-  await outcomeDisclosure.locator("summary").press("Enter");
   await expect(outcomeDisclosure).not.toHaveAttribute("open", "");
   await outcomeDisclosure.locator("summary").press("Enter");
   await expect(outcomeDisclosure).toHaveAttribute("open", "");

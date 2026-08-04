@@ -2857,7 +2857,7 @@ button:disabled { cursor: not-allowed; opacity: 0.55; }
 .lesson-section-navigator > small { color: var(--ink-muted); font-size: 0.62rem; white-space: nowrap; }
 .markdown-content h2:focus, .markdown-content h3:focus { outline: 0; }
 
-.interactive-lesson-block { margin: 34px 0 10px; border: 1px solid var(--line-strong); border-top: 3px solid var(--brand-teal); border-radius: var(--radius-md); background: var(--surface); padding: 28px; }
+.interactive-lesson-block { min-width: 0; max-width: 100%; margin: 34px 0 10px; border: 1px solid var(--line-strong); border-top: 3px solid var(--brand-teal); border-radius: var(--radius-md); background: var(--surface); padding: 28px; }
 .interactive-lesson-block > header { display: grid; grid-template-columns: 42px minmax(0, 1fr); gap: 13px; }
 .interactive-block-icon { width: 42px; height: 42px; display: grid; place-items: center; border-radius: 11px; background: var(--accent-soft); color: var(--accent-ink); }
 .interactive-lesson-block h2 { margin-top: 3px; font-size: 1.35rem; }
@@ -2896,20 +2896,21 @@ button:disabled { cursor: not-allowed; opacity: 0.55; }
 .scenario-result p { margin-top: 6px; color: var(--ink-secondary); font-size: 0.71rem; line-height: 1.5; }
 @keyframes interaction-reveal { from { opacity: 0; transform: translateY(5px); } }
 
-.signal-lab { display: grid; gap: 14px; margin-top: 18px; }
-.signal-pattern-picker { display: flex; gap: 7px; overflow-x: auto; padding-bottom: 4px; }
-.signal-pattern-picker button { min-width: 104px; display: flex; flex-direction: column; align-items: flex-start; gap: 4px; }
+.signal-lab { min-width: 0; width: 100%; display: grid; grid-template-columns: minmax(0, 1fr); gap: 14px; margin-top: 18px; }
+.signal-pattern-picker { min-width: 0; max-width: 100%; display: flex; gap: 7px; overflow-x: auto; padding-bottom: 4px; overscroll-behavior-inline: contain; }
+.signal-pattern-picker button { flex: 0 0 min(168px, 72vw); min-width: 104px; max-width: 168px; display: flex; flex-direction: column; align-items: flex-start; gap: 4px; }
+.signal-pattern-picker button code { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .signal-pattern-picker code, .signal-composer code { font-family: ui-monospace, SFMono-Regular, Consolas, monospace; color: var(--ink); }
-.signal-stage { border: 1px solid var(--line); border-radius: var(--radius-sm); background: var(--surface-subtle); padding: 16px; }
+.signal-stage { min-width: 0; width: 100%; max-width: 100%; border: 1px solid var(--line); border-radius: var(--radius-sm); background: var(--surface-subtle); padding: 16px; }
 .signal-stage-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .signal-stage-heading > span { display: inline-flex; align-items: center; gap: 7px; color: var(--ink-secondary); font-size: 0.7rem; font-weight: 800; }
-.signal-timeline { min-height: 74px; display: flex; align-items: center; gap: 4px; margin-top: 14px; border-block: 1px solid var(--line); padding: 15px 0; overflow-x: auto; }
+.signal-timeline { min-width: 0; max-width: 100%; min-height: 74px; display: flex; align-items: center; gap: 4px; margin-top: 14px; border-block: 1px solid var(--line); padding: 15px 0; overflow-x: auto; overscroll-behavior-inline: contain; }
 .signal-timeline i { flex: 0 0 calc(var(--signal-units) * 14px); height: 12px; border-radius: 999px; background: var(--brand-teal); }
 .signal-timeline i.is-gap { height: 1px; background: transparent; }
 .signal-timeline i span { position: absolute; clip: rect(0 0 0 0); width: 1px; height: 1px; overflow: hidden; }
-.signal-composer { display: grid; grid-template-columns: auto minmax(120px, 1fr); gap: 8px 14px; align-items: center; margin-top: 14px; }
+.signal-composer { min-width: 0; display: grid; grid-template-columns: auto minmax(120px, 1fr); gap: 8px 14px; align-items: center; margin-top: 14px; }
 .signal-composer > span { color: var(--ink-muted); font-size: 0.65rem; font-weight: 750; }
-.signal-composer > code { min-height: 36px; border-radius: 6px; background: var(--surface); padding: 8px 10px; }
+.signal-composer > code { min-width: 0; min-height: 36px; border-radius: 6px; background: var(--surface); padding: 8px 10px; overflow-x: auto; white-space: nowrap; }
 .signal-composer > div { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 6px; }
 .signal-composer button { display: inline-flex; align-items: center; gap: 5px; background: var(--surface); }
 
@@ -2922,19 +2923,21 @@ button:disabled { cursor: not-allowed; opacity: 0.55; }
 .journey-stage-list > li { position: relative; padding-left: 54px; }
 .journey-connector { position: absolute; top: 0; bottom: 0; left: 19px; width: 2px; background: var(--line); overflow: hidden; }
 .journey-connector i { position: absolute; inset: 0; background: var(--brand-teal); transform-origin: top; transition: transform var(--motion-layout) var(--ease-out); }
-.journey-stage-trigger { width: 100%; min-height: 96px; display: grid; grid-template-columns: 40px minmax(0, 1fr) 170px 20px; gap: 14px; align-items: center; border: 0; border-top: 1px solid var(--line); background: transparent; padding: 16px 0; text-align: left; cursor: pointer; }
+.journey-stage-trigger { width: 100%; min-height: 96px; display: grid; grid-template-columns: minmax(0, 1fr) minmax(132px, 170px) 20px; grid-template-areas: "copy progress chevron"; gap: 16px; align-items: center; border: 0; border-top: 1px solid var(--line); background: transparent; padding: 16px 0; text-align: left; cursor: pointer; }
 .journey-stage-node { position: absolute; left: 0; z-index: 1; width: 40px; height: 40px; display: grid; place-items: center; border: 2px solid var(--line-strong); border-radius: 50%; background: var(--canvas); color: var(--ink-muted); font-size: 0.72rem; font-weight: 800; transition: background var(--motion-state) var(--ease-out), border-color var(--motion-state) var(--ease-out), transform var(--motion-feedback) var(--ease-out); }
 .is-current .journey-stage-node { border-color: var(--brand-coral); color: var(--ink); box-shadow: 0 0 0 5px color-mix(in srgb, var(--brand-coral) 14%, transparent); }
 .is-complete .journey-stage-node { border-color: var(--success-fill); background: var(--success-fill); color: var(--brand-navy); }
 .journey-stage-trigger:hover .journey-stage-node { transform: scale(1.05); }
-.journey-stage-copy { display: flex; flex-direction: column; gap: 3px; }
+.journey-stage-copy { grid-area: copy; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
 .journey-stage-copy small { color: var(--accent-ink); font-size: 0.62rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.07em; }
 .journey-stage-copy strong { font-size: 0.92rem; }
-.journey-stage-copy em { margin-top: 3px; color: var(--ink-secondary); font-size: 0.71rem; font-style: normal; line-height: 1.45; }
-.journey-stage-progress { display: grid; grid-template-columns: auto 110px; gap: 9px; align-items: center; }
+.journey-stage-copy em { max-width: 68ch; color: var(--ink-secondary); font-size: 0.71rem; font-style: normal; line-height: 1.45; }
+.journey-stage-progress { grid-area: progress; display: grid; grid-template-columns: auto minmax(72px, 110px); gap: 8px; align-items: center; }
 .journey-stage-progress > b { color: var(--ink-muted); font-size: 0.64rem; }
 .journey-stage-progress > i { height: 6px; border-radius: 999px; background: var(--surface-subtle); overflow: hidden; }
 .journey-stage-progress > i > span { display: block; height: 100%; background: var(--brand-teal); transform-origin: left; transition: transform var(--motion-layout) var(--ease-out); }
+.journey-stage-trigger > svg { grid-area: chevron; justify-self: end; transition: transform var(--motion-state) var(--ease-out); }
+.journey-stage-trigger[aria-expanded="true"] > svg { transform: rotate(180deg); }
 .journey-stage-detail { display: grid; grid-template-columns: minmax(220px, 0.75fr) minmax(0, 1.25fr); gap: 22px; margin-bottom: 18px; border: 1px solid var(--line); border-radius: var(--radius-sm); background: var(--surface); padding: 18px; animation: interaction-reveal var(--motion-state) var(--ease-out); }
 .journey-stage-outcome { display: flex; align-items: flex-start; gap: 10px; }
 .journey-stage-outcome > svg { flex: 0 0 auto; color: var(--brand-coral); }
@@ -2993,6 +2996,8 @@ button:disabled { cursor: not-allowed; opacity: 0.55; }
 @media (max-width: 900px) {
   .lesson-section-navigator, .public-shell .lesson-section-navigator { position: static; grid-template-columns: 1fr auto; }
   .lesson-section-label { grid-column: 1 / -1; }
+  .journey-stage-trigger { grid-template-columns: minmax(0, 1fr) minmax(116px, 144px) 20px; }
+  .journey-stage-progress { grid-template-columns: auto minmax(64px, 88px); }
   .journey-stage-detail, .mastery-path-layout { grid-template-columns: 1fr; }
   .mastery-detail { border-top: 1px solid var(--line); border-left: 0; padding-top: 18px; padding-left: 0; }
 }
@@ -3012,10 +3017,10 @@ button:disabled { cursor: not-allowed; opacity: 0.55; }
   .journey-stage-list > li { padding-left: 42px; }
   .journey-connector { left: 15px; }
   .journey-stage-node { width: 32px; height: 32px; }
-  .journey-stage-trigger { grid-template-columns: minmax(0, 1fr) 18px; }
+  .journey-stage-trigger { grid-template-columns: minmax(0, 1fr) 18px; grid-template-areas: "copy chevron" "progress chevron"; gap: 12px; }
   .journey-stage-trigger > .journey-stage-node { position: absolute; }
-  .journey-stage-progress { grid-column: 1; grid-template-columns: auto minmax(80px, 1fr); width: 100%; }
-  .journey-stage-trigger > svg { grid-column: 2; grid-row: 1 / span 2; }
+  .journey-stage-progress { grid-area: progress; grid-template-columns: auto minmax(80px, 1fr); width: 100%; }
+  .journey-stage-trigger > svg { grid-area: chevron; align-self: center; }
   .journey-stage-detail { padding: 15px; }
   .mastery-path, .evidence-portfolio { padding: 18px 15px; }
   .mastery-path .panel-heading, .evidence-portfolio .panel-heading { align-items: flex-start; }

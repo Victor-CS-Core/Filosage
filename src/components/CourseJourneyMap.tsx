@@ -17,7 +17,7 @@ export default function CourseJourneyMap({
 }) {
   const completed = useMemo(() => new Set(completedLessonIds), [completedLessonIds]);
   const currentModule = Math.max(0, course.modules.findIndex((courseModule, moduleIndex) => courseModule.lessons.some((_, lessonIndex) => !completed.has(`${moduleIndex}-${lessonIndex}`))));
-  const [expanded, setExpanded] = useState(currentModule);
+  const [expanded, setExpanded] = useState(-1);
 
   return <section className="course-journey-map" aria-labelledby="course-journey-title">
     <header>

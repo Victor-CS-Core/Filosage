@@ -267,7 +267,6 @@ export default function OutcomePlanner({
   return (
     <CourseDisclosure
       className="outcome-onboarding"
-      defaultOpen
       description="About two minutes. Your answers choose a starting point; they do not lock any lessons."
       eyebrow="Before lesson one"
       headingId="outcome-onboarding-title"

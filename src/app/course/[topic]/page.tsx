@@ -55,7 +55,7 @@ export default function CourseMap() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
-  const [expandedModule, setExpandedModule] = useState<number | null>(0);
+  const [expandedModule, setExpandedModule] = useState<number | null>(null);
   const [updating, setUpdating] = useState(false);
   const [bannerBusy, setBannerBusy] = useState(false);
   const [publishAttested, setPublishAttested] = useState(false);
@@ -137,7 +137,7 @@ export default function CourseMap() {
       setLoading(true);
       setError(null);
       setActionError(null);
-      setExpandedModule(0);
+      setExpandedModule(null);
       setUpdating(false);
       setBannerBusy(false);
       setPublishAttested(false);

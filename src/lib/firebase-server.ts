@@ -10,7 +10,7 @@ import {
 } from "@/lib/firestore-values";
 import { isLocalMode, LOCAL_OWNER_EMAIL, LOCAL_OWNER_UID } from "@/lib/local-mode";
 import { localFirestoreJson } from "@/lib/local-store";
-import { removeCourseReferences } from "@/lib/course-deletion";
+import { COURSE_SCOPED_COLLECTION_GROUPS, removeCourseReferences } from "@/lib/course-deletion";
 import type { PublicationLessonReview } from "@/lib/publication-review";
 import { inspectCoursePublishReadiness } from "@/lib/publication-readiness";
 import { firebaseAuthenticationClaimsFromIdToken } from "@/lib/recent-auth";
@@ -975,7 +975,7 @@ export async function deleteCourse(courseId: string) {
     outcomeFeedbackDocuments,
   ] = await Promise.all([
     listLessons(courseId),
-    courseScopedDocuments("courseProgress"),
+    courseScopedDocuments(COURSE_SCOPED_COLLECTION_GROUPS.progress),
     runLocatedQuery({
       from: collectionGroupFrom("learningData"),
     }),
@@ -1003,10 +1003,10 @@ export async function deleteCourse(courseId: string) {
         },
       },
     }),
-    courseScopedDocuments("learningOutcomes"),
-    courseScopedDocuments("masteryEvidence"),
-    courseScopedDocuments("contentReports"),
-    courseScopedDocuments("outcomeFeedback"),
+    courseScopedDocuments(COURSE_SCOPED_COLLECTION_GROUPS.learningOutcomes),
+    courseScopedDocuments(COURSE_SCOPED_COLLECTION_GROUPS.masteryEvidence),
+    courseScopedDocuments(COURSE_SCOPED_COLLECTION_GROUPS.contentReports),
+    courseScopedDocuments(COURSE_SCOPED_COLLECTION_GROUPS.outcomeFeedback),
   ]);
 
   const updatedAt = new Date().toISOString();

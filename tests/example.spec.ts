@@ -107,6 +107,13 @@ test("accepts only safe lesson interactions and derives a signal studio from tim
     quizzes: [],
   });
   expect(typographicPatterns).toMatchObject([{ type: "signal", patterns: [{ value: ".." }, { value: ".-" }] }]);
+
+  const twoStepPractice = deriveLessonInteractions({
+    content: "## Apply the method\n\nWork through a concise example.",
+    guidedPractice: { prompt: "Resolve the case in a defensible order.", steps: ["Identify the relevant evidence.", "Choose and justify the action."], modelAnswer: "Use the evidence before selecting the action." },
+    quizzes: [],
+  });
+  expect(twoStepPractice).toMatchObject([{ type: "sequence", steps: [{ label: "Frame the task" }, { label: "Step 1" }, { label: "Step 2" }] }]);
 });
 
 test("unlocks generated lessons sequentially for Pro authors while owners remain unrestricted", () => {
@@ -1065,6 +1072,62 @@ test("renders curated visual explanations in their learning slots", async ({ pag
   await expect(trace.getByText("Does it interpret the observation?")).toBeVisible();
 });
 
+test("keeps long signal interactions inside the lesson column", async ({ page }) => {
+  await restoreLocalLearner(page);
+  await page.route("**/api/courses/signal-layout", (route) => route.fulfill({ json: {
+    id: "signal-layout",
+    courseId: "signal-layout",
+    topic: "Signal timing",
+    isPublic: true,
+    modules: [{
+      title: "Signals",
+      lessons: [{ title: "Read a long pattern", concept: "Keep timing legible", estimatedMinutes: 10 }],
+    }],
+  } }));
+  await page.route("**/api/courses/signal-layout/lessons/0-0", (route) => route.fulfill({ json: {
+    learningObjective: "Inspect and reproduce a timing pattern.",
+    connection: "This prepares a reliable transmission.",
+    content: "## Read the pattern\n\nTreat each mark and gap as a timed unit.",
+    guidedPractice: {
+      prompt: "Put the method in order.",
+      steps: ["Inspect the pattern.", "Reproduce the pattern."],
+      modelAnswer: "Inspect, then reproduce.",
+    },
+    interactions: [{
+      id: "interaction-signal-layout",
+      type: "signal",
+      title: "Signal stress test",
+      summary: "A long pattern must stay inside the lesson column.",
+      version: 1,
+      prompt: "Choose the long pattern and inspect it.",
+      patterns: [
+        { label: "Short", value: ".-" },
+        { label: "Long", value: "------------------------------------------------------------" },
+      ],
+    }],
+    quizzes: [],
+  } }));
+
+  await page.goto("/course/Signal%20timing/lesson/0-0?id=signal-layout");
+  const block = page.getByRole("region", { name: "Signal stress test" });
+  await expect(block).toBeVisible();
+  await block.getByRole("button", { name: /Long/ }).click();
+
+  const layout = await block.evaluate((element) => {
+    const stage = element.querySelector<HTMLElement>(".signal-stage");
+    const timeline = element.querySelector<HTMLElement>(".signal-timeline");
+    const blockRect = element.getBoundingClientRect();
+    const stageRect = stage?.getBoundingClientRect();
+    return {
+      blockWidth: blockRect.width,
+      stageWidth: stageRect?.width ?? Number.POSITIVE_INFINITY,
+      timelineScrolls: Boolean(timeline && timeline.scrollWidth > timeline.clientWidth),
+    };
+  });
+  expect(layout.stageWidth).toBeLessThanOrEqual(layout.blockWidth);
+  expect(layout.timelineScrolls).toBe(true);
+});
+
 test("renders process, comparison, and prerequisite visuals accessibly", async ({ page }) => {
   await restoreLocalLearner(page);
   const lessons = [
@@ -1755,6 +1818,10 @@ test("creates an account-based outcome route and opens its evidence report", asy
   await page.goto("/course/Systems%20thinking?id=outcome-demo");
 
   await expect(page.getByRole("heading", { name: "Turn this course into a plan for your goal." })).toBeVisible();
+  const outcomeDisclosure = page.locator("details.outcome-onboarding");
+  await expect(outcomeDisclosure).not.toHaveAttribute("open", "");
+  await outcomeDisclosure.locator("summary").press("Enter");
+  await expect(outcomeDisclosure).toHaveAttribute("open", "");
   const desiredOutcomeField = page.getByPlaceholder("Make the capability specific and observable.");
   await desiredOutcomeField.fill("Diagnose a service bottleneck and choose a defensible intervention.");
   await expect(desiredOutcomeField).toHaveValue("Diagnose a service bottleneck and choose a defensible intervention.");
