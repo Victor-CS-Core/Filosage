@@ -158,19 +158,8 @@ export async function assertSafeContentBatch(
   inputs: string[],
   context: SafetyContext,
 ) {
+  await assertLocallySafeContentBatch(inputs, context);
   if (!inputs.length) return;
-  await assertNoCooldown(context);
-
-  const localMatches = inputs.flatMap((input) => {
-    const categories = localPolicyFlags(input);
-    return categories.length ? [{ input, categories }] : [];
-  });
-  if (localMatches.length) {
-    const localFlags = Array.from(new Set(localMatches.flatMap(({ categories }) => categories)));
-    const blockedInput = localMatches.map(({ input }) => input.slice(0, 20_000)).join("\n\n").slice(0, 100_000);
-    const result = await recordBlockedRequest(blockedInput, context, localFlags);
-    throw new ContentSafetyError(undefined, result.cooldownUntil ?? undefined);
-  }
 
   const normalizedInputs = buildModerationInputs(inputs);
   const moderation = await client.moderations.create({
@@ -190,6 +179,25 @@ export async function assertSafeContentBatch(
   const blockedInput = flaggedResults.map(({ input }) => input.slice(0, 20_000)).join("\n\n").slice(0, 100_000);
   const result = await recordBlockedRequest(blockedInput, context, categories.length ? categories : ["moderation/flagged"]);
   throw new ContentSafetyError(undefined, result.cooldownUntil ?? undefined);
+}
+
+export async function assertLocallySafeContentBatch(
+  inputs: string[],
+  context: SafetyContext,
+) {
+  if (!inputs.length) return;
+  await assertNoCooldown(context);
+
+  const localMatches = inputs.flatMap((input) => {
+    const categories = localPolicyFlags(input);
+    return categories.length ? [{ input, categories }] : [];
+  });
+  if (localMatches.length) {
+    const localFlags = Array.from(new Set(localMatches.flatMap(({ categories }) => categories)));
+    const blockedInput = localMatches.map(({ input }) => input.slice(0, 20_000)).join("\n\n").slice(0, 100_000);
+    const result = await recordBlockedRequest(blockedInput, context, localFlags);
+    throw new ContentSafetyError(undefined, result.cooldownUntil ?? undefined);
+  }
 }
 
 export function assertSafeContent(

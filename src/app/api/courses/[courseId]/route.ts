@@ -12,7 +12,6 @@ import { expectedLessonIds } from "@/lib/course-progress";
 import type { Course } from "@/lib/course-types";
 import { toCourseDto } from "@/lib/course-dto";
 import { apiRequestErrorResponse, assertTrustedMutation, readJsonBody } from "@/lib/api-security";
-import { aiClient } from "@/lib/local-ai";
 import { ContentSafetyError } from "@/lib/content-safety";
 import { safeModelErrorDetails } from "@/lib/model-fallback";
 import { PublicationReviewError, reviewCourseForPublication } from "@/lib/publication-review";
@@ -66,6 +65,7 @@ export async function GET(request: Request, { params }: RouteParams) {
 
 export async function PATCH(request: Request, { params }: RouteParams) {
   const { courseId } = await params;
+  let visibilityUpdateStage = "authorization";
   try {
     const account = await requirePremium(request);
     const course = await getCourse(courseId);
@@ -80,6 +80,7 @@ export async function PATCH(request: Request, { params }: RouteParams) {
     }
 
     if (body.isPublic) {
+      visibilityUpdateStage = "publication-readiness";
       if (body.attested !== true) {
         return NextResponse.json(
           { error: "Confirm that you reviewed every lesson before publishing." },
@@ -118,15 +119,17 @@ export async function PATCH(request: Request, { params }: RouteParams) {
         );
       }
       const lessons = await listLessons(courseId);
+      visibilityUpdateStage = "publication-review";
       const review = await reviewCourseForPublication(
-        aiClient(),
         course as Course & Record<string, unknown>,
         lessons,
         lessonIds,
         { uid: account.uid, isOwner: account.isOwner },
       );
+      visibilityUpdateStage = "publication-transaction";
       await publishCourseWithReview(courseId, lessonIds, review);
     } else {
+      visibilityUpdateStage = "visibility-transaction";
       await updateCourseVisibility(courseId, false);
     }
 
@@ -179,6 +182,7 @@ export async function PATCH(request: Request, { params }: RouteParams) {
     console.error(JSON.stringify({
       event: "course_visibility_update_failed",
       courseId,
+      stage: visibilityUpdateStage,
       errorName: error instanceof Error ? error.name : "UnknownError",
       errorMessage: error instanceof Error ? error.message : String(error),
     }));

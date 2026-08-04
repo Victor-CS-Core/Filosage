@@ -179,13 +179,17 @@ test("publication quality review rejects language contamination and shallow less
   expect(issues).toContain("The lesson is missing its mode-specific activity.");
 });
 
-test("batches course publication moderation into one bounded provider request", async () => {
+test("publishes from generation-time moderation plus a complete local safety rescan", async () => {
   const reviewSource = await readFile("src/lib/publication-review.ts", "utf8");
   const safetySource = await readFile("src/lib/content-safety.ts", "utf8");
+  const routeSource = await readFile("src/app/api/courses/[courseId]/route.ts", "utf8");
 
-  expect(reviewSource).toContain("await assertSafeContentBatch(client, [");
+  expect(reviewSource).toContain("await assertLocallySafeContentBatch([");
   expect(reviewSource).toContain("...parsedLessons.map(({ lesson }) => JSON.stringify(lesson))");
-  expect(reviewSource).not.toContain("await assertSafeContent(client");
+  expect(reviewSource).toContain("generation-output-moderation+publication-local-scan");
+  expect(reviewSource).not.toContain("assertSafeContentBatch");
+  expect(routeSource).not.toContain("aiClient()");
+  expect(safetySource).toContain("await assertLocallySafeContentBatch(inputs, context)");
   expect(safetySource).toContain("const normalizedInputs = buildModerationInputs(inputs)");
   expect(safetySource).toContain("input: normalizedInputs");
 });

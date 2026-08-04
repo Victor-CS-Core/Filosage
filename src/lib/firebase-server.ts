@@ -848,6 +848,7 @@ export async function publishCourseWithReview(
     moderationModel: string;
     reviewVersion: string;
     factualReviewStatus: "unverified";
+    safetyReviewBasis: string;
     sourceUpdatedAt?: string;
     reviews: PublicationLessonReview[];
   },
@@ -897,6 +898,7 @@ export async function publishCourseWithReview(
           moderationModel: review.moderationModel,
           reviewVersion: review.reviewVersion,
           factualReviewStatus: review.factualReviewStatus,
+          safetyReviewBasis: review.safetyReviewBasis,
           lessonCount: review.reviews.length,
         },
         factualReviewStatus: review.factualReviewStatus,

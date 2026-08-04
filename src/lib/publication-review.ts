@@ -1,8 +1,7 @@
 import "server-only";
 
-import type OpenAI from "openai";
 import type { Course, LessonData } from "@/lib/course-types";
-import { assertSafeContentBatch, MODERATION_MODEL } from "@/lib/content-safety";
+import { assertLocallySafeContentBatch, MODERATION_MODEL } from "@/lib/content-safety";
 import { inspectGeneratedContent } from "@/lib/content-language";
 import { LESSON_QUALITY_GATE_VERSION } from "@/lib/lesson-quality";
 import { inspectCoursePublishReadiness, type PublicationLessonFailure } from "@/lib/publication-readiness";
@@ -10,7 +9,8 @@ import { courseOutlineSchema, lessonDataSchema } from "@/lib/validation";
 import { courseQualityIssues } from "@/lib/course-quality";
 import { sourcePackQualityIssues } from "@/lib/source-safety";
 
-export const PUBLICATION_REVIEW_VERSION = "publication-v1";
+export const PUBLICATION_REVIEW_VERSION = "publication-v2";
+export const PUBLICATION_SAFETY_REVIEW_BASIS = "generation-output-moderation+publication-local-scan";
 
 export interface PublicationLessonReview {
   lessonId: string;
@@ -23,6 +23,7 @@ export interface PublicationLessonReview {
   reviewVersion: string;
   qualityGateVersion: string;
   factualReviewStatus: "unverified";
+  safetyReviewBasis: typeof PUBLICATION_SAFETY_REVIEW_BASIS;
   sourceUpdatedAt?: string;
 }
 
@@ -55,7 +56,6 @@ export async function generatedContentHash(value: unknown) {
 }
 
 export async function reviewCourseForPublication(
-  client: OpenAI,
   course: Course & Record<string, unknown>,
   lessons: Array<Record<string, unknown>>,
   expectedLessonIds: string[],
@@ -98,7 +98,7 @@ export async function reviewCourseForPublication(
     return raw && parsed.success ? [{ lessonId, raw, lesson: parsed.data as LessonData }] : [];
   });
 
-  await assertSafeContentBatch(client, [
+  await assertLocallySafeContentBatch([
     JSON.stringify(parsedOutline.data),
     ...parsedLessons.map(({ lesson }) => JSON.stringify(lesson)),
   ], {
@@ -121,6 +121,7 @@ export async function reviewCourseForPublication(
       reviewVersion: PUBLICATION_REVIEW_VERSION,
       qualityGateVersion: LESSON_QUALITY_GATE_VERSION,
       factualReviewStatus: "unverified",
+      safetyReviewBasis: PUBLICATION_SAFETY_REVIEW_BASIS,
       sourceUpdatedAt: typeof raw.updatedAt === "string" ? raw.updatedAt : undefined,
     });
   }
@@ -132,6 +133,7 @@ export async function reviewCourseForPublication(
     moderationModel: MODERATION_MODEL,
     reviewVersion: PUBLICATION_REVIEW_VERSION,
     factualReviewStatus: "unverified" as const,
+    safetyReviewBasis: PUBLICATION_SAFETY_REVIEW_BASIS,
     sourceUpdatedAt: typeof course.updatedAt === "string" ? course.updatedAt : undefined,
   };
 }

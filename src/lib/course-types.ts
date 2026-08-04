@@ -103,6 +103,7 @@ export interface Course {
     moderationModel?: string;
     reviewVersion?: string;
     factualReviewStatus?: "unverified";
+    safetyReviewBasis?: string;
   };
   updatedAt?: string;
   aiAssisted?: boolean;

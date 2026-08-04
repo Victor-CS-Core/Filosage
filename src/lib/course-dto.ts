@@ -116,6 +116,9 @@ export function toCourseDto(value: Record<string, unknown> | Course, canManage =
           reviewVersion: typeof (raw.publicationReview as Record<string, unknown>).reviewVersion === "string"
             ? String((raw.publicationReview as Record<string, unknown>).reviewVersion)
             : undefined,
+          safetyReviewBasis: typeof (raw.publicationReview as Record<string, unknown>).safetyReviewBasis === "string"
+            ? String((raw.publicationReview as Record<string, unknown>).safetyReviewBasis)
+            : undefined,
           factualReviewStatus: (raw.publicationReview as Record<string, unknown>).factualReviewStatus === "unverified"
             ? "unverified"
             : undefined,
