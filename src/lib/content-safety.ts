@@ -6,6 +6,7 @@ import {
   getStoredDocument,
   runStoredDocumentTransaction,
 } from "@/lib/firebase-server";
+import { buildModerationInputs } from "@/lib/moderation-inputs";
 import { serverEnvironment } from "@/lib/runtime-environment";
 
 export type SafetyStage = "input" | "output";
@@ -171,7 +172,7 @@ export async function assertSafeContentBatch(
     throw new ContentSafetyError(undefined, result.cooldownUntil ?? undefined);
   }
 
-  const normalizedInputs = inputs.map((input) => input.slice(0, 100_000));
+  const normalizedInputs = buildModerationInputs(inputs);
   const moderation = await client.moderations.create({
     model: MODERATION_MODEL,
     input: normalizedInputs,

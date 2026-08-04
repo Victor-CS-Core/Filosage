@@ -14,6 +14,7 @@ import { toCourseDto } from "@/lib/course-dto";
 import { apiRequestErrorResponse, assertTrustedMutation, readJsonBody } from "@/lib/api-security";
 import { aiClient } from "@/lib/local-ai";
 import { ContentSafetyError } from "@/lib/content-safety";
+import { safeModelErrorDetails } from "@/lib/model-fallback";
 import { PublicationReviewError, reviewCourseForPublication } from "@/lib/publication-review";
 
 interface RouteParams {
@@ -157,6 +158,22 @@ export async function PATCH(request: Request, { params }: RouteParams) {
       return NextResponse.json(
         { error: "Publication was blocked because the course did not pass the safety review.", code: "PUBLICATION_SAFETY_BLOCK" },
         { status: 409, headers: { "Cache-Control": "no-store" } },
+      );
+    }
+    const modelError = safeModelErrorDetails(error);
+    if (modelError.status === 429) {
+      console.error(JSON.stringify({
+        event: "course_publication_safety_rate_limited",
+        courseId,
+        ...modelError,
+      }));
+      return NextResponse.json(
+        {
+          error: "The publication safety review is temporarily busy. Wait one minute, then try again.",
+          code: "PUBLICATION_REVIEW_RATE_LIMITED",
+          retryAfterSeconds: 60,
+        },
+        { status: 503, headers: { "Cache-Control": "no-store", "Retry-After": "60" } },
       );
     }
     console.error(JSON.stringify({

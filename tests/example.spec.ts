@@ -46,6 +46,7 @@ import { sourcePackPromptBlock } from "../src/lib/source-safety";
 import { signActivityReceipt, validateActivityReceipt } from "../src/lib/activity-receipt-crypto";
 import { evaluateBillingConfiguration } from "../src/lib/billing-lock";
 import { runWithModelFallback, safeModelErrorDetails } from "../src/lib/model-fallback";
+import { buildModerationInputs, MAX_MODERATION_BATCH_CHARACTERS } from "../src/lib/moderation-inputs";
 import { restoreLocalLearner } from "./fixtures/local-learner";
 
 async function sourceFiles(directory: string): Promise<string[]> {
@@ -178,14 +179,29 @@ test("publication quality review rejects language contamination and shallow less
   expect(issues).toContain("The lesson is missing its mode-specific activity.");
 });
 
-test("batches full-course publication moderation into one provider request", async () => {
+test("batches course publication moderation into one bounded provider request", async () => {
   const reviewSource = await readFile("src/lib/publication-review.ts", "utf8");
   const safetySource = await readFile("src/lib/content-safety.ts", "utf8");
 
   expect(reviewSource).toContain("await assertSafeContentBatch(client, [");
   expect(reviewSource).toContain("...parsedLessons.map(({ lesson }) => JSON.stringify(lesson))");
   expect(reviewSource).not.toContain("await assertSafeContent(client");
+  expect(safetySource).toContain("const normalizedInputs = buildModerationInputs(inputs)");
   expect(safetySource).toContain("input: normalizedInputs");
+});
+
+test("publication moderation represents every lesson without exceeding the provider budget", () => {
+  const inputs = Array.from({ length: 17 }, (_, index) =>
+    `lesson-${index}-start ${"detail ".repeat(4_000)} lesson-${index}-end`,
+  );
+  const moderated = buildModerationInputs(inputs);
+
+  expect(moderated).toHaveLength(inputs.length);
+  expect(moderated.reduce((sum, input) => sum + input.length, 0)).toBeLessThanOrEqual(MAX_MODERATION_BATCH_CHARACTERS);
+  moderated.forEach((input, index) => {
+    expect(input).toContain(`lesson-${index}-start`);
+    expect(input).toContain(`lesson-${index}-end`);
+  });
 });
 
 test("course source packs accept secure attributed links and reject insecure URLs", () => {
