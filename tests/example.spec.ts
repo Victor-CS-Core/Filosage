@@ -87,13 +87,21 @@ test("keeps checkout closed until the independent billing lock is enabled", () =
 });
 
 test("accepts only safe lesson interactions and derives a signal studio from timing notation", () => {
-  expect(curateLessonInteractions([JSON.stringify({
+  const curatedSequence = curateLessonInteractions([JSON.stringify({
     type: "sequence",
     title: "Order the method",
     summary: "Rebuild the method before practice.",
-    prompt: "Arrange the steps.",
-    steps: [{ label: "Frame", detail: "Name the goal." }, { label: "Apply", detail: "Use the method." }, { label: "Check", detail: "Test the result." }],
-  })])).toMatchObject([{ type: "sequence", id: "interaction-sequence-1", version: 1 }]);
+    prompt: "First frame the task, then apply it, and finally check it.",
+    steps: [{ label: "Step 1: Frame", detail: "Name the goal." }, { label: "Step 2", detail: "Use the method." }, { label: "Third step", detail: "Test the result." }],
+  })]);
+  expect(curatedSequence).toMatchObject([{
+    type: "sequence",
+    id: "interaction-sequence-1",
+    version: 1,
+    prompt: "Arrange the actions into a coherent workflow. Decide what each action needs from the one before it.",
+    steps: [{ label: "Frame" }, { label: "Action" }, { label: "Action" }],
+  }]);
+  expect(curatedSequence[0]?.prompt).not.toContain("First frame");
   expect(curateLessonInteractions([JSON.stringify({ type: "signal", title: "Unsafe", summary: "No scripts.", prompt: "Play it.", patterns: [{ label: "Bad", value: "<script>" }, { label: "Also bad", value: "https://example.com" }] })])).toEqual([]);
 
   const derived = deriveLessonInteractions({
@@ -113,7 +121,12 @@ test("accepts only safe lesson interactions and derives a signal studio from tim
     guidedPractice: { prompt: "Resolve the case in a defensible order.", steps: ["Identify the relevant evidence.", "Choose and justify the action."], modelAnswer: "Use the evidence before selecting the action." },
     quizzes: [],
   });
-  expect(twoStepPractice).toMatchObject([{ type: "sequence", steps: [{ label: "Frame the task" }, { label: "Step 1" }, { label: "Step 2" }] }]);
+  expect(twoStepPractice).toMatchObject([{
+    type: "sequence",
+    prompt: "Arrange the actions into a coherent workflow. Decide what each action needs from the one before it.",
+    steps: [{ label: "Action" }, { label: "Action" }, { label: "Action" }],
+  }]);
+  expect(twoStepPractice[0]?.prompt).not.toContain("Resolve the case");
 });
 
 test("unlocks generated lessons sequentially for Pro authors while owners remain unrestricted", () => {
@@ -1070,6 +1083,56 @@ test("renders curated visual explanations in their learning slots", async ({ pag
   await trace.getByRole("button", { name: /Name the inference/ }).click();
   await expect(trace.getByRole("button", { name: /Name the inference/ })).toHaveAttribute("aria-current", "step");
   await expect(trace.getByText("Does it interpret the observation?")).toBeVisible();
+});
+
+test("keeps sequence labs useful without revealing their answer", async ({ page }) => {
+  await restoreLocalLearner(page);
+  await page.route("**/api/courses/sequence-quality", (route) => route.fulfill({ json: {
+    id: "sequence-quality",
+    courseId: "sequence-quality",
+    topic: "Sequence quality",
+    isPublic: true,
+    modules: [{
+      title: "Methods",
+      lessons: [{ title: "Build a reliable method", concept: "Order actions by dependency", estimatedMinutes: 10 }],
+    }],
+  } }));
+  await page.route("**/api/courses/sequence-quality/lessons/0-0", (route) => route.fulfill({ json: {
+    learningObjective: "Arrange a method by dependency.",
+    connection: "This prepares a repeatable workflow.",
+    content: "## Build the method\n\nUse dependencies to decide what belongs first.",
+    interactions: [{
+      id: "interaction-sequence-quality",
+      type: "sequence",
+      title: "Order the method",
+      summary: "Reconstruct the workflow before practice.",
+      version: 1,
+      prompt: "First frame the task, then apply the method, and finally confirm the result.",
+      steps: [
+        { label: "Step 1", detail: "Frame the task and name the goal." },
+        { label: "Step 2", detail: "Apply the method to the evidence." },
+        { label: "Step 3", detail: "Confirm that the result meets the goal." },
+      ],
+    }],
+    quizzes: [],
+  } }));
+
+  await page.goto("/course/Sequence%20quality/lesson/0-0?id=sequence-quality");
+  const block = page.getByRole("region", { name: "Order the method" });
+  await expect(block).toBeVisible();
+  await expect(block.getByText("Arrange the actions into a coherent workflow.", { exact: false })).toBeVisible();
+  await expect(block.getByText("First frame the task", { exact: false })).toHaveCount(0);
+  await expect(block.getByText(/^Step [123]$/)).toHaveCount(0);
+  await expect(block.locator("li").first()).toContainText("Confirm that the result");
+
+  await block.getByRole("button", { name: "Check order" }).click();
+  await expect(block.getByRole("status")).toHaveText(/Not quite/);
+
+  const finalAction = block.locator("li").filter({ hasText: "Confirm that the result" });
+  await finalAction.getByRole("button", { name: "Move action at position 1 down" }).click();
+  await finalAction.getByRole("button", { name: "Move action at position 2 down" }).click();
+  await block.getByRole("button", { name: "Check order" }).click();
+  await expect(block.getByRole("status")).toHaveText("That sequence is ready to use.");
 });
 
 test("keeps long signal interactions inside the lesson column", async ({ page }) => {

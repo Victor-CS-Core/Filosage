@@ -28,7 +28,16 @@ function ClassificationLab({ interaction }: { interaction: Extract<LessonInterac
 }
 
 function SequenceLab({ interaction }: { interaction: Extract<LessonInteraction, { type: "sequence" }> }) {
-  const initial = useMemo(() => interaction.steps.map((_, index) => index).reverse(), [interaction.steps]);
+  const initial = useMemo(() => {
+    const mixed: number[] = [];
+    let start = 0;
+    let end = interaction.steps.length - 1;
+    while (start <= end) {
+      if (end >= start) mixed.push(end--);
+      if (start <= end) mixed.push(start++);
+    }
+    return mixed;
+  }, [interaction.steps]);
   const [order, setOrder] = useState(initial);
   const [checked, setChecked] = useState(false);
   const move = (position: number, direction: -1 | 1) => {
@@ -47,10 +56,10 @@ function SequenceLab({ interaction }: { interaction: Extract<LessonInteraction, 
     <ol>
       {order.map((stepIndex, position) => <li key={stepIndex}>
         <span>{position + 1}</span>
-        <div><strong>{interaction.steps[stepIndex].label}</strong><p>{interaction.steps[stepIndex].detail}</p></div>
+        <div>{interaction.steps[stepIndex].label !== "Action" && <strong>{interaction.steps[stepIndex].label}</strong>}<p>{interaction.steps[stepIndex].detail}</p></div>
         <div className="sequence-controls">
-          <button type="button" onClick={() => move(position, -1)} disabled={position === 0} aria-label={`Move ${interaction.steps[stepIndex].label} up`}><ArrowUp size={15} /></button>
-          <button type="button" onClick={() => move(position, 1)} disabled={position === order.length - 1} aria-label={`Move ${interaction.steps[stepIndex].label} down`}><ArrowDown size={15} /></button>
+          <button type="button" onClick={() => move(position, -1)} disabled={position === 0} aria-label={`Move action at position ${position + 1} up`}><ArrowUp size={15} /></button>
+          <button type="button" onClick={() => move(position, 1)} disabled={position === order.length - 1} aria-label={`Move action at position ${position + 1} down`}><ArrowDown size={15} /></button>
         </div>
       </li>)}
     </ol>

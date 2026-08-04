@@ -43,6 +43,32 @@ export const lessonInteractionSchema = z.discriminatedUnion("type", [
 
 export const lessonInteractionsSchema = z.array(lessonInteractionSchema).max(1).default([]);
 export type LessonInteraction = z.infer<typeof lessonInteractionSchema>;
+type SequenceInteraction = Extract<LessonInteraction, { type: "sequence" }>;
+
+const SEQUENCE_PROMPT = "Arrange the actions into a coherent workflow. Decide what each action needs from the one before it.";
+const ORDER_PREFIX = /^(?:(?:step|stage|phase|task|action|part|item)\s*(?:#\s*)?\d+|(?:first|second|third|fourth|fifth|sixth|seventh)(?:\s+(?:step|stage|phase|task|action|part|item))?|\d+)\s*[:.)-]?\s*/i;
+
+function neutralSequenceLabel(value: string) {
+  const semanticLabel = value.trim().replace(ORDER_PREFIX, "").trim();
+  return semanticLabel || "Action";
+}
+
+function normalizeSequence(interaction: SequenceInteraction): SequenceInteraction {
+  return {
+    ...interaction,
+    // Generated prompts often restate the ordered procedure. The cards provide
+    // the task context, so a neutral instruction protects the retrieval task.
+    prompt: SEQUENCE_PROMPT,
+    steps: interaction.steps.map((step) => ({
+      ...step,
+      label: neutralSequenceLabel(step.label),
+    })),
+  };
+}
+
+function normalizeInteraction(interaction: LessonInteraction): LessonInteraction {
+  return interaction.type === "sequence" ? normalizeSequence(interaction) : interaction;
+}
 
 const candidateBase = { title: label, summary: z.string().trim().min(1).max(180) };
 export const lessonInteractionCandidateSchema = z.discriminatedUnion("type", [
@@ -58,7 +84,7 @@ function parseInteraction(value: unknown, index: number): LessonInteraction | nu
     try { candidate = JSON.parse(candidate) as unknown; } catch { return null; }
   }
   const stored = lessonInteractionSchema.safeParse(candidate);
-  if (stored.success) return stored.data;
+  if (stored.success) return normalizeInteraction(stored.data);
   const proposed = lessonInteractionCandidateSchema.safeParse(candidate);
   if (!proposed.success) return null;
   const data = proposed.data;
@@ -67,7 +93,7 @@ function parseInteraction(value: unknown, index: number): LessonInteraction | nu
     if (data.items.some((item) => item.groupIndex >= groupCount)) return null;
   }
   if (data.type === "scenario" && data.recommendedIndex >= data.options.length) return null;
-  return { ...data, id: `interaction-${data.type}-${index + 1}`, version: 1 } as LessonInteraction;
+  return normalizeInteraction({ ...data, id: `interaction-${data.type}-${index + 1}`, version: 1 } as LessonInteraction);
 }
 
 export function curateLessonInteractions(value: unknown): LessonInteraction[] {
@@ -109,10 +135,10 @@ export function deriveLessonInteractions(lesson: LessonData): LessonInteraction[
   const practiceSteps = lesson.guidedPractice?.steps ?? [];
   if (practiceSteps.length >= 2) {
     const sequenceSteps = practiceSteps.length >= 3
-      ? practiceSteps.map((detail, index) => ({ label: `Step ${index + 1}`, detail }))
+      ? practiceSteps.map((detail) => ({ label: "Action", detail }))
       : [
-          { label: "Frame the task", detail: lesson.guidedPractice!.prompt },
-          ...practiceSteps.map((detail, index) => ({ label: `Step ${index + 1}`, detail })),
+          { label: "Action", detail: lesson.guidedPractice!.prompt },
+          ...practiceSteps.map((detail) => ({ label: "Action", detail })),
         ];
     return [{
       id: "interaction-sequence-derived",
@@ -120,7 +146,7 @@ export function deriveLessonInteractions(lesson: LessonData): LessonInteraction[
       title: "Put the method in order",
       summary: "Reconstruct the workflow before beginning guided practice.",
       version: 1,
-      prompt: lesson.guidedPractice?.prompt ?? "Arrange the steps into a defensible sequence.",
+      prompt: SEQUENCE_PROMPT,
       steps: sequenceSteps,
     }];
   }
@@ -145,7 +171,7 @@ export function deriveLessonInteractions(lesson: LessonData): LessonInteraction[
 export function interactionsToSpeech(interactions: LessonInteraction[]) {
   return interactions.map((interaction) => {
     if (interaction.type === "classification") return `Interactive classification: ${interaction.prompt}. Groups: ${interaction.groups.join(", ")}.`;
-    if (interaction.type === "sequence") return `Interactive sequence: ${interaction.prompt}. ${interaction.steps.map((step, index) => `Step ${index + 1}, ${step.label}: ${step.detail}`).join(" ")}`;
+    if (interaction.type === "sequence") return `Interactive sequence: ${interaction.prompt}. This lab contains ${interaction.steps.length} actions to arrange.`;
     if (interaction.type === "scenario") return `Interactive decision: ${interaction.prompt}. Choices: ${interaction.options.map((option) => option.label).join(", ")}.`;
     return `Interactive signal studio: ${interaction.prompt}. Patterns: ${interaction.patterns.map((pattern) => `${pattern.label}, ${pattern.value}`).join(". ")}.`;
   }).join(" ");
