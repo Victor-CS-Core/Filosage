@@ -230,20 +230,22 @@ export async function POST(request: Request) {
     try {
       primaryResponse = await generateAndRecord(standardProfile);
     } catch (primaryError) {
-      console.warn("Primary lesson model failed; trying Terra fallback:", {
+      console.warn(JSON.stringify({
+        event: "lesson_primary_model_failed",
         model: standardProfile.model,
         fallbackModel: fallbackProfile.model,
         ...safeModelErrorDetails(primaryError),
-      });
+      }));
       try {
         activeProfile = fallbackProfile;
         primaryResponse = await generateAndRecord(fallbackProfile, ["The standard generation attempt failed before producing a usable lesson."]);
       } catch (fallbackError) {
-        console.warn("Lesson fallback model failed; using Sol recovery:", {
+        console.warn(JSON.stringify({
+          event: "lesson_fallback_model_failed",
           model: fallbackProfile.model,
           recoveryModel: recoveryProfile.model,
           ...safeModelErrorDetails(fallbackError),
-        });
+        }));
         activeProfile = recoveryProfile;
         primaryResponse = await generateAndRecord(recoveryProfile, ["The standard and fallback generation attempts failed before producing a usable lesson."]);
       }
@@ -257,11 +259,12 @@ export async function POST(request: Request) {
         const fallbackResponse = await generateAndRecord(fallbackProfile, qualityIssues);
         lesson = prepareLesson(fallbackResponse.output_parsed as GeneratedLessonData | null);
       } catch (error) {
-        console.warn("Lesson quality repair failed; using Sol recovery:", {
+        console.warn(JSON.stringify({
+          event: "lesson_quality_repair_failed",
           model: fallbackProfile.model,
           recoveryModel: recoveryProfile.model,
           ...safeModelErrorDetails(error),
-        });
+        }));
       }
       qualityIssues = lessonQualityIssues(lesson, topic, expectedMode);
     }
@@ -358,7 +361,13 @@ export async function POST(request: Request) {
       );
     }
 
-    console.error("Lesson generation failed:", safeModelErrorDetails(error));
+    console.error(JSON.stringify({
+      event: "lesson_generation_failed",
+      standardModel: standardProfile.model,
+      fallbackModel: fallbackProfile.model,
+      recoveryModel: recoveryProfile.model,
+      ...safeModelErrorDetails(error),
+    }));
     return NextResponse.json(
       { error: "Lesson generation is temporarily unavailable." },
       { status: 500 },

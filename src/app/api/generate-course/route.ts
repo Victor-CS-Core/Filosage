@@ -136,20 +136,22 @@ export async function POST(request: Request) {
     try {
       response = await generateAndRecord(standardProfile);
     } catch (standardError) {
-      console.warn("Standard course model failed; trying Terra repair:", {
+      console.warn(JSON.stringify({
+        event: "course_standard_model_failed",
         model: standardProfile.model,
         repairModel: repairProfile.model,
         ...safeModelErrorDetails(standardError),
-      });
+      }));
       try {
         activeProfile = repairProfile;
         response = await generateAndRecord(repairProfile, ["The standard generation attempt failed before producing a usable course."]);
       } catch (repairError) {
-        console.warn("Course repair model failed; using Sol recovery:", {
+        console.warn(JSON.stringify({
+          event: "course_repair_model_failed",
           model: repairProfile.model,
           recoveryModel: recoveryProfile.model,
           ...safeModelErrorDetails(repairError),
-        });
+        }));
         activeProfile = recoveryProfile;
         response = await generateAndRecord(recoveryProfile, ["The standard and repair generation attempts failed before producing a usable course."]);
       }
@@ -169,11 +171,12 @@ export async function POST(request: Request) {
         activeProfile = repairProfile;
         response = await generateAndRecord(repairProfile, repairIssues);
       } catch (error) {
-        console.warn("Course quality repair failed; using Sol recovery:", {
+        console.warn(JSON.stringify({
+          event: "course_quality_repair_failed",
           model: repairProfile.model,
           recoveryModel: recoveryProfile.model,
           ...safeModelErrorDetails(error),
-        });
+        }));
       }
       outline = response.output_parsed;
       integrityIssues = outline ? inspectGeneratedContent(outline, topic) : [];
