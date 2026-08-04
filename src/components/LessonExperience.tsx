@@ -1,7 +1,10 @@
 "use client";
 
 import { Check, CheckCircle2, FileText, FlaskConical, Scale, Sparkles } from "lucide-react";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 import type { LessonExperience as LessonExperienceData } from "@/lib/course-types";
+import { normalizeStructuredMarkdown } from "@/lib/markdown";
 
 const titles: Record<LessonExperienceData["type"], string> = {
   concept: "Predict, then refine your model",
@@ -27,6 +30,20 @@ export interface LessonExperienceState {
   completed: boolean;
 }
 
+const RESERVED_EXPERIENCE_TASKS = new Set(["artifactprompt", "successcriteria"]);
+
+function isReservedExperienceTask(value: string) {
+  return RESERVED_EXPERIENCE_TASKS.has(value.trim().toLowerCase().replace(/[^a-z]/g, ""));
+}
+
+function StructuredText({ value, className = "" }: { value: string; className?: string }) {
+  return (
+    <div className={`structured-markdown experience-markdown ${className}`.trim()}>
+      <ReactMarkdown remarkPlugins={[remarkGfm]}>{normalizeStructuredMarkdown(value)}</ReactMarkdown>
+    </div>
+  );
+}
+
 function EvidenceComposer({
   experience,
   prompt,
@@ -46,7 +63,7 @@ function EvidenceComposer({
   return (
     <div className="experience-composer">
       <label htmlFor="experience-response">{responseLabels[experience.type]}</label>
-      <p>{prompt}</p>
+      <StructuredText value={prompt} className="experience-composer-prompt" />
       <textarea
         id="experience-response"
         rows={4}
@@ -148,9 +165,9 @@ export default function LessonExperience({
       </>}
 
       {experience.type === "practice-lab" && <>
-        <p className="experience-brief">{experience.brief}</p>
-        <div className="lab-layout"><section><h3><FlaskConical size={17} aria-hidden="true" /> Materials</h3><ul>{experience.materials.map((item) => <li key={item}>{item}</li>)}</ul></section><section><h3>Build sequence</h3><ol>{experience.tasks.map((item) => <li key={item}>{item}</li>)}</ol></section></div>
-        <div className="artifact-prompt"><strong>Artifact to produce</strong><p>{experience.artifactPrompt}</p><ul>{experience.successCriteria.map((item) => <li key={item}>{item}</li>)}</ul></div>
+        <StructuredText value={experience.brief} className="experience-brief" />
+        <div className="lab-layout"><section><h3><FlaskConical size={17} aria-hidden="true" /> Materials</h3><ul>{experience.materials.map((item) => <li key={item}><StructuredText value={item} /></li>)}</ul></section><section><h3>Build sequence</h3><ol>{experience.tasks.filter((item) => !isReservedExperienceTask(item)).map((item) => <li key={item}><StructuredText value={item} /></li>)}</ol></section></div>
+        <div className="artifact-prompt"><strong>Artifact to produce</strong><StructuredText value={experience.artifactPrompt} /><ul>{experience.successCriteria.map((item) => <li key={item}><StructuredText value={item} /></li>)}</ul></div>
         <EvidenceComposer
           experience={experience}
           prompt="Record what you produced, where it is saved, and which success criterion you checked."

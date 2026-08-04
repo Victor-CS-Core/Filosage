@@ -590,7 +590,7 @@ button:disabled { cursor: not-allowed; opacity: 0.55; }
 .activity-section-tabs > button:hover { background: var(--surface-subtle); color: var(--ink); }
 .activity-section-tabs > button.is-active { border-bottom-color: var(--accent); background: var(--surface-subtle); color: var(--ink); }
 .activity-section-tabs > button > span { grid-row: 1 / span 2; width: 26px; height: 26px; display: grid; place-items: center; align-self: center; border-radius: 50%; background: var(--surface-active); color: var(--ink-muted); font-size: 0.67rem; font-weight: 800; }
-.activity-section-tabs > button.is-active > span { background: var(--accent); color: white; }
+.activity-section-tabs > button.is-active > span { background: var(--accent); color: var(--accent-contrast); }
 .activity-section-tabs > button.is-complete > span { background: var(--success-fill); color: var(--brand-navy); }
 .activity-section-tabs strong { min-width: 0; overflow: hidden; font-size: 0.75rem; text-overflow: ellipsis; white-space: nowrap; }
 .activity-section-tabs small { min-width: 0; overflow: hidden; color: var(--ink-muted); font-size: 0.62rem; line-height: 1.35; text-overflow: ellipsis; white-space: nowrap; }
@@ -2718,7 +2718,7 @@ button:disabled { cursor: not-allowed; opacity: 0.55; }
 .lesson-experience > header h2 { margin-top: 4px; font-size: 1.25rem; }
 .experience-composer { margin-top: 18px; }
 .experience-composer > label { display: block; font-size: 0.9rem; font-weight: 750; }
-.experience-composer > p, .experience-brief { margin-top: 8px; color: var(--ink-secondary); font-size: 0.94rem; line-height: 1.65; }
+.experience-composer-prompt, .experience-brief { margin-top: 8px; color: var(--ink-secondary); font-size: 0.94rem; line-height: 1.65; }
 .lesson-experience textarea { width: 100%; margin-top: 12px; resize: vertical; border: 1px solid var(--line-strong); border-radius: var(--radius-sm); background: var(--surface-raised); color: var(--ink); padding: 13px; font: inherit; font-size: 0.9rem; line-height: 1.55; }
 .lesson-experience textarea:focus { outline: 3px solid color-mix(in oklch, var(--focus) 18%, transparent); border-color: var(--focus); }
 .experience-submit-row { display: flex; align-items: center; gap: 12px; margin-top: 12px; }
@@ -2760,6 +2760,10 @@ button:disabled { cursor: not-allowed; opacity: 0.55; }
 .lab-layout h3 { display: flex; align-items: center; gap: 7px; font-size: 0.88rem; }
 .lab-layout ul, .lab-layout ol, .artifact-prompt ul { margin-top: 10px; padding-left: 20px; }
 .lab-layout li, .artifact-prompt li { margin-top: 7px; color: var(--ink-secondary); font-size: 0.82rem; line-height: 1.5; }
+.experience-markdown code { border-radius: 4px; background: var(--surface-subtle); padding: 0.08em 0.28em; color: var(--ink); font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: 0.9em; }
+.lab-layout li > .experience-markdown, .artifact-prompt li > .experience-markdown { color: inherit; font-size: inherit; line-height: inherit; }
+.lab-layout .experience-markdown table { font-size: 0.76rem; }
+.artifact-prompt > .experience-markdown { margin-top: 6px; color: var(--ink-secondary); font-size: 0.86rem; line-height: 1.55; }
 .experience-privacy { display: block; margin-top: 14px; color: var(--ink-muted); font-size: 0.78rem; line-height: 1.5; }
 .source-rights-note { display: flex; align-items: flex-start; gap: 8px; color: var(--ink-secondary); font-size: 0.78rem; line-height: 1.55; }
 .source-rights-note svg { flex: 0 0 auto; margin-top: 2px; color: var(--success); }

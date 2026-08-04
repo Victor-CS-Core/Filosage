@@ -642,7 +642,7 @@ test("completes every rich lesson mode and records its active evidence", async (
     { type: "worked-example", scenario: "A team investigates a falling metric.", steps: [{ title: "Observe", reasoning: "Record the change.", output: "The metric fell." }, { title: "Compare", reasoning: "Check segments.", output: "One segment changed." }, { title: "Act", reasoning: "Limit downside.", output: "Run a pilot." }], fadingPrompt: "Finish the analysis for a second segment without the worked labels." },
     { type: "comparison", options: ["Pilot", "Full rollout"], criteria: [{ criterion: "Reversibility", first: "High", second: "Low" }, { criterion: "Learning", first: "Focused", second: "Confounded" }, { criterion: "Reach", first: "Limited", second: "Broad" }], boundaryCase: { prompt: "Choose when the evidence is strong but downside remains material.", resolution: "Use a staged rollout with an explicit stop condition." } },
     { type: "case-study", brief: "A release changed copy and audience eligibility together.", evidence: [{ label: "Completion", detail: "Completion fell." }, { label: "Mix", detail: "Traffic mix shifted." }, { label: "Support", detail: "Eligibility questions rose." }], interpretations: ["Copy may contribute.", "Eligibility may explain the shift."], decisionPrompt: "Choose a bounded next action and defend it." },
-    { type: "practice-lab", brief: "Create a decision record.", materials: ["Metric extract", "Release notes"], tasks: ["Classify claims", "Name uncertainty", "Define rollback"], artifactPrompt: "Produce a one-page decision record.", successCriteria: ["Evidence is labeled", "Rollback is measurable"] },
+    { type: "practice-lab", brief: "Create a **decision record**.", materials: ["Metric **extract**", "`Release notes`"], tasks: ["Classify **claims**", "Use the timing grid. | Signal | Meaning | | --- | --- | | Dot | 1 unit | | Dash | 3 units |", "Define rollback", "artifactPrompt", "successCriteria"], artifactPrompt: "Produce **one page**.\n\n- Label evidence\n- Name the owner", successCriteria: ["Evidence is **labeled**", "Rollback is `measurable`"] },
     { type: "synthesis", challenge: "Combine the evidence, tradeoff, and rollback into one recommendation.", connections: [{ concept: "Evidence", contribution: "Bounds confidence" }, { concept: "Reversibility", contribution: "Limits downside" }], capstoneContribution: "Complete the final recommendation.", reflectionPrompt: "Explain how the combined reasoning changes the action." },
   ];
   const labels = ["Your prediction", "Your unsupported finish", "Your boundary-case decision", "Your decision", "Your artifact record", "Your reflection"];
@@ -704,6 +704,13 @@ test("completes every rich lesson mode and records its active evidence", async (
   for (let index = 0; index < experiences.length; index += 1) {
     await expect(page.getByRole("heading", { level: 1, name: `Mode ${index + 1}: ${experiences[index].type}` })).toBeVisible();
     await page.getByRole("tab", { name: /Activities/ }).click();
+    if (index === 4) {
+      await expect(page.locator(".lab-layout table")).toBeVisible();
+      await expect(page.locator(".lab-layout strong", { hasText: "extract" })).toBeVisible();
+      await expect(page.locator(".artifact-prompt strong", { hasText: "one page" })).toBeVisible();
+      await expect(page.getByText("artifactPrompt", { exact: true })).toHaveCount(0);
+      await expect(page.getByText("successCriteria", { exact: true })).toHaveCount(0);
+    }
     const response = `Meaningful ${experiences[index].type} evidence that explains the learner's decision boundary.`;
     await page.getByLabel(labels[index]).fill(response);
     await page.getByRole("button", { name: submitLabels[index] }).click();

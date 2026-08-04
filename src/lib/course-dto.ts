@@ -35,6 +35,33 @@ function transferTaskDto(value: unknown): LessonData["transferTask"] {
     : undefined;
 }
 
+const RESERVED_EXPERIENCE_TASKS = new Set(["artifactprompt", "successcriteria"]);
+
+function lessonExperienceDto(value: unknown): LessonData["experience"] {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return undefined;
+  const experience = value as Record<string, unknown>;
+  if (experience.type !== "practice-lab") return experience as LessonData["experience"];
+
+  const brief = structuredText(experience.brief);
+  const artifactPrompt = structuredText(experience.artifactPrompt);
+  const materials = Array.isArray(experience.materials)
+    ? experience.materials.filter((item): item is string => typeof item === "string").map(normalizeStructuredMarkdown)
+    : [];
+  const tasks = Array.isArray(experience.tasks)
+    ? experience.tasks
+        .filter((item): item is string => typeof item === "string")
+        .map(normalizeStructuredMarkdown)
+        .filter((item) => !RESERVED_EXPERIENCE_TASKS.has(item.trim().toLowerCase().replace(/[^a-z]/g, "")))
+    : [];
+  const successCriteria = Array.isArray(experience.successCriteria)
+    ? experience.successCriteria.filter((item): item is string => typeof item === "string").map(normalizeStructuredMarkdown)
+    : [];
+
+  return brief && artifactPrompt && materials.length && tasks.length && successCriteria.length
+    ? { type: "practice-lab", brief, materials, tasks, artifactPrompt, successCriteria }
+    : undefined;
+}
+
 export function toCourseDto(value: Record<string, unknown> | Course, canManage = false): Course {
   const raw = value as Record<string, unknown>;
   const topic = String(raw.topic ?? "");
@@ -150,9 +177,7 @@ export function toLessonDto(value: Record<string, unknown>, courseAiAssisted = f
     keyTakeaways: Array.isArray(value.keyTakeaways)
       ? value.keyTakeaways.filter((item): item is string => typeof item === "string")
       : undefined,
-    experience: value.experience && typeof value.experience === "object"
-      ? value.experience as LessonData["experience"]
-      : undefined,
+    experience: lessonExperienceDto(value.experience),
     visuals: lessonVisualsEnabled() ? curateLessonVisuals(value.visuals) : [],
     guidedPractice: guidedPracticeDto(value.guidedPractice),
     transferTask: transferTaskDto(value.transferTask),
