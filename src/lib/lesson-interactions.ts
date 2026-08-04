@@ -76,8 +76,12 @@ export function curateLessonInteractions(value: unknown): LessonInteraction[] {
 }
 
 function uniqueMorsePatterns(markdown: string) {
-  const values = Array.from(markdown.matchAll(/`([.\- /]{2,80})`/g), (match) => match[1].trim())
-    .filter((value) => /[.-]/.test(value));
+  const values = Array.from(markdown.matchAll(/`([^`\n]{1,120})`/g), (match) => match[1]
+    .replace(/[\u00b7\u2022]/g, ".")
+    .replace(/[\u2010-\u2015\u2212]/g, "-")
+    .replace(/\s+/g, " ")
+    .trim())
+    .filter((value) => /^[.\- /]+$/.test(value) && /[.-]/.test(value));
   return [...new Set(values)].slice(0, 6);
 }
 

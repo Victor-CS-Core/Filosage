@@ -100,6 +100,12 @@ test("accepts only safe lesson interactions and derives a signal studio from tim
     quizzes: [],
   });
   expect(derived).toMatchObject([{ type: "signal", title: "Signal studio", patterns: [{ value: "... --- ..." }, { value: ".-" }] }]);
+
+  const typographicPatterns = deriveLessonInteractions({
+    content: "Use `··` for I, `·−` for A, and keep one steady beat.",
+    quizzes: [],
+  });
+  expect(typographicPatterns).toMatchObject([{ type: "signal", patterns: [{ value: ".." }, { value: ".-" }] }]);
 });
 
 test("unlocks generated lessons sequentially for Pro authors while owners remain unrestricted", () => {

@@ -683,8 +683,8 @@ export default function LessonView() {
     [lessonData?.visuals],
   );
   const lessonInteractions = useMemo(
-    () => lessonData ? deriveLessonInteractions(lessonData) : [],
-    [lessonData],
+    () => lessonData ? deriveLessonInteractions({ ...lessonData, content: normalizedContent }) : [],
+    [lessonData, normalizedContent],
   );
   const lessonSpeechText = useMemo(() => {
     if (!lesson) return "";
