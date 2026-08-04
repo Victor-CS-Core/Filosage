@@ -288,6 +288,11 @@ export function buildWeeklyMilestone(
   };
 }
 
+export function weeklyGoalChoices(currentTarget: number) {
+  const normalizedTarget = Math.max(1, Math.min(50, Math.round(currentTarget)));
+  return [...new Set([3, 5, 7, 10, normalizedTarget])].sort((left, right) => left - right);
+}
+
 export function reviewKindLabel(kind: ReviewKind) {
   if (kind === "delayed-7") return "7-day check";
   if (kind === "delayed-28") return "28-day check";

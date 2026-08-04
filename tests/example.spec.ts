@@ -22,6 +22,7 @@ import {
   confidenceCalibrationFor,
   scheduleAdaptiveReview,
   updateDelayedChecks,
+  weeklyGoalChoices,
 } from "../src/lib/adaptive-learning";
 import { buildLearningReminderCalendar } from "../src/lib/learning-reminders";
 import type { CourseProgress } from "../src/lib/learning-types";
@@ -2052,6 +2053,8 @@ test("keeps weekly milestones finite and free of catch-up debt", () => {
     percent: 20,
     isComplete: false,
   });
+  expect(weeklyGoalChoices(4)).toEqual([3, 4, 5, 7, 10]);
+  expect(weeklyGoalChoices(5)).toEqual([3, 5, 7, 10]);
 });
 
 test("exports an opt-in recurring reminder without an email dependency", () => {
