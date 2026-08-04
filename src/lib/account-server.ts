@@ -6,6 +6,7 @@ import {
 } from "@/lib/firebase-server";
 import { isLocalMode, LOCAL_OWNER_UID } from "@/lib/local-mode";
 import type { AccessLevel, AccountStatus, LearnerPlan } from "@/lib/course-types";
+import { serverEnvironment } from "@/lib/runtime-environment";
 
 export interface ServerAccount {
   uid: string;
@@ -27,7 +28,7 @@ export interface ServerAccount {
 
 function premiumEmailSet() {
   return new Set(
-    (process.env.PREMIUM_EMAILS ?? "")
+    (serverEnvironment.PREMIUM_EMAILS ?? "")
       .split(",")
       .map((email) => email.trim().toLowerCase())
       .filter(Boolean),
@@ -36,7 +37,7 @@ function premiumEmailSet() {
 
 export function isOwnerUser(user: VerifiedFirebaseUser) {
   if (isLocalMode()) return user.uid === LOCAL_OWNER_UID;
-  const ownerEmail = process.env.OWNER_EMAIL?.trim().toLowerCase();
+  const ownerEmail = serverEnvironment.OWNER_EMAIL?.trim().toLowerCase();
   return Boolean(ownerEmail && user.email_verified && user.email?.trim().toLowerCase() === ownerEmail);
 }
 

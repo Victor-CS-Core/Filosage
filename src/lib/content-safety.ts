@@ -6,6 +6,7 @@ import {
   getStoredDocument,
   runStoredDocumentTransaction,
 } from "@/lib/firebase-server";
+import { serverEnvironment } from "@/lib/runtime-environment";
 
 export type SafetyStage = "input" | "output";
 export const MODERATION_MODEL = "omni-moderation-latest";
@@ -43,9 +44,9 @@ function numberValue(value: unknown) {
 }
 
 async function contentFingerprint(value: string) {
-  const secret = process.env.SAFETY_FINGERPRINT_SECRET
-    ?? process.env.FIREBASE_PRIVATE_KEY
-    ?? process.env.OPENAI_API_KEY
+  const secret = serverEnvironment.SAFETY_FINGERPRINT_SECRET
+    ?? serverEnvironment.FIREBASE_PRIVATE_KEY
+    ?? serverEnvironment.OPENAI_API_KEY
     ?? "erudoza-local-development";
   const key = await crypto.subtle.importKey(
     "raw",

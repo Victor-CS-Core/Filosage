@@ -7,9 +7,10 @@ import { AuthProvider } from "@/components/AuthProvider";
 import { DrawerProvider } from "@/components/AppDrawer";
 import TrafficTracker from "@/components/TrafficTracker";
 import AnalyticsConsent from "@/components/AnalyticsConsent";
+import { serverEnvironment } from "@/lib/runtime-environment";
 
 function safeRequestOrigin(headerList: Headers) {
-  const configuredOrigin = process.env.NEXT_PUBLIC_SITE_URL;
+  const configuredOrigin = serverEnvironment.NEXT_PUBLIC_SITE_URL;
   if (configuredOrigin) {
     try {
       return new URL(configuredOrigin).origin;

@@ -16,9 +16,8 @@ import { AI_SAFETY_POLICY, assertSafeContent, ContentSafetyError } from "@/lib/c
 import { apiRequestErrorResponse, readJsonBody } from "@/lib/api-security";
 import { aiUsageProfileMetadata, openAiExecutionProfile } from "@/lib/openai-generation";
 
-const profile = openAiExecutionProfile("tutor.standard");
-
 export async function POST(request: Request) {
+  const profile = openAiExecutionProfile("tutor.standard");
   let reservation: AiReservation | null = null;
   try {
     const account = await requireAcceptedAccount(request);

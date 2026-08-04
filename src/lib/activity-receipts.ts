@@ -6,19 +6,20 @@ import {
   validateActivityReceipt,
   type ActivityReceiptClaims,
 } from "@/lib/activity-receipt-crypto";
+import { serverEnvironment } from "@/lib/runtime-environment";
 
 export { activityDocumentId };
 export type { ActivityReceiptClaims };
 
 function receiptSecret() {
-  const configured = process.env.ACTIVITY_RECEIPT_SECRET?.trim();
+  const configured = serverEnvironment.ACTIVITY_RECEIPT_SECRET?.trim();
   if (configured) {
-    if (process.env.NODE_ENV === "production" && configured.length < 32) {
+    if (serverEnvironment.NODE_ENV === "production" && configured.length < 32) {
       throw new Error("ACTIVITY_RECEIPT_SECRET must contain at least 32 characters.");
     }
     return configured;
   }
-  if (process.env.NODE_ENV !== "production") return "erudoza-local-activity-receipts";
+  if (serverEnvironment.NODE_ENV !== "production") return "erudoza-local-activity-receipts";
   throw new Error("ACTIVITY_RECEIPT_SECRET is not configured.");
 }
 

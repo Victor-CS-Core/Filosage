@@ -11,6 +11,7 @@ import {
   getStoredDocument,
   runStoredDocumentTransaction,
 } from "@/lib/firebase-server";
+import { serverEnvironment } from "@/lib/runtime-environment";
 
 export type AiFeature = "course_outline" | "course_banner" | "lesson_generation" | "tutor";
 export type AiBudgetPool = "free" | "paid" | "owner";
@@ -119,10 +120,10 @@ function positiveDollars(value: string | undefined, fallback: number) {
 
 export function aiBudgetLimitsUsd() {
   return {
-    free: positiveDollars(process.env.OPENAI_FREE_MONTHLY_BUDGET_USD, 25),
-    paid: positiveDollars(process.env.OPENAI_PAID_MONTHLY_BUDGET_USD, 500),
+    free: positiveDollars(serverEnvironment.OPENAI_FREE_MONTHLY_BUDGET_USD, 25),
+    paid: positiveDollars(serverEnvironment.OPENAI_PAID_MONTHLY_BUDGET_USD, 500),
     owner: positiveDollars(
-      process.env.OPENAI_OWNER_MONTHLY_BUDGET_USD ?? process.env.OPENAI_MONTHLY_BUDGET_USD,
+      serverEnvironment.OPENAI_OWNER_MONTHLY_BUDGET_USD ?? serverEnvironment.OPENAI_MONTHLY_BUDGET_USD,
       50,
     ),
   } satisfies Record<AiBudgetPool, number>;
@@ -130,12 +131,12 @@ export function aiBudgetLimitsUsd() {
 
 function userBudgetLimitMicros(account: ServerAccount) {
   if (account.isOwner) {
-    return positiveDollars(process.env.OPENAI_OWNER_USER_MONTHLY_BUDGET_USD, 50) * 1_000_000;
+    return positiveDollars(serverEnvironment.OPENAI_OWNER_USER_MONTHLY_BUDGET_USD, 50) * 1_000_000;
   }
   if (account.plan === "pro") {
-    return positiveDollars(process.env.OPENAI_PRO_USER_MONTHLY_BUDGET_USD, 6) * 1_000_000;
+    return positiveDollars(serverEnvironment.OPENAI_PRO_USER_MONTHLY_BUDGET_USD, 6) * 1_000_000;
   }
-  return positiveDollars(process.env.OPENAI_FREE_USER_MONTHLY_BUDGET_USD, 0.15) * 1_000_000;
+  return positiveDollars(serverEnvironment.OPENAI_FREE_USER_MONTHLY_BUDGET_USD, 0.15) * 1_000_000;
 }
 
 function budgetPoolFor(account: ServerAccount): AiBudgetPool {
@@ -357,12 +358,12 @@ export async function finalizeAiUsage(
 ) {
   const nowIso = new Date().toISOString();
   const defaultModel = reservation.feature === "tutor"
-    ? process.env.OPENAI_TUTOR_MODEL || "gpt-5.6-luna"
+    ? serverEnvironment.OPENAI_TUTOR_MODEL || "gpt-5.6-luna"
     : reservation.feature === "course_banner"
-      ? process.env.OPENAI_COURSE_IMAGE_MODEL || "gpt-image-1-mini"
+      ? serverEnvironment.OPENAI_COURSE_IMAGE_MODEL || "gpt-image-1-mini"
     : reservation.feature === "lesson_generation"
-      ? process.env.OPENAI_LESSON_MODEL || "gpt-5.6-luna"
-      : process.env.OPENAI_COURSE_MODEL || process.env.OPENAI_MODEL || "gpt-5.6-terra";
+      ? serverEnvironment.OPENAI_LESSON_MODEL || "gpt-5.6-luna"
+      : serverEnvironment.OPENAI_COURSE_MODEL || serverEnvironment.OPENAI_MODEL || "gpt-5.6-terra";
   const samples = result.usageSamples?.length
     ? result.usageSamples
     : [{

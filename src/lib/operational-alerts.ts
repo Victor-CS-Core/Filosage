@@ -1,5 +1,7 @@
 import "server-only";
 
+import { serverEnvironment } from "@/lib/runtime-environment";
+
 type AlertSeverity = "warning" | "critical";
 type SafeContext = Record<string, string | number | boolean | null | undefined>;
 const lastAlertAt = new Map<string, number>();
@@ -34,15 +36,15 @@ export async function reportOperationalEvent(event: {
   message: string;
   context?: SafeContext;
 }) {
-  const webhook = process.env.OPERATIONS_ALERT_WEBHOOK_URL?.trim();
+  const webhook = serverEnvironment.OPERATIONS_ALERT_WEBHOOK_URL?.trim();
   if (!webhook) return;
   const previous = lastAlertAt.get(event.code) ?? 0;
   if (Date.now() - previous < ALERT_DEDUPLICATION_MS) return;
   lastAlertAt.set(event.code, Date.now());
   const body = JSON.stringify({
     service: "erudoza",
-    environment: process.env.NODE_ENV ?? "unknown",
-    version: process.env.SITE_VERSION || process.env.GITHUB_SHA || null,
+    environment: serverEnvironment.NODE_ENV ?? "unknown",
+    version: serverEnvironment.SITE_VERSION || serverEnvironment.GITHUB_SHA || null,
     occurredAt: new Date().toISOString(),
     severity: event.severity,
     code: event.code.slice(0, 80),
@@ -52,7 +54,7 @@ export async function reportOperationalEvent(event: {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 3_000);
   try {
-    const secret = process.env.OPERATIONS_ALERT_WEBHOOK_SECRET?.trim();
+    const secret = serverEnvironment.OPERATIONS_ALERT_WEBHOOK_SECRET?.trim();
     const response = await fetch(webhook, {
       method: "POST",
       headers: {

@@ -1,14 +1,15 @@
 import { missingRuntimeConfiguration } from "@/lib/runtime-config";
 import { getStoredDocument } from "@/lib/firebase-server";
 import { reportOperationalEvent } from "@/lib/operational-alerts";
+import { serverEnvironment } from "@/lib/runtime-environment";
 
 export async function GET() {
   const missing = missingRuntimeConfiguration();
   const version = (
-    process.env.SITE_VERSION
-    || process.env.CF_PAGES_COMMIT_SHA
-    || process.env.GITHUB_SHA
-    || process.env.VERCEL_GIT_COMMIT_SHA
+    serverEnvironment.SITE_VERSION
+    || serverEnvironment.CF_PAGES_COMMIT_SHA
+    || serverEnvironment.GITHUB_SHA
+    || serverEnvironment.VERCEL_GIT_COMMIT_SHA
     || ""
   ).trim().slice(0, 40) || null;
   // Configuration names are operational detail: log them for the operator

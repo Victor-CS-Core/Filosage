@@ -4,6 +4,7 @@ import { putStoredDocument, runStoredDocumentTransaction } from "@/lib/firebase-
 import { recordBillingConsent, stripeClient, syncStripeSubscription } from "@/lib/stripe-server";
 import type Stripe from "stripe";
 import { reportOperationalEvent } from "@/lib/operational-alerts";
+import { serverEnvironment } from "@/lib/runtime-environment";
 
 export const runtime = "nodejs";
 
@@ -37,7 +38,7 @@ export async function POST(request: Request) {
   // signed webhook events to update access, cancellation, and payment state.
   if (!billingConfiguration().webhookReady) return Response.json({ error: "Billing is not configured." }, { status: 503 });
   const signature = request.headers.get("stripe-signature");
-  const secret = process.env.STRIPE_WEBHOOK_SECRET?.trim();
+  const secret = serverEnvironment.STRIPE_WEBHOOK_SECRET?.trim();
   if (!signature || !secret) return Response.json({ error: "Invalid Stripe webhook." }, { status: 400 });
 
   let rawBody: string | null;

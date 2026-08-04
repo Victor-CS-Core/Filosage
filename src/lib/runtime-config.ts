@@ -1,6 +1,7 @@
 import "server-only";
 
 import { evaluateBillingConfiguration } from "@/lib/billing-lock";
+import { serverEnvironment } from "@/lib/runtime-environment";
 
 const requiredInProduction = [
   "NEXT_PUBLIC_SITE_URL",
@@ -19,17 +20,17 @@ const requiredInProduction = [
 ] as const;
 
 export function missingRuntimeConfiguration() {
-  if (process.env.NODE_ENV !== "production") return [] as string[];
-  return requiredInProduction.filter((name) => !process.env[name]?.trim());
+  if (serverEnvironment.NODE_ENV !== "production") return [] as string[];
+  return requiredInProduction.filter((name) => !serverEnvironment[name]?.trim());
 }
 
 export function billingConfiguration() {
   return evaluateBillingConfiguration({
-    BILLING_PROVIDER: process.env.BILLING_PROVIDER,
-    BILLING_ENABLED: process.env.BILLING_ENABLED,
-    STRIPE_SECRET_KEY: process.env.STRIPE_SECRET_KEY,
-    STRIPE_WEBHOOK_SECRET: process.env.STRIPE_WEBHOOK_SECRET,
-    STRIPE_PRO_MONTHLY_PRICE_ID: process.env.STRIPE_PRO_MONTHLY_PRICE_ID,
-    STRIPE_PRO_ANNUAL_PRICE_ID: process.env.STRIPE_PRO_ANNUAL_PRICE_ID,
+    BILLING_PROVIDER: serverEnvironment.BILLING_PROVIDER,
+    BILLING_ENABLED: serverEnvironment.BILLING_ENABLED,
+    STRIPE_SECRET_KEY: serverEnvironment.STRIPE_SECRET_KEY,
+    STRIPE_WEBHOOK_SECRET: serverEnvironment.STRIPE_WEBHOOK_SECRET,
+    STRIPE_PRO_MONTHLY_PRICE_ID: serverEnvironment.STRIPE_PRO_MONTHLY_PRICE_ID,
+    STRIPE_PRO_ANNUAL_PRICE_ID: serverEnvironment.STRIPE_PRO_ANNUAL_PRICE_ID,
   });
 }

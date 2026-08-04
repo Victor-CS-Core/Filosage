@@ -19,6 +19,7 @@ import {
   type AcquisitionChannel,
   type ProductEventName,
 } from "@/lib/product-events";
+import { serverEnvironment } from "@/lib/runtime-environment";
 
 function numberValue(value: unknown) {
   return typeof value === "number" && Number.isFinite(value) ? value : 0;
@@ -553,10 +554,10 @@ export async function GET(request: Request) {
         mode: billing.configured ? "open" : "closed",
         billingLockActive: !billing.enabled,
         paymentProviderConfigured: billing.providerReady,
-        activityReceiptsConfigured: Boolean(process.env.ACTIVITY_RECEIPT_SECRET?.trim()),
-        operationsAlertsConfigured: Boolean(process.env.OPERATIONS_ALERT_WEBHOOK_URL?.trim()),
-        managedBackupsConfigured: Boolean(process.env.FIRESTORE_BACKUP_BUCKET?.trim()),
-        productionHealthMonitorConfigured: Boolean(process.env.PRODUCTION_HEALTH_URL?.trim()),
+        activityReceiptsConfigured: Boolean(serverEnvironment.ACTIVITY_RECEIPT_SECRET?.trim()),
+        operationsAlertsConfigured: Boolean(serverEnvironment.OPERATIONS_ALERT_WEBHOOK_URL?.trim()),
+        managedBackupsConfigured: Boolean(serverEnvironment.FIRESTORE_BACKUP_BUCKET?.trim()),
+        productionHealthMonitorConfigured: Boolean(serverEnvironment.PRODUCTION_HEALTH_URL?.trim()),
         supportChannelConfigured: Boolean(SUPPORT_CONTACT.trim()),
         lifecycleMessagingConfigured: false,
         openContentReports: openContentReportCount,

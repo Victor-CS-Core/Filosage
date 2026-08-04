@@ -14,6 +14,7 @@ import {
   buildCourseBannerPrompt,
   COURSE_BANNER_STYLE_VERSION,
 } from "@/lib/course-banner-prompt";
+import { serverEnvironment } from "@/lib/runtime-environment";
 
 const STYLE_VERSION = COURSE_BANNER_STYLE_VERSION;
 const MAX_STORED_IMAGE_BYTES = 650_000;
@@ -64,8 +65,8 @@ function generationCostMicros(model: string) {
 }
 
 function isEnabled() {
-  const flag = process.env.COURSE_BANNERS_ENABLED?.trim().toLowerCase();
-  return flag !== "false" && Boolean(process.env.OPENAI_API_KEY);
+  const flag = serverEnvironment.COURSE_BANNERS_ENABLED?.trim().toLowerCase();
+  return flag !== "false" && Boolean(serverEnvironment.OPENAI_API_KEY);
 }
 
 async function reusableBanner(assetId: string, fallbackModel: string): Promise<CourseBannerResult | null> {
@@ -105,7 +106,7 @@ export async function createOrReuseCourseBanner(
 ): Promise<CourseBannerResult | null> {
   if (!isEnabled()) return null;
 
-  const model = process.env.OPENAI_COURSE_IMAGE_MODEL?.trim() || DEFAULT_MODEL;
+  const model = serverEnvironment.OPENAI_COURSE_IMAGE_MODEL?.trim() || DEFAULT_MODEL;
   const fingerprint = await sha256([
     STYLE_VERSION,
     input.variant ?? 0,

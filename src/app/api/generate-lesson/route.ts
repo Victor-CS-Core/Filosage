@@ -36,12 +36,7 @@ import {
   type AiExecutionProfile,
 } from "@/lib/openai-generation";
 
-const standardProfile = openAiExecutionProfile("lesson.standard");
-const fallbackProfile = openAiExecutionProfile("lesson.fallback");
-const recoveryProfile = openAiExecutionProfile("lesson.recovery");
-const lessonVisualsAreEnabled = lessonVisualsEnabled();
-
-const lessonInstructions = `Act as a rigorous teacher and instructional designer. Create one lesson that advances a specific capability within a larger course.
+const lessonInstructions = (lessonVisualsAreEnabled: boolean) => `Act as a rigorous teacher and instructional designer. Create one lesson that advances a specific capability within a larger course.
 
 Use the requested lesson mode instead of forcing every lesson into the same pattern. The experience object is the lesson's central activity and its type must exactly match the requested teaching mode. For concept, ask for a prediction before revealing a mental model and misconception correction. For worked-example, expose at least three expert reasoning steps, then fade support. For comparison, use explicit criteria and a difficult boundary case. For case-study, provide an evidence packet, competing interpretations, and a decision prompt. For practice-lab, provide usable materials, ordered tasks, and an artifact with criteria. For synthesis, connect prior concepts and advance the course capstone. Begin by connecting this lesson to prerequisite knowledge, then state one observable learning objective. Explain only what the learner needs in order to do the activity. Include guided practice with visible reasoning, followed by a transfer task that asks the learner to use the idea in a different situation. End with concise takeaways, not a repeated conclusion.
 
@@ -60,6 +55,10 @@ Create application-focused quizzes, not trivia. Each answer option needs feedbac
 ${AI_SAFETY_POLICY}`;
 
 export async function POST(request: Request) {
+  const standardProfile = openAiExecutionProfile("lesson.standard");
+  const fallbackProfile = openAiExecutionProfile("lesson.fallback");
+  const recoveryProfile = openAiExecutionProfile("lesson.recovery");
+  const lessonVisualsAreEnabled = lessonVisualsEnabled();
   let reservation: AiReservation | null = null;
   const usageSamples: AiUsageSample[] = [];
   let responseId: string | undefined;
@@ -200,7 +199,7 @@ export async function POST(request: Request) {
     const generate = (profile: AiExecutionProfile, repairIssues: string[] = []) => client.responses.parse({
       model: profile.model,
       store: false,
-      instructions: `${lessonInstructions}\n\n${languagePolicyInstruction(topic)}`,
+      instructions: `${lessonInstructions(lessonVisualsAreEnabled)}\n\n${languagePolicyInstruction(topic)}`,
       input: repairIssues.length
         ? `${lessonContext}\n\nThe previous draft failed the quality gate. Correct every issue:\n- ${repairIssues.join("\n- ")}`
         : lessonContext,

@@ -1,5 +1,7 @@
 import "server-only";
 
+import { serverEnvironment } from "@/lib/runtime-environment";
+
 export class ApiRequestError extends Error {
   constructor(
     public readonly status: 400 | 403 | 413 | 415,
@@ -12,7 +14,7 @@ export class ApiRequestError extends Error {
 function allowedOrigins(request: Request) {
   const url = new URL(request.url);
   const values = new Set([url.origin]);
-  const configured = [process.env.NEXT_PUBLIC_SITE_URL, ...(process.env.ALLOWED_ORIGINS ?? "").split(",")];
+  const configured = [serverEnvironment.NEXT_PUBLIC_SITE_URL, ...(serverEnvironment.ALLOWED_ORIGINS ?? "").split(",")];
   for (const candidate of configured) {
     const value = candidate?.trim();
     if (!value) continue;
@@ -33,7 +35,7 @@ export function assertTrustedMutation(request: Request) {
   // Browsers send Origin for JSON POSTs and/or an unforgeable Fetch Metadata
   // header. In production, accepting neither would let non-browser clients
   // bypass the documented same-origin boundary accidentally.
-  if (process.env.NODE_ENV === "production"
+  if (serverEnvironment.NODE_ENV === "production"
     && !origin
     && fetchSite !== "same-origin"
     && fetchSite !== "same-site") {

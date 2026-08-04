@@ -2,6 +2,7 @@ import "server-only";
 
 import OpenAI from "openai";
 import { isLocalMode } from "@/lib/local-mode";
+import { serverEnvironment } from "@/lib/runtime-environment";
 
 /**
  * Returns a real OpenAI client whenever an API key is configured. In local
@@ -10,8 +11,8 @@ import { isLocalMode } from "@/lib/local-mode";
  * and the lesson quality gate — so every AI feature is exercisable offline.
  */
 export function aiClient(): OpenAI {
-  if (process.env.OPENAI_API_KEY || !isLocalMode()) {
-    return new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+  if (serverEnvironment.OPENAI_API_KEY || !isLocalMode()) {
+    return new OpenAI({ apiKey: serverEnvironment.OPENAI_API_KEY });
   }
   return localAiStub() as unknown as OpenAI;
 }

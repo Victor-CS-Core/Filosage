@@ -14,6 +14,7 @@ import { removeCourseReferences } from "@/lib/course-deletion";
 import type { PublicationLessonReview } from "@/lib/publication-review";
 import { inspectCoursePublishReadiness } from "@/lib/publication-readiness";
 import { firebaseAuthenticationClaimsFromIdToken } from "@/lib/recent-auth";
+import { serverEnvironment } from "@/lib/runtime-environment";
 
 export interface VerifiedFirebaseUser {
   uid: string;
@@ -85,9 +86,9 @@ let accessTokenRequest: Promise<string> | null = null;
 
 function requiredEnvironment() {
   if (isLocalMode()) return { projectId: "local", clientEmail: "local", privateKey: "local" };
-  const projectId = process.env.FIREBASE_PROJECT_ID;
-  const clientEmail = process.env.FIREBASE_CLIENT_EMAIL;
-  const privateKey = process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, "\n");
+  const projectId = serverEnvironment.FIREBASE_PROJECT_ID;
+  const clientEmail = serverEnvironment.FIREBASE_CLIENT_EMAIL;
+  const privateKey = serverEnvironment.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, "\n");
 
   if (!projectId || !clientEmail || !privateKey) {
     throw new Error("Firebase server credentials are not configured.");
@@ -285,7 +286,7 @@ export async function verifyFirebaseIdToken(idToken: string): Promise<VerifiedFi
     if (idToken === "local-dev-token" || idToken === "playwright-local-owner") {
       return {
         uid: LOCAL_OWNER_UID,
-        email: process.env.OWNER_EMAIL?.trim().toLowerCase() || LOCAL_OWNER_EMAIL,
+        email: serverEnvironment.OWNER_EMAIL?.trim().toLowerCase() || LOCAL_OWNER_EMAIL,
         email_verified: true,
         auth_time,
         name: "Local Owner",
@@ -311,7 +312,7 @@ export async function verifyFirebaseIdToken(idToken: string): Promise<VerifiedFi
     }
     return null;
   }
-  const apiKey = process.env.NEXT_PUBLIC_FIREBASE_API_KEY;
+  const apiKey = serverEnvironment.NEXT_PUBLIC_FIREBASE_API_KEY;
   if (!apiKey) throw new Error("Firebase web authentication is not configured.");
 
   const response = await fetch(

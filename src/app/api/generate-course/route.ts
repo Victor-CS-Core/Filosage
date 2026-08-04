@@ -32,11 +32,10 @@ import {
 } from "@/lib/openai-generation";
 import { safeModelErrorDetails } from "@/lib/model-fallback";
 
-const standardProfile = openAiExecutionProfile("course.standard");
-const repairProfile = openAiExecutionProfile("course.repair");
-const recoveryProfile = openAiExecutionProfile("course.recovery");
-
 export async function POST(request: Request) {
+  const standardProfile = openAiExecutionProfile("course.standard");
+  const repairProfile = openAiExecutionProfile("course.repair");
+  const recoveryProfile = openAiExecutionProfile("course.recovery");
   let reservation: AiReservation | null = null;
   let observedUsage = { inputTokens: 0, cachedInputTokens: 0, cacheWriteTokens: 0, outputTokens: 0 };
   let observedUsageSamples: AiUsageSample[] | null = null;

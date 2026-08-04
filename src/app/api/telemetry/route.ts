@@ -9,6 +9,7 @@ import {
   PRODUCT_EVENT_ROUTES,
   PRODUCT_EVENT_SCHEMA_VERSION,
 } from "@/lib/product-events";
+import { serverEnvironment } from "@/lib/runtime-environment";
 
 const telemetrySchema = z.object({
   schemaVersion: z.literal(PRODUCT_EVENT_SCHEMA_VERSION).default(PRODUCT_EVENT_SCHEMA_VERSION),
@@ -52,7 +53,7 @@ export async function POST(request: Request) {
     if (!parsed.success) {
       return Response.json({ error: "Invalid traffic event." }, { status: 400 });
     }
-    if (!isLocalMode() && (!process.env.FIREBASE_PROJECT_ID || !process.env.FIREBASE_CLIENT_EMAIL || !process.env.FIREBASE_PRIVATE_KEY)) {
+    if (!isLocalMode() && (!serverEnvironment.FIREBASE_PROJECT_ID || !serverEnvironment.FIREBASE_CLIENT_EMAIL || !serverEnvironment.FIREBASE_PRIVATE_KEY)) {
       return new Response(null, { status: 204 });
     }
 

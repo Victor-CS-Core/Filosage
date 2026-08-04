@@ -1,5 +1,7 @@
 import "server-only";
 
+import { serverEnvironment } from "@/lib/runtime-environment";
+
 export const LOCAL_OWNER_UID = "local-owner";
 export const LOCAL_OWNER_EMAIL = "owner@erudoza.local";
 
@@ -11,8 +13,8 @@ export const LOCAL_OWNER_EMAIL = "owner@erudoza.local";
  * it can never activate in a deployed environment, whatever else is misconfigured.
  */
 export function isLocalMode() {
-  return process.env.NODE_ENV !== "production"
-    && (!process.env.FIREBASE_PROJECT_ID
-      || !process.env.FIREBASE_CLIENT_EMAIL
-      || !process.env.FIREBASE_PRIVATE_KEY);
+  return serverEnvironment.NODE_ENV !== "production"
+    && (!serverEnvironment.FIREBASE_PROJECT_ID
+      || !serverEnvironment.FIREBASE_CLIENT_EMAIL
+      || !serverEnvironment.FIREBASE_PRIVATE_KEY);
 }

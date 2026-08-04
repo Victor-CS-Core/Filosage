@@ -1,5 +1,7 @@
 import "server-only";
 
+import { serverEnvironment } from "@/lib/runtime-environment";
+
 export function lessonVisualsEnabled() {
-  return process.env.LESSON_VISUALS_ENABLED?.trim().toLowerCase() === "true";
+  return serverEnvironment.LESSON_VISUALS_ENABLED?.trim().toLowerCase() === "true";
 }

@@ -2,6 +2,7 @@ import "server-only";
 
 import { billingConfiguration } from "@/lib/runtime-config";
 import { PRO_OFFER } from "@/lib/billing-offer";
+import { serverEnvironment } from "@/lib/runtime-environment";
 
 export const proPlan = {
   id: "pro_monthly",
@@ -10,8 +11,8 @@ export const proPlan = {
   currency: PRO_OFFER.currency,
   priceUsd: PRO_OFFER.monthly.amountMinor / 100,
   annualPriceUsd: PRO_OFFER.annual.amountMinor / 100,
-  priceId: process.env.STRIPE_PRO_MONTHLY_PRICE_ID ?? "",
-  annualPriceId: process.env.STRIPE_PRO_ANNUAL_PRICE_ID ?? "",
+  get priceId() { return serverEnvironment.STRIPE_PRO_MONTHLY_PRICE_ID ?? ""; },
+  get annualPriceId() { return serverEnvironment.STRIPE_PRO_ANNUAL_PRICE_ID ?? ""; },
   features: { courseOutlines: 3, generatedLessons: 30, tutorQuestions: 100 },
 };
 

@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { securityHeaders } from "@/lib/security-headers";
+import { serverEnvironment } from "@/lib/runtime-environment";
 
 export function proxy(request: NextRequest) {
   const nonce = btoa(crypto.randomUUID());
@@ -8,7 +9,7 @@ export function proxy(request: NextRequest) {
     ? forwardedProtocol === "https"
     : request.nextUrl.protocol === "https:";
   const responseHeaders = securityHeaders(
-    process.env.NODE_ENV === "development",
+    serverEnvironment.NODE_ENV === "development",
     nonce,
     isSecureRequest,
   );

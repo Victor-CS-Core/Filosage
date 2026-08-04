@@ -1,3 +1,5 @@
+import { serverEnvironment } from "@/lib/runtime-environment";
+
 export const AI_PROMPT_VERSIONS = {
   course: "2026-08-04-guided-apprenticeship",
   lesson: "2026-08-03-guided-apprenticeship",
@@ -129,7 +131,7 @@ export function stablePromptCacheKey(
 
 export function openAiExecutionProfile(
   id: AiExecutionProfileId,
-  environment: NodeJS.ProcessEnv = process.env,
+  environment: NodeJS.ProcessEnv = serverEnvironment,
 ): AiExecutionProfile {
   const spec = PROFILE_SPECS[id];
   const model = configuredModel(spec, environment);

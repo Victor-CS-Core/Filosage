@@ -11,6 +11,7 @@ import {
   type BillingInterval,
 } from "@/lib/billing-offer";
 import { PRIVACY_VERSION, TERMS_VERSION } from "@/lib/legal";
+import { serverEnvironment } from "@/lib/runtime-environment";
 
 const CHECKOUT_CLAIM_STALE_MS = 2 * 60_000;
 
@@ -28,7 +29,7 @@ type CheckoutClaim =
   };
 
 function requiredStripeSecret() {
-  const secret = process.env.STRIPE_SECRET_KEY?.trim();
+  const secret = serverEnvironment.STRIPE_SECRET_KEY?.trim();
   if (!secret) throw new Error("Stripe is not configured.");
   return secret;
 }
@@ -38,15 +39,15 @@ export function stripeClient() {
 }
 
 export function siteUrl() {
-  const value = process.env.NEXT_PUBLIC_SITE_URL?.trim();
+  const value = serverEnvironment.NEXT_PUBLIC_SITE_URL?.trim();
   if (!value) throw new Error("NEXT_PUBLIC_SITE_URL is required for billing.");
   return value.replace(/\/$/, "");
 }
 
 export function priceForInterval(interval: BillingInterval) {
   const value = interval === "annual"
-    ? process.env.STRIPE_PRO_ANNUAL_PRICE_ID?.trim()
-    : process.env.STRIPE_PRO_MONTHLY_PRICE_ID?.trim();
+    ? serverEnvironment.STRIPE_PRO_ANNUAL_PRICE_ID?.trim()
+    : serverEnvironment.STRIPE_PRO_MONTHLY_PRICE_ID?.trim();
   if (!value) throw new Error(`${interval === "annual" ? "Annual" : "Monthly"} Pro billing is not configured.`);
   return value;
 }
@@ -274,9 +275,9 @@ export async function createBillingPortalSession(account: ServerAccount) {
 
 function configuredProPriceIds() {
   const allowed = new Set([
-    process.env.STRIPE_PRO_MONTHLY_PRICE_ID?.trim(),
-    process.env.STRIPE_PRO_ANNUAL_PRICE_ID?.trim(),
-    ...(process.env.STRIPE_PRO_LEGACY_PRICE_IDS ?? "").split(",").map((value) => value.trim()),
+    serverEnvironment.STRIPE_PRO_MONTHLY_PRICE_ID?.trim(),
+    serverEnvironment.STRIPE_PRO_ANNUAL_PRICE_ID?.trim(),
+    ...(serverEnvironment.STRIPE_PRO_LEGACY_PRICE_IDS ?? "").split(",").map((value) => value.trim()),
   ].filter((value): value is string => Boolean(value)));
   if (!allowed.size) throw new Error("No supported Erudoza Pro Stripe Prices are configured.");
   return allowed;
