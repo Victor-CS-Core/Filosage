@@ -33,7 +33,8 @@ import { useMasteryJourney } from "@/components/useMasteryJourney";
 import { useAuth } from "@/components/AuthProvider";
 import type { Course } from "@/lib/course-types";
 import type { CapstoneAssessment, CourseProgress } from "@/lib/learning-types";
-import type { PublicationLessonFailure } from "@/lib/publication-readiness";
+import type { PublicationAssessment } from "@/lib/publication-assessment";
+import type { CoursePublishReadiness, PublicationLessonFailure } from "@/lib/publication-readiness";
 import { clearLocalCourseData } from "@/lib/local-course-data";
 import { createClientId } from "@/lib/browser-compat";
 import { trackProductEvent } from "@/lib/product-analytics";
@@ -56,7 +57,16 @@ export default function CourseMap() {
   const [bannerBusy, setBannerBusy] = useState(false);
   const [publishAttested, setPublishAttested] = useState(false);
   const [publicationFailures, setPublicationFailures] = useState<PublicationLessonFailure[]>([]);
+  const [publicationAssessment, setPublicationAssessment] = useState<{
+    assessmentHash: string;
+    assessment: PublicationAssessment;
+  } | null>(null);
   const [regeneratingLessonId, setRegeneratingLessonId] = useState<string | null>(null);
+  const [repairingAll, setRepairingAll] = useState(false);
+  const [repairProgress, setRepairProgress] = useState<string | null>(null);
+  const [overrideReason, setOverrideReason] = useState("");
+  const [overrideConfirmed, setOverrideConfirmed] = useState(false);
+  const [overrideBusy, setOverrideBusy] = useState(false);
   const [completedLessons, setCompletedLessons] = useState<string[]>([]);
   const [capstoneAssessment, setCapstoneAssessment] = useState<CapstoneAssessment | null>(null);
   const [capstoneSubmission, setCapstoneSubmission] = useState("");
@@ -68,7 +78,9 @@ export default function CourseMap() {
   const [sourceReportBusy, setSourceReportBusy] = useState(false);
   const [sourceReportStatus, setSourceReportStatus] = useState<string | null>(null);
   const deleteDrawer = useAppDrawer("course-delete-confirmation");
+  const overrideDrawer = useAppDrawer("course-publication-override");
   const closeDeleteDrawer = deleteDrawer.closeDrawer;
+  const closeOverrideDrawer = overrideDrawer.closeDrawer;
   const activeCourseViewRef = useRef(courseViewKey);
 
   const getToken = useCallback(async () => (user ? user.getIdToken() : null), [user]);
@@ -125,6 +137,7 @@ export default function CourseMap() {
   useEffect(() => {
     activeCourseViewRef.current = courseViewKey;
     closeDeleteDrawer();
+    closeOverrideDrawer();
     void Promise.resolve().then(() => {
       if (activeCourseViewRef.current !== courseViewKey) return;
       setLoading(true);
@@ -134,7 +147,13 @@ export default function CourseMap() {
       setBannerBusy(false);
       setPublishAttested(false);
       setPublicationFailures([]);
+      setPublicationAssessment(null);
       setRegeneratingLessonId(null);
+      setRepairingAll(false);
+      setRepairProgress(null);
+      setOverrideReason("");
+      setOverrideConfirmed(false);
+      setOverrideBusy(false);
       setCompletedLessons([]);
       setCapstoneAssessment(null);
       setCapstoneSubmission("");
@@ -146,7 +165,7 @@ export default function CourseMap() {
       setSourceReportBusy(false);
       setSourceReportStatus(null);
     });
-  }, [closeDeleteDrawer, courseViewKey]);
+  }, [closeDeleteDrawer, closeOverrideDrawer, courseViewKey]);
 
   useEffect(() => {
     void Promise.resolve().then(loadOrGenerate);
@@ -251,6 +270,7 @@ export default function CourseMap() {
     setUpdating(true);
     setActionError(null);
     setPublicationFailures([]);
+    setPublicationAssessment(null);
     try {
       const token = await getToken();
       const response = await fetch(`/api/courses/${operationCourseId}`, {
@@ -272,10 +292,23 @@ export default function CourseMap() {
             && Array.isArray((item as PublicationLessonFailure).issues),
           ));
         }
+        if (
+          isOwner
+          && data.overrideEligible === true
+          && typeof data.assessmentHash === "string"
+          && data.assessment
+          && typeof data.assessment === "object"
+        ) {
+          setPublicationAssessment({
+            assessmentHash: data.assessmentHash,
+            assessment: data.assessment as PublicationAssessment,
+          });
+        }
         throw new Error(data.error || "Visibility could not be updated.");
       }
       setCourseRecord({ key: operationViewKey, value: { ...course, isPublic: data.isPublic } });
       setPublishAttested(false);
+      setPublicationAssessment(null);
       window.dispatchEvent(new Event("erudoza:courses-changed"));
     } catch (updateError) {
       if (isCurrentView()) setActionError(updateError instanceof Error ? updateError.message : "Visibility could not be updated.");
@@ -309,32 +342,120 @@ export default function CourseMap() {
     }
   };
 
+  const requestLessonRegeneration = async (lessonId: string) => {
+    if (!user || !course?.canManage || !courseId || course.isPublic) {
+      throw new Error("This lesson cannot be regenerated right now.");
+    }
+    const token = await getToken();
+    const response = await fetch("/api/generate-lesson", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+        "Idempotency-Key": createClientId(),
+      },
+      body: JSON.stringify({ courseId, lessonId, regenerate: true }),
+    });
+    const data = await response.json() as {
+      error?: string;
+      publicationReadiness?: CoursePublishReadiness;
+    };
+    if (!response.ok) throw new Error(data.error || "The lesson could not be regenerated.");
+    return data.publicationReadiness;
+  };
+
+  const applyPublicationPreflight = (readiness: CoursePublishReadiness | undefined, repairedLessonId: string) => {
+    setPublicationFailures((current) => readiness?.invalidLessons
+      ?? current.filter((failure) => failure.lessonId !== repairedLessonId));
+    setPublicationAssessment(null);
+  };
+
   const regenerateLesson = async (lessonId: string) => {
-    if (!user || !course?.canManage || !courseId || course.isPublic) return;
+    if (!user || !course?.canManage || !courseId || course.isPublic || repairingAll) return;
     const operationViewKey = activeCourseViewRef.current;
-    const operationCourseId = courseId;
     const isCurrentView = () => activeCourseViewRef.current === operationViewKey;
     setRegeneratingLessonId(lessonId);
     setActionError(null);
     try {
-      const token = await getToken();
-      const response = await fetch("/api/generate-lesson", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-          "Idempotency-Key": createClientId(),
-        },
-        body: JSON.stringify({ courseId: operationCourseId, lessonId, regenerate: true }),
-      });
-      const data = await response.json() as { error?: string };
+      const readiness = await requestLessonRegeneration(lessonId);
       if (!isCurrentView()) return;
-      if (!response.ok) throw new Error(data.error || "The lesson could not be regenerated.");
-      setPublicationFailures((current) => current.filter((failure) => failure.lessonId !== lessonId));
+      applyPublicationPreflight(readiness, lessonId);
     } catch (regenerationError) {
       if (isCurrentView()) setActionError(regenerationError instanceof Error ? regenerationError.message : "The lesson could not be regenerated.");
     } finally {
       if (isCurrentView()) setRegeneratingLessonId(null);
+    }
+  };
+
+  const repairAllPublicationFailures = async () => {
+    if (repairingAll || publicationFailures.length === 0) return;
+    const operationViewKey = activeCourseViewRef.current;
+    const failures = [...publicationFailures];
+    setRepairingAll(true);
+    setActionError(null);
+    try {
+      for (let index = 0; index < failures.length; index += 1) {
+        if (activeCourseViewRef.current !== operationViewKey) return;
+        const failure = failures[index];
+        setRegeneratingLessonId(failure.lessonId);
+        setRepairProgress(`Repairing ${index + 1} of ${failures.length}`);
+        const readiness = await requestLessonRegeneration(failure.lessonId);
+        if (activeCourseViewRef.current !== operationViewKey) return;
+        applyPublicationPreflight(readiness, failure.lessonId);
+      }
+      setRepairProgress("Repair complete. Review the replacement lessons before publishing.");
+    } catch (repairError) {
+      if (activeCourseViewRef.current === operationViewKey) {
+        setActionError(repairError instanceof Error ? repairError.message : "The lesson repairs could not be completed.");
+      }
+    } finally {
+      if (activeCourseViewRef.current === operationViewKey) {
+        setRegeneratingLessonId(null);
+        setRepairingAll(false);
+      }
+    }
+  };
+
+  const publishWithOwnerOverride = async () => {
+    if (!user || !courseId || !isOwner || !publicationAssessment || overrideBusy) return;
+    const operationViewKey = activeCourseViewRef.current;
+    setOverrideBusy(true);
+    setActionError(null);
+    try {
+      const token = await getToken();
+      const response = await fetch(`/api/admin/courses/${courseId}/publication-override`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({
+          reason: overrideReason.trim(),
+          assessmentHash: publicationAssessment.assessmentHash,
+          confirmation: overrideConfirmed ? "PUBLISH WITH QUALITY OVERRIDE" : "",
+        }),
+      });
+      const data = await response.json() as { error?: string; isPublic?: boolean };
+      if (activeCourseViewRef.current !== operationViewKey) return;
+      if (!response.ok) throw new Error(data.error || "The publication override could not be completed.");
+      setCourseRecord({
+        key: operationViewKey,
+        value: course ? {
+          ...course,
+          isPublic: true,
+          publicationReview: { status: "owner_override" },
+        } : course,
+      });
+      setPublicationFailures([]);
+      setPublicationAssessment(null);
+      setPublishAttested(false);
+      setOverrideReason("");
+      setOverrideConfirmed(false);
+      overrideDrawer.closeDrawer();
+      window.dispatchEvent(new Event("erudoza:courses-changed"));
+    } catch (overrideError) {
+      if (activeCourseViewRef.current === operationViewKey) {
+        setActionError(overrideError instanceof Error ? overrideError.message : "The publication override could not be completed.");
+      }
+    } finally {
+      if (activeCourseViewRef.current === operationViewKey) setOverrideBusy(false);
     }
   };
 
@@ -635,17 +756,35 @@ export default function CourseMap() {
               {!course.isPublic && <p className="owner-action-hint">{isOwner
                 ? "Every lesson must be generated. Automated safety, language, and teaching-quality checks run again before publication."
                 : "Complete each lesson’s activities to unlock generation of the next lesson. Publication runs a fresh safety, language, and teaching-quality review."}</p>}
-               {course.isPublic && <p className="owner-action-hint">Published content passed automated safety and quality review. AI-generated factual claims are not independently verified.</p>}
-               {publicationFailures.length > 0 && (
+               {course.isPublic && <p className="owner-action-hint">{course.publicationReview?.status === "owner_override"
+                 ? "Published with an audited owner quality override after the non-bypassable safety and structure checks passed. AI-generated factual claims are not independently verified."
+                 : "Published content passed automated safety and quality review. AI-generated factual claims are not independently verified."}</p>}
+               {(publicationFailures.length > 0 || publicationAssessment || repairProgress) && (
                  <section className="publication-failures" aria-labelledby="publication-failures-title">
                    <div>
                      <TriangleAlert size={18} aria-hidden="true" />
                      <div>
                        <h2 id="publication-failures-title">Publication review needs attention</h2>
-                       <p>Regenerate the listed lessons, then review and publish again. The current lesson stays available unless a replacement passes the teaching standard.</p>
+                       <p>{publicationFailures.length > 0
+                         ? "Regenerate the listed lessons, then review and publish again. The current lesson stays available unless a replacement passes the teaching standard."
+                         : publicationAssessment
+                           ? "The course has quality warnings that require correction or an explicit owner decision."
+                           : "The replacement lessons passed the automatic publication preflight. Review them before publishing."}</p>
+                       {publicationFailures.length > 1 && (
+                         <button
+                           className="button button-secondary button-small publication-repair-all"
+                           type="button"
+                           onClick={() => void repairAllPublicationFailures()}
+                           disabled={updating || bannerBusy || repairingAll || regeneratingLessonId !== null}
+                         >
+                           {repairingAll ? <LoaderCircle className="spin" size={15} /> : <RefreshCw size={15} />}
+                           {repairingAll ? repairProgress ?? "Repairing lessons…" : `Repair all ${publicationFailures.length} lessons`}
+                         </button>
+                       )}
+                       {repairProgress && !repairingAll && <small className="publication-repair-status" role="status">{repairProgress}</small>}
                      </div>
                    </div>
-                   <ul>
+                   {publicationFailures.length > 0 && <ul>
                      {publicationFailures.map((failure) => {
                        const [moduleIndex, lessonIndex] = failure.lessonId.split("-").map(Number);
                        const lesson = course.modules[moduleIndex]?.lessons[lessonIndex];
@@ -659,7 +798,7 @@ export default function CourseMap() {
                            <button
                              className="button button-secondary"
                              onClick={() => void regenerateLesson(failure.lessonId)}
-                             disabled={updating || bannerBusy || regeneratingLessonId !== null}
+                             disabled={updating || bannerBusy || repairingAll || regeneratingLessonId !== null}
                            >
                              {regenerating ? <LoaderCircle className="spin" size={16} /> : <RefreshCw size={16} />}
                              {regenerating ? "Regenerating…" : "Regenerate lesson"}
@@ -667,7 +806,28 @@ export default function CourseMap() {
                          </li>
                        );
                      })}
-                   </ul>
+                   </ul>}
+                   {isOwner && publicationAssessment?.assessment.overrideEligible && (
+                     <div className="publication-override-offer">
+                       <div>
+                         <strong>Owner quality override</strong>
+                         <p>This can accept the listed teaching or language warnings. It cannot bypass safety review, missing lessons, invalid lesson structure, unsafe source links, or quarantine.</p>
+                       </div>
+                       <button
+                         className="button button-quiet"
+                         type="button"
+                         onClick={() => {
+                           setActionError(null);
+                           setOverrideReason("");
+                           setOverrideConfirmed(false);
+                           overrideDrawer.openDrawer();
+                         }}
+                         disabled={updating || repairingAll || overrideBusy}
+                       >
+                         Review owner override
+                       </button>
+                     </div>
+                   )}
                  </section>
                )}
                {actionError && <p className="form-error" role="alert"><Circle size={14} /> {actionError}</p>}
@@ -758,6 +918,81 @@ export default function CourseMap() {
               </div>
             </section>
         )}
+
+        <AppDrawer
+            open={overrideDrawer.open}
+            onClose={() => {
+              if (!overrideBusy) overrideDrawer.closeDrawer();
+            }}
+            labelledBy="course-override-drawer-title"
+            size="medium"
+            mobilePlacement="bottom"
+            className="course-override-app-drawer"
+          >
+            <section className="course-override-drawer">
+              <header className="app-drawer-header">
+                <div>
+                  <small>Owner-only publication control</small>
+                  <h2 id="course-override-drawer-title">Publish with quality warnings?</h2>
+                  <p>This decision is recorded with the exact reviewed content and gate versions.</p>
+                </div>
+                <button className="icon-button" type="button" onClick={overrideDrawer.closeDrawer} aria-label="Close publication override" disabled={overrideBusy}>
+                  <X size={18} />
+                </button>
+              </header>
+              <div className="app-drawer-body course-override-body">
+                <div className="course-override-boundary">
+                  <TriangleAlert size={20} aria-hidden="true" />
+                  <div>
+                    <strong>Quality only, never safety or structure</strong>
+                    <p>The server runs the safety check again. Missing lessons, invalid schemas, unsafe source links, quarantine, and changed content still block publication.</p>
+                  </div>
+                </div>
+                {publicationAssessment && (
+                  <div className="course-override-issues">
+                    <strong>Warnings being accepted</strong>
+                    <ul>{publicationAssessment.assessment.overridableIssues.map((issue) => (
+                      <li key={issue.code}>{issue.message}</li>
+                    ))}</ul>
+                  </div>
+                )}
+                <label htmlFor="course-override-reason">Reason for overriding these warnings</label>
+                <textarea
+                  id="course-override-reason"
+                  rows={4}
+                  minLength={20}
+                  maxLength={500}
+                  value={overrideReason}
+                  onChange={(event) => setOverrideReason(event.target.value)}
+                  placeholder="Explain why publication is appropriate despite the listed quality warnings."
+                  disabled={overrideBusy}
+                />
+                <small>{overrideReason.trim().length}/500 characters. A recent sign-in is required.</small>
+                <label className="publication-attestation course-override-confirmation">
+                  <input
+                    type="checkbox"
+                    checked={overrideConfirmed}
+                    onChange={(event) => setOverrideConfirmed(event.target.checked)}
+                    disabled={overrideBusy}
+                  />
+                  <span>I confirm that I reviewed the warnings and intentionally accept responsibility for publishing this exact course version.</span>
+                </label>
+                {actionError && <p className="form-error" role="alert"><Circle size={14} /> {actionError}</p>}
+              </div>
+              <footer className="app-drawer-footer">
+                <button className="button button-quiet" type="button" onClick={overrideDrawer.closeDrawer} disabled={overrideBusy}>Cancel</button>
+                <button
+                  className="button button-secondary"
+                  type="button"
+                  onClick={() => void publishWithOwnerOverride()}
+                  disabled={overrideBusy || !overrideConfirmed || overrideReason.trim().length < 20}
+                >
+                  {overrideBusy ? <LoaderCircle className="spin" size={16} /> : <Globe2 size={16} />}
+                  {overrideBusy ? "Running protected review…" : "Publish this exact version"}
+                </button>
+              </footer>
+            </section>
+        </AppDrawer>
 
         <AppDrawer
             open={deleteDrawer.open}

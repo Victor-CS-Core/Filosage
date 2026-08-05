@@ -132,9 +132,9 @@ export function toCourseDto(value: Record<string, unknown> | Course, canManage =
       : undefined,
     publicationReview: raw.publicationReview
       && typeof raw.publicationReview === "object"
-      && (raw.publicationReview as Record<string, unknown>).status === "approved"
+      && ["approved", "owner_override"].includes(String((raw.publicationReview as Record<string, unknown>).status))
       ? {
-          status: "approved",
+          status: (raw.publicationReview as Record<string, unknown>).status as "approved" | "owner_override",
           reviewedAt: typeof (raw.publicationReview as Record<string, unknown>).reviewedAt === "string"
             ? String((raw.publicationReview as Record<string, unknown>).reviewedAt)
             : undefined,
@@ -194,6 +194,7 @@ export function toLessonDto(value: Record<string, unknown>, courseAiAssisted = f
       generationModel: typeof value.generationModel === "string" ? value.generationModel : undefined,
       promptVersion: typeof value.promptVersion === "string" ? value.promptVersion : undefined,
       qualityGateVersion: typeof value.qualityGateVersion === "string" ? value.qualityGateVersion : undefined,
+      interactionQualityGateVersion: typeof value.interactionQualityGateVersion === "string" ? value.interactionQualityGateVersion : undefined,
       sources: rawSources.flatMap((item) => {
         if (typeof item.label !== "string") return [];
         return [{

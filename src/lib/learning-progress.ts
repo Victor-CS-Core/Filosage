@@ -153,6 +153,7 @@ export function saveLocalProgress(update: ProgressUpdate) {
         estimatedMinutes: update.estimatedMinutes ?? previousLesson?.estimatedMinutes,
         misconception: update.misconception ?? previousLesson?.misconception,
         experienceEvidence: update.activityEvidence?.experienceEvidence ?? previousLesson?.experienceEvidence,
+        interactionEvidence: update.activityEvidence?.interactionEvidence ?? previousLesson?.interactionEvidence,
       },
     },
     capstone: previous?.capstone,

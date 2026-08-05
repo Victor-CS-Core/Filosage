@@ -94,12 +94,43 @@ function stubLesson(input: string) {
   const misconception = line(input, "Misconception to correct: ") || "a common misunderstanding";
   const mode = line(input, "Teaching mode: ") || "concept";
   const buildsOn = line(input, "Builds on: ");
+  const learningObjective = `Apply ${concept.toLowerCase()} to a new situation and explain the reasoning behind each step.`;
+  const recognitionSituations = [
+    "A learner can repeat the definition but cannot choose what to do next.",
+    "A new case differs from the example in one important constraint.",
+    "The evidence supports an action, but one limitation remains unresolved.",
+    "A proposed step does not connect to the stated goal.",
+    "Two plausible options differ in how well they use the available evidence.",
+    "The result looks reasonable, but it has not been checked against the original situation.",
+  ];
+  const recognitionItems = recognitionSituations.map((stimulus, index) => {
+    const correct = {
+      label: "Apply the concept and justify the next move",
+      feedback: `This uses ${concept.toLowerCase()} as a decision tool and makes the reasoning visible.`,
+    };
+    const distractors = [
+      { label: "Repeat the definition", feedback: "Repeating a definition does not demonstrate transfer to this situation." },
+      { label: "Ignore the conflicting detail", feedback: "Ignoring a relevant constraint makes the application less defensible." },
+      { label: "Choose from intuition alone", feedback: "An unsupported intuition does not connect the action to the lesson's evidence." },
+    ];
+    const correctIndex = index % 4;
+    const choices = [...distractors];
+    choices.splice(correctIndex, 0, correct);
+    return {
+      id: `item-local-${index + 1}`,
+      stimulus: { kind: "text" as const, value: stimulus, accessibleLabel: stimulus },
+      choices,
+      correctIndex,
+      explanation: `The strongest response applies ${concept.toLowerCase()}, explains the decision, and keeps the limitation visible.`,
+      difficulty: index < 2 ? "foundation" as const : index < 4 ? "contrast" as const : "transfer" as const,
+    };
+  });
   const body = paragraph(
     `${concept} matters because it changes what you do, not only what you can recite. Start from the situation you already understand, and notice where the naive approach quietly fails: that failure point is exactly where ${concept.toLowerCase()} proves useful. A common belief, that ${misconception.toLowerCase()}, feels reasonable right up until you test it against a concrete case, which is why this lesson works through one slowly instead of asserting the conclusion.`,
     4,
   );
   return {
-    learningObjective: `Apply ${concept.toLowerCase()} to a new situation and explain the reasoning behind each step.`,
+    learningObjective,
     connection: `This lesson builds directly on the previous concept and prepares the ground for what follows in the course sequence.`,
     keyTakeaways: [
       `${concept} is a tool for making decisions, not a definition to memorize.`,
@@ -190,21 +221,19 @@ function stubLesson(input: string) {
           accurateView: `${concept} is a decision tool you test in a concrete situation.`,
           whyItMatters: "The distinction changes which evidence and actions deserve attention.",
             }],
-    interactions: mode === "practice-lab"
-      ? [{
-          id: "interaction-sequence-local",
-          type: "sequence",
-          title: "Rebuild the method",
-          summary: "Arrange the practice workflow before using it independently.",
-          version: 1,
-          prompt: `Put the essential moves for ${concept.toLowerCase()} in a defensible order.`,
-          steps: [
-            { label: "Frame", detail: "Name the decision and the evidence that matters." },
-            { label: "Apply", detail: `Use ${concept.toLowerCase()} one justified move at a time.` },
-            { label: "Check", detail: "Compare the result with the original goal and note one limitation." },
-          ],
-        }]
-      : [],
+    interactions: [{
+      id: "interaction-recognition-local",
+      type: "recognition",
+      purpose: "practice",
+      title: "Recognize a defensible application",
+      summary: "Distinguish genuine application from plausible shortcuts before attempting transfer.",
+      version: 2,
+      targetSkill: learningObjective,
+      referencePolicy: "hidden-until-complete",
+      prompt: `Choose the response that applies ${concept.toLowerCase()} and makes its reasoning inspectable.`,
+      mastery: { minimumFirstAttemptCorrect: 5, retryMissed: true },
+      items: recognitionItems,
+    }],
     quizzes: [
       {
         question: `What is the most accurate description of ${concept.toLowerCase()}?`,

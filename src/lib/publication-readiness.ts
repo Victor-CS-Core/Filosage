@@ -1,10 +1,15 @@
 import type { LessonMode } from "@/lib/course-types";
-import { lessonQualityIssues } from "@/lib/lesson-quality";
+import { lessonQualityIssues, LESSON_QUALITY_GATE_VERSION } from "@/lib/lesson-quality";
+import { INTERACTION_QUALITY_GATE_VERSION } from "@/lib/lesson-interactions";
 import { lessonDataSchema } from "@/lib/validation";
 
 export interface PublicationLessonFailure {
   lessonId: string;
   issues: string[];
+  category: "structure" | "quality";
+  overridable: boolean;
+  generatedWithQualityGate?: string;
+  currentQualityGate: string;
 }
 
 export interface CoursePublishReadiness {
@@ -14,6 +19,8 @@ export interface CoursePublishReadiness {
   missingLessonIds: string[];
   invalidLessonIds: string[];
   invalidLessons: PublicationLessonFailure[];
+  legacyLessonIds: string[];
+  legacyInteractionLessonIds: string[];
 }
 
 function schemaIssues(value: unknown) {
@@ -42,10 +49,29 @@ export function inspectCoursePublishReadiness(
     const expectedMode = schemaVersion >= 4 || Boolean(raw.experience)
       ? expectedModesByLessonId[lessonId]
       : undefined;
-    const issues = parsed.lesson ? lessonQualityIssues(parsed.lesson, topic, expectedMode) : parsed.issues;
-    return issues.length ? [{ lessonId, issues }] : [];
+    const issues = parsed.lesson
+      ? lessonQualityIssues(parsed.lesson, topic, expectedMode, { requireInteractionV2: schemaVersion >= 5 })
+      : parsed.issues;
+    return issues.length ? [{
+      lessonId,
+      issues,
+      category: parsed.lesson ? "quality" : "structure",
+      overridable: Boolean(parsed.lesson),
+      generatedWithQualityGate: typeof raw.qualityGateVersion === "string" ? raw.qualityGateVersion : undefined,
+      currentQualityGate: LESSON_QUALITY_GATE_VERSION,
+    }] : [];
   });
   const invalidLessonIds = invalidLessons.map((lesson) => lesson.lessonId);
+  const legacyLessonIds = expectedLessonIds.filter((lessonId) => {
+    const raw = lessonsById.get(lessonId);
+    return Boolean(raw) && raw?.qualityGateVersion !== LESSON_QUALITY_GATE_VERSION;
+  });
+  const legacyInteractionLessonIds = expectedLessonIds.filter((lessonId) => {
+    const raw = lessonsById.get(lessonId);
+    const schemaVersion = typeof raw?.schemaVersion === "number" ? raw.schemaVersion : 1;
+    return Boolean(raw)
+      && (schemaVersion < 5 || raw?.interactionQualityGateVersion !== INTERACTION_QUALITY_GATE_VERSION);
+  });
   const readyCount = expectedLessonIds.length - missingLessonIds.length - invalidLessonIds.length;
 
   return {
@@ -55,5 +81,7 @@ export function inspectCoursePublishReadiness(
     missingLessonIds,
     invalidLessonIds,
     invalidLessons,
+    legacyLessonIds,
+    legacyInteractionLessonIds,
   };
 }

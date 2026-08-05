@@ -1,10 +1,16 @@
 import type { LessonData, LessonMode } from "@/lib/course-types";
 import { inspectGeneratedContent } from "@/lib/content-language";
 import { hasBlockMarkdownSyntax, hasCollapsedMarkdownTable } from "@/lib/markdown";
+import { interactionQualityIssues } from "@/lib/lesson-interactions";
 
 export const LESSON_QUALITY_GATE_VERSION = "apprenticeship-v7-mode-contract";
 
-export function lessonQualityIssues(lesson: LessonData | null, topic: string, expectedMode?: LessonMode) {
+export function lessonQualityIssues(
+  lesson: LessonData | null,
+  topic: string,
+  expectedMode?: LessonMode,
+  options: { requireInteractionV2?: boolean } = {},
+) {
   if (!lesson) return ["No structured lesson was returned."];
   const issues: string[] = [];
   if (lesson.content.trim().length < 1_500) issues.push("The explanation is too shallow.");
@@ -49,6 +55,7 @@ export function lessonQualityIssues(lesson: LessonData | null, topic: string, ex
   if (lesson.experience?.type === "practice-lab" && lesson.experience.tasks.length < 3) {
     issues.push("The practice lab needs a real sequence of tasks.");
   }
+  issues.push(...interactionQualityIssues(lesson, options.requireInteractionV2 === true));
   issues.push(...inspectGeneratedContent(lesson, topic).map((issue) =>
     `${issue.path} ${issue.reason}.`,
   ));

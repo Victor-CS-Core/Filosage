@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { aiClient } from "@/lib/local-ai";
 import { zodTextFormat } from "openai/helpers/zod";
 import { authorizationResponse, requirePremium } from "@/lib/auth-server";
-import { getCourse, getLesson, getStoredDocument, saveLesson } from "@/lib/firebase-server";
+import { getCourse, getCoursePublishReadiness, getLesson, getStoredDocument, saveLesson } from "@/lib/firebase-server";
 import {
   aiQuotaResponse,
   extractOpenAiUsage,
@@ -17,14 +17,18 @@ import {
   validationMessage,
   type GeneratedLessonData,
 } from "@/lib/validation";
-import { findCourseLesson } from "@/lib/course-progress";
+import { expectedLessonIds, findCourseLesson } from "@/lib/course-progress";
 import type { Course, LessonData } from "@/lib/course-types";
 import { AI_SAFETY_POLICY, assertSafeContent, ContentSafetyError } from "@/lib/content-safety";
 import { apiRequestErrorResponse, readJsonBody } from "@/lib/api-security";
 import { openAiSafetyIdentifier } from "@/lib/ai-usage";
 import { toLessonDto } from "@/lib/course-dto";
 import { curateLessonVisuals } from "@/lib/lesson-visuals";
-import { curateLessonInteractions, deriveLessonInteractions } from "@/lib/lesson-interactions";
+import {
+  curateLessonInteractions,
+  deriveLessonInteractions,
+  INTERACTION_QUALITY_GATE_VERSION,
+} from "@/lib/lesson-interactions";
 import { lessonVisualsEnabled } from "@/lib/feature-flags";
 import { languagePolicyInstruction } from "@/lib/content-language";
 import { lessonQualityIssues, LESSON_QUALITY_GATE_VERSION } from "@/lib/lesson-quality";
@@ -51,7 +55,11 @@ ${lessonVisualsAreEnabled
   ? "Return zero, one, or two candidate strings in visuals. Each string must be compact JSON for one learning aid. The app, not you, determines final placement and selection. Every object needs type, title, and summary. Type-specific fields are: concept-contrast has misconception, accurateView, whyItMatters; process-flow has steps [{title, detail}]; comparison-matrix has columns [left, right] and rows [{criterion, values:[left, right]}]; worked-example-trace has prompt and steps [{title, detail, check}]; prerequisite-map has nodes [{label, detail, role}], where role is foundation, current, or next. Use visuals: [] when no candidate materially improves understanding. Do not include id, placement, version, diagram syntax, SVG, or HTML."
   : "Return visuals: []. The structured visual system is not enabled for this lesson yet."}
 
-Return exactly one candidate string in interactions. The string must be compact JSON for a practice widget and must materially improve active learning. Every object needs type, title, summary, and prompt. Available types are: classification with groups and items [{label, groupIndex, explanation}]; sequence with steps [{label, detail}] in the correct order; scenario with options [{label, consequence}], recommendedIndex, and explanation; signal with patterns [{label, value}], where value contains only dots, dashes, spaces, and slashes. For sequence interactions, use meaningful action labels that do not contain ordinal words or numbers, and write a prompt that does not list, summarize, or otherwise reveal the correct order. Use signal only when auditory timing or symbolic pulses are part of the lesson. Choose the lowest-friction widget that lets the learner manipulate, decide, classify, sequence, or hear the idea without duplicating the quizzes. Do not include id, version, HTML, scripts, URLs, or executable content.
+Return exactly one candidate string in interactions. The string must be compact JSON for an objective-aligned Recognition v2 practice lab, not a decorative interaction. Use type "recognition" and include title, summary, and prompt. This practice layer trains discriminations that support the lesson's observable objective; the central experience and transfer task carry the larger authentic performance.
+
+Recognition requires targetSkill copied from the observable learning objective, referencePolicy "hidden-until-complete", mastery {minimumFirstAttemptCorrect, retryMissed:true}, and 6 to 16 items. Each item needs stimulus {kind:"text"|"signal", value, accessibleLabel}, exactly four choices [{label, feedback, misconception?}], correctIndex, explanation, and difficulty "foundation"|"contrast"|"transfer". Do not include item IDs. Hide answers until the learner commits. Distractors must be plausible confusions or misconceptions, every choice needs specific explanatory feedback, and the mastery threshold must match the objective when it states a score.
+
+Do not return classification, sequence, scenario, or signal for this field. Do not duplicate the quizzes. Do not include interaction id, version, HTML, scripts, URLs, or executable content.
 
 Create application-focused quizzes, not trivia. Each answer option needs feedback that explains why that specific choice is correct or incorrect. Vary the correct option positions. Return only the requested structured lesson.
 
@@ -259,7 +267,7 @@ export async function POST(request: Request) {
       }
     }
     let lesson = prepareLesson(primaryResponse.output_parsed as GeneratedLessonData | null);
-    let qualityIssues = lessonQualityIssues(lesson, topic, expectedMode);
+    let qualityIssues = lessonQualityIssues(lesson, topic, expectedMode, { requireInteractionV2: true });
 
     if (qualityIssues.length && activeProfile.id === standardProfile.id) {
       try {
@@ -274,14 +282,14 @@ export async function POST(request: Request) {
           ...safeModelErrorDetails(error),
         }));
       }
-      qualityIssues = lessonQualityIssues(lesson, topic, expectedMode);
+      qualityIssues = lessonQualityIssues(lesson, topic, expectedMode, { requireInteractionV2: true });
     }
 
     if (qualityIssues.length && !activeProfile.recovery) {
       activeProfile = recoveryProfile;
       const recoveryResponse = await generateAndRecord(recoveryProfile, qualityIssues);
       lesson = prepareLesson(recoveryResponse.output_parsed as GeneratedLessonData | null);
-      qualityIssues = lessonQualityIssues(lesson, topic, expectedMode);
+      qualityIssues = lessonQualityIssues(lesson, topic, expectedMode, { requireInteractionV2: true });
     }
 
     if (!lesson || qualityIssues.length) {
@@ -305,6 +313,7 @@ export async function POST(request: Request) {
       generatedAt: new Date().toISOString(),
       promptVersion: activeProfile.promptVersion,
       qualityGateVersion: LESSON_QUALITY_GATE_VERSION,
+      interactionQualityGateVersion: INTERACTION_QUALITY_GATE_VERSION,
       sourceReferences,
     };
     await saveLesson(courseId, lessonId, {
@@ -312,7 +321,7 @@ export async function POST(request: Request) {
       authorId: account.uid,
       aiAssisted: true,
       isPublic: coursePublic,
-      schemaVersion: 4,
+      schemaVersion: 5,
       generationModel: activeProfile.model,
       generationProfile: activeProfile.id,
       reasoningEffort: activeProfile.reasoningEffort,
@@ -324,15 +333,43 @@ export async function POST(request: Request) {
     await finalizeAiUsage(reservation, { usageSamples, responseId });
     reservation = null;
 
+    const publicationLessonIds = expectedLessonIds(course);
+    const shouldRunPublicationPreflight = regenerate
+      || publicationLessonIds.at(-1) === lessonId;
+    let publicationReadiness;
+    if (shouldRunPublicationPreflight) {
+      try {
+        publicationReadiness = await getCoursePublishReadiness(
+          courseId,
+          publicationLessonIds,
+          topic,
+          Object.fromEntries(course.modules.flatMap((courseModule, moduleIndex) =>
+            courseModule.lessons.map((courseLesson, lessonIndex) => [
+              `${moduleIndex}-${lessonIndex}`,
+              courseLesson.lessonMode,
+            ]),
+          )),
+        );
+      } catch (preflightError) {
+        console.error(JSON.stringify({
+          event: "lesson_publication_preflight_failed",
+          courseId,
+          lessonId,
+          errorName: preflightError instanceof Error ? preflightError.name : "UnknownError",
+        }));
+      }
+    }
+
     const lessonDto = toLessonDto({
       ...lesson,
       aiAssisted: true,
-      schemaVersion: 4,
+      schemaVersion: 5,
       generationModel: activeProfile.model,
       ...generationMetadata,
     }, true, topic);
     return NextResponse.json({
       ...lessonDto,
+      publicationReadiness,
       evaluation: account.isOwner && request.headers.get("x-erudoza-model-evaluation") === "1"
         ? {
             profile: activeProfile.id,

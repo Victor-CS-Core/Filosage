@@ -56,7 +56,11 @@ import {
   normalizeStructuredMarkdown,
 } from "@/lib/markdown";
 import { curateLessonVisuals, visualsToSpeech } from "@/lib/lesson-visuals";
-import { deriveLessonInteractions, interactionsToSpeech } from "@/lib/lesson-interactions";
+import {
+  deriveLessonInteractions,
+  interactionsToSpeech,
+  type InteractionEvidence,
+} from "@/lib/lesson-interactions";
 import { createClientId, deferClientTask } from "@/lib/browser-compat";
 
 interface Message {
@@ -120,7 +124,7 @@ interface QuizResult {
 }
 
 type LessonPane = "learn" | "activities";
-type ActivitySectionId = "experience" | "guided" | "transfer" | "checks";
+type ActivitySectionId = "experience" | "lab" | "guided" | "transfer" | "checks";
 
 interface ActivitySection {
   id: ActivitySectionId;
@@ -313,6 +317,7 @@ export default function LessonView() {
     revealed: false,
   });
   const [experienceState, setExperienceState] = useState<{ key: string; value: LessonExperienceState | null }>({ key: "", value: null });
+  const [interactionEvidenceState, setInteractionEvidenceState] = useState<{ key: string; value: InteractionEvidence | null }>({ key: "", value: null });
   const tutorDrawer = useAppDrawer("lesson-tutor");
   const studyToolsDrawer = useAppDrawer("lesson-study-tools");
   const closeTutorDrawer = tutorDrawer.closeDrawer;
@@ -356,6 +361,22 @@ export default function LessonView() {
       : { type: lessonData.experience.type, response: "", completed: false }
     : null, [experienceState, lessonData, noteKey]);
   const experienceComplete = reviewMode || !lessonData?.experience || experienceValue?.completed === true;
+  const lessonInteractions = useMemo(
+    () => lessonData ? deriveLessonInteractions(lessonData) : [],
+    [lessonData],
+  );
+  const practiceInteraction = useMemo(
+    () => lessonInteractions.find((interaction) => interaction.type === "recognition" && interaction.purpose === "practice") ?? null,
+    [lessonInteractions],
+  );
+  const learningInteractions = useMemo(
+    () => lessonInteractions.filter((interaction) => interaction.id !== practiceInteraction?.id),
+    [lessonInteractions, practiceInteraction?.id],
+  );
+  const interactionEvidence = interactionEvidenceState.key === noteKey ? interactionEvidenceState.value : null;
+  const interactionComplete = reviewMode || !practiceInteraction || Boolean(
+    interactionEvidence?.interactionId === practiceInteraction.id && interactionEvidence.completed,
+  );
   const lessonPane = lessonPaneState.key === noteKey ? lessonPaneState.pane : reviewMode ? "activities" : "learn";
   const guidedPracticeComplete = !lessonData?.guidedPractice
     || (guidedPracticeState.key === noteKey && guidedPracticeState.complete);
@@ -367,11 +388,16 @@ export default function LessonView() {
     if (!lessonData) return [];
     return [
       ...(lessonData.experience ? [{ id: "experience" as const, label: "Active lesson", description: "Create evidence while you learn" }] : []),
+      ...(practiceInteraction && !reviewMode ? [{
+        id: "lab" as const,
+        label: practiceInteraction.items.every((item) => item.stimulus.kind === "signal") ? "Pattern lab" : "Recognition lab",
+        description: `${practiceInteraction.items.length} recognition challenges`,
+      }] : []),
       ...(lessonData.guidedPractice ? [{ id: "guided" as const, label: "Guided practice", description: "Work through the method" }] : []),
       ...(lessonData.transferTask ? [{ id: "transfer" as const, label: "Transfer task", description: "Apply it in a new situation" }] : []),
       ...(lessonData.quizzes.length ? [{ id: "checks" as const, label: "Knowledge checks", description: `${lessonData.quizzes.length} retrieval ${lessonData.quizzes.length === 1 ? "check" : "checks"}` }] : []),
     ];
-  }, [lessonData]);
+  }, [lessonData, practiceInteraction, reviewMode]);
   const requestedActivityId = activitySectionState.key === noteKey ? activitySectionState.id : null;
   const activeActivityId = activitySections.some((section) => section.id === requestedActivityId)
     ? requestedActivityId
@@ -382,10 +408,11 @@ export default function LessonView() {
   const completedActivityIds = useMemo(() => new Set<ActivitySectionId>([
     ...(complete ? activitySections.map((section) => section.id) : []),
     ...(!complete && lessonData?.experience && experienceComplete ? ["experience" as const] : []),
+    ...(!complete && practiceInteraction && interactionComplete ? ["lab" as const] : []),
     ...(!complete && lessonData?.guidedPractice && guidedPracticeComplete ? ["guided" as const] : []),
     ...(!complete && lessonData?.transferTask && transferComplete ? ["transfer" as const] : []),
     ...(!complete && lessonData?.quizzes.length && checksComplete ? ["checks" as const] : []),
-  ]), [activitySections, checksComplete, complete, experienceComplete, guidedPracticeComplete, lessonData, transferComplete]);
+  ]), [activitySections, checksComplete, complete, experienceComplete, guidedPracticeComplete, interactionComplete, lessonData, practiceInteraction, transferComplete]);
   const completedActivityCount = activitySections.filter((section) => completedActivityIds.has(section.id)).length;
 
   const selectLessonPane = (pane: LessonPane) => {
@@ -671,6 +698,9 @@ export default function LessonView() {
             if (savedLesson?.experienceEvidence) {
               setExperienceState({ key: noteKey, value: { ...savedLesson.experienceEvidence, completed: true } });
             }
+            if (savedLesson?.interactionEvidence) {
+              setInteractionEvidenceState({ key: noteKey, value: savedLesson.interactionEvidence });
+            }
           }
           return;
         }
@@ -682,6 +712,9 @@ export default function LessonView() {
         setReviewScheduleState({ key: noteKey, at: savedLesson?.nextReviewAt ?? null });
         if (savedLesson?.experienceEvidence) {
           setExperienceState({ key: noteKey, value: { ...savedLesson.experienceEvidence, completed: true } });
+        }
+        if (savedLesson?.interactionEvidence) {
+          setInteractionEvidenceState({ key: noteKey, value: savedLesson.interactionEvidence });
         }
       }
     };
@@ -720,10 +753,6 @@ export default function LessonView() {
     () => curateLessonVisuals(lessonData?.visuals),
     [lessonData?.visuals],
   );
-  const lessonInteractions = useMemo(
-    () => lessonData ? deriveLessonInteractions({ ...lessonData, content: normalizedContent }) : [],
-    [lessonData, normalizedContent],
-  );
   const lessonSpeechText = useMemo(() => {
     if (!lesson) return "";
     const at = (placement: "after-purpose" | "after-explanation" | "before-guided-practice") =>
@@ -749,7 +778,7 @@ export default function LessonView() {
   }, [courseId, isOwner, lesson, lessonData, lessonId]);
 
   const markComplete = useCallback(async () => {
-    if (!courseId || complete || !lessonData || !lesson || !transferComplete || !experienceComplete) return;
+    if (!courseId || complete || !lessonData || !lesson || !transferComplete || !experienceComplete || !interactionComplete) return;
     const operationViewKey = activeLessonViewRef.current;
     const isCurrentView = () => activeLessonViewRef.current === operationViewKey;
     const results = Object.values(quizResults);
@@ -761,9 +790,9 @@ export default function LessonView() {
       topic,
       lessonId,
       lessonTitle: lesson.title,
-      totalQuestions: lessonData.quizzes.length,
-      firstAttemptCorrect: results.filter((result) => result.firstAttemptCorrect).length,
-      attempts: results.reduce((sum, result) => sum + result.attempts, 0),
+      totalQuestions: lessonData.quizzes.length + (interactionEvidence?.itemCount ?? 0),
+      firstAttemptCorrect: results.filter((result) => result.firstAttemptCorrect).length + (interactionEvidence?.firstAttemptCorrect ?? 0),
+      attempts: results.reduce((sum, result) => sum + result.attempts, 0) + (interactionEvidence?.attempts ?? 0),
       confidence,
       review: reviewMode,
       reviewKind: reviewMode ? reviewKind : undefined,
@@ -783,6 +812,9 @@ export default function LessonView() {
         transferResponse: lessonData.transferTask ? transferResponse.trim() : undefined,
         experienceEvidence: !reviewMode && lessonData.experience && experienceValue?.completed
           ? { type: lessonData.experience.type, response: experienceValue.response.trim(), completed: true }
+          : undefined,
+        interactionEvidence: !reviewMode && interactionEvidence?.completed
+          ? interactionEvidence
           : undefined,
       },
     };
@@ -816,8 +848,8 @@ export default function LessonView() {
     if (requiresCloudAuthorCompletion && !cloudSaved) return;
     const observedAt = new Date().toISOString();
     const objectiveId = `module-${moduleIndex}`;
-    const firstTryScore = lessonData.quizzes.length
-      ? update.firstAttemptCorrect / lessonData.quizzes.length
+    const firstTryScore = update.totalQuestions
+      ? update.firstAttemptCorrect / update.totalQuestions
       : 1;
     if (isCurrentView()) setCompletionState({ key: noteKey, complete: true });
     if (cloudSaved) {
@@ -927,7 +959,7 @@ export default function LessonView() {
         elapsedMs,
       });
     }
-  }, [addMasteryEvidence, allLessons.length, complete, course?.canManage, courseId, experienceComplete, experienceValue, isOwner, lesson, lessonData, lessonId, masteryPlan, moduleIndex, nextLesson, noteKey, quizResults, reviewKind, reviewMode, topic, transferComplete, transferResponse, user]);
+  }, [addMasteryEvidence, allLessons.length, complete, course?.canManage, courseId, experienceComplete, experienceValue, interactionComplete, interactionEvidence, isOwner, lesson, lessonData, lessonId, masteryPlan, moduleIndex, nextLesson, noteKey, quizResults, reviewKind, reviewMode, topic, transferComplete, transferResponse, user]);
 
   const onMastered = (index: number, result: QuizResult) => {
     setQuizResultState((current) => ({ key: noteKey, results: { ...(current.key === noteKey ? current.results : {}), [index]: result } }));
@@ -944,10 +976,10 @@ export default function LessonView() {
   useEffect(() => {
     if (!lessonData?.quizzes.length || complete) return;
     if (Object.keys(quizResults).length !== lessonData.quizzes.length) return;
-    if (!transferComplete || !experienceComplete) return;
+    if (!transferComplete || !experienceComplete || !interactionComplete) return;
     const timeout = window.setTimeout(() => { void markComplete(); }, 250);
     return () => window.clearTimeout(timeout);
-  }, [complete, experienceComplete, lessonData, markComplete, quizResults, transferComplete]);
+  }, [complete, experienceComplete, interactionComplete, lessonData, markComplete, quizResults, transferComplete]);
 
   const sendMessage = async (event: React.FormEvent) => {
     event.preventDefault();
@@ -1064,6 +1096,39 @@ export default function LessonView() {
       receipt: data.receipt,
     };
   }, [courseId, getToken, lessonData, lessonId]);
+
+  const verifyRecognitionAnswer = useCallback(async (itemId: string, selectedIndex: number) => {
+    if (!courseId || !practiceInteraction) throw new Error("This practice lab is not ready.");
+    const token = await getToken();
+    if (!token) throw new Error("Sign in again to verify this response.");
+    const response = await fetch("/api/lesson-interaction", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+      body: JSON.stringify({
+        courseId,
+        lessonId,
+        interactionId: practiceInteraction.id,
+        itemId,
+        selectedIndex,
+      }),
+    });
+    const data = await response.json().catch(() => ({})) as {
+      error?: string;
+      correct?: boolean;
+      attempts?: number;
+      firstAttemptCorrect?: boolean;
+      receipt?: string;
+    };
+    if (!response.ok || typeof data.correct !== "boolean" || typeof data.attempts !== "number") {
+      throw new Error(data.error || "This practice response could not be verified.");
+    }
+    return {
+      correct: data.correct,
+      attempts: data.attempts,
+      firstAttemptCorrect: data.firstAttemptCorrect === true,
+      receipt: data.receipt,
+    };
+  }, [courseId, getToken, lessonId, practiceInteraction]);
 
   const lessonHref = (id: string) => `/course/${encodeURIComponent(topic)}/lesson/${id}${courseId ? `?id=${courseId}` : ""}`;
 
@@ -1263,7 +1328,19 @@ export default function LessonView() {
 
               {lessonPane === "learn" && lessonVisuals.filter((visual) => visual.placement === "after-explanation").map((visual) => <LessonVisualRenderer key={visual.id} visual={visual} />)}
 
-              {lessonPane === "learn" && lessonInteractions.map((interaction) => <InteractiveLessonBlock key={interaction.id} interaction={interaction} />)}
+              {lessonPane === "learn" && learningInteractions.map((interaction) => <InteractiveLessonBlock key={interaction.id} interaction={interaction} />)}
+
+              {lessonPane === "activities" && activeActivityId === "lab" && practiceInteraction && (
+                <div id="lesson-active-activity" role="tabpanel" aria-labelledby="activity-lab-tab">
+                  <InteractiveLessonBlock
+                    key={`${noteKey}-${practiceInteraction.id}`}
+                    interaction={practiceInteraction}
+                    evidence={interactionEvidence ?? undefined}
+                    onProgress={(value) => setInteractionEvidenceState({ key: noteKey, value })}
+                    verifyRecognitionAnswer={verifyRecognitionAnswer}
+                  />
+                </div>
+              )}
 
               {lessonPane === "activities" && activeActivityId === "guided" && lessonData.guidedPractice && (
                 <div id="lesson-active-activity" className="guided-activity-panel" role="tabpanel" aria-labelledby="activity-guided-tab">
@@ -1395,14 +1472,14 @@ export default function LessonView() {
                   <small>{complete ? (
                     progressSyncError
                     || `${user ? "Progress synced." : "Progress saved on this device."}${reviewScheduledAt ? ` Review scheduled for ${new Intl.DateTimeFormat("en", { weekday: "long", month: "short", day: "numeric" }).format(new Date(reviewScheduledAt))}.` : user ? " Your next review has been scheduled." : " Sign in to sync it."}`
-                  ) : !experienceComplete ? "Complete and save the active lesson response before finishing the transfer and retrieval checks." : lessonData.transferTask && !transferComplete ? "Complete the transfer task, then finish each retrieval check." : "Answer every prompt correctly and rate your confidence."}</small>
+                  ) : !experienceComplete ? "Complete and save the active lesson response before finishing the other activities." : !interactionComplete ? "Finish the practice lab, including focused retries for missed items." : lessonData.transferTask && !transferComplete ? "Complete the transfer task, then finish each retrieval check." : "Answer every prompt correctly and rate your confidence."}</small>
                   {complete && confidenceCalibration && (
                     <em className={`calibration-note is-${confidenceCalibration}`}>
                       {calibrationMessage(confidenceCalibration)}
                     </em>
                   )}
                 </span>
-                {!complete && lessonData.quizzes.length === 0 && transferComplete && experienceComplete && (
+                {!complete && lessonData.quizzes.length === 0 && transferComplete && experienceComplete && interactionComplete && (
                   <button className="button button-secondary button-small" onClick={() => void markComplete()}>Mark learned</button>
                 )}
               </div>}
@@ -1440,10 +1517,14 @@ export default function LessonView() {
           {!tutorOpen && studyToolsOpen && (
             <AppDrawer open={studyToolsOpen} onClose={studyToolsDrawer.closeDrawer} labelledBy="study-tools-title" size="medium" mobilePlacement="bottom" className="lesson-study-app-drawer">
               <LessonStudyTools
+                lessonKey={noteKey}
                 lessonTitle={lesson.title}
                 lessonConcept={lesson.concept}
+                lessonContent={lessonData.content}
                 learningObjective={lessonData.learningObjective}
+                keyTakeaways={lessonData.keyTakeaways}
                 quizzes={lessonData.quizzes}
+                quizOutcomes={quizResults}
                 noteDraft={noteDraft}
                 onNoteChange={setNoteDraft}
                 noteStatus={learnerSyncStatus === "saving" ? "Saving…" : learnerSyncStatus === "error" ? learnerSyncError ?? "Could not save" : learnerSyncStatus === "saved" ? "Saved" : user ? "Synced" : "On this device"}
@@ -1451,9 +1532,11 @@ export default function LessonView() {
                 canUseTutor={Boolean(user)}
                 experienceAvailable={Boolean(lessonData.experience)}
                 experienceComplete={experienceComplete}
+                guidedPracticeAvailable={Boolean(lessonData.guidedPractice)}
+                guidedPracticeComplete={guidedPracticeComplete}
                 transferAvailable={Boolean(lessonData.transferTask)}
                 transferComplete={transferComplete}
-                lessonComplete={complete}
+                checksComplete={checksComplete}
                 onClose={studyToolsDrawer.closeDrawer}
                 onOpenTutor={openTutorWithPrompt}
                 onOpenChecks={openLessonChecks}

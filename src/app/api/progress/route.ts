@@ -9,11 +9,13 @@ import {
 } from "@/lib/firebase-server";
 import { progressUpdateSchema, validationMessage } from "@/lib/validation";
 import type { CapstoneAssessment, CourseProgress, LessonProgress } from "@/lib/learning-types";
-import type { Course } from "@/lib/course-types";
+import type { Course, LessonData } from "@/lib/course-types";
 import { findCourseLesson, findNextLesson } from "@/lib/course-progress";
 import { apiRequestErrorResponse, readJsonBody } from "@/lib/api-security";
 import { scheduleAdaptiveReview, updateDelayedChecks } from "@/lib/adaptive-learning";
 import { verifyActivityReceipt } from "@/lib/activity-receipts";
+import { deriveLessonInteractions } from "@/lib/lesson-interactions";
+import { verifyInteractionReceipt } from "@/lib/interaction-receipts";
 
 function numberValue(value: unknown) {
   return typeof value === "number" && Number.isFinite(value) ? value : 0;
@@ -161,9 +163,27 @@ export async function POST(request: Request) {
       && experienceEvidence.type === expectedExperienceType
       && experienceEvidence.response.trim().length >= 20,
     );
-    if (!submitted.review && (!evidence || !evidenceIsComplete || !experienceIsComplete || (transferTaskRequired && transferResponse.length < 20))) {
+    const practiceInteraction = deriveLessonInteractions(lesson as unknown as LessonData)
+      .find((interaction) => interaction.type === "recognition" && interaction.purpose === "practice");
+    const interactionEvidence = evidence?.interactionEvidence;
+    const expectedInteractionItemIds = new Set(practiceInteraction?.items.map((item) => item.id) ?? []);
+    const submittedInteractionItemIds = new Set(interactionEvidence?.itemResults.map((item) => item.itemId) ?? []);
+    const interactionIsComplete = !practiceInteraction || Boolean(
+      interactionEvidence
+      && interactionEvidence.interactionId === practiceInteraction.id
+      && interactionEvidence.itemCount === practiceInteraction.items.length
+      && interactionEvidence.minimumFirstAttemptCorrect === practiceInteraction.mastery.minimumFirstAttemptCorrect
+      && interactionEvidence.completed
+      && interactionEvidence.itemResults.length === practiceInteraction.items.length
+      && submittedInteractionItemIds.size === expectedInteractionItemIds.size
+      && [...submittedInteractionItemIds].every((itemId) => expectedInteractionItemIds.has(itemId))
+      && interactionEvidence.itemResults.every((item) => item.mastered)
+      && interactionEvidence.firstAttemptCorrect === interactionEvidence.itemResults.filter((item) => item.firstAttemptCorrect).length
+      && interactionEvidence.attempts === interactionEvidence.itemResults.reduce((sum, item) => sum + item.attempts, 0)
+    );
+    if (!submitted.review && (!evidence || !evidenceIsComplete || !experienceIsComplete || !interactionIsComplete || (transferTaskRequired && transferResponse.length < 20))) {
       return Response.json(
-        { error: "Complete the active lesson response, every retrieval check, and the transfer task before finishing the lesson." },
+        { error: "Complete the active lesson response, practice lab, retrieval checks, and transfer task before finishing the lesson." },
         { status: 409, headers: { "Cache-Control": "no-store" } },
       );
     }
@@ -191,13 +211,37 @@ export async function POST(request: Request) {
       );
     }
 
-    const totalQuestions = quizEvidence.length;
-    const firstAttemptCorrect = requiresVerifiedAuthorActivity
+    const verifiedInteractionClaims = !submitted.review && practiceInteraction
+      ? await Promise.all((interactionEvidence?.itemResults ?? []).map((result) =>
+        result.receipt
+          ? verifyInteractionReceipt(result.receipt, {
+            uid: account.uid,
+            courseId: submitted.courseId,
+            lessonId: submitted.lessonId,
+            interactionId: practiceInteraction.id,
+            itemId: result.itemId,
+          })
+          : Promise.resolve(null),
+      ))
+      : [];
+    if (practiceInteraction && !submitted.review && verifiedInteractionClaims.some((claims) => !claims)) {
+      return Response.json(
+        { error: "Complete each practice-lab item in this session before finishing the lesson." },
+        { status: 409, headers: { "Cache-Control": "no-store" } },
+      );
+    }
+
+    const quizFirstAttemptCorrect = requiresVerifiedAuthorActivity
       ? verifiedClaims.filter((claims) => claims?.firstAttemptCorrect).length
       : quizEvidence.filter((result) => result.firstAttemptCorrect).length;
-    const attempts = requiresVerifiedAuthorActivity
+    const quizAttempts = requiresVerifiedAuthorActivity
       ? verifiedClaims.reduce((sum, claims) => sum + (claims?.attempts ?? 0), 0)
       : quizEvidence.reduce((sum, result) => sum + result.attempts, 0);
+    const totalQuestions = quizEvidence.length + verifiedInteractionClaims.length;
+    const firstAttemptCorrect = quizFirstAttemptCorrect
+      + verifiedInteractionClaims.filter((claims) => claims?.firstAttemptCorrect).length;
+    const attempts = quizAttempts
+      + verifiedInteractionClaims.reduce((sum, claims) => sum + (claims?.attempts ?? 0), 0);
     const confidences = quizEvidence.map((result) => result.confidence);
     const confidence = confidences.includes("low") ? "low"
       : confidences.includes("medium") ? "medium"
@@ -278,6 +322,7 @@ export async function POST(request: Request) {
         estimatedMinutes: canonical.lesson.estimatedMinutes ?? update.estimatedMinutes ?? previousLesson?.estimatedMinutes,
         misconception: canonical.lesson.misconception ?? previousLesson?.misconception,
         experienceEvidence: update.activityEvidence?.experienceEvidence ?? previousLesson?.experienceEvidence,
+        interactionEvidence: update.activityEvidence?.interactionEvidence ?? previousLesson?.interactionEvidence,
       };
       const progress: CourseProgress = {
         courseId: update.courseId,

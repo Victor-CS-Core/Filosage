@@ -45,13 +45,31 @@ export async function requireAccount(request: Request): Promise<ServerAccount> {
   return account;
 }
 
-export async function requireRecentlyAuthenticatedAccount(request: Request): Promise<ServerAccount> {
+export async function requireRecentlyAuthenticatedAccount(
+  request: Request,
+  recentAuthenticationMessage = "Sign in again before permanently deleting your account.",
+): Promise<ServerAccount> {
   const user = await requireUser(request);
   if (!hasRecentFirebaseAuthentication(user.auth_time)) {
-    throw new AuthorizationError(401, "Sign in again before permanently deleting your account.");
+    throw new AuthorizationError(401, recentAuthenticationMessage);
   }
   const account = await getExistingAccount(user);
   if (!account) throw new AuthorizationError(403, "Complete account setup before managing account data.");
+  return account;
+}
+
+export async function requireRecentlyAuthenticatedOwner(request: Request): Promise<ServerAccount> {
+  const account = await requireRecentlyAuthenticatedAccount(
+    request,
+    "Sign in again before using a publication override.",
+  );
+  if (account.accountStatus === "suspended") {
+    throw new AuthorizationError(403, "This account is paused. Contact support if you believe this is an error.");
+  }
+  if (!hasCurrentLegalAcceptance(account)) {
+    throw new AuthorizationError(403, "Accept the current terms and privacy notice before managing courses.");
+  }
+  if (!account.isOwner) throw new AuthorizationError(403, "Owner access is required.");
   return account;
 }
 

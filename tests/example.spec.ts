@@ -139,7 +139,7 @@ test("summarizes only completed learning and keeps review evidence in the streak
   expect(currentLearningStreak(progress, new Date("2026-08-04T18:00:00.000Z"))).toBe(3);
 });
 
-test("accepts only safe lesson interactions and derives a signal studio from timing notation", () => {
+test("accepts only safe lesson interactions, derives signal exploration, and avoids invented practice", () => {
   const curatedSequence = curateLessonInteractions([JSON.stringify({
     type: "sequence",
     title: "Order the method",
@@ -174,12 +174,7 @@ test("accepts only safe lesson interactions and derives a signal studio from tim
     guidedPractice: { prompt: "Resolve the case in a defensible order.", steps: ["Identify the relevant evidence.", "Choose and justify the action."], modelAnswer: "Use the evidence before selecting the action." },
     quizzes: [],
   });
-  expect(twoStepPractice).toMatchObject([{
-    type: "sequence",
-    prompt: "Arrange the actions into a coherent workflow. Decide what each action needs from the one before it.",
-    steps: [{ label: "Action" }, { label: "Action" }, { label: "Action" }],
-  }]);
-  expect(twoStepPractice[0]?.prompt).not.toContain("Resolve the case");
+  expect(twoStepPractice).toEqual([]);
 });
 
 test("unlocks generated lessons sequentially for Pro authors while owners remain unrestricted", () => {
@@ -941,11 +936,53 @@ test("does not complete a lesson after a wrong answer", async ({ page }) => {
   await expect(studyTools).toBeVisible();
   await expect(studyTools.getByRole("tab", { name: "Notes" })).toHaveAttribute("aria-selected", "true");
   await studyTools.getByRole("tab", { name: "Flashcards" }).click();
-  await studyTools.getByRole("button", { name: "Generate flashcards" }).click();
-  await expect(studyTools.getByText("Card 1 of 3")).toBeVisible();
+  const startRecall = studyTools.getByRole("button", { name: /Start (?:[4-9]|10)-card recall/ });
+  const recallCount = Number((await startRecall.textContent())?.match(/\d+/)?.[0]);
+  expect(recallCount).toBeGreaterThanOrEqual(4);
+  expect(recallCount).toBeLessThanOrEqual(10);
+  await startRecall.click();
+  await expect(studyTools.getByText(new RegExp(`Card 1 of ${recallCount}`))).toBeVisible();
   const flashcard = studyTools.getByRole("button", { name: "Reveal flashcard answer" });
-  await flashcard.click();
-  await expect(studyTools.getByRole("button", { name: "Hide flashcard answer" })).toContainText("How outputs influence future inputs");
+  const containedFaces = await flashcard.evaluate((element) => {
+    const card = element.getBoundingClientRect();
+    return Array.from(element.querySelectorAll<HTMLElement>(".flashcard-face")).every((face) => {
+      const bounds = face.getBoundingClientRect();
+      const styles = getComputedStyle(face);
+      return bounds.left >= card.left - 1
+        && bounds.right <= card.right + 1
+        && bounds.top >= card.top - 1
+        && bounds.bottom <= card.bottom + 1
+        && face.scrollWidth <= face.clientWidth + 1
+        && styles.overflowY === "auto";
+    });
+  });
+  expect(containedFaces).toBe(true);
+  const recalledAnswers: string[] = [];
+  for (let cardIndex = 0; cardIndex < recallCount + 1; cardIndex += 1) {
+    await studyTools.getByRole("button", { name: "Reveal flashcard answer" }).click();
+    const revealedFlashcard = studyTools.getByRole("button", { name: "Hide flashcard answer" });
+    await expect(revealedFlashcard).toHaveClass(/is-revealed/);
+    recalledAnswers.push(await revealedFlashcard.locator(".flashcard-back").innerText());
+    if (cardIndex === 0) {
+      await expect(revealedFlashcard.locator(".flashcard-back")).toContainText("How outputs influence future inputs");
+      const flipTransform = await revealedFlashcard.locator(".flashcard-inner").evaluate((element) => getComputedStyle(element).transform);
+      expect(flipTransform).not.toBe("none");
+    }
+    if (cardIndex === 0) {
+      await studyTools.getByRole("button", { name: "Review again" }).click();
+      await expect(studyTools.getByText(`Card 2 of ${recallCount + 1}`)).toBeVisible();
+    } else {
+      await studyTools.getByRole("button", { name: "Got it" }).click();
+    }
+  }
+  expect(recalledAnswers.join(" ")).not.toContain("Output influencing future input");
+  expect(recalledAnswers.join(" ")).not.toContain("The result feeds back into the system.");
+  await expect(studyTools.getByText("Recall session complete", { exact: true })).toBeVisible();
+  await expect(studyTools.getByText(`You remembered all ${recallCount} cards.`)).toBeVisible();
+  await studyTools.getByRole("button", { name: "Close study tools" }).click();
+  await page.getByRole("button", { name: "Study tools" }).click();
+  await studyTools.getByRole("tab", { name: "Flashcards" }).click();
+  await expect(studyTools.getByText("Recall session complete", { exact: true })).toBeVisible();
   await studyTools.getByRole("button", { name: "Close study tools" }).click();
   await expect(page.getByRole("heading", { level: 2, name: "Why it matters" })).toBeVisible();
   await page.getByRole("tab", { name: /Activities/ }).click();

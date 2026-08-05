@@ -1,4 +1,5 @@
 import type { LessonMode } from "@/lib/course-types";
+import type { InteractionEvidence } from "@/lib/lesson-interactions";
 
 export type Confidence = "low" | "medium" | "high";
 export type ReviewKind = "spaced" | "delayed-7" | "delayed-28";
@@ -44,6 +45,7 @@ export interface LessonProgress {
   /** The misconception this lesson corrects, recorded at completion. */
   misconception?: string;
   experienceEvidence?: ExperienceEvidence;
+  interactionEvidence?: InteractionEvidence;
 }
 
 export interface ExperienceEvidence {
@@ -119,5 +121,6 @@ export interface ProgressUpdate {
     }>;
     transferResponse?: string;
     experienceEvidence?: ExperienceEvidence;
+    interactionEvidence?: InteractionEvidence;
   };
 }

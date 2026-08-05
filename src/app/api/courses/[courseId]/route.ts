@@ -2,7 +2,6 @@ import { NextResponse } from "next/server";
 import { authorizationResponse, getVerifiedUser, requireAccount, requireAcceptedAccount, requirePremium } from "@/lib/auth-server";
 import {
   deleteCourse,
-  getCoursePublishReadiness,
   getCourse,
   listLessons,
   publishCourseWithReview,
@@ -94,30 +93,6 @@ export async function PATCH(request: Request, { params }: RouteParams) {
         );
       }
       const lessonIds = expectedLessonIds(course as unknown as Course);
-      const expectedModesByLessonId = Object.fromEntries(
-        (course as unknown as Course).modules.flatMap((courseModule, moduleIndex) =>
-          courseModule.lessons.map((lesson, lessonIndex) => [`${moduleIndex}-${lessonIndex}`, lesson.lessonMode]),
-        ),
-      );
-      const readiness = await getCoursePublishReadiness(
-        courseId,
-        lessonIds,
-        course.topic ?? "",
-        expectedModesByLessonId,
-      );
-      if (!readiness.ready) {
-        const qualityMessage = readiness.invalidLessonIds.length > 0
-          ? ` ${readiness.invalidLessonIds.length} ${readiness.invalidLessonIds.length === 1 ? "lesson needs" : "lessons need"} regeneration to meet the current teaching standard.`
-          : "";
-        return NextResponse.json(
-          {
-            error: `Complete every lesson before publishing. ${readiness.readyCount} of ${readiness.totalCount} lessons are ready.${qualityMessage}`,
-            code: "COURSE_NOT_READY",
-            ...readiness,
-          },
-          { status: 409, headers: { "Cache-Control": "no-store" } },
-        );
-      }
       const lessons = await listLessons(courseId);
       visibilityUpdateStage = "publication-review";
       const review = await reviewCourseForPublication(
@@ -147,12 +122,23 @@ export async function PATCH(request: Request, { params }: RouteParams) {
     const authResponse = authorizationResponse(error);
     if (authResponse) return authResponse;
     if (error instanceof PublicationReviewError) {
+      console.info(JSON.stringify({
+        event: "course_publication_review_rejected",
+        courseId,
+        assessmentVersion: error.assessment?.assessmentVersion,
+        overrideEligible: error.assessment?.overrideEligible ?? false,
+        issueCount: error.assessment?.issues.length ?? error.invalidLessonIds.length,
+        nonOverridableIssueCount: error.assessment?.nonOverridableIssues.length ?? 0,
+      }));
       return NextResponse.json(
         {
           error: error.message,
           code: "PUBLICATION_REVIEW_FAILED",
           invalidLessonIds: error.invalidLessonIds,
           invalidLessons: error.invalidLessons,
+          assessmentHash: error.assessmentHash,
+          assessment: error.assessment,
+          overrideEligible: error.assessment?.overrideEligible ?? false,
         },
         { status: 409, headers: { "Cache-Control": "no-store" } },
       );

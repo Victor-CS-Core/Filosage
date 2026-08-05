@@ -10,7 +10,8 @@ import {
 } from "@/lib/firestore-values";
 import { isLocalMode, LOCAL_OWNER_EMAIL, LOCAL_OWNER_UID } from "@/lib/local-mode";
 import { COURSE_SCOPED_COLLECTION_GROUPS, removeCourseReferences } from "@/lib/course-deletion";
-import type { PublicationLessonReview } from "@/lib/publication-review";
+import type { PublicationLessonReview, PublicationOwnerOverride } from "@/lib/publication-review";
+import { publicationContentFingerprint } from "@/lib/publication-content";
 import { inspectCoursePublishReadiness } from "@/lib/publication-readiness";
 import { firebaseAuthenticationClaimsFromIdToken } from "@/lib/recent-auth";
 import { serverEnvironment } from "@/lib/runtime-environment";
@@ -845,6 +846,7 @@ export async function publishCourseWithReview(
   courseId: string,
   expectedLessonIds: string[],
   review: {
+    status: "approved" | "owner_override";
     reviewedAt: string;
     outlineHash: string;
     moderationModel: string;
@@ -852,17 +854,25 @@ export async function publishCourseWithReview(
     factualReviewStatus: "unverified";
     safetyReviewBasis: string;
     sourceUpdatedAt?: string;
+    sourceFingerprint: string;
     reviews: PublicationLessonReview[];
+    ownerOverride?: PublicationOwnerOverride;
   },
 ) {
   const coursePath = `courses/${courseId}`;
   const lessonPaths = expectedLessonIds.map((lessonId) => `courses/${courseId}/lessons/${lessonId}`);
+  const auditPath = review.ownerOverride
+    ? `adminEvents/${review.ownerOverride.auditEventId}`
+    : undefined;
   const reviewByLessonId = new Map(review.reviews.map((item) => [item.lessonId, item]));
-  await runStoredDocumentTransaction([coursePath, ...lessonPaths], (documents) => {
+  await runStoredDocumentTransaction([coursePath, ...lessonPaths, ...(auditPath ? [auditPath] : [])], (documents) => {
     const course = documents[coursePath];
     if (!course) throw new Error("Course not found.");
     if (review.sourceUpdatedAt && course.updatedAt !== review.sourceUpdatedAt) {
       throw new Error("The course changed during publication review. Try publishing again.");
+    }
+    if (publicationContentFingerprint(course) !== review.sourceFingerprint) {
+      throw new Error("The course content changed during publication review. Try publishing again.");
     }
     const now = new Date().toISOString();
     const writes: Array<{ path: string; data: Record<string, unknown> }> = [];
@@ -874,12 +884,18 @@ export async function publishCourseWithReview(
       if (lessonReview.sourceUpdatedAt && lesson.updatedAt !== lessonReview.sourceUpdatedAt) {
         throw new Error("A lesson changed during publication review. Try publishing again.");
       }
+      if (publicationContentFingerprint(lesson) !== lessonReview.sourceFingerprint) {
+        throw new Error("Lesson content changed during publication review. Try publishing again.");
+      }
+      const storedLessonReview = Object.fromEntries(
+        Object.entries(lessonReview).filter(([key]) => key !== "sourceFingerprint"),
+      );
       writes.push({
         path,
         data: {
           ...lesson,
           isPublic: true,
-          publicationReview: lessonReview,
+          publicationReview: storedLessonReview,
           factualReviewStatus: review.factualReviewStatus,
           updatedAt: lesson.updatedAt ?? now,
         },
@@ -894,7 +910,7 @@ export async function publishCourseWithReview(
         quarantineReason: null,
         quarantinedAt: null,
         publicationReview: {
-          status: "approved",
+          status: review.status,
           reviewedAt: review.reviewedAt,
           outlineHash: review.outlineHash,
           moderationModel: review.moderationModel,
@@ -902,12 +918,32 @@ export async function publishCourseWithReview(
           factualReviewStatus: review.factualReviewStatus,
           safetyReviewBasis: review.safetyReviewBasis,
           lessonCount: review.reviews.length,
+          ownerOverrideEventId: review.ownerOverride?.auditEventId ?? null,
         },
         factualReviewStatus: review.factualReviewStatus,
         publishedAt: now,
         updatedAt: now,
       },
     });
+    if (auditPath && review.ownerOverride) {
+      writes.push({
+        path: auditPath,
+        data: {
+          actorUid: review.ownerOverride.actorUid,
+          courseId,
+          action: "course_quality_override_published",
+          reason: review.ownerOverride.reason,
+          assessmentHash: review.ownerOverride.assessmentHash,
+          assessmentVersion: review.ownerOverride.assessmentVersion,
+          issueCodes: review.ownerOverride.issueCodes,
+          courseQualityGateVersion: review.ownerOverride.courseQualityGateVersion,
+          lessonQualityGateVersion: review.ownerOverride.lessonQualityGateVersion,
+          outlineHash: review.outlineHash,
+          lessonContentHashes: Object.fromEntries(review.reviews.map((item) => [item.lessonId, item.contentHash])),
+          createdAt: review.reviewedAt,
+        },
+      });
+    }
     return { writes, result: undefined };
   });
 }

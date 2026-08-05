@@ -99,7 +99,7 @@ export interface Course {
   generatedLessonIds?: string[];
   moderationStatus?: "approved" | "quarantined";
   publicationReview?: {
-    status: "approved";
+    status: "approved" | "owner_override";
     reviewedAt?: string;
     moderationModel?: string;
     reviewVersion?: string;
@@ -164,6 +164,7 @@ export interface LessonData {
     generationModel?: string;
     promptVersion?: string;
     qualityGateVersion?: string;
+    interactionQualityGateVersion?: string;
     sources: Array<{ label: string; url?: string }>;
   };
 }
