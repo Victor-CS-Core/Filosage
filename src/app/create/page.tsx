@@ -20,6 +20,7 @@ import {
 import AppShell from "@/components/AppShell";
 import { useAuth } from "@/components/AuthProvider";
 import { createClientId } from "@/lib/browser-compat";
+import { isSafePublicSourceUrl } from "@/lib/source-safety";
 import styles from "./create.module.css";
 
 const examples = [
@@ -54,6 +55,7 @@ export default function CreateCoursePage() {
   const router = useRouter();
   const { user, isPro, account } = useAuth();
   const [activeStep, setActiveStep] = useState(0);
+  const [visitedSteps, setVisitedSteps] = useState([true, false, false]);
   const [topic, setTopic] = useState("");
   const [goal, setGoal] = useState("");
   const [application, setApplication] = useState("");
@@ -89,13 +91,14 @@ export default function CreateCoursePage() {
   }, [submitting]);
 
   const goToStep = (nextStep: number) => {
+    setVisitedSteps((current) => current.map((visited, index) => visited || index === nextStep));
     setActiveStep(nextStep);
     window.requestAnimationFrame(() => stepHeadingRef.current?.focus());
   };
 
   const create = async (event: React.FormEvent) => {
     event.preventDefault();
-    if (!user || !isPro || !topic.trim() || !goal.trim()) return;
+    if (!user || !isPro || !topic.trim() || !goal.trim() || !background.trim()) return;
     setSubmitting(true);
     setGenerationProgress(8);
     setGenerationStage("Checking your course brief");
@@ -144,11 +147,21 @@ export default function CreateCoursePage() {
 
   const plannedHours = Math.max(1, Math.round((weeklyMinutes * targetWeeks) / 60));
   const weeklySessions = Math.max(1, Math.round(weeklyMinutes / 30));
-  const briefReady = Boolean(topic.trim() && goal.trim());
+  const outcomeComplete = topic.trim().length >= 2 && Boolean(goal.trim());
+  const paceComplete = Boolean(background.trim() && level && targetWeeks >= 2 && weeklyMinutes >= 30);
   const enteredSourceCount = sources.filter((source) => source.label.trim() || source.url.trim() || source.note.trim()).length;
+  const referencesComplete = sources.every((source) => {
+    const label = source.label.trim();
+    const url = source.url.trim();
+    const note = source.note.trim();
+    if (!label && !url && !note) return true;
+    return label.length >= 2 && Boolean(url || note) && (!url || isSafePublicSourceUrl(url));
+  });
+  const teachingComplete = Boolean(courseStyle) && referencesComplete;
+  const formReady = outcomeComplete && paceComplete && teachingComplete;
   const contextCount = [application, artifactPreference, scenarioPreference, background].filter((value) => value.trim()).length;
-  const outcomeComplete = briefReady;
-  const stepComplete = [outcomeComplete, activeStep > 1, false];
+  const stepValidity = [outcomeComplete, paceComplete, teachingComplete];
+  const stepComplete = stepValidity.map((valid, index) => valid && visitedSteps[index]);
   const creditLabel = outlineQuota?.remaining == null
     ? "Course creation available"
     : `${outlineQuota.remaining} course credit${outlineQuota.remaining === 1 ? "" : "s"} left this month`;
@@ -181,6 +194,7 @@ export default function CreateCoursePage() {
                     onClick={() => goToStep(index)}
                     disabled={submitting}
                     aria-current={index === activeStep ? "step" : undefined}
+                    data-complete={stepComplete[index] ? "true" : "false"}
                   >
                     <span className={styles.stepIcon}>{stepComplete[index] && index !== activeStep ? <Check size={16} /> : <Icon size={16} />}</span>
                     <span><strong>{step.label}</strong><small>{step.description}</small></span>
@@ -243,23 +257,23 @@ export default function CreateCoursePage() {
                     </div>
 
                     <div className={styles.field}>
-                      <label htmlFor="course-background"><span>What do you already know?</span><small>Recommended · {background.length}/500</small></label>
-                      <textarea id="course-background" value={background} onChange={(event) => setBackground(event.target.value)} maxLength={500} rows={4} placeholder="I understand the basic vocabulary but have not yet applied it to a real case." />
+                      <label htmlFor="course-background"><span>What do you already know?</span><small>Required · {background.length}/500</small></label>
+                      <textarea id="course-background" value={background} onChange={(event) => setBackground(event.target.value)} maxLength={500} rows={4} placeholder="I understand the basic vocabulary but have not yet applied it to a real case." required />
                       <p className={styles.fieldHint}>Mention adjacent skills, tools, or concepts Erudoza can build on.</p>
                     </div>
 
                     <div className={styles.scheduleGrid}>
                       <div className={styles.field}>
                         <label htmlFor="course-level"><span>Starting level</span></label>
-                        <select id="course-level" value={level} onChange={(event) => setLevel(event.target.value as typeof level)}><option>Foundations</option><option>Intermediate</option><option>Advanced</option></select>
+                        <select id="course-level" value={level} onChange={(event) => setLevel(event.target.value as typeof level)} required><option>Foundations</option><option>Intermediate</option><option>Advanced</option></select>
                       </div>
                       <div className={styles.field}>
                         <label htmlFor="target-weeks"><span>Target length</span></label>
-                        <select id="target-weeks" value={targetWeeks} onChange={(event) => setTargetWeeks(Number(event.target.value))}><option value={2}>2 weeks</option><option value={4}>4 weeks</option><option value={6}>6 weeks</option><option value={8}>8 weeks</option></select>
+                        <select id="target-weeks" value={targetWeeks} onChange={(event) => setTargetWeeks(Number(event.target.value))} required><option value={2}>2 weeks</option><option value={4}>4 weeks</option><option value={6}>6 weeks</option><option value={8}>8 weeks</option></select>
                       </div>
                       <div className={styles.field}>
                         <label htmlFor="weekly-minutes"><span>Weekly study time</span></label>
-                        <select id="weekly-minutes" value={weeklyMinutes} onChange={(event) => setWeeklyMinutes(Number(event.target.value))}><option value={60}>1 hour</option><option value={120}>2 hours</option><option value={180}>3 hours</option><option value={300}>5 hours</option></select>
+                        <select id="weekly-minutes" value={weeklyMinutes} onChange={(event) => setWeeklyMinutes(Number(event.target.value))} required><option value={60}>1 hour</option><option value={120}>2 hours</option><option value={180}>3 hours</option><option value={300}>5 hours</option></select>
                       </div>
                     </div>
 
@@ -281,7 +295,7 @@ export default function CreateCoursePage() {
                     <div className={styles.approachGroup} role="radiogroup" aria-label="Teaching approach">
                       {courseStyles.map((style) => (
                         <label key={style.value} className={courseStyle === style.value ? styles.selectedApproach : ""}>
-                          <input type="radio" name="course-style" value={style.value} checked={courseStyle === style.value} onChange={() => setCourseStyle(style.value)} />
+                          <input type="radio" name="course-style" value={style.value} checked={courseStyle === style.value} onChange={() => setCourseStyle(style.value)} required />
                           <span className={styles.radioMark}>{courseStyle === style.value && <Check size={14} />}</span>
                           <span><strong>{style.title}</strong><small>{style.description}</small></span>
                         </label>
@@ -346,9 +360,9 @@ export default function CreateCoursePage() {
                   {activeStep > 0 && <button className={`button button-quiet ${styles.backButton}`} type="button" onClick={() => goToStep(activeStep - 1)} disabled={submitting}><ArrowLeft size={17} /> Back</button>}
                 </div>
                 {activeStep < steps.length - 1 ? (
-                  <button className="button button-primary" type="button" onClick={() => goToStep(activeStep + 1)} disabled={activeStep === 0 && !briefReady}>Continue <ArrowRight size={17} /></button>
+                  <button className="button button-primary" type="button" onClick={() => goToStep(activeStep + 1)} disabled={!stepValidity[activeStep]}>Continue <ArrowRight size={17} /></button>
                 ) : (
-                  <button className="button button-primary" type="submit" disabled={!briefReady || submitting}>{submitting ? <><LoaderCircle className="spin" size={17} /> Creating your course…</> : <>Create private course <ArrowRight size={17} /></>}</button>
+                  <button className="button button-primary" type="submit" disabled={!formReady || submitting}>{submitting ? <><LoaderCircle className="spin" size={17} /> Creating your course…</> : <>Create private course <ArrowRight size={17} /></>}</button>
                 )}
               </footer>
             </form>
@@ -367,13 +381,13 @@ export default function CreateCoursePage() {
               <div><dt>Evidence</dt><dd>{artifactPreference.trim() || "Add a concrete deliverable"}</dd></div>
             </dl>
             <div className={styles.snapshotReadiness}>
-              <div><strong>{briefReady ? "Ready to build" : "Start with the outcome"}</strong><span>{activeStep + 1} of {steps.length}</span></div>
+              <div><strong>{formReady ? "Ready to build" : outcomeComplete ? "Complete the course brief" : "Start with the outcome"}</strong><span>{activeStep + 1} of {steps.length}</span></div>
               <ul>
                 <li className={topic.trim() ? styles.ready : ""}><CheckCircle2 size={16} /> Clear capability</li>
                 <li className={goal.trim() ? styles.ready : ""}><CheckCircle2 size={16} /> Observable outcome</li>
                 <li className={artifactPreference.trim() ? styles.ready : ""}><CheckCircle2 size={16} /> Evidence of skill</li>
               </ul>
-              {briefReady && contextCount === 0 && <p>Add one context detail to make the examples feel closer to your work.</p>}
+              {outcomeComplete && contextCount === 0 && <p>Add one context detail to make the examples feel closer to your work.</p>}
               {contextCount > 0 && <p>{contextCount} context detail{contextCount === 1 ? "" : "s"} will help tailor the course.</p>}
             </div>
             <div className={styles.creditNote}><Sparkles size={16} /><span><strong>{creditLabel}</strong><small>A credit is reserved only when generation begins.</small></span></div>
