@@ -445,7 +445,7 @@ export default function CourseMap() {
           oncePerSession: true,
         });
       }
-      assessment.criteria.filter((criterion) => criterion.met).forEach((criterion, criterionIndex) => {
+      assessment.criteria.filter((criterion) => criterion.met).forEach((_criterion, criterionIndex) => {
         trackProductEvent("capstone_criterion_passed", {
           route: "/course",
           courseId,

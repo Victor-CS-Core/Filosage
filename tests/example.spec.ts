@@ -937,8 +937,16 @@ test("does not complete a lesson after a wrong answer", async ({ page }) => {
   await expect(page.locator(".lesson-scroll")).toHaveCSS("overflow-y", "visible");
   await expect(page.locator(".lesson-study-panel")).toHaveCount(0);
   await page.getByRole("button", { name: "Study tools" }).click();
-  await expect(page.locator(".lesson-study-panel")).toBeVisible();
-  await page.getByRole("button", { name: "Close study tools" }).click();
+  const studyTools = page.getByRole("dialog", { name: "Study workspace" });
+  await expect(studyTools).toBeVisible();
+  await expect(studyTools.getByRole("tab", { name: "Notes" })).toHaveAttribute("aria-selected", "true");
+  await studyTools.getByRole("tab", { name: "Flashcards" }).click();
+  await studyTools.getByRole("button", { name: "Generate flashcards" }).click();
+  await expect(studyTools.getByText("Card 1 of 3")).toBeVisible();
+  const flashcard = studyTools.getByRole("button", { name: "Reveal flashcard answer" });
+  await flashcard.click();
+  await expect(studyTools.getByRole("button", { name: "Hide flashcard answer" })).toContainText("How outputs influence future inputs");
+  await studyTools.getByRole("button", { name: "Close study tools" }).click();
   await expect(page.getByRole("heading", { level: 2, name: "Why it matters" })).toBeVisible();
   await page.getByRole("tab", { name: /Activities/ }).click();
   const firstCheck = page.locator(".knowledge-check");

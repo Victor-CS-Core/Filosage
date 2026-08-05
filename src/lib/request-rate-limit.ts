@@ -13,7 +13,7 @@ function clientKey(request: Request, namespace: string) {
   return null;
 }
 
-function consume(key: string, limit: number, windowMs: number, now: number) {
+function consume(key: string, windowMs: number, now: number) {
   const previous = buckets.get(key);
   const bucket = !previous || previous.resetAt <= now ? { count: 0, resetAt: now + windowMs } : previous;
   bucket.count += 1;
@@ -31,9 +31,9 @@ export function enforceBestEffortRateLimit(request: Request, namespace: string, 
 
   // The aggregate bucket bounds total throughput per namespace even when
   // per-client attribution is spoofed or unavailable.
-  const globalBucket = consume(`${namespace}:*`, limit * GLOBAL_MULTIPLIER, windowMs, now);
+  const globalBucket = consume(`${namespace}:*`, windowMs, now);
   const key = clientKey(request, namespace);
-  const clientBucket = key ? consume(key, limit, windowMs, now) : null;
+  const clientBucket = key ? consume(key, windowMs, now) : null;
   const limited = globalBucket.count > limit * GLOBAL_MULTIPLIER
     || (clientBucket !== null && clientBucket.count > limit);
   if (!limited) return null;

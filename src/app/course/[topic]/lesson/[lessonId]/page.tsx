@@ -48,6 +48,7 @@ import LessonExperience, { type LessonExperienceState } from "@/components/Lesso
 import LessonIntegrityPanel from "@/components/LessonIntegrityPanel";
 import InteractiveLessonBlock from "@/components/InteractiveLessonBlock";
 import LessonSectionNavigator from "@/components/LessonSectionNavigator";
+import LessonStudyTools from "@/components/LessonStudyTools";
 import { useMasteryJourney } from "@/components/useMasteryJourney";
 import {
   markdownToSpeech,
@@ -318,6 +319,7 @@ export default function LessonView() {
   const closeStudyToolsDrawer = studyToolsDrawer.closeDrawer;
   const tutorOpen = tutorDrawer.open;
   const studyToolsOpen = studyToolsDrawer.open;
+  const openTutorDrawer = tutorDrawer.openDrawer;
   const [activePracticeState, setActivePracticeState] = useState<{ key: string; index: number }>({ key: "", index: 0 });
   const [lessonPaneState, setLessonPaneState] = useState<{ key: string; pane: LessonPane }>({ key: "", pane: "learn" });
   const [activitySectionState, setActivitySectionState] = useState<{ key: string; id: ActivitySectionId | null }>({ key: "", id: null });
@@ -334,6 +336,7 @@ export default function LessonView() {
     value: ConfidenceCalibration | null;
   }>({ key: "", value: null });
   const chatBottomRef = useRef<HTMLDivElement>(null);
+  const tutorInputRef = useRef<HTMLTextAreaElement>(null);
   const noteHydratedRef = useRef(false);
   const generationStartedAtRef = useRef(0);
   const generationRequestRef = useRef<{ lessonKey: string; requestId: string } | null>(null);
@@ -406,6 +409,15 @@ export default function LessonView() {
       setGuidedPracticeState({ key: noteKey, complete: true });
     }
     setActivitySectionState({ key: noteKey, id });
+  };
+
+  const openLessonChecks = () => {
+    selectLessonPane("activities");
+    setActivitySectionState({ key: noteKey, id: "checks" });
+    closeStudyToolsDrawer();
+    window.setTimeout(() => {
+      document.getElementById("activity-checks-tab")?.scrollIntoView({ behavior: "smooth", block: "center" });
+    }, 180);
   };
 
   const handleActivityKeyDown = (event: React.KeyboardEvent<HTMLButtonElement>, index: number) => {
@@ -991,6 +1003,18 @@ export default function LessonView() {
     }
   };
 
+  const chooseTutorPrompt = (prompt: string) => {
+    setChatInput(prompt);
+    requestAnimationFrame(() => tutorInputRef.current?.focus());
+  };
+
+  const openTutorWithPrompt = (prompt: string) => {
+    setChatInput(prompt);
+    closeStudyToolsDrawer();
+    openTutorDrawer();
+    window.setTimeout(() => tutorInputRef.current?.focus(), 180);
+  };
+
   const updateExperienceEvidence = useCallback((value: LessonExperienceState) => {
     setExperienceState({ key: noteKey, value });
     try {
@@ -1415,32 +1439,47 @@ export default function LessonView() {
 
           {!tutorOpen && studyToolsOpen && (
             <AppDrawer open={studyToolsOpen} onClose={studyToolsDrawer.closeDrawer} labelledBy="study-tools-title" size="medium" mobilePlacement="bottom" className="lesson-study-app-drawer">
-              <aside className="lesson-study-panel" id="lesson-study-panel">
-                <div className="study-panel-heading"><NotebookPen size={18} /><div><strong id="study-tools-title">Study workspace</strong><small>{user ? "Synced with your account" : "Saved on this device"}</small></div><button className="icon-button" type="button" onClick={studyToolsDrawer.closeDrawer} aria-label="Close study tools"><X size={17} /></button></div>
-                <section className="lesson-note-section">
-                  <label htmlFor="lesson-note">Your notes</label>
-                  <textarea id="lesson-note" value={noteDraft} onChange={(event) => setNoteDraft(event.target.value)} maxLength={12_000} rows={9} placeholder="Capture the idea in your own words…" />
-                  <span>{noteDraft.length.toLocaleString()}/12,000 · <span role={learnerSyncStatus === "error" ? "alert" : "status"}>{learnerSyncStatus === "saving" ? "Saving…" : learnerSyncStatus === "error" ? learnerSyncError : learnerSyncStatus === "saved" ? "Saved" : user ? "Synced" : "On this device"}</span></span>
-                </section>
-                <section className="study-key-point"><span><Lightbulb size={17} /></span><div><strong>Core idea</strong><p>{lesson.concept}</p></div></section>
-                <section className="mastery-checklist"><strong>Lesson checklist</strong><ul><li className="is-done"><Check size={15} /> Read the explanation</li>{lessonData.experience && <li className={experienceComplete ? "is-done" : ""}><Check size={15} /> Save the active lesson evidence</li>}{lessonData.transferTask && <li className={transferComplete ? "is-done" : ""}><Check size={15} /> Apply the idea</li>}<li className={complete ? "is-done" : ""}><Check size={15} /> Complete the retrieval checks</li></ul></section>
-              </aside>
+              <LessonStudyTools
+                lessonTitle={lesson.title}
+                lessonConcept={lesson.concept}
+                learningObjective={lessonData.learningObjective}
+                quizzes={lessonData.quizzes}
+                noteDraft={noteDraft}
+                onNoteChange={setNoteDraft}
+                noteStatus={learnerSyncStatus === "saving" ? "Saving…" : learnerSyncStatus === "error" ? learnerSyncError ?? "Could not save" : learnerSyncStatus === "saved" ? "Saved" : user ? "Synced" : "On this device"}
+                noteStatusIsError={learnerSyncStatus === "error"}
+                canUseTutor={Boolean(user)}
+                experienceAvailable={Boolean(lessonData.experience)}
+                experienceComplete={experienceComplete}
+                transferAvailable={Boolean(lessonData.transferTask)}
+                transferComplete={transferComplete}
+                lessonComplete={complete}
+                onClose={studyToolsDrawer.closeDrawer}
+                onOpenTutor={openTutorWithPrompt}
+                onOpenChecks={openLessonChecks}
+              />
             </AppDrawer>
           )}
 
           {user && tutorOpen && (
             <AppDrawer open={tutorOpen} onClose={tutorDrawer.closeDrawer} labelledBy="tutor-title" size="medium" mobilePlacement="full" className="tutor-app-drawer">
             <aside className="tutor-drawer">
-              <div className="tutor-header">
+              <header className="tutor-header">
                 <span className="tutor-avatar"><ErudozaMark /></span>
-                <div><strong id="tutor-title">Erudoza AI Tutor</strong><small>AI-generated responses grounded in this lesson</small></div>
+                <div className="tutor-heading"><span>Lesson tutor</span><strong id="tutor-title">Erudoza AI Tutor</strong><small>Grounded in “{lesson.title}”</small></div>
+                <span className="tutor-grounded-status"><span aria-hidden="true" /> Lesson-aware</span>
                 <button className="icon-button" onClick={tutorDrawer.closeDrawer} aria-label="Close tutor"><X size={18} /></button>
-              </div>
+              </header>
               <div className="tutor-messages" aria-live="polite">
                 {messages.length === 0 && (
-                  <div className="tutor-message tutor-assistant" data-ai-generated="true">
-                    <span><Bot size={14} /></span>
-                    <div><p>Ask about a concept, worked example, or answer choice from <strong>{lesson.title}</strong>.</p></div>
+                  <div className="tutor-welcome" data-ai-generated="true">
+                    <div className="tutor-context-card"><span><Target size={18} /></span><div><small>Current focus</small><strong>{lesson.concept}</strong></div></div>
+                    <div className="tutor-welcome-copy"><strong>Where should we begin?</strong><p>Choose a prompt or ask about any concept, example, or answer choice in this lesson.</p></div>
+                    <div className="tutor-starters" aria-label="Suggested tutor prompts">
+                      <button type="button" onClick={() => chooseTutorPrompt("Give me a small hint about the central idea without giving away the full answer.")}><Lightbulb size={16} /><span><strong>Give me a hint</strong><small>Start with one useful nudge</small></span><ArrowRight size={15} /></button>
+                      <button type="button" onClick={() => chooseTutorPrompt(`Quiz me on “${lesson.title}” one question at a time. Wait for my answer before responding.`)}><ListChecks size={16} /><span><strong>Quiz me</strong><small>One question at a time</small></span><ArrowRight size={15} /></button>
+                      <button type="button" onClick={() => chooseTutorPrompt(`Explain “${lesson.concept}” with a fresh, concrete example that is not already in the lesson.`)}><Waypoints size={16} /><span><strong>Use a fresh example</strong><small>See the idea in another context</small></span><ArrowRight size={15} /></button>
+                    </div>
                   </div>
                 )}
                 {messages.map((message) => (
@@ -1457,6 +1496,7 @@ export default function LessonView() {
                 <div className="tutor-input-shell">
                   <textarea
                     id="tutor-input"
+                    ref={tutorInputRef}
                     value={chatInput}
                     onChange={(event) => setChatInput(event.target.value)}
                     onKeyDown={(event) => {
@@ -1465,7 +1505,7 @@ export default function LessonView() {
                         event.currentTarget.form?.requestSubmit();
                       }
                     }}
-                    placeholder="Ask about a concept, example, or answer choice"
+                    placeholder="Ask a question or choose a prompt above"
                     rows={3}
                     maxLength={4_000}
                   />
@@ -1473,7 +1513,7 @@ export default function LessonView() {
                     {chatting ? <LoaderCircle className="spin" size={18} /> : <Send size={18} />}
                   </button>
                 </div>
-                <small className="tutor-disclaimer">AI can make mistakes. Verify important information.</small>
+                <div className="tutor-composer-meta"><small>Enter to send · Shift+Enter for a new line</small><small className="tutor-disclaimer">AI can make mistakes. Verify important information.</small></div>
               </form>
             </aside>
             </AppDrawer>
