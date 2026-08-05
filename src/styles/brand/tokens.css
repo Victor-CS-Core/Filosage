@@ -77,6 +77,8 @@
   --motion-layout: 220ms;
   --motion-overlay-enter: 220ms;
   --motion-overlay-exit: 160ms;
+  --control-hover-lift: -1px;
+  --control-press-scale: 0.98;
   --z-sidebar: 20;
   --z-drawer: 40;
   --z-modal-backdrop: 60;
