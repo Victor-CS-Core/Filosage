@@ -604,8 +604,9 @@ test("keeps the learning library public", async ({ page }) => {
     page.getByRole("heading", { name: "Learn anything. Understand everything." }),
   ).toBeVisible();
   await expect(page.locator(".marketing-tagline")).toHaveText("Your daily dose of understanding.");
-  await expect(page.locator(".marketing-hero .marketing-principles")).toHaveCount(0);
-  await expect(page.locator(".marketing-page > .marketing-principles")).toBeVisible();
+  await expect(page.locator(".marketing-page > section")).toHaveCount(3);
+  await expect(page.locator(".marketing-feature-grid article")).toHaveCount(3);
+  await expect(page.locator('a[href^="/library?q="]')).toHaveCount(0);
 
   if ((page.viewportSize()?.width ?? 0) <= 620) {
     const primaryHeight = await page.locator(".marketing-hero").getByRole("link", { name: "Start learning" }).evaluate((link) => link.getBoundingClientRect().height);
@@ -626,7 +627,7 @@ test("publishes the teaching standard", async ({ page }) => {
 
 test("describes guest access and Pro publishing consistently across public pages", async ({ page }) => {
   await page.goto("/");
-  await expect(page.getByText("Inspect the path before you begin", { exact: false })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "A learning loop built for ideas you need to use." })).toBeVisible();
 
   await page.goto("/library");
   await expect(page).toHaveTitle("Course Library | Erudoza");

@@ -7,7 +7,7 @@ export default defineSupportArticle({
   category: "trust",
   keywords: ["accessibility", "keyboard", "screen reader", "focus", "reduced motion", "dark mode", "speech"],
   reviewedOn: "2026-08-05",
-  sources: ["DESIGN.md", "src/app/globals.css", "src/components/AppShell.tsx", "src/components/SpeakButton.tsx"],
+  sources: ["DESIGN.md", "src/app/globals.css", "src/components/AppShell.tsx", "src/components/AppDrawer.tsx", "src/components/LessonStudyTools.tsx", "src/components/SpeakButton.tsx"],
   body: `
 ## Navigate by keyboard
 

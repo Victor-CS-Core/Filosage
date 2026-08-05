@@ -7,6 +7,8 @@ const manifestPath = resolve(root, "docs/support/wiki-feature-map.json");
 const manifest = JSON.parse(readFileSync(manifestPath, "utf8"));
 const articleDirectory = resolve(root, manifest.articleDirectory);
 const validCategories = new Set(["start", "courses", "practice", "progress", "account", "trust", "plans"]);
+const legalSource = readFileSync(resolve(root, "src/lib/legal.ts"), "utf8");
+const supportContact = legalSource.match(/SUPPORT_CONTACT\s*=\s*"([^"]+)"/)?.[1];
 
 function fail(messages) {
   for (const message of messages) process.stderr.write(`Support wiki: ${message}\n`);
@@ -56,6 +58,7 @@ const articles = articleFiles.map((file) => {
     reviewedOn,
     related: extractArray(source, "related"),
     sources: extractArray(source, "sources"),
+    links: [...source.matchAll(/\[[^\]]+\]\(([^)\s]+)\)/g)].map((match) => match[1]),
   };
 });
 
@@ -71,6 +74,14 @@ for (const article of articles) {
   for (const source of article.sources) {
     if (!existsSync(resolve(root, source))) errors.push(`${article.file} references missing evidence source ${source}.`);
   }
+  const mappedFeatures = manifest.features.filter((entry) => (entry.articles ?? []).includes(article.slug));
+  if (!mappedFeatures.length) errors.push(`${article.file} is not represented in the feature map.`);
+  const mappedSources = mappedFeatures.flatMap((entry) => entry.sources);
+  if (mappedSources.length && !article.sources.some((articleSource) => mappedSources.some((mappedSource) => (
+    sourceMatches(articleSource, mappedSource) || sourceMatches(mappedSource, articleSource)
+  )))) {
+    errors.push(`${article.file} does not cite evidence from its mapped feature sources.`);
+  }
 }
 
 for (const article of articles) {
@@ -79,6 +90,25 @@ for (const article of articles) {
   }
   for (const match of article.source.matchAll(/\/support\/articles\/([a-z0-9-]+)/g)) {
     if (!slugs.has(match[1])) errors.push(`${article.file} links to missing article ${match[1]}.`);
+  }
+  for (const href of article.links) {
+    if (href.startsWith("/support/articles/")) continue;
+    if (href.startsWith("/")) {
+      const pathname = href.split(/[?#]/, 1)[0];
+      const routeFile = resolve(root, "src/app", pathname === "/" ? "page.tsx" : `${pathname.slice(1)}/page.tsx`);
+      if (!existsSync(routeFile)) errors.push(`${article.file} links to missing application route ${pathname}.`);
+      continue;
+    }
+    if (href.startsWith("mailto:")) {
+      const email = decodeURIComponent(href.slice("mailto:".length).split("?", 1)[0]);
+      if (!supportContact || email.toLowerCase() !== supportContact.toLowerCase()) {
+        errors.push(`${article.file} uses ${email || "an empty address"} instead of SUPPORT_CONTACT.`);
+      }
+      continue;
+    }
+    if (!href.startsWith("https://") && !href.startsWith("http://") && !href.startsWith("#")) {
+      errors.push(`${article.file} contains unsupported link target ${href}.`);
+    }
   }
 }
 

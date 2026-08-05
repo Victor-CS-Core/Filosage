@@ -109,17 +109,18 @@ async function expectNoHorizontalPageOverflow(page: Page) {
 test.describe("desktop application shell", () => {
   test.use({ viewport: { width: 1366, height: 900 } });
 
-  test("keeps primary navigation compact and moves secondary controls into right drawers", async ({ page }) => {
+  test("uses a Learning Header with menus anchored to their controls", async ({ page }) => {
     await prepareOwnerShell(page);
     await page.goto("/library");
 
-    const rail = page.locator(".learner-sidebar");
-    await expect(rail).toBeVisible();
-    const railBox = await rail.boundingBox();
-    expect(railBox?.width).toBeLessThanOrEqual(96);
+    const header = page.locator(".learning-header");
+    await expect(header).toBeVisible();
+    const headerBox = await header.boundingBox();
+    expect(headerBox?.height).toBeLessThanOrEqual(70);
+    await expect(page.locator(".learner-sidebar")).toHaveCount(0);
     await expect(page.getByRole("link", { name: "Explore", exact: true })).toHaveAttribute("aria-current", "page");
 
-    const coursesTrigger = page.getByRole("button", { name: /Courses/ });
+    const coursesTrigger = page.getByRole("button", { name: /My courses/ });
     await expect(coursesTrigger).toHaveAttribute("aria-expanded", "false");
     await coursesTrigger.click();
 
@@ -128,13 +129,15 @@ test.describe("desktop application shell", () => {
     await expect(coursesTrigger).toHaveAttribute("aria-expanded", "true");
     await expect(coursesDialog.getByText("Morse Code", { exact: true })).toBeVisible();
     await expect(coursesDialog.getByText("Decision quality", { exact: true })).toBeVisible();
+    const triggerBox = await coursesTrigger.boundingBox();
     const drawerBox = await coursesDialog.boundingBox();
-    expect(drawerBox && Math.abs(drawerBox.x + drawerBox.width - 1366)).toBeLessThanOrEqual(1);
+    expect(triggerBox && drawerBox && drawerBox.y).toBeGreaterThanOrEqual((triggerBox?.y ?? 0) + (triggerBox?.height ?? 0));
+    expect(triggerBox && drawerBox && Math.abs((drawerBox.x + drawerBox.width) - (triggerBox.x + triggerBox.width))).toBeLessThanOrEqual(2);
 
     await coursesDialog.getByPlaceholder("Search your courses").fill("decision");
     await expect(coursesDialog.getByText("Decision quality", { exact: true })).toBeVisible();
     await expect(coursesDialog.getByText("Morse Code", { exact: true })).toBeHidden();
-    await coursesDialog.getByRole("button", { name: "Close course switcher" }).click();
+    await coursesDialog.getByRole("button", { name: "Close course menu" }).click();
 
     const accountTrigger = page.getByRole("button", { name: "Open account menu for Playwright" });
     await accountTrigger.focus();
@@ -154,12 +157,12 @@ test.describe("desktop application shell", () => {
     await prepareOwnerShell(page);
     await page.goto("/library");
 
-    const coursesTrigger = page.getByRole("button", { name: /Courses/ });
+    const coursesTrigger = page.getByRole("button", { name: /My courses/ });
     const coursesDialog = page.getByRole("dialog", { name: "My courses" });
     await coursesTrigger.click();
     await expect(coursesDialog).toBeVisible();
 
-    await coursesDialog.getByRole("button", { name: "Close course switcher" }).click();
+    await coursesDialog.getByRole("button", { name: "Close course menu" }).click();
     await expect(coursesTrigger).toHaveAttribute("aria-expanded", "false");
     await coursesTrigger.click();
 
@@ -168,6 +171,27 @@ test.describe("desktop application shell", () => {
     await page.waitForTimeout(240);
     await expect(coursesTrigger).toHaveAttribute("aria-expanded", "true");
     await expect(coursesDialog).toBeVisible();
+  });
+
+  test("keeps the main workspace stable while a modal drawer opens and closes", async ({ page }) => {
+    await prepareOwnerShell(page);
+    await page.goto("/");
+
+    const main = page.locator(".app-main");
+    const readLayout = () => main.evaluate((element) => ({
+      clientWidth: element.clientWidth,
+      left: element.getBoundingClientRect().left,
+    }));
+    const before = await readLayout();
+
+    await page.getByRole("button", { name: "Customize" }).click();
+    const customizer = page.getByRole("dialog", { name: "Choose what helps you focus." });
+    await expect(customizer).toBeVisible();
+    expect(await readLayout()).toEqual(before);
+
+    await customizer.getByRole("button", { name: "Close dashboard settings" }).click();
+    await expect(customizer).toBeHidden();
+    expect(await readLayout()).toEqual(before);
   });
 
   test("presents profile, progress, and course creation as evidence-led decisions", async ({ page }) => {
@@ -232,7 +256,7 @@ test.describe("mobile application shell", () => {
     await prepareOwnerShell(page);
     await page.goto("/library");
 
-    await expect(page.locator(".learner-sidebar")).toBeHidden();
+    await expect(page.locator(".learning-header")).toBeHidden();
     await expect(page.getByRole("navigation", { name: "Mobile navigation" })).toBeVisible();
     await page.locator(".mobile-account-trigger").click();
 

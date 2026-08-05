@@ -243,23 +243,6 @@
 .mock-evidence li svg { color: #2DD4BF; }
 .mock-evidence li:last-child svg { color: #A8B3C7; }
 
-.marketing-principles {
-  width: min(var(--content-max), calc(100% - 2 * var(--marketing-gutter)));
-  min-height: 94px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: clamp(24px, 5vw, 64px);
-  margin-inline: auto;
-  border-block: var(--border-subtle);
-  color: var(--ink-secondary);
-  font-size: 0.9rem;
-  font-weight: 700;
-  text-align: center;
-}
-
-.marketing-principles span { width: 1px; height: 28px; background: var(--line); }
-
 .marketing-section {
   width: min(var(--content-max), calc(100% - 2 * var(--marketing-gutter)));
   margin-inline: auto;
@@ -267,8 +250,8 @@
 }
 
 .marketing-section-heading { max-width: 860px; }
-.marketing-section-heading h2, .marketing-how-intro h2, .marketing-topic-copy h2, .marketing-personalized h2, .marketing-progress h2 { font-size: clamp(2.25rem, 4.4vw, 4.25rem); letter-spacing: -0.04em; }
-.marketing-section-heading p, .marketing-how-intro p, .marketing-topic-copy > p, .marketing-personalized > div > p, .marketing-progress-copy > p { max-width: 64ch; margin-top: var(--space-lg); color: var(--ink-secondary); font-size: var(--text-lead); line-height: 1.7; }
+.marketing-section-heading h2, .marketing-how-intro h2 { font-size: clamp(2.25rem, 4.4vw, 4.25rem); letter-spacing: -0.04em; }
+.marketing-section-heading p, .marketing-how-intro p { max-width: 64ch; margin-top: var(--space-lg); color: var(--ink-secondary); font-size: var(--text-lead); line-height: 1.7; }
 
 .marketing-feature-grid {
   display: grid;
@@ -319,61 +302,7 @@
 .marketing-how li p { margin-top: var(--space-sm); color: #C5CEDE; font-size: 0.88rem; line-height: 1.65; }
 .marketing-step-arrow { position: absolute; top: 25px; right: 18px; color: #40527A; }
 
-.marketing-topic-section,
-.marketing-personalized,
-.marketing-progress {
-  width: min(var(--content-max), calc(100% - 2 * var(--marketing-gutter)));
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 0.9fr);
-  align-items: center;
-  gap: clamp(48px, 7vw, 96px);
-  margin-inline: auto;
-  padding-block: var(--space-section);
-}
-
-.marketing-topic-visual,
-.marketing-progress-visual { min-width: 0; }
-.marketing-topic-visual img, .marketing-progress-visual img, .marketing-personalized > img { width: 100%; height: auto; border-radius: var(--radius-lg); }
-
-.marketing-topic-links { display: flex; flex-wrap: wrap; gap: var(--space-xs); margin-top: var(--space-xl); }
-.marketing-topic-links a { min-height: 44px; display: inline-flex; align-items: center; gap: 7px; border: 1px solid var(--line-strong); border-radius: var(--radius-pill); padding: 8px 12px; color: var(--ink-secondary); font-size: 0.82rem; font-weight: 650; transition: border-color var(--motion-state) var(--ease-out), background var(--motion-state) var(--ease-out), color var(--motion-state) var(--ease-out); }
-.marketing-topic-links a:hover { border-color: var(--ink-muted); background: var(--surface); color: var(--ink); }
-.marketing-inline-link, .marketing-footer-cta { min-height: 44px; display: inline-flex; align-items: center; gap: 8px; margin-top: var(--space-xl); color: var(--brand-blue-ink); font-weight: 750; }
-
-.marketing-personalized { grid-template-columns: minmax(0, 0.9fr) minmax(0, 1fr); border-top: var(--border-subtle); }
-.marketing-personalized ul { display: grid; gap: var(--space-sm); margin-top: var(--space-xl); padding: 0; color: var(--ink-secondary); list-style: none; }
-.marketing-personalized li { display: flex; align-items: center; gap: 10px; }
-.marketing-personalized li svg { flex: 0 0 auto; color: var(--success); }
-
-.marketing-progress { border-top: var(--border-subtle); }
-.marketing-progress-copy { order: 2; }
-.marketing-progress-visual { order: 1; }
-.marketing-progress dl { margin-top: var(--space-xl); }
-.marketing-progress dl > div { display: grid; grid-template-columns: 110px minmax(0, 1fr); gap: var(--space-lg); padding-block: var(--space-md); border-top: var(--border-subtle); }
-.marketing-progress dt { color: var(--ink); font-weight: 750; }
-.marketing-progress dd { color: var(--ink-secondary); }
-
-.marketing-final-cta {
-  width: min(var(--content-max), calc(100% - 2 * var(--marketing-gutter)));
-  min-height: 270px;
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto;
-  align-items: center;
-  gap: clamp(32px, 5vw, 72px);
-  margin: 0 auto var(--space-section);
-  overflow: hidden;
-  border-radius: var(--radius-lg);
-  background: var(--brand-navy) url("/brand/patterns/knowledge-nodes.svg") right center / 52% auto no-repeat;
-  padding: clamp(32px, 5vw, 64px);
-  color: var(--brand-offwhite);
-}
-
-.marketing-final-cta .marketing-brand { margin: 0; }
-.marketing-final-cta .marketing-brand > img { width: 68px; height: 68px; }
-.marketing-final-cta h2 { max-width: 22ch; font-size: clamp(1.8rem, 3vw, 2.8rem); }
-.marketing-final-cta p { max-width: 54ch; margin-top: 10px; color: #C5CEDE; line-height: 1.6; }
-.marketing-inverse-button { min-height: 48px; background: var(--brand-offwhite); color: var(--brand-navy); }
-.marketing-inverse-button:hover { background: #E7ECF3; }
+.marketing-footer-cta { min-height: 44px; display: inline-flex; align-items: center; gap: 8px; margin-top: var(--space-xl); color: var(--brand-blue-ink); font-weight: 750; }
 
 .marketing-footer {
   display: grid;
@@ -428,14 +357,6 @@
   .marketing-how li:first-child { border-top: 0; }
   .marketing-step-arrow { display: none; }
   .marketing-how li > svg:not(.marketing-step-arrow) { margin-top: var(--space-md); }
-  .marketing-topic-section, .marketing-personalized, .marketing-progress { grid-template-columns: 1fr; }
-  .marketing-topic-visual { order: 2; }
-  .marketing-topic-copy { order: 1; }
-  .marketing-progress-copy { order: 1; }
-  .marketing-progress-visual { order: 2; }
-  .marketing-final-cta { grid-template-columns: 1fr; align-items: flex-start; }
-  .marketing-final-cta .marketing-brand { display: none; }
-  .marketing-inverse-button { width: fit-content; }
   .marketing-footer { grid-template-columns: 1fr; }
 }
 
@@ -456,20 +377,13 @@
   .marketing-browser-body aside { display: none; }
   .marketing-browser-body > section { padding: 28px 20px; }
   .mock-evidence ol { align-items: flex-start; flex-direction: column; }
-  .marketing-principles { width: calc(100% - 40px); align-items: flex-start; flex-direction: column; gap: var(--space-md); padding-block: var(--space-lg); text-align: left; }
-  .marketing-principles span { width: 48px; height: 1px; }
-  .marketing-section, .marketing-topic-section, .marketing-personalized, .marketing-progress, .marketing-final-cta { width: calc(100% - 40px); }
-  .marketing-section-heading h2, .marketing-how-intro h2, .marketing-topic-copy h2, .marketing-personalized h2, .marketing-progress h2 { font-size: 2.35rem; }
-  .marketing-section-heading p, .marketing-how-intro p, .marketing-topic-copy > p, .marketing-personalized > div > p, .marketing-progress-copy > p { font-size: var(--text-body); }
+  .marketing-section { width: calc(100% - 40px); }
+  .marketing-section-heading h2, .marketing-how-intro h2 { font-size: 2.35rem; }
+  .marketing-section-heading p, .marketing-how-intro p { font-size: var(--text-body); }
   .marketing-feature-grid { gap: var(--space-md); margin-top: var(--space-xl); }
   .marketing-feature-grid article, .marketing-feature-grid article.feature-wide { display: block; }
   .marketing-feature-grid article > div { padding: var(--space-lg); }
   .marketing-how { width: 100%; padding-inline: 20px; }
-  .marketing-topic-links { align-items: stretch; flex-direction: column; }
-  .marketing-topic-links a { justify-content: space-between; border-radius: var(--radius-sm); }
-  .marketing-progress dl > div { grid-template-columns: 1fr; gap: var(--space-xs); }
-  .marketing-final-cta { min-height: 0; margin-bottom: 64px; padding: 28px 24px; background-size: 100% auto; }
-  .marketing-inverse-button { width: 100%; }
   .marketing-footer { padding: 48px 20px 20px; }
   .marketing-footer-links { grid-template-columns: 1fr 1fr; }
   .marketing-footer-meta { align-items: flex-start; flex-direction: column; }
@@ -478,7 +392,7 @@
 @media (max-width: 360px) {
   .marketing-nav-shell { padding-inline: 12px; }
   .marketing-hero { padding-inline: 16px; }
-  .marketing-section, .marketing-topic-section, .marketing-personalized, .marketing-progress, .marketing-final-cta, .marketing-principles { width: calc(100% - 32px); }
+  .marketing-section { width: calc(100% - 32px); }
   .marketing-hero h1 { font-size: 2.72rem; }
   .marketing-browser-body > section { padding-inline: 16px; }
   .mock-next-step { padding: 18px; }

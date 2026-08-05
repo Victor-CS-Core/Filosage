@@ -1,4 +1,18 @@
 import { expect, test } from "@playwright/test";
+import { readFile } from "node:fs/promises";
+import { join } from "node:path";
+
+test("uses full document navigation from active error boundaries", async () => {
+  const [segmentError, globalError] = await Promise.all([
+    readFile(join(process.cwd(), "src/app/error.tsx"), "utf8"),
+    readFile(join(process.cwd(), "src/app/global-error.tsx"), "utf8"),
+  ]);
+
+  expect(segmentError).toContain('window.location.assign("/library")');
+  expect(globalError).toContain('window.location.assign("/")');
+  expect(segmentError).not.toContain('from "next/link"');
+  expect(globalError).not.toContain('from "next/link"');
+});
 
 test("gives lost learners a branded, accessible recovery path", async ({ page }) => {
   await page.goto("/this-course-does-not-exist");

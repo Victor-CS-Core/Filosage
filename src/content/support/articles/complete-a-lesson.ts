@@ -7,7 +7,7 @@ export default defineSupportArticle({
   category: "courses",
   keywords: ["lesson", "activities", "practice", "quiz", "transfer", "complete", "mark learned"],
   reviewedOn: "2026-08-05",
-  sources: ["src/app/course/[topic]/lesson/[lessonId]/page.tsx", "src/components/LessonSectionNavigator.tsx"],
+  sources: ["src/app/course/[topic]/lesson/[lessonId]/page.tsx", "src/components/LessonSectionNavigator.tsx", "src/components/SpeakButton.tsx", "src/lib/learning-progress.ts"],
   body: `
 ## Read and practice
 

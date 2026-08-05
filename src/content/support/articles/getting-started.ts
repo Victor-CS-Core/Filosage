@@ -10,6 +10,7 @@ export default defineSupportArticle({
   sources: [
     "src/app/library/page.tsx",
     "src/components/CourseLibrary.tsx",
+    "src/components/AppShell.tsx",
     "src/app/course/[topic]/lesson/[lessonId]/page.tsx",
   ],
   body: `
@@ -30,7 +31,9 @@ A signed-in learner can read lessons, complete practice, and keep account-backed
 
 ## Know where to go next
 
-The main navigation includes **Today**, **Explore**, **Review**, and **Progress**. Your account menu contains your profile, support, privacy choices, theme control, and sign out.
+The main navigation includes **Today**, **Explore**, **Review**, and **Progress**. On desktop these destinations appear in the Learning Header. **My courses**, **Create**, and your account controls are grouped in the same header. On a phone, use the bottom navigation and the account control in the top bar.
+
+Your account menu contains access to your profile and privacy controls, support, theme control, and sign out.
 `,
   related: ["find-a-course", "complete-a-lesson", "sign-in-help"],
   featured: true,

@@ -77,19 +77,15 @@ function lockDrawerScroll() {
   if (drawerScrollLocks === 0) {
     const root = document.documentElement;
     const body = document.body;
-    const appMain = document.querySelector<HTMLElement>(".app-main");
     const previous = {
       rootOverflow: root.style.overflow,
       bodyOverflow: body.style.overflow,
-      appMainOverflow: appMain?.style.overflow,
     };
     root.style.overflow = "hidden";
     body.style.overflow = "hidden";
-    if (appMain) appMain.style.overflow = "hidden";
     restoreDrawerScroll = () => {
       root.style.overflow = previous.rootOverflow;
       body.style.overflow = previous.bodyOverflow;
-      if (appMain) appMain.style.overflow = previous.appMainOverflow ?? "";
     };
   }
   drawerScrollLocks += 1;

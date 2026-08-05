@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { LifeBuoy, RefreshCw } from "lucide-react";
 import ErudozaMark from "@/components/ErudozaMark";
 import { SUPPORT_CONTACT } from "@/lib/legal";
@@ -21,7 +20,7 @@ export default function ErrorPage({
         <button className="button button-primary" type="button" onClick={() => unstable_retry()}>
           <RefreshCw size={16} aria-hidden="true" /> Try again
         </button>
-        <Link className="button button-secondary" href="/library">Browse courses</Link>
+        <button className="button button-secondary" type="button" onClick={() => window.location.assign("/library")}>Browse courses</button>
       </div>
       <a className="fallback-support" href={`mailto:${SUPPORT_CONTACT}`}>
         <LifeBuoy size={15} aria-hidden="true" /> {SUPPORT_CONTACT}

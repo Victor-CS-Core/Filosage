@@ -31,8 +31,9 @@ Exact bright brand colors are reserved for the logo, progress, and non-text sign
 
 ## Layout
 
-- Desktop: 276px private/public navigation rail with a fluid content workspace
-- Mobile: 58px top bar and an explicit off-canvas navigation drawer
+- Desktop: 68px Learning Header with primary destinations centered and Courses, Create, and Account controls grouped at the end
+- Desktop course and account menus open directly beneath their header controls without obscuring or shifting the learning workspace
+- Mobile: 58px top bar, persistent bottom navigation, and explicit bottom sheets for course and account controls
 - Public home: editorial split hero followed by a scan-friendly course list
 - Course map: header summary, local progress, and a sequential accordion curriculum
 - Lesson: centered reading column with an optional owner-only tutor drawer
@@ -48,7 +49,7 @@ Exact bright brand colors are reserved for the logo, progress, and non-text sign
 ## Motion
 
 - State transitions run 160–220ms with an ease-out curve
-- Motion communicates drawer state, progress, loading, or feedback only
+- Motion communicates menu or drawer state, progress, loading, or feedback only
 - `prefers-reduced-motion` reduces all animation and scrolling behavior
 
 ## Accessibility

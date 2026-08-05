@@ -7,7 +7,7 @@ export default defineSupportArticle({
   category: "plans",
   keywords: ["support", "contact", "email", "help", "problem", "screenshot", "response"],
   reviewedOn: "2026-08-05",
-  sources: ["src/app/support/page.tsx", "src/lib/legal.ts"],
+  sources: ["src/app/support/page.tsx", "src/lib/legal.ts", "src/components/LessonIntegrityPanel.tsx", "src/lib/content-report-policy.ts"],
   body: `
 ## Include the useful details
 

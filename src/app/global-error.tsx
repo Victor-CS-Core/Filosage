@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { LifeBuoy, RefreshCw } from "lucide-react";
 import { SUPPORT_CONTACT } from "@/lib/legal";
 import "@/styles/brand/tokens.css";
@@ -24,7 +23,7 @@ export default function GlobalError({
             <button className="button button-primary" type="button" onClick={() => unstable_retry()}>
               <RefreshCw size={16} aria-hidden="true" /> Retry Erudoza
             </button>
-            <Link className="button button-secondary" href="/">Return home</Link>
+            <button className="button button-secondary" type="button" onClick={() => window.location.assign("/")}>Return home</button>
           </div>
           <a className="fallback-support" href={`mailto:${SUPPORT_CONTACT}`}>
             <LifeBuoy size={15} aria-hidden="true" /> {SUPPORT_CONTACT}

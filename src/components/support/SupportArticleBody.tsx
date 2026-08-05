@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import Link from "next/link";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import SupportEmailLink from "@/components/support/SupportEmailLink";
 
 function textFromChildren(children: ReactNode): string {
   if (typeof children === "string" || typeof children === "number") return String(children);
@@ -37,7 +38,9 @@ export default function SupportArticleBody({ body }: { body: string }) {
           h3: ({ children }) => <h3 id={supportHeadingId(children)} tabIndex={-1}>{children}</h3>,
           a: ({ href, children }) => href?.startsWith("/")
             ? <Link href={href}>{children}</Link>
-            : <a href={href}>{children}</a>,
+            : href?.startsWith("mailto:")
+              ? <SupportEmailLink href={href}>{children}</SupportEmailLink>
+              : <a href={href}>{children}</a>,
         }}
       >
         {body}

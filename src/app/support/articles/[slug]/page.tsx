@@ -4,6 +4,7 @@ import { ArrowLeft, ArrowRight, CalendarCheck2, Mail } from "lucide-react";
 import { notFound } from "next/navigation";
 import AppShell from "@/components/AppShell";
 import SupportArticleBody, { getSupportHeadings } from "@/components/support/SupportArticleBody";
+import SupportEmailLink from "@/components/support/SupportEmailLink";
 import { getSupportArticle, supportArticles } from "@/content/support/articles";
 import { getSupportCategory } from "@/content/support/categories";
 import { SUPPORT_CONTACT } from "@/lib/legal";
@@ -73,7 +74,7 @@ export default async function SupportArticlePage({ params }: PageProps<"/support
             <section className="support-article-contact" aria-labelledby="support-article-contact-title">
               <Mail size={20} aria-hidden="true" />
               <div><h2 id="support-article-contact-title">This guide did not solve it?</h2><p>Contact support with the page, what you expected, what happened, and any exact error message.</p></div>
-              <a className="button button-secondary" href={contactHref}>Email support</a>
+              <SupportEmailLink className="button button-secondary" href={contactHref} presentation="call-to-action">Email support</SupportEmailLink>
             </section>
           </article>
 

@@ -11,7 +11,7 @@ export default defineSupportArticle({
   body: `
 ## Open your profile
 
-Open the account menu and choose **Profile**. A profile requires a signed-in account because it combines synced progress, account access, and learner preferences.
+Open the account menu and choose **View profile**. A profile requires a signed-in account because it combines synced progress, account access, and learner preferences.
 
 ## Review your current direction
 

@@ -11,6 +11,7 @@ import {
   ShieldCheck,
 } from "lucide-react";
 import AppShell from "@/components/AppShell";
+import SupportEmailLink from "@/components/support/SupportEmailLink";
 import SupportSearch from "@/components/support/SupportSearch";
 import { supportArticles } from "@/content/support/articles";
 import { getSupportCategory, supportCategories } from "@/content/support/categories";
@@ -73,7 +74,7 @@ export default function SupportPage() {
         <section className="support-contact" aria-labelledby="support-contact-title">
           <Mail size={21} aria-hidden="true" />
           <div><p className="overline">Direct contact</p><h2 id="support-contact-title">Still need help?</h2><p>Email {SUPPORT_CONTACT} with the affected page or course, what you expected, what happened, and the exact error message when available. Never send a password or authentication code.</p></div>
-          <a className="button button-primary" href={contactHref}>Start an email</a>
+          <SupportEmailLink className="button button-primary" href={contactHref} presentation="call-to-action">Start an email</SupportEmailLink>
         </section>
 
         <section className="support-protection" aria-labelledby="support-protection-title">
