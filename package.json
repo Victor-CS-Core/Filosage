@@ -8,13 +8,14 @@
     "build": "next build",
     "build:sites": "vinext build && node scripts/prepare-sites-package.mjs",
     "start": "next start",
-    "lint": "oxlint --react-plugin --jsx-a11y-plugin --import-plugin --deny-warnings src tests next.config.ts playwright.config.ts playwright.sites.config.ts scripts/build-sites-local.mjs scripts/evaluate-model-quality.ts scripts/playwright-next-server.mjs scripts/playwright-sites-server.mjs scripts/playwright-server-lifecycle.mjs scripts/prepare-sites-package.mjs && eslint src tests next.config.ts playwright.config.ts playwright.sites.config.ts scripts/build-sites-local.mjs scripts/evaluate-model-quality.ts scripts/playwright-next-server.mjs scripts/playwright-sites-server.mjs scripts/playwright-server-lifecycle.mjs scripts/prepare-sites-package.mjs",
+    "lint": "oxlint --react-plugin --jsx-a11y-plugin --import-plugin --deny-warnings src tests next.config.ts playwright.config.ts playwright.sites.config.ts scripts/build-sites-local.mjs scripts/check-support-wiki.mjs scripts/evaluate-model-quality.ts scripts/playwright-next-server.mjs scripts/playwright-sites-server.mjs scripts/playwright-server-lifecycle.mjs scripts/prepare-sites-package.mjs && eslint src tests next.config.ts playwright.config.ts playwright.sites.config.ts scripts/build-sites-local.mjs scripts/check-support-wiki.mjs scripts/evaluate-model-quality.ts scripts/playwright-next-server.mjs scripts/playwright-sites-server.mjs scripts/playwright-server-lifecycle.mjs scripts/prepare-sites-package.mjs",
     "test:e2e": "playwright test",
     "eval:model-quality": "node --experimental-strip-types scripts/evaluate-model-quality.ts",
     "test:smoke:sites": "node scripts/build-sites-local.mjs && playwright test --config=playwright.sites.config.ts",
     "prepare:deploy:sites": "npm run build:sites",
     "check:release": "node scripts/check-release-env.mjs",
     "check:production": "node scripts/check-production-health.mjs",
+    "check:support-wiki": "node scripts/check-support-wiki.mjs",
     "backup:firestore": "node scripts/backup-firestore.mjs --wait",
     "restore:firestore": "node scripts/restore-firestore.mjs"
   },
@@ -54,8 +55,10 @@
   },
   "overrides": {
     "brace-expansion": "^5.0.9",
+    "fast-uri": "^3.1.5",
     "postcss": "^8.5.25",
     "sharp": "^0.35.2",
+    "undici": "^7.29.0",
     "ws": "^8.20.2"
   },
   "type": "module"

@@ -1,5 +1,6 @@
 "use client";
 
+import { auth } from "@/lib/firebase";
 import {
   PRODUCT_EVENT_SCHEMA_VERSION,
   type AcquisitionChannel,
@@ -158,6 +159,19 @@ function sourceFor(channel: AcquisitionChannel) {
   return "external" as const;
 }
 
+async function sendTelemetry(payload: Record<string, unknown>) {
+  const token = await auth?.currentUser?.getIdToken().catch(() => null);
+  return fetch("/api/telemetry", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+    body: JSON.stringify(payload),
+    keepalive: true,
+  });
+}
+
 export interface ProductEventOptions {
   route?: ProductEventRoute;
   experimentId?: string;
@@ -185,10 +199,7 @@ export function trackProductEvent(event: ProductEventName, options: ProductEvent
   }
   const acquisition = acquisitionContext();
   const identity = analyticsIdentity();
-  void fetch("/api/telemetry", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
+  void sendTelemetry({
       schemaVersion: PRODUCT_EVENT_SCHEMA_VERSION,
       event,
       route,
@@ -202,9 +213,7 @@ export function trackProductEvent(event: ProductEventName, options: ProductEvent
       contentVersion: options.contentVersion,
       elapsedMs: options.elapsedMs,
       score: options.score,
-    }),
-    keepalive: true,
-  }).catch(() => {
+    }).catch(() => {
     // Analytics must never interrupt learning.
   });
 }
@@ -222,19 +231,14 @@ export function trackPageView(pathname: string, exclude = false) {
   }
   const acquisition = acquisitionContext();
   const identity = analyticsIdentity();
-  void fetch("/api/telemetry", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
+  void sendTelemetry({
       schemaVersion: PRODUCT_EVENT_SCHEMA_VERSION,
       event: "page_view",
       route,
       source: sourceFor(acquisition.channel),
       acquisition,
       ...identity,
-    }),
-    keepalive: true,
-  }).catch(() => {
+    }).catch(() => {
     // Analytics must never interrupt learning.
   });
 

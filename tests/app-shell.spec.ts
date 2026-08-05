@@ -143,7 +143,11 @@ test.describe("desktop application shell", () => {
     await expect(accountDialog).toBeVisible();
     await expect(accountDialog.getByText("Owner course access")).toBeVisible();
     await expect(accountDialog.getByRole("button", { name: /Control room/ })).toBeVisible();
+    const supportButton = accountDialog.getByRole("button", { name: /Support/ });
+    await expect(supportButton).toBeVisible();
     await expect(accountDialog.getByRole("button", { name: /Dark mode|Light mode/ })).toBeVisible();
+    await supportButton.click();
+    await expect(page).toHaveURL(/\/support$/);
   });
 
   test("keeps a drawer open when it is reopened during its exit transition", async ({ page }) => {
@@ -186,14 +190,20 @@ test.describe("desktop application shell", () => {
 
     await page.goto("/create");
     await expectNoHorizontalPageOverflow(page);
-    await expect(page.getByRole("heading", { name: "Outcome and proof" })).toBeVisible();
-    await expect(page.getByRole("heading", { name: "Learner and constraints" })).toBeVisible();
-    await expect(page.getByRole("heading", { name: "Teaching plan" })).toBeVisible();
-    const references = page.locator(".source-pack-disclosure");
-    await expect(references).not.toHaveAttribute("open", "");
+    await expect(page.getByRole("heading", { name: "What needs to change when you finish?" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Make the course fit your actual week." })).toHaveCount(0);
     await page.getByLabel("Subject or skill").fill("Systems thinking for product decisions");
-    await page.getByLabel("What should you be able to do?").fill("Analyze a product decision, identify feedback loops, and explain its likely second-order effects.");
-    await expect(page.locator(".blueprint-quality")).toContainText("2 / 6");
+    await page.getByLabel("What will you be able to do?").fill("Analyze a product decision, identify feedback loops, and explain its likely second-order effects.");
+    await expect(page.getByRole("complementary", { name: "Course snapshot" })).toContainText("Ready to build");
+
+    await page.getByRole("button", { name: /Continue/ }).click();
+    await expect(page.getByRole("heading", { name: "Make the course fit your actual week." })).toBeVisible();
+    await page.getByRole("button", { name: /Continue/ }).click();
+    await expect(page.getByRole("heading", { name: "Choose how the learning should unfold." })).toBeVisible();
+    await expect(page.getByText("Trusted references")).toBeVisible();
+    await expect(page.getByText("Optional · add up to five")).toBeVisible();
+    await expect(page.getByRole("button", { name: "Create private course" })).toBeEnabled();
+    await expect(page.getByRole("status", { name: "" })).toHaveCount(0);
   });
 });
 
@@ -218,13 +228,14 @@ test.describe("mobile application shell", () => {
     await expect(coursesDialog.getByText("Decision quality", { exact: true })).toBeVisible();
   });
 
-  test("keeps brief quality visible before course creation on a phone", async ({ page }) => {
+  test("keeps the focused course-builder step and next action reachable on a phone", async ({ page }) => {
     await prepareOwnerShell(page);
     await page.goto("/create");
     await page.getByLabel("Subject or skill").fill("Morse communication timing");
-    await page.getByLabel("What should you be able to do?").fill("Send a short message with readable spacing and explain the timing choices.");
-    await expect(page.locator(".create-mobile-readiness")).toBeVisible();
-    await expect(page.locator(".create-mobile-readiness")).toContainText("2 of 6 brief signals");
-    await expect(page.locator(".source-pack-disclosure")).not.toHaveAttribute("open", "");
+    await page.getByLabel("What will you be able to do?").fill("Send a short message with readable spacing and explain the timing choices.");
+    await expect(page.getByRole("button", { name: /Continue/ })).toBeVisible();
+    await page.getByRole("button", { name: /Continue/ }).click();
+    await expect(page.getByRole("heading", { name: "Make the course fit your actual week." })).toBeVisible();
+    await expectNoHorizontalPageOverflow(page);
   });
 });

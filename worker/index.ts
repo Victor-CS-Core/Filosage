@@ -5,6 +5,7 @@ import {
 } from "vinext/server/image-optimization";
 import handler from "vinext/server/app-router-entry";
 import { installRuntimeEnvironment } from "../src/lib/runtime-environment";
+import { withStrictTransportSecurity } from "../src/lib/security-headers";
 
 interface Fetcher {
   fetch(input: RequestInfo | URL, init?: RequestInit): Promise<Response>;
@@ -45,7 +46,7 @@ const worker = {
 
     if (url.pathname === "/_vinext/image") {
       const allowedWidths = [...DEFAULT_DEVICE_SIZES, ...DEFAULT_IMAGE_SIZES];
-      return handleImageOptimization(
+      return withStrictTransportSecurity(request, await handleImageOptimization(
         request,
         {
           fetchAsset: (path) => env.ASSETS.fetch(new Request(new URL(path, request.url))),
@@ -57,10 +58,10 @@ const worker = {
           },
         },
         allowedWidths,
-      );
+      ));
     }
 
-    return handler.fetch(request, env, ctx);
+    return withStrictTransportSecurity(request, await handler.fetch(request, env, ctx));
   },
 };
 

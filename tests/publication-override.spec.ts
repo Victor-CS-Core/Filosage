@@ -122,13 +122,25 @@ test("an owner can confirm a quality override only after the normal review fails
   await page.goto(`/course/Mobile%20development?id=${courseId}`);
   await page.locator("details.course-owner-controls > summary").click();
   await page.getByLabel(/I reviewed every lesson/).check();
-  await page.getByRole("button", { name: "Review and publish" }).click();
-  await page.getByRole("button", { name: "Review owner override" }).click();
+  const publishButton = page.getByRole("button", { name: "Review and publish" });
+  await expect(publishButton).toBeEnabled();
+  await publishButton.click();
+  await expect(page.getByRole("button", { name: "Review owner override" })).toBeVisible();
+
+  await page.reload();
+  const ownerControls = page.locator("details.course-owner-controls");
+  await expect(ownerControls).toHaveAttribute("open", "");
+  const overrideButton = page.getByRole("button", { name: "Review owner override" });
+  await expect(overrideButton).toBeVisible();
+  await overrideButton.click();
 
   const dialog = page.getByRole("dialog", { name: "Publish with quality warnings?" });
+  await expect(dialog).toHaveAttribute("data-state", "open");
   await expect(dialog.getByText("Quality only, never safety or structure")).toBeVisible();
   await dialog.getByLabel("Reason for overriding these warnings").fill("The warning is understood and the scoped course remains instructionally appropriate.");
-  await dialog.getByLabel(/I confirm that I reviewed the warnings/).check();
+  const overrideConfirmation = dialog.getByLabel(/I confirm that I reviewed the warnings/);
+  await overrideConfirmation.check();
+  await expect(overrideConfirmation).toBeChecked();
   await dialog.getByRole("button", { name: "Publish this exact version" }).click();
 
   expect(overrideBody).toMatchObject({

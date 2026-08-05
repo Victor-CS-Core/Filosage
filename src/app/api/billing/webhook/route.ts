@@ -5,6 +5,7 @@ import { recordBillingConsent, stripeClient, syncStripeSubscription } from "@/li
 import type Stripe from "stripe";
 import { reportOperationalEvent } from "@/lib/operational-alerts";
 import { serverEnvironment } from "@/lib/runtime-environment";
+import { recordServerProductEvent } from "@/lib/product-events-server";
 
 export const runtime = "nodejs";
 
@@ -67,14 +68,33 @@ export async function POST(request: Request) {
         if (typeof session.subscription === "string") {
           const subscription = await stripeClient().subscriptions.retrieve(session.subscription);
           await recordBillingConsent(session, subscription, event);
-          await syncStripeSubscription(subscription, session.client_reference_id ?? undefined, event.created);
+          const uid = subscription.metadata.erudoza_uid || session.client_reference_id || undefined;
+          const synchronized = await syncStripeSubscription(subscription, uid, event.created);
+          if (synchronized && uid) {
+            await recordServerProductEvent("subscription_started", {
+              route: "/pricing",
+              actorId: uid,
+              eventId: `stripe-started-${event.id}`,
+            });
+          }
         }
         break;
       }
       case "customer.subscription.created":
       case "customer.subscription.updated":
       case "customer.subscription.deleted":
-        await syncStripeSubscription(event.data.object as Stripe.Subscription, undefined, event.created);
+        {
+          const subscription = event.data.object as Stripe.Subscription;
+          const synchronized = await syncStripeSubscription(subscription, undefined, event.created);
+          const uid = subscription.metadata.erudoza_uid;
+          if (event.type === "customer.subscription.deleted" && synchronized && uid) {
+            await recordServerProductEvent("subscription_canceled", {
+              route: "/pricing",
+              actorId: uid,
+              eventId: `stripe-canceled-${event.id}`,
+            });
+          }
+        }
         break;
       default:
         break;

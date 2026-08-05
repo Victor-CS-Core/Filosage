@@ -22,6 +22,9 @@ const validReleaseEnvironment = {
   OPENAI_API_KEY: "release-check-placeholder",
   OWNER_EMAIL: "owner@release.example",
   ACTIVITY_RECEIPT_SECRET: "x".repeat(32),
+  FIRESTORE_BACKUP_BUCKET: "erudoza-release-backups",
+  OPERATIONS_ALERT_WEBHOOK_URL: "https://alerts.release.example/erudoza",
+  OPERATIONS_ALERT_WEBHOOK_SECRET: "y".repeat(32),
   SITE_VERSION: "a".repeat(40),
   BILLING_ENABLED: "false",
 };
@@ -37,6 +40,14 @@ test("release checks bind Firebase and production health to one full Git SHA", (
   });
   expect(valid.status, valid.stderr).toBe(0);
   expect(valid.stdout).toContain("Closed-billing release environment looks complete");
+
+  const missingRecovery = spawnSync(process.execPath, [releaseScript], {
+    cwd: root,
+    env: { ...validReleaseEnvironment, FIRESTORE_BACKUP_BUCKET: "" },
+    encoding: "utf8",
+  });
+  expect(missingRecovery.status).toBe(1);
+  expect(missingRecovery.stderr).toContain("FIRESTORE_BACKUP_BUCKET");
 
   const mismatchedProject = spawnSync(process.execPath, [releaseScript], {
     cwd: root,

@@ -48,6 +48,33 @@ export const PRODUCT_EVENT_NAMES = [
 
 export type ProductEventName = (typeof PRODUCT_EVENT_NAMES)[number];
 
+// These events represent durable account, consent, moderation, or billing
+// state. They must be written by the route that performs the underlying
+// action, never accepted from the browser's best-effort analytics channel.
+export const SERVER_RECORDED_PRODUCT_EVENT_NAMES = [
+  "pricing_interest",
+  "waitlist_joined",
+  "checkout_started",
+  "subscription_started",
+  "subscription_canceled",
+  "content_reported",
+  "signup_completed",
+] as const satisfies readonly ProductEventName[];
+
+export type ServerRecordedProductEventName =
+  (typeof SERVER_RECORDED_PRODUCT_EVENT_NAMES)[number];
+
+// Guests can report only coarse discovery activity. Learning and outcome
+// events require a verified Firebase identity and are rebound to that UID by
+// the server instead of trusting a caller-supplied actor identifier.
+export const ANONYMOUS_PRODUCT_EVENT_NAMES = [
+  "landing_viewed",
+  "course_discovered",
+  "course_started",
+  "pricing_viewed",
+  "signup_started",
+] as const satisfies readonly ProductEventName[];
+
 export const PRODUCT_EVENT_ROUTES = [
   "/",
   "/lesson",

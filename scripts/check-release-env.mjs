@@ -1,6 +1,5 @@
 const activationMode = process.argv.includes("--billing-activation");
-const required = ["NEXT_PUBLIC_SITE_URL", "FIREBASE_PROJECT_ID", "FIREBASE_CLIENT_EMAIL", "FIREBASE_PRIVATE_KEY", "NEXT_PUBLIC_FIREBASE_API_KEY", "NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN", "NEXT_PUBLIC_FIREBASE_PROJECT_ID", "NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET", "NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID", "NEXT_PUBLIC_FIREBASE_APP_ID", "OPENAI_API_KEY", "OWNER_EMAIL", "ACTIVITY_RECEIPT_SECRET", "SITE_VERSION"];
-const recommendedOperations = ["FIRESTORE_BACKUP_BUCKET", "OPERATIONS_ALERT_WEBHOOK_URL"];
+const required = ["NEXT_PUBLIC_SITE_URL", "FIREBASE_PROJECT_ID", "FIREBASE_CLIENT_EMAIL", "FIREBASE_PRIVATE_KEY", "NEXT_PUBLIC_FIREBASE_API_KEY", "NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN", "NEXT_PUBLIC_FIREBASE_PROJECT_ID", "NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET", "NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID", "NEXT_PUBLIC_FIREBASE_APP_ID", "OPENAI_API_KEY", "OWNER_EMAIL", "ACTIVITY_RECEIPT_SECRET", "FIRESTORE_BACKUP_BUCKET", "OPERATIONS_ALERT_WEBHOOK_URL", "OPERATIONS_ALERT_WEBHOOK_SECRET", "SITE_VERSION"];
 const missing = required.filter((name) => !process.env[name]?.trim());
 if (missing.length) { console.error(`Missing release environment variables: ${missing.join(", ")}`); process.exitCode = 1; }
 else {
@@ -38,9 +37,5 @@ else {
     process.exitCode = 1;
   } else {
     console.log(`${activationMode ? "Billing-activation" : "Closed-billing release"} environment looks complete. Secret values were not printed.`);
-    const missingOperations = recommendedOperations.filter((name) => !process.env[name]?.trim());
-    if (missingOperations.length) {
-      console.warn(`Operational readiness warning: configure ${missingOperations.join(", ")} for automated alerts and managed backups.`);
-    }
   }
 }

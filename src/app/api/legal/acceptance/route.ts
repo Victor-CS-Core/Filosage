@@ -4,6 +4,7 @@ import { authorizationResponse, requireUser } from "@/lib/auth-server";
 import { isOwnerUser } from "@/lib/account-server";
 import { runStoredDocumentTransaction } from "@/lib/firebase-server";
 import { PRIVACY_VERSION, TERMS_VERSION } from "@/lib/legal";
+import { PRODUCT_EVENT_SCHEMA_VERSION } from "@/lib/product-events";
 
 const acceptanceSchema = z.object({
   termsVersion: z.literal(TERMS_VERSION),
@@ -21,7 +22,8 @@ export async function POST(request: Request) {
     const id = `${TERMS_VERSION}__${PRIVACY_VERSION}`.replace(/[^a-zA-Z0-9_-]/g, "_");
     const accountPath = `users/${user.uid}`;
     const acceptancePath = `${accountPath}/legalAcceptances/${id}`;
-    await runStoredDocumentTransaction([accountPath, acceptancePath], (documents) => {
+    const signupEventPath = `productEvents/signup-completed-${user.uid}`;
+    await runStoredDocumentTransaction([accountPath, acceptancePath, signupEventPath], (documents) => {
       const existingAccount = documents[accountPath];
       const existingAcceptance = documents[acceptancePath];
       const hasPriorLegalAcceptance = Boolean(existingAccount)
@@ -44,8 +46,7 @@ export async function POST(request: Request) {
           : typeof existingAcceptance?.context === "string" ? [existingAcceptance.context] : []),
         context,
       ]));
-      return {
-        writes: [
+      const writes: Array<{ path: string; data: Record<string, unknown> }> = [
           {
             path: acceptancePath,
             data: {
@@ -86,7 +87,25 @@ export async function POST(request: Request) {
               updatedAt: acceptedAt,
             },
           },
-        ],
+        ];
+      if (!existingAccount) {
+        writes.push({
+          path: signupEventPath,
+          data: {
+            schemaVersion: PRODUCT_EVENT_SCHEMA_VERSION,
+            date: acceptedAt.slice(0, 10),
+            route: "/",
+            source: "internal",
+            channel: "internal",
+            trust: "server_verified",
+            event: "signup_completed",
+            actorId: user.uid,
+            createdAt: acceptedAt,
+          },
+        });
+      }
+      return {
+        writes,
         result: undefined,
       };
     });

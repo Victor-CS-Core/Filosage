@@ -1,11 +1,11 @@
 import { z } from "zod";
-import { apiRequestErrorResponse, readJsonBody } from "@/lib/api-security";
+import { apiRequestErrorResponse, assertTrustedMutation, readJsonBody } from "@/lib/api-security";
 import {
-  createStoredDocument,
   getStoredDocument,
   putStoredDocument,
 } from "@/lib/firebase-server";
-import { enforceBestEffortRateLimit } from "@/lib/request-rate-limit";
+import { enforceDurableRateLimit } from "@/lib/request-rate-limit";
+import { recordServerProductEvent } from "@/lib/product-events-server";
 
 const waitlistSchema = z.object({
   email: z.string().trim().email("Enter a valid email address.").max(254),
@@ -20,10 +20,10 @@ async function emailFingerprint(email: string) {
 }
 
 export async function POST(request: Request) {
-  const limited = enforceBestEffortRateLimit(request, "waitlist", 5, 10 * 60_000);
-  if (limited) return limited;
-
   try {
+    assertTrustedMutation(request);
+    const limited = await enforceDurableRateLimit(request, "waitlist", 5, 10 * 60_000);
+    if (limited) return limited;
     const parsed = waitlistSchema.safeParse(await readJsonBody(request, 1_024));
     if (!parsed.success) {
       return Response.json(
@@ -47,12 +47,9 @@ export async function POST(request: Request) {
       updatedAt: now,
     });
     if (!existing) {
-      await createStoredDocument("productEvents", {
-        date: now.slice(0, 10),
+      await recordServerProductEvent("waitlist_joined", {
         route: "/pricing",
-        source: "internal",
-        event: "waitlist_joined",
-        createdAt: now,
+        eventId: `waitlist-${id}`,
       });
     }
 

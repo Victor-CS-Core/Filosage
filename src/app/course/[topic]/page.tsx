@@ -40,6 +40,42 @@ import { createClientId } from "@/lib/browser-compat";
 import { trackProductEvent } from "@/lib/product-analytics";
 import { sourceHostname } from "@/lib/source-safety";
 
+type PublicationAssessmentState = {
+  assessmentHash: string;
+  assessment: PublicationAssessment;
+};
+
+const PUBLICATION_ASSESSMENT_STORAGE_PREFIX = "erudoza:publication-assessment:v1:";
+
+function readStoredPublicationAssessment(courseViewKey: string): PublicationAssessmentState | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const stored = window.sessionStorage.getItem(`${PUBLICATION_ASSESSMENT_STORAGE_PREFIX}${courseViewKey}`);
+    if (!stored) return null;
+    const value = JSON.parse(stored) as Partial<PublicationAssessmentState>;
+    if (
+      typeof value.assessmentHash !== "string"
+      || !value.assessment
+      || value.assessment.overrideEligible !== true
+      || !Array.isArray(value.assessment.overridableIssues)
+    ) return null;
+    return value as PublicationAssessmentState;
+  } catch {
+    return null;
+  }
+}
+
+function storePublicationAssessment(courseViewKey: string, value: PublicationAssessmentState | null) {
+  if (typeof window === "undefined") return;
+  const storageKey = `${PUBLICATION_ASSESSMENT_STORAGE_PREFIX}${courseViewKey}`;
+  try {
+    if (value) window.sessionStorage.setItem(storageKey, JSON.stringify(value));
+    else window.sessionStorage.removeItem(storageKey);
+  } catch {
+    // Publishing remains available when browser storage is unavailable.
+  }
+}
+
 export default function CourseMap() {
   const params = useParams<{ topic: string }>();
   const router = useRouter();
@@ -57,10 +93,7 @@ export default function CourseMap() {
   const [bannerBusy, setBannerBusy] = useState(false);
   const [publishAttested, setPublishAttested] = useState(false);
   const [publicationFailures, setPublicationFailures] = useState<PublicationLessonFailure[]>([]);
-  const [publicationAssessment, setPublicationAssessment] = useState<{
-    assessmentHash: string;
-    assessment: PublicationAssessment;
-  } | null>(null);
+  const [publicationAssessment, setPublicationAssessment] = useState<PublicationAssessmentState | null>(null);
   const [regeneratingLessonId, setRegeneratingLessonId] = useState<string | null>(null);
   const [repairingAll, setRepairingAll] = useState(false);
   const [repairProgress, setRepairProgress] = useState<string | null>(null);
@@ -147,7 +180,7 @@ export default function CourseMap() {
       setBannerBusy(false);
       setPublishAttested(false);
       setPublicationFailures([]);
-      setPublicationAssessment(null);
+      setPublicationAssessment(readStoredPublicationAssessment(courseViewKey));
       setRegeneratingLessonId(null);
       setRepairingAll(false);
       setRepairProgress(null);
@@ -270,7 +303,6 @@ export default function CourseMap() {
     setUpdating(true);
     setActionError(null);
     setPublicationFailures([]);
-    setPublicationAssessment(null);
     try {
       const token = await getToken();
       const response = await fetch(`/api/courses/${operationCourseId}`, {
@@ -299,16 +331,22 @@ export default function CourseMap() {
           && data.assessment
           && typeof data.assessment === "object"
         ) {
-          setPublicationAssessment({
+          const nextAssessment = {
             assessmentHash: data.assessmentHash,
             assessment: data.assessment as PublicationAssessment,
-          });
+          };
+          setPublicationAssessment(nextAssessment);
+          storePublicationAssessment(courseViewKey, nextAssessment);
+        } else {
+          setPublicationAssessment(null);
+          storePublicationAssessment(courseViewKey, null);
         }
         throw new Error(data.error || "Visibility could not be updated.");
       }
       setCourseRecord({ key: operationViewKey, value: { ...course, isPublic: data.isPublic } });
       setPublishAttested(false);
       setPublicationAssessment(null);
+      storePublicationAssessment(courseViewKey, null);
       window.dispatchEvent(new Event("erudoza:courses-changed"));
     } catch (updateError) {
       if (isCurrentView()) setActionError(updateError instanceof Error ? updateError.message : "Visibility could not be updated.");
@@ -368,6 +406,7 @@ export default function CourseMap() {
     setPublicationFailures((current) => readiness?.invalidLessons
       ?? current.filter((failure) => failure.lessonId !== repairedLessonId));
     setPublicationAssessment(null);
+    storePublicationAssessment(courseViewKey, null);
   };
 
   const regenerateLesson = async (lessonId: string) => {
@@ -432,9 +471,26 @@ export default function CourseMap() {
           confirmation: overrideConfirmed ? "PUBLISH WITH QUALITY OVERRIDE" : "",
         }),
       });
-      const data = await response.json() as { error?: string; isPublic?: boolean };
+      const data = await response.json() as {
+        error?: string;
+        isPublic?: boolean;
+        overrideEligible?: boolean;
+        assessmentHash?: string;
+        assessment?: PublicationAssessment;
+      };
       if (activeCourseViewRef.current !== operationViewKey) return;
-      if (!response.ok) throw new Error(data.error || "The publication override could not be completed.");
+      if (!response.ok) {
+        if (
+          data.overrideEligible === true
+          && typeof data.assessmentHash === "string"
+          && data.assessment?.overrideEligible === true
+        ) {
+          const nextAssessment = { assessmentHash: data.assessmentHash, assessment: data.assessment };
+          setPublicationAssessment(nextAssessment);
+          storePublicationAssessment(courseViewKey, nextAssessment);
+        }
+        throw new Error(data.error || "The publication override could not be completed.");
+      }
       setCourseRecord({
         key: operationViewKey,
         value: course ? {
@@ -445,6 +501,7 @@ export default function CourseMap() {
       });
       setPublicationFailures([]);
       setPublicationAssessment(null);
+      storePublicationAssessment(courseViewKey, null);
       setPublishAttested(false);
       setOverrideReason("");
       setOverrideConfirmed(false);
@@ -714,7 +771,9 @@ export default function CourseMap() {
 
           {course.canManage && (
             <CourseDisclosure
+              key={publicationFailures.length > 0 || publicationAssessment || repairProgress || course.publicationReview?.status === "owner_override" ? "publication-attention" : "course-studio"}
               className="course-owner-controls"
+              defaultOpen={Boolean(publicationFailures.length > 0 || publicationAssessment || repairProgress || course.publicationReview?.status === "owner_override")}
               description="Publication review, banner refresh, and course management stay separate from the learner journey."
               eyebrow="Creator tools"
               headingId="course-owner-controls-title"
@@ -756,6 +815,9 @@ export default function CourseMap() {
               {!course.isPublic && <p className="owner-action-hint">{isOwner
                 ? "Every lesson must be generated. Automated safety, language, and teaching-quality checks run again before publication."
                 : "Complete each lesson’s activities to unlock generation of the next lesson. Publication runs a fresh safety, language, and teaching-quality review."}</p>}
+              {!course.isPublic && isOwner && !publicationAssessment && (
+                <p className="owner-action-hint">If review finds only teaching or language warnings, an owner-only quality override will appear here. Safety and structure failures cannot be bypassed.</p>
+              )}
                {course.isPublic && <p className="owner-action-hint">{course.publicationReview?.status === "owner_override"
                  ? "Published with an audited owner quality override after the non-bypassable safety and structure checks passed. AI-generated factual claims are not independently verified."
                  : "Published content passed automated safety and quality review. AI-generated factual claims are not independently verified."}</p>}
@@ -784,7 +846,7 @@ export default function CourseMap() {
                        {repairProgress && !repairingAll && <small className="publication-repair-status" role="status">{repairProgress}</small>}
                      </div>
                    </div>
-                   {publicationFailures.length > 0 && <ul>
+                    {publicationFailures.length > 0 && <ul>
                      {publicationFailures.map((failure) => {
                        const [moduleIndex, lessonIndex] = failure.lessonId.split("-").map(Number);
                        const lesson = course.modules[moduleIndex]?.lessons[lessonIndex];
@@ -806,15 +868,18 @@ export default function CourseMap() {
                          </li>
                        );
                      })}
-                   </ul>}
-                   {isOwner && publicationAssessment?.assessment.overrideEligible && (
+                    </ul>}
+                    {isOwner && publicationFailures.some((failure) => failure.overridable) && !publicationAssessment && (
+                      <p className="publication-override-guidance">After reviewing or repairing these lessons, run Review and publish again to determine whether the remaining warnings qualify for an owner override.</p>
+                    )}
+                    {isOwner && publicationAssessment?.assessment.overrideEligible && (
                      <div className="publication-override-offer">
                        <div>
-                         <strong>Owner quality override</strong>
+                          <strong>Owner-only quality override</strong>
                          <p>This can accept the listed teaching or language warnings. It cannot bypass safety review, missing lessons, invalid lesson structure, unsafe source links, or quarantine.</p>
                        </div>
                        <button
-                         className="button button-quiet"
+                          className="button button-secondary"
                          type="button"
                          onClick={() => {
                            setActionError(null);

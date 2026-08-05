@@ -12,6 +12,7 @@ import {
   Compass,
   Crown,
   Home,
+  LifeBuoy,
   LogOut,
   Moon,
   Plus,
@@ -283,6 +284,7 @@ export default function AppShell({ children, activeTopic, activeCourseId }: AppS
               <button type="button" onClick={coursesDrawer.openDrawer}><BookOpen size={18} /><span><strong>My courses</strong><small>Open private and published courses</small></span><ChevronRight size={17} /></button>
               <button type="button" onClick={() => { accountDrawer.closeDrawer(); navigate("/profile"); }}><UserRound size={18} /><span><strong>View profile</strong><small>Badges, preferences, and privacy</small></span><ChevronRight size={17} /></button>
               {isOwner && <button type="button" onClick={() => { accountDrawer.closeDrawer(); navigate("/admin"); }}><ShieldCheck size={18} /><span><strong>Control room</strong><small>Usage, safety, and accounts</small></span><ChevronRight size={17} /></button>}
+              <button type="button" onClick={() => { accountDrawer.closeDrawer(); navigate("/support"); }}><LifeBuoy size={18} /><span><strong>Support</strong><small>Help, privacy, and account questions</small></span><ChevronRight size={17} /></button>
               <button type="button" onClick={toggle}>{theme === "dark" ? <Sun size={18} /> : <Moon size={18} />}<span><strong>{theme === "dark" ? "Light mode" : "Dark mode"}</strong><small>Change the interface theme</small></span></button>
               <button type="button" onClick={() => { accountDrawer.closeDrawer(); void signOut(); }}><LogOut size={18} /><span><strong>Sign out</strong><small>End this session</small></span></button>
             </div>

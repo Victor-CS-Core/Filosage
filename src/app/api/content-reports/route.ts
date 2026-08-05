@@ -8,8 +8,11 @@ import {
   listStoredDocumentsByField,
   quarantineCourse,
 } from "@/lib/firebase-server";
-import { enforceBestEffortRateLimit } from "@/lib/request-rate-limit";
+import { enforceDurableRateLimit } from "@/lib/request-rate-limit";
 import type { Course } from "@/lib/course-types";
+import { reportOperationalEvent } from "@/lib/operational-alerts";
+import { recordServerProductEvent } from "@/lib/product-events-server";
+import { contentReportDisposition } from "@/lib/content-report-policy";
 
 const reportSchema = z.object({
   courseId: z.string().trim().min(1).max(200),
@@ -30,10 +33,16 @@ function lessonTitle(course: Course, lessonId: string) {
 }
 
 export async function POST(request: Request) {
-  const limited = enforceBestEffortRateLimit(request, "content-report", 5, 10 * 60_000);
-  if (limited) return limited;
   try {
     const account = await requireAccount(request);
+    const limited = await enforceDurableRateLimit(
+      request,
+      "content-report",
+      5,
+      10 * 60_000,
+      account.uid,
+    );
+    if (limited) return limited;
     const parsed = reportSchema.safeParse(await readJsonBody(request, 4_096));
     if (!parsed.success) {
       return Response.json({ error: parsed.error.issues[0]?.message ?? "Check the report and try again." }, { status: 400 });
@@ -67,7 +76,7 @@ export async function POST(request: Request) {
       );
     }
 
-    await createStoredDocument("contentReports", {
+    const created = await createStoredDocument("contentReports", {
       ...parsed.data,
       reporterUid: account.uid,
       topic: course.topic,
@@ -86,13 +95,36 @@ export async function POST(request: Request) {
         : [],
     ));
     if (serious) seriousReporters.add(account.uid);
-    const quarantined = course.isPublic
-      && serious
-      && (account.isOwner || seriousReporters.size >= 2)
-      ? await quarantineCourse(courseId, "Multiple verified users reported a serious safety or rights concern.")
+    const disposition = contentReportDisposition({
+      courseIsPublic: course.isPublic === true,
+      serious,
+      reporterIsOwner: account.isOwner,
+      seriousReporterCount: seriousReporters.size,
+    });
+    const escalated = disposition.escalate;
+    // Only the owner may immediately quarantine content. Multiple learner
+    // reports create an urgent review signal, but cannot be used as a Sybil
+    // attack to unpublish an otherwise public course.
+    const quarantined = disposition.quarantine
+      ? await quarantineCourse(courseId, "The owner reported a serious safety or rights concern.")
       : false;
+    if (escalated && !quarantined) {
+      await reportOperationalEvent({
+        severity: "critical",
+        code: "content.multiple_serious_reports",
+        message: "A public course has multiple independent safety or rights reports and needs owner review.",
+        context: { courseId, reporters: seriousReporters.size },
+      });
+    }
+    await recordServerProductEvent("content_reported", {
+      route: lessonId ? "/lesson" : "/course",
+      actorId: account.uid,
+      courseId,
+      lessonId,
+      eventId: `content-report-${created.id}`,
+    });
     return Response.json(
-      { reported: true, quarantined },
+      { reported: true, quarantined, escalated },
       { headers: { "Cache-Control": "no-store" } },
     );
   } catch (error) {

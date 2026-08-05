@@ -12,10 +12,10 @@ This document is an engineering and launch-readiness record, not legal advice.
 - State-changing JSON requests require an allowed origin, `application/json`, and an endpoint-specific body limit.
 - Progress totals are validated so correct answers and attempts cannot exceed their logical bounds. Non-owner Pro authors must also present short-lived HMAC-signed activity receipts bound to their user, course, lesson, and quiz before a lesson can unlock the next generation step.
 - AI course, lesson, and tutor inputs use moderation. Generated course and lesson content is moderated before storage. Requests include a pseudonymous OpenAI safety identifier.
-- AI generation uses per-plan quotas, per-minute limits, active-request locks, idempotency keys, and a global monthly budget.
+- AI generation uses per-plan quotas, per-minute limits, active-request locks, idempotency keys, and a global monthly budget. Other public and authenticated mutation endpoints use Firestore-backed global and per-client or per-account limits shared across Worker instances.
 - OpenAI Responses requests disable application-state storage. Direct AI interactions and AI-assisted course or lesson content are visibly identified and include machine-readable disclosure attributes.
 - Mermaid output is parsed and sanitized before insertion into the document.
-- Response headers include CSP, HSTS, clickjacking protection, MIME sniffing protection, a restrictive permissions policy, and cross-origin isolation controls compatible with Google sign-in.
+- Response headers include nonce-based CSP, HSTS on pages, APIs, and hosted assets, clickjacking protection, MIME sniffing protection, a restrictive permissions policy, and cross-origin isolation controls compatible with Google sign-in.
 - `/api/health` performs a live Firestore probe. Critical datastore and verified billing-event failures can be sent to an operator webhook with sanitized metadata and an optional HMAC signature.
 - Managed Firestore export and guarded import scripts support backups and recovery drills. Restore is dry-run by default and requires both `--apply` and the exact project ID.
 - The production and full installed dependency graphs reported zero known npm audit vulnerabilities on the date above.
@@ -23,6 +23,8 @@ This document is an engineering and launch-readiness record, not legal advice.
 - Signed-in non-owner users can export their account data and permanently delete their active account data after recent Google reauthentication. The deletion route independently enforces a five-minute Firebase `auth_time` window on the server; the client reauthentication prompt is not the security boundary. Owner deletion requires a manual course-control transfer or shutdown process.
 - A published Copyright Policy defines notice, counter-notice, review, removal, and an adopted repeat-infringer termination procedure. Content reports and owner enforcement actions preserve the operational record used to apply it. The app does not claim DMCA safe-harbor registration that has not been completed.
 - Optional first-party product analytics are off until the visitor makes a choice. Refusal and later withdrawal remove Erudoza's optional browser identifiers; the choice remains available in the Privacy Center.
+- Browser telemetry accepts only coarse anonymous discovery events. Signed-in learning events are rebound to the verified Firebase UID, while signup, waitlist, moderation, checkout, and subscription events are recorded only by the server route that performs the underlying action.
+- Multiple independent serious content reports escalate to owner review and operational alerting; learner reports alone cannot automatically unpublish a course.
 
 ## Automated account export and deletion boundary
 

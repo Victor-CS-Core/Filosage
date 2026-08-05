@@ -8,7 +8,7 @@ import {
   issueInteractionReceipt,
   type InteractionReceiptClaims,
 } from "@/lib/interaction-receipts";
-import { enforceBestEffortRateLimit } from "@/lib/request-rate-limit";
+import { enforceDurableRateLimit } from "@/lib/request-rate-limit";
 import type { Course, LessonData } from "@/lib/course-types";
 
 const attemptSchema = z.object({
@@ -24,10 +24,10 @@ function numberValue(value: unknown) {
 }
 
 export async function POST(request: Request) {
-  const limited = enforceBestEffortRateLimit(request, "lesson-interaction", 80);
-  if (limited) return limited;
   try {
     const account = await requireAcceptedAccount(request);
+    const limited = await enforceDurableRateLimit(request, "lesson-interaction", 80, 60_000, account.uid);
+    if (limited) return limited;
     const parsed = attemptSchema.safeParse(await readJsonBody(request, 4_096));
     if (!parsed.success) return Response.json({ error: "This lab attempt is not valid." }, { status: 400 });
 

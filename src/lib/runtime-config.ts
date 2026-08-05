@@ -17,6 +17,9 @@ const requiredInProduction = [
   "OPENAI_API_KEY",
   "OWNER_EMAIL",
   "ACTIVITY_RECEIPT_SECRET",
+  "FIRESTORE_BACKUP_BUCKET",
+  "OPERATIONS_ALERT_WEBHOOK_URL",
+  "OPERATIONS_ALERT_WEBHOOK_SECRET",
 ] as const;
 
 export function missingRuntimeConfiguration() {

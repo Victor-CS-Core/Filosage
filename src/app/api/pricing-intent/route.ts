@@ -5,7 +5,7 @@ import {
   getStoredDocument,
   runStoredDocumentTransaction,
 } from "@/lib/firebase-server";
-import { enforceBestEffortRateLimit } from "@/lib/request-rate-limit";
+import { enforceDurableRateLimit } from "@/lib/request-rate-limit";
 
 const pricingIntentSchema = z.object({
   interval: z.enum(["monthly", "annual"]),
@@ -45,9 +45,6 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
-  const limited = enforceBestEffortRateLimit(request, "pricing-intent", 12, 60 * 60_000);
-  if (limited) return limited;
-
   try {
     const parsed = pricingIntentSchema.safeParse(await readJsonBody(request, 2_048));
     if (!parsed.success) {
@@ -58,6 +55,14 @@ export async function POST(request: Request) {
     }
 
     const account = await requireAcceptedAccount(request);
+    const limited = await enforceDurableRateLimit(
+      request,
+      "pricing-intent",
+      12,
+      60 * 60_000,
+      account.uid,
+    );
+    if (limited) return limited;
     if (account.isOwner || account.plan === "pro") {
       return Response.json(
         { error: "Launch preferences are collected from Free accounts that do not already have Pro access." },
@@ -105,6 +110,7 @@ export async function POST(request: Request) {
             route: "/pricing",
             source: "internal",
             channel: "internal",
+            trust: "server_verified",
             event: "pricing_interest",
             actorId: account.uid,
             launchEmailConsent: parsed.data.launchEmailConsent,

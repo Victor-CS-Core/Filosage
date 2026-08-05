@@ -2,15 +2,16 @@ import { authorizationResponse, requireAcceptedAccount } from "@/lib/auth-server
 import { apiRequestErrorResponse, assertTrustedMutation, readJsonBody } from "@/lib/api-security";
 import { subscriptionBlocksCheckout } from "@/lib/billing-lock";
 import { billingConfiguration } from "@/lib/runtime-config";
-import { enforceBestEffortRateLimit } from "@/lib/request-rate-limit";
+import { enforceDurableRateLimit } from "@/lib/request-rate-limit";
 import { BillingCheckoutInProgressError, createCheckoutSession, isBillingInterval } from "@/lib/stripe-server";
+import { recordServerProductEvent } from "@/lib/product-events-server";
 
 export async function POST(request: Request) {
-  const limited = enforceBestEffortRateLimit(request, "billing-checkout", 8);
-  if (limited) return limited;
   try {
     assertTrustedMutation(request);
     const account = await requireAcceptedAccount(request);
+    const limited = await enforceDurableRateLimit(request, "billing-checkout", 8, 60_000, account.uid);
+    if (limited) return limited;
     if (!billingConfiguration().checkoutReady) return Response.json({ error: "Paid subscriptions are not available yet." }, { status: 503 });
     if (subscriptionBlocksCheckout(account.subscriptionStatus)) {
       return Response.json(
@@ -21,6 +22,10 @@ export async function POST(request: Request) {
     const body = await readJsonBody(request, 1_024) as { interval?: unknown };
     if (!isBillingInterval(body.interval)) return Response.json({ error: "Choose a monthly or annual billing interval." }, { status: 400 });
     const url = await createCheckoutSession(account, body.interval);
+    await recordServerProductEvent("checkout_started", {
+      route: "/pricing",
+      actorId: account.uid,
+    });
     return Response.json({ url }, { headers: { "Cache-Control": "private, no-store" } });
   } catch (error) {
     if (error instanceof BillingCheckoutInProgressError) {

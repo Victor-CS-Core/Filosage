@@ -1,13 +1,16 @@
 import { z } from "zod";
-import { apiRequestErrorResponse, readJsonBody } from "@/lib/api-security";
+import { apiRequestErrorResponse, assertTrustedMutation, readJsonBody } from "@/lib/api-security";
+import { getVerifiedUser } from "@/lib/auth-server";
 import { createStoredDocument, runStoredDocumentTransaction } from "@/lib/firebase-server";
-import { enforceBestEffortRateLimit } from "@/lib/request-rate-limit";
+import { enforceDurableRateLimit } from "@/lib/request-rate-limit";
 import { isLocalMode } from "@/lib/local-mode";
 import {
   ACQUISITION_CHANNELS,
+  ANONYMOUS_PRODUCT_EVENT_NAMES,
   PRODUCT_EVENT_NAMES,
   PRODUCT_EVENT_ROUTES,
   PRODUCT_EVENT_SCHEMA_VERSION,
+  SERVER_RECORDED_PRODUCT_EVENT_NAMES,
 } from "@/lib/product-events";
 import { serverEnvironment } from "@/lib/runtime-environment";
 
@@ -46,9 +49,10 @@ function documentRouteKey(route: string) {
 }
 
 export async function POST(request: Request) {
-  const limited = enforceBestEffortRateLimit(request, "telemetry", 60);
-  if (limited) return limited;
   try {
+    assertTrustedMutation(request);
+    const limited = await enforceDurableRateLimit(request, "telemetry", 60);
+    if (limited) return limited;
     const parsed = telemetrySchema.safeParse(await readJsonBody(request, 2_048));
     if (!parsed.success) {
       return Response.json({ error: "Invalid traffic event." }, { status: 400 });
@@ -57,9 +61,30 @@ export async function POST(request: Request) {
       return new Response(null, { status: 204 });
     }
 
+    const user = await getVerifiedUser(request);
+    const { event } = parsed.data;
+    if (SERVER_RECORDED_PRODUCT_EVENT_NAMES.includes(
+      event as (typeof SERVER_RECORDED_PRODUCT_EVENT_NAMES)[number],
+    )) {
+      return Response.json(
+        { error: "This event can only be recorded by the action that it represents." },
+        { status: 403, headers: { "Cache-Control": "no-store" } },
+      );
+    }
+    const anonymousEvent = event === "page_view"
+      || ANONYMOUS_PRODUCT_EVENT_NAMES.includes(
+        event as (typeof ANONYMOUS_PRODUCT_EVENT_NAMES)[number],
+      );
+    if (!user && !anonymousEvent) {
+      return Response.json(
+        { error: "Sign in before recording learning activity." },
+        { status: 401, headers: { "Cache-Control": "no-store" } },
+      );
+    }
+
     const now = new Date();
     const date = now.toISOString().slice(0, 10);
-    const { route, source, event, acquisition } = parsed.data;
+    const { route, source, acquisition } = parsed.data;
     if (event !== "page_view") {
       await createStoredDocument("productEvents", {
         schemaVersion: parsed.data.schemaVersion,
@@ -67,8 +92,11 @@ export async function POST(request: Request) {
         route,
         source,
         event,
-        actorId: parsed.data.actorId,
+        // Anonymous analytics is intentionally session-scoped. Never attach a
+        // caller-supplied account identifier to an unauthenticated event.
+        actorId: user?.uid,
         sessionId: parsed.data.sessionId,
+        trust: user ? "authenticated_client" : "anonymous_client",
         channel: acquisition?.channel ?? source,
         referralCode: acquisition?.referralCode,
         campaign: acquisition?.campaign,

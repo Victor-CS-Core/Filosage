@@ -3,7 +3,6 @@
 import { useState } from "react";
 import { CheckCircle2, Flag, LoaderCircle, ShieldCheck } from "lucide-react";
 import type { LessonData } from "@/lib/course-types";
-import { trackProductEvent } from "@/lib/product-analytics";
 
 export default function LessonIntegrityPanel({
   courseId,
@@ -46,12 +45,6 @@ export default function LessonIntegrityPanel({
       const data = await response.json() as { error?: string };
       if (!response.ok) throw new Error(data.error || "The report could not be sent.");
       setSent(true);
-      trackProductEvent("content_reported", {
-        route: "/lesson",
-        courseId,
-        lessonId,
-        contentVersion: provenance?.contentVersion,
-      });
     } catch (submitError) {
       setError(submitError instanceof Error ? submitError.message : "The report could not be sent.");
     } finally {

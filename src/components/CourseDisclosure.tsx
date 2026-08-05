@@ -8,6 +8,7 @@ interface CourseDisclosureProps {
   className?: string;
   contentClassName?: string;
   description?: string;
+  defaultOpen?: boolean;
   eyebrow: string;
   headingId: string;
   leading?: ReactNode;
@@ -19,12 +20,13 @@ export default function CourseDisclosure({
   className = "",
   contentClassName = "",
   description,
+  defaultOpen = false,
   eyebrow,
   headingId,
   leading,
   title,
 }: CourseDisclosureProps) {
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(defaultOpen);
 
   return (
     <details

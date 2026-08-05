@@ -4,7 +4,7 @@ import {
   listStoredDocumentsByField,
   runStoredDocumentTransaction,
 } from "@/lib/firebase-server";
-import { enforceBestEffortRateLimit } from "@/lib/request-rate-limit";
+import { enforceDurableRateLimit } from "@/lib/request-rate-limit";
 
 function referralCode() {
   return crypto.randomUUID().replaceAll("-", "").slice(0, 16);
@@ -59,11 +59,11 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
-  const limited = enforceBestEffortRateLimit(request, "referral-create", 10);
-  if (limited) return limited;
   try {
     assertTrustedMutation(request);
     const account = await requireAcceptedAccount(request);
+    const limited = await enforceDurableRateLimit(request, "referral-create", 10, 60_000, account.uid);
+    if (limited) return limited;
     return Response.json(await referralSummary(account.uid, true), {
       headers: { "Cache-Control": "private, no-store" },
     });

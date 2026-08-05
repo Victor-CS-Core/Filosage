@@ -1,0 +1,93 @@
+{
+  "version": 1,
+  "articleDirectory": "src/content/support/articles",
+  "excludedPagePrefixes": [
+    "src/app/acceptable-use/",
+    "src/app/admin/",
+    "src/app/api/",
+    "src/app/copyright/",
+    "src/app/create/",
+    "src/app/local-qa/",
+    "src/app/privacy/",
+    "src/app/standard/",
+    "src/app/support/",
+    "src/app/terms/"
+  ],
+  "features": [
+    {
+      "feature": "Today learning dashboard",
+      "sources": ["src/app/page.tsx"],
+      "articles": ["getting-started", "navigate-erudoza"]
+    },
+    {
+      "feature": "Application navigation and account menu",
+      "sources": ["src/components/AppShell.tsx", "src/components/AppDrawer.tsx"],
+      "articles": ["getting-started", "navigate-erudoza"]
+    },
+    {
+      "feature": "Published course discovery",
+      "sources": ["src/app/library/", "src/components/CourseLibrary.tsx", "src/components/CourseBanner.tsx"],
+      "articles": ["getting-started", "find-a-course"]
+    },
+    {
+      "feature": "Course overview and journey",
+      "sources": ["src/app/course/[topic]/page.tsx", "src/components/CourseJourneyMap.tsx", "src/components/CourseDisclosure.tsx"],
+      "articles": ["follow-a-course"]
+    },
+    {
+      "feature": "Lesson experience and completion",
+      "sources": ["src/app/course/[topic]/lesson/[lessonId]/page.tsx", "src/components/LessonSectionNavigator.tsx", "src/components/SpeakButton.tsx"],
+      "articles": ["complete-a-lesson", "accessibility"]
+    },
+    {
+      "feature": "Lesson study tools",
+      "sources": ["src/components/LessonStudyTools.tsx"],
+      "articles": ["use-study-tools"]
+    },
+    {
+      "feature": "Adaptive review",
+      "sources": ["src/app/review/", "src/lib/adaptive-learning.ts", "src/lib/learning-progress.ts"],
+      "articles": ["use-review"]
+    },
+    {
+      "feature": "Progress dashboard",
+      "sources": ["src/app/progress/", "src/lib/learning-summary.ts", "src/components/MasteryPath.tsx"],
+      "articles": ["understand-progress"]
+    },
+    {
+      "feature": "Evidence reports",
+      "sources": ["src/app/evidence/", "src/lib/mastery.ts", "src/components/useMasteryJourney.ts"],
+      "articles": ["read-evidence-report"]
+    },
+    {
+      "feature": "Learner profile and preferences",
+      "sources": ["src/app/profile/", "src/components/DashboardCustomizer.tsx", "src/components/useLearnerState.ts"],
+      "articles": ["manage-profile"]
+    },
+    {
+      "feature": "Authentication",
+      "sources": ["src/components/AuthProvider.tsx", "src/components/AuthModal.tsx"],
+      "articles": ["getting-started", "sign-in-help"]
+    },
+    {
+      "feature": "Privacy controls and analytics consent",
+      "sources": ["src/app/privacy-center/", "src/components/AnalyticsConsent.tsx", "src/lib/product-analytics.ts"],
+      "articles": ["privacy-controls"]
+    },
+    {
+      "feature": "Content reporting",
+      "sources": ["src/components/LessonIntegrityPanel.tsx", "src/app/api/content-reports/", "src/lib/content-report-policy.ts"],
+      "articles": ["report-content"]
+    },
+    {
+      "feature": "Billing availability and pricing",
+      "sources": ["src/app/beta/", "src/app/pricing/", "src/lib/billing-lock.ts", "src/lib/billing-offer.ts", "docs/COMMERCIAL_LAUNCH_RUNBOOK.md", ".env.example"],
+      "articles": ["plans-and-billing"]
+    },
+    {
+      "feature": "Support contact channel",
+      "sources": ["src/lib/legal.ts"],
+      "articles": ["contact-support"]
+    }
+  ]
+}

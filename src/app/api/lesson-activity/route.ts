@@ -8,7 +8,7 @@ import {
 import { getCourse, getLesson, runStoredDocumentTransaction } from "@/lib/firebase-server";
 import type { Course, LessonData } from "@/lib/course-types";
 import { z } from "zod";
-import { enforceBestEffortRateLimit } from "@/lib/request-rate-limit";
+import { enforceDurableRateLimit } from "@/lib/request-rate-limit";
 
 const activityAttemptSchema = z.object({
   courseId: z.string().trim().min(1).max(200),
@@ -22,10 +22,10 @@ function numberValue(value: unknown) {
 }
 
 export async function POST(request: Request) {
-  const limited = enforceBestEffortRateLimit(request, "lesson-activity", 60);
-  if (limited) return limited;
   try {
     const account = await requireAcceptedAccount(request);
+    const limited = await enforceDurableRateLimit(request, "lesson-activity", 60, 60_000, account.uid);
+    if (limited) return limited;
     const parsed = activityAttemptSchema.safeParse(await readJsonBody(request, 4_096));
     if (!parsed.success) {
       return Response.json({ error: "This activity attempt is not valid." }, { status: 400 });

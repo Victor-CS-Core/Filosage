@@ -1,4 +1,5 @@
 import type { MetadataRoute } from "next";
+import { supportArticles } from "@/content/support/articles";
 import { listPublicCourses } from "@/lib/firebase-server";
 import { serverEnvironment } from "@/lib/runtime-environment";
 
@@ -11,12 +12,18 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     changeFrequency: path === "/library" ? "daily" : "monthly",
     priority: path === "" ? 1 : 0.5,
   }));
+  const supportRoutes: MetadataRoute.Sitemap = supportArticles.map((article) => ({
+    url: `${base}/support/articles/${article.slug}`,
+    lastModified: new Date(`${article.reviewedOn}T00:00:00Z`),
+    changeFrequency: "monthly",
+    priority: 0.45,
+  }));
   const canReadProductionCatalog = Boolean(
     serverEnvironment.FIREBASE_PROJECT_ID
     && serverEnvironment.FIREBASE_CLIENT_EMAIL
     && serverEnvironment.FIREBASE_PRIVATE_KEY,
   );
-  if (serverEnvironment.NODE_ENV === "production" && !canReadProductionCatalog) return staticRoutes;
+  if (serverEnvironment.NODE_ENV === "production" && !canReadProductionCatalog) return [...staticRoutes, ...supportRoutes];
 
   try {
     const courses = await listPublicCourses();
@@ -30,9 +37,9 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
         priority: 0.7,
       }];
     });
-    return [...staticRoutes, ...courseRoutes];
+    return [...staticRoutes, ...supportRoutes, ...courseRoutes];
   } catch (error) {
     console.error("Public course sitemap expansion failed:", error);
-    return staticRoutes;
+    return [...staticRoutes, ...supportRoutes];
   }
 }

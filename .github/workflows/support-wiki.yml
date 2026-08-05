@@ -1,0 +1,31 @@
+name: Support wiki
+
+on:
+  pull_request:
+  schedule:
+    - cron: "0 14 1 1,4,7,10 *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Validate support wiki integrity and change impact
+        if: github.event_name == 'pull_request'
+        env:
+          SUPPORT_WIKI_PR_BODY: ${{ github.event.pull_request.body }}
+        run: npm run check:support-wiki -- --base "${{ github.event.pull_request.base.sha }}"
+      - name: Validate support wiki freshness
+        if: github.event_name != 'pull_request'
+        run: npm run check:support-wiki -- --stale-after 180

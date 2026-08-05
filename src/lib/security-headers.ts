@@ -1,3 +1,16 @@
+export const STRICT_TRANSPORT_SECURITY = "max-age=63072000; includeSubDomains; preload";
+
+export function withStrictTransportSecurity(request: Request, response: Response) {
+  if (new URL(request.url).protocol !== "https:") return response;
+  const headers = new Headers(response.headers);
+  headers.set("Strict-Transport-Security", STRICT_TRANSPORT_SECURITY);
+  return new Response(response.body, {
+    status: response.status,
+    statusText: response.statusText,
+    headers,
+  });
+}
+
 export function securityHeaders(
   isDevelopment = false,
   nonce?: string,
@@ -37,7 +50,7 @@ export function securityHeaders(
     { key: "Cross-Origin-Resource-Policy", value: "same-site" },
     { key: "Origin-Agent-Cluster", value: "?1" },
     isSecureRequest
-      ? { key: "Strict-Transport-Security", value: "max-age=63072000; includeSubDomains; preload" }
+      ? { key: "Strict-Transport-Security", value: STRICT_TRANSPORT_SECURITY }
       : null,
   ].filter((header): header is { key: string; value: string } => header !== null);
 }
