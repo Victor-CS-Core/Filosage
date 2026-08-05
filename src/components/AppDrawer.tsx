@@ -69,6 +69,42 @@ interface AppDrawerProps {
   children: ReactNode;
 }
 
+const DRAWER_EXIT_MS = 160;
+let drawerScrollLocks = 0;
+let restoreDrawerScroll: (() => void) | null = null;
+
+function lockDrawerScroll() {
+  if (drawerScrollLocks === 0) {
+    const root = document.documentElement;
+    const body = document.body;
+    const appMain = document.querySelector<HTMLElement>(".app-main");
+    const previous = {
+      rootOverflow: root.style.overflow,
+      bodyOverflow: body.style.overflow,
+      appMainOverflow: appMain?.style.overflow,
+    };
+    root.style.overflow = "hidden";
+    body.style.overflow = "hidden";
+    if (appMain) appMain.style.overflow = "hidden";
+    restoreDrawerScroll = () => {
+      root.style.overflow = previous.rootOverflow;
+      body.style.overflow = previous.bodyOverflow;
+      if (appMain) appMain.style.overflow = previous.appMainOverflow ?? "";
+    };
+  }
+  drawerScrollLocks += 1;
+  let released = false;
+  return () => {
+    if (released) return;
+    released = true;
+    drawerScrollLocks = Math.max(0, drawerScrollLocks - 1);
+    if (drawerScrollLocks === 0) {
+      restoreDrawerScroll?.();
+      restoreDrawerScroll = null;
+    }
+  };
+}
+
 export default function AppDrawer({
   id,
   open,
@@ -83,6 +119,9 @@ export default function AppDrawer({
 }: AppDrawerProps) {
   const dialogRef = useRef<HTMLDialogElement>(null);
   const onCloseRef = useRef(onClose);
+  const closeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const openFrameRef = useRef<number | null>(null);
+  const unlockScrollRef = useRef<(() => void) | null>(null);
 
   useEffect(() => {
     onCloseRef.current = onClose;
@@ -91,33 +130,74 @@ export default function AppDrawer({
   useEffect(() => {
     const dialog = dialogRef.current;
     if (!dialog) return;
-    if (open && !dialog.open) dialog.showModal();
-    if (!open && dialog.open) dialog.close();
-  }, [open]);
+    if (closeTimerRef.current) {
+      clearTimeout(closeTimerRef.current);
+      closeTimerRef.current = null;
+    }
+    if (openFrameRef.current !== null) {
+      cancelAnimationFrame(openFrameRef.current);
+      openFrameRef.current = null;
+    }
 
-  useEffect(() => {
-    if (!open) return;
-    const root = document.documentElement;
-    const body = document.body;
-    const appMain = document.querySelector<HTMLElement>(".app-main");
-    const previous = {
-      rootOverflow: root.style.overflow,
-      bodyOverflow: body.style.overflow,
-      appMainOverflow: appMain?.style.overflow,
+    const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const releaseScrollLock = () => {
+      unlockScrollRef.current?.();
+      unlockScrollRef.current = null;
     };
-    root.style.overflow = "hidden";
-    body.style.overflow = "hidden";
-    if (appMain) appMain.style.overflow = "hidden";
-    return () => {
-      root.style.overflow = previous.rootOverflow;
-      body.style.overflow = previous.bodyOverflow;
-      if (appMain) appMain.style.overflow = previous.appMainOverflow ?? "";
+    const finishClose = () => {
+      if (dialog.open) dialog.close();
+      dialog.dataset.state = "closed";
+      dialog.inert = false;
+      releaseScrollLock();
     };
+
+    if (open) {
+      if (!unlockScrollRef.current) {
+        unlockScrollRef.current = lockDrawerScroll();
+      }
+      if (dialog.open && !dialog.matches(":modal")) dialog.close();
+      dialog.inert = false;
+      dialog.dataset.state = reduceMotion ? "open" : "opening";
+      if (!dialog.open) dialog.showModal();
+      if (!reduceMotion) {
+        openFrameRef.current = requestAnimationFrame(() => {
+          if (dialog.open) dialog.dataset.state = "open";
+          openFrameRef.current = null;
+        });
+      }
+      return;
+    }
+
+    if (!dialog.open) {
+      dialog.dataset.state = "closed";
+      releaseScrollLock();
+      return;
+    }
+
+    if (reduceMotion) {
+      finishClose();
+      return;
+    }
+
+    // Release the modal focus trap immediately so another control can be used
+    // while the surface finishes its visual exit as a non-modal dialog.
+    dialog.close();
+    dialog.show();
+    dialog.inert = true;
+    openFrameRef.current = requestAnimationFrame(() => {
+      dialog.dataset.state = "closing";
+      closeTimerRef.current = setTimeout(finishClose, DRAWER_EXIT_MS);
+      openFrameRef.current = null;
+    });
   }, [open]);
 
   useEffect(() => () => {
+    if (closeTimerRef.current) clearTimeout(closeTimerRef.current);
+    if (openFrameRef.current !== null) cancelAnimationFrame(openFrameRef.current);
     const dialog = dialogRef.current;
     if (dialog?.open) dialog.close();
+    unlockScrollRef.current?.();
+    unlockScrollRef.current = null;
   }, []);
 
   return (
@@ -130,9 +210,6 @@ export default function AppDrawer({
       onCancel={(event) => {
         event.preventDefault();
         onCloseRef.current();
-      }}
-      onClose={() => {
-        if (open) onCloseRef.current();
       }}
       onMouseDown={(event) => {
         if (event.target === event.currentTarget) onCloseRef.current();

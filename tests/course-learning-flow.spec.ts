@@ -667,7 +667,7 @@ test("completes a published course from discovery through evidence", async ({ pa
 
   await page.goto("/progress");
   await expect(page.getByRole("heading", { name: "How your understanding is holding up" })).toBeVisible();
-  await expect(page.getByRole("heading", { name: "What you can now produce" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Work you saved while learning" })).toBeVisible();
   await expect(page.getByText(workedExampleEvidence)).toBeVisible();
 });
 

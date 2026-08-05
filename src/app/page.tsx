@@ -305,13 +305,13 @@ export default function Home() {
           </div>
         )}
       </div>
-      {dashboardCustomizer.open && <DashboardCustomizer
+      <DashboardCustomizer
         open={dashboardCustomizer.open}
         preferences={preferences}
         syncStatus={syncStatus}
         onClose={dashboardCustomizer.closeDrawer}
         onSave={(next) => updateLearnerState((current) => ({ ...current, dashboardPreferences: next }))}
-      />}
+      />
     </AppShell>
   );
 }

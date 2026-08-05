@@ -169,7 +169,7 @@ export default function AppShell({ children, activeTopic, activeCourseId }: AppS
         <nav className="learner-primary-nav">
           {primaryNav.map(({ href, label, icon: Icon }) => (
             <Link key={href} href={href} className={`nav-link ${pathname === href ? "is-active" : ""}`} aria-current={pathname === href ? "page" : undefined}>
-              <Icon size={18} /><span>{label}</span>
+              <span className="rail-icon-wrap"><Icon size={18} /></span><span>{label}</span>
             </Link>
           ))}
           <button
@@ -179,13 +179,14 @@ export default function AppShell({ children, activeTopic, activeCourseId }: AppS
             aria-expanded={coursesDrawer.open}
             aria-controls="course-switcher-drawer"
             aria-haspopup="dialog"
+            aria-current={pathname.startsWith("/course/") ? "page" : undefined}
           >
             <span className="rail-icon-wrap"><BookOpen size={18} />{courses.length > 0 && <small>{courses.length > 9 ? "9+" : courses.length}</small>}</span>
             <span>Courses</span>
           </button>
           {isPro && (
             <Link href="/create" className={`nav-link rail-create-link ${pathname === "/create" ? "is-active" : ""}`} aria-current={pathname === "/create" ? "page" : undefined}>
-              <Plus size={18} /><span>Create course</span>
+              <span className="rail-icon-wrap"><Plus size={18} /></span><span>Create course</span>
             </Link>
           )}
         </nav>
@@ -215,7 +216,7 @@ export default function AppShell({ children, activeTopic, activeCourseId }: AppS
         <button className="brand brand-mobile" onClick={() => navigate("/")} aria-label="Erudoza home">
           <span className="brand-mark" aria-hidden="true"><ErudozaMark /></span><strong className="brand-wordmark">Erudoza</strong>
         </button>
-        <button className="mobile-account-trigger" type="button" onClick={accountDrawer.openDrawer} aria-expanded={accountDrawer.open} aria-haspopup="dialog">
+        <button className="mobile-account-trigger" type="button" onClick={accountDrawer.openDrawer} aria-expanded={accountDrawer.open} aria-controls="account-menu-drawer" aria-haspopup="dialog" aria-label={`Open account menu for ${firstName}, ${isPro ? "Erudoza Pro" : "free plan"}`}>
           {user.photoURL ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img src={user.photoURL} alt="" referrerPolicy="no-referrer" />
@@ -225,8 +226,7 @@ export default function AppShell({ children, activeTopic, activeCourseId }: AppS
         </button>
       </header>
 
-      {coursesDrawer.open && (
-        <AppDrawer id="course-switcher-drawer" open={coursesDrawer.open} onClose={coursesDrawer.closeDrawer} labelledBy="course-switcher-title" size="wide" mobilePlacement="bottom" className="course-switcher-app-drawer">
+      <AppDrawer id="course-switcher-drawer" open={coursesDrawer.open} onClose={coursesDrawer.closeDrawer} labelledBy="course-switcher-title" size="wide" mobilePlacement="bottom" className="course-switcher-app-drawer">
           <section className="course-switcher-drawer">
             <header className="app-drawer-header">
               <div>
@@ -276,11 +276,9 @@ export default function AppShell({ children, activeTopic, activeCourseId }: AppS
               <Link className="button button-secondary" href="/library" onClick={coursesDrawer.closeDrawer}>Explore the library <ArrowRight size={15} /></Link>
             </footer>
           </section>
-        </AppDrawer>
-      )}
+      </AppDrawer>
 
-      {accountDrawer.open && (
-        <AppDrawer id="account-menu-drawer" open={accountDrawer.open} onClose={accountDrawer.closeDrawer} labelledBy="account-drawer-title" size="compact" mobilePlacement="bottom" className="account-app-drawer">
+      <AppDrawer id="account-menu-drawer" open={accountDrawer.open} onClose={accountDrawer.closeDrawer} labelledBy="account-drawer-title" size="compact" mobilePlacement="bottom" className="account-app-drawer">
           <section className="account-drawer">
             <header className="app-drawer-header">
               <div className="account-drawer-identity">
@@ -307,8 +305,7 @@ export default function AppShell({ children, activeTopic, activeCourseId }: AppS
               <button type="button" onClick={() => { accountDrawer.closeDrawer(); void signOut(); }}><LogOut size={18} /><span><strong>Sign out</strong><small>End this session</small></span></button>
             </div>
           </section>
-        </AppDrawer>
-      )}
+      </AppDrawer>
 
       <main className="app-main" id="main-content" tabIndex={-1}>
         {account?.accountStatus === "suspended" && (
@@ -322,11 +319,11 @@ export default function AppShell({ children, activeTopic, activeCourseId }: AppS
 
       <nav className="mobile-bottom-nav" aria-label="Mobile navigation">
         {primaryNav.slice(0, 2).map(({ href, label, icon: Icon }) => (
-          <button key={href} className={pathname === href ? "is-active" : ""} onClick={() => navigate(href)}><Icon size={20} /><span>{label}</span></button>
+          <button key={href} className={pathname === href ? "is-active" : ""} onClick={() => navigate(href)} aria-current={pathname === href ? "page" : undefined}><Icon size={20} /><span>{label}</span></button>
         ))}
-        <button className="mobile-create" onClick={() => navigate(isPro ? "/create" : "/pricing")} aria-label={isPro ? "Create course" : "Explore Pro"}><Plus size={22} /></button>
+        <button className={`mobile-create ${pathname === (isPro ? "/create" : "/pricing") ? "is-active" : ""}`} onClick={() => navigate(isPro ? "/create" : "/pricing")} aria-label={isPro ? "Create course" : "Explore Pro"} aria-current={pathname === (isPro ? "/create" : "/pricing") ? "page" : undefined}><Plus size={22} /></button>
         {primaryNav.slice(2).map(({ href, label, icon: Icon }) => (
-          <button key={href} className={pathname === href ? "is-active" : ""} onClick={() => navigate(href)}><Icon size={20} /><span>{label}</span></button>
+          <button key={href} className={pathname === href ? "is-active" : ""} onClick={() => navigate(href)} aria-current={pathname === href ? "page" : undefined}><Icon size={20} /><span>{label}</span></button>
         ))}
       </nav>
       {account?.legalAcceptanceRequired && !isLegalPage && <LegalConsentModal />}

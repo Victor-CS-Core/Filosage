@@ -389,11 +389,36 @@ export default function LessonView() {
     setLessonPaneState({ key: noteKey, pane });
   };
 
+  const focusLessonPane = (pane: LessonPane) => {
+    selectLessonPane(pane);
+    requestAnimationFrame(() => document.getElementById(`lesson-${pane}-tab`)?.focus());
+  };
+
+  const handleLessonPaneKeyDown = (event: React.KeyboardEvent<HTMLButtonElement>) => {
+    if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return;
+    event.preventDefault();
+    const nextPane = event.key === "ArrowLeft" || event.key === "Home" ? "learn" : "activities";
+    focusLessonPane(nextPane);
+  };
+
   const selectActivitySection = (id: ActivitySectionId) => {
     if (activeActivityId === "guided" && id !== "guided") {
       setGuidedPracticeState({ key: noteKey, complete: true });
     }
     setActivitySectionState({ key: noteKey, id });
+  };
+
+  const handleActivityKeyDown = (event: React.KeyboardEvent<HTMLButtonElement>, index: number) => {
+    if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key) || !activitySections.length) return;
+    event.preventDefault();
+    const nextIndex = event.key === "Home"
+      ? 0
+      : event.key === "End"
+        ? activitySections.length - 1
+        : (index + (event.key === "ArrowRight" ? 1 : -1) + activitySections.length) % activitySections.length;
+    const nextSection = activitySections[nextIndex];
+    selectActivitySection(nextSection.id);
+    requestAnimationFrame(() => document.getElementById(`activity-${nextSection.id}-tab`)?.focus());
   };
 
   const moveThroughActivities = (direction: -1 | 1) => {
@@ -655,7 +680,8 @@ export default function LessonView() {
   }, [courseId, lessonId, noteKey, reviewMode, topic, user]);
 
   useEffect(() => {
-    chatBottomRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    const behavior = window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth";
+    chatBottomRef.current?.scrollIntoView({ behavior, block: "nearest" });
   }, [messages]);
 
   const lesson = course?.modules[moduleIndex]?.lessons[lessonIndex];
@@ -1155,10 +1181,10 @@ export default function LessonView() {
               </header>
 
               <div className="lesson-mode-tabs" role="tablist" aria-label="Lesson workspace">
-                <button id="lesson-learn-tab" type="button" role="tab" aria-selected={lessonPane === "learn"} aria-controls="lesson-pane-content" className={lessonPane === "learn" ? "is-active" : ""} onClick={() => selectLessonPane("learn")}>
+                <button id="lesson-learn-tab" type="button" role="tab" aria-selected={lessonPane === "learn"} aria-controls="lesson-pane-content" tabIndex={lessonPane === "learn" ? 0 : -1} className={lessonPane === "learn" ? "is-active" : ""} onClick={() => selectLessonPane("learn")} onKeyDown={handleLessonPaneKeyDown}>
                   <BookOpenText size={17} /><span><strong>Learn</strong><small>Explanation and key ideas</small></span>
                 </button>
-                <button id="lesson-activities-tab" type="button" role="tab" aria-selected={lessonPane === "activities"} aria-controls="lesson-pane-content" className={lessonPane === "activities" ? "is-active" : ""} onClick={() => selectLessonPane("activities")}>
+                <button id="lesson-activities-tab" type="button" role="tab" aria-selected={lessonPane === "activities"} aria-controls="lesson-pane-content" tabIndex={lessonPane === "activities" ? 0 : -1} className={lessonPane === "activities" ? "is-active" : ""} onClick={() => selectLessonPane("activities")} onKeyDown={handleLessonPaneKeyDown}>
                   <ListChecks size={17} /><span><strong>Activities</strong><small>{completedActivityCount} of {activitySections.length} complete</small></span>
                 </button>
               </div>
@@ -1171,7 +1197,7 @@ export default function LessonView() {
                       {activitySections.map((section, index) => {
                         const sectionComplete = completedActivityIds.has(section.id);
                         return (
-                          <button key={section.id} id={`activity-${section.id}-tab`} type="button" role="tab" aria-selected={activeActivityId === section.id} aria-controls="lesson-active-activity" className={`${activeActivityId === section.id ? "is-active" : ""} ${sectionComplete ? "is-complete" : ""}`} onClick={() => selectActivitySection(section.id)}>
+                          <button key={section.id} id={`activity-${section.id}-tab`} type="button" role="tab" aria-selected={activeActivityId === section.id} aria-controls="lesson-active-activity" tabIndex={activeActivityId === section.id ? 0 : -1} className={`${activeActivityId === section.id ? "is-active" : ""} ${sectionComplete ? "is-complete" : ""}`} onClick={() => selectActivitySection(section.id)} onKeyDown={(event) => handleActivityKeyDown(event, index)}>
                             <span>{sectionComplete ? <Check size={15} /> : index + 1}</span><strong>{section.label}</strong><small>{section.description}</small>
                           </button>
                         );
@@ -1181,7 +1207,7 @@ export default function LessonView() {
                 </div>
               )}
 
-              <div id="lesson-pane-content" className="lesson-pane-content" role="tabpanel" aria-labelledby={lessonPane === "learn" ? "lesson-learn-tab" : "lesson-activities-tab"}>
+              <div key={lessonPane === "learn" ? "learn" : `activities-${activeActivityId}`} id="lesson-pane-content" className="lesson-pane-content" role="tabpanel" aria-labelledby={lessonPane === "learn" ? "lesson-learn-tab" : "lesson-activities-tab"}>
 
               {lessonPane === "learn" && lessonData.aiAssisted && (
                 <aside className="lesson-ai-notice" data-ai-generated="true">
@@ -1338,7 +1364,7 @@ export default function LessonView() {
                 </div>
               )}
 
-              {lessonPane === "activities" && <div className={`completion-banner ${complete ? "is-complete" : ""}`}>
+              {lessonPane === "activities" && <div className={`completion-banner ${complete ? "is-complete" : ""}`} role="status" aria-live="polite">
                 <div>{complete ? <CheckCircle2 size={22} /> : <CircleAlert size={22} />}</div>
                 <span>
                   <strong>{complete ? (reviewMode ? `${reviewKindLabel(reviewKind)} complete` : "Lesson complete") : "Complete the activities"}</strong>

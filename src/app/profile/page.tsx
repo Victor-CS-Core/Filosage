@@ -164,13 +164,13 @@ export default function ProfilePage() {
         )}
       </div>
 
-      {dashboardCustomizer.open && <DashboardCustomizer
+      <DashboardCustomizer
         open={dashboardCustomizer.open}
         preferences={state.dashboardPreferences}
         syncStatus={syncStatus}
         onClose={dashboardCustomizer.closeDrawer}
         onSave={(next) => update((current) => ({ ...current, dashboardPreferences: next }))}
-      />}
+      />
     </AppShell>
   );
 }

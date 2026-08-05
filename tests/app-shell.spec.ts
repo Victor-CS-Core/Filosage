@@ -146,6 +146,26 @@ test.describe("desktop application shell", () => {
     await expect(accountDialog.getByRole("button", { name: /Dark mode|Light mode/ })).toBeVisible();
   });
 
+  test("keeps a drawer open when it is reopened during its exit transition", async ({ page }) => {
+    await prepareOwnerShell(page);
+    await page.goto("/library");
+
+    const coursesTrigger = page.getByRole("button", { name: /Courses/ });
+    const coursesDialog = page.getByRole("dialog", { name: "My courses" });
+    await coursesTrigger.click();
+    await expect(coursesDialog).toBeVisible();
+
+    await coursesDialog.getByRole("button", { name: "Close course switcher" }).click();
+    await expect(coursesTrigger).toHaveAttribute("aria-expanded", "false");
+    await coursesTrigger.click();
+
+    await expect(coursesTrigger).toHaveAttribute("aria-expanded", "true");
+    await expect(coursesDialog).toBeVisible();
+    await page.waitForTimeout(240);
+    await expect(coursesTrigger).toHaveAttribute("aria-expanded", "true");
+    await expect(coursesDialog).toBeVisible();
+  });
+
   test("presents profile, progress, and course creation as evidence-led decisions", async ({ page }) => {
     await prepareOwnerShell(page);
 

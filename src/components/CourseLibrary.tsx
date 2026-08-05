@@ -125,7 +125,7 @@ export default function CourseLibrary({ featured = false }: { featured?: boolean
         </div>
       )}
 
-      {!featured && filterDrawer.open && (
+      {!featured && (
         <AppDrawer open={filterDrawer.open} onClose={filterDrawer.closeDrawer} labelledBy="library-filter-title" size="compact" mobilePlacement="bottom" className="library-filter-drawer">
           <section className="library-filter-panel">
             <header className="app-drawer-header">

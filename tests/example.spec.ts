@@ -1651,7 +1651,9 @@ test("clears course-scoped warnings and controls when navigating between owned c
   await page.getByRole("button", { name: "Review and publish" }).click();
   await expect(page.locator(".course-owner-controls .form-error")).toContainText("Complete every lesson before publishing.");
 
-  await page.getByRole("button", { name: /Different ready course Private/ }).click();
+  await page.getByRole("button", { name: "Courses" }).click();
+  const courseSwitcher = page.getByRole("dialog", { name: "My courses" });
+  await courseSwitcher.getByRole("link", { name: /Different ready course.*Private/ }).click();
   await expect(page).toHaveURL(/Different%20ready%20course\?id=ready-course/);
   await expect(page.getByRole("heading", { name: "Different ready course" })).toBeVisible();
   await expect(page.getByText("Complete every lesson before publishing.", { exact: false })).toHaveCount(0);

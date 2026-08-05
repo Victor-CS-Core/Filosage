@@ -759,8 +759,7 @@ export default function CourseMap() {
             </section>
         )}
 
-        {deleteDrawer.open && (
-          <AppDrawer
+        <AppDrawer
             open={deleteDrawer.open}
             onClose={() => {
               if (!updating) deleteDrawer.closeDrawer();
@@ -805,8 +804,7 @@ export default function CourseMap() {
                 </button>
               </footer>
             </section>
-          </AppDrawer>
-        )}
+        </AppDrawer>
       </div>
     </AppShell>
   );
