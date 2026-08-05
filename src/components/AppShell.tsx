@@ -15,6 +15,7 @@ import {
   LogOut,
   Moon,
   Plus,
+  Search,
   Sparkles,
   ShieldCheck,
   Sun,
@@ -45,8 +46,6 @@ const primaryNav = [
   { href: "/progress", label: "Progress", icon: TrendingUp },
 ];
 
-const sidebarNav = [...primaryNav, { href: "/profile", label: "Profile", icon: UserRound }];
-
 export default function AppShell({ children, activeTopic, activeCourseId }: AppShellProps) {
   const router = useRouter();
   const pathname = usePathname();
@@ -55,7 +54,9 @@ export default function AppShell({ children, activeTopic, activeCourseId }: AppS
   const [showAuth, setShowAuth] = useState(false);
   const [courses, setCourses] = useState<Course[]>([]);
   const [coursesLoading, setCoursesLoading] = useState(false);
-  const accountDrawer = useAppDrawer("mobile-account");
+  const [courseQuery, setCourseQuery] = useState("");
+  const coursesDrawer = useAppDrawer("course-switcher");
+  const accountDrawer = useAppDrawer("account-menu");
 
   const refreshCourses = useCallback(async () => {
     if (!user || !isPro) {
@@ -103,6 +104,13 @@ export default function AppShell({ children, activeTopic, activeCourseId }: AppS
     () => courses.find((course) => (course.id ?? course.courseId) === activeCourseId || course.topic === activeTopic),
     [activeCourseId, activeTopic, courses],
   );
+  const visibleCourses = useMemo(() => {
+    const normalized = courseQuery.trim().toLowerCase();
+    if (!normalized) return courses;
+    return courses.filter((course) => [course.topic, course.category, course.outcome, course.mission]
+      .filter(Boolean)
+      .some((value) => value!.toLowerCase().includes(normalized)));
+  }, [courseQuery, courses]);
 
   const navigate = (href: string) => router.push(href);
   const isLegalPage = ["/terms", "/privacy", "/acceptable-use"].includes(pathname);
@@ -153,76 +161,53 @@ export default function AppShell({ children, activeTopic, activeCourseId }: AppS
     <div className="app-shell learner-shell">
       <a className="skip-link" href="#main-content">Skip to main content</a>
       <aside className="learner-sidebar" aria-label="Primary navigation">
-        <button className="brand learner-brand" onClick={() => navigate("/")} aria-label="Erudoza home">
+        <Link className="brand learner-brand" href="/" aria-label="Erudoza home">
           <span className="brand-mark" aria-hidden="true"><ErudozaMark /></span>
-          <span><strong className="brand-wordmark">Erudoza</strong><small>Your daily dose of understanding.</small></span>
-        </button>
+          <span className="rail-brand-label">Erudoza</span>
+        </Link>
 
         <nav className="learner-primary-nav">
-          {sidebarNav.map(({ href, label, icon: Icon }) => (
-            <button key={href} className={`nav-link ${pathname === href ? "is-active" : ""}`} onClick={() => navigate(href)}>
+          {primaryNav.map(({ href, label, icon: Icon }) => (
+            <Link key={href} href={href} className={`nav-link ${pathname === href ? "is-active" : ""}`} aria-current={pathname === href ? "page" : undefined}>
               <Icon size={18} /><span>{label}</span>
-            </button>
+            </Link>
           ))}
+          <button
+            className={`nav-link rail-drawer-trigger ${coursesDrawer.open || pathname.startsWith("/course/") ? "is-active" : ""}`}
+            type="button"
+            onClick={coursesDrawer.toggleDrawer}
+            aria-expanded={coursesDrawer.open}
+            aria-controls="course-switcher-drawer"
+            aria-haspopup="dialog"
+          >
+            <span className="rail-icon-wrap"><BookOpen size={18} />{courses.length > 0 && <small>{courses.length > 9 ? "9+" : courses.length}</small>}</span>
+            <span>Courses</span>
+          </button>
           {isPro && (
-            <button className={`nav-link ${pathname === "/create" ? "is-active" : ""}`} onClick={() => navigate("/create")}>
+            <Link href="/create" className={`nav-link rail-create-link ${pathname === "/create" ? "is-active" : ""}`} aria-current={pathname === "/create" ? "page" : undefined}>
               <Plus size={18} /><span>Create course</span>
-            </button>
-          )}
-          {isOwner && (
-            <button className={`nav-link owner-nav-link ${pathname.startsWith("/admin") ? "is-active" : ""}`} onClick={() => navigate("/admin")}>
-              <ShieldCheck size={18} /><span>Control room</span>
-            </button>
+            </Link>
           )}
         </nav>
 
-        {isPro ? (
-          <section className="sidebar-courses" aria-labelledby="sidebar-courses-title">
-            <div className="sidebar-heading-row"><span id="sidebar-courses-title">My courses</span><span>{courses.length}</span></div>
-            <div className="sidebar-course-list">
-              {coursesLoading && !courses.length && Array.from({ length: 3 }, (_, index) => (
-                <span className="sidebar-course-skeleton" key={index} aria-hidden="true"><i /><b /></span>
-              ))}
-              {courses.slice(0, 6).map((course) => {
-                const id = course.id ?? course.courseId;
-                const active = currentCourse === course;
-                return (
-                  <button key={id ?? course.topic} className={`sidebar-course ${active ? "is-active" : ""}`} onClick={() => navigate(`/course/${encodeURIComponent(course.topic)}${id ? `?id=${id}` : ""}`)}>
-                    <span className="sidebar-course-icon"><BookOpen size={15} /></span>
-                    <span><strong>{course.topic}</strong><small>{course.isPublic ? "Published" : "Private"}</small></span>
-                    <ChevronRight size={15} />
-                  </button>
-                );
-              })}
-              {!coursesLoading && !courses.length && <p className="sidebar-empty-copy">Courses you create will appear here.</p>}
-            </div>
-          </section>
-        ) : (
-          <section className="sidebar-upgrade">
-            <Sparkles size={18} />
-            <strong>Create your own course</strong>
-            <p>Create a private course for a specific learning goal.</p>
-            <button className="button button-primary button-small" onClick={() => navigate("/pricing")}>Explore Pro</button>
-          </section>
-        )}
-
+        <div className="learner-rail-spacer" />
         <div className="learner-sidebar-footer">
-          {isPro && outlineQuota && (
-            <button className="quota-row" onClick={() => navigate("/pricing")}>
-              <Crown size={15} /><span><strong>Erudoza Pro</strong><small>{outlineQuota.remaining == null ? "Owner course access" : `${outlineQuota.remaining} course credit${outlineQuota.remaining === 1 ? "" : "s"} remaining`}</small></span>
-            </button>
-          )}
-          <div className="account-row">
+          <button
+            className={`rail-account-trigger ${accountDrawer.open || pathname === "/profile" || pathname.startsWith("/admin") ? "is-active" : ""}`}
+            type="button"
+            onClick={accountDrawer.toggleDrawer}
+            aria-expanded={accountDrawer.open}
+            aria-controls="account-menu-drawer"
+            aria-haspopup="dialog"
+            aria-label={`Open account menu for ${firstName}`}
+          >
             {user?.photoURL ? (
               // eslint-disable-next-line @next/next/no-img-element
               <img src={user.photoURL} alt="" referrerPolicy="no-referrer" />
             ) : <span className="avatar-fallback"><UserRound size={16} /></span>}
-            <span><strong>{firstName}</strong><small>{isPro ? "Pro learning account" : "Free learning account"}</small></span>
-            <button className="icon-button" onClick={toggle} aria-label={`Use ${theme === "dark" ? "light" : "dark"} mode`}>
-              {theme === "dark" ? <Sun size={17} /> : <Moon size={17} />}
-            </button>
-            <button className="icon-button" onClick={signOut} aria-label="Sign out"><LogOut size={17} /></button>
-          </div>
+            {isPro && <span className="rail-plan-dot" aria-label="Erudoza Pro"><Crown size={10} /></span>}
+            <span>Account</span>
+          </button>
         </div>
       </aside>
 
@@ -240,18 +225,82 @@ export default function AppShell({ children, activeTopic, activeCourseId }: AppS
         </button>
       </header>
 
-      {accountDrawer.open && (
-        <AppDrawer open={accountDrawer.open} onClose={accountDrawer.closeDrawer} labelledBy="account-drawer-title" size="compact" mobilePlacement="bottom" className="account-app-drawer">
-          <section className="account-drawer">
+      {coursesDrawer.open && (
+        <AppDrawer id="course-switcher-drawer" open={coursesDrawer.open} onClose={coursesDrawer.closeDrawer} labelledBy="course-switcher-title" size="wide" mobilePlacement="bottom" className="course-switcher-app-drawer">
+          <section className="course-switcher-drawer">
             <header className="app-drawer-header">
               <div>
-                <small>Learning account</small>
-                <h2 id="account-drawer-title">{firstName}</h2>
-                <p>{isPro ? "Erudoza Pro" : "Free learning account"}</p>
+                <small>Your learning space</small>
+                <h2 id="course-switcher-title">My courses</h2>
+                <p>Switch courses without losing your place.</p>
+              </div>
+              <button className="icon-button" type="button" onClick={coursesDrawer.closeDrawer} aria-label="Close course switcher"><X size={18} /></button>
+            </header>
+            <div className="course-switcher-toolbar">
+              <label className="course-switcher-search">
+                <Search size={17} />
+                <span className="sr-only">Search my courses</span>
+                <input value={courseQuery} onChange={(event) => setCourseQuery(event.target.value)} placeholder="Search your courses" />
+              </label>
+              {isPro && <Link className="button button-primary button-small" href="/create" onClick={coursesDrawer.closeDrawer}><Plus size={15} /> Create</Link>}
+            </div>
+            <div className="app-drawer-body course-switcher-body">
+              {currentCourse && visibleCourses.includes(currentCourse) && (
+                <section className="course-switcher-group" aria-labelledby="current-course-title">
+                  <div className="drawer-section-heading"><span id="current-course-title">Current course</span><small>In progress</small></div>
+                  <CourseSwitcherLink course={currentCourse} current onNavigate={coursesDrawer.closeDrawer} />
+                </section>
+              )}
+              <section className="course-switcher-group" aria-labelledby="all-courses-title">
+                <div className="drawer-section-heading"><span id="all-courses-title">{currentCourse ? "More courses" : "All courses"}</span><small>{visibleCourses.length} shown</small></div>
+                <div className="course-switcher-list">
+                  {coursesLoading && !courses.length && Array.from({ length: 4 }, (_, index) => (
+                    <span className="course-switcher-skeleton" key={index} aria-hidden="true"><i /><b /></span>
+                  ))}
+                  {visibleCourses.filter((course) => course !== currentCourse).map((course) => (
+                    <CourseSwitcherLink key={course.id ?? course.courseId ?? course.topic} course={course} onNavigate={coursesDrawer.closeDrawer} />
+                  ))}
+                  {!coursesLoading && isPro && courses.length > 0 && visibleCourses.length === 0 && (
+                    <div className="course-switcher-empty"><Search size={20} /><strong>No matching courses</strong><p>Try a shorter title or clear your search.</p><button className="button button-quiet button-small" type="button" onClick={() => setCourseQuery("")}>Clear search</button></div>
+                  )}
+                  {!coursesLoading && isPro && courses.length === 0 && (
+                    <div className="course-switcher-empty"><BookOpen size={20} /><strong>Your course shelf is ready</strong><p>Create a focused course and it will appear here.</p><Link className="button button-primary button-small" href="/create" onClick={coursesDrawer.closeDrawer}>Create a course</Link></div>
+                  )}
+                  {!isPro && (
+                    <div className="course-switcher-empty"><Sparkles size={20} /><strong>Create courses around your goals</strong><p>Erudoza Pro lets you build private, adaptive learning paths.</p><Link className="button button-primary button-small" href="/pricing" onClick={coursesDrawer.closeDrawer}>Explore Pro</Link></div>
+                  )}
+                </div>
+              </section>
+            </div>
+            <footer className="app-drawer-footer course-switcher-footer">
+              <Link className="button button-secondary" href="/library" onClick={coursesDrawer.closeDrawer}>Explore the library <ArrowRight size={15} /></Link>
+            </footer>
+          </section>
+        </AppDrawer>
+      )}
+
+      {accountDrawer.open && (
+        <AppDrawer id="account-menu-drawer" open={accountDrawer.open} onClose={accountDrawer.closeDrawer} labelledBy="account-drawer-title" size="compact" mobilePlacement="bottom" className="account-app-drawer">
+          <section className="account-drawer">
+            <header className="app-drawer-header">
+              <div className="account-drawer-identity">
+                {user.photoURL ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={user.photoURL} alt="" referrerPolicy="no-referrer" />
+                ) : <span className="avatar-fallback"><UserRound size={18} /></span>}
+                <span><small>Learning account</small><h2 id="account-drawer-title">{firstName}</h2><p>{isPro ? "Erudoza Pro" : "Free learning account"}</p></span>
               </div>
               <button className="icon-button" type="button" onClick={accountDrawer.closeDrawer} aria-label="Close account menu"><X size={18} /></button>
             </header>
+            {isPro && outlineQuota && (
+              <button className="account-plan-summary" type="button" onClick={() => { accountDrawer.closeDrawer(); navigate("/pricing"); }}>
+                <span><Crown size={16} />Erudoza Pro</span>
+                <strong>{outlineQuota.remaining == null ? "Owner course access" : `${outlineQuota.remaining} course credit${outlineQuota.remaining === 1 ? "" : "s"} remaining`}</strong>
+                <ChevronRight size={17} />
+              </button>
+            )}
             <div className="account-drawer-actions">
+              <button type="button" onClick={coursesDrawer.openDrawer}><BookOpen size={18} /><span><strong>My courses</strong><small>Open private and published courses</small></span><ChevronRight size={17} /></button>
               <button type="button" onClick={() => { accountDrawer.closeDrawer(); navigate("/profile"); }}><UserRound size={18} /><span><strong>View profile</strong><small>Badges, preferences, and privacy</small></span><ChevronRight size={17} /></button>
               {isOwner && <button type="button" onClick={() => { accountDrawer.closeDrawer(); navigate("/admin"); }}><ShieldCheck size={18} /><span><strong>Control room</strong><small>Usage, safety, and accounts</small></span><ChevronRight size={17} /></button>}
               <button type="button" onClick={toggle}>{theme === "dark" ? <Sun size={18} /> : <Moon size={18} />}<span><strong>{theme === "dark" ? "Light mode" : "Dark mode"}</strong><small>Change the interface theme</small></span></button>
@@ -282,5 +331,18 @@ export default function AppShell({ children, activeTopic, activeCourseId }: AppS
       </nav>
       {account?.legalAcceptanceRequired && !isLegalPage && <LegalConsentModal />}
     </div>
+  );
+}
+
+function CourseSwitcherLink({ course, current = false, onNavigate }: { course: Course; current?: boolean; onNavigate: () => void }) {
+  const id = course.id ?? course.courseId;
+  const lessons = course.modules.reduce((total, courseModule) => total + courseModule.lessons.length, 0);
+  const href = `/course/${encodeURIComponent(course.topic)}${id ? `?id=${id}` : ""}`;
+  return (
+    <Link className={`course-switcher-course ${current ? "is-current" : ""}`} href={href} onClick={onNavigate} aria-current={current ? "page" : undefined}>
+      <span className="course-switcher-icon"><BookOpen size={17} /></span>
+      <span className="course-switcher-copy"><strong>{course.topic}</strong><small>{lessons} {lessons === 1 ? "lesson" : "lessons"} &middot; {course.isPublic ? "Published" : "Private"}</small></span>
+      {current ? <span className="course-current-label">Current</span> : <ChevronRight size={17} />}
+    </Link>
   );
 }

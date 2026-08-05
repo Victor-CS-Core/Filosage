@@ -21,7 +21,7 @@ export default function CourseJourneyMap({
 
   return <section className="course-journey-map" aria-labelledby="course-journey-title">
     <header>
-      <div><p className="overline">Learning journey</p><h2 id="course-journey-title">See what each stage unlocks</h2><p>Move through the course as a connected build. Every stage produces evidence you can inspect, improve, and carry forward.</p></div>
+      <div><p className="overline">Course path</p><h2 id="course-journey-title">See what each stage unlocks</h2><p>Move through the course as a connected build. Every stage produces evidence you can inspect, improve, and carry forward.</p></div>
       <Route size={24} />
     </header>
     <ol className="journey-stage-list">
@@ -40,7 +40,7 @@ export default function CourseJourneyMap({
             <ChevronDown size={18} />
           </button>
           {isExpanded && <div className="journey-stage-detail">
-            <div className="journey-stage-outcome"><Flag size={17} /><span><small>{courseModule.milestone ? "Evidence produced" : "Stage challenge"}</small><strong>{courseModule.milestone?.deliverable ?? courseModule.challenge?.prompt ?? courseModule.description}</strong>{courseModule.milestone?.evidence && <p>{courseModule.milestone.evidence}</p>}</span></div>
+            <div className="journey-stage-outcome"><Flag size={17} /><div className="journey-stage-outcome-copy"><small>{courseModule.milestone ? "Evidence produced" : "Stage challenge"}</small><strong>{courseModule.milestone?.deliverable ?? courseModule.challenge?.prompt ?? courseModule.description}</strong>{courseModule.milestone?.evidence && <p>{courseModule.milestone.evidence}</p>}{courseModule.milestone && courseModule.challenge && <div className="journey-stage-challenge"><small>Stage challenge</small><strong>{courseModule.challenge.title}</strong><p>{courseModule.challenge.prompt}</p></div>}</div></div>
             <div className="journey-lesson-links">
               {courseModule.lessons.map((lesson, lessonIndex) => {
                 const lessonId = `${moduleIndex}-${lessonIndex}`;

@@ -57,6 +57,7 @@ export function useAppDrawer(id: string) {
 }
 
 interface AppDrawerProps {
+  id?: string;
   open: boolean;
   onClose: () => void;
   ariaLabel?: string;
@@ -69,6 +70,7 @@ interface AppDrawerProps {
 }
 
 export default function AppDrawer({
+  id,
   open,
   onClose,
   ariaLabel,
@@ -120,6 +122,7 @@ export default function AppDrawer({
 
   return (
     <dialog
+      id={id}
       ref={dialogRef}
       className={`app-drawer app-drawer-${placement} app-drawer-mobile-${mobilePlacement} app-drawer-${size} ${className}`.trim()}
       aria-label={ariaLabel}

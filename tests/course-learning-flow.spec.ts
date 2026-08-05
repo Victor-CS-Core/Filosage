@@ -480,13 +480,7 @@ test("completes a published course from discovery through evidence", async ({ pa
   await page.getByRole("link", { name: /Open Decision quality/i }).click();
   await expect(page.getByRole("heading", { level: 1, name: topic })).toBeVisible();
   await expect(page.locator("details.course-disclosure[open]")).toHaveCount(0);
-  const curriculum = page.getByRole("region", { name: "Modules and lessons" });
-  const firstModule = curriculum.getByRole("button", { name: /01 Module Evidence and action/ });
-  await expect(firstModule).toHaveAttribute("aria-expanded", "false");
-  await expect(curriculum.getByRole("button", { name: /Open lesson 1.1/ })).toHaveCount(0);
-  await firstModule.click();
-  await expect(firstModule).toHaveAttribute("aria-expanded", "true");
-  await expect(curriculum.getByRole("button", { name: /Open lesson 1.1/ })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Modules and lessons" })).toHaveCount(0);
   const artifactDisclosure = page.locator("details.course-apprenticeship");
   await expect(artifactDisclosure).not.toHaveAttribute("open", "");
   await artifactDisclosure.locator("summary").press("Enter");
@@ -508,6 +502,7 @@ test("completes a published course from discovery through evidence", async ({ pa
   await currentStage.click();
   await expect(currentStage).toHaveAttribute("aria-expanded", "true");
   await expect(journey.getByText("A classified evidence record and bounded next action")).toBeVisible();
+  await expect(journey.locator(".journey-lesson-links button")).toHaveCount(2);
   const sourceLink = page.getByRole("link", { name: /Decision quality field guide/ });
   await expect(page.getByText("Author-provided references")).toBeVisible();
   await expect(sourceLink).toHaveAttribute("href", "https://example.com/decision-quality");

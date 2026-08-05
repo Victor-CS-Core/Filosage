@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowRight, BrainCircuit, CheckCircle2, Clock3, LoaderCircle, Plus, ShieldCheck, Sparkles, Target, Trash2 } from "lucide-react";
+import { ArrowRight, BrainCircuit, CheckCircle2, LoaderCircle, Plus, ShieldCheck, Sparkles, Trash2 } from "lucide-react";
 import AppShell from "@/components/AppShell";
 import { useAuth } from "@/components/AuthProvider";
 import { createClientId } from "@/lib/browser-compat";
@@ -112,6 +112,17 @@ export default function CreateCoursePage() {
   const plannedHours = Math.max(1, Math.round((weeklyMinutes * targetWeeks) / 60));
   const weeklySessions = Math.max(1, Math.round(weeklyMinutes / 30));
   const briefReady = Boolean(topic.trim() && goal.trim());
+  const enteredSourceCount = sources.filter((source) => source.label.trim() || source.url.trim() || source.note.trim()).length;
+  const briefSignals = [
+    { label: "Specific subject", ready: topic.trim().length >= 8 },
+    { label: "Observable outcome", ready: goal.trim().length >= 24 },
+    { label: "Real application", ready: application.trim().length >= 16 || scenarioPreference.trim().length >= 16 },
+    { label: "Artifact or proof", ready: artifactPreference.trim().length >= 12 },
+    { label: "Starting context", ready: background.trim().length >= 12 },
+    { label: "Trusted reference", ready: enteredSourceCount > 0 },
+  ];
+  const briefScore = briefSignals.filter((signal) => signal.ready).length;
+  const nextBriefSignal = briefSignals.find((signal) => !signal.ready)?.label;
 
   return (
     <AppShell>
@@ -120,14 +131,10 @@ export default function CreateCoursePage() {
         <div className="create-layout">
           <form className="course-brief" onSubmit={create}>
             <section className="form-section">
-              <div className="form-section-heading"><span>1</span><div><h2>Choose the subject</h2><p>Specific topics produce stronger explanations and practice.</p></div></div>
+              <div className="form-section-heading"><span>1</span><div><h2>Outcome and proof</h2><p>Name the capability, where it matters, and the work that will demonstrate it.</p></div></div>
               <label htmlFor="course-topic"><span>Subject or skill</span><small>{topic.length}/120</small></label>
               <input id="course-topic" value={topic} onChange={(event) => setTopic(event.target.value)} maxLength={120} placeholder="e.g. Systems thinking for product decisions" required />
               <div className="example-prompts" aria-label="Topic examples">{examples.map((example) => <button type="button" key={example} onClick={() => setTopic(example)}>{example}</button>)}</div>
-            </section>
-
-            <section className="form-section">
-              <div className="form-section-heading"><span>2</span><div><h2>Define mastery</h2><p>Describe what success looks like in the real world.</p></div></div>
               <label htmlFor="course-goal"><span>What should you be able to do?</span><small>{goal.length}/500</small></label>
               <textarea id="course-goal" value={goal} onChange={(event) => setGoal(event.target.value)} maxLength={500} rows={3} placeholder="I want to analyze a real situation, identify feedback loops, and explain the likely second-order effects." required />
               <label htmlFor="course-application"><span>Where will you use this?</span><small>Optional · {application.length}/500</small></label>
@@ -139,7 +146,7 @@ export default function CreateCoursePage() {
             </section>
 
             <section className="form-section">
-              <div className="form-section-heading"><span>3</span><div><h2>Set the starting point</h2><p>Skip what you know and surface the prerequisites you need.</p></div></div>
+              <div className="form-section-heading"><span>2</span><div><h2>Learner and constraints</h2><p>Set the starting point and a pace that can survive a real week.</p></div></div>
               <label htmlFor="course-background"><span>What do you already know?</span><small>Optional · {background.length}/500</small></label>
               <textarea id="course-background" value={background} onChange={(event) => setBackground(event.target.value)} maxLength={500} rows={2} placeholder="I understand the basic vocabulary but have not applied it to real cases." />
               <div className="brief-row brief-row-three">
@@ -150,8 +157,19 @@ export default function CreateCoursePage() {
             </section>
 
             <section className="form-section source-pack-form">
-              <div className="form-section-heading"><span>4</span><div><h2>Add trusted references</h2><p>Optional. Add up to five sources you can legally link to or use.</p></div></div>
-              <div className="source-draft-list">
+              <div className="form-section-heading"><span>3</span><div><h2>Teaching plan</h2><p>Choose the instructional rhythm, then add references when accuracy or attribution depends on them.</p></div></div>
+              <div className="course-style-options" role="radiogroup" aria-label="Teaching approach">
+                {courseStyles.map((style) => (
+                  <label key={style.value} className={courseStyle === style.value ? "is-selected" : ""}>
+                    <input type="radio" name="course-style" value={style.value} checked={courseStyle === style.value} onChange={() => setCourseStyle(style.value)} />
+                    <span><strong>{style.title}</strong><small>{style.description}</small></span>
+                  </label>
+                ))}
+              </div>
+              <details className="source-pack-disclosure">
+                <summary><span><strong>Trusted references</strong><small>{enteredSourceCount ? `${enteredSourceCount} added` : "Optional · add up to five"}</small></span><Plus size={17} /></summary>
+                <p className="source-pack-intro">Use sources you can legally link to or use. References improve attribution but do not replace your review of the generated course.</p>
+                <div className="source-draft-list">
                 {sources.map((source, index) => {
                   const updateSource = (change: Partial<SourceDraft>) => setSources((current) => current.map((item, itemIndex) => itemIndex === index ? { ...item, ...change } : item));
                   return <fieldset className="source-draft" key={`source-draft-${index}`}>
@@ -169,21 +187,10 @@ export default function CreateCoursePage() {
                     <textarea id={`source-note-${index}`} value={source.note} onChange={(event) => updateSource({ note: event.target.value })} maxLength={800} rows={3} placeholder="Summarize the specific idea this source supports in your own words." />
                   </fieldset>;
                 })}
-              </div>
-              {sources.length < 5 && <button className="button button-secondary button-small source-add" type="button" onClick={() => setSources((current) => [...current, emptySource()])}><Plus size={15} /> Add another reference</button>}
-              <p className="source-rights-note"><ShieldCheck size={16} /> Do not paste full articles or material you cannot reuse. A URL is treated as a citation link, not proof that the generator read the page.</p>
-            </section>
-
-            <section className="form-section">
-              <div className="form-section-heading"><span>5</span><div><h2>Choose the teaching approach</h2><p>The same topic can be sequenced for intuition, balance, or application.</p></div></div>
-              <div className="course-style-options" role="radiogroup" aria-label="Teaching approach">
-                {courseStyles.map((style) => (
-                  <label key={style.value} className={courseStyle === style.value ? "is-selected" : ""}>
-                    <input type="radio" name="course-style" value={style.value} checked={courseStyle === style.value} onChange={() => setCourseStyle(style.value)} />
-                    <span><strong>{style.title}</strong><small>{style.description}</small></span>
-                  </label>
-                ))}
-              </div>
+                </div>
+                {sources.length < 5 && <button className="button button-secondary button-small source-add" type="button" onClick={() => setSources((current) => [...current, emptySource()])}><Plus size={15} /> Add another reference</button>}
+                <p className="source-rights-note"><ShieldCheck size={16} /> Do not paste full articles or material you cannot reuse. A URL is treated as a citation link, not proof that the generator read the page.</p>
+              </details>
             </section>
 
             {submitting && (
@@ -194,18 +201,20 @@ export default function CreateCoursePage() {
               </div>
             )}
             {error && <p className="form-error" role="alert">{error}</p>}
+            <div className="create-mobile-readiness" aria-label="Course brief quality"><span><strong>{briefScore} of {briefSignals.length} brief signals</strong><small>{nextBriefSignal ? `Strengthen next: ${nextBriefSignal}` : "Ready for a detailed course map"}</small></span><i><b style={{ width: `${(briefScore / briefSignals.length) * 100}%` }} /></i></div>
             <div className="create-submit"><span><ShieldCheck size={17} /> Creates a private draft</span><button className="button button-primary" type="submit" disabled={!briefReady || submitting}>{submitting ? <><LoaderCircle className="spin" size={17} /> Creating your course…</> : <>Create course <ArrowRight size={17} /></>}</button></div>
           </form>
 
-          <aside className="course-blueprint" aria-label="Course summary">
-            <div className="blueprint-header"><BrainCircuit size={22} /><div><span>Course summary</span><h2>{topic.trim() || "Untitled course"}</h2></div></div>
+          <aside className="course-blueprint" aria-label="Course brief quality">
+            <div className="blueprint-header"><BrainCircuit size={22} /><div><span>Course brief</span><h2>{topic.trim() || "Name the capability"}</h2><p>{goal.trim() || "Your intended outcome will appear here as you write."}</p></div></div>
+            <div className="blueprint-quality"><div><span>Brief quality</span><strong>{briefScore} / {briefSignals.length}</strong></div><i><b style={{ width: `${(briefScore / briefSignals.length) * 100}%` }} /></i><p>{nextBriefSignal ? `Best next improvement: ${nextBriefSignal}.` : "The brief gives the generator strong outcome, context, evidence, and source signals."}</p></div>
             <dl className="blueprint-metrics">
               <div><dt>Plan</dt><dd>{targetWeeks} weeks</dd></div>
               <div><dt>Weekly rhythm</dt><dd>~{weeklySessions} sessions</dd></div>
               <div><dt>Study budget</dt><dd>~{plannedHours} hours</dd></div>
               <div><dt>Approach</dt><dd>{courseStyle}</dd></div>
             </dl>
-            <div className="blueprint-readiness"><div><strong>Required information</strong><span>{briefReady ? "Ready" : "Needs input"}</span></div><ul><li className={topic.trim() ? "is-ready" : ""}><CheckCircle2 size={16} /> Specific subject</li><li className={goal.trim() ? "is-ready" : ""}><Target size={16} /> Observable outcome</li><li className={background.trim() ? "is-ready" : ""}><Clock3 size={16} /> Starting context <small>optional</small></li></ul></div>
+            <div className="blueprint-readiness"><div><strong>Generation signals</strong><span>{briefReady ? "Can create" : "Needs input"}</span></div><ul>{briefSignals.map((signal) => <li className={signal.ready ? "is-ready" : ""} key={signal.label}><CheckCircle2 size={16} /> {signal.label}</li>)}</ul></div>
             <div className="blueprint-note"><strong>How authoring works</strong><p>Erudoza sends your brief to its AI provider to shape the outline. Lesson generation unlocks one lesson at a time after you complete the current activities. Review every lesson for accuracy and rights before publishing.</p></div>
             <div className="credit-note"><Sparkles size={16} /><span><strong>{outlineQuota?.remaining ?? "Unlimited"} outline credit{outlineQuota?.remaining === 1 ? "" : "s"} remaining</strong><small>A credit is reserved only when generation begins.</small></span></div>
           </aside>

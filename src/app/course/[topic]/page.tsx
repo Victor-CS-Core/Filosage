@@ -4,18 +4,15 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import {
   ArrowLeft,
-  ArrowRight,
   BookOpen,
   Bot,
   CheckCircle2,
   Check,
-  ChevronDown,
   Clock3,
   Circle,
   Flag,
   Globe2,
   Layers3,
-  ListTree,
   Target,
   TriangleAlert,
   LoaderCircle,
@@ -55,7 +52,6 @@ export default function CourseMap() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
-  const [expandedModule, setExpandedModule] = useState<number | null>(null);
   const [updating, setUpdating] = useState(false);
   const [bannerBusy, setBannerBusy] = useState(false);
   const [publishAttested, setPublishAttested] = useState(false);
@@ -71,9 +67,7 @@ export default function CourseMap() {
   const [sourceReportCategory, setSourceReportCategory] = useState<"source" | "copyright" | "safety">("source");
   const [sourceReportBusy, setSourceReportBusy] = useState(false);
   const [sourceReportStatus, setSourceReportStatus] = useState<string | null>(null);
-  const outlineDrawer = useAppDrawer("course-outline");
   const deleteDrawer = useAppDrawer("course-delete-confirmation");
-  const closeOutlineDrawer = outlineDrawer.closeDrawer;
   const closeDeleteDrawer = deleteDrawer.closeDrawer;
   const activeCourseViewRef = useRef(courseViewKey);
 
@@ -130,14 +124,12 @@ export default function CourseMap() {
 
   useEffect(() => {
     activeCourseViewRef.current = courseViewKey;
-    closeOutlineDrawer();
     closeDeleteDrawer();
     void Promise.resolve().then(() => {
       if (activeCourseViewRef.current !== courseViewKey) return;
       setLoading(true);
       setError(null);
       setActionError(null);
-      setExpandedModule(null);
       setUpdating(false);
       setBannerBusy(false);
       setPublishAttested(false);
@@ -154,7 +146,7 @@ export default function CourseMap() {
       setSourceReportBusy(false);
       setSourceReportStatus(null);
     });
-  }, [closeDeleteDrawer, closeOutlineDrawer, courseViewKey]);
+  }, [closeDeleteDrawer, courseViewKey]);
 
   useEffect(() => {
     void Promise.resolve().then(loadOrGenerate);
@@ -699,74 +691,7 @@ export default function CourseMap() {
 
         <CourseJourneyMap course={course} completedLessonIds={validCompletedLessons} canOpenLesson={canOpenLesson} onOpenLesson={(lessonId) => void openLesson(lessonId)} />
 
-        <section className="curriculum" aria-labelledby="curriculum-title">
-          <div className="section-heading">
-            <div><p className="overline">Course outline</p><h2 id="curriculum-title">Modules and lessons</h2></div>
-            <div className="curriculum-heading-actions">
-              <p>{course.modules.length} modules · {totalLessons} lessons. Follow them in order or revisit any concept when you need it.</p>
-              <button className="button button-secondary course-outline-trigger" type="button" onClick={outlineDrawer.openDrawer} aria-expanded={outlineDrawer.open}>
-                <ListTree size={17} /> Browse outline
-              </button>
-            </div>
-          </div>
-
-          <div className="module-list">
-            {course.modules.map((module, moduleIndex) => {
-              const expanded = expandedModule === moduleIndex;
-              const completedInModule = module.lessons.filter((_, lessonIndex) => validCompletedLessons.includes(`${moduleIndex}-${lessonIndex}`)).length;
-              const moduleProgress = module.lessons.length ? Math.round((completedInModule / module.lessons.length) * 100) : 0;
-              return (
-                <article className={`module-section ${expanded ? "is-open" : ""}`} key={`${module.title}-${moduleIndex}`}>
-                  <button className="module-trigger" onClick={() => setExpandedModule(expanded ? null : moduleIndex)} aria-expanded={expanded}>
-                    <span className="module-sequence"><b>{String(moduleIndex + 1).padStart(2, "0")}</b><small>Module</small></span>
-                    <span className="module-title"><h3>{module.title}</h3><small>{module.objective ?? module.description}</small></span>
-                    <span className="module-completion"><strong>{completedInModule}/{module.lessons.length}</strong><i><b style={{ transform: `scaleX(${moduleProgress / 100})` }} /></i></span>
-                    <ChevronDown size={19} />
-                  </button>
-
-                  {expanded && (
-                    <div className="lesson-list">
-                      {module.lessons.map((lesson, lessonIndex) => {
-                        const lessonId = `${moduleIndex}-${lessonIndex}`;
-                        const complete = validCompletedLessons.includes(lessonId);
-                        const unlocked = canOpenLesson(lessonId);
-                        return (
-                          <button
-                            className={`lesson-row ${unlocked ? "" : "is-locked"}`}
-                            key={lessonId}
-                            onClick={() => unlocked && void openLesson(lessonId)}
-                            disabled={!unlocked}
-                            aria-label={`${unlocked ? (user ? "Open" : "Create an account to open") : "Locked"} lesson ${moduleIndex + 1}.${lessonIndex + 1}: ${lesson.title}`}
-                          >
-                            <span className={`lesson-status ${complete ? "is-complete" : ""}`}>{complete ? <Check size={14} /> : <span>{moduleIndex + 1}.{lessonIndex + 1}</span>}</span>
-                            <span>
-                              <strong>{lesson.title}</strong>
-                              <small>{lesson.objective ?? lesson.concept}</small>
-                              {lesson.lessonMode && <em>{lesson.lessonMode.replace("-", " ")}</em>}
-                            </span>
-                            <span className="lesson-duration">{lesson.estimatedMinutes ?? 12} min</span>
-                            {user && unlocked ? <ArrowRight size={17} /> : <LockKeyhole size={16} />}
-                          </button>
-                        );
-                      })}
-                      {module.challenge && (
-                        <div className="module-challenge">
-                          <Flag size={17} />
-                          <div>
-                            <small>Module challenge</small>
-                            <strong>{module.challenge.title}</strong>
-                            <p>{module.challenge.prompt}</p>
-                          </div>
-                        </div>
-                      )}
-                      {module.milestone && <div className="module-milestone"><CheckCircle2 size={17} /><div><small>Milestone output</small><strong>{module.milestone.deliverable}</strong><p>Evidence: {module.milestone.evidence}</p></div></div>}
-                    </div>
-                  )}
-                </article>
-              );
-            })}
-          </div>
-          {course.capstone && (
+        {course.capstone && (
             <section className="course-capstone" aria-labelledby="capstone-title">
               <Flag size={20} />
               <div>
@@ -832,43 +757,6 @@ export default function CourseMap() {
                 )}
               </div>
             </section>
-          )}
-        </section>
-
-        {outlineDrawer.open && (
-          <AppDrawer open={outlineDrawer.open} onClose={outlineDrawer.closeDrawer} labelledBy="course-outline-drawer-title" size="medium" mobilePlacement="bottom" className="course-outline-app-drawer">
-            <section className="course-outline-drawer">
-              <header className="app-drawer-header">
-                <div><small>{course.topic}</small><h2 id="course-outline-drawer-title">Course outline</h2><p>{totalLessons} lessons across {course.modules.length} modules.</p></div>
-                <button className="icon-button" type="button" onClick={outlineDrawer.closeDrawer} aria-label="Close course outline"><X size={18} /></button>
-              </header>
-              <div className="app-drawer-body course-outline-scroll">
-                {course.modules.map((module, moduleIndex) => (
-                  <section className="course-outline-module" key={`${module.title}-drawer`}>
-                    <header><span>{String(moduleIndex + 1).padStart(2, "0")}</span><div><h3>{module.title}</h3><p>{module.objective ?? module.description}</p></div></header>
-                    <div>
-                      {module.lessons.map((lesson, lessonIndex) => {
-                        const lessonId = `${moduleIndex}-${lessonIndex}`;
-                        const complete = validCompletedLessons.includes(lessonId);
-                        const unlocked = canOpenLesson(lessonId);
-                        return (
-                          <button type="button" key={lessonId} disabled={!unlocked} className={unlocked ? "" : "is-locked"} onClick={() => {
-                            if (!unlocked) return;
-                            outlineDrawer.closeDrawer();
-                            void openLesson(lessonId);
-                          }}>
-                            <span className={`lesson-status ${complete ? "is-complete" : ""}`}>{complete ? <Check size={14} /> : <span>{moduleIndex + 1}.{lessonIndex + 1}</span>}</span>
-                            <span><strong>{lesson.title}</strong><small>{lesson.objective ?? lesson.concept}</small></span>
-                            {user && unlocked ? <ArrowRight size={16} /> : <LockKeyhole size={15} />}
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </section>
-                ))}
-              </div>
-            </section>
-          </AppDrawer>
         )}
 
         {deleteDrawer.open && (

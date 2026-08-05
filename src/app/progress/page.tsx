@@ -2,27 +2,27 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowRight, CalendarDays, CheckCircle2, Clock3, Flame, Lightbulb, RefreshCw, Share2, Target, TrendingUp } from "lucide-react";
+import { ArrowRight, CalendarClock, CalendarDays, Flame, Lightbulb, RefreshCw, Share2, Target, TrendingUp } from "lucide-react";
 import AppShell from "@/components/AppShell";
 import { useAuth } from "@/components/AuthProvider";
-import type { CourseProgress, LessonProgress } from "@/lib/learning-types";
+import type { CourseProgress } from "@/lib/learning-types";
 import { useLearnerState } from "@/components/useLearnerState";
 import LearningScheduleSettings from "@/components/LearningScheduleSettings";
 import { buildWeeklyMilestone, weeklyGoalChoices } from "@/lib/adaptive-learning";
 import { trackProductEvent } from "@/lib/product-analytics";
 import EvidencePortfolio from "@/components/EvidencePortfolio";
 import MasteryPath from "@/components/MasteryPath";
+import {
+  calibrationCounts,
+  completedLearningLessons,
+  currentLearningStreak,
+  dueReviewLessons,
+  learningBandCounts,
+  learningLessons,
+  passedCapstoneCount,
+} from "@/lib/learning-summary";
 
 function dateKey(date: Date) { return date.toISOString().slice(0, 10); }
-
-function currentStreak(lessons: LessonProgress[]) {
-  const dates = new Set(lessons.map((lesson) => lesson.lastStudiedAt.slice(0, 10)));
-  const cursor = new Date();
-  if (!dates.has(dateKey(cursor))) cursor.setDate(cursor.getDate() - 1);
-  let streak = 0;
-  while (dates.has(dateKey(cursor))) { streak += 1; cursor.setDate(cursor.getDate() - 1); }
-  return streak;
-}
 
 export default function ProgressPage() {
   const router = useRouter();
@@ -58,19 +58,29 @@ export default function ProgressPage() {
     };
   }, [loadAttempt, user]);
 
-  const lessons = useMemo(() => progress.flatMap((course) => Object.values(course.lessons).map((lesson) => ({ ...lesson, topic: course.topic, courseId: course.courseId }))), [progress]);
-  const corrected = useMemo(() => lessons
-    .filter((lesson) => lesson.misconception && lesson.completedAt)
+  const allLessons = useMemo(() => learningLessons(progress), [progress]);
+  const lessons = useMemo(() => completedLearningLessons(progress), [progress]);
+  const addressedConcepts = useMemo(() => lessons
+    .filter((lesson) => lesson.misconception)
     .sort((a, b) => (b.completedAt ?? "").localeCompare(a.completedAt ?? "")), [lessons]);
   const totalQuestions = lessons.reduce((sum, lesson) => sum + lesson.totalQuestions, 0);
   const accuracy = totalQuestions ? Math.round((lessons.reduce((sum, lesson) => sum + lesson.firstAttemptCorrect, 0) / totalQuestions) * 100) : 0;
-  const mastered = lessons.filter((lesson) => lesson.status === "mastered").length;
   const minutes = progress.reduce((sum, course) => sum + (course.studyMinutes ?? 0), 0);
-  const week = Array.from({ length: 7 }, (_, index) => { const date = new Date(); date.setDate(date.getDate() - (6 - index)); return { key: dateKey(date), label: date.toLocaleDateString("en", { weekday: "short" }), count: lessons.filter((lesson) => lesson.lastStudiedAt.slice(0, 10) === dateKey(date)).length }; });
+  const week = Array.from({ length: 7 }, (_, index) => { const date = new Date(); date.setDate(date.getDate() - (6 - index)); return { key: dateKey(date), label: date.toLocaleDateString("en", { weekday: "short" }), count: allLessons.filter((lesson) => lesson.lastStudiedAt.slice(0, 10) === dateKey(date)).length }; });
   const maxDay = Math.max(1, ...week.map((day) => day.count));
   const weeklyCompleted = week.reduce((sum, day) => sum + day.count, 0);
   const weeklyMilestone = buildWeeklyMilestone(progress, state.weeklyLessonGoal);
   const weeklyTargets = weeklyGoalChoices(weeklyMilestone.target);
+  const streak = currentLearningStreak(progress);
+  const reviewsDue = dueReviewLessons(progress).length;
+  const bands = learningBandCounts(progress);
+  const calibration = calibrationCounts(progress);
+  const calibrationRate = calibration.measured ? Math.round((calibration.calibrated / calibration.measured) * 100) : null;
+  const capstonesPassed = passedCapstoneCount(progress);
+  const nextCourse = [...progress].sort((left, right) => right.lastActivityAt.localeCompare(left.lastActivityAt)).find((course) => course.nextLessonId) ?? progress[0];
+  const nextHref = reviewsDue > 0 ? "/review" : nextCourse?.nextLessonId ? `/course/${encodeURIComponent(nextCourse.topic)}/lesson/${nextCourse.nextLessonId}?id=${nextCourse.courseId}` : nextCourse ? `/course/${encodeURIComponent(nextCourse.topic)}?id=${nextCourse.courseId}` : "/library";
+  const nextLabel = reviewsDue > 0 ? `${reviewsDue} review${reviewsDue === 1 ? "" : "s"} ready` : nextCourse ? nextCourse.nextLessonId ? `Continue ${nextCourse.topic}` : `Review ${nextCourse.topic}` : "Choose your first course";
+  const nextDetail = reviewsDue > 0 ? "Strengthen concepts before they become fragile." : nextCourse?.nextLessonTitle ?? (nextCourse ? "Revisit your course outcome and finished work." : "Start building a learning record around a real outcome.");
 
   useEffect(() => {
     if (!loaded || !lessons.length) return;
@@ -81,10 +91,10 @@ export default function ProgressPage() {
     const report = [
       "My Erudoza weekly learning report",
       `Lessons studied: ${weeklyCompleted}`,
-      `Current streak: ${currentStreak(lessons)} day${currentStreak(lessons) === 1 ? "" : "s"}`,
-      `First-try accuracy: ${accuracy ? `${accuracy}%` : "Not enough evidence yet"}`,
-      `Concepts mastered: ${mastered}`,
-      `Misconceptions corrected: ${corrected.length}`,
+      `Current streak: ${streak} day${streak === 1 ? "" : "s"}`,
+      `First-try accuracy: ${totalQuestions ? `${accuracy}%` : "Not measured yet"}`,
+      `Secure concepts: ${bands.secure}`,
+      `Curriculum misconceptions addressed: ${addressedConcepts.length}`,
       `${window.location.origin}/library`,
     ].join("\n");
     await navigator.clipboard.writeText(report);
@@ -101,33 +111,49 @@ export default function ProgressPage() {
         <header className="page-header"><div><p className="overline">Learning record</p><h1>Your progress</h1><p>Progress here means understanding that lasts: what you can now explain, what you have stopped being wrong about, and what returns for review next.</p></div></header>
         {!loaded || !learnerStateReady ? <div className="dashboard-loading" aria-busy="true"><span /><span /><span /></div> : loadError ? <section className="review-recovery" role="alert"><TrendingUp size={28} /><p className="overline">Progress unavailable</p><h2>Your record is still safe.</h2><p>{loadError}</p><button className="button button-primary" onClick={() => { setLoaded(false); setLoadError(null); setLoadAttempt((attempt) => attempt + 1); }}><RefreshCw size={15} /> Try again</button></section> : (
           <>
-            <section className="progress-metrics" aria-label="Learning summary"><article><span><Flame size={21} /></span><div><small>Current streak</small><strong>{currentStreak(lessons)} {currentStreak(lessons) === 1 ? "day" : "days"}</strong><em>Study days in a row</em></div></article><article><span><Clock3 size={21} /></span><div><small>Tracked study time</small><strong>{Math.floor(minutes / 60)}h {minutes % 60}m</strong><em>Completed lessons</em></div></article><article><span><CheckCircle2 size={21} /></span><div><small>Concepts mastered</small><strong>{mastered}</strong><em>{lessons.length} lessons completed</em></div></article><article><span><Target size={21} /></span><div><small>First-try accuracy</small><strong>{accuracy ? `${accuracy}%` : "N/A"}</strong><em>Across retrieval checks</em></div></article><article><span><Lightbulb size={21} /></span><div><small>Misconceptions corrected</small><strong>{corrected.length}</strong><em>Beliefs replaced with understanding</em></div></article></section>
+            <button className="progress-next-action" type="button" onClick={() => router.push(nextHref)}>
+              <span className="progress-next-icon">{reviewsDue ? <CalendarClock size={22} /> : <ArrowRight size={22} />}</span>
+              <span><small>Recommended next action</small><strong>{nextLabel}</strong><p>{nextDetail}</p></span>
+              <ArrowRight size={20} />
+            </button>
+
+            <section className="progress-health-summary" aria-label="Learning health summary">
+              <article><small>Reviews due</small><strong>{reviewsDue}</strong><em>{reviewsDue ? "Ready to retrieve" : "Queue is clear"}</em></article>
+              <article><small>Concept states</small><strong>{bands.secure} / {bands.developing} / {bands.fragile}</strong><em>Secure / developing / fragile</em></article>
+              <article><small>Confidence calibration</small><strong>{calibrationRate === null ? "Not measured" : `${calibrationRate}%`}</strong><em>{calibration.measured ? `${calibration.measured} checks compared` : "Complete a confidence check"}</em></article>
+              <article><small>Assessed capstones</small><strong>{capstonesPassed}</strong><em>Passed demonstrations</em></article>
+            </section>
+
             <div className="progress-layout">
-              <section className="activity-panel"><div className="panel-heading"><div><CalendarDays size={19} /><h2>Learning activity</h2></div><span>Last 7 days</span></div><div className="activity-chart" aria-label={`${weeklyCompleted} lessons studied in the last seven days`}>{week.map((day) => <div key={day.key}><span className="activity-bar-track"><i style={{ height: `${Math.max(day.count ? 14 : 3, (day.count / maxDay) * 100)}%` }}><b>{day.count || ""}</b></i></span><small>{day.label}</small></div>)}</div></section>
-              <section className="goal-panel"><div className="panel-heading"><div><Target size={19} /><h2>Weekly milestone</h2></div><label className="goal-adjust">Target <select aria-label="Weekly lesson target" value={weeklyMilestone.target} onChange={(event) => update((current) => ({ ...current, weeklyLessonGoal: Number(event.target.value) }))}>{weeklyTargets.map((goal) => <option value={goal} key={goal}>{goal}</option>)}</select></label></div><strong>{Math.min(weeklyMilestone.completed, weeklyMilestone.target)} of {weeklyMilestone.target} lessons</strong><div className="goal-track"><span style={{ width: `${weeklyMilestone.percent}%` }} /></div><p>{weeklyMilestone.isComplete ? "Weekly milestone complete. Continue only if it serves your outcome." : `${weeklyMilestone.remaining} lesson${weeklyMilestone.remaining === 1 ? "" : "s"} left. Missed days do not increase this target.`}</p></section>
-              <section className="weekly-report-panel"><div className="panel-heading"><div><TrendingUp size={19} /><h2>Weekly report</h2></div><span>Last 7 days</span></div><p>{weeklyCompleted ? `You studied ${weeklyCompleted} lesson${weeklyCompleted === 1 ? "" : "s"}, corrected ${corrected.length} misconception${corrected.length === 1 ? "" : "s"}, and maintained ${accuracy ? `${accuracy}% first-try accuracy` : "an evidence-building practice"}.` : "Complete a lesson this week to begin a shareable learning report."}</p><button className="button button-secondary" disabled={!weeklyCompleted} onClick={() => void copyWeeklyReport()}><Share2 size={15} /> {reportCopied ? "Weekly report copied" : "Copy weekly report"}</button></section>
-              <LearningScheduleSettings
-                key={`${state.reminderPreferences.cadence}-${state.reminderPreferences.preferredTime}-${state.reminderPreferences.timezone}-${state.reminderPreferences.inAppEnabled}`}
-                preferences={state.reminderPreferences}
-                onChange={(reminderPreferences) => update((current) => ({ ...current, reminderPreferences }))}
-              />
-              <MasteryPath progress={progress} />
-              <EvidencePortfolio progress={progress} />
-              <section className="mastery-panel"><div className="panel-heading"><div><TrendingUp size={19} /><h2>Course progress</h2></div></div><div className="mastery-list">{progress.length ? progress.map((course) => { const learned = course.completedLessonIds.length; const total = Math.max(course.totalLessons ?? learned, 1); const percent = Math.round((learned / total) * 100); return <button key={course.courseId} onClick={() => router.push(`/course/${encodeURIComponent(course.topic)}?id=${course.courseId}`)}><span><strong>{course.topic}</strong><small>{learned}/{total} lessons</small></span><i><b style={{ width: `${percent}%` }} /></i><em>{percent}%</em></button>; }) : <div className="dashboard-empty compact"><div><strong>No course progress yet</strong><p>Start a published course to see your progress here.</p></div><button className="button button-secondary" onClick={() => router.push("/library")}>Explore courses</button></div>}</div></section>
-              {corrected.length > 0 && (
-                <section className="misconception-panel"><div className="panel-heading"><div><Lightbulb size={19} /><h2>What you stopped being wrong about</h2></div><span>{corrected.length} corrected</span></div>
-                  <ul className="misconception-list">
-                    {corrected.slice(0, 6).map((lesson) => (
-                      <li key={`${lesson.courseId}-${lesson.lessonId}`}>
-                        <p>&ldquo;{lesson.misconception}&rdquo;</p>
-                        <small>Corrected in {lesson.lessonTitle} · {lesson.topic}</small>
-                      </li>
-                    ))}
-                  </ul>
-                  <p className="misconception-note">Every Erudoza lesson names the misconception it corrects. As you complete lessons, this list shows how far your understanding has come.</p>
-                </section>
-              )}
-              <section className="next-step-panel"><div className="panel-heading"><div><ArrowRight size={19} /><h2>Continue learning</h2></div></div>{progress.slice(0, 3).map((course) => { const href = course.nextLessonId ? `/course/${encodeURIComponent(course.topic)}/lesson/${course.nextLessonId}?id=${course.courseId}` : `/course/${encodeURIComponent(course.topic)}?id=${course.courseId}`; return <button key={course.courseId} onClick={() => router.push(href)}><span><strong>{course.nextLessonId ? "Continue" : "Review"} {course.topic}</strong><small>{course.nextLessonTitle ?? "Course overview"}</small></span><ArrowRight size={16} /></button>; })}{!progress.length && <p>Your next lesson will appear after you start a course.</p>}</section>
+              <main className="progress-main-column">
+                <section className="activity-panel"><div className="panel-heading"><div><CalendarDays size={19} /><h2>This week</h2></div><span>{weeklyCompleted} concept session{weeklyCompleted === 1 ? "" : "s"}</span></div><div className="activity-chart" aria-label={`${weeklyCompleted} distinct lessons studied in the last seven days`}>{week.map((day) => <div key={day.key}><span className="activity-bar-track"><i style={{ height: `${Math.max(day.count ? 14 : 3, (day.count / maxDay) * 100)}%` }}><b>{day.count || ""}</b></i></span><small>{day.label}</small></div>)}</div><div className="activity-footnote"><span><Flame size={15} /> {streak}-day learning rhythm</span><span>{Math.floor(minutes / 60)}h {minutes % 60}m tracked overall</span><span>{totalQuestions ? `${accuracy}% first-try accuracy` : "Accuracy not measured yet"}</span></div></section>
+                <MasteryPath progress={progress} />
+                <EvidencePortfolio progress={progress} />
+                <section className="mastery-panel"><div className="panel-heading"><div><TrendingUp size={19} /><h2>Course progress</h2></div></div><div className="mastery-list">{progress.length ? progress.map((course) => { const learned = course.completedLessonIds.length; const total = Math.max(course.totalLessons ?? learned, 1); const percent = Math.round((learned / total) * 100); return <button key={course.courseId} onClick={() => router.push(`/course/${encodeURIComponent(course.topic)}?id=${course.courseId}`)}><span><strong>{course.topic}</strong><small>{learned}/{total} lessons</small></span><i><b style={{ width: `${percent}%` }} /></i><em>{percent}%</em></button>; }) : <div className="dashboard-empty compact"><div><strong>No course progress yet</strong><p>Start a published course to see your progress here.</p></div><button className="button button-secondary" onClick={() => router.push("/library")}>Explore courses</button></div>}</div></section>
+              </main>
+
+              <aside className="progress-side-column">
+                <section className="goal-panel"><div className="panel-heading"><div><Target size={19} /><h2>Weekly milestone</h2></div><label className="goal-adjust">Target <select aria-label="Weekly lesson target" value={weeklyMilestone.target} onChange={(event) => update((current) => ({ ...current, weeklyLessonGoal: Number(event.target.value) }))}>{weeklyTargets.map((goal) => <option value={goal} key={goal}>{goal}</option>)}</select></label></div><strong>{Math.min(weeklyMilestone.completed, weeklyMilestone.target)} of {weeklyMilestone.target} lessons</strong><div className="goal-track"><span style={{ width: `${weeklyMilestone.percent}%` }} /></div><p>{weeklyMilestone.isComplete ? "Weekly milestone complete. Continue only if it serves your outcome." : `${weeklyMilestone.remaining} lesson${weeklyMilestone.remaining === 1 ? "" : "s"} left. Missed days do not increase this target.`}</p></section>
+                <section className="weekly-report-panel"><div className="panel-heading"><div><TrendingUp size={19} /><h2>Weekly summary</h2></div><span>Last 7 days</span></div><p>{weeklyCompleted ? `You practiced ${weeklyCompleted} lesson${weeklyCompleted === 1 ? "" : "s"}, addressed ${addressedConcepts.length} curriculum misconception${addressedConcepts.length === 1 ? "" : "s"}, and ${totalQuestions ? `answered ${accuracy}% of retrieval checks correctly on the first try` : "started building an evidence record"}.` : "Complete a lesson this week to begin a shareable learning summary."}</p><button className="button button-secondary" disabled={!weeklyCompleted} onClick={() => void copyWeeklyReport()}><Share2 size={15} /> {reportCopied ? "Weekly summary copied" : "Copy weekly summary"}</button></section>
+                <LearningScheduleSettings
+                  key={`${state.reminderPreferences.cadence}-${state.reminderPreferences.preferredTime}-${state.reminderPreferences.timezone}-${state.reminderPreferences.inAppEnabled}`}
+                  preferences={state.reminderPreferences}
+                  onChange={(reminderPreferences) => update((current) => ({ ...current, reminderPreferences }))}
+                />
+                {addressedConcepts.length > 0 && (
+                  <section className="misconception-panel"><div className="panel-heading"><div><Lightbulb size={19} /><h2>Ideas the curriculum challenged</h2></div><span>{addressedConcepts.length} encountered</span></div>
+                    <ul className="misconception-list">
+                      {addressedConcepts.slice(0, 6).map((lesson) => (
+                        <li key={`${lesson.courseId}-${lesson.lessonId}`}>
+                          <p>&ldquo;{lesson.misconception}&rdquo;</p>
+                          <small>Addressed in {lesson.lessonTitle} · {lesson.topic}</small>
+                        </li>
+                      ))}
+                    </ul>
+                    <p className="misconception-note">These are misconceptions the completed lessons were designed to challenge. They are not claims about beliefs you personally held or corrected.</p>
+                  </section>
+                )}
+              </aside>
             </div>
           </>
         )}

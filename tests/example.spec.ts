@@ -27,6 +27,15 @@ import {
 import { buildLearningReminderCalendar } from "../src/lib/learning-reminders";
 import type { CourseProgress } from "../src/lib/learning-types";
 import {
+  calibrationCounts,
+  completedLearningLessons,
+  currentLearningStreak,
+  dueReviewLessons,
+  learningBandCounts,
+  passedCapstoneCount,
+  practiceEvidenceCount,
+} from "../src/lib/learning-summary";
+import {
   hasBlockMarkdownSyntax,
   hasCollapsedMarkdownTable,
   hasMarkdownTableSyntax,
@@ -84,6 +93,50 @@ test("keeps checkout closed until the independent billing lock is enabled", () =
     BILLING_ENABLED: "true",
     STRIPE_PRO_ANNUAL_PRICE_ID: "",
   })).toMatchObject({ providerReady: false, configured: false });
+});
+
+test("summarizes only completed learning and keeps review evidence in the streak", () => {
+  const progress: CourseProgress[] = [{
+    courseId: "evidence-course",
+    topic: "Evidence-led decisions",
+    lastLessonId: "0-2",
+    lastLessonTitle: "Compare claims",
+    nextLessonId: null,
+    completedLessonIds: ["0-0", "0-1"],
+    totalLessons: 3,
+    lastActivityAt: "2026-08-04T14:00:00.000Z",
+    startedAt: "2026-08-01T14:00:00.000Z",
+    capstone: { status: "passed", summary: "Clear decision record.", criteria: [], assessedAt: "2026-08-04T14:00:00.000Z", attempts: 1 },
+    lessons: {
+      "0-0": {
+        lessonId: "0-0", lessonTitle: "Frame the claim", status: "learned", attempts: 1, totalQuestions: 1, firstAttemptCorrect: 0,
+        confidence: "high", calibration: "overconfident", performanceBand: "fragile", intervalStage: 0,
+        nextReviewAt: "2026-08-03T14:00:00.000Z", lastStudiedAt: "2026-08-02T14:00:00.000Z", completedAt: "2026-08-02T14:00:00.000Z",
+        experienceEvidence: { type: "active", response: "A saved claim analysis.", completed: true },
+        reviewHistory: [
+          { kind: "spaced", observedAt: "2026-08-03T14:00:00.000Z", score: 0.5, confidence: "medium", calibration: "calibrated", performanceBand: "developing", intervalStage: 1 },
+          { kind: "spaced", observedAt: "2026-08-04T14:00:00.000Z", score: 1, confidence: "high", calibration: "calibrated", performanceBand: "secure", intervalStage: 2 },
+        ],
+      },
+      "0-1": {
+        lessonId: "0-1", lessonTitle: "Test the source", status: "mastered", attempts: 1, totalQuestions: 1, firstAttemptCorrect: 1,
+        confidence: "high", calibration: "calibrated", performanceBand: "secure", intervalStage: 2,
+        nextReviewAt: "2026-08-20T14:00:00.000Z", lastStudiedAt: "2026-08-04T14:00:00.000Z", completedAt: "2026-08-04T14:00:00.000Z",
+      },
+      "0-2": {
+        lessonId: "0-2", lessonTitle: "Compare claims", status: "started", attempts: 0, totalQuestions: 0, firstAttemptCorrect: 0,
+        confidence: "low", intervalStage: 0, nextReviewAt: "2026-08-04T14:00:00.000Z", lastStudiedAt: "2026-08-04T14:00:00.000Z",
+      },
+    },
+  }];
+
+  expect(completedLearningLessons(progress).map((lesson) => lesson.lessonId)).toEqual(["0-0", "0-1"]);
+  expect(dueReviewLessons(progress, Date.parse("2026-08-04T16:00:00.000Z")).map((lesson) => lesson.lessonId)).toEqual(["0-0"]);
+  expect(learningBandCounts(progress)).toEqual({ fragile: 1, developing: 0, secure: 1 });
+  expect(calibrationCounts(progress)).toEqual({ calibrated: 1, overconfident: 1, underconfident: 0, measured: 2 });
+  expect(practiceEvidenceCount(progress)).toBe(1);
+  expect(passedCapstoneCount(progress)).toBe(1);
+  expect(currentLearningStreak(progress, new Date("2026-08-04T18:00:00.000Z"))).toBe(3);
 });
 
 test("accepts only safe lesson interactions and derives a signal studio from timing notation", () => {
@@ -1501,15 +1554,14 @@ test("frames each course around an outcome and mastery", async ({ page }) => {
   const resumeCard = page.locator(".course-resume-card");
   await expect(resumeCard.getByText("Continue learning")).toBeVisible();
   await expect(resumeCard.getByRole("heading", { name: "Leverage points" })).toBeVisible();
-  await expect(page.getByRole("heading", { name: "Modules and lessons" })).toBeVisible();
-  await expect(page.getByRole("heading", { name: "Foundations" })).toBeVisible();
-  await page.getByRole("button", { name: "Browse outline" }).click();
-  const outlineDrawer = page.getByRole("dialog", { name: "Course outline" });
-  await expect(outlineDrawer).toBeVisible();
-  await expect(outlineDrawer.getByRole("button", { name: /Leverage points/i })).toBeVisible();
-  await page.keyboard.press("Escape");
-  await expect(outlineDrawer).not.toBeVisible();
-  await expect(page.locator(".module-completion")).toContainText("1/2");
+  await expect(page.getByRole("heading", { name: "Modules and lessons" })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Browse outline" })).toHaveCount(0);
+  const coursePath = page.getByRole("region", { name: "See what each stage unlocks" });
+  await expect(coursePath).toBeVisible();
+  await expect(coursePath.getByText("Foundations", { exact: true })).toBeVisible();
+  const foundationStage = coursePath.getByRole("button", { name: /Foundations/ });
+  await foundationStage.click();
+  await expect(coursePath.getByRole("button", { name: /Leverage points/i })).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
   await resumeCard.getByRole("button", { name: /Resume lesson/i }).click();
   await expect(page).toHaveURL(/lesson\/0-1\?id=demo/);
