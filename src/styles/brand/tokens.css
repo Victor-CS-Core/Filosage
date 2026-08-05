@@ -1,0 +1,127 @@
+:root {
+  --erudoza-navy: #0D1B3D;
+  --erudoza-teal: #14B8A6;
+  --erudoza-blue: #4DA6FF;
+  --erudoza-coral: #FF8A65;
+  --erudoza-off-white: #FAFAF7;
+  --erudoza-white: #FFFFFF;
+
+  --brand-navy: var(--erudoza-navy);
+  --brand-teal: var(--erudoza-teal);
+  --brand-blue: var(--erudoza-blue);
+  --brand-coral: var(--erudoza-coral);
+  --brand-offwhite: var(--erudoza-off-white);
+  --brand-base: var(--brand-navy);
+  --brand-blue-ink: #1D4ED8;
+
+  --canvas: var(--erudoza-off-white);
+  --surface: var(--erudoza-white);
+  --surface-raised: #F4F6F8;
+  --surface-subtle: #EEF2F5;
+  --surface-active: #E5F7F4;
+  --ink: var(--erudoza-navy);
+  --ink-secondary: #43506B;
+  --ink-muted: #626C80;
+  --line: #DCE2E9;
+  --line-strong: #B9C3D0;
+  --accent: var(--erudoza-navy);
+  --accent-hover: #172A57;
+  --accent-contrast: var(--erudoza-off-white);
+  --accent-soft: #E5F7F4;
+  --accent-ink: #0F766E;
+  --signal: var(--erudoza-coral);
+
+  --success: #0F766E;
+  --success-fill: var(--erudoza-teal);
+  --success-soft: #E5F7F4;
+  --danger: #B42318;
+  --danger-soft: #FEECE9;
+  --warning: #9A5B13;
+  --warning-soft: #FFF3DF;
+  --focus: #1D4ED8;
+
+  --font-heading: "Inter Variable", Inter, ui-sans-serif, sans-serif;
+  --font-body: "Inter Variable", Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --font-reading: "Inter Variable", Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --text-caption: 0.75rem;
+  --text-interface: 0.875rem;
+  --text-body: 1rem;
+  --text-lead: 1.125rem;
+  --text-section: 1.5rem;
+  --text-title: 2rem;
+  --text-display-max: 5.5rem;
+
+  --space-2xs: 0.25rem;
+  --space-xs: 0.5rem;
+  --space-sm: 0.75rem;
+  --space-md: 1rem;
+  --space-lg: 1.5rem;
+  --space-xl: 2rem;
+  --space-2xl: 3rem;
+  --space-3xl: 4rem;
+  --space-4xl: 6rem;
+  --space-section: clamp(4rem, 8vw, 6rem);
+  --marketing-gutter: clamp(1.25rem, 5vw, 4.5rem);
+  --content-max: 77.5rem;
+
+  --radius-sm: 7px;
+  --radius-md: 11px;
+  --radius-lg: 15px;
+  --radius-pill: 999px;
+  --shadow-control: 0 2px 6px rgb(13 27 61 / 0.16);
+  --shadow-browser: 0 8px 20px rgb(13 27 61 / 0.18);
+  --border-subtle: 1px solid var(--line);
+  --focus-ring: 0 0 0 3px color-mix(in oklch, var(--focus) 17%, transparent);
+  --gradient-learning: linear-gradient(135deg, rgb(20 184 166 / 0.14), rgb(77 166 255 / 0.12) 58%, rgb(255 138 101 / 0.12));
+  --gradient-dark-learning: linear-gradient(135deg, #0D1B3D, #12254D 58%, #182C52);
+
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --motion-feedback: 120ms;
+  --motion-state: 180ms;
+  --motion-layout: 220ms;
+  --motion-overlay-enter: 220ms;
+  --motion-overlay-exit: 160ms;
+  --motion-progress-live: 680ms;
+
+  --breakpoint-sm: 620px;
+  --breakpoint-md: 768px;
+  --breakpoint-lg: 1024px;
+  --breakpoint-xl: 1440px;
+  --breakpoint-2xl: 1920px;
+
+  --z-sidebar: 20;
+  --z-drawer: 40;
+  --z-modal-backdrop: 60;
+  --z-modal: 70;
+}
+
+[data-theme="dark"] {
+  --brand-base: var(--brand-offwhite);
+  --brand-blue-ink: #74B8FF;
+  --canvas: #071127;
+  --surface: var(--erudoza-navy);
+  --surface-raised: #12254D;
+  --surface-subtle: #182C52;
+  --surface-active: #163D52;
+  --ink: var(--erudoza-off-white);
+  --ink-secondary: #C5CEDE;
+  --ink-muted: #A8B3C7;
+  --line: #2B3B60;
+  --line-strong: #40527A;
+  --accent: var(--erudoza-off-white);
+  --accent-hover: #E7ECF3;
+  --accent-contrast: var(--erudoza-navy);
+  --accent-soft: #183E52;
+  --accent-ink: #2DD4BF;
+  --success: #2DD4BF;
+  --success-fill: #2DD4BF;
+  --success-soft: #163D3D;
+  --danger: #FF9B8D;
+  --danger-soft: #4A2530;
+  --warning: #FFC274;
+  --warning-soft: #46351E;
+  --focus: #74B8FF;
+  --shadow-control: 0 2px 6px rgb(2 8 23 / 0.48);
+  --shadow-browser: 0 8px 20px rgb(2 8 23 / 0.38);
+  color-scheme: dark;
+}

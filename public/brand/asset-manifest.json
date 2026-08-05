@@ -1,0 +1,307 @@
+{
+  "generatedFrom": "src/app/icon.svg",
+  "generatedBy": "scripts/generate-brand-assets.mjs",
+  "assets": [
+    {
+      "path": "/brand/logo/erudoza-icon.svg",
+      "width": 128,
+      "height": 128,
+      "format": "svg",
+      "usage": "Authoritative source logo copy; use whenever the standalone icon is required."
+    },
+    {
+      "path": "/brand/logo/erudoza-horizontal.svg",
+      "width": 620,
+      "height": 160,
+      "format": "svg",
+      "usage": "Horizontal lockup on transparent or light neutral surfaces."
+    },
+    {
+      "path": "/brand/logo/erudoza-light-placement.svg",
+      "width": 720,
+      "height": 260,
+      "format": "svg",
+      "usage": "Approved logo placement for off-white and light surfaces."
+    },
+    {
+      "path": "/brand/logo/erudoza-dark-placement.svg",
+      "width": 720,
+      "height": 260,
+      "format": "svg",
+      "usage": "Approved logo placement for navy and dark surfaces."
+    },
+    {
+      "path": "/brand/logo/erudoza-social-avatar.svg",
+      "width": 1200,
+      "height": 1200,
+      "format": "svg",
+      "usage": "Square avatar for social and organization profiles."
+    },
+    {
+      "path": "/brand/logo/browser-icon.svg",
+      "width": 128,
+      "height": 128,
+      "format": "svg",
+      "usage": "Browser icon copy; Next.js uses src/app/icon.svg as the runtime source."
+    },
+    {
+      "path": "/brand/backgrounds/hero-light.svg",
+      "width": 1600,
+      "height": 900,
+      "format": "svg",
+      "usage": "Large light hero background with left-side text space."
+    },
+    {
+      "path": "/brand/backgrounds/hero-dark.svg",
+      "width": 1600,
+      "height": 900,
+      "format": "svg",
+      "usage": "Large dark hero background with left-side text space."
+    },
+    {
+      "path": "/brand/backgrounds/hero-light-mobile.svg",
+      "width": 900,
+      "height": 1200,
+      "format": "svg",
+      "usage": "Narrow light hero background."
+    },
+    {
+      "path": "/brand/backgrounds/hero-dark-mobile.svg",
+      "width": 900,
+      "height": 1200,
+      "format": "svg",
+      "usage": "Narrow dark hero background."
+    },
+    {
+      "path": "/brand/illustrations/abstract-learning.svg",
+      "width": 960,
+      "height": 720,
+      "format": "svg",
+      "usage": "General learning, knowledge, and comprehension illustration."
+    },
+    {
+      "path": "/brand/illustrations/ai-explanations.svg",
+      "width": 640,
+      "height": 480,
+      "format": "svg",
+      "usage": "Feature illustration for clear AI-supported explanations."
+    },
+    {
+      "path": "/brand/illustrations/personalized-practice.svg",
+      "width": 640,
+      "height": 480,
+      "format": "svg",
+      "usage": "Feature illustration for adaptive personalized practice."
+    },
+    {
+      "path": "/brand/illustrations/progress-tracking.svg",
+      "width": 640,
+      "height": 480,
+      "format": "svg",
+      "usage": "Feature illustration for progress tracking and evidence."
+    },
+    {
+      "path": "/brand/illustrations/learning-paths.svg",
+      "width": 640,
+      "height": 480,
+      "format": "svg",
+      "usage": "Feature illustration for guided learning paths."
+    },
+    {
+      "path": "/brand/illustrations/topic-exploration.svg",
+      "width": 640,
+      "height": 480,
+      "format": "svg",
+      "usage": "Feature illustration for exploring connected topics."
+    },
+    {
+      "path": "/brand/illustrations/concept-mastery.svg",
+      "width": 640,
+      "height": 480,
+      "format": "svg",
+      "usage": "Feature illustration for concept mastery and demonstrated capability."
+    },
+    {
+      "path": "/brand/illustrations/desktop-product-frame.svg",
+      "width": 1440,
+      "height": 980,
+      "format": "svg",
+      "usage": "Desktop/browser product-interface frame for marketing compositions."
+    },
+    {
+      "path": "/brand/patterns/dot-grid.svg",
+      "width": 320,
+      "height": 320,
+      "format": "svg",
+      "usage": "Subtle repeating background behind large text."
+    },
+    {
+      "path": "/brand/patterns/knowledge-nodes.svg",
+      "width": 800,
+      "height": 600,
+      "format": "svg",
+      "usage": "Knowledge and connection background motif."
+    },
+    {
+      "path": "/brand/patterns/learning-path.svg",
+      "width": 1200,
+      "height": 400,
+      "format": "svg",
+      "usage": "Wide learning journey background."
+    },
+    {
+      "path": "/brand/patterns/page-motif.svg",
+      "width": 640,
+      "height": 480,
+      "format": "svg",
+      "usage": "Quiet book/page background motif."
+    },
+    {
+      "path": "/brand/patterns/progress-rings.svg",
+      "width": 640,
+      "height": 640,
+      "format": "svg",
+      "usage": "Progress and mastery background motif."
+    },
+    {
+      "path": "/brand/patterns/gradient-mesh.svg",
+      "width": 1600,
+      "height": 900,
+      "format": "svg",
+      "usage": "Low-contrast gradient mesh behind readable HTML content."
+    },
+    {
+      "path": "/brand/banners/main-website-banner.svg",
+      "width": 1920,
+      "height": 600,
+      "format": "svg",
+      "usage": "Erudoza website banner for web and external brand use."
+    },
+    {
+      "path": "/brand/banners/call-to-action-banner.svg",
+      "width": 1600,
+      "height": 500,
+      "format": "svg",
+      "usage": "Erudoza call to action banner for web and external brand use."
+    },
+    {
+      "path": "/brand/banners/about-page-banner.svg",
+      "width": 1600,
+      "height": 700,
+      "format": "svg",
+      "usage": "Erudoza about page banner for web and external brand use."
+    },
+    {
+      "path": "/brand/banners/blog-header.svg",
+      "width": 1600,
+      "height": 600,
+      "format": "svg",
+      "usage": "Erudoza blog header for web and external brand use."
+    },
+    {
+      "path": "/brand/banners/open-graph.svg",
+      "width": 1200,
+      "height": 630,
+      "format": "svg",
+      "usage": "Erudoza Open Graph image for web and external brand use."
+    },
+    {
+      "path": "/brand/banners/social-sharing-fallback.svg",
+      "width": 1200,
+      "height": 630,
+      "format": "svg",
+      "usage": "Erudoza social sharing image for web and external brand use."
+    },
+    {
+      "path": "/brand/social/linkedin-company-banner.svg",
+      "width": 1128,
+      "height": 191,
+      "format": "svg",
+      "usage": "Erudoza LinkedIn company banner for web and external brand use."
+    },
+    {
+      "path": "/brand/social/x-profile-header.svg",
+      "width": 1500,
+      "height": 500,
+      "format": "svg",
+      "usage": "Erudoza X profile header for web and external brand use."
+    },
+    {
+      "path": "/brand/social/github-social-preview.svg",
+      "width": 1280,
+      "height": 640,
+      "format": "svg",
+      "usage": "Erudoza GitHub social preview for web and external brand use."
+    },
+    {
+      "path": "/brand/social/product-announcement.svg",
+      "width": 1200,
+      "height": 630,
+      "format": "svg",
+      "usage": "Erudoza product announcement for web and external brand use."
+    },
+    {
+      "path": "/brand/social/launch-announcement.svg",
+      "width": 1200,
+      "height": 630,
+      "format": "svg",
+      "usage": "Erudoza launch announcement for web and external brand use."
+    },
+    {
+      "path": "/brand/social/newsletter-header.svg",
+      "width": 1200,
+      "height": 400,
+      "format": "svg",
+      "usage": "Erudoza newsletter header for web and external brand use."
+    },
+    {
+      "path": "/brand/social/press-kit-cover.svg",
+      "width": 1600,
+      "height": 2000,
+      "format": "svg",
+      "usage": "Erudoza press kit cover for web and external brand use."
+    },
+    {
+      "path": "/brand/icons/arrow-right.svg",
+      "width": 48,
+      "height": 48,
+      "format": "svg",
+      "usage": "Arrow right icon for external brand compositions; product UI continues to use Lucide."
+    },
+    {
+      "path": "/brand/icons/check.svg",
+      "width": 48,
+      "height": 48,
+      "format": "svg",
+      "usage": "Check icon for external brand compositions; product UI continues to use Lucide."
+    },
+    {
+      "path": "/brand/icons/spark.svg",
+      "width": 48,
+      "height": 48,
+      "format": "svg",
+      "usage": "Spark icon for external brand compositions; product UI continues to use Lucide."
+    },
+    {
+      "path": "/brand/social/open-graph.png",
+      "width": 1200,
+      "height": 630,
+      "format": "png",
+      "usage": "Raster Open Graph and X card used by application metadata."
+    },
+    {
+      "path": "/brand/social/social-sharing-fallback.png",
+      "width": 1200,
+      "height": 630,
+      "format": "png",
+      "usage": "Raster fallback for social platforms that do not accept SVG."
+    },
+    {
+      "path": "/brand/photography/README.md",
+      "width": null,
+      "height": null,
+      "format": "md",
+      "usage": "Photography sourcing and optimization guidance."
+    }
+  ]
+}

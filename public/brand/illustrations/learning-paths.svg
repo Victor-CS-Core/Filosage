@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="640" height="480" viewBox="0 0 640 480" role="img" aria-labelledby="title desc">
+  <title id="title">Learning paths</title>
+  <desc id="desc">A guided route connects a starting point to a clear outcome.</desc>
+  <rect width="640" height="480" rx="16" fill="#F4F6F8"/>
+      <path d="M0 360C150 300 235 392 374 322S548 234 640 282V480H0Z" fill="#4DA6FF" opacity=".09"/>
+      <rect x="108" y="78" width="424" height="324" rx="14" fill="#FFFFFF" stroke="#DCE2E9"/>
+      <path d="M166 326C210 268 230 290 276 234S366 182 430 160S468 210 472 300" fill="none" stroke="#4DA6FF" stroke-width="8" stroke-linecap="round" stroke-dasharray="12 15"/><g fill="#0D1B3D"><circle cx="166" cy="326" r="19"/><circle cx="276" cy="234" r="19"/><circle cx="430" cy="160" r="19"/></g><circle cx="472" cy="300" r="27" fill="#14B8A6"/><path d="M460 300l9 9 18-22" fill="none" stroke="white" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/>
+      <circle cx="494" cy="110" r="7" fill="#FF8A65"/>
+      <circle cx="515" cy="110" r="7" fill="#14B8A6"/>
+      <circle cx="536" cy="110" r="7" fill="#4DA6FF"/>
+</svg>

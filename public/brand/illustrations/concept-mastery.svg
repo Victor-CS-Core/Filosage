@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="640" height="480" viewBox="0 0 640 480" role="img" aria-labelledby="title desc">
+  <title id="title">Concept mastery</title>
+  <desc id="desc">Evidence builds in layers until a concept is independently demonstrated.</desc>
+  <rect width="640" height="480" rx="16" fill="#F4F6F8"/>
+      <path d="M0 360C150 300 235 392 374 322S548 234 640 282V480H0Z" fill="#14B8A6" opacity=".09"/>
+      <rect x="108" y="78" width="424" height="324" rx="14" fill="#FFFFFF" stroke="#DCE2E9"/>
+      <path d="M174 326h292" stroke="#0D1B3D" stroke-width="7" stroke-linecap="round"/><rect x="194" y="262" width="58" height="64" rx="7" fill="#4DA6FF"/><rect x="277" y="214" width="58" height="112" rx="7" fill="#14B8A6"/><rect x="360" y="154" width="58" height="172" rx="7" fill="#0D1B3D"/><path d="M205 184l44-38 48 28 76-62 48 20" fill="none" stroke="#FF8A65" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/>
+      <circle cx="494" cy="110" r="7" fill="#FF8A65"/>
+      <circle cx="515" cy="110" r="7" fill="#14B8A6"/>
+      <circle cx="536" cy="110" r="7" fill="#4DA6FF"/>
+</svg>

@@ -1,7 +1,9 @@
 import type { Metadata, Viewport } from "next";
 import { headers } from "next/headers";
 import "@fontsource-variable/inter";
+import "@/styles/brand/tokens.css";
 import "./globals.css";
+import "@/styles/brand/marketing.css";
 import { ThemeProvider } from "@/components/ThemeProvider";
 import { AuthProvider } from "@/components/AuthProvider";
 import { DrawerProvider } from "@/components/AppDrawer";
@@ -34,28 +36,30 @@ function safeRequestOrigin(headerList: Headers) {
 
 export async function generateMetadata(): Promise<Metadata> {
   const origin = safeRequestOrigin(await headers());
-  const socialImage = new URL("/og-outcome.png", origin).toString();
+  const socialImage = new URL("/brand/social/open-graph.png", origin).toString();
 
   return {
     metadataBase: new URL(origin),
     title: {
-      default: "Erudoza · Learn it. Use it. Prove it.",
+      default: "Erudoza · Your daily dose of understanding.",
       template: "%s | Erudoza",
     },
-    description: "Focused learning paths for product and data professionals: diagnose the starting point, practice on real work, and demonstrate what you can apply.",
+    description: "Learn anything through clear explanations, personalized practice, and guided learning designed to help ideas truly click.",
     applicationName: "Erudoza",
     category: "education",
+    alternates: { canonical: "https://erudoza.com" },
     openGraph: {
-      title: "Erudoza · Learn the hard thing. Use it at work.",
-      description: "Focused learning paths for product and data professionals, built around real outcomes and demonstrated mastery.",
+      title: "Erudoza · Learn anything. Understand everything.",
+      description: "Clear explanations, personalized practice, and guided learning for ideas that need to truly click.",
       type: "website",
-      url: origin,
-      images: [{ url: socialImage, width: 1536, height: 1024, alt: "Erudoza · Learn it. Use it. Prove it." }],
+      url: "https://erudoza.com",
+      siteName: "Erudoza",
+      images: [{ url: socialImage, width: 1200, height: 630, alt: "Erudoza · Learn anything. Understand everything." }],
     },
     twitter: {
       card: "summary_large_image",
-      title: "Erudoza · Learn the hard thing. Use it at work.",
-      description: "Focused professional learning built around real outcomes and demonstrated mastery.",
+      title: "Erudoza · Learn anything. Understand everything.",
+      description: "Your daily dose of understanding.",
       images: [socialImage],
     },
   };

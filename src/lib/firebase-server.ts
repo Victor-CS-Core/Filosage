@@ -9,7 +9,6 @@ import {
   type FirestoreValue,
 } from "@/lib/firestore-values";
 import { isLocalMode, LOCAL_OWNER_EMAIL, LOCAL_OWNER_UID } from "@/lib/local-mode";
-import { localFirestoreJson } from "@/lib/local-store";
 import { COURSE_SCOPED_COLLECTION_GROUPS, removeCourseReferences } from "@/lib/course-deletion";
 import type { PublicationLessonReview } from "@/lib/publication-review";
 import { inspectCoursePublishReadiness } from "@/lib/publication-readiness";
@@ -185,7 +184,10 @@ async function firestoreJson<T>(
   init: RequestInit = {},
   allowNotFound = false,
 ): Promise<T | null> {
-  if (isLocalMode()) return localFirestoreJson<T>(path, init, allowNotFound);
+  if (process.env.NODE_ENV !== "production" && isLocalMode()) {
+    const { localFirestoreJson } = await import("@/lib/local-store");
+    return localFirestoreJson<T>(path, init, allowNotFound);
+  }
   const token = await requestAccessToken();
   const response = await fetch(`${firestoreBaseUrl()}${path}`, {
     ...init,

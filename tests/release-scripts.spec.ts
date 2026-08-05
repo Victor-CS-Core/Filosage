@@ -79,6 +79,9 @@ test("pins the Sites compatibility date below the nodejs_compat rejection bounda
   const packagePreparation = readFileSync(resolve(root, "scripts/prepare-sites-package.mjs"), "utf8");
   expect(viteConfig).toContain('const sitesProductionCompatibilityDate = "2026-08-03"');
   expect(viteConfig).not.toContain('const sitesProductionCompatibilityDate = "2026-08-04"');
+  expect(viteConfig).toContain('assetFileNames: "assets/[name]-[hash].[ext]"');
+  expect(viteConfig).not.toContain('"assets/app.css"');
+  expect(viteConfig).toContain('"@/lib/local-store": workerSafeLocalStorePath');
   expect(packagePreparation).toContain("delete wranglerConfig.compatibility_flags");
   expect(packagePreparation).toContain('const nodeCompatibilityFlag = ["nodejs", "compat"].join("_")');
 });

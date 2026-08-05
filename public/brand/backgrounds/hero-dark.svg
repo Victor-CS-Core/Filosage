@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="900" viewBox="0 0 1600 900" role="img" aria-labelledby="title desc">
+  <title id="title">Dark Erudoza hero background</title>
+  <desc id="desc">A restrained text-free gradient and knowledge-node field with clear negative space.</desc>
+  <defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#071127"/><stop offset=".58" stop-color="#0D1B3D"/><stop offset="1" stop-color="#12254D"/></linearGradient><radialGradient id="a"><stop stop-color="#14B8A6" stop-opacity=".18"/><stop offset="1" stop-color="#14B8A6" stop-opacity="0"/></radialGradient></defs><rect width="100%" height="100%" fill="url(#g)"/><ellipse cx="1320" cy="210" rx="470" ry="360" fill="url(#a)"/><g fill="none" stroke-linecap="round" opacity="0.24">
+    <path d="M128 666C416 522 480 270 768 396S1216 684 1472 198" stroke="#4DA6FF" stroke-width="2"/>
+    <path d="M288 198C576 306 800 144 1120 306" stroke="#14B8A6" stroke-width="2"/>
+    <g fill="#14B8A6" stroke="none"><circle cx="128" cy="666" r="7"/><circle cx="768" cy="396" r="8"/><circle cx="1120" cy="306" r="7"/></g>
+    <g fill="#4DA6FF" stroke="none"><circle cx="288" cy="198" r="6"/><circle cx="1472" cy="198" r="9"/></g>
+    <circle cx="1216" cy="621" r="6" fill="#FF8A65" stroke="none"/>
+  </g>
+</svg>

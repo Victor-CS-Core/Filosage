@@ -1,4 +1,5 @@
 import { sites } from "./build/sites-vite-plugin";
+import { fileURLToPath } from "node:url";
 import vinext from "vinext";
 import { defineConfig } from "vite";
 import hostingConfig from "./.openai/hosting.json";
@@ -9,9 +10,12 @@ const localWorkersCompatibilityFlag =
 // Sites currently rejects a provider-injected nodejs_compat flag at 2026-08-04+.
 // Keep production pinned until the Sites publish bridge no longer injects it.
 const sitesProductionCompatibilityDate = "2026-08-03";
+const workerSafeLocalStorePath = fileURLToPath(
+  new URL("./src/lib/local-store.worker.ts", import.meta.url),
+);
 const { r2 } = hostingConfig;
 
-export default defineConfig(async () => {
+export default defineConfig(async ({ command }) => {
   process.env.WRANGLER_WRITE_LOGS ??= "false";
   process.env.WRANGLER_LOG_PATH ??= ".wrangler/logs";
   process.env.MINIFLARE_REGISTRY_PATH ??= ".wrangler/registry";
@@ -19,14 +23,16 @@ export default defineConfig(async () => {
   const { cloudflare } = await import("@cloudflare/vite-plugin");
 
   return {
+    resolve: command === "build"
+      ? { alias: { "@/lib/local-store": workerSafeLocalStorePath } }
+      : undefined,
     build: {
       rolldownOptions: {
         output: {
-          assetFileNames(assetInfo: { names: string[] }) {
-            return assetInfo.names.some((name) => name.endsWith(".css"))
-              ? "assets/app.css"
-              : "assets/[name]-[hash].[ext]";
-          },
+          // Vinext emits CSS for more than one environment. Hash every asset so
+          // those independently generated stylesheets cannot overwrite each
+          // other in the shared output directory.
+          assetFileNames: "assets/[name]-[hash].[ext]",
         },
       },
     },

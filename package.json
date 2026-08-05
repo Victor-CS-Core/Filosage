@@ -3,6 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
+    "brand:assets": "node scripts/generate-brand-assets.mjs",
     "dev": "next dev",
     "build": "next build",
     "build:sites": "vinext build && node scripts/prepare-sites-package.mjs",

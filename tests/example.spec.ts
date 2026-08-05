@@ -112,7 +112,7 @@ test("summarizes only completed learning and keeps review evidence in the streak
         lessonId: "0-0", lessonTitle: "Frame the claim", status: "learned", attempts: 1, totalQuestions: 1, firstAttemptCorrect: 0,
         confidence: "high", calibration: "overconfident", performanceBand: "fragile", intervalStage: 0,
         nextReviewAt: "2026-08-03T14:00:00.000Z", lastStudiedAt: "2026-08-02T14:00:00.000Z", completedAt: "2026-08-02T14:00:00.000Z",
-        experienceEvidence: { type: "active", response: "A saved claim analysis.", completed: true },
+        experienceEvidence: { type: "practice-lab", response: "A saved claim analysis.", completed: true },
         reviewHistory: [
           { kind: "spaced", observedAt: "2026-08-03T14:00:00.000Z", score: 0.5, confidence: "medium", calibration: "calibrated", performanceBand: "developing", intervalStage: 1 },
           { kind: "spaced", observedAt: "2026-08-04T14:00:00.000Z", score: 1, confidence: "high", calibration: "calibrated", performanceBand: "secure", intervalStage: 2 },
@@ -588,7 +588,7 @@ test("never leaves public learning behind the authentication startup screen", as
   expect(hydrationErrors).toEqual([]);
 
   await expect(
-    page.getByRole("heading", { name: "Learn the hard thing. Use it at work." }),
+    page.getByRole("heading", { name: "Learn anything. Understand everything." }),
   ).toBeVisible({ timeout: 4000 });
   await expect(page.locator(".auth-boot-shell")).toHaveCount(0);
 });
@@ -606,15 +606,15 @@ test("keeps the learning library public", async ({ page }) => {
   expect(scriptDirective).not.toContain("'unsafe-inline'");
   await expect(page.locator(".skip-link")).toHaveAttribute("href", "#main-content");
   await expect(
-    page.getByRole("heading", { name: "Learn the hard thing. Use it at work." }),
+    page.getByRole("heading", { name: "Learn anything. Understand everything." }),
   ).toBeVisible();
-  await expect(page.getByText("Built for product and data professionals")).toBeVisible();
-  await expect(page.locator(".public-hero .public-proof")).toHaveCount(0);
-  await expect(page.locator(".public-home > .public-proof")).toBeVisible();
+  await expect(page.locator(".marketing-tagline")).toHaveText("Your daily dose of understanding.");
+  await expect(page.locator(".marketing-hero .marketing-principles")).toHaveCount(0);
+  await expect(page.locator(".marketing-page > .marketing-principles")).toBeVisible();
 
   if ((page.viewportSize()?.width ?? 0) <= 620) {
-    const primaryHeight = await page.getByRole("button", { name: "Start learning" }).evaluate((button) => button.getBoundingClientRect().height);
-    const footerHeight = await page.locator(".public-footer").getByRole("link", { name: "Teaching standard" }).evaluate((link) => link.getBoundingClientRect().height);
+    const primaryHeight = await page.locator(".marketing-hero").getByRole("link", { name: "Start learning" }).evaluate((link) => link.getBoundingClientRect().height);
+    const footerHeight = await page.locator(".marketing-footer").getByRole("link", { name: "Teaching standard" }).evaluate((link) => link.getBoundingClientRect().height);
     expect(primaryHeight).toBeGreaterThanOrEqual(44);
     expect(footerHeight).toBeGreaterThanOrEqual(44);
   }
@@ -631,7 +631,7 @@ test("publishes the teaching standard", async ({ page }) => {
 
 test("describes guest access and Pro publishing consistently across public pages", async ({ page }) => {
   await page.goto("/");
-  await expect(page.getByText("Browse every published topic and inspect the full course outline.")).toBeVisible();
+  await expect(page.getByText("Inspect the path before you begin", { exact: false })).toBeVisible();
 
   await page.goto("/library");
   await expect(page).toHaveTitle("Course Library | Erudoza");
@@ -714,13 +714,13 @@ test("preserves the selected theme across navigation and reloads", async ({ page
   // The toggle is server-rendered before React hydration attaches its click
   // handler, so retry the click until the theme actually changes.
   await expect(async () => {
-    await page.locator(".public-header").getByRole("button", { name: "Use dark mode" }).click();
+    await page.locator(".marketing-nav-shell").getByRole("button", { name: "Use dark mode" }).click();
     await expect(page.locator("html")).toHaveAttribute("data-theme", "dark", { timeout: 1_000 });
   }).toPass({ timeout: 15_000 });
   await page.reload();
 
   await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
-  await page.getByRole("button", { name: "Explore public courses" }).click();
+  await page.locator(".marketing-hero").getByRole("link", { name: "Start learning" }).click();
   await expect(page).toHaveURL(/\/library$/);
   await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
   await expect.poll(() => page.evaluate(() => localStorage.getItem("erudoza-theme"))).toBe("dark");
@@ -729,7 +729,12 @@ test("preserves the selected theme across navigation and reloads", async ({ page
 test("lets guests browse outlines while clearly gating lessons behind an account", async ({ page }) => {
   await page.goto("/");
 
-  await page.locator(".public-header").getByRole("button", { name: "Sign in" }).click();
+  if ((page.viewportSize()?.width ?? 0) <= 820) {
+    await page.getByRole("button", { name: "Open navigation menu" }).click();
+    await page.locator(".marketing-mobile-menu").getByRole("button", { name: "Sign in" }).click();
+  } else {
+    await page.locator(".marketing-nav-shell").getByRole("button", { name: "Sign in" }).click();
+  }
 
   const dialog = page.getByRole("dialog", { name: "Keep your learning in sync" });
   await expect(dialog).toBeVisible();

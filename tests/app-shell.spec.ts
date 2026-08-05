@@ -67,7 +67,7 @@ const learningProgress: CourseProgress[] = [{
       lastStudiedAt: "2026-08-03T16:00:00.000Z",
       completedAt: "2026-08-03T16:00:00.000Z",
       misconception: "Dots and dashes can be sent without consistent spacing.",
-      experienceEvidence: { type: "active", response: "A paced signal sample with a timing note.", completed: true },
+      experienceEvidence: { type: "practice-lab", response: "A paced signal sample with a timing note.", completed: true },
     },
   },
 }];

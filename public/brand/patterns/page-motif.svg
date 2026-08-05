@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="640" height="480" viewBox="0 0 640 480" role="img" aria-labelledby="title desc">
+  <title id="title">Book and page motif</title>
+  <desc id="desc">Abstract overlapping pages rendered as subtle geometric shapes.</desc>
+  <g fill="none" stroke="#0D1B3D" opacity=".16"><path d="M122 94h236c54 0 98 44 98 98v202H220c-54 0-98-44-98-98V94Z" stroke-width="4"/><path d="M220 394V192c0-54 44-98 98-98h200v202c0 54-44 98-98 98H220Z" stroke-width="4"/><path d="M170 158h208M170 208h118M330 158h140M330 208h92" stroke-width="3"/></g>
+</svg>

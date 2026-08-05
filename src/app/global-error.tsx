@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { LifeBuoy, RefreshCw } from "lucide-react";
 import { SUPPORT_CONTACT } from "@/lib/legal";
+import "@/styles/brand/tokens.css";
 import "./globals.css";
 
 export default function GlobalError({

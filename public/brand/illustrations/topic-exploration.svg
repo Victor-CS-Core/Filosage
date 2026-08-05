@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="640" height="480" viewBox="0 0 640 480" role="img" aria-labelledby="title desc">
+  <title id="title">Topic exploration</title>
+  <desc id="desc">Related topics orbit a central question without losing focus.</desc>
+  <rect width="640" height="480" rx="16" fill="#F4F6F8"/>
+      <path d="M0 360C150 300 235 392 374 322S548 234 640 282V480H0Z" fill="#FF8A65" opacity=".09"/>
+      <rect x="108" y="78" width="424" height="324" rx="14" fill="#FFFFFF" stroke="#DCE2E9"/>
+      <g fill="none" stroke="#B9C3D0" stroke-width="4"><path d="M320 238L188 168M320 238l134-72M320 238L190 326M320 238l146 92"/></g><circle cx="320" cy="238" r="58" fill="#0D1B3D"/><g fill="#4DA6FF"><circle cx="188" cy="168" r="28"/><circle cx="454" cy="166" r="28"/></g><g fill="#14B8A6"><circle cx="190" cy="326" r="28"/><circle cx="466" cy="330" r="28"/></g>
+      <circle cx="494" cy="110" r="7" fill="#FF8A65"/>
+      <circle cx="515" cy="110" r="7" fill="#14B8A6"/>
+      <circle cx="536" cy="110" r="7" fill="#4DA6FF"/>
+</svg>

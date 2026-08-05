@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="900" viewBox="0 0 1600 900" role="img" aria-labelledby="title desc">
+  <title id="title">Teal blue coral gradient mesh</title>
+  <desc id="desc">A restrained low-opacity gradient mesh.</desc>
+  <defs><radialGradient id="t"><stop stop-color="#14B8A6" stop-opacity=".28"/><stop offset="1" stop-color="#14B8A6" stop-opacity="0"/></radialGradient><radialGradient id="b"><stop stop-color="#4DA6FF" stop-opacity=".24"/><stop offset="1" stop-color="#4DA6FF" stop-opacity="0"/></radialGradient><radialGradient id="c"><stop stop-color="#FF8A65" stop-opacity=".2"/><stop offset="1" stop-color="#FF8A65" stop-opacity="0"/></radialGradient></defs><rect width="1600" height="900" fill="#FAFAF7"/><ellipse cx="280" cy="220" rx="520" ry="420" fill="url(#t)"/><ellipse cx="1280" cy="200" rx="560" ry="440" fill="url(#b)"/><ellipse cx="920" cy="760" rx="600" ry="400" fill="url(#c)"/>
+</svg>

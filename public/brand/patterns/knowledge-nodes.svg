@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="800" height="600" viewBox="0 0 800 600" role="img" aria-labelledby="title desc">
+  <title id="title">Knowledge node pattern</title>
+  <desc id="desc">A subtle network of connected ideas.</desc>
+  <g fill="none" stroke-linecap="round" opacity="0.28">
+    <path d="M64 444C208 348 240 180 384 264S608 456 736 132" stroke="#4DA6FF" stroke-width="2"/>
+    <path d="M144 132C288 204.00000000000003 400 96 560 204.00000000000003" stroke="#14B8A6" stroke-width="2"/>
+    <g fill="#14B8A6" stroke="none"><circle cx="64" cy="444" r="7"/><circle cx="384" cy="264" r="8"/><circle cx="560" cy="204.00000000000003" r="7"/></g>
+    <g fill="#4DA6FF" stroke="none"><circle cx="144" cy="132" r="6"/><circle cx="736" cy="132" r="9"/></g>
+    <circle cx="608" cy="413.99999999999994" r="6" fill="#FF8A65" stroke="none"/>
+  </g>
+</svg>

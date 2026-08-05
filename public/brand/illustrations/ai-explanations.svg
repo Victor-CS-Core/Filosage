@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="640" height="480" viewBox="0 0 640 480" role="img" aria-labelledby="title desc">
+  <title id="title">Clear explanations</title>
+  <desc id="desc">A complex idea is reorganized into a clear hierarchy.</desc>
+  <rect width="640" height="480" rx="16" fill="#F4F6F8"/>
+      <path d="M0 360C150 300 235 392 374 322S548 234 640 282V480H0Z" fill="#4DA6FF" opacity=".09"/>
+      <rect x="108" y="78" width="424" height="324" rx="14" fill="#FFFFFF" stroke="#DCE2E9"/>
+      <g fill="none" stroke="#0D1B3D" stroke-width="7" stroke-linecap="round"><path d="M168 170h208"/><path d="M168 218h286"/><path d="M168 266h184"/><path d="M168 314h248"/></g><circle cx="450" cy="170" r="27" fill="#4DA6FF" opacity=".18"/><path d="M438 170l9 9 18-22" fill="none" stroke="#4DA6FF" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/>
+      <circle cx="494" cy="110" r="7" fill="#FF8A65"/>
+      <circle cx="515" cy="110" r="7" fill="#14B8A6"/>
+      <circle cx="536" cy="110" r="7" fill="#4DA6FF"/>
+</svg>

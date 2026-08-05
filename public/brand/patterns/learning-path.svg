@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="400" viewBox="0 0 1200 400" role="img" aria-labelledby="title desc">
+  <title id="title">Learning path pattern</title>
+  <desc id="desc">A gentle route line with milestones.</desc>
+  <path d="M24 318C224 310 232 96 438 112S704 334 906 250 1036 72 1176 86" fill="none" stroke="#4DA6FF" stroke-width="4" opacity=".32"/><g fill="#14B8A6" opacity=".54"><circle cx="24" cy="318" r="8"/><circle cx="438" cy="112" r="8"/><circle cx="906" cy="250" r="8"/><circle cx="1176" cy="86" r="8"/></g>
+</svg>

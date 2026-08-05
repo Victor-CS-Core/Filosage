@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="640" height="480" viewBox="0 0 640 480" role="img" aria-labelledby="title desc">
+  <title id="title">Progress tracking</title>
+  <desc id="desc">A progress ring and evidence markers show movement toward mastery.</desc>
+  <rect width="640" height="480" rx="16" fill="#F4F6F8"/>
+      <path d="M0 360C150 300 235 392 374 322S548 234 640 282V480H0Z" fill="#FF8A65" opacity=".09"/>
+      <rect x="108" y="78" width="424" height="324" rx="14" fill="#FFFFFF" stroke="#DCE2E9"/>
+      <circle cx="286" cy="246" r="92" fill="none" stroke="#EEF2F5" stroke-width="22"/><circle cx="286" cy="246" r="92" fill="none" stroke="#14B8A6" stroke-width="22" stroke-linecap="round" stroke-dasharray="405 578" transform="rotate(-90 286 246)"/><path d="M412 310h66M412 270h42M412 230h88M412 190h54" stroke="#0D1B3D" stroke-width="9" stroke-linecap="round"/>
+      <circle cx="494" cy="110" r="7" fill="#FF8A65"/>
+      <circle cx="515" cy="110" r="7" fill="#14B8A6"/>
+      <circle cx="536" cy="110" r="7" fill="#4DA6FF"/>
+</svg>

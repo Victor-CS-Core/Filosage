@@ -28,6 +28,8 @@ import ErudozaMark from "@/components/ErudozaMark";
 import AuthModal from "@/components/AuthModal";
 import AppDrawer, { useAppDrawer } from "@/components/AppDrawer";
 import LegalConsentModal from "@/components/LegalConsentModal";
+import MarketingFooter from "@/components/marketing/MarketingFooter";
+import MarketingNavigation from "@/components/marketing/MarketingNavigation";
 import { useAuth } from "@/components/AuthProvider";
 import { useTheme } from "@/components/ThemeProvider";
 import type { Course } from "@/lib/course-types";
@@ -129,29 +131,9 @@ export default function AppShell({ children, activeTopic, activeCourseId }: AppS
     return (
       <div className="public-shell">
         <a className="skip-link" href="#main-content">Skip to main content</a>
-        <header className="public-header">
-          <Link className="brand public-brand" href="/" aria-label="Erudoza home">
-            <span className="brand-mark" aria-hidden="true"><ErudozaMark /></span>
-            <span><strong className="brand-wordmark">Erudoza</strong><small>Your daily dose of understanding.</small></span>
-          </Link>
-          <nav aria-label="Public navigation">
-            <Link href="/library">Library</Link>
-            <Link href="/standard">Teaching standard</Link>
-            <Link href="/pricing">Plans</Link>
-          </nav>
-          <div className="public-header-actions">
-            <button className="icon-button public-theme-toggle" onClick={toggle} aria-label={`Use ${theme === "dark" ? "light" : "dark"} mode`} title={`Use ${theme === "dark" ? "light" : "dark"} mode`}>
-              {theme === "dark" ? <Sun size={17} /> : <Moon size={17} />}
-            </button>
-            <button className="button button-quiet" onClick={() => setShowAuth(true)}>Sign in</button>
-            <Link className="button button-primary" href="/library">Start learning <ArrowRight size={15} /></Link>
-          </div>
-        </header>
+        <MarketingNavigation theme={theme} onToggleTheme={toggle} onSignIn={() => setShowAuth(true)} />
         <main className="public-main" id="main-content" tabIndex={-1}>{children}</main>
-        <footer className="public-footer">
-          <span>© {new Date().getFullYear()} Erudoza</span>
-          <nav aria-label="Support and legal"><Link href="/standard">Teaching standard</Link><Link href="/support">Support</Link><Link href="/privacy-center">Privacy choices</Link><Link href="/terms">Terms</Link><Link href="/privacy">Privacy</Link><Link href="/acceptable-use">Acceptable use</Link><Link href="/copyright">Copyright</Link></nav>
-        </footer>
+        <MarketingFooter />
         {showAuth && <AuthModal onClose={() => setShowAuth(false)} />}
       </div>
     );

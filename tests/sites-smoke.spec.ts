@@ -16,7 +16,7 @@ test("serves release-critical public pages from the Sites production build", asy
   const home = await page.goto("/");
   expect(home?.ok()).toBe(true);
   expect(home?.headers()["x-content-type-options"]).toBe("nosniff");
-  await expect(page.getByRole("heading", { name: "Learn the hard thing. Use it at work." })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Learn anything. Understand everything." })).toBeVisible();
 
   for (const publicPage of [
     { path: "/standard", heading: "Generated is not good enough. Every lesson is held to a standard." },

@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="320" height="320" viewBox="0 0 320 320" role="img" aria-labelledby="title desc">
+  <title id="title">Dot grid pattern</title>
+  <desc id="desc">A subtle repeating dot grid.</desc>
+  <defs><pattern id="p" width="32" height="32" patternUnits="userSpaceOnUse"><circle cx="2" cy="2" r="1.7" fill="#0D1B3D" opacity=".16"/></pattern></defs><rect width="320" height="320" fill="url(#p)"/>
+</svg>
