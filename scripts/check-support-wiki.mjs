@@ -58,8 +58,7 @@ const articles = articleFiles.map((file) => {
     reviewedOn,
     related: extractArray(source, "related"),
     sources: extractArray(source, "sources"),
-    links: [...source.matchAll(/(?<!!)\[[^\]]+\]\(([^)\s]+)\)/g)].map((match) => match[1]),
-    images: [...source.matchAll(/!\[([^\]]*)\]\((\/[^)\s]+)\)/g)].map((match) => ({ alt: match[1].trim(), href: match[2] })),
+    links: [...source.matchAll(/\[[^\]]+\]\(([^)\s]+)\)/g)].map((match) => match[1]),
   };
 });
 
@@ -109,16 +108,6 @@ for (const article of articles) {
     }
     if (!href.startsWith("https://") && !href.startsWith("http://") && !href.startsWith("#")) {
       errors.push(`${article.file} contains unsupported link target ${href}.`);
-    }
-  }
-  for (const image of article.images) {
-    if (!image.alt) errors.push(`${article.file} contains a support image without alternative text.`);
-    if (!image.href.startsWith("/support/screenshots/")) {
-      errors.push(`${article.file} contains an unsupported documentation image target ${image.href}.`);
-      continue;
-    }
-    if (!existsSync(resolve(root, "public", image.href.slice(1)))) {
-      errors.push(`${article.file} references missing documentation image ${image.href}.`);
     }
   }
 }

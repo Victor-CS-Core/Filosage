@@ -1211,9 +1211,6 @@ button:disabled { cursor: not-allowed; opacity: 0.55; }
 .support-article-body li + li { margin-top: 7px; }
 .support-article-body strong { color: var(--ink); }
 .support-article-body a { color: var(--brand-blue-ink); font-weight: 700; text-decoration-thickness: 1px; text-underline-offset: 3px; }
-.support-article-visual { margin: 22px 0 28px; overflow: hidden; border: 1px solid var(--line-strong); border-radius: var(--radius-md); background: var(--surface); }
-.support-article-visual img { display: block; width: 100%; height: auto; }
-.support-article-visual figcaption { border-top: 1px solid var(--line); padding: 11px 14px; color: var(--ink-muted); font-size: 0.78rem; line-height: 1.5; }
 .support-article-contents ol { border-inline-start: 1px solid var(--line-strong); padding-inline-start: 30px; }
 .support-article-contents li + li { margin-top: 9px; }
 .support-article-contents a { color: var(--ink-secondary); font-size: 0.78rem; line-height: 1.4; text-decoration: none; }

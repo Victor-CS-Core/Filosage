@@ -35,8 +35,6 @@ A signed-in learner can read lessons, complete practice, and keep account-backed
 
 The **Today** page opens with a learning brief, your current mission, and the course you can continue. Use **Customize** to choose which supporting cards and learning measures appear.
 
-![The Today learning cards showing a clear next step, review status, and weekly learning progress.](/support/screenshots/today-learning-cards.png)
-
 On desktop, use **Search or jump anywhere** in the Learning Header to open the Command Center. It includes **Today**, **Explore**, **Review**, **Progress**, courses, lessons, and account actions. On a phone, the main destinations remain in the bottom navigation and the account control in the top bar opens the same Command Center.
 `,
   related: ["find-a-course", "complete-a-lesson", "sign-in-help"],

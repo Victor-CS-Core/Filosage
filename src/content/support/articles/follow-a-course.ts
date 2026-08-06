@@ -17,8 +17,6 @@ export default defineSupportArticle({
 
 A course overview explains the intended outcome, estimated commitment, modules, lesson sequence, and any milestone or capstone included with that course.
 
-![The Morse Code course overview showing its mission, course facts, and first lesson action.](/support/screenshots/morse-code-course-overview.png)
-
 Guests can inspect the structure of a published course. A free learner account is required to open lesson content.
 
 ## Move through the stages
