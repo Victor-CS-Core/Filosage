@@ -238,6 +238,14 @@ export default function AppShell({ children, activeTopic, activeLessonId, active
       href: "/admin",
       keywords: "owner admin operations",
       icon: ShieldCheck,
+    }, {
+      id: "account-command-center",
+      section: "Account" as const,
+      label: "Agent command center",
+      description: "Tickets, approvals, audit, and operational controls",
+      href: "/admin/command-center",
+      keywords: "owner admin support reports approvals audit operations",
+      icon: Command,
     }] : []),
     {
       id: "account-sign-out",

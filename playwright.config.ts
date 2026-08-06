@@ -74,6 +74,8 @@ export default defineConfig({
         ERUDOZA_PLAYWRIGHT_LIFECYCLE_DIR: project.lifecycleDir,
         HOSTNAME: "127.0.0.1",
         PORT: String(project.server.port),
+        OPENAI_API_KEY: "",
+        COMMAND_CENTER_DRAFTS_ENABLED: "true",
       },
     })),
 });

@@ -2,7 +2,6 @@ import { z } from "zod";
 import { apiRequestErrorResponse, readJsonBody } from "@/lib/api-security";
 import { authorizationResponse, requireAccount } from "@/lib/auth-server";
 import {
-  createStoredDocument,
   getCourse,
   getLesson,
   listStoredDocumentsByField,
@@ -13,6 +12,8 @@ import type { Course } from "@/lib/course-types";
 import { reportOperationalEvent } from "@/lib/operational-alerts";
 import { recordServerProductEvent } from "@/lib/product-events-server";
 import { contentReportDisposition } from "@/lib/content-report-policy";
+import { commandCenterEnvironmentEnabled } from "@/lib/command-center-auth";
+import { createContentReportAndCommandCenterTicket } from "@/lib/command-center-server";
 
 const reportSchema = z.object({
   courseId: z.string().trim().min(1).max(200),
@@ -76,15 +77,20 @@ export async function POST(request: Request) {
       );
     }
 
-    const created = await createStoredDocument("contentReports", {
-      ...parsed.data,
-      reporterUid: account.uid,
-      topic: course.topic,
-      lessonTitle: lessonId ? lessonTitle(typedCourse, lessonId) : undefined,
-      sourceLabel: source?.label,
-      sourceUrl: source?.url,
-      status: "open",
-      createdAt: new Date().toISOString(),
+    const reportId = crypto.randomUUID();
+    const created = await createContentReportAndCommandCenterTicket({
+      reportId,
+      commandCenterEnabled: commandCenterEnvironmentEnabled(),
+      report: {
+        ...parsed.data,
+        reporterUid: account.uid,
+        topic: course.topic,
+        lessonTitle: lessonId ? lessonTitle(typedCourse, lessonId) : undefined,
+        sourceLabel: source?.label,
+        sourceUrl: source?.url,
+        status: "open",
+        createdAt: new Date().toISOString(),
+      },
     });
     const serious = parsed.data.category === "safety" || parsed.data.category === "copyright";
     const seriousReporters = new Set(existingReports.flatMap((report) =>

@@ -75,6 +75,7 @@ async function collectAccountData(uid: string) {
     safetyEvents,
     contentReports,
     adminActionRecords,
+    commandCenterTickets,
   ] = await Promise.all([
     getStoredDocument(`users/${uid}`),
     getStoredDocument(`users/${uid}/learningData/preferences`),
@@ -98,7 +99,17 @@ async function collectAccountData(uid: string) {
     listCompleteAccountRecordsByField("safetyEvents", "uid", uid),
     listCompleteAccountRecordsByField("contentReports", "reporterUid", uid),
     listCompleteAccountRecordsByField("adminEvents", "targetUid", uid),
+    listCompleteAccountRecordsByField("commandCenterTickets", "relatedUserId", uid),
   ]);
+  const commandCenterTicketIds = commandCenterTickets.map((ticket) => ticket.id);
+  const commandCenterRecords = await Promise.all(commandCenterTicketIds.map(async (ticketId) => {
+    const [approvals, drafts, auditEvents] = await Promise.all([
+      listCompleteAccountRecordsByField("commandCenterApprovals", "ticketId", ticketId),
+      listCompleteAccountRecordsByField("commandCenterDrafts", "ticketId", ticketId),
+      listCompleteAccountRecordsByField("commandCenterAuditEvents", "ticketId", ticketId),
+    ]);
+    return { approvals, drafts, auditEvents };
+  }));
   const authoredCourses = await Promise.all(courses.map(async (course) => ({
     course,
     lessons: course.id
@@ -132,6 +143,10 @@ async function collectAccountData(uid: string) {
     safetyEvents,
     contentReports,
     adminActionRecords,
+    commandCenterTickets,
+    commandCenterApprovals: commandCenterRecords.flatMap((records) => records.approvals),
+    commandCenterDrafts: commandCenterRecords.flatMap((records) => records.drafts),
+    commandCenterAuditEvents: commandCenterRecords.flatMap((records) => records.auditEvents),
   };
 }
 

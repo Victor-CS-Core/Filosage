@@ -23,7 +23,7 @@ export const AUTOMATED_ACCOUNT_DELETION_RETENTION = [
   },
   {
     category: "Safety and enforcement records",
-    records: ["Safety cooldown summaries", "Blocked-request safety events", "Content reports", "Owner enforcement actions"],
+    records: ["Safety cooldown summaries", "Blocked-request safety events", "Content reports", "Owner enforcement actions", "Command-center tickets, review drafts, approvals, and audit events"],
     reason: "Retained only as reasonably needed to prevent abuse, preserve report integrity, enforce the service rules, and resolve legal claims.",
   },
   {

@@ -38,6 +38,7 @@ const featureLabels = {
   course_banner: "Course banner",
   lesson_generation: "Lesson",
   tutor: "Tutor",
+  command_center_draft: "Command-center draft",
 } as const;
 
 const routeLabels: Record<string, string> = {
@@ -236,6 +237,9 @@ export default function AdminPage() {
             <p>Traffic, learning operations, commercial readiness, AI capacity, and account safety in one private view.</p>
           </div>
           <div className="admin-header-actions">
+            <button className="button button-secondary" onClick={() => router.push("/admin/command-center")}>
+              <Bot size={16} /> Agent command center
+            </button>
             <label>
               <span>Reporting window</span>
               <select value={days} onChange={(event) => setDays(Number(event.target.value))}>

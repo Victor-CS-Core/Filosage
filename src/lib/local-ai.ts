@@ -302,6 +302,32 @@ function stubUsage() {
   return { input_tokens: 0, output_tokens: 0, input_tokens_details: { cached_tokens: 0 } };
 }
 
+function stubCommandCenterDraft(input: string) {
+  const agentType = line(input, "Agent type:") || "support";
+  const subject = line(input, "Subject:") || "Current operational work";
+  const isFounderBrief = agentType === "founderBrief";
+  return {
+    headline: isFounderBrief ? "Owner review brief" : `Review draft for ${subject}`,
+    summary: isFounderBrief
+      ? "The current queue was summarized into review priorities. This local draft contains no external action."
+      : "The available ticket facts were organized into a review-only draft. Verify every claim before accepting it.",
+    recommendedCategory: isFounderBrief ? null : agentType === "billing" ? "billing" : agentType === "legal" ? "legal" : agentType === "productOperations" ? "product_feedback" : "support",
+    recommendedRisk: isFounderBrief ? null : "medium",
+    recommendedTags: isFounderBrief ? ["founder-brief"] : ["draft-review"],
+    responseDraft: isFounderBrief || agentType === "legal" || agentType === "productOperations"
+      ? null
+      : "Thanks for sharing these details. We are reviewing the confirmed facts and will follow up after the owner completes the review. (Local draft; not sent.)",
+    missingInformation: isFounderBrief ? [] : ["Confirm the affected record and the exact observed behavior."],
+    escalationReasons: agentType === "legal" ? ["Owner review is required for legal intake."] : [],
+    evidenceUsed: ["Command-center ticket fields supplied to this run"],
+    groupedSignals: agentType === "productOperations" ? ["A learner-friction signal needs grouping with related reports."] : [],
+    priorities: isFounderBrief ? ["Review high-risk and overdue tickets first."] : [],
+    confidence: "medium",
+    confidenceRationale: "The draft is limited to the bounded context supplied to the local stub.",
+    cautions: ["Review-only output. Do not treat this draft as verified or sent."],
+  };
+}
+
 function localAiStub() {
   return {
     moderations: {
@@ -311,7 +337,9 @@ function localAiStub() {
       parse: async (params: { input?: unknown; text?: { format?: { name?: string } } }) => {
         const input = typeof params.input === "string" ? params.input : "";
         const format = params.text?.format?.name;
-        const output_parsed = format === "course_outline"
+        const output_parsed = format === "command_center_draft"
+          ? stubCommandCenterDraft(input)
+          : format === "course_outline"
           ? stubOutline(input)
           : format === "capstone_verdict"
             ? stubCapstoneVerdict(input)

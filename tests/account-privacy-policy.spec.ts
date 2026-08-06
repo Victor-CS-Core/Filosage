@@ -196,5 +196,9 @@ test("exports the expanded account inventory and retention boundary", async ({ r
     "safetyEvents",
     "contentReports",
     "adminActionRecords",
+    "commandCenterTickets",
+    "commandCenterApprovals",
+    "commandCenterDrafts",
+    "commandCenterAuditEvents",
   ]));
 });

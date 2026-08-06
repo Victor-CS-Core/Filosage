@@ -1,7 +1,10 @@
 import { z } from "zod";
 import { authorizationResponse, requireOwner } from "@/lib/auth-server";
-import { getStoredDocument, putStoredDocument } from "@/lib/firebase-server";
 import { apiRequestErrorResponse, assertTrustedMutation, readJsonBody } from "@/lib/api-security";
+import {
+  commandCenterErrorResponse,
+  reviewContentReportWithCommandCenterSync,
+} from "@/lib/command-center-server";
 
 interface RouteParams {
   params: Promise<{ reportId: string }>;
@@ -21,19 +24,16 @@ export async function PATCH(request: Request, { params }: RouteParams) {
     }
     const parsed = updateSchema.safeParse(await readJsonBody(request, 1_024));
     if (!parsed.success) return Response.json({ error: "Choose a valid review outcome." }, { status: 400 });
-    const path = `contentReports/${reportId}`;
-    const report = await getStoredDocument(path);
-    if (!report) return Response.json({ error: "Report not found." }, { status: 404 });
-    await putStoredDocument(path, {
-      ...report,
+    const result = await reviewContentReportWithCommandCenterSync({
+      actorUid: owner.uid,
+      reportId,
       status: parsed.data.status,
-      reviewedAt: new Date().toISOString(),
-      reviewedBy: owner.uid,
     });
-    return Response.json({ updated: true }, { headers: { "Cache-Control": "no-store" } });
+    return Response.json(result, { headers: { "Cache-Control": "no-store" } });
   } catch (error) {
     return apiRequestErrorResponse(error)
       ?? authorizationResponse(error)
+      ?? commandCenterErrorResponse(error)
       ?? Response.json({ error: "The content report could not be updated." }, { status: 500 });
   }
 }

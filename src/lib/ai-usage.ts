@@ -13,7 +13,7 @@ import {
 } from "@/lib/firebase-server";
 import { serverEnvironment } from "@/lib/runtime-environment";
 
-export type AiFeature = "course_outline" | "course_banner" | "lesson_generation" | "tutor";
+export type AiFeature = "course_outline" | "course_banner" | "lesson_generation" | "tutor" | "command_center_draft";
 export type AiBudgetPool = "free" | "paid" | "owner";
 
 const BUDGET_SHARDS = 16;
@@ -68,8 +68,8 @@ function policyFor(account: ServerAccount, feature: AiFeature, now = new Date())
       periodKey: monthly.key,
       resetAt: monthly.resetAt,
       maxPerMinute: 20,
-      reserveCostMicros: isBanner ? 20_000 : feature === "tutor" ? 50_000 : 350_000,
-      lockMs: isBanner ? 90_000 : feature === "tutor" ? 45_000 : 180_000,
+      reserveCostMicros: isBanner ? 20_000 : feature === "tutor" ? 50_000 : feature === "command_center_draft" ? 100_000 : 350_000,
+      lockMs: isBanner ? 90_000 : feature === "tutor" ? 45_000 : feature === "command_center_draft" ? 90_000 : 180_000,
     };
   }
 
@@ -89,14 +89,15 @@ function policyFor(account: ServerAccount, feature: AiFeature, now = new Date())
     course_banner: account.plan === "pro" ? 30 : 0,
     lesson_generation: account.plan === "pro" ? 30 : 0,
     tutor: account.plan === "pro" ? 100 : 0,
+    command_center_draft: 0,
   };
   return {
     limit: limits[feature],
     periodKey: monthly.key,
     resetAt: monthly.resetAt,
     maxPerMinute: feature === "tutor" ? 6 : 2,
-    reserveCostMicros: isBanner ? 20_000 : feature === "tutor" ? 50_000 : 350_000,
-    lockMs: isBanner ? 90_000 : feature === "tutor" ? 45_000 : 180_000,
+    reserveCostMicros: isBanner ? 20_000 : feature === "tutor" ? 50_000 : feature === "command_center_draft" ? 100_000 : 350_000,
+    lockMs: isBanner ? 90_000 : feature === "tutor" ? 45_000 : feature === "command_center_draft" ? 90_000 : 180_000,
   };
 }
 
@@ -357,7 +358,9 @@ export async function finalizeAiUsage(
   },
 ) {
   const nowIso = new Date().toISOString();
-  const defaultModel = reservation.feature === "tutor"
+  const defaultModel = reservation.feature === "command_center_draft"
+    ? serverEnvironment.OPENAI_COMMAND_CENTER_MODEL || serverEnvironment.OPENAI_MODEL || "gpt-5.6-terra"
+    : reservation.feature === "tutor"
     ? serverEnvironment.OPENAI_TUTOR_MODEL || "gpt-5.6-luna"
     : reservation.feature === "course_banner"
       ? serverEnvironment.OPENAI_COURSE_IMAGE_MODEL || "gpt-image-1-mini"

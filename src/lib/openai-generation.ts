@@ -6,6 +6,7 @@ export const AI_PROMPT_VERSIONS = {
   tutor: "2026-08-04-grounded-tutor",
   baseline: "2026-08-04-baseline-assessor",
   capstone: "2026-08-04-capstone-assessor",
+  commandCenter: "2026-08-06-draft-only-v5",
 } as const;
 
 export type AiReasoningEffort = "none" | "low" | "medium" | "high" | "xhigh" | "max";
@@ -20,7 +21,8 @@ export type AiExecutionProfileId =
   | "lesson.recovery"
   | "tutor.standard"
   | "baseline.standard"
-  | "capstone.standard";
+  | "capstone.standard"
+  | "command-center.draft";
 
 export interface AiExecutionProfile {
   id: AiExecutionProfileId;
@@ -107,6 +109,13 @@ const PROFILE_SPECS: Record<AiExecutionProfileId, ProfileSpec> = {
     defaultModel: "gpt-5.6-luna",
     reasoningEffort: "medium",
     textVerbosity: "low",
+  },
+  "command-center.draft": {
+    workload: "commandCenter",
+    modelEnv: ["OPENAI_COMMAND_CENTER_MODEL", "OPENAI_MODEL"],
+    defaultModel: "gpt-5.6-terra",
+    reasoningEffort: "medium",
+    textVerbosity: "medium",
   },
 };
 

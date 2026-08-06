@@ -7,6 +7,7 @@ import {
   stablePromptCacheKey,
 } from "../src/lib/openai-generation";
 import { lessonGenerationSchema } from "../src/lib/validation";
+import { commandCenterDraftContentSchema } from "../src/lib/command-center-draft-schema";
 
 function findUnsupportedLessonSchemaShape(value: unknown, path = "$schema"): string | null {
   if (!value || typeof value !== "object") return null;
@@ -38,6 +39,7 @@ test("keeps Sol off normal generation paths and reserves it for recovery", () =>
     openAiExecutionProfile("tutor.standard", environment),
     openAiExecutionProfile("baseline.standard", environment),
     openAiExecutionProfile("capstone.standard", environment),
+    openAiExecutionProfile("command-center.draft", environment),
   ];
   const recoveryProfiles = [
     openAiExecutionProfile("course.recovery", environment),
@@ -59,11 +61,15 @@ test("uses explicit workload reasoning and stable versioned cache keys", () => {
   const course = openAiExecutionProfile("course.standard", environment);
   const lesson = openAiExecutionProfile("lesson.standard", environment);
   const tutor = openAiExecutionProfile("tutor.standard", environment);
+  const commandCenter = openAiExecutionProfile("command-center.draft", environment);
 
   expect(course.reasoningEffort).toBe("medium");
   expect(lesson.reasoningEffort).toBe("medium");
   expect(tutor.reasoningEffort).toBe("low");
   expect(tutor.textVerbosity).toBe("low");
+  expect(commandCenter.model).toBe("gpt-5.6-terra");
+  expect(commandCenter.reasoningEffort).toBe("medium");
+  expect(commandCenter.promptVersion).toBe(AI_PROMPT_VERSIONS.commandCenter);
   expect(course.promptVersion).toBe(AI_PROMPT_VERSIONS.course);
   expect(course.promptCacheKey).toBe(stablePromptCacheKey("course", course.promptVersion, course.model));
   expect(openAiExecutionProfile("course.standard", environment).promptCacheKey).toBe(course.promptCacheKey);
@@ -96,4 +102,16 @@ test("keeps the lesson response format inside the OpenAI strict JSON Schema subs
   expect(findUnsupportedLessonSchemaShape(format.schema)).toBeNull();
   expect(format.schema.required).toContain("visuals");
   expect(format.schema.required).toContain("sourceReferences");
+});
+
+test("keeps command-center drafts inside the strict structured-output subset", () => {
+  const format = zodTextFormat(commandCenterDraftContentSchema, "command_center_draft");
+  expect(findUnsupportedLessonSchemaShape(format.schema)).toBeNull();
+  expect(format.schema.required).toEqual(expect.arrayContaining([
+    "summary",
+    "responseDraft",
+    "evidenceUsed",
+    "confidence",
+    "cautions",
+  ]));
 });
