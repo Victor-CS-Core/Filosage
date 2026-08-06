@@ -68,16 +68,14 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   }, [restored, theme]);
 
   const toggle = useCallback(() => {
-    setTheme((current) => {
-      const applied = document.documentElement.getAttribute("data-theme");
-      const activeTheme = applied === "light" || applied === "dark" ? applied : current;
-      const nextTheme = activeTheme === "light" ? "dark" : "light";
-      applyTheme(nextTheme);
-      persistTheme(nextTheme);
-      return nextTheme;
-    });
+    const applied = document.documentElement.getAttribute("data-theme");
+    const activeTheme = applied === "light" || applied === "dark" ? applied : theme;
+    const nextTheme = activeTheme === "light" ? "dark" : "light";
+    applyTheme(nextTheme);
+    persistTheme(nextTheme);
+    setTheme(nextTheme);
     setRestored(true);
-  }, []);
+  }, [theme]);
 
   return <ThemeContext.Provider value={{ theme, toggle }}>{children}</ThemeContext.Provider>;
 }

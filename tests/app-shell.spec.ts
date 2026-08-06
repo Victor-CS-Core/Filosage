@@ -109,67 +109,115 @@ async function expectNoHorizontalPageOverflow(page: Page) {
 test.describe("desktop application shell", () => {
   test.use({ viewport: { width: 1366, height: 900 } });
 
-  test("uses a Learning Header with menus anchored to their controls", async ({ page }) => {
+  test("uses a Learning Header with courses and account actions unified in the Command Center", async ({ page }) => {
     await prepareOwnerShell(page);
     await page.goto("/library");
 
     const header = page.locator(".learning-header");
     await expect(header).toBeVisible();
     const headerBox = await header.boundingBox();
-    expect(headerBox?.height).toBeLessThanOrEqual(70);
+    expect(headerBox?.height).toBeLessThanOrEqual(82);
     await expect(page.locator(".learner-sidebar")).toHaveCount(0);
-    await expect(page.getByRole("link", { name: "Explore", exact: true })).toHaveAttribute("aria-current", "page");
+    await expect(page.locator(".learning-orbit-nav")).toHaveCount(0);
+    await expect(header.getByRole("link", { name: "Create a new course" })).toHaveCount(0);
 
-    const coursesTrigger = page.getByRole("button", { name: /My courses/ });
-    await expect(coursesTrigger).toHaveAttribute("aria-expanded", "false");
-    await coursesTrigger.click();
+    const commandTrigger = page.getByRole("button", { name: /Search or jump anywhere/ });
+    await expect(commandTrigger).toBeVisible();
+    expect((await commandTrigger.boundingBox())?.width).toBeGreaterThan(420);
+    await page.keyboard.press("Control+k");
+    const commandPalette = page.getByRole("dialog", { name: "Erudoza Command Center" });
+    await expect(commandPalette).toBeVisible();
+    const commandSearch = commandPalette.getByRole("combobox", { name: "Search Erudoza" });
+    for (let index = 0; index < 10; index += 1) await commandSearch.press("ArrowDown");
+    const activeCommandId = await commandSearch.getAttribute("aria-activedescendant");
+    if (!activeCommandId) throw new Error("Command Center did not expose its active option.");
+    await expect(page.locator(`#${activeCommandId}`)).toBeInViewport();
+    await commandSearch.fill("private decision");
+    await expect(commandPalette.getByRole("option", { name: /Decision quality/ })).toBeVisible();
+    await page.keyboard.press("Escape");
+    await expect(commandPalette).toBeHidden();
+    await expect(commandTrigger).toBeFocused();
 
+    await commandTrigger.click();
+    await commandPalette.getByRole("option", { name: /My courses/ }).click();
     const coursesDialog = page.getByRole("dialog", { name: "My courses" });
     await expect(coursesDialog).toBeVisible();
-    await expect(coursesTrigger).toHaveAttribute("aria-expanded", "true");
     await expect(coursesDialog.getByText("Morse Code", { exact: true })).toBeVisible();
     await expect(coursesDialog.getByText("Decision quality", { exact: true })).toBeVisible();
-    const triggerBox = await coursesTrigger.boundingBox();
-    const drawerBox = await coursesDialog.boundingBox();
-    expect(triggerBox && drawerBox && drawerBox.y).toBeGreaterThanOrEqual((triggerBox?.y ?? 0) + (triggerBox?.height ?? 0));
-    expect(triggerBox && drawerBox && Math.abs((drawerBox.x + drawerBox.width) - (triggerBox.x + triggerBox.width))).toBeLessThanOrEqual(2);
 
-    await coursesDialog.getByPlaceholder("Search your courses").fill("decision");
+    const courseSearch = coursesDialog.getByPlaceholder("Search titles, lessons, or skills");
+    await courseSearch.fill("private decision");
     await expect(coursesDialog.getByText("Decision quality", { exact: true })).toBeVisible();
     await expect(coursesDialog.getByText("Morse Code", { exact: true })).toBeHidden();
+    await courseSearch.fill("no course can match this");
+    await coursesDialog.getByRole("button", { name: "Clear search" }).click();
+    await expect(courseSearch).toBeFocused();
+    await expect(coursesDialog.getByText("Morse Code", { exact: true })).toBeVisible();
     await coursesDialog.getByRole("button", { name: "Close course menu" }).click();
 
-    const accountTrigger = page.getByRole("button", { name: "Open account menu for Playwright" });
+    const accountTrigger = page.getByRole("button", { name: "Open Command Center for Playwright" });
     await accountTrigger.focus();
     await accountTrigger.press("Enter");
-    const accountDialog = page.getByRole("dialog", { name: "Playwright" });
-    await expect(accountDialog).toBeVisible();
-    await expect(accountDialog.getByText("Owner course access")).toBeVisible();
-    await expect(accountDialog.getByRole("button", { name: /Control room/ })).toBeVisible();
-    const supportButton = accountDialog.getByRole("button", { name: /Support/ });
-    await expect(supportButton).toBeVisible();
-    await expect(accountDialog.getByRole("button", { name: /Dark mode|Light mode/ })).toBeVisible();
-    await supportButton.click();
+    await expect(commandPalette).toBeVisible();
+    await expect(commandPalette.getByRole("option", { name: /Erudoza Pro Owner course access/ })).toBeVisible();
+    await expect(commandPalette.getByRole("option", { name: /My courses Open private and published courses/ })).toBeVisible();
+    await expect(commandPalette.getByRole("option", { name: /Learning profile/ })).toBeVisible();
+    await expect(commandPalette.getByRole("option", { name: /Control room/ })).toBeVisible();
+    await expect(commandPalette.getByRole("option", { name: /Support/ })).toBeVisible();
+    const themeToggle = commandPalette.getByRole("switch", { name: "Dark mode" });
+    await expect(themeToggle).toBeVisible();
+    const initialThemeState = await themeToggle.getAttribute("aria-checked");
+    await themeToggle.click();
+    await expect(commandPalette).toBeVisible();
+    await expect(themeToggle).toHaveAttribute("aria-checked", initialThemeState === "true" ? "false" : "true");
+    await themeToggle.click();
+    await expect(commandPalette).toBeVisible();
+    await expect(themeToggle).toHaveAttribute("aria-checked", initialThemeState ?? "false");
+    await expect(commandPalette.getByRole("option", { name: /Sign out/ })).toBeVisible();
+
+    await page.locator(".command-palette-backdrop").click({ position: { x: 6, y: 6 } });
+    await expect(commandPalette).toBeHidden();
+    await expect(accountTrigger).toBeFocused();
+
+    await accountTrigger.click();
+    await commandPalette.getByRole("option", { name: /Support/ }).click();
     await expect(page).toHaveURL(/\/support$/);
+  });
+
+  test("makes the active course and its lessons available from the Command Center", async ({ page }) => {
+    await prepareOwnerShell(page);
+    await page.route("**/api/courses/morse-shell-course", (route) => route.fulfill({ json: ownedCourses[0] }));
+    await page.goto("/course/Morse%20Code?id=morse-shell-course");
+
+    await expect(page.getByRole("heading", { name: "Morse Code", exact: true })).toBeVisible();
+    await page.getByRole("button", { name: /Search or jump anywhere/ }).click();
+
+    const commandCenter = page.getByRole("dialog", { name: "Erudoza Command Center" });
+    await expect(commandCenter.getByText("Current course", { exact: true })).toBeVisible();
+    await expect(commandCenter.getByRole("option", { name: /Morse Code Open the course overview/ })).toBeVisible();
+    await expect(commandCenter.getByRole("option", { name: /Hear the rhythm Decode the system/ })).toBeVisible();
+    await commandCenter.getByRole("combobox", { name: "Search Erudoza" }).fill("Build a message");
+    await commandCenter.getByRole("option", { name: /Build a message/ }).click();
+    await expect(page).toHaveURL(/\/lesson\/0-1\?id=morse-shell-course$/);
   });
 
   test("keeps a drawer open when it is reopened during its exit transition", async ({ page }) => {
     await prepareOwnerShell(page);
     await page.goto("/library");
 
-    const coursesTrigger = page.getByRole("button", { name: /My courses/ });
+    const commandTrigger = page.getByRole("button", { name: /Search or jump anywhere/ });
     const coursesDialog = page.getByRole("dialog", { name: "My courses" });
-    await coursesTrigger.click();
+    await commandTrigger.click();
+    await page.getByRole("dialog", { name: "Erudoza Command Center" }).getByRole("option", { name: /My courses/ }).click();
     await expect(coursesDialog).toBeVisible();
 
     await coursesDialog.getByRole("button", { name: "Close course menu" }).click();
-    await expect(coursesTrigger).toHaveAttribute("aria-expanded", "false");
-    await coursesTrigger.click();
+    await expect(coursesDialog).toBeHidden();
+    await commandTrigger.click();
+    await page.getByRole("dialog", { name: "Erudoza Command Center" }).getByRole("option", { name: /My courses/ }).click();
 
-    await expect(coursesTrigger).toHaveAttribute("aria-expanded", "true");
     await expect(coursesDialog).toBeVisible();
     await page.waitForTimeout(240);
-    await expect(coursesTrigger).toHaveAttribute("aria-expanded", "true");
     await expect(coursesDialog).toBeVisible();
   });
 
@@ -252,17 +300,23 @@ test.describe("desktop application shell", () => {
 test.describe("mobile application shell", () => {
   test.use({ viewport: { width: 390, height: 844 } });
 
-  test("keeps private courses reachable through the account sheet", async ({ page }) => {
+  test("keeps every account action and private courses reachable through the Command Center", async ({ page }) => {
     await prepareOwnerShell(page);
     await page.goto("/library");
 
     await expect(page.locator(".learning-header")).toBeHidden();
     await expect(page.getByRole("navigation", { name: "Mobile navigation" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Search and jump anywhere" })).toHaveCount(0);
     await page.locator(".mobile-account-trigger").click();
 
-    const accountDialog = page.getByRole("dialog", { name: "Playwright" });
-    await expect(accountDialog).toBeVisible();
-    await accountDialog.getByRole("button", { name: /My courses/ }).click();
+    const commandCenter = page.getByRole("dialog", { name: "Erudoza Command Center" });
+    await expect(commandCenter).toBeVisible();
+    await expect(commandCenter.getByRole("option", { name: /Learning profile/ })).toBeVisible();
+    await expect(commandCenter.getByRole("option", { name: /Control room/ })).toBeVisible();
+    await expect(commandCenter.getByRole("option", { name: /Support/ })).toBeVisible();
+    await expect(commandCenter.getByRole("switch", { name: "Dark mode" })).toBeVisible();
+    await expect(commandCenter.getByRole("option", { name: /Sign out/ })).toBeVisible();
+    await commandCenter.getByRole("option", { name: /My courses/ }).click();
 
     const coursesDialog = page.getByRole("dialog", { name: "My courses" });
     await expect(coursesDialog).toBeVisible();

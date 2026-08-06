@@ -7,11 +7,11 @@ export default defineSupportArticle({
   category: "account",
   keywords: ["profile", "dashboard", "weekly goal", "badges", "preferences", "account"],
   reviewedOn: "2026-08-05",
-  sources: ["src/app/profile/page.tsx", "src/components/DashboardCustomizer.tsx", "src/components/useLearnerState.ts"],
+  sources: ["src/app/profile/page.tsx", "src/components/AppShell.tsx", "src/components/DashboardCustomizer.tsx", "src/components/useLearnerState.ts"],
   body: `
 ## Open your profile
 
-Open the account menu and choose **View profile**. A profile requires a signed-in account because it combines synced progress, account access, and learner preferences.
+Open the account control to launch the Command Center, then choose **Learning profile**. A profile requires a signed-in account because it combines synced progress, account access, and learner preferences.
 
 ## Review your current direction
 

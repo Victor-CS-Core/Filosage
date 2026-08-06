@@ -11,7 +11,6 @@ import {
   Clock3,
   Compass,
   Flame,
-  Search,
   SlidersHorizontal,
   Sparkles,
   Target,
@@ -56,7 +55,6 @@ export default function Home() {
   const [authoredCourses, setAuthoredCourses] = useState<Course[]>([]);
   const [progress, setProgress] = useState<CourseProgress[]>([]);
   const [loaded, setLoaded] = useState(false);
-  const [search, setSearch] = useState("");
   const dashboardCustomizer = useAppDrawer("dashboard-customizer");
   const [now] = useState(() => Date.now());
 
@@ -130,11 +128,8 @@ export default function Home() {
   const dashboardBadges = featuredBadges(badges);
   const earnedBadges = badges.filter((badge) => badge.earned).length;
   const hasVisibleSideSections = preferences.sideOrder.some((section) => preferences.sections[section]);
-
-  const openSearch = (event: React.FormEvent) => {
-    event.preventDefault();
-    router.push(`/library${search.trim() ? `?q=${encodeURIComponent(search.trim())}` : ""}`);
-  };
+  const hasDailyMission = learnerState.reminderPreferences.inAppEnabled && Boolean(dailyMission.review || dailyMission.forward);
+  const focusTask = dailyMission.review ?? dailyMission.forward;
 
   const startDailyMission = () => {
     const task = dailyMission.review ?? dailyMission.forward;
@@ -202,15 +197,37 @@ export default function Home() {
   return (
     <AppShell>
       <div className="dashboard-page">
-        <header className="dashboard-heading">
-          <div className="dashboard-heading-copy"><div className="dashboard-heading-meta"><p>{new Intl.DateTimeFormat("en", { weekday: "long", month: "long", day: "numeric" }).format(new Date())}</p><button type="button" onClick={dashboardCustomizer.openDrawer} aria-expanded={dashboardCustomizer.open}><SlidersHorizontal size={15} /> Customize</button></div><h1>Good {new Date().getHours() < 12 ? "morning" : new Date().getHours() < 18 ? "afternoon" : "evening"}, {firstName}.</h1><span>What would you like to learn today?</span></div>
-          <form className="dashboard-search" onSubmit={openSearch}><Search size={18} /><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search topics, skills, or courses" aria-label="Search courses" /><button type="submit" aria-label="Search"><ArrowRight size={17} /></button></form>
+        <header className="dashboard-welcome-card">
+          <div className="dashboard-welcome-copy">
+            <div className="dashboard-heading-meta">
+              <p>{new Intl.DateTimeFormat("en", { weekday: "long", month: "long", day: "numeric" }).format(new Date())}</p>
+              <button type="button" onClick={dashboardCustomizer.openDrawer} aria-expanded={dashboardCustomizer.open}><SlidersHorizontal size={15} /> Customize</button>
+            </div>
+            <h1>Good {new Date().getHours() < 12 ? "morning" : new Date().getHours() < 18 ? "afternoon" : "evening"}, {firstName}.</h1>
+            <p>{hasDailyMission
+              ? "Your learning brief is ready. Start with the highest-value step, then keep your momentum moving."
+              : continueProgress
+                ? "Your next lesson is waiting. Continue where you left off or choose a fresh direction."
+                : "Build a focused learning path around the capability you need next."}</p>
+          </div>
+          <aside className="dashboard-learning-brief" aria-label="Today's learning brief">
+            {!loaded ? (
+              <div className="dashboard-brief-loading" aria-label="Preparing your learning brief"><span /><span /><span /></div>
+            ) : (
+              <ul>
+                <li><Target size={18} aria-hidden="true" /><span><small>Primary focus</small><strong>{focusTask?.lessonTitle ?? continueProgress?.nextLessonTitle ?? continueProgress?.topic ?? "Choose your first course"}</strong></span></li>
+                <li><CalendarCheck2 size={18} aria-hidden="true" /><span><small>Review readiness</small><strong>{due.length ? `${due.length} concept${due.length === 1 ? "" : "s"} ready` : "Review queue clear"}</strong></span></li>
+                <li><TrendingUp size={18} aria-hidden="true" /><span><small>Weekly rhythm</small><strong>{weeklyMilestone.completed} of {weeklyMilestone.target} lessons complete</strong></span></li>
+              </ul>
+            )}
+          </aside>
         </header>
 
         {!loaded ? <div className="dashboard-loading"><span /><span /><span /></div> : (
           <div className={`dashboard-grid ${hasVisibleSideSections ? "" : "is-single-column"}`}>
             <div className="dashboard-main-column">
-              {learnerState.reminderPreferences.inAppEnabled && (dailyMission.review || dailyMission.forward) && (
+              <div className={`dashboard-focus-grid ${hasDailyMission ? "" : "is-single-card"}`}>
+              {hasDailyMission && (
                 <section className="daily-mission" aria-labelledby="daily-mission-title">
                   <div className="daily-mission-heading">
                     <div>
@@ -260,6 +277,7 @@ export default function Home() {
                   <div className="dashboard-empty"><Compass size={23} /><div><strong>Choose your first course</strong><p>Start a published course or create one for your own goal.</p></div><button className="button button-primary" onClick={() => router.push(isPro ? "/create" : "/library")}>{isPro ? "Create a course" : "Explore courses"}</button></div>
                 )}
               </section>
+              </div>
 
               {preferences.mainOrder.map(renderMainSection)}
             </div>

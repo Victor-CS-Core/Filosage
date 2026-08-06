@@ -20,13 +20,13 @@
       "articles": ["getting-started", "navigate-erudoza"]
     },
     {
-      "feature": "Application navigation and account menu",
-      "sources": ["src/components/AppShell.tsx", "src/components/AppDrawer.tsx"],
+      "feature": "Application navigation and Command Center",
+      "sources": ["src/components/AppShell.tsx", "src/components/CommandPalette.tsx", "src/components/AppDrawer.tsx", "src/lib/search.ts"],
       "articles": ["getting-started", "navigate-erudoza"]
     },
     {
       "feature": "Published course discovery",
-      "sources": ["src/app/library/", "src/components/CourseLibrary.tsx", "src/components/CourseBanner.tsx"],
+      "sources": ["src/app/library/", "src/components/CourseLibrary.tsx", "src/components/CourseBanner.tsx", "src/lib/search.ts"],
       "articles": ["getting-started", "find-a-course"]
     },
     {
@@ -86,7 +86,7 @@
     },
     {
       "feature": "Support contact channel",
-      "sources": ["src/lib/legal.ts"],
+      "sources": ["src/app/support/page.tsx", "src/components/support/SupportSearch.tsx", "src/lib/search.ts", "src/lib/legal.ts"],
       "articles": ["contact-support"]
     }
   ]

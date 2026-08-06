@@ -668,7 +668,7 @@ export default function CourseMap() {
   }
 
   return (
-    <AppShell activeTopic={topic} activeCourseId={courseId}>
+    <AppShell activeTopic={topic} activeCourseId={courseId} activeCourse={course}>
       <div className="course-page">
         <header className="course-header">
           <div className="course-header-topline">

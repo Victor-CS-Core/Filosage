@@ -1221,7 +1221,7 @@ export default function LessonView() {
   }
 
   return (
-    <AppShell activeTopic={topic} activeLessonId={lessonId} activeCourseId={courseId}>
+    <AppShell activeTopic={topic} activeLessonId={lessonId} activeCourseId={courseId} activeCourse={course}>
       <div className="lesson-page">
         <header className="lesson-toolbar">
           <nav aria-label="Breadcrumb">

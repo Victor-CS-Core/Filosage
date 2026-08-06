@@ -2,24 +2,23 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useCallback, useEffect, useMemo, useRef, useState, type RefObject } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ArrowRight,
   BookOpen,
   CalendarCheck2,
-  ChevronDown,
   ChevronRight,
+  CirclePlay,
+  Command,
   Compass,
   Crown,
   Home,
   LifeBuoy,
   LogOut,
-  Moon,
   Plus,
   Search,
   Sparkles,
   ShieldCheck,
-  Sun,
   TrendingUp,
   UserRound,
   X,
@@ -31,15 +30,18 @@ import AppDrawer, { useAppDrawer } from "@/components/AppDrawer";
 import LegalConsentModal from "@/components/LegalConsentModal";
 import MarketingFooter from "@/components/marketing/MarketingFooter";
 import MarketingNavigation from "@/components/marketing/MarketingNavigation";
+import CommandPalette, { type CommandPaletteItem } from "@/components/CommandPalette";
 import { useAuth } from "@/components/AuthProvider";
 import { useTheme } from "@/components/ThemeProvider";
 import type { Course } from "@/lib/course-types";
+import { matchesSearchQuery } from "@/lib/search";
 
 interface AppShellProps {
   children: React.ReactNode;
   activeTopic?: string;
   activeLessonId?: string;
   activeCourseId?: string | null;
+  activeCourse?: Course;
 }
 
 const primaryNav = [
@@ -49,7 +51,7 @@ const primaryNav = [
   { href: "/progress", label: "Progress", icon: TrendingUp },
 ];
 
-export default function AppShell({ children, activeTopic, activeCourseId }: AppShellProps) {
+export default function AppShell({ children, activeTopic, activeLessonId, activeCourseId, activeCourse }: AppShellProps) {
   const router = useRouter();
   const pathname = usePathname();
   const { theme, toggle } = useTheme();
@@ -58,19 +60,12 @@ export default function AppShell({ children, activeTopic, activeCourseId }: AppS
   const [courses, setCourses] = useState<Course[]>([]);
   const [coursesLoading, setCoursesLoading] = useState(false);
   const [courseQuery, setCourseQuery] = useState("");
-  const [mobileShell, setMobileShell] = useState(false);
+  const [commandOpen, setCommandOpen] = useState(false);
   const coursesDrawer = useAppDrawer("course-switcher");
-  const accountDrawer = useAppDrawer("account-menu");
-  const coursesTriggerRef = useRef<HTMLButtonElement>(null);
   const accountTriggerRef = useRef<HTMLButtonElement>(null);
-
-  useEffect(() => {
-    const media = window.matchMedia("(max-width: 900px)");
-    const syncShell = () => setMobileShell(media.matches);
-    syncShell();
-    media.addEventListener("change", syncShell);
-    return () => media.removeEventListener("change", syncShell);
-  }, []);
+  const commandTriggerRef = useRef<HTMLButtonElement>(null);
+  const mobileAccountTriggerRef = useRef<HTMLButtonElement>(null);
+  const commandReturnFocusRef = useRef<HTMLElement | null>(null);
 
   const refreshCourses = useCallback(async () => {
     if (!user || !isPro) {
@@ -115,19 +110,184 @@ export default function AppShell({ children, activeTopic, activeCourseId }: AppS
   const firstName = displayName.split(" ")[0] || "Learner";
   const outlineQuota = account?.quotas.find((quota) => quota.feature === "course_outline");
   const currentCourse = useMemo(
-    () => courses.find((course) => (course.id ?? course.courseId) === activeCourseId || course.topic === activeTopic),
-    [activeCourseId, activeTopic, courses],
+    () => activeCourse ?? courses.find((course) => (course.id ?? course.courseId) === activeCourseId || course.topic === activeTopic),
+    [activeCourse, activeCourseId, activeTopic, courses],
   );
   const visibleCourses = useMemo(() => {
-    const normalized = courseQuery.trim().toLowerCase();
-    if (!normalized) return courses;
-    return courses.filter((course) => [course.topic, course.category, course.outcome, course.mission]
-      .filter(Boolean)
-      .some((value) => value!.toLowerCase().includes(normalized)));
+    return courses.filter((course) => matchesSearchQuery(courseQuery, [
+      course.topic,
+      course.category,
+      course.outcome,
+      course.mission,
+      course.level,
+      course.isPublic ? "published public" : "private draft",
+      ...course.modules.flatMap((courseModule) => [
+        courseModule.title,
+        courseModule.description,
+        courseModule.objective,
+        ...courseModule.lessons.flatMap((lesson) => [lesson.title, lesson.concept, lesson.objective]),
+      ]),
+    ]));
   }, [courseQuery, courses]);
+  const currentSection = pathname.startsWith("/course/")
+    ? activeTopic ?? "Course"
+    : primaryNav.find((item) => item.href === pathname)?.label
+      ?? (pathname.startsWith("/admin") ? "Control room" : pathname === "/profile" ? "Profile" : pathname === "/create" ? "Create" : "Learning workspace");
+
+  const commandItems = useMemo<CommandPaletteItem[]>(() => [
+    ...primaryNav.map((item) => ({
+      id: `navigate-${item.href}`,
+      section: "Navigate" as const,
+      label: item.label,
+      description: item.href === "/" ? "Continue today’s learning" : item.href === "/library" ? "Discover published courses" : item.href === "/review" ? "Reinforce knowledge when it is due" : "See momentum and evidence",
+      href: item.href,
+      keywords: "page destination navigation",
+      icon: item.icon,
+    })),
+    {
+      id: "navigate-create",
+      section: "Navigate" as const,
+      label: isPro ? "Create a course" : "Explore Erudoza Pro",
+      description: isPro ? "Build a private course around an outcome" : "See private course creation and plan details",
+      href: isPro ? "/create" : "/pricing",
+      keywords: "new add build course pricing pro",
+      icon: isPro ? Plus : Sparkles,
+    },
+    ...(currentCourse ? (() => {
+      const id = currentCourse.id ?? currentCourse.courseId ?? activeCourseId;
+      const courseHref = `/course/${encodeURIComponent(currentCourse.topic)}${id ? `?id=${id}` : ""}`;
+      const generatedLessonIds = currentCourse.generatedLessonIds;
+      return [{
+        id: `current-course-${id ?? currentCourse.topic}`,
+        section: "Current course" as const,
+        label: currentCourse.topic,
+        description: "Open the course overview",
+        href: courseHref,
+        keywords: `overview outline ${currentCourse.category ?? ""}`,
+        icon: BookOpen,
+      }, ...currentCourse.modules.flatMap((courseModule, moduleIndex) => courseModule.lessons
+        .map((lesson, lessonIndex) => ({ lesson, lessonId: `${moduleIndex}-${lessonIndex}` }))
+        .filter(({ lessonId }) => !generatedLessonIds || generatedLessonIds.includes(lessonId))
+        .map(({ lesson, lessonId }, lessonIndex) => ({
+          id: `current-lesson-${id ?? currentCourse.topic}-${lessonId}`,
+          section: "Current course" as const,
+          label: lesson.title,
+          description: lessonId === activeLessonId ? `${courseModule.title} · Current lesson` : `${courseModule.title} · Lesson ${lessonIndex + 1}`,
+          href: `/course/${encodeURIComponent(currentCourse.topic)}/lesson/${lessonId}${id ? `?id=${id}` : ""}`,
+          keywords: `${lesson.concept} ${lesson.objective ?? ""} lesson module`,
+          icon: CirclePlay,
+        })))];
+    })() : []),
+    ...courses.filter((course) => {
+      const id = course.id ?? course.courseId;
+      const currentId = currentCourse?.id ?? currentCourse?.courseId ?? activeCourseId;
+      return currentId ? id !== currentId : course.topic !== currentCourse?.topic;
+    }).map((course) => {
+      const id = course.id ?? course.courseId;
+      return {
+        id: `course-${id ?? course.topic}`,
+        section: "Courses" as const,
+        label: course.topic,
+        description: course.outcome || course.mission || `${course.modules.length} course module${course.modules.length === 1 ? "" : "s"}`,
+        href: `/course/${encodeURIComponent(course.topic)}${id ? `?id=${id}` : ""}`,
+        keywords: `${course.category ?? ""} ${course.isPublic ? "published" : "private"}`,
+        icon: BookOpen,
+      };
+    }),
+    ...(isPro && outlineQuota ? [{
+      id: "account-plan",
+      section: "Account" as const,
+      label: "Erudoza Pro",
+      description: outlineQuota.remaining == null ? "Owner course access" : `${outlineQuota.remaining} course credit${outlineQuota.remaining === 1 ? "" : "s"} remaining`,
+      href: "/pricing",
+      keywords: "plan subscription quota pricing credits",
+      icon: Crown,
+    }] : []),
+    {
+      id: "account-courses",
+      section: "Account" as const,
+      label: "My courses",
+      description: "Open private and published courses",
+      action: "open-courses" as const,
+      keywords: "owned learning shelf switch",
+      icon: BookOpen,
+    },
+    {
+      id: "account-profile",
+      section: "Account" as const,
+      label: "Learning profile",
+      description: "Badges, preferences, and privacy",
+      href: "/profile",
+      keywords: "account settings badges privacy",
+      icon: UserRound,
+    },
+    {
+      id: "account-support",
+      section: "Account" as const,
+      label: "Support",
+      description: "Help, policies, and account questions",
+      href: "/support",
+      keywords: "help contact documentation",
+      icon: LifeBuoy,
+    },
+    ...(isOwner ? [{
+      id: "account-admin",
+      section: "Account" as const,
+      label: "Control room",
+      description: "Usage, safety, publishing, and accounts",
+      href: "/admin",
+      keywords: "owner admin operations",
+      icon: ShieldCheck,
+    }] : []),
+    {
+      id: "account-sign-out",
+      section: "Account" as const,
+      label: "Sign out",
+      description: "End this session",
+      action: "sign-out" as const,
+      keywords: "log out logout exit account",
+      icon: LogOut,
+    },
+  ], [activeCourseId, activeLessonId, courses, currentCourse, isOwner, isPro, outlineQuota]);
 
   const navigate = (href: string) => router.push(href);
   const isLegalPage = ["/terms", "/privacy", "/acceptable-use"].includes(pathname);
+
+  const openCommand = useCallback((trigger?: HTMLElement | null) => {
+    commandReturnFocusRef.current = trigger ?? (document.activeElement instanceof HTMLElement ? document.activeElement : commandTriggerRef.current);
+    coursesDrawer.closeDrawer();
+    setCommandOpen(true);
+  }, [coursesDrawer]);
+
+  const closeCommand = useCallback(() => {
+    setCommandOpen(false);
+    requestAnimationFrame(() => commandReturnFocusRef.current?.focus());
+  }, []);
+
+  const selectCommand = (item: CommandPaletteItem) => {
+    setCommandOpen(false);
+    if (item.href) {
+      navigate(item.href);
+      return;
+    }
+    if (item.action === "open-courses") {
+      requestAnimationFrame(coursesDrawer.openDrawer);
+    } else if (item.action === "sign-out") {
+      void signOut();
+    }
+  };
+
+  useEffect(() => {
+    if (!user) return;
+    const openFromKeyboard = (event: KeyboardEvent) => {
+      if (!(event.ctrlKey || event.metaKey) || event.key.toLowerCase() !== "k") return;
+      event.preventDefault();
+      if (commandOpen) closeCommand();
+      else openCommand(commandTriggerRef.current);
+    };
+    document.addEventListener("keydown", openFromKeyboard);
+    return () => document.removeEventListener("keydown", openFromKeyboard);
+  }, [closeCommand, commandOpen, openCommand, user]);
 
   if (authLoading) {
     return (
@@ -160,85 +320,32 @@ export default function AppShell({ children, activeTopic, activeCourseId }: AppS
           <span><strong className="brand-wordmark">Erudoza</strong><small>Learning workspace</small></span>
         </Link>
 
-        <nav className="learning-header-nav" aria-label="Primary navigation">
-          {primaryNav.map(({ href, label, icon: Icon }) => (
-            <Link key={href} href={href} className={pathname === href ? "is-active" : ""} aria-current={pathname === href ? "page" : undefined}>
-              <Icon size={17} aria-hidden="true" /><span>{label}</span>
-            </Link>
-          ))}
-        </nav>
+        <div className="learning-command-launch">
+          <button ref={commandTriggerRef} className="learning-command-trigger" type="button" onClick={() => openCommand(commandTriggerRef.current)} aria-haspopup="dialog" aria-expanded={commandOpen} aria-controls="command-palette">
+            <span className="learning-command-icon"><Search size={18} aria-hidden="true" /></span>
+            <span className="learning-command-copy"><strong>Search or jump anywhere</strong><small>{currentSection} · Pages, courses, and account actions</small></span>
+            <kbd>Ctrl K</kbd>
+          </button>
+        </div>
 
         <div className="learning-header-actions">
-          <div className="learning-menu-anchor learning-courses-anchor">
-            <button
-              ref={coursesTriggerRef}
-              className={`learning-courses-trigger ${coursesDrawer.open || pathname.startsWith("/course/") ? "is-active" : ""}`}
-              type="button"
-              onClick={coursesDrawer.toggleDrawer}
-              aria-expanded={coursesDrawer.open && !mobileShell}
-              aria-controls="course-switcher-menu"
-              aria-haspopup="dialog"
-              aria-current={pathname.startsWith("/course/") ? "page" : undefined}
-            >
-              <BookOpen size={17} aria-hidden="true" />
-              <span>My courses</span>
-              {courses.length > 0 && <small>{courses.length > 9 ? "9+" : courses.length}</small>}
-              <ChevronDown size={15} aria-hidden="true" />
-            </button>
-            <HeaderPopover id="course-switcher-menu" open={coursesDrawer.open && !mobileShell} onClose={coursesDrawer.closeDrawer} labelledBy="course-switcher-menu-title" triggerRef={coursesTriggerRef} className="learning-courses-menu">
-              <CourseSwitcherPanel
-                headingId="course-switcher-menu-title"
-                currentCourse={currentCourse}
-                visibleCourses={visibleCourses}
-                totalCourses={courses.length}
-                coursesLoading={coursesLoading}
-                courseQuery={courseQuery}
-                setCourseQuery={setCourseQuery}
-                isPro={isPro}
-                onClose={coursesDrawer.closeDrawer}
-              />
-            </HeaderPopover>
-          </div>
-          {isPro && (
-            <Link href="/create" className={`learning-create-link ${pathname === "/create" ? "is-active" : ""}`} aria-current={pathname === "/create" ? "page" : undefined}>
-              <Plus size={17} aria-hidden="true" /><span>Create</span>
-            </Link>
-          )}
-          <div className="learning-menu-anchor learning-account-anchor">
           <button
             ref={accountTriggerRef}
-            className={`learning-account-trigger ${accountDrawer.open || pathname === "/profile" || pathname.startsWith("/admin") ? "is-active" : ""}`}
+            className={`learning-account-trigger ${commandOpen || pathname === "/profile" || pathname.startsWith("/admin") ? "is-active" : ""}`}
             type="button"
-            onClick={accountDrawer.toggleDrawer}
-            aria-expanded={accountDrawer.open && !mobileShell}
-            aria-controls="account-menu-popover"
+            onClick={() => openCommand(accountTriggerRef.current)}
+            aria-expanded={commandOpen}
+            aria-controls="command-palette"
             aria-haspopup="dialog"
-            aria-label={`Open account menu for ${firstName}`}
+            aria-label={`Open Command Center for ${firstName}`}
           >
             {user?.photoURL ? (
               // eslint-disable-next-line @next/next/no-img-element
               <img src={user.photoURL} alt="" referrerPolicy="no-referrer" />
             ) : <span className="avatar-fallback"><UserRound size={16} /></span>}
             <span className="learning-account-copy"><strong>{firstName}</strong><small>{isPro ? "Pro account" : "Account"}</small></span>
-            <ChevronDown size={15} aria-hidden="true" />
+            <Command className="command-indicator" size={15} aria-hidden="true" />
           </button>
-            <HeaderPopover id="account-menu-popover" open={accountDrawer.open && !mobileShell} onClose={accountDrawer.closeDrawer} labelledBy="account-popover-title" triggerRef={accountTriggerRef} className="learning-account-menu">
-              <AccountPanel
-                headingId="account-popover-title"
-                firstName={firstName}
-                photoURL={user.photoURL}
-                isPro={isPro}
-                isOwner={isOwner}
-                outlineQuota={outlineQuota}
-                theme={theme}
-                onClose={accountDrawer.closeDrawer}
-                onOpenCourses={coursesDrawer.openDrawer}
-                onNavigate={navigate}
-                onToggleTheme={toggle}
-                onSignOut={() => { accountDrawer.closeDrawer(); void signOut(); }}
-              />
-            </HeaderPopover>
-          </div>
         </div>
       </header>
 
@@ -246,19 +353,19 @@ export default function AppShell({ children, activeTopic, activeCourseId }: AppS
         <button className="brand brand-mobile" onClick={() => navigate("/")} aria-label="Erudoza home">
           <span className="brand-mark" aria-hidden="true"><ErudozaMark /></span><strong className="brand-wordmark">Erudoza</strong>
         </button>
-        <button className="mobile-account-trigger" type="button" onClick={accountDrawer.openDrawer} aria-expanded={accountDrawer.open} aria-controls="account-menu-drawer" aria-haspopup="dialog" aria-label={`Open account menu for ${firstName}, ${isPro ? "Erudoza Pro" : "free plan"}`}>
-          {user.photoURL ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={user.photoURL} alt="" referrerPolicy="no-referrer" />
-          ) : <span className="avatar-fallback"><UserRound size={15} /></span>}
-          <span>{isPro ? "Pro" : "Free"}</span>
-          <ChevronDown size={15} />
-        </button>
+        <div className="learner-mobile-actions">
+          <button ref={mobileAccountTriggerRef} className="mobile-account-trigger" type="button" onClick={() => openCommand(mobileAccountTriggerRef.current)} aria-expanded={commandOpen} aria-controls="command-palette" aria-haspopup="dialog" aria-label={`Open Command Center for ${firstName}, ${isPro ? "Erudoza Pro" : "free plan"}`}>
+            {user.photoURL ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={user.photoURL} alt="" referrerPolicy="no-referrer" />
+            ) : <span className="avatar-fallback"><UserRound size={15} /></span>}
+            <span>{isPro ? "Pro" : "Free"}</span>
+            <Command className="command-indicator" size={15} aria-hidden="true" />
+          </button>
+        </div>
       </header>
 
-      {mobileShell && (
-        <>
-          <AppDrawer id="course-switcher-drawer" open={coursesDrawer.open} onClose={coursesDrawer.closeDrawer} labelledBy="course-switcher-title" size="wide" mobilePlacement="bottom" className="course-switcher-app-drawer">
+      <AppDrawer id="course-switcher-drawer" open={coursesDrawer.open} onClose={coursesDrawer.closeDrawer} labelledBy="course-switcher-title" size="wide" placement="end" mobilePlacement="bottom" className="course-switcher-app-drawer">
             <CourseSwitcherPanel
               headingId="course-switcher-title"
               currentCourse={currentCourse}
@@ -270,25 +377,9 @@ export default function AppShell({ children, activeTopic, activeCourseId }: AppS
               isPro={isPro}
               onClose={coursesDrawer.closeDrawer}
             />
-          </AppDrawer>
-          <AppDrawer id="account-menu-drawer" open={accountDrawer.open} onClose={accountDrawer.closeDrawer} labelledBy="account-drawer-title" size="compact" mobilePlacement="bottom" className="account-app-drawer">
-            <AccountPanel
-              headingId="account-drawer-title"
-              firstName={firstName}
-              photoURL={user.photoURL}
-              isPro={isPro}
-              isOwner={isOwner}
-              outlineQuota={outlineQuota}
-              theme={theme}
-              onClose={accountDrawer.closeDrawer}
-              onOpenCourses={coursesDrawer.openDrawer}
-              onNavigate={navigate}
-              onToggleTheme={toggle}
-              onSignOut={() => { accountDrawer.closeDrawer(); void signOut(); }}
-            />
-          </AppDrawer>
-        </>
-      )}
+      </AppDrawer>
+
+      {commandOpen && <CommandPalette open items={commandItems} theme={theme} onClose={closeCommand} onSelect={selectCommand} onToggleTheme={toggle} />}
 
       <main className="app-main" id="main-content" tabIndex={-1}>
         {account?.accountStatus === "suspended" && (
@@ -314,41 +405,6 @@ export default function AppShell({ children, activeTopic, activeCourseId }: AppS
   );
 }
 
-function HeaderPopover({ id, open, onClose, labelledBy, triggerRef, className, children }: {
-  id: string;
-  open: boolean;
-  onClose: () => void;
-  labelledBy: string;
-  triggerRef: RefObject<HTMLButtonElement | null>;
-  className: string;
-  children: React.ReactNode;
-}) {
-  const popoverRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (!open) return;
-    const closeFromOutside = (event: PointerEvent) => {
-      const target = event.target as Node;
-      if (!popoverRef.current?.contains(target) && !triggerRef.current?.contains(target)) onClose();
-    };
-    const closeFromKeyboard = (event: KeyboardEvent) => {
-      if (event.key !== "Escape") return;
-      event.preventDefault();
-      onClose();
-      triggerRef.current?.focus();
-    };
-    document.addEventListener("pointerdown", closeFromOutside, true);
-    document.addEventListener("keydown", closeFromKeyboard);
-    return () => {
-      document.removeEventListener("pointerdown", closeFromOutside, true);
-      document.removeEventListener("keydown", closeFromKeyboard);
-    };
-  }, [onClose, open, triggerRef]);
-
-  if (!open) return null;
-  return <div ref={popoverRef} id={id} className={`learning-header-popover ${className}`} role="dialog" aria-labelledby={labelledBy}>{children}</div>;
-}
-
 function CourseSwitcherPanel({ headingId, currentCourse, visibleCourses, totalCourses, coursesLoading, courseQuery, setCourseQuery, isPro, onClose }: {
   headingId: string;
   currentCourse?: Course;
@@ -360,6 +416,12 @@ function CourseSwitcherPanel({ headingId, currentCourse, visibleCourses, totalCo
   isPro: boolean;
   onClose: () => void;
 }) {
+  const searchInputRef = useRef<HTMLInputElement>(null);
+  const clearSearch = () => {
+    setCourseQuery("");
+    requestAnimationFrame(() => searchInputRef.current?.focus());
+  };
+
   return (
     <section className="course-switcher-drawer">
       <header className="app-drawer-header">
@@ -367,10 +429,11 @@ function CourseSwitcherPanel({ headingId, currentCourse, visibleCourses, totalCo
         <button className="icon-button" type="button" onClick={onClose} aria-label="Close course menu"><X size={18} /></button>
       </header>
       <div className="course-switcher-toolbar">
-        <label className="course-switcher-search"><Search size={17} /><span className="sr-only">Search my courses</span><input value={courseQuery} onChange={(event) => setCourseQuery(event.target.value)} placeholder="Search your courses" /></label>
+        <label className="course-switcher-search"><Search size={17} /><span className="sr-only">Search my courses</span><input ref={searchInputRef} type="search" value={courseQuery} onChange={(event) => setCourseQuery(event.target.value)} placeholder="Search titles, lessons, or skills" autoComplete="off" /></label>
         {isPro && <Link className="button button-primary button-small" href="/create" onClick={onClose}><Plus size={15} /> Create</Link>}
       </div>
       <div className="app-drawer-body course-switcher-body">
+        <p className="sr-only" role="status">{visibleCourses.length} {visibleCourses.length === 1 ? "course" : "courses"} found</p>
         {currentCourse && visibleCourses.includes(currentCourse) && (
           <section className="course-switcher-group" aria-label="Current course">
             <div className="drawer-section-heading"><span>Current course</span><small>In progress</small></div>
@@ -382,53 +445,13 @@ function CourseSwitcherPanel({ headingId, currentCourse, visibleCourses, totalCo
           <div className="course-switcher-list">
             {coursesLoading && totalCourses === 0 && Array.from({ length: 4 }, (_, index) => <span className="course-switcher-skeleton" key={index} aria-hidden="true"><i /><b /></span>)}
             {visibleCourses.filter((course) => course !== currentCourse).map((course) => <CourseSwitcherLink key={course.id ?? course.courseId ?? course.topic} course={course} onNavigate={onClose} />)}
-            {!coursesLoading && isPro && totalCourses > 0 && visibleCourses.length === 0 && <div className="course-switcher-empty"><Search size={20} /><strong>No matching courses</strong><p>Try a shorter title or clear your search.</p><button className="button button-quiet button-small" type="button" onClick={() => setCourseQuery("")}>Clear search</button></div>}
+            {!coursesLoading && isPro && totalCourses > 0 && visibleCourses.length === 0 && <div className="course-switcher-empty"><Search size={20} /><strong>No matching courses</strong><p>Try a shorter title, lesson, or skill.</p><button className="button button-quiet button-small" type="button" onClick={clearSearch}>Clear search</button></div>}
             {!coursesLoading && isPro && totalCourses === 0 && <div className="course-switcher-empty"><BookOpen size={20} /><strong>Your course shelf is ready</strong><p>Create a focused course and it will appear here.</p><Link className="button button-primary button-small" href="/create" onClick={onClose}>Create a course</Link></div>}
             {!isPro && <div className="course-switcher-empty"><Sparkles size={20} /><strong>Create courses around your goals</strong><p>Erudoza Pro lets you build private, adaptive learning paths.</p><Link className="button button-primary button-small" href="/pricing" onClick={onClose}>Explore Pro</Link></div>}
           </div>
         </section>
       </div>
       <footer className="app-drawer-footer course-switcher-footer"><Link className="button button-secondary" href="/library" onClick={onClose}>Explore the library <ArrowRight size={15} /></Link></footer>
-    </section>
-  );
-}
-
-function AccountPanel({ headingId, firstName, photoURL, isPro, isOwner, outlineQuota, theme, onClose, onOpenCourses, onNavigate, onToggleTheme, onSignOut }: {
-  headingId: string;
-  firstName: string;
-  photoURL: string | null;
-  isPro: boolean;
-  isOwner: boolean;
-  outlineQuota: { remaining: number | null } | undefined;
-  theme: "light" | "dark";
-  onClose: () => void;
-  onOpenCourses: () => void;
-  onNavigate: (href: string) => void;
-  onToggleTheme: () => void;
-  onSignOut: () => void;
-}) {
-  const goTo = (href: string) => { onClose(); onNavigate(href); };
-  return (
-    <section className="account-drawer">
-      <header className="app-drawer-header">
-        <div className="account-drawer-identity">
-          {photoURL ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={photoURL} alt="" referrerPolicy="no-referrer" />
-          ) : <span className="avatar-fallback"><UserRound size={18} /></span>}
-          <span><small>Learning account</small><h2 id={headingId}>{firstName}</h2><p>{isPro ? "Erudoza Pro" : "Free learning account"}</p></span>
-        </div>
-        <button className="icon-button" type="button" onClick={onClose} aria-label="Close account menu"><X size={18} /></button>
-      </header>
-      {isPro && outlineQuota && <button className="account-plan-summary" type="button" onClick={() => goTo("/pricing")}><span><Crown size={16} />Erudoza Pro</span><strong>{outlineQuota.remaining == null ? "Owner course access" : `${outlineQuota.remaining} course credit${outlineQuota.remaining === 1 ? "" : "s"} remaining`}</strong><ChevronRight size={17} /></button>}
-      <div className="account-drawer-actions">
-        <button type="button" onClick={onOpenCourses}><BookOpen size={18} /><span><strong>My courses</strong><small>Open private and published courses</small></span><ChevronRight size={17} /></button>
-        <button type="button" onClick={() => goTo("/profile")}><UserRound size={18} /><span><strong>View profile</strong><small>Badges, preferences, and privacy</small></span><ChevronRight size={17} /></button>
-        {isOwner && <button type="button" onClick={() => goTo("/admin")}><ShieldCheck size={18} /><span><strong>Control room</strong><small>Usage, safety, and accounts</small></span><ChevronRight size={17} /></button>}
-        <button type="button" onClick={() => goTo("/support")}><LifeBuoy size={18} /><span><strong>Support</strong><small>Help, privacy, and account questions</small></span><ChevronRight size={17} /></button>
-        <button type="button" onClick={onToggleTheme}>{theme === "dark" ? <Sun size={18} /> : <Moon size={18} />}<span><strong>{theme === "dark" ? "Light mode" : "Dark mode"}</strong><small>Change the interface theme</small></span></button>
-        <button type="button" onClick={onSignOut}><LogOut size={18} /><span><strong>Sign out</strong><small>End this session</small></span></button>
-      </div>
     </section>
   );
 }

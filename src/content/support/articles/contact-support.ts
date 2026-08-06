@@ -5,10 +5,14 @@ export default defineSupportArticle({
   title: "Contact Erudoza support",
   summary: "Send the context needed to investigate an account, course, privacy, or technical problem.",
   category: "plans",
-  keywords: ["support", "contact", "email", "help", "problem", "screenshot", "response"],
+  keywords: ["support", "contact", "email", "help", "search", "guide", "problem", "screenshot", "response"],
   reviewedOn: "2026-08-05",
-  sources: ["src/app/support/page.tsx", "src/lib/legal.ts", "src/components/LessonIntegrityPanel.tsx", "src/lib/content-report-policy.ts"],
+  sources: ["src/app/support/page.tsx", "src/components/support/SupportSearch.tsx", "src/lib/search.ts", "src/lib/legal.ts", "src/components/LessonIntegrityPanel.tsx", "src/lib/content-report-policy.ts"],
   body: `
+## Search the help guides
+
+Open [Support](/support) and search for the task or problem first. Search checks guide titles, summaries, categories, and keywords; multiple words can appear in any order, and matching ignores capitalization, punctuation, and accents. Choose the clear control or press **Escape** to reset the search while keeping focus in the search field.
+
 ## Include the useful details
 
 Email [support@erudoza.com](mailto:support@erudoza.com?subject=Erudoza%20support%20request) and include:

@@ -69,6 +69,25 @@ async function sourceFiles(directory: string): Promise<string[]> {
   return files.flat();
 }
 
+function colorChannels(color: string): [number, number, number] {
+  const channels = color.match(/[\d.]+/g)?.slice(0, 3).map(Number);
+  if (!channels || channels.length !== 3) throw new Error(`Unsupported computed color: ${color}`);
+  return channels as [number, number, number];
+}
+
+function contrastRatio(foreground: string, background: string): number {
+  const luminance = (color: string) => {
+    const channels = colorChannels(color).map((channel) => {
+      const normalized = channel / 255;
+      return normalized <= 0.04045 ? normalized / 12.92 : ((normalized + 0.055) / 1.055) ** 2.4;
+    });
+    return 0.2126 * channels[0] + 0.7152 * channels[1] + 0.0722 * channels[2];
+  };
+  const light = Math.max(luminance(foreground), luminance(background));
+  const dark = Math.min(luminance(foreground), luminance(background));
+  return (light + 0.05) / (dark + 0.05);
+}
+
 test("keeps checkout closed until the independent billing lock is enabled", () => {
   const stripeObjects = {
     BILLING_PROVIDER: "stripe",
@@ -720,6 +739,48 @@ test("preserves the selected theme across navigation and reloads", async ({ page
   await expect(page).toHaveURL(/\/library$/);
   await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
   await expect.poll(() => page.evaluate(() => localStorage.getItem("erudoza-theme"))).toBe("dark");
+});
+
+test("keeps primary navigation actions readable before and after hover", async ({ page }) => {
+  for (const viewport of [{ width: 390, height: 844 }, { width: 1440, height: 900 }]) {
+    await page.setViewportSize(viewport);
+
+    for (const theme of ["light", "dark"] as const) {
+      await page.goto("/standard");
+      await expect(async () => {
+        if (await page.locator("html").getAttribute("data-theme") !== theme) {
+          await page.locator(".marketing-nav-shell").getByRole("button", { name: `Use ${theme} mode` }).click();
+        }
+        await expect(page.locator("html")).toHaveAttribute("data-theme", theme, { timeout: 1_000 });
+      }).toPass({ timeout: 15_000 });
+      await page.mouse.move(0, viewport.height - 1);
+      await page.waitForTimeout(220);
+
+      if (viewport.width <= 820) {
+        await page.getByRole("button", { name: "Open navigation menu" }).click();
+      }
+
+      const action = viewport.width <= 820
+        ? page.locator(".marketing-mobile-menu").getByRole("link", { name: "Start learning" })
+        : page.locator(".marketing-nav-shell").getByRole("link", { name: "Start learning" });
+      await expect(action).toBeVisible();
+
+      for (const state of ["rest", "hover"] as const) {
+        if (state === "hover") {
+          await action.hover();
+          await page.waitForTimeout(220);
+        }
+        const colors = await action.evaluate((element) => {
+          const styles = getComputedStyle(element);
+          return { foreground: styles.color, background: styles.backgroundColor };
+        });
+        expect(
+          contrastRatio(colors.foreground, colors.background),
+          `${theme} ${viewport.width}px ${state}: ${colors.foreground} on ${colors.background}`,
+        ).toBeGreaterThanOrEqual(4.5);
+      }
+    }
+  }
 });
 
 test("lets guests browse outlines while clearly gating lessons behind an account", async ({ page }) => {
@@ -1702,9 +1763,9 @@ test("clears course-scoped warnings and controls when navigating between owned c
   await page.getByRole("button", { name: "Review and publish" }).click();
   await expect(page.locator(".course-owner-controls .form-error")).toContainText("Complete every lesson before publishing.");
 
-  await page.getByRole("button", { name: "Courses" }).click();
-  const courseSwitcher = page.getByRole("dialog", { name: "My courses" });
-  await courseSwitcher.getByRole("link", { name: /Different ready course.*Private/ }).click();
+  await page.getByRole("button", { name: /Search or jump anywhere/ }).click();
+  const commandCenter = page.getByRole("dialog", { name: "Erudoza Command Center" });
+  await commandCenter.getByRole("option", { name: /Different ready course/ }).click();
   await expect(page).toHaveURL(/Different%20ready%20course\?id=ready-course/);
   await expect(page.getByRole("heading", { name: "Different ready course" })).toBeVisible();
   await expect(page.getByText("Complete every lesson before publishing.", { exact: false })).toHaveCount(0);

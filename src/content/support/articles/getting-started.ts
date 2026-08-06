@@ -11,6 +11,8 @@ export default defineSupportArticle({
     "src/app/library/page.tsx",
     "src/components/CourseLibrary.tsx",
     "src/components/AppShell.tsx",
+    "src/components/CommandPalette.tsx",
+    "src/app/page.tsx",
     "src/app/course/[topic]/lesson/[lessonId]/page.tsx",
   ],
   body: `
@@ -31,9 +33,9 @@ A signed-in learner can read lessons, complete practice, and keep account-backed
 
 ## Know where to go next
 
-The main navigation includes **Today**, **Explore**, **Review**, and **Progress**. On desktop these destinations appear in the Learning Header. **My courses**, **Create**, and your account controls are grouped in the same header. On a phone, use the bottom navigation and the account control in the top bar.
+The **Today** page opens with a learning brief, your current mission, and the course you can continue. Use **Customize** to choose which supporting cards and learning measures appear.
 
-Your account menu contains access to your profile and privacy controls, support, theme control, and sign out.
+On desktop, use **Search or jump anywhere** in the Learning Header to open the Command Center. It includes **Today**, **Explore**, **Review**, **Progress**, courses, lessons, and account actions. On a phone, the main destinations remain in the bottom navigation and the account control in the top bar opens the same Command Center.
 `,
   related: ["find-a-course", "complete-a-lesson", "sign-in-help"],
   featured: true,

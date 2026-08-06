@@ -178,7 +178,7 @@ export default function EvidenceReportPage() {
   }
 
   return (
-    <AppShell activeTopic={course.topic} activeCourseId={courseId}>
+    <AppShell activeTopic={course.topic} activeCourseId={courseId} activeCourse={course}>
       <div className="evidence-page">
         <header className="evidence-header">
           <button className="text-button" onClick={() => router.push(`/course/${encodeURIComponent(course.topic)}?id=${courseId}`)}><ArrowLeft size={15} /> Course overview</button>

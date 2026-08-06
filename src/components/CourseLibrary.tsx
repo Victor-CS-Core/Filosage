@@ -18,6 +18,7 @@ import { useAuth } from "@/components/AuthProvider";
 import type { Course } from "@/lib/course-types";
 import { deferClientTask } from "@/lib/browser-compat";
 import CourseBanner from "@/components/CourseBanner";
+import { matchesSearchQuery } from "@/lib/search";
 
 export default function CourseLibrary({ featured = false }: { featured?: boolean }) {
   const [courses, setCourses] = useState<Course[]>([]);
@@ -67,12 +68,14 @@ export default function CourseLibrary({ featured = false }: { featured?: boolean
 
   useEffect(() => {
     deferClientTask(() => setQuery(new URLSearchParams(window.location.search).get("q") ?? ""));
+  }, []);
+
+  useEffect(() => {
     void Promise.resolve().then(load);
   }, [load]);
 
   const levels = useMemo(() => ["All levels", ...Array.from(new Set(courses.map((course) => course.level).filter(Boolean)))], [courses]);
   const visible = useMemo(() => {
-    const normalized = query.trim().toLowerCase();
     const filtered = courses.filter((course) => {
       const matchesLevel = level === "All levels" || course.level === level;
       const lessons = course.modules.reduce((total, courseModule) => total + courseModule.lessons.length, 0);
@@ -81,8 +84,25 @@ export default function CourseLibrary({ featured = false }: { featured?: boolean
         || (commitment === "Up to 3 hours" && hours <= 3)
         || (commitment === "4 to 6 hours" && hours > 3 && hours <= 6)
         || (commitment === "More than 6 hours" && hours > 6);
-      const matchesQuery = !normalized || [course.topic, course.mission, course.category, course.outcome]
-        .filter(Boolean).some((value) => value!.toLowerCase().includes(normalized));
+      const matchesQuery = matchesSearchQuery(query, [
+        course.topic,
+        course.mission,
+        course.category,
+        course.outcome,
+        course.level,
+        course.isPublic ? "published public" : "private draft",
+        ...(course.prerequisites ?? []),
+        course.artifact?.title,
+        course.artifact?.description,
+        course.capstone?.title,
+        course.capstone?.brief,
+        ...course.modules.flatMap((courseModule) => [
+          courseModule.title,
+          courseModule.description,
+          courseModule.objective,
+          ...courseModule.lessons.flatMap((lesson) => [lesson.title, lesson.concept, lesson.objective]),
+        ]),
+      ]);
       return matchesLevel && matchesCommitment && matchesQuery;
     });
     return featured ? filtered.slice(0, 4) : filtered;
@@ -103,7 +123,7 @@ export default function CourseLibrary({ featured = false }: { featured?: boolean
           <div className="library-controls-desktop">
             <label className="search-field library-search">
               <Search size={18} /><span className="sr-only">Search published courses</span>
-              <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search topics, skills, or courses" />
+              <input type="search" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search topics, lessons, skills, or courses" autoComplete="off" />
             </label>
             <label className="filter-field">
               <Filter size={16} /><span className="sr-only">Filter by level</span>
@@ -135,7 +155,7 @@ export default function CourseLibrary({ featured = false }: { featured?: boolean
             <div className="app-drawer-body library-filter-fields">
               <label>
                 <span>Search published courses</span>
-                <span className="search-field"><Search size={18} /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Topics, skills, or courses" /></span>
+                <span className="search-field"><Search size={18} /><input type="search" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Topics, lessons, skills, or courses" autoComplete="off" /></span>
               </label>
               <label>
                 <span>Time commitment</span>
@@ -153,6 +173,8 @@ export default function CourseLibrary({ featured = false }: { featured?: boolean
           </section>
         </AppDrawer>
       )}
+
+      {!featured && !loading && !error && <p className="sr-only" role="status">{visible.length} published {visible.length === 1 ? "course" : "courses"} found</p>}
 
       {loading ? (
         <div className="library-card-grid" aria-label="Loading published courses">

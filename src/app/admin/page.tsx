@@ -24,10 +24,12 @@ import {
   Target,
   TriangleAlert,
   Users,
+  X,
 } from "lucide-react";
 import AppShell from "@/components/AppShell";
 import { useAuth } from "@/components/AuthProvider";
 import type { AdminOverview, AdminUserSummary } from "@/lib/admin-types";
+import { matchesSearchQuery } from "@/lib/search";
 
 type AdminTab = "overview" | "research" | "launch" | "users" | "ai" | "safety";
 
@@ -148,15 +150,12 @@ export default function AdminPage() {
   }, [authLoading, load]);
 
   const filteredUsers = useMemo(() => {
-    const normalized = query.trim().toLowerCase();
     if (!data) return [];
-    return data.users.filter((candidate) => !normalized
-      || candidate.displayName.toLowerCase().includes(normalized)
-      || candidate.email?.toLowerCase().includes(normalized));
+    return data.users.filter((candidate) => matchesSearchQuery(query, [candidate.displayName, candidate.email, candidate.plan, candidate.accountStatus]));
   }, [data, query]);
-  const selectedUser = data?.users.find((candidate) => candidate.uid === selectedUid) ?? null;
-  const selectedRequests = data?.recentGenerations.filter((request) => request.uid === selectedUid).slice(0, 8) ?? [];
-  const selectedSafety = data?.safetyEvents.filter((event) => event.uid === selectedUid).slice(0, 6) ?? [];
+  const selectedUser = filteredUsers.find((candidate) => candidate.uid === selectedUid) ?? filteredUsers[0] ?? null;
+  const selectedRequests = data?.recentGenerations.filter((request) => request.uid === selectedUser?.uid).slice(0, 8) ?? [];
+  const selectedSafety = data?.safetyEvents.filter((event) => event.uid === selectedUser?.uid).slice(0, 6) ?? [];
 
   const mutateUser = async (
     target: AdminUserSummary,
@@ -532,12 +531,13 @@ export default function AdminPage() {
             <section className="admin-panel admin-user-directory">
               <header>
                 <div><p className="overline">Accounts</p><h2>User directory</h2></div>
-                <label className="admin-user-search"><Search size={16} /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search name or email" aria-label="Search users" /></label>
+                <div className="admin-user-search"><Search size={16} /><label className="sr-only" htmlFor="admin-user-search">Search users</label><input id="admin-user-search" type="search" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search name, email, plan, or status" autoComplete="off" />{query && <button type="button" onClick={() => setQuery("")} aria-label="Clear user search"><X size={15} /></button>}</div>
               </header>
+              <p className="sr-only" role="status">{filteredUsers.length} {filteredUsers.length === 1 ? "user" : "users"} found</p>
               <div className="admin-user-table" role="group" aria-label="Erudoza users">
                 <div className="admin-user-table-head"><span>User</span><span>Access</span><span>Last seen</span><span>Tokens</span><span>Cost</span></div>
                 {filteredUsers.map((candidate) => (
-                  <button key={candidate.uid} className={selectedUid === candidate.uid ? "is-selected" : ""} onClick={() => { setSelectedUid(candidate.uid); setActionMessage(null); }}>
+                  <button key={candidate.uid} className={selectedUser?.uid === candidate.uid ? "is-selected" : ""} onClick={() => { setSelectedUid(candidate.uid); setActionMessage(null); }}>
                     <span className="admin-user-identity">{candidate.photoURL ? (
                       // eslint-disable-next-line @next/next/no-img-element
                       <img src={candidate.photoURL} alt="" referrerPolicy="no-referrer" />
@@ -548,7 +548,7 @@ export default function AdminPage() {
                     <span>{currency(candidate.costUsd)}</span>
                   </button>
                 ))}
-                {!filteredUsers.length && <p className="admin-empty-row">No users match this search.</p>}
+                {!filteredUsers.length && <div className="admin-empty-row" role="status"><strong>No matching users</strong><span>Try a name, email, plan, or account status.</span><button className="button button-quiet button-small" type="button" onClick={() => setQuery("")}>Clear search</button></div>}
               </div>
             </section>
 

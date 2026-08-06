@@ -330,9 +330,9 @@
   .marketing-mobile-menu { position: absolute; left: 0; right: 0; top: 100%; border-bottom: var(--border-subtle); background: var(--surface); padding: var(--space-md) var(--marketing-gutter) var(--space-lg); }
   .marketing-mobile-menu.is-open { display: block; }
   .marketing-mobile-menu nav { display: grid; gap: 4px; }
-  .marketing-mobile-menu nav > :is(a, button) { min-height: 46px; display: flex; align-items: center; border: 0; border-radius: var(--radius-sm); background: transparent; padding: 10px 12px; color: var(--ink-secondary); font: inherit; font-weight: 650; text-align: left; cursor: pointer; }
-  .marketing-mobile-menu nav > :is(a, button):hover { background: var(--surface-subtle); color: var(--ink); }
-  .marketing-mobile-menu nav > .button-primary { justify-content: center; margin-top: var(--space-xs); color: var(--accent-contrast); }
+  .marketing-mobile-menu nav > :is(a, button):not(.button) { min-height: 46px; display: flex; align-items: center; border: 0; border-radius: var(--radius-sm); background: transparent; padding: 10px 12px; color: var(--ink-secondary); font: inherit; font-weight: 650; text-align: left; cursor: pointer; }
+  .marketing-mobile-menu nav > :is(a, button):not(.button):hover { background: var(--surface-subtle); color: var(--ink); }
+  .marketing-mobile-menu nav > .button-primary { min-height: 46px; justify-content: center; margin-top: var(--space-xs); }
   .marketing-hero { grid-template-columns: 1fr; min-height: auto; }
   .marketing-hero-copy { max-width: 780px; }
   .marketing-hero h1 { max-width: 13ch; }
