@@ -13,7 +13,7 @@ export const commandCenterTicketCategories = [
 ] as const;
 
 export type CommandCenterTicketCategory = typeof commandCenterTicketCategories[number];
-export type CommandCenterTicketSource = "manual" | "content_report";
+export type CommandCenterTicketSource = "manual" | "content_report" | "user_support";
 export type CommandCenterRisk = "low" | "medium" | "high" | "critical";
 export type CommandCenterTicketStatus =
   | "new"

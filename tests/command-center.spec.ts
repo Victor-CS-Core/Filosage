@@ -156,6 +156,47 @@ test("protects command-center data at the API boundary", async ({ request }) => 
     headers: { "Idempotency-Key": "unauthorized-draft-test" },
   });
   expect(draft.status()).toBe(401);
+
+  const supportTicket = await request.post("/api/support/tickets", {
+    data: {
+      category: "support",
+      subject: "Unauthorized support request",
+      message: "This request must not enter the private owner queue.",
+    },
+  });
+  expect(supportTicket.status()).toBe(401);
+
+  const ownerDocumentation = await request.get("/api/support/owner-documentation");
+  expect(ownerDocumentation.status()).toBe(401);
+});
+
+test("routes a signed-in support request into the private owner queue", async ({ request }) => {
+  await acceptOwnerTerms(request);
+  const submitted = await request.post("/api/support/tickets", {
+    headers: ownerHeaders,
+    data: {
+      category: "privacy",
+      subject: "Question about exported learning records",
+      message: "The requester wants to understand which learning records appear in an account export.",
+    },
+  });
+  expect(submitted.status()).toBe(201);
+  const submission = await submitted.json() as { ticketNumber: string };
+  expect(submission.ticketNumber).toMatch(/^TKT-[A-Z0-9]{7}$/);
+
+  const snapshotResponse = await request.get("/api/admin/command-center", { headers: ownerHeaders });
+  const snapshot = await snapshotResponse.json() as { tickets: Array<Record<string, unknown>> };
+  expect(snapshot.tickets.find((ticket) => ticket.ticketNumber === submission.ticketNumber)).toMatchObject({
+    source: "user_support",
+    category: "privacy",
+    riskLevel: "medium",
+    requiresHumanApproval: true,
+    relatedUserId: "local-owner",
+  });
+
+  const handbook = await request.get("/api/support/owner-documentation", { headers: ownerHeaders });
+  expect(handbook.ok()).toBe(true);
+  await expect(handbook.json()).resolves.toMatchObject({ title: "Erudoza owner handbook" });
 });
 
 test("records a versioned ticket and approval without executing an external action", async ({ request }) => {
@@ -242,9 +283,13 @@ test("renders the owner command center with visible draft-only safety controls",
   await expect(page.getByRole("heading", { name: "Agent command center" })).toBeVisible();
   await expect(page.getByText("Simulation mode")).toBeVisible();
   await expect(page.getByText("Locked on")).toBeVisible();
-  await expect(page.getByText(/^\d of 8 enabled$/)).toBeVisible();
+  await expect(page.getByText(/^\d of 5 available enabled$/)).toBeVisible();
   await expect(page.getByRole("button", { name: /Inbox/ })).toBeVisible();
   await expect(page.getByRole("button", { name: /Approvals/ })).toBeVisible();
+  await page.getByRole("button", { name: "New ticket" }).click();
+  await expect(page.getByRole("heading", { name: "Create a manual ticket" })).toBeVisible();
+  await expect(page.getByText("Evidence quality")).toBeVisible();
+  await expect(page.getByText(/Owner-only/)).toBeVisible();
 });
 
 test("generates and reviews a version-bound draft without sending or executing it", async ({ request }) => {

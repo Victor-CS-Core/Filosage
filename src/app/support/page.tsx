@@ -12,7 +12,9 @@ import {
 } from "lucide-react";
 import AppShell from "@/components/AppShell";
 import SupportEmailLink from "@/components/support/SupportEmailLink";
+import OwnerDocumentationEntry from "@/components/support/OwnerDocumentationEntry";
 import SupportSearch from "@/components/support/SupportSearch";
+import SupportTicketPanel from "@/components/support/SupportTicketPanel";
 import { supportArticles } from "@/content/support/articles";
 import { getSupportCategory, supportCategories } from "@/content/support/categories";
 import type { SupportCategoryId } from "@/content/support/types";
@@ -27,6 +29,23 @@ const categoryIcons: Record<SupportCategoryId, typeof GraduationCap> = {
   trust: ShieldCheck,
   plans: CircleHelp,
 };
+
+const supportCollections: Array<{
+  title: string;
+  description: string;
+  categories: SupportCategoryId[];
+}> = [
+  {
+    title: "Learn with Erudoza",
+    description: "Begin a course, work through lessons, practice, and understand your evidence.",
+    categories: ["start", "courses", "practice", "progress"],
+  },
+  {
+    title: "Account, trust, and support",
+    description: "Manage access, privacy, safety, accessibility, plans, and direct support.",
+    categories: ["account", "trust", "plans"],
+  },
+];
 
 export default function SupportPage() {
   const searchItems = supportArticles.map((article) => ({
@@ -48,6 +67,10 @@ export default function SupportPage() {
           <SupportSearch articles={searchItems} />
         </header>
 
+        <OwnerDocumentationEntry />
+
+        <SupportTicketPanel />
+
         <section className="support-featured" aria-labelledby="support-featured-title">
           <div className="support-section-heading"><h2 id="support-featured-title">Common tasks</h2><p>Start with the action closest to what you are trying to do.</p></div>
           <ul>
@@ -58,17 +81,26 @@ export default function SupportPage() {
         </section>
 
         <section className="support-category-list" aria-labelledby="support-categories-title">
-          <div className="support-section-heading"><h2 id="support-categories-title">Browse all help</h2><p>Guides are organized around the learner journey rather than internal product terminology.</p></div>
-          {supportCategories.map((category) => {
-            const Icon = categoryIcons[category.id];
-            const articles = supportArticles.filter((article) => article.category === category.id);
-            return (
-              <section className="support-category" aria-labelledby={`support-category-${category.id}`} key={category.id}>
-                <header><span><Icon size={19} aria-hidden="true" /></span><div><h3 id={`support-category-${category.id}`}>{category.label}</h3><p>{category.description}</p></div></header>
-                <ul>{articles.map((article) => <li key={article.slug}><Link href={`/support/articles/${article.slug}`}>{article.title}<span aria-hidden="true">→</span></Link></li>)}</ul>
+          <div className="support-section-heading"><h2 id="support-categories-title">Browse the documentation</h2><p>Two clear paths cover the learning journey and account support without mixing unrelated tasks.</p></div>
+          <div className="support-collections">
+            {supportCollections.map((collection) => (
+              <section className="support-collection" key={collection.title}>
+                <header><h3>{collection.title}</h3><p>{collection.description}</p></header>
+                {collection.categories.map((categoryId) => {
+                  const category = supportCategories.find((candidate) => candidate.id === categoryId);
+                  if (!category) return null;
+                  const Icon = categoryIcons[category.id];
+                  const articles = supportArticles.filter((article) => article.category === category.id);
+                  return (
+                    <section className="support-category" aria-labelledby={`support-category-${category.id}`} key={category.id}>
+                      <header><span><Icon size={18} aria-hidden="true" /></span><div><h4 id={`support-category-${category.id}`}>{category.label}</h4><p>{category.description}</p></div></header>
+                      <ul>{articles.map((article) => <li key={article.slug}><Link href={`/support/articles/${article.slug}`}>{article.title}<span aria-hidden="true">→</span></Link></li>)}</ul>
+                    </section>
+                  );
+                })}
               </section>
-            );
-          })}
+            ))}
+          </div>
         </section>
 
         <section className="support-contact" aria-labelledby="support-contact-title">

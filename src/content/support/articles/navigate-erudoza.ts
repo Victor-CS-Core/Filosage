@@ -5,9 +5,9 @@ export default defineSupportArticle({
   title: "Find your way around Erudoza",
   summary: "Use the Command Center, course switcher, and mobile navigation to move through Erudoza.",
   category: "start",
-  keywords: ["navigation", "command center", "search", "shortcut", "today", "explore", "review", "progress", "mobile", "menu"],
-  reviewedOn: "2026-08-05",
-  sources: ["src/components/AppShell.tsx", "src/components/CommandPalette.tsx", "src/components/AppDrawer.tsx", "src/lib/search.ts"],
+  keywords: ["navigation", "command center", "search", "shortcut", "today", "explore", "review", "progress", "mobile", "menu", "owner handbook", "documentation"],
+  reviewedOn: "2026-08-06",
+  sources: ["src/components/AppShell.tsx", "src/components/CommandPalette.tsx", "src/components/AppDrawer.tsx", "src/app/support/owner/page.tsx", "src/content/support/owner-documentation.ts", "src/lib/search.ts"],
   body: `
 ## Main destinations
 
@@ -37,6 +37,10 @@ If course creation is available to your account, **Create a course** appears in 
 ## Open account controls
 
 Open the account control bearing your name or profile image to open the Command Center. From there you can reach your profile and its privacy controls, support, appearance switch, and sign out. Available options can vary by account access.
+
+## Owner documentation
+
+The verified owner sees an **Erudoza owner handbook** entry on [Support](/support). It covers product access, the learner journey, course authoring and publishing, AI quality controls, support operations, privacy, billing safeguards, and release recovery. The handbook route and its content API both require owner authorization.
 `,
   related: ["getting-started", "manage-profile", "accessibility"],
 });

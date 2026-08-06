@@ -86,8 +86,13 @@
     },
     {
       "feature": "Support contact channel",
-      "sources": ["src/app/support/page.tsx", "src/components/support/SupportSearch.tsx", "src/lib/search.ts", "src/lib/legal.ts"],
+      "sources": ["src/app/support/page.tsx", "src/components/support/SupportSearch.tsx", "src/components/support/SupportTicketPanel.tsx", "src/app/api/support/tickets/route.ts", "src/lib/command-center-server.ts", "src/lib/search.ts", "src/lib/legal.ts"],
       "articles": ["contact-support"]
+    },
+    {
+      "feature": "Owner product and operations handbook",
+      "sources": ["src/app/support/owner/page.tsx", "src/app/api/support/owner-documentation/route.ts", "src/content/support/owner-documentation.ts", "PRODUCT.md", "docs/PRODUCTION_OPERATIONS.md"],
+      "articles": ["navigate-erudoza"]
     }
   ]
 }

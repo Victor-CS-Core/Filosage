@@ -2,6 +2,7 @@ import { spawnSync } from "node:child_process";
 import { resolve } from "node:path";
 import { expect, test } from "@playwright/test";
 import { supportArticles } from "../src/content/support/articles";
+import { PRIVACY_VERSION, TERMS_VERSION } from "../src/lib/legal";
 
 const root = process.cwd();
 const wikiCheck = resolve(root, "scripts/check-support-wiki.mjs");
@@ -14,6 +15,20 @@ function run(args: string[], body = "") {
     env: { ...process.env, SUPPORT_WIKI_PR_BODY: body },
     encoding: "utf8",
   });
+}
+
+async function prepareLocalOwner(page: import("@playwright/test").Page) {
+  const acceptance = await page.request.post("/api/legal/acceptance", {
+    headers: { Authorization: "Bearer playwright-local-owner" },
+    data: {
+      termsVersion: TERMS_VERSION,
+      privacyVersion: PRIVACY_VERSION,
+      ageEligibilityConfirmed: true,
+      source: "signup",
+    },
+  });
+  expect(acceptance.ok()).toBe(true);
+  await page.addInitScript(() => localStorage.setItem("erudoza-local-session", "1"));
 }
 
 test("validates support articles and blocks undocumented mapped feature changes", ({ request }, testInfo) => {
@@ -67,6 +82,21 @@ test("searches public guides and renders source-checked article content", async 
   await expect(page.getByRole("heading", { level: 2, name: "Paid checkout is currently closed" })).toBeVisible();
   await expect(page.getByText(/Reviewed against the app on/)).toBeVisible();
   await expect(page.locator("body")).not.toContainText("src/app/");
+});
+
+test("shows the structured handbook only to the verified owner", async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== "chromium", "Owner handbook acceptance runs once in desktop Chromium.");
+  await page.goto("/support");
+  await expect(page.getByRole("heading", { name: "Erudoza owner handbook" })).toHaveCount(0);
+
+  await prepareLocalOwner(page);
+  await page.goto("/support");
+  await expect(page.getByRole("heading", { name: "Erudoza owner handbook" })).toBeVisible();
+  await page.getByRole("link", { name: /Open handbook/ }).click();
+  await expect(page).toHaveURL(/\/support\/owner$/);
+  await expect(page.getByRole("heading", { level: 1, name: "Erudoza owner handbook" })).toBeVisible();
+  await expect(page.getByRole("heading", { level: 2, name: "Support and Agent Command Center" })).toBeVisible();
+  await expect(page.getByText("Reviewed sources", { exact: true }).first()).toBeVisible();
 });
 
 test("keeps article navigation and prose within a phone viewport", async ({ page }, testInfo) => {

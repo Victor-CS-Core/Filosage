@@ -3,19 +3,27 @@ import { defineSupportArticle } from "../types";
 export default defineSupportArticle({
   slug: "contact-support",
   title: "Contact Erudoza support",
-  summary: "Send the context needed to investigate an account, course, privacy, or technical problem.",
+  summary: "Create a private support ticket or send the context needed to investigate an account, course, privacy, or technical problem.",
   category: "plans",
-  keywords: ["support", "contact", "email", "help", "search", "guide", "problem", "screenshot", "response"],
-  reviewedOn: "2026-08-05",
-  sources: ["src/app/support/page.tsx", "src/components/support/SupportSearch.tsx", "src/lib/search.ts", "src/lib/legal.ts", "src/components/LessonIntegrityPanel.tsx", "src/lib/content-report-policy.ts"],
+  keywords: ["support", "contact", "ticket", "reference", "email", "help", "search", "guide", "problem", "screenshot", "response"],
+  reviewedOn: "2026-08-06",
+  sources: ["src/app/support/page.tsx", "src/components/support/SupportTicketPanel.tsx", "src/app/api/support/tickets/route.ts", "src/components/support/SupportSearch.tsx", "src/lib/search.ts", "src/lib/legal.ts", "src/components/LessonIntegrityPanel.tsx", "src/lib/content-report-policy.ts"],
   body: `
 ## Search the help guides
 
 Open [Support](/support) and search for the task or problem first. Search checks guide titles, summaries, categories, and keywords; multiple words can appear in any order, and matching ignores capitalization, punctuation, and accents. Choose the clear control or press **Escape** to reset the search while keeping focus in the search field.
 
-## Include the useful details
+## Create a private ticket
 
-Email [support@erudoza.com](mailto:support@erudoza.com?subject=Erudoza%20support%20request) and include:
+Sign in on [Support](/support), choose **Create ticket**, and describe the problem. Select the closest request type, add a concise subject, and explain which page or course you were using, what you expected, and what happened instead.
+
+After submission, Erudoza shows a ticket reference such as **TKT-123ABCD**. The request enters the private owner review queue. Your description is treated as unverified until it is reviewed, and submitting it cannot trigger a refund, account change, deletion, or other external action.
+
+To protect the queue, each account can submit up to five requests per day.
+
+## Use email when you cannot sign in
+
+Email [support@erudoza.com](mailto:support@erudoza.com?subject=Erudoza%20support%20request) when sign-in or the ticket form is unavailable. Include:
 
 - the affected page, course, and lesson when applicable;
 - what you were trying to do;

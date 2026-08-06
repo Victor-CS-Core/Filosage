@@ -53,6 +53,8 @@ const draftAgentLabels: Record<CommandCenterDraftAgentType, string> = {
   founderBrief: "Founder brief",
 };
 
+const availableDraftAgentTypes = Object.keys(draftAgentLabels) as CommandCenterDraftAgentType[];
+
 function agentForTicket(ticket: CommandCenterTicket): Exclude<CommandCenterDraftAgentType, "founderBrief"> {
   if (["legal", "copyright", "privacy"].includes(ticket.category)) return "legal";
   if (ticket.category === "billing") return "billing";
@@ -385,6 +387,18 @@ export default function CommandCenterPage() {
     });
   };
 
+  const setAvailableAgents = async (enabled: boolean) => {
+    if (!data) return;
+    await updateControls({
+      systemEnabled: data.controls.systemEnabled,
+      killSwitchActive: data.controls.killSwitchActive,
+      agentFlags: availableDraftAgentTypes.reduce(
+        (flags, agentType) => ({ ...flags, [agentType]: enabled }),
+        { ...data.controls.agentFlags },
+      ),
+    });
+  };
+
   if (authLoading) {
     return <AppShell><div className="center-state"><LoaderCircle className="spin" /><h1>Verifying owner access</h1></div></AppShell>;
   }
@@ -394,7 +408,8 @@ export default function CommandCenterPage() {
 
   const controls = data?.controls;
   const pendingApprovals = data?.approvals.filter((approval) => approval.status === "pending").length ?? 0;
-  const enabledDraftAgents = controls ? Object.values(controls.agentFlags).filter(Boolean).length : 0;
+  const enabledDraftAgents = controls ? availableDraftAgentTypes.filter((agentType) => controls.agentFlags[agentType]).length : 0;
+  const allAvailableDraftAgentsEnabled = enabledDraftAgents === availableDraftAgentTypes.length;
 
   return (
     <AppShell>
@@ -415,7 +430,7 @@ export default function CommandCenterPage() {
           <section className="cc-status-strip" aria-label="Command-center safety status">
             <div className={!controls?.systemEnabled ? "is-warning" : ""}><ShieldCheck size={18} /><span><strong>Command center</strong><small>{controls?.systemEnabled ? "Enabled" : "Paused"}</small></span></div>
             <div><LockKeyhole size={18} /><span><strong>Simulation mode</strong><small>Locked on</small></span></div>
-            <div><UserRoundCheck size={18} /><span><strong>Draft agents</strong><small>{enabledDraftAgents} of 8 enabled</small></span></div>
+            <div><UserRoundCheck size={18} /><span><strong>Draft agents</strong><small>{enabledDraftAgents} of {availableDraftAgentTypes.length} available enabled</small></span></div>
             <div className={data.summary.overdueTickets ? "is-warning" : ""}><Clock3 size={18} /><span><strong>Overdue work</strong><small>{data.summary.overdueTickets} ticket{data.summary.overdueTickets === 1 ? "" : "s"}</small></span></div>
             <div className={controls?.killSwitchActive ? "is-danger" : ""}><ShieldAlert size={18} /><span><strong>Kill switch</strong><small>{controls?.killSwitchActive ? "Active" : "Ready"}</small></span></div>
           </section>
@@ -504,7 +519,7 @@ export default function CommandCenterPage() {
 
               {view === "controls" && controls && (
                 <>
-                  <header className="cc-list-toolbar"><div><h2>Safety controls</h2><p>Fail-closed controls for the entire command center</p></div></header>
+                  <header className="cc-list-toolbar"><div><h2>Safety controls</h2><p>Fail-closed controls for the entire command center</p></div><button className="button button-secondary" disabled={busy || !data.capabilities.draftAgentsAvailable || controls.killSwitchActive} onClick={() => void setAvailableAgents(!allAvailableDraftAgentsEnabled)}><Bot size={16} />{allAvailableDraftAgentsEnabled ? "Disable available agents" : "Enable available agents"}</button></header>
                   <div className="cc-controls-list">
                     <section><div><ShieldCheck size={19} /><span><strong>Command-center intake</strong><p>Allows manual tickets and normalized intake while preserving owner review.</p></span></div><button className={controls.systemEnabled ? "cc-switch is-on" : "cc-switch"} role="switch" aria-checked={controls.systemEnabled} disabled={busy} onClick={() => void updateControls({ systemEnabled: !controls.systemEnabled, killSwitchActive: controls.killSwitchActive })}><span />{controls.systemEnabled ? "Enabled" : "Paused"}</button></section>
                     <section><div><ShieldAlert size={19} /><span><strong>Global kill switch</strong><p>Blocks future agent and effect execution. Manual review and evidence access remain available.</p></span></div><button className={controls.killSwitchActive ? "cc-switch is-danger" : "cc-switch"} role="switch" aria-checked={controls.killSwitchActive} disabled={busy} onClick={() => void updateControls({ systemEnabled: controls.systemEnabled, killSwitchActive: !controls.killSwitchActive })}><span />{controls.killSwitchActive ? "Active" : "Ready"}</button></section>
@@ -534,16 +549,31 @@ export default function CommandCenterPage() {
         ) : null}
       </main>
 
-      <dialog ref={createTicketDialog} className="cc-dialog">
+      <dialog ref={createTicketDialog} className="cc-dialog cc-ticket-dialog">
         <form onSubmit={createTicket}>
-          <header><div><h2>Create a manual ticket</h2><p>Record confirmed facts separately from unverified claims.</p></div><button type="button" onClick={() => createTicketDialog.current?.close()} aria-label="Close"><X size={18} /></button></header>
-          <div className="cc-form-grid"><label>Category<select name="category" defaultValue="support">{Object.entries(categoryLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label><label>Risk level<select name="riskLevel" defaultValue="medium"><option value="low">Low</option><option value="medium">Medium</option><option value="high">High</option><option value="critical">Critical</option></select></label></div>
-          <label>Subject<input name="subject" minLength={5} maxLength={160} required /></label>
-          <label>Normalized summary<textarea name="summary" minLength={10} maxLength={2000} rows={4} required /></label>
-          <label>Confirmed facts <small>One fact per line</small><textarea name="confirmedFacts" rows={3} /></label>
-          <label>Unverified claims <small>One claim per line</small><textarea name="unverifiedClaims" rows={3} /></label>
-          <label>Tags <small>Comma-separated lowercase terms</small><input name="tags" placeholder="login, known-issue" /></label>
-          <footer><button type="button" className="button button-quiet" onClick={() => createTicketDialog.current?.close()}>Cancel</button><button className="button button-primary" disabled={busy}>{busy ? <LoaderCircle className="spin" size={16} /> : <Plus size={16} />}Create ticket</button></footer>
+          <header><div><span className="cc-dialog-icon"><Plus size={18} /></span><div><h2>Create a manual ticket</h2><p id="cc-ticket-form-description">Capture the work, separate evidence from claims, and set the owner review priority.</p></div></div><button type="button" onClick={() => createTicketDialog.current?.close()} aria-label="Close"><X size={18} /></button></header>
+          <div className="cc-ticket-form-body" aria-describedby="cc-ticket-form-description">
+            <fieldset className="cc-ticket-details">
+              <legend><FileText size={17} /><span><strong>Ticket details</strong><small>Required information for the owner queue</small></span></legend>
+              <div className="cc-form-grid"><label>Category<select name="category" defaultValue="support">{Object.entries(categoryLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label><label>Risk level<select name="riskLevel" defaultValue="medium"><option value="low">Low · routine</option><option value="medium">Medium · review within 24h</option><option value="high">High · review within 4h</option><option value="critical">Critical · review within 1h</option></select></label></div>
+              <label>Subject<input name="subject" minLength={5} maxLength={160} placeholder="A concise description of the work" autoFocus required /></label>
+              <label>Operational summary <small>Write a neutral summary that another reviewer can understand without opening the source.</small><textarea name="summary" minLength={10} maxLength={2000} rows={4} placeholder="What needs attention, who or what is affected, and what is known right now?" required /></label>
+            </fieldset>
+
+            <fieldset className="cc-ticket-evidence">
+              <legend><ShieldCheck size={17} /><span><strong>Evidence quality</strong><small>Keep verified information separate from reported claims</small></span></legend>
+              <div className="cc-evidence-grid">
+                <label><span><Check size={15} />Confirmed facts</span><small>One verified fact per line</small><textarea name="confirmedFacts" rows={5} placeholder={"Account is verified\nIssue reproduced on the lesson page"} /></label>
+                <label><span><CircleAlert size={15} />Unverified claims</span><small>One unconfirmed statement per line</small><textarea name="unverifiedClaims" rows={5} placeholder={"Learner reports the issue started today\nA browser extension may be involved"} /></label>
+              </div>
+            </fieldset>
+
+            <fieldset className="cc-ticket-organization">
+              <legend><Tags size={17} /><span><strong>Organization</strong><small>Optional terms for search and recurring-issue analysis</small></span></legend>
+              <label>Tags <small>Comma-separated lowercase terms</small><input name="tags" placeholder="login, lesson-access, known-issue" /></label>
+            </fieldset>
+          </div>
+          <footer><span><LockKeyhole size={14} /> Owner-only · recorded in the audit ledger</span><div><button type="button" className="button button-quiet" onClick={() => createTicketDialog.current?.close()}>Cancel</button><button className="button button-primary" disabled={busy}>{busy ? <LoaderCircle className="spin" size={16} /> : <Plus size={16} />}Create ticket</button></div></footer>
         </form>
       </dialog>
 

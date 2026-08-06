@@ -225,6 +225,73 @@ export async function createManualCommandCenterTicket(input: {
   return ticket;
 }
 
+export async function createUserCommandCenterTicket(input: {
+  actorUid: string;
+  category: Extract<CommandCenterTicketCategory, "support" | "billing" | "privacy" | "product_feedback" | "other">;
+  subject: string;
+  message: string;
+}) {
+  const id = crypto.randomUUID();
+  const auditId = crypto.randomUUID();
+  const correlationId = crypto.randomUUID();
+  const now = new Date();
+  const riskLevel: CommandCenterRisk = input.category === "product_feedback" ? "low" : "medium";
+  const categoryLabel = input.category.replaceAll("_", " ");
+  const ticket: CommandCenterTicket = {
+    id,
+    ticketNumber: ticketNumber(id),
+    version: 1,
+    source: "user_support",
+    category: input.category,
+    riskLevel,
+    priority: commandCenterPriority(riskLevel),
+    status: "new",
+    subject: input.subject,
+    normalizedSummary: `A signed-in learner submitted a ${categoryLabel} request for owner review. The description is unverified user-provided context.`,
+    untrustedExcerpt: input.message,
+    relatedUserId: input.actorUid,
+    assignedRole: "owner",
+    requiresHumanApproval: input.category === "billing" || input.category === "privacy",
+    confirmedFacts: [
+      "The request was submitted from a verified Erudoza account.",
+      `Request category: ${categoryLabel}`,
+    ],
+    unverifiedClaims: ["The request description has not yet been verified by the owner."],
+    evidenceReferences: [],
+    tags: ["user-submitted", input.category.replaceAll("_", "-")],
+    notes: [],
+    createdAt: now.toISOString(),
+    updatedAt: now.toISOString(),
+    dueAt: commandCenterDueAt(riskLevel, now),
+  };
+  const audit = auditEvent({
+    id: auditId,
+    actorUid: input.actorUid,
+    actorRole: "system",
+    action: "ticket.ingested",
+    targetType: "ticket",
+    targetId: id,
+    ticketId: id,
+    correlationId,
+    summary: `Ingested ${ticket.ticketNumber} from signed-in support`,
+    afterState: { status: ticket.status, riskLevel: ticket.riskLevel, version: ticket.version },
+    metadata: { source: ticket.source, category: ticket.category },
+    createdAt: ticket.createdAt,
+  });
+  await runStoredDocumentTransaction([CONTROLS_PATH, `${TICKETS}/${id}`, `${AUDIT_EVENTS}/${auditId}`], (documents) => {
+    assertSystemEnabled(parseControls(documents[CONTROLS_PATH]));
+    if (documents[`${TICKETS}/${id}`]) throw new CommandCenterConflictError("The ticket already exists.");
+    return {
+      writes: [
+        { path: `${TICKETS}/${id}`, data: ticket },
+        { path: `${AUDIT_EVENTS}/${auditId}`, data: audit },
+      ],
+      result: ticket,
+    };
+  });
+  return ticket;
+}
+
 export async function updateCommandCenterTicket(input: {
   actorUid: string;
   ticketId: string;
