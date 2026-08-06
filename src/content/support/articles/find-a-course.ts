@@ -23,6 +23,8 @@ The result count updates as you search. In the mobile filter sheet, choose **Res
 
 Each course result shows its topic, outcome or mission, lesson count, estimated time, and level when those details are available.
 
+![Explore filtered to the sample Morse Code course, with its outcome, level, lesson count, and time commitment visible.](/support/screenshots/course-library-morse-code.png)
+
 ## Save a course for later
 
 Use the bookmark control on a course result to add or remove it from your saved courses. To begin learning, open the course and review its complete outline.

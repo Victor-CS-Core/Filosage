@@ -26,6 +26,8 @@ The Command Center brings together main destinations, available courses, the cur
 
 Use the **Light / Dark** switch at the bottom of the Command Center to compare appearances. The theme changes immediately and the Command Center stays open until you close it or choose a destination.
 
+![The Erudoza Command Center with navigation, course, account actions, and the Light and Dark appearance switch.](/support/screenshots/command-center-theme-toggle.png)
+
 Enter one or more words to filter the available commands. Word order and accents do not affect matching. Use the arrow keys to move, **Enter** to open the selected result, and **Escape** to close. You can also close it by choosing the shaded area outside the panel.
 
 ## Switch courses

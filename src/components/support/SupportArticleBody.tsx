@@ -34,6 +34,11 @@ export default function SupportArticleBody({ body }: { body: string }) {
       <ReactMarkdown
         remarkPlugins={[remarkGfm]}
         components={{
+          p: ({ node, children }) => node?.children.length === 1
+            && node.children[0].type === "element"
+            && node.children[0].tagName === "img"
+            ? <>{children}</>
+            : <p>{children}</p>,
           h2: ({ children }) => <h2 id={supportHeadingId(children)} tabIndex={-1}>{children}</h2>,
           h3: ({ children }) => <h3 id={supportHeadingId(children)} tabIndex={-1}>{children}</h3>,
           a: ({ href, children }) => href?.startsWith("/")
@@ -41,6 +46,14 @@ export default function SupportArticleBody({ body }: { body: string }) {
             : href?.startsWith("mailto:")
               ? <SupportEmailLink href={href}>{children}</SupportEmailLink>
               : <a href={href}>{children}</a>,
+          img: ({ src, alt }) => (
+            <figure className="support-article-visual">
+              {/* Support screenshots are local, source-controlled documentation evidence. */}
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={src} alt={alt ?? ""} loading="lazy" />
+              {alt ? <figcaption>{alt}</figcaption> : null}
+            </figure>
+          ),
         }}
       >
         {body}

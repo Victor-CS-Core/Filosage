@@ -15,6 +15,8 @@ Lessons separate explanation from activities. Depending on the lesson, activitie
 
 Use the lesson section navigation to move through longer explanations. If your browser supports speech synthesis, the lesson toolbar can also offer **Read this lesson aloud**.
 
+![A Morse Code lesson showing its objective, Learn and Activities workspaces, and explanation.](/support/screenshots/morse-code-lesson.png)
+
 ## Finish the available work
 
 Complete the activities shown for that lesson. Knowledge checks show feedback after an attempt. A transfer task asks you to apply the idea in a different situation.

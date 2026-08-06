@@ -67,6 +67,12 @@ test("searches public guides and renders source-checked article content", async 
   await expect(page.getByRole("heading", { level: 2, name: "Paid checkout is currently closed" })).toBeVisible();
   await expect(page.getByText(/Reviewed against the app on/)).toBeVisible();
   await expect(page.locator("body")).not.toContainText("src/app/");
+
+  await page.goto("/support/articles/navigate-erudoza");
+  const commandCenterImage = page.getByRole("img", { name: /Erudoza Command Center with navigation/ });
+  await expect(commandCenterImage).toBeVisible();
+  await expect(commandCenterImage.locator("xpath=.."))
+    .toContainText("The Erudoza Command Center with navigation");
 });
 
 test("keeps article navigation and prose within a phone viewport", async ({ page }, testInfo) => {
