@@ -2,11 +2,13 @@
 
 ## Direction
 
-Erudoza is a focused learning product with a restrained, quietly premium interface. Its visual identity expresses clarity, knowledge, and daily growth without overpowering the learning task. The experience should feel calm at rest, precise in use, and unmistakably Erudoza.
+Filosage is a focused learning product with a restrained, quietly premium interface. Its visual identity expresses clarity, knowledge, and daily growth without overpowering the learning task. The experience should feel calm at rest, precise in use, and unmistakably Filosage.
+
+The symbol combines an open page or gateway, a winding path, and a coral curiosity spark. In the official wordmark, `Filo` is navy and `sage` is teal, always written as one word with a lowercase `s`. The motto is **Turn curiosity into understanding.**, with the final period optionally carried in coral.
 
 ## Theme
 
-The light theme uses Erudoza off-white and crisp white learning surfaces for daytime study. The dark theme uses deep navy surfaces for sustained reading in low light. Both themes preserve hierarchy, AA contrast, and identical semantic color roles.
+The light theme uses Filosage off-white and crisp white learning surfaces for daytime study. The dark theme uses deep navy surfaces for sustained reading in low light. Both themes preserve hierarchy, AA contrast, and identical semantic color roles.
 
 ## Color
 

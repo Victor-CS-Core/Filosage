@@ -76,8 +76,8 @@ export default function CommandPalette({ open, items, theme, onClose, onSelect, 
       <section className="command-palette-surface">
         <header className="command-palette-search">
           <Search size={19} aria-hidden="true" />
-          <span className="sr-only" id="command-palette-title">Erudoza Command Center</span>
-          <label className="sr-only" htmlFor="command-palette-input">Search Erudoza</label>
+          <span className="sr-only" id="command-palette-title">Filosage Command Center</span>
+          <label className="sr-only" htmlFor="command-palette-input">Search Filosage</label>
           <input
             id="command-palette-input"
             ref={inputRef}
@@ -107,7 +107,7 @@ export default function CommandPalette({ open, items, theme, onClose, onSelect, 
           <button className="command-palette-close" type="button" onClick={onClose} aria-label="Close Command Center"><X size={17} /></button>
         </header>
 
-        <div className="command-palette-results" id="command-palette-results" role="listbox" aria-label="Erudoza commands">
+        <div className="command-palette-results" id="command-palette-results" role="listbox" aria-label="Filosage commands">
           {filteredItems.length > 0 ? filteredItems.map((item, index) => {
             const Icon = item.icon;
             const startsSection = index === 0 || filteredItems[index - 1].section !== item.section;

@@ -1,4 +1,4 @@
-# Erudoza security and legal readiness
+# Filosage security and legal readiness
 
 Updated: 2026-08-03
 
@@ -22,7 +22,7 @@ This document is an engineering and launch-readiness record, not legal advice.
 - Signup and future terms updates use an affirmative, versioned acceptance record for the registrant's stated age eligibility and, where applicable, stated guardian review. This is not independent age assurance or verified guardian consent. Guests can inspect published topics and course outlines; lesson bodies require an accepted free account.
 - Signed-in non-owner users can export their account data and permanently delete their active account data after recent Google reauthentication. The deletion route independently enforces a five-minute Firebase `auth_time` window on the server; the client reauthentication prompt is not the security boundary. Owner deletion requires a manual course-control transfer or shutdown process.
 - A published Copyright Policy defines notice, counter-notice, review, removal, and an adopted repeat-infringer termination procedure. Content reports and owner enforcement actions preserve the operational record used to apply it. The app does not claim DMCA safe-harbor registration that has not been completed.
-- Optional first-party product analytics are off until the visitor makes a choice. Refusal and later withdrawal remove Erudoza's optional browser identifiers; the choice remains available in the Privacy Center.
+- Optional first-party product analytics are off until the visitor makes a choice. Refusal and later withdrawal remove Filosage's optional browser identifiers; the choice remains available in the Privacy Center.
 - Browser telemetry accepts only coarse anonymous discovery events. Signed-in learning events are rebound to the verified Firebase UID, while signup, waitlist, moderation, checkout, and subscription events are recorded only by the server route that performs the underlying action.
 - Multiple independent serious content reports escalate to owner review and operational alerting; learner reports alone cannot automatically unpublish a course.
 
@@ -31,7 +31,7 @@ This document is an engineering and launch-readiness record, not legal advice.
 - The JSON export includes the account profile, preferences, notes, lesson activity, course progress, learning outcomes, mastery evidence, versioned legal acceptances, billing-consent snapshots and current checkout intent, authored courses and lessons, AI usage/request/budget records, engagement summary, pricing intent, account-linked product events, referral-code ownership, safety summary/events, content reports, and owner enforcement actions targeting the account.
 - Automated deletion removes active learning and authoring data, lesson-activity records, the current checkout intent, engagement summaries, pricing intent, referral-code ownership, account-linked product events, AI usage/request/budget records, the waitlist entry for the account email, and the active account document.
 - Versioned legal-acceptance and completed billing-consent records are retained only as reasonably needed to document consent or authorization, resolve disputes, and meet legal obligations. Safety cooldowns/events, content reports, and owner enforcement records are retained only as reasonably needed to prevent abuse, preserve report integrity, enforce the service rules, and resolve legal claims. These retained categories remain visible in the user's pre-deletion export.
-- Stripe or another disclosed payment processor may retain customer, subscription, invoice, refund, dispute, and transaction records for applicable tax, accounting, fraud-prevention, and consumer-protection periods after Erudoza cancels the active subscription. Billing consent remains associated with the internal account identifier for that limited purpose; it is not active profile or marketing data. The automated deletion response identifies this retention boundary.
+- Stripe or another disclosed payment processor may retain customer, subscription, invoice, refund, dispute, and transaction records for applicable tax, accounting, fraud-prevention, and consumer-protection periods after Filosage cancels the active subscription. Billing consent remains associated with the internal account identifier for that limited purpose; it is not active profile or marketing data. The automated deletion response identifies this retention boundary.
 - The automated export refuses to return a silently truncated result. If a bounded collection exceeds the supported automated export size, the request fails and must be completed through the verified manual privacy-request process.
 
 ## Before enabling Stripe or another paid checkout

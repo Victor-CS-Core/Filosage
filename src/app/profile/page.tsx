@@ -67,7 +67,7 @@ export default function ProfilePage() {
   const badges = evaluateBadges({ progress, authoredCourses });
   const earned = badges.filter((badge) => badge.earned);
   const visibleBadges = filter === "earned" ? earned : filter === "in-progress" ? badges.filter((badge) => !badge.earned) : badges;
-  const displayName = account?.displayName ?? user.displayName ?? "Erudoza learner";
+  const displayName = account?.displayName ?? user.displayName ?? "Filosage learner";
   const activeSections = Object.values(state.dashboardPreferences.sections).filter(Boolean).length;
   const focusCourse = [...progress].sort((left, right) => right.lastActivityAt.localeCompare(left.lastActivityAt)).find((course) => course.nextLessonId) ?? progress[0];
   const focusCompleted = focusCourse?.completedLessonIds.length ?? 0;

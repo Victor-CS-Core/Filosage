@@ -2,7 +2,7 @@ import { defineSupportArticle } from "../types";
 
 export default defineSupportArticle({
   slug: "contact-support",
-  title: "Contact Erudoza support",
+  title: "Contact Filosage support",
   summary: "Create a private support ticket or send the context needed to investigate an account, course, privacy, or technical problem.",
   category: "plans",
   keywords: ["support", "contact", "ticket", "reference", "email", "help", "search", "guide", "problem", "screenshot", "response"],
@@ -17,13 +17,13 @@ Open [Support](/support) and search for the task or problem first. Search checks
 
 Sign in on [Support](/support), choose **Create ticket**, and describe the problem. Select the closest request type, add a concise subject, and explain which page or course you were using, what you expected, and what happened instead.
 
-After submission, Erudoza shows a ticket reference such as **TKT-123ABCD**. The request enters the private owner review queue. Your description is treated as unverified until it is reviewed, and submitting it cannot trigger a refund, account change, deletion, or other external action.
+After submission, Filosage shows a ticket reference such as **TKT-123ABCD**. The request enters the private owner review queue. Your description is treated as unverified until it is reviewed, and submitting it cannot trigger a refund, account change, deletion, or other external action.
 
 To protect the queue, each account can submit up to five requests per day.
 
 ## Use email when you cannot sign in
 
-Email [support@erudoza.com](mailto:support@erudoza.com?subject=Erudoza%20support%20request) when sign-in or the ticket form is unavailable. Include:
+Email [support@erudoza.com](mailto:support@erudoza.com?subject=Filosage%20support%20request) when sign-in or the ticket form is unavailable. Include:
 
 - the affected page, course, and lesson when applicable;
 - what you were trying to do;

@@ -5,7 +5,7 @@ import findACourse from "./find-a-course";
 import followACourse from "./follow-a-course";
 import gettingStarted from "./getting-started";
 import manageProfile from "./manage-profile";
-import navigateErudoza from "./navigate-erudoza";
+import navigateFilosage from "./navigate-filosage";
 import plansAndBilling from "./plans-and-billing";
 import privacyControls from "./privacy-controls";
 import readEvidenceReport from "./read-evidence-report";
@@ -17,7 +17,7 @@ import useStudyTools from "./use-study-tools";
 
 export const supportArticles = [
   gettingStarted,
-  navigateErudoza,
+  navigateFilosage,
   findACourse,
   followACourse,
   completeALesson,

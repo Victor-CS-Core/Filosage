@@ -1,4 +1,4 @@
-# Erudoza Mastery Graph — Phase 0 Technical Design
+# Filosage Mastery Graph — Phase 0 Technical Design
 
 Status: design only; implementation begins after the Phase 0 demand gate  
 Owner: product and engineering

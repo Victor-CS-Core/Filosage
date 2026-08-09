@@ -17,7 +17,7 @@ Available issue types cover possible factual errors, source or citation concerns
 
 ## What happens next
 
-After a successful submission, Erudoza confirms that the report entered the content review queue. A report is a request for human review; it is not confirmation that the lesson is wrong.
+After a successful submission, Filosage confirms that the report entered the content review queue. A report is a request for human review; it is not confirmation that the lesson is wrong.
 
 ## If the in-lesson tool is unavailable
 

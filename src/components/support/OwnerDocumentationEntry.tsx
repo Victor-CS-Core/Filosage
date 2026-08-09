@@ -13,7 +13,7 @@ export default function OwnerDocumentationEntry() {
       <span><BookMarked size={21} aria-hidden="true" /></span>
       <div>
         <p><ShieldCheck size={14} /> Owner-only</p>
-        <h2 id="owner-documentation-title">Erudoza owner handbook</h2>
+        <h2 id="owner-documentation-title">Filosage owner handbook</h2>
         <span>Product map, course operations, publishing, support, AI controls, trust workflows, and release procedures.</span>
       </div>
       <Link href="/support/owner">Open handbook <ChevronRight size={16} /></Link>

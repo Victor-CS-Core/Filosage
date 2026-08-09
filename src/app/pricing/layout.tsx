@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 
 export const metadata: Metadata = {
   title: "Plans and Pricing",
-  description: "Compare Erudoza Free and Pro, including lesson access, AI course creation, staged generation, publishing, and monthly limits.",
+  description: "Compare Filosage Free and Pro, including lesson access, AI course creation, staged generation, publishing, and monthly limits.",
   alternates: { canonical: "/pricing" },
 };
 

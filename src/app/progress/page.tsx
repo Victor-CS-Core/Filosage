@@ -89,7 +89,7 @@ export default function ProgressPage() {
 
   const copyWeeklyReport = async () => {
     const report = [
-      "My Erudoza weekly learning report",
+      "My Filosage weekly learning report",
       `Lessons studied: ${weeklyCompleted}`,
       `Current streak: ${streak} day${streak === 1 ? "" : "s"}`,
       `First-try accuracy: ${totalQuestions ? `${accuracy}%` : "Not measured yet"}`,

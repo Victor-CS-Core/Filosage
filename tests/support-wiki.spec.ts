@@ -65,7 +65,7 @@ test("searches public guides and renders source-checked article content", async 
   await page.goto("/support");
   await expect(page.getByRole("heading", { level: 1, name: "What do you need help with?" })).toBeVisible();
 
-  const search = page.getByRole("searchbox", { name: "Search Erudoza help" });
+  const search = page.getByRole("searchbox", { name: "Search Filosage help" });
   await search.fill("billing plan");
   const results = page.getByRole("region", { name: "Support search results" });
   await expect(results.getByRole("link", { name: /Understand the current plan and billing status/ })).toBeVisible();
@@ -87,14 +87,14 @@ test("searches public guides and renders source-checked article content", async 
 test("shows the structured handbook only to the verified owner", async ({ page }, testInfo) => {
   test.skip(testInfo.project.name !== "chromium", "Owner handbook acceptance runs once in desktop Chromium.");
   await page.goto("/support");
-  await expect(page.getByRole("heading", { name: "Erudoza owner handbook" })).toHaveCount(0);
+  await expect(page.getByRole("heading", { name: "Filosage owner handbook" })).toHaveCount(0);
 
   await prepareLocalOwner(page);
   await page.goto("/support");
-  await expect(page.getByRole("heading", { name: "Erudoza owner handbook" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Filosage owner handbook" })).toBeVisible();
   await page.getByRole("link", { name: /Open handbook/ }).click();
   await expect(page).toHaveURL(/\/support\/owner$/);
-  await expect(page.getByRole("heading", { level: 1, name: "Erudoza owner handbook" })).toBeVisible();
+  await expect(page.getByRole("heading", { level: 1, name: "Filosage owner handbook" })).toBeVisible();
   await expect(page.getByRole("heading", { level: 2, name: "Support and Agent Command Center" })).toBeVisible();
   await expect(page.getByText("Reviewed sources", { exact: true }).first()).toBeVisible();
 });

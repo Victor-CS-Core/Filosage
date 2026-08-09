@@ -1,6 +1,6 @@
 # Billing activation contract
 
-GoDaddy can provide the domain and hosting layer. It is not the recurring subscription ledger for Erudoza. The application therefore keeps billing provider-neutral at the entitlement boundary and uses Stripe-compatible environment names for the eventual payment provider.
+GoDaddy can provide the domain and hosting layer. It is not the recurring subscription ledger for Filosage. The application therefore keeps billing provider-neutral at the entitlement boundary and uses Stripe-compatible environment names for the eventual payment provider.
 
 ## Current state
 

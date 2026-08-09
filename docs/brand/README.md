@@ -1,20 +1,20 @@
-# Erudoza brand system
+# Filosage brand system
 
-Erudoza is a calm, intelligent web learning product. The system uses navy structure, off-white reading space, and teal, blue, and coral as restrained signals for connection, focus, and progress.
+Filosage is a calm, intelligent web learning product. The system uses navy structure, off-white reading space, and teal, blue, and coral as restrained signals for connection, focus, and progress.
 
 ## Source of truth
 
-The authoritative logo artwork is [`src/app/icon.svg`](../../src/app/icon.svg). `npm.cmd run brand:assets` copies its bytes unchanged to `public/brand/logo/erudoza-icon.svg` and embeds that exact source in composed SVG assets. Never redraw, trace, recolor, crop, stretch, simplify, or apply effects to the artwork.
+The authoritative source artwork is preserved byte-for-byte in [`art_src/brand`](../../art_src/brand): the supplied dark-theme and light-theme PNGs. `npm.cmd run brand:assets` deterministically crops their matching rounded tiles to equal 600 × 600 outputs without redrawing the gateway, spark, or center path. Product components switch between those raster assets by theme.
 
-The runtime browser icon uses Next.js App Router's `src/app/icon.svg` file convention. The existing `src/app/favicon.ico` remains as the legacy favicon fallback.
+The runtime browser icon uses Next.js App Router's generated `src/app/icon.png`. The existing `src/app/favicon.ico` remains as the legacy favicon fallback.
 
 ## Logo usage
 
 - Keep clear space of at least one quarter of the rendered icon width on every side.
 - Render the standalone icon at 24 px or larger. Use 32 px or larger in interactive navigation and 48 px or larger in external brand layouts.
 - Render the horizontal lockup at 120 px wide or larger so the wordmark remains legible.
-- Use `erudoza-light-placement.svg` on light or off-white surfaces and `erudoza-dark-placement.svg` on navy or dark surfaces.
-- Use `erudoza-social-avatar.svg` for square profile fields. Do not crop the original icon to make an avatar.
+- Use `filosage-light-placement.svg` on light or off-white surfaces and `filosage-dark-placement.svg` on navy or dark surfaces.
+- Use `filosage-social-avatar.svg` for square profile fields. Do not crop the original icon to make an avatar.
 - The wordmark is a placement companion, not a modification of the original SVG.
 
 ### Incorrect usage
@@ -40,7 +40,7 @@ Use `#0F766E` for teal text/actions and `#1D4ED8` for blue text/focus on light s
 
 ## Typography
 
-Erudoza uses Inter Variable for headings, interface text, and reading. Headings use 700 weight, balanced wrapping, and no tighter than `-0.04em` tracking. Body text remains at least 1 rem for long-form use and stays within roughly 65–70 characters per line.
+Filosage uses Inter Variable for headings, interface text, and reading. Headings use 700 weight, balanced wrapping, and no tighter than `-0.04em` tracking. Body text remains at least 1 rem for long-form use and stays within roughly 65–70 characters per line.
 
 ## Gradients and patterns
 
@@ -48,7 +48,7 @@ Gradients are quiet atmospheric layers, never text fills or readability hazards.
 
 ## Illustration style
 
-Illustrations use precise geometric forms, fine paths, stable 4:3 canvases, and the exact Erudoza palette. They explain relationships rather than depict AI characters or decorative mascots. Use one illustration per idea, keep adjacent HTML text editable, and mark redundant illustrations decorative with empty alt text.
+Illustrations use precise geometric forms, fine paths, stable 4:3 canvases, and the exact Filosage palette. They explain relationships rather than depict AI characters or decorative mascots. Use one illustration per idea, keep adjacent HTML text editable, and mark redundant illustrations decorative with empty alt text.
 
 ## Photography guidance
 
@@ -72,12 +72,14 @@ Run `npm.cmd run brand:assets` after intentionally changing the generator. The g
 
 | File | Dimensions | Recommended use |
 | --- | ---: | --- |
-| `public/brand/logo/erudoza-icon.svg` | 128 × 128 | Authoritative standalone logo copy |
-| `public/brand/logo/browser-icon.svg` | 128 × 128 | External browser-icon copy |
-| `public/brand/logo/erudoza-horizontal.svg` | 620 × 160 | Transparent horizontal lockup |
-| `public/brand/logo/erudoza-light-placement.svg` | 720 × 260 | Safe light-surface placement |
-| `public/brand/logo/erudoza-dark-placement.svg` | 720 × 260 | Safe dark-surface placement |
-| `public/brand/logo/erudoza-social-avatar.svg` | 1200 × 1200 | Square social avatar |
+| `public/brand/logo/filosage-theme-light.png` | 600 × 600 | Light-theme tile cropped from the supplied light-theme PNG |
+| `public/brand/logo/filosage-theme-dark.png` | 600 × 600 | Dark-theme tile cropped from the supplied dark-theme PNG |
+| `public/brand/logo/filosage-icon.png` | 513 × 523 | Application icon for browser, launcher, and app-tile placements |
+| `public/brand/logo/browser-icon.png` | 513 × 523 | External browser-icon copy |
+| `public/brand/logo/filosage-horizontal.svg` | 620 × 160 | Transparent horizontal lockup |
+| `public/brand/logo/filosage-light-placement.svg` | 720 × 260 | Safe light-surface placement |
+| `public/brand/logo/filosage-dark-placement.svg` | 720 × 260 | Safe dark-surface placement |
+| `public/brand/logo/filosage-social-avatar.svg` | 1200 × 1200 | Square social avatar |
 
 ### Hero backgrounds and product resources
 

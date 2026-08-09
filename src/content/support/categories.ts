@@ -1,7 +1,7 @@
 import type { SupportCategory } from "./types";
 
 export const supportCategories: SupportCategory[] = [
-  { id: "start", label: "Getting started", description: "Find your way around Erudoza and begin learning." },
+  { id: "start", label: "Getting started", description: "Find your way around Filosage and begin learning." },
   { id: "courses", label: "Courses and lessons", description: "Choose a course, follow its path, and complete lessons." },
   { id: "practice", label: "Practice and review", description: "Use study tools and return to material at the right time." },
   { id: "progress", label: "Progress and evidence", description: "Understand the learning record and saved evidence." },

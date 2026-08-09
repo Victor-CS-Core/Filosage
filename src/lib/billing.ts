@@ -6,7 +6,7 @@ import { serverEnvironment } from "@/lib/runtime-environment";
 
 export const proPlan = {
   id: "pro_monthly",
-  name: "Erudoza Pro",
+  name: "Filosage Pro",
   interval: "month" as const,
   currency: PRO_OFFER.currency,
   priceUsd: PRO_OFFER.monthly.amountMinor / 100,

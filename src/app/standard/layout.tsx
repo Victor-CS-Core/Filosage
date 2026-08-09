@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 
 export const metadata: Metadata = {
   title: "Teaching Standard",
-  description: "See the safety, language, structure, practice, review, and mastery checks every published Erudoza lesson must pass.",
+  description: "See the safety, language, structure, practice, review, and mastery checks every published Filosage lesson must pass.",
   alternates: { canonical: "/standard" },
 };
 

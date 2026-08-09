@@ -1,4 +1,4 @@
-# Erudoza support wiki authoring
+# Filosage support wiki authoring
 
 The public support wiki lives at `/support`. It is learner-facing documentation, not an operations manual. Owner authorization, security response, publication overrides, and internal release procedures remain in private repository documentation.
 

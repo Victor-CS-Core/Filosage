@@ -602,7 +602,7 @@ test("never leaves public learning behind the authentication startup screen", as
   expect(hydrationErrors).toEqual([]);
 
   await expect(
-    page.getByRole("heading", { name: "Learn anything. Understand everything." }),
+    page.getByRole("heading", { name: "Turn curiosity into understanding" }),
   ).toBeVisible({ timeout: 4000 });
   await expect(page.locator(".auth-boot-shell")).toHaveCount(0);
 });
@@ -610,7 +610,7 @@ test("never leaves public learning behind the authentication startup screen", as
 test("keeps the learning library public", async ({ page }) => {
   const response = await page.goto("/");
 
-  await expect(page).toHaveTitle(/Erudoza/);
+  await expect(page).toHaveTitle(/Filosage/);
   const contentSecurityPolicy = response?.headers()["content-security-policy"] ?? "";
   const scriptDirective = contentSecurityPolicy.split(";").find((directive) => directive.trim().startsWith("script-src "));
   expect(response?.headers()["x-content-type-options"]).toBe("nosniff");
@@ -620,10 +620,10 @@ test("keeps the learning library public", async ({ page }) => {
   expect(scriptDirective).not.toContain("'unsafe-inline'");
   await expect(page.locator(".skip-link")).toHaveAttribute("href", "#main-content");
   await expect(
-    page.getByRole("heading", { name: "Learn anything. Understand everything." }),
+    page.getByRole("heading", { name: "Turn curiosity into understanding" }),
   ).toBeVisible();
-  await expect(page.locator(".marketing-tagline")).toHaveText("Your daily dose of understanding.");
-  await expect(page.locator(".marketing-page > section")).toHaveCount(3);
+  await expect(page.locator(".marketing-tagline")).toHaveText("Filosage learning paths");
+  await expect(page.locator(".marketing-page > section")).toHaveCount(4);
   await expect(page.locator(".marketing-feature-grid article")).toHaveCount(3);
   await expect(page.locator('a[href^="/library?q="]')).toHaveCount(0);
 
@@ -646,14 +646,14 @@ test("publishes the teaching standard", async ({ page }) => {
 
 test("describes guest access and Pro publishing consistently across public pages", async ({ page }) => {
   await page.goto("/");
-  await expect(page.getByRole("heading", { name: "A learning loop built for ideas you need to use." })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "A learning loop for skills you need to use." })).toBeVisible();
 
   await page.goto("/library");
-  await expect(page).toHaveTitle("Course Library | Erudoza");
+  await expect(page).toHaveTitle("Course Library | Filosage");
   await expect(page.getByText("A free account opens lessons and keeps your progress, practice, and reviews in sync.")).toBeVisible();
 
   await page.goto("/pricing");
-  await expect(page).toHaveTitle("Plans and Pricing | Erudoza");
+  await expect(page).toHaveTitle("Plans and Pricing | Filosage");
   await expect(page.getByText("Publish courses after completing and reviewing them")).toBeVisible();
   await expect(page.getByText("complete the current lesson activities before generating the next", { exact: false })).toBeVisible();
 
@@ -824,7 +824,7 @@ test("publishes clear legal documents", async ({ page }) => {
 test("keeps generation visibly metered and premium", async ({ page }) => {
   await page.goto("/pricing");
 
-  await expect(page.getByRole("heading", { name: "Erudoza Pro" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Filosage Pro" })).toBeVisible();
   await expect(page.getByText("Three private course outlines each month")).toBeVisible();
   await expect(page.getByText("Thirty generated lessons each month")).toBeVisible();
   await expect(page.getByText("$14.99")).toBeVisible();
@@ -895,7 +895,7 @@ test("keeps the mobile tutor contained above the lesson", async ({ page }) => {
           <aside class="tutor-drawer">
             <div class="tutor-header">
               <span class="tutor-avatar"></span>
-              <div><strong id="test-tutor-title">Erudoza AI Tutor</strong><small>Grounded in this lesson</small></div>
+              <div><strong id="test-tutor-title">Filosage AI Tutor</strong><small>Grounded in this lesson</small></div>
               <button class="icon-button" type="button" aria-label="Close tutor"></button>
             </div>
             <div class="tutor-messages"><div class="tutor-message tutor-assistant"><div>Ask about this lesson.</div></div></div>
@@ -914,7 +914,7 @@ test("keeps the mobile tutor contained above the lesson", async ({ page }) => {
     workspace.querySelector<HTMLDialogElement>(".app-drawer")?.showModal();
   });
 
-  const drawer = page.getByRole("dialog", { name: "Erudoza AI Tutor" });
+  const drawer = page.getByRole("dialog", { name: "Filosage AI Tutor" });
   await expect(drawer).toBeVisible();
   const layout = await drawer.evaluate((element) => {
     const bounds = element.getBoundingClientRect();
@@ -1764,7 +1764,7 @@ test("clears course-scoped warnings and controls when navigating between owned c
   await expect(page.locator(".course-owner-controls .form-error")).toContainText("Complete every lesson before publishing.");
 
   await page.getByRole("button", { name: /Search or jump anywhere/ }).click();
-  const commandCenter = page.getByRole("dialog", { name: "Erudoza Command Center" });
+  const commandCenter = page.getByRole("dialog", { name: "Filosage Command Center" });
   await commandCenter.getByRole("option", { name: /Different ready course/ }).click();
   await expect(page).toHaveURL(/Different%20ready%20course\?id=ready-course/);
   await expect(page.getByRole("heading", { name: "Different ready course" })).toBeVisible();
@@ -2355,7 +2355,7 @@ test("keeps weekly milestones finite and free of catch-up debt", () => {
 
 test("exports an opt-in recurring reminder without an email dependency", () => {
   const calendar = buildLearningReminderCalendar({
-    title: "Erudoza learning mission",
+    title: "Filosage learning mission",
     description: "Complete one review and one forward step.",
     preferences: {
       cadence: "weekdays",
@@ -2367,7 +2367,7 @@ test("exports an opt-in recurring reminder without an email dependency", () => {
   });
 
   expect(calendar).toContain("RRULE:FREQ=WEEKLY;BYDAY=MO,TU,WE,TH,FR");
-  expect(calendar).toContain("SUMMARY:Erudoza learning mission");
+  expect(calendar).toContain("SUMMARY:Filosage learning mission");
   expect(buildLearningReminderCalendar({
     title: "Hidden",
     description: "Hidden",

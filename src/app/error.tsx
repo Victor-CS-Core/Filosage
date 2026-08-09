@@ -1,7 +1,7 @@
 "use client";
 
 import { LifeBuoy, RefreshCw } from "lucide-react";
-import ErudozaMark from "@/components/ErudozaMark";
+import FilosageMark from "@/components/FilosageMark";
 import { SUPPORT_CONTACT } from "@/lib/legal";
 
 export default function ErrorPage({
@@ -12,10 +12,10 @@ export default function ErrorPage({
 }) {
   return (
     <main className="center-state release-fallback" id="main-content" role="alert">
-      <ErudozaMark className="brand-mark" />
+      <FilosageMark className="brand-mark" />
       <p className="overline">Something interrupted this page</p>
       <h1>Your learning record is still safe.</h1>
-      <p>Try loading this part of Erudoza again. If the problem continues, return to the library or contact support.</p>
+      <p>Try loading this part of Filosage again. If the problem continues, return to the library or contact support.</p>
       <div className="fallback-actions" aria-label="Error recovery options">
         <button className="button button-primary" type="button" onClick={() => unstable_retry()}>
           <RefreshCw size={16} aria-hidden="true" /> Try again

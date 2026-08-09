@@ -148,13 +148,18 @@ button:disabled { cursor: not-allowed; opacity: 0.55; }
 .sidebar-brand-row { min-height: 74px; display: flex; align-items: center; justify-content: space-between; padding: 14px 16px; border-bottom: 1px solid var(--line); }
 .brand { display: inline-flex; align-items: center; gap: 10px; border: 0; background: none; padding: 0; cursor: pointer; text-align: left; }
 .brand-mark { width: 38px; height: 42px; display: inline-grid; place-items: center; flex: 0 0 auto; }
-.brand-mark svg { width: 100%; height: 100%; overflow: visible; }
-.erudoza-star, .erudoza-dot-coral { fill: var(--brand-coral); }
-.erudoza-dot-teal, .erudoza-leaf-teal { fill: var(--brand-teal); }
-.erudoza-dot-blue, .erudoza-leaf-blue { fill: var(--brand-blue); }
-.erudoza-leaf-base { fill: var(--brand-base); }
+.brand-mark .filosage-mark { width: 100%; height: 100%; }
+.filosage-mark { position: relative; display: inline-grid; place-items: center; overflow: hidden; }
+.filosage-mark img { grid-area: 1 / 1; width: 100%; height: 100%; object-fit: contain; }
+.filosage-mark-dark { display: none; }
+[data-theme="dark"] .filosage-mark-light,
+.filosage-mark.is-inverse .filosage-mark-light { display: none; }
+[data-theme="dark"] .filosage-mark-dark,
+.filosage-mark.is-inverse .filosage-mark-dark { display: block; }
 .brand > span:last-child { display: flex; flex-direction: column; }
 .brand-wordmark { font-family: var(--font-heading); font-size: 1.04rem; font-weight: 700; letter-spacing: -0.025em; }
+.brand-wordmark > span:first-child { color: var(--ink); }
+.brand-wordmark > span:last-child { color: var(--accent-ink); }
 .brand small { color: var(--ink-muted); font-size: 0.7rem; margin-top: 1px; }
 .sidebar-nav { flex: 1; overflow-y: auto; padding: 14px 11px 20px; }
 .nav-link, .course-tree-trigger, .course-tree-lesson {
@@ -1363,7 +1368,7 @@ button:disabled { cursor: not-allowed; opacity: 0.55; }
   .privacy-danger-zone > .privacy-delete-confirmation { grid-column: 2; align-self: auto; }
 }
 
-/* Erudoza learner experience */
+/* Filosage learner experience */
 .public-shell { min-height: 100vh; background: var(--canvas); }
 .public-header { position: sticky; top: 0; z-index: var(--z-sidebar); min-height: 76px; display: flex; align-items: center; gap: 40px; padding: 10px clamp(22px, 5vw, 72px); border-bottom: 1px solid var(--line); background: var(--surface); background: color-mix(in srgb, var(--surface) 96%, transparent); -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px); }
 .public-brand { margin-right: auto; }
@@ -1602,7 +1607,7 @@ button:disabled { cursor: not-allowed; opacity: 0.55; }
 
 /* Dashboard */
 .dashboard-page { width: min(1320px, calc(100% - 64px)); margin: 0 auto; padding: 32px 0 90px; }
-.dashboard-welcome-card { min-height: 226px; display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(320px, 0.75fr); align-items: stretch; gap: 42px; margin-bottom: 28px; overflow: hidden; border-radius: var(--radius-lg); background: var(--brand-navy); padding: 34px 38px; color: var(--brand-offwhite); box-shadow: 0 8px 8px rgb(13 27 61 / 0.16); }
+.dashboard-welcome-card { width: 100%; min-width: 0; max-width: 100%; min-height: 226px; display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(320px, 0.75fr); align-items: stretch; gap: 42px; margin-bottom: 28px; overflow: hidden; border-radius: var(--radius-lg); background: var(--brand-navy); padding: 34px 38px; color: var(--brand-offwhite); box-shadow: 0 8px 8px rgb(13 27 61 / 0.16); }
 .dashboard-welcome-copy { min-width: 0; display: flex; flex-direction: column; justify-content: center; }
 .dashboard-heading-meta { display: flex; align-items: center; gap: 12px; }
 .dashboard-heading-meta > p { color: #C5CEDE; font-size: var(--text-caption); }
@@ -2321,8 +2326,8 @@ button:disabled { cursor: not-allowed; opacity: 0.55; }
   .learning-header { grid-template-columns: auto minmax(360px, 1fr) auto; gap: 12px; padding-inline: 14px; }
   .learning-header-brand { min-width: auto; }
   .learning-header-brand small { display: none; }
-  .dashboard-grid { grid-template-columns: 1fr; }
-  .dashboard-side-column { display: grid; grid-template-columns: 1fr 1fr; }
+  .dashboard-grid { grid-template-columns: minmax(0, 1fr); }
+  .dashboard-side-column { min-width: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .create-layout { grid-template-columns: 1fr; }
   .course-blueprint { position: static; }
   .create-mobile-readiness { display: block; margin-top: 24px; border: 1px solid var(--line); border-radius: var(--radius-md); background: var(--surface-subtle); padding: 16px; }
@@ -2387,10 +2392,11 @@ button:disabled { cursor: not-allowed; opacity: 0.55; }
   .command-palette { padding: 68px 10px 84px; }
   .command-palette-surface { max-height: calc(100dvh - 152px); }
   .command-palette-close { width: 44px; height: 44px; }
-  .dashboard-page, .library-page, .create-page, .progress-page, .profile-page { width: min(100% - 40px, 760px); padding-top: 34px; }
-  .dashboard-welcome-card { grid-template-columns: 1fr; gap: 24px; padding: 30px; }
+  .dashboard-page, .library-page, .create-page, .progress-page, .profile-page { width: calc(100vw - 40px); max-width: 760px; min-width: 0; padding-top: 34px; }
+  .dashboard-welcome-card { grid-template-columns: minmax(0, 1fr); gap: 24px; padding: 30px; }
+  .dashboard-heading-meta { min-width: 0; flex-wrap: wrap; }
   .dashboard-learning-brief { border-top: 1px solid #40527A; border-left: 0; padding-top: 18px; padding-left: 0; }
-  .dashboard-focus-grid { grid-template-columns: 1fr; }
+  .dashboard-focus-grid { grid-template-columns: minmax(0, 1fr); }
   .dashboard-focus-grid .continue-card { min-height: 142px; grid-template-columns: 64px minmax(0, 1fr) auto; padding: 24px 26px; }
   .dashboard-focus-grid .continue-icon { width: 56px; height: 56px; }
   .dashboard-focus-grid .continue-action { grid-column: auto; margin-top: 0; }
@@ -2515,7 +2521,7 @@ button:disabled { cursor: not-allowed; opacity: 0.55; }
   .continue-progress i { width: 100%; }
   .today-picks { grid-template-columns: 1fr; }
   .today-pick { min-height: 158px; }
-  .dashboard-side-column { grid-template-columns: 1fr; }
+  .dashboard-side-column { grid-template-columns: minmax(0, 1fr); }
   .dashboard-empty { align-items: flex-start; flex-wrap: wrap; }
   .dashboard-empty .button { width: 100%; }
   .brief-row { grid-template-columns: 1fr; gap: 0; }
@@ -2629,7 +2635,7 @@ button:disabled { cursor: not-allowed; opacity: 0.55; }
   }
 }
 
-/* Daily dose (review) additions */
+/* Daily review additions */
 .review-header-stats { display: flex; flex-direction: column; align-items: flex-end; gap: 8px; }
 .review-streak { display: inline-flex; align-items: center; gap: 7px; color: var(--brand-coral, #B4532A); font-size: 0.74rem; font-weight: 700; white-space: nowrap; }
 .review-upcoming { margin-top: 34px; }

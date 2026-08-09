@@ -10,7 +10,7 @@ import { recordServerProductEvent } from "@/lib/product-events-server";
 const waitlistSchema = z.object({
   email: z.string().trim().email("Enter a valid email address.").max(254),
   marketingConsent: z.literal(true, {
-    error: "Confirm that Erudoza may email you about the Pro launch.",
+    error: "Confirm that Filosage may email you about the Pro launch.",
   }),
 }).strict();
 

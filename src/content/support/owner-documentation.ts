@@ -2,7 +2,7 @@ import "server-only";
 import type { OwnerDocumentation } from "@/content/support/owner-documentation-types";
 
 export const ownerDocumentation: OwnerDocumentation = {
-  title: "Erudoza owner handbook",
+  title: "Filosage owner handbook",
   introduction: "A practical operating guide to the live product: who can access each surface, how learning and authoring work, where evidence is stored, and which safeguards must remain in place.",
   version: "2026.08",
   reviewedOn: "2026-08-06",
@@ -10,11 +10,11 @@ export const ownerDocumentation: OwnerDocumentation = {
     {
       id: "product-and-access",
       title: "Product and access model",
-      summary: "Understand what Erudoza promises and how guest, learner, Pro, and owner permissions differ.",
+      summary: "Understand what Filosage promises and how guest, learner, Pro, and owner permissions differ.",
       topics: [
         {
           title: "Product contract",
-          body: "Erudoza turns a professional outcome into a focused learning path built from diagnosis, concise instruction, worked examples, retrieval practice, transfer, and capstone evidence. Public visitors can inspect published course structure; lesson bodies and saved learning activity require a verified account.",
+          body: "Filosage turns a professional outcome into a focused learning path built from diagnosis, concise instruction, worked examples, retrieval practice, transfer, and capstone evidence. Public visitors can inspect published course structure; lesson bodies and saved learning activity require a verified account.",
           links: [{ label: "Read the teaching standard", href: "/standard" }],
         },
         {

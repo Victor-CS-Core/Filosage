@@ -18,7 +18,7 @@ const controller = new AbortController();
 const timeout = setTimeout(() => controller.abort(), 10_000);
 try {
   const response = await fetch(healthUrl, {
-    headers: { "User-Agent": "Erudoza-Release-Check/1.0" },
+    headers: { "User-Agent": "Filosage-Release-Check/1.0" },
     signal: controller.signal,
   });
   const body = await response.json().catch(() => null);

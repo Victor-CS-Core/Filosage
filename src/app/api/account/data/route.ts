@@ -24,7 +24,7 @@ const ACCOUNT_SUBCOLLECTION_LIMIT = 2_000;
 const ACCOUNT_FIELD_QUERY_LIMIT = 1_000;
 
 function downloadName() {
-  return `erudoza-data-${new Date().toISOString().slice(0, 10)}.json`;
+  return `filosage-data-${new Date().toISOString().slice(0, 10)}.json`;
 }
 
 async function emailFingerprint(email: string) {
@@ -197,7 +197,7 @@ export async function DELETE(request: Request) {
     if (["active", "trialing", "past_due"].includes(subscriptionStatus)) {
       if (!billingConfiguration().managementReady || !billingSubscriptionId?.startsWith("sub_")) {
         return Response.json(
-          { error: "Cancel your Erudoza Pro subscription before deleting your account. Contact support@erudoza.com if you need help." },
+          { error: "Cancel your Filosage Pro subscription before deleting your account. Contact support@erudoza.com if you need help." },
           { status: 409 },
         );
       }

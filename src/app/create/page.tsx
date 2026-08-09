@@ -142,7 +142,7 @@ export default function CreateCoursePage() {
   };
 
   if (!isPro) {
-    return <AppShell><div className="center-state"><Sparkles size={26} /><p className="overline">Erudoza Pro</p><h1>Create a private course for your goal.</h1><p>Course creation uses monthly Pro credits. Published outlines are public to browse; a free account is required to open their lessons.</p><button className="button button-primary" onClick={() => router.push("/pricing")}>View Pro</button></div></AppShell>;
+    return <AppShell><div className="center-state"><Sparkles size={26} /><p className="overline">Filosage Pro</p><h1>Create a private course for your goal.</h1><p>Course creation uses monthly Pro credits. Published outlines are public to browse; a free account is required to open their lessons.</p><button className="button button-primary" onClick={() => router.push("/pricing")}>View Pro</button></div></AppShell>;
   }
 
   const plannedHours = Math.max(1, Math.round((weeklyMinutes * targetWeeks) / 60));
@@ -173,7 +173,7 @@ export default function CreateCoursePage() {
           <div>
             <p className={styles.studioLabel}><Sparkles size={15} /> Course studio</p>
             <h1>Build toward a real outcome.</h1>
-            <p>Give Erudoza the result you need, the time you have, and how you learn best. You’ll get a private course map to review before any lesson is published.</p>
+            <p>Give Filosage the result you need, the time you have, and how you learn best. You’ll get a private course map to review before any lesson is published.</p>
           </div>
           <div className={styles.introMeta} aria-label="Course creation details">
             <span><LockKeyhole size={15} /> Private draft</span>
@@ -259,7 +259,7 @@ export default function CreateCoursePage() {
                     <div className={styles.field}>
                       <label htmlFor="course-background"><span>What do you already know?</span><small>Required · {background.length}/500</small></label>
                       <textarea id="course-background" value={background} onChange={(event) => setBackground(event.target.value)} maxLength={500} rows={4} placeholder="I understand the basic vocabulary but have not yet applied it to a real case." required />
-                      <p className={styles.fieldHint}>Mention adjacent skills, tools, or concepts Erudoza can build on.</p>
+                      <p className={styles.fieldHint}>Mention adjacent skills, tools, or concepts Filosage can build on.</p>
                     </div>
 
                     <div className={styles.scheduleGrid}>
@@ -289,7 +289,7 @@ export default function CreateCoursePage() {
                     <div className={styles.sectionHeading}>
                       <p>Step 3 of 3</p>
                       <h2 id="teaching-step-title" ref={stepHeadingRef} tabIndex={-1}>Choose how the learning should unfold.</h2>
-                      <span>Erudoza will still combine explanation, practice, retrieval, and transfer. This choice sets the emphasis.</span>
+                      <span>Filosage will still combine explanation, practice, retrieval, and transfer. This choice sets the emphasis.</span>
                     </div>
 
                     <div className={styles.approachGroup} role="radiogroup" aria-label="Teaching approach">

@@ -140,7 +140,7 @@ export default function CourseMap() {
       }
 
       if (!isPro) {
-        setError("Private course creation is included with Erudoza Pro.");
+        setError("Private course creation is included with Filosage Pro.");
         return;
       }
 
@@ -752,7 +752,7 @@ export default function CourseMap() {
               </div>
               {course.sourcePack?.length ? <div className="course-source-strip">
                 <strong>Author-provided references</strong>
-                <p>These links were supplied by the course author. A listed URL is not proof that Erudoza retrieved or verified its contents. Lessons identify references they actually used.</p>
+                <p>These links were supplied by the course author. A listed URL is not proof that Filosage retrieved or verified its contents. Lessons identify references they actually used.</p>
                 <ul>{course.sourcePack.map((source) => <li key={source.id}>
                   <div>{source.url ? <a href={source.url} target="_blank" rel="nofollow ugc noreferrer" aria-label={`${source.label}, opens ${sourceHostname(source.url)} in a new tab`}>{source.label}</a> : <span>{source.label}</span>}<small>{source.url ? `${sourceHostname(source.url)} · ` : ""}{source.kind.replace("-", " ")} · {source.rights.replace("-", " ")}</small></div>
                   {user && <button className="text-button" type="button" onClick={() => { setReportingSourceId(source.id); setSourceReportNote(""); setSourceReportCategory("source"); setSourceReportStatus(null); }}><Flag size={13} /> Report source</button>}
@@ -1084,7 +1084,7 @@ export default function CourseMap() {
                 <div className="course-delete-warning">
                   <TriangleAlert size={20} aria-hidden="true" />
                   <div>
-                    <strong>Erudoza will permanently delete:</strong>
+                    <strong>Filosage will permanently delete:</strong>
                     <ul>
                       <li>The course and all generated lessons</li>
                       <li>Every learner&apos;s progress and scheduled reviews for this course</li>

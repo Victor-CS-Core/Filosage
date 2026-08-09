@@ -41,8 +41,8 @@ export default function LearningScheduleSettings({
 
   const addToCalendar = () => {
     const calendar = buildLearningReminderCalendar({
-      title: "Erudoza learning mission",
-      description: "Open Erudoza, complete the highest-priority review, then take one forward step.",
+      title: "Filosage learning mission",
+      description: "Open Filosage, complete the highest-priority review, then take one forward step.",
       preferences: draft,
     });
     if (!calendar) return;
@@ -50,7 +50,7 @@ export default function LearningScheduleSettings({
     const url = URL.createObjectURL(blob);
     const anchor = document.createElement("a");
     anchor.href = url;
-    anchor.download = "erudoza-learning-reminder.ics";
+    anchor.download = "filosage-learning-reminder.ics";
     anchor.click();
     URL.revokeObjectURL(url);
   };
@@ -61,7 +61,7 @@ export default function LearningScheduleSettings({
         <div><Clock3 size={19} /><h2 id="learning-schedule-title">Learning schedule</h2></div>
         {saved && <span className="schedule-saved"><Check size={14} /> Saved</span>}
       </div>
-      <p>Choose when Erudoza should surface your mission. Missing a session never creates a penalty or a backlog target.</p>
+      <p>Choose when Filosage should surface your mission. Missing a session never creates a penalty or a backlog target.</p>
       <div className="learning-schedule-fields">
         <label>
           Reminder cadence

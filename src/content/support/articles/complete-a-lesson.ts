@@ -19,7 +19,7 @@ Use the lesson section navigation to move through longer explanations. If your b
 
 Complete the activities shown for that lesson. Knowledge checks show feedback after an attempt. A transfer task asks you to apply the idea in a different situation.
 
-When the required activities are complete, Erudoza can mark the lesson complete and schedule a later review. If a lesson has no additional activities, confirm that you reviewed the explanation and use **Mark learned**.
+When the required activities are complete, Filosage can mark the lesson complete and schedule a later review. If a lesson has no additional activities, confirm that you reviewed the explanation and use **Mark learned**.
 
 ## Check the save status
 

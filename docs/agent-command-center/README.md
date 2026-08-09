@@ -1,11 +1,11 @@
-# Erudoza Agent Command Center
+# Filosage Agent Command Center
 
-The command center is Erudoza's owner-only operational workspace at `/admin/command-center`. Phase 1 normalizes operational work. Phase 2 adds bounded, review-only drafts without adding any send or effect executor.
+The command center is Filosage's owner-only operational workspace at `/admin/command-center`. Phase 1 normalizes operational work. Phase 2 adds bounded, review-only drafts without adding any send or effect executor.
 
 ## Phase 1 contract
 
 - `COMMAND_CENTER_ENABLED` is the production environment gate.
-- The verified Erudoza owner is the only authorized role.
+- The verified Filosage owner is the only authorized role.
 - Simulation mode is permanently on.
 - Every domain-agent flag and external-action flag is off.
 - Approval records a human decision but never performs the proposed action.

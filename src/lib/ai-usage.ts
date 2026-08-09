@@ -162,7 +162,7 @@ export async function reserveAiUsage(
   const nowIso = now.toISOString();
   const policy = policyFor(account, feature, now);
   if (policy.limit === 0) {
-    throw new AiQuotaError(429, "PLAN_LIMIT", "Erudoza Pro is required for this AI feature.", {
+    throw new AiQuotaError(429, "PLAN_LIMIT", "Filosage Pro is required for this AI feature.", {
       limit: 0,
       remaining: 0,
       resetAt: policy.resetAt,

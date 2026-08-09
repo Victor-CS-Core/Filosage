@@ -16,12 +16,12 @@ test("serves release-critical public pages from the Sites production build", asy
   const home = await page.goto("/");
   expect(home?.ok()).toBe(true);
   expect(home?.headers()["x-content-type-options"]).toBe("nosniff");
-  await expect(page.getByRole("heading", { name: "Learn anything. Understand everything." })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Turn curiosity into understanding" })).toBeVisible();
 
   for (const publicPage of [
     { path: "/standard", heading: "Generated is not good enough. Every lesson is held to a standard." },
     { path: "/support", heading: "What do you need help with?" },
-    { path: "/support/articles/getting-started", heading: "Start learning with Erudoza" },
+    { path: "/support/articles/getting-started", heading: "Start learning with Filosage" },
     { path: "/terms", heading: "Terms of Service" },
     { path: "/privacy", heading: "Privacy Notice" },
     { path: "/copyright", heading: "Copyright Policy" },

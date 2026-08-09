@@ -216,7 +216,7 @@ export async function POST(request: Request) {
       reservation = null;
       return NextResponse.json(
         {
-          error: "The course did not meet Erudoza's sequencing and content-quality standard and was not saved. Please try again.",
+          error: "The course did not meet Filosage's sequencing and content-quality standard and was not saved. Please try again.",
           evaluation: account.isOwner && request.headers.get("x-erudoza-model-evaluation") === "1"
             ? { profile: activeProfile.id, model: activeProfile.model, promptVersion: activeProfile.promptVersion, issues: repairIssues }
             : undefined,
@@ -245,7 +245,7 @@ export async function POST(request: Request) {
         scenarioPreference,
       },
       authorId: account.uid,
-      authorName: account.displayName ?? (account.isOwner ? "Erudoza" : "Erudoza learner"),
+      authorName: account.displayName ?? (account.isOwner ? "Filosage" : "Filosage learner"),
       authorPhoto: account.photoURL ?? null,
       isPublic: false,
       aiAssisted: true,

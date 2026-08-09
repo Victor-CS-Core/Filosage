@@ -12,10 +12,10 @@ interface MarketingNavigationProps {
 }
 
 const links = [
-  { href: "/#features", label: "Why Erudoza" },
+  { href: "/#features", label: "Why Filosage" },
   { href: "/#how-it-works", label: "How it works" },
   { href: "/library", label: "Explore topics" },
-  { href: "/standard", label: "Teaching standard" },
+  { href: "/standard", label: "Trust and quality" },
 ];
 
 export default function MarketingNavigation({ theme, onToggleTheme, onSignIn }: MarketingNavigationProps) {

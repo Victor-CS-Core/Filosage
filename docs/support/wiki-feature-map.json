@@ -17,12 +17,12 @@
     {
       "feature": "Today learning dashboard",
       "sources": ["src/app/page.tsx"],
-      "articles": ["getting-started", "navigate-erudoza"]
+      "articles": ["getting-started", "navigate-filosage"]
     },
     {
       "feature": "Application navigation and Command Center",
       "sources": ["src/components/AppShell.tsx", "src/components/CommandPalette.tsx", "src/components/AppDrawer.tsx", "src/lib/search.ts"],
-      "articles": ["getting-started", "navigate-erudoza"]
+      "articles": ["getting-started", "navigate-filosage"]
     },
     {
       "feature": "Published course discovery",
@@ -92,7 +92,7 @@
     {
       "feature": "Owner product and operations handbook",
       "sources": ["src/app/support/owner/page.tsx", "src/app/api/support/owner-documentation/route.ts", "src/content/support/owner-documentation.ts", "PRODUCT.md", "docs/PRODUCTION_OPERATIONS.md"],
-      "articles": ["navigate-erudoza"]
+      "articles": ["navigate-filosage"]
     }
   ]
 }

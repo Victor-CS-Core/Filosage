@@ -220,7 +220,7 @@ export default function AdminPage() {
           <ShieldCheck size={28} />
           <p className="overline">Private workspace</p>
           <h1>This page is not available.</h1>
-          <p>The control room is restricted to the verified Erudoza owner account.</p>
+          <p>The control room is restricted to the verified Filosage owner account.</p>
           <button className="button button-primary" onClick={() => router.push("/")}>Return home</button>
         </div>
       </AppShell>
@@ -538,7 +538,7 @@ export default function AdminPage() {
                 <div className="admin-user-search"><Search size={16} /><label className="sr-only" htmlFor="admin-user-search">Search users</label><input id="admin-user-search" type="search" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search name, email, plan, or status" autoComplete="off" />{query && <button type="button" onClick={() => setQuery("")} aria-label="Clear user search"><X size={15} /></button>}</div>
               </header>
               <p className="sr-only" role="status">{filteredUsers.length} {filteredUsers.length === 1 ? "user" : "users"} found</p>
-              <div className="admin-user-table" role="group" aria-label="Erudoza users">
+              <div className="admin-user-table" role="group" aria-label="Filosage users">
                 <div className="admin-user-table-head"><span>User</span><span>Access</span><span>Last seen</span><span>Tokens</span><span>Cost</span></div>
                 {filteredUsers.map((candidate) => (
                   <button key={candidate.uid} className={selectedUser?.uid === candidate.uid ? "is-selected" : ""} onClick={() => { setSelectedUid(candidate.uid); setActionMessage(null); }}>

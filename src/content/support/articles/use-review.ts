@@ -11,7 +11,7 @@ export default defineSupportArticle({
   body: `
 ## Open today's review
 
-Choose **Review** in the main navigation. Erudoza builds a queue from lessons with saved learning progress and presents up to 10 due items in one session.
+Choose **Review** in the main navigation. Filosage builds a queue from lessons with saved learning progress and presents up to 10 due items in one session.
 
 If you are signed in, the page loads account-backed progress. Without an account, it can use progress stored on the current device.
 

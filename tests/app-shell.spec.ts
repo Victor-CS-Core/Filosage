@@ -125,9 +125,9 @@ test.describe("desktop application shell", () => {
     await expect(commandTrigger).toBeVisible();
     expect((await commandTrigger.boundingBox())?.width).toBeGreaterThan(420);
     await page.keyboard.press("Control+k");
-    const commandPalette = page.getByRole("dialog", { name: "Erudoza Command Center" });
+    const commandPalette = page.getByRole("dialog", { name: "Filosage Command Center" });
     await expect(commandPalette).toBeVisible();
-    const commandSearch = commandPalette.getByRole("combobox", { name: "Search Erudoza" });
+    const commandSearch = commandPalette.getByRole("combobox", { name: "Search Filosage" });
     for (let index = 0; index < 10; index += 1) await commandSearch.press("ArrowDown");
     const activeCommandId = await commandSearch.getAttribute("aria-activedescendant");
     if (!activeCommandId) throw new Error("Command Center did not expose its active option.");
@@ -159,7 +159,7 @@ test.describe("desktop application shell", () => {
     await accountTrigger.focus();
     await accountTrigger.press("Enter");
     await expect(commandPalette).toBeVisible();
-    await expect(commandPalette.getByRole("option", { name: /Erudoza Pro Owner course access/ })).toBeVisible();
+    await expect(commandPalette.getByRole("option", { name: /Filosage Pro Owner course access/ })).toBeVisible();
     await expect(commandPalette.getByRole("option", { name: /My courses Open private and published courses/ })).toBeVisible();
     await expect(commandPalette.getByRole("option", { name: /Learning profile/ })).toBeVisible();
     await expect(commandPalette.getByRole("option", { name: /Control room/ })).toBeVisible();
@@ -192,11 +192,11 @@ test.describe("desktop application shell", () => {
     await expect(page.getByRole("heading", { name: "Morse Code", exact: true })).toBeVisible();
     await page.getByRole("button", { name: /Search or jump anywhere/ }).click();
 
-    const commandCenter = page.getByRole("dialog", { name: "Erudoza Command Center" });
+    const commandCenter = page.getByRole("dialog", { name: "Filosage Command Center" });
     await expect(commandCenter.getByText("Current course", { exact: true })).toBeVisible();
     await expect(commandCenter.getByRole("option", { name: /Morse Code Open the course overview/ })).toBeVisible();
     await expect(commandCenter.getByRole("option", { name: /Hear the rhythm Decode the system/ })).toBeVisible();
-    await commandCenter.getByRole("combobox", { name: "Search Erudoza" }).fill("Build a message");
+    await commandCenter.getByRole("combobox", { name: "Search Filosage" }).fill("Build a message");
     await commandCenter.getByRole("option", { name: /Build a message/ }).click();
     await expect(page).toHaveURL(/\/lesson\/0-1\?id=morse-shell-course$/);
   });
@@ -208,13 +208,13 @@ test.describe("desktop application shell", () => {
     const commandTrigger = page.getByRole("button", { name: /Search or jump anywhere/ });
     const coursesDialog = page.getByRole("dialog", { name: "My courses" });
     await commandTrigger.click();
-    await page.getByRole("dialog", { name: "Erudoza Command Center" }).getByRole("option", { name: /My courses/ }).click();
+    await page.getByRole("dialog", { name: "Filosage Command Center" }).getByRole("option", { name: /My courses/ }).click();
     await expect(coursesDialog).toBeVisible();
 
     await coursesDialog.getByRole("button", { name: "Close course menu" }).click();
     await expect(coursesDialog).toBeHidden();
     await commandTrigger.click();
-    await page.getByRole("dialog", { name: "Erudoza Command Center" }).getByRole("option", { name: /My courses/ }).click();
+    await page.getByRole("dialog", { name: "Filosage Command Center" }).getByRole("option", { name: /My courses/ }).click();
 
     await expect(coursesDialog).toBeVisible();
     await page.waitForTimeout(240);
@@ -309,7 +309,7 @@ test.describe("mobile application shell", () => {
     await expect(page.getByRole("button", { name: "Search and jump anywhere" })).toHaveCount(0);
     await page.locator(".mobile-account-trigger").click();
 
-    const commandCenter = page.getByRole("dialog", { name: "Erudoza Command Center" });
+    const commandCenter = page.getByRole("dialog", { name: "Filosage Command Center" });
     await expect(commandCenter).toBeVisible();
     await expect(commandCenter.getByRole("option", { name: /Learning profile/ })).toBeVisible();
     await expect(commandCenter.getByRole("option", { name: /Control room/ })).toBeVisible();

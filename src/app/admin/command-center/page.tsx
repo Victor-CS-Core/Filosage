@@ -403,7 +403,7 @@ export default function CommandCenterPage() {
     return <AppShell><div className="center-state"><LoaderCircle className="spin" /><h1>Verifying owner access</h1></div></AppShell>;
   }
   if (!user || !isOwner) {
-    return <AppShell><div className="center-state"><ShieldCheck /><h1>This page is not available.</h1><p>The command center is restricted to the verified Erudoza owner.</p><Link className="button button-primary" href="/">Return home</Link></div></AppShell>;
+    return <AppShell><div className="center-state"><ShieldCheck /><h1>This page is not available.</h1><p>The command center is restricted to the verified Filosage owner.</p><Link className="button button-primary" href="/">Return home</Link></div></AppShell>;
   }
 
   const controls = data?.controls;

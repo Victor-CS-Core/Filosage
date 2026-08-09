@@ -196,7 +196,7 @@ test("routes a signed-in support request into the private owner queue", async ({
 
   const handbook = await request.get("/api/support/owner-documentation", { headers: ownerHeaders });
   expect(handbook.ok()).toBe(true);
-  await expect(handbook.json()).resolves.toMatchObject({ title: "Erudoza owner handbook" });
+  await expect(handbook.json()).resolves.toMatchObject({ title: "Filosage owner handbook" });
 });
 
 test("records a versioned ticket and approval without executing an external action", async ({ request }) => {

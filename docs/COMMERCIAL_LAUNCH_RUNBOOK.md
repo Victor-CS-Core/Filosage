@@ -1,6 +1,6 @@
 # Commercial launch runbook
 
-This runbook prepares Erudoza for paid plans without opening subscriptions. The default and expected preparation state is `BILLING_ENABLED=false`.
+This runbook prepares Filosage for paid plans without opening subscriptions. The default and expected preparation state is `BILLING_ENABLED=false`.
 
 ## Closed-launch boundary
 
@@ -26,6 +26,58 @@ Do not enable billing until all of the following are true:
 10. The owner makes a separate, explicit decision to change `BILLING_ENABLED` from `false` to `true`.
 
 For an ordinary closed-billing release, set `SITE_VERSION` to the exact Git commit SHA and run `npm.cmd run check:release`; this check requires `BILLING_ENABLED=false`. After deployment, run `npm.cmd run check:production -- https://your-domain.example <exact-sha>` so a healthy datastore cannot mask a stale or unidentified build. Only after separate billing authorization, run `node scripts/check-release-env.mjs --billing-activation`; that mode requires the Stripe product, webhook, management, and checkout configuration plus `BILLING_ENABLED=true`.
+
+## Product release readiness register
+
+Updated: 2026-08-09
+
+This register is the consolidated source for unresolved release dependencies. A routine closed-billing code release may continue while the broader operational and commercial items remain open, provided the exact release passes its technical checks and `BILLING_ENABLED=false`. Do not describe Filosage as operationally or commercially ready until the applicable gates below are complete.
+
+### Required for every production code release
+
+- [ ] Deploy the exact intended Git commit and confirm that `HEAD`, `origin/main`, the Sites source version, hosted `SITE_VERSION`, and `/api/health` all identify the same full SHA. The currently validated support-intake release is newer than the code confirmed live on 2026-08-09.
+- [ ] Pass the release checks appropriate to the change: release environment, lint, production build, Sites build, proportionate end-to-end coverage, dependency audit, and tracked-file secret scan.
+- [ ] Verify production health and complete focused smoke tests for every affected public, learner, owner, privacy, support, and billing-lock surface.
+- [ ] Keep `BILLING_ENABLED=false` unless the owner separately approves billing activation after every paid-launch gate passes.
+
+### Required before relying on production for valuable learner data
+
+- [ ] Configure `FIRESTORE_BACKUP_BUCKET` as a dedicated Google Cloud Storage bucket in the Firestore database location. Managed Firestore export/import requires Google Cloud billing and upgrades Firebase to Blaze; enabling it is a separate owner decision.
+- [ ] Complete one managed export and record its completed backup URI, release SHA, timestamp, and operator.
+- [ ] Restore the latest export into a separate non-production Firebase project and verify representative account, course, lesson, progress, publication, command-center, and entitlement records. Never rehearse restoration against production.
+- [ ] Approve a retention schedule covering backup retention, application records, audit evidence, consent records, support cases, deletion tombstones, and legally required holds.
+- [ ] Establish a resumable process for partially completed account deletion and a verified manual owner-account transfer or service-shutdown procedure.
+- [ ] Until these controls pass, treat production data as operationally under-protected and avoid collecting data whose loss cannot be accepted.
+
+Supabase migration is not a release dependency and is not a substitute for this gate. Any database migration requires its own schema, authentication, authorization, data-conversion, dual-run, rollback, and restore plan. A free Supabase project also requires independent logical exports because automatic daily backups are a paid-plan feature.
+
+### Required before unattended or broader real-user operation
+
+- [ ] Configure `OPERATIONS_ALERT_WEBHOOK_URL` to an independently monitored receiver that accepts Filosage's JSON alert envelope.
+- [ ] Configure a cryptographically random `OPERATIONS_ALERT_WEBHOOK_SECRET`; the receiver must verify the hexadecimal HMAC-SHA256 value in `X-Erudoza-Signature` before accepting an alert.
+- [ ] Send and acknowledge a signed test alert, then verify deduplication, failure logging, escalation ownership, and recovery notification behavior.
+- [ ] Configure an external monitor for `/api/health` at a one-to-five-minute interval, alerting after two consecutive failures and again on recovery.
+- [ ] Confirm the support address is actively monitored and run a signed-in owner acceptance test for support intake, owner documentation, the content-report queue, command-center review-only drafts, and audit evidence on the exact hosted release.
+- [ ] Configure a transactional email provider and live-test consent, required notices, delivery, bounce handling, unsubscribe, suppression, cancellation confirmation, renewal, and failed-payment messaging before sending lifecycle email.
+- [ ] Verify backup and alert service-account permissions use the minimum required roles and that secrets are stored only in the hosted secret store.
+
+### Required before paid activation
+
+- [ ] Complete the entire payment lifecycle test matrix in this runbook with Stripe test objects and retain a redacted evidence record.
+- [ ] Review Stripe Live products, monthly and annual prices, webhook endpoint, webhook signing secret, customer portal, tax behavior, refund handling, statement descriptor, and historical-price lifecycle support.
+- [ ] Establish the formal operator identity, business address, governing jurisdiction, required tax treatment, registered DMCA process or agent where applicable, and jurisdiction-specific legal review.
+- [ ] Approve the Terms, Privacy Policy, refund/cancellation policy, age eligibility, guardian or parental-consent boundary, and analytics/cookie inventory for the intended launch markets.
+- [ ] Resolve all open high-risk safety, privacy, copyright, account-access, and content reports.
+- [ ] Confirm that support can handle billing, cancellation, refund, privacy, copyright, and account-deletion cases with owner-visible evidence and escalation paths.
+- [ ] Run `node scripts/check-release-env.mjs --billing-activation`, then require a separate explicit owner decision before changing `BILLING_ENABLED=true`.
+
+### Evidence required before broad promotion or growth spending
+
+- [ ] Complete 15-20 qualified customer interviews and satisfy the Phase 0 demand and acquisition thresholds.
+- [ ] Produce the flagship pathway and three supporting courses with authoritative source packs, named review owners, review dates, and qualified expert review.
+- [ ] Collect live usefulness and critical-error evidence, then observe full Day 7 and Day 28 retention windows with retained and churned learner interviews.
+- [ ] Validate willingness to pay, activated-free-to-paid conversion, voluntary churn, refund and chargeback rates, support burden, contribution margin, acquisition payback, and organic or referral share with real cohorts.
+- [ ] Keep paid acquisition and catalog expansion constrained until these evidence gates support the next investment.
 
 ## Course-generation release acceptance
 

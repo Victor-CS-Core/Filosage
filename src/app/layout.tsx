@@ -41,25 +41,25 @@ export async function generateMetadata(): Promise<Metadata> {
   return {
     metadataBase: new URL(origin),
     title: {
-      default: "Erudoza · Your daily dose of understanding.",
-      template: "%s | Erudoza",
+      default: "Filosage — Turn curiosity into understanding",
+      template: "%s | Filosage",
     },
-    description: "Learn anything through clear explanations, personalized practice, and guided learning designed to help ideas truly click.",
-    applicationName: "Erudoza",
+    description: "Build focused learning paths for complex professional skills with AI-assisted explanations, source-aware lessons, applied practice, and inspectable progress.",
+    applicationName: "Filosage",
     category: "education",
     alternates: { canonical: "https://erudoza.com" },
     openGraph: {
-      title: "Erudoza · Learn anything. Understand everything.",
-      description: "Clear explanations, personalized practice, and guided learning for ideas that need to truly click.",
+      title: "Filosage — Turn curiosity into understanding",
+      description: "Focused learning paths, source-aware lessons, applied practice, and evidence of progress for complex professional skills.",
       type: "website",
       url: "https://erudoza.com",
-      siteName: "Erudoza",
-      images: [{ url: socialImage, width: 1200, height: 630, alt: "Erudoza · Learn anything. Understand everything." }],
+      siteName: "Filosage",
+      images: [{ url: socialImage, width: 1200, height: 630, alt: "Filosage — Turn curiosity into understanding" }],
     },
     twitter: {
       card: "summary_large_image",
-      title: "Erudoza · Learn anything. Understand everything.",
-      description: "Your daily dose of understanding.",
+      title: "Filosage — Turn curiosity into understanding",
+      description: "AI-assisted learning paths with source-aware lessons and evidence you can inspect.",
       images: [socialImage],
     },
   };
@@ -84,7 +84,7 @@ export default async function RootLayout({
     <html lang="en" data-scroll-behavior="smooth" suppressHydrationWarning>
       <body suppressHydrationWarning>
         {/* eslint-disable-next-line @next/next/no-sync-scripts -- Theme must be set before first paint. */}
-        <script id="erudoza-theme-bootstrap" src="/theme-bootstrap.js" nonce={nonce} suppressHydrationWarning />
+        <script id="filosage-theme-bootstrap" src="/theme-bootstrap.js" nonce={nonce} suppressHydrationWarning />
         <ThemeProvider>
           <AuthProvider>
             <DrawerProvider>

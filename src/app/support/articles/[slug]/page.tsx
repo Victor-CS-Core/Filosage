@@ -35,7 +35,7 @@ export default async function SupportArticlePage({ params }: PageProps<"/support
   const related = article.related.map(getSupportArticle).filter((item) => item !== undefined);
   const headings = getSupportHeadings(article.body);
   const reviewedDate = new Intl.DateTimeFormat("en", { month: "long", day: "numeric", year: "numeric", timeZone: "UTC" }).format(new Date(`${article.reviewedOn}T00:00:00Z`));
-  const contactHref = `mailto:${SUPPORT_CONTACT}?subject=${encodeURIComponent(`Erudoza support: ${article.title}`)}`;
+  const contactHref = `mailto:${SUPPORT_CONTACT}?subject=${encodeURIComponent(`Filosage support: ${article.title}`)}`;
 
   return (
     <AppShell>

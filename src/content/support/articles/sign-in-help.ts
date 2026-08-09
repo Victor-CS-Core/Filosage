@@ -11,7 +11,7 @@ export default defineSupportArticle({
   body: `
 ## If the sign-in window does not open
 
-Allow popups for Erudoza, then try Google sign-in again. If you closed the account chooser, restart the sign-in action when you are ready.
+Allow popups for Filosage, then try Google sign-in again. If you closed the account chooser, restart the sign-in action when you are ready.
 
 ## If browser storage is unavailable
 
@@ -19,11 +19,11 @@ Google sign-in requires browser storage. Turn off Private Browsing for the site 
 
 ## If the network or session is slow
 
-Check your connection and retry. If Erudoza reports that the session or account is taking longer than expected, refresh once before starting another sign-in attempt.
+Check your connection and retry. If Filosage reports that the session or account is taking longer than expected, refresh once before starting another sign-in attempt.
 
 ## If the domain is not authorized
 
-An authorized-domain error is a site configuration problem rather than an account password problem. Contact [Erudoza support](/support/articles/contact-support) and include the page address and exact error message. Never send a password or authentication code.
+An authorized-domain error is a site configuration problem rather than an account password problem. Contact [Filosage support](/support/articles/contact-support) and include the page address and exact error message. Never send a password or authentication code.
 `,
   related: ["getting-started", "contact-support", "privacy-controls"],
   featured: true,

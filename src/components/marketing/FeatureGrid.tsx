@@ -1,9 +1,9 @@
 import Image from "next/image";
 
 const features = [
-  { title: "Clear explanations", copy: "Break complex ideas into an intelligible structure without stripping away the reasoning that makes them useful.", image: "/brand/illustrations/ai-explanations.svg", className: "feature-wide" },
-  { title: "Personalized practice", copy: "Move from guided examples to an independent task selected around what the learner needs next.", image: "/brand/illustrations/personalized-practice.svg", className: "" },
-  { title: "Progress you can inspect", copy: "See recall, practice, transfer, and capstone evidence as separate signals—not one vague completion score.", image: "/brand/illustrations/progress-tracking.svg", className: "" },
+  { title: "AI that supports the learning task", copy: "Filosage uses AI to shape explanations, examples, practice, and tutoring around a defined outcome. Generated work must pass safety, structure, and teaching-quality checks before it is saved.", image: "/brand/illustrations/ai-explanations.svg", className: "feature-wide" },
+  { title: "Sources stay visible", copy: "Each lesson shows its source-pack status and distinguishes author-supplied references from material that was actually used, so confidence is never implied by a link alone.", image: "/brand/illustrations/topic-exploration.svg", className: "" },
+  { title: "Progress you can inspect", copy: "See recall, guided practice, independent transfer, and capstone evidence as separate signals—not one vague completion score.", image: "/brand/illustrations/progress-tracking.svg", className: "" },
 ];
 
 export default function FeatureGrid() {
@@ -11,7 +11,7 @@ export default function FeatureGrid() {
     <section className="marketing-section marketing-features" id="features" aria-labelledby="features-title">
       <div className="marketing-section-heading">
         <h2 id="features-title">Understanding is more than finishing a lesson.</h2>
-        <p>Erudoza connects explanation, practice, and evidence in one calm web learning experience.</p>
+        <p>Filosage connects AI-assisted teaching, source-aware lessons, and inspectable evidence in one calm learning experience.</p>
       </div>
       <div className="marketing-feature-grid">
         {features.map((feature) => (

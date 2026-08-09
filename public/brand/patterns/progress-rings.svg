@@ -1,5 +1,5 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="640" height="640" viewBox="0 0 640 640" role="img" aria-labelledby="title desc">
   <title id="title">Progress ring motif</title>
-  <desc id="desc">Concentric progress arcs in the Erudoza palette.</desc>
+  <desc id="desc">Concentric progress arcs in the Filosage palette.</desc>
   <g fill="none" stroke-linecap="round" transform="rotate(-90 320 320)"><circle cx="320" cy="320" r="230" stroke="#EEF2F5" stroke-width="26"/><circle cx="320" cy="320" r="230" stroke="#14B8A6" stroke-width="26" stroke-dasharray="980 1445"/><circle cx="320" cy="320" r="170" stroke="#4DA6FF" stroke-width="18" stroke-dasharray="620 1068"/><circle cx="320" cy="320" r="112" stroke="#FF8A65" stroke-width="12" stroke-dasharray="360 704"/></g>
 </svg>

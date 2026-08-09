@@ -6,7 +6,7 @@ export default function MarketingFooter() {
     <footer className="marketing-footer">
       <div className="marketing-footer-main">
         <BrandLogo />
-        <p>Clear explanations, personalized practice, and guided learning for ideas that need to truly click.</p>
+        <p>Focused learning paths, source-aware lessons, and guided practice for complex skills that need to become usable.</p>
         <Link className="marketing-footer-cta" href="/library">Explore the learning library</Link>
       </div>
       <div className="marketing-footer-links">
@@ -14,7 +14,7 @@ export default function MarketingFooter() {
         <div><strong>Support</strong><Link href="/support">Support</Link><Link href="/privacy-center">Privacy choices</Link><Link href="/copyright">Copyright</Link></div>
         <div><strong>Legal</strong><Link href="/terms">Terms</Link><Link href="/privacy">Privacy</Link><Link href="/acceptable-use">Acceptable use</Link></div>
       </div>
-      <div className="marketing-footer-meta"><span>© {new Date().getFullYear()} Erudoza</span><span>Web learning at erudoza.com</span></div>
+      <div className="marketing-footer-meta"><span>© {new Date().getFullYear()} Filosage</span><span>Filosage currently operates at erudoza.com</span></div>
     </footer>
   );
 }

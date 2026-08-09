@@ -15,18 +15,18 @@ function readableTopic(value: string) {
 
 export async function generateMetadata({ params }: CourseLayoutProps): Promise<Metadata> {
   const topic = readableTopic((await params).topic) || "Course";
-  const description = `Learn ${topic} through a structured Erudoza course with explanations, guided practice, retrieval checks, and applied work.`;
+  const description = `Learn ${topic} through a structured Filosage course with explanations, guided practice, retrieval checks, and applied work.`;
   return {
     title: topic,
     description,
     openGraph: {
-      title: `${topic} | Erudoza`,
+      title: topic,
       description,
       type: "article",
     },
     twitter: {
       card: "summary_large_image",
-      title: `${topic} | Erudoza`,
+      title: topic,
       description,
     },
   };

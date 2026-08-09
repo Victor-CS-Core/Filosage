@@ -24,7 +24,7 @@ import {
   X,
 } from "lucide-react";
 import { SUPPORT_CONTACT } from "@/lib/legal";
-import ErudozaMark from "@/components/ErudozaMark";
+import FilosageMark from "@/components/FilosageMark";
 import AuthModal from "@/components/AuthModal";
 import AppDrawer, { useAppDrawer } from "@/components/AppDrawer";
 import LegalConsentModal from "@/components/LegalConsentModal";
@@ -147,7 +147,7 @@ export default function AppShell({ children, activeTopic, activeLessonId, active
     {
       id: "navigate-create",
       section: "Navigate" as const,
-      label: isPro ? "Create a course" : "Explore Erudoza Pro",
+      label: isPro ? "Create a course" : "Explore Filosage Pro",
       description: isPro ? "Build a private course around an outcome" : "See private course creation and plan details",
       href: isPro ? "/create" : "/pricing",
       keywords: "new add build course pricing pro",
@@ -197,7 +197,7 @@ export default function AppShell({ children, activeTopic, activeLessonId, active
     ...(isPro && outlineQuota ? [{
       id: "account-plan",
       section: "Account" as const,
-      label: "Erudoza Pro",
+      label: "Filosage Pro",
       description: outlineQuota.remaining == null ? "Owner course access" : `${outlineQuota.remaining} course credit${outlineQuota.remaining === 1 ? "" : "s"} remaining`,
       href: "/pricing",
       keywords: "plan subscription quota pricing credits",
@@ -299,9 +299,9 @@ export default function AppShell({ children, activeTopic, activeLessonId, active
 
   if (authLoading) {
     return (
-      <div className="auth-boot-shell" aria-busy="true" aria-label="Restoring your Erudoza session">
-        <span className="brand-mark" aria-hidden="true"><ErudozaMark /></span>
-        <strong>Erudoza</strong>
+      <div className="auth-boot-shell" aria-busy="true" aria-label="Restoring your Filosage session">
+        <span className="brand-mark" aria-hidden="true"><FilosageMark /></span>
+        <strong className="brand-wordmark"><span>Filo</span><span>sage</span></strong>
         <span className="auth-boot-line" />
       </div>
     );
@@ -323,9 +323,9 @@ export default function AppShell({ children, activeTopic, activeLessonId, active
     <div className="app-shell learner-shell">
       <a className="skip-link" href="#main-content">Skip to main content</a>
       <header className="learning-header">
-        <Link className="brand learning-header-brand" href="/" aria-label="Erudoza home">
-          <span className="brand-mark" aria-hidden="true"><ErudozaMark /></span>
-          <span><strong className="brand-wordmark">Erudoza</strong><small>Learning workspace</small></span>
+        <Link className="brand learning-header-brand" href="/" aria-label="Filosage home">
+          <span className="brand-mark" aria-hidden="true"><FilosageMark /></span>
+          <span><strong className="brand-wordmark"><span>Filo</span><span>sage</span></strong><small>Learning workspace</small></span>
         </Link>
 
         <div className="learning-command-launch">
@@ -358,11 +358,11 @@ export default function AppShell({ children, activeTopic, activeLessonId, active
       </header>
 
       <header className="learner-mobile-header">
-        <button className="brand brand-mobile" onClick={() => navigate("/")} aria-label="Erudoza home">
-          <span className="brand-mark" aria-hidden="true"><ErudozaMark /></span><strong className="brand-wordmark">Erudoza</strong>
+        <button className="brand brand-mobile" onClick={() => navigate("/")} aria-label="Filosage home">
+          <span className="brand-mark" aria-hidden="true"><FilosageMark /></span><strong className="brand-wordmark"><span>Filo</span><span>sage</span></strong>
         </button>
         <div className="learner-mobile-actions">
-          <button ref={mobileAccountTriggerRef} className="mobile-account-trigger" type="button" onClick={() => openCommand(mobileAccountTriggerRef.current)} aria-expanded={commandOpen} aria-controls="command-palette" aria-haspopup="dialog" aria-label={`Open Command Center for ${firstName}, ${isPro ? "Erudoza Pro" : "free plan"}`}>
+          <button ref={mobileAccountTriggerRef} className="mobile-account-trigger" type="button" onClick={() => openCommand(mobileAccountTriggerRef.current)} aria-expanded={commandOpen} aria-controls="command-palette" aria-haspopup="dialog" aria-label={`Open Command Center for ${firstName}, ${isPro ? "Filosage Pro" : "free plan"}`}>
             {user.photoURL ? (
               // eslint-disable-next-line @next/next/no-img-element
               <img src={user.photoURL} alt="" referrerPolicy="no-referrer" />
@@ -455,7 +455,7 @@ function CourseSwitcherPanel({ headingId, currentCourse, visibleCourses, totalCo
             {visibleCourses.filter((course) => course !== currentCourse).map((course) => <CourseSwitcherLink key={course.id ?? course.courseId ?? course.topic} course={course} onNavigate={onClose} />)}
             {!coursesLoading && isPro && totalCourses > 0 && visibleCourses.length === 0 && <div className="course-switcher-empty"><Search size={20} /><strong>No matching courses</strong><p>Try a shorter title, lesson, or skill.</p><button className="button button-quiet button-small" type="button" onClick={clearSearch}>Clear search</button></div>}
             {!coursesLoading && isPro && totalCourses === 0 && <div className="course-switcher-empty"><BookOpen size={20} /><strong>Your course shelf is ready</strong><p>Create a focused course and it will appear here.</p><Link className="button button-primary button-small" href="/create" onClick={onClose}>Create a course</Link></div>}
-            {!isPro && <div className="course-switcher-empty"><Sparkles size={20} /><strong>Create courses around your goals</strong><p>Erudoza Pro lets you build private, adaptive learning paths.</p><Link className="button button-primary button-small" href="/pricing" onClick={onClose}>Explore Pro</Link></div>}
+            {!isPro && <div className="course-switcher-empty"><Sparkles size={20} /><strong>Create courses around your goals</strong><p>Filosage Pro lets you build private, adaptive learning paths.</p><Link className="button button-primary button-small" href="/pricing" onClick={onClose}>Explore Pro</Link></div>}
           </div>
         </section>
       </div>

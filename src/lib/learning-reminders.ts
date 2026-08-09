@@ -78,7 +78,7 @@ export function buildLearningReminderCalendar({
   return [
     "BEGIN:VCALENDAR",
     "VERSION:2.0",
-    "PRODID:-//Erudoza//Learning reminder//EN",
+    "PRODID:-//Filosage//Learning reminder//EN",
     "CALSCALE:GREGORIAN",
     "BEGIN:VEVENT",
     `UID:${uid}`,

@@ -241,7 +241,7 @@ export default function OutcomePlanner({
               </div>
             ) : user ? (
               <>
-                <p>Attempt the capstone brief now. Erudoza will score the same criteria used at the end, so improvement is measurable.</p>
+                <p>Attempt the capstone brief now. Filosage will score the same criteria used at the end, so improvement is measurable.</p>
                 <textarea
                   rows={5}
                   value={baselineSubmission}

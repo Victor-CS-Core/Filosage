@@ -19,7 +19,7 @@ export interface SafetyContext {
 }
 
 export const AI_SAFETY_POLICY = `
-Follow Erudoza's Acceptable Use Policy. Do not provide sexual content involving minors,
+Follow Filosage's Acceptable Use Policy. Do not provide sexual content involving minors,
 non-consensual intimate content, instructions that facilitate violent wrongdoing,
 self-harm, fraud, credential theft, malware, privacy invasion, extremist recruitment,
 targeted hate or harassment, or methods for evading safety controls. You may discuss

@@ -16,12 +16,12 @@ export default function GlobalError({
       <body>
         <main className="center-state release-fallback" id="main-content" role="alert">
           <div className="global-error-mark" aria-hidden="true">E</div>
-          <p className="overline">Erudoza needs a fresh start</p>
+          <p className="overline">Filosage needs a fresh start</p>
           <h1>The application could not finish loading.</h1>
           <p>Retry the application. If it still does not open, contact support and include what you were trying to do.</p>
           <div className="fallback-actions" aria-label="Application recovery options">
             <button className="button button-primary" type="button" onClick={() => unstable_retry()}>
-              <RefreshCw size={16} aria-hidden="true" /> Retry Erudoza
+              <RefreshCw size={16} aria-hidden="true" /> Retry Filosage
             </button>
             <button className="button button-secondary" type="button" onClick={() => window.location.assign("/")}>Return home</button>
           </div>

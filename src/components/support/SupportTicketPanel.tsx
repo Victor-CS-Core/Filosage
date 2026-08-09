@@ -72,7 +72,7 @@ export default function SupportTicketPanel() {
             <label>
               Request type
               <select name="category" defaultValue="support">
-                <option value="support">Using Erudoza</option>
+                <option value="support">Using Filosage</option>
                 <option value="billing">Billing question</option>
                 <option value="privacy">Privacy request</option>
                 <option value="product_feedback">Product feedback</option>

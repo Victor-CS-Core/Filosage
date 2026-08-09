@@ -8,11 +8,11 @@ product
 
 The launch customer is an English-speaking product manager, data or analytics professional, product-minded engineer, or adjacent knowledge worker who needs to learn a reasoning-heavy skill for a current project, role transition, interview, or promotion within 2–8 weeks.
 
-The owner uses Erudoza as a private AI-assisted learning and course-authoring workspace. Anonymous visitors can discover published topics and inspect each course outcome, modules, lesson titles, and assessment structure. Opening lesson content, saving progress, using learning tools, or submitting work requires a verified learner account. Private generation, publishing, and management remain separately authorized.
+The owner uses Filosage as a private AI-assisted learning and course-authoring workspace. Anonymous visitors can discover published topics and inspect each course outcome, modules, lesson titles, and assessment structure. Opening lesson content, saving progress, using learning tools, or submitting work requires a verified learner account. Private generation, publishing, and management remain separately authorized.
 
 ## Product Purpose
 
-Erudoza turns a real professional outcome into a focused learning path grounded in diagnosis, concise explanation, worked examples, retrieval practice, transfer, and capstone evidence. Success means a learner can demonstrate a capability they need at work, while the owner can create and publish trustworthy courses efficiently.
+Filosage turns a real professional outcome into a focused learning path grounded in diagnosis, concise explanation, worked examples, retrieval practice, transfer, and capstone evidence. Success means a learner can demonstrate a capability they need at work, while the owner can create and publish trustworthy courses efficiently.
 
 ## Current Product Contract
 
@@ -20,7 +20,9 @@ The production experience is outcome-first: account holders create a goal and di
 
 ## Brand Personality
 
-Clear, curious, intelligent, and quietly premium. Erudoza should have calm, content-first confidence while establishing a distinctive identity of its own. The interface should feel considered, capable, and human rather than flashy or synthetic.
+Clear, curious, intelligent, and quietly premium. Filosage should have calm, content-first confidence while establishing a distinctive identity of its own. The interface should feel considered, capable, and human rather than flashy or synthetic.
+
+The name joins philosophy and curiosity (`Filo`) with wisdom and understanding (`sage`). The primary brand statement is **Turn curiosity into understanding.** A learner's question begins a path; Filosage makes that path structured, source-aware, practiced, and visible through evidence.
 
 ## Anti-references
 

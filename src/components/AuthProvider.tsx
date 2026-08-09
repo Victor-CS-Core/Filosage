@@ -69,7 +69,7 @@ function authErrorMessage(error: unknown) {
     case "auth/unauthorized-domain":
       return `Google sign-in is not authorized for this site. Contact ${SUPPORT_CONTACT}.`;
     case "auth/popup-blocked":
-      return "Your browser blocked the Google sign-in window. Allow popups for Erudoza and try again.";
+      return "Your browser blocked the Google sign-in window. Allow popups for Filosage and try again.";
     case "auth/popup-closed-by-user":
     case "auth/cancelled-popup-request":
       return "Google sign-in was canceled. You can try again when ready.";

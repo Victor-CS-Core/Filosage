@@ -1,4 +1,4 @@
-# Erudoza brand styles
+# Filosage brand styles
 
 - `tokens.css` is the canonical web token layer for color, typography, spacing, radii, borders, focus, motion, gradients, breakpoints, and elevation.
 - `marketing.css` contains the public marketing components only. Product and authenticated application rules remain in `src/app/globals.css`.

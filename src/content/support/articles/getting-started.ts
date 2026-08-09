@@ -2,7 +2,7 @@ import { defineSupportArticle } from "../types";
 
 export default defineSupportArticle({
   slug: "getting-started",
-  title: "Start learning with Erudoza",
+  title: "Start learning with Filosage",
   summary: "Browse published courses, inspect a course outline, and sign in when you are ready to open a lesson.",
   category: "start",
   keywords: ["start", "account", "library", "course", "guest", "sign in"],

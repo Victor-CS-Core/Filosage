@@ -30,7 +30,7 @@ import AppDrawer, { useAppDrawer } from "@/components/AppDrawer";
 import AppShell from "@/components/AppShell";
 import { useAuth } from "@/components/AuthProvider";
 import { trackProductEvent } from "@/lib/product-analytics";
-import ErudozaMark from "@/components/ErudozaMark";
+import FilosageMark from "@/components/FilosageMark";
 import type { Course, LessonData, Quiz } from "@/lib/course-types";
 import type {
   Confidence,
@@ -1156,7 +1156,7 @@ export default function LessonView() {
           {isGenerating ? (
             <section className="lesson-generation-status" aria-labelledby="lesson-generation-title">
               <div className="lesson-generation-brand">
-                <span className="brand-mark" aria-hidden="true"><ErudozaMark /></span>
+                <span className="brand-mark" aria-hidden="true"><FilosageMark /></span>
                 <span>Preparing your next lesson</span>
               </div>
               <h1 id="lesson-generation-title">{lesson?.title ?? "Creating your lesson"}</h1>
@@ -1190,7 +1190,7 @@ export default function LessonView() {
                   </li>
                 ))}
               </ol>
-              <p className="lesson-generation-note">This usually takes less than a minute. Keep this page open while Erudoza prepares the explanation, examples, and practice.</p>
+              <p className="lesson-generation-note">This usually takes less than a minute. Keep this page open while Filosage prepares the explanation, examples, and practice.</p>
             </section>
           ) : (
             <>
@@ -1251,7 +1251,7 @@ export default function LessonView() {
             </button>
             {user ? (
               <button className={`button button-secondary button-small ${tutorOpen ? "is-active" : ""}`} onClick={tutorDrawer.toggleDrawer} aria-expanded={tutorOpen}>
-                <MessageSquareText size={16} /> {tutorOpen ? "Close tutor" : "Ask tutor"}
+                <MessageSquareText size={16} /> {tutorOpen ? "Close Filosage" : "Ask Filosage"}
               </button>
             ) : (
               <span className="owner-only-note"><LockKeyhole size={14} /> Sign in for lesson help</span>
@@ -1548,8 +1548,8 @@ export default function LessonView() {
             <AppDrawer open={tutorOpen} onClose={tutorDrawer.closeDrawer} labelledBy="tutor-title" size="medium" mobilePlacement="full" className="tutor-app-drawer">
             <aside className="tutor-drawer">
               <header className="tutor-header">
-                <span className="tutor-avatar"><ErudozaMark /></span>
-                <div className="tutor-heading"><span>Lesson tutor</span><strong id="tutor-title">Erudoza AI Tutor</strong><small>Grounded in “{lesson.title}”</small></div>
+                <span className="tutor-avatar"><FilosageMark /></span>
+                <div className="tutor-heading"><span>Lesson tutor</span><strong id="tutor-title">Ask Filosage</strong><small>Grounded in “{lesson.title}”</small></div>
                 <span className="tutor-grounded-status"><span aria-hidden="true" /> Lesson-aware</span>
                 <button className="icon-button" onClick={tutorDrawer.closeDrawer} aria-label="Close tutor"><X size={18} /></button>
               </header>

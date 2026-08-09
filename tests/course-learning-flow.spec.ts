@@ -591,8 +591,8 @@ test("completes a published course from discovery through evidence", async ({ pa
     },
   });
 
-  await page.getByRole("button", { name: "Ask tutor" }).click();
-  const tutor = page.getByRole("dialog", { name: "Erudoza AI Tutor" });
+  await page.getByRole("button", { name: "Ask Filosage" }).click();
+  const tutor = page.getByRole("dialog", { name: "Ask Filosage" });
   await tutor.getByLabel("Ask about this lesson").fill("How is an inference different from evidence?");
   await tutor.getByRole("button", { name: "Send question" }).click();
   await expect(tutor.getByText("Evidence is observed; an inference is the explanation added to it.")).toBeVisible();

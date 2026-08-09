@@ -36,7 +36,7 @@ const supportCollections: Array<{
   categories: SupportCategoryId[];
 }> = [
   {
-    title: "Learn with Erudoza",
+    title: "Learn with Filosage",
     description: "Begin a course, work through lessons, practice, and understand your evidence.",
     categories: ["start", "courses", "practice", "progress"],
   },
@@ -55,15 +55,15 @@ export default function SupportPage() {
     category: getSupportCategory(article.category)?.label ?? article.category,
     keywords: article.keywords,
   }));
-  const contactHref = `mailto:${SUPPORT_CONTACT}?subject=${encodeURIComponent("Erudoza support request")}`;
+  const contactHref = `mailto:${SUPPORT_CONTACT}?subject=${encodeURIComponent("Filosage support request")}`;
 
   return (
     <AppShell>
       <div className="support-page support-wiki-home">
         <header className="support-header support-wiki-header">
-          <p className="overline">Erudoza support</p>
+          <p className="overline">Filosage support</p>
           <h1>What do you need help with?</h1>
-          <p>Find a clear answer about learning, progress, account access, or privacy. Every guide below is checked against the current Erudoza application.</p>
+          <p>Find a clear answer about learning, progress, account access, or privacy. Every guide below is checked against the current Filosage application.</p>
           <SupportSearch articles={searchItems} />
         </header>
 

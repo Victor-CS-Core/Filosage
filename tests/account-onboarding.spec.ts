@@ -112,5 +112,5 @@ test("presents a signed-in identity without an application account as initial se
   const dialog = page.getByRole("dialog", { name: "Review before creating your account" });
   await expect(dialog).toBeVisible();
   await expect(dialog.getByText("Account setup", { exact: true })).toBeVisible();
-  await expect(dialog.getByText(/before Erudoza creates your learning account/i)).toBeVisible();
+  await expect(dialog.getByText(/before Filosage creates your learning account/i)).toBeVisible();
 });

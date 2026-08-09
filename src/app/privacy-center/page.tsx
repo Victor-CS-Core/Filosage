@@ -56,12 +56,12 @@ export default function PrivacyCenterPage() {
       const url = URL.createObjectURL(blob);
       const anchor = document.createElement("a");
       anchor.href = url;
-      anchor.download = `erudoza-data-${new Date().toISOString().slice(0, 10)}.json`;
+      anchor.download = `filosage-data-${new Date().toISOString().slice(0, 10)}.json`;
       document.body.appendChild(anchor);
       anchor.click();
       anchor.remove();
       URL.revokeObjectURL(url);
-      setMessage("Your Erudoza data export has been downloaded.");
+      setMessage("Your Filosage data export has been downloaded.");
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Your export could not be prepared.");
     } finally {
@@ -89,7 +89,7 @@ export default function PrivacyCenterPage() {
         await deleteUser(user);
       } catch {
         await signOut();
-        throw new Error(`Your Erudoza application data was deleted, but the sign-in identity could not be removed. Contact ${LEGAL_CONTACT} to finish the identity request.`);
+        throw new Error(`Your Filosage application data was deleted, but the sign-in identity could not be removed. Contact ${LEGAL_CONTACT} to finish the identity request.`);
       }
       router.replace("/");
     } catch (error) {
@@ -105,13 +105,13 @@ export default function PrivacyCenterPage() {
           <span className="privacy-center-icon" aria-hidden="true"><ShieldCheck size={24} /></span>
           <p className="overline">Privacy center</p>
           <h1>Your information, under your control.</h1>
-          <p>Review how Erudoza handles learning data, download a portable copy, or permanently close your account.</p>
+          <p>Review how Filosage handles learning data, download a portable copy, or permanently close your account.</p>
         </header>
 
         <section className="privacy-center-grid" aria-label="Privacy controls">
           <article>
             <BarChart3 size={20} />
-            <div><h2>Optional analytics</h2><p>Choose whether Erudoza may store first-party identifiers and measure page and learning-feature use. This never includes lesson text and is off until you allow it.</p></div>
+            <div><h2>Optional analytics</h2><p>Choose whether Filosage may store first-party identifiers and measure page and learning-feature use. This never includes lesson text and is off until you allow it.</p></div>
             <div className="privacy-analytics-actions" role="group" aria-label="Optional analytics preference">
               <button className="button button-secondary" type="button" aria-pressed={analyticsChoice === "declined"} onClick={() => chooseAnalytics("declined")}>Keep analytics off</button>
               <button className="button button-secondary" type="button" aria-pressed={analyticsChoice === "accepted"} onClick={() => chooseAnalytics("accepted")}>Allow analytics</button>
@@ -133,7 +133,7 @@ export default function PrivacyCenterPage() {
           <article>
             <LockKeyhole size={20} />
             <div><h2>Privacy requests</h2><p>Ask for access, correction, deletion, portability, restriction, or another privacy right. Requests are verified before disclosure or deletion.</p></div>
-            <a className="button button-secondary" href={`mailto:${LEGAL_CONTACT}?subject=Erudoza%20privacy%20request`}>Email privacy team</a>
+            <a className="button button-secondary" href={`mailto:${LEGAL_CONTACT}?subject=Filosage%20privacy%20request`}>Email privacy team</a>
           </article>
 
           <article className="privacy-danger-zone">

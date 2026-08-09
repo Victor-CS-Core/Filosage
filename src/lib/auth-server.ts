@@ -98,7 +98,7 @@ export async function requireOwner(request: Request): Promise<ServerAccount> {
 export async function requirePremium(request: Request): Promise<ServerAccount> {
   const account = await requireAcceptedAccount(request);
   if (account.plan !== "pro" && !account.isOwner) {
-    throw new AuthorizationError(403, "Erudoza Pro is required for this feature.");
+    throw new AuthorizationError(403, "Filosage Pro is required for this feature.");
   }
   return account;
 }

@@ -25,7 +25,7 @@ The objective ledger groups saved records under course module objectives. States
 
 ## Copy a summary
 
-Use **Copy share summary** to copy the available report measures and a link to the course. Review the text before sharing it outside Erudoza.
+Use **Copy share summary** to copy the available report measures and a link to the course. Review the text before sharing it outside Filosage.
 `,
   related: ["understand-progress", "complete-a-lesson", "privacy-controls"],
 });

@@ -1,6 +1,6 @@
 # Model-quality evaluation
 
-This harness measures the real Erudoza course-to-first-lesson generation flow against representative topics. It records endpoint success, latency, structural quality, the final execution profile, prompt version, recovery usage, and token-cost telemetry returned only to an authenticated owner evaluation request.
+This harness measures the real Filosage course-to-first-lesson generation flow against representative topics. It records endpoint success, latency, structural quality, the final execution profile, prompt version, recovery usage, and token-cost telemetry returned only to an authenticated owner evaluation request.
 
 The suite is deliberately opt-in because it creates private evaluation courses and consumes OpenAI quota. It refuses known production hosts unless the operator adds a second explicit production override. Prefer a local or preview environment backed by a dedicated Firebase project.
 

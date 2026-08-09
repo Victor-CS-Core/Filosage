@@ -10,6 +10,13 @@ const nextConfig: NextConfig = {
   ...(process.env.ERUDOZA_NEXT_TSCONFIG_PATH
     ? { typescript: { tsconfigPath: process.env.ERUDOZA_NEXT_TSCONFIG_PATH } }
     : {}),
+  async redirects() {
+    return [{
+      source: "/support/articles/navigate-erudoza",
+      destination: "/support/articles/navigate-filosage",
+      permanent: true,
+    }];
+  },
   async headers() {
     return [{
       source: "/:path*",

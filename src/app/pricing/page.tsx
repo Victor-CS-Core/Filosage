@@ -150,7 +150,7 @@ export default function PricingPage() {
     <AppShell>
       <div className="pricing-page">
         <header className="pricing-header">
-          <p className="overline">Erudoza Pro</p>
+          <p className="overline">Filosage Pro</p>
           <h1>Learn for free. Create with Pro.</h1>
           <p>Browse public outlines before signing up. A free account opens published lessons; Pro adds course creation, staged generation, and publishing.</p>
         </header>
@@ -164,7 +164,7 @@ export default function PricingPage() {
           </section>
 
           <section className="plan-column plan-pro" aria-labelledby="pro-plan-title">
-            <div className="plan-heading"><span><Crown size={19} /></span><div><h2 id="pro-plan-title">Erudoza Pro</h2><p>Create a course privately, then publish it when it is ready.</p></div></div>
+            <div className="plan-heading"><span><Crown size={19} /></span><div><h2 id="pro-plan-title">Filosage Pro</h2><p>Create a course privately, then publish it when it is ready.</p></div></div>
             <p className="plan-price"><strong>$14.99</strong><span>per month</span><small>or $9.99/month, billed annually ($119.88/year)</small></p>
             <div className="billing-interval" role="group" aria-label="Billing interval">
               <button type="button" className={interval === "monthly" ? "is-selected" : ""} aria-pressed={interval === "monthly"} onClick={() => setInterval("monthly")}>Monthly</button>

@@ -1,5 +1,5 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="900" height="1200" viewBox="0 0 900 1200" role="img" aria-labelledby="title desc">
-  <title id="title">Light Erudoza hero background for narrow layouts</title>
+  <title id="title">Light Filosage hero background for narrow layouts</title>
   <desc id="desc">A restrained text-free gradient and knowledge-node field with clear negative space.</desc>
   <defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#FAFAF7"/><stop offset=".58" stop-color="#F4F6F8"/><stop offset="1" stop-color="#FFFFFF"/></linearGradient><radialGradient id="a"><stop stop-color="#14B8A6" stop-opacity=".18"/><stop offset="1" stop-color="#14B8A6" stop-opacity="0"/></radialGradient></defs><rect width="100%" height="100%" fill="url(#g)"/><ellipse cx="720" cy="260" rx="360" ry="390" fill="url(#a)"/><g fill="none" stroke-linecap="round" opacity="0.18">
     <path d="M72 888C234 696 270 360 432 528S684 912 828 264" stroke="#4DA6FF" stroke-width="2"/>

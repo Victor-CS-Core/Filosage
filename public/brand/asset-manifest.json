@@ -1,48 +1,65 @@
 {
-  "generatedFrom": "src/app/icon.svg",
+  "generatedFrom": [
+    "art_src/brand/filosage-light-theme-original.png",
+    "art_src/brand/filosage-dark-theme-original.png"
+  ],
   "generatedBy": "scripts/generate-brand-assets.mjs",
   "assets": [
     {
-      "path": "/brand/logo/erudoza-icon.svg",
-      "width": 128,
-      "height": 128,
-      "format": "svg",
-      "usage": "Authoritative source logo copy; use whenever the standalone icon is required."
+      "path": "/brand/logo/filosage-theme-light.png",
+      "width": 600,
+      "height": 600,
+      "format": "png",
+      "usage": "Light-theme Filosage tile cropped directly from the supplied light-theme PNG."
     },
     {
-      "path": "/brand/logo/erudoza-horizontal.svg",
+      "path": "/brand/logo/filosage-theme-dark.png",
+      "width": 600,
+      "height": 600,
+      "format": "png",
+      "usage": "Dark-theme Filosage tile cropped directly from the supplied dark-theme PNG."
+    },
+    {
+      "path": "/brand/logo/filosage-icon.png",
+      "width": 600,
+      "height": 600,
+      "format": "png",
+      "usage": "Authoritative Filosage application icon cropped directly from the supplied dark-theme PNG."
+    },
+    {
+      "path": "/brand/logo/filosage-horizontal.svg",
       "width": 620,
       "height": 160,
       "format": "svg",
       "usage": "Horizontal lockup on transparent or light neutral surfaces."
     },
     {
-      "path": "/brand/logo/erudoza-light-placement.svg",
+      "path": "/brand/logo/filosage-light-placement.svg",
       "width": 720,
       "height": 260,
       "format": "svg",
       "usage": "Approved logo placement for off-white and light surfaces."
     },
     {
-      "path": "/brand/logo/erudoza-dark-placement.svg",
+      "path": "/brand/logo/filosage-dark-placement.svg",
       "width": 720,
       "height": 260,
       "format": "svg",
       "usage": "Approved logo placement for navy and dark surfaces."
     },
     {
-      "path": "/brand/logo/erudoza-social-avatar.svg",
+      "path": "/brand/logo/filosage-social-avatar.svg",
       "width": 1200,
       "height": 1200,
       "format": "svg",
       "usage": "Square avatar for social and organization profiles."
     },
     {
-      "path": "/brand/logo/browser-icon.svg",
-      "width": 128,
-      "height": 128,
-      "format": "svg",
-      "usage": "Browser icon copy; Next.js uses src/app/icon.svg as the runtime source."
+      "path": "/brand/logo/browser-icon.png",
+      "width": 600,
+      "height": 600,
+      "format": "png",
+      "usage": "Browser icon copy; Next.js uses src/app/icon.png as the runtime source."
     },
     {
       "path": "/brand/backgrounds/hero-light.svg",
@@ -175,91 +192,91 @@
       "width": 1920,
       "height": 600,
       "format": "svg",
-      "usage": "Erudoza website banner for web and external brand use."
+      "usage": "Filosage website banner for web and external brand use."
     },
     {
       "path": "/brand/banners/call-to-action-banner.svg",
       "width": 1600,
       "height": 500,
       "format": "svg",
-      "usage": "Erudoza call to action banner for web and external brand use."
+      "usage": "Filosage call to action banner for web and external brand use."
     },
     {
       "path": "/brand/banners/about-page-banner.svg",
       "width": 1600,
       "height": 700,
       "format": "svg",
-      "usage": "Erudoza about page banner for web and external brand use."
+      "usage": "Filosage about page banner for web and external brand use."
     },
     {
       "path": "/brand/banners/blog-header.svg",
       "width": 1600,
       "height": 600,
       "format": "svg",
-      "usage": "Erudoza blog header for web and external brand use."
+      "usage": "Filosage blog header for web and external brand use."
     },
     {
       "path": "/brand/banners/open-graph.svg",
       "width": 1200,
       "height": 630,
       "format": "svg",
-      "usage": "Erudoza Open Graph image for web and external brand use."
+      "usage": "Filosage Open Graph image for web and external brand use."
     },
     {
       "path": "/brand/banners/social-sharing-fallback.svg",
       "width": 1200,
       "height": 630,
       "format": "svg",
-      "usage": "Erudoza social sharing image for web and external brand use."
+      "usage": "Filosage social sharing image for web and external brand use."
     },
     {
       "path": "/brand/social/linkedin-company-banner.svg",
       "width": 1128,
       "height": 191,
       "format": "svg",
-      "usage": "Erudoza LinkedIn company banner for web and external brand use."
+      "usage": "Filosage LinkedIn company banner for web and external brand use."
     },
     {
       "path": "/brand/social/x-profile-header.svg",
       "width": 1500,
       "height": 500,
       "format": "svg",
-      "usage": "Erudoza X profile header for web and external brand use."
+      "usage": "Filosage X profile header for web and external brand use."
     },
     {
       "path": "/brand/social/github-social-preview.svg",
       "width": 1280,
       "height": 640,
       "format": "svg",
-      "usage": "Erudoza GitHub social preview for web and external brand use."
+      "usage": "Filosage GitHub social preview for web and external brand use."
     },
     {
       "path": "/brand/social/product-announcement.svg",
       "width": 1200,
       "height": 630,
       "format": "svg",
-      "usage": "Erudoza product announcement for web and external brand use."
+      "usage": "Filosage product announcement for web and external brand use."
     },
     {
       "path": "/brand/social/launch-announcement.svg",
       "width": 1200,
       "height": 630,
       "format": "svg",
-      "usage": "Erudoza launch announcement for web and external brand use."
+      "usage": "Filosage launch announcement for web and external brand use."
     },
     {
       "path": "/brand/social/newsletter-header.svg",
       "width": 1200,
       "height": 400,
       "format": "svg",
-      "usage": "Erudoza newsletter header for web and external brand use."
+      "usage": "Filosage newsletter header for web and external brand use."
     },
     {
       "path": "/brand/social/press-kit-cover.svg",
       "width": 1600,
       "height": 2000,
       "format": "svg",
-      "usage": "Erudoza press kit cover for web and external brand use."
+      "usage": "Filosage press kit cover for web and external brand use."
     },
     {
       "path": "/brand/icons/arrow-right.svg",

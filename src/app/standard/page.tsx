@@ -23,7 +23,7 @@ const requirements = [
   {
     icon: Waypoints,
     title: "Purposeful visual explanation",
-    detail: "When a relationship, contrast, sequence, comparison, or prerequisite is easier to understand visually, Erudoza adds one concise, structured visual explanation. It is generated from safe data and earns its place in the lesson, never decoration or an unreviewed image.",
+    detail: "When a relationship, contrast, sequence, comparison, or prerequisite is easier to understand visually, Filosage adds one concise, structured visual explanation. It is generated from safe data and earns its place in the lesson, never decoration or an unreviewed image.",
   },
   {
     icon: ArrowRight,
@@ -38,7 +38,7 @@ const requirements = [
   {
     icon: CalendarCheck2,
     title: "A place in your review schedule",
-    detail: "Completed concepts return in your daily dose right before you would forget them: sooner when an answer felt shaky, later as your understanding strengthens.",
+    detail: "Completed concepts return in daily review right before you would forget them: sooner when an answer felt shaky, later as your understanding strengthens.",
   },
 ];
 
@@ -48,10 +48,10 @@ export default function TeachingStandardPage() {
     <AppShell>
       <div className="standard-page">
         <header className="standard-header">
-          <p className="overline">The Erudoza teaching standard</p>
+          <p className="overline">The Filosage teaching standard</p>
           <h1>Generated is not good enough.<br />Every lesson is held to a standard.</h1>
           <p>
-            There are plenty of AI course generators out there. Erudoza works differently: every published lesson has
+            There are plenty of AI course generators out there. Filosage works differently: every published lesson has
             to help learners build understanding that lasts. Automated checks reject or rebuild drafts that fall short,
             and authors review their work before publication. Here is the standard each published lesson must pass.
           </p>

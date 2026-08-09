@@ -205,7 +205,7 @@ export const BADGE_DEFINITIONS: BadgeDefinition[] = [
   {
     id: "publisher",
     name: "Publisher",
-    description: "Publish a course for the Erudoza library.",
+    description: "Publish a course for the Filosage library.",
     icon: "publish",
     family: "creator",
     target: 1,

@@ -11,11 +11,11 @@ export default defineSupportArticle({
   body: `
 ## Choose optional analytics
 
-Open [Privacy choices](/privacy-center) to allow or decline optional first-party analytics. Optional analytics are off until you allow them. Changing the choice to off removes the optional browser identifiers used by Erudoza.
+Open [Privacy choices](/privacy-center) to allow or decline optional first-party analytics. Optional analytics are off until you allow them. Changing the choice to off removes the optional browser identifiers used by Filosage.
 
 ## Download account data
 
-Sign in, then choose **Download my data**. Erudoza prepares a JSON file containing the account-linked categories listed on the Privacy Center page.
+Sign in, then choose **Download my data**. Filosage prepares a JSON file containing the account-linked categories listed on the Privacy Center page.
 
 ## Request another privacy action
 

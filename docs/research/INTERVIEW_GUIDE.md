@@ -28,7 +28,7 @@ Do not count:
 
 Use this wording:
 
-> Thank you for helping with Erudoza research. I want to understand how you currently learn difficult professional skills. This is not a sales call. I will take written notes about the problem and workflow. I will not publish your name, company, or quotes without asking separately. You may skip a question or stop at any time. Is that okay?
+> Thank you for helping with Filosage research. I want to understand how you currently learn difficult professional skills. This is not a sales call. I will take written notes about the problem and workflow. I will not publish your name, company, or quotes without asking separately. You may skip a question or stop at any time. Is that okay?
 
 Record whether the participant agreed. Do not record audio unless they separately consent.
 
@@ -79,7 +79,7 @@ Do not ask “Would you pay $14.99?” before understanding behavior. Hypothetic
 
 Explain only after discovery:
 
-> Erudoza is testing a focused learning cycle that begins with a real work outcome, diagnoses the starting point, uses retrieval and applied practice, and finishes with evidence against a rubric.
+> Filosage is testing a focused learning cycle that begins with a real work outcome, diagnoses the starting point, uses retrieval and applied practice, and finishes with evidence against a rubric.
 
 Ask:
 
@@ -119,7 +119,7 @@ Weak evidence:
 
 ## Closing
 
-> Thank you. I will use these notes to decide whether this problem is strong enough to keep investing in. Erudoza will contact you again only if you explicitly requested a follow-up or product updates.
+> Thank you. I will use these notes to decide whether this problem is strong enough to keep investing in. Filosage will contact you again only if you explicitly requested a follow-up or product updates.
 
 ## Interview completion rule
 

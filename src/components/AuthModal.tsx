@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { Cloud, X } from "lucide-react";
 import { useAuth } from "@/components/AuthProvider";
-import ErudozaMark from "@/components/ErudozaMark";
+import FilosageMark from "@/components/FilosageMark";
 
 interface AuthModalProps { onClose: () => void; }
 
@@ -51,7 +51,7 @@ export default function AuthModal({ onClose }: AuthModalProps) {
   return <div className="modal-layer" role="presentation" onMouseDown={onClose}>
     <section ref={dialogRef} className="auth-dialog" role="dialog" aria-modal="true" aria-labelledby="auth-title" aria-describedby="auth-description" onMouseDown={(event) => event.stopPropagation()}>
       <button className="icon-button auth-close" onClick={onClose} aria-label="Close sign-in dialog"><X size={18} /></button>
-      <div className="auth-symbol" aria-hidden="true"><ErudozaMark /></div>
+      <div className="auth-symbol" aria-hidden="true"><FilosageMark /></div>
       <p className="overline">Learner account</p>
       <h2 id="auth-title">Keep your learning in sync</h2>
       <p id="auth-description" className="auth-copy">Create a free account to open lessons and save progress, notes, courses, and review dates across devices. You can browse published topics and inspect every course outline without an account.</p>

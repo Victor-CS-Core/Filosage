@@ -11,7 +11,7 @@ function normalized(value: string | undefined) {
 
 export function buildCourseBannerPrompt(input: CourseBannerPromptInput) {
   return [
-    "Create a simple, text-free panoramic editorial illustration for an Erudoza course cover.",
+    "Create a simple, text-free panoramic editorial illustration for an Filosage course cover.",
     `Topic to suggest visually: ${normalized(input.topic)}.`,
     input.category ? `Broad discipline: ${normalized(input.category)}.` : "",
     "Use one clear abstract metaphor, not a literal scene or a collection of objects. Build the entire motif from one thin continuous line and two to four simple circles or geometric shapes. Keep it recognizable at thumbnail size.",

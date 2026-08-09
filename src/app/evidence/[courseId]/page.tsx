@@ -152,7 +152,7 @@ export default function EvidenceReportPage() {
       }
     }
     const summary = [
-      `Erudoza evidence report: ${course.topic}`,
+      `Filosage evidence report: ${course.topic}`,
       journey.plan ? `Outcome: ${journey.plan.desiredOutcome}` : "",
       `Observed mastery: ${observedMastery}% (${demonstrated} of ${objectives.length} module objectives demonstrated)`,
       assessedBaseline !== null ? `Assessed baseline: ${assessedBaseline}%` : "",

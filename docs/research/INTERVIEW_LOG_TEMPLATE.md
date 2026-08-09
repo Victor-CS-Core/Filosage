@@ -81,7 +81,7 @@ Paraphrase by default. Include a direct quote only when needed and keep it anony
 - Strongest pain:
 - Current substitute:
 - Why existing substitutes fail:
-- Most valuable Erudoza promise:
+- Most valuable Filosage promise:
 - Largest trust objection:
 - Product implication:
 - Positioning implication:

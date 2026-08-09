@@ -65,7 +65,7 @@ const cases: EvaluationCase[] = [
 ];
 
 function help() {
-  console.log(`Erudoza model-quality evaluation
+  console.log(`Filosage model-quality evaluation
 
 Dry run:
   npm run eval:model-quality -- --dry-run

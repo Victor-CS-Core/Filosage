@@ -296,7 +296,7 @@ export async function POST(request: Request) {
       await finalizeAiUsage(reservation, { usageSamples, responseId, failed: true });
       reservation = null;
       return NextResponse.json(
-        { error: "The lesson did not meet Erudoza's teaching-quality standard. Please try again." },
+        { error: "The lesson did not meet Filosage's teaching-quality standard. Please try again." },
         { status: 502 },
       );
     }

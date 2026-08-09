@@ -23,5 +23,5 @@ Choose **Customize dashboard** to select a preset, show or hide supporting secti
 
 Achievements are secondary summaries of recorded learning behavior and milestones. They are not credentials.
 `,
-  related: ["navigate-erudoza", "understand-progress", "privacy-controls"],
+  related: ["navigate-filosage", "understand-progress", "privacy-controls"],
 });

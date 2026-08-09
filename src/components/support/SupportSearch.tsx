@@ -32,7 +32,7 @@ export default function SupportSearch({ articles }: { articles: SupportSearchIte
     <div className="support-search-shell">
       <div className="support-search-field">
         <Search size={20} aria-hidden="true" />
-        <label className="sr-only" htmlFor="support-search">Search Erudoza help</label>
+        <label className="sr-only" htmlFor="support-search">Search Filosage help</label>
         <input
           id="support-search"
           ref={inputRef}

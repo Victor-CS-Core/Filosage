@@ -64,7 +64,7 @@ export default function OwnerDocumentationPage() {
     return <AppShell><div className="center-state"><LoaderCircle className="spin" /><h1>Verifying owner access</h1></div></AppShell>;
   }
   if (!user || !isOwner) {
-    return <AppShell><div className="center-state"><LockKeyhole /><h1>This page is not available.</h1><p>The Erudoza owner handbook is restricted to the verified owner account.</p><Link className="button button-primary" href="/support">Return to Support</Link></div></AppShell>;
+    return <AppShell><div className="center-state"><LockKeyhole /><h1>This page is not available.</h1><p>The Filosage owner handbook is restricted to the verified owner account.</p><Link className="button button-primary" href="/support">Return to Support</Link></div></AppShell>;
   }
 
   return (
@@ -74,8 +74,8 @@ export default function OwnerDocumentationPage() {
           <div>
             <Link href="/support"><ArrowLeft size={16} /> Support wiki</Link>
             <p><ShieldCheck size={14} /> Owner-only operating documentation</p>
-            <h1>{documentation?.title ?? "Erudoza owner handbook"}</h1>
-            <span>{documentation?.introduction ?? "Product and operational guidance for the verified Erudoza owner."}</span>
+            <h1>{documentation?.title ?? "Filosage owner handbook"}</h1>
+            <span>{documentation?.introduction ?? "Product and operational guidance for the verified Filosage owner."}</span>
           </div>
           {documentation && <dl><div><dt>Version</dt><dd>{documentation.version}</dd></div><div><dt>Reviewed</dt><dd>{documentation.reviewedOn}</dd></div><div><dt>Coverage</dt><dd>{documentation.sections.length} sections</dd></div></dl>}
         </header>

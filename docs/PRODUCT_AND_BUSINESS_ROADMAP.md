@@ -1,4 +1,4 @@
-# Erudoza Product and Business Roadmap
+# Filosage Product and Business Roadmap
 
 Status: proposed implementation blueprint  
 Date: July 28, 2026  
@@ -6,11 +6,11 @@ Planning horizon: 12 months, released through evidence-gated phases
 
 ## Executive decision
 
-Erudoza should not launch as a general-purpose "learn anything with AI" product. That category is crowded, easy to copy, and dominated by companies with much larger libraries, brands, and acquisition budgets.
+Filosage should not launch as a general-purpose "learn anything with AI" product. That category is crowded, easy to copy, and dominated by companies with much larger libraries, brands, and acquisition budgets.
 
-Erudoza's launch position will be:
+Filosage's launch position will be:
 
-> Erudoza helps product and data professionals turn a complex skill into a focused learning plan, retain it, and prove they can apply it to real work.
+> Filosage helps product and data professionals turn a complex skill into a focused learning plan, retain it, and prove they can apply it to real work.
 
 The initial promise is not access to generated content. It is demonstrable applied competence within a 2–8 week learning cycle.
 
@@ -22,11 +22,11 @@ The initial product wedge is deliberately narrow:
 - Desired outcome: a learner can explain the concept, apply it to a new situation, and produce a useful work artifact.
 - Initial market exclusions: K–12, accredited education, broad test preparation, language learning, a social creator marketplace, and enterprise LMS replacement.
 
-This wedge can expand only after Erudoza demonstrates retention, learning improvement, and paid demand.
+This wedge can expand only after Filosage demonstrates retention, learning improvement, and paid demand.
 
 ## Business truth and investment policy
 
-No implementation plan can guarantee that Erudoza will compete successfully or return a profit. The plan therefore treats additional investment as conditional. Each phase has a measurable gate; a failed gate requires correction, repositioning, or stopping before the next major spend.
+No implementation plan can guarantee that Filosage will compete successfully or return a profit. The plan therefore treats additional investment as conditional. Each phase has a measurable gate; a failed gate requires correction, repositioning, or stopping before the next major spend.
 
 The operating principles are:
 
@@ -47,7 +47,7 @@ When I need to learn a difficult concept for a real professional outcome, help m
 
 ### Product promise
 
-Every Erudoza learning path should provide:
+Every Filosage learning path should provide:
 
 - A specific target outcome.
 - A starting diagnostic.
@@ -176,7 +176,7 @@ The owner dashboard should replace hard-coded modeled cost with observed cost di
 
 ## Defensible product moat
 
-The moat will be the **Erudoza Mastery Graph**, not course generation.
+The moat will be the **Filosage Mastery Graph**, not course generation.
 
 For each learner and objective, it records:
 
@@ -296,7 +296,7 @@ Build:
 - Twelve flagship courses for the initial professional audience.
 - A shared curriculum map so courses connect instead of duplicating concepts.
 - Expert review checklist.
-- One free flagship pathway that demonstrates the complete Erudoza loop.
+- One free flagship pathway that demonstrates the complete Filosage loop.
 - Category landing pages with real search intent and structured metadata.
 - Editorial ownership, review date, source list, prerequisites, and expected work artifact.
 
@@ -751,7 +751,7 @@ Go gate for experts:
 
 ## Definition of a full commercial product
 
-Erudoza is ready for a controlled paid launch only when all of the following are true:
+Filosage is ready for a controlled paid launch only when all of the following are true:
 
 - A named customer and job to be done are reflected throughout the product.
 - The full arrival-to-demonstrated-outcome funnel is measured.
@@ -811,4 +811,4 @@ The plan responds to a market where large incumbents already compete through sca
 - Khanmigo learner positioning and pricing: https://www.khanmigo.ai/learners
 - Coursera Q4/FY2025 product and scale report: https://s27.q4cdn.com/928340662/files/doc_financials/2025/q4/COUR_Shareholder-Letter_Q4-2025.pdf
 
-Erudoza should not attempt to beat these companies at their existing scale advantages. It should win a narrower job through a more coherent outcome loop, stronger evidence, and trustworthy source-grounded personalization.
+Filosage should not attempt to beat these companies at their existing scale advantages. It should win a narrower job through a more coherent outcome loop, stronger evidence, and trustworthy source-grounded personalization.

@@ -221,7 +221,7 @@ function containsBillingAssertion(text: string) {
 
 function containsLegalDetermination(text: string) {
   const denialOrAttribution = /\b(?:not|never|no|cannot|can't|do not|don't|without|unverified|alleged|believe|says|statement|reported|claim|claimed)\b/i;
-  const legalDetermination = /\b(?:we|erudoza) (?:conclude|determine|find|decide)(?:s|d)? (?:that )?(?:this|the|there)|\b(?:is|constitutes) (?:copyright )?infringement\b/i;
+  const legalDetermination = /\b(?:we|erudoza|filosage) (?:conclude|determine|find|decide)(?:s|d)? (?:that )?(?:this|the|there)|\b(?:is|constitutes) (?:copyright )?infringement\b/i;
   return text
     .split(/(?<=[.!?])\s+|\n+/)
     .some((sentence) => !denialOrAttribution.test(sentence) && legalDetermination.test(sentence));

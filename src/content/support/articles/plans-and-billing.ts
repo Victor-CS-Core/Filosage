@@ -11,7 +11,7 @@ export default defineSupportArticle({
   body: `
 ## Paid checkout is currently closed
 
-Erudoza does not currently offer a new paid checkout. Joining the Pro launch list or saving a pricing preference is product research only. Neither action creates a subscription or charge.
+Filosage does not currently offer a new paid checkout. Joining the Pro launch list or saving a pricing preference is product research only. Neither action creates a subscription or charge.
 
 ## Before any future purchase
 

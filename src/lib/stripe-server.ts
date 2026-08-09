@@ -101,7 +101,7 @@ async function validatedPrice(stripe: Stripe, interval: BillingInterval) {
     recurringIntervalCount: price.recurring?.interval_count,
   });
   if (!valid) {
-    throw new Error(`The configured ${interval} Stripe Price does not match the published Erudoza offer.`);
+    throw new Error(`The configured ${interval} Stripe Price does not match the published Filosage offer.`);
   }
   return price.id;
 }
@@ -200,8 +200,8 @@ export async function createCheckoutSession(account: ServerAccount, interval: Bi
       custom_text: {
         submit: {
           message: claim.interval === "annual"
-            ? "Erudoza Pro renews automatically each year until canceled. Manage or cancel online from your account."
-            : "Erudoza Pro renews automatically each month until canceled. Manage or cancel online from your account.",
+            ? "Filosage Pro renews automatically each year until canceled. Manage or cancel online from your account."
+            : "Filosage Pro renews automatically each month until canceled. Manage or cancel online from your account.",
         },
       },
       metadata: {
@@ -279,7 +279,7 @@ function configuredProPriceIds() {
     serverEnvironment.STRIPE_PRO_ANNUAL_PRICE_ID?.trim(),
     ...(serverEnvironment.STRIPE_PRO_LEGACY_PRICE_IDS ?? "").split(",").map((value) => value.trim()),
   ].filter((value): value is string => Boolean(value)));
-  if (!allowed.size) throw new Error("No supported Erudoza Pro Stripe Prices are configured.");
+  if (!allowed.size) throw new Error("No supported Filosage Pro Stripe Prices are configured.");
   return allowed;
 }
 
@@ -360,7 +360,7 @@ export async function recordBillingConsent(
   const price = subscription.items.data[0]?.price;
   const offer = offerForInterval(interval);
   if (!price || price.unit_amount !== offer.amountMinor) {
-    throw new Error("The completed subscription does not match the accepted Erudoza offer.");
+    throw new Error("The completed subscription does not match the accepted Filosage offer.");
   }
 
   const path = `users/${uid}/billingConsents/${session.id}`;

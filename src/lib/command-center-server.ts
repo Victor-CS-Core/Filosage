@@ -253,7 +253,7 @@ export async function createUserCommandCenterTicket(input: {
     assignedRole: "owner",
     requiresHumanApproval: input.category === "billing" || input.category === "privacy",
     confirmedFacts: [
-      "The request was submitted from a verified Erudoza account.",
+      "The request was submitted from a verified Filosage account.",
       `Request category: ${categoryLabel}`,
     ],
     unverifiedClaims: ["The request description has not yet been verified by the owner."],
