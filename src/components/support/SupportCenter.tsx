@@ -411,7 +411,7 @@ export default function SupportCenter({ onRequestSignIn, onBeforeOpen }: Support
           aria-controls="global-support-center-drawer"
           onClick={() => openSupport("help", triggerRef.current)}
         >
-          <Image src="/brand/icons/spark.svg" alt="" width={48} height={48} priority />
+          <SupportSparkIcon />
         </button>
         <span id="support-center-tooltip" role="tooltip" className={styles.tooltip}>Support center</span>
       </div>
@@ -531,6 +531,14 @@ function GuestRequestState({ loading, onSignIn, tracking = false }: { loading: b
 
 function SupportSkeleton({ label, rows }: { label: string; rows: number }) {
   return <div className={styles.loadingSkeleton} role="status" aria-label={label}>{Array.from({ length: rows }, (_, index) => <span key={index}><i /><b /><em /></span>)}</div>;
+}
+
+function SupportSparkIcon() {
+  return (
+    <svg className={styles.triggerIcon} viewBox="7.6 7.6 32.8 32.8" aria-hidden="true" focusable="false">
+      <path d="M24 7.6c2.4 9.6 6.8 14 16.4 16.4C30.8 26.4 26.4 30.8 24 40.4 21.6 30.8 17.2 26.4 7.6 24 17.2 21.6 21.6 17.2 24 7.6Z" />
+    </svg>
+  );
 }
 
 function TicketDetail({ ticket, loading, error, onBack, onRetry }: { ticket: LearnerSupportTicketDetail | null; loading: boolean; error: string | null; onBack: () => void; onRetry: () => void }) {

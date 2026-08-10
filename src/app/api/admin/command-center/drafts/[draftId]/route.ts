@@ -1,13 +1,12 @@
 import { apiRequestErrorResponse, readJsonBody } from "@/lib/api-security";
-import { authorizationResponse, requireRecentlyAuthenticatedOwner } from "@/lib/auth-server";
+import { authorizationResponse } from "@/lib/auth-server";
 import { commandCenterAuthorizationResponse, requireCommandCenterPermission } from "@/lib/command-center-auth";
 import { commandCenterDraftReviewSchema } from "@/lib/command-center-draft-schema";
 import { commandCenterErrorResponse, reviewCommandCenterDraft } from "@/lib/command-center-server";
 
 export async function PATCH(request: Request, context: { params: Promise<{ draftId: string }> }) {
   try {
-    await requireCommandCenterPermission(request, "review_draft");
-    const owner = await requireRecentlyAuthenticatedOwner(request);
+    const owner = await requireCommandCenterPermission(request, "review_draft");
     const { draftId } = await context.params;
     if (!/^[A-Za-z0-9_-]{8,200}$/.test(draftId)) {
       return Response.json({ error: "Invalid draft." }, { status: 400 });

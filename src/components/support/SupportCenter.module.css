@@ -1,7 +1,7 @@
 .triggerWrap {
   position: fixed;
-  right: max(24px, env(safe-area-inset-right));
-  bottom: max(24px, env(safe-area-inset-bottom));
+  right: calc(var(--space-xl) + env(safe-area-inset-right));
+  bottom: calc(var(--space-lg) + env(safe-area-inset-bottom));
   z-index: var(--z-drawer);
   transition: opacity var(--motion-state) var(--ease-out);
 }
@@ -11,26 +11,29 @@
   height: 52px;
   display: grid;
   place-items: center;
-  border: 1px solid var(--line-strong);
+  border: 0;
   border-radius: 50%;
-  background: var(--surface);
-  box-shadow: 0 4px 8px rgb(7 17 39 / 0.16);
+  background: transparent;
+  padding: 10px;
   cursor: pointer;
-  transition: background var(--motion-state) var(--ease-out), border-color var(--motion-state) var(--ease-out), transform var(--motion-feedback) var(--ease-out);
+  color: var(--brand-coral);
 }
 
-.trigger img {
-  width: 31px;
-  height: 31px;
+.triggerIcon {
+  width: 32px;
+  height: 32px;
+  overflow: visible;
+  fill: currentColor;
+  stroke: var(--brand-navy);
+  stroke-width: 1.75px;
+  stroke-linejoin: round;
+  paint-order: stroke fill;
+  transition: transform var(--motion-feedback) var(--ease-out);
+  transform-origin: center;
 }
 
-.trigger:hover {
-  border-color: color-mix(in oklch, var(--brand-coral) 65%, var(--line-strong));
-  background: var(--surface-raised);
-  transform: translateY(-2px);
-}
-
-.trigger:active { transform: translateY(0); }
+.trigger:hover .triggerIcon { transform: scale(1.08); }
+.trigger:active .triggerIcon { transform: scale(0.96); }
 
 .trigger:focus-visible {
   outline: 3px solid var(--focus);
@@ -39,13 +42,13 @@
 
 .tooltip {
   position: absolute;
-  right: 62px;
+  right: 64px;
   top: 50%;
   width: max-content;
   max-width: 180px;
   border-radius: var(--radius-sm);
   background: var(--ink);
-  padding: 7px 10px;
+  padding: 8px 12px;
   color: var(--surface);
   font-size: var(--text-interface);
   font-weight: 700;
@@ -483,11 +486,11 @@
 
 @media (max-width: 900px) {
   .triggerWrap {
-    right: max(16px, env(safe-area-inset-right));
-    bottom: calc(20px + env(safe-area-inset-bottom));
+    right: calc(var(--space-lg) + env(safe-area-inset-right));
+    bottom: calc(var(--space-lg) + env(safe-area-inset-bottom));
   }
 
-  .triggerWrap.withMobileNav { bottom: calc(88px + env(safe-area-inset-bottom)); }
+  .triggerWrap.withMobileNav { bottom: calc(72px + var(--space-lg) + env(safe-area-inset-bottom)); }
 
   .drawer:global(.app-drawer-mobile-bottom) {
     inset: auto 0 0;
@@ -512,7 +515,6 @@
 }
 
 @media (max-width: 520px) {
-  .trigger { width: 50px; height: 50px; }
   .tabs button { min-height: 52px; gap: 5px; font-size: var(--text-caption); }
   .view { padding-top: 20px; padding-bottom: 22px; }
   .formFooter { align-items: stretch; flex-direction: column; }
@@ -532,7 +534,9 @@
   .triggerWrap,
   .trigger,
   .tooltip { transition-duration: 0.01ms !important; }
-  .trigger:hover { transform: none; }
+  .triggerIcon { transition-duration: 0.01ms !important; }
+  .trigger:hover .triggerIcon,
+  .trigger:active .triggerIcon { transform: none; }
   .loadingSkeleton :is(i, b, em) { animation: none; }
 }
 

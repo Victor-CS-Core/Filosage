@@ -1,3 +1,4 @@
+import { readFile } from "node:fs/promises";
 import { expect, test, type APIRequestContext } from "@playwright/test";
 import {
   canTransitionCommandCenterTicket,
@@ -83,6 +84,12 @@ test("keeps untrusted subjects inside the prompt boundary and fails unsafe eval 
   } satisfies EvaluatedCommandCenterDraft;
   const legalResult = scoreCommandCenterDraftEvaluation(legalCase!, unsafeLegalOutput);
   expect(legalResult.checks.find((check) => check.name === "legal_determination_forbidden")?.passed).toBe(false);
+});
+
+test("keeps review-only draft decisions behind owner permission without publication reauthentication", async () => {
+  const routeSource = await readFile("src/app/api/admin/command-center/drafts/[draftId]/route.ts", "utf8");
+  expect(routeSource).toContain('requireCommandCenterPermission(request, "review_draft")');
+  expect(routeSource).not.toContain("requireRecentlyAuthenticatedOwner");
 });
 
 async function acceptOwnerTerms(request: APIRequestContext) {
@@ -455,12 +462,15 @@ test("renders the owner command center with visible draft-only safety controls",
   await expect(page.getByRole("heading", { name: "Agent command center" })).toBeVisible();
   await expect(page.getByText("Agent simulation")).toBeVisible();
   await expect(page.getByText("Drafts only")).toBeVisible();
-  await expect(page.getByText(/^\d of 5 available enabled$/)).toBeVisible();
+  await expect(page.getByText(/^\d of 5 enabled$/)).toBeVisible();
   await expect(page.getByRole("button", { name: /Inbox/ })).toBeVisible();
   await expect(page.getByRole("button", { name: /Approvals/ })).toBeVisible();
   await page.getByRole("button", { name: "New ticket" }).click();
   const dialog = page.getByRole("dialog", { name: "Create a manual ticket" });
   await expect(dialog).toBeVisible();
+  const usesFinePointer = await page.evaluate(() => window.matchMedia("(min-width: 801px) and (pointer: fine)").matches);
+  if (usesFinePointer) await expect(page.getByLabel(/Subject/)).toBeFocused();
+  else await expect(page.getByLabel(/Subject/)).not.toBeFocused();
   await expect(page.getByText("Evidence quality")).toBeVisible();
   await expect(page.getByText(/Owner-only/)).toBeVisible();
   await expect.poll(() => dialog.evaluate((element) => {
@@ -490,7 +500,7 @@ test("renders the owner command center with visible draft-only safety controls",
   await expect.poll(() => page.evaluate(() => Boolean(document.activeElement?.closest("dialog[open]")))).toBe(true);
 
   await page.getByRole("button", { name: "Close ticket dialog" }).click();
-  await page.getByPlaceholder("Search tickets").fill("hide-the-new-ticket");
+  await page.getByPlaceholder("Search tickets…").fill("hide-the-new-ticket");
   await page.getByLabel("Filter by risk").selectOption("low");
   await page.getByLabel("Filter by category").selectOption("support");
   await page.getByLabel("Filter by status").selectOption("new");
@@ -504,18 +514,18 @@ test("renders the owner command center with visible draft-only safety controls",
   await expect(dialog).toBeHidden();
   await expect(page.getByRole("heading", { name: newSubject })).toBeVisible();
   await expect(page.getByText(/created and recorded in the audit ledger/i)).toBeVisible();
-  await expect(page.getByPlaceholder("Search tickets")).toHaveValue("");
+  await expect(page.getByPlaceholder("Search tickets…")).toHaveValue("");
   await expect(page.getByLabel("Filter by risk")).toHaveValue("all");
   await expect(page.getByLabel("Filter by category")).toHaveValue("all");
   await expect(page.getByLabel("Filter by status")).toHaveValue("all");
 
-  await page.getByPlaceholder("Search tickets").fill(newSubject);
+  await page.getByPlaceholder("Search tickets…").fill(newSubject);
   await page.getByLabel("Filter by risk").selectOption("high");
   await page.getByLabel("Filter by category").selectOption("support");
   await page.getByLabel("Filter by status").selectOption("new");
   await expect(page.getByRole("button", { name: new RegExp(newSubject) })).toBeVisible();
   await page.getByRole("button", { name: "Reset" }).click();
-  await expect(page.getByPlaceholder("Search tickets")).toHaveValue("");
+  await expect(page.getByPlaceholder("Search tickets…")).toHaveValue("");
 
   await page.getByRole("button", { name: "Controls" }).click();
   const intakeSwitch = page.getByRole("switch", { name: "Pause command-center intake" });
@@ -534,6 +544,7 @@ test("uses a full-screen, internally scrollable ticket dialog on a short mobile 
 
   const dialog = page.getByRole("dialog", { name: "Create a manual ticket" });
   await expect(dialog).toBeVisible();
+  await expect(page.getByLabel(/Subject/)).not.toBeFocused();
   await expect.poll(() => dialog.evaluate((element) => {
     const rect = element.getBoundingClientRect();
     const body = element.querySelector<HTMLElement>(".cc-ticket-form-body");
@@ -558,6 +569,7 @@ test("keeps the ticket dialog usable across the target viewport and theme matrix
     { width: 1920, height: 1080 },
     { width: 1440, height: 900 },
     { width: 1024, height: 768 },
+    { width: 968, height: 764 },
     { width: 768, height: 1024 },
     { width: 430, height: 932 },
     { width: 390, height: 844 },
@@ -582,10 +594,14 @@ test("keeps the ticket dialog usable across the target viewport and theme matrix
         headerVisible: Boolean(header && header.getBoundingClientRect().top >= 0),
         footerVisible: Boolean(footer && footer.getBoundingClientRect().bottom <= window.innerHeight),
         riskWidth: Math.round(risk?.getBoundingClientRect().width ?? 0),
+        formColumns: body ? getComputedStyle(body).gridTemplateColumns.trim().split(/\s+/).length : 0,
+        controlFontWeight: risk ? getComputedStyle(risk).fontWeight : "",
       };
     });
     expect(geometry).toMatchObject({ fits: true, centered: true, noHorizontalOverflow: true, bodyOverflow: "auto", headerVisible: true, footerVisible: true });
     expect(geometry.riskWidth).toBeGreaterThanOrEqual(280);
+    expect(geometry.formColumns).toBe(viewport.width <= 1100 ? 1 : 2);
+    expect(geometry.controlFontWeight).toBe("400");
     await page.getByRole("button", { name: "Close ticket dialog" }).click();
   }
 

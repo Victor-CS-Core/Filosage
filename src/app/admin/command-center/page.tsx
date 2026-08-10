@@ -133,6 +133,11 @@ function normalizedTags(value: FormDataEntryValue | null) {
     .filter(Boolean))];
 }
 
+function focusDesktopControl(element: HTMLElement | null) {
+  if (!window.matchMedia("(min-width: 801px) and (pointer: fine)").matches) return;
+  window.requestAnimationFrame(() => element?.focus());
+}
+
 function validateTicketForm(form: FormData) {
   const errors: TicketFormErrors = {};
   const category = String(form.get("category") ?? "");
@@ -192,11 +197,14 @@ export default function CommandCenterPage() {
   const ticketSubmitting = useRef(false);
   const ticketIdempotencyKey = useRef<string | null>(null);
   const newTicketButton = useRef<HTMLButtonElement>(null);
+  const ticketSubjectInput = useRef<HTMLInputElement>(null);
   const createTicketDialog = useRef<HTMLDialogElement>(null);
   const createTicketForm = useRef<HTMLFormElement>(null);
   const createApprovalDialog = useRef<HTMLDialogElement>(null);
   const decisionDialog = useRef<HTMLDialogElement>(null);
   const draftDecisionDialog = useRef<HTMLDialogElement>(null);
+  const approvalReasonInput = useRef<HTMLTextAreaElement>(null);
+  const draftReasonInput = useRef<HTMLTextAreaElement>(null);
 
   const load = useCallback(async () => {
     if (!user || !isOwner) return;
@@ -242,6 +250,16 @@ export default function CommandCenterPage() {
       document.body.style.overflow = previousOverflow;
     };
   }, [ticketDialogOpen]);
+
+  useEffect(() => {
+    if (!ticketDialogOpen || !ticketFormDirty) return;
+    const warnBeforeUnload = (event: BeforeUnloadEvent) => {
+      event.preventDefault();
+      event.returnValue = "";
+    };
+    window.addEventListener("beforeunload", warnBeforeUnload);
+    return () => window.removeEventListener("beforeunload", warnBeforeUnload);
+  }, [ticketDialogOpen, ticketFormDirty]);
 
   const request = useCallback(async (path: string, method: "POST" | "PATCH", body: Record<string, unknown>, extraHeaders?: Record<string, string>) => {
     if (!user) throw new Error("Owner access is required.");
@@ -314,6 +332,7 @@ export default function CommandCenterPage() {
     setTicketSubmitError(null);
     setTicketDialogOpen(true);
     createTicketDialog.current?.showModal();
+    focusDesktopControl(ticketSubjectInput.current);
   };
 
   const closeTicketDialog = (force = false) => {
@@ -388,12 +407,13 @@ export default function CommandCenterPage() {
   const addNote = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (!selectedTicket) return;
-    const form = new FormData(event.currentTarget);
+    const formElement = event.currentTarget;
+    const form = new FormData(formElement);
     const saved = await runMutation(() => request(`/api/admin/command-center/tickets/${encodeURIComponent(selectedTicket.id)}`, "PATCH", {
       expectedVersion: selectedTicket.version,
       note: form.get("note"),
     }), "Internal note added. Its contents were not copied into the audit ledger.");
-    if (saved) event.currentTarget.reset();
+    if (saved) formElement.reset();
   };
 
   const addPublicReply = async (event: FormEvent<HTMLFormElement>) => {
@@ -411,7 +431,8 @@ export default function CommandCenterPage() {
   const createApproval = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (!selectedTicket) return;
-    const form = new FormData(event.currentTarget);
+    const formElement = event.currentTarget;
+    const form = new FormData(formElement);
     const created = await runMutation(() => request("/api/admin/command-center/approvals", "POST", {
       ticketId: selectedTicket.id,
       expectedTicketVersion: selectedTicket.version,
@@ -424,7 +445,7 @@ export default function CommandCenterPage() {
       expiresInHours: Number(form.get("expiresInHours")),
     }), "Approval request created. No external action was executed.");
     if (created) {
-      event.currentTarget.reset();
+      formElement.reset();
       createApprovalDialog.current?.close();
       setView("approvals");
     }
@@ -433,19 +454,21 @@ export default function CommandCenterPage() {
   const openDecision = (decision: ApprovalDecision) => {
     setApprovalDecision(decision);
     decisionDialog.current?.showModal();
+    focusDesktopControl(approvalReasonInput.current);
   };
 
   const reviewApproval = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (!selectedApproval || !approvalDecision) return;
-    const form = new FormData(event.currentTarget);
+    const formElement = event.currentTarget;
+    const form = new FormData(formElement);
     const saved = await runMutation(() => request(`/api/admin/command-center/approvals/${encodeURIComponent(selectedApproval.id)}`, "PATCH", {
       expectedVersion: selectedApproval.version,
       decision: approvalDecision,
       reason: form.get("reason"),
     }), `${approvalDecision === "approved" ? "Approval" : "Rejection"} recorded in simulation mode. No external action was executed.`);
     if (saved) {
-      event.currentTarget.reset();
+      formElement.reset();
       decisionDialog.current?.close();
       setApprovalDecision(null);
     }
@@ -470,19 +493,21 @@ export default function CommandCenterPage() {
   const openDraftDecision = (decision: DraftDecision) => {
     setDraftDecision(decision);
     draftDecisionDialog.current?.showModal();
+    focusDesktopControl(draftReasonInput.current);
   };
 
   const reviewDraft = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (!selectedDraft || !draftDecision) return;
-    const form = new FormData(event.currentTarget);
+    const formElement = event.currentTarget;
+    const form = new FormData(formElement);
     const saved = await runMutation(() => request(`/api/admin/command-center/drafts/${encodeURIComponent(selectedDraft.id)}`, "PATCH", {
       expectedVersion: selectedDraft.version,
       decision: draftDecision,
       reason: form.get("reason"),
     }), `${draftDecision === "accepted" ? "Acceptance" : "Rejection"} recorded. Nothing was sent or executed.`);
     if (saved) {
-      event.currentTarget.reset();
+      formElement.reset();
       draftDecisionDialog.current?.close();
       setDraftDecision(null);
     }
@@ -547,7 +572,7 @@ export default function CommandCenterPage() {
 
   return (
     <AppShell>
-      <main className="command-center-page">
+      <div className="command-center-page">
         <header className="cc-page-header">
           <div>
             <Link href="/admin"><ArrowLeft size={16} /> Control room</Link>
@@ -564,7 +589,7 @@ export default function CommandCenterPage() {
           <section className="cc-status-strip" aria-label="Command-center safety status">
             <div className={!controls?.systemEnabled ? "is-warning" : ""}><ShieldCheck size={18} /><span><strong>Command center</strong><small>{controls?.systemEnabled ? "Enabled" : "Paused"}</small></span></div>
             <div><LockKeyhole size={18} /><span><strong>Agent simulation</strong><small>Drafts only</small></span></div>
-            <div><UserRoundCheck size={18} /><span><strong>Draft agents</strong><small>{enabledDraftAgents} of {availableDraftAgentTypes.length} available enabled</small></span></div>
+            <div><UserRoundCheck size={18} /><span><strong>Draft agents</strong><small>{enabledDraftAgents} of {availableDraftAgentTypes.length} enabled</small></span></div>
             <div className={data.summary.overdueTickets ? "is-warning" : ""}><Clock3 size={18} /><span><strong>Overdue work</strong><small>{data.summary.overdueTickets} ticket{data.summary.overdueTickets === 1 ? "" : "s"}</small></span></div>
             <div className={controls?.killSwitchActive ? "is-danger" : ""}><ShieldAlert size={18} /><span><strong>Kill switch</strong><small>{controls?.killSwitchActive ? "Active" : "Ready"}</small></span></div>
           </section>
@@ -578,11 +603,11 @@ export default function CommandCenterPage() {
         ) : data ? (
           <div className={`cc-shell ${mobileDetailOpen ? "is-mobile-detail" : ""}`}>
             <nav className="cc-section-nav" aria-label="Command center sections">
-              <button aria-label={`Inbox, ${data.summary.openTickets} open`} className={view === "inbox" ? "is-active" : ""} onClick={() => { setView("inbox"); setMobileDetailOpen(false); }}><Inbox size={17} /><span>Inbox</span><b>{data.summary.openTickets}</b></button>
-              <button aria-label={`Drafts, ${data.summary.pendingDrafts} pending review`} className={view === "drafts" ? "is-active" : ""} onClick={() => { setView("drafts"); setMobileDetailOpen(false); }}><Bot size={17} /><span>Drafts</span><b>{data.summary.pendingDrafts}</b></button>
-              <button aria-label={`Approvals, ${pendingApprovals} pending`} className={view === "approvals" ? "is-active" : ""} onClick={() => { setView("approvals"); setMobileDetailOpen(false); }}><FileCheck2 size={17} /><span>Approvals</span><b>{pendingApprovals}</b></button>
-              <button aria-label="Audit log" className={view === "audit" ? "is-active" : ""} onClick={() => { setView("audit"); setMobileDetailOpen(false); }}><FileText size={17} /><span>Audit log</span></button>
-              <button aria-label="Controls" className={view === "controls" ? "is-active" : ""} onClick={() => { setView("controls"); setMobileDetailOpen(false); }}><SlidersHorizontal size={17} /><span>Controls</span></button>
+              <button aria-label={`Inbox, ${data.summary.openTickets} open`} aria-pressed={view === "inbox"} className={view === "inbox" ? "is-active" : ""} onClick={() => { setView("inbox"); setMobileDetailOpen(false); }}><Inbox size={17} /><span>Inbox</span><b>{data.summary.openTickets}</b></button>
+              <button aria-label={`Drafts, ${data.summary.pendingDrafts} pending review`} aria-pressed={view === "drafts"} className={view === "drafts" ? "is-active" : ""} onClick={() => { setView("drafts"); setMobileDetailOpen(false); }}><Bot size={17} /><span>Drafts</span><b>{data.summary.pendingDrafts}</b></button>
+              <button aria-label={`Approvals, ${pendingApprovals} pending`} aria-pressed={view === "approvals"} className={view === "approvals" ? "is-active" : ""} onClick={() => { setView("approvals"); setMobileDetailOpen(false); }}><FileCheck2 size={17} /><span>Approvals</span><b>{pendingApprovals}</b></button>
+              <button aria-label="Audit log" aria-pressed={view === "audit"} className={view === "audit" ? "is-active" : ""} onClick={() => { setView("audit"); setMobileDetailOpen(false); }}><FileText size={17} /><span>Audit log</span></button>
+              <button aria-label="Controls" aria-pressed={view === "controls"} className={view === "controls" ? "is-active" : ""} onClick={() => { setView("controls"); setMobileDetailOpen(false); }}><SlidersHorizontal size={17} /><span>Controls</span></button>
               <div><strong>Draft-agent boundary</strong><p>Agent outputs require owner review and cannot execute actions. An owner can separately publish a support reply.</p></div>
             </nav>
 
@@ -592,7 +617,7 @@ export default function CommandCenterPage() {
                   <header className="cc-list-toolbar">
                     <div><h2>Unified inbox</h2><p>{filteredTickets.length} of {data.tickets.length} tickets</p></div>
                     <div className="cc-filter-controls">
-                      <label><Search size={15} /><span className="sr-only">Search tickets</span><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search tickets" /></label>
+                      <label><Search size={15} /><span className="sr-only">Search tickets</span><input type="search" name="ticketSearch" autoComplete="off" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search tickets…" /></label>
                       <select aria-label="Filter by risk" value={riskFilter} onChange={(event) => setRiskFilter(event.target.value as CommandCenterRisk | "all")}>
                         <option value="all">All risk</option><option value="critical">Critical</option><option value="high">High</option><option value="medium">Medium</option><option value="low">Low</option>
                       </select>
@@ -665,7 +690,7 @@ export default function CommandCenterPage() {
                     <section><div><ShieldCheck size={19} /><span><strong>Command-center intake</strong><p>Allows manual tickets and normalized intake while preserving owner review.</p></span></div><button className={controls.systemEnabled ? "cc-switch is-on" : "cc-switch"} role="switch" aria-label={controls.systemEnabled ? "Pause command-center intake" : "Enable command-center intake"} aria-checked={controls.systemEnabled} disabled={busy} onClick={toggleCommandCenterIntake}><span />{controls.systemEnabled ? "Enabled" : "Paused"}</button></section>
                     <section><div><ShieldAlert size={19} /><span><strong>Global kill switch</strong><p>Blocks future agent and effect execution. Manual review and evidence access remain available.</p></span></div><button className={controls.killSwitchActive ? "cc-switch is-danger" : "cc-switch"} role="switch" aria-label={controls.killSwitchActive ? "Deactivate global kill switch" : "Activate global kill switch"} aria-checked={controls.killSwitchActive} disabled={busy} onClick={toggleKillSwitch}><span />{controls.killSwitchActive ? "Active" : "Ready"}</button></section>
                     <section><div><LockKeyhole size={19} /><span><strong>Simulation mode</strong><p>Draft and approval decisions are recorded, but no external action executor exists.</p></span></div><strong className="cc-locked-control">Locked on</strong></section>
-                    {(["support", "legal", "billing", "productOperations", "founderBrief"] as const).map((agentType) => <section key={agentType}><div><Bot size={19} /><span><strong>{draftAgentLabels[agentType]} agent</strong><p>{agentType === "founderBrief" ? "Summarizes the current owner queue into review priorities." : "Produces structured review-only output from compatible tickets and approved knowledge."}</p></span></div><button className={controls.agentFlags[agentType] ? "cc-switch is-on" : "cc-switch"} role="switch" aria-checked={controls.agentFlags[agentType]} disabled={busy || !data.capabilities.draftAgentsAvailable || controls.killSwitchActive} onClick={() => void toggleAgent(agentType)}><span />{controls.agentFlags[agentType] ? "Enabled" : "Disabled"}</button></section>)}
+                    {(["support", "legal", "billing", "productOperations", "founderBrief"] as const).map((agentType) => <section key={agentType}><div><Bot size={19} /><span><strong>{draftAgentLabels[agentType]} agent</strong><p>{agentType === "founderBrief" ? "Summarizes the current owner queue into review priorities." : "Produces structured review-only output from compatible tickets and approved knowledge."}</p></span></div><button className={controls.agentFlags[agentType] ? "cc-switch is-on" : "cc-switch"} role="switch" aria-label={`${controls.agentFlags[agentType] ? "Disable" : "Enable"} ${draftAgentLabels[agentType]} draft agent`} aria-checked={controls.agentFlags[agentType]} disabled={busy || !data.capabilities.draftAgentsAvailable || controls.killSwitchActive} onClick={() => void toggleAgent(agentType)}><span />{controls.agentFlags[agentType] ? "Enabled" : "Disabled"}</button></section>)}
                     <section><div><UserRoundCheck size={19} /><span><strong>Deferred agents</strong><p>Privacy, content-action, and knowledge-maintenance agents remain unavailable in this phase.</p></span></div><strong className="cc-locked-control">Locked off</strong></section>
                   </div>
                 </>
@@ -688,7 +713,7 @@ export default function CommandCenterPage() {
             </aside>
           </div>
         ) : null}
-      </main>
+      </div>
 
       <dialog
         ref={createTicketDialog}
@@ -702,37 +727,41 @@ export default function CommandCenterPage() {
           closeTicketDialog();
         }}
       >
-        <form ref={createTicketForm} onSubmit={createTicket} onInput={() => setTicketFormDirty(true)} noValidate>
+        <form ref={createTicketForm} onSubmit={createTicket} onInput={() => setTicketFormDirty(true)} autoComplete="off" noValidate>
           <header><div><span className="cc-dialog-icon"><Plus size={18} /></span><div><h2 id="cc-ticket-form-title">Create a manual ticket</h2><p id="cc-ticket-form-description">Capture the work, separate evidence from claims, and set the owner review priority.</p></div></div><button type="button" onClick={() => closeTicketDialog()} aria-label="Close ticket dialog"><X size={18} /></button></header>
           <div className="cc-ticket-form-body">
-            <fieldset className="cc-ticket-details">
+            <div className="cc-ticket-form-column">
+              <fieldset className="cc-ticket-details">
               <legend><FileText size={17} /><span><strong>Ticket details</strong><small>Required information for the owner queue</small></span></legend>
               <div className="cc-form-grid"><label htmlFor="cc-ticket-category"><span className="cc-label-row"><span>Category</span><span className="cc-required">Required</span></span><select id="cc-ticket-category" name="category" defaultValue="support" aria-invalid={Boolean(ticketFormErrors.category)} aria-describedby={ticketFormErrors.category ? "cc-ticket-category-error" : undefined}>{Object.entries(categoryLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select>{ticketFormErrors.category && <small id="cc-ticket-category-error" className="cc-field-error">{ticketFormErrors.category}</small>}</label><label htmlFor="cc-ticket-risk"><span className="cc-label-row"><span>Risk level</span><span className="cc-required">Required</span></span><select id="cc-ticket-risk" name="riskLevel" defaultValue="medium" aria-invalid={Boolean(ticketFormErrors.riskLevel)} aria-describedby={ticketFormErrors.riskLevel ? "cc-ticket-risk-error" : undefined}><option value="low">Low · routine</option><option value="medium">Medium · review within 24 hours</option><option value="high">High · review within 4 hours</option><option value="critical">Critical · review within 1 hour</option></select>{ticketFormErrors.riskLevel && <small id="cc-ticket-risk-error" className="cc-field-error">{ticketFormErrors.riskLevel}</small>}</label></div>
-              <label htmlFor="cc-ticket-subject"><span className="cc-label-row"><span>Subject</span><span className="cc-required">Required</span></span><input id="cc-ticket-subject" name="subject" minLength={5} maxLength={160} placeholder="A concise description of the work" autoFocus required aria-invalid={Boolean(ticketFormErrors.subject)} aria-describedby={ticketFormErrors.subject ? "cc-ticket-subject-error" : undefined} />{ticketFormErrors.subject && <small id="cc-ticket-subject-error" className="cc-field-error">{ticketFormErrors.subject}</small>}</label>
+              <label htmlFor="cc-ticket-subject"><span className="cc-label-row"><span>Subject</span><span className="cc-required">Required</span></span><input ref={ticketSubjectInput} id="cc-ticket-subject" name="subject" minLength={5} maxLength={160} placeholder="A concise description of the work…" required aria-invalid={Boolean(ticketFormErrors.subject)} aria-describedby={ticketFormErrors.subject ? "cc-ticket-subject-error" : undefined} />{ticketFormErrors.subject && <small id="cc-ticket-subject-error" className="cc-field-error">{ticketFormErrors.subject}</small>}</label>
               <label htmlFor="cc-ticket-summary"><span className="cc-label-row"><span>Operational summary</span><span className="cc-required">Required</span></span><small id="cc-ticket-summary-help">Write a neutral summary that another reviewer can understand without opening the source.</small><textarea id="cc-ticket-summary" name="summary" minLength={10} maxLength={2000} rows={5} placeholder="What needs attention, who or what is affected, and what is known right now?" required aria-invalid={Boolean(ticketFormErrors.summary)} aria-describedby={ticketFormErrors.summary ? "cc-ticket-summary-help cc-ticket-summary-error" : "cc-ticket-summary-help"} />{ticketFormErrors.summary && <small id="cc-ticket-summary-error" className="cc-field-error">{ticketFormErrors.summary}</small>}</label>
-            </fieldset>
+              </fieldset>
+            </div>
 
-            <fieldset className="cc-ticket-evidence">
+            <div className="cc-ticket-form-column">
+              <fieldset className="cc-ticket-evidence">
               <legend><ShieldCheck size={17} /><span><strong>Evidence quality</strong><small>Keep verified information separate from reported claims</small></span></legend>
               <div className="cc-evidence-grid">
                 <label htmlFor="cc-ticket-facts"><span><Check size={15} />Confirmed facts</span><small id="cc-ticket-facts-help">Verified information only · one fact per line · up to 10</small><textarea id="cc-ticket-facts" name="confirmedFacts" rows={5} placeholder={"Account is verified\nIssue reproduced on the lesson page"} aria-invalid={Boolean(ticketFormErrors.confirmedFacts)} aria-describedby={ticketFormErrors.confirmedFacts ? "cc-ticket-facts-help cc-ticket-facts-error" : "cc-ticket-facts-help"} />{ticketFormErrors.confirmedFacts && <small id="cc-ticket-facts-error" className="cc-field-error">{ticketFormErrors.confirmedFacts}</small>}</label>
                 <label htmlFor="cc-ticket-claims"><span><CircleAlert size={15} />Unverified claims</span><small id="cc-ticket-claims-help">Reported but unconfirmed · one claim per line · up to 10</small><textarea id="cc-ticket-claims" name="unverifiedClaims" rows={5} placeholder={"Learner reports the issue started today\nA browser extension may be involved"} aria-invalid={Boolean(ticketFormErrors.unverifiedClaims)} aria-describedby={ticketFormErrors.unverifiedClaims ? "cc-ticket-claims-help cc-ticket-claims-error" : "cc-ticket-claims-help"} />{ticketFormErrors.unverifiedClaims && <small id="cc-ticket-claims-error" className="cc-field-error">{ticketFormErrors.unverifiedClaims}</small>}</label>
               </div>
-            </fieldset>
+              </fieldset>
 
-            <fieldset className="cc-ticket-organization">
+              <fieldset className="cc-ticket-organization">
               <legend><Tags size={17} /><span><strong>Organization</strong><small>Optional terms for search and recurring-issue analysis</small></span></legend>
               <label htmlFor="cc-ticket-tags">Tags <small id="cc-ticket-tags-help">Comma-separated. Spaces and duplicates are removed; tags are saved in lowercase.</small><input id="cc-ticket-tags" name="tags" placeholder="login, lesson-access, known-issue" aria-invalid={Boolean(ticketFormErrors.tags)} aria-describedby={ticketFormErrors.tags ? "cc-ticket-tags-help cc-ticket-tags-error" : "cc-ticket-tags-help"} onChange={(event) => setTicketTags(normalizedTags(event.currentTarget.value))} />{ticketFormErrors.tags && <small id="cc-ticket-tags-error" className="cc-field-error">{ticketFormErrors.tags}</small>}</label>
               {ticketTags.length > 0 && <div className="cc-tag-preview" aria-label="Tags to be saved">{ticketTags.map((tag) => <span key={tag}>{tag}</span>)}</div>}
-            </fieldset>
+              </fieldset>
+            </div>
           </div>
           <footer><div className="cc-ticket-footer-copy"><span><LockKeyhole size={14} /> Owner-only · recorded in the audit ledger</span>{ticketSubmitError && <span className="cc-ticket-submit-error" role="alert"><CircleAlert size={14} />{ticketSubmitError}</span>}</div><div><button type="button" className="button button-quiet" onClick={() => closeTicketDialog()}>Cancel</button><button className="button button-primary" disabled={busy} aria-describedby="cc-ticket-submit-status">{busy ? <LoaderCircle className="spin" size={16} /> : <Plus size={16} />}{busy ? "Creating ticket…" : "Create ticket"}</button><span id="cc-ticket-submit-status" className="sr-only" aria-live="polite">{busy ? "Creating the ticket" : ticketSubmitError ?? ""}</span></div></footer>
         </form>
       </dialog>
 
-      <dialog ref={createApprovalDialog} className="cc-dialog">
-        <form onSubmit={createApproval}>
-          <header><div><h2>Request owner approval</h2><p>This records a proposed action for review. It cannot execute the action.</p></div><button type="button" onClick={() => createApprovalDialog.current?.close()} aria-label="Close"><X size={18} /></button></header>
+      <dialog ref={createApprovalDialog} className="cc-dialog" aria-labelledby="cc-approval-form-title" aria-modal="true">
+        <form onSubmit={createApproval} autoComplete="off">
+          <header><div><h2 id="cc-approval-form-title">Request owner approval</h2><p>This records a proposed action for review. It cannot execute the action.</p></div><button type="button" onClick={() => createApprovalDialog.current?.close()} aria-label="Close"><X size={18} /></button></header>
           <div className="cc-form-grid"><label>Action type<select name="actionType" defaultValue="send_response">{Object.entries(actionLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label><label>Risk level<select name="riskLevel" defaultValue={selectedTicket?.riskLevel === "critical" ? "critical" : "high"}><option value="medium">Medium</option><option value="high">High</option><option value="critical">Critical</option></select></label></div>
           <label>Proposed action<textarea name="proposedAction" minLength={10} maxLength={500} rows={3} required /></label>
           <label>Expected side effects <small>One per line</small><textarea name="sideEffects" minLength={3} rows={3} required /></label>
@@ -743,18 +772,18 @@ export default function CommandCenterPage() {
         </form>
       </dialog>
 
-      <dialog ref={decisionDialog} className="cc-dialog cc-decision-dialog">
-        <form onSubmit={reviewApproval}>
-          <header><div><h2>{approvalDecision === "approved" ? "Approve the proposal" : "Reject the proposal"}</h2><p>Your decision is audited. Phase 1 will not execute the proposed action.</p></div><button type="button" onClick={() => decisionDialog.current?.close()} aria-label="Close"><X size={18} /></button></header>
-          <label>Decision reason<textarea name="reason" minLength={10} maxLength={500} rows={4} required autoFocus /></label>
+      <dialog ref={decisionDialog} className="cc-dialog cc-decision-dialog" aria-labelledby="cc-approval-decision-title" aria-modal="true">
+        <form onSubmit={reviewApproval} autoComplete="off">
+          <header><div><h2 id="cc-approval-decision-title">{approvalDecision === "approved" ? "Approve the proposal" : "Reject the proposal"}</h2><p>Your decision is audited. Phase 1 will not execute the proposed action.</p></div><button type="button" onClick={() => decisionDialog.current?.close()} aria-label="Close"><X size={18} /></button></header>
+          <label>Decision reason<textarea ref={approvalReasonInput} name="reason" minLength={10} maxLength={500} rows={4} required /></label>
           <footer><button type="button" className="button button-quiet" onClick={() => decisionDialog.current?.close()}>Cancel</button><button className={approvalDecision === "approved" ? "button button-primary" : "button button-danger"} disabled={busy}>{approvalDecision === "approved" ? <Check size={16} /> : <X size={16} />}Record {approvalDecision === "approved" ? "approval" : "rejection"}</button></footer>
         </form>
       </dialog>
 
-      <dialog ref={draftDecisionDialog} className="cc-dialog cc-decision-dialog">
-        <form onSubmit={reviewDraft}>
-          <header><div><h2>{draftDecision === "accepted" ? "Accept this draft" : "Reject this draft"}</h2><p>This records the owner review only. It will not send the draft or execute an action.</p></div><button type="button" onClick={() => draftDecisionDialog.current?.close()} aria-label="Close"><X size={18} /></button></header>
-          <label>Review reason<textarea name="reason" minLength={10} maxLength={500} rows={4} required autoFocus /></label>
+      <dialog ref={draftDecisionDialog} className="cc-dialog cc-decision-dialog" aria-labelledby="cc-draft-decision-title" aria-modal="true">
+        <form onSubmit={reviewDraft} autoComplete="off">
+          <header><div><h2 id="cc-draft-decision-title">{draftDecision === "accepted" ? "Accept this draft" : "Reject this draft"}</h2><p>This records the owner review only. It will not send the draft or execute an action.</p></div><button type="button" onClick={() => draftDecisionDialog.current?.close()} aria-label="Close"><X size={18} /></button></header>
+          <label>Review reason<textarea ref={draftReasonInput} name="reason" minLength={10} maxLength={500} rows={4} required /></label>
           <footer><button type="button" className="button button-quiet" onClick={() => draftDecisionDialog.current?.close()}>Cancel</button><button className={draftDecision === "accepted" ? "button button-primary" : "button button-danger"} disabled={busy}>{draftDecision === "accepted" ? <Check size={16} /> : <X size={16} />}Record {draftDecision === "accepted" ? "acceptance" : "rejection"}</button></footer>
         </form>
       </dialog>
