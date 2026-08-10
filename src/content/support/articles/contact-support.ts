@@ -23,7 +23,7 @@ To protect the queue, each account can submit up to five requests per day.
 
 ## Use email when you cannot sign in
 
-Email [support@erudoza.com](mailto:support@erudoza.com?subject=Filosage%20support%20request) when sign-in or the ticket form is unavailable. Include:
+Email [support@filosage.com](mailto:support@filosage.com?subject=Filosage%20support%20request) when sign-in or the ticket form is unavailable. Include:
 
 - the affected page, course, and lesson when applicable;
 - what you were trying to do;

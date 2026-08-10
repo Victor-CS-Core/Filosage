@@ -456,7 +456,7 @@ test("records a versioned ticket and approval without executing an external acti
 test("renders the owner command center with visible draft-only safety controls", async ({ page }) => {
   await page.setViewportSize({ width: 1366, height: 768 });
   await acceptOwnerTerms(page.request);
-  await page.addInitScript(() => localStorage.setItem("erudoza-local-session", "1"));
+  await page.addInitScript(() => localStorage.setItem("filosage-local-session", "1"));
   await page.goto("/admin/command-center");
 
   await expect(page.getByRole("heading", { name: "Agent command center" })).toBeVisible();
@@ -538,7 +538,7 @@ test("renders the owner command center with visible draft-only safety controls",
 test("uses a full-screen, internally scrollable ticket dialog on a short mobile viewport", async ({ page }) => {
   await page.setViewportSize({ width: 375, height: 667 });
   await acceptOwnerTerms(page.request);
-  await page.addInitScript(() => localStorage.setItem("erudoza-local-session", "1"));
+  await page.addInitScript(() => localStorage.setItem("filosage-local-session", "1"));
   await page.goto("/admin/command-center");
   await page.getByRole("button", { name: "New ticket" }).click();
 
@@ -562,7 +562,7 @@ test("uses a full-screen, internally scrollable ticket dialog on a short mobile 
 
 test("keeps the ticket dialog usable across the target viewport and theme matrix", async ({ page }) => {
   await acceptOwnerTerms(page.request);
-  await page.addInitScript(() => localStorage.setItem("erudoza-local-session", "1"));
+  await page.addInitScript(() => localStorage.setItem("filosage-local-session", "1"));
   await page.goto("/admin/command-center");
 
   const viewports = [
@@ -630,7 +630,7 @@ test("keeps the ticket dialog usable across the target viewport and theme matrix
 
 test("preserves ticket form data after a server failure", async ({ page }) => {
   await acceptOwnerTerms(page.request);
-  await page.addInitScript(() => localStorage.setItem("erudoza-local-session", "1"));
+  await page.addInitScript(() => localStorage.setItem("filosage-local-session", "1"));
   await page.route("**/api/admin/command-center/tickets", async (route) => {
     await route.fulfill({ status: 503, contentType: "application/json", body: JSON.stringify({ error: "Temporary ticket service failure." }) });
   });

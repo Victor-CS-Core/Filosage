@@ -102,9 +102,9 @@ export default function AppShell({ children, activeTopic, activeLessonId, active
     };
     void load();
     const onCoursesChanged = () => { void load(); };
-    window.addEventListener("erudoza:courses-changed", onCoursesChanged);
+    window.addEventListener("filosage:courses-changed", onCoursesChanged);
     return () => {
-      window.removeEventListener("erudoza:courses-changed", onCoursesChanged);
+      window.removeEventListener("filosage:courses-changed", onCoursesChanged);
     };
   }, [refreshCourses]);
 

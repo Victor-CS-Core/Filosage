@@ -48,7 +48,7 @@ async function contentFingerprint(value: string) {
   const secret = serverEnvironment.SAFETY_FINGERPRINT_SECRET
     ?? serverEnvironment.FIREBASE_PRIVATE_KEY
     ?? serverEnvironment.OPENAI_API_KEY
-    ?? "erudoza-local-development";
+    ?? "filosage-local-development";
   const key = await crypto.subtle.importKey(
     "raw",
     new TextEncoder().encode(secret),

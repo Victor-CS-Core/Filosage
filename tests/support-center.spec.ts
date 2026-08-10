@@ -24,7 +24,7 @@ test("gives guests public help plus valid sign-in and email paths", async ({ pag
   await dialog.getByRole("tab", { name: "New request" }).click();
   await expect(dialog.getByRole("heading", { name: "Sign in to send a request" })).toBeVisible();
   await expect(dialog.getByRole("button", { name: "Sign in" })).toBeVisible();
-  await expect(dialog.getByRole("link", { name: /Email support@erudoza.com/ })).toHaveAttribute("href", /mailto:support@erudoza\.com/);
+  await expect(dialog.getByRole("link", { name: /Email support@filosage.com/ })).toHaveAttribute("href", /mailto:support@filosage\.com/);
 
   await dialog.getByRole("tab", { name: "My requests" }).click();
   await expect(dialog.getByRole("heading", { name: "Sign in to view your requests" })).toBeVisible();
@@ -189,7 +189,7 @@ test("keeps the Spark and bottom sheet above mobile navigation with no overflow"
 });
 
 test("uses the themed Spark and honors reduced-motion mode", async ({ page }) => {
-  await page.addInitScript(() => localStorage.setItem("erudoza-theme", "dark"));
+  await page.addInitScript(() => localStorage.setItem("filosage-theme", "dark"));
   await page.emulateMedia({ reducedMotion: "reduce", colorScheme: "light" });
   await page.goto("/support");
   const trigger = page.getByRole("button", { name: "Open Support Center" });

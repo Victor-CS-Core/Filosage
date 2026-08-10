@@ -28,7 +28,7 @@ async function prepareLocalOwner(page: import("@playwright/test").Page) {
     },
   });
   expect(acceptance.ok()).toBe(true);
-  await page.addInitScript(() => localStorage.setItem("erudoza-local-session", "1"));
+  await page.addInitScript(() => localStorage.setItem("filosage-local-session", "1"));
 }
 
 test("validates support articles and blocks undocumented mapped feature changes", ({ request }, testInfo) => {
@@ -131,7 +131,7 @@ test("resolves every wiki destination and provides reliable email fallbacks", as
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto("/support");
   await page.getByRole("link", { name: "Start an email", exact: true }).click();
-  await expect(page.getByRole("status")).toContainText("support@erudoza.com");
+  await expect(page.getByRole("status")).toContainText("support@filosage.com");
 
   await page.goto("/support/articles/getting-started");
   const contents = page.getByRole("complementary", { name: "On this page" });
@@ -145,5 +145,5 @@ test("resolves every wiki destination and provides reliable email fallbacks", as
   await expect(page.getByRole("heading", { level: 2, name: "Open your first lesson" })).toBeVisible();
 
   await page.getByRole("link", { name: "Email support", exact: true }).click();
-  await expect(page.getByRole("status")).toContainText("support@erudoza.com");
+  await expect(page.getByRole("status")).toContainText("support@filosage.com");
 });

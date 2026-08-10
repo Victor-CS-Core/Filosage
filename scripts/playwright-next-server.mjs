@@ -15,10 +15,10 @@ if (!Number.isInteger(port) || port < 1 || port > 65_535) {
 }
 
 const testStoreDir = resetPlaywrightOwnedDirectory(
-  process.env.ERUDOZA_LOCAL_DIR,
-  ".erudoza-local-test",
+  process.env.FILOSAGE_LOCAL_DIR,
+  ".filosage-local-test",
 );
-resetPlaywrightOwnedDirectory(process.env.ERUDOZA_NEXT_DIST_DIR, ".next");
+resetPlaywrightOwnedDirectory(process.env.FILOSAGE_NEXT_DIST_DIR, ".next");
 
 // Next automatically adds a custom distDir's generated types to whichever
 // tsconfig it owns. Point it at an ephemeral extending config so the tracked
@@ -28,7 +28,7 @@ mkdirSync(dirname(testTsconfigPath), { recursive: true });
 writeFileSync(testTsconfigPath, `${JSON.stringify({
   extends: relative(dirname(testTsconfigPath), resolve("tsconfig.json")).replaceAll(sep, "/"),
 }, null, 2)}\n`);
-process.env.ERUDOZA_NEXT_TSCONFIG_PATH = relative(process.cwd(), testTsconfigPath).replaceAll(sep, "/");
+process.env.FILOSAGE_NEXT_TSCONFIG_PATH = relative(process.cwd(), testTsconfigPath).replaceAll(sep, "/");
 
 const app = next({ dev: true, hostname, port });
 const handle = app.getRequestHandler();

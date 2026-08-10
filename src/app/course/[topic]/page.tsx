@@ -46,7 +46,7 @@ type PublicationAssessmentState = {
   assessment: PublicationAssessment;
 };
 
-const PUBLICATION_ASSESSMENT_STORAGE_PREFIX = "erudoza:publication-assessment:v1:";
+const PUBLICATION_ASSESSMENT_STORAGE_PREFIX = "filosage:publication-assessment:v1:";
 
 function readStoredPublicationAssessment(courseViewKey: string): PublicationAssessmentState | null {
   if (typeof window === "undefined") return null;
@@ -328,7 +328,7 @@ export default function CourseMap() {
       setPublishAttested(false);
       setPublicationAssessment(null);
       storePublicationAssessment(courseViewKey, null);
-      window.dispatchEvent(new Event("erudoza:courses-changed"));
+      window.dispatchEvent(new Event("filosage:courses-changed"));
     } catch (updateError) {
       if (isCurrentView()) setActionError(updateError instanceof Error ? updateError.message : "Visibility could not be updated.");
     } finally {
@@ -487,7 +487,7 @@ export default function CourseMap() {
       setOverrideReason("");
       setOverrideConfirmed(false);
       overrideDrawer.closeDrawer();
-      window.dispatchEvent(new Event("erudoza:courses-changed"));
+      window.dispatchEvent(new Event("filosage:courses-changed"));
     } catch (overrideError) {
       if (activeCourseViewRef.current === operationViewKey) {
         setActionError(overrideError instanceof Error ? overrideError.message : "The publication override could not be completed.");
@@ -544,7 +544,7 @@ export default function CourseMap() {
       if (!isCurrentView()) return;
       if (!response.ok) throw new Error(data.error || "A new banner could not be generated.");
       setCourseRecord({ key: operationViewKey, value: data });
-      window.dispatchEvent(new Event("erudoza:courses-changed"));
+      window.dispatchEvent(new Event("filosage:courses-changed"));
     } catch (bannerError) {
       if (isCurrentView()) setActionError(bannerError instanceof Error ? bannerError.message : "A new banner could not be generated.");
     } finally {

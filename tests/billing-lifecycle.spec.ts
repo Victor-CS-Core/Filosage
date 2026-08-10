@@ -88,15 +88,15 @@ test("webhook raw bodies are preserved and bounded by bytes", async () => {
   const body = JSON.stringify({ note: "café" });
   const bodyBytes = new TextEncoder().encode(body).byteLength;
 
-  expect(await readBoundedRequestText(new Request("https://erudoza.test/webhook", {
+  expect(await readBoundedRequestText(new Request("https://filosage.test/webhook", {
     method: "POST",
     body,
   }), bodyBytes)).toBe(body);
-  expect(await readBoundedRequestText(new Request("https://erudoza.test/webhook", {
+  expect(await readBoundedRequestText(new Request("https://filosage.test/webhook", {
     method: "POST",
     body,
   }), bodyBytes - 1)).toBeNull();
-  expect(await readBoundedRequestText(new Request("https://erudoza.test/webhook", {
+  expect(await readBoundedRequestText(new Request("https://filosage.test/webhook", {
     method: "POST",
     body: "{}",
     headers: { "Content-Length": String(bodyBytes + 1) },
@@ -213,7 +213,7 @@ test("a direct API caller cannot exceed the Plus owned-course limit", async ({ r
 });
 
 test("a past-due subscriber can reach billing management while checkout is closed", async ({ page }) => {
-  await page.addInitScript(() => localStorage.setItem("erudoza-local-session", "1"));
+  await page.addInitScript(() => localStorage.setItem("filosage-local-session", "1"));
   await page.route("**/api/billing/status", (route) => route.fulfill({
     json: { enabled: false, ready: false, checkoutReady: false, managementReady: true },
   }));

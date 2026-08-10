@@ -9,11 +9,11 @@ import {
   type ProductEventRoute,
 } from "@/lib/product-events";
 
-const ACTOR_KEY = "erudoza:analytics:actor";
-const SESSION_KEY = "erudoza:analytics:session";
-const ATTRIBUTION_KEY = "erudoza:analytics:first-touch";
-const CONSENT_KEY = "erudoza:analytics:consent:v1";
-export const ANALYTICS_CONSENT_CHANGED_EVENT = "erudoza:analytics-consent-changed";
+const ACTOR_KEY = "filosage:analytics:actor";
+const SESSION_KEY = "filosage:analytics:session";
+const ATTRIBUTION_KEY = "filosage:analytics:first-touch";
+const CONSENT_KEY = "filosage:analytics:consent:v1";
+export const ANALYTICS_CONSENT_CHANGED_EVENT = "filosage:analytics-consent-changed";
 
 export type AnalyticsConsent = "accepted" | "declined";
 
@@ -40,7 +40,7 @@ function clearOptionalAnalyticsStorage() {
     sessionStorage.removeItem(SESSION_KEY);
     for (let index = sessionStorage.length - 1; index >= 0; index -= 1) {
       const key = sessionStorage.key(index);
-      if (key?.startsWith("erudoza:event:") || key?.startsWith("erudoza:traffic:")) {
+      if (key?.startsWith("filosage:event:") || key?.startsWith("filosage:traffic:")) {
         sessionStorage.removeItem(key);
       }
     }
@@ -188,7 +188,7 @@ export interface ProductEventOptions {
 export function trackProductEvent(event: ProductEventName, options: ProductEventOptions = {}) {
   if (options.exclude || typeof window === "undefined" || readAnalyticsConsent() !== "accepted") return;
   const route = options.route ?? routeBucket(window.location.pathname);
-  const onceKey = `erudoza:event:${PRODUCT_EVENT_SCHEMA_VERSION}:${event}:${route}`;
+  const onceKey = `filosage:event:${PRODUCT_EVENT_SCHEMA_VERSION}:${event}:${route}`;
   if (options.oncePerSession) {
     try {
       if (sessionStorage.getItem(onceKey)) return;
@@ -222,7 +222,7 @@ export function trackPageView(pathname: string, exclude = false) {
   if (exclude || readAnalyticsConsent() !== "accepted") return;
   const route = routeBucket(pathname);
   const day = new Date().toISOString().slice(0, 10);
-  const storageKey = `erudoza:traffic:${day}:${route}`;
+  const storageKey = `filosage:traffic:${day}:${route}`;
   try {
     if (sessionStorage.getItem(storageKey)) return;
     sessionStorage.setItem(storageKey, "1");

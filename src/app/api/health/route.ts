@@ -37,7 +37,7 @@ export async function GET() {
       status: ok ? 200 : 503,
       headers: {
         "Cache-Control": "no-store",
-        ...(version ? { "X-Erudoza-Version": version } : {}),
+        ...(version ? { "X-Filosage-Version": version } : {}),
       },
     },
   );

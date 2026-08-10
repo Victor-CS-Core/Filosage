@@ -3,7 +3,7 @@ import { ArrowRight, BookOpenCheck, CheckCircle2, Circle, Clock3 } from "lucide-
 export default function ProductMockup() {
   return (
     <div className="marketing-browser" aria-label="Illustration of the Filosage learning workspace">
-      <div className="marketing-browser-bar" aria-hidden="true"><span /><span /><span /><b>erudoza.com</b></div>
+      <div className="marketing-browser-bar" aria-hidden="true"><span /><span /><span /><b>filosage.com</b></div>
       <div className="marketing-browser-body">
         <aside aria-label="Illustrative workspace navigation">
           <strong>Today</strong><span>Explore</span><span>Review</span><span>Progress</span>

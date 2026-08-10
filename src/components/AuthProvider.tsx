@@ -45,13 +45,13 @@ const AuthContext = createContext<AuthContextValue | null>(null);
 // present in a developer environment. NODE_ENV is inlined at build time, so
 // this path cannot exist in production.
 const localAuthAvailable = process.env.NODE_ENV === "development";
-const LOCAL_SESSION_KEY = "erudoza-local-session";
+const LOCAL_SESSION_KEY = "filosage-local-session";
 
 function localOwnerUser(): User {
   return {
     uid: "local-owner",
     displayName: "Local Owner",
-    email: "owner@erudoza.local",
+    email: "owner@filosage.local",
     photoURL: null,
     getIdToken: async () => "local-dev-token",
   } as unknown as User;

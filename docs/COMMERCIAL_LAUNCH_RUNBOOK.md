@@ -54,7 +54,7 @@ Supabase migration is not a release dependency and is not a substitute for this 
 ### Required before unattended or broader real-user operation
 
 - [ ] Configure `OPERATIONS_ALERT_WEBHOOK_URL` to an independently monitored receiver that accepts Filosage's JSON alert envelope.
-- [ ] Configure a cryptographically random `OPERATIONS_ALERT_WEBHOOK_SECRET`; the receiver must verify the hexadecimal HMAC-SHA256 value in `X-Erudoza-Signature` before accepting an alert.
+- [ ] Configure a cryptographically random `OPERATIONS_ALERT_WEBHOOK_SECRET`; the receiver must verify the hexadecimal HMAC-SHA256 value in `X-Filosage-Signature` before accepting an alert.
 - [ ] Send and acknowledge a signed test alert, then verify deduplication, failure logging, escalation ownership, and recovery notification behavior.
 - [ ] Configure an external monitor for `/api/health` at a one-to-five-minute interval, alerting after two consecutive failures and again on recovery.
 - [ ] Confirm the support address is actively monitored and run a signed-in owner acceptance test for support intake, owner documentation, the content-report queue, command-center review-only drafts, and audit evidence on the exact hosted release.

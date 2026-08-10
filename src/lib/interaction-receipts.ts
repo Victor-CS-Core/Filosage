@@ -19,7 +19,7 @@ function receiptSecret() {
     }
     return configured;
   }
-  if (serverEnvironment.NODE_ENV !== "production") return "erudoza-local-activity-receipts";
+  if (serverEnvironment.NODE_ENV !== "production") return "filosage-local-activity-receipts";
   throw new Error("ACTIVITY_RECEIPT_SECRET is not configured.");
 }
 

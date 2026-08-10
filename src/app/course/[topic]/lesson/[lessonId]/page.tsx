@@ -481,12 +481,12 @@ export default function LessonView() {
       if (cancelled) return;
       let saved: LessonExperienceState | null = null;
       try {
-        const parsed = JSON.parse(localStorage.getItem(`erudoza-experience-draft:${noteKey}`) ?? "null") as Partial<LessonExperienceState> | null;
+        const parsed = JSON.parse(localStorage.getItem(`filosage-experience-draft:${noteKey}`) ?? "null") as Partial<LessonExperienceState> | null;
         if (parsed?.type === expectedType && typeof parsed.response === "string") {
           saved = { type: expectedType, response: parsed.response.slice(0, 8_000), completed: parsed.completed === true && parsed.response.trim().length >= 20 };
         }
       } catch {
-        localStorage.removeItem(`erudoza-experience-draft:${noteKey}`);
+        localStorage.removeItem(`filosage-experience-draft:${noteKey}`);
       }
       setExperienceState((current) => current.key === noteKey
         ? current
@@ -499,7 +499,7 @@ export default function LessonView() {
     if (!lessonData?.transferTask || transferState.key === noteKey) return;
     deferClientTask(() => {
       try {
-        const parsed = JSON.parse(localStorage.getItem(`erudoza-transfer-draft:${noteKey}`) ?? "null") as { response?: unknown; revealed?: unknown } | null;
+        const parsed = JSON.parse(localStorage.getItem(`filosage-transfer-draft:${noteKey}`) ?? "null") as { response?: unknown; revealed?: unknown } | null;
         const savedResponse = parsed?.response;
         if (typeof savedResponse === "string") {
           setTransferState((current) => current.key === noteKey ? current : {
@@ -509,7 +509,7 @@ export default function LessonView() {
           });
         }
       } catch {
-        localStorage.removeItem(`erudoza-transfer-draft:${noteKey}`);
+        localStorage.removeItem(`filosage-transfer-draft:${noteKey}`);
       }
     });
   }, [lessonData?.transferTask, noteKey, transferState.key]);
@@ -858,8 +858,8 @@ export default function LessonView() {
       : 1;
     if (isCurrentView()) setCompletionState({ key: noteKey, complete: true });
     if (cloudSaved) {
-      localStorage.removeItem(`erudoza-experience-draft:${noteKey}`);
-      localStorage.removeItem(`erudoza-transfer-draft:${noteKey}`);
+        localStorage.removeItem(`filosage-experience-draft:${noteKey}`);
+        localStorage.removeItem(`filosage-transfer-draft:${noteKey}`);
     }
     await addMasteryEvidence([
       ...(!reviewMode ? [{
@@ -1055,7 +1055,7 @@ export default function LessonView() {
   const updateExperienceEvidence = useCallback((value: LessonExperienceState) => {
     setExperienceState({ key: noteKey, value });
     try {
-      localStorage.setItem(`erudoza-experience-draft:${noteKey}`, JSON.stringify(value));
+      localStorage.setItem(`filosage-experience-draft:${noteKey}`, JSON.stringify(value));
     } catch {
       // Storage can be unavailable in private browsing; the in-memory draft still works.
     }
@@ -1065,7 +1065,7 @@ export default function LessonView() {
     const value = { key: noteKey, response, revealed };
     setTransferState(value);
     try {
-      localStorage.setItem(`erudoza-transfer-draft:${noteKey}`, JSON.stringify({ response, revealed }));
+      localStorage.setItem(`filosage-transfer-draft:${noteKey}`, JSON.stringify({ response, revealed }));
     } catch {
       // Storage can be unavailable in private browsing; the in-memory draft still works.
     }

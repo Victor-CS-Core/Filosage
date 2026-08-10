@@ -130,7 +130,7 @@ export default function CreateCoursePage() {
       if (typeof data.courseId !== "string" || !data.courseId) throw new Error("The course was saved, but its destination was missing. Retry to reopen the saved course.");
       setGenerationProgress(100);
       setGenerationStage("Your course map is ready");
-      window.dispatchEvent(new Event("erudoza:courses-changed"));
+      window.dispatchEvent(new Event("filosage:courses-changed"));
       await new Promise((resolve) => window.setTimeout(resolve, 350));
       window.location.assign(`/course/${encodeURIComponent(topic.trim())}?id=${encodeURIComponent(data.courseId)}`);
     } catch (creationError) {

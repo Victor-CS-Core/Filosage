@@ -65,7 +65,7 @@ export interface ObjectiveMastery {
 }
 
 const MASTERY_STORAGE_VERSION = 1;
-const MASTERY_STORAGE_PREFIX = `erudoza-mastery-v${MASTERY_STORAGE_VERSION}:`;
+const MASTERY_STORAGE_PREFIX = `filosage-mastery-v${MASTERY_STORAGE_VERSION}:`;
 
 export const BASELINE_LEVEL_LABELS: Record<BaselineLevel, string> = {
   new: "New to me",

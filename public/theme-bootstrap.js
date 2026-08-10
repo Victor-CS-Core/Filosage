@@ -1,5 +1,5 @@
 (function () {
-  var assetRecoveryKey = "erudoza-asset-recovery";
+  var assetRecoveryKey = "filosage-asset-recovery";
 
   function recoverFromMissingAsset(assetId) {
     var recoveryUrl = new URL(window.location.href);
@@ -42,7 +42,7 @@
 
   var theme = "light";
   try {
-    var stored = localStorage.getItem("erudoza-theme") || localStorage.getItem("teach-theme");
+    var stored = localStorage.getItem("filosage-theme") || localStorage.getItem("teach-theme");
     theme = stored === "light" || stored === "dark" ? stored : (window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
   } catch (error) {
     theme = window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";

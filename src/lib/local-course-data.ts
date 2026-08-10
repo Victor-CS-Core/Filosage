@@ -5,7 +5,7 @@ import { removeCourseFromLearnerState } from "@/lib/learner-state";
 import { removeLocalProgress } from "@/lib/learning-progress";
 import { removeLocalMasteryJourney } from "@/lib/mastery";
 
-const OUTCOME_FEEDBACK_PREFIX = "erudoza:outcome-feedback:";
+const OUTCOME_FEEDBACK_PREFIX = "filosage:outcome-feedback:";
 
 export function outcomeFeedbackStorageKey(courseId: string) {
   return `${OUTCOME_FEEDBACK_PREFIX}${courseId}`;
@@ -21,8 +21,8 @@ export function clearLocalCourseData(courseId: string) {
   } catch {
     // The rest of the cleanup is still useful when one storage write fails.
   }
-  window.dispatchEvent(new Event("erudoza:courses-changed"));
-  window.dispatchEvent(new CustomEvent("erudoza:course-deleted", { detail: { courseId } }));
+  window.dispatchEvent(new Event("filosage:courses-changed"));
+  window.dispatchEvent(new CustomEvent("filosage:course-deleted", { detail: { courseId } }));
 }
 
 export async function removeDeletedLocalCourses(progress: CourseProgress[]) {

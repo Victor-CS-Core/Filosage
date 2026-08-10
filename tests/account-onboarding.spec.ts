@@ -107,9 +107,9 @@ test("presents a signed-in identity without an application account as initial se
     },
   }));
   await page.addInitScript(() => {
-    if (sessionStorage.getItem("erudoza-playwright-preaccount-bootstrapped")) return;
-    localStorage.setItem("erudoza-local-session", "1");
-    sessionStorage.setItem("erudoza-playwright-preaccount-bootstrapped", "1");
+    if (sessionStorage.getItem("filosage-playwright-preaccount-bootstrapped")) return;
+    localStorage.setItem("filosage-local-session", "1");
+    sessionStorage.setItem("filosage-playwright-preaccount-bootstrapped", "1");
   });
   await page.goto("/");
 
@@ -137,9 +137,9 @@ test("returns initial-setup users to the public landing page when they sign out"
     },
   }));
   await page.addInitScript(() => {
-    if (sessionStorage.getItem("erudoza-playwright-preaccount-bootstrapped")) return;
-    localStorage.setItem("erudoza-local-session", "1");
-    sessionStorage.setItem("erudoza-playwright-preaccount-bootstrapped", "1");
+    if (sessionStorage.getItem("filosage-playwright-preaccount-bootstrapped")) return;
+    localStorage.setItem("filosage-local-session", "1");
+    sessionStorage.setItem("filosage-playwright-preaccount-bootstrapped", "1");
   });
   await page.goto("/profile");
 
@@ -149,5 +149,5 @@ test("returns initial-setup users to the public landing page when they sign out"
 
   await expect(page).toHaveURL(/\/$/);
   await expect(page.getByRole("heading", { name: "Turn curiosity into understanding" })).toBeVisible();
-  expect(await page.evaluate(() => localStorage.getItem("erudoza-local-session"))).toBeNull();
+  expect(await page.evaluate(() => localStorage.getItem("filosage-local-session"))).toBeNull();
 });

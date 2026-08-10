@@ -94,8 +94,8 @@ function selectedCases() {
 }
 
 function isProductionHost(url: URL) {
-  return url.hostname === "erudoza.com"
-    || url.hostname.endsWith(".erudoza.com")
+  return url.hostname === "filosage.com"
+    || url.hostname.endsWith(".filosage.com")
     || url.hostname.endsWith(".chatgpt.site");
 }
 
@@ -149,7 +149,7 @@ async function postJson(baseUrl: URL, path: string, token: string, data: unknown
       Authorization: `Bearer ${token}`,
       "Content-Type": "application/json",
       "Idempotency-Key": `model-eval-${randomUUID()}`,
-      "X-Erudoza-Model-Evaluation": "1",
+      "X-Filosage-Model-Evaluation": "1",
     },
     body: JSON.stringify(data),
   });

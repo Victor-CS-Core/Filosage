@@ -9,8 +9,8 @@ import {
 try {
   const environment = firestoreEnvironment();
   const inputUriPrefix = argument("--input");
-  if (!inputUriPrefix) throw new Error("Provide --input=gs://BUCKET/erudoza-backups/TIMESTAMP.");
-  const allowedPrefix = `gs://${environment.bucket}/erudoza-backups/`;
+  if (!inputUriPrefix) throw new Error("Provide --input=gs://BUCKET/filosage-backups/TIMESTAMP.");
+  const allowedPrefix = `gs://${environment.bucket}/filosage-backups/`;
   if (!inputUriPrefix.startsWith(allowedPrefix) || inputUriPrefix.includes("..")) {
     throw new Error(`Restore input must be under ${allowedPrefix}`);
   }

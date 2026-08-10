@@ -10,10 +10,10 @@ import {
 import { contentReportDisposition } from "../src/lib/content-report-policy";
 
 test("exposes Sites string bindings without serializing resource bindings", () => {
-  const versionKey = "ERUDOZA_TEST_SITE_VERSION";
-  const secretKey = "ERUDOZA_TEST_SITE_SECRET";
-  const resourceKey = "ERUDOZA_TEST_SITE_RESOURCE";
-  const previous = globalThis.__ERUDOZA_RUNTIME_ENV__;
+  const versionKey = "FILOSAGE_TEST_SITE_VERSION";
+  const secretKey = "FILOSAGE_TEST_SITE_SECRET";
+  const resourceKey = "FILOSAGE_TEST_SITE_RESOURCE";
+  const previous = globalThis.__FILOSAGE_RUNTIME_ENV__;
 
   try {
     installRuntimeEnvironment({
@@ -25,14 +25,14 @@ test("exposes Sites string bindings without serializing resource bindings", () =
     expect(serverEnvironment[secretKey]).toBe("test-secret");
     expect(serverEnvironment[resourceKey]).toBeUndefined();
   } finally {
-    globalThis.__ERUDOZA_RUNTIME_ENV__ = previous;
+    globalThis.__FILOSAGE_RUNTIME_ENV__ = previous;
   }
 });
 
 test("defines one production HSTS policy for pages, APIs, and assets", () => {
   expect(STRICT_TRANSPORT_SECURITY).toBe("max-age=63072000; includeSubDomains; preload");
   const secure = withStrictTransportSecurity(
-    new Request("https://erudoza.example/api/health"),
+    new Request("https://filosage.example/api/health"),
     Response.json({ ok: true }),
   );
   const local = withStrictTransportSecurity(

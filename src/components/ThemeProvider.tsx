@@ -4,7 +4,7 @@ import { createContext, useCallback, useContext, useEffect, useState } from "rea
 import { deferClientTask } from "@/lib/browser-compat";
 
 type Theme = "light" | "dark";
-const THEME_KEY = "erudoza-theme";
+const THEME_KEY = "filosage-theme";
 const LEGACY_THEME_KEY = "teach-theme";
 
 const ThemeContext = createContext<{ theme: Theme; restored: boolean; toggle: () => void }>({

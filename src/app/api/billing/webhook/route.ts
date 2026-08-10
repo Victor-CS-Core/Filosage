@@ -27,8 +27,8 @@ function subscriptionEventDetails(subscription: Stripe.Subscription, includeDecl
     };
   } catch {
     if (!includeDeclared) return {};
-    const declaredPlanId = isPaidLearnerPlan(subscription.metadata.erudoza_plan) ? subscription.metadata.erudoza_plan : undefined;
-    const declaredBillingInterval = isBillingInterval(subscription.metadata.erudoza_interval) ? subscription.metadata.erudoza_interval : undefined;
+    const declaredPlanId = isPaidLearnerPlan(subscription.metadata.filosage_plan) ? subscription.metadata.filosage_plan : undefined;
+    const declaredBillingInterval = isBillingInterval(subscription.metadata.filosage_interval) ? subscription.metadata.filosage_interval : undefined;
     return {
       ...(declaredPlanId ? { declaredPlanId } : {}),
       ...(declaredBillingInterval ? { declaredBillingInterval } : {}),
@@ -61,8 +61,8 @@ function stripeEventAuditDetails(event: Stripe.Event) {
   }
   if (event.type === "checkout.session.completed") {
     const session = event.data.object as Stripe.Checkout.Session;
-    const planId = isPaidLearnerPlan(session.metadata?.erudoza_plan) ? session.metadata.erudoza_plan : undefined;
-    const billingInterval = isBillingInterval(session.metadata?.erudoza_interval) ? session.metadata.erudoza_interval : undefined;
+    const planId = isPaidLearnerPlan(session.metadata?.filosage_plan) ? session.metadata.filosage_plan : undefined;
+    const billingInterval = isBillingInterval(session.metadata?.filosage_interval) ? session.metadata.filosage_interval : undefined;
     return {
       eventCreatedAt,
       ...(planId ? { planId } : {}),
@@ -129,7 +129,7 @@ export async function POST(request: Request) {
         if (typeof session.subscription === "string") {
           const subscription = await stripeClient().subscriptions.retrieve(session.subscription);
           await recordBillingConsent(session, subscription, event);
-          const uid = subscription.metadata.erudoza_uid || session.client_reference_id || undefined;
+          const uid = subscription.metadata.filosage_uid || session.client_reference_id || undefined;
           const synchronized = await syncStripeSubscription(subscription, uid, event.created);
           if (synchronized && uid) {
             await recordServerProductEvent("subscription_started", {
@@ -148,7 +148,7 @@ export async function POST(request: Request) {
         {
           const subscription = event.data.object as Stripe.Subscription;
           const synchronized = await syncStripeSubscription(subscription, undefined, event.created);
-          const uid = subscription.metadata.erudoza_uid;
+          const uid = subscription.metadata.filosage_uid;
           if (event.type === "customer.subscription.deleted" && synchronized && uid) {
             await recordServerProductEvent("subscription_canceled", {
               route: "/pricing",

@@ -4,19 +4,12 @@ import { securityHeaders } from "./src/lib/security-headers";
 const nextConfig: NextConfig = {
   // An owned Playwright dev server gets its own build directory and therefore
   // its own Next dev lock. Normal development and production keep `.next`.
-  ...(process.env.ERUDOZA_NEXT_DIST_DIR
-    ? { distDir: process.env.ERUDOZA_NEXT_DIST_DIR }
+  ...(process.env.FILOSAGE_NEXT_DIST_DIR
+    ? { distDir: process.env.FILOSAGE_NEXT_DIST_DIR }
     : {}),
-  ...(process.env.ERUDOZA_NEXT_TSCONFIG_PATH
-    ? { typescript: { tsconfigPath: process.env.ERUDOZA_NEXT_TSCONFIG_PATH } }
+  ...(process.env.FILOSAGE_NEXT_TSCONFIG_PATH
+    ? { typescript: { tsconfigPath: process.env.FILOSAGE_NEXT_TSCONFIG_PATH } }
     : {}),
-  async redirects() {
-    return [{
-      source: "/support/articles/navigate-erudoza",
-      destination: "/support/articles/navigate-filosage",
-      permanent: true,
-    }];
-  },
   async headers() {
     return [{
       source: "/:path*",

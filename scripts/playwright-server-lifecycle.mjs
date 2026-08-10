@@ -1,10 +1,10 @@
 import { existsSync, lstatSync, mkdirSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { isAbsolute, join, relative, resolve, sep } from "node:path";
 
-const lifecycleDir = process.env.ERUDOZA_PLAYWRIGHT_LIFECYCLE_DIR;
+const lifecycleDir = process.env.FILOSAGE_PLAYWRIGHT_LIFECYCLE_DIR;
 
 if (!lifecycleDir) {
-  throw new Error("ERUDOZA_PLAYWRIGHT_LIFECYCLE_DIR is required for a Playwright-owned server.");
+  throw new Error("FILOSAGE_PLAYWRIGHT_LIFECYCLE_DIR is required for a Playwright-owned server.");
 }
 
 const shutdownFile = join(lifecycleDir, "shutdown");

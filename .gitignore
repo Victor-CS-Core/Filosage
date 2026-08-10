@@ -22,8 +22,8 @@
 /dist/
 
 # Local development store (credential-free local mode)
-/.erudoza-local/
-/.erudoza-local-test/
+/.filosage-local/
+/.filosage-local-test/
 
 # Sites / Cloudflare local state
 /.wrangler/

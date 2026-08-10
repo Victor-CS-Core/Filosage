@@ -132,7 +132,7 @@ export function stablePromptCacheKey(
   promptVersion: string,
   model: string,
 ) {
-  const normalized = `erudoza:${workload}:${promptVersion}:${model}`
+  const normalized = `filosage:${workload}:${promptVersion}:${model}`
     .toLowerCase()
     .replace(/[^a-z0-9:._-]+/g, "-");
   return normalized.slice(0, 120);

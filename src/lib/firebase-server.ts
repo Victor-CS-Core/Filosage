@@ -28,19 +28,19 @@ export interface VerifiedFirebaseUser {
 const LOCAL_PLAYWRIGHT_LEARNERS = new Map<string, { uid: string; email: string }>([
   ["playwright-free-learner", {
     uid: "local-free-learner",
-    email: "learner@erudoza.local",
+    email: "learner@filosage.local",
   }],
   ["playwright-free-learner-mobile-chromium", {
     uid: "local-free-learner-mobile-chromium",
-    email: "learner-mobile-chromium@erudoza.local",
+    email: "learner-mobile-chromium@filosage.local",
   }],
   ["playwright-free-learner-mobile-webkit", {
     uid: "local-free-learner-mobile-webkit",
-    email: "learner-mobile-webkit@erudoza.local",
+    email: "learner-mobile-webkit@filosage.local",
   }],
   ["playwright-plus-learner", {
     uid: "local-plus-learner",
-    email: "plus-learner@erudoza.local",
+    email: "plus-learner@filosage.local",
   }],
 ]);
 
@@ -311,7 +311,7 @@ export async function verifyFirebaseIdToken(idToken: string): Promise<VerifiedFi
     if (idToken === "playwright-preaccount-learner") {
       return {
         uid: "local-preaccount-learner",
-        email: "preaccount@erudoza.local",
+        email: "preaccount@filosage.local",
         email_verified: true,
         auth_time,
         name: "Pre-account Learner",

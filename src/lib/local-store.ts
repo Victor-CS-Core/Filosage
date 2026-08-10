@@ -17,7 +17,7 @@ import {
  * a JSON file so state survives dev-server restarts.
  */
 
-const STORE_PATH = join(process.cwd(), process.env.ERUDOZA_LOCAL_DIR ?? ".erudoza-local", "store.json");
+const STORE_PATH = join(process.cwd(), process.env.FILOSAGE_LOCAL_DIR ?? ".filosage-local", "store.json");
 
 type StoreShape = Record<string, Record<string, unknown>>;
 

@@ -34,7 +34,7 @@ The approved application-side work is implemented in the current worktree:
 Still intentionally excluded or blocked:
 
 - Course duplication remains outside the approved plan contract and is not advertised.
-- The Erudoza domain and support mailboxes remain until Filosage replacements are provisioned as one coordinated migration.
+- The Filosage domain and contact addresses require coordinated infrastructure and delivery verification.
 - Paid activation remains blocked by the legal and operational launch register. `BILLING_ENABLED=false` remains mandatory; implementation does not authorize Stripe object creation or a paid launch.
 
 ## Pre-implementation baseline (historical and superseded)
@@ -248,14 +248,13 @@ The backend's 30 monthly course-banner allowance is not shown on the pricing pag
 - Likely cause: theme-specific logo images are above the fold without eager loading.
 - Recommended correction: follow the installed Next.js 16 image guidance and mark only the actually above-the-fold asset for eager loading/fetch priority without loading both theme variants unnecessarily.
 
-#### L2. Legacy Erudoza identifiers remain visible in the domain and contact addresses
+#### L2. Domain and contact-address migration
 
 - Location: canonical domain, footer, legal/support mailboxes.
 - Reproduction: inspect footer, legal pages, metadata, and email links.
 - Expected: Filosage branding with an intentional domain-transition explanation.
-- Actual: `erudoza.com` remains visible.
-- Likely cause: documented infrastructure transition, not an accidental stale brand string.
-- Recommended correction: retain until Filosage domain/mailboxes exist; migrate canonicals, links, reminders, and contacts together when provisioned.
+- Resolved August 10, 2026: `filosage.com` is the canonical website domain; public website labels, links, reminders, and generated brand assets were migrated together.
+- Public contact links now use `support@filosage.com` and `legal@filosage.com`; inbox provisioning and delivery remain a separate operational verification.
 
 ## Workflow coverage and observed state
 

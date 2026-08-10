@@ -18,7 +18,7 @@ const ownedProjects = [
   { name: "mobile-chromium", server: projectServer(1), device: devices["Pixel 7"] },
   { name: "mobile-webkit", server: projectServer(2), device: devices["iPhone 13"] },
 ].map((project) => {
-  const testStoreDir = `.erudoza-local-test/${project.server.id}`;
+  const testStoreDir = `.filosage-local-test/${project.server.id}`;
   return {
     ...project,
     testStoreDir,
@@ -33,7 +33,7 @@ const browserState = (baseURL: string) => ({
     cookies: [],
     origins: [{
       origin: baseURL,
-      localStorage: [{ name: "erudoza:analytics:consent:v1", value: "declined" }],
+      localStorage: [{ name: "filosage:analytics:consent:v1", value: "declined" }],
     }],
   },
 });
@@ -43,7 +43,7 @@ export default defineConfig({
   globalTeardown: server.external ? undefined : "./tests/fixtures/playwright-global-teardown.ts",
   metadata: server.external
     ? {}
-    : { erudozaPlaywrightLifecycleDirs: ownedProjects.map((project) => project.lifecycleDir) },
+    : { filosagePlaywrightLifecycleDirs: ownedProjects.map((project) => project.lifecycleDir) },
   // This spec owns a separate vinext production server via its own config.
   testIgnore: "sites-smoke.spec.ts",
   fullyParallel: true,
@@ -69,9 +69,9 @@ export default defineConfig({
       reuseExistingServer: false,
       timeout: 120_000,
       env: {
-        ERUDOZA_LOCAL_DIR: project.testStoreDir,
-        ERUDOZA_NEXT_DIST_DIR: project.testDistDir,
-        ERUDOZA_PLAYWRIGHT_LIFECYCLE_DIR: project.lifecycleDir,
+        FILOSAGE_LOCAL_DIR: project.testStoreDir,
+        FILOSAGE_NEXT_DIST_DIR: project.testDistDir,
+        FILOSAGE_PLAYWRIGHT_LIFECYCLE_DIR: project.lifecycleDir,
         HOSTNAME: "127.0.0.1",
         PORT: String(project.server.port),
         OPENAI_API_KEY: "",

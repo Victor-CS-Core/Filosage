@@ -11,7 +11,7 @@ if (!Number.isInteger(port) || port < 1 || port > 65_535) {
   throw new Error(`PORT must be an integer from 1 to 65535; received ${JSON.stringify(process.env.PORT)}.`);
 }
 
-resetPlaywrightOwnedDirectory(process.env.ERUDOZA_PLAYWRIGHT_LIFECYCLE_DIR, ".erudoza-local-test");
+resetPlaywrightOwnedDirectory(process.env.FILOSAGE_PLAYWRIGHT_LIFECYCLE_DIR, ".filosage-local-test");
 
 // Vite preview runs the production Sites worker through the local Cloudflare
 // runtime, including its declared R2 binding, without cloud credentials.

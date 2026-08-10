@@ -8,7 +8,7 @@ import {
 try {
   const environment = firestoreEnvironment();
   const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
-  const outputUriPrefix = `gs://${environment.bucket}/erudoza-backups/${timestamp}`;
+  const outputUriPrefix = `gs://${environment.bucket}/filosage-backups/${timestamp}`;
   const { operation, token } = await firestoreOperation(environment, "exportDocuments", { outputUriPrefix });
   console.log(`Firestore backup started: ${outputUriPrefix}`);
   console.log(`Operation: ${operation.name}`);

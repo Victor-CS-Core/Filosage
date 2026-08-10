@@ -3,7 +3,7 @@ import "server-only";
 import { serverEnvironment } from "@/lib/runtime-environment";
 
 export const LOCAL_OWNER_UID = "local-owner";
-export const LOCAL_OWNER_EMAIL = "owner@erudoza.local";
+export const LOCAL_OWNER_EMAIL = "owner@filosage.local";
 
 /**
  * Local mode lets the whole app run without Firebase or Stripe credentials:

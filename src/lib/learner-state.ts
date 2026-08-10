@@ -23,7 +23,7 @@ export interface LearnerState {
   updatedAt?: string;
 }
 
-const KEY = "erudoza-learner-state-v1";
+const KEY = "filosage-learner-state-v1";
 
 export const EMPTY_LEARNER_STATE: LearnerState = {
   courseBookmarks: [],

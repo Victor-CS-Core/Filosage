@@ -42,8 +42,8 @@ async function stopOwnedServer(lifecycleDir: string) {
 }
 
 export default async function stopOwnedServers(config: FullConfig) {
-  const configured = config.metadata.erudozaPlaywrightLifecycleDirs
-    ?? config.metadata.erudozaPlaywrightLifecycleDir;
+  const configured = config.metadata.filosagePlaywrightLifecycleDirs
+    ?? config.metadata.filosagePlaywrightLifecycleDir;
   const lifecycleDirs = Array.isArray(configured) ? configured : [configured];
   await Promise.all(lifecycleDirs
     .filter((value): value is string => typeof value === "string")

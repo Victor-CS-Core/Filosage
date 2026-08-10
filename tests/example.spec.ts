@@ -501,9 +501,9 @@ test("preserves Markdown structure while sanitizing generated lesson content", (
 });
 
 test("attributes referral links separately from partner and campaign traffic", () => {
-  expect(acquisitionChannelFor(new URL("https://erudoza.com/library?ref=abc12345"))).toBe("referral");
-  expect(acquisitionChannelFor(new URL("https://erudoza.com/library?partner=expert-network"))).toBe("partner");
-  expect(acquisitionChannelFor(new URL("https://erudoza.com/library?utm_source=launch"))).toBe("campaign");
+  expect(acquisitionChannelFor(new URL("https://filosage.com/library?ref=abc12345"))).toBe("referral");
+  expect(acquisitionChannelFor(new URL("https://filosage.com/library?partner=expert-network"))).toBe("partner");
+  expect(acquisitionChannelFor(new URL("https://filosage.com/library?utm_source=launch"))).toBe("campaign");
 });
 
 test("keeps interface copy free of encoding artifacts", async () => {
@@ -740,7 +740,7 @@ test("preserves the selected theme across navigation and reloads", async ({ page
   await page.locator(".marketing-hero").getByRole("link", { name: "Start learning" }).click();
   await expect(page).toHaveURL(/\/library$/);
   await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
-  await expect.poll(() => page.evaluate(() => localStorage.getItem("erudoza-theme"))).toBe("dark");
+  await expect.poll(() => page.evaluate(() => localStorage.getItem("filosage-theme"))).toBe("dark");
 });
 
 test("keeps primary navigation actions readable before and after hover", async ({ page }) => {
@@ -1654,7 +1654,7 @@ test("frames each course around an outcome and mastery", async ({ page }) => {
     quizzes: [],
   } }));
   await page.addInitScript(() => {
-    localStorage.setItem("erudoza-learning-state-v2", JSON.stringify({
+    localStorage.setItem("filosage-learning-state-v2", JSON.stringify({
       demo: {
         courseId: "demo",
         topic: "Systems thinking",
@@ -1834,7 +1834,7 @@ test("purges every local artifact when a deleted course is encountered", async (
   const courseId = "delete-cleanup-demo";
   await page.addInitScript((deletedCourseId) => {
     const now = "2026-07-28T12:00:00.000Z";
-    localStorage.setItem("erudoza-learning-state-v2", JSON.stringify({
+    localStorage.setItem("filosage-learning-state-v2", JSON.stringify({
       [deletedCourseId]: {
         courseId: deletedCourseId,
         topic: "Obsolete course",
@@ -1854,14 +1854,14 @@ test("purges every local artifact when a deleted course is encountered", async (
         startedAt: now,
       },
     }));
-    localStorage.setItem("erudoza-learner-state-v1", JSON.stringify({
+    localStorage.setItem("filosage-learner-state-v1", JSON.stringify({
       courseBookmarks: [deletedCourseId, "keep-course"],
       lessonBookmarks: [`${deletedCourseId}:0-0`, "keep-course:0-0"],
       notes: { [`${deletedCourseId}:0-0`]: "delete", "keep-course:0-0": "keep" },
       noteUpdatedAt: { [`${deletedCourseId}:0-0`]: now, "keep-course:0-0": now },
       weeklyLessonGoal: 5,
     }));
-    localStorage.setItem(`erudoza-mastery-v1:${deletedCourseId}`, JSON.stringify({
+    localStorage.setItem(`filosage-mastery-v1:${deletedCourseId}`, JSON.stringify({
       plan: {
         courseId: deletedCourseId,
         courseTopic: "Obsolete course",
@@ -1883,7 +1883,7 @@ test("purges every local artifact when a deleted course is encountered", async (
       },
       evidence: [{ courseId: deletedCourseId }],
     }));
-    localStorage.setItem(`erudoza:outcome-feedback:${deletedCourseId}`, "sent");
+    localStorage.setItem(`filosage:outcome-feedback:${deletedCourseId}`, "sent");
   }, courseId);
   await page.route(`**/api/courses/${courseId}`, (route) =>
     route.fulfill({ status: 404, json: { error: "Course not found." } }));
@@ -1892,10 +1892,10 @@ test("purges every local artifact when a deleted course is encountered", async (
   await expect(page.getByText("Course unavailable")).toBeVisible();
 
   const remaining = await page.evaluate((deletedCourseId) => ({
-    progress: JSON.parse(localStorage.getItem("erudoza-learning-state-v2") ?? "{}"),
-    learnerState: JSON.parse(localStorage.getItem("erudoza-learner-state-v1") ?? "{}"),
-    mastery: localStorage.getItem(`erudoza-mastery-v1:${deletedCourseId}`),
-    feedback: localStorage.getItem(`erudoza:outcome-feedback:${deletedCourseId}`),
+    progress: JSON.parse(localStorage.getItem("filosage-learning-state-v2") ?? "{}"),
+    learnerState: JSON.parse(localStorage.getItem("filosage-learner-state-v1") ?? "{}"),
+    mastery: localStorage.getItem(`filosage-mastery-v1:${deletedCourseId}`),
+    feedback: localStorage.getItem(`filosage:outcome-feedback:${deletedCourseId}`),
   }), courseId);
   expect(Object.keys(remaining.progress)).toEqual(["keep-course"]);
   expect(remaining.learnerState.courseBookmarks).toEqual(["keep-course"]);
@@ -1935,11 +1935,11 @@ test("removes deleted courses from the anonymous review schedule", async ({ page
       lastActivityAt: past,
       startedAt: past,
     });
-    localStorage.setItem("erudoza-learning-state-v2", JSON.stringify({
+    localStorage.setItem("filosage-learning-state-v2", JSON.stringify({
       "deleted-course": progress("deleted-course", "Deleted course", "Stale lesson"),
       "active-course": progress("active-course", "Active course", "Current lesson"),
     }));
-    localStorage.setItem("erudoza-mastery-v1:deleted-course", JSON.stringify({
+    localStorage.setItem("filosage-mastery-v1:deleted-course", JSON.stringify({
       plan: { courseId: "deleted-course" },
       evidence: [{ courseId: "deleted-course" }],
     }));
@@ -1959,8 +1959,8 @@ test("removes deleted courses from the anonymous review schedule", async ({ page
   await expect(page.getByText("Current lesson")).toBeVisible();
   await expect(page.getByText("Stale lesson")).toHaveCount(0);
   const localState = await page.evaluate(() => ({
-    progress: JSON.parse(localStorage.getItem("erudoza-learning-state-v2") ?? "{}"),
-    mastery: localStorage.getItem("erudoza-mastery-v1:deleted-course"),
+    progress: JSON.parse(localStorage.getItem("filosage-learning-state-v2") ?? "{}"),
+    mastery: localStorage.getItem("filosage-mastery-v1:deleted-course"),
   }));
   expect(Object.keys(localState.progress)).toEqual(["active-course"]);
   expect(localState.mastery).toBeNull();
@@ -2129,7 +2129,7 @@ test("collects pathway usefulness only after the course has evidence", async ({ 
   let feedback: Record<string, unknown> | null = null;
   await page.addInitScript(() => {
     const observedAt = "2026-07-28T12:00:00.000Z";
-    localStorage.setItem("erudoza-mastery-v1:outcome-demo", JSON.stringify({
+    localStorage.setItem("filosage-mastery-v1:outcome-demo", JSON.stringify({
       plan: {
         courseId: "outcome-demo",
         courseTopic: "Systems thinking",
@@ -2381,6 +2381,8 @@ test("exports an opt-in recurring reminder without an email dependency", () => {
 
   expect(calendar).toContain("RRULE:FREQ=WEEKLY;BYDAY=MO,TU,WE,TH,FR");
   expect(calendar).toContain("SUMMARY:Filosage learning mission");
+  expect(calendar).toContain("@filosage.com");
+  expect(calendar).toContain("URL:https://filosage.com");
   expect(buildLearningReminderCalendar({
     title: "Hidden",
     description: "Hidden",

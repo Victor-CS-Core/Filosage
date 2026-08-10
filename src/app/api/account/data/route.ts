@@ -154,7 +154,7 @@ export async function GET(request: Request) {
     const account = await requireAccount(request);
     const data = await collectAccountData(account.uid);
     return new Response(JSON.stringify({
-      exportFormat: "erudoza-account-data-v2",
+      exportFormat: "filosage-account-data-v2",
       exportedAt: new Date().toISOString(),
       automatedDeletionRetention: AUTOMATED_ACCOUNT_DELETION_RETENTION,
       data,
@@ -176,7 +176,7 @@ export async function DELETE(request: Request) {
     const account = await requireRecentlyAuthenticatedAccount(request);
     if (account.isOwner) {
       return Response.json(
-        { error: "Owner account deletion requires a manual transfer or shutdown review. Contact legal@erudoza.com." },
+        { error: "Owner account deletion requires a manual transfer or shutdown review. Contact legal@filosage.com." },
         { status: 403 },
       );
     }
@@ -196,7 +196,7 @@ export async function DELETE(request: Request) {
     if (["active", "trialing", "past_due"].includes(subscriptionStatus)) {
       if (!billingConfiguration().managementReady || !billingSubscriptionId?.startsWith("sub_")) {
         return Response.json(
-          { error: "Cancel your paid Filosage membership before deleting your account. Contact support@erudoza.com if you need help." },
+          { error: "Cancel your paid Filosage membership before deleting your account. Contact support@filosage.com if you need help." },
           { status: 409 },
         );
       }

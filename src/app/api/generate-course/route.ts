@@ -242,7 +242,7 @@ export async function POST(request: Request) {
       return NextResponse.json(
         {
           error: "The course did not meet Filosage's sequencing and content-quality standard and was not saved. Please try again.",
-          evaluation: account.isOwner && request.headers.get("x-erudoza-model-evaluation") === "1"
+          evaluation: account.isOwner && request.headers.get("x-filosage-model-evaluation") === "1"
             ? { profile: activeProfile.id, model: activeProfile.model, promptVersion: activeProfile.promptVersion, issues: repairIssues }
             : undefined,
         },
@@ -329,7 +329,7 @@ export async function POST(request: Request) {
       isPublic: false,
       aiAssisted: true,
       banner: attachedBanner,
-      evaluation: account.isOwner && request.headers.get("x-erudoza-model-evaluation") === "1"
+      evaluation: account.isOwner && request.headers.get("x-filosage-model-evaluation") === "1"
         ? {
             profile: activeProfile.id,
             model: activeProfile.model,

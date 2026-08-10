@@ -181,7 +181,7 @@ test("exports the expanded account inventory and retention boundary", async ({ r
   });
   expect(response.ok()).toBe(true);
   const exported = await response.json();
-  expect(exported.exportFormat).toBe("erudoza-account-data-v2");
+  expect(exported.exportFormat).toBe("filosage-account-data-v2");
   expect(exported.automatedDeletionRetention).toHaveLength(3);
   expect(Object.keys(exported.data)).toEqual(expect.arrayContaining([
     "lessonActivityRecords",

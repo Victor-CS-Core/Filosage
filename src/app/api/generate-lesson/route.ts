@@ -388,7 +388,7 @@ export async function POST(request: Request) {
     return NextResponse.json({
       ...lessonDto,
       publicationReadiness,
-      evaluation: account.isOwner && request.headers.get("x-erudoza-model-evaluation") === "1"
+      evaluation: account.isOwner && request.headers.get("x-filosage-model-evaluation") === "1"
         ? {
             profile: activeProfile.id,
             model: activeProfile.model,

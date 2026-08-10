@@ -3,13 +3,13 @@ import { defineConfig, devices } from "@playwright/test";
 import { playwrightServerSettings } from "./tests/fixtures/playwright-server";
 
 const server = playwrightServerSettings(3200);
-const lifecycleDir = resolve(`.erudoza-local-test/sites-${server.id}`);
+const lifecycleDir = resolve(`.filosage-local-test/sites-${server.id}`);
 
 export default defineConfig({
   testDir: "./tests",
   testMatch: "sites-smoke.spec.ts",
   globalTeardown: server.external ? undefined : "./tests/fixtures/playwright-global-teardown.ts",
-  metadata: server.external ? {} : { erudozaPlaywrightLifecycleDir: lifecycleDir },
+  metadata: server.external ? {} : { filosagePlaywrightLifecycleDir: lifecycleDir },
   fullyParallel: false,
   forbidOnly: Boolean(process.env.CI),
   retries: process.env.CI ? 2 : 0,
@@ -21,7 +21,7 @@ export default defineConfig({
       cookies: [],
       origins: [{
         origin: server.baseURL,
-        localStorage: [{ name: "erudoza:analytics:consent:v1", value: "declined" }],
+        localStorage: [{ name: "filosage:analytics:consent:v1", value: "declined" }],
       }],
     },
     trace: "on-first-retry",
@@ -37,7 +37,7 @@ export default defineConfig({
       reuseExistingServer: false,
       timeout: 120_000,
       env: {
-        ERUDOZA_PLAYWRIGHT_LIFECYCLE_DIR: lifecycleDir,
+        FILOSAGE_PLAYWRIGHT_LIFECYCLE_DIR: lifecycleDir,
         HOSTNAME: "127.0.0.1",
         PORT: String(server.port),
       },

@@ -42,7 +42,7 @@ export async function reportOperationalEvent(event: {
   if (Date.now() - previous < ALERT_DEDUPLICATION_MS) return;
   lastAlertAt.set(event.code, Date.now());
   const body = JSON.stringify({
-    service: "erudoza",
+    service: "filosage",
     environment: serverEnvironment.NODE_ENV ?? "unknown",
     version: serverEnvironment.SITE_VERSION || serverEnvironment.GITHUB_SHA || null,
     occurredAt: new Date().toISOString(),
@@ -59,7 +59,7 @@ export async function reportOperationalEvent(event: {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        ...(secret ? { "X-Erudoza-Signature": await signature(body, secret) } : {}),
+        ...(secret ? { "X-Filosage-Signature": await signature(body, secret) } : {}),
       },
       body,
       signal: controller.signal,

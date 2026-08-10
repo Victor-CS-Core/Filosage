@@ -11,7 +11,7 @@ In addition to the Firebase, OpenAI, owner, and public-site variables listed in 
 - `ACTIVITY_RECEIPT_SECRET`: at least 32 cryptographically random bytes. Keep it server-only.
 - `FIRESTORE_BACKUP_BUCKET`: a dedicated Google Cloud Storage bucket in the Firestore database location. Required before running managed backups.
 - `OPERATIONS_ALERT_WEBHOOK_URL`: a monitored alert receiver. Without it, critical events remain in platform logs only.
-- `OPERATIONS_ALERT_WEBHOOK_SECRET`: recommended; the receiver should verify `X-Erudoza-Signature`.
+- `OPERATIONS_ALERT_WEBHOOK_SECRET`: recommended; the receiver should verify `X-Filosage-Signature`.
 - `PRODUCTION_HEALTH_URL`: the canonical production origin used by the post-deploy check.
 - `SITE_VERSION`: the full 40-character Git SHA for the exact source being deployed.
 
@@ -36,7 +36,7 @@ The Firebase service account needs the minimum roles required for the app plus F
 
 4. Create and verify a pre-release backup with `npm.cmd run backup:firestore`.
 5. Deploy the exact validated source state.
-6. Run `npm.cmd run check:production -- https://erudoza.com <full-40-character-sha>`. The release is not verified if the deployed health response omits or mismatches that SHA.
+6. Run `npm.cmd run check:production -- https://filosage.com <full-40-character-sha>`. The release is not verified if the deployed health response omits or mismatches that SHA.
 7. Smoke-test sign-in, public course discovery, lesson gating, Plus and Pro author progression, Pro publication review, owner unpublish/delete, account export, and account deletion.
 8. Record the deployed version, time, operator, backup URI, and smoke-test result.
 
@@ -63,14 +63,14 @@ Never test restoration against production.
 3. Preview the command:
 
    ```text
-   npm.cmd run restore:firestore -- --input=gs://BUCKET/erudoza-backups/TIMESTAMP
+   npm.cmd run restore:firestore -- --input=gs://BUCKET/filosage-backups/TIMESTAMP
    ```
 
 4. Restore into a separate recovery project first. The service account and `FIREBASE_PROJECT_ID` must point to that project.
 5. After verification and explicit operator approval, apply with:
 
    ```text
-   npm.cmd run restore:firestore -- --input=gs://BUCKET/erudoza-backups/TIMESTAMP --apply --confirm-project=EXACT_PROJECT_ID --wait
+   npm.cmd run restore:firestore -- --input=gs://BUCKET/filosage-backups/TIMESTAMP --apply --confirm-project=EXACT_PROJECT_ID --wait
    ```
 
 Firestore import replaces documents with matching IDs and does not remove unrelated newer documents. A point-in-time rollback may therefore require a separately reviewed reconciliation plan.

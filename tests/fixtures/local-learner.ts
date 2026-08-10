@@ -13,9 +13,9 @@ export async function restoreLocalLearner(page: Page) {
   });
   expect(acceptance.ok()).toBe(true);
   await page.addInitScript(() => {
-    const bootstrapKey = "erudoza-playwright-session-bootstrapped";
+    const bootstrapKey = "filosage-playwright-session-bootstrapped";
     if (sessionStorage.getItem(bootstrapKey)) return;
-    localStorage.setItem("erudoza-local-session", "1");
+    localStorage.setItem("filosage-local-session", "1");
     sessionStorage.setItem(bootstrapKey, "1");
   });
 }

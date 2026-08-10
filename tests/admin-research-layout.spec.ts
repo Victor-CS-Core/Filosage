@@ -5,7 +5,7 @@ type Theme = "light" | "dark";
 
 async function openResearchTab(page: Page, theme: Theme) {
   await page.addInitScript((selectedTheme) => {
-    localStorage.setItem("erudoza-theme", selectedTheme);
+    localStorage.setItem("filosage-theme", selectedTheme);
   }, theme);
   await restoreLocalLearner(page);
   await page.goto("/admin");

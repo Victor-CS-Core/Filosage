@@ -74,7 +74,7 @@ export function buildLearningReminderCalendar({
     : preferences.cadence === "weekdays"
       ? "FREQ=WEEKLY;BYDAY=MO,TU,WE,TH,FR"
       : "FREQ=WEEKLY";
-  const uid = `learning-reminder-${startsAt.toISOString().slice(0, 10)}@erudoza.com`;
+  const uid = `learning-reminder-${startsAt.toISOString().slice(0, 10)}@filosage.com`;
   return [
     "BEGIN:VCALENDAR",
     "VERSION:2.0",
@@ -88,7 +88,7 @@ export function buildLearningReminderCalendar({
     `RRULE:${recurrence}`,
     `SUMMARY:${escapeCalendarText(title)}`,
     `DESCRIPTION:${escapeCalendarText(description)}`,
-    "URL:https://erudoza.com",
+    "URL:https://filosage.com",
     "END:VEVENT",
     "END:VCALENDAR",
     "",

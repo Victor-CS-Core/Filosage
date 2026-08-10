@@ -263,7 +263,7 @@ export default function LessonStudyTools({
   }), [keyTakeaways, learningObjective, lessonConcept, lessonContent, lessonTitle, quizOutcomes, quizzes]);
   const flashcardById = useMemo(() => new Map(flashcards.map((card) => [card.id, card])), [flashcards]);
   const deckSignature = flashcards.map((card) => card.id).join("|");
-  const storageKey = `erudoza-study-review:v1:${lessonKey}`;
+  const storageKey = `filosage-study-review:v1:${lessonKey}`;
   const currentCardId = reviewSession?.queue[reviewSession.currentIndex];
   const currentCard = currentCardId ? flashcardById.get(currentCardId) : undefined;
   const sessionCardIds = reviewSession ? [...new Set(reviewSession.queue)] : [];

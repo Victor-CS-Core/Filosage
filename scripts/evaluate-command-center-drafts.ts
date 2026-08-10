@@ -89,9 +89,9 @@ async function run() {
           },
           verbosity: "medium",
         },
-        prompt_cache_key: `erudoza:commandcenter:${commandCenterDraftEvaluationPromptVersion}:${model}`.toLowerCase().slice(0, 120),
+        prompt_cache_key: `filosage:commandcenter:${commandCenterDraftEvaluationPromptVersion}:${model}`.toLowerCase().slice(0, 120),
         max_output_tokens: 2_500,
-        safety_identifier: "erudoza-command-center-evaluation",
+        safety_identifier: "filosage-command-center-evaluation",
       });
       const sample = usageSample(model, response);
       usage.push(sample);

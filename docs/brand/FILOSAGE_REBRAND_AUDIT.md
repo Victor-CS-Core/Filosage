@@ -1,52 +1,31 @@
-# Filosage rebrand audit
+# Filosage brand audit
 
-Date: 2026-08-09
+Updated: 2026-08-10
 
 ## Result
 
-The application, public marketing experience, product copy, metadata, support content, documentation, generated brand library, and user-facing test expectations now use **Filosage** and the motto **Turn curiosity into understanding.**
+The application, marketing experience, product copy, metadata, support content, documentation, generated brand library, runtime identifiers, operational tooling, and test expectations use **Filosage** and the motto **Turn curiosity into understanding.**
 
-The visual system uses the approved gateway-and-path symbol, the two-tone `Filo` / `sage` wordmark, and the existing navy, teal, blue, coral, and off-white palette. The supplied source PNGs are preserved in `art_src/brand`; the runtime and generated asset families use deterministic theme-specific crops from those originals, with no reconstructed center path.
+The visual system uses the approved gateway-and-path symbol, the two-tone `Filo` / `sage` wordmark, and the navy, teal, blue, coral, and off-white palette. The supplied source PNGs are preserved in `art_src/brand`; runtime and generated asset families use deterministic theme-specific crops from those originals.
 
-## Customer-facing audit
+## Domain and contact surfaces
 
-- No unintended `Erudoza` or `Erudosa` product-name references remain in application UI, metadata, prompts, support articles, public assets, or user-facing tests.
-- The former tagline and the former “daily dose” language no longer appear.
-- The old public logo filenames and two obsolete OpenGraph images were removed.
-- The legacy support article URL permanently redirects to the Filosage slug.
-- Desktop and mobile landing-page screenshots were captured after live browser verification.
+- `https://filosage.com` is the canonical production website.
+- `https://www.filosage.com` is attached to the same Sites project.
+- Canonical metadata, Open Graph metadata, the sitemap, robots metadata, product-frame labels, reminders, generated assets, production checks, and runtime URL configuration use the Filosage domain.
+- Public contact links use `support@filosage.com` and `legal@filosage.com`.
+- Mailbox delivery, sender authentication, Firebase authorization, OAuth behavior, analytics, Search Console, and external profiles require independent operational verification.
 
-## Compatibility identifiers intentionally retained
+## Internal identifiers
 
-These identifiers are not branding. Renaming them without a data and integration migration could break existing accounts, learner state, security verification, billing history, or operational tooling.
-
-- `ERUDOZA_*` environment and test-process variables
-- `__ERUDOZA_*` runtime globals
-- `erudoza:*` and `erudoza-*` browser storage, cache, event, export-format, and idempotency keys
-- Stripe metadata keys such as `erudoza_uid`, `erudoza_plan`, and `erudoza_interval`
-- `X-Erudoza-*` request, version, signature, and model-evaluation headers
-- Firestore backup prefixes and local development store directories
-- the existing GitHub repository name and Firebase/Sites project identifiers
-
-## Current domain and mailbox dependencies
-
-Filosage continues to operate at `https://erudoza.com` until a Filosage domain is provisioned. Canonical URLs, the sitemap, robots metadata, product-frame labels, and production checks therefore continue to use that live domain. The existing `support@erudoza.com` and `legal@erudoza.com` addresses also remain active dependencies.
-
-Changing these requires a coordinated infrastructure migration rather than a source-only rename: DNS and redirects, TLS, Firebase authorized domains and OAuth branding, Sites custom-domain configuration, sender authentication and mailboxes, Search Console and analytics properties, and any external social or marketplace profiles.
+Environment variables, runtime globals, browser storage keys, cache keys, events, export formats, Stripe metadata, request headers, backup prefixes, and local development directories use Filosage identifiers. This intentionally resets compatibility with identifiers that predate the completed migration.
 
 ## Release safeguards
 
-- Billing must remain disabled unless separately authorized.
+- Billing remains disabled unless separately authorized.
 - Git publication and Sites deployment are separate release states.
-- A production release is only confirmed after the hosted `SITE_VERSION`, health endpoint, public URL, and billing state are verified against the intended commit.
-- The pre-existing edit in `docs/COMMERCIAL_LAUNCH_RUNBOOK.md` must be preserved and explicitly handled when preparing the release commit.
+- Production is confirmed only after the hosted `SITE_VERSION`, health endpoint, public URL, billing state, canonical metadata, and sign-in behavior are verified against the intended commit.
 
 ## Verification record
 
-- `npm.cmd run lint` passed with warnings denied.
-- `npm.cmd run build` passed and generated 73 routes.
-- `npm.cmd run test:e2e` completed with 399 passed and 21 intentionally skipped tests across Chromium, Mobile Chromium, and Mobile WebKit.
-- `npm.cmd run build:sites` passed and prepared the production Workers package.
-- `npm.cmd run test:smoke:sites` passed the release-critical public-page smoke test.
-- Live browser checks covered the public landing page at 1440 × 1000 and 375 × 812, plus the signed-in application shell and sign-out path.
-- The billing configuration remains explicitly closed with `BILLING_ENABLED=false`.
+Record current lint, type-check, build, Sites build, focused browser checks, production health, domain status, and billing state with the release that completes this migration.

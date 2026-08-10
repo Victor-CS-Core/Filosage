@@ -26,7 +26,7 @@ function requestIdentity(request: Request, accountUid?: string) {
 
 async function opaqueDocumentId(value: string) {
   const secret = serverEnvironment.ACTIVITY_RECEIPT_SECRET?.trim()
-    || "erudoza-local-durable-rate-limit";
+    || "filosage-local-durable-rate-limit";
   const key = await crypto.subtle.importKey(
     "raw",
     new TextEncoder().encode(secret),

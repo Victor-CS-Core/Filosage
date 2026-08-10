@@ -20,7 +20,7 @@ declare global {
   // Set by the Sites worker before the application handles a request.
   // It remains undefined in the regular Next.js runtime, where Firestore is
   // retained as a backwards-compatible fallback.
-  var __ERUDOZA_COURSE_BANNERS__: CourseBannerBucket | undefined;
+  var __FILOSAGE_COURSE_BANNERS__: CourseBannerBucket | undefined;
 }
 
 function objectKey(assetId: string) {
@@ -28,7 +28,7 @@ function objectKey(assetId: string) {
 }
 
 export async function storeCourseBannerObject(assetId: string, bytes: Uint8Array) {
-  const bucket = globalThis.__ERUDOZA_COURSE_BANNERS__;
+  const bucket = globalThis.__FILOSAGE_COURSE_BANNERS__;
   if (!bucket) return false;
   await bucket.put(objectKey(assetId), bytes, {
     httpMetadata: {
@@ -40,7 +40,7 @@ export async function storeCourseBannerObject(assetId: string, bytes: Uint8Array
 }
 
 export async function readCourseBannerObject(assetId: string) {
-  const bucket = globalThis.__ERUDOZA_COURSE_BANNERS__;
+  const bucket = globalThis.__FILOSAGE_COURSE_BANNERS__;
   if (!bucket) return null;
   const object = await bucket.get(objectKey(assetId));
   if (!object || object.size <= 0) return null;

@@ -203,18 +203,18 @@ function campaign({ width, height, title, description, dark = false, eyebrow = "
 
 const campaigns = [
   ["banners/main-website-banner.svg", 1920, 600, "Filosage website banner", "Turn curiosity into understanding.", "Focused learning paths, source-aware lessons, and evidence of progress.", false, "WEBSITE"],
-  ["banners/call-to-action-banner.svg", 1600, 500, "Filosage call to action banner", "Make the next idea click.", "Explore a focused learning path at erudoza.com", true, "START LEARNING"],
+  ["banners/call-to-action-banner.svg", 1600, 500, "Filosage call to action banner", "Make the next idea click.", "Explore a focused learning path at filosage.com", true, "START LEARNING"],
   ["banners/about-page-banner.svg", 1600, 700, "Filosage about page banner", "Understanding changes what you can do.", "Learning designed for clarity, practice, and transfer.", false, "ABOUT"],
   ["banners/blog-header.svg", 1600, 600, "Filosage blog header", "Ideas worth understanding.", "Notes on learning, reasoning, and useful knowledge.", true, "FILOSAGE NOTES"],
   ["banners/open-graph.svg", 1200, 630, "Filosage Open Graph image", "Turn curiosity into understanding.", "AI-assisted learning paths for complex professional skills.", true, "LEARNING PATHS"],
-  ["banners/social-sharing-fallback.svg", 1200, 630, "Filosage social sharing image", "Turn curiosity into understanding.", "Build real understanding at erudoza.com", false, "FILOSAGE"],
+  ["banners/social-sharing-fallback.svg", 1200, 630, "Filosage social sharing image", "Turn curiosity into understanding.", "Build real understanding at filosage.com", false, "FILOSAGE"],
   ["social/linkedin-company-banner.svg", 1128, 191, "Filosage LinkedIn company banner", "Turn curiosity into understanding.", "Clear explanations · Personalized practice · Real progress", true, "FILOSAGE"],
   ["social/x-profile-header.svg", 1500, 500, "Filosage X profile header", "Turn curiosity into understanding.", "AI-assisted learning paths for complex professional skills.", true, "FILOSAGE"],
-  ["social/github-social-preview.svg", 1280, 640, "Filosage GitHub social preview", "Learning built for understanding.", "The web learning experience at erudoza.com", false, "GITHUB"],
+  ["social/github-social-preview.svg", 1280, 640, "Filosage GitHub social preview", "Learning built for understanding.", "The web learning experience at filosage.com", false, "GITHUB"],
   ["social/product-announcement.svg", 1200, 630, "Filosage product announcement", "Turn a question into a learning path.", "Explain. Practice. Apply. Track progress.", false, "PRODUCT UPDATE"],
   ["social/launch-announcement.svg", 1200, 630, "Filosage launch announcement", "Filosage is ready to explore.", "Turn curiosity into understanding.", true, "NOW ON THE WEB"],
   ["social/newsletter-header.svg", 1200, 400, "Filosage newsletter header", "A clearer way into complex ideas.", "Turn curiosity into understanding.", false, "FILOSAGE NOTES"],
-  ["social/press-kit-cover.svg", 1600, 2000, "Filosage press kit cover", "Filosage brand and product resources", "Web application · erudoza.com", true, "PRESS KIT"],
+  ["social/press-kit-cover.svg", 1600, 2000, "Filosage press kit cover", "Filosage brand and product resources", "Web application · filosage.com", true, "PRESS KIT"],
 ];
 
 for (const [relativePath, width, height, title, headline, supporting, dark, eyebrow] of campaigns) {

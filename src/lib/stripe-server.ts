@@ -64,9 +64,9 @@ async function stableStripeCustomer(stripe: Stripe, account: ServerAccount) {
   const created = await stripe.customers.create({
     email: account.email,
     name: account.displayName,
-    metadata: { erudoza_uid: account.uid },
+    metadata: { filosage_uid: account.uid },
   }, {
-    idempotencyKey: `erudoza-customer-v1-${account.uid}`,
+    idempotencyKey: `filosage-customer-v1-${account.uid}`,
   });
   const accountPath = `users/${account.uid}`;
   return runStoredDocumentTransaction([accountPath], (documents) => {
@@ -211,9 +211,9 @@ export async function createCheckoutSession(account: ServerAccount, planId: Paid
         },
       },
       metadata: {
-        erudoza_uid: account.uid,
-        erudoza_plan: claim.planId,
-        erudoza_interval: claim.interval,
+        filosage_uid: account.uid,
+        filosage_plan: claim.planId,
+        filosage_interval: claim.interval,
         offer_version: plan.offerVersion,
         offer_currency: plan.currency,
         offer_amount_minor: String(offer.amountMinor),
@@ -223,9 +223,9 @@ export async function createCheckoutSession(account: ServerAccount, planId: Paid
       },
       subscription_data: {
         metadata: {
-          erudoza_uid: account.uid,
-          erudoza_plan: claim.planId,
-          erudoza_interval: claim.interval,
+          filosage_uid: account.uid,
+          filosage_plan: claim.planId,
+          filosage_interval: claim.interval,
           offer_version: plan.offerVersion,
           terms_version: TERMS_VERSION,
           privacy_version: PRIVACY_VERSION,
@@ -233,7 +233,7 @@ export async function createCheckoutSession(account: ServerAccount, planId: Paid
       },
       expires_at: Math.floor(Date.now() / 1_000) + (31 * 60),
     }, {
-      idempotencyKey: `erudoza-checkout-v3-${claim.claimId}`,
+      idempotencyKey: `filosage-checkout-v3-${claim.claimId}`,
     });
     if (!session.url) throw new Error("Stripe did not return a checkout URL.");
 
@@ -329,7 +329,7 @@ export async function syncStripeSubscription(
   fallbackUid?: string,
   eventCreated?: number,
 ) {
-  const uid = subscription.metadata.erudoza_uid || fallbackUid;
+  const uid = subscription.metadata.filosage_uid || fallbackUid;
   if (!uid) return false;
 
   const status = subscriptionStatus(subscription.status);
@@ -381,9 +381,9 @@ export async function recordBillingConsent(
   subscription: Stripe.Subscription,
   event: Pick<Stripe.Event, "id" | "created">,
 ) {
-  const uid = session.metadata?.erudoza_uid || session.client_reference_id;
-  const interval = session.metadata?.erudoza_interval;
-  const planId = session.metadata?.erudoza_plan;
+  const uid = session.metadata?.filosage_uid || session.client_reference_id;
+  const interval = session.metadata?.filosage_interval;
+  const planId = session.metadata?.filosage_plan;
   if (!uid || !isBillingInterval(interval) || !isPaidLearnerPlan(planId)) {
     throw new Error("Checkout consent is missing account, plan, or interval metadata.");
   }

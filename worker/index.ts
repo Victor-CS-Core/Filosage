@@ -41,7 +41,7 @@ interface ExecutionContext {
 const worker = {
   async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
     installRuntimeEnvironment(env);
-    globalThis.__ERUDOZA_COURSE_BANNERS__ = env.COURSE_BANNERS;
+    globalThis.__FILOSAGE_COURSE_BANNERS__ = env.COURSE_BANNERS;
     const url = new URL(request.url);
 
     if (url.pathname === "/_vinext/image") {

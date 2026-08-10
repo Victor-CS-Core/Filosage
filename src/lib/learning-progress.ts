@@ -3,7 +3,7 @@
 import type { CourseProgress, ProgressUpdate } from "@/lib/learning-types";
 import { scheduleAdaptiveReview, updateDelayedChecks } from "@/lib/adaptive-learning";
 
-const INDEX_KEY = "erudoza-learning-state-v2";
+const INDEX_KEY = "filosage-learning-state-v2";
 const LEGACY_INDEX_KEY = "teach-learning-state-v2";
 
 function readIndex(): Record<string, CourseProgress> {
@@ -47,7 +47,7 @@ export function getLocalProgress(courseId: string, topic = "") {
   // Preserve progress created by the original device-only implementation.
   try {
     const completed = JSON.parse(
-      localStorage.getItem(`erudoza-progress:${courseId}`)
+      localStorage.getItem(`filosage-progress:${courseId}`)
       ?? localStorage.getItem(`teach-progress:${courseId}`)
       ?? "[]",
     );
@@ -79,7 +79,7 @@ export function removeLocalProgress(courseId: string) {
   if (typeof window === "undefined") return;
   removeFromStoredIndex(INDEX_KEY, courseId);
   removeFromStoredIndex(LEGACY_INDEX_KEY, courseId);
-  localStorage.removeItem(`erudoza-progress:${courseId}`);
+  localStorage.removeItem(`filosage-progress:${courseId}`);
   localStorage.removeItem(`teach-progress:${courseId}`);
 }
 
@@ -164,6 +164,6 @@ export function saveLocalProgress(update: ProgressUpdate) {
 
   index[update.courseId] = next;
   writeIndex(index);
-  localStorage.setItem(`erudoza-progress:${update.courseId}`, JSON.stringify(completedLessonIds));
+  localStorage.setItem(`filosage-progress:${update.courseId}`, JSON.stringify(completedLessonIds));
   return next;
 }
