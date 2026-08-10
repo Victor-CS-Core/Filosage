@@ -321,6 +321,7 @@ test.describe("desktop application shell", () => {
     await createButton.click();
     await expect.poll(() => generationRequests).toBe(1);
     expect(generationBody).toMatchObject({ courseStyle: "Project-led" });
+    await expect(page).toHaveURL(/\/course\/Systems%20thinking%20for%20product%20decisions\?id=explicit-course-creation$/);
   });
 
   test("never creates a course from an incomplete legacy course URL", async ({ page }) => {

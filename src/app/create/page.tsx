@@ -2,7 +2,6 @@
 
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
 import {
   ArrowLeft,
   ArrowRight,
@@ -53,7 +52,6 @@ type SourceDraft = {
 const emptySource = (): SourceDraft => ({ label: "", url: "", note: "", kind: "official", rights: "link-only" });
 
 export default function CreateCoursePage() {
-  const router = useRouter();
   const { user, canCreateCourses, account } = useAuth();
   const [activeStep, setActiveStep] = useState(0);
   const [visitedSteps, setVisitedSteps] = useState([true, false, false]);
@@ -129,12 +127,12 @@ export default function CreateCoursePage() {
       });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || "The course could not be created.");
+      if (typeof data.courseId !== "string" || !data.courseId) throw new Error("The course was saved, but its destination was missing. Retry to reopen the saved course.");
       setGenerationProgress(100);
       setGenerationStage("Your course map is ready");
-      requestIdentityRef.current = null;
       window.dispatchEvent(new Event("erudoza:courses-changed"));
       await new Promise((resolve) => window.setTimeout(resolve, 350));
-      router.push(`/course/${encodeURIComponent(topic.trim())}?id=${data.courseId}`);
+      window.location.assign(`/course/${encodeURIComponent(topic.trim())}?id=${encodeURIComponent(data.courseId)}`);
     } catch (creationError) {
       setError(creationError instanceof Error ? creationError.message : "The course could not be created.");
       setSubmitting(false);
