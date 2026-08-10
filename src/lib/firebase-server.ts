@@ -442,12 +442,6 @@ export async function claimCourseBannerRegeneration(
     if (course.authorId !== uid && !ownerOverride) {
       throw new CourseBannerRegenerationError("NOT_OWNED", "You do not own this course.");
     }
-    if (Number(course.bannerRegenerationCount ?? 0) >= 1) {
-      throw new CourseBannerRegenerationError(
-        "ALREADY_USED",
-        "This course has already used its one banner regeneration.",
-      );
-    }
     const leaseUntil = typeof course.bannerRegenerationLeaseUntil === "string"
       ? Date.parse(course.bannerRegenerationLeaseUntil)
       : 0;
@@ -491,7 +485,7 @@ export async function finishCourseBannerRegeneration(
         data: {
           ...course,
           banner,
-          bannerRegenerationCount: 1,
+          bannerRegenerationCount: Number(course.bannerRegenerationCount ?? 0) + 1,
           bannerRegenerationStatus: null,
           bannerRegenerationClaimId: null,
           bannerRegenerationLeaseUntil: null,
@@ -624,7 +618,7 @@ export async function listStoredDocuments(path: string, pageSize = 100) {
 export async function listAllStoredDocuments(path: string, maximum = 500) {
   const documents: StoredDocument[] = [];
   let pageToken = "";
-  const limit = Math.min(Math.max(maximum, 1), 2_000);
+  const limit = Math.min(Math.max(maximum, 1), 10_000);
 
   do {
     const remaining = limit - documents.length;
@@ -657,7 +651,7 @@ export function listStoredDocumentsByField(
         value: toFirestoreValue(value),
       },
     },
-    limit: Math.min(Math.max(limit, 1), 1_000),
+    limit: Math.min(Math.max(limit, 1), 10_000),
   });
 }
 
@@ -667,7 +661,7 @@ export function listCollectionDocuments(collectionId: string, limit = 1_000) {
   }
   return runCourseQuery({
     from: [{ collectionId }],
-    limit: Math.min(Math.max(limit, 1), 2_000),
+    limit: Math.min(Math.max(limit, 1), 10_000),
   });
 }
 
@@ -705,7 +699,7 @@ export function listCollectionDocumentsByRange(
       },
     },
     orderBy: [{ field: { fieldPath: field }, direction: "DESCENDING" }],
-    limit: Math.min(Math.max(limit, 1), 2_000),
+    limit: Math.min(Math.max(limit, 1), 10_000),
   });
 }
 

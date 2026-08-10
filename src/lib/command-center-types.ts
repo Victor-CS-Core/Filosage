@@ -1,3 +1,5 @@
+import type { SupportRequestContext } from "@/lib/support-center-types";
+
 export const commandCenterTicketCategories = [
   "support",
   "legal",
@@ -31,6 +33,13 @@ export interface CommandCenterNote {
   createdAt: string;
 }
 
+export interface CommandCenterPublicReply {
+  id: string;
+  authorUid: string;
+  body: string;
+  createdAt: string;
+}
+
 export interface CommandCenterTicket extends Record<string, unknown> {
   id: string;
   ticketNumber: string;
@@ -44,6 +53,7 @@ export interface CommandCenterTicket extends Record<string, unknown> {
   subject: string;
   normalizedSummary: string;
   untrustedExcerpt?: string;
+  requestContext?: SupportRequestContext;
   relatedUserId?: string;
   relatedCourseId?: string;
   relatedLessonId?: string;
@@ -54,6 +64,7 @@ export interface CommandCenterTicket extends Record<string, unknown> {
   evidenceReferences: string[];
   tags: string[];
   notes: CommandCenterNote[];
+  publicReplies: CommandCenterPublicReply[];
   createdAt: string;
   updatedAt: string;
   dueAt: string;
@@ -159,7 +170,7 @@ export interface CommandCenterAuditEvent extends Record<string, unknown> {
   beforeState?: Record<string, string | number | boolean | null>;
   afterState?: Record<string, string | number | boolean | null>;
   metadata: Record<string, string | number | boolean | null>;
-  externalSideEffect: false;
+  externalSideEffect: boolean;
   createdAt: string;
 }
 

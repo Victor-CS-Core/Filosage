@@ -37,7 +37,7 @@ The Firebase service account needs the minimum roles required for the app plus F
 4. Create and verify a pre-release backup with `npm.cmd run backup:firestore`.
 5. Deploy the exact validated source state.
 6. Run `npm.cmd run check:production -- https://erudoza.com <full-40-character-sha>`. The release is not verified if the deployed health response omits or mismatches that SHA.
-7. Smoke-test sign-in, public course discovery, lesson gating, Pro author progression, publication review, owner unpublish/delete, account export, and account deletion.
+7. Smoke-test sign-in, public course discovery, lesson gating, Plus and Pro author progression, Pro publication review, owner unpublish/delete, account export, and account deletion.
 8. Record the deployed version, time, operator, backup URI, and smoke-test result.
 
 ## Monitoring
@@ -85,4 +85,4 @@ Firestore import replaces documents with matching IDs and does not remove unrela
 6. Notify affected users and authorities when required by counsel or law.
 7. Complete a written post-incident review with root cause, timeline, impact, and prevention work.
 
-If `ACTIVITY_RECEIPT_SECRET` is compromised, rotate it immediately. Existing outstanding Pro-author receipts will become invalid and those authors must repeat the current lesson checks; already stored completed progress remains intact.
+If `ACTIVITY_RECEIPT_SECRET` is compromised, rotate it immediately. Existing outstanding Plus- and Pro-author receipts will become invalid and those authors must repeat the current lesson checks; already stored completed progress remains intact.

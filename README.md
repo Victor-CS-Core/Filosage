@@ -1,6 +1,6 @@
 # Filosage
 
-Filosage is a premium AI-assisted learning product built to turn curiosity into understanding. Public visitors can inspect published course outcomes and structure without an account. Verified learner accounts open lesson content and add cloud progress, notes, evidence, and spaced review. Filosage Pro adds metered private course generation and lesson-grounded tutoring, while publishing remains owner-only.
+Filosage is an AI-assisted learning product built to turn curiosity into understanding. Public visitors can inspect published course outcomes and structure without an account. Verified Free learner accounts open lesson content and add cloud progress, notes, evidence, and spaced review. Filosage Plus adds one active private course with metered authoring; Filosage Pro removes the owned-course cap and adds publishing after course review.
 
 Owner access is resolved server-side from the verified Google account matching the `OWNER_EMAIL` deployment secret. The owner email is never sent in the account API or rendered in the interface.
 
@@ -8,8 +8,9 @@ Owner access is resolved server-side from the verified Google account matching t
 
 - Anonymous learning: open discovery, published lessons, retrieval practice, mastery checks, and device progress
 - Free learner: Google sign-in, cloud progress, review scheduling, and a small daily tutor allowance
-- Filosage Pro: private course generation with monthly credits and a larger tutor allowance
-- Owner: Pro access plus publishing and unpublishing for the public library
+- Filosage Plus: one active private course with monthly outline, lesson, banner-request, and tutor allowances
+- Filosage Pro: uncapped owned courses, larger monthly AI allowances, and publishing after review
+- Owner: Pro capabilities plus protected operational authority
 
 ## Stack
 
@@ -24,13 +25,13 @@ Owner access is resolved server-side from the verified Google account matching t
 1. Copy `.env.example` to `.env.local`.
 2. Add the Firebase browser and Admin SDK values.
 3. Add `OPENAI_API_KEY`. Course outlines and lessons default to `gpt-5.6-terra`; the grounded tutor defaults to `gpt-5.6-luna`.
-4. Configure the separate Free, Pro, and owner OpenAI budget pools plus the per-account cost ceilings shown in `.env.example`. Course briefs are screened with the free `omni-moderation-latest` model before generation and generated outlines are screened again before storage.
-5. Add test Pro users to `PREMIUM_EMAILS` until subscription billing is enabled.
+4. Configure the separate Free, paid (Plus and Pro), and owner OpenAI budget pools plus the plan-specific per-account cost ceilings shown in `.env.example`. Course briefs are screened with the free `omni-moderation-latest` model before generation and generated outlines are screened again before storage.
+5. `PREMIUM_EMAILS` is a legacy Pro-access allowlist for controlled testing; prefer explicit owner grants for new test accounts.
 6. Run `npm install` and then `npm run dev`.
 
 ## Release readiness
 
-Run `npm run check:release` in the deployment environment before opening traffic. It validates required configuration without printing secret values. GoDaddy can host the domain/site, but recurring Pro subscriptions require a billing provider such as Stripe. The Stripe implementation is intentionally disabled until `BILLING_PROVIDER=stripe`, `BILLING_ENABLED=true`, a secret key, webhook signing secret, and a monthly Price ID are all configured.
+Run `npm run check:release` in the deployment environment before opening traffic. It validates required configuration without printing secret values. Recurring Plus and Pro subscriptions require Stripe. Paid activation requires `BILLING_PROVIDER=stripe`, separate monthly and annual Price IDs for both Plus and Pro, a secret key, and a webhook signing secret. `BILLING_ENABLED=false` remains mandatory until the separate commercial launch gates and explicit activation decision are complete.
 
 ## Local testing without credentials
 

@@ -10,6 +10,8 @@ import {
 } from "@/lib/account-data-policy";
 import { billingConfiguration } from "@/lib/runtime-config";
 import { stripeClient } from "@/lib/stripe-server";
+import { learnerSupportTicketDetail } from "@/lib/command-center-server";
+import type { CommandCenterTicket } from "@/lib/command-center-types";
 import {
   countCollectionDocuments,
   deleteCourse,
@@ -101,15 +103,9 @@ async function collectAccountData(uid: string) {
     listCompleteAccountRecordsByField("adminEvents", "targetUid", uid),
     listCompleteAccountRecordsByField("commandCenterTickets", "relatedUserId", uid),
   ]);
-  const commandCenterTicketIds = commandCenterTickets.map((ticket) => ticket.id);
-  const commandCenterRecords = await Promise.all(commandCenterTicketIds.map(async (ticketId) => {
-    const [approvals, drafts, auditEvents] = await Promise.all([
-      listCompleteAccountRecordsByField("commandCenterApprovals", "ticketId", ticketId),
-      listCompleteAccountRecordsByField("commandCenterDrafts", "ticketId", ticketId),
-      listCompleteAccountRecordsByField("commandCenterAuditEvents", "ticketId", ticketId),
-    ]);
-    return { approvals, drafts, auditEvents };
-  }));
+  const learnerSupportTickets = commandCenterTickets
+    .filter((ticket) => ticket.source === "user_support")
+    .map((ticket) => learnerSupportTicketDetail(ticket as unknown as CommandCenterTicket));
   const authoredCourses = await Promise.all(courses.map(async (course) => ({
     course,
     lessons: course.id
@@ -143,10 +139,13 @@ async function collectAccountData(uid: string) {
     safetyEvents,
     contentReports,
     adminActionRecords,
-    commandCenterTickets,
-    commandCenterApprovals: commandCenterRecords.flatMap((records) => records.approvals),
-    commandCenterDrafts: commandCenterRecords.flatMap((records) => records.drafts),
-    commandCenterAuditEvents: commandCenterRecords.flatMap((records) => records.auditEvents),
+    commandCenterTickets: learnerSupportTickets,
+    // Owner notes, drafts, approvals, and audit records are operational records,
+    // not learner-visible support content. Keep the v2 export keys stable without
+    // exposing staff identities, internal analysis, or control-plane metadata.
+    commandCenterApprovals: [],
+    commandCenterDrafts: [],
+    commandCenterAuditEvents: [],
   };
 }
 

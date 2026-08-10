@@ -16,6 +16,7 @@ import { safeModelErrorDetails } from "@/lib/model-fallback";
 import { PublicationReviewError, reviewCourseForPublication } from "@/lib/publication-review";
 import { planAllows } from "@/lib/membership-plans";
 import { reconcileCourseCapacity } from "@/lib/membership-access";
+import { getAiQuotaSummaries } from "@/lib/ai-usage";
 
 interface RouteParams {
   params: Promise<{ courseId: string }>;
@@ -27,17 +28,22 @@ export async function GET(request: Request, { params }: RouteParams) {
     if (!course) return NextResponse.json({ error: "Course not found." }, { status: 404 });
 
     let canManage = false;
+    let canGenerateBanner = false;
     if (!course.isPublic) {
       const account = await requireAccount(request);
       if (account.uid !== course.authorId && !account.isOwner) {
         return NextResponse.json({ error: "You do not have access to this course." }, { status: 403 });
       }
       canManage = true;
+      canGenerateBanner = account.isOwner || (planAllows(account.plan, "generate_course_banner")
+        && (await getAiQuotaSummaries(account)).some((quota) => quota.feature === "course_banner" && quota.remaining !== 0));
     } else {
       const user = await getVerifiedUser(request);
       if (user) {
         const account = await requireAccount(request);
         canManage = account.uid === course.authorId || account.isOwner;
+        canGenerateBanner = canManage && (account.isOwner || (planAllows(account.plan, "generate_course_banner")
+          && (await getAiQuotaSummaries(account)).some((quota) => quota.feature === "course_banner" && quota.remaining !== 0)));
       }
     }
 
@@ -48,7 +54,7 @@ export async function GET(request: Request, { params }: RouteParams) {
         }
       : course;
     return NextResponse.json(
-      toCourseDto(manageableCourse, canManage),
+      toCourseDto(manageableCourse, canManage, canGenerateBanner),
       { headers: course.isPublic && !canManage
         ? {
             "Cache-Control": "public, max-age=60, s-maxage=300, stale-while-revalidate=3600",

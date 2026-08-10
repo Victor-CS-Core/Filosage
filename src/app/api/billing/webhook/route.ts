@@ -1,11 +1,12 @@
 import { billingConfiguration } from "@/lib/runtime-config";
 import { readBoundedRequestText } from "@/lib/bounded-request-body";
 import { putStoredDocument, runStoredDocumentTransaction } from "@/lib/firebase-server";
-import { recordBillingConsent, stripeClient, syncStripeSubscription } from "@/lib/stripe-server";
+import { recordBillingConsent, resolvedSubscriptionOffer, stripeClient, syncStripeSubscription } from "@/lib/stripe-server";
 import type Stripe from "stripe";
 import { reportOperationalEvent } from "@/lib/operational-alerts";
 import { serverEnvironment } from "@/lib/runtime-environment";
 import { recordServerProductEvent } from "@/lib/product-events-server";
+import { isBillingInterval, isPaidLearnerPlan } from "@/lib/membership-plans";
 
 export const runtime = "nodejs";
 
@@ -14,6 +15,65 @@ export const runtime = "nodejs";
 // idempotent.
 const PROCESSING_RETRY_MS = 5 * 60_000;
 const MAX_WEBHOOK_BODY_BYTES = 1_048_576;
+
+function subscriptionEventDetails(subscription: Stripe.Subscription, includeDeclared = false) {
+  try {
+    const resolved = resolvedSubscriptionOffer(subscription);
+    return {
+      planId: resolved.planId,
+      billingInterval: resolved.billingInterval,
+      offerVersion: resolved.offerVersion,
+      priceId: resolved.priceId,
+    };
+  } catch {
+    if (!includeDeclared) return {};
+    const declaredPlanId = isPaidLearnerPlan(subscription.metadata.erudoza_plan) ? subscription.metadata.erudoza_plan : undefined;
+    const declaredBillingInterval = isBillingInterval(subscription.metadata.erudoza_interval) ? subscription.metadata.erudoza_interval : undefined;
+    return {
+      ...(declaredPlanId ? { declaredPlanId } : {}),
+      ...(declaredBillingInterval ? { declaredBillingInterval } : {}),
+      ...(subscription.metadata.offer_version ? { declaredOfferVersion: subscription.metadata.offer_version } : {}),
+    };
+  }
+}
+
+function stripeEventAuditDetails(event: Stripe.Event) {
+  const eventCreatedAt = new Date(event.created * 1_000).toISOString();
+  if (event.type === "customer.subscription.created" || event.type === "customer.subscription.updated" || event.type === "customer.subscription.deleted") {
+    const subscription = event.data.object as Stripe.Subscription;
+    const details = subscriptionEventDetails(subscription, true);
+    const currentPeriodEnd = subscription.items.data.reduce((latest, item) => Math.max(latest, item.current_period_end), 0);
+    return {
+      eventCreatedAt,
+      stripeSubscriptionStatus: subscription.status,
+      cancelAtPeriodEnd: subscription.cancel_at_period_end,
+      ...(subscription.canceled_at ? { canceledAt: new Date(subscription.canceled_at * 1_000).toISOString() } : {}),
+      ...(subscription.trial_end ? { trialEnd: new Date(subscription.trial_end * 1_000).toISOString() } : {}),
+      ...(currentPeriodEnd ? { currentPeriodEnd: new Date(currentPeriodEnd * 1_000).toISOString() } : {}),
+      ...(details.planId ? { planId: details.planId } : {}),
+      ...(details.billingInterval ? { billingInterval: details.billingInterval } : {}),
+      ...(details.offerVersion ? { offerVersion: details.offerVersion } : {}),
+      ...(details.priceId ? { priceId: details.priceId } : {}),
+      ...("declaredPlanId" in details ? { declaredPlanId: details.declaredPlanId } : {}),
+      ...("declaredBillingInterval" in details ? { declaredBillingInterval: details.declaredBillingInterval } : {}),
+      ...("declaredOfferVersion" in details ? { declaredOfferVersion: details.declaredOfferVersion } : {}),
+    };
+  }
+  if (event.type === "checkout.session.completed") {
+    const session = event.data.object as Stripe.Checkout.Session;
+    const planId = isPaidLearnerPlan(session.metadata?.erudoza_plan) ? session.metadata.erudoza_plan : undefined;
+    const billingInterval = isBillingInterval(session.metadata?.erudoza_interval) ? session.metadata.erudoza_interval : undefined;
+    return {
+      eventCreatedAt,
+      ...(planId ? { planId } : {}),
+      ...(billingInterval ? { billingInterval } : {}),
+      ...(session.metadata?.offer_version ? { offerVersion: session.metadata.offer_version } : {}),
+      ...(typeof session.amount_total === "number" ? { amountTotalMinor: session.amount_total } : {}),
+      ...(session.currency ? { currency: session.currency.toLowerCase() } : {}),
+    };
+  }
+  return { eventCreatedAt };
+}
 
 async function claimEvent(eventPath: string, now: Date) {
   return runStoredDocumentTransaction([eventPath], (documents) => {
@@ -58,7 +118,8 @@ export async function POST(request: Request) {
   }
 
   const eventPath = `stripeEvents/${event.id}`;
-  const claimed = await claimEvent(eventPath, new Date());
+  const claimedAt = new Date();
+  const claimed = await claimEvent(eventPath, claimedAt);
   if (!claimed) return Response.json({ received: true, duplicate: true });
 
   try {
@@ -75,6 +136,7 @@ export async function POST(request: Request) {
               route: "/pricing",
               actorId: uid,
               eventId: `stripe-started-${event.id}`,
+              ...subscriptionEventDetails(subscription),
             });
           }
         }
@@ -92,6 +154,7 @@ export async function POST(request: Request) {
               route: "/pricing",
               actorId: uid,
               eventId: `stripe-canceled-${event.id}`,
+              ...subscriptionEventDetails(subscription),
             });
           }
         }
@@ -103,8 +166,10 @@ export async function POST(request: Request) {
     await putStoredDocument(eventPath, {
       type: event.type,
       status: "failed",
+      claimedAt: claimedAt.toISOString(),
       failedAt: new Date().toISOString(),
       retryable: true,
+      ...stripeEventAuditDetails(event),
     });
     console.error("Stripe webhook processing failed:", event.id, event.type, error);
     await reportOperationalEvent({
@@ -116,6 +181,12 @@ export async function POST(request: Request) {
     return Response.json({ error: "Webhook processing failed and will be retried." }, { status: 500 });
   }
 
-  await putStoredDocument(eventPath, { type: event.type, status: "processed", processedAt: new Date().toISOString() });
+  await putStoredDocument(eventPath, {
+    type: event.type,
+    status: "processed",
+    claimedAt: claimedAt.toISOString(),
+    processedAt: new Date().toISOString(),
+    ...stripeEventAuditDetails(event),
+  });
   return Response.json({ received: true });
 }

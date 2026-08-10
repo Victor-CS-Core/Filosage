@@ -15,7 +15,7 @@ Open [Support](/support) and search for the task or problem first. Search checks
 
 ## Create a private ticket
 
-Sign in on [Support](/support), choose **Create ticket**, and describe the problem. Select the closest request type, add a concise subject, and explain which page or course you were using, what you expected, and what happened instead.
+Open the floating Filosage spark from any page, choose **New request**, and describe the problem. You can also start from [Support](/support) by choosing **Send a support request**. Select the closest request type, add a concise subject, and explain which page or course you were using, what you expected, and what happened instead.
 
 After submission, Filosage shows a ticket reference such as **TKT-123ABCD**. The request enters the private owner review queue. Your description is treated as unverified until it is reviewed, and submitting it cannot trigger a refund, account change, deletion, or other external action.
 

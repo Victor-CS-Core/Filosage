@@ -308,6 +308,17 @@ function supportedSubscriptionPrice(subscription: Stripe.Subscription) {
   return matches[0];
 }
 
+export function resolvedSubscriptionOffer(subscription: Stripe.Subscription) {
+  const resolved = supportedSubscriptionPrice(subscription);
+  return {
+    item: resolved.item,
+    priceId: resolved.item.price.id,
+    planId: resolved.mapping.planId,
+    billingInterval: resolved.mapping.interval,
+    offerVersion: resolved.mapping.offerVersion,
+  };
+}
+
 function subscriptionStatus(status: Stripe.Subscription.Status): ServerAccount["subscriptionStatus"] {
   if (status === "trialing" || status === "active" || status === "past_due" || status === "canceled") return status;
   return "none";
@@ -322,7 +333,7 @@ export async function syncStripeSubscription(
   if (!uid) return false;
 
   const status = subscriptionStatus(subscription.status);
-  const resolved = supportedSubscriptionPrice(subscription);
+  const resolved = resolvedSubscriptionOffer(subscription);
   const paidEligible = status === "active" || status === "trialing";
   const periodEnd = subscription.items.data.reduce(
     (latest, item) => Math.max(latest, item.current_period_end),
@@ -347,11 +358,15 @@ export async function syncStripeSubscription(
           ...current,
           billingCustomerId: typeof subscription.customer === "string" ? subscription.customer : subscription.customer.id,
           billingSubscriptionId: subscription.id,
+          billingRawStatus: subscription.status,
+          billingCancelAtPeriodEnd: subscription.cancel_at_period_end,
+          billingCanceledAt: subscription.canceled_at ? new Date(subscription.canceled_at * 1_000).toISOString() : null,
+          billingTrialEnd: subscription.trial_end ? new Date(subscription.trial_end * 1_000).toISOString() : null,
           subscriptionStatus: paidEligible ? status : status === "past_due" ? "past_due" : "canceled",
-          billingPlan: resolved.mapping.planId,
-          billingInterval: resolved.mapping.interval,
+          billingPlan: resolved.planId,
+          billingInterval: resolved.billingInterval,
           currentPeriodEnd,
-          billingPriceId: subscription.items.data[0]?.price.id ?? null,
+          billingPriceId: resolved.priceId,
           billingEventCreated: eventCreated ?? storedEventCreated,
           updatedAt: new Date().toISOString(),
         },

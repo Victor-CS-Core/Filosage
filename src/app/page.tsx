@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
@@ -161,12 +162,12 @@ export default function Home() {
     if (!preferences.sections[section]) return null;
     if (section === "nextUp") return (
       <section className="dashboard-section" key={section}>
-        <div className="dashboard-section-heading"><h2>Next up</h2><button onClick={() => router.push("/library")}>Explore library</button></div>
+        <div className="dashboard-section-heading"><h2>Next up</h2><Link href="/library">Explore library</Link></div>
         <div className="today-picks">
-          {learnerState.reminderPreferences.inAppEnabled && due.length > 0 && <button className="today-pick review-pick" onClick={() => router.push("/review")}><span><CalendarCheck2 size={20} /></span><strong>Review queue: {due.length} concept{due.length === 1 ? "" : "s"}</strong><small>Ordered by retention risk and delayed evidence checks.</small><em>Start with the most fragile</em></button>}
+          {learnerState.reminderPreferences.inAppEnabled && due.length > 0 && <Link className="today-pick review-pick" href="/review"><span><CalendarCheck2 size={20} /></span><strong>Review queue: {due.length} concept{due.length === 1 ? "" : "s"}</strong><small>Ordered by retention risk and delayed evidence checks.</small><em>Start with the most fragile</em></Link>}
           {picks.map((course, index) => {
             const id = course.id ?? course.courseId;
-            return <button className={`today-pick tone-${index + 1}`} key={id ?? course.topic} onClick={() => router.push(`/course/${encodeURIComponent(course.topic)}?id=${id}`)}><span><BookOpenCheck size={20} /></span><strong>{course.topic}</strong><small>{course.outcome ?? course.mission}</small><em>{course.estimatedMinutes ?? 30} min</em></button>;
+            return <Link className={`today-pick tone-${index + 1}`} key={id ?? course.topic} href={`/course/${encodeURIComponent(course.topic)}?id=${id}`}><span><BookOpenCheck size={20} /></span><strong>{course.topic}</strong><small>{course.outcome ?? course.mission}</small><em>{course.estimatedMinutes ?? 30} min</em></Link>;
           })}
           {(!learnerState.reminderPreferences.inAppEnabled || !due.length) && !picks.length && <div className="dashboard-empty compact"><CheckCircle2 size={21} /><div><strong>You are caught up.</strong><p>Your next useful review will appear here.</p></div></div>}
         </div>
@@ -174,7 +175,7 @@ export default function Home() {
     );
     if (section === "achievements") return (
       <section className="dashboard-section dashboard-achievements" key={section}>
-        <div className="dashboard-section-heading"><div><h2>Achievements</h2><span>{earnedBadges} of {badges.length} earned</span></div><button onClick={() => router.push("/profile#achievements")}>View all</button></div>
+        <div className="dashboard-section-heading"><div><h2>Achievements</h2><span>{earnedBadges} of {badges.length} earned</span></div><Link href="/profile#achievements">View all</Link></div>
         <div className="achievement-preview">{dashboardBadges.map((badge) => <AchievementBadge key={badge.id} badge={badge} compact />)}</div>
       </section>
     );
@@ -189,7 +190,7 @@ export default function Home() {
         <dl>{(Object.keys(snapshotMetrics) as DashboardMetric[]).filter((metric) => preferences.metrics[metric]).map((metric) => <div key={metric}><dt>{snapshotMetrics[metric].icon} {snapshotMetrics[metric].label}</dt><dd>{snapshotMetrics[metric].value}</dd></div>)}</dl>
       </section>
     );
-    return <section className="quick-actions" key={section}><h2>Quick actions</h2><button onClick={() => router.push("/review")}><CalendarCheck2 size={18} /><span><strong>Start today&apos;s review</strong><small>{due.length ? `${due.length} concept${due.length === 1 ? "" : "s"} ready now` : "No reviews due"}</small></span><ArrowRight size={15} /></button><button onClick={() => router.push("/library")}><Compass size={18} /><span><strong>Explore a new topic</strong><small>Browse published courses</small></span><ArrowRight size={15} /></button>{canCreateCourses && <button onClick={() => router.push("/create")}><BrainCircuit size={18} /><span><strong>Create a course</strong><small>{account?.courseCapacity?.remaining == null ? "Use one outline credit" : `${account.courseCapacity.remaining} course slot remaining`}</small></span><ArrowRight size={15} /></button>}<button onClick={() => router.push("/progress")}><TrendingUp size={18} /><span><strong>See your progress</strong><small>{mastered} concepts mastered</small></span><ArrowRight size={15} /></button></section>;
+    return <section className="quick-actions" key={section}><h2>Quick actions</h2><Link href="/review"><CalendarCheck2 size={18} /><span><strong>Start today&apos;s review</strong><small>{due.length ? `${due.length} concept${due.length === 1 ? "" : "s"} ready now` : "No reviews due"}</small></span><ArrowRight size={15} /></Link><Link href="/library"><Compass size={18} /><span><strong>Explore a new topic</strong><small>Browse published courses</small></span><ArrowRight size={15} /></Link>{canCreateCourses && <Link href="/create"><BrainCircuit size={18} /><span><strong>Create a course</strong><small>{account?.courseCapacity?.remaining == null ? "Use one outline credit" : `${account.courseCapacity.remaining} course slot remaining`}</small></span><ArrowRight size={15} /></Link>}<Link href="/progress"><TrendingUp size={18} /><span><strong>See your progress</strong><small>{mastered} concepts mastered</small></span><ArrowRight size={15} /></Link></section>;
   };
 
   return (
@@ -201,7 +202,7 @@ export default function Home() {
               <p>{new Intl.DateTimeFormat("en", { weekday: "long", month: "long", day: "numeric" }).format(new Date())}</p>
               <button type="button" onClick={dashboardCustomizer.openDrawer} aria-expanded={dashboardCustomizer.open}><SlidersHorizontal size={15} /> Customize</button>
             </div>
-            <h1>Good {new Date().getHours() < 12 ? "morning" : new Date().getHours() < 18 ? "afternoon" : "evening"}, {firstName}.</h1>
+            <h1>Welcome back, {firstName}.</h1>
             <p>{hasDailyMission
               ? "Your learning brief is ready. Start with the highest-value step, then keep your momentum moving."
               : continueProgress
@@ -264,15 +265,15 @@ export default function Home() {
               )}
 
               <section className="dashboard-section dashboard-continue-section">
-                <div className="dashboard-section-heading"><h2>Continue learning</h2>{continueProgress && <button onClick={() => router.push("/progress")}>View progress</button>}</div>
+                <div className="dashboard-section-heading"><h2>Continue learning</h2>{continueProgress && <Link href="/progress">View progress</Link>}</div>
                 {continueProgress ? (
-                  <button className="continue-card" onClick={() => continueHref && router.push(continueHref)}>
+                  <Link className="continue-card" href={continueHref ?? "/progress"}>
                     <span className="continue-icon"><BookOpenCheck size={24} /></span>
                     <span className="continue-copy"><small>{continueProgress.nextLessonId ? "In progress" : "Course complete"}</small><strong>{continueProgress.topic}</strong><span>{continueProgress.nextLessonTitle ?? "Review your course map"}</span><span className="continue-progress"><i><b style={{ width: `${Math.round((continueProgress.completedLessonIds.length / Math.max(continueProgress.totalLessons ?? continueProgress.completedLessonIds.length, 1)) * 100)}%` }} /></i><em>{continueProgress.completedLessonIds.length}/{continueProgress.totalLessons ?? "?"} lessons</em></span></span>
                     <span className="continue-action">{continueProgress.nextLessonId ? "Continue" : "Review"} <ArrowRight size={16} /></span>
-                  </button>
+                  </Link>
                 ) : (
-                  <div className="dashboard-empty"><Compass size={23} /><div><strong>Choose your first course</strong><p>Start a published course or create one for your own goal.</p></div><button className="button button-primary" onClick={() => router.push(canCreateCourses ? "/create" : "/library")}>{canCreateCourses ? "Create a course" : "Explore courses"}</button></div>
+                  <div className="dashboard-empty"><Compass size={23} /><div><strong>Choose your first course</strong><p>Start a published course or create one for your own goal.</p></div><Link className="button button-primary" href={canCreateCourses ? "/create" : "/library"}>{canCreateCourses ? "Create a course" : "Explore courses"}</Link></div>
                 )}
               </section>
               </div>

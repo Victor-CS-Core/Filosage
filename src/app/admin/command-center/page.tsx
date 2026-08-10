@@ -9,6 +9,7 @@ import {
   ChevronRight,
   CircleAlert,
   Clock3,
+  ExternalLink,
   FileCheck2,
   FileText,
   Inbox,
@@ -44,6 +45,8 @@ import { matchesSearchQuery } from "@/lib/search";
 type CommandCenterView = "inbox" | "drafts" | "approvals" | "audit" | "controls";
 type ApprovalDecision = "approved" | "rejected";
 type DraftDecision = "accepted" | "rejected";
+type TicketField = "category" | "riskLevel" | "subject" | "summary" | "confirmedFacts" | "unverifiedClaims" | "tags";
+type TicketFormErrors = Partial<Record<TicketField, string>>;
 
 const draftAgentLabels: Record<CommandCenterDraftAgentType, string> = {
   support: "Support",
@@ -123,6 +126,37 @@ function splitLines(value: FormDataEntryValue | null) {
     .filter(Boolean);
 }
 
+function normalizedTags(value: FormDataEntryValue | null) {
+  return [...new Set(String(value ?? "")
+    .split(",")
+    .map((tag) => tag.trim().toLowerCase())
+    .filter(Boolean))];
+}
+
+function validateTicketForm(form: FormData) {
+  const errors: TicketFormErrors = {};
+  const category = String(form.get("category") ?? "");
+  const riskLevel = String(form.get("riskLevel") ?? "");
+  const subject = String(form.get("subject") ?? "").trim();
+  const summary = String(form.get("summary") ?? "").trim();
+  const confirmedFacts = splitLines(form.get("confirmedFacts"));
+  const unverifiedClaims = splitLines(form.get("unverifiedClaims"));
+  const tags = normalizedTags(form.get("tags"));
+
+  if (!(category in categoryLabels)) errors.category = "Choose a supported ticket category.";
+  if (!(["low", "medium", "high", "critical"] as string[]).includes(riskLevel)) errors.riskLevel = "Choose a supported risk level.";
+  if (subject.length < 5) errors.subject = "Enter a subject of at least 5 characters.";
+  else if (subject.length > 160) errors.subject = "Keep the subject to 160 characters or fewer.";
+  if (summary.length < 10) errors.summary = "Enter an operational summary of at least 10 characters.";
+  else if (summary.length > 2_000) errors.summary = "Keep the operational summary to 2,000 characters or fewer.";
+  if (confirmedFacts.length > 10 || confirmedFacts.some((fact) => fact.length > 240)) errors.confirmedFacts = "Use at most 10 confirmed facts, with 240 characters or fewer per line.";
+  if (unverifiedClaims.length > 10 || unverifiedClaims.some((claim) => claim.length > 240)) errors.unverifiedClaims = "Use at most 10 unverified claims, with 240 characters or fewer per line.";
+  if (tags.length > 10) errors.tags = "Use at most 10 tags.";
+  else if (tags.some((tag) => !/^[a-z0-9-]{1,32}$/.test(tag))) errors.tags = "Tags may contain lowercase letters, numbers, and hyphens only, up to 32 characters each.";
+
+  return { errors, values: { category, riskLevel, subject, summary, confirmedFacts, unverifiedClaims, tags } };
+}
+
 function RiskBadge({ risk }: { risk: CommandCenterRisk }) {
   return <span className={`cc-badge cc-risk-${risk}`}><CircleAlert size={13} />{risk}</span>;
 }
@@ -142,13 +176,24 @@ export default function CommandCenterPage() {
   const [message, setMessage] = useState<string | null>(null);
   const [query, setQuery] = useState("");
   const [riskFilter, setRiskFilter] = useState<CommandCenterRisk | "all">("all");
+  const [categoryFilter, setCategoryFilter] = useState<CommandCenterTicketCategory | "all">("all");
+  const [statusFilter, setStatusFilter] = useState<CommandCenterTicketStatus | "all">("all");
   const [selectedTicketId, setSelectedTicketId] = useState<string | null>(null);
   const [selectedApprovalId, setSelectedApprovalId] = useState<string | null>(null);
   const [selectedDraftId, setSelectedDraftId] = useState<string | null>(null);
   const [mobileDetailOpen, setMobileDetailOpen] = useState(false);
   const [approvalDecision, setApprovalDecision] = useState<ApprovalDecision | null>(null);
   const [draftDecision, setDraftDecision] = useState<DraftDecision | null>(null);
+  const [ticketDialogOpen, setTicketDialogOpen] = useState(false);
+  const [ticketFormDirty, setTicketFormDirty] = useState(false);
+  const [ticketFormErrors, setTicketFormErrors] = useState<TicketFormErrors>({});
+  const [ticketSubmitError, setTicketSubmitError] = useState<string | null>(null);
+  const [ticketTags, setTicketTags] = useState<string[]>([]);
+  const ticketSubmitting = useRef(false);
+  const ticketIdempotencyKey = useRef<string | null>(null);
+  const newTicketButton = useRef<HTMLButtonElement>(null);
   const createTicketDialog = useRef<HTMLDialogElement>(null);
+  const createTicketForm = useRef<HTMLFormElement>(null);
   const createApprovalDialog = useRef<HTMLDialogElement>(null);
   const decisionDialog = useRef<HTMLDialogElement>(null);
   const draftDecisionDialog = useRef<HTMLDialogElement>(null);
@@ -189,6 +234,15 @@ export default function CommandCenterPage() {
     return () => window.clearTimeout(timer);
   }, [authLoading, load]);
 
+  useEffect(() => {
+    if (!ticketDialogOpen) return;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = previousOverflow;
+    };
+  }, [ticketDialogOpen]);
+
   const request = useCallback(async (path: string, method: "POST" | "PATCH", body: Record<string, unknown>, extraHeaders?: Record<string, string>) => {
     if (!user) throw new Error("Owner access is required.");
     const token = await user.getIdToken();
@@ -221,6 +275,8 @@ export default function CommandCenterPage() {
 
   const filteredTickets = useMemo(() => (data?.tickets ?? []).filter((ticket) => {
     if (riskFilter !== "all" && ticket.riskLevel !== riskFilter) return false;
+    if (categoryFilter !== "all" && ticket.category !== categoryFilter) return false;
+    if (statusFilter !== "all" && ticket.status !== statusFilter) return false;
     return matchesSearchQuery(query, [
       ticket.ticketNumber,
       ticket.subject,
@@ -229,7 +285,7 @@ export default function CommandCenterPage() {
       ticket.status,
       ...ticket.tags,
     ]);
-  }), [data?.tickets, query, riskFilter]);
+  }), [categoryFilter, data?.tickets, query, riskFilter, statusFilter]);
 
   const selectedTicket = data?.tickets.find((ticket) => ticket.id === selectedTicketId) ?? null;
   const selectedApproval = data?.approvals.find((approval) => approval.id === selectedApprovalId) ?? null;
@@ -252,21 +308,73 @@ export default function CommandCenterPage() {
     setMobileDetailOpen(true);
   };
 
+  const openTicketDialog = () => {
+    ticketIdempotencyKey.current = crypto.randomUUID();
+    setTicketFormErrors({});
+    setTicketSubmitError(null);
+    setTicketDialogOpen(true);
+    createTicketDialog.current?.showModal();
+  };
+
+  const closeTicketDialog = (force = false) => {
+    if (busy || ticketSubmitting.current) return;
+    if (!force && ticketFormDirty && !window.confirm("Discard this unfinished ticket? Your entered information will be lost.")) return;
+    createTicketDialog.current?.close();
+  };
+
+  const handleTicketDialogClose = () => {
+    createTicketForm.current?.reset();
+    setTicketDialogOpen(false);
+    setTicketFormDirty(false);
+    setTicketFormErrors({});
+    setTicketSubmitError(null);
+    setTicketTags([]);
+    ticketIdempotencyKey.current = null;
+    newTicketButton.current?.focus();
+  };
+
   const createTicket = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    const form = new FormData(event.currentTarget);
-    const created = await runMutation(() => request("/api/admin/command-center/tickets", "POST", {
-      category: form.get("category"),
-      riskLevel: form.get("riskLevel"),
-      subject: form.get("subject"),
-      summary: form.get("summary"),
-      confirmedFacts: splitLines(form.get("confirmedFacts")),
-      unverifiedClaims: splitLines(form.get("unverifiedClaims")),
-      tags: String(form.get("tags") ?? "").split(",").map((tag) => tag.trim().toLowerCase()).filter(Boolean),
-    }), "Ticket created and recorded in the audit ledger.");
-    if (created) {
-      event.currentTarget.reset();
+    if (ticketSubmitting.current) return;
+    const formElement = event.currentTarget;
+    const form = new FormData(formElement);
+    const validation = validateTicketForm(form);
+    setTicketFormErrors(validation.errors);
+    setTicketSubmitError(null);
+    const firstInvalid = Object.keys(validation.errors)[0] as TicketField | undefined;
+    if (firstInvalid) {
+      const invalidControl = formElement.elements.namedItem(firstInvalid);
+      if (invalidControl instanceof HTMLElement) invalidControl.focus();
+      return;
+    }
+
+    ticketSubmitting.current = true;
+    setBusy(true);
+    setError(null);
+    setMessage(null);
+    try {
+      ticketIdempotencyKey.current ??= crypto.randomUUID();
+      const result = await request("/api/admin/command-center/tickets", "POST", validation.values, {
+        "Idempotency-Key": ticketIdempotencyKey.current,
+      }) as { ticket?: CommandCenterTicket };
+      if (!result.ticket) throw new Error("The server did not return the created ticket.");
+      await load();
+      setSelectedTicketId(result.ticket.id);
+      setView("inbox");
+      setMobileDetailOpen(true);
+      setQuery("");
+      setRiskFilter("all");
+      setCategoryFilter("all");
+      setStatusFilter("all");
+      setMessage(`${result.ticket.ticketNumber} created and recorded in the audit ledger.`);
+      formElement.reset();
+      setTicketFormDirty(false);
       createTicketDialog.current?.close();
+    } catch (submissionError) {
+      setTicketSubmitError(submissionError instanceof Error ? submissionError.message : "The ticket could not be created. Review the details and try again.");
+    } finally {
+      ticketSubmitting.current = false;
+      setBusy(false);
     }
   };
 
@@ -286,6 +394,18 @@ export default function CommandCenterPage() {
       note: form.get("note"),
     }), "Internal note added. Its contents were not copied into the audit ledger.");
     if (saved) event.currentTarget.reset();
+  };
+
+  const addPublicReply = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!selectedTicket) return;
+    const formElement = event.currentTarget;
+    const form = new FormData(formElement);
+    const saved = await runMutation(() => request(`/api/admin/command-center/tickets/${encodeURIComponent(selectedTicket.id)}/public-replies`, "POST", {
+      expectedVersion: selectedTicket.version,
+      body: form.get("publicReply"),
+    }), "Learner-visible reply published and recorded in the audit ledger.");
+    if (saved) formElement.reset();
   };
 
   const createApproval = async (event: FormEvent<HTMLFormElement>) => {
@@ -399,6 +519,19 @@ export default function CommandCenterPage() {
     });
   };
 
+  const toggleCommandCenterIntake = () => {
+    if (!data) return;
+    const nextEnabled = !data.controls.systemEnabled;
+    if (!window.confirm(`${nextEnabled ? "Enable" : "Pause"} command-center intake? This change is recorded in the audit ledger.`)) return;
+    void updateControls({ systemEnabled: nextEnabled, killSwitchActive: data.controls.killSwitchActive });
+  };
+
+  const toggleKillSwitch = () => {
+    if (!data) return;
+    if (data.controls.killSwitchActive && !window.confirm("Deactivate the global kill switch? Draft generation will be available again under the current agent controls.")) return;
+    void updateControls({ systemEnabled: data.controls.systemEnabled, killSwitchActive: !data.controls.killSwitchActive });
+  };
+
   if (authLoading) {
     return <AppShell><div className="center-state"><LoaderCircle className="spin" /><h1>Verifying owner access</h1></div></AppShell>;
   }
@@ -410,6 +543,7 @@ export default function CommandCenterPage() {
   const pendingApprovals = data?.approvals.filter((approval) => approval.status === "pending").length ?? 0;
   const enabledDraftAgents = controls ? availableDraftAgentTypes.filter((agentType) => controls.agentFlags[agentType]).length : 0;
   const allAvailableDraftAgentsEnabled = enabledDraftAgents === availableDraftAgentTypes.length;
+  const ticketFiltersActive = Boolean(query || riskFilter !== "all" || categoryFilter !== "all" || statusFilter !== "all");
 
   return (
     <AppShell>
@@ -418,18 +552,18 @@ export default function CommandCenterPage() {
           <div>
             <Link href="/admin"><ArrowLeft size={16} /> Control room</Link>
             <h1>Agent command center</h1>
-            <p>Review operational work, draft evidence-grounded responses and summaries, and record consequential decisions. Nothing is sent or executed.</p>
+            <p>Review operational work, draft evidence-grounded responses and summaries, and record consequential decisions. Draft agents never send or execute actions automatically; owner-published support replies are visible to requesters immediately.</p>
           </div>
           <div className="cc-header-actions">
             <button className="button button-secondary" onClick={() => void load()} disabled={loading || busy}><RefreshCw className={loading ? "spin" : ""} size={16} />Refresh</button>
-            <button className="button button-primary" onClick={() => createTicketDialog.current?.showModal()} disabled={!controls?.systemEnabled || busy}><Plus size={16} />New ticket</button>
+            <button ref={newTicketButton} className="button button-primary" onClick={openTicketDialog} disabled={!controls?.systemEnabled || busy}><Plus size={16} />New ticket</button>
           </div>
         </header>
 
         {data && (
           <section className="cc-status-strip" aria-label="Command-center safety status">
             <div className={!controls?.systemEnabled ? "is-warning" : ""}><ShieldCheck size={18} /><span><strong>Command center</strong><small>{controls?.systemEnabled ? "Enabled" : "Paused"}</small></span></div>
-            <div><LockKeyhole size={18} /><span><strong>Simulation mode</strong><small>Locked on</small></span></div>
+            <div><LockKeyhole size={18} /><span><strong>Agent simulation</strong><small>Drafts only</small></span></div>
             <div><UserRoundCheck size={18} /><span><strong>Draft agents</strong><small>{enabledDraftAgents} of {availableDraftAgentTypes.length} available enabled</small></span></div>
             <div className={data.summary.overdueTickets ? "is-warning" : ""}><Clock3 size={18} /><span><strong>Overdue work</strong><small>{data.summary.overdueTickets} ticket{data.summary.overdueTickets === 1 ? "" : "s"}</small></span></div>
             <div className={controls?.killSwitchActive ? "is-danger" : ""}><ShieldAlert size={18} /><span><strong>Kill switch</strong><small>{controls?.killSwitchActive ? "Active" : "Ready"}</small></span></div>
@@ -449,7 +583,7 @@ export default function CommandCenterPage() {
               <button aria-label={`Approvals, ${pendingApprovals} pending`} className={view === "approvals" ? "is-active" : ""} onClick={() => { setView("approvals"); setMobileDetailOpen(false); }}><FileCheck2 size={17} /><span>Approvals</span><b>{pendingApprovals}</b></button>
               <button aria-label="Audit log" className={view === "audit" ? "is-active" : ""} onClick={() => { setView("audit"); setMobileDetailOpen(false); }}><FileText size={17} /><span>Audit log</span></button>
               <button aria-label="Controls" className={view === "controls" ? "is-active" : ""} onClick={() => { setView("controls"); setMobileDetailOpen(false); }}><SlidersHorizontal size={17} /><span>Controls</span></button>
-              <div><strong>Draft-only boundary</strong><p>Agent outputs require owner review. External effect executors do not exist.</p></div>
+              <div><strong>Draft-agent boundary</strong><p>Agent outputs require owner review and cannot execute actions. An owner can separately publish a support reply.</p></div>
             </nav>
 
             <section className="cc-work-list" aria-label={view === "inbox" ? "Unified inbox" : view === "drafts" ? "Draft review queue" : view === "approvals" ? "Approval queue" : view === "audit" ? "Audit log" : "Safety controls"}>
@@ -462,6 +596,13 @@ export default function CommandCenterPage() {
                       <select aria-label="Filter by risk" value={riskFilter} onChange={(event) => setRiskFilter(event.target.value as CommandCenterRisk | "all")}>
                         <option value="all">All risk</option><option value="critical">Critical</option><option value="high">High</option><option value="medium">Medium</option><option value="low">Low</option>
                       </select>
+                      <select aria-label="Filter by category" value={categoryFilter} onChange={(event) => setCategoryFilter(event.target.value as CommandCenterTicketCategory | "all")}>
+                        <option value="all">All categories</option>{Object.entries(categoryLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+                      </select>
+                      <select aria-label="Filter by status" value={statusFilter} onChange={(event) => setStatusFilter(event.target.value as CommandCenterTicketStatus | "all")}>
+                        <option value="all">All statuses</option>{Object.entries(statusLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+                      </select>
+                      <button type="button" className="button button-quiet cc-filter-reset" disabled={!ticketFiltersActive} onClick={() => { setQuery(""); setRiskFilter("all"); setCategoryFilter("all"); setStatusFilter("all"); }}>Reset</button>
                     </div>
                   </header>
                   <div className="cc-ticket-table">
@@ -521,8 +662,8 @@ export default function CommandCenterPage() {
                 <>
                   <header className="cc-list-toolbar"><div><h2>Safety controls</h2><p>Fail-closed controls for the entire command center</p></div><button className="button button-secondary" disabled={busy || !data.capabilities.draftAgentsAvailable || controls.killSwitchActive} onClick={() => void setAvailableAgents(!allAvailableDraftAgentsEnabled)}><Bot size={16} />{allAvailableDraftAgentsEnabled ? "Disable available agents" : "Enable available agents"}</button></header>
                   <div className="cc-controls-list">
-                    <section><div><ShieldCheck size={19} /><span><strong>Command-center intake</strong><p>Allows manual tickets and normalized intake while preserving owner review.</p></span></div><button className={controls.systemEnabled ? "cc-switch is-on" : "cc-switch"} role="switch" aria-checked={controls.systemEnabled} disabled={busy} onClick={() => void updateControls({ systemEnabled: !controls.systemEnabled, killSwitchActive: controls.killSwitchActive })}><span />{controls.systemEnabled ? "Enabled" : "Paused"}</button></section>
-                    <section><div><ShieldAlert size={19} /><span><strong>Global kill switch</strong><p>Blocks future agent and effect execution. Manual review and evidence access remain available.</p></span></div><button className={controls.killSwitchActive ? "cc-switch is-danger" : "cc-switch"} role="switch" aria-checked={controls.killSwitchActive} disabled={busy} onClick={() => void updateControls({ systemEnabled: controls.systemEnabled, killSwitchActive: !controls.killSwitchActive })}><span />{controls.killSwitchActive ? "Active" : "Ready"}</button></section>
+                    <section><div><ShieldCheck size={19} /><span><strong>Command-center intake</strong><p>Allows manual tickets and normalized intake while preserving owner review.</p></span></div><button className={controls.systemEnabled ? "cc-switch is-on" : "cc-switch"} role="switch" aria-label={controls.systemEnabled ? "Pause command-center intake" : "Enable command-center intake"} aria-checked={controls.systemEnabled} disabled={busy} onClick={toggleCommandCenterIntake}><span />{controls.systemEnabled ? "Enabled" : "Paused"}</button></section>
+                    <section><div><ShieldAlert size={19} /><span><strong>Global kill switch</strong><p>Blocks future agent and effect execution. Manual review and evidence access remain available.</p></span></div><button className={controls.killSwitchActive ? "cc-switch is-danger" : "cc-switch"} role="switch" aria-label={controls.killSwitchActive ? "Deactivate global kill switch" : "Activate global kill switch"} aria-checked={controls.killSwitchActive} disabled={busy} onClick={toggleKillSwitch}><span />{controls.killSwitchActive ? "Active" : "Ready"}</button></section>
                     <section><div><LockKeyhole size={19} /><span><strong>Simulation mode</strong><p>Draft and approval decisions are recorded, but no external action executor exists.</p></span></div><strong className="cc-locked-control">Locked on</strong></section>
                     {(["support", "legal", "billing", "productOperations", "founderBrief"] as const).map((agentType) => <section key={agentType}><div><Bot size={19} /><span><strong>{draftAgentLabels[agentType]} agent</strong><p>{agentType === "founderBrief" ? "Summarizes the current owner queue into review priorities." : "Produces structured review-only output from compatible tickets and approved knowledge."}</p></span></div><button className={controls.agentFlags[agentType] ? "cc-switch is-on" : "cc-switch"} role="switch" aria-checked={controls.agentFlags[agentType]} disabled={busy || !data.capabilities.draftAgentsAvailable || controls.killSwitchActive} onClick={() => void toggleAgent(agentType)}><span />{controls.agentFlags[agentType] ? "Enabled" : "Disabled"}</button></section>)}
                     <section><div><UserRoundCheck size={19} /><span><strong>Deferred agents</strong><p>Privacy, content-action, and knowledge-maintenance agents remain unavailable in this phase.</p></span></div><strong className="cc-locked-control">Locked off</strong></section>
@@ -534,7 +675,7 @@ export default function CommandCenterPage() {
             <aside className="cc-inspector" aria-label="Selected work details">
               <button className="cc-mobile-back" onClick={() => setMobileDetailOpen(false)}><ArrowLeft size={16} />Back to {view === "approvals" ? "approvals" : view === "drafts" ? "drafts" : "inbox"}</button>
               {view === "inbox" ? selectedTicket ? (
-                <TicketInspector ticket={selectedTicket} busy={busy} draftAvailable={data.capabilities.draftAgentsAvailable && data.controls.agentFlags[agentForTicket(selectedTicket)] && !data.controls.killSwitchActive} onGenerateDraft={() => void generateDraft(agentForTicket(selectedTicket), selectedTicket)} onUpdate={updateTicket} onAddNote={addNote} onRequestApproval={() => createApprovalDialog.current?.showModal()} />
+                <TicketInspector ticket={selectedTicket} busy={busy} draftAvailable={data.capabilities.draftAgentsAvailable && data.controls.agentFlags[agentForTicket(selectedTicket)] && !data.controls.killSwitchActive} onGenerateDraft={() => void generateDraft(agentForTicket(selectedTicket), selectedTicket)} onUpdate={updateTicket} onAddNote={addNote} onAddPublicReply={addPublicReply} onRequestApproval={() => createApprovalDialog.current?.showModal()} />
               ) : <InspectorEmpty icon={Inbox} title="Select a ticket" body="Choose an item from the queue to inspect evidence, history, and available next steps." />
                 : view === "drafts" ? selectedDraft ? (
                   <DraftInspector draft={selectedDraft} ticket={selectedDraftTicket} busy={busy} onDecision={openDraftDecision} />
@@ -549,31 +690,43 @@ export default function CommandCenterPage() {
         ) : null}
       </main>
 
-      <dialog ref={createTicketDialog} className="cc-dialog cc-ticket-dialog">
-        <form onSubmit={createTicket}>
-          <header><div><span className="cc-dialog-icon"><Plus size={18} /></span><div><h2>Create a manual ticket</h2><p id="cc-ticket-form-description">Capture the work, separate evidence from claims, and set the owner review priority.</p></div></div><button type="button" onClick={() => createTicketDialog.current?.close()} aria-label="Close"><X size={18} /></button></header>
-          <div className="cc-ticket-form-body" aria-describedby="cc-ticket-form-description">
+      <dialog
+        ref={createTicketDialog}
+        className="cc-dialog cc-ticket-dialog"
+        aria-labelledby="cc-ticket-form-title"
+        aria-describedby="cc-ticket-form-description"
+        aria-modal="true"
+        onClose={handleTicketDialogClose}
+        onCancel={(event) => {
+          event.preventDefault();
+          closeTicketDialog();
+        }}
+      >
+        <form ref={createTicketForm} onSubmit={createTicket} onInput={() => setTicketFormDirty(true)} noValidate>
+          <header><div><span className="cc-dialog-icon"><Plus size={18} /></span><div><h2 id="cc-ticket-form-title">Create a manual ticket</h2><p id="cc-ticket-form-description">Capture the work, separate evidence from claims, and set the owner review priority.</p></div></div><button type="button" onClick={() => closeTicketDialog()} aria-label="Close ticket dialog"><X size={18} /></button></header>
+          <div className="cc-ticket-form-body">
             <fieldset className="cc-ticket-details">
               <legend><FileText size={17} /><span><strong>Ticket details</strong><small>Required information for the owner queue</small></span></legend>
-              <div className="cc-form-grid"><label>Category<select name="category" defaultValue="support">{Object.entries(categoryLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label><label>Risk level<select name="riskLevel" defaultValue="medium"><option value="low">Low · routine</option><option value="medium">Medium · review within 24h</option><option value="high">High · review within 4h</option><option value="critical">Critical · review within 1h</option></select></label></div>
-              <label>Subject<input name="subject" minLength={5} maxLength={160} placeholder="A concise description of the work" autoFocus required /></label>
-              <label>Operational summary <small>Write a neutral summary that another reviewer can understand without opening the source.</small><textarea name="summary" minLength={10} maxLength={2000} rows={4} placeholder="What needs attention, who or what is affected, and what is known right now?" required /></label>
+              <div className="cc-form-grid"><label htmlFor="cc-ticket-category"><span className="cc-label-row"><span>Category</span><span className="cc-required">Required</span></span><select id="cc-ticket-category" name="category" defaultValue="support" aria-invalid={Boolean(ticketFormErrors.category)} aria-describedby={ticketFormErrors.category ? "cc-ticket-category-error" : undefined}>{Object.entries(categoryLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select>{ticketFormErrors.category && <small id="cc-ticket-category-error" className="cc-field-error">{ticketFormErrors.category}</small>}</label><label htmlFor="cc-ticket-risk"><span className="cc-label-row"><span>Risk level</span><span className="cc-required">Required</span></span><select id="cc-ticket-risk" name="riskLevel" defaultValue="medium" aria-invalid={Boolean(ticketFormErrors.riskLevel)} aria-describedby={ticketFormErrors.riskLevel ? "cc-ticket-risk-error" : undefined}><option value="low">Low · routine</option><option value="medium">Medium · review within 24 hours</option><option value="high">High · review within 4 hours</option><option value="critical">Critical · review within 1 hour</option></select>{ticketFormErrors.riskLevel && <small id="cc-ticket-risk-error" className="cc-field-error">{ticketFormErrors.riskLevel}</small>}</label></div>
+              <label htmlFor="cc-ticket-subject"><span className="cc-label-row"><span>Subject</span><span className="cc-required">Required</span></span><input id="cc-ticket-subject" name="subject" minLength={5} maxLength={160} placeholder="A concise description of the work" autoFocus required aria-invalid={Boolean(ticketFormErrors.subject)} aria-describedby={ticketFormErrors.subject ? "cc-ticket-subject-error" : undefined} />{ticketFormErrors.subject && <small id="cc-ticket-subject-error" className="cc-field-error">{ticketFormErrors.subject}</small>}</label>
+              <label htmlFor="cc-ticket-summary"><span className="cc-label-row"><span>Operational summary</span><span className="cc-required">Required</span></span><small id="cc-ticket-summary-help">Write a neutral summary that another reviewer can understand without opening the source.</small><textarea id="cc-ticket-summary" name="summary" minLength={10} maxLength={2000} rows={5} placeholder="What needs attention, who or what is affected, and what is known right now?" required aria-invalid={Boolean(ticketFormErrors.summary)} aria-describedby={ticketFormErrors.summary ? "cc-ticket-summary-help cc-ticket-summary-error" : "cc-ticket-summary-help"} />{ticketFormErrors.summary && <small id="cc-ticket-summary-error" className="cc-field-error">{ticketFormErrors.summary}</small>}</label>
             </fieldset>
 
             <fieldset className="cc-ticket-evidence">
               <legend><ShieldCheck size={17} /><span><strong>Evidence quality</strong><small>Keep verified information separate from reported claims</small></span></legend>
               <div className="cc-evidence-grid">
-                <label><span><Check size={15} />Confirmed facts</span><small>One verified fact per line</small><textarea name="confirmedFacts" rows={5} placeholder={"Account is verified\nIssue reproduced on the lesson page"} /></label>
-                <label><span><CircleAlert size={15} />Unverified claims</span><small>One unconfirmed statement per line</small><textarea name="unverifiedClaims" rows={5} placeholder={"Learner reports the issue started today\nA browser extension may be involved"} /></label>
+                <label htmlFor="cc-ticket-facts"><span><Check size={15} />Confirmed facts</span><small id="cc-ticket-facts-help">Verified information only · one fact per line · up to 10</small><textarea id="cc-ticket-facts" name="confirmedFacts" rows={5} placeholder={"Account is verified\nIssue reproduced on the lesson page"} aria-invalid={Boolean(ticketFormErrors.confirmedFacts)} aria-describedby={ticketFormErrors.confirmedFacts ? "cc-ticket-facts-help cc-ticket-facts-error" : "cc-ticket-facts-help"} />{ticketFormErrors.confirmedFacts && <small id="cc-ticket-facts-error" className="cc-field-error">{ticketFormErrors.confirmedFacts}</small>}</label>
+                <label htmlFor="cc-ticket-claims"><span><CircleAlert size={15} />Unverified claims</span><small id="cc-ticket-claims-help">Reported but unconfirmed · one claim per line · up to 10</small><textarea id="cc-ticket-claims" name="unverifiedClaims" rows={5} placeholder={"Learner reports the issue started today\nA browser extension may be involved"} aria-invalid={Boolean(ticketFormErrors.unverifiedClaims)} aria-describedby={ticketFormErrors.unverifiedClaims ? "cc-ticket-claims-help cc-ticket-claims-error" : "cc-ticket-claims-help"} />{ticketFormErrors.unverifiedClaims && <small id="cc-ticket-claims-error" className="cc-field-error">{ticketFormErrors.unverifiedClaims}</small>}</label>
               </div>
             </fieldset>
 
             <fieldset className="cc-ticket-organization">
               <legend><Tags size={17} /><span><strong>Organization</strong><small>Optional terms for search and recurring-issue analysis</small></span></legend>
-              <label>Tags <small>Comma-separated lowercase terms</small><input name="tags" placeholder="login, lesson-access, known-issue" /></label>
+              <label htmlFor="cc-ticket-tags">Tags <small id="cc-ticket-tags-help">Comma-separated. Spaces and duplicates are removed; tags are saved in lowercase.</small><input id="cc-ticket-tags" name="tags" placeholder="login, lesson-access, known-issue" aria-invalid={Boolean(ticketFormErrors.tags)} aria-describedby={ticketFormErrors.tags ? "cc-ticket-tags-help cc-ticket-tags-error" : "cc-ticket-tags-help"} onChange={(event) => setTicketTags(normalizedTags(event.currentTarget.value))} />{ticketFormErrors.tags && <small id="cc-ticket-tags-error" className="cc-field-error">{ticketFormErrors.tags}</small>}</label>
+              {ticketTags.length > 0 && <div className="cc-tag-preview" aria-label="Tags to be saved">{ticketTags.map((tag) => <span key={tag}>{tag}</span>)}</div>}
             </fieldset>
           </div>
-          <footer><span><LockKeyhole size={14} /> Owner-only · recorded in the audit ledger</span><div><button type="button" className="button button-quiet" onClick={() => createTicketDialog.current?.close()}>Cancel</button><button className="button button-primary" disabled={busy}>{busy ? <LoaderCircle className="spin" size={16} /> : <Plus size={16} />}Create ticket</button></div></footer>
+          <footer><div className="cc-ticket-footer-copy"><span><LockKeyhole size={14} /> Owner-only · recorded in the audit ledger</span>{ticketSubmitError && <span className="cc-ticket-submit-error" role="alert"><CircleAlert size={14} />{ticketSubmitError}</span>}</div><div><button type="button" className="button button-quiet" onClick={() => closeTicketDialog()}>Cancel</button><button className="button button-primary" disabled={busy} aria-describedby="cc-ticket-submit-status">{busy ? <LoaderCircle className="spin" size={16} /> : <Plus size={16} />}{busy ? "Creating ticket…" : "Create ticket"}</button><span id="cc-ticket-submit-status" className="sr-only" aria-live="polite">{busy ? "Creating the ticket" : ticketSubmitError ?? ""}</span></div></footer>
         </form>
       </dialog>
 
@@ -617,13 +770,14 @@ function nextTicketAction(ticket: CommandCenterTicket): { label: string; status:
   return null;
 }
 
-function TicketInspector({ ticket, busy, draftAvailable, onGenerateDraft, onUpdate, onAddNote, onRequestApproval }: {
+function TicketInspector({ ticket, busy, draftAvailable, onGenerateDraft, onUpdate, onAddNote, onAddPublicReply, onRequestApproval }: {
   ticket: CommandCenterTicket;
   busy: boolean;
   draftAvailable: boolean;
   onGenerateDraft: () => void;
   onUpdate: (ticket: CommandCenterTicket, body: Record<string, unknown>, success: string) => Promise<void>;
   onAddNote: (event: FormEvent<HTMLFormElement>) => Promise<void>;
+  onAddPublicReply: (event: FormEvent<HTMLFormElement>) => Promise<void>;
   onRequestApproval: () => void;
 }) {
   const nextAction = nextTicketAction(ticket);
@@ -634,8 +788,10 @@ function TicketInspector({ ticket, busy, draftAvailable, onGenerateDraft, onUpda
       <section><h3><ShieldCheck size={16} />Confirmed facts</h3>{ticket.confirmedFacts.length ? <ul className="cc-fact-list">{ticket.confirmedFacts.map((fact) => <li key={fact}><Check size={14} />{fact}</li>)}</ul> : <p className="cc-muted-copy">No confirmed facts have been recorded.</p>}</section>
       <section><h3><CircleAlert size={16} />Unverified claims</h3>{ticket.unverifiedClaims.length ? <ul className="cc-claim-list">{ticket.unverifiedClaims.map((claim) => <li key={claim}><CircleAlert size={14} />{claim}</li>)}</ul> : <p className="cc-muted-copy">No unverified claims are summarized.</p>}{ticket.untrustedExcerpt && <blockquote><strong>Untrusted reporter text</strong><p>{ticket.untrustedExcerpt}</p></blockquote>}</section>
       <section><h3><FileText size={16} />Evidence references</h3>{ticket.evidenceReferences.length ? <ul className="cc-reference-list">{ticket.evidenceReferences.map((reference) => <li key={reference}><code>{reference}</code></li>)}</ul> : <p className="cc-muted-copy">No evidence reference is attached yet.</p>}</section>
+      {ticket.requestContext && <section><h3><ExternalLink size={16} />Submitted page context</h3><dl className="cc-boundary-list"><div><dt>Path</dt><dd><code>{ticket.requestContext.pathname}</code></dd></div>{ticket.requestContext.pageTitle && <div><dt>Page title</dt><dd>{ticket.requestContext.pageTitle}</dd></div>}</dl></section>}
       <section><h3><Tags size={16} />Tags</h3><div className="cc-tags">{ticket.tags.length ? ticket.tags.map((tag) => <span key={tag}>{tag}</span>) : <span>untagged</span>}</div></section>
       <section><h3><MessageSquareText size={16} />Internal notes</h3>{ticket.notes.length ? <div className="cc-note-list">{ticket.notes.map((note) => <article key={note.id}><p>{note.body}</p><small>{shortDate(note.createdAt)} · owner</small></article>)}</div> : <p className="cc-muted-copy">No internal notes yet.</p>}<form className="cc-note-form" onSubmit={onAddNote}><label htmlFor="cc-internal-note">Add an internal note</label><textarea id="cc-internal-note" name="note" minLength={2} maxLength={2000} rows={3} required /><button className="button button-secondary" disabled={busy}>Add note</button></form></section>
+      {ticket.source === "user_support" && <section><h3><MessageSquareText size={16} />Learner-visible replies</h3><p className="cc-muted-copy">Published replies are shown to the requester. Internal notes above remain owner-only.</p>{ticket.publicReplies.length ? <div className="cc-note-list">{ticket.publicReplies.map((reply) => <article key={reply.id}><p>{reply.body}</p><small>{shortDate(reply.createdAt)} · published to requester</small></article>)}</div> : <p className="cc-muted-copy">No public replies have been published.</p>}<form className="cc-note-form" onSubmit={onAddPublicReply}><label htmlFor="cc-public-reply">Publish a reply to the learner</label><small>Publishing immediately makes this text visible in the requester’s Support Center.</small><textarea id="cc-public-reply" name="publicReply" minLength={2} maxLength={2000} rows={4} disabled={busy} required /><button className="button button-secondary" disabled={busy}>Publish reply</button></form></section>}
     </div>
     <footer className="cc-inspector-actions"><button className="button button-secondary" onClick={onGenerateDraft} disabled={busy || !draftAvailable || ticket.status === "closed"}><Sparkles size={16} />Generate draft</button><button className="button button-secondary" onClick={onRequestApproval} disabled={busy || ticket.status === "closed"}><FileCheck2 size={16} />Request approval</button>{nextAction && <button className="button button-primary" disabled={busy} onClick={() => void onUpdate(ticket, { status: nextAction.status }, `${ticket.ticketNumber} moved to ${statusLabels[nextAction.status].toLowerCase()}.`)}>{nextAction.label}</button>}</footer>
   </>;

@@ -10,7 +10,7 @@ This document is an engineering and launch-readiness record, not legal advice.
 - Browser Firestore access is denied; privileged database access remains server-side.
 - Public course and lesson responses use explicit data-transfer objects. Internal user IDs, topic keys, service timestamps, and author profile URLs are not returned.
 - State-changing JSON requests require an allowed origin, `application/json`, and an endpoint-specific body limit.
-- Progress totals are validated so correct answers and attempts cannot exceed their logical bounds. Non-owner Pro authors must also present short-lived HMAC-signed activity receipts bound to their user, course, lesson, and quiz before a lesson can unlock the next generation step.
+- Progress totals are validated so correct answers and attempts cannot exceed their logical bounds. Non-owner Plus and Pro authors must also present short-lived HMAC-signed activity receipts bound to their user, course, lesson, and quiz before a lesson can unlock the next generation step.
 - AI course, lesson, and tutor inputs use moderation. Generated course and lesson content is moderated before storage. Requests include a pseudonymous OpenAI safety identifier.
 - AI generation uses per-plan quotas, per-minute limits, active-request locks, idempotency keys, and a global monthly budget. Other public and authenticated mutation endpoints use Firestore-backed global and per-client or per-account limits shared across Worker instances.
 - OpenAI Responses requests disable application-state storage. Direct AI interactions and AI-assisted course or lesson content are visibly identified and include machine-readable disclosure attributes.

@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
@@ -142,11 +143,11 @@ export default function CreateCoursePage() {
   };
 
   if (!canCreateCourses) {
-    return <AppShell><div className="center-state"><Sparkles size={26} /><p className="overline">Filosage memberships</p><h1>Create a private course for your goal.</h1><p>Filosage Plus and Pro include private AI-assisted course creation with clearly stated monthly limits.</p><button className="button button-primary" onClick={() => router.push("/pricing")}>Compare plans</button></div></AppShell>;
+    return <AppShell><div className="center-state"><Sparkles size={26} /><p className="overline">Filosage memberships</p><h1>Create a private course for your goal.</h1><p>Filosage Plus and Pro include private AI-assisted course creation with clearly stated monthly limits.</p><Link className="button button-primary" href="/pricing">Compare plans</Link></div></AppShell>;
   }
 
   if (account?.courseCapacity?.remaining === 0) {
-    return <AppShell><div className="center-state"><Sparkles size={26} /><p className="overline">Course limit reached</p><h1>Your current plan already has its active private course.</h1><p>Your existing work remains available. Delete a course you no longer need or upgrade to Pro before creating another.</p><div className="state-actions"><button className="button button-secondary" onClick={() => router.push("/library")}>Open my courses</button><button className="button button-primary" onClick={() => router.push("/pricing")}>Compare plans</button></div></div></AppShell>;
+    return <AppShell><div className="center-state"><Sparkles size={26} /><p className="overline">Course limit reached</p><h1>Your current plan already has its active private course.</h1><p>Your existing work remains available. Delete a course you no longer need or upgrade to Pro before creating another.</p><div className="state-actions"><Link className="button button-secondary" href="/library">Open my courses</Link><Link className="button button-primary" href="/pricing">Compare plans</Link></div></div></AppShell>;
   }
 
   const plannedHours = Math.max(1, Math.round((weeklyMinutes * targetWeeks) / 60));

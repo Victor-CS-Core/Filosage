@@ -1,7 +1,7 @@
 "use client";
 
+import Link from "next/link";
 import { useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
 import {
   ArrowRight,
   Check,
@@ -49,7 +49,6 @@ export default function OutcomePlanner({
   onSave,
   onBaseline,
 }: OutcomePlannerProps) {
-  const router = useRouter();
   const initialDiagnostic = useMemo(() => buildDiagnostic(course), [course]);
   const [editing, setEditing] = useState(!plan);
   const [desiredOutcome, setDesiredOutcome] = useState(plan?.desiredOutcome ?? course.outcome ?? "");
@@ -207,18 +206,18 @@ export default function OutcomePlanner({
           </dl>
           <div className="outcome-plan-actions">
             {plan.status !== "paused" && (
-              <button className="button button-primary" type="button" onClick={() => router.push(`/course/${encodeURIComponent(topic)}/lesson/${plan.recommendedLessonId}?id=${courseId}`)}>
+              <Link className="button button-primary" href={`/course/${encodeURIComponent(topic)}/lesson/${plan.recommendedLessonId}?id=${courseId}`}>
                 Start with {nextModule?.title ?? "the first module"} <ArrowRight size={16} />
-              </button>
+              </Link>
             )}
             {plan.status === "paused" && (
               <button className="button button-primary" type="button" disabled={saving} onClick={() => void togglePause()}>
                 <PlayCircle size={16} /> Resume plan
               </button>
             )}
-            <button className="button button-secondary" type="button" onClick={() => router.push(`/evidence/${courseId}`)}>
+            <Link className="button button-secondary" href={`/evidence/${courseId}`}>
               <FileCheck2 size={16} /> View evidence
-            </button>
+            </Link>
             <button className="text-button" type="button" onClick={() => setEditing(true)}><Pencil size={14} /> Edit plan</button>
             {plan.status !== "paused" && (
               <button className="text-button" type="button" disabled={saving} onClick={() => void togglePause()}><PauseCircle size={14} /> Pause plan</button>

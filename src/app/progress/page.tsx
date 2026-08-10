@@ -1,7 +1,7 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
 import { ArrowRight, CalendarClock, CalendarDays, Flame, Lightbulb, RefreshCw, Share2, Target, TrendingUp } from "lucide-react";
 import AppShell from "@/components/AppShell";
 import { useAuth } from "@/components/AuthProvider";
@@ -25,7 +25,6 @@ import {
 function dateKey(date: Date) { return date.toISOString().slice(0, 10); }
 
 export default function ProgressPage() {
-  const router = useRouter();
   const { user, loading: authLoading, signInWithGoogle } = useAuth();
   const { state, update, ready: learnerStateReady } = useLearnerState();
   const [progress, setProgress] = useState<CourseProgress[]>([]);
@@ -111,11 +110,11 @@ export default function ProgressPage() {
         <header className="page-header"><div><p className="overline">Learning record</p><h1>Your progress</h1><p>Progress here means understanding that lasts: what you can now explain, what you have stopped being wrong about, and what returns for review next.</p></div></header>
         {!loaded || !learnerStateReady ? <div className="dashboard-loading" aria-busy="true"><span /><span /><span /></div> : loadError ? <section className="review-recovery" role="alert"><TrendingUp size={28} /><p className="overline">Progress unavailable</p><h2>Your record is still safe.</h2><p>{loadError}</p><button className="button button-primary" onClick={() => { setLoaded(false); setLoadError(null); setLoadAttempt((attempt) => attempt + 1); }}><RefreshCw size={15} /> Try again</button></section> : (
           <>
-            <button className="progress-next-action" type="button" onClick={() => router.push(nextHref)}>
+            <Link className="progress-next-action" href={nextHref}>
               <span className="progress-next-icon">{reviewsDue ? <CalendarClock size={22} /> : <ArrowRight size={22} />}</span>
               <span><small>Recommended next action</small><strong>{nextLabel}</strong><p>{nextDetail}</p></span>
               <ArrowRight size={20} />
-            </button>
+            </Link>
 
             <section className="progress-health-summary" aria-label="Learning health summary">
               <article><small>Reviews due</small><strong>{reviewsDue}</strong><em>{reviewsDue ? "Ready to retrieve" : "Queue is clear"}</em></article>
@@ -129,7 +128,7 @@ export default function ProgressPage() {
                 <section className="activity-panel"><div className="panel-heading"><div><CalendarDays size={19} /><h2>This week</h2></div><span>{weeklyCompleted} concept session{weeklyCompleted === 1 ? "" : "s"}</span></div><div className="activity-chart" aria-label={`${weeklyCompleted} distinct lessons studied in the last seven days`}>{week.map((day) => <div key={day.key}><span className="activity-bar-track"><i style={{ height: `${Math.max(day.count ? 14 : 3, (day.count / maxDay) * 100)}%` }}><b>{day.count || ""}</b></i></span><small>{day.label}</small></div>)}</div><div className="activity-footnote"><span><Flame size={15} /> {streak}-day learning rhythm</span><span>{Math.floor(minutes / 60)}h {minutes % 60}m tracked overall</span><span>{totalQuestions ? `${accuracy}% first-try accuracy` : "Accuracy not measured yet"}</span></div></section>
                 <MasteryPath progress={progress} />
                 <EvidencePortfolio progress={progress} />
-                <section className="mastery-panel"><div className="panel-heading"><div><TrendingUp size={19} /><h2>Course progress</h2></div></div><div className="mastery-list">{progress.length ? progress.map((course) => { const learned = course.completedLessonIds.length; const total = Math.max(course.totalLessons ?? learned, 1); const percent = Math.round((learned / total) * 100); return <button key={course.courseId} onClick={() => router.push(`/course/${encodeURIComponent(course.topic)}?id=${course.courseId}`)}><span><strong>{course.topic}</strong><small>{learned}/{total} lessons</small></span><i><b style={{ width: `${percent}%` }} /></i><em>{percent}%</em></button>; }) : <div className="dashboard-empty compact"><div><strong>No course progress yet</strong><p>Start a published course to see your progress here.</p></div><button className="button button-secondary" onClick={() => router.push("/library")}>Explore courses</button></div>}</div></section>
+                <section className="mastery-panel"><div className="panel-heading"><div><TrendingUp size={19} /><h2>Course progress</h2></div></div><div className="mastery-list">{progress.length ? progress.map((course) => { const learned = course.completedLessonIds.length; const total = Math.max(course.totalLessons ?? learned, 1); const percent = Math.round((learned / total) * 100); return <Link key={course.courseId} href={`/course/${encodeURIComponent(course.topic)}?id=${course.courseId}`}><span><strong>{course.topic}</strong><small>{learned}/{total} lessons</small></span><i><b style={{ width: `${percent}%` }} /></i><em>{percent}%</em></Link>; }) : <div className="dashboard-empty compact"><div><strong>No course progress yet</strong><p>Start a published course to see your progress here.</p></div><Link className="button button-secondary" href="/library">Explore courses</Link></div>}</div></section>
               </main>
 
               <aside className="progress-side-column">

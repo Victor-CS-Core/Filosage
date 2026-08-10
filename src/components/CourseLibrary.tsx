@@ -16,16 +16,20 @@ import AppDrawer, { useAppDrawer } from "@/components/AppDrawer";
 import { useLearnerState } from "@/components/useLearnerState";
 import { useAuth } from "@/components/AuthProvider";
 import type { Course } from "@/lib/course-types";
-import { deferClientTask } from "@/lib/browser-compat";
 import CourseBanner from "@/components/CourseBanner";
 import { matchesSearchQuery } from "@/lib/search";
+
+const defaultLevel = "All levels";
+const defaultCommitment = "Any commitment";
+const commitmentOptions = [defaultCommitment, "Up to 3 hours", "4 to 6 hours", "More than 6 hours"] as const;
+type Commitment = typeof commitmentOptions[number];
 
 export default function CourseLibrary({ featured = false }: { featured?: boolean }) {
   const [courses, setCourses] = useState<Course[]>([]);
   const [ownedCourses, setOwnedCourses] = useState<Course[]>([]);
   const [query, setQuery] = useState("");
-  const [level, setLevel] = useState("All levels");
-  const [commitment, setCommitment] = useState("Any commitment");
+  const [level, setLevel] = useState(defaultLevel);
+  const [commitment, setCommitment] = useState<Commitment>(defaultCommitment);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const { state, update } = useLearnerState();
@@ -67,8 +71,18 @@ export default function CourseLibrary({ featured = false }: { featured?: boolean
   }, [user]);
 
   useEffect(() => {
-    deferClientTask(() => setQuery(new URLSearchParams(window.location.search).get("q") ?? ""));
-  }, []);
+    if (featured) return;
+    const syncFiltersFromUrl = () => {
+      const params = new URLSearchParams(window.location.search);
+      const requestedCommitment = params.get("commitment");
+      setQuery(params.get("q") ?? "");
+      setLevel(params.get("level") ?? defaultLevel);
+      setCommitment(commitmentOptions.includes(requestedCommitment as Commitment) ? requestedCommitment as Commitment : defaultCommitment);
+    };
+    syncFiltersFromUrl();
+    window.addEventListener("popstate", syncFiltersFromUrl);
+    return () => window.removeEventListener("popstate", syncFiltersFromUrl);
+  }, [featured]);
 
   useEffect(() => {
     void Promise.resolve().then(load);
@@ -109,6 +123,21 @@ export default function CourseLibrary({ featured = false }: { featured?: boolean
   }, [commitment, courses, featured, level, query]);
   const drafts = useMemo(() => ownedCourses.filter((course) => !course.isPublic), [ownedCourses]);
 
+  const updateFilters = useCallback((nextQuery: string, nextLevel: string, nextCommitment: Commitment) => {
+    setQuery(nextQuery);
+    setLevel(nextLevel);
+    setCommitment(nextCommitment);
+    if (featured) return;
+    const params = new URLSearchParams(window.location.search);
+    if (nextQuery) params.set("q", nextQuery); else params.delete("q");
+    if (nextLevel !== defaultLevel) params.set("level", nextLevel); else params.delete("level");
+    if (nextCommitment !== defaultCommitment) params.set("commitment", nextCommitment); else params.delete("commitment");
+    const search = params.toString();
+    window.history.replaceState(null, "", `${window.location.pathname}${search ? `?${search}` : ""}${window.location.hash}`);
+  }, [featured]);
+
+  const resetFilters = useCallback(() => updateFilters("", defaultLevel, defaultCommitment), [updateFilters]);
+
   const toggleBookmark = (courseId: string) => update((current) => ({
     ...current,
     courseBookmarks: current.courseBookmarks.includes(courseId)
@@ -123,18 +152,18 @@ export default function CourseLibrary({ featured = false }: { featured?: boolean
           <div className="library-controls-desktop">
             <label className="search-field library-search">
               <Search size={18} /><span className="sr-only">Search published courses</span>
-              <input type="search" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search topics, lessons, skills, or courses" autoComplete="off" />
+              <input name="q" type="search" value={query} onChange={(event) => updateFilters(event.target.value, level, commitment)} placeholder="Search topics, lessons, skills, or courses" autoComplete="off" />
             </label>
             <label className="filter-field">
               <Filter size={16} /><span className="sr-only">Filter by level</span>
-              <select value={level} onChange={(event) => setLevel(event.target.value)}>
+              <select name="level" value={level} onChange={(event) => updateFilters(query, event.target.value, commitment)}>
                 {levels.map((item) => <option key={item}>{item}</option>)}
               </select>
             </label>
             <label className="filter-field">
               <Clock3 size={16} /><span className="sr-only">Filter by time commitment</span>
-              <select value={commitment} onChange={(event) => setCommitment(event.target.value)}>
-                {["Any commitment", "Up to 3 hours", "4 to 6 hours", "More than 6 hours"].map((item) => <option key={item}>{item}</option>)}
+              <select name="commitment" value={commitment} onChange={(event) => updateFilters(query, level, event.target.value as Commitment)}>
+                {commitmentOptions.map((item) => <option key={item}>{item}</option>)}
               </select>
             </label>
           </div>
@@ -155,19 +184,19 @@ export default function CourseLibrary({ featured = false }: { featured?: boolean
             <div className="app-drawer-body library-filter-fields">
               <label>
                 <span>Search published courses</span>
-                <span className="search-field"><Search size={18} /><input type="search" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Topics, lessons, skills, or courses" autoComplete="off" /></span>
+                <span className="search-field"><Search size={18} /><input name="q" type="search" value={query} onChange={(event) => updateFilters(event.target.value, level, commitment)} placeholder="Topics, lessons, skills, or courses" autoComplete="off" /></span>
               </label>
               <label>
                 <span>Time commitment</span>
-                <span className="filter-field"><Clock3 size={16} /><select value={commitment} onChange={(event) => setCommitment(event.target.value)}>{["Any commitment", "Up to 3 hours", "4 to 6 hours", "More than 6 hours"].map((item) => <option key={item}>{item}</option>)}</select></span>
+                <span className="filter-field"><Clock3 size={16} /><select name="commitment" value={commitment} onChange={(event) => updateFilters(query, level, event.target.value as Commitment)}>{commitmentOptions.map((item) => <option key={item}>{item}</option>)}</select></span>
               </label>
               <label>
                 <span>Level</span>
-                <span className="filter-field"><Filter size={16} /><select value={level} onChange={(event) => setLevel(event.target.value)}>{levels.map((item) => <option key={item}>{item}</option>)}</select></span>
+                <span className="filter-field"><Filter size={16} /><select name="level" value={level} onChange={(event) => updateFilters(query, event.target.value, commitment)}>{levels.map((item) => <option key={item}>{item}</option>)}</select></span>
               </label>
             </div>
             <footer className="app-drawer-footer">
-              <button className="button button-quiet" type="button" onClick={() => { setQuery(""); setLevel("All levels"); setCommitment("Any commitment"); }}>Reset</button>
+              <button className="button button-quiet" type="button" onClick={resetFilters}>Reset</button>
               <button className="button button-primary" type="button" onClick={filterDrawer.closeDrawer}>Show {visible.length} {visible.length === 1 ? "course" : "courses"}</button>
             </footer>
           </section>
@@ -245,10 +274,10 @@ export default function CourseLibrary({ featured = false }: { featured?: boolean
             );
           })}
           </div>
-        </section> : !featured ? <div className="state-panel"><Search size={22} /><div><h3>No matching published courses</h3><p>Your private courses are shown above. Try a broader topic, level, or time commitment.</p></div><button className="button button-secondary" onClick={() => { setQuery(""); setLevel("All levels"); setCommitment("Any commitment"); }}>Clear filters</button></div> : null}
+        </section> : !featured ? <div className="state-panel"><Search size={22} /><div><h3>No matching published courses</h3><p>Your private courses are shown above. Try a broader topic, level, or time commitment.</p></div><button className="button button-secondary" onClick={resetFilters}>Clear filters</button></div> : null}
         </>
       ) : (
-        <div className="state-panel"><Search size={22} /><div><h3>No matching courses</h3><p>Try a broader topic, level, or time commitment.</p></div><button className="button button-secondary" onClick={() => { setQuery(""); setLevel("All levels"); setCommitment("Any commitment"); }}>Clear filters</button></div>
+        <div className="state-panel"><Search size={22} /><div><h3>No matching courses</h3><p>Try a broader topic, level, or time commitment.</p></div><button className="button button-secondary" onClick={resetFilters}>Clear filters</button></div>
       )}
     </div>
   );

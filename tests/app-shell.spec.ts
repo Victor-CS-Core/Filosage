@@ -268,7 +268,7 @@ test.describe("desktop application shell", () => {
     await page.goto("/profile");
     await expectNoHorizontalPageOverflow(page);
     await expect(page.getByRole("heading", { name: "What you are building now" })).toBeVisible();
-    await expect(page.getByRole("button", { name: /Morse Code/ })).toBeVisible();
+    await expect(page.getByRole("link", { name: /Morse Code/ })).toBeVisible();
     await expect(page.getByText("How your understanding is holding")).toBeVisible();
     await expect(page.getByText("Practice evidence", { exact: true }).first()).toBeVisible();
 
@@ -333,7 +333,7 @@ test.describe("desktop application shell", () => {
 
     await page.goto("/course/Legacy%20course");
     await expect(page.getByRole("heading", { name: "Review the course brief first" })).toBeVisible();
-    await expect(page.getByRole("button", { name: "Open course studio" })).toBeVisible();
+    await expect(page.getByRole("link", { name: "Open course studio" })).toBeVisible();
     expect(generationRequests).toBe(0);
   });
 });

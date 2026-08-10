@@ -31,6 +31,7 @@ import LegalConsentModal from "@/components/LegalConsentModal";
 import MarketingFooter from "@/components/marketing/MarketingFooter";
 import MarketingNavigation from "@/components/marketing/MarketingNavigation";
 import CommandPalette, { type CommandPaletteItem } from "@/components/CommandPalette";
+import SupportCenter from "@/components/support/SupportCenter";
 import { useAuth } from "@/components/AuthProvider";
 import { useTheme } from "@/components/ThemeProvider";
 import type { Course } from "@/lib/course-types";
@@ -62,6 +63,7 @@ export default function AppShell({ children, activeTopic, activeLessonId, active
   const [courseQuery, setCourseQuery] = useState("");
   const [commandOpen, setCommandOpen] = useState(false);
   const coursesDrawer = useAppDrawer("course-switcher");
+  const supportDrawer = useAppDrawer("global-support-center");
   const accountTriggerRef = useRef<HTMLButtonElement>(null);
   const commandTriggerRef = useRef<HTMLButtonElement>(null);
   const mobileAccountTriggerRef = useRef<HTMLButtonElement>(null);
@@ -132,7 +134,7 @@ export default function AppShell({ children, activeTopic, activeLessonId, active
   const currentSection = pathname.startsWith("/course/")
     ? activeTopic ?? "Course"
     : primaryNav.find((item) => item.href === pathname)?.label
-      ?? (pathname.startsWith("/admin") ? "Control room" : pathname === "/profile" ? "Profile" : pathname === "/create" ? "Create" : "Learning workspace");
+      ?? (pathname.startsWith("/admin") ? "Control room" : pathname === "/profile" ? "Profile" : pathname === "/create" ? "Create" : pathname.startsWith("/support") ? "Support" : "Learning workspace");
 
   const commandItems = useMemo<CommandPaletteItem[]>(() => [
     ...primaryNav.map((item) => ({
@@ -264,8 +266,9 @@ export default function AppShell({ children, activeTopic, activeLessonId, active
   const openCommand = useCallback((trigger?: HTMLElement | null) => {
     commandReturnFocusRef.current = trigger ?? (document.activeElement instanceof HTMLElement ? document.activeElement : commandTriggerRef.current);
     coursesDrawer.closeDrawer();
+    supportDrawer.closeDrawer();
     setCommandOpen(true);
-  }, [coursesDrawer]);
+  }, [coursesDrawer, supportDrawer]);
 
   const closeCommand = useCallback(() => {
     setCommandOpen(false);
@@ -319,6 +322,7 @@ export default function AppShell({ children, activeTopic, activeLessonId, active
         <MarketingNavigation theme={theme} onToggleTheme={toggle} onSignIn={() => setShowAuth(true)} />
         <main className="public-main" id="main-content" tabIndex={-1}>{children}</main>
         <MarketingFooter />
+        <SupportCenter onRequestSignIn={() => setShowAuth(true)} />
         {showAuth && <AuthModal onClose={() => setShowAuth(false)} />}
       </div>
     );
@@ -354,7 +358,7 @@ export default function AppShell({ children, activeTopic, activeLessonId, active
           >
             {user?.photoURL ? (
               // eslint-disable-next-line @next/next/no-img-element
-              <img src={user.photoURL} alt="" referrerPolicy="no-referrer" />
+              <img src={user.photoURL} alt="" width={32} height={32} referrerPolicy="no-referrer" />
             ) : <span className="avatar-fallback"><UserRound size={16} /></span>}
             <span className="learning-account-copy"><strong>{firstName}</strong><small>{account?.plan === "pro" ? "Pro account" : account?.plan === "plus" ? "Plus account" : "Account"}</small></span>
             <Command className="command-indicator" size={15} aria-hidden="true" />
@@ -363,14 +367,14 @@ export default function AppShell({ children, activeTopic, activeLessonId, active
       </header>
 
       <header className="learner-mobile-header">
-        <button className="brand brand-mobile" onClick={() => navigate("/")} aria-label="Filosage home">
+        <Link className="brand brand-mobile" href="/" aria-label="Filosage home">
           <span className="brand-mark" aria-hidden="true"><FilosageMark /></span><strong className="brand-wordmark"><span>Filo</span><span>sage</span></strong>
-        </button>
+        </Link>
         <div className="learner-mobile-actions">
           <button ref={mobileAccountTriggerRef} className="mobile-account-trigger" type="button" onClick={() => openCommand(mobileAccountTriggerRef.current)} aria-expanded={commandOpen} aria-controls="command-palette" aria-haspopup="dialog" aria-label={`Open Command Center for ${firstName}, ${account?.plan === "pro" ? "Filosage Pro" : account?.plan === "plus" ? "Filosage Plus" : "free plan"}`}>
             {user.photoURL ? (
               // eslint-disable-next-line @next/next/no-img-element
-              <img src={user.photoURL} alt="" referrerPolicy="no-referrer" />
+              <img src={user.photoURL} alt="" width={30} height={30} referrerPolicy="no-referrer" />
             ) : <span className="avatar-fallback"><UserRound size={15} /></span>}
             <span>{account?.plan === "pro" ? "Pro" : account?.plan === "plus" ? "Plus" : "Free"}</span>
             <Command className="command-indicator" size={15} aria-hidden="true" />
@@ -406,13 +410,14 @@ export default function AppShell({ children, activeTopic, activeLessonId, active
 
       <nav className="mobile-bottom-nav" aria-label="Mobile navigation">
         {primaryNav.slice(0, 2).map(({ href, label, icon: Icon }) => (
-          <button key={href} className={pathname === href ? "is-active" : ""} onClick={() => navigate(href)} aria-current={pathname === href ? "page" : undefined}><Icon size={20} /><span>{label}</span></button>
+          <Link key={href} className={pathname === href ? "is-active" : ""} href={href} aria-current={pathname === href ? "page" : undefined}><Icon size={20} aria-hidden="true" /><span>{label}</span></Link>
         ))}
-        <button className={`mobile-create ${pathname === (canCreateCourses ? "/create" : "/pricing") ? "is-active" : ""}`} onClick={() => navigate(canCreateCourses ? "/create" : "/pricing")} aria-label={canCreateCourses ? "Create course" : "Compare memberships"} aria-current={pathname === (canCreateCourses ? "/create" : "/pricing") ? "page" : undefined}><Plus size={22} /></button>
+        <Link className={`mobile-create ${pathname === (canCreateCourses ? "/create" : "/pricing") ? "is-active" : ""}`} href={canCreateCourses ? "/create" : "/pricing"} aria-label={canCreateCourses ? "Create course" : "Compare memberships"} aria-current={pathname === (canCreateCourses ? "/create" : "/pricing") ? "page" : undefined}><Plus size={22} aria-hidden="true" /></Link>
         {primaryNav.slice(2).map(({ href, label, icon: Icon }) => (
-          <button key={href} className={pathname === href ? "is-active" : ""} onClick={() => navigate(href)} aria-current={pathname === href ? "page" : undefined}><Icon size={20} /><span>{label}</span></button>
+          <Link key={href} className={pathname === href ? "is-active" : ""} href={href} aria-current={pathname === href ? "page" : undefined}><Icon size={20} aria-hidden="true" /><span>{label}</span></Link>
         ))}
       </nav>
+      <SupportCenter onBeforeOpen={() => setCommandOpen(false)} />
       {account?.legalAcceptanceRequired && !isLegalPage && <LegalConsentModal />}
     </div>
   );

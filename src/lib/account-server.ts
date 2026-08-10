@@ -83,10 +83,10 @@ async function resolveAccount(
     const subscribedPlan = isPaidLearnerPlan(existing?.billingPlan) ? existing.billingPlan : "pro";
     const plan: LearnerPlan = isOwner || allowlisted
       ? "pro"
-      : manualPlanActive && manualPlan
-        ? manualPlan
       : subscribed
         ? subscribedPlan
+      : manualPlanActive && manualPlan
+        ? manualPlan
         : "free";
     const access: ServerAccount["access"] = isOwner ? "owner" : plan;
     const accountStatus: AccountStatus = isOwner

@@ -1,7 +1,7 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
 import { ArrowRight, Award, BookOpenCheck, BrainCircuit, BriefcaseBusiness, CalendarClock, CheckCircle2, CircleDot, LoaderCircle, SlidersHorizontal, Target, UserRound } from "lucide-react";
 import AchievementBadge from "@/components/AchievementBadge";
 import AppShell from "@/components/AppShell";
@@ -25,7 +25,6 @@ import {
 type BadgeFilter = "all" | "earned" | "in-progress";
 
 export default function ProfilePage() {
-  const router = useRouter();
   const { user, account, canCreateCourses, loading: authLoading, signInWithGoogle } = useAuth();
   const { state, update, syncStatus } = useLearnerState();
   const [progress, setProgress] = useState<CourseProgress[]>([]);
@@ -102,11 +101,11 @@ export default function ProfilePage() {
               <main>
                 <section className="profile-focus" aria-labelledby="profile-focus-title">
                   <div className="profile-section-heading"><div><p className="overline">Current direction</p><h2 id="profile-focus-title">What you are building now</h2><p>Your profile leads with the next capability in motion, not a lifetime total.</p></div></div>
-                  {focusCourse ? <button type="button" className="profile-focus-course" onClick={() => router.push(focusCourse.nextLessonId ? `/course/${encodeURIComponent(focusCourse.topic)}/lesson/${focusCourse.nextLessonId}?id=${focusCourse.courseId}` : `/course/${encodeURIComponent(focusCourse.topic)}?id=${focusCourse.courseId}`)}>
+                  {focusCourse ? <Link className="profile-focus-course" href={focusCourse.nextLessonId ? `/course/${encodeURIComponent(focusCourse.topic)}/lesson/${focusCourse.nextLessonId}?id=${focusCourse.courseId}` : `/course/${encodeURIComponent(focusCourse.topic)}?id=${focusCourse.courseId}`}>
                     <span><small>{focusCourse.nextLessonId ? "Next lesson" : "Course review"}</small><strong>{focusCourse.topic}</strong><p>{focusCourse.nextLessonTitle ?? "Review your course outcome and completed work."}</p></span>
                     <span className="profile-focus-progress"><i><b style={{ width: `${focusPercent}%` }} /></i><em>{focusCompleted} of {focusTotal} lessons</em></span>
                     <ArrowRight size={18} />
-                  </button> : <div className="profile-focus-empty"><BrainCircuit size={22} /><div><strong>Choose the capability you want to build.</strong><p>Start a course and this space will show the clearest next action.</p></div><button className="button button-secondary" type="button" onClick={() => router.push("/library")}>Explore courses</button></div>}
+                  </Link> : <div className="profile-focus-empty"><BrainCircuit size={22} /><div><strong>Choose the capability you want to build.</strong><p>Start a course and this space will show the clearest next action.</p></div><Link className="button button-secondary" href="/library">Explore courses</Link></div>}
                 </section>
 
                 <section className="profile-capability" aria-labelledby="profile-capability-title">
@@ -117,7 +116,7 @@ export default function ProfilePage() {
                     <div><span className="is-fragile"><CalendarClock size={16} /></span><strong>{bands.fragile}</strong><small>Fragile</small><p>Prioritize review.</p></div>
                     <div><span><Target size={16} /></span><strong>{calibration.measured ? `${Math.round((calibration.calibrated / calibration.measured) * 100)}%` : "Not measured"}</strong><small>Calibrated</small><p>{calibration.measured ? `${calibration.measured} confidence checks measured.` : "Complete a check to measure calibration."}</p></div>
                   </div>
-                  <button className="text-button profile-record-link" type="button" onClick={() => router.push("/progress")}>Open the full learning record <ArrowRight size={15} /></button>
+                  <Link className="text-button profile-record-link" href="/progress">Open the full learning record <ArrowRight size={15} /></Link>
                 </section>
 
                 <section className="profile-achievements" id="achievements">
@@ -135,7 +134,7 @@ export default function ProfilePage() {
                   <strong>{Math.min(weeklyCompleted, state.weeklyLessonGoal)} of {state.weeklyLessonGoal} concept sessions</strong>
                   <div className="goal-track"><span style={{ width: `${Math.min(100, (weeklyCompleted / state.weeklyLessonGoal) * 100)}%` }} /></div>
                   <p>{weeklyCompleted >= state.weeklyLessonGoal ? `Goal complete with a ${streak}-day learning rhythm.` : `${Math.max(0, state.weeklyLessonGoal - weeklyCompleted)} session${state.weeklyLessonGoal - weeklyCompleted === 1 ? "" : "s"} left this week. Your current streak is ${streak} day${streak === 1 ? "" : "s"}.`}</p>
-                  <button onClick={() => router.push("/progress")}>Review learning activity</button>
+                  <Link href="/progress">Review learning activity</Link>
                 </section>
 
                 <section className="profile-preferences">
@@ -147,14 +146,14 @@ export default function ProfilePage() {
                 <section className="profile-library-summary">
                   <div className="profile-side-heading"><BookOpenCheck size={18} /><h2>{canCreateCourses || authoredCourses.length ? "Learning and authoring" : "Your library"}</h2></div>
                   <dl><div><dt>Courses in progress</dt><dd>{progress.length}</dd></div><div><dt>Lessons completed</dt><dd>{lessons.length}</dd></div>{(canCreateCourses || authoredCourses.length > 0) && <><div><dt>Private drafts</dt><dd>{draftCourses}</dd></div><div><dt>Published courses</dt><dd>{publishedCourses}</dd></div></>}</dl>
-                  <button onClick={() => router.push(canCreateCourses ? "/create" : "/library")}>{canCreateCourses ? "Open course studio" : "Explore courses"}</button>
+                  <Link href={canCreateCourses ? "/create" : "/library"}>{canCreateCourses ? "Open course studio" : "Explore courses"}</Link>
                 </section>
 
                 <section className="profile-badge-note"><Award size={19} /><div><strong>Recognition follows useful work.</strong><p>Badges stay secondary to demonstrated understanding, review evidence, and finished course work.</p></div></section>
                 <section className="profile-preferences">
                   <div className="profile-side-heading"><UserRound size={18} /><h2>Account and privacy</h2></div>
                   <p>Download your information, submit a privacy request, or close your account.</p>
-                  <button onClick={() => router.push("/privacy-center")}>Open privacy center</button>
+                  <Link href="/privacy-center">Open privacy center</Link>
                 </section>
               </aside>
             </div>

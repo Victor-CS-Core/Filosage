@@ -45,6 +45,7 @@ export async function POST(request: Request) {
   const repairProfile = openAiExecutionProfile("course.repair");
   const recoveryProfile = openAiExecutionProfile("course.recovery");
   let reservation: AiReservation | null = null;
+  let bannerReservation: AiReservation | null = null;
   let observedUsage = { inputTokens: 0, cachedInputTokens: 0, cacheWriteTokens: 0, outputTokens: 0 };
   let observedUsageSamples: AiUsageSample[] | null = null;
   let responseId: string | undefined;
@@ -280,40 +281,46 @@ export async function POST(request: Request) {
     }, reservation.requestId);
     await completeCourseCapacityReservation(capacityReservation, course.id);
 
-    const bannerResult = await createOrReuseCourseBanner(client, {
-      topic,
-      category: outline.category,
-      outcome: outline.outcome,
-      mission: outline.mission,
-      safetyIdentifier,
-    });
-    let attachedBanner = bannerResult?.banner;
-    if (attachedBanner) {
-      try {
+    let attachedBanner: { assetId: string; version: 1; generatedAt?: string } | undefined;
+    try {
+      bannerReservation = await reserveAiUsage(account, "course_banner", idempotencyKey);
+      const bannerResult = await createOrReuseCourseBanner(client, {
+        topic,
+        category: outline.category,
+        outcome: outline.outcome,
+        mission: outline.mission,
+        safetyIdentifier,
+      });
+      attachedBanner = bannerResult?.banner;
+      if (attachedBanner) {
         await updateCourseBanner(course.id, {
           ...attachedBanner,
           generatedAt: attachedBanner.generatedAt ?? new Date().toISOString(),
         });
-      } catch (bannerError) {
-        attachedBanner = undefined;
-        console.error("Course banner attachment failed:", bannerError);
       }
+      await finalizeAiUsage(bannerReservation, {
+        usageSamples: bannerResult?.generated ? [{
+          model: bannerResult.model,
+          inputTokens: 0,
+          cachedInputTokens: 0,
+          cacheWriteTokens: 0,
+          outputTokens: 0,
+          fixedCostMicros: bannerResult.costMicros,
+        }] : [],
+        resultId: course.id,
+      });
+      bannerReservation = null;
+    } catch (bannerError) {
+      if (bannerReservation) {
+        await finalizeAiUsage(bannerReservation, { failed: true }).catch(() => undefined);
+        bannerReservation = null;
+      }
+      attachedBanner = undefined;
+      console.error("Initial course banner generation failed:", bannerError);
     }
 
-    const usageSamples: AiUsageSample[] = [...outlineUsageSamples];
-    if (bannerResult?.generated) {
-      usageSamples.push({
-        model: bannerResult.model,
-        inputTokens: 0,
-        cachedInputTokens: 0,
-        cacheWriteTokens: 0,
-        outputTokens: 0,
-        fixedCostMicros: bannerResult.costMicros,
-        responseId: undefined,
-      });
-    }
-    observedUsageSamples = usageSamples;
-    await finalizeAiUsage(reservation, { usageSamples, resultId: course.id });
+    observedUsageSamples = outlineUsageSamples;
+    await finalizeAiUsage(reservation, { usageSamples: outlineUsageSamples, resultId: course.id });
     reservation = null;
 
     return NextResponse.json({
@@ -334,6 +341,11 @@ export async function POST(request: Request) {
         : undefined,
     });
   } catch (error: unknown) {
+    if (bannerReservation) {
+      await finalizeAiUsage(bannerReservation, { failed: true }).catch((usageError) => {
+        console.error("Course banner usage finalization failed:", usageError);
+      });
+    }
     await releaseCourseCapacityReservation(capacityReservation).catch((capacityError) => {
       console.error("Course capacity release failed:", capacityError);
     });

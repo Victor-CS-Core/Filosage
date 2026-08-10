@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import {
@@ -174,14 +175,14 @@ export default function EvidenceReportPage() {
     return <AppShell><div className="center-state"><LoaderCircle className="spin" size={25} /><h1>Building your evidence report</h1></div></AppShell>;
   }
   if (error || !course) {
-    return <AppShell><div className="center-state"><FileCheck2 size={26} /><p className="overline">Evidence report</p><h1>This report cannot be opened.</h1><p>{error}</p><button className="button button-secondary" onClick={() => router.push("/library")}>Browse courses</button></div></AppShell>;
+    return <AppShell><div className="center-state"><FileCheck2 size={26} /><p className="overline">Evidence report</p><h1>This report cannot be opened.</h1><p>{error}</p><Link className="button button-secondary" href="/library">Browse courses</Link></div></AppShell>;
   }
 
   return (
     <AppShell activeTopic={course.topic} activeCourseId={courseId} activeCourse={course}>
       <div className="evidence-page">
         <header className="evidence-header">
-          <button className="text-button" onClick={() => router.push(`/course/${encodeURIComponent(course.topic)}?id=${courseId}`)}><ArrowLeft size={15} /> Course overview</button>
+          <Link className="text-button" href={`/course/${encodeURIComponent(course.topic)}?id=${courseId}`}><ArrowLeft size={15} /> Course overview</Link>
           <div><p className="overline">Evidence report</p><h1>{course.topic}</h1><p>{journey.plan?.desiredOutcome ?? course.outcome ?? course.mission}</p></div>
           <button className="button button-secondary" disabled={sharing} onClick={() => void copySummary()}>{sharing ? <LoaderCircle className="spin" size={16} /> : copied ? <Clipboard size={16} /> : <Share2 size={16} />} {sharing ? "Preparing link" : copied ? "Share summary copied" : "Copy share summary"}</button>
         </header>
@@ -196,7 +197,7 @@ export default function EvidenceReportPage() {
           <section className="evidence-empty">
             <TargetIcon />
             <div><h2>Define the outcome first.</h2><p>The course diagnostic creates the baseline and connects every later activity to a concrete goal.</p></div>
-            <button className="button button-primary" onClick={() => router.push(`/course/${encodeURIComponent(course.topic)}?id=${courseId}`)}>Create learning plan</button>
+            <Link className="button button-primary" href={`/course/${encodeURIComponent(course.topic)}?id=${courseId}`}>Create learning plan</Link>
           </section>
         )}
 

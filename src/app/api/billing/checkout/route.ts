@@ -5,7 +5,7 @@ import { billingConfiguration } from "@/lib/runtime-config";
 import { enforceDurableRateLimit } from "@/lib/request-rate-limit";
 import { BillingCheckoutInProgressError, createCheckoutSession } from "@/lib/stripe-server";
 import { recordServerProductEvent } from "@/lib/product-events-server";
-import { isBillingInterval, isPaidLearnerPlan } from "@/lib/membership-plans";
+import { isBillingInterval, isPaidLearnerPlan, paidPlanFor } from "@/lib/membership-plans";
 
 export async function POST(request: Request) {
   try {
@@ -27,6 +27,9 @@ export async function POST(request: Request) {
     await recordServerProductEvent("checkout_started", {
       route: "/pricing",
       actorId: account.uid,
+      planId: body.planId,
+      billingInterval: body.interval,
+      offerVersion: paidPlanFor(body.planId).offerVersion,
     });
     return Response.json({ url }, { headers: { "Cache-Control": "private, no-store" } });
   } catch (error) {

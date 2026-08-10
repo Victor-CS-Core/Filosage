@@ -1,7 +1,8 @@
 "use client";
 
+import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useParams, useRouter, useSearchParams } from "next/navigation";
+import { useParams, useSearchParams } from "next/navigation";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import {
@@ -276,7 +277,6 @@ function KnowledgeCheck({
 export default function LessonView() {
   const params = useParams<{ topic: string; lessonId: string }>();
   const searchParams = useSearchParams();
-  const router = useRouter();
   const topic = decodeURIComponent(params.topic);
   const lessonId = params.lessonId;
   const courseId = searchParams.get("id");
@@ -1147,7 +1147,7 @@ export default function LessonView() {
           <p>You can inspect the complete course structure as a guest. Create a free account to read lessons, practice, and keep your progress.</p>
           <div className="state-actions">
             <button className="button button-primary" onClick={() => void signInWithGoogle()}><LockKeyhole size={16} /> Create a free account</button>
-            <button className="button button-secondary" onClick={() => router.push(`/course/${encodeURIComponent(topic)}${courseId ? `?id=${courseId}` : ""}`)}><ArrowLeft size={16} /> Back to course</button>
+            <Link className="button button-secondary" href={`/course/${encodeURIComponent(topic)}${courseId ? `?id=${courseId}` : ""}`}><ArrowLeft size={16} /> Back to course</Link>
           </div>
         </div>
       </AppShell>
@@ -1217,7 +1217,7 @@ export default function LessonView() {
           <h1>This concept isn’t ready to open</h1>
           <p>{error || "The lesson could not be found."}</p>
           <div className="state-actions">
-            <button className="button button-secondary" onClick={() => router.push(`/course/${encodeURIComponent(topic)}${courseId ? `?id=${courseId}` : ""}`)}><ArrowLeft size={16} /> Back to course</button>
+            <Link className="button button-secondary" href={`/course/${encodeURIComponent(topic)}${courseId ? `?id=${courseId}` : ""}`}><ArrowLeft size={16} /> Back to course</Link>
             {canGenerateLessons && <button className="button button-primary" onClick={loadLesson}>Try again</button>}
           </div>
         </div>
@@ -1230,7 +1230,7 @@ export default function LessonView() {
       <div className="lesson-page">
         <header className="lesson-toolbar">
           <nav aria-label="Breadcrumb">
-            <button onClick={() => router.push(`/course/${encodeURIComponent(topic)}?id=${courseId}`)}>{topic}</button>
+            <Link href={`/course/${encodeURIComponent(topic)}?id=${courseId}`}>{topic}</Link>
             <ChevronRight size={14} />
             <span>{currentModule?.title}</span>
           </nav>
@@ -1501,18 +1501,18 @@ export default function LessonView() {
 
               <nav className="lesson-navigation" aria-label="Lesson navigation">
                 {previousLesson ? (
-                  <button className="lesson-nav-link lesson-nav-previous" onClick={() => router.push(lessonHref(previousLesson.id))}>
+                  <Link className="lesson-nav-link lesson-nav-previous" href={lessonHref(previousLesson.id)}>
                     <ArrowLeft size={17} /><span><small>Previous</small><strong>{previousLesson.title}</strong></span>
-                  </button>
+                  </Link>
                 ) : (
-                  <button className="lesson-nav-link lesson-nav-previous" onClick={() => router.push(`/course/${encodeURIComponent(topic)}?id=${courseId}`)}>
+                  <Link className="lesson-nav-link lesson-nav-previous" href={`/course/${encodeURIComponent(topic)}?id=${courseId}`}>
                     <ArrowLeft size={17} /><span><small>Return to</small><strong>Course overview</strong></span>
-                  </button>
+                  </Link>
                 )}
                 {nextLesson && (
-                  <button className="lesson-nav-link lesson-nav-next" onClick={() => router.push(lessonHref(nextLesson.id))}>
+                  <Link className="lesson-nav-link lesson-nav-next" href={lessonHref(nextLesson.id)}>
                     <span><small>Next lesson</small><strong>{nextLesson.title}</strong></span><ArrowRight size={17} />
-                  </button>
+                  </Link>
                 )}
               </nav>
               </div>

@@ -15,6 +15,7 @@ import {
   openAiSafetyIdentifier,
   reserveAiUsage,
   type AiReservation,
+  getAiQuotaSummaries,
 } from "@/lib/ai-usage";
 import { createOrReuseCourseBanner } from "@/lib/course-banners";
 import { toCourseDto } from "@/lib/course-dto";
@@ -73,8 +74,10 @@ export async function POST(request: Request, { params }: RouteParams) {
     claimed = false;
 
     const updatedCourse = await getCourse(courseId);
+    const canGenerateBanner = account.isOwner || (await getAiQuotaSummaries(account))
+      .some((quota) => quota.feature === "course_banner" && quota.remaining !== 0);
     return NextResponse.json(
-      toCourseDto(updatedCourse ?? { ...course, banner, bannerRegenerationCount: 1 }, true),
+      toCourseDto(updatedCourse ?? { ...course, banner, bannerRegenerationCount: Number(course.bannerRegenerationCount ?? 0) + 1 }, true, canGenerateBanner),
       { headers: { "Cache-Control": "private, no-store" } },
     );
   } catch (error: unknown) {

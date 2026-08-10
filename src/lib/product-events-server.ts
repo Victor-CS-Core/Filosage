@@ -6,6 +6,7 @@ import {
   type ProductEventRoute,
   type ServerRecordedProductEventName,
 } from "@/lib/product-events";
+import type { BillingInterval, PaidLearnerPlan } from "@/lib/membership-plans";
 
 export async function recordServerProductEvent(
   event: ServerRecordedProductEventName,
@@ -17,6 +18,9 @@ export async function recordServerProductEvent(
     referralCode?: string;
     score?: number;
     eventId?: string;
+    planId?: PaidLearnerPlan;
+    billingInterval?: BillingInterval;
+    offerVersion?: string;
   },
 ) {
   const now = new Date().toISOString();
@@ -33,6 +37,9 @@ export async function recordServerProductEvent(
     lessonId: details.lessonId,
     referralCode: details.referralCode,
     score: details.score,
+    planId: details.planId,
+    billingInterval: details.billingInterval,
+    offerVersion: details.offerVersion,
     createdAt: now,
   };
   if (details.eventId) {

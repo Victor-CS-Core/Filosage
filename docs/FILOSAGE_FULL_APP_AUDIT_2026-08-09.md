@@ -12,9 +12,9 @@ The previously blocked product contract is approved as follows:
 
 1. Stable plans are `free`, `plus`, and `pro`; the display name of the new tier is **Filosage Plus**.
 2. Plus costs $9.99 monthly or $79.92 yearly, displayed as a $6.66 monthly equivalent with $39.96 exact annual savings. Pro remains $14.99 monthly or $119.88 yearly.
-3. Plus supports one active owned private course, one generated outline, ten generated lessons, forty tutor questions, and ten generated course banners per month.
+3. Plus supports one active owned private course, one generated outline, ten generated lessons, forty tutor questions, and ten course-banner generation requests per month; failed requests still consume an allowance.
 4. Plus includes private authoring but excludes public course publishing and additional concurrently owned courses. Course duplication is not advertised or granted because the product does not implement it.
-5. Pro keeps its existing three-outline, thirty-lesson, one-hundred-tutor-question, and thirty-banner monthly allowances, has no owned-course cap, and includes publication after review.
+5. Pro keeps its existing three-outline, thirty-lesson, one-hundred-tutor-question, and thirty course-banner generation-request monthly allowances, has no owned-course cap, and includes publication after review; failed requests still consume an allowance.
 6. Downgrades are non-destructive: existing courses and publication state remain; new course creation pauses while the account exceeds its new limit, and newly restricted mutations such as publishing are blocked. Viewing, editing, unpublishing, and deleting owned work remain available.
 7. Billing stays closed with `BILLING_ENABLED=false`; this approval authorizes product implementation, not Stripe object creation or paid activation.
 
@@ -37,15 +37,17 @@ Still intentionally excluded or blocked:
 - The Erudoza domain and support mailboxes remain until Filosage replacements are provisioned as one coordinated migration.
 - Paid activation remains blocked by the legal and operational launch register. `BILLING_ENABLED=false` remains mandatory; implementation does not authorize Stripe object creation or a paid launch.
 
-## Executive summary
+## Pre-implementation baseline (historical and superseded)
 
-- Current model: Free plus one generic Pro entitlement.
-- Current paid offer: Filosage Pro at $14.99 monthly or $119.88 yearly.
-- Current creation allowance: three AI-generated course outlines per calendar month, not a maximum course count.
+The findings in this section document the two-tier baseline that existed before the implemented Free/Plus/Pro contract described above. They are retained as audit history and are not a statement of the current application model.
+
+- Baseline model: Free plus one generic Pro entitlement.
+- Baseline paid offer: Filosage Pro at $14.99 monthly or $119.88 yearly.
+- Baseline creation allowance: three AI-generated course outlines per calendar month, not a maximum course count.
 - Baseline verification: lint passed, production build passed, and 432/432 Playwright tests passed.
 - Rendered verification: pricing, navigation, footer, legal links, guest CTAs, desktop layout, 375px layout, and the not-found state were inspected. No document-level horizontal overflow was observed at 375px.
 - Browser console: repeated Next.js LCP warnings for the theme logo.
-- Architecture blocker: `LearnerPlan` only supports `"free" | "pro"`; Stripe prices map to the same generic Pro state, so the application cannot express limited Pro.
+- Historical architecture blocker: `LearnerPlan` only supported `"free" | "pro"`; the implemented model now supports stable Free, Plus, and Pro IDs.
 - Commercial blocker: operator identity, address, governing jurisdiction, tax/refund treatment, lifecycle messaging, and payment-lifecycle evidence remain open launch gates.
 
 ## Audit health score
@@ -61,9 +63,9 @@ Still intentionally excluded or blocked:
 
 Anti-pattern verdict: pass. The interface does not read as generic AI SaaS. Inter is intentionally required by `DESIGN.md`, so the detector's generic “overused font” warning is not treated as a defect.
 
-## Phase 1: current source of truth
+## Phase 1: pre-implementation source of truth (historical)
 
-### Current plans and enforcement
+### Baseline plans and enforcement
 
 | Plan | Displayed price | Actual billing configuration | Course creation | Other AI allowances | Entitlement source |
 | --- | --- | --- | --- | --- | --- |
@@ -119,7 +121,7 @@ The backend's 30 monthly course-banner allowance is not shown on the pricing pag
 - Location: `src/lib/course-types.ts`, `src/lib/account-server.ts`, `src/lib/stripe-server.ts`.
 - Reproduction: inspect `LearnerPlan`, account derivation, checkout metadata, and webhook synchronization.
 - Expected: each paid price resolves to a stable plan ID and entitlement key.
-- Actual: the only plan union is `free | pro`; any recognized active/trialing subscription becomes generic Pro.
+- Historical actual: the plan union was `free | pro`; the implemented catalog and Price mapping now distinguish Plus and Pro.
 - Likely cause: the application was built for one paid offer.
 - Recommended correction: introduce stable plan IDs and price-to-plan resolution before adding UI or Stripe IDs.
 
@@ -166,7 +168,7 @@ The backend's 30 monthly course-banner allowance is not shown on the pricing pag
 - Location: `src/app/pricing/page.tsx`.
 - Reproduction: compare current cards with the required fields.
 - Expected: every paid plan shows monthly price, annual total, exact savings, annual monthly equivalent, course limit, included/restricted Pro features, upgrade path, CTA, checkout destination, and current-plan state.
-- Actual: only Free and Pro render; exclusions and upgrade/downgrade paths are absent; exact dollar savings are not shown; the selected interval does not change the primary displayed price.
+- Historical actual: only Free and Pro rendered; the implemented comparison now renders Free, Plus, and Pro from the shared catalog.
 - Likely cause: the page is a closed-launch two-card offer, not a multi-tier comparison system.
 - Recommended correction: render all plan cards from the shared catalog and make interval selection control the primary amount and CTA payload.
 
@@ -217,12 +219,12 @@ The backend's 30 monthly course-banner allowance is not shown on the pricing pag
 - Likely cause: it is outside the current product contract.
 - Recommended correction: decide whether duplication belongs in any tier before advertising it; if added, copy only authorized course data and reset learner/publication state.
 
-#### M4. Current pricing metadata assumes only Free and Pro
+#### M4. Historical pricing metadata assumed only Free and Pro
 
 - Location: `src/app/pricing/layout.tsx`, support article, landing CTAs.
 - Reproduction: inspect page description and plan/billing support copy.
 - Expected: metadata and help content describe every active tier.
-- Actual: copy compares only Free and Pro and describes one launch list.
+- Historical actual: copy compared only Free and Pro; current metadata and help content cover Plus and Pro.
 - Likely cause: one paid plan.
 - Recommended correction: generate metadata/help summaries from approved plan terminology or update them in the same tier change.
 
@@ -263,8 +265,8 @@ The backend's 30 monthly course-banner allowance is not shown on the pricing pag
 | Pricing and interval controls | Rendered desktop/375px plus billing tests | Existing offer works; multi-tier requirements are absent. |
 | Legal, support, not-found | Rendered inspection plus E2E | Pass for closed billing; paid launch is explicitly blocked by unresolved disclosures. |
 | Signup/onboarding/legal acceptance | Playwright account-onboarding suite | Pass in isolated local fixtures; no external Google account was created during this audit. |
-| Learning, notes, tutor, progress, review, evidence | Full Playwright suite | Pass for current Free/Pro model. |
-| Course creation/generation/publishing/deletion | Full Playwright suite and route audit | Pass for current Pro/owner model; duplication is absent; no real production course was deleted. |
+| Learning, notes, tutor, progress, review, evidence | Full Playwright suite | Passed against the historical Free/Pro baseline; current tier coverage is tracked by the implementation tests. |
+| Course creation/generation/publishing/deletion | Full Playwright suite and route audit | Passed against the historical Pro/owner baseline; duplication is absent; no real production course was deleted. |
 | Checkout/portal/webhooks | Billing lifecycle and offer tests | Closed-lock and mocked lifecycle pass; no live/test Stripe checkout was executed in this audit. |
 | Direct API authorization | Route guards plus Playwright tests | Current premium/owner boundaries pass; there is no new-tier policy to test. |
 | Upgrade/downgrade/reactivation/renewal | Static lifecycle audit | Generic Pro subscription states exist; plan-to-plan transitions do not. |

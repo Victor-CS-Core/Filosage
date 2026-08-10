@@ -10,7 +10,7 @@ export const ownerDocumentation: OwnerDocumentation = {
     {
       id: "product-and-access",
       title: "Product and access model",
-      summary: "Understand what Filosage promises and how guest, learner, Pro, and owner permissions differ.",
+      summary: "Understand what Filosage promises and how guest, Free, Plus, Pro, and owner permissions differ.",
       topics: [
         {
           title: "Product contract",
@@ -19,7 +19,7 @@ export const ownerDocumentation: OwnerDocumentation = {
         },
         {
           title: "Access levels",
-          body: "Guests discover published topics. Verified free accounts can open published lessons and save learning. Pro access adds private course authoring and staged generation. The verified owner has publication, moderation, operational, and Command Center privileges. Server routes repeat these checks; hiding a button is never the authorization boundary.",
+          body: "Guests discover published topics. Verified Free accounts can open published lessons and save learning. Plus adds one active private course with metered generation. Pro removes the owned-course cap and can publish after sequential completion, attestation, and review. The verified owner retains platform-wide moderation, operational, and Command Center privileges. Server routes repeat these checks; hiding a button is never the authorization boundary.",
           steps: [
             "Use the public library to verify what anonymous visitors can inspect.",
             "Use the profile to confirm a learner's current plan and account state.",
@@ -119,7 +119,7 @@ export const ownerDocumentation: OwnerDocumentation = {
         },
         {
           title: "Safety boundary",
-          body: "Simulation mode is locked on. Auto-send, refunds, account restrictions, deletion, takedown, policy changes, and public status updates remain off. The global kill switch blocks future agent execution while keeping evidence available for review.",
+          body: "Draft-agent simulation is locked on. Agents cannot auto-send, refund, restrict accounts, delete data, remove content, change policy, or publish status updates. A verified owner may separately publish a support reply from a learner ticket; that deliberate action is immediately visible to the requester and recorded in the audit log. The global kill switch blocks future agent execution while keeping evidence available for review.",
         },
       ],
       sources: ["src/app/support/page.tsx", "src/app/api/support/tickets/route.ts", "src/app/admin/command-center/page.tsx", "src/lib/command-center-server.ts", "src/lib/command-center-policy.ts"],

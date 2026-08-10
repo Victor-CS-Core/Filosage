@@ -14,6 +14,11 @@ export class ApiRequestError extends Error {
 function allowedOrigins(request: Request) {
   const url = new URL(request.url);
   const values = new Set([url.origin]);
+  if (serverEnvironment.NODE_ENV !== "production" && ["localhost", "127.0.0.1", "[::1]"].includes(url.hostname)) {
+    for (const hostname of ["localhost", "127.0.0.1", "[::1]"]) {
+      values.add(`${url.protocol}//${hostname}${url.port ? `:${url.port}` : ""}`);
+    }
+  }
   const configured = [serverEnvironment.NEXT_PUBLIC_SITE_URL, ...(serverEnvironment.ALLOWED_ORIGINS ?? "").split(",")];
   for (const candidate of configured) {
     const value = candidate?.trim();

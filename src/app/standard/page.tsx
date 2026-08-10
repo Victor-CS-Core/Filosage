@@ -1,6 +1,6 @@
 "use client";
 
-import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { ArrowRight, BookOpenCheck, CalendarCheck2, Check, Flag, Lightbulb, ShieldCheck, Target, Waypoints } from "lucide-react";
 import AppShell from "@/components/AppShell";
 
@@ -43,7 +43,6 @@ const requirements = [
 ];
 
 export default function TeachingStandardPage() {
-  const router = useRouter();
   return (
     <AppShell>
       <div className="standard-page">
@@ -91,7 +90,7 @@ export default function TeachingStandardPage() {
         </section>
 
         <div className="standard-cta">
-          <button className="button button-primary" onClick={() => router.push("/library")}>See courses held to this standard <ArrowRight size={16} /></button>
+          <Link className="button button-primary" href="/library">See courses held to this standard <ArrowRight size={16} /></Link>
         </div>
       </div>
     </AppShell>

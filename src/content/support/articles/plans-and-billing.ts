@@ -16,10 +16,10 @@ Filosage does not currently offer a new paid checkout. Joining the membership la
 ## Memberships
 
 - **Free** opens published courses, progress, review scheduling, and five tutor questions each month.
-- **Filosage Plus** is designed for one active private course at a time, with one generated outline, ten generated lessons, forty tutor questions, and ten course banners each month. Plus does not include public publishing.
-- **Filosage Pro** removes the owned-course cap, includes three generated outlines, thirty generated lessons, one hundred tutor questions, and thirty course banners each month, and includes course publishing after review.
+- **Filosage Plus** is designed for one active private course at a time, with one generated outline, ten generated lessons, forty tutor questions, and ten course-banner generation requests each month. Plus does not include public publishing.
+- **Filosage Pro** removes the owned-course cap, includes three generated outlines, thirty generated lessons, one hundred tutor questions, and thirty course-banner generation requests each month, and includes course publishing after review.
 
-Generation allowances reset monthly and do not roll over. Course ownership and monthly AI allowances are separate limits.
+Generation-request allowances reset monthly and do not roll over. A failed request still uses one allowance. Course ownership and monthly AI allowances are separate limits.
 
 ## Downgrades preserve your work
 

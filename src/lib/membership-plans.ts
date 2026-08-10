@@ -102,7 +102,7 @@ export const MEMBERSHIP_PLANS = {
       "Ten generated lessons each month",
       "Complete the current lesson activities before generating the next lesson",
       "Forty tutor questions each month",
-      "Ten generated course banners each month",
+      "Ten course-banner generation requests each month",
     ],
     restrictedFeatures: [
       "Publishing courses to the public library",
@@ -141,7 +141,7 @@ export const MEMBERSHIP_PLANS = {
       "Three generated course outlines each month",
       "Thirty generated lessons each month",
       "One hundred tutor questions each month",
-      "Thirty generated course banners each month",
+      "Thirty course-banner generation requests each month",
       "Publish courses after completing and reviewing them",
     ],
     restrictedFeatures: [],

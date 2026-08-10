@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import {
@@ -639,8 +640,8 @@ export default function CourseMap() {
           <h1>{requestedCourseId ? "This course can’t be opened" : "Review the course brief first"}</h1>
           <p>{error || "The course could not be found."}</p>
           <div className="state-actions">
-            <button className="button button-secondary" onClick={() => router.push("/library")}><ArrowLeft size={16} /> Browse courses</button>
-            {canCreateCourses && <button className="button button-primary" onClick={() => router.push("/create")}>Open course studio</button>}
+            <Link className="button button-secondary" href="/library"><ArrowLeft size={16} /> Browse courses</Link>
+            {canCreateCourses && <Link className="button button-primary" href="/create">Open course studio</Link>}
           </div>
         </div>
       </AppShell>
@@ -652,7 +653,7 @@ export default function CourseMap() {
       <div className="course-page">
         <header className="course-header">
           <div className="course-header-topline">
-            <button className="text-button" onClick={() => router.push("/library")}><ArrowLeft size={15} /> Public library</button>
+            <Link className="text-button" href="/library"><ArrowLeft size={15} /> Public library</Link>
             <div className="course-statuses">
               {course.aiAssisted && <span className="ai-disclosure-badge" data-ai-assisted="true"><Bot size={14} /> AI-assisted course</span>}
               <span className={`status-badge ${course.isPublic ? "status-public" : "status-private"}`}>
@@ -781,7 +782,7 @@ export default function CourseMap() {
                 {course.canRegenerateBanner && (
                   <button className="button button-secondary" onClick={() => void regenerateBanner()} disabled={updating || bannerBusy}>
                     {bannerBusy ? <LoaderCircle className="spin" size={16} /> : <RefreshCw size={16} />}
-                    {bannerBusy ? "Creating simpler banner…" : "Regenerate banner once"}
+                    {bannerBusy ? "Creating simpler banner…" : "Generate a new banner"}
                   </button>
                 )}
                 <button className="button button-quiet" onClick={() => {
@@ -791,7 +792,7 @@ export default function CourseMap() {
                   <Trash2 size={16} /> Delete course
                 </button>
               </div>
-              {course.canRegenerateBanner && <p className="owner-action-hint">One curated banner replacement is available for this course. It replaces the current image automatically.</p>}
+              {course.canRegenerateBanner && <p className="owner-action-hint">Banner replacements use one monthly generation request, including failed attempts, and replace the current image automatically.</p>}
               {!course.isPublic && <p className="owner-action-hint">{isOwner
                 ? "Every lesson must be generated. Automated safety, language, and teaching-quality checks run again before publication."
                 : "Complete each lesson’s activities to unlock generation of the next lesson. Publication runs a fresh safety, language, and teaching-quality review."}</p>}
@@ -1076,7 +1077,7 @@ export default function CourseMap() {
                 <p className="course-delete-library-note">The course banner will disappear from the app. Its reusable source asset may remain in the shared visual library when another course can use it.</p>
                 {actionError && <p className="form-error" role="alert"><Circle size={14} /> {actionError}</p>}
               </div>
-              {!course.isPublic && !canPublishCourses && <p className="owner-action-hint">This private course remains available to you. Publishing to the public library is included with Filosage Pro. <button type="button" onClick={() => router.push("/pricing")}>Compare plans</button>.</p>}
+              {!course.isPublic && !canPublishCourses && <p className="owner-action-hint">This private course remains available to you. Publishing to the public library is included with Filosage Pro. <Link href="/pricing">Compare plans</Link>.</p>}
               <footer className="app-drawer-footer">
                 <button className="button button-quiet" type="button" onClick={deleteDrawer.closeDrawer} disabled={updating}>Keep course</button>
                 <button className="button button-danger" type="button" onClick={() => void deleteCourse()} disabled={updating}>

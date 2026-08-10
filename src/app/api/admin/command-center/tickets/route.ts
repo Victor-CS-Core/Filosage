@@ -24,6 +24,13 @@ const ticketSchema = z.object({
 export async function POST(request: Request) {
   try {
     const owner = await requireCommandCenterPermission(request, "triage");
+    const idempotencyKey = request.headers.get("idempotency-key");
+    if (idempotencyKey && (idempotencyKey.length < 12 || idempotencyKey.length > 200)) {
+      return Response.json(
+        { error: "The idempotency key must contain 12 to 200 characters." },
+        { status: 400, headers: { "Cache-Control": "private, no-store" } },
+      );
+    }
     const parsed = ticketSchema.safeParse(await readJsonBody(request, 8_192));
     if (!parsed.success) {
       return Response.json(
@@ -31,7 +38,7 @@ export async function POST(request: Request) {
         { status: 400, headers: { "Cache-Control": "private, no-store" } },
       );
     }
-    const ticket = await createManualCommandCenterTicket({ actorUid: owner.uid, ...parsed.data });
+    const ticket = await createManualCommandCenterTicket({ actorUid: owner.uid, idempotencyKey, ...parsed.data });
     return Response.json({ ticket }, { status: 201, headers: { "Cache-Control": "private, no-store" } });
   } catch (error) {
     return apiRequestErrorResponse(error)

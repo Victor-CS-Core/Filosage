@@ -198,7 +198,7 @@ test("accepts only safe lesson interactions, derives signal exploration, and avo
   expect(twoStepPractice).toEqual([]);
 });
 
-test("unlocks generated lessons sequentially for Pro authors while owners remain unrestricted", () => {
+test("unlocks generated lessons sequentially for Plus and Pro authors while owners remain unrestricted", () => {
   const course = {
     modules: [
       { title: "One", lessons: [{ title: "First", concept: "A" }, { title: "Second", concept: "B" }] },
@@ -643,7 +643,7 @@ test("publishes the teaching standard", async ({ page }) => {
   await expect(page.getByRole("heading", { name: "Generated is not good enough. Every lesson is held to a standard." })).toBeVisible();
   await expect(page.getByRole("heading", { name: "A named misconception" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Mastery is earned, not attended" })).toBeVisible();
-  await expect(page.getByRole("button", { name: /See courses held to this standard/ })).toBeVisible();
+  await expect(page.getByRole("link", { name: /See courses held to this standard/ })).toBeVisible();
 });
 
 test("describes guest access and Pro publishing consistently across public pages", async ({ page }) => {
@@ -1084,7 +1084,7 @@ test("does not complete a lesson after a wrong answer", async ({ page }) => {
   await secondCheck.getByRole("button", { name: /To see change over time/ }).click();
   await secondCheck.getByRole("button", { name: "Certain" }).click();
   await expect(completionBanner.getByText("Lesson complete")).toBeVisible();
-  await page.getByRole("button", { name: /Next lesson Leverage points/ }).click();
+  await page.getByRole("link", { name: /Next lesson Leverage points/ }).click();
   await expect(page).toHaveURL(/lesson\/0-1\?id=demo/);
   await expect(page.getByRole("heading", { name: "Leverage points" })).toBeVisible();
   await page.getByRole("tab", { name: /Activities/ }).click();
@@ -1588,7 +1588,7 @@ test("contains long lesson navigation titles on narrow mobile screens", async ({
   } }));
 
   await page.goto("/course/Web%20application%20security/lesson/0-0?id=mobile-navigation");
-  const next = page.getByRole("button", { name: new RegExp(`Next lesson ${longTitle}`) });
+  const next = page.getByRole("link", { name: new RegExp(`Next lesson ${longTitle}`) });
   await expect(next).toBeVisible();
   const layout = await next.evaluate((button) => {
     const bounds = button.getBoundingClientRect();
@@ -1822,7 +1822,7 @@ test("resets lesson-scoped content, reporting, and progression state on next-les
   await page.getByRole("button", { name: "Report a content issue" }).click();
   await page.getByLabel("What should be reviewed? Optional").fill("This note belongs only to lesson one.");
 
-  await page.getByRole("button", { name: /Next lesson Second lesson/ }).click();
+  await page.getByRole("link", { name: /Next lesson Second lesson/ }).click();
   await expect(page).toHaveURL(/lesson\/0-1\?id=lesson-state-course/);
   await expect(page.getByRole("heading", { name: "Second lesson", exact: true })).toBeVisible();
   await expect(page.getByText("Only the first lesson should show this sentence.")).toHaveCount(0);
@@ -2075,7 +2075,7 @@ test("creates an account-based outcome route and opens its evidence report", asy
 
   await expect(page.getByRole("heading", { name: "Diagnose a service bottleneck and choose a defensible intervention." })).toBeVisible();
   await expect(page.getByText("Start with Feedback and Intervention.", { exact: false })).toBeVisible();
-  await page.getByRole("button", { name: "View evidence" }).click();
+  await page.getByRole("link", { name: "View evidence" }).click();
   await expect(page).toHaveURL(/\/evidence\/outcome-demo/);
   await expect(page.getByRole("heading", { name: "Evidence by objective" })).toBeVisible();
   await expect(page.getByText("Self-report never marks an objective as demonstrated.")).toBeVisible();

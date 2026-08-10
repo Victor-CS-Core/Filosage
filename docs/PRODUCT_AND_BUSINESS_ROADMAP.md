@@ -129,6 +129,17 @@ Free exists to deliver genuine learning value and create qualified demand:
 - Receive a small grounded-tutor allowance.
 - View a basic evidence-of-learning summary.
 
+### Plus
+
+Plus is the focused private-authoring step for one current outcome:
+
+- Build one active private course.
+- Generate one course outline, ten lessons, ten course banners, and forty tutor answers each month.
+- Complete lesson activities sequentially before generating the next lesson.
+- Keep the course private; public publishing remains a Pro capability.
+
+The current $9.99 monthly and $79.92 annual prices remain hypotheses until real demand and retention evidence support activation.
+
 ### Pro
 
 Pro must be positioned around personal outcomes, not raw generations:
@@ -142,7 +153,7 @@ Pro must be positioned around personal outcomes, not raw generations:
 - Export evidence reports and work artifacts.
 - Re-plan a course when performance, time, or goals change.
 
-The existing $14.99 monthly and $119.88 annual prices are hypotheses, not facts. Keep them during initial validation for continuity, but validate willingness to pay before activation. Test the value proposition before testing discounts.
+The current $14.99 monthly and $119.88 annual Pro prices are hypotheses, not facts. Keep both Plus and Pro offers during initial validation for continuity, but validate willingness to pay before activation. Test the value proposition before testing discounts.
 
 ### Later expansion
 
@@ -156,7 +167,7 @@ Do not claim accreditation or employer recognition without real partners and an 
 
 ## Unit economics policy
 
-The existing model estimates a $14.99 monthly price, payment processing, and approximately $1.77 in AI cost per subscriber. This is useful but incomplete. It excludes infrastructure, support, refunds, taxes, failed payments, content review, acquisition, and founder labor.
+The offer model now covers Plus and Pro across monthly and annual billing. Catalog-price MRR is a nominal run rate, not collected revenue; annual contracts are divided by 12 once. Contribution modeling remains incomplete until actual payment fees, AI use, infrastructure, support, refunds, taxes, failed payments, content review, acquisition, and founder labor are measured by plan.
 
 Before paid launch, calculate contribution using:
 

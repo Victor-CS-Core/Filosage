@@ -2,16 +2,16 @@
 
 ## Access matrix
 
-| Capability | Guest | Free account | Pro | Owner |
-| --- | --- | --- | --- | --- |
-| Browse published topics | Yes | Yes | Yes | Yes |
-| Inspect outcomes, modules, lesson titles, and capstone criteria | Yes | Yes | Yes | Yes |
-| Receive lesson bodies | No | Yes | Yes | Yes |
-| Save progress, notes, reviews, and evidence | No | Yes | Yes | Yes |
-| Use limited tutor support | No | Yes | Yes | Yes |
-| Generate private courses and lessons | No | No | Yes | Yes |
-| Publish courses they created after completion and review | No | No | Yes | Yes |
-| Unpublish or delete any published course | No | No | No | Yes |
+| Capability | Guest | Free account | Plus | Pro | Owner |
+| --- | --- | --- | --- | --- | --- |
+| Browse published topics | Yes | Yes | Yes | Yes | Yes |
+| Inspect outcomes, modules, lesson titles, and capstone criteria | Yes | Yes | Yes | Yes | Yes |
+| Receive lesson bodies | No | Yes | Yes | Yes | Yes |
+| Save progress, notes, reviews, and evidence | No | Yes | Yes | Yes | Yes |
+| Use tutor support within the plan allowance | No | Yes | Yes | Yes | Yes |
+| Generate private courses and lessons | No | No | One active course | No owned-course cap | Yes |
+| Publish courses they created after completion and review | No | No | No | Yes | Yes |
+| Unpublish or delete any published course | No | No | No | No | Yes |
 
 The lesson API is the authoritative boundary. Client-side locks explain the rule but are not relied on for authorization. Every lesson response is identity-bound and uses `private, no-store`.
 
@@ -22,7 +22,7 @@ The lesson API is the authoritative boundary. Client-side locks explain the rule
 - Firebase ID tokens are verified server-side and verified email is required.
 - Suspended accounts fail closed. Current Terms and Privacy acceptance is required for learning, generation, and billing actions.
 - Course ownership and owner privileges are checked at the data-access route, not inferred from UI state.
-- Pro authors generate lessons in order. The server requires saved completion evidence for every earlier lesson before it will generate the next; the owner is exempt from this authoring gate.
+- Plus and Pro authors generate lessons in order. The server requires saved completion evidence for every earlier lesson before it will generate the next; the owner is exempt from this authoring gate.
 - Firestore denies all direct browser reads and writes. Server routes use the service account and return explicit DTOs.
 
 ### Generated-content integrity

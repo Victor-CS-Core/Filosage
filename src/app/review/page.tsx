@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowRight, CalendarCheck2, Clock3, Flame, RefreshCw, Sparkles } from "lucide-react";
@@ -100,7 +101,7 @@ export default function ReviewPage() {
   }
 
   if (loadError) {
-    return <AppShell><div className="review-page"><section className="review-recovery" role="alert"><CalendarCheck2 size={28} /><p className="overline">Review unavailable</p><h1>Your schedule is safe.</h1><p>{loadError} Try again without losing any learning progress.</p><div><button className="button button-primary" onClick={() => { setLoaded(false); setLoadError(null); setLoadAttempt((attempt) => attempt + 1); }}><RefreshCw size={15} /> Try again</button><button className="button button-secondary" onClick={() => router.push("/library")}>Explore courses</button></div></section></div></AppShell>;
+    return <AppShell><div className="review-page"><section className="review-recovery" role="alert"><CalendarCheck2 size={28} /><p className="overline">Review unavailable</p><h1>Your schedule is safe.</h1><p>{loadError} Try again without losing any learning progress.</p><div><button className="button button-primary" onClick={() => { setLoaded(false); setLoadError(null); setLoadAttempt((attempt) => attempt + 1); }}><RefreshCw size={15} /> Try again</button><Link className="button button-secondary" href="/library">Explore courses</Link></div></section></div></AppShell>;
   }
 
   return (
@@ -146,7 +147,7 @@ export default function ReviewPage() {
           <div className="review-clear-state">
             <CalendarCheck2 size={27} />
             <div><strong>Nothing is due right now.</strong><p>Complete a lesson and it joins your review schedule automatically.</p></div>
-            <button className="button button-secondary" onClick={() => router.push("/library")}>Browse courses</button>
+            <Link className="button button-secondary" href="/library">Browse courses</Link>
           </div>
         )}
 

@@ -1,6 +1,7 @@
 import type { AccountStatus, LearnerPlan } from "@/lib/course-types";
 import type { AiFeature } from "@/lib/ai-usage";
 import type { AcquisitionChannel, ProductEventName } from "@/lib/product-events";
+import type { MembershipAnalytics } from "@/lib/membership-analytics";
 
 export interface AdminFeatureUsage {
   feature: AiFeature;
@@ -10,6 +11,8 @@ export interface AdminFeatureUsage {
   cacheWriteTokens: number;
   outputTokens: number;
   costUsd: number;
+  limit?: number | null;
+  remaining?: number | null;
 }
 
 export interface AdminUserSummary {
@@ -25,6 +28,10 @@ export interface AdminUserSummary {
   manualPlan?: "plus" | "pro";
   manualPlanUntil?: string;
   manualProUntil?: string;
+  billingPlan?: "plus" | "pro";
+  billingInterval?: "monthly" | "annual";
+  subscriptionStatus: "none" | "trialing" | "active" | "past_due" | "canceled";
+  billingRawStatus?: string;
   requestCount: number;
   inputTokens: number;
   cachedInputTokens: number;
@@ -46,11 +53,16 @@ export interface AdminUserSummary {
 export interface AdminOverview {
   generatedAt: string;
   range: { days: number; from: string; to: string };
+  dataCoverage: {
+    complete: boolean;
+    limitedSources: string[];
+  };
   summary: {
     pageViews: number;
     activeUsers: number;
     totalUsers: number;
     generations: number;
+    completedRequests: number;
     failedRequests: number;
     inputTokens: number;
     cachedInputTokens: number;
@@ -74,7 +86,7 @@ export interface AdminOverview {
     reservedUsd: number;
     percentUsed: number;
     pools: Array<{
-      pool: "free" | "paid" | "owner";
+      pool: "free" | "paid" | "owner" | "legacy";
       limitUsd: number;
       spentUsd: number;
       reservedUsd: number;
@@ -83,13 +95,15 @@ export interface AdminOverview {
   };
   monetization: {
     waitlistCount: number;
-    plannedMonthlyPriceUsd: number;
-    plannedAnnualPriceUsd: number;
-    paymentFeeEstimateUsd: number;
-    modeledAiCostPerSubscriberUsd: number;
-    modeledContributionPerSubscriberUsd: number;
-    modeledContributionMarginPercent: number;
+    plans: Array<{
+      plan: "plus" | "pro";
+      monthlyPriceUsd: number;
+      annualPriceUsd: number;
+      annualMonthlyEquivalentUsd: number;
+      annualSavingsPercent: number;
+    }>;
   };
+  membership: MembershipAnalytics;
   growth: {
     uniqueActors: number;
     events: number;
@@ -162,6 +176,8 @@ export interface AdminOverview {
       readyNow: number;
       within30Days: number;
       researching: number;
+      plusPreferred: number;
+      proPreferred: number;
       monthlyPreferred: number;
       annualPreferred: number;
     };
@@ -171,8 +187,10 @@ export interface AdminOverview {
   generationSeries: Array<{
     date: string;
     courseOutlines: number;
+    courseBanners: number;
     lessons: number;
     tutor: number;
+    commandCenterDrafts: number;
     failed: number;
   }>;
   engagementSeries: Array<{

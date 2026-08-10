@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { authorizationResponse, requireAccount } from "@/lib/auth-server";
 import { listOwnerCourses, listPublicCourses } from "@/lib/firebase-server";
 import { toCourseDto } from "@/lib/course-dto";
+import { planAllows } from "@/lib/membership-plans";
+import { getAiQuotaSummaries } from "@/lib/ai-usage";
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
@@ -22,7 +24,9 @@ export async function GET(request: Request) {
 
     const account = await requireAccount(request);
     const courses = await listOwnerCourses(account.uid);
-    return NextResponse.json({ courses: courses.map((course) => toCourseDto(course, true)) });
+    const canGenerateBanner = account.isOwner || (planAllows(account.plan, "generate_course_banner")
+      && (await getAiQuotaSummaries(account)).some((quota) => quota.feature === "course_banner" && quota.remaining !== 0));
+    return NextResponse.json({ courses: courses.map((course) => toCourseDto(course, true, canGenerateBanner)) });
   } catch (error: unknown) {
     const authResponse = authorizationResponse(error);
     if (authResponse) return authResponse;

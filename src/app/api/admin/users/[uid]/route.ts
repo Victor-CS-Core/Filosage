@@ -56,9 +56,14 @@ export async function PATCH(
         ? "Permanent owner grant"
         : `${parsed.data.duration}-day owner grant`;
     }
-    const saved = await runStoredDocumentTransaction<Record<string, unknown> | null>([path], (documents) => {
+    const outcome = await runStoredDocumentTransaction<{ saved?: Record<string, unknown>; billingManaged?: true } | null>([path], (documents) => {
       const current = documents[path];
       if (!current) return { writes: [], result: null };
+      const subscriptionStatus = String(current.subscriptionStatus ?? "none");
+      if ((parsed.data.action === "grant_plan" || parsed.data.action === "grant_pro")
+        && (subscriptionStatus === "active" || subscriptionStatus === "trialing" || subscriptionStatus === "past_due")) {
+        return { writes: [], result: { billingManaged: true } };
+      }
       const next: Record<string, unknown> = { ...current, updatedAt: now.toISOString() };
       if (parsed.data.action === "suspend") {
         next.accountStatus = "suspended";
@@ -81,14 +86,17 @@ export async function PATCH(
         next.manualPlan = null;
         next.manualPlanUntil = null;
         next.manualProUntil = null;
-        const subscriptionStatus = String(current.subscriptionStatus ?? "none");
         next.plan = subscriptionStatus === "active" || subscriptionStatus === "trialing"
           ? isPaidLearnerPlan(current.billingPlan) ? current.billingPlan : "pro"
           : "free";
       }
-      return { writes: [{ path, data: next }], result: next };
+      return { writes: [{ path, data: next }], result: { saved: next } };
     });
-    if (!saved) return Response.json({ error: "Account not found." }, { status: 404 });
+    if (!outcome) return Response.json({ error: "Account not found." }, { status: 404 });
+    if (outcome.billingManaged) {
+      return Response.json({ error: "This membership is managed by its Stripe subscription." }, { status: 409 });
+    }
+    const saved = outcome.saved!;
     await createStoredDocument("adminEvents", {
       actorUid: owner.uid,
       targetUid: uid,

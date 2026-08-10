@@ -24,10 +24,16 @@ import type {
   CommandCenterTicketCategory,
   CommandCenterTicketStatus,
 } from "@/lib/command-center-types";
+import type {
+  LearnerSupportTicketDetail,
+  LearnerSupportTicketSummary,
+  SupportRequestContext,
+} from "@/lib/support-center-types";
 import {
   createStoredDocument,
   getStoredDocument,
   listCollectionDocuments,
+  listStoredDocumentsByField,
   runStoredDocumentTransaction,
   type StoredDocument,
 } from "@/lib/firebase-server";
@@ -36,7 +42,56 @@ const TICKETS = "commandCenterTickets";
 const APPROVALS = "commandCenterApprovals";
 const DRAFTS = "commandCenterDrafts";
 const AUDIT_EVENTS = "commandCenterAuditEvents";
+const TICKET_REQUESTS = "commandCenterTicketRequests";
 const CONTROLS_PATH = "commandCenterControls/global";
+
+async function sha256Hex(value: string) {
+  const digest = await crypto.subtle.digest(
+    "SHA-256",
+    new TextEncoder().encode(value),
+  );
+  return [...new Uint8Array(digest)].map((byte) => byte.toString(16).padStart(2, "0")).join("");
+}
+
+async function manualTicketId(actorUid: string, idempotencyKey?: string | null) {
+  return idempotencyKey
+    ? sha256Hex(`${actorUid}:command-center-ticket:${idempotencyKey}`)
+    : crypto.randomUUID();
+}
+
+interface UserTicketInput {
+  actorUid: string;
+  idempotencyKey?: string | null;
+  category: Extract<CommandCenterTicketCategory, "support" | "billing" | "privacy" | "product_feedback" | "other">;
+  subject: string;
+  message: string;
+  requestContext?: SupportRequestContext;
+}
+
+async function supportTicketId(actorUid: string, idempotencyKey: string) {
+  return sha256Hex(`${actorUid}:support-center-ticket:${idempotencyKey}`);
+}
+
+function userTicketFingerprintPayload(input: UserTicketInput) {
+  return {
+    category: input.category,
+    subject: input.subject,
+    message: input.message,
+    requestContext: input.requestContext ?? null,
+  };
+}
+
+async function userTicketFingerprint(input: UserTicketInput) {
+  return sha256Hex(JSON.stringify(userTicketFingerprintPayload(input)));
+}
+
+function normalizedTicket(ticket: CommandCenterTicket): CommandCenterTicket {
+  return {
+    ...ticket,
+    notes: Array.isArray(ticket.notes) ? ticket.notes : [],
+    publicReplies: Array.isArray(ticket.publicReplies) ? ticket.publicReplies : [],
+  };
+}
 
 export class CommandCenterConflictError extends Error {
   readonly status = 409;
@@ -83,6 +138,7 @@ function auditEvent(input: {
   beforeState?: Record<string, unknown>;
   afterState?: Record<string, unknown>;
   metadata?: Record<string, unknown>;
+  externalSideEffect?: boolean;
   createdAt: string;
 }): CommandCenterAuditEvent {
   return {
@@ -98,7 +154,7 @@ function auditEvent(input: {
     beforeState: sanitizeCommandCenterState(input.beforeState),
     afterState: sanitizeCommandCenterState(input.afterState),
     metadata: sanitizeCommandCenterState(input.metadata) ?? {},
-    externalSideEffect: false,
+    externalSideEffect: input.externalSideEffect ?? false,
     createdAt: input.createdAt,
   };
 }
@@ -132,6 +188,7 @@ export async function getCommandCenterSnapshot(): Promise<CommandCenterSnapshot>
   ]);
   const now = Date.now();
   const tickets = (ticketDocuments as unknown as CommandCenterTicket[])
+    .map(normalizedTicket)
     .sort((a, b) => Date.parse(b.updatedAt) - Date.parse(a.updatedAt));
   const approvals = (approvalDocuments as unknown as CommandCenterApproval[])
     .map((approval) => approval.status === "pending" && commandCenterApprovalIsExpired(approval.expiresAt)
@@ -164,6 +221,7 @@ export async function getCommandCenterSnapshot(): Promise<CommandCenterSnapshot>
 
 export async function createManualCommandCenterTicket(input: {
   actorUid: string;
+  idempotencyKey?: string | null;
   category: CommandCenterTicketCategory;
   riskLevel: CommandCenterRisk;
   subject: string;
@@ -172,8 +230,18 @@ export async function createManualCommandCenterTicket(input: {
   unverifiedClaims: string[];
   tags: string[];
 }) {
-  const id = crypto.randomUUID();
-  const auditId = crypto.randomUUID();
+  const id = await manualTicketId(input.actorUid, input.idempotencyKey);
+  const auditId = input.idempotencyKey ? `ticket-create-${id}` : crypto.randomUUID();
+  const requestPath = input.idempotencyKey ? `${TICKET_REQUESTS}/${id}` : null;
+  const payloadFingerprint = input.idempotencyKey ? await sha256Hex(JSON.stringify({
+    category: input.category,
+    riskLevel: input.riskLevel,
+    subject: input.subject,
+    summary: input.summary,
+    confirmedFacts: input.confirmedFacts,
+    unverifiedClaims: input.unverifiedClaims,
+    tags: input.tags,
+  })) : null;
   const correlationId = crypto.randomUUID();
   const now = new Date();
   const ticket: CommandCenterTicket = {
@@ -194,6 +262,7 @@ export async function createManualCommandCenterTicket(input: {
     evidenceReferences: [],
     tags: input.tags,
     notes: [],
+    publicReplies: [],
     createdAt: now.toISOString(),
     updatedAt: now.toISOString(),
     dueAt: commandCenterDueAt(input.riskLevel, now),
@@ -211,28 +280,52 @@ export async function createManualCommandCenterTicket(input: {
     metadata: { source: ticket.source, category: ticket.category },
     createdAt: ticket.createdAt,
   });
-  await runStoredDocumentTransaction([CONTROLS_PATH, `${TICKETS}/${id}`, `${AUDIT_EVENTS}/${auditId}`], (documents) => {
+  return runStoredDocumentTransaction<CommandCenterTicket>([CONTROLS_PATH, `${TICKETS}/${id}`, `${AUDIT_EVENTS}/${auditId}`, ...(requestPath ? [requestPath] : [])], (documents) => {
+    const existing = documents[`${TICKETS}/${id}`] as CommandCenterTicket | null;
+    const requestRecord = requestPath ? documents[requestPath] : null;
+    if (requestRecord) {
+      if (requestRecord.payloadFingerprint !== payloadFingerprint) {
+        throw new CommandCenterConflictError("This idempotency key is already associated with different ticket details.");
+      }
+      if (!existing) throw new CommandCenterConflictError("The prior ticket request is incomplete. Use a new idempotency key.");
+      return { writes: [], result: existing };
+    }
+    if (existing) throw new CommandCenterConflictError("The ticket already exists without a matching request record.");
     assertSystemEnabled(parseControls(documents[CONTROLS_PATH]));
-    if (documents[`${TICKETS}/${id}`]) throw new CommandCenterConflictError("The ticket already exists.");
     return {
       writes: [
         { path: `${TICKETS}/${id}`, data: ticket },
         { path: `${AUDIT_EVENTS}/${auditId}`, data: audit },
+        ...(requestPath ? [{ path: requestPath, data: { ticketId: id, payloadFingerprint } }] : []),
       ],
       result: ticket,
     };
   });
-  return ticket;
 }
 
-export async function createUserCommandCenterTicket(input: {
-  actorUid: string;
-  category: Extract<CommandCenterTicketCategory, "support" | "billing" | "privacy" | "product_feedback" | "other">;
-  subject: string;
-  message: string;
-}) {
-  const id = crypto.randomUUID();
-  const auditId = crypto.randomUUID();
+export async function findUserCommandCenterTicketByRequest(input: UserTicketInput) {
+  if (!input.idempotencyKey) return null;
+  const id = await supportTicketId(input.actorUid, input.idempotencyKey);
+  const requestRecord = await getStoredDocument(`${TICKET_REQUESTS}/${id}`);
+  if (!requestRecord) return null;
+  const payloadFingerprint = await userTicketFingerprint(input);
+  if (requestRecord.payloadFingerprint !== payloadFingerprint) {
+    throw new CommandCenterConflictError("This request key is already associated with different support details.");
+  }
+  const ticket = await getStoredDocument(`${TICKETS}/${id}`) as CommandCenterTicket | null;
+  if (!ticket || ticket.relatedUserId !== input.actorUid || ticket.source !== "user_support") {
+    throw new CommandCenterConflictError("The prior support request is incomplete. Start a new request.");
+  }
+  return normalizedTicket(ticket);
+}
+
+export async function createUserCommandCenterTicket(input: UserTicketInput) {
+  const id = input.idempotencyKey
+    ? await supportTicketId(input.actorUid, input.idempotencyKey)
+    : crypto.randomUUID();
+  const auditId = input.idempotencyKey ? `support-create-${id}` : crypto.randomUUID();
+  const requestPath = input.idempotencyKey ? `${TICKET_REQUESTS}/${id}` : null;
+  const payloadFingerprint = input.idempotencyKey ? await userTicketFingerprint(input) : null;
   const correlationId = crypto.randomUUID();
   const now = new Date();
   const riskLevel: CommandCenterRisk = input.category === "product_feedback" ? "low" : "medium";
@@ -249,6 +342,7 @@ export async function createUserCommandCenterTicket(input: {
     subject: input.subject,
     normalizedSummary: `A signed-in learner submitted a ${categoryLabel} request for owner review. The description is unverified user-provided context.`,
     untrustedExcerpt: input.message,
+    requestContext: input.requestContext,
     relatedUserId: input.actorUid,
     assignedRole: "owner",
     requiresHumanApproval: input.category === "billing" || input.category === "privacy",
@@ -260,6 +354,7 @@ export async function createUserCommandCenterTicket(input: {
     evidenceReferences: [],
     tags: ["user-submitted", input.category.replaceAll("_", "-")],
     notes: [],
+    publicReplies: [],
     createdAt: now.toISOString(),
     updatedAt: now.toISOString(),
     dueAt: commandCenterDueAt(riskLevel, now),
@@ -278,18 +373,133 @@ export async function createUserCommandCenterTicket(input: {
     metadata: { source: ticket.source, category: ticket.category },
     createdAt: ticket.createdAt,
   });
-  await runStoredDocumentTransaction([CONTROLS_PATH, `${TICKETS}/${id}`, `${AUDIT_EVENTS}/${auditId}`], (documents) => {
+  return runStoredDocumentTransaction<CommandCenterTicket>([CONTROLS_PATH, `${TICKETS}/${id}`, `${AUDIT_EVENTS}/${auditId}`, ...(requestPath ? [requestPath] : [])], (documents) => {
+    const existing = documents[`${TICKETS}/${id}`] as CommandCenterTicket | null;
+    const requestRecord = requestPath ? documents[requestPath] : null;
+    if (requestRecord) {
+      if (requestRecord.payloadFingerprint !== payloadFingerprint) {
+        throw new CommandCenterConflictError("This request key is already associated with different support details.");
+      }
+      if (!existing || existing.relatedUserId !== input.actorUid || existing.source !== "user_support") {
+        throw new CommandCenterConflictError("The prior support request is incomplete. Start a new request.");
+      }
+      return { writes: [], result: normalizedTicket(existing) };
+    }
+    if (existing) throw new CommandCenterConflictError("The support request already exists without a matching request record.");
     assertSystemEnabled(parseControls(documents[CONTROLS_PATH]));
-    if (documents[`${TICKETS}/${id}`]) throw new CommandCenterConflictError("The ticket already exists.");
     return {
       writes: [
         { path: `${TICKETS}/${id}`, data: ticket },
         { path: `${AUDIT_EVENTS}/${auditId}`, data: audit },
+        ...(requestPath ? [{ path: requestPath, data: { ticketId: id, payloadFingerprint } }] : []),
       ],
       result: ticket,
     };
   });
-  return ticket;
+}
+
+function learnerSupportStatus(status: CommandCenterTicketStatus): LearnerSupportTicketSummary["status"] {
+  if (status === "new") return "submitted";
+  if (status === "resolved") return "resolved";
+  if (status === "closed") return "closed";
+  return "in_review";
+}
+
+function learnerTicketSummary(ticket: CommandCenterTicket): LearnerSupportTicketSummary {
+  const normalized = normalizedTicket(ticket);
+  return {
+    id: normalized.id,
+    ticketNumber: normalized.ticketNumber,
+    subject: normalized.subject,
+    category: normalized.category as LearnerSupportTicketSummary["category"],
+    status: learnerSupportStatus(normalized.status),
+    createdAt: normalized.createdAt,
+    updatedAt: normalized.updatedAt,
+    replyCount: normalized.publicReplies.length,
+  };
+}
+
+export function learnerSupportTicketDetail(ticket: CommandCenterTicket): LearnerSupportTicketDetail {
+  const normalized = normalizedTicket(ticket);
+  return {
+    ...learnerTicketSummary(normalized),
+    description: normalized.untrustedExcerpt ?? "",
+    requestContext: normalized.requestContext,
+    publicReplies: normalized.publicReplies.map((reply) => ({
+      id: reply.id,
+      body: reply.body,
+      createdAt: reply.createdAt,
+    })),
+  };
+}
+
+export async function listUserCommandCenterTickets(actorUid: string) {
+  const tickets = await listStoredDocumentsByField(TICKETS, "relatedUserId", actorUid, 100) as unknown as CommandCenterTicket[];
+  return tickets
+    .filter((ticket) => ticket.source === "user_support")
+    .map(normalizedTicket)
+    .sort((a, b) => Date.parse(b.updatedAt) - Date.parse(a.updatedAt))
+    .map(learnerTicketSummary);
+}
+
+export async function getUserCommandCenterTicket(actorUid: string, ticketId: string) {
+  const ticket = await getStoredDocument(`${TICKETS}/${ticketId}`) as CommandCenterTicket | null;
+  if (!ticket || ticket.source !== "user_support" || ticket.relatedUserId !== actorUid) {
+    throw new CommandCenterNotFoundError("Support request not found.");
+  }
+  return learnerSupportTicketDetail(ticket);
+}
+
+export async function addCommandCenterPublicReply(input: {
+  actorUid: string;
+  ticketId: string;
+  expectedVersion: number;
+  body: string;
+}) {
+  const path = `${TICKETS}/${input.ticketId}`;
+  const auditId = crypto.randomUUID();
+  const auditPath = `${AUDIT_EVENTS}/${auditId}`;
+  const correlationId = crypto.randomUUID();
+  const replyId = crypto.randomUUID();
+  const bodySha256 = await sha256Hex(input.body);
+  const now = new Date().toISOString();
+  return runStoredDocumentTransaction<CommandCenterTicket>([path, auditPath], (documents) => {
+    const stored = documents[path] as CommandCenterTicket | null;
+    if (!stored) throw new CommandCenterNotFoundError("Ticket not found.");
+    const current = normalizedTicket(stored);
+    if (current.source !== "user_support" || !current.relatedUserId) {
+      throw new CommandCenterConflictError("Public replies are available only for learner support requests.");
+    }
+    if (current.version !== input.expectedVersion) {
+      throw new CommandCenterConflictError("This ticket changed after it was opened. Refresh before publishing the reply.");
+    }
+    const reply = { id: replyId, authorUid: input.actorUid, body: input.body, createdAt: now };
+    const next: CommandCenterTicket = {
+      ...current,
+      version: current.version + 1,
+      publicReplies: [...current.publicReplies, reply],
+      updatedAt: now,
+    };
+    const audit = auditEvent({
+      id: auditId,
+      actorUid: input.actorUid,
+      action: "ticket.public_reply_published",
+      targetType: "ticket",
+      targetId: current.id,
+      ticketId: current.id,
+      correlationId,
+      summary: `Published a learner-visible reply on ${current.ticketNumber}`,
+      beforeState: { version: current.version, publicReplyCount: current.publicReplies.length },
+      afterState: { version: next.version, publicReplyCount: next.publicReplies.length },
+      metadata: { visibility: "requester", source: current.source, replyId, bodySha256 },
+      externalSideEffect: true,
+      createdAt: now,
+    });
+    return {
+      writes: [{ path, data: next }, { path: auditPath, data: audit }],
+      result: next,
+    };
+  });
 }
 
 export async function updateCommandCenterTicket(input: {
@@ -307,8 +517,9 @@ export async function updateCommandCenterTicket(input: {
   const correlationId = crypto.randomUUID();
   const now = new Date().toISOString();
   return runStoredDocumentTransaction<CommandCenterTicket>([path, auditPath], (documents) => {
-    const current = documents[path] as CommandCenterTicket | null;
-    if (!current) throw new CommandCenterNotFoundError("Ticket not found.");
+    const stored = documents[path] as CommandCenterTicket | null;
+    if (!stored) throw new CommandCenterNotFoundError("Ticket not found.");
+    const current = normalizedTicket(stored);
     if (current.version !== input.expectedVersion) {
       throw new CommandCenterConflictError("This ticket changed after it was opened. Refresh before saving.");
     }
@@ -720,6 +931,7 @@ export async function createContentReportAndCommandCenterTicket(input: {
     evidenceReferences: [`contentReports/${input.reportId}`],
     tags: ["content-report", category],
     notes: [],
+    publicReplies: [],
     createdAt: now,
     updatedAt: now,
     dueAt: commandCenterDueAt(serious ? "high" : "medium", new Date(now)),

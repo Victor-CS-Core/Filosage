@@ -31,6 +31,10 @@ function storedTheme(): Theme {
 
 function applyTheme(theme: Theme) {
   document.documentElement.setAttribute("data-theme", theme);
+  const themeColor = theme === "dark" ? "#071127" : "#FAFAF7";
+  document.querySelectorAll<HTMLMetaElement>('meta[name="theme-color"]').forEach((meta) => {
+    meta.content = themeColor;
+  });
 }
 
 function persistTheme(theme: Theme) {

@@ -82,6 +82,31 @@ test("release checks bind Firebase and production health to one full Git SHA", (
   expect(abbreviatedExpectedVersion.stderr).toContain("full 40-character Git commit SHA");
 });
 
+test("billing activation requires every Plus and Pro Stripe price", ({ request }, testInfo) => {
+  void request;
+  test.skip(testInfo.project.name !== "chromium", "One process-level release contract is sufficient.");
+
+  const activationEnvironment = {
+    ...validReleaseEnvironment,
+    BILLING_ENABLED: "true",
+    STRIPE_SECRET_KEY: "sk_live_placeholder",
+    STRIPE_WEBHOOK_SECRET: "whsec_placeholder",
+    STRIPE_PLUS_MONTHLY_PRICE_ID: "price_plus_monthly",
+    STRIPE_PLUS_ANNUAL_PRICE_ID: "price_plus_annual",
+    STRIPE_PRO_MONTHLY_PRICE_ID: "price_pro_monthly",
+    STRIPE_PRO_ANNUAL_PRICE_ID: "price_pro_annual",
+  };
+  for (const variable of ["STRIPE_PLUS_MONTHLY_PRICE_ID", "STRIPE_PLUS_ANNUAL_PRICE_ID", "STRIPE_PRO_MONTHLY_PRICE_ID", "STRIPE_PRO_ANNUAL_PRICE_ID"]) {
+    const result = spawnSync(process.execPath, [releaseScript, "--billing-activation"], {
+      cwd: root,
+      env: { ...activationEnvironment, [variable]: "" },
+      encoding: "utf8",
+    });
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain(`${variable} is required for billing activation`);
+  }
+});
+
 test("pins the Sites compatibility date below the nodejs_compat rejection boundary", ({ request }, testInfo) => {
   void request;
   test.skip(testInfo.project.name !== "chromium", "One deployment metadata contract is sufficient.");

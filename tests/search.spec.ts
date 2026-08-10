@@ -54,12 +54,15 @@ test("course-library search handles URL queries, lesson metadata, filters, and r
   const filters = page.getByRole("dialog", { name: "Find the right course" });
   const search = filters.getByRole("searchbox", { name: "Search published courses" });
   await search.fill("keyboard prototype");
+  await expect(page).toHaveURL((url) => url.searchParams.get("q") === "keyboard prototype");
   await expect(filters.getByRole("button", { name: "Show 1 course" })).toBeVisible();
 
   await filters.getByLabel("Level").selectOption("Foundations");
+  await expect(page).toHaveURL((url) => url.searchParams.get("level") === "Foundations");
   await expect(filters.getByRole("button", { name: "Show 0 courses" })).toBeVisible();
   await filters.getByRole("button", { name: "Reset" }).click();
   await expect(search).toHaveValue("");
+  await expect(page).toHaveURL((url) => !url.searchParams.has("q") && !url.searchParams.has("level") && !url.searchParams.has("commitment"));
   await expect(filters.getByRole("button", { name: "Show 2 courses" })).toBeVisible();
 });
 
@@ -81,7 +84,7 @@ test("dashboard defers global search to the Command Center", async ({ page }, te
   await page.goto("/");
 
   await expect(page.getByRole("searchbox")).toHaveCount(0);
-  await expect(page.getByRole("heading", { name: /Good .*Search/ })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Welcome back, Search." })).toBeVisible();
   await expect(page.getByRole("complementary", { name: "Today's learning brief" })).toBeVisible();
 
   await page.getByRole("button", { name: /Search or jump anywhere/ }).click();

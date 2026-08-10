@@ -2,6 +2,7 @@ import { authorizationResponse, requireOwner } from "@/lib/auth-server";
 import {
   countCollectionDocuments,
   getStoredDocument,
+  listAllStoredDocuments,
   listCollectionDocumentsByRange,
   listStoredDocumentsByField,
 } from "@/lib/firebase-server";
@@ -20,7 +21,16 @@ import {
   type ProductEventName,
 } from "@/lib/product-events";
 import { serverEnvironment } from "@/lib/runtime-environment";
-import { isLearnerPlan, isPaidLearnerPlan, offerFor } from "@/lib/membership-plans";
+import {
+  annualMonthlyEquivalentMinor,
+  annualSavingsPercent,
+  MEMBERSHIP_PLANS,
+  isBillingInterval,
+  isPaidLearnerPlan,
+  offerFor,
+  type PaidLearnerPlan,
+} from "@/lib/membership-plans";
+import { calculateMembershipAnalytics, effectiveMembershipPlan } from "@/lib/membership-analytics";
 
 function numberValue(value: unknown) {
   return typeof value === "number" && Number.isFinite(value) ? value : 0;
@@ -35,13 +45,19 @@ function dateValue(value: unknown) {
   return candidate && Number.isFinite(Date.parse(candidate)) ? candidate : undefined;
 }
 
+function accountSubscriptionStatus(value: unknown): AdminUserSummary["subscriptionStatus"] {
+  return value === "trialing" || value === "active" || value === "past_due" || value === "canceled"
+    ? value
+    : "none";
+}
+
 function microsToUsd(value: unknown) {
   return numberValue(value) / 1_000_000;
 }
 
 function featureValue(value: unknown): AiFeature {
-  if (value === "course_outline" || value === "course_banner") return "course_outline";
-  return value === "lesson_generation" ? value : "tutor";
+  if (value === "course_outline" || value === "course_banner" || value === "lesson_generation" || value === "tutor" || value === "command_center_draft") return value;
+  return "tutor";
 }
 
 function acquisitionChannel(value: unknown): AcquisitionChannel {
@@ -113,29 +129,35 @@ export async function GET(request: Request) {
       outcomeFeedback,
       stripeEvents,
       pricingIntents,
+      totalContentReportCount,
+      resolvedContentReportCount,
+      dismissedContentReportCount,
     ] = await Promise.all([
-      listCollectionDocumentsByRange("users", "updatedAt", "1970-01-01T00:00:00.000Z", nowIso, 300),
-      listCollectionDocumentsByRange("userEngagement", "lastActivityAt", "1970-01-01T00:00:00.000Z", nowIso, 300),
-      listCollectionDocumentsByRange("engagementDaily", "date", dates[0], dates[dates.length - 1], 2_000),
-      listCollectionDocumentsByRange("trafficDaily", "date", dates[0], dates[dates.length - 1], 2_000),
-      listCollectionDocumentsByRange("trafficDailyShards", "date", dates[0], dates[dates.length - 1], 2_000),
-      listStoredDocumentsByField("usagePeriods", "periodKey", currentMonth, 2_000),
-      listCollectionDocumentsByRange("aiRequests", "createdAt", fromIso, nowIso, 2_000),
-      listCollectionDocumentsByRange("courses", "updatedAt", "1970-01-01T00:00:00.000Z", nowIso, 300),
-      listCollectionDocumentsByRange("safetyEvents", "createdAt", fromIso, nowIso, 1_000),
-      listCollectionDocumentsByRange("adminEvents", "createdAt", fromIso, nowIso, 300),
-      listStoredDocumentsByField("systemUsageShards", "periodKey", currentMonth, 1_000),
+      listAllStoredDocuments("users", 10_000),
+      listCollectionDocumentsByRange("userEngagement", "lastActivityAt", "1970-01-01T00:00:00.000Z", nowIso, 10_000),
+      listCollectionDocumentsByRange("engagementDaily", "date", dates[0], dates[dates.length - 1], 10_000),
+      listCollectionDocumentsByRange("trafficDaily", "date", dates[0], dates[dates.length - 1], 10_000),
+      listCollectionDocumentsByRange("trafficDailyShards", "date", dates[0], dates[dates.length - 1], 10_000),
+      listStoredDocumentsByField("usagePeriods", "periodKey", currentMonth, 10_000),
+      listCollectionDocumentsByRange("aiRequests", "createdAt", fromIso, nowIso, 10_000),
+      listCollectionDocumentsByRange("courses", "updatedAt", "1970-01-01T00:00:00.000Z", nowIso, 10_000),
+      listCollectionDocumentsByRange("safetyEvents", "createdAt", fromIso, nowIso, 10_000),
+      listCollectionDocumentsByRange("adminEvents", "createdAt", fromIso, nowIso, 10_000),
+      listStoredDocumentsByField("systemUsageShards", "periodKey", currentMonth, 10_000),
       getStoredDocument(`systemUsage/${currentMonth}`),
       getStoredDocument(`users/${owner.uid}`),
       countCollectionDocuments("users"),
       countCollectionDocuments("courses", [{ field: "isPublic", value: true }]),
       countCollectionDocuments("courses", [{ field: "isPublic", value: false }]),
       countCollectionDocuments("waitlist"),
-      listCollectionDocumentsByRange("productEvents", "createdAt", fromIso, nowIso, 2_000),
-      listCollectionDocumentsByRange("contentReports", "createdAt", "1970-01-01T00:00:00.000Z", nowIso, 500),
-      listCollectionDocumentsByRange("outcomeFeedback", "createdAt", fromIso, nowIso, 1_000),
-      listCollectionDocumentsByRange("stripeEvents", "claimedAt", fromIso, nowIso, 1_000),
-      listCollectionDocumentsByRange("pricingIntents", "updatedAt", "1970-01-01T00:00:00.000Z", nowIso, 2_000),
+      listCollectionDocumentsByRange("productEvents", "createdAt", "1970-01-01T00:00:00.000Z", nowIso, 10_000),
+      listCollectionDocumentsByRange("contentReports", "createdAt", "1970-01-01T00:00:00.000Z", nowIso, 10_000),
+      listCollectionDocumentsByRange("outcomeFeedback", "createdAt", fromIso, nowIso, 10_000),
+      listCollectionDocumentsByRange("stripeEvents", "claimedAt", fromIso, nowIso, 10_000),
+      listCollectionDocumentsByRange("pricingIntents", "updatedAt", "1970-01-01T00:00:00.000Z", nowIso, 10_000),
+      countCollectionDocuments("contentReports"),
+      countCollectionDocuments("contentReports", [{ field: "status", value: "resolved" }]),
+      countCollectionDocuments("contentReports", [{ field: "status", value: "dismissed" }]),
     ]);
     if (ownerRecord && !rawUsers.some((record) => record.id === owner.uid || record.uid === owner.uid)) {
       rawUsers.unshift(ownerRecord);
@@ -152,7 +174,7 @@ export async function GET(request: Request) {
           : stringValue(record.displayName) ?? stringValue(record.email)?.split("@")[0] ?? "Learner",
         email: isOwner ? undefined : stringValue(record.email),
         photoURL: stringValue(record.photoURL),
-        plan: isOwner ? "pro" as const : isLearnerPlan(record.plan) ? record.plan : "free" as const,
+        plan: isOwner ? "pro" as const : effectiveMembershipPlan(record),
         accountStatus: record.accountStatus === "suspended" && !isOwner
           ? "suspended" as const
           : "active" as const,
@@ -164,6 +186,10 @@ export async function GET(request: Request) {
           : stringValue(record.manualProUntil) ? "pro" as const : undefined,
         manualPlanUntil: stringValue(record.manualPlanUntil) ?? stringValue(record.manualProUntil),
         manualProUntil: stringValue(record.manualProUntil),
+        billingPlan: isPaidLearnerPlan(record.billingPlan) ? record.billingPlan : undefined,
+        billingInterval: isBillingInterval(record.billingInterval) ? record.billingInterval : undefined,
+        subscriptionStatus: accountSubscriptionStatus(record.subscriptionStatus),
+        billingRawStatus: stringValue(record.billingRawStatus),
       };
     });
     const usageByUser = new Map<string, Map<AiFeature, AdminFeatureUsage>>();
@@ -207,8 +233,20 @@ export async function GET(request: Request) {
     }));
 
     const users: AdminUserSummary[] = userRows.map((user) => {
-      const featureUsage = Array.from(usageByUser.get(user.uid)?.values() ?? [])
-        .sort((a, b) => a.feature.localeCompare(b.feature));
+      const recordedUsage = usageByUser.get(user.uid) ?? new Map<AiFeature, AdminFeatureUsage>();
+      const planLimits = MEMBERSHIP_PLANS[user.plan].limits;
+      const features: AiFeature[] = ["course_outline", "course_banner", "lesson_generation", "tutor", ...(user.isOwner ? ["command_center_draft" as const] : [])];
+      const featureUsage = features.map((feature) => {
+        const usage = recordedUsage.get(feature) ?? { feature, requests: 0, inputTokens: 0, cachedInputTokens: 0, cacheWriteTokens: 0, outputTokens: 0, costUsd: 0 };
+        const limit = user.isOwner
+          ? null
+          : feature === "course_outline" ? planLimits.courseOutlines
+            : feature === "course_banner" ? planLimits.courseBanners
+              : feature === "lesson_generation" ? planLimits.generatedLessons
+                : feature === "tutor" ? planLimits.tutorQuestions
+                  : 0;
+        return { ...usage, limit, remaining: limit === null ? null : Math.max(0, limit - usage.requests) };
+      });
       const engagement = engagementByUser.get(user.uid);
       const questionsAnswered = numberValue(engagement?.questionsAnswered);
       return {
@@ -257,8 +295,10 @@ export async function GET(request: Request) {
     const generationByDate = new Map(dates.map((date) => [date, {
       date,
       courseOutlines: 0,
+      courseBanners: 0,
       lessons: 0,
       tutor: 0,
+      commandCenterDrafts: 0,
       failed: 0,
     }]));
     for (const record of requestsInRange) {
@@ -268,7 +308,9 @@ export async function GET(request: Request) {
       if (record.status === "failed") point.failed += 1;
       const feature = featureValue(record.feature);
       if (feature === "course_outline") point.courseOutlines += 1;
+      else if (feature === "course_banner") point.courseBanners += 1;
       else if (feature === "lesson_generation") point.lessons += 1;
+      else if (feature === "command_center_draft") point.commandCenterDrafts += 1;
       else point.tutor += 1;
     }
 
@@ -305,39 +347,66 @@ export async function GET(request: Request) {
     });
     const legacySpentUsd = microsToUsd(legacySystemUsage?.actualCostMicros);
     const legacyReservedUsd = microsToUsd(legacySystemUsage?.reservedCostMicros);
+    const budgetPools: AdminOverview["budget"]["pools"] = [
+      ...poolUsage,
+      ...((legacySpentUsd || legacyReservedUsd) ? [{
+        pool: "legacy" as const,
+        limitUsd: 0,
+        spentUsd: legacySpentUsd,
+        reservedUsd: legacyReservedUsd,
+        percentUsed: 0,
+      }] : []),
+    ];
     const limitUsd = poolUsage.reduce((sum, pool) => sum + pool.limitUsd, 0);
-    const spentUsd = legacySpentUsd + poolUsage.reduce((sum, pool) => sum + pool.spentUsd, 0);
-    const reservedUsd = legacyReservedUsd + poolUsage.reduce((sum, pool) => sum + pool.reservedUsd, 0);
-    const plannedMonthlyPriceUsd = offerFor("pro", "monthly").amountMinor / 100;
-    const paymentFeeEstimateUsd = plannedMonthlyPriceUsd * 0.036 + 0.30;
-    const modeledAiCostPerSubscriberUsd = 1.77;
-    const modeledContributionPerSubscriberUsd = Math.max(
-      0,
-      plannedMonthlyPriceUsd - paymentFeeEstimateUsd - modeledAiCostPerSubscriberUsd,
-    );
+    const spentUsd = budgetPools.reduce((sum, pool) => sum + pool.spentUsd, 0);
+    const reservedUsd = budgetPools.reduce((sum, pool) => sum + pool.reservedUsd, 0);
+    const monetizationPlans = (["plus", "pro"] as PaidLearnerPlan[]).map((plan) => {
+      const monthlyPriceUsd = offerFor(plan, "monthly").amountMinor / 100;
+      const annualPriceUsd = offerFor(plan, "annual").amountMinor / 100;
+      return {
+        plan,
+        monthlyPriceUsd,
+        annualPriceUsd,
+        annualMonthlyEquivalentUsd: annualMonthlyEquivalentMinor(plan) / 100,
+        annualSavingsPercent: annualSavingsPercent(plan),
+      };
+    });
 
     const userLabel = (uid: string) => {
       const user = users.find((candidate) => candidate.uid === uid);
       return user ? labelForUser(user) : "Deleted account";
     };
+    const productEventsInRange = productEvents.filter((record) => {
+      const createdAt = dateValue(record.createdAt);
+      return createdAt && Date.parse(createdAt) >= fromTime;
+    });
     const eventActors = (event: ProductEventName) => new Set(
-      productEvents.flatMap((record) => record.event === event && typeof record.actorId === "string"
+      productEventsInRange.flatMap((record) => record.event === event && typeof record.actorId === "string"
         ? [record.actorId]
         : []),
     );
-    let eligibleActors: Set<string> | undefined;
+    let eligibleActors: Map<string, number> | undefined;
     const funnel = funnelDefinition.map(({ event, label }, index) => {
-      const events = productEvents.filter((record) => record.event === event).length;
-      const actors = eventActors(event);
+      const matchingEvents = productEventsInRange.filter((record) => record.event === event);
+      const actors = new Map<string, number>();
+      for (const record of matchingEvents) {
+        if (typeof record.actorId !== "string") continue;
+        const timestamp = Date.parse(dateValue(record.createdAt) ?? "");
+        if (!Number.isFinite(timestamp)) continue;
+        actors.set(record.actorId, Math.min(actors.get(record.actorId) ?? timestamp, timestamp));
+      }
       const previous = eligibleActors?.size ?? 0;
       const progressingActors = eligibleActors
-        ? new Set(Array.from(actors).filter((actorId) => eligibleActors?.has(actorId)))
+        ? new Map(Array.from(actors).filter(([actorId, timestamp]) => {
+            const priorTimestamp = eligibleActors?.get(actorId);
+            return priorTimestamp !== undefined && timestamp >= priorTimestamp;
+          }))
         : actors;
       eligibleActors = progressingActors;
       return {
         event,
         label,
-        events,
+        events: matchingEvents.length,
         uniqueActors: progressingActors.size,
         conversionFromPrevious: index === 0 || previous === 0
           ? null
@@ -345,7 +414,7 @@ export async function GET(request: Request) {
       };
     });
     const acquisition = ACQUISITION_CHANNELS.map((channel) => {
-      const channelEvents = productEvents.filter((record) => acquisitionChannel(record.channel ?? record.source) === channel);
+      const channelEvents = productEventsInRange.filter((record) => acquisitionChannel(record.channel ?? record.source) === channel);
       return {
         channel,
         events: channelEvents.length,
@@ -353,7 +422,7 @@ export async function GET(request: Request) {
         courseStarts: channelEvents.filter((record) => record.event === "course_started").length,
       };
     }).filter((channel) => channel.events);
-    const uniqueActors = new Set(productEvents.flatMap((record) => (
+    const uniqueActors = new Set(productEventsInRange.flatMap((record) => (
       typeof record.actorId === "string" ? [record.actorId] : []
     ))).size;
     const actorTimelines = new Map<string, number[]>();
@@ -401,7 +470,7 @@ export async function GET(request: Request) {
     const diagnosticToPracticeActors = new Set(
       Array.from(practiceActors).filter((actorId) => diagnosticActors.has(actorId)),
     );
-    const elapsedMinutes = productEvents.flatMap((record) => (
+    const elapsedMinutes = productEventsInRange.flatMap((record) => (
       record.event === "first_practice_completed"
         && typeof record.elapsedMs === "number"
         && record.elapsedMs > 0
@@ -431,32 +500,52 @@ export async function GET(request: Request) {
     const improvedCapstones = comparableActors.filter((actorId) => (
       (capstoneScores.get(actorId)?.score ?? 0) > (baselineScores.get(actorId)?.score ?? 0)
     )).length;
-    const referredEvents = productEvents.filter((record) => (
+    const referredEvents = productEventsInRange.filter((record) => (
       acquisitionChannel(record.channel ?? record.source) === "referral"
     ));
     const referredVisitors = new Set(referredEvents.flatMap((record) => (
       typeof record.actorId === "string" ? [record.actorId] : []
     ))).size;
-    const referredCourseStarts = referredEvents.filter((record) => record.event === "course_started").length;
+    const referredCourseStarts = new Set(referredEvents.flatMap((record) => (
+      record.event === "course_started" && typeof record.actorId === "string" ? [record.actorId] : []
+    ))).size;
     const billing = billingConfiguration();
-    const openContentReportCount = contentReports.filter((report) => report.status !== "resolved" && report.status !== "dismissed").length;
+    const membership = calculateMembershipAnalytics(rawUsers, {
+      ownerUid: owner.uid,
+      totalAccountCount: totalUsers,
+    });
+    const freeAccountIds = new Set(userRows.filter((user) => !user.isOwner && user.plan === "free").map((user) => user.uid));
+    const eligiblePricingIntents = pricingIntents.filter((record) => typeof record.uid === "string" && freeAccountIds.has(record.uid));
+    const openContentReportCount = Math.max(0, totalContentReportCount - resolvedContentReportCount - dismissedContentReportCount);
+    const limitedSources = [
+      ["users", rawUsers], ["user engagement", userEngagement], ["daily engagement", dailyEngagement],
+      ["traffic", legacyTraffic], ["traffic shards", shardedTraffic], ["usage periods", usagePeriods],
+      ["AI requests", aiRequests], ["courses", courses], ["safety events", safetyEvents],
+      ["owner actions", adminEvents], ["usage shards", systemUsageShards], ["product events", productEvents],
+      ["content report queue", contentReports], ["outcome feedback", outcomeFeedback],
+      ["Stripe events", stripeEvents], ["pricing intents", pricingIntents],
+    ].flatMap(([label, records]) => (records as Array<unknown>).length >= 10_000 ? [label as string] : []);
     const pricingIntent = {
-      total: pricingIntents.length,
-      readyNow: pricingIntents.filter((record) => record.readiness === "ready_now").length,
-      within30Days: pricingIntents.filter((record) => record.readiness === "within_30_days").length,
-      researching: pricingIntents.filter((record) => record.readiness === "researching").length,
-      monthlyPreferred: pricingIntents.filter((record) => record.interval === "monthly").length,
-      annualPreferred: pricingIntents.filter((record) => record.interval === "annual").length,
+      total: eligiblePricingIntents.length,
+      readyNow: eligiblePricingIntents.filter((record) => record.readiness === "ready_now").length,
+      within30Days: eligiblePricingIntents.filter((record) => record.readiness === "within_30_days").length,
+      researching: eligiblePricingIntents.filter((record) => record.readiness === "researching").length,
+      plusPreferred: eligiblePricingIntents.filter((record) => record.planId === "plus").length,
+      proPreferred: eligiblePricingIntents.filter((record) => record.planId === "pro").length,
+      monthlyPreferred: eligiblePricingIntents.filter((record) => record.interval === "monthly").length,
+      annualPreferred: eligiblePricingIntents.filter((record) => record.interval === "annual").length,
     };
 
     const overview: AdminOverview = {
       generatedAt: new Date().toISOString(),
       range: { days, from: dates[0], to: dates[dates.length - 1] },
+      dataCoverage: { complete: limitedSources.length === 0, limitedSources },
       summary: {
         pageViews: trafficInRange.reduce((sum, record) => sum + numberValue(record.views), 0),
         activeUsers,
         totalUsers,
         generations: requestsInRange.length,
+        completedRequests: requestsInRange.filter((record) => record.status === "completed").length,
         failedRequests: requestsInRange.filter((record) => record.status === "failed").length,
         inputTokens: requestsInRange.reduce((sum, record) => sum + numberValue(record.inputTokens), 0),
         cachedInputTokens: requestsInRange.reduce((sum, record) => sum + numberValue(record.cachedInputTokens), 0),
@@ -483,20 +572,16 @@ export async function GET(request: Request) {
         spentUsd,
         reservedUsd,
         percentUsed: Math.min(100, ((spentUsd + reservedUsd) / limitUsd) * 100),
-        pools: poolUsage,
+        pools: budgetPools,
       },
       monetization: {
         waitlistCount,
-        plannedMonthlyPriceUsd,
-        plannedAnnualPriceUsd: offerFor("pro", "annual").amountMinor / 100,
-        paymentFeeEstimateUsd,
-        modeledAiCostPerSubscriberUsd,
-        modeledContributionPerSubscriberUsd,
-        modeledContributionMarginPercent: (modeledContributionPerSubscriberUsd / plannedMonthlyPriceUsd) * 100,
+        plans: monetizationPlans,
       },
+      membership,
       growth: {
         uniqueActors,
-        events: productEvents.length,
+        events: productEventsInRange.length,
         funnel,
         acquisition,
       },
@@ -514,7 +599,7 @@ export async function GET(request: Request) {
         improvementRatePercent: comparableActors.length
           ? Math.round((improvedCapstones / comparableActors.length) * 1_000) / 10
           : 0,
-        evidenceReportViews: productEvents.filter((record) => record.event === "evidence_report_viewed").length,
+        evidenceReportViews: productEventsInRange.filter((record) => record.event === "evidence_report_viewed").length,
         openContentReports: openContentReportCount,
         usefulnessResponses: outcomeFeedback.length,
         usefulnessPercent: outcomeFeedback.length
@@ -544,15 +629,15 @@ export async function GET(request: Request) {
           : 0,
       },
       paidLaunch: {
-        referralLinksCopied: productEvents.filter((record) => record.event === "referral_link_copied").length,
+        referralLinksCopied: productEventsInRange.filter((record) => record.event === "referral_link_copied").length,
         referredVisitors,
         referredCourseStarts,
         referralToCoursePercent: referredVisitors
           ? Math.round((referredCourseStarts / referredVisitors) * 1_000) / 10
           : 0,
-        activeSubscribers: rawUsers.filter((record) => record.subscriptionStatus === "active" || record.subscriptionStatus === "trialing").length,
-        pastDueSubscribers: rawUsers.filter((record) => record.subscriptionStatus === "past_due").length,
-        canceledSubscribers: rawUsers.filter((record) => record.subscriptionStatus === "canceled").length,
+        activeSubscribers: membership.activeSubscribers,
+        pastDueSubscribers: membership.pastDueSubscribers,
+        canceledSubscribers: membership.canceledSubscribers,
         failedWebhookEvents: stripeEvents.filter((record) => record.status === "failed").length,
       },
       launchReadiness: {

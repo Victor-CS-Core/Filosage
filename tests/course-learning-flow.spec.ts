@@ -570,7 +570,7 @@ test("completes a published course from discovery through evidence", async ({ pa
   await expect(page.getByText("33% of capstone criteria demonstrated before study")).toBeVisible();
   expect(baselineSubmissions).toEqual([baseline]);
 
-  await page.getByRole("button", { name: "Start with Evidence and action" }).click();
+  await page.getByRole("link", { name: "Start with Evidence and action" }).click();
   await expect(page.getByRole("heading", { level: 1, name: "Evidence before inference" })).toBeVisible();
   await expect(page.getByRole("navigation", { name: "Lesson sections" })).toBeVisible();
   const classification = page.getByRole("region", { name: "Sort the decision record" });
@@ -633,7 +633,7 @@ test("completes a published course from discovery through evidence", async ({ pa
   expect(tutorQuestions).toEqual(["How is an inference different from evidence?"]);
   await tutor.getByRole("button", { name: "Close tutor" }).click();
 
-  await page.getByRole("button", { name: /Next lesson Choose the next action/ }).click();
+  await page.getByRole("link", { name: /Next lesson Choose the next action/ }).click();
   await expect(page.getByRole("heading", { level: 1, name: "Choose the next action" })).toBeVisible();
   await page.getByRole("tab", { name: /Activities/ }).click();
   await expect(page.getByRole("heading", { name: "Make sense of the evidence" })).toBeVisible();
@@ -674,7 +674,7 @@ test("completes a published course from discovery through evidence", async ({ pa
     },
   });
 
-  await page.locator(".lesson-toolbar nav").getByRole("button", { name: topic }).click();
+  await page.locator(".lesson-toolbar nav").getByRole("link", { name: topic }).click();
   await expect(page.getByRole("progressbar", { name: "Course progress" })).toHaveAttribute("aria-valuenow", "100");
   await expect(page.getByLabel("Submit your capstone for assessment")).toBeVisible();
 
@@ -692,7 +692,7 @@ test("completes a published course from discovery through evidence", async ({ pa
   await expect(capstone.getByText("View revision history (2 attempts)")).toBeVisible();
   expect(capstoneSubmissions).toEqual([firstCapstone, revisedCapstone]);
 
-  await page.getByRole("button", { name: "View evidence" }).click();
+  await page.getByRole("link", { name: "View evidence" }).click();
   await expect(page).toHaveURL(new RegExp(`/evidence/${courseId}$`));
   await expect(page.getByRole("heading", { name: "Evidence by objective" })).toBeVisible();
   await expect(page.getByText("+67 pts")).toBeVisible();
@@ -712,7 +712,7 @@ test("recovers when the review schedule cannot be loaded", async ({ page }) => {
   await page.goto("/review");
   await expect(page.getByRole("heading", { name: "Your schedule is safe." })).toBeVisible();
   await expect(page.getByRole("button", { name: "Try again" })).toBeVisible();
-  await expect(page.getByRole("button", { name: "Explore courses" })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Explore courses" })).toBeVisible();
 });
 
 test("completes every rich lesson mode and records its active evidence", async ({ page }) => {
@@ -800,11 +800,11 @@ test("completes every rich lesson mode and records its active evidence", async (
     await page.getByRole("button", { name: submitLabels[index] }).click();
     await page.getByRole("button", { name: "Mark learned" }).click();
     await expect(page.locator(".completion-banner").getByText("Lesson complete")).toBeVisible();
-    if (index < experiences.length - 1) await page.getByRole("button", { name: new RegExp(`Next lesson Mode ${index + 2}:`) }).click();
+    if (index < experiences.length - 1) await page.getByRole("link", { name: new RegExp(`Next lesson Mode ${index + 2}:`) }).click();
   }
   expect(updates).toHaveLength(6);
   expect(updates.map((update) => update.activityEvidence?.experienceEvidence?.type)).toEqual(experiences.map((experience) => experience.type));
-  await page.locator(".lesson-toolbar nav").getByRole("button", { name: richTopic }).click();
+  await page.locator(".lesson-toolbar nav").getByRole("link", { name: richTopic }).click();
   await expect(page.getByRole("progressbar", { name: "Course progress" })).toHaveAttribute("aria-valuenow", "100");
 });
 

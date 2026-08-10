@@ -22,7 +22,7 @@ export default function LandingPage() {
         <ul className="marketing-access-points" aria-label="Ways to use Filosage">
           <li><BookOpenCheck aria-hidden="true" /><span><strong>Browse before joining</strong><small>Evaluate the full course structure without an account.</small></span></li>
           <li><ShieldCheck aria-hidden="true" /><span><strong>Keep a learning record</strong><small>Save progress, review work, notes, and evidence after sign-in.</small></span></li>
-          <li><LockKeyhole aria-hidden="true" /><span><strong>Private creation is controlled</strong><small>Pro course generation and tutoring remain metered and separately available.</small></span></li>
+          <li><LockKeyhole aria-hidden="true" /><span><strong>Private creation is controlled</strong><small>Plus and Pro course generation and tutoring remain metered and separately available.</small></span></li>
         </ul>
       </section>
     </div>

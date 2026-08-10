@@ -6,7 +6,7 @@ import {
   runStoredDocumentTransaction,
 } from "@/lib/firebase-server";
 import { enforceDurableRateLimit } from "@/lib/request-rate-limit";
-import { offerFor, paidPlanFor } from "@/lib/membership-plans";
+import { isPaidLearnerPlan, offerFor, paidPlanFor } from "@/lib/membership-plans";
 
 const pricingIntentSchema = z.object({
   planId: z.enum(["plus", "pro"]),
@@ -17,10 +17,11 @@ const pricingIntentSchema = z.object({
 
 function publicIntent(document: Record<string, unknown> | null) {
   if (!document) return null;
+  if (!isPaidLearnerPlan(document.planId)) return null;
   if (document.interval !== "monthly" && document.interval !== "annual") return null;
   if (!["ready_now", "within_30_days", "researching"].includes(String(document.readiness))) return null;
   return {
-    planId: document.planId === "plus" ? "plus" : "pro",
+    planId: document.planId,
     interval: document.interval,
     readiness: document.readiness,
     launchEmailConsent: document.launchEmailConsent === true,

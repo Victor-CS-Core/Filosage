@@ -1,7 +1,7 @@
 "use client";
 
+import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState, type CSSProperties } from "react";
-import { useRouter } from "next/navigation";
 import {
   Activity,
   Ban,
@@ -104,7 +104,6 @@ function SeriesBars({
 }
 
 export default function AdminPage() {
-  const router = useRouter();
   const { user, isOwner, loading: authLoading } = useAuth();
   const [days, setDays] = useState(30);
   const [tab, setTab] = useState<AdminTab>("overview");
@@ -222,7 +221,7 @@ export default function AdminPage() {
           <p className="overline">Private workspace</p>
           <h1>This page is not available.</h1>
           <p>The control room is restricted to the verified Filosage owner account.</p>
-          <button className="button button-primary" onClick={() => router.push("/")}>Return home</button>
+          <Link className="button button-primary" href="/">Return home</Link>
         </div>
       </AppShell>
     );
@@ -238,9 +237,9 @@ export default function AdminPage() {
             <p>Traffic, learning operations, commercial readiness, AI capacity, and account safety in one private view.</p>
           </div>
           <div className="admin-header-actions">
-            <button className="button button-secondary" onClick={() => router.push("/admin/command-center")}>
+            <Link className="button button-secondary" href="/admin/command-center">
               <Bot size={16} /> Agent command center
-            </button>
+            </Link>
             <label>
               <span>Reporting window</span>
               <select value={days} onChange={(event) => setDays(Number(event.target.value))}>
@@ -273,6 +272,7 @@ export default function AdminPage() {
 
         {error && <div className="admin-alert is-error"><TriangleAlert size={18} /><span>{error}</span><button onClick={() => void load()}>Try again</button></div>}
         {loading && !data ? <div className="admin-loading"><span /><span /><span /><span /></div> : null}
+        {data && !data.dataCoverage.complete && <div className="admin-alert"><TriangleAlert size={18} /><span>Some totals are partial because the reporting read limit was reached: {data.dataCoverage.limitedSources.join(", ")}.</span></div>}
 
         {data && tab === "overview" && (
           <div className="admin-workspace">
@@ -330,6 +330,27 @@ export default function AdminPage() {
                 </div>
               </section>
 
+              <section className="admin-panel admin-membership-panel">
+                <header><div><p className="overline">Membership</p><h2>Free, Plus, and Pro</h2></div><span>{data.membership.recordsComplete ? "Complete account snapshot" : `${data.membership.recordsScanned} of ${data.membership.totalAccounts} accounts scanned`}</span></header>
+                <div className="admin-membership-summary">
+                  <div><span>Paid conversion</span><strong>{data.membership.paidConversionPercent}%</strong><small>{data.membership.activeSubscribers} active paid subscribers</small></div>
+                  <div><span>Nominal MRR</span><strong>{currency(data.membership.mrrUsd)}</strong><small>Annual plans normalized once over 12 months</small></div>
+                  <div><span>Nominal ARR</span><strong>{currency(data.membership.arrUsd)}</strong><small>MRR × 12, without double-counting annual contracts</small></div>
+                  <div><span>ARPPU</span><strong>{currency(data.membership.arppuUsd)}</strong><small>{data.membership.revenueCoveredSubscribers} priced active subscribers</small></div>
+                </div>
+                <div className="admin-membership-breakdown">
+                  <div className="admin-acquisition-list">
+                    <h3>Access and subscriber distribution</h3>
+                    {data.membership.plans.map((plan) => <div key={plan.plan}><span>{plan.plan === "free" ? "Free" : plan.plan === "plus" ? "Plus" : "Pro"}</span><strong>{plan.users} users · {plan.userPercent}%</strong><small>{plan.activeSubscribers} active subscribers · {plan.subscriberPercent}% of active · {currency(plan.mrrUsd)} MRR</small></div>)}
+                  </div>
+                  <div className="admin-acquisition-list">
+                    <h3>Billing interval distribution</h3>
+                    {data.membership.intervals.map((interval) => <div key={interval.interval}><span>{interval.interval === "monthly" ? "Monthly" : interval.interval === "annual" ? "Annual" : "Needs synchronization"}</span><strong>{interval.activeSubscribers} · {interval.subscriberPercent}%</strong><small>{currency(interval.mrrUsd)} MRR · {currency(interval.arrUsd)} ARR</small></div>)}
+                    <p>{data.membership.trialingSubscribers} trialing · {data.membership.pastDueSubscribers} past due ({currency(data.membership.atRiskMrrUsd)} nominal at-risk MRR) · {data.membership.canceledSubscribers} canceled · {data.membership.otherBillingStates} other Stripe states. Nominal run rate uses current catalog prices, not collected cash, discounts, refunds, taxes, or disputes.</p>
+                  </div>
+                </div>
+              </section>
+
               <section className="admin-panel admin-capacity-panel">
                 <header><div><p className="overline">AI capacity</p><h2>{data.budget.month}</h2></div><Gauge size={21} /></header>
                 <strong>{currency(data.budget.spentUsd + data.budget.reservedUsd)} <small>of {currency(data.budget.limitUsd)}</small></strong>
@@ -337,32 +358,32 @@ export default function AdminPage() {
                 <dl>
                   {data.budget.pools.map((pool) => (
                     <div key={pool.pool}>
-                      <dt>{pool.pool === "paid" ? "Pro pool" : pool.pool === "free" ? "Free pool" : "Owner pool"}</dt>
-                      <dd>{currency(pool.spentUsd + pool.reservedUsd)} / {currency(pool.limitUsd)}</dd>
+                      <dt>{pool.pool === "paid" ? "Paid pool — Plus and Pro" : pool.pool === "free" ? "Free pool" : pool.pool === "owner" ? "Owner pool" : "Legacy unallocated usage"}</dt>
+                      <dd>{currency(pool.spentUsd + pool.reservedUsd)}{pool.pool === "legacy" ? "" : ` / ${currency(pool.limitUsd)}`}</dd>
                     </div>
                   ))}
                 </dl>
               </section>
 
               <section className="admin-panel admin-profit-panel">
-                <header><div><p className="overline">Unit economics</p><h2>Pro contribution model</h2></div><Coins size={20} /></header>
-                <strong>{currency(data.monetization.modeledContributionPerSubscriberUsd)} <small>per subscriber</small></strong>
+                <header><div><p className="overline">Offer economics</p><h2>Plus and Pro pricing</h2></div><Coins size={20} /></header>
+                <strong>{data.monetization.plans.length} <small>paid membership offers</small></strong>
                 <dl>
-                  <div><dt>Planned monthly price</dt><dd>{currency(data.monetization.plannedMonthlyPriceUsd)}</dd></div>
-                  <div><dt>Payment fee estimate</dt><dd>{currency(data.monetization.paymentFeeEstimateUsd)}</dd></div>
-                  <div><dt>AI and infrastructure model</dt><dd>{currency(data.monetization.modeledAiCostPerSubscriberUsd)}</dd></div>
-                  <div><dt>Contribution margin</dt><dd>{data.monetization.modeledContributionMarginPercent.toFixed(1)}%</dd></div>
+                  {data.monetization.plans.map((plan) => <div key={plan.plan}><dt>{plan.plan === "plus" ? "Plus" : "Pro"} monthly / annual</dt><dd>{currency(plan.monthlyPriceUsd)} / {currency(plan.annualPriceUsd)}</dd></div>)}
+                  {data.monetization.plans.map((plan) => <div key={`${plan.plan}-annual`}><dt>{plan.plan === "plus" ? "Plus" : "Pro"} annual monthly equivalent</dt><dd>{currency(plan.annualMonthlyEquivalentUsd)} · save {plan.annualSavingsPercent}%</dd></div>)}
                 </dl>
-                <p>Checkout remains intentionally disabled until the billing phase.</p>
+                <p>These are catalog offers, not collected revenue. Payment fees and contribution margin remain unreported until invoice, discount, refund, tax, and dispute data are available. Checkout remains separately locked.</p>
               </section>
 
               <section className="admin-panel admin-activity-panel">
                 <header><div><p className="overline">Generation volume</p><h2>Requests by day</h2></div><button onClick={() => setTab("ai")}>Open AI log <ChevronRight size={14} /></button></header>
-                <SeriesBars tone="teal" values={data.generationSeries.map((point) => ({ date: point.date, value: point.courseOutlines + point.lessons + point.tutor }))} label={`${data.summary.generations} AI requests over ${days} days`} />
+                <SeriesBars tone="teal" values={data.generationSeries.map((point) => ({ date: point.date, value: point.courseOutlines + point.courseBanners + point.lessons + point.tutor + point.commandCenterDrafts }))} label={`${data.summary.generations} AI requests over ${days} days`} />
                 <div className="admin-generation-key">
                   <span><i /> Course outlines <strong>{data.generationSeries.reduce((sum, point) => sum + point.courseOutlines, 0)}</strong></span>
+                  <span><i /> Course banners <strong>{data.generationSeries.reduce((sum, point) => sum + point.courseBanners, 0)}</strong></span>
                   <span><i /> Lessons <strong>{data.generationSeries.reduce((sum, point) => sum + point.lessons, 0)}</strong></span>
                   <span><i /> Tutor <strong>{data.generationSeries.reduce((sum, point) => sum + point.tutor, 0)}</strong></span>
+                  <span><i /> Command drafts <strong>{data.generationSeries.reduce((sum, point) => sum + point.commandCenterDrafts, 0)}</strong></span>
                 </div>
               </section>
 
@@ -436,7 +457,7 @@ export default function AdminPage() {
               <div className="admin-research-metrics">
                 <div><span>Referred visitors</span><strong>{data.paidLaunch.referredVisitors}</strong><small>{data.paidLaunch.referralLinksCopied} evidence links copied</small></div>
                 <div><span>Referral course starts</span><strong>{data.paidLaunch.referralToCoursePercent}%</strong><small>{data.paidLaunch.referredCourseStarts} starts from referred visitors</small></div>
-                <div><span>Active subscribers</span><strong>{data.paidLaunch.activeSubscribers}</strong><small>{data.paidLaunch.pastDueSubscribers} past due · {data.paidLaunch.canceledSubscribers} canceled</small></div>
+                <div><span>Active subscribers</span><strong>{data.paidLaunch.activeSubscribers}</strong><small>{data.membership.trialingSubscribers} trialing · {data.paidLaunch.pastDueSubscribers} past due · {data.paidLaunch.canceledSubscribers} canceled</small></div>
               </div>
               <div className="admin-acquisition-list">
                 <h3>Launch health</h3>
@@ -459,11 +480,11 @@ export default function AdminPage() {
                     </div>
                     {report.status === "open" ? (
                       <span>
-                        <button className="button button-quiet button-small" disabled={actionBusy} onClick={() => router.push(`/course/${encodeURIComponent(report.topic)}?id=${encodeURIComponent(report.courseId)}`)}>Open course</button>
+                        <Link className="button button-quiet button-small" href={`/course/${encodeURIComponent(report.topic)}?id=${encodeURIComponent(report.courseId)}`} aria-disabled={actionBusy} tabIndex={actionBusy ? -1 : undefined} onClick={(event) => { if (actionBusy) event.preventDefault(); }}>Open course</Link>
                         <button className="button button-secondary button-small" disabled={actionBusy} onClick={() => void reviewContentReport(report.id, "dismissed")}>Dismiss</button>
                         <button className="button button-primary button-small" disabled={actionBusy} onClick={() => void reviewContentReport(report.id, "resolved")}>Resolve</button>
                       </span>
-                    ) : <span><button className="button button-quiet button-small" onClick={() => router.push(`/course/${encodeURIComponent(report.topic)}?id=${encodeURIComponent(report.courseId)}`)}>Open course</button><em className={`admin-status status-${report.status}`}>{report.status}</em></span>}
+                    ) : <span><Link className="button button-quiet button-small" href={`/course/${encodeURIComponent(report.topic)}?id=${encodeURIComponent(report.courseId)}`}>Open course</Link><em className={`admin-status status-${report.status}`}>{report.status}</em></span>}
                   </article>
                 )) : <p>No learner content reports have been submitted.</p>}
               </div>
@@ -480,8 +501,8 @@ export default function AdminPage() {
                 <p className="overline">Commercial master lock</p>
                 <h2>{data.launchReadiness.mode === "closed" ? "Subscriptions are closed" : "Subscriptions are open"}</h2>
                 <p>{data.launchReadiness.billingLockActive
-                  ? "Phase 4B can collect evidence and prepare operations, but no checkout route can create a subscription while the billing lock remains off."
-                  : "The billing lock is on. Confirm every launch gate below before sending traffic to checkout."}</p>
+                  ? "Phase 4B can collect evidence and prepare operations, but no checkout route can create a subscription while the billing lock remains on."
+                  : "The billing lock is off. Confirm every launch gate below before sending traffic to checkout."}</p>
               </div>
               <em>{data.launchReadiness.billingLockActive ? "Protected" : "Live commerce"}</em>
             </section>
@@ -493,6 +514,7 @@ export default function AdminPage() {
                   <div><span>Total responses</span><strong>{data.launchReadiness.pricingIntent.total}</strong><small>Free accounts with a saved preference</small></div>
                   <div><span>Ready at launch</span><strong>{data.launchReadiness.pricingIntent.readyNow}</strong><small>Strongest stated purchase intent</small></div>
                   <div><span>Within 30 days</span><strong>{data.launchReadiness.pricingIntent.within30Days}</strong><small>Interested but not immediate</small></div>
+                  <div><span>Plan preference</span><strong>{data.launchReadiness.pricingIntent.plusPreferred} Plus</strong><small>{data.launchReadiness.pricingIntent.proPreferred} prefer Pro</small></div>
                   <div><span>Annual preference</span><strong>{data.launchReadiness.pricingIntent.annualPreferred}</strong><small>{data.launchReadiness.pricingIntent.monthlyPreferred} prefer monthly</small></div>
                 </div>
                 <p className="admin-launch-note">These are stated preferences, not revenue. Treat them as directional until real checkout conversion, refunds, and churn can be measured.</p>
@@ -525,7 +547,7 @@ export default function AdminPage() {
                   <ReadinessItem ready={data.launchReadiness.openContentReports === 0} label="Content report queue" detail={`${data.launchReadiness.openContentReports} open report${data.launchReadiness.openContentReports === 1 ? "" : "s"} require owner review.`} />
                   <ReadinessItem ready={data.paidLaunch.pastDueSubscribers === 0} label="Past-due accounts" detail={`${data.paidLaunch.pastDueSubscribers} account${data.paidLaunch.pastDueSubscribers === 1 ? "" : "s"} currently require recovery handling.`} />
                 </div>
-                <div className="admin-launch-actions"><button className="button button-secondary" onClick={() => router.push("/support")}>Open support center</button><button className="button button-quiet" onClick={() => setTab("safety")}>Review safety activity</button></div>
+                <div className="admin-launch-actions"><Link className="button button-secondary" href="/support">Open support center</Link><button className="button button-quiet" onClick={() => setTab("safety")}>Review safety activity</button></div>
               </section>
             </div>
           </div>
@@ -565,9 +587,11 @@ export default function AdminPage() {
                     <em className={`admin-status status-${selectedUser.accountStatus}`}>{selectedUser.accountStatus}</em>
                   </header>
                   <dl className="admin-user-stats">
-                    <div><dt>Total tokens</dt><dd>{compactNumber(selectedUser.inputTokens + selectedUser.outputTokens)}</dd></div>
+                    <div><dt>Current-month tokens</dt><dd>{compactNumber(selectedUser.inputTokens + selectedUser.outputTokens)}</dd></div>
                     <div><dt>Estimated cost</dt><dd>{currency(selectedUser.costUsd)}</dd></div>
                     <div><dt>AI requests</dt><dd>{selectedUser.requestCount}</dd></div>
+                    <div><dt>Membership</dt><dd>{selectedUser.plan === "plus" ? "Plus" : selectedUser.plan === "pro" ? "Pro" : "Free"}</dd></div>
+                    <div><dt>Subscription</dt><dd>{selectedUser.billingRawStatus ?? (selectedUser.subscriptionStatus === "none" ? "None" : selectedUser.subscriptionStatus.replace("_", " "))}{selectedUser.billingInterval ? ` · ${selectedUser.billingInterval}` : ""}</dd></div>
                     <div><dt>Courses</dt><dd>{selectedUser.courseCount}</dd></div>
                     <div><dt>Safety blocks</dt><dd>{selectedUser.safetyBlocks}</dd></div>
                     <div><dt>Joined</dt><dd>{shortDate(selectedUser.createdAt)}</dd></div>
@@ -586,7 +610,7 @@ export default function AdminPage() {
                     <h3>Usage by feature</h3>
                     <div className="admin-feature-usage">
                       {selectedUser.featureUsage.length ? selectedUser.featureUsage.map((usage) => (
-                        <div key={usage.feature}><span><strong>{featureLabels[usage.feature]}</strong><small>{usage.requests} requests · {compactNumber(usage.cachedInputTokens)} cache reads · {compactNumber(usage.cacheWriteTokens)} writes</small></span><span><strong>{compactNumber(usage.inputTokens + usage.outputTokens)} tokens</strong><small>{currency(usage.costUsd)}</small></span></div>
+                        <div key={usage.feature}><span><strong>{featureLabels[usage.feature]}</strong><small>{usage.requests} requests · {usage.remaining === null ? "unlimited" : `${usage.remaining ?? 0} of ${usage.limit ?? 0} remaining`} · {compactNumber(usage.cachedInputTokens)} cache reads</small></span><span><strong>{compactNumber(usage.inputTokens + usage.outputTokens)} tokens</strong><small>{currency(usage.costUsd)}</small></span></div>
                       )) : <p>No AI usage recorded.</p>}
                     </div>
                   </section>
@@ -605,22 +629,26 @@ export default function AdminPage() {
                       <p>Changes apply to protected features and are recorded in the owner audit log.</p>
                       {selectedUser.accountStatus === "active" ? (
                         <div className="admin-suspend-form">
-                          <input value={suspensionReason} onChange={(event) => setSuspensionReason(event.target.value)} placeholder="Reason for pausing access" maxLength={200} />
+                          <label className="sr-only" htmlFor="admin-suspension-reason">Reason for pausing access</label>
+                          <input id="admin-suspension-reason" name="suspensionReason" value={suspensionReason} onChange={(event) => setSuspensionReason(event.target.value)} placeholder="Reason for pausing access" autoComplete="off" maxLength={200} />
                           <button className="button button-danger" disabled={actionBusy || suspensionReason.trim().length < 3} onClick={() => void mutateUser(selectedUser, { action: "suspend", reason: suspensionReason.trim() }, `Pause protected access for ${selectedUser.displayName}?`)}><Ban size={15} /> Pause account</button>
                         </div>
                       ) : (
                         <button className="button button-secondary" disabled={actionBusy} onClick={() => void mutateUser(selectedUser, { action: "restore" }, `Restore protected access for ${selectedUser.displayName}?`)}><RotateCcw size={15} /> Restore account</button>
                       )}
-                      <div className="admin-pro-controls">
+                      {(["active", "trialing", "past_due"] as const).includes(selectedUser.subscriptionStatus as "active" | "trialing" | "past_due") ? (
+                        <p className="admin-action-message">Membership is billing-managed. Owner grants cannot replace an active, trialing, or past-due subscription.</p>
+                      ) : <div className="admin-pro-controls">
                         <select aria-label="Membership to grant" value={grantPlan} onChange={(event) => setGrantPlan(event.target.value as "plus" | "pro")}>
                           <option value="plus">Filosage Plus</option><option value="pro">Filosage Pro</option>
                         </select>
-                        <select value={proDuration} onChange={(event) => setProDuration(event.target.value === "permanent" ? "permanent" : Number(event.target.value) as 7 | 30 | 90)}>
+                        <label className="sr-only" htmlFor="admin-membership-duration">Membership duration</label>
+                        <select id="admin-membership-duration" aria-label="Membership duration" value={proDuration} onChange={(event) => setProDuration(event.target.value === "permanent" ? "permanent" : Number(event.target.value) as 7 | 30 | 90)}>
                           <option value={7}>7 days</option><option value={30}>30 days</option><option value={90}>90 days</option><option value="permanent">No expiry</option>
                         </select>
                         <button className="button button-primary" disabled={actionBusy} onClick={() => void mutateUser(selectedUser, { action: "grant_plan", planId: grantPlan, duration: proDuration })}><Crown size={15} /> Grant {grantPlan === "plus" ? "Plus" : "Pro"}</button>
-                        {selectedUser.manualPlanUntil && <button className="button button-quiet" disabled={actionBusy} onClick={() => void mutateUser(selectedUser, { action: "revoke_plan" }, `Remove the owner-granted ${selectedUser.manualPlan === "plus" ? "Plus" : "Pro"} access for ${selectedUser.displayName}?`)}>Remove grant</button>}
-                      </div>
+                      </div>}
+                      {selectedUser.manualPlanUntil && <button className="button button-quiet" disabled={actionBusy} onClick={() => void mutateUser(selectedUser, { action: "revoke_plan" }, `Remove the owner-granted ${selectedUser.manualPlan === "plus" ? "Plus" : "Pro"} access for ${selectedUser.displayName}?`)}>Remove saved grant</button>}
                       {actionMessage && <p className="admin-action-message" role="status">{actionMessage}</p>}
                     </section>
                   )}
@@ -638,7 +666,7 @@ export default function AdminPage() {
               <div className="admin-capacity-inline"><span><Gauge size={19} /> Monthly capacity</span><strong>{currency(data.budget.spentUsd + data.budget.reservedUsd)} / {currency(data.budget.limitUsd)}</strong><i><b style={{ width: `${data.budget.percentUsed}%` }} /></i><small>{data.budget.percentUsed.toFixed(1)}% used in {data.budget.month}</small></div>
               <div><span>Input tokens</span><strong>{compactNumber(data.summary.inputTokens)}</strong><small>{compactNumber(data.summary.cachedInputTokens)} cache reads · {compactNumber(data.summary.cacheWriteTokens)} writes</small></div>
               <div><span>Output tokens</span><strong>{compactNumber(data.summary.outputTokens)}</strong><small>{currency(data.summary.estimatedCostUsd)} estimated</small></div>
-              <div><span>Completion rate</span><strong>{data.summary.generations ? `${Math.round(((data.summary.generations - data.summary.failedRequests) / data.summary.generations) * 100)}%` : "N/A"}</strong><small>{data.summary.failedRequests} failed requests</small></div>
+              <div><span>Resolved completion rate</span><strong>{data.summary.completedRequests + data.summary.failedRequests ? `${Math.round((data.summary.completedRequests / (data.summary.completedRequests + data.summary.failedRequests)) * 100)}%` : "N/A"}</strong><small>{data.summary.completedRequests} completed · {data.summary.failedRequests} failed; reserved requests excluded</small></div>
             </section>
             <section className="admin-panel admin-log-panel">
               <header><div><p className="overline">AI ledger</p><h2>Recent generation requests</h2></div><span>Prompts and generated text are not shown here</span></header>
