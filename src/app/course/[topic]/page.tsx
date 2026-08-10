@@ -139,33 +139,13 @@ export default function CourseMap() {
         return;
       }
 
-      if (!isPro) {
-        setError("Private course creation is included with Filosage Pro.");
-        return;
-      }
-
-      const token = await getToken();
-      const response = await fetch("/api/generate-course", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-          "Idempotency-Key": createClientId(),
-        },
-        body: JSON.stringify({ topic }),
-      });
-      const data = await response.json();
-      if (!isCurrentView()) return;
-      if (!response.ok) throw new Error(data.error || "The course could not be generated.");
-      const nextCourse = { ...data, topic, id: data.courseId } as Course;
-      setCourseRecord({ key: requestViewKey, value: nextCourse });
-      if (data.courseId) router.replace(`/course/${encodeURIComponent(topic)}?id=${data.courseId}`);
+      setError("This course link is incomplete. Return to the course studio to review all three steps before creating a private course.");
     } catch (loadError) {
       if (isCurrentView()) setError(loadError instanceof Error ? loadError.message : "The course could not be opened.");
     } finally {
       if (isCurrentView()) setLoading(false);
     }
-  }, [authLoading, courseViewKey, requestedCourseId, isPro, getToken, topic, router]);
+  }, [authLoading, courseViewKey, requestedCourseId, getToken]);
 
   useEffect(() => {
     activeCourseViewRef.current = courseViewKey;
@@ -643,8 +623,8 @@ export default function CourseMap() {
       <AppShell activeTopic={topic} activeCourseId={requestedCourseId}>
         <div className="center-state course-building-state">
           <span className="loading-orbit"><LoaderCircle size={28} /></span>
-          <h1>{requestedCourseId ? "Opening the course" : `Creating ${topic}`}</h1>
-          <p>{requestedCourseId ? "Loading the course and your progress…" : "Building your course outline…"}</p>
+          <h1>{requestedCourseId ? "Opening the course" : "Opening the course studio"}</h1>
+          <p>{requestedCourseId ? "Loading the course and your progress…" : "Checking the course link…"}</p>
         </div>
       </AppShell>
     );
@@ -656,11 +636,11 @@ export default function CourseMap() {
         <div className="center-state error-state">
           <span className="state-icon"><LockKeyhole size={23} /></span>
           <p className="overline">Course unavailable</p>
-          <h1>{requestedCourseId ? "This course can’t be opened" : "Private course creation"}</h1>
+          <h1>{requestedCourseId ? "This course can’t be opened" : "Review the course brief first"}</h1>
           <p>{error || "The course could not be found."}</p>
           <div className="state-actions">
             <button className="button button-secondary" onClick={() => router.push("/library")}><ArrowLeft size={16} /> Browse courses</button>
-            {isPro && <button className="button button-primary" onClick={loadOrGenerate}>Try again</button>}
+            {isPro && <button className="button button-primary" onClick={() => router.push("/create")}>Open course studio</button>}
           </div>
         </div>
       </AppShell>

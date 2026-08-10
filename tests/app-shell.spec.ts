@@ -244,6 +244,13 @@ test.describe("desktop application shell", () => {
 
   test("presents profile, progress, and course creation as evidence-led decisions", async ({ page }) => {
     await prepareOwnerShell(page);
+    let generationRequests = 0;
+    let generationBody: Record<string, unknown> | null = null;
+    await page.route("**/api/generate-course", async (route) => {
+      generationRequests += 1;
+      generationBody = route.request().postDataJSON() as Record<string, unknown>;
+      await route.fulfill({ json: { courseId: "explicit-course-creation" } });
+    });
 
     await page.goto("/profile");
     await expectNoHorizontalPageOverflow(page);
@@ -280,6 +287,7 @@ test.describe("desktop application shell", () => {
     await expect(paceStep).toHaveAttribute("data-complete", "true");
     await page.getByRole("button", { name: /Continue/ }).click();
     await expect(page.getByRole("heading", { name: "Choose how the learning should unfold." })).toBeVisible();
+    expect(generationRequests).toBe(0);
     await expect(page.getByText("Trusted references")).toBeVisible();
     await expect(page.getByText("Optional · add up to five")).toBeVisible();
     const teachingStep = page.getByRole("button", { name: /Teaching plan/ });
@@ -294,6 +302,26 @@ test.describe("desktop application shell", () => {
     await expect(teachingStep).toHaveAttribute("data-complete", "true");
     await expect(createButton).toBeEnabled();
     await expect(page.getByRole("status", { name: "" })).toHaveCount(0);
+    await page.locator("label").filter({ hasText: /^Project-led/ }).click();
+    await expect(page.getByRole("radio", { name: /Project-led/ })).toBeChecked();
+    expect(generationRequests).toBe(0);
+    await createButton.click();
+    await expect.poll(() => generationRequests).toBe(1);
+    expect(generationBody).toMatchObject({ courseStyle: "Project-led" });
+  });
+
+  test("never creates a course from an incomplete legacy course URL", async ({ page }) => {
+    await prepareOwnerShell(page);
+    let generationRequests = 0;
+    await page.route("**/api/generate-course", async (route) => {
+      generationRequests += 1;
+      await route.fulfill({ status: 500, json: { error: "Generation must not start from this route." } });
+    });
+
+    await page.goto("/course/Legacy%20course");
+    await expect(page.getByRole("heading", { name: "Review the course brief first" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Open course studio" })).toBeVisible();
+    expect(generationRequests).toBe(0);
   });
 });
 

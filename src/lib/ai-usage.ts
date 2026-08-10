@@ -69,7 +69,7 @@ function policyFor(account: ServerAccount, feature: AiFeature, now = new Date())
       resetAt: monthly.resetAt,
       maxPerMinute: 20,
       reserveCostMicros: isBanner ? 20_000 : feature === "tutor" ? 50_000 : feature === "command_center_draft" ? 100_000 : 350_000,
-      lockMs: isBanner ? 90_000 : feature === "tutor" ? 45_000 : feature === "command_center_draft" ? 90_000 : 180_000,
+      lockMs: isBanner ? 90_000 : feature === "tutor" ? 45_000 : feature === "command_center_draft" ? 90_000 : feature === "lesson_generation" ? 75_000 : 180_000,
     };
   }
 
@@ -97,7 +97,7 @@ function policyFor(account: ServerAccount, feature: AiFeature, now = new Date())
     resetAt: monthly.resetAt,
     maxPerMinute: feature === "tutor" ? 6 : 2,
     reserveCostMicros: isBanner ? 20_000 : feature === "tutor" ? 50_000 : feature === "command_center_draft" ? 100_000 : 350_000,
-    lockMs: isBanner ? 90_000 : feature === "tutor" ? 45_000 : feature === "command_center_draft" ? 90_000 : 180_000,
+    lockMs: isBanner ? 90_000 : feature === "tutor" ? 45_000 : feature === "command_center_draft" ? 90_000 : feature === "lesson_generation" ? 75_000 : 180_000,
   };
 }
 
@@ -186,7 +186,10 @@ export async function reserveAiUsage(
       const previousRequest = documents[requestPath];
       const userBudget = documents[userBudgetPath];
       const global = documents[globalPath];
-      if (previousRequest && previousRequest.status !== "failed") {
+      const activeUntil = typeof period?.activeUntil === "string" ? Date.parse(period.activeUntil) : 0;
+      const staleReservedRequest = previousRequest?.status === "reserved" && activeUntil <= now.getTime();
+      const reserveDeltaMicros = staleReservedRequest ? 0 : policy.reserveCostMicros;
+      if (previousRequest && previousRequest.status !== "failed" && !staleReservedRequest) {
         throw new AiQuotaError(
           409,
           "DUPLICATE_REQUEST",
@@ -216,7 +219,6 @@ export async function reserveAiUsage(
         });
       }
 
-      const activeUntil = typeof period?.activeUntil === "string" ? Date.parse(period.activeUntil) : 0;
       if (activeUntil > now.getTime()) {
         throw new AiQuotaError(429, "GENERATION_IN_PROGRESS", "Another AI request is already in progress for this feature.", {
           resetAt: new Date(activeUntil).toISOString(),
@@ -225,7 +227,7 @@ export async function reserveAiUsage(
 
       const userActual = numberValue(userBudget?.actualCostMicros);
       const userReserved = numberValue(userBudget?.reservedCostMicros);
-      if (userActual + userReserved + policy.reserveCostMicros > userBudgetLimitMicros(account)) {
+      if (userActual + userReserved + reserveDeltaMicros > userBudgetLimitMicros(account)) {
         throw new AiQuotaError(429, "USER_BUDGET_REACHED", "Your monthly AI cost allowance has been reached.", {
           resetAt: globalPeriod.resetAt,
         });
@@ -235,7 +237,7 @@ export async function reserveAiUsage(
       const globalReserved = numberValue(global?.reservedCostMicros);
       const poolBudgetMicros = aiBudgetLimitsUsd()[budgetPool] * 1_000_000;
       const shardBudgetMicros = poolBudgetMicros / BUDGET_SHARDS;
-      if (globalActual + globalReserved + policy.reserveCostMicros > shardBudgetMicros) {
+      if (globalActual + globalReserved + reserveDeltaMicros > shardBudgetMicros) {
         throw new AiQuotaError(503, budgetPool === "free" ? "TRIAL_BUDGET_PAUSED" : "POOL_BUDGET_REACHED", budgetPool === "free"
           ? "Free tutor trials are paused while capacity is limited."
           : "AI generation is temporarily paused for this plan.", {
@@ -252,10 +254,10 @@ export async function reserveAiUsage(
               uid: account.uid,
               feature,
               periodKey: policy.periodKey,
-              requestCount: used + 1,
+              requestCount: used + (staleReservedRequest ? 0 : 1),
               minuteKey,
               minuteCount: minuteCount + 1,
-              reservedCostMicros: numberValue(period?.reservedCostMicros) + policy.reserveCostMicros,
+              reservedCostMicros: numberValue(period?.reservedCostMicros) + reserveDeltaMicros,
               inputTokens: numberValue(period?.inputTokens),
               cachedInputTokens: numberValue(period?.cachedInputTokens),
               cacheWriteTokens: numberValue(period?.cacheWriteTokens),
@@ -285,7 +287,7 @@ export async function reserveAiUsage(
               uid: account.uid,
               plan: budgetPool,
               periodKey: globalPeriod.key,
-              reservedCostMicros: userReserved + policy.reserveCostMicros,
+              reservedCostMicros: userReserved + reserveDeltaMicros,
               actualCostMicros: userActual,
               updatedAt: nowIso,
             },
@@ -297,7 +299,7 @@ export async function reserveAiUsage(
               pool: budgetPool,
               shard: budgetShard,
               periodKey: globalPeriod.key,
-              reservedCostMicros: globalReserved + policy.reserveCostMicros,
+              reservedCostMicros: globalReserved + reserveDeltaMicros,
               actualCostMicros: globalActual,
               updatedAt: nowIso,
             },

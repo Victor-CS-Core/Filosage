@@ -360,9 +360,20 @@ export default function CreateCoursePage() {
                   {activeStep > 0 && <button className={`button button-quiet ${styles.backButton}`} type="button" onClick={() => goToStep(activeStep - 1)} disabled={submitting}><ArrowLeft size={17} /> Back</button>}
                 </div>
                 {activeStep < steps.length - 1 ? (
-                  <button className="button button-primary" type="button" onClick={() => goToStep(activeStep + 1)} disabled={!stepValidity[activeStep]}>Continue <ArrowRight size={17} /></button>
+                  <button
+                    key="wizard-continue"
+                    className="button button-primary"
+                    type="button"
+                    onClick={(event) => {
+                      event.preventDefault();
+                      goToStep(activeStep + 1);
+                    }}
+                    disabled={!stepValidity[activeStep]}
+                  >
+                    Continue <ArrowRight size={17} />
+                  </button>
                 ) : (
-                  <button className="button button-primary" type="submit" disabled={!formReady || submitting}>{submitting ? <><LoaderCircle className="spin" size={17} /> Creating your course…</> : <>Create private course <ArrowRight size={17} /></>}</button>
+                  <button key="wizard-create-course" className="button button-primary" type="submit" disabled={!formReady || submitting}>{submitting ? <><LoaderCircle className="spin" size={17} /> Creating your course…</> : <>Create private course <ArrowRight size={17} /></>}</button>
                 )}
               </footer>
             </form>

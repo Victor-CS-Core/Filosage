@@ -307,6 +307,40 @@ test("starts one resilient generation request for an owner-only lesson", async (
   expect(generationRequests).toBe(1);
 });
 
+test("explains a short-lived generation lock instead of hiding the 429", async ({ page }) => {
+  await restoreLocalLearner(page);
+  await page.route("**/api/account", (route) => route.fulfill({
+    json: {
+      access: "pro",
+      plan: "pro",
+      isOwner: true,
+      accountStatus: "active",
+      displayName: "Playwright Owner",
+      legalAcceptanceRequired: false,
+      quotas: [],
+    },
+  }));
+  await page.route("**/api/courses?scope=mine", (route) => route.fulfill({ json: { courses: [] } }));
+  await page.route(`**/api/courses/${courseId}`, (route) => route.fulfill({
+    json: { ...course, isPublic: false, canManage: true },
+  }));
+  await page.route(`**/api/courses/${courseId}/lessons/0-0`, (route) => route.fulfill({
+    status: 404,
+    json: { error: "This lesson has not been published yet." },
+  }));
+  await page.route("**/api/generate-lesson", (route) => route.fulfill({
+    status: 429,
+    json: {
+      error: "Another AI request is already in progress for this feature.",
+      code: "GENERATION_IN_PROGRESS",
+      resetAt: new Date(Date.now() + 30_000).toISOString(),
+    },
+  }));
+
+  await page.goto(`/course/${encodeURIComponent(topic)}/lesson/0-0?id=${courseId}`);
+  await expect(page.getByText(/A previous lesson attempt is still closing\. Try again in about \d+ seconds\./)).toBeVisible();
+});
+
 test("completes a published course from discovery through evidence", async ({ page }) => {
   test.slow();
   await restoreLocalLearner(page);

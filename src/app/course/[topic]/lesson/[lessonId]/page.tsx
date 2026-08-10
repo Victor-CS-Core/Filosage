@@ -649,7 +649,6 @@ export default function LessonView() {
           Authorization: `Bearer ${token}`,
           "Idempotency-Key": generationRequestRef.current.requestId,
         },
-        keepalive: true,
         body: JSON.stringify({
           topic,
           lessonTitle: lesson.title,
@@ -658,9 +657,15 @@ export default function LessonView() {
           lessonId,
         }),
       });
-      const generated = await generationResponse.json();
+      const generated = await generationResponse.json() as { error?: string; code?: string; resetAt?: string } & LessonData;
       if (!isCurrentView()) return;
-      if (!generationResponse.ok) throw new Error(generated.error || "The lesson could not be generated.");
+      if (!generationResponse.ok) {
+        if (generated.code === "GENERATION_IN_PROGRESS" && generated.resetAt) {
+          const waitSeconds = Math.max(1, Math.ceil((Date.parse(generated.resetAt) - Date.now()) / 1_000));
+          throw new Error(`A previous lesson attempt is still closing. Try again in about ${waitSeconds} seconds.`);
+        }
+        throw new Error(generated.error || "The lesson could not be generated.");
+      }
       setGenerationProgress(100);
       setLessonDataRecord({ key: requestViewKey, value: randomizeQuizAnswers(generated as LessonData) });
       generationRequestRef.current = null;

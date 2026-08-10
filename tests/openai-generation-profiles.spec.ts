@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { readFile } from "node:fs/promises";
 import { zodTextFormat } from "openai/helpers/zod";
 import {
   AI_PROMPT_VERSIONS,
@@ -8,6 +9,12 @@ import {
 } from "../src/lib/openai-generation";
 import { lessonGenerationSchema } from "../src/lib/validation";
 import { commandCenterDraftContentSchema } from "../src/lib/command-center-draft-schema";
+import {
+  LESSON_GENERATION_TOTAL_BUDGET_MS,
+  canAttemptLessonRepair,
+  isLessonGenerationTimeout,
+  lessonGenerationAttemptTimeoutMs,
+} from "../src/lib/lesson-generation-runtime";
 
 function findUnsupportedLessonSchemaShape(value: unknown, path = "$schema"): string | null {
   if (!value || typeof value !== "object") return null;
@@ -114,4 +121,24 @@ test("keeps command-center drafts inside the strict structured-output subset", (
     "confidence",
     "cautions",
   ]));
+});
+
+test("keeps synchronous lesson generation inside the Worker deadline", () => {
+  const startedAt = 1_000_000;
+  expect(LESSON_GENERATION_TOTAL_BUDGET_MS).toBeLessThan(60_000);
+  expect(lessonGenerationAttemptTimeoutMs(startedAt, startedAt)).toBe(40_000);
+  expect(lessonGenerationAttemptTimeoutMs(startedAt, startedAt + 35_000)).toBe(7_000);
+  expect(canAttemptLessonRepair(startedAt, startedAt + 34_000)).toBe(true);
+  expect(canAttemptLessonRepair(startedAt, startedAt + 34_001)).toBe(false);
+  expect(isLessonGenerationTimeout(Object.assign(new Error("Request timed out"), { name: "APIConnectionTimeoutError" }))).toBe(true);
+});
+
+test("keeps Recognition v2 optional and removes long-request browser keepalive", async () => {
+  const [routeSource, lessonPageSource] = await Promise.all([
+    readFile("src/app/api/generate-lesson/route.ts", "utf8"),
+    readFile("src/app/course/[topic]/lesson/[lessonId]/page.tsx", "utf8"),
+  ]);
+  expect(routeSource).toContain("lesson_optional_interaction_omitted");
+  expect(routeSource).not.toContain("requireInteractionV2: true");
+  expect(lessonPageSource).not.toContain("keepalive: true");
 });

@@ -28,7 +28,13 @@ import {
   curateLessonInteractions,
   deriveLessonInteractions,
   INTERACTION_QUALITY_GATE_VERSION,
+  interactionQualityIssues,
 } from "@/lib/lesson-interactions";
+import {
+  canAttemptLessonRepair,
+  isLessonGenerationTimeout,
+  lessonGenerationAttemptTimeoutMs,
+} from "@/lib/lesson-generation-runtime";
 import { lessonVisualsEnabled } from "@/lib/feature-flags";
 import { languagePolicyInstruction } from "@/lib/content-language";
 import { lessonQualityIssues, LESSON_QUALITY_GATE_VERSION } from "@/lib/lesson-quality";
@@ -55,11 +61,11 @@ ${lessonVisualsAreEnabled
   ? "Return zero, one, or two candidate strings in visuals. Each string must be compact JSON for one learning aid. The app, not you, determines final placement and selection. Every object needs type, title, and summary. Type-specific fields are: concept-contrast has misconception, accurateView, whyItMatters; process-flow has steps [{title, detail}]; comparison-matrix has columns [left, right] and rows [{criterion, values:[left, right]}]; worked-example-trace has prompt and steps [{title, detail, check}]; prerequisite-map has nodes [{label, detail, role}], where role is foundation, current, or next. Use visuals: [] when no candidate materially improves understanding. Do not include id, placement, version, diagram syntax, SVG, or HTML."
   : "Return visuals: []. The structured visual system is not enabled for this lesson yet."}
 
-Return exactly one candidate string in interactions. The string must be compact JSON for an objective-aligned Recognition v2 practice lab, not a decorative interaction. Use type "recognition" and include title, summary, and prompt. This practice layer trains discriminations that support the lesson's observable objective; the central experience and transfer task carry the larger authentic performance.
+Return zero or one candidate string in interactions. Include one only when an objective-aligned Recognition v2 drill materially improves the lesson; never let this optional enhancement displace the explanation, worked activity, guided practice, transfer task, or checks. When included, use compact JSON with type "recognition", title, summary, and prompt.
 
-Recognition requires targetSkill copied from the observable learning objective, referencePolicy "hidden-until-complete", mastery {minimumFirstAttemptCorrect, retryMissed:true}, and 6 to 16 items. Each item needs stimulus {kind:"text"|"signal", value, accessibleLabel}, exactly four choices [{label, feedback, misconception?}], correctIndex, explanation, and difficulty "foundation"|"contrast"|"transfer". Do not include item IDs. Hide answers until the learner commits. Distractors must be plausible confusions or misconceptions, every choice needs specific explanatory feedback, and the mastery threshold must match the objective when it states a score.
+Recognition requires targetSkill copied from the observable learning objective, referencePolicy "hidden-until-complete", mastery {minimumFirstAttemptCorrect, retryMissed:true}, and 6 to 10 items. Each item needs stimulus {kind:"text"|"signal", value, accessibleLabel}, exactly four choices [{label, feedback, misconception?}], correctIndex, explanation, and difficulty "foundation"|"contrast"|"transfer". Do not include item IDs. Hide answers until the learner commits. Distractors must be plausible confusions or misconceptions, every choice needs specific explanatory feedback, and the mastery threshold must match the objective when it states a score.
 
-Do not return classification, sequence, scenario, or signal for this field. Do not duplicate the quizzes. Do not include interaction id, version, HTML, scripts, URLs, or executable content.
+Do not return classification, sequence, scenario, or signal for this field. If a rigorous recognition drill does not fit the objective, return an empty interactions array. Do not duplicate the quizzes. Do not include interaction id, version, HTML, scripts, URLs, or executable content.
 
 Create application-focused quizzes, not trivia. Each answer option needs feedback that explains why that specific choice is correct or incorrect. Vary the correct option positions. Return only the requested structured lesson.
 
@@ -68,11 +74,11 @@ ${AI_SAFETY_POLICY}`;
 export async function POST(request: Request) {
   const standardProfile = openAiExecutionProfile("lesson.standard");
   const fallbackProfile = openAiExecutionProfile("lesson.fallback");
-  const recoveryProfile = openAiExecutionProfile("lesson.recovery");
   const lessonVisualsAreEnabled = lessonVisualsEnabled();
   let reservation: AiReservation | null = null;
   const usageSamples: AiUsageSample[] = [];
   let responseId: string | undefined;
+  const generationStartedAt = Date.now();
   try {
     const account = await requirePremium(request);
     const parsed = generateLessonInputSchema.safeParse(await readJsonBody(request, 2_048));
@@ -225,8 +231,11 @@ export async function POST(request: Request) {
       },
       reasoning: { effort: profile.reasoningEffort },
       prompt_cache_key: profile.promptCacheKey,
-      max_output_tokens: 6_000,
+      max_output_tokens: 5_000,
       safety_identifier: safetyIdentifier,
+    }, {
+      maxRetries: 0,
+      timeout: lessonGenerationAttemptTimeoutMs(generationStartedAt),
     });
 
     const generateAndRecord = async (profile: AiExecutionProfile, repairIssues: string[] = []) => {
@@ -252,6 +261,7 @@ export async function POST(request: Request) {
         fallbackModel: fallbackProfile.model,
         ...safeModelErrorDetails(primaryError),
       }));
+      if (!canAttemptLessonRepair(generationStartedAt)) throw primaryError;
       try {
         activeProfile = fallbackProfile;
         primaryResponse = await generateAndRecord(fallbackProfile, ["The standard generation attempt failed before producing a usable lesson."]);
@@ -259,17 +269,15 @@ export async function POST(request: Request) {
         console.warn(JSON.stringify({
           event: "lesson_fallback_model_failed",
           model: fallbackProfile.model,
-          recoveryModel: recoveryProfile.model,
           ...safeModelErrorDetails(fallbackError),
         }));
-        activeProfile = recoveryProfile;
-        primaryResponse = await generateAndRecord(recoveryProfile, ["The standard and fallback generation attempts failed before producing a usable lesson."]);
+        throw fallbackError;
       }
     }
     let lesson = prepareLesson(primaryResponse.output_parsed as GeneratedLessonData | null);
-    let qualityIssues = lessonQualityIssues(lesson, topic, expectedMode, { requireInteractionV2: true });
+    let qualityIssues = lessonQualityIssues(lesson, topic, expectedMode);
 
-    if (qualityIssues.length && activeProfile.id === standardProfile.id) {
+    if (qualityIssues.length && activeProfile.id === standardProfile.id && canAttemptLessonRepair(generationStartedAt)) {
       try {
         activeProfile = fallbackProfile;
         const fallbackResponse = await generateAndRecord(fallbackProfile, qualityIssues);
@@ -278,18 +286,10 @@ export async function POST(request: Request) {
         console.warn(JSON.stringify({
           event: "lesson_quality_repair_failed",
           model: fallbackProfile.model,
-          recoveryModel: recoveryProfile.model,
           ...safeModelErrorDetails(error),
         }));
       }
-      qualityIssues = lessonQualityIssues(lesson, topic, expectedMode, { requireInteractionV2: true });
-    }
-
-    if (qualityIssues.length && !activeProfile.recovery) {
-      activeProfile = recoveryProfile;
-      const recoveryResponse = await generateAndRecord(recoveryProfile, qualityIssues);
-      lesson = prepareLesson(recoveryResponse.output_parsed as GeneratedLessonData | null);
-      qualityIssues = lessonQualityIssues(lesson, topic, expectedMode, { requireInteractionV2: true });
+      qualityIssues = lessonQualityIssues(lesson, topic, expectedMode);
     }
 
     if (!lesson || qualityIssues.length) {
@@ -299,6 +299,15 @@ export async function POST(request: Request) {
         { error: "The lesson did not meet Filosage's teaching-quality standard. Please try again." },
         { status: 502 },
       );
+    }
+    const interactionIssues = interactionQualityIssues(lesson, true);
+    if (interactionIssues.length) {
+      console.warn(JSON.stringify({
+        event: "lesson_optional_interaction_omitted",
+        issueCount: interactionIssues.length,
+        model: activeProfile.model,
+      }));
+      lesson = { ...lesson, interactions: [] };
     }
     await assertSafeContent(client, JSON.stringify(lesson), {
       uid: account.uid,
@@ -393,6 +402,15 @@ export async function POST(request: Request) {
         console.error("Lesson usage finalization failed:", usageError);
       });
     }
+    if (isLessonGenerationTimeout(error)) {
+      return NextResponse.json(
+        {
+          error: "Lesson generation took longer than expected. Your request was released safely; try again in a moment.",
+          code: "GENERATION_TIMEOUT",
+        },
+        { status: 503, headers: { "Cache-Control": "no-store", "Retry-After": "5" } },
+      );
+    }
     const quotaResponse = aiQuotaResponse(error);
     if (quotaResponse) return quotaResponse;
     const authResponse = authorizationResponse(error);
@@ -410,7 +428,6 @@ export async function POST(request: Request) {
       event: "lesson_generation_failed",
       standardModel: standardProfile.model,
       fallbackModel: fallbackProfile.model,
-      recoveryModel: recoveryProfile.model,
       ...safeModelErrorDetails(error),
     }));
     return NextResponse.json(
