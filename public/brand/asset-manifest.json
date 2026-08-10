@@ -59,7 +59,7 @@
       "width": 600,
       "height": 600,
       "format": "png",
-      "usage": "Browser icon copy; Next.js uses src/app/icon.png as the runtime source."
+      "usage": "Raster browser icon export retained for external brand packages."
     },
     {
       "path": "/brand/backgrounds/hero-light.svg",

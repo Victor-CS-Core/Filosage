@@ -99,7 +99,6 @@ function featureIllustration(title, description, accent, motif) {
 await save("logo/filosage-theme-light.png", lightLogo, lightLogoInfo.width, lightLogoInfo.height, "Light-theme Filosage tile cropped directly from the supplied light-theme PNG.", "png");
 await save("logo/filosage-theme-dark.png", darkLogo, darkLogoInfo.width, darkLogoInfo.height, "Dark-theme Filosage tile cropped directly from the supplied dark-theme PNG.", "png");
 await save("logo/filosage-icon.png", darkLogo, darkLogoInfo.width, darkLogoInfo.height, "Authoritative Filosage application icon cropped directly from the supplied dark-theme PNG.", "png");
-await writeFile(path.join(root, "src", "app", "icon.png"), darkLogo);
 
 await saveSvg("logo/filosage-horizontal.svg", documentSvg({
   width: 620,
@@ -133,7 +132,7 @@ await saveSvg("logo/filosage-social-avatar.svg", documentSvg({
   body: `<rect width="1200" height="1200" rx="240" fill="${palette.darkCanvas}"/><circle cx="600" cy="600" r="410" fill="${palette.navy}" stroke="${palette.darkBorder}" stroke-width="6"/>${logoImage(300, 300, 600)}`,
 }), 1200, 1200, "Square avatar for social and organization profiles.");
 
-await save("logo/browser-icon.png", darkLogo, darkLogoInfo.width, darkLogoInfo.height, "Browser icon copy; Next.js uses src/app/icon.png as the runtime source.", "png");
+await save("logo/browser-icon.png", darkLogo, darkLogoInfo.width, darkLogoInfo.height, "Raster browser icon export retained for external brand packages.", "png");
 
 const heroBackground = (dark, mobile = false) => documentSvg({
   width: mobile ? 900 : 1600,
@@ -221,13 +220,23 @@ for (const [relativePath, width, height, title, headline, supporting, dark, eyeb
   await saveSvg(relativePath, campaign({ width, height, title, description: `${title} using the original Filosage logo and brand palette.`, dark, eyebrow, headline, supporting }), width, height, `${title} for web and external brand use.`);
 }
 
+const sparkIconBody = `<path d="M24 4c2.4 9.6 6.8 14 16.4 16.4C30.8 22.8 26.4 27.2 24 36.8 21.6 27.2 17.2 22.8 7.6 20.4 17.2 18 21.6 13.6 24 4Z" fill="${palette.coral}"/>`;
+const sparkIconSvg = documentSvg({
+  width: 48,
+  height: 48,
+  title: "Spark",
+  description: "Spark interface symbol in the Filosage visual system.",
+  body: sparkIconBody,
+});
+
 for (const [file, title, body] of [
   ["icons/arrow-right.svg", "Arrow right", `<path d="M10 24h28m-9-10 10 10-10 10" fill="none" stroke="${palette.navy}" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>`],
   ["icons/check.svg", "Check", `<circle cx="24" cy="24" r="19" fill="${palette.teal}"/><path d="m15 24 6 6 13-15" fill="none" stroke="white" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>`],
-  ["icons/spark.svg", "Spark", `<path d="M24 4c2.4 9.6 6.8 14 16.4 16.4C30.8 22.8 26.4 27.2 24 36.8 21.6 27.2 17.2 22.8 7.6 20.4 17.2 18 21.6 13.6 24 4Z" fill="${palette.coral}"/>`],
+  ["icons/spark.svg", "Spark", sparkIconBody],
 ]) {
   await saveSvg(file, documentSvg({ width: 48, height: 48, title, description: `${title} interface symbol in the Filosage visual system.`, body }), 48, 48, `${title} icon for external brand compositions; product UI continues to use Lucide.`);
 }
+await writeFile(path.join(root, "src", "app", "icon.svg"), sparkIconSvg);
 
 const ogSvgPath = path.join(outputRoot, "banners", "open-graph.svg");
 const fallbackSvgPath = path.join(outputRoot, "banners", "social-sharing-fallback.svg");
