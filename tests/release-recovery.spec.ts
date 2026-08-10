@@ -2,12 +2,14 @@ import { expect, test } from "@playwright/test";
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 
-test("uses full document navigation from active error boundaries", async () => {
-  const [segmentError, globalError, themeBootstrap, createCourse] = await Promise.all([
+test("uses full document navigation across release-sensitive creation boundaries", async () => {
+  const [segmentError, globalError, themeBootstrap, createCourse, courseMap, lessonView] = await Promise.all([
     readFile(join(process.cwd(), "src/app/error.tsx"), "utf8"),
     readFile(join(process.cwd(), "src/app/global-error.tsx"), "utf8"),
     readFile(join(process.cwd(), "public/theme-bootstrap.js"), "utf8"),
     readFile(join(process.cwd(), "src/app/create/page.tsx"), "utf8"),
+    readFile(join(process.cwd(), "src/app/course/[topic]/page.tsx"), "utf8"),
+    readFile(join(process.cwd(), "src/app/course/[topic]/lesson/[lessonId]/page.tsx"), "utf8"),
   ]);
 
   expect(segmentError).toContain('window.location.assign("/library")');
@@ -20,6 +22,10 @@ test("uses full document navigation from active error boundaries", async () => {
   expect(themeBootstrap).toContain("event.preventDefault()");
   expect(createCourse).toContain("window.location.assign(`/course/");
   expect(createCourse).not.toContain("router.push(`/course/");
+  expect(courseMap).toContain("window.location.assign(`/course/");
+  expect(courseMap).not.toContain("router.push(`/course/${encodeURIComponent(topic)}/lesson/");
+  expect(lessonView).toContain('<a className="lesson-nav-link lesson-nav-next"');
+  expect(lessonView).toContain('<a className="lesson-nav-link lesson-nav-previous"');
 });
 
 test("gives lost learners a branded, accessible recovery path", async ({ page }) => {

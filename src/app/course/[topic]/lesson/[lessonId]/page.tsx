@@ -1135,7 +1135,8 @@ export default function LessonView() {
     };
   }, [courseId, getToken, lessonId, practiceInteraction]);
 
-  const lessonHref = (id: string) => `/course/${encodeURIComponent(topic)}/lesson/${id}${courseId ? `?id=${courseId}` : ""}`;
+  const courseHref = `/course/${encodeURIComponent(topic)}${courseId ? `?id=${encodeURIComponent(courseId)}` : ""}`;
+  const lessonHref = (id: string) => `/course/${encodeURIComponent(topic)}/lesson/${id}${courseId ? `?id=${encodeURIComponent(courseId)}` : ""}`;
 
   if (!authLoading && !user) {
     return (
@@ -1147,7 +1148,7 @@ export default function LessonView() {
           <p>You can inspect the complete course structure as a guest. Create a free account to read lessons, practice, and keep your progress.</p>
           <div className="state-actions">
             <button className="button button-primary" onClick={() => void signInWithGoogle()}><LockKeyhole size={16} /> Create a free account</button>
-            <Link className="button button-secondary" href={`/course/${encodeURIComponent(topic)}${courseId ? `?id=${courseId}` : ""}`}><ArrowLeft size={16} /> Back to course</Link>
+            <a className="button button-secondary" href={courseHref}><ArrowLeft size={16} /> Back to course</a>
           </div>
         </div>
       </AppShell>
@@ -1501,18 +1502,18 @@ export default function LessonView() {
 
               <nav className="lesson-navigation" aria-label="Lesson navigation">
                 {previousLesson ? (
-                  <Link className="lesson-nav-link lesson-nav-previous" href={lessonHref(previousLesson.id)}>
+                  <a className="lesson-nav-link lesson-nav-previous" href={lessonHref(previousLesson.id)}>
                     <ArrowLeft size={17} /><span><small>Previous</small><strong>{previousLesson.title}</strong></span>
-                  </Link>
+                  </a>
                 ) : (
-                  <Link className="lesson-nav-link lesson-nav-previous" href={`/course/${encodeURIComponent(topic)}?id=${courseId}`}>
+                  <a className="lesson-nav-link lesson-nav-previous" href={courseHref}>
                     <ArrowLeft size={17} /><span><small>Return to</small><strong>Course overview</strong></span>
-                  </Link>
+                  </a>
                 )}
                 {nextLesson && (
-                  <Link className="lesson-nav-link lesson-nav-next" href={lessonHref(nextLesson.id)}>
+                  <a className="lesson-nav-link lesson-nav-next" href={lessonHref(nextLesson.id)}>
                     <span><small>Next lesson</small><strong>{nextLesson.title}</strong></span><ArrowRight size={17} />
-                  </Link>
+                  </a>
                 )}
               </nav>
               </div>

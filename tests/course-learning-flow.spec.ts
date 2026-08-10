@@ -307,6 +307,48 @@ test("starts one resilient generation request for an owner-only lesson", async (
   expect(generationRequests).toBe(1);
 });
 
+test("opens and generates the next lesson in a fresh document", async ({ page }) => {
+  await restoreLocalLearner(page);
+  await page.route("**/api/account", (route) => route.fulfill({
+    json: {
+      access: "pro",
+      plan: "pro",
+      isOwner: true,
+      accountStatus: "active",
+      displayName: "Playwright Owner",
+      legalAcceptanceRequired: false,
+      quotas: [],
+    },
+  }));
+  await page.route("**/api/courses?scope=mine", (route) => route.fulfill({ json: { courses: [] } }));
+  await page.route(`**/api/courses/${courseId}`, (route) => route.fulfill({
+    json: { ...course, isPublic: false, canManage: true },
+  }));
+
+  let generated = false;
+  let generationRequests = 0;
+  await page.route(`**/api/courses/${courseId}/lessons/0-0`, (route) => route.fulfill({ json: lessonOne }));
+  await page.route(`**/api/courses/${courseId}/lessons/0-1`, (route) => generated
+    ? route.fulfill({ json: lessonTwo })
+    : route.fulfill({ status: 404, json: { error: "This lesson has not been published yet." } }));
+  await page.route("**/api/generate-lesson", async (route) => {
+    generationRequests += 1;
+    await new Promise((resolve) => setTimeout(resolve, 1_800));
+    generated = true;
+    return route.fulfill({ json: lessonTwo });
+  });
+
+  await page.goto(`/course/${encodeURIComponent(topic)}/lesson/0-0?id=${courseId}`);
+  await expect(page.getByRole("heading", { name: "Evidence before inference" })).toBeVisible();
+  await page.getByRole("link", { name: /Next lesson Choose the next action/ }).click();
+
+  await expect(page.getByText("Preparing your next lesson")).toBeVisible();
+  await expect.poll(async () => Number(await page.getByRole("progressbar", { name: "Lesson generation progress" }).getAttribute("aria-valuenow"))).toBeGreaterThan(8);
+  await expect(page.getByRole("heading", { name: "Choose the next action" })).toBeVisible();
+  expect(generationRequests).toBe(1);
+  expect(await page.evaluate(() => (performance.getEntriesByType("navigation")[0] as PerformanceNavigationTiming).name)).toContain("/lesson/0-1");
+});
+
 test("explains a short-lived generation lock instead of hiding the 429", async ({ page }) => {
   await restoreLocalLearner(page);
   await page.route("**/api/account", (route) => route.fulfill({

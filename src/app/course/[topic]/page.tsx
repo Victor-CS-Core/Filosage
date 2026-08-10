@@ -195,8 +195,8 @@ export default function CourseMap() {
         return;
       }
     }
-    router.push(`/course/${encodeURIComponent(topic)}/lesson/${lessonId}?id=${courseId}`);
-  }, [courseId, router, signInWithGoogle, topic, user]);
+    window.location.assign(`/course/${encodeURIComponent(topic)}/lesson/${lessonId}?id=${encodeURIComponent(courseId)}`);
+  }, [courseId, signInWithGoogle, topic, user]);
   const masteryJourney = useMasteryJourney(courseId, user);
 
   useEffect(() => {
