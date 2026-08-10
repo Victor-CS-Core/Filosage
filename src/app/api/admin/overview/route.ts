@@ -20,6 +20,7 @@ import {
   type ProductEventName,
 } from "@/lib/product-events";
 import { serverEnvironment } from "@/lib/runtime-environment";
+import { isLearnerPlan, isPaidLearnerPlan, offerFor } from "@/lib/membership-plans";
 
 function numberValue(value: unknown) {
   return typeof value === "number" && Number.isFinite(value) ? value : 0;
@@ -151,13 +152,17 @@ export async function GET(request: Request) {
           : stringValue(record.displayName) ?? stringValue(record.email)?.split("@")[0] ?? "Learner",
         email: isOwner ? undefined : stringValue(record.email),
         photoURL: stringValue(record.photoURL),
-        plan: record.plan === "pro" || isOwner ? "pro" as const : "free" as const,
+        plan: isOwner ? "pro" as const : isLearnerPlan(record.plan) ? record.plan : "free" as const,
         accountStatus: record.accountStatus === "suspended" && !isOwner
           ? "suspended" as const
           : "active" as const,
         isOwner,
         createdAt: dateValue(record.createdAt),
         lastSeenAt: dateValue(record.updatedAt),
+        manualPlan: isPaidLearnerPlan(record.manualPlan)
+          ? record.manualPlan
+          : stringValue(record.manualProUntil) ? "pro" as const : undefined,
+        manualPlanUntil: stringValue(record.manualPlanUntil) ?? stringValue(record.manualProUntil),
         manualProUntil: stringValue(record.manualProUntil),
       };
     });
@@ -303,7 +308,7 @@ export async function GET(request: Request) {
     const limitUsd = poolUsage.reduce((sum, pool) => sum + pool.limitUsd, 0);
     const spentUsd = legacySpentUsd + poolUsage.reduce((sum, pool) => sum + pool.spentUsd, 0);
     const reservedUsd = legacyReservedUsd + poolUsage.reduce((sum, pool) => sum + pool.reservedUsd, 0);
-    const plannedMonthlyPriceUsd = 14.99;
+    const plannedMonthlyPriceUsd = offerFor("pro", "monthly").amountMinor / 100;
     const paymentFeeEstimateUsd = plannedMonthlyPriceUsd * 0.036 + 0.30;
     const modeledAiCostPerSubscriberUsd = 1.77;
     const modeledContributionPerSubscriberUsd = Math.max(
@@ -483,7 +488,7 @@ export async function GET(request: Request) {
       monetization: {
         waitlistCount,
         plannedMonthlyPriceUsd,
-        plannedAnnualPriceUsd: 119.88,
+        plannedAnnualPriceUsd: offerFor("pro", "annual").amountMinor / 100,
         paymentFeeEstimateUsd,
         modeledAiCostPerSubscriberUsd,
         modeledContributionPerSubscriberUsd,

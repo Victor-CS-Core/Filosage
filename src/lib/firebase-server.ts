@@ -38,6 +38,10 @@ const LOCAL_PLAYWRIGHT_LEARNERS = new Map<string, { uid: string; email: string }
     uid: "local-free-learner-mobile-webkit",
     email: "learner-mobile-webkit@erudoza.local",
   }],
+  ["playwright-plus-learner", {
+    uid: "local-plus-learner",
+    email: "plus-learner@erudoza.local",
+  }],
 ]);
 
 export interface StoredDocument extends Record<string, unknown> {

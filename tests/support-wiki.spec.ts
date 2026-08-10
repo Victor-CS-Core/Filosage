@@ -68,17 +68,17 @@ test("searches public guides and renders source-checked article content", async 
   const search = page.getByRole("searchbox", { name: "Search Filosage help" });
   await search.fill("billing plan");
   const results = page.getByRole("region", { name: "Support search results" });
-  await expect(results.getByRole("link", { name: /Understand the current plan and billing status/ })).toBeVisible();
+  await expect(results.getByRole("link", { name: /Understand Free, Plus, Pro, and billing status/ })).toBeVisible();
   await search.fill("guide that does not exist");
   await expect(results.getByText("No matching guide")).toBeVisible();
   await search.press("Escape");
   await expect(results).toBeHidden();
   await expect(search).toBeFocused();
   await search.fill("billing plan");
-  await results.getByRole("link", { name: /Understand the current plan and billing status/ }).click();
+  await results.getByRole("link", { name: /Understand Free, Plus, Pro, and billing status/ }).click();
 
   await expect(page).toHaveURL(/\/support\/articles\/plans-and-billing$/);
-  await expect(page.getByRole("heading", { level: 1, name: "Understand the current plan and billing status" })).toBeVisible();
+  await expect(page.getByRole("heading", { level: 1, name: "Understand Free, Plus, Pro, and billing status" })).toBeVisible();
   await expect(page.getByRole("heading", { level: 2, name: "Paid checkout is currently closed" })).toBeVisible();
   await expect(page.getByText(/Reviewed against the app on/)).toBeVisible();
   await expect(page.locator("body")).not.toContainText("src/app/");

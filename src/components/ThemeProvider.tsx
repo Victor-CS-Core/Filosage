@@ -7,8 +7,9 @@ type Theme = "light" | "dark";
 const THEME_KEY = "erudoza-theme";
 const LEGACY_THEME_KEY = "teach-theme";
 
-const ThemeContext = createContext<{ theme: Theme; toggle: () => void }>({
+const ThemeContext = createContext<{ theme: Theme; restored: boolean; toggle: () => void }>({
   theme: "light",
+  restored: false,
   toggle: () => undefined,
 });
 
@@ -77,5 +78,5 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     setRestored(true);
   }, [theme]);
 
-  return <ThemeContext.Provider value={{ theme, toggle }}>{children}</ThemeContext.Provider>;
+  return <ThemeContext.Provider value={{ theme, restored, toggle }}>{children}</ThemeContext.Provider>;
 }

@@ -23,6 +23,10 @@ interface AuthContextValue {
   user: User | null;
   isOwner: boolean;
   isPro: boolean;
+  isPaid: boolean;
+  canCreateCourses: boolean;
+  canGenerateLessons: boolean;
+  canPublishCourses: boolean;
   access: AccessLevel;
   account: LearnerAccount | null;
   loading: boolean;
@@ -224,12 +228,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const signOut = useCallback(async () => {
     setError(null);
+    if (localAuthAvailable && localStorage.getItem(LOCAL_SESSION_KEY)) {
+      localStorage.removeItem(LOCAL_SESSION_KEY);
+      setUser(null);
+      setAccount(null);
+      return;
+    }
     if (!auth) {
-      if (localAuthAvailable) {
-        localStorage.removeItem(LOCAL_SESSION_KEY);
-        setUser(null);
-        setAccount(null);
-      }
       return;
     }
     await firebaseSignOut(auth);
@@ -245,6 +250,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       user,
       isOwner: account?.isOwner === true,
       isPro: account?.plan === "pro" && account.accountStatus !== "suspended",
+      isPaid: (account?.plan === "plus" || account?.plan === "pro") && account.accountStatus !== "suspended",
+      canCreateCourses: account?.capabilities?.createCourse ?? Boolean(account?.isOwner || account?.plan === "plus" || account?.plan === "pro"),
+      canGenerateLessons: account?.capabilities?.generateLesson ?? Boolean(account?.isOwner || account?.plan === "plus" || account?.plan === "pro"),
+      canPublishCourses: account?.capabilities?.publishCourse ?? Boolean(account?.isOwner || account?.plan === "pro"),
       access: account?.access ?? (user ? "free" : "anonymous"),
       account,
       loading,

@@ -1,4 +1,7 @@
+"use client";
+
 import Image from "next/image";
+import { useTheme } from "@/components/ThemeProvider";
 
 interface FilosageMarkProps {
   className?: string;
@@ -6,6 +9,9 @@ interface FilosageMarkProps {
 }
 
 export default function FilosageMark({ className, title }: FilosageMarkProps) {
+  const { theme, restored } = useTheme();
+  const inverse = className?.split(/\s+/).includes("is-inverse") === true;
+  const activeTheme = inverse ? "dark" : theme;
   return (
     <span
       className={`filosage-mark ${className ?? ""}`.trim()}
@@ -13,8 +19,17 @@ export default function FilosageMark({ className, title }: FilosageMarkProps) {
       aria-hidden={title ? undefined : true}
       aria-label={title}
     >
-      <Image className="filosage-mark-light" src="/brand/logo/filosage-theme-light.png" alt="" width={600} height={600} />
-      <Image className="filosage-mark-dark" src="/brand/logo/filosage-theme-dark.png" alt="" width={600} height={600} />
+      {restored && (
+        <Image
+          src={`/brand/logo/filosage-theme-${activeTheme}.png`}
+          alt=""
+          width={600}
+          height={600}
+          loading="eager"
+          fetchPriority="high"
+          sizes="96px"
+        />
+      )}
     </span>
   );
 }

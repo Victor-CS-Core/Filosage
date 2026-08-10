@@ -3,8 +3,9 @@ import { apiRequestErrorResponse, assertTrustedMutation, readJsonBody } from "@/
 import { subscriptionBlocksCheckout } from "@/lib/billing-lock";
 import { billingConfiguration } from "@/lib/runtime-config";
 import { enforceDurableRateLimit } from "@/lib/request-rate-limit";
-import { BillingCheckoutInProgressError, createCheckoutSession, isBillingInterval } from "@/lib/stripe-server";
+import { BillingCheckoutInProgressError, createCheckoutSession } from "@/lib/stripe-server";
 import { recordServerProductEvent } from "@/lib/product-events-server";
+import { isBillingInterval, isPaidLearnerPlan } from "@/lib/membership-plans";
 
 export async function POST(request: Request) {
   try {
@@ -19,9 +20,10 @@ export async function POST(request: Request) {
         { status: 409, headers: { "Cache-Control": "private, no-store" } },
       );
     }
-    const body = await readJsonBody(request, 1_024) as { interval?: unknown };
+    const body = await readJsonBody(request, 1_024) as { planId?: unknown; interval?: unknown };
+    if (!isPaidLearnerPlan(body.planId)) return Response.json({ error: "Choose Filosage Plus or Filosage Pro." }, { status: 400 });
     if (!isBillingInterval(body.interval)) return Response.json({ error: "Choose a monthly or annual billing interval." }, { status: 400 });
-    const url = await createCheckoutSession(account, body.interval);
+    const url = await createCheckoutSession(account, body.planId, body.interval);
     await recordServerProductEvent("checkout_started", {
       route: "/pricing",
       actorId: account.uid,

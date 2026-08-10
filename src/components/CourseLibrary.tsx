@@ -29,7 +29,7 @@ export default function CourseLibrary({ featured = false }: { featured?: boolean
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const { state, update } = useLearnerState();
-  const { user, isPro } = useAuth();
+  const { user } = useAuth();
   const filterDrawer = useAppDrawer("library-filters");
 
   const load = useCallback(async () => {
@@ -40,7 +40,7 @@ export default function CourseLibrary({ featured = false }: { featured?: boolean
       if (!response.ok) throw new Error("The public library could not be reached.");
       const data = await response.json() as { courses: Course[] };
       setCourses(data.courses);
-      if (user && isPro) {
+      if (user) {
         try {
           const token = await user.getIdToken();
           const ownedResponse = await fetch("/api/courses?scope=mine", {
@@ -64,7 +64,7 @@ export default function CourseLibrary({ featured = false }: { featured?: boolean
     } finally {
       setLoading(false);
     }
-  }, [isPro, user]);
+  }, [user]);
 
   useEffect(() => {
     deferClientTask(() => setQuery(new URLSearchParams(window.location.search).get("q") ?? ""));

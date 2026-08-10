@@ -12,7 +12,12 @@ export async function restoreLocalLearner(page: Page) {
     },
   });
   expect(acceptance.ok()).toBe(true);
-  await page.addInitScript(() => localStorage.setItem("erudoza-local-session", "1"));
+  await page.addInitScript(() => {
+    const bootstrapKey = "erudoza-playwright-session-bootstrapped";
+    if (sessionStorage.getItem(bootstrapKey)) return;
+    localStorage.setItem("erudoza-local-session", "1");
+    sessionStorage.setItem(bootstrapKey, "1");
+  });
 }
 
 export async function mockFreeLearnerAccount(page: Page) {

@@ -28,7 +28,7 @@ test("persists no application account until the learner accepts the current lega
 
   const prematureMutation = await request.post("/api/pricing-intent", {
     headers: authorization,
-    data: { interval: "annual", readiness: "researching", launchEmailConsent: false },
+    data: { planId: "plus", interval: "annual", readiness: "researching", launchEmailConsent: false },
   });
   expect(prematureMutation.status()).toBe(403);
 
@@ -56,12 +56,12 @@ test("persists no application account until the learner accepts the current lega
     });
     const consentGranted = await request.post("/api/pricing-intent", {
       headers: authorization,
-      data: { interval: "annual", readiness: "researching", launchEmailConsent: true },
+      data: { planId: "plus", interval: "annual", readiness: "researching", launchEmailConsent: true },
     });
     expect(consentGranted.ok()).toBe(true);
     const consentWithdrawn = await request.post("/api/pricing-intent", {
       headers: authorization,
-      data: { interval: "annual", readiness: "researching", launchEmailConsent: false },
+      data: { planId: "plus", interval: "annual", readiness: "researching", launchEmailConsent: false },
     });
     expect(consentWithdrawn.ok()).toBe(true);
     expect(await consentWithdrawn.json()).toMatchObject({
@@ -106,11 +106,48 @@ test("presents a signed-in identity without an application account as initial se
       quotas: [],
     },
   }));
-  await page.addInitScript(() => localStorage.setItem("erudoza-local-session", "1"));
+  await page.addInitScript(() => {
+    if (sessionStorage.getItem("erudoza-playwright-preaccount-bootstrapped")) return;
+    localStorage.setItem("erudoza-local-session", "1");
+    sessionStorage.setItem("erudoza-playwright-preaccount-bootstrapped", "1");
+  });
   await page.goto("/");
 
   const dialog = page.getByRole("dialog", { name: "Review before creating your account" });
   await expect(dialog).toBeVisible();
   await expect(dialog.getByText("Account setup", { exact: true })).toBeVisible();
   await expect(dialog.getByText(/before Filosage creates your learning account/i)).toBeVisible();
+});
+
+test("returns initial-setup users to the public landing page when they sign out", async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== "chromium", "One UI logout contract is sufficient for this modal.");
+
+  await page.route("**/api/account", (route) => route.fulfill({
+    json: {
+      access: "free",
+      plan: "free",
+      isOwner: false,
+      accountStatus: "active",
+      subscriptionStatus: "none",
+      legalAcceptanceRequired: true,
+      applicationAccountExists: false,
+      currentTermsVersion: TERMS_VERSION,
+      currentPrivacyVersion: PRIVACY_VERSION,
+      quotas: [],
+    },
+  }));
+  await page.addInitScript(() => {
+    if (sessionStorage.getItem("erudoza-playwright-preaccount-bootstrapped")) return;
+    localStorage.setItem("erudoza-local-session", "1");
+    sessionStorage.setItem("erudoza-playwright-preaccount-bootstrapped", "1");
+  });
+  await page.goto("/profile");
+
+  await page.getByRole("dialog", { name: "Review before creating your account" })
+    .getByRole("button", { name: "Sign out" })
+    .click();
+
+  await expect(page).toHaveURL(/\/$/);
+  await expect(page.getByRole("heading", { name: "Turn curiosity into understanding" })).toBeVisible();
+  expect(await page.evaluate(() => localStorage.getItem("erudoza-local-session"))).toBeNull();
 });

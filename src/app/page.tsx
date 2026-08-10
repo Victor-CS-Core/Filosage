@@ -49,7 +49,7 @@ function streakFor(lessons: LessonProgress[]) {
 
 export default function Home() {
   const router = useRouter();
-  const { user, account, isPro, loading: authLoading } = useAuth();
+  const { user, account, canCreateCourses, loading: authLoading } = useAuth();
   const { state: learnerState, update: updateLearnerState, syncStatus } = useLearnerState();
   const [courses, setCourses] = useState<Course[]>([]);
   const [authoredCourses, setAuthoredCourses] = useState<Course[]>([]);
@@ -64,9 +64,7 @@ export default function Home() {
     void user.getIdToken().then((token) => Promise.all([
       fetch("/api/progress", { headers: { Authorization: `Bearer ${token}` }, cache: "no-store" }).then((response) => response.ok ? response.json() : { progress: [] }),
       fetch("/api/courses?scope=public", { cache: "no-store" }).then((response) => response.ok ? response.json() : { courses: [] }),
-      isPro
-        ? fetch("/api/courses?scope=mine", { headers: { Authorization: `Bearer ${token}` }, cache: "no-store" }).then((response) => response.ok ? response.json() : { courses: [] })
-        : Promise.resolve({ courses: [] }),
+      fetch("/api/courses?scope=mine", { headers: { Authorization: `Bearer ${token}` }, cache: "no-store" }).then((response) => response.ok ? response.json() : { courses: [] }),
     ])).then(([progressData, courseData, authoredCourseData]) => {
       if (!cancelled) {
         setProgress((progressData as { progress: CourseProgress[] }).progress);
@@ -75,7 +73,7 @@ export default function Home() {
       }
     }).finally(() => { if (!cancelled) setLoaded(true); });
     return () => { cancelled = true; };
-  }, [authLoading, isPro, user]);
+  }, [authLoading, user]);
 
   useEffect(() => {
     if (!user || !loaded) return;
@@ -191,7 +189,7 @@ export default function Home() {
         <dl>{(Object.keys(snapshotMetrics) as DashboardMetric[]).filter((metric) => preferences.metrics[metric]).map((metric) => <div key={metric}><dt>{snapshotMetrics[metric].icon} {snapshotMetrics[metric].label}</dt><dd>{snapshotMetrics[metric].value}</dd></div>)}</dl>
       </section>
     );
-    return <section className="quick-actions" key={section}><h2>Quick actions</h2><button onClick={() => router.push("/review")}><CalendarCheck2 size={18} /><span><strong>Start today&apos;s review</strong><small>{due.length ? `${due.length} concept${due.length === 1 ? "" : "s"} ready now` : "No reviews due"}</small></span><ArrowRight size={15} /></button><button onClick={() => router.push("/library")}><Compass size={18} /><span><strong>Explore a new topic</strong><small>Browse published courses</small></span><ArrowRight size={15} /></button>{isPro && <button onClick={() => router.push("/create")}><BrainCircuit size={18} /><span><strong>Create a course</strong><small>Use one course credit</small></span><ArrowRight size={15} /></button>}<button onClick={() => router.push("/progress")}><TrendingUp size={18} /><span><strong>See your progress</strong><small>{mastered} concepts mastered</small></span><ArrowRight size={15} /></button></section>;
+    return <section className="quick-actions" key={section}><h2>Quick actions</h2><button onClick={() => router.push("/review")}><CalendarCheck2 size={18} /><span><strong>Start today&apos;s review</strong><small>{due.length ? `${due.length} concept${due.length === 1 ? "" : "s"} ready now` : "No reviews due"}</small></span><ArrowRight size={15} /></button><button onClick={() => router.push("/library")}><Compass size={18} /><span><strong>Explore a new topic</strong><small>Browse published courses</small></span><ArrowRight size={15} /></button>{canCreateCourses && <button onClick={() => router.push("/create")}><BrainCircuit size={18} /><span><strong>Create a course</strong><small>{account?.courseCapacity?.remaining == null ? "Use one outline credit" : `${account.courseCapacity.remaining} course slot remaining`}</small></span><ArrowRight size={15} /></button>}<button onClick={() => router.push("/progress")}><TrendingUp size={18} /><span><strong>See your progress</strong><small>{mastered} concepts mastered</small></span><ArrowRight size={15} /></button></section>;
   };
 
   return (
@@ -274,7 +272,7 @@ export default function Home() {
                     <span className="continue-action">{continueProgress.nextLessonId ? "Continue" : "Review"} <ArrowRight size={16} /></span>
                   </button>
                 ) : (
-                  <div className="dashboard-empty"><Compass size={23} /><div><strong>Choose your first course</strong><p>Start a published course or create one for your own goal.</p></div><button className="button button-primary" onClick={() => router.push(isPro ? "/create" : "/library")}>{isPro ? "Create a course" : "Explore courses"}</button></div>
+                  <div className="dashboard-empty"><Compass size={23} /><div><strong>Choose your first course</strong><p>Start a published course or create one for your own goal.</p></div><button className="button button-primary" onClick={() => router.push(canCreateCourses ? "/create" : "/library")}>{canCreateCourses ? "Create a course" : "Explore courses"}</button></div>
                 )}
               </section>
               </div>

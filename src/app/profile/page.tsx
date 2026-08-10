@@ -26,7 +26,7 @@ type BadgeFilter = "all" | "earned" | "in-progress";
 
 export default function ProfilePage() {
   const router = useRouter();
-  const { user, account, isPro, loading: authLoading, signInWithGoogle } = useAuth();
+  const { user, account, canCreateCourses, loading: authLoading, signInWithGoogle } = useAuth();
   const { state, update, syncStatus } = useLearnerState();
   const [progress, setProgress] = useState<CourseProgress[]>([]);
   const [authoredCourses, setAuthoredCourses] = useState<Course[]>([]);
@@ -40,9 +40,7 @@ export default function ProfilePage() {
     let cancelled = false;
     void user.getIdToken().then((token) => Promise.all([
       fetch("/api/progress", { headers: { Authorization: `Bearer ${token}` }, cache: "no-store" }).then((response) => response.ok ? response.json() : { progress: [] }),
-      isPro
-        ? fetch("/api/courses?scope=mine", { headers: { Authorization: `Bearer ${token}` }, cache: "no-store" }).then((response) => response.ok ? response.json() : { courses: [] })
-        : Promise.resolve({ courses: [] }),
+      fetch("/api/courses?scope=mine", { headers: { Authorization: `Bearer ${token}` }, cache: "no-store" }).then((response) => response.ok ? response.json() : { courses: [] }),
     ])).then(([progressData, courseData]) => {
       if (!cancelled) {
         setProgress((progressData as { progress: CourseProgress[] }).progress);
@@ -50,7 +48,7 @@ export default function ProfilePage() {
       }
     }).finally(() => { if (!cancelled) setLoaded(true); });
     return () => { cancelled = true; };
-  }, [isPro, user]);
+  }, [user]);
 
   if (authLoading) return <AppShell><div className="center-state"><LoaderCircle className="spin" size={25} /><h1>Preparing your profile</h1></div></AppShell>;
   if (!user) return <AppShell><div className="center-state"><UserRound size={28} /><p className="overline">Your learning profile</p><h1>Keep your progress and achievements together.</h1><p>Create a free account to sync learning progress, reviews, bookmarks, notes, and badges across devices.</p><button className="button button-primary" onClick={() => void signInWithGoogle()}>Create a free account</button></div></AppShell>;
@@ -87,7 +85,7 @@ export default function ProfilePage() {
               <img src={user.photoURL} alt="" referrerPolicy="no-referrer" />
             ) : <UserRound size={30} />}
           </div>
-          <div><p className="overline">Learning profile</p><h1>{displayName}</h1><span>{isPro ? "Pro learning account" : "Free learning account"} &middot; {syncLabel}</span></div>
+          <div><p className="overline">Learning profile</p><h1>{displayName}</h1><span>{account?.plan === "pro" ? "Pro learning account" : account?.plan === "plus" ? "Plus learning account" : "Free learning account"} &middot; {syncLabel}</span></div>
           <button className="button button-secondary" onClick={dashboardCustomizer.openDrawer} aria-expanded={dashboardCustomizer.open}><SlidersHorizontal size={17} /> Customize dashboard</button>
         </header>
 
@@ -147,9 +145,9 @@ export default function ProfilePage() {
                 </section>
 
                 <section className="profile-library-summary">
-                  <div className="profile-side-heading"><BookOpenCheck size={18} /><h2>{isPro ? "Learning and authoring" : "Your library"}</h2></div>
-                  <dl><div><dt>Courses in progress</dt><dd>{progress.length}</dd></div><div><dt>Lessons completed</dt><dd>{lessons.length}</dd></div>{isPro && <><div><dt>Private drafts</dt><dd>{draftCourses}</dd></div><div><dt>Published courses</dt><dd>{publishedCourses}</dd></div></>}</dl>
-                  <button onClick={() => router.push(isPro ? "/create" : "/library")}>{isPro ? "Open course studio" : "Explore courses"}</button>
+                  <div className="profile-side-heading"><BookOpenCheck size={18} /><h2>{canCreateCourses || authoredCourses.length ? "Learning and authoring" : "Your library"}</h2></div>
+                  <dl><div><dt>Courses in progress</dt><dd>{progress.length}</dd></div><div><dt>Lessons completed</dt><dd>{lessons.length}</dd></div>{(canCreateCourses || authoredCourses.length > 0) && <><div><dt>Private drafts</dt><dd>{draftCourses}</dd></div><div><dt>Published courses</dt><dd>{publishedCourses}</dd></div></>}</dl>
+                  <button onClick={() => router.push(canCreateCourses ? "/create" : "/library")}>{canCreateCourses ? "Open course studio" : "Explore courses"}</button>
                 </section>
 
                 <section className="profile-badge-note"><Award size={19} /><div><strong>Recognition follows useful work.</strong><p>Badges stay secondary to demonstrated understanding, review evidence, and finished course work.</p></div></section>

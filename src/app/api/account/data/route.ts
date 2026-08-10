@@ -197,7 +197,7 @@ export async function DELETE(request: Request) {
     if (["active", "trialing", "past_due"].includes(subscriptionStatus)) {
       if (!billingConfiguration().managementReady || !billingSubscriptionId?.startsWith("sub_")) {
         return Response.json(
-          { error: "Cancel your Filosage Pro subscription before deleting your account. Contact support@erudoza.com if you need help." },
+          { error: "Cancel your paid Filosage membership before deleting your account. Contact support@erudoza.com if you need help." },
           { status: 409 },
         );
       }

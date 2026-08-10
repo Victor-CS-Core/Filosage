@@ -2,6 +2,7 @@ import "server-only";
 
 import OpenAI from "openai";
 import { isLocalMode } from "@/lib/local-mode";
+import { localCourseOutlineFixture } from "@/lib/local-course-fixture";
 import { serverEnvironment } from "@/lib/runtime-environment";
 
 /**
@@ -24,69 +25,6 @@ function line(input: string, prefix: string) {
 
 function paragraph(sentence: string, repeat: number) {
   return Array.from({ length: repeat }, () => sentence).join(" ");
-}
-
-function stubOutline(input: string) {
-  const topic = line(input, "Create a complete but efficient course outline for: ") || "Your topic";
-  const lesson = (title: string, concept: string, misconception: string, mode: string, practice: string) => ({
-    title,
-    concept,
-    estimatedMinutes: 10,
-    objective: `Explain and apply ${concept.toLowerCase()} in a concrete situation.`,
-    lessonMode: mode,
-    buildsOn: [],
-    misconception,
-    practiceType: practice,
-    masteryCriteria: `Apply ${concept.toLowerCase()} to a new example without prompting.`,
-  });
-  return {
-    mission: `Build a working understanding of ${topic} you can apply immediately.`,
-    level: "Foundations",
-    estimatedMinutes: 240,
-    outcome: `Explain the core ideas of ${topic} and apply them to a realistic situation.`,
-    prerequisites: [],
-    category: "Local test course",
-    modules: [
-      {
-        title: `${topic}: the core model`,
-        description: `The two ideas everything else in ${topic} builds on.`,
-        objective: `Describe the core model of ${topic} from memory.`,
-        challenge: {
-          title: "Explain it to a colleague",
-          prompt: `Write a five-sentence explanation of ${topic} for someone new to it.`,
-          successCriteria: ["Uses the core terms correctly", "Includes one concrete example"],
-        },
-        lessons: [
-          lesson(`What ${topic} actually is`, `The defining idea of ${topic}`, `${topic} is often assumed to be more complicated than its core idea.`, "concept", "explain"),
-          lesson(`${topic} in practice`, `Applying ${topic} to a first example`, "Knowing the definition is often mistaken for being able to apply it.", "worked-example", "classify"),
-        ],
-      },
-      {
-        title: `Using ${topic} well`,
-        description: `Where ${topic} pays off and where it breaks down.`,
-        objective: `Decide when ${topic} applies and when it does not.`,
-        challenge: {
-          title: "Boundary cases",
-          prompt: `List two situations where ${topic} applies cleanly and one where it misleads.`,
-          successCriteria: ["Identifies a genuine boundary case", "Explains why the boundary exists"],
-        },
-        lessons: [
-          lesson(`Common failure modes`, `Where ${topic} goes wrong`, "Success cases are often assumed to generalize everywhere.", "case-study", "decide"),
-          lesson(`Putting it together`, `Synthesizing ${topic} end to end`, "The pieces are often assumed to work alone rather than as a system.", "synthesis", "create"),
-        ],
-      },
-    ],
-    capstone: {
-      title: `Apply ${topic} end to end`,
-      brief: `Take a real situation you care about and work it through with ${topic} from framing to conclusion.`,
-      deliverable: "A written walkthrough of your situation, decisions, and result.",
-      successCriteria: [
-        "Frames the situation using the course's core terms",
-        "Shows at least one decision the framework changed",
-        "States the result and one limitation honestly",
-      ],
-    },
-  };
 }
 
 function stubLesson(input: string) {
@@ -129,6 +67,72 @@ function stubLesson(input: string) {
     `${concept} matters because it changes what you do, not only what you can recite. Start from the situation you already understand, and notice where the naive approach quietly fails: that failure point is exactly where ${concept.toLowerCase()} proves useful. A common belief, that ${misconception.toLowerCase()}, feels reasonable right up until you test it against a concrete case, which is why this lesson works through one slowly instead of asserting the conclusion.`,
     4,
   );
+  const experience = mode === "worked-example"
+    ? {
+        type: "worked-example" as const,
+        scenario: `A learner must use ${concept.toLowerCase()} to choose a defensible next step.`,
+        steps: [
+          { title: "Frame the decision", reasoning: "Naming the decision prevents premature method choice.", output: "A one-sentence decision statement." },
+          { title: "Apply the concept", reasoning: `The relevant evidence is tested against ${concept.toLowerCase()}.`, output: "An evidence-linked recommendation." },
+          { title: "Check the boundary", reasoning: "A limitation keeps the recommendation from claiming too much.", output: "A recommendation with one explicit caveat." },
+        ],
+        fadingPrompt: "Repeat the reasoning on a new case, supplying the final step yourself.",
+      }
+    : mode === "comparison"
+      ? {
+          type: "comparison" as const,
+          options: ["Use the tempting shortcut", "Apply the evidence-linked concept"],
+          criteria: [
+            { criterion: "Evidence", first: "Relies on first impressions", second: "Names the evidence that changes the decision" },
+            { criterion: "Transfer", first: "Repeats the example", second: "Adapts the concept to the new constraint" },
+          ],
+          boundaryCase: { prompt: "What if the evidence is incomplete?", resolution: "State the uncertainty and choose the smallest reversible next step." },
+        }
+      : mode === "case-study"
+        ? {
+            type: "case-study" as const,
+            brief: `A team must apply ${concept.toLowerCase()} while facing a real constraint.`,
+            evidence: [
+              { label: "Goal", detail: "The result must support a named decision." },
+              { label: "Constraint", detail: "The team has limited time and incomplete information." },
+              { label: "Signal", detail: "One observation contradicts the tempting shortcut." },
+            ],
+            interpretations: ["The shortcut is sufficient", "The concept changes the next move"],
+            decisionPrompt: "Choose an interpretation and defend it with all three evidence items.",
+          }
+        : mode === "practice-lab"
+          ? {
+              type: "practice-lab" as const,
+              brief: `Build a small artifact that demonstrates ${concept.toLowerCase()}.`,
+              materials: ["The situation brief", "The evidence list", "A decision template"],
+              tasks: ["Frame the decision", "Apply the concept to the evidence", "Check the result against one boundary case"],
+              artifactPrompt: "Produce a concise decision record with reasoning and one limitation.",
+              successCriteria: ["Every claim points to evidence", "The limitation changes or qualifies the recommendation"],
+            }
+          : mode === "synthesis"
+            ? {
+                type: "synthesis" as const,
+                challenge: `Combine the course ideas into one defensible use of ${concept.toLowerCase()}.`,
+                connections: [
+                  { concept, contribution: "Provides the decision rule." },
+                  { concept: "Evidence checking", contribution: "Tests whether the rule fits the situation." },
+                ],
+                capstoneContribution: "A complete recommendation with evidence, tradeoff, and limitation.",
+                reflectionPrompt: "Which connection did the most work, and where would it fail?",
+              }
+            : {
+                type: "concept" as const,
+                predictionPrompt: `Predict what changes when ${concept.toLowerCase()} is applied to the situation.`,
+                mentalModel: {
+                  title: "From situation to checked decision",
+                  parts: [
+                    { label: "Situation", role: "Names the decision and constraint" },
+                    { label: "Concept", role: "Selects the relevant evidence and action" },
+                    { label: "Check", role: "Tests the result and records a limitation" },
+                  ],
+                },
+                misconceptionCheck: { claim: misconception, correction: `${concept} must change a concrete decision and survive a boundary check.` },
+              };
   return {
     learningObjective,
     connection: `This lesson builds directly on the previous concept and prepares the ground for what follows in the course sequence.`,
@@ -137,6 +141,7 @@ function stubLesson(input: string) {
       `The misconception (${misconception.toLowerCase()}) fails on concrete cases.`,
       "Transfer to a new situation is the real test of understanding.",
     ],
+    experience,
     content: `## Why it matters\n\n${body}\n\n## Working through it\n\n${paragraph(`Take the example apart step by step and say out loud what each part contributes; the goal is reasoning you could repeat on a different example tomorrow.`, 3)}\n\n## Where it goes next\n\n${paragraph(`Once this holds, the next lesson can build on it without re-explaining the foundation.`, 2)}`,
     guidedPractice: {
       prompt: `Work through a small example of ${concept.toLowerCase()} and narrate each decision.`,
@@ -340,7 +345,7 @@ function localAiStub() {
         const output_parsed = format === "command_center_draft"
           ? stubCommandCenterDraft(input)
           : format === "course_outline"
-          ? stubOutline(input)
+            ? localCourseOutlineFixture(line(input, "Create a complete but efficient course outline for: ") || "Your topic")
           : format === "capstone_verdict"
             ? stubCapstoneVerdict(input)
             : stubLesson(input);

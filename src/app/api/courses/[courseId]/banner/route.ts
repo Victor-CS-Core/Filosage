@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { aiClient } from "@/lib/local-ai";
-import { authorizationResponse, requirePremium } from "@/lib/auth-server";
+import { authorizationResponse, requirePlanCapability } from "@/lib/auth-server";
 import {
   claimCourseBannerRegeneration,
   CourseBannerRegenerationError,
@@ -32,7 +32,7 @@ export async function POST(request: Request, { params }: RouteParams) {
 
   try {
     assertTrustedMutation(request);
-    const account = await requirePremium(request);
+    const account = await requirePlanCapability(request, "generate_course_banner");
     const course = await getCourse(courseId);
     if (!course) return NextResponse.json({ error: "Course not found." }, { status: 404 });
     if (course.authorId !== account.uid && !account.isOwner) {

@@ -1,20 +1,36 @@
 import "server-only";
 
 import { billingConfiguration } from "@/lib/runtime-config";
-import { PRO_OFFER } from "@/lib/billing-offer";
-import { serverEnvironment } from "@/lib/runtime-environment";
+import {
+  ACTIVE_MEMBERSHIP_PLANS,
+  annualMonthlyEquivalentMinor,
+  annualSavingsMinor,
+  annualSavingsPercent,
+  type PaidLearnerPlan,
+} from "@/lib/membership-plans";
 
-export const proPlan = {
-  id: "pro_monthly",
-  name: "Filosage Pro",
-  interval: "month" as const,
-  currency: PRO_OFFER.currency,
-  priceUsd: PRO_OFFER.monthly.amountMinor / 100,
-  annualPriceUsd: PRO_OFFER.annual.amountMinor / 100,
-  get priceId() { return serverEnvironment.STRIPE_PRO_MONTHLY_PRICE_ID ?? ""; },
-  get annualPriceId() { return serverEnvironment.STRIPE_PRO_ANNUAL_PRICE_ID ?? ""; },
-  features: { courseOutlines: 3, generatedLessons: 30, tutorQuestions: 100 },
-};
+function publicPlan(plan: (typeof ACTIVE_MEMBERSHIP_PLANS)[number]) {
+  const paid: PaidLearnerPlan | null = plan.id === "plus" || plan.id === "pro" ? plan.id : null;
+  return {
+    id: plan.id,
+    name: plan.name,
+    shortName: plan.shortName,
+    description: plan.description,
+    sortOrder: plan.sortOrder,
+    active: plan.active,
+    currency: plan.currency,
+    prices: plan.prices,
+    annualMonthlyEquivalentMinor: paid ? annualMonthlyEquivalentMinor(paid) : null,
+    annualSavingsMinor: paid ? annualSavingsMinor(paid) : null,
+    annualSavingsPercent: paid ? annualSavingsPercent(paid) : null,
+    limits: plan.limits,
+    capabilities: plan.capabilities,
+    includedFeatures: plan.includedFeatures,
+    restrictedFeatures: plan.restrictedFeatures,
+  };
+}
+
+export const publicMembershipPlans = ACTIVE_MEMBERSHIP_PLANS.map(publicPlan);
 
 export function billingStatus() {
   const config = billingConfiguration();
@@ -24,6 +40,6 @@ export function billingStatus() {
     managementReady: config.managementReady,
     checkoutReady: config.checkoutReady,
     ready: config.checkoutReady,
-    plan: { ...proPlan, priceId: undefined, annualPriceId: undefined },
+    plans: publicMembershipPlans,
   };
 }

@@ -8,12 +8,12 @@ GoDaddy can provide the domain and hosting layer. It is not the recurring subscr
 - `BILLING_ENABLED=false` is an independent activation lock and must remain false until the operational and legal launch gates are complete.
 - `/api/billing/status` exposes only non-secret readiness information.
 - `/api/billing/checkout` and `/api/billing/portal` fail closed until the provider integration is enabled.
-- `/api/billing/webhook` verifies Stripe signatures, claims events transactionally, ignores duplicate and stale events, and derives Pro entitlement only from supported active or trialing subscriptions. This code is production-ready but not authorized for activation.
+- `/api/billing/webhook` verifies Stripe signatures, claims events transactionally, ignores duplicate and stale events, and resolves Plus or Pro only from one recognized plan/interval Price mapping. This code is not authorized for activation.
 
 ## Activation checklist
 
 1. Confirm the final monthly and annual prices, currency, taxes, and refund treatment with the legal operator.
-2. Create matching Stripe products and prices and configure `STRIPE_PRO_MONTHLY_PRICE_ID` and `STRIPE_PRO_ANNUAL_PRICE_ID`.
+2. Create matching Stripe products and prices and configure `STRIPE_PLUS_MONTHLY_PRICE_ID`, `STRIPE_PLUS_ANNUAL_PRICE_ID`, `STRIPE_PRO_MONTHLY_PRICE_ID`, and `STRIPE_PRO_ANNUAL_PRICE_ID`.
 3. Configure `STRIPE_SECRET_KEY` and `STRIPE_WEBHOOK_SECRET`, then keep `BILLING_ENABLED=false` while completing test-mode exercises.
 4. Test successful checkout, duplicate and out-of-order webhooks, renewal, failed payment, cancellation at period end, immediate cancellation, refund, account deletion, and portal access.
 5. Publish the operator identity, business address, governing jurisdiction, required consumer notices, and support response process.

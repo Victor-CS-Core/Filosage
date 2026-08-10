@@ -169,12 +169,12 @@ export interface LessonData {
   };
 }
 
-export type LearnerPlan = "free" | "pro";
-export type AccessLevel = "anonymous" | "free" | "pro" | "owner";
+export type LearnerPlan = "free" | "plus" | "pro";
+export type AccessLevel = "anonymous" | "free" | "plus" | "pro" | "owner";
 export type AccountStatus = "active" | "suspended";
 
 export interface AiQuotaSummary {
-  feature: "course_outline" | "lesson_generation" | "tutor";
+  feature: "course_outline" | "course_banner" | "lesson_generation" | "tutor";
   limit: number | null;
   used: number;
   remaining: number | null;
@@ -190,10 +190,23 @@ export interface LearnerAccount {
   displayName?: string;
   photoURL?: string;
   subscriptionStatus?: "none" | "trialing" | "active" | "past_due" | "canceled";
+  billingInterval?: "monthly" | "annual";
   currentPeriodEnd?: string;
   acceptedTermsVersion?: string;
   acceptedPrivacyVersion?: string;
   legalAcceptanceRequired?: boolean;
   applicationAccountExists?: boolean;
+  capabilities: {
+    createCourse: boolean;
+    generateLesson: boolean;
+    generateCourseBanner: boolean;
+    publishCourse: boolean;
+  };
+  courseCapacity: {
+    owned: number;
+    limit: number | null;
+    remaining: number | null;
+    overLimit: boolean;
+  };
   quotas: AiQuotaSummary[];
 }

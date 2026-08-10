@@ -6,6 +6,7 @@ import {
 } from "@/lib/firebase-server";
 import { isLocalMode, LOCAL_OWNER_UID } from "@/lib/local-mode";
 import type { AccessLevel, AccountStatus, LearnerPlan } from "@/lib/course-types";
+import { isBillingInterval, isPaidLearnerPlan, type PaidLearnerPlan } from "@/lib/membership-plans";
 import { serverEnvironment } from "@/lib/runtime-environment";
 
 export interface ServerAccount {
@@ -18,8 +19,11 @@ export interface ServerAccount {
   isOwner: boolean;
   accountStatus: AccountStatus;
   suspensionReason?: string;
+  manualPlan?: PaidLearnerPlan;
+  manualPlanUntil?: string;
   manualProUntil?: string;
   subscriptionStatus: "none" | "trialing" | "active" | "past_due" | "canceled";
+  billingInterval?: "monthly" | "annual";
   currentPeriodEnd?: string;
   billingCustomerId?: string;
   acceptedTermsVersion?: string;
@@ -69,11 +73,22 @@ async function resolveAccount(
     if (!existing) return { writes: [], result: null };
     const subscriptionStatus = String(existing?.subscriptionStatus ?? "none") as ServerAccount["subscriptionStatus"];
     const subscribed = subscriptionStatus === "active" || subscriptionStatus === "trialing";
-    const manualProUntil = typeof existing?.manualProUntil === "string" ? existing.manualProUntil : undefined;
-    const manualProActive = manualProUntil === "permanent"
-      || (Boolean(manualProUntil) && Date.parse(manualProUntil!) > Date.now());
-    const plan: LearnerPlan = isOwner || allowlisted || subscribed || manualProActive ? "pro" : "free";
-    const access: ServerAccount["access"] = isOwner ? "owner" : plan === "pro" ? "pro" : "free";
+    const legacyManualProUntil = typeof existing?.manualProUntil === "string" ? existing.manualProUntil : undefined;
+    const manualPlanUntil = typeof existing?.manualPlanUntil === "string" ? existing.manualPlanUntil : legacyManualProUntil;
+    const manualPlan = isPaidLearnerPlan(existing?.manualPlan)
+      ? existing.manualPlan
+      : legacyManualProUntil ? "pro" : undefined;
+    const manualPlanActive = manualPlanUntil === "permanent"
+      || (Boolean(manualPlanUntil) && Date.parse(manualPlanUntil!) > Date.now());
+    const subscribedPlan = isPaidLearnerPlan(existing?.billingPlan) ? existing.billingPlan : "pro";
+    const plan: LearnerPlan = isOwner || allowlisted
+      ? "pro"
+      : manualPlanActive && manualPlan
+        ? manualPlan
+      : subscribed
+        ? subscribedPlan
+        : "free";
+    const access: ServerAccount["access"] = isOwner ? "owner" : plan;
     const accountStatus: AccountStatus = isOwner
       ? "active"
       : existing?.accountStatus === "suspended"
@@ -88,13 +103,15 @@ async function resolveAccount(
       photoURL: user.picture ?? existing?.photoURL ?? null,
       plan,
       accountStatus,
-      manualProUntil: manualProUntil ?? null,
+      manualPlan: manualPlan ?? null,
+      manualPlanUntil: manualPlanUntil ?? null,
+      manualProUntil: legacyManualProUntil ?? null,
       subscriptionStatus,
       createdAt: existing?.createdAt ?? now,
       updatedAt: now,
     };
 
-    const materialKeys = ["uid", "email", "displayName", "photoURL", "plan", "accountStatus", "manualProUntil"] as const;
+    const materialKeys = ["uid", "email", "displayName", "photoURL", "plan", "accountStatus", "manualPlan", "manualPlanUntil", "manualProUntil"] as const;
     const fresh = Boolean(existing?.updatedAt)
       && Date.now() - Date.parse(String(existing!.updatedAt)) < LAST_SEEN_REFRESH_MS;
     const unchanged = Boolean(existing) && fresh
@@ -118,8 +135,11 @@ async function resolveAccount(
     isOwner,
     accountStatus,
     suspensionReason: typeof saved.suspensionReason === "string" ? saved.suspensionReason : undefined,
+    manualPlan: isPaidLearnerPlan(saved.manualPlan) ? saved.manualPlan : undefined,
+    manualPlanUntil: typeof saved.manualPlanUntil === "string" ? saved.manualPlanUntil : undefined,
     manualProUntil: typeof saved.manualProUntil === "string" ? saved.manualProUntil : undefined,
     subscriptionStatus: String(saved.subscriptionStatus ?? "none") as ServerAccount["subscriptionStatus"],
+    billingInterval: isBillingInterval(saved.billingInterval) ? saved.billingInterval : undefined,
     currentPeriodEnd: typeof saved.currentPeriodEnd === "string" ? saved.currentPeriodEnd : undefined,
     billingCustomerId: typeof saved.billingCustomerId === "string" ? saved.billingCustomerId : undefined,
     acceptedTermsVersion: typeof saved.acceptedTermsVersion === "string" ? saved.acceptedTermsVersion : undefined,

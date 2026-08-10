@@ -12,6 +12,7 @@ import {
   runStoredDocumentTransaction,
 } from "@/lib/firebase-server";
 import { serverEnvironment } from "@/lib/runtime-environment";
+import { MEMBERSHIP_PLANS } from "@/lib/membership-plans";
 
 export type AiFeature = "course_outline" | "course_banner" | "lesson_generation" | "tutor" | "command_center_draft";
 export type AiBudgetPool = "free" | "paid" | "owner";
@@ -73,29 +74,19 @@ function policyFor(account: ServerAccount, feature: AiFeature, now = new Date())
     };
   }
 
-  if (feature === "tutor" && account.plan === "free") {
-    return {
-      limit: 5,
-      periodKey: monthly.key,
-      resetAt: monthly.resetAt,
-      maxPerMinute: 2,
-      reserveCostMicros: 50_000,
-      lockMs: 45_000,
-    };
-  }
-
+  const planLimits = MEMBERSHIP_PLANS[account.plan].limits;
   const limits: Record<AiFeature, number> = {
-    course_outline: account.plan === "pro" ? 3 : 0,
-    course_banner: account.plan === "pro" ? 30 : 0,
-    lesson_generation: account.plan === "pro" ? 30 : 0,
-    tutor: account.plan === "pro" ? 100 : 0,
+    course_outline: planLimits.courseOutlines,
+    course_banner: planLimits.courseBanners,
+    lesson_generation: planLimits.generatedLessons,
+    tutor: planLimits.tutorQuestions,
     command_center_draft: 0,
   };
   return {
     limit: limits[feature],
     periodKey: monthly.key,
     resetAt: monthly.resetAt,
-    maxPerMinute: feature === "tutor" ? 6 : 2,
+    maxPerMinute: feature === "tutor" ? (account.plan === "free" ? 2 : 6) : 2,
     reserveCostMicros: isBanner ? 20_000 : feature === "tutor" ? 50_000 : feature === "command_center_draft" ? 100_000 : 350_000,
     lockMs: isBanner ? 90_000 : feature === "tutor" ? 45_000 : feature === "command_center_draft" ? 90_000 : feature === "lesson_generation" ? 75_000 : 180_000,
   };
@@ -137,12 +128,15 @@ function userBudgetLimitMicros(account: ServerAccount) {
   if (account.plan === "pro") {
     return positiveDollars(serverEnvironment.OPENAI_PRO_USER_MONTHLY_BUDGET_USD, 6) * 1_000_000;
   }
+  if (account.plan === "plus") {
+    return positiveDollars(serverEnvironment.OPENAI_PLUS_USER_MONTHLY_BUDGET_USD, 3) * 1_000_000;
+  }
   return positiveDollars(serverEnvironment.OPENAI_FREE_USER_MONTHLY_BUDGET_USD, 0.15) * 1_000_000;
 }
 
 function budgetPoolFor(account: ServerAccount): AiBudgetPool {
   if (account.isOwner) return "owner";
-  return account.plan === "pro" ? "paid" : "free";
+  return account.plan === "free" ? "free" : "paid";
 }
 
 function budgetShardFor(requestId: string) {
@@ -162,7 +156,7 @@ export async function reserveAiUsage(
   const nowIso = now.toISOString();
   const policy = policyFor(account, feature, now);
   if (policy.limit === 0) {
-    throw new AiQuotaError(429, "PLAN_LIMIT", "Filosage Pro is required for this AI feature.", {
+    throw new AiQuotaError(429, "PLAN_LIMIT", "Your current plan does not include this AI feature.", {
       limit: 0,
       remaining: 0,
       resetAt: policy.resetAt,
@@ -494,7 +488,7 @@ export async function finalizeAiUsage(
 
 export async function getAiQuotaSummaries(account: ServerAccount): Promise<AiQuotaSummary[]> {
   const now = new Date();
-  const features: AiQuotaSummary["feature"][] = ["course_outline", "lesson_generation", "tutor"];
+  const features: AiQuotaSummary["feature"][] = ["course_outline", "course_banner", "lesson_generation", "tutor"];
   return Promise.all(features.map(async (feature) => {
     const policy = policyFor(account, feature, now);
     const path = `usagePeriods/${account.uid}__${feature}__${policy.periodKey}`;

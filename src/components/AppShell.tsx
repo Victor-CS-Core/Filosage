@@ -55,7 +55,7 @@ export default function AppShell({ children, activeTopic, activeLessonId, active
   const router = useRouter();
   const pathname = usePathname();
   const { theme, toggle } = useTheme();
-  const { user, account, isOwner, isPro, signOut, loading: authLoading } = useAuth();
+  const { user, account, isOwner, canCreateCourses, signOut, loading: authLoading } = useAuth();
   const [showAuth, setShowAuth] = useState(false);
   const [courses, setCourses] = useState<Course[]>([]);
   const [coursesLoading, setCoursesLoading] = useState(false);
@@ -68,7 +68,7 @@ export default function AppShell({ children, activeTopic, activeLessonId, active
   const commandReturnFocusRef = useRef<HTMLElement | null>(null);
 
   const refreshCourses = useCallback(async () => {
-    if (!user || !isPro) {
+    if (!user) {
       setCourses([]);
       setCoursesLoading(false);
       return;
@@ -90,7 +90,7 @@ export default function AppShell({ children, activeTopic, activeLessonId, active
       window.clearTimeout(timeout);
       setCoursesLoading(false);
     }
-  }, [isPro, user]);
+  }, [user]);
 
   useEffect(() => {
     const load = async () => {
@@ -147,11 +147,11 @@ export default function AppShell({ children, activeTopic, activeLessonId, active
     {
       id: "navigate-create",
       section: "Navigate" as const,
-      label: isPro ? "Create a course" : "Explore Filosage Pro",
-      description: isPro ? "Build a private course around an outcome" : "See private course creation and plan details",
-      href: isPro ? "/create" : "/pricing",
+      label: canCreateCourses ? "Create a course" : "Compare memberships",
+      description: canCreateCourses ? "Build a private course around an outcome" : "See private course creation and plan details",
+      href: canCreateCourses ? "/create" : "/pricing",
       keywords: "new add build course pricing pro",
-      icon: isPro ? Plus : Sparkles,
+      icon: canCreateCourses ? Plus : Sparkles,
     },
     ...(currentCourse ? (() => {
       const id = currentCourse.id ?? currentCourse.courseId ?? activeCourseId;
@@ -194,10 +194,10 @@ export default function AppShell({ children, activeTopic, activeLessonId, active
         icon: BookOpen,
       };
     }),
-    ...(isPro && outlineQuota ? [{
+    ...(account?.plan !== "free" && outlineQuota ? [{
       id: "account-plan",
       section: "Account" as const,
-      label: "Filosage Pro",
+      label: account?.plan === "plus" ? "Filosage Plus" : "Filosage Pro",
       description: outlineQuota.remaining == null ? "Owner course access" : `${outlineQuota.remaining} course credit${outlineQuota.remaining === 1 ? "" : "s"} remaining`,
       href: "/pricing",
       keywords: "plan subscription quota pricing credits",
@@ -256,7 +256,7 @@ export default function AppShell({ children, activeTopic, activeLessonId, active
       keywords: "log out logout exit account",
       icon: LogOut,
     },
-  ], [activeCourseId, activeLessonId, courses, currentCourse, isOwner, isPro, outlineQuota]);
+  ], [account?.plan, activeCourseId, activeLessonId, canCreateCourses, courses, currentCourse, isOwner, outlineQuota]);
 
   const navigate = (href: string) => router.push(href);
   const isLegalPage = ["/terms", "/privacy", "/acceptable-use"].includes(pathname);
@@ -272,6 +272,11 @@ export default function AppShell({ children, activeTopic, activeLessonId, active
     requestAnimationFrame(() => commandReturnFocusRef.current?.focus());
   }, []);
 
+  const signOutToLanding = useCallback(async () => {
+    await signOut();
+    window.location.replace("/");
+  }, [signOut]);
+
   const selectCommand = (item: CommandPaletteItem) => {
     setCommandOpen(false);
     if (item.href) {
@@ -281,7 +286,7 @@ export default function AppShell({ children, activeTopic, activeLessonId, active
     if (item.action === "open-courses") {
       requestAnimationFrame(coursesDrawer.openDrawer);
     } else if (item.action === "sign-out") {
-      void signOut();
+      void signOutToLanding();
     }
   };
 
@@ -351,7 +356,7 @@ export default function AppShell({ children, activeTopic, activeLessonId, active
               // eslint-disable-next-line @next/next/no-img-element
               <img src={user.photoURL} alt="" referrerPolicy="no-referrer" />
             ) : <span className="avatar-fallback"><UserRound size={16} /></span>}
-            <span className="learning-account-copy"><strong>{firstName}</strong><small>{isPro ? "Pro account" : "Account"}</small></span>
+            <span className="learning-account-copy"><strong>{firstName}</strong><small>{account?.plan === "pro" ? "Pro account" : account?.plan === "plus" ? "Plus account" : "Account"}</small></span>
             <Command className="command-indicator" size={15} aria-hidden="true" />
           </button>
         </div>
@@ -362,12 +367,12 @@ export default function AppShell({ children, activeTopic, activeLessonId, active
           <span className="brand-mark" aria-hidden="true"><FilosageMark /></span><strong className="brand-wordmark"><span>Filo</span><span>sage</span></strong>
         </button>
         <div className="learner-mobile-actions">
-          <button ref={mobileAccountTriggerRef} className="mobile-account-trigger" type="button" onClick={() => openCommand(mobileAccountTriggerRef.current)} aria-expanded={commandOpen} aria-controls="command-palette" aria-haspopup="dialog" aria-label={`Open Command Center for ${firstName}, ${isPro ? "Filosage Pro" : "free plan"}`}>
+          <button ref={mobileAccountTriggerRef} className="mobile-account-trigger" type="button" onClick={() => openCommand(mobileAccountTriggerRef.current)} aria-expanded={commandOpen} aria-controls="command-palette" aria-haspopup="dialog" aria-label={`Open Command Center for ${firstName}, ${account?.plan === "pro" ? "Filosage Pro" : account?.plan === "plus" ? "Filosage Plus" : "free plan"}`}>
             {user.photoURL ? (
               // eslint-disable-next-line @next/next/no-img-element
               <img src={user.photoURL} alt="" referrerPolicy="no-referrer" />
             ) : <span className="avatar-fallback"><UserRound size={15} /></span>}
-            <span>{isPro ? "Pro" : "Free"}</span>
+            <span>{account?.plan === "pro" ? "Pro" : account?.plan === "plus" ? "Plus" : "Free"}</span>
             <Command className="command-indicator" size={15} aria-hidden="true" />
           </button>
         </div>
@@ -382,7 +387,7 @@ export default function AppShell({ children, activeTopic, activeLessonId, active
               coursesLoading={coursesLoading}
               courseQuery={courseQuery}
               setCourseQuery={setCourseQuery}
-              isPro={isPro}
+              canCreateCourses={canCreateCourses}
               onClose={coursesDrawer.closeDrawer}
             />
       </AppDrawer>
@@ -403,7 +408,7 @@ export default function AppShell({ children, activeTopic, activeLessonId, active
         {primaryNav.slice(0, 2).map(({ href, label, icon: Icon }) => (
           <button key={href} className={pathname === href ? "is-active" : ""} onClick={() => navigate(href)} aria-current={pathname === href ? "page" : undefined}><Icon size={20} /><span>{label}</span></button>
         ))}
-        <button className={`mobile-create ${pathname === (isPro ? "/create" : "/pricing") ? "is-active" : ""}`} onClick={() => navigate(isPro ? "/create" : "/pricing")} aria-label={isPro ? "Create course" : "Explore Pro"} aria-current={pathname === (isPro ? "/create" : "/pricing") ? "page" : undefined}><Plus size={22} /></button>
+        <button className={`mobile-create ${pathname === (canCreateCourses ? "/create" : "/pricing") ? "is-active" : ""}`} onClick={() => navigate(canCreateCourses ? "/create" : "/pricing")} aria-label={canCreateCourses ? "Create course" : "Compare memberships"} aria-current={pathname === (canCreateCourses ? "/create" : "/pricing") ? "page" : undefined}><Plus size={22} /></button>
         {primaryNav.slice(2).map(({ href, label, icon: Icon }) => (
           <button key={href} className={pathname === href ? "is-active" : ""} onClick={() => navigate(href)} aria-current={pathname === href ? "page" : undefined}><Icon size={20} /><span>{label}</span></button>
         ))}
@@ -413,7 +418,7 @@ export default function AppShell({ children, activeTopic, activeLessonId, active
   );
 }
 
-function CourseSwitcherPanel({ headingId, currentCourse, visibleCourses, totalCourses, coursesLoading, courseQuery, setCourseQuery, isPro, onClose }: {
+function CourseSwitcherPanel({ headingId, currentCourse, visibleCourses, totalCourses, coursesLoading, courseQuery, setCourseQuery, canCreateCourses, onClose }: {
   headingId: string;
   currentCourse?: Course;
   visibleCourses: Course[];
@@ -421,7 +426,7 @@ function CourseSwitcherPanel({ headingId, currentCourse, visibleCourses, totalCo
   coursesLoading: boolean;
   courseQuery: string;
   setCourseQuery: (query: string) => void;
-  isPro: boolean;
+  canCreateCourses: boolean;
   onClose: () => void;
 }) {
   const searchInputRef = useRef<HTMLInputElement>(null);
@@ -438,7 +443,7 @@ function CourseSwitcherPanel({ headingId, currentCourse, visibleCourses, totalCo
       </header>
       <div className="course-switcher-toolbar">
         <label className="course-switcher-search"><Search size={17} /><span className="sr-only">Search my courses</span><input ref={searchInputRef} type="search" value={courseQuery} onChange={(event) => setCourseQuery(event.target.value)} placeholder="Search titles, lessons, or skills" autoComplete="off" /></label>
-        {isPro && <Link className="button button-primary button-small" href="/create" onClick={onClose}><Plus size={15} /> Create</Link>}
+        {canCreateCourses && <Link className="button button-primary button-small" href="/create" onClick={onClose}><Plus size={15} /> Create</Link>}
       </div>
       <div className="app-drawer-body course-switcher-body">
         <p className="sr-only" role="status">{visibleCourses.length} {visibleCourses.length === 1 ? "course" : "courses"} found</p>
@@ -453,9 +458,9 @@ function CourseSwitcherPanel({ headingId, currentCourse, visibleCourses, totalCo
           <div className="course-switcher-list">
             {coursesLoading && totalCourses === 0 && Array.from({ length: 4 }, (_, index) => <span className="course-switcher-skeleton" key={index} aria-hidden="true"><i /><b /></span>)}
             {visibleCourses.filter((course) => course !== currentCourse).map((course) => <CourseSwitcherLink key={course.id ?? course.courseId ?? course.topic} course={course} onNavigate={onClose} />)}
-            {!coursesLoading && isPro && totalCourses > 0 && visibleCourses.length === 0 && <div className="course-switcher-empty"><Search size={20} /><strong>No matching courses</strong><p>Try a shorter title, lesson, or skill.</p><button className="button button-quiet button-small" type="button" onClick={clearSearch}>Clear search</button></div>}
-            {!coursesLoading && isPro && totalCourses === 0 && <div className="course-switcher-empty"><BookOpen size={20} /><strong>Your course shelf is ready</strong><p>Create a focused course and it will appear here.</p><Link className="button button-primary button-small" href="/create" onClick={onClose}>Create a course</Link></div>}
-            {!isPro && <div className="course-switcher-empty"><Sparkles size={20} /><strong>Create courses around your goals</strong><p>Filosage Pro lets you build private, adaptive learning paths.</p><Link className="button button-primary button-small" href="/pricing" onClick={onClose}>Explore Pro</Link></div>}
+            {!coursesLoading && totalCourses > 0 && visibleCourses.length === 0 && <div className="course-switcher-empty"><Search size={20} /><strong>No matching courses</strong><p>Try a shorter title, lesson, or skill.</p><button className="button button-quiet button-small" type="button" onClick={clearSearch}>Clear search</button></div>}
+            {!coursesLoading && canCreateCourses && totalCourses === 0 && <div className="course-switcher-empty"><BookOpen size={20} /><strong>Your course shelf is ready</strong><p>Create a focused course and it will appear here.</p><Link className="button button-primary button-small" href="/create" onClick={onClose}>Create a course</Link></div>}
+            {!coursesLoading && !canCreateCourses && totalCourses === 0 && <div className="course-switcher-empty"><Sparkles size={20} /><strong>Create courses around your goals</strong><p>Filosage Plus and Pro include private, adaptive course creation.</p><Link className="button button-primary button-small" href="/pricing" onClick={onClose}>Compare plans</Link></div>}
           </div>
         </section>
       </div>

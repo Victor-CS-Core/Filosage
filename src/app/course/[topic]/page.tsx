@@ -83,7 +83,7 @@ export default function CourseMap() {
   const topic = decodeURIComponent(params.topic);
   const requestedCourseId = searchParams.get("id");
   const courseViewKey = `${requestedCourseId ?? "new"}:${topic}`;
-  const { user, isOwner, isPro, loading: authLoading, signInWithGoogle } = useAuth();
+  const { user, isOwner, canCreateCourses, canPublishCourses, loading: authLoading, signInWithGoogle } = useAuth();
   const [courseRecord, setCourseRecord] = useState<{ key: string; value: Course | null }>({ key: courseViewKey, value: null });
   const course = courseRecord.key === courseViewKey ? courseRecord.value : null;
   const [loading, setLoading] = useState(true);
@@ -640,7 +640,7 @@ export default function CourseMap() {
           <p>{error || "The course could not be found."}</p>
           <div className="state-actions">
             <button className="button button-secondary" onClick={() => router.push("/library")}><ArrowLeft size={16} /> Browse courses</button>
-            {isPro && <button className="button button-primary" onClick={() => router.push("/create")}>Open course studio</button>}
+            {canCreateCourses && <button className="button button-primary" onClick={() => router.push("/create")}>Open course studio</button>}
           </div>
         </div>
       </AppShell>
@@ -759,7 +759,7 @@ export default function CourseMap() {
               headingId="course-owner-controls-title"
               title="Course studio"
             >
-              {!course.isPublic && (
+              {!course.isPublic && canPublishCourses && (
                 <label className="publication-attestation">
                   <input
                     type="checkbox"
@@ -1026,7 +1026,7 @@ export default function CourseMap() {
               </div>
               <footer className="app-drawer-footer">
                 <button className="button button-quiet" type="button" onClick={overrideDrawer.closeDrawer} disabled={overrideBusy}>Cancel</button>
-                <button
+                {(course.isPublic || canPublishCourses) && <button
                   className="button button-secondary"
                   type="button"
                   onClick={() => void publishWithOwnerOverride()}
@@ -1034,7 +1034,7 @@ export default function CourseMap() {
                 >
                   {overrideBusy ? <LoaderCircle className="spin" size={16} /> : <Globe2 size={16} />}
                   {overrideBusy ? "Running protected review…" : "Publish this exact version"}
-                </button>
+                </button>}
               </footer>
             </section>
         </AppDrawer>
@@ -1076,6 +1076,7 @@ export default function CourseMap() {
                 <p className="course-delete-library-note">The course banner will disappear from the app. Its reusable source asset may remain in the shared visual library when another course can use it.</p>
                 {actionError && <p className="form-error" role="alert"><Circle size={14} /> {actionError}</p>}
               </div>
+              {!course.isPublic && !canPublishCourses && <p className="owner-action-hint">This private course remains available to you. Publishing to the public library is included with Filosage Pro. <button type="button" onClick={() => router.push("/pricing")}>Compare plans</button>.</p>}
               <footer className="app-drawer-footer">
                 <button className="button button-quiet" type="button" onClick={deleteDrawer.closeDrawer} disabled={updating}>Keep course</button>
                 <button className="button button-danger" type="button" onClick={() => void deleteCourse()} disabled={updating}>

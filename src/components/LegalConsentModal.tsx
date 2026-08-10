@@ -24,6 +24,16 @@ export default function LegalConsentModal() {
     finally { setSaving(false); }
   };
 
+  const leave = async () => {
+    setError(null);
+    try {
+      await signOut();
+      window.location.replace("/");
+    } catch {
+      setError("You could not be signed out. Check your connection and try again.");
+    }
+  };
+
   return <div className="modal-layer legal-consent-layer">
     <section ref={dialogRef} tabIndex={-1} className="auth-dialog legal-consent-dialog" role="dialog" aria-modal="true" aria-labelledby="legal-consent-title">
       <span className="legal-consent-icon" aria-hidden="true"><ShieldCheck size={22} /></span>
@@ -33,7 +43,7 @@ export default function LegalConsentModal() {
       <label className="legal-check"><input type="checkbox" checked={agreed} onChange={(event) => setAgreed(event.target.checked)} /><span>I confirm I am at least 13 and, if I am not yet the age of legal majority where I live, that my parent or guardian has reviewed and agreed to the <Link href="/terms">Terms of Service</Link>. I acknowledge the <Link href="/privacy">Privacy Notice</Link> and <Link href="/acceptable-use">Acceptable Use Policy</Link>.</span></label>
       {error && <p className="form-error" role="alert">{error}</p>}
       <button className="button button-primary auth-submit" disabled={!agreed || saving} onClick={accept}>{saving ? "Saving…" : "Accept and continue"}</button>
-      <button className="button button-quiet" onClick={() => void signOut()}>Sign out</button>
+      <button className="button button-quiet" onClick={() => void leave()}>Sign out</button>
     </section>
   </div>;
 }

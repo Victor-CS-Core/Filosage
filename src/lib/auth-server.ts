@@ -7,6 +7,7 @@ import {
 } from "@/lib/firebase-server";
 import { getExistingAccount, type ServerAccount } from "@/lib/account-server";
 import { PRIVACY_VERSION, TERMS_VERSION } from "@/lib/legal";
+import { planAllows, type PlanCapability } from "@/lib/membership-plans";
 import { hasRecentFirebaseAuthentication } from "@/lib/recent-auth";
 
 export class AuthorizationError extends Error {
@@ -97,8 +98,17 @@ export async function requireOwner(request: Request): Promise<ServerAccount> {
 
 export async function requirePremium(request: Request): Promise<ServerAccount> {
   const account = await requireAcceptedAccount(request);
-  if (account.plan !== "pro" && !account.isOwner) {
-    throw new AuthorizationError(403, "Filosage Pro is required for this feature.");
+  if (account.plan === "free" && !account.isOwner) {
+    throw new AuthorizationError(403, "Filosage Plus or Pro is required for this feature.");
+  }
+  return account;
+}
+
+export async function requirePlanCapability(request: Request, capability: PlanCapability): Promise<ServerAccount> {
+  const account = await requireAcceptedAccount(request);
+  if (!account.isOwner && !planAllows(account.plan, capability)) {
+    const feature = capability === "publish_course" ? "Course publishing" : "This feature";
+    throw new AuthorizationError(403, `${feature} requires a plan that includes it.`);
   }
   return account;
 }

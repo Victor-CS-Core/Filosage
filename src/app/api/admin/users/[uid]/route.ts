@@ -5,6 +5,7 @@ import {
   createStoredDocument,
   runStoredDocumentTransaction,
 } from "@/lib/firebase-server";
+import { isPaidLearnerPlan } from "@/lib/membership-plans";
 
 const userActionSchema = z.discriminatedUnion("action", [
   z.object({
@@ -12,6 +13,12 @@ const userActionSchema = z.discriminatedUnion("action", [
     reason: z.string().trim().min(3).max(200),
   }).strict(),
   z.object({ action: z.literal("restore") }).strict(),
+  z.object({
+    action: z.literal("grant_plan"),
+    planId: z.enum(["plus", "pro"]),
+    duration: z.union([z.literal(7), z.literal(30), z.literal(90), z.literal("permanent")]),
+  }).strict(),
+  z.object({ action: z.literal("revoke_plan") }).strict(),
   z.object({
     action: z.literal("grant_pro"),
     duration: z.union([z.literal(7), z.literal(30), z.literal(90), z.literal("permanent")]),
@@ -42,6 +49,8 @@ export async function PATCH(
     let reason: string | undefined;
     if (parsed.data.action === "suspend") {
       reason = parsed.data.reason;
+    } else if (parsed.data.action === "grant_plan") {
+      reason = `${parsed.data.planId === "plus" ? "Plus" : "Pro"} owner grant (${parsed.data.duration === "permanent" ? "permanent" : `${parsed.data.duration} days`})`;
     } else if (parsed.data.action === "grant_pro") {
       reason = parsed.data.duration === "permanent"
         ? "Permanent owner grant"
@@ -59,15 +68,23 @@ export async function PATCH(
         next.accountStatus = "active";
         next.suspensionReason = null;
         next.suspendedAt = null;
-      } else if (parsed.data.action === "grant_pro") {
-        next.manualProUntil = parsed.data.duration === "permanent"
+      } else if (parsed.data.action === "grant_plan" || parsed.data.action === "grant_pro") {
+        const planId = parsed.data.action === "grant_plan" ? parsed.data.planId : "pro";
+        const manualPlanUntil = parsed.data.duration === "permanent"
           ? "permanent"
           : new Date(now.getTime() + parsed.data.duration * 24 * 60 * 60 * 1_000).toISOString();
-        next.plan = "pro";
+        next.manualPlan = planId;
+        next.manualPlanUntil = manualPlanUntil;
+        next.manualProUntil = planId === "pro" ? manualPlanUntil : null;
+        next.plan = planId;
       } else {
+        next.manualPlan = null;
+        next.manualPlanUntil = null;
         next.manualProUntil = null;
         const subscriptionStatus = String(current.subscriptionStatus ?? "none");
-        next.plan = subscriptionStatus === "active" || subscriptionStatus === "trialing" ? "pro" : "free";
+        next.plan = subscriptionStatus === "active" || subscriptionStatus === "trialing"
+          ? isPaidLearnerPlan(current.billingPlan) ? current.billingPlan : "pro"
+          : "free";
       }
       return { writes: [{ path, data: next }], result: next };
     });
@@ -84,6 +101,8 @@ export async function PATCH(
       ok: true,
       accountStatus: saved.accountStatus,
       plan: saved.plan,
+      manualPlan: saved.manualPlan,
+      manualPlanUntil: saved.manualPlanUntil,
       manualProUntil: saved.manualProUntil,
     }, { headers: { "Cache-Control": "private, no-store" } });
   } catch (error) {

@@ -116,6 +116,7 @@ export default function AdminPage() {
   const [actionBusy, setActionBusy] = useState(false);
   const [actionMessage, setActionMessage] = useState<string | null>(null);
   const [suspensionReason, setSuspensionReason] = useState("");
+  const [grantPlan, setGrantPlan] = useState<"plus" | "pro">("plus");
   const [proDuration, setProDuration] = useState<7 | 30 | 90 | "permanent">(30);
 
   const load = useCallback(async () => {
@@ -511,7 +512,7 @@ export default function AdminPage() {
                 <header><div><p className="overline">Commerce lifecycle</p><h2>Payments and recovery</h2></div><span>{data.launchReadiness.billingLockActive ? "Checkout disabled" : "Checkout enabled"}</span></header>
                 <div className="admin-readiness-list">
                   <ReadinessItem ready={data.launchReadiness.billingLockActive} label="Closed-launch billing lock" detail="Payment routes remain unavailable during preparation." />
-                  <ReadinessItem ready={data.launchReadiness.paymentProviderConfigured} label="Stripe production objects" detail="Keys, webhook secret, and both plan price IDs must be present." />
+                  <ReadinessItem ready={data.launchReadiness.paymentProviderConfigured} label="Stripe production objects" detail="Keys, webhook secret, and all four Plus/Pro price IDs must be present." />
                   <ReadinessItem ready={data.paidLaunch.failedWebhookEvents === 0} label="Webhook processing" detail={`${data.paidLaunch.failedWebhookEvents} failed event${data.paidLaunch.failedWebhookEvents === 1 ? "" : "s"} in this reporting window.`} />
                   <ReadinessItem ready={data.launchReadiness.lifecycleMessagingConfigured} label="Lifecycle messaging" detail="Receipts, renewal notices, payment recovery, and suppression handling still need a delivery provider." />
                 </div>
@@ -546,7 +547,7 @@ export default function AdminPage() {
                       // eslint-disable-next-line @next/next/no-img-element
                       <img src={candidate.photoURL} alt="" referrerPolicy="no-referrer" />
                     ) : <i>{candidate.displayName.slice(0, 1).toUpperCase()}</i>}<span><strong>{candidate.isOwner ? "Owner account" : candidate.displayName}</strong><small>{candidate.isOwner ? "Private owner identity" : candidate.email ?? "No email"}</small></span></span>
-                    <span><em className={`admin-status status-${candidate.accountStatus}`}>{candidate.accountStatus}</em><small>{candidate.plan === "pro" ? "Pro" : "Free"}</small></span>
+                    <span><em className={`admin-status status-${candidate.accountStatus}`}>{candidate.accountStatus}</em><small>{candidate.plan === "pro" ? "Pro" : candidate.plan === "plus" ? "Plus" : "Free"}</small></span>
                     <span>{shortDate(candidate.lastSeenAt)}</span>
                     <span>{compactNumber(candidate.inputTokens + candidate.outputTokens)}</span>
                     <span>{currency(candidate.costUsd)}</span>
@@ -611,11 +612,14 @@ export default function AdminPage() {
                         <button className="button button-secondary" disabled={actionBusy} onClick={() => void mutateUser(selectedUser, { action: "restore" }, `Restore protected access for ${selectedUser.displayName}?`)}><RotateCcw size={15} /> Restore account</button>
                       )}
                       <div className="admin-pro-controls">
+                        <select aria-label="Membership to grant" value={grantPlan} onChange={(event) => setGrantPlan(event.target.value as "plus" | "pro")}>
+                          <option value="plus">Filosage Plus</option><option value="pro">Filosage Pro</option>
+                        </select>
                         <select value={proDuration} onChange={(event) => setProDuration(event.target.value === "permanent" ? "permanent" : Number(event.target.value) as 7 | 30 | 90)}>
                           <option value={7}>7 days</option><option value={30}>30 days</option><option value={90}>90 days</option><option value="permanent">No expiry</option>
                         </select>
-                        <button className="button button-primary" disabled={actionBusy} onClick={() => void mutateUser(selectedUser, { action: "grant_pro", duration: proDuration })}><Crown size={15} /> Grant Pro</button>
-                        {selectedUser.manualProUntil && <button className="button button-quiet" disabled={actionBusy} onClick={() => void mutateUser(selectedUser, { action: "revoke_pro" }, `Remove the owner-granted Pro access for ${selectedUser.displayName}?`)}>Remove grant</button>}
+                        <button className="button button-primary" disabled={actionBusy} onClick={() => void mutateUser(selectedUser, { action: "grant_plan", planId: grantPlan, duration: proDuration })}><Crown size={15} /> Grant {grantPlan === "plus" ? "Plus" : "Pro"}</button>
+                        {selectedUser.manualPlanUntil && <button className="button button-quiet" disabled={actionBusy} onClick={() => void mutateUser(selectedUser, { action: "revoke_plan" }, `Remove the owner-granted ${selectedUser.manualPlan === "plus" ? "Plus" : "Pro"} access for ${selectedUser.displayName}?`)}>Remove grant</button>}
                       </div>
                       {actionMessage && <p className="admin-action-message" role="status">{actionMessage}</p>}
                     </section>

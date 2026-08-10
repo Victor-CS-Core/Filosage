@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { aiClient } from "@/lib/local-ai";
 import { zodTextFormat } from "openai/helpers/zod";
-import { authorizationResponse, requirePremium } from "@/lib/auth-server";
+import { authorizationResponse, requirePlanCapability } from "@/lib/auth-server";
 import { getCourse, getCoursePublishReadiness, getLesson, getStoredDocument, saveLesson } from "@/lib/firebase-server";
 import {
   aiQuotaResponse,
@@ -80,7 +80,7 @@ export async function POST(request: Request) {
   let responseId: string | undefined;
   const generationStartedAt = Date.now();
   try {
-    const account = await requirePremium(request);
+    const account = await requirePlanCapability(request, "generate_lesson");
     const parsed = generateLessonInputSchema.safeParse(await readJsonBody(request, 2_048));
     if (!parsed.success) {
       return NextResponse.json(
@@ -293,6 +293,15 @@ export async function POST(request: Request) {
     }
 
     if (!lesson || qualityIssues.length) {
+      console.warn(JSON.stringify({
+        event: "lesson_quality_gate_rejected",
+        uid: account.uid,
+        profile: activeProfile.id,
+        model: activeProfile.model,
+        courseId,
+        lessonId,
+        issues: qualityIssues,
+      }));
       await finalizeAiUsage(reservation, { usageSamples, responseId, failed: true });
       reservation = null;
       return NextResponse.json(

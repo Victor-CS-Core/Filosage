@@ -2,6 +2,7 @@ import { authorizationResponse, hasCurrentLegalAcceptance, requireUser } from "@
 import { getExistingAccount } from "@/lib/account-server";
 import { getAiQuotaSummaries } from "@/lib/ai-usage";
 import { PRIVACY_VERSION, TERMS_VERSION } from "@/lib/legal";
+import { capabilitiesForAccount, courseCapacityForAccount } from "@/lib/membership-access";
 
 export async function GET(request: Request) {
   try {
@@ -16,6 +17,13 @@ export async function GET(request: Request) {
         displayName: user.name,
         photoURL: user.picture,
         subscriptionStatus: "none",
+        capabilities: {
+          createCourse: false,
+          generateLesson: false,
+          generateCourseBanner: false,
+          publishCourse: false,
+        },
+        courseCapacity: { owned: 0, limit: 0, remaining: 0, overLimit: false },
         legalAcceptanceRequired: true,
         applicationAccountExists: false,
         currentTermsVersion: TERMS_VERSION,
@@ -23,7 +31,10 @@ export async function GET(request: Request) {
         quotas: [],
       }, { headers: { "Cache-Control": "private, no-store" } });
     }
-    const quotas = await getAiQuotaSummaries(account);
+    const [quotas, courseCapacity] = await Promise.all([
+      getAiQuotaSummaries(account),
+      courseCapacityForAccount(account),
+    ]);
     return Response.json(
       {
         access: account.access,
@@ -34,7 +45,10 @@ export async function GET(request: Request) {
         displayName: account.displayName,
         photoURL: account.photoURL,
         subscriptionStatus: account.subscriptionStatus,
+        billingInterval: account.billingInterval,
         currentPeriodEnd: account.currentPeriodEnd,
+        capabilities: capabilitiesForAccount(account),
+        courseCapacity,
         acceptedTermsVersion: account.acceptedTermsVersion,
         acceptedPrivacyVersion: account.acceptedPrivacyVersion,
         legalAcceptanceRequired: !hasCurrentLegalAcceptance(account),

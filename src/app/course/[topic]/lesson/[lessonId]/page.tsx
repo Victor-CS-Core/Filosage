@@ -288,7 +288,7 @@ export default function LessonView() {
       ? "delayed-28"
       : "spaced";
   const [moduleIndex, lessonIndex] = lessonId.split("-").map(Number);
-  const { user, isOwner, isPro, loading: authLoading, signInWithGoogle } = useAuth();
+  const { user, isOwner, canGenerateLessons, loading: authLoading, signInWithGoogle } = useAuth();
   const masteryJourney = useMasteryJourney(courseId, user);
   const masteryPlan = masteryJourney.plan;
   const addMasteryEvidence = masteryJourney.addEvidence;
@@ -1218,7 +1218,7 @@ export default function LessonView() {
           <p>{error || "The lesson could not be found."}</p>
           <div className="state-actions">
             <button className="button button-secondary" onClick={() => router.push(`/course/${encodeURIComponent(topic)}${courseId ? `?id=${courseId}` : ""}`)}><ArrowLeft size={16} /> Back to course</button>
-            {isPro && <button className="button button-primary" onClick={loadLesson}>Try again</button>}
+            {canGenerateLessons && <button className="button button-primary" onClick={loadLesson}>Try again</button>}
           </div>
         </div>
       </AppShell>

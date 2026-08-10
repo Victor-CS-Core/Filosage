@@ -93,6 +93,8 @@ test("keeps checkout closed until the independent billing lock is enabled", () =
     BILLING_PROVIDER: "stripe",
     STRIPE_SECRET_KEY: "sk_live_example",
     STRIPE_WEBHOOK_SECRET: "whsec_example",
+    STRIPE_PLUS_MONTHLY_PRICE_ID: "price_plus_monthly",
+    STRIPE_PLUS_ANNUAL_PRICE_ID: "price_plus_annual",
     STRIPE_PRO_MONTHLY_PRICE_ID: "price_monthly",
     STRIPE_PRO_ANNUAL_PRICE_ID: "price_annual",
   };
@@ -821,15 +823,26 @@ test("publishes clear legal documents", async ({ page }) => {
   await expect(page.getByRole("button", { name: "Sign in to export" })).toBeVisible();
 });
 
-test("keeps generation visibly metered and premium", async ({ page }) => {
+test("keeps Plus and Pro generation visibly metered", async ({ page }) => {
   await page.goto("/pricing");
 
+  await expect(page.getByRole("heading", { name: "Filosage Plus" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Filosage Pro" })).toBeVisible();
-  await expect(page.getByText("Three private course outlines each month")).toBeVisible();
+  await expect(page.getByText("One active private course", { exact: true })).toBeVisible();
+  await expect(page.getByText("One generated course outline each month")).toBeVisible();
+  await expect(page.getByText("Three generated course outlines each month")).toBeVisible();
   await expect(page.getByText("Thirty generated lessons each month")).toBeVisible();
-  await expect(page.getByText("$14.99")).toBeVisible();
+  await expect(page.getByText("$6.66")).toBeVisible();
+  await expect(page.getByText("$39.96", { exact: false })).toBeVisible();
+  await expect(page.getByText("$119.88", { exact: false })).toBeVisible();
   await expect(page.getByText("Five tutor questions each month")).toBeVisible();
-  await expect(page.getByRole("button", { name: /Join the Pro launch list/i })).toBeDisabled();
+  await expect(page.getByRole("button", { name: "Plus selected" })).toBeVisible();
+  await page.getByRole("button", { name: "Choose Pro" }).click();
+  await expect(page.getByRole("button", { name: "Pro selected" })).toBeVisible();
+  await page.getByRole("button", { name: "Monthly" }).click();
+  await expect(page.getByText("$9.99")).toBeVisible();
+  await expect(page.getByText("$14.99")).toBeVisible();
+  await expect(page.getByRole("button", { name: "Join the launch list" })).toBeDisabled();
 });
 
 test("reads a lesson aloud from the toolbar speaker", async ({ page }) => {

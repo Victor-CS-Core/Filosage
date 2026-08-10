@@ -201,6 +201,19 @@ test.describe("desktop application shell", () => {
     await expect(page).toHaveURL(/\/lesson\/0-1\?id=morse-shell-course$/);
   });
 
+  test("returns to the public landing page after signing out", async ({ page }) => {
+    await prepareOwnerShell(page);
+    await page.goto("/profile");
+
+    await page.getByRole("button", { name: "Open Command Center for Playwright" }).click();
+    const commandPalette = page.getByRole("dialog", { name: "Filosage Command Center" });
+    await commandPalette.getByRole("option", { name: /Sign out/ }).click();
+
+    await expect(page).toHaveURL(/\/$/);
+    await expect(page.getByRole("heading", { name: "Turn curiosity into understanding" })).toBeVisible();
+    await expect(page.getByRole("button", { name: /Open Command Center/ })).toHaveCount(0);
+  });
+
   test("keeps a drawer open when it is reopened during its exit transition", async ({ page }) => {
     await prepareOwnerShell(page);
     await page.goto("/library");

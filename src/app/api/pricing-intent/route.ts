@@ -6,8 +6,10 @@ import {
   runStoredDocumentTransaction,
 } from "@/lib/firebase-server";
 import { enforceDurableRateLimit } from "@/lib/request-rate-limit";
+import { offerFor, paidPlanFor } from "@/lib/membership-plans";
 
 const pricingIntentSchema = z.object({
+  planId: z.enum(["plus", "pro"]),
   interval: z.enum(["monthly", "annual"]),
   readiness: z.enum(["ready_now", "within_30_days", "researching"]),
   launchEmailConsent: z.boolean(),
@@ -18,6 +20,7 @@ function publicIntent(document: Record<string, unknown> | null) {
   if (document.interval !== "monthly" && document.interval !== "annual") return null;
   if (!["ready_now", "within_30_days", "researching"].includes(String(document.readiness))) return null;
   return {
+    planId: document.planId === "plus" ? "plus" : "pro",
     interval: document.interval,
     readiness: document.readiness,
     launchEmailConsent: document.launchEmailConsent === true,
@@ -63,9 +66,9 @@ export async function POST(request: Request) {
       account.uid,
     );
     if (limited) return limited;
-    if (account.isOwner || account.plan === "pro") {
+    if (account.isOwner || account.plan !== "free") {
       return Response.json(
-        { error: "Launch preferences are collected from Free accounts that do not already have Pro access." },
+        { error: "Launch preferences are collected from Free accounts that do not already have a paid membership." },
         { status: 409, headers: { "Cache-Control": "no-store" } },
       );
     }
@@ -77,6 +80,9 @@ export async function POST(request: Request) {
     }
 
     const now = new Date().toISOString();
+    const selectedPlan = paidPlanFor(parsed.data.planId);
+    const monthlyOffer = offerFor(parsed.data.planId, "monthly");
+    const annualOffer = offerFor(parsed.data.planId, "annual");
     const intentPath = `pricingIntents/${account.uid}`;
     const eventPath = `productEvents/pricing-interest-${account.uid}`;
     // Always read an existing waitlist record when an account has an email so
@@ -91,12 +97,13 @@ export async function POST(request: Request) {
       const existingEvent = documents[eventPath];
       const nextIntent = {
         uid: account.uid,
+        planId: parsed.data.planId,
         interval: parsed.data.interval,
         readiness: parsed.data.readiness,
         launchEmailConsent: parsed.data.launchEmailConsent,
-        offerVersion: "pro-v1-closed-launch",
-        plannedMonthlyPriceUsd: 14.99,
-        plannedAnnualPriceUsd: 119.88,
+        offerVersion: selectedPlan.offerVersion,
+        plannedMonthlyPriceUsd: monthlyOffer.amountMinor / 100,
+        plannedAnnualPriceUsd: annualOffer.amountMinor / 100,
         createdAt: typeof existingIntent?.createdAt === "string" ? existingIntent.createdAt : now,
         updatedAt: now,
       };
@@ -113,6 +120,7 @@ export async function POST(request: Request) {
             trust: "server_verified",
             event: "pricing_interest",
             actorId: account.uid,
+            planId: parsed.data.planId,
             launchEmailConsent: parsed.data.launchEmailConsent,
             createdAt: typeof existingEvent?.createdAt === "string" ? existingEvent.createdAt : now,
             updatedAt: now,

@@ -8,7 +8,7 @@ This runbook prepares Filosage for paid plans without opening subscriptions. The
 - The pricing-intent API is account-bound, server-authorized, rate-limited, body-limited, same-origin protected, and deduplicated by user ID.
 - Checkout must remain unavailable until the payment provider is complete and the separate billing lock is enabled. The billing portal remains available to existing subscribers whenever Stripe account-management credentials are configured, even while new checkout is closed.
 - The billing lock controls new checkout only. After any subscription exists, turning the lock off must leave signed webhooks, the customer portal, payment-state synchronization, and cancellation available for existing subscribers.
-- Pro access during preparation remains owner-granted or allowlisted. It is not proof of a paid subscription.
+- Pro access during preparation may remain owner-granted or allowlisted. Plus or Pro stored billing state is not proof of payment without a verified Stripe lifecycle record.
 
 ## Owner launch gate
 
@@ -95,8 +95,10 @@ Fixture-backed Playwright coverage is necessary but does not satisfy this live a
 
 Run these scenarios in Stripe test mode before any Live activation:
 
-- Successful monthly checkout grants Pro once and records the subscription event once.
-- Successful annual checkout maps to the annual price and correct renewal date.
+- Successful monthly and annual checkout for Plus and Pro grant exactly the selected plan and record the subscription event once.
+- Every current or historical Stripe Price resolves to one plan, interval, and offer version; unknown or ambiguous prices leave access unchanged.
+- Plus enforces one active owned course through direct API requests as well as the user interface.
+- Pro-to-Plus and paid-to-Free downgrades preserve courses and existing publication state, block only newly restricted mutations, and expose the over-limit recovery path.
 - Duplicate and out-of-order webhook delivery remains idempotent.
 - Invalid webhook signatures are rejected without changing account access.
 - Failed or delayed payment moves the account to the expected recovery state without deleting learning data.

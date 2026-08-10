@@ -22,6 +22,8 @@ export interface AdminUserSummary {
   isOwner: boolean;
   createdAt?: string;
   lastSeenAt?: string;
+  manualPlan?: "plus" | "pro";
+  manualPlanUntil?: string;
   manualProUntil?: string;
   requestCount: number;
   inputTokens: number;

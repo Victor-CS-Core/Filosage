@@ -53,7 +53,7 @@ const emptySource = (): SourceDraft => ({ label: "", url: "", note: "", kind: "o
 
 export default function CreateCoursePage() {
   const router = useRouter();
-  const { user, isPro, account } = useAuth();
+  const { user, canCreateCourses, account } = useAuth();
   const [activeStep, setActiveStep] = useState(0);
   const [visitedSteps, setVisitedSteps] = useState([true, false, false]);
   const [topic, setTopic] = useState("");
@@ -98,7 +98,7 @@ export default function CreateCoursePage() {
 
   const create = async (event: React.FormEvent) => {
     event.preventDefault();
-    if (!user || !isPro || !topic.trim() || !goal.trim() || !background.trim()) return;
+    if (!user || !canCreateCourses || account?.courseCapacity?.remaining === 0 || !topic.trim() || !goal.trim() || !background.trim()) return;
     setSubmitting(true);
     setGenerationProgress(8);
     setGenerationStage("Checking your course brief");
@@ -141,8 +141,12 @@ export default function CreateCoursePage() {
     }
   };
 
-  if (!isPro) {
-    return <AppShell><div className="center-state"><Sparkles size={26} /><p className="overline">Filosage Pro</p><h1>Create a private course for your goal.</h1><p>Course creation uses monthly Pro credits. Published outlines are public to browse; a free account is required to open their lessons.</p><button className="button button-primary" onClick={() => router.push("/pricing")}>View Pro</button></div></AppShell>;
+  if (!canCreateCourses) {
+    return <AppShell><div className="center-state"><Sparkles size={26} /><p className="overline">Filosage memberships</p><h1>Create a private course for your goal.</h1><p>Filosage Plus and Pro include private AI-assisted course creation with clearly stated monthly limits.</p><button className="button button-primary" onClick={() => router.push("/pricing")}>Compare plans</button></div></AppShell>;
+  }
+
+  if (account?.courseCapacity?.remaining === 0) {
+    return <AppShell><div className="center-state"><Sparkles size={26} /><p className="overline">Course limit reached</p><h1>Your current plan already has its active private course.</h1><p>Your existing work remains available. Delete a course you no longer need or upgrade to Pro before creating another.</p><div className="state-actions"><button className="button button-secondary" onClick={() => router.push("/library")}>Open my courses</button><button className="button button-primary" onClick={() => router.push("/pricing")}>Compare plans</button></div></div></AppShell>;
   }
 
   const plannedHours = Math.max(1, Math.round((weeklyMinutes * targetWeeks) / 60));

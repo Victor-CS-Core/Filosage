@@ -4,12 +4,17 @@ import Stripe from "stripe";
 import { runStoredDocumentTransaction } from "@/lib/firebase-server";
 import type { ServerAccount } from "@/lib/account-server";
 import {
-  offerForInterval,
   priceMatchesOffer,
-  PRO_OFFER,
-  PRO_OFFER_VERSION,
+  membershipPriceMappings,
   type BillingInterval,
+  type PaidLearnerPlan,
 } from "@/lib/billing-offer";
+import {
+  isBillingInterval,
+  isPaidLearnerPlan,
+  offerFor,
+  paidPlanFor,
+} from "@/lib/membership-plans";
 import { PRIVACY_VERSION, TERMS_VERSION } from "@/lib/legal";
 import { serverEnvironment } from "@/lib/runtime-environment";
 
@@ -24,6 +29,7 @@ type CheckoutClaim =
     action: "create";
     path: string;
     claimId: string;
+    planId: PaidLearnerPlan;
     interval: BillingInterval;
     previousSessionId?: string;
   };
@@ -44,16 +50,12 @@ export function siteUrl() {
   return value.replace(/\/$/, "");
 }
 
-export function priceForInterval(interval: BillingInterval) {
-  const value = interval === "annual"
-    ? serverEnvironment.STRIPE_PRO_ANNUAL_PRICE_ID?.trim()
-    : serverEnvironment.STRIPE_PRO_MONTHLY_PRICE_ID?.trim();
-  if (!value) throw new Error(`${interval === "annual" ? "Annual" : "Monthly"} Pro billing is not configured.`);
+export function priceForPlanInterval(planId: PaidLearnerPlan, interval: BillingInterval) {
+  const prefix = planId === "plus" ? "STRIPE_PLUS" : "STRIPE_PRO";
+  const key = `${prefix}_${interval === "annual" ? "ANNUAL" : "MONTHLY"}_PRICE_ID`;
+  const value = serverEnvironment[key]?.trim();
+  if (!value) throw new Error(`${interval === "annual" ? "Annual" : "Monthly"} ${paidPlanFor(planId).name} billing is not configured.`);
   return value;
-}
-
-export function isBillingInterval(value: unknown): value is BillingInterval {
-  return value === "monthly" || value === "annual";
 }
 
 async function stableStripeCustomer(stripe: Stripe, account: ServerAccount) {
@@ -89,10 +91,10 @@ async function stableStripeCustomer(stripe: Stripe, account: ServerAccount) {
   });
 }
 
-async function validatedPrice(stripe: Stripe, interval: BillingInterval) {
-  const priceId = priceForInterval(interval);
+async function validatedPrice(stripe: Stripe, planId: PaidLearnerPlan, interval: BillingInterval) {
+  const priceId = priceForPlanInterval(planId, interval);
   const price = await stripe.prices.retrieve(priceId);
-  const valid = priceMatchesOffer(interval, {
+  const valid = priceMatchesOffer(planId, interval, {
     active: price.active,
     currency: price.currency,
     unitAmount: price.unit_amount,
@@ -106,7 +108,7 @@ async function validatedPrice(stripe: Stripe, interval: BillingInterval) {
   return price.id;
 }
 
-async function claimCheckout(account: ServerAccount, requestedInterval: BillingInterval) {
+async function claimCheckout(account: ServerAccount, requestedPlanId: PaidLearnerPlan, requestedInterval: BillingInterval) {
   const path = `users/${account.uid}/billingCheckout/current`;
   const now = new Date();
   return runStoredDocumentTransaction<CheckoutClaim>([path], (documents) => {
@@ -115,9 +117,10 @@ async function claimCheckout(account: ServerAccount, requestedInterval: BillingI
     const claimedAt = typeof existing?.claimedAt === "string" ? Date.parse(existing.claimedAt) : 0;
     const expiresAt = typeof existing?.expiresAt === "string" ? Date.parse(existing.expiresAt) : 0;
     const existingInterval = isBillingInterval(existing?.interval) ? existing.interval : requestedInterval;
+    const existingPlanId = isPaidLearnerPlan(existing?.planId) ? existing.planId : requestedPlanId;
 
     if (status === "open" && expiresAt > now.getTime() && typeof existing?.url === "string") {
-      if (existingInterval === requestedInterval) {
+      if (existingInterval === requestedInterval && existingPlanId === requestedPlanId) {
         return { writes: [], result: { action: "reuse" as const, url: existing.url } };
       }
     }
@@ -131,6 +134,7 @@ async function claimCheckout(account: ServerAccount, requestedInterval: BillingI
       && typeof existing?.claimId === "string";
     const claimId = resumingStaleClaim ? String(existing.claimId) : crypto.randomUUID();
     const interval = resumingStaleClaim ? existingInterval : requestedInterval;
+    const planId = resumingStaleClaim ? existingPlanId : requestedPlanId;
     const previousSessionId = !resumingStaleClaim
       && status === "open"
       && typeof existing?.sessionId === "string"
@@ -142,13 +146,14 @@ async function claimCheckout(account: ServerAccount, requestedInterval: BillingI
         data: {
           status: previousSessionId ? "replacing" : "creating",
           claimId,
+          planId,
           interval,
           previousSessionId: previousSessionId ?? null,
           claimedAt: now.toISOString(),
           updatedAt: now.toISOString(),
         },
       }],
-      result: { action: "create" as const, path, claimId, interval, previousSessionId },
+      result: { action: "create" as const, path, claimId, planId, interval, previousSessionId },
     };
   });
 }
@@ -172,10 +177,10 @@ async function markCheckoutClaimFailed(path: string, claimId: string) {
   });
 }
 
-export async function createCheckoutSession(account: ServerAccount, interval: BillingInterval) {
+export async function createCheckoutSession(account: ServerAccount, planId: PaidLearnerPlan, interval: BillingInterval) {
   const stripe = stripeClient();
   const baseUrl = siteUrl();
-  const claim = await claimCheckout(account, interval);
+  const claim = await claimCheckout(account, planId, interval);
   if (claim.action === "reuse") return claim.url;
   if (claim.action === "busy") throw new BillingCheckoutInProgressError("A secure checkout is already being prepared. Try again in a moment.");
 
@@ -185,9 +190,10 @@ export async function createCheckoutSession(account: ServerAccount, interval: Bi
     }
     const [customer, price] = await Promise.all([
       stableStripeCustomer(stripe, account),
-      validatedPrice(stripe, claim.interval),
+      validatedPrice(stripe, claim.planId, claim.interval),
     ]);
-    const offer = offerForInterval(claim.interval);
+    const plan = paidPlanFor(claim.planId);
+    const offer = offerFor(claim.planId, claim.interval);
     const session = await stripe.checkout.sessions.create({
       mode: "subscription",
       line_items: [{ price, quantity: 1 }],
@@ -200,16 +206,16 @@ export async function createCheckoutSession(account: ServerAccount, interval: Bi
       custom_text: {
         submit: {
           message: claim.interval === "annual"
-            ? "Filosage Pro renews automatically each year until canceled. Manage or cancel online from your account."
-            : "Filosage Pro renews automatically each month until canceled. Manage or cancel online from your account.",
+            ? `${plan.name} renews automatically each year until canceled. Manage or cancel online from your account.`
+            : `${plan.name} renews automatically each month until canceled. Manage or cancel online from your account.`,
         },
       },
       metadata: {
         erudoza_uid: account.uid,
-        erudoza_plan: "pro",
+        erudoza_plan: claim.planId,
         erudoza_interval: claim.interval,
-        offer_version: PRO_OFFER_VERSION,
-        offer_currency: PRO_OFFER.currency,
+        offer_version: plan.offerVersion,
+        offer_currency: plan.currency,
         offer_amount_minor: String(offer.amountMinor),
         automatic_renewal: "true",
         terms_version: TERMS_VERSION,
@@ -218,9 +224,9 @@ export async function createCheckoutSession(account: ServerAccount, interval: Bi
       subscription_data: {
         metadata: {
           erudoza_uid: account.uid,
-          erudoza_plan: "pro",
+          erudoza_plan: claim.planId,
           erudoza_interval: claim.interval,
-          offer_version: PRO_OFFER_VERSION,
+          offer_version: plan.offerVersion,
           terms_version: TERMS_VERSION,
           privacy_version: PRIVACY_VERSION,
         },
@@ -240,6 +246,7 @@ export async function createCheckoutSession(account: ServerAccount, interval: Bi
           data: {
             status: "open",
             claimId: claim.claimId,
+            planId: claim.planId,
             interval: claim.interval,
             sessionId: session.id,
             url: session.url,
@@ -273,23 +280,32 @@ export async function createBillingPortalSession(account: ServerAccount) {
   return session.url;
 }
 
-function configuredProPriceIds() {
-  const allowed = new Set([
-    serverEnvironment.STRIPE_PRO_MONTHLY_PRICE_ID?.trim(),
-    serverEnvironment.STRIPE_PRO_ANNUAL_PRICE_ID?.trim(),
-    ...(serverEnvironment.STRIPE_PRO_LEGACY_PRICE_IDS ?? "").split(",").map((value) => value.trim()),
-  ].filter((value): value is string => Boolean(value)));
-  if (!allowed.size) throw new Error("No supported Filosage Pro Stripe Prices are configured.");
-  return allowed;
+function configuredPriceMap() {
+  const mappings = membershipPriceMappings({
+    STRIPE_PLUS_MONTHLY_PRICE_ID: serverEnvironment.STRIPE_PLUS_MONTHLY_PRICE_ID,
+    STRIPE_PLUS_ANNUAL_PRICE_ID: serverEnvironment.STRIPE_PLUS_ANNUAL_PRICE_ID,
+    STRIPE_PRO_MONTHLY_PRICE_ID: serverEnvironment.STRIPE_PRO_MONTHLY_PRICE_ID,
+    STRIPE_PRO_ANNUAL_PRICE_ID: serverEnvironment.STRIPE_PRO_ANNUAL_PRICE_ID,
+    STRIPE_PRO_LEGACY_PRICE_IDS: serverEnvironment.STRIPE_PRO_LEGACY_PRICE_IDS,
+  });
+  const byId = new Map(mappings.map((mapping) => [mapping.priceId, mapping]));
+  if (!byId.size) throw new Error("No supported Filosage membership Prices are configured.");
+  return byId;
 }
 
-function supportedProPrice(subscription: Stripe.Subscription) {
-  const allowed = configuredProPriceIds();
-  const supported = subscription.items.data.some((item) => allowed.has(item.price.id));
-  if (!supported) {
-    throw new Error(`Stripe subscription ${subscription.id} uses an unrecognized Price; access was left unchanged.`);
+function supportedSubscriptionPrice(subscription: Stripe.Subscription) {
+  const configured = configuredPriceMap();
+  const matches = subscription.items.data.flatMap((item) => {
+    const mapping = configured.get(item.price.id);
+    if (!mapping) return [];
+    if (!mapping.legacy) return [{ item, mapping }];
+    const interval: BillingInterval = item.price.recurring?.interval === "year" ? "annual" : "monthly";
+    return [{ item, mapping: { ...mapping, interval } }];
+  });
+  if (matches.length !== 1) {
+    throw new Error(`Stripe subscription ${subscription.id} must resolve to exactly one recognized membership Price; access was left unchanged.`);
   }
-  return true;
+  return matches[0];
 }
 
 function subscriptionStatus(status: Stripe.Subscription.Status): ServerAccount["subscriptionStatus"] {
@@ -306,7 +322,8 @@ export async function syncStripeSubscription(
   if (!uid) return false;
 
   const status = subscriptionStatus(subscription.status);
-  const proEligible = supportedProPrice(subscription) && (status === "active" || status === "trialing");
+  const resolved = supportedSubscriptionPrice(subscription);
+  const paidEligible = status === "active" || status === "trialing";
   const periodEnd = subscription.items.data.reduce(
     (latest, item) => Math.max(latest, item.current_period_end),
     0,
@@ -330,7 +347,9 @@ export async function syncStripeSubscription(
           ...current,
           billingCustomerId: typeof subscription.customer === "string" ? subscription.customer : subscription.customer.id,
           billingSubscriptionId: subscription.id,
-          subscriptionStatus: proEligible ? status : status === "past_due" ? "past_due" : "canceled",
+          subscriptionStatus: paidEligible ? status : status === "past_due" ? "past_due" : "canceled",
+          billingPlan: resolved.mapping.planId,
+          billingInterval: resolved.mapping.interval,
           currentPeriodEnd,
           billingPriceId: subscription.items.data[0]?.price.id ?? null,
           billingEventCreated: eventCreated ?? storedEventCreated,
@@ -349,17 +368,21 @@ export async function recordBillingConsent(
 ) {
   const uid = session.metadata?.erudoza_uid || session.client_reference_id;
   const interval = session.metadata?.erudoza_interval;
-  if (!uid || !isBillingInterval(interval)) throw new Error("Checkout consent is missing account or interval metadata.");
+  const planId = session.metadata?.erudoza_plan;
+  if (!uid || !isBillingInterval(interval) || !isPaidLearnerPlan(planId)) {
+    throw new Error("Checkout consent is missing account, plan, or interval metadata.");
+  }
   if (session.consent?.terms_of_service !== "accepted") {
     throw new Error("Stripe Checkout did not record required Terms acceptance.");
   }
-  if (session.currency?.toLowerCase() !== PRO_OFFER.currency || typeof session.amount_total !== "number") {
+  const plan = paidPlanFor(planId);
+  if (session.currency?.toLowerCase() !== plan.currency || typeof session.amount_total !== "number") {
     throw new Error("Stripe Checkout did not return a complete USD amount snapshot.");
   }
-  supportedProPrice(subscription);
-  const price = subscription.items.data[0]?.price;
-  const offer = offerForInterval(interval);
-  if (!price || price.unit_amount !== offer.amountMinor) {
+  const resolved = supportedSubscriptionPrice(subscription);
+  const price = resolved.item.price;
+  const offer = offerFor(planId, interval);
+  if (resolved.mapping.planId !== planId || resolved.mapping.interval !== interval || price.unit_amount !== offer.amountMinor) {
     throw new Error("The completed subscription does not match the accepted Filosage offer.");
   }
 
@@ -371,6 +394,7 @@ export async function recordBillingConsent(
     stripeCustomerId: typeof subscription.customer === "string"
       ? subscription.customer
       : subscription.customer.id,
+    planId,
     interval,
     currency: session.currency.toLowerCase(),
     listedAmountMinor: offer.amountMinor,

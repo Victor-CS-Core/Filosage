@@ -3,6 +3,8 @@ export interface BillingEnvironment {
   BILLING_ENABLED?: string;
   STRIPE_SECRET_KEY?: string;
   STRIPE_WEBHOOK_SECRET?: string;
+  STRIPE_PLUS_MONTHLY_PRICE_ID?: string;
+  STRIPE_PLUS_ANNUAL_PRICE_ID?: string;
   STRIPE_PRO_MONTHLY_PRICE_ID?: string;
   STRIPE_PRO_ANNUAL_PRICE_ID?: string;
 }
@@ -19,6 +21,8 @@ export function evaluateBillingConfiguration(environment: BillingEnvironment) {
   const webhookReady = managementReady
     && present(environment.STRIPE_WEBHOOK_SECRET);
   const productReady = managementReady
+    && present(environment.STRIPE_PLUS_MONTHLY_PRICE_ID)
+    && present(environment.STRIPE_PLUS_ANNUAL_PRICE_ID)
     && present(environment.STRIPE_PRO_MONTHLY_PRICE_ID)
     && present(environment.STRIPE_PRO_ANNUAL_PRICE_ID);
   const providerReady = webhookReady && productReady;

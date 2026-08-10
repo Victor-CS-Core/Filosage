@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { aiClient } from "@/lib/local-ai";
 import { zodTextFormat } from "openai/helpers/zod";
-import { authorizationResponse, requirePremium } from "@/lib/auth-server";
+import { authorizationResponse, requirePlanCapability } from "@/lib/auth-server";
 import { createCourse, getCourse, updateCourseBanner } from "@/lib/firebase-server";
 import {
   AiQuotaError,
@@ -31,6 +31,14 @@ import {
   type AiExecutionProfile,
 } from "@/lib/openai-generation";
 import { safeModelErrorDetails } from "@/lib/model-fallback";
+import {
+  completeCourseCapacityReservation,
+  courseCapacityClaimId,
+  CourseCapacityError,
+  releaseCourseCapacityReservation,
+  reserveCourseCapacity,
+  type CourseCapacityReservation,
+} from "@/lib/membership-access";
 
 export async function POST(request: Request) {
   const standardProfile = openAiExecutionProfile("course.standard");
@@ -40,8 +48,9 @@ export async function POST(request: Request) {
   let observedUsage = { inputTokens: 0, cachedInputTokens: 0, cacheWriteTokens: 0, outputTokens: 0 };
   let observedUsageSamples: AiUsageSample[] | null = null;
   let responseId: string | undefined;
+  let capacityReservation: CourseCapacityReservation | null = null;
   try {
-    const account = await requirePremium(request);
+    const account = await requirePlanCapability(request, "create_course");
     const body = await readJsonBody(request, 16_384);
     const parsedRequest = courseRequestSchema.safeParse(body);
     if (!parsedRequest.success) {
@@ -63,9 +72,17 @@ export async function POST(request: Request) {
         : "Balance clear explanations, worked examples, retrieval, and application throughout the course.";
     const client = aiClient();
     const safetyIdentifier = await openAiSafetyIdentifier(account.uid);
-    reservation = await reserveAiUsage(account, "course_outline", request.headers.get("idempotency-key"));
+    const idempotencyKey = request.headers.get("idempotency-key");
+    if (idempotencyKey && idempotencyKey.length >= 12 && idempotencyKey.length <= 200) {
+      capacityReservation = await reserveCourseCapacity(
+        account,
+        await courseCapacityClaimId(account.uid, idempotencyKey),
+      );
+    }
+    reservation = await reserveAiUsage(account, "course_outline", idempotencyKey);
     const recoveredCourse = await getCourse(reservation.requestId);
     if (recoveredCourse && recoveredCourse.authorId === account.uid) {
+      await completeCourseCapacityReservation(capacityReservation, recoveredCourse.id);
       await finalizeAiUsage(reservation, {
         inputTokens: 0,
         cachedInputTokens: 0,
@@ -212,6 +229,13 @@ export async function POST(request: Request) {
       );
     }
     if (integrityIssues.length || outlineQualityIssues.length) {
+      console.warn(JSON.stringify({
+        event: "course_quality_gate_rejected",
+        uid: account.uid,
+        profile: activeProfile.id,
+        model: activeProfile.model,
+        issues: repairIssues,
+      }));
       await finalizeAiUsage(reservation, { usageSamples: outlineUsageSamples, responseId, failed: true });
       reservation = null;
       return NextResponse.json(
@@ -254,6 +278,7 @@ export async function POST(request: Request) {
       promptVersion: activeProfile.promptVersion,
       fallbackUsed: outlineUsageSamples.length > 1,
     }, reservation.requestId);
+    await completeCourseCapacityReservation(capacityReservation, course.id);
 
     const bannerResult = await createOrReuseCourseBanner(client, {
       topic,
@@ -309,6 +334,9 @@ export async function POST(request: Request) {
         : undefined,
     });
   } catch (error: unknown) {
+    await releaseCourseCapacityReservation(capacityReservation).catch((capacityError) => {
+      console.error("Course capacity release failed:", capacityError);
+    });
     if (reservation) {
       await finalizeAiUsage(
         reservation,
@@ -340,6 +368,12 @@ export async function POST(request: Request) {
     }
     const quotaResponse = aiQuotaResponse(error);
     if (quotaResponse) return quotaResponse;
+    if (error instanceof CourseCapacityError) {
+      return NextResponse.json(
+        { error: error.message, code: error.code, limit: error.limit, owned: error.owned },
+        { status: error.status, headers: { "Cache-Control": "private, no-store" } },
+      );
+    }
     const authResponse = authorizationResponse(error);
     if (authResponse) return authResponse;
     const requestResponse = apiRequestErrorResponse(error);

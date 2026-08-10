@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { authorizationResponse, getVerifiedUser, requireAccount, requireAcceptedAccount, requirePremium } from "@/lib/auth-server";
+import { authorizationResponse, getVerifiedUser, requireAccount, requireAcceptedAccount } from "@/lib/auth-server";
 import {
   deleteCourse,
   getCourse,
@@ -14,6 +14,8 @@ import { apiRequestErrorResponse, assertTrustedMutation, readJsonBody } from "@/
 import { ContentSafetyError } from "@/lib/content-safety";
 import { safeModelErrorDetails } from "@/lib/model-fallback";
 import { PublicationReviewError, reviewCourseForPublication } from "@/lib/publication-review";
+import { planAllows } from "@/lib/membership-plans";
+import { reconcileCourseCapacity } from "@/lib/membership-access";
 
 interface RouteParams {
   params: Promise<{ courseId: string }>;
@@ -66,7 +68,7 @@ export async function PATCH(request: Request, { params }: RouteParams) {
   const { courseId } = await params;
   let visibilityUpdateStage = "authorization";
   try {
-    const account = await requirePremium(request);
+    const account = await requireAcceptedAccount(request);
     const course = await getCourse(courseId);
     if (!course) return NextResponse.json({ error: "Course not found." }, { status: 404 });
     if (course.authorId !== account.uid && !account.isOwner) {
@@ -79,6 +81,12 @@ export async function PATCH(request: Request, { params }: RouteParams) {
     }
 
     if (body.isPublic) {
+      if (!account.isOwner && !planAllows(account.plan, "publish_course")) {
+        return NextResponse.json(
+          { error: "Course publishing is included with Filosage Pro.", code: "PLAN_CAPABILITY_REQUIRED" },
+          { status: 403, headers: { "Cache-Control": "private, no-store" } },
+        );
+      }
       visibilityUpdateStage = "publication-readiness";
       if (body.attested !== true) {
         return NextResponse.json(
@@ -191,6 +199,11 @@ export async function DELETE(request: Request, { params }: RouteParams) {
     }
 
     await deleteCourse(courseId);
+    if (course.authorId) {
+      await reconcileCourseCapacity(course.authorId).catch((capacityError) => {
+        console.error("Course capacity reconciliation failed:", capacityError);
+      });
+    }
 
     return NextResponse.json({ success: true });
   } catch (error: unknown) {
