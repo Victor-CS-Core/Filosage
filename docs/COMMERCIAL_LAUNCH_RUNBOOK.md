@@ -19,11 +19,13 @@ Do not enable billing until all of the following are true:
 3. Critical operational alerts reach an independently monitored destination.
 4. Stripe Live products, monthly and annual prices, webhook endpoint, customer portal, tax behavior, and statement descriptor have been reviewed.
 5. The full lifecycle test matrix below passes with Stripe test objects.
-6. The support address is monitored and the owner can access account, webhook, content-report, and audit evidence.
+6. The published billing-support address and `legal@filosage.com` privacy-request address are monitored, and the owner can access account, webhook, content-report, and audit evidence.
 7. Required receipts, renewal notices, failed-payment messages, cancellation confirmations, unsubscribe handling, and suppression handling have a configured delivery provider.
 8. Open high-risk content or safety reports are resolved.
 9. Pricing-intent evidence is reviewed as directional research, not presented as conversion or revenue.
 10. The owner makes a separate, explicit decision to change `BILLING_ENABLED` from `false` to `true`.
+
+Paid activation also requires four public, owner-approved disclosure values in the release environment: `LEGAL_OPERATOR_NAME`, `LEGAL_BUSINESS_ADDRESS`, `GOVERNING_JURISDICTION`, and `SUPPORT_EMAIL`. The Terms and Privacy Notice render these values without committing a private address to source control. Missing values must leave the public documents in a paid-launch-pending state and must fail the billing-activation release check. The owner must review the exact rendered production text before activation; private Stripe identity verification is not a substitute for public customer-facing disclosure.
 
 For an ordinary closed-billing release, set `SITE_VERSION` to the exact Git commit SHA and run `npm.cmd run check:release`; this check requires `BILLING_ENABLED=false`. After deployment, run `npm.cmd run check:production -- https://your-domain.example <exact-sha>` so a healthy datastore cannot mask a stale or unidentified build. Only after separate billing authorization, run `node scripts/check-release-env.mjs --billing-activation`; that mode requires the Stripe product, webhook, management, and checkout configuration plus `BILLING_ENABLED=true`.
 
@@ -66,6 +68,7 @@ Supabase migration is not a release dependency and is not a substitute for this 
 - [ ] Complete the entire payment lifecycle test matrix in this runbook with Stripe test objects and retain a redacted evidence record.
 - [ ] Review Stripe Live products, monthly and annual prices, webhook endpoint, webhook signing secret, customer portal, tax behavior, refund handling, statement descriptor, and historical-price lifecycle support.
 - [ ] Establish the formal operator identity, business address, governing jurisdiction, required tax treatment, registered DMCA process or agent where applicable, and jurisdiction-specific legal review.
+- [ ] Populate `LEGAL_OPERATOR_NAME`, `LEGAL_BUSINESS_ADDRESS`, `GOVERNING_JURISDICTION`, and `SUPPORT_EMAIL` with owner-approved public values; verify the exact hosted Terms and Privacy disclosure, then send and receive test messages through both the published `SUPPORT_EMAIL` billing-support inbox and the published `legal@filosage.com` privacy-request inbox.
 - [ ] Approve the Terms, Privacy Policy, refund/cancellation policy, age eligibility, guardian or parental-consent boundary, and analytics/cookie inventory for the intended launch markets.
 - [ ] Resolve all open high-risk safety, privacy, copyright, account-access, and content reports.
 - [ ] Confirm that support can handle billing, cancellation, refund, privacy, copyright, and account-deletion cases with owner-visible evidence and escalation paths.
@@ -95,6 +98,8 @@ Fixture-backed Playwright coverage is necessary but does not satisfy this live a
 
 Run these scenarios in Stripe test mode before any Live activation:
 
+- Confirm Checkout offers cards only during closed launch; adding an asynchronous payment method requires a separately tested async fulfillment lifecycle before activation.
+
 - Successful monthly and annual checkout for Plus and Pro grant exactly the selected plan and record the subscription event once.
 - Every current or historical Stripe Price resolves to one plan, interval, and offer version; unknown or ambiguous prices leave access unchanged.
 - Plus enforces one active owned course through direct API requests as well as the user interface.
@@ -104,6 +109,7 @@ Run these scenarios in Stripe test mode before any Live activation:
 - Failed or delayed payment moves the account to the expected recovery state without deleting learning data.
 - Payment recovery restores access from a later valid webhook.
 - Customer-portal cancellation stops future renewal and retains access through the paid period when appropriate.
+- Successful and canceled Checkout returns explain the outcome without granting entitlement from a redirect; paid access changes only after a verified Stripe event.
 - Immediate cancellation or refund behavior matches the displayed terms and applicable law.
 - A deleted account with an active subscription is blocked until the subscription is canceled or otherwise safely resolved.
 - The billing master lock disables new checkout even when all Stripe secrets are present.

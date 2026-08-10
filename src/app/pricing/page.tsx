@@ -1,9 +1,11 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useState } from "react";
 import {
   Bell,
   Check,
+  CheckCircle2,
   CreditCard,
   Crown,
   Gauge,
@@ -35,7 +37,7 @@ function renewalLabel(value: string | undefined, status: string | undefined) {
 }
 
 export default function PricingPage() {
-  const { user, account, signInWithGoogle, acceptLegalTerms } = useAuth();
+  const { user, account, signInWithGoogle, acceptLegalTerms, refreshAccount } = useAuth();
   const outlineQuota = account?.quotas.find((quota) => quota.feature === "course_outline");
   const subscriptionRequiresManagement = subscriptionBlocksCheckout(account?.subscriptionStatus);
   const [email, setEmail] = useState("");
@@ -49,6 +51,7 @@ export default function PricingPage() {
   const [billingManagementReady, setBillingManagementReady] = useState(false);
   const [billingBusy, setBillingBusy] = useState(false);
   const [billingError, setBillingError] = useState<string | null>(null);
+  const [checkoutReturn, setCheckoutReturn] = useState<"success" | "canceled" | null>(null);
   const [intentReadiness, setIntentReadiness] = useState<"ready_now" | "within_30_days" | "researching">("within_30_days");
   const [launchEmailConsent, setLaunchEmailConsent] = useState(false);
   const [intentSaving, setIntentSaving] = useState(false);
@@ -67,6 +70,23 @@ export default function PricingPage() {
         setBillingManagementReady(false);
       });
   }, []);
+
+  useEffect(() => {
+    const url = new URL(window.location.href);
+    const checkout = url.searchParams.get("checkout");
+    if (checkout !== "success" && checkout !== "canceled") return;
+    const update = window.setTimeout(() => setCheckoutReturn(checkout), 0);
+    url.searchParams.delete("checkout");
+    window.history.replaceState(window.history.state, "", `${url.pathname}${url.search}${url.hash}`);
+    return () => window.clearTimeout(update);
+  }, []);
+
+  useEffect(() => {
+    if (checkoutReturn !== "success" || !user) return;
+    void refreshAccount();
+    const retry = window.setTimeout(() => void refreshAccount(), 2_500);
+    return () => window.clearTimeout(retry);
+  }, [checkoutReturn, refreshAccount, user]);
 
   useEffect(() => {
     if (!user || account?.plan !== "free" || subscriptionRequiresManagement || account.legalAcceptanceRequired) return;
@@ -159,6 +179,19 @@ export default function PricingPage() {
           <p>Free supports focused learning. Plus adds one private course for a current goal. Pro expands authoring and adds public course publishing.</p>
         </header>
 
+        {checkoutReturn && (
+          <section className={`billing-return-status is-${checkoutReturn}`} role="status" aria-live="polite" aria-labelledby="billing-return-title">
+            {checkoutReturn === "success" ? <CheckCircle2 size={21} aria-hidden="true" /> : <X size={21} aria-hidden="true" />}
+            <div>
+              <h2 id="billing-return-title">{checkoutReturn === "success" ? "Confirming your membership" : "Checkout did not return success"}</h2>
+              <p>{checkoutReturn === "success"
+                ? "You returned from secure checkout. Access activates only after Filosage processes Stripe's verified payment event, which can take a moment. If your membership does not update, check Manage billing below or contact support before trying again."
+                : "This return link reports that Checkout was canceled. A redirect cannot confirm payment or subscription state and does not change your access. Review your current membership and Manage billing below before starting another checkout; contact support if anything looks unexpected."}</p>
+              <Link href="/support/articles/plans-and-billing">See billing and cancellation help</Link>
+            </div>
+          </section>
+        )}
+
         <div className="billing-interval pricing-interval" role="group" aria-label="Billing interval">
           <button type="button" className={interval === "monthly" ? "is-selected" : ""} aria-pressed={interval === "monthly"} onClick={() => setInterval("monthly")}>Monthly</button>
           <button type="button" className={interval === "annual" ? "is-selected" : ""} aria-pressed={interval === "annual"} onClick={() => setInterval("annual")}>Annual <span>Save 33%</span></button>
@@ -210,7 +243,7 @@ export default function PricingPage() {
 
         {subscriptionRequiresManagement && (
           <section className="pricing-account-action" aria-labelledby="manage-membership-title">
-            <div><h2 id="manage-membership-title">Manage your membership</h2><p>Review renewal, switch an available plan, update payment details, or cancel through the secure billing portal.</p></div>
+            <div><h2 id="manage-membership-title">Manage your membership</h2><p>Review renewal, update your payment method, view invoices, or cancel at the end of the paid period through the secure billing portal.</p></div>
             <button className="button button-secondary" type="button" disabled={billingBusy || !billingManagementReady} onClick={() => void openBilling("portal")}>
               {billingBusy ? <LoaderCircle className="spin" size={16} /> : <CreditCard size={16} />} Manage billing
             </button>
@@ -249,7 +282,7 @@ export default function PricingPage() {
         <p className="pricing-note">Generation allowances reset each month and do not roll over. A downgrade never deletes a course or unpublishes existing work. If an account is over its new owned-course limit, existing courses remain accessible while new course creation is paused.</p>
         <section className="billing-readiness-note" aria-labelledby="billing-readiness-title">
           <LockKeyhole size={18} />
-          <div><h2 id="billing-readiness-title">Clear terms before any charge</h2><p>{billingReady ? "Secure checkout shows the selected membership, exact price, currency, billing interval, automatic renewal, and included limits before consent." : "Paid checkout remains closed. Before launch, secure checkout will show the selected membership, exact price, currency, billing interval, automatic renewal, included limits, and online cancellation before consent."}</p><p><a href="/terms">Terms of Service</a> · <a href="/privacy">Privacy Notice</a> · <a href={`mailto:${SUPPORT_CONTACT}`}>Contact support</a></p></div>
+          <div><h2 id="billing-readiness-title">Clear terms before any charge</h2><p>{billingReady ? "Secure checkout shows the selected membership, exact price, currency, billing interval, automatic renewal, and included limits before consent." : "Paid checkout remains closed. Before launch, secure checkout will show the selected membership, exact price, currency, billing interval, automatic renewal, included limits, and online cancellation before consent."}</p><p><Link href="/terms">Terms of Service</Link> · <Link href="/privacy">Privacy Notice</Link> · <a href={`mailto:${SUPPORT_CONTACT}`}>Contact support</a></p></div>
         </section>
       </div>
     </AppShell>

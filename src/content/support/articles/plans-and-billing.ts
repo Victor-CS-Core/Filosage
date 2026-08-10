@@ -3,15 +3,15 @@ import { defineSupportArticle } from "../types";
 export default defineSupportArticle({
   slug: "plans-and-billing",
   title: "Understand Free, Plus, Pro, and billing status",
-  summary: "Compare the three Filosage memberships and understand why checkout remains closed during launch preparation.",
+  summary: "Compare memberships, check checkout availability, manage a subscription, and recover from common billing states.",
   category: "plans",
-  keywords: ["billing", "pricing", "Plus", "Pro", "checkout", "course limit", "subscription", "downgrade"],
-  reviewedOn: "2026-08-09",
-  sources: [".env.example", "src/lib/billing-lock.ts", "src/app/pricing/page.tsx", "docs/COMMERCIAL_LAUNCH_RUNBOOK.md"],
+  keywords: ["billing", "pricing", "Plus", "Pro", "checkout", "course limit", "subscription", "downgrade", "cancel", "refund", "payment method"],
+  reviewedOn: "2026-08-10",
+  sources: [".env.example", "src/lib/billing-lock.ts", "src/lib/stripe-server.ts", "src/app/pricing/page.tsx", "src/app/terms/page.tsx", "docs/COMMERCIAL_LAUNCH_RUNBOOK.md"],
   body: `
-## Paid checkout is currently closed
+## Check current checkout availability
 
-Filosage does not currently offer a new paid checkout. Joining the membership launch list or saving a pricing preference is product research only. Neither action creates a subscription or charge.
+The [Plans page](/pricing) is the source of truth for paid-checkout availability. When checkout is open, choosing Plus or Pro sends a signed-in learner to Stripe's secure checkout. When checkout is closed, the page offers a launch update or preference form instead. Joining that list or saving a preference never creates a Stripe customer, subscription, invoice, or charge.
 
 ## Memberships
 
@@ -25,13 +25,29 @@ Generation-request allowances reset monthly and do not roll over. A failed reque
 
 A downgrade does not delete a course or automatically unpublish existing work. If the new plan has a lower owned-course limit, existing courses remain accessible, but new course creation is paused until the account is within its limit or upgrades. Features that the new plan does not include, such as publishing from Plus, are blocked for new actions.
 
-## Before any future purchase
+## Before a purchase
 
-If paid memberships open later, checkout must show the selected membership, price, currency, billing interval, included limits, renewal terms, and cancellation method before consent. Availability will be stated on the [Plans page](/pricing).
+Secure checkout shows the selected membership and price, billing interval, automatic-renewal terms, included limits, and online cancellation path before submission. Checkout also requires acceptance of the Filosage Terms. Review the [Terms of Service](/terms) and [Privacy Notice](/privacy) before subscribing.
+
+## After returning from checkout
+
+A return to Filosage does not grant membership access by itself. Filosage activates paid access only after processing a verified Stripe payment event. That update can take a moment. If the Plans page still shows Free, do not start repeated checkouts; refresh once, look for **Manage billing**, then contact support if the membership still does not update.
+
+If the browser returns with Checkout marked canceled, the return link alone does not confirm payment or subscription state and does not change access. Review the current membership shown on the Plans page and open **Manage billing** to verify Stripe's account state before starting another checkout. Contact support if the portal is unavailable or anything looks unexpected.
+
+## Manage or cancel a subscription
+
+Signed-in subscribers can use **Manage billing** on the [Plans page](/pricing) to open Stripe's billing portal. The launch portal is limited to reviewing the subscription, updating a payment method, viewing invoices, and canceling at the end of the paid period. It does not offer plan switching. Cancellation ordinarily stops the next renewal while access continues through the current paid period; the portal shows the effective date before confirmation.
+
+If a payment needs attention, use **Manage billing** to review the payment method and current subscription state. Filosage does not delete learning data because a payment is delayed or a membership is downgraded.
+
+## Refund questions
+
+Refund requests are reviewed against the displayed offer, the Terms of Service, transaction history, product-failure evidence, and applicable law. Do not assume a refund outcome from a support message. Contact support with the account email, approximate charge date, plan name, and a short description, but never send a complete card number, password, or one-time code.
 
 ## Ask a billing question
 
-Use [contact support](/support/articles/contact-support) for a question about plan access or an unexpected billing-related message. Never email complete payment-card details.
+Use [contact support](/support/articles/contact-support) for a question about plan access, cancellation, a refund request, or an unexpected billing message.
 `,
   related: ["contact-support", "privacy-controls", "getting-started"],
   featured: true,

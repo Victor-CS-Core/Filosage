@@ -10,6 +10,21 @@ import {
   type PaidLearnerPlan,
 } from "@/lib/billing-offer";
 import {
+  checkoutFulfillmentIsPaid,
+  checkoutConsentMetadataIsCurrent,
+  accountDeletionBlocksCheckout,
+  CLOSED_LAUNCH_PAYMENT_METHOD_TYPES,
+  durableBillingConsentMatches,
+  entitlementSubscriptionStatus,
+  normalizedSubscriptionStatus,
+  resolvedBillingPaymentState,
+  shouldApplyBillingEvent,
+  stripeCustomerBindingMatches,
+  subscriptionBlocksCheckout,
+  type BillingEventCursor,
+  type BillingPaymentState,
+} from "@/lib/billing-lock";
+import {
   isBillingInterval,
   isPaidLearnerPlan,
   offerFor,
@@ -21,10 +36,13 @@ import { serverEnvironment } from "@/lib/runtime-environment";
 const CHECKOUT_CLAIM_STALE_MS = 2 * 60_000;
 
 export class BillingCheckoutInProgressError extends Error {}
+export class BillingConsentRequiredError extends Error {}
+export class BillingAccountDeletionInProgressError extends Error {}
 
 type CheckoutClaim =
   | { action: "reuse"; url: string }
   | { action: "busy" }
+  | { action: "blocked" }
   | {
     action: "create";
     path: string;
@@ -59,7 +77,13 @@ export function priceForPlanInterval(planId: PaidLearnerPlan, interval: BillingI
 }
 
 async function stableStripeCustomer(stripe: Stripe, account: ServerAccount) {
-  if (account.billingCustomerId?.startsWith("cus_")) return account.billingCustomerId;
+  if (account.billingCustomerId?.startsWith("cus_")) {
+    const existing = await stripe.customers.retrieve(account.billingCustomerId);
+    if (!stripeCustomerBindingMatches(existing, account.uid)) {
+      throw new Error("The stored Stripe customer is not bound to this Filosage account.");
+    }
+    return existing.id;
+  }
 
   const created = await stripe.customers.create({
     email: account.email,
@@ -108,10 +132,33 @@ async function validatedPrice(stripe: Stripe, planId: PaidLearnerPlan, interval:
   return price.id;
 }
 
+async function assertCustomerHasNoNonterminalSubscription(stripe: Stripe, customerId: string) {
+  const subscriptions = await stripe.subscriptions.list({
+    customer: customerId,
+    status: "all",
+    limit: 100,
+  });
+  if (subscriptions.has_more) {
+    throw new BillingCheckoutInProgressError(
+      "This Stripe customer has too many subscriptions to verify automatically. Contact billing support before starting another checkout.",
+    );
+  }
+  if (subscriptions.data.some((subscription) => subscriptionBlocksCheckout(subscription.status))) {
+    throw new BillingCheckoutInProgressError(
+      "A Stripe subscription already exists for this account. Use Manage billing or try again after Stripe finishes updating your account.",
+    );
+  }
+}
+
 async function claimCheckout(account: ServerAccount, requestedPlanId: PaidLearnerPlan, requestedInterval: BillingInterval) {
   const path = `users/${account.uid}/billingCheckout/current`;
+  const accountPath = `users/${account.uid}`;
   const now = new Date();
-  return runStoredDocumentTransaction<CheckoutClaim>([path], (documents) => {
+  return runStoredDocumentTransaction<CheckoutClaim>([accountPath, path], (documents) => {
+    const billingAccount = documents[accountPath];
+    if (accountDeletionBlocksCheckout(billingAccount)) {
+      return { writes: [], result: { action: "blocked" as const } };
+    }
     const existing = documents[path];
     const status = typeof existing?.status === "string" ? existing.status : "";
     const claimedAt = typeof existing?.claimedAt === "string" ? Date.parse(existing.claimedAt) : 0;
@@ -158,6 +205,17 @@ async function claimCheckout(account: ServerAccount, requestedPlanId: PaidLearne
   });
 }
 
+async function assertAccountCheckoutAllowed(uid: string) {
+  const accountPath = `users/${uid}`;
+  return runStoredDocumentTransaction([accountPath], (documents) => {
+    const account = documents[accountPath];
+    if (accountDeletionBlocksCheckout(account)) {
+      throw new BillingAccountDeletionInProgressError("Account deletion is in progress; checkout is unavailable.");
+    }
+    return { writes: [], result: true };
+  });
+}
+
 async function markCheckoutClaimFailed(path: string, claimId: string) {
   await runStoredDocumentTransaction([path], (documents) => {
     const existing = documents[path];
@@ -183,15 +241,26 @@ export async function createCheckoutSession(account: ServerAccount, planId: Paid
   const claim = await claimCheckout(account, planId, interval);
   if (claim.action === "reuse") return claim.url;
   if (claim.action === "busy") throw new BillingCheckoutInProgressError("A secure checkout is already being prepared. Try again in a moment.");
+  if (claim.action === "blocked") throw new BillingAccountDeletionInProgressError("Account deletion is in progress; checkout is unavailable.");
 
   try {
+    const customer = await stableStripeCustomer(stripe, account);
+    await assertCustomerHasNoNonterminalSubscription(stripe, customer);
     if (claim.previousSessionId?.startsWith("cs_")) {
-      await stripe.checkout.sessions.expire(claim.previousSessionId);
+      try {
+        await stripe.checkout.sessions.expire(claim.previousSessionId);
+      } catch (error) {
+        const previous = await stripe.checkout.sessions.retrieve(claim.previousSessionId).catch(() => null);
+        if (previous?.status === "complete" || previous?.subscription) {
+          throw new BillingCheckoutInProgressError(
+            "Your earlier checkout completed and Stripe is updating your account. Use Manage billing or try again in a moment.",
+          );
+        }
+        throw error;
+      }
     }
-    const [customer, price] = await Promise.all([
-      stableStripeCustomer(stripe, account),
-      validatedPrice(stripe, claim.planId, claim.interval),
-    ]);
+    const price = await validatedPrice(stripe, claim.planId, claim.interval);
+    await assertAccountCheckoutAllowed(account.uid);
     const plan = paidPlanFor(claim.planId);
     const offer = offerFor(claim.planId, claim.interval);
     const session = await stripe.checkout.sessions.create({
@@ -201,7 +270,14 @@ export async function createCheckoutSession(account: ServerAccount, planId: Paid
       cancel_url: `${baseUrl}/pricing?checkout=canceled`,
       client_reference_id: account.uid,
       customer,
+      // Closed launch uses synchronous card fulfillment. Enabling an async
+      // payment method requires explicit async success/failure webhook support.
+      payment_method_types: [...CLOSED_LAUNCH_PAYMENT_METHOD_TYPES],
       allow_promotion_codes: true,
+      automatic_tax: { enabled: true },
+      billing_address_collection: "required",
+      customer_update: { address: "auto", name: "auto" },
+      tax_id_collection: { enabled: true },
       consent_collection: { terms_of_service: "required" },
       custom_text: {
         submit: {
@@ -237,9 +313,12 @@ export async function createCheckoutSession(account: ServerAccount, planId: Paid
     });
     if (!session.url) throw new Error("Stripe did not return a checkout URL.");
 
-    const opened = await runStoredDocumentTransaction([claim.path], (documents) => {
+    const accountPath = `users/${account.uid}`;
+    const opened = await runStoredDocumentTransaction([accountPath, claim.path], (documents) => {
+      const currentAccount = documents[accountPath];
       const existing = documents[claim.path];
-      if (existing?.claimId !== claim.claimId) return { writes: [], result: false };
+      if (accountDeletionBlocksCheckout(currentAccount)
+        || existing?.claimId !== claim.claimId) return { writes: [], result: false };
       return {
         writes: [{
           path: claim.path,
@@ -259,7 +338,21 @@ export async function createCheckoutSession(account: ServerAccount, planId: Paid
       };
     });
     if (!opened) {
-      await stripe.checkout.sessions.expire(session.id);
+      try {
+        await stripe.checkout.sessions.expire(session.id);
+      } catch (expirationError) {
+        const currentSession = await stripe.checkout.sessions.retrieve(session.id);
+        const currentSubscriptionId = typeof currentSession.subscription === "string"
+          ? currentSession.subscription
+          : currentSession.subscription?.id;
+        if (currentSubscriptionId) {
+          await cancelAndConfirmStripeSubscription(stripe, currentSubscriptionId, account.uid, customer);
+        } else if (currentSession.status !== "expired") {
+          throw new Error("A checkout session could not be contained after account deletion started.", {
+            cause: expirationError,
+          });
+        }
+      }
       throw new Error("A newer checkout attempt replaced this session.");
     }
     return session.url;
@@ -273,11 +366,138 @@ export async function createBillingPortalSession(account: ServerAccount) {
   if (!account.billingCustomerId?.startsWith("cus_")) {
     throw new Error("No Stripe customer is available for this account yet.");
   }
-  const session = await stripeClient().billingPortal.sessions.create({
+  const stripe = stripeClient();
+  const customer = await stripe.customers.retrieve(account.billingCustomerId);
+  if (!stripeCustomerBindingMatches(customer, account.uid)) {
+    throw new Error("The stored Stripe customer is not bound to this Filosage account.");
+  }
+  const session = await stripe.billingPortal.sessions.create({
     customer: account.billingCustomerId,
     return_url: `${siteUrl()}/pricing`,
   });
   return session.url;
+}
+
+function isMissingStripeResource(error: unknown) {
+  return error instanceof Stripe.errors.StripeInvalidRequestError
+    && error.code === "resource_missing";
+}
+
+async function cancelAndConfirmStripeSubscription(
+  stripe: Stripe,
+  subscriptionId: string,
+  uid: string,
+  customerId?: string,
+) {
+  let subscription: Stripe.Subscription;
+  try {
+    subscription = await stripe.subscriptions.retrieve(subscriptionId);
+  } catch (error) {
+    if (isMissingStripeResource(error)) return "missing" as const;
+    throw error;
+  }
+  const subscriptionCustomerId = typeof subscription.customer === "string"
+    ? subscription.customer
+    : subscription.customer.id;
+  if (subscription.metadata.filosage_uid !== uid
+    || (customerId && subscriptionCustomerId !== customerId)) {
+    throw new Error(`Stripe subscription ${subscription.id} is not bound to the deleting Filosage account.`);
+  }
+  if (subscription.status === "canceled" || subscription.status === "incomplete_expired") {
+    return subscription.status;
+  }
+
+  try {
+    const canceled = await stripe.subscriptions.cancel(subscriptionId);
+    if (canceled.status !== "canceled") {
+      throw new Error(`Stripe returned subscription state ${canceled.status} after cancellation.`);
+    }
+    return canceled.status;
+  } catch (error) {
+    // A timeout can happen after Stripe commits the cancellation. Confirm the
+    // remote state rather than trusting error-message text or local cache.
+    let confirmed: Stripe.Subscription;
+    try {
+      confirmed = await stripe.subscriptions.retrieve(subscriptionId);
+    } catch (confirmationError) {
+      if (isMissingStripeResource(confirmationError)) return "missing" as const;
+      throw new Error("Stripe cancellation failed and its remote state could not be confirmed.", {
+        cause: confirmationError,
+      });
+    }
+    const confirmedCustomerId = typeof confirmed.customer === "string"
+      ? confirmed.customer
+      : confirmed.customer.id;
+    if (confirmed.metadata.filosage_uid !== uid
+      || (customerId && confirmedCustomerId !== customerId)) {
+      throw new Error(`Stripe subscription ${confirmed.id} is not bound to the deleting Filosage account.`, {
+        cause: error,
+      });
+    }
+    if (confirmed.status === "canceled" || confirmed.status === "incomplete_expired") {
+      return confirmed.status;
+    }
+    throw error;
+  }
+}
+
+export async function cancelStripeBillingForAccountDeletion(input: {
+  uid: string;
+  customerId?: string;
+  subscriptionId?: string;
+}) {
+  const stripe = stripeClient();
+  const subscriptionIds = new Set<string>();
+  if (input.customerId?.startsWith("cus_")) {
+    const customer = await stripe.customers.retrieve(input.customerId);
+    if (!stripeCustomerBindingMatches(customer, input.uid)) {
+      throw new Error("The Stripe customer is not bound to the deleting Filosage account.");
+    }
+    const openSessions = await stripe.checkout.sessions.list({
+      customer: customer.id,
+      status: "open",
+      limit: 100,
+    });
+    if (openSessions.has_more) {
+      throw new Error("The Stripe customer has too many open Checkout Sessions to verify before account deletion.");
+    }
+    for (const session of openSessions.data) {
+      const sessionCustomerId = typeof session.customer === "string" ? session.customer : session.customer?.id;
+      const sessionUid = session.metadata?.filosage_uid || session.client_reference_id;
+      if (session.mode !== "subscription" || sessionCustomerId !== customer.id || sessionUid !== input.uid) {
+        throw new Error(`Stripe Checkout Session ${session.id} is not bound to the deleting Filosage account.`);
+      }
+      try {
+        await stripe.checkout.sessions.expire(session.id);
+      } catch (expirationError) {
+        const current = await stripe.checkout.sessions.retrieve(session.id);
+        const completedSubscriptionId = typeof current.subscription === "string"
+          ? current.subscription
+          : current.subscription?.id;
+        if (completedSubscriptionId) subscriptionIds.add(completedSubscriptionId);
+        else if (current.status !== "expired") {
+          throw new Error(`Stripe Checkout Session ${session.id} could not be expired before account deletion.`, {
+            cause: expirationError,
+          });
+        }
+      }
+    }
+
+    const subscriptions = await stripe.subscriptions.list({
+      customer: customer.id,
+      status: "all",
+      limit: 100,
+    });
+    if (subscriptions.has_more) {
+      throw new Error("The Stripe customer has too many subscriptions to verify before account deletion.");
+    }
+    for (const subscription of subscriptions.data) subscriptionIds.add(subscription.id);
+  }
+  if (input.subscriptionId?.startsWith("sub_")) subscriptionIds.add(input.subscriptionId);
+
+  for (const subscriptionId of subscriptionIds) {
+    await cancelAndConfirmStripeSubscription(stripe, subscriptionId, input.uid, input.customerId);
+  }
 }
 
 function configuredPriceMap() {
@@ -319,61 +539,211 @@ export function resolvedSubscriptionOffer(subscription: Stripe.Subscription) {
   };
 }
 
-function subscriptionStatus(status: Stripe.Subscription.Status): ServerAccount["subscriptionStatus"] {
-  if (status === "trialing" || status === "active" || status === "past_due" || status === "canceled") return status;
-  return "none";
+export interface BillingPaymentSnapshot {
+  state: BillingPaymentState;
+  invoiceId: string;
+  attemptCount: number;
+  paidAt?: number;
 }
 
 export async function syncStripeSubscription(
   subscription: Stripe.Subscription,
-  fallbackUid?: string,
-  eventCreated?: number,
+  context: {
+    event: Pick<Stripe.Event, "id" | "created" | "type">;
+    fallbackUid?: string;
+    payment?: BillingPaymentSnapshot;
+  },
 ) {
-  const uid = subscription.metadata.filosage_uid || fallbackUid;
+  const uid = subscription.metadata.filosage_uid || context.fallbackUid;
   if (!uid) return false;
 
-  const status = subscriptionStatus(subscription.status);
   const resolved = resolvedSubscriptionOffer(subscription);
-  const paidEligible = status === "active" || status === "trialing";
   const periodEnd = subscription.items.data.reduce(
     (latest, item) => Math.max(latest, item.current_period_end),
     0,
   );
   const currentPeriodEnd = periodEnd > 0 ? new Date(periodEnd * 1_000).toISOString() : null;
   const path = `users/${uid}`;
+  const subscriptionCustomerId = typeof subscription.customer === "string"
+    ? subscription.customer
+    : subscription.customer.id;
 
   return runStoredDocumentTransaction([path], (documents) => {
     const current = documents[path];
     if (!current) return { writes: [], result: false };
-    // Stripe does not guarantee webhook order: ignore events older than the
-    // one that produced the currently stored billing state.
-    const storedEventCreated = typeof current.billingEventCreated === "number" ? current.billingEventCreated : 0;
-    if (eventCreated !== undefined && eventCreated < storedEventCreated) {
+
+    const sameSubscription = current.billingSubscriptionId === subscription.id;
+    const storedInvoiceId = sameSubscription && typeof current.billingInvoiceId === "string"
+      ? current.billingInvoiceId
+      : undefined;
+    const sameInvoice = Boolean(context.payment?.invoiceId && storedInvoiceId === context.payment.invoiceId);
+    const paymentState = resolvedBillingPaymentState(
+      typeof current.billingPaymentState === "string" ? current.billingPaymentState : undefined,
+      sameSubscription,
+      context.payment?.state,
+      {
+        sameInvoice,
+        allowSameInvoiceRecovery: context.event.type === "charge.dispute.closed",
+      },
+    );
+    const subscriptionStatus = entitlementSubscriptionStatus(subscription.status, paymentState);
+    const invoiceId = context.payment?.invoiceId
+      ?? storedInvoiceId;
+    const invoiceAttemptCount = context.payment?.attemptCount
+      ?? (sameSubscription && typeof current.billingInvoiceAttemptCount === "number" ? current.billingInvoiceAttemptCount : undefined);
+    const invoicePaidAt = context.payment?.paidAt
+      ?? (sameSubscription && typeof current.billingInvoicePaidAt === "number" ? current.billingInvoicePaidAt : undefined);
+    const currentCursor: BillingEventCursor | null = typeof current.billingEventCreated === "number"
+      ? {
+        eventCreated: current.billingEventCreated,
+        eventId: typeof current.billingEventId === "string" ? current.billingEventId : "legacy",
+        subscriptionStatus: normalizedSubscriptionStatus(String(current.subscriptionStatus ?? "none")),
+        invoiceId: typeof current.billingInvoiceId === "string" ? current.billingInvoiceId : undefined,
+        invoiceAttemptCount: typeof current.billingInvoiceAttemptCount === "number" ? current.billingInvoiceAttemptCount : undefined,
+        invoicePaidAt: typeof current.billingInvoicePaidAt === "number" ? current.billingInvoicePaidAt : undefined,
+      }
+      : null;
+    const nextCursor: BillingEventCursor = {
+      eventCreated: context.event.created,
+      eventId: context.event.id,
+      subscriptionStatus,
+      invoiceId,
+      invoiceAttemptCount,
+      invoicePaidAt,
+    };
+    if (!shouldApplyBillingEvent(currentCursor, nextCursor)) {
       return { writes: [], result: true };
+    }
+    if ((subscriptionStatus === "active" || subscriptionStatus === "trialing")
+      && !durableBillingConsentMatches(current, subscription.id, subscriptionCustomerId, {
+        priceId: resolved.priceId,
+        planId: resolved.planId,
+        interval: resolved.billingInterval,
+      })) {
+      throw new BillingConsentRequiredError(
+        `Stripe subscription ${subscription.id} has no verified Checkout consent; access was left unchanged.`,
+      );
     }
     return {
       writes: [{
         path,
         data: {
           ...current,
-          billingCustomerId: typeof subscription.customer === "string" ? subscription.customer : subscription.customer.id,
+          billingCustomerId: subscriptionCustomerId,
           billingSubscriptionId: subscription.id,
           billingRawStatus: subscription.status,
           billingCancelAtPeriodEnd: subscription.cancel_at_period_end,
           billingCanceledAt: subscription.canceled_at ? new Date(subscription.canceled_at * 1_000).toISOString() : null,
           billingTrialEnd: subscription.trial_end ? new Date(subscription.trial_end * 1_000).toISOString() : null,
-          subscriptionStatus: paidEligible ? status : status === "past_due" ? "past_due" : "canceled",
+          subscriptionStatus,
           billingPlan: resolved.planId,
           billingInterval: resolved.billingInterval,
           currentPeriodEnd,
           billingPriceId: resolved.priceId,
-          billingEventCreated: eventCreated ?? storedEventCreated,
+          billingPaymentState: paymentState,
+          billingInvoiceId: invoiceId ?? null,
+          billingInvoiceAttemptCount: invoiceAttemptCount ?? null,
+          billingInvoicePaidAt: invoicePaidAt ?? null,
+          billingEventCreated: context.event.created,
+          billingEventId: context.event.id,
           updatedAt: new Date().toISOString(),
         },
       }],
       result: true,
     };
   });
+}
+
+export function stripeInvoiceSubscriptionId(invoice: Stripe.Invoice) {
+  const subscription = invoice.parent?.subscription_details?.subscription;
+  if (!subscription) return null;
+  return typeof subscription === "string" ? subscription : subscription.id;
+}
+
+export function stripeInvoicePaymentSnapshot(
+  invoice: Stripe.Invoice,
+  override?: BillingPaymentState,
+): BillingPaymentSnapshot {
+  const paid = invoice.status === "paid";
+  const state = override === "failed"
+    ? paid ? "paid" : "failed"
+    : override ?? (paid ? "paid" : "unknown");
+  return {
+    state,
+    invoiceId: invoice.id,
+    attemptCount: invoice.attempt_count,
+    ...(invoice.status_transitions.paid_at ? { paidAt: invoice.status_transitions.paid_at } : {}),
+  };
+}
+
+export async function verifyCheckoutFulfillment(
+  stripe: Stripe,
+  session: Stripe.Checkout.Session,
+  subscription: Stripe.Subscription,
+) {
+  const sessionSubscriptionId = typeof session.subscription === "string"
+    ? session.subscription
+    : session.subscription?.id;
+  const sessionCustomerId = typeof session.customer === "string" ? session.customer : session.customer?.id;
+  const subscriptionCustomerId = typeof subscription.customer === "string"
+    ? subscription.customer
+    : subscription.customer.id;
+  const sessionUid = session.metadata?.filosage_uid || session.client_reference_id;
+  const subscriptionUid = subscription.metadata.filosage_uid;
+  const latestInvoice = subscription.latest_invoice;
+  const invoice = typeof latestInvoice === "string"
+    ? await stripe.invoices.retrieve(latestInvoice)
+    : latestInvoice;
+  if (!checkoutFulfillmentIsPaid({
+    mode: session.mode,
+    checkoutStatus: session.status,
+    paymentStatus: session.payment_status,
+    invoicePaid: invoice?.status === "paid",
+    invoiceStatus: invoice?.status,
+  })
+    || sessionSubscriptionId !== subscription.id
+    || !sessionCustomerId
+    || sessionCustomerId !== subscriptionCustomerId
+    || !sessionUid
+    || !subscriptionUid
+    || sessionUid !== subscriptionUid) {
+    throw new Error("Stripe Checkout has not completed a verified subscription payment.");
+  }
+
+  if (!invoice || stripeInvoiceSubscriptionId(invoice) !== subscription.id) {
+    throw new Error("The subscription's initial Stripe invoice is not paid.");
+  }
+  const invoiceCustomerId = typeof invoice.customer === "string" ? invoice.customer : invoice.customer?.id;
+  if (invoiceCustomerId !== subscriptionCustomerId) {
+    throw new Error("The paid Stripe invoice does not belong to the Checkout customer.");
+  }
+  return stripeInvoicePaymentSnapshot(invoice);
+}
+
+export async function recordSubscriptionConsentFromCheckout(
+  stripe: Stripe,
+  subscription: Stripe.Subscription,
+  event: Pick<Stripe.Event, "id" | "created">,
+) {
+  const sessions = await stripe.checkout.sessions.list({
+    subscription: subscription.id,
+    status: "complete",
+    limit: 100,
+  });
+  if (sessions.has_more) {
+    throw new Error(`Stripe subscription ${subscription.id} has too many Checkout Sessions to verify automatically.`);
+  }
+  const session = sessions.data.find((candidate) => {
+    const candidateSubscriptionId = typeof candidate.subscription === "string"
+      ? candidate.subscription
+      : candidate.subscription?.id;
+    return candidateSubscriptionId === subscription.id
+      && candidate.consent?.terms_of_service === "accepted";
+  });
+  if (!session) throw new Error(`Stripe subscription ${subscription.id} has no completed Filosage Checkout Session.`);
+  const payment = await verifyCheckoutFulfillment(stripe, session, subscription);
+  const consentRecorded = await recordBillingConsent(session, subscription, event);
+  return { consentRecorded, payment };
 }
 
 export async function recordBillingConsent(
@@ -391,12 +761,21 @@ export async function recordBillingConsent(
     throw new Error("Stripe Checkout did not record required Terms acceptance.");
   }
   const plan = paidPlanFor(planId);
+  const offer = offerFor(planId, interval);
+  if (!checkoutConsentMetadataIsCurrent(session.metadata, {
+    termsVersion: TERMS_VERSION,
+    privacyVersion: PRIVACY_VERSION,
+    offerVersion: plan.offerVersion,
+    currency: plan.currency,
+    amountMinor: offer.amountMinor,
+  })) {
+    throw new Error("Stripe Checkout consent references an outdated or incomplete Filosage offer.");
+  }
   if (session.currency?.toLowerCase() !== plan.currency || typeof session.amount_total !== "number") {
     throw new Error("Stripe Checkout did not return a complete USD amount snapshot.");
   }
   const resolved = supportedSubscriptionPrice(subscription);
   const price = resolved.item.price;
-  const offer = offerFor(planId, interval);
   if (resolved.mapping.planId !== planId || resolved.mapping.interval !== interval || price.unit_amount !== offer.amountMinor) {
     throw new Error("The completed subscription does not match the accepted Filosage offer.");
   }
@@ -426,9 +805,26 @@ export async function recordBillingConsent(
   };
 
   const checkoutPath = `users/${uid}/billingCheckout/current`;
-  return runStoredDocumentTransaction([path, checkoutPath], (documents) => {
+  const accountPath = `users/${uid}`;
+  return runStoredDocumentTransaction([accountPath, path, checkoutPath], (documents) => {
+    const account = documents[accountPath];
+    if (!account) return { writes: [], result: null };
     const existing = documents[path];
     const currentCheckout = documents[checkoutPath];
+    const accountWrite = {
+      path: accountPath,
+      data: {
+        ...account,
+        billingConsentSubscriptionId: subscription.id,
+        billingConsentCustomerId: snapshot.stripeCustomerId,
+        billingConsentPriceId: price.id,
+        billingConsentPlanId: planId,
+        billingConsentInterval: interval,
+        billingConsentCheckoutSessionId: session.id,
+        billingConsentRecordedAt: snapshot.acceptedAt,
+        updatedAt: new Date().toISOString(),
+      },
+    };
     const checkoutWrite = currentCheckout?.sessionId === session.id
       ? [{
         path: checkoutPath,
@@ -445,8 +841,8 @@ export async function recordBillingConsent(
         && existing.subscriptionId === snapshot.subscriptionId
         && existing.termsAccepted === true;
       if (!sameConsent) throw new Error("Stored checkout consent conflicts with the verified Stripe event.");
-      return { writes: checkoutWrite, result: false };
+      return { writes: [accountWrite, ...checkoutWrite], result: false };
     }
-    return { writes: [{ path, data: snapshot }, ...checkoutWrite], result: true };
+    return { writes: [accountWrite, { path, data: snapshot }, ...checkoutWrite], result: true };
   });
 }

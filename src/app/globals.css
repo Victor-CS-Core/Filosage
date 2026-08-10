@@ -837,6 +837,12 @@ button:disabled { cursor: not-allowed; opacity: 0.55; }
 .pricing-header { max-width: 780px; }
 .pricing-header h1 { font-size: 3.25rem; max-width: 18ch; margin-top: 10px; }
 .pricing-header > p:last-child { color: var(--ink-secondary); font-size: 1rem; line-height: 1.75; margin-top: 18px; max-width: 68ch; }
+.billing-return-status { display: grid; grid-template-columns: 24px minmax(0, 1fr); gap: 12px; margin-top: 24px; padding: 18px 0; border-top: 1px solid var(--line-strong); border-bottom: 1px solid var(--line); color: var(--ink-secondary); }
+.billing-return-status > svg { margin-top: 1px; color: var(--accent-ink); }
+.billing-return-status.is-success > svg { color: var(--success); }
+.billing-return-status h2 { color: var(--ink); font-size: 0.95rem; }
+.billing-return-status p { max-width: 70ch; margin-top: 5px; font-size: 0.78rem; line-height: 1.65; }
+.billing-return-status a { display: inline-block; margin-top: 8px; color: var(--brand-blue-ink); font-size: 0.75rem; font-weight: 750; }
 .pricing-interval { margin-top: 30px; }
 .plan-comparison { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); margin-top: 24px; border-top: 2px solid var(--ink); border-bottom: 1px solid var(--line-strong); }
 .plan-column { min-width: 0; min-height: 570px; display: flex; flex-direction: column; padding: 30px 26px 34px 0; }
@@ -1101,6 +1107,11 @@ button:disabled { cursor: not-allowed; opacity: 0.55; }
 .legal-content p { margin-top: 12px; }
 .legal-content ul { display: grid; gap: 8px; margin: 14px 0 0; padding-left: 22px; }
 .legal-content strong { color: var(--ink); }
+.legal-commercial-disclosure { display: grid; gap: 9px; margin-top: 18px; padding: 16px 0; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+.legal-commercial-disclosure div { display: grid; grid-template-columns: minmax(130px, 0.32fr) minmax(0, 1fr); gap: 12px; }
+.legal-commercial-disclosure dt, .legal-commercial-disclosure dd { font-size: 0.8rem; line-height: 1.55; }
+.legal-commercial-disclosure dd { color: var(--ink); font-weight: 650; overflow-wrap: anywhere; }
+.legal-disclosure-pending { max-width: 70ch; }
 .legal-page > footer { padding-top: 28px; color: var(--ink-muted); font-size: 0.76rem; }
 .privacy-center-page { width: min(980px, calc(100% - 64px)); margin: 0 auto; padding: 64px 0 100px; }
 .privacy-center-page > header { max-width: 710px; }
@@ -1126,6 +1137,9 @@ button:disabled { cursor: not-allowed; opacity: 0.55; }
 .privacy-owner-note a,
 .privacy-center-page > footer a { color: var(--brand-blue-ink); font-weight: 750; }
 .privacy-delete-confirmation { width: min(330px, 100%); display: grid; gap: 9px; }
+.privacy-delete-billing-warning { color: var(--ink-secondary); font-size: 0.72rem; line-height: 1.55; }
+.privacy-delete-billing-warning strong { color: var(--danger); }
+.privacy-delete-billing-warning a { color: var(--brand-blue-ink); font-weight: 750; }
 .privacy-delete-confirmation label { color: var(--ink-secondary); font-size: 0.7rem; }
 .privacy-delete-confirmation input { width: 100%; min-height: 42px; border: 1px solid var(--line-strong); border-radius: var(--radius-sm); background: var(--surface); color: var(--ink); padding: 9px 11px; }
 .privacy-delete-confirmation input:focus { border-color: var(--focus); outline: 3px solid color-mix(in oklch, var(--focus) 17%, transparent); }

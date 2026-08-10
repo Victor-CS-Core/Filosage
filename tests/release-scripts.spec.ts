@@ -89,12 +89,17 @@ test("billing activation requires every Plus and Pro Stripe price", ({ request }
   const activationEnvironment = {
     ...validReleaseEnvironment,
     BILLING_ENABLED: "true",
-    STRIPE_SECRET_KEY: "sk_live_placeholder",
-    STRIPE_WEBHOOK_SECRET: "whsec_placeholder",
-    STRIPE_PLUS_MONTHLY_PRICE_ID: "price_plus_monthly",
-    STRIPE_PLUS_ANNUAL_PRICE_ID: "price_plus_annual",
-    STRIPE_PRO_MONTHLY_PRICE_ID: "price_pro_monthly",
-    STRIPE_PRO_ANNUAL_PRICE_ID: "price_pro_annual",
+    BILLING_PROVIDER: "stripe",
+    STRIPE_SECRET_KEY: "sk_live_1234567890AbCdEfGhIjKlMn",
+    STRIPE_WEBHOOK_SECRET: "whsec_1234567890AbCdEfGhIjKlMn",
+    STRIPE_PLUS_MONTHLY_PRICE_ID: "price_1PlusMonthlyAbCd",
+    STRIPE_PLUS_ANNUAL_PRICE_ID: "price_1PlusAnnualAbCd",
+    STRIPE_PRO_MONTHLY_PRICE_ID: "price_1ProMonthlyAbCd",
+    STRIPE_PRO_ANNUAL_PRICE_ID: "price_1ProAnnualAbCd",
+    LEGAL_OPERATOR_NAME: "Filosage LLC",
+    LEGAL_BUSINESS_ADDRESS: "123 Example Street",
+    GOVERNING_JURISDICTION: "New York",
+    SUPPORT_EMAIL: "support@filosage.com",
   };
   for (const variable of ["STRIPE_PLUS_MONTHLY_PRICE_ID", "STRIPE_PLUS_ANNUAL_PRICE_ID", "STRIPE_PRO_MONTHLY_PRICE_ID", "STRIPE_PRO_ANNUAL_PRICE_ID"]) {
     const result = spawnSync(process.execPath, [releaseScript, "--billing-activation"], {
@@ -105,6 +110,53 @@ test("billing activation requires every Plus and Pro Stripe price", ({ request }
     expect(result.status).toBe(1);
     expect(result.stderr).toContain(`${variable} is required for billing activation`);
   }
+  for (const variable of ["LEGAL_OPERATOR_NAME", "LEGAL_BUSINESS_ADDRESS", "GOVERNING_JURISDICTION", "SUPPORT_EMAIL"]) {
+    const result = spawnSync(process.execPath, [releaseScript, "--billing-activation"], {
+      cwd: root,
+      env: { ...activationEnvironment, [variable]: "" },
+      encoding: "utf8",
+    });
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain(`${variable} is required for billing activation`);
+  }
+  const malformedSupportEmail = spawnSync(process.execPath, [releaseScript, "--billing-activation"], {
+    cwd: root,
+    env: { ...activationEnvironment, SUPPORT_EMAIL: "not-an-email" },
+    encoding: "utf8",
+  });
+  expect(malformedSupportEmail.status).toBe(1);
+  expect(malformedSupportEmail.stderr).toContain("SUPPORT_EMAIL must be a valid email address");
+  const wrongProvider = spawnSync(process.execPath, [releaseScript, "--billing-activation"], {
+    cwd: root,
+    env: { ...activationEnvironment, BILLING_PROVIDER: "none" },
+    encoding: "utf8",
+  });
+  expect(wrongProvider.status).toBe(1);
+  expect(wrongProvider.stderr).toContain("BILLING_PROVIDER must be stripe for billing activation");
+  for (const [variable, value, message] of [
+    ["STRIPE_SECRET_KEY", "sk_test_1234567890AbCdEfGhIjKlMn", "STRIPE_SECRET_KEY must be a non-placeholder Live secret or restricted key"],
+    ["STRIPE_SECRET_KEY", "sk_live_placeholder", "STRIPE_SECRET_KEY must be a non-placeholder Live secret or restricted key"],
+    ["STRIPE_WEBHOOK_SECRET", "whsec_placeholder", "STRIPE_WEBHOOK_SECRET must be a non-placeholder whsec_ signing secret"],
+    ["STRIPE_PLUS_MONTHLY_PRICE_ID", "not_a_price", "STRIPE_PLUS_MONTHLY_PRICE_ID must be a valid Stripe Price ID"],
+  ] as const) {
+    const result = spawnSync(process.execPath, [releaseScript, "--billing-activation"], {
+      cwd: root,
+      env: { ...activationEnvironment, [variable]: value },
+      encoding: "utf8",
+    });
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain(message);
+  }
+  const duplicatePrice = spawnSync(process.execPath, [releaseScript, "--billing-activation"], {
+    cwd: root,
+    env: {
+      ...activationEnvironment,
+      STRIPE_PRO_MONTHLY_PRICE_ID: activationEnvironment.STRIPE_PLUS_MONTHLY_PRICE_ID,
+    },
+    encoding: "utf8",
+  });
+  expect(duplicatePrice.status).toBe(1);
+  expect(duplicatePrice.stderr).toContain("All four current Stripe Price IDs must be unique");
 });
 
 test("pins the Sites compatibility date below the nodejs_compat rejection boundary", ({ request }, testInfo) => {

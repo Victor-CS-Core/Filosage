@@ -9,7 +9,11 @@ import {
   AUTOMATED_ACCOUNT_DELETION_RETENTION,
 } from "@/lib/account-data-policy";
 import { billingConfiguration } from "@/lib/runtime-config";
-import { stripeClient } from "@/lib/stripe-server";
+import {
+  accountDeletionRequiresStripeReconciliation,
+  checkoutClaimRequiresDeletionRetry,
+} from "@/lib/billing-lock";
+import { cancelStripeBillingForAccountDeletion } from "@/lib/stripe-server";
 import { learnerSupportTicketDetail } from "@/lib/command-center-server";
 import type { CommandCenterTicket } from "@/lib/command-center-types";
 import {
@@ -20,6 +24,7 @@ import {
   listAllStoredDocuments,
   listOwnerCourses,
   listStoredDocumentsByField,
+  runStoredDocumentTransaction,
 } from "@/lib/firebase-server";
 
 const ACCOUNT_SUBCOLLECTION_LIMIT = 2_000;
@@ -185,34 +190,93 @@ export async function DELETE(request: Request) {
       return Response.json({ error: "Type DELETE MY ACCOUNT to confirm permanent deletion." }, { status: 400 });
     }
 
+    const accountPath = `users/${account.uid}`;
+    const checkoutPath = `users/${account.uid}/billingCheckout/current`;
+    const deletionLock = await runStoredDocumentTransaction([accountPath, checkoutPath], (documents) => {
+      const storedAccount = documents[accountPath];
+      if (!storedAccount) throw new Error("The account no longer exists.");
+      const checkout = documents[checkoutPath];
+      const checkoutStatus = typeof checkout?.status === "string" ? checkout.status : "none";
+      return {
+        writes: [{
+          path: accountPath,
+          data: {
+            ...storedAccount,
+            accountDeletionInProgress: true,
+            accountDeletionStartedAt: storedAccount.accountDeletionStartedAt ?? new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+          },
+        }],
+        result: { checkoutStatus },
+      };
+    });
+    if (checkoutClaimRequiresDeletionRetry(deletionLock.checkoutStatus)) {
+      return Response.json(
+        {
+          error: "Checkout is still being contained. Retry account deletion in a moment.",
+          code: "ACCOUNT_DELETION_WAITING_FOR_CHECKOUT",
+        },
+        { status: 409, headers: { "Retry-After": "5" } },
+      );
+    }
+
     const data = await collectAccountData(account.uid);
 
     // Never orphan a paid subscription: cancel it at Stripe before removing
     // the account, and refuse deletion if cancellation cannot be completed.
     const subscriptionStatus = String(data.account?.subscriptionStatus ?? "none");
+    const billingRawStatus = typeof data.account?.billingRawStatus === "string"
+      ? data.account.billingRawStatus
+      : undefined;
     const billingSubscriptionId = typeof data.account?.billingSubscriptionId === "string"
       ? data.account.billingSubscriptionId
       : undefined;
-    if (["active", "trialing", "past_due"].includes(subscriptionStatus)) {
-      if (!billingConfiguration().managementReady || !billingSubscriptionId?.startsWith("sub_")) {
+    const billingCustomerId = typeof data.account?.billingCustomerId === "string"
+      ? data.account.billingCustomerId
+      : undefined;
+    const needsStripeReconciliation = accountDeletionRequiresStripeReconciliation({
+      billingCustomerId,
+      billingSubscriptionId,
+      subscriptionStatus,
+      billingRawStatus,
+    });
+    if (needsStripeReconciliation && (billingCustomerId?.startsWith("cus_") || billingSubscriptionId?.startsWith("sub_"))) {
+      if (!billingConfiguration().managementReady) {
         return Response.json(
-          { error: "Cancel your paid Filosage membership before deleting your account. Contact support@filosage.com if you need help." },
+          {
+            error: "Cancel your paid Filosage membership before deleting your account. Contact support@filosage.com if you need help.",
+            code: "SUBSCRIPTION_CANCELLATION_REQUIRED",
+            subscriptionState: billingRawStatus ?? subscriptionStatus,
+          },
           { status: 409 },
         );
       }
       try {
-        await stripeClient().subscriptions.cancel(billingSubscriptionId);
+        await cancelStripeBillingForAccountDeletion({
+          uid: account.uid,
+          customerId: billingCustomerId,
+          subscriptionId: billingSubscriptionId,
+        });
       } catch (cancelError) {
-        const alreadyCanceled = cancelError instanceof Error
-          && /No such subscription|canceled/i.test(cancelError.message);
-        if (!alreadyCanceled) {
-          console.error("Subscription cancellation before deletion failed:", cancelError);
-          return Response.json(
-            { error: "Your subscription could not be canceled automatically. Cancel it from the billing portal, then delete your account." },
-            { status: 409 },
-          );
-        }
+        console.error("Subscription cancellation before deletion failed:", cancelError);
+        return Response.json(
+          {
+            error: "Your subscription could not be canceled automatically. Cancel it from the billing portal, then delete your account.",
+            code: "SUBSCRIPTION_CANCELLATION_UNCONFIRMED",
+            subscriptionState: billingRawStatus ?? subscriptionStatus,
+          },
+          { status: 409 },
+        );
       }
+    } else if (needsStripeReconciliation) {
+      return Response.json(
+        {
+          error: "Cancel your paid Filosage membership before deleting your account. Contact support@filosage.com if you need help.",
+          code: "SUBSCRIPTION_CANCELLATION_REQUIRED",
+          subscriptionState: billingRawStatus ?? subscriptionStatus,
+        },
+        { status: 409 },
+      );
     }
 
     const courses = data.authoredCourses.map(({ course }) => course);

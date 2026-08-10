@@ -79,7 +79,12 @@ test("searches public guides and renders source-checked article content", async 
 
   await expect(page).toHaveURL(/\/support\/articles\/plans-and-billing$/);
   await expect(page.getByRole("heading", { level: 1, name: "Understand Free, Plus, Pro, and billing status" })).toBeVisible();
-  await expect(page.getByRole("heading", { level: 2, name: "Paid checkout is currently closed" })).toBeVisible();
+  await expect(page.getByRole("heading", { level: 2, name: "Check current checkout availability" })).toBeVisible();
+  await expect(page.getByRole("heading", { level: 2, name: "Manage or cancel a subscription" })).toBeVisible();
+  await expect(page.getByText(/return to Filosage does not grant membership access by itself/)).toBeVisible();
+  await expect(page.getByText(/return link alone does not confirm payment or subscription state and does not change access/)).toBeVisible();
+  await expect(page.getByText(/launch portal is limited to reviewing the subscription, updating a payment method, viewing invoices, and canceling/)).toBeVisible();
+  await expect(page.getByText(/It does not offer plan switching/)).toBeVisible();
   await expect(page.getByText(/Reviewed against the app on/)).toBeVisible();
   await expect(page.locator("body")).not.toContainText("src/app/");
 });

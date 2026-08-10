@@ -10,12 +10,34 @@ else {
     invalid.push("FIREBASE_PROJECT_ID must match NEXT_PUBLIC_FIREBASE_PROJECT_ID");
   }
   if (activationMode) {
-    const paidRequired = ["STRIPE_SECRET_KEY", "STRIPE_WEBHOOK_SECRET", "STRIPE_PLUS_MONTHLY_PRICE_ID", "STRIPE_PLUS_ANNUAL_PRICE_ID", "STRIPE_PRO_MONTHLY_PRICE_ID", "STRIPE_PRO_ANNUAL_PRICE_ID"];
+    const paidRequired = ["STRIPE_SECRET_KEY", "STRIPE_WEBHOOK_SECRET", "STRIPE_PLUS_MONTHLY_PRICE_ID", "STRIPE_PLUS_ANNUAL_PRICE_ID", "STRIPE_PRO_MONTHLY_PRICE_ID", "STRIPE_PRO_ANNUAL_PRICE_ID", "LEGAL_OPERATOR_NAME", "LEGAL_BUSINESS_ADDRESS", "GOVERNING_JURISDICTION", "SUPPORT_EMAIL"];
     for (const name of paidRequired) {
       if (!process.env[name]?.trim()) invalid.push(`${name} is required for billing activation`);
     }
     if (process.env.BILLING_ENABLED?.trim().toLowerCase() !== "true") {
       invalid.push("BILLING_ENABLED must be true for an explicitly authorized billing activation check");
+    }
+    if (process.env.BILLING_PROVIDER?.trim().toLowerCase() !== "stripe") {
+      invalid.push("BILLING_PROVIDER must be stripe for billing activation");
+    }
+    if (process.env.SUPPORT_EMAIL?.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(process.env.SUPPORT_EMAIL.trim())) {
+      invalid.push("SUPPORT_EMAIL must be a valid email address");
+    }
+    const stripeSecret = process.env.STRIPE_SECRET_KEY?.trim() ?? "";
+    if (!/^(?:sk|rk)_live_[A-Za-z0-9]{16,}$/.test(stripeSecret)) {
+      invalid.push("STRIPE_SECRET_KEY must be a non-placeholder Live secret or restricted key");
+    }
+    const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET?.trim() ?? "";
+    if (!/^whsec_[A-Za-z0-9]{16,}$/.test(webhookSecret)) {
+      invalid.push("STRIPE_WEBHOOK_SECRET must be a non-placeholder whsec_ signing secret");
+    }
+    const priceNames = ["STRIPE_PLUS_MONTHLY_PRICE_ID", "STRIPE_PLUS_ANNUAL_PRICE_ID", "STRIPE_PRO_MONTHLY_PRICE_ID", "STRIPE_PRO_ANNUAL_PRICE_ID"];
+    const priceIds = priceNames.map((name) => process.env[name]?.trim() ?? "");
+    for (const [index, priceId] of priceIds.entries()) {
+      if (!/^price_[A-Za-z0-9]{8,}$/.test(priceId)) invalid.push(`${priceNames[index]} must be a valid Stripe Price ID`);
+    }
+    if (new Set(priceIds).size !== priceIds.length) {
+      invalid.push("All four current Stripe Price IDs must be unique");
     }
   } else if (process.env.BILLING_ENABLED?.trim().toLowerCase() !== "false") {
     invalid.push("BILLING_ENABLED must be explicitly false for a closed-billing release");

@@ -9,6 +9,7 @@ GoDaddy can provide the domain and hosting layer. It is not the recurring subscr
 - `/api/billing/status` exposes only non-secret readiness information.
 - `/api/billing/checkout` and `/api/billing/portal` fail closed until the provider integration is enabled.
 - `/api/billing/webhook` verifies Stripe signatures, claims events transactionally, ignores duplicate and stale events, and resolves Plus or Pro only from one recognized plan/interval Price mapping. This code is not authorized for activation.
+- Closed-launch Checkout explicitly accepts cards only. Do not enable Dashboard-managed asynchronous payment methods until their Checkout async-success and async-failure events have dedicated entitlement tests and handlers.
 
 ## Activation checklist
 

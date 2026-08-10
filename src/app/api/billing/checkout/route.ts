@@ -3,7 +3,11 @@ import { apiRequestErrorResponse, assertTrustedMutation, readJsonBody } from "@/
 import { subscriptionBlocksCheckout } from "@/lib/billing-lock";
 import { billingConfiguration } from "@/lib/runtime-config";
 import { enforceDurableRateLimit } from "@/lib/request-rate-limit";
-import { BillingCheckoutInProgressError, createCheckoutSession } from "@/lib/stripe-server";
+import {
+  BillingAccountDeletionInProgressError,
+  BillingCheckoutInProgressError,
+  createCheckoutSession,
+} from "@/lib/stripe-server";
 import { recordServerProductEvent } from "@/lib/product-events-server";
 import { isBillingInterval, isPaidLearnerPlan, paidPlanFor } from "@/lib/membership-plans";
 
@@ -14,7 +18,7 @@ export async function POST(request: Request) {
     const limited = await enforceDurableRateLimit(request, "billing-checkout", 8, 60_000, account.uid);
     if (limited) return limited;
     if (!billingConfiguration().checkoutReady) return Response.json({ error: "Paid subscriptions are not available yet." }, { status: 503 });
-    if (subscriptionBlocksCheckout(account.subscriptionStatus)) {
+    if (subscriptionBlocksCheckout(account.subscriptionStatus) || subscriptionBlocksCheckout(account.billingRawStatus)) {
       return Response.json(
         { error: "A subscription already exists for this account. Use Manage billing instead." },
         { status: 409, headers: { "Cache-Control": "private, no-store" } },
@@ -35,6 +39,12 @@ export async function POST(request: Request) {
   } catch (error) {
     if (error instanceof BillingCheckoutInProgressError) {
       return Response.json({ error: error.message }, { status: 409, headers: { "Cache-Control": "private, no-store" } });
+    }
+    if (error instanceof BillingAccountDeletionInProgressError) {
+      return Response.json(
+        { error: error.message, code: "ACCOUNT_DELETION_IN_PROGRESS" },
+        { status: 409, headers: { "Cache-Control": "private, no-store" } },
+      );
     }
     return apiRequestErrorResponse(error) ?? authorizationResponse(error) ?? Response.json({ error: "Checkout could not be started." }, { status: 500 });
   }

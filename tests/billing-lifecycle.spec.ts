@@ -1,5 +1,25 @@
 import { expect, test } from "@playwright/test";
-import { evaluateBillingConfiguration, subscriptionBlocksCheckout } from "../src/lib/billing-lock";
+import {
+  checkoutFulfillmentIsPaid,
+  checkoutConsentMetadataIsCurrent,
+  billingWebhookClaimDisposition,
+  accountDeletionBlocksCheckout,
+  CLOSED_LAUNCH_PAYMENT_METHOD_TYPES,
+  accountDeletionRequiresStripeReconciliation,
+  checkoutClaimRequiresDeletionRetry,
+  chargeLifecyclePaymentState,
+  durableBillingConsentMatches,
+  invoiceLifecyclePaymentOverride,
+  entitlementSubscriptionStatus,
+  evaluateBillingConfiguration,
+  normalizedSubscriptionStatus,
+  resolvedBillingPaymentState,
+  shouldApplyBillingEvent,
+  stripeCustomerBindingMatches,
+  subscriptionBlocksCheckout,
+  terminalSubscriptionCanBeAcknowledgedWithoutAccount,
+  type BillingEventCursor,
+} from "../src/lib/billing-lock";
 import { readBoundedRequestText } from "../src/lib/bounded-request-body";
 import { PRIVACY_VERSION, TERMS_VERSION } from "../src/lib/legal";
 import { restoreLocalLearner } from "./fixtures/local-learner";
@@ -12,6 +32,10 @@ const stripeLifecycle = {
   STRIPE_PLUS_ANNUAL_PRICE_ID: "price_plus_annual",
   STRIPE_PRO_MONTHLY_PRICE_ID: "price_monthly",
   STRIPE_PRO_ANNUAL_PRICE_ID: "price_annual",
+  LEGAL_OPERATOR_NAME: "Filosage LLC",
+  LEGAL_BUSINESS_ADDRESS: "123 Example Street",
+  GOVERNING_JURISDICTION: "New York",
+  SUPPORT_EMAIL: "support@filosage.com",
 };
 
 test("closing checkout preserves existing subscriber management and lifecycle processing", () => {
@@ -20,6 +44,7 @@ test("closing checkout preserves existing subscriber management and lifecycle pr
     managementReady: true,
     webhookReady: true,
     productReady: true,
+    legalReady: true,
     providerReady: true,
     checkoutReady: false,
     configured: false,
@@ -34,6 +59,7 @@ test("billing capabilities fail closed at the narrowest safe boundary", () => {
     managementReady: true,
     webhookReady: true,
     productReady: true,
+    legalReady: true,
     providerReady: true,
     checkoutReady: true,
     configured: true,
@@ -74,6 +100,25 @@ test("billing capabilities fail closed at the narrowest safe boundary", () => {
     providerReady: false,
     checkoutReady: false,
   });
+
+  expect(evaluateBillingConfiguration({
+    ...stripeLifecycle,
+    BILLING_ENABLED: "true",
+    LEGAL_BUSINESS_ADDRESS: "",
+  })).toMatchObject({
+    managementReady: true,
+    webhookReady: true,
+    productReady: true,
+    legalReady: false,
+    providerReady: true,
+    checkoutReady: false,
+  });
+
+  expect(evaluateBillingConfiguration({
+    ...stripeLifecycle,
+    BILLING_ENABLED: "true",
+    SUPPORT_EMAIL: "not-an-email",
+  })).toMatchObject({ legalReady: false, checkoutReady: false });
 });
 
 test("existing and payment-recovery subscriptions cannot start another checkout", () => {
@@ -82,6 +127,225 @@ test("existing and payment-recovery subscriptions cannot start another checkout"
   expect(subscriptionBlocksCheckout("past_due")).toBe(true);
   expect(subscriptionBlocksCheckout("canceled")).toBe(false);
   expect(subscriptionBlocksCheckout("none")).toBe(false);
+  expect(subscriptionBlocksCheckout("incomplete")).toBe(true);
+  expect(subscriptionBlocksCheckout("unpaid")).toBe(true);
+  expect(subscriptionBlocksCheckout("paused")).toBe(true);
+  expect(subscriptionBlocksCheckout("future_nonterminal_state")).toBe(true);
+  expect(subscriptionBlocksCheckout("incomplete_expired")).toBe(false);
+});
+
+test("account deletion reconciles remote billing state even before webhook sync", () => {
+  expect(accountDeletionRequiresStripeReconciliation({
+    billingCustomerId: "cus_checkout_completed",
+    subscriptionStatus: "none",
+  })).toBe(true);
+  expect(accountDeletionRequiresStripeReconciliation({
+    billingSubscriptionId: "sub_remote",
+    subscriptionStatus: "canceled",
+  })).toBe(true);
+  expect(accountDeletionRequiresStripeReconciliation({ subscriptionStatus: "past_due" })).toBe(true);
+  expect(accountDeletionRequiresStripeReconciliation({ subscriptionStatus: "none" })).toBe(false);
+  expect(terminalSubscriptionCanBeAcknowledgedWithoutAccount("canceled")).toBe(true);
+  expect(terminalSubscriptionCanBeAcknowledgedWithoutAccount("active")).toBe(false);
+  expect(accountDeletionBlocksCheckout({ accountDeletionInProgress: true })).toBe(true);
+  expect(accountDeletionBlocksCheckout({ accountDeletionInProgress: false })).toBe(false);
+  expect(accountDeletionBlocksCheckout(null)).toBe(true);
+  expect(checkoutClaimRequiresDeletionRetry("creating")).toBe(true);
+  expect(checkoutClaimRequiresDeletionRetry("replacing")).toBe(true);
+  expect(checkoutClaimRequiresDeletionRetry("open")).toBe(false);
+});
+
+test("Stripe customer bindings reject deleted and cross-account customers", () => {
+  expect(stripeCustomerBindingMatches({ metadata: { filosage_uid: "user-1" } }, "user-1")).toBe(true);
+  expect(stripeCustomerBindingMatches({ deleted: true, metadata: { filosage_uid: "user-1" } }, "user-1")).toBe(false);
+  expect(stripeCustomerBindingMatches({ metadata: { filosage_uid: "user-2" } }, "user-1")).toBe(false);
+});
+
+test("every Stripe subscription status maps to a safe local lifecycle state", () => {
+  expect(normalizedSubscriptionStatus("trialing")).toBe("trialing");
+  expect(normalizedSubscriptionStatus("active")).toBe("active");
+  expect(normalizedSubscriptionStatus("past_due")).toBe("past_due");
+  expect(normalizedSubscriptionStatus("incomplete")).toBe("past_due");
+  expect(normalizedSubscriptionStatus("unpaid")).toBe("past_due");
+  expect(normalizedSubscriptionStatus("paused")).toBe("past_due");
+  expect(normalizedSubscriptionStatus("canceled")).toBe("canceled");
+  expect(normalizedSubscriptionStatus("incomplete_expired")).toBe("canceled");
+  expect(normalizedSubscriptionStatus("future_nonterminal_state")).toBe("past_due");
+});
+
+test("paid entitlement requires a completed Checkout and paid invoice", () => {
+  expect(CLOSED_LAUNCH_PAYMENT_METHOD_TYPES).toEqual(["card"]);
+  const paid = {
+    mode: "subscription",
+    checkoutStatus: "complete",
+    paymentStatus: "paid",
+    invoicePaid: true,
+    invoiceStatus: "paid",
+  };
+  expect(checkoutFulfillmentIsPaid(paid)).toBe(true);
+  expect(checkoutFulfillmentIsPaid({ ...paid, paymentStatus: "unpaid" })).toBe(false);
+  expect(checkoutFulfillmentIsPaid({ ...paid, invoicePaid: false, invoiceStatus: "open" })).toBe(false);
+  expect(checkoutFulfillmentIsPaid({ ...paid, checkoutStatus: "open" })).toBe(false);
+});
+
+test("checkout consent rejects stale legal or offer snapshots", () => {
+  const metadata = {
+    terms_version: TERMS_VERSION,
+    privacy_version: PRIVACY_VERSION,
+    offer_version: "plus-v1-closed-launch",
+    offer_currency: "usd",
+    offer_amount_minor: "999",
+    automatic_renewal: "true",
+  };
+  const expected = {
+    termsVersion: TERMS_VERSION,
+    privacyVersion: PRIVACY_VERSION,
+    offerVersion: "plus-v1-closed-launch",
+    currency: "usd",
+    amountMinor: 999,
+  };
+  expect(checkoutConsentMetadataIsCurrent(metadata, expected)).toBe(true);
+  expect(checkoutConsentMetadataIsCurrent({ ...metadata, terms_version: "stale" }, expected)).toBe(false);
+  expect(checkoutConsentMetadataIsCurrent({ ...metadata, offer_amount_minor: "998" }, expected)).toBe(false);
+  expect(checkoutConsentMetadataIsCurrent({ ...metadata, automatic_renewal: "false" }, expected)).toBe(false);
+});
+
+test("renewals preserve historical consent after legal or offer versions change", () => {
+  const historicalConsentBinding = {
+    billingConsentSubscriptionId: "sub_existing",
+    billingConsentCustomerId: "cus_existing",
+    billingConsentCheckoutSessionId: "cs_original_v1",
+    billingConsentRecordedAt: "2026-01-01T00:00:00.000Z",
+    billingConsentTermsVersion: "terms-v1",
+    billingConsentPrivacyVersion: "privacy-v1",
+    billingConsentOfferVersion: "pro-v1",
+    billingConsentPriceId: "price_pro_v1",
+    billingConsentPlanId: "pro",
+    billingConsentInterval: "monthly",
+  };
+  const unchangedOffer = { priceId: "price_pro_v1", planId: "pro", interval: "monthly" };
+  expect(durableBillingConsentMatches(historicalConsentBinding, "sub_existing", "cus_existing", unchangedOffer)).toBe(true);
+  expect(checkoutConsentMetadataIsCurrent({
+    terms_version: "terms-v1",
+    privacy_version: "privacy-v1",
+    offer_version: "pro-v1",
+    offer_currency: "usd",
+    offer_amount_minor: "1499",
+    automatic_renewal: "true",
+  }, {
+    termsVersion: "terms-v2",
+    privacyVersion: "privacy-v2",
+    offerVersion: "pro-v2",
+    currency: "usd",
+    amountMinor: 1_599,
+  })).toBe(false);
+  expect(durableBillingConsentMatches(historicalConsentBinding, "sub_other", "cus_existing")).toBe(false);
+  expect(durableBillingConsentMatches(historicalConsentBinding, "sub_existing", "cus_other")).toBe(false);
+  expect(durableBillingConsentMatches(historicalConsentBinding, "sub_existing", "cus_existing", {
+    ...unchangedOffer,
+    priceId: "price_pro_v2",
+  })).toBe(false);
+});
+
+test("concurrent webhook duplicates remain retryable until processing completes", () => {
+  const now = Date.parse("2026-08-10T12:00:00.000Z");
+  expect(billingWebhookClaimDisposition(null, now, 300_000)).toBe("claim");
+  expect(billingWebhookClaimDisposition({
+    status: "processing",
+    claimedAt: "2026-08-10T11:59:59.000Z",
+  }, now, 300_000)).toBe("in_flight");
+  expect(billingWebhookClaimDisposition({
+    status: "processed",
+    claimedAt: "2026-08-10T11:59:59.000Z",
+    processedAt: "2026-08-10T12:00:00.000Z",
+  }, now, 300_000)).toBe("processed");
+  expect(billingWebhookClaimDisposition({
+    status: "failed",
+    claimedAt: "2026-08-10T11:59:59.000Z",
+  }, now, 300_000)).toBe("claim");
+  expect(billingWebhookClaimDisposition({
+    status: "processing",
+    claimedAt: "2026-08-10T11:50:00.000Z",
+  }, now, 300_000)).toBe("claim");
+});
+
+test("passive subscription updates preserve a paid invoice until an explicit payment event", () => {
+  const paymentState = resolvedBillingPaymentState("paid", true, undefined);
+  expect(paymentState).toBe("paid");
+  expect(entitlementSubscriptionStatus("active", paymentState)).toBe("active");
+  expect(entitlementSubscriptionStatus("active", resolvedBillingPaymentState("paid", true, "failed"))).toBe("past_due");
+  expect(entitlementSubscriptionStatus("active", resolvedBillingPaymentState("failed", true, "paid"))).toBe("active");
+  expect(entitlementSubscriptionStatus("active", resolvedBillingPaymentState("paid", false, undefined))).toBe("past_due");
+  for (const eventType of [
+    "invoice.payment_failed",
+    "invoice.finalization_failed",
+    "invoice.payment_action_required",
+    "invoice.marked_uncollectible",
+    "invoice.voided",
+  ]) {
+    expect(invoiceLifecyclePaymentOverride(eventType)).toBe("failed");
+  }
+  expect(invoiceLifecyclePaymentOverride("invoice.paid")).toBeUndefined();
+});
+
+test("refund and dispute holds survive passive subscription updates until a new payment", () => {
+  expect(resolvedBillingPaymentState("refunded", true, "paid", {
+    sameInvoice: true,
+    allowSameInvoiceRecovery: false,
+  })).toBe("refunded");
+  expect(resolvedBillingPaymentState("disputed", true, "paid", {
+    sameInvoice: true,
+    allowSameInvoiceRecovery: false,
+  })).toBe("disputed");
+  expect(resolvedBillingPaymentState("refunded", true, "paid", {
+    sameInvoice: false,
+    allowSameInvoiceRecovery: false,
+  })).toBe("paid");
+  expect(resolvedBillingPaymentState("disputed", true, "paid", {
+    sameInvoice: true,
+    allowSameInvoiceRecovery: true,
+  })).toBe("paid");
+  expect(chargeLifecyclePaymentState("paid", {
+    amount: 1_499,
+    amountRefunded: 1_499,
+    refunded: true,
+  })).toBe("refunded");
+});
+
+test("same-second webhook reconciliation never reverse-grants access", () => {
+  const active: BillingEventCursor = {
+    eventCreated: 100,
+    eventId: "evt_active",
+    subscriptionStatus: "active",
+    invoiceId: "in_renewal",
+    invoiceAttemptCount: 1,
+    invoicePaidAt: 100,
+  };
+  const canceled: BillingEventCursor = {
+    ...active,
+    eventId: "evt_canceled",
+    subscriptionStatus: "canceled",
+  };
+  expect(shouldApplyBillingEvent(active, canceled)).toBe(true);
+  expect(shouldApplyBillingEvent(canceled, active)).toBe(false);
+  expect(shouldApplyBillingEvent(active, active)).toBe(false);
+
+  const failed: BillingEventCursor = {
+    ...active,
+    eventId: "evt_failed",
+    subscriptionStatus: "past_due",
+    invoicePaidAt: undefined,
+  };
+  expect(shouldApplyBillingEvent(active, failed)).toBe(false);
+
+  const recovered: BillingEventCursor = {
+    ...failed,
+    eventId: "evt_recovered",
+    subscriptionStatus: "active",
+    invoiceAttemptCount: 2,
+    invoicePaidAt: 101,
+  };
+  expect(shouldApplyBillingEvent(failed, recovered)).toBe(true);
 });
 
 test("webhook raw bodies are preserved and bounded by bytes", async () => {
@@ -120,6 +384,46 @@ test("billing routes report and enforce the closed checkout boundary", async ({ 
   });
   expect(checkoutResponse.status()).toBe(503);
   expect(await checkoutResponse.json()).toEqual({ error: "Paid subscriptions are not available yet." });
+});
+
+test("pricing explains successful and canceled checkout returns without granting access from the redirect", async ({ page }) => {
+  await page.goto("/pricing?checkout=success");
+  await expect(page.getByRole("heading", { name: "Confirming your membership" })).toBeVisible();
+  await expect(page.getByText(/Access activates only after Filosage processes Stripe's verified payment event/)).toBeVisible();
+  await expect(page).toHaveURL(/\/pricing$/);
+
+  await page.goto("/pricing?checkout=canceled");
+  await expect(page.getByRole("heading", { name: "Checkout did not return success" })).toBeVisible();
+  await expect(page.getByText(/A redirect cannot confirm payment or subscription state and does not change your access/)).toBeVisible();
+  await expect(page.getByText(/No new charge or subscription was completed/)).toHaveCount(0);
+  await expect(page).toHaveURL(/\/pricing$/);
+});
+
+test("account deletion confirmation explains subscription termination without promising a refund", async ({ page }) => {
+  await page.addInitScript(() => localStorage.setItem("filosage-local-session", "1"));
+  await page.route("**/api/account", (route) => route.fulfill({
+    json: {
+      access: "free",
+      plan: "pro",
+      isOwner: false,
+      accountStatus: "active",
+      displayName: "Subscriber Learner",
+      acceptedTermsVersion: TERMS_VERSION,
+      acceptedPrivacyVersion: PRIVACY_VERSION,
+      legalAcceptanceRequired: false,
+      currentTermsVersion: TERMS_VERSION,
+      currentPrivacyVersion: PRIVACY_VERSION,
+      subscriptionStatus: "active",
+      quotas: [],
+    },
+  }));
+
+  await page.goto("/privacy-center");
+  await page.getByRole("button", { name: "Start account deletion" }).click();
+  const billingWarning = page.locator(".privacy-delete-billing-warning");
+  await expect(billingWarning).toContainText("immediately ends any active, past-due, or incomplete Stripe subscription and paid access");
+  await expect(billingWarning).toContainText("does not decide whether a payment is eligible for a refund");
+  await expect(page.getByRole("link", { name: "billing support" })).toHaveAttribute("href", /mailto:support@filosage\.com/);
 });
 
 test("a direct API caller cannot exceed the Plus owned-course limit", async ({ request }) => {
@@ -236,6 +540,8 @@ test("a past-due subscriber can reach billing management while checkout is close
 
   await page.goto("/pricing");
   await expect(page.getByText("Payment needs attention")).toBeVisible();
+  await expect(page.getByText(/update your payment method, view invoices, or cancel at the end of the paid period/)).toBeVisible();
+  await expect(page.getByText(/switch an available plan/)).toHaveCount(0);
   await expect(page.getByRole("button", { name: "Manage billing" })).toBeEnabled();
   await expect(page.getByRole("button", { name: /Choose Pro/ })).toHaveCount(0);
 });

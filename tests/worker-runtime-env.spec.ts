@@ -1,8 +1,10 @@
+import { readFileSync } from "node:fs";
 import { expect, test } from "@playwright/test";
 import {
   installRuntimeEnvironment,
   serverEnvironment,
 } from "../src/lib/runtime-environment";
+import { publicLegalDisclosure } from "../src/lib/legal-disclosure";
 import {
   STRICT_TRANSPORT_SECURITY,
   withStrictTransportSecurity,
@@ -27,6 +29,35 @@ test("exposes Sites string bindings without serializing resource bindings", () =
   } finally {
     globalThis.__FILOSAGE_RUNTIME_ENV__ = previous;
   }
+});
+
+test("renders public legal disclosures from Sites Worker bindings", () => {
+  const previous = globalThis.__FILOSAGE_RUNTIME_ENV__;
+
+  try {
+    installRuntimeEnvironment({
+      LEGAL_OPERATOR_NAME: "Filosage Test Operator",
+      LEGAL_BUSINESS_ADDRESS: "100 Test Street, Test City",
+      GOVERNING_JURISDICTION: "Test Jurisdiction",
+      SUPPORT_EMAIL: "billing@example.test",
+    });
+    expect(publicLegalDisclosure()).toEqual({
+      ready: true,
+      operatorName: "Filosage Test Operator",
+      businessAddress: "100 Test Street, Test City",
+      governingJurisdiction: "Test Jurisdiction",
+      supportEmail: "billing@example.test",
+    });
+  } finally {
+    globalThis.__FILOSAGE_RUNTIME_ENV__ = previous;
+  }
+});
+
+test("routes paid Terms billing questions to the approved disclosure inbox", () => {
+  const termsSource = readFileSync("src/app/terms/page.tsx", "utf8");
+  expect(termsSource).toContain("const billingSupportEmail = disclosure.ready ? disclosure.supportEmail : SUPPORT_CONTACT;");
+  expect(termsSource).toContain("mailto:${billingSupportEmail}");
+  expect(termsSource).not.toContain("Questions about plans, billing, cancellation, or refunds can be sent to <a href={`mailto:${SUPPORT_CONTACT}`}");
 });
 
 test("defines one production HSTS policy for pages, APIs, and assets", () => {

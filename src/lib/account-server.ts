@@ -26,6 +26,7 @@ export interface ServerAccount {
   billingInterval?: "monthly" | "annual";
   currentPeriodEnd?: string;
   billingCustomerId?: string;
+  billingRawStatus?: string;
   acceptedTermsVersion?: string;
   acceptedPrivacyVersion?: string;
 }
@@ -142,6 +143,7 @@ async function resolveAccount(
     billingInterval: isBillingInterval(saved.billingInterval) ? saved.billingInterval : undefined,
     currentPeriodEnd: typeof saved.currentPeriodEnd === "string" ? saved.currentPeriodEnd : undefined,
     billingCustomerId: typeof saved.billingCustomerId === "string" ? saved.billingCustomerId : undefined,
+    billingRawStatus: typeof saved.billingRawStatus === "string" ? saved.billingRawStatus : undefined,
     acceptedTermsVersion: typeof saved.acceptedTermsVersion === "string" ? saved.acceptedTermsVersion : undefined,
     acceptedPrivacyVersion: typeof saved.acceptedPrivacyVersion === "string" ? saved.acceptedPrivacyVersion : undefined,
   };

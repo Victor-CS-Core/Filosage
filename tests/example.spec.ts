@@ -97,6 +97,10 @@ test("keeps checkout closed until the independent billing lock is enabled", () =
     STRIPE_PLUS_ANNUAL_PRICE_ID: "price_plus_annual",
     STRIPE_PRO_MONTHLY_PRICE_ID: "price_monthly",
     STRIPE_PRO_ANNUAL_PRICE_ID: "price_annual",
+    LEGAL_OPERATOR_NAME: "Filosage Test Operator",
+    LEGAL_BUSINESS_ADDRESS: "100 Test Street, Test City",
+    GOVERNING_JURISDICTION: "Test Jurisdiction",
+    SUPPORT_EMAIL: "billing@example.test",
   };
 
   expect(evaluateBillingConfiguration({ ...stripeObjects, BILLING_ENABLED: "false" })).toMatchObject({
