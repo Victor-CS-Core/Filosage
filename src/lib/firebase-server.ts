@@ -52,8 +52,10 @@ export interface StoredDocument extends Record<string, unknown> {
   topic?: string;
 }
 
-interface TransactionStart {
-  transaction: string;
+interface FirestoreBatchGetResult {
+  found?: FirestoreDocument;
+  missing?: string;
+  transaction?: string;
 }
 
 interface FirestoreDocumentList {
@@ -787,30 +789,47 @@ export async function runStoredDocumentTransaction<T>(
   ) => { writes: Array<{ path: string; data: Record<string, unknown> }>; result: T },
 ): Promise<T> {
   let lastError: unknown;
+  let retryTransaction: string | undefined;
 
-  for (let attempt = 0; attempt < 3; attempt += 1) {
+  for (let attempt = 0; attempt < 5; attempt += 1) {
     try {
-      const started = await firestoreJson<TransactionStart>("/documents:beginTransaction", {
+      const batch = await firestoreJson<FirestoreBatchGetResult[]>("/documents:batchGet", {
         method: "POST",
-        body: JSON.stringify({ options: { readWrite: {} } }),
+        body: JSON.stringify({
+          documents: paths.map(fullDocumentName),
+          newTransaction: {
+            readWrite: retryTransaction ? { retryTransaction } : {},
+          },
+        }),
       });
-      if (!started?.transaction) throw new Error("Firestore did not start a transaction.");
+      const transaction = batch?.find((entry) => entry.transaction)?.transaction;
+      if (!transaction) throw new Error("Firestore did not start a transaction.");
+      retryTransaction = transaction;
 
-      const documents: Record<string, StoredDocument | null> = {};
-      for (const path of paths) {
-        const document = await firestoreJson<FirestoreDocument>(
-          `/documents/${encodeDocumentPath(path)}?transaction=${encodeURIComponent(started.transaction)}`,
-          {},
-          true,
-        );
-        documents[path] = document ? parseDocument(document) : null;
+      const documents: Record<string, StoredDocument | null> = Object.fromEntries(
+        paths.map((path) => [path, null]),
+      );
+      for (const entry of batch ?? []) {
+        if (entry.found) {
+          const located = parseLocatedDocument(entry.found);
+          if (located.path in documents) documents[located.path] = located.data;
+        }
       }
 
-      const next = update(documents);
+      let next: ReturnType<typeof update>;
+      try {
+        next = update(documents);
+      } catch (error) {
+        await firestoreJson("/documents:rollback", {
+          method: "POST",
+          body: JSON.stringify({ transaction }),
+        });
+        throw error;
+      }
       await firestoreJson("/documents:commit", {
         method: "POST",
         body: JSON.stringify({
-          transaction: started.transaction,
+          transaction,
           writes: next.writes.map((write) => {
             const storedData = { ...write.data };
             delete storedData.id;
@@ -829,7 +848,11 @@ export async function runStoredDocumentTransaction<T>(
       const isRetryableFirestoreConflict = error instanceof Error
         && /Firestore request failed \((409|412|429|503)\)/.test(error.message);
       if (!isRetryableFirestoreConflict) throw error;
-      if (attempt < 2) await new Promise((resolve) => setTimeout(resolve, 40 * (attempt + 1)));
+      if (attempt < 4) {
+        const exponentialDelayMs = 100 * (2 ** attempt);
+        const jitterMs = Math.floor(Math.random() * 100);
+        await new Promise((resolve) => setTimeout(resolve, exponentialDelayMs + jitterMs));
+      }
     }
   }
 

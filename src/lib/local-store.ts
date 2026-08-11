@@ -13,7 +13,7 @@ import {
  * A development-only stand-in for the Firestore REST API, covering exactly the
  * request shapes firebase-server.ts issues: document get/list/patch/create,
  * runQuery (equality, AND composites, ranges, orderBy, limit),
- * runAggregationQuery (count), beginTransaction, and commit. Documents live in
+ * runAggregationQuery (count), batchGet transactions, and commit. Documents live in
  * a JSON file so state survives dev-server restarts.
  */
 
@@ -164,6 +164,18 @@ export async function localFirestoreJson<T>(
   if (path === "/documents:beginTransaction") {
     return { transaction: `local-${crypto.randomUUID()}` } as T;
   }
+  if (path === "/documents:batchGet") {
+    const transaction = `local-${crypto.randomUUID()}`;
+    const documents = (body.documents as string[] | undefined) ?? [];
+    return documents.map((name, index) => {
+      const documentPath = pathFromName(name);
+      const data = store[documentPath];
+      return {
+        ...(index === 0 ? { transaction } : {}),
+        ...(data ? { found: toDocument(documentPath, data) } : { missing: name }),
+      };
+    }) as T;
+  }
   if (path === "/documents:commit") {
     for (const write of (body.writes as Array<Record<string, unknown>> | undefined) ?? []) {
       applyWrite(store, write);
@@ -171,6 +183,7 @@ export async function localFirestoreJson<T>(
     persist();
     return {} as T;
   }
+  if (path === "/documents:rollback") return {} as T;
   if (path === "/documents:runQuery") {
     const rows = runQuery(store, body.structuredQuery as StructuredQuery);
     return rows.map((row) => ({ document: toDocument(row.path, row.data) })) as T;
