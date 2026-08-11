@@ -11,6 +11,7 @@ const base = {
   title: label,
   summary: z.string().trim().min(1).max(180),
   version: z.literal(1),
+  objectiveIds: z.array(z.string().trim().regex(/^objective-[a-z0-9-]+$/)).min(1).max(5).optional(),
 };
 
 export const INTERACTION_QUALITY_GATE_VERSION = "objective-practice-v2.1";
@@ -74,6 +75,7 @@ export const lessonInteractionSchema = z.discriminatedUnion("type", [
     title: label,
     summary: z.string().trim().min(1).max(180),
     version: z.literal(2),
+    objectiveIds: z.array(z.string().trim().regex(/^objective-[a-z0-9-]+$/)).min(1).max(5).optional(),
     targetSkill: z.string().trim().min(12).max(400),
     referencePolicy: z.literal("hidden-until-complete"),
     prompt: shortText,

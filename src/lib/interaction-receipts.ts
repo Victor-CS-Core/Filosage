@@ -29,7 +29,7 @@ export function issueInteractionReceipt(claims: InteractionReceiptClaims) {
 
 export function verifyInteractionReceipt(
   receipt: string,
-  expected: Pick<InteractionReceiptClaims, "uid" | "courseId" | "lessonId" | "interactionId" | "itemId">,
+  expected: Pick<InteractionReceiptClaims, "uid" | "courseId" | "lessonId" | "interactionId" | "itemId" | "artifactHash">,
   now = Date.now(),
 ) {
   return validateInteractionReceipt(receiptSecret(), receipt, expected, now);

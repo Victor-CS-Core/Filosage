@@ -318,6 +318,8 @@ export default function LessonView() {
   });
   const [experienceState, setExperienceState] = useState<{ key: string; value: LessonExperienceState | null }>({ key: "", value: null });
   const [interactionEvidenceState, setInteractionEvidenceState] = useState<{ key: string; value: InteractionEvidence | null }>({ key: "", value: null });
+  const [interactionHydrationErrorState, setInteractionHydrationErrorState] = useState<{ key: string; message: string | null }>({ key: "", message: null });
+  const [interactionHydrationRetry, setInteractionHydrationRetry] = useState(0);
   const tutorDrawer = useAppDrawer("lesson-tutor");
   const studyToolsDrawer = useAppDrawer("lesson-study-tools");
   const closeTutorDrawer = tutorDrawer.closeDrawer;
@@ -345,6 +347,7 @@ export default function LessonView() {
   const noteHydratedRef = useRef(false);
   const generationStartedAtRef = useRef(0);
   const generationRequestRef = useRef<{ lessonKey: string; requestId: string } | null>(null);
+  const interactionAttemptKeysRef = useRef(new Map<string, string>());
   const lessonLoadsInFlightRef = useRef(new Set<string>());
   const activeLessonViewRef = useRef(lessonViewKey);
   const quizResults = useMemo(
@@ -730,6 +733,36 @@ export default function LessonView() {
   }, [courseId, lessonId, noteKey, reviewMode, topic, user]);
 
   useEffect(() => {
+    if (!courseId || !user || !practiceInteraction || reviewMode) return;
+    let cancelled = false;
+    const loadInteractionEvidence = async () => {
+      setInteractionHydrationErrorState({ key: noteKey, message: null });
+      const token = await user.getIdToken();
+      const query = new URLSearchParams({
+        courseId,
+        lessonId,
+        interactionId: practiceInteraction.id,
+      });
+      const response = await fetch(`/api/lesson-interaction?${query.toString()}`, {
+        headers: { Authorization: `Bearer ${token}` },
+        cache: "no-store",
+      });
+      const data = await response.json().catch(() => ({})) as { evidence?: InteractionEvidence; error?: string };
+      if (!response.ok) throw new Error(data.error || "Saved practice progress could not be loaded.");
+      if (!cancelled && data.evidence?.interactionId === practiceInteraction.id && data.evidence.itemResults.length) {
+        setInteractionEvidenceState({ key: noteKey, value: data.evidence });
+      }
+    };
+    void loadInteractionEvidence().catch((loadError) => {
+      if (!cancelled) setInteractionHydrationErrorState({
+        key: noteKey,
+        message: loadError instanceof Error ? loadError.message : "Saved practice progress could not be loaded.",
+      });
+    });
+    return () => { cancelled = true; };
+  }, [courseId, interactionHydrationRetry, lessonId, noteKey, practiceInteraction, reviewMode, user]);
+
+  useEffect(() => {
     const behavior = window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth";
     chatBottomRef.current?.scrollIntoView({ behavior, block: "nearest" });
   }, [messages]);
@@ -758,6 +791,10 @@ export default function LessonView() {
     () => curateLessonVisuals(lessonData?.visuals),
     [lessonData?.visuals],
   );
+  const essentialVisualFallback = lessonVisuals.length === 0
+    && lessonData?.visualPlan?.applicability === "essential"
+    ? lessonData.visualPlan.accessibleFallback
+    : undefined;
   const lessonSpeechText = useMemo(() => {
     if (!lesson) return "";
     const at = (placement: "after-purpose" | "after-explanation" | "before-guided-practice") =>
@@ -767,10 +804,11 @@ export default function LessonView() {
       at("after-purpose"),
       markdownToSpeech(normalizedContent),
       at("after-explanation"),
+      essentialVisualFallback?.content,
       interactionsToSpeech(lessonInteractions),
       at("before-guided-practice"),
     ].filter(Boolean).join(" ");
-  }, [lesson, lessonInteractions, lessonVisuals, normalizedContent]);
+  }, [essentialVisualFallback?.content, lesson, lessonInteractions, lessonVisuals, normalizedContent]);
 
   useEffect(() => {
     if (!courseId || !lessonData || !lesson || isOwner) return;
@@ -1106,9 +1144,15 @@ export default function LessonView() {
     if (!courseId || !practiceInteraction) throw new Error("This practice lab is not ready.");
     const token = await getToken();
     if (!token) throw new Error("Sign in again to verify this response.");
+    const attemptKey = `${noteKey}:${practiceInteraction.id}:${itemId}:${selectedIndex}`;
+    let idempotencyKey = interactionAttemptKeysRef.current.get(attemptKey);
+    if (!idempotencyKey) {
+      idempotencyKey = createClientId();
+      interactionAttemptKeysRef.current.set(attemptKey, idempotencyKey);
+    }
     const response = await fetch("/api/lesson-interaction", {
       method: "POST",
-      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}`, "Idempotency-Key": idempotencyKey },
       body: JSON.stringify({
         courseId,
         lessonId,
@@ -1127,13 +1171,14 @@ export default function LessonView() {
     if (!response.ok || typeof data.correct !== "boolean" || typeof data.attempts !== "number") {
       throw new Error(data.error || "This practice response could not be verified.");
     }
+    interactionAttemptKeysRef.current.delete(attemptKey);
     return {
       correct: data.correct,
       attempts: data.attempts,
       firstAttemptCorrect: data.firstAttemptCorrect === true,
       receipt: data.receipt,
     };
-  }, [courseId, getToken, lessonId, practiceInteraction]);
+  }, [courseId, getToken, lessonId, noteKey, practiceInteraction]);
 
   const courseHref = `/course/${encodeURIComponent(topic)}${courseId ? `?id=${encodeURIComponent(courseId)}` : ""}`;
   const lessonHref = (id: string) => `/course/${encodeURIComponent(topic)}/lesson/${id}${courseId ? `?id=${encodeURIComponent(courseId)}` : ""}`;
@@ -1334,10 +1379,26 @@ export default function LessonView() {
 
               {lessonPane === "learn" && lessonVisuals.filter((visual) => visual.placement === "after-explanation").map((visual) => <LessonVisualRenderer key={visual.id} visual={visual} />)}
 
+              {lessonPane === "learn" && essentialVisualFallback && (
+                <section className="lesson-visual-fallback" aria-labelledby="lesson-visual-fallback-title">
+                  <p className="overline">Instructional visual alternative</p>
+                  <h2 id="lesson-visual-fallback-title">Equivalent text representation</h2>
+                  <div className="markdown-content">
+                    <ReactMarkdown remarkPlugins={[remarkGfm]}>{essentialVisualFallback.content}</ReactMarkdown>
+                  </div>
+                </section>
+              )}
+
               {lessonPane === "learn" && learningInteractions.map((interaction) => <InteractiveLessonBlock key={interaction.id} interaction={interaction} />)}
 
               {lessonPane === "activities" && activeActivityId === "lab" && practiceInteraction && (
                 <div id="lesson-active-activity" role="tabpanel" aria-labelledby="activity-lab-tab">
+                  {interactionHydrationErrorState.key === noteKey && interactionHydrationErrorState.message && (
+                    <div className="form-error" role="alert">
+                      <p>{interactionHydrationErrorState.message}</p>
+                      <button className="button button-secondary button-small" type="button" onClick={() => setInteractionHydrationRetry((value) => value + 1)}>Retry saved progress</button>
+                    </div>
+                  )}
                   <InteractiveLessonBlock
                     key={`${noteKey}-${practiceInteraction.id}`}
                     interaction={practiceInteraction}

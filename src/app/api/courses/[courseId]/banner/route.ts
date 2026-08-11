@@ -20,6 +20,7 @@ import {
 import { createOrReuseCourseBanner } from "@/lib/course-banners";
 import { toCourseDto } from "@/lib/course-dto";
 import { apiRequestErrorResponse, assertTrustedMutation } from "@/lib/api-security";
+import { safeModelErrorDetails } from "@/lib/model-fallback";
 
 interface RouteParams {
   params: Promise<{ courseId: string }>;
@@ -38,6 +39,12 @@ export async function POST(request: Request, { params }: RouteParams) {
     if (!course) return NextResponse.json({ error: "Course not found." }, { status: 404 });
     if (course.authorId !== account.uid && !account.isOwner) {
       return NextResponse.json({ error: "You do not own this course." }, { status: 403 });
+    }
+    if (course.isPublic && typeof course.publishedReleaseId === "string") {
+      return NextResponse.json(
+        { error: "Unpublish this V2 course before changing its cover so the learner release remains immutable.", code: "PUBLISHED_RELEASE_IMMUTABLE" },
+        { status: 409, headers: { "Cache-Control": "private, no-store" } },
+      );
     }
 
     await claimCourseBannerRegeneration(courseId, account.uid, account.isOwner, claimId);
@@ -83,7 +90,7 @@ export async function POST(request: Request, { params }: RouteParams) {
   } catch (error: unknown) {
     if (reservation) {
       await finalizeAiUsage(reservation, { failed: true }).catch((usageError) => {
-        console.error("Failed course banner usage finalization failed:", usageError);
+        console.error(JSON.stringify({ event: "course_banner_usage_finalization_failed", ...safeModelErrorDetails(usageError) }));
       });
     }
     if (claimed) {
@@ -105,7 +112,7 @@ export async function POST(request: Request, { params }: RouteParams) {
     if (requestResponse) return requestResponse;
     const authResponse = authorizationResponse(error);
     if (authResponse) return authResponse;
-    console.error("Course banner regeneration failed:", error);
+    console.error(JSON.stringify({ event: "course_banner_regeneration_failed", courseId, ...safeModelErrorDetails(error) }));
     return NextResponse.json(
       { error: "A new banner could not be generated. The current cover is still in place." },
       { status: 503, headers: { "Cache-Control": "no-store" } },

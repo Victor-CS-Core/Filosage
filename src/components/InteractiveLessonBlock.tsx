@@ -166,7 +166,7 @@ function ClassificationLab({ interaction }: { interaction: Extract<LessonInterac
       {interaction.items.map((item, itemIndex) => <article key={`${item.label}-${itemIndex}`}>
         <strong>{item.label}</strong>
         <div role="group" aria-label={`Classify ${item.label}`}>
-          {interaction.groups.map((group, groupIndex) => <button key={group} type="button" className={answers[itemIndex] === groupIndex ? "is-selected" : ""} onClick={() => { setChecked(false); setAnswers((current) => current.map((answer, index) => index === itemIndex ? groupIndex : answer)); }}>{group}</button>)}
+          {interaction.groups.map((group, groupIndex) => <button key={group} type="button" aria-pressed={answers[itemIndex] === groupIndex} className={answers[itemIndex] === groupIndex ? "is-selected" : ""} onClick={() => { setChecked(false); setAnswers((current) => current.map((answer, index) => index === itemIndex ? groupIndex : answer)); }}>{group}</button>)}
         </div>
         {checked && <p className={answers[itemIndex] === item.groupIndex ? "is-correct" : "is-incorrect"}>{item.explanation}</p>}
       </article>)}
@@ -226,7 +226,7 @@ function ScenarioLab({ interaction }: { interaction: Extract<LessonInteraction, 
   const [selected, setSelected] = useState<number | null>(null);
   return <div className="scenario-lab">
     <div className="scenario-options">
-      {interaction.options.map((option, index) => <button type="button" key={option.label} className={selected === index ? "is-selected" : ""} onClick={() => setSelected(index)}><span>{String.fromCharCode(65 + index)}</span><strong>{option.label}</strong></button>)}
+      {interaction.options.map((option, index) => <button type="button" key={option.label} aria-pressed={selected === index} className={selected === index ? "is-selected" : ""} onClick={() => setSelected(index)}><span>{String.fromCharCode(65 + index)}</span><strong>{option.label}</strong></button>)}
     </div>
     {selected !== null && <div className="scenario-result" role="status"><strong>{selected === interaction.recommendedIndex ? "A defensible choice" : "Follow the consequence"}</strong><p>{interaction.options[selected].consequence}</p><p>{interaction.explanation}</p></div>}
   </div>;
@@ -271,7 +271,7 @@ function SignalLab({ interaction }: { interaction: Extract<LessonInteraction, { 
   };
   return <div className="signal-lab">
     <div className="signal-pattern-picker" role="group" aria-label="Signal patterns">
-      {interaction.patterns.map((pattern, index) => <button type="button" className={selected === index ? "is-selected" : ""} key={`${pattern.label}-${pattern.value}`} onClick={() => setSelected(index)}><strong>{pattern.label}</strong><code>{pattern.value}</code></button>)}
+      {interaction.patterns.map((pattern, index) => <button type="button" aria-pressed={selected === index} className={selected === index ? "is-selected" : ""} key={`${pattern.label}-${pattern.value}`} onClick={() => setSelected(index)}><strong>{pattern.label}</strong><code>{pattern.value}</code></button>)}
     </div>
     <div className="signal-stage">
       <div className="signal-stage-heading"><span><Headphones size={17} /> Timing strip</span><button className="button button-secondary button-small" type="button" onClick={() => void play(selectedPattern.value, selectedPattern.label)}><Volume2 size={15} /> Play signal</button></div>

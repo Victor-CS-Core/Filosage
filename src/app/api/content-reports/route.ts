@@ -2,8 +2,6 @@ import { z } from "zod";
 import { apiRequestErrorResponse, readJsonBody } from "@/lib/api-security";
 import { authorizationResponse, requireAccount } from "@/lib/auth-server";
 import {
-  getCourse,
-  getLesson,
   listStoredDocumentsByField,
   quarantineCourse,
 } from "@/lib/firebase-server";
@@ -14,6 +12,11 @@ import { recordServerProductEvent } from "@/lib/product-events-server";
 import { contentReportDisposition } from "@/lib/content-report-policy";
 import { commandCenterEnvironmentEnabled } from "@/lib/command-center-auth";
 import { createContentReportAndCommandCenterTicket } from "@/lib/command-center-server";
+import {
+  getCourseRuntimeArtifact,
+  getLessonRuntimeArtifact,
+  publishedReleaseUnavailableResponse,
+} from "@/lib/course-pipeline/artifact-access";
 
 const reportSchema = z.object({
   courseId: z.string().trim().min(1).max(200),
@@ -49,14 +52,14 @@ export async function POST(request: Request) {
       return Response.json({ error: parsed.error.issues[0]?.message ?? "Check the report and try again." }, { status: 400 });
     }
     const { courseId, lessonId, sourceId } = parsed.data;
-    const course = await getCourse(courseId);
+    const course = await getCourseRuntimeArtifact(courseId);
     if (!course) return Response.json({ error: "Course not found." }, { status: 404 });
     if (!course.isPublic) {
       if (account.uid !== course.authorId && !account.isOwner) {
         return Response.json({ error: "You do not have access to this lesson." }, { status: 403 });
       }
     }
-    const lesson = lessonId ? await getLesson(courseId, lessonId) : null;
+    const lesson = lessonId ? await getLessonRuntimeArtifact(courseId, lessonId, course) : null;
     if (lessonId && !lesson) return Response.json({ error: "Lesson not found." }, { status: 404 });
     const typedCourse = course as unknown as Course;
     const source = sourceId ? (typedCourse.sourcePack ?? []).find((item) => item.id === sourceId) : null;
@@ -134,7 +137,8 @@ export async function POST(request: Request) {
       { headers: { "Cache-Control": "no-store" } },
     );
   } catch (error) {
-    return apiRequestErrorResponse(error)
+    return publishedReleaseUnavailableResponse(error)
+      ?? apiRequestErrorResponse(error)
       ?? authorizationResponse(error)
       ?? Response.json({ error: "The content report could not be submitted." }, { status: 500 });
   }

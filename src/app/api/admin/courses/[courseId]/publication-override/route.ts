@@ -4,11 +4,15 @@ import { apiRequestErrorResponse, readJsonBody } from "@/lib/api-security";
 import { ContentSafetyError } from "@/lib/content-safety";
 import type { Course } from "@/lib/course-types";
 import { expectedLessonIds } from "@/lib/course-progress";
-import { getCourse, listLessons, publishCourseWithReview } from "@/lib/firebase-server";
+import { getCourse, listLessons, publishCourseWithReview, updateCoursePipelineStage } from "@/lib/firebase-server";
 import {
   PublicationReviewError,
   reviewCourseForOwnerOverride,
 } from "@/lib/publication-review";
+import { openAiSafetyIdentifier } from "@/lib/ai-usage";
+import { coursePipelineFeatureFlags } from "@/lib/feature-flags";
+import { safeModelErrorDetails } from "@/lib/model-fallback";
+import { courseUsesPipelineV2 } from "@/lib/course-pipeline/feature-policy";
 
 const overrideSchema = z.object({
   reason: z.string().trim().min(20).max(500),
@@ -21,8 +25,12 @@ export async function POST(
   context: { params: Promise<{ courseId: string }> },
 ) {
   const { courseId } = await context.params;
+  let v2PublishingStageAdvanced = false;
+  let publicationV2Active: boolean | undefined;
   try {
     const owner = await requireRecentlyAuthenticatedOwner(request);
+    const flags = coursePipelineFeatureFlags(owner);
+    const idempotencyKey = request.headers.get("idempotency-key")?.trim();
     const parsed = overrideSchema.safeParse(await readJsonBody(request, 2_048));
     if (!parsed.success) {
       return Response.json(
@@ -33,6 +41,35 @@ export async function POST(
 
     const course = await getCourse(courseId) as (Course & Record<string, unknown>) | null;
     if (!course) return Response.json({ error: "Course not found." }, { status: 404 });
+    publicationV2Active = flags.publicationV2 && courseUsesPipelineV2(course);
+    if (publicationV2Active && (!idempotencyKey || idempotencyKey.length < 12 || idempotencyKey.length > 200)) {
+      return Response.json(
+        { error: "Retry-safe publication override requires an idempotency key.", code: "IDEMPOTENCY_KEY_REQUIRED" },
+        { status: 409, headers: { "Cache-Control": "private, no-store" } },
+      );
+    }
+    if (courseUsesPipelineV2(course) && !flags.publicationV2) {
+      return Response.json(
+        { error: "V2 publication is paused. This draft was preserved and cannot use the legacy override path.", code: "COURSE_PUBLICATION_V2_PAUSED" },
+        { status: 409, headers: { "Cache-Control": "private, no-store" } },
+      );
+    }
+    const priorMutation = course.publicationMutation as { key?: string } | undefined;
+    if (course.isPublic && idempotencyKey && priorMutation?.key === idempotencyKey) {
+      if (publicationV2Active && course.pipelineStage === "publishing") {
+        await updateCoursePipelineStage(courseId, "published");
+      }
+      return Response.json(
+        { success: true, isPublic: true, publicationReview: { status: "owner_override" }, recovered: true },
+        { headers: { "Cache-Control": "private, no-store" } },
+      );
+    }
+    if (!course.isPublic && idempotencyKey && priorMutation?.key === idempotencyKey) {
+      return Response.json(
+        { error: "This publication retry was superseded by a later unpublish action.", code: "IDEMPOTENCY_RESULT_SUPERSEDED" },
+        { status: 409, headers: { "Cache-Control": "private, no-store" } },
+      );
+    }
     if (course.isPublic) {
       return Response.json({ error: "This course is already public." }, { status: 409 });
     }
@@ -40,6 +77,12 @@ export async function POST(
       return Response.json(
         { error: "A quarantined course requires safety review and cannot use a quality override." },
         { status: 403, headers: { "Cache-Control": "private, no-store" } },
+      );
+    }
+    if (publicationV2Active && course.pipelineStage !== "ready_to_publish" && course.pipelineStage !== "publishing") {
+      return Response.json(
+        { error: "Validate this exact draft before publishing it.", code: "COURSE_NOT_READY_TO_PUBLISH" },
+        { status: 409, headers: { "Cache-Control": "private, no-store" } },
       );
     }
 
@@ -55,12 +98,22 @@ export async function POST(
         expectedAssessmentHash: parsed.data.assessmentHash,
       },
     );
-    await publishCourseWithReview(courseId, lessonIds, review);
+    if (publicationV2Active) {
+      if (course.pipelineStage === "ready_to_publish") {
+        await updateCoursePipelineStage(courseId, "publishing");
+      }
+      v2PublishingStageAdvanced = true;
+    }
+    await publishCourseWithReview(courseId, lessonIds, {
+      ...review,
+      publicationMutationKey: idempotencyKey,
+      publishPipelineStage: publicationV2Active,
+    });
 
     console.info(JSON.stringify({
       event: "course_quality_override_published",
       courseId,
-      actorUid: owner.uid,
+      actorHash: await openAiSafetyIdentifier(owner.uid),
       assessmentVersion: review.assessment.assessmentVersion,
       issueCount: review.assessment.overridableIssues.length,
       auditEventId: review.ownerOverride?.auditEventId,
@@ -74,6 +127,9 @@ export async function POST(
       { headers: { "Cache-Control": "private, no-store" } },
     );
   } catch (error) {
+    if (v2PublishingStageAdvanced) {
+      await updateCoursePipelineStage(courseId, "ready_to_publish").catch(() => undefined);
+    }
     const authResponse = authorizationResponse(error);
     if (authResponse) return authResponse;
     const requestResponse = apiRequestErrorResponse(error);
@@ -102,7 +158,7 @@ export async function POST(
       event: "course_quality_override_failed",
       courseId,
       errorName: error instanceof Error ? error.name : "UnknownError",
-      errorMessage: error instanceof Error ? error.message : String(error),
+      errorDetails: safeModelErrorDetails(error),
     }));
     return Response.json(
       { error: "The publication override could not be completed." },

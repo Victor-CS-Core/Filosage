@@ -251,11 +251,12 @@ test("uses the configured fallback when the primary lesson model rejects a reque
 
 test("binds creator activity receipts to the exact user, course, lesson, and quiz", async () => {
   const claims = {
-    version: 1 as const,
+    version: 2 as const,
     uid: "pro-author",
     courseId: "creator-course",
     lessonId: "0-0",
     quizIndex: 1,
+    artifactHash: "b".repeat(64),
     attempts: 2,
     firstAttemptCorrect: false,
     issuedAt: Date.now(),
@@ -267,12 +268,14 @@ test("binds creator activity receipts to the exact user, course, lesson, and qui
     courseId: claims.courseId,
     lessonId: claims.lessonId,
     quizIndex: claims.quizIndex,
+    artifactHash: claims.artifactHash,
   })).resolves.toMatchObject(claims);
   await expect(validateActivityReceipt(secret, receipt, {
     uid: "another-user",
     courseId: claims.courseId,
     lessonId: claims.lessonId,
     quizIndex: claims.quizIndex,
+    artifactHash: claims.artifactHash,
   })).resolves.toBeNull();
   const tamperedReceipt = `${receipt.slice(0, -1)}${receipt.endsWith("x") ? "y" : "x"}`;
   await expect(validateActivityReceipt(secret, tamperedReceipt, {
@@ -280,6 +283,7 @@ test("binds creator activity receipts to the exact user, course, lesson, and qui
     courseId: claims.courseId,
     lessonId: claims.lessonId,
     quizIndex: claims.quizIndex,
+    artifactHash: claims.artifactHash,
   })).resolves.toBeNull();
 });
 
@@ -293,7 +297,7 @@ test("publication quality review rejects language contamination and shallow less
   }, "Python programming", "case-study");
   expect(issues).toContain("The explanation is too shallow.");
   expect(issues.some((issue) => issue.includes("unexpected Han script"))).toBe(true);
-  expect(issues).toContain("At least two application-focused checks are required.");
+  expect(issues).toContain("At least one application-focused check is required.");
   expect(issues).toContain("The lesson is missing its mode-specific activity.");
 });
 
@@ -1265,6 +1269,36 @@ test("renders curated visual explanations in their learning slots", async ({ pag
   await trace.getByRole("button", { name: /Name the inference/ }).click();
   await expect(trace.getByRole("button", { name: /Name the inference/ })).toHaveAttribute("aria-current", "step");
   await expect(trace.getByText("Does it interpret the observation?")).toBeVisible();
+});
+
+test("renders an essential visual's equivalent fallback when the structured visual is unavailable", async ({ page }) => {
+  await restoreLocalLearner(page);
+  await page.route("**/api/courses/visual-fallback", (route) => route.fulfill({ json: {
+    id: "visual-fallback", courseId: "visual-fallback", topic: "Flow comparison", isPublic: true,
+    modules: [{ title: "Flow", lessons: [{ title: "Compare the paths", concept: "How two paths differ", estimatedMinutes: 10 }] }],
+  } }));
+  await page.route("**/api/courses/visual-fallback/lessons/0-0", (route) => route.fulfill({ json: {
+    learningObjective: "Compare the two process paths.",
+    content: "## Compare the paths\n\nEach path begins with evidence and ends with a decision.",
+    visuals: [],
+    visualPlan: {
+      applicability: "essential",
+      rationale: "The relationship requires a visible comparison.",
+      objectiveIds: ["objective-m0-l0"],
+      policyVersion: "visual-support-v2.0.0",
+      accessibleFallback: {
+        kind: "table",
+        content: "| Path | Start | End |\n| --- | --- | --- |\n| A | Evidence | Decision |\n| B | Assumption | Recheck |",
+      },
+    },
+    quizzes: [],
+  } }));
+
+  await page.goto("/course/Flow%20comparison/lesson/0-0?id=visual-fallback");
+  const fallback = page.getByRole("region", { name: "Equivalent text representation" });
+  await expect(fallback).toBeVisible();
+  await expect(fallback.getByRole("table")).toBeVisible();
+  await expect(fallback).toContainText("Evidence");
 });
 
 test("keeps sequence labs useful without revealing their answer", async ({ page }) => {

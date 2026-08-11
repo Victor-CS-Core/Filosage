@@ -9,7 +9,14 @@ import {
 } from "@/lib/publication-assessment";
 import type { PublicationLessonFailure } from "@/lib/publication-readiness";
 import { publicationContentFingerprint, publicationContentHash } from "@/lib/publication-content";
-import { courseOutlineSchema, lessonDataSchema } from "@/lib/validation";
+import { parseCourseCandidate, parseLessonCandidate } from "@/lib/course-pipeline/compatibility";
+import type { PublicationDecision, ValidationReport } from "@/lib/course-pipeline/contract";
+import { publicationDecisionFromReport, validateCourseCandidateV2 } from "@/lib/course-pipeline/validation";
+import { coursePipelineFeatureFlags } from "@/lib/feature-flags";
+import { recordCoursePipelineEvent } from "@/lib/course-pipeline/observability";
+import { openAiSafetyIdentifier } from "@/lib/ai-usage";
+import { expectedLessonModes } from "@/lib/course-progress";
+import { courseUsesPipelineV2 } from "@/lib/course-pipeline/feature-policy";
 
 export const PUBLICATION_REVIEW_VERSION = "publication-v3-classified-override";
 export const PUBLICATION_SAFETY_REVIEW_BASIS = "generation-output-moderation+publication-local-scan";
@@ -37,6 +44,8 @@ export class PublicationReviewError extends Error {
     public readonly invalidLessons: PublicationLessonFailure[] = [],
     public readonly assessment?: PublicationAssessment,
     public readonly assessmentHash?: string,
+    public readonly validationReport?: ValidationReport,
+    public readonly publicationDecision?: PublicationDecision,
   ) {
     super(message);
     this.name = "PublicationReviewError";
@@ -79,12 +88,6 @@ async function assessmentContentHash(
   });
 }
 
-function expectedModes(course: Course) {
-  return Object.fromEntries(course.modules.flatMap((courseModule, moduleIndex) =>
-    courseModule.lessons.map((lesson, lessonIndex) => [`${moduleIndex}-${lessonIndex}`, lesson.lessonMode]),
-  ));
-}
-
 function assessmentMessage(assessment: PublicationAssessment) {
   if (assessment.missingLessonIds.length) return "Generate every lesson before publishing.";
   if (assessment.nonOverridableIssues.length) {
@@ -108,11 +111,68 @@ async function reviewCourse(
     course,
     lessons,
     expectedLessonIds,
-    expectedModes(course),
+    expectedLessonModes(course),
   );
   const assessmentHash = await assessmentContentHash(course, lessons, expectedLessonIds, assessment);
+  const flags = coursePipelineFeatureFlags(reviewer);
+  const pipelineV2Artifact = courseUsesPipelineV2(course);
+  const validationV2Active = flags.validationV2 && pipelineV2Artifact;
+  const publicationV2Active = flags.publicationV2 && pipelineV2Artifact;
+  const validationReport = (validationV2Active || publicationV2Active || flags.shadowMode)
+    ? await validateCourseCandidateV2(course, lessons, expectedLessonIds, expectedLessonModes(course))
+    : undefined;
+  const publicationDecision = validationReport ? publicationDecisionFromReport(validationReport) : undefined;
+  const manualReviewResolution = course.manualReviewResolution as {
+    status?: string;
+    snapshotHash?: string;
+    contractVersion?: string;
+    reviewId?: string;
+  } | undefined;
+  const manualReviewApproved = publicationDecision?.decision === "manual_review"
+    && manualReviewResolution?.status === "approved"
+    && manualReviewResolution.snapshotHash === validationReport?.snapshotHash
+    && manualReviewResolution.contractVersion === validationReport?.contractVersion;
 
-  if (assessment.nonOverridableIssues.length) {
+  if (validationReport) {
+    const v1Decision = assessment.nonOverridableIssues.length
+      ? "blocked"
+      : assessment.overridableIssues.length
+        ? "needs_repair"
+        : "publishable";
+    const v2Decision = publicationDecision?.decision ?? "blocked";
+    await recordCoursePipelineEvent({
+      event: "course_publication_decided",
+      correlationId: String(course.pipelineCorrelationId ?? crypto.randomUUID()),
+      courseId: String(course.id ?? course.courseId ?? "unknown"),
+      actorHash: await openAiSafetyIdentifier(reviewer.uid),
+      outcome: v2Decision,
+      ruleCodes: [...validationReport.issues, ...validationReport.warnings].map((issue) => issue.code),
+      contractVersion: validationReport.contractVersion,
+      snapshotHash: validationReport.snapshotHash,
+      featureFlags: flags,
+      comparison: {
+        v1Decision,
+        v2Decision,
+        disagrees: v1Decision !== v2Decision,
+        mode: flags.shadowMode && !publicationV2Active ? "shadow" : "active",
+      },
+    });
+  }
+
+  if (publicationV2Active && publicationDecision?.decision !== "publishable" && !manualReviewApproved) {
+    const firstIssue = validationReport?.issues[0];
+    throw new PublicationReviewError(
+      firstIssue?.message ?? "The current course snapshot is not ready to publish.",
+      assessment.invalidLessonIds,
+      assessment.invalidLessons,
+      assessment,
+      assessmentHash,
+      validationReport,
+      publicationDecision,
+    );
+  }
+
+  if (!publicationV2Active && assessment.nonOverridableIssues.length) {
     throw new PublicationReviewError(
       assessmentMessage(assessment),
       assessment.invalidLessonIds,
@@ -122,12 +182,12 @@ async function reviewCourse(
     );
   }
 
-  const parsedOutline = courseOutlineSchema.safeParse(course);
+  const parsedOutline = parseCourseCandidate(course);
   const lessonsById = new Map(lessons.map((lesson) => [String(lesson.id ?? ""), lesson]));
   const parsedLessons = expectedLessonIds.flatMap((lessonId) => {
     const raw = lessonsById.get(lessonId);
-    const parsed = lessonDataSchema.safeParse(raw);
-    return raw && parsed.success ? [{ lessonId, raw, lesson: parsed.data as LessonData }] : [];
+    const parsed = raw ? parseLessonCandidate(raw) : null;
+    return raw && parsed?.success ? [{ lessonId, raw, lesson: parsed.data as LessonData }] : [];
   });
   if (!parsedOutline.success || parsedLessons.length !== expectedLessonIds.length) {
     throw new PublicationReviewError(
@@ -150,7 +210,7 @@ async function reviewCourse(
     stage: "output",
   });
 
-  if (!ownerOverride && assessment.overridableIssues.length) {
+  if (!publicationV2Active && !ownerOverride && assessment.overridableIssues.length) {
     throw new PublicationReviewError(
       assessmentMessage(assessment),
       assessment.invalidLessonIds,
@@ -215,6 +275,11 @@ async function reviewCourse(
     sourceFingerprint: publicationContentFingerprint(course),
     assessment,
     assessmentHash,
+    validationReport,
+    publicationDecision,
+    artifactSnapshotHash: validationReport?.snapshotHash ?? assessmentHash,
+    qualityContractVersion: validationReport?.contractVersion,
+    manualReviewResolutionId: manualReviewApproved ? manualReviewResolution?.reviewId : undefined,
     ownerOverride: ownerOverride ? {
       auditEventId: crypto.randomUUID(),
       actorUid: reviewer.uid,

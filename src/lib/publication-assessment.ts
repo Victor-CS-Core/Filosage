@@ -58,6 +58,7 @@ export function assessCourseForPublication(
     expectedLessonIds,
     course.topic,
     expectedModesByLessonId,
+    course.language ?? "English",
   );
   const issues: PublicationAssessmentIssue[] = [];
   const parsedOutline = courseOutlineSchema.safeParse(course);
@@ -70,7 +71,7 @@ export function assessCourseForPublication(
       overridable: false,
     });
   } else {
-    inspectGeneratedContent(parsedOutline.data, course.topic).forEach((issue, index) => {
+    inspectGeneratedContent(parsedOutline.data, course.topic, course.language ?? "English").forEach((issue, index) => {
       issues.push({
         code: `course.language_integrity.${index + 1}`,
         category: "language_integrity",

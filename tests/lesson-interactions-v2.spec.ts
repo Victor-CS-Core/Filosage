@@ -11,6 +11,7 @@ import {
   interactionQualityIssues,
   type LessonInteraction,
 } from "../src/lib/lesson-interactions";
+import { publicationContentHash } from "../src/lib/publication-content";
 
 const morseRows = [
   ["A", ".-"], ["B", "-..."], ["C", "-.-."], ["D", "-.."],
@@ -119,13 +120,20 @@ test("does not invent generic ordering labs from ordinary guided-practice prose"
 
 test("binds practice receipts to the exact learner and recognition item", async () => {
   const secret = "test-only-interaction-receipt-secret";
+  const [interaction] = deriveLessonInteractions(lesson([
+    "| Character | Pattern |",
+    "| --- | --- |",
+    ...morseRows.map(([character, pattern]) => `| ${character} | ${pattern} |`),
+  ].join("\n")));
+  const artifactHash = await publicationContentHash(interaction);
   const claims: InteractionReceiptClaims = {
-    version: 1,
+    version: 2,
     uid: "learner-1",
     courseId: "morse-course",
     lessonId: "0-0",
     interactionId: "interaction-recognition-morse",
     itemId: "item-morse-a",
+    artifactHash,
     attempts: 2,
     firstAttemptCorrect: false,
     issuedAt: Date.now(),
@@ -137,13 +145,16 @@ test("binds practice receipts to the exact learner and recognition item", async 
     lessonId: claims.lessonId,
     interactionId: claims.interactionId,
     itemId: claims.itemId,
+    artifactHash: claims.artifactHash,
   })).resolves.toMatchObject({ ...claims });
+  expect(artifactHash).toMatch(/^[a-f0-9]{64}$/);
   await expect(validateInteractionReceipt(secret, receipt, {
     uid: claims.uid,
     courseId: claims.courseId,
     lessonId: claims.lessonId,
     interactionId: claims.interactionId,
     itemId: "item-morse-b",
+    artifactHash: claims.artifactHash,
   })).resolves.toBeNull();
 });
 
@@ -180,16 +191,42 @@ test("places recognition practice in Activities and withholds feedback until com
   await page.route(`**/api/courses/${courseId}`, (route) => route.fulfill({ json: course }));
   await page.route(`**/api/courses/${courseId}/lessons/0-0`, (route) => route.fulfill({ json: lessonData }));
   await page.route("**/api/progress?**", (route) => route.fulfill({ json: { progress: null } }));
-  await page.route("**/api/lesson-interaction", async (route) => {
+  const savedItemResults = new Map<string, { itemId: string; attempts: number; firstAttemptCorrect: boolean; mastered: boolean; receipt?: string }>();
+  await page.route("**/api/lesson-interaction**", async (route) => {
+    if (route.request().method() === "GET") {
+      const itemResults = [...savedItemResults.values()];
+      await route.fulfill({
+        json: {
+          evidence: {
+            interactionId: "interaction-recognition-morse",
+            itemCount: morseRows.length,
+            minimumFirstAttemptCorrect: 10,
+            firstAttemptCorrect: itemResults.filter((result) => result.firstAttemptCorrect).length,
+            attempts: itemResults.reduce((total, result) => total + result.attempts, 0),
+            completed: itemResults.length === morseRows.length,
+            itemResults,
+          },
+        },
+      });
+      return;
+    }
     const body = route.request().postDataJSON() as { itemId: string; selectedIndex: number };
     const expectedIndex = morseRows.findIndex(([character]) => body.itemId === `item-morse-${character.toLowerCase()}`) % 4;
     const correct = body.selectedIndex === expectedIndex;
+    const receipt = correct ? "signed-practice-receipt-placeholder-with-enough-length" : undefined;
+    savedItemResults.set(body.itemId, {
+      itemId: body.itemId,
+      attempts: 1,
+      firstAttemptCorrect: correct,
+      mastered: correct,
+      receipt,
+    });
     await route.fulfill({
       json: {
         correct,
         attempts: 1,
         firstAttemptCorrect: correct,
-        receipt: correct ? "signed-practice-receipt-placeholder-with-enough-length" : undefined,
+        receipt,
       },
     });
   });
@@ -209,4 +246,8 @@ test("places recognition practice in Activities and withholds feedback until com
   await page.locator(".recognition-choices button").first().click();
   await expect(page.locator(".recognition-feedback")).toContainText("Correct");
   await expect(page.locator(".recognition-feedback")).toContainText("A is .-");
+
+  await page.reload();
+  await page.getByRole("tab", { name: /Activities/ }).click();
+  await expect(page.getByText("1 mastered")).toBeVisible();
 });

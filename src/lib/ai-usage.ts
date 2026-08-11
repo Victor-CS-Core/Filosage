@@ -38,6 +38,8 @@ export interface AiReservation {
   budgetPool: AiBudgetPool;
   requestPath: string;
   reserveCostMicros: number;
+  recovered: boolean;
+  recoveredResultId?: string;
 }
 
 export class AiQuotaError extends Error {
@@ -147,6 +149,8 @@ export async function reserveAiUsage(
   account: ServerAccount,
   feature: AiFeature,
   rawIdempotencyKey: string | null,
+  payloadFingerprint?: string,
+  options: { allowCompletedReplay?: boolean } = {},
 ) {
   if (!rawIdempotencyKey || rawIdempotencyKey.length < 12 || rawIdempotencyKey.length > 200) {
     throw new AiQuotaError(409, "IDEMPOTENCY_KEY_REQUIRED", "Retry-safe generation could not be started. Please try again.");
@@ -173,7 +177,7 @@ export async function reserveAiUsage(
   const userBudgetPath = `userAiBudgets/${account.uid}__${globalPeriod.key}`;
   const minuteKey = nowIso.slice(0, 16);
 
-  await runStoredDocumentTransaction(
+  const reservationState = await runStoredDocumentTransaction(
     [periodPath, requestPath, userBudgetPath, globalPath],
     (documents) => {
       const period = documents[periodPath];
@@ -183,6 +187,29 @@ export async function reserveAiUsage(
       const activeUntil = typeof period?.activeUntil === "string" ? Date.parse(period.activeUntil) : 0;
       const staleReservedRequest = previousRequest?.status === "reserved" && activeUntil <= now.getTime();
       const reserveDeltaMicros = staleReservedRequest ? 0 : policy.reserveCostMicros;
+      if (
+        previousRequest
+        && payloadFingerprint
+        && typeof previousRequest.payloadFingerprint === "string"
+        && previousRequest.payloadFingerprint !== payloadFingerprint
+      ) {
+        throw new AiQuotaError(409, "IDEMPOTENCY_CONFLICT", "This retry key was already used for a different request.");
+      }
+      if (previousRequest?.status === "completed" && !staleReservedRequest) {
+        if (!options.allowCompletedReplay) {
+          throw new AiQuotaError(409, "DUPLICATE_REQUEST", "This request was already completed.", {
+            requestStatus: previousRequest.status,
+            resultId: previousRequest.resultId,
+          });
+        }
+        return {
+          writes: [],
+          result: {
+            recovered: true,
+            resultId: typeof previousRequest.resultId === "string" ? previousRequest.resultId : undefined,
+          },
+        };
+      }
       if (previousRequest && previousRequest.status !== "failed" && !staleReservedRequest) {
         throw new AiQuotaError(
           409,
@@ -269,6 +296,7 @@ export async function reserveAiUsage(
               uid: account.uid,
               feature,
               status: "reserved",
+              payloadFingerprint: payloadFingerprint ?? previousRequest?.payloadFingerprint ?? null,
               reservedCostMicros: policy.reserveCostMicros,
               createdAt: nowIso,
               updatedAt: nowIso,
@@ -299,7 +327,7 @@ export async function reserveAiUsage(
             },
           },
         ],
-        result: undefined,
+        result: { recovered: false, resultId: undefined },
       };
     },
   );
@@ -314,6 +342,8 @@ export async function reserveAiUsage(
     userBudgetPath,
     budgetPool,
     reserveCostMicros: policy.reserveCostMicros,
+    recovered: reservationState.recovered,
+    recoveredResultId: reservationState.resultId,
   } satisfies AiReservation;
 }
 
@@ -417,12 +447,25 @@ export async function finalizeAiUsage(
       const request: Record<string, unknown> = documents[reservation.requestPath] ?? {};
       const userBudget: Record<string, unknown> = documents[reservation.userBudgetPath] ?? {};
       const global: Record<string, unknown> = documents[reservation.globalPath] ?? {};
+      // Firestore transactions can be replayed after an ambiguous client
+      // response. Only the reservation owner may move this request out of the
+      // reserved state; a repeated finalize must be a no-op so tokens, cost,
+      // and product allowance are never applied twice.
+      if (request.status !== "reserved") {
+        return { writes: [], result: undefined };
+      }
       return {
         writes: [
           {
             path: reservation.periodPath,
             data: {
               ...period,
+              // A failed generation has no completed metered product event.
+              // Keep its actual provider cost for operations, but release the
+              // user's request allowance so a retry cannot double-consume it.
+              requestCount: result.failed
+                ? Math.max(0, numberValue(period.requestCount) - 1)
+                : numberValue(period.requestCount),
               reservedCostMicros: Math.max(0, numberValue(period.reservedCostMicros) - reservation.reserveCostMicros),
               inputTokens: numberValue(period.inputTokens) + inputTokens,
               cachedInputTokens: numberValue(period.cachedInputTokens) + cachedInputTokens,

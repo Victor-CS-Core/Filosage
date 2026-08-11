@@ -1,13 +1,13 @@
 import { z } from "zod";
 import { authorizationResponse, requireAcceptedAccount, requireAccount } from "@/lib/auth-server";
 import {
-  getCourse,
   getStoredDocument,
   listAllStoredDocuments,
   putStoredDocument,
 } from "@/lib/firebase-server";
 import { apiRequestErrorResponse, readJsonBody } from "@/lib/api-security";
 import { BASELINE_LEVELS, EVIDENCE_TYPES } from "@/lib/mastery";
+import { getCourseRuntimeArtifact, publishedReleaseUnavailableResponse } from "@/lib/course-pipeline/artifact-access";
 
 const diagnosticSchema = z.object({
   objectiveId: z.string().trim().regex(/^module-\d+$/),
@@ -61,7 +61,7 @@ async function assertCourseAccess(
   courseId: string,
   account: { uid: string; isOwner: boolean },
 ) {
-  const course = await getCourse(courseId);
+  const course = await getCourseRuntimeArtifact(courseId);
   if (!course) return Response.json({ error: "Course not found." }, { status: 404 });
   if (!course.isPublic && course.authorId !== account.uid && !account.isOwner) {
     return Response.json({ error: "You do not have access to this course." }, { status: 403 });
@@ -87,7 +87,8 @@ export async function GET(request: Request) {
       evidence: evidence.filter((item) => item.courseId === courseId),
     }, { headers: { "Cache-Control": "private, no-store" } });
   } catch (error) {
-    return authorizationResponse(error)
+    return publishedReleaseUnavailableResponse(error)
+      ?? authorizationResponse(error)
       ?? Response.json({ error: "Your evidence could not be loaded." }, { status: 500 });
   }
 }
@@ -111,7 +112,8 @@ export async function PUT(request: Request) {
     await putStoredDocument(path, plan);
     return Response.json({ plan }, { headers: { "Cache-Control": "private, no-store" } });
   } catch (error) {
-    return apiRequestErrorResponse(error)
+    return publishedReleaseUnavailableResponse(error)
+      ?? apiRequestErrorResponse(error)
       ?? authorizationResponse(error)
       ?? Response.json({ error: "Your learning plan could not be saved." }, { status: 500 });
   }
@@ -129,7 +131,8 @@ export async function POST(request: Request) {
     await putStoredDocument(`users/${account.uid}/masteryEvidence/${parsed.data.id}`, parsed.data);
     return Response.json({ saved: true }, { headers: { "Cache-Control": "private, no-store" } });
   } catch (error) {
-    return apiRequestErrorResponse(error)
+    return publishedReleaseUnavailableResponse(error)
+      ?? apiRequestErrorResponse(error)
       ?? authorizationResponse(error)
       ?? Response.json({ error: "Learning evidence could not be saved." }, { status: 500 });
   }

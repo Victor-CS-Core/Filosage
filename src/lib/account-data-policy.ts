@@ -8,6 +8,8 @@ export interface AccountDeletionInventory {
   masteryEvidence: IdentifiedAccountDocument[];
   lessonNotes: IdentifiedAccountDocument[];
   lessonActivityRecords: IdentifiedAccountDocument[];
+  lessonInteractionRecords: IdentifiedAccountDocument[];
+  lessonInteractionMutationRecords: IdentifiedAccountDocument[];
   aiUsagePeriods: IdentifiedAccountDocument[];
   aiRequestRecords: IdentifiedAccountDocument[];
   aiBudgetRecords: IdentifiedAccountDocument[];
@@ -51,6 +53,8 @@ export function accountDeletionDocumentPaths(
     ...documentPaths(`users/${uid}/masteryEvidence`, inventory.masteryEvidence),
     ...documentPaths(`users/${uid}/lessonNotes`, inventory.lessonNotes),
     ...documentPaths(`users/${uid}/lessonActivity`, inventory.lessonActivityRecords),
+    ...documentPaths(`users/${uid}/lessonInteraction`, inventory.lessonInteractionRecords),
+    ...documentPaths(`users/${uid}/lessonInteractionMutations`, inventory.lessonInteractionMutationRecords),
     `users/${uid}/learningData/preferences`,
     `users/${uid}/billingCheckout/current`,
     ...documentPaths("usagePeriods", inventory.aiUsagePeriods),

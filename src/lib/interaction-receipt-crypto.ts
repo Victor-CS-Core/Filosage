@@ -1,10 +1,11 @@
 export interface InteractionReceiptClaims {
-  version: 1;
+  version: 2;
   uid: string;
   courseId: string;
   lessonId: string;
   interactionId: string;
   itemId: string;
+  artifactHash: string;
   attempts: number;
   firstAttemptCorrect: boolean;
   issuedAt: number;
@@ -34,10 +35,10 @@ async function signingKey(secret: string) {
   );
 }
 
-export async function interactionDocumentId(courseId: string, lessonId: string, interactionId: string, itemId: string) {
+export async function interactionDocumentId(courseId: string, lessonId: string, interactionId: string, itemId: string, artifactHash: string) {
   const digest = await crypto.subtle.digest(
     "SHA-256",
-    new TextEncoder().encode(`${courseId}:${lessonId}:${interactionId}:${itemId}`),
+    new TextEncoder().encode(`${courseId}:${lessonId}:${interactionId}:${itemId}:${artifactHash}`),
   );
   return base64Url(new Uint8Array(digest));
 }
@@ -55,7 +56,7 @@ export async function signInteractionReceipt(secret: string, claims: Interaction
 export async function validateInteractionReceipt(
   secret: string,
   receipt: string,
-  expected: Pick<InteractionReceiptClaims, "uid" | "courseId" | "lessonId" | "interactionId" | "itemId">,
+  expected: Pick<InteractionReceiptClaims, "uid" | "courseId" | "lessonId" | "interactionId" | "itemId" | "artifactHash">,
   now = Date.now(),
 ) {
   const [payload, signature, extra] = receipt.split(".");
@@ -72,12 +73,13 @@ export async function validateInteractionReceipt(
     if (!valid) return null;
     const claims = JSON.parse(new TextDecoder().decode(decodeBase64Url(payload))) as InteractionReceiptClaims;
     if (
-      claims.version !== 1
+      claims.version !== 2
       || claims.uid !== expected.uid
       || claims.courseId !== expected.courseId
       || claims.lessonId !== expected.lessonId
       || claims.interactionId !== expected.interactionId
       || claims.itemId !== expected.itemId
+      || claims.artifactHash !== expected.artifactHash
       || !Number.isInteger(claims.attempts)
       || claims.attempts < 1
       || typeof claims.firstAttemptCorrect !== "boolean"

@@ -6,6 +6,7 @@ import {
   listLessons,
   publishCourseWithReview,
   updateCourseVisibility,
+  updateCoursePipelineStage,
 } from "@/lib/firebase-server";
 import { expectedLessonIds } from "@/lib/course-progress";
 import type { Course } from "@/lib/course-types";
@@ -16,7 +17,11 @@ import { safeModelErrorDetails } from "@/lib/model-fallback";
 import { PublicationReviewError, reviewCourseForPublication } from "@/lib/publication-review";
 import { planAllows } from "@/lib/membership-plans";
 import { reconcileCourseCapacity } from "@/lib/membership-access";
-import { getAiQuotaSummaries } from "@/lib/ai-usage";
+import { getAiQuotaSummaries, openAiSafetyIdentifier } from "@/lib/ai-usage";
+import { coursePipelineFeatureFlags } from "@/lib/feature-flags";
+import { recordCoursePipelineEvent } from "@/lib/course-pipeline/observability";
+import { courseUsesPipelineV2 } from "@/lib/course-pipeline/feature-policy";
+import { getCourseRuntimeArtifact, publishedReleaseUnavailableResponse } from "@/lib/course-pipeline/artifact-access";
 
 interface RouteParams {
   params: Promise<{ courseId: string }>;
@@ -47,12 +52,16 @@ export async function GET(request: Request, { params }: RouteParams) {
       }
     }
 
+    let displayCourse: Course | Record<string, unknown> = course;
+    if (course.isPublic && !canManage) {
+      displayCourse = await getCourseRuntimeArtifact(courseId) ?? course;
+    }
     const manageableCourse = canManage
       ? {
-          ...course,
+          ...displayCourse,
           generatedLessonIds: (await listLessons(courseId)).map((lesson) => String(lesson.id ?? "")),
         }
-      : course;
+      : displayCourse;
     return NextResponse.json(
       toCourseDto(manageableCourse, canManage, canGenerateBanner),
       { headers: course.isPublic && !canManage
@@ -65,7 +74,9 @@ export async function GET(request: Request, { params }: RouteParams) {
   } catch (error: unknown) {
     const authResponse = authorizationResponse(error);
     if (authResponse) return authResponse;
-    console.error("Course fetch failed:", error);
+    const releaseError = publishedReleaseUnavailableResponse(error);
+    if (releaseError) return releaseError;
+    console.error(JSON.stringify({ event: "course_fetch_failed", courseId, ...safeModelErrorDetails(error) }));
     return NextResponse.json({ error: "The course is temporarily unavailable." }, { status: 500 });
   }
 }
@@ -73,17 +84,55 @@ export async function GET(request: Request, { params }: RouteParams) {
 export async function PATCH(request: Request, { params }: RouteParams) {
   const { courseId } = await params;
   let visibilityUpdateStage = "authorization";
+  let pipelineCorrelationId = courseId;
+  let pipelineActorHash: string | undefined;
+  let v2PublishingStageAdvanced = false;
+  let publicationV2Active: boolean | undefined;
+  let flags = coursePipelineFeatureFlags();
   try {
     const account = await requireAcceptedAccount(request);
+    flags = coursePipelineFeatureFlags(account);
+    pipelineActorHash = await openAiSafetyIdentifier(account.uid);
     const course = await getCourse(courseId);
     if (!course) return NextResponse.json({ error: "Course not found." }, { status: 404 });
+    pipelineCorrelationId = String(course.pipelineCorrelationId ?? courseId);
     if (course.authorId !== account.uid && !account.isOwner) {
       return NextResponse.json({ error: "You do not own this course." }, { status: 403 });
     }
+    publicationV2Active = flags.publicationV2 && courseUsesPipelineV2(course);
 
     const body = await readJsonBody(request, 2_048) as Record<string, unknown>;
     if (typeof body.isPublic !== "boolean") {
       return NextResponse.json({ error: "Visibility must be true or false." }, { status: 400 });
+    }
+    const mutationKey = request.headers.get("idempotency-key");
+    if (body.isPublic && courseUsesPipelineV2(course) && !flags.publicationV2) {
+      return NextResponse.json(
+        { error: "V2 publication is paused. This draft was preserved and cannot be published through the legacy path.", code: "COURSE_PUBLICATION_V2_PAUSED" },
+        { status: 409, headers: { "Cache-Control": "private, no-store" } },
+      );
+    }
+    if (body.isPublic && publicationV2Active && (!mutationKey || mutationKey.length < 12 || mutationKey.length > 200)) {
+      return NextResponse.json(
+        { error: "Retry-safe publication requires an idempotency key.", code: "IDEMPOTENCY_KEY_REQUIRED" },
+        { status: 409, headers: { "Cache-Control": "no-store" } },
+      );
+    }
+    const priorMutation = course.publicationMutation as { key?: string } | undefined;
+    if (body.isPublic && course.isPublic === true && mutationKey && priorMutation?.key === mutationKey) {
+      if (publicationV2Active && course.pipelineStage === "publishing") {
+        await updateCoursePipelineStage(courseId, "published");
+      }
+      return NextResponse.json(
+        { success: true, isPublic: true, publicationReview: course.publicationReview, recovered: true },
+        { headers: { "Cache-Control": "no-store" } },
+      );
+    }
+    if (body.isPublic && course.isPublic !== true && mutationKey && priorMutation?.key === mutationKey) {
+      return NextResponse.json(
+        { error: "This publication retry was superseded by a later unpublish action.", code: "IDEMPOTENCY_RESULT_SUPERSEDED" },
+        { status: 409, headers: { "Cache-Control": "no-store" } },
+      );
     }
 
     if (body.isPublic) {
@@ -106,6 +155,12 @@ export async function PATCH(request: Request, { params }: RouteParams) {
           { status: 403 },
         );
       }
+      if (publicationV2Active && course.pipelineStage !== "ready_to_publish" && course.pipelineStage !== "publishing") {
+        return NextResponse.json(
+          { error: "Validate this exact draft before publishing it.", code: "COURSE_NOT_READY_TO_PUBLISH" },
+          { status: 409, headers: { "Cache-Control": "no-store" } },
+        );
+      }
       const lessonIds = expectedLessonIds(course as unknown as Course);
       const lessons = await listLessons(courseId);
       visibilityUpdateStage = "publication-review";
@@ -115,8 +170,31 @@ export async function PATCH(request: Request, { params }: RouteParams) {
         lessonIds,
         { uid: account.uid, isOwner: account.isOwner },
       );
+      if (publicationV2Active) {
+        if (course.pipelineStage === "ready_to_publish") {
+          await updateCoursePipelineStage(courseId, "publishing");
+        }
+        v2PublishingStageAdvanced = true;
+      }
       visibilityUpdateStage = "publication-transaction";
-      await publishCourseWithReview(courseId, lessonIds, review);
+      await publishCourseWithReview(courseId, lessonIds, {
+        ...review,
+        publicationMutationKey: mutationKey ?? undefined,
+        publishPipelineStage: publicationV2Active,
+      });
+      if (publicationV2Active) {
+        await recordCoursePipelineEvent({
+          event: "course_published",
+          correlationId: pipelineCorrelationId,
+          courseId,
+          actorHash: pipelineActorHash,
+          stage: "published",
+          outcome: "published",
+          contractVersion: review.validationReport?.contractVersion,
+          snapshotHash: review.artifactSnapshotHash,
+          featureFlags: flags,
+        });
+      }
     } else {
       visibilityUpdateStage = "visibility-transaction";
       await updateCourseVisibility(courseId, false);
@@ -131,10 +209,26 @@ export async function PATCH(request: Request, { params }: RouteParams) {
       { headers: { "Cache-Control": "no-store" } },
     );
   } catch (error: unknown) {
+    if (v2PublishingStageAdvanced) {
+      await updateCoursePipelineStage(courseId, "ready_to_publish").catch(() => undefined);
+    }
+    if (publicationV2Active && visibilityUpdateStage.startsWith("publication")) {
+      await recordCoursePipelineEvent({
+        event: "course_publish_failed",
+        correlationId: pipelineCorrelationId,
+        courseId,
+        actorHash: pipelineActorHash,
+        stage: "publishing",
+        outcome: error instanceof Error ? error.name : "UnknownError",
+        featureFlags: flags,
+      });
+    }
     const requestResponse = apiRequestErrorResponse(error);
     if (requestResponse) return requestResponse;
     const authResponse = authorizationResponse(error);
     if (authResponse) return authResponse;
+    const releaseError = publishedReleaseUnavailableResponse(error);
+    if (releaseError) return releaseError;
     if (error instanceof PublicationReviewError) {
       console.info(JSON.stringify({
         event: "course_publication_review_rejected",
@@ -151,7 +245,11 @@ export async function PATCH(request: Request, { params }: RouteParams) {
           invalidLessonIds: error.invalidLessonIds,
           invalidLessons: error.invalidLessons,
           assessmentHash: error.assessmentHash,
-          assessment: error.assessment,
+        assessment: error.assessment,
+          validationReport: error.validationReport,
+          decision: error.publicationDecision,
+          snapshotHash: error.validationReport?.snapshotHash,
+          qualityContractVersion: error.validationReport?.contractVersion,
           overrideEligible: error.assessment?.overrideEligible ?? false,
         },
         { status: 409, headers: { "Cache-Control": "no-store" } },
@@ -184,7 +282,7 @@ export async function PATCH(request: Request, { params }: RouteParams) {
       courseId,
       stage: visibilityUpdateStage,
       errorName: error instanceof Error ? error.name : "UnknownError",
-      errorMessage: error instanceof Error ? error.message : String(error),
+      errorDetails: safeModelErrorDetails(error),
     }));
     return NextResponse.json(
       { error: "Visibility could not be updated.", code: "VISIBILITY_UPDATE_FAILED" },
@@ -207,7 +305,7 @@ export async function DELETE(request: Request, { params }: RouteParams) {
     await deleteCourse(courseId);
     if (course.authorId) {
       await reconcileCourseCapacity(course.authorId).catch((capacityError) => {
-        console.error("Course capacity reconciliation failed:", capacityError);
+        console.error(JSON.stringify({ event: "course_capacity_reconciliation_failed", courseId, ...safeModelErrorDetails(capacityError) }));
       });
     }
 
@@ -217,7 +315,7 @@ export async function DELETE(request: Request, { params }: RouteParams) {
     if (requestResponse) return requestResponse;
     const authResponse = authorizationResponse(error);
     if (authResponse) return authResponse;
-    console.error("Course deletion failed:", error);
+    console.error(JSON.stringify({ event: "course_deletion_failed", courseId, ...safeModelErrorDetails(error) }));
     return NextResponse.json({ error: "The course could not be deleted." }, { status: 500 });
   }
 }

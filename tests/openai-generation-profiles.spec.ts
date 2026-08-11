@@ -3,6 +3,7 @@ import { readFile } from "node:fs/promises";
 import { zodTextFormat } from "openai/helpers/zod";
 import {
   AI_PROMPT_VERSIONS,
+  COURSE_PIPELINE_V2_PROMPT_VERSIONS,
   aiUsageProfileMetadata,
   openAiExecutionProfile,
   stablePromptCacheKey,
@@ -87,6 +88,13 @@ test("uses explicit workload reasoning and stable versioned cache keys", () => {
     reasoningEffort: "medium",
     promptCacheKey: course.promptCacheKey,
   });
+});
+
+test("keeps V1 and V2 generation prompt versions separable", () => {
+  const environment = {} as NodeJS.ProcessEnv;
+  expect(openAiExecutionProfile("course.standard", environment).promptVersion).toBe(AI_PROMPT_VERSIONS.course);
+  expect(openAiExecutionProfile("lesson.standard", environment, { coursePipelineV2: true }).promptVersion)
+    .toBe(COURSE_PIPELINE_V2_PROMPT_VERSIONS.lesson);
 });
 
 test("honors model overrides without changing workload policy", () => {

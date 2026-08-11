@@ -40,6 +40,7 @@ import { clearLocalCourseData } from "@/lib/local-course-data";
 import { createClientId } from "@/lib/browser-compat";
 import { trackProductEvent } from "@/lib/product-analytics";
 import { sourceHostname } from "@/lib/source-safety";
+import type { ValidationReport } from "@/lib/course-pipeline/contract";
 
 type PublicationAssessmentState = {
   assessmentHash: string;
@@ -95,12 +96,18 @@ export default function CourseMap() {
   const [publishAttested, setPublishAttested] = useState(false);
   const [publicationFailures, setPublicationFailures] = useState<PublicationLessonFailure[]>([]);
   const [publicationAssessment, setPublicationAssessment] = useState<PublicationAssessmentState | null>(null);
+  const [validationReport, setValidationReport] = useState<ValidationReport | null>(null);
   const [regeneratingLessonId, setRegeneratingLessonId] = useState<string | null>(null);
   const [repairingAll, setRepairingAll] = useState(false);
   const [repairProgress, setRepairProgress] = useState<string | null>(null);
   const [overrideReason, setOverrideReason] = useState("");
   const [overrideConfirmed, setOverrideConfirmed] = useState(false);
   const [overrideBusy, setOverrideBusy] = useState(false);
+  const [manualReviewReason, setManualReviewReason] = useState("");
+  const [manualReviewSourceIds, setManualReviewSourceIds] = useState<string[]>([]);
+  const [manualReviewBusy, setManualReviewBusy] = useState<"approved" | "rejected" | null>(null);
+  const [lastTargetedRepairId, setLastTargetedRepairId] = useState<string | null>(null);
+  const [targetedRepairBusy, setTargetedRepairBusy] = useState<"apply" | "undo" | null>(null);
   const [completedLessons, setCompletedLessons] = useState<string[]>([]);
   const [capstoneAssessment, setCapstoneAssessment] = useState<CapstoneAssessment | null>(null);
   const [capstoneSubmission, setCapstoneSubmission] = useState("");
@@ -116,6 +123,10 @@ export default function CourseMap() {
   const closeDeleteDrawer = deleteDrawer.closeDrawer;
   const closeOverrideDrawer = overrideDrawer.closeDrawer;
   const activeCourseViewRef = useRef(courseViewKey);
+  const repairRequestKeysRef = useRef(new Map<string, string>());
+  const publicationRequestKeysRef = useRef(new Map<string, string>());
+  const overrideRequestKeysRef = useRef(new Map<string, string>());
+  const manualReviewRequestKeysRef = useRef(new Map<string, string>());
 
   const getToken = useCallback(async () => (user ? user.getIdToken() : null), [user]);
 
@@ -168,6 +179,11 @@ export default function CourseMap() {
       setOverrideReason("");
       setOverrideConfirmed(false);
       setOverrideBusy(false);
+      setManualReviewReason("");
+      setManualReviewSourceIds([]);
+      setManualReviewBusy(null);
+      setLastTargetedRepairId(null);
+      setTargetedRepairBusy(null);
       setCompletedLessons([]);
       setCapstoneAssessment(null);
       setCapstoneSubmission("");
@@ -184,6 +200,23 @@ export default function CourseMap() {
   useEffect(() => {
     void Promise.resolve().then(loadOrGenerate);
   }, [loadOrGenerate]);
+
+  useEffect(() => {
+    if (!user || !requestedCourseId || !course?.canManage) return;
+    let cancelled = false;
+    const loadValidation = async () => {
+      const token = await user.getIdToken();
+      const response = await fetch(`/api/courses/${encodeURIComponent(requestedCourseId)}/validation`, {
+        headers: { Authorization: `Bearer ${token}` },
+        cache: "no-store",
+      });
+      if (!response.ok) return;
+      const data = await response.json() as { validationReport?: ValidationReport };
+      if (!cancelled && data.validationReport) setValidationReport(data.validationReport);
+    };
+    void loadValidation();
+    return () => { cancelled = true; };
+  }, [course?.canManage, requestedCourseId, user]);
 
   const courseId = course?.id ?? course?.courseId ?? requestedCourseId;
   const openLesson = useCallback(async (lessonId: string) => {
@@ -284,19 +317,27 @@ export default function CourseMap() {
     setUpdating(true);
     setActionError(null);
     setPublicationFailures([]);
+    setValidationReport(null);
     try {
       const token = await getToken();
+      const targetVisibility = !course.isPublic;
+      const publicationKey = `${operationCourseId}:${targetVisibility ? "publish" : "unpublish"}`;
+      const idempotencyKey = publicationRequestKeysRef.current.get(publicationKey) ?? createClientId();
+      publicationRequestKeysRef.current.set(publicationKey, idempotencyKey);
       const response = await fetch(`/api/courses/${operationCourseId}`, {
         method: "PATCH",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}`, "Idempotency-Key": idempotencyKey },
         body: JSON.stringify({
-          isPublic: !course.isPublic,
+          isPublic: targetVisibility,
           attested: !course.isPublic ? publishAttested : undefined,
         }),
       });
       const data = await response.json();
       if (!isCurrentView()) return;
       if (!response.ok) {
+        if (data.validationReport && typeof data.validationReport === "object") {
+          setValidationReport(data.validationReport as ValidationReport);
+        }
         if (Array.isArray(data.invalidLessons)) {
           setPublicationFailures(data.invalidLessons.filter((item: unknown): item is PublicationLessonFailure =>
             Boolean(item)
@@ -325,8 +366,10 @@ export default function CourseMap() {
         throw new Error(data.error || "Visibility could not be updated.");
       }
       setCourseRecord({ key: operationViewKey, value: { ...course, isPublic: data.isPublic } });
+      publicationRequestKeysRef.current.delete(publicationKey);
       setPublishAttested(false);
       setPublicationAssessment(null);
+      setValidationReport(null);
       storePublicationAssessment(courseViewKey, null);
       window.dispatchEvent(new Event("filosage:courses-changed"));
     } catch (updateError) {
@@ -366,12 +409,15 @@ export default function CourseMap() {
       throw new Error("This lesson cannot be regenerated right now.");
     }
     const token = await getToken();
+    const repairKey = `${courseId}:${lessonId}`;
+    const idempotencyKey = repairRequestKeysRef.current.get(repairKey) ?? createClientId();
+    repairRequestKeysRef.current.set(repairKey, idempotencyKey);
     const response = await fetch("/api/generate-lesson", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
         Authorization: `Bearer ${token}`,
-        "Idempotency-Key": createClientId(),
+        "Idempotency-Key": idempotencyKey,
       },
       body: JSON.stringify({ courseId, lessonId, regenerate: true }),
     });
@@ -380,6 +426,7 @@ export default function CourseMap() {
       publicationReadiness?: CoursePublishReadiness;
     };
     if (!response.ok) throw new Error(data.error || "The lesson could not be regenerated.");
+    repairRequestKeysRef.current.delete(repairKey);
     return data.publicationReadiness;
   };
 
@@ -443,9 +490,12 @@ export default function CourseMap() {
     setActionError(null);
     try {
       const token = await getToken();
+      const overrideKey = `${courseId}:${publicationAssessment.assessmentHash}`;
+      const requestKey = overrideRequestKeysRef.current.get(overrideKey) ?? createClientId();
+      overrideRequestKeysRef.current.set(overrideKey, requestKey);
       const response = await fetch(`/api/admin/courses/${courseId}/publication-override`, {
         method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}`, "Idempotency-Key": requestKey },
         body: JSON.stringify({
           reason: overrideReason.trim(),
           assessmentHash: publicationAssessment.assessmentHash,
@@ -472,6 +522,7 @@ export default function CourseMap() {
         }
         throw new Error(data.error || "The publication override could not be completed.");
       }
+      overrideRequestKeysRef.current.delete(overrideKey);
       setCourseRecord({
         key: operationViewKey,
         value: course ? {
@@ -494,6 +545,134 @@ export default function CourseMap() {
       }
     } finally {
       if (activeCourseViewRef.current === operationViewKey) setOverrideBusy(false);
+    }
+  };
+
+  const resolveManualReview = async (decision: "approved" | "rejected") => {
+    if (!user || !courseId || !isOwner || !validationReport?.requiresManualReview || manualReviewBusy) return;
+    if (manualReviewReason.trim().length < 20) {
+      setActionError("Explain the manual-review decision in at least 20 characters.");
+      return;
+    }
+    const evidenceRequired = (course?.manualReviewPolicy?.reasonCodes ?? []).some((code) =>
+      ["medical", "legal", "financial", "physical_safety", "freshness"].includes(code),
+    );
+    if (decision === "approved" && evidenceRequired && manualReviewSourceIds.length === 0) {
+      setActionError("Select at least one primary or official course source that you personally verified.");
+      return;
+    }
+    const operationViewKey = activeCourseViewRef.current;
+    const requestScope = `${courseId}:${validationReport.snapshotHash}:${decision}`;
+    const requestKey = manualReviewRequestKeysRef.current.get(requestScope) ?? createClientId();
+    manualReviewRequestKeysRef.current.set(requestScope, requestKey);
+    setManualReviewBusy(decision);
+    setActionError(null);
+    try {
+      const token = await getToken();
+      const response = await fetch(`/api/admin/courses/${courseId}/manual-review`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+          "Idempotency-Key": requestKey,
+        },
+        body: JSON.stringify({
+          decision,
+          reason: manualReviewReason.trim(),
+          snapshotHash: validationReport.snapshotHash,
+          contractVersion: validationReport.contractVersion,
+          verifiedSourceIds: manualReviewSourceIds,
+          confirmation: decision === "approved" ? "APPROVE MANUAL REVIEW" : "REJECT MANUAL REVIEW",
+        }),
+      });
+      const data = await response.json() as {
+        error?: string;
+        manualReviewResolution?: NonNullable<Course["manualReviewResolution"]>;
+        validationReport?: ValidationReport;
+      };
+      if (activeCourseViewRef.current !== operationViewKey) return;
+      if (!response.ok) {
+        if (data.validationReport) setValidationReport(data.validationReport);
+        throw new Error(data.error || "The manual-review decision could not be saved.");
+      }
+      manualReviewRequestKeysRef.current.delete(requestScope);
+      if (data.manualReviewResolution) {
+        setCourseRecord({
+          key: operationViewKey,
+          value: course ? { ...course, manualReviewResolution: data.manualReviewResolution } : course,
+        });
+      }
+      setRepairProgress(decision === "approved"
+        ? "Manual review approved for this exact snapshot. Run Review and publish again."
+        : "Manual review rejected this snapshot. Keep the draft private and revise the flagged content.");
+    } catch (manualReviewError) {
+      if (activeCourseViewRef.current === operationViewKey) {
+        setActionError(manualReviewError instanceof Error ? manualReviewError.message : "The manual-review decision could not be saved.");
+      }
+    } finally {
+      if (activeCourseViewRef.current === operationViewKey) setManualReviewBusy(null);
+    }
+  };
+
+  const runTargetedRepair = async (action: "apply" | "undo") => {
+    if (!user || !courseId || !validationReport || targetedRepairBusy) return;
+    if (action === "undo" && !lastTargetedRepairId) return;
+    const operationViewKey = activeCourseViewRef.current;
+    const requestScope = action === "apply"
+      ? `v2-repair:${courseId}:${validationReport.snapshotHash}`
+      : `v2-repair-undo:${courseId}:${lastTargetedRepairId}:${validationReport.snapshotHash}`;
+    const requestKey = repairRequestKeysRef.current.get(requestScope) ?? createClientId();
+    repairRequestKeysRef.current.set(requestScope, requestKey);
+    setTargetedRepairBusy(action);
+    setActionError(null);
+    try {
+      const token = await getToken();
+      const response = await fetch(`/api/courses/${courseId}/repair`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+          "Idempotency-Key": requestKey,
+        },
+        body: JSON.stringify(action === "apply" ? {
+          action,
+          snapshotHash: validationReport.snapshotHash,
+          contractVersion: validationReport.contractVersion,
+          issueCodes: validationReport.issues.filter((issue) => issue.repairability === "automatic").map((issue) => issue.code),
+        } : {
+          action,
+          snapshotHash: validationReport.snapshotHash,
+          contractVersion: validationReport.contractVersion,
+          repairId: lastTargetedRepairId,
+        }),
+      });
+      const data = await response.json() as {
+        error?: string;
+        code?: string;
+        repairId?: string;
+        validationReport?: ValidationReport;
+        undoAvailable?: boolean;
+      };
+      if (activeCourseViewRef.current !== operationViewKey) return;
+      if (!response.ok) {
+        if (data.validationReport) setValidationReport(data.validationReport);
+        throw new Error(data.error || "The targeted repair could not be completed.");
+      }
+      repairRequestKeysRef.current.delete(requestScope);
+      if (data.validationReport) setValidationReport(data.validationReport);
+      if (action === "apply") {
+        setLastTargetedRepairId(data.undoAvailable && data.repairId ? data.repairId : null);
+        setRepairProgress("Targeted repair applied and the complete course was revalidated.");
+      } else {
+        setLastTargetedRepairId(null);
+        setRepairProgress("Targeted repair undone without overwriting newer edits.");
+      }
+    } catch (repairError) {
+      if (activeCourseViewRef.current === operationViewKey) {
+        setActionError(repairError instanceof Error ? repairError.message : "The targeted repair could not be completed.");
+      }
+    } finally {
+      if (activeCourseViewRef.current === operationViewKey) setTargetedRepairBusy(null);
     }
   };
 
@@ -752,9 +931,9 @@ export default function CourseMap() {
 
           {course.canManage && (
             <CourseDisclosure
-              key={publicationFailures.length > 0 || publicationAssessment || repairProgress || course.publicationReview?.status === "owner_override" ? "publication-attention" : "course-studio"}
+              key={publicationFailures.length > 0 || publicationAssessment || validationReport || repairProgress || course.publicationReview?.status === "owner_override" ? "publication-attention" : "course-studio"}
               className="course-owner-controls"
-              defaultOpen={Boolean(publicationFailures.length > 0 || publicationAssessment || repairProgress || course.publicationReview?.status === "owner_override")}
+              defaultOpen={Boolean(publicationFailures.length > 0 || publicationAssessment || validationReport || repairProgress || course.publicationReview?.status === "owner_override")}
               description="Publication review, banner refresh, and course management stay separate from the learner journey."
               eyebrow="Creator tools"
               headingId="course-owner-controls-title"
@@ -802,18 +981,22 @@ export default function CourseMap() {
                {course.isPublic && <p className="owner-action-hint">{course.publicationReview?.status === "owner_override"
                  ? "Published with an audited owner quality override after the non-bypassable safety and structure checks passed. AI-generated factual claims are not independently verified."
                  : "Published content passed automated safety and quality review. AI-generated factual claims are not independently verified."}</p>}
-               {(publicationFailures.length > 0 || publicationAssessment || repairProgress) && (
+               {(publicationFailures.length > 0 || publicationAssessment || validationReport || repairProgress) && (
                  <section className="publication-failures" aria-labelledby="publication-failures-title">
                    <div>
                      <TriangleAlert size={18} aria-hidden="true" />
                      <div>
                        <h2 id="publication-failures-title">Publication review needs attention</h2>
-                       <p>{publicationFailures.length > 0
+                       <p>{validationReport
+                         ? validationReport.requiresManualReview
+                           ? "This exact course version needs a human decision before it can be published."
+                           : "Review each precise blocker below. Warnings are optional improvements and do not silently prevent publication."
+                         : publicationFailures.length > 0
                          ? "Regenerate the listed lessons, then review and publish again. The current lesson stays available unless a replacement passes the teaching standard."
                          : publicationAssessment
                            ? "The course has quality warnings that require correction or an explicit owner decision."
                            : "The replacement lessons passed the automatic publication preflight. Review them before publishing."}</p>
-                       {publicationFailures.length > 1 && (
+                        {!validationReport && publicationFailures.length > 1 && (
                          <button
                            className="button button-secondary button-small publication-repair-all"
                            type="button"
@@ -824,10 +1007,111 @@ export default function CourseMap() {
                            {repairingAll ? repairProgress ?? "Repairing lessons…" : `Repair all ${publicationFailures.length} lessons`}
                          </button>
                        )}
-                       {repairProgress && !repairingAll && <small className="publication-repair-status" role="status">{repairProgress}</small>}
+                       {repairProgress && <small className="publication-repair-status" role="status" aria-live="polite">{repairProgress}</small>}
                      </div>
                    </div>
-                    {publicationFailures.length > 0 && <ul>
+                    {validationReport && (
+                      <div className="publication-contract-report" role="region" aria-label="Course quality contract report">
+                        <div className="publication-contract-summary" role="status" aria-live="polite">
+                          <strong>{validationReport.publishable ? "Ready to publish" : validationReport.requiresManualReview ? "Manual review" : "Not ready"}</strong>
+                          {course.pipelineStage && <span>Pipeline state: {course.pipelineStage.replaceAll("_", " ")}</span>}
+                          <span>Contract {validationReport.contractVersion} · validated {new Date(validationReport.validatedAt).toLocaleString()}</span>
+                        </div>
+                        {validationReport.issues.length > 0 && <ul>
+                          {validationReport.issues.map((issue) => (
+                            <li key={`${issue.code}:${issue.path}`}>
+                              <div>
+                                <strong>{issue.code}</strong>
+                                <span>{issue.path}</span>
+                                <p>{issue.message}</p>
+                                {issue.suggestedAction && <small>{issue.suggestedAction}</small>}
+                              </div>
+                            </li>
+                          ))}
+                        </ul>}
+                        {validationReport.issues.some((issue) => issue.repairability === "automatic") && (
+                          <div className="publication-contract-actions">
+                            <button className="button button-secondary" type="button" onClick={() => void runTargetedRepair("apply")} disabled={targetedRepairBusy !== null}>
+                              {targetedRepairBusy === "apply" ? <LoaderCircle className="spin" size={15} /> : <RefreshCw size={15} />}
+                              Repair automatic issues
+                            </button>
+                          </div>
+                        )}
+                        {lastTargetedRepairId && (
+                          <div className="publication-contract-actions">
+                            <button className="button button-quiet" type="button" onClick={() => void runTargetedRepair("undo")} disabled={targetedRepairBusy !== null}>
+                              {targetedRepairBusy === "undo" ? <LoaderCircle className="spin" size={15} /> : <RefreshCw size={15} />}
+                              Undo last targeted repair
+                            </button>
+                          </div>
+                        )}
+                        {validationReport.warnings.length > 0 && (
+                          <details>
+                            <summary>{validationReport.warnings.length} optional improvement{validationReport.warnings.length === 1 ? "" : "s"}</summary>
+                            <ul>{validationReport.warnings.map((warning) => <li key={`${warning.code}:${warning.path}`}><strong>{warning.code}</strong> · {warning.path}: {warning.message}</li>)}</ul>
+                          </details>
+                        )}
+                        {validationReport.requiresManualReview && (
+                          <div className="publication-manual-review">
+                            <strong>Human decision required for this snapshot</strong>
+                            {course.manualReviewResolution?.snapshotHash === validationReport.snapshotHash ? (
+                              <p>
+                                Decision: <strong>{course.manualReviewResolution.status}</strong> on {new Date(course.manualReviewResolution.reviewedAt).toLocaleString()}.
+                                {course.manualReviewResolution.status === "approved" ? " The exact snapshot may proceed through the normal safety and publication preflight." : " Revise and revalidate before requesting another decision."}
+                              </p>
+                            ) : <p>An owner must inspect the evidence and record a reason. Approval never bypasses structural, security, or safety blockers.</p>}
+                            {isOwner && course.manualReviewResolution?.snapshotHash !== validationReport.snapshotHash && (
+                              <>
+                                <label htmlFor="course-manual-review-reason">Manual-review reason</label>
+                                {(course.manualReviewPolicy?.reasonCodes ?? []).some((code) => ["medical", "legal", "financial", "physical_safety", "freshness"].includes(code)) && (
+                                  <fieldset className="publication-manual-review-sources">
+                                    <legend>Primary or official sources personally verified</legend>
+                                    {(course.sourcePack ?? []).filter((source) => (source.kind === "primary" || source.kind === "official") && source.url).length > 0
+                                      ? (course.sourcePack ?? []).filter((source) => (source.kind === "primary" || source.kind === "official") && source.url).map((source) => (
+                                          <label key={source.id}>
+                                            <input
+                                              type="checkbox"
+                                              name="manualReviewSource"
+                                              value={source.id}
+                                              checked={manualReviewSourceIds.includes(source.id)}
+                                              onChange={(event) => setManualReviewSourceIds((current) => event.target.checked
+                                                ? [...new Set([...current, source.id])]
+                                                : current.filter((sourceId) => sourceId !== source.id))}
+                                              disabled={manualReviewBusy !== null}
+                                            />
+                                            <span>{source.label} ({source.kind})</span>
+                                            <a href={source.url} target="_blank" rel="noreferrer">Open source</a>
+                                          </label>
+                                        ))
+                                      : <p>No primary or official URL is attached. This high-stakes snapshot cannot be approved automatically; recreate or revise it with authoritative evidence.</p>}
+                                  </fieldset>
+                                )}
+                                <textarea
+                                  id="course-manual-review-reason"
+                                  name="manualReviewReason"
+                                  rows={3}
+                                  value={manualReviewReason}
+                                  onChange={(event) => setManualReviewReason(event.target.value)}
+                                  maxLength={1_000}
+                                  disabled={manualReviewBusy !== null}
+                                />
+                                <div className="publication-manual-review-actions">
+                                  <button className="button button-secondary" type="button" onClick={() => void resolveManualReview("rejected")} disabled={manualReviewBusy !== null || manualReviewReason.trim().length < 20}>
+                                    {manualReviewBusy === "rejected" ? <LoaderCircle className="spin" size={15} /> : <X size={15} />}
+                                    Reject snapshot
+                                  </button>
+                                  <button className="button button-primary" type="button" onClick={() => void resolveManualReview("approved")} disabled={manualReviewBusy !== null || manualReviewReason.trim().length < 20}>
+                                    {manualReviewBusy === "approved" ? <LoaderCircle className="spin" size={15} /> : <Check size={15} />}
+                                    Approve exact snapshot
+                                  </button>
+                                </div>
+                              </>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    )}
+                     {!validationReport && publicationFailures.length > 0 && <ul>
                      {publicationFailures.map((failure) => {
                        const [moduleIndex, lessonIndex] = failure.lessonId.split("-").map(Number);
                        const lesson = course.modules[moduleIndex]?.lessons[lessonIndex];

@@ -38,6 +38,7 @@ export function inspectCoursePublishReadiness(
   expectedLessonIds: string[],
   topic: string,
   expectedModesByLessonId: Readonly<Record<string, LessonMode | undefined>> = {},
+  instructionLanguage = "English",
 ): CoursePublishReadiness {
   const lessonsById = new Map(lessons.map((lesson) => [String(lesson.id ?? ""), lesson]));
   const missingLessonIds = expectedLessonIds.filter((lessonId) => !lessonsById.has(lessonId));
@@ -50,7 +51,14 @@ export function inspectCoursePublishReadiness(
       ? expectedModesByLessonId[lessonId]
       : undefined;
     const issues = parsed.lesson
-      ? lessonQualityIssues(parsed.lesson, topic, expectedMode, { requireInteractionV2: schemaVersion >= 5 })
+      // Schema v5 introduced the ability to persist Recognition v2, not a
+      // requirement that every topic use one. Applicability must be explicit
+      // in the shared quality contract before an absent lab can block.
+      ? lessonQualityIssues(parsed.lesson, topic, expectedMode, {
+          requireInteractionV2: false,
+          lessonKind: typeof raw.lessonKind === "string" ? raw.lessonKind as import("@/lib/course-types").LessonKind : undefined,
+          instructionLanguage,
+        })
       : parsed.issues;
     return issues.length ? [{
       lessonId,

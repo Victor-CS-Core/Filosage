@@ -5,10 +5,17 @@ import {
   issueActivityReceipt,
   type ActivityReceiptClaims,
 } from "@/lib/activity-receipts";
-import { getCourse, getLesson, runStoredDocumentTransaction } from "@/lib/firebase-server";
+import { runStoredDocumentTransaction } from "@/lib/firebase-server";
 import type { Course, LessonData } from "@/lib/course-types";
 import { z } from "zod";
 import { enforceDurableRateLimit } from "@/lib/request-rate-limit";
+import {
+  getCourseRuntimeArtifact,
+  getLessonRuntimeArtifact,
+  publishedReleaseUnavailableResponse,
+} from "@/lib/course-pipeline/artifact-access";
+import { publicationContentHash } from "@/lib/publication-content";
+import { safeModelErrorDetails } from "@/lib/model-fallback";
 
 const activityAttemptSchema = z.object({
   courseId: z.string().trim().min(1).max(200),
@@ -32,17 +39,18 @@ export async function POST(request: Request) {
     }
 
     const { courseId, lessonId, quizIndex, selectedOption } = parsed.data;
-    const course = await getCourse(courseId) as Course | null;
+    const course = await getCourseRuntimeArtifact(courseId) as Course | null;
     if (!course) return Response.json({ error: "Course not found." }, { status: 404 });
     if (course.authorId !== account.uid && !account.isOwner) {
       return Response.json({ error: "Only this course's author can verify creator progression." }, { status: 403 });
     }
-    const lesson = await getLesson(courseId, lessonId) as LessonData | null;
+    const lesson = await getLessonRuntimeArtifact(courseId, lessonId, course) as LessonData | null;
     const quiz = lesson?.quizzes?.[quizIndex];
     if (!lesson || !quiz) return Response.json({ error: "Activity not found." }, { status: 404 });
 
     const correct = quiz.options[quiz.correctIndex] === selectedOption;
-    const documentId = await activityDocumentId(courseId, lessonId, quizIndex);
+    const artifactHash = await publicationContentHash(quiz);
+    const documentId = await activityDocumentId(courseId, lessonId, quizIndex, artifactHash);
     const path = `users/${account.uid}/lessonActivity/${documentId}`;
     const now = Date.now();
     const result = await runStoredDocumentTransaction([path], (documents) => {
@@ -69,11 +77,12 @@ export async function POST(request: Request) {
     let receipt: string | undefined;
     if (correct) {
       const claims: ActivityReceiptClaims = {
-        version: 1,
+        version: 2,
         uid: account.uid,
         courseId,
         lessonId,
         quizIndex,
+        artifactHash,
         attempts: result.attempts,
         firstAttemptCorrect: result.firstAttemptCorrect,
         issuedAt: now,
@@ -89,7 +98,9 @@ export async function POST(request: Request) {
     if (authResponse) return authResponse;
     const requestError = apiRequestErrorResponse(error);
     if (requestError) return requestError;
-    console.error("Lesson activity verification failed:", error);
+    const releaseError = publishedReleaseUnavailableResponse(error);
+    if (releaseError) return releaseError;
+    console.error(JSON.stringify({ event: "lesson_activity_verification_failed", ...safeModelErrorDetails(error) }));
     return Response.json({ error: "This activity could not be verified. Try again." }, { status: 500 });
   }
 }

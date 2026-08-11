@@ -1,8 +1,6 @@
 import { authorizationResponse, requireAcceptedAccount, requireAccount } from "@/lib/auth-server";
 import {
   deleteStoredDocuments,
-  getCourse,
-  getLesson,
   getStoredDocument,
   listStoredDocuments,
   runStoredDocumentTransaction,
@@ -16,6 +14,13 @@ import { scheduleAdaptiveReview, updateDelayedChecks } from "@/lib/adaptive-lear
 import { verifyActivityReceipt } from "@/lib/activity-receipts";
 import { deriveLessonInteractions } from "@/lib/lesson-interactions";
 import { verifyInteractionReceipt } from "@/lib/interaction-receipts";
+import {
+  getCourseRuntimeArtifact,
+  getLessonRuntimeArtifact,
+  publishedReleaseUnavailableResponse,
+} from "@/lib/course-pipeline/artifact-access";
+import { publicationContentHash } from "@/lib/publication-content";
+import { safeModelErrorDetails } from "@/lib/model-fallback";
 
 function numberValue(value: unknown) {
   return typeof value === "number" && Number.isFinite(value) ? value : 0;
@@ -58,7 +63,7 @@ async function resolveActiveProgress(
   progress: CourseProgress,
   account: { uid: string; isOwner: boolean },
 ) {
-  const course = await getCourse(progress.courseId) as Course | null;
+  const course = await getCourseRuntimeArtifact(progress.courseId) as Course | null;
   if (!course) return { status: "deleted" as const, progress: null };
   if (!course.isPublic && course.authorId !== account.uid && !account.isOwner) {
     return { status: "inaccessible" as const, progress: null };
@@ -113,7 +118,9 @@ export async function GET(request: Request) {
   } catch (error) {
     const authResponse = authorizationResponse(error);
     if (authResponse) return authResponse;
-    console.error("Progress fetch failed:", error);
+    const releaseError = publishedReleaseUnavailableResponse(error);
+    if (releaseError) return releaseError;
+    console.error(JSON.stringify({ event: "progress_fetch_failed", ...safeModelErrorDetails(error) }));
     return Response.json({ error: "Learning progress is temporarily unavailable." }, { status: 500 });
   }
 }
@@ -127,7 +134,7 @@ export async function POST(request: Request) {
     }
 
     const submitted = parsed.data;
-    const course = await getCourse(submitted.courseId) as Course | null;
+    const course = await getCourseRuntimeArtifact(submitted.courseId) as Course | null;
     if (!course) return Response.json({ error: "Course not found." }, { status: 404 });
     if (!course.isPublic && course.authorId !== account.uid && !account.isOwner) {
       return Response.json({ error: "You do not have access to this course." }, { status: 403 });
@@ -135,10 +142,11 @@ export async function POST(request: Request) {
 
     const canonical = findCourseLesson(course, submitted.lessonId);
     if (!canonical) return Response.json({ error: "This lesson is not part of the course." }, { status: 400 });
-    const lesson = await getLesson(submitted.courseId, submitted.lessonId);
+    const lesson = await getLessonRuntimeArtifact(submitted.courseId, submitted.lessonId, course);
     if (!lesson) return Response.json({ error: "Generate or open the lesson before completing it." }, { status: 409 });
 
     const quizzes = Array.isArray(lesson.quizzes) ? lesson.quizzes : [];
+    const quizArtifactHashes = await Promise.all(quizzes.map((quiz) => publicationContentHash(quiz)));
     const evidence = submitted.activityEvidence;
     const quizEvidence = evidence?.quizResults ?? [];
     const evidenceIndexes = new Set(quizEvidence.map((result) => result.quizIndex));
@@ -165,6 +173,7 @@ export async function POST(request: Request) {
     );
     const practiceInteraction = deriveLessonInteractions(lesson as unknown as LessonData)
       .find((interaction) => interaction.type === "recognition" && interaction.purpose === "practice");
+    const interactionArtifactHash = practiceInteraction ? await publicationContentHash(practiceInteraction) : undefined;
     const interactionEvidence = evidence?.interactionEvidence;
     const expectedInteractionItemIds = new Set(practiceInteraction?.items.map((item) => item.id) ?? []);
     const submittedInteractionItemIds = new Set(interactionEvidence?.itemResults.map((item) => item.itemId) ?? []);
@@ -200,6 +209,7 @@ export async function POST(request: Request) {
             courseId: submitted.courseId,
             lessonId: submitted.lessonId,
             quizIndex: result.quizIndex,
+            artifactHash: quizArtifactHashes[result.quizIndex] ?? "",
           })
           : Promise.resolve(null),
       ))
@@ -220,6 +230,7 @@ export async function POST(request: Request) {
             lessonId: submitted.lessonId,
             interactionId: practiceInteraction.id,
             itemId: result.itemId,
+            artifactHash: interactionArtifactHash ?? "",
           })
           : Promise.resolve(null),
       ))
@@ -401,11 +412,13 @@ export async function POST(request: Request) {
       { headers: { "Cache-Control": "private, no-store" } },
     );
   } catch (error) {
+    const releaseError = publishedReleaseUnavailableResponse(error);
+    if (releaseError) return releaseError;
     const requestResponse = apiRequestErrorResponse(error);
     if (requestResponse) return requestResponse;
     const authResponse = authorizationResponse(error);
     if (authResponse) return authResponse;
-    console.error("Progress save failed:", error);
+    console.error(JSON.stringify({ event: "progress_save_failed", ...safeModelErrorDetails(error) }));
     return Response.json({ error: "Progress could not be saved." }, { status: 500 });
   }
 }

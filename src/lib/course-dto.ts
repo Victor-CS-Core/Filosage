@@ -7,6 +7,8 @@ import { lessonVisualsEnabled } from "@/lib/feature-flags";
 import { normalizeStructuredMarkdown } from "@/lib/markdown";
 import { inspectGeneratedContent, sanitizeGeneratedValue } from "@/lib/content-language";
 import { isSafePublicSourceUrl } from "@/lib/source-safety";
+import { effectiveCourseReviewPolicy } from "@/lib/course-pipeline/review-policy";
+import { visualPlanSchema } from "@/lib/course-pipeline/schemas";
 
 function structuredText(value: unknown) {
   return typeof value === "string" ? normalizeStructuredMarkdown(value) : "";
@@ -66,14 +68,26 @@ function lessonExperienceDto(value: unknown): LessonData["experience"] {
 export function toCourseDto(value: Record<string, unknown> | Course, canManage = false, canGenerateBanner = canManage): Course {
   const raw = value as Record<string, unknown>;
   const topic = String(raw.topic ?? "");
-  const repairedForDisplay = inspectGeneratedContent(raw, topic).length > 0;
-  const safe = sanitizeGeneratedValue(raw, topic) as Record<string, unknown>;
+  const language = typeof raw.language === "string" ? raw.language : "English";
+  const repairedForDisplay = inspectGeneratedContent(raw, topic, language).length > 0;
+  const safe = sanitizeGeneratedValue(raw, topic, language) as Record<string, unknown>;
+  const effectiveManualReviewPolicy = effectiveCourseReviewPolicy(raw as unknown as Parameters<typeof effectiveCourseReviewPolicy>[0]);
   return {
     id: typeof safe.id === "string" ? safe.id : undefined,
     courseId: typeof safe.id === "string" ? safe.id : undefined,
     topic,
     mission: typeof safe.mission === "string" ? safe.mission : undefined,
     modules: Array.isArray(safe.modules) ? safe.modules as Course["modules"] : [],
+    objectives: Array.isArray(safe.objectives)
+      ? safe.objectives.filter((item): item is NonNullable<Course["objectives"]>[number] => {
+          if (!item || typeof item !== "object") return false;
+          const objective = item as Record<string, unknown>;
+          return typeof objective.id === "string"
+            && typeof objective.description === "string"
+            && ["course", "module", "lesson"].includes(String(objective.level))
+            && typeof objective.required === "boolean";
+        })
+      : undefined,
     authorName: typeof safe.authorName === "string" ? safe.authorName : undefined,
     isPublic: raw.isPublic === true,
     level: raw.level as Course["level"],
@@ -82,6 +96,35 @@ export function toCourseDto(value: Record<string, unknown> | Course, canManage =
     prerequisites: Array.isArray(safe.prerequisites) ? safe.prerequisites.filter((item): item is string => typeof item === "string") : undefined,
     category: typeof safe.category === "string" ? safe.category : undefined,
     audience: typeof safe.audience === "string" ? safe.audience : undefined,
+    language,
+    pipelineStage: canManage && ["draft", "planning", "generating", "enriching", "validating", "needs_repair", "repairing", "ready_to_publish", "publishing", "published", "manual_review", "failed"].includes(String(raw.pipelineStage ?? ""))
+      ? raw.pipelineStage as Course["pipelineStage"]
+      : undefined,
+    pipelineStageUpdatedAt: canManage && typeof raw.pipelineStageUpdatedAt === "string" ? raw.pipelineStageUpdatedAt : undefined,
+    publishedReleaseId: canManage && typeof raw.publishedReleaseId === "string" ? raw.publishedReleaseId : undefined,
+    freshnessRequired: raw.freshnessRequired === true,
+    manualReviewPolicy: canManage ? effectiveManualReviewPolicy : undefined,
+    manualReviewResolution: canManage
+      && raw.manualReviewResolution
+      && typeof raw.manualReviewResolution === "object"
+      && ["approved", "rejected"].includes(String((raw.manualReviewResolution as Record<string, unknown>).status))
+      && typeof (raw.manualReviewResolution as Record<string, unknown>).snapshotHash === "string"
+      && typeof (raw.manualReviewResolution as Record<string, unknown>).contractVersion === "string"
+      && typeof (raw.manualReviewResolution as Record<string, unknown>).reason === "string"
+      && typeof (raw.manualReviewResolution as Record<string, unknown>).reviewedAt === "string"
+      && typeof (raw.manualReviewResolution as Record<string, unknown>).reviewId === "string"
+      ? {
+          status: (raw.manualReviewResolution as Record<string, unknown>).status as "approved" | "rejected",
+          snapshotHash: String((raw.manualReviewResolution as Record<string, unknown>).snapshotHash),
+          contractVersion: String((raw.manualReviewResolution as Record<string, unknown>).contractVersion),
+          reason: String((raw.manualReviewResolution as Record<string, unknown>).reason),
+          reviewedAt: String((raw.manualReviewResolution as Record<string, unknown>).reviewedAt),
+          reviewId: String((raw.manualReviewResolution as Record<string, unknown>).reviewId),
+          verifiedSourceIds: Array.isArray((raw.manualReviewResolution as Record<string, unknown>).verifiedSourceIds)
+            ? ((raw.manualReviewResolution as Record<string, unknown>).verifiedSourceIds as unknown[]).map(String)
+            : undefined,
+        }
+      : undefined,
     artifact: safe.artifact && typeof safe.artifact === "object"
       ? safe.artifact as Course["artifact"]
       : undefined,
@@ -162,22 +205,28 @@ export function toCourseDto(value: Record<string, unknown> | Course, canManage =
   };
 }
 
-export function toLessonDto(value: Record<string, unknown>, courseAiAssisted = false, topic = ""): LessonData {
-  const safeValue = sanitizeGeneratedValue(value, topic) as Record<string, unknown>;
+export function toLessonDto(value: Record<string, unknown>, courseAiAssisted = false, topic = "", instructionLanguage = "English"): LessonData {
+  const safeValue = sanitizeGeneratedValue(value, topic, instructionLanguage) as Record<string, unknown>;
   value = safeValue;
+  const visualPlan = visualPlanSchema.safeParse(value.visualPlan);
   const rawSources = Array.isArray(value.sourceReferences)
     ? value.sourceReferences.filter((item): item is Record<string, unknown> => Boolean(item) && typeof item === "object")
     : [];
   return {
     content: String(value.content ?? ""),
     quizzes: Array.isArray(value.quizzes) ? value.quizzes as LessonData["quizzes"] : [],
+    lessonKind: ["substantive", "introduction", "review", "glossary", "reference", "capstone"].includes(String(value.lessonKind ?? ""))
+      ? value.lessonKind as LessonData["lessonKind"]
+      : undefined,
     learningObjective: typeof value.learningObjective === "string" ? value.learningObjective : undefined,
+    objectiveIds: Array.isArray(value.objectiveIds) ? value.objectiveIds.map(String) : undefined,
     connection: typeof value.connection === "string" ? value.connection : undefined,
     keyTakeaways: Array.isArray(value.keyTakeaways)
       ? value.keyTakeaways.filter((item): item is string => typeof item === "string")
       : undefined,
     experience: lessonExperienceDto(value.experience),
-    visuals: lessonVisualsEnabled() ? curateLessonVisuals(value.visuals) : [],
+    visuals: lessonVisualsEnabled() || typeof value.visualPolicyVersion === "string" ? curateLessonVisuals(value.visuals) : [],
+    visualPlan: visualPlan.success ? visualPlan.data : undefined,
     interactions: curateLessonInteractions(value.interactions),
     guidedPractice: guidedPracticeDto(value.guidedPractice),
     transferTask: transferTaskDto(value.transferTask),
@@ -193,6 +242,15 @@ export function toLessonDto(value: Record<string, unknown>, courseAiAssisted = f
       promptVersion: typeof value.promptVersion === "string" ? value.promptVersion : undefined,
       qualityGateVersion: typeof value.qualityGateVersion === "string" ? value.qualityGateVersion : undefined,
       interactionQualityGateVersion: typeof value.interactionQualityGateVersion === "string" ? value.interactionQualityGateVersion : undefined,
+      qualityContractVersion: typeof value.qualityContractVersion === "string" ? value.qualityContractVersion : undefined,
+      repairPromptVersion: typeof value.repairPromptVersion === "string" ? value.repairPromptVersion : undefined,
+      repairPromptStatus: value.repairPromptStatus === "executed" || value.repairPromptStatus === "not_executed" ? value.repairPromptStatus : undefined,
+      semanticEvaluatorVersion: typeof value.semanticEvaluatorVersion === "string" ? value.semanticEvaluatorVersion : undefined,
+      semanticEvaluatorStatus: value.semanticEvaluatorStatus === "executed" || value.semanticEvaluatorStatus === "not_executed" ? value.semanticEvaluatorStatus : undefined,
+      generationProvider: typeof value.generationProvider === "string" ? value.generationProvider : undefined,
+      labRegistryVersion: typeof value.labRegistryVersion === "string" ? value.labRegistryVersion : undefined,
+      visualPolicyVersion: typeof value.visualPolicyVersion === "string" ? value.visualPolicyVersion : undefined,
+      sourcePolicyVersion: typeof value.sourcePolicyVersion === "string" ? value.sourcePolicyVersion : undefined,
       sources: rawSources.flatMap((item) => {
         if (typeof item.label !== "string") return [];
         return [{

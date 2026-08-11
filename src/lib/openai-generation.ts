@@ -9,6 +9,11 @@ export const AI_PROMPT_VERSIONS = {
   commandCenter: "2026-08-06-draft-only-v5",
 } as const;
 
+export const COURSE_PIPELINE_V2_PROMPT_VERSIONS = {
+  course: "2026-08-11-course-pipeline-v2",
+  lesson: "2026-08-11-course-pipeline-v2",
+} as const;
+
 export type AiReasoningEffort = "none" | "low" | "medium" | "high" | "xhigh" | "max";
 export type AiTextVerbosity = "low" | "medium" | "high";
 
@@ -141,10 +146,13 @@ export function stablePromptCacheKey(
 export function openAiExecutionProfile(
   id: AiExecutionProfileId,
   environment: NodeJS.ProcessEnv = serverEnvironment,
+  options: { coursePipelineV2?: boolean } = {},
 ): AiExecutionProfile {
   const spec = PROFILE_SPECS[id];
   const model = configuredModel(spec, environment);
-  const promptVersion = AI_PROMPT_VERSIONS[spec.workload];
+  const promptVersion = options.coursePipelineV2 && (spec.workload === "course" || spec.workload === "lesson")
+    ? COURSE_PIPELINE_V2_PROMPT_VERSIONS[spec.workload]
+    : AI_PROMPT_VERSIONS[spec.workload];
   return {
     id,
     workload: spec.workload,

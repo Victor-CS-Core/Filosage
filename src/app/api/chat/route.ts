@@ -1,6 +1,5 @@
 import { aiClient } from "@/lib/local-ai";
 import { authorizationResponse, requireAcceptedAccount } from "@/lib/auth-server";
-import { getCourse, getLesson } from "@/lib/firebase-server";
 import { findCourseLesson } from "@/lib/course-progress";
 import type { Course, LessonData } from "@/lib/course-types";
 import { tutorInputSchema, validationMessage } from "@/lib/validation";
@@ -15,6 +14,12 @@ import {
 import { AI_SAFETY_POLICY, assertSafeContent, ContentSafetyError } from "@/lib/content-safety";
 import { apiRequestErrorResponse, readJsonBody } from "@/lib/api-security";
 import { aiUsageProfileMetadata, openAiExecutionProfile } from "@/lib/openai-generation";
+import {
+  getCourseRuntimeArtifact,
+  getLessonRuntimeArtifact,
+  publishedReleaseUnavailableResponse,
+} from "@/lib/course-pipeline/artifact-access";
+import { safeModelErrorDetails } from "@/lib/model-fallback";
 
 export async function POST(request: Request) {
   const profile = openAiExecutionProfile("tutor.standard");
@@ -30,14 +35,14 @@ export async function POST(request: Request) {
     }
 
     const { messages, data } = parsed.data;
-    const course = await getCourse(data.courseId) as Course | null;
+    const course = await getCourseRuntimeArtifact(data.courseId) as Course | null;
     if (!course) return Response.json({ error: "Course not found." }, { status: 404 });
     if (!course.isPublic && course.authorId !== account.uid && !account.isOwner) {
       return Response.json({ error: "You do not have access to this lesson." }, { status: 403 });
     }
     const canonical = findCourseLesson(course, data.lessonId);
     if (!canonical) return Response.json({ error: "This lesson is not part of the course." }, { status: 400 });
-    const lesson = await getLesson(data.courseId, data.lessonId) as LessonData | null;
+    const lesson = await getLessonRuntimeArtifact(data.courseId, data.lessonId, course) as LessonData | null;
     if (!lesson) return Response.json({ error: "This lesson is not available yet." }, { status: 404 });
     const client = aiClient();
     reservation = await reserveAiUsage(account, "tutor", request.headers.get("idempotency-key"));
@@ -86,7 +91,7 @@ export async function POST(request: Request) {
           });
           controller.close();
         } catch (error) {
-          console.error("Tutor stream failed:", error);
+          console.error(JSON.stringify({ event: "tutor_stream_failed", ...safeModelErrorDetails(error) }));
           await finalizeAiUsage(activeReservation, {
             ...observedUsage,
             model: profile.model,
@@ -94,7 +99,7 @@ export async function POST(request: Request) {
             failed: true,
             ...aiUsageProfileMetadata(profile),
           }).catch((usageError) => {
-            console.error("Tutor usage finalization failed:", usageError);
+            console.error(JSON.stringify({ event: "tutor_usage_finalization_failed", ...safeModelErrorDetails(usageError) }));
           });
           controller.error(error);
         }
@@ -114,7 +119,7 @@ export async function POST(request: Request) {
         failed: true,
         ...aiUsageProfileMetadata(profile),
       }).catch((usageError) => {
-        console.error("Tutor usage finalization failed:", usageError);
+        console.error(JSON.stringify({ event: "tutor_usage_finalization_failed", ...safeModelErrorDetails(usageError) }));
       });
     }
     const quotaResponse = aiQuotaResponse(error);
@@ -123,13 +128,15 @@ export async function POST(request: Request) {
     if (authResponse) return authResponse;
     const requestResponse = apiRequestErrorResponse(error);
     if (requestResponse) return requestResponse;
+    const releaseError = publishedReleaseUnavailableResponse(error);
+    if (releaseError) return releaseError;
     if (error instanceof ContentSafetyError) {
       return Response.json(
         { error: error.message, code: "CONTENT_NOT_ALLOWED", retryAt: error.retryAt },
         { status: 422 },
       );
     }
-    console.error("Tutor request failed:", error);
+    console.error(JSON.stringify({ event: "tutor_request_failed", ...safeModelErrorDetails(error) }));
     return Response.json({ error: "The tutor is temporarily unavailable." }, { status: 500 });
   }
 }

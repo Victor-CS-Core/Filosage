@@ -12,6 +12,7 @@ import { isLocalMode, LOCAL_OWNER_EMAIL, LOCAL_OWNER_UID } from "@/lib/local-mod
 import { COURSE_SCOPED_COLLECTION_GROUPS, removeCourseReferences } from "@/lib/course-deletion";
 import type { PublicationLessonReview, PublicationOwnerOverride } from "@/lib/publication-review";
 import { publicationContentFingerprint } from "@/lib/publication-content";
+import { buildGuardedLessonSave, type LessonSavePipelineGuard } from "@/lib/course-pipeline/lesson-save";
 import { inspectCoursePublishReadiness } from "@/lib/publication-readiness";
 import { firebaseAuthenticationClaimsFromIdToken } from "@/lib/recent-auth";
 import { serverEnvironment } from "@/lib/runtime-environment";
@@ -540,7 +541,24 @@ export async function saveLesson(
   courseId: string,
   lessonId: string,
   data: Record<string, unknown>,
+  pipelineGuard?: LessonSavePipelineGuard,
 ) {
+  if (pipelineGuard) {
+    const coursePath = `courses/${courseId}`;
+    const lessonPath = `${coursePath}/lessons/${lessonId}`;
+    return runStoredDocumentTransaction([coursePath, lessonPath], (documents) => {
+      const now = new Date().toISOString();
+      return buildGuardedLessonSave(
+        courseId,
+        lessonId,
+        documents[coursePath] ?? undefined,
+        documents[lessonPath] ?? undefined,
+        data,
+        pipelineGuard,
+        now,
+      );
+    });
+  }
   const existing = await getLesson(courseId, lessonId);
   const now = new Date();
   const document = await firestoreJson<FirestoreDocument>(
@@ -820,24 +838,138 @@ export async function runStoredDocumentTransaction<T>(
 
 export async function updateCourseVisibility(courseId: string, isPublic: boolean) {
   const lessons = await listLessons(courseId);
-  const updatedAt = new Date();
-  const writes: Array<Record<string, unknown>> = [
-    {
-      update: {
-        name: fullDocumentName(`courses/${courseId}`),
-        fields: toFirestoreFields({ isPublic, updatedAt }),
-      },
-      updateMask: { fieldPaths: ["isPublic", "updatedAt"] },
-    },
-    ...lessons.map((lesson) => ({
-      update: {
-        name: fullDocumentName(`courses/${courseId}/lessons/${lesson.id}`),
-        fields: toFirestoreFields({ isPublic }),
-      },
-      updateMask: { fieldPaths: ["isPublic"] },
-    })),
-  ];
-  await commitWrites(writes);
+  const coursePath = `courses/${courseId}`;
+  const lessonPaths = lessons.map((lesson) => `courses/${courseId}/lessons/${lesson.id}`);
+  const updatedAt = new Date().toISOString();
+  await runStoredDocumentTransaction([coursePath, ...lessonPaths], (documents) => {
+    const course = documents[coursePath];
+    if (!course) throw new Error("Course not found while updating its visibility.");
+    const resetsPublishedStage = !isPublic && course.pipelineStage === "published";
+    return {
+      writes: [
+        {
+          path: coursePath,
+          data: {
+            ...course,
+            isPublic,
+            ...(resetsPublishedStage ? {
+              pipelineStage: "draft",
+              pipelineStageUpdatedAt: updatedAt,
+              lastValidationDecision: null,
+              lastValidationSnapshotHash: null,
+            } : {}),
+            updatedAt,
+          },
+        },
+        ...lessonPaths.map((path) => {
+          const lesson = documents[path];
+          if (!lesson) throw new Error("A course lesson disappeared while updating visibility.");
+          return { path, data: { ...lesson, isPublic } };
+        }),
+      ],
+      result: undefined,
+    };
+  });
+}
+
+export async function updateCoursePipelineStage(
+  courseId: string,
+  nextStage: import("@/lib/course-pipeline/contract").CourseStage,
+  validation?: { decision: string; snapshotHash: string },
+) {
+  const { assertCourseStageTransition } = await import("@/lib/course-pipeline/state");
+  const path = `courses/${courseId}`;
+  return runStoredDocumentTransaction([path], (documents) => {
+    const course = documents[path];
+    if (!course) throw new Error("Course not found while updating its pipeline stage.");
+    const current = typeof course.pipelineStage === "string"
+      ? course.pipelineStage as import("@/lib/course-pipeline/contract").CourseStage
+      : "draft";
+    if (current === nextStage) return { writes: [], result: current };
+    assertCourseStageTransition(current, nextStage);
+    return {
+      writes: [{
+        path,
+        data: {
+          ...course,
+          pipelineStage: nextStage,
+          pipelineStageUpdatedAt: new Date().toISOString(),
+          lastValidationDecision: validation?.decision ?? course.lastValidationDecision ?? null,
+          lastValidationSnapshotHash: validation?.snapshotHash ?? course.lastValidationSnapshotHash ?? null,
+          updatedAt: course.updatedAt,
+        },
+      }],
+      result: nextStage,
+    };
+  });
+}
+
+export async function commitCourseValidationStage(
+  courseId: string,
+  expectedLessonIds: string[],
+  expectedFingerprints: { course: string; lessons: Record<string, string> },
+  nextStage: "needs_repair" | "ready_to_publish" | "manual_review",
+  validation: { decision: string; snapshotHash: string },
+) {
+  const { assertCourseStageTransition } = await import("@/lib/course-pipeline/state");
+  const coursePath = `courses/${courseId}`;
+  const lessonPaths = expectedLessonIds.map((lessonId) => `${coursePath}/lessons/${lessonId}`);
+  return runStoredDocumentTransaction([coursePath, ...lessonPaths], (documents) => {
+    const course = documents[coursePath];
+    if (!course) throw new Error("Course not found while committing validation.");
+    if (publicationContentFingerprint(course) !== expectedFingerprints.course) {
+      throw new Error("STALE_VALIDATION_SNAPSHOT: course changed during validation.");
+    }
+    for (const lessonId of expectedLessonIds) {
+      const lesson = documents[`${coursePath}/lessons/${lessonId}`];
+      if (publicationContentFingerprint(lesson) !== expectedFingerprints.lessons[lessonId]) {
+        throw new Error(`STALE_VALIDATION_SNAPSHOT: lesson ${lessonId} changed during validation.`);
+      }
+    }
+    const current = typeof course.pipelineStage === "string"
+      ? course.pipelineStage as import("@/lib/course-pipeline/contract").CourseStage
+      : "draft";
+    const manualResolution = course.manualReviewResolution as { status?: string; snapshotHash?: string } | undefined;
+    if (nextStage === "manual_review"
+      && manualResolution?.status === "approved"
+      && manualResolution.snapshotHash === validation.snapshotHash) {
+      if (current === "ready_to_publish") return { writes: [], result: current };
+      if (current !== "validating") assertCourseStageTransition(current, "validating");
+      assertCourseStageTransition("validating", "ready_to_publish");
+      const now = new Date().toISOString();
+      return {
+        writes: [{
+          path: coursePath,
+          data: {
+            ...course,
+            pipelineStage: "ready_to_publish",
+            pipelineStageUpdatedAt: now,
+            lastValidationDecision: "manual_review_approved",
+            lastValidationSnapshotHash: validation.snapshotHash,
+            updatedAt: course.updatedAt,
+          },
+        }],
+        result: "ready_to_publish" as const,
+      };
+    }
+    if (current !== "validating") assertCourseStageTransition(current, "validating");
+    assertCourseStageTransition("validating", nextStage);
+    const now = new Date().toISOString();
+    return {
+      writes: [{
+        path: coursePath,
+        data: {
+          ...course,
+          pipelineStage: nextStage,
+          pipelineStageUpdatedAt: now,
+          lastValidationDecision: validation.decision,
+          lastValidationSnapshotHash: validation.snapshotHash,
+          updatedAt: course.updatedAt,
+        },
+      }],
+      result: nextStage,
+    };
+  });
 }
 
 export async function publishCourseWithReview(
@@ -855,6 +987,12 @@ export async function publishCourseWithReview(
     sourceFingerprint: string;
     reviews: PublicationLessonReview[];
     ownerOverride?: PublicationOwnerOverride;
+    artifactSnapshotHash?: string;
+    qualityContractVersion?: string;
+    validationReport?: import("@/lib/course-pipeline/contract").ValidationReport;
+    publicationMutationKey?: string;
+    manualReviewResolutionId?: string;
+    publishPipelineStage?: boolean;
   },
 ) {
   const coursePath = `courses/${courseId}`;
@@ -862,10 +1000,27 @@ export async function publishCourseWithReview(
   const auditPath = review.ownerOverride
     ? `adminEvents/${review.ownerOverride.auditEventId}`
     : undefined;
+  const immutableReleaseEnabled = review.publishPipelineStage === true;
+  const releaseId = `${courseId}__${review.artifactSnapshotHash ?? review.outlineHash}`;
+  const releasePath = `courseReleases/${releaseId}`;
+  const releaseLessonPaths = expectedLessonIds.map((lessonId) => `courseReleases/${releaseId}/lessons/${lessonId}`);
   const reviewByLessonId = new Map(review.reviews.map((item) => [item.lessonId, item]));
-  await runStoredDocumentTransaction([coursePath, ...lessonPaths, ...(auditPath ? [auditPath] : [])], (documents) => {
+  await runStoredDocumentTransaction([
+    coursePath,
+    ...lessonPaths,
+    ...(immutableReleaseEnabled ? [releasePath, ...releaseLessonPaths] : []),
+    ...(auditPath ? [auditPath] : []),
+  ], (documents) => {
     const course = documents[coursePath];
     if (!course) throw new Error("Course not found.");
+    const previousMutation = course.publicationMutation as { key?: string; snapshotHash?: string } | undefined;
+    if (review.publicationMutationKey && previousMutation?.key === review.publicationMutationKey) {
+      if (previousMutation.snapshotHash !== review.artifactSnapshotHash) {
+        throw new Error("This publication retry key belongs to a different course snapshot.");
+      }
+      if (course.isPublic === true) return { writes: [], result: undefined };
+      throw new Error("IDEMPOTENCY_RESULT_SUPERSEDED: this publication was followed by an explicit unpublish action.");
+    }
     if (review.sourceUpdatedAt && course.updatedAt !== review.sourceUpdatedAt) {
       throw new Error("The course changed during publication review. Try publishing again.");
     }
@@ -874,6 +1029,28 @@ export async function publishCourseWithReview(
     }
     const now = new Date().toISOString();
     const writes: Array<{ path: string; data: Record<string, unknown> }> = [];
+    if (immutableReleaseEnabled) {
+      const storedRelease = documents[releasePath];
+      if (storedRelease && (storedRelease.snapshotHash !== review.artifactSnapshotHash
+        || storedRelease.courseFingerprint !== review.sourceFingerprint)) {
+        throw new Error("The immutable release record conflicts with this validated snapshot.");
+      }
+      if (!storedRelease) {
+        writes.push({
+          path: releasePath,
+          data: {
+            releaseId,
+            courseId,
+            snapshotHash: review.artifactSnapshotHash ?? null,
+            qualityContractVersion: review.qualityContractVersion ?? null,
+            courseFingerprint: review.sourceFingerprint,
+            course,
+            publishedBy: review.reviews[0]?.reviewedBy ?? null,
+            publishedAt: now,
+          },
+        });
+      }
+    }
     for (const lessonId of expectedLessonIds) {
       const path = `courses/${courseId}/lessons/${lessonId}`;
       const lesson = documents[path];
@@ -884,6 +1061,26 @@ export async function publishCourseWithReview(
       }
       if (publicationContentFingerprint(lesson) !== lessonReview.sourceFingerprint) {
         throw new Error("Lesson content changed during publication review. Try publishing again.");
+      }
+      if (immutableReleaseEnabled) {
+        const releaseLessonPath = `courseReleases/${releaseId}/lessons/${lessonId}`;
+        const storedReleaseLesson = documents[releaseLessonPath];
+        if (storedReleaseLesson && storedReleaseLesson.sourceFingerprint !== lessonReview.sourceFingerprint) {
+          throw new Error("An immutable released lesson conflicts with this validated snapshot.");
+        }
+        if (!storedReleaseLesson) {
+          writes.push({
+            path: releaseLessonPath,
+            data: {
+              releaseId,
+              courseId,
+              lessonId,
+              sourceFingerprint: lessonReview.sourceFingerprint,
+              lesson,
+              publishedAt: now,
+            },
+          });
+        }
       }
       const storedLessonReview = Object.fromEntries(
         Object.entries(lessonReview).filter(([key]) => key !== "sourceFingerprint"),
@@ -917,9 +1114,25 @@ export async function publishCourseWithReview(
           safetyReviewBasis: review.safetyReviewBasis,
           lessonCount: review.reviews.length,
           ownerOverrideEventId: review.ownerOverride?.auditEventId ?? null,
+          artifactSnapshotHash: review.artifactSnapshotHash ?? null,
+          qualityContractVersion: review.qualityContractVersion ?? null,
+          manualReviewResolutionId: review.manualReviewResolutionId ?? null,
+          validationReport: review.validationReport ?? null,
+          ...(immutableReleaseEnabled ? { releaseId } : {}),
         },
+        publicationMutation: review.publicationMutationKey ? {
+          key: review.publicationMutationKey,
+          target: "published",
+          snapshotHash: review.artifactSnapshotHash ?? null,
+          completedAt: now,
+        } : null,
         factualReviewStatus: review.factualReviewStatus,
         publishedAt: now,
+        ...(immutableReleaseEnabled ? { publishedReleaseId: releaseId } : {}),
+        ...(review.publishPipelineStage ? {
+          pipelineStage: "published",
+          pipelineStageUpdatedAt: now,
+        } : {}),
         updatedAt: now,
       },
     });
@@ -943,6 +1156,352 @@ export async function publishCourseWithReview(
       });
     }
     return { writes, result: undefined };
+  });
+}
+
+export async function saveCourseManualReviewResolution(
+  courseId: string,
+  expectedLessonIds: string[],
+  expected: {
+    courseFingerprint: string;
+    lessonFingerprints: Record<string, string>;
+    manualReviewResolutionId?: string;
+  },
+  resolution: {
+    status: "approved" | "rejected";
+    snapshotHash: string;
+    contractVersion: string;
+    reason: string;
+    reviewedAt: string;
+    reviewId: string;
+    reviewerUid: string;
+    idempotencyKey: string;
+    verifiedSourceIds: string[];
+    mutationId: string;
+  },
+) {
+  const { assertCourseStageTransition } = await import("@/lib/course-pipeline/state");
+  const coursePath = `courses/${courseId}`;
+  const lessonPaths = expectedLessonIds.map((lessonId) => `courses/${courseId}/lessons/${lessonId}`);
+  const auditPath = `adminEvents/${resolution.reviewId}`;
+  const mutationPath = `courseManualReviewMutations/${resolution.mutationId}`;
+  return runStoredDocumentTransaction([coursePath, ...lessonPaths, auditPath, mutationPath], (documents) => {
+    const course = documents[coursePath];
+    if (!course) throw new Error("Course not found.");
+    if (course.isPublic === true) throw new Error("Unpublish this course before changing its manual-review resolution.");
+    const mutation = documents[mutationPath] as { resolution?: typeof resolution } | undefined;
+    if (mutation?.resolution) {
+      const stored = mutation.resolution;
+      if (stored.snapshotHash !== resolution.snapshotHash
+        || stored.status !== resolution.status
+        || stored.contractVersion !== resolution.contractVersion
+        || stored.reason !== resolution.reason
+        || JSON.stringify(stored.verifiedSourceIds ?? []) !== JSON.stringify(resolution.verifiedSourceIds)) {
+        throw new Error("This manual-review retry key belongs to a different decision or snapshot.");
+      }
+      const reconcilesApprovedStage = stored.status === "approved"
+        && course.pipelineStage === "manual_review"
+        && (course.manualReviewResolution as { reviewId?: string } | undefined)?.reviewId === stored.reviewId;
+      return {
+        writes: reconcilesApprovedStage ? [{
+          path: coursePath,
+          data: {
+            ...course,
+            pipelineStage: "ready_to_publish",
+            pipelineStageUpdatedAt: stored.reviewedAt,
+            lastValidationDecision: "manual_review_approved",
+            lastValidationSnapshotHash: stored.snapshotHash,
+          },
+        }] : [],
+        result: { recovered: true, resolution: stored },
+      };
+    }
+    const currentResolution = course.manualReviewResolution as { reviewId?: string } | undefined;
+    if ((currentResolution?.reviewId ?? undefined) !== expected.manualReviewResolutionId) {
+      throw new Error("The manual-review decision changed while this decision was being saved. Reload the current review state.");
+    }
+    if (course.pipelineStage !== "manual_review") {
+      throw new Error("Validate this exact draft before recording a manual-review decision.");
+    }
+    if (resolution.status === "approved") {
+      assertCourseStageTransition("manual_review", "ready_to_publish");
+    }
+    if (publicationContentFingerprint(course) !== expected.courseFingerprint) {
+      throw new Error("The course changed during manual review. Validate the current draft again.");
+    }
+    for (const lessonId of expectedLessonIds) {
+      const lesson = documents[`courses/${courseId}/lessons/${lessonId}`];
+      if (!lesson || publicationContentFingerprint(lesson) !== expected.lessonFingerprints[lessonId]) {
+        throw new Error("A lesson changed during manual review. Validate the current draft again.");
+      }
+    }
+    return {
+      writes: [
+        {
+          path: coursePath,
+          data: {
+            ...course,
+            manualReviewResolution: resolution,
+            ...(resolution.status === "approved" ? {
+              pipelineStage: "ready_to_publish",
+              pipelineStageUpdatedAt: resolution.reviewedAt,
+              lastValidationDecision: "manual_review_approved",
+              lastValidationSnapshotHash: resolution.snapshotHash,
+            } : {}),
+            updatedAt: resolution.reviewedAt,
+          },
+        },
+        {
+          path: auditPath,
+          data: {
+            actorUid: resolution.reviewerUid,
+            courseId,
+            action: `course_manual_review_${resolution.status}`,
+            reason: resolution.reason,
+            snapshotHash: resolution.snapshotHash,
+            contractVersion: resolution.contractVersion,
+            verifiedSourceIds: resolution.verifiedSourceIds,
+            createdAt: resolution.reviewedAt,
+          },
+        },
+        {
+          path: mutationPath,
+          data: {
+            courseId,
+            resolution,
+            createdAt: resolution.reviewedAt,
+          },
+        },
+      ],
+      result: { recovered: false, resolution },
+    };
+  });
+}
+
+type DeterministicRepairOperation = import("@/lib/course-pipeline/contract").RepairOperation & {
+  operation: "remove";
+};
+
+function repairArrayTarget(targetPath: string) {
+  const match = /^lessons\["([0-9]+-[0-9]+)"\]\.(interactions|visuals)\[(\d+)\]$/.exec(targetPath);
+  if (!match) throw new Error(`Unsupported deterministic repair target: ${targetPath}`);
+  return { lessonId: match[1], field: match[2] as "interactions" | "visuals", index: Number(match[3]) };
+}
+
+export async function applyDeterministicCourseRepair(
+  courseId: string,
+  expectedLessonIds: string[],
+  expected: { courseFingerprint: string; lessonFingerprints: Record<string, string> },
+  operations: DeterministicRepairOperation[],
+  metadata: {
+    repairId: string;
+    idempotencyKey: string;
+    actorUid: string;
+    baseSnapshotHash: string;
+    contractVersion: string;
+    appliedAt: string;
+    requestedIssueCodes: string[];
+    attemptLimit: number;
+  },
+) {
+  const coursePath = `courses/${courseId}`;
+  const affectedLessonIds = Array.from(new Set(operations.map((operation) => repairArrayTarget(operation.targetPath).lessonId)));
+  if (!affectedLessonIds.length || affectedLessonIds.some((lessonId) => !expectedLessonIds.includes(lessonId))) {
+    throw new Error("The repair plan does not target a current course lesson.");
+  }
+  const lessonPaths = affectedLessonIds.map((lessonId) => `courses/${courseId}/lessons/${lessonId}`);
+  const repairPath = `courseRepairs/${metadata.repairId}`;
+  return runStoredDocumentTransaction([coursePath, ...lessonPaths, repairPath], (documents) => {
+    const course = documents[coursePath];
+    if (!course) throw new Error("Course not found.");
+    if (course.isPublic === true) throw new Error("Unpublish this course before repairing its draft.");
+    const previous = course.lastRepair as { idempotencyKey?: string; repairId?: string; baseSnapshotHash?: string; requestedIssueCodes?: string[] } | undefined;
+    if (previous?.idempotencyKey === metadata.idempotencyKey) {
+      if (previous.baseSnapshotHash !== metadata.baseSnapshotHash) {
+        throw new Error("This repair retry key belongs to a different course snapshot.");
+      }
+      if (JSON.stringify(previous.requestedIssueCodes ?? []) !== JSON.stringify(metadata.requestedIssueCodes)) {
+        throw new Error("This repair retry key belongs to a different issue selection.");
+      }
+      return { writes: [], result: { recovered: true, repairId: String(previous.repairId), attempt: 0 } };
+    }
+    if (publicationContentFingerprint(course) !== expected.courseFingerprint) {
+      throw new Error("The course changed after repair was planned. Validate the current draft again.");
+    }
+    const priorAttempts = course.repairAttemptsByIssue && typeof course.repairAttemptsByIssue === "object"
+      ? course.repairAttemptsByIssue as Record<string, unknown>
+      : {};
+    const issueCodes = Array.from(new Set(operations.map((operation) => operation.issueCode)));
+    const attemptKey = (issueCode: string) => `${issueCode}:${metadata.baseSnapshotHash}`;
+    const exhaustedCode = issueCodes.find((issueCode) => Number(priorAttempts[attemptKey(issueCode)] ?? 0) >= metadata.attemptLimit);
+    if (exhaustedCode) {
+      throw new Error(`REPAIR_ATTEMPT_LIMIT_EXHAUSTED: ${exhaustedCode} already reached its automatic repair limit.`);
+    }
+    const nextAttempts = {
+      ...priorAttempts,
+      ...Object.fromEntries(issueCodes.map((issueCode) => [attemptKey(issueCode), Number(priorAttempts[attemptKey(issueCode)] ?? 0) + 1])),
+    };
+    const nextLessons = new Map<string, Record<string, unknown>>();
+    const undoOperations: Array<{ targetPath: string; value: unknown }> = [];
+    const appliedOperations: DeterministicRepairOperation[] = [];
+    const sortedOperations = [...operations].sort((left, right) => {
+      const leftTarget = repairArrayTarget(left.targetPath);
+      const rightTarget = repairArrayTarget(right.targetPath);
+      return leftTarget.lessonId.localeCompare(rightTarget.lessonId)
+        || leftTarget.field.localeCompare(rightTarget.field)
+        || rightTarget.index - leftTarget.index;
+    });
+    for (const operation of sortedOperations) {
+      const target = repairArrayTarget(operation.targetPath);
+      if (
+        (operation.issueCode !== "CQ_LAB_001" || target.field !== "interactions")
+        && (operation.issueCode !== "CQ_VISUAL_003" || target.field !== "visuals")
+      ) throw new Error(`Repair rule ${operation.issueCode} cannot modify ${target.field}.`);
+      const lessonPath = `courses/${courseId}/lessons/${target.lessonId}`;
+      const storedLesson = documents[lessonPath];
+      if (!storedLesson) throw new Error("A lesson is missing from the repair transaction.");
+      if (publicationContentFingerprint(storedLesson) !== expected.lessonFingerprints[target.lessonId]) {
+        throw new Error("A lesson changed after repair was planned. Validate the current draft again.");
+      }
+      const lesson = nextLessons.get(target.lessonId) ?? { ...storedLesson };
+      const items = Array.isArray(lesson[target.field]) ? [...lesson[target.field] as unknown[]] : [];
+      if (target.index < 0 || target.index >= items.length) throw new Error("The diagnosed repair target no longer exists.");
+      const [removed] = items.splice(target.index, 1);
+      undoOperations.push({ targetPath: operation.targetPath, value: removed });
+      appliedOperations.push({ ...operation, beforeHash: publicationContentFingerprint(removed) });
+      lesson[target.field] = items;
+      lesson.updatedAt = metadata.appliedAt;
+      nextLessons.set(target.lessonId, lesson);
+    }
+    const afterFingerprints = Object.fromEntries([...nextLessons].map(([lessonId, lesson]) => [
+      lessonId,
+      publicationContentFingerprint(lesson),
+    ]));
+    return {
+      writes: [
+        ...[...nextLessons].map(([lessonId, lesson]) => ({
+          path: `courses/${courseId}/lessons/${lessonId}`,
+          data: lesson,
+        })),
+        {
+          path: coursePath,
+          data: {
+            ...course,
+            lastRepair: {
+              repairId: metadata.repairId,
+              idempotencyKey: metadata.idempotencyKey,
+              baseSnapshotHash: metadata.baseSnapshotHash,
+              requestedIssueCodes: metadata.requestedIssueCodes,
+              status: "applied",
+              appliedAt: metadata.appliedAt,
+            },
+            repairAttemptsByIssue: nextAttempts,
+            updatedAt: metadata.appliedAt,
+          },
+        },
+        {
+          path: repairPath,
+          data: {
+            courseId,
+            actorUid: metadata.actorUid,
+            status: "applied",
+            baseSnapshotHash: metadata.baseSnapshotHash,
+            contractVersion: metadata.contractVersion,
+            idempotencyKey: metadata.idempotencyKey,
+            requestedIssueCodes: metadata.requestedIssueCodes,
+            operations: appliedOperations,
+            undoOperations,
+            afterFingerprints,
+            appliedAt: metadata.appliedAt,
+          },
+        },
+      ],
+      result: {
+        recovered: false,
+        repairId: metadata.repairId,
+        attempt: Math.max(...issueCodes.map((issueCode) => Number(nextAttempts[attemptKey(issueCode)] ?? 1))),
+      },
+    };
+  });
+}
+
+export async function undoDeterministicCourseRepair(
+  courseId: string,
+  expectedLessonIds: string[],
+  repairId: string,
+  idempotencyKey: string,
+  actorUid: string,
+  undoneAt: string,
+) {
+  const coursePath = `courses/${courseId}`;
+  const repairPath = `courseRepairs/${repairId}`;
+  const repair = await getStoredDocument(repairPath);
+  if (!repair || repair.courseId !== courseId) throw new Error("Repair record not found.");
+  const afterFingerprints = repair.afterFingerprints as Record<string, string> | undefined;
+  const undoOperations = Array.isArray(repair.undoOperations)
+    ? repair.undoOperations as Array<{ targetPath: string; value: unknown }>
+    : [];
+  const affectedLessonIds = Array.from(new Set(undoOperations.map((operation) => repairArrayTarget(operation.targetPath).lessonId)));
+  if (!afterFingerprints || !affectedLessonIds.length || affectedLessonIds.some((lessonId) => !expectedLessonIds.includes(lessonId))) {
+    throw new Error("Repair record cannot be undone safely.");
+  }
+  const lessonPaths = affectedLessonIds.map((lessonId) => `courses/${courseId}/lessons/${lessonId}`);
+  return runStoredDocumentTransaction([coursePath, ...lessonPaths, repairPath], (documents) => {
+    const course = documents[coursePath];
+    const currentRepair = documents[repairPath];
+    if (!course || !currentRepair) throw new Error("Repair record not found.");
+    if (course.isPublic === true) throw new Error("Unpublish this course before undoing a repair.");
+    if (currentRepair.status === "undone") {
+      if (currentRepair.undoIdempotencyKey !== idempotencyKey) throw new Error("This repair was already undone by another request.");
+      return { writes: [], result: true };
+    }
+    if (currentRepair.status !== "applied") throw new Error("Only an applied repair can be undone.");
+    const nextLessons = new Map<string, Record<string, unknown>>();
+    const sortedUndo = [...undoOperations].sort((left, right) => {
+      const leftTarget = repairArrayTarget(left.targetPath);
+      const rightTarget = repairArrayTarget(right.targetPath);
+      return leftTarget.lessonId.localeCompare(rightTarget.lessonId)
+        || leftTarget.field.localeCompare(rightTarget.field)
+        || leftTarget.index - rightTarget.index;
+    });
+    for (const operation of sortedUndo) {
+      const target = repairArrayTarget(operation.targetPath);
+      const path = `courses/${courseId}/lessons/${target.lessonId}`;
+      const storedLesson = documents[path];
+      if (!storedLesson || publicationContentFingerprint(storedLesson) !== afterFingerprints[target.lessonId]) {
+        throw new Error("A repaired lesson changed after the repair. Undo cannot overwrite newer edits.");
+      }
+      const lesson = nextLessons.get(target.lessonId) ?? { ...storedLesson };
+      const items = Array.isArray(lesson[target.field]) ? [...lesson[target.field] as unknown[]] : [];
+      items.splice(target.index, 0, operation.value);
+      lesson[target.field] = items;
+      lesson.updatedAt = undoneAt;
+      nextLessons.set(target.lessonId, lesson);
+    }
+    return {
+      writes: [
+        ...[...nextLessons].map(([lessonId, lesson]) => ({ path: `courses/${courseId}/lessons/${lessonId}`, data: lesson })),
+        {
+          path: coursePath,
+          data: {
+            ...course,
+            lastRepair: { repairId, idempotencyKey, status: "undone", undoneAt },
+            updatedAt: undoneAt,
+          },
+        },
+        {
+          path: repairPath,
+          data: {
+            ...currentRepair,
+            status: "undone",
+            undoneAt,
+            undoneBy: actorUid,
+            undoIdempotencyKey: idempotencyKey,
+          },
+        },
+      ],
+      result: false,
+    };
   });
 }
 
@@ -983,9 +1542,10 @@ export async function getCoursePublishReadiness(
   expectedLessonIds: string[],
   topic: string,
   expectedModesByLessonId: Readonly<Record<string, import("@/lib/course-types").LessonMode | undefined>> = {},
+  instructionLanguage = "English",
 ) {
   const lessons = await listLessons(courseId);
-  return inspectCoursePublishReadiness(lessons, expectedLessonIds, topic, expectedModesByLessonId);
+  return inspectCoursePublishReadiness(lessons, expectedLessonIds, topic, expectedModesByLessonId, instructionLanguage);
 }
 
 export async function deleteCourse(courseId: string) {
@@ -1009,6 +1569,13 @@ export async function deleteCourse(courseId: string) {
     masteryEvidenceDocuments,
     contentReportDocuments,
     outcomeFeedbackDocuments,
+    releaseDocuments,
+    releasedLessonDocuments,
+    repairDocuments,
+    pipelineEventDocuments,
+    manualReviewMutationDocuments,
+    lessonInteractionDocuments,
+    lessonInteractionMutationDocuments,
   ] = await Promise.all([
     listLessons(courseId),
     courseScopedDocuments(COURSE_SCOPED_COLLECTION_GROUPS.progress),
@@ -1043,6 +1610,13 @@ export async function deleteCourse(courseId: string) {
     courseScopedDocuments(COURSE_SCOPED_COLLECTION_GROUPS.masteryEvidence),
     courseScopedDocuments(COURSE_SCOPED_COLLECTION_GROUPS.contentReports),
     courseScopedDocuments(COURSE_SCOPED_COLLECTION_GROUPS.outcomeFeedback),
+    courseScopedDocuments(COURSE_SCOPED_COLLECTION_GROUPS.releases),
+    courseScopedDocuments(COURSE_SCOPED_COLLECTION_GROUPS.releasedLessons),
+    courseScopedDocuments(COURSE_SCOPED_COLLECTION_GROUPS.repairs),
+    courseScopedDocuments(COURSE_SCOPED_COLLECTION_GROUPS.pipelineEvents),
+    courseScopedDocuments(COURSE_SCOPED_COLLECTION_GROUPS.manualReviewMutations),
+    courseScopedDocuments(COURSE_SCOPED_COLLECTION_GROUPS.lessonInteractions),
+    courseScopedDocuments(COURSE_SCOPED_COLLECTION_GROUPS.lessonInteractionMutations),
   ]);
 
   const updatedAt = new Date().toISOString();
@@ -1072,6 +1646,15 @@ export async function deleteCourse(courseId: string) {
     ...masteryEvidenceDocuments.map(({ path }) => ({ delete: fullDocumentName(path) })),
     ...contentReportDocuments.map(({ path }) => ({ delete: fullDocumentName(path) })),
     ...outcomeFeedbackDocuments.map(({ path }) => ({ delete: fullDocumentName(path) })),
+    ...releasedLessonDocuments
+      .filter(({ path }) => path.startsWith("courseReleases/"))
+      .map(({ path }) => ({ delete: fullDocumentName(path) })),
+    ...releaseDocuments.map(({ path }) => ({ delete: fullDocumentName(path) })),
+    ...repairDocuments.map(({ path }) => ({ delete: fullDocumentName(path) })),
+    ...pipelineEventDocuments.map(({ path }) => ({ delete: fullDocumentName(path) })),
+    ...manualReviewMutationDocuments.map(({ path }) => ({ delete: fullDocumentName(path) })),
+    ...lessonInteractionDocuments.map(({ path }) => ({ delete: fullDocumentName(path) })),
+    ...lessonInteractionMutationDocuments.map(({ path }) => ({ delete: fullDocumentName(path) })),
     ...preferenceUpdates,
   ];
 
@@ -1089,5 +1672,12 @@ export async function deleteCourse(courseId: string) {
     masteryEvidence: masteryEvidenceDocuments.length,
     contentReports: contentReportDocuments.length,
     outcomeFeedback: outcomeFeedbackDocuments.length,
+    releases: releaseDocuments.length,
+    releasedLessons: releasedLessonDocuments.filter(({ path }) => path.startsWith("courseReleases/")).length,
+    repairs: repairDocuments.length,
+    pipelineEvents: pipelineEventDocuments.length,
+    manualReviewMutations: manualReviewMutationDocuments.length,
+    lessonInteractions: lessonInteractionDocuments.length,
+    lessonInteractionMutations: lessonInteractionMutationDocuments.length,
   };
 }

@@ -29,7 +29,7 @@ export function issueActivityReceipt(claims: ActivityReceiptClaims) {
 
 export function verifyActivityReceipt(
   receipt: string,
-  expected: Pick<ActivityReceiptClaims, "uid" | "courseId" | "lessonId" | "quizIndex">,
+  expected: Pick<ActivityReceiptClaims, "uid" | "courseId" | "lessonId" | "quizIndex" | "artifactHash">,
   now = Date.now(),
 ) {
   return validateActivityReceipt(receiptSecret(), receipt, expected, now);

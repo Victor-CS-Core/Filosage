@@ -1,9 +1,11 @@
 import { NextResponse } from "next/server";
 import { authorizationResponse, requireAccount } from "@/lib/auth-server";
-import { listOwnerCourses, listPublicCourses } from "@/lib/firebase-server";
+import { getStoredDocument, listOwnerCourses, listPublicCourses } from "@/lib/firebase-server";
 import { toCourseDto } from "@/lib/course-dto";
 import { planAllows } from "@/lib/membership-plans";
 import { getAiQuotaSummaries } from "@/lib/ai-usage";
+import { safeModelErrorDetails } from "@/lib/model-fallback";
+import { courseUsesPipelineV2 } from "@/lib/course-pipeline/feature-policy";
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
@@ -12,8 +14,21 @@ export async function GET(request: Request) {
   try {
     if (scope === "public") {
       const courses = await listPublicCourses();
+      const releaseCourses = await Promise.all(courses.map(async (course) => {
+        if (typeof course.publishedReleaseId !== "string") {
+          return courseUsesPipelineV2(course) ? null : course;
+        }
+        const release = await getStoredDocument(`courseReleases/${course.publishedReleaseId}`);
+        if (!release?.course || typeof release.course !== "object") return null;
+        return {
+          ...(release.course as Record<string, unknown>),
+          id: course.id,
+          isPublic: true,
+          publishedAt: release.publishedAt ?? course.publishedAt,
+        };
+      }));
       return NextResponse.json(
-        { courses: courses.map((course) => toCourseDto(course)) },
+        { courses: releaseCourses.filter((course): course is NonNullable<typeof course> => Boolean(course)).map((course) => toCourseDto(course)) },
         { headers: { "Cache-Control": "public, max-age=60, s-maxage=300, stale-while-revalidate=3600" } },
       );
     }
@@ -30,7 +45,7 @@ export async function GET(request: Request) {
   } catch (error: unknown) {
     const authResponse = authorizationResponse(error);
     if (authResponse) return authResponse;
-    console.error("Course listing failed:", error);
+    console.error(JSON.stringify({ event: "course_listing_failed", ...safeModelErrorDetails(error) }));
     return NextResponse.json({ error: "Courses are temporarily unavailable." }, { status: 500 });
   }
 }

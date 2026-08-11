@@ -1,5 +1,6 @@
 import type { LessonVisual } from "@/lib/lesson-visuals";
 import type { LessonInteraction } from "@/lib/lesson-interactions";
+import type { CourseStage } from "@/lib/course-pipeline/contract";
 
 export type LessonMode =
   | "concept"
@@ -8,6 +9,14 @@ export type LessonMode =
   | "case-study"
   | "practice-lab"
   | "synthesis";
+
+export type LessonKind =
+  | "substantive"
+  | "introduction"
+  | "review"
+  | "glossary"
+  | "reference"
+  | "capstone";
 
 export type PracticeType =
   | "explain"
@@ -40,6 +49,7 @@ export type LessonExperience =
 export interface LessonSummary {
   title: string;
   concept: string;
+  lessonKind?: LessonKind;
   estimatedMinutes?: number;
   objective?: string;
   lessonMode?: LessonMode;
@@ -49,16 +59,19 @@ export interface LessonSummary {
   masteryCriteria?: string;
   activityPreview?: string;
   artifactContribution?: string;
+  objectiveId?: string;
 }
 
 export interface CourseModule {
   title: string;
   description?: string;
   objective?: string;
+  objectiveId?: string;
   challenge?: {
     title: string;
     prompt: string;
     successCriteria: string[];
+    objectiveIds?: string[];
   };
   milestone?: {
     title: string;
@@ -80,6 +93,12 @@ export interface Course {
   topic: string;
   mission?: string;
   modules: CourseModule[];
+  objectives?: Array<{
+    id: string;
+    description: string;
+    level: "course" | "module" | "lesson";
+    required: boolean;
+  }>;
   /** Server-side ownership field. Public API responses omit this value. */
   authorId?: string;
   authorName?: string;
@@ -91,6 +110,33 @@ export interface Course {
   prerequisites?: string[];
   category?: string;
   audience?: string;
+  language?: string;
+  freshnessRequired?: boolean;
+  pipelineCorrelationId?: string;
+  pipelineStage?: CourseStage;
+  pipelineStageUpdatedAt?: string;
+  publishedReleaseId?: string;
+  courseSchemaVersion?: number;
+  qualityContractVersion?: string;
+  generationPromptVersion?: string;
+  repairPromptVersion?: string;
+  semanticEvaluatorVersion?: string;
+  semanticEvaluatorStatus?: "executed" | "not_executed";
+  repairPromptStatus?: "executed" | "not_executed";
+  generationProvider?: string;
+  labRegistryVersion?: string;
+  visualPolicyVersion?: string;
+  sourcePolicyVersion?: string;
+  manualReviewPolicy?: { version: string; required: boolean; reasonCodes: string[] };
+  manualReviewResolution?: {
+    status: "approved" | "rejected";
+    snapshotHash: string;
+    contractVersion: string;
+    reason: string;
+    reviewedAt: string;
+    reviewId: string;
+    verifiedSourceIds?: string[];
+  };
   artifact?: { title: string; description: string; format: string };
   scenario?: { title: string; context: string; stakes: string };
   sourcePack?: CourseSource[];
@@ -114,6 +160,7 @@ export interface Course {
     brief: string;
     deliverable: string;
     successCriteria: string[];
+    objectiveIds?: string[];
   };
   milestone?: {
     title: string;
@@ -131,13 +178,16 @@ export interface Quiz {
   correctIndex: number;
   explanation: string;
   optionFeedback?: string[];
+  objectiveIds?: string[];
 }
 
 export interface LessonData {
   content: string;
   quizzes: Quiz[];
+  lessonKind?: LessonKind;
   aiAssisted?: boolean;
   learningObjective?: string;
+  objectiveIds?: string[];
   connection?: string;
   keyTakeaways?: string[];
   experience?: LessonExperience;
@@ -148,6 +198,22 @@ export interface LessonData {
   visuals?: LessonVisual[];
   /** Safe, optional practice widgets selected from the app's interaction grammar. */
   interactions?: LessonInteraction[];
+  labPlan?: {
+    applicability: "required" | "recommended" | "not_applicable";
+    rationale: string;
+    objectiveIds: string[];
+    registryVersion: string;
+  };
+  visualPlan?: {
+    applicability: "essential" | "helpful" | "decorative_only" | "not_useful";
+    rationale: string;
+    objectiveIds: string[];
+    policyVersion: string;
+    accessibleFallback?: {
+      kind: "text" | "table";
+      content: string;
+    };
+  };
   guidedPractice?: {
     prompt: string;
     steps: string[];
@@ -166,6 +232,15 @@ export interface LessonData {
     qualityGateVersion?: string;
     interactionQualityGateVersion?: string;
     sources: Array<{ label: string; url?: string }>;
+    qualityContractVersion?: string;
+    repairPromptVersion?: string;
+    semanticEvaluatorVersion?: string;
+    semanticEvaluatorStatus?: "executed" | "not_executed";
+    repairPromptStatus?: "executed" | "not_executed";
+    generationProvider?: string;
+    labRegistryVersion?: string;
+    visualPolicyVersion?: string;
+    sourcePolicyVersion?: string;
   };
 }
 

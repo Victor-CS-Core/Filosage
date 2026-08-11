@@ -8,6 +8,7 @@ interface LessonVisualBase {
   title: string;
   summary: string;
   version: 1;
+  objectiveIds?: string[];
 }
 
 export interface ConceptContrastVisual extends LessonVisualBase {
@@ -60,6 +61,7 @@ const base = {
   title: label,
   summary: z.string().trim().min(1).max(180),
   version: z.literal(1),
+  objectiveIds: z.array(z.string().trim().regex(/^objective-[a-z0-9-]+$/)).min(1).max(5).optional(),
 };
 
 export const lessonVisualSchema = z.discriminatedUnion("type", [
@@ -150,8 +152,9 @@ function editorialPriority(visual: LessonVisual, context: LessonVisualContext | 
 }
 
 /**
- * Stored visual data is always treated as optional enrichment. Invalid,
- * repetitive, or crowded entries disappear while the lesson remains usable.
+ * Curation keeps only renderable registered visuals. The stored V2 visual
+ * applicability plan, not this renderer helper, decides whether a missing
+ * visual is an essential blocker or an optional enrichment warning.
  */
 export function curateLessonVisuals(value: unknown, context?: LessonVisualContext): LessonVisual[] {
   if (!Array.isArray(value)) return [];

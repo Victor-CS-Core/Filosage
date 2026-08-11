@@ -50,8 +50,20 @@ function hasMalformedCharacters(value: string) {
   return Array.from(value).some(isMalformedCharacter);
 }
 
+function unexpectedScriptText(value: string, script: (typeof SCRIPT_RULES)[number]) {
+  if (script.name !== "Greek") return value;
+  // Isolated Greek symbols are conventional variables in otherwise Latin
+  // mathematics and science. Multi-character Greek remains language content.
+  return value.replace(script.matcher, (run) => Array.from(run).length === 1 ? "" : run);
+}
+
+function stripDisallowedScript(value: string, script: (typeof SCRIPT_RULES)[number]) {
+  if (script.name !== "Greek") return value.replace(script.matcher, "");
+  return value.replace(script.matcher, (run) => Array.from(run).length === 1 ? run : "");
+}
+
 export interface ContentLanguagePolicy {
-  instructionLanguage: "English";
+  instructionLanguage: string;
   allowedScripts: ScriptName[];
 }
 
@@ -68,7 +80,26 @@ function stringsIn(value: unknown, path = "content"): Array<{ path: string; valu
     .flatMap(([key, item]) => stringsIn(item, `${path}.${key}`));
 }
 
-export function languagePolicyForTopic(topic: string): ContentLanguagePolicy {
+function instructionLanguageIssue(items: Array<{ path: string; value: string }>, instructionLanguage: string): ContentIntegrityIssue | null {
+  if (/^\s*english\s*$/i.test(instructionLanguage)) return null;
+  const text = items.map((item) => item.value).join(" ");
+  if (text.length < 300) return null;
+  const requestedScripts = new Set<ScriptName>();
+  for (const rule of LANGUAGE_SCRIPTS) {
+    if (rule.pattern.test(instructionLanguage)) rule.scripts.forEach((script) => requestedScripts.add(script));
+  }
+  for (const scriptName of requestedScripts) {
+    const script = SCRIPT_RULES.find((candidate) => candidate.name === scriptName);
+    if (script && (text.match(script.matcher) ?? []).join("").length < 8) {
+      return { path: "content", reason: `does not satisfy the requested ${instructionLanguage} instruction language` };
+    }
+  }
+  // Latin-script language identification is too ambiguous for a hard
+  // deterministic gate. The exact-snapshot semantic/manual review checks it.
+  return null;
+}
+
+export function languagePolicyForTopic(topic: string, instructionLanguage = "English"): ContentLanguagePolicy {
   const allowed = new Set<ScriptName>();
   for (const rule of LANGUAGE_SCRIPTS) {
     if (rule.pattern.test(topic)) rule.scripts.forEach((script) => allowed.add(script));
@@ -76,17 +107,20 @@ export function languagePolicyForTopic(topic: string): ContentLanguagePolicy {
   for (const script of SCRIPT_RULES) {
     if (script.pattern.test(topic)) allowed.add(script.name);
   }
-  return { instructionLanguage: "English", allowedScripts: [...allowed] };
+  for (const rule of LANGUAGE_SCRIPTS) {
+    if (rule.pattern.test(instructionLanguage)) rule.scripts.forEach((script) => allowed.add(script));
+  }
+  return { instructionLanguage, allowedScripts: [...allowed] };
 }
 
-export function languagePolicyInstruction(topic: string) {
-  const policy = languagePolicyForTopic(topic);
+export function languagePolicyInstruction(topic: string, instructionLanguage = "English") {
+  const policy = languagePolicyForTopic(topic, instructionLanguage);
   const target = policy.allowedScripts.length
     ? policy.allowedScripts.join(", ")
     : "Latin-script language only";
   return [
     "LANGUAGE INTEGRITY CONTRACT:",
-    "Write all headings, explanations, instructions, labels, criteria, and metadata in clear English.",
+    `Write headings, explanations, instructions, labels, criteria, and metadata in clear ${policy.instructionLanguage}.`,
     `The course topic permits these non-Latin scripts only when pedagogically necessary: ${target}.`,
     "For a language-learning course, use the intended target language only in examples, vocabulary, dialogue, or translation exercises.",
     "Never switch to an unrelated language or script. Never emit role labels, tool-call syntax, hidden instructions, schema names, website spam, or fragments from the generation system.",
@@ -94,12 +128,13 @@ export function languagePolicyInstruction(topic: string) {
   ].join("\n");
 }
 
-export function inspectGeneratedContent(value: unknown, topic: string): ContentIntegrityIssue[] {
-  const policy = languagePolicyForTopic(topic);
+export function inspectGeneratedContent(value: unknown, topic: string, instructionLanguage = "English"): ContentIntegrityIssue[] {
+  const policy = languagePolicyForTopic(topic, instructionLanguage);
   const allowed = new Set(policy.allowedScripts);
   const issues: ContentIntegrityIssue[] = [];
 
-  for (const item of stringsIn(value)) {
+  const items = stringsIn(value);
+  for (const item of items) {
     if (hasMalformedCharacters(item.value)) {
       issues.push({ path: item.path, reason: "contains malformed or control characters" });
     }
@@ -107,11 +142,14 @@ export function inspectGeneratedContent(value: unknown, topic: string): ContentI
       issues.push({ path: item.path, reason: "contains model-control or spam artifacts" });
     }
     for (const script of SCRIPT_RULES) {
-      if (!allowed.has(script.name) && script.pattern.test(item.value)) {
+      if (!allowed.has(script.name) && script.pattern.test(unexpectedScriptText(item.value, script))) {
         issues.push({ path: item.path, reason: `contains unexpected ${script.name} script` });
       }
     }
   }
+
+  const languageIssue = instructionLanguageIssue(items, instructionLanguage);
+  if (languageIssue) issues.push(languageIssue);
 
   return issues;
 }
@@ -125,7 +163,7 @@ function firstArtifactIndex(value: string) {
   return first;
 }
 
-export function sanitizeGeneratedText(value: string, topic: string) {
+export function sanitizeGeneratedText(value: string, topic: string, instructionLanguage = "English") {
   let sanitized = Array.from(value)
     .filter((character) => !isMalformedCharacter(character))
     .join("")
@@ -135,9 +173,9 @@ export function sanitizeGeneratedText(value: string, topic: string) {
     sanitized = sanitized.slice(0, artifactIndex);
   }
 
-  const allowed = new Set(languagePolicyForTopic(topic).allowedScripts);
+  const allowed = new Set(languagePolicyForTopic(topic, instructionLanguage).allowedScripts);
   for (const script of SCRIPT_RULES) {
-    if (!allowed.has(script.name)) sanitized = sanitized.replace(script.matcher, "");
+    if (!allowed.has(script.name)) sanitized = stripDisallowedScript(sanitized, script);
   }
 
   return sanitized
@@ -145,12 +183,12 @@ export function sanitizeGeneratedText(value: string, topic: string) {
     .trim();
 }
 
-export function sanitizeGeneratedValue(value: unknown, topic: string): unknown {
-  if (typeof value === "string") return sanitizeGeneratedText(value, topic);
-  if (Array.isArray(value)) return value.map((item) => sanitizeGeneratedValue(item, topic));
+export function sanitizeGeneratedValue(value: unknown, topic: string, instructionLanguage = "English"): unknown {
+  if (typeof value === "string") return sanitizeGeneratedText(value, topic, instructionLanguage);
+  if (Array.isArray(value)) return value.map((item) => sanitizeGeneratedValue(item, topic, instructionLanguage));
   if (!value || typeof value !== "object") return value;
   return Object.fromEntries(
     Object.entries(value as Record<string, unknown>)
-      .map(([key, item]) => [key, sanitizeGeneratedValue(item, topic)]),
+      .map(([key, item]) => [key, sanitizeGeneratedValue(item, topic, instructionLanguage)]),
   );
 }

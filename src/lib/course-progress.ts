@@ -1,4 +1,4 @@
-import type { Course } from "@/lib/course-types";
+import type { Course, LessonMode } from "@/lib/course-types";
 
 export interface NextLesson {
   id: string;
@@ -33,4 +33,13 @@ export function expectedLessonIds(course: Pick<Course, "modules">) {
   return course.modules.flatMap((courseModule, moduleIndex) =>
     courseModule.lessons.map((_, lessonIndex) => `${moduleIndex}-${lessonIndex}`),
   );
+}
+
+export function expectedLessonModes(course: Pick<Course, "modules">): Record<string, LessonMode | undefined> {
+  return Object.fromEntries(course.modules.flatMap((courseModule, moduleIndex) =>
+    courseModule.lessons.map((lesson, lessonIndex) => [
+      `${moduleIndex}-${lessonIndex}`,
+      lesson.lessonMode,
+    ]),
+  ));
 }

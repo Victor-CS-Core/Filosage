@@ -25,6 +25,8 @@ export const courseRequestSchema = z.object({
   courseStyle: z.enum(["Balanced", "Concept-first", "Project-led"]).optional().default("Balanced"),
   artifactPreference: z.string().trim().max(500, "Keep the artifact preference under 500 characters.").optional().default(""),
   scenarioPreference: z.string().trim().max(500, "Keep the scenario under 500 characters.").optional().default(""),
+  language: z.string().trim().min(2).max(80).optional().default("English"),
+  freshnessRequired: z.boolean().optional().default(false),
   sourcePack: z.array(z.object({
     id: z.string().trim().regex(/^source-[a-z0-9-]{1,40}$/),
     label: z.string().trim().min(2).max(120),
@@ -89,11 +91,11 @@ export const courseOutlineSchema = z.object({
               artifactContribution: z.string().trim().min(1).max(300),
             }),
           )
-          .min(2)
+          .min(1)
           .max(6),
       }),
     )
-    .min(2)
+    .min(1)
     .max(6),
   capstone: z.object({
     title: z.string().trim().min(1).max(120),
@@ -103,32 +105,32 @@ export const courseOutlineSchema = z.object({
   }),
 });
 
+const quizSchema = z.object({
+  question: z.string().trim().min(1).max(500),
+  options: z.array(z.string().trim().min(1).max(300)).length(4),
+  correctIndex: z.number().int().min(0).max(3),
+  explanation: z.string().trim().min(1).max(1_000),
+  optionFeedback: z.array(z.string().trim().min(1).max(500)).length(4),
+});
+
 const lessonWithoutVisualsSchema = z.object({
   learningObjective: z.string().trim().min(1).max(400),
   connection: z.string().trim().min(1).max(500),
-  keyTakeaways: z.array(z.string().trim().min(1).max(240)).min(3).max(5),
-  content: z.string().trim().min(800).max(24_000),
+  keyTakeaways: z.array(z.string().trim().min(1).max(240)).min(2).max(5),
+  content: z.string().trim().min(400).max(24_000),
   guidedPractice: z.object({
     prompt: z.string().trim().min(1).max(800),
-    steps: z.array(z.string().trim().min(1).max(400)).min(2).max(5),
+    steps: z.array(z.string().trim().min(1).max(400)).min(1).max(5),
     modelAnswer: z.string().trim().min(1).max(2_000),
   }),
   transferTask: z.object({
     prompt: z.string().trim().min(1).max(800),
-    successCriteria: z.array(z.string().trim().min(1).max(240)).min(2).max(4),
+    successCriteria: z.array(z.string().trim().min(1).max(240)).min(1).max(4),
     modelResponse: z.string().trim().min(1).max(2_000),
   }),
   quizzes: z
-    .array(
-      z.object({
-        question: z.string().trim().min(1).max(500),
-        options: z.array(z.string().trim().min(1).max(300)).length(4),
-        correctIndex: z.number().int().min(0).max(3),
-        explanation: z.string().trim().min(1).max(1_000),
-        optionFeedback: z.array(z.string().trim().min(1).max(500)).length(4),
-      }),
-    )
-    .min(2)
+    .array(quizSchema)
+    .min(1)
     .max(3),
 });
 
@@ -183,6 +185,18 @@ export const lessonDataSchema = lessonWithoutVisualsSchema.extend({
   interactions: lessonInteractionsSchema.optional().default([]),
   experience: lessonExperienceSchema.optional(),
 });
+
+export const nonSubstantiveLessonDataSchema = lessonDataSchema
+  .omit({ connection: true, keyTakeaways: true, guidedPractice: true, transferTask: true, quizzes: true })
+  .extend({
+    lessonKind: z.enum(["introduction", "review", "glossary", "reference", "capstone"]),
+    content: z.string().trim().min(200).max(24_000),
+    connection: z.string().trim().min(1).max(500).optional(),
+    keyTakeaways: z.array(z.string().trim().min(1).max(240)).max(5).optional().default([]),
+    guidedPractice: lessonWithoutVisualsSchema.shape.guidedPractice.optional(),
+    transferTask: lessonWithoutVisualsSchema.shape.transferTask.optional(),
+    quizzes: z.array(quizSchema).max(3).optional().default([]),
+  });
 
 export const lessonGenerationSchema = lessonWithoutVisualsSchema.extend({
   visuals: z.array(z.string().trim().min(2).max(6_000)).max(2),

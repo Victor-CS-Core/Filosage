@@ -1,8 +1,9 @@
 import { z } from "zod";
 import { apiRequestErrorResponse, readJsonBody } from "@/lib/api-security";
 import { authorizationResponse, requireAccount } from "@/lib/auth-server";
-import { getCourse, putStoredDocument } from "@/lib/firebase-server";
+import { putStoredDocument } from "@/lib/firebase-server";
 import { enforceDurableRateLimit } from "@/lib/request-rate-limit";
+import { getCourseRuntimeArtifact, publishedReleaseUnavailableResponse } from "@/lib/course-pipeline/artifact-access";
 
 const feedbackSchema = z.object({
   feedbackId: z.string().trim().regex(/^[A-Za-z0-9_-]{12,100}$/),
@@ -34,7 +35,7 @@ export async function POST(request: Request) {
     if (!parsed.success) {
       return Response.json({ error: parsed.error.issues[0]?.message ?? "Check the feedback and try again." }, { status: 400 });
     }
-    const course = await getCourse(parsed.data.courseId);
+    const course = await getCourseRuntimeArtifact(parsed.data.courseId);
     if (!course) return Response.json({ error: "Course not found." }, { status: 404 });
     if (!course.isPublic && account.uid !== course.authorId && !account.isOwner) {
       return Response.json({ error: "You do not have access to this course." }, { status: 403 });
@@ -51,7 +52,8 @@ export async function POST(request: Request) {
     });
     return Response.json({ recorded: true }, { headers: { "Cache-Control": "no-store" } });
   } catch (error) {
-    return apiRequestErrorResponse(error)
+    return publishedReleaseUnavailableResponse(error)
+      ?? apiRequestErrorResponse(error)
       ?? authorizationResponse(error)
       ?? Response.json({ error: "Your feedback could not be recorded." }, { status: 500 });
   }

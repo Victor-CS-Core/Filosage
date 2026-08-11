@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import AxeBuilder from "@axe-core/playwright";
 import { readFile } from "node:fs/promises";
 import { LESSON_QUALITY_GATE_VERSION } from "../src/lib/lesson-quality";
 import { inspectCoursePublishReadiness } from "../src/lib/publication-readiness";
@@ -42,7 +43,13 @@ test("publication readiness marks schema failures as non-overridable and teachin
   expect(malformed.invalidLessons[0]).toMatchObject({ category: "structure", overridable: false });
 
   const qualityFailure = inspectCoursePublishReadiness(
-    [schemaValidLesson("A concrete explanation. ".repeat(45))],
+    [{
+      ...schemaValidLesson("A concrete explanation. ".repeat(45)),
+      guidedPractice: {
+        ...schemaValidLesson("A concrete explanation. ".repeat(45)).guidedPractice,
+        steps: ["- Record what was directly observed.", "Label the explanation added to the observation."],
+      },
+    }],
     ["0-0"],
     "Decision quality",
   );
@@ -60,6 +67,7 @@ test("owner override remains a dedicated, recently authenticated, audited qualit
   ]);
 
   expect(routeSource).toContain("requireRecentlyAuthenticatedOwner(request)");
+  expect(routeSource).toContain("IDEMPOTENCY_KEY_REQUIRED");
   expect(routeSource).toContain('z.literal("PUBLISH WITH QUALITY OVERRIDE")');
   expect(routeSource).toContain('course.moderationStatus === "quarantined"');
   expect(reviewSource).toContain("Safety is deliberately evaluated before any quality override is accepted.");
@@ -89,6 +97,7 @@ test("an owner can confirm a quality override only after the normal review fails
     }],
   };
   let overrideBody: Record<string, unknown> | null = null;
+  let overrideIdempotencyKey: string | null = null;
   await page.route(`**/api/courses/${courseId}`, (route) => {
     if (route.request().method() === "PATCH") {
       return route.fulfill({
@@ -116,6 +125,7 @@ test("an owner can confirm a quality override only after the normal review fails
   await page.route(`**/api/progress?courseId=${courseId}`, (route) => route.fulfill({ json: { progress: null } }));
   await page.route(`**/api/admin/courses/${courseId}/publication-override`, async (route) => {
     overrideBody = route.request().postDataJSON() as Record<string, unknown>;
+    overrideIdempotencyKey = route.request().headers()["idempotency-key"] ?? null;
     await route.fulfill({ json: { success: true, isPublic: true, publicationReview: { status: "owner_override" } } });
   });
 
@@ -147,7 +157,181 @@ test("an owner can confirm a quality override only after the normal review fails
     assessmentHash: "a".repeat(64),
     confirmation: "PUBLISH WITH QUALITY OVERRIDE",
   });
+  expect(typeof overrideIdempotencyKey).toBe("string");
+  expect(String(overrideIdempotencyKey).length).toBeGreaterThanOrEqual(12);
   await expect(page.getByText(/Published with an audited owner quality override/)).toBeVisible();
+});
+
+test("an owner records a snapshot-bound manual-review decision before publishing", async ({ page }) => {
+  await restoreLocalLearner(page);
+  const courseId = "manual-review-course";
+  const snapshotHash = "b".repeat(64);
+  const contractVersion = "course-quality-v2.0.0";
+  const course = {
+    id: courseId,
+    courseId,
+    topic: "First-aid response to severe bleeding",
+    mission: "Describe an approved emergency response sequence.",
+    level: "Foundations",
+    isPublic: false,
+    canManage: true,
+    generatedLessonIds: ["0-0"],
+    manualReviewPolicy: { version: "course-review-policy-v1", required: true, reasonCodes: ["medical"] },
+    sourcePack: [{
+      id: "source-emergency-guidance",
+      label: "Official emergency guidance",
+      url: "https://example.org/emergency-guidance",
+      kind: "official",
+      rights: "link-only",
+    }],
+    modules: [{
+      title: "Response",
+      description: "Recognize and describe the response.",
+      lessons: [{ title: "Severe bleeding response", concept: "Emergency response" }],
+    }],
+  };
+  let reviewBody: Record<string, unknown> | null = null;
+  let reviewKey: string | null = null;
+  await page.route(`**/api/courses/${courseId}`, (route) => {
+    if (route.request().method() === "PATCH") {
+      return route.fulfill({ status: 409, json: {
+        error: "A human evidence decision is required.",
+        validationReport: {
+          courseId,
+          snapshotHash,
+          contractVersion,
+          validatedAt: "2026-08-11T12:00:00.000Z",
+          publishable: false,
+          requiresManualReview: true,
+          issues: [{
+            code: "CQ_SOURCE_002",
+            severity: "error",
+            category: "cq_source",
+            path: "course.manualReviewPolicy",
+            message: "Human review is required for: medical.",
+            repairability: "manual",
+            source: "source_integrity",
+            contractVersion,
+          }],
+          warnings: [],
+          passedRuleCodes: [],
+        },
+      } });
+    }
+    return route.fulfill({ json: course });
+  });
+  await page.route(`**/api/progress?courseId=${courseId}`, (route) => route.fulfill({ json: { progress: null } }));
+  await page.route(`**/api/admin/courses/${courseId}/manual-review`, async (route) => {
+    reviewBody = route.request().postDataJSON() as Record<string, unknown>;
+    reviewKey = route.request().headers()["idempotency-key"] ?? null;
+    await route.fulfill({ json: {
+      success: true,
+      manualReviewResolution: {
+        status: "approved",
+        snapshotHash,
+        contractVersion,
+        reason: "Primary emergency guidance supports the bounded sequence in this exact draft.",
+        reviewedAt: "2026-08-11T12:05:00.000Z",
+        reviewId: "review-1",
+      },
+    } });
+  });
+
+  await page.goto(`/course/First-aid%20response?id=${courseId}`);
+  await page.locator("details.course-owner-controls > summary").click();
+  await page.getByLabel(/I reviewed every lesson/).check();
+  await page.getByRole("button", { name: "Review and publish" }).click();
+  await expect(page.getByText("Human decision required for this snapshot")).toBeVisible();
+  await expect(page.getByRole("group", { name: "Primary or official sources personally verified" })).toBeVisible();
+  expect((await new AxeBuilder({ page }).include(".course-owner-controls").analyze()).violations).toEqual([]);
+  await page.getByRole("checkbox", { name: /Official emergency guidance/ }).check();
+  await page.getByLabel("Manual-review reason").fill("Primary emergency guidance supports the bounded sequence in this exact draft.");
+  await page.getByRole("button", { name: "Approve exact snapshot" }).click();
+
+  expect(reviewBody).toMatchObject({
+    decision: "approved",
+    snapshotHash,
+    contractVersion,
+    verifiedSourceIds: ["source-emergency-guidance"],
+    confirmation: "APPROVE MANUAL REVIEW",
+  });
+  expect(typeof reviewKey).toBe("string");
+  expect(String(reviewKey).length).toBeGreaterThanOrEqual(12);
+  await expect(page.getByText(/Manual review approved for this exact snapshot/)).toBeVisible();
+});
+
+test("targeted V2 repair applies diagnosed paths, revalidates, and offers undo", async ({ page }) => {
+  await restoreLocalLearner(page);
+  const courseId = "targeted-repair-course";
+  const baseHash = "c".repeat(64);
+  const repairedHash = "d".repeat(64);
+  const contractVersion = "course-quality-v2.0.0";
+  const issue = {
+    code: "CQ_LAB_001",
+    severity: "blocker",
+    category: "cq_lab",
+    path: 'lessons["0-0"].interactions[0]',
+    message: "The lab type unsupported-lab is not registered.",
+    repairability: "automatic",
+    source: "runtime",
+    contractVersion,
+  };
+  const report = (snapshotHash: string, issues: Array<typeof issue>) => ({
+    courseId,
+    snapshotHash,
+    contractVersion,
+    validatedAt: "2026-08-11T12:00:00.000Z",
+    publishable: issues.length === 0,
+    requiresManualReview: false,
+    issues,
+    warnings: [],
+    passedRuleCodes: [],
+  });
+  const course = {
+    id: courseId,
+    courseId,
+    topic: "Evidence classification",
+    mission: "Classify observations and inferences.",
+    level: "Foundations",
+    isPublic: false,
+    canManage: true,
+    generatedLessonIds: ["0-0"],
+    modules: [{ title: "Evidence", description: "Classify evidence.", lessons: [{ title: "Classify", concept: "Evidence" }] }],
+  };
+  const repairActions: string[] = [];
+  await page.route(`**/api/courses/${courseId}`, (route) => {
+    if (route.request().method() === "PATCH") {
+      return route.fulfill({ status: 409, json: { error: "Automatic repair is available.", validationReport: report(baseHash, [issue]) } });
+    }
+    return route.fulfill({ json: course });
+  });
+  await page.route(`**/api/progress?courseId=${courseId}`, (route) => route.fulfill({ json: { progress: null } }));
+  await page.route(`**/api/courses/${courseId}/repair`, async (route) => {
+    const body = route.request().postDataJSON() as { action: string };
+    repairActions.push(body.action);
+    await route.fulfill({ json: body.action === "apply" ? {
+      success: true,
+      repairId: "9f179477-34da-4d75-bc4a-80f2b1d08741",
+      undoAvailable: true,
+      validationReport: report(repairedHash, []),
+    } : {
+      success: true,
+      undone: true,
+      repairId: "9f179477-34da-4d75-bc4a-80f2b1d08741",
+      validationReport: report(baseHash, [issue]),
+    } });
+  });
+
+  await page.goto(`/course/Evidence%20classification?id=${courseId}`);
+  await page.locator("details.course-owner-controls > summary").click();
+  await page.getByLabel(/I reviewed every lesson/).check();
+  await page.getByRole("button", { name: "Review and publish" }).click();
+  await page.getByRole("button", { name: "Repair automatic issues" }).click();
+  await expect(page.getByText("Targeted repair applied and the complete course was revalidated.")).toBeVisible();
+  expect((await new AxeBuilder({ page }).include(".publication-contract-report").analyze()).violations).toEqual([]);
+  await page.getByRole("button", { name: "Undo last targeted repair" }).click();
+  await expect(page.getByText("Targeted repair undone without overwriting newer edits.")).toBeVisible();
+  expect(repairActions).toEqual(["apply", "undo"]);
 });
 
 test("repair all regenerates each rejected lesson and applies the returned preflight", async ({ page }) => {

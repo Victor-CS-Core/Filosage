@@ -61,6 +61,7 @@ export default function CreateCoursePage() {
   const [background, setBackground] = useState("");
   const [artifactPreference, setArtifactPreference] = useState("");
   const [scenarioPreference, setScenarioPreference] = useState("");
+  const [language, setLanguage] = useState("English");
   const [sources, setSources] = useState<SourceDraft[]>([emptySource()]);
   const [level, setLevel] = useState<"Foundations" | "Intermediate" | "Advanced">("Foundations");
   const [weeklyMinutes, setWeeklyMinutes] = useState(120);
@@ -68,7 +69,7 @@ export default function CreateCoursePage() {
   const [courseStyle, setCourseStyle] = useState<(typeof courseStyles)[number]["value"]>("Balanced");
   const [submitting, setSubmitting] = useState(false);
   const [generationProgress, setGenerationProgress] = useState(0);
-  const [generationStage, setGenerationStage] = useState("Checking your course brief");
+  const [generationStage, setGenerationStage] = useState("Creating your private course map");
   const [error, setError] = useState<string | null>(null);
   const requestIdentityRef = useRef<{ signature: string; key: string } | null>(null);
   const stepHeadingRef = useRef<HTMLHeadingElement>(null);
@@ -80,11 +81,6 @@ export default function CreateCoursePage() {
     const timer = window.setInterval(() => {
       const elapsed = Date.now() - startedAt;
       setGenerationProgress((current) => current >= 100 ? current : Math.min(95, 8 + Math.round(elapsed / 420)));
-      if (elapsed > 28_000) setGenerationStage("Finalizing your course map");
-      else if (elapsed > 18_000) setGenerationStage("Curating the course banner");
-      else if (elapsed > 10_000) setGenerationStage("Balancing practice and workload");
-      else if (elapsed > 4_000) setGenerationStage("Shaping the lesson sequence");
-      else if (elapsed > 1_500) setGenerationStage("Mapping prerequisites");
     }, 450);
     return () => window.clearInterval(timer);
   }, [submitting]);
@@ -100,7 +96,7 @@ export default function CreateCoursePage() {
     if (!user || !canCreateCourses || account?.courseCapacity?.remaining === 0 || !topic.trim() || !goal.trim() || !background.trim()) return;
     setSubmitting(true);
     setGenerationProgress(8);
-    setGenerationStage("Checking your course brief");
+    setGenerationStage("Creating your private course map");
     setError(null);
     try {
       const token = await user.getIdToken();
@@ -115,7 +111,7 @@ export default function CreateCoursePage() {
         kind: source.kind,
         rights: source.rights,
       }));
-      const requestBody = { topic, goal, application, background, artifactPreference, scenarioPreference, sourcePack, level, weeklyMinutes, targetWeeks, courseStyle };
+      const requestBody = { topic, goal, application, background, artifactPreference, scenarioPreference, sourcePack, level, weeklyMinutes, targetWeeks, courseStyle, language };
       const signature = JSON.stringify(requestBody);
       if (requestIdentityRef.current?.signature !== signature) {
         requestIdentityRef.current = { signature, key: createClientId() };
@@ -218,7 +214,7 @@ export default function CreateCoursePage() {
 
                     <div className={styles.field}>
                       <label htmlFor="course-topic"><span>Subject or skill</span><small>{topic.length}/120</small></label>
-                      <input id="course-topic" value={topic} onChange={(event) => setTopic(event.target.value)} maxLength={120} placeholder="e.g. Systems thinking for product decisions" required />
+                      <input id="course-topic" name="topic" value={topic} onChange={(event) => setTopic(event.target.value)} maxLength={120} placeholder="e.g. Systems thinking for product decisions" required />
                       <div className={styles.examples} aria-label="Topic examples">
                         {examples.map((example) => <button type="button" key={example} onClick={() => setTopic(example)}>{example}</button>)}
                       </div>
@@ -226,13 +222,13 @@ export default function CreateCoursePage() {
 
                     <div className={styles.field}>
                       <label htmlFor="course-goal"><span>What will you be able to do?</span><small>{goal.length}/500</small></label>
-                      <textarea id="course-goal" value={goal} onChange={(event) => setGoal(event.target.value)} maxLength={500} rows={4} placeholder="Analyze a real situation, identify the important forces, and explain a defensible recommendation." required />
+                      <textarea id="course-goal" name="goal" value={goal} onChange={(event) => setGoal(event.target.value)} maxLength={500} rows={4} placeholder="Analyze a real situation, identify the important forces, and explain a defensible recommendation." required />
                       <p className={styles.fieldHint}>Use an action such as analyze, build, diagnose, design, or explain.</p>
                     </div>
 
                     <div className={styles.field}>
                       <label htmlFor="course-artifact"><span>What work will prove it?</span><small>Recommended · {artifactPreference.length}/500</small></label>
-                      <textarea id="course-artifact" value={artifactPreference} onChange={(event) => setArtifactPreference(event.target.value)} maxLength={500} rows={3} placeholder="A decision memo, working model, experiment plan, portfolio piece, or another concrete artifact." />
+                      <textarea id="course-artifact" name="artifactPreference" value={artifactPreference} onChange={(event) => setArtifactPreference(event.target.value)} maxLength={500} rows={3} placeholder="A decision memo, working model, experiment plan, portfolio piece, or another concrete artifact." />
                     </div>
 
                     <details className={styles.optionalDetails}>
@@ -240,11 +236,11 @@ export default function CreateCoursePage() {
                       <div className={styles.optionalContent}>
                         <div className={styles.field}>
                           <label htmlFor="course-application"><span>Where will you use this?</span><small>{application.length}/500</small></label>
-                          <textarea id="course-application" value={application} onChange={(event) => setApplication(event.target.value)} maxLength={500} rows={3} placeholder="For product strategy reviews and clearer decisions with my team." />
+                          <textarea id="course-application" name="application" value={application} onChange={(event) => setApplication(event.target.value)} maxLength={500} rows={3} placeholder="For product strategy reviews and clearer decisions with my team." />
                         </div>
                         <div className={styles.field}>
                           <label htmlFor="course-scenario"><span>Should the course follow a specific situation?</span><small>{scenarioPreference.length}/500</small></label>
-                          <textarea id="course-scenario" value={scenarioPreference} onChange={(event) => setScenarioPreference(event.target.value)} maxLength={500} rows={3} placeholder="A realistic project or decision that becomes more complex as the course progresses." />
+                          <textarea id="course-scenario" name="scenarioPreference" value={scenarioPreference} onChange={(event) => setScenarioPreference(event.target.value)} maxLength={500} rows={3} placeholder="A realistic project or decision that becomes more complex as the course progresses." />
                         </div>
                       </div>
                     </details>
@@ -261,22 +257,22 @@ export default function CreateCoursePage() {
 
                     <div className={styles.field}>
                       <label htmlFor="course-background"><span>What do you already know?</span><small>Required · {background.length}/500</small></label>
-                      <textarea id="course-background" value={background} onChange={(event) => setBackground(event.target.value)} maxLength={500} rows={4} placeholder="I understand the basic vocabulary but have not yet applied it to a real case." required />
+                      <textarea id="course-background" name="background" value={background} onChange={(event) => setBackground(event.target.value)} maxLength={500} rows={4} placeholder="I understand the basic vocabulary but have not yet applied it to a real case." required />
                       <p className={styles.fieldHint}>Mention adjacent skills, tools, or concepts Filosage can build on.</p>
                     </div>
 
                     <div className={styles.scheduleGrid}>
                       <div className={styles.field}>
                         <label htmlFor="course-level"><span>Starting level</span></label>
-                        <select id="course-level" value={level} onChange={(event) => setLevel(event.target.value as typeof level)} required><option>Foundations</option><option>Intermediate</option><option>Advanced</option></select>
+                        <select id="course-level" name="level" value={level} onChange={(event) => setLevel(event.target.value as typeof level)} required><option>Foundations</option><option>Intermediate</option><option>Advanced</option></select>
                       </div>
                       <div className={styles.field}>
                         <label htmlFor="target-weeks"><span>Target length</span></label>
-                        <select id="target-weeks" value={targetWeeks} onChange={(event) => setTargetWeeks(Number(event.target.value))} required><option value={2}>2 weeks</option><option value={4}>4 weeks</option><option value={6}>6 weeks</option><option value={8}>8 weeks</option></select>
+                        <select id="target-weeks" name="targetWeeks" value={targetWeeks} onChange={(event) => setTargetWeeks(Number(event.target.value))} required><option value={2}>2 weeks</option><option value={4}>4 weeks</option><option value={6}>6 weeks</option><option value={8}>8 weeks</option></select>
                       </div>
                       <div className={styles.field}>
                         <label htmlFor="weekly-minutes"><span>Weekly study time</span></label>
-                        <select id="weekly-minutes" value={weeklyMinutes} onChange={(event) => setWeeklyMinutes(Number(event.target.value))} required><option value={60}>1 hour</option><option value={120}>2 hours</option><option value={180}>3 hours</option><option value={300}>5 hours</option></select>
+                        <select id="weekly-minutes" name="weeklyMinutes" value={weeklyMinutes} onChange={(event) => setWeeklyMinutes(Number(event.target.value))} required><option value={60}>1 hour</option><option value={120}>2 hours</option><option value={180}>3 hours</option><option value={300}>5 hours</option></select>
                       </div>
                     </div>
 
@@ -305,6 +301,12 @@ export default function CreateCoursePage() {
                       ))}
                     </div>
 
+                    <div className={styles.field}>
+                      <label htmlFor="course-language"><span>Course language</span><small>Editable default</small></label>
+                      <input id="course-language" name="language" value={language} onChange={(event) => setLanguage(event.target.value)} minLength={2} maxLength={80} autoComplete="language" required />
+                      <p className={styles.fieldHint}>Use a specific language or bilingual pairing, such as English, Spanish, or Greek and English.</p>
+                    </div>
+
                     <details className={styles.optionalDetails}>
                       <summary><span><strong>Trusted references</strong><small>{enteredSourceCount ? `${enteredSourceCount} added` : "Optional · add up to five"}</small></span><Plus size={17} /></summary>
                       <div className={styles.optionalContent}>
@@ -318,19 +320,19 @@ export default function CreateCoursePage() {
                                 {sources.length > 1 && <button className={styles.removeSource} type="button" onClick={() => setSources((current) => current.filter((_, itemIndex) => itemIndex !== index))}><Trash2 size={14} /> Remove</button>}
                                 <div className={styles.field}>
                                   <label htmlFor={`source-label-${index}`}><span>Source name</span></label>
-                                  <input id={`source-label-${index}`} value={source.label} onChange={(event) => updateSource({ label: event.target.value })} maxLength={120} placeholder="e.g. NIST AI Risk Management Framework" />
+                                  <input id={`source-label-${index}`} name={`sourceLabel${index}`} value={source.label} onChange={(event) => updateSource({ label: event.target.value })} maxLength={120} placeholder="e.g. NIST AI Risk Management Framework" />
                                 </div>
                                 <div className={styles.field}>
                                   <label htmlFor={`source-url-${index}`}><span>Secure source URL</span><small>Public HTTPS only</small></label>
-                                  <input id={`source-url-${index}`} type="url" inputMode="url" value={source.url} onChange={(event) => updateSource({ url: event.target.value })} maxLength={500} placeholder="https://..." />
+                                  <input id={`source-url-${index}`} name={`sourceUrl${index}`} type="url" inputMode="url" value={source.url} onChange={(event) => updateSource({ url: event.target.value })} maxLength={500} placeholder="https://..." />
                                 </div>
                                 <div className={styles.sourceMetaGrid}>
-                                  <div className={styles.field}><label htmlFor={`source-kind-${index}`}><span>Source type</span></label><select id={`source-kind-${index}`} value={source.kind} onChange={(event) => updateSource({ kind: event.target.value as SourceDraft["kind"] })}><option value="official">Official</option><option value="primary">Primary</option><option value="licensed">Licensed</option><option value="author-provided">Your material</option></select></div>
-                                  <div className={styles.field}><label htmlFor={`source-rights-${index}`}><span>Usage basis</span></label><select id={`source-rights-${index}`} value={source.rights} onChange={(event) => updateSource({ rights: event.target.value as SourceDraft["rights"] })}><option value="link-only">Link only</option><option value="public-domain">Public domain</option><option value="licensed">Licensed</option><option value="author-owned">I own it</option></select></div>
+                                  <div className={styles.field}><label htmlFor={`source-kind-${index}`}><span>Source type</span></label><select id={`source-kind-${index}`} name={`sourceKind${index}`} value={source.kind} onChange={(event) => updateSource({ kind: event.target.value as SourceDraft["kind"] })}><option value="official">Official</option><option value="primary">Primary</option><option value="licensed">Licensed</option><option value="author-provided">Your material</option></select></div>
+                                  <div className={styles.field}><label htmlFor={`source-rights-${index}`}><span>Usage basis</span></label><select id={`source-rights-${index}`} name={`sourceRights${index}`} value={source.rights} onChange={(event) => updateSource({ rights: event.target.value as SourceDraft["rights"] })}><option value="link-only">Link only</option><option value="public-domain">Public domain</option><option value="licensed">Licensed</option><option value="author-owned">I own it</option></select></div>
                                 </div>
                                 <div className={styles.field}>
                                   <label htmlFor={`source-note-${index}`}><span>Relevant note</span><small>{source.note.length}/800</small></label>
-                                  <textarea id={`source-note-${index}`} value={source.note} onChange={(event) => updateSource({ note: event.target.value })} maxLength={800} rows={3} placeholder="Summarize the specific idea this source supports in your own words." />
+                                  <textarea id={`source-note-${index}`} name={`sourceNote${index}`} value={source.note} onChange={(event) => updateSource({ note: event.target.value })} maxLength={800} rows={3} placeholder="Summarize the specific idea this source supports in your own words." />
                                 </div>
                               </fieldset>
                             );
@@ -350,9 +352,9 @@ export default function CreateCoursePage() {
               </fieldset>
 
               {submitting && (
-                <div className={styles.generationProgress} role="status" aria-live="polite">
-                  <div><span>{generationStage}</span><strong>{generationProgress}%</strong></div>
-                  <div className={styles.progressTrack} role="progressbar" aria-label="Course creation progress" aria-valuemin={0} aria-valuemax={100} aria-valuenow={generationProgress} aria-valuetext={generationStage}><span style={{ transform: `scaleX(${generationProgress / 100})` }} /></div>
+                <div className={styles.generationProgress}>
+                  <div><span role="status" aria-live="polite" aria-atomic="true">{generationStage}</span><strong aria-hidden="true">{generationProgress}%</strong></div>
+                  <div className={styles.progressTrack} role="progressbar" aria-label="Course creation is in progress"><span style={{ transform: `scaleX(${generationProgress / 100})` }} /></div>
                   <p>Creating an AI-assisted private draft from this brief. Review it before relying on or publishing it.</p>
                 </div>
               )}
@@ -392,6 +394,7 @@ export default function CreateCoursePage() {
               <div><dt>Starting point</dt><dd>{level}</dd></div>
               <div><dt>Rhythm</dt><dd>{targetWeeks} weeks · {weeklySessions} sessions/week</dd></div>
               <div><dt>Teaching style</dt><dd>{courseStyle}</dd></div>
+              <div><dt>Language</dt><dd>{language}</dd></div>
               <div><dt>Evidence</dt><dd>{artifactPreference.trim() || "Add a concrete deliverable"}</dd></div>
             </dl>
             <div className={styles.snapshotReadiness}>
