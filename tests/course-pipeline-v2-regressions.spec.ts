@@ -348,6 +348,14 @@ test("high-stakes briefs route to manual review without making user prompt injec
     expect(courseReviewPolicyForBrief(topic), topic).toMatchObject({ required: true });
   }
   expect(courseReviewPolicyForBrief("Law of Large Numbers")).toMatchObject({ required: false });
+  expect(courseReviewPolicyForBrief(
+    "Evidence-based product decisions for small software teams",
+    "Treating interview quotes as votes creates false confidence in product evidence.",
+  )).toMatchObject({ required: false, reasonCodes: [] });
+  expect(courseReviewPolicyForBrief("Treating a patient for an infection")).toMatchObject({
+    required: true,
+    reasonCodes: ["medical"],
+  });
   expect(courseReviewPolicyForBrief("Primeros auxilios para una hemorragia grave")).toMatchObject({ required: true, reasonCodes: ["medical"] });
   expect(courseReviewPolicyForBrief("Premiers secours pour une hémorragie grave")).toMatchObject({ required: true, reasonCodes: ["medical"] });
   expect(courseReviewPolicyForBrief("Seguridad eléctrica y reparación de cableado")).toMatchObject({ required: true, reasonCodes: ["physical_safety"] });
