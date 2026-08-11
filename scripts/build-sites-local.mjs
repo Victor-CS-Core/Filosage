@@ -1,5 +1,10 @@
 import { spawn } from "node:child_process";
 import { fileURLToPath } from "node:url";
+import nextEnvironment from "@next/env";
+
+const projectDirectory = fileURLToPath(new URL("../", import.meta.url));
+const { loadEnvConfig } = nextEnvironment;
+loadEnvConfig(projectDirectory, process.env.NODE_ENV === "development");
 
 const vinextCliPath = fileURLToPath(
   new URL("../node_modules/vinext/dist/cli.js", import.meta.url),

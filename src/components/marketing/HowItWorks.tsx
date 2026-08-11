@@ -13,9 +13,11 @@ export default function HowItWorks() {
       <ol>
         {steps.map(({ icon: Icon, title, copy }, index) => (
           <li key={title}>
-            <span className="marketing-step-number">0{index + 1}</span>
-            <Icon size={24} aria-hidden="true" />
-            <h3>{title}</h3><p>{copy}</p>
+            <div className="marketing-step-marker">
+              <span className="marketing-step-number">0{index + 1}</span>
+              <span className="marketing-step-icon"><Icon size={22} aria-hidden="true" /></span>
+            </div>
+            <div className="marketing-step-copy"><h3>{title}</h3><p>{copy}</p></div>
             {index < steps.length - 1 && <ArrowRight className="marketing-step-arrow" size={18} aria-hidden="true" />}
           </li>
         ))}

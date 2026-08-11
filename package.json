@@ -6,7 +6,7 @@
     "brand:assets": "node scripts/generate-brand-assets.mjs",
     "dev": "next dev",
     "build": "next build",
-    "build:sites": "vinext build && node scripts/prepare-sites-package.mjs",
+    "build:sites": "node scripts/build-sites-local.mjs && node scripts/prepare-sites-package.mjs",
     "start": "next start",
     "lint": "oxlint --react-plugin --jsx-a11y-plugin --import-plugin --deny-warnings src tests next.config.ts playwright.config.ts playwright.sites.config.ts scripts/build-sites-local.mjs scripts/check-support-wiki.mjs scripts/evaluate-command-center-drafts.ts scripts/evaluate-model-quality.ts scripts/playwright-next-server.mjs scripts/playwright-sites-server.mjs scripts/playwright-server-lifecycle.mjs scripts/prepare-sites-package.mjs && eslint src tests next.config.ts playwright.config.ts playwright.sites.config.ts scripts/build-sites-local.mjs scripts/check-support-wiki.mjs scripts/evaluate-command-center-drafts.ts scripts/evaluate-model-quality.ts scripts/playwright-next-server.mjs scripts/playwright-sites-server.mjs scripts/playwright-server-lifecycle.mjs scripts/prepare-sites-package.mjs",
     "test:e2e": "playwright test",
