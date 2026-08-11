@@ -48,6 +48,20 @@
       "usage": "Approved logo placement for navy and dark surfaces."
     },
     {
+      "path": "/brand/logo/filosage-stripe-icon.png",
+      "width": 512,
+      "height": 512,
+      "format": "png",
+      "usage": "High-contrast square icon for Stripe branding; designed to remain visible on light and dark surfaces and stay below Stripe's 512 KB limit."
+    },
+    {
+      "path": "/brand/logo/filosage-stripe-logo.png",
+      "width": 800,
+      "height": 200,
+      "format": "png",
+      "usage": "High-contrast horizontal logo for Stripe branding; no small tagline, visible on light and dark surfaces, and below Stripe's 512 KB limit."
+    },
+    {
       "path": "/brand/logo/filosage-social-avatar.svg",
       "width": 1200,
       "height": 1200,

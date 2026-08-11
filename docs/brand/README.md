@@ -6,7 +6,7 @@ Filosage is a calm, intelligent web learning product. The system uses navy struc
 
 The authoritative source artwork is preserved byte-for-byte in [`art_src/brand`](../../art_src/brand): the supplied dark-theme and light-theme PNGs. `npm.cmd run brand:assets` deterministically crops their matching rounded tiles to equal 600 × 600 outputs without redrawing the gateway, spark, or center path. Product components switch between those raster assets by theme.
 
-The runtime browser icon uses Next.js App Router's generated `src/app/icon.png`. The existing `src/app/favicon.ico` remains as the legacy favicon fallback.
+The runtime browser icon uses the lightweight Next.js App Router metadata file at `src/app/icon.svg`. Raster browser and Stripe exports remain available in the external brand library.
 
 ## Logo usage
 
@@ -79,6 +79,8 @@ Run `npm.cmd run brand:assets` after intentionally changing the generator. The g
 | `public/brand/logo/filosage-horizontal.svg` | 620 × 160 | Transparent horizontal lockup |
 | `public/brand/logo/filosage-light-placement.svg` | 720 × 260 | Safe light-surface placement |
 | `public/brand/logo/filosage-dark-placement.svg` | 720 × 260 | Safe dark-surface placement |
+| `public/brand/logo/filosage-stripe-icon.png` | 512 × 512 | High-contrast square Stripe icon for mixed backgrounds; under 512 KB |
+| `public/brand/logo/filosage-stripe-logo.png` | 800 × 200 | High-contrast Stripe wordmark plaque for mixed backgrounds; under 512 KB |
 | `public/brand/logo/filosage-social-avatar.svg` | 1200 × 1200 | Square social avatar |
 
 ### Hero backgrounds and product resources

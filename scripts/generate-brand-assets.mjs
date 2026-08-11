@@ -80,6 +80,13 @@ async function saveSvg(relativePath, svg, width, height, usage) {
   await save(relativePath, svg, width, height, usage, "svg");
 }
 
+async function savePngFromSvg(relativePath, svg, width, height, usage) {
+  const png = await sharp(Buffer.from(svg))
+    .png({ compressionLevel: 9, palette: true })
+    .toBuffer();
+  await save(relativePath, png, width, height, usage, "png");
+}
+
 function featureIllustration(title, description, accent, motif) {
   return documentSvg({
     width: 640,
@@ -123,6 +130,22 @@ await saveSvg("logo/filosage-dark-placement.svg", documentSvg({
   description: "A safe navy placement around the unmodified Filosage icon.",
   body: `<rect width="720" height="260" rx="16" fill="${palette.darkCanvas}"/>${logoImage(64, 54, 152, "dark")}${wordmark(244, 126, palette.offWhite)}${tagline(244, 158, palette.darkSecondary, 18)}`,
 }), 720, 260, "Approved logo placement for navy and dark surfaces.");
+
+await savePngFromSvg("logo/filosage-stripe-icon.png", documentSvg({
+  width: 512,
+  height: 512,
+  title: "Filosage Stripe icon",
+  description: "A high-contrast square Filosage icon that remains distinct on light and dark Stripe surfaces.",
+  body: `<rect width="512" height="512" rx="112" fill="${palette.offWhite}"/><rect x="10" y="10" width="492" height="492" rx="104" fill="${palette.darkCanvas}"/>${logoImage(60, 60, 392, "dark")}`,
+}), 512, 512, "High-contrast square icon for Stripe branding; designed to remain visible on light and dark surfaces and stay below Stripe's 512 KB limit.");
+
+await savePngFromSvg("logo/filosage-stripe-logo.png", documentSvg({
+  width: 800,
+  height: 200,
+  title: "Filosage Stripe logo",
+  description: "A compact high-contrast Filosage wordmark plaque for Stripe-hosted customer surfaces.",
+  body: `<rect width="800" height="200" rx="38" fill="${palette.offWhite}"/><rect x="8" y="8" width="784" height="184" rx="31" fill="${palette.navy}"/>${logoImage(24, 22, 156, "dark")}${wordmark(202, 142, palette.offWhite, 120)}`,
+}), 800, 200, "High-contrast horizontal logo for Stripe branding; no small tagline, visible on light and dark surfaces, and below Stripe's 512 KB limit.");
 
 await saveSvg("logo/filosage-social-avatar.svg", documentSvg({
   width: 1200,
