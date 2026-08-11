@@ -18,7 +18,7 @@ import {
 import AppShell from "@/components/AppShell";
 import { useAuth } from "@/components/AuthProvider";
 import { subscriptionBlocksCheckout } from "@/lib/billing-lock";
-import { SUPPORT_CONTACT } from "@/lib/legal";
+import { PAID_SUBSCRIPTION_POLICY, SUPPORT_CONTACT } from "@/lib/legal";
 import {
   ACTIVE_MEMBERSHIP_PLANS,
   annualMonthlyEquivalentMinor,
@@ -282,7 +282,7 @@ export default function PricingPage() {
         <p className="pricing-note">Generation allowances reset each month and do not roll over. A downgrade never deletes a course or unpublishes existing work. If an account is over its new owned-course limit, existing courses remain accessible while new course creation is paused.</p>
         <section className="billing-readiness-note" aria-labelledby="billing-readiness-title">
           <LockKeyhole size={18} />
-          <div><h2 id="billing-readiness-title">Clear terms before any charge</h2><p>{billingReady ? "Secure checkout shows the selected membership, exact price, currency, billing interval, automatic renewal, and included limits before consent." : "Paid checkout remains closed. Before launch, secure checkout will show the selected membership, exact price, currency, billing interval, automatic renewal, included limits, and online cancellation before consent."}</p><p><Link href="/terms">Terms of Service</Link> · <Link href="/privacy">Privacy Notice</Link> · <a href={`mailto:${SUPPORT_CONTACT}`}>Contact support</a></p></div>
+          <div><h2 id="billing-readiness-title">Clear terms before any charge</h2><p>{billingReady ? `Secure checkout shows the selected membership, exact price, currency, billing interval, automatic renewal, included limits, online cancellation, and ${PAID_SUBSCRIPTION_POLICY.refundWindowDays}-day initial-charge and annual-renewal refund window before consent. Paid plans are for ${PAID_SUBSCRIPTION_POLICY.launchMarketLabel} residents age ${PAID_SUBSCRIPTION_POLICY.minimumPurchaserAge} or older.` : `Paid checkout remains closed. Before launch, secure checkout will show the selected membership, exact price, currency, billing interval, automatic renewal, included limits, online cancellation, and ${PAID_SUBSCRIPTION_POLICY.refundWindowDays}-day initial-charge and annual-renewal refund window before consent. Paid plans will initially be limited to ${PAID_SUBSCRIPTION_POLICY.launchMarketLabel} residents age ${PAID_SUBSCRIPTION_POLICY.minimumPurchaserAge} or older.`}</p><p><Link href="/terms">Terms of Service</Link> · <Link href="/privacy">Privacy Notice</Link> · <a href={`mailto:${SUPPORT_CONTACT}`}>Contact support</a></p></div>
         </section>
       </div>
     </AppShell>

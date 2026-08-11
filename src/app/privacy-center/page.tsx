@@ -7,7 +7,7 @@ import { deleteUser, GoogleAuthProvider, reauthenticateWithPopup } from "firebas
 import { BarChart3, Download, LoaderCircle, LockKeyhole, ShieldCheck, Trash2 } from "lucide-react";
 import AppShell from "@/components/AppShell";
 import { useAuth } from "@/components/AuthProvider";
-import { LEGAL_CONTACT, SUPPORT_CONTACT } from "@/lib/legal";
+import { LEGAL_CONTACT, PAID_SUBSCRIPTION_POLICY, SUPPORT_CONTACT } from "@/lib/legal";
 import {
   readAnalyticsConsent,
   setAnalyticsConsent,
@@ -147,7 +147,7 @@ export default function PrivacyCenterPage() {
               <button className="button button-danger" onClick={() => setDeleteArmed(true)}><Trash2 size={16} /> Start account deletion</button>
             ) : (
               <div className="privacy-delete-confirmation">
-                <p className="privacy-delete-billing-warning" role="alert"><strong>Billing consequence:</strong> Deleting now immediately ends any active, past-due, or incomplete Stripe subscription and paid access. This cannot be undone. Account deletion does not decide whether a payment is eligible for a refund. If you need cancellation or refund help, contact <a href={`mailto:${SUPPORT_CONTACT}?subject=Filosage%20billing%20help%20before%20account%20deletion`}>billing support</a> before deleting your account.</p>
+                <p className="privacy-delete-billing-warning" role="alert"><strong>Billing consequence:</strong> Deleting now immediately ends any active, past-due, or incomplete Stripe subscription and paid access. This cannot be undone. Deletion does not automatically create or waive refund eligibility. Initial charges and annual renewals have a {PAID_SUBSCRIPTION_POLICY.refundWindowDays}-day refund window under the Terms; other charges are refundable only as stated there or required by law. Use Manage billing instead if you only want to stop renewal and keep access through the paid period. For cancellation or refund help, contact <a href={`mailto:${SUPPORT_CONTACT}?subject=Filosage%20billing%20help%20before%20account%20deletion`}>billing support</a> before deleting your account.</p>
                 <label htmlFor="delete-confirmation">Type <strong>DELETE MY ACCOUNT</strong> to confirm</label>
                 <input id="delete-confirmation" value={confirmation} onChange={(event) => setConfirmation(event.target.value)} autoComplete="off" />
                 <div><button className="button button-quiet" onClick={() => { setDeleteArmed(false); setConfirmation(""); }}>Cancel</button><button className="button button-danger" disabled={confirmation !== "DELETE MY ACCOUNT" || deleting} onClick={() => void deleteAccount()}>{deleting ? <LoaderCircle className="spin" size={16} /> : <Trash2 size={16} />} Permanently delete</button></div>

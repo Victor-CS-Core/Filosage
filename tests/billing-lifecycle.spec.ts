@@ -21,7 +21,7 @@ import {
   type BillingEventCursor,
 } from "../src/lib/billing-lock";
 import { readBoundedRequestText } from "../src/lib/bounded-request-body";
-import { PRIVACY_VERSION, TERMS_VERSION } from "../src/lib/legal";
+import { PAID_SUBSCRIPTION_POLICY, PRIVACY_VERSION, TERMS_VERSION } from "../src/lib/legal";
 import { restoreLocalLearner } from "./fixtures/local-learner";
 
 const stripeLifecycle = {
@@ -196,6 +196,9 @@ test("checkout consent rejects stale legal or offer snapshots", () => {
     offer_currency: "usd",
     offer_amount_minor: "999",
     automatic_renewal: "true",
+    purchaser_minimum_age: String(PAID_SUBSCRIPTION_POLICY.minimumPurchaserAge),
+    launch_market: PAID_SUBSCRIPTION_POLICY.launchMarketCode,
+    refund_window_days: String(PAID_SUBSCRIPTION_POLICY.refundWindowDays),
   };
   const expected = {
     termsVersion: TERMS_VERSION,
@@ -203,11 +206,17 @@ test("checkout consent rejects stale legal or offer snapshots", () => {
     offerVersion: "plus-v1-closed-launch",
     currency: "usd",
     amountMinor: 999,
+    minimumPurchaserAge: PAID_SUBSCRIPTION_POLICY.minimumPurchaserAge,
+    launchMarketCode: PAID_SUBSCRIPTION_POLICY.launchMarketCode,
+    refundWindowDays: PAID_SUBSCRIPTION_POLICY.refundWindowDays,
   };
   expect(checkoutConsentMetadataIsCurrent(metadata, expected)).toBe(true);
   expect(checkoutConsentMetadataIsCurrent({ ...metadata, terms_version: "stale" }, expected)).toBe(false);
   expect(checkoutConsentMetadataIsCurrent({ ...metadata, offer_amount_minor: "998" }, expected)).toBe(false);
   expect(checkoutConsentMetadataIsCurrent({ ...metadata, automatic_renewal: "false" }, expected)).toBe(false);
+  expect(checkoutConsentMetadataIsCurrent({ ...metadata, purchaser_minimum_age: "17" }, expected)).toBe(false);
+  expect(checkoutConsentMetadataIsCurrent({ ...metadata, launch_market: "worldwide" }, expected)).toBe(false);
+  expect(checkoutConsentMetadataIsCurrent({ ...metadata, refund_window_days: "0" }, expected)).toBe(false);
 });
 
 test("renewals preserve historical consent after legal or offer versions change", () => {
@@ -232,12 +241,18 @@ test("renewals preserve historical consent after legal or offer versions change"
     offer_currency: "usd",
     offer_amount_minor: "1499",
     automatic_renewal: "true",
+    purchaser_minimum_age: "18",
+    launch_market: "US",
+    refund_window_days: "7",
   }, {
     termsVersion: "terms-v2",
     privacyVersion: "privacy-v2",
     offerVersion: "pro-v2",
     currency: "usd",
     amountMinor: 1_599,
+    minimumPurchaserAge: 18,
+    launchMarketCode: "US",
+    refundWindowDays: 7,
   })).toBe(false);
   expect(durableBillingConsentMatches(historicalConsentBinding, "sub_other", "cus_existing")).toBe(false);
   expect(durableBillingConsentMatches(historicalConsentBinding, "sub_existing", "cus_other")).toBe(false);
@@ -399,6 +414,23 @@ test("pricing explains successful and canceled checkout returns without granting
   await expect(page).toHaveURL(/\/pricing$/);
 });
 
+test("publishes the approved paid eligibility, refund, cancellation, and deletion policy", async ({ page }) => {
+  await page.goto("/terms");
+  await expect(page.getByRole("heading", { name: "Plans, fees, automatic renewal, cancellation, and refunds" })).toBeVisible();
+  await expect(page.getByText(/Paid subscriptions are offered only to individual United States residents who are at least 18 years old/)).toBeVisible();
+  await expect(page.getByText(/full refund is available for the initial paid charge when requested within 7 calendar days/)).toBeVisible();
+  await expect(page.getByText(/account deletion immediately cancels any nonterminal Stripe subscription and ends paid access/)).toBeVisible();
+  await expect(page.getByText(/Paid subscriptions will remain disabled until/)).toHaveCount(0);
+
+  await page.goto("/privacy");
+  await expect(page.getByRole("heading", { name: "Children and paid-plan eligibility" })).toBeVisible();
+  await expect(page.getByText(/Paid subscriptions are not offered to users under 18/)).toBeVisible();
+
+  await page.goto("/support/articles/plans-and-billing");
+  await expect(page.getByRole("heading", { name: "Account deletion is not ordinary cancellation" })).toBeVisible();
+  await expect(page.getByText(/annual renewal requested within 7 calendar days/)).toBeVisible();
+});
+
 test("account deletion confirmation explains subscription termination without promising a refund", async ({ page }) => {
   await page.addInitScript(() => localStorage.setItem("filosage-local-session", "1"));
   await page.route("**/api/account", (route) => route.fulfill({
@@ -422,7 +454,8 @@ test("account deletion confirmation explains subscription termination without pr
   await page.getByRole("button", { name: "Start account deletion" }).click();
   const billingWarning = page.locator(".privacy-delete-billing-warning");
   await expect(billingWarning).toContainText("immediately ends any active, past-due, or incomplete Stripe subscription and paid access");
-  await expect(billingWarning).toContainText("does not decide whether a payment is eligible for a refund");
+  await expect(billingWarning).toContainText("does not automatically create or waive refund eligibility");
+  await expect(billingWarning).toContainText("Initial charges and annual renewals have a 7-day refund window");
   await expect(page.getByRole("link", { name: "billing support" })).toHaveAttribute("href", /mailto:support@filosage\.com/);
 });
 

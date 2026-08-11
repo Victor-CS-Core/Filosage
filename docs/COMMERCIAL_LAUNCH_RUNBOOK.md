@@ -68,8 +68,10 @@ Supabase migration is not a release dependency and is not a substitute for this 
 - [ ] Complete the entire payment lifecycle test matrix in this runbook with Stripe test objects and retain a redacted evidence record.
 - [ ] Review Stripe Live products, monthly and annual prices, webhook endpoint, webhook signing secret, customer portal, tax behavior, refund handling, statement descriptor, and historical-price lifecycle support.
 - [ ] Establish the formal operator identity, business address, governing jurisdiction, required tax treatment, registered DMCA process or agent where applicable, and jurisdiction-specific legal review.
-- [ ] Populate `LEGAL_OPERATOR_NAME`, `LEGAL_BUSINESS_ADDRESS`, `GOVERNING_JURISDICTION`, and `SUPPORT_EMAIL` with owner-approved public values; verify the exact hosted Terms and Privacy disclosure, then send and receive test messages through both the published `SUPPORT_EMAIL` billing-support inbox and the published `legal@filosage.com` privacy-request inbox.
-- [ ] Approve the Terms, Privacy Policy, refund/cancellation policy, age eligibility, guardian or parental-consent boundary, and analytics/cookie inventory for the intended launch markets.
+- [x] Populate `LEGAL_OPERATOR_NAME`, `LEGAL_BUSINESS_ADDRESS`, `GOVERNING_JURISDICTION`, and `SUPPORT_EMAIL` with owner-approved public values and verify the exact hosted Terms and Privacy disclosure.
+- [ ] Send and receive test messages through both the published `SUPPORT_EMAIL` billing-support inbox and the published `legal@filosage.com` privacy-request inbox.
+- [x] Record owner approval of the August 11, 2026 U.S.-only paid-plan policy: paid purchasers must be 18 or older; initial charges and annual renewals have a seven-calendar-day refund window; verified duplicate, unauthorized, or incorrect charges are corrected or refunded; other monthly renewals and partially used periods are non-refundable except as law or a written offer requires; ordinary cancellation is effective at period end; account deletion ends paid access immediately without automatically creating or waiving refund eligibility.
+- [ ] Obtain independent Florida counsel review of the exact hosted Terms, Privacy Notice, refund/cancellation policy, age boundary, analytics/cookie inventory, and intended U.S. launch coverage. Owner approval and AI-assisted drafting do not satisfy this gate.
 - [ ] Resolve all open high-risk safety, privacy, copyright, account-access, and content reports.
 - [ ] Confirm that support can handle billing, cancellation, refund, privacy, copyright, and account-deletion cases with owner-visible evidence and escalation paths.
 - [ ] Run `node scripts/check-release-env.mjs --billing-activation`, then require a separate explicit owner decision before changing `BILLING_ENABLED=true`.
@@ -110,7 +112,7 @@ Run these scenarios in Stripe test mode before any Live activation:
 - Payment recovery restores access from a later valid webhook.
 - Customer-portal cancellation stops future renewal and retains access through the paid period when appropriate.
 - Successful and canceled Checkout returns explain the outcome without granting entitlement from a redirect; paid access changes only after a verified Stripe event.
-- Immediate cancellation or refund behavior matches the displayed terms and applicable law.
+- Initial-charge and annual-renewal refunds within seven calendar days, non-refundable monthly renewals outside the stated exceptions, immediate account-deletion cancellation, and ordinary period-end cancellation all match the displayed terms and preserve an auditable Stripe/account record.
 - A deleted account with an active subscription is blocked until the subscription is canceled or otherwise safely resolved.
 - The billing master lock disables new checkout even when all Stripe secrets are present.
 
@@ -128,8 +130,9 @@ Record the test time, test customer, event IDs, observed account state, and revi
 ## Cancellation and refund handling after launch
 
 - Direct users to the online billing portal for ordinary cancellation.
-- Confirm whether cancellation is immediate or effective at period end and whether access continues.
-- Review refund requests against the displayed offer, Terms of Service, transaction history, product failure evidence, and applicable law.
+- Ordinary portal cancellation is effective at period end and preserves paid access through that period. Account deletion is a separately disclosed immediate cancellation that ends paid access.
+- Approve a full refund for an initial paid charge requested within seven calendar days and for an annual renewal requested within seven calendar days. Correct or refund verified duplicate, unauthorized, or incorrect charges as required by law and payment-network rules.
+- Treat other monthly renewals, partially used periods, unused time, and unused credits as non-refundable unless applicable law or a specific written offer requires otherwise.
 - Record the decision, amount, payment reference, reason category, and reviewer without storing sensitive payment credentials.
 - Escalate chargebacks, duplicate charges, unauthorized payment claims, and repeated billing failures for owner review.
 

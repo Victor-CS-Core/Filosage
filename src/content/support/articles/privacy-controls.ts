@@ -6,7 +6,7 @@ export default defineSupportArticle({
   summary: "Choose optional analytics, download account data, make a privacy request, or begin account deletion.",
   category: "trust",
   keywords: ["privacy", "analytics", "export", "download", "delete account", "data request"],
-  reviewedOn: "2026-08-05",
+  reviewedOn: "2026-08-11",
   sources: ["src/app/privacy-center/page.tsx", "src/components/AnalyticsConsent.tsx", "src/app/privacy/page.tsx"],
   body: `
 ## Choose optional analytics
@@ -23,7 +23,7 @@ The Privacy Center provides an email path for access, correction, deletion, port
 
 ## Delete an account
 
-Account deletion requires recent Google reauthentication and the exact confirmation phrase shown on screen. The page explains which active application data is removed and which limited records may be retained for the purposes described in the Privacy Notice. Read that explanation before confirming because deletion cannot be undone.
+Account deletion requires recent Google reauthentication and the exact confirmation phrase shown on screen. The page explains which active application data is removed and which limited records may be retained for the purposes described in the Privacy Notice. Deletion immediately cancels any nonterminal Stripe subscription and ends paid access; it does not automatically create or waive refund eligibility. Use **Manage billing** instead when you only want to stop renewal and keep access through the current paid period. Read the full deletion explanation before confirming because deletion cannot be undone.
 `,
   related: ["manage-profile", "accessibility", "contact-support"],
 });

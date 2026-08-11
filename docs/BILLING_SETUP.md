@@ -13,7 +13,7 @@ GoDaddy can provide the domain and hosting layer. It is not the recurring subscr
 
 ## Activation checklist
 
-1. Confirm the final monthly and annual prices, currency, taxes, and refund treatment with the legal operator.
+1. Preserve the owner-approved U.S.-only, age-18-plus, seven-day initial-charge and annual-renewal refund policy; confirm final prices, currency, taxes, and independent legal review before activation.
 2. Create matching Stripe products and prices and configure `STRIPE_PLUS_MONTHLY_PRICE_ID`, `STRIPE_PLUS_ANNUAL_PRICE_ID`, `STRIPE_PRO_MONTHLY_PRICE_ID`, and `STRIPE_PRO_ANNUAL_PRICE_ID`.
 3. Configure `STRIPE_SECRET_KEY` and `STRIPE_WEBHOOK_SECRET`, then keep `BILLING_ENABLED=false` while completing test-mode exercises.
 4. Test successful checkout, duplicate and out-of-order webhooks, renewal, failed payment, cancellation at period end, immediate cancellation, refund, account deletion, and portal access.

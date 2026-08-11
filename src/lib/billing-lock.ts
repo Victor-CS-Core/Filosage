@@ -140,6 +140,9 @@ export function checkoutConsentMetadataIsCurrent(
     offerVersion: string;
     currency: string;
     amountMinor: number;
+    minimumPurchaserAge: number;
+    launchMarketCode: string;
+    refundWindowDays: number;
   },
 ) {
   return metadata?.terms_version === expected.termsVersion
@@ -147,7 +150,10 @@ export function checkoutConsentMetadataIsCurrent(
     && metadata.offer_version === expected.offerVersion
     && metadata.offer_currency === expected.currency
     && metadata.offer_amount_minor === String(expected.amountMinor)
-    && metadata.automatic_renewal === "true";
+    && metadata.automatic_renewal === "true"
+    && metadata.purchaser_minimum_age === String(expected.minimumPurchaserAge)
+    && metadata.launch_market === expected.launchMarketCode
+    && metadata.refund_window_days === String(expected.refundWindowDays);
 }
 
 export function durableBillingConsentMatches(

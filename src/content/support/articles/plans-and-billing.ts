@@ -1,4 +1,5 @@
 import { defineSupportArticle } from "../types";
+import { PAID_SUBSCRIPTION_POLICY } from "@/lib/legal";
 
 export default defineSupportArticle({
   slug: "plans-and-billing",
@@ -6,7 +7,7 @@ export default defineSupportArticle({
   summary: "Compare memberships, check checkout availability, manage a subscription, and recover from common billing states.",
   category: "plans",
   keywords: ["billing", "pricing", "Plus", "Pro", "checkout", "course limit", "subscription", "downgrade", "cancel", "refund", "payment method"],
-  reviewedOn: "2026-08-10",
+  reviewedOn: "2026-08-11",
   sources: [".env.example", "src/lib/billing-lock.ts", "src/lib/stripe-server.ts", "src/app/pricing/page.tsx", "src/app/terms/page.tsx", "docs/COMMERCIAL_LAUNCH_RUNBOOK.md"],
   body: `
 ## Check current checkout availability
@@ -29,6 +30,8 @@ A downgrade does not delete a course or automatically unpublish existing work. I
 
 Secure checkout shows the selected membership and price, billing interval, automatic-renewal terms, included limits, and online cancellation path before submission. Checkout also requires acceptance of the Filosage Terms. Review the [Terms of Service](/terms) and [Privacy Notice](/privacy) before subscribing.
 
+Paid subscriptions are initially offered only to individual ${PAID_SUBSCRIPTION_POLICY.launchMarketLabel} residents who are at least ${PAID_SUBSCRIPTION_POLICY.minimumPurchaserAge} years old.
+
 ## After returning from checkout
 
 A return to Filosage does not grant membership access by itself. Filosage activates paid access only after processing a verified Stripe payment event. That update can take a moment. If the Plans page still shows Free, do not start repeated checkouts; refresh once, look for **Manage billing**, then contact support if the membership still does not update.
@@ -43,7 +46,13 @@ If a payment needs attention, use **Manage billing** to review the payment metho
 
 ## Refund questions
 
-Refund requests are reviewed against the displayed offer, the Terms of Service, transaction history, product-failure evidence, and applicable law. Do not assume a refund outcome from a support message. Contact support with the account email, approximate charge date, plan name, and a short description, but never send a complete card number, password, or one-time code.
+A full refund is available for an initial paid charge requested within ${PAID_SUBSCRIPTION_POLICY.refundWindowDays} calendar days after the charge and for an annual renewal requested within ${PAID_SUBSCRIPTION_POLICY.refundWindowDays} calendar days after that renewal. Verified duplicate, unauthorized, or incorrect charges are corrected or refunded as required by applicable law and payment-network rules. Other monthly renewals, partially used periods, unused time, and unused credits are non-refundable unless law or a specific written offer requires otherwise. An approved refund may end paid access immediately and returns to the original payment method; processor timing varies.
+
+Contact support from the account email with the approximate charge date, plan name, and a short description. Never send a complete card number, password, or one-time code.
+
+## Account deletion is not ordinary cancellation
+
+Deleting a Filosage account immediately cancels any nonterminal Stripe subscription and ends paid access. It does not automatically create or waive refund eligibility. Use **Manage billing** instead of account deletion when you only want to stop renewal and keep access through the paid period.
 
 ## Ask a billing question
 

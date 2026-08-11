@@ -30,7 +30,7 @@ import {
   offerFor,
   paidPlanFor,
 } from "@/lib/membership-plans";
-import { PRIVACY_VERSION, TERMS_VERSION } from "@/lib/legal";
+import { PAID_SUBSCRIPTION_POLICY, PRIVACY_VERSION, TERMS_VERSION } from "@/lib/legal";
 import { serverEnvironment } from "@/lib/runtime-environment";
 
 const CHECKOUT_CLAIM_STALE_MS = 2 * 60_000;
@@ -281,9 +281,7 @@ export async function createCheckoutSession(account: ServerAccount, planId: Paid
       consent_collection: { terms_of_service: "required" },
       custom_text: {
         submit: {
-          message: claim.interval === "annual"
-            ? `${plan.name} renews automatically each year until canceled. Manage or cancel online from your account.`
-            : `${plan.name} renews automatically each month until canceled. Manage or cancel online from your account.`,
+          message: `${plan.name} is available only to ${PAID_SUBSCRIPTION_POLICY.launchMarketLabel} residents age ${PAID_SUBSCRIPTION_POLICY.minimumPurchaserAge} or older and renews automatically ${claim.interval === "annual" ? "each year" : "each month"} until canceled. Cancel online from your account. Initial charges and annual renewals may be refunded when requested within ${PAID_SUBSCRIPTION_POLICY.refundWindowDays} days; other charges are non-refundable except as stated in the Terms or required by law.`,
         },
       },
       metadata: {
@@ -294,6 +292,9 @@ export async function createCheckoutSession(account: ServerAccount, planId: Paid
         offer_currency: plan.currency,
         offer_amount_minor: String(offer.amountMinor),
         automatic_renewal: "true",
+        purchaser_minimum_age: String(PAID_SUBSCRIPTION_POLICY.minimumPurchaserAge),
+        launch_market: PAID_SUBSCRIPTION_POLICY.launchMarketCode,
+        refund_window_days: String(PAID_SUBSCRIPTION_POLICY.refundWindowDays),
         terms_version: TERMS_VERSION,
         privacy_version: PRIVACY_VERSION,
       },
@@ -303,6 +304,9 @@ export async function createCheckoutSession(account: ServerAccount, planId: Paid
           filosage_plan: claim.planId,
           filosage_interval: claim.interval,
           offer_version: plan.offerVersion,
+          purchaser_minimum_age: String(PAID_SUBSCRIPTION_POLICY.minimumPurchaserAge),
+          launch_market: PAID_SUBSCRIPTION_POLICY.launchMarketCode,
+          refund_window_days: String(PAID_SUBSCRIPTION_POLICY.refundWindowDays),
           terms_version: TERMS_VERSION,
           privacy_version: PRIVACY_VERSION,
         },
@@ -768,6 +772,9 @@ export async function recordBillingConsent(
     offerVersion: plan.offerVersion,
     currency: plan.currency,
     amountMinor: offer.amountMinor,
+    minimumPurchaserAge: PAID_SUBSCRIPTION_POLICY.minimumPurchaserAge,
+    launchMarketCode: PAID_SUBSCRIPTION_POLICY.launchMarketCode,
+    refundWindowDays: PAID_SUBSCRIPTION_POLICY.refundWindowDays,
   })) {
     throw new Error("Stripe Checkout consent references an outdated or incomplete Filosage offer.");
   }
@@ -796,6 +803,9 @@ export async function recordBillingConsent(
     chargedAmountMinor: session.amount_total,
     automaticRenewal: true,
     onlineCancellationAvailable: true,
+    purchaserMinimumAge: PAID_SUBSCRIPTION_POLICY.minimumPurchaserAge,
+    launchMarket: PAID_SUBSCRIPTION_POLICY.launchMarketCode,
+    refundWindowDays: PAID_SUBSCRIPTION_POLICY.refundWindowDays,
     termsAccepted: true,
     termsVersion: session.metadata?.terms_version ?? null,
     privacyVersion: session.metadata?.privacy_version ?? null,
