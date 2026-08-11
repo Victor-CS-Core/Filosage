@@ -94,7 +94,7 @@
   width: min(100%, 1440px);
   min-height: 780px;
   display: grid;
-  grid-template-columns: minmax(0, 0.82fr) minmax(520px, 1.18fr);
+  grid-template-columns: minmax(0, 1fr) minmax(520px, 0.9fr);
   align-items: center;
   gap: clamp(48px, 5vw, 84px);
   margin-inline: auto;

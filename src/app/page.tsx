@@ -20,6 +20,7 @@ import {
 import AchievementBadge from "@/components/AchievementBadge";
 import AppShell from "@/components/AppShell";
 import DashboardCustomizer from "@/components/DashboardCustomizer";
+import FilosageMark from "@/components/FilosageMark";
 import { useAppDrawer } from "@/components/AppDrawer";
 import LandingPage from "@/components/marketing/LandingPage";
 import { useAuth } from "@/components/AuthProvider";
@@ -129,6 +130,12 @@ export default function Home() {
   const hasVisibleSideSections = preferences.sideOrder.some((section) => preferences.sections[section]);
   const hasDailyMission = learnerState.reminderPreferences.inAppEnabled && Boolean(dailyMission.review || dailyMission.forward);
   const focusTask = dailyMission.review ?? dailyMission.forward;
+  const focusTitle = focusTask?.lessonTitle
+    ?? continueProgress?.nextLessonTitle
+    ?? continueProgress?.topic
+    ?? "Choose your first course";
+  const focusTopic = focusTask?.topic ?? continueProgress?.topic;
+  const focusMinutes = hasDailyMission ? dailyMission.estimatedMinutes : undefined;
 
   const startDailyMission = () => {
     const task = dailyMission.review ?? dailyMission.forward;
@@ -164,10 +171,10 @@ export default function Home() {
       <section className="dashboard-section" key={section}>
         <div className="dashboard-section-heading"><h2>Next up</h2><Link href="/library">Explore library</Link></div>
         <div className="today-picks">
-          {learnerState.reminderPreferences.inAppEnabled && due.length > 0 && <Link className="today-pick review-pick" href="/review"><span><CalendarCheck2 size={20} /></span><strong>Review queue: {due.length} concept{due.length === 1 ? "" : "s"}</strong><small>Ordered by retention risk and delayed evidence checks.</small><em>Start with the most fragile</em></Link>}
+          {learnerState.reminderPreferences.inAppEnabled && due.length > 0 && <Link className="today-pick review-pick" href="/review"><span className="today-pick-icon"><CalendarCheck2 size={20} /></span><span className="today-pick-copy"><strong>Review queue: {due.length} concept{due.length === 1 ? "" : "s"}</strong><small>Ordered by retention risk and delayed evidence checks.</small></span><em>Start review</em><ArrowRight size={16} /></Link>}
           {picks.map((course, index) => {
             const id = course.id ?? course.courseId;
-            return <Link className={`today-pick tone-${index + 1}`} key={id ?? course.topic} href={`/course/${encodeURIComponent(course.topic)}?id=${id}`}><span><BookOpenCheck size={20} /></span><strong>{course.topic}</strong><small>{course.outcome ?? course.mission}</small><em>{course.estimatedMinutes ?? 30} min</em></Link>;
+            return <Link className={`today-pick tone-${index + 1}`} key={id ?? course.topic} href={`/course/${encodeURIComponent(course.topic)}?id=${id}`}><span className="today-pick-icon"><BookOpenCheck size={20} /></span><span className="today-pick-copy"><strong>{course.topic}</strong><small>{course.outcome ?? course.mission}</small></span><em>{course.estimatedMinutes ?? 30} min</em><ArrowRight size={16} /></Link>;
           })}
           {(!learnerState.reminderPreferences.inAppEnabled || !due.length) && !picks.length && <div className="dashboard-empty compact"><CheckCircle2 size={21} /><div><strong>You are caught up.</strong><p>Your next useful review will appear here.</p></div></div>}
         </div>
@@ -196,74 +203,74 @@ export default function Home() {
   return (
     <AppShell>
       <div className="dashboard-page">
-        <header className="dashboard-welcome-card">
-          <div className="dashboard-welcome-copy">
-            <div className="dashboard-heading-meta">
-              <p>{new Intl.DateTimeFormat("en", { weekday: "long", month: "long", day: "numeric" }).format(new Date())}</p>
-              <button type="button" onClick={dashboardCustomizer.openDrawer} aria-expanded={dashboardCustomizer.open}><SlidersHorizontal size={15} /> Customize</button>
-            </div>
+        <header className="guided-day-intro">
+          <div>
+            <p>{new Intl.DateTimeFormat("en", { weekday: "long", month: "long", day: "numeric" }).format(new Date())}</p>
             <h1>Welcome back, {firstName}.</h1>
-            <p>{hasDailyMission
-              ? "Your learning brief is ready. Start with the highest-value step, then keep your momentum moving."
+            <span>{hasDailyMission
+              ? "Your next useful step is ready."
               : continueProgress
-                ? "Your next lesson is waiting. Continue where you left off or choose a fresh direction."
-                : "Build a focused learning path around the capability you need next."}</p>
+                ? "Continue from where your evidence last left off."
+                : "Build a focused path around the capability you need next."}</span>
           </div>
-          <aside className="dashboard-learning-brief" aria-label="Today's learning brief">
+          <button className="guided-day-customize" type="button" onClick={dashboardCustomizer.openDrawer} aria-expanded={dashboardCustomizer.open}><SlidersHorizontal size={16} /> Customize</button>
+        </header>
+
+        <div className="guided-day-hero">
+          <section className="guided-day-focus" aria-labelledby="guided-day-focus-title">
+            <div className="guided-day-focus-body">
+              <p className="guided-day-kicker">Today&apos;s focus</p>
+              <h2 id="guided-day-focus-title">{focusTitle}</h2>
+              <div className="guided-day-focus-meta">
+                {focusTopic && <span><BookOpenCheck size={16} /> {focusTopic}</span>}
+                {focusMinutes && <span><Clock3 size={16} /> About {focusMinutes} min</span>}
+              </div>
+
+              <div className="guided-day-focus-steps" aria-label="Focused session steps">
+                {hasDailyMission && dailyMission.review && <div><span><CalendarCheck2 size={18} /></span><p><strong>{reviewKindLabel(dailyMission.review.kind)}</strong><small>{dailyMission.review.reason}</small></p></div>}
+                {hasDailyMission && dailyMission.forward && <div><span><BookOpenCheck size={18} /></span><p><strong>Continue lesson</strong><small>Build new capability after retrieval.</small></p></div>}
+                {!hasDailyMission && continueProgress && <div><span><BookOpenCheck size={18} /></span><p><strong>{continueProgress.nextLessonId ? "Continue lesson" : "Review course"}</strong><small>{continueProgress.nextLessonTitle ?? "Return to your course map."}</small></p></div>}
+                {!hasDailyMission && !continueProgress && <div><span><Compass size={18} /></span><p><strong>Choose a learning path</strong><small>Start with a published course or create one around your goal.</small></p></div>}
+              </div>
+
+              <div className="guided-day-focus-action">
+                {hasDailyMission ? (
+                  <button className="button button-primary" type="button" onClick={startDailyMission}>Begin focused session <ArrowRight size={16} /></button>
+                ) : continueProgress ? (
+                  <Link className="button button-primary" href={continueHref ?? "/progress"}>{continueProgress.nextLessonId ? "Continue learning" : "Review course"} <ArrowRight size={16} /></Link>
+                ) : (
+                  <Link className="button button-primary" href={canCreateCourses ? "/create" : "/library"}>{canCreateCourses ? "Create a course" : "Explore courses"} <ArrowRight size={16} /></Link>
+                )}
+              </div>
+            </div>
+
+            <div className="guided-day-focus-visual" aria-hidden="true">
+              <FilosageMark className="guided-day-mark is-inverse" />
+              <div className="guided-day-focus-progress">
+                <strong>{weeklyMilestone.completed} of {weeklyMilestone.target} lessons this week</strong>
+                <span><i style={{ width: `${weeklyMilestone.percent}%` }} /></span>
+              </div>
+            </div>
+          </section>
+
+          <aside className="guided-day-week" aria-label="Today's learning brief">
+            <div className="guided-day-week-heading"><h2>This week</h2><span>{weeklyMilestone.percent}%</span></div>
             {!loaded ? (
               <div className="dashboard-brief-loading" aria-label="Preparing your learning brief"><span /><span /><span /></div>
             ) : (
               <ul>
-                <li><Target size={18} aria-hidden="true" /><span><small>Primary focus</small><strong>{focusTask?.lessonTitle ?? continueProgress?.nextLessonTitle ?? continueProgress?.topic ?? "Choose your first course"}</strong></span></li>
-                <li><CalendarCheck2 size={18} aria-hidden="true" /><span><small>Review readiness</small><strong>{due.length ? `${due.length} concept${due.length === 1 ? "" : "s"} ready` : "Review queue clear"}</strong></span></li>
-                <li><TrendingUp size={18} aria-hidden="true" /><span><small>Weekly rhythm</small><strong>{weeklyMilestone.completed} of {weeklyMilestone.target} lessons complete</strong></span></li>
+                <li><span><Target size={18} aria-hidden="true" /></span><p><small>Current focus</small><strong>{focusTitle}</strong></p></li>
+                <li><span><CalendarCheck2 size={18} aria-hidden="true" /></span><p><small>Review readiness</small><strong>{due.length ? `${due.length} concept${due.length === 1 ? "" : "s"} ready now` : "Review queue clear"}</strong></p></li>
+                <li><span><TrendingUp size={18} aria-hidden="true" /></span><p><small>Weekly rhythm</small><strong>{weeklyMilestone.isComplete ? "Weekly milestone complete" : `${weeklyMilestone.remaining} lesson${weeklyMilestone.remaining === 1 ? "" : "s"} left`}</strong></p></li>
               </ul>
             )}
+            <div className="guided-day-week-progress"><span><i style={{ width: `${weeklyMilestone.percent}%` }} /></span><small>{weeklyMilestone.completed} of {weeklyMilestone.target} lessons</small></div>
           </aside>
-        </header>
+        </div>
 
         {!loaded ? <div className="dashboard-loading"><span /><span /><span /></div> : (
           <div className={`dashboard-grid ${hasVisibleSideSections ? "" : "is-single-column"}`}>
             <div className="dashboard-main-column">
-              <div className={`dashboard-focus-grid ${hasDailyMission ? "" : "is-single-card"}`}>
-              {hasDailyMission && (
-                <section className="daily-mission" aria-labelledby="daily-mission-title">
-                  <div className="daily-mission-heading">
-                    <div>
-                      <p className="overline">{dailyMission.recovered ? "Welcome back" : "Focused session"}</p>
-                      <h2 id="daily-mission-title">Today&apos;s mission</h2>
-                      <p>{dailyMission.recovered
-                        ? "No catch-up debt. Start with the most useful action and continue from here."
-                        : "One retention check and one forward step, selected from your evidence."}</p>
-                    </div>
-                    <span><Clock3 size={15} /> About {dailyMission.estimatedMinutes} min</span>
-                  </div>
-                  <ol className="daily-mission-steps">
-                    {dailyMission.review && (
-                      <li>
-                        <span>1</span>
-                        <div><small>{reviewKindLabel(dailyMission.review.kind)}</small><strong>{dailyMission.review.lessonTitle}</strong><em>{dailyMission.review.reason}</em></div>
-                      </li>
-                    )}
-                    {dailyMission.forward && (
-                      <li>
-                        <span>{dailyMission.review ? "2" : "1"}</span>
-                        <div><small>Forward step · {dailyMission.forward.topic}</small><strong>{dailyMission.forward.lessonTitle}</strong><em>Build new capability after retrieval.</em></div>
-                      </li>
-                    )}
-                  </ol>
-                  <div className="daily-mission-footer">
-                    <div>
-                      <strong>{weeklyMilestone.completed} of {weeklyMilestone.target} this week</strong>
-                      <span><i style={{ width: `${weeklyMilestone.percent}%` }} /></span>
-                    </div>
-                    <button className="button button-primary" type="button" onClick={startDailyMission}>
-                      Start mission <ArrowRight size={16} />
-                    </button>
-                  </div>
-                </section>
-              )}
-
               <section className="dashboard-section dashboard-continue-section">
                 <div className="dashboard-section-heading"><h2>Continue learning</h2>{continueProgress && <Link href="/progress">View progress</Link>}</div>
                 {continueProgress ? (
@@ -276,7 +283,6 @@ export default function Home() {
                   <div className="dashboard-empty"><Compass size={23} /><div><strong>Choose your first course</strong><p>Start a published course or create one for your own goal.</p></div><Link className="button button-primary" href={canCreateCourses ? "/create" : "/library"}>{canCreateCourses ? "Create a course" : "Explore courses"}</Link></div>
                 )}
               </section>
-              </div>
 
               {preferences.mainOrder.map(renderMainSection)}
             </div>
