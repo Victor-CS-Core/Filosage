@@ -846,9 +846,10 @@ test("Firebase auth uses a frameable first-party relay only on supported product
   const [nextConfigSource, proxySource, relaySource] = await Promise.all([
     readFile("next.config.ts", "utf8"),
     readFile("src/proxy.ts", "utf8"),
-    readFile("src/app/__/auth/[...path]/route.ts", "utf8"),
+    readFile("src/app/api/firebase-auth/[...path]/route.ts", "utf8"),
   ]);
   expect(nextConfigSource).toContain('source: "/((?!__).*)"');
+  expect(nextConfigSource).toContain('destination: "/api/firebase-auth/:path*"');
   expect(proxySource).toContain("api|assets|__|_next/static");
   expect(relaySource).toContain("MAX_FIREBASE_AUTH_BODY_BYTES");
   expect(firebaseAuthRelayOrigin("teachapp-d73c3.firebaseapp.com")).toBe("https://teachapp-d73c3.firebaseapp.com");

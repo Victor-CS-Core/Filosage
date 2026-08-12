@@ -21,6 +21,12 @@ const nextConfig: NextConfig = {
       headers: securityHeaders(process.env.NODE_ENV === "development", undefined, false),
     }];
   },
+  async rewrites() {
+    return [{
+      source: "/__/auth/:path*",
+      destination: "/api/firebase-auth/:path*",
+    }];
+  },
 };
 
 export default nextConfig;
