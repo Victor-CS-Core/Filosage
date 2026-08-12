@@ -3,15 +3,15 @@ import { defineSupportArticle } from "../types";
 export default defineSupportArticle({
   slug: "sign-in-help",
   title: "Troubleshoot Google sign-in",
-  summary: "Resolve common popup, storage, network, and authorized-domain sign-in problems.",
+  summary: "Resolve common popup, embedded-browser, storage, network, and authorized-domain sign-in problems.",
   category: "account",
   keywords: ["sign in", "Google", "popup", "private browsing", "storage", "network", "account"],
-  reviewedOn: "2026-08-05",
+  reviewedOn: "2026-08-11",
   sources: ["src/components/AuthProvider.tsx", "src/components/AuthModal.tsx"],
   body: `
 ## If the sign-in window does not open
 
-Allow popups for Filosage, then try Google sign-in again. If you closed the account chooser, restart the sign-in action when you are ready.
+Allow popups for Filosage, then try Google sign-in again. If the sign-in window closes, is blocked, or does not load in an embedded browser, choose **Sign in with Google in this tab**. That option returns you to the same Filosage page after Google confirms your account.
 
 ## If browser storage is unavailable
 

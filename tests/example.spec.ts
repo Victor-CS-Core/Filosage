@@ -809,8 +809,13 @@ test("lets guests browse outlines while clearly gating lessons behind an account
   await expect(
     dialog.getByRole("button", { name: "Continue with Google" }),
   ).toBeDisabled();
+  await expect(
+    dialog.getByRole("button", { name: "Sign in with Google in this tab" }),
+  ).toBeDisabled();
   await dialog.getByRole("checkbox").check();
   await expect(dialog.getByRole("button", { name: "Continue with Google" })).toBeEnabled();
+  await expect(dialog.getByRole("button", { name: "Sign in with Google in this tab" })).toBeEnabled();
+  await expect(dialog).toContainText("when a browser closes or blocks the sign-in window");
   await expect(dialog.getByRole("link", { name: "Terms of Service" })).toHaveAttribute("href", "/terms");
 });
 

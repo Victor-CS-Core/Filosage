@@ -18,6 +18,11 @@ import { courseOutlineSchema, lessonGenerationSchema } from "../src/lib/validati
 import { courseUsesPipelineV2, resolveCoursePipelineFeatureFlags } from "../src/lib/course-pipeline/feature-policy";
 import { buildGuardedLessonSave } from "../src/lib/course-pipeline/lesson-save";
 import { buildInteractionAttemptMutation } from "../src/lib/course-pipeline/interaction-attempt";
+import { resolveFirebaseAuthDomain } from "../src/lib/firebase-auth-domain";
+import {
+  parsePendingGoogleRedirectAcceptance,
+  pendingGoogleRedirectAcceptance,
+} from "../src/lib/auth-redirect";
 
 function conciseValidLesson() {
   return {
@@ -827,4 +832,26 @@ test("guarded lesson saves reject publish races and stale edits while invalidati
     guard,
     "2026-08-11T12:00:00.000Z",
   )).toThrow(/newer edit was preserved/);
+});
+
+test("Firebase auth uses a frameable first-party relay only on supported production hosts", async () => {
+  expect(resolveFirebaseAuthDomain("teachapp-d73c3.firebaseapp.com", "filosage.com")).toBe("filosage.com");
+  expect(resolveFirebaseAuthDomain("teachapp-d73c3.firebaseapp.com", "WWW.FILOSAGE.COM")).toBe("www.filosage.com");
+  expect(resolveFirebaseAuthDomain("teachapp-d73c3.firebaseapp.com", "127.0.0.1")).toBe("teachapp-d73c3.firebaseapp.com");
+  expect(resolveFirebaseAuthDomain("teachapp-d73c3.firebaseapp.com", "filosage.com.attacker.test")).toBe("teachapp-d73c3.firebaseapp.com");
+  const [nextConfigSource, proxySource] = await Promise.all([
+    readFile("next.config.ts", "utf8"),
+    readFile("src/proxy.ts", "utf8"),
+  ]);
+  expect(nextConfigSource).toContain('source: "/((?!__).*)"');
+  expect(proxySource).toContain("api|assets|__|_next/static");
+});
+
+test("same-tab sign-in preserves only fresh, version-bound legal confirmation", () => {
+  const now = Date.UTC(2026, 7, 11, 18, 0, 0);
+  const pending = pendingGoogleRedirectAcceptance(now);
+  expect(parsePendingGoogleRedirectAcceptance(JSON.stringify(pending), now + 60_000)).toEqual(pending);
+  expect(parsePendingGoogleRedirectAcceptance(JSON.stringify(pending), now + 16 * 60_000)).toBeNull();
+  expect(parsePendingGoogleRedirectAcceptance(JSON.stringify({ ...pending, termsVersion: "stale" }), now)).toBeNull();
+  expect(parsePendingGoogleRedirectAcceptance("not-json", now)).toBeNull();
 });

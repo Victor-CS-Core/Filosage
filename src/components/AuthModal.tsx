@@ -9,8 +9,9 @@ import FilosageMark from "@/components/FilosageMark";
 interface AuthModalProps { onClose: () => void; }
 
 export default function AuthModal({ onClose }: AuthModalProps) {
-  const { signInWithGoogle, acceptLegalTerms, error, clearError } = useAuth();
+  const { signInWithGoogle, signInWithGoogleRedirect, acceptLegalTerms, error, clearError } = useAuth();
   const [submitting, setSubmitting] = useState(false);
+  const [redirecting, setRedirecting] = useState(false);
   const [agreed, setAgreed] = useState(false);
   const [acceptanceError, setAcceptanceError] = useState<string | null>(null);
   const dialogRef = useRef<HTMLElement>(null);
@@ -48,6 +49,19 @@ export default function AuthModal({ onClose }: AuthModalProps) {
     } finally { setSubmitting(false); }
   };
 
+  const handleGoogleRedirect = async () => {
+    setRedirecting(true);
+    setAcceptanceError(null);
+    clearError();
+    try {
+      await signInWithGoogleRedirect();
+      onClose();
+    } catch {
+      setAcceptanceError("Same-tab sign-in could not be started. Please try again.");
+      setRedirecting(false);
+    }
+  };
+
   return <div className="modal-layer" role="presentation" onMouseDown={onClose}>
     <section ref={dialogRef} className="auth-dialog" role="dialog" aria-modal="true" aria-labelledby="auth-title" aria-describedby="auth-description" onMouseDown={(event) => event.stopPropagation()}>
       <button className="icon-button auth-close" onClick={onClose} aria-label="Close sign-in dialog"><X size={18} /></button>
@@ -61,9 +75,13 @@ export default function AuthModal({ onClose }: AuthModalProps) {
         <input type="checkbox" checked={agreed} onChange={(event) => setAgreed(event.target.checked)} />
         <span>I confirm I am at least 13 and, if I am not yet the age of legal majority where I live, that my parent or guardian has reviewed and agreed to the <Link href="/terms" target="_blank">Terms of Service</Link>. I acknowledge the <Link href="/privacy" target="_blank">Privacy Notice</Link>.</span>
       </label>
-      <button className="button button-primary auth-submit" onClick={handleGoogle} disabled={submitting || !agreed}>
+      <button className="button button-primary auth-submit" onClick={handleGoogle} disabled={submitting || redirecting || !agreed}>
         <span className="google-mark" aria-hidden="true">G</span>{submitting ? "Signing in…" : "Continue with Google"}
       </button>
+      <button className="button button-secondary auth-redirect" onClick={handleGoogleRedirect} disabled={submitting || redirecting || !agreed}>
+        {redirecting ? "Opening Google…" : "Sign in with Google in this tab"}
+      </button>
+      <p className="auth-redirect-help">Use the same-tab option when a browser closes or blocks the sign-in window.</p>
       <button className="button button-quiet" onClick={onClose}>Continue browsing course outlines</button>
     </section>
   </div>;

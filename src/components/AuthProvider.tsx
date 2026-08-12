@@ -9,15 +9,22 @@ import {
   useState,
 } from "react";
 import {
+  getRedirectResult,
   GoogleAuthProvider,
   onAuthStateChanged,
   signInWithPopup,
+  signInWithRedirect,
   signOut as firebaseSignOut,
   type User,
 } from "firebase/auth";
 import { auth } from "@/lib/firebase";
 import type { AccessLevel, LearnerAccount } from "@/lib/course-types";
 import { PRIVACY_VERSION, SUPPORT_CONTACT, TERMS_VERSION } from "@/lib/legal";
+import {
+  parsePendingGoogleRedirectAcceptance,
+  pendingGoogleRedirectAcceptance,
+  PENDING_GOOGLE_REDIRECT_ACCEPTANCE_KEY,
+} from "@/lib/auth-redirect";
 
 interface AuthContextValue {
   user: User | null;
@@ -33,6 +40,7 @@ interface AuthContextValue {
   error: string | null;
   clearError: () => void;
   signInWithGoogle: () => Promise<User>;
+  signInWithGoogleRedirect: () => Promise<void>;
   acceptLegalTerms: (source: "signup" | "terms-update" | "subscription", targetUser?: User) => Promise<void>;
   signOut: () => Promise<void>;
   refreshAccount: () => Promise<void>;
@@ -94,6 +102,24 @@ function withTimeout<T>(promise: Promise<T>, milliseconds: number, message: stri
     const timer = window.setTimeout(() => reject(new Error(message)), milliseconds);
     promise.then(resolve, reject).finally(() => window.clearTimeout(timer));
   });
+}
+
+async function persistLegalAcceptance(
+  activeUser: User,
+  source: "signup" | "terms-update" | "subscription",
+) {
+  const token = await activeUser.getIdToken();
+  const response = await fetch("/api/legal/acceptance", {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+    body: JSON.stringify({
+      termsVersion: TERMS_VERSION,
+      privacyVersion: PRIVACY_VERSION,
+      ageEligibilityConfirmed: true,
+      source,
+    }),
+  });
+  if (!response.ok) throw new Error("Your acceptance could not be saved. Please try again.");
 }
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
@@ -161,16 +187,30 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setError("Your session is taking longer than expected. Refresh to try again.");
       setLoading(false);
     }, 10000);
+    void getRedirectResult(firebaseAuth).catch((redirectError: unknown) => {
+      setError(authErrorMessage(redirectError));
+    });
+
     const unsubscribe = onAuthStateChanged(firebaseAuth, (nextUser) => {
       window.clearTimeout(bootTimeout);
       setUser(nextUser);
       setLoading(true);
-      void loadAccount(nextUser).catch((accountError: unknown) => {
+      void Promise.resolve().then(async () => {
+        if (nextUser) {
+          const storedPending = sessionStorage.getItem(PENDING_GOOGLE_REDIRECT_ACCEPTANCE_KEY);
+          const pending = parsePendingGoogleRedirectAcceptance(storedPending);
+          if (pending) {
+            await persistLegalAcceptance(nextUser, pending.source);
+            sessionStorage.removeItem(PENDING_GOOGLE_REDIRECT_ACCEPTANCE_KEY);
+          } else if (storedPending) {
+            sessionStorage.removeItem(PENDING_GOOGLE_REDIRECT_ACCEPTANCE_KEY);
+          }
+        }
+        await loadAccount(nextUser);
+      }).catch((accountError: unknown) => {
         setAccount(null);
         setError(accountError instanceof Error ? accountError.message : "Your learning account could not be loaded.");
-      }).finally(() => {
-        setLoading(false);
-      });
+      }).finally(() => setLoading(false));
     });
 
     return () => {
@@ -204,24 +244,43 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, [loadAccount]);
 
+  const signInWithGoogleRedirect = useCallback(async () => {
+    setError(null);
+    if (!auth) {
+      if (localAuthAvailable) {
+        const localUser = localOwnerUser();
+        localStorage.setItem(LOCAL_SESSION_KEY, "1");
+        setUser(localUser);
+        await persistLegalAcceptance(localUser, "signup");
+        await loadAccount(localUser).catch(() => setAccount(null));
+        return;
+      }
+      setError("Google sign-in is not available in this local build.");
+      throw new Error("Firebase is not configured.");
+    }
+
+    const provider = new GoogleAuthProvider();
+    provider.setCustomParameters({ prompt: "select_account" });
+    try {
+      sessionStorage.setItem(
+        PENDING_GOOGLE_REDIRECT_ACCEPTANCE_KEY,
+        JSON.stringify(pendingGoogleRedirectAcceptance()),
+      );
+      await signInWithRedirect(auth, provider);
+    } catch (redirectError) {
+      sessionStorage.removeItem(PENDING_GOOGLE_REDIRECT_ACCEPTANCE_KEY);
+      setError(authErrorMessage(redirectError));
+      throw redirectError;
+    }
+  }, [loadAccount]);
+
   const acceptLegalTerms = useCallback(async (
     source: "signup" | "terms-update" | "subscription",
     targetUser?: User,
   ) => {
     const activeUser = targetUser ?? user;
     if (!activeUser) throw new Error("Sign in before accepting the terms.");
-    const token = await activeUser.getIdToken();
-    const response = await fetch("/api/legal/acceptance", {
-      method: "POST",
-      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
-      body: JSON.stringify({
-        termsVersion: TERMS_VERSION,
-        privacyVersion: PRIVACY_VERSION,
-        ageEligibilityConfirmed: true,
-        source,
-      }),
-    });
-    if (!response.ok) throw new Error("Your acceptance could not be saved. Please try again.");
+    await persistLegalAcceptance(activeUser, source);
     setError(null);
     await loadAccount(activeUser);
   }, [loadAccount, user]);
@@ -260,11 +319,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       error,
       clearError: () => setError(null),
       signInWithGoogle,
+      signInWithGoogleRedirect,
       acceptLegalTerms,
       signOut,
       refreshAccount,
     }),
-    [user, account, loading, error, signInWithGoogle, acceptLegalTerms, signOut, refreshAccount],
+    [user, account, loading, error, signInWithGoogle, signInWithGoogleRedirect, acceptLegalTerms, signOut, refreshAccount],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
