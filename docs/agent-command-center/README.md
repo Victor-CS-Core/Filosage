@@ -36,3 +36,7 @@ Sign in as the local owner and open `/admin/command-center`.
 ## Release status
 
 Implementation, Git publication, and Sites deployment are separate states. The presence of this source code does not mean the feature is enabled or deployed in production.
+
+## Future implementation
+
+The proposed hybrid semi-autonomous expansion is recorded in the [hybrid semi-autonomous implementation plan](HYBRID_SEMI_AUTONOMOUS_IMPLEMENTATION_PLAN.md). It covers iCloud-forwarded email intake, privacy-safe Discord notifications, a durable notification outbox, bounded automatic drafts, and a multi-pass gauntlet. Its status is planning only: it does not authorize provider setup, secrets, mailbox rules, code implementation, deployment, or activation.
