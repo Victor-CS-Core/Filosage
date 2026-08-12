@@ -288,6 +288,17 @@ export function buildWeeklyMilestone(
   };
 }
 
+export function weeklyMilestoneProgressLabel(
+  milestone: Pick<WeeklyMilestone, "completed" | "target">,
+  includeWeek = false,
+) {
+  const weekSuffix = includeWeek ? " this week" : "";
+  if (milestone.completed > milestone.target) {
+    return `${milestone.completed} lessons completed${weekSuffix} · goal ${milestone.target}`;
+  }
+  return `${milestone.completed} of ${milestone.target} lessons${weekSuffix}`;
+}
+
 export function weeklyGoalChoices(currentTarget: number) {
   const normalizedTarget = Math.max(1, Math.min(50, Math.round(currentTarget)));
   return [...new Set([3, 5, 7, 10, normalizedTarget])].sort((left, right) => left - right);

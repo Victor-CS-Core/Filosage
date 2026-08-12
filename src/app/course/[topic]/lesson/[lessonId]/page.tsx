@@ -417,6 +417,8 @@ export default function LessonView() {
     ...(!complete && lessonData?.quizzes.length && checksComplete ? ["checks" as const] : []),
   ]), [activitySections, checksComplete, complete, experienceComplete, guidedPracticeComplete, interactionComplete, lessonData, practiceInteraction, transferComplete]);
   const completedActivityCount = activitySections.filter((section) => completedActivityIds.has(section.id)).length;
+  const canAdvanceCurrentActivity = activeActivityId === "guided"
+    || Boolean(activeActivityId && completedActivityIds.has(activeActivityId));
 
   const selectLessonPane = (pane: LessonPane) => {
     setLessonPaneState({ key: noteKey, pane });
@@ -1525,7 +1527,10 @@ export default function LessonView() {
                 <div className="activity-panel-navigation">
                   <button className="button button-secondary" type="button" disabled={activeActivityIndex === 0} onClick={() => moveThroughActivities(-1)}><ArrowLeft size={16} /> Previous activity</button>
                   {activeActivityIndex < activitySections.length - 1 ? (
-                    <button className="button button-primary" type="button" onClick={() => moveThroughActivities(1)}>Next activity <ArrowRight size={16} /></button>
+                    <span className="activity-panel-next">
+                      {!canAdvanceCurrentActivity && <small id="activity-navigation-requirement">Complete and save this activity to continue.</small>}
+                      <button className="button button-primary" type="button" disabled={!canAdvanceCurrentActivity} aria-describedby={!canAdvanceCurrentActivity ? "activity-navigation-requirement" : undefined} onClick={() => moveThroughActivities(1)}>Next activity <ArrowRight size={16} /></button>
+                    </span>
                   ) : activeActivityId === "guided" && !guidedPracticeComplete ? (
                     <button className="button button-primary" type="button" onClick={() => setGuidedPracticeState({ key: noteKey, complete: true })}><Check size={16} /> Mark practice reviewed</button>
                   ) : null}

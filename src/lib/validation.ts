@@ -2,6 +2,7 @@ import { z } from "zod";
 import { lessonVisualsSchema } from "@/lib/lesson-visuals";
 import { lessonInteractionsSchema } from "@/lib/lesson-interactions";
 import { isSafePublicSourceUrl } from "@/lib/source-safety";
+import { containsSerializedCriterionList } from "@/lib/course-criteria";
 
 export const topicSchema = z
   .string()
@@ -101,7 +102,10 @@ export const courseOutlineSchema = z.object({
     title: z.string().trim().min(1).max(120),
     brief: z.string().trim().min(1).max(800),
     deliverable: z.string().trim().min(1).max(300),
-    successCriteria: z.array(z.string().trim().min(1).max(220)).min(3).max(5),
+    successCriteria: z.array(
+      z.string().trim().min(1).max(220)
+        .refine((criterion) => !containsSerializedCriterionList(criterion), "Return each success criterion as a separate list item."),
+    ).min(3).max(6),
   }),
 });
 

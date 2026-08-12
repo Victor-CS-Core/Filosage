@@ -624,10 +624,15 @@ test("completes a published course from discovery through evidence", async ({ pa
   await page.getByRole("tab", { name: /Activities/ }).click();
   await expect(page.getByRole("heading", { name: "Follow the expert reasoning" })).toBeVisible();
   await expect(page.getByText("Compare arrival volume, handling time, and affected issue types.")).toBeVisible();
+  const nextActivity = page.getByRole("button", { name: "Next activity" });
+  await expect(nextActivity).toBeDisabled();
+  await expect(page.getByText("Complete and save this activity to continue.")).toBeVisible();
   const workedExampleEvidence = "I would compare the second team's arrival volume, handling time, and issue mix before attributing slower handoffs to the release.";
   await page.getByLabel("Your unsupported finish").fill(workedExampleEvidence);
   await page.getByRole("button", { name: "Save unsupported finish" }).click();
   await expect(page.getByText("Ready for lesson completion.")).toBeVisible();
+  await expect(nextActivity).toBeEnabled();
+  await expect(page.getByText("Complete and save this activity to continue.")).toHaveCount(0);
   await page.getByRole("tab", { name: /Guided practice/ }).click();
   await expect(page.getByRole("heading", { name: "Work through the idea" })).toBeVisible();
   await page.getByText("Compare with a worked response").click();

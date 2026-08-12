@@ -899,7 +899,7 @@ export default function CourseMap() {
                {course.isPublic && <p className="owner-action-hint">{course.publicationReview?.status === "owner_override"
                  ? "Published with an audited owner quality override after the non-bypassable safety and structure checks passed. AI-generated factual claims are not independently verified."
                  : "Published content passed automated safety and quality review. AI-generated factual claims are not independently verified."}</p>}
-               {(publicationFailures.length > 0 || publicationAssessment || validationReport || repairProgress) && (
+               {!course.isPublic && (publicationFailures.length > 0 || publicationAssessment || validationReport || repairProgress) && (
                  <section className="publication-failures" aria-labelledby="publication-failures-title">
                    <div>
                      <TriangleAlert size={18} aria-hidden="true" />

@@ -23,6 +23,7 @@ import {
   scheduleAdaptiveReview,
   updateDelayedChecks,
   weeklyGoalChoices,
+  weeklyMilestoneProgressLabel,
 } from "../src/lib/adaptive-learning";
 import { buildLearningReminderCalendar } from "../src/lib/learning-reminders";
 import type { CourseProgress } from "../src/lib/learning-types";
@@ -2416,6 +2417,8 @@ test("keeps weekly milestones finite and free of catch-up debt", () => {
   });
   expect(weeklyGoalChoices(4)).toEqual([3, 4, 5, 7, 10]);
   expect(weeklyGoalChoices(5)).toEqual([3, 5, 7, 10]);
+  expect(weeklyMilestoneProgressLabel({ completed: 3, target: 5 }, true)).toBe("3 of 5 lessons this week");
+  expect(weeklyMilestoneProgressLabel({ completed: 12, target: 4 }, true)).toBe("12 lessons completed this week · goal 4");
 });
 
 test("exports an opt-in recurring reminder without an email dependency", () => {

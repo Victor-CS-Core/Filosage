@@ -261,6 +261,51 @@ test("an owner records a snapshot-bound manual-review decision before publishing
   await expect(page.getByText(/Manual review approved for this exact snapshot/)).toBeVisible();
 });
 
+test("a published approved course does not present its audit report as an active publication problem", async ({ page }) => {
+  await restoreLocalLearner(page);
+  const courseId = "published-manual-review-course";
+  const snapshotHash = "e".repeat(64);
+  await page.route(`**/api/courses/${courseId}`, (route) => route.fulfill({ json: {
+    id: courseId,
+    courseId,
+    topic: "First-aid response",
+    mission: "Explain a bounded response sequence.",
+    level: "Foundations",
+    isPublic: true,
+    canManage: true,
+    pipelineStage: "published",
+    generatedLessonIds: ["0-0"],
+    publicationReview: { status: "approved", reviewedAt: "2026-08-12T13:00:00.000Z" },
+    modules: [{ title: "Response", description: "Recognize the sequence.", lessons: [{ title: "Response sequence", concept: "Emergency response" }] }],
+  } }));
+  await page.route(`**/api/courses/${courseId}/validation`, (route) => route.fulfill({ json: { validationReport: {
+    courseId,
+    snapshotHash,
+    contractVersion: "course-quality-v2.0.0",
+    validatedAt: "2026-08-12T13:00:00.000Z",
+    publishable: false,
+    requiresManualReview: true,
+    issues: [{
+      code: "CQ_SEMANTIC_001",
+      severity: "error",
+      category: "semantic",
+      path: "course",
+      message: "Owner review is required before publication.",
+      repairability: "manual",
+      source: "semantic",
+      contractVersion: "course-quality-v2.0.0",
+    }],
+    warnings: [],
+    passedRuleCodes: [],
+  } } }));
+  await page.route(`**/api/progress?courseId=${courseId}`, (route) => route.fulfill({ json: { progress: null } }));
+
+  await page.goto(`/course/First-aid%20response?id=${courseId}`);
+  await expect(page.getByText("Public course", { exact: true })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Publication review needs attention" })).toHaveCount(0);
+  await expect(page.getByRole("region", { name: "Course quality contract report" })).toHaveCount(0);
+});
+
 test("targeted V2 repair applies diagnosed paths, revalidates, and offers undo", async ({ page }) => {
   await restoreLocalLearner(page);
   const courseId = "targeted-repair-course";

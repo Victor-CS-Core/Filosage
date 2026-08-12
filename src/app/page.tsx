@@ -34,6 +34,7 @@ import {
   buildDailyMission,
   buildWeeklyMilestone,
   reviewKindLabel,
+  weeklyMilestoneProgressLabel,
 } from "@/lib/adaptive-learning";
 import { trackProductEvent } from "@/lib/product-analytics";
 
@@ -109,6 +110,8 @@ export default function Home() {
   const due = buildAdaptiveReviewQueue(progress, new Date(now));
   const dailyMission = buildDailyMission(progress, new Date(now));
   const weeklyMilestone = buildWeeklyMilestone(progress, learnerState.weeklyLessonGoal, new Date(now));
+  const weeklyMilestoneHeroLabel = weeklyMilestoneProgressLabel(weeklyMilestone, true);
+  const weeklyMilestoneSummaryLabel = weeklyMilestoneProgressLabel(weeklyMilestone);
   const mastered = lessons.filter((lesson) => lesson.status === "mastered").length;
   const totalQuestions = lessons.reduce((sum, lesson) => sum + lesson.totalQuestions, 0);
   const correct = lessons.reduce((sum, lesson) => sum + lesson.firstAttemptCorrect, 0);
@@ -248,7 +251,7 @@ export default function Home() {
             <div className="guided-day-focus-visual" aria-hidden="true">
               <FilosageMark className="guided-day-mark is-inverse" />
               <div className="guided-day-focus-progress">
-                <strong>{weeklyMilestone.completed} of {weeklyMilestone.target} lessons this week</strong>
+                <strong>{weeklyMilestoneHeroLabel}</strong>
                 <span><i style={{ width: `${weeklyMilestone.percent}%` }} /></span>
               </div>
             </div>
@@ -265,7 +268,7 @@ export default function Home() {
                 <li><span><TrendingUp size={18} aria-hidden="true" /></span><p><small>Weekly rhythm</small><strong>{weeklyMilestone.isComplete ? "Weekly milestone complete" : `${weeklyMilestone.remaining} lesson${weeklyMilestone.remaining === 1 ? "" : "s"} left`}</strong></p></li>
               </ul>
             )}
-            <div className="guided-day-week-progress"><span><i style={{ width: `${weeklyMilestone.percent}%` }} /></span><small>{weeklyMilestone.completed} of {weeklyMilestone.target} lessons</small></div>
+            <div className="guided-day-week-progress"><span><i style={{ width: `${weeklyMilestone.percent}%` }} /></span><small>{weeklyMilestoneSummaryLabel}</small></div>
           </aside>
         </div>
 

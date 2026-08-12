@@ -15,6 +15,7 @@ import { courseReviewPolicyForBrief, effectiveCourseReviewPolicy } from "../src/
 import { inspectGeneratedContent, languagePolicyInstruction, sanitizeGeneratedText } from "../src/lib/content-language";
 import { withCourseObjectiveRelationships } from "../src/lib/course-pipeline/relationships";
 import { courseOutlineSchema, lessonGenerationSchema } from "../src/lib/validation";
+import { normalizeSuccessCriteria } from "../src/lib/course-criteria";
 import { courseUsesPipelineV2, resolveCoursePipelineFeatureFlags } from "../src/lib/course-pipeline/feature-policy";
 import { COURSE_QUALITY_RULES } from "../src/lib/course-pipeline/rules";
 import { buildGuardedLessonSave } from "../src/lib/course-pipeline/lesson-save";
@@ -776,6 +777,30 @@ test("a coherent one-lesson course is structurally valid without padding", () =>
     }],
   };
   expect(courseOutlineSchema.safeParse(shortOutline).success).toBe(true);
+});
+
+test("capstone criteria remain separate and support six explicit requirements", () => {
+  const outline = validOutline();
+  const criteria = [
+    "Names the audience promise",
+    "Shows an immediate opening",
+    "Identifies a turning point",
+    "Uses concrete supporting details",
+    "Ends with one memorable idea",
+    "Cites rehearsal evidence and one revision",
+  ];
+  expect(courseOutlineSchema.safeParse({
+    ...outline,
+    capstone: { ...outline.capstone, successCriteria: criteria },
+  }).success).toBe(true);
+  expect(courseOutlineSchema.safeParse({
+    ...outline,
+    capstone: {
+      ...outline.capstone,
+      successCriteria: [...criteria.slice(0, 4), `${criteria[4]}","${criteria[5]}`],
+    },
+  }).success).toBe(false);
+  expect(normalizeSuccessCriteria([`${criteria[4]}","${criteria[5]}`])).toEqual(criteria.slice(4));
 });
 
 test("declared introduction lessons use a renderable exception instead of the substantive template", async () => {

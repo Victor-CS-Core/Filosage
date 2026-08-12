@@ -9,6 +9,7 @@ import { inspectGeneratedContent, sanitizeGeneratedValue } from "@/lib/content-l
 import { isSafePublicSourceUrl } from "@/lib/source-safety";
 import { effectiveCourseReviewPolicy } from "@/lib/course-pipeline/review-policy";
 import { visualPlanSchema } from "@/lib/course-pipeline/schemas";
+import { normalizeSuccessCriteria } from "@/lib/course-criteria";
 
 function structuredText(value: unknown) {
   return typeof value === "string" ? normalizeStructuredMarkdown(value) : "";
@@ -72,6 +73,9 @@ export function toCourseDto(value: Record<string, unknown> | Course, canManage =
   const repairedForDisplay = inspectGeneratedContent(raw, topic, language).length > 0;
   const safe = sanitizeGeneratedValue(raw, topic, language) as Record<string, unknown>;
   const effectiveManualReviewPolicy = effectiveCourseReviewPolicy(raw as unknown as Parameters<typeof effectiveCourseReviewPolicy>[0]);
+  const safeCapstone = safe.capstone && typeof safe.capstone === "object"
+    ? safe.capstone as Course["capstone"]
+    : undefined;
   return {
     id: typeof safe.id === "string" ? safe.id : undefined,
     courseId: typeof safe.id === "string" ? safe.id : undefined,
@@ -195,8 +199,8 @@ export function toCourseDto(value: Record<string, unknown> | Course, canManage =
       : undefined,
     updatedAt: typeof raw.updatedAt === "string" ? raw.updatedAt : undefined,
     schemaVersion: typeof raw.schemaVersion === "number" ? raw.schemaVersion : undefined,
-    capstone: safe.capstone && typeof safe.capstone === "object"
-      ? safe.capstone as Course["capstone"]
+    capstone: safeCapstone
+      ? { ...safeCapstone, successCriteria: normalizeSuccessCriteria(safeCapstone.successCriteria) }
       : undefined,
     aiAssisted: raw.aiAssisted === true
       || (typeof raw.id === "string" && !raw.id.startsWith("catalog-")),
