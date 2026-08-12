@@ -15,7 +15,7 @@ The current V2 suite passes 34 of 34. It covers both original defects, a valid 4
 
 `evals/course-pipeline/dataset/v1.ts` contains 100 requests across the specified disciplines, levels, scopes, languages, freshness, high-risk, accessibility, lab/visual applicability, and prompt-injection variants. Regular CI asserts deterministic route, review-policy, lab-applicability, and visual-applicability invariants without asserting exact generated prose.
 
-This is not described as a 100-course live model evaluation. The live suite remains opt-in because it consumes quota and requires an authenticated evaluation environment. The production owner acceptance creates one complete real course and records its actual pipeline result.
+This is not described as a 100-course live model evaluation. The live suite remains opt-in because it consumes quota and requires an authenticated evaluation environment. Production owner acceptance created, inspected, approved, published, and opened one complete real course: 4 modules, 12 lessons, and four activity stages per lesson. Its actual pipeline result is recorded in `RELEASE_EVIDENCE.md`.
 
 ## Executed system evidence
 
