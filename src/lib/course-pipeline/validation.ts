@@ -154,7 +154,7 @@ function inspectApplicabilityPlans(raw: Record<string, unknown>, lessonPath: str
       findings.push(issueFromRule(COURSE_QUALITY_RULES.OBJECTIVE_RELATIONSHIP, `${lessonPath}.visualPlan.objectiveIds`, "The visual plan references an objective that is not assigned to this lesson."));
     }
     if (applicability === "essential" && visuals.length === 0 && !accessibleFallback) {
-      findings.push(issueFromRule(COURSE_QUALITY_RULES.VISUAL_ESSENTIAL_MISSING, `${lessonPath}.visuals`, "The objective plan marks an instructional visual essential, but no registered visual or explicit fallback is present."));
+      findings.push(issueFromRule(COURSE_QUALITY_RULES.VISUAL_ESSENTIAL_MISSING, `${lessonPath}.visualPlan.accessibleFallback`, "The objective plan marks an instructional visual essential, but no registered visual or explicit fallback is present."));
     } else if (applicability === "helpful" && visuals.length === 0) {
       findings.push(issueFromRule(COURSE_QUALITY_RULES.VISUAL_OPTIONAL_MISSING, `${lessonPath}.visuals`, "A structured visual could help this objective, but its absence does not block the complete lesson."));
     }

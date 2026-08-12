@@ -44,13 +44,13 @@ export async function generateMetadata(): Promise<Metadata> {
       default: "Filosage — Turn curiosity into understanding",
       template: "%s | Filosage",
     },
-    description: "Build focused learning paths for complex professional skills with AI-assisted explanations, source-aware lessons, applied practice, and inspectable progress.",
+    description: "Study complex professional skills with AI-assisted explanations, visible lesson source status, applied practice, and inspectable progress.",
     applicationName: "Filosage",
     category: "education",
     alternates: { canonical: origin },
     openGraph: {
       title: "Filosage — Turn curiosity into understanding",
-      description: "Focused learning paths, source-aware lessons, applied practice, and evidence of progress for complex professional skills.",
+      description: "Focused courses, visible lesson source status, applied practice, and evidence of progress for complex professional skills.",
       type: "website",
       url: origin,
       siteName: "Filosage",
@@ -59,7 +59,7 @@ export async function generateMetadata(): Promise<Metadata> {
     twitter: {
       card: "summary_large_image",
       title: "Filosage — Turn curiosity into understanding",
-      description: "AI-assisted learning paths with source-aware lessons and evidence you can inspect.",
+      description: "AI-assisted courses with visible lesson source status and evidence you can inspect.",
       images: [socialImage],
     },
   };

@@ -16,6 +16,29 @@ export function isRegisteredVisualType(value: string): value is RegisteredVisual
   return Object.hasOwn(VISUAL_CAPABILITY_REGISTRY, value);
 }
 
+function boundedText(value: unknown) {
+  return typeof value === "string" ? value.trim().replace(/\s+/g, " ") : "";
+}
+
+export function accessibleVisualFallbackFromLesson(lesson: Record<string, unknown>) {
+  const visualPlan = lesson.visualPlan && typeof lesson.visualPlan === "object"
+    ? lesson.visualPlan as Record<string, unknown>
+    : {};
+  const takeaways = Array.isArray(lesson.keyTakeaways)
+    ? lesson.keyTakeaways.map(boundedText).filter(Boolean).slice(0, 5)
+    : [];
+  const content = [
+    boundedText(lesson.learningObjective),
+    boundedText(lesson.summary),
+    boundedText(visualPlan.rationale),
+    takeaways.length ? `Key points: ${takeaways.join("; ")}` : "",
+  ].filter(Boolean).join(" ").slice(0, 4_000).trim();
+  if (content.length < 40) {
+    throw new Error("The lesson does not contain enough validated text to build an accessible visual fallback.");
+  }
+  return { kind: "text" as const, content };
+}
+
 export function defaultVisualApplicability(objective: string, conceptContext = ""): { applicability: VisualApplicability; rationale: string } {
   const normalized = `${objective} ${conceptContext}`.toLowerCase();
   if (/\bignore all previous instructions\b/.test(normalized)) {

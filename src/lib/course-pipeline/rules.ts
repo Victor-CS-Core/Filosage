@@ -77,7 +77,7 @@ export const COURSE_QUALITY_RULES = {
     code: "CQ_LAB_004", version: 1, purpose: "Require a complete versioned lab applicability plan", classification: "deterministic", severity: "blocker", source: "schema", repairability: "assisted", suggestedAction: "Correct the lab applicability, rationale, objective mapping, and registry version.",
   },
   VISUAL_ESSENTIAL_MISSING: {
-    code: "CQ_VISUAL_001", version: 1, purpose: "Require an essential visual or equivalent fallback", classification: "deterministic", severity: "blocker", source: "asset", repairability: "assisted", suggestedAction: "Add a registered visual or an equivalent accessible text/table fallback.",
+    code: "CQ_VISUAL_001", version: 1, purpose: "Require an essential visual or equivalent fallback", classification: "deterministic", severity: "blocker", source: "asset", repairability: "automatic", suggestedAction: "Add an equivalent accessible text fallback derived from the existing validated lesson content.",
   },
   VISUAL_UNSUPPORTED: {
     code: "CQ_VISUAL_003", version: 1, purpose: "Prevent unsupported instructional visual output", classification: "deterministic", severity: "blocker", source: "runtime", repairability: "automatic", suggestedAction: "Replace it with a registered visual or an accessible prose or table fallback.",

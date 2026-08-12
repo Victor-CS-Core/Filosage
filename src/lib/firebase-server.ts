@@ -1302,13 +1302,21 @@ export async function saveCourseManualReviewResolution(
 }
 
 type DeterministicRepairOperation = import("@/lib/course-pipeline/contract").RepairOperation & {
-  operation: "remove";
+  operation: "add" | "remove";
 };
 
-function repairArrayTarget(targetPath: string) {
-  const match = /^lessons\["([0-9]+-[0-9]+)"\]\.(interactions|visuals)\[(\d+)\]$/.exec(targetPath);
-  if (!match) throw new Error(`Unsupported deterministic repair target: ${targetPath}`);
-  return { lessonId: match[1], field: match[2] as "interactions" | "visuals", index: Number(match[3]) };
+type DeterministicRepairTarget =
+  | { kind: "array"; lessonId: string; field: "interactions" | "visuals"; index: number }
+  | { kind: "visualFallback"; lessonId: string };
+
+function deterministicRepairTarget(targetPath: string): DeterministicRepairTarget {
+  const arrayMatch = /^lessons\["([0-9]+-[0-9]+)"\]\.(interactions|visuals)\[(\d+)\]$/.exec(targetPath);
+  if (arrayMatch) {
+    return { kind: "array", lessonId: arrayMatch[1], field: arrayMatch[2] as "interactions" | "visuals", index: Number(arrayMatch[3]) };
+  }
+  const fallbackMatch = /^lessons\["([0-9]+-[0-9]+)"\]\.visualPlan\.accessibleFallback$/.exec(targetPath);
+  if (fallbackMatch) return { kind: "visualFallback", lessonId: fallbackMatch[1] };
+  throw new Error(`Unsupported deterministic repair target: ${targetPath}`);
 }
 
 export async function applyDeterministicCourseRepair(
@@ -1328,7 +1336,7 @@ export async function applyDeterministicCourseRepair(
   },
 ) {
   const coursePath = `courses/${courseId}`;
-  const affectedLessonIds = Array.from(new Set(operations.map((operation) => repairArrayTarget(operation.targetPath).lessonId)));
+  const affectedLessonIds = Array.from(new Set(operations.map((operation) => deterministicRepairTarget(operation.targetPath).lessonId)));
   if (!affectedLessonIds.length || affectedLessonIds.some((lessonId) => !expectedLessonIds.includes(lessonId))) {
     throw new Error("The repair plan does not target a current course lesson.");
   }
@@ -1365,21 +1373,27 @@ export async function applyDeterministicCourseRepair(
       ...Object.fromEntries(issueCodes.map((issueCode) => [attemptKey(issueCode), Number(priorAttempts[attemptKey(issueCode)] ?? 0) + 1])),
     };
     const nextLessons = new Map<string, Record<string, unknown>>();
-    const undoOperations: Array<{ targetPath: string; value: unknown }> = [];
+    const undoOperations: Array<{ targetPath: string; operation: "add" | "remove"; value?: unknown }> = [];
     const appliedOperations: DeterministicRepairOperation[] = [];
     const sortedOperations = [...operations].sort((left, right) => {
-      const leftTarget = repairArrayTarget(left.targetPath);
-      const rightTarget = repairArrayTarget(right.targetPath);
+      const leftTarget = deterministicRepairTarget(left.targetPath);
+      const rightTarget = deterministicRepairTarget(right.targetPath);
       return leftTarget.lessonId.localeCompare(rightTarget.lessonId)
-        || leftTarget.field.localeCompare(rightTarget.field)
-        || rightTarget.index - leftTarget.index;
+        || leftTarget.kind.localeCompare(rightTarget.kind)
+        || (leftTarget.kind === "array" && rightTarget.kind === "array" ? rightTarget.index - leftTarget.index : 0);
     });
     for (const operation of sortedOperations) {
-      const target = repairArrayTarget(operation.targetPath);
-      if (
-        (operation.issueCode !== "CQ_LAB_001" || target.field !== "interactions")
-        && (operation.issueCode !== "CQ_VISUAL_003" || target.field !== "visuals")
-      ) throw new Error(`Repair rule ${operation.issueCode} cannot modify ${target.field}.`);
+      const target = deterministicRepairTarget(operation.targetPath);
+      const validArrayRemoval = target.kind === "array" && operation.operation === "remove" && (
+        (operation.issueCode === "CQ_LAB_001" && target.field === "interactions")
+        || (operation.issueCode === "CQ_VISUAL_003" && target.field === "visuals")
+      );
+      const validFallbackAddition = target.kind === "visualFallback"
+        && operation.operation === "add"
+        && operation.issueCode === "CQ_VISUAL_001";
+      if (!validArrayRemoval && !validFallbackAddition) {
+        throw new Error(`Repair rule ${operation.issueCode} cannot modify ${target.kind}.`);
+      }
       const lessonPath = `courses/${courseId}/lessons/${target.lessonId}`;
       const storedLesson = documents[lessonPath];
       if (!storedLesson) throw new Error("A lesson is missing from the repair transaction.");
@@ -1387,12 +1401,25 @@ export async function applyDeterministicCourseRepair(
         throw new Error("A lesson changed after repair was planned. Validate the current draft again.");
       }
       const lesson = nextLessons.get(target.lessonId) ?? { ...storedLesson };
-      const items = Array.isArray(lesson[target.field]) ? [...lesson[target.field] as unknown[]] : [];
-      if (target.index < 0 || target.index >= items.length) throw new Error("The diagnosed repair target no longer exists.");
-      const [removed] = items.splice(target.index, 1);
-      undoOperations.push({ targetPath: operation.targetPath, value: removed });
-      appliedOperations.push({ ...operation, beforeHash: publicationContentFingerprint(removed) });
-      lesson[target.field] = items;
+      if (target.kind === "array") {
+        const items = Array.isArray(lesson[target.field]) ? [...lesson[target.field] as unknown[]] : [];
+        if (target.index < 0 || target.index >= items.length) throw new Error("The diagnosed repair target no longer exists.");
+        const [removed] = items.splice(target.index, 1);
+        undoOperations.push({ targetPath: operation.targetPath, operation: "add", value: removed });
+        appliedOperations.push({ ...operation, beforeHash: publicationContentFingerprint(removed) });
+        lesson[target.field] = items;
+      } else {
+        const visualPlan = lesson.visualPlan && typeof lesson.visualPlan === "object"
+          ? { ...lesson.visualPlan as Record<string, unknown> }
+          : null;
+        if (!visualPlan || visualPlan.accessibleFallback !== undefined || !operation.value) {
+          throw new Error("The diagnosed visual fallback target is no longer repairable.");
+        }
+        visualPlan.accessibleFallback = operation.value;
+        undoOperations.push({ targetPath: operation.targetPath, operation: "remove" });
+        appliedOperations.push({ ...operation });
+        lesson.visualPlan = visualPlan;
+      }
       lesson.updatedAt = metadata.appliedAt;
       nextLessons.set(target.lessonId, lesson);
     }
@@ -1462,9 +1489,9 @@ export async function undoDeterministicCourseRepair(
   if (!repair || repair.courseId !== courseId) throw new Error("Repair record not found.");
   const afterFingerprints = repair.afterFingerprints as Record<string, string> | undefined;
   const undoOperations = Array.isArray(repair.undoOperations)
-    ? repair.undoOperations as Array<{ targetPath: string; value: unknown }>
+    ? repair.undoOperations as Array<{ targetPath: string; operation: "add" | "remove"; value?: unknown }>
     : [];
-  const affectedLessonIds = Array.from(new Set(undoOperations.map((operation) => repairArrayTarget(operation.targetPath).lessonId)));
+  const affectedLessonIds = Array.from(new Set(undoOperations.map((operation) => deterministicRepairTarget(operation.targetPath).lessonId)));
   if (!afterFingerprints || !affectedLessonIds.length || affectedLessonIds.some((lessonId) => !expectedLessonIds.includes(lessonId))) {
     throw new Error("Repair record cannot be undone safely.");
   }
@@ -1481,23 +1508,34 @@ export async function undoDeterministicCourseRepair(
     if (currentRepair.status !== "applied") throw new Error("Only an applied repair can be undone.");
     const nextLessons = new Map<string, Record<string, unknown>>();
     const sortedUndo = [...undoOperations].sort((left, right) => {
-      const leftTarget = repairArrayTarget(left.targetPath);
-      const rightTarget = repairArrayTarget(right.targetPath);
+      const leftTarget = deterministicRepairTarget(left.targetPath);
+      const rightTarget = deterministicRepairTarget(right.targetPath);
       return leftTarget.lessonId.localeCompare(rightTarget.lessonId)
-        || leftTarget.field.localeCompare(rightTarget.field)
-        || leftTarget.index - rightTarget.index;
+        || leftTarget.kind.localeCompare(rightTarget.kind)
+        || (leftTarget.kind === "array" && rightTarget.kind === "array" ? leftTarget.index - rightTarget.index : 0);
     });
     for (const operation of sortedUndo) {
-      const target = repairArrayTarget(operation.targetPath);
+      const target = deterministicRepairTarget(operation.targetPath);
       const path = `courses/${courseId}/lessons/${target.lessonId}`;
       const storedLesson = documents[path];
       if (!storedLesson || publicationContentFingerprint(storedLesson) !== afterFingerprints[target.lessonId]) {
         throw new Error("A repaired lesson changed after the repair. Undo cannot overwrite newer edits.");
       }
       const lesson = nextLessons.get(target.lessonId) ?? { ...storedLesson };
-      const items = Array.isArray(lesson[target.field]) ? [...lesson[target.field] as unknown[]] : [];
-      items.splice(target.index, 0, operation.value);
-      lesson[target.field] = items;
+      if (target.kind === "array" && operation.operation === "add") {
+        const items = Array.isArray(lesson[target.field]) ? [...lesson[target.field] as unknown[]] : [];
+        items.splice(target.index, 0, operation.value);
+        lesson[target.field] = items;
+      } else if (target.kind === "visualFallback" && operation.operation === "remove") {
+        const visualPlan = lesson.visualPlan && typeof lesson.visualPlan === "object"
+          ? { ...lesson.visualPlan as Record<string, unknown> }
+          : null;
+        if (!visualPlan?.accessibleFallback) throw new Error("The repaired visual fallback no longer exists.");
+        delete visualPlan.accessibleFallback;
+        lesson.visualPlan = visualPlan;
+      } else {
+        throw new Error("Repair record contains an unsupported undo operation.");
+      }
       lesson.updatedAt = undoneAt;
       nextLessons.set(target.lessonId, lesson);
     }

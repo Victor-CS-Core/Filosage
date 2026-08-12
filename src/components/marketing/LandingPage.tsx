@@ -15,7 +15,7 @@ export default function LandingPage() {
           <h2 id="marketing-access-title">Explore first. Create an account when you are ready to learn.</h2>
           <p>Anyone can inspect published outcomes, modules, lesson titles, and assessment structure. A verified account opens lesson content and keeps your notes, progress, review schedule, and evidence connected.</p>
           <div className="marketing-access-actions">
-            <Link className="button button-primary" href="/library">Explore published paths <ArrowRight size={16} /></Link>
+            <Link className="button button-primary" href="/library">Explore published courses <ArrowRight size={16} /></Link>
             <Link className="button button-secondary" href="/pricing">See plans and availability</Link>
           </div>
         </div>

@@ -13,7 +13,7 @@ export interface RepairPlan {
   manualIssueCodes: string[];
 }
 
-const SAFE_DETERMINISTIC_REPAIR_CODES = new Set(["CQ_LAB_001", "CQ_VISUAL_003"]);
+const SAFE_DETERMINISTIC_REPAIR_CODES = new Set(["CQ_LAB_001", "CQ_VISUAL_001", "CQ_VISUAL_003"]);
 
 export function buildRepairPlan(report: ValidationReport): RepairPlan {
   const automaticIssues = report.issues.filter((issue) =>
@@ -25,7 +25,7 @@ export function buildRepairPlan(report: ValidationReport): RepairPlan {
     operations: automaticIssues.map((issue) => ({
       issueCode: issue.code,
       targetPath: issue.path,
-      operation: "remove",
+      operation: issue.code === "CQ_VISUAL_001" ? "add" : "remove",
       rationale: issue.message,
     })),
     manualIssueCodes: report.issues

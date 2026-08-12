@@ -81,7 +81,7 @@ export default function SupportPage() {
         </section>
 
         <section className="support-category-list" aria-labelledby="support-categories-title">
-          <div className="support-section-heading"><h2 id="support-categories-title">Browse the documentation</h2><p>Two clear paths cover the learning journey and account support without mixing unrelated tasks.</p></div>
+          <div className="support-section-heading"><h2 id="support-categories-title">Browse the documentation</h2><p>Find guidance for learning tasks and account support without mixing unrelated problems.</p></div>
           <div className="support-collections">
             {supportCollections.map((collection) => (
               <section className="support-collection" key={collection.title}>

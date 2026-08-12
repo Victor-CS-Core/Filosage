@@ -115,6 +115,7 @@ export default function Home() {
   const accuracy = totalQuestions ? Math.round((correct / totalQuestions) * 100) : 0;
   const minutes = progress.reduce((sum, item) => sum + (item.studyMinutes ?? 0), 0);
   const continueProgress = progress[0];
+  const continueCapstonePassed = continueProgress?.capstone?.status === "passed";
   const continueHref = continueProgress
     ? continueProgress.nextLessonId
       ? `/course/${encodeURIComponent(continueProgress.topic)}/lesson/${continueProgress.nextLessonId}?id=${continueProgress.courseId}`
@@ -162,7 +163,7 @@ export default function Home() {
     lessons: { label: "Lessons learned", value: lessons.length, icon: <CheckCircle2 size={18} /> },
     streak: { label: "Current streak", value: `${streakFor(lessons)} ${streakFor(lessons) === 1 ? "day" : "days"}`, icon: <Flame size={18} /> },
     accuracy: { label: "Quiz accuracy", value: accuracy ? `${accuracy}%` : "N/A", icon: <Target size={18} /> },
-    mastered: { label: "Concepts mastered", value: mastered, icon: <BrainCircuit size={18} /> },
+    mastered: { label: "Secure concepts", value: mastered, icon: <BrainCircuit size={18} /> },
   };
 
   const renderMainSection = (section: DashboardMainSection) => {
@@ -197,7 +198,7 @@ export default function Home() {
         <dl>{(Object.keys(snapshotMetrics) as DashboardMetric[]).filter((metric) => preferences.metrics[metric]).map((metric) => <div key={metric}><dt>{snapshotMetrics[metric].icon} {snapshotMetrics[metric].label}</dt><dd>{snapshotMetrics[metric].value}</dd></div>)}</dl>
       </section>
     );
-    return <section className="quick-actions" key={section}><h2>Quick actions</h2><Link href="/review"><CalendarCheck2 size={18} /><span><strong>Start today&apos;s review</strong><small>{due.length ? `${due.length} concept${due.length === 1 ? "" : "s"} ready now` : "No reviews due"}</small></span><ArrowRight size={15} /></Link><Link href="/library"><Compass size={18} /><span><strong>Explore a new topic</strong><small>Browse published courses</small></span><ArrowRight size={15} /></Link>{canCreateCourses && <Link href="/create"><BrainCircuit size={18} /><span><strong>Create a course</strong><small>{account?.courseCapacity?.remaining == null ? "Use one outline credit" : `${account.courseCapacity.remaining} course slot remaining`}</small></span><ArrowRight size={15} /></Link>}<Link href="/progress"><TrendingUp size={18} /><span><strong>See your progress</strong><small>{mastered} concepts mastered</small></span><ArrowRight size={15} /></Link></section>;
+    return <section className="quick-actions" key={section}><h2>Quick actions</h2><Link href="/review"><CalendarCheck2 size={18} /><span><strong>Start today&apos;s review</strong><small>{due.length ? `${due.length} concept${due.length === 1 ? "" : "s"} ready now` : "No reviews due"}</small></span><ArrowRight size={15} /></Link><Link href="/library"><Compass size={18} /><span><strong>Explore a new topic</strong><small>Browse published courses</small></span><ArrowRight size={15} /></Link>{canCreateCourses && <Link href="/create"><BrainCircuit size={18} /><span><strong>Create a course</strong><small>{account?.courseCapacity?.remaining == null ? "Use one outline credit" : `${account.courseCapacity.remaining} course slot remaining`}</small></span><ArrowRight size={15} /></Link>}<Link href="/progress"><TrendingUp size={18} /><span><strong>See your progress</strong><small>{mastered} secure concepts</small></span><ArrowRight size={15} /></Link></section>;
   };
 
   return (
@@ -229,7 +230,7 @@ export default function Home() {
               <div className="guided-day-focus-steps" aria-label="Focused session steps">
                 {hasDailyMission && dailyMission.review && <div><span><CalendarCheck2 size={18} /></span><p><strong>{reviewKindLabel(dailyMission.review.kind)}</strong><small>{dailyMission.review.reason}</small></p></div>}
                 {hasDailyMission && dailyMission.forward && <div><span><BookOpenCheck size={18} /></span><p><strong>Continue lesson</strong><small>Build new capability after retrieval.</small></p></div>}
-                {!hasDailyMission && continueProgress && <div><span><BookOpenCheck size={18} /></span><p><strong>{continueProgress.nextLessonId ? "Continue lesson" : "Review course"}</strong><small>{continueProgress.nextLessonTitle ?? "Return to your course map."}</small></p></div>}
+                {!hasDailyMission && continueProgress && <div><span><BookOpenCheck size={18} /></span><p><strong>{continueProgress.nextLessonId ? "Continue lesson" : continueCapstonePassed ? "Review course" : "Review course requirements"}</strong><small>{continueProgress.nextLessonTitle ?? "Return to your course map."}</small></p></div>}
                 {!hasDailyMission && !continueProgress && <div><span><Compass size={18} /></span><p><strong>Choose a learning path</strong><small>Start with a published course or create one around your goal.</small></p></div>}
               </div>
 
@@ -237,7 +238,7 @@ export default function Home() {
                 {hasDailyMission ? (
                   <button className="button button-primary" type="button" onClick={startDailyMission}>Begin focused session <ArrowRight size={16} /></button>
                 ) : continueProgress ? (
-                  <Link className="button button-primary" href={continueHref ?? "/progress"}>{continueProgress.nextLessonId ? "Continue learning" : "Review course"} <ArrowRight size={16} /></Link>
+                  <Link className="button button-primary" href={continueHref ?? "/progress"}>{continueProgress.nextLessonId ? "Continue learning" : continueCapstonePassed ? "Review course" : "Open course"} <ArrowRight size={16} /></Link>
                 ) : (
                   <Link className="button button-primary" href={canCreateCourses ? "/create" : "/library"}>{canCreateCourses ? "Create a course" : "Explore courses"} <ArrowRight size={16} /></Link>
                 )}
@@ -276,8 +277,8 @@ export default function Home() {
                 {continueProgress ? (
                   <Link className="continue-card" href={continueHref ?? "/progress"}>
                     <span className="continue-icon"><BookOpenCheck size={24} /></span>
-                    <span className="continue-copy"><small>{continueProgress.nextLessonId ? "In progress" : "Course complete"}</small><strong>{continueProgress.topic}</strong><span>{continueProgress.nextLessonTitle ?? "Review your course map"}</span><span className="continue-progress"><i><b style={{ width: `${Math.round((continueProgress.completedLessonIds.length / Math.max(continueProgress.totalLessons ?? continueProgress.completedLessonIds.length, 1)) * 100)}%` }} /></i><em>{continueProgress.completedLessonIds.length}/{continueProgress.totalLessons ?? "?"} lessons</em></span></span>
-                    <span className="continue-action">{continueProgress.nextLessonId ? "Continue" : "Review"} <ArrowRight size={16} /></span>
+                    <span className="continue-copy"><small>{continueProgress.nextLessonId ? "In progress" : continueCapstonePassed ? "Course complete" : "Lessons finished"}</small><strong>{continueProgress.topic}</strong><span>{continueProgress.nextLessonTitle ?? (continueCapstonePassed ? "Review your course map" : "Open the course map to review the remaining requirements")}</span><span className="continue-progress"><i><b style={{ width: `${Math.round((continueProgress.completedLessonIds.length / Math.max(continueProgress.totalLessons ?? continueProgress.completedLessonIds.length, 1)) * 100)}%` }} /></i><em>{continueProgress.completedLessonIds.length}/{continueProgress.totalLessons ?? "?"} lessons</em></span></span>
+                    <span className="continue-action">{continueProgress.nextLessonId ? "Continue" : continueCapstonePassed ? "Review" : "Open course"} <ArrowRight size={16} /></span>
                   </Link>
                 ) : (
                   <div className="dashboard-empty"><Compass size={23} /><div><strong>Choose your first course</strong><p>Start a published course or create one for your own goal.</p></div><Link className="button button-primary" href={canCreateCourses ? "/create" : "/library"}>{canCreateCourses ? "Create a course" : "Explore courses"}</Link></div>

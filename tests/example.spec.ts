@@ -641,7 +641,7 @@ test("keeps the learning library public", async ({ page }) => {
   await expect(
     page.getByRole("heading", { name: "Turn curiosity into understanding" }),
   ).toBeVisible();
-  await expect(page.locator(".marketing-tagline")).toHaveText("Filosage learning paths");
+  await expect(page.locator(".marketing-tagline")).toHaveText("Filosage courses");
   await expect(page.locator(".marketing-page > section")).toHaveCount(4);
   await expect(page.locator(".marketing-feature-grid article")).toHaveCount(3);
   await expect(page.locator('a[href^="/library?q="]')).toHaveCount(0);
@@ -659,7 +659,7 @@ test("publishes the teaching standard", async ({ page }) => {
 
   await expect(page.getByRole("heading", { name: "Generated is not good enough. Every lesson is held to a standard." })).toBeVisible();
   await expect(page.getByRole("heading", { name: "A named misconception" })).toBeVisible();
-  await expect(page.getByRole("heading", { name: "Mastery is earned, not attended" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Lesson completion and assessed work stay separate" })).toBeVisible();
   await expect(page.getByRole("link", { name: /See courses held to this standard/ })).toBeVisible();
 });
 
@@ -1733,7 +1733,7 @@ test("frames each course around an outcome and mastery", async ({ page }) => {
   await expect(resumeCard.getByRole("heading", { name: "Leverage points" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Modules and lessons" })).toHaveCount(0);
   await expect(page.getByRole("button", { name: "Browse outline" })).toHaveCount(0);
-  const coursePath = page.getByRole("region", { name: "See what each stage unlocks" });
+  const coursePath = page.getByRole("region", { name: "See what each stage produces" });
   await expect(coursePath).toBeVisible();
   await expect(coursePath.getByText("Foundations", { exact: true })).toBeVisible();
   const foundationStage = coursePath.getByRole("button", { name: /Foundations/ });

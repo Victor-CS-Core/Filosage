@@ -3,10 +3,10 @@ import { defineSupportArticle } from "../types";
 export default defineSupportArticle({
   slug: "understand-progress",
   title: "Understand your progress",
-  summary: "Read weekly activity, course completion, review readiness, and learning evidence without treating every measure as mastery.",
+  summary: "Read weekly activity, course completion, review readiness, and learning evidence without treating every measure as the same signal.",
   category: "progress",
   keywords: ["progress", "weekly goal", "accuracy", "confidence", "mastery", "activity", "summary"],
-  reviewedOn: "2026-08-05",
+  reviewedOn: "2026-08-12",
   sources: ["src/app/progress/page.tsx", "src/lib/learning-summary.ts", "src/components/MasteryPath.tsx"],
   body: `
 ## Open the learning record
@@ -18,7 +18,7 @@ Choose **Progress** to see recent activity, review readiness, tracked study time
 - **Course progress** is based on completed lessons in each course.
 - **First-try accuracy** appears only when retrieval questions have been recorded.
 - **Confidence calibration** compares recorded confidence with performance when both are available.
-- **Mastery states** are derived from saved evidence and review behavior; they are not credentials or guarantees.
+- **Concept states** are derived from saved evidence and review behavior; they are not credentials or guarantees.
 
 ## Adjust the weekly milestone
 

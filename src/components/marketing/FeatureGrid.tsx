@@ -11,7 +11,7 @@ export default function FeatureGrid() {
     <section className="marketing-section marketing-features" id="features" aria-labelledby="features-title">
       <div className="marketing-section-heading">
         <h2 id="features-title">Understanding is more than finishing a lesson.</h2>
-        <p>Filosage connects AI-assisted teaching, source-aware lessons, and inspectable evidence in one calm learning experience.</p>
+        <p>Filosage keeps AI-assisted teaching, lesson source status, and evidence records in the same workspace.</p>
       </div>
       <div className="marketing-feature-grid">
         {features.map((feature) => (

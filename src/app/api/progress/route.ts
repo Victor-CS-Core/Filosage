@@ -216,7 +216,7 @@ export async function POST(request: Request) {
       : [];
     if (requiresVerifiedAuthorActivity && verifiedClaims.some((claims) => !claims)) {
       return Response.json(
-        { error: "Complete each lesson activity in this session before unlocking the next lesson." },
+        { error: "Complete each lesson activity in this session before the next lesson becomes available." },
         { status: 409, headers: { "Cache-Control": "no-store" } },
       );
     }

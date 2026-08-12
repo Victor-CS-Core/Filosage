@@ -345,7 +345,7 @@ export default function CreateCoursePage() {
 
                     <div className={styles.reviewNote}>
                       <CheckCircle2 size={18} />
-                      <div><strong>Your first result is a private course map.</strong><span>Lessons unlock in sequence. Review their accuracy and rights before publishing.</span></div>
+                      <div><strong>Your first result is a private course map.</strong><span>Lessons become available in sequence. Review their accuracy and rights before publishing.</span></div>
                     </div>
                   </section>
                 )}

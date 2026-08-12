@@ -17,7 +17,7 @@ import {
 const presetDetails: Array<{ id: Exclude<DashboardPreset, "custom">; label: string; description: string }> = [
   { id: "default", label: "Default", description: "A balanced learning overview." },
   { id: "focused", label: "Focused", description: "Only the next useful actions." },
-  { id: "progress", label: "Progress", description: "Mastery and momentum first." },
+  { id: "progress", label: "Progress", description: "Concept strength and activity first." },
   { id: "discover", label: "Discover", description: "Recommendations and exploration." },
 ];
 
@@ -34,7 +34,7 @@ const metricLabels: Record<DashboardMetric, string> = {
   lessons: "Lessons learned",
   streak: "Current streak",
   accuracy: "Quiz accuracy",
-  mastered: "Concepts mastered",
+  mastered: "Secure concepts",
 };
 
 interface DashboardCustomizerProps {

@@ -107,7 +107,7 @@ export default function ProgressPage() {
   return (
     <AppShell>
       <div className="progress-page">
-        <header className="page-header"><div><p className="overline">Learning record</p><h1>Your progress</h1><p>Progress here means understanding that lasts: what you can now explain, what you have stopped being wrong about, and what returns for review next.</p></div></header>
+        <header className="page-header"><div><p className="overline">Learning record</p><h1>Your progress</h1><p>See completed lessons, saved practice, assessed capstones, and scheduled reviews without treating them as the same signal.</p></div></header>
         {!loaded || !learnerStateReady ? <div className="dashboard-loading" aria-busy="true"><span /><span /><span /></div> : loadError ? <section className="review-recovery" role="alert"><TrendingUp size={28} /><p className="overline">Progress unavailable</p><h2>Your record is still safe.</h2><p>{loadError}</p><button className="button button-primary" onClick={() => { setLoaded(false); setLoadError(null); setLoadAttempt((attempt) => attempt + 1); }}><RefreshCw size={15} /> Try again</button></section> : (
           <>
             <Link className="progress-next-action" href={nextHref}>

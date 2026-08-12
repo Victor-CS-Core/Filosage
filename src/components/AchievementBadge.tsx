@@ -44,6 +44,7 @@ interface AchievementBadgeProps {
 
 export default function AchievementBadge({ badge, compact = false }: AchievementBadgeProps) {
   const Icon = icons[badge.icon];
+  const familyLabel = badge.family === "mastery" ? "concepts" : badge.family;
   return (
     <article
       className={`achievement-badge ${compact ? "is-compact" : ""} ${badge.earned ? "is-earned" : "is-locked"}`}
@@ -55,7 +56,7 @@ export default function AchievementBadge({ badge, compact = false }: Achievement
         {badge.earned && <i><Check size={11} strokeWidth={3} /></i>}
       </span>
       <span className="badge-copy">
-        <span className="badge-title-row"><strong>{badge.name}</strong><small>{badge.earned ? "Earned" : badge.family}</small></span>
+        <span className="badge-title-row"><strong>{badge.name}</strong><small>{badge.earned ? "Earned" : familyLabel}</small></span>
         {!compact && <span className="badge-description">{badge.description}</span>}
         <span className="badge-progress" aria-hidden="true"><i><b style={{ width: `${badge.progressPercent}%` }} /></i><em>{badge.progressLabel}</em></span>
       </span>

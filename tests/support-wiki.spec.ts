@@ -2,6 +2,7 @@ import { spawnSync } from "node:child_process";
 import { resolve } from "node:path";
 import { expect, test } from "@playwright/test";
 import { supportArticles } from "../src/content/support/articles";
+import type { OwnerDocumentation } from "../src/content/support/owner-documentation-types";
 import { PRIVACY_VERSION, TERMS_VERSION } from "../src/lib/legal";
 
 const root = process.cwd();
@@ -95,6 +96,18 @@ test("shows the structured handbook only to the verified owner", async ({ page }
   await expect(page.getByRole("heading", { name: "Filosage owner handbook" })).toHaveCount(0);
 
   await prepareLocalOwner(page);
+  const handbookResponse = await page.request.get("/api/support/owner-documentation", {
+    headers: { Authorization: "Bearer playwright-local-owner" },
+  });
+  expect(handbookResponse.ok()).toBe(true);
+  const handbook = await handbookResponse.json() as OwnerDocumentation;
+  const handbookDestinations = handbook.sections.flatMap((section) =>
+    section.topics.flatMap((topic) => topic.links?.map((link) => link.href) ?? []),
+  );
+  for (const destination of handbookDestinations) {
+    const response = await page.request.get(destination);
+    expect(response.status(), `${destination} from the owner handbook should resolve`).toBeLessThan(400);
+  }
   await page.goto("/support");
   await expect(page.getByRole("heading", { name: "Filosage owner handbook" })).toBeVisible();
   await page.getByRole("link", { name: /Open handbook/ }).click();

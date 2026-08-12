@@ -6,7 +6,7 @@ export default defineSupportArticle({
   summary: "Use the Command Center, course switcher, and mobile navigation to move through Filosage.",
   category: "start",
   keywords: ["navigation", "command center", "search", "shortcut", "today", "explore", "review", "progress", "mobile", "menu", "owner handbook", "documentation"],
-  reviewedOn: "2026-08-06",
+  reviewedOn: "2026-08-12",
   sources: ["src/components/AppShell.tsx", "src/components/CommandPalette.tsx", "src/components/AppDrawer.tsx", "src/app/support/owner/page.tsx", "src/content/support/owner-documentation.ts", "src/lib/search.ts"],
   body: `
 ## Main destinations
@@ -40,7 +40,7 @@ Open the account control bearing your name or profile image to open the Command 
 
 ## Owner documentation
 
-The verified owner sees an **Filosage owner handbook** entry on [Support](/support). It covers product access, the learner journey, course authoring and publishing, AI quality controls, support operations, privacy, billing safeguards, and release recovery. The handbook route and its content API both require owner authorization.
+The verified owner sees a **Filosage owner handbook** entry on [Support](/support). It covers product access, the learner flow, course authoring and publishing, AI quality controls, support operations, privacy, billing safeguards, and release recovery. The handbook route and its content API both require owner authorization.
 `,
   related: ["getting-started", "manage-profile", "accessibility"],
 });

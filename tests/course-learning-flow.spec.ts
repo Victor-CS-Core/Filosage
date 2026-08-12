@@ -562,7 +562,7 @@ test("completes a published course from discovery through evidence", async ({ pa
   await artifactDisclosure.locator("summary").press("Enter");
   await expect(artifactDisclosure).toHaveAttribute("open", "");
   await expect(page.getByRole("heading", { name: "Evidence-backed decision brief" })).toBeVisible();
-  const journey = page.getByRole("region", { name: "See what each stage unlocks" });
+  const journey = page.getByRole("region", { name: "See what each stage produces" });
   await expect(journey).toBeVisible();
   const currentStage = journey.getByRole("button", { name: /Current stage/ });
   await expect(currentStage).toHaveAttribute("aria-expanded", "false");
@@ -588,7 +588,7 @@ test("completes a published course from discovery through evidence", async ({ pa
   await page.getByRole("button", { name: "Send report" }).click();
   await expect(page.getByText("Source report received for owner review.")).toBeVisible();
   expect(sourceReports).toEqual([{ courseId, sourceId: "source-1", category: "source", note: "Confirm that this destination still supports the author note." }]);
-  await expect(page.getByText("Complete every lesson to unlock capstone assessment.")).toBeVisible();
+  await expect(page.getByText("Complete every lesson before submitting the capstone.")).toBeVisible();
   await expect(page.getByText("Decision checkpoint")).toBeVisible();
 
   const outcomeDisclosure = page.locator("details.outcome-onboarding");
@@ -730,7 +730,7 @@ test("completes a published course from discovery through evidence", async ({ pa
   await page.getByLabel("Revise and resubmit your capstone").fill(revisedCapstone);
   await page.getByRole("button", { name: "Submit for assessment" }).click();
   const capstone = page.locator(".course-capstone");
-  await expect(capstone.getByText("Course mastered", { exact: true })).toBeVisible();
+  await expect(capstone.getByText("Capstone passed", { exact: true })).toBeVisible();
   await expect(capstone.getByText("View revision history (2 attempts)")).toBeVisible();
   expect(capstoneSubmissions).toEqual([firstCapstone, revisedCapstone]);
 

@@ -366,6 +366,7 @@ export default function CourseMap() {
       setPublishAttested(false);
       setPublicationAssessment(null);
       setValidationReport(null);
+      setRepairProgress(null);
       storePublicationAssessment(courseViewKey, null);
       window.dispatchEvent(new Event("filosage:courses-changed"));
     } catch (updateError) {
@@ -782,14 +783,14 @@ export default function CourseMap() {
                 <div><dt><BookOpen size={16} /> Lessons</dt><dd>{totalLessons}</dd></div>
                 <div><dt>Starting level</dt><dd>{course.level ?? "Foundations"}</dd></div>
                 <div><dt><Clock3 size={16} /> Study time</dt><dd>{courseHours} {courseHours === 1 ? "hour" : "hours"}</dd></div>
-                {misconceptionCount > 0 && <div><dt><Target size={16} /> Misconceptions corrected</dt><dd>{misconceptionCount}</dd></div>}
+                {misconceptionCount > 0 && <div><dt><Target size={16} /> Named misconceptions</dt><dd>{misconceptionCount}</dd></div>}
               </dl>
             </div>
 
             {nextLesson && (
               <aside className="course-resume-card" aria-label={courseComplete ? "Course review" : "Next lesson"}>
                 <div className="course-resume-heading">
-                  <span>{capstoneAssessment?.status === "passed" ? "Course mastered" : courseComplete ? "Course complete" : validCompletedLessons.length ? "Continue learning" : "Begin here"}</span>
+                  <span>{capstoneAssessment?.status === "passed" ? "Capstone passed" : courseComplete ? "Lessons finished" : validCompletedLessons.length ? "Continue learning" : "Begin here"}</span>
                   <strong>{progress}%</strong>
                 </div>
                 <p className="course-resume-module">{courseComplete ? "Review the key ideas" : nextLesson.moduleTitle}</p>
@@ -803,7 +804,7 @@ export default function CourseMap() {
                   {user ? <Play size={16} /> : <LockKeyhole size={16} />}
                   {user ? (courseComplete ? "Review course" : validCompletedLessons.length ? "Resume lesson" : "Start course") : "Create an account to begin"}
                 </button>
-                {!user && <small className="course-access-note">The full outline is public. A free account unlocks lesson content and saved progress.</small>}
+                {!user && <small className="course-access-note">The full outline is public. A free account opens lesson content and saves your progress.</small>}
               </aside>
             )}
           </div>
@@ -851,7 +852,7 @@ export default function CourseMap() {
               key={publicationFailures.length > 0 || publicationAssessment || validationReport || repairProgress || course.publicationReview?.status === "owner_override" ? "publication-attention" : "course-studio"}
               className="course-owner-controls"
               defaultOpen={Boolean(publicationFailures.length > 0 || publicationAssessment || validationReport || repairProgress || course.publicationReview?.status === "owner_override")}
-              description="Publication review, banner refresh, and course management stay separate from the learner journey."
+              description="Publication review, banner refresh, and course management stay separate from the learner experience."
               eyebrow="Creator tools"
               headingId="course-owner-controls-title"
               title="Course studio"
@@ -891,7 +892,7 @@ export default function CourseMap() {
               {course.canRegenerateBanner && <p className="owner-action-hint">Banner replacements use one monthly generation request, including failed attempts, and replace the current image automatically.</p>}
               {!course.isPublic && <p className="owner-action-hint">{isOwner
                 ? "Every lesson must be generated. Automated safety, language, and teaching-quality checks run again before publication."
-                : "Complete each lesson’s activities to unlock generation of the next lesson. Publication runs a fresh safety, language, and teaching-quality review."}</p>}
+                : "Complete each lesson’s activities before generating the next lesson. Publication runs a fresh safety, language, and teaching-quality review."}</p>}
               {!course.isPublic && isOwner && !publicationAssessment && (
                 <p className="owner-action-hint">If review finds only teaching or language warnings, an owner-only quality override will appear here. Safety and structure failures cannot be bypassed.</p>
               )}
@@ -941,7 +942,7 @@ export default function CourseMap() {
                               {targetedRepairBusy === "apply" ? <LoaderCircle className="spin" size={15} /> : <RefreshCw size={15} />}
                               Apply safe fixes
                             </button>
-                            <small>Only allowlisted optional blocks are removed. Lesson text and author edits stay unchanged.</small>
+                            <small>Only allowlisted optional blocks are removed, or an accessible fallback is derived from existing lesson text. Author text and edits stay unchanged.</small>
                           </div>
                         )}
                         {lastTargetedRepairId && (
@@ -1094,7 +1095,7 @@ export default function CourseMap() {
 
                 {capstoneAssessment?.status === "passed" ? (
                   <div className="capstone-verdict is-passed" role="status">
-                    <div className="capstone-verdict-heading"><CheckCircle2 size={19} /><strong>Course mastered</strong><small>Assessed {new Date(capstoneAssessment.assessedAt).toLocaleDateString()}</small></div>
+                    <div className="capstone-verdict-heading"><CheckCircle2 size={19} /><strong>Capstone passed</strong><small>Assessed {new Date(capstoneAssessment.assessedAt).toLocaleDateString()}</small></div>
                     <p>{capstoneAssessment.summary}</p>
                     <ul>{capstoneAssessment.criteria.map((criterion) => <li key={criterion.criterion} className="is-met"><Check size={14} /><span><strong>{criterion.criterion}</strong><small>{criterion.feedback}</small></span></li>)}</ul>
                     {capstoneAssessment.history && capstoneAssessment.history.length > 1 && (
@@ -1140,7 +1141,7 @@ export default function CourseMap() {
                         {capstoneError && <p className="form-error" role="alert"><Circle size={14} /> {capstoneError}</p>}
                       </>
                     ) : (
-                      <p className="capstone-submit-hint">Complete every lesson to unlock capstone assessment. Your work is then assessed against the success criteria above.</p>
+                      <p className="capstone-submit-hint">Complete every lesson before submitting the capstone. Your work is then assessed against the success criteria above.</p>
                     )}
                   </div>
                 ) : (
@@ -1255,7 +1256,7 @@ export default function CourseMap() {
                       <li>The course and all generated lessons</li>
                       <li>Every learner&apos;s progress and scheduled reviews for this course</li>
                       <li>Course bookmarks, lesson bookmarks, and linked lesson notes</li>
-                      <li>Outcome plans, mastery evidence, feedback, and open content reports</li>
+                      <li>Outcome plans, learning evidence, feedback, and open content reports</li>
                     </ul>
                   </div>
                 </div>

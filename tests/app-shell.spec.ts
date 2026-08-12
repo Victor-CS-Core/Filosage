@@ -72,7 +72,7 @@ const learningProgress: CourseProgress[] = [{
   },
 }];
 
-async function prepareOwnerShell(page: Page) {
+async function prepareOwnerShell(page: Page, progress: CourseProgress[] = learningProgress) {
   await restoreLocalLearner(page);
   await page.route("**/api/account", (route) => route.fulfill({
     json: {
@@ -87,7 +87,7 @@ async function prepareOwnerShell(page: Page) {
   }));
   await page.route("**/api/courses?scope=mine", (route) => route.fulfill({ json: { courses: ownedCourses } }));
   await page.route("**/api/courses?scope=public", (route) => route.fulfill({ json: { courses: [] } }));
-  await page.route("**/api/progress", (route) => route.fulfill({ json: { progress: learningProgress } }));
+  await page.route("**/api/progress", (route) => route.fulfill({ json: { progress } }));
   await page.route("**/api/course-banners/**", (route) => route.fulfill({
     contentType: "image/svg+xml",
     body: "<svg xmlns='http://www.w3.org/2000/svg' width='640' height='360'><rect width='100%' height='100%' fill='#0D1B3D'/></svg>",
@@ -253,6 +253,22 @@ test.describe("desktop application shell", () => {
     await customizer.getByRole("button", { name: "Close dashboard settings" }).click();
     await expect(customizer).toBeHidden();
     expect(await readLayout()).toEqual(before);
+  });
+
+  test("does not call a course complete when only its lessons are finished", async ({ page }) => {
+    await prepareOwnerShell(page, [{
+      ...learningProgress[0],
+      nextLessonId: null,
+      nextLessonTitle: null,
+      completedLessonIds: ["0-0", "0-1"],
+      totalLessons: 2,
+    }]);
+    await page.goto("/");
+
+    const continueCard = page.locator(".continue-card");
+    await expect(continueCard).toContainText("Lessons finished");
+    await expect(continueCard).toContainText("Open the course map to review the remaining requirements");
+    await expect(continueCard).not.toContainText("Course complete");
   });
 
   test("presents profile, progress, and course creation as evidence-led decisions", async ({ page }) => {

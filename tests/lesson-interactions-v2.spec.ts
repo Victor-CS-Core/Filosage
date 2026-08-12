@@ -249,5 +249,5 @@ test("places recognition practice in Activities and withholds feedback until com
 
   await page.reload();
   await page.getByRole("tab", { name: /Activities/ }).click();
-  await expect(page.getByText("1 mastered")).toBeVisible();
+  await expect(page.getByText("1 completed")).toBeVisible();
 });

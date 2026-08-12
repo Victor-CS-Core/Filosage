@@ -50,7 +50,7 @@ import {
 import { COURSE_ARTIFACT_PROVENANCE_DEFAULTS } from "@/lib/course-pipeline/contract";
 import { canonicalLessonObjectiveId } from "@/lib/course-pipeline/relationships";
 import { defaultLabApplicability, LAB_REGISTRY_VERSION } from "@/lib/course-pipeline/labs/registry";
-import { defaultVisualApplicability, VISUAL_POLICY_VERSION } from "@/lib/course-pipeline/visuals/registry";
+import { accessibleVisualFallbackFromLesson, defaultVisualApplicability, VISUAL_POLICY_VERSION } from "@/lib/course-pipeline/visuals/registry";
 import { recordCoursePipelineEvent } from "@/lib/course-pipeline/observability";
 import { publicationContentFingerprint } from "@/lib/publication-content";
 import { courseUsesPipelineV2 } from "@/lib/course-pipeline/feature-policy";
@@ -456,6 +456,17 @@ export async function POST(request: Request) {
       } : {}),
       sourceReferences,
     };
+    const visualPlanWithFallback = visualPlan as (typeof visualPlan & {
+      accessibleFallback?: { kind: "text" | "table"; content: string };
+    });
+    const persistedVisualPlan = visualPlanWithFallback?.applicability === "essential"
+      && (lesson.visuals?.length ?? 0) === 0
+      && !visualPlanWithFallback.accessibleFallback
+      ? {
+          ...visualPlanWithFallback,
+          accessibleFallback: accessibleVisualFallbackFromLesson({ ...lesson, visualPlan: visualPlanWithFallback }),
+        }
+      : visualPlanWithFallback;
     await saveLesson(courseId, lessonId, {
       ...lesson,
       ...(pipelineV2Active ? {
@@ -465,7 +476,7 @@ export async function POST(request: Request) {
         transferTask: { ...lesson.transferTask, objectiveIds: [objectiveId] },
         quizzes: lesson.quizzes.map((quiz) => ({ ...quiz, objectiveIds: [objectiveId] })),
         labPlan,
-        visualPlan,
+        visualPlan: persistedVisualPlan,
       } : {}),
       authorId: account.uid,
       aiAssisted: true,

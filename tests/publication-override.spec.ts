@@ -160,6 +160,7 @@ test("an owner can confirm a quality override only after the normal review fails
   expect(typeof overrideIdempotencyKey).toBe("string");
   expect(String(overrideIdempotencyKey).length).toBeGreaterThanOrEqual(12);
   await expect(page.getByText(/Published with an audited owner quality override/)).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Publication review needs attention" })).toHaveCount(0);
 });
 
 test("an owner records a snapshot-bound manual-review decision before publishing", async ({ page }) => {
@@ -326,6 +327,7 @@ test("targeted V2 repair applies diagnosed paths, revalidates, and offers undo",
   await page.locator("details.course-owner-controls > summary").click();
   await page.getByLabel(/I reviewed every lesson/).check();
   await page.getByRole("button", { name: "Review and publish" }).click();
+  await expect(page.getByText(/accessible fallback is derived from existing lesson text/i)).toBeVisible();
   await page.getByRole("button", { name: "Apply safe fixes" }).click();
   await expect(page.getByText("Safe fix applied and the complete course was revalidated.")).toBeVisible();
   expect((await new AxeBuilder({ page }).include(".publication-contract-report").analyze()).violations).toEqual([]);

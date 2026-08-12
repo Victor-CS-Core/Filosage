@@ -5,7 +5,7 @@ export const ownerDocumentation: OwnerDocumentation = {
   title: "Filosage owner handbook",
   introduction: "A practical operating guide to the live product: who can access each surface, how learning and authoring work, where evidence is stored, and which safeguards must remain in place.",
   version: "2026.08",
-  reviewedOn: "2026-08-06",
+  reviewedOn: "2026-08-12",
   sections: [
     {
       id: "product-and-access",
@@ -30,8 +30,8 @@ export const ownerDocumentation: OwnerDocumentation = {
       sources: ["PRODUCT.md", "src/components/AuthProvider.tsx", "src/lib/auth-server.ts", "src/components/AppShell.tsx"],
     },
     {
-      id: "learner-journey",
-      title: "Learner journey",
+      id: "learner-flow",
+      title: "Learner flow",
       summary: "Follow the complete path from discovery through durable evidence of learning.",
       topics: [
         {
@@ -43,14 +43,14 @@ export const ownerDocumentation: OwnerDocumentation = {
           title: "Study, practice, and review",
           body: "Lessons preserve semantic content such as headings, lists, and tables. Study tools support explanation and guided practice. Review orders concepts by evidence need, and the Progress area separates completion from stronger assessed or demonstrated evidence.",
           steps: [
-            "Inspect the course journey before diagnosing a lesson-access report.",
+            "Inspect the course structure before diagnosing a lesson-access report.",
             "Use Review to verify the learner's due practice queue.",
             "Use Progress and Evidence to distinguish self-report from observed work.",
           ],
           links: [
             { label: "Review queue", href: "/review" },
             { label: "Progress", href: "/progress" },
-            { label: "Evidence reports", href: "/evidence" },
+            { label: "Evidence report guide", href: "/support/articles/read-evidence-report" },
           ],
         },
       ],

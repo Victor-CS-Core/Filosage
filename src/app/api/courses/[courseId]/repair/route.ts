@@ -20,6 +20,7 @@ import { coursePipelineFeatureFlags } from "@/lib/feature-flags";
 import { recordCoursePipelineEvent } from "@/lib/course-pipeline/observability";
 import { openAiSafetyIdentifier } from "@/lib/ai-usage";
 import { courseUsesPipelineV2 } from "@/lib/course-pipeline/feature-policy";
+import { accessibleVisualFallbackFromLesson } from "@/lib/course-pipeline/visuals/registry";
 
 const common = {
   snapshotHash: z.string().regex(/^[a-f0-9]{64}$/),
@@ -249,9 +250,19 @@ export async function POST(
     assertRepairBaseSnapshot(plan, parsed.data.snapshotHash);
     const requestedCodes = parsed.data.issueCodes?.length ? new Set(parsed.data.issueCodes) : null;
     const selected = plan.operations.filter((operation) => !requestedCodes || requestedCodes.has(operation.issueCode));
-    const deterministic = selected.filter((operation): operation is RepairOperation & { operation: "remove" } =>
-      operation.operation === "remove" && (operation.issueCode === "CQ_LAB_001" || operation.issueCode === "CQ_VISUAL_003"),
-    );
+    const lessonsById = new Map(lessons.map((lesson) => [String(lesson.id ?? ""), lesson]));
+    const deterministic = selected.flatMap((operation): Array<RepairOperation & { operation: "add" | "remove" }> => {
+      if (operation.operation === "remove" && (operation.issueCode === "CQ_LAB_001" || operation.issueCode === "CQ_VISUAL_003")) {
+        return [{ ...operation, operation: "remove" }];
+      }
+      if (operation.operation === "add" && operation.issueCode === "CQ_VISUAL_001") {
+        const target = /^lessons\["([0-9]+-[0-9]+)"\]\.visualPlan\.accessibleFallback$/.exec(operation.targetPath);
+        const lesson = target ? lessonsById.get(target[1]) : undefined;
+        if (!lesson) return [];
+        return [{ ...operation, operation: "add", value: accessibleVisualFallbackFromLesson(lesson) }];
+      }
+      return [];
+    });
     const generationRequired = selected.filter((operation) => operation.operation === "regenerate_subtree");
     if (!deterministic.length) {
       return Response.json({
@@ -268,7 +279,6 @@ export async function POST(
       if (course.pipelineStage !== "repairing") await updateCoursePipelineStage(courseId, "repairing");
       repairStageAdvanced = true;
     }
-    const lessonsById = new Map(lessons.map((lesson) => [String(lesson.id ?? ""), lesson]));
     const repairResult = await applyDeterministicCourseRepair(
       courseId,
       lessonIds,

@@ -9,7 +9,7 @@ import { COURSE_PIPELINE_VERSIONS, type ValidationReport } from "../src/lib/cour
 import { assertCourseStageTransition, canTransitionCourseStage } from "../src/lib/course-pipeline/state";
 import { assertRepairBaseSnapshot, buildRepairPlan } from "../src/lib/course-pipeline/repair";
 import { defaultLabApplicability, LAB_CAPABILITY_REGISTRY } from "../src/lib/course-pipeline/labs/registry";
-import { defaultVisualApplicability } from "../src/lib/course-pipeline/visuals/registry";
+import { accessibleVisualFallbackFromLesson, defaultVisualApplicability } from "../src/lib/course-pipeline/visuals/registry";
 import { coursePipelineEvaluationCases } from "../evals/course-pipeline/dataset/v1";
 import { courseReviewPolicyForBrief, effectiveCourseReviewPolicy } from "../src/lib/course-pipeline/review-policy";
 import { inspectGeneratedContent, languagePolicyInstruction, sanitizeGeneratedText } from "../src/lib/content-language";
@@ -304,6 +304,12 @@ test("automatic repair plans are limited to the explicit deterministic allowlist
     requiresManualReview: false,
     issues: [
       { ...baseIssue, code: "CQ_LAB_001" },
+      {
+        ...baseIssue,
+        code: "CQ_VISUAL_001",
+        path: 'lessons["0-0"].visualPlan.accessibleFallback',
+        source: "asset" as const,
+      },
       { ...baseIssue, code: "CQ_FUTURE_001", path: "course.future" },
     ],
     warnings: [],
@@ -311,9 +317,26 @@ test("automatic repair plans are limited to the explicit deterministic allowlist
   } satisfies ValidationReport;
 
   const plan = buildRepairPlan(report);
-  expect(plan.operations).toEqual([expect.objectContaining({ issueCode: "CQ_LAB_001", operation: "remove" })]);
+  expect(plan.operations).toEqual(expect.arrayContaining([
+    expect.objectContaining({ issueCode: "CQ_LAB_001", operation: "remove" }),
+    expect.objectContaining({ issueCode: "CQ_VISUAL_001", operation: "add" }),
+  ]));
   expect(plan.manualIssueCodes).toContain("CQ_FUTURE_001");
   expect(COURSE_QUALITY_RULES.SNAPSHOT_STALE.repairability).toBe("not_applicable");
+});
+
+test("essential visual fallback is derived only from existing validated lesson text", () => {
+  const fallback = accessibleVisualFallbackFromLesson({
+    learningObjective: "Orient a sky map to the observer's horizon and viewing time.",
+    summary: "Match the map horizon to the real horizon before tracing a star pattern.",
+    keyTakeaways: ["Face the marked direction.", "Rotate the map rather than the sky."],
+    visualPlan: { rationale: "The objective depends on a spatial relationship." },
+  });
+
+  expect(fallback.kind).toBe("text");
+  expect(fallback.content).toContain("Orient a sky map");
+  expect(fallback.content).toContain("Face the marked direction");
+  expect(() => accessibleVisualFallbackFromLesson({ visualPlan: { rationale: "Too short" } })).toThrow(/enough validated text/i);
 });
 
 test("the lab registry advertises no executable code runner", () => {
@@ -480,12 +503,14 @@ test("targeted repair is allowlisted, snapshot-bound, idempotent, and undo rejec
   expect(routeSource).toContain("STALE_REPAIR_SNAPSHOT");
   expect(routeSource).toContain("await commitCourseValidationStage(");
   expect(routeSource).toContain('course.pipelineStage === "repairing" || course.pipelineStage === "validating"');
-  expect(routeSource).toContain('operation.issueCode === "CQ_LAB_001" || operation.issueCode === "CQ_VISUAL_003"');
-  expect(storageSource).toContain("Repair rule ${operation.issueCode} cannot modify ${target.field}.");
+  expect(routeSource).toContain('operation.issueCode === "CQ_VISUAL_001"');
+  expect(routeSource).toContain("accessibleVisualFallbackFromLesson(lesson)");
+  expect(storageSource).toContain('operation.issueCode === "CQ_VISUAL_001"');
+  expect(storageSource).toContain("The repaired visual fallback no longer exists.");
   expect(storageSource).toContain("A repaired lesson changed after the repair. Undo cannot overwrite newer edits.");
   expect(storageSource).toContain("undoOperations");
-  expect(repairSource).toContain('SAFE_DETERMINISTIC_REPAIR_CODES = new Set(["CQ_LAB_001", "CQ_VISUAL_003"])');
-  expect(repairSource).toContain('operation: "remove"');
+  expect(repairSource).toContain('SAFE_DETERMINISTIC_REPAIR_CODES = new Set(["CQ_LAB_001", "CQ_VISUAL_001", "CQ_VISUAL_003"])');
+  expect(repairSource).toContain('operation: issue.code === "CQ_VISUAL_001" ? "add" : "remove"');
   expect(repairSource).not.toContain('operation: "regenerate_subtree"');
 });
 
@@ -688,7 +713,11 @@ test("stored lab and visual applicability distinguish blockers from enrichment",
   );
   expect(blockingReport.issues).toEqual(expect.arrayContaining([
     expect.objectContaining({ code: "CQ_LAB_003" }),
-    expect.objectContaining({ code: "CQ_VISUAL_001" }),
+    expect.objectContaining({
+      code: "CQ_VISUAL_001",
+      path: 'lessons["0-0"].visualPlan.accessibleFallback',
+      repairability: "automatic",
+    }),
   ]));
 
   const fallbackReport = await validateCourseCandidateV2(

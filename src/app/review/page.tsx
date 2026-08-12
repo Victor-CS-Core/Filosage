@@ -113,7 +113,7 @@ export default function ReviewPage() {
             <h1>{due.length ? `${fullQueue.length} concept${fullQueue.length === 1 ? "" : "s"} ready, ordered by need` : "You are caught up for today."}</h1>
             <p>{due.length
               ? `Start with the most fragile evidence. This session takes about ${sessionMinutes} minutes, and each result recalibrates when that concept returns.`
-              : "Understanding lasts because concepts return right before you would forget them. Keep learning and tomorrow's review will be waiting."}</p>
+              : "No reviews are due. New review items appear when their saved schedule reaches its due date."}</p>
           </div>
           <div className="review-header-stats">
             <span className="review-count"><Sparkles size={17} /> {fullQueue.length} due now</span>

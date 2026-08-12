@@ -6,7 +6,7 @@ export default function MarketingFooter() {
     <footer className="marketing-footer">
       <div className="marketing-footer-main">
         <BrandLogo />
-        <p>Focused learning paths, source-aware lessons, and guided practice for complex skills that need to become usable.</p>
+        <p>Focused courses, visible lesson source status, and guided practice for complex skills you need to use.</p>
         <Link className="marketing-footer-cta" href="/library">Explore the learning library</Link>
       </div>
       <div className="marketing-footer-links">

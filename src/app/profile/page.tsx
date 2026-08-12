@@ -120,7 +120,7 @@ export default function ProfilePage() {
                 </section>
 
                 <section className="profile-achievements" id="achievements">
-                  <div className="profile-section-heading"><div><p className="overline">Badge collection</p><h2>Achievements</h2><p>Each badge marks a learning behavior, a mastery milestone, or a contribution to the library.</p></div><strong>{earned.length}<span> / {badges.length}</span></strong></div>
+                  <div className="profile-section-heading"><div><p className="overline">Badge collection</p><h2>Achievements</h2><p>Each badge marks a learning behavior, a concept-strength milestone, or a contribution to the library.</p></div><strong>{earned.length}<span> / {badges.length}</span></strong></div>
                   <div className="badge-filter" role="group" aria-label="Filter achievements">
                     {(["all", "earned", "in-progress"] as BadgeFilter[]).map((option) => <button key={option} className={filter === option ? "is-active" : ""} aria-pressed={filter === option} onClick={() => setFilter(option)}>{option === "all" ? "All badges" : option === "earned" ? "Earned" : "In progress"}</button>)}
                   </div>

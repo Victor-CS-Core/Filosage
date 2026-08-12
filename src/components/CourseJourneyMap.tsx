@@ -22,7 +22,7 @@ export default function CourseJourneyMap({
 
   return <section className="course-journey-map" aria-labelledby="course-journey-title">
     <header>
-      <div><p className="overline">Course path</p><h2 id="course-journey-title">See what each stage unlocks</h2><p>Move through the course as a connected build. Every stage produces evidence you can inspect, improve, and carry forward.</p></div>
+      <div><p className="overline">Course path</p><h2 id="course-journey-title">See what each stage produces</h2><p>Follow the course as a connected build. Each stage shows the work or challenge it contributes to the course.</p></div>
       <Route size={24} />
     </header>
     <ol className="journey-stage-list">

@@ -13,17 +13,17 @@ const requirements = [
   {
     icon: Lightbulb,
     title: "A named misconception",
-    detail: "Each lesson identifies the most consequential wrong belief about its concept and teaches against it directly. Your progress page tracks what you have stopped being wrong about.",
+    detail: "Each lesson identifies a consequential misconception about its concept and teaches against it directly. Progress records the material you completed without claiming what you personally believed.",
   },
   {
     icon: BookOpenCheck,
     title: "Guided practice with visible reasoning",
-    detail: "Worked steps show how someone who understands the idea actually thinks through it, with at least two reasoning steps. No answers pulled from thin air.",
+    detail: "Worked steps show how the method reaches an answer, with at least one explicit reasoning step instead of an unexplained result.",
   },
   {
     icon: Waypoints,
-    title: "Purposeful visual explanation",
-    detail: "When a relationship, contrast, sequence, comparison, or prerequisite is easier to understand visually, Filosage adds one concise, structured visual explanation. It is generated from safe data and earns its place in the lesson, never decoration or an unreviewed image.",
+    title: "A visual or an accessible fallback",
+    detail: "When a lesson marks a visual as essential, publication requires a supported visual or an equivalent text or table explanation. A merely helpful visual may be absent when the fallback still teaches the relationship.",
   },
   {
     icon: ArrowRight,
@@ -38,7 +38,7 @@ const requirements = [
   {
     icon: CalendarCheck2,
     title: "A place in your review schedule",
-    detail: "Completed concepts return in daily review right before you would forget them: sooner when an answer felt shaky, later as your understanding strengthens.",
+    detail: "Completed concepts return on scheduled intervals: sooner after fragile performance or overconfidence, and later after stronger review performance.",
   },
 ];
 
@@ -56,7 +56,7 @@ export default function TeachingStandardPage() {
           </p>
         </header>
 
-        <section className="standard-list" aria-label="What every lesson must contain">
+        <section className="standard-list" aria-label="Published lesson review checks">
           {requirements.map(({ icon: Icon, title, detail }) => (
             <article key={title}>
               <span><Icon size={20} /></span>
@@ -68,10 +68,10 @@ export default function TeachingStandardPage() {
         <section className="standard-mastery">
           <Flag size={20} />
           <div>
-            <h2>Mastery is earned, not attended</h2>
+            <h2>Lesson completion and assessed work stay separate</h2>
             <p>
-              Courses end in a capstone with clear success criteria. Finishing the lessons alone does not complete a
-              course. Submitting capstone work that demonstrates each criterion does.
+              Courses end in a capstone with clear success criteria. Finishing the lessons completes the instructional
+              sequence; the capstone is assessed separately and only passes when its criteria are met.
             </p>
           </div>
         </section>

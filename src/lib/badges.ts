@@ -155,7 +155,7 @@ export const BADGE_DEFINITIONS: BadgeDefinition[] = [
   {
     id: "knowledge-holds",
     name: "Knowledge Holds",
-    description: "Master ten concepts through successful reviews.",
+    description: "Record ten secure concept states through successful reviews.",
     icon: "brain",
     family: "mastery",
     target: 10,
@@ -174,13 +174,13 @@ export const BADGE_DEFINITIONS: BadgeDefinition[] = [
   },
   {
     id: "course-complete",
-    name: "Course Complete",
+    name: "Lessons Finished",
     description: "Finish every lesson in one course.",
     icon: "trophy",
     family: "mastery",
     target: 1,
     value: ({ progress }) => progress.some((course) => Boolean(course.totalLessons) && course.completedLessonIds.length >= (course.totalLessons ?? 1)) ? 1 : 0,
-    progressLabel: (value) => value ? "Course completed" : "Finish one course",
+    progressLabel: (value) => value ? "Lesson sequence finished" : "Finish one lesson sequence",
   },
   {
     id: "wide-perspective",

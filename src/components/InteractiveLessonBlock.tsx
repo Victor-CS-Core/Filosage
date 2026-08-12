@@ -113,7 +113,7 @@ function RecognitionLab({
   return <div className="recognition-lab">
     <div className="recognition-session-status">
       <span>{firstPassComplete ? "Focused retry" : `First pass ${Math.min(existingResults.length + 1, interaction.items.length)} of ${interaction.items.length}`}</span>
-      <span>{completedItems} mastered</span>
+      <span>{completedItems} completed</span>
     </div>
     <div className="practice-sequence-track" role="progressbar" aria-label="Recognition lab progress" aria-valuemin={0} aria-valuemax={interaction.items.length} aria-valuenow={completedItems}>
       <span style={{ transform: `scaleX(${completedItems / interaction.items.length})` }} />
