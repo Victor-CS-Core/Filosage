@@ -11,7 +11,7 @@ In addition to the Firebase, OpenAI, owner, and public-site variables listed in 
 - `ACTIVITY_RECEIPT_SECRET`: at least 32 cryptographically random bytes. Keep it server-only.
 - `FIRESTORE_BACKUP_BUCKET`: a dedicated Google Cloud Storage bucket in the Firestore database location. Required before running managed backups.
 - `OPERATIONS_ALERT_WEBHOOK_URL`: a monitored alert receiver. Without it, critical events remain in platform logs only.
-- `OPERATIONS_ALERT_WEBHOOK_SECRET`: recommended; the receiver should verify `X-Filosage-Signature`.
+- `OPERATIONS_ALERT_WEBHOOK_SECRET`: required with the webhook URL; use at least 32 random bytes. The receiver must verify `X-Filosage-Signature` against the exact request bytes.
 - `PRODUCTION_HEALTH_URL`: the canonical production origin used by the post-deploy check.
 - `SITE_VERSION`: the full 40-character Git SHA for the exact source being deployed.
 
@@ -47,11 +47,26 @@ The Firebase service account needs the minimum roles required for the app plus F
 - Route the operational webhook to a channel that is actively monitored. The payload contains event identifiers and service status only, never lesson content, tokens, payment details, or credentials.
 - Monitor Firebase request errors, OpenAI budget exhaustion, Sites errors, and Stripe delivery status if billing is activated.
 
+### Operational alert receiver contract
+
+Filosage retries timeouts, connection failures, HTTP 408/425/429, and 5xx responses with a bounded backoff. It does not retry permanent 4xx rejections. The receiver must:
+
+1. Read the unmodified request bytes before JSON parsing.
+2. Calculate hexadecimal HMAC-SHA256 with `OPERATIONS_ALERT_WEBHOOK_SECRET` and compare it to `X-Filosage-Signature` with a timing-safe comparison.
+3. Require `X-Filosage-Signature-Version: v1` and a recent `X-Filosage-Alert-Timestamp`.
+4. Deduplicate on `X-Filosage-Alert-Id` or `Idempotency-Key`; duplicate deliveries must return a successful 2xx acknowledgment without notifying twice.
+5. Return 2xx only after the alert has been durably accepted by the monitored destination.
+
+Run `npm.cmd run test:operations-alert` after configuring the receiver. A successful acknowledgment is saved to `operationalEvidence/alert-test-latest`; the admin console remains unverified until that record exists. Repeat the test after rotating the secret or changing destinations.
+
 ## Backups
 
-- Run `npm.cmd run backup:firestore` daily and before every release or data migration.
+- `.github/workflows/firestore-backup.yml` runs at 06:17 UTC daily and supports manual dispatch. Configure its `production-operations` environment with `FIREBASE_PROJECT_ID`, `FIREBASE_CLIENT_EMAIL`, `FIREBASE_PRIVATE_KEY`, `FIRESTORE_BACKUP_BUCKET`, `OPERATIONS_ALERT_WEBHOOK_URL`, and `OPERATIONS_ALERT_WEBHOOK_SECRET` secrets.
+- The workflow uses a concurrency group so two scheduled exports cannot overlap. It waits for Google to report completion, updates `operationalEvidence/firestore-backup-latest`, uploads a 90-day CI evidence artifact, and sends an acknowledged success or failure notification.
+- Run `npm.cmd run backup:firestore` before every release or data migration. Add `-- --evidence-file=ABSOLUTE_PATH` when a separate immutable evidence file is required.
 - Configure bucket retention or object lock according to legal advice and recovery needs. A practical starting point is 35 daily and 12 monthly copies.
 - Managed exports are not complete until the script reports completion.
+- Managed exports incur one billed Firestore document read per exported document, but those reads do not appear in the Firebase usage panel. Use the `goog-firestoremanaged:exportimport` Cloud Billing label and Cloud Storage billing data for invoice reconciliation.
 - Quarterly, restore the latest export into a separate non-production Firebase project and verify course, lesson, progress, publication, and entitlement records.
 
 ## Restore
@@ -72,6 +87,8 @@ Never test restoration against production.
    ```text
    npm.cmd run restore:firestore -- --input=gs://BUCKET/filosage-backups/TIMESTAMP --apply --confirm-project=EXACT_PROJECT_ID --wait
    ```
+
+The restore command always waits for actual completion when `--apply` is used, records `operationalEvidence/firestore-restore-latest`, and alerts on success or failure. Use `--evidence-file=ABSOLUTE_PATH` to retain a separate drill artifact. The admin console treats restore evidence older than 100 days as stale.
 
 Firestore import replaces documents with matching IDs and does not remove unrelated newer documents. A point-in-time rollback may therefore require a separately reviewed reconciliation plan.
 

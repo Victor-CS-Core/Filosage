@@ -58,10 +58,12 @@ Supabase migration is not a release dependency and is not a substitute for this 
 - [ ] Configure `OPERATIONS_ALERT_WEBHOOK_URL` to an independently monitored receiver that accepts Filosage's JSON alert envelope.
 - [ ] Configure a cryptographically random `OPERATIONS_ALERT_WEBHOOK_SECRET`; the receiver must verify the hexadecimal HMAC-SHA256 value in `X-Filosage-Signature` before accepting an alert.
 - [ ] Send and acknowledge a signed test alert, then verify deduplication, failure logging, escalation ownership, and recovery notification behavior.
+  - Implementation evidence: `npm.cmd run test:operations-alert` sends the versioned HMAC envelope, requires a 2xx receiver acknowledgment, and records `operationalEvidence/alert-test-latest`. Configuration alone does not complete this checkbox.
 - [ ] Configure an external monitor for `/api/health` at a one-to-five-minute interval, alerting after two consecutive failures and again on recovery.
 - [ ] Confirm the support address is actively monitored and run a signed-in owner acceptance test for support intake, owner documentation, the content-report queue, command-center review-only drafts, and audit evidence on the exact hosted release.
 - [ ] Configure a transactional email provider and live-test consent, required notices, delivery, bounce handling, unsubscribe, suppression, cancellation confirmation, renewal, and failed-payment messaging before sending lifecycle email.
 - [ ] Verify backup and alert service-account permissions use the minimum required roles and that secrets are stored only in the hosted secret store.
+  - Automation evidence: `.github/workflows/firestore-backup.yml` is concurrency-locked, waits for completed export evidence, retains an artifact for 90 days, and alerts on both success and failure. A live run and recovery-project restore are still required before checking this gate.
 
 ### Required before paid activation
 

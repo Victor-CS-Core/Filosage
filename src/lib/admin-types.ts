@@ -2,6 +2,7 @@ import type { AccountStatus, LearnerPlan } from "@/lib/course-types";
 import type { AiFeature } from "@/lib/ai-usage";
 import type { AcquisitionChannel, ProductEventName } from "@/lib/product-events";
 import type { MembershipAnalytics } from "@/lib/membership-analytics";
+import type { FirebaseConsumption } from "@/lib/firebase-consumption";
 
 export interface AdminFeatureUsage {
   feature: AiFeature;
@@ -50,6 +51,17 @@ export interface AdminUserSummary {
   featureUsage: AdminFeatureUsage[];
 }
 
+export type OperationalReadinessState = "missing" | "unverified" | "running" | "healthy" | "stale" | "failed";
+
+export interface OperationalReadinessControl {
+  configured: boolean;
+  ready: boolean;
+  state: OperationalReadinessState;
+  detail: string;
+  lastEventAt?: string;
+  evidenceUri?: string;
+}
+
 export interface AdminOverview {
   generatedAt: string;
   range: { days: number; from: string; to: string };
@@ -93,6 +105,7 @@ export interface AdminOverview {
       percentUsed: number;
     }>;
   };
+  firebase: FirebaseConsumption;
   monetization: {
     waitlistCount: number;
     plans: Array<{
@@ -167,6 +180,9 @@ export interface AdminOverview {
     activityReceiptsConfigured: boolean;
     operationsAlertsConfigured: boolean;
     managedBackupsConfigured: boolean;
+    operationsAlerts: OperationalReadinessControl;
+    managedBackups: OperationalReadinessControl;
+    restoreDrill: OperationalReadinessControl;
     productionHealthMonitorConfigured: boolean;
     supportChannelConfigured: boolean;
     lifecycleMessagingConfigured: boolean;

@@ -335,6 +335,7 @@ export async function POST(request: Request) {
             severity: "warning",
             code: `billing.${event.type.replaceAll(".", "_")}`,
             message: "A Stripe subscription requires billing recovery attention.",
+            deduplicationKey: event.id,
             context: { eventId: event.id, eventType: event.type },
           });
         }
@@ -403,6 +404,7 @@ export async function POST(request: Request) {
       severity: "critical",
       code: "billing.webhook_failed",
       message: "A verified Stripe event failed during entitlement synchronization.",
+      deduplicationKey: event.id,
       context: { eventId: event.id, eventType: event.type },
     });
     return Response.json({ error: "Webhook processing failed and will be retried." }, { status: 500 });

@@ -122,6 +122,7 @@ export async function POST(request: Request) {
         severity: "critical",
         code: "content.multiple_serious_reports",
         message: "A public course has multiple independent safety or rights reports and needs owner review.",
+        deduplicationKey: courseId,
         context: { courseId, reporters: seriousReporters.size },
       });
     }

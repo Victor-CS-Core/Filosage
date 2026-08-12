@@ -11,12 +11,15 @@ import {
   ChevronRight,
   Clock3,
   Coins,
+  Database,
   Crown,
   Flag,
   Gauge,
   Globe2,
+  HardDrive,
   LoaderCircle,
   LockKeyhole,
+  KeyRound,
   RefreshCw,
   RotateCcw,
   Search,
@@ -28,10 +31,10 @@ import {
 } from "lucide-react";
 import AppShell from "@/components/AppShell";
 import { useAuth } from "@/components/AuthProvider";
-import type { AdminOverview, AdminUserSummary } from "@/lib/admin-types";
+import type { AdminOverview, AdminUserSummary, OperationalReadinessState } from "@/lib/admin-types";
 import { matchesSearchQuery } from "@/lib/search";
 
-type AdminTab = "overview" | "research" | "launch" | "users" | "ai" | "safety";
+type AdminTab = "overview" | "costs" | "research" | "launch" | "users" | "ai" | "safety";
 
 const featureLabels = {
   course_outline: "Course outline",
@@ -69,12 +72,49 @@ function shortDate(value?: string, includeTime = false) {
     : { month: "short", day: "numeric", year: "numeric" }).format(new Date(value));
 }
 
-function ReadinessItem({ ready, label, detail }: { ready: boolean; label: string; detail: string }) {
+function preciseCurrency(value: number | null) {
+  if (value === null) return "Unavailable";
+  return new Intl.NumberFormat("en", {
+    style: "currency",
+    currency: "USD",
+    minimumFractionDigits: 2,
+    maximumFractionDigits: value < 0.01 ? 6 : 2,
+  }).format(value);
+}
+
+function dataSize(value: number | null) {
+  if (value === null) return "Unavailable";
+  if (value < 1_024) return `${Math.round(value)} B`;
+  const units = ["KiB", "MiB", "GiB", "TiB"];
+  const unitIndex = Math.min(units.length - 1, Math.floor(Math.log(value) / Math.log(1_024)) - 1);
+  return `${new Intl.NumberFormat("en", { maximumFractionDigits: 2 }).format(value / (1_024 ** (unitIndex + 1)))} ${units[unitIndex]}`;
+}
+
+const readinessStateLabels: Record<OperationalReadinessState, string> = {
+  missing: "Missing",
+  unverified: "Verify",
+  running: "Running",
+  healthy: "Ready",
+  stale: "Stale",
+  failed: "Failed",
+};
+
+function ReadinessItem({
+  ready,
+  label,
+  detail,
+  state,
+}: {
+  ready: boolean;
+  label: string;
+  detail: string;
+  state?: OperationalReadinessState;
+}) {
   return (
     <article className={ready ? "is-ready" : "needs-work"}>
       {ready ? <CheckCircle2 size={18} /> : <TriangleAlert size={18} />}
       <span><strong>{label}</strong><small>{detail}</small></span>
-      <em>{ready ? "Ready" : "Action needed"}</em>
+      <em>{state ? readinessStateLabels[state] : ready ? "Ready" : "Action needed"}</em>
     </article>
   );
 }
@@ -257,6 +297,7 @@ export default function AdminPage() {
         <nav className="admin-tabs" aria-label="Control room sections">
           {([
             ["overview", Activity, "Overview"],
+            ["costs", Coins, "Costs"],
             ["research", Target, "Research"],
             ["launch", LockKeyhole, "Launch readiness"],
             ["users", Users, "Users"],
@@ -281,7 +322,7 @@ export default function AdminPage() {
               <article><Users size={17} /><span>Active learners</span><strong>{compactNumber(data.summary.activeUsers)}</strong><small>{data.summary.totalUsers} accounts</small></article>
               <article><Bot size={17} /><span>AI requests</span><strong>{compactNumber(data.summary.generations)}</strong><small>{data.summary.failedRequests} failed</small></article>
               <article><Target size={17} /><span>Measured visitors</span><strong>{compactNumber(data.growth.uniqueActors)}</strong><small>{data.growth.events} outcome events</small></article>
-              <article><Coins size={17} /><span>Estimated cost</span><strong>{currency(data.summary.estimatedCostUsd)}</strong><small>{data.budget.percentUsed.toFixed(1)}% monthly capacity</small></article>
+              <article><Coins size={17} /><span>AI cost</span><strong>{currency(data.summary.estimatedCostUsd)}</strong><small>{days}-day estimate</small></article>
               <article className={data.summary.safetyBlocks ? "has-warning" : ""}><ShieldCheck size={17} /><span>Safety blocks</span><strong>{data.summary.safetyBlocks}</strong><small>{data.summary.safetyBlocks ? "Review activity" : "No blocked requests"}</small></article>
             </section>
 
@@ -401,6 +442,70 @@ export default function AdminPage() {
                 </div>
               </section>
             </div>
+          </div>
+        )}
+
+        {data && tab === "costs" && (
+          <div className="admin-workspace admin-cost-workspace">
+            <section className={`admin-cost-status is-${data.firebase.status}`}>
+              <span><Database size={22} /></span>
+              <div>
+                <h2>Firebase consumption</h2>
+                <p>{data.firebase.status === "available"
+                  ? `Cloud Monitoring usage through ${shortDate(data.firebase.generatedAt, true)}${data.firebase.location ? ` · ${data.firebase.location}` : ""}.`
+                  : data.firebase.status === "permission_required"
+                    ? "Usage metrics need Monitoring Viewer access for the runtime Firebase service account."
+                    : data.firebase.status === "local"
+                      ? "Live Firebase usage is not requested in local mode."
+                      : "Cloud Monitoring usage is temporarily unavailable."}</p>
+              </div>
+              <strong>{preciseCurrency(data.firebase.estimatedCostUsd)}<small>month-to-date estimate</small></strong>
+            </section>
+
+            <section className="admin-cost-metrics" aria-label="Firebase usage summary">
+              <article><span>Document reads</span><strong>{data.firebase.firestore.reads === null ? "Unavailable" : compactNumber(data.firebase.firestore.reads)}</strong><small>{compactNumber(data.firebase.firestore.freeQuota.readsPerDay * data.firebase.period.elapsedDays)} estimated free allowance to date</small></article>
+              <article><span>Document writes</span><strong>{data.firebase.firestore.writes === null ? "Unavailable" : compactNumber(data.firebase.firestore.writes)}</strong><small>{compactNumber(data.firebase.firestore.freeQuota.writesPerDay * data.firebase.period.elapsedDays)} estimated free allowance to date</small></article>
+              <article><span>Document deletes</span><strong>{data.firebase.firestore.deletes === null ? "Unavailable" : compactNumber(data.firebase.firestore.deletes)}</strong><small>{compactNumber(data.firebase.firestore.freeQuota.deletesPerDay * data.firebase.period.elapsedDays)} estimated free allowance to date</small></article>
+              <article><span>Data and indexes</span><strong>{dataSize(data.firebase.firestore.dataStorageBytes)}</strong><small>{dataSize(data.firebase.firestore.freeQuota.storageBytes)} stored data free tier</small></article>
+            </section>
+
+            <div className="admin-cost-grid">
+              <section className="admin-panel admin-cost-breakdown">
+                <header><div><h2>Firestore price basis</h2><span>Standard edition default USD rates</span></div><Coins size={19} /></header>
+                <dl>
+                  <div><dt>Reads after free quota</dt><dd>{preciseCurrency(data.firebase.firestore.rates.readPer100kUsd)} / 100K</dd></div>
+                  <div><dt>Writes after free quota</dt><dd>{preciseCurrency(data.firebase.firestore.rates.writePer100kUsd)} / 100K</dd></div>
+                  <div><dt>Deletes after free quota</dt><dd>{preciseCurrency(data.firebase.firestore.rates.deletePer100kUsd)} / 100K</dd></div>
+                  <div><dt>Data and index storage</dt><dd>{preciseCurrency(data.firebase.firestore.rates.dataStoragePerGibMonthUsd)} / GiB-month</dd></div>
+                  <div><dt>Firestore backup storage</dt><dd>{dataSize(data.firebase.firestore.backupStorageBytes)} · {preciseCurrency(data.firebase.firestore.rates.backupStoragePerGibMonthUsd)} / GiB-month</dd></div>
+                  <div><dt>Point-in-time recovery</dt><dd>{dataSize(data.firebase.firestore.pitrStorageBytes)} · {preciseCurrency(data.firebase.firestore.rates.pitrStoragePerGibMonthUsd)} / GiB-month</dd></div>
+                </dl>
+                <p>Rates are embedded from the current Google Cloud Firestore default-price table. Location-specific SKUs and billing adjustments can differ.</p>
+              </section>
+
+              <section className="admin-panel admin-service-consumption">
+                <header><div><h2>Firebase and adjacent services</h2><span>Repository-grounded service inventory</span></div><HardDrive size={19} /></header>
+                <div>
+                  <article><span><KeyRound size={16} /></span><p><strong>Authentication</strong><small>{data.firebase.authentication.method} · {data.firebase.authentication.measuredAccounts} measured account{data.firebase.authentication.measuredAccounts === 1 ? "" : "s"}</small></p><em>No-cost path</em></article>
+                  <article><span><Database size={16} /></span><p><strong>Cloud Firestore</strong><small>Reads, writes, deletes, data, indexes, native backups, and PITR</small></p><em>{preciseCurrency(data.firebase.firestore.estimatedCostUsd)}</em></article>
+                  <article><span><HardDrive size={16} /></span><p><strong>Application Storage</strong><small>{data.firebase.appStorage.configured ? "Bucket configured; no Firebase Storage SDK calls found" : "No configured application bucket in this runtime"}</small></p><em>Not estimated</em></article>
+                  <article><span><RotateCcw size={16} /></span><p><strong>Managed export backups</strong><small>{data.firebase.managedBackups.detail}</small></p><em>{data.firebase.managedBackups.configured ? "Potential Cloud Storage cost" : "Not configured"}</em></article>
+                  <article><span><Globe2 size={16} /></span><p><strong>Hosting</strong><small>{data.firebase.hosting.detail}</small></p><em>$0 Firebase</em></article>
+                </div>
+              </section>
+            </div>
+
+            <section className="admin-cost-notes" aria-labelledby="firebase-estimate-notes">
+              <TriangleAlert size={18} />
+              <div><h2 id="firebase-estimate-notes">What this estimate does not claim</h2>{data.firebase.limitations.map((item) => <p key={item}>{item}</p>)}</div>
+            </section>
+
+            <section className="admin-ai-cost-strip">
+              <Bot size={18} />
+              <span><strong>OpenAI usage remains separate</strong><small>{days}-day measured generation estimate</small></span>
+              <b>{currency(data.summary.estimatedCostUsd)}</b>
+              <button onClick={() => setTab("ai")}>Open AI operations <ChevronRight size={14} /></button>
+            </section>
           </div>
         )}
 
@@ -525,8 +630,9 @@ export default function AdminPage() {
                 <div className="admin-readiness-list">
                   <ReadinessItem ready={data.launchReadiness.activityReceiptsConfigured} label="Signed activity receipts" detail="Creator progression is bound to verified lesson activity." />
                   <ReadinessItem ready={data.launchReadiness.productionHealthMonitorConfigured} label="Production health target" detail="A deployment health URL is configured for release checks." />
-                  <ReadinessItem ready={data.launchReadiness.operationsAlertsConfigured} label="Operational alerts" detail="Critical health and billing failures need an external alert destination." />
-                  <ReadinessItem ready={data.launchReadiness.managedBackupsConfigured} label="Managed Firestore backups" detail="A backup bucket is required before paid customer data is accepted." />
+                  <ReadinessItem ready={data.launchReadiness.operationsAlerts.ready} state={data.launchReadiness.operationsAlerts.state} label="Operational alerts" detail={data.launchReadiness.operationsAlerts.detail} />
+                  <ReadinessItem ready={data.launchReadiness.managedBackups.ready} state={data.launchReadiness.managedBackups.state} label="Managed Firestore backups" detail={data.launchReadiness.managedBackups.detail} />
+                  <ReadinessItem ready={data.launchReadiness.restoreDrill.ready} state={data.launchReadiness.restoreDrill.state} label="Restore rehearsal" detail={data.launchReadiness.restoreDrill.detail} />
                 </div>
               </section>
 

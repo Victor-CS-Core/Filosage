@@ -9,6 +9,7 @@ import {
 import type {
   AdminFeatureUsage,
   AdminOverview,
+  OperationalReadinessControl,
   AdminUserSummary,
 } from "@/lib/admin-types";
 import type { AiFeature } from "@/lib/ai-usage";
@@ -31,6 +32,7 @@ import {
   type PaidLearnerPlan,
 } from "@/lib/membership-plans";
 import { calculateMembershipAnalytics, effectiveMembershipPlan } from "@/lib/membership-analytics";
+import { firebaseConsumption } from "@/lib/firebase-consumption";
 
 function numberValue(value: unknown) {
   return typeof value === "number" && Number.isFinite(value) ? value : 0;
@@ -43,6 +45,60 @@ function stringValue(value: unknown) {
 function dateValue(value: unknown) {
   const candidate = stringValue(value);
   return candidate && Number.isFinite(Date.parse(candidate)) ? candidate : undefined;
+}
+
+function operationalControl(options: {
+  configured: boolean;
+  evidence: Record<string, unknown> | null;
+  healthyForHours: number;
+  missingDetail: string;
+  unverifiedDetail: string;
+  healthyDetail: string;
+}): OperationalReadinessControl {
+  if (!options.configured) {
+    return { configured: false, ready: false, state: "missing", detail: options.missingDetail };
+  }
+  if (!options.evidence) {
+    return { configured: true, ready: false, state: "unverified", detail: options.unverifiedDetail };
+  }
+  const status = stringValue(options.evidence.status);
+  const lastEventAt = dateValue(options.evidence.completedAt)
+    ?? dateValue(options.evidence.failedAt)
+    ?? dateValue(options.evidence.startedAt);
+  const evidenceUri = stringValue(options.evidence.outputUriPrefix)
+    ?? stringValue(options.evidence.inputUriPrefix);
+  if (status === "failed") {
+    return {
+      configured: true,
+      ready: false,
+      state: "failed",
+      detail: `The latest operation failed${lastEventAt ? ` on ${new Date(lastEventAt).toLocaleDateString("en-US")}` : ""}.`,
+      lastEventAt,
+      evidenceUri,
+    };
+  }
+  if (status === "running") {
+    return {
+      configured: true,
+      ready: false,
+      state: "running",
+      detail: "An operation is currently running; readiness requires successful completion.",
+      lastEventAt,
+      evidenceUri,
+    };
+  }
+  if (status !== "succeeded" || !lastEventAt) {
+    return { configured: true, ready: false, state: "unverified", detail: options.unverifiedDetail, lastEventAt, evidenceUri };
+  }
+  const fresh = Date.now() - Date.parse(lastEventAt) <= options.healthyForHours * 60 * 60_000;
+  return {
+    configured: true,
+    ready: fresh,
+    state: fresh ? "healthy" : "stale",
+    detail: fresh ? options.healthyDetail : `The latest successful evidence is older than ${Math.round(options.healthyForHours / 24)} days.`,
+    lastEventAt,
+    evidenceUri,
+  };
 }
 
 function accountSubscriptionStatus(value: unknown): AdminUserSummary["subscriptionStatus"] {
@@ -132,6 +188,10 @@ export async function GET(request: Request) {
       totalContentReportCount,
       resolvedContentReportCount,
       dismissedContentReportCount,
+      backupEvidence,
+      alertTestEvidence,
+      restoreEvidence,
+      firebase,
     ] = await Promise.all([
       listAllStoredDocuments("users", 10_000),
       listCollectionDocumentsByRange("userEngagement", "lastActivityAt", "1970-01-01T00:00:00.000Z", nowIso, 10_000),
@@ -158,11 +218,45 @@ export async function GET(request: Request) {
       countCollectionDocuments("contentReports"),
       countCollectionDocuments("contentReports", [{ field: "status", value: "resolved" }]),
       countCollectionDocuments("contentReports", [{ field: "status", value: "dismissed" }]),
+      getStoredDocument("operationalEvidence/firestore-backup-latest"),
+      getStoredDocument("operationalEvidence/alert-test-latest"),
+      getStoredDocument("operationalEvidence/firestore-restore-latest"),
+      firebaseConsumption(0),
     ]);
+    firebase.authentication.measuredAccounts = totalUsers;
     if (ownerRecord && !rawUsers.some((record) => record.id === owner.uid || record.uid === owner.uid)) {
       rawUsers.unshift(ownerRecord);
     }
     const traffic = [...legacyTraffic, ...shardedTraffic];
+    const alertsConfigured = Boolean(
+      serverEnvironment.OPERATIONS_ALERT_WEBHOOK_URL?.trim()
+      && serverEnvironment.OPERATIONS_ALERT_WEBHOOK_SECRET?.trim(),
+    );
+    const backupsConfigured = Boolean(serverEnvironment.FIRESTORE_BACKUP_BUCKET?.trim());
+    const operationsAlerts = operationalControl({
+      configured: alertsConfigured,
+      evidence: alertTestEvidence,
+      healthyForHours: 90 * 24,
+      missingDetail: "A monitored webhook URL and signing secret are both required.",
+      unverifiedDetail: "Configuration exists, but no acknowledged signed test is recorded.",
+      healthyDetail: "A signed test alert was acknowledged and retained as evidence.",
+    });
+    const managedBackups = operationalControl({
+      configured: backupsConfigured,
+      evidence: backupEvidence,
+      healthyForHours: 36,
+      missingDetail: "A dedicated Cloud Storage export bucket is required.",
+      unverifiedDetail: "A bucket is configured, but no completed managed export is recorded.",
+      healthyDetail: "The latest managed export completed within the last 36 hours.",
+    });
+    const restoreDrill = operationalControl({
+      configured: backupsConfigured,
+      evidence: restoreEvidence,
+      healthyForHours: 100 * 24,
+      missingDetail: "Restore testing requires the managed-backup configuration.",
+      unverifiedDetail: "No successful restore into a recovery project is recorded.",
+      healthyDetail: "A successful restore operation is recorded within the last 100 days.",
+    });
 
     const userRows = rawUsers.map((record) => {
       const uid = stringValue(record.uid) ?? record.id;
@@ -574,6 +668,7 @@ export async function GET(request: Request) {
         percentUsed: Math.min(100, ((spentUsd + reservedUsd) / limitUsd) * 100),
         pools: budgetPools,
       },
+      firebase,
       monetization: {
         waitlistCount,
         plans: monetizationPlans,
@@ -645,8 +740,11 @@ export async function GET(request: Request) {
         billingLockActive: !billing.enabled,
         paymentProviderConfigured: billing.providerReady,
         activityReceiptsConfigured: Boolean(serverEnvironment.ACTIVITY_RECEIPT_SECRET?.trim()),
-        operationsAlertsConfigured: Boolean(serverEnvironment.OPERATIONS_ALERT_WEBHOOK_URL?.trim()),
-        managedBackupsConfigured: Boolean(serverEnvironment.FIRESTORE_BACKUP_BUCKET?.trim()),
+        operationsAlertsConfigured: alertsConfigured,
+        managedBackupsConfigured: backupsConfigured,
+        operationsAlerts,
+        managedBackups,
+        restoreDrill,
         productionHealthMonitorConfigured: Boolean(serverEnvironment.PRODUCTION_HEALTH_URL?.trim()),
         supportChannelConfigured: Boolean(SUPPORT_CONTACT.trim()),
         lifecycleMessagingConfigured: false,

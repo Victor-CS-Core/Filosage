@@ -8,7 +8,7 @@
     "build": "next build",
     "build:sites": "node scripts/build-sites-local.mjs && node scripts/prepare-sites-package.mjs",
     "start": "next start",
-    "lint": "oxlint --react-plugin --jsx-a11y-plugin --import-plugin --deny-warnings src tests next.config.ts playwright.config.ts playwright.sites.config.ts scripts/build-sites-local.mjs scripts/check-support-wiki.mjs scripts/evaluate-command-center-drafts.ts scripts/evaluate-model-quality.ts scripts/playwright-next-server.mjs scripts/playwright-sites-server.mjs scripts/playwright-server-lifecycle.mjs scripts/prepare-sites-package.mjs && eslint src tests next.config.ts playwright.config.ts playwright.sites.config.ts scripts/build-sites-local.mjs scripts/check-support-wiki.mjs scripts/evaluate-command-center-drafts.ts scripts/evaluate-model-quality.ts scripts/playwright-next-server.mjs scripts/playwright-sites-server.mjs scripts/playwright-server-lifecycle.mjs scripts/prepare-sites-package.mjs",
+    "lint": "oxlint --react-plugin --jsx-a11y-plugin --import-plugin --deny-warnings src tests next.config.ts playwright.config.ts playwright.sites.config.ts scripts/build-sites-local.mjs scripts/check-support-wiki.mjs scripts/evaluate-command-center-drafts.ts scripts/evaluate-model-quality.ts scripts/playwright-next-server.mjs scripts/playwright-sites-server.mjs scripts/playwright-server-lifecycle.mjs scripts/prepare-sites-package.mjs scripts/backup-firestore.ts scripts/firestore-operations.ts scripts/operations-script-support.ts scripts/restore-firestore.ts scripts/test-operational-alert.ts && eslint src tests next.config.ts playwright.config.ts playwright.sites.config.ts scripts/build-sites-local.mjs scripts/check-support-wiki.mjs scripts/evaluate-command-center-drafts.ts scripts/evaluate-model-quality.ts scripts/playwright-next-server.mjs scripts/playwright-sites-server.mjs scripts/playwright-server-lifecycle.mjs scripts/prepare-sites-package.mjs scripts/backup-firestore.ts scripts/firestore-operations.ts scripts/operations-script-support.ts scripts/restore-firestore.ts scripts/test-operational-alert.ts",
     "test:e2e": "playwright test",
     "eval:model-quality": "node --experimental-strip-types scripts/evaluate-model-quality.ts",
     "eval:command-center": "node --experimental-strip-types scripts/evaluate-command-center-drafts.ts",
@@ -17,8 +17,9 @@
     "check:release": "node scripts/check-release-env.mjs",
     "check:production": "node scripts/check-production-health.mjs",
     "check:support-wiki": "node scripts/check-support-wiki.mjs",
-    "backup:firestore": "node scripts/backup-firestore.mjs --wait",
-    "restore:firestore": "node scripts/restore-firestore.mjs"
+    "backup:firestore": "node --experimental-strip-types scripts/backup-firestore.ts",
+    "restore:firestore": "node --experimental-strip-types scripts/restore-firestore.ts",
+    "test:operations-alert": "node --experimental-strip-types scripts/test-operational-alert.ts"
   },
   "dependencies": {
     "@fontsource-variable/inter": "^5.2.8",

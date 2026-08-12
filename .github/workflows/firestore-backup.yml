@@ -1,0 +1,45 @@
+name: Firestore managed backup
+
+on:
+  schedule:
+    - cron: "17 6 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: firestore-production-backup
+  cancel-in-progress: false
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    timeout-minutes: 210
+    environment: production-operations
+    env:
+      FIREBASE_PROJECT_ID: ${{ secrets.FIREBASE_PROJECT_ID }}
+      FIREBASE_CLIENT_EMAIL: ${{ secrets.FIREBASE_CLIENT_EMAIL }}
+      FIREBASE_PRIVATE_KEY: ${{ secrets.FIREBASE_PRIVATE_KEY }}
+      FIRESTORE_BACKUP_BUCKET: ${{ secrets.FIRESTORE_BACKUP_BUCKET }}
+      OPERATIONS_ALERT_WEBHOOK_URL: ${{ secrets.OPERATIONS_ALERT_WEBHOOK_URL }}
+      OPERATIONS_ALERT_WEBHOOK_SECRET: ${{ secrets.OPERATIONS_ALERT_WEBHOOK_SECRET }}
+      OPERATIONS_ENVIRONMENT: production
+      SITE_VERSION: ${{ github.sha }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Complete managed export and retain evidence
+        run: npm run backup:firestore -- --evidence-file="${RUNNER_TEMP}/firestore-backup-evidence.json"
+      - name: Retain backup execution evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: firestore-backup-evidence-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/firestore-backup-evidence.json
+          if-no-files-found: warn
+          retention-days: 90
