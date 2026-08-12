@@ -416,6 +416,11 @@ test("high-stakes briefs route to manual review without making user prompt injec
     "Evidence-based product decisions for small software teams",
     "Treating interview quotes as votes creates false confidence in product evidence.",
   )).toMatchObject({ required: false, reasonCodes: [] });
+  expect(courseReviewPolicyForBrief(
+    "Hidden Biases in Everyday Decisions: Think More Clearly Under Uncertainty",
+    "Diagnose common cognitive biases in a real decision and choose a defensible action.",
+    "Use a pre-mortem to identify failure risks before committing.",
+  )).toMatchObject({ required: false, reasonCodes: [] });
   expect(courseReviewPolicyForBrief("Treating a patient for an infection")).toMatchObject({
     required: true,
     reasonCodes: ["medical"],
@@ -447,6 +452,21 @@ test("generated instructional wording cannot reclassify an ordinary writing brie
         objective: "Diagnose summary drift in an analytical paragraph.",
       }],
     }],
+  });
+
+  expect(policy).toMatchObject({ required: false, reasonCodes: [] });
+});
+
+test("a stale false-positive review policy is recomputed under the current policy version", () => {
+  const policy = effectiveCourseReviewPolicy({
+    topic: "Hidden Biases in Everyday Decisions: Think More Clearly Under Uncertainty",
+    mission: "Use a pre-mortem to identify failure risks before committing.",
+    outcome: "Diagnose common cognitive biases and write a defensible decision memo.",
+    manualReviewPolicy: {
+      version: "course-review-policy-v1.1.0",
+      required: true,
+      reasonCodes: ["medical"],
+    },
   });
 
   expect(policy).toMatchObject({ required: false, reasonCodes: [] });

@@ -1,7 +1,7 @@
-export const COURSE_REVIEW_POLICY_VERSION = "course-review-policy-v1.1.0";
+export const COURSE_REVIEW_POLICY_VERSION = "course-review-policy-v1.2.0";
 
 const HIGH_STAKES_PATTERNS = [
-  { code: "medical", pattern: /\b(?:medical|medicine|clinical|patients?|diagnos(?:is|e|tic)|symptoms?|first[- ]aid|bleeding|stroke|heart attack|cardiac|choking|airway|insulin|anaphylaxis|allergic reaction|wound care|surgical|surgery|dose|dosage|medication|prescription|cpr|pregnan(?:cy|t)|suicide|self[- ]harm|mental health crisis|diabetes|nutrition therapy|seizure|poisoning|infection|burn care|fracture|(?:treat(?:ment|ing)(?:\s+(?:of|for))?\s+(?:patients?|symptoms?|disease|illness|injur(?:y|ies)|infection|cancer|diabetes|fractures?|wounds?))|primeros auxilios|hemorragia|accidente cerebrovascular|salud mental|medicamento|premiers? secours|hémorragie|accident vasculaire cérébral|santé mentale|médicament|primeiros socorros|sangramento|saúde mental)\b/i },
+  { code: "medical", pattern: /\b(?:medical|medicine|clinical|patients?|symptoms?|first[- ]aid|bleeding|stroke|heart attack|cardiac|choking|airway|insulin|anaphylaxis|allergic reaction|wound care|surgical|surgery|dose|dosage|medication|prescription|cpr|pregnan(?:cy|t)|suicide|self[- ]harm|mental health crisis|diabetes|nutrition therapy|seizure|poisoning|infection|burn care|fracture|(?:diagnos(?:is|e|tic)(?:\s+(?:of|for))?\s+(?:patients?|symptoms?|disease|illness|injur(?:y|ies)|infection|cancer|diabetes|fractures?|wounds?))|(?:treat(?:ment|ing)(?:\s+(?:of|for))?\s+(?:patients?|symptoms?|disease|illness|injur(?:y|ies)|infection|cancer|diabetes|fractures?|wounds?))|primeros auxilios|hemorragia|accidente cerebrovascular|salud mental|medicamento|premiers? secours|hémorragie|accident vasculaire cérébral|santé mentale|médicament|primeiros socorros|sangramento|saúde mental)\b/i },
   { code: "legal", pattern: /\b(?:legal advice|lawsuit|contract law|immigration law|criminal law|liability law|statute|regulation|regulatory obligations?|asesoría legal|derecho migratorio|obligaciones regulatorias|conseil juridique|droit de l'immigration|obligations réglementaires)\b/i },
   { code: "financial", pattern: /\b(?:financial advice|investing|investment|tax|retirement|securities|mortgage|credit repair|asesoría financiera|inversión|impuestos|jubilación|conseil financier|investissement|impôts|retraite)\b/i },
   { code: "physical_safety", pattern: /\b(?:firearm|weapon|explosive|electrical (?:safety|wiring|repair)|hazardous chemical|emergency response|knife safety|confined space|fall protection|lockout[- ]tagout|gas leak|fire safety|seguridad eléctrica|cableado eléctrico|reparación eléctrica|fuga de gas|seguridad contra incendios|sécurité électrique|câblage électrique|réparation électrique|fuite de gaz|sécurité incendie|segurança elétrica|fiação elétrica|vazamento de gás|segurança contra incêndios)\b/i },
@@ -28,7 +28,7 @@ export function effectiveCourseReviewPolicy(course: {
     description?: string;
     lessons?: Array<{ title?: string; concept?: string; objective?: string }>;
   }>;
-  manualReviewPolicy?: { required?: boolean; reasonCodes?: string[] };
+  manualReviewPolicy?: { version?: string; required?: boolean; reasonCodes?: string[] };
 }) {
   // Risk classification belongs to the normalized course brief. Generated lesson
   // wording is untrusted output and commonly uses domain-neutral verbs such as
@@ -40,13 +40,16 @@ export function effectiveCourseReviewPolicy(course: {
     course.outcome,
     course.freshnessRequired ? "current regulation requirement" : undefined,
   );
+  const currentStoredPolicy = course.manualReviewPolicy?.version === COURSE_REVIEW_POLICY_VERSION
+    ? course.manualReviewPolicy
+    : undefined;
   const reasonCodes = [...new Set([
-    ...(course.manualReviewPolicy?.reasonCodes ?? []),
+    ...(currentStoredPolicy?.reasonCodes ?? []),
     ...derived.reasonCodes,
   ])];
   return {
     version: COURSE_REVIEW_POLICY_VERSION,
-    required: course.manualReviewPolicy?.required === true || derived.required,
+    required: currentStoredPolicy?.required === true || derived.required,
     reasonCodes,
   };
 }
