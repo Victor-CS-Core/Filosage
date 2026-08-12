@@ -8,42 +8,13 @@ import {
   type FirestoreDocument,
   type FirestoreValue,
 } from "@/lib/firestore-values";
-import { isLocalMode, LOCAL_OWNER_EMAIL, LOCAL_OWNER_UID } from "@/lib/local-mode";
+import { isLocalMode } from "@/lib/local-mode";
 import { COURSE_SCOPED_COLLECTION_GROUPS, removeCourseReferences } from "@/lib/course-deletion";
 import type { PublicationLessonReview, PublicationOwnerOverride } from "@/lib/publication-review";
 import { publicationContentFingerprint } from "@/lib/publication-content";
 import { buildGuardedLessonSave, type LessonSavePipelineGuard } from "@/lib/course-pipeline/lesson-save";
 import { inspectCoursePublishReadiness } from "@/lib/publication-readiness";
-import { firebaseAuthenticationClaimsFromIdToken } from "@/lib/recent-auth";
 import { serverEnvironment } from "@/lib/runtime-environment";
-
-export interface VerifiedFirebaseUser {
-  uid: string;
-  email?: string;
-  email_verified: boolean;
-  auth_time?: number;
-  name?: string;
-  picture?: string;
-}
-
-const LOCAL_PLAYWRIGHT_LEARNERS = new Map<string, { uid: string; email: string }>([
-  ["playwright-free-learner", {
-    uid: "local-free-learner",
-    email: "learner@filosage.local",
-  }],
-  ["playwright-free-learner-mobile-chromium", {
-    uid: "local-free-learner-mobile-chromium",
-    email: "learner-mobile-chromium@filosage.local",
-  }],
-  ["playwright-free-learner-mobile-webkit", {
-    uid: "local-free-learner-mobile-webkit",
-    email: "learner-mobile-webkit@filosage.local",
-  }],
-  ["playwright-plus-learner", {
-    uid: "local-plus-learner",
-    email: "plus-learner@filosage.local",
-  }],
-]);
 
 export interface StoredDocument extends Record<string, unknown> {
   id: string;
@@ -196,6 +167,15 @@ async function firestoreJson<T>(
     const { localFirestoreJson } = await import("@/lib/local-store");
     return localFirestoreJson<T>(path, init, allowNotFound);
   }
+  if (serverEnvironment.DATABASE_URL?.trim()) {
+    const { postgresDocumentStoreJson } = await import("@/lib/postgres-document-store");
+    return postgresDocumentStoreJson<T>(path, init, allowNotFound);
+  }
+  if (serverEnvironment.NODE_ENV === "production") {
+    throw new Error("Azure PostgreSQL is required in production.");
+  }
+  // Temporary source compatibility for the one-time migration rehearsal. The
+  // production release contract above cannot fall back to Firebase.
   const token = await requestAccessToken();
   const response = await fetch(`${firestoreBaseUrl()}${path}`, {
     ...init,
@@ -235,7 +215,9 @@ function parseLocatedDocument(document: FirestoreDocument): LocatedStoredDocumen
 }
 
 function fullDocumentName(path: string) {
-  const { projectId } = requiredEnvironment();
+  const projectId = serverEnvironment.DATABASE_URL?.trim()
+    ? "azure"
+    : requiredEnvironment().projectId;
   return `projects/${projectId}/databases/(default)/documents/${path}`;
 }
 
@@ -287,75 +269,6 @@ function courseQuery(
       ? { orderBy: [{ field: { fieldPath: options.orderBy }, direction: "DESCENDING" }] }
       : {}),
     ...(options.limit ? { limit: options.limit } : {}),
-  };
-}
-
-export async function verifyFirebaseIdToken(idToken: string): Promise<VerifiedFirebaseUser | null> {
-  if (isLocalMode()) {
-    const auth_time = Math.floor(Date.now() / 1_000);
-    if (idToken === "local-dev-token" || idToken === "playwright-local-owner") {
-      return {
-        uid: LOCAL_OWNER_UID,
-        email: serverEnvironment.OWNER_EMAIL?.trim().toLowerCase() || LOCAL_OWNER_EMAIL,
-        email_verified: true,
-        auth_time,
-        name: "Local Owner",
-      };
-    }
-    const playwrightLearner = LOCAL_PLAYWRIGHT_LEARNERS.get(idToken);
-    if (playwrightLearner) {
-      return {
-        ...playwrightLearner,
-        email_verified: true,
-        auth_time,
-        name: "Playwright Learner",
-      };
-    }
-    if (idToken === "playwright-preaccount-learner") {
-      return {
-        uid: "local-preaccount-learner",
-        email: "preaccount@filosage.local",
-        email_verified: true,
-        auth_time,
-        name: "Pre-account Learner",
-      };
-    }
-    return null;
-  }
-  const apiKey = serverEnvironment.NEXT_PUBLIC_FIREBASE_API_KEY;
-  if (!apiKey) throw new Error("Firebase web authentication is not configured.");
-
-  const response = await fetch(
-    `https://identitytoolkit.googleapis.com/v1/accounts:lookup?key=${encodeURIComponent(apiKey)}`,
-    {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ idToken }),
-    },
-  );
-  if (!response.ok) return null;
-
-  const body = (await response.json()) as {
-    users?: Array<{
-      localId: string;
-      email?: string;
-      emailVerified?: boolean;
-      displayName?: string;
-      photoUrl?: string;
-    }>;
-  };
-  const user = body.users?.[0];
-  if (!user) return null;
-  const authentication = firebaseAuthenticationClaimsFromIdToken(idToken);
-  if (authentication.subject && authentication.subject !== user.localId) return null;
-
-  return {
-    uid: user.localId,
-    email: user.email,
-    email_verified: user.emailVerified === true,
-    auth_time: authentication.authTime,
-    name: user.displayName,
-    picture: user.photoUrl,
   };
 }
 

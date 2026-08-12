@@ -1,0 +1,14 @@
+.git
+.github
+.next
+.openai
+.wrangler
+.filosage-local
+.filosage-local-test
+dist
+node_modules
+playwright-report
+test-results
+*.log
+.env*
+!.env.example

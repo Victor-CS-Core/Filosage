@@ -6,8 +6,8 @@ import {
 } from "../src/lib/account-data-policy";
 import {
   ACCOUNT_DELETION_RECENT_AUTH_SECONDS,
-  firebaseAuthenticationClaimsFromIdToken,
-  hasRecentFirebaseAuthentication,
+  authenticationClaimsFromIdToken,
+  hasRecentAuthentication,
 } from "../src/lib/recent-auth";
 import { PRIVACY_VERSION, TERMS_VERSION } from "../src/lib/legal";
 
@@ -42,23 +42,23 @@ function testIdToken(payload: Record<string, unknown>) {
   ].join(".");
 }
 
-test("extracts auth_time only from a structurally valid Firebase ID token payload", () => {
-  expect(firebaseAuthenticationClaimsFromIdToken(testIdToken({
+test("extracts auth_time only from a structurally valid identity token payload", () => {
+  expect(authenticationClaimsFromIdToken(testIdToken({
     auth_time: 1_750_000_000,
     sub: "firebase-user-123",
   }))).toEqual({ authTime: 1_750_000_000, subject: "firebase-user-123" });
-  expect(firebaseAuthenticationClaimsFromIdToken(testIdToken({ auth_time: "1750000000" }))).toEqual({});
-  expect(firebaseAuthenticationClaimsFromIdToken("not-a-jwt")).toEqual({});
+  expect(authenticationClaimsFromIdToken(testIdToken({ auth_time: "1750000000" }))).toEqual({});
+  expect(authenticationClaimsFromIdToken("not-a-jwt")).toEqual({});
 });
 
 test("requires account-deletion authentication within the server policy window", () => {
   const now = 1_750_000_000;
-  expect(hasRecentFirebaseAuthentication(now, now)).toBe(true);
-  expect(hasRecentFirebaseAuthentication(now - ACCOUNT_DELETION_RECENT_AUTH_SECONDS, now)).toBe(true);
-  expect(hasRecentFirebaseAuthentication(now - ACCOUNT_DELETION_RECENT_AUTH_SECONDS - 1, now)).toBe(false);
-  expect(hasRecentFirebaseAuthentication(now + 60, now)).toBe(true);
-  expect(hasRecentFirebaseAuthentication(now + 61, now)).toBe(false);
-  expect(hasRecentFirebaseAuthentication(undefined, now)).toBe(false);
+  expect(hasRecentAuthentication(now, now)).toBe(true);
+  expect(hasRecentAuthentication(now - ACCOUNT_DELETION_RECENT_AUTH_SECONDS, now)).toBe(true);
+  expect(hasRecentAuthentication(now - ACCOUNT_DELETION_RECENT_AUTH_SECONDS - 1, now)).toBe(false);
+  expect(hasRecentAuthentication(now + 60, now)).toBe(true);
+  expect(hasRecentAuthentication(now + 61, now)).toBe(false);
+  expect(hasRecentAuthentication(undefined, now)).toBe(false);
 });
 
 test("wires the destructive route to the recent-auth account guard", async () => {
@@ -74,7 +74,7 @@ test("limits local authentication to explicit owner and learner tokens", async (
   // Account records are created only by affirmative legal acceptance. Give
   // each project a distinct learner because this test permanently deletes it.
   await request.delete("/api/account/data", {
-    headers: authorization(learnerToken),
+    headers: { ...authorization(learnerToken), "X-Reauthentication-Token": learnerToken },
     data: { confirmation: "DELETE MY ACCOUNT" },
   });
   await acceptCurrentLegalTerms(request, "local-dev-token");
@@ -104,7 +104,7 @@ test("limits local authentication to explicit owner and learner tokens", async (
   });
 
   const recentlyAuthenticatedDeletion = await request.delete("/api/account/data", {
-    headers: authorization(learnerToken),
+    headers: { ...authorization(learnerToken), "X-Reauthentication-Token": learnerToken },
     data: { confirmation: "DELETE MY ACCOUNT" },
   });
   expect(recentlyAuthenticatedDeletion.ok()).toBe(true);

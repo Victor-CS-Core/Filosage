@@ -1,26 +1,30 @@
 import "server-only";
 
+import { DefaultAzureCredential } from "@azure/identity";
+import { BlobServiceClient } from "@azure/storage-blob";
+import { serverEnvironment } from "@/lib/runtime-environment";
+
 const OBJECT_PREFIX = "course-banners";
 
-interface StoredR2Object {
-  size: number;
-  arrayBuffer(): Promise<ArrayBuffer>;
+let service: BlobServiceClient | null = null;
+let serviceKey = "";
+
+function blobService() {
+  const connectionString = serverEnvironment.AZURE_STORAGE_CONNECTION_STRING?.trim();
+  const accountUrl = serverEnvironment.AZURE_STORAGE_ACCOUNT_URL?.trim();
+  const key = connectionString || accountUrl || "";
+  if (!key) return null;
+  if (!service || serviceKey !== key) {
+    service = connectionString
+      ? BlobServiceClient.fromConnectionString(connectionString)
+      : new BlobServiceClient(accountUrl!, new DefaultAzureCredential());
+    serviceKey = key;
+  }
+  return service;
 }
 
-interface CourseBannerBucket {
-  get(key: string): Promise<StoredR2Object | null>;
-  put(
-    key: string,
-    value: Uint8Array,
-    options?: { httpMetadata?: { contentType?: string; cacheControl?: string } },
-  ): Promise<unknown>;
-}
-
-declare global {
-  // Set by the Sites worker before the application handles a request.
-  // It remains undefined in the regular Next.js runtime, where Firestore is
-  // retained as a backwards-compatible fallback.
-  var __FILOSAGE_COURSE_BANNERS__: CourseBannerBucket | undefined;
+function containerName() {
+  return serverEnvironment.AZURE_STORAGE_BANNER_CONTAINER?.trim() || "course-banners";
 }
 
 function objectKey(assetId: string) {
@@ -28,21 +32,35 @@ function objectKey(assetId: string) {
 }
 
 export async function storeCourseBannerObject(assetId: string, bytes: Uint8Array) {
-  const bucket = globalThis.__FILOSAGE_COURSE_BANNERS__;
-  if (!bucket) return false;
-  await bucket.put(objectKey(assetId), bytes, {
-    httpMetadata: {
-      contentType: "image/webp",
-      cacheControl: "public, max-age=31536000, immutable",
+  const client = blobService();
+  if (!client) return null;
+  const blob = client.getContainerClient(containerName()).getBlockBlobClient(objectKey(assetId));
+  await blob.uploadData(bytes, {
+    blobHTTPHeaders: {
+      blobContentType: "image/webp",
+      blobCacheControl: "public, max-age=31536000, immutable",
     },
   });
-  return true;
+  return "azure-blob" as const;
 }
 
 export async function readCourseBannerObject(assetId: string) {
-  const bucket = globalThis.__FILOSAGE_COURSE_BANNERS__;
-  if (!bucket) return null;
-  const object = await bucket.get(objectKey(assetId));
-  if (!object || object.size <= 0) return null;
-  return new Uint8Array(await object.arrayBuffer());
+  const client = blobService();
+  if (!client) return null;
+  const blob = client.getContainerClient(containerName()).getBlockBlobClient(objectKey(assetId));
+  const response = await blob.download();
+  if (!response.readableStreamBody) return null;
+  const chunks: Uint8Array[] = [];
+  for await (const chunk of response.readableStreamBody) {
+    chunks.push(typeof chunk === "string" ? new TextEncoder().encode(chunk) : chunk);
+  }
+  const length = chunks.reduce((total, chunk) => total + chunk.byteLength, 0);
+  if (!length) return null;
+  const bytes = new Uint8Array(length);
+  let offset = 0;
+  for (const chunk of chunks) {
+    bytes.set(chunk, offset);
+    offset += chunk.byteLength;
+  }
+  return bytes;
 }

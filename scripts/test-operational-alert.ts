@@ -1,38 +1,45 @@
-import {
-  argument,
-  firestoreEnvironment,
-  putOperationalEvidence,
-  safeError,
-} from "./firestore-operations.ts";
+import pg from "pg";
 import { deliverScriptAlert, writeEvidenceFile } from "./operations-script-support.ts";
 
-const evidenceFile = argument("--evidence-file");
+const evidenceFile = process.argv.find((value) => value.startsWith("--evidence-file="))?.slice(16);
 const testId = `manual-${new Date().toISOString()}`;
 
 try {
-  const environment = firestoreEnvironment({ requireBucket: false });
   const result = await deliverScriptAlert({
     severity: "info",
     code: "operations.signed_test",
     message: "This is a signed Filosage operational-alert delivery test.",
     deduplicationKey: testId,
-    context: { projectId: environment.projectId, testId },
+    context: { resourceGroup: process.env.AZURE_RESOURCE_GROUP?.trim() || "unconfigured", testId },
   });
   if (!result.ok) throw new Error(result.error ?? "Operational alert was not acknowledged.");
   const evidence = {
     operation: "operational_alert_test",
     status: "succeeded",
-    projectId: environment.projectId,
+    resourceGroup: process.env.AZURE_RESOURCE_GROUP?.trim() || null,
     completedAt: new Date().toISOString(),
     alertId: result.alertId,
     attempts: result.attempts,
     receiverStatus: result.status,
     releaseSha: process.env.SITE_VERSION?.trim() || process.env.GITHUB_SHA?.trim() || null,
   };
-  await putOperationalEvidence(environment, "alert-test-latest", evidence);
+  const databaseUrl = process.env.DATABASE_URL?.trim();
+  if (databaseUrl) {
+    const pool = new pg.Pool({ connectionString: databaseUrl, ssl: { rejectUnauthorized: true }, max: 1 });
+    try {
+      await pool.query(
+        `INSERT INTO filosage_documents (path, collection_id, collection_path, document_id, data)
+         VALUES ('operationalEvidence/alert-test-latest', 'operationalEvidence', 'operationalEvidence', 'alert-test-latest', $1::jsonb)
+         ON CONFLICT (path) DO UPDATE SET data = EXCLUDED.data, version = filosage_documents.version + 1, updated_at = now()`,
+        [JSON.stringify(evidence)],
+      );
+    } finally {
+      await pool.end();
+    }
+  }
   await writeEvidenceFile(evidenceFile, evidence);
   console.log(`Signed operational alert acknowledged: ${result.alertId}`);
 } catch (error) {
-  console.error(safeError(error));
+  console.error(error instanceof Error ? error.message : "Operational alert test failed.");
   process.exitCode = 1;
 }

@@ -1,0 +1,393 @@
+import "server-only";
+
+import pg, { type PoolClient, type QueryResultRow } from "pg";
+import {
+  fromFirestoreFields,
+  fromFirestoreValue,
+  toFirestoreFields,
+  type FirestoreDocument,
+  type FirestoreValue,
+} from "@/lib/firestore-values";
+import { serverEnvironment } from "@/lib/runtime-environment";
+
+const { Pool } = pg;
+const DOCUMENT_NAME_PREFIX = "projects/azure/databases/(default)/documents/";
+const TRANSACTION_TTL_MS = 30_000;
+
+interface DocumentRow extends QueryResultRow {
+  path: string;
+  data: Record<string, unknown>;
+}
+
+interface FieldFilter {
+  fieldFilter?: {
+    field?: { fieldPath?: string };
+    op?: string;
+    value?: FirestoreValue;
+  };
+}
+
+interface StructuredQuery {
+  from?: Array<{ collectionId?: string; allDescendants?: boolean }>;
+  where?: FieldFilter & { compositeFilter?: { filters?: FieldFilter[] } };
+  orderBy?: Array<{ field?: { fieldPath?: string }; direction?: string }>;
+  limit?: number;
+}
+
+interface ActiveTransaction {
+  client: PoolClient;
+  timeout: ReturnType<typeof setTimeout>;
+}
+
+declare global {
+  var __FILOSAGE_POSTGRES_POOL__: pg.Pool | undefined;
+  var __FILOSAGE_POSTGRES_TRANSACTIONS__: Map<string, ActiveTransaction> | undefined;
+}
+
+function requiredDatabaseUrl() {
+  const value = serverEnvironment.DATABASE_URL?.trim();
+  if (!value) throw new Error("Azure PostgreSQL is not configured.");
+  return value;
+}
+
+function databasePool() {
+  if (!globalThis.__FILOSAGE_POSTGRES_POOL__) {
+    const sslMode = serverEnvironment.DATABASE_SSL?.trim().toLowerCase()
+      ?? (serverEnvironment.NODE_ENV === "production" ? "verify-full" : "disable");
+    globalThis.__FILOSAGE_POSTGRES_POOL__ = new Pool({
+      connectionString: requiredDatabaseUrl(),
+      max: Number(serverEnvironment.DATABASE_POOL_MAX ?? 10),
+      idleTimeoutMillis: 30_000,
+      connectionTimeoutMillis: 10_000,
+      ssl: sslMode === "disable" ? false : { rejectUnauthorized: sslMode !== "require" },
+    });
+  }
+  return globalThis.__FILOSAGE_POSTGRES_POOL__;
+}
+
+function transactions() {
+  globalThis.__FILOSAGE_POSTGRES_TRANSACTIONS__ ??= new Map();
+  return globalThis.__FILOSAGE_POSTGRES_TRANSACTIONS__;
+}
+
+function validatePath(path: string) {
+  const segments = path.split("/");
+  if (!path || segments.some((segment) => !segment || segment.length > 1_500)) {
+    throw new Error("Invalid document path.");
+  }
+  return segments;
+}
+
+function pathFromName(name: string) {
+  const marker = "/documents/";
+  const index = name.indexOf(marker);
+  const path = index >= 0 ? name.slice(index + marker.length) : name;
+  validatePath(path);
+  return path;
+}
+
+function documentCoordinates(path: string) {
+  const segments = validatePath(path);
+  if (segments.length % 2 !== 0) throw new Error("A document path must end with a document ID.");
+  return {
+    collectionId: segments.at(-2) ?? "",
+    collectionPath: segments.slice(0, -1).join("/"),
+    documentId: segments.at(-1) ?? "",
+  };
+}
+
+function toDocument(row: DocumentRow): FirestoreDocument {
+  return {
+    name: `${DOCUMENT_NAME_PREFIX}${row.path}`,
+    fields: toFirestoreFields(row.data),
+  };
+}
+
+function parseBody(init: RequestInit) {
+  return typeof init.body === "string"
+    ? JSON.parse(init.body) as Record<string, unknown>
+    : {};
+}
+
+function documentData(fields: unknown) {
+  return fromFirestoreFields((fields ?? {}) as Record<string, FirestoreValue>);
+}
+
+async function upsertDocument(
+  client: Pick<PoolClient, "query">,
+  path: string,
+  data: Record<string, unknown>,
+  fieldMask?: string[],
+) {
+  const coordinates = documentCoordinates(path);
+  if (fieldMask?.length) {
+    const current = await client.query<DocumentRow>(
+      "SELECT path, data FROM filosage_documents WHERE path = $1",
+      [path],
+    );
+    const next = { ...(current.rows[0]?.data ?? {}) };
+    for (const field of fieldMask) next[field] = data[field];
+    data = next;
+  }
+  const result = await client.query<DocumentRow>(
+    `INSERT INTO filosage_documents
+      (path, collection_id, collection_path, document_id, data)
+     VALUES ($1, $2, $3, $4, $5::jsonb)
+     ON CONFLICT (path) DO UPDATE SET
+       data = EXCLUDED.data,
+       version = filosage_documents.version + 1,
+       updated_at = now()
+     RETURNING path, data`,
+    [path, coordinates.collectionId, coordinates.collectionPath, coordinates.documentId, JSON.stringify(data)],
+  );
+  return result.rows[0];
+}
+
+async function createDocument(
+  client: Pick<PoolClient, "query">,
+  path: string,
+  data: Record<string, unknown>,
+) {
+  const coordinates = documentCoordinates(path);
+  const result = await client.query<DocumentRow>(
+    `INSERT INTO filosage_documents
+      (path, collection_id, collection_path, document_id, data)
+     VALUES ($1, $2, $3, $4, $5::jsonb)
+     ON CONFLICT (path) DO NOTHING
+     RETURNING path, data`,
+    [path, coordinates.collectionId, coordinates.collectionPath, coordinates.documentId, JSON.stringify(data)],
+  );
+  if (!result.rows[0]) throw new Error("Azure document store request failed (409).");
+  return result.rows[0];
+}
+
+async function applyWrites(client: PoolClient, writes: Array<Record<string, unknown>>) {
+  for (const write of writes) {
+    if (typeof write.delete === "string") {
+      await client.query("DELETE FROM filosage_documents WHERE path = $1", [pathFromName(write.delete)]);
+      continue;
+    }
+    const update = write.update as { name?: string; fields?: Record<string, FirestoreValue> } | undefined;
+    if (!update?.name) continue;
+    const mask = (write.updateMask as { fieldPaths?: string[] } | undefined)?.fieldPaths;
+    await upsertDocument(client, pathFromName(update.name), documentData(update.fields), mask);
+  }
+}
+
+function filtersFrom(query: StructuredQuery) {
+  return query.where?.compositeFilter?.filters
+    ?? (query.where?.fieldFilter ? [query.where] : []);
+}
+
+function queryParts(query: StructuredQuery, countOnly = false) {
+  const source = query.from?.[0];
+  const collectionId = source?.collectionId;
+  if (!collectionId || !/^[A-Za-z0-9_-]{1,80}$/.test(collectionId)) {
+    throw new Error("Invalid document collection query.");
+  }
+
+  const parameters: unknown[] = [collectionId];
+  const clauses = [source.allDescendants ? "collection_id = $1" : "collection_path = $1"];
+  for (const filter of filtersFrom(query)) {
+    const field = filter.fieldFilter?.field?.fieldPath;
+    const operation = filter.fieldFilter?.op;
+    if (!field || !/^[A-Za-z0-9_.-]{1,120}$/.test(field)) {
+      throw new Error("Invalid document field query.");
+    }
+    const fieldPath = field.split(".");
+    parameters.push(fieldPath);
+    const fieldParameter = `$${parameters.length}::text[]`;
+    const expected = fromFirestoreValue(filter.fieldFilter?.value ?? { nullValue: null });
+    parameters.push(expected);
+    const valueParameter = `$${parameters.length}`;
+    if (operation === "EQUAL") {
+      clauses.push(`data #> ${fieldParameter} = ${valueParameter}::jsonb`);
+      parameters[parameters.length - 1] = JSON.stringify(expected);
+    } else if (operation === "GREATER_THAN_OR_EQUAL") {
+      clauses.push(`data #>> ${fieldParameter} >= ${valueParameter}::text`);
+    } else if (operation === "LESS_THAN_OR_EQUAL") {
+      clauses.push(`data #>> ${fieldParameter} <= ${valueParameter}::text`);
+    } else {
+      throw new Error(`Unsupported document query operation: ${operation ?? "unknown"}.`);
+    }
+  }
+
+  let order = "path ASC";
+  const orderBy = query.orderBy?.[0];
+  const orderField = orderBy?.field?.fieldPath;
+  if (orderField) {
+    if (!/^[A-Za-z0-9_.-]{1,120}$/.test(orderField)) throw new Error("Invalid document ordering field.");
+    parameters.push(orderField.split("."));
+    const direction = orderBy.direction === "ASCENDING" ? "ASC" : "DESC";
+    order = `data #>> $${parameters.length}::text[] ${direction}, path ASC`;
+  }
+
+  const boundedLimit = Math.min(Math.max(Number(query.limit ?? 1_000), 1), 10_000);
+  if (!countOnly) parameters.push(boundedLimit);
+  return {
+    parameters,
+    sql: `${clauses.join(" AND ")}${countOnly ? "" : ` ORDER BY ${order} LIMIT $${parameters.length}`}`,
+  };
+}
+
+async function runStructuredQuery(query: StructuredQuery) {
+  const built = queryParts(query);
+  const result = await databasePool().query<DocumentRow>(
+    `SELECT path, data FROM filosage_documents WHERE ${built.sql}`,
+    built.parameters,
+  );
+  return result.rows.map((row) => ({ document: toDocument(row) }));
+}
+
+async function countStructuredQuery(query: StructuredQuery) {
+  const built = queryParts(query, true);
+  const result = await databasePool().query<{ total: string }>(
+    `SELECT count(*)::text AS total FROM filosage_documents WHERE ${built.sql}`,
+    built.parameters,
+  );
+  return [{ result: { aggregateFields: { total: { integerValue: result.rows[0]?.total ?? "0" } } } }];
+}
+
+async function beginTransaction(documentNames: string[]) {
+  const client = await databasePool().connect();
+  const id = crypto.randomUUID();
+  try {
+    await client.query("BEGIN");
+    const paths = [...new Set(documentNames.map(pathFromName))].sort();
+    for (const path of paths) {
+      await client.query("SELECT pg_advisory_xact_lock(hashtextextended($1, 0))", [path]);
+    }
+    const result = paths.length
+      ? await client.query<DocumentRow>(
+        "SELECT path, data FROM filosage_documents WHERE path = ANY($1::text[]) FOR UPDATE",
+        [paths],
+      )
+      : { rows: [] as DocumentRow[] };
+    const found = new Map(result.rows.map((row) => [row.path, row]));
+    const timeout = setTimeout(() => {
+      const active = transactions().get(id);
+      if (!active) return;
+      transactions().delete(id);
+      void active.client.query("ROLLBACK").finally(() => active.client.release());
+    }, TRANSACTION_TTL_MS);
+    timeout.unref?.();
+    transactions().set(id, { client, timeout });
+    return documentNames.map((name, index) => {
+      const path = pathFromName(name);
+      const row = found.get(path);
+      return {
+        ...(index === 0 ? { transaction: id } : {}),
+        ...(row ? { found: toDocument(row) } : { missing: name }),
+      };
+    });
+  } catch (error) {
+    await client.query("ROLLBACK").catch(() => undefined);
+    client.release();
+    throw error;
+  }
+}
+
+async function finishTransaction(id: string, writes: Array<Record<string, unknown>> | null) {
+  const active = transactions().get(id);
+  if (!active) throw new Error("Document transaction expired or does not exist.");
+  transactions().delete(id);
+  clearTimeout(active.timeout);
+  try {
+    if (writes) {
+      await applyWrites(active.client, writes);
+      await active.client.query("COMMIT");
+    } else {
+      await active.client.query("ROLLBACK");
+    }
+  } catch (error) {
+    await active.client.query("ROLLBACK").catch(() => undefined);
+    throw error;
+  } finally {
+    active.client.release();
+  }
+}
+
+async function commitWithoutExistingTransaction(writes: Array<Record<string, unknown>>) {
+  const client = await databasePool().connect();
+  try {
+    await client.query("BEGIN");
+    await applyWrites(client, writes);
+    await client.query("COMMIT");
+  } catch (error) {
+    await client.query("ROLLBACK").catch(() => undefined);
+    throw error;
+  } finally {
+    client.release();
+  }
+}
+
+export async function postgresDocumentStoreJson<T>(
+  requestPath: string,
+  init: RequestInit = {},
+  allowNotFound = false,
+): Promise<T | null> {
+  const method = (init.method ?? "GET").toUpperCase();
+  const body = parseBody(init);
+
+  if (requestPath === "/documents:runQuery") {
+    return await runStructuredQuery(body.structuredQuery as StructuredQuery) as T;
+  }
+  if (requestPath === "/documents:runAggregationQuery") {
+    const aggregation = body.structuredAggregationQuery as { structuredQuery?: StructuredQuery } | undefined;
+    return await countStructuredQuery(aggregation?.structuredQuery ?? {}) as T;
+  }
+  if (requestPath === "/documents:batchGet") {
+    return await beginTransaction((body.documents as string[] | undefined) ?? []) as T;
+  }
+  if (requestPath === "/documents:commit") {
+    const transaction = typeof body.transaction === "string" ? body.transaction : null;
+    const writes = (body.writes as Array<Record<string, unknown>> | undefined) ?? [];
+    if (transaction) await finishTransaction(transaction, writes);
+    else await commitWithoutExistingTransaction(writes);
+    return {} as T;
+  }
+  if (requestPath === "/documents:rollback") {
+    if (typeof body.transaction === "string") await finishTransaction(body.transaction, null);
+    return {} as T;
+  }
+
+  const [rawPath, rawQuery] = requestPath.replace(/^\/documents\//, "").split("?");
+  const path = rawPath.split("/").map(decodeURIComponent).join("/");
+  const search = new URLSearchParams(rawQuery ?? "");
+  if (method === "GET" && validatePath(path).length % 2 === 0) {
+    const result = await databasePool().query<DocumentRow>(
+      "SELECT path, data FROM filosage_documents WHERE path = $1",
+      [path],
+    );
+    if (!result.rows[0]) {
+      if (allowNotFound) return null;
+      throw new Error("Azure document store request failed (404).");
+    }
+    return toDocument(result.rows[0]) as T;
+  }
+  if (method === "GET") {
+    const pageSize = Math.min(Math.max(Number(search.get("pageSize") ?? 100), 1), 300);
+    const offset = Math.max(Number(search.get("pageToken") ?? 0), 0);
+    const result = await databasePool().query<DocumentRow>(
+      `SELECT path, data FROM filosage_documents
+       WHERE collection_path = $1 ORDER BY path ASC LIMIT $2 OFFSET $3`,
+      [path, pageSize + 1, offset],
+    );
+    const hasMore = result.rows.length > pageSize;
+    return {
+      documents: result.rows.slice(0, pageSize).map(toDocument),
+      ...(hasMore ? { nextPageToken: String(offset + pageSize) } : {}),
+    } as T;
+  }
+  if (method === "PATCH") {
+    const masks = search.getAll("updateMask.fieldPaths");
+    const row = await upsertDocument(databasePool(), path, documentData(body.fields), masks);
+    return toDocument(row) as T;
+  }
+  if (method === "POST") {
+    const id = search.get("documentId") ?? crypto.randomUUID();
+    const row = await createDocument(databasePool(), `${path}/${id}`, documentData(body.fields));
+    return toDocument(row) as T;
+  }
+  throw new Error(`Azure document store does not support ${method} ${requestPath}.`);
+}

@@ -9,17 +9,16 @@ import {
   useState,
 } from "react";
 import {
-  getRedirectResult,
-  GoogleAuthProvider,
-  onAuthStateChanged,
-  signInWithPopup,
-  signInWithRedirect,
-  signOut as firebaseSignOut,
-  type User,
-} from "firebase/auth";
-import { auth } from "@/lib/firebase";
+  currentEntraUser,
+  isEntraConfigured,
+  reauthenticateWithEntra,
+  signInWithEntraPopup,
+  signInWithEntraRedirect,
+  signOutFromEntra,
+  type FilosageUser,
+} from "@/lib/identity-client";
 import type { AccessLevel, LearnerAccount } from "@/lib/course-types";
-import { PRIVACY_VERSION, SUPPORT_CONTACT, TERMS_VERSION } from "@/lib/legal";
+import { PRIVACY_VERSION, TERMS_VERSION } from "@/lib/legal";
 import {
   parsePendingGoogleRedirectAcceptance,
   pendingGoogleRedirectAcceptance,
@@ -27,7 +26,7 @@ import {
 } from "@/lib/auth-redirect";
 
 interface AuthContextValue {
-  user: User | null;
+  user: FilosageUser | null;
   isOwner: boolean;
   isPro: boolean;
   isPaid: boolean;
@@ -39,9 +38,10 @@ interface AuthContextValue {
   loading: boolean;
   error: string | null;
   clearError: () => void;
-  signInWithGoogle: () => Promise<User>;
+  signInWithGoogle: () => Promise<FilosageUser>;
   signInWithGoogleRedirect: () => Promise<void>;
-  acceptLegalTerms: (source: "signup" | "terms-update" | "subscription", targetUser?: User) => Promise<void>;
+  reauthenticate: () => Promise<FilosageUser>;
+  acceptLegalTerms: (source: "signup" | "terms-update" | "subscription", targetUser?: FilosageUser) => Promise<void>;
   signOut: () => Promise<void>;
   refreshAccount: () => Promise<void>;
 }
@@ -49,20 +49,21 @@ interface AuthContextValue {
 const AuthContext = createContext<AuthContextValue | null>(null);
 
 // Development-only sign-in: the server pairs it with its local owner account
-// so every feature remains testable even when public Firebase values are
-// present in a developer environment. NODE_ENV is inlined at build time, so
+// so every feature remains testable without cloud identity configuration in a
+// developer environment. NODE_ENV is inlined at build time, so
 // this path cannot exist in production.
 const localAuthAvailable = process.env.NODE_ENV === "development";
 const LOCAL_SESSION_KEY = "filosage-local-session";
 
-function localOwnerUser(): User {
+function localOwnerUser(): FilosageUser {
   return {
     uid: "local-owner",
     displayName: "Local Owner",
     email: "owner@filosage.local",
     photoURL: null,
     getIdToken: async () => "local-dev-token",
-  } as unknown as User;
+    reauthenticationToken: "local-dev-token",
+  };
 }
 
 export function useAuth() {
@@ -78,22 +79,16 @@ function authErrorMessage(error: unknown) {
       : "";
 
   switch (code) {
-    case "auth/unauthorized-domain":
-      return `Google sign-in is not authorized for this site. Contact ${SUPPORT_CONTACT}.`;
-    case "auth/popup-blocked":
-      return "Your browser blocked the Google sign-in window. Allow popups for Filosage and try again.";
-    case "auth/popup-closed-by-user":
-    case "auth/cancelled-popup-request":
-      return "Google sign-in was canceled. You can try again when ready.";
-    case "auth/network-request-failed":
-      return "Google sign-in could not reach the network. Check your connection and try again.";
-    case "auth/operation-not-allowed":
-      return "Google sign-in is currently unavailable.";
-    case "auth/web-storage-unsupported":
-    case "auth/operation-not-supported-in-this-environment":
-      return "Google sign-in needs browser storage. Turn off Private Browsing or allow site storage, then try again.";
+    case "popup_window_error":
+      return "Your browser blocked the sign-in window. Allow popups for Filosage and try again.";
+    case "user_cancelled":
+      return "Sign-in was canceled. You can try again when ready.";
+    case "network_error":
+      return "Sign-in could not reach the network. Check your connection and try again.";
+    case "storage_not_supported":
+      return "Sign-in needs browser storage. Turn off Private Browsing or allow site storage, then try again.";
     default:
-      return "Google sign-in could not be completed. Please try again.";
+      return "Sign-in could not be completed. Please try again.";
   }
 }
 
@@ -105,7 +100,7 @@ function withTimeout<T>(promise: Promise<T>, milliseconds: number, message: stri
 }
 
 async function persistLegalAcceptance(
-  activeUser: User,
+  activeUser: FilosageUser,
   source: "signup" | "terms-update" | "subscription",
 ) {
   const token = await activeUser.getIdToken();
@@ -123,12 +118,12 @@ async function persistLegalAcceptance(
 }
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [user, setUser] = useState<User | null>(null);
+  const [user, setUser] = useState<FilosageUser | null>(null);
   const [account, setAccount] = useState<LearnerAccount | null>(null);
-  const [loading, setLoading] = useState(Boolean(auth));
+  const [loading, setLoading] = useState(isEntraConfigured);
   const [error, setError] = useState<string | null>(null);
 
-  const loadAccount = useCallback(async (nextUser: User | null) => {
+  const loadAccount = useCallback(async (nextUser: FilosageUser | null) => {
     if (!nextUser) {
       setAccount(null);
       return;
@@ -163,7 +158,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   useEffect(() => {
-    const firebaseAuth = auth;
     if (localAuthAvailable && localStorage.getItem(LOCAL_SESSION_KEY)) {
       const restored = localOwnerUser();
       void Promise.resolve().then(async () => {
@@ -179,49 +173,50 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       });
       return;
     }
-    if (!firebaseAuth) {
+    if (!isEntraConfigured) {
       return;
     }
 
+    let cancelled = false;
     const bootTimeout = window.setTimeout(() => {
       setError("Your session is taking longer than expected. Refresh to try again.");
       setLoading(false);
     }, 10000);
-    void getRedirectResult(firebaseAuth).catch((redirectError: unknown) => {
-      setError(authErrorMessage(redirectError));
-    });
-
-    const unsubscribe = onAuthStateChanged(firebaseAuth, (nextUser) => {
+    void currentEntraUser().then(async (nextUser) => {
+      if (cancelled) return;
       window.clearTimeout(bootTimeout);
       setUser(nextUser);
       setLoading(true);
-      void Promise.resolve().then(async () => {
-        if (nextUser) {
-          const storedPending = sessionStorage.getItem(PENDING_GOOGLE_REDIRECT_ACCEPTANCE_KEY);
-          const pending = parsePendingGoogleRedirectAcceptance(storedPending);
-          if (pending) {
-            await persistLegalAcceptance(nextUser, pending.source);
-            sessionStorage.removeItem(PENDING_GOOGLE_REDIRECT_ACCEPTANCE_KEY);
-          } else if (storedPending) {
-            sessionStorage.removeItem(PENDING_GOOGLE_REDIRECT_ACCEPTANCE_KEY);
-          }
+      if (nextUser) {
+        const storedPending = sessionStorage.getItem(PENDING_GOOGLE_REDIRECT_ACCEPTANCE_KEY);
+        const pending = parsePendingGoogleRedirectAcceptance(storedPending);
+        if (pending) {
+          await persistLegalAcceptance(nextUser, pending.source);
+          sessionStorage.removeItem(PENDING_GOOGLE_REDIRECT_ACCEPTANCE_KEY);
+        } else if (storedPending) {
+          sessionStorage.removeItem(PENDING_GOOGLE_REDIRECT_ACCEPTANCE_KEY);
         }
-        await loadAccount(nextUser);
-      }).catch((accountError: unknown) => {
+      }
+      await loadAccount(nextUser);
+    }).catch((accountError: unknown) => {
+      if (!cancelled) {
         setAccount(null);
         setError(accountError instanceof Error ? accountError.message : "Your learning account could not be loaded.");
-      }).finally(() => setLoading(false));
+      }
+    }).finally(() => {
+      window.clearTimeout(bootTimeout);
+      if (!cancelled) setLoading(false);
     });
 
     return () => {
+      cancelled = true;
       window.clearTimeout(bootTimeout);
-      unsubscribe();
     };
   }, [loadAccount]);
 
   const signInWithGoogle = useCallback(async () => {
     setError(null);
-    if (!auth) {
+    if (!isEntraConfigured) {
       if (localAuthAvailable) {
         const localUser = localOwnerUser();
         localStorage.setItem(LOCAL_SESSION_KEY, "1");
@@ -230,14 +225,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return localUser;
       }
       setError("Google sign-in is not available in this local build.");
-      throw new Error("Firebase is not configured.");
+      throw new Error("Microsoft Entra is not configured.");
     }
-    const provider = new GoogleAuthProvider();
-    provider.setCustomParameters({ prompt: "select_account" });
 
     try {
-      const credential = await signInWithPopup(auth, provider);
-      return credential.user;
+      const nextUser = await signInWithEntraPopup();
+      setUser(nextUser);
+      await loadAccount(nextUser).catch(() => setAccount(null));
+      return nextUser;
     } catch (popupError) {
       setError(authErrorMessage(popupError));
       throw popupError;
@@ -246,7 +241,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const signInWithGoogleRedirect = useCallback(async () => {
     setError(null);
-    if (!auth) {
+    if (!isEntraConfigured) {
       if (localAuthAvailable) {
         const localUser = localOwnerUser();
         localStorage.setItem(LOCAL_SESSION_KEY, "1");
@@ -256,17 +251,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return;
       }
       setError("Google sign-in is not available in this local build.");
-      throw new Error("Firebase is not configured.");
+      throw new Error("Microsoft Entra is not configured.");
     }
-
-    const provider = new GoogleAuthProvider();
-    provider.setCustomParameters({ prompt: "select_account" });
     try {
       sessionStorage.setItem(
         PENDING_GOOGLE_REDIRECT_ACCEPTANCE_KEY,
         JSON.stringify(pendingGoogleRedirectAcceptance()),
       );
-      await signInWithRedirect(auth, provider);
+      await signInWithEntraRedirect();
     } catch (redirectError) {
       sessionStorage.removeItem(PENDING_GOOGLE_REDIRECT_ACCEPTANCE_KEY);
       setError(authErrorMessage(redirectError));
@@ -276,7 +268,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const acceptLegalTerms = useCallback(async (
     source: "signup" | "terms-update" | "subscription",
-    targetUser?: User,
+    targetUser?: FilosageUser,
   ) => {
     const activeUser = targetUser ?? user;
     if (!activeUser) throw new Error("Sign in before accepting the terms.");
@@ -293,11 +285,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setAccount(null);
       return;
     }
-    if (!auth) {
+    if (!isEntraConfigured) {
       return;
     }
-    await firebaseSignOut(auth);
+    await signOutFromEntra();
+    setUser(null);
     setAccount(null);
+  }, []);
+
+  const reauthenticate = useCallback(async () => {
+    if (localAuthAvailable && localStorage.getItem(LOCAL_SESSION_KEY)) return localOwnerUser();
+    const nextUser = await reauthenticateWithEntra();
+    setUser(nextUser);
+    return nextUser;
   }, []);
 
   const refreshAccount = useCallback(async () => {
@@ -320,11 +320,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       clearError: () => setError(null),
       signInWithGoogle,
       signInWithGoogleRedirect,
+      reauthenticate,
       acceptLegalTerms,
       signOut,
       refreshAccount,
     }),
-    [user, account, loading, error, signInWithGoogle, signInWithGoogleRedirect, acceptLegalTerms, signOut, refreshAccount],
+    [user, account, loading, error, signInWithGoogle, signInWithGoogleRedirect, reauthenticate, acceptLegalTerms, signOut, refreshAccount],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

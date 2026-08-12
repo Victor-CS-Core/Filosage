@@ -420,7 +420,7 @@ test("records a versioned ticket and approval without executing an external acti
   expect(approvalBody.approval.executionState).toBe("not_executed");
 
   const decisionResponse = await request.patch(`/api/admin/command-center/approvals/${approvalBody.approval.id}`, {
-    headers: ownerHeaders,
+    headers: { ...ownerHeaders, "X-Reauthentication-Token": "playwright-local-owner" },
     data: {
       expectedVersion: approvalBody.approval.version,
       decision: "approved",

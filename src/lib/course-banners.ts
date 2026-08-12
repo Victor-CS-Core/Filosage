@@ -73,7 +73,7 @@ async function reusableBanner(assetId: string, fallbackModel: string): Promise<C
   if (!/^[a-f0-9]{32}$/.test(assetId)) return null;
   const asset = await getStoredDocument(`courseBannerAssets/${assetId}`);
   if (!asset || asset.contentType !== "image/webp") return null;
-  const available = asset.storage === "r2" || typeof asset.data === "string";
+  const available = asset.storage === "azure-blob" || typeof asset.data === "string";
   if (!available) return null;
   return {
     banner: {
@@ -172,9 +172,9 @@ export async function createOrReuseCourseBanner(
 
     const createdAt = new Date().toISOString();
     const imageBytes = decodeBase64(data);
-    const storedInR2 = await storeCourseBannerObject(assetId, imageBytes);
+    const objectStorage = await storeCourseBannerObject(assetId, imageBytes);
     await putStoredDocument(`courseBannerAssets/${assetId}`, {
-      ...(storedInR2 ? { storage: "r2", objectKey: `course-banners/${assetId}.webp` } : { data }),
+      ...(objectStorage ? { storage: objectStorage, objectKey: `course-banners/${assetId}.webp` } : { data }),
       contentType: "image/webp",
       bytes,
       width: 1536,

@@ -6,7 +6,7 @@ export const LOCAL_OWNER_UID = "local-owner";
 export const LOCAL_OWNER_EMAIL = "owner@filosage.local";
 
 /**
- * Local mode lets the whole app run without Firebase or Stripe credentials:
+ * Local mode lets the whole app run without Azure or Stripe credentials:
  * a file-backed document store replaces Firestore, explicitly allowlisted
  * development tokens resolve to isolated local test identities, and AI calls
  * are stubbed unless OPENAI_API_KEY is set. It is hard-gated to development so

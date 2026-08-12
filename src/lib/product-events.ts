@@ -65,7 +65,7 @@ export type ServerRecordedProductEventName =
   (typeof SERVER_RECORDED_PRODUCT_EVENT_NAMES)[number];
 
 // Guests can report only coarse discovery activity. Learning and outcome
-// events require a verified Firebase identity and are rebound to that UID by
+// events require a verified Entra identity and are rebound to that UID by
 // the server instead of trusting a caller-supplied actor identifier.
 export const ANONYMOUS_PRODUCT_EVENT_NAMES = [
   "landing_viewed",

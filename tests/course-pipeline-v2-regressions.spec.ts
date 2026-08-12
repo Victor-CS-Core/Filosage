@@ -20,15 +20,10 @@ import { courseUsesPipelineV2, resolveCoursePipelineFeatureFlags } from "../src/
 import { COURSE_QUALITY_RULES } from "../src/lib/course-pipeline/rules";
 import { buildGuardedLessonSave } from "../src/lib/course-pipeline/lesson-save";
 import { buildInteractionAttemptMutation } from "../src/lib/course-pipeline/interaction-attempt";
-import { resolveFirebaseAuthDomain } from "../src/lib/firebase-auth-domain";
 import {
   parsePendingGoogleRedirectAcceptance,
   pendingGoogleRedirectAcceptance,
 } from "../src/lib/auth-redirect";
-import {
-  firebaseAuthRelayOrigin,
-  firebaseAuthRelayRequestHeaders,
-} from "../src/lib/firebase-auth-relay";
 
 function conciseValidLesson() {
   return {
@@ -964,33 +959,17 @@ test("guarded lesson saves reject publish races and stale edits while invalidati
   )).toThrow(/newer edit was preserved/);
 });
 
-test("Firebase auth uses a frameable first-party relay only on supported production hosts", async () => {
-  expect(resolveFirebaseAuthDomain("teachapp-d73c3.firebaseapp.com", "filosage.com")).toBe("filosage.com");
-  expect(resolveFirebaseAuthDomain("teachapp-d73c3.firebaseapp.com", "WWW.FILOSAGE.COM")).toBe("www.filosage.com");
-  expect(resolveFirebaseAuthDomain("teachapp-d73c3.firebaseapp.com", "127.0.0.1")).toBe("teachapp-d73c3.firebaseapp.com");
-  expect(resolveFirebaseAuthDomain("teachapp-d73c3.firebaseapp.com", "filosage.com.attacker.test")).toBe("teachapp-d73c3.firebaseapp.com");
-  const [nextConfigSource, proxySource, relaySource] = await Promise.all([
+test("Microsoft Entra auth validates tokens server-side without a same-origin relay", async () => {
+  const [nextConfigSource, proxySource, identitySource] = await Promise.all([
     readFile("next.config.ts", "utf8"),
     readFile("src/proxy.ts", "utf8"),
-    readFile("src/app/api/firebase-auth/[...path]/route.ts", "utf8"),
+    readFile("src/lib/identity-server.ts", "utf8"),
   ]);
-  expect(nextConfigSource).toContain('source: "/((?!__).*)"');
-  expect(nextConfigSource).toContain('destination: "/api/firebase-auth/:path*"');
+  expect(nextConfigSource).toContain('source: "/:path*"');
+  expect(nextConfigSource).not.toContain("firebase-auth");
   expect(proxySource).toContain("api|assets|__|_next/static");
-  expect(relaySource).toContain("MAX_FIREBASE_AUTH_BODY_BYTES");
-  expect(firebaseAuthRelayOrigin("teachapp-d73c3.firebaseapp.com")).toBe("https://teachapp-d73c3.firebaseapp.com");
-  expect(firebaseAuthRelayOrigin("metadata.internal")).toBeNull();
-  const forwarded = firebaseAuthRelayRequestHeaders(new Headers({
-    accept: "text/html",
-    authorization: "Bearer private-app-token",
-    cookie: "private-app-cookie=1",
-    "content-type": "application/json",
-    "x-api-key": "private-key",
-  }));
-  expect(Object.fromEntries(forwarded)).toEqual({
-    accept: "text/html",
-    "content-type": "application/json",
-  });
+  expect(identitySource).toContain("jwtVerify(idToken, remoteKeys(uri), { issuer, audience })");
+  expect(identitySource).toContain("Microsoft Entra token validation is not configured.");
 });
 
 test("same-tab sign-in preserves only fresh, version-bound legal confirmation", () => {

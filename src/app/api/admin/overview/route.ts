@@ -32,7 +32,7 @@ import {
   type PaidLearnerPlan,
 } from "@/lib/membership-plans";
 import { calculateMembershipAnalytics, effectiveMembershipPlan } from "@/lib/membership-analytics";
-import { firebaseConsumption } from "@/lib/firebase-consumption";
+import { azureInfrastructure } from "@/lib/azure-infrastructure";
 
 function numberValue(value: unknown) {
   return typeof value === "number" && Number.isFinite(value) ? value : 0;
@@ -191,7 +191,7 @@ export async function GET(request: Request) {
       backupEvidence,
       alertTestEvidence,
       restoreEvidence,
-      firebase,
+      infrastructure,
     ] = await Promise.all([
       listAllStoredDocuments("users", 10_000),
       listCollectionDocumentsByRange("userEngagement", "lastActivityAt", "1970-01-01T00:00:00.000Z", nowIso, 10_000),
@@ -218,12 +218,12 @@ export async function GET(request: Request) {
       countCollectionDocuments("contentReports"),
       countCollectionDocuments("contentReports", [{ field: "status", value: "resolved" }]),
       countCollectionDocuments("contentReports", [{ field: "status", value: "dismissed" }]),
-      getStoredDocument("operationalEvidence/firestore-backup-latest"),
+      getStoredDocument("operationalEvidence/postgres-backup-latest"),
       getStoredDocument("operationalEvidence/alert-test-latest"),
-      getStoredDocument("operationalEvidence/firestore-restore-latest"),
-      firebaseConsumption(0),
+      getStoredDocument("operationalEvidence/postgres-restore-latest"),
+      azureInfrastructure(),
     ]);
-    firebase.authentication.measuredAccounts = totalUsers;
+    infrastructure.authentication.measuredAccounts = totalUsers;
     if (ownerRecord && !rawUsers.some((record) => record.id === owner.uid || record.uid === owner.uid)) {
       rawUsers.unshift(ownerRecord);
     }
@@ -232,7 +232,10 @@ export async function GET(request: Request) {
       serverEnvironment.OPERATIONS_ALERT_WEBHOOK_URL?.trim()
       && serverEnvironment.OPERATIONS_ALERT_WEBHOOK_SECRET?.trim(),
     );
-    const backupsConfigured = Boolean(serverEnvironment.FIRESTORE_BACKUP_BUCKET?.trim());
+    const backupsConfigured = Boolean(
+      serverEnvironment.AZURE_POSTGRES_SERVER_NAME?.trim()
+      && serverEnvironment.AZURE_RESOURCE_GROUP?.trim(),
+    );
     const operationsAlerts = operationalControl({
       configured: alertsConfigured,
       evidence: alertTestEvidence,
@@ -245,16 +248,16 @@ export async function GET(request: Request) {
       configured: backupsConfigured,
       evidence: backupEvidence,
       healthyForHours: 36,
-      missingDetail: "A dedicated Cloud Storage export bucket is required.",
-      unverifiedDetail: "A bucket is configured, but no completed managed export is recorded.",
-      healthyDetail: "The latest managed export completed within the last 36 hours.",
+      missingDetail: "The Azure PostgreSQL server and resource group must be configured.",
+      unverifiedDetail: "Azure backups are configured, but no retained backup evidence is recorded.",
+      healthyDetail: "Recent Azure PostgreSQL backup evidence is recorded.",
     });
     const restoreDrill = operationalControl({
       configured: backupsConfigured,
       evidence: restoreEvidence,
       healthyForHours: 100 * 24,
-      missingDetail: "Restore testing requires the managed-backup configuration.",
-      unverifiedDetail: "No successful restore into a recovery project is recorded.",
+      missingDetail: "Restore testing requires the Azure PostgreSQL backup configuration.",
+      unverifiedDetail: "No successful point-in-time restore into a recovery server is recorded.",
       healthyDetail: "A successful restore operation is recorded within the last 100 days.",
     });
 
@@ -668,7 +671,7 @@ export async function GET(request: Request) {
         percentUsed: Math.min(100, ((spentUsd + reservedUsd) / limitUsd) * 100),
         pools: budgetPools,
       },
-      firebase,
+      infrastructure,
       monetization: {
         waitlistCount,
         plans: monetizationPlans,

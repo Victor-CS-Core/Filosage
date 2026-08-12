@@ -2,7 +2,7 @@ export const ACCOUNT_DELETION_RECENT_AUTH_SECONDS = 5 * 60;
 
 const ALLOWED_CLOCK_SKEW_SECONDS = 60;
 
-export interface FirebaseAuthenticationClaims {
+export interface AuthenticationClaims {
   authTime?: number;
   subject?: string;
 }
@@ -15,10 +15,10 @@ function decodeBase64Url(value: string) {
 
 /**
  * Reads authentication metadata only after the caller has independently
- * validated the Firebase ID token. Decoding a JWT is not signature
+ * validated the identity token. Decoding a JWT is not signature
  * verification and this helper must never be used as authentication by itself.
  */
-export function firebaseAuthenticationClaimsFromIdToken(idToken: string): FirebaseAuthenticationClaims {
+export function authenticationClaimsFromIdToken(idToken: string): AuthenticationClaims {
   try {
     const encodedPayload = idToken.split(".")[1];
     if (!encodedPayload) return {};
@@ -37,7 +37,7 @@ export function firebaseAuthenticationClaimsFromIdToken(idToken: string): Fireba
   }
 }
 
-export function hasRecentFirebaseAuthentication(
+export function hasRecentAuthentication(
   authTime: number | undefined,
   nowSeconds = Math.floor(Date.now() / 1_000),
   maximumAgeSeconds = ACCOUNT_DELETION_RECENT_AUTH_SECONDS,

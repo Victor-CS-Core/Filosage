@@ -559,6 +559,8 @@ test("only upgrades insecure assets on an HTTPS request", () => {
   expect(localPolicy).not.toContain("upgrade-insecure-requests");
   expect(localHeaders.some((header) => header.key === "Strict-Transport-Security")).toBe(false);
   expect(securePolicy).toContain("upgrade-insecure-requests");
+  expect(securePolicy).toContain("https://*.ciamlogin.com");
+  expect(securePolicy).not.toContain("firebaseio.com");
   expect(secureHeaders.some((header) => header.key === "Strict-Transport-Security")).toBe(true);
 });
 

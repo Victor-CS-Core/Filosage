@@ -31,7 +31,7 @@ export async function GET(request: Request, { params }: RouteParams) {
     if (storedBytes <= 0 || storedBytes > 650_000) {
       return Response.json({ error: "Banner not found." }, { status: 404 });
     }
-    const bytes = asset.storage === "r2"
+    const bytes = asset.storage === "azure-blob"
       ? await readCourseBannerObject(assetId)
       : typeof asset.data === "string"
         ? decodeBase64(asset.data)

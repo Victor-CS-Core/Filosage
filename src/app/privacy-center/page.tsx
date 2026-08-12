@@ -3,7 +3,6 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, useSyncExternalStore } from "react";
-import { deleteUser, GoogleAuthProvider, reauthenticateWithPopup } from "firebase/auth";
 import { BarChart3, Download, LoaderCircle, LockKeyhole, ShieldCheck, Trash2 } from "lucide-react";
 import AppShell from "@/components/AppShell";
 import { useAuth } from "@/components/AuthProvider";
@@ -19,7 +18,7 @@ function serverConsentSnapshot() { return null; }
 
 export default function PrivacyCenterPage() {
   const router = useRouter();
-  const { user, isOwner, loading, signInWithGoogle, signOut } = useAuth();
+  const { user, isOwner, loading, signInWithGoogle, reauthenticate, signOut } = useAuth();
   const [exporting, setExporting] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [deleteArmed, setDeleteArmed] = useState(false);
@@ -74,19 +73,30 @@ export default function PrivacyCenterPage() {
     setDeleting(true);
     setMessage(null);
     try {
-      const provider = new GoogleAuthProvider();
-      provider.setCustomParameters({ prompt: "select_account" });
-      await reauthenticateWithPopup(user, provider);
-      const token = await user.getIdToken(true);
+      const refreshedUser = await reauthenticate();
+      const reauthenticationToken = refreshedUser.reauthenticationToken;
+      if (!reauthenticationToken) throw new Error("Sign-in confirmation did not return a deletion proof.");
+      const token = await refreshedUser.getIdToken(true);
       const response = await fetch("/api/account/data", {
         method: "DELETE",
-        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "X-Reauthentication-Token": reauthenticationToken,
+          "Content-Type": "application/json",
+        },
         body: JSON.stringify({ confirmation }),
       });
       const body = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(body.error || "Your account data could not be deleted.");
       try {
-        await deleteUser(user);
+        const identityResponse = await fetch("/api/account/identity", {
+          method: "DELETE",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "X-Reauthentication-Token": reauthenticationToken,
+          },
+        });
+        if (!identityResponse.ok) throw new Error("The sign-in identity could not be removed.");
       } catch {
         await signOut();
         throw new Error(`Your Filosage application data was deleted, but the sign-in identity could not be removed. Contact ${LEGAL_CONTACT} to finish the identity request.`);

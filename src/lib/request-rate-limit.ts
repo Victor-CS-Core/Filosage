@@ -16,7 +16,7 @@ function numberValue(value: unknown) {
 
 function requestIdentity(request: Request, accountUid?: string) {
   if (accountUid) return `account:${accountUid}`;
-  // Sites is fronted by Cloudflare, which owns cf-connecting-ip. Never trust
+  // The runtime proxy owns forwarded client-address headers. Never trust
   // caller-controlled forwarding headers in production. x-real-ip remains a
   // local/reverse-proxy convenience outside production only.
   const platformIp = request.headers.get("cf-connecting-ip")

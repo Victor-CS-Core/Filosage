@@ -1,6 +1,6 @@
 "use client";
 
-import { auth } from "@/lib/firebase";
+import { currentEntraAccessToken } from "@/lib/identity-client";
 import {
   PRODUCT_EVENT_SCHEMA_VERSION,
   type AcquisitionChannel,
@@ -160,7 +160,7 @@ function sourceFor(channel: AcquisitionChannel) {
 }
 
 async function sendTelemetry(payload: Record<string, unknown>) {
-  const token = await auth?.currentUser?.getIdToken().catch(() => null);
+  const token = await currentEntraAccessToken();
   return fetch("/api/telemetry", {
     method: "POST",
     headers: {

@@ -2,7 +2,7 @@ import type { AccountStatus, LearnerPlan } from "@/lib/course-types";
 import type { AiFeature } from "@/lib/ai-usage";
 import type { AcquisitionChannel, ProductEventName } from "@/lib/product-events";
 import type { MembershipAnalytics } from "@/lib/membership-analytics";
-import type { FirebaseConsumption } from "@/lib/firebase-consumption";
+import type { AzureInfrastructure } from "@/lib/azure-infrastructure";
 
 export interface AdminFeatureUsage {
   feature: AiFeature;
@@ -105,7 +105,7 @@ export interface AdminOverview {
       percentUsed: number;
     }>;
   };
-  firebase: FirebaseConsumption;
+  infrastructure: AzureInfrastructure;
   monetization: {
     waitlistCount: number;
     plans: Array<{

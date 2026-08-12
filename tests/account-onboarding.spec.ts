@@ -1,7 +1,10 @@
 import { expect, test } from "@playwright/test";
 import { PRIVACY_VERSION, TERMS_VERSION } from "../src/lib/legal";
 
-const authorization = { Authorization: "Bearer playwright-preaccount-learner" };
+const authorization = {
+  Authorization: "Bearer playwright-preaccount-learner",
+  "X-Reauthentication-Token": "playwright-preaccount-learner",
+};
 
 test("persists no application account until the learner accepts the current legal terms", async ({ request }, testInfo) => {
   test.skip(testInfo.project.name !== "chromium", "One isolated server-side onboarding contract is sufficient.");

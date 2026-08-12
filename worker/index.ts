@@ -13,14 +13,6 @@ interface Fetcher {
 
 interface Env extends Record<string, unknown> {
   ASSETS: Fetcher;
-  COURSE_BANNERS?: {
-    get(key: string): Promise<{ size: number; arrayBuffer(): Promise<ArrayBuffer> } | null>;
-    put(
-      key: string,
-      value: Uint8Array,
-      options?: { httpMetadata?: { contentType?: string; cacheControl?: string } },
-    ): Promise<unknown>;
-  };
   IMAGES: {
     input(stream: ReadableStream): {
       transform(options: Record<string, unknown>): {
@@ -41,7 +33,6 @@ interface ExecutionContext {
 const worker = {
   async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
     installRuntimeEnvironment(env);
-    globalThis.__FILOSAGE_COURSE_BANNERS__ = env.COURSE_BANNERS;
     const url = new URL(request.url);
 
     if (url.pathname === "/_vinext/image") {

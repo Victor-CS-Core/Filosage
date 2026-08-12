@@ -2,8 +2,8 @@ import "server-only";
 
 import {
   runStoredDocumentTransaction,
-  type VerifiedFirebaseUser,
 } from "@/lib/firebase-server";
+import type { VerifiedUser } from "@/lib/identity-server";
 import { isLocalMode, LOCAL_OWNER_UID } from "@/lib/local-mode";
 import type { AccessLevel, AccountStatus, LearnerPlan } from "@/lib/course-types";
 import { isBillingInterval, isPaidLearnerPlan, type PaidLearnerPlan } from "@/lib/membership-plans";
@@ -40,7 +40,7 @@ function premiumEmailSet() {
   );
 }
 
-export function isOwnerUser(user: VerifiedFirebaseUser) {
+export function isOwnerUser(user: VerifiedUser) {
   if (isLocalMode()) return user.uid === LOCAL_OWNER_UID;
   const ownerEmail = serverEnvironment.OWNER_EMAIL?.trim().toLowerCase();
   return Boolean(ownerEmail && user.email_verified && user.email?.trim().toLowerCase() === ownerEmail);
@@ -58,7 +58,7 @@ interface ResolvedAccountState {
 }
 
 async function resolveAccount(
-  user: VerifiedFirebaseUser,
+  user: VerifiedUser,
 ): Promise<ServerAccount | null> {
   const path = `users/${user.uid}`;
   const now = new Date().toISOString();
@@ -149,6 +149,6 @@ async function resolveAccount(
   };
 }
 
-export function getExistingAccount(user: VerifiedFirebaseUser) {
+export function getExistingAccount(user: VerifiedUser) {
   return resolveAccount(user);
 }

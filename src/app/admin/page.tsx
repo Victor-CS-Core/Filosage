@@ -72,24 +72,6 @@ function shortDate(value?: string, includeTime = false) {
     : { month: "short", day: "numeric", year: "numeric" }).format(new Date(value));
 }
 
-function preciseCurrency(value: number | null) {
-  if (value === null) return "Unavailable";
-  return new Intl.NumberFormat("en", {
-    style: "currency",
-    currency: "USD",
-    minimumFractionDigits: 2,
-    maximumFractionDigits: value < 0.01 ? 6 : 2,
-  }).format(value);
-}
-
-function dataSize(value: number | null) {
-  if (value === null) return "Unavailable";
-  if (value < 1_024) return `${Math.round(value)} B`;
-  const units = ["KiB", "MiB", "GiB", "TiB"];
-  const unitIndex = Math.min(units.length - 1, Math.floor(Math.log(value) / Math.log(1_024)) - 1);
-  return `${new Intl.NumberFormat("en", { maximumFractionDigits: 2 }).format(value / (1_024 ** (unitIndex + 1)))} ${units[unitIndex]}`;
-}
-
 const readinessStateLabels: Record<OperationalReadinessState, string> = {
   missing: "Missing",
   unverified: "Verify",
@@ -447,57 +429,55 @@ export default function AdminPage() {
 
         {data && tab === "costs" && (
           <div className="admin-workspace admin-cost-workspace">
-            <section className={`admin-cost-status is-${data.firebase.status}`}>
+            <section className={`admin-cost-status is-${data.infrastructure.status}`}>
               <span><Database size={22} /></span>
               <div>
-                <h2>Firebase consumption</h2>
-                <p>{data.firebase.status === "available"
-                  ? `Cloud Monitoring usage through ${shortDate(data.firebase.generatedAt, true)}${data.firebase.location ? ` · ${data.firebase.location}` : ""}.`
-                  : data.firebase.status === "permission_required"
-                    ? "Usage metrics need Monitoring Viewer access for the runtime Firebase service account."
-                    : data.firebase.status === "local"
-                      ? "Live Firebase usage is not requested in local mode."
-                      : "Cloud Monitoring usage is temporarily unavailable."}</p>
+                <h2>Azure infrastructure</h2>
+                <p>{data.infrastructure.status === "configured"
+                  ? `Runtime configuration verified through ${shortDate(data.infrastructure.generatedAt, true)}.`
+                  : data.infrastructure.status === "local"
+                    ? "Cloud infrastructure is intentionally not requested in local mode."
+                    : "One or more required Azure runtime services are not configured."}</p>
               </div>
-              <strong>{preciseCurrency(data.firebase.estimatedCostUsd)}<small>month-to-date estimate</small></strong>
+              <strong>{data.infrastructure.status === "configured" ? "Configured" : "Not ready"}<small>runtime status</small></strong>
             </section>
 
-            <section className="admin-cost-metrics" aria-label="Firebase usage summary">
-              <article><span>Document reads</span><strong>{data.firebase.firestore.reads === null ? "Unavailable" : compactNumber(data.firebase.firestore.reads)}</strong><small>{compactNumber(data.firebase.firestore.freeQuota.readsPerDay * data.firebase.period.elapsedDays)} estimated free allowance to date</small></article>
-              <article><span>Document writes</span><strong>{data.firebase.firestore.writes === null ? "Unavailable" : compactNumber(data.firebase.firestore.writes)}</strong><small>{compactNumber(data.firebase.firestore.freeQuota.writesPerDay * data.firebase.period.elapsedDays)} estimated free allowance to date</small></article>
-              <article><span>Document deletes</span><strong>{data.firebase.firestore.deletes === null ? "Unavailable" : compactNumber(data.firebase.firestore.deletes)}</strong><small>{compactNumber(data.firebase.firestore.freeQuota.deletesPerDay * data.firebase.period.elapsedDays)} estimated free allowance to date</small></article>
-              <article><span>Data and indexes</span><strong>{dataSize(data.firebase.firestore.dataStorageBytes)}</strong><small>{dataSize(data.firebase.firestore.freeQuota.storageBytes)} stored data free tier</small></article>
+            <section className="admin-cost-metrics" aria-label="Azure infrastructure summary">
+              <article><span>Identity</span><strong>{data.infrastructure.authentication.configured ? "Ready" : "Missing"}</strong><small>{data.infrastructure.authentication.measuredAccounts} measured account{data.infrastructure.authentication.measuredAccounts === 1 ? "" : "s"}</small></article>
+              <article><span>Database</span><strong>{data.infrastructure.database.configured ? "Ready" : "Missing"}</strong><small>{data.infrastructure.database.serverName || "PostgreSQL server name unavailable"}</small></article>
+              <article><span>Blob storage</span><strong>{data.infrastructure.storage.configured ? "Ready" : "Missing"}</strong><small>{data.infrastructure.storage.container} container</small></article>
+              <article><span>Hosting</span><strong>{data.infrastructure.hosting.configured ? "Ready" : "Unverified"}</strong><small>{data.infrastructure.hosting.provider}</small></article>
             </section>
 
             <div className="admin-cost-grid">
               <section className="admin-panel admin-cost-breakdown">
-                <header><div><h2>Firestore price basis</h2><span>Standard edition default USD rates</span></div><Coins size={19} /></header>
+                <header><div><h2>Azure service boundary</h2><span>Production runtime inventory</span></div><Coins size={19} /></header>
                 <dl>
-                  <div><dt>Reads after free quota</dt><dd>{preciseCurrency(data.firebase.firestore.rates.readPer100kUsd)} / 100K</dd></div>
-                  <div><dt>Writes after free quota</dt><dd>{preciseCurrency(data.firebase.firestore.rates.writePer100kUsd)} / 100K</dd></div>
-                  <div><dt>Deletes after free quota</dt><dd>{preciseCurrency(data.firebase.firestore.rates.deletePer100kUsd)} / 100K</dd></div>
-                  <div><dt>Data and index storage</dt><dd>{preciseCurrency(data.firebase.firestore.rates.dataStoragePerGibMonthUsd)} / GiB-month</dd></div>
-                  <div><dt>Firestore backup storage</dt><dd>{dataSize(data.firebase.firestore.backupStorageBytes)} · {preciseCurrency(data.firebase.firestore.rates.backupStoragePerGibMonthUsd)} / GiB-month</dd></div>
-                  <div><dt>Point-in-time recovery</dt><dd>{dataSize(data.firebase.firestore.pitrStorageBytes)} · {preciseCurrency(data.firebase.firestore.rates.pitrStoragePerGibMonthUsd)} / GiB-month</dd></div>
+                  <div><dt>Application runtime</dt><dd>{data.infrastructure.hosting.provider}</dd></div>
+                  <div><dt>Identity</dt><dd>{data.infrastructure.authentication.provider}</dd></div>
+                  <div><dt>Document persistence</dt><dd>{data.infrastructure.database.provider}</dd></div>
+                  <div><dt>Generated banners</dt><dd>{data.infrastructure.storage.provider}</dd></div>
+                  <div><dt>Logs and metrics</dt><dd>{data.infrastructure.observability.provider}</dd></div>
+                  <div><dt>Database recovery window</dt><dd>{data.infrastructure.database.backupRetentionDays} days</dd></div>
                 </dl>
-                <p>Rates are embedded from the current Google Cloud Firestore default-price table. Location-specific SKUs and billing adjustments can differ.</p>
+                <p>Measured spend belongs in Azure Cost Management. Filosage does not estimate an invoice from request counts.</p>
               </section>
 
               <section className="admin-panel admin-service-consumption">
-                <header><div><h2>Firebase and adjacent services</h2><span>Repository-grounded service inventory</span></div><HardDrive size={19} /></header>
+                <header><div><h2>Azure readiness</h2><span>Repository-grounded service inventory</span></div><HardDrive size={19} /></header>
                 <div>
-                  <article><span><KeyRound size={16} /></span><p><strong>Authentication</strong><small>{data.firebase.authentication.method} · {data.firebase.authentication.measuredAccounts} measured account{data.firebase.authentication.measuredAccounts === 1 ? "" : "s"}</small></p><em>No-cost path</em></article>
-                  <article><span><Database size={16} /></span><p><strong>Cloud Firestore</strong><small>Reads, writes, deletes, data, indexes, native backups, and PITR</small></p><em>{preciseCurrency(data.firebase.firestore.estimatedCostUsd)}</em></article>
-                  <article><span><HardDrive size={16} /></span><p><strong>Application Storage</strong><small>{data.firebase.appStorage.configured ? "Bucket configured; no Firebase Storage SDK calls found" : "No configured application bucket in this runtime"}</small></p><em>Not estimated</em></article>
-                  <article><span><RotateCcw size={16} /></span><p><strong>Managed export backups</strong><small>{data.firebase.managedBackups.detail}</small></p><em>{data.firebase.managedBackups.configured ? "Potential Cloud Storage cost" : "Not configured"}</em></article>
-                  <article><span><Globe2 size={16} /></span><p><strong>Hosting</strong><small>{data.firebase.hosting.detail}</small></p><em>$0 Firebase</em></article>
+                  <article><span><KeyRound size={16} /></span><p><strong>Authentication</strong><small>External customer identities and Google federation</small></p><em>{data.infrastructure.authentication.configured ? "Configured" : "Missing"}</em></article>
+                  <article><span><Database size={16} /></span><p><strong>PostgreSQL</strong><small>JSONB document compatibility, transactions, automated backups, and PITR</small></p><em>{data.infrastructure.database.configured ? "Configured" : "Missing"}</em></article>
+                  <article><span><HardDrive size={16} /></span><p><strong>Blob Storage</strong><small>Private generated-course banner objects</small></p><em>{data.infrastructure.storage.configured ? "Configured" : "Missing"}</em></article>
+                  <article><span><RotateCcw size={16} /></span><p><strong>Recovery</strong><small>Requires a successful separate-server restore drill</small></p><em>{data.launchReadiness.restoreDrill.ready ? "Verified" : "Pending"}</em></article>
+                  <article><span><Globe2 size={16} /></span><p><strong>Hosting</strong><small>Revisioned container deployment with exact-SHA health verification</small></p><em>{data.infrastructure.hosting.configured ? "Configured" : "Unverified"}</em></article>
                 </div>
               </section>
             </div>
 
-            <section className="admin-cost-notes" aria-labelledby="firebase-estimate-notes">
+            <section className="admin-cost-notes" aria-labelledby="azure-infrastructure-notes">
               <TriangleAlert size={18} />
-              <div><h2 id="firebase-estimate-notes">What this estimate does not claim</h2>{data.firebase.limitations.map((item) => <p key={item}>{item}</p>)}</div>
+              <div><h2 id="azure-infrastructure-notes">What this status does not claim</h2>{data.infrastructure.limitations.map((item) => <p key={item}>{item}</p>)}</div>
             </section>
 
             <section className="admin-ai-cost-strip">

@@ -2,13 +2,13 @@ import "server-only";
 
 import { NextResponse } from "next/server";
 import {
-  verifyFirebaseIdToken,
-  type VerifiedFirebaseUser,
-} from "@/lib/firebase-server";
+  verifyIdentityToken,
+  type VerifiedUser,
+} from "@/lib/identity-server";
 import { getExistingAccount, type ServerAccount } from "@/lib/account-server";
 import { PRIVACY_VERSION, TERMS_VERSION } from "@/lib/legal";
 import { planAllows, type PlanCapability } from "@/lib/membership-plans";
-import { hasRecentFirebaseAuthentication } from "@/lib/recent-auth";
+import { hasRecentAuthentication } from "@/lib/recent-auth";
 
 export class AuthorizationError extends Error {
   constructor(
@@ -19,18 +19,18 @@ export class AuthorizationError extends Error {
   }
 }
 
-export async function getVerifiedUser(request: Request): Promise<VerifiedFirebaseUser | null> {
+export async function getVerifiedUser(request: Request): Promise<VerifiedUser | null> {
   const authHeader = request.headers.get("authorization");
   if (!authHeader?.startsWith("Bearer ")) return null;
 
   try {
-    return await verifyFirebaseIdToken(authHeader.slice(7));
+    return await verifyIdentityToken(authHeader.slice(7));
   } catch {
     return null;
   }
 }
 
-export async function requireUser(request: Request): Promise<VerifiedFirebaseUser> {
+export async function requireUser(request: Request): Promise<VerifiedUser> {
   const user = await getVerifiedUser(request);
   if (!user || !user.email_verified) {
     throw new AuthorizationError(401, "Sign in with a verified account to continue.");
@@ -46,14 +46,24 @@ export async function requireAccount(request: Request): Promise<ServerAccount> {
   return account;
 }
 
+export async function requireRecentlyAuthenticatedUser(
+  request: Request,
+  recentAuthenticationMessage = "Sign in again before permanently deleting your account.",
+): Promise<VerifiedUser> {
+  const user = await requireUser(request);
+  const proofToken = request.headers.get("x-reauthentication-token")?.trim();
+  const proof = proofToken ? await verifyIdentityToken(proofToken) : null;
+  if (!proof || proof.uid !== user.uid || !hasRecentAuthentication(proof.auth_time)) {
+    throw new AuthorizationError(401, recentAuthenticationMessage);
+  }
+  return user;
+}
+
 export async function requireRecentlyAuthenticatedAccount(
   request: Request,
   recentAuthenticationMessage = "Sign in again before permanently deleting your account.",
 ): Promise<ServerAccount> {
-  const user = await requireUser(request);
-  if (!hasRecentFirebaseAuthentication(user.auth_time)) {
-    throw new AuthorizationError(401, recentAuthenticationMessage);
-  }
+  const user = await requireRecentlyAuthenticatedUser(request, recentAuthenticationMessage);
   const account = await getExistingAccount(user);
   if (!account) throw new AuthorizationError(403, "Complete account setup before managing account data.");
   return account;

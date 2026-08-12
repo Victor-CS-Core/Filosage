@@ -10,26 +10,28 @@ const healthScript = resolve(root, "scripts/check-production-health.mjs");
 const validReleaseEnvironment = {
   ...process.env,
   NEXT_PUBLIC_SITE_URL: "https://release.example",
-  FIREBASE_PROJECT_ID: "filosage-release",
-  FIREBASE_CLIENT_EMAIL: "release-check@filosage-release.iam.gserviceaccount.com",
-  FIREBASE_PRIVATE_KEY: "release-check-placeholder",
-  NEXT_PUBLIC_FIREBASE_API_KEY: "release-check-placeholder",
-  NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN: "filosage-release.firebaseapp.com",
-  NEXT_PUBLIC_FIREBASE_PROJECT_ID: "filosage-release",
-  NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET: "filosage-release.firebasestorage.app",
-  NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID: "1234567890",
-  NEXT_PUBLIC_FIREBASE_APP_ID: "1:1234567890:web:release-check",
+  DATABASE_URL: "postgresql://release:placeholder@filosage-release.postgres.database.azure.com:5432/filosage?sslmode=verify-full",
+  NEXT_PUBLIC_ENTRA_CLIENT_ID: "00000000-0000-4000-8000-000000000001",
+  NEXT_PUBLIC_ENTRA_AUTHORITY: "https://release.ciamlogin.com/",
+  NEXT_PUBLIC_ENTRA_API_SCOPE: "api://00000000-0000-4000-8000-000000000001/access_as_user",
+  NEXT_PUBLIC_ENTRA_REDIRECT_URI: "https://release.example",
+  ENTRA_AUDIENCE: "00000000-0000-4000-8000-000000000001",
+  ENTRA_ISSUER: "https://release.ciamlogin.com/00000000-0000-4000-8000-000000000002/v2.0",
+  ENTRA_JWKS_URI: "https://release.ciamlogin.com/00000000-0000-4000-8000-000000000002/discovery/v2.0/keys",
+  AZURE_STORAGE_ACCOUNT_URL: "https://filosagerelease.blob.core.windows.net/",
+  AZURE_STORAGE_BANNER_CONTAINER: "course-banners",
+  AZURE_POSTGRES_SERVER_NAME: "filosage-release",
+  AZURE_RESOURCE_GROUP: "filosage-release-rg",
   OPENAI_API_KEY: "release-check-placeholder",
   OWNER_EMAIL: "owner@release.example",
   ACTIVITY_RECEIPT_SECRET: "x".repeat(32),
-  FIRESTORE_BACKUP_BUCKET: "filosage-release-backups",
   OPERATIONS_ALERT_WEBHOOK_URL: "https://alerts.release.example/filosage",
   OPERATIONS_ALERT_WEBHOOK_SECRET: "y".repeat(32),
   SITE_VERSION: "a".repeat(40),
   BILLING_ENABLED: "false",
 };
 
-test("release checks bind Firebase and production health to one full Git SHA", ({ request }, testInfo) => {
+test("release checks bind Azure and production health to one full Git SHA", ({ request }, testInfo) => {
   void request;
   test.skip(testInfo.project.name !== "chromium", "One process-level release contract is sufficient.");
 
@@ -43,19 +45,19 @@ test("release checks bind Firebase and production health to one full Git SHA", (
 
   const missingRecovery = spawnSync(process.execPath, [releaseScript], {
     cwd: root,
-    env: { ...validReleaseEnvironment, FIRESTORE_BACKUP_BUCKET: "" },
+    env: { ...validReleaseEnvironment, AZURE_POSTGRES_SERVER_NAME: "" },
     encoding: "utf8",
   });
   expect(missingRecovery.status).toBe(1);
-  expect(missingRecovery.stderr).toContain("FIRESTORE_BACKUP_BUCKET");
+  expect(missingRecovery.stderr).toContain("AZURE_POSTGRES_SERVER_NAME");
 
-  const mismatchedProject = spawnSync(process.execPath, [releaseScript], {
+  const mismatchedRedirect = spawnSync(process.execPath, [releaseScript], {
     cwd: root,
-    env: { ...validReleaseEnvironment, NEXT_PUBLIC_FIREBASE_PROJECT_ID: "another-project" },
+    env: { ...validReleaseEnvironment, NEXT_PUBLIC_ENTRA_REDIRECT_URI: "https://other.example" },
     encoding: "utf8",
   });
-  expect(mismatchedProject.status).toBe(1);
-  expect(mismatchedProject.stderr).toContain("FIREBASE_PROJECT_ID must match NEXT_PUBLIC_FIREBASE_PROJECT_ID");
+  expect(mismatchedRedirect.status).toBe(1);
+  expect(mismatchedRedirect.stderr).toContain("NEXT_PUBLIC_ENTRA_REDIRECT_URI must match NEXT_PUBLIC_SITE_URL");
 
   const shortVersion = spawnSync(process.execPath, [releaseScript], {
     cwd: root,

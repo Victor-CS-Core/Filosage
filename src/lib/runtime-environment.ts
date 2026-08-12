@@ -1,9 +1,7 @@
 /**
- * Sites exposes variables and secrets as Worker bindings. The Cloudflare Vite
- * plugin intentionally compiles `process.env` to an empty object when
- * nodejs_compat is unavailable, so server code must read those bindings through
- * a runtime-owned object instead. The process environment remains the fallback
- * for Next.js, scripts, and tests outside the Sites Worker.
+ * Azure Container Apps and local Node processes expose configuration through
+ * `process.env`. The optional runtime-owned object remains for legacy packaged
+ * preview tests while the Azure migration branch is being validated.
  */
 export type RuntimeEnvironmentBindings = Record<string, string | undefined>;
 
