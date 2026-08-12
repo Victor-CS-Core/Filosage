@@ -30,15 +30,14 @@ export function effectiveCourseReviewPolicy(course: {
   }>;
   manualReviewPolicy?: { required?: boolean; reasonCodes?: string[] };
 }) {
+  // Risk classification belongs to the normalized course brief. Generated lesson
+  // wording is untrusted output and commonly uses domain-neutral verbs such as
+  // "diagnose"; scanning it can turn an ordinary writing course into a medical
+  // course after generation.
   const derived = courseReviewPolicyForBrief(
     course.topic,
     course.mission,
     course.outcome,
-    course.modules?.flatMap((courseModule) => [
-      courseModule.title,
-      courseModule.description,
-      ...(courseModule.lessons ?? []).flatMap((lesson) => [lesson.title, lesson.concept, lesson.objective]),
-    ]).filter((value): value is string => Boolean(value)).join(" "),
     course.freshnessRequired ? "current regulation requirement" : undefined,
   );
   const reasonCodes = [...new Set([

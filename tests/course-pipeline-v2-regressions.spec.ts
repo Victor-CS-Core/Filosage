@@ -11,7 +11,7 @@ import { assertRepairBaseSnapshot, buildRepairPlan } from "../src/lib/course-pip
 import { defaultLabApplicability, LAB_CAPABILITY_REGISTRY } from "../src/lib/course-pipeline/labs/registry";
 import { defaultVisualApplicability } from "../src/lib/course-pipeline/visuals/registry";
 import { coursePipelineEvaluationCases } from "../evals/course-pipeline/dataset/v1";
-import { courseReviewPolicyForBrief } from "../src/lib/course-pipeline/review-policy";
+import { courseReviewPolicyForBrief, effectiveCourseReviewPolicy } from "../src/lib/course-pipeline/review-policy";
 import { inspectGeneratedContent, languagePolicyInstruction, sanitizeGeneratedText } from "../src/lib/content-language";
 import { withCourseObjectiveRelationships } from "../src/lib/course-pipeline/relationships";
 import { courseOutlineSchema, lessonGenerationSchema } from "../src/lib/validation";
@@ -377,6 +377,24 @@ test("high-stakes briefs route to manual review without making user prompt injec
   const report = await validateCourseCandidateV2(course, [{ ...conciseValidLesson(), schemaVersion: 5 }], ["0-0"]);
   expect(publicationDecisionFromReport(report).decision).toBe("manual_review");
   expect(report.issues).toContainEqual(expect.objectContaining({ code: "CQ_SOURCE_002", repairability: "manual" }));
+});
+
+test("generated instructional wording cannot reclassify an ordinary writing brief as medical", async () => {
+  const policy = effectiveCourseReviewPolicy({
+    topic: "Writing clear analytical paragraphs from short evidence excerpts",
+    mission: "Build a repeatable claim-evidence-reasoning method for literary analysis.",
+    outcome: "Interpret short excerpts without drifting into summary or unsupported claims.",
+    modules: [{
+      title: "Revise for defensibility",
+      lessons: [{
+        title: "Spot summary drift",
+        concept: "Diagnose weak reasoning and treat each quotation as evidence rather than proof.",
+        objective: "Diagnose summary drift in an analytical paragraph.",
+      }],
+    }],
+  });
+
+  expect(policy).toMatchObject({ required: false, reasonCodes: [] });
 });
 
 test("manual review cannot override an independent structural blocker", async () => {
