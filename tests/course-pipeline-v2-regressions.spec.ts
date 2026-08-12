@@ -23,6 +23,10 @@ import {
   parsePendingGoogleRedirectAcceptance,
   pendingGoogleRedirectAcceptance,
 } from "../src/lib/auth-redirect";
+import {
+  firebaseAuthRelayOrigin,
+  firebaseAuthRelayRequestHeaders,
+} from "../src/lib/firebase-auth-relay";
 
 function conciseValidLesson() {
   return {
@@ -839,12 +843,27 @@ test("Firebase auth uses a frameable first-party relay only on supported product
   expect(resolveFirebaseAuthDomain("teachapp-d73c3.firebaseapp.com", "WWW.FILOSAGE.COM")).toBe("www.filosage.com");
   expect(resolveFirebaseAuthDomain("teachapp-d73c3.firebaseapp.com", "127.0.0.1")).toBe("teachapp-d73c3.firebaseapp.com");
   expect(resolveFirebaseAuthDomain("teachapp-d73c3.firebaseapp.com", "filosage.com.attacker.test")).toBe("teachapp-d73c3.firebaseapp.com");
-  const [nextConfigSource, proxySource] = await Promise.all([
+  const [nextConfigSource, proxySource, relaySource] = await Promise.all([
     readFile("next.config.ts", "utf8"),
     readFile("src/proxy.ts", "utf8"),
+    readFile("src/app/__/auth/[...path]/route.ts", "utf8"),
   ]);
   expect(nextConfigSource).toContain('source: "/((?!__).*)"');
   expect(proxySource).toContain("api|assets|__|_next/static");
+  expect(relaySource).toContain("MAX_FIREBASE_AUTH_BODY_BYTES");
+  expect(firebaseAuthRelayOrigin("teachapp-d73c3.firebaseapp.com")).toBe("https://teachapp-d73c3.firebaseapp.com");
+  expect(firebaseAuthRelayOrigin("metadata.internal")).toBeNull();
+  const forwarded = firebaseAuthRelayRequestHeaders(new Headers({
+    accept: "text/html",
+    authorization: "Bearer private-app-token",
+    cookie: "private-app-cookie=1",
+    "content-type": "application/json",
+    "x-api-key": "private-key",
+  }));
+  expect(Object.fromEntries(forwarded)).toEqual({
+    accept: "text/html",
+    "content-type": "application/json",
+  });
 });
 
 test("same-tab sign-in preserves only fresh, version-bound legal confirmation", () => {
