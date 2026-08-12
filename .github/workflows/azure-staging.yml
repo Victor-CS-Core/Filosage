@@ -42,13 +42,16 @@ jobs:
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
-      - name: Build the immutable image in Azure Container Registry
+      - name: Sign in to Azure Container Registry
+        run: az acr login --name "${{ vars.AZURE_ACR_NAME }}"
+
+      - name: Build and push the immutable image
         shell: bash
         run: |
           set -euo pipefail
-          az acr build \
-            --registry "${{ vars.AZURE_ACR_NAME }}" \
-            --image "filosage:${GITHUB_SHA}" \
+          IMAGE="${{ vars.AZURE_ACR_NAME }}.azurecr.io/filosage:${GITHUB_SHA}"
+          docker build \
+            --tag "$IMAGE" \
             --build-arg "NEXT_PUBLIC_SITE_URL=${{ vars.AZURE_STAGING_URL }}" \
             --build-arg "NEXT_PUBLIC_ENTRA_CLIENT_ID=${{ vars.ENTRA_CLIENT_ID }}" \
             --build-arg "NEXT_PUBLIC_ENTRA_AUTHORITY=${{ vars.ENTRA_AUTHORITY }}" \
@@ -56,6 +59,7 @@ jobs:
             --build-arg "NEXT_PUBLIC_ENTRA_REDIRECT_URI=${{ vars.AZURE_STAGING_URL }}" \
             --build-arg "SITE_VERSION=${GITHUB_SHA}" \
             .
+          docker push "$IMAGE"
 
       - name: Deploy the exact image to Azure Container Apps
         shell: bash

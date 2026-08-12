@@ -40,7 +40,7 @@ The selected subscription is `Azure subscription 1` and the selected region is C
 
 ## Gate 3: staging infrastructure
 
-The staging resource group is `filosage-staging-central-rg`. Foundation deployment `filosage-foundation-retry-20260812193319` succeeded and bootstrap deployment `filosage-app-bootstrap` assigned `https://filosagestg-app.salmontree-eb10220f.centralus.azurecontainerapps.io`. Never place parameter secrets in a committed parameter file or command history. Configure GitHub OIDC with least privilege and the `azure-staging` environment variables used by `.github/workflows/azure-staging.yml`.
+The staging resource group is `filosage-staging-central-rg`. Foundation deployment `filosage-foundation-retry-20260812193319` succeeded and bootstrap deployment `filosage-app-bootstrap` assigned `https://filosagestg-app.salmontree-eb10220f.centralus.azurecontainerapps.io`. Azure rejected ACR Tasks for this subscription, so the staging workflow builds on the hosted GitHub runner and pushes to ACR using short-lived OIDC with `AcrPush` and `Container Apps Contributor` scoped only to the target registry and app. Never place parameter secrets in a committed parameter file or command history.
 
 The PostgreSQL template enables private networking, seven-day automated backup retention, and no high availability for the inexpensive pre-release staging environment. Burstable Flexible Server does not support on-demand backups. Production requires a renewed cost/reliability decision.
 
