@@ -65,11 +65,11 @@ Supabase migration is not a release dependency and is not a substitute for this 
 
 ### Required before paid activation
 
-- [ ] Complete the entire payment lifecycle test matrix in this runbook with Stripe test objects and retain a redacted evidence record.
+- [ ] Complete the entire payment lifecycle test matrix in this runbook with Stripe test objects and retain a redacted evidence record. The August 11, 2026 run is retained in `docs/STRIPE_SANDBOX_EVIDENCE_2026-08-11.md`: core Stripe lifecycle and support/legal inbox delivery passed, while lifecycle-email delivery and a real signed-in Filosage deletion remain open.
 - [ ] Review Stripe Live products, monthly and annual prices, webhook endpoint, webhook signing secret, customer portal, tax behavior, refund handling, statement descriptor, and historical-price lifecycle support.
 - [ ] Establish the formal operator identity, business address, governing jurisdiction, required tax treatment, registered DMCA process or agent where applicable, and jurisdiction-specific legal review.
 - [x] Populate `LEGAL_OPERATOR_NAME`, `LEGAL_BUSINESS_ADDRESS`, `GOVERNING_JURISDICTION`, and `SUPPORT_EMAIL` with owner-approved public values and verify the exact hosted Terms and Privacy disclosure.
-- [ ] Send and receive test messages through both the published `SUPPORT_EMAIL` billing-support inbox and the published `legal@filosage.com` privacy-request inbox.
+- [x] Send and receive test messages through both the published `SUPPORT_EMAIL` billing-support inbox and the published `legal@filosage.com` privacy-request inbox. Owner-confirmed receiving-side screenshots were reviewed on August 11, 2026.
 - [x] Record owner approval of the August 11, 2026 U.S.-only paid-plan policy: paid purchasers must be 18 or older; initial charges and annual renewals have a seven-calendar-day refund window; verified duplicate, unauthorized, or incorrect charges are corrected or refunded; other monthly renewals and partially used periods are non-refundable except as law or a written offer requires; ordinary cancellation is effective at period end; account deletion ends paid access immediately without automatically creating or waiving refund eligibility.
 - [ ] Obtain independent Florida counsel review of the exact hosted Terms, Privacy Notice, refund/cancellation policy, age boundary, analytics/cookie inventory, and intended U.S. launch coverage. Owner approval and AI-assisted drafting do not satisfy this gate.
 - [ ] Resolve all open high-risk safety, privacy, copyright, account-access, and content reports.
