@@ -19,4 +19,6 @@ The implemented deterministic limit is one pass per automatic issue code and is 
 
 `POST /api/courses/[courseId]/repair` is flag-gated and applies only two deterministic, allowlisted removals: an unsupported lab (`CQ_LAB_001`) or unsupported visual (`CQ_VISUAL_003`). It binds the plan to the aggregate snapshot and every course/lesson fingerprint, applies inside a Firestore transaction, writes before/after audit data, fully revalidates, and provides undo that refuses to overwrite newer edits. A missing lesson returns `LESSON_GENERATION_REQUIRED` instead of replacing unrelated content.
 
-Semantic patches and editor deep links remain incomplete. Those issues are assisted/manual rather than falsely advertised as automatic. The legacy repair-all regeneration control is hidden once a V2 report exists and is not described as a typed patch.
+The authoring UI does not expose whole-course or whole-lesson regeneration as repair. It offers `Apply safe fixes` only when the current report contains one of the two allowlisted deterministic defects, explains that lesson text and author edits are preserved, and retains undo. All other blockers link to the affected lesson or require an explicit human decision. Snapshot staleness triggers revalidation rather than pretending to be a content repair.
+
+Semantic patches and broad regeneration remain unavailable. Those issues are assisted/manual rather than falsely advertised as automatic. Ordinary generation failures retain their separate retry action because no accepted lesson exists to preserve yet.

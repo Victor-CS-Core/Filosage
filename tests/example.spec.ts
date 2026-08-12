@@ -426,7 +426,7 @@ test("progress evidence requires a completed meaningful active-lesson response",
   expect(progressUpdateSchema.safeParse({ ...base, activityEvidence: { quizResults: [], experienceEvidence: { type: "concept", response: "A meaningful prediction with supporting reasoning.", completed: true } } }).success).toBe(true);
 });
 
-test("shows failed lesson titles, reasons, and a regeneration action after publication review", async ({ page }) => {
+test("shows failed lesson titles, reasons, and an affected-lesson link after publication review", async ({ page }) => {
   await restoreLocalLearner(page);
   const course = {
     id: "publication-review-course",
@@ -459,7 +459,11 @@ test("shows failed lesson titles, reasons, and a regeneration action after publi
     return route.fulfill({ json: course });
   });
   await page.route("**/api/progress?courseId=publication-review-course", (route) => route.fulfill({ json: { progress: null } }));
-  await page.route("**/api/generate-lesson", (route) => route.fulfill({ json: { content: "Replacement lesson" } }));
+  let regenerationRequests = 0;
+  await page.route("**/api/generate-lesson", (route) => {
+    regenerationRequests += 1;
+    return route.fulfill({ json: { content: "Replacement lesson" } });
+  });
 
   await page.goto("/course/Python%20programming?id=publication-review-course");
   await page.locator("details.course-owner-controls > summary").click();
@@ -469,8 +473,13 @@ test("shows failed lesson titles, reasons, and a regeneration action after publi
   const reviewPanel = page.getByLabel("Publication review needs attention");
   await expect(reviewPanel.getByText("Trace a Python expression")).toBeVisible();
   await expect(reviewPanel.getByText("Each guided-practice step must be one concise prose paragraph without block Markdown.")).toBeVisible();
-  await reviewPanel.getByRole("button", { name: "Regenerate lesson" }).click();
-  await expect(reviewPanel.getByRole("button", { name: "Regenerate lesson" })).toHaveCount(0);
+  await expect(reviewPanel.getByText("Filosage will not replace complete lessons or author edits automatically.")).toBeVisible();
+  await expect(reviewPanel.getByRole("link", { name: "Open affected lesson" })).toHaveAttribute(
+    "href",
+    "/course/Python%20programming/lesson/0-0?id=publication-review-course",
+  );
+  await expect(reviewPanel.getByRole("button", { name: /regenerate lesson/i })).toHaveCount(0);
+  expect(regenerationRequests).toBe(0);
 });
 
 test("rejects model-control fragments and unrelated scripts without blocking intended language courses", () => {

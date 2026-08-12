@@ -35,7 +35,7 @@ import { useAuth } from "@/components/AuthProvider";
 import type { Course } from "@/lib/course-types";
 import type { CapstoneAssessment, CourseProgress } from "@/lib/learning-types";
 import type { PublicationAssessment } from "@/lib/publication-assessment";
-import type { CoursePublishReadiness, PublicationLessonFailure } from "@/lib/publication-readiness";
+import type { PublicationLessonFailure } from "@/lib/publication-readiness";
 import { clearLocalCourseData } from "@/lib/local-course-data";
 import { createClientId } from "@/lib/browser-compat";
 import { trackProductEvent } from "@/lib/product-analytics";
@@ -97,8 +97,6 @@ export default function CourseMap() {
   const [publicationFailures, setPublicationFailures] = useState<PublicationLessonFailure[]>([]);
   const [publicationAssessment, setPublicationAssessment] = useState<PublicationAssessmentState | null>(null);
   const [validationReport, setValidationReport] = useState<ValidationReport | null>(null);
-  const [regeneratingLessonId, setRegeneratingLessonId] = useState<string | null>(null);
-  const [repairingAll, setRepairingAll] = useState(false);
   const [repairProgress, setRepairProgress] = useState<string | null>(null);
   const [overrideReason, setOverrideReason] = useState("");
   const [overrideConfirmed, setOverrideConfirmed] = useState(false);
@@ -173,8 +171,6 @@ export default function CourseMap() {
       setPublishAttested(false);
       setPublicationFailures([]);
       setPublicationAssessment(readStoredPublicationAssessment(courseViewKey));
-      setRegeneratingLessonId(null);
-      setRepairingAll(false);
       setRepairProgress(null);
       setOverrideReason("");
       setOverrideConfirmed(false);
@@ -404,85 +400,6 @@ export default function CourseMap() {
     }
   };
 
-  const requestLessonRegeneration = async (lessonId: string) => {
-    if (!user || !course?.canManage || !courseId || course.isPublic) {
-      throw new Error("This lesson cannot be regenerated right now.");
-    }
-    const token = await getToken();
-    const repairKey = `${courseId}:${lessonId}`;
-    const idempotencyKey = repairRequestKeysRef.current.get(repairKey) ?? createClientId();
-    repairRequestKeysRef.current.set(repairKey, idempotencyKey);
-    const response = await fetch("/api/generate-lesson", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-        "Idempotency-Key": idempotencyKey,
-      },
-      body: JSON.stringify({ courseId, lessonId, regenerate: true }),
-    });
-    const data = await response.json() as {
-      error?: string;
-      publicationReadiness?: CoursePublishReadiness;
-    };
-    if (!response.ok) throw new Error(data.error || "The lesson could not be regenerated.");
-    repairRequestKeysRef.current.delete(repairKey);
-    return data.publicationReadiness;
-  };
-
-  const applyPublicationPreflight = (readiness: CoursePublishReadiness | undefined, repairedLessonId: string) => {
-    setPublicationFailures((current) => readiness?.invalidLessons
-      ?? current.filter((failure) => failure.lessonId !== repairedLessonId));
-    setPublicationAssessment(null);
-    storePublicationAssessment(courseViewKey, null);
-  };
-
-  const regenerateLesson = async (lessonId: string) => {
-    if (!user || !course?.canManage || !courseId || course.isPublic || repairingAll) return;
-    const operationViewKey = activeCourseViewRef.current;
-    const isCurrentView = () => activeCourseViewRef.current === operationViewKey;
-    setRegeneratingLessonId(lessonId);
-    setActionError(null);
-    try {
-      const readiness = await requestLessonRegeneration(lessonId);
-      if (!isCurrentView()) return;
-      applyPublicationPreflight(readiness, lessonId);
-    } catch (regenerationError) {
-      if (isCurrentView()) setActionError(regenerationError instanceof Error ? regenerationError.message : "The lesson could not be regenerated.");
-    } finally {
-      if (isCurrentView()) setRegeneratingLessonId(null);
-    }
-  };
-
-  const repairAllPublicationFailures = async () => {
-    if (repairingAll || publicationFailures.length === 0) return;
-    const operationViewKey = activeCourseViewRef.current;
-    const failures = [...publicationFailures];
-    setRepairingAll(true);
-    setActionError(null);
-    try {
-      for (let index = 0; index < failures.length; index += 1) {
-        if (activeCourseViewRef.current !== operationViewKey) return;
-        const failure = failures[index];
-        setRegeneratingLessonId(failure.lessonId);
-        setRepairProgress(`Repairing ${index + 1} of ${failures.length}`);
-        const readiness = await requestLessonRegeneration(failure.lessonId);
-        if (activeCourseViewRef.current !== operationViewKey) return;
-        applyPublicationPreflight(readiness, failure.lessonId);
-      }
-      setRepairProgress("Repair complete. Review the replacement lessons before publishing.");
-    } catch (repairError) {
-      if (activeCourseViewRef.current === operationViewKey) {
-        setActionError(repairError instanceof Error ? repairError.message : "The lesson repairs could not be completed.");
-      }
-    } finally {
-      if (activeCourseViewRef.current === operationViewKey) {
-        setRegeneratingLessonId(null);
-        setRepairingAll(false);
-      }
-    }
-  };
-
   const publishWithOwnerOverride = async () => {
     if (!user || !courseId || !isOwner || !publicationAssessment || overrideBusy) return;
     const operationViewKey = activeCourseViewRef.current;
@@ -662,10 +579,10 @@ export default function CourseMap() {
       if (data.validationReport) setValidationReport(data.validationReport);
       if (action === "apply") {
         setLastTargetedRepairId(data.undoAvailable && data.repairId ? data.repairId : null);
-        setRepairProgress("Targeted repair applied and the complete course was revalidated.");
+        setRepairProgress("Safe fix applied and the complete course was revalidated.");
       } else {
         setLastTargetedRepairId(null);
-        setRepairProgress("Targeted repair undone without overwriting newer edits.");
+        setRepairProgress("Safe fix undone without overwriting newer edits.");
       }
     } catch (repairError) {
       if (activeCourseViewRef.current === operationViewKey) {
@@ -992,21 +909,10 @@ export default function CourseMap() {
                            ? "This exact course version needs a human decision before it can be published."
                            : "Review each precise blocker below. Warnings are optional improvements and do not silently prevent publication."
                          : publicationFailures.length > 0
-                         ? "Regenerate the listed lessons, then review and publish again. The current lesson stays available unless a replacement passes the teaching standard."
+                         ? "Open each affected lesson and address the precise issue. Filosage will not replace complete lessons or author edits automatically."
                          : publicationAssessment
                            ? "The course has quality warnings that require correction or an explicit owner decision."
                            : "The replacement lessons passed the automatic publication preflight. Review them before publishing."}</p>
-                        {!validationReport && publicationFailures.length > 1 && (
-                         <button
-                           className="button button-secondary button-small publication-repair-all"
-                           type="button"
-                           onClick={() => void repairAllPublicationFailures()}
-                           disabled={updating || bannerBusy || repairingAll || regeneratingLessonId !== null}
-                         >
-                           {repairingAll ? <LoaderCircle className="spin" size={15} /> : <RefreshCw size={15} />}
-                           {repairingAll ? repairProgress ?? "Repairing lessons…" : `Repair all ${publicationFailures.length} lessons`}
-                         </button>
-                       )}
                        {repairProgress && <small className="publication-repair-status" role="status" aria-live="polite">{repairProgress}</small>}
                      </div>
                    </div>
@@ -1033,15 +939,16 @@ export default function CourseMap() {
                           <div className="publication-contract-actions">
                             <button className="button button-secondary" type="button" onClick={() => void runTargetedRepair("apply")} disabled={targetedRepairBusy !== null}>
                               {targetedRepairBusy === "apply" ? <LoaderCircle className="spin" size={15} /> : <RefreshCw size={15} />}
-                              Repair automatic issues
+                              Apply safe fixes
                             </button>
+                            <small>Only allowlisted optional blocks are removed. Lesson text and author edits stay unchanged.</small>
                           </div>
                         )}
                         {lastTargetedRepairId && (
                           <div className="publication-contract-actions">
                             <button className="button button-quiet" type="button" onClick={() => void runTargetedRepair("undo")} disabled={targetedRepairBusy !== null}>
                               {targetedRepairBusy === "undo" ? <LoaderCircle className="spin" size={15} /> : <RefreshCw size={15} />}
-                              Undo last targeted repair
+                              Undo last safe fix
                             </button>
                           </div>
                         )}
@@ -1115,21 +1022,15 @@ export default function CourseMap() {
                      {publicationFailures.map((failure) => {
                        const [moduleIndex, lessonIndex] = failure.lessonId.split("-").map(Number);
                        const lesson = course.modules[moduleIndex]?.lessons[lessonIndex];
-                       const regenerating = regeneratingLessonId === failure.lessonId;
                        return (
                          <li key={failure.lessonId}>
                            <div>
                              <strong>{lesson?.title ?? `Lesson ${failure.lessonId}`}</strong>
                              <ul>{failure.issues.map((issue) => <li key={issue}>{issue}</li>)}</ul>
                            </div>
-                           <button
-                             className="button button-secondary"
-                             onClick={() => void regenerateLesson(failure.lessonId)}
-                             disabled={updating || bannerBusy || repairingAll || regeneratingLessonId !== null}
-                           >
-                             {regenerating ? <LoaderCircle className="spin" size={16} /> : <RefreshCw size={16} />}
-                             {regenerating ? "Regenerating…" : "Regenerate lesson"}
-                           </button>
+                           <Link className="button button-secondary" href={`/course/${encodeURIComponent(topic)}/lesson/${failure.lessonId}?id=${courseId}`}>
+                             Open affected lesson
+                           </Link>
                          </li>
                        );
                      })}
@@ -1152,7 +1053,7 @@ export default function CourseMap() {
                            setOverrideConfirmed(false);
                            overrideDrawer.openDrawer();
                          }}
-                         disabled={updating || repairingAll || overrideBusy}
+                         disabled={updating || overrideBusy}
                        >
                          Review owner override
                        </button>

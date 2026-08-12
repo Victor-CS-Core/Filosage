@@ -5,7 +5,7 @@ import { inspectCoursePublishReadiness } from "../src/lib/publication-readiness"
 import { publicationCandidateContentFingerprint, publicationContentFingerprint } from "../src/lib/publication-content";
 import { validateCourseCandidateV2, publicationDecisionFromReport } from "../src/lib/course-pipeline/validation";
 import { validationReportSchema } from "../src/lib/course-pipeline/schemas";
-import { COURSE_PIPELINE_VERSIONS } from "../src/lib/course-pipeline/contract";
+import { COURSE_PIPELINE_VERSIONS, type ValidationReport } from "../src/lib/course-pipeline/contract";
 import { assertCourseStageTransition, canTransitionCourseStage } from "../src/lib/course-pipeline/state";
 import { assertRepairBaseSnapshot, buildRepairPlan } from "../src/lib/course-pipeline/repair";
 import { defaultLabApplicability, LAB_CAPABILITY_REGISTRY } from "../src/lib/course-pipeline/labs/registry";
@@ -16,6 +16,7 @@ import { inspectGeneratedContent, languagePolicyInstruction, sanitizeGeneratedTe
 import { withCourseObjectiveRelationships } from "../src/lib/course-pipeline/relationships";
 import { courseOutlineSchema, lessonGenerationSchema } from "../src/lib/validation";
 import { courseUsesPipelineV2, resolveCoursePipelineFeatureFlags } from "../src/lib/course-pipeline/feature-policy";
+import { COURSE_QUALITY_RULES } from "../src/lib/course-pipeline/rules";
 import { buildGuardedLessonSave } from "../src/lib/course-pipeline/lesson-save";
 import { buildInteractionAttemptMutation } from "../src/lib/course-pipeline/interaction-attempt";
 import { resolveFirebaseAuthDomain } from "../src/lib/firebase-auth-domain";
@@ -284,6 +285,37 @@ test("repair plans are snapshot-bound and course stage transitions are explicit"
   expect(() => assertCourseStageTransition("published", "repairing")).toThrow(/invalid course pipeline transition/i);
 });
 
+test("automatic repair plans are limited to the explicit deterministic allowlist", () => {
+  const baseIssue = {
+    severity: "blocker" as const,
+    category: "runtime",
+    path: 'lessons["0-0"].interactions[0]',
+    message: "Unsupported optional block.",
+    repairability: "automatic" as const,
+    source: "runtime" as const,
+    contractVersion: COURSE_PIPELINE_VERSIONS.qualityContract,
+  };
+  const report = {
+    courseId: "safe-repair-course",
+    snapshotHash: "a".repeat(64),
+    contractVersion: COURSE_PIPELINE_VERSIONS.qualityContract,
+    validatedAt: "2026-08-11T12:00:00.000Z",
+    publishable: false,
+    requiresManualReview: false,
+    issues: [
+      { ...baseIssue, code: "CQ_LAB_001" },
+      { ...baseIssue, code: "CQ_FUTURE_001", path: "course.future" },
+    ],
+    warnings: [],
+    passedRuleCodes: [],
+  } satisfies ValidationReport;
+
+  const plan = buildRepairPlan(report);
+  expect(plan.operations).toEqual([expect.objectContaining({ issueCode: "CQ_LAB_001", operation: "remove" })]);
+  expect(plan.manualIssueCodes).toContain("CQ_FUTURE_001");
+  expect(COURSE_QUALITY_RULES.SNAPSHOT_STALE.repairability).toBe("not_applicable");
+});
+
 test("the lab registry advertises no executable code runner", () => {
   expect(Object.keys(LAB_CAPABILITY_REGISTRY)).not.toContain("code-runner");
   expect(Object.keys(LAB_CAPABILITY_REGISTRY)).not.toContain("code-tracing");
@@ -339,7 +371,7 @@ test("publication and repair clients retain retry keys until a response succeeds
     readFile("src/lib/firebase-server.ts", "utf8"),
   ]);
 
-  expect(coursePage).toContain("repairRequestKeysRef.current.get(repairKey) ?? createClientId()");
+  expect(coursePage).toContain("repairRequestKeysRef.current.get(requestScope) ?? createClientId()");
   expect(coursePage).toContain("publicationRequestKeysRef.current.get(publicationKey) ?? createClientId()");
   expect(publishRoute).toContain("IDEMPOTENCY_KEY_REQUIRED");
   expect(publishRoute).toContain("priorMutation?.key === mutationKey");
@@ -452,7 +484,9 @@ test("targeted repair is allowlisted, snapshot-bound, idempotent, and undo rejec
   expect(storageSource).toContain("Repair rule ${operation.issueCode} cannot modify ${target.field}.");
   expect(storageSource).toContain("A repaired lesson changed after the repair. Undo cannot overwrite newer edits.");
   expect(storageSource).toContain("undoOperations");
-  expect(repairSource).toContain('operation: issue.code === "CQ_STRUCTURE_001"');
+  expect(repairSource).toContain('SAFE_DETERMINISTIC_REPAIR_CODES = new Set(["CQ_LAB_001", "CQ_VISUAL_003"])');
+  expect(repairSource).toContain('operation: "remove"');
+  expect(repairSource).not.toContain('operation: "regenerate_subtree"');
 });
 
 test("requested course language controls the instruction contract", () => {

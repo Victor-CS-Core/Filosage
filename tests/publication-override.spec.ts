@@ -326,15 +326,15 @@ test("targeted V2 repair applies diagnosed paths, revalidates, and offers undo",
   await page.locator("details.course-owner-controls > summary").click();
   await page.getByLabel(/I reviewed every lesson/).check();
   await page.getByRole("button", { name: "Review and publish" }).click();
-  await page.getByRole("button", { name: "Repair automatic issues" }).click();
-  await expect(page.getByText("Targeted repair applied and the complete course was revalidated.")).toBeVisible();
+  await page.getByRole("button", { name: "Apply safe fixes" }).click();
+  await expect(page.getByText("Safe fix applied and the complete course was revalidated.")).toBeVisible();
   expect((await new AxeBuilder({ page }).include(".publication-contract-report").analyze()).violations).toEqual([]);
-  await page.getByRole("button", { name: "Undo last targeted repair" }).click();
-  await expect(page.getByText("Targeted repair undone without overwriting newer edits.")).toBeVisible();
+  await page.getByRole("button", { name: "Undo last safe fix" }).click();
+  await expect(page.getByText("Safe fix undone without overwriting newer edits.")).toBeVisible();
   expect(repairActions).toEqual(["apply", "undo"]);
 });
 
-test("repair all regenerates each rejected lesson and applies the returned preflight", async ({ page }) => {
+test("publication failures preserve complete lessons and link to the affected content", async ({ page }) => {
   await restoreLocalLearner(page);
   const courseId = "repair-all-course";
   const failures = ["0-0", "0-1"].map((lessonId) => ({
@@ -391,9 +391,9 @@ test("repair all regenerates each rejected lesson and applies the returned prefl
   await page.locator("details.course-owner-controls > summary").click();
   await page.getByLabel(/I reviewed every lesson/).check();
   await page.getByRole("button", { name: "Review and publish" }).click();
-  await page.getByRole("button", { name: "Repair all 2 lessons" }).click();
-
-  await expect(page.getByText("Repair complete. Review the replacement lessons before publishing.")).toBeVisible();
-  expect(calls).toEqual(["0-0", "0-1"]);
+  await expect(page.getByText(/Filosage will not replace complete lessons or author edits automatically/)).toBeVisible();
+  await expect(page.getByRole("link", { name: "Open affected lesson" })).toHaveCount(2);
+  await expect(page.getByRole("button", { name: /Repair all|Regenerate lesson/ })).toHaveCount(0);
+  expect(calls).toEqual([]);
   await expect(page.getByRole("button", { name: "Regenerate lesson" })).toHaveCount(0);
 });

@@ -110,7 +110,7 @@ export const COURSE_QUALITY_RULES = {
     code: "CQ_LANGUAGE_001", version: 1, purpose: "Require generated instruction to use the requested language or bilingual combination", classification: "deterministic", severity: "blocker", source: "deterministic", repairability: "assisted", suggestedAction: "Regenerate or translate the affected instructional fields in the requested language.",
   },
   SNAPSHOT_STALE: {
-    code: "CQ_PUBLICATION_001", version: 1, purpose: "Publish only the exact validated snapshot", classification: "deterministic", severity: "blocker", source: "runtime", repairability: "automatic", suggestedAction: "Revalidate the current draft before publishing.",
+    code: "CQ_PUBLICATION_001", version: 1, purpose: "Publish only the exact validated snapshot", classification: "deterministic", severity: "blocker", source: "runtime", repairability: "not_applicable", suggestedAction: "Revalidate the current draft before publishing.",
   },
 } as const satisfies Record<string, QualityRuleDefinition>;
 

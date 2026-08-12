@@ -13,8 +13,11 @@ export interface RepairPlan {
   manualIssueCodes: string[];
 }
 
+const SAFE_DETERMINISTIC_REPAIR_CODES = new Set(["CQ_LAB_001", "CQ_VISUAL_003"]);
+
 export function buildRepairPlan(report: ValidationReport): RepairPlan {
-  const automaticIssues = report.issues.filter((issue) => issue.repairability === "automatic");
+  const automaticIssues = report.issues.filter((issue) =>
+    issue.repairability === "automatic" && SAFE_DETERMINISTIC_REPAIR_CODES.has(issue.code));
   return {
     courseId: report.courseId,
     baseSnapshotHash: report.snapshotHash,
@@ -22,15 +25,13 @@ export function buildRepairPlan(report: ValidationReport): RepairPlan {
     operations: automaticIssues.map((issue) => ({
       issueCode: issue.code,
       targetPath: issue.path,
-      operation: issue.code === "CQ_STRUCTURE_001"
-        ? "regenerate_subtree"
-        : issue.code === "CQ_LAB_001" || issue.code === "CQ_VISUAL_003"
-          ? "remove"
-          : "replace",
+      operation: "remove",
       rationale: issue.message,
     })),
     manualIssueCodes: report.issues
-      .filter((issue) => issue.repairability === "manual" || issue.repairability === "assisted")
+      .filter((issue) => issue.repairability === "manual"
+        || issue.repairability === "assisted"
+        || (issue.repairability === "automatic" && !SAFE_DETERMINISTIC_REPAIR_CODES.has(issue.code)))
       .map((issue) => issue.code),
   };
 }
