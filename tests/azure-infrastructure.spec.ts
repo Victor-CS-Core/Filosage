@@ -16,6 +16,7 @@ const promotionWorkflowSource = readFileSync(".github/workflows/azure-promote-st
 const azureBicepSource = readFileSync("infra/azure/main.bicep", "utf8");
 const qaBicepSource = readFileSync("infra/azure/qa.bicep", "utf8");
 const robotsSource = readFileSync("src/app/robots.ts", "utf8");
+const sitemapSource = readFileSync("src/app/sitemap.ts", "utf8");
 const proxySourceWithQa = readFileSync("src/proxy.ts", "utf8");
 const migrationVerifierSource = readFileSync("scripts/verify-azure-authored-courses.ts", "utf8");
 const migrationCompletionSource = readFileSync("scripts/complete-azure-course-bundle.ts", "utf8");
@@ -147,6 +148,8 @@ test("isolated QA scales to zero and keeps its data stores separate", () => {
   expect(qaWorkflowSource).toContain("AZURE_QA_CONTAINER_APP_NAME");
   expect(qaWorkflowSource).toContain('npm run check:production -- "$QA_URL" "$GITHUB_SHA" "$QA_URL"');
   expect(robotsSource).toContain('disallow: "/"');
+  expect(robotsSource).toContain('export const dynamic = "force-dynamic"');
+  expect(sitemapSource).toContain('export const dynamic = "force-dynamic"');
   expect(proxySourceWithQa).toContain('X-Robots-Tag');
 });
 

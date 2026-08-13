@@ -2,6 +2,8 @@ import type { MetadataRoute } from "next";
 import { isQaEnvironment } from "@/lib/deployment-environment";
 import { serverEnvironment } from "@/lib/runtime-environment";
 
+export const dynamic = "force-dynamic";
+
 export default function robots(): MetadataRoute.Robots {
   const base = serverEnvironment.NEXT_PUBLIC_SITE_URL ?? "https://filosage.com";
   if (isQaEnvironment(serverEnvironment)) {
