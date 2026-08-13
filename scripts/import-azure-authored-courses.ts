@@ -1,7 +1,7 @@
 import { readFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import pg from "pg";
-import { BlobServiceClient } from "@azure/storage-blob";
+import { BlobClient, BlobServiceClient } from "@azure/storage-blob";
 import { DefaultAzureCredential } from "@azure/identity";
 import { fromFirestoreFields, type FirestoreValue } from "../src/lib/firestore-values.ts";
 
@@ -13,9 +13,14 @@ interface MigrationBundle {
 }
 
 const inputArgument = process.argv.find((value) => value.startsWith("--input="))?.slice(8);
+const inputBlobArgument = process.argv.find((value) => value.startsWith("--input-blob="))?.slice(13);
 const apply = process.argv.includes("--apply");
 const inputPath = resolve(inputArgument || "migration-private/firebase-authored-courses.json");
-const bundle = JSON.parse(await readFile(inputPath, "utf8")) as MigrationBundle;
+if (inputArgument && inputBlobArgument) throw new Error("Use either --input or --input-blob, not both.");
+const input = inputBlobArgument
+  ? (await new BlobClient(inputBlobArgument, new DefaultAzureCredential()).downloadToBuffer()).toString("utf8")
+  : await readFile(inputPath, "utf8");
+const bundle = JSON.parse(input) as MigrationBundle;
 if (bundle.schemaVersion !== 1 || !Array.isArray(bundle.documents) || !Array.isArray(bundle.bannerObjects)) {
   throw new Error("Unsupported or invalid migration bundle.");
 }
