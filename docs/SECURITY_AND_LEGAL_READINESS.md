@@ -51,7 +51,7 @@ This document is an engineering and launch-readiness record, not legal advice.
 
 ## Known residual risks
 
-- The CSP permits inline scripts because the current statically optimized Sites build uses an inline theme bootstrap. A nonce-based CSP would require dynamic rendering and should be evaluated with the hosting architecture rather than applied piecemeal.
+- The Azure-hosted Next.js runtime uses request-specific CSP nonces. Styles still permit inline declarations because the current UI uses framework and component-generated inline styles; tightening this remains a separately tested hardening task.
 - AI moderation reduces abuse but cannot guarantee that every unsafe or inaccurate output is detected. Pro authors may publish only after server-verified sequential lesson completion, attestation, and a fresh automated publication review; the owner retains platform-wide quarantine, unpublish, and deletion control.
 - Provider security logs, abuse-monitoring records, backups, consent records, and legally required records may outlive active account deletion under the disclosed retention rules.
 - The owner account cannot be deleted automatically because doing so could orphan control of published courses. It requires a verified manual transfer or service-shutdown process.
@@ -64,7 +64,7 @@ This document is an engineering and launch-readiness record, not legal advice.
 
 ## Operational checks per release
 
-- Run lint, production build, Sites build, end-to-end flows, npm audit, and a tracked-file secret scan.
+- Run lint, TypeScript, the production build, proportionate end-to-end flows, npm audit, and a tracked-file secret scan. Deploy only an immutable full-SHA image through the Azure blue/green workflow.
 - Test Google sign-in on desktop Chrome and mobile Safari, including return-to-app persistence.
 - Verify public endpoints do not return `authorId`, email, service credentials, billing identifiers, or moderation details.
 - Test cross-origin, wrong-content-type, oversized-body, malformed JSON, forged-progress, and quota-exhaustion responses.

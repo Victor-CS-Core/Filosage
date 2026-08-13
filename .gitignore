@@ -20,7 +20,6 @@
 
 # production
 /build/*
-!/build/sites-vite-plugin.ts
 /dist/
 
 # Local development store (credential-free local mode)
@@ -30,8 +29,6 @@
 /.azure-*-login-*.txt
 /.google-cloud-login-*.txt
 
-# Sites / Cloudflare local state
-/.wrangler/
 /.agents/skills/impeccable/
 /.codex/
 

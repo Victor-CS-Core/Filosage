@@ -1,5 +1,4 @@
 import { spawnSync } from "node:child_process";
-import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { expect, test } from "@playwright/test";
 
@@ -159,25 +158,4 @@ test("billing activation requires every Plus and Pro Stripe price", ({ request }
   });
   expect(duplicatePrice.status).toBe(1);
   expect(duplicatePrice.stderr).toContain("All four current Stripe Price IDs must be unique");
-});
-
-test("pins the Sites compatibility date below the nodejs_compat rejection boundary", ({ request }, testInfo) => {
-  void request;
-  test.skip(testInfo.project.name !== "chromium", "One deployment metadata contract is sufficient.");
-
-  const viteConfig = readFileSync(resolve(root, "vite.config.ts"), "utf8");
-  const packageJson = JSON.parse(readFileSync(resolve(root, "package.json"), "utf8")) as { scripts: Record<string, string> };
-  const sitesBuild = readFileSync(resolve(root, "scripts/build-sites-local.mjs"), "utf8");
-  const packagePreparation = readFileSync(resolve(root, "scripts/prepare-sites-package.mjs"), "utf8");
-  expect(viteConfig).toContain('const sitesProductionCompatibilityDate = "2026-08-03"');
-  expect(viteConfig).not.toContain('const sitesProductionCompatibilityDate = "2026-08-04"');
-  expect(viteConfig).toContain('assetFileNames: "assets/[name]-[hash].[ext]"');
-  expect(viteConfig).not.toContain('"assets/app.css"');
-  expect(viteConfig).toContain('"@/lib/local-store": workerSafeLocalStorePath');
-  expect(packageJson.scripts["build:sites"]).toContain("node scripts/build-sites-local.mjs");
-  expect(sitesBuild).toContain('import nextEnvironment from "@next/env"');
-  expect(sitesBuild).toContain("const { loadEnvConfig } = nextEnvironment");
-  expect(sitesBuild).toContain("loadEnvConfig(projectDirectory");
-  expect(packagePreparation).toContain("delete wranglerConfig.compatibility_flags");
-  expect(packagePreparation).toContain('const nodeCompatibilityFlag = ["nodejs", "compat"].join("_")');
 });

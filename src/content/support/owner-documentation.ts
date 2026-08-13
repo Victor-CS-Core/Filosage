@@ -190,13 +190,13 @@ export const ownerDocumentation: OwnerDocumentation = {
     {
       id: "release-and-recovery",
       title: "Release, health, and recovery",
-      summary: "Distinguish a validated build, a Git publication, and a live Sites deployment.",
+      summary: "Distinguish a validated build, a Git publication, and a live Azure deployment.",
       topics: [
         {
           title: "Release acceptance",
           body: "A source build does not prove production health. For an exact release, verify the intended commit, the hosted version marker, the production health endpoint, datastore connectivity, billing state, and visible behavior on the deployed URL. Keep unrelated local changes out of the release.",
           steps: [
-            "Run lint, focused tests, the full build, and the Sites build.",
+            "Run lint, TypeScript, focused tests, and the full production build.",
             "Publish the exact validated source revision.",
             "Confirm the hosted version and production health endpoint.",
             "Perform visible acceptance on the changed owner and learner flows.",
@@ -207,7 +207,7 @@ export const ownerDocumentation: OwnerDocumentation = {
           body: "If a release is unhealthy, stop new consequential work, preserve evidence, activate the relevant kill switch, and restore the last known-good version. Never diagnose from a single dashboard number when the live route and datastore can be checked directly.",
         },
       ],
-      sources: ["docs/PRODUCTION_OPERATIONS.md", "docs/agent-command-center/incident-response.md", "src/app/api/health/route.ts", "scripts/check-production.mjs", ".openai/hosting.json"],
+      sources: ["docs/PRODUCTION_OPERATIONS.md", "docs/AZURE_MIGRATION_RUNBOOK.md", "docs/agent-command-center/incident-response.md", "src/app/api/health/route.ts", "scripts/check-production-health.mjs", ".github/workflows/azure-staging.yml", ".github/workflows/azure-promote-staging.yml"],
     },
   ],
 };

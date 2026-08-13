@@ -1,6 +1,6 @@
 # Azure-native migration runbook
 
-Status: Central US staging foundation, External ID/Google federation, immutable blue/green deployment, authored-course import, content-fidelity verification, and PostgreSQL point-in-time restore rehearsal are complete. Owner Google sign-in acceptance is still pending. No production traffic has been cut over.
+Status: Azure is the active host for `filosage.com` and `www.filosage.com`. Central US infrastructure, External ID/Google federation, immutable blue/green deployment, authored-course import, content-fidelity verification, PostgreSQL point-in-time restore rehearsal, managed TLS, DNS cutover, and retirement of the former Sites host are complete. Owner Google sign-in acceptance is still pending.
 
 ## Approved decisions
 
@@ -56,7 +56,7 @@ Create or select an Entra External ID external tenant and configure:
 - token issuer, audience, and JWKS values;
 - a separate confidential Graph application only if automatic identity deletion is approved, with the narrow required application permission and admin consent.
 
-The external tenant is `filosagecustomers.onmicrosoft.com`. `Filosage Web` exposes `access_as_user`, requests the email claim in access and ID tokens, is attached to the `Filosage Customers` sign-up/sign-in flow, and has localhost plus the base, blue, and green Container Apps origins registered as SPA redirects. Google is configured as a federated provider and the application passes `domain_hint=google` so Google remains the primary sign-in path. Email/password remains a recovery method. `OWNER_EMAIL=viticopq12@gmail.com` is the server-side owner boundary and still requires a verified token email match.
+The external tenant is `filosagecustomers.onmicrosoft.com`. `Filosage Web` exposes `access_as_user`, requests the email claim in access and ID tokens, is attached to the `Filosage Customers` sign-up/sign-in flow, and has localhost, the base/blue/green Container Apps origins, `https://filosage.com`, and `https://www.filosage.com` registered as SPA redirects. Google is configured as a federated provider and the application passes `domain_hint=google` so Google remains the primary sign-in path. Email/password remains a recovery method. `OWNER_EMAIL=viticopq12@gmail.com` is the server-side owner boundary and still requires a verified token email match.
 
 The Google OAuth client used by External ID must retain the complete Microsoft callback set below. On 2026-08-12, a live Google sign-in exposed `redirect_uri_mismatch` because the client contained only one CIAM callback. These exact callbacks were added to the existing `Filosage Entra External ID` client and re-read from Google Cloud after saving:
 
@@ -85,7 +85,7 @@ npm.cmd run migrate:azure:import-courses
 npm.cmd run migrate:azure:import-courses -- --apply
 ```
 
-The Azure importer is create-only: it fails if any target document or blob already exists. Import only after the PostgreSQL schema migration has completed and the operator has verified the target connection. The verified source bundle contains 9 owner-authored courses, 106 lessons, 9 referenced banners, 133 allowlisted documents total, and no user/progress/analytics paths. The independent Azure verification job `filosagestg-course-verify` succeeded on 2026-08-12 and compared every canonical PostgreSQL JSON value plus every Blob byte and MIME type against the private source bundle. It confirmed exactly 133 documents (9 courses and 106 lessons), 9 banners, no unexpected migrated records, and content fingerprint `588c4e2334c555ea0078de9e3cb1dd93e6d5df91dab626513f4233b5bf938757`. Do not delete Firebase data during migration or staging acceptance.
+The Azure importer is create-only: it fails if any target document or blob already exists. Import only after the PostgreSQL schema migration has completed and the operator has verified the target connection. The verified source bundle contains 9 owner-authored courses, 106 lessons, 9 referenced banners, 133 allowlisted documents total, and no user/progress/analytics paths. The independent Azure verification job `filosagestg-course-verify` was rerun after cutover preparation on 2026-08-13 and compared every canonical PostgreSQL JSON value plus every Blob byte and MIME type against the private source bundle. Execution `filosagestg-course-verify-2z2jqjf` succeeded with exactly 133 documents (9 courses and 106 lessons), 9 banners, no unexpected migrated records, and content fingerprint `588c4e2334c555ea0078de9e3cb1dd93e6d5df91dab626513f4233b5bf938757`. The legacy Firebase data was not deleted.
 
 ## Gate 6: staging acceptance
 
@@ -101,12 +101,13 @@ Restore evidence: on 2026-08-12, Azure restored the 2026-08-13T01:28:00Z point i
 
 ## Gate 7: domain cutover
 
-Only after staging acceptance and explicit approval:
+Completed on 2026-08-13:
 
-1. Add and validate the custom domain on Container Apps.
-2. Add the production redirect/logout URI in Entra External ID.
-3. Lower DNS TTL, preserve all existing mail records, and change only the required web records.
-4. Verify TLS, redirects, sign-in, health SHA, public courses, private owner access, and mail delivery.
-5. Retain the previous hosting/data source as a read-only rollback path through the acceptance window.
+1. Azure managed certificates were issued and SNI-bound for `filosage.com` and `www.filosage.com`.
+2. Both origins were registered as Entra SPA redirects; the Microsoft-owned Google federation callbacks were preserved unchanged.
+3. GoDaddy apex web records were replaced with `4.249.188.219`, and `www` now aliases `filosagestg-app.salmontree-eb10220f.centralus.azurecontainerapps.io`. Existing MX, SPF, DKIM, DMARC, Apple verification, and other non-web records were preserved.
+4. GitHub Actions run `31662271485` deployed commit `023aefa5c7d67c627e3d8bf6a53a8eea933ac93a` to green and proved its SHA, datastore health, and `https://filosage.com` canonical origin before promotion. Run `31662814607` promoted green to 100% traffic.
+5. Public health succeeded through the apex. `www` returned a permanent HTTPS redirect to the matching apex path with CSP and HSTS retained.
+6. Both custom domains were detached from Sites, its generated URL was changed from public to a custom allowlist containing only `viticopq12@gmail.com`, and the obsolete Sites build/deployment configuration was removed from the repository.
 
-Rollback changes DNS back to the prior host and stops Azure writes. It does not delete either data source. Any reverse synchronization is a separately reviewed operation.
+Keep the Azure blue slot as the zero-traffic rollback candidate. A rollback promotes an already verified exact-SHA slot; it does not restore the retired Sites DNS records or delete either data source.

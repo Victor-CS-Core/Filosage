@@ -1,45 +1,4 @@
 (function () {
-  var assetRecoveryKey = "filosage-asset-recovery";
-
-  function recoverFromMissingAsset(assetId) {
-    var recoveryUrl = new URL(window.location.href);
-    if (recoveryUrl.searchParams.has("asset-recovery")) return false;
-
-    try {
-      if (sessionStorage.getItem(assetRecoveryKey) === assetId) return false;
-      sessionStorage.setItem(assetRecoveryKey, assetId);
-    } catch (error) {
-      // The URL marker still prevents a reload loop when storage is unavailable.
-    }
-
-    recoveryUrl.searchParams.set("asset-recovery", Date.now().toString());
-    window.location.replace(recoveryUrl.toString());
-    return true;
-  }
-
-  function dynamicImportAsset(reason) {
-    var message = reason && typeof reason.message === "string" ? reason.message : String(reason || "");
-    if (!/failed to fetch dynamically imported module|importing a module script failed|error loading dynamically imported module/i.test(message)) return null;
-    var match = message.match(/https?:\/\/[^\s)\]]+\/assets\/[^\s)\]]+\.js|\/assets\/[^\s)\]]+\.js/i);
-    return match ? match[0] : "dynamic-import:" + window.location.pathname;
-  }
-
-  window.addEventListener("error", function (event) {
-    var target = event.target;
-    if (!target || target.tagName !== "SCRIPT" || !target.src || target.src.indexOf("/assets/") === -1) return;
-    recoverFromMissingAsset(target.src);
-  }, true);
-
-  window.addEventListener("vite:preloadError", function (event) {
-    var assetId = dynamicImportAsset(event.payload);
-    if (assetId && recoverFromMissingAsset(assetId)) event.preventDefault();
-  });
-
-  window.addEventListener("unhandledrejection", function (event) {
-    var assetId = dynamicImportAsset(event.reason);
-    if (assetId && recoverFromMissingAsset(assetId)) event.preventDefault();
-  });
-
   var theme = "light";
   try {
     var stored = localStorage.getItem("filosage-theme") || localStorage.getItem("teach-theme");

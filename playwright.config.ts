@@ -44,8 +44,6 @@ export default defineConfig({
   metadata: server.external
     ? {}
     : { filosagePlaywrightLifecycleDirs: ownedProjects.map((project) => project.lifecycleDir) },
-  // This spec owns a separate vinext production server via its own config.
-  testIgnore: "sites-smoke.spec.ts",
   fullyParallel: true,
   forbidOnly: Boolean(process.env.CI),
   retries: process.env.CI ? 2 : 0,

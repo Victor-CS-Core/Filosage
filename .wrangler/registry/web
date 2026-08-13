@@ -1,0 +1,5 @@
+{
+  "debugPortAddress": "127.0.0.1:51040",
+  "defaultEntrypointService": "assets:rpc-proxy:web",
+  "userWorkerService": "core:user:web"
+}
