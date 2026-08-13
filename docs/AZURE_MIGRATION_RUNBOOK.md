@@ -1,6 +1,6 @@
 # Azure-native migration runbook
 
-Status: Central US staging foundation, External ID/Google federation, immutable application deployment, and authored-course import are provisioned. Blue/green staging acceptance is in progress. No production traffic has been cut over.
+Status: Central US staging foundation, External ID/Google federation, immutable blue/green deployment, authored-course import, content-fidelity verification, and PostgreSQL point-in-time restore rehearsal are complete. Owner Google sign-in acceptance is still pending. No production traffic has been cut over.
 
 ## Approved decisions
 
@@ -75,7 +75,7 @@ npm.cmd run migrate:azure:import-courses
 npm.cmd run migrate:azure:import-courses -- --apply
 ```
 
-The Azure importer is create-only: it fails if any target document or blob already exists. Import only after the PostgreSQL schema migration has completed and the operator has verified the target connection. The verified source bundle contains 9 owner-authored courses, 106 lessons, 9 referenced banners, 133 allowlisted documents total, and no user/progress/analytics paths. The independent Azure verification job `filosagestg-course-verify` succeeded on 2026-08-12 and confirmed exactly 133 PostgreSQL documents (9 courses and 106 lessons) plus 9 Blob Storage banners. Do not delete Firebase data during migration or staging acceptance.
+The Azure importer is create-only: it fails if any target document or blob already exists. Import only after the PostgreSQL schema migration has completed and the operator has verified the target connection. The verified source bundle contains 9 owner-authored courses, 106 lessons, 9 referenced banners, 133 allowlisted documents total, and no user/progress/analytics paths. The independent Azure verification job `filosagestg-course-verify` succeeded on 2026-08-12 and compared every canonical PostgreSQL JSON value plus every Blob byte and MIME type against the private source bundle. It confirmed exactly 133 documents (9 courses and 106 lessons), 9 banners, no unexpected migrated records, and content fingerprint `588c4e2334c555ea0078de9e3cb1dd93e6d5df91dab626513f4233b5bf938757`. Do not delete Firebase data during migration or staging acceptance.
 
 ## Gate 6: staging acceptance
 
@@ -85,6 +85,8 @@ The Azure importer is create-only: it fails if any target document or blob alrea
 - Test owner course read/edit/generation, lesson read/edit, banner retrieval, publish/unpublish, privacy export/deletion, admin access, rate limiting, alerts, and scale-from-zero behavior.
 - Verify PostgreSQL automated backup recovery-window evidence.
 - Perform point-in-time restore into a separate recovery server, verify representative preserved course/lesson/banner records, then obtain separate approval before deleting the recovery server.
+
+Restore evidence: on 2026-08-12, Azure restored the 2026-08-13T01:28:00Z point into a separate private `Standard_B1ms` server attached to the staging PostgreSQL subnet and private DNS zone. The content verifier reproduced fingerprint `588c4e2334c555ea0078de9e3cb1dd93e6d5df91dab626513f4233b5bf938757` from that recovery database. The temporary server was then removed, the verifier was returned to the primary hostname, and the original server remained `Ready` with seven-day retention.
 - Keep `BILLING_ENABLED=false`.
 
 ## Gate 7: domain cutover
