@@ -19,7 +19,6 @@ const authority = process.env.NEXT_PUBLIC_ENTRA_AUTHORITY?.trim();
 const clientId = process.env.NEXT_PUBLIC_ENTRA_CLIENT_ID?.trim();
 const apiScope = process.env.NEXT_PUBLIC_ENTRA_API_SCOPE?.trim();
 const configuredRedirectUri = process.env.NEXT_PUBLIC_ENTRA_REDIRECT_URI?.trim();
-const googleIssuerHint = { domain_hint: "google" };
 
 export const isEntraConfigured = Boolean(authority && clientId && apiScope);
 
@@ -95,7 +94,6 @@ export async function signInWithEntraPopup() {
   const result = await instance.loginPopup({
     scopes: [apiScope],
     prompt: "select_account",
-    extraQueryParameters: googleIssuerHint,
   });
   if (!result.account) throw new Error("Microsoft Entra did not return an account.");
   instance.setActiveAccount(result.account);
@@ -108,7 +106,6 @@ export async function signInWithEntraRedirect() {
   await instance.loginRedirect({
     scopes: [apiScope],
     prompt: "select_account",
-    extraQueryParameters: googleIssuerHint,
   });
 }
 
@@ -122,7 +119,6 @@ export async function reauthenticateWithEntra() {
     scopes: [apiScope],
     prompt: "login",
     maxAge: 0,
-    extraQueryParameters: googleIssuerHint,
   });
   if (result.account) instance.setActiveAccount(result.account);
   if (!result.idToken) throw new Error("Microsoft Entra did not return a reauthentication proof.");

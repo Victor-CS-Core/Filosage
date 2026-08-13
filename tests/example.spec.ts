@@ -819,14 +819,15 @@ test("lets guests browse outlines while clearly gating lessons behind an account
   await expect(dialog).toBeVisible();
   await expect(dialog).toContainText("browse published topics and inspect every course outline without an account");
   await expect(
-    dialog.getByRole("button", { name: "Continue with Google" }),
+    dialog.getByRole("button", { name: "Continue to Google sign-in" }),
   ).toBeDisabled();
   await expect(
-    dialog.getByRole("button", { name: "Sign in with Google in this tab" }),
+    dialog.getByRole("button", { name: "Open Google sign-in in this tab" }),
   ).toBeDisabled();
   await dialog.getByRole("checkbox").check();
-  await expect(dialog.getByRole("button", { name: "Continue with Google" })).toBeEnabled();
-  await expect(dialog.getByRole("button", { name: "Sign in with Google in this tab" })).toBeEnabled();
+  await expect(dialog.getByRole("button", { name: "Continue to Google sign-in" })).toBeEnabled();
+  await expect(dialog.getByRole("button", { name: "Open Google sign-in in this tab" })).toBeEnabled();
+  await expect(dialog).toContainText("Choose Google on Microsoft's secure sign-in page");
   await expect(dialog).toContainText("when a browser closes or blocks the sign-in window");
   await expect(dialog.getByRole("link", { name: "Terms of Service" })).toHaveAttribute("href", "/terms");
 });

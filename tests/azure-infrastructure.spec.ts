@@ -38,9 +38,9 @@ test("Azure status avoids presenting configuration as invoice or restore proof",
   expect(infrastructureSource).toContain("configuration alone is not recovery proof");
 });
 
-test("customer sign-in accelerates to Google while retaining the External ID flow", () => {
-  expect(identityClientSource).toContain('domain_hint: "google"');
-  expect(identityClientSource).toContain("extraQueryParameters: googleIssuerHint");
+test("customer sign-in uses the External ID provider picker without the broken Google issuer hint", () => {
+  expect(identityClientSource).not.toContain("domain_hint");
+  expect(identityClientSource).not.toContain("extraQueryParameters");
   expect(identityClientSource).toContain('prompt: "select_account"');
 });
 

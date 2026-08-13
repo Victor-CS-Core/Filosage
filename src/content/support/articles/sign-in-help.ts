@@ -11,7 +11,7 @@ export default defineSupportArticle({
   body: `
 ## If the sign-in window does not open
 
-Allow popups for Filosage, then try Google sign-in again. If the sign-in window closes, is blocked, or does not load in an embedded browser, choose **Sign in with Google in this tab**. That option returns you to the same Filosage page after Google confirms your account.
+Allow popups for Filosage, then try Google sign-in again. Choose **Google** on Microsoft's secure sign-in page. If the sign-in window closes, is blocked, or does not load in an embedded browser, choose **Open Google sign-in in this tab**. That option returns you to the same Filosage page after Google confirms your account.
 
 ## If browser storage is unavailable
 
