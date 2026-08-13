@@ -14,26 +14,30 @@ if (!/^[a-f0-9]{40}$/i.test(expectedVersion)) {
 }
 
 const healthUrl = new URL("/api/health", target).toString();
-const controller = new AbortController();
-const timeout = setTimeout(() => controller.abort(), 10_000);
-try {
-  const response = await fetch(healthUrl, {
-    headers: { "User-Agent": "Filosage-Release-Check/1.0" },
-    signal: controller.signal,
-  });
-  const body = await response.json().catch(() => null);
-  if (!response.ok || body?.ok !== true || body?.checks?.datastore !== true) {
-    console.error(`Production health check failed (${response.status}).`);
-    process.exitCode = 1;
-  } else if (body?.version !== expectedVersion) {
-    console.error(`Production version mismatch: expected ${expectedVersion}, received ${body?.version ?? "no version"}.`);
-    process.exitCode = 1;
-  } else {
-    console.log(`Production health is healthy${body.version ? ` (version ${body.version})` : ""}.`);
+const attempts = 12;
+let lastFailure = "unknown error";
+for (let attempt = 1; attempt <= attempts; attempt += 1) {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 15_000);
+  try {
+    const response = await fetch(healthUrl, {
+      headers: { "User-Agent": "Filosage-Release-Check/1.0" },
+      signal: controller.signal,
+    });
+    const body = await response.json().catch(() => null);
+    if (response.ok && body?.ok === true && body?.checks?.datastore === true && body?.version === expectedVersion) {
+      console.log(`Production health is healthy (version ${body.version}).`);
+      process.exit(0);
+    }
+    lastFailure = body?.version && body.version !== expectedVersion
+      ? `version mismatch: expected ${expectedVersion}, received ${body.version}`
+      : `health endpoint returned ${response.status}`;
+  } catch (error) {
+    lastFailure = error instanceof Error ? error.message : "unknown error";
+  } finally {
+    clearTimeout(timeout);
   }
-} catch (error) {
-  console.error(`Production health check failed: ${error instanceof Error ? error.message : "unknown error"}`);
-  process.exitCode = 1;
-} finally {
-  clearTimeout(timeout);
+  if (attempt < attempts) await new Promise((resolve) => setTimeout(resolve, 10_000));
 }
+console.error(`Production health check failed after ${attempts} attempts: ${lastFailure}`);
+process.exit(1);
