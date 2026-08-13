@@ -20,13 +20,19 @@ const requiredInProduction = [
   "ACTIVITY_RECEIPT_SECRET",
   "AZURE_POSTGRES_SERVER_NAME",
   "AZURE_RESOURCE_GROUP",
+] as const;
+
+const requiredForProductionOperations = [
   "OPERATIONS_ALERT_WEBHOOK_URL",
   "OPERATIONS_ALERT_WEBHOOK_SECRET",
 ] as const;
 
 export function missingRuntimeConfiguration() {
   if (serverEnvironment.NODE_ENV !== "production") return [] as string[];
-  return requiredInProduction.filter((name) => !serverEnvironment[name]?.trim());
+  const required = serverEnvironment.OPERATIONS_ENVIRONMENT?.trim() === "production"
+    ? [...requiredInProduction, ...requiredForProductionOperations]
+    : requiredInProduction;
+  return required.filter((name) => !serverEnvironment[name]?.trim());
 }
 
 export function billingConfiguration() {

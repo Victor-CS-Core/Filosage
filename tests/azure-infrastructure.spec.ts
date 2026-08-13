@@ -4,6 +4,7 @@ import { readFileSync } from "node:fs";
 const infrastructureSource = readFileSync("src/lib/azure-infrastructure.ts", "utf8");
 const releaseSource = readFileSync("scripts/check-release-env.mjs", "utf8");
 const identityClientSource = readFileSync("src/lib/identity-client.ts", "utf8");
+const runtimeConfigSource = readFileSync("src/lib/runtime-config.ts", "utf8");
 
 test("Azure infrastructure inventory names every production platform service", () => {
   expect(infrastructureSource).toContain("Microsoft Entra External ID");
@@ -30,4 +31,9 @@ test("customer sign-in accelerates to Google while retaining the External ID flo
   expect(identityClientSource).toContain('domain_hint: "google"');
   expect(identityClientSource).toContain("extraQueryParameters: googleIssuerHint");
   expect(identityClientSource).toContain('prompt: "select_account"');
+});
+
+test("staging health does not claim production alert delivery is configured", () => {
+  expect(runtimeConfigSource).toContain('OPERATIONS_ENVIRONMENT?.trim() === "production"');
+  expect(runtimeConfigSource).toContain("requiredForProductionOperations");
 });
