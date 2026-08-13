@@ -25,7 +25,7 @@ jobs:
 
       - run: npm ci
       - run: npm run lint
-      - run: npx tsc --noEmit
+      - run: npx tsc --noEmit --incremental false
       - run: npm run build
         env:
           NEXT_PUBLIC_SITE_URL: ${{ vars.AZURE_STAGING_URL }}
@@ -70,7 +70,13 @@ jobs:
             --resource-group "${{ vars.AZURE_RESOURCE_GROUP }}" \
             --name "${{ vars.AZURE_CONTAINER_APP_NAME }}" \
             --image "$IMAGE" \
-            --set-env-vars "SITE_VERSION=${GITHUB_SHA}"
+            --set-env-vars \
+              "SITE_VERSION=${GITHUB_SHA}" \
+              "NEXT_PUBLIC_SITE_URL=${{ vars.AZURE_STAGING_URL }}" \
+              "NEXT_PUBLIC_ENTRA_CLIENT_ID=${{ vars.ENTRA_CLIENT_ID }}" \
+              "NEXT_PUBLIC_ENTRA_AUTHORITY=${{ vars.ENTRA_AUTHORITY }}" \
+              "NEXT_PUBLIC_ENTRA_API_SCOPE=${{ vars.ENTRA_API_SCOPE }}" \
+              "NEXT_PUBLIC_ENTRA_REDIRECT_URI=${{ vars.AZURE_STAGING_URL }}"
 
       - name: Verify the deployed commit
         run: npm run check:production -- "${{ vars.AZURE_STAGING_URL }}" "${GITHUB_SHA}"

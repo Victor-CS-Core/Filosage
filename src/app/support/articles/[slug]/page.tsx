@@ -11,11 +11,15 @@ import { SUPPORT_CONTACT } from "@/lib/legal";
 
 export const dynamicParams = false;
 
+interface SupportArticlePageProps {
+  params: Promise<{ slug: string }>;
+}
+
 export function generateStaticParams() {
   return supportArticles.map((article) => ({ slug: article.slug }));
 }
 
-export async function generateMetadata({ params }: PageProps<"/support/articles/[slug]">): Promise<Metadata> {
+export async function generateMetadata({ params }: SupportArticlePageProps): Promise<Metadata> {
   const { slug } = await params;
   const article = getSupportArticle(slug);
   if (!article) return {};
@@ -26,7 +30,7 @@ export async function generateMetadata({ params }: PageProps<"/support/articles/
   };
 }
 
-export default async function SupportArticlePage({ params }: PageProps<"/support/articles/[slug]">) {
+export default async function SupportArticlePage({ params }: SupportArticlePageProps) {
   const { slug } = await params;
   const article = getSupportArticle(slug);
   if (!article) notFound();
