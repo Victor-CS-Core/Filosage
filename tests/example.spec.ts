@@ -1736,7 +1736,7 @@ test("frames each course around an outcome and mastery", async ({ page }) => {
   await page.goto("/course/Systems%20thinking?id=demo");
 
   await expect(page.getByText("Course outcome")).toBeVisible();
-  await expect(page.getByText("AI-assisted course")).toBeVisible();
+  await expect(page.getByText("AI-assisted course", { exact: true })).toBeVisible();
   await expect(page.locator("[data-ai-assisted='true']")).toHaveCount(1);
   await expect(page.locator(".course-banner-hero[data-generated='true'] img")).toBeVisible();
   await expect(page.getByText("By the end")).toBeVisible();
