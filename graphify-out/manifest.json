@@ -1,0 +1,2780 @@
+{
+  "D:\\dev\\filosage\\.impeccable\\live\\config.json": {
+    "mtime": 1786648887.815933,
+    "seen": 1786650398.9600685,
+    "ast_hash": "c184d8fda88f0e143400c7cece17983f",
+    "semantic_hash": "c184d8fda88f0e143400c7cece17983f"
+  },
+  "D:\\dev\\filosage\\.oxlintrc.json": {
+    "mtime": 1786648887.815933,
+    "seen": 1786650398.9600737,
+    "ast_hash": "d78be00a981cb16baebcab712a3b9df8",
+    "semantic_hash": "d78be00a981cb16baebcab712a3b9df8"
+  },
+  "D:\\dev\\filosage\\docs\\support\\wiki-feature-map.json": {
+    "mtime": 1786648887.8626044,
+    "seen": 1786650398.9600763,
+    "ast_hash": "e8d7b60b23072f300d33a71a96d66cfc",
+    "semantic_hash": "e8d7b60b23072f300d33a71a96d66cfc"
+  },
+  "D:\\dev\\filosage\\eslint.config.mjs": {
+    "mtime": 1786648887.8626044,
+    "seen": 1786650398.9600775,
+    "ast_hash": "50f7835d5454a6ab20ae9b38e8ad0cbe",
+    "semantic_hash": "50f7835d5454a6ab20ae9b38e8ad0cbe"
+  },
+  "D:\\dev\\filosage\\evals\\course-pipeline\\dataset\\v1.ts": {
+    "mtime": 1786648887.8626044,
+    "seen": 1786650398.9600785,
+    "ast_hash": "d3294701b0f008ea0116e1a156997936",
+    "semantic_hash": "d3294701b0f008ea0116e1a156997936"
+  },
+  "D:\\dev\\filosage\\evals\\course-pipeline\\scorers\\invariants.ts": {
+    "mtime": 1786648887.8626044,
+    "seen": 1786650398.9600794,
+    "ast_hash": "afdde73471d84d0598e49814baaac832",
+    "semantic_hash": "afdde73471d84d0598e49814baaac832"
+  },
+  "D:\\dev\\filosage\\firebase.json": {
+    "mtime": 1786648887.8626044,
+    "seen": 1786650398.9600804,
+    "ast_hash": "329a07d924bb83a4cff275b2a7796050",
+    "semantic_hash": "329a07d924bb83a4cff275b2a7796050"
+  },
+  "D:\\dev\\filosage\\firestore.indexes.json": {
+    "mtime": 1786648887.8626044,
+    "seen": 1786650398.960081,
+    "ast_hash": "921cc4cf6e6890eb2452010e665ed750",
+    "semantic_hash": "921cc4cf6e6890eb2452010e665ed750"
+  },
+  "D:\\dev\\filosage\\infra\\azure\\database\\001_document_store.sql": {
+    "mtime": 1786648887.8626044,
+    "seen": 1786650398.9600823,
+    "ast_hash": "ca95370bd1e25b15e13a420817d0880f",
+    "semantic_hash": "ca95370bd1e25b15e13a420817d0880f"
+  },
+  "D:\\dev\\filosage\\next.config.ts": {
+    "mtime": 1786648887.8626044,
+    "seen": 1786650398.960083,
+    "ast_hash": "b02672d35131cb62941cd3b508189806",
+    "semantic_hash": "b02672d35131cb62941cd3b508189806"
+  },
+  "D:\\dev\\filosage\\package.json": {
+    "mtime": 1786648887.8626044,
+    "seen": 1786650398.9600837,
+    "ast_hash": "abc28362ee101a9823f00ecb0a9e597e",
+    "semantic_hash": "abc28362ee101a9823f00ecb0a9e597e"
+  },
+  "D:\\dev\\filosage\\playwright.config.ts": {
+    "mtime": 1786648887.8626044,
+    "seen": 1786650398.9600847,
+    "ast_hash": "092898f4bd0f67bd3b3bdb776cb38a9c",
+    "semantic_hash": "092898f4bd0f67bd3b3bdb776cb38a9c"
+  },
+  "D:\\dev\\filosage\\public\\brand\\asset-manifest.json": {
+    "mtime": 1786648887.8626044,
+    "seen": 1786650398.9600854,
+    "ast_hash": "c300c299e21167e40d201c0035bf76b1",
+    "semantic_hash": "c300c299e21167e40d201c0035bf76b1"
+  },
+  "D:\\dev\\filosage\\public\\theme-bootstrap.js": {
+    "mtime": 1786648887.92608,
+    "seen": 1786650398.9600866,
+    "ast_hash": "7c96e8003529ef143dc64259e1e0353d",
+    "semantic_hash": "7c96e8003529ef143dc64259e1e0353d"
+  },
+  "D:\\dev\\filosage\\scripts\\check-production-health.mjs": {
+    "mtime": 1786648887.92608,
+    "seen": 1786650398.9600873,
+    "ast_hash": "a92705ad075e633958e66ef9d4c75833",
+    "semantic_hash": "a92705ad075e633958e66ef9d4c75833"
+  },
+  "D:\\dev\\filosage\\scripts\\check-release-env.mjs": {
+    "mtime": 1786648887.92608,
+    "seen": 1786650398.960088,
+    "ast_hash": "80cf5cc0a3aefd292e41c1102a855f49",
+    "semantic_hash": "80cf5cc0a3aefd292e41c1102a855f49"
+  },
+  "D:\\dev\\filosage\\scripts\\check-support-wiki.mjs": {
+    "mtime": 1786648887.92608,
+    "seen": 1786650398.9600887,
+    "ast_hash": "2a297bd589eb3d16082952de1de391ae",
+    "semantic_hash": "2a297bd589eb3d16082952de1de391ae"
+  },
+  "D:\\dev\\filosage\\scripts\\complete-azure-course-bundle.ts": {
+    "mtime": 1786648887.92608,
+    "seen": 1786650398.9600897,
+    "ast_hash": "4fb4b5b2008c2914615f553ffc1de842",
+    "semantic_hash": "4fb4b5b2008c2914615f553ffc1de842"
+  },
+  "D:\\dev\\filosage\\scripts\\evaluate-command-center-drafts.ts": {
+    "mtime": 1786648887.92608,
+    "seen": 1786650398.9600904,
+    "ast_hash": "3d6545290f7af89c1f56d5f75e6a3c6e",
+    "semantic_hash": "3d6545290f7af89c1f56d5f75e6a3c6e"
+  },
+  "D:\\dev\\filosage\\scripts\\evaluate-model-quality.ts": {
+    "mtime": 1786648887.92608,
+    "seen": 1786650398.960091,
+    "ast_hash": "dab65fde549c8cf66c9d1dbd83cf4244",
+    "semantic_hash": "dab65fde549c8cf66c9d1dbd83cf4244"
+  },
+  "D:\\dev\\filosage\\scripts\\export-firebase-authored-courses.ts": {
+    "mtime": 1786648887.92608,
+    "seen": 1786650398.9600918,
+    "ast_hash": "311cc35257fda786293d211767ced455",
+    "semantic_hash": "311cc35257fda786293d211767ced455"
+  },
+  "D:\\dev\\filosage\\scripts\\generate-brand-assets.mjs": {
+    "mtime": 1786648887.92608,
+    "seen": 1786650398.9600928,
+    "ast_hash": "a54752fd934568e66ab7d3775f54f9ef",
+    "semantic_hash": "a54752fd934568e66ab7d3775f54f9ef"
+  },
+  "D:\\dev\\filosage\\scripts\\import-azure-authored-courses.ts": {
+    "mtime": 1786648887.933509,
+    "seen": 1786650398.9600942,
+    "ast_hash": "643ced16d3147544dca5868765422fd1",
+    "semantic_hash": "643ced16d3147544dca5868765422fd1"
+  },
+  "D:\\dev\\filosage\\scripts\\migrate-azure-database.ts": {
+    "mtime": 1786648887.933509,
+    "seen": 1786650398.960095,
+    "ast_hash": "72cf38728d5e4b22a1e6cdf4e8d62244",
+    "semantic_hash": "72cf38728d5e4b22a1e6cdf4e8d62244"
+  },
+  "D:\\dev\\filosage\\scripts\\operations-script-support.ts": {
+    "mtime": 1786648887.933509,
+    "seen": 1786650398.9600956,
+    "ast_hash": "560ffad16a1e12e07a26832dab99b042",
+    "semantic_hash": "560ffad16a1e12e07a26832dab99b042"
+  },
+  "D:\\dev\\filosage\\scripts\\playwright-next-server.mjs": {
+    "mtime": 1786648887.933509,
+    "seen": 1786650398.9600966,
+    "ast_hash": "51e0a31e319aa037182217a9a59f527e",
+    "semantic_hash": "51e0a31e319aa037182217a9a59f527e"
+  },
+  "D:\\dev\\filosage\\scripts\\playwright-server-lifecycle.mjs": {
+    "mtime": 1786648887.933509,
+    "seen": 1786650398.9600973,
+    "ast_hash": "ef584be676476c12e3ef9a99c793900d",
+    "semantic_hash": "ef584be676476c12e3ef9a99c793900d"
+  },
+  "D:\\dev\\filosage\\scripts\\test-operational-alert.ts": {
+    "mtime": 1786648887.935514,
+    "seen": 1786650398.9600983,
+    "ast_hash": "086cc65fa74ab8d8e1a789fa2fb1a2fc",
+    "semantic_hash": "086cc65fa74ab8d8e1a789fa2fb1a2fc"
+  },
+  "D:\\dev\\filosage\\scripts\\verify-azure-authored-courses.ts": {
+    "mtime": 1786648887.935514,
+    "seen": 1786650398.9600987,
+    "ast_hash": "2234ababfc61601a92072e1374eae0a0",
+    "semantic_hash": "2234ababfc61601a92072e1374eae0a0"
+  },
+  "D:\\dev\\filosage\\skills-lock.json": {
+    "mtime": 1786648887.935514,
+    "seen": 1786650398.9600997,
+    "ast_hash": "b8a0feea02021b5025ea33add66810c5",
+    "semantic_hash": "b8a0feea02021b5025ea33add66810c5"
+  },
+  "D:\\dev\\filosage\\src\\app\\acceptable-use\\page.tsx": {
+    "mtime": 1786648887.935514,
+    "seen": 1786650398.9601007,
+    "ast_hash": "f0d3c016e3df05aba5aed55c8a4690d3",
+    "semantic_hash": "f0d3c016e3df05aba5aed55c8a4690d3"
+  },
+  "D:\\dev\\filosage\\src\\app\\admin\\command-center\\page.tsx": {
+    "mtime": 1786648887.9375193,
+    "seen": 1786650398.9601014,
+    "ast_hash": "e7c0410e10403f35d8d4e596196004ce",
+    "semantic_hash": "e7c0410e10403f35d8d4e596196004ce"
+  },
+  "D:\\dev\\filosage\\src\\app\\admin\\layout.tsx": {
+    "mtime": 1786648887.9375193,
+    "seen": 1786650398.960102,
+    "ast_hash": "d60cb7960a9ece2da014d73f10d47c69",
+    "semantic_hash": "d60cb7960a9ece2da014d73f10d47c69"
+  },
+  "D:\\dev\\filosage\\src\\app\\admin\\page.tsx": {
+    "mtime": 1786648887.9375193,
+    "seen": 1786650398.9601028,
+    "ast_hash": "e406c8934f0d7cc70272750f3858ee4e",
+    "semantic_hash": "e406c8934f0d7cc70272750f3858ee4e"
+  },
+  "D:\\dev\\filosage\\src\\app\\api\\account\\data\\route.ts": {
+    "mtime": 1786648887.9375193,
+    "seen": 1786650398.9601038,
+    "ast_hash": "431d82ea68a110528745fadf2f14342d",
+    "semantic_hash": "431d82ea68a110528745fadf2f14342d"
+  },
+  "D:\\dev\\filosage\\src\\app\\api\\account\\identity\\route.ts": {
+    "mtime": 1786648887.9375193,
+    "seen": 1786650398.9601045,
+    "ast_hash": "3c1a40b5ac1e23ac9539a0886e9ff82d",
+    "semantic_hash": "3c1a40b5ac1e23ac9539a0886e9ff82d"
+  },
+  "D:\\dev\\filosage\\src\\app\\api\\account\\route.ts": {
+    "mtime": 1786648887.9375193,
+    "seen": 1786650398.9601052,
+    "ast_hash": "54ac0da5e70d99b645932347c49919d7",
+    "semantic_hash": "54ac0da5e70d99b645932347c49919d7"
+  },
+  "D:\\dev\\filosage\\src\\app\\api\\admin\\command-center\\approvals\\[approvalId]\\route.ts": {
+    "mtime": 1786648887.9375193,
+    "seen": 1786650398.960106,
+    "ast_hash": "6f1bd5592b77f53f170b8f08000c42d5",
+    "semantic_hash": "6f1bd5592b77f53f170b8f08000c42d5"
+  },
+  "D:\\dev\\filosage\\src\\app\\api\\admin\\command-center\\approvals\\route.ts": {
+    "mtime": 1786648887.9375193,
+    "seen": 1786650398.960107,
+    "ast_hash": "4af4c9ff1921ea2ce3eb48a6fa963a38",
+    "semantic_hash": "4af4c9ff1921ea2ce3eb48a6fa963a38"
+  },
+  "D:\\dev\\filosage\\src\\app\\api\\admin\\command-center\\controls\\route.ts": {
+    "mtime": 1786648887.942152,
+    "seen": 1786650398.9601078,
+    "ast_hash": "ee2be24dce6b40f7801db7d01d688969",
+    "semantic_hash": "ee2be24dce6b40f7801db7d01d688969"
+  },
+  "D:\\dev\\filosage\\src\\app\\api\\admin\\command-center\\drafts\\[draftId]\\route.ts": {
+    "mtime": 1786648887.942152,
+    "seen": 1786650398.9601088,
+    "ast_hash": "d601f663014e9fac9f249979b117f64f",
+    "semantic_hash": "d601f663014e9fac9f249979b117f64f"
+  },
+  "D:\\dev\\filosage\\src\\app\\api\\admin\\command-center\\drafts\\route.ts": {
+    "mtime": 1786648887.942152,
+    "seen": 1786650398.9601092,
+    "ast_hash": "a729df7e08e8e74a2272eb30276d148d",
+    "semantic_hash": "a729df7e08e8e74a2272eb30276d148d"
+  },
+  "D:\\dev\\filosage\\src\\app\\api\\admin\\command-center\\route.ts": {
+    "mtime": 1786648887.942152,
+    "seen": 1786650398.9601104,
+    "ast_hash": "ad91788257e4b6984c71cfb506626b84",
+    "semantic_hash": "ad91788257e4b6984c71cfb506626b84"
+  },
+  "D:\\dev\\filosage\\src\\app\\api\\admin\\command-center\\tickets\\[ticketId]\\public-replies\\route.ts": {
+    "mtime": 1786648887.942152,
+    "seen": 1786650398.9601116,
+    "ast_hash": "a6835ce3f5caa39aefee84414a08b2b8",
+    "semantic_hash": "a6835ce3f5caa39aefee84414a08b2b8"
+  },
+  "D:\\dev\\filosage\\src\\app\\api\\admin\\command-center\\tickets\\[ticketId]\\route.ts": {
+    "mtime": 1786648887.942152,
+    "seen": 1786650398.9601126,
+    "ast_hash": "0c3ad89d4f84effbe71fda53a32c72f6",
+    "semantic_hash": "0c3ad89d4f84effbe71fda53a32c72f6"
+  },
+  "D:\\dev\\filosage\\src\\app\\api\\admin\\command-center\\tickets\\route.ts": {
+    "mtime": 1786648887.942152,
+    "seen": 1786650398.9601135,
+    "ast_hash": "f9ec733fa51e0f963d15cb8845e1652f",
+    "semantic_hash": "f9ec733fa51e0f963d15cb8845e1652f"
+  },
+  "D:\\dev\\filosage\\src\\app\\api\\admin\\content-reports\\[reportId]\\route.ts": {
+    "mtime": 1786648887.942152,
+    "seen": 1786650398.9601142,
+    "ast_hash": "6a07eff83862bcedf3e37f48d12e8adf",
+    "semantic_hash": "6a07eff83862bcedf3e37f48d12e8adf"
+  },
+  "D:\\dev\\filosage\\src\\app\\api\\admin\\courses\\[courseId]\\manual-review\\route.ts": {
+    "mtime": 1786648887.942152,
+    "seen": 1786650398.960115,
+    "ast_hash": "0b727431d0fa81faac29f6ee28610cef",
+    "semantic_hash": "0b727431d0fa81faac29f6ee28610cef"
+  },
+  "D:\\dev\\filosage\\src\\app\\api\\admin\\courses\\[courseId]\\pipeline-events\\route.ts": {
+    "mtime": 1786648887.942152,
+    "seen": 1786650398.9601157,
+    "ast_hash": "8014eb73ad7e3b4d34a4d3c60fc769bd",
+    "semantic_hash": "8014eb73ad7e3b4d34a4d3c60fc769bd"
+  },
+  "D:\\dev\\filosage\\src\\app\\api\\admin\\courses\\[courseId]\\publication-override\\route.ts": {
+    "mtime": 1786648887.942152,
+    "seen": 1786650398.9601164,
+    "ast_hash": "99a96420c7589daa120d28c67963b8e2",
+    "semantic_hash": "99a96420c7589daa120d28c67963b8e2"
+  },
+  "D:\\dev\\filosage\\src\\app\\api\\admin\\overview\\route.ts": {
+    "mtime": 1786648887.942152,
+    "seen": 1786650398.9601176,
+    "ast_hash": "03da55c36d6c89ae963ac7bc2ab09056",
+    "semantic_hash": "03da55c36d6c89ae963ac7bc2ab09056"
+  },
+  "D:\\dev\\filosage\\src\\app\\api\\admin\\users\\[uid]\\route.ts": {
+    "mtime": 1786648887.942152,
+    "seen": 1786650398.9601183,
+    "ast_hash": "e3e3205546198f5d7858c1b36d3c3d63",
+    "semantic_hash": "e3e3205546198f5d7858c1b36d3c3d63"
+  },
+  "D:\\dev\\filosage\\src\\app\\api\\assess-baseline\\route.ts": {
+    "mtime": 1786648887.942152,
+    "seen": 1786650398.960119,
+    "ast_hash": "bbdf982a930a3dbdf1f8956539864ab5",
+    "semantic_hash": "bbdf982a930a3dbdf1f8956539864ab5"
+  },
+  "D:\\dev\\filosage\\src\\app\\api\\assess-capstone\\route.ts": {
+    "mtime": 1786648887.942152,
+    "seen": 1786650398.9601197,
+    "ast_hash": "f3f0d4e607a0c2140e9e9a57ca5b0a04",
+    "semantic_hash": "f3f0d4e607a0c2140e9e9a57ca5b0a04"
+  },
+  "D:\\dev\\filosage\\src\\app\\api\\auth\\session\\route.ts": {
+    "mtime": 1786648887.942152,
+    "seen": 1786650398.9601207,
+    "ast_hash": "a5716e9818e99524b60630d15c89d708",
+    "semantic_hash": "a5716e9818e99524b60630d15c89d708"
+  },
+  "D:\\dev\\filosage\\src\\app\\api\\billing\\checkout\\route.ts": {
+    "mtime": 1786648887.942152,
+    "seen": 1786650398.9601214,
+    "ast_hash": "0b7780453d7be064f195270c39aa59cf",
+    "semantic_hash": "0b7780453d7be064f195270c39aa59cf"
+  },
+  "D:\\dev\\filosage\\src\\app\\api\\billing\\portal\\route.ts": {
+    "mtime": 1786648887.942152,
+    "seen": 1786650398.960122,
+    "ast_hash": "3827a2f8e65a562362e87deb2917a6f6",
+    "semantic_hash": "3827a2f8e65a562362e87deb2917a6f6"
+  },
+  "D:\\dev\\filosage\\src\\app\\api\\billing\\status\\route.ts": {
+    "mtime": 1786648887.942152,
+    "seen": 1786650398.9601228,
+    "ast_hash": "01aad640f06de6d71af973809c2591be",
+    "semantic_hash": "01aad640f06de6d71af973809c2591be"
+  },
+  "D:\\dev\\filosage\\src\\app\\api\\billing\\webhook\\route.ts": {
+    "mtime": 1786648887.942152,
+    "seen": 1786650398.9601235,
+    "ast_hash": "0f38b81d2756cab18724e5599554bed4",
+    "semantic_hash": "0f38b81d2756cab18724e5599554bed4"
+  },
+  "D:\\dev\\filosage\\src\\app\\api\\chat\\route.ts": {
+    "mtime": 1786648887.942152,
+    "seen": 1786650398.9601247,
+    "ast_hash": "e6ebc859bb1118b2b8c0c314e7b05462",
+    "semantic_hash": "e6ebc859bb1118b2b8c0c314e7b05462"
+  },
+  "D:\\dev\\filosage\\src\\app\\api\\content-reports\\route.ts": {
+    "mtime": 1786648887.942152,
+    "seen": 1786650398.9601257,
+    "ast_hash": "39338754b13c1368f47fe60e5f461a2e",
+    "semantic_hash": "39338754b13c1368f47fe60e5f461a2e"
+  },
+  "D:\\dev\\filosage\\src\\app\\api\\course-banners\\[assetId]\\route.ts": {
+    "mtime": 1786648887.942152,
+    "seen": 1786650398.9601264,
+    "ast_hash": "81d1f38e1c765eebbdb1c9f0752a7c7d",
+    "semantic_hash": "81d1f38e1c765eebbdb1c9f0752a7c7d"
+  },
+  "D:\\dev\\filosage\\src\\app\\api\\courses\\[courseId]\\banner\\route.ts": {
+    "mtime": 1786648887.942152,
+    "seen": 1786650398.960127,
+    "ast_hash": "37cf97230b9add2ddf96e3edbe5d50d6",
+    "semantic_hash": "37cf97230b9add2ddf96e3edbe5d50d6"
+  },
+  "D:\\dev\\filosage\\src\\app\\api\\courses\\[courseId]\\lessons\\[lessonId]\\route.ts": {
+    "mtime": 1786648887.942152,
+    "seen": 1786650398.960128,
+    "ast_hash": "43b3e565a122d71dd8f63c99f8ff2ea4",
+    "semantic_hash": "43b3e565a122d71dd8f63c99f8ff2ea4"
+  },
+  "D:\\dev\\filosage\\src\\app\\api\\courses\\[courseId]\\repair\\route.ts": {
+    "mtime": 1786648887.942152,
+    "seen": 1786650398.9601288,
+    "ast_hash": "b4bd753099dafc8932136be127381a97",
+    "semantic_hash": "b4bd753099dafc8932136be127381a97"
+  },
+  "D:\\dev\\filosage\\src\\app\\api\\courses\\[courseId]\\route.ts": {
+    "mtime": 1786648887.942152,
+    "seen": 1786650398.9601295,
+    "ast_hash": "72935da928e92990a2269aaaf916f2d0",
+    "semantic_hash": "72935da928e92990a2269aaaf916f2d0"
+  },
+  "D:\\dev\\filosage\\src\\app\\api\\courses\\[courseId]\\validation\\route.ts": {
+    "mtime": 1786648887.942152,
+    "seen": 1786650398.9601302,
+    "ast_hash": "ace9d8df9344af4410844872d321bbef",
+    "semantic_hash": "ace9d8df9344af4410844872d321bbef"
+  },
+  "D:\\dev\\filosage\\src\\app\\api\\courses\\route.ts": {
+    "mtime": 1786648887.942152,
+    "seen": 1786650398.9601312,
+    "ast_hash": "57b56d16924b182e51e6419671328461",
+    "semantic_hash": "57b56d16924b182e51e6419671328461"
+  },
+  "D:\\dev\\filosage\\src\\app\\api\\generate-course\\route.ts": {
+    "mtime": 1786648887.942152,
+    "seen": 1786650398.960132,
+    "ast_hash": "14dac89826b02c918e079a2118380a6c",
+    "semantic_hash": "14dac89826b02c918e079a2118380a6c"
+  },
+  "D:\\dev\\filosage\\src\\app\\api\\generate-lesson\\route.ts": {
+    "mtime": 1786648887.9582772,
+    "seen": 1786650398.9601326,
+    "ast_hash": "9f9b824507cac2c177a51679f735f68e",
+    "semantic_hash": "9f9b824507cac2c177a51679f735f68e"
+  },
+  "D:\\dev\\filosage\\src\\app\\api\\health\\route.ts": {
+    "mtime": 1786648887.9582772,
+    "seen": 1786650398.9601333,
+    "ast_hash": "2e31fee58bb35ef25af9c525f1b34030",
+    "semantic_hash": "2e31fee58bb35ef25af9c525f1b34030"
+  },
+  "D:\\dev\\filosage\\src\\app\\api\\learner-state\\route.ts": {
+    "mtime": 1786648887.9598444,
+    "seen": 1786650398.9601345,
+    "ast_hash": "62762616b75bed52167379f584acd17e",
+    "semantic_hash": "62762616b75bed52167379f584acd17e"
+  },
+  "D:\\dev\\filosage\\src\\app\\api\\legal\\acceptance\\route.ts": {
+    "mtime": 1786648887.9611595,
+    "seen": 1786650398.960135,
+    "ast_hash": "b80ac34e82e4a809669304f9c42e9383",
+    "semantic_hash": "b80ac34e82e4a809669304f9c42e9383"
+  },
+  "D:\\dev\\filosage\\src\\app\\api\\lesson-activity\\route.ts": {
+    "mtime": 1786648887.9611595,
+    "seen": 1786650398.960136,
+    "ast_hash": "7fe32404fe38a9e5e0c3a346680fa0c8",
+    "semantic_hash": "7fe32404fe38a9e5e0c3a346680fa0c8"
+  },
+  "D:\\dev\\filosage\\src\\app\\api\\lesson-interaction\\route.ts": {
+    "mtime": 1786648887.9611595,
+    "seen": 1786650398.9601367,
+    "ast_hash": "8e799868ffaa6d9b58e386e064489d80",
+    "semantic_hash": "8e799868ffaa6d9b58e386e064489d80"
+  },
+  "D:\\dev\\filosage\\src\\app\\api\\mastery\\route.ts": {
+    "mtime": 1786648887.962669,
+    "seen": 1786650398.9601378,
+    "ast_hash": "ea2c410764832e4788a83e07c9eda4b2",
+    "semantic_hash": "ea2c410764832e4788a83e07c9eda4b2"
+  },
+  "D:\\dev\\filosage\\src\\app\\api\\outcome-feedback\\route.ts": {
+    "mtime": 1786648887.9633324,
+    "seen": 1786650398.9601386,
+    "ast_hash": "6866f8a2251358a7477509ba89c9f1ab",
+    "semantic_hash": "6866f8a2251358a7477509ba89c9f1ab"
+  },
+  "D:\\dev\\filosage\\src\\app\\api\\pricing-intent\\route.ts": {
+    "mtime": 1786648887.9633324,
+    "seen": 1786650398.9601417,
+    "ast_hash": "12f509f4c5ba068376343916f1218faa",
+    "semantic_hash": "12f509f4c5ba068376343916f1218faa"
+  },
+  "D:\\dev\\filosage\\src\\app\\api\\progress\\route.ts": {
+    "mtime": 1786648887.9643753,
+    "seen": 1786650398.9601424,
+    "ast_hash": "113958c7f3a5cd362f81af40132d0836",
+    "semantic_hash": "113958c7f3a5cd362f81af40132d0836"
+  },
+  "D:\\dev\\filosage\\src\\app\\api\\referrals\\route.ts": {
+    "mtime": 1786648887.9643753,
+    "seen": 1786650398.960143,
+    "ast_hash": "dd0658fa424afaa5895bfab6136a740a",
+    "semantic_hash": "dd0658fa424afaa5895bfab6136a740a"
+  },
+  "D:\\dev\\filosage\\src\\app\\api\\support\\articles\\route.ts": {
+    "mtime": 1786648887.965377,
+    "seen": 1786650398.960144,
+    "ast_hash": "eb31a1b07e2dde05a23230ac6352a02b",
+    "semantic_hash": "eb31a1b07e2dde05a23230ac6352a02b"
+  },
+  "D:\\dev\\filosage\\src\\app\\api\\support\\owner-documentation\\route.ts": {
+    "mtime": 1786648887.965377,
+    "seen": 1786650398.960145,
+    "ast_hash": "ee31c8decfe171dd248a7e30ced695db",
+    "semantic_hash": "ee31c8decfe171dd248a7e30ced695db"
+  },
+  "D:\\dev\\filosage\\src\\app\\api\\support\\tickets\\[ticketId]\\route.ts": {
+    "mtime": 1786648887.9663777,
+    "seen": 1786650398.960146,
+    "ast_hash": "6ee03b2615346cec0d278997c8de6803",
+    "semantic_hash": "6ee03b2615346cec0d278997c8de6803"
+  },
+  "D:\\dev\\filosage\\src\\app\\api\\support\\tickets\\route.ts": {
+    "mtime": 1786648887.9673755,
+    "seen": 1786650398.9601467,
+    "ast_hash": "b67e60bcf7aa5b7a007ee67ad1e35fe5",
+    "semantic_hash": "b67e60bcf7aa5b7a007ee67ad1e35fe5"
+  },
+  "D:\\dev\\filosage\\src\\app\\api\\telemetry\\route.ts": {
+    "mtime": 1786648887.9673755,
+    "seen": 1786650398.9601474,
+    "ast_hash": "3602c3fe0f146809c863e7943d2e186a",
+    "semantic_hash": "3602c3fe0f146809c863e7943d2e186a"
+  },
+  "D:\\dev\\filosage\\src\\app\\api\\waitlist\\route.ts": {
+    "mtime": 1786648887.9683778,
+    "seen": 1786650398.9601483,
+    "ast_hash": "ed83159223b7cab1096ab73e6502491d",
+    "semantic_hash": "ed83159223b7cab1096ab73e6502491d"
+  },
+  "D:\\dev\\filosage\\src\\app\\copyright\\page.tsx": {
+    "mtime": 1786648887.9683778,
+    "seen": 1786650398.9601502,
+    "ast_hash": "75b5c594eebee3ec235cb58d528c8302",
+    "semantic_hash": "75b5c594eebee3ec235cb58d528c8302"
+  },
+  "D:\\dev\\filosage\\src\\app\\course\\[topic]\\layout.tsx": {
+    "mtime": 1786648887.9693778,
+    "seen": 1786650398.960151,
+    "ast_hash": "9da8ea88127aae2e4aa22c0fd4ad3f45",
+    "semantic_hash": "9da8ea88127aae2e4aa22c0fd4ad3f45"
+  },
+  "D:\\dev\\filosage\\src\\app\\course\\[topic]\\lesson\\[lessonId]\\page.tsx": {
+    "mtime": 1786648887.9703767,
+    "seen": 1786650398.960152,
+    "ast_hash": "78bb1524988b4addfafb78ce8d4e474a",
+    "semantic_hash": "78bb1524988b4addfafb78ce8d4e474a"
+  },
+  "D:\\dev\\filosage\\src\\app\\course\\[topic]\\page.tsx": {
+    "mtime": 1786648887.9713774,
+    "seen": 1786650398.9601526,
+    "ast_hash": "8e724f701fbcc23896baf361bd9ab176",
+    "semantic_hash": "8e724f701fbcc23896baf361bd9ab176"
+  },
+  "D:\\dev\\filosage\\src\\app\\create\\layout.tsx": {
+    "mtime": 1786648887.9723158,
+    "seen": 1786650398.9601533,
+    "ast_hash": "1894b5a2553f7658d09acbc13a337b04",
+    "semantic_hash": "1894b5a2553f7658d09acbc13a337b04"
+  },
+  "D:\\dev\\filosage\\src\\app\\create\\page.tsx": {
+    "mtime": 1786648887.9723158,
+    "seen": 1786650398.960154,
+    "ast_hash": "e7652a2bc0c05036a37512e7db1f69a9",
+    "semantic_hash": "e7652a2bc0c05036a37512e7db1f69a9"
+  },
+  "D:\\dev\\filosage\\src\\app\\error.tsx": {
+    "mtime": 1786648887.9734232,
+    "seen": 1786650398.9601548,
+    "ast_hash": "05c8da6e36d86ac82de60a376094f139",
+    "semantic_hash": "05c8da6e36d86ac82de60a376094f139"
+  },
+  "D:\\dev\\filosage\\src\\app\\evidence\\[courseId]\\page.tsx": {
+    "mtime": 1786648887.9744277,
+    "seen": 1786650398.9601557,
+    "ast_hash": "9010bd15ca78e32d107ea371c9b13c31",
+    "semantic_hash": "9010bd15ca78e32d107ea371c9b13c31"
+  },
+  "D:\\dev\\filosage\\src\\app\\evidence\\layout.tsx": {
+    "mtime": 1786648887.9744277,
+    "seen": 1786650398.9601564,
+    "ast_hash": "225a5bd5670079cc23d7ebb2ce55712f",
+    "semantic_hash": "225a5bd5670079cc23d7ebb2ce55712f"
+  },
+  "D:\\dev\\filosage\\src\\app\\global-error.tsx": {
+    "mtime": 1786648887.9754243,
+    "seen": 1786650398.9601572,
+    "ast_hash": "fa6dbf9e7f7af4a7f93c323b187c4b77",
+    "semantic_hash": "fa6dbf9e7f7af4a7f93c323b187c4b77"
+  },
+  "D:\\dev\\filosage\\src\\app\\layout.tsx": {
+    "mtime": 1786648887.9784205,
+    "seen": 1786650398.9601579,
+    "ast_hash": "008c7dc2a055ccb028553d4100ac0ca5",
+    "semantic_hash": "008c7dc2a055ccb028553d4100ac0ca5"
+  },
+  "D:\\dev\\filosage\\src\\app\\library\\layout.tsx": {
+    "mtime": 1786648887.9796448,
+    "seen": 1786650398.9601588,
+    "ast_hash": "ce0e2744502d7ecaa5579f02c7f6436d",
+    "semantic_hash": "ce0e2744502d7ecaa5579f02c7f6436d"
+  },
+  "D:\\dev\\filosage\\src\\app\\library\\page.tsx": {
+    "mtime": 1786648887.9796448,
+    "seen": 1786650398.9601595,
+    "ast_hash": "5a0e29ad8ec0d17a8f29af2010055d06",
+    "semantic_hash": "5a0e29ad8ec0d17a8f29af2010055d06"
+  },
+  "D:\\dev\\filosage\\src\\app\\manifest.ts": {
+    "mtime": 1786648887.980643,
+    "seen": 1786650398.9601605,
+    "ast_hash": "1b86770c5f282251324bc21da75ec1da",
+    "semantic_hash": "1b86770c5f282251324bc21da75ec1da"
+  },
+  "D:\\dev\\filosage\\src\\app\\not-found.tsx": {
+    "mtime": 1786648887.980643,
+    "seen": 1786650398.960161,
+    "ast_hash": "d0c809bd4d50bc0ef1664c5e2fa09407",
+    "semantic_hash": "d0c809bd4d50bc0ef1664c5e2fa09407"
+  },
+  "D:\\dev\\filosage\\src\\app\\page.tsx": {
+    "mtime": 1786648887.9816442,
+    "seen": 1786650398.9601617,
+    "ast_hash": "45beca250492791901245ae9a8e2648f",
+    "semantic_hash": "45beca250492791901245ae9a8e2648f"
+  },
+  "D:\\dev\\filosage\\src\\app\\pricing\\layout.tsx": {
+    "mtime": 1786648887.982125,
+    "seen": 1786650398.9601626,
+    "ast_hash": "f5c1bccc547319d4c4e315804a6dc918",
+    "semantic_hash": "f5c1bccc547319d4c4e315804a6dc918"
+  },
+  "D:\\dev\\filosage\\src\\app\\pricing\\page.tsx": {
+    "mtime": 1786648887.9824586,
+    "seen": 1786650398.9601634,
+    "ast_hash": "5100fd0850867c7c6dcb2592ecfdf366",
+    "semantic_hash": "5100fd0850867c7c6dcb2592ecfdf366"
+  },
+  "D:\\dev\\filosage\\src\\app\\privacy-center\\layout.tsx": {
+    "mtime": 1786648887.9831538,
+    "seen": 1786650398.9601643,
+    "ast_hash": "d73b03fa3ac45ab18eb6c2606a3f3b8b",
+    "semantic_hash": "d73b03fa3ac45ab18eb6c2606a3f3b8b"
+  },
+  "D:\\dev\\filosage\\src\\app\\privacy-center\\page.tsx": {
+    "mtime": 1786648887.9831538,
+    "seen": 1786650398.960165,
+    "ast_hash": "f9de525ab6ef8679ca5bb65963cfe27d",
+    "semantic_hash": "f9de525ab6ef8679ca5bb65963cfe27d"
+  },
+  "D:\\dev\\filosage\\src\\app\\privacy\\page.tsx": {
+    "mtime": 1786648887.9831538,
+    "seen": 1786650398.960166,
+    "ast_hash": "d1b88c392abc2058fbfc0cd943bcc035",
+    "semantic_hash": "d1b88c392abc2058fbfc0cd943bcc035"
+  },
+  "D:\\dev\\filosage\\src\\app\\profile\\layout.tsx": {
+    "mtime": 1786648887.9831538,
+    "seen": 1786650398.9601667,
+    "ast_hash": "575fb240befac9075a06aa9b58275e78",
+    "semantic_hash": "575fb240befac9075a06aa9b58275e78"
+  },
+  "D:\\dev\\filosage\\src\\app\\profile\\page.tsx": {
+    "mtime": 1786648887.9831538,
+    "seen": 1786650398.9601674,
+    "ast_hash": "e864fa18cb87873bfd8268d23e30a56f",
+    "semantic_hash": "e864fa18cb87873bfd8268d23e30a56f"
+  },
+  "D:\\dev\\filosage\\src\\app\\progress\\layout.tsx": {
+    "mtime": 1786648887.9831538,
+    "seen": 1786650398.9601681,
+    "ast_hash": "adbf4bf6ec93f9c9e18822f3cc25d7ea",
+    "semantic_hash": "adbf4bf6ec93f9c9e18822f3cc25d7ea"
+  },
+  "D:\\dev\\filosage\\src\\app\\progress\\page.tsx": {
+    "mtime": 1786648887.9831538,
+    "seen": 1786650398.960169,
+    "ast_hash": "04037c5573dbe093f6a288f64c0c4ca8",
+    "semantic_hash": "04037c5573dbe093f6a288f64c0c4ca8"
+  },
+  "D:\\dev\\filosage\\src\\app\\review\\layout.tsx": {
+    "mtime": 1786648887.9831538,
+    "seen": 1786650398.9601698,
+    "ast_hash": "024452661db65160268e7c4bc0b36ef1",
+    "semantic_hash": "024452661db65160268e7c4bc0b36ef1"
+  },
+  "D:\\dev\\filosage\\src\\app\\review\\page.tsx": {
+    "mtime": 1786648887.9831538,
+    "seen": 1786650398.9601705,
+    "ast_hash": "305267e0cde198ee607291bad88f3c8c",
+    "semantic_hash": "305267e0cde198ee607291bad88f3c8c"
+  },
+  "D:\\dev\\filosage\\src\\app\\robots.ts": {
+    "mtime": 1786648887.9831538,
+    "seen": 1786650398.9601712,
+    "ast_hash": "fd147fdbee3aa773e8476f9b52c3990d",
+    "semantic_hash": "fd147fdbee3aa773e8476f9b52c3990d"
+  },
+  "D:\\dev\\filosage\\src\\app\\sitemap.ts": {
+    "mtime": 1786648887.9831538,
+    "seen": 1786650398.960172,
+    "ast_hash": "14c42dfd081d1b96e01e371fdf90d988",
+    "semantic_hash": "14c42dfd081d1b96e01e371fdf90d988"
+  },
+  "D:\\dev\\filosage\\src\\app\\standard\\layout.tsx": {
+    "mtime": 1786648887.9889386,
+    "seen": 1786650398.960173,
+    "ast_hash": "a684015a6e2178e05cc0d5e8719b058a",
+    "semantic_hash": "a684015a6e2178e05cc0d5e8719b058a"
+  },
+  "D:\\dev\\filosage\\src\\app\\standard\\page.tsx": {
+    "mtime": 1786648887.9889386,
+    "seen": 1786650398.9601736,
+    "ast_hash": "778150f04aefec9a21a15d168be23fdf",
+    "semantic_hash": "778150f04aefec9a21a15d168be23fdf"
+  },
+  "D:\\dev\\filosage\\src\\app\\support\\articles\\[slug]\\not-found.tsx": {
+    "mtime": 1786648887.9899457,
+    "seen": 1786650398.9601743,
+    "ast_hash": "7f1978c7a8a0d9968e1c1883fd911887",
+    "semantic_hash": "7f1978c7a8a0d9968e1c1883fd911887"
+  },
+  "D:\\dev\\filosage\\src\\app\\support\\articles\\[slug]\\page.tsx": {
+    "mtime": 1786648887.990946,
+    "seen": 1786650398.960175,
+    "ast_hash": "797ed6136da205b8c2fba51db89d2bbb",
+    "semantic_hash": "797ed6136da205b8c2fba51db89d2bbb"
+  },
+  "D:\\dev\\filosage\\src\\app\\support\\layout.tsx": {
+    "mtime": 1786648887.990946,
+    "seen": 1786650398.960176,
+    "ast_hash": "f021abf9b6126a39eab5a186c3d941fe",
+    "semantic_hash": "f021abf9b6126a39eab5a186c3d941fe"
+  },
+  "D:\\dev\\filosage\\src\\app\\support\\owner\\page.tsx": {
+    "mtime": 1786648887.990946,
+    "seen": 1786650398.9601767,
+    "ast_hash": "28d52d1e79c995706b34f46a20b11702",
+    "semantic_hash": "28d52d1e79c995706b34f46a20b11702"
+  },
+  "D:\\dev\\filosage\\src\\app\\support\\page.tsx": {
+    "mtime": 1786648887.9919446,
+    "seen": 1786650398.9601774,
+    "ast_hash": "2f21ff5ca6dd069f515db5b765fbec59",
+    "semantic_hash": "2f21ff5ca6dd069f515db5b765fbec59"
+  },
+  "D:\\dev\\filosage\\src\\app\\terms\\page.tsx": {
+    "mtime": 1786648887.9919446,
+    "seen": 1786650398.9601781,
+    "ast_hash": "66b721401987effe6e6b57216bba9bac",
+    "semantic_hash": "66b721401987effe6e6b57216bba9bac"
+  },
+  "D:\\dev\\filosage\\src\\components\\AchievementBadge.tsx": {
+    "mtime": 1786648887.9929447,
+    "seen": 1786650398.9601789,
+    "ast_hash": "65091123eaad60f5cd302b4f913d6b06",
+    "semantic_hash": "65091123eaad60f5cd302b4f913d6b06"
+  },
+  "D:\\dev\\filosage\\src\\components\\AnalyticsConsent.tsx": {
+    "mtime": 1786648887.9929447,
+    "seen": 1786650398.9601798,
+    "ast_hash": "aa8fc35927fb5286a05d8f0331f93fc4",
+    "semantic_hash": "aa8fc35927fb5286a05d8f0331f93fc4"
+  },
+  "D:\\dev\\filosage\\src\\components\\AppDrawer.tsx": {
+    "mtime": 1786648887.9929447,
+    "seen": 1786650398.9601805,
+    "ast_hash": "583a02cadb6c7ca935298aa5440b6c20",
+    "semantic_hash": "583a02cadb6c7ca935298aa5440b6c20"
+  },
+  "D:\\dev\\filosage\\src\\components\\AppShell.tsx": {
+    "mtime": 1786648887.9929447,
+    "seen": 1786650398.9601812,
+    "ast_hash": "85d8529903dc6c4843826e3c1e707ec6",
+    "semantic_hash": "85d8529903dc6c4843826e3c1e707ec6"
+  },
+  "D:\\dev\\filosage\\src\\components\\AuthModal.tsx": {
+    "mtime": 1786648887.9929447,
+    "seen": 1786650398.960182,
+    "ast_hash": "f7fa0eeaf3aaf18f43397f495f814a4d",
+    "semantic_hash": "f7fa0eeaf3aaf18f43397f495f814a4d"
+  },
+  "D:\\dev\\filosage\\src\\components\\AuthProvider.tsx": {
+    "mtime": 1786648887.9929447,
+    "seen": 1786650398.9601824,
+    "ast_hash": "16e08a2b93efc214f5a2d8ec69e42a71",
+    "semantic_hash": "16e08a2b93efc214f5a2d8ec69e42a71"
+  },
+  "D:\\dev\\filosage\\src\\components\\CommandPalette.tsx": {
+    "mtime": 1786648887.9929447,
+    "seen": 1786650398.9601834,
+    "ast_hash": "a83d59b10de5d59c15860e2134780062",
+    "semantic_hash": "a83d59b10de5d59c15860e2134780062"
+  },
+  "D:\\dev\\filosage\\src\\components\\CourseBanner.tsx": {
+    "mtime": 1786648887.9929447,
+    "seen": 1786650398.9601843,
+    "ast_hash": "526a437f3841c1281ca4f19f77f52405",
+    "semantic_hash": "526a437f3841c1281ca4f19f77f52405"
+  },
+  "D:\\dev\\filosage\\src\\components\\CourseDisclosure.tsx": {
+    "mtime": 1786648887.9929447,
+    "seen": 1786650398.9601848,
+    "ast_hash": "f520dd03ad21390fcb042c02be33cd92",
+    "semantic_hash": "f520dd03ad21390fcb042c02be33cd92"
+  },
+  "D:\\dev\\filosage\\src\\components\\CourseJourneyMap.tsx": {
+    "mtime": 1786648887.9929447,
+    "seen": 1786650398.9601855,
+    "ast_hash": "6b121eba823f86147628a3cba16f9c63",
+    "semantic_hash": "6b121eba823f86147628a3cba16f9c63"
+  },
+  "D:\\dev\\filosage\\src\\components\\CourseLibrary.tsx": {
+    "mtime": 1786648887.9929447,
+    "seen": 1786650398.9601867,
+    "ast_hash": "becbfd23ec9c1d1ca75743d08c3a4a50",
+    "semantic_hash": "becbfd23ec9c1d1ca75743d08c3a4a50"
+  },
+  "D:\\dev\\filosage\\src\\components\\DashboardCustomizer.tsx": {
+    "mtime": 1786648887.9929447,
+    "seen": 1786650398.9601874,
+    "ast_hash": "fd2e5746f7c1a6f21abc9b69e85bfc3a",
+    "semantic_hash": "fd2e5746f7c1a6f21abc9b69e85bfc3a"
+  },
+  "D:\\dev\\filosage\\src\\components\\EvidencePortfolio.tsx": {
+    "mtime": 1786648887.9929447,
+    "seen": 1786650398.960188,
+    "ast_hash": "f9168e0e3dfe3eefa64813b60c5fa7d0",
+    "semantic_hash": "f9168e0e3dfe3eefa64813b60c5fa7d0"
+  },
+  "D:\\dev\\filosage\\src\\components\\FilosageMark.tsx": {
+    "mtime": 1786648887.9929447,
+    "seen": 1786650398.9601889,
+    "ast_hash": "a3a1f8b81f93ef9e2bf0cf7e9e954466",
+    "semantic_hash": "a3a1f8b81f93ef9e2bf0cf7e9e954466"
+  },
+  "D:\\dev\\filosage\\src\\components\\InteractiveLessonBlock.tsx": {
+    "mtime": 1786648887.9929447,
+    "seen": 1786650398.9601893,
+    "ast_hash": "f8b62b06cd83f6654d408ceb091602cc",
+    "semantic_hash": "f8b62b06cd83f6654d408ceb091602cc"
+  },
+  "D:\\dev\\filosage\\src\\components\\LearningScheduleSettings.tsx": {
+    "mtime": 1786648887.9929447,
+    "seen": 1786650398.9601903,
+    "ast_hash": "c13f26c5dc8925594e53c2616b15739a",
+    "semantic_hash": "c13f26c5dc8925594e53c2616b15739a"
+  },
+  "D:\\dev\\filosage\\src\\components\\LegalConsentModal.tsx": {
+    "mtime": 1786648887.9929447,
+    "seen": 1786650398.960191,
+    "ast_hash": "523fa1f941557181eebc37c3bfd2fa68",
+    "semantic_hash": "523fa1f941557181eebc37c3bfd2fa68"
+  },
+  "D:\\dev\\filosage\\src\\components\\LegalDocument.tsx": {
+    "mtime": 1786648887.9929447,
+    "seen": 1786650398.960192,
+    "ast_hash": "d40bb431d1a30f6fc3391f818a154305",
+    "semantic_hash": "d40bb431d1a30f6fc3391f818a154305"
+  },
+  "D:\\dev\\filosage\\src\\components\\LessonExperience.tsx": {
+    "mtime": 1786648887.9929447,
+    "seen": 1786650398.9601924,
+    "ast_hash": "f6d49379c6cc181e82bd5778e807cdc8",
+    "semantic_hash": "f6d49379c6cc181e82bd5778e807cdc8"
+  },
+  "D:\\dev\\filosage\\src\\components\\LessonIntegrityPanel.tsx": {
+    "mtime": 1786648887.9929447,
+    "seen": 1786650398.9601934,
+    "ast_hash": "125725418fa8ce834060ea8afbbbe9a5",
+    "semantic_hash": "125725418fa8ce834060ea8afbbbe9a5"
+  },
+  "D:\\dev\\filosage\\src\\components\\LessonSectionNavigator.tsx": {
+    "mtime": 1786648887.9929447,
+    "seen": 1786650398.9601943,
+    "ast_hash": "d3b0ab4bf2043c16e31bb1f3065db3c0",
+    "semantic_hash": "d3b0ab4bf2043c16e31bb1f3065db3c0"
+  },
+  "D:\\dev\\filosage\\src\\components\\LessonStudyTools.tsx": {
+    "mtime": 1786648887.9929447,
+    "seen": 1786650398.960195,
+    "ast_hash": "4645695e7bf9cd020d03313902adafb8",
+    "semantic_hash": "4645695e7bf9cd020d03313902adafb8"
+  },
+  "D:\\dev\\filosage\\src\\components\\LessonVisual.tsx": {
+    "mtime": 1786648887.9929447,
+    "seen": 1786650398.9601955,
+    "ast_hash": "d18015ed64e09299d9f2f9eb4e13e0cf",
+    "semantic_hash": "d18015ed64e09299d9f2f9eb4e13e0cf"
+  },
+  "D:\\dev\\filosage\\src\\components\\MasteryPath.tsx": {
+    "mtime": 1786648887.9929447,
+    "seen": 1786650398.9601963,
+    "ast_hash": "9a3ff2d16b05aea8bb06260fc09097d2",
+    "semantic_hash": "9a3ff2d16b05aea8bb06260fc09097d2"
+  },
+  "D:\\dev\\filosage\\src\\components\\OutcomePlanner.tsx": {
+    "mtime": 1786648887.9929447,
+    "seen": 1786650398.9601972,
+    "ast_hash": "a2c7e6755cb5e9dd58894e08a1856476",
+    "semantic_hash": "a2c7e6755cb5e9dd58894e08a1856476"
+  },
+  "D:\\dev\\filosage\\src\\components\\OutcomeUsefulness.tsx": {
+    "mtime": 1786648887.9929447,
+    "seen": 1786650398.960198,
+    "ast_hash": "5372fed002c15132836a62ca52eca4c7",
+    "semantic_hash": "5372fed002c15132836a62ca52eca4c7"
+  },
+  "D:\\dev\\filosage\\src\\components\\SpeakButton.tsx": {
+    "mtime": 1786648887.9929447,
+    "seen": 1786650398.9601989,
+    "ast_hash": "44fc1399a9be051c7b851890333085a8",
+    "semantic_hash": "44fc1399a9be051c7b851890333085a8"
+  },
+  "D:\\dev\\filosage\\src\\components\\ThemeProvider.tsx": {
+    "mtime": 1786648887.9929447,
+    "seen": 1786650398.9601994,
+    "ast_hash": "cadb4b1aa83488e92254d4ba2da7b8b0",
+    "semantic_hash": "cadb4b1aa83488e92254d4ba2da7b8b0"
+  },
+  "D:\\dev\\filosage\\src\\components\\TrafficTracker.tsx": {
+    "mtime": 1786648887.9929447,
+    "seen": 1786650398.9602003,
+    "ast_hash": "e3c72c65d29d2eb4221c8fa1321ffe80",
+    "semantic_hash": "e3c72c65d29d2eb4221c8fa1321ffe80"
+  },
+  "D:\\dev\\filosage\\src\\components\\UserAvatar.tsx": {
+    "mtime": 1786648887.9929447,
+    "seen": 1786650398.9602013,
+    "ast_hash": "715d9fc15003828ec5a83fa0e339a06d",
+    "semantic_hash": "715d9fc15003828ec5a83fa0e339a06d"
+  },
+  "D:\\dev\\filosage\\src\\components\\marketing\\BrandLogo.tsx": {
+    "mtime": 1786648887.9929447,
+    "seen": 1786650398.960202,
+    "ast_hash": "6e5c2c71f2f9d98dd8ea59859848b774",
+    "semantic_hash": "6e5c2c71f2f9d98dd8ea59859848b774"
+  },
+  "D:\\dev\\filosage\\src\\components\\marketing\\FeatureGrid.tsx": {
+    "mtime": 1786648887.9929447,
+    "seen": 1786650398.9602027,
+    "ast_hash": "1b51b3aa749053526ff3b32e9245294b",
+    "semantic_hash": "1b51b3aa749053526ff3b32e9245294b"
+  },
+  "D:\\dev\\filosage\\src\\components\\marketing\\HowItWorks.tsx": {
+    "mtime": 1786648887.9929447,
+    "seen": 1786650398.9602034,
+    "ast_hash": "98f862e6cf840b3e27d16c76874bcb98",
+    "semantic_hash": "98f862e6cf840b3e27d16c76874bcb98"
+  },
+  "D:\\dev\\filosage\\src\\components\\marketing\\LandingPage.tsx": {
+    "mtime": 1786648888.0056474,
+    "seen": 1786650398.9602044,
+    "ast_hash": "6caad57cf5d807c0d67b1f3f5427b5f2",
+    "semantic_hash": "6caad57cf5d807c0d67b1f3f5427b5f2"
+  },
+  "D:\\dev\\filosage\\src\\components\\marketing\\MarketingFooter.tsx": {
+    "mtime": 1786648888.006653,
+    "seen": 1786650398.9602053,
+    "ast_hash": "720c287e035e74a5cee14f7503fe4059",
+    "semantic_hash": "720c287e035e74a5cee14f7503fe4059"
+  },
+  "D:\\dev\\filosage\\src\\components\\marketing\\MarketingHero.tsx": {
+    "mtime": 1786648888.006653,
+    "seen": 1786650398.960206,
+    "ast_hash": "d4b7a5fb0e716a0f9c464af309257edf",
+    "semantic_hash": "d4b7a5fb0e716a0f9c464af309257edf"
+  },
+  "D:\\dev\\filosage\\src\\components\\marketing\\MarketingNavigation.tsx": {
+    "mtime": 1786648888.006653,
+    "seen": 1786650398.9602065,
+    "ast_hash": "fa48a646ee9e0998f672d2eb1901348f",
+    "semantic_hash": "fa48a646ee9e0998f672d2eb1901348f"
+  },
+  "D:\\dev\\filosage\\src\\components\\marketing\\ProductMockup.tsx": {
+    "mtime": 1786648888.006653,
+    "seen": 1786650398.9602075,
+    "ast_hash": "e9489ceaf4f07c1b332d5f0a47ddc472",
+    "semantic_hash": "e9489ceaf4f07c1b332d5f0a47ddc472"
+  },
+  "D:\\dev\\filosage\\src\\components\\support\\OwnerDocumentationEntry.tsx": {
+    "mtime": 1786648888.006653,
+    "seen": 1786650398.9602082,
+    "ast_hash": "92737cd7a70fc3496b827d5d9076d9df",
+    "semantic_hash": "92737cd7a70fc3496b827d5d9076d9df"
+  },
+  "D:\\dev\\filosage\\src\\components\\support\\SupportArticleBody.tsx": {
+    "mtime": 1786648888.006653,
+    "seen": 1786650398.960209,
+    "ast_hash": "0e0e31c40e7e96a864367d1eb42ff990",
+    "semantic_hash": "0e0e31c40e7e96a864367d1eb42ff990"
+  },
+  "D:\\dev\\filosage\\src\\components\\support\\SupportCenter.tsx": {
+    "mtime": 1786648888.0098865,
+    "seen": 1786650398.9602096,
+    "ast_hash": "df713a5cd75a837fbcd9e3e1cae990b6",
+    "semantic_hash": "df713a5cd75a837fbcd9e3e1cae990b6"
+  },
+  "D:\\dev\\filosage\\src\\components\\support\\SupportEmailLink.tsx": {
+    "mtime": 1786648888.0098865,
+    "seen": 1786650398.9602103,
+    "ast_hash": "4fed7ddf899592da1267f13b9f0fc397",
+    "semantic_hash": "4fed7ddf899592da1267f13b9f0fc397"
+  },
+  "D:\\dev\\filosage\\src\\components\\support\\SupportSearch.tsx": {
+    "mtime": 1786648888.0098865,
+    "seen": 1786650398.9602113,
+    "ast_hash": "b96624746f71cb8cf1cb284ae36d2a05",
+    "semantic_hash": "b96624746f71cb8cf1cb284ae36d2a05"
+  },
+  "D:\\dev\\filosage\\src\\components\\support\\SupportTicketPanel.tsx": {
+    "mtime": 1786648888.0098865,
+    "seen": 1786650398.9602122,
+    "ast_hash": "e490dd2db99b5052cf4cf0f303bb5974",
+    "semantic_hash": "e490dd2db99b5052cf4cf0f303bb5974"
+  },
+  "D:\\dev\\filosage\\src\\components\\useLearnerState.ts": {
+    "mtime": 1786648888.0098865,
+    "seen": 1786650398.960213,
+    "ast_hash": "7105042a95fa2b84615b8655dc4a4edc",
+    "semantic_hash": "7105042a95fa2b84615b8655dc4a4edc"
+  },
+  "D:\\dev\\filosage\\src\\components\\useMasteryJourney.ts": {
+    "mtime": 1786648888.0098865,
+    "seen": 1786650398.9602137,
+    "ast_hash": "c8b1dee459e7bd623822f491ff057d4d",
+    "semantic_hash": "c8b1dee459e7bd623822f491ff057d4d"
+  },
+  "D:\\dev\\filosage\\src\\content\\support\\articles\\accessibility.ts": {
+    "mtime": 1786648888.0098865,
+    "seen": 1786650398.9602146,
+    "ast_hash": "3ad8f54bfebb1af6b368fbdc06af07f7",
+    "semantic_hash": "3ad8f54bfebb1af6b368fbdc06af07f7"
+  },
+  "D:\\dev\\filosage\\src\\content\\support\\articles\\complete-a-lesson.ts": {
+    "mtime": 1786648888.0098865,
+    "seen": 1786650398.9602153,
+    "ast_hash": "7d5cb13084b11fb9b6783d7773236f35",
+    "semantic_hash": "7d5cb13084b11fb9b6783d7773236f35"
+  },
+  "D:\\dev\\filosage\\src\\content\\support\\articles\\contact-support.ts": {
+    "mtime": 1786648888.0098865,
+    "seen": 1786650398.9602218,
+    "ast_hash": "f55c0c8ff830f9a4bc35de22e48a17a8",
+    "semantic_hash": "f55c0c8ff830f9a4bc35de22e48a17a8"
+  },
+  "D:\\dev\\filosage\\src\\content\\support\\articles\\find-a-course.ts": {
+    "mtime": 1786648888.0098865,
+    "seen": 1786650398.9602227,
+    "ast_hash": "bb8f6c2496ca33deeb64d1322c401f5b",
+    "semantic_hash": "bb8f6c2496ca33deeb64d1322c401f5b"
+  },
+  "D:\\dev\\filosage\\src\\content\\support\\articles\\follow-a-course.ts": {
+    "mtime": 1786648888.0098865,
+    "seen": 1786650398.9602234,
+    "ast_hash": "656d666e905f6d8b8685fbba15acd3ae",
+    "semantic_hash": "656d666e905f6d8b8685fbba15acd3ae"
+  },
+  "D:\\dev\\filosage\\src\\content\\support\\articles\\getting-started.ts": {
+    "mtime": 1786648888.0098865,
+    "seen": 1786650398.9602242,
+    "ast_hash": "9be549c91f8aa3566d89c9e93aae3c5d",
+    "semantic_hash": "9be549c91f8aa3566d89c9e93aae3c5d"
+  },
+  "D:\\dev\\filosage\\src\\content\\support\\articles\\index.ts": {
+    "mtime": 1786648888.0098865,
+    "seen": 1786650398.960225,
+    "ast_hash": "c3ce331d794413501d56b2b080779d61",
+    "semantic_hash": "c3ce331d794413501d56b2b080779d61"
+  },
+  "D:\\dev\\filosage\\src\\content\\support\\articles\\manage-profile.ts": {
+    "mtime": 1786648888.0098865,
+    "seen": 1786650398.9602258,
+    "ast_hash": "01d8e1686bdf21e34001d6ce7280492b",
+    "semantic_hash": "01d8e1686bdf21e34001d6ce7280492b"
+  },
+  "D:\\dev\\filosage\\src\\content\\support\\articles\\navigate-filosage.ts": {
+    "mtime": 1786648888.0098865,
+    "seen": 1786650398.9602265,
+    "ast_hash": "0d354176c0e14ceb112705c63ebb6655",
+    "semantic_hash": "0d354176c0e14ceb112705c63ebb6655"
+  },
+  "D:\\dev\\filosage\\src\\content\\support\\articles\\plans-and-billing.ts": {
+    "mtime": 1786648888.0098865,
+    "seen": 1786650398.9602273,
+    "ast_hash": "b6de3d300085f98559cebf66e74b0ad4",
+    "semantic_hash": "b6de3d300085f98559cebf66e74b0ad4"
+  },
+  "D:\\dev\\filosage\\src\\content\\support\\articles\\privacy-controls.ts": {
+    "mtime": 1786648888.0098865,
+    "seen": 1786650398.9602277,
+    "ast_hash": "ee778c49a5a6092e504aab36271c5d23",
+    "semantic_hash": "ee778c49a5a6092e504aab36271c5d23"
+  },
+  "D:\\dev\\filosage\\src\\content\\support\\articles\\read-evidence-report.ts": {
+    "mtime": 1786648888.0098865,
+    "seen": 1786650398.9602287,
+    "ast_hash": "0caa3f21e69c4a3472a1066c108353b7",
+    "semantic_hash": "0caa3f21e69c4a3472a1066c108353b7"
+  },
+  "D:\\dev\\filosage\\src\\content\\support\\articles\\report-content.ts": {
+    "mtime": 1786648888.0098865,
+    "seen": 1786650398.9602294,
+    "ast_hash": "1db363d99209e42e0ad737709ea02329",
+    "semantic_hash": "1db363d99209e42e0ad737709ea02329"
+  },
+  "D:\\dev\\filosage\\src\\content\\support\\articles\\sign-in-help.ts": {
+    "mtime": 1786648888.0098865,
+    "seen": 1786650398.96023,
+    "ast_hash": "d0106695546c187cfffaf97d521906ba",
+    "semantic_hash": "d0106695546c187cfffaf97d521906ba"
+  },
+  "D:\\dev\\filosage\\src\\content\\support\\articles\\understand-progress.ts": {
+    "mtime": 1786648888.0098865,
+    "seen": 1786650398.9602308,
+    "ast_hash": "12bb59232551f329c516ad63abfe4981",
+    "semantic_hash": "12bb59232551f329c516ad63abfe4981"
+  },
+  "D:\\dev\\filosage\\src\\content\\support\\articles\\use-review.ts": {
+    "mtime": 1786648888.0098865,
+    "seen": 1786650398.9602318,
+    "ast_hash": "6ab5abe49ecc54b1c088743887d35c88",
+    "semantic_hash": "6ab5abe49ecc54b1c088743887d35c88"
+  },
+  "D:\\dev\\filosage\\src\\content\\support\\articles\\use-study-tools.ts": {
+    "mtime": 1786648888.0204222,
+    "seen": 1786650398.9602327,
+    "ast_hash": "48667f00e51f33cdcece0f6afb72fe00",
+    "semantic_hash": "48667f00e51f33cdcece0f6afb72fe00"
+  },
+  "D:\\dev\\filosage\\src\\content\\support\\categories.ts": {
+    "mtime": 1786648888.0204222,
+    "seen": 1786650398.9602332,
+    "ast_hash": "9c2529ede2c58692e303710ac89fa95c",
+    "semantic_hash": "9c2529ede2c58692e303710ac89fa95c"
+  },
+  "D:\\dev\\filosage\\src\\content\\support\\owner-documentation-types.ts": {
+    "mtime": 1786648888.0204222,
+    "seen": 1786650398.9602342,
+    "ast_hash": "ae064383cf6e57445905c660c11f139f",
+    "semantic_hash": "ae064383cf6e57445905c660c11f139f"
+  },
+  "D:\\dev\\filosage\\src\\content\\support\\owner-documentation.ts": {
+    "mtime": 1786648888.0214279,
+    "seen": 1786650398.960235,
+    "ast_hash": "be1c258bf6d83fee9bb7d8f1201e7970",
+    "semantic_hash": "be1c258bf6d83fee9bb7d8f1201e7970"
+  },
+  "D:\\dev\\filosage\\src\\content\\support\\types.ts": {
+    "mtime": 1786648888.0214279,
+    "seen": 1786650398.9602358,
+    "ast_hash": "794675f7660525af38625589e0491971",
+    "semantic_hash": "794675f7660525af38625589e0491971"
+  },
+  "D:\\dev\\filosage\\src\\lib\\account-data-policy.ts": {
+    "mtime": 1786648888.022822,
+    "seen": 1786650398.9602365,
+    "ast_hash": "467ed67438834f0001dd80fbd5646f97",
+    "semantic_hash": "467ed67438834f0001dd80fbd5646f97"
+  },
+  "D:\\dev\\filosage\\src\\lib\\account-server.ts": {
+    "mtime": 1786648888.022822,
+    "seen": 1786650398.9602373,
+    "ast_hash": "45a0c72af9dc83dfe20d167599560530",
+    "semantic_hash": "45a0c72af9dc83dfe20d167599560530"
+  },
+  "D:\\dev\\filosage\\src\\lib\\activity-receipt-crypto.ts": {
+    "mtime": 1786648888.022822,
+    "seen": 1786650398.960238,
+    "ast_hash": "83a07ad3205ebc8d379938faf95b0e98",
+    "semantic_hash": "83a07ad3205ebc8d379938faf95b0e98"
+  },
+  "D:\\dev\\filosage\\src\\lib\\activity-receipts.ts": {
+    "mtime": 1786648888.022822,
+    "seen": 1786650398.960239,
+    "ast_hash": "731aefe03cf637ed8fc9a0e500318a24",
+    "semantic_hash": "731aefe03cf637ed8fc9a0e500318a24"
+  },
+  "D:\\dev\\filosage\\src\\lib\\adaptive-learning.ts": {
+    "mtime": 1786648888.022822,
+    "seen": 1786650398.9602396,
+    "ast_hash": "943971a8c407bdacb5f14028fc2ee9d9",
+    "semantic_hash": "943971a8c407bdacb5f14028fc2ee9d9"
+  },
+  "D:\\dev\\filosage\\src\\lib\\admin-types.ts": {
+    "mtime": 1786648888.022822,
+    "seen": 1786650398.9602401,
+    "ast_hash": "b6f6de34314b54a8f0213bdbfed07e51",
+    "semantic_hash": "b6f6de34314b54a8f0213bdbfed07e51"
+  },
+  "D:\\dev\\filosage\\src\\lib\\ai-pricing.ts": {
+    "mtime": 1786648888.022822,
+    "seen": 1786650398.9602408,
+    "ast_hash": "070fc59ee57db6317625198522b84d65",
+    "semantic_hash": "070fc59ee57db6317625198522b84d65"
+  },
+  "D:\\dev\\filosage\\src\\lib\\ai-usage.ts": {
+    "mtime": 1786648888.022822,
+    "seen": 1786650398.960242,
+    "ast_hash": "883a3d38914703b490550e966afb283b",
+    "semantic_hash": "883a3d38914703b490550e966afb283b"
+  },
+  "D:\\dev\\filosage\\src\\lib\\api-security.ts": {
+    "mtime": 1786648888.022822,
+    "seen": 1786650398.9602425,
+    "ast_hash": "aa396eec37a31cc4cd3e7f80ab1b28ff",
+    "semantic_hash": "aa396eec37a31cc4cd3e7f80ab1b28ff"
+  },
+  "D:\\dev\\filosage\\src\\lib\\auth-redirect.ts": {
+    "mtime": 1786648888.022822,
+    "seen": 1786650398.9602432,
+    "ast_hash": "da57a846b7cd0bc2eee6b547257f0972",
+    "semantic_hash": "da57a846b7cd0bc2eee6b547257f0972"
+  },
+  "D:\\dev\\filosage\\src\\lib\\auth-server.ts": {
+    "mtime": 1786648888.022822,
+    "seen": 1786650398.9602442,
+    "ast_hash": "0f8780cbb74bbfcf637e62b3c1ef6434",
+    "semantic_hash": "0f8780cbb74bbfcf637e62b3c1ef6434"
+  },
+  "D:\\dev\\filosage\\src\\lib\\authoring-gate.ts": {
+    "mtime": 1786648888.022822,
+    "seen": 1786650398.9602447,
+    "ast_hash": "7ada9422f605fa113e7114c36c515095",
+    "semantic_hash": "7ada9422f605fa113e7114c36c515095"
+  },
+  "D:\\dev\\filosage\\src\\lib\\azure-infrastructure.ts": {
+    "mtime": 1786648888.022822,
+    "seen": 1786650398.9602456,
+    "ast_hash": "cb5e0c4f16c00da2c2b896efb175923b",
+    "semantic_hash": "cb5e0c4f16c00da2c2b896efb175923b"
+  },
+  "D:\\dev\\filosage\\src\\lib\\badges.ts": {
+    "mtime": 1786648888.0275507,
+    "seen": 1786650398.9602463,
+    "ast_hash": "e8b02ee2d6409774d694bf9e5392546f",
+    "semantic_hash": "e8b02ee2d6409774d694bf9e5392546f"
+  },
+  "D:\\dev\\filosage\\src\\lib\\billing-lock.ts": {
+    "mtime": 1786648888.0275507,
+    "seen": 1786650398.9602473,
+    "ast_hash": "23c8ef8732b6b027ae8c7a53aa4ad8a5",
+    "semantic_hash": "23c8ef8732b6b027ae8c7a53aa4ad8a5"
+  },
+  "D:\\dev\\filosage\\src\\lib\\billing-offer.ts": {
+    "mtime": 1786648888.0275507,
+    "seen": 1786650398.9602482,
+    "ast_hash": "51ba4e0296ecaa81cf7e3001850542ec",
+    "semantic_hash": "51ba4e0296ecaa81cf7e3001850542ec"
+  },
+  "D:\\dev\\filosage\\src\\lib\\billing.ts": {
+    "mtime": 1786648888.0275507,
+    "seen": 1786650398.9602492,
+    "ast_hash": "f5fcc68f0e5fe83efdfeb119a8cb5cf3",
+    "semantic_hash": "f5fcc68f0e5fe83efdfeb119a8cb5cf3"
+  },
+  "D:\\dev\\filosage\\src\\lib\\bounded-request-body.ts": {
+    "mtime": 1786648888.0275507,
+    "seen": 1786650398.9602497,
+    "ast_hash": "4270d2322f88c677a17027221835d8af",
+    "semantic_hash": "4270d2322f88c677a17027221835d8af"
+  },
+  "D:\\dev\\filosage\\src\\lib\\browser-compat.ts": {
+    "mtime": 1786648888.0275507,
+    "seen": 1786650398.9602506,
+    "ast_hash": "9ba19966d7a2829df20439abe1a4f42a",
+    "semantic_hash": "9ba19966d7a2829df20439abe1a4f42a"
+  },
+  "D:\\dev\\filosage\\src\\lib\\command-center-auth.ts": {
+    "mtime": 1786648888.0295563,
+    "seen": 1786650398.960251,
+    "ast_hash": "93dfc391190434ad89486b1070b3a1f1",
+    "semantic_hash": "93dfc391190434ad89486b1070b3a1f1"
+  },
+  "D:\\dev\\filosage\\src\\lib\\command-center-draft-evaluation.ts": {
+    "mtime": 1786648888.0295563,
+    "seen": 1786650398.9602518,
+    "ast_hash": "f7fdaffc57fbc36a79a378529bcf8a35",
+    "semantic_hash": "f7fdaffc57fbc36a79a378529bcf8a35"
+  },
+  "D:\\dev\\filosage\\src\\lib\\command-center-draft-prompt.ts": {
+    "mtime": 1786648888.0295563,
+    "seen": 1786650398.960253,
+    "ast_hash": "a94cb32d0832d87e9166d5d353848e9c",
+    "semantic_hash": "a94cb32d0832d87e9166d5d353848e9c"
+  },
+  "D:\\dev\\filosage\\src\\lib\\command-center-draft-schema.ts": {
+    "mtime": 1786648888.0295563,
+    "seen": 1786650398.9602535,
+    "ast_hash": "6b19b8f97c1ab8224acdd057ec5af48f",
+    "semantic_hash": "6b19b8f97c1ab8224acdd057ec5af48f"
+  },
+  "D:\\dev\\filosage\\src\\lib\\command-center-draft-server.ts": {
+    "mtime": 1786648888.0295563,
+    "seen": 1786650398.9602542,
+    "ast_hash": "1918bb3843fb807977bf68808d79a9e5",
+    "semantic_hash": "1918bb3843fb807977bf68808d79a9e5"
+  },
+  "D:\\dev\\filosage\\src\\lib\\command-center-policy.ts": {
+    "mtime": 1786648888.0295563,
+    "seen": 1786650398.960255,
+    "ast_hash": "11284684b1f4d7264e2e6d4230e6f156",
+    "semantic_hash": "11284684b1f4d7264e2e6d4230e6f156"
+  },
+  "D:\\dev\\filosage\\src\\lib\\command-center-server.ts": {
+    "mtime": 1786648888.0295563,
+    "seen": 1786650398.9602559,
+    "ast_hash": "eb127b84a1f0b311ca46d62289505884",
+    "semantic_hash": "eb127b84a1f0b311ca46d62289505884"
+  },
+  "D:\\dev\\filosage\\src\\lib\\command-center-types.ts": {
+    "mtime": 1786648888.0295563,
+    "seen": 1786650398.9602566,
+    "ast_hash": "8eebf5b9ac2e07bda6c0e25b22102b1a",
+    "semantic_hash": "8eebf5b9ac2e07bda6c0e25b22102b1a"
+  },
+  "D:\\dev\\filosage\\src\\lib\\content-language.ts": {
+    "mtime": 1786648888.0295563,
+    "seen": 1786650398.9602573,
+    "ast_hash": "fa1154cbb00b295f8aee7c38777b6c9e",
+    "semantic_hash": "fa1154cbb00b295f8aee7c38777b6c9e"
+  },
+  "D:\\dev\\filosage\\src\\lib\\content-report-policy.ts": {
+    "mtime": 1786648888.032833,
+    "seen": 1786650398.960258,
+    "ast_hash": "c913ce11cf23c6b3888ed075f4738e8b",
+    "semantic_hash": "c913ce11cf23c6b3888ed075f4738e8b"
+  },
+  "D:\\dev\\filosage\\src\\lib\\content-safety.ts": {
+    "mtime": 1786648888.032833,
+    "seen": 1786650398.9602587,
+    "ast_hash": "05c6925fb1bc223629d7eba4fa884d25",
+    "semantic_hash": "05c6925fb1bc223629d7eba4fa884d25"
+  },
+  "D:\\dev\\filosage\\src\\lib\\course-banner-prompt.ts": {
+    "mtime": 1786648888.032833,
+    "seen": 1786650398.9602597,
+    "ast_hash": "b4633197fef3326cba9cb4db81ded6fd",
+    "semantic_hash": "b4633197fef3326cba9cb4db81ded6fd"
+  },
+  "D:\\dev\\filosage\\src\\lib\\course-banner-storage.ts": {
+    "mtime": 1786648888.032833,
+    "seen": 1786650398.9602604,
+    "ast_hash": "a500984eb25ef60e8249e6b44f7a987c",
+    "semantic_hash": "a500984eb25ef60e8249e6b44f7a987c"
+  },
+  "D:\\dev\\filosage\\src\\lib\\course-banners.ts": {
+    "mtime": 1786648888.032833,
+    "seen": 1786650398.960261,
+    "ast_hash": "e158ca7eb75480a71495a1169d07c909",
+    "semantic_hash": "e158ca7eb75480a71495a1169d07c909"
+  },
+  "D:\\dev\\filosage\\src\\lib\\course-criteria.ts": {
+    "mtime": 1786648888.032833,
+    "seen": 1786650398.9602618,
+    "ast_hash": "4ba980ed911b4f31de66ef9549795177",
+    "semantic_hash": "4ba980ed911b4f31de66ef9549795177"
+  },
+  "D:\\dev\\filosage\\src\\lib\\course-deletion.ts": {
+    "mtime": 1786648888.032833,
+    "seen": 1786650398.9602623,
+    "ast_hash": "f0c998480d2021ce1559b035c1e9c9ad",
+    "semantic_hash": "f0c998480d2021ce1559b035c1e9c9ad"
+  },
+  "D:\\dev\\filosage\\src\\lib\\course-dto.ts": {
+    "mtime": 1786648888.032833,
+    "seen": 1786650398.9602635,
+    "ast_hash": "d907b05a200ec8f4f2de1c2d8f6c4e13",
+    "semantic_hash": "d907b05a200ec8f4f2de1c2d8f6c4e13"
+  },
+  "D:\\dev\\filosage\\src\\lib\\course-owner-identity.ts": {
+    "mtime": 1786648888.032833,
+    "seen": 1786650398.9602642,
+    "ast_hash": "92e5211e1963d4f2829e51aaf6d00891",
+    "semantic_hash": "92e5211e1963d4f2829e51aaf6d00891"
+  },
+  "D:\\dev\\filosage\\src\\lib\\course-pipeline\\artifact-access.ts": {
+    "mtime": 1786648888.032833,
+    "seen": 1786650398.9602647,
+    "ast_hash": "de47f7bc3a3f314d20d8ba4f90a8de77",
+    "semantic_hash": "de47f7bc3a3f314d20d8ba4f90a8de77"
+  },
+  "D:\\dev\\filosage\\src\\lib\\course-pipeline\\compatibility.ts": {
+    "mtime": 1786648888.032833,
+    "seen": 1786650398.9602654,
+    "ast_hash": "774726d38edd5add1b565081d0b6d41d",
+    "semantic_hash": "774726d38edd5add1b565081d0b6d41d"
+  },
+  "D:\\dev\\filosage\\src\\lib\\course-pipeline\\contract.ts": {
+    "mtime": 1786648888.032833,
+    "seen": 1786650398.9602664,
+    "ast_hash": "f53d6a52b1be6c6b8b84b58fad4a1684",
+    "semantic_hash": "f53d6a52b1be6c6b8b84b58fad4a1684"
+  },
+  "D:\\dev\\filosage\\src\\lib\\course-pipeline\\feature-policy.ts": {
+    "mtime": 1786648888.032833,
+    "seen": 1786650398.960267,
+    "ast_hash": "4f6abb5a77c0b7e2a71dfc0f3539ced0",
+    "semantic_hash": "4f6abb5a77c0b7e2a71dfc0f3539ced0"
+  },
+  "D:\\dev\\filosage\\src\\lib\\course-pipeline\\interaction-attempt.ts": {
+    "mtime": 1786648888.032833,
+    "seen": 1786650398.9602678,
+    "ast_hash": "c5fefee852f444a5570a31a4d67f679b",
+    "semantic_hash": "c5fefee852f444a5570a31a4d67f679b"
+  },
+  "D:\\dev\\filosage\\src\\lib\\course-pipeline\\labs\\registry.ts": {
+    "mtime": 1786648888.032833,
+    "seen": 1786650398.9602685,
+    "ast_hash": "adf5d8fd3c42d62743bcfb987e11f760",
+    "semantic_hash": "adf5d8fd3c42d62743bcfb987e11f760"
+  },
+  "D:\\dev\\filosage\\src\\lib\\course-pipeline\\lesson-save.ts": {
+    "mtime": 1786648888.032833,
+    "seen": 1786650398.9602692,
+    "ast_hash": "5929157c3f2636f84efd4b2876218aa4",
+    "semantic_hash": "5929157c3f2636f84efd4b2876218aa4"
+  },
+  "D:\\dev\\filosage\\src\\lib\\course-pipeline\\observability.ts": {
+    "mtime": 1786648888.032833,
+    "seen": 1786650398.9602702,
+    "ast_hash": "213838f986963621a15e783002e345d8",
+    "semantic_hash": "213838f986963621a15e783002e345d8"
+  },
+  "D:\\dev\\filosage\\src\\lib\\course-pipeline\\relationships.ts": {
+    "mtime": 1786648888.0383322,
+    "seen": 1786650398.9602706,
+    "ast_hash": "6b00a23f7c13ca6e7c2fbbb8b469b5bc",
+    "semantic_hash": "6b00a23f7c13ca6e7c2fbbb8b469b5bc"
+  },
+  "D:\\dev\\filosage\\src\\lib\\course-pipeline\\repair.ts": {
+    "mtime": 1786648888.0383322,
+    "seen": 1786650398.9602716,
+    "ast_hash": "c4374eecf51b79909fd0286a3918c7e6",
+    "semantic_hash": "c4374eecf51b79909fd0286a3918c7e6"
+  },
+  "D:\\dev\\filosage\\src\\lib\\course-pipeline\\review-policy.ts": {
+    "mtime": 1786648888.0393908,
+    "seen": 1786650398.960272,
+    "ast_hash": "5120a0ea52bf032f6016ab5e1c138735",
+    "semantic_hash": "5120a0ea52bf032f6016ab5e1c138735"
+  },
+  "D:\\dev\\filosage\\src\\lib\\course-pipeline\\rules.ts": {
+    "mtime": 1786648888.0393908,
+    "seen": 1786650398.9602728,
+    "ast_hash": "23d66170857f644cafa8938bbe648845",
+    "semantic_hash": "23d66170857f644cafa8938bbe648845"
+  },
+  "D:\\dev\\filosage\\src\\lib\\course-pipeline\\schemas.ts": {
+    "mtime": 1786648888.0393908,
+    "seen": 1786650398.960274,
+    "ast_hash": "6d34aad58c0a728f690df84fddbcbc2a",
+    "semantic_hash": "6d34aad58c0a728f690df84fddbcbc2a"
+  },
+  "D:\\dev\\filosage\\src\\lib\\course-pipeline\\state.ts": {
+    "mtime": 1786648888.0393908,
+    "seen": 1786650398.9602745,
+    "ast_hash": "14104733c6310b8c2611501066f9255b",
+    "semantic_hash": "14104733c6310b8c2611501066f9255b"
+  },
+  "D:\\dev\\filosage\\src\\lib\\course-pipeline\\validation.ts": {
+    "mtime": 1786648888.0393908,
+    "seen": 1786650398.9602752,
+    "ast_hash": "769437950e2d54c0e9fc846bcddbf058",
+    "semantic_hash": "769437950e2d54c0e9fc846bcddbf058"
+  },
+  "D:\\dev\\filosage\\src\\lib\\course-pipeline\\visuals\\registry.ts": {
+    "mtime": 1786648888.0413973,
+    "seen": 1786650398.960276,
+    "ast_hash": "c7a223b4df1fa9864da0d526914efa5b",
+    "semantic_hash": "c7a223b4df1fa9864da0d526914efa5b"
+  },
+  "D:\\dev\\filosage\\src\\lib\\course-progress.ts": {
+    "mtime": 1786648888.0413973,
+    "seen": 1786650398.9602768,
+    "ast_hash": "eda3b1eb747f19d5ad4201fd7d3d1ff2",
+    "semantic_hash": "eda3b1eb747f19d5ad4201fd7d3d1ff2"
+  },
+  "D:\\dev\\filosage\\src\\lib\\course-quality.ts": {
+    "mtime": 1786648888.0413973,
+    "seen": 1786650398.9602776,
+    "ast_hash": "255c15644ec5a510723114be0334856b",
+    "semantic_hash": "255c15644ec5a510723114be0334856b"
+  },
+  "D:\\dev\\filosage\\src\\lib\\course-types.ts": {
+    "mtime": 1786648888.0413973,
+    "seen": 1786650398.9602783,
+    "ast_hash": "f23b192f94e6d1cccd7ea62f09865059",
+    "semantic_hash": "f23b192f94e6d1cccd7ea62f09865059"
+  },
+  "D:\\dev\\filosage\\src\\lib\\dashboard-preferences.ts": {
+    "mtime": 1786648888.0413973,
+    "seen": 1786650398.9602787,
+    "ast_hash": "78847e9ef6c8b3a170e90ab133ec9c0c",
+    "semantic_hash": "78847e9ef6c8b3a170e90ab133ec9c0c"
+  },
+  "D:\\dev\\filosage\\src\\lib\\deployment-environment.ts": {
+    "mtime": 1786648888.0413973,
+    "seen": 1786650398.9602797,
+    "ast_hash": "1bc6779e884e38773898211be9a1ae75",
+    "semantic_hash": "1bc6779e884e38773898211be9a1ae75"
+  },
+  "D:\\dev\\filosage\\src\\lib\\easy-auth-principal.ts": {
+    "mtime": 1786648888.0434034,
+    "seen": 1786650398.9602807,
+    "ast_hash": "288db15dd50f3be1e0a46cfd16886f5d",
+    "semantic_hash": "288db15dd50f3be1e0a46cfd16886f5d"
+  },
+  "D:\\dev\\filosage\\src\\lib\\feature-flags.ts": {
+    "mtime": 1786648888.0434034,
+    "seen": 1786650398.9602811,
+    "ast_hash": "01b800c39c3ccf2d62715b7e8eaffd90",
+    "semantic_hash": "01b800c39c3ccf2d62715b7e8eaffd90"
+  },
+  "D:\\dev\\filosage\\src\\lib\\firebase-server.ts": {
+    "mtime": 1786648888.0434034,
+    "seen": 1786650398.9602818,
+    "ast_hash": "24089959e38429cf075d447db89f48ab",
+    "semantic_hash": "24089959e38429cf075d447db89f48ab"
+  },
+  "D:\\dev\\filosage\\src\\lib\\firestore-values.ts": {
+    "mtime": 1786648888.045408,
+    "seen": 1786650398.9602826,
+    "ast_hash": "eb04a363a31005953e2f89eba06726fb",
+    "semantic_hash": "eb04a363a31005953e2f89eba06726fb"
+  },
+  "D:\\dev\\filosage\\src\\lib\\identity-client.ts": {
+    "mtime": 1786648888.045408,
+    "seen": 1786650398.9602833,
+    "ast_hash": "8b1d5622aff11e5b8259e9c8eb1f0be2",
+    "semantic_hash": "8b1d5622aff11e5b8259e9c8eb1f0be2"
+  },
+  "D:\\dev\\filosage\\src\\lib\\identity-server.ts": {
+    "mtime": 1786648888.045408,
+    "seen": 1786650398.9602842,
+    "ast_hash": "9827624efc02cfa7f18715aee3e26218",
+    "semantic_hash": "9827624efc02cfa7f18715aee3e26218"
+  },
+  "D:\\dev\\filosage\\src\\lib\\interaction-receipt-crypto.ts": {
+    "mtime": 1786648888.045408,
+    "seen": 1786650398.960285,
+    "ast_hash": "fd573314a7d0a46202e788205e3b0e59",
+    "semantic_hash": "fd573314a7d0a46202e788205e3b0e59"
+  },
+  "D:\\dev\\filosage\\src\\lib\\interaction-receipts.ts": {
+    "mtime": 1786648888.045408,
+    "seen": 1786650398.9602857,
+    "ast_hash": "696baeb60804b36ca16ef0974827c824",
+    "semantic_hash": "696baeb60804b36ca16ef0974827c824"
+  },
+  "D:\\dev\\filosage\\src\\lib\\learner-state.ts": {
+    "mtime": 1786648888.0474112,
+    "seen": 1786650398.9602866,
+    "ast_hash": "cb4e5c5f9f6d321943d773e9b6f4fa6b",
+    "semantic_hash": "cb4e5c5f9f6d321943d773e9b6f4fa6b"
+  },
+  "D:\\dev\\filosage\\src\\lib\\learning-progress.ts": {
+    "mtime": 1786648888.0474112,
+    "seen": 1786650398.9602876,
+    "ast_hash": "0f6debdcf6c25c3a6b75aca21a154d83",
+    "semantic_hash": "0f6debdcf6c25c3a6b75aca21a154d83"
+  },
+  "D:\\dev\\filosage\\src\\lib\\learning-reminders.ts": {
+    "mtime": 1786648888.0474112,
+    "seen": 1786650398.9602883,
+    "ast_hash": "0d7faf170820a0e6505c3b00b3c8c8df",
+    "semantic_hash": "0d7faf170820a0e6505c3b00b3c8c8df"
+  },
+  "D:\\dev\\filosage\\src\\lib\\learning-summary.ts": {
+    "mtime": 1786648888.0474112,
+    "seen": 1786650398.960289,
+    "ast_hash": "b3c2f2822d163cb19b68d139a17778ea",
+    "semantic_hash": "b3c2f2822d163cb19b68d139a17778ea"
+  },
+  "D:\\dev\\filosage\\src\\lib\\learning-types.ts": {
+    "mtime": 1786648888.0474112,
+    "seen": 1786650398.9602897,
+    "ast_hash": "fce6a95204c5b513490ff6924f2d04c8",
+    "semantic_hash": "fce6a95204c5b513490ff6924f2d04c8"
+  },
+  "D:\\dev\\filosage\\src\\lib\\legal-disclosure.ts": {
+    "mtime": 1786648888.0474112,
+    "seen": 1786650398.960291,
+    "ast_hash": "73b3d9322705bfe77bcc364fea8aca4f",
+    "semantic_hash": "73b3d9322705bfe77bcc364fea8aca4f"
+  },
+  "D:\\dev\\filosage\\src\\lib\\legal.ts": {
+    "mtime": 1786648888.0474112,
+    "seen": 1786650398.9602916,
+    "ast_hash": "36b829fe6a95ce14ea1e197c5ee9638c",
+    "semantic_hash": "36b829fe6a95ce14ea1e197c5ee9638c"
+  },
+  "D:\\dev\\filosage\\src\\lib\\lesson-generation-runtime.ts": {
+    "mtime": 1786648888.0494146,
+    "seen": 1786650398.960292,
+    "ast_hash": "25c3762f605ec8bd075fd27a5781176c",
+    "semantic_hash": "25c3762f605ec8bd075fd27a5781176c"
+  },
+  "D:\\dev\\filosage\\src\\lib\\lesson-interactions.ts": {
+    "mtime": 1786648888.0494146,
+    "seen": 1786650398.960293,
+    "ast_hash": "86be360736efce64ce9c1dc54b1919af",
+    "semantic_hash": "86be360736efce64ce9c1dc54b1919af"
+  },
+  "D:\\dev\\filosage\\src\\lib\\lesson-quality.ts": {
+    "mtime": 1786648888.0494146,
+    "seen": 1786650398.9602935,
+    "ast_hash": "303ef4cb138cba2f30cab60e8e10e42c",
+    "semantic_hash": "303ef4cb138cba2f30cab60e8e10e42c"
+  },
+  "D:\\dev\\filosage\\src\\lib\\lesson-visuals.ts": {
+    "mtime": 1786648888.0494146,
+    "seen": 1786650398.9602945,
+    "ast_hash": "6cd14206ae5587fb7c95c4cbbf27b082",
+    "semantic_hash": "6cd14206ae5587fb7c95c4cbbf27b082"
+  },
+  "D:\\dev\\filosage\\src\\lib\\local-ai.ts": {
+    "mtime": 1786648888.0494146,
+    "seen": 1786650398.9602952,
+    "ast_hash": "b1eabb559802d48c436a2e8b208d42e5",
+    "semantic_hash": "b1eabb559802d48c436a2e8b208d42e5"
+  },
+  "D:\\dev\\filosage\\src\\lib\\local-course-data.ts": {
+    "mtime": 1786648888.0514174,
+    "seen": 1786650398.9602962,
+    "ast_hash": "520809fe5d37462da6ff42059dccc5e3",
+    "semantic_hash": "520809fe5d37462da6ff42059dccc5e3"
+  },
+  "D:\\dev\\filosage\\src\\lib\\local-course-fixture.ts": {
+    "mtime": 1786648888.0514174,
+    "seen": 1786650398.9602969,
+    "ast_hash": "34fa33edcc3f62f61f30d3d16fd59af5",
+    "semantic_hash": "34fa33edcc3f62f61f30d3d16fd59af5"
+  },
+  "D:\\dev\\filosage\\src\\lib\\local-mode.ts": {
+    "mtime": 1786648888.0514174,
+    "seen": 1786650398.9602978,
+    "ast_hash": "1460a69e61f229a46b11d5e8c035c730",
+    "semantic_hash": "1460a69e61f229a46b11d5e8c035c730"
+  },
+  "D:\\dev\\filosage\\src\\lib\\local-store.ts": {
+    "mtime": 1786648888.0514174,
+    "seen": 1786650398.9602985,
+    "ast_hash": "971d52e9d131ee345ffcc41def92ec02",
+    "semantic_hash": "971d52e9d131ee345ffcc41def92ec02"
+  },
+  "D:\\dev\\filosage\\src\\lib\\markdown.ts": {
+    "mtime": 1786648888.0514174,
+    "seen": 1786650398.9602993,
+    "ast_hash": "8fb673224555862b24fe7f08bf078e6d",
+    "semantic_hash": "8fb673224555862b24fe7f08bf078e6d"
+  },
+  "D:\\dev\\filosage\\src\\lib\\mastery.ts": {
+    "mtime": 1786648888.0534203,
+    "seen": 1786650398.9602997,
+    "ast_hash": "47af5ae2df647ca0cf49d1cd42511d48",
+    "semantic_hash": "47af5ae2df647ca0cf49d1cd42511d48"
+  },
+  "D:\\dev\\filosage\\src\\lib\\membership-access.ts": {
+    "mtime": 1786648888.0534203,
+    "seen": 1786650398.9603007,
+    "ast_hash": "29aa3ef2e0a7c9b72ca0f20df48a6aa0",
+    "semantic_hash": "29aa3ef2e0a7c9b72ca0f20df48a6aa0"
+  },
+  "D:\\dev\\filosage\\src\\lib\\membership-analytics.ts": {
+    "mtime": 1786648888.0534203,
+    "seen": 1786650398.9603014,
+    "ast_hash": "57616e026aa7c382996ee72da67ffd35",
+    "semantic_hash": "57616e026aa7c382996ee72da67ffd35"
+  },
+  "D:\\dev\\filosage\\src\\lib\\membership-plans.ts": {
+    "mtime": 1786648888.0534203,
+    "seen": 1786650398.960302,
+    "ast_hash": "030f76a0431b2c5fc2801062793ad6f1",
+    "semantic_hash": "030f76a0431b2c5fc2801062793ad6f1"
+  },
+  "D:\\dev\\filosage\\src\\lib\\model-fallback.ts": {
+    "mtime": 1786648888.0549262,
+    "seen": 1786650398.960303,
+    "ast_hash": "7f10d2066d8929c8db414cb242955a3d",
+    "semantic_hash": "7f10d2066d8929c8db414cb242955a3d"
+  },
+  "D:\\dev\\filosage\\src\\lib\\moderation-inputs.ts": {
+    "mtime": 1786648888.0556593,
+    "seen": 1786650398.9603035,
+    "ast_hash": "04f6a7f0ea2def93e5ab111b8cdd2a91",
+    "semantic_hash": "04f6a7f0ea2def93e5ab111b8cdd2a91"
+  },
+  "D:\\dev\\filosage\\src\\lib\\openai-generation.ts": {
+    "mtime": 1786648888.0556593,
+    "seen": 1786650398.9603045,
+    "ast_hash": "7708ddfc54608f92381ce4e4647d364f",
+    "semantic_hash": "7708ddfc54608f92381ce4e4647d364f"
+  },
+  "D:\\dev\\filosage\\src\\lib\\operational-alert-core.ts": {
+    "mtime": 1786648888.0564096,
+    "seen": 1786650398.9603052,
+    "ast_hash": "6daf71f2e817af61978be040bd123eed",
+    "semantic_hash": "6daf71f2e817af61978be040bd123eed"
+  },
+  "D:\\dev\\filosage\\src\\lib\\operational-alerts.ts": {
+    "mtime": 1786648888.0564096,
+    "seen": 1786650398.960306,
+    "ast_hash": "c24281079dc4b757578a22ff575ea6a5",
+    "semantic_hash": "c24281079dc4b757578a22ff575ea6a5"
+  },
+  "D:\\dev\\filosage\\src\\lib\\postgres-document-store.ts": {
+    "mtime": 1786648888.0564096,
+    "seen": 1786650398.9603066,
+    "ast_hash": "c7fe9f85f6c73026c6d6830282db5ffa",
+    "semantic_hash": "c7fe9f85f6c73026c6d6830282db5ffa"
+  },
+  "D:\\dev\\filosage\\src\\lib\\product-analytics.ts": {
+    "mtime": 1786648888.0564096,
+    "seen": 1786650398.9603076,
+    "ast_hash": "c93f2f22c94f4142464a81bb2c75cbf6",
+    "semantic_hash": "c93f2f22c94f4142464a81bb2c75cbf6"
+  },
+  "D:\\dev\\filosage\\src\\lib\\product-events-server.ts": {
+    "mtime": 1786648888.0564096,
+    "seen": 1786650398.9603086,
+    "ast_hash": "9521d8d59e37b0cf47ea658ee47ee82b",
+    "semantic_hash": "9521d8d59e37b0cf47ea658ee47ee82b"
+  },
+  "D:\\dev\\filosage\\src\\lib\\product-events.ts": {
+    "mtime": 1786648888.0564096,
+    "seen": 1786650398.9603093,
+    "ast_hash": "5612262c4d8a10ee7d93aef439df6c61",
+    "semantic_hash": "5612262c4d8a10ee7d93aef439df6c61"
+  },
+  "D:\\dev\\filosage\\src\\lib\\profile-image.ts": {
+    "mtime": 1786648888.0564096,
+    "seen": 1786650398.96031,
+    "ast_hash": "706df82ab9d7d9e09f4fd4c9841bcd28",
+    "semantic_hash": "706df82ab9d7d9e09f4fd4c9841bcd28"
+  },
+  "D:\\dev\\filosage\\src\\lib\\publication-assessment.ts": {
+    "mtime": 1786648888.0564096,
+    "seen": 1786650398.9603107,
+    "ast_hash": "5925eced1c929aad83111a1e89874f98",
+    "semantic_hash": "5925eced1c929aad83111a1e89874f98"
+  },
+  "D:\\dev\\filosage\\src\\lib\\publication-content.ts": {
+    "mtime": 1786648888.0564096,
+    "seen": 1786650398.9603117,
+    "ast_hash": "a1fefa4987469d31f0aa0d7fb61cd900",
+    "semantic_hash": "a1fefa4987469d31f0aa0d7fb61cd900"
+  },
+  "D:\\dev\\filosage\\src\\lib\\publication-readiness.ts": {
+    "mtime": 1786648888.0564096,
+    "seen": 1786650398.9603124,
+    "ast_hash": "4cf5dc48981e8bd04ce0041d61dc128a",
+    "semantic_hash": "4cf5dc48981e8bd04ce0041d61dc128a"
+  },
+  "D:\\dev\\filosage\\src\\lib\\publication-review.ts": {
+    "mtime": 1786648888.0564096,
+    "seen": 1786650398.960313,
+    "ast_hash": "58ea39282e5db0e9bdb2ecc4d5480ee8",
+    "semantic_hash": "58ea39282e5db0e9bdb2ecc4d5480ee8"
+  },
+  "D:\\dev\\filosage\\src\\lib\\recent-auth.ts": {
+    "mtime": 1786648888.0564096,
+    "seen": 1786650398.960314,
+    "ast_hash": "216cbaa39614e43ba195d6dd04281160",
+    "semantic_hash": "216cbaa39614e43ba195d6dd04281160"
+  },
+  "D:\\dev\\filosage\\src\\lib\\request-rate-limit.ts": {
+    "mtime": 1786648888.0564096,
+    "seen": 1786650398.960315,
+    "ast_hash": "f474000cbd7bade7ae7a53bde42ef31f",
+    "semantic_hash": "f474000cbd7bade7ae7a53bde42ef31f"
+  },
+  "D:\\dev\\filosage\\src\\lib\\runtime-config.ts": {
+    "mtime": 1786648888.0564096,
+    "seen": 1786650398.960316,
+    "ast_hash": "775a58a114d58f23b3f6f81ebd8f9daf",
+    "semantic_hash": "775a58a114d58f23b3f6f81ebd8f9daf"
+  },
+  "D:\\dev\\filosage\\src\\lib\\runtime-environment.ts": {
+    "mtime": 1786648888.0564096,
+    "seen": 1786650398.9603167,
+    "ast_hash": "5542af1a7b0b98d1c8e479395099d43c",
+    "semantic_hash": "5542af1a7b0b98d1c8e479395099d43c"
+  },
+  "D:\\dev\\filosage\\src\\lib\\search.ts": {
+    "mtime": 1786648888.0564096,
+    "seen": 1786650398.9603174,
+    "ast_hash": "83138ce68b19583613e4521a6802e329",
+    "semantic_hash": "83138ce68b19583613e4521a6802e329"
+  },
+  "D:\\dev\\filosage\\src\\lib\\security-headers.ts": {
+    "mtime": 1786648888.062591,
+    "seen": 1786650398.9603183,
+    "ast_hash": "d4df0c97c56fe14a5edd725e51682906",
+    "semantic_hash": "d4df0c97c56fe14a5edd725e51682906"
+  },
+  "D:\\dev\\filosage\\src\\lib\\source-safety.ts": {
+    "mtime": 1786648888.062591,
+    "seen": 1786650398.960319,
+    "ast_hash": "e5b3a75f4175d1b6066afad20f5b8f28",
+    "semantic_hash": "e5b3a75f4175d1b6066afad20f5b8f28"
+  },
+  "D:\\dev\\filosage\\src\\lib\\stripe-server.ts": {
+    "mtime": 1786648888.062591,
+    "seen": 1786650398.96032,
+    "ast_hash": "c0d33fae1193cd60936f2802bf422031",
+    "semantic_hash": "c0d33fae1193cd60936f2802bf422031"
+  },
+  "D:\\dev\\filosage\\src\\lib\\support-center-types.ts": {
+    "mtime": 1786648888.062591,
+    "seen": 1786650398.9603205,
+    "ast_hash": "7c51eba66a8d0dafb5e2425260dda4aa",
+    "semantic_hash": "7c51eba66a8d0dafb5e2425260dda4aa"
+  },
+  "D:\\dev\\filosage\\src\\lib\\validation.ts": {
+    "mtime": 1786648888.062591,
+    "seen": 1786650398.9603212,
+    "ast_hash": "e1d870c04609cfb656200f05a659f142",
+    "semantic_hash": "e1d870c04609cfb656200f05a659f142"
+  },
+  "D:\\dev\\filosage\\src\\proxy.ts": {
+    "mtime": 1786648888.062591,
+    "seen": 1786650398.9603224,
+    "ast_hash": "6fadce1c5dc909e15e245410d63adc60",
+    "semantic_hash": "6fadce1c5dc909e15e245410d63adc60"
+  },
+  "D:\\dev\\filosage\\tests\\account-onboarding.spec.ts": {
+    "mtime": 1786648888.062591,
+    "seen": 1786650398.9603229,
+    "ast_hash": "155f0c20671a91cc300846d449044a68",
+    "semantic_hash": "155f0c20671a91cc300846d449044a68"
+  },
+  "D:\\dev\\filosage\\tests\\account-privacy-policy.spec.ts": {
+    "mtime": 1786648888.062591,
+    "seen": 1786650398.9603236,
+    "ast_hash": "1b3c9c98797b6dbb46dbef77995376d6",
+    "semantic_hash": "1b3c9c98797b6dbb46dbef77995376d6"
+  },
+  "D:\\dev\\filosage\\tests\\admin-research-layout.spec.ts": {
+    "mtime": 1786648888.062591,
+    "seen": 1786650398.9603243,
+    "ast_hash": "eef79d7c018ed335ff8e2dbc58b8a41f",
+    "semantic_hash": "eef79d7c018ed335ff8e2dbc58b8a41f"
+  },
+  "D:\\dev\\filosage\\tests\\analytics-consent.spec.ts": {
+    "mtime": 1786648888.062591,
+    "seen": 1786650398.960325,
+    "ast_hash": "4e0b8cd5352f08233d6f9e516724ad43",
+    "semantic_hash": "4e0b8cd5352f08233d6f9e516724ad43"
+  },
+  "D:\\dev\\filosage\\tests\\app-shell.spec.ts": {
+    "mtime": 1786648888.062591,
+    "seen": 1786650398.960326,
+    "ast_hash": "5145f1338217fcb25be37b475c508a8a",
+    "semantic_hash": "5145f1338217fcb25be37b475c508a8a"
+  },
+  "D:\\dev\\filosage\\tests\\azure-infrastructure.spec.ts": {
+    "mtime": 1786648888.062591,
+    "seen": 1786650398.9603267,
+    "ast_hash": "ad5ed2d30556202847bf41867dc980b8",
+    "semantic_hash": "ad5ed2d30556202847bf41867dc980b8"
+  },
+  "D:\\dev\\filosage\\tests\\billing-lifecycle.spec.ts": {
+    "mtime": 1786648888.062591,
+    "seen": 1786650398.9603274,
+    "ast_hash": "53cd11cf5b78ecd5e4d2763dd50a559a",
+    "semantic_hash": "53cd11cf5b78ecd5e4d2763dd50a559a"
+  },
+  "D:\\dev\\filosage\\tests\\billing-offer.spec.ts": {
+    "mtime": 1786648888.062591,
+    "seen": 1786650398.960328,
+    "ast_hash": "36bd378a55d5e19864f7e0189babb4f1",
+    "semantic_hash": "36bd378a55d5e19864f7e0189babb4f1"
+  },
+  "D:\\dev\\filosage\\tests\\command-center.spec.ts": {
+    "mtime": 1786648888.062591,
+    "seen": 1786650398.960329,
+    "ast_hash": "4989221f7b8e5788aa928a081e0e9156",
+    "semantic_hash": "4989221f7b8e5788aa928a081e0e9156"
+  },
+  "D:\\dev\\filosage\\tests\\course-deletion-indexes.spec.ts": {
+    "mtime": 1786648888.062591,
+    "seen": 1786650398.9603298,
+    "ast_hash": "98b89a83793396e101febe9abe72eb04",
+    "semantic_hash": "98b89a83793396e101febe9abe72eb04"
+  },
+  "D:\\dev\\filosage\\tests\\course-learning-flow.spec.ts": {
+    "mtime": 1786648888.062591,
+    "seen": 1786650398.9603305,
+    "ast_hash": "18e3791371657978cfa357da89bd15e0",
+    "semantic_hash": "18e3791371657978cfa357da89bd15e0"
+  },
+  "D:\\dev\\filosage\\tests\\course-pipeline-v2-regressions.spec.ts": {
+    "mtime": 1786648888.062591,
+    "seen": 1786650398.9603312,
+    "ast_hash": "3bff0fae831d609a0eb76aa697fb3536",
+    "semantic_hash": "3bff0fae831d609a0eb76aa697fb3536"
+  },
+  "D:\\dev\\filosage\\tests\\example.spec.ts": {
+    "mtime": 1786648888.07239,
+    "seen": 1786650398.960332,
+    "ast_hash": "240b24c949301e37a2337f36af75cc6f",
+    "semantic_hash": "240b24c949301e37a2337f36af75cc6f"
+  },
+  "D:\\dev\\filosage\\tests\\fixtures\\local-learner.ts": {
+    "mtime": 1786648888.07239,
+    "seen": 1786650398.9603329,
+    "ast_hash": "f97fcbea25728bf5a0a6a4d6e4229081",
+    "semantic_hash": "f97fcbea25728bf5a0a6a4d6e4229081"
+  },
+  "D:\\dev\\filosage\\tests\\fixtures\\playwright-global-teardown.ts": {
+    "mtime": 1786648888.0734086,
+    "seen": 1786650398.9603336,
+    "ast_hash": "de274ef14a7e7d5fc8bf55dca183cf41",
+    "semantic_hash": "de274ef14a7e7d5fc8bf55dca183cf41"
+  },
+  "D:\\dev\\filosage\\tests\\fixtures\\playwright-server.ts": {
+    "mtime": 1786648888.0734086,
+    "seen": 1786650398.9603343,
+    "ast_hash": "8d5db2e66faee002c329e1cce921e6d5",
+    "semantic_hash": "8d5db2e66faee002c329e1cce921e6d5"
+  },
+  "D:\\dev\\filosage\\tests\\lesson-interactions-v2.spec.ts": {
+    "mtime": 1786648888.0740871,
+    "seen": 1786650398.960335,
+    "ast_hash": "11cf908750f4d55bfaef0d2136851736",
+    "semantic_hash": "11cf908750f4d55bfaef0d2136851736"
+  },
+  "D:\\dev\\filosage\\tests\\membership-analytics.spec.ts": {
+    "mtime": 1786648888.0740871,
+    "seen": 1786650398.960336,
+    "ast_hash": "c919fad3d31d5cbb83f4cfc17e14c43b",
+    "semantic_hash": "c919fad3d31d5cbb83f4cfc17e14c43b"
+  },
+  "D:\\dev\\filosage\\tests\\navigation-content-integrity.spec.ts": {
+    "mtime": 1786648888.0740871,
+    "seen": 1786650398.9603367,
+    "ast_hash": "46c644cd7a1f2bb3b611549a76fb7a09",
+    "semantic_hash": "46c644cd7a1f2bb3b611549a76fb7a09"
+  },
+  "D:\\dev\\filosage\\tests\\openai-generation-profiles.spec.ts": {
+    "mtime": 1786648888.0740871,
+    "seen": 1786650398.9603374,
+    "ast_hash": "75afb39701280c35fb4205c5fc3e99f7",
+    "semantic_hash": "75afb39701280c35fb4205c5fc3e99f7"
+  },
+  "D:\\dev\\filosage\\tests\\operational-alerts.spec.ts": {
+    "mtime": 1786648888.0740871,
+    "seen": 1786650398.960338,
+    "ast_hash": "2167114de2c38775f4d085e044e43375",
+    "semantic_hash": "2167114de2c38775f4d085e044e43375"
+  },
+  "D:\\dev\\filosage\\tests\\operations-scripts.spec.ts": {
+    "mtime": 1786648888.0740871,
+    "seen": 1786650398.9603388,
+    "ast_hash": "9e7706cc1a5e3a1f13269449e74179e4",
+    "semantic_hash": "9e7706cc1a5e3a1f13269449e74179e4"
+  },
+  "D:\\dev\\filosage\\tests\\publication-override.spec.ts": {
+    "mtime": 1786648888.0740871,
+    "seen": 1786650398.9603398,
+    "ast_hash": "4d847f8fe08939c7f5cf3173cee0b896",
+    "semantic_hash": "4d847f8fe08939c7f5cf3173cee0b896"
+  },
+  "D:\\dev\\filosage\\tests\\release-recovery.spec.ts": {
+    "mtime": 1786648888.0740871,
+    "seen": 1786650398.9603405,
+    "ast_hash": "4076792b8015932b20e9fabd2cd220f5",
+    "semantic_hash": "4076792b8015932b20e9fabd2cd220f5"
+  },
+  "D:\\dev\\filosage\\tests\\release-scripts.spec.ts": {
+    "mtime": 1786648888.0740871,
+    "seen": 1786650398.9603412,
+    "ast_hash": "d6a7d72a9d8ea3af12055d64e1fe6a3b",
+    "semantic_hash": "d6a7d72a9d8ea3af12055d64e1fe6a3b"
+  },
+  "D:\\dev\\filosage\\tests\\request-security.spec.ts": {
+    "mtime": 1786648888.0740871,
+    "seen": 1786650398.960342,
+    "ast_hash": "03d4a95c7eb5154f6eb866a43cb8c921",
+    "semantic_hash": "03d4a95c7eb5154f6eb866a43cb8c921"
+  },
+  "D:\\dev\\filosage\\tests\\search.spec.ts": {
+    "mtime": 1786648888.0740871,
+    "seen": 1786650398.960343,
+    "ast_hash": "eccc9e443cb8f5faa40f32c5c40c7d39",
+    "semantic_hash": "eccc9e443cb8f5faa40f32c5c40c7d39"
+  },
+  "D:\\dev\\filosage\\tests\\support-center.spec.ts": {
+    "mtime": 1786648888.0740871,
+    "seen": 1786650398.9603436,
+    "ast_hash": "f06d9e4dd3f526589ee794f4101111b6",
+    "semantic_hash": "f06d9e4dd3f526589ee794f4101111b6"
+  },
+  "D:\\dev\\filosage\\tests\\support-wiki.spec.ts": {
+    "mtime": 1786648888.0740871,
+    "seen": 1786650398.9603443,
+    "ast_hash": "cf2a4f1339db05c878b6fc7b0c764161",
+    "semantic_hash": "cf2a4f1339db05c878b6fc7b0c764161"
+  },
+  "D:\\dev\\filosage\\tests\\tier-consistency-contract.spec.ts": {
+    "mtime": 1786648888.0740871,
+    "seen": 1786650398.9603474,
+    "ast_hash": "86fc6c37f8692967b17eb75bfaa39c7b",
+    "semantic_hash": "86fc6c37f8692967b17eb75bfaa39c7b"
+  },
+  "D:\\dev\\filosage\\tests\\worker-runtime-env.spec.ts": {
+    "mtime": 1786648888.0740871,
+    "seen": 1786650398.9603481,
+    "ast_hash": "849f2951afc9ea3c7989f6d16848e1cc",
+    "semantic_hash": "849f2951afc9ea3c7989f6d16848e1cc"
+  },
+  "D:\\dev\\filosage\\tsconfig.json": {
+    "mtime": 1786648888.0740871,
+    "seen": 1786650398.9603488,
+    "ast_hash": "742004e8b5d014e0f16797e6f2821341",
+    "semantic_hash": "742004e8b5d014e0f16797e6f2821341"
+  },
+  "D:\\dev\\filosage\\.agents\\skills\\teach\\GLOSSARY-FORMAT.md": {
+    "mtime": 1786648887.8139293,
+    "seen": 1786650398.9603498,
+    "ast_hash": "a15734f0ad2f1e102857ddca8094f5de",
+    "semantic_hash": "a15734f0ad2f1e102857ddca8094f5de"
+  },
+  "D:\\dev\\filosage\\.agents\\skills\\teach\\LEARNING-RECORD-FORMAT.md": {
+    "mtime": 1786648887.8139293,
+    "seen": 1786650398.9603505,
+    "ast_hash": "8ac3327c5a8d651720c122af846b56ce",
+    "semantic_hash": "8ac3327c5a8d651720c122af846b56ce"
+  },
+  "D:\\dev\\filosage\\.agents\\skills\\teach\\MISSION-FORMAT.md": {
+    "mtime": 1786648887.8139293,
+    "seen": 1786650398.960351,
+    "ast_hash": "74558aa55a361a085a4296d82a6f5c15",
+    "semantic_hash": "74558aa55a361a085a4296d82a6f5c15"
+  },
+  "D:\\dev\\filosage\\.agents\\skills\\teach\\RESOURCES-FORMAT.md": {
+    "mtime": 1786648887.8139293,
+    "seen": 1786650398.960352,
+    "ast_hash": "7b0bb9b26642cca495d09c18bb05c56f",
+    "semantic_hash": "7b0bb9b26642cca495d09c18bb05c56f"
+  },
+  "D:\\dev\\filosage\\.agents\\skills\\teach\\SKILL.md": {
+    "mtime": 1786648887.815933,
+    "seen": 1786650398.9603527,
+    "ast_hash": "1e37985f6ec6d8d4d8cd74857737d36a",
+    "semantic_hash": "1e37985f6ec6d8d4d8cd74857737d36a"
+  },
+  "D:\\dev\\filosage\\.github\\pull_request_template.md": {
+    "mtime": 1786648887.815933,
+    "seen": 1786650398.9603534,
+    "ast_hash": "a7bb0bd0edea7f5b0c3645fd247d7313",
+    "semantic_hash": "a7bb0bd0edea7f5b0c3645fd247d7313"
+  },
+  "D:\\dev\\filosage\\.github\\workflows\\azure-backup-evidence.yml": {
+    "mtime": 1786648887.815933,
+    "seen": 1786650398.9603543,
+    "ast_hash": "ad8ac23cde27ab165154a2712ef19988",
+    "semantic_hash": "ad8ac23cde27ab165154a2712ef19988"
+  },
+  "D:\\dev\\filosage\\.github\\workflows\\azure-promote-staging.yml": {
+    "mtime": 1786648887.815933,
+    "seen": 1786650398.9603548,
+    "ast_hash": "82071692adcc00e1344be481fa717978",
+    "semantic_hash": "82071692adcc00e1344be481fa717978"
+  },
+  "D:\\dev\\filosage\\.github\\workflows\\azure-qa.yml": {
+    "mtime": 1786648887.815933,
+    "seen": 1786650398.9603658,
+    "ast_hash": "2f50c7f6d6331c79aa50bf7af021c059",
+    "semantic_hash": "2f50c7f6d6331c79aa50bf7af021c059"
+  },
+  "D:\\dev\\filosage\\.github\\workflows\\azure-staging.yml": {
+    "mtime": 1786648887.815933,
+    "seen": 1786650398.960367,
+    "ast_hash": "19dde7c3b5a94d09973fe800ac080210",
+    "semantic_hash": "19dde7c3b5a94d09973fe800ac080210"
+  },
+  "D:\\dev\\filosage\\.github\\workflows\\support-wiki.yml": {
+    "mtime": 1786648887.815933,
+    "seen": 1786650398.9603677,
+    "ast_hash": "0fc09f4dac9a48fa1499bde183cc0af6",
+    "semantic_hash": "0fc09f4dac9a48fa1499bde183cc0af6"
+  },
+  "D:\\dev\\filosage\\AGENTS.md": {
+    "mtime": 1786648887.815933,
+    "seen": 1786650398.9603684,
+    "ast_hash": "9346a4897ff955555ddedb7bebf77adb",
+    "semantic_hash": "9346a4897ff955555ddedb7bebf77adb"
+  },
+  "D:\\dev\\filosage\\CLAUDE.md": {
+    "mtime": 1786648887.815933,
+    "seen": 1786650398.960369,
+    "ast_hash": "771faa62feb60b7de901a397aebb29b0",
+    "semantic_hash": "771faa62feb60b7de901a397aebb29b0"
+  },
+  "D:\\dev\\filosage\\DESIGN.md": {
+    "mtime": 1786648887.815933,
+    "seen": 1786650398.9603698,
+    "ast_hash": "24d96f9bd83a1104e7b92663d430d375",
+    "semantic_hash": "24d96f9bd83a1104e7b92663d430d375"
+  },
+  "D:\\dev\\filosage\\PRODUCT.md": {
+    "mtime": 1786648887.815933,
+    "seen": 1786650398.9603708,
+    "ast_hash": "62a99a1d93d61c1a94d74500ec7f1fc5",
+    "semantic_hash": "62a99a1d93d61c1a94d74500ec7f1fc5"
+  },
+  "D:\\dev\\filosage\\README.md": {
+    "mtime": 1786648887.815933,
+    "seen": 1786650398.9603715,
+    "ast_hash": "7e9ae3f72198c6a5c2395f63ad23f3f4",
+    "semantic_hash": "7e9ae3f72198c6a5c2395f63ad23f3f4"
+  },
+  "D:\\dev\\filosage\\docs\\AZURE_MIGRATION_RUNBOOK.md": {
+    "mtime": 1786648887.8317602,
+    "seen": 1786650398.9603722,
+    "ast_hash": "a646e197b4d4adf748675ddb2739d018",
+    "semantic_hash": "a646e197b4d4adf748675ddb2739d018"
+  },
+  "D:\\dev\\filosage\\docs\\BILLING_SETUP.md": {
+    "mtime": 1786648887.8317602,
+    "seen": 1786650398.960373,
+    "ast_hash": "7f7b52d90dfccf0bdc758d0387b43957",
+    "semantic_hash": "7f7b52d90dfccf0bdc758d0387b43957"
+  },
+  "D:\\dev\\filosage\\docs\\COMMERCIAL_LAUNCH_RUNBOOK.md": {
+    "mtime": 1786648887.8317602,
+    "seen": 1786650398.9603739,
+    "ast_hash": "f3ff6277e3aaa4d05647109d8584bbb6",
+    "semantic_hash": "f3ff6277e3aaa4d05647109d8584bbb6"
+  },
+  "D:\\dev\\filosage\\docs\\EXPERIMENT_REGISTRY.md": {
+    "mtime": 1786648887.8317602,
+    "seen": 1786650398.9603746,
+    "ast_hash": "33774eaa4d8b73b174fd5395f5fb4a77",
+    "semantic_hash": "33774eaa4d8b73b174fd5395f5fb4a77"
+  },
+  "D:\\dev\\filosage\\docs\\FILOSAGE_FULL_APP_AUDIT_2026-08-09.md": {
+    "mtime": 1786648887.8317602,
+    "seen": 1786650398.9603753,
+    "ast_hash": "c7db46cdfdffb64e7533c5d5b8ce8438",
+    "semantic_hash": "c7db46cdfdffb64e7533c5d5b8ce8438"
+  },
+  "D:\\dev\\filosage\\docs\\LAUNCH_CATALOG.md": {
+    "mtime": 1786648887.8317602,
+    "seen": 1786650398.9603763,
+    "ast_hash": "61948f545ccec55005a47c9e3a8e418f",
+    "semantic_hash": "61948f545ccec55005a47c9e3a8e418f"
+  },
+  "D:\\dev\\filosage\\docs\\MASTERY_GRAPH_TECHNICAL_DESIGN.md": {
+    "mtime": 1786648887.8317602,
+    "seen": 1786650398.9603767,
+    "ast_hash": "f80c99512917bbfef0ae33d1b25fb33d",
+    "semantic_hash": "f80c99512917bbfef0ae33d1b25fb33d"
+  },
+  "D:\\dev\\filosage\\docs\\MODEL_QUALITY_EVALUATION.md": {
+    "mtime": 1786648887.8317602,
+    "seen": 1786650398.9603777,
+    "ast_hash": "e160817b183730cbd7a4f836d1ded209",
+    "semantic_hash": "e160817b183730cbd7a4f836d1ded209"
+  },
+  "D:\\dev\\filosage\\docs\\PHASE_0_BASELINE.md": {
+    "mtime": 1786648887.8317602,
+    "seen": 1786650398.9603786,
+    "ast_hash": "4eb81b854311bbd0c27ee3f60e14e127",
+    "semantic_hash": "4eb81b854311bbd0c27ee3f60e14e127"
+  },
+  "D:\\dev\\filosage\\docs\\PHASE_1_IMPLEMENTATION.md": {
+    "mtime": 1786648887.8317602,
+    "seen": 1786650398.9603794,
+    "ast_hash": "879593615eafff1c198be420dbbd99cc",
+    "semantic_hash": "879593615eafff1c198be420dbbd99cc"
+  },
+  "D:\\dev\\filosage\\docs\\PHASE_2_IMPLEMENTATION.md": {
+    "mtime": 1786648887.8317602,
+    "seen": 1786650398.96038,
+    "ast_hash": "6dc068eedad8a215d2bae66dbb8139fc",
+    "semantic_hash": "6dc068eedad8a215d2bae66dbb8139fc"
+  },
+  "D:\\dev\\filosage\\docs\\PHASE_3_SECURITY_AND_COMMERCE.md": {
+    "mtime": 1786648887.8317602,
+    "seen": 1786650398.960381,
+    "ast_hash": "bf055c049d01c8b9c681569990d4dbf6",
+    "semantic_hash": "bf055c049d01c8b9c681569990d4dbf6"
+  },
+  "D:\\dev\\filosage\\docs\\PHASE_4_IMPLEMENTATION.md": {
+    "mtime": 1786648887.8317602,
+    "seen": 1786650398.9603817,
+    "ast_hash": "f598726b098c576d41eb002e45237941",
+    "semantic_hash": "f598726b098c576d41eb002e45237941"
+  },
+  "D:\\dev\\filosage\\docs\\PRODUCTION_OPERATIONS.md": {
+    "mtime": 1786648887.8452866,
+    "seen": 1786650398.9603825,
+    "ast_hash": "d47aa8faf38ef816fc8cbddd086af629",
+    "semantic_hash": "d47aa8faf38ef816fc8cbddd086af629"
+  },
+  "D:\\dev\\filosage\\docs\\PRODUCT_AND_BUSINESS_ROADMAP.md": {
+    "mtime": 1786648887.8452866,
+    "seen": 1786650398.9603832,
+    "ast_hash": "e0e21272bdd817991cf56b9fb3fe6d96",
+    "semantic_hash": "e0e21272bdd817991cf56b9fb3fe6d96"
+  },
+  "D:\\dev\\filosage\\docs\\SECURITY_AND_LEGAL_READINESS.md": {
+    "mtime": 1786648887.8452866,
+    "seen": 1786650398.960384,
+    "ast_hash": "ff3b290685408a5636ed7a03cc53f5c0",
+    "semantic_hash": "ff3b290685408a5636ed7a03cc53f5c0"
+  },
+  "D:\\dev\\filosage\\docs\\STRIPE_SANDBOX_EVIDENCE_2026-08-11.md": {
+    "mtime": 1786648887.8452866,
+    "seen": 1786650398.9603848,
+    "ast_hash": "8bef726e9acd00c952851b4a5ec240ed",
+    "semantic_hash": "8bef726e9acd00c952851b4a5ec240ed"
+  },
+  "D:\\dev\\filosage\\docs\\SUPPORT_WIKI_AUTHORING.md": {
+    "mtime": 1786648887.8452866,
+    "seen": 1786650398.9603856,
+    "ast_hash": "c38eb459a2ae767a68f246b4689576ce",
+    "semantic_hash": "c38eb459a2ae767a68f246b4689576ce"
+  },
+  "D:\\dev\\filosage\\docs\\agent-command-center\\HYBRID_SEMI_AUTONOMOUS_IMPLEMENTATION_PLAN.md": {
+    "mtime": 1786648887.847292,
+    "seen": 1786650398.9603863,
+    "ast_hash": "6c44f7212f8bb2f78509712646307ea1",
+    "semantic_hash": "6c44f7212f8bb2f78509712646307ea1"
+  },
+  "D:\\dev\\filosage\\docs\\agent-command-center\\README.md": {
+    "mtime": 1786648887.847292,
+    "seen": 1786650398.960387,
+    "ast_hash": "f356045976c760fa0289237c527ce489",
+    "semantic_hash": "f356045976c760fa0289237c527ce489"
+  },
+  "D:\\dev\\filosage\\docs\\agent-command-center\\adding-a-new-agent.md": {
+    "mtime": 1786648887.847292,
+    "seen": 1786650398.960388,
+    "ast_hash": "0baa2b773e2912c62ed7efe3b770146d",
+    "semantic_hash": "0baa2b773e2912c62ed7efe3b770146d"
+  },
+  "D:\\dev\\filosage\\docs\\agent-command-center\\agents.md": {
+    "mtime": 1786648887.847292,
+    "seen": 1786650398.9603887,
+    "ast_hash": "1632547e96ba5dee52357cab65352137",
+    "semantic_hash": "1632547e96ba5dee52357cab65352137"
+  },
+  "D:\\dev\\filosage\\docs\\agent-command-center\\approval-model.md": {
+    "mtime": 1786648887.847292,
+    "seen": 1786650398.9603894,
+    "ast_hash": "f89e2c3298cacd65136e14f2867118b5",
+    "semantic_hash": "f89e2c3298cacd65136e14f2867118b5"
+  },
+  "D:\\dev\\filosage\\docs\\agent-command-center\\architecture.md": {
+    "mtime": 1786648887.847292,
+    "seen": 1786650398.96039,
+    "ast_hash": "e300d5e986279def8d1bf149e1ac14c8",
+    "semantic_hash": "e300d5e986279def8d1bf149e1ac14c8"
+  },
+  "D:\\dev\\filosage\\docs\\agent-command-center\\billing-events.md": {
+    "mtime": 1786648887.847292,
+    "seen": 1786650398.9603908,
+    "ast_hash": "465ab61895836c822913ea2b7cc24946",
+    "semantic_hash": "465ab61895836c822913ea2b7cc24946"
+  },
+  "D:\\dev\\filosage\\docs\\agent-command-center\\copyright-intake.md": {
+    "mtime": 1786648887.847292,
+    "seen": 1786650398.9603918,
+    "ast_hash": "fd654e013e82847118bfb7485681564c",
+    "semantic_hash": "fd654e013e82847118bfb7485681564c"
+  },
+  "D:\\dev\\filosage\\docs\\agent-command-center\\email-ingestion.md": {
+    "mtime": 1786648887.847292,
+    "seen": 1786650398.9603925,
+    "ast_hash": "6ea69434fcc9fad49a5426f8471f24e1",
+    "semantic_hash": "6ea69434fcc9fad49a5426f8471f24e1"
+  },
+  "D:\\dev\\filosage\\docs\\agent-command-center\\evaluations\\2026-08-06-gpt-5.6-terra-v5.md": {
+    "mtime": 1786648887.847292,
+    "seen": 1786650398.9603932,
+    "ast_hash": "026632a08843e31668208939bd11d63d",
+    "semantic_hash": "026632a08843e31668208939bd11d63d"
+  },
+  "D:\\dev\\filosage\\docs\\agent-command-center\\incident-response.md": {
+    "mtime": 1786648887.847292,
+    "seen": 1786650398.960394,
+    "ast_hash": "3cfaab17958e62213af0748772a14dbf",
+    "semantic_hash": "3cfaab17958e62213af0748772a14dbf"
+  },
+  "D:\\dev\\filosage\\docs\\agent-command-center\\operations.md": {
+    "mtime": 1786648887.847292,
+    "seen": 1786650398.9603949,
+    "ast_hash": "80ad4380a51f35b4a83faf27106df7fc",
+    "semantic_hash": "80ad4380a51f35b4a83faf27106df7fc"
+  },
+  "D:\\dev\\filosage\\docs\\agent-command-center\\privacy-workflows.md": {
+    "mtime": 1786648887.847292,
+    "seen": 1786650398.9603956,
+    "ast_hash": "e7c0471f2e0c64705891be16bd5dcbaa",
+    "semantic_hash": "e7c0471f2e0c64705891be16bd5dcbaa"
+  },
+  "D:\\dev\\filosage\\docs\\agent-command-center\\security.md": {
+    "mtime": 1786648887.847292,
+    "seen": 1786650398.9603963,
+    "ast_hash": "c52340d978a0f86f3092dfca7061d756",
+    "semantic_hash": "c52340d978a0f86f3092dfca7061d756"
+  },
+  "D:\\dev\\filosage\\docs\\agent-command-center\\testing.md": {
+    "mtime": 1786648887.847292,
+    "seen": 1786650398.960397,
+    "ast_hash": "ff3853ef8c2f96e3902cf8494fedfde6",
+    "semantic_hash": "ff3853ef8c2f96e3902cf8494fedfde6"
+  },
+  "D:\\dev\\filosage\\docs\\brand\\FILOSAGE_REBRAND_AUDIT.md": {
+    "mtime": 1786648887.847292,
+    "seen": 1786650398.9603977,
+    "ast_hash": "407d23b1de3b9e87fd2d7a832f8eda1f",
+    "semantic_hash": "407d23b1de3b9e87fd2d7a832f8eda1f"
+  },
+  "D:\\dev\\filosage\\docs\\brand\\FILOSAGE_REBRAND_INVENTORY.md": {
+    "mtime": 1786648887.847292,
+    "seen": 1786650398.960399,
+    "ast_hash": "1f6f0e28dc8b947f9f9c619c21f247f3",
+    "semantic_hash": "1f6f0e28dc8b947f9f9c619c21f247f3"
+  },
+  "D:\\dev\\filosage\\docs\\brand\\README.md": {
+    "mtime": 1786648887.847292,
+    "seen": 1786650398.9603996,
+    "ast_hash": "20e39cb0fb4e664b2b8be4f61486400e",
+    "semantic_hash": "20e39cb0fb4e664b2b8be4f61486400e"
+  },
+  "D:\\dev\\filosage\\docs\\course-pipeline-v2\\COURSE_CREATION_SKILL_MAPPING.md": {
+    "mtime": 1786648887.8568065,
+    "seen": 1786650398.9604003,
+    "ast_hash": "bb725c8cfd7a348ee27ce161c11ddf3a",
+    "semantic_hash": "bb725c8cfd7a348ee27ce161c11ddf3a"
+  },
+  "D:\\dev\\filosage\\docs\\course-pipeline-v2\\CURRENT_SYSTEM_MAP.md": {
+    "mtime": 1786648887.8568065,
+    "seen": 1786650398.9604013,
+    "ast_hash": "63489e5601f55a501d827a58bc205391",
+    "semantic_hash": "63489e5601f55a501d827a58bc205391"
+  },
+  "D:\\dev\\filosage\\docs\\course-pipeline-v2\\EVALUATION_PLAN.md": {
+    "mtime": 1786648887.8568065,
+    "seen": 1786650398.960402,
+    "ast_hash": "69100f9cc5d5c31df62603e703cbb742",
+    "semantic_hash": "69100f9cc5d5c31df62603e703cbb742"
+  },
+  "D:\\dev\\filosage\\docs\\course-pipeline-v2\\EVALUATION_RESULTS.md": {
+    "mtime": 1786648887.8568065,
+    "seen": 1786650398.9604027,
+    "ast_hash": "e57db08c83ffecbc99ecf2a4e449ae17",
+    "semantic_hash": "e57db08c83ffecbc99ecf2a4e449ae17"
+  },
+  "D:\\dev\\filosage\\docs\\course-pipeline-v2\\EXECUTION_PLAN.md": {
+    "mtime": 1786648887.8568065,
+    "seen": 1786650398.9604037,
+    "ast_hash": "206a5bace5463163f9fe786b56d4c029",
+    "semantic_hash": "206a5bace5463163f9fe786b56d4c029"
+  },
+  "D:\\dev\\filosage\\docs\\course-pipeline-v2\\LAB_CAPABILITY_REGISTRY.md": {
+    "mtime": 1786648887.8568065,
+    "seen": 1786650398.9604044,
+    "ast_hash": "196d5d16b7395d7f4f8496702176a7b0",
+    "semantic_hash": "196d5d16b7395d7f4f8496702176a7b0"
+  },
+  "D:\\dev\\filosage\\docs\\course-pipeline-v2\\OPERATIONS.md": {
+    "mtime": 1786648887.8568065,
+    "seen": 1786650398.9604053,
+    "ast_hash": "ab565fc5cf085dd143fe83b57a12e747",
+    "semantic_hash": "ab565fc5cf085dd143fe83b57a12e747"
+  },
+  "D:\\dev\\filosage\\docs\\course-pipeline-v2\\QUALITY_CONTRACT.md": {
+    "mtime": 1786648887.8568065,
+    "seen": 1786650398.960406,
+    "ast_hash": "ce959c2b4b10c20b667251801b99098e",
+    "semantic_hash": "ce959c2b4b10c20b667251801b99098e"
+  },
+  "D:\\dev\\filosage\\docs\\course-pipeline-v2\\RELEASE_EVIDENCE.md": {
+    "mtime": 1786648887.8568065,
+    "seen": 1786650398.9604068,
+    "ast_hash": "0692d7ab5053a22b5b9e076e7522848c",
+    "semantic_hash": "0692d7ab5053a22b5b9e076e7522848c"
+  },
+  "D:\\dev\\filosage\\docs\\course-pipeline-v2\\REPAIR_PROTOCOL.md": {
+    "mtime": 1786648887.8568065,
+    "seen": 1786650398.9604073,
+    "ast_hash": "d290d18d54d28016c0d925399e08047f",
+    "semantic_hash": "d290d18d54d28016c0d925399e08047f"
+  },
+  "D:\\dev\\filosage\\docs\\course-pipeline-v2\\ROLLOUT_AND_ROLLBACK.md": {
+    "mtime": 1786648887.8568065,
+    "seen": 1786650398.9604082,
+    "ast_hash": "1fdf6736f625b5971723b2f33f628967",
+    "semantic_hash": "1fdf6736f625b5971723b2f33f628967"
+  },
+  "D:\\dev\\filosage\\docs\\course-pipeline-v2\\ROOT_CAUSE_REPORT.md": {
+    "mtime": 1786648887.8568065,
+    "seen": 1786650398.9604092,
+    "ast_hash": "5d959d069e989f9cb75195026c7b09b5",
+    "semantic_hash": "5d959d069e989f9cb75195026c7b09b5"
+  },
+  "D:\\dev\\filosage\\docs\\course-pipeline-v2\\SECURITY_THREAT_MODEL.md": {
+    "mtime": 1786648887.8568065,
+    "seen": 1786650398.9604099,
+    "ast_hash": "1961e0c2873ab585e360f6fbab51842f",
+    "semantic_hash": "1961e0c2873ab585e360f6fbab51842f"
+  },
+  "D:\\dev\\filosage\\docs\\course-pipeline-v2\\VISUAL_SUPPORT_POLICY.md": {
+    "mtime": 1786648887.8568065,
+    "seen": 1786650398.9604106,
+    "ast_hash": "1d5e74fc0f681fdf6911195b7a3c92c6",
+    "semantic_hash": "1d5e74fc0f681fdf6911195b7a3c92c6"
+  },
+  "D:\\dev\\filosage\\docs\\course-pipeline-v2\\reviews\\2026-08-11-pass-1.md": {
+    "mtime": 1786648887.8626044,
+    "seen": 1786650398.9604113,
+    "ast_hash": "1ab41a8996f692d3e0fe6880b9cea855",
+    "semantic_hash": "1ab41a8996f692d3e0fe6880b9cea855"
+  },
+  "D:\\dev\\filosage\\docs\\course-pipeline-v2\\reviews\\2026-08-11-pass-2.md": {
+    "mtime": 1786648887.8626044,
+    "seen": 1786650398.9604125,
+    "ast_hash": "2f278d61149fda54c481231a629315f0",
+    "semantic_hash": "2f278d61149fda54c481231a629315f0"
+  },
+  "D:\\dev\\filosage\\docs\\course-pipeline-v2\\reviews\\2026-08-11-pass-3.md": {
+    "mtime": 1786648887.8626044,
+    "seen": 1786650398.960413,
+    "ast_hash": "e9066037b7a459ce249e440358baae2c",
+    "semantic_hash": "e9066037b7a459ce249e440358baae2c"
+  },
+  "D:\\dev\\filosage\\docs\\course-pipeline-v2\\reviews\\2026-08-11-pass-4.md": {
+    "mtime": 1786648887.8626044,
+    "seen": 1786650398.9604137,
+    "ast_hash": "bec18db47ae4289230370ba5a84ef713",
+    "semantic_hash": "bec18db47ae4289230370ba5a84ef713"
+  },
+  "D:\\dev\\filosage\\docs\\course-pipeline-v2\\reviews\\2026-08-11-pass-5.md": {
+    "mtime": 1786648887.8626044,
+    "seen": 1786650398.9604144,
+    "ast_hash": "76b7ba4a4dc7e804add27c34778fae10",
+    "semantic_hash": "76b7ba4a4dc7e804add27c34778fae10"
+  },
+  "D:\\dev\\filosage\\docs\\research\\INTERVIEW_GUIDE.md": {
+    "mtime": 1786648887.8626044,
+    "seen": 1786650398.9604151,
+    "ast_hash": "0d5fdf4aadfbcb13c8c8bcebf6a4b722",
+    "semantic_hash": "0d5fdf4aadfbcb13c8c8bcebf6a4b722"
+  },
+  "D:\\dev\\filosage\\docs\\research\\INTERVIEW_LOG_TEMPLATE.md": {
+    "mtime": 1786648887.8626044,
+    "seen": 1786650398.960416,
+    "ast_hash": "357a5722c3574d225c279ab16661c7fa",
+    "semantic_hash": "357a5722c3574d225c279ab16661c7fa"
+  },
+  "D:\\dev\\filosage\\evals\\course-pipeline\\README.md": {
+    "mtime": 1786648887.8626044,
+    "seen": 1786650398.9604168,
+    "ast_hash": "b70f9f30e67a16c5525aca1610d85206",
+    "semantic_hash": "b70f9f30e67a16c5525aca1610d85206"
+  },
+  "D:\\dev\\filosage\\public\\brand\\photography\\README.md": {
+    "mtime": 1786648887.9123423,
+    "seen": 1786650398.9604175,
+    "ast_hash": "9299d29675b26a25a73c1ccf7ca403f4",
+    "semantic_hash": "9299d29675b26a25a73c1ccf7ca403f4"
+  },
+  "D:\\dev\\filosage\\src\\styles\\brand\\README.md": {
+    "mtime": 1786648888.062591,
+    "seen": 1786650398.9604182,
+    "ast_hash": "7219b91b740a8df0ad851552d788ec26",
+    "semantic_hash": "7219b91b740a8df0ad851552d788ec26"
+  },
+  "D:\\dev\\filosage\\art_src\\brand\\filosage-dark-theme-original.png": {
+    "mtime": 1786648887.815933,
+    "seen": 1786650398.9604192,
+    "ast_hash": "e5fbbf3bbaa8b39a970a0683f9d707fd",
+    "semantic_hash": "e5fbbf3bbaa8b39a970a0683f9d707fd"
+  },
+  "D:\\dev\\filosage\\art_src\\brand\\filosage-light-theme-original.png": {
+    "mtime": 1786648887.8317602,
+    "seen": 1786650398.96042,
+    "ast_hash": "66c77cc0823369961b4938ada866330f",
+    "semantic_hash": "66c77cc0823369961b4938ada866330f"
+  },
+  "D:\\dev\\filosage\\docs\\brand\\screenshots\\after-filosage-dashboard-desktop-1440.png": {
+    "mtime": 1786648887.847292,
+    "seen": 1786650398.9604206,
+    "ast_hash": "0048949c805dcfb240fb47658e31c914",
+    "semantic_hash": "0048949c805dcfb240fb47658e31c914"
+  },
+  "D:\\dev\\filosage\\docs\\brand\\screenshots\\after-filosage-dashboard-mobile-375.png": {
+    "mtime": 1786648887.8547926,
+    "seen": 1786650398.9604213,
+    "ast_hash": "a0bc0e3766b8b333dbc7181d2810095e",
+    "semantic_hash": "a0bc0e3766b8b333dbc7181d2810095e"
+  },
+  "D:\\dev\\filosage\\docs\\brand\\screenshots\\after-filosage-landing-desktop-1440.png": {
+    "mtime": 1786648887.8547926,
+    "seen": 1786650398.960422,
+    "ast_hash": "6be27be2518ccb48ac36107d8b7f0b5f",
+    "semantic_hash": "6be27be2518ccb48ac36107d8b7f0b5f"
+  },
+  "D:\\dev\\filosage\\docs\\brand\\screenshots\\after-filosage-landing-mobile-375.png": {
+    "mtime": 1786648887.8547926,
+    "seen": 1786650398.960423,
+    "ast_hash": "48539f55834b14c945dc015fcf6ecab3",
+    "semantic_hash": "48539f55834b14c945dc015fcf6ecab3"
+  },
+  "D:\\dev\\filosage\\public\\brand\\backgrounds\\hero-dark-mobile.svg": {
+    "mtime": 1786648887.8626044,
+    "seen": 1786650398.9604237,
+    "ast_hash": "24d03080280af89346c600538474ce30",
+    "semantic_hash": "24d03080280af89346c600538474ce30"
+  },
+  "D:\\dev\\filosage\\public\\brand\\backgrounds\\hero-dark.svg": {
+    "mtime": 1786648887.8626044,
+    "seen": 1786650398.9604244,
+    "ast_hash": "84c93fbfa7fe24bb5bd1e8d55c48c0fc",
+    "semantic_hash": "84c93fbfa7fe24bb5bd1e8d55c48c0fc"
+  },
+  "D:\\dev\\filosage\\public\\brand\\backgrounds\\hero-light-mobile.svg": {
+    "mtime": 1786648887.8626044,
+    "seen": 1786650398.9604251,
+    "ast_hash": "8cd4cafa5462666b2d0bd941fa8bcf4e",
+    "semantic_hash": "8cd4cafa5462666b2d0bd941fa8bcf4e"
+  },
+  "D:\\dev\\filosage\\public\\brand\\backgrounds\\hero-light.svg": {
+    "mtime": 1786648887.8626044,
+    "seen": 1786650398.960426,
+    "ast_hash": "88c8d4a8756502d98a6f1f5679699a22",
+    "semantic_hash": "88c8d4a8756502d98a6f1f5679699a22"
+  },
+  "D:\\dev\\filosage\\public\\brand\\banners\\about-page-banner.svg": {
+    "mtime": 1786648887.880406,
+    "seen": 1786650398.960427,
+    "ast_hash": "13d7c437a155af4800ffa52cc8dc099f",
+    "semantic_hash": "13d7c437a155af4800ffa52cc8dc099f"
+  },
+  "D:\\dev\\filosage\\public\\brand\\banners\\blog-header.svg": {
+    "mtime": 1786648887.880406,
+    "seen": 1786650398.9604278,
+    "ast_hash": "92e78b31e0a1bd8aceed6a88338ca3da",
+    "semantic_hash": "92e78b31e0a1bd8aceed6a88338ca3da"
+  },
+  "D:\\dev\\filosage\\public\\brand\\banners\\call-to-action-banner.svg": {
+    "mtime": 1786648887.880406,
+    "seen": 1786650398.9604285,
+    "ast_hash": "a3d5b3b7b1ef44868c75cc9c1a417d10",
+    "semantic_hash": "a3d5b3b7b1ef44868c75cc9c1a417d10"
+  },
+  "D:\\dev\\filosage\\public\\brand\\banners\\main-website-banner.svg": {
+    "mtime": 1786648887.880406,
+    "seen": 1786650398.9604294,
+    "ast_hash": "bb5b11730f7b6a38aaaf46d5454d29c7",
+    "semantic_hash": "bb5b11730f7b6a38aaaf46d5454d29c7"
+  },
+  "D:\\dev\\filosage\\public\\brand\\banners\\open-graph.svg": {
+    "mtime": 1786648887.880406,
+    "seen": 1786650398.9604301,
+    "ast_hash": "d10adbd0f3b4ccaf7c080afff1d831dc",
+    "semantic_hash": "d10adbd0f3b4ccaf7c080afff1d831dc"
+  },
+  "D:\\dev\\filosage\\public\\brand\\banners\\social-sharing-fallback.svg": {
+    "mtime": 1786648887.880406,
+    "seen": 1786650398.9604309,
+    "ast_hash": "bc320d902b923f5e627b36bd92b0aa3e",
+    "semantic_hash": "bc320d902b923f5e627b36bd92b0aa3e"
+  },
+  "D:\\dev\\filosage\\public\\brand\\icons\\arrow-right.svg": {
+    "mtime": 1786648887.880406,
+    "seen": 1786650398.9604316,
+    "ast_hash": "07b2e3c45e451f2bb1161a517c35444d",
+    "semantic_hash": "07b2e3c45e451f2bb1161a517c35444d"
+  },
+  "D:\\dev\\filosage\\public\\brand\\icons\\check.svg": {
+    "mtime": 1786648887.880406,
+    "seen": 1786650398.9604323,
+    "ast_hash": "39c1832a235b518fce8e7a15ca7da4c2",
+    "semantic_hash": "39c1832a235b518fce8e7a15ca7da4c2"
+  },
+  "D:\\dev\\filosage\\public\\brand\\icons\\spark.svg": {
+    "mtime": 1786648887.880406,
+    "seen": 1786650398.9604332,
+    "ast_hash": "c63ad840e564bdc0844cb56ef37192eb",
+    "semantic_hash": "c63ad840e564bdc0844cb56ef37192eb"
+  },
+  "D:\\dev\\filosage\\public\\brand\\illustrations\\abstract-learning.svg": {
+    "mtime": 1786648887.880406,
+    "seen": 1786650398.960434,
+    "ast_hash": "cea572917586bc1c198d89003dcf9445",
+    "semantic_hash": "cea572917586bc1c198d89003dcf9445"
+  },
+  "D:\\dev\\filosage\\public\\brand\\illustrations\\ai-explanations.svg": {
+    "mtime": 1786648887.880406,
+    "seen": 1786650398.9604347,
+    "ast_hash": "84fe9cb43de16f7c13ec30b6c6de3f05",
+    "semantic_hash": "84fe9cb43de16f7c13ec30b6c6de3f05"
+  },
+  "D:\\dev\\filosage\\public\\brand\\illustrations\\concept-mastery.svg": {
+    "mtime": 1786648887.894348,
+    "seen": 1786650398.9604354,
+    "ast_hash": "4bde8653dbfeebfd6afa0e174a3fe553",
+    "semantic_hash": "4bde8653dbfeebfd6afa0e174a3fe553"
+  },
+  "D:\\dev\\filosage\\public\\brand\\illustrations\\desktop-product-frame.svg": {
+    "mtime": 1786648887.894348,
+    "seen": 1786650398.960436,
+    "ast_hash": "59a4601108a3fb3204ba1c81f2c5ec9c",
+    "semantic_hash": "59a4601108a3fb3204ba1c81f2c5ec9c"
+  },
+  "D:\\dev\\filosage\\public\\brand\\illustrations\\learning-paths.svg": {
+    "mtime": 1786648887.894348,
+    "seen": 1786650398.960437,
+    "ast_hash": "2fae991f047c7e60925145db8071ac14",
+    "semantic_hash": "2fae991f047c7e60925145db8071ac14"
+  },
+  "D:\\dev\\filosage\\public\\brand\\illustrations\\personalized-practice.svg": {
+    "mtime": 1786648887.894348,
+    "seen": 1786650398.9604378,
+    "ast_hash": "741c88a8dd4ae76823c6bf164acb06cb",
+    "semantic_hash": "741c88a8dd4ae76823c6bf164acb06cb"
+  },
+  "D:\\dev\\filosage\\public\\brand\\illustrations\\progress-tracking.svg": {
+    "mtime": 1786648887.894348,
+    "seen": 1786650398.9604385,
+    "ast_hash": "52952293104bb254e796938aaf5a9995",
+    "semantic_hash": "52952293104bb254e796938aaf5a9995"
+  },
+  "D:\\dev\\filosage\\public\\brand\\illustrations\\topic-exploration.svg": {
+    "mtime": 1786648887.8980813,
+    "seen": 1786650398.9604392,
+    "ast_hash": "0078cf8bd66a0fd4b80a09e1abb9cfeb",
+    "semantic_hash": "0078cf8bd66a0fd4b80a09e1abb9cfeb"
+  },
+  "D:\\dev\\filosage\\public\\brand\\logo\\browser-icon.png": {
+    "mtime": 1786648887.8980813,
+    "seen": 1786650398.96044,
+    "ast_hash": "8bbe7f172afb5cde952f8e07f0314b91",
+    "semantic_hash": "8bbe7f172afb5cde952f8e07f0314b91"
+  },
+  "D:\\dev\\filosage\\public\\brand\\logo\\filosage-dark-placement.svg": {
+    "mtime": 1786648887.8980813,
+    "seen": 1786650398.9604406,
+    "ast_hash": "9a076655fa18c3f33b69208abecca745",
+    "semantic_hash": "9a076655fa18c3f33b69208abecca745"
+  },
+  "D:\\dev\\filosage\\public\\brand\\logo\\filosage-horizontal.svg": {
+    "mtime": 1786648887.9018273,
+    "seen": 1786650398.9604416,
+    "ast_hash": "0b348df94fcc7c855e77ce5c8cbebca1",
+    "semantic_hash": "0b348df94fcc7c855e77ce5c8cbebca1"
+  },
+  "D:\\dev\\filosage\\public\\brand\\logo\\filosage-icon.png": {
+    "mtime": 1786648887.9018273,
+    "seen": 1786650398.960442,
+    "ast_hash": "8bbe7f172afb5cde952f8e07f0314b91",
+    "semantic_hash": "8bbe7f172afb5cde952f8e07f0314b91"
+  },
+  "D:\\dev\\filosage\\public\\brand\\logo\\filosage-light-placement.svg": {
+    "mtime": 1786648887.9048855,
+    "seen": 1786650398.9604428,
+    "ast_hash": "16c79afe68faaeb2b241039eb4b98211",
+    "semantic_hash": "16c79afe68faaeb2b241039eb4b98211"
+  },
+  "D:\\dev\\filosage\\public\\brand\\logo\\filosage-social-avatar.svg": {
+    "mtime": 1786648887.9068909,
+    "seen": 1786650398.960444,
+    "ast_hash": "10c73b33439cd184cf0acf935065a96c",
+    "semantic_hash": "10c73b33439cd184cf0acf935065a96c"
+  },
+  "D:\\dev\\filosage\\public\\brand\\logo\\filosage-stripe-icon.png": {
+    "mtime": 1786648887.9068909,
+    "seen": 1786650398.9604445,
+    "ast_hash": "129db8fc948c58a60f4d449d67773114",
+    "semantic_hash": "129db8fc948c58a60f4d449d67773114"
+  },
+  "D:\\dev\\filosage\\public\\brand\\logo\\filosage-stripe-logo.png": {
+    "mtime": 1786648887.9068909,
+    "seen": 1786650398.9604452,
+    "ast_hash": "61853d822fbac193a38983f45223e75d",
+    "semantic_hash": "61853d822fbac193a38983f45223e75d"
+  },
+  "D:\\dev\\filosage\\public\\brand\\logo\\filosage-theme-dark.png": {
+    "mtime": 1786648887.910337,
+    "seen": 1786650398.9604461,
+    "ast_hash": "8bbe7f172afb5cde952f8e07f0314b91",
+    "semantic_hash": "8bbe7f172afb5cde952f8e07f0314b91"
+  },
+  "D:\\dev\\filosage\\public\\brand\\logo\\filosage-theme-light.png": {
+    "mtime": 1786648887.9123423,
+    "seen": 1786650398.960447,
+    "ast_hash": "61465bbfd22656b57886f33f9781dc2c",
+    "semantic_hash": "61465bbfd22656b57886f33f9781dc2c"
+  },
+  "D:\\dev\\filosage\\public\\brand\\patterns\\dot-grid.svg": {
+    "mtime": 1786648887.9123423,
+    "seen": 1786650398.9604478,
+    "ast_hash": "6a46549c8a0208bb06a8ae3fd89c0996",
+    "semantic_hash": "6a46549c8a0208bb06a8ae3fd89c0996"
+  },
+  "D:\\dev\\filosage\\public\\brand\\patterns\\gradient-mesh.svg": {
+    "mtime": 1786648887.9123423,
+    "seen": 1786650398.9604485,
+    "ast_hash": "dc912b98ddb9939d9597cdb49284c15d",
+    "semantic_hash": "dc912b98ddb9939d9597cdb49284c15d"
+  },
+  "D:\\dev\\filosage\\public\\brand\\patterns\\knowledge-nodes.svg": {
+    "mtime": 1786648887.9123423,
+    "seen": 1786650398.960449,
+    "ast_hash": "39b045a4f13cbfecf67dbddd11ab7e39",
+    "semantic_hash": "39b045a4f13cbfecf67dbddd11ab7e39"
+  },
+  "D:\\dev\\filosage\\public\\brand\\patterns\\learning-path.svg": {
+    "mtime": 1786648887.9123423,
+    "seen": 1786650398.9604497,
+    "ast_hash": "7e68bcdae68c279a52f571e042f3c298",
+    "semantic_hash": "7e68bcdae68c279a52f571e042f3c298"
+  },
+  "D:\\dev\\filosage\\public\\brand\\patterns\\page-motif.svg": {
+    "mtime": 1786648887.9123423,
+    "seen": 1786650398.960451,
+    "ast_hash": "02fdc4e5e3d97bff3524d85ad265f1c4",
+    "semantic_hash": "02fdc4e5e3d97bff3524d85ad265f1c4"
+  },
+  "D:\\dev\\filosage\\public\\brand\\patterns\\progress-rings.svg": {
+    "mtime": 1786648887.9123423,
+    "seen": 1786650398.9604514,
+    "ast_hash": "382d7a79e194cdc0c3aadff4d3fb11a0",
+    "semantic_hash": "382d7a79e194cdc0c3aadff4d3fb11a0"
+  },
+  "D:\\dev\\filosage\\public\\brand\\social\\github-social-preview.svg": {
+    "mtime": 1786648887.9191587,
+    "seen": 1786650398.960452,
+    "ast_hash": "508cdcd0d1c0829773773661337e620d",
+    "semantic_hash": "508cdcd0d1c0829773773661337e620d"
+  },
+  "D:\\dev\\filosage\\public\\brand\\social\\launch-announcement.svg": {
+    "mtime": 1786648887.9191587,
+    "seen": 1786650398.960453,
+    "ast_hash": "71e8ee96696b8d4d88297bba9ec617ea",
+    "semantic_hash": "71e8ee96696b8d4d88297bba9ec617ea"
+  },
+  "D:\\dev\\filosage\\public\\brand\\social\\linkedin-company-banner.svg": {
+    "mtime": 1786648887.9191587,
+    "seen": 1786650398.9604537,
+    "ast_hash": "ea26d8162d5c6f099244a7ac57c5e791",
+    "semantic_hash": "ea26d8162d5c6f099244a7ac57c5e791"
+  },
+  "D:\\dev\\filosage\\public\\brand\\social\\newsletter-header.svg": {
+    "mtime": 1786648887.9191587,
+    "seen": 1786650398.9604545,
+    "ast_hash": "e0b0379731392fbb1ed1ff2a850300d0",
+    "semantic_hash": "e0b0379731392fbb1ed1ff2a850300d0"
+  },
+  "D:\\dev\\filosage\\public\\brand\\social\\open-graph.png": {
+    "mtime": 1786648887.9191587,
+    "seen": 1786650398.9604552,
+    "ast_hash": "7ce936da50691812a601442e257d2fbe",
+    "semantic_hash": "7ce936da50691812a601442e257d2fbe"
+  },
+  "D:\\dev\\filosage\\public\\brand\\social\\press-kit-cover.svg": {
+    "mtime": 1786648887.9191587,
+    "seen": 1786650398.960456,
+    "ast_hash": "e45b3f220fd606ae3bceb2e0cfaad012",
+    "semantic_hash": "e45b3f220fd606ae3bceb2e0cfaad012"
+  },
+  "D:\\dev\\filosage\\public\\brand\\social\\product-announcement.svg": {
+    "mtime": 1786648887.92608,
+    "seen": 1786650398.960459,
+    "ast_hash": "9528cd49ae5d8dc114e5195212c22b08",
+    "semantic_hash": "9528cd49ae5d8dc114e5195212c22b08"
+  },
+  "D:\\dev\\filosage\\public\\brand\\social\\social-sharing-fallback.png": {
+    "mtime": 1786648887.92608,
+    "seen": 1786650398.9604595,
+    "ast_hash": "d2f4f4943865aa85d8976b3e29190283",
+    "semantic_hash": "d2f4f4943865aa85d8976b3e29190283"
+  },
+  "D:\\dev\\filosage\\public\\brand\\social\\x-profile-header.svg": {
+    "mtime": 1786648887.92608,
+    "seen": 1786650398.9604602,
+    "ast_hash": "11c55f29531b397c39f053e62911fe5a",
+    "semantic_hash": "11c55f29531b397c39f053e62911fe5a"
+  },
+  "D:\\dev\\filosage\\src\\app\\icon.svg": {
+    "mtime": 1786648887.9784205,
+    "seen": 1786650398.9604611,
+    "ast_hash": "c63ad840e564bdc0844cb56ef37192eb",
+    "semantic_hash": "c63ad840e564bdc0844cb56ef37192eb"
+  }
+}
