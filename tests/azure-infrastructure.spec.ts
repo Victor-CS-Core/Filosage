@@ -31,11 +31,14 @@ const marketingNavigationSource = readFileSync("src/components/marketing/Marketi
 const globalStylesSource = readFileSync("src/app/globals.css", "utf8");
 
 test("the QA environment indicator participates in header layout instead of overlaying the interface", () => {
+  const environmentPillRule = globalStylesSource.match(/\.environment-pill\s*\{([^}]*)\}/)?.[1];
+
   expect(rootLayoutSource).not.toContain("environment-banner");
   expect(appShellSource).toContain("<EnvironmentPill />");
   expect(marketingNavigationSource).toContain("<EnvironmentPill />");
   expect(globalStylesSource).toContain('html[data-environment="qa"] .environment-pill');
-  expect(globalStylesSource).not.toMatch(/\.environment-pill\s*\{[\s\S]*?position:\s*(?:fixed|absolute)/);
+  expect(environmentPillRule).toBeDefined();
+  expect(environmentPillRule).not.toMatch(/position:\s*(?:fixed|absolute)/);
 });
 
 test("Azure infrastructure inventory names every production platform service", () => {
