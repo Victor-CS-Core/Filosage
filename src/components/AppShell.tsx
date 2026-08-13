@@ -33,6 +33,7 @@ import MarketingNavigation from "@/components/marketing/MarketingNavigation";
 import CommandPalette, { type CommandPaletteItem } from "@/components/CommandPalette";
 import SupportCenter from "@/components/support/SupportCenter";
 import UserAvatar from "@/components/UserAvatar";
+import EnvironmentPill from "@/components/EnvironmentPill";
 import { useAuth } from "@/components/AuthProvider";
 import { useTheme } from "@/components/ThemeProvider";
 import type { Course } from "@/lib/course-types";
@@ -347,6 +348,7 @@ export default function AppShell({ children, activeTopic, activeLessonId, active
         </div>
 
         <div className="learning-header-actions">
+          <EnvironmentPill />
           <button
             ref={accountTriggerRef}
             className={`learning-account-trigger ${commandOpen || pathname === "/profile" || pathname.startsWith("/admin") ? "is-active" : ""}`}
@@ -369,6 +371,7 @@ export default function AppShell({ children, activeTopic, activeLessonId, active
           <span className="brand-mark" aria-hidden="true"><FilosageMark /></span><strong className="brand-wordmark"><span>Filo</span><span>sage</span></strong>
         </Link>
         <div className="learner-mobile-actions">
+          <EnvironmentPill />
           <button ref={mobileAccountTriggerRef} className="mobile-account-trigger" type="button" onClick={() => openCommand(mobileAccountTriggerRef.current)} aria-expanded={commandOpen} aria-controls="command-palette" aria-haspopup="dialog" aria-label={`Open Command Center for ${firstName}, ${account?.plan === "pro" ? "Filosage Pro" : account?.plan === "plus" ? "Filosage Plus" : "free plan"}`}>
             <UserAvatar photoURL={user.photoURL} size={30} fallback={<span className="avatar-fallback"><UserRound size={15} /></span>} />
             <span>{account?.plan === "pro" ? "Pro" : account?.plan === "plus" ? "Plus" : "Free"}</span>

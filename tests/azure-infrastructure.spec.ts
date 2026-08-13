@@ -25,6 +25,18 @@ const dockerfileSource = readFileSync("Dockerfile", "utf8");
 const healthRouteSource = readFileSync("src/app/api/health/route.ts", "utf8");
 const healthVerifierSource = readFileSync("scripts/check-production-health.mjs", "utf8");
 const proxySource = readFileSync("src/proxy.ts", "utf8");
+const rootLayoutSource = readFileSync("src/app/layout.tsx", "utf8");
+const appShellSource = readFileSync("src/components/AppShell.tsx", "utf8");
+const marketingNavigationSource = readFileSync("src/components/marketing/MarketingNavigation.tsx", "utf8");
+const globalStylesSource = readFileSync("src/app/globals.css", "utf8");
+
+test("the QA environment indicator participates in header layout instead of overlaying the interface", () => {
+  expect(rootLayoutSource).not.toContain("environment-banner");
+  expect(appShellSource).toContain("<EnvironmentPill />");
+  expect(marketingNavigationSource).toContain("<EnvironmentPill />");
+  expect(globalStylesSource).toContain('html[data-environment="qa"] .environment-pill');
+  expect(globalStylesSource).not.toMatch(/\.environment-pill\s*\{[\s\S]*?position:\s*(?:fixed|absolute)/);
+});
 
 test("Azure infrastructure inventory names every production platform service", () => {
   expect(infrastructureSource).toContain("Azure Container Apps Easy Auth (Google)");

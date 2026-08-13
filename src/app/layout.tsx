@@ -89,11 +89,6 @@ export default async function RootLayout({
         {/* eslint-disable-next-line @next/next/no-sync-scripts -- Theme must be set before first paint. */}
         <script id="filosage-theme-bootstrap" src="/theme-bootstrap.js" nonce={nonce} suppressHydrationWarning />
         <ThemeProvider>
-          {qaEnvironment ? (
-            <div className="environment-banner" role="status">
-              QA environment <span aria-hidden="true">·</span> isolated test data
-            </div>
-          ) : null}
           <AuthProvider>
             <DrawerProvider>
               <TrafficTracker />
