@@ -43,7 +43,13 @@ jobs:
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
       - name: Sign in to Azure Container Registry
-        run: az acr login --name "${{ vars.AZURE_ACR_NAME }}"
+        shell: bash
+        run: |
+          set -euo pipefail
+          TOKEN="$(az acr login --name "${{ vars.AZURE_ACR_NAME }}" --expose-token --query accessToken --output tsv)"
+          printf '%s' "$TOKEN" | docker login "${{ vars.AZURE_ACR_NAME }}.azurecr.io" \
+            --username 00000000-0000-0000-0000-000000000000 \
+            --password-stdin
 
       - name: Build and push the immutable image
         shell: bash
