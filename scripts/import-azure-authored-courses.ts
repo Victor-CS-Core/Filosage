@@ -91,7 +91,18 @@ if (existing.rows[0] && !missingOnly) {
   await pool.end();
   throw new Error(`Azure already contains ${existing.rows[0].path}; the import is create-only.`);
 }
-const expectedByPath = new Map(bundle.documents.map((document) => [document.path, fromFirestoreFields(document.fields)]));
+const bannerObjectIds = new Set(bundle.bannerObjects.map((object) => object.assetId));
+const expectedDocumentData = (document: MigrationBundle["documents"][number]) => {
+  const data = fromFirestoreFields(document.fields);
+  const assetId = document.path.startsWith("courseBannerAssets/") ? document.path.split("/")[1] : "";
+  if (assetId && bannerObjectIds.has(assetId)) {
+    delete data.data;
+    data.storage = "azure-blob";
+    data.objectKey = `course-banners/${assetId}.webp`;
+  }
+  return data;
+};
+const expectedByPath = new Map(bundle.documents.map((document) => [document.path, expectedDocumentData(document)]));
 const canonical = (value: unknown): string => {
   if (Array.isArray(value)) return `[${value.map(canonical).join(",")}]`;
   if (value && typeof value === "object") {
@@ -126,13 +137,7 @@ try {
   for (const document of documentsToInsert) {
     const segments = document.path.split("/");
     if (!document.path || segments.length % 2 !== 0) throw new Error(`Invalid document path: ${document.path}`);
-    const data = fromFirestoreFields(document.fields);
-    const assetId = segments[0] === "courseBannerAssets" ? segments[1] : "";
-    if (assetId && bundle.bannerObjects.some((item) => item.assetId === assetId)) {
-      delete data.data;
-      data.storage = "azure-blob";
-      data.objectKey = `course-banners/${assetId}.webp`;
-    }
+    const data = expectedDocumentData(document);
     await client.query(
       `INSERT INTO filosage_documents (path, collection_id, collection_path, document_id, data)
        VALUES ($1, $2, $3, $4, $5::jsonb)`,
