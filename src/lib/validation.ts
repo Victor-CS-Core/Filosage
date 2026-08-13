@@ -129,7 +129,10 @@ const lessonWithoutVisualsSchema = z.object({
   }),
   transferTask: z.object({
     prompt: z.string().trim().min(1).max(800),
-    successCriteria: z.array(z.string().trim().min(1).max(240)).min(1).max(4),
+    successCriteria: z.array(
+      z.string().trim().min(1).max(240)
+        .refine((criterion) => !containsSerializedCriterionList(criterion), "Return each success criterion as a separate list item."),
+    ).min(1).max(4),
     modelResponse: z.string().trim().min(1).max(2_000),
   }),
   quizzes: z
@@ -173,7 +176,10 @@ const lessonExperienceSchema = z.discriminatedUnion("type", [
     materials: z.array(z.string().trim().min(1).max(300)).min(2).max(6),
     tasks: z.array(z.string().trim().min(1).max(400)).min(3).max(7),
     artifactPrompt: z.string().trim().min(1).max(800),
-    successCriteria: z.array(z.string().trim().min(1).max(240)).min(2).max(5),
+    successCriteria: z.array(
+      z.string().trim().min(1).max(240)
+        .refine((criterion) => !containsSerializedCriterionList(criterion), "Return each success criterion as a separate list item."),
+    ).min(2).max(5),
   }),
   z.object({
     type: z.literal("synthesis"),

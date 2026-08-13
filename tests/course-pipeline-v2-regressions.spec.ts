@@ -796,6 +796,13 @@ test("capstone criteria remain separate and support six explicit requirements", 
     },
   }).success).toBe(false);
   expect(normalizeSuccessCriteria([`${criteria[4]}","${criteria[5]}`])).toEqual(criteria.slice(4));
+  expect(normalizeSuccessCriteria([
+    "States a defensible disposition with a reason tied to the claim.【No claim of improvement is made solely from the metric difference.】【Prescribes a rerun or cohort-separation action.",
+  ])).toEqual([
+    "States a defensible disposition with a reason tied to the claim.",
+    "No claim of improvement is made solely from the metric difference.",
+    "Prescribes a rerun or cohort-separation action.",
+  ]);
 });
 
 test("declared introduction lessons use a renderable exception instead of the substantive template", async () => {

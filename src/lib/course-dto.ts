@@ -31,9 +31,7 @@ function transferTaskDto(value: unknown): LessonData["transferTask"] {
   const task = value as Record<string, unknown>;
   const prompt = structuredText(task.prompt);
   const modelResponse = structuredText(task.modelResponse);
-  const successCriteria = Array.isArray(task.successCriteria)
-    ? task.successCriteria.filter((item): item is string => typeof item === "string")
-    : [];
+  const successCriteria = normalizeSuccessCriteria(task.successCriteria).map(normalizeStructuredMarkdown);
   return prompt && modelResponse && successCriteria.length
     ? { prompt, successCriteria, modelResponse }
     : undefined;
@@ -57,9 +55,7 @@ function lessonExperienceDto(value: unknown): LessonData["experience"] {
         .map(normalizeStructuredMarkdown)
         .filter((item) => !RESERVED_EXPERIENCE_TASKS.has(item.trim().toLowerCase().replace(/[^a-z]/g, "")))
     : [];
-  const successCriteria = Array.isArray(experience.successCriteria)
-    ? experience.successCriteria.filter((item): item is string => typeof item === "string").map(normalizeStructuredMarkdown)
-    : [];
+  const successCriteria = normalizeSuccessCriteria(experience.successCriteria).map(normalizeStructuredMarkdown);
 
   return brief && artifactPrompt && materials.length && tasks.length && successCriteria.length
     ? { type: "practice-lab", brief, materials, tasks, artifactPrompt, successCriteria }
