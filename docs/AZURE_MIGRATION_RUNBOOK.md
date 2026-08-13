@@ -38,7 +38,7 @@ The owner completes Azure portal password/MFA. Then inspect, without creating re
 - forecast for Container Apps, PostgreSQL `Standard_B1ms` with 32 GiB storage, ACR Basic, Blob Storage, Key Vault, and Log Analytics;
 - budget and alert configuration.
 
-The selected subscription is `Azure subscription 1` and the selected region is Central US. East US rejected PostgreSQL 16 for this subscription offer, so the failed empty foundation was removed before the Central US retry. A $30 monthly budget alert remains to be configured because the cost API rejected the interactive account's current RBAC token.
+The selected subscription is `Azure subscription 1` and the selected region is Central US. East US rejected PostgreSQL 16 for this subscription offer, so the failed empty foundation was removed before the Central US retry. The `filosage-monthly` budget is configured at $30 per month with an 80% actual-spend alert and a 100% forecast alert sent to `viticopq12@gmail.com`.
 
 ## Gate 3: staging infrastructure
 
@@ -56,7 +56,17 @@ Create or select an Entra External ID external tenant and configure:
 - token issuer, audience, and JWKS values;
 - a separate confidential Graph application only if automatic identity deletion is approved, with the narrow required application permission and admin consent.
 
-The external tenant is `filosagecustomers.onmicrosoft.com`. `Filosage Web` exposes `access_as_user`, requests the email claim in access and ID tokens, is attached to the `Filosage Customers` sign-up/sign-in flow, and has both localhost and the exact Container Apps staging origin registered as SPA redirects. Google is configured as a federated provider and the application passes `domain_hint=google` so Google remains the primary sign-in path. Email/password remains a recovery method. `OWNER_EMAIL=viticopq12@gmail.com` is the server-side owner boundary and still requires a verified token email match.
+The external tenant is `filosagecustomers.onmicrosoft.com`. `Filosage Web` exposes `access_as_user`, requests the email claim in access and ID tokens, is attached to the `Filosage Customers` sign-up/sign-in flow, and has localhost plus the base, blue, and green Container Apps origins registered as SPA redirects. Google is configured as a federated provider and the application passes `domain_hint=google` so Google remains the primary sign-in path. Email/password remains a recovery method. `OWNER_EMAIL=viticopq12@gmail.com` is the server-side owner boundary and still requires a verified token email match.
+
+The Google OAuth client used by External ID must retain the complete Microsoft callback set below. On 2026-08-12, a live Google sign-in exposed `redirect_uri_mismatch` because the client contained only one CIAM callback. These exact callbacks were added to the existing `Filosage Entra External ID` client and re-read from Google Cloud after saving:
+
+- `https://login.microsoftonline.com`
+- `https://login.microsoftonline.com/te/69d76567-5377-4393-bfe5-47565b8df5dd/oauth2/authresp`
+- `https://login.microsoftonline.com/te/filosagecustomers.onmicrosoft.com/oauth2/authresp`
+- `https://69d76567-5377-4393-bfe5-47565b8df5dd.ciamlogin.com/69d76567-5377-4393-bfe5-47565b8df5dd/federation/oidc/accounts.google.com`
+- `https://69d76567-5377-4393-bfe5-47565b8df5dd.ciamlogin.com/filosagecustomers.onmicrosoft.com/federation/oidc/accounts.google.com`
+- `https://filosagecustomers.ciamlogin.com/69d76567-5377-4393-bfe5-47565b8df5dd/federation/oauth2`
+- `https://filosagecustomers.ciamlogin.com/filosagecustomers.onmicrosoft.com/federation/oauth2`
 
 Verify owner sign-in, learner sign-in, sign-out, token refresh, canceled popup, blocked popup, recent-authentication deletion, wrong issuer, wrong audience, expired token, and non-owner authorization.
 
