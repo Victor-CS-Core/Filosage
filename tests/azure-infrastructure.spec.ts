@@ -11,8 +11,12 @@ const accountServerSource = readFileSync("src/lib/account-server.ts", "utf8");
 const packageSource = readFileSync("package.json", "utf8");
 const runtimeConfigSource = readFileSync("src/lib/runtime-config.ts", "utf8");
 const stagingWorkflowSource = readFileSync(".github/workflows/azure-staging.yml", "utf8");
+const qaWorkflowSource = readFileSync(".github/workflows/azure-qa.yml", "utf8");
 const promotionWorkflowSource = readFileSync(".github/workflows/azure-promote-staging.yml", "utf8");
 const azureBicepSource = readFileSync("infra/azure/main.bicep", "utf8");
+const qaBicepSource = readFileSync("infra/azure/qa.bicep", "utf8");
+const robotsSource = readFileSync("src/app/robots.ts", "utf8");
+const proxySourceWithQa = readFileSync("src/proxy.ts", "utf8");
 const migrationVerifierSource = readFileSync("scripts/verify-azure-authored-courses.ts", "utf8");
 const migrationCompletionSource = readFileSync("scripts/complete-azure-course-bundle.ts", "utf8");
 const migrationImporterSource = readFileSync("scripts/import-azure-authored-courses.ts", "utf8");
@@ -130,15 +134,31 @@ test("staging health does not claim production alert delivery is configured", ()
   expect(runtimeConfigSource).toContain("requiredForProductionOperations");
 });
 
-test("staging deploys only to an inactive blue or green revision label", () => {
+test("isolated QA scales to zero and keeps its data stores separate", () => {
+  expect(qaBicepSource).toContain("qaDatabaseName string = 'filosageqa'");
+  expect(qaBicepSource).toContain("qaBannerContainerName string = 'qa-course-banners'");
+  expect(qaBicepSource).toContain("minReplicas: 0");
+  expect(qaBicepSource).toContain("maxReplicas: 1");
+  expect(qaBicepSource).toContain("OPERATIONS_ENVIRONMENT', value: 'qa'");
+  expect(qaWorkflowSource).toContain("AZURE_QA_CONTAINER_APP_NAME");
+  expect(qaWorkflowSource).toContain('npm run check:production -- "$QA_URL" "$GITHUB_SHA" "$QA_URL"');
+  expect(robotsSource).toContain('disallow: "/"');
+  expect(proxySourceWithQa).toContain('X-Robots-Tag');
+});
+
+test("production staging accepts only the exact image already approved in QA", () => {
   expect(azureBicepSource).toContain("activeRevisionsMode: 'Multiple'");
   expect(stagingWorkflowSource).toContain("target_slot:");
+  expect(stagingWorkflowSource).toContain("expected_sha:");
+  expect(stagingWorkflowSource).toContain('npm run check:production -- "$QA_URL" "$EXPECTED_SHA" "$QA_URL"');
+  expect(stagingWorkflowSource).toContain('az acr repository show');
+  expect(stagingWorkflowSource).toContain('filosage@${DIGEST}');
   expect(stagingWorkflowSource).toContain('if [[ "${ACTIVE_WEIGHT:-0}" != "0" ]]');
   expect(stagingWorkflowSource).toContain("az containerapp revision label add");
-  expect(stagingWorkflowSource).toContain("public_site_url:");
   expect(stagingWorkflowSource).toContain('"AZURE_EASY_AUTH_ENABLED=true"');
   expect(stagingWorkflowSource).not.toContain("NEXT_PUBLIC_FIREBASE_API_KEY");
-  expect(stagingWorkflowSource).toContain('npm run check:production -- "${TARGET_URL}" "${GITHUB_SHA}" "${PUBLIC_SITE_URL}"');
+  expect(stagingWorkflowSource).not.toContain("docker build");
+  expect(stagingWorkflowSource).toContain('npm run check:production -- "${TARGET_URL}" "${EXPECTED_SHA}" "${PUBLIC_SITE_URL}"');
 });
 
 test("custom-domain releases prove their canonical origin and redirect www to the apex", () => {

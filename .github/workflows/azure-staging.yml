@@ -1,20 +1,19 @@
-name: Deploy Azure staging
+name: Stage QA-approved image for production
 
 on:
   workflow_dispatch:
     inputs:
       target_slot:
-        description: Inactive revision label to receive the QA candidate
+        description: Inactive production label to receive the QA-approved image
         required: true
         default: green
         type: choice
         options:
           - green
           - blue
-      public_site_url:
-        description: Canonical HTTPS origin compiled into the candidate; defaults to the selected slot URL
-        required: false
-        default: ""
+      expected_sha:
+        description: Full Git SHA already deployed and verified in isolated QA
+        required: true
         type: string
 
 permissions:
@@ -31,8 +30,10 @@ jobs:
     environment: azure-staging
     env:
       TARGET_SLOT: ${{ inputs.target_slot }}
+      EXPECTED_SHA: ${{ inputs.expected_sha }}
       TARGET_URL: ${{ inputs.target_slot == 'blue' && vars.AZURE_BLUE_URL || vars.AZURE_GREEN_URL }}
-      PUBLIC_SITE_URL: ${{ inputs.public_site_url || (inputs.target_slot == 'blue' && vars.AZURE_BLUE_URL || vars.AZURE_GREEN_URL) }}
+      QA_URL: ${{ vars.AZURE_QA_URL }}
+      PUBLIC_SITE_URL: https://filosage.com
     steps:
       - uses: actions/checkout@v4
 
@@ -42,13 +43,6 @@ jobs:
           cache: npm
 
       - run: npm ci
-      - run: npm run lint
-      - run: npx tsc --noEmit --incremental false
-      - run: npm run build
-        env:
-          NEXT_PUBLIC_SITE_URL: ${{ env.PUBLIC_SITE_URL }}
-          SITE_VERSION: ${{ github.sha }}
-
       - name: Sign in to Azure with GitHub OIDC
         uses: azure/login@v2
         with:
@@ -56,36 +50,34 @@ jobs:
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
-      - name: Sign in to Azure Container Registry
+      - name: Verify the exact SHA in isolated QA
         shell: bash
         run: |
           set -euo pipefail
-          TOKEN="$(az acr login --name "${{ vars.AZURE_ACR_NAME }}" --expose-token --query accessToken --output tsv)"
-          printf '%s' "$TOKEN" | docker login "${{ vars.AZURE_ACR_NAME }}.azurecr.io" \
-            --username 00000000-0000-0000-0000-000000000000 \
-            --password-stdin
-
-      - name: Build and push the immutable image
-        shell: bash
-        run: |
-          set -euo pipefail
-          IMAGE="${{ vars.AZURE_ACR_NAME }}.azurecr.io/filosage:${GITHUB_SHA}"
-          if [[ ! "$PUBLIC_SITE_URL" =~ ^https://[^/]+/?$ ]]; then
-            echo "public_site_url must be an HTTPS origin without a path."
+          if [[ ! "$EXPECTED_SHA" =~ ^[a-fA-F0-9]{40}$ ]]; then
+            echo "expected_sha must be a full 40-character Git SHA."
             exit 1
           fi
-          docker build \
-            --tag "$IMAGE" \
-            --build-arg "NEXT_PUBLIC_SITE_URL=${PUBLIC_SITE_URL}" \
-            --build-arg "SITE_VERSION=${GITHUB_SHA}" \
-            .
-          docker push "$IMAGE"
+          if [[ "$EXPECTED_SHA" != "$GITHUB_SHA" ]]; then
+            echo "Run this workflow from the exact branch or commit selected in QA."
+            exit 1
+          fi
+          npm run check:production -- "$QA_URL" "$EXPECTED_SHA" "$QA_URL"
 
       - name: Deploy the exact image to Azure Container Apps
         shell: bash
         run: |
           set -euo pipefail
-          IMAGE="${{ vars.AZURE_ACR_NAME }}.azurecr.io/filosage:${GITHUB_SHA}"
+          DIGEST="$(az acr repository show \
+            --name "${{ vars.AZURE_ACR_NAME }}" \
+            --image "filosage:${EXPECTED_SHA}" \
+            --query digest \
+            --output tsv)"
+          if [[ ! "$DIGEST" =~ ^sha256:[a-fA-F0-9]{64}$ ]]; then
+            echo "The QA-approved image digest could not be resolved."
+            exit 1
+          fi
+          IMAGE="${{ vars.AZURE_ACR_NAME }}.azurecr.io/filosage@${DIGEST}"
           ACTIVE_WEIGHT="$(az containerapp show \
             --resource-group "${{ vars.AZURE_RESOURCE_GROUP }}" \
             --name "${{ vars.AZURE_CONTAINER_APP_NAME }}" \
@@ -99,7 +91,7 @@ jobs:
             --resource-group "${{ vars.AZURE_RESOURCE_GROUP }}" \
             --name "${{ vars.AZURE_CONTAINER_APP_NAME }}" \
             --mode multiple
-          REVISION_SUFFIX="${TARGET_SLOT}-${GITHUB_SHA:0:8}-${GITHUB_RUN_ATTEMPT}"
+          REVISION_SUFFIX="${TARGET_SLOT}-${EXPECTED_SHA:0:8}-${GITHUB_RUN_ATTEMPT}"
           az containerapp update \
             --resource-group "${{ vars.AZURE_RESOURCE_GROUP }}" \
             --name "${{ vars.AZURE_CONTAINER_APP_NAME }}" \
@@ -118,8 +110,10 @@ jobs:
               "ENTRA_DIRECTORY_CLIENT_ID" \
               "ENTRA_DIRECTORY_CLIENT_SECRET" \
             --set-env-vars \
-              "SITE_VERSION=${GITHUB_SHA}" \
+              "SITE_VERSION=${EXPECTED_SHA}" \
               "NEXT_PUBLIC_SITE_URL=${PUBLIC_SITE_URL}" \
+              "DEPLOYMENT_ENVIRONMENT=production" \
+              "OPERATIONS_ENVIRONMENT=azure-staging" \
               "AZURE_EASY_AUTH_ENABLED=true" \
               "DEPLOYMENT_SLOT=${TARGET_SLOT}"
           REVISION="$(az containerapp show \
@@ -135,4 +129,4 @@ jobs:
             --yes
 
       - name: Verify the labeled QA candidate
-        run: npm run check:production -- "${TARGET_URL}" "${GITHUB_SHA}" "${PUBLIC_SITE_URL}"
+        run: npm run check:production -- "${TARGET_URL}" "${EXPECTED_SHA}" "${PUBLIC_SITE_URL}"

@@ -1,0 +1,84 @@
+name: Deploy isolated Azure QA
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: azure-qa
+  cancel-in-progress: false
+
+jobs:
+  validate-build-deploy:
+    runs-on: ubuntu-latest
+    environment: azure-staging
+    env:
+      QA_URL: ${{ vars.AZURE_QA_URL }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+      - run: npm run lint
+      - run: npx tsc --noEmit --incremental false
+      - run: npm run test:e2e -- tests/azure-infrastructure.spec.ts tests/release-scripts.spec.ts
+      - run: npm run build
+        env:
+          NEXT_PUBLIC_SITE_URL: https://filosage.com
+          SITE_VERSION: ${{ github.sha }}
+
+      - name: Sign in to Azure with GitHub OIDC
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Build and push the immutable QA-approved image
+        shell: bash
+        run: |
+          set -euo pipefail
+          TOKEN="$(az acr login --name "${{ vars.AZURE_ACR_NAME }}" --expose-token --query accessToken --output tsv)"
+          printf '%s' "$TOKEN" | docker login "${{ vars.AZURE_ACR_NAME }}.azurecr.io" \
+            --username 00000000-0000-0000-0000-000000000000 \
+            --password-stdin
+          IMAGE="${{ vars.AZURE_ACR_NAME }}.azurecr.io/filosage:${GITHUB_SHA}"
+          docker build \
+            --tag "$IMAGE" \
+            --build-arg "NEXT_PUBLIC_SITE_URL=https://filosage.com" \
+            --build-arg "SITE_VERSION=${GITHUB_SHA}" \
+            .
+          docker push "$IMAGE"
+
+      - name: Deploy the exact image to isolated QA
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ ! "$QA_URL" =~ ^https://[^/]+/?$ ]]; then
+            echo "AZURE_QA_URL must be an HTTPS origin without a path."
+            exit 1
+          fi
+          IMAGE="${{ vars.AZURE_ACR_NAME }}.azurecr.io/filosage:${GITHUB_SHA}"
+          az containerapp update \
+            --resource-group "${{ vars.AZURE_RESOURCE_GROUP }}" \
+            --name "${{ vars.AZURE_QA_CONTAINER_APP_NAME }}" \
+            --image "$IMAGE" \
+            --revision-suffix "qa-${GITHUB_SHA:0:8}-${GITHUB_RUN_ATTEMPT}" \
+            --set-env-vars \
+              "SITE_VERSION=${GITHUB_SHA}" \
+              "NEXT_PUBLIC_SITE_URL=${QA_URL}" \
+              "DEPLOYMENT_ENVIRONMENT=qa" \
+              "DEPLOYMENT_SLOT=qa" \
+              "OPERATIONS_ENVIRONMENT=qa" \
+              "AZURE_EASY_AUTH_ENABLED=true" \
+              "BILLING_ENABLED=false"
+
+      - name: Verify isolated QA candidate
+        run: npm run check:production -- "$QA_URL" "$GITHUB_SHA" "$QA_URL"

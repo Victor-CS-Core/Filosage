@@ -1,4 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
+import { isQaEnvironment } from "@/lib/deployment-environment";
 import { securityHeaders } from "@/lib/security-headers";
 import { serverEnvironment } from "@/lib/runtime-environment";
 
@@ -13,6 +14,9 @@ export function proxy(request: NextRequest) {
     nonce,
     isSecureRequest,
   );
+  if (isQaEnvironment(serverEnvironment)) {
+    responseHeaders.push({ key: "X-Robots-Tag", value: "noindex, nofollow, noarchive" });
+  }
   const forwardedHost = request.headers.get("x-forwarded-host")?.split(",")[0]?.trim();
   const host = (forwardedHost || request.headers.get("host") || "").split(":")[0]?.toLowerCase();
   if (host === "www.filosage.com") {

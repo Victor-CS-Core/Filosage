@@ -9,6 +9,7 @@ import { AuthProvider } from "@/components/AuthProvider";
 import { DrawerProvider } from "@/components/AppDrawer";
 import TrafficTracker from "@/components/TrafficTracker";
 import AnalyticsConsent from "@/components/AnalyticsConsent";
+import { isQaEnvironment } from "@/lib/deployment-environment";
 import { serverEnvironment } from "@/lib/runtime-environment";
 
 function safeRequestOrigin(headerList: Headers) {
@@ -80,13 +81,19 @@ export default async function RootLayout({
   children: React.ReactNode;
 }>) {
   const nonce = (await headers()).get("x-nonce") ?? undefined;
+  const qaEnvironment = isQaEnvironment(serverEnvironment);
 
   return (
-    <html lang="en" data-scroll-behavior="smooth" suppressHydrationWarning>
+    <html lang="en" data-scroll-behavior="smooth" data-environment={qaEnvironment ? "qa" : "production"} suppressHydrationWarning>
       <body suppressHydrationWarning>
         {/* eslint-disable-next-line @next/next/no-sync-scripts -- Theme must be set before first paint. */}
         <script id="filosage-theme-bootstrap" src="/theme-bootstrap.js" nonce={nonce} suppressHydrationWarning />
         <ThemeProvider>
+          {qaEnvironment ? (
+            <div className="environment-banner" role="status">
+              QA environment <span aria-hidden="true">·</span> isolated test data
+            </div>
+          ) : null}
           <AuthProvider>
             <DrawerProvider>
               <TrafficTracker />
