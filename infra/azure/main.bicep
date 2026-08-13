@@ -26,6 +26,10 @@ param googleClientSecret string = ''
 
 param ownerEmail string
 
+@secure()
+@description('Legacy Firebase UID whose authored courses remain managed by the verified owner account.')
+param migratedOwnerUid string = ''
+
 @description('Object ID of the human deployment owner who must be able to rotate staging secrets.')
 param deploymentPrincipalObjectId string
 
@@ -265,6 +269,12 @@ resource operationsAlertSecret 'Microsoft.KeyVault/vaults/secrets@2023-07-01' = 
   properties: { value: operationsAlertWebhookSecret }
 }
 
+resource migratedOwnerUidSecret 'Microsoft.KeyVault/vaults/secrets@2023-07-01' = if (!empty(migratedOwnerUid)) {
+  parent: vault
+  name: 'migrated-owner-uid'
+  properties: { value: migratedOwnerUid }
+}
+
 var acrPullRoleId = subscriptionResourceId('Microsoft.Authorization/roleDefinitions', '7f951dda-4ed3-4680-a7ca-43fe172d538d')
 var blobContributorRoleId = subscriptionResourceId('Microsoft.Authorization/roleDefinitions', 'ba92f5b4-2d11-453d-a403-e96b0029c9fe')
 var keyVaultSecretsUserRoleId = subscriptionResourceId('Microsoft.Authorization/roleDefinitions', '4633458b-17de-408a-b874-0445c86b69e6')
@@ -336,7 +346,8 @@ var appSecrets = concat(
   ],
   !empty(openAiApiKey) ? [{ name: 'openai-api-key', keyVaultUrl: openAiSecret!.properties.secretUriWithVersion, identity: identity.id }] : [],
   !empty(googleClientSecret) ? [{ name: 'google-oauth-secret', keyVaultUrl: googleSecret!.properties.secretUriWithVersion, identity: identity.id }] : [],
-  !empty(operationsAlertWebhookSecret) ? [{ name: 'operations-alert-webhook-secret', keyVaultUrl: operationsAlertSecret!.properties.secretUriWithVersion, identity: identity.id }] : []
+  !empty(operationsAlertWebhookSecret) ? [{ name: 'operations-alert-webhook-secret', keyVaultUrl: operationsAlertSecret!.properties.secretUriWithVersion, identity: identity.id }] : [],
+  !empty(migratedOwnerUid) ? [{ name: 'migrated-owner-uid', keyVaultUrl: migratedOwnerUidSecret!.properties.secretUriWithVersion, identity: identity.id }] : []
 )
 
 var appEnvironment = concat(
@@ -360,6 +371,7 @@ var appEnvironment = concat(
   ],
   !empty(operationsAlertWebhookUrl) ? [{ name: 'OPERATIONS_ALERT_WEBHOOK_URL', value: operationsAlertWebhookUrl }] : [],
   !empty(operationsAlertWebhookSecret) ? [{ name: 'OPERATIONS_ALERT_WEBHOOK_SECRET', secretRef: 'operations-alert-webhook-secret' }] : [],
+  !empty(migratedOwnerUid) ? [{ name: 'MIGRATED_OWNER_UID', secretRef: 'migrated-owner-uid' }] : [],
   !empty(openAiApiKey) ? [{ name: 'OPENAI_API_KEY', secretRef: 'openai-api-key' }] : []
 )
 

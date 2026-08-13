@@ -17,6 +17,7 @@
     "test:operations-alert": "node --experimental-strip-types scripts/test-operational-alert.ts",
     "migrate:azure:database": "node --experimental-strip-types scripts/migrate-azure-database.ts",
     "migrate:azure:export-courses": "node --experimental-strip-types scripts/export-firebase-authored-courses.ts",
+    "migrate:azure:complete-courses": "node --experimental-strip-types scripts/complete-azure-course-bundle.ts",
     "migrate:azure:import-courses": "node --experimental-strip-types scripts/import-azure-authored-courses.ts",
     "migrate:azure:verify-courses": "node --experimental-strip-types scripts/verify-azure-authored-courses.ts"
   },

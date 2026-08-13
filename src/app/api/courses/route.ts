@@ -6,6 +6,7 @@ import { planAllows } from "@/lib/membership-plans";
 import { getAiQuotaSummaries } from "@/lib/ai-usage";
 import { safeModelErrorDetails } from "@/lib/model-fallback";
 import { courseUsesPipelineV2 } from "@/lib/course-pipeline/feature-policy";
+import { courseAuthorIdsForAccount } from "@/lib/course-owner-identity";
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
@@ -38,7 +39,12 @@ export async function GET(request: Request) {
     }
 
     const account = await requireAccount(request);
-    const courses = await listOwnerCourses(account.uid);
+    const courseGroups = await Promise.all(
+      courseAuthorIdsForAccount(account).map((authorId) => listOwnerCourses(authorId)),
+    );
+    const courses = [...new Map(
+      courseGroups.flat().map((course) => [course.id, course] as const),
+    ).values()].sort((left, right) => String(right.updatedAt ?? "").localeCompare(String(left.updatedAt ?? "")));
     const canGenerateBanner = account.isOwner || (planAllows(account.plan, "generate_course_banner")
       && (await getAiQuotaSummaries(account)).some((quota) => quota.feature === "course_banner" && quota.remaining !== 0));
     return NextResponse.json({ courses: courses.map((course) => toCourseDto(course, true, canGenerateBanner)) });

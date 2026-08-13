@@ -26,6 +26,7 @@ import {
   listStoredDocumentsByField,
   runStoredDocumentTransaction,
 } from "@/lib/firebase-server";
+import { courseAuthorIdsForAccount } from "@/lib/course-owner-identity";
 
 const ACCOUNT_SUBCOLLECTION_LIMIT = 2_000;
 const ACCOUNT_FIELD_QUERY_LIMIT = 1_000;
@@ -58,7 +59,7 @@ async function listCompleteAccountRecordsByField(collectionId: string, field: st
   return documents;
 }
 
-async function collectAccountData(uid: string) {
+async function collectAccountData(uid: string, isOwner = false) {
   const [
     account,
     preferences,
@@ -98,7 +99,8 @@ async function collectAccountData(uid: string) {
     listCompleteAccountSubcollection(`users/${uid}/legalAcceptances`),
     listCompleteAccountSubcollection(`users/${uid}/billingConsents`),
     getStoredDocument(`users/${uid}/billingCheckout/current`),
-    listOwnerCourses(uid),
+    Promise.all(courseAuthorIdsForAccount({ uid, isOwner }).map((authorId) => listOwnerCourses(authorId)))
+      .then((groups) => [...new Map(groups.flat().map((course) => [course.id, course] as const)).values()]),
     listCompleteAccountRecordsByField("usagePeriods", "uid", uid),
     listCompleteAccountRecordsByField("aiRequests", "uid", uid),
     listCompleteAccountRecordsByField("userAiBudgets", "uid", uid),
@@ -163,7 +165,7 @@ async function collectAccountData(uid: string) {
 export async function GET(request: Request) {
   try {
     const account = await requireAccount(request);
-    const data = await collectAccountData(account.uid);
+    const data = await collectAccountData(account.uid, account.isOwner);
     return new Response(JSON.stringify({
       exportFormat: "filosage-account-data-v2",
       exportedAt: new Date().toISOString(),

@@ -7,7 +7,7 @@ import pg from "pg";
 import { fromFirestoreFields, type FirestoreValue } from "../src/lib/firestore-values.ts";
 
 interface MigrationBundle {
-  schemaVersion: 1;
+  schemaVersion: 1 | 2;
   owner: { uid: string; email: string };
   documents: Array<{ path: string; fields: Record<string, FirestoreValue> }>;
   bannerObjects: Array<{ assetId: string; contentType: string; base64: string }>;
@@ -35,11 +35,11 @@ const input = inputBlobArgument
   ? (await new BlobClient(inputBlobArgument, new DefaultAzureCredential()).downloadToBuffer()).toString("utf8")
   : await readFile(resolve(inputArgument || "migration-private/firebase-authored-courses.json"), "utf8");
 const bundle = JSON.parse(input) as MigrationBundle;
-if (bundle.schemaVersion !== 1 || !Array.isArray(bundle.documents) || !Array.isArray(bundle.bannerObjects)) {
+if (![1, 2].includes(bundle.schemaVersion) || !Array.isArray(bundle.documents) || !Array.isArray(bundle.bannerObjects)) {
   throw new Error("Unsupported or invalid migration bundle.");
 }
 
-const allowedPath = /^(?:courses\/[^/]+(?:\/lessons\/[^/]+)?|courseBannerAssets\/[^/]+|courseBannerKeys\/[^/]+)$/;
+const allowedPath = /^(?:courses\/[^/]+(?:\/lessons\/[^/]+)?|courseReleases\/[^/]+(?:\/lessons\/[^/]+)?|courseBannerAssets\/[^/]+|courseBannerKeys\/[^/]+)$/;
 const paths = bundle.documents.map((document) => document.path);
 if (!paths.length || paths.some((path) => !allowedPath.test(path)) || new Set(paths).size !== paths.length) {
   throw new Error("The migration bundle has missing, duplicate, or out-of-scope document paths.");
@@ -83,7 +83,7 @@ try {
   const mismatched = paths.filter((path) => actual.has(path) && canonical(actual.get(path)) !== canonical(expected.get(path)));
   const extras = (await pool.query<{ path: string }>(
     `SELECT path FROM filosage_documents
-     WHERE (path LIKE 'courses/%' OR path LIKE 'courseBannerAssets/%' OR path LIKE 'courseBannerKeys/%')
+     WHERE (path LIKE 'courses/%' OR path LIKE 'courseReleases/%' OR path LIKE 'courseBannerAssets/%' OR path LIKE 'courseBannerKeys/%')
        AND NOT (path = ANY($1::text[]))
      ORDER BY path`,
     [paths],
@@ -119,6 +119,7 @@ try {
 
   const courseCount = paths.filter((path) => /^courses\/[^/]+$/.test(path)).length;
   const lessonCount = paths.filter((path) => /^courses\/[^/]+\/lessons\/[^/]+$/.test(path)).length;
+  const releaseCount = paths.filter((path) => /^courseReleases\/[^/]+(?:\/lessons\/[^/]+)?$/.test(path)).length;
   const contentSha256 = sha256(canonical({
     documents: [...expected.entries()].sort(([left], [right]) => left.localeCompare(right)),
     banners: bannerHashes.sort(([left], [right]) => left.localeCompare(right)),
@@ -127,6 +128,7 @@ try {
     documents: paths.length,
     courses: courseCount,
     lessons: lessonCount,
+    releases: releaseCount,
     banners: bundle.bannerObjects.length,
     contentSha256,
   })}`);

@@ -33,6 +33,7 @@ import {
 } from "@/lib/membership-plans";
 import { calculateMembershipAnalytics, effectiveMembershipPlan } from "@/lib/membership-analytics";
 import { azureInfrastructure } from "@/lib/azure-infrastructure";
+import { courseAuthorIdsForAccount } from "@/lib/course-owner-identity";
 
 function numberValue(value: unknown) {
   return typeof value === "number" && Number.isFinite(value) ? value : 0;
@@ -319,9 +320,12 @@ export async function GET(request: Request) {
       const uid = stringValue(event.uid);
       if (uid) safetyCountByUser.set(uid, (safetyCountByUser.get(uid) ?? 0) + 1);
     }
+    const ownerAuthorIds = new Set(courseAuthorIdsForAccount(owner));
+    const canonicalAuthorUid = (uid: string) => ownerAuthorIds.has(uid) ? owner.uid : uid;
     const courseCountByUser = new Map<string, number>();
     for (const course of courses) {
-      const uid = stringValue(course.authorId);
+      const rawUid = stringValue(course.authorId);
+      const uid = rawUid ? canonicalAuthorUid(rawUid) : undefined;
       if (uid) courseCountByUser.set(uid, (courseCountByUser.get(uid) ?? 0) + 1);
     }
     const engagementByUser = new Map(userEngagement.flatMap((record) => {
@@ -795,7 +799,8 @@ export async function GET(request: Request) {
         .sort((a, b) => Date.parse(String(b.updatedAt ?? 0)) - Date.parse(String(a.updatedAt ?? 0)))
         .slice(0, 40)
         .map((course) => {
-          const uid = stringValue(course.authorId) ?? "";
+          const rawUid = stringValue(course.authorId) ?? "";
+          const uid = canonicalAuthorUid(rawUid);
           const modules = Array.isArray(course.modules) ? course.modules : [];
           const lessonCount = modules.reduce((sum, module) => {
             if (!module || typeof module !== "object" || !("lessons" in module)) return sum;

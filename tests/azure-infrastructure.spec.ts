@@ -1,6 +1,7 @@
 import { expect, test } from "@playwright/test";
 import { readFileSync } from "node:fs";
 import { easyAuthIdentityFromHeaders } from "../src/lib/easy-auth-principal";
+import { courseAuthorIdsForAccount } from "../src/lib/course-owner-identity";
 
 const infrastructureSource = readFileSync("src/lib/azure-infrastructure.ts", "utf8");
 const releaseSource = readFileSync("scripts/check-release-env.mjs", "utf8");
@@ -13,6 +14,8 @@ const stagingWorkflowSource = readFileSync(".github/workflows/azure-staging.yml"
 const promotionWorkflowSource = readFileSync(".github/workflows/azure-promote-staging.yml", "utf8");
 const azureBicepSource = readFileSync("infra/azure/main.bicep", "utf8");
 const migrationVerifierSource = readFileSync("scripts/verify-azure-authored-courses.ts", "utf8");
+const migrationCompletionSource = readFileSync("scripts/complete-azure-course-bundle.ts", "utf8");
+const migrationImporterSource = readFileSync("scripts/import-azure-authored-courses.ts", "utf8");
 const dockerfileSource = readFileSync("Dockerfile", "utf8");
 const healthRouteSource = readFileSync("src/app/api/health/route.ts", "utf8");
 const healthVerifierSource = readFileSync("scripts/check-production-health.mjs", "utf8");
@@ -59,6 +62,21 @@ test("the API trusts only Azure-injected Google claims and keeps owner access be
   expect(identityServerSource).toContain('AZURE_EASY_AUTH_ENABLED');
   expect(accountServerSource).toContain("user.email_verified");
   expect(accountServerSource).toContain("user.email?.trim().toLowerCase() === ownerEmail");
+});
+
+test("only the verified owner inherits the legacy Firebase course-author identity", () => {
+  expect(courseAuthorIdsForAccount(
+    { uid: "google-owner-subject", isOwner: true },
+    "firebase-owner-uid",
+  )).toEqual(["google-owner-subject", "firebase-owner-uid"]);
+  expect(courseAuthorIdsForAccount(
+    { uid: "google-learner-subject", isOwner: false },
+    "firebase-owner-uid",
+  )).toEqual(["google-learner-subject"]);
+  expect(courseAuthorIdsForAccount(
+    { uid: "same-id", isOwner: true },
+    "same-id",
+  )).toEqual(["same-id"]);
 });
 
 test("Easy Auth principal parsing fails closed and accepts only verified Google identity data", () => {
@@ -147,4 +165,14 @@ test("authored-course migration verification compares content rather than counts
   expect(migrationVerifierSource).toContain("properties.contentType !== object.contentType");
   expect(migrationVerifierSource).toContain("AZURE_COURSE_MIGRATION_CONTENT_VERIFIED");
   expect(dockerfileSource).toContain("scripts/verify-azure-authored-courses.ts");
+});
+
+test("migration completion restores immutable release snapshots without overwriting source documents", () => {
+  expect(migrationCompletionSource).toContain('flag: "wx"');
+  expect(migrationCompletionSource).toContain("publicationContentFingerprint");
+  expect(migrationCompletionSource).toContain("courseReleases/${releaseId}");
+  expect(migrationCompletionSource).toContain("canonical-published-documents");
+  expect(migrationImporterSource).toContain("--missing-only");
+  expect(migrationImporterSource).toContain("conflicting data");
+  expect(migrationVerifierSource).toContain("path LIKE 'courseReleases/%'");
 });

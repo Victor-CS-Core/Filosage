@@ -6,7 +6,7 @@ import { DefaultAzureCredential } from "@azure/identity";
 import { fromFirestoreFields, type FirestoreValue } from "../src/lib/firestore-values.ts";
 
 interface MigrationBundle {
-  schemaVersion: 1;
+  schemaVersion: 1 | 2;
   owner: { uid: string; email: string };
   documents: Array<{ path: string; fields: Record<string, FirestoreValue> }>;
   bannerObjects: Array<{ assetId: string; contentType: string; base64: string }>;
@@ -15,16 +15,17 @@ interface MigrationBundle {
 const inputArgument = process.argv.find((value) => value.startsWith("--input="))?.slice(8);
 const inputBlobArgument = process.argv.find((value) => value.startsWith("--input-blob="))?.slice(13);
 const apply = process.argv.includes("--apply");
+const missingOnly = process.argv.includes("--missing-only");
 const inputPath = resolve(inputArgument || "migration-private/firebase-authored-courses.json");
 if (inputArgument && inputBlobArgument) throw new Error("Use either --input or --input-blob, not both.");
 const input = inputBlobArgument
   ? (await new BlobClient(inputBlobArgument, new DefaultAzureCredential()).downloadToBuffer()).toString("utf8")
   : await readFile(inputPath, "utf8");
 const bundle = JSON.parse(input) as MigrationBundle;
-if (bundle.schemaVersion !== 1 || !Array.isArray(bundle.documents) || !Array.isArray(bundle.bannerObjects)) {
+if (![1, 2].includes(bundle.schemaVersion) || !Array.isArray(bundle.documents) || !Array.isArray(bundle.bannerObjects)) {
   throw new Error("Unsupported or invalid migration bundle.");
 }
-const allowedPath = /^(?:courses\/[^/]+(?:\/lessons\/[^/]+)?|courseBannerAssets\/[^/]+|courseBannerKeys\/[^/]+)$/;
+const allowedPath = /^(?:courses\/[^/]+(?:\/lessons\/[^/]+)?|courseReleases\/[^/]+(?:\/lessons\/[^/]+)?|courseBannerAssets\/[^/]+|courseBannerKeys\/[^/]+)$/;
 const paths = bundle.documents.map((item) => item.path);
 if (paths.some((path) => !allowedPath.test(path))) {
   throw new Error("The bundle contains data outside the approved course, lesson, and banner allowlist.");
@@ -82,20 +83,36 @@ if (!schemaCheck.rows[0]) {
   await pool.end();
   throw new Error("The Azure document schema is missing. Run migrate:azure:database before importing courses.");
 }
-const existing = await pool.query<{ path: string }>(
-  "SELECT path FROM filosage_documents WHERE path = ANY($1::text[]) LIMIT 1",
+const existing = await pool.query<{ path: string; data: Record<string, unknown> }>(
+  "SELECT path, data FROM filosage_documents WHERE path = ANY($1::text[])",
   [paths],
 );
-if (existing.rows[0]) {
+if (existing.rows[0] && !missingOnly) {
   await pool.end();
   throw new Error(`Azure already contains ${existing.rows[0].path}; the import is create-only.`);
 }
+const expectedByPath = new Map(bundle.documents.map((document) => [document.path, fromFirestoreFields(document.fields)]));
+const canonical = (value: unknown): string => {
+  if (Array.isArray(value)) return `[${value.map(canonical).join(",")}]`;
+  if (value && typeof value === "object") {
+    return `{${Object.entries(value as Record<string, unknown>).sort(([left], [right]) => left.localeCompare(right)).map(([key, item]) => `${JSON.stringify(key)}:${canonical(item)}`).join(",")}}`;
+  }
+  return JSON.stringify(value);
+};
+for (const row of existing.rows) {
+  if (canonical(row.data) !== canonical(expectedByPath.get(row.path))) {
+    await pool.end();
+    throw new Error(`Azure already contains conflicting data at ${row.path}; no changes were made.`);
+  }
+}
+const existingPaths = new Set(existing.rows.map((row) => row.path));
+const documentsToInsert = bundle.documents.filter((document) => !existingPaths.has(document.path));
 
 const blobService = process.env.AZURE_STORAGE_CONNECTION_STRING?.trim()
   ? BlobServiceClient.fromConnectionString(process.env.AZURE_STORAGE_CONNECTION_STRING)
   : new BlobServiceClient(accountUrl, new DefaultAzureCredential());
 const container = blobService.getContainerClient(containerName);
-for (const object of bundle.bannerObjects) {
+for (const object of bundle.bannerObjects.filter((item) => !existingPaths.has(`courseBannerAssets/${item.assetId}`))) {
   const bytes = Buffer.from(object.base64, "base64");
   await container.getBlockBlobClient(`course-banners/${object.assetId}.webp`).uploadData(bytes, {
     blobHTTPHeaders: { blobContentType: object.contentType },
@@ -106,7 +123,7 @@ for (const object of bundle.bannerObjects) {
 const client = await pool.connect();
 try {
   await client.query("BEGIN");
-  for (const document of bundle.documents) {
+  for (const document of documentsToInsert) {
     const segments = document.path.split("/");
     if (!document.path || segments.length % 2 !== 0) throw new Error(`Invalid document path: ${document.path}`);
     const data = fromFirestoreFields(document.fields);
@@ -123,7 +140,7 @@ try {
     );
   }
   await client.query("COMMIT");
-  console.log(`Imported ${bundle.documents.length} document(s) and ${bundle.bannerObjects.length} banner object(s) into Azure.`);
+  console.log(`Imported ${documentsToInsert.length} missing document(s) into Azure; ${existingPaths.size} exact existing document(s) were preserved.`);
 } catch (error) {
   await client.query("ROLLBACK");
   throw error;

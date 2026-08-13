@@ -52,6 +52,8 @@ Create a dedicated Google Web OAuth client for Azure Container Apps. Register th
 
 Enable the Container Apps auth platform with Google as the sole provider, HTTPS required, token storage disabled, and `AllowAnonymous` so public learning remains available without adding a token-storage account. The application starts sign-in at `/.auth/login/google`, reads the Azure-injected principal through its same-origin `/api/auth/session` endpoint, and signs out at `/.auth/logout`. Protected routes accept only the Google principal injected by the auth sidecar. `OWNER_EMAIL=viticopq12@gmail.com` remains the exact server-side owner boundary.
 
+The migrated course documents intentionally retain their legacy Firebase author UID so their canonical migration fingerprint remains stable. Store that UID as the Key Vault-backed `MIGRATED_OWNER_UID` setting. Only the exact verified owner account may resolve this alias; other Google accounts remain restricted to their own author UID.
+
 Verify owner sign-in, learner sign-in, sign-out, canceled sign-in, expired session, spoofed-header rejection, and non-owner authorization. Account deletion remains fail-closed until live Google claims prove that Azure supplies a recent `auth_time`; do not substitute token issue time or a browser-only marker for that proof.
 
 ## Gate 5: authored-course migration
@@ -70,6 +72,8 @@ npm.cmd run migrate:azure:import-courses -- --apply
 ```
 
 The Azure importer is create-only: it fails if any target document or blob already exists. Import only after the PostgreSQL schema migration has completed and the operator has verified the target connection. The verified source bundle contains 9 owner-authored courses, 106 lessons, 9 referenced banners, 133 allowlisted documents total, and no user/progress/analytics paths. The independent Azure verification job `filosagestg-course-verify` compares every canonical PostgreSQL JSON value plus every Blob byte and MIME type against the private source bundle. Its current post-cutover execution `filosagestg-course-verify-puq5mxu` succeeded on 2026-08-13 with exactly 133 documents (9 courses and 106 lessons), 9 banners, no unexpected migrated records, and content fingerprint `588c4e2334c555ea0078de9e3cb1dd93e6d5df91dab626513f4233b5bf938757`. The legacy Firebase data was not deleted.
+
+The initial export omitted the immutable `courseReleases` referenced by eight published roots. Preserve the 133-document source bundle, run `migrate:azure:complete-courses` to produce a separate private schema-v2 bundle, and import it with `--apply --missing-only`. Completion derives release records only from the verified published roots and lessons, writes the private output create-only, refuses conflicting Azure data, and restores the immutable runtime contract without changing the source documents.
 
 ## Gate 6: staging acceptance
 

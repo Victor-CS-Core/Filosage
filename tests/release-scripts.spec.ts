@@ -17,6 +17,7 @@ const validReleaseEnvironment = {
   AZURE_RESOURCE_GROUP: "filosage-release-rg",
   OPENAI_API_KEY: "release-check-placeholder",
   OWNER_EMAIL: "owner@release.example",
+  MIGRATED_OWNER_UID: "legacy-firebase-owner-uid",
   ACTIVITY_RECEIPT_SECRET: "x".repeat(32),
   OPERATIONS_ALERT_WEBHOOK_URL: "https://alerts.release.example/filosage",
   OPERATIONS_ALERT_WEBHOOK_SECRET: "y".repeat(32),

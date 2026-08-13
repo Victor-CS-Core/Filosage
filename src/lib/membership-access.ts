@@ -3,6 +3,7 @@ import "server-only";
 import type { ServerAccount } from "@/lib/account-server";
 import { listOwnerCourses, runStoredDocumentTransaction } from "@/lib/firebase-server";
 import { MEMBERSHIP_PLANS, planAllows, type PlanCapability } from "@/lib/membership-plans";
+import { courseAuthorIdsForAccount } from "@/lib/course-owner-identity";
 
 export class CourseCapacityError extends Error {
   readonly status = 409;
@@ -25,7 +26,9 @@ export function capabilitiesForAccount(account: Pick<ServerAccount, "plan" | "is
 }
 
 export async function courseCapacityForAccount(account: Pick<ServerAccount, "uid" | "plan" | "isOwner">) {
-  const owned = (await listOwnerCourses(account.uid)).length;
+  const owned = (await Promise.all(
+    courseAuthorIdsForAccount(account).map((authorId) => listOwnerCourses(authorId)),
+  )).flat().length;
   const limit = account.isOwner ? null : MEMBERSHIP_PLANS[account.plan].limits.activeOwnedCourses;
   return {
     owned,
