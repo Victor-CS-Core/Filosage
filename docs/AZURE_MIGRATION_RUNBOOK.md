@@ -1,6 +1,6 @@
 # Azure-native migration runbook
 
-Status: Azure is the active host for `filosage.com` and `www.filosage.com`. Central US infrastructure, immutable blue/green deployment, authored-course import, content-fidelity verification, PostgreSQL point-in-time restore rehearsal, managed TLS, DNS cutover, and retirement of the former Sites host are complete. Azure Easy Auth with Google is the selected replacement for the rejected customer-directory flow; live owner acceptance remains required before sign-in is marked operational.
+Status: Azure is the active host for `filosage.com` and `www.filosage.com`. Central US infrastructure, immutable blue/green deployment, authored-course import, content-fidelity verification, PostgreSQL point-in-time restore rehearsal, managed TLS, DNS cutover, and retirement of the former Sites host are complete. Azure Easy Auth with Google replaced the rejected customer-directory flow; live Google sign-in returned the verified owner to the Filosage dashboard and exposed the owner-only Command Center.
 
 ## Approved decisions
 
@@ -69,7 +69,7 @@ npm.cmd run migrate:azure:import-courses
 npm.cmd run migrate:azure:import-courses -- --apply
 ```
 
-The Azure importer is create-only: it fails if any target document or blob already exists. Import only after the PostgreSQL schema migration has completed and the operator has verified the target connection. The verified source bundle contains 9 owner-authored courses, 106 lessons, 9 referenced banners, 133 allowlisted documents total, and no user/progress/analytics paths. The independent Azure verification job `filosagestg-course-verify` was rerun after cutover preparation on 2026-08-13 and compared every canonical PostgreSQL JSON value plus every Blob byte and MIME type against the private source bundle. Execution `filosagestg-course-verify-2z2jqjf` succeeded with exactly 133 documents (9 courses and 106 lessons), 9 banners, no unexpected migrated records, and content fingerprint `588c4e2334c555ea0078de9e3cb1dd93e6d5df91dab626513f4233b5bf938757`. The legacy Firebase data was not deleted.
+The Azure importer is create-only: it fails if any target document or blob already exists. Import only after the PostgreSQL schema migration has completed and the operator has verified the target connection. The verified source bundle contains 9 owner-authored courses, 106 lessons, 9 referenced banners, 133 allowlisted documents total, and no user/progress/analytics paths. The independent Azure verification job `filosagestg-course-verify` compares every canonical PostgreSQL JSON value plus every Blob byte and MIME type against the private source bundle. Its current post-cutover execution `filosagestg-course-verify-puq5mxu` succeeded on 2026-08-13 with exactly 133 documents (9 courses and 106 lessons), 9 banners, no unexpected migrated records, and content fingerprint `588c4e2334c555ea0078de9e3cb1dd93e6d5df91dab626513f4233b5bf938757`. The legacy Firebase data was not deleted.
 
 ## Gate 6: staging acceptance
 

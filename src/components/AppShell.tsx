@@ -32,6 +32,7 @@ import MarketingFooter from "@/components/marketing/MarketingFooter";
 import MarketingNavigation from "@/components/marketing/MarketingNavigation";
 import CommandPalette, { type CommandPaletteItem } from "@/components/CommandPalette";
 import SupportCenter from "@/components/support/SupportCenter";
+import UserAvatar from "@/components/UserAvatar";
 import { useAuth } from "@/components/AuthProvider";
 import { useTheme } from "@/components/ThemeProvider";
 import type { Course } from "@/lib/course-types";
@@ -356,10 +357,7 @@ export default function AppShell({ children, activeTopic, activeLessonId, active
             aria-haspopup="dialog"
             aria-label={`Open Command Center for ${firstName}`}
           >
-            {user?.photoURL ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={user.photoURL} alt="" width={32} height={32} referrerPolicy="no-referrer" />
-            ) : <span className="avatar-fallback"><UserRound size={16} /></span>}
+            <UserAvatar photoURL={user?.photoURL} size={32} fallback={<span className="avatar-fallback"><UserRound size={16} /></span>} />
             <span className="learning-account-copy"><strong>{firstName}</strong><small>{account?.plan === "pro" ? "Pro account" : account?.plan === "plus" ? "Plus account" : "Account"}</small></span>
             <Command className="command-indicator" size={15} aria-hidden="true" />
           </button>
@@ -372,10 +370,7 @@ export default function AppShell({ children, activeTopic, activeLessonId, active
         </Link>
         <div className="learner-mobile-actions">
           <button ref={mobileAccountTriggerRef} className="mobile-account-trigger" type="button" onClick={() => openCommand(mobileAccountTriggerRef.current)} aria-expanded={commandOpen} aria-controls="command-palette" aria-haspopup="dialog" aria-label={`Open Command Center for ${firstName}, ${account?.plan === "pro" ? "Filosage Pro" : account?.plan === "plus" ? "Filosage Plus" : "free plan"}`}>
-            {user.photoURL ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={user.photoURL} alt="" width={30} height={30} referrerPolicy="no-referrer" />
-            ) : <span className="avatar-fallback"><UserRound size={15} /></span>}
+            <UserAvatar photoURL={user.photoURL} size={30} fallback={<span className="avatar-fallback"><UserRound size={15} /></span>} />
             <span>{account?.plan === "pro" ? "Pro" : account?.plan === "plus" ? "Plus" : "Free"}</span>
             <Command className="command-indicator" size={15} aria-hidden="true" />
           </button>

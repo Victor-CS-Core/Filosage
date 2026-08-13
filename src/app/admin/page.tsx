@@ -29,6 +29,7 @@ import {
   Users,
   X,
 } from "lucide-react";
+import UserAvatar from "@/components/UserAvatar";
 import AppShell from "@/components/AppShell";
 import { useAuth } from "@/components/AuthProvider";
 import type { AdminOverview, AdminUserSummary, OperationalReadinessState } from "@/lib/admin-types";
@@ -651,10 +652,7 @@ export default function AdminPage() {
                 <div className="admin-user-table-head"><span>User</span><span>Access</span><span>Last seen</span><span>Tokens</span><span>Cost</span></div>
                 {filteredUsers.map((candidate) => (
                   <button key={candidate.uid} className={selectedUser?.uid === candidate.uid ? "is-selected" : ""} onClick={() => { setSelectedUid(candidate.uid); setActionMessage(null); }}>
-                    <span className="admin-user-identity">{candidate.photoURL ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img src={candidate.photoURL} alt="" referrerPolicy="no-referrer" />
-                    ) : <i>{candidate.displayName.slice(0, 1).toUpperCase()}</i>}<span><strong>{candidate.isOwner ? "Owner account" : candidate.displayName}</strong><small>{candidate.isOwner ? "Private owner identity" : candidate.email ?? "No email"}</small></span></span>
+                    <span className="admin-user-identity"><UserAvatar photoURL={candidate.photoURL} size={34} fallback={<i>{candidate.displayName.slice(0, 1).toUpperCase()}</i>} /><span><strong>{candidate.isOwner ? "Owner account" : candidate.displayName}</strong><small>{candidate.isOwner ? "Private owner identity" : candidate.email ?? "No email"}</small></span></span>
                     <span><em className={`admin-status status-${candidate.accountStatus}`}>{candidate.accountStatus}</em><small>{candidate.plan === "pro" ? "Pro" : candidate.plan === "plus" ? "Plus" : "Free"}</small></span>
                     <span>{shortDate(candidate.lastSeenAt)}</span>
                     <span>{compactNumber(candidate.inputTokens + candidate.outputTokens)}</span>

@@ -9,6 +9,7 @@ import DashboardCustomizer from "@/components/DashboardCustomizer";
 import { useAppDrawer } from "@/components/AppDrawer";
 import { useAuth } from "@/components/AuthProvider";
 import { useLearnerState } from "@/components/useLearnerState";
+import UserAvatar from "@/components/UserAvatar";
 import { evaluateBadges } from "@/lib/badges";
 import type { Course } from "@/lib/course-types";
 import type { CourseProgress } from "@/lib/learning-types";
@@ -79,10 +80,7 @@ export default function ProfilePage() {
       <div className="profile-page">
         <header className="profile-identity">
           <div className="profile-avatar">
-            {user.photoURL ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={user.photoURL} alt="" referrerPolicy="no-referrer" />
-            ) : <UserRound size={30} />}
+            <UserAvatar photoURL={user.photoURL} size={72} fallback={<UserRound size={30} />} />
           </div>
           <div><p className="overline">Learning profile</p><h1>{displayName}</h1><span>{account?.plan === "pro" ? "Pro learning account" : account?.plan === "plus" ? "Plus learning account" : "Free learning account"} &middot; {syncLabel}</span></div>
           <button className="button button-secondary" onClick={dashboardCustomizer.openDrawer} aria-expanded={dashboardCustomizer.open}><SlidersHorizontal size={17} /> Customize dashboard</button>

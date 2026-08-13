@@ -43,6 +43,7 @@ import {
   normalizeStructuredMarkdown,
 } from "../src/lib/markdown";
 import { securityHeaders } from "../src/lib/security-headers";
+import { safeGoogleProfileImageUrl } from "../src/lib/profile-image";
 import { acquisitionChannelFor } from "../src/lib/product-analytics";
 import {
   inspectGeneratedContent,
@@ -559,9 +560,21 @@ test("only upgrades insecure assets on an HTTPS request", () => {
   expect(localPolicy).not.toContain("upgrade-insecure-requests");
   expect(localHeaders.some((header) => header.key === "Strict-Transport-Security")).toBe(false);
   expect(securePolicy).toContain("upgrade-insecure-requests");
-  expect(securePolicy).toContain("https://*.ciamlogin.com");
+  expect(securePolicy).toContain("img-src 'self' data: blob: https://lh3.googleusercontent.com");
+  expect(securePolicy).not.toContain("ciamlogin.com");
+  expect(securePolicy).not.toContain("login.microsoftonline.com");
+  expect(securePolicy).not.toContain("graph.microsoft.com");
   expect(securePolicy).not.toContain("firebaseio.com");
   expect(secureHeaders.some((header) => header.key === "Strict-Transport-Security")).toBe(true);
+});
+
+test("allows only the Google profile-image host used by verified sign-in claims", () => {
+  expect(safeGoogleProfileImageUrl("https://lh3.googleusercontent.com/a/example=s96-c"))
+    .toBe("https://lh3.googleusercontent.com/a/example=s96-c");
+  expect(safeGoogleProfileImageUrl("http://lh3.googleusercontent.com/a/example")).toBeNull();
+  expect(safeGoogleProfileImageUrl("https://lh3.googleusercontent.com.attacker.example/a/example")).toBeNull();
+  expect(safeGoogleProfileImageUrl("data:image/png;base64,AAAA")).toBeNull();
+  expect(safeGoogleProfileImageUrl("not a URL")).toBeNull();
 });
 
 test("accounts for fixed-cost image generation without token inflation", () => {

@@ -2838,7 +2838,7 @@ button:disabled { cursor: not-allowed; opacity: 0.55; }
 .course-disclosure-action svg { transition: transform var(--motion-state) var(--ease-out); }
 .course-disclosure[open] .course-disclosure-action svg { transform: rotate(180deg); }
 .course-disclosure-content { animation: course-disclosure-in 180ms var(--ease-out); }
-@keyframes course-disclosure-in { from { opacity: 0.76; transform: translateY(-4px); } }
+@keyframes course-disclosure-in { from { transform: translateY(-4px); } }
 
 .outcome-onboarding,
 .outcome-plan {
