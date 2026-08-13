@@ -13,8 +13,19 @@ export function proxy(request: NextRequest) {
     nonce,
     isSecureRequest,
   );
-  const requestHeaders = new Headers(request.headers);
+  const forwardedHost = request.headers.get("x-forwarded-host")?.split(",")[0]?.trim();
+  const host = (forwardedHost || request.headers.get("host") || "").split(":")[0]?.toLowerCase();
+  if (host === "www.filosage.com") {
+    const destination = request.nextUrl.clone();
+    destination.protocol = "https:";
+    destination.hostname = "filosage.com";
+    destination.port = "";
+    const redirect = NextResponse.redirect(destination, 308);
+    for (const { key, value } of responseHeaders) redirect.headers.set(key, value);
+    return redirect;
+  }
 
+  const requestHeaders = new Headers(request.headers);
   requestHeaders.set("x-nonce", nonce);
   for (const { key, value } of responseHeaders) requestHeaders.set(key, value);
 

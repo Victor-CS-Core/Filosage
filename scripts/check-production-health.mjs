@@ -1,5 +1,6 @@
 const target = process.argv[2] || process.env.PRODUCTION_HEALTH_URL || process.env.NEXT_PUBLIC_SITE_URL;
 const expectedVersion = (process.argv[3] || process.env.EXPECTED_SITE_VERSION || "").trim();
+const expectedOriginInput = (process.argv[4] || process.env.EXPECTED_SITE_ORIGIN || "").trim();
 if (!target) {
   console.error("Provide a site URL or set PRODUCTION_HEALTH_URL.");
   process.exit(1);
@@ -11,6 +12,17 @@ if (!expectedVersion) {
 if (!/^[a-f0-9]{40}$/i.test(expectedVersion)) {
   console.error("Expected production version must be the full 40-character Git commit SHA.");
   process.exit(1);
+}
+let expectedOrigin = "";
+if (expectedOriginInput) {
+  try {
+    const parsed = new URL(expectedOriginInput);
+    if (parsed.protocol !== "https:" || parsed.pathname !== "/" || parsed.search || parsed.hash) throw new Error();
+    expectedOrigin = parsed.origin;
+  } catch {
+    console.error("Expected site origin must be an HTTPS origin without a path, query, or fragment.");
+    process.exit(1);
+  }
 }
 
 const healthUrl = new URL("/api/health", target).toString();
@@ -25,13 +37,16 @@ for (let attempt = 1; attempt <= attempts; attempt += 1) {
       signal: controller.signal,
     });
     const body = await response.json().catch(() => null);
-    if (response.ok && body?.ok === true && body?.checks?.datastore === true && body?.version === expectedVersion) {
+    const originMatches = !expectedOrigin || body?.origin === expectedOrigin;
+    if (response.ok && body?.ok === true && body?.checks?.datastore === true && body?.version === expectedVersion && originMatches) {
       console.log(`Production health is healthy (version ${body.version}).`);
       process.exit(0);
     }
     lastFailure = body?.version && body.version !== expectedVersion
       ? `version mismatch: expected ${expectedVersion}, received ${body.version}`
-      : `health endpoint returned ${response.status}`;
+      : expectedOrigin && body?.origin !== expectedOrigin
+        ? `origin mismatch: expected ${expectedOrigin}, received ${body?.origin ?? "none"}`
+        : `health endpoint returned ${response.status}`;
   } catch (error) {
     lastFailure = error instanceof Error ? error.message : "unknown error";
   } finally {

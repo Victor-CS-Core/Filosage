@@ -11,6 +11,11 @@ on:
         options:
           - green
           - blue
+      public_site_url:
+        description: Canonical HTTPS origin compiled into the candidate; defaults to the selected slot URL
+        required: false
+        default: ""
+        type: string
 
 permissions:
   contents: read
@@ -27,6 +32,7 @@ jobs:
     env:
       TARGET_SLOT: ${{ inputs.target_slot }}
       TARGET_URL: ${{ inputs.target_slot == 'blue' && vars.AZURE_BLUE_URL || vars.AZURE_GREEN_URL }}
+      PUBLIC_SITE_URL: ${{ inputs.public_site_url || (inputs.target_slot == 'blue' && vars.AZURE_BLUE_URL || vars.AZURE_GREEN_URL) }}
     steps:
       - uses: actions/checkout@v4
 
@@ -40,11 +46,11 @@ jobs:
       - run: npx tsc --noEmit --incremental false
       - run: npm run build
         env:
-          NEXT_PUBLIC_SITE_URL: ${{ env.TARGET_URL }}
+          NEXT_PUBLIC_SITE_URL: ${{ env.PUBLIC_SITE_URL }}
           NEXT_PUBLIC_ENTRA_CLIENT_ID: ${{ vars.ENTRA_CLIENT_ID }}
           NEXT_PUBLIC_ENTRA_AUTHORITY: ${{ vars.ENTRA_AUTHORITY }}
           NEXT_PUBLIC_ENTRA_API_SCOPE: ${{ vars.ENTRA_API_SCOPE }}
-          NEXT_PUBLIC_ENTRA_REDIRECT_URI: ${{ env.TARGET_URL }}
+          NEXT_PUBLIC_ENTRA_REDIRECT_URI: ${{ env.PUBLIC_SITE_URL }}
           SITE_VERSION: ${{ github.sha }}
 
       - name: Sign in to Azure with GitHub OIDC
@@ -68,13 +74,17 @@ jobs:
         run: |
           set -euo pipefail
           IMAGE="${{ vars.AZURE_ACR_NAME }}.azurecr.io/filosage:${GITHUB_SHA}"
+          if [[ ! "$PUBLIC_SITE_URL" =~ ^https://[^/]+/?$ ]]; then
+            echo "public_site_url must be an HTTPS origin without a path."
+            exit 1
+          fi
           docker build \
             --tag "$IMAGE" \
-            --build-arg "NEXT_PUBLIC_SITE_URL=${TARGET_URL}" \
+            --build-arg "NEXT_PUBLIC_SITE_URL=${PUBLIC_SITE_URL}" \
             --build-arg "NEXT_PUBLIC_ENTRA_CLIENT_ID=${{ vars.ENTRA_CLIENT_ID }}" \
             --build-arg "NEXT_PUBLIC_ENTRA_AUTHORITY=${{ vars.ENTRA_AUTHORITY }}" \
             --build-arg "NEXT_PUBLIC_ENTRA_API_SCOPE=${{ vars.ENTRA_API_SCOPE }}" \
-            --build-arg "NEXT_PUBLIC_ENTRA_REDIRECT_URI=${TARGET_URL}" \
+            --build-arg "NEXT_PUBLIC_ENTRA_REDIRECT_URI=${PUBLIC_SITE_URL}" \
             --build-arg "SITE_VERSION=${GITHUB_SHA}" \
             .
           docker push "$IMAGE"
@@ -105,11 +115,11 @@ jobs:
             --revision-suffix "$REVISION_SUFFIX" \
             --set-env-vars \
               "SITE_VERSION=${GITHUB_SHA}" \
-              "NEXT_PUBLIC_SITE_URL=${TARGET_URL}" \
+              "NEXT_PUBLIC_SITE_URL=${PUBLIC_SITE_URL}" \
               "NEXT_PUBLIC_ENTRA_CLIENT_ID=${{ vars.ENTRA_CLIENT_ID }}" \
               "NEXT_PUBLIC_ENTRA_AUTHORITY=${{ vars.ENTRA_AUTHORITY }}" \
               "NEXT_PUBLIC_ENTRA_API_SCOPE=${{ vars.ENTRA_API_SCOPE }}" \
-              "NEXT_PUBLIC_ENTRA_REDIRECT_URI=${TARGET_URL}" \
+              "NEXT_PUBLIC_ENTRA_REDIRECT_URI=${PUBLIC_SITE_URL}" \
               "DEPLOYMENT_SLOT=${TARGET_SLOT}"
           REVISION="$(az containerapp show \
             --resource-group "${{ vars.AZURE_RESOURCE_GROUP }}" \
@@ -124,4 +134,4 @@ jobs:
             --yes
 
       - name: Verify the labeled QA candidate
-        run: npm run check:production -- "${TARGET_URL}" "${GITHUB_SHA}"
+        run: npm run check:production -- "${TARGET_URL}" "${GITHUB_SHA}" "${PUBLIC_SITE_URL}"

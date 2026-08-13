@@ -13,6 +13,9 @@ const promotionWorkflowSource = readFileSync(".github/workflows/azure-promote-st
 const azureBicepSource = readFileSync("infra/azure/main.bicep", "utf8");
 const migrationVerifierSource = readFileSync("scripts/verify-azure-authored-courses.ts", "utf8");
 const dockerfileSource = readFileSync("Dockerfile", "utf8");
+const healthRouteSource = readFileSync("src/app/api/health/route.ts", "utf8");
+const healthVerifierSource = readFileSync("scripts/check-production-health.mjs", "utf8");
+const proxySource = readFileSync("src/proxy.ts", "utf8");
 
 test("Azure infrastructure inventory names every production platform service", () => {
   expect(infrastructureSource).toContain("Microsoft Entra External ID");
@@ -67,7 +70,19 @@ test("staging deploys only to an inactive blue or green revision label", () => {
   expect(stagingWorkflowSource).toContain("target_slot:");
   expect(stagingWorkflowSource).toContain('if [[ "${ACTIVE_WEIGHT:-0}" != "0" ]]');
   expect(stagingWorkflowSource).toContain("az containerapp revision label add");
-  expect(stagingWorkflowSource).toContain('npm run check:production -- "${TARGET_URL}" "${GITHUB_SHA}"');
+  expect(stagingWorkflowSource).toContain("public_site_url:");
+  expect(stagingWorkflowSource).toContain('NEXT_PUBLIC_ENTRA_REDIRECT_URI: ${{ env.PUBLIC_SITE_URL }}');
+  expect(stagingWorkflowSource).toContain('npm run check:production -- "${TARGET_URL}" "${GITHUB_SHA}" "${PUBLIC_SITE_URL}"');
+});
+
+test("custom-domain releases prove their canonical origin and redirect www to the apex", () => {
+  expect(healthRouteSource).toContain("origin, checks:");
+  expect(healthVerifierSource).toContain("EXPECTED_SITE_ORIGIN");
+  expect(healthVerifierSource).toContain("body?.origin === expectedOrigin");
+  expect(proxySource).toContain('host === "www.filosage.com"');
+  expect(proxySource).toContain("securityHeaders(");
+  expect(proxySource).toContain('destination.hostname = "filosage.com"');
+  expect(proxySource).toContain("NextResponse.redirect(destination, 308)");
 });
 
 test("staging promotion verifies an exact commit before changing traffic", () => {

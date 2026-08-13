@@ -31,8 +31,17 @@ export async function GET() {
     }
   }
   const ok = missing.length === 0 && datastoreOk;
+  const origin = (() => {
+    try {
+      return serverEnvironment.NEXT_PUBLIC_SITE_URL
+        ? new URL(serverEnvironment.NEXT_PUBLIC_SITE_URL).origin
+        : null;
+    } catch {
+      return null;
+    }
+  })();
   return Response.json(
-    { ok, version, checks: { configuration: missing.length === 0, datastore: datastoreOk } },
+    { ok, version, origin, checks: { configuration: missing.length === 0, datastore: datastoreOk } },
     {
       status: ok ? 200 : 503,
       headers: {
