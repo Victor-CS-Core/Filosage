@@ -140,6 +140,10 @@ test("isolated QA scales to zero and keeps its data stores separate", () => {
   expect(qaBicepSource).toContain("minReplicas: 0");
   expect(qaBicepSource).toContain("maxReplicas: 1");
   expect(qaBicepSource).toContain("OPERATIONS_ENVIRONMENT', value: 'qa'");
+  expect(qaBicepSource).toContain("param deploymentPrincipalId string = ''");
+  expect(qaBicepSource).toContain("param deploymentRoleAssignmentName string = ''");
+  expect(qaBicepSource).toContain("resource qaDeploymentContributor");
+  expect(qaBicepSource).toContain("scope: app");
   expect(qaWorkflowSource).toContain("AZURE_QA_CONTAINER_APP_NAME");
   expect(qaWorkflowSource).toContain('npm run check:production -- "$QA_URL" "$GITHUB_SHA" "$QA_URL"');
   expect(robotsSource).toContain('disallow: "/"');

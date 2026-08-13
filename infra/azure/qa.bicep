@@ -31,6 +31,12 @@ param googleClientId string
 @description('Verified owner email retained in QA.')
 param ownerEmail string
 
+@description('Object ID of the GitHub OIDC service principal allowed to update only the QA Container App. Leave empty when deployment automation is not required.')
+param deploymentPrincipalId string = ''
+
+@description('Existing QA deployment role-assignment GUID, when importing a manually bootstrapped assignment. Fresh environments may leave this empty.')
+param deploymentRoleAssignmentName string = ''
+
 param postgresAdminLogin string = 'filosageadmin'
 
 @secure()
@@ -116,6 +122,7 @@ resource identity 'Microsoft.ManagedIdentity/userAssignedIdentities@2023-01-31' 
 var acrPullRoleId = subscriptionResourceId('Microsoft.Authorization/roleDefinitions', '7f951dda-4ed3-4680-a7ca-43fe172d538d')
 var blobContributorRoleId = subscriptionResourceId('Microsoft.Authorization/roleDefinitions', 'ba92f5b4-2d11-453d-a403-e96b0029c9fe')
 var keyVaultSecretsUserRoleId = subscriptionResourceId('Microsoft.Authorization/roleDefinitions', '4633458b-17de-408a-b874-0445c86b69e6')
+var containerAppsContributorRoleId = subscriptionResourceId('Microsoft.Authorization/roleDefinitions', '358e1a60-a7e8-4c7f-9944-4f7c41ba5f40')
 
 resource acrPull 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
   scope: registry
@@ -273,6 +280,16 @@ resource appAuth 'Microsoft.App/containerApps/authConfigs@2025-01-01' = {
       preserveUrlFragmentsForLogins: true
       tokenStore: { enabled: false }
     }
+  }
+}
+
+resource qaDeploymentContributor 'Microsoft.Authorization/roleAssignments@2022-04-01' = if (!empty(deploymentPrincipalId)) {
+  scope: app
+  name: empty(deploymentRoleAssignmentName) ? guid(app.id, deploymentPrincipalId, containerAppsContributorRoleId) : deploymentRoleAssignmentName
+  properties: {
+    principalId: deploymentPrincipalId
+    principalType: 'ServicePrincipal'
+    roleDefinitionId: containerAppsContributorRoleId
   }
 }
 
