@@ -12,6 +12,7 @@ const validReleaseEnvironment = {
   DATABASE_URL: "postgresql://release:placeholder@filosage-release.postgres.database.azure.com:5432/filosage?sslmode=verify-full",
   NEXT_PUBLIC_ENTRA_CLIENT_ID: "00000000-0000-4000-8000-000000000001",
   NEXT_PUBLIC_ENTRA_AUTHORITY: "https://release.ciamlogin.com/",
+  NEXT_PUBLIC_ENTRA_TENANT_ID: "00000000-0000-4000-8000-000000000002",
   NEXT_PUBLIC_ENTRA_API_SCOPE: "api://00000000-0000-4000-8000-000000000001/access_as_user",
   NEXT_PUBLIC_ENTRA_REDIRECT_URI: "https://release.example",
   ENTRA_AUDIENCE: "00000000-0000-4000-8000-000000000001",
@@ -57,6 +58,14 @@ test("release checks bind Azure and production health to one full Git SHA", ({ r
   });
   expect(mismatchedRedirect.status).toBe(1);
   expect(mismatchedRedirect.stderr).toContain("NEXT_PUBLIC_ENTRA_REDIRECT_URI must match NEXT_PUBLIC_SITE_URL");
+
+  const invalidTenant = spawnSync(process.execPath, [releaseScript], {
+    cwd: root,
+    env: { ...validReleaseEnvironment, NEXT_PUBLIC_ENTRA_TENANT_ID: "not-a-tenant" },
+    encoding: "utf8",
+  });
+  expect(invalidTenant.status).toBe(1);
+  expect(invalidTenant.stderr).toContain("NEXT_PUBLIC_ENTRA_TENANT_ID must be a valid tenant UUID");
 
   const shortVersion = spawnSync(process.execPath, [releaseScript], {
     cwd: root,

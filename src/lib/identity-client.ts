@@ -16,11 +16,18 @@ export interface FilosageUser {
 }
 
 const authority = process.env.NEXT_PUBLIC_ENTRA_AUTHORITY?.trim();
+const tenantId = process.env.NEXT_PUBLIC_ENTRA_TENANT_ID?.trim();
 const clientId = process.env.NEXT_PUBLIC_ENTRA_CLIENT_ID?.trim();
 const apiScope = process.env.NEXT_PUBLIC_ENTRA_API_SCOPE?.trim();
 const configuredRedirectUri = process.env.NEXT_PUBLIC_ENTRA_REDIRECT_URI?.trim();
 
-export const isEntraConfigured = Boolean(authority && clientId && apiScope);
+function knownAuthorities() {
+  if (!authority || !tenantId) return [];
+  const authorityHost = new URL(authority).hostname;
+  return [...new Set([authorityHost, `${tenantId}.ciamlogin.com`])];
+}
+
+export const isEntraConfigured = Boolean(authority && tenantId && clientId && apiScope);
 
 let application: PublicClientApplication | null = null;
 let initialization: Promise<PublicClientApplication> | null = null;
@@ -37,6 +44,7 @@ export async function entraApplication() {
       auth: {
         clientId,
         authority,
+        knownAuthorities: knownAuthorities(),
         redirectUri: redirectUri(),
         postLogoutRedirectUri: redirectUri(),
       },

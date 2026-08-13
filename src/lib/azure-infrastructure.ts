@@ -18,7 +18,8 @@ export function azureInfrastructure(): AzureInfrastructure {
   const local = isLocalMode();
   const authenticationConfigured = Boolean(
     serverEnvironment.NEXT_PUBLIC_ENTRA_CLIENT_ID?.trim()
-    && serverEnvironment.NEXT_PUBLIC_ENTRA_AUTHORITY?.trim(),
+    && serverEnvironment.NEXT_PUBLIC_ENTRA_AUTHORITY?.trim()
+    && serverEnvironment.NEXT_PUBLIC_ENTRA_TENANT_ID?.trim(),
   );
   const databaseConfigured = Boolean(serverEnvironment.DATABASE_URL?.trim());
   const storageConfigured = Boolean(serverEnvironment.AZURE_STORAGE_ACCOUNT_URL?.trim());

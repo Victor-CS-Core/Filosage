@@ -28,6 +28,7 @@ test("Azure infrastructure inventory names every production platform service", (
 test("production release validation requires Azure and does not require Firebase", () => {
   expect(releaseSource).toContain('"DATABASE_URL"');
   expect(releaseSource).toContain('"NEXT_PUBLIC_ENTRA_CLIENT_ID"');
+  expect(releaseSource).toContain('"NEXT_PUBLIC_ENTRA_TENANT_ID"');
   expect(releaseSource).toContain('"AZURE_STORAGE_ACCOUNT_URL"');
   expect(releaseSource).not.toContain('"FIREBASE_PROJECT_ID"');
   expect(releaseSource).not.toContain('"FIRESTORE_BACKUP_BUCKET"');
@@ -41,6 +42,8 @@ test("Azure status avoids presenting configuration as invoice or restore proof",
 test("customer sign-in uses the External ID provider picker without the broken Google issuer hint", () => {
   expect(identityClientSource).not.toContain("domain_hint");
   expect(identityClientSource).not.toContain("extraQueryParameters");
+  expect(identityClientSource).toContain("knownAuthorities: knownAuthorities()");
+  expect(identityClientSource).toContain('`${tenantId}.ciamlogin.com`');
   expect(identityClientSource).toContain('prompt: "select_account"');
 });
 
@@ -72,6 +75,7 @@ test("staging deploys only to an inactive blue or green revision label", () => {
   expect(stagingWorkflowSource).toContain("az containerapp revision label add");
   expect(stagingWorkflowSource).toContain("public_site_url:");
   expect(stagingWorkflowSource).toContain('NEXT_PUBLIC_ENTRA_REDIRECT_URI: ${{ env.PUBLIC_SITE_URL }}');
+  expect(stagingWorkflowSource).toContain('NEXT_PUBLIC_ENTRA_TENANT_ID: ${{ vars.ENTRA_TENANT_ID }}');
   expect(stagingWorkflowSource).toContain('npm run check:production -- "${TARGET_URL}" "${GITHUB_SHA}" "${PUBLIC_SITE_URL}"');
 });
 

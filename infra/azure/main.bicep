@@ -21,6 +21,7 @@ param siteUrl string
 param siteVersion string = 'bootstrap'
 param entraClientId string = ''
 param entraAuthority string = ''
+param entraTenantId string = ''
 param entraApiScope string = ''
 param entraIssuer string = ''
 param entraJwksUri string = ''
@@ -359,6 +360,7 @@ var appEnvironment = concat(
     { name: 'SITE_VERSION', value: siteVersion }
     { name: 'NEXT_PUBLIC_ENTRA_CLIENT_ID', value: entraClientId }
     { name: 'NEXT_PUBLIC_ENTRA_AUTHORITY', value: entraAuthority }
+    { name: 'NEXT_PUBLIC_ENTRA_TENANT_ID', value: entraTenantId }
     { name: 'NEXT_PUBLIC_ENTRA_API_SCOPE', value: entraApiScope }
     { name: 'NEXT_PUBLIC_ENTRA_REDIRECT_URI', value: siteUrl }
     { name: 'ENTRA_AUDIENCE', value: entraClientId }
