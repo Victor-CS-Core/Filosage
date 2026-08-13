@@ -28,6 +28,7 @@
 /migration-private/
 /.azure-*-login-*.txt
 /.google-cloud-login-*.txt
+/.wrangler/
 
 /.agents/skills/impeccable/
 /.codex/
