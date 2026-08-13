@@ -8,6 +8,8 @@ const runtimeConfigSource = readFileSync("src/lib/runtime-config.ts", "utf8");
 const stagingWorkflowSource = readFileSync(".github/workflows/azure-staging.yml", "utf8");
 const promotionWorkflowSource = readFileSync(".github/workflows/azure-promote-staging.yml", "utf8");
 const azureBicepSource = readFileSync("infra/azure/main.bicep", "utf8");
+const migrationVerifierSource = readFileSync("scripts/verify-azure-authored-courses.ts", "utf8");
+const dockerfileSource = readFileSync("Dockerfile", "utf8");
 
 test("Azure infrastructure inventory names every production platform service", () => {
   expect(infrastructureSource).toContain("Microsoft Entra External ID");
@@ -55,4 +57,12 @@ test("staging promotion verifies an exact commit before changing traffic", () =>
   expect(promotionWorkflowSource).toContain('npm run check:production -- "$TARGET_URL" "$EXPECTED_SHA"');
   expect(promotionWorkflowSource).toContain('az containerapp ingress traffic set');
   expect(promotionWorkflowSource).toContain('"${TARGET_SLOT}=100" "${OTHER_SLOT}=0"');
+});
+
+test("authored-course migration verification compares content rather than counts alone", () => {
+  expect(migrationVerifierSource).toContain("canonical(actual.get(path)) !== canonical(expected.get(path))");
+  expect(migrationVerifierSource).toContain("actualHash !== expectedHash");
+  expect(migrationVerifierSource).toContain("properties.contentType !== object.contentType");
+  expect(migrationVerifierSource).toContain("AZURE_COURSE_MIGRATION_CONTENT_VERIFIED");
+  expect(dockerfileSource).toContain("scripts/verify-azure-authored-courses.ts");
 });
