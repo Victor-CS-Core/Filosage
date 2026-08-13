@@ -5,6 +5,9 @@ const infrastructureSource = readFileSync("src/lib/azure-infrastructure.ts", "ut
 const releaseSource = readFileSync("scripts/check-release-env.mjs", "utf8");
 const identityClientSource = readFileSync("src/lib/identity-client.ts", "utf8");
 const runtimeConfigSource = readFileSync("src/lib/runtime-config.ts", "utf8");
+const stagingWorkflowSource = readFileSync(".github/workflows/azure-staging.yml", "utf8");
+const promotionWorkflowSource = readFileSync(".github/workflows/azure-promote-staging.yml", "utf8");
+const azureBicepSource = readFileSync("infra/azure/main.bicep", "utf8");
 
 test("Azure infrastructure inventory names every production platform service", () => {
   expect(infrastructureSource).toContain("Microsoft Entra External ID");
@@ -36,4 +39,20 @@ test("customer sign-in accelerates to Google while retaining the External ID flo
 test("staging health does not claim production alert delivery is configured", () => {
   expect(runtimeConfigSource).toContain('OPERATIONS_ENVIRONMENT?.trim() === "production"');
   expect(runtimeConfigSource).toContain("requiredForProductionOperations");
+});
+
+test("staging deploys only to an inactive blue or green revision label", () => {
+  expect(azureBicepSource).toContain("activeRevisionsMode: 'Multiple'");
+  expect(stagingWorkflowSource).toContain("target_slot:");
+  expect(stagingWorkflowSource).toContain('if [[ "${ACTIVE_WEIGHT:-0}" != "0" ]]');
+  expect(stagingWorkflowSource).toContain("az containerapp revision label add");
+  expect(stagingWorkflowSource).toContain('npm run check:production -- "${TARGET_URL}" "${GITHUB_SHA}"');
+});
+
+test("staging promotion verifies an exact commit before changing traffic", () => {
+  expect(promotionWorkflowSource).toContain("expected_sha:");
+  expect(promotionWorkflowSource).toContain("^[a-fA-F0-9]{40}$");
+  expect(promotionWorkflowSource).toContain('npm run check:production -- "$TARGET_URL" "$EXPECTED_SHA"');
+  expect(promotionWorkflowSource).toContain('az containerapp ingress traffic set');
+  expect(promotionWorkflowSource).toContain('"${TARGET_SLOT}=100" "${OTHER_SLOT}=0"');
 });

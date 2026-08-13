@@ -2,6 +2,15 @@ name: Deploy Azure staging
 
 on:
   workflow_dispatch:
+    inputs:
+      target_slot:
+        description: Inactive revision label to receive the QA candidate
+        required: true
+        default: green
+        type: choice
+        options:
+          - green
+          - blue
 
 permissions:
   contents: read
@@ -15,6 +24,9 @@ jobs:
   validate-build-deploy:
     runs-on: ubuntu-latest
     environment: azure-staging
+    env:
+      TARGET_SLOT: ${{ inputs.target_slot }}
+      TARGET_URL: ${{ inputs.target_slot == 'blue' && vars.AZURE_BLUE_URL || vars.AZURE_GREEN_URL }}
     steps:
       - uses: actions/checkout@v4
 
@@ -28,11 +40,11 @@ jobs:
       - run: npx tsc --noEmit --incremental false
       - run: npm run build
         env:
-          NEXT_PUBLIC_SITE_URL: ${{ vars.AZURE_STAGING_URL }}
+          NEXT_PUBLIC_SITE_URL: ${{ env.TARGET_URL }}
           NEXT_PUBLIC_ENTRA_CLIENT_ID: ${{ vars.ENTRA_CLIENT_ID }}
           NEXT_PUBLIC_ENTRA_AUTHORITY: ${{ vars.ENTRA_AUTHORITY }}
           NEXT_PUBLIC_ENTRA_API_SCOPE: ${{ vars.ENTRA_API_SCOPE }}
-          NEXT_PUBLIC_ENTRA_REDIRECT_URI: ${{ vars.AZURE_STAGING_URL }}
+          NEXT_PUBLIC_ENTRA_REDIRECT_URI: ${{ env.TARGET_URL }}
           SITE_VERSION: ${{ github.sha }}
 
       - name: Sign in to Azure with GitHub OIDC
@@ -58,11 +70,11 @@ jobs:
           IMAGE="${{ vars.AZURE_ACR_NAME }}.azurecr.io/filosage:${GITHUB_SHA}"
           docker build \
             --tag "$IMAGE" \
-            --build-arg "NEXT_PUBLIC_SITE_URL=${{ vars.AZURE_STAGING_URL }}" \
+            --build-arg "NEXT_PUBLIC_SITE_URL=${TARGET_URL}" \
             --build-arg "NEXT_PUBLIC_ENTRA_CLIENT_ID=${{ vars.ENTRA_CLIENT_ID }}" \
             --build-arg "NEXT_PUBLIC_ENTRA_AUTHORITY=${{ vars.ENTRA_AUTHORITY }}" \
             --build-arg "NEXT_PUBLIC_ENTRA_API_SCOPE=${{ vars.ENTRA_API_SCOPE }}" \
-            --build-arg "NEXT_PUBLIC_ENTRA_REDIRECT_URI=${{ vars.AZURE_STAGING_URL }}" \
+            --build-arg "NEXT_PUBLIC_ENTRA_REDIRECT_URI=${TARGET_URL}" \
             --build-arg "SITE_VERSION=${GITHUB_SHA}" \
             .
           docker push "$IMAGE"
@@ -72,17 +84,44 @@ jobs:
         run: |
           set -euo pipefail
           IMAGE="${{ vars.AZURE_ACR_NAME }}.azurecr.io/filosage:${GITHUB_SHA}"
+          ACTIVE_WEIGHT="$(az containerapp show \
+            --resource-group "${{ vars.AZURE_RESOURCE_GROUP }}" \
+            --name "${{ vars.AZURE_CONTAINER_APP_NAME }}" \
+            --query "properties.configuration.ingress.traffic[?label=='${TARGET_SLOT}'].weight | [0]" \
+            --output tsv)"
+          if [[ "${ACTIVE_WEIGHT:-0}" != "0" ]]; then
+            echo "Refusing to replace ${TARGET_SLOT}; it currently carries ${ACTIVE_WEIGHT}% traffic."
+            exit 1
+          fi
+          az containerapp revision set-mode \
+            --resource-group "${{ vars.AZURE_RESOURCE_GROUP }}" \
+            --name "${{ vars.AZURE_CONTAINER_APP_NAME }}" \
+            --mode multiple
+          REVISION_SUFFIX="${TARGET_SLOT}-${GITHUB_SHA:0:8}-${GITHUB_RUN_ATTEMPT}"
           az containerapp update \
             --resource-group "${{ vars.AZURE_RESOURCE_GROUP }}" \
             --name "${{ vars.AZURE_CONTAINER_APP_NAME }}" \
             --image "$IMAGE" \
+            --revision-suffix "$REVISION_SUFFIX" \
             --set-env-vars \
               "SITE_VERSION=${GITHUB_SHA}" \
-              "NEXT_PUBLIC_SITE_URL=${{ vars.AZURE_STAGING_URL }}" \
+              "NEXT_PUBLIC_SITE_URL=${TARGET_URL}" \
               "NEXT_PUBLIC_ENTRA_CLIENT_ID=${{ vars.ENTRA_CLIENT_ID }}" \
               "NEXT_PUBLIC_ENTRA_AUTHORITY=${{ vars.ENTRA_AUTHORITY }}" \
               "NEXT_PUBLIC_ENTRA_API_SCOPE=${{ vars.ENTRA_API_SCOPE }}" \
-              "NEXT_PUBLIC_ENTRA_REDIRECT_URI=${{ vars.AZURE_STAGING_URL }}"
+              "NEXT_PUBLIC_ENTRA_REDIRECT_URI=${TARGET_URL}" \
+              "DEPLOYMENT_SLOT=${TARGET_SLOT}"
+          REVISION="$(az containerapp show \
+            --resource-group "${{ vars.AZURE_RESOURCE_GROUP }}" \
+            --name "${{ vars.AZURE_CONTAINER_APP_NAME }}" \
+            --query properties.latestRevisionName \
+            --output tsv)"
+          az containerapp revision label add \
+            --resource-group "${{ vars.AZURE_RESOURCE_GROUP }}" \
+            --name "${{ vars.AZURE_CONTAINER_APP_NAME }}" \
+            --label "$TARGET_SLOT" \
+            --revision "$REVISION" \
+            --yes
 
-      - name: Verify the deployed commit
-        run: npm run check:production -- "${{ vars.AZURE_STAGING_URL }}" "${GITHUB_SHA}"
+      - name: Verify the labeled QA candidate
+        run: npm run check:production -- "${TARGET_URL}" "${GITHUB_SHA}"

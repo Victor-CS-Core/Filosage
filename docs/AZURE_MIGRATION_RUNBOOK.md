@@ -1,6 +1,6 @@
 # Azure-native migration runbook
 
-Status: Central US staging foundation and External ID/Google federation are provisioned. The immutable application image, authored-course import, and staging acceptance are in progress. No production traffic has been cut over.
+Status: Central US staging foundation, External ID/Google federation, immutable application deployment, and authored-course import are provisioned. Blue/green staging acceptance is in progress. No production traffic has been cut over.
 
 ## Approved decisions
 
@@ -15,6 +15,8 @@ Status: Central US staging foundation and External ID/Google federation are prov
 PostgreSQL is the compatibility target because the current application relies on multi-document transactions, collection-group reads, cascades, and document-shaped JSON. A JSONB document table preserves the application contract for the initial move while allowing later relational normalization. Cosmos DB transactional batches are limited to one logical partition, which does not cover all existing workflows without a larger redesign.
 
 Container Apps provides a revisioned HTTPS runtime that can scale to zero for an unreleased staging app. Blob Storage holds private generated banners. Entra External ID owns customer authentication and can federate Google. Runtime secrets are referenced through Key Vault using a managed identity.
+
+Staging uses two labeled Container Apps revisions. `blue` is the stable baseline that receives the default staging hostname traffic; `green` is the zero-traffic QA candidate. Each label has its own HTTPS hostname and both can scale to zero. The staging workflow refuses to replace a label carrying live traffic, deploys only to the selected inactive label, and verifies that label's exact Git SHA. Promotion is a separate traffic decision after QA.
 
 ## Gate 1: local implementation
 
@@ -73,7 +75,7 @@ npm.cmd run migrate:azure:import-courses
 npm.cmd run migrate:azure:import-courses -- --apply
 ```
 
-The Azure importer is create-only: it fails if any target document or blob already exists. Import only after the PostgreSQL schema migration has completed and the operator has verified the target connection. The verified source bundle contains 9 owner-authored courses, 106 lessons, 9 referenced banners, 133 allowlisted documents total, and no user/progress/analytics paths. Compare source/target counts and deterministic hashes for every preserved document and banner. Do not delete Firebase data during migration or staging acceptance.
+The Azure importer is create-only: it fails if any target document or blob already exists. Import only after the PostgreSQL schema migration has completed and the operator has verified the target connection. The verified source bundle contains 9 owner-authored courses, 106 lessons, 9 referenced banners, 133 allowlisted documents total, and no user/progress/analytics paths. The independent Azure verification job `filosagestg-course-verify` succeeded on 2026-08-12 and confirmed exactly 133 PostgreSQL documents (9 courses and 106 lessons) plus 9 Blob Storage banners. Do not delete Firebase data during migration or staging acceptance.
 
 ## Gate 6: staging acceptance
 
