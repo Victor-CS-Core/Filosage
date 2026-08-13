@@ -4,6 +4,9 @@ import { readFileSync } from "node:fs";
 const infrastructureSource = readFileSync("src/lib/azure-infrastructure.ts", "utf8");
 const releaseSource = readFileSync("scripts/check-release-env.mjs", "utf8");
 const identityClientSource = readFileSync("src/lib/identity-client.ts", "utf8");
+const identityServerSource = readFileSync("src/lib/identity-server.ts", "utf8");
+const accountServerSource = readFileSync("src/lib/account-server.ts", "utf8");
+const packageSource = readFileSync("package.json", "utf8");
 const runtimeConfigSource = readFileSync("src/lib/runtime-config.ts", "utf8");
 const stagingWorkflowSource = readFileSync(".github/workflows/azure-staging.yml", "utf8");
 const promotionWorkflowSource = readFileSync(".github/workflows/azure-promote-staging.yml", "utf8");
@@ -36,6 +39,22 @@ test("customer sign-in accelerates to Google while retaining the External ID flo
   expect(identityClientSource).toContain('domain_hint: "google"');
   expect(identityClientSource).toContain("extraQueryParameters: googleIssuerHint");
   expect(identityClientSource).toContain('prompt: "select_account"');
+});
+
+test("browser authentication delegates the SPA OAuth lifecycle to MSAL without a client secret", () => {
+  expect(packageSource).toContain('"@azure/msal-browser"');
+  expect(identityClientSource).toContain("new PublicClientApplication");
+  expect(identityClientSource).toContain("instance.handleRedirectPromise()");
+  expect(identityClientSource).toContain("instance.acquireTokenSilent");
+  expect(identityClientSource).toContain('cacheLocation: "sessionStorage"');
+  expect(identityClientSource).not.toMatch(/client[_-]?secret/i);
+});
+
+test("the API verifies Entra tokens and keeps owner access behind an exact verified email match", () => {
+  expect(identityServerSource).toContain("createRemoteJWKSet");
+  expect(identityServerSource).toContain("jwtVerify(idToken, remoteKeys(uri), { issuer, audience })");
+  expect(accountServerSource).toContain("user.email_verified");
+  expect(accountServerSource).toContain("user.email?.trim().toLowerCase() === ownerEmail");
 });
 
 test("staging health does not claim production alert delivery is configured", () => {
