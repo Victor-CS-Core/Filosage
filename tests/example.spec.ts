@@ -617,7 +617,6 @@ test("never leaves public learning behind the authentication startup screen", as
   page.on("console", (message) => {
     if (message.type() === "error" && message.text().includes("hydrated")) hydrationErrors.push(message.text());
   });
-  await page.route("**/identitytoolkit.googleapis.com/**", (route) => route.abort());
   await page.goto("/");
 
   expect(pageErrors).toEqual([]);
@@ -819,16 +818,12 @@ test("lets guests browse outlines while clearly gating lessons behind an account
   await expect(dialog).toBeVisible();
   await expect(dialog).toContainText("browse published topics and inspect every course outline without an account");
   await expect(
-    dialog.getByRole("button", { name: "Continue to Google sign-in" }),
-  ).toBeDisabled();
-  await expect(
-    dialog.getByRole("button", { name: "Open Google sign-in in this tab" }),
+    dialog.getByRole("button", { name: "Continue with Google" }),
   ).toBeDisabled();
   await dialog.getByRole("checkbox").check();
-  await expect(dialog.getByRole("button", { name: "Continue to Google sign-in" })).toBeEnabled();
-  await expect(dialog.getByRole("button", { name: "Open Google sign-in in this tab" })).toBeEnabled();
-  await expect(dialog).toContainText("Choose Google on Microsoft's secure sign-in page");
-  await expect(dialog).toContainText("when a browser closes or blocks the sign-in window");
+  await expect(dialog.getByRole("button", { name: "Continue with Google" })).toBeEnabled();
+  await expect(dialog).toContainText("Google opens in this tab and returns you directly to Filosage");
+  await expect(dialog).toContainText("Azure securely manages the signed-in session");
   await expect(dialog.getByRole("link", { name: "Terms of Service" })).toHaveAttribute("href", "/terms");
 });
 

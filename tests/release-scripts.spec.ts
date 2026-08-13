@@ -10,14 +10,7 @@ const validReleaseEnvironment = {
   ...process.env,
   NEXT_PUBLIC_SITE_URL: "https://release.example",
   DATABASE_URL: "postgresql://release:placeholder@filosage-release.postgres.database.azure.com:5432/filosage?sslmode=verify-full",
-  NEXT_PUBLIC_ENTRA_CLIENT_ID: "00000000-0000-4000-8000-000000000001",
-  NEXT_PUBLIC_ENTRA_AUTHORITY: "https://release.ciamlogin.com/",
-  NEXT_PUBLIC_ENTRA_TENANT_ID: "00000000-0000-4000-8000-000000000002",
-  NEXT_PUBLIC_ENTRA_API_SCOPE: "api://00000000-0000-4000-8000-000000000001/access_as_user",
-  NEXT_PUBLIC_ENTRA_REDIRECT_URI: "https://release.example",
-  ENTRA_AUDIENCE: "00000000-0000-4000-8000-000000000001",
-  ENTRA_ISSUER: "https://release.ciamlogin.com/00000000-0000-4000-8000-000000000002/v2.0",
-  ENTRA_JWKS_URI: "https://release.ciamlogin.com/00000000-0000-4000-8000-000000000002/discovery/v2.0/keys",
+  AZURE_EASY_AUTH_ENABLED: "true",
   AZURE_STORAGE_ACCOUNT_URL: "https://filosagerelease.blob.core.windows.net/",
   AZURE_STORAGE_BANNER_CONTAINER: "course-banners",
   AZURE_POSTGRES_SERVER_NAME: "filosage-release",
@@ -51,21 +44,13 @@ test("release checks bind Azure and production health to one full Git SHA", ({ r
   expect(missingRecovery.status).toBe(1);
   expect(missingRecovery.stderr).toContain("AZURE_POSTGRES_SERVER_NAME");
 
-  const mismatchedRedirect = spawnSync(process.execPath, [releaseScript], {
+  const disabledEasyAuth = spawnSync(process.execPath, [releaseScript], {
     cwd: root,
-    env: { ...validReleaseEnvironment, NEXT_PUBLIC_ENTRA_REDIRECT_URI: "https://other.example" },
+    env: { ...validReleaseEnvironment, AZURE_EASY_AUTH_ENABLED: "false" },
     encoding: "utf8",
   });
-  expect(mismatchedRedirect.status).toBe(1);
-  expect(mismatchedRedirect.stderr).toContain("NEXT_PUBLIC_ENTRA_REDIRECT_URI must match NEXT_PUBLIC_SITE_URL");
-
-  const invalidTenant = spawnSync(process.execPath, [releaseScript], {
-    cwd: root,
-    env: { ...validReleaseEnvironment, NEXT_PUBLIC_ENTRA_TENANT_ID: "not-a-tenant" },
-    encoding: "utf8",
-  });
-  expect(invalidTenant.status).toBe(1);
-  expect(invalidTenant.stderr).toContain("NEXT_PUBLIC_ENTRA_TENANT_ID must be a valid tenant UUID");
+  expect(disabledEasyAuth.status).toBe(1);
+  expect(disabledEasyAuth.stderr).toContain("AZURE_EASY_AUTH_ENABLED must be true for production releases");
 
   const shortVersion = spawnSync(process.execPath, [releaseScript], {
     cwd: root,

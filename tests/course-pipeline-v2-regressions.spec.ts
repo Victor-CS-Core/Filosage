@@ -959,7 +959,7 @@ test("guarded lesson saves reject publish races and stale edits while invalidati
   )).toThrow(/newer edit was preserved/);
 });
 
-test("Microsoft Entra auth validates tokens server-side without a same-origin relay", async () => {
+test("Azure Easy Auth terminates Google OAuth before requests reach Next.js", async () => {
   const [nextConfigSource, proxySource, identitySource] = await Promise.all([
     readFile("next.config.ts", "utf8"),
     readFile("src/proxy.ts", "utf8"),
@@ -968,8 +968,8 @@ test("Microsoft Entra auth validates tokens server-side without a same-origin re
   expect(nextConfigSource).toContain('source: "/:path*"');
   expect(nextConfigSource).not.toContain("firebase-auth");
   expect(proxySource).toContain("api|assets|__|_next/static");
-  expect(identitySource).toContain("jwtVerify(idToken, remoteKeys(uri), { issuer, audience })");
-  expect(identitySource).toContain("Microsoft Entra token validation is not configured.");
+  expect(identitySource).toContain("easyAuthIdentityFromHeaders");
+  expect(identitySource).toContain('AZURE_EASY_AUTH_ENABLED');
 });
 
 test("same-tab sign-in preserves only fresh, version-bound legal confirmation", () => {

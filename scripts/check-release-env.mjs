@@ -1,15 +1,12 @@
 const activationMode = process.argv.includes("--billing-activation");
-const required = ["NEXT_PUBLIC_SITE_URL", "DATABASE_URL", "NEXT_PUBLIC_ENTRA_CLIENT_ID", "NEXT_PUBLIC_ENTRA_AUTHORITY", "NEXT_PUBLIC_ENTRA_TENANT_ID", "NEXT_PUBLIC_ENTRA_API_SCOPE", "NEXT_PUBLIC_ENTRA_REDIRECT_URI", "ENTRA_AUDIENCE", "ENTRA_ISSUER", "ENTRA_JWKS_URI", "AZURE_STORAGE_ACCOUNT_URL", "AZURE_STORAGE_BANNER_CONTAINER", "AZURE_POSTGRES_SERVER_NAME", "AZURE_RESOURCE_GROUP", "OPENAI_API_KEY", "OWNER_EMAIL", "ACTIVITY_RECEIPT_SECRET", "OPERATIONS_ALERT_WEBHOOK_URL", "OPERATIONS_ALERT_WEBHOOK_SECRET", "SITE_VERSION"];
+const required = ["NEXT_PUBLIC_SITE_URL", "DATABASE_URL", "AZURE_EASY_AUTH_ENABLED", "AZURE_STORAGE_ACCOUNT_URL", "AZURE_STORAGE_BANNER_CONTAINER", "AZURE_POSTGRES_SERVER_NAME", "AZURE_RESOURCE_GROUP", "OPENAI_API_KEY", "OWNER_EMAIL", "ACTIVITY_RECEIPT_SECRET", "OPERATIONS_ALERT_WEBHOOK_URL", "OPERATIONS_ALERT_WEBHOOK_SECRET", "SITE_VERSION"];
 const missing = required.filter((name) => !process.env[name]?.trim());
 if (missing.length) { console.error(`Missing release environment variables: ${missing.join(", ")}`); process.exitCode = 1; }
 else {
   const invalid = [];
   if (process.env.ACTIVITY_RECEIPT_SECRET.trim().length < 32) invalid.push("ACTIVITY_RECEIPT_SECRET must contain at least 32 characters");
   if (!/^[a-f0-9]{40}$/i.test(process.env.SITE_VERSION.trim())) invalid.push("SITE_VERSION must be the full 40-character Git commit SHA");
-  if (!/^https:\/\//i.test(process.env.NEXT_PUBLIC_ENTRA_AUTHORITY.trim())) invalid.push("NEXT_PUBLIC_ENTRA_AUTHORITY must use HTTPS");
-  if (!/^[a-f0-9]{8}-[a-f0-9]{4}-[1-5][a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/i.test(process.env.NEXT_PUBLIC_ENTRA_TENANT_ID.trim())) invalid.push("NEXT_PUBLIC_ENTRA_TENANT_ID must be a valid tenant UUID");
-  if (!/^https:\/\//i.test(process.env.ENTRA_JWKS_URI.trim())) invalid.push("ENTRA_JWKS_URI must use HTTPS");
-  if (process.env.NEXT_PUBLIC_ENTRA_REDIRECT_URI.trim() !== process.env.NEXT_PUBLIC_SITE_URL.trim()) invalid.push("NEXT_PUBLIC_ENTRA_REDIRECT_URI must match NEXT_PUBLIC_SITE_URL");
+  if (process.env.AZURE_EASY_AUTH_ENABLED.trim().toLowerCase() !== "true") invalid.push("AZURE_EASY_AUTH_ENABLED must be true for production releases");
   if (!/^https:\/\/[a-z0-9-]+\.blob\.core\.windows\.net\/?$/i.test(process.env.AZURE_STORAGE_ACCOUNT_URL.trim())) invalid.push("AZURE_STORAGE_ACCOUNT_URL must be an Azure Blob service URL");
   if (activationMode) {
     const paidRequired = ["STRIPE_SECRET_KEY", "STRIPE_WEBHOOK_SECRET", "STRIPE_PLUS_MONTHLY_PRICE_ID", "STRIPE_PLUS_ANNUAL_PRICE_ID", "STRIPE_PRO_MONTHLY_PRICE_ID", "STRIPE_PRO_ANNUAL_PRICE_ID", "LEGAL_OPERATOR_NAME", "LEGAL_BUSINESS_ADDRESS", "GOVERNING_JURISDICTION", "SUPPORT_EMAIL"];

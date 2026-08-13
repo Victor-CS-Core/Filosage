@@ -2,10 +2,12 @@ import "server-only";
 
 import { NextResponse } from "next/server";
 import {
+  verifiedEasyAuthUser,
   verifyIdentityToken,
   type VerifiedUser,
 } from "@/lib/identity-server";
 import { getExistingAccount, type ServerAccount } from "@/lib/account-server";
+import { isLocalMode } from "@/lib/local-mode";
 import { PRIVACY_VERSION, TERMS_VERSION } from "@/lib/legal";
 import { planAllows, type PlanCapability } from "@/lib/membership-plans";
 import { hasRecentAuthentication } from "@/lib/recent-auth";
@@ -20,6 +22,7 @@ export class AuthorizationError extends Error {
 }
 
 export async function getVerifiedUser(request: Request): Promise<VerifiedUser | null> {
+  if (!isLocalMode()) return verifiedEasyAuthUser(request);
   const authHeader = request.headers.get("authorization");
   if (!authHeader?.startsWith("Bearer ")) return null;
 
@@ -51,6 +54,12 @@ export async function requireRecentlyAuthenticatedUser(
   recentAuthenticationMessage = "Sign in again before permanently deleting your account.",
 ): Promise<VerifiedUser> {
   const user = await requireUser(request);
+  if (!isLocalMode()) {
+    if (!hasRecentAuthentication(user.auth_time)) {
+      throw new AuthorizationError(401, recentAuthenticationMessage);
+    }
+    return user;
+  }
   const proofToken = request.headers.get("x-reauthentication-token")?.trim();
   const proof = proofToken ? await verifyIdentityToken(proofToken) : null;
   if (!proof || proof.uid !== user.uid || !hasRecentAuthentication(proof.auth_time)) {

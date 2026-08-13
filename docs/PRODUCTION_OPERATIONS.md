@@ -2,13 +2,13 @@
 
 Updated: 2026-08-13
 
-Filosage runs on Azure Container Apps with PostgreSQL Flexible Server, Blob Storage, Key Vault, Container Registry, Log Analytics, Azure Monitor, and Microsoft Entra External ID. Git publication, an Azure candidate deployment, and traffic promotion are separate release states.
+Filosage runs on Azure Container Apps with PostgreSQL Flexible Server, Blob Storage, Key Vault, Container Registry, Log Analytics, and Azure Monitor. Google sign-in uses Container Apps built-in authentication (Easy Auth). Git publication, an Azure candidate deployment, and traffic promotion are separate release states.
 
 ## Required production configuration
 
-The release contract is validated by `npm.cmd run check:release`. It requires the Azure datastore, storage, Entra issuer/audience/JWKS configuration, owner email, OpenAI key, activity-receipt secret, canonical public origin, and the full 40-character Git SHA.
+The release contract is validated by `npm.cmd run check:release`. It requires Azure Easy Auth, the Azure datastore and storage, owner email, OpenAI key, activity-receipt secret, canonical public origin, and the full 40-character Git SHA.
 
-- `NEXT_PUBLIC_SITE_URL` and `NEXT_PUBLIC_ENTRA_REDIRECT_URI` must both be `https://filosage.com` for a public-domain image.
+- `NEXT_PUBLIC_SITE_URL` must be `https://filosage.com` for the production image. Google OAuth must authorize each deployed host's `/.auth/login/google/callback` URL.
 - `DATABASE_URL` must use Azure PostgreSQL with TLS verification.
 - `AZURE_STORAGE_ACCOUNT_URL` and `AZURE_STORAGE_BANNER_CONTAINER` identify private banner storage.
 - `OWNER_EMAIL` remains `viticopq12@gmail.com`; owner authorization also requires an exact verified token email match.
@@ -40,7 +40,7 @@ Never overwrite the slot carrying live traffic. Deploy the next candidate to the
 
 - Poll `/api/health` externally every one to five minutes. Alert after two consecutive failures and again on recovery.
 - Treat a 503, `checks.datastore=false`, an origin mismatch, or a version mismatch as an unhealthy release.
-- Monitor Container Apps revision health/restarts, PostgreSQL availability and connections, OpenAI budget exhaustion, Blob failures, Entra sign-in failures, and Stripe delivery only if billing is later activated.
+- Monitor Container Apps revision health/restarts, Easy Auth sign-in failures, PostgreSQL availability and connections, OpenAI budget exhaustion, Blob failures, and Stripe delivery only if billing is later activated.
 - Keep the $30 monthly Azure budget alerts active at 80% actual and 100% forecast while the app remains pre-release.
 - The alert receiver must verify `X-Filosage-Signature`, reject stale timestamps, deduplicate the alert ID, and acknowledge only after durable acceptance. Run `npm.cmd run test:operations-alert` after configuring or rotating it.
 
@@ -59,7 +59,7 @@ The 2026-08-12 restore rehearsal reproduced fingerprint `588c4e2334c555ea0078de9
 
 1. Triage severity, affected users, start time, and any active exploit or outage.
 2. Contain the issue with the relevant feature flag, billing lock, content quarantine, credential revocation, or promotion of a verified last-known-good Azure slot.
-3. Preserve GitHub Actions, Container Apps, PostgreSQL, Blob, Entra, OpenAI, Stripe, and operational-webhook evidence without copying private content or secrets into general-purpose chat.
+3. Preserve GitHub Actions, Container Apps and Easy Auth, PostgreSQL, Blob, OpenAI, Stripe, and operational-webhook evidence without copying private content or secrets into general-purpose chat.
 4. Recover application traffic from an immutable exact-SHA revision and data only from a verified recovery copy.
 5. Repeat public health, authentication routing, datastore, and visible smoke checks before reopening the affected feature.
 6. Notify affected users or authorities when required by counsel or law, and complete a written post-incident review.

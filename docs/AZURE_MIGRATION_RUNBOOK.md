@@ -1,10 +1,10 @@
 # Azure-native migration runbook
 
-Status: Azure is the active host for `filosage.com` and `www.filosage.com`. Central US infrastructure, External ID/Google federation, immutable blue/green deployment, authored-course import, content-fidelity verification, PostgreSQL point-in-time restore rehearsal, managed TLS, DNS cutover, and retirement of the former Sites host are complete. Owner Google sign-in acceptance is still pending.
+Status: Azure is the active host for `filosage.com` and `www.filosage.com`. Central US infrastructure, immutable blue/green deployment, authored-course import, content-fidelity verification, PostgreSQL point-in-time restore rehearsal, managed TLS, DNS cutover, and retirement of the former Sites host are complete. Azure Easy Auth with Google is the selected replacement for the rejected customer-directory flow; live owner acceptance remains required before sign-in is marked operational.
 
 ## Approved decisions
 
-- Target: Azure Container Apps, Azure Database for PostgreSQL Flexible Server, Microsoft Entra External ID, Azure Blob Storage, Key Vault, Container Registry, Log Analytics, and Azure Monitor.
+- Target: Azure Container Apps with built-in Google authentication (Easy Auth), Azure Database for PostgreSQL Flexible Server, Azure Blob Storage, Key Vault, Container Registry, Log Analytics, and Azure Monitor.
 - Account sign-in email: `viticopq12@gmail.com`. Passwords, MFA challenges, recovery codes, and security keys remain owner-only.
 - Data boundary: preserve only courses authored by the resolved owner, their lessons, and referenced banner assets. Do not migrate test learners, progress, analytics, waitlists, reports, billing state, or other disposable pre-release data.
 - Billing remains disabled. The pre-release staging footprint uses scale-to-zero Container Apps, PostgreSQL `Standard_B1ms`, ACR Basic, LRS storage, 30-day logs, seven-day database backups, and no high availability.
@@ -14,7 +14,7 @@ Status: Azure is the active host for `filosage.com` and `www.filosage.com`. Cent
 
 PostgreSQL is the compatibility target because the current application relies on multi-document transactions, collection-group reads, cascades, and document-shaped JSON. A JSONB document table preserves the application contract for the initial move while allowing later relational normalization. Cosmos DB transactional batches are limited to one logical partition, which does not cover all existing workflows without a larger redesign.
 
-Container Apps provides a revisioned HTTPS runtime that can scale to zero for an unreleased staging app. Blob Storage holds private generated banners. Entra External ID owns customer authentication and can federate Google. Runtime secrets are referenced through Key Vault using a managed identity.
+Container Apps provides a revisioned HTTPS runtime that can scale to zero for an unreleased staging app. Its built-in authentication sidecar manages Google OAuth, the session cookie, and trusted identity headers before requests reach Next.js. Blob Storage holds private generated banners. Runtime secrets are referenced through Key Vault using a managed identity.
 
 Staging uses two labeled Container Apps revisions. `blue` is the stable baseline that receives the default staging hostname traffic; `green` is the zero-traffic QA candidate. Each label has its own HTTPS hostname and both can scale to zero. The staging workflow refuses to replace a label carrying live traffic, deploys only to the selected inactive label, and verifies that label's exact Git SHA. Promotion is a separate traffic decision after QA.
 
@@ -34,7 +34,7 @@ Required before provisioning:
 The owner completes Azure portal password/MFA. Then inspect, without creating resources:
 
 - tenant and subscription names/IDs;
-- available regions and Entra External ID tenant status;
+- available regions and Container Apps authentication support;
 - forecast for Container Apps, PostgreSQL `Standard_B1ms` with 32 GiB storage, ACR Basic, Blob Storage, Key Vault, and Log Analytics;
 - budget and alert configuration.
 
@@ -48,27 +48,11 @@ The PostgreSQL template enables private networking, seven-day automated backup r
 
 ## Gate 4: identity
 
-Create or select an Entra External ID external tenant and configure:
+Create a dedicated Google Web OAuth client for Azure Container Apps. Register the apex, `www`, base Container Apps, and blue/green label origins, with `/.auth/login/google/callback` appended to every authorized redirect URI. Store the client secret only as an Azure Container App secret backed by Key Vault.
 
-- SPA redirect/logout URI for the Container Apps staging URL;
-- an exposed delegated API scope;
-- Google as an external identity provider;
-- token issuer, audience, and JWKS values;
-- a separate confidential Graph application only if automatic identity deletion is approved, with the narrow required application permission and admin consent.
+Enable the Container Apps auth platform with Google as the sole provider, HTTPS required, token storage disabled, and `AllowAnonymous` so public learning remains available without adding a token-storage account. The application starts sign-in at `/.auth/login/google`, reads the Azure-injected principal through its same-origin `/api/auth/session` endpoint, and signs out at `/.auth/logout`. Protected routes accept only the Google principal injected by the auth sidecar. `OWNER_EMAIL=viticopq12@gmail.com` remains the exact server-side owner boundary.
 
-The external tenant is `filosagecustomers.onmicrosoft.com`. `Filosage Web` exposes `access_as_user`, requests the email claim in access and ID tokens, is attached to the `Filosage Customers` sign-up/sign-in flow, and has localhost, the base/blue/green Container Apps origins, `https://filosage.com`, and `https://www.filosage.com` registered as SPA redirects. Google is configured as a federated provider and the application passes `domain_hint=google` so Google remains the primary sign-in path. Email/password remains a recovery method. `OWNER_EMAIL=viticopq12@gmail.com` is the server-side owner boundary and still requires a verified token email match.
-
-The Google OAuth client used by External ID must retain the complete Microsoft callback set below. On 2026-08-12, a live Google sign-in exposed `redirect_uri_mismatch` because the client contained only one CIAM callback. These exact callbacks were added to the existing `Filosage Entra External ID` client and re-read from Google Cloud after saving:
-
-- `https://login.microsoftonline.com`
-- `https://login.microsoftonline.com/te/69d76567-5377-4393-bfe5-47565b8df5dd/oauth2/authresp`
-- `https://login.microsoftonline.com/te/filosagecustomers.onmicrosoft.com/oauth2/authresp`
-- `https://69d76567-5377-4393-bfe5-47565b8df5dd.ciamlogin.com/69d76567-5377-4393-bfe5-47565b8df5dd/federation/oidc/accounts.google.com`
-- `https://69d76567-5377-4393-bfe5-47565b8df5dd.ciamlogin.com/filosagecustomers.onmicrosoft.com/federation/oidc/accounts.google.com`
-- `https://filosagecustomers.ciamlogin.com/69d76567-5377-4393-bfe5-47565b8df5dd/federation/oauth2`
-- `https://filosagecustomers.ciamlogin.com/filosagecustomers.onmicrosoft.com/federation/oauth2`
-
-Verify owner sign-in, learner sign-in, sign-out, token refresh, canceled popup, blocked popup, recent-authentication deletion, wrong issuer, wrong audience, expired token, and non-owner authorization.
+Verify owner sign-in, learner sign-in, sign-out, canceled sign-in, expired session, spoofed-header rejection, and non-owner authorization. Account deletion remains fail-closed until live Google claims prove that Azure supplies a recent `auth_time`; do not substitute token issue time or a browser-only marker for that proof.
 
 ## Gate 5: authored-course migration
 
@@ -104,7 +88,7 @@ Restore evidence: on 2026-08-12, Azure restored the 2026-08-13T01:28:00Z point i
 Completed on 2026-08-13:
 
 1. Azure managed certificates were issued and SNI-bound for `filosage.com` and `www.filosage.com`.
-2. Both origins were registered as Entra SPA redirects; the Microsoft-owned Google federation callbacks were preserved unchanged.
+2. Both origins are bound to the same Container App; the dedicated Google OAuth client must retain each host's Easy Auth callback URI.
 3. GoDaddy apex web records were replaced with `4.249.188.219`, and `www` now aliases `filosagestg-app.salmontree-eb10220f.centralus.azurecontainerapps.io`. Existing MX, SPF, DKIM, DMARC, Apple verification, and other non-web records were preserved.
 4. GitHub Actions run `31662271485` deployed commit `023aefa5c7d67c627e3d8bf6a53a8eea933ac93a` to green and proved its SHA, datastore health, and `https://filosage.com` canonical origin before promotion. Run `31662814607` promoted green to 100% traffic.
 5. Public health succeeded through the apex. `www` returned a permanent HTTPS redirect to the matching apex path with CSP and HSTS retained.

@@ -1,11 +1,5 @@
 "use client";
 
-import {
-  PublicClientApplication,
-  type AccountInfo,
-  type AuthenticationResult,
-} from "@azure/msal-browser";
-
 export interface FilosageUser {
   uid: string;
   displayName: string | null;
@@ -15,129 +9,97 @@ export interface FilosageUser {
   reauthenticationToken?: string;
 }
 
-const authority = process.env.NEXT_PUBLIC_ENTRA_AUTHORITY?.trim();
-const tenantId = process.env.NEXT_PUBLIC_ENTRA_TENANT_ID?.trim();
-const clientId = process.env.NEXT_PUBLIC_ENTRA_CLIENT_ID?.trim();
-const apiScope = process.env.NEXT_PUBLIC_ENTRA_API_SCOPE?.trim();
-const configuredRedirectUri = process.env.NEXT_PUBLIC_ENTRA_REDIRECT_URI?.trim();
-
-function knownAuthorities() {
-  if (!authority || !tenantId) return [];
-  const authorityHost = new URL(authority).hostname;
-  return [...new Set([authorityHost, `${tenantId}.ciamlogin.com`])];
+interface EasyAuthSessionResponse {
+  recentAuthentication?: boolean;
+  user?: {
+    uid?: unknown;
+    displayName?: unknown;
+    email?: unknown;
+    photoURL?: unknown;
+  } | null;
 }
 
-export const isEntraConfigured = Boolean(authority && tenantId && clientId && apiScope);
+const EASY_AUTH_SESSION_MARKER = "azure-easy-auth-session";
+const REAUTHENTICATED_QUERY = "filosage_reauthenticated";
 
-let application: PublicClientApplication | null = null;
-let initialization: Promise<PublicClientApplication> | null = null;
+// Azure Container Apps provides these endpoints only in the deployed
+// production runtime. Development keeps the existing isolated local account.
+export const isGoogleAuthConfigured = process.env.NODE_ENV === "production";
 
-function redirectUri() {
-  return configuredRedirectUri || (typeof window === "undefined" ? undefined : window.location.origin);
-}
-
-export async function entraApplication() {
-  if (!isEntraConfigured || !authority || !clientId) return null;
-  if (application) return application;
-  initialization ??= (async () => {
-    const instance = new PublicClientApplication({
-      auth: {
-        clientId,
-        authority,
-        knownAuthorities: knownAuthorities(),
-        redirectUri: redirectUri(),
-        postLogoutRedirectUri: redirectUri(),
-      },
-      cache: { cacheLocation: "sessionStorage" },
-    });
-    await instance.initialize();
-    const redirectResult = await instance.handleRedirectPromise();
-    const account = redirectResult?.account ?? instance.getAllAccounts()[0] ?? null;
-    if (account) instance.setActiveAccount(account);
-    application = instance;
-    return instance;
-  })();
-  return initialization;
-}
-
-async function accessToken(account: AccountInfo, forceRefresh = false) {
-  const instance = await entraApplication();
-  if (!instance || !apiScope) throw new Error("Microsoft Entra authentication is not configured.");
-  const result = await instance.acquireTokenSilent({
-    account,
-    scopes: [apiScope],
-    forceRefresh,
-  });
-  return result.accessToken;
-}
-
-export function filosageUser(account: AccountInfo, reauthenticationToken?: string): FilosageUser {
+function toFilosageUser(session: EasyAuthSessionResponse, reauthenticationToken?: string): FilosageUser | null {
+  const uid = typeof session.user?.uid === "string" ? session.user.uid.trim() : "";
+  const email = typeof session.user?.email === "string" ? session.user.email.trim().toLowerCase() : "";
+  if (!uid || !email) return null;
   return {
-    uid: account.localAccountId || account.homeAccountId,
-    displayName: account.name ?? null,
-    email: account.username || null,
-    photoURL: null,
-    getIdToken: (forceRefresh = false) => accessToken(account, forceRefresh),
+    uid,
+    displayName: typeof session.user?.displayName === "string" ? session.user.displayName : null,
+    email,
+    photoURL: typeof session.user?.photoURL === "string" ? session.user.photoURL : null,
+    getIdToken: async () => EASY_AUTH_SESSION_MARKER,
     ...(reauthenticationToken ? { reauthenticationToken } : {}),
   };
 }
 
-export async function currentEntraUser() {
-  const instance = await entraApplication();
-  const account = instance?.getActiveAccount() ?? instance?.getAllAccounts()[0] ?? null;
-  if (account) instance?.setActiveAccount(account);
-  return account ? filosageUser(account) : null;
-}
-
-export async function currentEntraAccessToken() {
-  const instance = await entraApplication();
-  const account = instance?.getActiveAccount() ?? instance?.getAllAccounts()[0] ?? null;
-  if (!account) return null;
-  return accessToken(account).catch(() => null);
-}
-
-export async function signInWithEntraPopup() {
-  const instance = await entraApplication();
-  if (!instance || !apiScope) throw new Error("Microsoft Entra authentication is not configured.");
-  const result = await instance.loginPopup({
-    scopes: [apiScope],
-    prompt: "select_account",
+async function easyAuthSession() {
+  const response = await fetch("/api/auth/session", {
+    cache: "no-store",
+    credentials: "same-origin",
+    headers: { Accept: "application/json" },
   });
-  if (!result.account) throw new Error("Microsoft Entra did not return an account.");
-  instance.setActiveAccount(result.account);
-  return filosageUser(result.account);
+  if (response.status === 401 || response.status === 403) return null;
+  if (!response.ok) throw new Error("Azure authentication status is unavailable.");
+  const body = await response.json() as EasyAuthSessionResponse;
+  return body.user ? body : null;
 }
 
-export async function signInWithEntraRedirect() {
-  const instance = await entraApplication();
-  if (!instance || !apiScope) throw new Error("Microsoft Entra authentication is not configured.");
-  await instance.loginRedirect({
-    scopes: [apiScope],
-    prompt: "select_account",
-  });
+export async function currentEasyAuthUser() {
+  const session = await easyAuthSession();
+  return session ? toFilosageUser(session) : null;
 }
 
-export async function reauthenticateWithEntra() {
-  const instance = await entraApplication();
-  if (!instance || !apiScope) throw new Error("Microsoft Entra authentication is not configured.");
-  const account = instance.getActiveAccount() ?? instance.getAllAccounts()[0];
-  if (!account) throw new Error("Sign in before confirming this action.");
-  const result: AuthenticationResult = await instance.acquireTokenPopup({
-    account,
-    scopes: [apiScope],
-    prompt: "login",
-    maxAge: 0,
-  });
-  if (result.account) instance.setActiveAccount(result.account);
-  if (!result.idToken) throw new Error("Microsoft Entra did not return a reauthentication proof.");
-  return result.account
-    ? filosageUser(result.account, result.idToken)
-    : filosageUser(account, result.idToken);
+export async function currentEasyAuthSession() {
+  return await easyAuthSession() ? EASY_AUTH_SESSION_MARKER : null;
 }
 
-export async function signOutFromEntra() {
-  const instance = await entraApplication();
-  if (!instance) return;
-  const account = instance.getActiveAccount() ?? instance.getAllAccounts()[0];
-  if (account) await instance.logoutPopup({ account, mainWindowRedirectUri: redirectUri() });
+function sameOriginPath(path: string) {
+  if (typeof window === "undefined") return "/";
+  const candidate = new URL(path, window.location.origin);
+  return candidate.origin === window.location.origin
+    ? `${candidate.pathname}${candidate.search}${candidate.hash}`
+    : "/";
+}
+
+function navigateToAuth(path: string): Promise<never> {
+  window.location.assign(path);
+  return new Promise<never>(() => undefined);
+}
+
+export function beginGoogleSignIn(postLoginPath = "/") {
+  const destination = encodeURIComponent(sameOriginPath(postLoginPath));
+  return navigateToAuth(`/.auth/login/google?post_login_redirect_uri=${destination}`);
+}
+
+export async function beginGoogleReauthentication(postLoginPath = "/privacy-center") {
+  const current = new URL(window.location.href);
+  if (current.searchParams.get(REAUTHENTICATED_QUERY) === "1") {
+    current.searchParams.delete(REAUTHENTICATED_QUERY);
+    window.history.replaceState({}, "", `${current.pathname}${current.search}${current.hash}`);
+    const session = await easyAuthSession();
+    if (!session?.recentAuthentication) {
+      throw new Error("Google did not provide a recent-authentication proof. Your account was not deleted.");
+    }
+    const user = toFilosageUser(session, EASY_AUTH_SESSION_MARKER);
+    if (!user) throw new Error("Your Google confirmation did not complete.");
+    return user;
+  }
+  const destination = new URL(sameOriginPath(postLoginPath), window.location.origin);
+  destination.searchParams.set(REAUTHENTICATED_QUERY, "1");
+  return navigateToAuth(
+    `/.auth/login/google?prompt=select_account&post_login_redirect_uri=${encodeURIComponent(`${destination.pathname}${destination.search}`)}`,
+  );
+}
+
+export function signOutFromEasyAuth(postLogoutPath = "/") {
+  const destination = encodeURIComponent(sameOriginPath(postLogoutPath));
+  return navigateToAuth(`/.auth/logout?post_logout_redirect_uri=${destination}`);
 }

@@ -3,11 +3,11 @@
 ## Existing platform
 
 - Next.js App Router and React
-- Firebase Authentication
-- Server-only Firestore REST access
+- Azure Container Apps Easy Auth with Google
+- Azure PostgreSQL document storage behind server-only routes
 - OpenAI for existing learning features; unused by command-center Phase 1
 - Stripe routes behind an independent billing lock
-- Sites/Cloudflare production runtime
+- Azure Container Apps production runtime
 
 ## Collections
 

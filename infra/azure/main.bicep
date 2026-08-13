@@ -19,12 +19,11 @@ param postgresAdminPassword string
 param postgresAdminLogin string = 'filosageadmin'
 param siteUrl string
 param siteVersion string = 'bootstrap'
-param entraClientId string = ''
-param entraAuthority string = ''
-param entraTenantId string = ''
-param entraApiScope string = ''
-param entraIssuer string = ''
-param entraJwksUri string = ''
+param googleClientId string = ''
+
+@secure()
+param googleClientSecret string = ''
+
 param ownerEmail string
 
 @description('Object ID of the human deployment owner who must be able to rotate staging secrets.')
@@ -35,12 +34,6 @@ param openAiApiKey string = ''
 
 @secure()
 param activityReceiptSecret string
-
-@secure()
-param entraDirectoryClientSecret string = ''
-
-param entraDirectoryTenantId string = ''
-param entraDirectoryClientId string = ''
 
 param operationsAlertWebhookUrl string = ''
 
@@ -260,10 +253,10 @@ resource receiptSecret 'Microsoft.KeyVault/vaults/secrets@2023-07-01' = {
   properties: { value: activityReceiptSecret }
 }
 
-resource directorySecret 'Microsoft.KeyVault/vaults/secrets@2023-07-01' = if (!empty(entraDirectoryClientSecret)) {
+resource googleSecret 'Microsoft.KeyVault/vaults/secrets@2023-07-01' = if (!empty(googleClientSecret)) {
   parent: vault
-  name: 'entra-directory-client-secret'
-  properties: { value: entraDirectoryClientSecret }
+  name: 'google-easy-auth-client-secret'
+  properties: { value: googleClientSecret }
 }
 
 resource operationsAlertSecret 'Microsoft.KeyVault/vaults/secrets@2023-07-01' = if (!empty(operationsAlertWebhookSecret)) {
@@ -342,7 +335,7 @@ var appSecrets = concat(
     { name: 'activity-receipt-secret', keyVaultUrl: receiptSecret.properties.secretUriWithVersion, identity: identity.id }
   ],
   !empty(openAiApiKey) ? [{ name: 'openai-api-key', keyVaultUrl: openAiSecret!.properties.secretUriWithVersion, identity: identity.id }] : [],
-  !empty(entraDirectoryClientSecret) ? [{ name: 'entra-directory-client-secret', keyVaultUrl: directorySecret!.properties.secretUriWithVersion, identity: identity.id }] : [],
+  !empty(googleClientSecret) ? [{ name: 'google-oauth-secret', keyVaultUrl: googleSecret!.properties.secretUriWithVersion, identity: identity.id }] : [],
   !empty(operationsAlertWebhookSecret) ? [{ name: 'operations-alert-webhook-secret', keyVaultUrl: operationsAlertSecret!.properties.secretUriWithVersion, identity: identity.id }] : []
 )
 
@@ -358,23 +351,13 @@ var appEnvironment = concat(
     { name: 'AZURE_RESOURCE_GROUP', value: resourceGroup().name }
     { name: 'NEXT_PUBLIC_SITE_URL', value: siteUrl }
     { name: 'SITE_VERSION', value: siteVersion }
-    { name: 'NEXT_PUBLIC_ENTRA_CLIENT_ID', value: entraClientId }
-    { name: 'NEXT_PUBLIC_ENTRA_AUTHORITY', value: entraAuthority }
-    { name: 'NEXT_PUBLIC_ENTRA_TENANT_ID', value: entraTenantId }
-    { name: 'NEXT_PUBLIC_ENTRA_API_SCOPE', value: entraApiScope }
-    { name: 'NEXT_PUBLIC_ENTRA_REDIRECT_URI', value: siteUrl }
-    { name: 'ENTRA_AUDIENCE', value: entraClientId }
-    { name: 'ENTRA_ISSUER', value: entraIssuer }
-    { name: 'ENTRA_JWKS_URI', value: entraJwksUri }
-    { name: 'ENTRA_DIRECTORY_TENANT_ID', value: entraDirectoryTenantId }
-    { name: 'ENTRA_DIRECTORY_CLIENT_ID', value: entraDirectoryClientId }
+    { name: 'AZURE_EASY_AUTH_ENABLED', value: 'true' }
     { name: 'OPERATIONS_ENVIRONMENT', value: 'azure-staging' }
     { name: 'OWNER_EMAIL', value: ownerEmail }
     { name: 'ACTIVITY_RECEIPT_SECRET', secretRef: 'activity-receipt-secret' }
     { name: 'BILLING_PROVIDER', value: 'stripe' }
     { name: 'BILLING_ENABLED', value: 'false' }
   ],
-  !empty(entraDirectoryClientSecret) ? [{ name: 'ENTRA_DIRECTORY_CLIENT_SECRET', secretRef: 'entra-directory-client-secret' }] : [],
   !empty(operationsAlertWebhookUrl) ? [{ name: 'OPERATIONS_ALERT_WEBHOOK_URL', value: operationsAlertWebhookUrl }] : [],
   !empty(operationsAlertWebhookSecret) ? [{ name: 'OPERATIONS_ALERT_WEBHOOK_SECRET', secretRef: 'operations-alert-webhook-secret' }] : [],
   !empty(openAiApiKey) ? [{ name: 'OPENAI_API_KEY', secretRef: 'openai-api-key' }] : []
@@ -424,6 +407,30 @@ resource app 'Microsoft.App/containerApps@2025-01-01' = if (deployApplication) {
     }
   }
   dependsOn: [acrPull, blobContributor, vaultSecretsUser, database]
+}
+
+resource appAuth 'Microsoft.App/containerApps/authConfigs@2025-01-01' = if (deployApplication && !empty(googleClientId) && !empty(googleClientSecret)) {
+  parent: app
+  name: 'current'
+  properties: {
+    platform: { enabled: true }
+    globalValidation: { unauthenticatedClientAction: 'AllowAnonymous' }
+    httpSettings: { requireHttps: true }
+    identityProviders: {
+      google: {
+        enabled: true
+        registration: {
+          clientId: googleClientId
+          clientSecretSettingName: 'google-oauth-secret'
+        }
+        validation: { allowedAudiences: [googleClientId] }
+      }
+    }
+    login: {
+      preserveUrlFragmentsForLogins: true
+      tokenStore: { enabled: false }
+    }
+  }
 }
 
 output containerAppName string = deployApplication ? app!.name : ''

@@ -2,7 +2,7 @@
 
 Filosage is an AI-assisted learning product built to turn curiosity into understanding. Public visitors can inspect published course outcomes and structure without an account. Verified Free learner accounts open lesson content and add cloud progress, notes, evidence, and spaced review. Filosage Plus adds one active private course with metered authoring; Filosage Pro removes the owned-course cap and adds publishing after course review.
 
-Owner access is resolved server-side from the verified Microsoft Entra External ID account matching the `OWNER_EMAIL` deployment secret. Google remains available as an Entra customer identity provider. The owner email is never sent in the account API or rendered in the interface.
+Owner access is resolved server-side from the verified Google account matching the `OWNER_EMAIL` deployment secret. Google authentication and the signed-in session are managed by Azure Container Apps built-in authentication (Easy Auth). The owner email is never sent in the account API or rendered in the interface.
 
 ## Product modes
 
@@ -15,7 +15,7 @@ Owner access is resolved server-side from the verified Microsoft Entra External 
 ## Stack
 
 - Next.js 16 App Router, React 19, and TypeScript
-- Microsoft Entra External ID, Azure Database for PostgreSQL, and Azure Blob Storage
+- Azure Container Apps Easy Auth for Google sign-in, Azure Database for PostgreSQL, and Azure Blob Storage
 - Azure Container Apps, Container Registry, Key Vault, and Azure Monitor
 - OpenAI Responses API with Zod Structured Outputs
 - Lucide icons and prose-first lesson explanations
@@ -24,7 +24,7 @@ Owner access is resolved server-side from the verified Microsoft Entra External 
 ## Local setup
 
 1. Copy `.env.example` to `.env.local`.
-2. For cloud-backed development, add the Azure PostgreSQL, Blob Storage, and Entra values. Credential-free local mode needs none of them.
+2. For cloud-backed development, add the Azure PostgreSQL and Blob Storage values. Credential-free local mode needs none of them; deployed sign-in is supplied by Container Apps Easy Auth.
 3. Add `OPENAI_API_KEY`. Course outlines and lessons default to `gpt-5.6-terra`; the grounded tutor defaults to `gpt-5.6-luna`.
 4. Configure the separate Free, paid (Plus and Pro), and owner OpenAI budget pools plus the plan-specific per-account cost ceilings shown in `.env.example`. Course briefs are screened with the free `omni-moderation-latest` model before generation and generated outlines are screened again before storage.
 5. `PREMIUM_EMAILS` is a legacy Pro-access allowlist for controlled testing; prefer explicit owner grants for new test accounts.

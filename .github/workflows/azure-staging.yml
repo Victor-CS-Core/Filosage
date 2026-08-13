@@ -47,11 +47,6 @@ jobs:
       - run: npm run build
         env:
           NEXT_PUBLIC_SITE_URL: ${{ env.PUBLIC_SITE_URL }}
-          NEXT_PUBLIC_ENTRA_CLIENT_ID: ${{ vars.ENTRA_CLIENT_ID }}
-          NEXT_PUBLIC_ENTRA_AUTHORITY: ${{ vars.ENTRA_AUTHORITY }}
-          NEXT_PUBLIC_ENTRA_TENANT_ID: ${{ vars.ENTRA_TENANT_ID }}
-          NEXT_PUBLIC_ENTRA_API_SCOPE: ${{ vars.ENTRA_API_SCOPE }}
-          NEXT_PUBLIC_ENTRA_REDIRECT_URI: ${{ env.PUBLIC_SITE_URL }}
           SITE_VERSION: ${{ github.sha }}
 
       - name: Sign in to Azure with GitHub OIDC
@@ -82,11 +77,6 @@ jobs:
           docker build \
             --tag "$IMAGE" \
             --build-arg "NEXT_PUBLIC_SITE_URL=${PUBLIC_SITE_URL}" \
-            --build-arg "NEXT_PUBLIC_ENTRA_CLIENT_ID=${{ vars.ENTRA_CLIENT_ID }}" \
-            --build-arg "NEXT_PUBLIC_ENTRA_AUTHORITY=${{ vars.ENTRA_AUTHORITY }}" \
-            --build-arg "NEXT_PUBLIC_ENTRA_TENANT_ID=${{ vars.ENTRA_TENANT_ID }}" \
-            --build-arg "NEXT_PUBLIC_ENTRA_API_SCOPE=${{ vars.ENTRA_API_SCOPE }}" \
-            --build-arg "NEXT_PUBLIC_ENTRA_REDIRECT_URI=${PUBLIC_SITE_URL}" \
             --build-arg "SITE_VERSION=${GITHUB_SHA}" \
             .
           docker push "$IMAGE"
@@ -115,14 +105,22 @@ jobs:
             --name "${{ vars.AZURE_CONTAINER_APP_NAME }}" \
             --image "$IMAGE" \
             --revision-suffix "$REVISION_SUFFIX" \
+            --remove-env-vars \
+              "NEXT_PUBLIC_ENTRA_CLIENT_ID" \
+              "NEXT_PUBLIC_ENTRA_AUTHORITY" \
+              "NEXT_PUBLIC_ENTRA_TENANT_ID" \
+              "NEXT_PUBLIC_ENTRA_API_SCOPE" \
+              "NEXT_PUBLIC_ENTRA_REDIRECT_URI" \
+              "ENTRA_AUDIENCE" \
+              "ENTRA_ISSUER" \
+              "ENTRA_JWKS_URI" \
+              "ENTRA_DIRECTORY_TENANT_ID" \
+              "ENTRA_DIRECTORY_CLIENT_ID" \
+              "ENTRA_DIRECTORY_CLIENT_SECRET" \
             --set-env-vars \
               "SITE_VERSION=${GITHUB_SHA}" \
               "NEXT_PUBLIC_SITE_URL=${PUBLIC_SITE_URL}" \
-              "NEXT_PUBLIC_ENTRA_CLIENT_ID=${{ vars.ENTRA_CLIENT_ID }}" \
-              "NEXT_PUBLIC_ENTRA_AUTHORITY=${{ vars.ENTRA_AUTHORITY }}" \
-              "NEXT_PUBLIC_ENTRA_TENANT_ID=${{ vars.ENTRA_TENANT_ID }}" \
-              "NEXT_PUBLIC_ENTRA_API_SCOPE=${{ vars.ENTRA_API_SCOPE }}" \
-              "NEXT_PUBLIC_ENTRA_REDIRECT_URI=${PUBLIC_SITE_URL}" \
+              "AZURE_EASY_AUTH_ENABLED=true" \
               "DEPLOYMENT_SLOT=${TARGET_SLOT}"
           REVISION="$(az containerapp show \
             --resource-group "${{ vars.AZURE_RESOURCE_GROUP }}" \

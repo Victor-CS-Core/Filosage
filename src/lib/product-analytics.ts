@@ -1,6 +1,6 @@
 "use client";
 
-import { currentEntraAccessToken } from "@/lib/identity-client";
+import { currentEasyAuthSession } from "@/lib/identity-client";
 import {
   PRODUCT_EVENT_SCHEMA_VERSION,
   type AcquisitionChannel,
@@ -160,7 +160,7 @@ function sourceFor(channel: AcquisitionChannel) {
 }
 
 async function sendTelemetry(payload: Record<string, unknown>) {
-  const token = await currentEntraAccessToken();
+    const token = await currentEasyAuthSession();
   return fetch("/api/telemetry", {
     method: "POST",
     headers: {

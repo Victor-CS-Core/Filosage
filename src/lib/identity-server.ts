@@ -1,6 +1,6 @@
 import "server-only";
 
-import { createRemoteJWKSet, jwtVerify } from "jose";
+import { easyAuthIdentityFromHeaders } from "@/lib/easy-auth-principal";
 import { isLocalMode, LOCAL_OWNER_EMAIL, LOCAL_OWNER_UID } from "@/lib/local-mode";
 import { serverEnvironment } from "@/lib/runtime-environment";
 
@@ -25,28 +25,6 @@ const LOCAL_PLAYWRIGHT_LEARNERS = new Map<string, { uid: string; email: string }
   }],
   ["playwright-plus-learner", { uid: "local-plus-learner", email: "plus-learner@filosage.local" }],
 ]);
-
-let jwks: ReturnType<typeof createRemoteJWKSet> | null = null;
-let jwksUrl = "";
-
-function requiredEntraConfiguration() {
-  const issuer = serverEnvironment.ENTRA_ISSUER?.trim();
-  const audience = serverEnvironment.ENTRA_AUDIENCE?.trim()
-    || serverEnvironment.NEXT_PUBLIC_ENTRA_CLIENT_ID?.trim();
-  const uri = serverEnvironment.ENTRA_JWKS_URI?.trim();
-  if (!issuer || !audience || !uri) {
-    throw new Error("Microsoft Entra token validation is not configured.");
-  }
-  return { issuer, audience, uri };
-}
-
-function remoteKeys(uri: string) {
-  if (!jwks || jwksUrl !== uri) {
-    jwks = createRemoteJWKSet(new URL(uri));
-    jwksUrl = uri;
-  }
-  return jwks;
-}
 
 function localVerifiedUser(idToken: string): VerifiedUser | null {
   const auth_time = Math.floor(Date.now() / 1_000);
@@ -73,29 +51,18 @@ function localVerifiedUser(idToken: string): VerifiedUser | null {
   return null;
 }
 
+/**
+ * Reads claims injected by the Azure Container Apps authentication sidecar.
+ * Azure removes these headers from external requests before adding its own,
+ * and this path is enabled only in the deployed Easy Auth runtime.
+ */
+export function verifiedEasyAuthUser(request: Request): VerifiedUser | null {
+  return easyAuthIdentityFromHeaders(
+    request.headers,
+    serverEnvironment.AZURE_EASY_AUTH_ENABLED?.trim().toLowerCase() === "true",
+  );
+}
+
 export async function verifyIdentityToken(idToken: string): Promise<VerifiedUser | null> {
-  if (isLocalMode()) return localVerifiedUser(idToken);
-  const { issuer, audience, uri } = requiredEntraConfiguration();
-  try {
-    const { payload } = await jwtVerify(idToken, remoteKeys(uri), { issuer, audience });
-    const emailClaim = typeof payload.email === "string"
-      ? payload.email
-      : typeof payload.preferred_username === "string"
-        ? payload.preferred_username
-        : Array.isArray(payload.emails) && typeof payload.emails[0] === "string"
-          ? payload.emails[0]
-          : undefined;
-    const uid = typeof payload.oid === "string" ? payload.oid : payload.sub;
-    if (!uid) return null;
-    return {
-      uid,
-      email: emailClaim?.trim().toLowerCase(),
-      email_verified: Boolean(emailClaim),
-      auth_time: typeof payload.auth_time === "number" ? payload.auth_time : undefined,
-      name: typeof payload.name === "string" ? payload.name : undefined,
-      picture: typeof payload.picture === "string" ? payload.picture : undefined,
-    };
-  } catch {
-    return null;
-  }
+  return isLocalMode() ? localVerifiedUser(idToken) : null;
 }

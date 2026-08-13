@@ -6,7 +6,7 @@ This document is an engineering and launch-readiness record, not legal advice.
 
 ## Controls implemented
 
-- Firebase ID tokens are verified server-side before account access, and authorization is repeated at each protected API route.
+- Azure Container Apps Easy Auth verifies Google sign-in before requests reach Next.js; protected routes authorize the Azure-injected Google principal independently.
 - Browser Firestore access is denied; privileged database access remains server-side.
 - Public course and lesson responses use explicit data-transfer objects. Internal user IDs, topic keys, service timestamps, and author profile URLs are not returned.
 - State-changing JSON requests require an allowed origin, `application/json`, and an endpoint-specific body limit.
@@ -20,10 +20,10 @@ This document is an engineering and launch-readiness record, not legal advice.
 - Managed Firestore export and guarded import scripts support backups and recovery drills. Restore is dry-run by default and requires both `--apply` and the exact project ID.
 - The production and full installed dependency graphs reported zero known npm audit vulnerabilities on the date above.
 - Signup and future terms updates use an affirmative, versioned acceptance record for the registrant's stated age eligibility and, where applicable, stated guardian review. This is not independent age assurance or verified guardian consent. Guests can inspect published topics and course outlines; lesson bodies require an accepted free account.
-- Signed-in non-owner users can export their account data and permanently delete their active account data after recent Google reauthentication. The deletion route independently enforces a five-minute Firebase `auth_time` window on the server; the client reauthentication prompt is not the security boundary. Owner deletion requires a manual course-control transfer or shutdown process.
+- Signed-in non-owner users can export their account data. Automated deletion requires a recent Google `auth_time` in the Azure-injected claims and otherwise fails closed without deleting data; live claim verification remains a launch gate. The client prompt and token issue time are not accepted as substitutes for recent authentication. Filosage never deletes the user's external Google account. Owner deletion requires a manual course-control transfer or shutdown process.
 - A published Copyright Policy defines notice, counter-notice, review, removal, and an adopted repeat-infringer termination procedure. Content reports and owner enforcement actions preserve the operational record used to apply it. The app does not claim DMCA safe-harbor registration that has not been completed.
 - Optional first-party product analytics are off until the visitor makes a choice. Refusal and later withdrawal remove Filosage's optional browser identifiers; the choice remains available in the Privacy Center.
-- Browser telemetry accepts only coarse anonymous discovery events. Signed-in learning events are rebound to the verified Firebase UID, while signup, waitlist, moderation, checkout, and subscription events are recorded only by the server route that performs the underlying action.
+- Browser telemetry accepts only coarse anonymous discovery events. Signed-in learning events are rebound to the Azure-verified Google principal ID, while signup, waitlist, moderation, checkout, and subscription events are recorded only by the server route that performs the underlying action.
 - Multiple independent serious content reports escalate to owner review and operational alerting; learner reports alone cannot automatically unpublish a course.
 
 ## Automated account export and deletion boundary

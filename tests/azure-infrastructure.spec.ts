@@ -1,5 +1,6 @@
 import { expect, test } from "@playwright/test";
 import { readFileSync } from "node:fs";
+import { easyAuthIdentityFromHeaders } from "../src/lib/easy-auth-principal";
 
 const infrastructureSource = readFileSync("src/lib/azure-infrastructure.ts", "utf8");
 const releaseSource = readFileSync("scripts/check-release-env.mjs", "utf8");
@@ -18,19 +19,19 @@ const healthVerifierSource = readFileSync("scripts/check-production-health.mjs",
 const proxySource = readFileSync("src/proxy.ts", "utf8");
 
 test("Azure infrastructure inventory names every production platform service", () => {
-  expect(infrastructureSource).toContain("Microsoft Entra External ID");
+  expect(infrastructureSource).toContain("Azure Container Apps Easy Auth (Google)");
   expect(infrastructureSource).toContain("Azure Database for PostgreSQL");
   expect(infrastructureSource).toContain("Azure Blob Storage");
   expect(infrastructureSource).toContain("Azure Container Apps");
   expect(infrastructureSource).toContain("Azure Monitor and Log Analytics");
 });
 
-test("production release validation requires Azure and does not require Firebase", () => {
+test("production release validation requires Azure services and Easy Auth", () => {
   expect(releaseSource).toContain('"DATABASE_URL"');
-  expect(releaseSource).toContain('"NEXT_PUBLIC_ENTRA_CLIENT_ID"');
-  expect(releaseSource).toContain('"NEXT_PUBLIC_ENTRA_TENANT_ID"');
+  expect(releaseSource).toContain('"AZURE_EASY_AUTH_ENABLED"');
   expect(releaseSource).toContain('"AZURE_STORAGE_ACCOUNT_URL"');
-  expect(releaseSource).not.toContain('"FIREBASE_PROJECT_ID"');
+  expect(releaseSource).not.toContain('"NEXT_PUBLIC_FIREBASE_API_KEY"');
+  expect(releaseSource).not.toContain('"NEXT_PUBLIC_ENTRA_CLIENT_ID"');
   expect(releaseSource).not.toContain('"FIRESTORE_BACKUP_BUCKET"');
 });
 
@@ -39,28 +40,71 @@ test("Azure status avoids presenting configuration as invoice or restore proof",
   expect(infrastructureSource).toContain("configuration alone is not recovery proof");
 });
 
-test("customer sign-in uses the External ID provider picker without the broken Google issuer hint", () => {
-  expect(identityClientSource).not.toContain("domain_hint");
-  expect(identityClientSource).not.toContain("extraQueryParameters");
-  expect(identityClientSource).toContain("knownAuthorities: knownAuthorities()");
-  expect(identityClientSource).toContain('`${tenantId}.ciamlogin.com`');
-  expect(identityClientSource).toContain('prompt: "select_account"');
+test("customer sign-in delegates directly to Azure Container Apps Easy Auth", () => {
+  expect(identityClientSource).toContain('fetch("/api/auth/session"');
+  expect(identityClientSource).toContain('/.auth/login/google?post_login_redirect_uri=');
+  expect(identityClientSource).toContain('/.auth/logout?post_logout_redirect_uri=');
+  expect(identityClientSource).not.toContain("popup");
 });
 
-test("browser authentication delegates the SPA OAuth lifecycle to MSAL without a client secret", () => {
-  expect(packageSource).toContain('"@azure/msal-browser"');
-  expect(identityClientSource).toContain("new PublicClientApplication");
-  expect(identityClientSource).toContain("instance.handleRedirectPromise()");
-  expect(identityClientSource).toContain("instance.acquireTokenSilent");
-  expect(identityClientSource).toContain('cacheLocation: "sessionStorage"');
+test("browser authentication uses the Azure-managed session without an auth SDK or client secret", () => {
+  expect(packageSource).not.toContain('"firebase"');
+  expect(packageSource).not.toContain('"@azure/msal-browser"');
+  expect(identityClientSource).toContain('credentials: "same-origin"');
   expect(identityClientSource).not.toMatch(/client[_-]?secret/i);
 });
 
-test("the API verifies Entra tokens and keeps owner access behind an exact verified email match", () => {
-  expect(identityServerSource).toContain("createRemoteJWKSet");
-  expect(identityServerSource).toContain("jwtVerify(idToken, remoteKeys(uri), { issuer, audience })");
+test("the API trusts only Azure-injected Google claims and keeps owner access behind an exact verified email match", () => {
+  expect(identityServerSource).toContain("easyAuthIdentityFromHeaders");
+  expect(identityServerSource).toContain('AZURE_EASY_AUTH_ENABLED');
   expect(accountServerSource).toContain("user.email_verified");
   expect(accountServerSource).toContain("user.email?.trim().toLowerCase() === ownerEmail");
+});
+
+test("Easy Auth principal parsing fails closed and accepts only verified Google identity data", () => {
+  const principal = Buffer.from(JSON.stringify({
+    auth_typ: "google",
+    claims: [
+      { typ: "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/emailaddress", val: "Owner@Example.com" },
+      { typ: "name", val: "Owner" },
+      { typ: "auth_time", val: "1750000000" },
+      { typ: "email_verified", val: "true" },
+    ],
+  })).toString("base64");
+  const headers = new Headers({
+    "x-ms-client-principal": principal,
+    "x-ms-client-principal-id": "google-subject",
+    "x-ms-client-principal-idp": "google",
+    "x-ms-client-principal-name": "Owner@Example.com",
+  });
+  expect(easyAuthIdentityFromHeaders(headers, true)).toEqual({
+    uid: "google-subject",
+    email: "owner@example.com",
+    email_verified: true,
+    auth_time: 1_750_000_000,
+    name: "Owner",
+    picture: undefined,
+  });
+  expect(easyAuthIdentityFromHeaders(headers, false)).toBeNull();
+  headers.set("x-ms-client-principal-idp", "aad");
+  expect(easyAuthIdentityFromHeaders(headers, true)).toBeNull();
+});
+
+test("Easy Auth principal parsing rejects unverified or malformed email claims", () => {
+  const encoded = (email: string, verified: string) => Buffer.from(JSON.stringify({
+    auth_typ: "google",
+    claims: [
+      { typ: "email", val: email },
+      { typ: "email_verified", val: verified },
+      { typ: "sub", val: "subject" },
+    ],
+  })).toString("base64");
+  expect(easyAuthIdentityFromHeaders(new Headers({
+    "x-ms-client-principal": encoded("learner@example.com", "false"),
+  }), true)).toBeNull();
+  expect(easyAuthIdentityFromHeaders(new Headers({
+    "x-ms-client-principal": encoded("not-an-email", "true"),
+  }), true)).toBeNull();
 });
 
 test("staging health does not claim production alert delivery is configured", () => {
@@ -74,8 +118,8 @@ test("staging deploys only to an inactive blue or green revision label", () => {
   expect(stagingWorkflowSource).toContain('if [[ "${ACTIVE_WEIGHT:-0}" != "0" ]]');
   expect(stagingWorkflowSource).toContain("az containerapp revision label add");
   expect(stagingWorkflowSource).toContain("public_site_url:");
-  expect(stagingWorkflowSource).toContain('NEXT_PUBLIC_ENTRA_REDIRECT_URI: ${{ env.PUBLIC_SITE_URL }}');
-  expect(stagingWorkflowSource).toContain('NEXT_PUBLIC_ENTRA_TENANT_ID: ${{ vars.ENTRA_TENANT_ID }}');
+  expect(stagingWorkflowSource).toContain('"AZURE_EASY_AUTH_ENABLED=true"');
+  expect(stagingWorkflowSource).not.toContain("NEXT_PUBLIC_FIREBASE_API_KEY");
   expect(stagingWorkflowSource).toContain('npm run check:production -- "${TARGET_URL}" "${GITHUB_SHA}" "${PUBLIC_SITE_URL}"');
 });
 

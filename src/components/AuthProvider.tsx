@@ -9,12 +9,11 @@ import {
   useState,
 } from "react";
 import {
-  currentEntraUser,
-  isEntraConfigured,
-  reauthenticateWithEntra,
-  signInWithEntraPopup,
-  signInWithEntraRedirect,
-  signOutFromEntra,
+  beginGoogleReauthentication,
+  beginGoogleSignIn,
+  currentEasyAuthUser,
+  isGoogleAuthConfigured,
+  signOutFromEasyAuth,
   type FilosageUser,
 } from "@/lib/identity-client";
 import type { AccessLevel, LearnerAccount } from "@/lib/course-types";
@@ -79,16 +78,10 @@ function authErrorMessage(error: unknown) {
       : "";
 
   switch (code) {
-    case "popup_window_error":
-      return "Your browser blocked the sign-in window. Allow popups for Filosage and try again.";
-    case "user_cancelled":
-      return "Sign-in was canceled. You can try again when ready.";
-    case "network_error":
-      return "Sign-in could not reach the network. Check your connection and try again.";
-    case "storage_not_supported":
-      return "Sign-in needs browser storage. Turn off Private Browsing or allow site storage, then try again.";
+    case "easy_auth_unavailable":
+      return "Google sign-in is temporarily unavailable. Please try again.";
     default:
-      return "Sign-in could not be completed. Please try again.";
+      return "Google sign-in could not be completed. Please try again.";
   }
 }
 
@@ -120,7 +113,7 @@ async function persistLegalAcceptance(
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<FilosageUser | null>(null);
   const [account, setAccount] = useState<LearnerAccount | null>(null);
-  const [loading, setLoading] = useState(isEntraConfigured);
+  const [loading, setLoading] = useState(isGoogleAuthConfigured);
   const [error, setError] = useState<string | null>(null);
 
   const loadAccount = useCallback(async (nextUser: FilosageUser | null) => {
@@ -173,7 +166,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       });
       return;
     }
-    if (!isEntraConfigured) {
+    if (!isGoogleAuthConfigured) {
       return;
     }
 
@@ -182,7 +175,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setError("Your session is taking longer than expected. Refresh to try again.");
       setLoading(false);
     }, 10000);
-    void currentEntraUser().then(async (nextUser) => {
+    void currentEasyAuthUser().then(async (nextUser) => {
       if (cancelled) return;
       window.clearTimeout(bootTimeout);
       setUser(nextUser);
@@ -216,7 +209,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const signInWithGoogle = useCallback(async () => {
     setError(null);
-    if (!isEntraConfigured) {
+    if (!isGoogleAuthConfigured) {
       if (localAuthAvailable) {
         const localUser = localOwnerUser();
         localStorage.setItem(LOCAL_SESSION_KEY, "1");
@@ -225,23 +218,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return localUser;
       }
       setError("Google sign-in is not available in this local build.");
-      throw new Error("Microsoft Entra is not configured.");
+      throw new Error("Google authentication is not configured.");
     }
 
     try {
-      const nextUser = await signInWithEntraPopup();
-      setUser(nextUser);
-      await loadAccount(nextUser).catch(() => setAccount(null));
-      return nextUser;
-    } catch (popupError) {
-      setError(authErrorMessage(popupError));
-      throw popupError;
+      return await beginGoogleSignIn(`${window.location.pathname}${window.location.search}`);
+    } catch (signInError) {
+      setError(authErrorMessage(signInError));
+      throw signInError;
     }
   }, [loadAccount]);
 
   const signInWithGoogleRedirect = useCallback(async () => {
     setError(null);
-    if (!isEntraConfigured) {
+    if (!isGoogleAuthConfigured) {
       if (localAuthAvailable) {
         const localUser = localOwnerUser();
         localStorage.setItem(LOCAL_SESSION_KEY, "1");
@@ -251,14 +241,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return;
       }
       setError("Google sign-in is not available in this local build.");
-      throw new Error("Microsoft Entra is not configured.");
+      throw new Error("Google authentication is not configured.");
     }
     try {
       sessionStorage.setItem(
         PENDING_GOOGLE_REDIRECT_ACCEPTANCE_KEY,
         JSON.stringify(pendingGoogleRedirectAcceptance()),
       );
-      await signInWithEntraRedirect();
+      await beginGoogleSignIn(`${window.location.pathname}${window.location.search}`);
     } catch (redirectError) {
       sessionStorage.removeItem(PENDING_GOOGLE_REDIRECT_ACCEPTANCE_KEY);
       setError(authErrorMessage(redirectError));
@@ -285,17 +275,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setAccount(null);
       return;
     }
-    if (!isEntraConfigured) {
+    if (!isGoogleAuthConfigured) {
       return;
     }
-    await signOutFromEntra();
-    setUser(null);
-    setAccount(null);
+    await signOutFromEasyAuth("/");
   }, []);
 
   const reauthenticate = useCallback(async () => {
     if (localAuthAvailable && localStorage.getItem(LOCAL_SESSION_KEY)) return localOwnerUser();
-    const nextUser = await reauthenticateWithEntra();
+    const nextUser = await beginGoogleReauthentication("/privacy-center");
     setUser(nextUser);
     return nextUser;
   }, []);

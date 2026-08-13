@@ -9,8 +9,7 @@ import FilosageMark from "@/components/FilosageMark";
 interface AuthModalProps { onClose: () => void; }
 
 export default function AuthModal({ onClose }: AuthModalProps) {
-  const { signInWithGoogle, signInWithGoogleRedirect, acceptLegalTerms, error, clearError } = useAuth();
-  const [submitting, setSubmitting] = useState(false);
+  const { signInWithGoogleRedirect, error, clearError } = useAuth();
   const [redirecting, setRedirecting] = useState(false);
   const [agreed, setAgreed] = useState(false);
   const [acceptanceError, setAcceptanceError] = useState<string | null>(null);
@@ -37,27 +36,13 @@ export default function AuthModal({ onClose }: AuthModalProps) {
   }, [onClose]);
 
   const handleGoogle = async () => {
-    setSubmitting(true);
-    setAcceptanceError(null);
-    clearError();
-    try {
-      const user = await signInWithGoogle();
-      await acceptLegalTerms("signup", user);
-      onClose();
-    } catch {
-      setAcceptanceError("Sign-in or acceptance could not be completed. Please try again.");
-    } finally { setSubmitting(false); }
-  };
-
-  const handleGoogleRedirect = async () => {
     setRedirecting(true);
     setAcceptanceError(null);
     clearError();
     try {
       await signInWithGoogleRedirect();
-      onClose();
     } catch {
-      setAcceptanceError("Same-tab sign-in could not be started. Please try again.");
+      setAcceptanceError("Google sign-in could not be started. Please try again.");
       setRedirecting(false);
     }
   };
@@ -75,13 +60,10 @@ export default function AuthModal({ onClose }: AuthModalProps) {
         <input type="checkbox" checked={agreed} onChange={(event) => setAgreed(event.target.checked)} />
         <span>I confirm I am at least 13 and, if I am not yet the age of legal majority where I live, that my parent or guardian has reviewed and agreed to the <Link href="/terms" target="_blank">Terms of Service</Link>. I acknowledge the <Link href="/privacy" target="_blank">Privacy Notice</Link>.</span>
       </label>
-      <button className="button button-primary auth-submit" onClick={handleGoogle} disabled={submitting || redirecting || !agreed}>
-        <span className="google-mark" aria-hidden="true">G</span>{submitting ? "Signing in…" : "Continue to Google sign-in"}
+      <button className="button button-primary auth-submit" onClick={handleGoogle} disabled={redirecting || !agreed}>
+        <span className="google-mark" aria-hidden="true">G</span>{redirecting ? "Opening Google…" : "Continue with Google"}
       </button>
-      <button className="button button-secondary auth-redirect" onClick={handleGoogleRedirect} disabled={submitting || redirecting || !agreed}>
-        {redirecting ? "Opening sign-in…" : "Open Google sign-in in this tab"}
-      </button>
-      <p className="auth-redirect-help">Choose Google on Microsoft&apos;s secure sign-in page. Use the same-tab option when a browser closes or blocks the sign-in window.</p>
+      <p className="auth-redirect-help">Google opens in this tab and returns you directly to Filosage. Azure securely manages the signed-in session.</p>
       <button className="button button-quiet" onClick={onClose}>Continue browsing course outlines</button>
     </section>
   </div>;
