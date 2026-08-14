@@ -402,10 +402,9 @@ test("normal course creation UI delegates source research to the server", async 
   expect(source).toContain("Validation diagnostic:");
 });
 
-test("course generation bounds research and gives the final grounding verifier its own deadline", async () => {
+test("course generation gives every external stage an independent bounded deadline", async () => {
   const route = await import("node:fs/promises").then((fs) => fs.readFile("src/app/api/generate-course/route.ts", "utf8"));
-  expect(route).toContain("AbortSignal.timeout(150_000)");
-  expect(route.match(/\{ signal: generationSignal \}/g)?.length).toBeGreaterThanOrEqual(3);
+  expect(route.match(/signal: AbortSignal\.timeout\(75_000\)/g)?.length).toBeGreaterThanOrEqual(3);
   expect(route).toContain("signal: AbortSignal.timeout(90_000)");
   expect(route).toContain("copy the exact HTTPS URL supplied by web search provenance");
   expect(route).toContain("Treat doi.org as one resolver family");
