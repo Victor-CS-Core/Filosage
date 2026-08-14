@@ -262,15 +262,25 @@ export async function POST(request: Request) {
       `Module: ${currentModule?.title ?? "Current module"}`,
       `Module objective: ${currentModule?.objective ?? currentModule?.description ?? "Not specified"}`,
       `Lesson: ${lessonTitle}`,
-      `Core concept: ${lessonConcept}`,
-      `Observable objective: ${canonical.lesson.objective ?? lessonConcept}`,
+      groundedSourcePolicy
+        ? "Evidence-bounded concept: choose only the supported subset directly stated by the assigned atomic evidence claims."
+        : `Core concept: ${lessonConcept}`,
+      groundedSourcePolicy
+        ? "Evidence-bounded objective: derive one narrow observable objective from the assigned atomic evidence claims; do not copy unsupported requirements from the course outline."
+        : `Observable objective: ${canonical.lesson.objective ?? lessonConcept}`,
       `Teaching mode: ${canonical.lesson.lessonMode ?? "concept"}`,
-      `Activity preview: ${canonical.lesson.activityPreview ?? "Create a concrete mode-specific activity."}`,
+      groundedSourcePolicy
+        ? "Activity constraint: create a concrete mode-specific activity that uses only hypothetical inputs plus the relationships directly stated by assigned atomic evidence claims."
+        : `Activity preview: ${canonical.lesson.activityPreview ?? "Create a concrete mode-specific activity."}`,
       `Artifact contribution: ${canonical.lesson.artifactContribution ?? course.artifact?.description ?? course.capstone?.deliverable ?? "A useful piece of demonstrated work."}`,
       `Builds on: ${canonical.lesson.buildsOn?.join(", ") || previousLesson?.title || "No named prerequisite lesson"}`,
-      `Misconception to correct: ${canonical.lesson.misconception ?? "Identify the most consequential misconception for this concept."}`,
+      groundedSourcePolicy
+        ? "Misconception constraint: include a correction only when an assigned atomic evidence claim directly supports the complete correction."
+        : `Misconception to correct: ${canonical.lesson.misconception ?? "Identify the most consequential misconception for this concept."}`,
       `Practice type: ${canonical.lesson.practiceType ?? "explain"}`,
-      `Mastery criterion: ${canonical.lesson.masteryCriteria ?? "Explain and apply the concept accurately."}`,
+      groundedSourcePolicy
+        ? "Mastery criterion: accurately apply only a relationship directly stated by assigned atomic evidence."
+        : `Mastery criterion: ${canonical.lesson.masteryCriteria ?? "Explain and apply the concept accurately."}`,
       previousLesson
         ? `Previous lesson: ${previousLesson.title}: ${previousLesson.objective ?? previousLesson.concept}`
         : "Previous lesson: This is the opening lesson.",
