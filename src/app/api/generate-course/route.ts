@@ -190,6 +190,7 @@ export async function POST(request: Request) {
         ? "Freshness is required: prefer the newest released authoritative evidence and date any time-sensitive claim."
         : "Prefer durable released evidence; use current sources when the topic has materially changed.",
       "Find 2 to 3 independent sources that directly support the core concepts this course should teach.",
+      "Use at least two different authority families and hostnames. Treat doi.org as one resolver family: return at most one doi.org source, and corroborate it with a direct resource link from a different publisher, standards body, government, or intergovernmental institution domain.",
       "Use released research, systematic reviews, official guidance, standards, or official datasets from reputable institutions. Exclude preprints, drafts, withdrawn or retracted work, superseded guidance presented as current, blogs, marketing pages, social posts, forums, aggregators, and AI-written summaries.",
       "Prefer primary evidence and systematic reviews. For consequential claims, corroborate across independent authority families and disclose material limitations or disagreement.",
       "Return 2 to 3 evidenceClaims per source. Each must be a short original paraphrase of one atomic factual finding that the linked source supports, with a locator when known. Never quote or reproduce source passages.",
