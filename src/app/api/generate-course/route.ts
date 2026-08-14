@@ -269,9 +269,10 @@ export async function POST(request: Request) {
       try {
         researched = await performResearch();
       } catch (error) {
+        const providerError = safeModelErrorDetails(error);
         console.warn(JSON.stringify({
           event: "course_research_failed",
-          ...safeModelErrorDetails(error),
+          ...providerError,
           developmentMessage: process.env.NODE_ENV === "production" || !(error instanceof Error) ? undefined : error.message,
         }));
         await finalizeAiUsage(reservation, { usageSamples: outlineUsageSamples, failed: true });
@@ -279,7 +280,11 @@ export async function POST(request: Request) {
         await releaseCourseCapacityReservation(capacityReservation);
         capacityReservation = null;
         return NextResponse.json(
-          { error: "Filosage could not retrieve enough trustworthy research for this course. No course was saved.", code: "GROUNDING_UNAVAILABLE" },
+          {
+            error: "Filosage could not retrieve enough trustworthy research for this course. No course was saved.",
+            code: "GROUNDING_UNAVAILABLE",
+            evaluation: account.isOwner ? { providerError } : undefined,
+          },
           { status: 502, headers: { "Cache-Control": "private, no-store" } },
         );
       }

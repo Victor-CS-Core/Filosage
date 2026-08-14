@@ -98,7 +98,13 @@ export default function CreateCoursePage() {
         body: signature,
       });
       const data = await response.json();
-      if (!response.ok) throw new Error(data.error || "The course could not be created.");
+      if (!response.ok) {
+        const providerError = data?.evaluation?.providerError;
+        const providerDiagnostic = providerError && typeof providerError === "object"
+          ? [providerError.status, providerError.code, providerError.type, providerError.requestId].filter(Boolean).join(" · ")
+          : "";
+        throw new Error(`${data.error || "The course could not be created."}${providerDiagnostic ? ` Provider diagnostic: ${providerDiagnostic}.` : ""}`);
+      }
       if (typeof data.courseId !== "string" || !data.courseId) throw new Error("The course was saved, but its destination was missing. Retry to reopen the saved course.");
       setGenerationProgress(100);
       setGenerationStage("Your course map is ready");
