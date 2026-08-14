@@ -66,7 +66,18 @@ export interface CourseSource {
   evidenceValidationCallIds?: string[];
 }
 
-export type LessonCitationSection = "content" | "key_takeaway" | "guided_practice" | "transfer_task" | "quiz_explanation";
+export type LessonCitationSection =
+  | "learning_objective"
+  | "connection"
+  | "content"
+  | "key_takeaway"
+  | "experience"
+  | "guided_practice"
+  | "transfer_task"
+  | "visual"
+  | "interaction"
+  | "quiz"
+  | "quiz_explanation";
 
 export interface LessonCitation {
   id: string;

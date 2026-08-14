@@ -245,7 +245,7 @@ export function toLessonDto(
         if (typeof citation.sourceId !== "string"
           || !sourceIds.has(citation.sourceId)
           || typeof citation.claim !== "string"
-          || !["content", "key_takeaway", "guided_practice", "transfer_task", "quiz_explanation"].includes(String(citation.section))) {
+          || !["learning_objective", "connection", "content", "key_takeaway", "experience", "guided_practice", "transfer_task", "visual", "interaction", "quiz", "quiz_explanation"].includes(String(citation.section))) {
           return [];
         }
         return [{

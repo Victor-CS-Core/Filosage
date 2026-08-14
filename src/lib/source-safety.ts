@@ -116,12 +116,27 @@ export function outlineSourceCoverageIssues(
   return issues;
 }
 
+function nestedText(value: unknown): string {
+  if (typeof value === "string") return value;
+  if (Array.isArray(value)) return value.map(nestedText).filter(Boolean).join("\n");
+  if (value && typeof value === "object") {
+    return Object.values(value as Record<string, unknown>).map(nestedText).filter(Boolean).join("\n");
+  }
+  return "";
+}
+
 function citationSectionText(lesson: Partial<LessonData>, section: LessonCitationSection) {
   switch (section) {
+    case "learning_objective":
+      return lesson.learningObjective ?? "";
+    case "connection":
+      return lesson.connection ?? "";
     case "content":
       return lesson.content ?? "";
     case "key_takeaway":
       return lesson.keyTakeaways?.join("\n") ?? "";
+    case "experience":
+      return nestedText(lesson.experience);
     case "guided_practice":
       return lesson.guidedPractice
         ? [lesson.guidedPractice.prompt, ...lesson.guidedPractice.steps, lesson.guidedPractice.modelAnswer].join("\n")
@@ -130,6 +145,12 @@ function citationSectionText(lesson: Partial<LessonData>, section: LessonCitatio
       return lesson.transferTask
         ? [lesson.transferTask.prompt, ...lesson.transferTask.successCriteria, lesson.transferTask.modelResponse].join("\n")
         : "";
+    case "visual":
+      return nestedText(lesson.visuals);
+    case "interaction":
+      return nestedText(lesson.interactions);
+    case "quiz":
+      return nestedText(lesson.quizzes);
     case "quiz_explanation":
       return lesson.quizzes?.flatMap((quiz) => [quiz.explanation, ...(quiz.optionFeedback ?? [])]).join("\n") ?? "";
   }

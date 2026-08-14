@@ -13,10 +13,16 @@ const sourceKindLabel = {
 } as const;
 
 const citationSectionLabel = {
+  learning_objective: "Learning objective",
+  connection: "Lesson connection",
   content: "Lesson explanation",
   key_takeaway: "Key takeaway",
+  experience: "Learning experience",
   guided_practice: "Guided practice",
   transfer_task: "Transfer task",
+  visual: "Instructional visual",
+  interaction: "Interactive practice",
+  quiz: "Retrieval practice",
   quiz_explanation: "Retrieval feedback",
 } as const;
 
