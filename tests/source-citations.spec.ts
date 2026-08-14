@@ -78,6 +78,8 @@ test("grounded lesson generation maps every factual assertion and exposes owner-
   expect(routeSource).toContain("the exact complete sentence already present in the declared lesson section");
   expect(routeSource).toContain("exactly one structured citation per assigned source, no more");
   expect(routeSource).toContain("narrow and reframe the generated learning objective and activity to the supported subset");
+  expect(routeSource).toContain("supply every prerequisite value as a hypothetical exercise input");
+  expect(routeSource).toContain("Never claim or imply that a spreadsheet, template, checklist, diagram, or other tool");
   expect(routeSource).toContain("copied verbatim");
   expect(routeSource).toContain("silently audit every sentence");
   expect(routeSource).toContain("Do not infer mnemonics, category exclusions, definitions");
