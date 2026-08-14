@@ -75,6 +75,8 @@ test("grounded lesson generation maps every factual assertion and exposes owner-
   ]);
   expect(routeSource).toContain("Every externally verifiable factual assertion anywhere in the lesson");
   expect(routeSource).toContain("the exact complete sentence already present in the declared lesson section");
+  expect(routeSource).toContain("Never repeat the same claim for the same source");
+  expect(routeSource).toContain("copied verbatim");
   expect(routeSource).toContain("account.isOwner ? { diagnostic:");
   expect(lessonPageSource).toContain("isOwner && generated.diagnostic?.length");
 });
