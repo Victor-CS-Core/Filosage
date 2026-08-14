@@ -32,9 +32,9 @@ import { labPlanSchema, visualPlanSchema } from "@/lib/course-pipeline/schemas";
 import { effectiveCourseReviewPolicy } from "@/lib/course-pipeline/review-policy";
 import { automaticCitationGroundingIssues, groundedSourcePackIssues } from "@/lib/source-research";
 import {
-  COURSE_GROUNDING_EVALUATOR_VERSION,
   courseGroundingFingerprint,
   courseGroundingIssues,
+  supportsCourseGroundingEvaluatorVersion,
   type CourseGroundingResult,
 } from "@/lib/source-grounding";
 
@@ -327,9 +327,13 @@ export async function validateCourseCandidateV2(
       "course.sourcePack",
       message,
     )));
-    const expectedGroundingFingerprint = courseGroundingFingerprint(course, course.sourcePack ?? []);
+    const expectedGroundingFingerprint = courseGroundingFingerprint(
+      course,
+      course.sourcePack ?? [],
+      course.sourceGroundingEvaluatorVersion,
+    );
     if (course.sourceGroundingEvaluatorStatus !== "executed"
-      || course.sourceGroundingEvaluatorVersion !== COURSE_GROUNDING_EVALUATOR_VERSION
+      || !supportsCourseGroundingEvaluatorVersion(course.sourceGroundingEvaluatorVersion)
       || course.sourceGroundingFingerprint !== expectedGroundingFingerprint
       || !Array.isArray(course.sourceGroundingAssessments)) {
       findings.push(issueFromRule(

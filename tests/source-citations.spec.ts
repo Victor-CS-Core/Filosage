@@ -59,6 +59,8 @@ test("a structurally recovered outline still receives one evidence-specific grou
   expect(routeSource).toContain("if (courseGroundingQualityIssues.length) {");
   expect(routeSource).not.toContain("courseGroundingQualityIssues.length && !activeProfile.recovery");
   expect(routeSource.match(/if \(courseGroundingQualityIssues\.length\) \{/g)).toHaveLength(2);
+  expect(routeSource).toContain("those formats are learner activities, not factual claims");
+  expect(routeSource).toContain("The evidence must still support everything the learner is asked to place in that container");
 });
 
 test("the strengthened source gate still validates compatible v3 artifacts", () => {

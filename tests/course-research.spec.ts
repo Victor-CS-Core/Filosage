@@ -18,11 +18,13 @@ import {
   webSearchSourceUrls,
 } from "../src/lib/source-research";
 import {
+  COURSE_GROUNDING_EVALUATOR_VERSION,
   LESSON_GROUNDING_EVALUATOR_VERSION,
   courseGroundingFingerprint,
   courseGroundingIssues,
   lessonGroundingFingerprint,
   lessonGroundingIssues,
+  supportsCourseGroundingEvaluatorVersion,
 } from "../src/lib/source-grounding";
 import { supportsGroundedSourcePolicy } from "../src/lib/course-pipeline/contract";
 import type { CourseSource } from "../src/lib/course-types";
@@ -465,6 +467,10 @@ test("grounding fingerprints change when a planned claim or evidence claim chang
   const original = courseGroundingFingerprint(outline, sourcePack);
   expect(courseGroundingFingerprint({ modules: [{ lessons: [{ ...outline.modules[0].lessons[0], concept: "A changed concept" }] }] }, sourcePack)).not.toBe(original);
   expect(courseGroundingFingerprint(outline, [{ ...sourcePack[0], evidenceClaims: [{ id: "evidence-a-1", claim: "A changed evidence claim." }] }])).not.toBe(original);
+  expect(courseGroundingFingerprint(outline, sourcePack, "2026-08-14-outline-grounding-v1")).not.toBe(original);
+  expect(supportsCourseGroundingEvaluatorVersion(COURSE_GROUNDING_EVALUATOR_VERSION)).toBe(true);
+  expect(supportsCourseGroundingEvaluatorVersion("2026-08-14-outline-grounding-v1")).toBe(true);
+  expect(supportsCourseGroundingEvaluatorVersion("unknown-grounder")).toBe(false);
 });
 
 test("grounded persistence requires complete research and citation provenance", () => {

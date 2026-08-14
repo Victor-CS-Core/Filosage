@@ -3,7 +3,13 @@ import { z } from "zod";
 import type { CourseSource } from "@/lib/course-types";
 
 export const LESSON_GROUNDING_EVALUATOR_VERSION = "2026-08-14-claim-grounding-v1";
-export const COURSE_GROUNDING_EVALUATOR_VERSION = "2026-08-14-outline-grounding-v1";
+export const COURSE_GROUNDING_EVALUATOR_VERSION = "2026-08-14-outline-grounding-v2";
+const LEGACY_COURSE_GROUNDING_EVALUATOR_VERSION = "2026-08-14-outline-grounding-v1";
+
+export function supportsCourseGroundingEvaluatorVersion(version: unknown): version is string {
+  return version === COURSE_GROUNDING_EVALUATOR_VERSION
+    || version === LEGACY_COURSE_GROUNDING_EVALUATOR_VERSION;
+}
 
 export const lessonGroundingSchema = z.object({
   overallVerdict: z.enum(["supported", "unsupported"]),
@@ -73,9 +79,13 @@ function groundingSourceData(sourcePack: CourseSource[]) {
     }));
 }
 
-export function courseGroundingFingerprint(outline: OutlineCandidate, sourcePack: CourseSource[]) {
+export function courseGroundingFingerprint(
+  outline: OutlineCandidate,
+  sourcePack: CourseSource[],
+  evaluatorVersion = COURSE_GROUNDING_EVALUATOR_VERSION,
+) {
   return fingerprint({
-    evaluatorVersion: COURSE_GROUNDING_EVALUATOR_VERSION,
+    evaluatorVersion,
     outline: courseGroundingPromptData(outline, sourcePack),
     sources: groundingSourceData(sourcePack),
   });
