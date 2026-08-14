@@ -1,7 +1,7 @@
 import { serverEnvironment } from "@/lib/runtime-environment";
 
 export const AI_PROMPT_VERSIONS = {
-  research: "2026-08-14-grounded-course-research-v1",
+  research: "2026-08-14-grounded-course-research-v2",
   grounding: "2026-08-14-claim-grounding-v1",
   course: "2026-08-04-guided-apprenticeship",
   lesson: "2026-08-03-guided-apprenticeship",
@@ -17,11 +17,11 @@ export const COURSE_PIPELINE_V2_PROMPT_VERSIONS = {
 } as const;
 
 export const AI_GENERATION_OUTPUT_BUDGETS = {
-  research: 4_000,
-  sourceEvidenceValidation: 4_000,
-  courseOutline: 12_000,
-  courseGrounding: 4_000,
-  lessonGrounding: 2_500,
+  research: 3_000,
+  sourceEvidenceValidation: 3_000,
+  courseOutline: 9_000,
+  courseGrounding: 3_000,
+  lessonGrounding: 2_000,
 } as const;
 
 export type AiReasoningEffort = "none" | "low" | "medium" | "high" | "xhigh" | "max";
@@ -66,36 +66,36 @@ const PROFILE_SPECS: Record<AiExecutionProfileId, ProfileSpec> = {
   "course.research": {
     workload: "research",
     modelEnv: ["OPENAI_COURSE_RESEARCH_MODEL", "OPENAI_COURSE_MODEL", "OPENAI_MODEL"],
-    defaultModel: "gpt-5.6-terra",
+    defaultModel: "gpt-5.6-luna",
     reasoningEffort: "low",
     textVerbosity: "medium",
   },
   "course.grounding": {
     workload: "grounding",
     modelEnv: ["OPENAI_COURSE_GROUNDING_MODEL", "OPENAI_COURSE_MODEL", "OPENAI_MODEL"],
-    defaultModel: "gpt-5.6-terra",
+    defaultModel: "gpt-5.6-luna",
     reasoningEffort: "low",
     textVerbosity: "low",
   },
   "lesson.grounding": {
     workload: "grounding",
     modelEnv: ["OPENAI_LESSON_GROUNDING_MODEL", "OPENAI_COURSE_MODEL", "OPENAI_MODEL"],
-    defaultModel: "gpt-5.6-terra",
+    defaultModel: "gpt-5.6-luna",
     reasoningEffort: "low",
     textVerbosity: "low",
   },
   "course.standard": {
     workload: "course",
     modelEnv: ["OPENAI_COURSE_MODEL", "OPENAI_MODEL"],
-    defaultModel: "gpt-5.6-terra",
-    reasoningEffort: "medium",
+    defaultModel: "gpt-5.6-luna",
+    reasoningEffort: "low",
     textVerbosity: "medium",
   },
   "course.repair": {
     workload: "course",
     modelEnv: ["OPENAI_COURSE_MODEL", "OPENAI_MODEL"],
-    defaultModel: "gpt-5.6-terra",
-    reasoningEffort: "medium",
+    defaultModel: "gpt-5.6-luna",
+    reasoningEffort: "low",
     textVerbosity: "medium",
   },
   "course.recovery": {

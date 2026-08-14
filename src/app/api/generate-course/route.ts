@@ -192,7 +192,7 @@ export async function POST(request: Request) {
       "Find 2 to 3 independent sources that directly support the core concepts this course should teach.",
       "Use released research, systematic reviews, official guidance, standards, or official datasets from reputable institutions. Exclude preprints, drafts, withdrawn or retracted work, superseded guidance presented as current, blogs, marketing pages, social posts, forums, aggregators, and AI-written summaries.",
       "Prefer primary evidence and systematic reviews. For consequential claims, corroborate across independent authority families and disclose material limitations or disagreement.",
-      "Return 2 to 4 evidenceClaims per source. Each must be a short original paraphrase of one atomic factual finding that the linked source supports, with a locator when known. Never quote or reproduce source passages.",
+      "Return 2 to 3 evidenceClaims per source. Each must be a short original paraphrase of one atomic factual finding that the linked source supports, with a locator when known. Never quote or reproduce source passages.",
       "Use null for an unknown author, publicationDate, or evidence locator; every structured field must be present.",
       "Only return a URL that you actually cited through web search. Publication status must be released, and statusCheck must be released-no-withdrawal-found only after searching for retraction, withdrawal, or supersession signals.",
       creatorSourceLeads.length

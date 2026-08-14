@@ -41,6 +41,9 @@ function findUnsupportedLessonSchemaShape(value: unknown, path = "$schema"): str
 test("keeps Sol off normal generation paths and reserves it for recovery", () => {
   const environment = {} as NodeJS.ProcessEnv;
   const normalProfiles = [
+    openAiExecutionProfile("course.research", environment),
+    openAiExecutionProfile("course.grounding", environment),
+    openAiExecutionProfile("lesson.grounding", environment),
     openAiExecutionProfile("course.standard", environment),
     openAiExecutionProfile("course.repair", environment),
     openAiExecutionProfile("lesson.standard", environment),
@@ -56,6 +59,7 @@ test("keeps Sol off normal generation paths and reserves it for recovery", () =>
   ];
 
   expect(normalProfiles.every((profile) => profile.model !== "gpt-5.6-sol" && !profile.recovery)).toBe(true);
+  expect(normalProfiles.slice(0, 5).every((profile) => profile.model === "gpt-5.6-luna")).toBe(true);
   expect(recoveryProfiles.every((profile) => profile.model === "gpt-5.6-sol" && profile.recovery)).toBe(true);
   expect(recoveryProfiles.every((profile) => profile.reasoningEffort === "high")).toBe(true);
 });
@@ -74,7 +78,7 @@ test("uses explicit workload reasoning and stable versioned cache keys", () => {
   const research = openAiExecutionProfile("course.research", environment);
   const grounding = openAiExecutionProfile("course.grounding", environment);
 
-  expect(course.reasoningEffort).toBe("medium");
+  expect(course.reasoningEffort).toBe("low");
   expect(lesson.reasoningEffort).toBe("medium");
   expect(tutor.reasoningEffort).toBe("low");
   expect(tutor.textVerbosity).toBe("low");
@@ -90,13 +94,13 @@ test("uses explicit workload reasoning and stable versioned cache keys", () => {
   expect(research.reasoningEffort).toBe("low");
   expect(grounding.reasoningEffort).toBe("low");
   expect(AI_GENERATION_OUTPUT_BUDGETS.courseOutline).toBeGreaterThan(7_000);
-  expect(AI_GENERATION_OUTPUT_BUDGETS.courseGrounding).toBeGreaterThanOrEqual(4_000);
+  expect(AI_GENERATION_OUTPUT_BUDGETS.courseGrounding).toBeGreaterThanOrEqual(3_000);
   expect(AI_GENERATION_OUTPUT_BUDGETS.lessonGrounding).toBeGreaterThan(1_800);
   expect(stablePromptCacheKey("research", "a".repeat(120), "gpt-5.6-terra")).toHaveLength(64);
   expect(aiUsageProfileMetadata(course)).toEqual({
     promptVersion: course.promptVersion,
     profile: "course.standard",
-    reasoningEffort: "medium",
+    reasoningEffort: "low",
     promptCacheKey: course.promptCacheKey,
   });
 });
