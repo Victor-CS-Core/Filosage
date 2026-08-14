@@ -3,7 +3,7 @@ import { serverEnvironment } from "@/lib/runtime-environment";
 export const AI_PROMPT_VERSIONS = {
   research: "2026-08-14-grounded-course-research-v3",
   grounding: "2026-08-14-claim-grounding-v1",
-  course: "2026-08-04-guided-apprenticeship",
+  course: "2026-08-14-grounded-evidence-ceiling-v1",
   lesson: "2026-08-03-guided-apprenticeship",
   tutor: "2026-08-04-grounded-tutor",
   baseline: "2026-08-04-baseline-assessor",
@@ -12,7 +12,7 @@ export const AI_PROMPT_VERSIONS = {
 } as const;
 
 export const COURSE_PIPELINE_V2_PROMPT_VERSIONS = {
-  course: "2026-08-14-grounded-source-v3",
+  course: "2026-08-14-grounded-source-v4",
   lesson: "2026-08-14-grounded-source-v3",
 } as const;
 

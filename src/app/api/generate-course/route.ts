@@ -450,6 +450,7 @@ export async function POST(request: Request) {
         hasEligibleSourcePack
           ? "For every lesson, return sourceIds containing at least one supplied source ID with a safe HTTPS link whose evidence note directly supports that lesson. Do not return an empty sourceIds array when a trusted reference pack was supplied. If the supplied notes cannot support a planned lesson, redesign that lesson so it is supported without inventing or stretching a citation. Never assign a source from its title or URL alone; its supplied note must support the planned use."
           : "Return sourceIds: [] for every lesson.",
+        "Treat the supplied atomic evidence claims as a hard ceiling for factual teaching content. Every lesson concept and objective must be directly entailed by one or more assigned evidence claims, including every named method, criterion, rule, or workflow step. Do not fill gaps from model knowledge. An activity may ask the learner to compare, critique, or apply supplied evidence, but it must not present an unsupported method as established guidance. If the evidence cannot support part of the requested artifact, narrow that lesson and artifact component rather than stretching a source.",
         "Use concept and worked-example lessons early, guided practice in the middle, and case, lab, or synthesis work when the learner has enough prerequisite knowledge.",
         "Module challenges and the capstone must be assessable from their success criteria. Adapt examples and practice to the learner's intended application.",
       ].filter(Boolean).join("\n");
@@ -605,7 +606,7 @@ export async function POST(request: Request) {
       response = await generateAndRecord(recoveryProfile, [
         "The automatic evidence verifier rejected one or more lesson-to-source assignments.",
         ...courseGroundingQualityIssues,
-        "Redesign each unsupported lesson so its concept and objective are directly supported by at least one assigned evidence note.",
+        "Redesign each unsupported lesson so every factual concept, named method, and objective is directly entailed by at least one assigned atomic evidence claim. Omit unsupported additions instead of filling gaps from model knowledge.",
       ]);
       outline = response.output_parsed;
       integrityIssues = outline ? inspectGeneratedContent(outline, topic, language) : [];

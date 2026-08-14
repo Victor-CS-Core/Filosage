@@ -407,4 +407,6 @@ test("course generation aborts and releases before the synchronous QA ingress de
   expect(route).toContain("AbortSignal.timeout(150_000)");
   expect(route.match(/\{ signal: generationSignal \}/g)?.length).toBeGreaterThanOrEqual(4);
   expect(route).toContain("copy the exact HTTPS URL supplied by web search provenance");
+  expect(route).toContain("atomic evidence claims as a hard ceiling");
+  expect(route).toContain("Omit unsupported additions instead of filling gaps from model knowledge");
 });
