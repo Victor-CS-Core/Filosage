@@ -26,6 +26,7 @@ import { inspectGeneratedContent, languagePolicyInstruction } from "@/lib/conten
 import { courseQualityIssues, COURSE_QUALITY_GATE_VERSION } from "@/lib/course-quality";
 import { isSafePublicSourceUrl, outlineSourceAssignmentIssues, outlineSourceCoverageIssues, sourcePackPromptBlock } from "@/lib/source-safety";
 import {
+  AI_GENERATION_OUTPUT_BUDGETS,
   aiUsageProfileMetadata,
   openAiExecutionProfile,
   type AiExecutionProfile,
@@ -217,7 +218,7 @@ export async function POST(request: Request) {
           verbosity: researchProfile.textVerbosity,
         },
         prompt_cache_key: researchProfile.promptCacheKey,
-        max_output_tokens: 6_000,
+        max_output_tokens: AI_GENERATION_OUTPUT_BUDGETS.research,
         safety_identifier: safetyIdentifier,
       });
       const researchUsage = extractOpenAiUsage(researchResponse);
@@ -341,7 +342,7 @@ export async function POST(request: Request) {
             verbosity: groundingProfile.textVerbosity,
           },
           prompt_cache_key: groundingProfile.promptCacheKey,
-          max_output_tokens: 6_000,
+          max_output_tokens: AI_GENERATION_OUTPUT_BUDGETS.sourceEvidenceValidation,
           safety_identifier: safetyIdentifier,
         });
       } catch (error) {
@@ -464,7 +465,7 @@ export async function POST(request: Request) {
         verbosity: profile.textVerbosity,
       },
       prompt_cache_key: profile.promptCacheKey,
-      max_output_tokens: 7_000,
+      max_output_tokens: AI_GENERATION_OUTPUT_BUDGETS.courseOutline,
       safety_identifier: safetyIdentifier,
     });
     type CourseOutlineResponse = Awaited<ReturnType<typeof generateOutline>>;
@@ -494,7 +495,7 @@ export async function POST(request: Request) {
         },
         reasoning: { effort: groundingProfile.reasoningEffort },
         prompt_cache_key: groundingProfile.promptCacheKey,
-        max_output_tokens: 4_000,
+        max_output_tokens: AI_GENERATION_OUTPUT_BUDGETS.courseGrounding,
         safety_identifier: safetyIdentifier,
       });
       responseId = groundingResponse.id;

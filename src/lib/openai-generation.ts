@@ -16,6 +16,14 @@ export const COURSE_PIPELINE_V2_PROMPT_VERSIONS = {
   lesson: "2026-08-14-grounded-source-v3",
 } as const;
 
+export const AI_GENERATION_OUTPUT_BUDGETS = {
+  research: 6_000,
+  sourceEvidenceValidation: 6_000,
+  courseOutline: 12_000,
+  courseGrounding: 6_000,
+  lessonGrounding: 3_500,
+} as const;
+
 export type AiReasoningEffort = "none" | "low" | "medium" | "high" | "xhigh" | "max";
 export type AiTextVerbosity = "low" | "medium" | "high";
 
@@ -66,14 +74,14 @@ const PROFILE_SPECS: Record<AiExecutionProfileId, ProfileSpec> = {
     workload: "grounding",
     modelEnv: ["OPENAI_COURSE_GROUNDING_MODEL", "OPENAI_COURSE_MODEL", "OPENAI_MODEL"],
     defaultModel: "gpt-5.6-terra",
-    reasoningEffort: "high",
+    reasoningEffort: "medium",
     textVerbosity: "low",
   },
   "lesson.grounding": {
     workload: "grounding",
     modelEnv: ["OPENAI_LESSON_GROUNDING_MODEL", "OPENAI_COURSE_MODEL", "OPENAI_MODEL"],
     defaultModel: "gpt-5.6-terra",
-    reasoningEffort: "high",
+    reasoningEffort: "medium",
     textVerbosity: "low",
   },
   "course.standard": {

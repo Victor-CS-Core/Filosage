@@ -43,6 +43,7 @@ import { lessonGenerationGate } from "@/lib/authoring-gate";
 import { assignedSourcePack, lessonCitationQualityIssues, sourcePackPromptBlock } from "@/lib/source-safety";
 import { safeModelErrorDetails } from "@/lib/model-fallback";
 import {
+  AI_GENERATION_OUTPUT_BUDGETS,
   aiUsageProfileMetadata,
   openAiExecutionProfile,
   type AiExecutionProfile,
@@ -385,7 +386,7 @@ export async function POST(request: Request) {
         },
         reasoning: { effort: groundingProfile.reasoningEffort },
         prompt_cache_key: groundingProfile.promptCacheKey,
-        max_output_tokens: 1_800,
+        max_output_tokens: AI_GENERATION_OUTPUT_BUDGETS.lessonGrounding,
         safety_identifier: safetyIdentifier,
       }, {
         maxRetries: 0,

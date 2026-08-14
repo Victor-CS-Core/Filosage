@@ -3,6 +3,7 @@ import { readFile } from "node:fs/promises";
 import { zodTextFormat } from "openai/helpers/zod";
 import {
   AI_PROMPT_VERSIONS,
+  AI_GENERATION_OUTPUT_BUDGETS,
   COURSE_PIPELINE_V2_PROMPT_VERSIONS,
   aiUsageProfileMetadata,
   openAiExecutionProfile,
@@ -86,6 +87,11 @@ test("uses explicit workload reasoning and stable versioned cache keys", () => {
   expect(course.promptCacheKey).not.toContain("user");
   expect(research.promptCacheKey.length).toBeLessThanOrEqual(64);
   expect(grounding.promptCacheKey.length).toBeLessThanOrEqual(64);
+  expect(research.reasoningEffort).toBe("medium");
+  expect(grounding.reasoningEffort).toBe("medium");
+  expect(AI_GENERATION_OUTPUT_BUDGETS.courseOutline).toBeGreaterThan(7_000);
+  expect(AI_GENERATION_OUTPUT_BUDGETS.courseGrounding).toBeGreaterThan(4_000);
+  expect(AI_GENERATION_OUTPUT_BUDGETS.lessonGrounding).toBeGreaterThan(1_800);
   expect(stablePromptCacheKey("research", "a".repeat(120), "gpt-5.6-terra")).toHaveLength(64);
   expect(aiUsageProfileMetadata(course)).toEqual({
     promptVersion: course.promptVersion,
