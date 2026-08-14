@@ -45,6 +45,7 @@ type CourseCreationResponse = {
   evaluation?: {
     issues?: string[];
     providerError?: {
+      name?: string;
       status?: string | number;
       code?: string;
       type?: string;
@@ -129,7 +130,7 @@ export default function CreateCoursePage() {
       if (!response.ok) {
         const providerError = data?.evaluation?.providerError;
         const providerDiagnostic = providerError && typeof providerError === "object"
-          ? [providerError.status, providerError.code, providerError.type, providerError.param, providerError.requestId].filter(Boolean).join(" · ")
+          ? [providerError.name, providerError.status, providerError.code, providerError.type, providerError.param, providerError.requestId].filter(Boolean).join(" · ")
           : "";
         const issueDiagnostic = account?.isOwner && Array.isArray(data.evaluation?.issues)
           ? data.evaluation.issues.filter((issue): issue is string => typeof issue === "string").slice(0, 3).join(" · ")

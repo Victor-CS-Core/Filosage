@@ -81,8 +81,11 @@ export async function POST(request: Request) {
   let capacityReservation: CourseCapacityReservation | null = null;
   let pipelineCorrelationId: string | undefined;
   let pipelineActorHash: string | undefined;
+  let accountIsOwner = false;
+  const ownerEvaluationRequested = request.headers.get("x-filosage-model-evaluation") === "1";
   try {
     const account = await requirePlanCapability(request, "create_course");
+    accountIsOwner = account.isOwner;
     pipelineFlags = coursePipelineFeatureFlags(account);
     profileOptions = { coursePipelineV2: pipelineFlags.pipelineV2 };
     standardProfile = openAiExecutionProfile("course.standard", undefined, profileOptions);
@@ -894,12 +897,18 @@ export async function POST(request: Request) {
       );
     }
 
+    const providerError = safeModelErrorDetails(error);
     console.error(JSON.stringify({
       event: "course_generation_failed",
-      ...safeModelErrorDetails(error),
+      ...providerError,
     }));
     return NextResponse.json(
-      { error: "Course generation is temporarily unavailable." },
+      {
+        error: "Course generation is temporarily unavailable.",
+        evaluation: accountIsOwner && ownerEvaluationRequested
+          ? { providerError }
+          : undefined,
+      },
       { status: 500 },
     );
   }
