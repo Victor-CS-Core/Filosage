@@ -158,7 +158,7 @@ test("a complete 400-799 character lesson passes the shared generation and publi
     },
     visuals: [],
     interactions: [],
-    sourceReferences: [],
+    citations: [],
   }).success).toBe(true);
   expect(assessCourseForPublication(validOutline(), [lesson], ["0-0"], { "0-0": undefined }).ready).toBe(true);
 });
@@ -505,7 +505,7 @@ test("manual-review resolution is snapshot-bound, owner-only, evidence-gated, au
   expect(storageSource).toContain('manualResolution?.status === "approved"');
   expect(reviewSource).toContain("manualReviewApproved");
   expect(reviewSource).toContain("manualReviewResolution.snapshotHash === validationReport?.snapshotHash");
-  expect(authoringSource).toContain("Primary or official sources personally verified");
+  expect(authoringSource).toContain("Sources personally verified for this snapshot");
 });
 
 test("targeted repair is allowlisted, snapshot-bound, idempotent, and undo rejects newer lesson edits", async () => {

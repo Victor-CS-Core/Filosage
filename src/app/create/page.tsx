@@ -45,11 +45,23 @@ type SourceDraft = {
   label: string;
   url: string;
   note: string;
+  author: string;
+  publisher: string;
+  publicationDate: string;
   kind: "primary" | "official" | "licensed" | "author-provided";
   rights: "link-only" | "public-domain" | "licensed" | "author-owned";
 };
 
-const emptySource = (): SourceDraft => ({ label: "", url: "", note: "", kind: "official", rights: "link-only" });
+const emptySource = (): SourceDraft => ({
+  label: "",
+  url: "",
+  note: "",
+  author: "",
+  publisher: "",
+  publicationDate: "",
+  kind: "official",
+  rights: "link-only",
+});
 
 export default function CreateCoursePage() {
   const { user, canCreateCourses, account } = useAuth();
@@ -100,7 +112,14 @@ export default function CreateCoursePage() {
     setError(null);
     try {
       const token = await user.getIdToken();
-      const enteredSources = sources.filter((source) => source.label.trim() || source.url.trim() || source.note.trim());
+      const enteredSources = sources.filter((source) =>
+        source.label.trim()
+        || source.url.trim()
+        || source.note.trim()
+        || source.author.trim()
+        || source.publisher.trim()
+        || source.publicationDate,
+      );
       const incompleteSource = enteredSources.find((source) => !source.label.trim() || (!source.url.trim() && !source.note.trim()));
       if (incompleteSource) throw new Error("Give every reference a name and either a secure URL or a supporting note.");
       const sourcePack = enteredSources.map((source, index) => ({
@@ -108,6 +127,9 @@ export default function CreateCoursePage() {
         label: source.label.trim(),
         url: source.url.trim() || undefined,
         note: source.note.trim() || undefined,
+        author: source.author.trim() || undefined,
+        publisher: source.publisher.trim() || undefined,
+        publicationDate: source.publicationDate || undefined,
         kind: source.kind,
         rights: source.rights,
       }));
@@ -148,7 +170,14 @@ export default function CreateCoursePage() {
   const weeklySessions = Math.max(1, Math.round(weeklyMinutes / 30));
   const outcomeComplete = topic.trim().length >= 2 && Boolean(goal.trim());
   const paceComplete = Boolean(background.trim() && level && targetWeeks >= 2 && weeklyMinutes >= 30);
-  const enteredSourceCount = sources.filter((source) => source.label.trim() || source.url.trim() || source.note.trim()).length;
+  const enteredSourceCount = sources.filter((source) =>
+    source.label.trim()
+    || source.url.trim()
+    || source.note.trim()
+    || source.author.trim()
+    || source.publisher.trim()
+    || source.publicationDate,
+  ).length;
   const referencesComplete = sources.every((source) => {
     const label = source.label.trim();
     const url = source.url.trim();
@@ -327,11 +356,19 @@ export default function CreateCoursePage() {
                                   <input id={`source-url-${index}`} name={`sourceUrl${index}`} type="url" inputMode="url" value={source.url} onChange={(event) => updateSource({ url: event.target.value })} maxLength={500} placeholder="https://..." />
                                 </div>
                                 <div className={styles.sourceMetaGrid}>
+                                  <div className={styles.field}><label htmlFor={`source-author-${index}`}><span>Author</span><small>Optional</small></label><input id={`source-author-${index}`} name={`sourceAuthor${index}`} value={source.author} onChange={(event) => updateSource({ author: event.target.value })} maxLength={160} autoComplete="off" /></div>
+                                  <div className={styles.field}><label htmlFor={`source-publisher-${index}`}><span>Publisher or organization</span><small>Optional</small></label><input id={`source-publisher-${index}`} name={`sourcePublisher${index}`} value={source.publisher} onChange={(event) => updateSource({ publisher: event.target.value })} maxLength={160} autoComplete="organization" /></div>
+                                </div>
+                                <div className={styles.sourceMetaGrid}>
                                   <div className={styles.field}><label htmlFor={`source-kind-${index}`}><span>Source type</span></label><select id={`source-kind-${index}`} name={`sourceKind${index}`} value={source.kind} onChange={(event) => updateSource({ kind: event.target.value as SourceDraft["kind"] })}><option value="official">Official</option><option value="primary">Primary</option><option value="licensed">Licensed</option><option value="author-provided">Your material</option></select></div>
                                   <div className={styles.field}><label htmlFor={`source-rights-${index}`}><span>Usage basis</span></label><select id={`source-rights-${index}`} name={`sourceRights${index}`} value={source.rights} onChange={(event) => updateSource({ rights: event.target.value as SourceDraft["rights"] })}><option value="link-only">Link only</option><option value="public-domain">Public domain</option><option value="licensed">Licensed</option><option value="author-owned">I own it</option></select></div>
                                 </div>
                                 <div className={styles.field}>
-                                  <label htmlFor={`source-note-${index}`}><span>Relevant note</span><small>{source.note.length}/800</small></label>
+                                  <label htmlFor={`source-date-${index}`}><span>Publication date</span><small>Optional</small></label>
+                                  <input id={`source-date-${index}`} name={`sourcePublicationDate${index}`} type="date" value={source.publicationDate} onChange={(event) => updateSource({ publicationDate: event.target.value })} />
+                                </div>
+                                <div className={styles.field}>
+                                  <label htmlFor={`source-note-${index}`}><span>Evidence note in your own words</span><small>{source.note.length}/800</small></label>
                                   <textarea id={`source-note-${index}`} name={`sourceNote${index}`} value={source.note} onChange={(event) => updateSource({ note: event.target.value })} maxLength={800} rows={3} placeholder="Summarize the specific idea this source supports in your own words." />
                                 </div>
                               </fieldset>
@@ -339,7 +376,7 @@ export default function CreateCoursePage() {
                           })}
                         </div>
                         {sources.length < 5 && <button className={`button button-secondary button-small ${styles.addSource}`} type="button" onClick={() => setSources((current) => [...current, emptySource()])}><Plus size={15} /> Add another reference</button>}
-                        <p className={styles.rightsNote}><ShieldCheck size={16} /> Do not paste full articles or material you cannot reuse. A link is treated as a citation, not proof that the generator read the page.</p>
+                        <p className={styles.rightsNote}><ShieldCheck size={16} /> Cite and deep-link; do not paste full articles, paywalled text, or material you cannot reuse. A URL is never treated as proof that Filosage read or verified the page.</p>
                       </div>
                     </details>
 

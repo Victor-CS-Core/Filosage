@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { ArrowDown, ArrowUp, Check, Eye, EyeOff, LockKeyhole, RotateCcw, X } from "lucide-react";
+import { ArrowDown, ArrowUp, Check, Eye, EyeOff, GripVertical, LockKeyhole, RotateCcw, X } from "lucide-react";
 import AppDrawer from "@/components/AppDrawer";
 import {
   cloneDashboardPreferences,
@@ -53,8 +53,20 @@ function moveItem<T>(items: T[], index: number, direction: -1 | 1) {
   return next;
 }
 
+function moveItemTo<T>(items: T[], item: T, target: T) {
+  const from = items.indexOf(item);
+  const to = items.indexOf(target);
+  if (from < 0 || to < 0 || from === to) return items;
+  const next = [...items];
+  next.splice(from, 1);
+  next.splice(to, 0, item);
+  return next;
+}
+
 export default function DashboardCustomizer({ open, preferences, syncStatus, onClose, onSave }: DashboardCustomizerProps) {
   const [draft, setDraft] = useState(() => cloneDashboardPreferences(preferences));
+  const [dragging, setDragging] = useState<{ key: DashboardMainSection | DashboardSideSection; group: "main" | "side" } | null>(null);
+  const [reorderStatus, setReorderStatus] = useState("");
 
   if (!open) return null;
 
@@ -74,8 +86,85 @@ export default function DashboardCustomizer({ open, preferences, syncStatus, onC
     });
   };
 
+  const reorderTo = (
+    key: DashboardMainSection | DashboardSideSection,
+    target: DashboardMainSection | DashboardSideSection,
+    group: "main" | "side",
+  ) => {
+    setDraft((current) => ({
+      ...current,
+      preset: "custom",
+      [group === "main" ? "mainOrder" : "sideOrder"]: moveItemTo(
+        group === "main" ? current.mainOrder : current.sideOrder,
+        key as never,
+        target as never,
+      ),
+    }));
+  };
+
+  const finishReorder = (key: DashboardMainSection | DashboardSideSection) => {
+    setDragging(null);
+    setReorderStatus(`${sectionLabels[key]} moved. Save the dashboard to keep this order.`);
+  };
+
   const sectionRow = (key: DashboardMainSection | DashboardSideSection, index: number, order: Array<DashboardMainSection | DashboardSideSection>, group: "main" | "side") => (
-    <li key={key}>
+    <li
+      key={key}
+      data-dashboard-key={key}
+      data-dashboard-group={group}
+      className={dragging?.key === key && dragging.group === group ? "is-dragging" : ""}
+    >
+      <span
+        className="drag-handle"
+        role="button"
+        tabIndex={0}
+        draggable
+        aria-label={`Drag ${sectionLabels[key]} to reorder`}
+        onDragStart={(event) => {
+          event.dataTransfer.effectAllowed = "move";
+          event.dataTransfer.setData("text/plain", key);
+          setDragging({ key, group });
+        }}
+        onDragOver={(event) => {
+          if (!dragging || dragging.group !== group || dragging.key === key) return;
+          event.preventDefault();
+          reorderTo(dragging.key, key, group);
+        }}
+        onDragEnd={() => finishReorder(key)}
+        onKeyDown={(event) => {
+          if (event.key !== "ArrowUp" && event.key !== "ArrowDown") return;
+          event.preventDefault();
+          const direction = event.key === "ArrowUp" ? -1 : 1;
+          setDraft((current) => ({
+            ...current,
+            preset: "custom",
+            [group === "main" ? "mainOrder" : "sideOrder"]: moveItem(
+              group === "main" ? current.mainOrder : current.sideOrder,
+              index,
+              direction,
+            ),
+          }));
+          setReorderStatus(`${sectionLabels[key]} moved ${direction === -1 ? "up" : "down"}.`);
+        }}
+        onPointerDown={(event) => {
+          if (event.pointerType === "mouse") return;
+          event.currentTarget.setPointerCapture(event.pointerId);
+          setDragging({ key, group });
+        }}
+        onPointerMove={(event) => {
+          if (event.pointerType === "mouse" || !dragging || dragging.group !== group || dragging.key !== key) return;
+          const target = document.elementFromPoint(event.clientX, event.clientY)?.closest<HTMLElement>("[data-dashboard-key]");
+          if (!target || target.dataset.dashboardGroup !== group || !target.dataset.dashboardKey) return;
+          reorderTo(key, target.dataset.dashboardKey as DashboardMainSection | DashboardSideSection, group);
+        }}
+        onPointerUp={(event) => {
+          if (event.pointerType === "mouse") return;
+          if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId);
+          finishReorder(key);
+        }}
+      >
+        <GripVertical size={17} aria-hidden="true" />
+      </span>
       <button className="visibility-toggle" type="button" role="switch" aria-checked={draft.sections[key]} onClick={() => toggleSection(key)}>
         {draft.sections[key] ? <Eye size={17} /> : <EyeOff size={17} />}
         <span>{sectionLabels[key]}</span>
@@ -96,6 +185,7 @@ export default function DashboardCustomizer({ open, preferences, syncStatus, onC
         </header>
 
         <div className="customizer-scroll">
+          <p className="sr-only" aria-live="polite">{reorderStatus}</p>
           <section className="customizer-group" aria-labelledby="preset-title">
             <div className="customizer-group-heading"><h3 id="preset-title">Start with a view</h3><span>{draft.preset === "custom" ? "Custom" : presetDetails.find((item) => item.id === draft.preset)?.label}</span></div>
             <div className="preset-options">

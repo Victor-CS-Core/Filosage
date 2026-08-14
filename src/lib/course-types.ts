@@ -28,6 +28,7 @@ export type PracticeType =
 
 export type SourceKind = "primary" | "official" | "licensed" | "author-provided";
 export type SourceRights = "link-only" | "public-domain" | "licensed" | "author-owned";
+export type SourceReviewStatus = "unreviewed" | "verified";
 
 export interface CourseSource {
   id: string;
@@ -35,7 +36,26 @@ export interface CourseSource {
   url?: string;
   kind: SourceKind;
   rights: SourceRights;
+  author?: string;
+  publisher?: string;
+  publicationDate?: string;
+  accessedAt?: string;
   note?: string;
+  reviewStatus?: SourceReviewStatus;
+  reviewedAt?: string;
+}
+
+export type LessonCitationSection = "content" | "key_takeaway" | "guided_practice" | "transfer_task" | "quiz_explanation";
+
+export interface LessonCitation {
+  id: string;
+  sourceId: string;
+  claim: string;
+  section: LessonCitationSection;
+  locator?: string;
+  objectiveIds?: string[];
+  reviewStatus?: SourceReviewStatus;
+  reviewedAt?: string;
 }
 
 export type LessonExperience =
@@ -60,6 +80,7 @@ export interface LessonSummary {
   activityPreview?: string;
   artifactContribution?: string;
   objectiveId?: string;
+  sourceIds?: string[];
 }
 
 export interface CourseModule {
@@ -198,6 +219,7 @@ export interface LessonData {
   visuals?: LessonVisual[];
   /** Safe, optional practice widgets selected from the app's interaction grammar. */
   interactions?: LessonInteraction[];
+  citations?: LessonCitation[];
   labPlan?: {
     applicability: "required" | "recommended" | "not_applicable";
     rationale: string;
@@ -231,7 +253,20 @@ export interface LessonData {
     promptVersion?: string;
     qualityGateVersion?: string;
     interactionQualityGateVersion?: string;
-    sources: Array<{ label: string; url?: string }>;
+    sources: Array<{
+      id?: string;
+      label: string;
+      url?: string;
+      author?: string;
+      publisher?: string;
+      publicationDate?: string;
+      accessedAt?: string;
+      kind?: SourceKind;
+      rights?: SourceRights;
+      reviewStatus?: SourceReviewStatus;
+      reviewedAt?: string;
+    }>;
+    citations: LessonCitation[];
     qualityContractVersion?: string;
     repairPromptVersion?: string;
     semanticEvaluatorVersion?: string;

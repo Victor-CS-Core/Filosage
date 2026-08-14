@@ -28,7 +28,19 @@ const course: Course = {
     context: "A product team must decide how to respond to weaker onboarding completion after a release.",
     stakes: "Acting too broadly wastes effort, while waiting too long leaves a real user problem unresolved.",
   },
-  sourcePack: [{ id: "source-1", label: "Decision quality field guide", url: "https://example.com/decision-quality", kind: "author-provided", rights: "link-only" }],
+  sourcePack: [{
+    id: "source-1",
+    label: "Decision quality field guide",
+    url: "https://example.com/decision-quality",
+    author: "A. Researcher",
+    publisher: "Evidence Institute",
+    publicationDate: "2026-07-15",
+    accessedAt: "2026-08-13",
+    kind: "author-provided",
+    rights: "link-only",
+    reviewStatus: "verified",
+    reviewedAt: assessedAt,
+  }],
   isPublic: true,
   aiAssisted: true,
   modules: [{
@@ -56,6 +68,7 @@ const course: Course = {
         misconception: "A plausible explanation is the same as an observation.",
         activityPreview: "Trace an expert as they separate a measured change from the story attached to it.",
         artifactContribution: "Produces the evidence section of the final decision brief.",
+        sourceIds: ["source-1"],
       },
       {
         title: "Choose the next action",
@@ -162,6 +175,40 @@ const lessonOne: LessonData = {
       ],
     },
   ],
+  citations: [{
+    id: "citation-1",
+    sourceId: "source-1",
+    claim: "Evidence reports what was observed.",
+    section: "content",
+    objectiveIds: ["objective-m0-l0"],
+    reviewStatus: "verified",
+    reviewedAt: assessedAt,
+  }],
+  provenance: {
+    contentVersion: "lesson-v5",
+    citations: [{
+      id: "citation-1",
+      sourceId: "source-1",
+      claim: "Evidence reports what was observed.",
+      section: "content",
+      objectiveIds: ["objective-m0-l0"],
+      reviewStatus: "verified",
+      reviewedAt: assessedAt,
+    }],
+    sources: [{
+      id: "source-1",
+      label: "Decision quality field guide",
+      url: "https://example.com/decision-quality",
+      author: "A. Researcher",
+      publisher: "Evidence Institute",
+      publicationDate: "2026-07-15",
+      accessedAt: "2026-08-13",
+      kind: "author-provided",
+      rights: "link-only",
+      reviewStatus: "verified",
+      reviewedAt: assessedAt,
+    }],
+  },
 };
 
 const lessonTwo: LessonData = {
@@ -580,7 +627,8 @@ test("completes a published course from discovery through evidence", async ({ pa
   await expect(journey.getByText("A classified evidence record and bounded next action")).toBeVisible();
   await expect(journey.locator(".journey-lesson-links button")).toHaveCount(2);
   const sourceLink = page.getByRole("link", { name: /Decision quality field guide/ });
-  await expect(page.getByText("Author-provided references")).toBeVisible();
+  await expect(page.getByText("Course references")).toBeVisible();
+  await expect(page.getByText(/Evidence Institute.*owner verified/)).toBeVisible();
   await expect(sourceLink).toHaveAttribute("href", "https://example.com/decision-quality");
   await expect(sourceLink).toHaveAttribute("rel", "nofollow ugc noreferrer");
   await page.getByRole("button", { name: "Report source" }).click();
@@ -614,6 +662,11 @@ test("completes a published course from discovery through evidence", async ({ pa
 
   await page.getByRole("link", { name: "Start with Evidence and action" }).click();
   await expect(page.getByRole("heading", { level: 1, name: "Evidence before inference" })).toBeVisible();
+  await expect(page.getByText("Evidence reports what was observed.", { exact: true })).toBeVisible();
+  await expect(page.getByText("Owner verified", { exact: true })).toBeVisible();
+  const citationLink = page.getByRole("link", { name: /Decision quality field guide, opens example.com/ });
+  await expect(citationLink).toHaveAttribute("href", "https://example.com/decision-quality");
+  await expect(citationLink).toContainText("Evidence Institute");
   await expect(page.getByRole("navigation", { name: "Lesson sections" })).toBeVisible();
   const classification = page.getByRole("region", { name: "Sort the decision record" });
   await classification.getByRole("group", { name: "Classify Three users abandoned the flow" }).getByRole("button", { name: "Evidence" }).click();

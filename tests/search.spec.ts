@@ -85,7 +85,7 @@ test("dashboard defers global search to the Command Center", async ({ page }, te
 
   await expect(page.getByRole("searchbox")).toHaveCount(0);
   await expect(page.getByRole("heading", { name: "Welcome back, Search." })).toBeVisible();
-  await expect(page.getByRole("complementary", { name: "Today's learning brief" })).toBeVisible();
+  await expect(page.getByRole("complementary", { name: "Today's plan" })).toBeVisible();
 
   await page.getByRole("button", { name: /Search or jump anywhere/ }).click();
   const commandCenter = page.getByRole("dialog", { name: "Filosage Command Center" });

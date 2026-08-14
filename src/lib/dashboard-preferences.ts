@@ -19,10 +19,10 @@ export const DASHBOARD_METRICS: DashboardMetric[] = ["studyTime", "lessons", "st
 
 const baseSections: Record<DashboardSection, boolean> = {
   nextUp: true,
-  achievements: true,
-  learningTip: true,
+  achievements: false,
+  learningTip: false,
   snapshot: true,
-  quickActions: true,
+  quickActions: false,
 };
 
 const baseMetrics: Record<DashboardMetric, boolean> = {
@@ -43,21 +43,21 @@ export const DASHBOARD_PRESETS: Record<Exclude<DashboardPreset, "custom">, Dashb
   },
   focused: {
     preset: "focused",
-    sections: { ...baseSections, achievements: false, learningTip: false, quickActions: false },
+    sections: { ...baseSections, snapshot: false },
     metrics: { ...baseMetrics, accuracy: false, mastered: false },
     mainOrder: [...DASHBOARD_MAIN_SECTIONS],
     sideOrder: [...DASHBOARD_SIDE_SECTIONS],
   },
   progress: {
     preset: "progress",
-    sections: { ...baseSections, learningTip: false },
+    sections: { ...baseSections, achievements: true },
     metrics: { ...baseMetrics },
     mainOrder: ["achievements", "nextUp", "learningTip"],
     sideOrder: [...DASHBOARD_SIDE_SECTIONS],
   },
   discover: {
     preset: "discover",
-    sections: { ...baseSections, achievements: false, snapshot: false },
+    sections: { ...baseSections, learningTip: true, snapshot: false, quickActions: true },
     metrics: { ...baseMetrics },
     mainOrder: ["nextUp", "learningTip", "achievements"],
     sideOrder: ["quickActions", "snapshot"],

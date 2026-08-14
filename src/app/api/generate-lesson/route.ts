@@ -40,7 +40,7 @@ import { coursePipelineFeatureFlags, lessonVisualsEnabled } from "@/lib/feature-
 import { languagePolicyInstruction } from "@/lib/content-language";
 import { lessonQualityIssues, LESSON_QUALITY_GATE_VERSION } from "@/lib/lesson-quality";
 import { lessonGenerationGate } from "@/lib/authoring-gate";
-import { sourcePackPromptBlock } from "@/lib/source-safety";
+import { assignedSourcePack, lessonCitationQualityIssues, sourcePackPromptBlock } from "@/lib/source-safety";
 import { safeModelErrorDetails } from "@/lib/model-fallback";
 import {
   aiUsageProfileMetadata,
@@ -127,7 +127,7 @@ export async function POST(request: Request) {
     }
     const saved = await getLesson(courseId, lessonId);
     if (saved && !regenerate) {
-      return NextResponse.json(toLessonDto(saved, course.aiAssisted === true, course.topic, course.language ?? "English"));
+      return NextResponse.json(toLessonDto(saved, course.aiAssisted === true, course.topic, course.language ?? "English", course));
     }
     if (courseUsesPipelineV2(course as unknown as Record<string, unknown>) && !pipelineFlags.pipelineV2) {
       return NextResponse.json(
@@ -218,7 +218,7 @@ export async function POST(request: Request) {
       }
       reservation = null;
       return NextResponse.json({
-        ...toLessonDto(saved, course.aiAssisted === true, course.topic, course.language ?? "English"),
+        ...toLessonDto(saved, course.aiAssisted === true, course.topic, course.language ?? "English", course),
         recovered: true,
       });
     }
@@ -243,6 +243,7 @@ export async function POST(request: Request) {
         featureFlags: pipelineFlags,
       });
     }
+    const assignedSources = assignedSourcePack(course.sourcePack ?? [], canonical.lesson.sourceIds);
     const lessonContext = [
       `Course topic: ${topic}`,
       `Course outcome: ${course.outcome ?? course.mission}`,
@@ -276,7 +277,10 @@ export async function POST(request: Request) {
       course.artifact
         ? `Course artifact: ${course.artifact.title}, ${course.artifact.format}. ${course.artifact.description}`
         : "",
-      sourcePackPromptBlock(course.sourcePack ?? [], "No source pack is available. Return sourceReferences: [] and do not invent citations."),
+      sourcePackPromptBlock(assignedSources, "No source is assigned to this lesson. Return citations: [] and do not invent citations."),
+      assignedSources.length
+        ? "Return a structured citation only for a concise factual statement directly supported by an assigned source's evidence note. The citation claim must be an exact statement already present in the declared lesson section. Use only assigned source IDs, add a short source locator when known, and never quote or reproduce source passages."
+        : "Do not make the lesson source-backed. Return citations: [].",
       course.capstone
         ? `Course capstone: ${course.capstone.brief} Deliverable: ${course.capstone.deliverable}`
         : "",
@@ -293,11 +297,11 @@ export async function POST(request: Request) {
       misconception: canonical.lesson.misconception,
     };
 
-    let selectedSourceIds: string[] = [];
+    let generatedCitations: GeneratedLessonData["citations"] = [];
     const prepareLesson = (generated: GeneratedLessonData | null): LessonData | null => {
       if (!generated) return null;
-      const { visuals, interactions, sourceReferences, ...lesson } = generated;
-      selectedSourceIds = sourceReferences;
+      const { visuals, interactions, citations, ...lesson } = generated;
+      generatedCitations = citations;
       const preparedVisuals = lessonVisualsAreEnabled
         ? curateLessonVisuals(visuals, visualContext).map((visual) => ({ ...visual, objectiveIds: [objectiveId] }))
         : [];
@@ -372,7 +376,11 @@ export async function POST(request: Request) {
     }
     let lesson = prepareLesson(primaryResponse.output_parsed as GeneratedLessonData | null);
     const instructionLanguage = String(course.language ?? "English");
-    let qualityIssues = lessonQualityIssues(lesson, topic, expectedMode, { instructionLanguage });
+    const generationQualityIssues = (candidate: LessonData | null) => [
+      ...lessonQualityIssues(candidate, topic, expectedMode, { instructionLanguage }),
+      ...lessonCitationQualityIssues(generatedCitations, assignedSources, candidate ?? {}),
+    ];
+    let qualityIssues = generationQualityIssues(lesson);
 
     if (qualityIssues.length && activeProfile.id === standardProfile.id && canAttemptLessonRepair(generationStartedAt)) {
       try {
@@ -386,7 +394,7 @@ export async function POST(request: Request) {
           ...safeModelErrorDetails(error),
         }));
       }
-      qualityIssues = lessonQualityIssues(lesson, topic, expectedMode, { instructionLanguage });
+      qualityIssues = generationQualityIssues(lesson);
     }
 
     if (!lesson || qualityIssues.length) {
@@ -434,9 +442,28 @@ export async function POST(request: Request) {
       stage: "output",
     });
 
-    const sourceReferences = (course.sourcePack ?? [])
-      .filter((source) => selectedSourceIds.includes(source.id))
-      .map((source) => ({ label: source.label, url: source.url }));
+    const citedSourceIds = new Set(generatedCitations.map((citation) => citation.sourceId));
+    const sourceReferences = assignedSources
+      .filter((source) => citedSourceIds.has(source.id))
+      .map((source) => ({
+        id: source.id,
+        label: source.label,
+        url: source.url,
+        author: source.author,
+        publisher: source.publisher,
+        publicationDate: source.publicationDate,
+        accessedAt: source.accessedAt,
+        kind: source.kind,
+        rights: source.rights,
+      }));
+    const citations = generatedCitations.map((citation, index) => ({
+      id: `citation-${index + 1}`,
+      sourceId: citation.sourceId,
+      claim: citation.claim,
+      section: citation.section,
+      locator: citation.locator ?? undefined,
+      objectiveIds: [objectiveId],
+    }));
     const generationMetadata = {
       generatedAt: new Date().toISOString(),
       promptVersion: activeProfile.promptVersion,
@@ -455,6 +482,7 @@ export async function POST(request: Request) {
         sourcePolicyVersion: COURSE_ARTIFACT_PROVENANCE_DEFAULTS.sourcePolicyVersion,
       } : {}),
       sourceReferences,
+      citations,
     };
     const visualPlanWithFallback = visualPlan as (typeof visualPlan & {
       accessibleFallback?: { kind: "text" | "table"; content: string };
@@ -545,7 +573,7 @@ export async function POST(request: Request) {
       schemaVersion: 5,
       generationModel: activeProfile.model,
       ...generationMetadata,
-    }, true, topic, instructionLanguage);
+    }, true, topic, instructionLanguage, course);
     return NextResponse.json({
       ...lessonDto,
       publicationReadiness,
@@ -606,7 +634,7 @@ export async function POST(request: Request) {
           savedCourse.language ?? "English",
         );
         return NextResponse.json({
-          ...toLessonDto(savedLesson, savedCourse.aiAssisted === true, savedCourse.topic, savedCourse.language ?? "English"),
+          ...toLessonDto(savedLesson, savedCourse.aiAssisted === true, savedCourse.topic, savedCourse.language ?? "English", savedCourse),
           publicationReadiness,
           recovered: true,
         });

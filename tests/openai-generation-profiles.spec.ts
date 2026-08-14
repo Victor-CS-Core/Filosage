@@ -116,7 +116,7 @@ test("keeps the lesson response format inside the OpenAI strict JSON Schema subs
   const format = zodTextFormat(lessonGenerationSchema, "lesson");
   expect(findUnsupportedLessonSchemaShape(format.schema)).toBeNull();
   expect(format.schema.required).toContain("visuals");
-  expect(format.schema.required).toContain("sourceReferences");
+  expect(format.schema.required).toContain("citations");
 });
 
 test("keeps command-center drafts inside the strict structured-output subset", () => {

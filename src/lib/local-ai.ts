@@ -135,6 +135,7 @@ function stubLesson(input: string) {
               };
   return {
     learningObjective,
+    citations: [],
     connection: `This lesson builds directly on the previous concept and prepares the ground for what follows in the course sequence.`,
     keyTakeaways: [
       `${concept} is a tool for making decisions, not a definition to memorize.`,

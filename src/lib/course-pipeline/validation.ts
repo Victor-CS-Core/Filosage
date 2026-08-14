@@ -12,7 +12,13 @@ import { isLegacyRenderableInteractionType, isRegisteredLabType } from "@/lib/co
 import { isRegisteredVisualType } from "@/lib/course-pipeline/visuals/registry";
 import { lessonQualityIssues } from "@/lib/lesson-quality";
 import { publicationCandidateContentHash } from "@/lib/publication-content";
-import { isSafePublicSourceUrl, sourcePackQualityIssues } from "@/lib/source-safety";
+import {
+  assignedSourcePack,
+  lessonCitationQualityIssues,
+  outlineSourceAssignmentIssues,
+  isSafePublicSourceUrl,
+  sourcePackQualityIssues,
+} from "@/lib/source-safety";
 import {
   isLegacyCourseCandidate,
   isLegacyLessonCandidate,
@@ -342,6 +348,25 @@ export async function validateCourseCandidateV2(
       executedCodes.add(COURSE_QUALITY_RULES.VISUAL_ESSENTIAL_MISSING.code);
       executedCodes.add(COURSE_QUALITY_RULES.VISUAL_OPTIONAL_MISSING.code);
       executedCodes.add(COURSE_QUALITY_RULES.OBJECTIVE_RELATIONSHIP.code);
+    }
+    if (course.sourcePolicyVersion === COURSE_PIPELINE_VERSIONS.sourcePolicy) {
+      executedCodes.add(COURSE_QUALITY_RULES.SOURCE_ASSIGNMENT_INVALID.code);
+      executedCodes.add(COURSE_QUALITY_RULES.SOURCE_CITATION_INVALID.code);
+      const [moduleIndex, lessonIndex] = lessonId.split("-").map(Number);
+      const lessonSummary = course.modules[moduleIndex]?.lessons[lessonIndex];
+      const assignedSources = assignedSourcePack(course.sourcePack ?? [], lessonSummary?.sourceIds);
+      const assignmentIssues = outlineSourceAssignmentIssues({ modules: [{ lessons: [{ sourceIds: lessonSummary?.sourceIds }] }] }, course.sourcePack ?? []);
+      findings.push(...assignmentIssues.map((message) => issueFromRule(
+        COURSE_QUALITY_RULES.SOURCE_ASSIGNMENT_INVALID,
+        `${path}.sourceIds`,
+        message,
+      )));
+      const rawCitations = Array.isArray(raw.citations) ? raw.citations : [];
+      findings.push(...lessonCitationQualityIssues(rawCitations as NonNullable<LessonData["citations"]>, assignedSources, raw as Partial<LessonData>).map((message) => issueFromRule(
+        COURSE_QUALITY_RULES.SOURCE_CITATION_INVALID,
+        `${path}.citations`,
+        message,
+      )));
     }
     const parsed = parseLessonCandidate(raw);
     const legacyLesson = isLegacyLessonCandidate(raw);

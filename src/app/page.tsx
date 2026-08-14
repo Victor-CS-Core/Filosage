@@ -20,7 +20,6 @@ import {
 import AchievementBadge from "@/components/AchievementBadge";
 import AppShell from "@/components/AppShell";
 import DashboardCustomizer from "@/components/DashboardCustomizer";
-import FilosageMark from "@/components/FilosageMark";
 import { useAppDrawer } from "@/components/AppDrawer";
 import LandingPage from "@/components/marketing/LandingPage";
 import { useAuth } from "@/components/AuthProvider";
@@ -221,22 +220,18 @@ export default function Home() {
         </header>
 
         <div className="guided-day-hero">
-          <section className="guided-day-focus" aria-labelledby="guided-day-focus-title">
+          <section className="guided-day-focus" aria-label="Today's learning path">
             <div className="guided-day-focus-body">
-              <p className="guided-day-kicker">Today&apos;s focus</p>
               <h2 id="guided-day-focus-title">{focusTitle}</h2>
               <div className="guided-day-focus-meta">
                 {focusTopic && <span><BookOpenCheck size={16} /> {focusTopic}</span>}
                 {focusMinutes && <span><Clock3 size={16} /> About {focusMinutes} min</span>}
               </div>
-
-              <div className="guided-day-focus-steps" aria-label="Focused session steps">
-                {hasDailyMission && dailyMission.review && <div><span><CalendarCheck2 size={18} /></span><p><strong>{reviewKindLabel(dailyMission.review.kind)}</strong><small>{dailyMission.review.reason}</small></p></div>}
-                {hasDailyMission && dailyMission.forward && <div><span><BookOpenCheck size={18} /></span><p><strong>Continue lesson</strong><small>Build new capability after retrieval.</small></p></div>}
-                {!hasDailyMission && continueProgress && <div><span><BookOpenCheck size={18} /></span><p><strong>{continueProgress.nextLessonId ? "Continue lesson" : continueCapstonePassed ? "Review course" : "Review course requirements"}</strong><small>{continueProgress.nextLessonTitle ?? "Return to your course map."}</small></p></div>}
-                {!hasDailyMission && !continueProgress && <div><span><Compass size={18} /></span><p><strong>Choose a learning path</strong><small>Start with a published course or create one around your goal.</small></p></div>}
-              </div>
-
+              <p className="guided-day-focus-note">{hasDailyMission && dailyMission.review
+                ? dailyMission.review.reason
+                : continueProgress
+                  ? "Pick up from your latest evidence and keep the sequence moving."
+                  : "Start with one useful outcome. Filosage will turn it into a focused sequence."}</p>
               <div className="guided-day-focus-action">
                 {hasDailyMission ? (
                   <button className="button button-primary" type="button" onClick={startDailyMission}>Begin focused session <ArrowRight size={16} /></button>
@@ -248,17 +243,32 @@ export default function Home() {
               </div>
             </div>
 
-            <div className="guided-day-focus-visual" aria-hidden="true">
-              <FilosageMark className="guided-day-mark is-inverse" />
+            <div className="guided-day-focus-visual" role="group" aria-label="Your focused session sequence">
+              <div className="guided-day-route" aria-hidden="true"><i /><i /></div>
+              <div className={`guided-day-node is-first ${dailyMission.review ? "is-current" : "is-ready"}`}>
+                <span>{dailyMission.review ? <CalendarCheck2 size={24} /> : <CheckCircle2 size={24} />}</span>
+                <strong>{dailyMission.review ? "Recall" : "Ready"}</strong>
+                <small>{dailyMission.review ? reviewKindLabel(dailyMission.review.kind) : "Queue checked"}</small>
+              </div>
+              <div className={`guided-day-node is-middle ${dailyMission.review ? "is-next" : "is-current"}`}>
+                <span><BookOpenCheck size={26} /></span>
+                <strong>{continueProgress ? "Learn" : "Choose"}</strong>
+                <small>{focusMinutes ? `${focusMinutes} minutes` : "One next step"}</small>
+              </div>
+              <div className="guided-day-node is-last">
+                <span><Sparkles size={23} /></span>
+                <strong>Reflect</strong>
+                <small>Record evidence</small>
+              </div>
               <div className="guided-day-focus-progress">
                 <strong>{weeklyMilestoneHeroLabel}</strong>
-                <span><i style={{ width: `${weeklyMilestone.percent}%` }} /></span>
+                <span aria-hidden="true"><i style={{ width: `${weeklyMilestone.percent}%` }} /></span>
               </div>
             </div>
           </section>
 
-          <aside className="guided-day-week" aria-label="Today's learning brief">
-            <div className="guided-day-week-heading"><h2>This week</h2><span>{weeklyMilestone.percent}%</span></div>
+          <aside className="guided-day-week" aria-label="Today's plan">
+            <div className="guided-day-week-heading"><h2>Today</h2><span>{weeklyMilestone.percent}% this week</span></div>
             {!loaded ? (
               <div className="dashboard-brief-loading" aria-label="Preparing your learning brief"><span /><span /><span /></div>
             ) : (
@@ -271,6 +281,17 @@ export default function Home() {
             <div className="guided-day-week-progress"><span><i style={{ width: `${weeklyMilestone.percent}%` }} /></span><small>{weeklyMilestoneSummaryLabel}</small></div>
           </aside>
         </div>
+
+        {loaded && (
+          <section className="dashboard-evidence-band" aria-labelledby="dashboard-evidence-title">
+            <header><h2 id="dashboard-evidence-title">Why this is next</h2><Link href="/progress">See learning evidence</Link></header>
+            <dl>
+              <div><dt>Review signal</dt><dd>{due.length ? `${due.length} concept${due.length === 1 ? "" : "s"} ready` : "Queue clear"}</dd></div>
+              <div><dt>Course position</dt><dd>{continueProgress ? `${continueProgress.completedLessonIds.length} of ${continueProgress.totalLessons ?? "?"} lessons` : "Choose a path"}</dd></div>
+              <div><dt>Weekly goal</dt><dd>{weeklyMilestoneSummaryLabel}</dd></div>
+            </dl>
+          </section>
+        )}
 
         {!loaded ? <div className="dashboard-loading"><span /><span /><span /></div> : (
           <div className={`dashboard-grid ${hasVisibleSideSections ? "" : "is-single-column"}`}>

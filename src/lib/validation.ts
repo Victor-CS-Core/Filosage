@@ -15,6 +15,8 @@ const isoDateTimeSchema = z.string().regex(
   "Use an ISO 8601 UTC timestamp.",
 );
 
+const isoDateSchema = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Use a date in YYYY-MM-DD format.");
+
 export const courseRequestSchema = z.object({
   topic: topicSchema,
   goal: z.string().trim().max(500, "Keep the learning goal under 500 characters.").optional().default(""),
@@ -36,6 +38,9 @@ export const courseRequestSchema = z.object({
       .optional(),
     kind: z.enum(["primary", "official", "licensed", "author-provided"]),
     rights: z.enum(["link-only", "public-domain", "licensed", "author-owned"]),
+    author: z.string().trim().max(160).optional(),
+    publisher: z.string().trim().max(160).optional(),
+    publicationDate: isoDateSchema.optional(),
     note: z.string().trim().max(800).optional(),
   }).superRefine((source, context) => {
     if (!source.url && !source.note) context.addIssue({ code: "custom", message: "Add a source URL or a short source note." });
@@ -90,6 +95,7 @@ export const courseOutlineSchema = z.object({
               masteryCriteria: z.string().trim().min(1).max(300),
               activityPreview: z.string().trim().min(1).max(300),
               artifactContribution: z.string().trim().min(1).max(300),
+              sourceIds: z.array(z.string().trim().regex(/^source-[a-z0-9-]{1,40}$/)).max(5).optional().default([]),
             }),
           )
           .min(1)
@@ -139,6 +145,14 @@ const lessonWithoutVisualsSchema = z.object({
     .array(quizSchema)
     .min(1)
     .max(3),
+  citations: z.array(z.object({
+    id: z.string().trim().regex(/^citation-[a-z0-9-]{1,60}$/),
+    sourceId: z.string().trim().regex(/^source-[a-z0-9-]{1,40}$/),
+    claim: z.string().trim().min(1).max(280),
+    section: z.enum(["content", "key_takeaway", "guided_practice", "transfer_task", "quiz_explanation"]),
+    locator: z.string().trim().min(1).max(160).optional(),
+    objectiveIds: z.array(z.string().trim().regex(/^objective-[a-z0-9-]+$/)).min(1).max(5).optional(),
+  })).max(8).optional().default([]),
 });
 
 const lessonExperienceSchema = z.discriminatedUnion("type", [
@@ -212,7 +226,12 @@ export const lessonGenerationSchema = lessonWithoutVisualsSchema.extend({
   visuals: z.array(z.string().trim().min(2).max(6_000)).max(2),
   interactions: z.array(z.string().trim().min(2).max(6_000)).max(1),
   experience: lessonExperienceSchema,
-  sourceReferences: z.array(z.string().trim().regex(/^source-[a-z0-9-]{1,40}$/)).max(5),
+  citations: z.array(z.object({
+    sourceId: z.string().trim().regex(/^source-[a-z0-9-]{1,40}$/),
+    claim: z.string().trim().min(1).max(280),
+    section: z.enum(["content", "key_takeaway", "guided_practice", "transfer_task", "quiz_explanation"]),
+    locator: z.string().trim().min(1).max(160).nullable(),
+  })).max(8),
 });
 
 export type GeneratedLessonData = z.infer<typeof lessonGenerationSchema>;

@@ -255,6 +255,34 @@ test.describe("desktop application shell", () => {
     expect(await readLayout()).toEqual(before);
   });
 
+  test("turns the learner home into a focused visual path with accessible reordering", async ({ page }) => {
+    await prepareOwnerShell(page);
+    await page.goto("/");
+
+    await expect(page.getByRole("region", { name: "Today's learning path" })).toBeVisible();
+    const sessionSequence = page.getByRole("group", { name: "Your focused session sequence" });
+    await expect(sessionSequence).toBeVisible();
+    await expect(sessionSequence.getByText("Recall", { exact: true })).toBeVisible();
+    await expect(sessionSequence.getByText("Learn", { exact: true })).toBeVisible();
+    await expect(sessionSequence.getByText("Reflect", { exact: true })).toBeVisible();
+    await expect(page.getByRole("complementary", { name: "Today's plan" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Why this is next" })).toBeVisible();
+    await expect(page.getByRole("link", { name: "See learning evidence" })).toBeVisible();
+    await expectNoHorizontalPageOverflow(page);
+
+    await page.getByRole("button", { name: "Customize" }).click();
+    const customizer = page.getByRole("dialog", { name: "Choose what helps you focus." });
+    const mainSections = customizer.locator(".customizer-list").first();
+    const nextUpHandle = mainSections.getByRole("button", { name: "Drag Next up to reorder" });
+    await nextUpHandle.press("ArrowDown");
+    await expect(mainSections.getByRole("button", { name: /Drag .* to reorder/ }).first()).toHaveAccessibleName("Drag Achievements to reorder");
+    await expect(customizer.getByText("Next up moved down.")).toBeAttached();
+    await customizer.getByRole("button", { name: "Close dashboard settings" }).click();
+    if (process.env.CAPTURE_DASHBOARD === "1") {
+      await page.screenshot({ path: ".impeccable/review/dashboard-desktop.png", fullPage: true });
+    }
+  });
+
   test("does not call a course complete when only its lessons are finished", async ({ page }) => {
     await prepareOwnerShell(page, [{
       ...learningProgress[0],
@@ -327,7 +355,7 @@ test.describe("desktop application shell", () => {
     await page.getByLabel("Source name").fill("NIST AI Risk Management Framework");
     await expect(teachingStep).toHaveAttribute("data-complete", "false");
     await expect(createButton).toBeDisabled();
-    await page.getByLabel("Relevant note").fill("Use the framework's risk measurement categories to structure the applied review.");
+    await page.getByLabel("Evidence note in your own words").fill("Use the framework's risk measurement categories to structure the applied review.");
     await expect(teachingStep).toHaveAttribute("data-complete", "true");
     await expect(createButton).toBeEnabled();
     await expect(page.getByRole("status", { name: "" })).toHaveCount(0);
@@ -393,5 +421,18 @@ test.describe("mobile application shell", () => {
     await expect(page.getByRole("button", { name: /Pace/ })).toHaveAttribute("data-complete", "false");
     await expect(page.getByRole("button", { name: /Continue/ })).toBeDisabled();
     await expectNoHorizontalPageOverflow(page);
+  });
+
+  test("keeps the learner path legible and actionable on a phone", async ({ page }) => {
+    await prepareOwnerShell(page);
+    await page.goto("/");
+
+    await expect(page.getByRole("region", { name: "Today's learning path" })).toBeVisible();
+    await expect(page.getByRole("group", { name: "Your focused session sequence" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Customize" })).toBeVisible();
+    await expectNoHorizontalPageOverflow(page);
+    if (process.env.CAPTURE_DASHBOARD === "1") {
+      await page.screenshot({ path: ".impeccable/review/dashboard-mobile.png", fullPage: true });
+    }
   });
 });

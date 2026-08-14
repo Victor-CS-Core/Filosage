@@ -293,6 +293,13 @@ export default function CourseMap() {
   }, [course, firstIncompleteLesson, totalLessons]);
   const courseComplete = totalLessons > 0 && validCompletedLessons.length === totalLessons;
   const generatedLessonIds = useMemo(() => new Set(course?.generatedLessonIds ?? []), [course?.generatedLessonIds]);
+  const plannedSourceIds = useMemo(() => new Set(
+    course?.modules.flatMap((courseModule) => courseModule.lessons.flatMap((lesson) => lesson.sourceIds ?? [])) ?? [],
+  ), [course]);
+  const reviewableSources = useMemo(() => (course?.sourcePack ?? []).filter((source) =>
+    Boolean(source.url)
+    && (plannedSourceIds.has(source.id) || source.kind === "primary" || source.kind === "official"),
+  ), [course?.sourcePack, plannedSourceIds]);
   const proAuthoringGateActive = Boolean(course?.canManage && !isOwner && !course.isPublic);
   const canOpenLesson = useCallback((lessonId: string) =>
     !proAuthoringGateActive
@@ -472,10 +479,18 @@ export default function CourseMap() {
       setActionError("Explain the manual-review decision in at least 20 characters.");
       return;
     }
-    const evidenceRequired = (course?.manualReviewPolicy?.reasonCodes ?? []).some((code) =>
+    const highStakesEvidenceRequired = (course?.manualReviewPolicy?.reasonCodes ?? []).some((code) =>
       ["medical", "legal", "financial", "physical_safety", "freshness"].includes(code),
     );
-    if (decision === "approved" && evidenceRequired && manualReviewSourceIds.length === 0) {
+    const everyPlannedSourceVerified = [...plannedSourceIds].every((sourceId) => manualReviewSourceIds.includes(sourceId));
+    const authoritativeEvidenceSelected = reviewableSources.some((source) =>
+      (source.kind === "primary" || source.kind === "official") && manualReviewSourceIds.includes(source.id),
+    );
+    if (decision === "approved" && !everyPlannedSourceVerified) {
+      setActionError("Personally verify every source assigned to a lesson before approving this snapshot.");
+      return;
+    }
+    if (decision === "approved" && highStakesEvidenceRequired && !authoritativeEvidenceSelected) {
       setActionError("Select at least one primary or official course source that you personally verified.");
       return;
     }
@@ -829,10 +844,10 @@ export default function CourseMap() {
                 {course.modules[0]?.lessons[0]?.activityPreview && <article><span><Target size={18} /> First active move</span><h3>{course.modules[0].lessons[0].title}</h3><p>{course.modules[0].lessons[0].activityPreview}</p><small>{course.modules[0].lessons[0].artifactContribution}</small></article>}
               </div>
               {course.sourcePack?.length ? <div className="course-source-strip">
-                <strong>Author-provided references</strong>
-                <p>These links were supplied by the course author. A listed URL is not proof that Filosage retrieved or verified its contents. Lessons identify references they actually used.</p>
+                <strong>Course references</strong>
+                <p>These deep links were supplied by the course author. A listed URL is not proof that Filosage retrieved its contents. Lessons identify specific source-backed statements, and review status applies only to the exact published snapshot.</p>
                 <ul>{course.sourcePack.map((source) => <li key={source.id}>
-                  <div>{source.url ? <a href={source.url} target="_blank" rel="nofollow ugc noreferrer" aria-label={`${source.label}, opens ${sourceHostname(source.url)} in a new tab`}>{source.label}</a> : <span>{source.label}</span>}<small>{source.url ? `${sourceHostname(source.url)} · ` : ""}{source.kind.replace("-", " ")} · {source.rights.replace("-", " ")}</small></div>
+                  <div>{source.url ? <a href={source.url} target="_blank" rel="nofollow ugc noreferrer" aria-label={`${source.label}, opens ${sourceHostname(source.url)} in a new tab`}>{source.label}</a> : <span>{source.label}</span>}<small>{source.author ? `${source.author} · ` : ""}{source.publisher ? `${source.publisher} · ` : ""}{source.publicationDate ? `${source.publicationDate} · ` : ""}{source.url ? `${sourceHostname(source.url)} · ` : ""}{source.kind.replace("-", " ")} · {source.reviewStatus === "verified" ? "owner verified" : "review not recorded"} · {source.rights.replace("-", " ")}</small></div>
                   {user && <button className="text-button" type="button" onClick={() => { setReportingSourceId(source.id); setSourceReportNote(""); setSourceReportCategory("source"); setSourceReportStatus(null); }}><Flag size={13} /> Report source</button>}
                   {reportingSourceId === source.id && <form className="source-report-form" onSubmit={(event) => void reportSource(event, source.id)}>
                     <label htmlFor={`source-report-category-${source.id}`}>Issue type</label>
@@ -971,11 +986,11 @@ export default function CourseMap() {
                             {isOwner && course.manualReviewResolution?.snapshotHash !== validationReport.snapshotHash && (
                               <>
                                 <label htmlFor="course-manual-review-reason">Manual-review reason</label>
-                                {(course.manualReviewPolicy?.reasonCodes ?? []).some((code) => ["medical", "legal", "financial", "physical_safety", "freshness"].includes(code)) && (
+                                {reviewableSources.length > 0 && (
                                   <fieldset className="publication-manual-review-sources">
-                                    <legend>Primary or official sources personally verified</legend>
-                                    {(course.sourcePack ?? []).filter((source) => (source.kind === "primary" || source.kind === "official") && source.url).length > 0
-                                      ? (course.sourcePack ?? []).filter((source) => (source.kind === "primary" || source.kind === "official") && source.url).map((source) => (
+                                    <legend>Sources personally verified for this snapshot</legend>
+                                    {reviewableSources.length > 0
+                                      ? reviewableSources.map((source) => (
                                           <label key={source.id}>
                                             <input
                                               type="checkbox"
@@ -987,11 +1002,11 @@ export default function CourseMap() {
                                                 : current.filter((sourceId) => sourceId !== source.id))}
                                               disabled={manualReviewBusy !== null}
                                             />
-                                            <span>{source.label} ({source.kind})</span>
+                                            <span>{source.label} ({source.kind}){plannedSourceIds.has(source.id) ? " · assigned to lessons" : ""}</span>
                                             <a href={source.url} target="_blank" rel="noreferrer">Open source</a>
                                           </label>
                                         ))
-                                      : <p>No primary or official URL is attached. This high-stakes snapshot cannot be approved automatically; recreate or revise it with authoritative evidence.</p>}
+                                      : null}
                                   </fieldset>
                                 )}
                                 <textarea

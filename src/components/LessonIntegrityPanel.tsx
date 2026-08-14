@@ -1,8 +1,24 @@
 "use client";
 
 import { useState } from "react";
-import { CheckCircle2, Flag, LoaderCircle, ShieldCheck } from "lucide-react";
+import { CheckCircle2, ExternalLink, Flag, LoaderCircle, ShieldCheck } from "lucide-react";
 import type { LessonData } from "@/lib/course-types";
+import { sourceHostname } from "@/lib/source-safety";
+
+const sourceKindLabel = {
+  primary: "Primary source",
+  official: "Official source",
+  licensed: "Licensed source",
+  "author-provided": "Author-provided source",
+} as const;
+
+const citationSectionLabel = {
+  content: "Lesson explanation",
+  key_takeaway: "Key takeaway",
+  guided_practice: "Guided practice",
+  transfer_task: "Transfer task",
+  quiz_explanation: "Retrieval feedback",
+} as const;
 
 export default function LessonIntegrityPanel({
   courseId,
@@ -21,6 +37,8 @@ export default function LessonIntegrityPanel({
   const [busy, setBusy] = useState(false);
   const [sent, setSent] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const citations = provenance?.citations ?? [];
+  const sourcesById = new Map((provenance?.sources ?? []).flatMap((source) => source.id ? [[source.id, source] as const] : []));
 
   const submit = async (event: React.FormEvent) => {
     event.preventDefault();
@@ -62,12 +80,33 @@ export default function LessonIntegrityPanel({
         </div>
       </div>
       <p>
-        {provenance?.sources.length
-          ? `${provenance.sources.length} author-provided ${provenance.sources.length === 1 ? "reference was" : "references were"} used by this lesson version.`
+        {citations.length
+          ? `${citations.length} source-backed ${citations.length === 1 ? "statement is" : "statements are"} mapped to this exact lesson version.`
+          : provenance?.sources.length
+            ? `${provenance.sources.length} ${provenance.sources.length === 1 ? "reference is" : "references are"} attached to this lesson version without a structured claim citation.`
           : "No external source pack is attached to this lesson. Verify consequential claims before relying on them."}
       </p>
-      {provenance?.sources.length ? (
-        <><strong>Used by this lesson</strong><ul>{provenance.sources.map((source) => <li key={`${source.label}-${source.url ?? ""}`}>{source.url ? <a href={source.url} target="_blank" rel="nofollow ugc noreferrer">{source.label}</a> : source.label}</li>)}</ul></>
+      {citations.length ? (
+        <div className="lesson-citation-list" aria-label="Source-backed statements">
+          {citations.map((citation) => {
+            const source = sourcesById.get(citation.sourceId);
+            if (!source) return null;
+            return <article key={citation.id} className="lesson-citation">
+              <div className="lesson-citation-status">
+                {citation.reviewStatus === "verified" ? <CheckCircle2 size={15} /> : <ShieldCheck size={15} />}
+                <span>{citation.reviewStatus === "verified" ? "Owner verified" : "Review not recorded"}</span>
+              </div>
+              <blockquote>{citation.claim}</blockquote>
+              <p>{citationSectionLabel[citation.section]}{citation.locator ? ` · ${citation.locator}` : ""}</p>
+              {source.url ? <a href={source.url} target="_blank" rel="nofollow ugc noreferrer" aria-label={`${source.label}, opens ${sourceHostname(source.url)} in a new tab`}>
+                <span><strong>{source.label}</strong><small>{source.author ? `${source.author} · ` : ""}{source.publisher ?? sourceHostname(source.url)}{source.publicationDate ? ` · ${source.publicationDate}` : ""}{source.kind ? ` · ${sourceKindLabel[source.kind]}` : ""}</small></span>
+                <ExternalLink size={15} />
+              </a> : <strong>{source.label}</strong>}
+            </article>;
+          })}
+        </div>
+      ) : provenance?.sources.length ? (
+        <><strong>References attached to this version</strong><ul>{provenance.sources.map((source) => <li key={`${source.id ?? source.label}-${source.url ?? ""}`}>{source.url ? <a href={source.url} target="_blank" rel="nofollow ugc noreferrer">{source.label}</a> : source.label}</li>)}</ul></>
       ) : null}
       {!reporting && !sent && (
         <button className="text-button" type="button" onClick={() => setReporting(true)}><Flag size={14} /> Report a content issue</button>

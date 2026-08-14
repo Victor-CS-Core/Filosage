@@ -14,6 +14,7 @@ import { COURSE_PIPELINE_VERSIONS } from "@/lib/course-pipeline/contract";
 import { coursePipelineFeatureFlags } from "@/lib/feature-flags";
 import { effectiveCourseReviewPolicy } from "@/lib/course-pipeline/review-policy";
 import { courseUsesPipelineV2 } from "@/lib/course-pipeline/feature-policy";
+import { isSafePublicSourceUrl } from "@/lib/source-safety";
 
 const manualReviewSchema = z.object({
   decision: z.enum(["approved", "rejected"]),
@@ -99,20 +100,44 @@ export async function POST(
       );
     }
     const effectiveReviewPolicy = effectiveCourseReviewPolicy(course);
-    const evidenceRequired = effectiveReviewPolicy.reasonCodes.some((code) =>
+    const highStakesEvidenceRequired = effectiveReviewPolicy.reasonCodes.some((code) =>
       ["medical", "legal", "financial", "physical_safety", "freshness"].includes(code),
     );
+    const citedSourceIds = new Set(lessons.flatMap((lesson) =>
+      Array.isArray(lesson.citations)
+        ? lesson.citations.flatMap((item) => item && typeof item === "object" && typeof (item as Record<string, unknown>).sourceId === "string"
+            ? [String((item as Record<string, unknown>).sourceId)]
+            : [])
+        : [],
+    ));
+    const plannedSourceIds = new Set(course.modules.flatMap((courseModule) =>
+      courseModule.lessons.flatMap((lesson) => lesson.sourceIds ?? []),
+    ));
+    const requiredSourceIds = new Set([...plannedSourceIds, ...citedSourceIds]);
     const eligibleSources = new Set((course.sourcePack ?? [])
-      .filter((source) => (source.kind === "primary" || source.kind === "official") && Boolean(source.url))
+      .filter((source) => Boolean(source.url) && isSafePublicSourceUrl(String(source.url)))
       .map((source) => source.id));
+    const authoritativeSources = new Set((course.sourcePack ?? [])
+      .filter((source) => (source.kind === "primary" || source.kind === "official") && Boolean(source.url) && isSafePublicSourceUrl(String(source.url)))
+      .map((source) => source.id));
+    const verifiedSourceIds = new Set(parsed.data.verifiedSourceIds);
     const selectedSourcesAreEligible = parsed.data.verifiedSourceIds.every((sourceId) => eligibleSources.has(sourceId));
-    if (parsed.data.decision === "approved" && evidenceRequired
-      && (!parsed.data.verifiedSourceIds.length || !selectedSourcesAreEligible)) {
+    const everyRequiredSourceVerified = [...requiredSourceIds].every((sourceId) => verifiedSourceIds.has(sourceId));
+    const authoritativeEvidenceSelected = parsed.data.verifiedSourceIds.some((sourceId) => authoritativeSources.has(sourceId));
+    if (parsed.data.decision === "approved"
+      && (!selectedSourcesAreEligible
+        || !everyRequiredSourceVerified
+        || (highStakesEvidenceRequired && !authoritativeEvidenceSelected))) {
       return Response.json(
         {
-          error: "Approval requires at least one explicitly verified primary or official source from this exact course snapshot.",
+          error: !selectedSourcesAreEligible
+            ? "Every selected source must resolve to a safe public HTTPS destination in this exact course snapshot."
+            : !everyRequiredSourceVerified
+              ? "Approval requires every source assigned to or cited by a lesson to be personally verified for this exact snapshot."
+              : "High-stakes approval requires at least one explicitly verified primary or official source from this exact course snapshot.",
           code: "MANUAL_REVIEW_EVIDENCE_REQUIRED",
           eligibleSourceIds: [...eligibleSources],
+          requiredSourceIds: [...requiredSourceIds],
         },
         { status: 409, headers: { "Cache-Control": "private, no-store" } },
       );

@@ -243,7 +243,7 @@ test("an owner records a snapshot-bound manual-review decision before publishing
   await page.getByLabel(/I reviewed every lesson/).check();
   await page.getByRole("button", { name: "Review and publish" }).click();
   await expect(page.getByText("Human decision required for this snapshot")).toBeVisible();
-  await expect(page.getByRole("group", { name: "Primary or official sources personally verified" })).toBeVisible();
+  await expect(page.getByRole("group", { name: "Sources personally verified for this snapshot" })).toBeVisible();
   expect((await new AxeBuilder({ page }).include(".course-owner-controls").analyze()).violations).toEqual([]);
   await page.getByRole("checkbox", { name: /Official emergency guidance/ }).check();
   await page.getByLabel("Manual-review reason").fill("Primary emergency guidance supports the bounded sequence in this exact draft.");

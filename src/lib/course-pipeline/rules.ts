@@ -94,6 +94,12 @@ export const COURSE_QUALITY_RULES = {
   SOURCE_REVIEW_REQUIRED: {
     code: "CQ_SOURCE_002", version: 1, purpose: "Route deterministically identified high-stakes or disputed evidence to human review", classification: "deterministic", severity: "error", source: "source_integrity", repairability: "manual", suggestedAction: "Verify the claim against an authoritative source.",
   },
+  SOURCE_ASSIGNMENT_INVALID: {
+    code: "CQ_SOURCE_003", version: 1, purpose: "Assign only supplied, evidence-noted deep links to a lesson", classification: "deterministic", severity: "blocker", source: "source_integrity", repairability: "assisted", suggestedAction: "Remove the source assignment or add a safe deep link and an original evidence note.",
+  },
+  SOURCE_CITATION_INVALID: {
+    code: "CQ_SOURCE_004", version: 1, purpose: "Resolve every source-backed lesson statement to an assigned source and visible lesson text", classification: "deterministic", severity: "blocker", source: "source_integrity", repairability: "assisted", suggestedAction: "Correct the structured citation without copying source text or inventing support.",
+  },
   SEMANTIC_REVIEW_REQUIRED: {
     code: "CQ_SEMANTIC_001", version: 1, purpose: "Require calibrated semantic or human review before V2 publication", classification: "semantic", severity: "error", source: "semantic", repairability: "manual", suggestedAction: "Review accuracy, coherence, filler, and objective-to-assessment meaning on this exact snapshot.",
   },

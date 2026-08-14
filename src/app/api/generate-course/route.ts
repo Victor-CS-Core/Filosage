@@ -24,7 +24,7 @@ import { createOrReuseCourseBanner } from "@/lib/course-banners";
 import { summarizeAiUsage, type AiUsageSample } from "@/lib/ai-pricing";
 import { inspectGeneratedContent, languagePolicyInstruction } from "@/lib/content-language";
 import { courseQualityIssues, COURSE_QUALITY_GATE_VERSION } from "@/lib/course-quality";
-import { sourcePackPromptBlock } from "@/lib/source-safety";
+import { outlineSourceAssignmentIssues, sourcePackPromptBlock } from "@/lib/source-safety";
 import {
   aiUsageProfileMetadata,
   openAiExecutionProfile,
@@ -77,9 +77,14 @@ export async function POST(request: Request) {
 
     const {
       topic, goal, application, background, level, weeklyMinutes, targetWeeks, courseStyle,
-      artifactPreference, scenarioPreference, sourcePack,
+      artifactPreference, scenarioPreference, sourcePack: requestedSourcePack,
       language, freshnessRequired,
     } = parsedRequest.data;
+    const accessedAt = new Date().toISOString().slice(0, 10);
+    const sourcePack = requestedSourcePack.map((source) => ({
+      ...source,
+      accessedAt: source.url ? accessedAt : undefined,
+    }));
     const studyBudget = (weeklyMinutes ?? 120) * targetWeeks;
     const approach = courseStyle === "Concept-first"
       ? "Prioritize precise conceptual foundations and connected explanations before applied practice."
@@ -162,6 +167,9 @@ export async function POST(request: Request) {
         artifactPreference ? `Preferred real-world artifact: ${artifactPreference}` : "Choose one concrete professional artifact that can demonstrate the course outcome.",
         scenarioPreference ? `Scenario spine: ${scenarioPreference}` : "Choose one realistic scenario that can develop across modules without inventing factual claims.",
         sourcePackPromptBlock(sourcePack, "No source pack was provided. Do not invent citations or imply external verification."),
+        sourcePack.length
+          ? "For each lesson, return sourceIds containing only supplied source IDs with safe HTTPS links that directly support that lesson. Use an empty array when no supplied source supports it. Never assign a source from its title or URL alone; its supplied note must support the planned use."
+          : "Return sourceIds: [] for every lesson.",
         "Use concept and worked-example lessons early, guided practice in the middle, and case, lab, or synthesis work when the learner has enough prerequisite knowledge.",
         "Module challenges and the capstone must be assessable from their success criteria. Adapt examples and practice to the learner's intended application.",
       ].filter(Boolean).join("\n");
@@ -224,7 +232,10 @@ export async function POST(request: Request) {
 
     let outline = response.output_parsed;
     let integrityIssues = outline ? inspectGeneratedContent(outline, topic, language) : [];
-    let outlineQualityIssues = outline ? courseQualityIssues(outline) : [];
+    let outlineQualityIssues = outline ? [
+      ...courseQualityIssues(outline),
+      ...outlineSourceAssignmentIssues(outline, sourcePack),
+    ] : [];
     let repairIssues = outline
       ? [
         ...integrityIssues.map((issue) => `${issue.path} ${issue.reason}`),
@@ -245,7 +256,10 @@ export async function POST(request: Request) {
       }
       outline = response.output_parsed;
       integrityIssues = outline ? inspectGeneratedContent(outline, topic, language) : [];
-      outlineQualityIssues = outline ? courseQualityIssues(outline) : [];
+      outlineQualityIssues = outline ? [
+        ...courseQualityIssues(outline),
+        ...outlineSourceAssignmentIssues(outline, sourcePack),
+      ] : [];
       repairIssues = outline
         ? [
             ...integrityIssues.map((issue) => `${issue.path} ${issue.reason}`),
@@ -258,7 +272,10 @@ export async function POST(request: Request) {
       response = await generateAndRecord(recoveryProfile, repairIssues);
       outline = response.output_parsed;
       integrityIssues = outline ? inspectGeneratedContent(outline, topic, language) : [];
-      outlineQualityIssues = outline ? courseQualityIssues(outline) : [];
+      outlineQualityIssues = outline ? [
+        ...courseQualityIssues(outline),
+        ...outlineSourceAssignmentIssues(outline, sourcePack),
+      ] : [];
       repairIssues = outline
         ? [
             ...integrityIssues.map((issue) => `${issue.path} ${issue.reason}`),

@@ -34,6 +34,7 @@ export async function GET(request: Request, { params }: RouteParams) {
         course.aiAssisted === true || !String(course.id ?? "").startsWith("catalog-"),
         String(course.topic ?? ""),
         String(course.language ?? "English"),
+        course,
       ),
       { headers: { "Cache-Control": "private, no-store" } },
     );

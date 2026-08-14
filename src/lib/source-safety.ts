@@ -1,4 +1,4 @@
-import type { CourseSource } from "@/lib/course-types";
+import type { Course, CourseSource, LessonCitation, LessonCitationSection, LessonData } from "@/lib/course-types";
 
 const BLOCKED_HOSTS = new Set(["localhost", "localhost.localdomain"]);
 
@@ -38,6 +38,10 @@ export function sourcePackPromptBlock(sourcePack: CourseSource[], emptyMessage: 
     id: source.id,
     label: promptText(source.label),
     url: promptText(source.url),
+    author: promptText(source.author),
+    publisher: promptText(source.publisher),
+    publicationDate: source.publicationDate,
+    accessedAt: source.accessedAt,
     note: promptText(source.note),
     kind: source.kind,
     rights: source.rights,
@@ -50,6 +54,95 @@ export function sourcePackPromptBlock(sourcePack: CourseSource[], emptyMessage: 
     JSON.stringify(sourceData),
     "</SOURCE_DATA>",
   ].join("\n");
+}
+
+export function assignedSourcePack(sourcePack: CourseSource[], sourceIds: string[] | undefined) {
+  const assignedIds = new Set(sourceIds ?? []);
+  return sourcePack.filter((source) => assignedIds.has(source.id));
+}
+
+export function outlineSourceAssignmentIssues(
+  outline: { modules?: Array<{ lessons?: Array<{ sourceIds?: string[] }> }> } | null | undefined,
+  sourcePack: CourseSource[],
+) {
+  const issues: string[] = [];
+  const eligibleIds = new Set(sourcePack
+    .filter((source) => source.url && isSafePublicSourceUrl(source.url) && source.note?.trim())
+    .map((source) => source.id));
+  for (const [moduleIndex, courseModule] of (outline?.modules ?? []).entries()) {
+    for (const [lessonIndex, lesson] of (courseModule.lessons ?? []).entries()) {
+      const sourceIds = lesson.sourceIds ?? [];
+      if (new Set(sourceIds).size !== sourceIds.length) {
+        issues.push(`modules[${moduleIndex}].lessons[${lessonIndex}].sourceIds contains a duplicate source ID.`);
+      }
+      for (const sourceId of sourceIds) {
+        if (!eligibleIds.has(sourceId)) {
+          issues.push(`modules[${moduleIndex}].lessons[${lessonIndex}].sourceIds contains ${sourceId}, which is not a supplied source with both a safe public HTTPS link and a supporting evidence note.`);
+        }
+      }
+    }
+  }
+  return issues;
+}
+
+function citationSectionText(lesson: Partial<LessonData>, section: LessonCitationSection) {
+  switch (section) {
+    case "content":
+      return lesson.content ?? "";
+    case "key_takeaway":
+      return lesson.keyTakeaways?.join("\n") ?? "";
+    case "guided_practice":
+      return lesson.guidedPractice
+        ? [lesson.guidedPractice.prompt, ...lesson.guidedPractice.steps, lesson.guidedPractice.modelAnswer].join("\n")
+        : "";
+    case "transfer_task":
+      return lesson.transferTask
+        ? [lesson.transferTask.prompt, ...lesson.transferTask.successCriteria, lesson.transferTask.modelResponse].join("\n")
+        : "";
+    case "quiz_explanation":
+      return lesson.quizzes?.flatMap((quiz) => [quiz.explanation, ...(quiz.optionFeedback ?? [])]).join("\n") ?? "";
+  }
+}
+
+function comparableText(value: string) {
+  return value.normalize("NFKC").replace(/\s+/g, " ").trim().toLocaleLowerCase("en");
+}
+
+export function lessonCitationQualityIssues(
+  citations: Array<Omit<Pick<LessonCitation, "sourceId" | "claim" | "section" | "locator">, "locator"> & { locator?: string | null }> | undefined,
+  assignedSources: CourseSource[],
+  lesson: Partial<LessonData>,
+) {
+  const issues: string[] = [];
+  const assignedById = new Map(assignedSources.map((source) => [source.id, source]));
+  const seen = new Set<string>();
+  for (const [index, citation] of (citations ?? []).entries()) {
+    const source = assignedById.get(citation.sourceId);
+    if (!source) {
+      issues.push(`citations[${index}] references ${citation.sourceId}, which is not assigned to this lesson.`);
+      continue;
+    }
+    if (!source.url || !isSafePublicSourceUrl(source.url)) {
+      issues.push(`citations[${index}] must resolve to an assigned source with a safe public HTTPS deep link.`);
+    }
+    const key = `${citation.sourceId}\u0000${comparableText(citation.claim)}`;
+    if (seen.has(key)) issues.push(`citations[${index}] duplicates an earlier source-backed claim.`);
+    seen.add(key);
+    if (!comparableText(citationSectionText(lesson, citation.section)).includes(comparableText(citation.claim))) {
+      issues.push(`citations[${index}].claim must be an exact concise statement already present in its declared lesson section.`);
+    }
+  }
+  return issues;
+}
+
+export function sourceReviewForCourse(course: Course | undefined, sourceId: string) {
+  const resolution = course?.manualReviewResolution;
+  const reviewIsCurrent = resolution?.status === "approved"
+    && (course?.isPublic === true || course?.pipelineStage === "ready_to_publish" || course?.pipelineStage === "published");
+  const verified = reviewIsCurrent && resolution?.verifiedSourceIds?.includes(sourceId);
+  return verified
+    ? { reviewStatus: "verified" as const, reviewedAt: resolution.reviewedAt }
+    : { reviewStatus: "unreviewed" as const, reviewedAt: undefined };
 }
 
 export function sourcePackQualityIssues(sourcePack: CourseSource[] | undefined) {
