@@ -562,7 +562,8 @@ test("manual-review resolution is snapshot-bound, owner-only, evidence-gated, au
   expect(routeSource).toContain('course.pipelineStage === "ready_to_publish"');
   expect(routeSource).toContain("storedResolution?.idempotencyKey === idempotencyKey");
   expect(routeSource).toContain("MANUAL_REVIEW_EVIDENCE_REQUIRED");
-  expect(routeSource).toContain('source.kind === "primary" || source.kind === "official"');
+  expect(routeSource).toContain("isServerClassifiedResearchSource(source)");
+  expect(routeSource).not.toContain('source.kind === "primary" || source.kind === "official"');
   expect(storageSource).toContain("course_manual_review_${resolution.status}");
   expect(storageSource).toContain("verifiedSourceIds: resolution.verifiedSourceIds");
   expect(storageSource).toContain("publicationContentFingerprint(lesson)");

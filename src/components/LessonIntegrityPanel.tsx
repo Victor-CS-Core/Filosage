@@ -93,8 +93,8 @@ export default function LessonIntegrityPanel({
             if (!source) return null;
             return <article key={citation.id} className="lesson-citation">
               <div className="lesson-citation-status">
-                {citation.reviewStatus === "verified" ? <CheckCircle2 size={15} /> : <ShieldCheck size={15} />}
-                <span>{citation.reviewStatus === "verified" ? "Owner verified" : "Review not recorded"}</span>
+                {citation.supportStatus === "supported" || citation.reviewStatus === "verified" ? <CheckCircle2 size={15} /> : <ShieldCheck size={15} />}
+                <span>{citation.supportStatus === "supported" ? "Automatically grounded" : citation.reviewStatus === "verified" ? "Owner verified for publication" : "Grounding record unavailable"}</span>
               </div>
               <blockquote>{citation.claim}</blockquote>
               <p>{citationSectionLabel[citation.section]}{citation.locator ? ` · ${citation.locator}` : ""}</p>

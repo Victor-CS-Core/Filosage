@@ -132,6 +132,7 @@ test("deletes every active account-data collection while excluding retained audi
     aiBudgetRecords: [{ id: "budget-a" }],
     accountLinkedProductEvents: [{ id: "event-a" }],
     referralCodes: [{ id: "referral-a" }],
+    courseResearchArtifacts: [{ id: "research-a" }],
   }, "waitlist/email-hash");
 
   expect(paths).toEqual(expect.arrayContaining([
@@ -143,6 +144,7 @@ test("deletes every active account-data collection while excluding retained audi
     "users/learner-123/lessonInteraction/interaction-a",
     "users/learner-123/lessonInteractionMutations/interaction-mutation-a",
     "users/learner-123/learningData/preferences",
+    "courseResearchArtifacts/research-a",
     "users/learner-123/billingCheckout/current",
     "usagePeriods/usage-a",
     "aiRequests/request-a",

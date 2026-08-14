@@ -100,6 +100,9 @@ export const COURSE_QUALITY_RULES = {
   SOURCE_CITATION_INVALID: {
     code: "CQ_SOURCE_004", version: 2, purpose: "Require every assigned source to resolve to a source-backed statement in visible lesson text", classification: "deterministic", severity: "blocker", source: "source_integrity", repairability: "assisted", suggestedAction: "Add or correct the structured citation without copying source text or inventing support.",
   },
+  SOURCE_RESEARCH_INVALID: {
+    code: "CQ_SOURCE_005", version: 1, purpose: "Require API-cited, server-classified research provenance and automatic claim support for grounded courses", classification: "deterministic", severity: "blocker", source: "source_integrity", repairability: "assisted", suggestedAction: "Repeat automatic research or regenerate only the unsupported claim against the immutable research snapshot.",
+  },
   SEMANTIC_REVIEW_REQUIRED: {
     code: "CQ_SEMANTIC_001", version: 1, purpose: "Require calibrated semantic or human review before V2 publication", classification: "semantic", severity: "error", source: "semantic", repairability: "manual", suggestedAction: "Review accuracy, coherence, filler, and objective-to-assessment meaning on this exact snapshot.",
   },

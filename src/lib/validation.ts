@@ -148,6 +148,7 @@ const lessonWithoutVisualsSchema = z.object({
   citations: z.array(z.object({
     id: z.string().trim().regex(/^citation-[a-z0-9-]{1,60}$/),
     sourceId: z.string().trim().regex(/^source-[a-z0-9-]{1,40}$/),
+    evidenceClaimId: z.string().trim().regex(/^evidence-[a-z0-9-]{1,80}$/).optional(),
     claim: z.string().trim().min(1).max(280),
     section: z.enum(["content", "key_takeaway", "guided_practice", "transfer_task", "quiz_explanation"]),
     locator: z.string().trim().min(1).max(160).optional(),
@@ -228,6 +229,7 @@ export const lessonGenerationSchema = lessonWithoutVisualsSchema.extend({
   experience: lessonExperienceSchema,
   citations: z.array(z.object({
     sourceId: z.string().trim().regex(/^source-[a-z0-9-]{1,40}$/),
+    evidenceClaimId: z.string().trim().regex(/^evidence-[a-z0-9-]{1,80}$/).nullable(),
     claim: z.string().trim().min(1).max(280),
     section: z.enum(["content", "key_takeaway", "guided_practice", "transfer_task", "quiz_explanation"]),
     locator: z.string().trim().min(1).max(160).nullable(),

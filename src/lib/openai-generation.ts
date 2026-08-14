@@ -1,6 +1,8 @@
 import { serverEnvironment } from "@/lib/runtime-environment";
 
 export const AI_PROMPT_VERSIONS = {
+  research: "2026-08-14-grounded-course-research-v1",
+  grounding: "2026-08-14-claim-grounding-v1",
   course: "2026-08-04-guided-apprenticeship",
   lesson: "2026-08-03-guided-apprenticeship",
   tutor: "2026-08-04-grounded-tutor",
@@ -10,14 +12,17 @@ export const AI_PROMPT_VERSIONS = {
 } as const;
 
 export const COURSE_PIPELINE_V2_PROMPT_VERSIONS = {
-  course: "2026-08-14-course-pipeline-v2",
-  lesson: "2026-08-14-course-pipeline-v2",
+  course: "2026-08-14-grounded-source-v3",
+  lesson: "2026-08-14-grounded-source-v3",
 } as const;
 
 export type AiReasoningEffort = "none" | "low" | "medium" | "high" | "xhigh" | "max";
 export type AiTextVerbosity = "low" | "medium" | "high";
 
 export type AiExecutionProfileId =
+  | "course.research"
+  | "course.grounding"
+  | "lesson.grounding"
   | "course.standard"
   | "course.repair"
   | "course.recovery"
@@ -50,6 +55,27 @@ interface ProfileSpec {
 }
 
 const PROFILE_SPECS: Record<AiExecutionProfileId, ProfileSpec> = {
+  "course.research": {
+    workload: "research",
+    modelEnv: ["OPENAI_COURSE_RESEARCH_MODEL", "OPENAI_COURSE_MODEL", "OPENAI_MODEL"],
+    defaultModel: "gpt-5.6-terra",
+    reasoningEffort: "high",
+    textVerbosity: "medium",
+  },
+  "course.grounding": {
+    workload: "grounding",
+    modelEnv: ["OPENAI_COURSE_GROUNDING_MODEL", "OPENAI_COURSE_MODEL", "OPENAI_MODEL"],
+    defaultModel: "gpt-5.6-terra",
+    reasoningEffort: "high",
+    textVerbosity: "low",
+  },
+  "lesson.grounding": {
+    workload: "grounding",
+    modelEnv: ["OPENAI_LESSON_GROUNDING_MODEL", "OPENAI_COURSE_MODEL", "OPENAI_MODEL"],
+    defaultModel: "gpt-5.6-terra",
+    reasoningEffort: "high",
+    textVerbosity: "low",
+  },
   "course.standard": {
     workload: "course",
     modelEnv: ["OPENAI_COURSE_MODEL", "OPENAI_MODEL"],

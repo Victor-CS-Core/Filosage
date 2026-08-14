@@ -15,6 +15,7 @@ import { coursePipelineFeatureFlags } from "@/lib/feature-flags";
 import { effectiveCourseReviewPolicy } from "@/lib/course-pipeline/review-policy";
 import { courseUsesPipelineV2 } from "@/lib/course-pipeline/feature-policy";
 import { isSafePublicSourceUrl } from "@/lib/source-safety";
+import { isServerClassifiedResearchSource } from "@/lib/source-research";
 
 const manualReviewSchema = z.object({
   decision: z.enum(["approved", "rejected"]),
@@ -118,7 +119,7 @@ export async function POST(
       .filter((source) => Boolean(source.url) && isSafePublicSourceUrl(String(source.url)))
       .map((source) => source.id));
     const authoritativeSources = new Set((course.sourcePack ?? [])
-      .filter((source) => (source.kind === "primary" || source.kind === "official") && Boolean(source.url) && isSafePublicSourceUrl(String(source.url)))
+      .filter((source) => isServerClassifiedResearchSource(source))
       .map((source) => source.id));
     const verifiedSourceIds = new Set(parsed.data.verifiedSourceIds);
     const selectedSourcesAreEligible = parsed.data.verifiedSourceIds.every((sourceId) => eligibleSources.has(sourceId));

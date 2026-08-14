@@ -27,11 +27,26 @@ function paragraph(sentence: string, repeat: number) {
   return Array.from({ length: repeat }, () => sentence).join(" ");
 }
 
+function sourceDataFromInput(input: string) {
+  const match = input.match(/<SOURCE_DATA>\s*([\s\S]*?)\s*<\/SOURCE_DATA>/);
+  try {
+    return match
+      ? JSON.parse(match[1]) as Array<{ id?: string; evidenceClaims?: Array<{ id?: string; claim?: string; locator?: string }> }>
+      : [];
+  } catch {
+    return [];
+  }
+}
+
 function stubLesson(input: string) {
   const concept = line(input, "Core concept: ") || "the core concept";
   const misconception = line(input, "Misconception to correct: ") || "a common misunderstanding";
   const mode = line(input, "Teaching mode: ") || "concept";
   const buildsOn = line(input, "Builds on: ");
+  const assignedSources = sourceDataFromInput(input);
+  const groundedSource = assignedSources.find((source) => source.id && source.evidenceClaims?.some((claim) => claim.id && claim.claim));
+  const groundedEvidence = groundedSource?.evidenceClaims?.find((claim) => claim.id && claim.claim);
+  const groundedClaim = groundedEvidence?.claim ?? "";
   const learningObjective = `Apply ${concept.toLowerCase()} to a new situation and explain the reasoning behind each step.`;
   const recognitionSituations = [
     "A learner can repeat the definition but cannot choose what to do next.",
@@ -135,7 +150,9 @@ function stubLesson(input: string) {
               };
   return {
     learningObjective,
-    citations: [],
+    citations: groundedSource?.id && groundedEvidence?.id && groundedClaim
+      ? [{ sourceId: groundedSource.id, evidenceClaimId: groundedEvidence.id, claim: groundedClaim, section: "content" as const, locator: groundedEvidence.locator }]
+      : [],
     connection: `This lesson builds directly on the previous concept and prepares the ground for what follows in the course sequence.`,
     keyTakeaways: [
       `${concept} is a tool for making decisions, not a definition to memorize.`,
@@ -143,7 +160,7 @@ function stubLesson(input: string) {
       "Transfer to a new situation is the real test of understanding.",
     ],
     experience,
-    content: `## Why it matters\n\n${body}\n\n## Working through it\n\n${paragraph(`Take the example apart step by step and say out loud what each part contributes; the goal is reasoning you could repeat on a different example tomorrow.`, 3)}\n\n## Where it goes next\n\n${paragraph(`Once this holds, the next lesson can build on it without re-explaining the foundation.`, 2)}`,
+    content: `## Why it matters\n\n${groundedClaim ? `${groundedClaim}\n\n` : ""}${body}\n\n## Working through it\n\n${paragraph(`Take the example apart step by step and say out loud what each part contributes; the goal is reasoning you could repeat on a different example tomorrow.`, 3)}\n\n## Where it goes next\n\n${paragraph(`Once this holds, the next lesson can build on it without re-explaining the foundation.`, 2)}`,
     guidedPractice: {
       prompt: `Work through a small example of ${concept.toLowerCase()} and narrate each decision.`,
       steps: [
@@ -308,6 +325,104 @@ function stubUsage() {
   return { input_tokens: 0, output_tokens: 0, input_tokens_details: { cached_tokens: 0 } };
 }
 
+function stubCourseResearch() {
+  return {
+    sources: [
+      {
+        label: "NIST research and standards resource",
+        url: "https://www.nist.gov/publications/local-grounded-research-fixture",
+        publisher: "National Institute of Standards and Technology",
+        publicationStatus: "released",
+        statusCheck: "released-no-withdrawal-found",
+        evidenceType: "official-guidance",
+        evidenceClaims: [
+          { claim: "NIST publishes released measurement research and technical standards that can ground factual explanations." },
+          { claim: "NIST guidance documents bounded methods and their intended technical scope for applied practice." },
+        ],
+        reputationRationale: "NIST is a United States government measurement and standards authority.",
+        limitations: "The specific resource must still be matched to the lesson claim.",
+      },
+      {
+        label: "OECD research and policy evidence",
+        url: "https://www.oecd.org/publications/local-grounded-research-fixture",
+        publisher: "Organisation for Economic Co-operation and Development",
+        publicationStatus: "released",
+        statusCheck: "released-no-withdrawal-found",
+        evidenceType: "official-guidance",
+        evidenceClaims: [
+          { claim: "OECD publishes released comparative research and documented policy evidence across participating economies." },
+          { claim: "OECD evidence describes jurisdiction and date limitations that should remain visible in analytical examples." },
+        ],
+        reputationRationale: "OECD is an established intergovernmental research and policy institution.",
+        limitations: "Coverage and applicability vary by country, date, and policy domain.",
+      },
+    ],
+  };
+}
+
+function stubLessonGrounding(input: string) {
+  const match = input.match(/<GROUNDING_DATA>([\s\S]*?)<\/GROUNDING_DATA>/);
+  let citations: Array<{ citationId?: string; sourceId?: string }>;
+  try {
+    const parsed = match ? JSON.parse(match[1]) as { citations?: Array<{ citationId?: string; sourceId?: string }> } : null;
+    citations = parsed?.citations ?? [];
+  } catch {
+    citations = [];
+  }
+  return {
+    overallVerdict: "supported",
+    unsupportedClaims: [],
+    assessments: citations.map((citation) => ({
+      citationId: citation.citationId,
+      sourceId: citation.sourceId,
+      verdict: "supported",
+      evidenceNoteMatched: true,
+      rationale: "The local fixture treats the supplied evidence note as direct support for this claim.",
+    })),
+  };
+}
+
+function stubCourseGrounding(input: string) {
+  const match = input.match(/<COURSE_GROUNDING_DATA>([\s\S]*?)<\/COURSE_GROUNDING_DATA>/);
+  let lessons: Array<{ moduleIndex?: number; lessonIndex?: number; assignedEvidence?: Array<{ sourceId?: string; evidenceClaims?: Array<{ id?: string }> }> }>;
+  try {
+    lessons = match ? JSON.parse(match[1]) as typeof lessons : [];
+  } catch {
+    lessons = [];
+  }
+  return {
+    assessments: lessons.map((lesson) => ({
+      moduleIndex: lesson.moduleIndex,
+      lessonIndex: lesson.lessonIndex,
+      sourceId: lesson.assignedEvidence?.[0]?.sourceId,
+      evidenceClaimIds: (lesson.assignedEvidence?.[0]?.evidenceClaims ?? []).flatMap((claim) => typeof claim.id === "string" ? [claim.id] : []).slice(0, 1),
+      verdict: "supported",
+      rationale: "The local fixture treats the assigned evidence note as direct support for the planned lesson.",
+    })),
+  };
+}
+
+function stubSourceEvidenceValidation(input: string) {
+  const match = input.match(/<SOURCE_VERIFICATION_DATA>([\s\S]*?)<\/SOURCE_VERIFICATION_DATA>/);
+  let sources: Array<{ url?: string; evidenceClaims?: Array<{ id?: string }> }>;
+  try {
+    sources = match ? JSON.parse(match[1]) as typeof sources : [];
+  } catch {
+    sources = [];
+  }
+  return {
+    sources: sources.map((source) => ({
+      url: source.url,
+      statusVerdict: "released-no-withdrawal-found",
+      claims: (source.evidenceClaims ?? []).map((claim) => ({
+        evidenceClaimId: claim.id,
+        verdict: "supported",
+        rationale: "The local evidence-validation fixture accepts this bounded claim for offline testing.",
+      })),
+    })),
+  };
+}
+
 function stubCommandCenterDraft(input: string) {
   const agentType = line(input, "Agent type:") || "support";
   const subject = line(input, "Subject:") || "Current operational work";
@@ -345,12 +460,59 @@ function localAiStub() {
         const format = params.text?.format?.name;
         const output_parsed = format === "command_center_draft"
           ? stubCommandCenterDraft(input)
+          : format === "course_research"
+            ? stubCourseResearch()
+          : format === "lesson_grounding"
+            ? stubLessonGrounding(input)
+          : format === "course_grounding"
+            ? stubCourseGrounding(input)
+          : format === "source_evidence_validation"
+            ? stubSourceEvidenceValidation(input)
           : format === "course_outline"
-            ? localCourseOutlineFixture(line(input, "Create a complete but efficient course outline for: ") || "Your topic")
+            ? localCourseOutlineFixture(
+                line(input, "Create a complete but efficient course outline for: ") || "Your topic",
+                sourceDataFromInput(input).flatMap((source) => typeof source.id === "string" ? [source.id] : []),
+              )
           : format === "capstone_verdict"
             ? stubCapstoneVerdict(input)
             : stubLesson(input);
-        return { id: `local-${crypto.randomUUID()}`, output_parsed, usage: stubUsage() };
+        const verificationMatch = input.match(/<SOURCE_VERIFICATION_DATA>([\s\S]*?)<\/SOURCE_VERIFICATION_DATA>/);
+        let verificationUrls: string[];
+        try {
+          const verificationData = verificationMatch ? JSON.parse(verificationMatch[1]) as Array<{ url?: string }> : [];
+          verificationUrls = verificationData.flatMap((item) => typeof item.url === "string" ? [item.url] : []);
+        } catch {
+          verificationUrls = [];
+        }
+        const output = format === "course_research"
+          ? [
+              { type: "web_search_call", id: `local-search-${crypto.randomUUID()}`, status: "completed", action: { type: "search", query: "local grounded course research" } },
+              {
+                type: "message",
+                content: [{
+                  type: "output_text",
+                  text: "Local grounded research fixture.",
+                  annotations: [
+                    { type: "url_citation", url: "https://www.nist.gov/publications/local-grounded-research-fixture", title: "NIST" },
+                    { type: "url_citation", url: "https://www.oecd.org/publications/local-grounded-research-fixture", title: "OECD" },
+                  ],
+                }],
+              },
+            ]
+          : format === "source_evidence_validation"
+            ? [
+                { type: "web_search_call", id: `local-verify-${crypto.randomUUID()}`, status: "completed", action: { type: "search", query: "local source evidence verification" } },
+                {
+                  type: "message",
+                  content: [{
+                    type: "output_text",
+                    text: "Local source evidence verification fixture.",
+                    annotations: verificationUrls.map((url) => ({ type: "url_citation", url, title: url })),
+                  }],
+                },
+              ]
+          : [];
+        return { id: `local-${crypto.randomUUID()}`, output_parsed, output, usage: stubUsage() };
       },
       create: async () => {
         const id = `local-${crypto.randomUUID()}`;

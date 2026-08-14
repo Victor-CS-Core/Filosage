@@ -769,19 +769,14 @@ test.describe("desktop application shell", () => {
     await page.getByRole("button", { name: /Continue/ }).click();
     await expect(page.getByRole("heading", { name: "Choose how the learning should unfold." })).toBeVisible();
     expect(generationRequests).toBe(0);
-    await expect(page.getByText("Trusted references")).toBeVisible();
-    await expect(page.getByText("Optional · add up to five")).toBeVisible();
+    await expect(page.getByText("Research and source validation are automatic.")).toBeVisible();
+    await expect(page.getByText(/searches released material from reputable institutions/)).toBeVisible();
     const teachingStep = page.getByRole("button", { name: /Teaching plan/ });
     const createButton = page.getByRole("button", { name: "Create private course" });
     await expect(teachingStep).toHaveAttribute("data-complete", "true");
     await expect(createButton).toBeEnabled();
-    await page.getByText("Trusted references").click();
-    await page.getByLabel("Source name").fill("NIST AI Risk Management Framework");
-    await expect(teachingStep).toHaveAttribute("data-complete", "false");
-    await expect(createButton).toBeDisabled();
-    await page.getByLabel("Evidence note in your own words").fill("Use the framework's risk measurement categories to structure the applied review.");
-    await expect(teachingStep).toHaveAttribute("data-complete", "true");
-    await expect(createButton).toBeEnabled();
+    await expect(page.getByLabel("Source name")).toHaveCount(0);
+    await expect(page.getByText("Trusted references")).toHaveCount(0);
     await expect(page.getByRole("status", { name: "" })).toHaveCount(0);
     await page.locator("label").filter({ hasText: /^Project-led/ }).click();
     await expect(page.getByRole("radio", { name: /Project-led/ })).toBeChecked();
@@ -789,6 +784,7 @@ test.describe("desktop application shell", () => {
     await createButton.click();
     await expect.poll(() => generationRequests).toBe(1);
     expect(generationBody).toMatchObject({ courseStyle: "Project-led" });
+    expect(generationBody).not.toHaveProperty("sourcePack");
     await expect(page).toHaveURL(/\/course\/Systems%20thinking%20for%20product%20decisions\?id=explicit-course-creation$/);
   });
 

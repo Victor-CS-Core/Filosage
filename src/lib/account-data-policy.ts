@@ -15,6 +15,7 @@ export interface AccountDeletionInventory {
   aiBudgetRecords: IdentifiedAccountDocument[];
   accountLinkedProductEvents: IdentifiedAccountDocument[];
   referralCodes: IdentifiedAccountDocument[];
+  courseResearchArtifacts: IdentifiedAccountDocument[];
 }
 
 export const AUTOMATED_ACCOUNT_DELETION_RETENTION = [
@@ -62,6 +63,7 @@ export function accountDeletionDocumentPaths(
     ...documentPaths("userAiBudgets", inventory.aiBudgetRecords),
     ...documentPaths("productEvents", inventory.accountLinkedProductEvents),
     ...documentPaths("referralCodes", inventory.referralCodes),
+    ...documentPaths("courseResearchArtifacts", inventory.courseResearchArtifacts),
     `userEngagement/${uid}`,
     `pricingIntents/${uid}`,
     ...(waitlistPath ? [waitlistPath] : []),

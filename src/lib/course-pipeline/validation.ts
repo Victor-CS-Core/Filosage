@@ -3,6 +3,7 @@ import { inspectGeneratedContent } from "@/lib/content-language";
 import { courseQualityIssues } from "@/lib/course-quality";
 import {
   COURSE_PIPELINE_VERSIONS,
+  supportsGroundedSourcePolicy,
   supportsStructuredSourcePolicy,
   type PublicationDecision,
   type ValidationIssue,
@@ -29,6 +30,13 @@ import {
 } from "@/lib/course-pipeline/compatibility";
 import { labPlanSchema, visualPlanSchema } from "@/lib/course-pipeline/schemas";
 import { effectiveCourseReviewPolicy } from "@/lib/course-pipeline/review-policy";
+import { automaticCitationGroundingIssues, groundedSourcePackIssues } from "@/lib/source-research";
+import {
+  COURSE_GROUNDING_EVALUATOR_VERSION,
+  courseGroundingFingerprint,
+  courseGroundingIssues,
+  type CourseGroundingResult,
+} from "@/lib/source-grounding";
 
 function issuePath(prefix: string, path: PropertyKey[]) {
   return path.length ? `${prefix}.${path.map(String).join(".")}` : prefix;
@@ -312,6 +320,35 @@ export async function validateCourseCandidateV2(
       message,
     )));
   }
+  if (supportsGroundedSourcePolicy(course.sourcePolicyVersion)) {
+    executedCodes.add(COURSE_QUALITY_RULES.SOURCE_RESEARCH_INVALID.code);
+    findings.push(...groundedSourcePackIssues(course.sourcePack ?? []).map((message) => issueFromRule(
+      COURSE_QUALITY_RULES.SOURCE_RESEARCH_INVALID,
+      "course.sourcePack",
+      message,
+    )));
+    const expectedGroundingFingerprint = courseGroundingFingerprint(course, course.sourcePack ?? []);
+    if (course.sourceGroundingEvaluatorStatus !== "executed"
+      || course.sourceGroundingEvaluatorVersion !== COURSE_GROUNDING_EVALUATOR_VERSION
+      || course.sourceGroundingFingerprint !== expectedGroundingFingerprint
+      || !Array.isArray(course.sourceGroundingAssessments)) {
+      findings.push(issueFromRule(
+        COURSE_QUALITY_RULES.SOURCE_RESEARCH_INVALID,
+        "course.sourceGroundingEvaluatorStatus",
+        "The course lacks a persisted automatic outline-grounding result.",
+      ));
+    } else {
+      findings.push(...courseGroundingIssues(
+        { assessments: course.sourceGroundingAssessments } as CourseGroundingResult,
+        course,
+        course.sourcePack ?? [],
+      ).map((message) => issueFromRule(
+        COURSE_QUALITY_RULES.SOURCE_RESEARCH_INVALID,
+        "course.sourceGroundingAssessments",
+        message,
+      )));
+    }
+  }
 
   if (!parsedCourse.success) {
     parsedCourse.error.issues.forEach((issue) => {
@@ -378,6 +415,14 @@ export async function validateCourseCandidateV2(
         `${path}.citations`,
         message,
       )));
+      if (supportsGroundedSourcePolicy(course.sourcePolicyVersion)) {
+        executedCodes.add(COURSE_QUALITY_RULES.SOURCE_RESEARCH_INVALID.code);
+        findings.push(...automaticCitationGroundingIssues(rawCitations, assignedSources, raw).map((message) => issueFromRule(
+          COURSE_QUALITY_RULES.SOURCE_RESEARCH_INVALID,
+          `${path}.citations`,
+          message,
+        )));
+      }
     }
     const parsed = parseLessonCandidate(raw);
     const legacyLesson = isLegacyLessonCandidate(raw);

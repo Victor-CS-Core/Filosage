@@ -57,9 +57,9 @@ Owner-scoped flags enforce dependencies. `COURSE_PUBLICATION_V2` cannot activate
 
 ## Known boundary for general release
 
-- A calibrated independent semantic evaluator and automated claim-to-source support are not implemented; the owner gate is the safe temporary route.
+- Automatic provider research, server source classification, outline grounding, and lesson claim-to-evidence evaluation are implemented for private creation as of 2026-08-14. Live calibration across adversarial factual domains is still required before describing the system as infallible or removing separate high-stakes publication controls.
 - The 100-request corpus proves deterministic routing/applicability invariants, not 100 live generated courses.
-- Course outline generation does not persist a partially completed provider response for restart; lessons are independently resumable by saved lesson.
+- A certified request-bound research snapshot is persisted before outline generation and reused after a restart; incomplete or rejected provider research is never persisted as eligible evidence. Lessons remain independently resumable by saved lesson.
 - Firestore transaction callbacks are behaviorally covered, but a dedicated emulator race suite is still recommended.
 - An operator timeline API exists; measured alerts, shadow baselines, and general-cohort thresholds still require real traffic.
 

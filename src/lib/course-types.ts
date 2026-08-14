@@ -29,6 +29,9 @@ export type PracticeType =
 export type SourceKind = "primary" | "official" | "licensed" | "author-provided";
 export type SourceRights = "link-only" | "public-domain" | "licensed" | "author-owned";
 export type SourceReviewStatus = "unreviewed" | "verified";
+export type SourceOrigin = "creator" | "web-search";
+export type SourceAuthorityClass = "government" | "intergovernmental" | "standards" | "scholarly";
+export type SourceEvidenceType = "primary-study" | "systematic-review" | "official-guidance" | "standard" | "official-dataset";
 
 export interface CourseSource {
   id: string;
@@ -43,6 +46,24 @@ export interface CourseSource {
   note?: string;
   reviewStatus?: SourceReviewStatus;
   reviewedAt?: string;
+  origin?: SourceOrigin;
+  declaredKind?: SourceKind;
+  authorityClass?: SourceAuthorityClass;
+  authorityFamily?: string;
+  evidenceType?: SourceEvidenceType;
+  qualityTier?: "vetted";
+  citationVerified?: boolean;
+  researchPolicyVersion?: string;
+  retrievedAt?: string;
+  reputationRationale?: string;
+  limitations?: string;
+  publicationStatus?: "released";
+  statusCheck?: "released-no-withdrawal-found";
+  researchResponseId?: string;
+  researchCallIds?: string[];
+  evidenceClaims?: Array<{ id: string; claim: string; locator?: string }>;
+  evidenceValidationResponseId?: string;
+  evidenceValidationCallIds?: string[];
 }
 
 export type LessonCitationSection = "content" | "key_takeaway" | "guided_practice" | "transfer_task" | "quiz_explanation";
@@ -50,12 +71,17 @@ export type LessonCitationSection = "content" | "key_takeaway" | "guided_practic
 export interface LessonCitation {
   id: string;
   sourceId: string;
+  evidenceClaimId?: string;
   claim: string;
   section: LessonCitationSection;
   locator?: string;
   objectiveIds?: string[];
   reviewStatus?: SourceReviewStatus;
   reviewedAt?: string;
+  supportStatus?: "supported";
+  supportEvaluatorVersion?: string;
+  supportFingerprint?: string;
+  supportedAt?: string;
 }
 
 export type LessonExperience =
@@ -148,6 +174,17 @@ export interface Course {
   labRegistryVersion?: string;
   visualPolicyVersion?: string;
   sourcePolicyVersion?: string;
+  sourceGroundingEvaluatorVersion?: string;
+  sourceGroundingEvaluatorStatus?: "executed" | "not_executed";
+  sourceGroundingFingerprint?: string;
+  sourceGroundingAssessments?: Array<{
+    moduleIndex: number;
+    lessonIndex: number;
+    sourceId: string;
+    evidenceClaimIds: string[];
+    verdict: "supported" | "partial" | "unsupported";
+    rationale: string;
+  }>;
   manualReviewPolicy?: { version: string; required: boolean; reasonCodes: string[] };
   manualReviewResolution?: {
     status: "approved" | "rejected";
@@ -265,6 +302,15 @@ export interface LessonData {
       rights?: SourceRights;
       reviewStatus?: SourceReviewStatus;
       reviewedAt?: string;
+      origin?: SourceOrigin;
+      authorityClass?: SourceAuthorityClass;
+      evidenceType?: SourceEvidenceType;
+      qualityTier?: "vetted";
+      citationVerified?: boolean;
+      researchPolicyVersion?: string;
+      retrievedAt?: string;
+      publicationStatus?: "released";
+      statusCheck?: "released-no-withdrawal-found";
     }>;
     citations: LessonCitation[];
     qualityContractVersion?: string;
@@ -276,6 +322,9 @@ export interface LessonData {
     labRegistryVersion?: string;
     visualPolicyVersion?: string;
     sourcePolicyVersion?: string;
+    claimSupportEvaluatorVersion?: string;
+    claimSupportEvaluatorStatus?: "executed" | "not_executed";
+    claimSupportFingerprint?: string;
   };
 }
 

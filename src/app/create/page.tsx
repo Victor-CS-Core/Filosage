@@ -15,12 +15,10 @@ import {
   ShieldCheck,
   Sparkles,
   Target,
-  Trash2,
 } from "lucide-react";
 import AppShell from "@/components/AppShell";
 import { useAuth } from "@/components/AuthProvider";
 import { createClientId } from "@/lib/browser-compat";
-import { isSafePublicSourceUrl } from "@/lib/source-safety";
 import styles from "./create.module.css";
 
 const examples = [
@@ -41,28 +39,6 @@ const steps = [
   { label: "Teaching plan", description: "Shape the course", icon: FileCheck2 },
 ] as const;
 
-type SourceDraft = {
-  label: string;
-  url: string;
-  note: string;
-  author: string;
-  publisher: string;
-  publicationDate: string;
-  kind: "primary" | "official" | "licensed" | "author-provided";
-  rights: "link-only" | "public-domain" | "licensed" | "author-owned";
-};
-
-const emptySource = (): SourceDraft => ({
-  label: "",
-  url: "",
-  note: "",
-  author: "",
-  publisher: "",
-  publicationDate: "",
-  kind: "official",
-  rights: "link-only",
-});
-
 export default function CreateCoursePage() {
   const { user, canCreateCourses, account } = useAuth();
   const [activeStep, setActiveStep] = useState(0);
@@ -74,14 +50,13 @@ export default function CreateCoursePage() {
   const [artifactPreference, setArtifactPreference] = useState("");
   const [scenarioPreference, setScenarioPreference] = useState("");
   const [language, setLanguage] = useState("English");
-  const [sources, setSources] = useState<SourceDraft[]>([emptySource()]);
   const [level, setLevel] = useState<"Foundations" | "Intermediate" | "Advanced">("Foundations");
   const [weeklyMinutes, setWeeklyMinutes] = useState(120);
   const [targetWeeks, setTargetWeeks] = useState(4);
   const [courseStyle, setCourseStyle] = useState<(typeof courseStyles)[number]["value"]>("Balanced");
   const [submitting, setSubmitting] = useState(false);
   const [generationProgress, setGenerationProgress] = useState(0);
-  const [generationStage, setGenerationStage] = useState("Creating your private course map");
+  const [generationStage, setGenerationStage] = useState("Researching released, reputable sources");
   const [error, setError] = useState<string | null>(null);
   const requestIdentityRef = useRef<{ signature: string; key: string } | null>(null);
   const stepHeadingRef = useRef<HTMLHeadingElement>(null);
@@ -108,32 +83,11 @@ export default function CreateCoursePage() {
     if (!user || !canCreateCourses || account?.courseCapacity?.remaining === 0 || !topic.trim() || !goal.trim() || !background.trim()) return;
     setSubmitting(true);
     setGenerationProgress(8);
-    setGenerationStage("Creating your private course map");
+    setGenerationStage("Researching released, reputable sources");
     setError(null);
     try {
       const token = await user.getIdToken();
-      const enteredSources = sources.filter((source) =>
-        source.label.trim()
-        || source.url.trim()
-        || source.note.trim()
-        || source.author.trim()
-        || source.publisher.trim()
-        || source.publicationDate,
-      );
-      const incompleteSource = enteredSources.find((source) => !source.label.trim() || (!source.url.trim() && !source.note.trim()));
-      if (incompleteSource) throw new Error("Give every reference a name and either a secure URL or a supporting note.");
-      const sourcePack = enteredSources.map((source, index) => ({
-        id: `source-${index + 1}`,
-        label: source.label.trim(),
-        url: source.url.trim() || undefined,
-        note: source.note.trim() || undefined,
-        author: source.author.trim() || undefined,
-        publisher: source.publisher.trim() || undefined,
-        publicationDate: source.publicationDate || undefined,
-        kind: source.kind,
-        rights: source.rights,
-      }));
-      const requestBody = { topic, goal, application, background, artifactPreference, scenarioPreference, sourcePack, level, weeklyMinutes, targetWeeks, courseStyle, language };
+      const requestBody = { topic, goal, application, background, artifactPreference, scenarioPreference, level, weeklyMinutes, targetWeeks, courseStyle, language };
       const signature = JSON.stringify(requestBody);
       if (requestIdentityRef.current?.signature !== signature) {
         requestIdentityRef.current = { signature, key: createClientId() };
@@ -170,22 +124,7 @@ export default function CreateCoursePage() {
   const weeklySessions = Math.max(1, Math.round(weeklyMinutes / 30));
   const outcomeComplete = topic.trim().length >= 2 && Boolean(goal.trim());
   const paceComplete = Boolean(background.trim() && level && targetWeeks >= 2 && weeklyMinutes >= 30);
-  const enteredSourceCount = sources.filter((source) =>
-    source.label.trim()
-    || source.url.trim()
-    || source.note.trim()
-    || source.author.trim()
-    || source.publisher.trim()
-    || source.publicationDate,
-  ).length;
-  const referencesComplete = sources.every((source) => {
-    const label = source.label.trim();
-    const url = source.url.trim();
-    const note = source.note.trim();
-    if (!label && !url && !note) return true;
-    return label.length >= 2 && Boolean(url || note) && (!url || isSafePublicSourceUrl(url));
-  });
-  const teachingComplete = Boolean(courseStyle) && referencesComplete;
+  const teachingComplete = Boolean(courseStyle);
   const formReady = outcomeComplete && paceComplete && teachingComplete;
   const contextCount = [application, artifactPreference, scenarioPreference, background].filter((value) => value.trim()).length;
   const stepValidity = [outcomeComplete, paceComplete, teachingComplete];
@@ -200,7 +139,7 @@ export default function CreateCoursePage() {
         <header className={styles.intro}>
           <div>
             <h1>Build toward a real outcome.</h1>
-            <p>Give Filosage the result you need, the time you have, and how you learn best. You’ll get a private course map to review before any lesson is published.</p>
+            <p>Give Filosage the result you need, the time you have, and how you learn best. Filosage researches reputable released sources, builds a private course map, and checks lesson claims automatically.</p>
           </div>
           <div className={styles.introMeta} aria-label="Course creation details">
             <span><LockKeyhole size={15} /> Private draft</span>
@@ -335,53 +274,14 @@ export default function CreateCoursePage() {
                       <p className={styles.fieldHint}>Use a specific language or bilingual pairing, such as English, Spanish, or Greek and English.</p>
                     </div>
 
-                    <details className={styles.optionalDetails}>
-                      <summary><span><strong>Trusted references</strong><small>{enteredSourceCount ? `${enteredSourceCount} added` : "Optional · add up to five"}</small></span><Plus size={17} /></summary>
-                      <div className={styles.optionalContent}>
-                        <p className={styles.referenceIntro}>Add sources when accuracy or attribution depends on them. References improve the brief, but they do not replace your review of the generated course.</p>
-                        <div className={styles.sourceList}>
-                          {sources.map((source, index) => {
-                            const updateSource = (change: Partial<SourceDraft>) => setSources((current) => current.map((item, itemIndex) => itemIndex === index ? { ...item, ...change } : item));
-                            return (
-                              <fieldset className={styles.sourceDraft} key={`source-draft-${index}`}>
-                                <legend>Reference {index + 1}</legend>
-                                {sources.length > 1 && <button className={styles.removeSource} type="button" onClick={() => setSources((current) => current.filter((_, itemIndex) => itemIndex !== index))}><Trash2 size={14} /> Remove</button>}
-                                <div className={styles.field}>
-                                  <label htmlFor={`source-label-${index}`}><span>Source name</span></label>
-                                  <input id={`source-label-${index}`} name={`sourceLabel${index}`} value={source.label} onChange={(event) => updateSource({ label: event.target.value })} maxLength={120} placeholder="e.g. NIST AI Risk Management Framework" />
-                                </div>
-                                <div className={styles.field}>
-                                  <label htmlFor={`source-url-${index}`}><span>Secure source URL</span><small>Public HTTPS only</small></label>
-                                  <input id={`source-url-${index}`} name={`sourceUrl${index}`} type="url" inputMode="url" value={source.url} onChange={(event) => updateSource({ url: event.target.value })} maxLength={500} placeholder="https://..." />
-                                </div>
-                                <div className={styles.sourceMetaGrid}>
-                                  <div className={styles.field}><label htmlFor={`source-author-${index}`}><span>Author</span><small>Optional</small></label><input id={`source-author-${index}`} name={`sourceAuthor${index}`} value={source.author} onChange={(event) => updateSource({ author: event.target.value })} maxLength={160} autoComplete="off" /></div>
-                                  <div className={styles.field}><label htmlFor={`source-publisher-${index}`}><span>Publisher or organization</span><small>Optional</small></label><input id={`source-publisher-${index}`} name={`sourcePublisher${index}`} value={source.publisher} onChange={(event) => updateSource({ publisher: event.target.value })} maxLength={160} autoComplete="organization" /></div>
-                                </div>
-                                <div className={styles.sourceMetaGrid}>
-                                  <div className={styles.field}><label htmlFor={`source-kind-${index}`}><span>Source type</span></label><select id={`source-kind-${index}`} name={`sourceKind${index}`} value={source.kind} onChange={(event) => updateSource({ kind: event.target.value as SourceDraft["kind"] })}><option value="official">Official</option><option value="primary">Primary</option><option value="licensed">Licensed</option><option value="author-provided">Your material</option></select></div>
-                                  <div className={styles.field}><label htmlFor={`source-rights-${index}`}><span>Usage basis</span></label><select id={`source-rights-${index}`} name={`sourceRights${index}`} value={source.rights} onChange={(event) => updateSource({ rights: event.target.value as SourceDraft["rights"] })}><option value="link-only">Link only</option><option value="public-domain">Public domain</option><option value="licensed">Licensed</option><option value="author-owned">I own it</option></select></div>
-                                </div>
-                                <div className={styles.field}>
-                                  <label htmlFor={`source-date-${index}`}><span>Publication date</span><small>Optional</small></label>
-                                  <input id={`source-date-${index}`} name={`sourcePublicationDate${index}`} type="date" value={source.publicationDate} onChange={(event) => updateSource({ publicationDate: event.target.value })} />
-                                </div>
-                                <div className={styles.field}>
-                                  <label htmlFor={`source-note-${index}`}><span>Evidence note in your own words</span><small>{source.note.length}/800</small></label>
-                                  <textarea id={`source-note-${index}`} name={`sourceNote${index}`} value={source.note} onChange={(event) => updateSource({ note: event.target.value })} maxLength={800} rows={3} placeholder="Summarize the specific idea this source supports in your own words." />
-                                </div>
-                              </fieldset>
-                            );
-                          })}
-                        </div>
-                        {sources.length < 5 && <button className={`button button-secondary button-small ${styles.addSource}`} type="button" onClick={() => setSources((current) => [...current, emptySource()])}><Plus size={15} /> Add another reference</button>}
-                        <p className={styles.rightsNote}><ShieldCheck size={16} /> Cite and deep-link; do not paste full articles, paywalled text, or material you cannot reuse. A URL is never treated as proof that Filosage read or verified the page.</p>
-                      </div>
-                    </details>
+                    <div className={styles.reviewNote}>
+                      <ShieldCheck size={18} />
+                      <div><strong>Research and source validation are automatic.</strong><span>Filosage searches released material from reputable institutions, verifies API-cited deep links, and checks each lesson claim against its evidence before saving.</span></div>
+                    </div>
 
                     <div className={styles.reviewNote}>
                       <CheckCircle2 size={18} />
-                      <div><strong>Your first result is a private course map.</strong><span>Lessons become available in sequence. Review their accuracy and rights before publishing.</span></div>
+                      <div><strong>Your first result is a private course map.</strong><span>Lessons become available in sequence after automatic source and claim-support checks pass.</span></div>
                     </div>
                   </section>
                 )}
@@ -391,7 +291,7 @@ export default function CreateCoursePage() {
                 <div className={styles.generationProgress}>
                   <div><span role="status" aria-live="polite" aria-atomic="true">{generationStage}</span><strong aria-hidden="true">{generationProgress}%</strong></div>
                   <div className={styles.progressTrack} role="progressbar" aria-label="Course creation is in progress"><span style={{ transform: `scaleX(${generationProgress / 100})` }} /></div>
-                  <p>Creating an AI-assisted private draft from this brief. Review it before relying on or publishing it.</p>
+                  <p>Researching, generating, and checking the private course against its cited evidence.</p>
                 </div>
               )}
               {error && <p className={styles.formError} role="alert">{error}</p>}

@@ -18,8 +18,8 @@
 | Topic/source prompt injection | Prompt isolation and adversarial deterministic fixtures present; full live API eval pending |
 | Generated script/event markup | Raw HTML is not enabled in the Markdown runtime; live malicious-output fixture pending |
 | Malicious SVG | Raw SVG unsupported; generated instructional visuals are typed data |
-| Dangerous URLs | Public HTTPS/local-host/IP validation present; no source fetching exists |
-| SSRF | No current retrieval path; DNS/redirect/rebinding controls required before retrieval |
+| Dangerous URLs | Only public HTTPS URLs present in OpenAI `url_citation` annotations and covered by the versioned server authority registry can become sources; local hosts, credentials, IPs, and lookalikes are rejected |
+| SSRF | The application does not fetch or proxy source URLs; research uses the provider web-search tool with an allowlisted domain set, and displayed deep links remain outbound link-only references |
 | Cross-course substitution | Ownership and canonical lesson membership checks present; full emulator matrix pending |
 | Stale publish | Exact candidate and document fingerprints are rechecked transactionally; nested IDs invalidate readiness |
 | Stale repair overwrite | V2 patch and undo transactions check exact course/lesson fingerprints and reject newer edits |
@@ -27,4 +27,4 @@
 | Oversized model output | Token and schema field bounds present |
 | Sensitive logging | New pipeline events/rejection logs use privacy-safe actor hashes; UIDs remain only in protected audit/access-control records |
 
-High-stakes approval is owner-only, recently authenticated, exact-snapshot bound, audited, and requires explicit selection of at least one attached primary/official URL for medical, legal, financial, physical-safety, or freshness cases. This is human evidence verification, not automated claim support. `COURSE_PUBLICATION_V2` remains off until claim-level support, live security evaluation, and transaction/emulator coverage are complete.
+Private creation has no human-review gate. It runs provider web research, server provenance/reputation checks, course-plan grounding, lesson claim-support evaluation, and bounded automatic repair before saving. A later explicit public-release action remains separate: high-stakes publication approval is owner-only, recently authenticated, exact-snapshot bound, and audited. `COURSE_PUBLICATION_V2` remains conservative until live security evaluation and transaction/emulator coverage are complete.

@@ -153,6 +153,19 @@ export function toCourseDto(value: Record<string, unknown> | Course, canManage =
             publisher: typeof source.publisher === "string" ? source.publisher : undefined,
             publicationDate: typeof source.publicationDate === "string" ? source.publicationDate : undefined,
             accessedAt: typeof source.accessedAt === "string" ? source.accessedAt : undefined,
+            origin: source.origin === "web-search" || source.origin === "creator" ? source.origin : undefined,
+            authorityClass: ["government", "intergovernmental", "standards", "scholarly"].includes(String(source.authorityClass))
+              ? source.authorityClass as NonNullable<Course["sourcePack"]>[number]["authorityClass"]
+              : undefined,
+            evidenceType: ["primary-study", "systematic-review", "official-guidance", "standard", "official-dataset"].includes(String(source.evidenceType))
+              ? source.evidenceType as NonNullable<Course["sourcePack"]>[number]["evidenceType"]
+              : undefined,
+            qualityTier: source.qualityTier === "vetted" ? "vetted" as const : undefined,
+            citationVerified: source.citationVerified === true,
+            researchPolicyVersion: typeof source.researchPolicyVersion === "string" ? source.researchPolicyVersion : undefined,
+            retrievedAt: typeof source.retrievedAt === "string" ? source.retrievedAt : undefined,
+            publicationStatus: source.publicationStatus === "released" ? "released" as const : undefined,
+            statusCheck: source.statusCheck === "released-no-withdrawal-found" ? "released-no-withdrawal-found" as const : undefined,
             ...review,
           }];
         })
@@ -242,6 +255,9 @@ export function toLessonDto(
           section: citation.section as NonNullable<LessonData["citations"]>[number]["section"],
           locator: typeof citation.locator === "string" ? normalizeStructuredMarkdown(citation.locator) : undefined,
           objectiveIds: Array.isArray(citation.objectiveIds) ? citation.objectiveIds.map(String) : undefined,
+          supportStatus: citation.supportStatus === "supported" ? "supported" as const : undefined,
+          supportEvaluatorVersion: typeof citation.supportEvaluatorVersion === "string" ? citation.supportEvaluatorVersion : undefined,
+          supportedAt: typeof citation.supportedAt === "string" ? citation.supportedAt : undefined,
           ...sourceReviewForCourse(sourceReviewCourse, citation.sourceId),
         }];
       })
@@ -303,6 +319,19 @@ export function toLessonDto(
           rights: ["link-only", "public-domain", "licensed", "author-owned"].includes(String(item.rights))
             ? item.rights as NonNullable<LessonData["provenance"]>["sources"][number]["rights"]
             : undefined,
+          origin: item.origin === "web-search" || item.origin === "creator" ? item.origin : undefined,
+          authorityClass: ["government", "intergovernmental", "standards", "scholarly"].includes(String(item.authorityClass))
+            ? item.authorityClass as NonNullable<LessonData["provenance"]>["sources"][number]["authorityClass"]
+            : undefined,
+          evidenceType: ["primary-study", "systematic-review", "official-guidance", "standard", "official-dataset"].includes(String(item.evidenceType))
+            ? item.evidenceType as NonNullable<LessonData["provenance"]>["sources"][number]["evidenceType"]
+            : undefined,
+          qualityTier: item.qualityTier === "vetted" ? "vetted" as const : undefined,
+          citationVerified: item.citationVerified === true,
+          researchPolicyVersion: typeof item.researchPolicyVersion === "string" ? item.researchPolicyVersion : undefined,
+          retrievedAt: typeof item.retrievedAt === "string" ? item.retrievedAt : undefined,
+          publicationStatus: item.publicationStatus === "released" ? "released" as const : undefined,
+          statusCheck: item.statusCheck === "released-no-withdrawal-found" ? "released-no-withdrawal-found" as const : undefined,
           ...(sourceId ? sourceReviewForCourse(sourceReviewCourse, sourceId) : { reviewStatus: "unreviewed" as const }),
         }];
       }),

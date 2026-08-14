@@ -1609,6 +1609,7 @@ export async function deleteCourse(courseId: string) {
   });
 
   const dependentWrites: Array<Record<string, unknown>> = [
+    { delete: fullDocumentName(`courseResearchArtifacts/${courseId}`) },
     ...lessons.map((lesson) => ({
       delete: fullDocumentName(`courses/${courseId}/lessons/${lesson.id}`),
     })),
