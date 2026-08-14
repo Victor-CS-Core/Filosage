@@ -188,6 +188,54 @@ test("keeps the Spark and bottom sheet above mobile navigation with no overflow"
   expect(geometry.bottom).toBeLessThanOrEqual(geometry.navigationTop);
 });
 
+test("unfolds the support sheet from the Spark with a reversible paper-crumple transition", async ({ page }) => {
+  await page.setViewportSize({ width: 1366, height: 900 });
+  await page.goto("/support");
+  await page.getByRole("button", { name: "Open Support Center" }).click();
+  const dialog = page.locator("#global-support-center-drawer");
+  await expect(dialog).toHaveAttribute("data-state", "open");
+  const motion = await dialog.evaluate((element) => {
+    const surface = element.querySelector<HTMLElement>(".app-drawer-surface")!;
+    const style = getComputedStyle(surface);
+    const fragment = getComputedStyle(element, "::before");
+    const [originX, originY] = style.transformOrigin.split(" ").map(Number.parseFloat);
+    return {
+      transitionProperty: style.transitionProperty,
+      transitionDuration: style.transitionDuration,
+      originX,
+      originY,
+      width: surface.offsetWidth,
+      height: surface.offsetHeight,
+      clipPath: style.clipPath,
+      fragmentContent: fragment.content,
+      fragmentOpacity: fragment.opacity,
+      modal: element.matches(":modal"),
+    };
+  });
+  expect(motion.transitionProperty).toContain("clip-path");
+  const longestFloatingTransition = Math.max(...motion.transitionDuration.split(",").map((value) => Number.parseFloat(value) * (value.includes("ms") ? 1 : 1000)));
+  expect(longestFloatingTransition).toBeLessThanOrEqual(250);
+  expect(motion.originX).toBeCloseTo(motion.width, 1);
+  expect(motion.originY).toBeCloseTo(motion.height, 1);
+  expect(motion.modal).toBe(false);
+  expect(motion.clipPath).toContain("polygon");
+  expect(motion.fragmentContent).not.toBe("none");
+  expect(Number(motion.fragmentOpacity)).toBeLessThan(1);
+  if (process.env.CAPTURE_DASHBOARD === "1") {
+    await page.waitForTimeout(72);
+    await page.screenshot({ path: ".impeccable/review/support-paper-unfold-motion-desktop.png", fullPage: false });
+  }
+  await expect.poll(() => dialog.evaluate((element) => Number(getComputedStyle(element, "::before").opacity))).toBeLessThan(0.05);
+  if (process.env.CAPTURE_DASHBOARD === "1") {
+    await page.screenshot({ path: ".impeccable/review/support-paper-unfold-desktop.png", fullPage: false });
+  }
+
+  await page.getByRole("button", { name: "Close Support Center" }).evaluate((button: HTMLButtonElement) => button.click());
+  await page.waitForTimeout(32);
+  await expect(dialog).toHaveAttribute("data-state", "closing");
+  await expect(dialog).toBeHidden();
+});
+
 test("uses the themed Spark and honors reduced-motion mode", async ({ page }) => {
   await page.addInitScript(() => localStorage.setItem("filosage-theme", "dark"));
   await page.emulateMedia({ reducedMotion: "reduce", colorScheme: "light" });
@@ -196,12 +244,61 @@ test("uses the themed Spark and honors reduced-motion mode", async ({ page }) =>
   await expect(trigger).toBeVisible();
   await expect.poll(() => page.evaluate(() => document.documentElement.getAttribute("data-theme"))).toBe("dark");
   await expect.poll(() => page.evaluate(() => Array.from(document.querySelectorAll<HTMLMetaElement>('meta[name="theme-color"]')).every((meta) => meta.content.toUpperCase() === "#071127"))).toBe(true);
-  await trigger.hover();
-  await expect(page.getByRole("tooltip", { name: "Support center" })).toBeVisible();
+  const tooltip = page.getByRole("tooltip", { name: "Support center" });
+  if ((page.viewportSize()?.width ?? 0) > 900) {
+    await trigger.hover();
+    await expect(tooltip).toBeVisible();
+  } else {
+    await expect(tooltip).toBeHidden();
+  }
   await trigger.click();
-  await expect(page.getByRole("dialog", { name: "Support center" })).toBeVisible();
+  const dialog = page.getByRole("dialog", { name: "Support center" });
+  await expect(dialog).toBeVisible();
   await expect.poll(() => trigger.evaluate((element) => getComputedStyle(element).transform)).toBe("none");
   await expect.poll(() => trigger.locator("svg").evaluate((element) => getComputedStyle(element).stroke)).not.toBe("rgba(0, 0, 0, 0)");
+  const reducedMotion = await dialog.evaluate((element) => {
+    const surface = element.querySelector<HTMLElement>(".app-drawer-surface")!;
+    return {
+      transitionDuration: getComputedStyle(surface).transitionDuration,
+      fragmentDisplay: getComputedStyle(element, "::before").display,
+      clipPath: getComputedStyle(surface).clipPath,
+    };
+  });
+  const longestTransition = Math.max(...reducedMotion.transitionDuration.split(",").map((value) => Number.parseFloat(value) * (value.includes("ms") ? 1 : 1000)));
+  expect(longestTransition).toBeLessThanOrEqual(1);
+  expect(reducedMotion.fragmentDisplay).toBe("none");
+  expect(reducedMotion.clipPath).toBe("none");
+});
+
+test("switches an open support surface between desktop floating and tablet modal presentation", async ({ page }) => {
+  await page.setViewportSize({ width: 1366, height: 900 });
+  await page.goto("/support");
+  await page.getByRole("button", { name: "Open Support Center" }).click();
+  const dialog = page.getByRole("dialog", { name: "Support center" });
+  await expect.poll(() => dialog.evaluate((element) => element.matches(":modal"))).toBe(false);
+  await expect(dialog).toHaveAttribute("data-presentation", "floating");
+  const moveHandle = dialog.getByRole("button", { name: "Move Support center window" });
+  await expect(moveHandle).toBeVisible();
+  const initialBox = await dialog.boundingBox();
+  await moveHandle.focus();
+  await moveHandle.press("Shift+ArrowLeft");
+  await moveHandle.press("Shift+ArrowUp");
+  const movedBox = await dialog.boundingBox();
+  expect(movedBox?.x).toBeCloseTo((initialBox?.x ?? 0) - 48, 0);
+  expect(movedBox?.y).toBeCloseTo((initialBox?.y ?? 0) - 48, 0);
+
+  await page.setViewportSize({ width: 768, height: 1024 });
+  await expect.poll(() => dialog.evaluate((element) => element.matches(":modal"))).toBe(true);
+  await expect(dialog).toHaveAttribute("data-presentation", "modal");
+  await expect.poll(() => page.evaluate(() => document.documentElement.style.overflow)).toBe("hidden");
+
+  await page.setViewportSize({ width: 1366, height: 900 });
+  await expect.poll(() => dialog.evaluate((element) => element.matches(":modal"))).toBe(false);
+  await expect(dialog).toHaveAttribute("data-presentation", "floating");
+  await expect.poll(() => page.evaluate(() => document.documentElement.style.overflow)).not.toBe("hidden");
+  const restoredBox = await dialog.boundingBox();
+  expect(restoredBox?.x).toBeCloseTo(initialBox?.x ?? 0, 0);
+  expect(restoredBox?.y).toBeCloseTo(initialBox?.y ?? 0, 0);
 });
 
 test("fits the required desktop, tablet, and mobile viewport matrix", async ({ page }) => {
@@ -238,6 +335,7 @@ test("fits the required desktop, tablet, and mobile viewport matrix", async ({ p
         navigationTop,
         documentWidth: document.documentElement.scrollWidth,
         viewportWidth: document.documentElement.clientWidth,
+        modal: element.matches(":modal"),
       };
     });
     expect(geometry.left).toBeGreaterThanOrEqual(0);
@@ -245,8 +343,15 @@ test("fits the required desktop, tablet, and mobile viewport matrix", async ({ p
     expect(geometry.right).toBeLessThanOrEqual(viewport.width);
     expect(geometry.bottom).toBeLessThanOrEqual(viewport.height);
     expect(geometry.documentWidth).toBe(geometry.viewportWidth);
-    if (geometry.navigationTop !== null) expect(geometry.bottom).toBeLessThanOrEqual(geometry.navigationTop);
-    else expect(Math.round(geometry.bottom)).toBe(viewport.height);
+    if (viewport.width > 900) {
+      expect(geometry.modal).toBe(false);
+      expect(Math.round(viewport.width - geometry.right)).toBe(24);
+      expect(Math.round(viewport.height - geometry.bottom)).toBe(88);
+    } else {
+      expect(geometry.modal).toBe(true);
+      if (geometry.navigationTop !== null) expect(geometry.bottom).toBeLessThanOrEqual(geometry.navigationTop);
+      else expect(Math.round(geometry.bottom)).toBe(viewport.height);
+    }
     await dialog.getByRole("button", { name: "Close Support Center" }).click();
   }
 });

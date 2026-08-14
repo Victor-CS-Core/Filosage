@@ -61,7 +61,6 @@ export default function SupportPage() {
     <AppShell>
       <div className="support-page support-wiki-home">
         <header className="support-header support-wiki-header">
-          <p className="overline">Filosage support</p>
           <h1>What do you need help with?</h1>
           <p>Find a clear answer about learning, progress, account access, or privacy. Every guide below is checked against the current Filosage application.</p>
           <SupportSearch articles={searchItems} />

@@ -70,19 +70,146 @@
   pointer-events: none;
 }
 
-.drawer { width: min(440px, 100%); }
+.drawer {
+  --paper-crumple-enter: 220ms;
+  --paper-crumple-exit: 140ms;
+  width: min(440px, 100%);
+}
+
+.drawer:global([data-presentation="floating"]) {
+  --floating-paper-origin: bottom right;
+  --floating-paper-start-y: 24px;
+  --floating-paper-fragment-top: auto;
+  --floating-paper-fragment-bottom: 12px;
+  --floating-paper-fragment-shift-y: -132px;
+  --floating-paper-fragment-shift-y-alt: -78px;
+  --floating-paper-crumple: polygon(100% 100%, 97% 93%, 100% 84%, 92% 89%, 97% 76%, 86% 83%, 92% 68%, 78% 78%, 86% 60%, 70% 73%, 79% 51%, 61% 68%, 72% 42%, 53% 64%, 64% 33%, 44% 58%);
+  inset: auto 24px 88px auto;
+  width: min(440px, calc(100vw - 48px));
+  height: min(640px, calc(100dvh - 112px));
+  border-radius: var(--radius-lg);
+}
+
+.drawer::before,
+.drawer::after {
+  content: "";
+  position: absolute;
+  z-index: 2;
+  right: 14px;
+  bottom: 12px;
+  width: 74px;
+  height: 54px;
+  border: 1px solid var(--line-strong);
+  background-color: var(--surface);
+  background-image: var(--grain-sheet);
+  box-shadow: var(--shadow-control);
+  clip-path: polygon(8% 16%, 88% 0, 100% 72%, 62% 100%, 0 78%);
+  opacity: 0.94;
+  pointer-events: none;
+  transform: translate(0, 0) rotate(9deg) scale(0.58);
+  transform-origin: bottom right;
+  transition: opacity var(--paper-crumple-enter) var(--ease-out), transform var(--paper-crumple-enter) var(--ease-out);
+}
+
+.drawer::after {
+  right: 42px;
+  bottom: 38px;
+  width: 48px;
+  height: 38px;
+  clip-path: polygon(12% 0, 100% 24%, 78% 100%, 0 72%);
+  transform: translate(0, 0) rotate(-14deg) scale(0.5);
+}
+
+.drawer:global([data-motion-started="true"])::before {
+  opacity: 0;
+  transform: translate(-116px, -176px) rotate(-17deg) scale(0.78);
+}
+
+.drawer:global([data-motion-started="true"])::after {
+  opacity: 0;
+  transform: translate(-184px, -92px) rotate(19deg) scale(0.72);
+}
+
+.drawer:global([data-state="closing"])::before,
+.drawer:global([data-state="closing"])::after {
+  transition-duration: var(--paper-crumple-exit);
+  transition-timing-function: ease-in;
+}
 
 .drawer :global(.app-drawer-surface) {
-  background: var(--surface);
+  position: relative;
+  z-index: 1;
+  overflow: visible;
+  border-left: 1px solid var(--line-strong);
+  background-color: var(--surface);
+  background-image: var(--grain-sheet);
+  transform-origin: bottom right;
+  transition: opacity var(--paper-crumple-enter) var(--ease-out), transform var(--paper-crumple-enter) var(--ease-out), clip-path var(--paper-crumple-enter) var(--ease-out), filter var(--paper-crumple-enter) var(--ease-out);
+  clip-path: polygon(100% 100%, 100% 75%, 100% 50%, 100% 25%, 100% 0, 75% 0, 50% 0, 25% 0, 0 0, 0 25%, 0 50%, 0 75%, 0 100%, 25% 100%, 50% 100%, 75% 100%);
+}
+
+.drawer:global([data-presentation="floating"]) :global(.app-drawer-surface) {
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-window);
+}
+
+.drawer:global([data-presentation="floating"]) .panel { border-radius: inherit; }
+
+.drawer:global([data-state="opening"]):not(:global([data-motion-started="true"])) :global(.app-drawer-surface),
+.drawer:global([data-state="closed"]) :global(.app-drawer-surface),
+.drawer:global([data-state="closing"]) :global(.app-drawer-surface) {
+  opacity: 0.76;
+  transform: translate(30px, 30px) rotate(4deg) scale(0.2);
+  clip-path: polygon(100% 100%, 97% 93%, 100% 84%, 92% 89%, 97% 76%, 86% 83%, 92% 68%, 78% 78%, 86% 60%, 70% 73%, 79% 51%, 61% 68%, 72% 42%, 53% 64%, 64% 33%, 44% 58%);
+  filter: saturate(0.78) contrast(0.9);
+}
+
+.drawer:global([data-motion-started="true"]) :global(.app-drawer-surface) {
+  opacity: 1;
+  transform: translate(0) rotate(0) scale(1);
+  filter: none;
+}
+
+.drawer:global([data-state="closing"]) :global(.app-drawer-surface) {
+  transition-duration: var(--paper-crumple-exit);
+  transition-timing-function: ease-in;
 }
 
 .panel {
+  position: relative;
   width: 100%;
   height: 100%;
   min-height: 0;
   display: grid;
   grid-template-rows: auto auto minmax(0, 1fr);
-  background: var(--surface);
+  overflow: hidden;
+  background-color: var(--surface);
+  background-image: var(--paper-fiber);
+}
+
+.panel::after {
+  content: "";
+  position: absolute;
+  z-index: 5;
+  inset: 0;
+  background:
+    linear-gradient(26deg, transparent 0 46%, color-mix(in srgb, var(--line-strong) 34%, transparent) 46.2% 46.6%, transparent 46.8%),
+    linear-gradient(142deg, transparent 0 59%, color-mix(in srgb, var(--line-strong) 28%, transparent) 59.2% 59.6%, transparent 59.8%),
+    linear-gradient(77deg, transparent 0 72%, color-mix(in srgb, white 32%, transparent) 72.2% 72.7%, transparent 72.9%);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--paper-crumple-enter) var(--ease-out);
+}
+
+.drawer:global([data-state="opening"]) .panel::after,
+.drawer:global([data-state="closing"]) .panel::after { opacity: 0.74; }
+
+.drawer:global([data-state="closing"]) .panel::after { transition-duration: var(--paper-crumple-exit); }
+
+.trigger[aria-expanded="true"] .triggerIcon {
+  opacity: 0.72;
+  transform: rotate(45deg) scale(0.82);
 }
 
 .header {
@@ -491,6 +618,7 @@
   }
 
   .triggerWrap.withMobileNav { bottom: calc(72px + var(--space-lg) + env(safe-area-inset-bottom)); }
+  .tooltip { display: none; }
 
   .drawer:global(.app-drawer-mobile-bottom) {
     inset: auto 0 0;
@@ -508,6 +636,7 @@
     border-left: 0;
     border-radius: var(--radius-lg) var(--radius-lg) 0 0;
     box-shadow: 0 -6px 18px rgb(7 17 39 / 0.14);
+    transform-origin: bottom right;
   }
 
   .header { padding-left: max(20px, env(safe-area-inset-left)); padding-right: max(18px, env(safe-area-inset-right)); }
@@ -536,7 +665,22 @@
   .tooltip { transition-duration: 0.01ms !important; }
   .triggerIcon { transition-duration: 0.01ms !important; }
   .trigger:hover .triggerIcon,
-  .trigger:active .triggerIcon { transform: none; }
+  .trigger:active .triggerIcon,
+  .trigger[aria-expanded="true"] .triggerIcon { transform: none; }
+  .drawer::before,
+  .drawer::after,
+  .panel::after { display: none; }
+  .drawer :global(.app-drawer-surface),
+  .drawer:global([data-state="opening"]) :global(.app-drawer-surface),
+  .drawer:global([data-state="closed"]) :global(.app-drawer-surface),
+  .drawer:global([data-state="closing"]) :global(.app-drawer-surface),
+  .drawer:global([data-state="open"]) :global(.app-drawer-surface) {
+    opacity: 1;
+    transform: none;
+    clip-path: none;
+    filter: none;
+    transition-duration: 0.01ms !important;
+  }
   .loadingSkeleton :is(i, b, em) { animation: none; }
 }
 

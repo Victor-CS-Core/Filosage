@@ -1,4 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
+import AxeBuilder from "@axe-core/playwright";
 import type { Course } from "../src/lib/course-types";
 import type { CourseProgress } from "../src/lib/learning-types";
 import { restoreLocalLearner } from "./fixtures/local-learner";
@@ -37,6 +38,21 @@ const ownedCourses: Course[] = [
       lessons: [{ title: "Evidence first", concept: "Evidence", objective: "Classify a decision record." }],
     }],
   },
+  {
+    id: "systems-shell-course",
+    courseId: "systems-shell-course",
+    topic: "Systems thinking",
+    mission: "Map a feedback loop and identify a useful intervention.",
+    outcome: "Create a practical system map.",
+    level: "Intermediate",
+    category: "Strategy",
+    isPublic: false,
+    modules: [{
+      title: "Patterns and leverage",
+      description: "See how connected causes shape outcomes.",
+      lessons: [{ title: "Map the loop", concept: "Feedback loops", objective: "Draw a causal loop." }],
+    }],
+  },
 ];
 
 const learningProgress: CourseProgress[] = [{
@@ -72,6 +88,30 @@ const learningProgress: CourseProgress[] = [{
   },
 }];
 
+const secondLearningProgress: CourseProgress = {
+  courseId: "decision-shell-course",
+  topic: "Decision quality",
+  lastLessonId: "",
+  lastLessonTitle: "",
+  nextLessonId: "0-0",
+  nextLessonTitle: "Evidence first",
+  completedLessonIds: [],
+  totalLessons: 1,
+  studyMinutes: 0,
+  lastActivityAt: "2026-08-02T16:00:00.000Z",
+  startedAt: "2026-08-02T16:00:00.000Z",
+  lessons: {},
+};
+
+const thirdLearningProgress: CourseProgress = {
+  ...secondLearningProgress,
+  courseId: "systems-shell-course",
+  topic: "Systems thinking",
+  nextLessonTitle: "Map the loop",
+  lastActivityAt: "2026-08-01T18:00:00.000Z",
+  startedAt: "2026-08-01T18:00:00.000Z",
+};
+
 async function prepareOwnerShell(page: Page, progress: CourseProgress[] = learningProgress) {
   await restoreLocalLearner(page);
   await page.route("**/api/account", (route) => route.fulfill({
@@ -106,10 +146,14 @@ async function expectNoHorizontalPageOverflow(page: Page) {
   expect(dimensions.scrollWidth, JSON.stringify(dimensions.offenders)).toBeLessThanOrEqual(dimensions.clientWidth);
 }
 
+async function waitForDeckToSettle(page: Page) {
+  await expect.poll(() => page.locator(".course-deck-viewport").getAttribute("data-motion-state")).toBe("idle");
+}
+
 test.describe("desktop application shell", () => {
   test.use({ viewport: { width: 1366, height: 900 } });
 
-  test("uses a Learning Header with courses and account actions unified in the Command Center", async ({ page }) => {
+  test("uses a Learning Header with direct courses and a separate Command Center", async ({ page }) => {
     await prepareOwnerShell(page);
     await page.goto("/library");
 
@@ -133,7 +177,8 @@ test.describe("desktop application shell", () => {
     if (!activeCommandId) throw new Error("Command Center did not expose its active option.");
     await expect(page.locator(`#${activeCommandId}`)).toBeInViewport();
     await commandSearch.fill("private decision");
-    await expect(commandPalette.getByRole("option", { name: /Decision quality/ })).toBeVisible();
+    await expect(commandPalette.getByRole("option", { name: /Decision quality/ })).toHaveCount(0);
+    await expect(commandPalette.getByText("No matching destination")).toBeVisible();
     await page.keyboard.press("Escape");
     await expect(commandPalette).toBeHidden();
     await expect(commandTrigger).toBeFocused();
@@ -142,8 +187,27 @@ test.describe("desktop application shell", () => {
     await commandPalette.getByRole("option", { name: /My courses/ }).click();
     const coursesDialog = page.getByRole("dialog", { name: "My courses" });
     await expect(coursesDialog).toBeVisible();
+    await expect(coursesDialog).toHaveAttribute("data-state", "open");
+    expect(await coursesDialog.evaluate((element) => element.matches(":modal"))).toBe(false);
+    const shelfBox = await coursesDialog.boundingBox();
+    expect(shelfBox?.width).toBeLessThanOrEqual(440);
+    expect(shelfBox?.height).toBeLessThanOrEqual(560);
+    expect(shelfBox?.x).toBeGreaterThan(680);
+    await expect(page.locator("html")).not.toHaveCSS("overflow", "hidden");
+    const stacking = await page.evaluate(() => {
+      const layer = (value: string) => value === "auto" ? 0 : Number(value);
+      return {
+        shelf: layer(getComputedStyle(document.getElementById("course-switcher-drawer")!).zIndex),
+        card: layer(getComputedStyle(document.querySelector<HTMLElement>(".course-card")!).zIndex),
+      };
+    });
+    expect(stacking.shelf).toBeGreaterThan(stacking.card);
     await expect(coursesDialog.getByText("Morse Code", { exact: true })).toBeVisible();
     await expect(coursesDialog.getByText("Decision quality", { exact: true })).toBeVisible();
+    if (process.env.CAPTURE_DASHBOARD === "1") {
+      await page.waitForTimeout(460);
+      await page.screenshot({ path: ".impeccable/review/course-drawer-desktop.png", fullPage: false });
+    }
 
     const courseSearch = coursesDialog.getByPlaceholder("Search titles, lessons, or skills");
     await courseSearch.fill("private decision");
@@ -155,15 +219,18 @@ test.describe("desktop application shell", () => {
     await expect(coursesDialog.getByText("Morse Code", { exact: true })).toBeVisible();
     await coursesDialog.getByRole("button", { name: "Close course menu" }).click();
 
-    const accountTrigger = page.getByRole("button", { name: "Open Command Center for Playwright" });
-    await accountTrigger.focus();
-    await accountTrigger.press("Enter");
+    await commandTrigger.focus();
+    await commandTrigger.press("Enter");
     await expect(commandPalette).toBeVisible();
     await expect(commandPalette.getByRole("option", { name: /Filosage Pro Owner course access/ })).toBeVisible();
     await expect(commandPalette.getByRole("option", { name: /My courses Open private and published courses/ })).toBeVisible();
     await expect(commandPalette.getByRole("option", { name: /Learning profile/ })).toBeVisible();
     await expect(commandPalette.getByRole("option", { name: /Control room/ })).toBeVisible();
     await expect(commandPalette.getByRole("option", { name: /Support/ })).toBeVisible();
+    await expect(commandPalette.locator(".command-palette-icon[data-tone='teal']").first()).toBeVisible();
+    await expect(commandPalette.locator(".command-palette-icon[data-tone='blue']").first()).toBeVisible();
+    await expect(commandPalette.locator(".command-palette-icon[data-tone='coral']").first()).toBeVisible();
+    await expect(commandPalette.locator(".command-palette-icon[data-tone='gold']").first()).toBeVisible();
     const themeToggle = commandPalette.getByRole("switch", { name: "Dark mode" });
     await expect(themeToggle).toBeVisible();
     const initialThemeState = await themeToggle.getAttribute("aria-checked");
@@ -174,17 +241,20 @@ test.describe("desktop application shell", () => {
     await expect(commandPalette).toBeVisible();
     await expect(themeToggle).toHaveAttribute("aria-checked", initialThemeState ?? "false");
     await expect(commandPalette.getByRole("option", { name: /Sign out/ })).toBeVisible();
+    if (process.env.CAPTURE_DASHBOARD === "1") {
+      await page.screenshot({ path: ".impeccable/review/command-center-colors-desktop.png", fullPage: false });
+    }
 
     await page.locator(".command-palette-backdrop").click({ position: { x: 6, y: 6 } });
     await expect(commandPalette).toBeHidden();
-    await expect(accountTrigger).toBeFocused();
+    await expect(commandTrigger).toBeFocused();
 
-    await accountTrigger.click();
+    await commandTrigger.click();
     await commandPalette.getByRole("option", { name: /Support/ }).click();
     await expect(page).toHaveURL(/\/support$/);
   });
 
-  test("makes the active course and its lessons available from the Command Center", async ({ page }) => {
+  test("keeps course and lesson listings out of the Command Center", async ({ page }) => {
     await prepareOwnerShell(page);
     await page.route("**/api/courses/morse-shell-course", (route) => route.fulfill({ json: ownedCourses[0] }));
     await page.goto("/course/Morse%20Code?id=morse-shell-course");
@@ -193,19 +263,81 @@ test.describe("desktop application shell", () => {
     await page.getByRole("button", { name: /Search or jump anywhere/ }).click();
 
     const commandCenter = page.getByRole("dialog", { name: "Filosage Command Center" });
-    await expect(commandCenter.getByText("Current course", { exact: true })).toBeVisible();
-    await expect(commandCenter.getByRole("option", { name: /Morse Code Open the course overview/ })).toBeVisible();
-    await expect(commandCenter.getByRole("option", { name: /Hear the rhythm Decode the system/ })).toBeVisible();
+    await expect(commandCenter.getByText("Current course", { exact: true })).toHaveCount(0);
+    await expect(commandCenter.getByRole("option", { name: /Morse Code/ })).toHaveCount(0);
+    await expect(commandCenter.getByRole("option", { name: /Hear the rhythm/ })).toHaveCount(0);
     await commandCenter.getByRole("combobox", { name: "Search Filosage" }).fill("Build a message");
-    await commandCenter.getByRole("option", { name: /Build a message/ }).click();
-    await expect(page).toHaveURL(/\/lesson\/0-1\?id=morse-shell-course$/);
+    await expect(commandCenter.getByText("No matching destination")).toBeVisible();
+    await expect(page).toHaveURL(/\/course\/Morse%20Code\?id=morse-shell-course$/);
+  });
+
+  test("opens My courses from the top-right profile trigger and unfolds from that origin", async ({ page }) => {
+    await prepareOwnerShell(page);
+    await page.goto("/library");
+
+    await page.getByRole("button", { name: "Open My Courses for Playwright" }).click();
+    const shelf = page.getByRole("dialog", { name: "My courses" });
+    await expect(shelf).toHaveAttribute("data-state", "open");
+    expect(await shelf.evaluate((element) => element.matches(":modal"))).toBe(false);
+    const origin = await shelf.locator(".app-drawer-surface").evaluate((surface) => {
+      const [x, y] = getComputedStyle(surface).transformOrigin.split(" ").map(Number.parseFloat);
+      return { x, y, width: (surface as HTMLElement).offsetWidth };
+    });
+    expect(origin.x).toBeCloseTo(origin.width, 1);
+    expect(origin.y).toBeCloseTo(0, 1);
+
+    const moveHandle = shelf.getByRole("button", { name: "Move My courses window" });
+    await expect(shelf).toHaveAttribute("data-motion-settled", "true");
+    await expect(moveHandle).toBeVisible();
+    expect(await moveHandle.evaluate((handle) => {
+      const rect = handle.getBoundingClientRect();
+      const hit = document.elementFromPoint(rect.left + rect.width / 2, rect.top + rect.height / 2);
+      return hit === handle || handle.contains(hit);
+    })).toBe(true);
+    const initialBox = await shelf.boundingBox();
+    const handleBox = await moveHandle.boundingBox();
+    expect(initialBox).not.toBeNull();
+    expect(handleBox).not.toBeNull();
+    await page.mouse.move((handleBox?.x ?? 0) + (handleBox?.width ?? 0) / 2, (handleBox?.y ?? 0) + (handleBox?.height ?? 0) / 2);
+    await page.mouse.down();
+    await page.mouse.move((handleBox?.x ?? 0) - 80, (handleBox?.y ?? 0) + 60, { steps: 5 });
+    await page.mouse.up();
+    const draggedBox = await shelf.boundingBox();
+    expect((draggedBox?.x ?? 0)).toBeLessThan((initialBox?.x ?? 0) - 60);
+    expect((draggedBox?.y ?? 0)).toBeGreaterThan((initialBox?.y ?? 0) + 40);
+    await moveHandle.focus();
+    await moveHandle.press("Home");
+    await expect.poll(async () => (await shelf.boundingBox())?.x ?? -1).toBeCloseTo(initialBox?.x ?? 0, 0);
+    await expect.poll(async () => (await shelf.boundingBox())?.y ?? -1).toBeCloseTo(initialBox?.y ?? 0, 0);
+
+    for (let index = 0; index < 6; index += 1) await moveHandle.press("Shift+ArrowLeft");
+    for (let index = 0; index < 3; index += 1) await moveHandle.press("Shift+ArrowDown");
+    await page.setViewportSize({ width: 1024, height: 768 });
+    await expect.poll(async () => {
+      const rect = await shelf.boundingBox();
+      return Boolean(rect
+        && rect.x >= 12
+        && rect.y >= 12
+        && rect.x + rect.width <= 1012
+        && rect.y + rect.height <= 756);
+    }).toBe(true);
+
+    await page.setViewportSize({ width: 768, height: 1024 });
+    await expect.poll(() => shelf.evaluate((element) => element.matches(":modal"))).toBe(true);
+    await expect(shelf).toHaveAttribute("data-presentation", "modal");
+    await expect.poll(() => page.evaluate(() => document.documentElement.style.overflow)).toBe("hidden");
+
+    await page.setViewportSize({ width: 1366, height: 900 });
+    await expect.poll(() => shelf.evaluate((element) => element.matches(":modal"))).toBe(false);
+    await expect(shelf).toHaveAttribute("data-presentation", "floating");
+    await expect.poll(() => page.evaluate(() => document.documentElement.style.overflow)).not.toBe("hidden");
   });
 
   test("returns to the public landing page after signing out", async ({ page }) => {
     await prepareOwnerShell(page);
     await page.goto("/profile");
 
-    await page.getByRole("button", { name: "Open Command Center for Playwright" }).click();
+    await page.getByRole("button", { name: /Search or jump anywhere/ }).click();
     const commandPalette = page.getByRole("dialog", { name: "Filosage Command Center" });
     await commandPalette.getByRole("option", { name: /Sign out/ }).click();
 
@@ -234,52 +366,344 @@ test.describe("desktop application shell", () => {
     await expect(coursesDialog).toBeVisible();
   });
 
-  test("keeps the main workspace stable while a modal drawer opens and closes", async ({ page }) => {
+  test("uses a modal bottom sheet while the application is in its tablet shell", async ({ page }) => {
+    await page.setViewportSize({ width: 768, height: 1024 });
+    await prepareOwnerShell(page);
+    await page.goto("/library");
+
+    await expect(page.locator(".learning-header")).toBeHidden();
+    await page.getByRole("button", { name: /Open My Courses for Playwright/ }).click();
+    const sheet = page.getByRole("dialog", { name: "My courses" });
+    await expect(sheet).toHaveAttribute("data-state", "open");
+    expect(await sheet.evaluate((element) => element.matches(":modal"))).toBe(true);
+    const box = await sheet.boundingBox();
+    expect(Math.round(box?.x ?? -1)).toBe(0);
+    expect(Math.round((box?.x ?? -1) + (box?.width ?? 0))).toBe(768);
+    expect(Math.round((box?.y ?? -1) + (box?.height ?? 0))).toBe(1024);
+  });
+
+  test("keeps the floating course shelf above a very large active-course deck", async ({ page }) => {
+    const largeProgress = Array.from({ length: 45 }, (_, index): CourseProgress => ({
+      ...learningProgress[0],
+      courseId: `active-course-${index}`,
+      topic: `Active course ${index + 1}`,
+      startedAt: new Date(Date.UTC(2026, 7, 1, 16, index)).toISOString(),
+    }));
+    await prepareOwnerShell(page, largeProgress);
+    await page.goto("/");
+
+    await expect(page.locator(".course-deck-card.is-active")).toHaveCSS("z-index", "3");
+    await page.getByRole("button", { name: /Search or jump anywhere/ }).click();
+    await page.getByRole("dialog", { name: "Filosage Command Center" }).getByRole("option", { name: /My courses/ }).click();
+    const shelf = page.getByRole("dialog", { name: "My courses" });
+    await expect(shelf).toHaveAttribute("data-state", "open");
+    const layers = await page.evaluate(() => ({
+      shelf: Number(getComputedStyle(document.getElementById("course-switcher-drawer")!).zIndex),
+      activeCard: Number(getComputedStyle(document.querySelector<HTMLElement>(".course-deck-card.is-active")!).zIndex),
+    }));
+    expect(layers.shelf).toBeGreaterThan(layers.activeCard);
+  });
+
+  test("shows one active course without misleading carousel controls", async ({ page }) => {
+    await prepareOwnerShell(page);
+    await page.goto("/");
+
+    const deck = page.getByRole("region", { name: "Active course", exact: true });
+    await expect(deck).toBeVisible();
+    await expect(deck).not.toHaveAttribute("aria-roledescription");
+    await expect(page.getByRole("heading", { name: "Morse Code" })).toBeVisible();
+    await expect(page.getByRole("link", { name: /Continue/ })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Show next active course" })).toHaveCount(0);
+    await expect(page.getByRole("button", { name: "Customize" })).toHaveCount(0);
+    await expectNoHorizontalPageOverflow(page);
+    if (process.env.CAPTURE_DASHBOARD === "1") {
+      await page.screenshot({ path: ".impeccable/review/course-deck-desktop.png", fullPage: true });
+    }
+  });
+
+  test("gives the learner home distinct light and dark paper fields", async ({ page }) => {
+    await page.addInitScript(() => localStorage.setItem("filosage-theme", "light"));
     await prepareOwnerShell(page);
     await page.goto("/");
 
     const main = page.locator(".app-main");
-    const readLayout = () => main.evaluate((element) => ({
-      clientWidth: element.clientWidth,
-      left: element.getBoundingClientRect().left,
-    }));
-    const before = await readLayout();
+    const heading = page.locator(".course-deck-heading h1");
+    await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
+    await expect(main).toHaveCSS("background-color", "rgb(231, 221, 206)");
+    await expect(heading).toHaveCSS("color", "rgb(13, 27, 61)");
+    expect((await new AxeBuilder({ page }).include(".course-deck-section").analyze()).violations).toEqual([]);
+    await expect(page.locator(".learning-header .filosage-mark img")).toHaveAttribute("src", /filosage-theme-dark\.png/);
 
-    await page.getByRole("button", { name: "Customize" }).click();
-    const customizer = page.getByRole("dialog", { name: "Choose what helps you focus." });
-    await expect(customizer).toBeVisible();
-    expect(await readLayout()).toEqual(before);
+    await page.getByRole("button", { name: /Search or jump anywhere/ }).click();
+    const commandCenter = page.getByRole("dialog", { name: "Filosage Command Center" });
+    await commandCenter.getByRole("switch", { name: "Dark mode" }).click();
+    await commandCenter.getByRole("button", { name: "Close Command Center", exact: true }).click();
 
-    await customizer.getByRole("button", { name: "Close dashboard settings" }).click();
-    await expect(customizer).toBeHidden();
-    expect(await readLayout()).toEqual(before);
+    await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
+    await expect(main).toHaveCSS("background-color", "rgb(0, 13, 35)");
+    await expect(heading).toHaveCSS("color", "rgb(243, 234, 220)");
+    expect((await new AxeBuilder({ page }).include(".course-deck-section").analyze()).violations).toEqual([]);
   });
 
-  test("turns the learner home into a focused visual path with accessible reordering", async ({ page }) => {
+  test("keeps the B2 paper material coherent across core application routes", async ({ page }) => {
     await prepareOwnerShell(page);
+    const routes = [
+      { path: "/library", heading: /Find your next course/ },
+      { path: "/create", heading: /Build toward a real outcome/ },
+      { path: "/progress", heading: /Your progress/ },
+      { path: "/profile", heading: /Playwright/ },
+      { path: "/review", heading: /caught up|concept/ },
+      { path: "/pricing", heading: /Learn freely/ },
+      { path: "/support", heading: /What do you need help with/ },
+      { path: "/standard", heading: /Generated is not good enough/ },
+    ];
+
+    for (const route of routes) {
+      await page.goto(route.path);
+      await expect(page.getByRole("heading", { level: 1, name: route.heading })).toBeVisible();
+      await expect(page.locator(".app-main")).toHaveCSS("background-image", /svg/);
+      await expectNoHorizontalPageOverflow(page);
+      if (process.env.CAPTURE_DASHBOARD === "1" && ["/create", "/progress", "/pricing", "/support"].includes(route.path)) {
+        await page.screenshot({ path: `.impeccable/review/platform-${route.path.slice(1)}-desktop.png`, fullPage: false });
+      }
+    }
+  });
+
+  test("cycles the held card through the pile in either direction without stealing nested keyboard input", async ({ page }) => {
+    await prepareOwnerShell(page, [...learningProgress, secondLearningProgress, thirdLearningProgress]);
     await page.goto("/");
 
-    await expect(page.getByRole("region", { name: "Today's learning path" })).toBeVisible();
-    const sessionSequence = page.getByRole("group", { name: "Your focused session sequence" });
-    await expect(sessionSequence).toBeVisible();
-    await expect(sessionSequence.getByText("Recall", { exact: true })).toBeVisible();
-    await expect(sessionSequence.getByText("Learn", { exact: true })).toBeVisible();
-    await expect(sessionSequence.getByText("Reflect", { exact: true })).toBeVisible();
-    await expect(page.getByRole("complementary", { name: "Today's plan" })).toBeVisible();
-    await expect(page.getByRole("heading", { name: "Why this is next" })).toBeVisible();
-    await expect(page.getByRole("link", { name: "See learning evidence" })).toBeVisible();
-    await expectNoHorizontalPageOverflow(page);
-
-    await page.getByRole("button", { name: "Customize" }).click();
-    const customizer = page.getByRole("dialog", { name: "Choose what helps you focus." });
-    const mainSections = customizer.locator(".customizer-list").first();
-    const nextUpHandle = mainSections.getByRole("button", { name: "Drag Next up to reorder" });
-    await nextUpHandle.press("ArrowDown");
-    await expect(mainSections.getByRole("button", { name: /Drag .* to reorder/ }).first()).toHaveAccessibleName("Drag Achievements to reorder");
-    await expect(customizer.getByText("Next up moved down.")).toBeAttached();
-    await customizer.getByRole("button", { name: "Close dashboard settings" }).click();
+    const deck = page.getByRole("region", { name: /Active course/ });
+    const deckStatus = page.locator(".course-deck-controls [role='status']");
+    await expect(deckStatus).toContainText("Morse Code");
+    const inspectPile = () => page.locator(".course-deck-card.is-visible").evaluateAll((cards) => cards.map((card) => {
+      const rect = card.getBoundingClientRect();
+      const style = getComputedStyle(card);
+      const matrix = new DOMMatrixReadOnly(style.transform);
+      const pixelValues = style.boxShadow.match(/-?\d+(?:\.\d+)?px/g)?.map(Number.parseFloat) ?? [];
+      return {
+        left: rect.left,
+        right: rect.right,
+        width: (card as HTMLElement).offsetWidth,
+        height: (card as HTMLElement).offsetHeight,
+        zIndex: Number(style.zIndex),
+        scale: Math.hypot(matrix.a, matrix.b),
+        shadowY: pixelValues.at(-3) ?? 0,
+        shadowBlur: pixelValues.at(-2) ?? 0,
+        position: Number((card as HTMLElement).dataset.position),
+      };
+    }).sort((a, b) => a.position - b.position).slice(0, 3));
+    const pile = await inspectPile();
+    expect(pile).toHaveLength(3);
+    expect(pile[0].left).toBeLessThan(pile[1].left);
+    expect(pile[1].left).toBeLessThan(pile[2].left);
+    expect(Math.abs(pile[0].width - pile[1].width)).toBeLessThan(1);
+    expect(Math.abs(pile[0].width - pile[2].width)).toBeLessThan(1);
+    expect(Math.abs(pile[0].height - pile[1].height)).toBeLessThan(1);
+    expect(Math.abs(pile[0].height - pile[2].height)).toBeLessThan(1);
+    expect(pile.every((card) => Math.abs(card.scale - 1) < 0.001)).toBe(true);
+    expect(pile.map((card) => card.zIndex)).toEqual([3, 2, 1]);
+    expect(pile[0].shadowY).toBeGreaterThan(pile[1].shadowY);
+    expect(pile[1].shadowY).toBeGreaterThan(pile[2].shadowY);
+    expect(pile[0].shadowBlur).toBeGreaterThan(pile[1].shadowBlur);
+    expect(pile[1].shadowBlur).toBeGreaterThan(pile[2].shadowBlur);
+    expect(pile[2].left).toBeLessThan(1366);
+    await deck.focus();
+    await deck.press("ArrowRight");
+    await expect(deckStatus).toContainText("Decision quality");
+    await waitForDeckToSettle(page);
+    const continueLink = page.locator(".course-deck-card.is-active").getByRole("link", { name: /Continue/ });
+    await continueLink.focus();
+    await continueLink.press("ArrowRight");
+    await expect(deckStatus).toContainText("Decision quality");
+    await deck.press("Home");
+    await expect(deckStatus).toContainText("Morse Code");
     if (process.env.CAPTURE_DASHBOARD === "1") {
-      await page.screenshot({ path: ".impeccable/review/dashboard-desktop.png", fullPage: true });
+      await page.screenshot({ path: ".impeccable/review/course-deck-stack-motion-desktop.png", fullPage: true });
+    }
+    await expect(page.locator(".course-deck-card:is(.is-cycling-next, .is-cycling-previous)")).toHaveCount(0);
+    if (process.env.CAPTURE_DASHBOARD === "1") {
+      await page.screenshot({ path: ".impeccable/review/course-deck-stack-desktop.png", fullPage: true });
+    }
+
+    for (const viewport of [{ width: 1366, height: 900 }, { width: 320, height: 760 }]) {
+      await page.setViewportSize(viewport);
+      await deck.focus();
+      await deck.press("Home");
+      await expect(deckStatus).toContainText("Morse Code");
+      await waitForDeckToSettle(page);
+
+      const positions = await inspectPile();
+      expect(positions[1].left - positions[0].left, JSON.stringify({ positions, viewport })).toBeGreaterThan(0);
+      const activeCard = page.locator(".course-deck-card.is-active");
+      const start = await activeCard.boundingBox();
+      if (!start) throw new Error("Course Deck active card is not measurable.");
+      const startX = start.x + Math.min(start.width * 0.42, 180);
+      const startY = start.y + Math.min(start.height * 0.35, 190);
+
+      await page.mouse.move(startX, startY);
+      await page.mouse.down();
+      await page.mouse.move(startX - start.width * 0.25, startY, { steps: 8 });
+      await page.evaluate(() => new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))));
+      const heldX = await activeCard.evaluate((card) => Number.parseFloat(getComputedStyle(card).getPropertyValue("--deck-x")));
+      expect(Math.abs(heldX + start.width * 0.25), JSON.stringify({ heldX, width: start.width, viewport })).toBeLessThan(5);
+      await expect(page.locator(".course-deck-viewport")).toHaveAttribute("data-motion-state", "dragging");
+      await expect(page.locator(".course-deck-viewport")).toHaveAttribute("data-direction", "next");
+      const approaching = await page.locator(".course-deck-card[data-position='1']").boundingBox();
+      expect(approaching?.x ?? Number.POSITIVE_INFINITY).toBeLessThan(positions[1].left);
+      await page.mouse.up();
+      await waitForDeckToSettle(page);
+      await expect(deckStatus).toContainText("Morse Code");
+
+      const reset = await page.locator(".course-deck-card.is-active").boundingBox();
+      if (!reset) throw new Error("Course Deck active card did not reset.");
+      const resetX = reset.x + Math.min(reset.width * 0.42, 180);
+      const resetY = reset.y + Math.min(reset.height * 0.35, 190);
+      await page.mouse.move(resetX, resetY);
+      await page.mouse.down();
+      await page.mouse.move(resetX - reset.width * 0.4, resetY, { steps: 12 });
+      await page.mouse.up();
+      await waitForDeckToSettle(page);
+      await expect(deckStatus).toContainText("Decision quality");
+
+      const postCycle = await inspectPile();
+      expect(postCycle.map((card) => card.zIndex)).toEqual([3, 2, 1]);
+      expect(postCycle.every((card) => Math.abs(card.scale - 1) < 0.001)).toBe(true);
+
+      const decisionCard = page.locator(".course-deck-card.is-active");
+      const decisionBox = await decisionCard.boundingBox();
+      if (!decisionBox) throw new Error("Course Deck cycled card is not measurable.");
+      const decisionX = decisionBox.x + Math.min(decisionBox.width * 0.42, 180);
+      const decisionY = decisionBox.y + Math.min(decisionBox.height * 0.35, 190);
+      await page.mouse.move(decisionX, decisionY);
+      await page.mouse.down();
+      await page.mouse.move(decisionX + decisionBox.width * 0.4, decisionY, { steps: 12 });
+      await page.mouse.up();
+      await waitForDeckToSettle(page);
+      await expect(deckStatus).toContainText("Morse Code");
+    }
+    await expect(page).toHaveURL(/\/$/);
+    await expectNoHorizontalPageOverflow(page);
+  });
+
+  test("adapts course progress contrast to each card paper tone", async ({ page }) => {
+    await prepareOwnerShell(page, [...learningProgress, secondLearningProgress, thirdLearningProgress]);
+    await page.goto("/");
+
+    const progressColors: Array<{ track: string; fill: string; paper: string }> = [];
+    for (let index = 0; index < 3; index += 1) {
+      progressColors.push(await page.locator(".course-deck-card.is-active").evaluate((card) => {
+        const progress = card.querySelector<HTMLElement>(".course-deck-progress");
+        const fill = progress?.querySelector<HTMLElement>("i");
+        return {
+          track: progress ? getComputedStyle(progress).backgroundColor : "",
+          fill: fill ? getComputedStyle(fill).backgroundColor : "",
+          paper: getComputedStyle(card).backgroundColor,
+        };
+      }));
+      await page.getByRole("button", { name: "Show next active course" }).click();
+      await waitForDeckToSettle(page);
+    }
+
+    expect(new Set(progressColors.map(({ fill }) => fill)).size).toBe(3);
+    for (const colors of progressColors) {
+      expect(colors.fill).not.toBe(colors.track);
+      expect(colors.fill).not.toBe(colors.paper);
+      expect(colors.track).not.toBe(colors.paper);
+    }
+  });
+
+  test("keeps unknown progress totals explicit instead of inventing zero percent", async ({ page }) => {
+    await prepareOwnerShell(page, [{
+      ...secondLearningProgress,
+      courseId: "unresolved-course",
+      topic: "Unresolved course record",
+      completedLessonIds: ["0-0"],
+      totalLessons: undefined,
+    }]);
+    await page.goto("/");
+
+    const card = page.locator(".course-deck-card.is-active");
+    await expect(card).toContainText("1 of ? lessons");
+    await expect(card).toContainText("Total pending");
+    await expect(card.getByRole("progressbar", { name: /total unavailable/ })).not.toHaveAttribute("aria-valuenow", /.+/);
+  });
+
+  test("shows a recoverable error instead of a false empty state when progress fails", async ({ page }) => {
+    await prepareOwnerShell(page);
+    let progressAttempts = 0;
+    await page.route("**/api/progress", (route) => {
+      progressAttempts += 1;
+      return progressAttempts === 1
+        ? route.fulfill({ status: 503, json: { error: "Temporarily unavailable" } })
+        : route.fulfill({ json: { progress: learningProgress } });
+    });
+    await page.goto("/");
+
+    const error = page.getByRole("alert", { name: /Your learning path couldn't load/ });
+    await expect(error).toContainText("Your learning path couldn't load");
+    await expect(error).toContainText("still intact");
+    await error.getByRole("button", { name: "Try again" }).click();
+    await expect(page.getByRole("region", { name: /Active course/ })).toBeVisible();
+  });
+
+  test("keeps the deck clear and usable when reduced motion is requested", async ({ page }) => {
+    await page.emulateMedia({ reducedMotion: "reduce" });
+    await prepareOwnerShell(page, [...learningProgress, secondLearningProgress, thirdLearningProgress]);
+    await page.goto("/");
+
+    const deck = page.getByRole("region", { name: /Active course/ });
+    await expect(deck).toBeVisible();
+    const cardMotion = await page.locator(".course-deck-card.is-active").evaluate((element) => ({
+      transitionDuration: getComputedStyle(element).transitionDuration,
+      transform: getComputedStyle(element).transform,
+    }));
+    const transitionDurations = cardMotion.transitionDuration.split(",").map((value) => {
+      const duration = value.trim();
+      return duration.endsWith("ms") ? Number.parseFloat(duration) : Number.parseFloat(duration) * 1000;
+    });
+    expect(Math.max(...transitionDurations), JSON.stringify(cardMotion)).toBeLessThanOrEqual(1);
+    await deck.focus();
+    await deck.press("ArrowRight");
+    await expect(page.locator(".course-deck-card:is(.is-cycling-next, .is-cycling-previous)")).toHaveCount(0);
+    await expect(page.locator(".course-deck-controls [role='status']")).toContainText("Decision quality");
+    await expectNoHorizontalPageOverflow(page);
+    if (process.env.CAPTURE_DASHBOARD === "1") {
+      await page.screenshot({ path: ".impeccable/review/course-deck-reduced-motion-desktop.png", fullPage: true });
+    }
+  });
+
+  test("keeps the B2 hierarchy intact in the dark theme", async ({ page }) => {
+    await prepareOwnerShell(page);
+    await page.goto("/");
+    await page.getByRole("button", { name: /Search or jump anywhere/ }).click();
+    const commandCenter = page.getByRole("dialog", { name: "Filosage Command Center" });
+    const themeToggle = commandCenter.getByRole("switch", { name: "Dark mode" });
+    if (await themeToggle.getAttribute("aria-checked") !== "true") await themeToggle.click();
+    await commandCenter.getByRole("button", { name: "Close Command Center", exact: true }).click();
+    await expect(page.getByRole("region", { name: /Active course/ })).toBeVisible();
+    await expectNoHorizontalPageOverflow(page);
+    if (process.env.CAPTURE_DASHBOARD === "1") {
+      await page.screenshot({ path: ".impeccable/review/course-deck-dark-desktop.png", fullPage: true });
+    }
+    await page.getByRole("button", { name: /Search or jump anywhere/ }).click();
+    await page.getByRole("dialog", { name: "Filosage Command Center" }).getByRole("option", { name: /My courses/ }).click();
+    const darkShelf = page.getByRole("dialog", { name: "My courses" });
+    await expect(darkShelf).toBeVisible();
+    await expect(darkShelf).toHaveAttribute("data-state", "open");
+    expect(await darkShelf.evaluate((element) => element.matches(":modal"))).toBe(false);
+    await expect(darkShelf.locator(".app-drawer-surface")).toHaveCSS("background-color", "rgb(7, 21, 43)");
+    await expect.poll(() => darkShelf.locator(".app-drawer-surface").evaluate((element) => getComputedStyle(element).opacity)).toBe("1");
+    await expect(darkShelf.getByText("Morse Code", { exact: true })).toBeVisible();
+    await expect(darkShelf.getByText("Decision quality", { exact: true })).toBeVisible();
+    await page.waitForTimeout(280);
+    const darkStacking = await page.evaluate(() => ({
+      shelf: Number(getComputedStyle(document.getElementById("course-switcher-drawer")!).zIndex),
+      deckCard: Number(getComputedStyle(document.querySelector<HTMLElement>(".course-deck-card")!).zIndex),
+    }));
+    expect(darkStacking.shelf).toBeGreaterThan(darkStacking.deckCard);
+    if (process.env.CAPTURE_DASHBOARD === "1") {
+      await page.screenshot({ path: ".impeccable/review/course-drawer-dark-desktop.png", fullPage: false });
     }
   });
 
@@ -293,10 +717,10 @@ test.describe("desktop application shell", () => {
     }]);
     await page.goto("/");
 
-    const continueCard = page.locator(".continue-card");
-    await expect(continueCard).toContainText("Lessons finished");
-    await expect(continueCard).toContainText("Open the course map to review the remaining requirements");
-    await expect(continueCard).not.toContainText("Course complete");
+    const activeCard = page.locator(".course-deck-card.is-active");
+    await expect(activeCard).toContainText("Review the course map");
+    await expect(activeCard).not.toContainText("Course complete");
+    await expect(activeCard.getByRole("link", { name: /Continue/ })).toHaveAttribute("href", "/course/Morse%20Code?id=morse-shell-course");
   });
 
   test("presents profile, progress, and course creation as evidence-led decisions", async ({ page }) => {
@@ -386,28 +810,34 @@ test.describe("desktop application shell", () => {
 test.describe("mobile application shell", () => {
   test.use({ viewport: { width: 390, height: 844 } });
 
-  test("keeps every account action and private courses reachable through the Command Center", async ({ page }) => {
+  test("opens My Courses from the mobile profile and keeps the Command Center separately reachable", async ({ page }) => {
     await prepareOwnerShell(page);
     await page.goto("/library");
 
     await expect(page.locator(".learning-header")).toBeHidden();
     await expect(page.getByRole("navigation", { name: "Mobile navigation" })).toBeVisible();
     await expect(page.getByRole("button", { name: "Search and jump anywhere" })).toHaveCount(0);
-    await page.locator(".mobile-account-trigger").click();
+    await page.getByRole("button", { name: /Open My Courses for Playwright/ }).click();
 
+    const coursesDialog = page.getByRole("dialog", { name: "My courses" });
+    await expect(coursesDialog).toBeVisible();
+    await expect(coursesDialog).toHaveAttribute("data-state", "open");
+    expect(await coursesDialog.evaluate((element) => element.matches(":modal"))).toBe(true);
+    await expect(coursesDialog.getByText("Morse Code", { exact: true })).toBeVisible();
+    await expect(coursesDialog.getByText("Decision quality", { exact: true })).toBeVisible();
+    if (process.env.CAPTURE_DASHBOARD === "1") {
+      await page.waitForTimeout(460);
+      await page.screenshot({ path: ".impeccable/review/course-drawer-mobile.png", fullPage: false });
+    }
+    await coursesDialog.getByRole("button", { name: "Close course menu" }).click();
+
+    await page.getByRole("button", { name: "Open Command Center", exact: true }).click();
     const commandCenter = page.getByRole("dialog", { name: "Filosage Command Center" });
-    await expect(commandCenter).toBeVisible();
     await expect(commandCenter.getByRole("option", { name: /Learning profile/ })).toBeVisible();
     await expect(commandCenter.getByRole("option", { name: /Control room/ })).toBeVisible();
     await expect(commandCenter.getByRole("option", { name: /Support/ })).toBeVisible();
     await expect(commandCenter.getByRole("switch", { name: "Dark mode" })).toBeVisible();
     await expect(commandCenter.getByRole("option", { name: /Sign out/ })).toBeVisible();
-    await commandCenter.getByRole("option", { name: /My courses/ }).click();
-
-    const coursesDialog = page.getByRole("dialog", { name: "My courses" });
-    await expect(coursesDialog).toBeVisible();
-    await expect(coursesDialog.getByText("Morse Code", { exact: true })).toBeVisible();
-    await expect(coursesDialog.getByText("Decision quality", { exact: true })).toBeVisible();
   });
 
   test("keeps the focused course-builder step and next action reachable on a phone", async ({ page }) => {
@@ -423,16 +853,142 @@ test.describe("mobile application shell", () => {
     await expectNoHorizontalPageOverflow(page);
   });
 
+  test("keeps the platform paper system legible on primary mobile routes", async ({ page }) => {
+    await prepareOwnerShell(page);
+    const routes = [
+      { path: "/create", heading: /Build toward a real outcome/ },
+      { path: "/progress", heading: /Your progress/ },
+      { path: "/pricing", heading: /Learn freely/ },
+      { path: "/support", heading: /What do you need help with/ },
+    ];
+
+    for (const route of routes) {
+      await page.goto(route.path);
+      await expect(page.getByRole("heading", { level: 1, name: route.heading })).toBeVisible();
+      await expect(page.locator(".app-main")).toHaveCSS("background-image", /svg/);
+      await expectNoHorizontalPageOverflow(page);
+      if (process.env.CAPTURE_DASHBOARD === "1") {
+        await page.screenshot({ path: `.impeccable/review/platform-${route.path.slice(1)}-mobile.png`, fullPage: false });
+      }
+    }
+  });
+
   test("keeps the learner path legible and actionable on a phone", async ({ page }) => {
     await prepareOwnerShell(page);
     await page.goto("/");
 
-    await expect(page.getByRole("region", { name: "Today's learning path" })).toBeVisible();
-    await expect(page.getByRole("group", { name: "Your focused session sequence" })).toBeVisible();
-    await expect(page.getByRole("button", { name: "Customize" })).toBeVisible();
+    await expect(page.getByRole("region", { name: /Active course/ })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Morse Code" })).toBeVisible();
+    await expect(page.getByRole("link", { name: /Continue/ })).toBeVisible();
     await expectNoHorizontalPageOverflow(page);
     if (process.env.CAPTURE_DASHBOARD === "1") {
-      await page.screenshot({ path: ".impeccable/review/dashboard-mobile.png", fullPage: true });
+      await page.screenshot({ path: ".impeccable/review/course-deck-mobile.png", fullPage: true });
+    }
+  });
+
+  test("keeps long mobile course and lesson titles above the primary action", async ({ page }) => {
+    const longTopic = "Strategic communication across complex cross-functional organizations";
+    await prepareOwnerShell(page, [{
+      ...secondLearningProgress,
+      courseId: "long-title-course",
+      topic: longTopic,
+      nextLessonTitle: "Build a defensible recommendation from incomplete and conflicting stakeholder evidence",
+      totalLessons: 12,
+    }]);
+    await page.goto("/");
+
+    const containment = await page.locator(".course-deck-card.is-active").evaluate((card) => {
+      const action = card.querySelector<HTMLElement>(".course-deck-card-action");
+      const cardBox = card.getBoundingClientRect();
+      const actionBox = action?.getBoundingClientRect();
+      return { cardBottom: cardBox.bottom, actionBottom: actionBox?.bottom ?? Number.POSITIVE_INFINITY };
+    });
+    expect(containment.actionBottom).toBeLessThanOrEqual(containment.cardBottom + 1);
+    await expect(page.getByRole("link", { name: /Continue/ })).toBeVisible();
+    await expectNoHorizontalPageOverflow(page);
+  });
+
+  test("shows the fanned course stack on a phone without horizontal overflow", async ({ page }) => {
+    await prepareOwnerShell(page, [...learningProgress, secondLearningProgress, thirdLearningProgress]);
+    await page.goto("/");
+
+    await expect(page.getByRole("button", { name: "Show next active course" })).toBeVisible();
+    await expect(page.locator(".course-deck-card[data-position='1']")).toBeVisible();
+    await expect(page.locator(".course-deck-card[data-position='2']")).toBeVisible();
+    const sparkBox = await page.getByRole("button", { name: "Open Support Center" }).boundingBox();
+    const navigationBoxes = await page.locator(".course-deck-controls > button").evaluateAll((buttons) => buttons.map((button) => {
+      const rect = button.getBoundingClientRect();
+      return { left: rect.left, top: rect.top, right: rect.right, bottom: rect.bottom };
+    }));
+    expect(sparkBox).not.toBeNull();
+    for (const navigation of navigationBoxes) {
+      const overlaps = (sparkBox?.x ?? 0) < navigation.right
+        && (sparkBox?.x ?? 0) + (sparkBox?.width ?? 0) > navigation.left
+        && (sparkBox?.y ?? 0) < navigation.bottom
+        && (sparkBox?.y ?? 0) + (sparkBox?.height ?? 0) > navigation.top;
+      expect(overlaps).toBe(false);
+    }
+    expect((await new AxeBuilder({ page }).include(".course-deck-section").analyze()).violations).toEqual([]);
+    await expectNoHorizontalPageOverflow(page);
+    if (process.env.CAPTURE_DASHBOARD === "1") {
+      await page.screenshot({ path: ".impeccable/review/course-deck-stack-mobile.png", fullPage: true });
+    }
+  });
+
+  test("keeps the paper mobile navigation labels contained at the narrowest supported width", async ({ page }) => {
+    await page.setViewportSize({ width: 320, height: 568 });
+    await prepareOwnerShell(page, [...learningProgress, secondLearningProgress, thirdLearningProgress]);
+    await page.goto("/");
+
+    const navigation = page.getByRole("navigation", { name: "Mobile navigation" });
+    await expect(navigation).toBeVisible();
+    const metrics = await navigation.evaluate((element) => {
+      const navigationRect = element.getBoundingClientRect();
+      const labels = [...element.querySelectorAll<HTMLElement>("a:not(.mobile-create) > span")].map((label) => {
+        const labelRect = label.getBoundingClientRect();
+        const linkRect = label.parentElement!.getBoundingClientRect();
+        const style = getComputedStyle(label);
+        return {
+          contained: labelRect.left >= linkRect.left - 0.5
+            && labelRect.right <= linkRect.right + 0.5
+            && labelRect.top >= navigationRect.top - 0.5
+            && labelRect.bottom <= navigationRect.bottom + 0.5,
+          overflow: style.overflow,
+          textOverflow: style.textOverflow,
+          whiteSpace: style.whiteSpace,
+        };
+      });
+      const active = getComputedStyle(element.querySelector<HTMLElement>("a.is-active")!);
+      return {
+        navigationLeft: navigationRect.left,
+        navigationRight: navigationRect.right,
+        viewportWidth: document.documentElement.clientWidth,
+        labels,
+        activeBackgroundImage: active.backgroundImage,
+      };
+    });
+    expect(metrics.navigationLeft).toBe(0);
+    expect(metrics.navigationRight).toBe(metrics.viewportWidth);
+    expect(metrics.labels).toHaveLength(4);
+    expect(metrics.labels.every((label) => label.contained)).toBe(true);
+    expect(metrics.labels.every((label) => label.overflow === "hidden" && label.textOverflow === "ellipsis" && label.whiteSpace === "nowrap")).toBe(true);
+    expect(metrics.activeBackgroundImage).toContain("data:image/svg+xml");
+    await expectNoHorizontalPageOverflow(page);
+    if (process.env.CAPTURE_DASHBOARD === "1") {
+      await page.screenshot({ path: ".impeccable/review/mobile-bottom-navigation.png", fullPage: false });
+    }
+  });
+
+  test("shows a clear first-course state when there is no learning progress", async ({ page }) => {
+    await prepareOwnerShell(page, []);
+    await page.goto("/");
+
+    await expect(page.getByRole("heading", { name: "Welcome back, Playwright." })).toBeVisible();
+    await expect(page.getByRole("link", { name: /Create your first course/ })).toBeVisible();
+    await expect(page.getByRole("region", { name: /Active course/ })).toHaveCount(0);
+    await expectNoHorizontalPageOverflow(page);
+    if (process.env.CAPTURE_DASHBOARD === "1") {
+      await page.screenshot({ path: ".impeccable/review/course-deck-empty-mobile.png", fullPage: true });
     }
   });
 });

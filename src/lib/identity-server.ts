@@ -39,6 +39,17 @@ function localVerifiedUser(idToken: string): VerifiedUser | null {
   }
   const learner = LOCAL_PLAYWRIGHT_LEARNERS.get(idToken);
   if (learner) return { ...learner, email_verified: true, auth_time, name: "Playwright Learner" };
+  const isolatedPlusLearner = /^playwright-plus-learner-([0-9a-f]{8}-[0-9a-f-]{27})$/i.exec(idToken);
+  if (isolatedPlusLearner) {
+    const runId = isolatedPlusLearner[1].toLowerCase();
+    return {
+      uid: `local-plus-learner-${runId}`,
+      email: `plus-learner-${runId}@filosage.local`,
+      email_verified: true,
+      auth_time,
+      name: "Playwright Plus Learner",
+    };
+  }
   if (idToken === "playwright-preaccount-learner") {
     return {
       uid: "local-preaccount-learner",

@@ -1587,7 +1587,7 @@ export default function LessonView() {
           </article>
 
           {!tutorOpen && studyToolsOpen && (
-            <AppDrawer open={studyToolsOpen} onClose={studyToolsDrawer.closeDrawer} labelledBy="study-tools-title" size="medium" mobilePlacement="bottom" className="lesson-study-app-drawer">
+            <AppDrawer open={studyToolsOpen} onClose={studyToolsDrawer.closeDrawer} labelledBy="study-tools-title" size="medium" mobilePlacement="bottom" desktopPresentation="floating" draggable dragLabel="Study workspace window" className="lesson-study-app-drawer">
               <LessonStudyTools
                 lessonKey={noteKey}
                 lessonTitle={lesson.title}
@@ -1617,7 +1617,7 @@ export default function LessonView() {
           )}
 
           {user && tutorOpen && (
-            <AppDrawer open={tutorOpen} onClose={tutorDrawer.closeDrawer} labelledBy="tutor-title" size="medium" mobilePlacement="full" className="tutor-app-drawer">
+            <AppDrawer open={tutorOpen} onClose={tutorDrawer.closeDrawer} labelledBy="tutor-title" size="medium" mobilePlacement="full" desktopPresentation="floating" draggable dragLabel="Ask Filosage window" className="tutor-app-drawer">
             <aside className="tutor-drawer">
               <header className="tutor-header">
                 <span className="tutor-avatar"><FilosageMark /></span>

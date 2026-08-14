@@ -1,6 +1,14 @@
 import type { LessonMode, PracticeType } from "@/lib/course-types";
 
 export function localCourseOutlineFixture(topic: string) {
+  const activityPreview: Record<PracticeType, string> = {
+    explain: "Produce a plain-language definition, then test it against one counterexample.",
+    classify: "Sort four examples by fit, then annotate the boundary that changes the decision.",
+    decide: "Review a compact evidence packet and defend the best response to its limiting case.",
+    create: "Assemble a decision record connecting the recommendation, tradeoff, and verification check.",
+    calculate: "Work the quantities step by step, then explain which input most changes the result.",
+    debug: "Trace the failed reasoning to its first unsupported step, then repair and recheck it.",
+  };
   const lesson = (title: string, concept: string, misconception: string, mode: LessonMode, practice: PracticeType, contribution: string) => ({
     title,
     concept,
@@ -11,7 +19,7 @@ export function localCourseOutlineFixture(topic: string) {
     misconception,
     practiceType: practice,
     masteryCriteria: `Apply ${concept.toLowerCase()} to a new example without prompting.`,
-    activityPreview: `Work through a distinct ${practice} activity about ${concept.toLowerCase()}.`,
+    activityPreview: activityPreview[practice],
     artifactContribution: contribution,
   });
   return {

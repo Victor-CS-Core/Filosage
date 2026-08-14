@@ -174,7 +174,6 @@ export default function PricingPage() {
     <AppShell>
       <div className="pricing-page">
         <header className="pricing-header">
-          <p className="overline">Filosage memberships</p>
           <h1>Learn freely. Create at the level you need.</h1>
           <p>Free supports focused learning. Plus adds one private course for a current goal. Pro expands authoring and adds public course publishing.</p>
         </header>

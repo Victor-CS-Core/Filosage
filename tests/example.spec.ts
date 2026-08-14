@@ -760,15 +760,19 @@ test("keeps the owner control room private at both page and API boundaries", asy
 
 test("preserves the selected theme across navigation and reloads", async ({ page }) => {
   await page.goto("/");
+  const logo = page.locator(".marketing-nav-shell .filosage-mark img");
+  await expect(logo).toHaveAttribute("src", /filosage-theme-light\.png/);
   // The toggle is server-rendered before React hydration attaches its click
   // handler, so retry the click until the theme actually changes.
   await expect(async () => {
     await page.locator(".marketing-nav-shell").getByRole("button", { name: "Use dark mode" }).click();
     await expect(page.locator("html")).toHaveAttribute("data-theme", "dark", { timeout: 1_000 });
   }).toPass({ timeout: 15_000 });
+  await expect(logo).toHaveAttribute("src", /filosage-theme-dark\.png/);
   await page.reload();
 
   await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
+  await expect(page.locator(".marketing-nav-shell .filosage-mark img")).toHaveAttribute("src", /filosage-theme-dark\.png/);
   await page.locator(".marketing-hero").getByRole("link", { name: "Start learning" }).click();
   await expect(page).toHaveURL(/\/library$/);
   await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
@@ -1042,7 +1046,27 @@ test("does not complete a lesson after a wrong answer", async ({ page }) => {
   await expect(page.locator(".lesson-study-panel")).toHaveCount(0);
   await page.getByRole("button", { name: "Study tools" }).click();
   const studyTools = page.getByRole("dialog", { name: "Study workspace" });
+  const floatingLessonTools = (page.viewportSize()?.width ?? 0) > 900;
   await expect(studyTools).toBeVisible();
+  await expect(studyTools).toHaveAttribute("data-presentation", floatingLessonTools ? "floating" : "modal");
+  expect(await studyTools.evaluate((element) => element.matches(":modal"))).toBe(!floatingLessonTools);
+  await expect(studyTools.locator(".app-drawer-surface")).toHaveCSS("background-image", /svg/);
+  const studyMoveHandle = studyTools.getByRole("button", { name: "Move Study workspace window" });
+  if (floatingLessonTools) {
+    await expect(studyTools).toHaveAttribute("data-motion-settled", "true");
+    const initialStudyBox = await studyTools.boundingBox();
+    const availableStudyDown = await page.evaluate((bottom) => Math.max(0, window.innerHeight - 12 - bottom), (initialStudyBox?.y ?? 0) + (initialStudyBox?.height ?? 0));
+    await studyMoveHandle.focus();
+    await studyMoveHandle.press("Shift+ArrowLeft");
+    await studyMoveHandle.press("Shift+ArrowDown");
+    const movedStudyBox = await studyTools.boundingBox();
+    expect(movedStudyBox?.x).toBeCloseTo((initialStudyBox?.x ?? 0) - 48, 0);
+    expect(movedStudyBox?.y).toBeCloseTo((initialStudyBox?.y ?? 0) + Math.min(48, availableStudyDown), 0);
+    await studyMoveHandle.press("Home");
+  } else {
+    await expect(studyMoveHandle).toBeHidden();
+    await expect.poll(() => page.evaluate(() => document.documentElement.style.overflow)).toBe("hidden");
+  }
   await expect(studyTools.getByRole("tab", { name: "Notes" })).toHaveAttribute("aria-selected", "true");
   await studyTools.getByRole("tab", { name: "Flashcards" }).click();
   const startRecall = studyTools.getByRole("button", { name: /Start (?:[4-9]|10)-card recall/ });
@@ -1093,6 +1117,15 @@ test("does not complete a lesson after a wrong answer", async ({ page }) => {
   await studyTools.getByRole("tab", { name: "Flashcards" }).click();
   await expect(studyTools.getByText("Recall session complete", { exact: true })).toBeVisible();
   await studyTools.getByRole("button", { name: "Close study tools" }).click();
+  await page.getByRole("button", { name: "Ask Filosage" }).click();
+  const tutor = page.getByRole("dialog", { name: "Ask Filosage" });
+  await expect(tutor).toHaveAttribute("data-presentation", floatingLessonTools ? "floating" : "modal");
+  expect(await tutor.evaluate((element) => element.matches(":modal"))).toBe(!floatingLessonTools);
+  const tutorMoveHandle = tutor.getByRole("button", { name: "Move Ask Filosage window" });
+  if (floatingLessonTools) await expect(tutorMoveHandle).toBeVisible();
+  else await expect(tutorMoveHandle).toBeHidden();
+  await expect(tutor.locator(".app-drawer-surface")).toHaveCSS("background-image", /svg/);
+  await tutor.getByRole("button", { name: "Close tutor" }).click();
   await expect(page.getByRole("heading", { level: 2, name: "Why it matters" })).toBeVisible();
   await page.getByRole("tab", { name: /Activities/ }).click();
   const firstCheck = page.locator(".knowledge-check");
@@ -1549,7 +1582,7 @@ test("presents public courses as a browsable learning library", async ({ page })
   });
 });
 
-test("plays the course-banner sheen when a desktop pointer hovers a card", async ({ page }) => {
+test("uses the deterministic Course Deck artwork on library cards", async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 800 });
   await page.route("**/api/courses?scope=public", (route) => route.fulfill({ json: { courses: [{
     id: "desktop-sheen-course",
@@ -1563,15 +1596,13 @@ test("plays the course-banner sheen when a desktop pointer hovers a card", async
 
   await page.goto("/library");
   const card = page.locator(".course-card").filter({ hasText: "Morse Code" });
-  const sheen = card.locator(".course-banner-sheen");
   await expect(card).toBeVisible();
-  await card.hover();
-  await expect(sheen).toHaveCSS("animation-name", "course-banner-sheen-through");
-  await expect(sheen).toHaveCSS("animation-duration", "0.82s");
-  const earlyTransform = await sheen.evaluate((element) => getComputedStyle(element).transform);
-  await page.waitForTimeout(160);
-  const laterTransform = await sheen.evaluate((element) => getComputedStyle(element).transform);
-  expect(laterTransform).not.toBe(earlyTransform);
+  await expect(card.locator(".course-artwork")).toHaveCount(1);
+  await expect(card.locator(".course-artwork-coral-fill, .course-artwork-coral-ring, .course-artwork-coral").first()).toBeVisible();
+  await expect(card.locator(".course-banner-sheen")).toHaveCount(0);
+  if (process.env.CAPTURE_DASHBOARD === "1") {
+    await page.screenshot({ path: ".impeccable/review/course-library-artwork-desktop.png", fullPage: true });
+  }
 });
 
 test("shows guests the course structure but never delivers lesson content", async ({ page }) => {
@@ -1594,9 +1625,11 @@ test("keeps generated course banners simple and text-free", () => {
     category: "Personal finance",
   });
 
-  expect(prompt).toContain("one clear abstract metaphor");
-  expect(prompt).toContain("one thin continuous line");
-  expect(prompt).toContain("two to four simple circles or geometric shapes");
+  expect(prompt).toContain("one abstract relationship");
+  expect(prompt).toContain("museum-exhibition geometry");
+  expect(prompt).toContain("large circles, partial discs, arcs, fine axes");
+  expect(prompt).toContain("deep midnight navy");
+  expect(prompt).toContain("partially covered deck card");
   expect(prompt).toContain("Absolute text ban");
   expect(prompt).toContain("currency symbols");
   expect(prompt).toContain("Do not use detailed charts, calendars");
@@ -1752,6 +1785,10 @@ test("frames each course around an outcome and mastery", async ({ page }) => {
   await foundationStage.click();
   await expect(coursePath.getByRole("button", { name: /Leverage points/i })).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
+  if (process.env.CAPTURE_DASHBOARD === "1") {
+    await page.locator(".app-main").evaluate((main) => { main.scrollTop = 0; });
+    await page.screenshot({ path: ".impeccable/review/course-map-artwork-mobile.png", fullPage: true });
+  }
   await resumeCard.getByRole("button", { name: /Resume lesson/i }).click();
   await expect(page).toHaveURL(/lesson\/0-1\?id=demo/);
 });
@@ -1842,7 +1879,10 @@ test("clears course-scoped warnings and controls when navigating between owned c
 
   await page.getByRole("button", { name: /Search or jump anywhere/ }).click();
   const commandCenter = page.getByRole("dialog", { name: "Filosage Command Center" });
-  await commandCenter.getByRole("option", { name: /Different ready course/ }).click();
+  await expect(commandCenter.getByRole("option", { name: /Different ready course/ })).toHaveCount(0);
+  await commandCenter.getByRole("option", { name: /My courses/ }).click();
+  const courseDrawer = page.getByRole("dialog", { name: "My courses" });
+  await courseDrawer.getByRole("link", { name: /Different ready course/ }).click();
   await expect(page).toHaveURL(/Different%20ready%20course\?id=ready-course/);
   await expect(page.getByRole("heading", { name: "Different ready course" })).toBeVisible();
   await expect(page.getByText("Complete every lesson before publishing.", { exact: false })).toHaveCount(0);

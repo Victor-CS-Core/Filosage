@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { headers } from "next/headers";
 import "@fontsource-variable/inter";
+import "@fontsource-variable/source-serif-4";
 import "@/styles/brand/tokens.css";
 import "./globals.css";
 import "@/styles/brand/marketing.css";

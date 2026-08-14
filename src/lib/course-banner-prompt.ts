@@ -1,4 +1,4 @@
-export const COURSE_BANNER_STYLE_VERSION = 2;
+export const COURSE_BANNER_STYLE_VERSION = 4;
 
 export interface CourseBannerPromptInput {
   topic: string;
@@ -11,14 +11,16 @@ function normalized(value: string | undefined) {
 
 export function buildCourseBannerPrompt(input: CourseBannerPromptInput) {
   return [
-    "Create a simple, text-free panoramic editorial illustration for an Filosage course cover.",
+    "Create a text-free panoramic editorial illustration for a Filosage course card in the Course Deck visual system.",
     `Topic to suggest visually: ${normalized(input.topic)}.`,
     input.category ? `Broad discipline: ${normalized(input.category)}.` : "",
-    "Use one clear abstract metaphor, not a literal scene or a collection of objects. Build the entire motif from one thin continuous line and two to four simple circles or geometric shapes. Keep it recognizable at thumbnail size.",
-    "Style: refined editorial line illustration, calm, intelligent, minimal, and quietly premium. Use consistent thin strokes, rounded joins, and at most one softly filled shape. No photorealism, glossy 3D rendering, textures, tiny details, or complicated mechanisms.",
-    "Palette: deep navy background with off-white or muted blue-gray linework, clear blue for one focal point, and no more than one small coral accent. Use solid color fields only.",
-    "Composition: landscape 3:2 with a single focal motif inside the central 60 percent and generous empty space around it. The motif must remain clear when cropped to a wide banner or a 2:1 course card.",
+    "Translate the topic into one abstract relationship: orbit, threshold, feedback, flow, balance, sequence, framing, or transformation. Do not draw a literal scene or a collection of topic objects.",
+    "Visual grammar: precise museum-exhibition geometry made from large circles, partial discs, arcs, fine axes, restrained dotted paths, and one or two architectural rectangles. Forms may overlap or crop beyond the frame. The result should feel authored, intelligent, calm, and cinematic rather than decorative.",
+    "Material: visibly tactile, heavyweight uncoated paper or book-board stock, photographed or rendered straight-on like a premium museum-catalog cover. Show fine natural fibers, softened screen-printed ink, slight pigment variation, and restrained edge wear while keeping the geometry precise. No glossy 3D rendering, plastic, glass, neon glow, lens effects, distressed grunge, painterly brushwork, or tiny mechanisms.",
+    "Palette: choose one material ground from deep midnight navy, dark petrol teal, warm oatmeal paper, or muted brick. Use teal, warm off-white, and coral as two or three screen-printed inks with strong contrast. Muted blue-gray may support fine construction lines. Use solid ink fields only; do not add gradients.",
+    "Composition: landscape 3:2 with a decisive focal system spanning the central and right two-thirds. Preserve quieter crop-safe space along the lower-left and outer edges so the artwork remains legible as a wide hero, a 2:1 card, a compact drawer thumbnail, or a partially covered deck card.",
+    "Thumbnail test: use no more than seven major shapes and keep the primary relationship recognizable at 160 pixels wide. Favor scale, spacing, silhouette, and the tactile paper stock over detail. The result should look like a physical course-cover card, not a flat software illustration.",
     "Absolute text ban: do not render words, letters, numbers, mathematical notation, currency symbols, logos, labels, captions, watermarks, signatures, book spines, signs, screens, or marked paper. Every surface must be blank.",
-    "Do not use detailed charts, calendars, dashboards, technical diagrams, arrows, badges, coins, locks, faces, hands, crowds, classrooms, or multi-object still lifes. Do not add decorative clutter. If the topic usually relies on one of these objects, replace it with a simple abstract relationship between unmarked lines and shapes.",
+    "Do not use detailed charts, calendars, dashboards, arrows, badges, coins, locks, faces, hands, people, classrooms, landscapes, devices, books, or multi-object still lifes. This is abstract course-cover art, not a labeled technical diagram. Replace literal objects with relationships between unmarked geometric forms.",
   ].filter(Boolean).join("\n");
 }

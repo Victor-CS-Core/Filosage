@@ -424,6 +424,9 @@ export default function SupportCenter({ onRequestSignIn, onBeforeOpen }: Support
         placement="end"
         mobilePlacement="bottom"
         size="wide"
+        desktopPresentation="floating"
+        draggable
+        dragLabel="Support center window"
         className={`${styles.drawer} ${user ? styles.withMobileNav : ""}`}
       >
         <section className={styles.panel} aria-describedby="support-center-description">

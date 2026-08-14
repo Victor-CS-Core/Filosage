@@ -8,7 +8,6 @@ import {
   BookOpen,
   CalendarCheck2,
   ChevronRight,
-  CirclePlay,
   Command,
   Compass,
   Crown,
@@ -31,6 +30,8 @@ import LegalConsentModal from "@/components/LegalConsentModal";
 import MarketingFooter from "@/components/marketing/MarketingFooter";
 import MarketingNavigation from "@/components/marketing/MarketingNavigation";
 import CommandPalette, { type CommandPaletteItem } from "@/components/CommandPalette";
+import CourseBanner from "@/components/CourseBanner";
+import { hashCourseIdentity } from "@/components/CourseArtwork";
 import SupportCenter from "@/components/support/SupportCenter";
 import UserAvatar from "@/components/UserAvatar";
 import EnvironmentPill from "@/components/EnvironmentPill";
@@ -54,7 +55,7 @@ const primaryNav = [
   { href: "/progress", label: "Progress", icon: TrendingUp },
 ];
 
-export default function AppShell({ children, activeTopic, activeLessonId, activeCourseId, activeCourse }: AppShellProps) {
+export default function AppShell({ children, activeTopic, activeCourseId, activeCourse }: AppShellProps) {
   const router = useRouter();
   const pathname = usePathname();
   const { theme, toggle } = useTheme();
@@ -69,6 +70,7 @@ export default function AppShell({ children, activeTopic, activeLessonId, active
   const accountTriggerRef = useRef<HTMLButtonElement>(null);
   const commandTriggerRef = useRef<HTMLButtonElement>(null);
   const mobileAccountTriggerRef = useRef<HTMLButtonElement>(null);
+  const mobileCommandTriggerRef = useRef<HTMLButtonElement>(null);
   const commandReturnFocusRef = useRef<HTMLElement | null>(null);
 
   const refreshCourses = useCallback(async () => {
@@ -147,6 +149,7 @@ export default function AppShell({ children, activeTopic, activeLessonId, active
       href: item.href,
       keywords: "page destination navigation",
       icon: item.icon,
+      tone: item.href === "/" ? "teal" as const : item.href === "/library" ? "blue" as const : item.href === "/review" ? "coral" as const : "gold" as const,
     })),
     {
       id: "navigate-create",
@@ -156,48 +159,8 @@ export default function AppShell({ children, activeTopic, activeLessonId, active
       href: canCreateCourses ? "/create" : "/pricing",
       keywords: "new add build course pricing pro",
       icon: canCreateCourses ? Plus : Sparkles,
+      tone: "coral" as const,
     },
-    ...(currentCourse ? (() => {
-      const id = currentCourse.id ?? currentCourse.courseId ?? activeCourseId;
-      const courseHref = `/course/${encodeURIComponent(currentCourse.topic)}${id ? `?id=${id}` : ""}`;
-      const generatedLessonIds = currentCourse.generatedLessonIds;
-      return [{
-        id: `current-course-${id ?? currentCourse.topic}`,
-        section: "Current course" as const,
-        label: currentCourse.topic,
-        description: "Open the course overview",
-        href: courseHref,
-        keywords: `overview outline ${currentCourse.category ?? ""}`,
-        icon: BookOpen,
-      }, ...currentCourse.modules.flatMap((courseModule, moduleIndex) => courseModule.lessons
-        .map((lesson, lessonIndex) => ({ lesson, lessonId: `${moduleIndex}-${lessonIndex}` }))
-        .filter(({ lessonId }) => !generatedLessonIds || generatedLessonIds.includes(lessonId))
-        .map(({ lesson, lessonId }, lessonIndex) => ({
-          id: `current-lesson-${id ?? currentCourse.topic}-${lessonId}`,
-          section: "Current course" as const,
-          label: lesson.title,
-          description: lessonId === activeLessonId ? `${courseModule.title} · Current lesson` : `${courseModule.title} · Lesson ${lessonIndex + 1}`,
-          href: `/course/${encodeURIComponent(currentCourse.topic)}/lesson/${lessonId}${id ? `?id=${id}` : ""}`,
-          keywords: `${lesson.concept} ${lesson.objective ?? ""} lesson module`,
-          icon: CirclePlay,
-        })))];
-    })() : []),
-    ...courses.filter((course) => {
-      const id = course.id ?? course.courseId;
-      const currentId = currentCourse?.id ?? currentCourse?.courseId ?? activeCourseId;
-      return currentId ? id !== currentId : course.topic !== currentCourse?.topic;
-    }).map((course) => {
-      const id = course.id ?? course.courseId;
-      return {
-        id: `course-${id ?? course.topic}`,
-        section: "Courses" as const,
-        label: course.topic,
-        description: course.outcome || course.mission || `${course.modules.length} course module${course.modules.length === 1 ? "" : "s"}`,
-        href: `/course/${encodeURIComponent(course.topic)}${id ? `?id=${id}` : ""}`,
-        keywords: `${course.category ?? ""} ${course.isPublic ? "published" : "private"}`,
-        icon: BookOpen,
-      };
-    }),
     ...(account?.plan !== "free" && outlineQuota ? [{
       id: "account-plan",
       section: "Account" as const,
@@ -206,6 +169,7 @@ export default function AppShell({ children, activeTopic, activeLessonId, active
       href: "/pricing",
       keywords: "plan subscription quota pricing credits",
       icon: Crown,
+      tone: "gold" as const,
     }] : []),
     {
       id: "account-courses",
@@ -215,6 +179,7 @@ export default function AppShell({ children, activeTopic, activeLessonId, active
       action: "open-courses" as const,
       keywords: "owned learning shelf switch",
       icon: BookOpen,
+      tone: "blue" as const,
     },
     {
       id: "account-profile",
@@ -224,6 +189,7 @@ export default function AppShell({ children, activeTopic, activeLessonId, active
       href: "/profile",
       keywords: "account settings badges privacy",
       icon: UserRound,
+      tone: "teal" as const,
     },
     {
       id: "account-support",
@@ -233,6 +199,7 @@ export default function AppShell({ children, activeTopic, activeLessonId, active
       href: "/support",
       keywords: "help contact documentation",
       icon: LifeBuoy,
+      tone: "blue" as const,
     },
     ...(isOwner ? [{
       id: "account-admin",
@@ -242,6 +209,7 @@ export default function AppShell({ children, activeTopic, activeLessonId, active
       href: "/admin",
       keywords: "owner admin operations",
       icon: ShieldCheck,
+      tone: "gold" as const,
     }, {
       id: "account-command-center",
       section: "Account" as const,
@@ -250,6 +218,7 @@ export default function AppShell({ children, activeTopic, activeLessonId, active
       href: "/admin/command-center",
       keywords: "owner admin support reports approvals audit operations",
       icon: Command,
+      tone: "coral" as const,
     }] : []),
     {
       id: "account-sign-out",
@@ -259,8 +228,9 @@ export default function AppShell({ children, activeTopic, activeLessonId, active
       action: "sign-out" as const,
       keywords: "log out logout exit account",
       icon: LogOut,
+      tone: "slate" as const,
     },
-  ], [account?.plan, activeCourseId, activeLessonId, canCreateCourses, courses, currentCourse, isOwner, outlineQuota]);
+  ], [account?.plan, canCreateCourses, isOwner, outlineQuota]);
 
   const navigate = (href: string) => router.push(href);
   const isLegalPage = ["/terms", "/privacy", "/acceptable-use"].includes(pathname);
@@ -335,14 +305,14 @@ export default function AppShell({ children, activeTopic, activeLessonId, active
       <a className="skip-link" href="#main-content">Skip to main content</a>
       <header className="learning-header">
         <Link className="brand learning-header-brand" href="/" aria-label="Filosage home">
-          <span className="brand-mark" aria-hidden="true"><FilosageMark /></span>
+          <span className="brand-mark" aria-hidden="true"><FilosageMark className="is-inverse" /></span>
           <span><strong className="brand-wordmark"><span>Filo</span><span>sage</span></strong><small>Learning workspace</small></span>
         </Link>
 
         <div className="learning-command-launch">
           <button ref={commandTriggerRef} className="learning-command-trigger" type="button" onClick={() => openCommand(commandTriggerRef.current)} aria-haspopup="dialog" aria-expanded={commandOpen} aria-controls="command-palette">
             <span className="learning-command-icon"><Search size={18} aria-hidden="true" /></span>
-            <span className="learning-command-copy"><strong>Search or jump anywhere</strong><small>{currentSection} · Pages, courses, and account actions</small></span>
+            <span className="learning-command-copy"><strong>Search or jump anywhere</strong><small>{currentSection} · Pages and account actions</small></span>
             <kbd>Ctrl K</kbd>
           </button>
         </div>
@@ -351,36 +321,37 @@ export default function AppShell({ children, activeTopic, activeLessonId, active
           <EnvironmentPill />
           <button
             ref={accountTriggerRef}
-            className={`learning-account-trigger ${commandOpen || pathname === "/profile" || pathname.startsWith("/admin") ? "is-active" : ""}`}
+            className={`learning-account-trigger ${coursesDrawer.open ? "is-active" : ""}`}
             type="button"
-            onClick={() => openCommand(accountTriggerRef.current)}
-            aria-expanded={commandOpen}
-            aria-controls="command-palette"
+            onClick={coursesDrawer.openDrawer}
+            aria-expanded={coursesDrawer.open}
+            aria-controls="course-switcher-drawer"
             aria-haspopup="dialog"
-            aria-label={`Open Command Center for ${firstName}`}
+            aria-label={`Open My Courses for ${firstName}`}
           >
             <UserAvatar photoURL={user?.photoURL} size={32} fallback={<span className="avatar-fallback"><UserRound size={16} /></span>} />
             <span className="learning-account-copy"><strong>{firstName}</strong><small>{account?.plan === "pro" ? "Pro account" : account?.plan === "plus" ? "Plus account" : "Account"}</small></span>
-            <Command className="command-indicator" size={15} aria-hidden="true" />
+            <BookOpen className="command-indicator" size={15} aria-hidden="true" />
           </button>
         </div>
       </header>
 
       <header className="learner-mobile-header">
         <Link className="brand brand-mobile" href="/" aria-label="Filosage home">
-          <span className="brand-mark" aria-hidden="true"><FilosageMark /></span><strong className="brand-wordmark"><span>Filo</span><span>sage</span></strong>
+          <span className="brand-mark" aria-hidden="true"><FilosageMark className="is-inverse" /></span><strong className="brand-wordmark"><span>Filo</span><span>sage</span></strong>
         </Link>
         <div className="learner-mobile-actions">
           <EnvironmentPill />
-          <button ref={mobileAccountTriggerRef} className="mobile-account-trigger" type="button" onClick={() => openCommand(mobileAccountTriggerRef.current)} aria-expanded={commandOpen} aria-controls="command-palette" aria-haspopup="dialog" aria-label={`Open Command Center for ${firstName}, ${account?.plan === "pro" ? "Filosage Pro" : account?.plan === "plus" ? "Filosage Plus" : "free plan"}`}>
+          <button ref={mobileAccountTriggerRef} className="mobile-account-trigger" type="button" onClick={coursesDrawer.openDrawer} aria-expanded={coursesDrawer.open} aria-controls="course-switcher-drawer" aria-haspopup="dialog" aria-label={`Open My Courses for ${firstName}, ${account?.plan === "pro" ? "Filosage Pro" : account?.plan === "plus" ? "Filosage Plus" : "free plan"}`}>
             <UserAvatar photoURL={user.photoURL} size={30} fallback={<span className="avatar-fallback"><UserRound size={15} /></span>} />
             <span>{account?.plan === "pro" ? "Pro" : account?.plan === "plus" ? "Plus" : "Free"}</span>
-            <Command className="command-indicator" size={15} aria-hidden="true" />
+            <BookOpen className="command-indicator" size={15} aria-hidden="true" />
           </button>
+          <button ref={mobileCommandTriggerRef} className="mobile-command-trigger" type="button" onClick={() => openCommand(mobileCommandTriggerRef.current)} aria-expanded={commandOpen} aria-controls="command-palette" aria-haspopup="dialog" aria-label="Open Command Center"><Command size={17} aria-hidden="true" /></button>
         </div>
       </header>
 
-      <AppDrawer id="course-switcher-drawer" open={coursesDrawer.open} onClose={coursesDrawer.closeDrawer} labelledBy="course-switcher-title" size="wide" placement="end" mobilePlacement="bottom" className="course-switcher-app-drawer">
+      <AppDrawer id="course-switcher-drawer" open={coursesDrawer.open} onClose={coursesDrawer.closeDrawer} labelledBy="course-switcher-title" size="wide" placement="end" mobilePlacement="bottom" desktopPresentation="floating" draggable dragLabel="My courses window" className="course-switcher-app-drawer">
             <CourseSwitcherPanel
               headingId="course-switcher-title"
               currentCourse={currentCourse}
@@ -433,6 +404,12 @@ function CourseSwitcherPanel({ headingId, currentCourse, visibleCourses, totalCo
   onClose: () => void;
 }) {
   const searchInputRef = useRef<HTMLInputElement>(null);
+  const courseIdentity = (course: Course) => course.id ?? course.courseId ?? course.topic;
+  const currentCourseIdentity = currentCourse ? courseIdentity(currentCourse) : null;
+  const currentCourseVisible = currentCourse
+    ? visibleCourses.some((course) => courseIdentity(course) === currentCourseIdentity)
+    : false;
+  const moreCourses = visibleCourses.filter((course) => courseIdentity(course) !== currentCourseIdentity);
   const clearSearch = () => {
     setCourseQuery("");
     requestAnimationFrame(() => searchInputRef.current?.focus());
@@ -441,7 +418,7 @@ function CourseSwitcherPanel({ headingId, currentCourse, visibleCourses, totalCo
   return (
     <section className="course-switcher-drawer">
       <header className="app-drawer-header">
-        <div><small>Your learning space</small><h2 id={headingId}>My courses</h2><p>Switch courses without losing your place.</p></div>
+        <div><h2 id={headingId}>My courses</h2><p>Switch courses without losing your place.</p></div>
         <button className="icon-button" type="button" onClick={onClose} aria-label="Close course menu"><X size={18} /></button>
       </header>
       <div className="course-switcher-toolbar">
@@ -450,17 +427,17 @@ function CourseSwitcherPanel({ headingId, currentCourse, visibleCourses, totalCo
       </div>
       <div className="app-drawer-body course-switcher-body">
         <p className="sr-only" role="status">{visibleCourses.length} {visibleCourses.length === 1 ? "course" : "courses"} found</p>
-        {currentCourse && visibleCourses.includes(currentCourse) && (
+        {currentCourse && currentCourseVisible && (
           <section className="course-switcher-group" aria-label="Current course">
             <div className="drawer-section-heading"><span>Current course</span><small>In progress</small></div>
             <CourseSwitcherLink course={currentCourse} current onNavigate={onClose} />
           </section>
         )}
         <section className="course-switcher-group" aria-label={currentCourse ? "More courses" : "All courses"}>
-          <div className="drawer-section-heading"><span>{currentCourse ? "More courses" : "All courses"}</span><small>{visibleCourses.length} shown</small></div>
+          <div className="drawer-section-heading"><span>{currentCourse ? "More courses" : "All courses"}</span><small>{moreCourses.length} shown</small></div>
           <div className="course-switcher-list">
             {coursesLoading && totalCourses === 0 && Array.from({ length: 4 }, (_, index) => <span className="course-switcher-skeleton" key={index} aria-hidden="true"><i /><b /></span>)}
-            {visibleCourses.filter((course) => course !== currentCourse).map((course) => <CourseSwitcherLink key={course.id ?? course.courseId ?? course.topic} course={course} onNavigate={onClose} />)}
+            {moreCourses.map((course) => <CourseSwitcherLink key={courseIdentity(course)} course={course} onNavigate={onClose} />)}
             {!coursesLoading && totalCourses > 0 && visibleCourses.length === 0 && <div className="course-switcher-empty"><Search size={20} /><strong>No matching courses</strong><p>Try a shorter title, lesson, or skill.</p><button className="button button-quiet button-small" type="button" onClick={clearSearch}>Clear search</button></div>}
             {!coursesLoading && canCreateCourses && totalCourses === 0 && <div className="course-switcher-empty"><BookOpen size={20} /><strong>Your course shelf is ready</strong><p>Create a focused course and it will appear here.</p><Link className="button button-primary button-small" href="/create" onClick={onClose}>Create a course</Link></div>}
             {!coursesLoading && !canCreateCourses && totalCourses === 0 && <div className="course-switcher-empty"><Sparkles size={20} /><strong>Create courses around your goals</strong><p>Filosage Plus and Pro include private AI-assisted course creation with stated monthly limits.</p><Link className="button button-primary button-small" href="/pricing" onClick={onClose}>Compare plans</Link></div>}
@@ -476,9 +453,10 @@ function CourseSwitcherLink({ course, current = false, onNavigate }: { course: C
   const id = course.id ?? course.courseId;
   const lessons = course.modules.reduce((total, courseModule) => total + courseModule.lessons.length, 0);
   const href = `/course/${encodeURIComponent(course.topic)}${id ? `?id=${id}` : ""}`;
+  const paperTone = hashCourseIdentity(`${course.topic}|${course.category ?? ""}`) % 4;
   return (
-    <Link className={`course-switcher-course ${current ? "is-current" : ""}`} href={href} onClick={onNavigate} aria-current={current ? "page" : undefined}>
-      <span className="course-switcher-icon"><BookOpen size={17} /></span>
+    <Link className={`course-switcher-course course-switcher-paper-tone-${paperTone} ${current ? "is-current" : ""}`} href={href} onClick={onNavigate} aria-current={current ? "page" : undefined}>
+      <CourseBanner course={course} variant="compact" />
       <span className="course-switcher-copy"><strong>{course.topic}</strong><small>{lessons} {lessons === 1 ? "lesson" : "lessons"} &middot; {course.isPublic ? "Published" : "Private"}</small></span>
       {current ? <span className="course-current-label">Current</span> : <ChevronRight size={17} />}
     </Link>

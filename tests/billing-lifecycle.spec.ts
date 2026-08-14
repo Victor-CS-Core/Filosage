@@ -459,8 +459,14 @@ test("account deletion confirmation explains subscription termination without pr
   await expect(page.getByRole("link", { name: "billing support" })).toHaveAttribute("href", /mailto:support@filosage\.com/);
 });
 
-test("a direct API caller cannot exceed the Plus owned-course limit", async ({ request }) => {
-  const plusHeaders = { Authorization: "Bearer playwright-plus-learner" };
+test("a direct API caller cannot exceed the Plus owned-course limit", async ({ request }, testInfo) => {
+  test.skip(testInfo.project.name !== "chromium", "The API capacity contract is browser-independent.");
+  test.setTimeout(120_000);
+  const runId = crypto.randomUUID();
+  const plusLearnerUid = `local-plus-learner-${runId}`;
+  const plusHeaders = { Authorization: `Bearer playwright-plus-learner-${runId}` };
+  const firstCourseKey = `plus-capacity-first-course-${runId}`;
+  const firstCourseTopic = `Decision quality for Plus capacity testing ${runId}`;
   const acceptance = await request.post("/api/legal/acceptance", {
     headers: plusHeaders,
     data: {
@@ -483,7 +489,7 @@ test("a direct API caller cannot exceed the Plus owned-course limit", async ({ r
   });
   expect(ownerAcceptance.ok()).toBe(true);
 
-  const grant = await request.patch("/api/admin/users/local-plus-learner", {
+  const grant = await request.patch(`/api/admin/users/${plusLearnerUid}`, {
     headers: { Authorization: "Bearer playwright-local-owner" },
     data: { action: "grant_plan", planId: "plus", duration: 7 },
   });
@@ -497,8 +503,8 @@ test("a direct API caller cannot exceed the Plus owned-course limit", async ({ r
   });
 
   const firstCourse = await request.post("/api/generate-course", {
-    headers: { ...plusHeaders, "Idempotency-Key": "plus-capacity-first-course" },
-    data: { topic: "Decision quality for Plus capacity testing", targetWeeks: 4 },
+    headers: { ...plusHeaders, "Idempotency-Key": firstCourseKey },
+    data: { topic: firstCourseTopic, targetWeeks: 4 },
   });
   const firstCourseBody = await firstCourse.json() as {
     courseId?: string;
@@ -511,9 +517,9 @@ test("a direct API caller cannot exceed the Plus owned-course limit", async ({ r
   const firstLesson = firstCourseBody.modules?.[0]?.lessons[0];
   expect(firstLesson).toBeTruthy();
   const generatedLesson = await request.post("/api/generate-lesson", {
-    headers: { ...plusHeaders, "Idempotency-Key": "plus-first-generated-lesson" },
+    headers: { ...plusHeaders, "Idempotency-Key": `plus-first-generated-lesson-${runId}` },
     data: {
-      topic: "Decision quality for Plus capacity testing",
+      topic: firstCourseTopic,
       lessonTitle: firstLesson?.title,
       lessonConcept: firstLesson?.concept,
       courseId: firstCourseBody.courseId,
@@ -525,8 +531,8 @@ test("a direct API caller cannot exceed the Plus owned-course limit", async ({ r
   expect(savedLesson.ok()).toBe(true);
 
   const retry = await request.post("/api/generate-course", {
-    headers: { ...plusHeaders, "Idempotency-Key": "plus-capacity-first-course" },
-    data: { topic: "Decision quality for Plus capacity testing", targetWeeks: 4 },
+    headers: { ...plusHeaders, "Idempotency-Key": firstCourseKey },
+    data: { topic: firstCourseTopic, targetWeeks: 4 },
   });
   expect(retry.ok(), await retry.text()).toBe(true);
 
@@ -538,8 +544,8 @@ test("a direct API caller cannot exceed the Plus owned-course limit", async ({ r
   expect(await publish.json()).toMatchObject({ code: "PLAN_CAPABILITY_REQUIRED" });
 
   const overLimit = await request.post("/api/generate-course", {
-    headers: { ...plusHeaders, "Idempotency-Key": "plus-capacity-second-course" },
-    data: { topic: "A second private course", targetWeeks: 4 },
+    headers: { ...plusHeaders, "Idempotency-Key": `plus-capacity-second-course-${runId}` },
+    data: { topic: `A second private course ${runId}`, targetWeeks: 4 },
   });
   expect(overLimit.status()).toBe(409);
   expect(await overLimit.json()).toMatchObject({

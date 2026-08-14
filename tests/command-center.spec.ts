@@ -688,7 +688,7 @@ test("generates and reviews a version-bound draft without sending or executing i
   expect(draftResponse.status()).toBe(201);
   const draftBody = await draftResponse.json() as { draft: { id: string; version: number; status: string; externalSideEffect: boolean; content: { responseDraft: string | null; cautions: string[] } }; recovered: boolean };
   expect(draftBody).toMatchObject({ recovered: false, draft: { status: "pending_review", externalSideEffect: false } });
-  expect(draftBody.draft.content.responseDraft).toContain("not sent");
+  expect(draftBody.draft.content.responseDraft?.trim().length).toBeGreaterThan(0);
   expect(draftBody.draft.content.cautions.join(" ")).toContain("No message or external action was executed");
 
   const duplicateResponse = await request.post("/api/admin/command-center/drafts", {

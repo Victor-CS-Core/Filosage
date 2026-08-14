@@ -66,9 +66,9 @@
 .formPanel,
 .snapshot {
   overflow: hidden;
-  border: 1px solid var(--line);
   border-radius: var(--radius-lg);
   background: var(--surface);
+  box-shadow: inset 0 0 0 1px var(--line), 0 3px 0 var(--line-strong), var(--shadow-browser);
 }
 
 .stepNav {
@@ -591,7 +591,8 @@
 
 .snapshotHeader {
   min-height: 178px;
-  background: var(--brand-navy);
+  background-color: #07152B;
+  background-image: var(--paper-fiber);
   color: var(--brand-offwhite);
   padding: 23px;
 }

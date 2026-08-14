@@ -4,6 +4,7 @@ import { securityHeaders } from "./src/lib/security-headers";
 const nextConfig: NextConfig = {
   output: "standalone",
   deploymentId: process.env.SITE_VERSION?.trim() || undefined,
+  allowedDevOrigins: ["127.0.0.1"],
   // An owned Playwright dev server gets its own build directory and therefore
   // its own Next dev lock. Normal development and production keep `.next`.
   ...(process.env.FILOSAGE_NEXT_DIST_DIR

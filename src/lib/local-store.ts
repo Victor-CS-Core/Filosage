@@ -214,7 +214,15 @@ export async function localFirestoreJson<T>(
   }
 
   if (method === "PATCH") {
-    store[documentPath] = fromFirestoreFields((body.fields as Record<string, FirestoreValue>) ?? {});
+    const incoming = fromFirestoreFields((body.fields as Record<string, FirestoreValue>) ?? {});
+    const masks = search.getAll("updateMask.fieldPaths");
+    if (masks.length) {
+      const current = { ...(store[documentPath] ?? {}) };
+      for (const field of masks) current[field] = incoming[field];
+      store[documentPath] = current;
+    } else {
+      store[documentPath] = incoming;
+    }
     persist();
     return toDocument(documentPath, store[documentPath]) as T;
   }

@@ -6,13 +6,14 @@ import { matchesSearchQuery } from "@/lib/search";
 
 export interface CommandPaletteItem {
   id: string;
-  section: "Navigate" | "Current course" | "Courses" | "Account";
+  section: "Navigate" | "Account";
   label: string;
   description: string;
   href?: string;
   action?: "open-courses" | "sign-out";
   keywords?: string;
   icon: LucideIcon;
+  tone: "teal" | "blue" | "coral" | "gold" | "slate";
 }
 
 interface CommandPaletteProps {
@@ -95,7 +96,7 @@ export default function CommandPalette({ open, items, theme, onClose, onSelect, 
                 choose(filteredItems[currentActiveIndex]);
               }
             }}
-            placeholder="Search pages, actions, and courses"
+            placeholder="Search pages and actions"
             autoComplete="off"
             role="combobox"
             aria-expanded="true"
@@ -119,11 +120,11 @@ export default function CommandPalette({ open, items, theme, onClose, onSelect, 
                   type="button"
                   role="option"
                   aria-selected={index === currentActiveIndex}
-                  className={index === currentActiveIndex ? "is-active" : ""}
+                  className={`${index === currentActiveIndex ? "is-active" : ""} command-tone-${item.tone}`.trim()}
                   onMouseEnter={() => setActiveIndex(index)}
                   onClick={() => choose(item)}
                 >
-                  <span className="command-palette-icon"><Icon size={17} aria-hidden="true" /></span>
+                  <span className="command-palette-icon" data-tone={item.tone}><Icon size={17} aria-hidden="true" /></span>
                   <span><strong>{item.label}</strong><small>{item.description}</small></span>
                   <ArrowRight size={16} aria-hidden="true" />
                 </button>
@@ -133,7 +134,7 @@ export default function CommandPalette({ open, items, theme, onClose, onSelect, 
             <div className="command-palette-empty" role="status">
               <Search size={21} aria-hidden="true" />
               <strong>No matching destination</strong>
-              <p>Try a page name, course title, or action such as “create.”</p>
+              <p>Try a page name or an action such as “create.”</p>
             </div>
           )}
         </div>
