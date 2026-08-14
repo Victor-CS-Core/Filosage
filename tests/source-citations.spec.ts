@@ -82,6 +82,7 @@ test("grounded lesson generation maps every factual assertion and exposes owner-
   expect(routeSource).toContain("Never claim or imply that a spreadsheet, template, checklist, diagram, or other tool");
   expect(routeSource).toContain("Evidence-bounded objective: derive one narrow observable objective from the assigned atomic evidence claims");
   expect(routeSource).toContain("Activity constraint: create a concrete mode-specific activity that uses only hypothetical inputs");
+  expect(routeSource).toContain("Never assert that the learner previously completed, selected, observed, understood, or produced something");
   expect(routeSource).toContain("copied verbatim");
   expect(routeSource).toContain("silently audit every sentence");
   expect(routeSource).toContain("Do not infer mnemonics, category exclusions, definitions");
