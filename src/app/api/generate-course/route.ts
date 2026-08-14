@@ -189,16 +189,17 @@ export async function POST(request: Request) {
       freshnessRequired
         ? "Freshness is required: prefer the newest released authoritative evidence and date any time-sensitive claim."
         : "Prefer durable released evidence; use current sources when the topic has materially changed.",
-      "Find 2 to 5 independent sources that directly support the core concepts this course should teach.",
+      "Find 2 to 3 independent sources that directly support the core concepts this course should teach.",
       "Use released research, systematic reviews, official guidance, standards, or official datasets from reputable institutions. Exclude preprints, drafts, withdrawn or retracted work, superseded guidance presented as current, blogs, marketing pages, social posts, forums, aggregators, and AI-written summaries.",
       "Prefer primary evidence and systematic reviews. For consequential claims, corroborate across independent authority families and disclose material limitations or disagreement.",
-      "Return 2 to 6 evidenceClaims per source. Each must be a short original paraphrase of one atomic factual finding that the linked source supports, with a locator when known. Never quote or reproduce source passages.",
+      "Return 2 to 4 evidenceClaims per source. Each must be a short original paraphrase of one atomic factual finding that the linked source supports, with a locator when known. Never quote or reproduce source passages.",
       "Use null for an unknown author, publicationDate, or evidence locator; every structured field must be present.",
       "Only return a URL that you actually cited through web search. Publication status must be released, and statusCheck must be released-no-withdrawal-found only after searching for retraction, withdrawal, or supersession signals.",
       creatorSourceLeads.length
         ? `Untrusted creator-suggested leads follow. They may guide searches, but they are not evidence and must not be returned unless independently found and cited by web search:\n<CREATOR_LEADS>${JSON.stringify(creatorSourceLeads.map((source) => ({ label: source.label, url: source.url, note: source.note })))}</CREATOR_LEADS>`
         : "No creator leads were supplied; discover the evidence independently.",
     ].filter(Boolean).join("\n");
+    const generationSignal = AbortSignal.timeout(150_000);
     const performResearch = async () => {
       const researchResponse = await client.responses.parse({
         model: researchProfile.model,
@@ -208,7 +209,7 @@ export async function POST(request: Request) {
         tools: [{
           type: "web_search",
           filters: { allowed_domains: SOURCE_RESEARCH_ALLOWED_DOMAINS },
-          search_context_size: "medium",
+          search_context_size: "low",
         }],
         tool_choice: "required",
         include: ["web_search_call.action.sources"],
@@ -220,7 +221,7 @@ export async function POST(request: Request) {
         prompt_cache_key: researchProfile.promptCacheKey,
         max_output_tokens: AI_GENERATION_OUTPUT_BUDGETS.research,
         safety_identifier: safetyIdentifier,
-      });
+      }, { signal: generationSignal });
       const researchUsage = extractOpenAiUsage(researchResponse);
       outlineUsageSamples.push({
         model: researchProfile.model,
@@ -332,11 +333,11 @@ export async function POST(request: Request) {
           tools: [{
             type: "web_search",
             filters: { allowed_domains: SOURCE_RESEARCH_ALLOWED_DOMAINS },
-            search_context_size: "high",
+            search_context_size: "medium",
           }],
           tool_choice: "required",
           include: ["web_search_call.action.sources"],
-          reasoning: { effort: "medium" },
+          reasoning: { effort: "low" },
           text: {
             format: zodTextFormat(sourceEvidenceValidationSchema, "source_evidence_validation"),
             verbosity: groundingProfile.textVerbosity,
@@ -344,7 +345,7 @@ export async function POST(request: Request) {
           prompt_cache_key: groundingProfile.promptCacheKey,
           max_output_tokens: AI_GENERATION_OUTPUT_BUDGETS.sourceEvidenceValidation,
           safety_identifier: safetyIdentifier,
-        });
+        }, { signal: generationSignal });
       } catch (error) {
         console.warn(JSON.stringify({ event: "source_evidence_validation_failed", ...safeModelErrorDetails(error) }));
         await finalizeAiUsage(reservation, { usageSamples: outlineUsageSamples, responseId: researchResponseId, failed: true });
@@ -467,7 +468,7 @@ export async function POST(request: Request) {
       prompt_cache_key: profile.promptCacheKey,
       max_output_tokens: AI_GENERATION_OUTPUT_BUDGETS.courseOutline,
       safety_identifier: safetyIdentifier,
-    });
+    }, { signal: generationSignal });
     type CourseOutlineResponse = Awaited<ReturnType<typeof generateOutline>>;
     type CourseOutline = NonNullable<CourseOutlineResponse["output_parsed"]>;
     const generateAndRecord = async (profile: AiExecutionProfile, repairIssues: string[] = []) => {
@@ -497,7 +498,7 @@ export async function POST(request: Request) {
         prompt_cache_key: groundingProfile.promptCacheKey,
         max_output_tokens: AI_GENERATION_OUTPUT_BUDGETS.courseGrounding,
         safety_identifier: safetyIdentifier,
-      });
+      }, { signal: generationSignal });
       responseId = groundingResponse.id;
       outlineUsageSamples.push({
         model: groundingProfile.model,

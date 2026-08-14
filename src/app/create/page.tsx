@@ -39,6 +39,20 @@ const steps = [
   { label: "Teaching plan", description: "Shape the course", icon: FileCheck2 },
 ] as const;
 
+type CourseCreationResponse = {
+  courseId?: string;
+  error?: string;
+  evaluation?: {
+    providerError?: {
+      status?: string | number;
+      code?: string;
+      type?: string;
+      param?: string;
+      requestId?: string;
+    };
+  };
+};
+
 export default function CreateCoursePage() {
   const { user, canCreateCourses, account } = useAuth();
   const [activeStep, setActiveStep] = useState(0);
@@ -97,7 +111,15 @@ export default function CreateCoursePage() {
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}`, "Idempotency-Key": requestIdentityRef.current.key },
         body: signature,
       });
-      const data = await response.json();
+      const responseText = await response.text();
+      let data: CourseCreationResponse = {};
+      try {
+        data = responseText ? JSON.parse(responseText) as CourseCreationResponse : {};
+      } catch {
+        throw new Error(responseText.toLowerCase().includes("timeout")
+          ? "Course creation took too long to confirm. Retry the same request to reopen it if the server finished, or start it again safely."
+          : "The course service returned an unreadable response. No unconfirmed course will be opened.");
+      }
       if (!response.ok) {
         const providerError = data?.evaluation?.providerError;
         const providerDiagnostic = providerError && typeof providerError === "object"

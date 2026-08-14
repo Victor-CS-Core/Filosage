@@ -95,10 +95,10 @@ export const sourceResearchSchema = z.object({
     evidenceClaims: z.array(z.object({
       claim: z.string().trim().min(30).max(320),
       locator: z.string().trim().min(2).max(160).nullable(),
-    })).min(2).max(6),
+    })).min(2).max(4),
     reputationRationale: z.string().trim().min(20).max(400),
     limitations: z.string().trim().min(10).max(400),
-  })).min(2).max(5),
+  })).min(2).max(3),
 });
 
 export type SourceResearchResult = z.infer<typeof sourceResearchSchema>;
@@ -111,8 +111,8 @@ export const sourceEvidenceValidationSchema = z.object({
       evidenceClaimId: z.string().trim().regex(/^evidence-[a-z0-9-]{1,80}$/),
       verdict: z.enum(["supported", "partial", "unsupported"]),
       rationale: z.string().trim().min(10).max(400),
-    })).min(1).max(6),
-  })).min(1).max(5),
+    })).min(1).max(4),
+  })).min(1).max(3),
 });
 
 export type SourceEvidenceValidationResult = z.infer<typeof sourceEvidenceValidationSchema>;

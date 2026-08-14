@@ -399,3 +399,9 @@ test("normal course creation UI delegates source research to the server", async 
   expect(source).toContain("Researching released, reputable sources");
   expect(source).toContain("Research and source validation are automatic.");
 });
+
+test("course generation aborts and releases before the synchronous QA ingress deadline", async () => {
+  const route = await import("node:fs/promises").then((fs) => fs.readFile("src/app/api/generate-course/route.ts", "utf8"));
+  expect(route).toContain("AbortSignal.timeout(150_000)");
+  expect(route.match(/\{ signal: generationSignal \}/g)?.length).toBeGreaterThanOrEqual(4);
+});

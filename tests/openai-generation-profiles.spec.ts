@@ -87,10 +87,10 @@ test("uses explicit workload reasoning and stable versioned cache keys", () => {
   expect(course.promptCacheKey).not.toContain("user");
   expect(research.promptCacheKey.length).toBeLessThanOrEqual(64);
   expect(grounding.promptCacheKey.length).toBeLessThanOrEqual(64);
-  expect(research.reasoningEffort).toBe("medium");
-  expect(grounding.reasoningEffort).toBe("medium");
+  expect(research.reasoningEffort).toBe("low");
+  expect(grounding.reasoningEffort).toBe("low");
   expect(AI_GENERATION_OUTPUT_BUDGETS.courseOutline).toBeGreaterThan(7_000);
-  expect(AI_GENERATION_OUTPUT_BUDGETS.courseGrounding).toBeGreaterThan(4_000);
+  expect(AI_GENERATION_OUTPUT_BUDGETS.courseGrounding).toBeGreaterThanOrEqual(4_000);
   expect(AI_GENERATION_OUTPUT_BUDGETS.lessonGrounding).toBeGreaterThan(1_800);
   expect(stablePromptCacheKey("research", "a".repeat(120), "gpt-5.6-terra")).toHaveLength(64);
   expect(aiUsageProfileMetadata(course)).toEqual({
