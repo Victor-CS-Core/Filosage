@@ -399,13 +399,14 @@ test("normal course creation UI delegates source research to the server", async 
   expect(source).toContain("Researching released, reputable sources");
   expect(source).toContain("Research and source validation are automatic.");
   expect(source).toContain('account?.isOwner ? { "x-filosage-model-evaluation": "1" }');
-  expect(source).toContain("Research diagnostic:");
+  expect(source).toContain("Validation diagnostic:");
 });
 
-test("course generation aborts and releases before the synchronous QA ingress deadline", async () => {
+test("course generation bounds research and gives the final grounding verifier its own deadline", async () => {
   const route = await import("node:fs/promises").then((fs) => fs.readFile("src/app/api/generate-course/route.ts", "utf8"));
   expect(route).toContain("AbortSignal.timeout(150_000)");
-  expect(route.match(/\{ signal: generationSignal \}/g)?.length).toBeGreaterThanOrEqual(4);
+  expect(route.match(/\{ signal: generationSignal \}/g)?.length).toBeGreaterThanOrEqual(3);
+  expect(route).toContain("signal: AbortSignal.timeout(90_000)");
   expect(route).toContain("copy the exact HTTPS URL supplied by web search provenance");
   expect(route).toContain("Treat doi.org as one resolver family");
   expect(route).toContain("atomic evidence claims as a hard ceiling");

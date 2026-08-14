@@ -135,7 +135,7 @@ export default function CreateCoursePage() {
         const issueDiagnostic = account?.isOwner && Array.isArray(data.evaluation?.issues)
           ? data.evaluation.issues.filter((issue): issue is string => typeof issue === "string").slice(0, 3).join(" · ")
           : "";
-        throw new Error(`${data.error || "The course could not be created."}${providerDiagnostic ? ` Provider diagnostic: ${providerDiagnostic}.` : ""}${issueDiagnostic ? ` Research diagnostic: ${issueDiagnostic}.` : ""}`);
+        throw new Error(`${data.error || "The course could not be created."}${providerDiagnostic ? ` Provider diagnostic: ${providerDiagnostic}.` : ""}${issueDiagnostic ? ` Validation diagnostic: ${issueDiagnostic}.` : ""}`);
       }
       if (typeof data.courseId !== "string" || !data.courseId) throw new Error("The course was saved, but its destination was missing. Retry to reopen the saved course.");
       setGenerationProgress(100);

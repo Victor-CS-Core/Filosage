@@ -83,6 +83,7 @@ export async function POST(request: Request) {
   let pipelineActorHash: string | undefined;
   let accountIsOwner = false;
   const ownerEvaluationRequested = request.headers.get("x-filosage-model-evaluation") === "1";
+  let generationPhase = "authorization";
   try {
     const account = await requirePlanCapability(request, "create_course");
     accountIsOwner = account.isOwner;
@@ -205,6 +206,7 @@ export async function POST(request: Request) {
         : "No creator leads were supplied; discover the evidence independently.",
     ].filter(Boolean).join("\n");
     const generationSignal = AbortSignal.timeout(150_000);
+    generationPhase = "source research";
     const performResearch = async () => {
       const researchResponse = await client.responses.parse({
         model: researchProfile.model,
@@ -458,7 +460,9 @@ export async function POST(request: Request) {
         "Use concept and worked-example lessons early, guided practice in the middle, and case, lab, or synthesis work when the learner has enough prerequisite knowledge.",
         "Module challenges and the capstone must be assessable from their success criteria. Adapt examples and practice to the learner's intended application.",
       ].filter(Boolean).join("\n");
-    const generateOutline = (profile: AiExecutionProfile, repairIssues: string[] = []) => client.responses.parse({
+    const generateOutline = (profile: AiExecutionProfile, repairIssues: string[] = []) => {
+      generationPhase = repairIssues.length ? "course outline repair" : "course outline";
+      return client.responses.parse({
       model: profile.model,
       store: false,
       instructions:
@@ -474,7 +478,8 @@ export async function POST(request: Request) {
       prompt_cache_key: profile.promptCacheKey,
       max_output_tokens: AI_GENERATION_OUTPUT_BUDGETS.courseOutline,
       safety_identifier: safetyIdentifier,
-    }, { signal: generationSignal });
+      }, { signal: generationSignal });
+    };
     type CourseOutlineResponse = Awaited<ReturnType<typeof generateOutline>>;
     type CourseOutline = NonNullable<CourseOutlineResponse["output_parsed"]>;
     const generateAndRecord = async (profile: AiExecutionProfile, repairIssues: string[] = []) => {
@@ -490,6 +495,7 @@ export async function POST(request: Request) {
       return generated;
     };
     const evaluateCourseGrounding = async (candidate: CourseOutline) => {
+      generationPhase = "automatic course evidence verification";
       const groundingData = courseGroundingPromptData(candidate, sourcePack);
       const groundingResponse = await client.responses.parse({
         model: groundingProfile.model,
@@ -504,7 +510,7 @@ export async function POST(request: Request) {
         prompt_cache_key: groundingProfile.promptCacheKey,
         max_output_tokens: AI_GENERATION_OUTPUT_BUDGETS.courseGrounding,
         safety_identifier: safetyIdentifier,
-      }, { signal: generationSignal });
+      }, { signal: AbortSignal.timeout(90_000) });
       responseId = groundingResponse.id;
       outlineUsageSamples.push({
         model: groundingProfile.model,
@@ -906,7 +912,7 @@ export async function POST(request: Request) {
       {
         error: "Course generation is temporarily unavailable.",
         evaluation: accountIsOwner && ownerEvaluationRequested
-          ? { providerError }
+          ? { providerError, issues: [`Generation phase: ${generationPhase}.`] }
           : undefined,
       },
       { status: 500 },
