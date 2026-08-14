@@ -217,7 +217,7 @@ export async function POST(request: Request) {
           verbosity: researchProfile.textVerbosity,
         },
         prompt_cache_key: researchProfile.promptCacheKey,
-        max_output_tokens: 3_500,
+        max_output_tokens: 6_000,
         safety_identifier: safetyIdentifier,
       });
       const researchUsage = extractOpenAiUsage(researchResponse);
@@ -330,13 +330,13 @@ export async function POST(request: Request) {
           }],
           tool_choice: "required",
           include: ["web_search_call.action.sources"],
-          reasoning: { effort: groundingProfile.reasoningEffort },
+          reasoning: { effort: "medium" },
           text: {
             format: zodTextFormat(sourceEvidenceValidationSchema, "source_evidence_validation"),
             verbosity: groundingProfile.textVerbosity,
           },
           prompt_cache_key: groundingProfile.promptCacheKey,
-          max_output_tokens: 3_500,
+          max_output_tokens: 6_000,
           safety_identifier: safetyIdentifier,
         });
       } catch (error) {
@@ -370,8 +370,15 @@ export async function POST(request: Request) {
       }
       const evidenceValidation = validationResponse.output_parsed
         ? validateSourceEvidence(validationResponse.output_parsed, validationResponse, sourcePack)
-        : { sources: sourcePack, issues: ["The independent evidence validator did not return structured output."] };
+        : { sources: sourcePack, issues: ["The independent evidence validator did not return structured output."], rejections: [] };
       sourcePack = evidenceValidation.sources;
+      if (evidenceValidation.rejections.length) {
+        console.info(JSON.stringify({
+          event: "source_evidence_validation_pruned",
+          actorHash: safetyIdentifier,
+          rejections: evidenceValidation.rejections,
+        }));
+      }
       if (evidenceValidation.issues.length || groundedSourcePackIssues(sourcePack).length) {
         const issues = [...evidenceValidation.issues, ...groundedSourcePackIssues(sourcePack)];
         console.warn(JSON.stringify({ event: "source_evidence_validation_rejected", actorHash: safetyIdentifier, issues }));

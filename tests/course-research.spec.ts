@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { zodTextFormat } from "openai/helpers/zod";
 import {
   annotatedCitationUrls,
   automaticCitationGroundingIssues,
@@ -114,6 +115,69 @@ test("certifies only API-cited URLs from independent server authority families",
   expect(new Set(result.sources.map((source) => source.authorityFamily)).size).toBe(2);
   expect(annotatedCitationUrls(response).size).toBe(2);
   expect(webSearchCallCount(response)).toBe(1);
+});
+
+test("research response schemas stay compatible with OpenAI Structured Outputs", () => {
+  const researchFormat = zodTextFormat(sourceResearchSchema, "course_research");
+  const validationFormat = zodTextFormat(sourceEvidenceValidationSchema, "source_evidence_validation");
+  expect(JSON.stringify(researchFormat)).not.toContain('"format":"uri"');
+  expect(JSON.stringify(validationFormat)).not.toContain('"format":"uri"');
+});
+
+test("independent validation rejects malformed HTTPS-like URLs without throwing", () => {
+  const certified = certifyResearchSources(
+    researchFixture(),
+    researchResponse(researchFixture().sources.map((source) => source.url)),
+    "2026-08-14T12:00:00.000Z",
+  );
+  const malformed = sourceEvidenceValidationSchema.parse({
+    sources: [{
+      url: "https://",
+      statusVerdict: "released-no-withdrawal-found",
+      claims: [{
+        evidenceClaimId: certified.sources[0].evidenceClaims?.[0].id,
+        verdict: "supported",
+        rationale: "The independent validator claims support but returned no valid resource URL.",
+      }],
+    }],
+  });
+  expect(() => validateSourceEvidence(malformed, researchResponse([]), certified.sources)).not.toThrow();
+  expect(validateSourceEvidence(malformed, researchResponse([]), certified.sources).issues)
+    .toContain("The independent evidence validator returned an unsafe or malformed source URL.");
+});
+
+test("independent validation prunes unsupported claims while retaining supported evidence", () => {
+  const parsed = researchFixture();
+  const certified = certifyResearchSources(
+    parsed,
+    researchResponse(parsed.sources.map((source) => source.url)),
+    "2026-08-14T12:00:00.000Z",
+  );
+  const validation = sourceEvidenceValidationSchema.parse({
+    sources: certified.sources.map((source, sourceIndex) => ({
+      url: source.url,
+      statusVerdict: "released-no-withdrawal-found",
+      claims: (source.evidenceClaims ?? []).map((claim, claimIndex) => ({
+        evidenceClaimId: claim.id,
+        verdict: claimIndex === 0 ? "supported" : sourceIndex === 0 ? "partial" : "unsupported",
+        rationale: claimIndex === 0
+          ? "The exact linked resource directly supports this bounded atomic claim."
+          : "The exact linked resource does not fully support this broader atomic claim.",
+      })),
+    })),
+  });
+  const result = validateSourceEvidence(
+    validation,
+    researchResponse(certified.sources.flatMap((source) => source.url ? [source.url] : [])),
+    certified.sources,
+  );
+
+  expect(result.issues).toEqual([]);
+  expect(result.sources).toHaveLength(2);
+  expect(result.sources.every((source) => source.evidenceClaims?.length === 1)).toBe(true);
+  expect(result.sources.every((source) => source.note === source.evidenceClaims?.[0].claim)).toBe(true);
+  expect(result.rejections.some((issue) => issue.includes("was discarded"))).toBe(true);
+  expect(groundedSourcePackIssues(result.sources)).toEqual([]);
 });
 
 test("rejects an attractive model-authored URL that lacks API citation provenance", () => {

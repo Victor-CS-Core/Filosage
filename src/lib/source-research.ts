@@ -82,7 +82,10 @@ export const SOURCE_RESEARCH_ALLOWED_DOMAINS = AUTHORITY_RULES.map((rule) => rul
 export const sourceResearchSchema = z.object({
   sources: z.array(z.object({
     label: z.string().trim().min(2).max(160),
-    url: z.string().url().startsWith("https://").max(500),
+    // OpenAI Structured Outputs does not support JSON Schema's `format: "uri"`.
+    // Keep the schema compatible and perform full URL, host, and deep-link
+    // validation in the server certification step below.
+    url: z.string().startsWith("https://").max(500),
     author: z.string().trim().max(160).nullable(),
     publisher: z.string().trim().min(2).max(160),
     publicationDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable(),
@@ -102,7 +105,7 @@ export type SourceResearchResult = z.infer<typeof sourceResearchSchema>;
 
 export const sourceEvidenceValidationSchema = z.object({
   sources: z.array(z.object({
-    url: z.string().url().startsWith("https://").max(500),
+    url: z.string().startsWith("https://").max(500),
     statusVerdict: z.enum(["released-no-withdrawal-found", "unverified"]),
     claims: z.array(z.object({
       evidenceClaimId: z.string().trim().regex(/^evidence-[a-z0-9-]{1,80}$/),
@@ -237,47 +240,69 @@ export function validateSourceEvidence(
   const annotatedUrls = annotatedCitationUrls(response);
   const callIds = completedWebSearchCallIds(response);
   const responseId = typeof (response as { id?: unknown })?.id === "string" ? String((response as { id: string }).id) : undefined;
-  const validationByUrl = new Map(validation.sources.map((source) => [canonicalUrl(source.url), source]));
   const issues: string[] = [];
-  if (validationByUrl.size !== validation.sources.length) {
-    issues.push("The independent evidence validator returned a duplicate source URL.");
+  const rejections: string[] = [];
+  const validationByUrl = new Map<string, SourceEvidenceValidationResult["sources"][number]>();
+  for (const result of validation.sources) {
+    if (!isSafePublicSourceUrl(result.url)) {
+      issues.push("The independent evidence validator returned an unsafe or malformed source URL.");
+      continue;
+    }
+    const url = canonicalUrl(result.url);
+    if (validationByUrl.has(url)) {
+      issues.push("The independent evidence validator returned a duplicate source URL.");
+      continue;
+    }
+    validationByUrl.set(url, result);
   }
-  const sources = sourcePack.map((source) => {
-    const url = source.url ? canonicalUrl(source.url) : "";
+  const sources = sourcePack.flatMap((source) => {
+    const url = source.url && isSafePublicSourceUrl(source.url) ? canonicalUrl(source.url) : "";
     const result = validationByUrl.get(url);
-    if (!url || !annotatedUrls.has(url)) issues.push(`Source ${source.id} was not cited by the independent evidence-validation response.`);
+    if (!url || !annotatedUrls.has(url)) {
+      rejections.push(`Source ${source.id} was not cited by the independent evidence-validation response.`);
+      return [];
+    }
     if (!result) {
-      issues.push(`Source ${source.id} was not assessed by the independent evidence validator.`);
-      return source;
+      rejections.push(`Source ${source.id} was not assessed by the independent evidence validator.`);
+      return [];
     }
     if (result.statusVerdict !== "released-no-withdrawal-found") {
-      issues.push(`Source ${source.id} release or withdrawal status could not be verified.`);
+      rejections.push(`Source ${source.id} release or withdrawal status could not be verified.`);
+      return [];
     }
     const claimById = new Map(result.claims.map((claim) => [claim.evidenceClaimId, claim]));
     if (claimById.size !== result.claims.length) {
       issues.push(`Source ${source.id} validation contains a duplicate evidence claim assessment.`);
-    }
-    for (const evidence of source.evidenceClaims ?? []) {
-      const assessment = claimById.get(evidence.id);
-      if (!assessment || assessment.verdict !== "supported") {
-        issues.push(`Evidence claim ${evidence.id} is not independently supported by its cited source.`);
-      }
     }
     for (const assessed of result.claims) {
       if (!source.evidenceClaims?.some((evidence) => evidence.id === assessed.evidenceClaimId)) {
         issues.push(`Source ${source.id} validation contains an unknown evidence claim ID.`);
       }
     }
-    return {
+    const supportedEvidenceClaims = (source.evidenceClaims ?? []).filter((evidence) => {
+      const verdict = claimById.get(evidence.id)?.verdict;
+      if (verdict !== "supported") {
+        rejections.push(`Evidence claim ${evidence.id} was discarded because independent validation returned ${verdict ?? "no verdict"}.`);
+        return false;
+      }
+      return true;
+    });
+    if (!supportedEvidenceClaims.length) {
+      rejections.push(`Source ${source.id} was discarded because none of its atomic claims were independently supported.`);
+      return [];
+    }
+    return [{
       ...source,
+      note: supportedEvidenceClaims.map((evidence) => evidence.claim).join("\n"),
+      evidenceClaims: supportedEvidenceClaims,
       qualityTier: "vetted" as const,
       evidenceValidationResponseId: responseId,
       evidenceValidationCallIds: callIds,
-    };
+    }];
   });
   if (!callIds.length) issues.push("The independent evidence-validation response did not contain a completed web_search_call.");
   if (!responseId) issues.push("The independent evidence-validation response has no response ID.");
-  return { sources, issues };
+  return { sources, issues, rejections };
 }
 
 export function annotatedCitationUrls(response: unknown) {

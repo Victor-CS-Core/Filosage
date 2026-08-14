@@ -59,7 +59,7 @@ const PROFILE_SPECS: Record<AiExecutionProfileId, ProfileSpec> = {
     workload: "research",
     modelEnv: ["OPENAI_COURSE_RESEARCH_MODEL", "OPENAI_COURSE_MODEL", "OPENAI_MODEL"],
     defaultModel: "gpt-5.6-terra",
-    reasoningEffort: "high",
+    reasoningEffort: "medium",
     textVerbosity: "medium",
   },
   "course.grounding": {
