@@ -157,7 +157,29 @@ function citationSectionText(lesson: Partial<LessonData>, section: LessonCitatio
 }
 
 function comparableText(value: string) {
-  return value.normalize("NFKC").replace(/\s+/g, " ").trim().toLocaleLowerCase("en");
+  return value.normalize("NFC").replace(/\s+/g, " ").trim().toLocaleLowerCase("en");
+}
+
+function citationSentenceCandidates(value: string) {
+  const segmenter = new Intl.Segmenter(undefined, { granularity: "sentence" });
+  return value
+    .split(/\r?\n/u)
+    .flatMap((line) => Array.from(segmenter.segment(line), ({ segment }) => segment.trim()))
+    .filter(Boolean);
+}
+
+const unsafeCitationSerializationCharacters = /[\u200B-\u200F\u202A-\u202E\u2066-\u2069\uFEFF]/u;
+
+function comparableCitationSerialization(value: string) {
+  if (unsafeCitationSerializationCharacters.test(value)) return null;
+  return value
+    .normalize("NFC")
+    .replace(/[\u2018\u2019\u02BC]/gu, "'")
+    .replace(/[\u201C\u201D]/gu, "\"")
+    .replace(/\s+/gu, " ")
+    .trim()
+    .replace(/\.$/u, "")
+    .toLocaleLowerCase("en");
 }
 
 const lessonCitationSections: LessonCitationSection[] = [
@@ -181,10 +203,31 @@ export function normalizeLessonCitationSections<T extends { claim: string; secti
   return citations.map((citation) => {
     const claim = comparableText(citation.claim);
     if (comparableText(citationSectionText(lesson, citation.section)).includes(claim)) return citation;
-    const matchingSections = lessonCitationSections.filter((section) =>
-      comparableText(citationSectionText(lesson, section)).includes(claim),
+    const exactMatches = lessonCitationSections.flatMap((section) =>
+      citationSentenceCandidates(citationSectionText(lesson, section))
+        .filter((sentence) => comparableText(sentence) === claim)
+        .map((sentence) => ({ section, sentence })),
     );
-    return matchingSections.length === 1 ? { ...citation, section: matchingSections[0] } : citation;
+    if (exactMatches.length === 1) return { ...citation, section: exactMatches[0].section };
+
+    // Models occasionally preserve the complete sentence while changing only
+    // serialization details. Canonicalize to the lesson's exact sentence only
+    // for one unambiguous match. Meaningful punctuation, units, operators, and
+    // invisible controls are never folded. The grounding evaluator then verifies
+    // and fingerprints this canonical full sentence before it can be persisted.
+    const serializedClaim = comparableCitationSerialization(citation.claim);
+    if (!serializedClaim) return citation;
+    const serializationMatches = lessonCitationSections.flatMap((section) =>
+      citationSentenceCandidates(citationSectionText(lesson, section))
+        .filter((sentence) => sentence.length <= 280 && comparableCitationSerialization(sentence) === serializedClaim)
+        .map((sentence) => ({ section, sentence })),
+    );
+    const uniqueMatches = Array.from(new Map(
+      serializationMatches.map((match) => [`${match.section}\u0000${match.sentence}`, match]),
+    ).values());
+    return uniqueMatches.length === 1
+      ? { ...citation, claim: uniqueMatches[0].sentence, section: uniqueMatches[0].section }
+      : citation;
   });
 }
 
