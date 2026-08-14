@@ -79,6 +79,7 @@ test("uses explicit workload reasoning and stable versioned cache keys", () => {
   const grounding = openAiExecutionProfile("course.grounding", environment);
 
   expect(course.reasoningEffort).toBe("low");
+  expect(course.model).toBe("gpt-5.6-luna");
   expect(lesson.reasoningEffort).toBe("medium");
   expect(tutor.reasoningEffort).toBe("low");
   expect(tutor.textVerbosity).toBe("low");
@@ -92,7 +93,9 @@ test("uses explicit workload reasoning and stable versioned cache keys", () => {
   expect(research.promptCacheKey.length).toBeLessThanOrEqual(64);
   expect(grounding.promptCacheKey.length).toBeLessThanOrEqual(64);
   expect(research.reasoningEffort).toBe("low");
+  expect(research.model).toBe("gpt-5.6-luna");
   expect(grounding.reasoningEffort).toBe("low");
+  expect(grounding.model).toBe("gpt-5.6-luna");
   expect(AI_GENERATION_OUTPUT_BUDGETS.courseOutline).toBeGreaterThan(7_000);
   expect(AI_GENERATION_OUTPUT_BUDGETS.courseGrounding).toBeGreaterThanOrEqual(3_000);
   expect(AI_GENERATION_OUTPUT_BUDGETS.lessonGrounding).toBeGreaterThan(1_800);
