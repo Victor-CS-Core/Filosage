@@ -160,6 +160,34 @@ function comparableText(value: string) {
   return value.normalize("NFKC").replace(/\s+/g, " ").trim().toLocaleLowerCase("en");
 }
 
+const lessonCitationSections: LessonCitationSection[] = [
+  "learning_objective",
+  "connection",
+  "content",
+  "key_takeaway",
+  "experience",
+  "guided_practice",
+  "transfer_task",
+  "visual",
+  "interaction",
+  "quiz",
+  "quiz_explanation",
+];
+
+export function normalizeLessonCitationSections<T extends { claim: string; section: LessonCitationSection }>(
+  citations: T[],
+  lesson: Partial<LessonData>,
+) {
+  return citations.map((citation) => {
+    const claim = comparableText(citation.claim);
+    if (comparableText(citationSectionText(lesson, citation.section)).includes(claim)) return citation;
+    const matchingSections = lessonCitationSections.filter((section) =>
+      comparableText(citationSectionText(lesson, section)).includes(claim),
+    );
+    return matchingSections.length === 1 ? { ...citation, section: matchingSections[0] } : citation;
+  });
+}
+
 export function lessonCitationQualityIssues(
   citations: Array<Omit<Pick<LessonCitation, "sourceId" | "evidenceClaimId" | "claim" | "section" | "locator">, "locator"> & { locator?: string | null }> | undefined,
   assignedSources: CourseSource[],

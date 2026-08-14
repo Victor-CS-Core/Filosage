@@ -4,6 +4,7 @@ import type { CourseSource, LessonData } from "../src/lib/course-types";
 import {
   assignedSourcePack,
   lessonCitationQualityIssues,
+  normalizeLessonCitationSections,
   outlineSourceAssignmentIssues,
   outlineSourceCoverageIssues,
   sourcePackPromptBlock,
@@ -164,6 +165,20 @@ test("citations can bind factual claims in every field scanned by the grounding 
   ], assigned, extendedLesson)).toEqual([expect.stringContaining("duplicates an earlier source-backed claim")]);
   expect(lessonCitationQualityIssues([{ sourceId: source.id, claim: "A stronger hierarchy claim.", section: "experience" }], assigned, extendedLesson)).toEqual([
     expect.stringContaining("exact concise statement"),
+  ]);
+});
+
+test("an exact citation is remapped only when it appears in one unambiguous lesson field", () => {
+  const claim = "Evidence can be checked against an observed record.";
+  expect(normalizeLessonCitationSections([{ sourceId: source.id, claim, section: "quiz" as const }], lesson)).toEqual([
+    { sourceId: source.id, claim, section: "content" },
+  ]);
+  expect(normalizeLessonCitationSections([{ sourceId: source.id, claim, section: "quiz" as const }], {
+    ...lesson,
+    keyTakeaways: [claim],
+  })).toEqual([{ sourceId: source.id, claim, section: "quiz" }]);
+  expect(normalizeLessonCitationSections([{ sourceId: source.id, claim: "Absent claim", section: "quiz" as const }], lesson)).toEqual([
+    { sourceId: source.id, claim: "Absent claim", section: "quiz" },
   ]);
 });
 

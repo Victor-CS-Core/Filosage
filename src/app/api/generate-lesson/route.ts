@@ -40,7 +40,7 @@ import { coursePipelineFeatureFlags, lessonVisualsEnabled } from "@/lib/feature-
 import { languagePolicyInstruction } from "@/lib/content-language";
 import { lessonQualityIssues, LESSON_QUALITY_GATE_VERSION } from "@/lib/lesson-quality";
 import { lessonGenerationGate } from "@/lib/authoring-gate";
-import { assignedSourcePack, lessonCitationQualityIssues, sourcePackPromptBlock } from "@/lib/source-safety";
+import { assignedSourcePack, lessonCitationQualityIssues, normalizeLessonCitationSections, sourcePackPromptBlock } from "@/lib/source-safety";
 import { safeModelErrorDetails } from "@/lib/model-fallback";
 import {
   AI_GENERATION_OUTPUT_BUDGETS,
@@ -313,7 +313,6 @@ export async function POST(request: Request) {
     const prepareLesson = (generated: GeneratedLessonData | null): LessonData | null => {
       if (!generated) return null;
       const { visuals, interactions, citations, ...lesson } = generated;
-      generatedCitations = citations;
       const preparedVisuals = lessonVisualsAreEnabled
         ? curateLessonVisuals(visuals, visualContext).map((visual) => ({ ...visual, objectiveIds: [objectiveId] }))
         : [];
@@ -325,6 +324,7 @@ export async function POST(request: Request) {
         visuals: preparedVisuals,
         interactions: preparedInteractions,
       };
+      generatedCitations = normalizeLessonCitationSections(citations, prepared);
       return pipelineV2Active
         ? prepared
         : { ...prepared, interactions: deriveLessonInteractions(prepared) };
