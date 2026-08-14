@@ -4,6 +4,7 @@ import OpenAI from "openai";
 import { isLocalMode } from "@/lib/local-mode";
 import { localCourseOutlineFixture } from "@/lib/local-course-fixture";
 import { serverEnvironment } from "@/lib/runtime-environment";
+import { sourceVerificationDataFromInput } from "@/lib/source-verification-data";
 
 /**
  * Returns a real OpenAI client whenever an API key is configured. In local
@@ -403,13 +404,7 @@ function stubCourseGrounding(input: string) {
 }
 
 function stubSourceEvidenceValidation(input: string) {
-  const match = input.match(/<SOURCE_VERIFICATION_DATA>([\s\S]*?)<\/SOURCE_VERIFICATION_DATA>/);
-  let sources: Array<{ url?: string; evidenceClaims?: Array<{ id?: string }> }>;
-  try {
-    sources = match ? JSON.parse(match[1]) as typeof sources : [];
-  } catch {
-    sources = [];
-  }
+  const sources = sourceVerificationDataFromInput(input);
   return {
     sources: sources.map((source) => ({
       url: source.url,
@@ -476,14 +471,8 @@ function localAiStub() {
           : format === "capstone_verdict"
             ? stubCapstoneVerdict(input)
             : stubLesson(input);
-        const verificationMatch = input.match(/<SOURCE_VERIFICATION_DATA>([\s\S]*?)<\/SOURCE_VERIFICATION_DATA>/);
-        let verificationUrls: string[];
-        try {
-          const verificationData = verificationMatch ? JSON.parse(verificationMatch[1]) as Array<{ url?: string }> : [];
-          verificationUrls = verificationData.flatMap((item) => typeof item.url === "string" ? [item.url] : []);
-        } catch {
-          verificationUrls = [];
-        }
+        const verificationUrls = sourceVerificationDataFromInput(input)
+          .flatMap((item) => typeof item.url === "string" ? [item.url] : []);
         const output = format === "course_research"
           ? [
               { type: "web_search_call", id: `local-search-${crypto.randomUUID()}`, status: "completed", action: { type: "search", query: "local grounded course research" } },

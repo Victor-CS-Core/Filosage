@@ -6,7 +6,7 @@ export const COURSE_PIPELINE_VERSIONS = {
   semanticEvaluator: "2026-08-11-semantic-critic-v2",
   labRegistry: "lab-capabilities-v2.0.0",
   visualPolicy: "visual-support-v2.0.0",
-  sourcePolicy: "source-integrity-v4.0.0",
+  sourcePolicy: "source-integrity-v4.1.0",
 } as const;
 
 export function supportsStructuredSourcePolicy(version: string | undefined) {

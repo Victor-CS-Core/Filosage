@@ -7,16 +7,21 @@ import {
   lessonGroundingFingerprint,
 } from "@/lib/source-grounding";
 
-export const SOURCE_RESEARCH_POLICY_VERSION = "source-research-v1.0.0";
+export const SOURCE_RESEARCH_POLICY_VERSION = "source-research-v1.1.0";
+const SUPPORTED_SOURCE_RESEARCH_POLICY_VERSIONS = new Set([
+  "source-research-v1.0.0",
+  SOURCE_RESEARCH_POLICY_VERSION,
+]);
 
 type AuthorityRule = {
   domain: string;
   authorityClass: SourceAuthorityClass;
   family: string;
+  evidenceEligible?: boolean;
 };
 
 const AUTHORITY_RULES: AuthorityRule[] = [
-  { domain: "doi.org", authorityClass: "scholarly", family: "doi" },
+  { domain: "doi.org", authorityClass: "scholarly", family: "doi", evidenceEligible: false },
   { domain: "pubmed.ncbi.nlm.nih.gov", authorityClass: "scholarly", family: "pubmed" },
   { domain: "ncbi.nlm.nih.gov", authorityClass: "government", family: "nih" },
   { domain: "nih.gov", authorityClass: "government", family: "nih" },
@@ -49,8 +54,8 @@ const AUTHORITY_RULES: AuthorityRule[] = [
   { domain: "w3.org", authorityClass: "standards", family: "w3c" },
   { domain: "rfc-editor.org", authorityClass: "standards", family: "ietf" },
   { domain: "ietf.org", authorityClass: "standards", family: "ietf" },
-  { domain: "crossref.org", authorityClass: "scholarly", family: "crossref" },
-  { domain: "openalex.org", authorityClass: "scholarly", family: "openalex" },
+  { domain: "crossref.org", authorityClass: "scholarly", family: "crossref", evidenceEligible: false },
+  { domain: "openalex.org", authorityClass: "scholarly", family: "openalex", evidenceEligible: false },
   { domain: "jstor.org", authorityClass: "scholarly", family: "jstor" },
   { domain: "muse.jhu.edu", authorityClass: "scholarly", family: "project-muse" },
   { domain: "cambridge.org", authorityClass: "scholarly", family: "cambridge" },
@@ -144,6 +149,19 @@ function authorityRuleForUrl(value: string) {
   return AUTHORITY_RULES.find((rule) => hostname === rule.domain || hostname.endsWith(`.${rule.domain}`));
 }
 
+export function researchAuthorityDomainForUrl(value: string) {
+  try {
+    return authorityRuleForUrl(value)?.domain;
+  } catch {
+    return undefined;
+  }
+}
+
+function isEvidenceAuthorityUrl(value: string) {
+  const authority = authorityRuleForUrl(value);
+  return Boolean(authority && authority.evidenceEligible !== false);
+}
+
 export function isResearchResourceDeepLink(value: string) {
   try {
     const parsed = new URL(value);
@@ -161,14 +179,14 @@ export function isServerClassifiedResearchSource(source: CourseSource) {
     && source.citationVerified === true
     && source.publicationStatus === "released"
     && source.statusCheck === "released-no-withdrawal-found"
-    && source.researchPolicyVersion === SOURCE_RESEARCH_POLICY_VERSION
+    && Boolean(source.researchPolicyVersion && SUPPORTED_SOURCE_RESEARCH_POLICY_VERSIONS.has(source.researchPolicyVersion))
     && Boolean(source.researchResponseId)
     && Boolean(source.researchCallIds?.length)
     && Boolean(source.evidenceValidationResponseId)
     && Boolean(source.evidenceValidationCallIds?.length)
     && source.qualityTier === "vetted"
     && Boolean(source.authorityClass && source.authorityFamily && source.note?.trim())
-    && Boolean(source.url && isSafePublicSourceUrl(source.url) && authorityRuleForUrl(source.url))
+    && Boolean(source.url && isSafePublicSourceUrl(source.url) && isEvidenceAuthorityUrl(source.url))
     && Boolean(source.url && isResearchResourceDeepLink(source.url));
 }
 
@@ -305,6 +323,21 @@ export function validateSourceEvidence(
   return { sources, issues, rejections };
 }
 
+export function isolateSourceEvidenceValidation(
+  sourceId: string,
+  validation: ReturnType<typeof validateSourceEvidence>,
+) {
+  if (!validation.issues.length) return validation;
+  return {
+    sources: [] as CourseSource[],
+    issues: [] as string[],
+    rejections: [
+      ...validation.rejections,
+      ...validation.issues.map((issue) => `Source ${sourceId} was rejected: ${issue}`),
+    ],
+  };
+}
+
 export function annotatedCitationUrls(response: unknown) {
   const urls = new Set<string>();
   const visit = (value: unknown) => {
@@ -385,6 +418,7 @@ export function certifyResearchSources(
   const seenUrls = new Set<string>();
   const sources: CourseSource[] = [];
   const issues: string[] = [];
+  const rejections: string[] = [];
 
   for (const [index, candidate] of research.sources.entries()) {
     const candidateText = [
@@ -396,34 +430,38 @@ export function certifyResearchSources(
       ...candidate.evidenceClaims.flatMap((evidence) => [evidence.claim, evidence.locator ?? undefined]),
     ];
     if (candidateText.some(hasSourceControlArtifact)) {
-      issues.push(`sources[${index}] contains an instruction or model-control artifact.`);
+      rejections.push(`sources[${index}] contains an instruction or model-control artifact.`);
       continue;
     }
     if (!isSafePublicSourceUrl(candidate.url)) {
-      issues.push(`sources[${index}].url is not a safe public HTTPS address.`);
+      rejections.push(`sources[${index}].url is not a safe public HTTPS address.`);
       continue;
     }
     if (!isResearchResourceDeepLink(candidate.url)) {
-      issues.push(`sources[${index}].url must deep-link to a specific research document or resource, not a homepage or listing.`);
+      rejections.push(`sources[${index}].url must deep-link to a specific research document or resource, not a homepage or listing.`);
       continue;
     }
     const url = canonicalUrl(candidate.url);
     if (!groundedUrls.has(url)) {
-      issues.push(`sources[${index}].url was not present in API web-search source provenance.`);
+      rejections.push(`sources[${index}].url was not present in API web-search source provenance.`);
       continue;
     }
     const authority = authorityRuleForUrl(url);
     if (!authority) {
-      issues.push(`sources[${index}].url is not covered by the server authority registry.`);
+      rejections.push(`sources[${index}].url is not covered by the server authority registry.`);
+      continue;
+    }
+    if (authority.evidenceEligible === false) {
+      rejections.push(`sources[${index}].url is a discovery index or resolver, not a direct evidence resource.`);
       continue;
     }
     if (seenUrls.has(url)) {
-      issues.push(`sources[${index}].url duplicates an earlier research source.`);
+      rejections.push(`sources[${index}].url duplicates an earlier research source.`);
       continue;
     }
     seenUrls.add(url);
     if (candidate.publicationDate && candidate.publicationDate > retrievedAt.slice(0, 10)) {
-      issues.push(`sources[${index}].publicationDate is in the future.`);
+      rejections.push(`sources[${index}].publicationDate is in the future.`);
       continue;
     }
     const sourceHash = createHash("sha256").update(url).digest("hex").slice(0, 16);
@@ -470,5 +508,5 @@ export function certifyResearchSources(
   if (new Set(sources.map((source) => source.authorityFamily)).size < 2) {
     issues.push("Research must include at least two independent authority families.");
   }
-  return { sources, issues };
+  return { sources, issues, rejections };
 }

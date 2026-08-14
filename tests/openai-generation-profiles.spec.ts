@@ -59,7 +59,8 @@ test("keeps Sol off normal generation paths and reserves it for recovery", () =>
   ];
 
   expect(normalProfiles.every((profile) => profile.model !== "gpt-5.6-sol" && !profile.recovery)).toBe(true);
-  expect(normalProfiles.slice(0, 5).every((profile) => profile.model === "gpt-5.6-luna")).toBe(true);
+  expect(normalProfiles.slice(0, 2).every((profile) => profile.model === "gpt-5.6-terra")).toBe(true);
+  expect(normalProfiles.slice(2, 5).every((profile) => profile.model === "gpt-5.6-luna")).toBe(true);
   expect(recoveryProfiles.every((profile) => profile.model === "gpt-5.6-sol" && profile.recovery)).toBe(true);
   expect(recoveryProfiles.map((profile) => profile.reasoningEffort)).toEqual(["medium", "high"]);
 });
@@ -93,9 +94,9 @@ test("uses explicit workload reasoning and stable versioned cache keys", () => {
   expect(research.promptCacheKey.length).toBeLessThanOrEqual(64);
   expect(grounding.promptCacheKey.length).toBeLessThanOrEqual(64);
   expect(research.reasoningEffort).toBe("low");
-  expect(research.model).toBe("gpt-5.6-luna");
+  expect(research.model).toBe("gpt-5.6-terra");
   expect(grounding.reasoningEffort).toBe("low");
-  expect(grounding.model).toBe("gpt-5.6-luna");
+  expect(grounding.model).toBe("gpt-5.6-terra");
   expect(AI_GENERATION_OUTPUT_BUDGETS.courseOutline).toBeGreaterThan(7_000);
   expect(AI_GENERATION_OUTPUT_BUDGETS.courseGrounding).toBeGreaterThanOrEqual(3_000);
   expect(AI_GENERATION_OUTPUT_BUDGETS.lessonGrounding).toBeGreaterThan(1_800);
@@ -119,13 +120,19 @@ test("honors model overrides without changing workload policy", () => {
   const environment: NodeJS.ProcessEnv = {
     NODE_ENV: "test",
     OPENAI_COURSE_RECOVERY_MODEL: "gpt-5.6-sol-custom",
+    OPENAI_COURSE_RESEARCH_MODEL: "gpt-5.6-luna-custom",
+    OPENAI_COURSE_GROUNDING_MODEL: "gpt-5.6-luna-custom",
     OPENAI_ASSESSMENT_MODEL: "gpt-5.6-terra",
   };
 
   const recovery = openAiExecutionProfile("course.recovery", environment);
+  const research = openAiExecutionProfile("course.research", environment);
+  const grounding = openAiExecutionProfile("course.grounding", environment);
   const assessment = openAiExecutionProfile("baseline.standard", environment);
   expect(recovery.model).toBe("gpt-5.6-sol-custom");
   expect(recovery.reasoningEffort).toBe("medium");
+  expect(research.model).toBe("gpt-5.6-luna-custom");
+  expect(grounding.model).toBe("gpt-5.6-luna-custom");
   expect(assessment.model).toBe("gpt-5.6-terra");
   expect(assessment.reasoningEffort).toBe("medium");
 });

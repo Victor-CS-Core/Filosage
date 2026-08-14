@@ -5,9 +5,11 @@ import {
   automaticCitationGroundingIssues,
   certifyResearchSources,
   groundedSourcePackIssues,
+  isolateSourceEvidenceValidation,
   isResearchResourceDeepLink,
   isServerClassifiedResearchSource,
   providerGroundedUrls,
+  researchAuthorityDomainForUrl,
   SOURCE_RESEARCH_POLICY_VERSION,
   sourceEvidenceValidationSchema,
   sourceResearchSchema,
@@ -24,6 +26,7 @@ import {
 } from "../src/lib/source-grounding";
 import { supportsGroundedSourcePolicy } from "../src/lib/course-pipeline/contract";
 import type { CourseSource } from "../src/lib/course-types";
+import { sourceVerificationDataFromInput } from "../src/lib/source-verification-data";
 
 function researchResponse(urls: string[]) {
   return {
@@ -210,13 +213,87 @@ test("independent validation prunes unsupported claims while retaining supported
   expect(groundedSourcePackIssues(result.sources)).toEqual([]);
 });
 
+test("independent validation may prune one candidate while retaining two authority families", () => {
+  const base = researchFixture();
+  const parsed = researchFixture({
+    sources: [
+      ...base.sources,
+      {
+        ...base.sources[0],
+        label: "Cambridge forecasting research",
+        url: "https://www.cambridge.org/core/journals/judgment-and-decision-making/article/example",
+        publisher: "Cambridge University Press",
+        evidenceClaims: [
+          { claim: "The Cambridge article reports a bounded forecasting result that can be tested against explicit calibration criteria.", locator: null },
+          { claim: "The Cambridge article documents limitations that constrain how the reported forecasting result should be applied.", locator: null },
+        ],
+      },
+    ],
+  });
+  const certified = certifyResearchSources(
+    parsed,
+    researchResponse(parsed.sources.map((source) => source.url)),
+    "2026-08-14T12:00:00.000Z",
+  );
+  const validation = sourceEvidenceValidationSchema.parse({
+    sources: certified.sources.map((source, sourceIndex) => ({
+      url: source.url,
+      statusVerdict: "released-no-withdrawal-found",
+      claims: (source.evidenceClaims ?? []).map((claim) => ({
+        evidenceClaimId: claim.id,
+        verdict: sourceIndex === 2 ? "unsupported" : "supported",
+        rationale: sourceIndex === 2
+          ? "The exact linked resource did not substantiate this candidate claim."
+          : "The exact linked resource directly supports this bounded atomic claim.",
+      })),
+    })),
+  });
+  const result = validateSourceEvidence(
+    validation,
+    researchResponse(certified.sources.flatMap((source) => source.url ? [source.url] : [])),
+    certified.sources,
+  );
+
+  expect(result.sources).toHaveLength(2);
+  expect(new Set(result.sources.map((source) => source.authorityFamily)).size).toBe(2);
+  expect(result.rejections.some((issue) => issue.includes("none of its atomic claims"))).toBe(true);
+  expect(groundedSourcePackIssues(result.sources)).toEqual([]);
+});
+
+test("a malformed candidate is isolated instead of invalidating two surviving source families", () => {
+  const validated = validatedResearch();
+  const malformed = isolateSourceEvidenceValidation("source-malformed", {
+    sources: [validated.sources[0]],
+    issues: ["The independent evidence validator returned an unknown evidence claim ID."],
+    rejections: [],
+  });
+
+  expect(malformed.sources).toEqual([]);
+  expect(malformed.issues).toEqual([]);
+  expect(malformed.rejections).toEqual([
+    "Source source-malformed was rejected: The independent evidence validator returned an unknown evidence claim ID.",
+  ]);
+  expect(groundedSourcePackIssues(validated.sources)).toEqual([]);
+});
+
+test("local evidence validation accepts both singleton and legacy array payloads", () => {
+  const singleton = '<SOURCE_VERIFICATION_DATA>{"url":"https://www.nist.gov/publications/example","evidenceClaims":[]}</SOURCE_VERIFICATION_DATA>';
+  const legacy = '<SOURCE_VERIFICATION_DATA>[{"url":"https://www.oecd.org/publications/example","evidenceClaims":[]}]</SOURCE_VERIFICATION_DATA>';
+  expect(sourceVerificationDataFromInput(singleton).map((source) => source.url)).toEqual([
+    "https://www.nist.gov/publications/example",
+  ]);
+  expect(sourceVerificationDataFromInput(legacy).map((source) => source.url)).toEqual([
+    "https://www.oecd.org/publications/example",
+  ]);
+});
+
 test("rejects an attractive model-authored URL that lacks API citation provenance", () => {
   const parsed = researchFixture();
   const response = researchResponse([parsed.sources[0].url]);
   const result = certifyResearchSources(parsed, response);
 
   expect(result.sources).toHaveLength(1);
-  expect(result.issues).toContain("sources[1].url was not present in API web-search source provenance.");
+  expect(result.rejections).toContain("sources[1].url was not present in API web-search source provenance.");
   expect(result.issues).toContain("At least two API-cited, server-vetted sources are required.");
 });
 
@@ -238,7 +315,38 @@ test("rejects authority lookalikes even when the API cites them", () => {
   });
   const result = certifyResearchSources(parsed, researchResponse(parsed.sources.map((source) => source.url)));
 
-  expect(result.issues).toContain("sources[0].url is not covered by the server authority registry.");
+  expect(result.rejections).toContain("sources[0].url is not covered by the server authority registry.");
+});
+
+test("does not count a DOI or scholarly index as independent evidence from its publisher copy", () => {
+  const base = researchFixture();
+  const parsed = researchFixture({
+    sources: [
+      { ...base.sources[0], url: "https://doi.org/10.1016/j.example.2026.01.001", publisher: "DOI Foundation" },
+      { ...base.sources[1], url: "https://www.sciencedirect.com/science/article/pii/S016920702600001X", publisher: "Elsevier" },
+    ],
+  });
+  const result = certifyResearchSources(parsed, researchResponse(parsed.sources.map((source) => source.url)));
+
+  expect(result.sources).toHaveLength(1);
+  expect(result.rejections).toContain("sources[0].url is a discovery index or resolver, not a direct evidence resource.");
+  expect(result.issues).toContain("At least two API-cited, server-vetted sources are required.");
+});
+
+test("prunes a discovery index candidate when two direct independent sources remain", () => {
+  const base = researchFixture();
+  const parsed = researchFixture({
+    sources: [
+      ...base.sources,
+      { ...base.sources[0], label: "Resolver duplicate", url: "https://doi.org/10.1000/example", publisher: "DOI Foundation" },
+    ],
+  });
+  const result = certifyResearchSources(parsed, researchResponse(parsed.sources.map((source) => source.url)));
+
+  expect(result.sources).toHaveLength(2);
+  expect(new Set(result.sources.map((source) => source.authorityFamily)).size).toBe(2);
+  expect(result.issues).toEqual([]);
+  expect(result.rejections).toContain("sources[2].url is a discovery index or resolver, not a direct evidence resource.");
 });
 
 test("requires a resource-level deep link instead of a publisher homepage or listing", () => {
@@ -262,7 +370,7 @@ test("rejects second-hop prompt-control artifacts before research is persisted",
     ],
   });
   const result = certifyResearchSources(parsed, researchResponse(parsed.sources.map((source) => source.url)));
-  expect(result.issues).toContain("sources[0] contains an instruction or model-control artifact.");
+  expect(result.rejections).toContain("sources[0] contains an instruction or model-control artifact.");
 });
 
 test("supports representative humanities authorities without trusting arbitrary domains", () => {
@@ -318,6 +426,7 @@ test("fails claim grounding for partial, unsupported, missing, duplicated, or mi
 
 test("v4 identifies grounded artifacts without falsely upgrading v3", () => {
   expect(supportsGroundedSourcePolicy("source-integrity-v4.0.0")).toBe(true);
+  expect(supportsGroundedSourcePolicy("source-integrity-v4.1.0")).toBe(true);
   expect(supportsGroundedSourcePolicy("source-integrity-v3.1.0")).toBe(false);
   expect(supportsGroundedSourcePolicy(undefined)).toBe(false);
 });
@@ -362,6 +471,10 @@ test("grounded persistence requires complete research and citation provenance", 
   const validated = validatedResearch();
   expect(groundedSourcePackIssues(validated.sources)).toEqual([]);
   const source = validated.sources[0];
+  expect(isServerClassifiedResearchSource({
+    ...source,
+    researchPolicyVersion: "source-research-v1.0.0",
+  })).toBe(true);
   const claim = source.evidenceClaims?.[0];
   const lesson = { content: claim?.claim ?? "", quizzes: [] };
   const citationBase = [{
@@ -408,7 +521,23 @@ test("course generation gives every external stage an independent bounded deadli
   expect(route).toContain("profile.recovery ? 120_000 : 75_000");
   expect(route).toContain("signal: AbortSignal.timeout(90_000)");
   expect(route).toContain("copy the exact HTTPS URL supplied by web search provenance");
-  expect(route).toContain("Treat doi.org as one resolver family");
+  expect(route).toContain("Find 3 independent sources");
+  expect(route).toContain('search_context_size: "medium"');
+  expect(route).toContain("Promise.allSettled(sourcesToValidate.map");
+  expect(route).toContain("This request contains exactly one source.");
+  expect(route).toContain("allowed_domains: [authorityDomain]");
+  expect(route).toContain("...validationRejections");
+  expect(route).toContain("source.researchPolicyVersion === SOURCE_RESEARCH_POLICY_VERSION");
+  expect(route).toContain("Never return doi.org, Crossref, OpenAlex");
   expect(route).toContain("atomic evidence claims as a hard ceiling");
   expect(route).toContain("Omit unsupported additions instead of filling gaps from model knowledge");
+});
+
+test("maps a certified source URL to its narrow validation authority domain", () => {
+  expect(researchAuthorityDomainForUrl("https://www.cambridge.org/core/journals/example/article/example"))
+    .toBe("cambridge.org");
+  expect(researchAuthorityDomainForUrl("https://elibrary.imf.org/view/journals/001/2026/example.xml"))
+    .toBe("imf.org");
+  expect(researchAuthorityDomainForUrl("https://example.com/research/article"))
+    .toBeUndefined();
 });

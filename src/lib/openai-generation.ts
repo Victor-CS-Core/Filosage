@@ -1,8 +1,8 @@
 import { serverEnvironment } from "@/lib/runtime-environment";
 
 export const AI_PROMPT_VERSIONS = {
-  research: "2026-08-14-grounded-course-research-v4",
-  grounding: "2026-08-14-claim-grounding-v1",
+  research: "2026-08-14-grounded-course-research-v5",
+  grounding: "2026-08-14-claim-grounding-v2",
   course: "2026-08-14-grounded-evidence-ceiling-v1",
   lesson: "2026-08-03-guided-apprenticeship",
   tutor: "2026-08-04-grounded-tutor",
@@ -66,14 +66,14 @@ const PROFILE_SPECS: Record<AiExecutionProfileId, ProfileSpec> = {
   "course.research": {
     workload: "research",
     modelEnv: ["OPENAI_COURSE_RESEARCH_MODEL"],
-    defaultModel: "gpt-5.6-luna",
+    defaultModel: "gpt-5.6-terra",
     reasoningEffort: "low",
     textVerbosity: "medium",
   },
   "course.grounding": {
     workload: "grounding",
     modelEnv: ["OPENAI_COURSE_GROUNDING_MODEL"],
-    defaultModel: "gpt-5.6-luna",
+    defaultModel: "gpt-5.6-terra",
     reasoningEffort: "low",
     textVerbosity: "low",
   },
