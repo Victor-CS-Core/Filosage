@@ -279,7 +279,7 @@ export async function POST(request: Request) {
         : "",
       sourcePackPromptBlock(assignedSources, "No source is assigned to this lesson. Return citations: [] and do not invent citations."),
       assignedSources.length
-        ? "Return a structured citation only for a concise factual statement directly supported by an assigned source's evidence note. The citation claim must be an exact statement already present in the declared lesson section. Use only assigned source IDs, add a short source locator when known, and never quote or reproduce source passages."
+        ? "Return at least one structured citation for every assigned source. Each citation must identify a concise factual statement directly supported by that source's evidence note. The citation claim must be an exact statement already present in the declared lesson section. Use only assigned source IDs, add a short source locator when known, and never quote or reproduce source passages."
         : "Do not make the lesson source-backed. Return citations: [].",
       course.capstone
         ? `Course capstone: ${course.capstone.brief} Deliverable: ${course.capstone.deliverable}`

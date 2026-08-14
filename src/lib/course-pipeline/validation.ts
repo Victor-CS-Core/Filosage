@@ -16,6 +16,7 @@ import {
   assignedSourcePack,
   lessonCitationQualityIssues,
   outlineSourceAssignmentIssues,
+  outlineSourceCoverageIssues,
   isSafePublicSourceUrl,
   sourcePackQualityIssues,
 } from "@/lib/source-safety";
@@ -300,6 +301,15 @@ export async function validateCourseCandidateV2(
     executedCodes.add(COURSE_QUALITY_RULES.OBJECTIVE_RELATIONSHIP.code);
     executedCodes.add(COURSE_QUALITY_RULES.ASSESSMENT_RELATIONSHIP.code);
     findings.push(...inspectObjectiveRelationships(course, lessonsById));
+  }
+
+  if (course.sourcePolicyVersion === COURSE_PIPELINE_VERSIONS.sourcePolicy) {
+    executedCodes.add(COURSE_QUALITY_RULES.SOURCE_ASSIGNMENT_INVALID.code);
+    findings.push(...outlineSourceCoverageIssues(course, course.sourcePack ?? []).map((message) => issueFromRule(
+      COURSE_QUALITY_RULES.SOURCE_ASSIGNMENT_INVALID,
+      "course.modules",
+      message,
+    )));
   }
 
   if (!parsedCourse.success) {

@@ -4,6 +4,7 @@ import {
   assignedSourcePack,
   lessonCitationQualityIssues,
   outlineSourceAssignmentIssues,
+  outlineSourceCoverageIssues,
   sourcePackPromptBlock,
 } from "../src/lib/source-safety";
 import { courseRequestSchema, lessonDataSchema } from "../src/lib/validation";
@@ -35,10 +36,23 @@ test("source assignment fails closed for invented, unsafe, or note-free sources"
   ]);
 });
 
+test("a sourced course must use at least one eligible reference without forcing unsupported lessons to cite", () => {
+  expect(outlineSourceCoverageIssues({ modules: [{ lessons: [{ sourceIds: [] }] }] }, [source])).toEqual([
+    expect.stringContaining("must assign at least one supplied source"),
+  ]);
+  expect(outlineSourceCoverageIssues({ modules: [{ lessons: [{ sourceIds: [source.id] }, { sourceIds: [] }] }] }, [source])).toEqual([]);
+  expect(outlineSourceCoverageIssues({ modules: [{ lessons: [{ sourceIds: [] }] }] }, [])).toEqual([]);
+});
+
 test("lesson citations resolve only to assigned sources and exact visible claims", () => {
   const assigned = assignedSourcePack([source], [source.id]);
   expect(lessonCitationQualityIssues([{ sourceId: source.id, claim: "Evidence can be checked against an observed record.", section: "content" }], assigned, lesson)).toEqual([]);
+  expect(lessonCitationQualityIssues([], assigned, lesson)).toEqual([
+    expect.stringContaining(`assigned source ${source.id}`),
+  ]);
+  expect(lessonCitationQualityIssues([], [], lesson)).toEqual([]);
   expect(lessonCitationQualityIssues([{ sourceId: "source-invented", claim: "Evidence can be checked against an observed record.", section: "content" }], assigned, lesson)).toEqual([
+    expect.stringContaining(`assigned source ${source.id}`),
     expect.stringContaining("not assigned to this lesson"),
   ]);
   expect(lessonCitationQualityIssues([{ sourceId: source.id, claim: "A claim the lesson never makes.", section: "content" }], assigned, lesson)).toEqual([

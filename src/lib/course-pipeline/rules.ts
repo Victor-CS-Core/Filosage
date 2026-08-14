@@ -3,7 +3,7 @@ import { COURSE_PIPELINE_VERSIONS } from "@/lib/course-pipeline/contract";
 
 export interface QualityRuleDefinition {
   code: string;
-  version: 1;
+  version: number;
   purpose: string;
   classification: "deterministic" | "semantic";
   severity: IssueSeverity;
@@ -95,10 +95,10 @@ export const COURSE_QUALITY_RULES = {
     code: "CQ_SOURCE_002", version: 1, purpose: "Route deterministically identified high-stakes or disputed evidence to human review", classification: "deterministic", severity: "error", source: "source_integrity", repairability: "manual", suggestedAction: "Verify the claim against an authoritative source.",
   },
   SOURCE_ASSIGNMENT_INVALID: {
-    code: "CQ_SOURCE_003", version: 1, purpose: "Assign only supplied, evidence-noted deep links to a lesson", classification: "deterministic", severity: "blocker", source: "source_integrity", repairability: "assisted", suggestedAction: "Remove the source assignment or add a safe deep link and an original evidence note.",
+    code: "CQ_SOURCE_003", version: 2, purpose: "Require sourced courses to use at least one supplied reference and assign only evidence-noted deep links to lessons", classification: "deterministic", severity: "blocker", source: "source_integrity", repairability: "assisted", suggestedAction: "Assign a supported supplied reference, or remove an invalid assignment and add a safe deep link with an original evidence note.",
   },
   SOURCE_CITATION_INVALID: {
-    code: "CQ_SOURCE_004", version: 1, purpose: "Resolve every source-backed lesson statement to an assigned source and visible lesson text", classification: "deterministic", severity: "blocker", source: "source_integrity", repairability: "assisted", suggestedAction: "Correct the structured citation without copying source text or inventing support.",
+    code: "CQ_SOURCE_004", version: 2, purpose: "Require every assigned source to resolve to a source-backed statement in visible lesson text", classification: "deterministic", severity: "blocker", source: "source_integrity", repairability: "assisted", suggestedAction: "Add or correct the structured citation without copying source text or inventing support.",
   },
   SEMANTIC_REVIEW_REQUIRED: {
     code: "CQ_SEMANTIC_001", version: 1, purpose: "Require calibrated semantic or human review before V2 publication", classification: "semantic", severity: "error", source: "semantic", repairability: "manual", suggestedAction: "Review accuracy, coherence, filler, and objective-to-assessment meaning on this exact snapshot.",

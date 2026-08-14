@@ -407,6 +407,9 @@ test("high-stakes briefs route to manual review without making user prompt injec
   for (const topic of ["Recognizing stroke symptoms", "Responding to pediatric choking", "Safe insulin injection", "Managing anaphylaxis", "Mental health crisis response", "Surgical wound care"]) {
     expect(courseReviewPolicyForBrief(topic), topic).toMatchObject({ required: true });
   }
+  for (const topic of ["Systems thinking for public-health decisions", "Health systems evaluation", "Population health analytics", "Applied epidemiology"]) {
+    expect(courseReviewPolicyForBrief(topic), topic).toMatchObject({ required: true, reasonCodes: ["medical"] });
+  }
   expect(courseReviewPolicyForBrief("Law of Large Numbers")).toMatchObject({ required: false });
   expect(courseReviewPolicyForBrief(
     "Evidence-based product decisions for small software teams",

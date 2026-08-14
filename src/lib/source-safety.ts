@@ -85,6 +85,24 @@ export function outlineSourceAssignmentIssues(
   return issues;
 }
 
+export function outlineSourceCoverageIssues(
+  outline: { modules?: Array<{ lessons?: Array<{ sourceIds?: string[] }> }> } | null | undefined,
+  sourcePack: CourseSource[],
+) {
+  const eligibleIds = new Set(sourcePack
+    .filter((source) => source.url && isSafePublicSourceUrl(source.url) && source.note?.trim())
+    .map((source) => source.id));
+  if (!eligibleIds.size) return [];
+  const hasSupportedAssignment = (outline?.modules ?? []).some((courseModule) =>
+    (courseModule.lessons ?? []).some((lesson) =>
+      (lesson.sourceIds ?? []).some((sourceId) => eligibleIds.has(sourceId)),
+    ),
+  );
+  return hasSupportedAssignment
+    ? []
+    : ["A course with eligible trusted references must assign at least one supplied source to a lesson whose planned use is supported by its evidence note."];
+}
+
 function citationSectionText(lesson: Partial<LessonData>, section: LessonCitationSection) {
   switch (section) {
     case "content":
@@ -115,6 +133,12 @@ export function lessonCitationQualityIssues(
 ) {
   const issues: string[] = [];
   const assignedById = new Map(assignedSources.map((source) => [source.id, source]));
+  const citedSourceIds = new Set((citations ?? []).map((citation) => citation.sourceId));
+  for (const source of assignedSources) {
+    if (!citedSourceIds.has(source.id)) {
+      issues.push(`citations must include a source-backed statement for assigned source ${source.id}.`);
+    }
+  }
   const seen = new Set<string>();
   for (const [index, citation] of (citations ?? []).entries()) {
     const source = assignedById.get(citation.sourceId);

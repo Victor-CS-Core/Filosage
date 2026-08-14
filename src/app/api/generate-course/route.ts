@@ -24,7 +24,7 @@ import { createOrReuseCourseBanner } from "@/lib/course-banners";
 import { summarizeAiUsage, type AiUsageSample } from "@/lib/ai-pricing";
 import { inspectGeneratedContent, languagePolicyInstruction } from "@/lib/content-language";
 import { courseQualityIssues, COURSE_QUALITY_GATE_VERSION } from "@/lib/course-quality";
-import { outlineSourceAssignmentIssues, sourcePackPromptBlock } from "@/lib/source-safety";
+import { outlineSourceAssignmentIssues, outlineSourceCoverageIssues, sourcePackPromptBlock } from "@/lib/source-safety";
 import {
   aiUsageProfileMetadata,
   openAiExecutionProfile,
@@ -168,7 +168,7 @@ export async function POST(request: Request) {
         scenarioPreference ? `Scenario spine: ${scenarioPreference}` : "Choose one realistic scenario that can develop across modules without inventing factual claims.",
         sourcePackPromptBlock(sourcePack, "No source pack was provided. Do not invent citations or imply external verification."),
         sourcePack.length
-          ? "For each lesson, return sourceIds containing only supplied source IDs with safe HTTPS links that directly support that lesson. Use an empty array when no supplied source supports it. Never assign a source from its title or URL alone; its supplied note must support the planned use."
+          ? "For each lesson, return sourceIds containing only supplied source IDs with safe HTTPS links that directly support that lesson. The course must assign at least one supplied source to at least one lesson. Use an empty array only when no supplied source supports that specific lesson. Never assign a source from its title or URL alone; its supplied note must support the planned use."
           : "Return sourceIds: [] for every lesson.",
         "Use concept and worked-example lessons early, guided practice in the middle, and case, lab, or synthesis work when the learner has enough prerequisite knowledge.",
         "Module challenges and the capstone must be assessable from their success criteria. Adapt examples and practice to the learner's intended application.",
@@ -235,6 +235,7 @@ export async function POST(request: Request) {
     let outlineQualityIssues = outline ? [
       ...courseQualityIssues(outline),
       ...outlineSourceAssignmentIssues(outline, sourcePack),
+      ...outlineSourceCoverageIssues(outline, sourcePack),
     ] : [];
     let repairIssues = outline
       ? [
