@@ -76,11 +76,12 @@ test("grounded lesson generation maps every factual assertion and exposes owner-
   ]);
   expect(routeSource).toContain("Every externally verifiable factual assertion anywhere in the lesson");
   expect(routeSource).toContain("the exact complete sentence already present in the declared lesson section");
-  expect(routeSource).toContain("Never repeat the same claim for the same source");
+  expect(routeSource).toContain("exactly one structured citation per assigned source, no more");
   expect(routeSource).toContain("copied verbatim");
   expect(routeSource).toContain("silently audit every sentence");
   expect(routeSource).toContain("Do not infer mnemonics, category exclusions, definitions");
   expect(routeSource).toContain("For this exercise, ...");
+  expect(routeSource).toContain("write 450 to 750 words");
   expect(routeSource).toContain("account.isOwner ? { diagnostic:");
   expect(lessonPageSource).toContain("isOwner && generated.diagnostic?.length");
 });
