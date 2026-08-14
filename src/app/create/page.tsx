@@ -43,6 +43,7 @@ type CourseCreationResponse = {
   courseId?: string;
   error?: string;
   evaluation?: {
+    issues?: string[];
     providerError?: {
       status?: string | number;
       code?: string;
@@ -108,7 +109,12 @@ export default function CreateCoursePage() {
       }
       const response = await fetch("/api/generate-course", {
         method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}`, "Idempotency-Key": requestIdentityRef.current.key },
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+          "Idempotency-Key": requestIdentityRef.current.key,
+          ...(account?.isOwner ? { "x-filosage-model-evaluation": "1" } : {}),
+        },
         body: signature,
       });
       const responseText = await response.text();
@@ -125,7 +131,10 @@ export default function CreateCoursePage() {
         const providerDiagnostic = providerError && typeof providerError === "object"
           ? [providerError.status, providerError.code, providerError.type, providerError.param, providerError.requestId].filter(Boolean).join(" · ")
           : "";
-        throw new Error(`${data.error || "The course could not be created."}${providerDiagnostic ? ` Provider diagnostic: ${providerDiagnostic}.` : ""}`);
+        const issueDiagnostic = account?.isOwner && Array.isArray(data.evaluation?.issues)
+          ? data.evaluation.issues.filter((issue): issue is string => typeof issue === "string").slice(0, 3).join(" · ")
+          : "";
+        throw new Error(`${data.error || "The course could not be created."}${providerDiagnostic ? ` Provider diagnostic: ${providerDiagnostic}.` : ""}${issueDiagnostic ? ` Research diagnostic: ${issueDiagnostic}.` : ""}`);
       }
       if (typeof data.courseId !== "string" || !data.courseId) throw new Error("The course was saved, but its destination was missing. Retry to reopen the saved course.");
       setGenerationProgress(100);

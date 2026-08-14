@@ -398,6 +398,8 @@ test("normal course creation UI delegates source research to the server", async 
   expect(source).not.toContain("sourcePack,");
   expect(source).toContain("Researching released, reputable sources");
   expect(source).toContain("Research and source validation are automatic.");
+  expect(source).toContain('account?.isOwner ? { "x-filosage-model-evaluation": "1" }');
+  expect(source).toContain("Research diagnostic:");
 });
 
 test("course generation aborts and releases before the synchronous QA ingress deadline", async () => {
