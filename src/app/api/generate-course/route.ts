@@ -634,7 +634,11 @@ export async function POST(request: Request) {
       courseGroundingResult = evaluated.result;
       courseGroundingQualityIssues = evaluated.issues;
     }
-    if (courseGroundingQualityIssues.length && !activeProfile.recovery) {
+    // Grounding is evaluated only after structural recovery. A structurally
+    // valid recovery can still contain one evidence-stretching lesson, so give
+    // that newly discovered failure one bounded, evidence-specific correction
+    // attempt. This block runs at most once and never relaxes the verifier.
+    if (courseGroundingQualityIssues.length) {
       activeProfile = recoveryProfile;
       response = await generateAndRecord(recoveryProfile, [
         "The automatic evidence verifier rejected one or more lesson-to-source assignments.",

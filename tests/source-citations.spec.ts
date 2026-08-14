@@ -54,6 +54,13 @@ test("course outline coverage is rechecked after initial, recovery, and groundin
   expect(routeSource.match(/outlineSourceCoverageIssues\(outline, sourcePack\)/g)).toHaveLength(3);
 });
 
+test("a structurally recovered outline still receives one evidence-specific grounding repair", async () => {
+  const routeSource = await readFile("src/app/api/generate-course/route.ts", "utf8");
+  expect(routeSource).toContain("if (courseGroundingQualityIssues.length) {");
+  expect(routeSource).not.toContain("courseGroundingQualityIssues.length && !activeProfile.recovery");
+  expect(routeSource.match(/if \(courseGroundingQualityIssues\.length\) \{/g)).toHaveLength(2);
+});
+
 test("the strengthened source gate still validates compatible v3 artifacts", () => {
   expect(supportsStructuredSourcePolicy("source-integrity-v3.0.0")).toBe(true);
   expect(supportsStructuredSourcePolicy("source-integrity-v3.1.0")).toBe(true);
