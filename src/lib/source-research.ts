@@ -237,7 +237,7 @@ export function validateSourceEvidence(
   response: unknown,
   sourcePack: CourseSource[],
 ) {
-  const annotatedUrls = annotatedCitationUrls(response);
+  const groundedUrls = providerGroundedUrls(response);
   const callIds = completedWebSearchCallIds(response);
   const responseId = typeof (response as { id?: unknown })?.id === "string" ? String((response as { id: string }).id) : undefined;
   const issues: string[] = [];
@@ -258,7 +258,7 @@ export function validateSourceEvidence(
   const sources = sourcePack.flatMap((source) => {
     const url = source.url && isSafePublicSourceUrl(source.url) ? canonicalUrl(source.url) : "";
     const result = validationByUrl.get(url);
-    if (!url || !annotatedUrls.has(url)) {
+    if (!url || !groundedUrls.has(url)) {
       rejections.push(`Source ${source.id} was not cited by the independent evidence-validation response.`);
       return [];
     }
@@ -322,6 +322,40 @@ export function annotatedCitationUrls(response: unknown) {
   return urls;
 }
 
+export function webSearchSourceUrls(response: unknown) {
+  const urls = new Set<string>();
+  const visit = (value: unknown) => {
+    if (!value || typeof value !== "object") return;
+    const record = value as Record<string, unknown>;
+    if (record.type === "web_search_call" && record.status === "completed") {
+      const action = record.action && typeof record.action === "object"
+        ? record.action as Record<string, unknown>
+        : undefined;
+      if (action && typeof action.url === "string" && isSafePublicSourceUrl(action.url)) {
+        urls.add(canonicalUrl(action.url));
+      }
+      if (action && Array.isArray(action.sources)) {
+        for (const source of action.sources) {
+          if (source && typeof source === "object") {
+            const url = (source as Record<string, unknown>).url;
+            if (typeof url === "string" && isSafePublicSourceUrl(url)) urls.add(canonicalUrl(url));
+          }
+        }
+      }
+    }
+    for (const nested of Object.values(record)) {
+      if (Array.isArray(nested)) nested.forEach(visit);
+      else if (nested && typeof nested === "object") visit(nested);
+    }
+  };
+  visit(response);
+  return urls;
+}
+
+export function providerGroundedUrls(response: unknown) {
+  return new Set([...annotatedCitationUrls(response), ...webSearchSourceUrls(response)]);
+}
+
 export function webSearchCallCount(response: unknown) {
   return completedWebSearchCallIds(response).length;
 }
@@ -346,7 +380,7 @@ export function certifyResearchSources(
   response: unknown,
   retrievedAt = new Date().toISOString(),
 ) {
-  const annotatedUrls = annotatedCitationUrls(response);
+  const groundedUrls = providerGroundedUrls(response);
   const researchCallIds = completedWebSearchCallIds(response);
   const seenUrls = new Set<string>();
   const sources: CourseSource[] = [];
@@ -374,8 +408,8 @@ export function certifyResearchSources(
       continue;
     }
     const url = canonicalUrl(candidate.url);
-    if (!annotatedUrls.has(url)) {
-      issues.push(`sources[${index}].url was not present in an API url_citation annotation.`);
+    if (!groundedUrls.has(url)) {
+      issues.push(`sources[${index}].url was not present in API web-search source provenance.`);
       continue;
     }
     const authority = authorityRuleForUrl(url);

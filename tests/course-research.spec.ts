@@ -7,11 +7,13 @@ import {
   groundedSourcePackIssues,
   isResearchResourceDeepLink,
   isServerClassifiedResearchSource,
+  providerGroundedUrls,
   SOURCE_RESEARCH_POLICY_VERSION,
   sourceEvidenceValidationSchema,
   sourceResearchSchema,
   validateSourceEvidence,
   webSearchCallCount,
+  webSearchSourceUrls,
 } from "../src/lib/source-research";
 import {
   LESSON_GROUNDING_EVALUATOR_VERSION,
@@ -37,6 +39,22 @@ function researchResponse(urls: string[]) {
         }],
       },
     ],
+  };
+}
+
+function structuredResearchResponse(urls: string[]) {
+  return {
+    id: "response-structured-1",
+    output: [{
+      type: "web_search_call",
+      id: "search-structured-1",
+      status: "completed",
+      action: {
+        type: "search",
+        query: "evidence",
+        sources: urls.map((url) => ({ type: "url", url })),
+      },
+    }],
   };
 }
 
@@ -124,6 +142,18 @@ test("research response schemas stay compatible with OpenAI Structured Outputs",
   expect(JSON.stringify(validationFormat)).not.toContain('"format":"uri"');
 });
 
+test("accepts official web-search source provenance when strict output has no inline annotations", () => {
+  const parsed = researchFixture();
+  const response = structuredResearchResponse(parsed.sources.map((source) => source.url));
+  const result = certifyResearchSources(parsed, response, "2026-08-14T12:00:00.000Z");
+
+  expect(result.issues).toEqual([]);
+  expect(result.sources).toHaveLength(2);
+  expect(webSearchSourceUrls(response).size).toBe(2);
+  expect(providerGroundedUrls(response).size).toBe(2);
+  expect(annotatedCitationUrls(response).size).toBe(0);
+});
+
 test("independent validation rejects malformed HTTPS-like URLs without throwing", () => {
   const certified = certifyResearchSources(
     researchFixture(),
@@ -186,7 +216,7 @@ test("rejects an attractive model-authored URL that lacks API citation provenanc
   const result = certifyResearchSources(parsed, response);
 
   expect(result.sources).toHaveLength(1);
-  expect(result.issues).toContain("sources[1].url was not present in an API url_citation annotation.");
+  expect(result.issues).toContain("sources[1].url was not present in API web-search source provenance.");
   expect(result.issues).toContain("At least two API-cited, server-vetted sources are required.");
 });
 
