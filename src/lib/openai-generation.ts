@@ -88,14 +88,14 @@ const PROFILE_SPECS: Record<AiExecutionProfileId, ProfileSpec> = {
     workload: "course",
     modelEnv: ["OPENAI_COURSE_STANDARD_MODEL"],
     defaultModel: "gpt-5.6-luna",
-    reasoningEffort: "low",
+    reasoningEffort: "none",
     textVerbosity: "medium",
   },
   "course.repair": {
     workload: "course",
     modelEnv: ["OPENAI_COURSE_REPAIR_MODEL", "OPENAI_COURSE_STANDARD_MODEL"],
     defaultModel: "gpt-5.6-luna",
-    reasoningEffort: "low",
+    reasoningEffort: "none",
     textVerbosity: "medium",
   },
   "course.recovery": {

@@ -78,7 +78,7 @@ test("uses explicit workload reasoning and stable versioned cache keys", () => {
   const research = openAiExecutionProfile("course.research", environment);
   const grounding = openAiExecutionProfile("course.grounding", environment);
 
-  expect(course.reasoningEffort).toBe("low");
+  expect(course.reasoningEffort).toBe("none");
   expect(course.model).toBe("gpt-5.6-luna");
   expect(lesson.reasoningEffort).toBe("medium");
   expect(tutor.reasoningEffort).toBe("low");
@@ -103,7 +103,7 @@ test("uses explicit workload reasoning and stable versioned cache keys", () => {
   expect(aiUsageProfileMetadata(course)).toEqual({
     promptVersion: course.promptVersion,
     profile: "course.standard",
-    reasoningEffort: "low",
+    reasoningEffort: "none",
     promptCacheKey: course.promptCacheKey,
   });
 });
