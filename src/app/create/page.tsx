@@ -101,7 +101,7 @@ export default function CreateCoursePage() {
       if (!response.ok) {
         const providerError = data?.evaluation?.providerError;
         const providerDiagnostic = providerError && typeof providerError === "object"
-          ? [providerError.status, providerError.code, providerError.type, providerError.requestId].filter(Boolean).join(" · ")
+          ? [providerError.status, providerError.code, providerError.type, providerError.param, providerError.requestId].filter(Boolean).join(" · ")
           : "";
         throw new Error(`${data.error || "The course could not be created."}${providerDiagnostic ? ` Provider diagnostic: ${providerDiagnostic}.` : ""}`);
       }

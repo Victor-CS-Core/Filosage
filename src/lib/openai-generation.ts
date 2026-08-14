@@ -166,7 +166,8 @@ export function stablePromptCacheKey(
   const normalized = `filosage:${workload}:${promptVersion}:${model}`
     .toLowerCase()
     .replace(/[^a-z0-9:._-]+/g, "-");
-  return normalized.slice(0, 120);
+  // The Responses API rejects prompt_cache_key values longer than 64 chars.
+  return normalized.slice(0, 64);
 }
 
 export function openAiExecutionProfile(

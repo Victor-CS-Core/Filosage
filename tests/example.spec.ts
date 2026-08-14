@@ -247,6 +247,7 @@ test("uses the configured fallback when the primary lesson model rejects a reque
     status: 404,
     code: "model_not_found",
     type: undefined,
+    param: undefined,
     requestId: "req_test_123",
   });
 });

@@ -70,6 +70,8 @@ test("uses explicit workload reasoning and stable versioned cache keys", () => {
   const lesson = openAiExecutionProfile("lesson.standard", environment);
   const tutor = openAiExecutionProfile("tutor.standard", environment);
   const commandCenter = openAiExecutionProfile("command-center.draft", environment);
+  const research = openAiExecutionProfile("course.research", environment);
+  const grounding = openAiExecutionProfile("course.grounding", environment);
 
   expect(course.reasoningEffort).toBe("medium");
   expect(lesson.reasoningEffort).toBe("medium");
@@ -82,6 +84,9 @@ test("uses explicit workload reasoning and stable versioned cache keys", () => {
   expect(course.promptCacheKey).toBe(stablePromptCacheKey("course", course.promptVersion, course.model));
   expect(openAiExecutionProfile("course.standard", environment).promptCacheKey).toBe(course.promptCacheKey);
   expect(course.promptCacheKey).not.toContain("user");
+  expect(research.promptCacheKey.length).toBeLessThanOrEqual(64);
+  expect(grounding.promptCacheKey.length).toBeLessThanOrEqual(64);
+  expect(stablePromptCacheKey("research", "a".repeat(120), "gpt-5.6-terra")).toHaveLength(64);
   expect(aiUsageProfileMetadata(course)).toEqual({
     promptVersion: course.promptVersion,
     profile: "course.standard",

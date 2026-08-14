@@ -42,6 +42,7 @@ export function safeModelErrorDetails(error: unknown) {
     status: typeof value.status === "number" ? value.status : undefined,
     code: typeof value.code === "string" ? value.code : undefined,
     type: typeof value.type === "string" ? value.type : undefined,
+    param: typeof value.param === "string" ? value.param : undefined,
     requestId: typeof value.request_id === "string"
       ? value.request_id
       : typeof value.requestID === "string"
