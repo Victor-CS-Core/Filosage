@@ -1,13 +1,17 @@
 export const COURSE_PIPELINE_VERSIONS = {
   courseSchema: 5,
   qualityContract: "course-quality-v2.0.0",
-  generationPrompt: "2026-08-11-course-pipeline-v2",
+  generationPrompt: "2026-08-14-course-pipeline-v2",
   repairPrompt: "2026-08-11-targeted-repair-v2",
   semanticEvaluator: "2026-08-11-semantic-critic-v2",
   labRegistry: "lab-capabilities-v2.0.0",
   visualPolicy: "visual-support-v2.0.0",
-  sourcePolicy: "source-integrity-v3.0.0",
+  sourcePolicy: "source-integrity-v3.1.0",
 } as const;
+
+export function supportsStructuredSourcePolicy(version: string | undefined) {
+  return version?.startsWith("source-integrity-v3.") ?? false;
+}
 
 export type CourseStage =
   | "draft"

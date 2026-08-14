@@ -3,6 +3,7 @@ import { inspectGeneratedContent } from "@/lib/content-language";
 import { courseQualityIssues } from "@/lib/course-quality";
 import {
   COURSE_PIPELINE_VERSIONS,
+  supportsStructuredSourcePolicy,
   type PublicationDecision,
   type ValidationIssue,
   type ValidationReport,
@@ -303,7 +304,7 @@ export async function validateCourseCandidateV2(
     findings.push(...inspectObjectiveRelationships(course, lessonsById));
   }
 
-  if (course.sourcePolicyVersion === COURSE_PIPELINE_VERSIONS.sourcePolicy) {
+  if (supportsStructuredSourcePolicy(course.sourcePolicyVersion)) {
     executedCodes.add(COURSE_QUALITY_RULES.SOURCE_ASSIGNMENT_INVALID.code);
     findings.push(...outlineSourceCoverageIssues(course, course.sourcePack ?? []).map((message) => issueFromRule(
       COURSE_QUALITY_RULES.SOURCE_ASSIGNMENT_INVALID,
@@ -359,7 +360,7 @@ export async function validateCourseCandidateV2(
       executedCodes.add(COURSE_QUALITY_RULES.VISUAL_OPTIONAL_MISSING.code);
       executedCodes.add(COURSE_QUALITY_RULES.OBJECTIVE_RELATIONSHIP.code);
     }
-    if (course.sourcePolicyVersion === COURSE_PIPELINE_VERSIONS.sourcePolicy) {
+    if (supportsStructuredSourcePolicy(course.sourcePolicyVersion)) {
       executedCodes.add(COURSE_QUALITY_RULES.SOURCE_ASSIGNMENT_INVALID.code);
       executedCodes.add(COURSE_QUALITY_RULES.SOURCE_CITATION_INVALID.code);
       const [moduleIndex, lessonIndex] = lessonId.split("-").map(Number);

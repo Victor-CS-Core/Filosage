@@ -10,8 +10,8 @@ export const AI_PROMPT_VERSIONS = {
 } as const;
 
 export const COURSE_PIPELINE_V2_PROMPT_VERSIONS = {
-  course: "2026-08-11-course-pipeline-v2",
-  lesson: "2026-08-11-course-pipeline-v2",
+  course: "2026-08-14-course-pipeline-v2",
+  lesson: "2026-08-14-course-pipeline-v2",
 } as const;
 
 export type AiReasoningEffort = "none" | "low" | "medium" | "high" | "xhigh" | "max";

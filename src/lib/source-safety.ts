@@ -93,14 +93,16 @@ export function outlineSourceCoverageIssues(
     .filter((source) => source.url && isSafePublicSourceUrl(source.url) && source.note?.trim())
     .map((source) => source.id));
   if (!eligibleIds.size) return [];
-  const hasSupportedAssignment = (outline?.modules ?? []).some((courseModule) =>
-    (courseModule.lessons ?? []).some((lesson) =>
-      (lesson.sourceIds ?? []).some((sourceId) => eligibleIds.has(sourceId)),
-    ),
-  );
-  return hasSupportedAssignment
-    ? []
-    : ["A course with eligible trusted references must assign at least one supplied source to a lesson whose planned use is supported by its evidence note."];
+  const issues: string[] = [];
+  for (const [moduleIndex, courseModule] of (outline?.modules ?? []).entries()) {
+    for (const [lessonIndex, lesson] of (courseModule.lessons ?? []).entries()) {
+      const hasSupportedAssignment = (lesson.sourceIds ?? []).some((sourceId) => eligibleIds.has(sourceId));
+      if (!hasSupportedAssignment) {
+        issues.push(`modules[${moduleIndex}].lessons[${lessonIndex}].sourceIds must assign at least one eligible evidence-noted source planned to support this lesson.`);
+      }
+    }
+  }
+  return issues;
 }
 
 function citationSectionText(lesson: Partial<LessonData>, section: LessonCitationSection) {

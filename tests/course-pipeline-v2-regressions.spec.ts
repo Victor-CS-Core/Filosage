@@ -246,6 +246,69 @@ test("the V2 contract accepts deterministic validity but requires honest review 
   expect(decision).toMatchObject({ decision: "manual_review", automaticRepairAvailable: false });
 });
 
+test("V2 publication blocks every unsourced lesson in a sourced course", async () => {
+  const outline = validOutline();
+  const trustedSource = {
+    id: "source-official",
+    label: "Official evidence standard",
+    url: "https://standards.example.org/evidence",
+    note: "Defines evidence as a statement that can be checked against an observed record.",
+    kind: "official" as const,
+    rights: "link-only" as const,
+  };
+  const sourcedCourse = {
+    ...outline,
+    sourcePolicyVersion: COURSE_PIPELINE_VERSIONS.sourcePolicy,
+    sourcePack: [trustedSource],
+    modules: outline.modules.map((courseModule, moduleIndex) => ({
+      ...courseModule,
+      lessons: courseModule.lessons.map((lesson, lessonIndex) => ({
+        ...lesson,
+        sourceIds: moduleIndex === 0 && lessonIndex === 0 ? [trustedSource.id] : [],
+      })),
+    })),
+  };
+  const generatedLessons = ["0-0", "0-1", "1-0", "1-1"].map((id) => ({
+    ...conciseValidLesson(),
+    id,
+    schemaVersion: 5,
+    interactions: [],
+    citations: id === "0-0"
+      ? [{ sourceId: trustedSource.id, claim: "A direct observation reports what can be checked.", section: "content" as const }]
+      : [],
+  }));
+
+  const blocked = await validateCourseCandidateV2(
+    sourcedCourse,
+    generatedLessons,
+    generatedLessons.map((lesson) => lesson.id),
+    Object.fromEntries(generatedLessons.map((lesson) => [lesson.id, undefined])),
+  );
+  expect(blocked.issues.filter((issue) => issue.code === "CQ_SOURCE_003")).toHaveLength(3);
+
+  const fullySourcedCourse = {
+    ...sourcedCourse,
+    modules: sourcedCourse.modules.map((courseModule) => ({
+      ...courseModule,
+      lessons: courseModule.lessons.map((lesson) => ({ ...lesson, sourceIds: [trustedSource.id] })),
+    })),
+  };
+  const fullyCitedLessons = generatedLessons.map((lesson) => ({
+    ...lesson,
+    citations: [{ sourceId: trustedSource.id, claim: "A direct observation reports what can be checked.", section: "content" as const }],
+  }));
+  const accepted = await validateCourseCandidateV2(
+    fullySourcedCourse,
+    fullyCitedLessons,
+    fullyCitedLessons.map((lesson) => lesson.id),
+    Object.fromEntries(fullyCitedLessons.map((lesson) => [lesson.id, undefined])),
+  );
+  expect(accepted.issues).not.toEqual(expect.arrayContaining([
+    expect.objectContaining({ code: "CQ_SOURCE_003" }),
+    expect.objectContaining({ code: "CQ_SOURCE_004" }),
+  ]));
+});
+
 test("course coherence failures map to a stable rule instead of a generic objective error", async () => {
   const outline = {
     ...validOutline(),

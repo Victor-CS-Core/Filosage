@@ -95,7 +95,7 @@ export const COURSE_QUALITY_RULES = {
     code: "CQ_SOURCE_002", version: 1, purpose: "Route deterministically identified high-stakes or disputed evidence to human review", classification: "deterministic", severity: "error", source: "source_integrity", repairability: "manual", suggestedAction: "Verify the claim against an authoritative source.",
   },
   SOURCE_ASSIGNMENT_INVALID: {
-    code: "CQ_SOURCE_003", version: 2, purpose: "Require sourced courses to use at least one supplied reference and assign only evidence-noted deep links to lessons", classification: "deterministic", severity: "blocker", source: "source_integrity", repairability: "assisted", suggestedAction: "Assign a supported supplied reference, or remove an invalid assignment and add a safe deep link with an original evidence note.",
+    code: "CQ_SOURCE_003", version: 3, purpose: "Require every lesson in a sourced course to use at least one supplied, evidence-noted deep link", classification: "deterministic", severity: "blocker", source: "source_integrity", repairability: "assisted", suggestedAction: "Assign a supported supplied reference to every lesson, or redesign an unsupported lesson without inventing or stretching a citation.",
   },
   SOURCE_CITATION_INVALID: {
     code: "CQ_SOURCE_004", version: 2, purpose: "Require every assigned source to resolve to a source-backed statement in visible lesson text", classification: "deterministic", severity: "blocker", source: "source_integrity", repairability: "assisted", suggestedAction: "Add or correct the structured citation without copying source text or inventing support.",

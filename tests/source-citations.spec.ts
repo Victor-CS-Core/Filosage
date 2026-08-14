@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { readFile } from "node:fs/promises";
 import type { CourseSource, LessonData } from "../src/lib/course-types";
 import {
   assignedSourcePack,
@@ -7,6 +8,7 @@ import {
   outlineSourceCoverageIssues,
   sourcePackPromptBlock,
 } from "../src/lib/source-safety";
+import { supportsStructuredSourcePolicy } from "../src/lib/course-pipeline/contract";
 import { courseRequestSchema, lessonDataSchema } from "../src/lib/validation";
 
 const source: CourseSource = {
@@ -36,12 +38,27 @@ test("source assignment fails closed for invented, unsafe, or note-free sources"
   ]);
 });
 
-test("a sourced course must use at least one eligible reference without forcing unsupported lessons to cite", () => {
+test("every lesson in a sourced course must use an eligible supported reference", () => {
   expect(outlineSourceCoverageIssues({ modules: [{ lessons: [{ sourceIds: [] }] }] }, [source])).toEqual([
-    expect.stringContaining("must assign at least one supplied source"),
+    expect.stringContaining("modules[0].lessons[0].sourceIds must assign at least one eligible evidence-noted source"),
   ]);
-  expect(outlineSourceCoverageIssues({ modules: [{ lessons: [{ sourceIds: [source.id] }, { sourceIds: [] }] }] }, [source])).toEqual([]);
+  expect(outlineSourceCoverageIssues({ modules: [{ lessons: [{ sourceIds: [source.id] }, { sourceIds: [] }] }] }, [source])).toEqual([
+    expect.stringContaining("modules[0].lessons[1].sourceIds must assign at least one eligible evidence-noted source"),
+  ]);
+  expect(outlineSourceCoverageIssues({ modules: [{ lessons: [{ sourceIds: [source.id] }, { sourceIds: [source.id] }] }] }, [source])).toEqual([]);
   expect(outlineSourceCoverageIssues({ modules: [{ lessons: [{ sourceIds: [] }] }] }, [])).toEqual([]);
+});
+
+test("course outline coverage is rechecked after initial, repair, and recovery generation", async () => {
+  const routeSource = await readFile("src/app/api/generate-course/route.ts", "utf8");
+  expect(routeSource.match(/outlineSourceCoverageIssues\(outline, sourcePack\)/g)).toHaveLength(3);
+});
+
+test("the strengthened source gate still validates compatible v3 artifacts", () => {
+  expect(supportsStructuredSourcePolicy("source-integrity-v3.0.0")).toBe(true);
+  expect(supportsStructuredSourcePolicy("source-integrity-v3.1.0")).toBe(true);
+  expect(supportsStructuredSourcePolicy("source-integrity-v2.9.0")).toBe(false);
+  expect(supportsStructuredSourcePolicy(undefined)).toBe(false);
 });
 
 test("lesson citations resolve only to assigned sources and exact visible claims", () => {
