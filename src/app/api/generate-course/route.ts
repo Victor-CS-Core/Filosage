@@ -460,7 +460,7 @@ export async function POST(request: Request) {
         "Module challenges and the capstone must be assessable from their success criteria. Adapt examples and practice to the learner's intended application.",
       ].filter(Boolean).join("\n");
     const generateOutline = (profile: AiExecutionProfile, repairIssues: string[] = []) => {
-      generationPhase = repairIssues.length ? "course outline repair" : "course outline";
+      generationPhase = repairIssues.length ? `${profile.id} outline correction` : `${profile.id} outline`;
       return client.responses.parse({
       model: profile.model,
       store: false,
@@ -477,7 +477,7 @@ export async function POST(request: Request) {
       prompt_cache_key: profile.promptCacheKey,
       max_output_tokens: AI_GENERATION_OUTPUT_BUDGETS.courseOutline,
       safety_identifier: safetyIdentifier,
-      }, { signal: AbortSignal.timeout(75_000) });
+      }, { signal: AbortSignal.timeout(profile.recovery ? 120_000 : 75_000) });
     };
     type CourseOutlineResponse = Awaited<ReturnType<typeof generateOutline>>;
     type CourseOutline = NonNullable<CourseOutlineResponse["output_parsed"]>;
@@ -562,13 +562,12 @@ export async function POST(request: Request) {
       : ["The previous response did not return a structured course outline."];
     if (repairIssues.length && !activeProfile.recovery) {
       try {
-        activeProfile = repairProfile;
-        response = await generateAndRecord(repairProfile, repairIssues);
+        activeProfile = recoveryProfile;
+        response = await generateAndRecord(recoveryProfile, repairIssues);
       } catch (error) {
         console.warn(JSON.stringify({
-          event: "course_quality_repair_failed",
-          model: repairProfile.model,
-          recoveryModel: recoveryProfile.model,
+          event: "course_quality_recovery_failed",
+          model: recoveryProfile.model,
           ...safeModelErrorDetails(error),
         }));
       }
@@ -584,24 +583,7 @@ export async function POST(request: Request) {
             ...integrityIssues.map((issue) => `${issue.path} ${issue.reason}`),
             ...outlineQualityIssues,
           ]
-        : ["The quality-repair response did not return a structured course outline."];
-    }
-    if (repairIssues.length && !activeProfile.recovery) {
-      activeProfile = recoveryProfile;
-      response = await generateAndRecord(recoveryProfile, repairIssues);
-      outline = response.output_parsed;
-      integrityIssues = outline ? inspectGeneratedContent(outline, topic, language) : [];
-      outlineQualityIssues = outline ? [
-        ...courseQualityIssues(outline),
-        ...outlineSourceAssignmentIssues(outline, sourcePack),
-        ...outlineSourceCoverageIssues(outline, sourcePack),
-      ] : [];
-      repairIssues = outline
-        ? [
-            ...integrityIssues.map((issue) => `${issue.path} ${issue.reason}`),
-            ...outlineQualityIssues,
-          ]
-        : ["The Sol recovery response did not return a structured course outline."];
+        : ["The recovery response did not return a structured course outline."];
     }
     let courseGroundingResult: CourseGroundingResult | null = null;
     let courseGroundingQualityIssues: string[] = [];

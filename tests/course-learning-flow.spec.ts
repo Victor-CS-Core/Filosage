@@ -628,7 +628,7 @@ test("completes a published course from discovery through evidence", async ({ pa
   await expect(journey.locator(".journey-lesson-links button")).toHaveCount(2);
   const sourceLink = page.getByRole("link", { name: /Decision quality field guide/ });
   await expect(page.getByText("Course references")).toBeVisible();
-  await expect(page.getByText(/Evidence Institute.*owner verified/)).toBeVisible();
+  await expect(page.getByText(/Evidence Institute.*author provided.*legacy source.*link only/)).toBeVisible();
   await expect(sourceLink).toHaveAttribute("href", "https://example.com/decision-quality");
   await expect(sourceLink).toHaveAttribute("rel", "nofollow ugc noreferrer");
   await page.getByRole("button", { name: "Report source" }).click();
@@ -663,7 +663,7 @@ test("completes a published course from discovery through evidence", async ({ pa
   await page.getByRole("link", { name: "Start with Evidence and action" }).click();
   await expect(page.getByRole("heading", { level: 1, name: "Evidence before inference" })).toBeVisible();
   await expect(page.getByText("Evidence reports what was observed.", { exact: true })).toBeVisible();
-  await expect(page.getByText("Owner verified", { exact: true })).toBeVisible();
+  await expect(page.getByText("Owner verified for publication", { exact: true })).toBeVisible();
   const citationLink = page.getByRole("link", { name: /Decision quality field guide, opens example.com/ });
   await expect(citationLink).toHaveAttribute("href", "https://example.com/decision-quality");
   await expect(citationLink).toContainText("Evidence Institute");
