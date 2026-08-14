@@ -13,6 +13,10 @@ import {
 } from "@/lib/firebase-server";
 import { serverEnvironment } from "@/lib/runtime-environment";
 import { MEMBERSHIP_PLANS } from "@/lib/membership-plans";
+import {
+  COURSE_OUTLINE_RESERVATION_LOCK_MS,
+  COURSE_OUTLINE_RESERVE_COST_MICROS,
+} from "@/lib/ai-usage-policy";
 
 export type AiFeature = "course_outline" | "course_banner" | "lesson_generation" | "tutor" | "command_center_draft";
 export type AiBudgetPool = "free" | "paid" | "owner";
@@ -71,8 +75,8 @@ function policyFor(account: ServerAccount, feature: AiFeature, now = new Date())
       periodKey: monthly.key,
       resetAt: monthly.resetAt,
       maxPerMinute: 20,
-      reserveCostMicros: isBanner ? 20_000 : feature === "tutor" ? 50_000 : feature === "command_center_draft" ? 100_000 : 350_000,
-      lockMs: isBanner ? 90_000 : feature === "tutor" ? 45_000 : feature === "command_center_draft" ? 90_000 : feature === "lesson_generation" ? 75_000 : 180_000,
+      reserveCostMicros: isBanner ? 20_000 : feature === "tutor" ? 50_000 : feature === "command_center_draft" ? 100_000 : feature === "course_outline" ? COURSE_OUTLINE_RESERVE_COST_MICROS : 350_000,
+      lockMs: isBanner ? 90_000 : feature === "tutor" ? 45_000 : feature === "command_center_draft" ? 90_000 : feature === "lesson_generation" ? 75_000 : COURSE_OUTLINE_RESERVATION_LOCK_MS,
     };
   }
 
@@ -89,8 +93,8 @@ function policyFor(account: ServerAccount, feature: AiFeature, now = new Date())
     periodKey: monthly.key,
     resetAt: monthly.resetAt,
     maxPerMinute: feature === "tutor" ? (account.plan === "free" ? 2 : 6) : 2,
-    reserveCostMicros: isBanner ? 20_000 : feature === "tutor" ? 50_000 : feature === "command_center_draft" ? 100_000 : 350_000,
-    lockMs: isBanner ? 90_000 : feature === "tutor" ? 45_000 : feature === "command_center_draft" ? 90_000 : feature === "lesson_generation" ? 75_000 : 180_000,
+    reserveCostMicros: isBanner ? 20_000 : feature === "tutor" ? 50_000 : feature === "command_center_draft" ? 100_000 : feature === "course_outline" ? COURSE_OUTLINE_RESERVE_COST_MICROS : 350_000,
+    lockMs: isBanner ? 90_000 : feature === "tutor" ? 45_000 : feature === "command_center_draft" ? 90_000 : feature === "lesson_generation" ? 75_000 : COURSE_OUTLINE_RESERVATION_LOCK_MS,
   };
 }
 

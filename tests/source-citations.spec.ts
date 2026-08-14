@@ -10,6 +10,10 @@ import {
 } from "../src/lib/source-safety";
 import { supportsStructuredSourcePolicy } from "../src/lib/course-pipeline/contract";
 import { courseRequestSchema, lessonDataSchema } from "../src/lib/validation";
+import {
+  COURSE_OUTLINE_RESERVATION_LOCK_MS,
+  COURSE_OUTLINE_RESERVE_COST_MICROS,
+} from "../src/lib/ai-usage-policy";
 
 const source: CourseSource = {
   id: "source-official",
@@ -61,6 +65,21 @@ test("a structurally recovered outline still receives one evidence-specific grou
   expect(routeSource.match(/if \(courseGroundingQualityIssues\.length\) \{/g)).toHaveLength(2);
   expect(routeSource).toContain("those formats are learner activities, not factual claims");
   expect(routeSource).toContain("The evidence must still support everything the learner is asked to place in that container");
+});
+
+test("the course reservation covers the complete bounded recovery and grounding envelope", async () => {
+  const aiUsageSource = await readFile("src/lib/ai-usage.ts", "utf8");
+  const maximumProviderTimeMs = (90 + 75 + 75 + 75 + 120 + 90 + 120 + 90) * 1_000;
+  const maximumOutputCostMicros = (3_000 * 15)
+    + (3 * 3_000 * 15)
+    + (2 * 9_000 * 6)
+    + (2 * 9_000 * 30)
+    + (2 * 3_000 * 15);
+  expect(COURSE_OUTLINE_RESERVATION_LOCK_MS).toBeGreaterThan(maximumProviderTimeMs);
+  expect(COURSE_OUTLINE_RESERVE_COST_MICROS).toBeGreaterThan(maximumOutputCostMicros);
+  expect(aiUsageSource).toContain("feature === \"course_outline\" ? COURSE_OUTLINE_RESERVE_COST_MICROS");
+  expect(aiUsageSource).toContain("COURSE_OUTLINE_RESERVATION_LOCK_MS");
+  expect(aiUsageSource).toContain("staleReservedRequest = previousRequest?.status === \"reserved\" && activeUntil <= now.getTime()");
 });
 
 test("the strengthened source gate still validates compatible v3 artifacts", () => {
