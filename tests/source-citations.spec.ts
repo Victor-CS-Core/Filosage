@@ -68,6 +68,17 @@ test("a structurally recovered outline still receives one evidence-specific grou
   expect(routeSource).toContain("The evidence must still support everything the learner is asked to place in that container");
 });
 
+test("grounded lesson generation maps every factual assertion and exposes owner-only QA diagnostics", async () => {
+  const [routeSource, lessonPageSource] = await Promise.all([
+    readFile("src/app/api/generate-lesson/route.ts", "utf8"),
+    readFile("src/app/course/[topic]/lesson/[lessonId]/page.tsx", "utf8"),
+  ]);
+  expect(routeSource).toContain("Every externally verifiable factual assertion anywhere in the lesson");
+  expect(routeSource).toContain("the exact complete sentence already present in the declared lesson section");
+  expect(routeSource).toContain("account.isOwner ? { diagnostic:");
+  expect(lessonPageSource).toContain("isOwner && generated.diagnostic?.length");
+});
+
 test("the course reservation covers the complete bounded recovery and grounding envelope", async () => {
   const aiUsageSource = await readFile("src/lib/ai-usage.ts", "utf8");
   const contentSafetySource = await readFile("src/lib/content-safety.ts", "utf8");

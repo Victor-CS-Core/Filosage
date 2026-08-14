@@ -662,14 +662,22 @@ export default function LessonView() {
           lessonId,
         }),
       });
-      const generated = await generationResponse.json() as { error?: string; code?: string; resetAt?: string } & LessonData;
+      const generated = await generationResponse.json() as {
+        error?: string;
+        code?: string;
+        resetAt?: string;
+        diagnostic?: string[];
+      } & LessonData;
       if (!isCurrentView()) return;
       if (!generationResponse.ok) {
         if (generated.code === "GENERATION_IN_PROGRESS" && generated.resetAt) {
           const waitSeconds = Math.max(1, Math.ceil((Date.parse(generated.resetAt) - Date.now()) / 1_000));
           throw new Error(`A previous lesson attempt is still closing. Try again in about ${waitSeconds} seconds.`);
         }
-        throw new Error(generated.error || "The lesson could not be generated.");
+        const diagnostic = isOwner && generated.diagnostic?.length
+          ? ` Diagnostic: ${generated.diagnostic.join(" · ")}`
+          : "";
+        throw new Error(`${generated.error || "The lesson could not be generated."}${diagnostic}`);
       }
       setGenerationProgress(100);
       setLessonDataRecord({ key: requestViewKey, value: randomizeQuizAnswers(generated as LessonData) });
@@ -683,7 +691,7 @@ export default function LessonView() {
         setLoading(false);
       }
     }
-  }, [authLoading, courseId, getToken, moduleIndex, lessonIndex, lessonId, lessonViewKey, topic, user]);
+  }, [authLoading, courseId, getToken, isOwner, moduleIndex, lessonIndex, lessonId, lessonViewKey, topic, user]);
 
   useEffect(() => {
     void Promise.resolve().then(loadLesson);

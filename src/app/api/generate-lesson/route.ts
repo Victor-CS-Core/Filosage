@@ -291,7 +291,7 @@ export async function POST(request: Request) {
         : "",
       sourcePackPromptBlock(assignedSources, "No source is assigned to this lesson. Return citations: [] and do not invent citations."),
       assignedSources.length
-        ? "Return at least one structured citation for every assigned source. Each citation must identify the exact evidenceClaimId that supports it and a concise factual statement directly entailed by that researched evidence claim. The citation claim must be an exact statement already present in the declared lesson section. Use only assigned source and evidence-claim IDs, add a short source locator when known, and never quote or reproduce source passages."
+        ? "Treat the supplied atomic evidence claims as the hard ceiling for the lesson's factual content. Return at least one structured citation for every assigned source. Every externally verifiable factual assertion anywhere in the lesson must either be clearly hypothetical or be directly and conservatively entailed by an assigned atomic evidence claim and represented by a structured citation. Each citation must identify the exact evidenceClaimId that supports it, and its claim must be the exact complete sentence already present in the declared lesson section. Keep the lesson to at most eight distinct sourced factual assertions so every one can be mapped. Do not add uncited definitions, numbers, causal claims, rules, or method steps from model knowledge. Use only assigned source and evidence-claim IDs, add a short source locator when known, and never quote or reproduce source passages."
         : "Do not make the lesson source-backed. Return citations: [].",
       course.capstone
         ? `Course capstone: ${course.capstone.brief} Deliverable: ${course.capstone.deliverable}`
@@ -509,6 +509,7 @@ export async function POST(request: Request) {
             ? "The lesson's claims could not be fully supported by its researched sources. No lesson was saved."
             : "The lesson did not meet Filosage's teaching-quality standard. Please try again.",
           code: groundingQualityIssues.length ? "CLAIM_UNSUPPORTED" : "LESSON_QUALITY_REJECTED",
+          ...(account.isOwner ? { diagnostic: [...qualityIssues, ...groundingQualityIssues].slice(0, 8) } : {}),
         },
         { status: 502 },
       );
