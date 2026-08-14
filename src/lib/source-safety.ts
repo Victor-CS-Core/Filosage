@@ -190,7 +190,7 @@ export function lessonCitationQualityIssues(
         issues.push(`citations[${index}].evidenceClaimId does not belong to its assigned source.`);
       }
     }
-    const key = `${citation.sourceId}\u0000${comparableText(citation.claim)}`;
+    const key = `${citation.sourceId}\u0000${citation.section}\u0000${comparableText(citation.claim)}`;
     if (seen.has(key)) issues.push(`citations[${index}] duplicates an earlier source-backed claim.`);
     seen.add(key);
     if (!comparableText(citationSectionText(lesson, citation.section)).includes(comparableText(citation.claim))) {

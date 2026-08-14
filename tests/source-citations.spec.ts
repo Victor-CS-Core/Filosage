@@ -154,6 +154,14 @@ test("citations can bind factual claims in every field scanned by the grounding 
   };
   expect(lessonCitationQualityIssues([{ sourceId: source.id, claim: "The official standard organizes guidance under four principles.", section: "experience" }], assigned, extendedLesson)).toEqual([]);
   expect(lessonCitationQualityIssues([{ sourceId: source.id, claim: "The official standard organizes guidance under four principles.", section: "quiz" }], assigned, extendedLesson)).toEqual([]);
+  expect(lessonCitationQualityIssues([
+    { sourceId: source.id, claim: "The official standard organizes guidance under four principles.", section: "experience" },
+    { sourceId: source.id, claim: "The official standard organizes guidance under four principles.", section: "quiz" },
+  ], assigned, extendedLesson)).toEqual([]);
+  expect(lessonCitationQualityIssues([
+    { sourceId: source.id, claim: "The official standard organizes guidance under four principles.", section: "experience" },
+    { sourceId: source.id, claim: "The official standard organizes guidance under four principles.", section: "experience" },
+  ], assigned, extendedLesson)).toEqual([expect.stringContaining("duplicates an earlier source-backed claim")]);
   expect(lessonCitationQualityIssues([{ sourceId: source.id, claim: "A stronger hierarchy claim.", section: "experience" }], assigned, extendedLesson)).toEqual([
     expect.stringContaining("exact concise statement"),
   ]);
