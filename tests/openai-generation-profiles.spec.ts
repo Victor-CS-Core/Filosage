@@ -81,7 +81,7 @@ test("uses explicit workload reasoning and stable versioned cache keys", () => {
 
   expect(course.reasoningEffort).toBe("none");
   expect(course.model).toBe("gpt-5.6-luna");
-  expect(lesson.reasoningEffort).toBe("medium");
+  expect(lesson.reasoningEffort).toBe("low");
   expect(tutor.reasoningEffort).toBe("low");
   expect(tutor.textVerbosity).toBe("low");
   expect(commandCenter.model).toBe("gpt-5.6-terra");

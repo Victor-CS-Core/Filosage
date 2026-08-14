@@ -110,7 +110,7 @@ const PROFILE_SPECS: Record<AiExecutionProfileId, ProfileSpec> = {
     workload: "lesson",
     modelEnv: ["OPENAI_LESSON_MODEL"],
     defaultModel: "gpt-5.6-luna",
-    reasoningEffort: "medium",
+    reasoningEffort: "low",
     textVerbosity: "medium",
   },
   "lesson.fallback": {
