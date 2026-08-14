@@ -61,7 +61,7 @@ test("keeps Sol off normal generation paths and reserves it for recovery", () =>
   expect(normalProfiles.every((profile) => profile.model !== "gpt-5.6-sol" && !profile.recovery)).toBe(true);
   expect(normalProfiles.slice(0, 5).every((profile) => profile.model === "gpt-5.6-luna")).toBe(true);
   expect(recoveryProfiles.every((profile) => profile.model === "gpt-5.6-sol" && profile.recovery)).toBe(true);
-  expect(recoveryProfiles.every((profile) => profile.reasoningEffort === "high")).toBe(true);
+  expect(recoveryProfiles.map((profile) => profile.reasoningEffort)).toEqual(["medium", "high"]);
 });
 
 test("uses explicit workload reasoning and stable versioned cache keys", () => {
@@ -125,7 +125,7 @@ test("honors model overrides without changing workload policy", () => {
   const recovery = openAiExecutionProfile("course.recovery", environment);
   const assessment = openAiExecutionProfile("baseline.standard", environment);
   expect(recovery.model).toBe("gpt-5.6-sol-custom");
-  expect(recovery.reasoningEffort).toBe("high");
+  expect(recovery.reasoningEffort).toBe("medium");
   expect(assessment.model).toBe("gpt-5.6-terra");
   expect(assessment.reasoningEffort).toBe("medium");
 });

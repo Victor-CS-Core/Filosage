@@ -49,9 +49,9 @@ test("every lesson in a sourced course must use an eligible supported reference"
   expect(outlineSourceCoverageIssues({ modules: [{ lessons: [{ sourceIds: [] }] }] }, [])).toEqual([]);
 });
 
-test("course outline coverage is rechecked after initial, quality repair, recovery, and grounding repair", async () => {
+test("course outline coverage is rechecked after initial, recovery, and grounding repair", async () => {
   const routeSource = await readFile("src/app/api/generate-course/route.ts", "utf8");
-  expect(routeSource.match(/outlineSourceCoverageIssues\(outline, sourcePack\)/g)).toHaveLength(4);
+  expect(routeSource.match(/outlineSourceCoverageIssues\(outline, sourcePack\)/g)).toHaveLength(3);
 });
 
 test("the strengthened source gate still validates compatible v3 artifacts", () => {

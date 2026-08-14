@@ -102,7 +102,7 @@ const PROFILE_SPECS: Record<AiExecutionProfileId, ProfileSpec> = {
     workload: "course",
     modelEnv: ["OPENAI_COURSE_RECOVERY_MODEL"],
     defaultModel: "gpt-5.6-sol",
-    reasoningEffort: "high",
+    reasoningEffort: "medium",
     textVerbosity: "medium",
     recovery: true,
   },
