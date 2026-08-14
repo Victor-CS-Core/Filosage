@@ -8,6 +8,7 @@ import {
 } from "@/lib/firebase-server";
 import { buildModerationInputs } from "@/lib/moderation-inputs";
 import { serverEnvironment } from "@/lib/runtime-environment";
+import { CONTENT_MODERATION_REQUEST_TIMEOUT_MS } from "@/lib/ai-usage-policy";
 
 export type SafetyStage = "input" | "output";
 export const MODERATION_MODEL = "omni-moderation-latest";
@@ -165,6 +166,9 @@ export async function assertSafeContentBatch(
   const moderation = await client.moderations.create({
     model: MODERATION_MODEL,
     input: normalizedInputs,
+  }, {
+    signal: AbortSignal.timeout(CONTENT_MODERATION_REQUEST_TIMEOUT_MS),
+    maxRetries: 0,
   });
   const flaggedResults = moderation.results.flatMap((result, index) => result.flagged
     ? [{ result, input: normalizedInputs[index] ?? "" }]

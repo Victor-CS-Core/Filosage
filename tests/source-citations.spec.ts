@@ -11,6 +11,7 @@ import {
 import { supportsStructuredSourcePolicy } from "../src/lib/course-pipeline/contract";
 import { courseRequestSchema, lessonDataSchema } from "../src/lib/validation";
 import {
+  CONTENT_MODERATION_REQUEST_TIMEOUT_MS,
   COURSE_OUTLINE_RESERVATION_LOCK_MS,
   COURSE_OUTLINE_RESERVE_COST_MICROS,
 } from "../src/lib/ai-usage-policy";
@@ -69,7 +70,9 @@ test("a structurally recovered outline still receives one evidence-specific grou
 
 test("the course reservation covers the complete bounded recovery and grounding envelope", async () => {
   const aiUsageSource = await readFile("src/lib/ai-usage.ts", "utf8");
-  const maximumProviderTimeMs = (90 + 75 + 75 + 75 + 120 + 90 + 120 + 90) * 1_000;
+  const contentSafetySource = await readFile("src/lib/content-safety.ts", "utf8");
+  const maximumProviderTimeMs = ((90 + 75 + 75 + 75 + 120 + 90 + 120 + 90) * 1_000)
+    + (2 * CONTENT_MODERATION_REQUEST_TIMEOUT_MS);
   const maximumOutputCostMicros = (3_000 * 15)
     + (3 * 3_000 * 15)
     + (2 * 9_000 * 6)
@@ -80,6 +83,8 @@ test("the course reservation covers the complete bounded recovery and grounding 
   expect(aiUsageSource).toContain("feature === \"course_outline\" ? COURSE_OUTLINE_RESERVE_COST_MICROS");
   expect(aiUsageSource).toContain("COURSE_OUTLINE_RESERVATION_LOCK_MS");
   expect(aiUsageSource).toContain("staleReservedRequest = previousRequest?.status === \"reserved\" && activeUntil <= now.getTime()");
+  expect(contentSafetySource).toContain("signal: AbortSignal.timeout(CONTENT_MODERATION_REQUEST_TIMEOUT_MS)");
+  expect(contentSafetySource).toContain("maxRetries: 0");
 });
 
 test("the strengthened source gate still validates compatible v3 artifacts", () => {
