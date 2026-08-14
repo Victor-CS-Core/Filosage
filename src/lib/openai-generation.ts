@@ -1,7 +1,7 @@
 import { serverEnvironment } from "@/lib/runtime-environment";
 
 export const AI_PROMPT_VERSIONS = {
-  research: "2026-08-14-grounded-course-research-v2",
+  research: "2026-08-14-grounded-course-research-v3",
   grounding: "2026-08-14-claim-grounding-v1",
   course: "2026-08-04-guided-apprenticeship",
   lesson: "2026-08-03-guided-apprenticeship",

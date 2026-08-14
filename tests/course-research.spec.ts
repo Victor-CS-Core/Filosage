@@ -406,4 +406,5 @@ test("course generation aborts and releases before the synchronous QA ingress de
   const route = await import("node:fs/promises").then((fs) => fs.readFile("src/app/api/generate-course/route.ts", "utf8"));
   expect(route).toContain("AbortSignal.timeout(150_000)");
   expect(route.match(/\{ signal: generationSignal \}/g)?.length).toBeGreaterThanOrEqual(4);
+  expect(route).toContain("copy the exact HTTPS URL supplied by web search provenance");
 });

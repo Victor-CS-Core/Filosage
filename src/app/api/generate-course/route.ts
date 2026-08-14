@@ -195,6 +195,7 @@ export async function POST(request: Request) {
       "Return 2 to 3 evidenceClaims per source. Each must be a short original paraphrase of one atomic factual finding that the linked source supports, with a locator when known. Never quote or reproduce source passages.",
       "Use null for an unknown author, publicationDate, or evidence locator; every structured field must be present.",
       "Only return a URL that you actually cited through web search. Publication status must be released, and statusCheck must be released-no-withdrawal-found only after searching for retraction, withdrawal, or supersession signals.",
+      "For every source, copy the exact HTTPS URL supplied by web search provenance. Do not normalize, shorten, expand, resolve, or replace that URL, including DOI redirects.",
       creatorSourceLeads.length
         ? `Untrusted creator-suggested leads follow. They may guide searches, but they are not evidence and must not be returned unless independently found and cited by web search:\n<CREATOR_LEADS>${JSON.stringify(creatorSourceLeads.map((source) => ({ label: source.label, url: source.url, note: source.note })))}</CREATOR_LEADS>`
         : "No creator leads were supplied; discover the evidence independently.",
