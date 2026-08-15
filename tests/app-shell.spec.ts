@@ -912,18 +912,15 @@ test.describe("mobile application shell", () => {
     await expect(page.locator(".course-deck-card[data-position='1']")).toBeVisible();
     await expect(page.locator(".course-deck-card[data-position='2']")).toBeVisible();
     const sparkBox = await page.getByRole("button", { name: "Open Support Center" }).boundingBox();
-    const navigationBoxes = await page.locator(".course-deck-controls > button").evaluateAll((buttons) => buttons.map((button) => {
-      const rect = button.getBoundingClientRect();
-      return { left: rect.left, top: rect.top, right: rect.right, bottom: rect.bottom };
-    }));
+    const controlsBox = await page.locator(".course-deck-controls").boundingBox();
     expect(sparkBox).not.toBeNull();
-    for (const navigation of navigationBoxes) {
-      const overlaps = (sparkBox?.x ?? 0) < navigation.right
-        && (sparkBox?.x ?? 0) + (sparkBox?.width ?? 0) > navigation.left
-        && (sparkBox?.y ?? 0) < navigation.bottom
-        && (sparkBox?.y ?? 0) + (sparkBox?.height ?? 0) > navigation.top;
-      expect(overlaps).toBe(false);
-    }
+    expect(controlsBox).not.toBeNull();
+    const overlapsControls = (sparkBox?.x ?? 0) < (controlsBox?.x ?? 0) + (controlsBox?.width ?? 0)
+      && (sparkBox?.x ?? 0) + (sparkBox?.width ?? 0) > (controlsBox?.x ?? 0)
+      && (sparkBox?.y ?? 0) < (controlsBox?.y ?? 0) + (controlsBox?.height ?? 0)
+      && (sparkBox?.y ?? 0) + (sparkBox?.height ?? 0) > (controlsBox?.y ?? 0);
+    expect(overlapsControls).toBe(false);
+    expect((sparkBox?.x ?? 0) - ((controlsBox?.x ?? 0) + (controlsBox?.width ?? 0))).toBeGreaterThanOrEqual(8);
     expect((await new AxeBuilder({ page }).include(".course-deck-section").analyze()).violations).toEqual([]);
     await expectNoHorizontalPageOverflow(page);
     if (process.env.CAPTURE_DASHBOARD === "1") {
