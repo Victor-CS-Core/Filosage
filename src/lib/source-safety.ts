@@ -116,44 +116,48 @@ export function outlineSourceCoverageIssues(
   return issues;
 }
 
-function nestedText(value: unknown): string {
-  if (typeof value === "string") return value;
-  if (Array.isArray(value)) return value.map(nestedText).filter(Boolean).join("\n");
+function nestedTextLeaves(value: unknown): string[] {
+  if (typeof value === "string") return [value];
+  if (Array.isArray(value)) return value.flatMap(nestedTextLeaves);
   if (value && typeof value === "object") {
-    return Object.values(value as Record<string, unknown>).map(nestedText).filter(Boolean).join("\n");
+    return Object.values(value as Record<string, unknown>).flatMap(nestedTextLeaves);
   }
-  return "";
+  return [];
+}
+
+function citationSectionLeafTexts(lesson: Partial<LessonData>, section: LessonCitationSection) {
+  switch (section) {
+    case "learning_objective":
+      return lesson.learningObjective ? [lesson.learningObjective] : [];
+    case "connection":
+      return lesson.connection ? [lesson.connection] : [];
+    case "content":
+      return lesson.content ? [lesson.content] : [];
+    case "key_takeaway":
+      return lesson.keyTakeaways ?? [];
+    case "experience":
+      return nestedTextLeaves(lesson.experience);
+    case "guided_practice":
+      return lesson.guidedPractice
+        ? [lesson.guidedPractice.prompt, ...lesson.guidedPractice.steps, lesson.guidedPractice.modelAnswer]
+        : [];
+    case "transfer_task":
+      return lesson.transferTask
+        ? [lesson.transferTask.prompt, ...lesson.transferTask.successCriteria, lesson.transferTask.modelResponse]
+        : [];
+    case "visual":
+      return nestedTextLeaves(lesson.visuals);
+    case "interaction":
+      return nestedTextLeaves(lesson.interactions);
+    case "quiz":
+      return lesson.quizzes?.flatMap((quiz) => [quiz.question, ...quiz.options]) ?? [];
+    case "quiz_explanation":
+      return lesson.quizzes?.flatMap((quiz) => [quiz.explanation, ...(quiz.optionFeedback ?? [])]) ?? [];
+  }
 }
 
 function citationSectionText(lesson: Partial<LessonData>, section: LessonCitationSection) {
-  switch (section) {
-    case "learning_objective":
-      return lesson.learningObjective ?? "";
-    case "connection":
-      return lesson.connection ?? "";
-    case "content":
-      return lesson.content ?? "";
-    case "key_takeaway":
-      return lesson.keyTakeaways?.join("\n") ?? "";
-    case "experience":
-      return nestedText(lesson.experience);
-    case "guided_practice":
-      return lesson.guidedPractice
-        ? [lesson.guidedPractice.prompt, ...lesson.guidedPractice.steps, lesson.guidedPractice.modelAnswer].join("\n")
-        : "";
-    case "transfer_task":
-      return lesson.transferTask
-        ? [lesson.transferTask.prompt, ...lesson.transferTask.successCriteria, lesson.transferTask.modelResponse].join("\n")
-        : "";
-    case "visual":
-      return nestedText(lesson.visuals);
-    case "interaction":
-      return nestedText(lesson.interactions);
-    case "quiz":
-      return nestedText(lesson.quizzes);
-    case "quiz_explanation":
-      return lesson.quizzes?.flatMap((quiz) => [quiz.explanation, ...(quiz.optionFeedback ?? [])]).join("\n") ?? "";
-  }
+  return citationSectionLeafTexts(lesson, section).join("\n");
 }
 
 function comparableText(value: string) {
@@ -235,6 +239,7 @@ export function lessonCitationQualityIssues(
   citations: Array<Omit<Pick<LessonCitation, "sourceId" | "evidenceClaimId" | "claim" | "section" | "locator">, "locator"> & { locator?: string | null }> | undefined,
   assignedSources: CourseSource[],
   lesson: Partial<LessonData>,
+  options: { requireExactClaims?: boolean } = {},
 ) {
   const issues: string[] = [];
   const assignedById = new Map(assignedSources.map((source) => [source.id, source]));
@@ -264,8 +269,28 @@ export function lessonCitationQualityIssues(
     const key = `${citation.sourceId}\u0000${citation.section}\u0000${comparableText(citation.claim)}`;
     if (seen.has(key)) issues.push(`citations[${index}] duplicates an earlier source-backed claim.`);
     seen.add(key);
-    if (!comparableText(citationSectionText(lesson, citation.section)).includes(comparableText(citation.claim))) {
+    if (options.requireExactClaims !== false
+      && !comparableText(citationSectionText(lesson, citation.section)).includes(comparableText(citation.claim))) {
       issues.push(`citations[${index}].claim must be an exact concise statement already present in its declared lesson section.`);
+    }
+  }
+  return issues;
+}
+
+export function lessonCitationCanonicalBindingIssues(
+  citations: Array<Pick<LessonCitation, "claim" | "section">> | undefined,
+  lesson: Partial<LessonData>,
+) {
+  const sentenceLocations = lessonCitationSections.flatMap((section) =>
+    citationSectionLeafTexts(lesson, section).flatMap((leaf) =>
+      citationSentenceCandidates(leaf).map((sentence) => ({ section, sentence })),
+    ),
+  );
+  const issues: string[] = [];
+  for (const [index, citation] of (citations ?? []).entries()) {
+    const matches = sentenceLocations.filter(({ sentence }) => sentence === citation.claim.trim());
+    if (matches.length !== 1 || matches[0].section !== citation.section) {
+      issues.push(`citations[${index}] must bind to one unique complete verbatim sentence in its declared lesson section.`);
     }
   }
   return issues;

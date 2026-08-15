@@ -1,8 +1,8 @@
 import { createHash } from "node:crypto";
 import { z } from "zod";
-import type { CourseSource } from "@/lib/course-types";
+import type { CourseSource, LessonCitationSection } from "@/lib/course-types";
 
-export const LESSON_GROUNDING_EVALUATOR_VERSION = "2026-08-14-claim-grounding-v2";
+export const LESSON_GROUNDING_EVALUATOR_VERSION = "2026-08-14-claim-grounding-v3";
 export const COURSE_GROUNDING_EVALUATOR_VERSION = "2026-08-14-outline-grounding-v2";
 const LEGACY_COURSE_GROUNDING_EVALUATOR_VERSION = "2026-08-14-outline-grounding-v1";
 
@@ -20,6 +20,12 @@ export const lessonGroundingSchema = z.object({
   assessments: z.array(z.object({
     citationId: z.string().trim().regex(/^citation-[a-z0-9-]{1,60}$/),
     sourceId: z.string().trim().regex(/^source-[a-z0-9-]{1,40}$/),
+    evidenceClaimId: z.string().trim().regex(/^evidence-[a-z0-9-]{1,80}$/),
+    canonicalClaim: z.string().trim().min(2).max(280).nullable(),
+    canonicalSection: z.enum([
+      "learning_objective", "connection", "content", "key_takeaway", "experience",
+      "guided_practice", "transfer_task", "visual", "interaction", "quiz", "quiz_explanation",
+    ]).nullable(),
     verdict: z.enum(["supported", "partial", "unsupported"]),
     evidenceNoteMatched: z.boolean(),
     rationale: z.string().trim().min(10).max(400),
@@ -147,7 +153,36 @@ export function courseGroundingIssues(
   return issues;
 }
 
-type CitationCandidate = { id: string; sourceId: string; evidenceClaimId?: string; claim: string; section: string };
+type CitationCandidate = {
+  id: string;
+  sourceId: string;
+  evidenceClaimId?: string;
+  claim: string;
+  section: string;
+};
+
+type BindableCitationCandidate = Omit<CitationCandidate, "evidenceClaimId" | "section"> & {
+  evidenceClaimId: string | undefined;
+  section: LessonCitationSection;
+};
+
+export function bindLessonCitationsFromGrounding(
+  result: LessonGroundingResult | null | undefined,
+  citations: BindableCitationCandidate[],
+) {
+  const assessmentsById = new Map((result?.assessments ?? []).map((assessment) => [assessment.citationId, assessment]));
+  return citations.map((citation) => {
+    const assessment = assessmentsById.get(citation.id);
+    if (!assessment
+      || assessment.sourceId !== citation.sourceId
+      || assessment.evidenceClaimId !== citation.evidenceClaimId
+      || assessment.verdict !== "supported"
+      || !assessment.evidenceNoteMatched
+      || !assessment.canonicalClaim
+      || !assessment.canonicalSection) return citation;
+    return { ...citation, claim: assessment.canonicalClaim, section: assessment.canonicalSection };
+  });
+}
 
 export function lessonGroundingPromptData(
   citations: CitationCandidate[],
@@ -163,7 +198,7 @@ export function lessonGroundingPromptData(
       evidenceClaimId: citation.evidenceClaimId,
       claim: citation.claim,
       section: citation.section,
-      evidenceClaims: source?.evidenceClaims,
+      evidenceClaims: source?.evidenceClaims?.filter((evidence) => evidence.id === citation.evidenceClaimId),
       sourceLabel: source?.label,
       publisher: source?.publisher,
       authorityClass: source?.authorityClass,
@@ -207,6 +242,10 @@ export function lessonGroundingIssues(
     if (seen.has(assessment.citationId)) issues.push(`assessments[${index}] duplicates a citation assessment.`);
     seen.add(assessment.citationId);
     if (assessment.sourceId !== expected.sourceId) issues.push(`assessments[${index}] changed the citation source.`);
+    if (assessment.evidenceClaimId !== expected.evidenceClaimId) issues.push(`assessments[${index}] changed the citation evidence claim.`);
+    if (assessment.canonicalClaim !== expected.claim || assessment.canonicalSection !== expected.section) {
+      issues.push(`assessments[${index}] did not return the exact verified lesson sentence and section.`);
+    }
     if (assessment.verdict !== "supported" || !assessment.evidenceNoteMatched) {
       issues.push(`${assessment.citationId} is ${assessment.verdict}: ${assessment.rationale}`);
     }

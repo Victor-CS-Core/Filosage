@@ -20,6 +20,7 @@ import {
 import {
   COURSE_GROUNDING_EVALUATOR_VERSION,
   LESSON_GROUNDING_EVALUATOR_VERSION,
+  bindLessonCitationsFromGrounding,
   courseGroundingFingerprint,
   courseGroundingIssues,
   lessonGroundingFingerprint,
@@ -408,15 +409,15 @@ test("creator-declared official metadata cannot become server-classified authori
 
 test("fails claim grounding for partial, unsupported, missing, duplicated, or mismatched assessments", () => {
   const citations = [
-    { id: "citation-1", sourceId: "source-a", claim: "A bounded claim.", section: "content" },
-    { id: "citation-2", sourceId: "source-b", claim: "A second claim.", section: "content" },
+    { id: "citation-1", sourceId: "source-a", evidenceClaimId: "evidence-a", claim: "A bounded claim.", section: "content" },
+    { id: "citation-2", sourceId: "source-b", evidenceClaimId: "evidence-b", claim: "A second claim.", section: "content" },
   ];
   const issues = lessonGroundingIssues({
     overallVerdict: "unsupported",
     unsupportedClaims: [{ claim: "An uncited assertion.", rationale: "No supplied atomic evidence supports this assertion." }],
     assessments: [
-      { citationId: "citation-1", sourceId: "source-a", verdict: "partial", evidenceNoteMatched: true, rationale: "The claim overstates the evidence scope." },
-      { citationId: "citation-1", sourceId: "source-b", verdict: "supported", evidenceNoteMatched: true, rationale: "Duplicate and mismatched assessment record." },
+      { citationId: "citation-1", sourceId: "source-a", evidenceClaimId: "evidence-a", canonicalClaim: null, canonicalSection: null, verdict: "partial", evidenceNoteMatched: true, rationale: "The claim overstates the evidence scope." },
+      { citationId: "citation-1", sourceId: "source-b", evidenceClaimId: "evidence-a", canonicalClaim: "A bounded claim.", canonicalSection: "content", verdict: "supported", evidenceNoteMatched: true, rationale: "Duplicate and mismatched assessment record." },
     ],
   }, citations);
 
@@ -424,6 +425,46 @@ test("fails claim grounding for partial, unsupported, missing, duplicated, or mi
   expect(issues.some((issue) => issue.includes("duplicates"))).toBe(true);
   expect(issues.some((issue) => issue.includes("changed the citation source"))).toBe(true);
   expect(issues).toContain("citation-2 was not evaluated for claim support.");
+});
+
+test("grounding binds only a supported exact sentence without changing source evidence identity", () => {
+  const citations = [{
+    id: "citation-1",
+    sourceId: "source-a",
+    evidenceClaimId: "evidence-a",
+    claim: "A paraphrased citation hint.",
+    section: "quiz" as const,
+  }];
+  const supported = {
+    overallVerdict: "supported" as const,
+    unsupportedClaims: [],
+    assessments: [{
+      citationId: "citation-1",
+      sourceId: "source-a",
+      evidenceClaimId: "evidence-a",
+      canonicalClaim: "The exact visible supported sentence.",
+      canonicalSection: "content" as const,
+      verdict: "supported" as const,
+      evidenceNoteMatched: true,
+      rationale: "The identified atomic evidence directly entails the complete visible sentence.",
+    }],
+  };
+  const rebound = bindLessonCitationsFromGrounding(supported, citations);
+  expect(rebound).toEqual([{
+    ...citations[0],
+    claim: "The exact visible supported sentence.",
+    section: "content",
+  }]);
+  expect(lessonGroundingIssues(supported, rebound)).toEqual([]);
+  expect(rebound[0].sourceId).toBe(citations[0].sourceId);
+  expect(rebound[0].evidenceClaimId).toBe(citations[0].evidenceClaimId);
+
+  const changedEvidence = {
+    ...supported,
+    assessments: [{ ...supported.assessments[0], evidenceClaimId: "evidence-other" }],
+  };
+  expect(bindLessonCitationsFromGrounding(changedEvidence, citations)).toEqual(citations);
+  expect(lessonGroundingIssues(changedEvidence, citations)).toContain("assessments[0] changed the citation evidence claim.");
 });
 
 test("v4 identifies grounded artifacts without falsely upgrading v3", () => {

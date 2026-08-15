@@ -363,9 +363,9 @@ function stubCourseResearch() {
 
 function stubLessonGrounding(input: string) {
   const match = input.match(/<GROUNDING_DATA>([\s\S]*?)<\/GROUNDING_DATA>/);
-  let citations: Array<{ citationId?: string; sourceId?: string }>;
+  let citations: Array<{ citationId?: string; sourceId?: string; evidenceClaimId?: string; claim?: string; section?: string }>;
   try {
-    const parsed = match ? JSON.parse(match[1]) as { citations?: Array<{ citationId?: string; sourceId?: string }> } : null;
+    const parsed = match ? JSON.parse(match[1]) as { citations?: typeof citations } : null;
     citations = parsed?.citations ?? [];
   } catch {
     citations = [];
@@ -376,6 +376,9 @@ function stubLessonGrounding(input: string) {
     assessments: citations.map((citation) => ({
       citationId: citation.citationId,
       sourceId: citation.sourceId,
+      evidenceClaimId: citation.evidenceClaimId,
+      canonicalClaim: citation.claim,
+      canonicalSection: citation.section,
       verdict: "supported",
       evidenceNoteMatched: true,
       rationale: "The local fixture treats the supplied evidence note as direct support for this claim.",

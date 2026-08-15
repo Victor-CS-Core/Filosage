@@ -3,6 +3,7 @@ import { readFile } from "node:fs/promises";
 import type { CourseSource, LessonData } from "../src/lib/course-types";
 import {
   assignedSourcePack,
+  lessonCitationCanonicalBindingIssues,
   lessonCitationQualityIssues,
   normalizeLessonCitationSections,
   outlineSourceAssignmentIssues,
@@ -89,6 +90,13 @@ test("grounded lesson generation maps every factual assertion and exposes owner-
   expect(routeSource).toContain("Do not infer mnemonics, category exclusions, definitions");
   expect(routeSource).toContain("For this exercise, ...");
   expect(routeSource).toContain("write 450 to 750 words");
+  expect(routeSource).toContain("strict claim-evidence verifier and citation binder");
+  expect(routeSource).toContain("Copy that entire visible sentence verbatim into canonicalClaim");
+  expect(routeSource).toContain("requireExactClaims: !groundedSourcePolicy");
+  expect(routeSource).toContain("adoptGroundedCitationBindings(evaluated.citations)");
+  expect(routeSource).toContain("lessonCitationCanonicalBindingIssues(reboundCitations");
+  expect(routeSource.indexOf("lesson_optional_interaction_omitted")).toBeLessThan(routeSource.indexOf("if (groundedSourcePolicy && lesson"));
+  expect(routeSource.match(/lesson_optional_interaction_omitted/g)).toHaveLength(1);
   expect(routeSource).toContain("account.isOwner ? { diagnostic:");
   expect(lessonPageSource).toContain("isOwner && generated.diagnostic?.length");
 });
@@ -133,6 +141,21 @@ test("lesson citations resolve only to assigned sources and exact visible claims
   ]);
   expect(lessonCitationQualityIssues([{ sourceId: source.id, claim: "A claim the lesson never makes.", section: "content" }], assigned, lesson)).toEqual([
     expect.stringContaining("exact concise statement"),
+  ]);
+  expect(lessonCitationQualityIssues(
+    [{ sourceId: source.id, claim: "A claim the lesson never makes.", section: "content" }],
+    assigned,
+    lesson,
+    { requireExactClaims: false },
+  )).toEqual([]);
+  expect(lessonCitationQualityIssues(
+    [{ sourceId: "source-invented", claim: "A claim the lesson never makes.", section: "content" }],
+    assigned,
+    lesson,
+    { requireExactClaims: false },
+  )).toEqual([
+    expect.stringContaining(`assigned source ${source.id}`),
+    expect.stringContaining("not assigned to this lesson"),
   ]);
 });
 
@@ -245,6 +268,53 @@ test("citation normalization canonicalizes only one complete serialization-equiv
     claim: longSentence.slice(0, -1),
     section: "quiz",
   }]);
+});
+
+test("canonical grounding bindings require one exact complete leaf sentence", () => {
+  const broaderLesson: Partial<LessonData> = {
+    ...lesson,
+    content: "Evidence supports A, therefore follow unsupported rule B.",
+  };
+  expect(lessonCitationCanonicalBindingIssues([{
+    claim: "Evidence supports A",
+    section: "content",
+  }], broaderLesson)).toEqual([expect.stringContaining("unique complete verbatim sentence")]);
+  expect(lessonCitationCanonicalBindingIssues([{
+    claim: "Evidence supports A, therefore follow unsupported rule B.",
+    section: "content",
+  }], broaderLesson)).toEqual([]);
+  expect(lessonCitationCanonicalBindingIssues([{
+    claim: "Evidence supports A, therefore follow unsupported rule B.",
+    section: "content",
+  }], {
+    ...broaderLesson,
+    keyTakeaways: ["Evidence supports A, therefore follow unsupported rule B."],
+  })).toEqual([expect.stringContaining("unique complete verbatim sentence")]);
+  expect(lessonCitationCanonicalBindingIssues([{
+    claim: "First sentence. Second sentence.",
+    section: "content",
+  }], { ...lesson, content: "First sentence. Second sentence." })).toEqual([
+    expect.stringContaining("unique complete verbatim sentence"),
+  ]);
+  expect(lessonCitationCanonicalBindingIssues([{
+    claim: "Explanation only.",
+    section: "quiz_explanation",
+  }], {
+    ...lesson,
+    quizzes: [{
+      question: "Question only?",
+      options: ["A", "B", "C", "D"],
+      correctIndex: 0,
+      explanation: "Explanation only.",
+      optionFeedback: ["A feedback", "B feedback", "C feedback", "D feedback"],
+    }],
+  })).toEqual([]);
+  expect(lessonCitationCanonicalBindingIssues([{
+    claim: "A removed interaction claim.",
+    section: "interaction",
+  }], { ...lesson, interactions: [] })).toEqual([
+    expect.stringContaining("unique complete verbatim sentence"),
+  ]);
 });
 
 test("source prompt data remains untrusted metadata and carries professional attribution", () => {
