@@ -273,10 +273,8 @@ export function lessonCitationQualityIssues(
   const issues: string[] = [];
   const assignedById = new Map(assignedSources.map((source) => [source.id, source]));
   const citedSourceIds = new Set((citations ?? []).map((citation) => citation.sourceId));
-  for (const source of assignedSources) {
-    if (!citedSourceIds.has(source.id)) {
-      issues.push(`citations must include a source-backed statement for assigned source ${source.id}.`);
-    }
+  if (assignedSources.length && !assignedSources.some((source) => citedSourceIds.has(source.id))) {
+    issues.push("citations must include at least one source-backed statement from an assigned source.");
   }
   const seen = new Set<string>();
   for (const [index, citation] of (citations ?? []).entries()) {

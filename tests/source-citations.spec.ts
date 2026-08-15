@@ -77,7 +77,8 @@ test("grounded lesson generation maps every factual assertion and exposes owner-
   ]);
   expect(routeSource).toContain("Every externally verifiable factual assertion anywhere in the lesson");
   expect(routeSource).toContain("the exact complete sentence already present in the declared lesson section");
-  expect(routeSource).toContain("one or two distinct, conservative factual sentences for each assigned source");
+  expect(routeSource).toContain("Use at least one assigned source whose atomic evidence directly supports this lesson");
+  expect(routeSource).toContain("Do not force an irrelevant assigned source into the lesson");
   expect(routeSource).toContain("Return no more than six citations total");
   expect(routeSource).toContain("narrow and reframe the generated learning objective and activity to the supported subset");
   expect(routeSource).toContain("supply every prerequisite value as a hypothetical exercise input");
@@ -136,11 +137,11 @@ test("lesson citations resolve only to assigned sources and exact visible claims
   const assigned = assignedSourcePack([source], [source.id]);
   expect(lessonCitationQualityIssues([{ sourceId: source.id, claim: "Evidence can be checked against an observed record.", section: "content" }], assigned, lesson)).toEqual([]);
   expect(lessonCitationQualityIssues([], assigned, lesson)).toEqual([
-    expect.stringContaining(`assigned source ${source.id}`),
+    expect.stringContaining("at least one source-backed statement from an assigned source"),
   ]);
   expect(lessonCitationQualityIssues([], [], lesson)).toEqual([]);
   expect(lessonCitationQualityIssues([{ sourceId: "source-invented", claim: "Evidence can be checked against an observed record.", section: "content" }], assigned, lesson)).toEqual([
-    expect.stringContaining(`assigned source ${source.id}`),
+    expect.stringContaining("at least one source-backed statement from an assigned source"),
     expect.stringContaining("not assigned to this lesson"),
   ]);
   expect(lessonCitationQualityIssues([{ sourceId: source.id, claim: "A claim the lesson never makes.", section: "content" }], assigned, lesson)).toEqual([
@@ -158,9 +159,14 @@ test("lesson citations resolve only to assigned sources and exact visible claims
     lesson,
     { requireExactClaims: false },
   )).toEqual([
-    expect.stringContaining(`assigned source ${source.id}`),
+    expect.stringContaining("at least one source-backed statement from an assigned source"),
     expect.stringContaining("not assigned to this lesson"),
   ]);
+  expect(lessonCitationQualityIssues(
+    [{ sourceId: source.id, claim: "Evidence can be checked against an observed record.", section: "content" }],
+    assignedSourcePack([source, { ...source, id: "source-secondary" }], [source.id, "source-secondary"]),
+    lesson,
+  )).toEqual([]);
 });
 
 test("citations can bind factual claims in every field scanned by the grounding verifier", () => {

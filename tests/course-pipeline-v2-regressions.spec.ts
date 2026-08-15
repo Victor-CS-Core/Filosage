@@ -330,6 +330,14 @@ test("course coherence failures map to a stable rule instead of a generic object
   }));
 });
 
+test("source citation rule records the relevant-assignment coverage contract", () => {
+  expect(COURSE_QUALITY_RULES.SOURCE_CITATION_INVALID).toMatchObject({
+    code: "CQ_SOURCE_004",
+    version: 3,
+    purpose: expect.stringContaining("at least one relevant assigned source"),
+  });
+});
+
 test("repair plans are snapshot-bound and course stage transitions are explicit", async () => {
   const report = await validateCourseCandidateV2(validOutline(), [], ["0-0"]);
   const plan = buildRepairPlan(report);

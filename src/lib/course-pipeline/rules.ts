@@ -98,7 +98,7 @@ export const COURSE_QUALITY_RULES = {
     code: "CQ_SOURCE_003", version: 3, purpose: "Require every lesson in a sourced course to use at least one supplied, evidence-noted deep link", classification: "deterministic", severity: "blocker", source: "source_integrity", repairability: "assisted", suggestedAction: "Assign a supported supplied reference to every lesson, or redesign an unsupported lesson without inventing or stretching a citation.",
   },
   SOURCE_CITATION_INVALID: {
-    code: "CQ_SOURCE_004", version: 2, purpose: "Require every assigned source to resolve to a source-backed statement in visible lesson text", classification: "deterministic", severity: "blocker", source: "source_integrity", repairability: "assisted", suggestedAction: "Add or correct the structured citation without copying source text or inventing support.",
+    code: "CQ_SOURCE_004", version: 3, purpose: "Require each sourced lesson to cite at least one relevant assigned source in visible lesson text", classification: "deterministic", severity: "blocker", source: "source_integrity", repairability: "assisted", suggestedAction: "Add or correct a structured citation for a relevant assigned source without copying source text, forcing an irrelevant source, or inventing support.",
   },
   SOURCE_RESEARCH_INVALID: {
     code: "CQ_SOURCE_005", version: 1, purpose: "Require API-cited, server-classified research provenance and automatic claim support for grounded courses", classification: "deterministic", severity: "blocker", source: "source_integrity", repairability: "assisted", suggestedAction: "Repeat automatic research or regenerate only the unsupported claim against the immutable research snapshot.",
