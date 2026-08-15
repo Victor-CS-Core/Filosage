@@ -76,17 +76,18 @@ test("grounded lesson generation maps every factual assertion and exposes owner-
     readFile("src/app/course/[topic]/lesson/[lessonId]/page.tsx", "utf8"),
   ]);
   expect(routeSource).toContain("Every externally verifiable factual assertion anywhere in the lesson");
-  expect(routeSource).toContain("the exact complete sentence already present in the declared lesson section");
   expect(routeSource).toContain("Select exactly one relevant assigned source and one of its atomic evidence claims");
   expect(routeSource).toContain("Do not force an irrelevant assigned source into the lesson");
-  expect(routeSource).toContain("return exactly one structured citation for that sentence");
+  expect(routeSource).toContain("Return exactly one structured citation whose section is content");
+  expect(routeSource).toContain("Place it exactly once as its own plain prose paragraph in content");
+  expect(routeSource).toContain("one physical line with no internal newline, soft break, hard break, or surrounding label");
+  expect(routeSource).toContain("section is content and whose claim copies that exact physical-line sentence verbatim, including terminal punctuation");
   expect(routeSource).toContain("narrow and reframe the generated learning objective and activity to the supported subset");
   expect(routeSource).toContain("supply every prerequisite value as a hypothetical exercise input");
   expect(routeSource).toContain("Never claim or imply that a spreadsheet, template, checklist, diagram, or other tool");
   expect(routeSource).toContain("Evidence-bounded objective: derive one narrow observable objective from the assigned atomic evidence claims");
   expect(routeSource).toContain("Activity constraint: create a concrete mode-specific activity that uses only hypothetical inputs");
   expect(routeSource).toContain("Never assert that the learner previously completed, selected, observed, understood, or produced something");
-  expect(routeSource).toContain("copied verbatim");
   expect(routeSource).toContain("silently audit every sentence");
   expect(routeSource).toContain("Do not infer mnemonics, category exclusions, definitions");
   expect(routeSource).toContain("For this exercise, ...");
