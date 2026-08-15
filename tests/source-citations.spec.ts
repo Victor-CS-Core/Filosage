@@ -77,9 +77,9 @@ test("grounded lesson generation maps every factual assertion and exposes owner-
   ]);
   expect(routeSource).toContain("Every externally verifiable factual assertion anywhere in the lesson");
   expect(routeSource).toContain("the exact complete sentence already present in the declared lesson section");
-  expect(routeSource).toContain("Use at least one assigned source whose atomic evidence directly supports this lesson");
+  expect(routeSource).toContain("Select exactly one relevant assigned source and one of its atomic evidence claims");
   expect(routeSource).toContain("Do not force an irrelevant assigned source into the lesson");
-  expect(routeSource).toContain("Return no more than six citations total");
+  expect(routeSource).toContain("return exactly one structured citation for that sentence");
   expect(routeSource).toContain("narrow and reframe the generated learning objective and activity to the supported subset");
   expect(routeSource).toContain("supply every prerequisite value as a hypothetical exercise input");
   expect(routeSource).toContain("Never claim or imply that a spreadsheet, template, checklist, diagram, or other tool");
@@ -94,6 +94,14 @@ test("grounded lesson generation maps every factual assertion and exposes owner-
   expect(routeSource).toContain("FINAL EVIDENCE BOUNDARY:");
   expect(routeSource).toContain("counterfactual requirements; causal comparison rules");
   expect(routeSource.indexOf("Course capstone:")).toBeLessThan(routeSource.indexOf("FINAL EVIDENCE BOUNDARY:"));
+  expect(routeSource).toContain("GROUNDED LESSON OVERRIDE: Apply this contract after every generic lesson-design and language instruction");
+  expect(routeSource).toContain("Calling a scenario hypothetical does not make those interpretations evidence-free");
+  expect(routeSource).toContain("do not claim suitability, sufficiency, causal explanation, diagnostic meaning, recommendation");
+  expect(routeSource).toContain("Model answers, model responses, quiz explanations, and option feedback may judge only whether learner text accurately preserves");
+  expect(routeSource).toContain("groundedSourcePolicy && assignedSources.length ? groundedLessonInstruction : \"\"");
+  expect(routeSource).toContain("Delete every rejected claim. Do not paraphrase, recycle, or preserve it");
+  expect(routeSource.indexOf("lessonInstructions(lessonVisualsAreEnabled, lessonLabsAreEnabled)"))
+    .toBeLessThan(routeSource.indexOf("groundedSourcePolicy && assignedSources.length ? groundedLessonInstruction"));
   expect(routeSource).toContain("strict claim-evidence verifier and citation binder");
   expect(routeSource).toContain("Copy that entire rendered sentence text verbatim into canonicalClaim");
   expect(routeSource).toContain("omit only a leading Markdown heading, list, or blockquote marker");
