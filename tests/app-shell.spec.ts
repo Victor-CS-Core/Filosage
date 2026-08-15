@@ -342,7 +342,7 @@ test.describe("desktop application shell", () => {
     await commandPalette.getByRole("option", { name: /Sign out/ }).click();
 
     await expect(page).toHaveURL(/\/$/);
-    await expect(page.getByRole("heading", { name: "Turn curiosity into understanding" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Build the skill your next decision depends on" })).toBeVisible();
     await expect(page.getByRole("button", { name: /Open Command Center/ })).toHaveCount(0);
   });
 
@@ -469,30 +469,75 @@ test.describe("desktop application shell", () => {
     }
   });
 
-  test("cycles the held card through the pile in either direction without stealing nested keyboard input", async ({ page }) => {
+  test("cycles the held card through the pile in either direction without stealing nested keyboard input", async ({ page }, testInfo) => {
     await prepareOwnerShell(page, [...learningProgress, secondLearningProgress, thirdLearningProgress]);
     await page.goto("/");
 
     const deck = page.getByRole("region", { name: /Active course/ });
     const deckStatus = page.locator(".course-deck-controls [role='status']");
-    await expect(deckStatus).toContainText("Morse Code");
+    const selections = [
+      { id: "morse-shell-course", topic: "Morse Code", ordinal: "1 of 3", href: "/course/Morse%20Code/lesson/0-1?id=morse-shell-course" },
+      { id: "decision-shell-course", topic: "Decision quality", ordinal: "2 of 3", href: "/course/Decision%20quality/lesson/0-0?id=decision-shell-course" },
+      { id: "systems-shell-course", topic: "Systems thinking", ordinal: "3 of 3", href: "/course/Systems%20thinking/lesson/0-0?id=systems-shell-course" },
+    ];
+    const expectDeckSelection = async (index: number) => {
+      const selection = selections[index];
+      const activeCard = page.locator(".course-deck-card.is-active");
+      await expect(activeCard).toHaveAttribute("data-course-id", selection.id);
+      await expect(activeCard).toHaveAttribute("data-position", "0");
+      await expect(deckStatus).toContainText(selection.topic);
+      await expect(deckStatus).toContainText(selection.ordinal);
+      await expect(activeCard.getByRole("link", { name: /Continue/ })).toHaveAttribute("href", selection.href);
+    };
     const inspectPile = () => page.locator(".course-deck-card.is-visible").evaluateAll((cards) => cards.map((card) => {
       const rect = card.getBoundingClientRect();
       const style = getComputedStyle(card);
       const matrix = new DOMMatrixReadOnly(style.transform);
       const pixelValues = style.boxShadow.match(/-?\d+(?:\.\d+)?px/g)?.map(Number.parseFloat) ?? [];
       return {
+        id: (card as HTMLElement).dataset.courseId ?? "",
         left: rect.left,
         right: rect.right,
+        top: rect.top,
+        bottom: rect.bottom,
         width: (card as HTMLElement).offsetWidth,
         height: (card as HTMLElement).offsetHeight,
         zIndex: Number(style.zIndex),
+        opacity: Number(style.opacity),
         scale: Math.hypot(matrix.a, matrix.b),
         shadowY: pixelValues.at(-3) ?? 0,
         shadowBlur: pixelValues.at(-2) ?? 0,
         position: Number((card as HTMLElement).dataset.position),
       };
     }).sort((a, b) => a.position - b.position).slice(0, 3));
+    const inspectPaintedPile = () => page.locator(".course-deck-card.is-visible, .course-deck-card.is-drag-buffer").evaluateAll((cards) => cards.map((card) => {
+      const rect = card.getBoundingClientRect();
+      const style = getComputedStyle(card);
+      return {
+        id: (card as HTMLElement).dataset.courseId ?? "",
+        position: Number((card as HTMLElement).dataset.position),
+        left: rect.left,
+        right: rect.right,
+        top: rect.top,
+        bottom: rect.bottom,
+        opacity: Number(style.opacity),
+        visibility: style.visibility,
+        zIndex: Number(style.zIndex),
+      };
+    }).filter((card) => card.visibility === "visible" && card.opacity > 0.05));
+    const expectDistinctOverlapLayers = (cards: Awaited<ReturnType<typeof inspectPaintedPile>>) => {
+      for (let firstIndex = 0; firstIndex < cards.length; firstIndex += 1) {
+        for (let secondIndex = firstIndex + 1; secondIndex < cards.length; secondIndex += 1) {
+          const first = cards[firstIndex];
+          const second = cards[secondIndex];
+          const overlaps = first.left < second.right && first.right > second.left
+            && first.top < second.bottom && first.bottom > second.top;
+          if (overlaps) expect(first.zIndex, JSON.stringify({ first, second })).not.toBe(second.zIndex);
+        }
+      }
+    };
+
+    await expectDeckSelection(0);
     const pile = await inspectPile();
     expect(pile).toHaveLength(3);
     expect(pile[0].left).toBeLessThan(pile[1].left);
@@ -510,18 +555,15 @@ test.describe("desktop application shell", () => {
     expect(pile[2].left).toBeLessThan(1366);
     await deck.focus();
     await deck.press("ArrowRight");
-    await expect(deckStatus).toContainText("Decision quality");
     await waitForDeckToSettle(page);
+    await expectDeckSelection(1);
     const continueLink = page.locator(".course-deck-card.is-active").getByRole("link", { name: /Continue/ });
     await continueLink.focus();
     await continueLink.press("ArrowRight");
-    await expect(deckStatus).toContainText("Decision quality");
+    await expectDeckSelection(1);
     await deck.press("Home");
-    await expect(deckStatus).toContainText("Morse Code");
-    if (process.env.CAPTURE_DASHBOARD === "1") {
-      await page.screenshot({ path: ".impeccable/review/course-deck-stack-motion-desktop.png", fullPage: true });
-    }
-    await expect(page.locator(".course-deck-card:is(.is-cycling-next, .is-cycling-previous)")).toHaveCount(0);
+    await waitForDeckToSettle(page);
+    await expectDeckSelection(0);
     if (process.env.CAPTURE_DASHBOARD === "1") {
       await page.screenshot({ path: ".impeccable/review/course-deck-stack-desktop.png", fullPage: true });
     }
@@ -530,8 +572,9 @@ test.describe("desktop application shell", () => {
       await page.setViewportSize(viewport);
       await deck.focus();
       await deck.press("Home");
-      await expect(deckStatus).toContainText("Morse Code");
       await waitForDeckToSettle(page);
+      await expectDeckSelection(0);
+      await page.evaluate(() => new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))));
 
       const positions = await inspectPile();
       expect(positions[1].left - positions[0].left, JSON.stringify({ positions, viewport })).toBeGreaterThan(0);
@@ -543,17 +586,28 @@ test.describe("desktop application shell", () => {
 
       await page.mouse.move(startX, startY);
       await page.mouse.down();
-      await page.mouse.move(startX - start.width * 0.25, startY, { steps: 8 });
+      await page.mouse.move(startX - start.width * 0.15, startY, { steps: 10 });
       await page.evaluate(() => new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))));
-      const heldX = await activeCard.evaluate((card) => Number.parseFloat(getComputedStyle(card).getPropertyValue("--deck-x")));
-      expect(Math.abs(heldX + start.width * 0.25), JSON.stringify({ heldX, width: start.width, viewport })).toBeLessThan(5);
+      const held = await activeCard.boundingBox();
+      if (!held) throw new Error("Course Deck held card is not measurable.");
+      expect(Math.abs((held.x - start.x) + (start.width * 0.15)), JSON.stringify({ start, held, viewport })).toBeLessThan(6);
       await expect(page.locator(".course-deck-viewport")).toHaveAttribute("data-motion-state", "dragging");
       await expect(page.locator(".course-deck-viewport")).toHaveAttribute("data-direction", "next");
+      await expectDeckSelection(0);
       const approaching = await page.locator(".course-deck-card[data-position='1']").boundingBox();
       expect(approaching?.x ?? Number.POSITIVE_INFINITY).toBeLessThan(positions[1].left);
+      const nextLayers = await inspectPaintedPile();
+      expectDistinctOverlapLayers(nextLayers);
+      expect(nextLayers.find((card) => card.id === "morse-shell-course")?.zIndex).toBe(3);
+      expect(nextLayers.find((card) => card.id === "decision-shell-course")?.zIndex).toBe(2);
+      expect(nextLayers.find((card) => card.id === "systems-shell-course")?.zIndex).toBe(1);
+      if (process.env.CAPTURE_DASHBOARD === "1" && viewport.width === 1366) {
+        await page.screenshot({ path: ".impeccable/review/course-deck-stack-motion-desktop.png", fullPage: true });
+      }
+      await page.waitForTimeout(180);
       await page.mouse.up();
       await waitForDeckToSettle(page);
-      await expect(deckStatus).toContainText("Morse Code");
+      await expectDeckSelection(0);
 
       const reset = await page.locator(".course-deck-card.is-active").boundingBox();
       if (!reset) throw new Error("Course Deck active card did not reset.");
@@ -561,10 +615,17 @@ test.describe("desktop application shell", () => {
       const resetY = reset.y + Math.min(reset.height * 0.35, 190);
       await page.mouse.move(resetX, resetY);
       await page.mouse.down();
-      await page.mouse.move(resetX - reset.width * 0.4, resetY, { steps: 12 });
+      if (testInfo.project.name === "mobile-webkit") {
+        await page.mouse.move(resetX - (reset.width * 0.4), resetY, { steps: 12 });
+      } else {
+        await page.mouse.move(resetX - 3, resetY);
+        await page.waitForTimeout(10);
+        await page.mouse.move(resetX - 60, resetY);
+      }
+      await expect(page.locator(".course-deck-viewport")).toHaveAttribute("data-motion-state", "dragging");
       await page.mouse.up();
       await waitForDeckToSettle(page);
-      await expect(deckStatus).toContainText("Decision quality");
+      await expectDeckSelection(1);
 
       const postCycle = await inspectPile();
       expect(postCycle.map((card) => card.zIndex)).toEqual([3, 2, 1]);
@@ -577,10 +638,19 @@ test.describe("desktop application shell", () => {
       const decisionY = decisionBox.y + Math.min(decisionBox.height * 0.35, 190);
       await page.mouse.move(decisionX, decisionY);
       await page.mouse.down();
+      await page.mouse.move(decisionX + decisionBox.width * 0.15, decisionY, { steps: 8 });
+      await page.evaluate(() => new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))));
+      await expect(page.locator(".course-deck-viewport")).toHaveAttribute("data-direction", "previous");
+      await expectDeckSelection(1);
+      const previousLayers = await inspectPaintedPile();
+      expectDistinctOverlapLayers(previousLayers);
+      expect(previousLayers.find((card) => card.id === "decision-shell-course")?.zIndex).toBe(3);
+      expect(previousLayers.find((card) => card.id === "morse-shell-course")?.zIndex).toBe(2);
+      expect(previousLayers.find((card) => card.id === "systems-shell-course")?.zIndex).toBe(1);
       await page.mouse.move(decisionX + decisionBox.width * 0.4, decisionY, { steps: 12 });
       await page.mouse.up();
       await waitForDeckToSettle(page);
-      await expect(deckStatus).toContainText("Morse Code");
+      await expectDeckSelection(0);
     }
     await expect(page).toHaveURL(/\/$/);
     await expectNoHorizontalPageOverflow(page);
@@ -663,10 +733,32 @@ test.describe("desktop application shell", () => {
       return duration.endsWith("ms") ? Number.parseFloat(duration) : Number.parseFloat(duration) * 1000;
     });
     expect(Math.max(...transitionDurations), JSON.stringify(cardMotion)).toBeLessThanOrEqual(1);
+    const baselineTransforms = await page.locator(".course-deck-card.is-visible").evaluateAll((cards) => cards.map((card) => ({
+      id: (card as HTMLElement).dataset.courseId,
+      transform: getComputedStyle(card).transform,
+    })));
+    const activeBox = await page.locator(".course-deck-card.is-active").boundingBox();
+    if (!activeBox) throw new Error("Reduced-motion Course Deck card is not measurable.");
+    const startX = activeBox.x + (activeBox.width * 0.42);
+    const startY = activeBox.y + (activeBox.height * 0.35);
+    await page.mouse.move(startX, startY);
+    await page.mouse.down();
+    await page.mouse.move(startX - (activeBox.width * 0.4), startY, { steps: 10 });
+    const heldTransforms = await page.locator(".course-deck-card.is-visible").evaluateAll((cards) => cards.map((card) => ({
+      id: (card as HTMLElement).dataset.courseId,
+      transform: getComputedStyle(card).transform,
+    })));
+    expect(heldTransforms).toEqual(baselineTransforms);
+    await expect(deck).toHaveAttribute("data-motion-state", "idle");
+    await page.mouse.up();
+    await expect(page.locator(".course-deck-controls [role='status']")).toContainText("Decision quality");
+    await expect(page.locator(".course-deck-card.is-active")).toHaveAttribute("data-course-id", "decision-shell-course");
+    await expect(deck).toHaveAttribute("data-motion-state", "idle");
+    expect(await page.locator(".course-deck-stage").evaluate((stage) => stage.getAnimations({ subtree: true }).filter((animation) => animation.playState === "running").length)).toBe(0);
     await deck.focus();
     await deck.press("ArrowRight");
-    await expect(page.locator(".course-deck-card:is(.is-cycling-next, .is-cycling-previous)")).toHaveCount(0);
-    await expect(page.locator(".course-deck-controls [role='status']")).toContainText("Decision quality");
+    await expect(page.locator(".course-deck-controls [role='status']")).toContainText("Systems thinking");
+    await expect(page.locator(".course-deck-card.is-active")).toHaveAttribute("data-course-id", "systems-shell-course");
     await expectNoHorizontalPageOverflow(page);
     if (process.env.CAPTURE_DASHBOARD === "1") {
       await page.screenshot({ path: ".impeccable/review/course-deck-reduced-motion-desktop.png", fullPage: true });
@@ -770,7 +862,8 @@ test.describe("desktop application shell", () => {
     await expect(page.getByRole("heading", { name: "Choose how the learning should unfold." })).toBeVisible();
     expect(generationRequests).toBe(0);
     await expect(page.getByText("Research and source validation are automatic.")).toBeVisible();
-    await expect(page.getByText(/searches released material from reputable institutions/)).toBeVisible();
+    await expect(page.getByText(/verifies suitable API-cited evidence and catalog metadata for further reading/)).toBeVisible();
+    await expect(page.getByText(/your course is still created without invented citations/)).toBeVisible();
     const teachingStep = page.getByRole("button", { name: /Teaching plan/ });
     const createButton = page.getByRole("button", { name: "Create private course" });
     await expect(teachingStep).toHaveAttribute("data-complete", "true");
@@ -906,26 +999,142 @@ test.describe("mobile application shell", () => {
 
   test("shows the fanned course stack on a phone without horizontal overflow", async ({ page }) => {
     await prepareOwnerShell(page, [...learningProgress, secondLearningProgress, thirdLearningProgress]);
+    for (const viewport of [{ width: 390, height: 844 }, { width: 320, height: 568 }]) {
+      await page.setViewportSize(viewport);
+      await page.goto("/");
+
+      await expect(page.getByRole("button", { name: "Show next active course" })).toBeVisible();
+      await expect(page.locator(".course-deck-card[data-position='1']")).toBeVisible();
+      await expect(page.locator(".course-deck-card[data-position='2']")).toBeVisible();
+      const spineMetrics = await page.locator(".course-deck-card.is-visible").evaluateAll((cards) => {
+        const sortedCards = cards
+          .map((card) => ({ element: card as HTMLElement, position: Number((card as HTMLElement).dataset.position) }))
+          .sort((first, second) => first.position - second.position);
+        return sortedCards.slice(1).map(({ element, position }, index) => {
+          const previousRect = sortedCards[index].element.getBoundingClientRect();
+          const cardRect = element.getBoundingClientRect();
+          const spine = element.querySelector<HTMLElement>(".course-deck-spine")!;
+          const title = spine.querySelector<HTMLElement>("strong")!;
+          const spineRect = spine.getBoundingClientRect();
+          const titleRect = title.getBoundingClientRect();
+          const titleStyle = getComputedStyle(title);
+          return {
+            position,
+            startsInExposedStrip: spineRect.left >= previousRect.right - 6,
+            containedInCard: spineRect.right <= cardRect.right + 1,
+            titleContained: titleRect.left >= spineRect.left - 1
+              && titleRect.right <= spineRect.right + 1
+              && titleRect.top >= spineRect.top - 1
+              && titleRect.bottom <= spineRect.bottom + 1,
+            writingMode: titleStyle.writingMode,
+            fontSize: Number.parseFloat(titleStyle.fontSize),
+          };
+        });
+      });
+      expect(spineMetrics).toHaveLength(2);
+      expect(spineMetrics.every((metric) => metric.startsInExposedStrip && metric.containedInCard && metric.titleContained), JSON.stringify({ viewport, spineMetrics })).toBe(true);
+      expect(spineMetrics.every((metric) => metric.writingMode === "vertical-rl" && metric.fontSize >= 12), JSON.stringify({ viewport, spineMetrics })).toBe(true);
+
+      const actionMetrics = await page.locator(".course-deck-card.is-active").evaluate((card) => {
+        const copy = card.querySelector<HTMLElement>(".course-deck-card-copy")!;
+        const action = card.querySelector<HTMLElement>(".course-deck-card-action")!;
+        const continueLink = action.querySelector<HTMLElement>(".course-deck-primary")!;
+        const copyRect = copy.getBoundingClientRect();
+        const actionRect = action.getBoundingClientRect();
+        const continueRect = continueLink.getBoundingClientRect();
+        return {
+          actionGap: actionRect.top - copyRect.bottom,
+          continueHeight: continueRect.height,
+        };
+      });
+      expect(actionMetrics.actionGap).toBeGreaterThanOrEqual(0);
+      expect(actionMetrics.actionGap).toBeLessThanOrEqual(32);
+      expect(actionMetrics.continueHeight).toBeGreaterThanOrEqual(44);
+      if (process.env.CAPTURE_DASHBOARD === "1") {
+        await page.locator(".course-deck-section").screenshot({ path: `.impeccable/review/course-deck-stack-mobile-${viewport.width}.png` });
+      }
+
+      const continueLink = page.locator(".course-deck-card.is-active").getByRole("link", { name: /Continue/ });
+      await continueLink.scrollIntoViewIfNeeded();
+      await continueLink.evaluate((link) => link.scrollIntoView({ block: "end", inline: "nearest" }));
+      const continueBox = await continueLink.boundingBox();
+      const navigationBox = await page.getByRole("navigation", { name: "Mobile navigation" }).boundingBox();
+      expect(continueBox).not.toBeNull();
+      expect(navigationBox).not.toBeNull();
+      expect((navigationBox?.y ?? 0) - (continueBox?.y ?? 0) - (continueBox?.height ?? 0), JSON.stringify({ viewport, continueBox, navigationBox })).toBeGreaterThanOrEqual(8);
+      if (process.env.CAPTURE_DASHBOARD === "1") {
+        await page.screenshot({ path: `.impeccable/review/course-deck-stack-mobile-${viewport.width}-scrolled.png`, fullPage: false });
+      }
+
+      const sparkBox = await page.getByRole("button", { name: "Open Support Center" }).boundingBox();
+      const controlsBox = await page.locator(".course-deck-controls").boundingBox();
+      const spineTitleBoxes = await page.locator(".course-deck-card.is-visible .course-deck-spine strong").evaluateAll((titles) => titles.map((title) => {
+        const rect = title.getBoundingClientRect();
+        return { x: rect.x, y: rect.y, width: rect.width, height: rect.height };
+      }));
+      expect(sparkBox).not.toBeNull();
+      expect(controlsBox).not.toBeNull();
+      const overlapsControls = (sparkBox?.x ?? 0) < (controlsBox?.x ?? 0) + (controlsBox?.width ?? 0)
+        && (sparkBox?.x ?? 0) + (sparkBox?.width ?? 0) > (controlsBox?.x ?? 0)
+        && (sparkBox?.y ?? 0) < (controlsBox?.y ?? 0) + (controlsBox?.height ?? 0)
+        && (sparkBox?.y ?? 0) + (sparkBox?.height ?? 0) > (controlsBox?.y ?? 0);
+      expect(overlapsControls).toBe(false);
+      expect((sparkBox?.x ?? 0) - ((controlsBox?.x ?? 0) + (controlsBox?.width ?? 0))).toBeGreaterThanOrEqual(8);
+      expect(spineTitleBoxes.every((title) => !(
+        (sparkBox?.x ?? 0) < title.x + title.width
+        && (sparkBox?.x ?? 0) + (sparkBox?.width ?? 0) > title.x
+        && (sparkBox?.y ?? 0) < title.y + title.height
+        && (sparkBox?.y ?? 0) + (sparkBox?.height ?? 0) > title.y
+      )), JSON.stringify({ viewport, sparkBox, spineTitleBoxes })).toBe(true);
+      expect((await new AxeBuilder({ page }).include(".course-deck-section").analyze()).violations).toEqual([]);
+      await expectNoHorizontalPageOverflow(page);
+    }
+  });
+
+  test("keeps vertical touch scrolling native while a horizontal touch flick changes course", async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name !== "mobile-chromium", "Trusted touch-drag synthesis is only available through Chromium CDP.");
+    await prepareOwnerShell(page, [...learningProgress, secondLearningProgress, thirdLearningProgress]);
     await page.goto("/");
 
-    await expect(page.getByRole("button", { name: "Show next active course" })).toBeVisible();
-    await expect(page.locator(".course-deck-card[data-position='1']")).toBeVisible();
-    await expect(page.locator(".course-deck-card[data-position='2']")).toBeVisible();
-    const sparkBox = await page.getByRole("button", { name: "Open Support Center" }).boundingBox();
-    const controlsBox = await page.locator(".course-deck-controls").boundingBox();
-    expect(sparkBox).not.toBeNull();
-    expect(controlsBox).not.toBeNull();
-    const overlapsControls = (sparkBox?.x ?? 0) < (controlsBox?.x ?? 0) + (controlsBox?.width ?? 0)
-      && (sparkBox?.x ?? 0) + (sparkBox?.width ?? 0) > (controlsBox?.x ?? 0)
-      && (sparkBox?.y ?? 0) < (controlsBox?.y ?? 0) + (controlsBox?.height ?? 0)
-      && (sparkBox?.y ?? 0) + (sparkBox?.height ?? 0) > (controlsBox?.y ?? 0);
-    expect(overlapsControls).toBe(false);
-    expect((sparkBox?.x ?? 0) - ((controlsBox?.x ?? 0) + (controlsBox?.width ?? 0))).toBeGreaterThanOrEqual(8);
-    expect((await new AxeBuilder({ page }).include(".course-deck-section").analyze()).violations).toEqual([]);
-    await expectNoHorizontalPageOverflow(page);
-    if (process.env.CAPTURE_DASHBOARD === "1") {
-      await page.screenshot({ path: ".impeccable/review/course-deck-stack-mobile.png", fullPage: true });
+    const client = await page.context().newCDPSession(page);
+    const dispatchTouch = async (type: "touchStart" | "touchMove" | "touchEnd", x = 0, y = 0) => {
+      await client.send("Input.dispatchTouchEvent", {
+        type,
+        touchPoints: type === "touchEnd" ? [] : [{ x, y, radiusX: 2, radiusY: 2, force: 1 }],
+      });
+    };
+    const activeCard = page.locator(".course-deck-card.is-active");
+    const initialBox = await activeCard.boundingBox();
+    if (!initialBox) throw new Error("Touch Course Deck card is not measurable.");
+    const verticalX = initialBox.x + (initialBox.width * 0.45);
+    const verticalStartY = initialBox.y + Math.min(220, initialBox.height * 0.55);
+    const initialScrollTop = await page.locator(".app-main").evaluate((main) => main.scrollTop);
+    await dispatchTouch("touchStart", verticalX, verticalStartY);
+    for (let step = 1; step <= 6; step += 1) {
+      await dispatchTouch("touchMove", verticalX, verticalStartY - (step * 24));
+      await page.waitForTimeout(16);
     }
+    await dispatchTouch("touchEnd");
+    await expect.poll(() => page.locator(".app-main").evaluate((main) => main.scrollTop)).toBeGreaterThan(initialScrollTop + 40);
+    await expect(activeCard).toHaveAttribute("data-course-id", "morse-shell-course");
+    await expect(page.locator(".course-deck-controls [role='status']")).toContainText("1 of 3");
+    await expect(activeCard.getByRole("link", { name: /Continue/ })).toHaveAttribute("href", "/course/Morse%20Code/lesson/0-1?id=morse-shell-course");
+
+    await activeCard.scrollIntoViewIfNeeded();
+    const flickBox = await activeCard.boundingBox();
+    if (!flickBox) throw new Error("Touch Course Deck card is not measurable after scrolling.");
+    const flickStartX = flickBox.x + (flickBox.width * 0.7);
+    const flickY = flickBox.y + Math.min(150, flickBox.height * 0.3);
+    await dispatchTouch("touchStart", flickStartX, flickY);
+    for (let step = 1; step <= 6; step += 1) {
+      await dispatchTouch("touchMove", flickStartX - (step * 18), flickY);
+      await page.waitForTimeout(12);
+    }
+    await dispatchTouch("touchEnd");
+    await waitForDeckToSettle(page);
+    await expect(page.locator(".course-deck-card.is-active")).toHaveAttribute("data-course-id", "decision-shell-course");
+    await expect(page.locator(".course-deck-controls [role='status']")).toContainText("Decision quality");
+    await expect(page.locator(".course-deck-controls [role='status']")).toContainText("2 of 3");
   });
 
   test("keeps the paper mobile navigation labels contained at the narrowest supported width", async ({ page }) => {

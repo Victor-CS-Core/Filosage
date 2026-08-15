@@ -95,13 +95,13 @@ export const COURSE_QUALITY_RULES = {
     code: "CQ_SOURCE_002", version: 1, purpose: "Route deterministically identified high-stakes or disputed evidence to human review", classification: "deterministic", severity: "error", source: "source_integrity", repairability: "manual", suggestedAction: "Verify the claim against an authoritative source.",
   },
   SOURCE_ASSIGNMENT_INVALID: {
-    code: "CQ_SOURCE_003", version: 3, purpose: "Require every lesson in a sourced course to use at least one supplied, evidence-noted deep link", classification: "deterministic", severity: "blocker", source: "source_integrity", repairability: "assisted", suggestedAction: "Assign a supported supplied reference to every lesson, or redesign an unsupported lesson without inventing or stretching a citation.",
+    code: "CQ_SOURCE_003", version: 4, purpose: "Require every lesson to declare a mutually exclusive verified-source or model-knowledge basis", classification: "deterministic", severity: "blocker", source: "source_integrity", repairability: "assisted", suggestedAction: "Assign eligible evidence to a verified-source lesson, or mark it model-knowledge and remove source assignments without discarding the course.",
   },
   SOURCE_CITATION_INVALID: {
-    code: "CQ_SOURCE_004", version: 3, purpose: "Require each sourced lesson to cite at least one relevant assigned source in visible lesson text", classification: "deterministic", severity: "blocker", source: "source_integrity", repairability: "assisted", suggestedAction: "Add or correct a structured citation for a relevant assigned source without copying source text, forcing an irrelevant source, or inventing support.",
+    code: "CQ_SOURCE_004", version: 4, purpose: "Require each verified-source lesson to cite relevant assigned evidence and every model-knowledge lesson to remain citation-free", classification: "deterministic", severity: "blocker", source: "source_integrity", repairability: "assisted", suggestedAction: "Correct the verified citation, or remove every citation and source reference from a model-knowledge lesson without inventing support.",
   },
   SOURCE_RESEARCH_INVALID: {
-    code: "CQ_SOURCE_005", version: 1, purpose: "Require API-cited, server-classified research provenance and automatic claim support for grounded courses", classification: "deterministic", severity: "blocker", source: "source_integrity", repairability: "assisted", suggestedAction: "Repeat automatic research or regenerate only the unsupported claim against the immutable research snapshot.",
+    code: "CQ_SOURCE_005", version: 2, purpose: "Require current API provenance for retained evidence and an exact layered evidence profile while permitting sparse or empty research", classification: "deterministic", severity: "blocker", source: "source_integrity", repairability: "assisted", suggestedAction: "Repair only invalid provenance or evidence labels; preserve the course and use disclosed model knowledge when trusted evidence is unavailable.",
   },
   SEMANTIC_REVIEW_REQUIRED: {
     code: "CQ_SEMANTIC_001", version: 1, purpose: "Require calibrated semantic or human review before V2 publication", classification: "semantic", severity: "error", source: "semantic", repairability: "manual", suggestedAction: "Review accuracy, coherence, filler, and objective-to-assessment meaning on this exact snapshot.",

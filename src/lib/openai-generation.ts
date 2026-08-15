@@ -1,10 +1,10 @@
 import { serverEnvironment } from "@/lib/runtime-environment";
 
 export const AI_PROMPT_VERSIONS = {
-  research: "2026-08-14-grounded-course-research-v5",
+  research: "2026-08-15-layered-evidence-research-v6",
   grounding: "2026-08-14-claim-grounding-v5",
-  course: "2026-08-14-grounded-evidence-ceiling-v1",
-  lesson: "2026-08-14-grounded-claims-v16",
+  course: "2026-08-15-layered-evidence-course-v2",
+  lesson: "2026-08-15-layered-evidence-lesson-v17",
   tutor: "2026-08-04-grounded-tutor",
   baseline: "2026-08-04-baseline-assessor",
   capstone: "2026-08-04-capstone-assessor",
@@ -12,8 +12,8 @@ export const AI_PROMPT_VERSIONS = {
 } as const;
 
 export const COURSE_PIPELINE_V2_PROMPT_VERSIONS = {
-  course: "2026-08-14-grounded-source-v4",
-  lesson: "2026-08-14-grounded-source-v18",
+  course: "2026-08-15-layered-evidence-v5",
+  lesson: "2026-08-15-layered-evidence-v19",
 } as const;
 
 export const AI_GENERATION_OUTPUT_BUDGETS = {

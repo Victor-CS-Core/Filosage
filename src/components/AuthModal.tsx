@@ -5,6 +5,7 @@ import { useEffect, useRef, useState } from "react";
 import { Cloud, X } from "lucide-react";
 import { useAuth } from "@/components/AuthProvider";
 import FilosageMark from "@/components/FilosageMark";
+import { trackProductEvent } from "@/lib/product-analytics";
 
 interface AuthModalProps { onClose: () => void; }
 
@@ -40,6 +41,10 @@ export default function AuthModal({ onClose }: AuthModalProps) {
     setAcceptanceError(null);
     clearError();
     try {
+      trackProductEvent("signup_started", {
+        experimentId: window.location.pathname === "/" ? "EXP-001-professional-outcome" : undefined,
+        oncePerSession: true,
+      });
       await signInWithGoogleRedirect();
     } catch {
       setAcceptanceError("Google sign-in could not be started. Please try again.");

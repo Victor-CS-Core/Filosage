@@ -18,7 +18,7 @@ import { courseOutlineSchema, lessonGenerationSchema } from "../src/lib/validati
 import { normalizeSuccessCriteria } from "../src/lib/course-criteria";
 import { courseUsesPipelineV2, resolveCoursePipelineFeatureFlags } from "../src/lib/course-pipeline/feature-policy";
 import { COURSE_QUALITY_RULES } from "../src/lib/course-pipeline/rules";
-import { buildGuardedLessonSave } from "../src/lib/course-pipeline/lesson-save";
+import { buildGuardedLessonEvidenceDowngrade, buildGuardedLessonSave } from "../src/lib/course-pipeline/lesson-save";
 import { buildInteractionAttemptMutation } from "../src/lib/course-pipeline/interaction-attempt";
 import {
   parsePendingGoogleRedirectAcceptance,
@@ -258,7 +258,7 @@ test("V2 publication blocks every unsourced lesson in a sourced course", async (
   };
   const sourcedCourse = {
     ...outline,
-    sourcePolicyVersion: COURSE_PIPELINE_VERSIONS.sourcePolicy,
+    sourcePolicyVersion: "source-integrity-v3.0.0",
     sourcePack: [trustedSource],
     modules: outline.modules.map((courseModule, moduleIndex) => ({
       ...courseModule,
@@ -309,6 +309,72 @@ test("V2 publication blocks every unsourced lesson in a sourced course", async (
   ]));
 });
 
+test("v5 publishes model-knowledge lessons without fabricating a source requirement", async () => {
+  const outline = validOutline();
+  const modules = outline.modules.map((courseModule) => ({
+    ...courseModule,
+    lessons: courseModule.lessons.map((lesson) => ({
+      ...lesson,
+      contentBasis: "model-knowledge" as const,
+      sourceIds: [],
+    })),
+  }));
+  const expectedIds = modules.flatMap((courseModule, moduleIndex) =>
+    courseModule.lessons.map((_lesson, lessonIndex) => `${moduleIndex}-${lessonIndex}`),
+  );
+  const course = {
+    ...outline,
+    modules,
+    sourcePolicyVersion: COURSE_PIPELINE_VERSIONS.sourcePolicy,
+    sourcePack: [],
+    furtherReading: [],
+    sourceGroundingEvaluatorStatus: "not_applicable" as const,
+    evidenceProfile: {
+      mode: "model-knowledge" as const,
+      researchOutcome: "unavailable" as const,
+      verifiedSourceCount: 0,
+      verifiedLessonCount: 0,
+      modelKnowledgeLessonCount: expectedIds.length,
+      bibliographicReferenceCount: 0,
+      fallbackReasonCodes: ["research-insufficient"],
+      coverageWarnings: ["No eligible research source was available."],
+      generatedAt: "2026-08-15T12:00:00.000Z",
+      provider: "openai",
+      model: "test-model",
+      policyVersion: COURSE_PIPELINE_VERSIONS.sourcePolicy,
+    },
+  };
+  const lessons = expectedIds.map((id) => ({
+    ...conciseValidLesson(),
+    id,
+    schemaVersion: 5,
+    contentBasis: "model-knowledge" as const,
+    citations: [],
+    sourceReferences: [],
+    claimSupportEvaluatorStatus: "not_applicable" as const,
+  }));
+  const report = await validateCourseCandidateV2(
+    course,
+    lessons,
+    expectedIds,
+    Object.fromEntries(expectedIds.map((id) => [id, undefined])),
+  );
+  expect(report.issues.filter((issue) => issue.code.startsWith("CQ_SOURCE_"))).toEqual([]);
+
+  const mislabeled = await validateCourseCandidateV2(
+    course,
+    [{
+      ...lessons[0],
+      citations: [{ sourceId: "invented-source", claim: "Invented support.", section: "content" as const }],
+    }, ...lessons.slice(1)],
+    expectedIds,
+    Object.fromEntries(expectedIds.map((id) => [id, undefined])),
+  );
+  expect(mislabeled.issues).toEqual(expect.arrayContaining([
+    expect.objectContaining({ code: "CQ_SOURCE_004" }),
+  ]));
+});
+
 test("course coherence failures map to a stable rule instead of a generic objective error", async () => {
   const outline = {
     ...validOutline(),
@@ -333,8 +399,18 @@ test("course coherence failures map to a stable rule instead of a generic object
 test("source citation rule records the relevant-assignment coverage contract", () => {
   expect(COURSE_QUALITY_RULES.SOURCE_CITATION_INVALID).toMatchObject({
     code: "CQ_SOURCE_004",
-    version: 3,
-    purpose: expect.stringContaining("at least one relevant assigned source"),
+    version: 4,
+    purpose: expect.stringContaining("verified-source lesson"),
+  });
+  expect(COURSE_QUALITY_RULES.SOURCE_ASSIGNMENT_INVALID).toMatchObject({
+    code: "CQ_SOURCE_003",
+    version: 4,
+    purpose: expect.stringContaining("model-knowledge basis"),
+  });
+  expect(COURSE_QUALITY_RULES.SOURCE_RESEARCH_INVALID).toMatchObject({
+    code: "CQ_SOURCE_005",
+    version: 2,
+    purpose: expect.stringContaining("permitting sparse or empty research"),
   });
 });
 
@@ -1039,6 +1115,120 @@ test("guarded lesson saves reject publish races and stale edits while invalidati
     guard,
     "2026-08-11T12:00:00.000Z",
   )).toThrow(/newer edit was preserved/);
+});
+
+test("lesson evidence downgrade and replacement save form one owner-aware atomic write set", () => {
+  const course = {
+    id: "course-1",
+    authorId: "author-1",
+    topic: "Evidence",
+    isPublic: false,
+    sourcePolicyVersion: "source-integrity-v5.0.0",
+    sourceGroundingEvaluatorVersion: "course-grounding-v1.0.0",
+    sourceGroundingEvaluatorStatus: "executed",
+    sourceGroundingFingerprint: "old-grounding",
+    sourceGroundingAssessments: [{ moduleIndex: 0, lessonIndex: 0, sourceIds: ["source-1"], verdict: "supported" }],
+    sourcePack: [],
+    evidenceProfile: {
+      mode: "hybrid",
+      verifiedSourceCount: 0,
+      verifiedLessonCount: 1,
+      modelKnowledgeLessonCount: 0,
+      fallbackReasonCodes: [],
+    },
+    modules: [{
+      title: "Module",
+      description: "A module",
+      lessons: [{
+        title: "Lesson",
+        concept: "Evidence",
+        objective: "Evaluate evidence",
+        contentBasis: "verified-source",
+        sourceIds: ["source-1"],
+      }],
+    }],
+    pipelineStage: "ready_to_publish",
+  };
+  const existingLesson = { id: "0-0", content: "Earlier sourced lesson", createdAt: "2026-01-01T00:00:00.000Z" };
+  const originalCourse = structuredClone(course);
+  const originalLesson = structuredClone(existingLesson);
+  const guard = {
+    courseFingerprint: publicationContentFingerprint(course),
+    lessonFingerprint: publicationContentFingerprint(existingLesson),
+    invalidateReadiness: true,
+    actorId: "platform-owner",
+    ownerOverride: true,
+  };
+  const result = buildGuardedLessonEvidenceDowngrade(
+    "course-1",
+    "0-0",
+    course,
+    existingLesson,
+    {
+      content: "Safe model-knowledge replacement",
+      contentBasis: "model-knowledge",
+      claimSupportEvaluatorStatus: "not_applicable",
+      sourceReferences: [],
+      citations: [],
+    },
+    guard,
+    "2026-08-15T12:00:00.000Z",
+  );
+
+  expect(result.writes).toHaveLength(2);
+  expect(result.writes).toEqual(expect.arrayContaining([
+    expect.objectContaining({
+      path: "courses/course-1/lessons/0-0",
+      data: expect.objectContaining({ content: "Safe model-knowledge replacement", contentBasis: "model-knowledge" }),
+    }),
+    expect.objectContaining({
+      path: "courses/course-1",
+      data: expect.objectContaining({
+        pipelineStage: "validating",
+        sourceGroundingEvaluatorStatus: "not_applicable",
+        modules: [expect.objectContaining({ lessons: [expect.objectContaining({ contentBasis: "model-knowledge", sourceIds: [] })] })],
+        evidenceProfile: expect.objectContaining({
+          mode: "model-knowledge",
+          verifiedLessonCount: 0,
+          modelKnowledgeLessonCount: 1,
+          fallbackReasonCodes: ["lesson-grounding-downgraded"],
+        }),
+      }),
+    }),
+  ]));
+  expect(result.writes.find((write) => write.path === "courses/course-1")?.data).not.toHaveProperty("sourceGroundingFingerprint");
+  expect(course).toEqual(originalCourse);
+  expect(existingLesson).toEqual(originalLesson);
+
+  expect(() => buildGuardedLessonEvidenceDowngrade(
+    "course-1",
+    "0-0",
+    course,
+    existingLesson,
+    { content: "Unauthorized replacement", contentBasis: "model-knowledge", claimSupportEvaluatorStatus: "not_applicable", citations: [] },
+    { ...guard, actorId: "another-user", ownerOverride: false },
+    "2026-08-15T12:00:00.000Z",
+  )).toThrow(/course author or verified owner/);
+  expect(() => buildGuardedLessonEvidenceDowngrade(
+    "course-1",
+    "0-0",
+    course,
+    { ...existingLesson, content: "Newer learner edit" },
+    { content: "Stale replacement", contentBasis: "model-knowledge", claimSupportEvaluatorStatus: "not_applicable", citations: [] },
+    guard,
+    "2026-08-15T12:00:00.000Z",
+  )).toThrow(/newer edit was preserved/);
+  expect(() => buildGuardedLessonEvidenceDowngrade(
+    "course-1",
+    "0-0",
+    course,
+    existingLesson,
+    { content: "Mislabeled replacement", contentBasis: "verified-source", claimSupportEvaluatorStatus: "executed", citations: [] },
+    guard,
+    "2026-08-15T12:00:00.000Z",
+  )).toThrow(/citation-free model-knowledge lesson/);
+  expect(course).toEqual(originalCourse);
+  expect(existingLesson).toEqual(originalLesson);
 });
 
 test("Azure Easy Auth terminates Google OAuth before requests reach Next.js", async () => {

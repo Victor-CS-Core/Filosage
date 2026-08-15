@@ -72,7 +72,7 @@ export default function CreateCoursePage() {
   const [courseStyle, setCourseStyle] = useState<(typeof courseStyles)[number]["value"]>("Balanced");
   const [submitting, setSubmitting] = useState(false);
   const [generationProgress, setGenerationProgress] = useState(0);
-  const [generationStage, setGenerationStage] = useState("Researching released, reputable sources");
+  const [generationStage, setGenerationStage] = useState("Researching trusted sources and further reading");
   const [error, setError] = useState<string | null>(null);
   const requestIdentityRef = useRef<{ signature: string; key: string } | null>(null);
   const stepHeadingRef = useRef<HTMLHeadingElement>(null);
@@ -99,7 +99,7 @@ export default function CreateCoursePage() {
     if (!user || !canCreateCourses || account?.courseCapacity?.remaining === 0 || !topic.trim() || !goal.trim() || !background.trim()) return;
     setSubmitting(true);
     setGenerationProgress(8);
-    setGenerationStage("Researching released, reputable sources");
+    setGenerationStage("Researching trusted sources and further reading");
     setError(null);
     try {
       const token = await user.getIdToken();
@@ -177,7 +177,7 @@ export default function CreateCoursePage() {
         <header className={styles.intro}>
           <div>
             <h1>Build toward a real outcome.</h1>
-            <p>Give Filosage the result you need, the time you have, and how you learn best. Filosage researches reputable released sources, builds a private course map, and checks lesson claims automatically.</p>
+            <p>Give Filosage the result you need, the time you have, and how you learn best. Filosage researches reputable released sources, builds a private course map, and clearly labels any lesson that must rely on AI general knowledge.</p>
           </div>
           <div className={styles.introMeta} aria-label="Course creation details">
             <span><LockKeyhole size={15} /> Private draft</span>
@@ -314,12 +314,12 @@ export default function CreateCoursePage() {
 
                     <div className={styles.reviewNote}>
                       <ShieldCheck size={18} />
-                      <div><strong>Research and source validation are automatic.</strong><span>Filosage searches released material from reputable institutions, verifies API-cited deep links, and checks each lesson claim against its evidence before saving.</span></div>
+                      <div><strong>Research and source validation are automatic.</strong><span>Filosage verifies suitable API-cited evidence and catalog metadata for further reading. If trustworthy claim-level sources are scarce, your course is still created without invented citations.</span></div>
                     </div>
 
                     <div className={styles.reviewNote}>
                       <CheckCircle2 size={18} />
-                      <div><strong>Your first result is a private course map.</strong><span>Lessons become available in sequence after automatic source and claim-support checks pass.</span></div>
+                      <div><strong>Your first result is a private course map.</strong><span>Source-backed lessons receive automatic claim checks; model-knowledge lessons are labeled and remain citation-free.</span></div>
                     </div>
                   </section>
                 )}

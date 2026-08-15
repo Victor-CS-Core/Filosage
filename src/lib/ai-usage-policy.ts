@@ -1,4 +1,5 @@
-// Course creation can run research, three parallel source checks, structural
+// Course creation can run research and bibliographic discovery in parallel,
+// five parallel source checks, structural
 // recovery, two grounding evaluations, and one evidence-specific correction.
 // Keep the idempotency lease above that complete bounded envelope, and reserve
 // enough budget for the maximum configured output across those stages plus

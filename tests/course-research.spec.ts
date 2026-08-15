@@ -556,7 +556,7 @@ test("normal course creation UI delegates source research to the server", async 
   const source = await import("node:fs/promises").then((fs) => fs.readFile("src/app/create/page.tsx", "utf8"));
   expect(source).not.toContain("Trusted references");
   expect(source).not.toContain("sourcePack,");
-  expect(source).toContain("Researching released, reputable sources");
+  expect(source).toContain("Researching trusted sources and further reading");
   expect(source).toContain("Research and source validation are automatic.");
   expect(source).toContain('account?.isOwner ? { "x-filosage-model-evaluation": "1" }');
   expect(source).toContain("Validation diagnostic:");
@@ -568,16 +568,23 @@ test("course generation gives every external stage an independent bounded deadli
   expect(route).toContain("profile.recovery ? 120_000 : 75_000");
   expect(route).toContain("signal: AbortSignal.timeout(90_000)");
   expect(route).toContain("copy the exact HTTPS URL supplied by web search provenance");
-  expect(route).toContain("Find 3 independent sources");
+  expect(route).toContain("Find up to 5 independent sources");
+  expect(route).toContain("return fewer or an empty sources array rather than forcing weak");
+  expect(route).toContain('zodTextFormat(bibliographicDiscoverySchema, "course_bibliography")');
+  expect(route).toContain("This is a reading list, not evidence for lesson claims");
   expect(route).toContain('search_context_size: "medium"');
   expect(route).toContain("Promise.allSettled(sourcesToValidate.map");
   expect(route).toContain("This request contains exactly one source.");
   expect(route).toContain("allowed_domains: [authorityDomain]");
-  expect(route).toContain("...validationRejections");
+  expect(route).toContain("validatedSources.push(...evidenceValidation.sources)");
   expect(route).toContain("source.researchPolicyVersion === SOURCE_RESEARCH_POLICY_VERSION");
   expect(route).toContain("Never return doi.org, Crossref, OpenAlex");
-  expect(route).toContain("atomic evidence claims as a hard ceiling");
-  expect(route).toContain("Omit unsupported additions instead of filling gaps from model knowledge");
+  expect(route).toContain("atomic evidence claims as the hard ceiling");
+  expect(route).toContain("change contentBasis to model-knowledge and remove all sourceIds");
+  expect(route.match(/researchArtifactIsCurrent\(/g)?.length).toBeGreaterThanOrEqual(2);
+  expect(route).toContain("restoredReading.length === (Array.isArray(current?.furtherReading)");
+  expect(route).toContain("responseId: current.responseId");
+  expect(route).toContain('researchResponseId = typeof persistedResearch.responseId === "string"');
 });
 
 test("maps a certified source URL to its narrow validation authority domain", () => {

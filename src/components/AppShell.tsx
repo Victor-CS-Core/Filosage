@@ -73,6 +73,13 @@ export default function AppShell({ children, activeTopic, activeCourseId, active
   const mobileCommandTriggerRef = useRef<HTMLButtonElement>(null);
   const commandReturnFocusRef = useRef<HTMLElement | null>(null);
 
+  useEffect(() => {
+    if (user) return;
+    const openAuth = () => setShowAuth(true);
+    window.addEventListener("filosage:open-auth", openAuth);
+    return () => window.removeEventListener("filosage:open-auth", openAuth);
+  }, [user]);
+
   const refreshCourses = useCallback(async () => {
     if (!user) {
       setCourses([]);

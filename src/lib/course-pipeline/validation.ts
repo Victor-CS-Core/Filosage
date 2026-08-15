@@ -4,6 +4,7 @@ import { courseQualityIssues } from "@/lib/course-quality";
 import {
   COURSE_PIPELINE_VERSIONS,
   supportsGroundedSourcePolicy,
+  supportsLayeredSourcePolicy,
   supportsStructuredSourcePolicy,
   type PublicationDecision,
   type ValidationIssue,
@@ -19,6 +20,7 @@ import {
   lessonCitationQualityIssues,
   outlineSourceAssignmentIssues,
   outlineSourceCoverageIssues,
+  outlineEvidenceBasisIssues,
   isSafePublicSourceUrl,
   sourcePackQualityIssues,
 } from "@/lib/source-safety";
@@ -30,7 +32,8 @@ import {
 } from "@/lib/course-pipeline/compatibility";
 import { labPlanSchema, visualPlanSchema } from "@/lib/course-pipeline/schemas";
 import { effectiveCourseReviewPolicy } from "@/lib/course-pipeline/review-policy";
-import { automaticCitationGroundingIssues, groundedSourcePackIssues } from "@/lib/source-research";
+import { assessSourceResearchV5, automaticCitationGroundingIssues, groundedSourcePackIssues } from "@/lib/source-research";
+import { bibliographicReferenceSchema } from "@/lib/bibliographic-references";
 import {
   courseGroundingFingerprint,
   courseGroundingIssues,
@@ -314,7 +317,10 @@ export async function validateCourseCandidateV2(
 
   if (supportsStructuredSourcePolicy(course.sourcePolicyVersion)) {
     executedCodes.add(COURSE_QUALITY_RULES.SOURCE_ASSIGNMENT_INVALID.code);
-    findings.push(...outlineSourceCoverageIssues(course, course.sourcePack ?? []).map((message) => issueFromRule(
+    const coverageIssues = supportsLayeredSourcePolicy(course.sourcePolicyVersion)
+      ? outlineEvidenceBasisIssues(course, course.sourcePack ?? [])
+      : outlineSourceCoverageIssues(course, course.sourcePack ?? []);
+    findings.push(...coverageIssues.map((message) => issueFromRule(
       COURSE_QUALITY_RULES.SOURCE_ASSIGNMENT_INVALID,
       "course.modules",
       message,
@@ -322,35 +328,102 @@ export async function validateCourseCandidateV2(
   }
   if (supportsGroundedSourcePolicy(course.sourcePolicyVersion)) {
     executedCodes.add(COURSE_QUALITY_RULES.SOURCE_RESEARCH_INVALID.code);
-    findings.push(...groundedSourcePackIssues(course.sourcePack ?? []).map((message) => issueFromRule(
+    const layeredSourcePolicy = supportsLayeredSourcePolicy(course.sourcePolicyVersion);
+    const sourceResearchIssues = layeredSourcePolicy
+      ? assessSourceResearchV5(course.sourcePack ?? []).integrityIssues
+      : groundedSourcePackIssues(course.sourcePack ?? []);
+    findings.push(...sourceResearchIssues.map((message) => issueFromRule(
       COURSE_QUALITY_RULES.SOURCE_RESEARCH_INVALID,
       "course.sourcePack",
       message,
     )));
-    const expectedGroundingFingerprint = courseGroundingFingerprint(
-      course,
-      course.sourcePack ?? [],
-      course.sourceGroundingEvaluatorVersion,
-    );
-    if (course.sourceGroundingEvaluatorStatus !== "executed"
-      || !supportsCourseGroundingEvaluatorVersion(course.sourceGroundingEvaluatorVersion)
-      || course.sourceGroundingFingerprint !== expectedGroundingFingerprint
-      || !Array.isArray(course.sourceGroundingAssessments)) {
-      findings.push(issueFromRule(
-        COURSE_QUALITY_RULES.SOURCE_RESEARCH_INVALID,
-        "course.sourceGroundingEvaluatorStatus",
-        "The course lacks a persisted automatic outline-grounding result.",
-      ));
+    const verifiedLessonCount = course.modules.flatMap((courseModule) => courseModule.lessons)
+      .filter((lesson) => !layeredSourcePolicy || lesson.contentBasis === "verified-source").length;
+    if (layeredSourcePolicy && verifiedLessonCount === 0) {
+      if (course.sourceGroundingEvaluatorStatus !== "not_applicable"
+        || course.sourceGroundingFingerprint !== undefined
+        || course.sourceGroundingAssessments !== undefined) {
+        findings.push(issueFromRule(
+          COURSE_QUALITY_RULES.SOURCE_RESEARCH_INVALID,
+          "course.sourceGroundingEvaluatorStatus",
+          "A model-knowledge-only course must mark outline grounding not applicable and must not retain source-grounding results.",
+        ));
+      }
     } else {
-      findings.push(...courseGroundingIssues(
-        { assessments: course.sourceGroundingAssessments } as CourseGroundingResult,
+      const expectedGroundingFingerprint = courseGroundingFingerprint(
         course,
         course.sourcePack ?? [],
-      ).map((message) => issueFromRule(
+        course.sourceGroundingEvaluatorVersion,
+      );
+      if (course.sourceGroundingEvaluatorStatus !== "executed"
+        || !supportsCourseGroundingEvaluatorVersion(course.sourceGroundingEvaluatorVersion)
+        || course.sourceGroundingFingerprint !== expectedGroundingFingerprint
+        || !Array.isArray(course.sourceGroundingAssessments)) {
+        findings.push(issueFromRule(
+          COURSE_QUALITY_RULES.SOURCE_RESEARCH_INVALID,
+          "course.sourceGroundingEvaluatorStatus",
+          "The course lacks a persisted automatic outline-grounding result.",
+        ));
+      } else {
+        findings.push(...courseGroundingIssues(
+          { assessments: course.sourceGroundingAssessments } as CourseGroundingResult,
+          course,
+          course.sourcePack ?? [],
+        ).map((message) => issueFromRule(
+          COURSE_QUALITY_RULES.SOURCE_RESEARCH_INVALID,
+          "course.sourceGroundingAssessments",
+          message,
+        )));
+      }
+    }
+  }
+
+  if (supportsLayeredSourcePolicy(course.sourcePolicyVersion)) {
+    const sourceAssessment = assessSourceResearchV5(course.sourcePack ?? []);
+    const outlinedLessons = course.modules.flatMap((courseModule) => courseModule.lessons);
+    const verifiedLessonCount = outlinedLessons.filter((lesson) => lesson.contentBasis === "verified-source").length;
+    const modelKnowledgeLessonCount = outlinedLessons.length - verifiedLessonCount;
+    const expectedEvidenceMode = verifiedLessonCount === 0
+      ? "model-knowledge"
+      : modelKnowledgeLessonCount === 0 && sourceAssessment.evidenceMode === "fully-grounded"
+        ? "fully-grounded"
+        : "hybrid";
+    const expectedResearchOutcome = sourceAssessment.evidenceMode === "fully-grounded"
+      ? "complete"
+      : sourceAssessment.evidenceMode === "hybrid"
+        ? "partial"
+        : "unavailable";
+    const evidenceProfile = course.evidenceProfile;
+    if (!evidenceProfile
+      || evidenceProfile.policyVersion !== course.sourcePolicyVersion
+      || evidenceProfile.mode !== expectedEvidenceMode
+      || evidenceProfile.verifiedSourceCount !== (course.sourcePack ?? []).length
+      || evidenceProfile.verifiedLessonCount !== verifiedLessonCount
+      || evidenceProfile.modelKnowledgeLessonCount !== modelKnowledgeLessonCount
+      || evidenceProfile.bibliographicReferenceCount !== (course.furtherReading ?? []).length) {
+      findings.push(issueFromRule(
         COURSE_QUALITY_RULES.SOURCE_RESEARCH_INVALID,
-        "course.sourceGroundingAssessments",
-        message,
-      )));
+        "course.evidenceProfile",
+        "The persisted evidence profile does not match the current sources, reading list, and lesson evidence assignments.",
+      ));
+    } else if (evidenceProfile.researchOutcome !== expectedResearchOutcome
+      || evidenceProfile.provider !== "openai"
+      || !evidenceProfile.model.trim()
+      || !Number.isFinite(Date.parse(evidenceProfile.generatedAt))) {
+      findings.push(issueFromRule(
+        COURSE_QUALITY_RULES.SOURCE_RESEARCH_INVALID,
+        "course.evidenceProfile",
+        "The persisted evidence profile has stale or malformed research provenance.",
+      ));
+    }
+    for (const [index, reference] of (course.furtherReading ?? []).entries()) {
+      if (!bibliographicReferenceSchema.safeParse(reference).success) {
+        findings.push(issueFromRule(
+          COURSE_QUALITY_RULES.SOURCE_RESEARCH_INVALID,
+          `course.furtherReading[${index}]`,
+          "The further-reading entry is not bound to verified bibliographic metadata or is incorrectly presented as claim evidence.",
+        ));
+      }
     }
   }
 
@@ -414,18 +487,41 @@ export async function validateCourseCandidateV2(
         message,
       )));
       const rawCitations = Array.isArray(raw.citations) ? raw.citations : [];
+      const layeredSourcePolicy = supportsLayeredSourcePolicy(course.sourcePolicyVersion);
+      const expectedContentBasis = layeredSourcePolicy
+        ? lessonSummary?.contentBasis ?? (assignedSources.length ? "verified-source" : "model-knowledge")
+        : assignedSources.length
+          ? "verified-source"
+          : "model-knowledge";
+      if (layeredSourcePolicy && raw.contentBasis !== expectedContentBasis) {
+        findings.push(issueFromRule(
+          COURSE_QUALITY_RULES.SOURCE_ASSIGNMENT_INVALID,
+          `${path}.contentBasis`,
+          "The generated lesson evidence basis does not match its course outline.",
+        ));
+      }
       findings.push(...lessonCitationQualityIssues(rawCitations as NonNullable<LessonData["citations"]>, assignedSources, raw as Partial<LessonData>).map((message) => issueFromRule(
         COURSE_QUALITY_RULES.SOURCE_CITATION_INVALID,
         `${path}.citations`,
         message,
       )));
-      if (supportsGroundedSourcePolicy(course.sourcePolicyVersion)) {
+      if (supportsGroundedSourcePolicy(course.sourcePolicyVersion)
+        && (!layeredSourcePolicy || expectedContentBasis === "verified-source")) {
         executedCodes.add(COURSE_QUALITY_RULES.SOURCE_RESEARCH_INVALID.code);
         findings.push(...automaticCitationGroundingIssues(rawCitations, assignedSources, raw).map((message) => issueFromRule(
           COURSE_QUALITY_RULES.SOURCE_RESEARCH_INVALID,
           `${path}.citations`,
           message,
         )));
+      } else if (layeredSourcePolicy) {
+        if (raw.claimSupportEvaluatorStatus !== "not_applicable"
+          || (Array.isArray(raw.sourceReferences) && raw.sourceReferences.length > 0)) {
+          findings.push(issueFromRule(
+            COURSE_QUALITY_RULES.SOURCE_RESEARCH_INVALID,
+            `${path}.claimSupportEvaluatorStatus`,
+            "A model-knowledge lesson must mark claim grounding not applicable and must not retain source references.",
+          ));
+        }
       }
     }
     const parsed = parseLessonCandidate(raw);

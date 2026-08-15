@@ -151,6 +151,6 @@ test("returns initial-setup users to the public landing page when they sign out"
     .click();
 
   await expect(page).toHaveURL(/\/$/);
-  await expect(page.getByRole("heading", { name: "Turn curiosity into understanding" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Build the skill your next decision depends on" })).toBeVisible();
   expect(await page.evaluate(() => localStorage.getItem("filosage-local-session"))).toBeNull();
 });

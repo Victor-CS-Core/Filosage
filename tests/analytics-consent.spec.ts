@@ -35,6 +35,20 @@ test("optional analytics stays silent before consent and after refusal", async (
   expect(telemetryCalls).toBe(0);
 });
 
+test("keeps privacy choices reachable on a short mobile viewport", async ({ page }) => {
+  await page.setViewportSize({ width: 320, height: 568 });
+  await page.goto("/");
+
+  const panel = page.locator(".analytics-consent");
+  await expect(panel).toBeVisible();
+  const box = await panel.boundingBox();
+  expect(box).not.toBeNull();
+  expect(box!.y).toBeGreaterThanOrEqual(0);
+  expect(box!.y + box!.height).toBeLessThanOrEqual(568);
+  await expect(panel.getByRole("button", { name: "Continue without analytics" })).toBeVisible();
+  await expect(panel.getByRole("button", { name: "Allow optional analytics" })).toBeVisible();
+});
+
 test("analytics can be allowed and later withdrawn from Privacy choices", async ({ page }) => {
   let telemetryCalls = 0;
   await page.route("**/api/telemetry", async (route) => {

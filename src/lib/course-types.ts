@@ -32,6 +32,42 @@ export type SourceReviewStatus = "unreviewed" | "verified";
 export type SourceOrigin = "creator" | "web-search";
 export type SourceAuthorityClass = "government" | "intergovernmental" | "standards" | "scholarly";
 export type SourceEvidenceType = "primary-study" | "systematic-review" | "official-guidance" | "standard" | "official-dataset";
+export type CourseEvidenceMode = "fully-grounded" | "hybrid" | "model-knowledge";
+export type LessonContentBasis = "verified-source" | "model-knowledge";
+
+export interface CourseEvidenceProfile {
+  mode: CourseEvidenceMode;
+  researchOutcome: "complete" | "partial" | "unavailable";
+  verifiedSourceCount: number;
+  verifiedLessonCount: number;
+  modelKnowledgeLessonCount: number;
+  bibliographicReferenceCount: number;
+  fallbackReasonCodes: string[];
+  coverageWarnings: string[];
+  generatedAt: string;
+  provider: string;
+  model: string;
+  policyVersion: string;
+}
+
+export interface CourseFurtherReading {
+  id: string;
+  policyVersion: string;
+  role: "further-reading";
+  claimEvidence: false;
+  contentVerified: boolean;
+  materialType: "book" | "book-chapter" | "article" | "scripture" | "commentary" | "reference-work";
+  title: string;
+  containerTitle?: string;
+  contributors: Array<{ name: string; role: "author" | "editor" | "translator" | "compiler" | "commentator" | "corporate-author" }>;
+  edition?: string;
+  publisher?: string;
+  publicationYear?: number;
+  language: string;
+  identifiers: { isbn10?: string; isbn13?: string; oclc?: string; lccn?: string; doi?: string; olid?: string };
+  catalogUrl?: string;
+  verificationLabel: "catalog-metadata-verified";
+}
 
 export interface CourseSource {
   id: string;
@@ -118,6 +154,7 @@ export interface LessonSummary {
   artifactContribution?: string;
   objectiveId?: string;
   sourceIds?: string[];
+  contentBasis?: LessonContentBasis;
 }
 
 export interface CourseModule {
@@ -186,7 +223,7 @@ export interface Course {
   visualPolicyVersion?: string;
   sourcePolicyVersion?: string;
   sourceGroundingEvaluatorVersion?: string;
-  sourceGroundingEvaluatorStatus?: "executed" | "not_executed";
+  sourceGroundingEvaluatorStatus?: "executed" | "not_executed" | "not_applicable";
   sourceGroundingFingerprint?: string;
   sourceGroundingAssessments?: Array<{
     moduleIndex: number;
@@ -209,6 +246,8 @@ export interface Course {
   artifact?: { title: string; description: string; format: string };
   scenario?: { title: string; context: string; stakes: string };
   sourcePack?: CourseSource[];
+  furtherReading?: CourseFurtherReading[];
+  evidenceProfile?: CourseEvidenceProfile;
   banner?: CourseBanner;
   canRegenerateBanner?: boolean;
   generatedLessonIds?: string[];
@@ -254,6 +293,7 @@ export interface LessonData {
   content: string;
   quizzes: Quiz[];
   lessonKind?: LessonKind;
+  contentBasis?: LessonContentBasis;
   aiAssisted?: boolean;
   learningObjective?: string;
   objectiveIds?: string[];
@@ -334,7 +374,8 @@ export interface LessonData {
     visualPolicyVersion?: string;
     sourcePolicyVersion?: string;
     claimSupportEvaluatorVersion?: string;
-    claimSupportEvaluatorStatus?: "executed" | "not_executed";
+    contentBasis?: LessonContentBasis;
+    claimSupportEvaluatorStatus?: "executed" | "not_executed" | "not_applicable";
     claimSupportFingerprint?: string;
   };
 }

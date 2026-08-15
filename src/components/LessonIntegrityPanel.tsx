@@ -88,6 +88,8 @@ export default function LessonIntegrityPanel({
       <p>
         {citations.length
           ? `${citations.length} source-backed ${citations.length === 1 ? "statement is" : "statements are"} mapped to this exact lesson version.`
+          : provenance?.contentBasis === "model-knowledge"
+            ? "This lesson was created from AI general knowledge because no suitable claim-level source was assigned. It contains no invented citations; check current authoritative guidance before consequential use."
           : provenance?.sources.length
             ? `${provenance.sources.length} ${provenance.sources.length === 1 ? "reference is" : "references are"} attached to this lesson version without a structured claim citation.`
           : "No external source pack is attached to this lesson. Verify consequential claims before relying on them."}

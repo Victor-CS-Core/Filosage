@@ -48,8 +48,20 @@ export const courseGroundingSchema = z.object({
 export type CourseGroundingResult = z.infer<typeof courseGroundingSchema>;
 
 type OutlineCandidate = {
-  modules?: Array<{ lessons?: Array<{ title?: string; concept?: string; objective?: string; activityPreview?: string; sourceIds?: string[] }> }>;
+  modules?: Array<{ lessons?: Array<{
+    title?: string;
+    concept?: string;
+    objective?: string;
+    activityPreview?: string;
+    sourceIds?: string[];
+    contentBasis?: "verified-source" | "model-knowledge";
+  }> }>;
 };
+
+function isSourceBackedOutlineLesson(lesson: { sourceIds?: string[]; contentBasis?: "verified-source" | "model-knowledge" }) {
+  return lesson.contentBasis === "verified-source"
+    || (lesson.contentBasis === undefined && Boolean(lesson.sourceIds?.length));
+}
 
 function fingerprint(value: unknown) {
   return createHash("sha256").update(JSON.stringify(value)).digest("hex");
@@ -100,7 +112,7 @@ export function courseGroundingFingerprint(
 export function courseGroundingPromptData(outline: OutlineCandidate, sourcePack: CourseSource[]) {
   const sourcesById = new Map(sourcePack.map((source) => [source.id, source]));
   return (outline.modules ?? []).flatMap((courseModule, moduleIndex) =>
-    (courseModule.lessons ?? []).map((lesson, lessonIndex) => ({
+    (courseModule.lessons ?? []).flatMap((lesson, lessonIndex) => isSourceBackedOutlineLesson(lesson) ? [{
       moduleIndex,
       lessonIndex,
       title: lesson.title,
@@ -111,7 +123,7 @@ export function courseGroundingPromptData(outline: OutlineCandidate, sourcePack:
         const source = sourcesById.get(sourceId);
         return { sourceId, evidenceClaims: source?.evidenceClaims, limitations: source?.limitations };
       }),
-    })),
+    }] : []),
   );
 }
 
@@ -122,7 +134,9 @@ export function courseGroundingIssues(
 ) {
   if (!result) return ["The automatic outline-grounding evaluator did not return a structured result."];
   const lessons = (outline.modules ?? []).flatMap((courseModule, moduleIndex) =>
-    (courseModule.lessons ?? []).map((lesson, lessonIndex) => ({ moduleIndex, lessonIndex, sourceIds: new Set(lesson.sourceIds ?? []) })),
+    (courseModule.lessons ?? []).flatMap((lesson, lessonIndex) => isSourceBackedOutlineLesson(lesson)
+      ? [{ moduleIndex, lessonIndex, sourceIds: new Set(lesson.sourceIds ?? []) }]
+      : []),
   );
   const expected = new Map(lessons.map((lesson) => [`${lesson.moduleIndex}-${lesson.lessonIndex}`, lesson]));
   const supported = new Set<string>();

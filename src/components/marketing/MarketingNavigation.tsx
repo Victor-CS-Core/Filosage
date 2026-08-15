@@ -34,7 +34,7 @@ export default function MarketingNavigation({ theme, onToggleTheme, onSignIn }: 
           {theme === "dark" ? <Sun size={18} /> : <Moon size={18} />}
         </button>
         <button className="button button-quiet marketing-sign-in" type="button" onClick={onSignIn}>Sign in</button>
-        <Link className="button button-primary marketing-start" href="/library">Start learning <ArrowRight size={16} /></Link>
+        <Link className="button button-primary marketing-start" href="/library">Explore courses <ArrowRight size={16} /></Link>
         <button className="icon-button marketing-menu-trigger" type="button" onClick={() => setOpen((value) => !value)} aria-expanded={open} aria-controls="marketing-mobile-menu" aria-label={`${open ? "Close" : "Open"} navigation menu`}>
           {open ? <X size={21} /> : <Menu size={21} />}
         </button>
@@ -43,7 +43,7 @@ export default function MarketingNavigation({ theme, onToggleTheme, onSignIn }: 
         <nav aria-label="Mobile public navigation">
           {links.map((link) => <Link key={link.href} href={link.href} onClick={() => setOpen(false)}>{link.label}</Link>)}
           <button type="button" onClick={() => { setOpen(false); onSignIn(); }}>Sign in</button>
-          <Link className="button button-primary" href="/library" onClick={() => setOpen(false)}>Start learning <ArrowRight size={16} /></Link>
+          <Link className="button button-primary" href="/library" onClick={() => setOpen(false)}>Explore courses <ArrowRight size={16} /></Link>
         </nav>
       </div>
     </header>

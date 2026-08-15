@@ -3,7 +3,28 @@
 /* oxlint-disable jsx-a11y/no-noninteractive-element-interactions, jsx-a11y/no-noninteractive-tabindex -- The carousel keeps region semantics while exposing drag and keyboard input plus explicit button controls. */
 
 import Link from "next/link";
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+  type PointerEvent as ReactPointerEvent,
+} from "react";
+import {
+  animate,
+  domMax,
+  LazyMotion,
+  useDragControls,
+  useMotionValue,
+  useReducedMotion,
+  useTransform,
+  type AnimationPlaybackControlsWithThen,
+  type MotionValue,
+  type PanInfo,
+} from "motion/react";
+import * as m from "motion/react-m";
 import { ArrowLeft, ArrowRight, BookOpenCheck, Clock3, Play } from "lucide-react";
 import CourseBanner from "@/components/CourseBanner";
 import { hashCourseIdentity } from "@/components/CourseArtwork";
@@ -31,15 +52,54 @@ interface CourseDeckProps {
 type CycleDirection = "next" | "previous";
 type MotionState = "idle" | "dragging" | "committing" | "settling" | "resetting";
 
-interface GestureSession {
+interface DeckGeometry {
+  ready: boolean;
+  cardWidth: number;
+  stepX: number;
+  stepY: number;
+  rotationStep: number;
+  travel: number;
+}
+
+interface ReducedGestureSession {
   pointerId: number;
   startX: number;
   startY: number;
-  lastX: number;
-  cardWidth: number;
   axis: "horizontal" | "vertical" | null;
+}
+
+interface CourseDeckCardProps {
+  item: CourseDeckItem;
+  canonicalIndex: number;
+  itemCount: number;
+  position: number;
+  previousTarget: boolean;
+  active: boolean;
+  visible: boolean;
+  buffer: boolean;
+  paperTone: number;
+  geometry: DeckGeometry;
+  dragX: MotionValue<number>;
   direction: CycleDirection | null;
-  progress: number;
+  motionState: MotionState;
+  reducedMotion: boolean;
+  onNext: () => void;
+  onDragStart: () => void;
+  onDragMove: (info: PanInfo) => void;
+  onDragEnd: (info: PanInfo) => void;
+}
+
+const INITIAL_GEOMETRY: DeckGeometry = {
+  ready: false,
+  cardWidth: 0,
+  stepX: 0,
+  stepY: 18,
+  rotationStep: 0.3,
+  travel: 0,
+};
+
+function clamp(value: number, min: number, max: number) {
+  return Math.min(max, Math.max(min, value));
 }
 
 function buildPaperTones(items: CourseDeckItem[]) {
@@ -68,196 +128,407 @@ function cycleIndex(activeIndex: number, direction: CycleDirection, itemCount: n
     : (activeIndex - 1 + itemCount) % itemCount;
 }
 
+function CourseDeckCard({
+  item,
+  canonicalIndex,
+  itemCount,
+  position,
+  previousTarget,
+  active,
+  visible,
+  buffer,
+  paperTone,
+  geometry,
+  dragX,
+  direction,
+  motionState,
+  reducedMotion,
+  onNext,
+  onDragStart,
+  onDragMove,
+  onDragEnd,
+}: CourseDeckCardProps) {
+  const dragControls = useDragControls();
+  const baseSlot = position === -1
+    ? Math.min(Math.max(itemCount - 1, 1), 2)
+    : clamp(position, 0, 2);
+  const baseX = baseSlot * geometry.stepX;
+  const baseY = baseSlot * geometry.stepY;
+  const baseRotation = baseSlot * geometry.rotationStep;
+
+  const progressFor = useCallback((value: number) => (
+    geometry.travel > 0 ? clamp(Math.abs(value) / geometry.travel, 0, 1) : 0
+  ), [geometry.travel]);
+
+  const effectiveDirection = useCallback((value: number): CycleDirection | null => {
+    if (value < -0.5) return "next";
+    if (value > 0.5) return "previous";
+    return direction;
+  }, [direction]);
+
+  const cardX = useTransform(dragX, (value) => {
+    if (reducedMotion) return baseX;
+    const progress = progressFor(value);
+    const activeDirection = effectiveDirection(value);
+    if (active) return value;
+    if (activeDirection === "next") {
+      if (position === 1) return geometry.stepX * (1 - progress);
+      if (position === 2) return geometry.stepX * (2 - progress);
+    }
+    if (activeDirection === "previous") {
+      if (previousTarget) return baseX * (1 - progress);
+      if (position === 1) return geometry.stepX * (1 + progress);
+      if (position === 2) return geometry.stepX * (2 + (0.18 * progress));
+    }
+    return baseX;
+  });
+
+  const cardY = useTransform(dragX, (value) => {
+    if (reducedMotion) return baseY;
+    const progress = progressFor(value);
+    const activeDirection = effectiveDirection(value);
+    if (active) return -3 * Math.sin(progress * Math.PI);
+    if (activeDirection === "next") {
+      if (position === 1) return geometry.stepY * (1 - progress);
+      if (position === 2) return geometry.stepY * (2 - progress);
+    }
+    if (activeDirection === "previous") {
+      if (previousTarget) return baseY * (1 - progress);
+      if (position === 1) return geometry.stepY * (1 + progress);
+      if (position === 2) return geometry.stepY * (2 + (0.18 * progress));
+    }
+    return baseY;
+  });
+
+  const cardRotation = useTransform(dragX, (value) => {
+    if (reducedMotion) return baseRotation;
+    const progress = progressFor(value);
+    const activeDirection = effectiveDirection(value);
+    if (active) return (value / Math.max(1, geometry.travel)) * 0.9;
+    if (activeDirection === "next") {
+      if (position === 1) return geometry.rotationStep * (1 - progress);
+      if (position === 2) return geometry.rotationStep * (2 - progress);
+    }
+    if (activeDirection === "previous") {
+      if (previousTarget) return baseRotation * (1 - progress);
+      if (position === 1) return geometry.rotationStep * (1 + progress);
+      if (position === 2) return geometry.rotationStep * (2 + (0.18 * progress));
+    }
+    return baseRotation;
+  });
+
+  const cardOpacity = useTransform(dragX, (value) => {
+    if (active || visible) {
+      if (effectiveDirection(value) === "previous" && position === 2 && !previousTarget) {
+        return 1 - (0.18 * progressFor(value));
+      }
+      return 1;
+    }
+    if (previousTarget && effectiveDirection(value) === "previous") {
+      return clamp(progressFor(value) * 1.8, 0, 1);
+    }
+    return 0;
+  });
+
+  const cardZIndex = useTransform(dragX, (value) => {
+    if (active) return 3;
+    if (effectiveDirection(value) === "previous") {
+      if (previousTarget) return 2;
+      if (position === 1) return 1;
+      if (position === 2) return 0;
+      return -1;
+    }
+    if (position === 1) return 2;
+    if (position === 2) return 1;
+    return 0;
+  });
+
+  const spineOpacity = useTransform(dragX, (value) => {
+    const progress = progressFor(value);
+    const revealProgress = clamp((progress - 0.52) / 0.48, 0, 1);
+    const activeDirection = effectiveDirection(value);
+    if (activeDirection === "next" && position === 1) return 1 - revealProgress;
+    if (activeDirection === "previous" && previousTarget) return 1 - revealProgress;
+    return 1;
+  });
+
+  const handlePointerDown = (event: ReactPointerEvent<HTMLElement>) => {
+    if (!active || reducedMotion || itemCount <= 1 || motionState !== "idle") return;
+    if ((event.target as HTMLElement).closest("a, button")) return;
+    dragControls.start(event, { snapToCursor: false });
+  };
+
+  const spineContent = (
+    <>
+      <small>{item.category ?? "Course"}</small>
+      <strong>{item.topic}</strong>
+      <i aria-hidden="true" />
+    </>
+  );
+
+  const motionStyle = geometry.ready
+    ? { x: active ? dragX : cardX, y: cardY, rotate: cardRotation, opacity: cardOpacity, zIndex: cardZIndex }
+    : undefined;
+
+  return (
+    <m.div
+      className={`course-deck-card course-deck-paper-tone-${paperTone} ${active ? "is-active" : ""} ${visible ? "is-visible" : ""} ${buffer ? "is-drag-buffer" : ""} ${previousTarget ? "is-previous-target" : ""}`}
+      aria-label={active ? `${item.topic}, ${canonicalIndex + 1} of ${itemCount}` : undefined}
+      aria-roledescription={active ? "slide" : undefined}
+      role={active ? "group" : undefined}
+      data-position={position}
+      data-canonical-index={canonicalIndex}
+      data-course-id={item.id}
+      drag={active && !reducedMotion && itemCount > 1 ? "x" : false}
+      dragControls={dragControls}
+      dragListener={false}
+      dragMomentum={false}
+      dragDirectionLock
+      onPointerDown={handlePointerDown}
+      onDragStart={onDragStart}
+      onDrag={(_, info) => onDragMove(info)}
+      onDragEnd={(_, info) => onDragEnd(info)}
+      onDragStartCapture={(event) => event.preventDefault()}
+      style={motionStyle}
+    >
+      <div className="course-deck-card-face" aria-hidden={!active} inert={!active}>
+        <div className="course-deck-cover">
+          <CourseBanner course={{ id: item.id, topic: item.topic, category: item.category, banner: item.banner }} variant="deck" eager={active} />
+        </div>
+        <div className="course-deck-card-body">
+          <div className="course-deck-card-copy">
+            <p>Current lesson</p>
+            <h2>{item.topic}</h2>
+            <strong>{item.nextLessonTitle}</strong>
+            <span className="course-deck-lesson-meta">
+              <span><BookOpenCheck size={15} /> {item.completedLessons} of {item.totalLessons ?? "?"} lessons</span>
+              {item.estimatedMinutes && <span><Clock3 size={15} /> {item.estimatedMinutes} min</span>}
+            </span>
+          </div>
+          <div className="course-deck-card-action">
+            <div className="course-deck-progress-copy"><span>Progress</span><strong>{item.progressPercent === null ? "Total pending" : `${item.progressPercent}%`}</strong></div>
+            <span
+              className={`course-deck-progress ${item.progressPercent === null ? "is-unknown" : ""}`}
+              role="progressbar"
+              aria-label={item.progressPercent === null ? `${item.topic} progress total unavailable` : `${item.topic} progress`}
+              aria-valuemin={0}
+              aria-valuemax={100}
+              aria-valuenow={item.progressPercent ?? undefined}
+            ><i style={{ transform: `scaleX(${(item.progressPercent ?? 0) / 100})` }} /></span>
+            <Link
+              className="button course-deck-primary"
+              href={item.href}
+              tabIndex={active ? undefined : -1}
+              onKeyDown={(event) => event.stopPropagation()}
+            ><Play size={16} fill="currentColor" /> Continue</Link>
+          </div>
+        </div>
+      </div>
+
+      {!active && (position === 1 ? (
+        <m.button
+          className="course-deck-spine"
+          type="button"
+          tabIndex={-1}
+          aria-label={`Bring ${item.topic} to the front`}
+          onClick={onNext}
+          style={{ opacity: spineOpacity }}
+        >
+          {spineContent}
+        </m.button>
+      ) : (
+        <m.div className="course-deck-spine" aria-hidden="true" style={{ opacity: spineOpacity }}>
+          {spineContent}
+        </m.div>
+      ))}
+    </m.div>
+  );
+}
+
 export default function CourseDeck({ items, firstName, canCreateCourses }: CourseDeckProps) {
   const paperTones = useMemo(() => buildPaperTones(items), [items]);
   const [activeIndex, setActiveIndex] = useState(0);
-  const viewportRef = useRef<HTMLDivElement | null>(null);
+  const [geometry, setGeometry] = useState<DeckGeometry>(INITIAL_GEOMETRY);
+  const [motionState, setMotionState] = useState<MotionState>("idle");
+  const [direction, setDirection] = useState<CycleDirection | null>(null);
   const stageRef = useRef<HTMLDivElement | null>(null);
-  const gestureRef = useRef<GestureSession | null>(null);
+  const activeIndexRef = useRef(0);
   const motionStateRef = useRef<MotionState>("idle");
-  const motionCleanupRef = useRef<(() => void) | null>(null);
-  const frameRef = useRef<number | null>(null);
+  const directionRef = useRef<CycleDirection | null>(null);
+  const animationRef = useRef<AnimationPlaybackControlsWithThen | null>(null);
+  const sequenceRef = useRef(0);
+  const reducedGestureRef = useRef<ReducedGestureSession | null>(null);
+  const dragX = useMotionValue(0);
+  const reducedMotion = useReducedMotion() === true;
+  const selectedIndex = items.length > 0 && activeIndex < items.length ? activeIndex : 0;
 
-  const setMotionState = useCallback((state: MotionState, direction?: CycleDirection) => {
+  const updateMotionState = useCallback((state: MotionState, nextDirection: CycleDirection | null) => {
     motionStateRef.current = state;
-    const viewport = viewportRef.current;
-    if (!viewport) return;
-    viewport.dataset.motionState = state;
-    if (direction) viewport.dataset.direction = direction;
-    else delete viewport.dataset.direction;
+    directionRef.current = nextDirection;
+    setMotionState(state);
+    setDirection(nextDirection);
   }, []);
 
-  const applyCardLayout = useCallback((direction?: CycleDirection, progress = 0, activeDragX = 0) => {
-    const stage = stageRef.current;
-    if (!stage) return;
-    const cards = [...stage.querySelectorAll<HTMLElement>(".course-deck-card")];
-    const activeCard = cards.find((card) => card.dataset.position === "0");
-    if (!activeCard) return;
-
-    const cardWidth = activeCard.offsetWidth;
-    const stepX = Math.max(0, (stage.clientWidth - cardWidth) / 2);
-    const compact = stage.clientWidth <= 800;
-    const stepY = compact ? 12 : 18;
-    const stepRotation = compact ? 0.45 : 0.35;
-    const forward = direction === "next" ? progress : 0;
-    const backward = direction === "previous" ? progress : 0;
-    const previousIndex = items.length > 1 ? (activeIndex - 1 + items.length) % items.length : activeIndex;
-
-    cards.forEach((card) => {
-      const position = Number(card.dataset.position);
-      const canonicalIndex = Number(card.dataset.canonicalIndex);
-      const previousTarget = canonicalIndex === previousIndex;
-      let x = position * stepX;
-      let y = Math.max(0, position) * stepY;
-      let rotation = Math.max(0, position) * stepRotation;
-      let opacity = position >= 0 && position <= 2 ? 1 : 0;
-
-      if (position === 0 && direction) {
-        const travel = cardWidth + Math.max(28, stepX * 0.35);
-        x = progress >= 1 ? (direction === "next" ? -travel : travel) : activeDragX;
-        y = -18 * Math.sin(progress * Math.PI);
-        rotation = (direction === "next" ? -6.5 : 6.5) * progress;
-        opacity = progress < 0.58 ? 1 : Math.max(0, 1 - ((progress - 0.58) / 0.42));
-      } else if (direction === "next") {
-        if (position === 1 || position === 2) {
-          x = (position - forward) * stepX;
-          y = (position - forward) * stepY;
-          rotation = (position - forward) * stepRotation;
-        }
-      } else if (direction === "previous") {
-        if (previousTarget) {
-          const startPosition = position === 1 ? 1 : 2;
-          x = startPosition * (1 - backward) * stepX;
-          y = startPosition * (1 - backward) * stepY;
-          rotation = -stepRotation * (1 - backward);
-          opacity = position >= 0 && position <= 2 ? 1 : Math.min(1, backward * 3);
-        } else if (position === 1) {
-          x = (1 + backward) * stepX;
-          y = (1 + backward) * stepY;
-          rotation = (1 + backward) * stepRotation;
-        } else if (position === 2) {
-          x = (2 + backward * 0.3) * stepX;
-          y = (2 + backward * 0.3) * stepY;
-          rotation = (2 + backward * 0.3) * stepRotation;
-          opacity = 1 - backward;
-        }
-      }
-
-      card.style.setProperty("--deck-x", `${x}px`);
-      card.style.setProperty("--deck-y", `${y}px`);
-      card.style.setProperty("--deck-rotation", `${rotation}deg`);
-      card.style.setProperty("--deck-opacity", `${opacity}`);
-    });
-  }, [activeIndex, items.length]);
-
-  const clearMotionWait = useCallback(() => {
-    motionCleanupRef.current?.();
-    motionCleanupRef.current = null;
+  const stopAnimation = useCallback(() => {
+    sequenceRef.current += 1;
+    animationRef.current?.stop();
+    animationRef.current = null;
   }, []);
 
-  const waitForCardMotion = useCallback((onComplete: () => void) => {
-    clearMotionWait();
-    const activeCard = stageRef.current?.querySelector<HTMLElement>(".course-deck-card[data-position='0']");
-    if (!activeCard || window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
-      onComplete();
-      return;
-    }
-
-    let finished = false;
-    const finish = () => {
-      if (finished) return;
-      finished = true;
-      activeCard.removeEventListener("transitionend", handleTransitionEnd);
-      window.clearTimeout(timeoutId);
-      motionCleanupRef.current = null;
-      onComplete();
-    };
-    const handleTransitionEnd = (event: TransitionEvent) => {
-      if (event.propertyName === "transform") finish();
-    };
-    const timeoutId = window.setTimeout(finish, 280);
-    activeCard.addEventListener("transitionend", handleTransitionEnd);
-    motionCleanupRef.current = () => {
-      if (finished) return;
-      finished = true;
-      activeCard.removeEventListener("transitionend", handleTransitionEnd);
-      window.clearTimeout(timeoutId);
-    };
-  }, [clearMotionWait]);
-
-  const commitCycle = useCallback((direction: CycleDirection, progress = 0, activeDragX = 0) => {
-    if (items.length <= 1 || (motionStateRef.current !== "idle" && motionStateRef.current !== "dragging")) return;
-    const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    const nextIndex = cycleIndex(activeIndex, direction, items.length);
+  const settleBack = useCallback((releaseVelocity = 0) => {
+    const settleDirection = dragX.get() < 0 ? "next" : "previous";
     if (reducedMotion) {
-      setMotionState("idle");
+      dragX.jump(0);
+      updateMotionState("idle", null);
+      return;
+    }
+
+    stopAnimation();
+    const sequence = sequenceRef.current;
+    updateMotionState("settling", settleDirection);
+    const controls = animate(dragX, 0, {
+      type: "spring",
+      stiffness: 470,
+      damping: 42,
+      mass: 0.76,
+      velocity: releaseVelocity,
+    });
+    animationRef.current = controls;
+    void controls.then(() => {
+      if (sequenceRef.current !== sequence || animationRef.current !== controls) return;
+      animationRef.current = null;
+      updateMotionState("idle", null);
+    });
+  }, [dragX, reducedMotion, stopAnimation, updateMotionState]);
+
+  const commitCycle = useCallback((nextDirection: CycleDirection, releaseVelocity = 0) => {
+    if (items.length <= 1 || (motionStateRef.current !== "idle" && motionStateRef.current !== "dragging")) return;
+    const nextIndex = cycleIndex(activeIndexRef.current, nextDirection, items.length);
+    stopAnimation();
+
+    if (reducedMotion) {
+      dragX.jump(0);
+      updateMotionState("idle", null);
+      activeIndexRef.current = nextIndex;
       setActiveIndex(nextIndex);
       return;
     }
 
-    setMotionState("committing", direction);
-    applyCardLayout(direction, progress, activeDragX);
-    waitForCardMotion(() => {
-      setMotionState("resetting", direction);
+    const sequence = sequenceRef.current;
+    updateMotionState("committing", nextDirection);
+    const travel = Math.max(geometry.travel, geometry.cardWidth + 32);
+    const controls = animate(dragX, nextDirection === "next" ? -travel : travel, {
+      type: "spring",
+      stiffness: 430,
+      damping: 42,
+      mass: 0.82,
+      velocity: releaseVelocity,
+    });
+    animationRef.current = controls;
+    void controls.then(() => {
+      if (sequenceRef.current !== sequence || animationRef.current !== controls) return;
+      animationRef.current = null;
+      motionStateRef.current = "resetting";
+      setMotionState("resetting");
+      activeIndexRef.current = nextIndex;
       setActiveIndex(nextIndex);
     });
-    frameRef.current = requestAnimationFrame(() => applyCardLayout(direction, 1));
-  }, [activeIndex, applyCardLayout, items.length, setMotionState, waitForCardMotion]);
+  }, [dragX, geometry.cardWidth, geometry.travel, items.length, reducedMotion, stopAnimation, updateMotionState]);
 
-  const settleBack = useCallback((direction: CycleDirection, progress: number, activeDragX: number) => {
-    setMotionState("settling", direction);
-    applyCardLayout(direction, progress, activeDragX);
-    waitForCardMotion(() => {
-      applyCardLayout();
-      setMotionState("idle");
-    });
-    frameRef.current = requestAnimationFrame(() => applyCardLayout());
-  }, [applyCardLayout, setMotionState, waitForCardMotion]);
+  const handleDragStart = useCallback(() => {
+    if (motionStateRef.current !== "idle") return;
+    updateMotionState("dragging", null);
+  }, [updateMotionState]);
+
+  const handleDragMove = useCallback((info: PanInfo) => {
+    if (motionStateRef.current !== "dragging" || Math.abs(info.offset.x) < 3) return;
+    const nextDirection = info.offset.x < 0 ? "next" : "previous";
+    if (directionRef.current === nextDirection) return;
+    directionRef.current = nextDirection;
+    setDirection(nextDirection);
+  }, []);
+
+  const handleDragEnd = useCallback((info: PanInfo) => {
+    if (motionStateRef.current !== "dragging") return;
+    const visualOffset = dragX.get();
+    const releaseOffset = Math.abs(visualOffset) > Math.abs(info.offset.x) ? visualOffset : info.offset.x;
+    const distanceThreshold = Math.min(140, Math.max(72, geometry.cardWidth * 0.24));
+    const strongVelocity = Math.abs(info.velocity.x) >= 650;
+    const shouldCommit = Math.abs(releaseOffset) >= distanceThreshold
+      || (strongVelocity && Math.abs(releaseOffset) >= 12);
+
+    if (!shouldCommit) {
+      settleBack(info.velocity.x);
+      return;
+    }
+
+    const nextDirection = strongVelocity
+      ? (info.velocity.x < 0 ? "next" : "previous")
+      : (releaseOffset < 0 ? "next" : "previous");
+    commitCycle(nextDirection, info.velocity.x);
+  }, [commitCycle, dragX, geometry.cardWidth, settleBack]);
+
+  const jumpTo = useCallback((index: number) => {
+    if (motionStateRef.current !== "idle" || index === activeIndexRef.current) return;
+    stopAnimation();
+    dragX.jump(0);
+    motionStateRef.current = "resetting";
+    setMotionState("resetting");
+    activeIndexRef.current = index;
+    setActiveIndex(index);
+  }, [dragX, stopAnimation]);
 
   useLayoutEffect(() => {
-    if (activeIndex >= items.length && items.length) {
-      frameRef.current = requestAnimationFrame(() => setActiveIndex(0));
-    }
-    applyCardLayout();
-    if (motionStateRef.current === "resetting") {
-      frameRef.current = requestAnimationFrame(() => {
-        applyCardLayout();
-        setMotionState("idle");
-      });
-    } else setMotionState("idle");
-  }, [activeIndex, applyCardLayout, items.length, setMotionState]);
+    activeIndexRef.current = selectedIndex;
+    if (motionStateRef.current !== "resetting") return;
+    dragX.jump(0);
+    updateMotionState("idle", null);
+  }, [dragX, selectedIndex, updateMotionState]);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     const stage = stageRef.current;
-    if (!stage) return;
+    if (!stage || !items.length) return;
     let resizeFrame = 0;
-    const observer = new ResizeObserver(() => {
-      if (motionStateRef.current === "idle") applyCardLayout();
-    });
-    const handleViewportResize = () => {
-      cancelAnimationFrame(resizeFrame);
-      resizeFrame = requestAnimationFrame(() => {
-        resizeFrame = requestAnimationFrame(() => {
-          if (motionStateRef.current === "idle") applyCardLayout();
-        });
+
+    const measure = () => {
+      const activeCard = stage.querySelector<HTMLElement>(".course-deck-card[data-position='0']");
+      if (!activeCard) return;
+      const stageWidth = stage.clientWidth;
+      const cardWidth = activeCard.offsetWidth;
+      const compact = stageWidth <= 800;
+      const stepX = Math.max(0, (stageWidth - cardWidth) / 2);
+      const stepY = compact ? 12 : 18;
+      const rotationStep = compact ? 0.38 : 0.28;
+      const travel = cardWidth + Math.max(32, stepX * 0.45);
+      setGeometry((current) => {
+        if (
+          current.ready
+          && Math.abs(current.cardWidth - cardWidth) < 0.5
+          && Math.abs(current.stepX - stepX) < 0.5
+          && current.stepY === stepY
+        ) return current;
+        return { ready: true, cardWidth, stepX, stepY, rotationStep, travel };
       });
     };
+
+    measure();
+    const observer = new ResizeObserver(() => {
+      cancelAnimationFrame(resizeFrame);
+      resizeFrame = requestAnimationFrame(measure);
+    });
     observer.observe(stage);
-    stage.querySelectorAll<HTMLElement>(".course-deck-card").forEach((card) => observer.observe(card));
-    window.addEventListener("resize", handleViewportResize);
-    window.visualViewport?.addEventListener("resize", handleViewportResize);
+    const activeCard = stage.querySelector<HTMLElement>(".course-deck-card[data-position='0']");
+    if (activeCard) observer.observe(activeCard);
     return () => {
       observer.disconnect();
       cancelAnimationFrame(resizeFrame);
-      window.removeEventListener("resize", handleViewportResize);
-      window.visualViewport?.removeEventListener("resize", handleViewportResize);
     };
-  }, [applyCardLayout]);
+  }, [items.length, selectedIndex]);
 
   useEffect(() => () => {
-    clearMotionWait();
-    if (frameRef.current !== null) cancelAnimationFrame(frameRef.current);
-  }, [clearMotionWait]);
+    sequenceRef.current += 1;
+    animationRef.current?.stop();
+  }, []);
 
   if (!items.length) {
     return (
@@ -276,162 +547,114 @@ export default function CourseDeck({ items, firstName, canCreateCourses }: Cours
 
   const previous = () => commitCycle("previous");
   const next = () => commitCycle("next");
-  const jumpTo = (index: number) => {
-    if (motionStateRef.current !== "idle") return;
-    if (index === activeIndex) {
-      setMotionState("idle");
-      return;
+
+  const startReducedGesture = (event: ReactPointerEvent<HTMLDivElement>) => {
+    if (!reducedMotion || items.length <= 1 || !event.isPrimary || event.button !== 0 || motionStateRef.current !== "idle") return;
+    if ((event.target as HTMLElement).closest("a, button")) return;
+    reducedGestureRef.current = {
+      pointerId: event.pointerId,
+      startX: event.clientX,
+      startY: event.clientY,
+      axis: null,
+    };
+  };
+
+  const moveReducedGesture = (event: ReactPointerEvent<HTMLDivElement>) => {
+    const gesture = reducedGestureRef.current;
+    if (!gesture || gesture.pointerId !== event.pointerId) return;
+    const deltaX = event.clientX - gesture.startX;
+    const deltaY = event.clientY - gesture.startY;
+    if (!gesture.axis && Math.hypot(deltaX, deltaY) > 8) {
+      gesture.axis = Math.abs(deltaX) > Math.abs(deltaY) * 1.15 ? "horizontal" : "vertical";
+      if (gesture.axis === "horizontal") event.currentTarget.setPointerCapture(event.pointerId);
     }
-    setMotionState("resetting");
-    setActiveIndex(index);
+  };
+
+  const finishReducedGesture = (event: ReactPointerEvent<HTMLDivElement>) => {
+    const gesture = reducedGestureRef.current;
+    if (!gesture || gesture.pointerId !== event.pointerId) return;
+    reducedGestureRef.current = null;
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId);
+    const deltaX = event.clientX - gesture.startX;
+    if (gesture.axis === "horizontal" && Math.abs(deltaX) >= 40) {
+      commitCycle(deltaX < 0 ? "next" : "previous");
+    }
   };
 
   return (
-    <section className={`course-deck-section ${items.length === 1 ? "is-single" : ""}`} aria-labelledby="course-deck-title">
-      <header className="course-deck-heading">
-        <h1 id="course-deck-title">Welcome back, {firstName}.</h1>
-        <span><i aria-hidden="true" /> {items.length} active {items.length === 1 ? "course" : "courses"}</span>
-      </header>
+    <LazyMotion features={domMax} strict>
+      <section className={`course-deck-section ${items.length === 1 ? "is-single" : ""}`} aria-labelledby="course-deck-title">
+        <header className="course-deck-heading">
+          <h1 id="course-deck-title">Welcome back, {firstName}.</h1>
+          <span><i aria-hidden="true" /> {items.length} active {items.length === 1 ? "course" : "courses"}</span>
+        </header>
 
-      <div
-        ref={viewportRef}
-        className="course-deck-viewport"
-        onPointerDown={(event) => {
-          if (items.length <= 1 || !event.isPrimary || event.button !== 0 || motionStateRef.current !== "idle") return;
-          if ((event.target as HTMLElement).closest("a, button")) return;
-          const activeCard = stageRef.current?.querySelector<HTMLElement>(".course-deck-card[data-position='0']");
-          if (!activeCard) return;
-          event.preventDefault();
-          gestureRef.current = {
-            pointerId: event.pointerId,
-            startX: event.clientX,
-            startY: event.clientY,
-            lastX: event.clientX,
-            cardWidth: activeCard.offsetWidth,
-            axis: null,
-            direction: null,
-            progress: 0,
-          };
-          event.currentTarget.setPointerCapture(event.pointerId);
-        }}
-        onPointerMove={(event) => {
-          const gesture = gestureRef.current;
-          if (!gesture || gesture.pointerId !== event.pointerId) return;
-          const deltaX = event.clientX - gesture.startX;
-          const deltaY = event.clientY - gesture.startY;
-          if (!gesture.axis && Math.hypot(deltaX, deltaY) > 6) {
-            gesture.axis = Math.abs(deltaX) > Math.abs(deltaY) * 1.15 ? "horizontal" : "vertical";
-          }
-          if (gesture.axis !== "horizontal") return;
-
-          event.preventDefault();
-          gesture.lastX = event.clientX;
-          gesture.direction = deltaX < 0 ? "next" : "previous";
-          gesture.progress = Math.min(1, Math.abs(deltaX) / Math.max(1, gesture.cardWidth * 0.72));
-          setMotionState("dragging", gesture.direction);
-          applyCardLayout(gesture.direction, gesture.progress, deltaX);
-        }}
-        onPointerUp={(event) => {
-          const gesture = gestureRef.current;
-          if (!gesture || gesture.pointerId !== event.pointerId) return;
-          gestureRef.current = null;
-          if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId);
-          if (gesture.axis !== "horizontal" || !gesture.direction) {
-            setMotionState("idle");
-            return;
-          }
-          const shouldCommit = gesture.progress >= 0.5;
-          if (shouldCommit) commitCycle(gesture.direction, gesture.progress, event.clientX - gesture.startX);
-          else settleBack(gesture.direction, gesture.progress, event.clientX - gesture.startX);
-        }}
-        onPointerCancel={(event) => {
-          const gesture = gestureRef.current;
-          if (!gesture || gesture.pointerId !== event.pointerId) return;
-          gestureRef.current = null;
-          if (gesture.axis === "horizontal" && gesture.direction) {
-            settleBack(gesture.direction, gesture.progress, gesture.lastX - gesture.startX);
-          } else setMotionState("idle");
-        }}
-        onKeyDown={(event) => {
-          if (event.target !== event.currentTarget) return;
-          if (event.key === "ArrowLeft") { event.preventDefault(); previous(); }
-          else if (event.key === "ArrowRight") { event.preventDefault(); next(); }
-          else if (event.key === "Home") { event.preventDefault(); jumpTo(0); }
-          else if (event.key === "End") { event.preventDefault(); jumpTo(items.length - 1); }
-        }}
-        tabIndex={items.length > 1 ? 0 : -1}
-        role="region"
-        aria-roledescription={items.length > 1 ? "carousel" : undefined}
-        aria-label={items.length > 1
-          ? "Active courses. Use the left and right arrow keys, drag horizontally, or swipe left and right to change course."
-          : "Active course"}
-      >
-        <div ref={stageRef} className="course-deck-stage">
-          {items.map((item, canonicalIndex) => {
-            const position = circularPosition(canonicalIndex, activeIndex, items.length);
-            const visible = position >= 0 && position <= 2;
-            const previousTarget = canonicalIndex === (activeIndex - 1 + items.length) % items.length;
-            const buffer = previousTarget && !visible;
-            const active = position === 0;
-            const paperTone = paperTones[canonicalIndex] ?? 0;
-            return (
-              <div
-                className={`course-deck-card course-deck-paper-tone-${paperTone} ${active ? "is-active" : ""} ${visible ? "is-visible" : ""} ${buffer ? "is-drag-buffer" : ""} ${previousTarget ? "is-previous-target" : ""}`}
-                key={item.id}
-                aria-hidden={!active}
-                aria-label={active ? `${item.topic}, ${canonicalIndex + 1} of ${items.length}` : undefined}
-                aria-roledescription={active ? "slide" : undefined}
-                role={active ? "group" : undefined}
-                data-position={position}
-                data-canonical-index={canonicalIndex}
-              >
-                <div className="course-deck-cover">
-                  <CourseBanner course={{ id: item.id, topic: item.topic, category: item.category, banner: item.banner }} variant="deck" eager={active} />
-                </div>
-                <div className="course-deck-card-body">
-                  <div className="course-deck-card-copy">
-                    <p>{active ? "Current lesson" : item.category ?? "Course"}</p>
-                    <h2>{item.topic}</h2>
-                    {active && <strong>{item.nextLessonTitle}</strong>}
-                    {active && (
-                      <span className="course-deck-lesson-meta">
-                        <span><BookOpenCheck size={15} /> {item.completedLessons} of {item.totalLessons ?? "?"} lessons</span>
-                        {item.estimatedMinutes && <span><Clock3 size={15} /> {item.estimatedMinutes} min</span>}
-                      </span>
-                    )}
-                  </div>
-                  {active && (
-                    <div className="course-deck-card-action">
-                      <div className="course-deck-progress-copy"><span>Progress</span><strong>{item.progressPercent === null ? "Total pending" : `${item.progressPercent}%`}</strong></div>
-                      <span
-                        className={`course-deck-progress ${item.progressPercent === null ? "is-unknown" : ""}`}
-                        role="progressbar"
-                        aria-label={item.progressPercent === null ? `${item.topic} progress total unavailable` : `${item.topic} progress`}
-                        aria-valuemin={0}
-                        aria-valuemax={100}
-                        aria-valuenow={item.progressPercent ?? undefined}
-                      ><i style={{ transform: `scaleX(${(item.progressPercent ?? 0) / 100})` }} /></span>
-                      <Link className="button course-deck-primary" href={item.href} onKeyDown={(event) => event.stopPropagation()}><Play size={16} fill="currentColor" /> Continue</Link>
-                    </div>
-                  )}
-                </div>
-                {!active && position === 1 && <button className="course-deck-select" type="button" tabIndex={-1} onClick={next} aria-label={`Bring ${item.topic} to the front`} />}
-              </div>
-            );
-          })}
-        </div>
-      </div>
-
-      {items.length > 1 && (
-        <div className="course-deck-controls">
-          <button type="button" onClick={previous} aria-label="Show previous active course"><ArrowLeft size={17} /></button>
-          <div role="status" aria-live="polite" aria-atomic="true">
-            <strong>{items[activeIndex]?.topic}</strong>
-            <span>{activeIndex + 1} of {items.length}</span>
+        <div
+          className="course-deck-viewport"
+          data-motion-state={motionState}
+          data-direction={direction ?? undefined}
+          onPointerDown={startReducedGesture}
+          onPointerMove={moveReducedGesture}
+          onPointerUp={finishReducedGesture}
+          onPointerCancel={() => { reducedGestureRef.current = null; }}
+          onKeyDown={(event) => {
+            if (event.target !== event.currentTarget) return;
+            if (event.key === "ArrowLeft") { event.preventDefault(); previous(); }
+            else if (event.key === "ArrowRight") { event.preventDefault(); next(); }
+            else if (event.key === "Home") { event.preventDefault(); jumpTo(0); }
+            else if (event.key === "End") { event.preventDefault(); jumpTo(items.length - 1); }
+          }}
+          tabIndex={items.length > 1 ? 0 : -1}
+          role="region"
+          aria-roledescription={items.length > 1 ? "carousel" : undefined}
+          aria-label={items.length > 1
+            ? "Active courses. Use the left and right arrow keys, drag horizontally, or swipe left and right to change course."
+            : "Active course"}
+        >
+          <div ref={stageRef} className="course-deck-stage">
+            {items.map((item, canonicalIndex) => {
+              const position = circularPosition(canonicalIndex, selectedIndex, items.length);
+              const visible = position >= 0 && position <= 2;
+              const previousTarget = canonicalIndex === (selectedIndex - 1 + items.length) % items.length;
+              const buffer = previousTarget && !visible;
+              return (
+                <CourseDeckCard
+                  key={item.id}
+                  item={item}
+                  canonicalIndex={canonicalIndex}
+                  itemCount={items.length}
+                  position={position}
+                  previousTarget={previousTarget}
+                  active={position === 0}
+                  visible={visible}
+                  buffer={buffer}
+                  paperTone={paperTones[canonicalIndex] ?? 0}
+                  geometry={geometry}
+                  dragX={dragX}
+                  direction={direction}
+                  motionState={motionState}
+                  reducedMotion={reducedMotion}
+                  onNext={next}
+                  onDragStart={handleDragStart}
+                  onDragMove={handleDragMove}
+                  onDragEnd={handleDragEnd}
+                />
+              );
+            })}
           </div>
-          <button type="button" onClick={next} aria-label="Show next active course"><ArrowRight size={17} /></button>
         </div>
-      )}
-    </section>
+
+        {items.length > 1 && (
+          <div className="course-deck-controls">
+            <button type="button" onClick={previous} aria-label="Show previous active course"><ArrowLeft size={17} /></button>
+            <div role="status" aria-live="polite" aria-atomic="true">
+              <strong>{items[selectedIndex]?.topic}</strong>
+              <span>{selectedIndex + 1} of {items.length}</span>
+            </div>
+            <button type="button" onClick={next} aria-label="Show next active course"><ArrowRight size={17} /></button>
+          </div>
+        )}
+      </section>
+    </LazyMotion>
   );
 }

@@ -327,38 +327,14 @@ function stubUsage() {
 }
 
 function stubCourseResearch() {
-  return {
-    sources: [
-      {
-        label: "NIST research and standards resource",
-        url: "https://www.nist.gov/publications/local-grounded-research-fixture",
-        publisher: "National Institute of Standards and Technology",
-        publicationStatus: "released",
-        statusCheck: "released-no-withdrawal-found",
-        evidenceType: "official-guidance",
-        evidenceClaims: [
-          { claim: "NIST publishes released measurement research and technical standards that can ground factual explanations." },
-          { claim: "NIST guidance documents bounded methods and their intended technical scope for applied practice." },
-        ],
-        reputationRationale: "NIST is a United States government measurement and standards authority.",
-        limitations: "The specific resource must still be matched to the lesson claim.",
-      },
-      {
-        label: "OECD research and policy evidence",
-        url: "https://www.oecd.org/publications/local-grounded-research-fixture",
-        publisher: "Organisation for Economic Co-operation and Development",
-        publicationStatus: "released",
-        statusCheck: "released-no-withdrawal-found",
-        evidenceType: "official-guidance",
-        evidenceClaims: [
-          { claim: "OECD publishes released comparative research and documented policy evidence across participating economies." },
-          { claim: "OECD evidence describes jurisdiction and date limitations that should remain visible in analytical examples." },
-        ],
-        reputationRationale: "OECD is an established intergovernmental research and policy institution.",
-        limitations: "Coverage and applicability vary by country, date, and policy domain.",
-      },
-    ],
-  };
+  // Offline development has no provider evidence. Returning an empty pack is
+  // deliberately honest: local courses exercise the model-knowledge path
+  // instead of fabricating topic-independent NIST/OECD grounding.
+  return { sources: [] };
+}
+
+function stubCourseBibliography() {
+  return { references: [] };
 }
 
 function stubLessonGrounding(input: string) {
@@ -460,6 +436,8 @@ function localAiStub() {
           ? stubCommandCenterDraft(input)
           : format === "course_research"
             ? stubCourseResearch()
+          : format === "course_bibliography"
+            ? stubCourseBibliography()
           : format === "lesson_grounding"
             ? stubLessonGrounding(input)
           : format === "course_grounding"
@@ -491,6 +469,18 @@ function localAiStub() {
                 }],
               },
             ]
+          : format === "course_bibliography"
+            ? [
+                { type: "web_search_call", id: `local-bibliography-${crypto.randomUUID()}`, status: "completed", action: { type: "search", query: "local bibliographic catalog research" } },
+                {
+                  type: "message",
+                  content: [{
+                    type: "output_text",
+                    text: "Local metadata-verified further-reading fixture.",
+                    annotations: [],
+                  }],
+                },
+              ]
           : format === "source_evidence_validation"
             ? [
                 { type: "web_search_call", id: `local-verify-${crypto.randomUUID()}`, status: "completed", action: { type: "search", query: "local source evidence verification" } },

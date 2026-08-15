@@ -116,6 +116,45 @@ export function outlineSourceCoverageIssues(
   return issues;
 }
 
+type EvidenceBasisOutline = {
+  modules?: Array<{
+    lessons?: Array<{
+      contentBasis?: "verified-source" | "model-knowledge";
+      sourceIds?: string[];
+    }>;
+  }>;
+};
+
+/**
+ * Source-integrity v5 permits a course to mix externally grounded lessons with
+ * transparently disclosed model-knowledge lessons. This gate keeps those lanes
+ * mutually exclusive: a verified lesson must have an eligible source, while a
+ * model-knowledge lesson must not carry a source assignment that could imply
+ * claim-level verification.
+ */
+export function outlineEvidenceBasisIssues(
+  outline: EvidenceBasisOutline | null | undefined,
+  sourcePack: CourseSource[],
+) {
+  const eligibleIds = new Set(sourcePack
+    .filter((source) => source.url && isSafePublicSourceUrl(source.url) && source.note?.trim())
+    .map((source) => source.id));
+  const issues: string[] = [];
+  for (const [moduleIndex, courseModule] of (outline?.modules ?? []).entries()) {
+    for (const [lessonIndex, lesson] of (courseModule.lessons ?? []).entries()) {
+      const sourceIds = lesson.sourceIds ?? [];
+      const contentBasis = lesson.contentBasis ?? (sourceIds.length ? "verified-source" : "model-knowledge");
+      if (contentBasis === "verified-source" && !sourceIds.some((sourceId) => eligibleIds.has(sourceId))) {
+        issues.push(`modules[${moduleIndex}].lessons[${lessonIndex}] is verified-source but has no eligible evidence-noted source assignment.`);
+      }
+      if (contentBasis === "model-knowledge" && sourceIds.length) {
+        issues.push(`modules[${moduleIndex}].lessons[${lessonIndex}] is model-knowledge and must not carry sourceIds.`);
+      }
+    }
+  }
+  return issues;
+}
+
 function nestedTextLeaves(value: unknown): string[] {
   if (typeof value === "string") return [value];
   if (Array.isArray(value)) return value.flatMap(nestedTextLeaves);

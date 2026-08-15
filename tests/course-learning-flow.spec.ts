@@ -627,7 +627,8 @@ test("completes a published course from discovery through evidence", async ({ pa
   await expect(journey.getByText("A classified evidence record and bounded next action")).toBeVisible();
   await expect(journey.locator(".journey-lesson-links button")).toHaveCount(2);
   const sourceLink = page.getByRole("link", { name: /Decision quality field guide/ });
-  await expect(page.getByText("Course references")).toBeVisible();
+  await expect(page.getByText("Course evidence")).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Course references" })).toBeVisible();
   await expect(page.getByText(/Evidence Institute.*author provided.*legacy source.*link only/)).toBeVisible();
   await expect(sourceLink).toHaveAttribute("href", "https://example.com/decision-quality");
   await expect(sourceLink).toHaveAttribute("rel", "nofollow ugc noreferrer");

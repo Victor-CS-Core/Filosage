@@ -1,25 +1,22 @@
 import Link from "next/link";
-import { ArrowDown, ArrowRight } from "lucide-react";
-import ProductMockup from "@/components/marketing/ProductMockup";
+import { ArrowDown, ArrowRight, LockKeyhole } from "lucide-react";
+import AccountStartButton from "@/components/marketing/AccountStartButton";
+import PublicCourseProof from "@/components/marketing/PublicCourseProof";
 
 export default function MarketingHero() {
   return (
     <section className="marketing-hero" aria-labelledby="marketing-hero-title">
       <div className="marketing-hero-copy">
-        <p className="marketing-tagline">Filosage courses</p>
-        <h1 id="marketing-hero-title">Turn curiosity into <span>understanding</span><b aria-hidden="true">.</b></h1>
-        <p className="marketing-hero-lead">Study a complex professional skill through clear explanation, applied practice, and evidence you can inspect.</p>
+        <h1 id="marketing-hero-title">Build the skill your next decision depends on<b aria-hidden="true">.</b></h1>
+        <p className="marketing-hero-lead">Choose a course tied to a real professional outcome, practice it in stages, and keep evidence of what you can explain, apply, and assess.</p>
         <div className="marketing-hero-actions">
-          <Link className="button button-primary" href="/library">Start learning <ArrowRight size={17} /></Link>
-          <Link className="button button-secondary" href="#how-it-works">See the learning loop <ArrowDown size={16} /></Link>
+          <Link className="button button-primary" href="/library">Explore course outcomes <ArrowRight size={17} /></Link>
+          <AccountStartButton />
         </div>
-        <ul className="marketing-hero-promises" aria-label="Filosage learning principles">
-          <li>Courses tied to a stated outcome</li>
-          <li>Source status on every lesson</li>
-          <li>Completion kept separate from assessed work</li>
-        </ul>
+        <p className="marketing-hero-access"><LockKeyhole size={15} aria-hidden="true" /> Browse complete course outlines first. A free account opens lessons and saves your learning.</p>
+        <Link className="marketing-hero-scroll" href="#how-it-works">Follow the learning runway <ArrowDown size={15} /></Link>
       </div>
-      <div className="marketing-hero-visual"><ProductMockup /></div>
+      <div className="marketing-hero-visual"><PublicCourseProof /></div>
     </section>
   );
 }

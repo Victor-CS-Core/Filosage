@@ -23,6 +23,7 @@ export function localCourseOutlineFixture(topic: string, sourceIds: string[] = [
     activityPreview: activityPreview[practice],
     artifactContribution: contribution,
     sourceIds: sourceIds.length ? [sourceIds[lessonIndex++ % sourceIds.length]] : [],
+    contentBasis: sourceIds.length ? "verified-source" as const : "model-knowledge" as const,
   });
   return {
     mission: `Build a working understanding of ${topic} you can apply immediately.`,

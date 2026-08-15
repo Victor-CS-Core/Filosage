@@ -12,7 +12,12 @@ import { isLocalMode } from "@/lib/local-mode";
 import { COURSE_SCOPED_COLLECTION_GROUPS, removeCourseReferences } from "@/lib/course-deletion";
 import type { PublicationLessonReview, PublicationOwnerOverride } from "@/lib/publication-review";
 import { publicationContentFingerprint } from "@/lib/publication-content";
-import { buildGuardedLessonSave, type LessonSavePipelineGuard } from "@/lib/course-pipeline/lesson-save";
+import {
+  buildGuardedLessonEvidenceDowngrade,
+  buildGuardedLessonSave,
+  type LessonEvidenceDowngradeGuard,
+  type LessonSavePipelineGuard,
+} from "@/lib/course-pipeline/lesson-save";
 import { inspectCoursePublishReadiness } from "@/lib/publication-readiness";
 import { serverEnvironment } from "@/lib/runtime-environment";
 
@@ -491,6 +496,26 @@ export async function saveLesson(
   );
   if (!document) throw new Error("Firestore did not return the saved lesson.");
   return parseDocument(document);
+}
+
+export async function saveLessonWithEvidenceDowngrade(
+  courseId: string,
+  lessonId: string,
+  data: Record<string, unknown>,
+  guard: LessonEvidenceDowngradeGuard,
+) {
+  const coursePath = `courses/${courseId}`;
+  const lessonPath = `${coursePath}/lessons/${lessonId}`;
+  return runStoredDocumentTransaction([coursePath, lessonPath], (documents) =>
+    buildGuardedLessonEvidenceDowngrade(
+      courseId,
+      lessonId,
+      documents[coursePath] ?? undefined,
+      documents[lessonPath] ?? undefined,
+      data,
+      guard,
+      new Date().toISOString(),
+    ));
 }
 
 async function commitWrites(writes: Array<Record<string, unknown>>) {

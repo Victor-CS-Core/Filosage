@@ -6,6 +6,7 @@ import {
   lessonCitationCanonicalBindingIssues,
   lessonCitationQualityIssues,
   normalizeLessonCitationSections,
+  outlineEvidenceBasisIssues,
   outlineSourceAssignmentIssues,
   outlineSourceCoverageIssues,
   sourcePackPromptBlock,
@@ -17,6 +18,7 @@ import {
   COURSE_OUTLINE_RESERVATION_LOCK_MS,
   COURSE_OUTLINE_RESERVE_COST_MICROS,
 } from "../src/lib/ai-usage-policy";
+import { localCourseOutlineFixture } from "../src/lib/local-course-fixture";
 
 const source: CourseSource = {
   id: "source-official",
@@ -56,9 +58,15 @@ test("every lesson in a sourced course must use an eligible supported reference"
   expect(outlineSourceCoverageIssues({ modules: [{ lessons: [{ sourceIds: [] }] }] }, [])).toEqual([]);
 });
 
-test("course outline coverage is rechecked after initial, recovery, and grounding repair", async () => {
+test("layered evidence assignments are rechecked after initial, recovery, and grounding repair", async () => {
   const routeSource = await readFile("src/app/api/generate-course/route.ts", "utf8");
-  expect(routeSource.match(/outlineSourceCoverageIssues\(outline, sourcePack\)/g)).toHaveLength(3);
+  expect(routeSource.match(/outlineEvidenceBasisIssues\(outline, sourcePack\)/g)?.length).toBeGreaterThanOrEqual(3);
+  expect(outlineEvidenceBasisIssues({ modules: [{ lessons: [
+    { contentBasis: "verified-source", sourceIds: [source.id] },
+    { contentBasis: "model-knowledge", sourceIds: [] },
+  ] }] }, [source])).toEqual([]);
+  expect(outlineEvidenceBasisIssues({ modules: [{ lessons: [{ contentBasis: "model-knowledge", sourceIds: [source.id] }] }] }, [source]))
+    .toEqual([expect.stringContaining("must not carry sourceIds")]);
 });
 
 test("a structurally recovered outline still receives one evidence-specific grounding repair", async () => {
@@ -68,6 +76,9 @@ test("a structurally recovered outline still receives one evidence-specific grou
   expect(routeSource.match(/if \(courseGroundingQualityIssues\.length\) \{/g)).toHaveLength(2);
   expect(routeSource).toContain("those formats are learner activities, not factual claims");
   expect(routeSource).toContain("The evidence must still support everything the learner is asked to place in that container");
+  expect(routeSource).toContain("course_grounding_unavailable");
+  expect(routeSource).toContain("downgradeVerifiedLessons");
+  expect(routeSource).toContain('researchFallbackReasonCodes.push("course-grounding-downgraded")');
 });
 
 test("grounded lesson generation maps every factual assertion and exposes owner-only QA diagnostics", async () => {
@@ -115,13 +126,63 @@ test("grounded lesson generation maps every factual assertion and exposes owner-
   expect(lessonPageSource).toContain("isOwner && generated.diagnostic?.length");
 });
 
+test("model-knowledge lessons remain citation-free and disclose their evidence basis", async () => {
+  const [routeSource, dtoSource, panelSource, storageSource, lessonSaveSource, courseTypesSource, coursePageSource] = await Promise.all([
+    readFile("src/app/api/generate-lesson/route.ts", "utf8"),
+    readFile("src/lib/course-dto.ts", "utf8"),
+    readFile("src/components/LessonIntegrityPanel.tsx", "utf8"),
+    readFile("src/lib/firebase-server.ts", "utf8"),
+    readFile("src/lib/course-pipeline/lesson-save.ts", "utf8"),
+    readFile("src/lib/course-types.ts", "utf8"),
+    readFile("src/app/course/[topic]/page.tsx", "utf8"),
+  ]);
+  expect(routeSource).toContain("MODEL-KNOWLEDGE LESSON OVERRIDE:");
+  expect(routeSource).toContain("return citations: [] and never invent or imply a reference");
+  expect(routeSource).toContain("attribute doctrines, beliefs, and interpretations");
+  expect(routeSource).toContain("Keep this unsourced lesson foundational and non-prescriptive");
+  expect(routeSource).toContain('layeredSourcePolicy ? "not_applicable" : "not_executed"');
+  expect(dtoSource).toContain('value.contentBasis === "verified-source" || value.contentBasis === "model-knowledge"');
+  expect(panelSource).toContain('provenance?.contentBasis === "model-knowledge"');
+  expect(panelSource).toContain("It contains no invented citations");
+  expect(routeSource).toContain("lesson_grounding_unavailable");
+  expect(routeSource).toContain("saveLessonWithEvidenceDowngrade");
+  expect(lessonSaveSource).toContain('contentBasis: "model-knowledge" as const, sourceIds: []');
+  expect(lessonSaveSource).toContain('fallbackReasonCodes.add("lesson-grounding-downgraded")');
+  expect(routeSource).toContain("saveLessonWithEvidenceDowngrade(courseId, lessonId, lessonData");
+  expect(routeSource).toContain("ownerOverride: account.isOwner");
+  expect(routeSource).not.toContain("boundedGroundedLesson");
+  expect(routeSource.indexOf("if (!lesson || qualityIssues.length || groundingQualityIssues.length)"))
+    .toBeLessThan(routeSource.indexOf("await saveLessonWithEvidenceDowngrade"));
+  expect(routeSource.indexOf("await assertSafeContent(client, JSON.stringify(lesson)"))
+    .toBeLessThan(routeSource.indexOf("await saveLessonWithEvidenceDowngrade"));
+  expect(storageSource).toContain("runStoredDocumentTransaction([coursePath, lessonPath]");
+  expect(coursePageSource).not.toContain("course.aiAssisted && (course.evidenceProfile");
+  expect(dtoSource).not.toContain("recordFingerprint:");
+  expect(dtoSource).not.toContain("metadataVerification:");
+  expect(dtoSource).not.toContain("contentVerification:");
+  expect(dtoSource).not.toContain("quotation:");
+  expect(dtoSource).not.toContain("pageLocator:");
+  expect(dtoSource).not.toContain("accessUrl: reference.accessUrl");
+  const publicFurtherReading = courseTypesSource.slice(
+    courseTypesSource.indexOf("export interface CourseFurtherReading"),
+    courseTypesSource.indexOf("export interface CourseSource"),
+  );
+  expect(publicFurtherReading).not.toContain("recordFingerprint");
+  expect(publicFurtherReading).not.toContain("metadataVerification");
+  expect(publicFurtherReading).not.toContain("contentVerification");
+  expect(publicFurtherReading).not.toContain("quotation");
+  expect(publicFurtherReading).not.toContain("pageLocator");
+  expect(publicFurtherReading).not.toContain("accessUrl");
+});
+
 test("the course reservation covers the complete bounded recovery and grounding envelope", async () => {
   const aiUsageSource = await readFile("src/lib/ai-usage.ts", "utf8");
   const contentSafetySource = await readFile("src/lib/content-safety.ts", "utf8");
   const maximumProviderTimeMs = ((90 + 75 + 75 + 75 + 120 + 90 + 120 + 90) * 1_000)
     + (2 * CONTENT_MODERATION_REQUEST_TIMEOUT_MS);
   const maximumOutputCostMicros = (3_000 * 15)
-    + (3 * 3_000 * 15)
+    + (3_000 * 15)
+    + (5 * 3_000 * 15)
     + (2 * 9_000 * 6)
     + (2 * 9_000 * 30)
     + (2 * 3_000 * 15);
@@ -134,10 +195,18 @@ test("the course reservation covers the complete bounded recovery and grounding 
   expect(contentSafetySource).toContain("maxRetries: 0");
 });
 
+test("offline course fixtures default to disclosed model knowledge rather than generic fake evidence", () => {
+  const outline = localCourseOutlineFixture("An arbitrary local topic");
+  expect(outline.modules.flatMap((courseModule) => courseModule.lessons)).toEqual(expect.arrayContaining([
+    expect.objectContaining({ contentBasis: "model-knowledge", sourceIds: [] }),
+  ]));
+});
+
 test("the strengthened source gate still validates compatible v3 artifacts", () => {
   expect(supportsStructuredSourcePolicy("source-integrity-v3.0.0")).toBe(true);
   expect(supportsStructuredSourcePolicy("source-integrity-v3.1.0")).toBe(true);
   expect(supportsStructuredSourcePolicy("source-integrity-v4.0.0")).toBe(true);
+  expect(supportsStructuredSourcePolicy("source-integrity-v5.0.0")).toBe(true);
   expect(supportsStructuredSourcePolicy("source-integrity-v2.9.0")).toBe(false);
   expect(supportsStructuredSourcePolicy(undefined)).toBe(false);
 });

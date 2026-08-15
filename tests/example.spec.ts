@@ -637,7 +637,7 @@ test("never leaves public learning behind the authentication startup screen", as
   expect(hydrationErrors).toEqual([]);
 
   await expect(
-    page.getByRole("heading", { name: "Turn curiosity into understanding" }),
+    page.getByRole("heading", { name: "Build the skill your next decision depends on" }),
   ).toBeVisible({ timeout: 4000 });
   await expect(page.locator(".auth-boot-shell")).toHaveCount(0);
 });
@@ -655,15 +655,15 @@ test("keeps the learning library public", async ({ page }) => {
   expect(scriptDirective).not.toContain("'unsafe-inline'");
   await expect(page.locator(".skip-link")).toHaveAttribute("href", "#main-content");
   await expect(
-    page.getByRole("heading", { name: "Turn curiosity into understanding" }),
+    page.getByRole("heading", { name: "Build the skill your next decision depends on" }),
   ).toBeVisible();
-  await expect(page.locator(".marketing-tagline")).toHaveText("Filosage courses");
-  await expect(page.locator(".marketing-page > section")).toHaveCount(4);
-  await expect(page.locator(".marketing-feature-grid article")).toHaveCount(3);
+  await expect(page.locator(".marketing-page > section")).toHaveCount(7);
+  await expect(page.locator(".marketing-story-row")).toHaveCount(3);
+  await expect(page.locator(".marketing-hero-visual > *")).toBeVisible();
   await expect(page.locator('a[href^="/library?q="]')).toHaveCount(0);
 
   if ((page.viewportSize()?.width ?? 0) <= 620) {
-    const primaryHeight = await page.locator(".marketing-hero").getByRole("link", { name: "Start learning" }).evaluate((link) => link.getBoundingClientRect().height);
+    const primaryHeight = await page.locator(".marketing-hero").getByRole("link", { name: "Explore course outcomes" }).evaluate((link) => link.getBoundingClientRect().height);
     const footerHeight = await page.locator(".marketing-footer").getByRole("link", { name: "Teaching standard" }).evaluate((link) => link.getBoundingClientRect().height);
     expect(primaryHeight).toBeGreaterThanOrEqual(44);
     expect(footerHeight).toBeGreaterThanOrEqual(44);
@@ -681,7 +681,7 @@ test("publishes the teaching standard", async ({ page }) => {
 
 test("describes guest access and Pro publishing consistently across public pages", async ({ page }) => {
   await page.goto("/");
-  await expect(page.getByRole("heading", { name: "A learning loop for skills you need to use." })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "From a work outcome to evidence." })).toBeVisible();
 
   await page.goto("/library");
   await expect(page).toHaveTitle("Course Library | Filosage");
@@ -774,7 +774,7 @@ test("preserves the selected theme across navigation and reloads", async ({ page
 
   await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
   await expect(page.locator(".marketing-nav-shell .filosage-mark img")).toHaveAttribute("src", /filosage-theme-dark\.png/);
-  await page.locator(".marketing-hero").getByRole("link", { name: "Start learning" }).click();
+  await page.locator(".marketing-hero").getByRole("link", { name: "Explore course outcomes" }).click();
   await expect(page).toHaveURL(/\/library$/);
   await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
   await expect.poll(() => page.evaluate(() => localStorage.getItem("filosage-theme"))).toBe("dark");
@@ -800,8 +800,8 @@ test("keeps primary navigation actions readable before and after hover", async (
       }
 
       const action = viewport.width <= 820
-        ? page.locator(".marketing-mobile-menu").getByRole("link", { name: "Start learning" })
-        : page.locator(".marketing-nav-shell").getByRole("link", { name: "Start learning" });
+        ? page.locator(".marketing-mobile-menu").getByRole("link", { name: "Explore courses" })
+        : page.locator(".marketing-nav-shell").getByRole("link", { name: "Explore courses" });
       await expect(action).toBeVisible();
 
       for (const state of ["rest", "hover"] as const) {
@@ -824,13 +824,7 @@ test("keeps primary navigation actions readable before and after hover", async (
 
 test("lets guests browse outlines while clearly gating lessons behind an account", async ({ page }) => {
   await page.goto("/");
-
-  if ((page.viewportSize()?.width ?? 0) <= 820) {
-    await page.getByRole("button", { name: "Open navigation menu" }).click();
-    await page.locator(".marketing-mobile-menu").getByRole("button", { name: "Sign in" }).click();
-  } else {
-    await page.locator(".marketing-nav-shell").getByRole("button", { name: "Sign in" }).click();
-  }
+  await page.locator(".marketing-hero").getByRole("button", { name: "Create a free account" }).click();
 
   const dialog = page.getByRole("dialog", { name: "Keep your learning in sync" });
   await expect(dialog).toBeVisible();

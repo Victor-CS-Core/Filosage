@@ -1,24 +1,22 @@
-import { ArrowRight, BrainCircuit, Route, Target } from "lucide-react";
+import { BookOpenCheck, BrainCircuit, Route, Sparkles, Target } from "lucide-react";
 
 const steps = [
-  { icon: BrainCircuit, title: "Name the capability you need", copy: "Start with a real outcome and what you already know. Filosage uses that context to keep the path focused." },
-  { icon: Route, title: "Build understanding in stages", copy: "Move through concise teaching, worked examples, retrieval, guided reasoning, and independent transfer." },
-  { icon: Target, title: "Return with evidence", copy: "Saved results determine which review or course step appears next." },
+  { icon: Target, title: "Outcome", copy: "Name the decision, deliverable, or capability that matters in your current work." },
+  { icon: Route, title: "Route", copy: "Use the course structure and a diagnostic-informed starting point to focus the path." },
+  { icon: BookOpenCheck, title: "Practice", copy: "Move through explanation, examples, retrieval, and guided reasoning." },
+  { icon: BrainCircuit, title: "Transfer", copy: "Apply the idea in a new situation and produce work that can be reviewed." },
+  { icon: Sparkles, title: "Evidence", copy: "Keep self-report, observed practice, and assessed criteria as distinct signals." },
 ];
 
 export default function HowItWorks() {
   return (
-    <section className="marketing-section marketing-how" id="how-it-works" aria-labelledby="how-title">
-      <div className="marketing-how-intro"><h2 id="how-title">A learning loop for skills you need to use.</h2><p>Start with a real question, then practice until you can apply the idea without the example.</p></div>
+    <section className="marketing-section landing-runway" id="how-it-works" aria-labelledby="how-title">
+      <div className="landing-runway-intro"><h2 id="how-title">From a work outcome to evidence.</h2><p>The path is visible before you join—and each later step has a clear reason to exist.</p></div>
       <ol>
         {steps.map(({ icon: Icon, title, copy }, index) => (
           <li key={title}>
-            <div className="marketing-step-marker">
-              <span className="marketing-step-number">0{index + 1}</span>
-              <span className="marketing-step-icon"><Icon size={22} aria-hidden="true" /></span>
-            </div>
-            <div className="marketing-step-copy"><h3>{title}</h3><p>{copy}</p></div>
-            {index < steps.length - 1 && <ArrowRight className="marketing-step-arrow" size={18} aria-hidden="true" />}
+            <span className="landing-runway-marker"><Icon size={21} aria-hidden="true" /></span>
+            <div><small>Stage {index + 1}</small><h3>{title}</h3><p>{copy}</p></div>
           </li>
         ))}
       </ol>

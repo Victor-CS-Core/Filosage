@@ -1,6 +1,6 @@
 import "server-only";
 
-import type { Course, LessonData } from "@/lib/course-types";
+import type { Course, CourseSource, LessonData } from "@/lib/course-types";
 import { curateLessonVisuals } from "@/lib/lesson-visuals";
 import { curateLessonInteractions } from "@/lib/lesson-interactions";
 import { lessonVisualsEnabled } from "@/lib/feature-flags";
@@ -10,6 +10,8 @@ import { isSafePublicSourceUrl, sourceReviewForCourse } from "@/lib/source-safet
 import { effectiveCourseReviewPolicy } from "@/lib/course-pipeline/review-policy";
 import { visualPlanSchema } from "@/lib/course-pipeline/schemas";
 import { normalizeSuccessCriteria } from "@/lib/course-criteria";
+import { bibliographicReferenceSchema } from "@/lib/bibliographic-references";
+import { isServerClassifiedResearchSource } from "@/lib/source-research";
 
 function structuredText(value: unknown) {
   return typeof value === "string" ? normalizeStructuredMarkdown(value) : "";
@@ -72,6 +74,23 @@ export function toCourseDto(value: Record<string, unknown> | Course, canManage =
   const safeCapstone = safe.capstone && typeof safe.capstone === "object"
     ? safe.capstone as Course["capstone"]
     : undefined;
+  const layeredEvidence = typeof raw.sourcePolicyVersion === "string" && raw.sourcePolicyVersion.startsWith("source-integrity-v5.");
+  const outlinedLessons = Array.isArray(safe.modules)
+    ? (safe.modules as Course["modules"]).flatMap((courseModule) => courseModule.lessons)
+    : [];
+  const verifiedLessonCount = outlinedLessons.filter((lesson) => lesson.contentBasis === "verified-source").length;
+  const modelKnowledgeLessonCount = outlinedLessons.length - verifiedLessonCount;
+  const currentResearchSources = Array.isArray(safe.sourcePack)
+    ? safe.sourcePack.filter((source): source is CourseSource => Boolean(source)
+      && typeof source === "object"
+      && isServerClassifiedResearchSource(source as CourseSource))
+    : [];
+  const authorityFamilyCount = new Set(currentResearchSources.flatMap((source) => source.authorityFamily ? [source.authorityFamily] : [])).size;
+  const derivedEvidenceMode = verifiedLessonCount === 0
+    ? "model-knowledge" as const
+    : modelKnowledgeLessonCount > 0 || currentResearchSources.length < 2 || authorityFamilyCount < 2
+      ? "hybrid" as const
+      : "fully-grounded" as const;
   return {
     id: typeof safe.id === "string" ? safe.id : undefined,
     courseId: typeof safe.id === "string" ? safe.id : undefined,
@@ -135,6 +154,7 @@ export function toCourseDto(value: Record<string, unknown> | Course, canManage =
       ? safe.sourcePack.flatMap((item) => {
           if (!item || typeof item !== "object") return [];
           const source = item as Record<string, unknown>;
+          if (layeredEvidence && !isServerClassifiedResearchSource(source as unknown as CourseSource)) return [];
           if (typeof source.id !== "string" || typeof source.label !== "string") return [];
           const kind = ["primary", "official", "licensed", "author-provided"].includes(String(source.kind))
             ? source.kind as NonNullable<Course["sourcePack"]>[number]["kind"]
@@ -169,6 +189,67 @@ export function toCourseDto(value: Record<string, unknown> | Course, canManage =
             ...review,
           }];
         })
+      : undefined,
+    furtherReading: Array.isArray(raw.furtherReading)
+      ? raw.furtherReading.flatMap((item) => {
+          const parsed = bibliographicReferenceSchema.safeParse(item);
+          if (!parsed.success) return [];
+          const reference = parsed.data;
+          return [{
+            id: reference.id,
+            policyVersion: reference.policyVersion,
+            role: reference.role,
+            claimEvidence: false as const,
+            contentVerified: reference.contentVerified,
+            materialType: reference.materialType,
+            title: reference.title,
+            containerTitle: reference.containerTitle,
+            contributors: reference.contributors,
+            edition: reference.edition,
+            publisher: reference.publisher,
+            publicationYear: reference.publicationYear,
+            language: reference.language,
+            identifiers: reference.identifiers,
+            catalogUrl: reference.catalogUrl,
+            verificationLabel: "catalog-metadata-verified" as const,
+          }];
+        })
+      : undefined,
+    evidenceProfile: safe.evidenceProfile && typeof safe.evidenceProfile === "object"
+      ? (() => {
+          const profile = safe.evidenceProfile as Record<string, unknown>;
+          const researchOutcome = ["complete", "partial", "unavailable"].includes(String(profile.researchOutcome))
+            ? profile.researchOutcome as NonNullable<Course["evidenceProfile"]>["researchOutcome"]
+            : undefined;
+          return researchOutcome
+            && [profile.verifiedSourceCount, profile.verifiedLessonCount, profile.modelKnowledgeLessonCount, profile.bibliographicReferenceCount]
+              .every((value) => typeof value === "number" && Number.isInteger(value) && value >= 0)
+            && typeof profile.generatedAt === "string"
+            && typeof profile.provider === "string"
+            && typeof profile.model === "string"
+            && typeof profile.policyVersion === "string"
+            ? {
+                mode: derivedEvidenceMode,
+                researchOutcome,
+                verifiedSourceCount: currentResearchSources.length,
+                verifiedLessonCount,
+                modelKnowledgeLessonCount,
+                bibliographicReferenceCount: Array.isArray(raw.furtherReading)
+                  ? raw.furtherReading.filter((item) => bibliographicReferenceSchema.safeParse(item).success).length
+                  : 0,
+                fallbackReasonCodes: Array.isArray(profile.fallbackReasonCodes)
+                  ? profile.fallbackReasonCodes.filter((value): value is string => typeof value === "string" && /^[a-z0-9-]{1,80}$/.test(value))
+                  : [],
+                coverageWarnings: Array.isArray(profile.coverageWarnings)
+                  ? profile.coverageWarnings.filter((value): value is string => typeof value === "string" && value.length <= 400)
+                  : [],
+                generatedAt: profile.generatedAt,
+                provider: profile.provider,
+                model: profile.model,
+                policyVersion: profile.policyVersion,
+              }
+            : undefined;
+        })()
       : undefined,
     banner: raw.banner
       && typeof raw.banner === "object"
@@ -234,11 +315,14 @@ export function toLessonDto(
   const safeValue = sanitizeGeneratedValue(value, topic, instructionLanguage) as Record<string, unknown>;
   value = safeValue;
   const visualPlan = visualPlanSchema.safeParse(value.visualPlan);
-  const rawSources = Array.isArray(value.sourceReferences)
+  const modelKnowledgeLesson = value.contentBasis === "model-knowledge"
+    && typeof value.sourcePolicyVersion === "string"
+    && value.sourcePolicyVersion.startsWith("source-integrity-v5.");
+  const rawSources = !modelKnowledgeLesson && Array.isArray(value.sourceReferences)
     ? value.sourceReferences.filter((item): item is Record<string, unknown> => Boolean(item) && typeof item === "object")
     : [];
   const sourceIds = new Set(rawSources.flatMap((item) => typeof item.id === "string" ? [item.id] : []));
-  const citations = Array.isArray(value.citations)
+  const citations = !modelKnowledgeLesson && Array.isArray(value.citations)
     ? value.citations.flatMap((item, index) => {
         if (!item || typeof item !== "object") return [];
         const citation = item as Record<string, unknown>;
@@ -265,6 +349,9 @@ export function toLessonDto(
   return {
     content: String(value.content ?? ""),
     quizzes: Array.isArray(value.quizzes) ? value.quizzes as LessonData["quizzes"] : [],
+    contentBasis: value.contentBasis === "verified-source" || value.contentBasis === "model-knowledge"
+      ? value.contentBasis
+      : undefined,
     lessonKind: ["substantive", "introduction", "review", "glossary", "reference", "capstone"].includes(String(value.lessonKind ?? ""))
       ? value.lessonKind as LessonData["lessonKind"]
       : undefined,
@@ -302,6 +389,13 @@ export function toLessonDto(
       labRegistryVersion: typeof value.labRegistryVersion === "string" ? value.labRegistryVersion : undefined,
       visualPolicyVersion: typeof value.visualPolicyVersion === "string" ? value.visualPolicyVersion : undefined,
       sourcePolicyVersion: typeof value.sourcePolicyVersion === "string" ? value.sourcePolicyVersion : undefined,
+      contentBasis: value.contentBasis === "verified-source" || value.contentBasis === "model-knowledge"
+        ? value.contentBasis
+        : undefined,
+      claimSupportEvaluatorVersion: typeof value.claimSupportEvaluatorVersion === "string" ? value.claimSupportEvaluatorVersion : undefined,
+      claimSupportEvaluatorStatus: ["executed", "not_executed", "not_applicable"].includes(String(value.claimSupportEvaluatorStatus))
+        ? value.claimSupportEvaluatorStatus as NonNullable<LessonData["provenance"]>["claimSupportEvaluatorStatus"]
+        : undefined,
       sources: rawSources.flatMap((item) => {
         if (typeof item.label !== "string") return [];
         const sourceId = typeof item.id === "string" ? item.id : undefined;

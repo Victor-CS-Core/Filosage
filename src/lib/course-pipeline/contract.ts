@@ -1,20 +1,29 @@
 export const COURSE_PIPELINE_VERSIONS = {
   courseSchema: 5,
   qualityContract: "course-quality-v2.0.0",
-  generationPrompt: "2026-08-14-grounded-source-v3",
+  generationPrompt: "2026-08-15-layered-evidence-v5",
   repairPrompt: "2026-08-11-targeted-repair-v2",
   semanticEvaluator: "2026-08-11-semantic-critic-v2",
   labRegistry: "lab-capabilities-v2.0.0",
   visualPolicy: "visual-support-v2.0.0",
-  sourcePolicy: "source-integrity-v4.1.0",
+  sourcePolicy: "source-integrity-v5.0.0",
 } as const;
 
 export function supportsStructuredSourcePolicy(version: string | undefined) {
-  return version?.startsWith("source-integrity-v3.") || version?.startsWith("source-integrity-v4.") || false;
+  return version?.startsWith("source-integrity-v3.")
+    || version?.startsWith("source-integrity-v4.")
+    || version?.startsWith("source-integrity-v5.")
+    || false;
 }
 
 export function supportsGroundedSourcePolicy(version: string | undefined) {
-  return version?.startsWith("source-integrity-v4.") ?? false;
+  return version?.startsWith("source-integrity-v4.")
+    || version?.startsWith("source-integrity-v5.")
+    || false;
+}
+
+export function supportsLayeredSourcePolicy(version: string | undefined) {
+  return version?.startsWith("source-integrity-v5.") ?? false;
 }
 
 export type CourseStage =

@@ -224,13 +224,21 @@ export default function CourseMap() {
         return;
       }
     }
+    if (!isOwner) {
+      trackProductEvent("course_started", {
+        route: "/course",
+        courseId,
+        contentVersion: course?.updatedAt,
+        oncePerSession: true,
+      });
+    }
     window.location.assign(`/course/${encodeURIComponent(topic)}/lesson/${lessonId}?id=${encodeURIComponent(courseId)}`);
-  }, [courseId, signInWithGoogle, topic, user]);
+  }, [course?.updatedAt, courseId, isOwner, signInWithGoogle, topic, user]);
   const masteryJourney = useMasteryJourney(courseId, user);
 
   useEffect(() => {
     if (!courseId || !course || isOwner) return;
-    trackProductEvent("course_started", {
+    trackProductEvent("course_discovered", {
       route: "/course",
       courseId,
       contentVersion: course.updatedAt,
@@ -300,6 +308,15 @@ export default function CourseMap() {
     Boolean(source.url)
     && (plannedSourceIds.has(source.id) || source.kind === "primary" || source.kind === "official"),
   ), [course?.sourcePack, plannedSourceIds]);
+  const displayedEvidenceSources = course?.evidenceProfile
+    ? (course.sourcePack ?? []).filter((source) => plannedSourceIds.has(source.id)
+      && source.origin === "web-search"
+      && source.citationVerified === true)
+    : course?.sourcePack ?? [];
+  const hasApprenticeship = Boolean(course
+    && (course.artifact || course.scenario || course.modules[0]?.lessons[0]?.activityPreview));
+  const hasCourseEvidence = Boolean(course
+    && (course.evidenceProfile || course.sourcePack?.length || course.furtherReading?.length));
   const proAuthoringGateActive = Boolean(course?.canManage && !isOwner && !course.isPublic);
   const canOpenLesson = useCallback((lessonId: string) =>
     !proAuthoringGateActive
@@ -830,25 +847,44 @@ export default function CourseMap() {
             <section><span><BookOpen size={19} /></span><div><small>Before you begin</small><strong>{course.prerequisites?.length ? course.prerequisites.join(" · ") : "No prior knowledge required"}</strong></div></section>
           </div>
 
-          {(course.artifact || course.scenario || course.modules[0]?.lessons[0]?.activityPreview) && (
+          {(hasApprenticeship || hasCourseEvidence) && (
             <CourseDisclosure
               className="course-apprenticeship"
-              description="Each module adds evidence to the final artifact, so progress is visible in what you can produce, not only what you have read."
-              eyebrow="What you will make"
+              description={hasApprenticeship
+                ? "Each module adds evidence to the final artifact, so progress is visible in what you can produce, not only what you have read."
+                : "Source and reading-list status stays visible without implying that every reference verified a lesson claim."}
+              eyebrow={hasApprenticeship ? "What you will make" : "Course evidence"}
               headingId="course-apprenticeship-title"
-              title="The course advances one piece of meaningful work."
+              title={hasApprenticeship
+                ? "The course advances one piece of meaningful work."
+                : "See how this course classifies its references."}
             >
-              <div className="course-apprenticeship-grid">
+              {hasApprenticeship && <div className="course-apprenticeship-grid">
                 {course.artifact && <article className="artifact-preview"><span><Flag size={18} /> Final artifact</span><h3>{course.artifact.title}</h3><p>{course.artifact.description}</p><small>Format: {course.artifact.format}</small></article>}
                 {course.scenario && <article><span><Layers3 size={18} /> Scenario spine</span><h3>{course.scenario.title}</h3><p>{course.scenario.context}</p><small>Why it matters: {course.scenario.stakes}</small></article>}
                 {course.modules[0]?.lessons[0]?.activityPreview && <article><span><Target size={18} /> First active move</span><h3>{course.modules[0].lessons[0].title}</h3><p>{course.modules[0].lessons[0].activityPreview}</p><small>{course.modules[0].lessons[0].artifactContribution}</small></article>}
-              </div>
-              {course.sourcePack?.length ? <div className="course-source-strip">
-                <strong>Course references</strong>
-                <p>{course.sourcePack.every((source) => source.origin === "web-search" && source.citationVerified)
-                  ? "Filosage found these deep links during automatic research and retained only API-cited sources from its vetted authority registry. Lessons identify the exact statements each source supports so you can open the originals for further study."
-                  : "This legacy course includes author-supplied references. New courses use automatic API-cited research and claim-support checks; treat legacy links as reading suggestions unless a lesson records grounding."}</p>
-                <ul>{course.sourcePack.map((source) => <li key={source.id}>
+              </div>}
+              {hasCourseEvidence ? <div className="course-source-strip">
+                <div className="course-evidence-heading">
+                  <strong>Course evidence</strong>
+                  {course.evidenceProfile && <span data-mode={course.evidenceProfile.mode}>{course.evidenceProfile.mode === "fully-grounded"
+                    ? "Source-backed"
+                    : course.evidenceProfile.mode === "hybrid"
+                      ? "Mixed evidence"
+                      : "Model knowledge"}</span>}
+                </div>
+                <p>{course.evidenceProfile?.mode === "fully-grounded"
+                  ? "Every planned lesson is tied to automatically researched evidence. Lesson citations identify the exact supported sentence and open the original source."
+                  : course.evidenceProfile?.mode === "hybrid"
+                    ? `${course.evidenceProfile.verifiedLessonCount} lessons use automatically verified sources and ${course.evidenceProfile.modelKnowledgeLessonCount} use clearly labeled AI general knowledge where suitable evidence was not available.`
+                    : course.evidenceProfile?.mode === "model-knowledge"
+                      ? "Automatic research did not provide suitable claim-level evidence for this outline. Filosage still created the course from AI general knowledge without inventing citations; verify consequential details with current authoritative guidance before acting."
+                      : course.sourcePack?.every((source) => source.origin === "web-search" && source.citationVerified)
+                        ? "Filosage found these deep links during automatic research and retained only API-cited sources from its vetted authority registry."
+                        : "This legacy course includes author-supplied references. Treat them as reading suggestions unless a lesson records automatic grounding."}</p>
+                {displayedEvidenceSources.length ? <div className="course-reference-group">
+                  <h4>{course.evidenceProfile ? "Verified sources used by lessons" : "Course references"}</h4>
+                  <ul>{displayedEvidenceSources.map((source) => <li key={source.id}>
                   <div>{source.url ? <a href={source.url} target="_blank" rel="nofollow ugc noreferrer" aria-label={`${source.label}, opens ${sourceHostname(source.url)} in a new tab`}>{source.label}</a> : <span>{source.label}</span>}<small>{source.author ? `${source.author} · ` : ""}{source.publisher ? `${source.publisher} · ` : ""}{source.publicationDate ? `${source.publicationDate} · ` : ""}{source.url ? `${sourceHostname(source.url)} · ` : ""}{source.authorityClass?.replace("-", " ") ?? source.kind.replace("-", " ")} · {source.citationVerified ? "API-cited research" : "legacy source"} · {source.rights.replace("-", " ")}</small></div>
                   {user && <button className="text-button" type="button" onClick={() => { setReportingSourceId(source.id); setSourceReportNote(""); setSourceReportCategory("source"); setSourceReportStatus(null); }}><Flag size={13} /> Report source</button>}
                   {reportingSourceId === source.id && <form className="source-report-form" onSubmit={(event) => void reportSource(event, source.id)}>
@@ -858,7 +894,19 @@ export default function CourseMap() {
                     <textarea id={`source-report-${source.id}`} rows={2} maxLength={1_000} value={sourceReportNote} onChange={(event) => setSourceReportNote(event.target.value)} placeholder="For example: misleading destination, weak evidence, or rights concern." />
                     <div><button className="button button-quiet button-small" type="button" onClick={() => setReportingSourceId(null)}>Cancel</button><button className="button button-secondary button-small" type="submit" disabled={sourceReportBusy}>{sourceReportBusy ? <LoaderCircle className="spin" size={14} /> : <Flag size={14} />} Send report</button></div>
                   </form>}
-                </li>)}</ul>
+                  </li>)}</ul>
+                </div> : null}
+                {course.furtherReading?.length ? <div className="course-reference-group">
+                  <h4>Further study</h4>
+                  <p>These works were matched to library or catalog metadata. They are optional reading, not proof that the AI inspected the full text or used the work to support a lesson claim.</p>
+                  <ul>{course.furtherReading.map((reference) => {
+                    const contributor = reference.contributors.map((item) => item.name).join(", ");
+                    const details = [contributor, reference.edition, reference.publisher, reference.publicationYear].filter(Boolean).join(" · ");
+                    return <li key={reference.id}><div>{reference.catalogUrl
+                      ? <a href={reference.catalogUrl} target="_blank" rel="nofollow ugc noreferrer" aria-label={`${reference.title}, opens its catalog record in a new tab`}>{reference.title}</a>
+                      : <span>{reference.title}</span>}<small>{details || "Metadata-verified bibliographic record"} · further reading</small></div></li>;
+                  })}</ul>
+                </div> : null}
                 {sourceReportStatus && <small role="status">{sourceReportStatus}</small>}
               </div> : null}
             </CourseDisclosure>

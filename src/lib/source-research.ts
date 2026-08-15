@@ -7,9 +7,12 @@ import {
   lessonGroundingFingerprint,
 } from "@/lib/source-grounding";
 
-export const SOURCE_RESEARCH_POLICY_VERSION = "source-research-v1.1.0";
+export const SOURCE_RESEARCH_POLICY_VERSION = "source-research-v2.0.0";
+// V1 research remains verifiable for immutable v4 course artifacts. New v5
+// research and cache reuse bind to the exact V2 policy exported above.
 const SUPPORTED_SOURCE_RESEARCH_POLICY_VERSIONS = new Set([
   "source-research-v1.0.0",
+  "source-research-v1.1.0",
   SOURCE_RESEARCH_POLICY_VERSION,
 ]);
 
@@ -19,6 +22,14 @@ type AuthorityRule = {
   family: string;
   evidenceEligible?: boolean;
 };
+
+export type SourceEvidenceMode = "fully-grounded" | "hybrid" | "model-knowledge";
+
+export interface SourceResearchV5Assessment {
+  evidenceMode: SourceEvidenceMode;
+  integrityIssues: string[];
+  coverageWarnings: string[];
+}
 
 const AUTHORITY_RULES: AuthorityRule[] = [
   { domain: "doi.org", authorityClass: "scholarly", family: "doi", evidenceEligible: false },
@@ -100,10 +111,10 @@ export const sourceResearchSchema = z.object({
     evidenceClaims: z.array(z.object({
       claim: z.string().trim().min(30).max(320),
       locator: z.string().trim().min(2).max(160).nullable(),
-    })).min(2).max(3),
+    })).min(1).max(3),
     reputationRationale: z.string().trim().min(20).max(400),
     limitations: z.string().trim().min(10).max(400),
-  })).min(2).max(3),
+  })).min(0).max(5),
 });
 
 export type SourceResearchResult = z.infer<typeof sourceResearchSchema>;
@@ -136,7 +147,7 @@ function hasSourceControlArtifact(value: string | undefined) {
   return Boolean(value && SOURCE_CONTROL_ARTIFACTS.some((pattern) => pattern.test(value)));
 }
 
-function canonicalUrl(value: string) {
+export function canonicalProviderUrl(value: string) {
   const parsed = new URL(value);
   parsed.hash = "";
   parsed.hostname = parsed.hostname.toLowerCase();
@@ -175,17 +186,38 @@ export function isResearchResourceDeepLink(value: string) {
 }
 
 export function isServerClassifiedResearchSource(source: CourseSource) {
+  const evidenceClaims = source.evidenceClaims ?? [];
+  const evidenceClaimIds = evidenceClaims.map((claim) => claim.id);
+  const evidenceClaimTexts = evidenceClaims.map((claim) => claim.claim.trim());
+  const hasValidEvidenceClaims = evidenceClaims.length >= 1
+    && evidenceClaims.length <= 3
+    && new Set(evidenceClaimIds).size === evidenceClaimIds.length
+    && new Set(evidenceClaimTexts).size === evidenceClaimTexts.length
+    && evidenceClaims.every((claim) => /^evidence-[a-f0-9]{16}-[1-3]$/.test(claim.id)
+      && claim.claim.trim().length >= 12
+      && claim.claim.trim().length <= 600
+      && !hasSourceControlArtifact(claim.claim)
+      && (claim.locator === undefined || (claim.locator.trim().length >= 1 && claim.locator.length <= 160)))
+    && source.note === evidenceClaimTexts.join("\n");
+  const hasValidProviderIds = Boolean(source.researchResponseId?.trim())
+    && Boolean(source.evidenceValidationResponseId?.trim())
+    && Boolean(source.researchCallIds?.length)
+    && new Set(source.researchCallIds).size === source.researchCallIds?.length
+    && source.researchCallIds?.every((id) => Boolean(id.trim()))
+    && Boolean(source.evidenceValidationCallIds?.length)
+    && new Set(source.evidenceValidationCallIds).size === source.evidenceValidationCallIds?.length
+    && source.evidenceValidationCallIds?.every((id) => Boolean(id.trim()));
   return source.origin === "web-search"
     && source.citationVerified === true
     && source.publicationStatus === "released"
     && source.statusCheck === "released-no-withdrawal-found"
     && Boolean(source.researchPolicyVersion && SUPPORTED_SOURCE_RESEARCH_POLICY_VERSIONS.has(source.researchPolicyVersion))
-    && Boolean(source.researchResponseId)
-    && Boolean(source.researchCallIds?.length)
-    && Boolean(source.evidenceValidationResponseId)
-    && Boolean(source.evidenceValidationCallIds?.length)
+    && hasValidProviderIds
     && source.qualityTier === "vetted"
     && Boolean(source.authorityClass && source.authorityFamily && source.note?.trim())
+    && hasValidEvidenceClaims
+    && Boolean(source.retrievedAt && Number.isFinite(Date.parse(source.retrievedAt)))
+    && Boolean(source.accessedAt && /^\d{4}-\d{2}-\d{2}$/.test(source.accessedAt))
     && Boolean(source.url && isSafePublicSourceUrl(source.url) && isEvidenceAuthorityUrl(source.url))
     && Boolean(source.url && isResearchResourceDeepLink(source.url));
 }
@@ -204,6 +236,62 @@ export function groundedSourcePackIssues(sourcePack: CourseSource[] | undefined)
     issues.push("A grounded course requires at least two independent authority families.");
   }
   return issues;
+}
+
+export function classifySourceEvidenceMode(sourcePack: CourseSource[] | undefined): SourceEvidenceMode {
+  const sources = sourcePack ?? [];
+  if (!sources.length) return "model-knowledge";
+  const authorityFamilies = new Set(sources.flatMap((source) => source.authorityFamily ? [source.authorityFamily] : []));
+  return sources.length >= 2 && authorityFamilies.size >= 2 ? "fully-grounded" : "hybrid";
+}
+
+export function sourceResearchIntegrityIssues(sourcePack: CourseSource[] | undefined) {
+  const issues: string[] = [];
+  const seenIds = new Set<string>();
+  const seenUrls = new Set<string>();
+  for (const [index, source] of (sourcePack ?? []).entries()) {
+    if (seenIds.has(source.id)) issues.push(`sources[${index}] duplicates source ID ${source.id}.`);
+    seenIds.add(source.id);
+    if (source.researchPolicyVersion !== SOURCE_RESEARCH_POLICY_VERSION) {
+      issues.push(`sources[${index}] (${source.id}) is not bound to ${SOURCE_RESEARCH_POLICY_VERSION}.`);
+    }
+    if (!isServerClassifiedResearchSource(source)) {
+      issues.push(`sources[${index}] (${source.id}) lacks API-cited, server-classified research provenance.`);
+    }
+    if (source.rights !== "link-only") issues.push(`sources[${index}] (${source.id}) must remain link-only.`);
+    if (source.url) {
+      let url = source.url;
+      try {
+        url = canonicalProviderUrl(source.url);
+      } catch {
+        // The provenance check above already records malformed or unsafe URLs.
+      }
+      if (seenUrls.has(url)) issues.push(`sources[${index}] duplicates an earlier source URL.`);
+      seenUrls.add(url);
+    }
+  }
+  return issues;
+}
+
+export function sourceResearchCoverageWarnings(sourcePack: CourseSource[] | undefined) {
+  const sources = sourcePack ?? [];
+  const warnings: string[] = [];
+  if (sources.length < 2) {
+    warnings.push(`Only ${sources.length} eligible research source${sources.length === 1 ? " was" : "s were"} available; course creation may continue with disclosed model knowledge.`);
+  }
+  const authorityFamilies = new Set(sources.flatMap((source) => source.authorityFamily ? [source.authorityFamily] : []));
+  if (authorityFamilies.size < 2) {
+    warnings.push(`Only ${authorityFamilies.size} independent authority famil${authorityFamilies.size === 1 ? "y was" : "ies were"} available; available references must not be represented as corroborated by multiple families.`);
+  }
+  return warnings;
+}
+
+export function assessSourceResearchV5(sourcePack: CourseSource[] | undefined): SourceResearchV5Assessment {
+  return {
+    evidenceMode: classifySourceEvidenceMode(sourcePack),
+    integrityIssues: sourceResearchIntegrityIssues(sourcePack),
+    coverageWarnings: sourceResearchCoverageWarnings(sourcePack),
+  };
 }
 
 export function automaticCitationGroundingIssues(
@@ -266,7 +354,7 @@ export function validateSourceEvidence(
       issues.push("The independent evidence validator returned an unsafe or malformed source URL.");
       continue;
     }
-    const url = canonicalUrl(result.url);
+    const url = canonicalProviderUrl(result.url);
     if (validationByUrl.has(url)) {
       issues.push("The independent evidence validator returned a duplicate source URL.");
       continue;
@@ -274,7 +362,7 @@ export function validateSourceEvidence(
     validationByUrl.set(url, result);
   }
   const sources = sourcePack.flatMap((source) => {
-    const url = source.url && isSafePublicSourceUrl(source.url) ? canonicalUrl(source.url) : "";
+    const url = source.url && isSafePublicSourceUrl(source.url) ? canonicalProviderUrl(source.url) : "";
     const result = validationByUrl.get(url);
     if (!url || !groundedUrls.has(url)) {
       rejections.push(`Source ${source.id} was not cited by the independent evidence-validation response.`);
@@ -344,7 +432,7 @@ export function annotatedCitationUrls(response: unknown) {
     if (!value || typeof value !== "object") return;
     const record = value as Record<string, unknown>;
     if (record.type === "url_citation" && typeof record.url === "string" && isSafePublicSourceUrl(record.url)) {
-      urls.add(canonicalUrl(record.url));
+      urls.add(canonicalProviderUrl(record.url));
     }
     for (const nested of Object.values(record)) {
       if (Array.isArray(nested)) nested.forEach(visit);
@@ -365,13 +453,13 @@ export function webSearchSourceUrls(response: unknown) {
         ? record.action as Record<string, unknown>
         : undefined;
       if (action && typeof action.url === "string" && isSafePublicSourceUrl(action.url)) {
-        urls.add(canonicalUrl(action.url));
+        urls.add(canonicalProviderUrl(action.url));
       }
       if (action && Array.isArray(action.sources)) {
         for (const source of action.sources) {
           if (source && typeof source === "object") {
             const url = (source as Record<string, unknown>).url;
-            if (typeof url === "string" && isSafePublicSourceUrl(url)) urls.add(canonicalUrl(url));
+            if (typeof url === "string" && isSafePublicSourceUrl(url)) urls.add(canonicalProviderUrl(url));
           }
         }
       }
@@ -408,7 +496,7 @@ export function completedWebSearchCallIds(response: unknown) {
   return [...new Set(ids)];
 }
 
-export function certifyResearchSources(
+function certifyResearchSourceCandidates(
   research: SourceResearchResult,
   response: unknown,
   retrievedAt = new Date().toISOString(),
@@ -441,7 +529,7 @@ export function certifyResearchSources(
       rejections.push(`sources[${index}].url must deep-link to a specific research document or resource, not a homepage or listing.`);
       continue;
     }
-    const url = canonicalUrl(candidate.url);
+    const url = canonicalProviderUrl(candidate.url);
     if (!groundedUrls.has(url)) {
       rejections.push(`sources[${index}].url was not present in API web-search source provenance.`);
       continue;
@@ -504,9 +592,33 @@ export function certifyResearchSources(
   }
 
   if (webSearchCallCount(response) < 1) issues.push("The research response did not contain a completed web_search_call.");
-  if (sources.length < 2) issues.push("At least two API-cited, server-vetted sources are required.");
-  if (new Set(sources.map((source) => source.authorityFamily)).size < 2) {
+  return { sources, issues, rejections };
+}
+
+export function certifyResearchSources(
+  research: SourceResearchResult,
+  response: unknown,
+  retrievedAt = new Date().toISOString(),
+) {
+  const certified = certifyResearchSourceCandidates(research, response, retrievedAt);
+  const issues = [...certified.issues];
+  if (certified.sources.length < 2) issues.push("At least two API-cited, server-vetted sources are required.");
+  if (new Set(certified.sources.map((source) => source.authorityFamily)).size < 2) {
     issues.push("Research must include at least two independent authority families.");
   }
-  return { sources, issues, rejections };
+  return { ...certified, issues };
+}
+
+export function certifyResearchSourcesV5(
+  research: SourceResearchResult,
+  response: unknown,
+  retrievedAt = new Date().toISOString(),
+) {
+  const certified = certifyResearchSourceCandidates(research, response, retrievedAt);
+  return {
+    ...certified,
+    evidenceMode: classifySourceEvidenceMode(certified.sources),
+    integrityIssues: [...certified.rejections],
+    coverageWarnings: sourceResearchCoverageWarnings(certified.sources),
+  };
 }

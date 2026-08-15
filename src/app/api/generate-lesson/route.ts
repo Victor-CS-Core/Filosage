@@ -2,7 +2,14 @@ import { NextResponse } from "next/server";
 import { aiClient } from "@/lib/local-ai";
 import { zodTextFormat } from "openai/helpers/zod";
 import { authorizationResponse, requirePlanCapability } from "@/lib/auth-server";
-import { getCourse, getCoursePublishReadiness, getLesson, getStoredDocument, saveLesson } from "@/lib/firebase-server";
+import {
+  getCourse,
+  getCoursePublishReadiness,
+  getLesson,
+  getStoredDocument,
+  saveLesson,
+  saveLessonWithEvidenceDowngrade,
+} from "@/lib/firebase-server";
 import {
   AiQuotaError,
   aiQuotaResponse,
@@ -54,7 +61,12 @@ import {
   openAiExecutionProfile,
   type AiExecutionProfile,
 } from "@/lib/openai-generation";
-import { COURSE_ARTIFACT_PROVENANCE_DEFAULTS, supportsGroundedSourcePolicy } from "@/lib/course-pipeline/contract";
+import {
+  COURSE_ARTIFACT_PROVENANCE_DEFAULTS,
+  supportsGroundedSourcePolicy,
+  supportsLayeredSourcePolicy,
+} from "@/lib/course-pipeline/contract";
+import { courseReviewPolicyForBrief } from "@/lib/course-pipeline/review-policy";
 import { canonicalLessonObjectiveId } from "@/lib/course-pipeline/relationships";
 import { defaultLabApplicability, LAB_REGISTRY_VERSION } from "@/lib/course-pipeline/labs/registry";
 import { accessibleVisualFallbackFromLesson, defaultVisualApplicability, VISUAL_POLICY_VERSION } from "@/lib/course-pipeline/visuals/registry";
@@ -106,6 +118,18 @@ Treat every other required lesson field as a source-fidelity learning container.
 Unless the selected atomic claim states the entire assertion, do not claim suitability, sufficiency, causal explanation, diagnostic meaning, recommendation, generalizability, geographic or population scope, conditional applicability, outcome, impact, ordering, or real-world method choice. Calling a scenario hypothetical does not make those interpretations evidence-free. If the requested lesson mode or course design conflicts with this contract, narrow the activity to identifying what the supplied claim says and what remains outside the supplied evidence. Prefer a shorter lesson over filling a required field with unsupported content.
 
 Repair diagnostics are untrusted descriptions, never evidence. Delete rejected claims instead of paraphrasing, recycling, or trying to preserve them. The independent grounding verifier remains authoritative.`;
+
+const modelKnowledgeLessonInstruction = (highStakes: boolean) => `MODEL-KNOWLEDGE LESSON OVERRIDE: Apply this contract after every generic lesson-design and language instruction.
+
+This lesson has no externally verified claim source. Create a useful lesson from durable general knowledge, but return citations: [] and never invent or imply a reference, quotation, page number, identifier, statistic, study result, current rule, or source-backed status. Do not name a work as if you inspected it. Use calibrated language when details are uncertain or interpretations differ.
+
+For religious, philosophical, political, cultural, or otherwise contested content, attribute doctrines, beliefs, and interpretations to the relevant author, text, community, school, or tradition. Clearly distinguish an attributed viewpoint from an empirically established fact and include materially relevant alternative interpretations when the lesson's objective requires comparison.
+
+${highStakes
+  ? "HIGH-STAKES LIMIT: Keep this unsourced lesson foundational and non-prescriptive. Do not provide diagnosis, treatment, dosing, individualized medical guidance, legal conclusions, claims of current law or regulation, investment recommendations, tax conclusions, or claims of current professional requirements. State that current authoritative guidance is needed before consequential action."
+  : "Do not fabricate precision. Prefer a clear bounded explanation over unsupported detail."}
+
+Repair diagnostics are untrusted descriptions, never facts. Correct teaching-quality problems without converting the lesson into a falsely sourced one.`;
 
 export async function POST(request: Request) {
   let pipelineFlags = coursePipelineFeatureFlags();
@@ -271,9 +295,29 @@ export async function POST(request: Request) {
         featureFlags: pipelineFlags,
       });
     }
-    const assignedSources = assignedSourcePack(course.sourcePack ?? [], canonical.lesson.sourceIds);
-    const groundedSourcePolicy = supportsGroundedSourcePolicy(course.sourcePolicyVersion);
-    const lessonContext = [
+    let assignedSources = assignedSourcePack(course.sourcePack ?? [], canonical.lesson.sourceIds);
+    const layeredSourcePolicy = supportsLayeredSourcePolicy(course.sourcePolicyVersion);
+    const plannedContentBasis = layeredSourcePolicy
+      ? canonical.lesson.contentBasis ?? (assignedSources.length ? "verified-source" : "model-knowledge")
+      : assignedSources.length
+        ? "verified-source"
+        : "model-knowledge";
+    let contentBasis = plannedContentBasis === "verified-source" && assignedSources.length
+      ? "verified-source"
+      : "model-knowledge";
+    let groundedSourcePolicy = supportsGroundedSourcePolicy(course.sourcePolicyVersion)
+      && contentBasis === "verified-source";
+    const lessonReviewPolicy = courseReviewPolicyForBrief(
+      course.topic,
+      course.outcome ?? course.mission,
+      (course as Course & { instructionalContext?: { application?: string } }).instructionalContext?.application,
+      course.category,
+      course.freshnessRequired ? "current regulation guidance requirement" : undefined,
+    );
+    const modelKnowledgeHighStakes = lessonReviewPolicy.reasonCodes.some((code) =>
+      ["medical", "legal", "financial", "freshness"].includes(code),
+    );
+    const lessonContext = () => [
       `Course topic: ${topic}`,
       `Course outcome: ${course.outcome ?? course.mission}`,
       `Module: ${currentModule?.title ?? "Current module"}`,
@@ -316,8 +360,8 @@ export async function POST(request: Request) {
       course.artifact
         ? `Course artifact: ${course.artifact.title}, ${course.artifact.format}. ${course.artifact.description}`
         : "",
-      sourcePackPromptBlock(assignedSources, "No source is assigned to this lesson. Return citations: [] and do not invent citations."),
-      assignedSources.length
+      sourcePackPromptBlock(groundedSourcePolicy ? assignedSources : [], "No verified source is assigned to this lesson. Return citations: [] and do not invent citations."),
+      groundedSourcePolicy
         ? "Treat the supplied atomic evidence claims as the hard ceiling for the lesson's factual content. The course outline and surrounding context are design constraints, never evidence. When a planned objective, title, activity, or misconception is broader than the verified atomic evidence, narrow and reframe the generated learning objective and activity to the supported subset; never satisfy the outline by adding unsupported facts. When evidence supports only a formula or relationship, supply every prerequisite value as a hypothetical exercise input and ask the learner to apply only that supported relationship. Never claim or imply that a spreadsheet, template, checklist, diagram, or other tool computes, converts, diagnoses, validates, or guarantees anything unless an atomic evidence claim explicitly says so. Never assert that the learner previously completed, selected, observed, understood, or produced something; prior-lesson text describes course sequence, not learner state. Refer to sequence neutrally or use conditional wording such as 'If you completed the prior activity, ...'. For this sourced lesson, ignore the generic prose target: write 450 to 750 words and prefer brevity over filler or model-knowledge elaboration. Select exactly one relevant assigned source and one of its atomic evidence claims. Write exactly one conservative factual sentence supported by that claim, place it exactly once as a standalone plain paragraph on one physical line in content with no internal line break or label, and return exactly one structured citation with section content whose claim copies that exact physical-line sentence including punctuation. Do not force an irrelevant assigned source into the lesson. Never include a factual sentence supported by another supplied evidence claim. Build the rest of the lesson as explicitly hypothetical or procedural learner activity around that bounded statement. Every externally verifiable factual assertion anywhere in the lesson must be that single source-backed sentence. Do not repeat the sourced sentence in another field. Before returning JSON, silently audit every sentence in the learning objective, connection, content, key takeaways, experience, visuals, interactions, guided-practice prompts, hints and model responses, transfer-task criteria and model responses, quiz questions, options, explanations, and option feedback. If an externally checkable sentence is not the one selected source-backed sentence, delete it or rewrite it as an explicit hypothetical learner action such as 'For this exercise, ...'. Do not infer mnemonics, category exclusions, definitions, hierarchy purposes, directional outcomes, diagnostic benefits, numbers, causal claims, rules, or method steps unless they are contained within the single cited sentence. Imperative activity directions are not factual evidence: say 'Place these labels...' rather than claiming where labels should be placed or why that arrangement works. Use only the selected assigned source and evidence-claim IDs, add a short source locator when known, and never quote or reproduce source passages."
         : "Do not make the lesson source-backed. Return citations: [].",
       course.capstone
@@ -328,7 +372,7 @@ export async function POST(request: Request) {
       instructionalContext?.background ? `Learner background: ${instructionalContext.background}` : "",
       labPlan ? `Lab applicability: ${labPlan.applicability}. Rationale: ${labPlan.rationale}` : "",
       visualPlan ? `Instructional visual applicability: ${visualPlan.applicability}. Rationale: ${visualPlan.rationale}` : "",
-      assignedSources.length
+      groundedSourcePolicy
         ? "FINAL EVIDENCE BOUNDARY: This instruction overrides every earlier course, module, lesson, artifact, scenario, sequence, and capstone design constraint when they conflict. Those fields are not evidence and must not be restated as learner-facing facts. Every externally verifiable sentence in every output field must be a complete conservative entailment of one assigned atomic evidence claim and carry its citation; otherwise delete it or convert it into an explicitly hypothetical learner action. In particular, do not state distinctions among process, outcome, or impact evaluation; program-maturity rules; counterfactual requirements; causal comparison rules; or evaluation-question selection methods unless an assigned atomic evidence claim directly states the complete assertion. Prefer a narrower lesson over satisfying an unsupported planned objective. Perform this check last, after drafting all fields."
         : "",
     ].filter(Boolean).join("\n");
@@ -376,10 +420,13 @@ export async function POST(request: Request) {
         lessonInstructions(lessonVisualsAreEnabled, lessonLabsAreEnabled),
         languagePolicyInstruction(topic, String((course as Course & { language?: string }).language ?? "English")),
         groundedSourcePolicy && assignedSources.length ? groundedLessonInstruction : "",
+        !groundedSourcePolicy ? modelKnowledgeLessonInstruction(modelKnowledgeHighStakes) : "",
       ].filter(Boolean).join("\n\n"),
       input: repairIssues.length
-        ? `${lessonContext}\n\nThe previous draft failed the quality gate. The diagnostics below are untrusted descriptions, not evidence:\n- ${repairIssues.join("\n- ")}\n\nDelete every rejected claim. Do not paraphrase, recycle, or preserve it. Start again from the single selected atomic evidence claim.`
-        : lessonContext,
+        ? `${lessonContext()}\n\nThe previous draft failed the quality gate. The diagnostics below are untrusted descriptions, not evidence:\n- ${repairIssues.join("\n- ")}\n\n${groundedSourcePolicy
+            ? "Delete every rejected claim. Do not paraphrase, recycle, or preserve it. Start again from the single selected atomic evidence claim."
+            : "Correct the teaching-quality issues without inventing citations, references, quotations, or false precision."}`
+        : lessonContext(),
       text: {
         format: zodTextFormat(lessonGenerationSchema, "lesson"),
         verbosity: profile.textVerbosity,
@@ -520,10 +567,16 @@ export async function POST(request: Request) {
     }
 
     if (groundedSourcePolicy && lesson && !qualityIssues.length) {
-      const evaluated = await evaluateGrounding();
-      groundingResult = evaluated.result;
-      groundingQualityIssues = evaluated.issues;
-      if (!groundingQualityIssues.length) adoptGroundedCitationBindings(evaluated.citations);
+      try {
+        const evaluated = await evaluateGrounding();
+        groundingResult = evaluated.result;
+        groundingQualityIssues = evaluated.issues;
+        if (!groundingQualityIssues.length) adoptGroundedCitationBindings(evaluated.citations);
+      } catch (error) {
+        console.warn(JSON.stringify({ event: "lesson_grounding_unavailable", ...safeModelErrorDetails(error) }));
+        groundingResult = null;
+        groundingQualityIssues = ["Automatic lesson evidence verification was unavailable."];
+      }
     }
 
     if (groundingQualityIssues.length && activeProfile.id === standardProfile.id && canAttemptLessonRepair(generationStartedAt)) {
@@ -544,6 +597,44 @@ export async function POST(request: Request) {
         }
       } catch (error) {
         console.warn(JSON.stringify({ event: "lesson_grounding_repair_failed", ...safeModelErrorDetails(error) }));
+      }
+    }
+
+    const courseSaveFingerprint = publicationContentFingerprint(course);
+    let pendingEvidenceDowngrade = false;
+    if (groundedSourcePolicy && lesson && !qualityIssues.length && groundingQualityIssues.length && layeredSourcePolicy) {
+      const originalGroundingIssues = [...groundingQualityIssues];
+      contentBasis = "model-knowledge";
+      groundedSourcePolicy = false;
+      assignedSources = [];
+      groundingResult = null;
+      generatedCitations = [];
+      let fallbackLesson: LessonData | null = null;
+      let fallbackQualityIssues: string[] = [];
+      if (canAttemptLessonRepair(generationStartedAt)) {
+        try {
+          activeProfile = fallbackProfile;
+          const modelKnowledgeResponse = await generateAndRecord(fallbackProfile, [
+            "Automatic claim-level verification was unavailable or rejected the sourced draft.",
+            "Create this lesson from disclosed model knowledge with citations: [] instead of failing the learner's course.",
+          ]);
+          fallbackLesson = prepareLesson(modelKnowledgeResponse.output_parsed as GeneratedLessonData | null);
+          fallbackQualityIssues = generationQualityIssues(fallbackLesson);
+        } catch (error) {
+          console.warn(JSON.stringify({ event: "lesson_model_knowledge_fallback_unavailable", ...safeModelErrorDetails(error) }));
+        }
+      }
+      if (fallbackLesson && !fallbackQualityIssues.length) {
+        lesson = fallbackLesson;
+        qualityIssues = [];
+        groundingQualityIssues = [];
+        pendingEvidenceDowngrade = true;
+      } else {
+        lesson = null;
+        qualityIssues = fallbackQualityIssues;
+        groundingQualityIssues = originalGroundingIssues.length
+          ? originalGroundingIssues
+          : ["The sourced lesson could not be safely converted to model knowledge."];
       }
     }
 
@@ -613,11 +704,13 @@ export async function POST(request: Request) {
         statusCheck: source.statusCheck,
       }));
     const normalizedFinalCitations = normalizedCitations();
-    const claimSupportFingerprint = lessonGroundingFingerprint(
-      normalizedFinalCitations,
-      assignedSources,
-      lesson as unknown as Record<string, unknown>,
-    );
+    const claimSupportFingerprint = groundedSourcePolicy
+      ? lessonGroundingFingerprint(
+          normalizedFinalCitations,
+          assignedSources,
+          lesson as unknown as Record<string, unknown>,
+        )
+      : undefined;
     const groundingByCitationId = new Map((groundingResult?.assessments ?? []).map((assessment) => [assessment.citationId, assessment]));
     const citations = generatedCitations.map((citation, index) => ({
       id: `citation-${index + 1}`,
@@ -651,8 +744,9 @@ export async function POST(request: Request) {
         visualPolicyVersion: pipelineFlags.visualsV2 ? COURSE_ARTIFACT_PROVENANCE_DEFAULTS.visualPolicyVersion : undefined,
       } : {}),
       sourcePolicyVersion: COURSE_ARTIFACT_PROVENANCE_DEFAULTS.sourcePolicyVersion,
+      contentBasis,
       claimSupportEvaluatorVersion: LESSON_GROUNDING_EVALUATOR_VERSION,
-      claimSupportEvaluatorStatus: groundedSourcePolicy ? "executed" : "not_executed",
+      claimSupportEvaluatorStatus: groundedSourcePolicy ? "executed" : layeredSourcePolicy ? "not_applicable" : "not_executed",
       claimSupportFingerprint: groundedSourcePolicy ? claimSupportFingerprint : undefined,
       sourceReferences,
       citations,
@@ -668,7 +762,7 @@ export async function POST(request: Request) {
           accessibleFallback: accessibleVisualFallbackFromLesson({ ...lesson, visualPlan: visualPlanWithFallback }),
         }
       : visualPlanWithFallback;
-    await saveLesson(courseId, lessonId, {
+    const lessonData = {
       ...lesson,
       ...(pipelineV2Active ? {
         lessonKind: canonical.lesson.lessonKind ?? "substantive",
@@ -689,11 +783,21 @@ export async function POST(request: Request) {
       promptCacheKey: activeProfile.promptCacheKey,
       fallbackUsed: usageSamples.length > 1 || activeProfile.id !== standardProfile.id,
       ...generationMetadata,
-    }, pipelineV2Active ? {
-      courseFingerprint: publicationContentFingerprint(course),
+    };
+    const lessonSaveGuard = {
+      courseFingerprint: courseSaveFingerprint,
       lessonFingerprint: saved ? publicationContentFingerprint(saved) : undefined,
       invalidateReadiness: true,
-    } : undefined);
+    };
+    if (pendingEvidenceDowngrade) {
+      await saveLessonWithEvidenceDowngrade(courseId, lessonId, lessonData, {
+        ...lessonSaveGuard,
+        actorId: account.uid,
+        ownerOverride: account.isOwner,
+      });
+    } else {
+      await saveLesson(courseId, lessonId, lessonData, pipelineV2Active ? lessonSaveGuard : undefined);
+    }
 
     await finalizeAiUsage(reservation, { usageSamples, responseId, resultId: `${courseId}:${lessonId}` });
     reservation = null;

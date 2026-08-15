@@ -73,7 +73,7 @@ test("malformed pricing intent is rejected instead of invented as Pro", () => {
 
 test("public and owner-facing tier copy no longer describes a two-tier product", () => {
   expect(source("src/app/library/page.tsx")).toContain("Compare memberships");
-  expect(source("src/components/marketing/LandingPage.tsx")).toContain("Plus and Pro course generation");
+  expect(source("src/components/marketing/LandingPage.tsx")).toContain("Paid availability stays explicit");
   expect(source("src/app/api/waitlist/route.ts")).toContain("paid membership launch");
   expect(source("src/content/support/owner-documentation.ts")).toContain("Plus adds one active private course");
 });
