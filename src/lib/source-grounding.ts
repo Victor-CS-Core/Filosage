@@ -2,7 +2,7 @@ import { createHash } from "node:crypto";
 import { z } from "zod";
 import type { CourseSource, LessonCitationSection } from "@/lib/course-types";
 
-export const LESSON_GROUNDING_EVALUATOR_VERSION = "2026-08-14-claim-grounding-v3";
+export const LESSON_GROUNDING_EVALUATOR_VERSION = "2026-08-14-claim-grounding-v4";
 export const COURSE_GROUNDING_EVALUATOR_VERSION = "2026-08-14-outline-grounding-v2";
 const LEGACY_COURSE_GROUNDING_EVALUATOR_VERSION = "2026-08-14-outline-grounding-v1";
 

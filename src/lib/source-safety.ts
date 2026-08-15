@@ -172,6 +172,35 @@ function citationSentenceCandidates(value: string) {
     .filter(Boolean);
 }
 
+function citationBindingSentenceCandidates(section: LessonCitationSection, value: string) {
+  const segmenter = new Intl.Segmenter(undefined, { granularity: "sentence" });
+  let fence: { marker: "`" | "~"; length: number } | null = null;
+  return value.split(/\r?\n/u).flatMap((line) => {
+    const openingFence = !fence ? line.match(/^ {0,3}(`{3,}|~{3,})/u)?.[1] : undefined;
+    const closingFence = fence ? line.match(/^ {0,3}(`+|~+)\s*$/u)?.[1] : undefined;
+    const closesFence = Boolean(closingFence
+      && closingFence[0] === fence?.marker
+      && closingFence.length >= (fence?.length ?? Number.POSITIVE_INFINITY));
+    const fenceDelimiter = Boolean(openingFence || closesFence);
+    const indentedCode = /^(?: {4}|\t)/u.test(line);
+    const mayStripMarkdownMarker = section === "content"
+      && !fence
+      && !fenceDelimiter
+      && !indentedCode;
+    const candidates = Array.from(segmenter.segment(line), ({ segment }) => segment.trim())
+      .filter(Boolean)
+      .map((sentence) => ({
+        sentence,
+        visibleSentence: mayStripMarkdownMarker
+          ? sentence.replace(/^(?:#{1,6}|>|[-+*]|\d{1,9}[.)])\s+/u, "")
+          : sentence,
+      }));
+    if (openingFence) fence = { marker: openingFence[0] as "`" | "~", length: openingFence.length };
+    else if (closesFence) fence = null;
+    return candidates;
+  });
+}
+
 const unsafeCitationSerializationCharacters = /[\u200B-\u200F\u202A-\u202E\u2066-\u2069\uFEFF]/u;
 
 function comparableCitationSerialization(value: string) {
@@ -283,12 +312,18 @@ export function lessonCitationCanonicalBindingIssues(
 ) {
   const sentenceLocations = lessonCitationSections.flatMap((section) =>
     citationSectionLeafTexts(lesson, section).flatMap((leaf) =>
-      citationSentenceCandidates(leaf).map((sentence) => ({ section, sentence })),
+      citationBindingSentenceCandidates(section, leaf).map(({ sentence, visibleSentence }) => ({
+        section,
+        sentence,
+        visibleSentence,
+      })),
     ),
   );
   const issues: string[] = [];
   for (const [index, citation] of (citations ?? []).entries()) {
-    const matches = sentenceLocations.filter(({ sentence }) => sentence === citation.claim.trim());
+    const matches = sentenceLocations.filter(({ sentence, visibleSentence }) =>
+      sentence === citation.claim.trim() || visibleSentence === citation.claim.trim(),
+    );
     if (matches.length !== 1 || matches[0].section !== citation.section) {
       issues.push(`citations[${index}] must bind to one unique complete verbatim sentence in its declared lesson section.`);
     }

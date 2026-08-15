@@ -91,7 +91,8 @@ test("grounded lesson generation maps every factual assertion and exposes owner-
   expect(routeSource).toContain("For this exercise, ...");
   expect(routeSource).toContain("write 450 to 750 words");
   expect(routeSource).toContain("strict claim-evidence verifier and citation binder");
-  expect(routeSource).toContain("Copy that entire visible sentence verbatim into canonicalClaim");
+  expect(routeSource).toContain("Copy that entire rendered sentence text verbatim into canonicalClaim");
+  expect(routeSource).toContain("omit only a leading Markdown heading, list, or blockquote marker");
   expect(routeSource).toContain("requireExactClaims: !groundedSourcePolicy");
   expect(routeSource).toContain("adoptGroundedCitationBindings(evaluated.citations)");
   expect(routeSource).toContain("lessonCitationCanonicalBindingIssues(reboundCitations");
@@ -315,6 +316,60 @@ test("canonical grounding bindings require one exact complete leaf sentence", ()
   }], { ...lesson, interactions: [] })).toEqual([
     expect.stringContaining("unique complete verbatim sentence"),
   ]);
+  expect(lessonCitationCanonicalBindingIssues([{
+    claim: "A supported rendered bullet sentence.",
+    section: "content",
+  }], { ...lesson, content: "- A supported rendered bullet sentence." })).toEqual([]);
+  expect(lessonCitationCanonicalBindingIssues([{
+    claim: "A supported rendered heading.",
+    section: "content",
+  }], { ...lesson, content: "## A supported rendered heading." })).toEqual([]);
+  expect(lessonCitationCanonicalBindingIssues([{
+    claim: "The rate is 5%.",
+    section: "content",
+  }], { ...lesson, content: "- The rate is 5." })).toEqual([
+    expect.stringContaining("unique complete verbatim sentence"),
+  ]);
+  const structuredMarkerLesson = {
+    ...lesson,
+    visuals: [{ summary: "> 5% is the threshold." }],
+    interactions: [{ prompt: "- 5 is the signed value." }],
+    quizzes: [{
+      question: "Which statement is shown?",
+      options: ["+ 5 is the signed value.", "A", "B", "C"],
+      correctIndex: 0,
+      explanation: "For this exercise, choose the displayed statement.",
+      optionFeedback: ["Selected", "Try again", "Try again", "Try again"],
+    }],
+  } as unknown as Partial<LessonData>;
+  expect(lessonCitationCanonicalBindingIssues([{
+    claim: "5% is the threshold.",
+    section: "visual",
+  }], structuredMarkerLesson)).not.toEqual([]);
+  expect(lessonCitationCanonicalBindingIssues([{
+    claim: "5 is the signed value.",
+    section: "interaction",
+  }], structuredMarkerLesson)).not.toEqual([]);
+  expect(lessonCitationCanonicalBindingIssues([{
+    claim: "5 is the signed value.",
+    section: "quiz",
+  }], structuredMarkerLesson)).not.toEqual([]);
+  expect(lessonCitationCanonicalBindingIssues([{
+    claim: "5% is the threshold.",
+    section: "content",
+  }], { ...lesson, content: "```text\n> 5% is the threshold.\n```" })).not.toEqual([]);
+  expect(lessonCitationCanonicalBindingIssues([{
+    claim: "5 is the signed value.",
+    section: "content",
+  }], { ...lesson, content: "    - 5 is the signed value." })).not.toEqual([]);
+  expect(lessonCitationCanonicalBindingIssues([{
+    claim: "> 5% is the threshold.",
+    section: "content",
+  }], { ...lesson, content: "```text\n> 5% is the threshold.\n```" })).toEqual([]);
+  expect(lessonCitationCanonicalBindingIssues([{
+    claim: "The threshold is 5%.",
+    section: "content",
+  }], { ...lesson, content: "1234567890) The threshold is 5%." })).not.toEqual([]);
 });
 
 test("source prompt data remains untrusted metadata and carries professional attribution", () => {
