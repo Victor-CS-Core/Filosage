@@ -318,6 +318,9 @@ export async function POST(request: Request) {
       instructionalContext?.background ? `Learner background: ${instructionalContext.background}` : "",
       labPlan ? `Lab applicability: ${labPlan.applicability}. Rationale: ${labPlan.rationale}` : "",
       visualPlan ? `Instructional visual applicability: ${visualPlan.applicability}. Rationale: ${visualPlan.rationale}` : "",
+      assignedSources.length
+        ? "FINAL EVIDENCE BOUNDARY: This instruction overrides every earlier course, module, lesson, artifact, scenario, sequence, and capstone design constraint when they conflict. Those fields are not evidence and must not be restated as learner-facing facts. Every externally verifiable sentence in every output field must be a complete conservative entailment of one assigned atomic evidence claim and carry its citation; otherwise delete it or convert it into an explicitly hypothetical learner action. In particular, do not state distinctions among process, outcome, or impact evaluation; program-maturity rules; counterfactual requirements; causal comparison rules; or evaluation-question selection methods unless an assigned atomic evidence claim directly states the complete assertion. Prefer a narrower lesson over satisfying an unsupported planned objective. Perform this check last, after drafting all fields."
+        : "",
     ].filter(Boolean).join("\n");
     const namedBuildsOn = canonical.lesson.buildsOn?.filter((item) => item.trim()) ?? [];
     const visualContext = {

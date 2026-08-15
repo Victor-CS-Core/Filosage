@@ -90,6 +90,9 @@ test("grounded lesson generation maps every factual assertion and exposes owner-
   expect(routeSource).toContain("Do not infer mnemonics, category exclusions, definitions");
   expect(routeSource).toContain("For this exercise, ...");
   expect(routeSource).toContain("write 450 to 750 words");
+  expect(routeSource).toContain("FINAL EVIDENCE BOUNDARY:");
+  expect(routeSource).toContain("counterfactual requirements; causal comparison rules");
+  expect(routeSource.indexOf("Course capstone:")).toBeLessThan(routeSource.indexOf("FINAL EVIDENCE BOUNDARY:"));
   expect(routeSource).toContain("strict claim-evidence verifier and citation binder");
   expect(routeSource).toContain("Copy that entire rendered sentence text verbatim into canonicalClaim");
   expect(routeSource).toContain("omit only a leading Markdown heading, list, or blockquote marker");
