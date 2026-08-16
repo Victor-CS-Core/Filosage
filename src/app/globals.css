@@ -1831,6 +1831,13 @@ html[data-environment="qa"] .environment-pill { display: inline-flex; }
 .page-header { display: flex; align-items: flex-end; justify-content: space-between; gap: 32px; margin-bottom: 38px; }
 .page-header h1 { margin-top: 7px; font-size: 2.75rem; }
 .page-header p:last-child { max-width: 68ch; margin-top: 12px; color: var(--ink-secondary); line-height: 1.65; }
+.library-job-starts { display: grid; grid-template-columns: minmax(220px, 0.65fr) minmax(0, 1.35fr); gap: 28px; align-items: end; margin-bottom: 24px; padding: 22px; border: 1px solid var(--line); border-radius: var(--radius-md); background: var(--surface); }
+.library-job-starts h2 { margin-top: 5px; font-size: 1.15rem; }
+.library-job-starts p:last-child { max-width: 54ch; margin-top: 7px; color: var(--ink-secondary); font-size: 0.78rem; line-height: 1.55; }
+.library-job-starts > div:last-child { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; }
+.library-job-starts button { min-height: 38px; border: 1px solid var(--line-strong); border-radius: 999px; padding: 7px 13px; background: var(--surface); color: var(--ink-secondary); font-size: 0.76rem; font-weight: 750; cursor: pointer; }
+.library-job-starts button:hover, .library-job-starts button:focus-visible { border-color: var(--accent-ink); color: var(--accent-ink); }
+.library-job-starts button[aria-pressed="true"] { border-color: var(--accent-ink); background: var(--accent-soft); color: var(--accent-ink); }
 .library-controls { display: flex; align-items: center; gap: 10px; margin-bottom: 28px; }
 .library-controls-desktop { width: 100%; display: flex; align-items: center; gap: 10px; }
 .library-filter-trigger { display: none; }
@@ -3084,6 +3091,8 @@ html[data-environment="qa"] .environment-pill { display: inline-flex; }
   .public-plans-cta .button { width: 100%; }
   .library-page-header, .page-header { align-items: flex-start; flex-direction: column; }
   .page-header h1, .create-intro h1 { font-size: 2.25rem; }
+  .library-job-starts { grid-template-columns: 1fr; align-items: start; padding: 18px; }
+  .library-job-starts > div:last-child { justify-content: flex-start; }
   .library-controls { align-items: stretch; flex-direction: column; }
   .library-controls-desktop { display: none; }
   .library-filter-trigger { width: 100%; min-height: 46px; display: flex; }

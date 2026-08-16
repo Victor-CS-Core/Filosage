@@ -6,6 +6,12 @@ import {
   retentionAtDay,
   type ProductMetricEvent,
 } from "../src/lib/product-metrics";
+import type { Course } from "../src/lib/course-types";
+import {
+  MARKETING_JOB_PRESETS,
+  marketingJobPreset,
+  selectFlagshipCourse,
+} from "../src/lib/marketing-merchandising";
 import { restoreLocalLearner } from "./fixtures/local-learner";
 
 async function prepareEligibleCreator(page: Page) {
@@ -163,4 +169,76 @@ test("telemetry context accepts fixed marketing enums and rejects free text or a
   expect(telemetryRoute).toContain("surface: parsed.data.surface");
   expect(telemetryRoute).toContain("jobStart: parsed.data.jobStart");
   expect(telemetryRoute).toContain("courseLanguageMode: parsed.data.courseLanguageMode");
+});
+
+function marketingCourse(id: string, topic: string, options: Partial<Course> = {}): Course {
+  return {
+    id,
+    topic,
+    isPublic: true,
+    outcome: `Use ${topic} in a completed project.`,
+    language: "English",
+    artifact: { title: `${topic} artifact`, description: "Inspectable work", format: "document" },
+    modules: [{ title: "Practice", lessons: [{ title: "First practice", concept: topic }] }],
+    ...options,
+  };
+}
+
+test("flagship selection and learning-situation presets stay deterministic and capability grounded", () => {
+  const alpha = marketingCourse("alpha-course", "Calculus exam preparation");
+  const configured = marketingCourse("configured-course", "Urban sketching");
+  const privateCourse = marketingCourse("private-course", "Private study", { isPublic: false });
+  const noOutcome = marketingCourse("no-outcome", "Unfinished course", { outcome: undefined, artifact: undefined });
+
+  expect(selectFlagshipCourse([alpha, configured], "configured-course")).toBe(configured);
+  expect(selectFlagshipCourse([configured, privateCourse, alpha], "private-course")).toBe(alpha);
+  expect(selectFlagshipCourse([configured, noOutcome, alpha], "missing-course")).toBe(alpha);
+  expect(selectFlagshipCourse([configured, alpha])).toBe(alpha);
+  expect(selectFlagshipCourse([])).toBeUndefined();
+  expect(marketingJobPreset("invalid-job")).toBeNull();
+  expect(MARKETING_JOB_PRESETS).toEqual([
+    { value: "study_goal", label: "Coursework or exam", query: "study" },
+    { value: "personal_project", label: "Personal project", query: "project" },
+    { value: "career_goal", label: "Career transition or interview", query: "career" },
+    { value: "work_goal", label: "Current work challenge", query: "work" },
+  ]);
+});
+
+test("learning-situation discovery is URL-backed, editable, reversible, and language searchable", async ({ page }) => {
+  const alpha = marketingCourse("alpha-course", "Calculus study", { language: "Spanish and English" });
+  const project = marketingCourse("project-course", "Personal project planning", { language: "French" });
+  const work = marketingCourse("work-course", "Work analysis", { language: "English" });
+  const telemetry: Array<Record<string, unknown>> = [];
+  await page.addInitScript(() => localStorage.setItem("filosage:analytics:consent:v1", "accepted"));
+  await page.route("**/api/telemetry", async (route) => {
+    telemetry.push(route.request().postDataJSON() as Record<string, unknown>);
+    await route.fulfill({ status: 204 });
+  });
+  await page.route("**/api/courses?scope=public", (route) => route.fulfill({ json: { courses: [work, project, alpha] } }));
+
+  await page.goto("/");
+  await expect(page.getByText("Featured course outcome")).toBeVisible();
+  await expect(page.getByRole("link", { name: /Inspect course outline/ })).toHaveAttribute("href", /id=alpha-course/);
+
+  await page.goto("/library?job=invalid-job");
+  await page.getByRole("button", { name: "Personal project" }).click();
+  await expect(page).toHaveURL(/job=personal_project/);
+  await expect(page.getByRole("searchbox", { name: "Search published courses" })).toHaveValue("project");
+  await page.getByRole("button", { name: "Coursework or exam" }).click();
+  await expect(page).toHaveURL(/job=study_goal/);
+  await expect(page).toHaveURL(/q=study/);
+  await page.goBack();
+  await expect(page.getByRole("searchbox", { name: "Search published courses" })).toHaveValue("project");
+  await page.goForward();
+  await expect(page.getByRole("searchbox", { name: "Search published courses" })).toHaveValue("study");
+
+  await page.getByRole("searchbox", { name: "Search published courses" }).fill("Spanish");
+  await expect(page).not.toHaveURL(/job=/);
+  await expect(page.getByRole("heading", { name: "Calculus study" })).toBeVisible();
+  await expect(page.getByText("Spanish and English")).toBeVisible();
+  await expect.poll(() => telemetry.some((event) => (
+    event.event === "job_start_selected"
+      && event.surface === "library_job_start"
+      && event.jobStart === "study_goal"
+  ))).toBe(true);
 });

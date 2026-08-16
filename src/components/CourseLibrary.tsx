@@ -18,6 +18,13 @@ import { useAuth } from "@/components/AuthProvider";
 import type { Course } from "@/lib/course-types";
 import CourseBanner from "@/components/CourseBanner";
 import { matchesSearchQuery } from "@/lib/search";
+import {
+  MARKETING_JOB_PRESETS,
+  marketingJobPreset,
+  type MarketingJobPreset,
+} from "@/lib/marketing-merchandising";
+import type { MarketingJobStart } from "@/lib/product-events";
+import { trackProductEvent } from "@/lib/product-analytics";
 
 const defaultLevel = "All levels";
 const defaultCommitment = "Any commitment";
@@ -30,6 +37,7 @@ export default function CourseLibrary({ featured = false }: { featured?: boolean
   const [query, setQuery] = useState("");
   const [level, setLevel] = useState(defaultLevel);
   const [commitment, setCommitment] = useState<Commitment>(defaultCommitment);
+  const [jobStart, setJobStart] = useState<MarketingJobStart | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const { state, update } = useLearnerState();
@@ -75,9 +83,11 @@ export default function CourseLibrary({ featured = false }: { featured?: boolean
     const syncFiltersFromUrl = () => {
       const params = new URLSearchParams(window.location.search);
       const requestedCommitment = params.get("commitment");
+      const requestedJob = marketingJobPreset(params.get("job"));
       setQuery(params.get("q") ?? "");
       setLevel(params.get("level") ?? defaultLevel);
       setCommitment(commitmentOptions.includes(requestedCommitment as Commitment) ? requestedCommitment as Commitment : defaultCommitment);
+      setJobStart(requestedJob?.value ?? null);
     };
     syncFiltersFromUrl();
     window.addEventListener("popstate", syncFiltersFromUrl);
@@ -103,6 +113,7 @@ export default function CourseLibrary({ featured = false }: { featured?: boolean
         course.mission,
         course.category,
         course.outcome,
+        course.language,
         course.level,
         course.isPublic ? "published public" : "private draft",
         ...(course.prerequisites ?? []),
@@ -123,18 +134,38 @@ export default function CourseLibrary({ featured = false }: { featured?: boolean
   }, [commitment, courses, featured, level, query]);
   const drafts = useMemo(() => ownedCourses.filter((course) => !course.isPublic), [ownedCourses]);
 
-  const updateFilters = useCallback((nextQuery: string, nextLevel: string, nextCommitment: Commitment) => {
+  const updateFilters = useCallback((
+    nextQuery: string,
+    nextLevel: string,
+    nextCommitment: Commitment,
+    options?: { jobStart?: MarketingJobStart | null; history?: "push" | "replace" },
+  ) => {
+    const nextJobStart = options?.jobStart !== undefined
+      ? options.jobStart
+      : nextQuery === query ? jobStart : null;
     setQuery(nextQuery);
     setLevel(nextLevel);
     setCommitment(nextCommitment);
+    setJobStart(nextJobStart);
     if (featured) return;
     const params = new URLSearchParams(window.location.search);
     if (nextQuery) params.set("q", nextQuery); else params.delete("q");
     if (nextLevel !== defaultLevel) params.set("level", nextLevel); else params.delete("level");
     if (nextCommitment !== defaultCommitment) params.set("commitment", nextCommitment); else params.delete("commitment");
+    if (nextJobStart) params.set("job", nextJobStart); else params.delete("job");
     const search = params.toString();
-    window.history.replaceState(null, "", `${window.location.pathname}${search ? `?${search}` : ""}${window.location.hash}`);
-  }, [featured]);
+    const historyMethod = options?.history === "push" ? "pushState" : "replaceState";
+    window.history[historyMethod](null, "", `${window.location.pathname}${search ? `?${search}` : ""}${window.location.hash}`);
+  }, [featured, jobStart, query]);
+
+  const applyJobStart = useCallback((preset: MarketingJobPreset) => {
+    updateFilters(preset.query, level, commitment, { jobStart: preset.value, history: "push" });
+    trackProductEvent("job_start_selected", {
+      route: "/library",
+      surface: "library_job_start",
+      jobStart: preset.value,
+    });
+  }, [commitment, level, updateFilters]);
 
   const resetFilters = useCallback(() => updateFilters("", defaultLevel, defaultCommitment), [updateFilters]);
 
@@ -147,6 +178,19 @@ export default function CourseLibrary({ featured = false }: { featured?: boolean
 
   return (
     <div className={`library-browser ${featured ? "is-featured" : ""}`}>
+      {!featured && (
+        <section className="library-job-starts" aria-labelledby="library-job-starts-title">
+          <div><p className="overline">A useful place to begin</p><h2 id="library-job-starts-title">What are you learning for?</h2><p>Each option starts an editable library search. It is not a personalized recommendation.</p></div>
+          <div role="group" aria-label="Learning situations">
+            {MARKETING_JOB_PRESETS.map((preset) => (
+              <button key={preset.value} type="button" aria-pressed={jobStart === preset.value} onClick={() => applyJobStart(preset)}>
+                {preset.label}
+              </button>
+            ))}
+          </div>
+        </section>
+      )}
+
       {!featured && (
         <div className="library-controls">
           <div className="library-controls-desktop">
@@ -230,7 +274,7 @@ export default function CourseLibrary({ featured = false }: { featured?: boolean
                     <span className="course-card-category">Private draft</span>
                     <h3>{course.topic}</h3>
                     <p>{course.outcome ?? course.mission ?? "Continue shaping this course and generate its lessons when it is ready."}</p>
-                    <span className="course-card-meta"><span><Layers3 size={14} /> {lessons} lessons</span><span><Clock3 size={14} /> {hours} {hours === 1 ? "hour" : "hours"}</span><span>{course.level ?? "Foundations"}</span></span>
+                    <span className="course-card-meta"><span><Layers3 size={14} /> {lessons} lessons</span><span><Clock3 size={14} /> {hours} {hours === 1 ? "hour" : "hours"}</span><span>{course.level ?? "Foundations"}</span>{course.language && <span>{course.language}</span>}</span>
                     <span className="course-card-cta">Continue editing <ArrowRight size={15} /></span>
                   </div>
                   <Link className="course-card-open" href={`/course/${encodeURIComponent(course.topic)}?id=${id}`} aria-label={`Continue ${course.topic}`}>
@@ -261,6 +305,7 @@ export default function CourseLibrary({ featured = false }: { featured?: boolean
                     <span><Layers3 size={14} /> {lessons} lessons</span>
                     <span><Clock3 size={14} /> {hours} {hours === 1 ? "hour" : "hours"}</span>
                     <span>{course.level ?? "Foundations"}</span>
+                    {course.language && <span>{course.language}</span>}
                   </span>
                   <span className="course-card-cta">View course <ArrowRight size={15} /></span>
                 </div>

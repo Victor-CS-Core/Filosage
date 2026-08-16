@@ -672,7 +672,7 @@ test("keeps the learning library public", async ({ page }) => {
   expect(scriptDirective).not.toContain("'unsafe-inline'");
   await expect(page.locator(".skip-link")).toHaveAttribute("href", "#main-content");
   await expect(
-    page.getByRole("heading", { name: "Build the skill your next decision depends on" }),
+    page.getByRole("heading", { name: "Turn a goal you care about into a course you can practice" }),
   ).toBeVisible();
   await expect(page.locator(".marketing-page > section")).toHaveCount(7);
   await expect(page.locator(".marketing-story-row")).toHaveCount(3);

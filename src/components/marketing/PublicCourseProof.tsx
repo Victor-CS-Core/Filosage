@@ -5,6 +5,7 @@ import { ArrowRight, BookOpenCheck, Clock3, Gauge, Layers3, RefreshCw, ShieldChe
 import { useCallback, useEffect, useMemo, useState } from "react";
 import CourseBanner from "@/components/CourseBanner";
 import type { Course } from "@/lib/course-types";
+import { selectFlagshipCourse } from "@/lib/marketing-merchandising";
 
 function courseId(course: Course) {
   return course.id ?? course.courseId;
@@ -42,10 +43,10 @@ export default function PublicCourseProof() {
     void Promise.resolve().then(load);
   }, [load]);
 
-  const course = useMemo(() => courses.find((candidate) => (
-    Boolean(candidate.outcome)
-    && Boolean(candidate.artifact?.title || candidate.capstone?.deliverable || candidate.milestone?.deliverable)
-  )) ?? courses[0], [courses]);
+  const course = useMemo(() => selectFlagshipCourse(
+    courses,
+    process.env.NEXT_PUBLIC_MARKETING_FLAGSHIP_COURSE_ID,
+  ), [courses]);
 
   if (status === "loading") {
     return (
@@ -102,7 +103,7 @@ export default function PublicCourseProof() {
         <div className="marketing-course-cover-copy">
           <small>{course.category ?? "Published course"}</small>
           <h2 id="marketing-course-proof-title">{course.topic}</h2>
-          <span>Public course preview</span>
+          <span>Featured course outcome</span>
         </div>
       </div>
       <div className="marketing-course-outline">
