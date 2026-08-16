@@ -12,6 +12,7 @@ import type { Course } from "@/lib/course-types";
 import type { CourseProgress, LessonProgress } from "@/lib/learning-types";
 import { buildPrerequisiteSafeReviewQueue } from "@/lib/review-readiness";
 import { buildWeeklyMilestone } from "@/lib/adaptive-learning";
+import { trackProductEvent } from "@/lib/product-analytics";
 
 function streakFor(lessons: LessonProgress[]) {
   const dates = new Set(lessons.map((lesson) => lesson.lastStudiedAt.slice(0, 10)));
@@ -121,6 +122,16 @@ export default function Home() {
   }, [authLoading, loadAttempt, user]);
 
   const deckItems = useMemo(() => buildDeckItems(progress, courses, authoredCourses), [authoredCourses, courses, progress]);
+  const due = useMemo(() => buildPrerequisiteSafeReviewQueue(progress, new Date(now)), [now, progress]);
+
+  useEffect(() => {
+    if (!user || !loaded || loadError || due.length === 0) return;
+    trackProductEvent("return_recommendation_viewed", {
+      route: "/",
+      surface: "home_review",
+      oncePerSession: true,
+    });
+  }, [due.length, loadError, loaded, user]);
 
   if (!user) {
     return (
@@ -131,7 +142,6 @@ export default function Home() {
   }
 
   const lessons = progress.flatMap((item) => Object.values(item.lessons));
-  const due = buildPrerequisiteSafeReviewQueue(progress, new Date(now));
   const weeklyMilestone = buildWeeklyMilestone(progress, learnerState.weeklyLessonGoal, new Date(now));
   const streak = streakFor(lessons);
   const firstName = (account?.displayName ?? user.displayName ?? "Learner").split(" ")[0];
@@ -163,7 +173,7 @@ export default function Home() {
                 <TrendingUp size={23} aria-hidden="true" />
                 <span><small>Weekly</small><strong>{weeklyMilestone.completed} / {weeklyMilestone.target}</strong></span>
               </Link>
-              <Link href="/review">
+              <Link href="/review" onClick={() => trackProductEvent("return_recommendation_started", { route: "/", surface: "home_review" })}>
                 <CalendarCheck2 size={23} aria-hidden="true" />
                 <span><small>Review</small><strong>{reviewLabel}</strong></span>
               </Link>

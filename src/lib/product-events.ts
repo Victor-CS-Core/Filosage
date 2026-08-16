@@ -4,6 +4,7 @@ export const PRODUCT_EVENT_NAMES = [
   "landing_viewed",
   "course_discovered",
   "job_start_selected",
+  "course_creation_started",
   "course_started",
   "outcome_defined",
   "diagnostic_started",
@@ -129,6 +130,13 @@ export const COURSE_LANGUAGE_MODES = [
 ] as const;
 
 export type CourseLanguageMode = (typeof COURSE_LANGUAGE_MODES)[number];
+
+export function courseLanguageModeFor(language: string | null | undefined): CourseLanguageMode {
+  const normalized = language?.trim().toLowerCase() ?? "";
+  if (!normalized || /^english(?:\s*\([^)]*\))?$/.test(normalized)) return "english";
+  if (normalized.includes("bilingual") || /\s+and\s+|\s*[/+,]\s*/.test(normalized)) return "bilingual";
+  return "single_non_english";
+}
 
 export const ACQUISITION_CHANNELS = [
   "direct",

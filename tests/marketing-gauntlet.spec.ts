@@ -13,6 +13,7 @@ import {
   selectFlagshipCourse,
 } from "../src/lib/marketing-merchandising";
 import { parsePricingContext } from "../src/lib/pricing-context";
+import { courseLanguageModeFor } from "../src/lib/product-events";
 import { restoreLocalLearner } from "./fixtures/local-learner";
 
 async function prepareEligibleCreator(page: Page) {
@@ -54,8 +55,14 @@ test("broad product positioning reflects eligible learners and the actual langua
 });
 
 test("inclusive course creation preserves a personal-study context and bilingual request", async ({ page }) => {
+  const telemetry: Array<Record<string, unknown>> = [];
+  await page.addInitScript(() => localStorage.setItem("filosage:analytics:consent:v1", "accepted"));
   await prepareEligibleCreator(page);
   let generationBody: Record<string, unknown> | null = null;
+  await page.route("**/api/telemetry", async (route) => {
+    telemetry.push(route.request().postDataJSON() as Record<string, unknown>);
+    await route.fulfill({ status: 204 });
+  });
   await page.route("**/api/generate-course", async (route) => {
     generationBody = route.request().postDataJSON() as Record<string, unknown>;
     await route.fulfill({ json: { courseId: "bilingual-personal-study" } });
@@ -86,6 +93,10 @@ test("inclusive course creation preserves a personal-study context and bilingual
     language: "Spanish and English",
   });
   expect(JSON.stringify(generationBody)).not.toMatch(/professional|required work context/i);
+  await expect.poll(() => telemetry.some((event) => event.event === "course_creation_started")).toBe(true);
+  const creationEvent = telemetry.find((event) => event.event === "course_creation_started");
+  expect(creationEvent).toMatchObject({ route: "/create", courseLanguageMode: "bilingual" });
+  expect(JSON.stringify(creationEvent)).not.toContain("Spanish");
 });
 
 test("marketing metric contracts separate anonymous acquisition, verified activation, and meaningful retention", () => {
@@ -325,4 +336,113 @@ test("pricing context is allowlisted, defaults safely, and never mutates billing
   await expect(page.locator(".plan-pro")).toHaveClass(/is-selected/);
   await page.waitForTimeout(100);
   expect(mutationUrls.filter((url) => /\/api\/(billing|pricing-intent|waitlist)/.test(url))).toEqual([]);
+});
+
+test("return recommendation emits bounded view and start events without controlling navigation", async ({ page }) => {
+  await page.addInitScript(() => localStorage.setItem("filosage:analytics:consent:v1", "accepted"));
+  await restoreLocalLearner(page);
+  const telemetry: Array<Record<string, unknown>> = [];
+  await page.route("**/api/telemetry", async (route) => {
+    telemetry.push(route.request().postDataJSON() as Record<string, unknown>);
+    await route.fulfill({ status: 503 });
+  });
+  await page.route("**/api/account", (route) => route.fulfill({ json: {
+    access: "free", plan: "free", isOwner: false, accountStatus: "active", displayName: "Returning Learner",
+    legalAcceptanceRequired: false, capabilities: { createCourse: false, generateLesson: false, publishCourse: false },
+    courseCredits: { balance: 0, monthlyAllocation: 0, balanceCap: 0 }, quotas: [],
+  } }));
+  const dueProgress = {
+    courseId: "return-course",
+    topic: "Return practice",
+    lastLessonId: "0-0",
+    lastLessonTitle: "Recall the method",
+    nextLessonId: null,
+    completedLessonIds: ["0-0"],
+    totalLessons: 1,
+    lessons: {
+      "0-0": {
+        lessonId: "0-0", lessonTitle: "Recall the method", status: "learned", attempts: 1,
+        totalQuestions: 1, firstAttemptCorrect: 1, confidence: "medium", intervalStage: 0,
+        nextReviewAt: "2020-01-01T12:00:00.000Z", lastStudiedAt: "2020-01-01T12:00:00.000Z",
+        completedAt: "2020-01-01T12:00:00.000Z",
+      },
+    },
+    studyMinutes: 10,
+    lastActivityAt: "2020-01-01T12:00:00.000Z",
+    startedAt: "2020-01-01T12:00:00.000Z",
+  };
+  await page.route("**/api/progress", (route) => route.fulfill({ json: { progress: [dueProgress] } }));
+  await page.route("**/api/courses?scope=public", (route) => route.fulfill({ json: { courses: [marketingCourse("return-course", "Return practice")] } }));
+  await page.route("**/api/courses?scope=mine", (route) => route.fulfill({ json: { courses: [] } }));
+
+  await page.goto("/");
+  const reviewLink = page.getByRole("link", { name: /Review.*1 due now/ });
+  await expect(reviewLink).toBeVisible();
+  await expect.poll(() => telemetry.filter((event) => event.event === "return_recommendation_viewed").length).toBe(1);
+  await reviewLink.click();
+  await expect(page).toHaveURL(/\/review$/);
+  expect(telemetry.filter((event) => event.event === "return_recommendation_started")).toHaveLength(1);
+  expect(telemetry.find((event) => event.event === "return_recommendation_started")).toMatchObject({ surface: "home_review" });
+
+  await page.goBack();
+  await page.evaluate(() => {
+    localStorage.setItem("filosage:analytics:consent:v1", "declined");
+    window.dispatchEvent(new Event("filosage:analytics-consent-changed"));
+  });
+  const startsBeforeDeclinedClick = telemetry.filter((event) => event.event === "return_recommendation_started").length;
+  await page.getByRole("link", { name: /Review.*1 due now/ }).click();
+  await expect(page).toHaveURL(/\/review$/);
+  expect(telemetry.filter((event) => event.event === "return_recommendation_started")).toHaveLength(startsBeforeDeclinedClick);
+});
+
+test("conditional capability copy stays bounded and course telemetry sends only coarse language mode", async ({ page }) => {
+  expect(courseLanguageModeFor("English")).toBe("english");
+  expect(courseLanguageModeFor("Spanish")).toBe("single_non_english");
+  expect(courseLanguageModeFor("Spanish and English")).toBe("bilingual");
+  expect(courseLanguageModeFor("Greek / French")).toBe("bilingual");
+
+  const settingsSource = readFileSync("src/components/LearningScheduleSettings.tsx", "utf8");
+  expect(settingsSource).toContain("recommended next step");
+  expect(settingsSource).not.toContain("daily mission");
+  expect(settingsSource).toContain("generated on your device");
+  expect(settingsSource).toContain("Email delivery stays off");
+  const envExample = readFileSync(".env.example", "utf8");
+  expect(envExample).toContain("BILLING_ENABLED=false");
+  expect(envExample).toContain("FLASHCARD_DECKS_ENABLED=false");
+  expect(envExample).toContain("LESSON_VISUALS_ENABLED=false");
+  expect(envExample).toContain("COURSE_LABS_V2=false");
+
+  await page.addInitScript(() => localStorage.setItem("filosage:analytics:consent:v1", "accepted"));
+  await restoreLocalLearner(page);
+  const telemetry: Array<Record<string, unknown>> = [];
+  await page.route("**/api/telemetry", async (route) => {
+    telemetry.push(route.request().postDataJSON() as Record<string, unknown>);
+    await route.fulfill({ status: 204 });
+  });
+  await page.route("**/api/account", (route) => route.fulfill({ json: {
+    access: "free", plan: "free", isOwner: false, accountStatus: "active", displayName: "Language Learner",
+    legalAcceptanceRequired: false, capabilities: { createCourse: false, generateLesson: false, publishCourse: false },
+    courseCredits: { balance: 0, monthlyAllocation: 0, balanceCap: 0 }, quotas: [],
+  } }));
+  const bilingualCourse = marketingCourse("bilingual-course", "Bilingual reasoning", { language: "Spanish and English" });
+  await page.route("**/api/courses/bilingual-course", (route) => route.fulfill({ json: bilingualCourse }));
+  await page.route("**/api/progress?courseId=bilingual-course", (route) => route.fulfill({ json: { progress: null } }));
+  await page.route("**/api/mastery?courseId=bilingual-course", (route) => route.fulfill({ json: { plan: null, evidence: [] } }));
+
+  await page.goto("/course/Bilingual%20reasoning?id=bilingual-course");
+  await expect(page.getByRole("button", { name: "Start course" })).toBeVisible();
+  await expect.poll(() => telemetry.some((event) => event.event === "course_discovered")).toBe(true);
+  await page.getByRole("button", { name: "Start course" }).click();
+  await expect(page).toHaveURL(/\/lesson\/0-0\?id=bilingual-course/);
+  await expect.poll(() => telemetry.some((event) => event.event === "course_started")).toBe(true);
+  for (const event of telemetry.filter((candidate) => candidate.event === "course_discovered" || candidate.event === "course_started")) {
+    expect(event.courseLanguageMode).toBe("bilingual");
+    expect(JSON.stringify(event)).not.toContain("Spanish");
+  }
+
+  await page.route("**/api/billing/status", (route) => route.fulfill({ json: { ready: false, managementReady: false } }));
+  await page.goto("/pricing");
+  const pricingText = await page.locator("main").innerText();
+  expect(pricingText).not.toMatch(/flashcards|v2 labs|lesson visuals|fully localized interface/i);
+  expect(pricingText).toMatch(/checkout remains closed|No subscription will be created/i);
 });

@@ -2554,7 +2554,7 @@ test("exports an opt-in recurring reminder without an email dependency", () => {
   });
 
   expect(calendar).toContain("RRULE:FREQ=WEEKLY;BYDAY=MO,TU,WE,TH,FR");
-  expect(calendar).toContain("SUMMARY:Filosage learning mission");
+  expect(calendar).toContain("SUMMARY:Filosage recommended next step");
   expect(calendar).toContain("@filosage.com");
   expect(calendar).toContain("URL:https://filosage.com");
   expect(buildLearningReminderCalendar({

@@ -41,7 +41,7 @@ export default function LearningScheduleSettings({
 
   const addToCalendar = () => {
     const calendar = buildLearningReminderCalendar({
-      title: "Filosage learning mission",
+      title: "Filosage recommended next step",
       description: "Open Filosage, complete the highest-priority review, then take one forward step.",
       preferences: draft,
     });
@@ -61,7 +61,7 @@ export default function LearningScheduleSettings({
         <div><Clock3 size={19} /><h2 id="learning-schedule-title">Learning schedule</h2></div>
         {saved && <span className="schedule-saved"><Check size={14} /> Saved</span>}
       </div>
-      <p>Choose when Filosage should surface your mission. Missing a session never creates a penalty or a backlog target.</p>
+      <p>Choose when Filosage should surface your recommended next step. Missing a session never creates a penalty or a backlog target.</p>
       <div className="learning-schedule-fields">
         <label>
           Reminder cadence
@@ -94,7 +94,7 @@ export default function LearningScheduleSettings({
           checked={draft.inAppEnabled}
           onChange={(event) => setDraft((current) => ({ ...current, inAppEnabled: event.target.checked }))}
         />
-        <span><strong>Show in-app reminders</strong><small>Keep the daily mission and due-review count visible while signed in.</small></span>
+        <span><strong>Show in-app reminders</strong><small>Keep the recommended next step and due-review count visible while signed in.</small></span>
       </label>
       <div className="learning-schedule-actions">
         <button className="button button-primary button-small" type="button" onClick={save}>Save schedule</button>

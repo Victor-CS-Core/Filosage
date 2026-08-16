@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
 import {
   Bell,
   Check,
@@ -27,9 +27,18 @@ import {
   type BillingInterval,
   type PaidLearnerPlan,
 } from "@/lib/membership-plans";
-import { parsePricingContext, type PricingContextSource } from "@/lib/pricing-context";
+import { parsePricingContext } from "@/lib/pricing-context";
 
 const planIcons = { free: Gauge, plus: Layers3, pro: Crown } as const;
+
+function subscribeLocation(onChange: () => void) {
+  window.addEventListener("popstate", onChange);
+  return () => window.removeEventListener("popstate", onChange);
+}
+
+function locationSearch() {
+  return window.location.search;
+}
 
 function renewalLabel(value: string | undefined, status: string | undefined) {
   if (!value) return null;
@@ -47,8 +56,10 @@ export default function PricingPage() {
   const [joined, setJoined] = useState(false);
   const [joinError, setJoinError] = useState<string | null>(null);
   const [interval, setInterval] = useState<BillingInterval>("annual");
-  const [selectedPlan, setSelectedPlan] = useState<PaidLearnerPlan>("plus");
-  const [pricingSource, setPricingSource] = useState<PricingContextSource>("direct");
+  const search = useSyncExternalStore(subscribeLocation, locationSearch, () => "");
+  const pricingContext = parsePricingContext(search);
+  const [selectedPlanOverride, setSelectedPlanOverride] = useState<PaidLearnerPlan | null>(null);
+  const selectedPlan = selectedPlanOverride ?? pricingContext.plan;
   const [billingReady, setBillingReady] = useState(false);
   const [billingManagementReady, setBillingManagementReady] = useState(false);
   const [billingBusy, setBillingBusy] = useState(false);
@@ -59,12 +70,6 @@ export default function PricingPage() {
   const [intentSaving, setIntentSaving] = useState(false);
   const [intentSaved, setIntentSaved] = useState(false);
   const [intentError, setIntentError] = useState<string | null>(null);
-
-  useEffect(() => {
-    const context = parsePricingContext(window.location.search);
-    setSelectedPlan(context.plan);
-    setPricingSource(context.from);
-  }, []);
 
   useEffect(() => {
     void fetch("/api/billing/status")
@@ -104,7 +109,7 @@ export default function PricingPage() {
       .then((response) => response.ok ? response.json() : Promise.reject(new Error()))
       .then((body: { intent?: { planId?: PaidLearnerPlan; interval?: BillingInterval; readiness?: "ready_now" | "within_30_days" | "researching"; launchEmailConsent?: boolean } | null }) => {
         if (!active || !body.intent) return;
-        if (body.intent.planId && parsePricingContext(window.location.search).from === "direct") setSelectedPlan(body.intent.planId);
+        if (body.intent.planId && parsePricingContext(window.location.search).from === "direct") setSelectedPlanOverride(body.intent.planId);
         if (body.intent.interval) setInterval(body.intent.interval);
         if (body.intent.readiness) setIntentReadiness(body.intent.readiness);
         setLaunchEmailConsent(body.intent.launchEmailConsent === true);
@@ -186,12 +191,12 @@ export default function PricingPage() {
           <p>Free connects published learning and practice. Plus adds private course creation. Pro adds advanced capstone analysis, portable evidence reports, revocable sharing, and publishing tools.</p>
         </header>
 
-        {pricingSource !== "direct" && (
+        {pricingContext.from !== "direct" && (
           <section className="pricing-context-note" aria-label="Plan comparison context">
             <div>
-              <p className="overline">{pricingSource === "evidence-portable" ? "Portable evidence context" : "Course creation context"}</p>
-              <h2>{pricingSource === "evidence-portable" ? "Pro is selected for export and revocable sharing." : "Plus is selected for private course creation."}</h2>
-              <p>{pricingSource === "evidence-portable"
+              <p className="overline">{pricingContext.from === "evidence-portable" ? "Portable evidence context" : "Course creation context"}</p>
+              <h2>{pricingContext.from === "evidence-portable" ? "Pro is selected for export and revocable sharing." : "Plus is selected for private course creation."}</h2>
+              <p>{pricingContext.from === "evidence-portable"
                 ? "Your on-screen learning evidence remains available without Pro. Compare the added portable-report capabilities below."
                 : "Published learning remains available on Free. Compare the private course credits and creation capabilities below."}</p>
             </div>
@@ -247,13 +252,13 @@ export default function PricingPage() {
                     {billingBusy ? <LoaderCircle className="spin" size={16} /> : <CreditCard size={16} />}{billingBusy ? "Opening secure checkout…" : `Choose ${plan.shortName} ${interval === "annual" ? "annual" : "monthly"}`}
                   </button>
                 ) : paidPlanId && !user ? (
-                  <button className={selectedPlan === paidPlanId ? "button button-secondary" : "button button-quiet"} type="button" onClick={() => setSelectedPlan(paidPlanId)}>{selectedPlan === paidPlanId ? `${plan.shortName} selected` : `Choose ${plan.shortName}`}</button>
+                  <button className={selectedPlan === paidPlanId ? "button button-secondary" : "button button-quiet"} type="button" onClick={() => setSelectedPlanOverride(paidPlanId)}>{selectedPlan === paidPlanId ? `${plan.shortName} selected` : `Choose ${plan.shortName}`}</button>
                 ) : paidPlanId && billingReady && account?.plan === "free" && !subscriptionRequiresManagement ? (
                   <button className="button button-primary" type="button" disabled={billingBusy} onClick={() => void openBilling("checkout", paidPlanId)}>
                     {billingBusy ? <LoaderCircle className="spin" size={16} /> : <CreditCard size={16} />}{billingBusy ? "Opening secure checkout…" : `Choose ${plan.shortName} ${interval === "annual" ? "annual" : "monthly"}`}
                   </button>
                 ) : paidPlanId && !billingReady && account?.plan === "free" && !subscriptionRequiresManagement ? (
-                  <button className={selectedPlan === paidPlanId ? "button button-secondary" : "button button-quiet"} type="button" onClick={() => setSelectedPlan(paidPlanId)}>{selectedPlan === paidPlanId ? `${plan.shortName} selected` : `Choose ${plan.shortName}`}</button>
+                  <button className={selectedPlan === paidPlanId ? "button button-secondary" : "button button-quiet"} type="button" onClick={() => setSelectedPlanOverride(paidPlanId)}>{selectedPlan === paidPlanId ? `${plan.shortName} selected` : `Choose ${plan.shortName}`}</button>
                 ) : null}
               </section>
             );

@@ -40,6 +40,7 @@ import type { PublicationLessonFailure } from "@/lib/publication-readiness";
 import { clearLocalCourseData } from "@/lib/local-course-data";
 import { createClientId } from "@/lib/browser-compat";
 import { trackProductEvent } from "@/lib/product-analytics";
+import { courseLanguageModeFor } from "@/lib/product-events";
 import { sourceHostname } from "@/lib/source-safety";
 import type { ValidationReport } from "@/lib/course-pipeline/contract";
 
@@ -209,11 +210,12 @@ export default function CourseMap() {
         route: "/course",
         courseId,
         contentVersion: course?.updatedAt,
+        courseLanguageMode: courseLanguageModeFor(course?.language),
         oncePerSession: true,
       });
     }
     window.location.assign(`/course/${encodeURIComponent(topic)}/lesson/${lessonId}?id=${encodeURIComponent(courseId)}`);
-  }, [course?.updatedAt, courseId, isOwner, signInWithGoogle, topic, user]);
+  }, [course?.language, course?.updatedAt, courseId, isOwner, signInWithGoogle, topic, user]);
   const masteryJourney = useMasteryJourney(courseId, user);
 
   useEffect(() => {
@@ -222,6 +224,7 @@ export default function CourseMap() {
       route: "/course",
       courseId,
       contentVersion: course.updatedAt,
+      courseLanguageMode: courseLanguageModeFor(course.language),
       oncePerSession: true,
     });
   }, [course, courseId, isOwner]);

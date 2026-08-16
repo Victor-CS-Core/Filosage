@@ -19,6 +19,8 @@ import {
 import AppShell from "@/components/AppShell";
 import { useAuth } from "@/components/AuthProvider";
 import { createClientId } from "@/lib/browser-compat";
+import { trackProductEvent } from "@/lib/product-analytics";
+import { courseLanguageModeFor } from "@/lib/product-events";
 import styles from "./create.module.css";
 
 const examples = [
@@ -105,6 +107,10 @@ export default function CreateCoursePage() {
     setError(null);
     try {
       const token = await user.getIdToken();
+      trackProductEvent("course_creation_started", {
+        route: "/create",
+        courseLanguageMode: courseLanguageModeFor(language),
+      });
       const requestBody = { topic, goal, application, background, constraints, exclusions, artifactPreference, scenarioPreference, level, weeklyMinutes, targetWeeks, courseStyle, language };
       const signature = JSON.stringify(requestBody);
       if (requestIdentityRef.current?.signature !== signature) {
