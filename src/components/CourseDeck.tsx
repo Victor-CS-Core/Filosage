@@ -82,7 +82,6 @@ interface CourseDeckCardProps {
   direction: CycleDirection | null;
   motionState: MotionState;
   reducedMotion: boolean;
-  onNext: () => void;
   onDragStart: (pointerId: number | null) => void;
   onDragMove: (info: PanInfo) => void;
   onDragEnd: (info: PanInfo) => void;
@@ -162,7 +161,6 @@ function CourseDeckCard({
   direction,
   motionState,
   reducedMotion,
-  onNext,
   onDragStart,
   onDragMove,
   onDragEnd,
@@ -189,7 +187,10 @@ function CourseDeckCard({
     if (reducedMotion) return baseX;
     const progress = progressFor(value);
     const activeDirection = effectiveDirection(value);
-    if (active) return value;
+    if (active) {
+      if (activeDirection === "previous") return Math.min(Math.max(value, 0), geometry.stepX);
+      return value;
+    }
     if (activeDirection === "next") {
       if (position === 1) return geometry.stepX * (1 - progress);
       if (position === 2) return geometry.stepX * (2 - progress);
@@ -206,7 +207,7 @@ function CourseDeckCard({
     if (reducedMotion) return baseY;
     const progress = progressFor(value);
     const activeDirection = effectiveDirection(value);
-    if (active) return geometry.stepY * 0.85 * progress;
+    if (active) return geometry.stepY * (activeDirection === "previous" ? 1 : 0.85) * progress;
     if (activeDirection === "next") {
       if (position === 1) return geometry.stepY * (1 - progress);
       if (position === 2) return geometry.stepY * (2 - progress);
@@ -223,7 +224,10 @@ function CourseDeckCard({
     if (reducedMotion) return baseRotation;
     const progress = progressFor(value);
     const activeDirection = effectiveDirection(value);
-    if (active) return (value / Math.max(1, geometry.travel)) * 1.35;
+    if (active) {
+      if (activeDirection === "previous") return geometry.rotationStep * progress;
+      return (value / Math.max(1, geometry.travel)) * 1.35;
+    }
     if (activeDirection === "next") {
       if (position === 1) return geometry.rotationStep * (1 - progress);
       if (position === 2) return geometry.rotationStep * (2 - progress);
@@ -240,6 +244,7 @@ function CourseDeckCard({
     const progress = progressFor(value);
     const activeDirection = effectiveDirection(value);
     if (active) {
+      if (activeDirection === "previous") return 1;
       if (!activeDirection) return 1;
       const concealProgress = clamp((progress - DECK_HANDOFF_PROGRESS) / (1 - DECK_HANDOFF_PROGRESS), 0, 1);
       return 1 - (concealProgress * 0.92);
@@ -260,11 +265,14 @@ function CourseDeckCard({
     const progress = progressFor(value);
     const activeDirection = effectiveDirection(value);
     const handedOff = progress >= DECK_HANDOFF_PROGRESS;
-    if (active) return handedOff && activeDirection ? 0 : 3;
+    if (active) {
+      if (!handedOff || !activeDirection) return 3;
+      return activeDirection === "previous" ? 2 : 0;
+    }
     if (activeDirection === "previous") {
       if (previousTarget) return handedOff ? 3 : 2;
-      if (position === 1) return handedOff ? 2 : 1;
-      if (position === 2) return handedOff ? 1 : 0;
+      if (position === 1) return 1;
+      if (position === 2) return 0;
       return -1;
     }
     if (position === 1) return handedOff && activeDirection === "next" ? 3 : 2;
@@ -276,7 +284,7 @@ function CourseDeckCard({
     if (reducedMotion) return 1;
     const progress = progressFor(value);
     const activeDirection = effectiveDirection(value);
-    if (active) return 1 - (0.035 * progress);
+    if (active) return activeDirection === "previous" ? 1 : 1 - (0.035 * progress);
     if (activeDirection === "next" && position === 1) return 0.98 + (0.02 * progress);
     if (activeDirection === "previous" && previousTarget) return 0.98 + (0.02 * progress);
     return 1;
@@ -288,16 +296,8 @@ function CourseDeckCard({
     dragControls.start(event, { snapToCursor: false });
   };
 
-  const spineContent = (
-    <>
-      <small>{item.category ?? "Course"}</small>
-      <strong>{item.topic}</strong>
-      <i aria-hidden="true" />
-    </>
-  );
-
   const motionStyle = geometry.ready
-    ? { x: active ? dragX : cardX, y: cardY, rotate: cardRotation, scale: cardScale, opacity: cardOpacity, zIndex: cardZIndex }
+    ? { x: cardX, y: cardY, rotate: cardRotation, scale: cardScale, opacity: cardOpacity, zIndex: cardZIndex }
     : undefined;
 
   return (
@@ -354,22 +354,6 @@ function CourseDeckCard({
           </div>
         </div>
       </div>
-
-      {!active && (position === 1 ? (
-        <m.button
-          className="course-deck-spine"
-          type="button"
-          tabIndex={-1}
-          aria-label={`Bring ${item.topic} to the front`}
-          onClick={onNext}
-        >
-          {spineContent}
-        </m.button>
-      ) : (
-        <m.div className="course-deck-spine" aria-hidden="true">
-          {spineContent}
-        </m.div>
-      ))}
     </m.div>
   );
 }
@@ -517,12 +501,14 @@ export default function CourseDeck({ items, firstName, canCreateCourses }: Cours
   }, [updateMotionState]);
 
   const handleDragMove = useCallback((info: PanInfo) => {
-    if (motionStateRef.current !== "dragging" || Math.abs(info.offset.x) < 3) return;
+    if (motionStateRef.current !== "dragging") return;
+    dragX.set(info.offset.x);
+    if (Math.abs(info.offset.x) < 3) return;
     const nextDirection = info.offset.x < 0 ? "next" : "previous";
     if (directionRef.current === nextDirection) return;
     directionRef.current = nextDirection;
     setDirection(nextDirection);
-  }, []);
+  }, [dragX]);
 
   const finishDrag = useCallback((reportedOffset = 0, releaseVelocity = 0) => {
     if (motionStateRef.current !== "dragging") return;
@@ -786,7 +772,6 @@ export default function CourseDeck({ items, firstName, canCreateCourses }: Cours
                   direction={direction}
                   motionState={motionState}
                   reducedMotion={reducedMotion}
-                  onNext={next}
                   onDragStart={handleDragStart}
                   onDragMove={handleDragMove}
                   onDragEnd={handleDragEnd}

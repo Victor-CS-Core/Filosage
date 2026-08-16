@@ -515,7 +515,6 @@ test.describe("desktop application shell", () => {
       const style = getComputedStyle(card);
       const matrix = new DOMMatrixReadOnly(style.transform);
       const face = card.querySelector<HTMLElement>(".course-deck-card-face");
-      const spine = card.querySelector<HTMLElement>(".course-deck-spine");
       return {
         id: (card as HTMLElement).dataset.courseId ?? "",
         position: Number((card as HTMLElement).dataset.position),
@@ -527,7 +526,7 @@ test.describe("desktop application shell", () => {
         visibility: style.visibility,
         zIndex: Number(style.zIndex),
         scale: Math.hypot(matrix.a, matrix.b),
-        spineVisibility: spine ? getComputedStyle(spine).visibility : "hidden",
+        hasSpine: Boolean(card.querySelector(".course-deck-spine")),
         hasFullFace: Boolean(
           face?.querySelector(".course-deck-cover")
           && face.querySelector(".course-deck-card-copy h2")
@@ -566,9 +565,13 @@ test.describe("desktop application shell", () => {
       hasCourseTitle: Boolean(card.querySelector(".course-deck-card-copy h2")),
       hasProgress: Boolean(card.querySelector(".course-deck-progress")),
       hasContinue: Boolean(card.querySelector("a.course-deck-primary")),
+      hasSpine: Boolean(card.querySelector(".course-deck-spine")),
+      titleWritingMode: getComputedStyle(card.querySelector<HTMLElement>(".course-deck-card-copy h2")!).writingMode,
     })));
     expect(fullCardFaces).toHaveLength(3);
     expect(fullCardFaces.every((card) => card.hasCover && card.hasCourseTitle && card.hasProgress && card.hasContinue)).toBe(true);
+    expect(fullCardFaces.every((card) => !card.hasSpine && card.titleWritingMode === "horizontal-tb")).toBe(true);
+    await expect(page.locator(".course-deck-spine")).toHaveCount(0);
     const pile = await inspectPile();
     expect(pile).toHaveLength(3);
     expect(pile[0].left).toBeLessThan(pile[1].left);
@@ -675,7 +678,7 @@ test.describe("desktop application shell", () => {
       expect(incomingNextCard?.zIndex).toBe(3);
       expect(outgoingNextCard?.opacity ?? 1).toBeLessThan(0.99);
       expect(outgoingNextCard?.scale ?? 1).toBeLessThan(0.995);
-      expect(incomingNextCard?.spineVisibility).toBe("hidden");
+      expect(incomingNextCard?.hasSpine).toBe(false);
       expect(incomingNextCard?.hasFullFace).toBe(true);
       await expectDeckSelection(0);
       if (process.env.CAPTURE_DASHBOARD === "1" && viewport.width === 1366) {
@@ -700,6 +703,9 @@ test.describe("desktop application shell", () => {
       await page.evaluate(() => new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))));
       await expect(page.locator(".course-deck-viewport")).toHaveAttribute("data-direction", "previous");
       await expectDeckSelection(1);
+      const heldPrevious = await decisionCard.boundingBox();
+      if (!heldPrevious) throw new Error("Course Deck backward-held card is not measurable.");
+      expect(Math.abs((heldPrevious.x - decisionBox.x) - (decisionBox.width * 0.15)), JSON.stringify({ decisionBox, heldPrevious, viewport })).toBeLessThan(6);
       const previousLayers = await inspectPaintedPile();
       expectDistinctOverlapLayers(previousLayers);
       expect(previousLayers.find((card) => card.id === "decision-shell-course")?.zIndex).toBe(3);
@@ -712,12 +718,16 @@ test.describe("desktop application shell", () => {
       expectDistinctOverlapLayers(previousHandoffLayers);
       const outgoingPreviousCard = previousHandoffLayers.find((card) => card.id === "decision-shell-course");
       const incomingPreviousCard = previousHandoffLayers.find((card) => card.id === "morse-shell-course");
-      expect(outgoingPreviousCard?.zIndex).toBe(0);
+      expect(outgoingPreviousCard?.zIndex).toBe(2);
       expect(incomingPreviousCard?.zIndex).toBe(3);
-      expect(outgoingPreviousCard?.opacity ?? 1).toBeLessThan(0.99);
-      expect(outgoingPreviousCard?.scale ?? 1).toBeLessThan(0.995);
-      expect(incomingPreviousCard?.spineVisibility).toBe("hidden");
+      expect(outgoingPreviousCard?.opacity ?? 0).toBeGreaterThan(0.99);
+      expect(Math.abs((outgoingPreviousCard?.scale ?? 0) - 1)).toBeLessThan(0.005);
+      expect(outgoingPreviousCard?.left ?? 0).toBeGreaterThan(incomingPreviousCard?.left ?? Number.POSITIVE_INFINITY);
+      expect(incomingPreviousCard?.hasSpine).toBe(false);
       expect(incomingPreviousCard?.hasFullFace).toBe(true);
+      if (process.env.CAPTURE_DASHBOARD === "1" && viewport.width === 1366) {
+        await page.screenshot({ path: ".impeccable/review/course-deck-stack-motion-previous-desktop.png", fullPage: true });
+      }
       await page.mouse.up();
       await waitForDeckToSettle(page);
       await expectDeckSelection(0);
@@ -1090,34 +1100,37 @@ test.describe("mobile application shell", () => {
       await expect(page.getByRole("button", { name: "Show next active course" })).toBeVisible();
       await expect(page.locator(".course-deck-card[data-position='1']")).toBeVisible();
       await expect(page.locator(".course-deck-card[data-position='2']")).toBeVisible();
-      const spineMetrics = await page.locator(".course-deck-card.is-visible").evaluateAll((cards) => {
+      const fullCardMetrics = await page.locator(".course-deck-card.is-visible").evaluateAll((cards) => {
         const sortedCards = cards
           .map((card) => ({ element: card as HTMLElement, position: Number((card as HTMLElement).dataset.position) }))
           .sort((first, second) => first.position - second.position);
-        return sortedCards.slice(1).map(({ element, position }, index) => {
-          const previousRect = sortedCards[index].element.getBoundingClientRect();
+        const activeWidth = sortedCards[0].element.offsetWidth;
+        const activeHeight = sortedCards[0].element.offsetHeight;
+        return sortedCards.map(({ element, position }, index) => {
+          const previousRect = index > 0 ? sortedCards[index - 1].element.getBoundingClientRect() : null;
           const cardRect = element.getBoundingClientRect();
-          const spine = element.querySelector<HTMLElement>(".course-deck-spine")!;
-          const title = spine.querySelector<HTMLElement>("strong")!;
-          const spineRect = spine.getBoundingClientRect();
-          const titleRect = title.getBoundingClientRect();
+          const face = element.querySelector<HTMLElement>(".course-deck-card-face")!;
+          const title = face.querySelector<HTMLElement>(".course-deck-card-copy h2")!;
           const titleStyle = getComputedStyle(title);
           return {
             position,
-            startsInExposedStrip: spineRect.left >= previousRect.right - 6,
-            containedInCard: spineRect.right <= cardRect.right + 1,
-            titleContained: titleRect.left >= spineRect.left - 1
-              && titleRect.right <= spineRect.right + 1
-              && titleRect.top >= spineRect.top - 1
-              && titleRect.bottom <= spineRect.bottom + 1,
+            hasCompleteFace: Boolean(
+              face.querySelector(".course-deck-cover")
+              && face.querySelector(".course-deck-card-copy h2")
+              && face.querySelector(".course-deck-progress")
+              && face.querySelector("a.course-deck-primary"),
+            ),
+            hasSpine: Boolean(element.querySelector(".course-deck-spine")),
+            sameDimensions: Math.abs(element.offsetWidth - activeWidth) < 1 && Math.abs(element.offsetHeight - activeHeight) < 1,
+            exposedWidth: previousRect ? cardRect.right - previousRect.right : cardRect.width,
             writingMode: titleStyle.writingMode,
-            fontSize: Number.parseFloat(titleStyle.fontSize),
           };
         });
       });
-      expect(spineMetrics).toHaveLength(2);
-      expect(spineMetrics.every((metric) => metric.startsInExposedStrip && metric.containedInCard && metric.titleContained), JSON.stringify({ viewport, spineMetrics })).toBe(true);
-      expect(spineMetrics.every((metric) => metric.writingMode === "vertical-rl" && metric.fontSize >= 12), JSON.stringify({ viewport, spineMetrics })).toBe(true);
+      expect(fullCardMetrics).toHaveLength(3);
+      expect(fullCardMetrics.every((metric) => metric.hasCompleteFace && !metric.hasSpine && metric.sameDimensions), JSON.stringify({ viewport, fullCardMetrics })).toBe(true);
+      expect(fullCardMetrics.every((metric) => metric.writingMode === "horizontal-tb"), JSON.stringify({ viewport, fullCardMetrics })).toBe(true);
+      expect(fullCardMetrics.slice(1).every((metric) => metric.exposedWidth >= 28), JSON.stringify({ viewport, fullCardMetrics })).toBe(true);
 
       const actionMetrics = await page.locator(".course-deck-card.is-active").evaluate((card) => {
         const copy = card.querySelector<HTMLElement>(".course-deck-card-copy")!;
@@ -1152,10 +1165,6 @@ test.describe("mobile application shell", () => {
 
       const sparkBox = await page.getByRole("button", { name: "Open Support Center" }).boundingBox();
       const controlsBox = await page.locator(".course-deck-controls").boundingBox();
-      const spineTitleBoxes = await page.locator(".course-deck-card.is-visible .course-deck-spine strong").evaluateAll((titles) => titles.map((title) => {
-        const rect = title.getBoundingClientRect();
-        return { x: rect.x, y: rect.y, width: rect.width, height: rect.height };
-      }));
       expect(sparkBox).not.toBeNull();
       expect(controlsBox).not.toBeNull();
       const overlapsControls = (sparkBox?.x ?? 0) < (controlsBox?.x ?? 0) + (controlsBox?.width ?? 0)
@@ -1164,12 +1173,6 @@ test.describe("mobile application shell", () => {
         && (sparkBox?.y ?? 0) + (sparkBox?.height ?? 0) > (controlsBox?.y ?? 0);
       expect(overlapsControls).toBe(false);
       expect((sparkBox?.x ?? 0) - ((controlsBox?.x ?? 0) + (controlsBox?.width ?? 0))).toBeGreaterThanOrEqual(8);
-      expect(spineTitleBoxes.every((title) => !(
-        (sparkBox?.x ?? 0) < title.x + title.width
-        && (sparkBox?.x ?? 0) + (sparkBox?.width ?? 0) > title.x
-        && (sparkBox?.y ?? 0) < title.y + title.height
-        && (sparkBox?.y ?? 0) + (sparkBox?.height ?? 0) > title.y
-      )), JSON.stringify({ viewport, sparkBox, spineTitleBoxes })).toBe(true);
       expect((await new AxeBuilder({ page }).include(".course-deck-section").analyze()).violations).toEqual([]);
       await expectNoHorizontalPageOverflow(page);
     }
