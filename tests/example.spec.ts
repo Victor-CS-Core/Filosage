@@ -1034,6 +1034,35 @@ test("does not complete a lesson after a wrong answer", async ({ page }) => {
   await page.route("**/api/courses/demo", (route) => route.fulfill({ json: course }));
   await page.route("**/api/courses/demo/lessons/0-0", (route) => route.fulfill({ json: lesson }));
   await page.route("**/api/courses/demo/lessons/0-1", (route) => route.fulfill({ json: { ...lesson, content: "## Find the leverage point\n\nLook for the relationship that changes the system's behavior." } }));
+  let generatedLessonDeck = false;
+  const lessonDeck = {
+    deck: {
+      id: "lesson-deck-0001", version: 1, ownerUid: "local-owner", revision: 1,
+      title: "Feedback loops: retrieval deck", description: "A checked lesson deck.",
+      kind: "generated", status: "draft", courseId: "demo", courseTopic: "Systems thinking",
+      moduleIndex: 0, lessonIds: ["0-0"], scope: "lesson",
+      generationSettings: { depth: "balanced", emphasis: "balanced", includeAttemptedChecks: true },
+      sourceFingerprint: "source-fingerprint-0000000000000001", cardCount: 2, dueCount: 2,
+      createdAt: "2026-08-16T12:00:00.000Z", updatedAt: "2026-08-16T12:00:00.000Z",
+      lastReviewedAt: null, archivedAt: null, deletedAt: null,
+    },
+    cards: [
+      { id: "lesson-card-0001", version: 1, deckId: "lesson-deck-0001", courseId: "demo", position: 0, prompt: "How does a feedback loop change what happens next?", answer: "A feedback loop connects a system's output to what happens next.", type: "application", origin: "generated", objectiveIds: ["objective-0-0"], sourceRefs: [{ ref: "0-0:content:0", lessonId: "0-0", lessonTitle: "Feedback loops", field: "content" }], sourceFingerprint: "source-fingerprint-0000000000000001", createdAt: "2026-08-16T12:00:00.000Z", updatedAt: "2026-08-16T12:00:00.000Z", deletedAt: null },
+      { id: "lesson-card-0002", version: 1, deckId: "lesson-deck-0001", courseId: "demo", position: 1, prompt: "Why are feedback loops useful for studying change?", answer: "They make change visible over time.", type: "recall", origin: "generated", objectiveIds: ["objective-0-0"], sourceRefs: [{ ref: "0-0:content:1", lessonId: "0-0", lessonTitle: "Feedback loops", field: "content" }], sourceFingerprint: "source-fingerprint-0000000000000001", createdAt: "2026-08-16T12:00:00.000Z", updatedAt: "2026-08-16T12:00:00.000Z", deletedAt: null },
+    ],
+  };
+  await page.route("**/api/flashcards/**", async (route) => {
+    const request = route.request();
+    const pathname = new URL(request.url()).pathname;
+    if (pathname === "/api/flashcards/generate") {
+      generatedLessonDeck = true;
+      return route.fulfill({ status: 201, json: lessonDeck });
+    }
+    if (pathname.endsWith("/review")) return route.fulfill({ json: { review: { dueAt: "2026-08-19T12:00:00.000Z" } } });
+    if (pathname === "/api/flashcards/decks/lesson-deck-0001") return route.fulfill({ json: lessonDeck });
+    if (pathname === "/api/flashcards/decks") return route.fulfill({ json: { decks: generatedLessonDeck ? [lessonDeck.deck] : [], availability: { decksEnabled: true, generationEnabled: true, canCreateCustomDeck: true } } });
+    return route.fallback();
+  });
   await page.goto("/course/Systems%20thinking/lesson/0-0?id=demo");
 
   await expect(page.getByRole("heading", { name: "Feedback loops" })).toHaveCount(1, { timeout: 15_000 });
@@ -1068,53 +1097,23 @@ test("does not complete a lesson after a wrong answer", async ({ page }) => {
   }
   await expect(studyTools.getByRole("tab", { name: "Notes" })).toHaveAttribute("aria-selected", "true");
   await studyTools.getByRole("tab", { name: "Flashcards" }).click();
-  const startRecall = studyTools.getByRole("button", { name: /Start (?:[4-9]|10)-card recall/ });
-  const recallCount = Number((await startRecall.textContent())?.match(/\d+/)?.[0]);
-  expect(recallCount).toBeGreaterThanOrEqual(4);
-  expect(recallCount).toBeLessThanOrEqual(10);
-  await startRecall.click();
-  await expect(studyTools.getByText(new RegExp(`Card 1 of ${recallCount}`))).toBeVisible();
-  const flashcard = studyTools.getByRole("button", { name: "Reveal flashcard answer" });
-  const containedFaces = await flashcard.evaluate((element) => {
-    const card = element.getBoundingClientRect();
-    return Array.from(element.querySelectorAll<HTMLElement>(".flashcard-face")).every((face) => {
-      const bounds = face.getBoundingClientRect();
-      const styles = getComputedStyle(face);
-      return bounds.left >= card.left - 1
-        && bounds.right <= card.right + 1
-        && bounds.top >= card.top - 1
-        && bounds.bottom <= card.bottom + 1
-        && face.scrollWidth <= face.clientWidth + 1
-        && styles.overflowY === "auto";
-    });
-  });
-  expect(containedFaces).toBe(true);
-  const recalledAnswers: string[] = [];
-  for (let cardIndex = 0; cardIndex < recallCount + 1; cardIndex += 1) {
-    await studyTools.getByRole("button", { name: "Reveal flashcard answer" }).click();
-    const revealedFlashcard = studyTools.getByRole("button", { name: "Hide flashcard answer" });
-    await expect(revealedFlashcard).toHaveClass(/is-revealed/);
-    recalledAnswers.push(await revealedFlashcard.locator(".flashcard-back").innerText());
-    if (cardIndex === 0) {
-      await expect(revealedFlashcard.locator(".flashcard-back")).toContainText("How outputs influence future inputs");
-      const flipTransform = await revealedFlashcard.locator(".flashcard-inner").evaluate((element) => getComputedStyle(element).transform);
-      expect(flipTransform).not.toBe("none");
-    }
-    if (cardIndex === 0) {
-      await studyTools.getByRole("button", { name: "Review again" }).click();
-      await expect(studyTools.getByText(`Card 2 of ${recallCount + 1}`)).toBeVisible();
-    } else {
-      await studyTools.getByRole("button", { name: "Got it" }).click();
-    }
-  }
-  expect(recalledAnswers.join(" ")).not.toContain("Output influencing future input");
-  expect(recalledAnswers.join(" ")).not.toContain("The result feeds back into the system.");
-  await expect(studyTools.getByText("Recall session complete", { exact: true })).toBeVisible();
-  await expect(studyTools.getByText(`You remembered all ${recallCount} cards.`)).toBeVisible();
+  await expect(studyTools.getByText("Generated only when you ask, then checked against this lesson.")).toBeVisible();
+  await studyTools.getByRole("button", { name: "Generate deck" }).click();
+  await expect(studyTools.getByText("2-card deck created and checked.")).toBeVisible();
+  await expect(studyTools.getByText("Card 1 of 2")).toBeVisible();
+  await studyTools.getByRole("button", { name: "Reveal answer" }).click();
+  await expect(studyTools.getByText("A feedback loop connects a system's output to what happens next.")).toBeVisible();
+  await expect(studyTools.getByText("Grounded in Feedback loops")).toBeVisible();
+  await studyTools.getByRole("button", { name: /Got it/ }).click();
+  await expect(studyTools.getByText("Card 2 of 2")).toBeVisible();
+  await studyTools.getByRole("button", { name: "Reveal answer" }).click();
+  await studyTools.getByRole("button", { name: /Almost/ }).click();
+  await expect(studyTools.getByText("Deck complete", { exact: true })).toBeVisible();
+  await expect(studyTools.getByText("Your ratings are saved and the next review dates are scheduled.")).toBeVisible();
   await studyTools.getByRole("button", { name: "Close study tools" }).click();
   await page.getByRole("button", { name: "Study tools" }).click();
   await studyTools.getByRole("tab", { name: "Flashcards" }).click();
-  await expect(studyTools.getByText("Recall session complete", { exact: true })).toBeVisible();
+  await expect(studyTools.getByRole("combobox", { name: "Study deck" })).toHaveValue("lesson-deck-0001");
   await studyTools.getByRole("button", { name: "Close study tools" }).click();
   await page.getByRole("button", { name: "Ask Filosage" }).click();
   const tutor = page.getByRole("dialog", { name: "Ask Filosage" });

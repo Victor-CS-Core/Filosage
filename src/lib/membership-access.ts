@@ -2,6 +2,7 @@ import "server-only";
 
 import type { ServerAccount } from "@/lib/account-server";
 import { listOwnerCourses, runStoredDocumentTransaction } from "@/lib/firebase-server";
+import { flashcardFeatureConfiguration } from "@/lib/flashcard-feature";
 import { MEMBERSHIP_PLANS, planAllows, type PlanCapability } from "@/lib/membership-plans";
 import { courseAuthorIdsForAccount } from "@/lib/course-owner-identity";
 
@@ -17,10 +18,13 @@ export class CourseCapacityError extends Error {
 export function capabilitiesForAccount(account: Pick<ServerAccount, "plan" | "isOwner" | "accountStatus">) {
   const active = account.accountStatus !== "suspended";
   const allowed = (capability: PlanCapability) => active && (account.isOwner || planAllows(account.plan, capability));
+  const flashcardDecksEnabled = active && flashcardFeatureConfiguration().decksEnabled;
   return {
     createCourse: allowed("create_course"),
     generateLesson: allowed("generate_lesson"),
     generateCourseBanner: allowed("generate_course_banner"),
+    flashcardDecksEnabled,
+    createCustomFlashcardDeck: allowed("create_custom_flashcard_deck"),
     publishCourse: allowed("publish_course"),
   };
 }

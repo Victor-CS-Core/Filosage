@@ -18,7 +18,7 @@ import {
   COURSE_OUTLINE_RESERVE_COST_MICROS,
 } from "@/lib/ai-usage-policy";
 
-export type AiFeature = "course_outline" | "course_banner" | "lesson_generation" | "tutor" | "command_center_draft";
+export type AiFeature = "course_outline" | "course_banner" | "lesson_generation" | "tutor" | "flashcard_generation" | "command_center_draft";
 export type AiBudgetPool = "free" | "paid" | "owner";
 
 const BUDGET_SHARDS = 16;
@@ -75,8 +75,8 @@ function policyFor(account: ServerAccount, feature: AiFeature, now = new Date())
       periodKey: monthly.key,
       resetAt: monthly.resetAt,
       maxPerMinute: 20,
-      reserveCostMicros: isBanner ? 20_000 : feature === "tutor" ? 50_000 : feature === "command_center_draft" ? 100_000 : feature === "course_outline" ? COURSE_OUTLINE_RESERVE_COST_MICROS : 350_000,
-      lockMs: isBanner ? 90_000 : feature === "tutor" ? 45_000 : feature === "command_center_draft" ? 90_000 : feature === "lesson_generation" ? 75_000 : COURSE_OUTLINE_RESERVATION_LOCK_MS,
+      reserveCostMicros: isBanner ? 20_000 : feature === "tutor" ? 50_000 : feature === "flashcard_generation" ? 100_000 : feature === "command_center_draft" ? 100_000 : feature === "course_outline" ? COURSE_OUTLINE_RESERVE_COST_MICROS : 350_000,
+      lockMs: isBanner ? 90_000 : feature === "tutor" ? 45_000 : feature === "flashcard_generation" ? 90_000 : feature === "command_center_draft" ? 90_000 : feature === "lesson_generation" ? 75_000 : COURSE_OUTLINE_RESERVATION_LOCK_MS,
     };
   }
 
@@ -86,15 +86,16 @@ function policyFor(account: ServerAccount, feature: AiFeature, now = new Date())
     course_banner: planLimits.courseBanners,
     lesson_generation: planLimits.generatedLessons,
     tutor: planLimits.tutorQuestions,
+    flashcard_generation: planLimits.flashcardDeckGenerationsPerMonth,
     command_center_draft: 0,
   };
   return {
     limit: limits[feature],
     periodKey: monthly.key,
     resetAt: monthly.resetAt,
-    maxPerMinute: feature === "tutor" ? (account.plan === "free" ? 2 : 6) : 2,
-    reserveCostMicros: isBanner ? 20_000 : feature === "tutor" ? 50_000 : feature === "command_center_draft" ? 100_000 : feature === "course_outline" ? COURSE_OUTLINE_RESERVE_COST_MICROS : 350_000,
-    lockMs: isBanner ? 90_000 : feature === "tutor" ? 45_000 : feature === "command_center_draft" ? 90_000 : feature === "lesson_generation" ? 75_000 : COURSE_OUTLINE_RESERVATION_LOCK_MS,
+    maxPerMinute: feature === "tutor" ? (account.plan === "free" ? 2 : 6) : feature === "flashcard_generation" ? 3 : 2,
+    reserveCostMicros: isBanner ? 20_000 : feature === "tutor" ? 50_000 : feature === "flashcard_generation" ? 100_000 : feature === "command_center_draft" ? 100_000 : feature === "course_outline" ? COURSE_OUTLINE_RESERVE_COST_MICROS : 350_000,
+    lockMs: isBanner ? 90_000 : feature === "tutor" ? 45_000 : feature === "flashcard_generation" ? 90_000 : feature === "command_center_draft" ? 90_000 : feature === "lesson_generation" ? 75_000 : COURSE_OUTLINE_RESERVATION_LOCK_MS,
   };
 }
 
@@ -390,6 +391,8 @@ export async function finalizeAiUsage(
   const nowIso = new Date().toISOString();
   const defaultModel = reservation.feature === "command_center_draft"
     ? serverEnvironment.OPENAI_COMMAND_CENTER_MODEL || serverEnvironment.OPENAI_MODEL || "gpt-5.6-terra"
+    : reservation.feature === "flashcard_generation"
+    ? serverEnvironment.OPENAI_FLASHCARD_MODEL || serverEnvironment.OPENAI_TUTOR_MODEL || "gpt-5.6-luna"
     : reservation.feature === "tutor"
     ? serverEnvironment.OPENAI_TUTOR_MODEL || "gpt-5.6-luna"
     : reservation.feature === "course_banner"
@@ -535,7 +538,7 @@ export async function finalizeAiUsage(
 
 export async function getAiQuotaSummaries(account: ServerAccount): Promise<AiQuotaSummary[]> {
   const now = new Date();
-  const features: AiQuotaSummary["feature"][] = ["course_outline", "course_banner", "lesson_generation", "tutor"];
+  const features: AiQuotaSummary["feature"][] = ["course_outline", "course_banner", "lesson_generation", "tutor", "flashcard_generation"];
   return Promise.all(features.map(async (feature) => {
     const policy = policyFor(account, feature, now);
     const path = `usagePeriods/${account.uid}__${feature}__${policy.periodKey}`;

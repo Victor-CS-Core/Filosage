@@ -80,15 +80,16 @@ test("the approved capability and quota matrix stays explicit", () => {
     create_course: false,
     generate_lesson: false,
     generate_course_banner: false,
+    create_custom_flashcard_deck: false,
     publish_course: false,
   });
   expect(MEMBERSHIP_PLANS.plus).toMatchObject({
-    limits: { activeOwnedCourses: 1, courseOutlines: 1, generatedLessons: 10, tutorQuestions: 40, courseBanners: 10 },
-    capabilities: { create_course: true, generate_lesson: true, generate_course_banner: true, publish_course: false },
+    limits: { activeOwnedCourses: 1, courseOutlines: 1, generatedLessons: 10, tutorQuestions: 40, courseBanners: 10, flashcardDeckGenerationsPerMonth: 40 },
+    capabilities: { create_course: true, generate_lesson: true, generate_course_banner: true, create_custom_flashcard_deck: true, publish_course: false },
   });
   expect(MEMBERSHIP_PLANS.pro).toMatchObject({
-    limits: { activeOwnedCourses: null, courseOutlines: 3, generatedLessons: 30, tutorQuestions: 100, courseBanners: 30 },
-    capabilities: { create_course: true, generate_lesson: true, generate_course_banner: true, publish_course: true },
+    limits: { activeOwnedCourses: null, courseOutlines: 3, generatedLessons: 30, tutorQuestions: 100, courseBanners: 30, flashcardDeckGenerationsPerMonth: 100 },
+    capabilities: { create_course: true, generate_lesson: true, generate_course_banner: true, create_custom_flashcard_deck: true, publish_course: true },
   });
 });
 

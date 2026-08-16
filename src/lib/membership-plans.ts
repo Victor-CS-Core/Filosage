@@ -6,6 +6,7 @@ export type PlanCapability =
   | "create_course"
   | "generate_lesson"
   | "generate_course_banner"
+  | "create_custom_flashcard_deck"
   | "publish_course";
 
 export interface MembershipPlan {
@@ -28,6 +29,7 @@ export interface MembershipPlan {
     generatedLessons: number;
     tutorQuestions: number;
     courseBanners: number;
+    flashcardDeckGenerationsPerMonth: number;
   };
   capabilities: Record<PlanCapability, boolean>;
   includedFeatures: readonly string[];
@@ -51,11 +53,13 @@ export const MEMBERSHIP_PLANS = {
       generatedLessons: 0,
       tutorQuestions: 5,
       courseBanners: 0,
+      flashcardDeckGenerationsPerMonth: 5,
     },
     capabilities: {
       create_course: false,
       generate_lesson: false,
       generate_course_banner: false,
+      create_custom_flashcard_deck: false,
       publish_course: false,
     },
     includedFeatures: [
@@ -63,9 +67,11 @@ export const MEMBERSHIP_PLANS = {
       "Complete lessons and retrieval practice",
       "Cloud progress and review scheduling",
       "Five tutor questions each month",
+      "Five AI flashcard deck generations each month",
     ],
     restrictedFeatures: [
       "Private AI-assisted course creation",
+      "Custom flashcard decks",
       "Course publishing",
     ],
   },
@@ -88,11 +94,13 @@ export const MEMBERSHIP_PLANS = {
       generatedLessons: 10,
       tutorQuestions: 40,
       courseBanners: 10,
+      flashcardDeckGenerationsPerMonth: 40,
     },
     capabilities: {
       create_course: true,
       generate_lesson: true,
       generate_course_banner: true,
+      create_custom_flashcard_deck: true,
       publish_course: false,
     },
     includedFeatures: [
@@ -102,6 +110,8 @@ export const MEMBERSHIP_PLANS = {
       "Ten generated lessons each month",
       "Complete the current lesson activities before generating the next lesson",
       "Forty tutor questions each month",
+      "Forty AI flashcard deck generations each month",
+      "Create private custom flashcard decks",
       "Ten course-banner generation requests each month",
     ],
     restrictedFeatures: [
@@ -128,11 +138,13 @@ export const MEMBERSHIP_PLANS = {
       generatedLessons: 30,
       tutorQuestions: 100,
       courseBanners: 30,
+      flashcardDeckGenerationsPerMonth: 100,
     },
     capabilities: {
       create_course: true,
       generate_lesson: true,
       generate_course_banner: true,
+      create_custom_flashcard_deck: true,
       publish_course: true,
     },
     includedFeatures: [
@@ -141,6 +153,7 @@ export const MEMBERSHIP_PLANS = {
       "Three generated course outlines each month",
       "Thirty generated lessons each month",
       "One hundred tutor questions each month",
+      "One hundred AI flashcard deck generations each month",
       "Thirty course-banner generation requests each month",
       "Publish generated courses after completing every lesson",
     ],

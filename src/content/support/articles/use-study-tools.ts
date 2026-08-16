@@ -3,11 +3,11 @@ import { defineSupportArticle } from "../types";
 export default defineSupportArticle({
   slug: "use-study-tools",
   title: "Use lesson study tools",
-  summary: "Take notes, run a lesson flashcard session, and choose the next practice action.",
+  summary: "Take notes, generate a grounded lesson deck on command, and choose the next practice action.",
   category: "practice",
   keywords: ["study tools", "notes", "flashcards", "recall", "tutor", "practice"],
-  reviewedOn: "2026-08-05",
-  sources: ["src/components/LessonStudyTools.tsx", "src/app/course/[topic]/lesson/[lessonId]/page.tsx"],
+  reviewedOn: "2026-08-16",
+  sources: ["src/components/LessonStudyTools.tsx", "src/components/flashcards/FlashcardStudio.tsx", "src/components/flashcards/FlashcardReviewer.tsx", "src/app/course/[topic]/lesson/[lessonId]/page.tsx"],
   body: `
 ## Open the study workspace
 
@@ -19,7 +19,9 @@ Notes allow up to 12,000 characters. The status beside the note tells you whethe
 
 ## Review lesson flashcards
 
-Start a recall session, think before revealing the answer, then choose **Review again** or **Got it**. Cards marked for another pass return in the session. Flashcard session progress and the next flashcard review date are saved on this device for that lesson.
+Flashcards are generated only when you choose **Generate deck**. The lesson command uses the recommended balanced settings, includes only lesson checks you already attempted, and verifies the cards against lesson material before saving them. A successful generated deck uses one monthly generation; a failed quality or safety check does not.
+
+Choose a saved lesson deck, think before revealing the answer, then rate recall as **Again**, **Almost**, or **Got it**. Cards and next-review dates are saved privately to your account so the same deck is available across devices. Use **Open deck library** to edit cards, choose another deck, or create a custom deck when your membership includes custom creation.
 
 ## Choose more practice
 

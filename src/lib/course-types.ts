@@ -385,7 +385,7 @@ export type AccessLevel = "anonymous" | "free" | "plus" | "pro" | "owner";
 export type AccountStatus = "active" | "suspended";
 
 export interface AiQuotaSummary {
-  feature: "course_outline" | "course_banner" | "lesson_generation" | "tutor";
+  feature: "course_outline" | "course_banner" | "lesson_generation" | "tutor" | "flashcard_generation";
   limit: number | null;
   used: number;
   remaining: number | null;
@@ -411,6 +411,8 @@ export interface LearnerAccount {
     createCourse: boolean;
     generateLesson: boolean;
     generateCourseBanner: boolean;
+    flashcardDecksEnabled?: boolean;
+    createCustomFlashcardDeck?: boolean;
     publishCourse: boolean;
   };
   courseCapacity: {

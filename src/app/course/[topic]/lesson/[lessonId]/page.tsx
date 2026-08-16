@@ -1598,6 +1598,10 @@ export default function LessonView() {
             <AppDrawer open={studyToolsOpen} onClose={studyToolsDrawer.closeDrawer} labelledBy="study-tools-title" size="medium" mobilePlacement="bottom" desktopPresentation="floating" draggable dragLabel="Study workspace window" className="lesson-study-app-drawer">
               <LessonStudyTools
                 lessonKey={noteKey}
+                courseId={courseId!}
+                courseTopic={topic}
+                lessonId={lessonId}
+                moduleIndex={moduleIndex}
                 lessonTitle={lesson.title}
                 lessonConcept={lesson.concept}
                 lessonContent={lessonData.content}

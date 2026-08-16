@@ -6,9 +6,9 @@ export default defineSupportArticle({
   title: "Understand Free, Plus, Pro, and billing status",
   summary: "Compare memberships, check checkout availability, manage a subscription, and recover from common billing states.",
   category: "plans",
-  keywords: ["billing", "pricing", "Plus", "Pro", "checkout", "course limit", "subscription", "downgrade", "cancel", "refund", "payment method"],
-  reviewedOn: "2026-08-11",
-  sources: [".env.example", "src/lib/billing-lock.ts", "src/lib/stripe-server.ts", "src/app/pricing/page.tsx", "src/app/terms/page.tsx", "docs/COMMERCIAL_LAUNCH_RUNBOOK.md"],
+  keywords: ["billing", "pricing", "Plus", "Pro", "checkout", "course limit", "flashcards", "custom decks", "subscription", "downgrade", "cancel", "refund", "payment method"],
+  reviewedOn: "2026-08-16",
+  sources: [".env.example", "src/lib/billing-lock.ts", "src/lib/stripe-server.ts", "src/lib/membership-plans.ts", "src/app/pricing/page.tsx", "src/app/terms/page.tsx", "docs/COMMERCIAL_LAUNCH_RUNBOOK.md"],
   body: `
 ## Check current checkout availability
 
@@ -16,15 +16,15 @@ The [Plans page](/pricing) is the source of truth for paid-checkout availability
 
 ## Memberships
 
-- **Free** opens published courses, progress, review scheduling, and five tutor questions each month.
-- **Filosage Plus** is designed for one active private course at a time, with one generated outline, ten generated lessons, forty tutor questions, and ten course-banner generation requests each month. Plus does not include public publishing.
-- **Filosage Pro** removes the owned-course cap, includes three generated outlines, thirty generated lessons, one hundred tutor questions, and thirty course-banner generation requests each month, and includes course publishing after review.
+- **Free** opens published courses, progress, review scheduling, five tutor questions, and five successful AI flashcard deck generations each month. Free accounts cannot create custom flashcard decks.
+- **Filosage Plus** is designed for one active private course at a time, with one generated outline, ten generated lessons, forty tutor questions, ten course-banner generation requests, and forty successful AI flashcard deck generations each month. Plus includes private custom flashcard decks but does not include public publishing.
+- **Filosage Pro** removes the owned-course cap, includes three generated outlines, thirty generated lessons, one hundred tutor questions, thirty course-banner generation requests, and one hundred successful AI flashcard deck generations each month. Pro includes custom flashcard decks and course publishing after review.
 
-Generation-request allowances reset monthly and do not roll over. A failed request still uses one allowance. Course ownership and monthly AI allowances are separate limits.
+Generation-request allowances reset monthly and do not roll over. Failed or rejected flashcard attempts and retry-safe replays do not use a generation; a successful preview does. Manual flashcard editing and custom card writing do not use AI generations. Course ownership and monthly AI allowances are separate limits.
 
 ## Downgrades preserve your work
 
-A downgrade does not delete a course or automatically unpublish existing work. If the new plan has a lower owned-course limit, existing courses remain accessible, but new course creation is paused until the account is within its limit or upgrades. Features that the new plan does not include, such as publishing from Plus, are blocked for new actions.
+A downgrade does not delete a course, flashcard deck, or automatically unpublish existing work. Saved flashcard decks remain available to study and edit, but a Free account cannot create a new custom deck or add manual cards to a generated deck. If the new plan has a lower owned-course limit, existing courses remain accessible, but new course creation is paused until the account is within its limit or upgrades. Features that the new plan does not include, such as publishing from Plus, are blocked for new actions.
 
 ## Before a purchase
 

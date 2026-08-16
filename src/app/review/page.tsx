@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowRight, CalendarCheck2, Clock3, Flame, RefreshCw, Sparkles } from "lucide-react";
+import { ArrowRight, CalendarCheck2, Clock3, Flame, Layers3, RefreshCw, Sparkles } from "lucide-react";
 import AppShell from "@/components/AppShell";
 import { useAuth } from "@/components/AuthProvider";
 import type { CourseProgress } from "@/lib/learning-types";
@@ -25,7 +25,7 @@ function streakFor(progress: CourseProgress[]) {
 
 export default function ReviewPage() {
   const router = useRouter();
-  const { user, loading: authLoading, signInWithGoogle } = useAuth();
+  const { user, account, loading: authLoading, signInWithGoogle } = useAuth();
   const [progress, setProgress] = useState<CourseProgress[]>([]);
   const [loaded, setLoaded] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -120,6 +120,17 @@ export default function ReviewPage() {
             {streak > 0 && <span className="review-streak"><Flame size={16} /> {streak}-day streak</span>}
           </div>
         </header>
+
+        {account?.capabilities?.flashcardDecksEnabled === true && (
+          <section className="review-flashcard-lane" aria-labelledby="flashcard-lane-title">
+            <span className="review-flashcard-mark"><Layers3 size={24} /></span>
+            <div><h2 id="flashcard-lane-title">Study your flashcard decks</h2><p>Generate a grounded deck when you choose, edit every card, and keep review dates in sync.</p></div>
+            {user && account.quotas.find((quota) => quota.feature === "flashcard_generation")?.remaining != null && (
+              <small>{account.quotas.find((quota) => quota.feature === "flashcard_generation")?.remaining} generations left this month</small>
+            )}
+            <Link className="button button-primary" href="/review/flashcards">Open decks <ArrowRight size={16} /></Link>
+          </section>
+        )}
 
         {due.length ? (
           <div className="review-list">

@@ -21,6 +21,8 @@ export async function GET(request: Request) {
           createCourse: false,
           generateLesson: false,
           generateCourseBanner: false,
+          flashcardDecksEnabled: false,
+          createCustomFlashcardDeck: false,
           publishCourse: false,
         },
         courseCapacity: { owned: 0, limit: 0, remaining: 0, overLimit: false },

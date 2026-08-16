@@ -613,6 +613,28 @@ export function listStoredDocumentsByField(
   });
 }
 
+export function listCollectionGroupDocumentsByField(
+  collectionId: string,
+  field: string,
+  value: unknown,
+  limit = 300,
+) {
+  if (!/^[A-Za-z0-9_.-]{1,120}$/.test(field)) {
+    throw new Error("Invalid Firestore collection-group field query.");
+  }
+  return runCourseQuery({
+    from: collectionGroupFrom(collectionId),
+    where: {
+      fieldFilter: {
+        field: { fieldPath: field },
+        op: "EQUAL",
+        value: toFirestoreValue(value),
+      },
+    },
+    limit: Math.min(Math.max(limit, 1), 10_000),
+  });
+}
+
 export function listCollectionDocuments(collectionId: string, limit = 1_000) {
   if (!/^[A-Za-z0-9_-]{1,80}$/.test(collectionId)) {
     throw new Error("Invalid Firestore collection.");
@@ -724,7 +746,7 @@ export async function runStoredDocumentTransaction<T>(
   paths: string[],
   update: (
     documents: Record<string, StoredDocument | null>,
-  ) => { writes: Array<{ path: string; data: Record<string, unknown> }>; result: T },
+  ) => { writes: Array<{ path: string; data: Record<string, unknown> }>; deletes?: string[]; result: T },
 ): Promise<T> {
   let lastError: unknown;
   let retryTransaction: string | undefined;
@@ -768,16 +790,19 @@ export async function runStoredDocumentTransaction<T>(
         method: "POST",
         body: JSON.stringify({
           transaction,
-          writes: next.writes.map((write) => {
-            const storedData = { ...write.data };
-            delete storedData.id;
-            return {
-              update: {
-                name: fullDocumentName(write.path),
-                fields: toFirestoreFields(storedData),
-              },
-            };
-          }),
+          writes: [
+            ...next.writes.map((write) => {
+              const storedData = { ...write.data };
+              delete storedData.id;
+              return {
+                update: {
+                  name: fullDocumentName(write.path),
+                  fields: toFirestoreFields(storedData),
+                },
+              };
+            }),
+            ...(next.deletes ?? []).map((path) => ({ delete: fullDocumentName(path) })),
+          ],
         }),
       });
       return next.result;
@@ -1575,6 +1600,9 @@ export async function deleteCourse(courseId: string) {
     manualReviewMutationDocuments,
     lessonInteractionDocuments,
     lessonInteractionMutationDocuments,
+    flashcardDeckDocuments,
+    flashcardDocuments,
+    flashcardReviewDocuments,
   ] = await Promise.all([
     listLessons(courseId),
     courseScopedDocuments(COURSE_SCOPED_COLLECTION_GROUPS.progress),
@@ -1616,6 +1644,9 @@ export async function deleteCourse(courseId: string) {
     courseScopedDocuments(COURSE_SCOPED_COLLECTION_GROUPS.manualReviewMutations),
     courseScopedDocuments(COURSE_SCOPED_COLLECTION_GROUPS.lessonInteractions),
     courseScopedDocuments(COURSE_SCOPED_COLLECTION_GROUPS.lessonInteractionMutations),
+    courseScopedDocuments(COURSE_SCOPED_COLLECTION_GROUPS.flashcardDecks),
+    courseScopedDocuments(COURSE_SCOPED_COLLECTION_GROUPS.flashcards),
+    courseScopedDocuments(COURSE_SCOPED_COLLECTION_GROUPS.flashcardReviewState),
   ]);
 
   const updatedAt = new Date().toISOString();
@@ -1631,6 +1662,58 @@ export async function deleteCourse(courseId: string) {
         fields: toFirestoreFields(storedData),
       },
     }];
+  });
+
+  const flashcardRecoveryWrites = flashcardDeckDocuments.flatMap(({ path: deckPath, data: deck }) => {
+    const deckId = typeof deck.id === "string" ? deck.id : deckPath.split("/").at(-1) ?? "";
+    const cards = flashcardDocuments.filter(({ data }) => data.deckId === deckId);
+    const retainedCards = cards.filter(({ data }) => data.origin === "manual" || data.origin === "generated-edited");
+    const retainedCardIds = new Set(retainedCards.flatMap(({ data }) => typeof data.id === "string" ? [data.id] : []));
+    const reviewRecords = flashcardReviewDocuments.filter(({ data }) => data.deckId === deckId);
+    if (!retainedCards.length) {
+      return [
+        { delete: fullDocumentName(deckPath) },
+        ...cards.map(({ path }) => ({ delete: fullDocumentName(path) })),
+        ...reviewRecords.map(({ path }) => ({ delete: fullDocumentName(path) })),
+      ];
+    }
+
+    const nextDeck: Record<string, unknown> = {
+      ...deck,
+      kind: "recovered",
+      courseId: null,
+      moduleIndex: null,
+      lessonIds: [],
+      generationSettings: null,
+      sourceFingerprint: null,
+      cardCount: retainedCards.length,
+      dueCount: Math.min(Number(deck.dueCount) || retainedCards.length, retainedCards.length),
+      revision: (Number(deck.revision) || 1) + 1,
+      updatedAt,
+    };
+    delete nextDeck.id;
+    return [
+      { update: { name: fullDocumentName(deckPath), fields: toFirestoreFields(nextDeck) } },
+      ...cards.map(({ path, data }) => {
+        const cardId = typeof data.id === "string" ? data.id : path.split("/").at(-1) ?? "";
+        if (!retainedCardIds.has(cardId)) return { delete: fullDocumentName(path) };
+        const nextCard: Record<string, unknown> = {
+          ...data,
+          courseId: null,
+          sourceRefs: [],
+          sourceFingerprint: null,
+          updatedAt,
+        };
+        delete nextCard.id;
+        return { update: { name: fullDocumentName(path), fields: toFirestoreFields(nextCard) } };
+      }),
+      ...reviewRecords.map(({ path, data }) => {
+        if (!retainedCardIds.has(String(data.cardId ?? ""))) return { delete: fullDocumentName(path) };
+        const nextReview: Record<string, unknown> = { ...data, courseId: null, updatedAt };
+        delete nextReview.id;
+        return { update: { name: fullDocumentName(path), fields: toFirestoreFields(nextReview) } };
+      }),
+    ];
   });
 
   const dependentWrites: Array<Record<string, unknown>> = [
@@ -1655,6 +1738,7 @@ export async function deleteCourse(courseId: string) {
     ...manualReviewMutationDocuments.map(({ path }) => ({ delete: fullDocumentName(path) })),
     ...lessonInteractionDocuments.map(({ path }) => ({ delete: fullDocumentName(path) })),
     ...lessonInteractionMutationDocuments.map(({ path }) => ({ delete: fullDocumentName(path) })),
+    ...flashcardRecoveryWrites,
     ...preferenceUpdates,
   ];
 
@@ -1679,5 +1763,8 @@ export async function deleteCourse(courseId: string) {
     manualReviewMutations: manualReviewMutationDocuments.length,
     lessonInteractions: lessonInteractionDocuments.length,
     lessonInteractionMutations: lessonInteractionMutationDocuments.length,
+    flashcardDecks: flashcardDeckDocuments.length,
+    flashcardCards: flashcardDocuments.length,
+    flashcardReviewStates: flashcardReviewDocuments.length,
   };
 }

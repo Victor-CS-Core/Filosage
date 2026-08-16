@@ -42,6 +42,7 @@ const featureLabels = {
   course_banner: "Course banner",
   lesson_generation: "Lesson",
   tutor: "Tutor",
+  flashcard_generation: "Flashcard deck",
   command_center_draft: "Command-center draft",
 } as const;
 

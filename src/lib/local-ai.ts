@@ -423,6 +423,71 @@ function stubCommandCenterDraft(input: string) {
   };
 }
 
+function parsedJsonInput(input: string) {
+  try {
+    return JSON.parse(input) as Record<string, unknown>;
+  } catch {
+    return {};
+  }
+}
+
+function stubFlashcardDeck(input: string) {
+  const payload = parsedJsonInput(input);
+  const sources = Array.isArray(payload.sources)
+    ? payload.sources.flatMap((value) => {
+        if (!value || typeof value !== "object") return [];
+        const source = value as Record<string, unknown>;
+        if (typeof source.ref !== "string" || typeof source.text !== "string") return [];
+        return [{
+          ref: source.ref,
+          text: source.text.replace(/\s+/g, " ").trim().slice(0, 260),
+          lessonTitle: typeof source.lessonTitle === "string" ? source.lessonTitle : "this lesson",
+          objectiveIds: Array.isArray(source.objectiveIds)
+            ? source.objectiveIds.filter((value): value is string => typeof value === "string").slice(0, 5)
+            : [],
+        }];
+      })
+    : [];
+  const requested = typeof payload.requestedCardTarget === "number" ? payload.requestedCardTarget : 5;
+  const count = Math.max(2, Math.min(8, requested, sources.length));
+  const promptBuilders = [
+    (title: string) => `What practical distinction from ${title} should guide the next decision?`,
+    (title: string) => `Why does the central idea in ${title} matter in practice?`,
+    (title: string) => `How would you apply the evidence from ${title} to a new case?`,
+    (title: string) => `Which tempting shortcut does ${title} help correct?`,
+    (title: string) => `What boundary or limitation from ${title} should remain visible?`,
+    (title: string) => `How does ${title} connect evidence to an action?`,
+    (title: string) => `When would the method from ${title} change your approach?`,
+    (title: string) => `What makes the lesson's recommended move defensible in ${title}?`,
+  ];
+  const types = ["contrast", "recall", "application", "misconception"] as const;
+  return {
+    title: typeof payload.course === "string" ? `${payload.course}: retrieval deck` : "Retrieval deck",
+    description: "A focused, source-grounded deck for active recall and application.",
+    cards: sources.slice(0, count).map((source, index) => ({
+      prompt: promptBuilders[index](source.lessonTitle),
+      answer: source.text,
+      type: types[index % types.length],
+      objectiveIds: source.objectiveIds,
+      sourceRefIds: [source.ref],
+    })),
+  };
+}
+
+function stubFlashcardEvaluation(input: string) {
+  const payload = parsedJsonInput(input);
+  const cards = Array.isArray(payload.cards) ? payload.cards : [];
+  return {
+    results: cards.map((_, index) => ({
+      index,
+      grounded: true,
+      atomic: true,
+      specific: true,
+      reason: "The local fixture keeps this card bounded to its supplied source excerpt.",
+    })),
+  };
+}
+
 function localAiStub() {
   return {
     moderations: {
@@ -449,6 +514,10 @@ function localAiStub() {
                 line(input, "Create a complete but efficient course outline for: ") || "Your topic",
                 sourceDataFromInput(input).flatMap((source) => typeof source.id === "string" ? [source.id] : []),
               )
+          : format === "flashcard_deck"
+            ? stubFlashcardDeck(input)
+          : format === "flashcard_evaluation"
+            ? stubFlashcardEvaluation(input)
           : format === "capstone_verdict"
             ? stubCapstoneVerdict(input)
             : stubLesson(input);
