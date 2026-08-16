@@ -1,7 +1,7 @@
 # Founding Launch Catalog
 
 Status: Phase 0 curriculum specification  
-Audience: product and data professionals  
+Initial catalog focus: product and data work situations; this is a bounded campaign/catalog choice, not the product eligibility boundary
 Catalog rule: small enough to review, connected enough to compound
 
 ## Curriculum thesis
@@ -10,7 +10,7 @@ The first catalog should teach professional reasoning that transfers across tool
 
 Every flagship course must include:
 
-- A concrete professional outcome.
+- A concrete learning outcome tied to a real study, personal, career, or work situation.
 - Prerequisites and a starting diagnostic.
 - Named misconceptions.
 - At least one realistic work artifact.

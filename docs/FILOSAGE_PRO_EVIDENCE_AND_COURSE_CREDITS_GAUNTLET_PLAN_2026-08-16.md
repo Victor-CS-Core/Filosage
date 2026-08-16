@@ -203,8 +203,8 @@ The Plans page remains a Persuade surface in Filosage's existing calm editorial 
 
 ### Core language
 
-- Plus: **Learn with a plan.** “Build private learning paths for the professional goals in front of you.”
-- Pro: **Prove and share your expertise.** “Add advanced capstone analysis, professional evidence reports, and publishing tools.”
+- Plus: **Learn with a plan.** “Build private learning paths for the study, personal, career, or work goals in front of you.”
+- Pro: **Inspect and share your work.** “Add advanced capstone analysis, portable evidence reports, revocable sharing, and publishing tools.”
 - Plus credit line: “2 complete AI course credits added monthly. Unused credits roll over, up to 24.”
 - Pro credit line: “5 complete AI course credits added monthly. Unused credits roll over, up to 60.”
 - Course-credit explanation: “One credit includes the approved outline and every lesson planned for that course.”
