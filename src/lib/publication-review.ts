@@ -8,7 +8,11 @@ import {
   type PublicationAssessment,
 } from "@/lib/publication-assessment";
 import type { PublicationLessonFailure } from "@/lib/publication-readiness";
-import { publicationContentFingerprint, publicationContentHash } from "@/lib/publication-content";
+import {
+  publicationCandidateContentHash,
+  publicationContentFingerprint,
+  publicationContentHash,
+} from "@/lib/publication-content";
 import { parseCourseCandidate, parseLessonCandidate } from "@/lib/course-pipeline/compatibility";
 import type { PublicationDecision, ValidationReport } from "@/lib/course-pipeline/contract";
 import { publicationDecisionFromReport, validateCourseCandidateV2 } from "@/lib/course-pipeline/validation";
@@ -20,6 +24,11 @@ import { courseUsesPipelineV2 } from "@/lib/course-pipeline/feature-policy";
 
 export const PUBLICATION_REVIEW_VERSION = "publication-v3-classified-override";
 export const PUBLICATION_SAFETY_REVIEW_BASIS = "generation-output-moderation+publication-local-scan";
+export const GENERATED_PUBLICATION_RECORD_VERSION = "publication-v4-generation-trust";
+export const GENERATED_PUBLICATION_SAFETY_BASIS = "generation-output-moderation";
+
+type PublicationSafetyReviewBasis = typeof PUBLICATION_SAFETY_REVIEW_BASIS
+  | typeof GENERATED_PUBLICATION_SAFETY_BASIS;
 
 export interface PublicationLessonReview {
   lessonId: string;
@@ -32,7 +41,7 @@ export interface PublicationLessonReview {
   reviewVersion: string;
   qualityGateVersion: string;
   factualReviewStatus: "unverified";
-  safetyReviewBasis: typeof PUBLICATION_SAFETY_REVIEW_BASIS;
+  safetyReviewBasis: PublicationSafetyReviewBasis;
   sourceUpdatedAt?: string;
   sourceFingerprint: string;
 }
@@ -65,6 +74,90 @@ export interface PublicationOwnerOverride {
 
 export async function generatedContentHash(value: unknown) {
   return publicationContentHash(value);
+}
+
+/**
+ * Build the immutable publication record from content that already passed the
+ * generation pipeline. This deliberately avoids a second quality or moderation
+ * pass at publication time; it only proves that every expected generated
+ * document is present, structurally readable, and bound to the exact snapshot
+ * committed by the publication transaction.
+ */
+export async function buildGeneratedCoursePublication(
+  course: Course & Record<string, unknown>,
+  lessons: Array<Record<string, unknown>>,
+  expectedLessonIds: string[],
+  publisher: { uid: string; isOwner: boolean },
+) {
+  if (course.aiAssisted !== true) {
+    throw new PublicationReviewError("This course does not have generated-course provenance.");
+  }
+
+  const parsedOutline = parseCourseCandidate(course);
+  const lessonsById = new Map(lessons.map((lesson) => [String(lesson.id ?? ""), lesson]));
+  const parsedLessons = expectedLessonIds.flatMap((lessonId) => {
+    const raw = lessonsById.get(lessonId);
+    const parsed = raw ? parseLessonCandidate(raw) : null;
+    return raw && raw.aiAssisted === true && typeof raw.generatedAt === "string" && parsed?.success
+      ? [{ lessonId, raw }]
+      : [];
+  });
+
+  if (!parsedOutline.success || parsedLessons.length !== expectedLessonIds.length) {
+    const generatedIds = new Set(parsedLessons.map(({ lessonId }) => lessonId));
+    const missingLessonIds = expectedLessonIds.filter((lessonId) => !generatedIds.has(lessonId));
+    throw new PublicationReviewError(
+      "Generate every lesson before publishing.",
+      missingLessonIds,
+      missingLessonIds.map((lessonId) => ({
+        lessonId,
+        issues: ["This lesson does not have complete generation provenance."],
+        category: "structure" as const,
+        overridable: false,
+        currentQualityGate: LESSON_QUALITY_GATE_VERSION,
+      })),
+    );
+  }
+
+  const reviewedAt = new Date().toISOString();
+  const orderedLessons = parsedLessons.map(({ raw }) => raw);
+  const artifactSnapshotHash = await publicationCandidateContentHash(course, orderedLessons);
+  const reviews: PublicationLessonReview[] = await Promise.all(parsedLessons.map(async ({ lessonId, raw }) => ({
+    lessonId,
+    contentHash: await generatedContentHash(raw),
+    status: "approved" as const,
+    reviewedAt,
+    reviewedBy: publisher.uid,
+    reviewerRole: publisher.isOwner ? "owner" as const : "author" as const,
+    moderationModel: MODERATION_MODEL,
+    reviewVersion: GENERATED_PUBLICATION_RECORD_VERSION,
+    qualityGateVersion: typeof raw.qualityGateVersion === "string" ? raw.qualityGateVersion : LESSON_QUALITY_GATE_VERSION,
+    factualReviewStatus: "unverified" as const,
+    safetyReviewBasis: GENERATED_PUBLICATION_SAFETY_BASIS,
+    sourceUpdatedAt: typeof raw.updatedAt === "string" ? raw.updatedAt : undefined,
+    sourceFingerprint: publicationContentFingerprint(raw),
+  })));
+
+  return {
+    status: "approved" as const,
+    reviewedAt,
+    outlineHash: await generatedContentHash(parsedOutline.data),
+    reviews,
+    moderationModel: MODERATION_MODEL,
+    reviewVersion: GENERATED_PUBLICATION_RECORD_VERSION,
+    factualReviewStatus: "unverified" as const,
+    safetyReviewBasis: GENERATED_PUBLICATION_SAFETY_BASIS,
+    sourceUpdatedAt: typeof course.updatedAt === "string" ? course.updatedAt : undefined,
+    sourceFingerprint: publicationContentFingerprint(course),
+    assessment: undefined,
+    assessmentHash: artifactSnapshotHash,
+    validationReport: undefined,
+    publicationDecision: undefined,
+    artifactSnapshotHash,
+    qualityContractVersion: typeof course.qualityContractVersion === "string" ? course.qualityContractVersion : undefined,
+    manualReviewResolutionId: undefined,
+    ownerOverride: undefined,
+  };
 }
 
 async function assessmentContentHash(

@@ -88,6 +88,15 @@ test("searches public guides and renders source-checked article content", async 
   await expect(page.getByText(/It does not offer plan switching/)).toBeVisible();
   await expect(page.getByText(/Reviewed against the app on/)).toBeVisible();
   await expect(page.locator("body")).not.toContainText("src/app/");
+
+  await page.goto("/support/articles/accessibility#control-motion-and-animation");
+  await expect(page.getByRole("heading", { level: 1, name: "Use Filosage with accessibility settings" })).toBeVisible();
+  await expect(page.getByRole("heading", { level: 2, name: "Control motion and animation" })).toBeVisible();
+  await expect(page.getByRole("heading", { level: 3, name: "Windows 11" })).toBeVisible();
+  await expect(page.getByRole("heading", { level: 3, name: "macOS" })).toBeVisible();
+  await expect(page.getByText(/choice takes effect immediately and is remembered in this browser/)).toBeVisible();
+  await expect(page.getByRole("link", { name: "Microsoft's Windows instructions" })).toHaveAttribute("href", /support\.microsoft\.com/);
+  await expect(page.getByRole("link", { name: "Apple's Mac motion instructions" })).toHaveAttribute("href", /support\.apple\.com/);
 });
 
 test("shows the structured handbook only to the verified owner", async ({ page }, testInfo) => {

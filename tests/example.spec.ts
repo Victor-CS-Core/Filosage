@@ -304,7 +304,7 @@ test("publication quality review rejects language contamination and shallow less
   expect(issues).toContain("The lesson is missing its mode-specific activity.");
 });
 
-test("publishes from generation-time moderation plus a complete local safety rescan", async () => {
+test("publishes generated courses from generation-time checks without a second publication scan", async () => {
   const reviewSource = await readFile("src/lib/publication-review.ts", "utf8");
   const safetySource = await readFile("src/lib/content-safety.ts", "utf8");
   const routeSource = await readFile("src/app/api/courses/[courseId]/route.ts", "utf8");
@@ -312,6 +312,11 @@ test("publishes from generation-time moderation plus a complete local safety res
   expect(reviewSource).toContain("await assertLocallySafeContentBatch([");
   expect(reviewSource).toContain("...parsedLessons.map(({ lesson }) => JSON.stringify(lesson))");
   expect(reviewSource).toContain("generation-output-moderation+publication-local-scan");
+  expect(reviewSource).toContain("export async function buildGeneratedCoursePublication");
+  expect(reviewSource).toContain('GENERATED_PUBLICATION_SAFETY_BASIS = "generation-output-moderation"');
+  expect(routeSource).toContain("generatedPublication");
+  expect(routeSource).toContain("buildGeneratedCoursePublication");
+  expect(routeSource).not.toContain("body.attested");
   expect(reviewSource).not.toContain("assertSafeContentBatch");
   expect(routeSource).not.toContain("aiClient()");
   expect(safetySource).toContain("await assertLocallySafeContentBatch(inputs, context)");
@@ -470,8 +475,7 @@ test("shows failed lesson titles, reasons, and an affected-lesson link after pub
 
   await page.goto("/course/Python%20programming?id=publication-review-course");
   await page.locator("details.course-owner-controls > summary").click();
-  await page.getByLabel("I reviewed every lesson, reference link, factual claim, and usage right, and confirm this course is ready for public learners.").check();
-  await page.getByRole("button", { name: "Review and publish" }).click();
+  await page.getByRole("button", { name: "Publish course" }).click();
   await expect(page.getByRole("heading", { name: "Publication review needs attention" })).toBeVisible();
   const reviewPanel = page.getByLabel("Publication review needs attention");
   await expect(reviewPanel.getByText("Trace a Python expression")).toBeVisible();
@@ -689,7 +693,7 @@ test("describes guest access and Pro publishing consistently across public pages
 
   await page.goto("/pricing");
   await expect(page).toHaveTitle("Plans and Pricing | Filosage");
-  await expect(page.getByText("Publish courses after completing and reviewing them")).toBeVisible();
+  await expect(page.getByText("Publish generated courses after completing every lesson")).toBeVisible();
   await expect(page.getByText("complete the current lesson activities before generating the next", { exact: false })).toBeVisible();
 
   await page.goto("/create");
@@ -1868,8 +1872,7 @@ test("clears course-scoped warnings and controls when navigating between owned c
 
   await page.goto("/course/Course%20with%20unfinished%20publishing?id=warning-course");
   await page.locator("details.course-owner-controls > summary").click();
-  await page.getByLabel("I reviewed every lesson, reference link, factual claim, and usage right, and confirm this course is ready for public learners.").check();
-  await page.getByRole("button", { name: "Review and publish" }).click();
+  await page.getByRole("button", { name: "Publish course" }).click();
   await expect(page.locator(".course-owner-controls .form-error")).toContainText("Complete every lesson before publishing.");
 
   await page.getByRole("button", { name: /Search or jump anywhere/ }).click();
@@ -1881,7 +1884,7 @@ test("clears course-scoped warnings and controls when navigating between owned c
   await expect(page).toHaveURL(/Different%20ready%20course\?id=ready-course/);
   await expect(page.getByRole("heading", { name: "Different ready course" })).toBeVisible();
   await expect(page.getByText("Complete every lesson before publishing.", { exact: false })).toHaveCount(0);
-  await expect(page.getByLabel("I reviewed every lesson, reference link, factual claim, and usage right, and confirm this course is ready for public learners.")).not.toBeChecked();
+  await expect(page.getByLabel(/I reviewed every lesson/)).toHaveCount(0);
 });
 
 test("resets lesson-scoped content, reporting, and progression state on next-lesson navigation", async ({ page }) => {

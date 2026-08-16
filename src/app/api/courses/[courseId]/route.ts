@@ -14,7 +14,11 @@ import { toCourseDto } from "@/lib/course-dto";
 import { apiRequestErrorResponse, assertTrustedMutation, readJsonBody } from "@/lib/api-security";
 import { ContentSafetyError } from "@/lib/content-safety";
 import { safeModelErrorDetails } from "@/lib/model-fallback";
-import { PublicationReviewError, reviewCourseForPublication } from "@/lib/publication-review";
+import {
+  buildGeneratedCoursePublication,
+  PublicationReviewError,
+  reviewCourseForPublication,
+} from "@/lib/publication-review";
 import { planAllows } from "@/lib/membership-plans";
 import { reconcileCourseCapacity } from "@/lib/membership-access";
 import { getAiQuotaSummaries, openAiSafetyIdentifier } from "@/lib/ai-usage";
@@ -143,19 +147,14 @@ export async function PATCH(request: Request, { params }: RouteParams) {
         );
       }
       visibilityUpdateStage = "publication-readiness";
-      if (body.attested !== true) {
+      if (course.moderationStatus === "quarantined") {
         return NextResponse.json(
-          { error: "Confirm that you reviewed every lesson before publishing." },
-          { status: 400 },
-        );
-      }
-      if (course.moderationStatus === "quarantined" && !account.isOwner) {
-        return NextResponse.json(
-          { error: "This course is quarantined for owner review and cannot be republished yet." },
+          { error: "This course is quarantined and cannot be published." },
           { status: 403 },
         );
       }
-      if (publicationV2Active && course.pipelineStage !== "ready_to_publish" && course.pipelineStage !== "publishing") {
+      const generatedPublication = course.aiAssisted === true;
+      if (!generatedPublication && publicationV2Active && course.pipelineStage !== "ready_to_publish" && course.pipelineStage !== "publishing") {
         return NextResponse.json(
           { error: "Validate this exact draft before publishing it.", code: "COURSE_NOT_READY_TO_PUBLISH" },
           { status: 409, headers: { "Cache-Control": "no-store" } },
@@ -163,17 +162,22 @@ export async function PATCH(request: Request, { params }: RouteParams) {
       }
       const lessonIds = expectedLessonIds(course as unknown as Course);
       const lessons = await listLessons(courseId);
-      visibilityUpdateStage = "publication-review";
-      const review = await reviewCourseForPublication(
-        course as Course & Record<string, unknown>,
-        lessons,
-        lessonIds,
-        { uid: account.uid, isOwner: account.isOwner },
-      );
-      if (publicationV2Active) {
-        if (course.pipelineStage === "ready_to_publish") {
-          await updateCoursePipelineStage(courseId, "publishing");
-        }
+      visibilityUpdateStage = generatedPublication ? "publication-generated-snapshot" : "publication-review";
+      const review = generatedPublication
+        ? await buildGeneratedCoursePublication(
+            course as Course & Record<string, unknown>,
+            lessons,
+            lessonIds,
+            { uid: account.uid, isOwner: account.isOwner },
+          )
+        : await reviewCourseForPublication(
+            course as Course & Record<string, unknown>,
+            lessons,
+            lessonIds,
+            { uid: account.uid, isOwner: account.isOwner },
+          );
+      if (publicationV2Active && course.pipelineStage === "ready_to_publish") {
+        await updateCoursePipelineStage(courseId, "publishing");
         v2PublishingStageAdvanced = true;
       }
       visibilityUpdateStage = "publication-transaction";

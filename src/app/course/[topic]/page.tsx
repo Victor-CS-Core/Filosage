@@ -93,7 +93,6 @@ export default function CourseMap() {
   const [actionError, setActionError] = useState<string | null>(null);
   const [updating, setUpdating] = useState(false);
   const [bannerBusy, setBannerBusy] = useState(false);
-  const [publishAttested, setPublishAttested] = useState(false);
   const [publicationFailures, setPublicationFailures] = useState<PublicationLessonFailure[]>([]);
   const [publicationAssessment, setPublicationAssessment] = useState<PublicationAssessmentState | null>(null);
   const [validationReport, setValidationReport] = useState<ValidationReport | null>(null);
@@ -168,7 +167,6 @@ export default function CourseMap() {
       setActionError(null);
       setUpdating(false);
       setBannerBusy(false);
-      setPublishAttested(false);
       setPublicationFailures([]);
       setPublicationAssessment(readStoredPublicationAssessment(courseViewKey));
       setRepairProgress(null);
@@ -196,23 +194,6 @@ export default function CourseMap() {
   useEffect(() => {
     void Promise.resolve().then(loadOrGenerate);
   }, [loadOrGenerate]);
-
-  useEffect(() => {
-    if (!user || !requestedCourseId || !course?.canManage) return;
-    let cancelled = false;
-    const loadValidation = async () => {
-      const token = await user.getIdToken();
-      const response = await fetch(`/api/courses/${encodeURIComponent(requestedCourseId)}/validation`, {
-        headers: { Authorization: `Bearer ${token}` },
-        cache: "no-store",
-      });
-      if (!response.ok) return;
-      const data = await response.json() as { validationReport?: ValidationReport };
-      if (!cancelled && data.validationReport) setValidationReport(data.validationReport);
-    };
-    void loadValidation();
-    return () => { cancelled = true; };
-  }, [course?.canManage, requestedCourseId, user]);
 
   const courseId = course?.id ?? course?.courseId ?? requestedCourseId;
   const openLesson = useCallback(async (lessonId: string) => {
@@ -349,7 +330,6 @@ export default function CourseMap() {
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}`, "Idempotency-Key": idempotencyKey },
         body: JSON.stringify({
           isPublic: targetVisibility,
-          attested: !course.isPublic ? publishAttested : undefined,
         }),
       });
       const data = await response.json();
@@ -387,7 +367,6 @@ export default function CourseMap() {
       }
       setCourseRecord({ key: operationViewKey, value: { ...course, isPublic: data.isPublic } });
       publicationRequestKeysRef.current.delete(publicationKey);
-      setPublishAttested(false);
       setPublicationAssessment(null);
       setValidationReport(null);
       setRepairProgress(null);
@@ -476,7 +455,6 @@ export default function CourseMap() {
       setPublicationFailures([]);
       setPublicationAssessment(null);
       storePublicationAssessment(courseViewKey, null);
-      setPublishAttested(false);
       setOverrideReason("");
       setOverrideConfirmed(false);
       overrideDrawer.closeDrawer();
@@ -553,7 +531,7 @@ export default function CourseMap() {
         });
       }
       setRepairProgress(decision === "approved"
-        ? "Manual review approved for this exact snapshot. Run Review and publish again."
+        ? "Manual review approved for this exact snapshot. Publish the course when ready."
         : "Manual review rejected this snapshot. Keep the draft private and revise the flagged content.");
     } catch (manualReviewError) {
       if (activeCourseViewRef.current === operationViewKey) {
@@ -917,29 +895,19 @@ export default function CourseMap() {
               key={publicationFailures.length > 0 || publicationAssessment || validationReport || repairProgress || course.publicationReview?.status === "owner_override" ? "publication-attention" : "course-studio"}
               className="course-owner-controls"
               defaultOpen={Boolean(publicationFailures.length > 0 || publicationAssessment || validationReport || repairProgress || course.publicationReview?.status === "owner_override")}
-              description="Publication review, banner refresh, and course management stay separate from the learner experience."
+              description="Publishing, banner refresh, and course management stay separate from the learner experience."
               eyebrow="Creator tools"
               headingId="course-owner-controls-title"
               title="Course studio"
             >
-              {!course.isPublic && canPublishCourses && (
-                <label className="publication-attestation">
-                  <input
-                    type="checkbox"
-                    checked={publishAttested}
-                    onChange={(event) => setPublishAttested(event.target.checked)}
-                  />
-                  <span>I reviewed every lesson, reference link, factual claim, and usage right, and confirm this course is ready for public learners.</span>
-                </label>
-              )}
               <div className="course-owner-actions">
                 <button
                   className="button button-secondary"
                   onClick={updateVisibility}
-                  disabled={updating || bannerBusy || (!course.isPublic && !publishAttested)}
+                  disabled={updating || bannerBusy}
                 >
                     {updating ? <LoaderCircle className="spin" size={16} /> : course.isPublic ? <LockKeyhole size={16} /> : <Globe2 size={16} />}
-                    {updating && !course.isPublic ? "Reviewing for publication…" : course.isPublic ? "Unpublish course" : "Review and publish"}
+                    {updating && !course.isPublic ? "Publishing…" : course.isPublic ? "Unpublish course" : "Publish course"}
                 </button>
                 {course.canRegenerateBanner && (
                   <button className="button button-secondary" onClick={() => void regenerateBanner()} disabled={updating || bannerBusy}>
@@ -955,13 +923,17 @@ export default function CourseMap() {
                 </button>
               </div>
               {course.canRegenerateBanner && <p className="owner-action-hint">Banner replacements use one monthly generation request, including failed attempts, and replace the current image automatically.</p>}
-              {!course.isPublic && <p className="owner-action-hint">{isOwner
-                ? "Every lesson must be generated. Automated safety, language, and teaching-quality checks run again before publication."
-                : "Complete each lesson’s activities before generating the next lesson. Publication runs a fresh safety, language, and teaching-quality review."}</p>}
-              {!course.isPublic && isOwner && !publicationAssessment && (
+              {!course.isPublic && <p className="owner-action-hint">{course.aiAssisted
+                ? "Generate every lesson, then publish. The generated course keeps the safety and quality checks already completed during creation."
+                : isOwner
+                  ? "Every lesson must be complete before publication."
+                  : "Complete each lesson’s activities before generating the next lesson."}</p>}
+              {!course.isPublic && course.aiAssisted !== true && isOwner && !publicationAssessment && (
                 <p className="owner-action-hint">If review finds only teaching or language warnings, an owner-only quality override will appear here. Safety and structure failures cannot be bypassed.</p>
               )}
-               {course.isPublic && <p className="owner-action-hint">{course.publicationReview?.status === "owner_override"
+               {course.isPublic && <p className="owner-action-hint">{course.aiAssisted
+                 ? "Published from generated content that passed generation-time safety and quality checks. AI-generated factual claims are not independently verified."
+                 : course.publicationReview?.status === "owner_override"
                  ? "Published with an audited owner quality override after the non-bypassable safety and structure checks passed. AI-generated factual claims are not independently verified."
                  : "Published content passed automated safety and quality review. AI-generated factual claims are not independently verified."}</p>}
                {!course.isPublic && (publicationFailures.length > 0 || publicationAssessment || validationReport || repairProgress) && (
@@ -1102,7 +1074,7 @@ export default function CourseMap() {
                      })}
                     </ul>}
                     {isOwner && publicationFailures.some((failure) => failure.overridable) && !publicationAssessment && (
-                      <p className="publication-override-guidance">After reviewing or repairing these lessons, run Review and publish again to determine whether the remaining warnings qualify for an owner override.</p>
+                      <p className="publication-override-guidance">After reviewing or repairing these lessons, publish again to determine whether the remaining warnings qualify for an owner override.</p>
                     )}
                     {isOwner && publicationAssessment?.assessment.overrideEligible && (
                      <div className="publication-override-offer">

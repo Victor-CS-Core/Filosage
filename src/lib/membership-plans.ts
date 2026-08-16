@@ -142,7 +142,7 @@ export const MEMBERSHIP_PLANS = {
       "Thirty generated lessons each month",
       "One hundred tutor questions each month",
       "Thirty course-banner generation requests each month",
-      "Publish courses after completing and reviewing them",
+      "Publish generated courses after completing every lesson",
     ],
     restrictedFeatures: [],
   },

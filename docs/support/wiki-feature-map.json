@@ -16,8 +16,8 @@
   "features": [
     {
       "feature": "Today learning dashboard",
-      "sources": ["src/app/page.tsx"],
-      "articles": ["getting-started", "navigate-filosage"]
+      "sources": ["src/app/page.tsx", "src/components/CourseDeck.tsx"],
+      "articles": ["getting-started", "navigate-filosage", "accessibility"]
     },
     {
       "feature": "Application navigation and Command Center",

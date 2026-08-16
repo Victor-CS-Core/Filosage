@@ -131,8 +131,7 @@ test("an owner can confirm a quality override only after the normal review fails
 
   await page.goto(`/course/Mobile%20development?id=${courseId}`);
   await page.locator("details.course-owner-controls > summary").click();
-  await page.getByLabel(/I reviewed every lesson/).check();
-  const publishButton = page.getByRole("button", { name: "Review and publish" });
+  const publishButton = page.getByRole("button", { name: "Publish course" });
   await expect(publishButton).toBeEnabled();
   await publishButton.click();
   await expect(page.getByRole("button", { name: "Review owner override" })).toBeVisible();
@@ -240,8 +239,7 @@ test("an owner records a snapshot-bound manual-review decision before publishing
 
   await page.goto(`/course/First-aid%20response?id=${courseId}`);
   await page.locator("details.course-owner-controls > summary").click();
-  await page.getByLabel(/I reviewed every lesson/).check();
-  await page.getByRole("button", { name: "Review and publish" }).click();
+  await page.getByRole("button", { name: "Publish course" }).click();
   await expect(page.getByText("Human decision required for this snapshot")).toBeVisible();
   await expect(page.getByRole("group", { name: "Sources personally verified for this snapshot" })).toBeVisible();
   expect((await new AxeBuilder({ page }).include(".course-owner-controls").analyze()).violations).toEqual([]);
@@ -370,8 +368,7 @@ test("targeted V2 repair applies diagnosed paths, revalidates, and offers undo",
 
   await page.goto(`/course/Evidence%20classification?id=${courseId}`);
   await page.locator("details.course-owner-controls > summary").click();
-  await page.getByLabel(/I reviewed every lesson/).check();
-  await page.getByRole("button", { name: "Review and publish" }).click();
+  await page.getByRole("button", { name: "Publish course" }).click();
   await expect(page.getByText(/accessible fallback is derived from existing lesson text/i)).toBeVisible();
   await page.getByRole("button", { name: "Apply safe fixes" }).click();
   await expect(page.getByText("Safe fix applied and the complete course was revalidated.")).toBeVisible();
@@ -436,8 +433,7 @@ test("publication failures preserve complete lessons and link to the affected co
 
   await page.goto(`/course/Mobile%20development?id=${courseId}`);
   await page.locator("details.course-owner-controls > summary").click();
-  await page.getByLabel(/I reviewed every lesson/).check();
-  await page.getByRole("button", { name: "Review and publish" }).click();
+  await page.getByRole("button", { name: "Publish course" }).click();
   await expect(page.getByText(/Filosage will not replace complete lessons or author edits automatically/)).toBeVisible();
   await expect(page.getByRole("link", { name: "Open affected lesson" })).toHaveCount(2);
   await expect(page.getByRole("button", { name: /Repair all|Regenerate lesson/ })).toHaveCount(0);

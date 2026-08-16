@@ -513,6 +513,9 @@ test.describe("desktop application shell", () => {
     const inspectPaintedPile = () => page.locator(".course-deck-card.is-visible, .course-deck-card.is-drag-buffer").evaluateAll((cards) => cards.map((card) => {
       const rect = card.getBoundingClientRect();
       const style = getComputedStyle(card);
+      const matrix = new DOMMatrixReadOnly(style.transform);
+      const face = card.querySelector<HTMLElement>(".course-deck-card-face");
+      const spine = card.querySelector<HTMLElement>(".course-deck-spine");
       return {
         id: (card as HTMLElement).dataset.courseId ?? "",
         position: Number((card as HTMLElement).dataset.position),
@@ -523,6 +526,14 @@ test.describe("desktop application shell", () => {
         opacity: Number(style.opacity),
         visibility: style.visibility,
         zIndex: Number(style.zIndex),
+        scale: Math.hypot(matrix.a, matrix.b),
+        spineVisibility: spine ? getComputedStyle(spine).visibility : "hidden",
+        hasFullFace: Boolean(
+          face?.querySelector(".course-deck-cover")
+          && face.querySelector(".course-deck-card-copy h2")
+          && face.querySelector(".course-deck-progress")
+          && face.querySelector("a.course-deck-primary"),
+        ),
       };
     }).filter((card) => card.visibility === "visible" && card.opacity > 0.05));
     const expectDistinctOverlapLayers = (cards: Awaited<ReturnType<typeof inspectPaintedPile>>) => {
@@ -538,6 +549,26 @@ test.describe("desktop application shell", () => {
     };
 
     await expectDeckSelection(0);
+    const motionToggle = page.getByRole("button", { name: "Full motion" });
+    await expect(motionToggle).toHaveAttribute("aria-pressed", "false");
+    await expect(page.getByRole("link", { name: "Learn how to change motion settings" })).toHaveAttribute(
+      "href",
+      "/support/articles/accessibility#control-motion-and-animation",
+    );
+    await motionToggle.hover();
+    await expect(page.locator("#course-deck-motion-tooltip")).toBeVisible();
+    await expect(page.locator("#course-deck-motion-tooltip")).toContainText("follow your drag");
+    await page.mouse.move(0, 0);
+    await expect(page.locator("#course-deck-motion-tooltip")).toBeHidden();
+    const fullCardFaces = await page.locator(".course-deck-card.is-visible").evaluateAll((cards) => cards.map((card) => ({
+      id: (card as HTMLElement).dataset.courseId,
+      hasCover: Boolean(card.querySelector(".course-deck-cover")),
+      hasCourseTitle: Boolean(card.querySelector(".course-deck-card-copy h2")),
+      hasProgress: Boolean(card.querySelector(".course-deck-progress")),
+      hasContinue: Boolean(card.querySelector("a.course-deck-primary")),
+    })));
+    expect(fullCardFaces).toHaveLength(3);
+    expect(fullCardFaces.every((card) => card.hasCover && card.hasCourseTitle && card.hasProgress && card.hasContinue)).toBe(true);
     const pile = await inspectPile();
     expect(pile).toHaveLength(3);
     expect(pile[0].left).toBeLessThan(pile[1].left);
@@ -553,15 +584,33 @@ test.describe("desktop application shell", () => {
     expect(pile[0].shadowBlur).toBeGreaterThan(pile[1].shadowBlur);
     expect(pile[1].shadowBlur).toBeGreaterThan(pile[2].shadowBlur);
     expect(pile[2].left).toBeLessThan(1366);
-    await deck.focus();
-    await deck.press("ArrowRight");
+    const firstCardBeforeControl = await page.locator(".course-deck-card[data-course-id='morse-shell-course']").boundingBox();
+    if (!firstCardBeforeControl) throw new Error("Course Deck active card is not measurable before control cycling.");
+    await page.getByRole("button", { name: "Show next active course" }).click();
+    await expect(page.locator(".course-deck-viewport")).toHaveAttribute("data-motion-state", "committing");
+    await expect(page.locator(".course-deck-viewport")).toHaveAttribute("data-direction", "next");
+    await expectDeckSelection(0);
+    await page.waitForTimeout(90);
+    const firstCardDuringControl = await page.locator(".course-deck-card[data-course-id='morse-shell-course']").boundingBox();
+    const approachingDuringControl = await page.locator(".course-deck-card[data-course-id='decision-shell-course']").boundingBox();
+    if (!firstCardDuringControl || !approachingDuringControl) throw new Error("Course Deck cards are not measurable during control cycling.");
+    const controlTravel = firstCardBeforeControl.x - firstCardDuringControl.x;
+    expect(controlTravel).toBeGreaterThan(firstCardBeforeControl.width * 0.08);
+    expect(controlTravel).toBeLessThan(firstCardBeforeControl.width * 0.95);
+    expect(approachingDuringControl.x).toBeLessThan(pile[1].left - 8);
+    await expectDeckSelection(0);
+    if (process.env.CAPTURE_DASHBOARD === "1" && testInfo.project.name === "chromium") {
+      await page.screenshot({ path: ".impeccable/review/course-deck-stack-control-motion-desktop.png", fullPage: false });
+    }
     await waitForDeckToSettle(page);
     await expectDeckSelection(1);
     const continueLink = page.locator(".course-deck-card.is-active").getByRole("link", { name: /Continue/ });
     await continueLink.focus();
     await continueLink.press("ArrowRight");
     await expectDeckSelection(1);
-    await deck.press("Home");
+    await deck.focus();
+    await deck.press("ArrowLeft");
+    await expect(page.locator(".course-deck-viewport")).toHaveAttribute("data-motion-state", "committing");
     await waitForDeckToSettle(page);
     await expectDeckSelection(0);
     if (process.env.CAPTURE_DASHBOARD === "1") {
@@ -601,10 +650,8 @@ test.describe("desktop application shell", () => {
       expect(nextLayers.find((card) => card.id === "morse-shell-course")?.zIndex).toBe(3);
       expect(nextLayers.find((card) => card.id === "decision-shell-course")?.zIndex).toBe(2);
       expect(nextLayers.find((card) => card.id === "systems-shell-course")?.zIndex).toBe(1);
-      if (process.env.CAPTURE_DASHBOARD === "1" && viewport.width === 1366) {
-        await page.screenshot({ path: ".impeccable/review/course-deck-stack-motion-desktop.png", fullPage: true });
-      }
-      await page.waitForTimeout(180);
+      await page.mouse.move(startX, startY, { steps: 18 });
+      await page.waitForTimeout(100);
       await page.mouse.up();
       await waitForDeckToSettle(page);
       await expectDeckSelection(0);
@@ -615,14 +662,25 @@ test.describe("desktop application shell", () => {
       const resetY = reset.y + Math.min(reset.height * 0.35, 190);
       await page.mouse.move(resetX, resetY);
       await page.mouse.down();
-      if (testInfo.project.name === "mobile-webkit") {
-        await page.mouse.move(resetX - (reset.width * 0.4), resetY, { steps: 12 });
-      } else {
-        await page.mouse.move(resetX - 3, resetY);
-        await page.waitForTimeout(10);
-        await page.mouse.move(resetX - 60, resetY);
-      }
+      await page.mouse.move(resetX - reset.width * 0.58, resetY, { steps: 14 });
+      await page.evaluate(() => new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))));
+      await page.waitForTimeout(60);
       await expect(page.locator(".course-deck-viewport")).toHaveAttribute("data-motion-state", "dragging");
+      await expect(page.locator(".course-deck-viewport")).toHaveAttribute("data-direction", "next");
+      const nextHandoffLayers = await inspectPaintedPile();
+      expectDistinctOverlapLayers(nextHandoffLayers);
+      const outgoingNextCard = nextHandoffLayers.find((card) => card.id === "morse-shell-course");
+      const incomingNextCard = nextHandoffLayers.find((card) => card.id === "decision-shell-course");
+      expect(outgoingNextCard?.zIndex).toBe(0);
+      expect(incomingNextCard?.zIndex).toBe(3);
+      expect(outgoingNextCard?.opacity ?? 1).toBeLessThan(0.99);
+      expect(outgoingNextCard?.scale ?? 1).toBeLessThan(0.995);
+      expect(incomingNextCard?.spineVisibility).toBe("hidden");
+      expect(incomingNextCard?.hasFullFace).toBe(true);
+      await expectDeckSelection(0);
+      if (process.env.CAPTURE_DASHBOARD === "1" && viewport.width === 1366) {
+        await page.screenshot({ path: ".impeccable/review/course-deck-stack-motion-desktop.png", fullPage: true });
+      }
       await page.mouse.up();
       await waitForDeckToSettle(page);
       await expectDeckSelection(1);
@@ -647,7 +705,19 @@ test.describe("desktop application shell", () => {
       expect(previousLayers.find((card) => card.id === "decision-shell-course")?.zIndex).toBe(3);
       expect(previousLayers.find((card) => card.id === "morse-shell-course")?.zIndex).toBe(2);
       expect(previousLayers.find((card) => card.id === "systems-shell-course")?.zIndex).toBe(1);
-      await page.mouse.move(decisionX + decisionBox.width * 0.4, decisionY, { steps: 12 });
+      await page.mouse.move(decisionX + decisionBox.width * 0.58, decisionY, { steps: 12 });
+      await page.evaluate(() => new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))));
+      await page.waitForTimeout(60);
+      const previousHandoffLayers = await inspectPaintedPile();
+      expectDistinctOverlapLayers(previousHandoffLayers);
+      const outgoingPreviousCard = previousHandoffLayers.find((card) => card.id === "decision-shell-course");
+      const incomingPreviousCard = previousHandoffLayers.find((card) => card.id === "morse-shell-course");
+      expect(outgoingPreviousCard?.zIndex).toBe(0);
+      expect(incomingPreviousCard?.zIndex).toBe(3);
+      expect(outgoingPreviousCard?.opacity ?? 1).toBeLessThan(0.99);
+      expect(outgoingPreviousCard?.scale ?? 1).toBeLessThan(0.995);
+      expect(incomingPreviousCard?.spineVisibility).toBe("hidden");
+      expect(incomingPreviousCard?.hasFullFace).toBe(true);
       await page.mouse.up();
       await waitForDeckToSettle(page);
       await expectDeckSelection(0);
@@ -724,6 +794,15 @@ test.describe("desktop application shell", () => {
 
     const deck = page.getByRole("region", { name: /Active course/ });
     await expect(deck).toBeVisible();
+    const motionToggle = page.getByRole("button", { name: "Reduced motion" });
+    await expect(motionToggle).toHaveAttribute("aria-pressed", "true");
+    await motionToggle.hover();
+    await expect(page.locator("#course-deck-motion-tooltip")).toContainText("switch without animated movement");
+    await expect(page.getByRole("link", { name: "Learn how to change motion settings" })).toHaveAttribute(
+      "href",
+      "/support/articles/accessibility#control-motion-and-animation",
+    );
+    await page.mouse.move(0, 0);
     const cardMotion = await page.locator(".course-deck-card.is-active").evaluate((element) => ({
       transitionDuration: getComputedStyle(element).transitionDuration,
       transform: getComputedStyle(element).transform,
@@ -755,8 +834,13 @@ test.describe("desktop application shell", () => {
     await expect(page.locator(".course-deck-card.is-active")).toHaveAttribute("data-course-id", "decision-shell-course");
     await expect(deck).toHaveAttribute("data-motion-state", "idle");
     expect(await page.locator(".course-deck-stage").evaluate((stage) => stage.getAnimations({ subtree: true }).filter((animation) => animation.playState === "running").length)).toBe(0);
+    await motionToggle.click();
+    await expect(page.getByRole("button", { name: "Full motion" })).toHaveAttribute("aria-pressed", "false");
+    expect(await page.evaluate(() => localStorage.getItem("filosage-motion-preference"))).toBe("full");
     await deck.focus();
     await deck.press("ArrowRight");
+    await expect(deck).toHaveAttribute("data-motion-state", "committing");
+    await waitForDeckToSettle(page);
     await expect(page.locator(".course-deck-controls [role='status']")).toContainText("Systems thinking");
     await expect(page.locator(".course-deck-card.is-active")).toHaveAttribute("data-course-id", "systems-shell-course");
     await expectNoHorizontalPageOverflow(page);

@@ -25,7 +25,7 @@ import {
   type PanInfo,
 } from "motion/react";
 import * as m from "motion/react-m";
-import { ArrowLeft, ArrowRight, BookOpenCheck, Clock3, Play } from "lucide-react";
+import { ArrowLeft, ArrowRight, BookOpenCheck, CircleHelp, Clock3, Play } from "lucide-react";
 import CourseBanner from "@/components/CourseBanner";
 import { hashCourseIdentity } from "@/components/CourseArtwork";
 import type { Course } from "@/lib/course-types";
@@ -97,6 +97,12 @@ const INITIAL_GEOMETRY: DeckGeometry = {
   rotationStep: 0.3,
   travel: 0,
 };
+
+const CONTROL_CYCLE_DURATION_SECONDS = 0.42;
+const DRAG_CYCLE_MAX_DURATION_SECONDS = 0.34;
+const DECK_CYCLE_EASE = [0.4, 0, 0.2, 1] as const;
+const DECK_HANDOFF_PROGRESS = 0.46;
+const MOTION_PREFERENCE_STORAGE_KEY = "filosage-motion-preference";
 
 function clamp(value: number, min: number, max: number) {
   return Math.min(max, Math.max(min, value));
@@ -187,7 +193,7 @@ function CourseDeckCard({
     if (reducedMotion) return baseY;
     const progress = progressFor(value);
     const activeDirection = effectiveDirection(value);
-    if (active) return -3 * Math.sin(progress * Math.PI);
+    if (active) return geometry.stepY * 0.85 * progress;
     if (activeDirection === "next") {
       if (position === 1) return geometry.stepY * (1 - progress);
       if (position === 2) return geometry.stepY * (2 - progress);
@@ -204,7 +210,7 @@ function CourseDeckCard({
     if (reducedMotion) return baseRotation;
     const progress = progressFor(value);
     const activeDirection = effectiveDirection(value);
-    if (active) return (value / Math.max(1, geometry.travel)) * 0.9;
+    if (active) return (value / Math.max(1, geometry.travel)) * 1.35;
     if (activeDirection === "next") {
       if (position === 1) return geometry.rotationStep * (1 - progress);
       if (position === 2) return geometry.rotationStep * (2 - progress);
@@ -218,37 +224,48 @@ function CourseDeckCard({
   });
 
   const cardOpacity = useTransform(dragX, (value) => {
-    if (active || visible) {
-      if (effectiveDirection(value) === "previous" && position === 2 && !previousTarget) {
-        return 1 - (0.18 * progressFor(value));
+    const progress = progressFor(value);
+    const activeDirection = effectiveDirection(value);
+    if (active) {
+      if (!activeDirection) return 1;
+      const concealProgress = clamp((progress - DECK_HANDOFF_PROGRESS) / (1 - DECK_HANDOFF_PROGRESS), 0, 1);
+      return 1 - (concealProgress * 0.92);
+    }
+    if (visible) {
+      if (activeDirection === "previous" && position === 2 && !previousTarget) {
+        return 1 - (0.18 * progress);
       }
       return 1;
     }
-    if (previousTarget && effectiveDirection(value) === "previous") {
-      return clamp(progressFor(value) * 1.8, 0, 1);
+    if (previousTarget && activeDirection === "previous") {
+      return clamp(progress * 1.8, 0, 1);
     }
     return 0;
   });
 
   const cardZIndex = useTransform(dragX, (value) => {
-    if (active) return 3;
-    if (effectiveDirection(value) === "previous") {
-      if (previousTarget) return 2;
-      if (position === 1) return 1;
-      if (position === 2) return 0;
+    const progress = progressFor(value);
+    const activeDirection = effectiveDirection(value);
+    const handedOff = progress >= DECK_HANDOFF_PROGRESS;
+    if (active) return handedOff && activeDirection ? 0 : 3;
+    if (activeDirection === "previous") {
+      if (previousTarget) return handedOff ? 3 : 2;
+      if (position === 1) return handedOff ? 2 : 1;
+      if (position === 2) return handedOff ? 1 : 0;
       return -1;
     }
-    if (position === 1) return 2;
-    if (position === 2) return 1;
+    if (position === 1) return handedOff && activeDirection === "next" ? 3 : 2;
+    if (position === 2) return handedOff && activeDirection === "next" ? 2 : 1;
     return 0;
   });
 
-  const spineOpacity = useTransform(dragX, (value) => {
+  const cardScale = useTransform(dragX, (value) => {
+    if (reducedMotion) return 1;
     const progress = progressFor(value);
-    const revealProgress = clamp((progress - 0.52) / 0.48, 0, 1);
     const activeDirection = effectiveDirection(value);
-    if (activeDirection === "next" && position === 1) return 1 - revealProgress;
-    if (activeDirection === "previous" && previousTarget) return 1 - revealProgress;
+    if (active) return 1 - (0.035 * progress);
+    if (activeDirection === "next" && position === 1) return 0.98 + (0.02 * progress);
+    if (activeDirection === "previous" && previousTarget) return 0.98 + (0.02 * progress);
     return 1;
   });
 
@@ -267,7 +284,7 @@ function CourseDeckCard({
   );
 
   const motionStyle = geometry.ready
-    ? { x: active ? dragX : cardX, y: cardY, rotate: cardRotation, opacity: cardOpacity, zIndex: cardZIndex }
+    ? { x: active ? dragX : cardX, y: cardY, rotate: cardRotation, scale: cardScale, opacity: cardOpacity, zIndex: cardZIndex }
     : undefined;
 
   return (
@@ -332,12 +349,11 @@ function CourseDeckCard({
           tabIndex={-1}
           aria-label={`Bring ${item.topic} to the front`}
           onClick={onNext}
-          style={{ opacity: spineOpacity }}
         >
           {spineContent}
         </m.button>
       ) : (
-        <m.div className="course-deck-spine" aria-hidden="true" style={{ opacity: spineOpacity }}>
+        <m.div className="course-deck-spine" aria-hidden="true">
           {spineContent}
         </m.div>
       ))}
@@ -359,7 +375,9 @@ export default function CourseDeck({ items, firstName, canCreateCourses }: Cours
   const sequenceRef = useRef(0);
   const reducedGestureRef = useRef<ReducedGestureSession | null>(null);
   const dragX = useMotionValue(0);
-  const reducedMotion = useReducedMotion() === true;
+  const systemReducedMotion = useReducedMotion() === true;
+  const [motionOverride, setMotionOverride] = useState<boolean | null>(null);
+  const reducedMotion = motionOverride ?? systemReducedMotion;
   const selectedIndex = items.length > 0 && activeIndex < items.length ? activeIndex : 0;
 
   const updateMotionState = useCallback((state: MotionState, nextDirection: CycleDirection | null) => {
@@ -373,6 +391,36 @@ export default function CourseDeck({ items, firstName, canCreateCourses }: Cours
     sequenceRef.current += 1;
     animationRef.current?.stop();
     animationRef.current = null;
+  }, []);
+
+  const toggleMotionPreference = useCallback(() => {
+    stopAnimation();
+    dragX.jump(0);
+    updateMotionState("idle", null);
+    const nextReducedMotion = !reducedMotion;
+    const nextOverride = nextReducedMotion === systemReducedMotion ? null : nextReducedMotion;
+    setMotionOverride(nextOverride);
+    try {
+      if (nextOverride === null) localStorage.removeItem(MOTION_PREFERENCE_STORAGE_KEY);
+      else localStorage.setItem(MOTION_PREFERENCE_STORAGE_KEY, nextOverride ? "reduced" : "full");
+    } catch {
+      // The current-tab preference still applies when storage is unavailable.
+    }
+  }, [dragX, reducedMotion, stopAnimation, systemReducedMotion, updateMotionState]);
+
+  useEffect(() => {
+    let cancelled = false;
+    void Promise.resolve().then(() => {
+      if (cancelled) return;
+      try {
+        const storedPreference = localStorage.getItem(MOTION_PREFERENCE_STORAGE_KEY);
+        if (storedPreference === "reduced") setMotionOverride(true);
+        else if (storedPreference === "full") setMotionOverride(false);
+      } catch {
+        // The system preference remains the fallback when storage is unavailable.
+      }
+    });
+    return () => { cancelled = true; };
   }, []);
 
   const settleBack = useCallback((releaseVelocity = 0) => {
@@ -403,6 +451,7 @@ export default function CourseDeck({ items, firstName, canCreateCourses }: Cours
 
   const commitCycle = useCallback((nextDirection: CycleDirection, releaseVelocity = 0) => {
     if (items.length <= 1 || (motionStateRef.current !== "idle" && motionStateRef.current !== "dragging")) return;
+    const releasedFromDrag = motionStateRef.current === "dragging";
     const nextIndex = cycleIndex(activeIndexRef.current, nextDirection, items.length);
     stopAnimation();
 
@@ -417,12 +466,15 @@ export default function CourseDeck({ items, firstName, canCreateCourses }: Cours
     const sequence = sequenceRef.current;
     updateMotionState("committing", nextDirection);
     const travel = Math.max(geometry.travel, geometry.cardWidth + 32);
+    const completedProgress = travel > 0 ? clamp(Math.abs(dragX.get()) / travel, 0, 1) : 0;
+    const velocityReduction = clamp(Math.abs(releaseVelocity) / 12_000, 0, 0.08);
+    const duration = releasedFromDrag
+      ? clamp((0.2 + ((1 - completedProgress) * 0.14)) - velocityReduction, 0.18, DRAG_CYCLE_MAX_DURATION_SECONDS)
+      : CONTROL_CYCLE_DURATION_SECONDS;
     const controls = animate(dragX, nextDirection === "next" ? -travel : travel, {
-      type: "spring",
-      stiffness: 430,
-      damping: 42,
-      mass: 0.82,
-      velocity: releaseVelocity,
+      type: "tween",
+      duration,
+      ease: DECK_CYCLE_EASE,
     });
     animationRef.current = controls;
     void controls.then(() => {
@@ -586,7 +638,34 @@ export default function CourseDeck({ items, firstName, canCreateCourses }: Cours
       <section className={`course-deck-section ${items.length === 1 ? "is-single" : ""}`} aria-labelledby="course-deck-title">
         <header className="course-deck-heading">
           <h1 id="course-deck-title">Welcome back, {firstName}.</h1>
-          <span><i aria-hidden="true" /> {items.length} active {items.length === 1 ? "course" : "courses"}</span>
+          <div className="course-deck-heading-meta">
+            <span><i aria-hidden="true" /> {items.length} active {items.length === 1 ? "course" : "courses"}</span>
+            <div className="motion-preference-control" role="group" aria-label="Course card motion preference">
+              <button
+                type="button"
+                className="motion-preference-toggle"
+                aria-pressed={reducedMotion}
+                aria-describedby="course-deck-motion-tooltip"
+                onClick={toggleMotionPreference}
+              >
+                <i aria-hidden="true" />
+                {reducedMotion ? "Reduced motion" : "Full motion"}
+              </button>
+              <Link
+                className="motion-preference-help"
+                href="/support/articles/accessibility#control-motion-and-animation"
+                aria-label="Learn how to change motion settings"
+                aria-describedby="course-deck-motion-tooltip"
+              >
+                <CircleHelp size={17} aria-hidden="true" />
+              </Link>
+              <span id="course-deck-motion-tooltip" className="motion-preference-tooltip" role="tooltip">
+                {reducedMotion
+                  ? "Course cards switch without animated movement. Select the pill to restore full motion, or open help for device settings."
+                  : "Course cards follow your drag and animate through the stack. Select the pill to reduce motion, or open help for device settings."}
+              </span>
+            </div>
+          </div>
         </header>
 
         <div
