@@ -1,8 +1,8 @@
 # Filosage marketing improvement Gauntlet design
 
-**Date:** 2026-08-16  
-**Branch:** `codex/marketing-gauntlet`  
-**Base SHA:** `242c479ec4707dceb79cc48c2082b71694ae2eaa`  
+**Date:** 2026-08-16
+**Branch:** `codex/marketing-gauntlet`
+**Base SHA:** `242c479ec4707dceb79cc48c2082b71694ae2eaa`
 **Release posture:** Local implementation and validation only. Do not push, deploy, change Stripe, enable billing, or publish unrelated work without separate authorization.
 
 ## Purpose
