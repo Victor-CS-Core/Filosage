@@ -526,6 +526,7 @@ test.describe("desktop application shell", () => {
         visibility: style.visibility,
         zIndex: Number(style.zIndex),
         scale: Math.hypot(matrix.a, matrix.b),
+        rotation: Math.atan2(matrix.b, matrix.a) * (180 / Math.PI),
         hasSpine: Boolean(card.querySelector(".course-deck-spine")),
         hasFullFace: Boolean(
           face?.querySelector(".course-deck-cover")
@@ -718,10 +719,18 @@ test.describe("desktop application shell", () => {
       expectDistinctOverlapLayers(previousHandoffLayers);
       const outgoingPreviousCard = previousHandoffLayers.find((card) => card.id === "decision-shell-course");
       const incomingPreviousCard = previousHandoffLayers.find((card) => card.id === "morse-shell-course");
-      expect(outgoingPreviousCard?.zIndex).toBe(2);
+      expect(outgoingPreviousCard?.zIndex).toBe(0);
       expect(incomingPreviousCard?.zIndex).toBe(3);
-      expect(outgoingPreviousCard?.opacity ?? 0).toBeGreaterThan(0.99);
-      expect(Math.abs((outgoingPreviousCard?.scale ?? 0) - 1)).toBeLessThan(0.005);
+      expect(outgoingPreviousCard?.opacity ?? 1).toBeLessThan(0.99);
+      expect(outgoingPreviousCard?.scale ?? 1).toBeLessThan(0.995);
+      expect(Math.abs((outgoingPreviousCard?.opacity ?? 0) - (outgoingNextCard?.opacity ?? 1))).toBeLessThan(0.02);
+      expect(Math.abs((outgoingPreviousCard?.scale ?? 0) - (outgoingNextCard?.scale ?? 1))).toBeLessThan(0.01);
+      expect(Math.abs(Math.abs(outgoingPreviousCard?.rotation ?? 0) - Math.abs(outgoingNextCard?.rotation ?? 0))).toBeLessThan(0.1);
+      expect(Math.sign(outgoingPreviousCard?.rotation ?? 0)).toBe(-Math.sign(outgoingNextCard?.rotation ?? 0));
+      expect(Math.abs(
+        ((outgoingPreviousCard?.left ?? 0) - decisionBox.x)
+        - (start.x - (outgoingNextCard?.left ?? 0)),
+      )).toBeLessThan(10);
       expect(outgoingPreviousCard?.left ?? 0).toBeGreaterThan(incomingPreviousCard?.left ?? Number.POSITIVE_INFINITY);
       expect(incomingPreviousCard?.hasSpine).toBe(false);
       expect(incomingPreviousCard?.hasFullFace).toBe(true);

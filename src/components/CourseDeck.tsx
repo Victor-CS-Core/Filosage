@@ -188,7 +188,6 @@ function CourseDeckCard({
     const progress = progressFor(value);
     const activeDirection = effectiveDirection(value);
     if (active) {
-      if (activeDirection === "previous") return Math.min(Math.max(value, 0), geometry.stepX);
       return value;
     }
     if (activeDirection === "next") {
@@ -207,7 +206,7 @@ function CourseDeckCard({
     if (reducedMotion) return baseY;
     const progress = progressFor(value);
     const activeDirection = effectiveDirection(value);
-    if (active) return geometry.stepY * (activeDirection === "previous" ? 1 : 0.85) * progress;
+    if (active) return geometry.stepY * 0.85 * progress;
     if (activeDirection === "next") {
       if (position === 1) return geometry.stepY * (1 - progress);
       if (position === 2) return geometry.stepY * (2 - progress);
@@ -225,7 +224,6 @@ function CourseDeckCard({
     const progress = progressFor(value);
     const activeDirection = effectiveDirection(value);
     if (active) {
-      if (activeDirection === "previous") return geometry.rotationStep * progress;
       return (value / Math.max(1, geometry.travel)) * 1.35;
     }
     if (activeDirection === "next") {
@@ -244,7 +242,6 @@ function CourseDeckCard({
     const progress = progressFor(value);
     const activeDirection = effectiveDirection(value);
     if (active) {
-      if (activeDirection === "previous") return 1;
       if (!activeDirection) return 1;
       const concealProgress = clamp((progress - DECK_HANDOFF_PROGRESS) / (1 - DECK_HANDOFF_PROGRESS), 0, 1);
       return 1 - (concealProgress * 0.92);
@@ -267,12 +264,12 @@ function CourseDeckCard({
     const handedOff = progress >= DECK_HANDOFF_PROGRESS;
     if (active) {
       if (!handedOff || !activeDirection) return 3;
-      return activeDirection === "previous" ? 2 : 0;
+      return 0;
     }
     if (activeDirection === "previous") {
       if (previousTarget) return handedOff ? 3 : 2;
-      if (position === 1) return 1;
-      if (position === 2) return 0;
+      if (position === 1) return handedOff ? 2 : 1;
+      if (position === 2) return handedOff ? 1 : 0;
       return -1;
     }
     if (position === 1) return handedOff && activeDirection === "next" ? 3 : 2;
@@ -284,7 +281,7 @@ function CourseDeckCard({
     if (reducedMotion) return 1;
     const progress = progressFor(value);
     const activeDirection = effectiveDirection(value);
-    if (active) return activeDirection === "previous" ? 1 : 1 - (0.035 * progress);
+    if (active) return 1 - (0.035 * progress);
     if (activeDirection === "next" && position === 1) return 0.98 + (0.02 * progress);
     if (activeDirection === "previous" && previousTarget) return 0.98 + (0.02 * progress);
     return 1;
