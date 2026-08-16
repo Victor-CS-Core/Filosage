@@ -18,7 +18,6 @@ import {
   LazyMotion,
   useDragControls,
   useMotionValue,
-  useReducedMotion,
   useTransform,
   type AnimationPlaybackControlsWithThen,
   type MotionValue,
@@ -84,7 +83,7 @@ interface CourseDeckCardProps {
   motionState: MotionState;
   reducedMotion: boolean;
   onNext: () => void;
-  onDragStart: () => void;
+  onDragStart: (pointerId: number | null) => void;
   onDragMove: (info: PanInfo) => void;
   onDragEnd: (info: PanInfo) => void;
 }
@@ -103,6 +102,20 @@ const DRAG_CYCLE_MAX_DURATION_SECONDS = 0.34;
 const DECK_CYCLE_EASE = [0.4, 0, 0.2, 1] as const;
 const DECK_HANDOFF_PROGRESS = 0.46;
 const MOTION_PREFERENCE_STORAGE_KEY = "filosage-motion-preference";
+
+function useSystemReducedMotion() {
+  const [reducedMotion, setReducedMotion] = useState(false);
+
+  useEffect(() => {
+    const mediaQuery = window.matchMedia("(prefers-reduced-motion: reduce)");
+    const syncPreference = () => setReducedMotion(mediaQuery.matches);
+    syncPreference();
+    mediaQuery.addEventListener("change", syncPreference);
+    return () => mediaQuery.removeEventListener("change", syncPreference);
+  }, []);
+
+  return reducedMotion;
+}
 
 function clamp(value: number, min: number, max: number) {
   return Math.min(max, Math.max(min, value));
@@ -302,7 +315,7 @@ function CourseDeckCard({
       dragMomentum={false}
       dragDirectionLock
       onPointerDown={handlePointerDown}
-      onDragStart={onDragStart}
+      onDragStart={(event) => onDragStart(event instanceof PointerEvent ? event.pointerId : null)}
       onDrag={(_, info) => onDragMove(info)}
       onDragEnd={(_, info) => onDragEnd(info)}
       onDragStartCapture={(event) => event.preventDefault()}
@@ -374,8 +387,11 @@ export default function CourseDeck({ items, firstName, canCreateCourses }: Cours
   const animationRef = useRef<AnimationPlaybackControlsWithThen | null>(null);
   const sequenceRef = useRef(0);
   const reducedGestureRef = useRef<ReducedGestureSession | null>(null);
+  const dragPointerIdRef = useRef<number | null>(null);
+  const finishDragRef = useRef<(reportedOffset?: number, releaseVelocity?: number) => void>(() => undefined);
+  const settleBackRef = useRef<(releaseVelocity?: number) => void>(() => undefined);
   const dragX = useMotionValue(0);
-  const systemReducedMotion = useReducedMotion() === true;
+  const systemReducedMotion = useSystemReducedMotion();
   const [motionOverride, setMotionOverride] = useState<boolean | null>(null);
   const reducedMotion = motionOverride ?? systemReducedMotion;
   const selectedIndex = items.length > 0 && activeIndex < items.length ? activeIndex : 0;
@@ -422,6 +438,13 @@ export default function CourseDeck({ items, firstName, canCreateCourses }: Cours
     });
     return () => { cancelled = true; };
   }, []);
+
+  useEffect(() => {
+    if (!reducedMotion || motionStateRef.current === "idle") return;
+    stopAnimation();
+    dragX.jump(0);
+    updateMotionState("idle", null);
+  }, [dragX, reducedMotion, stopAnimation, updateMotionState]);
 
   const settleBack = useCallback((releaseVelocity = 0) => {
     const settleDirection = dragX.get() < 0 ? "next" : "previous";
@@ -487,8 +510,9 @@ export default function CourseDeck({ items, firstName, canCreateCourses }: Cours
     });
   }, [dragX, geometry.cardWidth, geometry.travel, items.length, reducedMotion, stopAnimation, updateMotionState]);
 
-  const handleDragStart = useCallback(() => {
+  const handleDragStart = useCallback((pointerId: number | null) => {
     if (motionStateRef.current !== "idle") return;
+    dragPointerIdRef.current = pointerId;
     updateMotionState("dragging", null);
   }, [updateMotionState]);
 
@@ -500,25 +524,74 @@ export default function CourseDeck({ items, firstName, canCreateCourses }: Cours
     setDirection(nextDirection);
   }, []);
 
-  const handleDragEnd = useCallback((info: PanInfo) => {
+  const finishDrag = useCallback((reportedOffset = 0, releaseVelocity = 0) => {
     if (motionStateRef.current !== "dragging") return;
+    dragPointerIdRef.current = null;
     const visualOffset = dragX.get();
-    const releaseOffset = Math.abs(visualOffset) > Math.abs(info.offset.x) ? visualOffset : info.offset.x;
+    const releaseOffset = Math.abs(visualOffset) > Math.abs(reportedOffset) ? visualOffset : reportedOffset;
     const distanceThreshold = Math.min(140, Math.max(72, geometry.cardWidth * 0.24));
-    const strongVelocity = Math.abs(info.velocity.x) >= 650;
+    const strongVelocity = Math.abs(releaseVelocity) >= 650;
     const shouldCommit = Math.abs(releaseOffset) >= distanceThreshold
       || (strongVelocity && Math.abs(releaseOffset) >= 12);
 
     if (!shouldCommit) {
-      settleBack(info.velocity.x);
+      settleBack(releaseVelocity);
       return;
     }
 
     const nextDirection = strongVelocity
-      ? (info.velocity.x < 0 ? "next" : "previous")
+      ? (releaseVelocity < 0 ? "next" : "previous")
       : (releaseOffset < 0 ? "next" : "previous");
-    commitCycle(nextDirection, info.velocity.x);
+    commitCycle(nextDirection, releaseVelocity);
   }, [commitCycle, dragX, geometry.cardWidth, settleBack]);
+
+  const handleDragEnd = useCallback((info: PanInfo) => {
+    finishDrag(info.offset.x, info.velocity.x);
+  }, [finishDrag]);
+
+  useLayoutEffect(() => {
+    finishDragRef.current = finishDrag;
+    settleBackRef.current = settleBack;
+  }, [finishDrag, settleBack]);
+
+  useLayoutEffect(() => {
+    let releaseFrame = 0;
+    const completeLostRelease = () => {
+      cancelAnimationFrame(releaseFrame);
+      releaseFrame = requestAnimationFrame(() => {
+        if (motionStateRef.current !== "dragging") return;
+        finishDragRef.current(dragX.get());
+      });
+    };
+    const isActivePointer = (event: PointerEvent) => (
+      dragPointerIdRef.current === null || event.pointerId === dragPointerIdRef.current
+    );
+    const handleWindowPointerUp = (event: PointerEvent) => {
+      if (motionStateRef.current === "dragging" && isActivePointer(event)) completeLostRelease();
+    };
+    const handleWindowPointerCancel = (event: PointerEvent) => {
+      if (motionStateRef.current !== "dragging" || !isActivePointer(event)) return;
+      cancelAnimationFrame(releaseFrame);
+      dragPointerIdRef.current = null;
+      settleBackRef.current();
+    };
+    const handleWindowBlur = () => {
+      if (motionStateRef.current !== "dragging") return;
+      cancelAnimationFrame(releaseFrame);
+      dragPointerIdRef.current = null;
+      settleBackRef.current();
+    };
+
+    window.addEventListener("pointerup", handleWindowPointerUp, true);
+    window.addEventListener("pointercancel", handleWindowPointerCancel, true);
+    window.addEventListener("blur", handleWindowBlur);
+    return () => {
+      cancelAnimationFrame(releaseFrame);
+      window.removeEventListener("pointerup", handleWindowPointerUp, true);
+      window.removeEventListener("pointercancel", handleWindowPointerCancel, true);
+      window.removeEventListener("blur", handleWindowBlur);
+    };
+  }, [dragX]);
 
   const jumpTo = useCallback((index: number) => {
     if (motionStateRef.current !== "idle" || index === activeIndexRef.current) return;
