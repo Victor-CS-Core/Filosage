@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 
 export const metadata: Metadata = {
   title: "Course Library",
-  description: "Browse free professional learning topics, inspect complete course outlines, and create a free account to open lessons and practice.",
+  description: "Browse published learning goals, inspect complete course outlines, and create a free account to open lessons and practice.",
   alternates: { canonical: "/library" },
 };
 

@@ -4,25 +4,28 @@ Status: proposed implementation blueprint
 Date: July 28, 2026  
 Planning horizon: 12 months, released through evidence-gated phases
 
+> **Audience revision (2026-08-16):** The owner approved a broader product contract after a full capability audit. Filosage serves eligible independent students, self-directed learners, career changers, working professionals, and individual course creators. Knowledge workers remain one initial campaign cohort, not the product boundary. The interface is English today; eligible course creation supports a requested language or bilingual pairing. Market demand remains unvalidated until the gates below are met.
+
 ## Executive decision
 
-Filosage should not launch as a general-purpose "learn anything with AI" product. That category is crowded, easy to copy, and dominated by companies with much larger libraries, brands, and acquisition budgets.
+Filosage should not launch with a vague "learn anything with AI" promise. Its category is a self-directed learning and course-creation workspace, and its promise is a focused course, deliberate practice, useful review, and inspectable evidence for one meaningful goal.
 
 Filosage's launch position will be:
 
-> Filosage helps product and data professionals turn a complex skill into a focused learning plan, retain it, and prove they can apply it to real work.
+> Filosage helps an eligible independent learner turn a meaningful goal into a focused course, practice it deliberately, return before it fades, and inspect what the evidence supports.
 
-The initial promise is not access to generated content. It is demonstrable applied competence within a 2–8 week learning cycle.
+The promise is not access to generated content or guaranteed mastery. It is a bounded learning route with practice and honest evidence.
 
-The initial product wedge is deliberately narrow:
+The product contract is broad enough for four learning situations while acquisition experiments remain deliberately bounded:
 
-- Primary user: an English-speaking product manager, analyst, product-minded engineer, or adjacent knowledge worker.
-- Trigger: they need to learn a reasoning-heavy skill for a current project, role transition, interview, or promotion.
-- Initial subjects: systems thinking, experimentation, statistics, data-informed decisions, product strategy, AI literacy, and related professional reasoning skills.
-- Desired outcome: a learner can explain the concept, apply it to a new situation, and produce a useful work artifact.
-- Initial market exclusions: K–12, accredited education, broad test preparation, language learning, a social creator marketplace, and enterprise LMS replacement.
+- Product audience: eligible independent students aged 13+, self-directed learners, career changers, working professionals, and individual course creators.
+- Learning situations: coursework or exam, personal project, career or portfolio goal, and current work decision or project.
+- Initial campaign cohort: product, data, analytics, engineering, and adjacent knowledge workers may remain the first measured cohort.
+- Desired outcome: a learner can explain the concept, apply it to a new situation, and produce an inspectable artifact appropriate to the learner-supplied context.
+- Interface and language boundary: the interface is English; eligible course creation accepts a requested language or bilingual pairing.
+- Current exclusions: under-13 users, school or team administration, accredited credentials, a social creator marketplace, enterprise LMS replacement, and autonomous high-stakes advice.
 
-This wedge can expand only after Filosage demonstrates retention, learning improvement, and paid demand.
+No audience or campaign may be described as validated until Filosage demonstrates qualified activation, retention, learning improvement, and demand in that cohort.
 
 ## Business truth and investment policy
 
@@ -43,7 +46,7 @@ The operating principles are:
 
 ### Core job to be done
 
-When I need to learn a difficult concept for a real professional outcome, help me understand my starting point, follow the shortest credible path, practice the skill, retain it, and show evidence that I can use it.
+When I need to learn a difficult concept for a meaningful goal, help me understand my starting point, follow a credible focused path, practice the skill, retain it, and inspect evidence of what I can use.
 
 ### Product promise
 
@@ -304,7 +307,7 @@ Likely implementation areas:
 
 Build:
 
-- Twelve flagship courses for the initial professional audience.
+- Twelve flagship courses selected for explicit campaign cohorts and learning situations without redefining the product audience.
 - A shared curriculum map so courses connect instead of duplicating concepts.
 - Expert review checklist.
 - One free flagship pathway that demonstrates the complete Filosage loop.
@@ -413,7 +416,7 @@ Build:
 
 Initial channels:
 
-1. Search: high-intent professional learning questions.
+1. Search: high-intent questions tied to a specific study, project, career, or work goal.
 2. LinkedIn: applied lesson excerpts and work artifacts.
 3. Expert partners: co-created flagship courses.
 4. Product, data, and analytics communities.
@@ -568,7 +571,7 @@ Target: Weeks 1–2
 
 Deliver:
 
-- Interview script and 15–20 interviews with qualified product/data professionals.
+- Interview script and 15–20 interviews with a declared first campaign cohort; the initial knowledge-worker cohort remains acceptable.
 - Positioning landing-page variant and outcome-based waitlist questions.
 - Event taxonomy, north-star dashboard specification, and experiment registry.
 - Current baseline for activation, retention, learning, and AI cost.
@@ -700,7 +703,7 @@ Deliver only the path supported by demand:
 
 - Limited expert authoring access, or
 - Team learning pilot, or
-- A second professional vertical.
+- A second learning-situation or campaign cohort supported by evidence.
 
 Go gate for teams:
 
@@ -722,7 +725,7 @@ Go gate for experts:
 - Add product event names, schemas, and privacy rules.
 - Add owner-traffic exclusion and acquisition attribution.
 - Create experiment registry and baseline dashboard.
-- Draft the interview script and professional-outcome positioning experiment.
+- Draft the interview script and keyed learning-situation positioning experiment.
 
 ### Week 2
 

@@ -1,16 +1,18 @@
 # Filosage
 
-Filosage is an AI-assisted learning product built to turn curiosity into understanding. Public visitors can inspect published course outcomes and structure without an account. Verified Free learner accounts open lesson content and add cloud progress, notes, evidence, and spaced review. Filosage Plus adds one active private course with metered authoring; Filosage Pro removes the owned-course cap and adds publishing after course review.
+Filosage is a self-directed learning and course-creation workspace built to turn curiosity into understanding. Public visitors can inspect published course outcomes and structure without an account. Verified Free learner accounts open lesson content and add cloud progress, notes, evidence, and spaced review. Plus adds two monthly course credits for private course creation with rollover up to twenty-four; Pro adds five with rollover up to sixty, advanced portable evidence, revocable sharing, and publishing after completion and review.
 
 Owner access is resolved server-side from the verified Google account matching the `OWNER_EMAIL` deployment secret. Google authentication and the signed-in session are managed by Azure Container Apps built-in authentication (Easy Auth). The owner email is never sent in the account API or rendered in the interface.
 
 ## Product modes
 
-- Anonymous learning: open discovery, published lessons, retrieval practice, mastery checks, and device progress
-- Free learner: Google sign-in, cloud progress, review scheduling, and a small daily tutor allowance
-- Filosage Plus: one active private course with monthly outline, lesson, banner-request, and tutor allowances
-- Filosage Pro: uncapped owned courses, larger monthly AI allowances, and publishing after review
+- Anonymous discovery: inspect published outcomes, modules, lesson titles, assessment structure, and source status; lesson bodies and learner work remain account-bound
+- Free learner: Google sign-in, published lessons, cloud progress, notes, practice, review scheduling, evidence, and five monthly tutor questions
+- Filosage Plus: two monthly course credits with rollover up to twenty-four, private course creation, and forty monthly tutor questions
+- Filosage Pro: five monthly course credits with rollover up to sixty, advanced capstone analysis, portable evidence export and revocable sharing, publishing after completion and review, and one hundred monthly tutor questions
 - Owner: Pro capabilities plus protected operational authority
+
+Flashcard decks, AI flashcard generation, V2 labs and visuals, Command Center functions, course publication, and checkout each have separate feature, entitlement, review, or hosted-configuration gates. Public copy must not treat a disabled or unverified capability as currently available.
 
 ## Stack
 

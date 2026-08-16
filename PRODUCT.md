@@ -6,17 +6,21 @@ product
 
 ## Users
 
-The launch customer is an English-speaking product manager, data or analytics professional, product-minded engineer, or adjacent knowledge worker who needs to learn a reasoning-heavy skill for a current project, role transition, interview, or promotion within 2–8 weeks.
+Filosage serves eligible independent students aged 13 or older, self-directed learners, career changers, working professionals, and individuals creating courses primarily for their own learning. They use it for coursework or an exam, a personal or creative project, a portfolio or career goal, or a current work decision. Schools, classrooms, teams, under-13 users, credential seekers, and people expecting autonomous high-stakes advice are outside the current product fit.
+
+Product, data, analytics, engineering, and adjacent knowledge workers remain one initial campaign and validation cohort, not the eligibility boundary or the only audience. Campaigns may focus on a bounded cohort while the base product, metadata, prompts, and navigation remain inclusive.
 
 The owner uses Filosage as a private AI-assisted learning and course-authoring workspace. Anonymous visitors can discover published topics and inspect each course outcome, modules, lesson titles, and assessment structure. Opening lesson content, saving progress, using learning tools, or submitting work requires a verified learner account. Private generation, publishing, and management remain separately authorized.
 
+The application interface is English today. Eligible course creation accepts a specific requested language or bilingual pairing, and generated outlines and lessons are checked against that request. This is course-content support, not a fully localized interface, native-speaker guarantee, or dedicated language-learning pedagogy.
+
 ## Product Purpose
 
-Filosage turns a real professional outcome into a focused learning path grounded in diagnosis, concise explanation, worked examples, retrieval practice, transfer, and capstone evidence. Success means a learner can demonstrate a capability they need at work, while the owner can create and publish trustworthy courses efficiently.
+Filosage turns a meaningful learning goal into a focused course grounded in diagnosis, concise explanation, worked examples, retrieval practice, transfer, review, and inspectable evidence. Success means a learner can practice and demonstrate a capability for study, a personal project, a career goal, or work while the record stays honest about what is self-reported, observed, assessed, or still pending.
 
 ## Current Product Contract
 
-The production experience is outcome-first: account holders create a goal and diagnostic route, practice in published courses, return through a finite adaptive daily and weekly loop, and receive an evidence report that separates self-report from observed and assessed proof. Guests can evaluate the complete course structure before creating an account, but lesson bodies are never delivered anonymously. Guided and transfer practice preserve semantic structure such as tables, lists, and headings across generated and legacy lessons. Generated outlines and lessons must pass safety, teaching-quality, and topic-aware language-integrity gates before storage; unrelated scripts, model-control fragments, and malformed characters are rejected and regenerated. Every lesson exposes its content-version and source-pack status and can be reported for owner review. Billing remains a separately controlled capability and is not implied by product readiness.
+The production experience is outcome-first: account holders create a goal and diagnostic route, practice in published courses, return through a finite adaptive review loop, and receive an evidence report that separates self-report from observed and assessed proof. Guests can evaluate the complete course structure before creating an account, but lesson bodies are never delivered anonymously. Guided and transfer practice preserve semantic structure such as tables, lists, and headings across generated and legacy lessons. Generated outlines and lessons must pass safety, teaching-quality, and topic-aware language-integrity gates before storage; unrelated scripts, model-control fragments, and malformed characters are rejected and regenerated. Every lesson exposes its content-version and source-pack status and can be reported for owner review. Billing remains a separately controlled capability and is not implied by product readiness. Flashcards, V2 labs, lesson visuals, Command Center functions, publishing, and checkout are marketed only when their separate runtime flags, entitlements, and hosted state are verified.
 
 ## Brand Personality
 

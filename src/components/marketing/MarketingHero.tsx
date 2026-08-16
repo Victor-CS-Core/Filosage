@@ -7,8 +7,8 @@ export default function MarketingHero() {
   return (
     <section className="marketing-hero" aria-labelledby="marketing-hero-title">
       <div className="marketing-hero-copy">
-        <h1 id="marketing-hero-title">Build the skill your next decision depends on<b aria-hidden="true">.</b></h1>
-        <p className="marketing-hero-lead">Choose a course tied to a real professional outcome, practice it in stages, and keep evidence of what you can explain, apply, and assess.</p>
+        <h1 id="marketing-hero-title">Turn a goal you care about into a course you can practice<b aria-hidden="true">.</b></h1>
+        <p className="marketing-hero-lead">Bring a goal or choose a published course, practice the capability in focused stages, and inspect what your learning record actually supports.</p>
         <div className="marketing-hero-actions">
           <Link className="button button-primary" href="/library">Explore course outcomes <ArrowRight size={17} /></Link>
           <AccountStartButton />

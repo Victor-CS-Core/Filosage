@@ -75,7 +75,7 @@ test("ambiguous Stripe price mappings fail closed", () => {
   })).toThrow("mapped to more than one membership offer");
 });
 
-test("the approved capability and quota matrix stays explicit", () => {
+test("the capability matrix stays explicit without advertising flag-gated tools as available", () => {
   expect(MEMBERSHIP_PLANS.free.capabilities).toEqual({
     create_course: false,
     generate_lesson: false,
@@ -93,16 +93,12 @@ test("the approved capability and quota matrix stays explicit", () => {
     limits: { courseCreditsPerMonth: 5, courseCreditBalanceCap: 60, tutorQuestions: 100, flashcardDeckGenerationsPerMonth: 100 },
     capabilities: { create_course: true, generate_lesson: true, create_custom_flashcard_deck: true, publish_course: true, advanced_capstone_analysis: true, export_evidence_report: true, share_evidence_report: true },
   });
-  expect(MEMBERSHIP_PLANS.free.includedFeatures).toContain("Five AI flashcard deck generations each month");
-  expect(MEMBERSHIP_PLANS.free.restrictedFeatures).toContain("Custom flashcard decks");
-  expect(MEMBERSHIP_PLANS.plus.includedFeatures).toEqual(expect.arrayContaining([
-    "Forty AI flashcard deck generations each month",
-    "Create private custom flashcard decks",
-  ]));
-  expect(MEMBERSHIP_PLANS.pro.includedFeatures).toEqual(expect.arrayContaining([
-    "One hundred AI flashcard deck generations each month",
-    "Create private custom flashcard decks",
-  ]));
+  const publicPlanCopy = Object.values(MEMBERSHIP_PLANS)
+    .flatMap((plan) => [plan.description, ...plan.includedFeatures, ...plan.restrictedFeatures])
+    .join(" ");
+  expect(publicPlanCopy).not.toMatch(/flashcard/i);
+  expect(MEMBERSHIP_PLANS.plus.description).toContain("goals the published library does not cover");
+  expect(MEMBERSHIP_PLANS.pro.description).toContain("portable evidence");
 });
 
 test("the offline course fixture satisfies the production course-quality gate", () => {

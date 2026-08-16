@@ -9,13 +9,15 @@
 
 Implement the approved marketing improvements as product behavior rather than a copy-only refresh. The Gauntlet establishes a canonical product-marketing contract, makes acquisition and activation measurement honest, improves course discovery and proof, presents Plus and Pro at contextually relevant moments, strengthens the return path without unverified outbound delivery, and ends with a fresh marketing-council acceptance review.
 
-The work must preserve Filosage's existing product contract:
+The work must preserve Filosage's learning contract while correcting audience and language positioning that is narrower than the implemented product:
 
-- The launch customer is an English-speaking product manager, data or analytics professional, product-minded engineer, or adjacent knowledge worker learning a reasoning-heavy skill for a current project, role transition, interview, or promotion within two to eight weeks.
+- Filosage serves students, self-directed learners, career changers, and working professionals who want to understand, practice, apply, and demonstrate a meaningful skill for a concrete goal.
+- Product, data, analytics, engineering, and adjacent knowledge workers remain an initial validation cohort, not an eligibility boundary or the only audience.
+- The application interface is currently English. Course creation defaults to English but supports an editable instruction language or bilingual pairing, and the course pipeline validates generated outlines and lessons against that requested language.
 - Guests may inspect public course outcomes, modules, lesson titles, assessment structure, and source status.
 - Lesson bodies, saved progress, learning tools, notes, and personal evidence remain account-bound.
 - Self-report, observed practice, and assessed evidence remain distinct.
-- Plus is the private learning workspace for a current goal. Pro adds professional proof, advanced evidence analysis, share/export, and publishing.
+- Plus is the private learning workspace for a current goal. Pro adds portable evidence, advanced evidence analysis, share/export, and publishing.
 - `BILLING_ENABLED=false` remains unchanged.
 
 ## Outcomes
@@ -27,7 +29,7 @@ The implementation is successful when all of the following are true:
 3. The public landing experience uses an explicitly configured flagship course when available and a deterministic safe fallback otherwise.
 4. The library offers job-to-be-done starting points without claiming unsupported personalization or market validation.
 5. A public evidence demonstration shows the report structure and its limitations without impersonating a real learner, testimonial, credential, or outcome claim.
-6. Plus appears after a learner expresses an unmet custom-learning need; Pro appears when professional evidence export/share is relevant.
+6. Plus appears after a learner expresses an unmet custom-learning need; Pro appears when portable evidence export/share is relevant.
 7. The return loop uses current in-app review and calendar capabilities and does not imply that email delivery exists.
 8. Focused automated tests, type checks, lint, production build, desktop/mobile runtime checks, analytics contract checks, and worktree/release-boundary checks pass.
 9. A fresh marketing-council review inspects the implemented runtime and returns `ship`. A `revise` result reopens implementation and verification. A `block` result stops release recommendation.
@@ -40,6 +42,7 @@ The implementation is successful when all of the following are true:
 - Creating testimonials, review scores, customer logos, or synthetic social proof.
 - Replacing the course engine, account model, evidence model, or membership entitlement model.
 - Launching paid acquisition or broad promotion.
+- Claiming that the complete application interface is localized; this Gauntlet markets multilingual course-content creation accurately but does not add interface localization.
 - Publishing, deploying, merging, or modifying the original dirty checkout.
 - Adding an autonomous recommender or inferring sensitive personal circumstances.
 
@@ -114,14 +117,14 @@ Depends on all implementation passes.
 
 Create `.agents/product-marketing.md` with these authoritative sections:
 
-1. **Best-fit customer** — the current launch customer and two-to-eight-week trigger.
-2. **Primary job** — turn an immediate professional capability gap into a focused course, applied practice, and inspectable evidence.
+1. **Audience and initial validation cohorts** — students, self-directed learners, career changers, and working professionals as the product audience; knowledge workers as one initial measurable cohort rather than the product boundary.
+2. **Primary job** — turn a concrete learning goal into a focused course, applied practice, durable recall, and inspectable evidence.
 3. **Competitive alternatives** — generic chat, disconnected tutorials/videos, broad course marketplaces, self-made notes, and doing nothing.
 4. **Unique attributes** — outcome definition, public course inspection, Capability Cycle, source-status honesty, private practice, adaptive return, and evidence-state separation.
-5. **Value themes** — decide with more confidence, practice the actual capability, return before it fades, and show what the record supports.
-6. **Category** — professional learning workspace. Do not create an unfamiliar category or lead with “AI platform.”
-7. **Message hierarchy** — professional outcome first; practice and evidence second; source trust and privacy third; AI and usage allowances as implementation details.
-8. **Plan triggers** — Free for published learning, Plus for a custom private goal, Pro for professional proof and publishing.
+5. **Value themes** — understand the idea, practice the actual capability, use it in a meaningful context, return before it fades, and show what the record supports.
+6. **Category** — self-directed learning and course-creation workspace. Do not create an unfamiliar category or lead with “AI platform.”
+7. **Message hierarchy** — concrete learning outcome first; practice and evidence second; source trust, privacy, and requested course language third; AI and usage allowances as implementation details.
+8. **Plan triggers** — Free for published learning, Plus for a custom private goal, Pro for portable evidence and publishing.
 9. **Claims register** — each claim marked as implemented fact, measured result, hypothesis, or prohibited unsupported claim.
 10. **Measurement contract** — acquisition, activation, retention, evidence, referral, and paid-interest definitions.
 11. **Research status** — repository-supported versus market-validated, with the latter requiring qualified participant evidence.
@@ -134,10 +137,10 @@ No completed participant logs exist in `docs/research`; only the interview guide
 
 Create `docs/research/MARKETING_HYPOTHESIS_REGISTER.md` with one row for each proposed starting point:
 
-- Current project
-- Role transition
-- Interview
-- Promotion
+- School, coursework, or exam
+- Personal or self-directed project
+- Career change, interview, or portfolio
+- Current work decision, project, or promotion
 
 Each row records:
 
@@ -150,7 +153,9 @@ Each row records:
 - the interview and behavioral evidence required to advance market status;
 - the decision owner and next review condition.
 
-All four starting points are repository-supported because the current product and roadmap name them. They remain market-unvalidated until qualified participant evidence exists. UI copy presents them as ways to begin browsing, never as “recommended for people like you” or “proven demand.”
+All four starting points become repository-supported through the user-approved audience contract in `PRODUCT.md` and `.agents/product-marketing.md`. The existing roadmap already supports career and work triggers; school and personal-project triggers are an explicit expansion approved in this design review. All remain market-unvalidated until qualified participant evidence exists. UI copy presents them as ways to begin browsing, never as “recommended for people like you” or “proven demand.”
+
+The register also separates interface language from course-content language. It records that the current interface is English while the course studio accepts a specific requested language or bilingual pairing and the pipeline enforces language conformance. Marketing must not describe Filosage as limited to English learners or as a fully localized application.
 
 Before broad promotion, the existing Phase 0 gate still requires 15–20 qualified interviews, at least ten unprompted descriptions of the target problem, five structured-learning commitments, and one repeatable acquisition channel. This Gauntlet does not fabricate or waive that gate.
 
@@ -216,7 +221,7 @@ Add a narrow, allowlisted `surface` field to product-event options and telemetry
 - `landing_flagship`
 - `library_job_start`
 - `library_no_match`
-- `evidence_professional`
+- `evidence_portable`
 - `home_review`
 - `pricing_direct`
 
@@ -240,10 +245,10 @@ Create `src/lib/marketing-merchandising.ts` with focused responsibilities:
 
 ```ts
 export type MarketingJobId =
-  | "current_project"
-  | "role_transition"
-  | "interview"
-  | "promotion";
+  | "study_goal"
+  | "personal_project"
+  | "career_goal"
+  | "work_goal";
 
 export interface MarketingJobPreset {
   id: MarketingJobId;
@@ -290,7 +295,7 @@ Create a public route at `/evidence-example`, outside the authenticated `/eviden
 The route renders fixed demonstration data in a dedicated component. It must include:
 
 - a prominent “Demonstration data — not a learner result” label;
-- a fictional, role-neutral course topic and professional outcome;
+- a fictional, role-neutral course topic and concrete learning outcome;
 - a pending self-reported starting estimate;
 - observed practice records;
 - assessed criteria with both met and unresolved examples;
@@ -320,16 +325,16 @@ The prompt records `upgrade_prompt_viewed` once per session and `upgrade_prompt_
 
 ### Pro when evidence is ready to leave the app
 
-The authenticated evidence report retains the current on-screen evidence for every eligible learner. When export/share is unavailable, its professional-evidence section explains that Pro adds printable reports, revocable snapshot links, and cross-attempt analysis, then links to `/pricing?plan=pro&from=evidence-professional`.
+The authenticated evidence report retains the current on-screen evidence for every eligible learner. When export/share is unavailable, its portable-evidence section explains that Pro adds printable reports, revocable snapshot links, and cross-attempt analysis, then links to `/pricing?plan=pro&from=evidence-portable`.
 
-The prompt records the same upgrade events with `surface: "evidence_professional"`. It never hides current evidence, capstone results, or downgrade-preserved records.
+The prompt records the same upgrade events with `surface: "evidence_portable"`. It never hides current evidence, capstone results, or downgrade-preserved records.
 
 ### Pricing query behavior
 
 The pricing page accepts only:
 
 - `plan=plus|pro`
-- `from=library-no-match|evidence-professional|direct`
+- `from=library-no-match|evidence-portable|direct`
 
 Invalid values fall back to Plus and direct entry. Query parameters select presentation state only; they do not create pricing intent, accept terms, open checkout, or change entitlements. Existing authenticated pricing-intent behavior remains explicit and server-recorded.
 
@@ -449,6 +454,7 @@ Runtime acceptance must confirm the current source build, not a stale `.next` di
 | ID | Requirement |
 |---|---|
 | MKT-CTX-001 | `.agents/product-marketing.md` matches current product, tier, claims, and measurement contracts. |
+| MKT-CTX-002 | Product and marketing context includes students, self-directed learners, career changers, and professionals; it distinguishes an English interface from multilingual course-content creation. |
 | MKT-RSCH-001 | Four job hypotheses have repository and market status; no missing interview data is presented as validation. |
 | MKT-AN-001 | Acquisition and activation funnels are separated at the anonymous/account identity boundary. |
 | MKT-AN-002 | Day 7/28 retention is anchored at first practice and counts only meaningful verified return actions. |
@@ -458,7 +464,7 @@ Runtime acceptance must confirm the current source build, not a stale `.next` di
 | MKT-JOB-001 | Four editable job starting points update URL-backed discovery state without personalization claims. |
 | MKT-PRF-001 | Public evidence example is visibly synthetic, privacy-safe, inspectable, and explicitly not a credential. |
 | MKT-CRO-001 | Plus prompt appears only after an unmet intentional discovery action and preserves recovery choices. |
-| MKT-CRO-002 | Pro prompt appears at professional evidence without hiding existing learner evidence. |
+| MKT-CRO-002 | Pro prompt appears at portable evidence without hiding existing learner evidence. |
 | MKT-CRO-003 | Pricing context cannot create checkout, intent, consent, or entitlement state by itself. |
 | MKT-RET-001 | Return recommendation uses current review state and remains functional with analytics disabled. |
 | MKT-RET-002 | Calendar remains device-generated and email delivery remains explicitly off. |
@@ -518,7 +524,8 @@ The council must explicitly recheck the original findings:
 5. contextual Plus and Pro triggers;
 6. safe return behavior;
 7. category accessibility and distinctive assets;
-8. unsupported claims, privacy, and billing boundaries.
+8. audience breadth and accurate multilingual course-content positioning;
+9. unsupported claims, privacy, and billing boundaries.
 
 Disposition rules:
 

@@ -671,7 +671,7 @@ export async function POST(request: Request) {
         `Teaching approach: ${courseStyle}. ${approach}`,
         `Course language: ${language}. Use other languages only when the learning objective explicitly requires them.`,
         freshnessRequired ? "Freshness is required. Clearly date current claims and rely only on the supplied evidence; do not invent current facts." : "",
-        "Choose one concrete professional artifact that can demonstrate the course outcome, calibrated to the private learner context when a preference was supplied.",
+        "Choose one concrete inspectable artifact that demonstrates the course outcome and fits the learner-supplied academic, personal, creative, civic, career, or work context when one was supplied.",
         "Choose one realistic, anonymous scenario that can develop across modules without inventing factual claims, calibrated to the private learner context when a preference was supplied.",
         sourcePackPromptBlock(sourcePack, "No externally verified source survived automatic research. Continue by designing a transparent model-knowledge course; never invent a source or citation."),
         "For every lesson, return contentBasis. Use verified-source only when at least one supplied atomic evidence claim directly supports that lesson, and then return only the relevant supplied sourceIds. Otherwise use model-knowledge and return sourceIds: []. Missing evidence must never prevent the course from being designed, and a source must never be stretched merely to increase coverage.",

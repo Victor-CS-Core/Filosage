@@ -22,20 +22,21 @@ import { createClientId } from "@/lib/browser-compat";
 import styles from "./create.module.css";
 
 const examples = [
+  "Prepare for a calculus exam",
+  "Build a personal budgeting model",
+  "Create a portfolio accessibility audit",
   "Run a causal analysis for a product decision",
-  "Build a reliable forecasting model in Python",
-  "Design an experiment stakeholders can trust",
 ];
 
 const courseStyles = [
   { value: "Balanced", title: "Balanced", description: "Move between concise explanations, worked examples, and practice." },
-  { value: "Concept-first", title: "Concept-first", description: "Build a durable mental model before applying it to realistic work." },
+  { value: "Concept-first", title: "Concept-first", description: "Build a durable mental model before applying it to realistic situations." },
   { value: "Project-led", title: "Project-led", description: "Use one concrete deliverable to organize the learning sequence." },
 ] as const;
 
 const steps = [
   { label: "Outcome", description: "Define success", icon: Target },
-  { label: "Pace", description: "Fit the work", icon: Clock3 },
+  { label: "Pace", description: "Fit your week", icon: Clock3 },
   { label: "Teaching plan", description: "Shape the course", icon: FileCheck2 },
 ] as const;
 
@@ -221,7 +222,7 @@ export default function CreateCoursePage() {
 
                     <div className={styles.field}>
                       <label htmlFor="course-topic"><span>Subject or skill</span><small>{topic.length}/120</small></label>
-                      <input id="course-topic" name="topic" value={topic} onChange={(event) => setTopic(event.target.value)} maxLength={120} placeholder="e.g. Systems thinking for product decisions" required />
+                      <input id="course-topic" name="topic" value={topic} onChange={(event) => setTopic(event.target.value)} maxLength={120} placeholder="e.g. Urban sketching composition" required />
                       <div className={styles.examples} aria-label="Topic examples">
                         {examples.map((example) => <button type="button" key={example} onClick={() => setTopic(example)}>{example}</button>)}
                       </div>
@@ -239,11 +240,11 @@ export default function CreateCoursePage() {
                     </div>
 
                     <details className={styles.optionalDetails}>
-                      <summary><span><strong>Add work context</strong><small>Optional · makes examples more relevant</small></span><Plus size={17} /></summary>
+                      <summary><span><strong>Add learning context</strong><small>Optional · makes examples more relevant</small></span><Plus size={17} /></summary>
                       <div className={styles.optionalContent}>
                         <div className={styles.field}>
                           <label htmlFor="course-application"><span>Where will you use this?</span><small>{application.length}/500</small></label>
-                          <textarea id="course-application" name="application" value={application} onChange={(event) => setApplication(event.target.value)} maxLength={500} rows={3} placeholder="For product strategy reviews and clearer decisions with my team." />
+                          <textarea id="course-application" name="application" value={application} onChange={(event) => setApplication(event.target.value)} maxLength={500} rows={3} placeholder="For an exam, personal project, portfolio, creative practice, civic goal, or work decision." />
                         </div>
                         <div className={styles.field}>
                           <label htmlFor="course-scenario"><span>Should the course follow a specific situation?</span><small>{scenarioPreference.length}/500</small></label>
@@ -272,7 +273,7 @@ export default function CreateCoursePage() {
 
                     <div className={styles.field}>
                       <label htmlFor="course-background"><span>What do you already know?</span><small>Required · {background.length}/500</small></label>
-                      <textarea id="course-background" name="background" value={background} onChange={(event) => setBackground(event.target.value)} maxLength={500} rows={4} placeholder="I understand the basic vocabulary but have not yet applied it to a real case." required />
+                      <textarea id="course-background" name="background" value={background} onChange={(event) => setBackground(event.target.value)} maxLength={500} rows={4} placeholder="I understand the basic vocabulary but have not yet applied it in a complete example." required />
                       <p className={styles.fieldHint}>Mention adjacent skills, tools, or concepts Filosage can build on.</p>
                     </div>
 
@@ -388,7 +389,7 @@ export default function CreateCoursePage() {
                 <li className={goal.trim() ? styles.ready : ""}><CheckCircle2 size={16} /> Observable outcome</li>
                 <li className={artifactPreference.trim() ? styles.ready : ""}><CheckCircle2 size={16} /> Evidence of skill</li>
               </ul>
-              {outcomeComplete && contextCount === 0 && <p>Add one context detail to make the examples feel closer to your work.</p>}
+              {outcomeComplete && contextCount === 0 && <p>Add one context detail to make the examples feel closer to your goal.</p>}
               {contextCount > 0 && <p>{contextCount} context detail{contextCount === 1 ? "" : "s"} will help tailor the course.</p>}
             </div>
             <div className={styles.creditNote}><Sparkles size={16} /><span><strong>{creditLabel}</strong><small>A credit is reserved only when generation begins.</small></span></div>

@@ -3,11 +3,11 @@ import { ArrowRight, BookOpenCheck, CalendarCheck2, Check, FileCheck2, Target } 
 export default function FeatureGrid() {
   return (
     <section className="marketing-section marketing-story" id="features" aria-labelledby="features-title">
-      <header className="marketing-story-heading"><h2 id="features-title">See the learning task—not a generic dashboard.</h2><p>Filosage keeps the professional outcome, the next useful practice, and the evidence record connected without pretending they are the same thing.</p></header>
+      <header className="marketing-story-heading"><h2 id="features-title">See the learning task—not a generic dashboard.</h2><p>Filosage keeps the outcome, the next useful practice, and the evidence record connected without pretending they are the same thing.</p></header>
       <p className="marketing-story-note">Illustrative product views · Course content and learner status vary.</p>
       <article className="marketing-story-row">
-        <div><Target size={24} aria-hidden="true" /><h3>Define what useful looks like.</h3><p>Record the work context, the capability to build, and the artifact or decision that would demonstrate it.</p></div>
-        <div className="marketing-outcome-fragment" aria-label="Illustrative outcome definition fields"><span><small>Outcome</small><strong>Design a defensible product experiment</strong></span><span><small>Use it for</small><strong>A live roadmap decision</strong></span><span><small>Evidence</small><strong>Experiment brief and decision memo</strong></span></div>
+        <div><Target size={24} aria-hidden="true" /><h3>Define what useful looks like.</h3><p>Record the learning context, the capability to build, and the artifact or decision that would demonstrate it.</p></div>
+        <div className="marketing-outcome-fragment" aria-label="Illustrative outcome definition fields"><span><small>Outcome</small><strong>Explain a system and choose a useful intervention</strong></span><span><small>Use it for</small><strong>A study, personal, career, or work goal</strong></span><span><small>Evidence</small><strong>A model, critique, plan, or portfolio piece</strong></span></div>
       </article>
       <article className="marketing-story-row is-reversed">
         <div><BookOpenCheck size={24} aria-hidden="true" /><h3>Practice through the complete cycle.</h3><p>Recall or predict first, commit to one focused attempt, use feedback to revise, and transfer the capability beyond the example.</p></div>
