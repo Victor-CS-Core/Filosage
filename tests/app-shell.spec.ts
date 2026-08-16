@@ -1172,16 +1172,28 @@ test.describe("mobile application shell", () => {
         await page.screenshot({ path: `.impeccable/review/course-deck-stack-mobile-${viewport.width}-scrolled.png`, fullPage: false });
       }
 
-      const sparkBox = await page.getByRole("button", { name: "Open Support Center" }).boundingBox();
       const controlsBox = await page.locator(".course-deck-controls").boundingBox();
-      expect(sparkBox).not.toBeNull();
       expect(controlsBox).not.toBeNull();
-      const overlapsControls = (sparkBox?.x ?? 0) < (controlsBox?.x ?? 0) + (controlsBox?.width ?? 0)
-        && (sparkBox?.x ?? 0) + (sparkBox?.width ?? 0) > (controlsBox?.x ?? 0)
-        && (sparkBox?.y ?? 0) < (controlsBox?.y ?? 0) + (controlsBox?.height ?? 0)
-        && (sparkBox?.y ?? 0) + (sparkBox?.height ?? 0) > (controlsBox?.y ?? 0);
-      expect(overlapsControls).toBe(false);
-      expect((sparkBox?.x ?? 0) - ((controlsBox?.x ?? 0) + (controlsBox?.width ?? 0))).toBeGreaterThanOrEqual(8);
+      const controlsAlignment = await page.locator(".course-deck-controls").evaluate((controls) => {
+        const controlsRect = controls.getBoundingClientRect();
+        const sectionRect = controls.closest<HTMLElement>(".course-deck-section")!.getBoundingClientRect();
+        const buttons = controls.querySelectorAll<HTMLElement>(":scope > button");
+        const statusRect = controls.querySelector<HTMLElement>(":scope > [role='status']")!.getBoundingClientRect();
+        const previousRect = buttons[0].getBoundingClientRect();
+        const nextRect = buttons[1].getBoundingClientRect();
+        return {
+          controlsCenter: controlsRect.left + (controlsRect.width / 2),
+          sectionCenter: sectionRect.left + (sectionRect.width / 2),
+          statusCenter: statusRect.left + (statusRect.width / 2),
+          previousInset: previousRect.left - controlsRect.left,
+          nextInset: controlsRect.right - nextRect.right,
+        };
+      });
+      expect(Math.abs(controlsAlignment.controlsCenter - controlsAlignment.sectionCenter), JSON.stringify({ viewport, controlsAlignment })).toBeLessThan(1);
+      expect(Math.abs(controlsAlignment.statusCenter - controlsAlignment.controlsCenter), JSON.stringify({ viewport, controlsAlignment })).toBeLessThan(1);
+      expect(Math.abs(controlsAlignment.previousInset - controlsAlignment.nextInset), JSON.stringify({ viewport, controlsAlignment })).toBeLessThan(1);
+      await expect(page.getByRole("button", { name: "Open Support Center" })).toBeHidden();
+      await expect(page.getByRole("link", { name: "Learn how to change motion settings" })).toBeVisible();
       expect((await new AxeBuilder({ page }).include(".course-deck-section").analyze()).violations).toEqual([]);
       await expectNoHorizontalPageOverflow(page);
     }

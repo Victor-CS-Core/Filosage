@@ -612,6 +612,8 @@
 .emptyReplies p { font-size: var(--text-body); line-height: 1.55; }
 
 @media (max-width: 900px) {
+  .homeTrigger { display: none; }
+
   .triggerWrap {
     right: calc(var(--space-lg) + env(safe-area-inset-right));
     bottom: calc(var(--space-lg) + env(safe-area-inset-bottom));

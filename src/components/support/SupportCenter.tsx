@@ -399,7 +399,7 @@ export default function SupportCenter({ onRequestSignIn, onBeforeOpen }: Support
 
   return (
     <>
-      <div className={`${styles.triggerWrap} ${user ? styles.withMobileNav : ""}`}>
+      <div className={`${styles.triggerWrap} ${user ? styles.withMobileNav : ""} ${pathname === "/" ? styles.homeTrigger : ""}`}>
         <button
           ref={triggerRef}
           className={styles.trigger}

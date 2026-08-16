@@ -123,7 +123,7 @@ test("keeps the request list open when a pending detail load is cancelled", asyn
     }
     return route.fulfill({ json: { tickets: [ticket] } });
   });
-  await page.goto("/");
+  await page.goto("/support");
   await page.getByRole("button", { name: "Open Support Center" }).click();
   const dialog = page.getByRole("dialog", { name: "Support center" });
   await dialog.getByRole("tab", { name: "My requests" }).click();
@@ -138,7 +138,7 @@ test("keeps the request list open when a pending detail load is cancelled", asyn
 test("keeps the Spark and bottom sheet above mobile navigation with no overflow", async ({ page }) => {
   await restoreLocalLearner(page);
   await page.setViewportSize({ width: 375, height: 667 });
-  await page.goto("/");
+  await page.goto("/support");
   const trigger = page.getByRole("button", { name: "Open Support Center" });
   const mobileNavigation = page.getByRole("navigation", { name: "Mobile navigation" });
   await expect(trigger).toBeVisible();
@@ -317,7 +317,7 @@ test("fits the required desktop, tablet, and mobile viewport matrix", async ({ p
 
   for (const viewport of viewports) {
     await page.setViewportSize(viewport);
-    await page.goto("/");
+    await page.goto("/support");
     const trigger = page.getByRole("button", { name: "Open Support Center" });
     await expect(trigger).toBeVisible();
     await trigger.click();
