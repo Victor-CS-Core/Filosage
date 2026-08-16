@@ -1,8 +1,91 @@
 import type {
   CommandCenterControls,
+  CommandCenterDraftAgentType,
   CommandCenterRisk,
+  CommandCenterTicketCategory,
   CommandCenterTicketStatus,
 } from "@/lib/command-center-types";
+
+export type CommandCenterDraftOutputMode =
+  | "response_draft"
+  | "internal_summary"
+  | "founder_brief"
+  | "ineligible";
+
+export type CommandCenterDraftEligibility =
+  | {
+    eligible: true;
+    mode: Exclude<CommandCenterDraftOutputMode, "ineligible">;
+    reason: string;
+  }
+  | {
+    eligible: false;
+    mode: "ineligible";
+    reason: string;
+  };
+
+const ticketAgentCategories: Record<
+  Exclude<CommandCenterDraftAgentType, "founderBrief">,
+  readonly CommandCenterTicketCategory[]
+> = {
+  support: ["support", "other", "security", "abuse", "system_alert"],
+  legal: ["legal", "copyright", "privacy"],
+  billing: ["billing"],
+  productOperations: ["product_feedback", "content_report"],
+};
+
+const protectedInternalSummaryCategories: ReadonlySet<CommandCenterTicketCategory> = new Set([
+  "legal",
+  "copyright",
+  "privacy",
+  "security",
+  "abuse",
+  "system_alert",
+  "content_report",
+]);
+
+export function commandCenterDraftEligibility(input: {
+  agentType: CommandCenterDraftAgentType;
+  category?: CommandCenterTicketCategory;
+  riskLevel?: CommandCenterRisk;
+}): CommandCenterDraftEligibility {
+  if (input.agentType === "founderBrief") {
+    return input.category === undefined && input.riskLevel === undefined
+      ? { eligible: true, mode: "founder_brief", reason: "Founder briefs summarize the owner queue only." }
+      : { eligible: false, mode: "ineligible", reason: "Founder briefs cannot be generated for a ticket." };
+  }
+
+  if (!input.category || !input.riskLevel) {
+    return { eligible: false, mode: "ineligible", reason: "A current ticket category and risk are required." };
+  }
+  if (!ticketAgentCategories[input.agentType].includes(input.category)) {
+    return {
+      eligible: false,
+      mode: "ineligible",
+      reason: `The ${input.agentType} agent is not approved for ${input.category.replaceAll("_", " ")} tickets.`,
+    };
+  }
+
+  if (
+    input.agentType === "legal"
+    || input.agentType === "productOperations"
+    || input.riskLevel === "high"
+    || input.riskLevel === "critical"
+    || protectedInternalSummaryCategories.has(input.category)
+  ) {
+    return {
+      eligible: true,
+      mode: "internal_summary",
+      reason: "Protected and high-risk work is limited to an internal summary for owner review.",
+    };
+  }
+
+  return {
+    eligible: true,
+    mode: "response_draft",
+    reason: "Low- or medium-risk support or billing explanation copy is allowed for owner review.",
+  };
+}
 
 export const defaultCommandCenterControls: CommandCenterControls = {
   version: 1,
@@ -29,6 +112,29 @@ export const defaultCommandCenterControls: CommandCenterControls = {
     publishStatus: false,
   },
 };
+
+/**
+ * Malformed persisted controls cannot be coerced into an enabled capability.
+ * The kill switch is asserted as an additional draft-generation backstop.
+ */
+export function failClosedCommandCenterControls(): CommandCenterControls {
+  return {
+    ...structuredClone(defaultCommandCenterControls),
+    systemEnabled: false,
+    killSwitchActive: true,
+    agentFlags: structuredClone(defaultCommandCenterControls.agentFlags),
+    actionFlags: structuredClone(defaultCommandCenterControls.actionFlags),
+  };
+}
+
+export function commandCenterControlsSafetyEnvelopePresent(
+  value: unknown,
+): value is Record<"version" | "systemEnabled" | "simulationMode" | "killSwitchActive", unknown> {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return false;
+  const candidate = value as Record<string, unknown>;
+  return ["version", "systemEnabled", "simulationMode", "killSwitchActive"]
+    .every((field) => Object.hasOwn(candidate, field));
+}
 
 const ticketTransitions: Record<CommandCenterTicketStatus, CommandCenterTicketStatus[]> = {
   new: ["triaged", "in_progress", "closed"],

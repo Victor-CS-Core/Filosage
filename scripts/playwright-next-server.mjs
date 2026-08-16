@@ -20,6 +20,23 @@ const testStoreDir = resetPlaywrightOwnedDirectory(
 );
 resetPlaywrightOwnedDirectory(process.env.FILOSAGE_NEXT_DIST_DIR, ".next");
 
+const seedName = process.env.FILOSAGE_PLAYWRIGHT_SEED?.trim();
+if (seedName) {
+  const seedOptions = {
+    "command-center-v2-contract": { includeMalformedTicket: true },
+    "command-center-v2-founder": { includeMalformedTicket: false },
+  }[seedName];
+  if (!seedOptions) {
+    throw new Error(`Unsupported Playwright seed fixture: ${JSON.stringify(seedName)}.`);
+  }
+  const { buildCommandCenterV2ContractStore } = await import("../tests/fixtures/command-center-v2-store.mjs");
+  mkdirSync(testStoreDir, { recursive: true });
+  writeFileSync(
+    join(testStoreDir, "store.json"),
+    `${JSON.stringify(buildCommandCenterV2ContractStore(seedOptions), null, 2)}\n`,
+  );
+}
+
 // Next automatically adds a custom distDir's generated types to whichever
 // tsconfig it owns. Point it at an ephemeral extending config so the tracked
 // project config remains byte-for-byte untouched by test runs.
@@ -30,7 +47,15 @@ writeFileSync(testTsconfigPath, `${JSON.stringify({
 }, null, 2)}\n`);
 process.env.FILOSAGE_NEXT_TSCONFIG_PATH = relative(process.cwd(), testTsconfigPath).replaceAll(sep, "/");
 
-const app = next({ dev: true, hostname, port });
+const app = next({
+  dev: true,
+  hostname,
+  port,
+  // Isolated worktrees may share node_modules through a directory link.
+  // Turbopack rejects links outside its root, so every owned test server uses
+  // webpack rather than making only seeded suites work in isolation.
+  webpack: true,
+});
 const handle = app.getRequestHandler();
 await app.prepare();
 

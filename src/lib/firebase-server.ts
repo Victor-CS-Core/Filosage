@@ -28,6 +28,15 @@ export interface StoredDocument extends Record<string, unknown> {
   topic?: string;
 }
 
+export interface StoredDocumentPage {
+  documents: StoredDocument[];
+  /** Raw records returned for this page, excluding the look-ahead sentinel. */
+  inspected: number;
+  hasMore: boolean;
+  /** Document ID used to resume the raw __name__ traversal. */
+  nextAfterId: string | null;
+}
+
 interface FirestoreBatchGetResult {
   found?: FirestoreDocument;
   missing?: string;
@@ -197,7 +206,10 @@ function parseDocument(document: FirestoreDocument): StoredDocument {
   if (typeof fields.authorName === "string" && (fields.authorName.includes("@") || fields.authorName === "Teach")) {
     fields.authorName = "Filosage";
   }
-  return { id, ...fields };
+  // The document path is the canonical identity. Stored field data must never
+  // be able to replace it, because malformed records are surfaced by ID in
+  // bounded owner diagnostics.
+  return { ...fields, id };
 }
 
 function parseLocatedDocument(document: FirestoreDocument): LocatedStoredDocument {
@@ -542,6 +554,48 @@ export function listCollectionDocuments(collectionId: string, limit = 1_000) {
     from: [{ collectionId }],
     limit: Math.min(Math.max(limit, 1), 10_000),
   });
+}
+
+/**
+ * Reads one bounded, deterministic page from a top-level collection. The
+ * document-name cursor includes records whose domain sort fields are missing or
+ * malformed, allowing the caller to validate and warn about each raw record.
+ */
+export async function listCollectionDocumentsPage(
+  collectionId: string,
+  options: { limit: number; afterId?: string },
+): Promise<StoredDocumentPage> {
+  if (!/^[A-Za-z0-9_-]{1,80}$/.test(collectionId)) {
+    throw new Error("Invalid Firestore collection.");
+  }
+  if (!Number.isInteger(options.limit) || options.limit < 1 || options.limit > 500) {
+    throw new Error("Document page limits must be integers from 1 to 500.");
+  }
+  if (options.afterId !== undefined && !/^[A-Za-z0-9_-]{1,1500}$/.test(options.afterId)) {
+    throw new Error("Invalid document page cursor.");
+  }
+
+  const results = await runCourseQuery({
+    from: [{ collectionId }],
+    orderBy: [{ field: { fieldPath: "__name__" }, direction: "ASCENDING" }],
+    ...(options.afterId
+      ? {
+          startAt: {
+            values: [{ referenceValue: fullDocumentName(`${collectionId}/${options.afterId}`) }],
+            before: false,
+          },
+        }
+      : {}),
+    limit: options.limit + 1,
+  });
+  const hasMore = results.length > options.limit;
+  const documents = results.slice(0, options.limit);
+  return {
+    documents,
+    inspected: documents.length,
+    hasMore,
+    nextAfterId: hasMore ? documents.at(-1)?.id ?? null : null,
+  };
 }
 
 export function listCollectionDocumentsByRange(

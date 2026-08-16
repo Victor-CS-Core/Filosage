@@ -37,6 +37,15 @@ function localVerifiedUser(idToken: string): VerifiedUser | null {
       name: "Local Owner",
     };
   }
+  if (idToken === "playwright-stale-local-owner") {
+    return {
+      uid: LOCAL_OWNER_UID,
+      email: serverEnvironment.OWNER_EMAIL?.trim().toLowerCase() || LOCAL_OWNER_EMAIL,
+      email_verified: true,
+      auth_time: auth_time - 10 * 60,
+      name: "Local Owner",
+    };
+  }
   const learner = LOCAL_PLAYWRIGHT_LEARNERS.get(idToken);
   if (learner) return { ...learner, email_verified: true, auth_time, name: "Playwright Learner" };
   const isolatedPlusLearner = /^playwright-plus-learner-([0-9a-f]{8}-[0-9a-f-]{27})$/i.exec(idToken);

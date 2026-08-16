@@ -5,6 +5,7 @@ export interface FirestoreValue {
   doubleValue?: number;
   timestampValue?: string;
   stringValue?: string;
+  referenceValue?: string;
   arrayValue?: { values?: FirestoreValue[] };
   mapValue?: { fields?: Record<string, FirestoreValue> };
 }
@@ -48,6 +49,7 @@ export function fromFirestoreValue(value: FirestoreValue): unknown {
   if (value.doubleValue !== undefined) return value.doubleValue;
   if (value.timestampValue !== undefined) return value.timestampValue;
   if (value.stringValue !== undefined) return value.stringValue;
+  if (value.referenceValue !== undefined) return value.referenceValue;
   if (value.arrayValue !== undefined) {
     return (value.arrayValue.values ?? []).map(fromFirestoreValue);
   }

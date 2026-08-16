@@ -29,6 +29,7 @@ import {
 } from "lucide-react";
 import AppShell from "@/components/AppShell";
 import { useAuth } from "@/components/AuthProvider";
+import CommandCenterV2 from "./CommandCenterV2";
 import type {
   CommandCenterApproval,
   CommandCenterApprovalActionType,
@@ -47,6 +48,33 @@ type ApprovalDecision = "approved" | "rejected";
 type DraftDecision = "accepted" | "rejected";
 type TicketField = "category" | "riskLevel" | "subject" | "summary" | "confirmedFacts" | "unverifiedClaims" | "tags";
 type TicketFormErrors = Partial<Record<TicketField, string>>;
+
+const PUBLIC_REPLY_PENDING_STORAGE_KEY = "filosage:command-center:public-reply:v1";
+
+interface PendingPublicReply {
+  ticketId: string;
+  ticketNumber: string;
+  expectedVersion: number;
+  body: string;
+  idempotencyKey: string;
+}
+
+function pendingPublicReply(): PendingPublicReply | null {
+  try {
+    const parsed = JSON.parse(sessionStorage.getItem(PUBLIC_REPLY_PENDING_STORAGE_KEY) ?? "null") as Partial<PendingPublicReply> | null;
+    if (
+      !parsed
+      || typeof parsed.ticketId !== "string"
+      || typeof parsed.ticketNumber !== "string"
+      || typeof parsed.expectedVersion !== "number"
+      || typeof parsed.body !== "string"
+      || typeof parsed.idempotencyKey !== "string"
+    ) return null;
+    return parsed as PendingPublicReply;
+  } catch {
+    return null;
+  }
+}
 
 const draftAgentLabels: Record<CommandCenterDraftAgentType, string> = {
   support: "Support",
@@ -170,8 +198,8 @@ function StatusBadge({ status }: { status: CommandCenterTicketStatus }) {
   return <span className={`cc-badge cc-status-${status}`}>{statusLabels[status]}</span>;
 }
 
-export default function CommandCenterPage() {
-  const { user, isOwner, loading: authLoading } = useAuth();
+function LegacyCommandCenterPage() {
+  const { user, isOwner, loading: authLoading, reauthenticate } = useAuth();
   const [data, setData] = useState<CommandCenterSnapshot | null>(null);
   const [view, setView] = useState<CommandCenterView>("inbox");
   const [loading, setLoading] = useState(true);
@@ -196,6 +224,9 @@ export default function CommandCenterPage() {
   const [ticketTags, setTicketTags] = useState<string[]>([]);
   const ticketSubmitting = useRef(false);
   const ticketIdempotencyKey = useRef<string | null>(null);
+  const publicReplyOperation = useRef<{ fingerprint: string; key: string } | null>(null);
+  const approvalReviewOperation = useRef<{ fingerprint: string; key: string } | null>(null);
+  const publicReplyResumeStarted = useRef(false);
   const newTicketButton = useRef<HTMLButtonElement>(null);
   const ticketSubjectInput = useRef<HTMLInputElement>(null);
   const createTicketDialog = useRef<HTMLDialogElement>(null);
@@ -290,6 +321,48 @@ export default function CommandCenterPage() {
       setBusy(false);
     }
   }, [load]);
+
+  const publishPublicReply = useCallback(async (
+    pending: PendingPublicReply,
+    reauthenticationToken: string,
+  ) => {
+    const saved = await runMutation(() => request(
+      `/api/admin/command-center/tickets/${encodeURIComponent(pending.ticketId)}/public-replies`,
+      "POST",
+      { expectedVersion: pending.expectedVersion, body: pending.body },
+      {
+        "Idempotency-Key": pending.idempotencyKey,
+        "X-Reauthentication-Token": reauthenticationToken,
+      },
+    ), "Learner-visible reply published once and recorded in the application audit log.");
+    if (saved) {
+      sessionStorage.removeItem(PUBLIC_REPLY_PENDING_STORAGE_KEY);
+      publicReplyOperation.current = null;
+      setSelectedTicketId(pending.ticketId);
+    }
+    return saved;
+  }, [request, runMutation]);
+
+  useEffect(() => {
+    if (authLoading || !user || publicReplyResumeStarted.current) return;
+    if (new URL(window.location.href).searchParams.get("filosage_reauthenticated") !== "1") return;
+    const pending = pendingPublicReply();
+    if (!pending) return;
+    publicReplyResumeStarted.current = true;
+    void (async () => {
+      try {
+        const refreshedUser = await reauthenticate("/admin/command-center");
+        if (!refreshedUser.reauthenticationToken) {
+          throw new Error("Sign-in confirmation did not return a publication proof.");
+        }
+        await publishPublicReply(pending, refreshedUser.reauthenticationToken);
+      } catch (resumeError) {
+        setError(resumeError instanceof Error ? resumeError.message : "The learner reply was not published.");
+      } finally {
+        publicReplyResumeStarted.current = false;
+      }
+    })();
+  }, [authLoading, publishPublicReply, reauthenticate, user]);
 
   const filteredTickets = useMemo(() => (data?.tickets ?? []).filter((ticket) => {
     if (riskFilter !== "all" && ticket.riskLevel !== riskFilter) return false;
@@ -421,10 +494,37 @@ export default function CommandCenterPage() {
     if (!selectedTicket) return;
     const formElement = event.currentTarget;
     const form = new FormData(formElement);
-    const saved = await runMutation(() => request(`/api/admin/command-center/tickets/${encodeURIComponent(selectedTicket.id)}/public-replies`, "POST", {
+    const body = String(form.get("publicReply") ?? "").trim();
+    if (!window.confirm(
+      `Publish this reply to the requester for ${selectedTicket.ticketNumber}?\n\n${body}\n\nIt will be visible immediately and recorded as an external effect.`,
+    )) return;
+    const fingerprint = JSON.stringify({
+      ticketId: selectedTicket.id,
       expectedVersion: selectedTicket.version,
-      body: form.get("publicReply"),
-    }), "Learner-visible reply published and recorded in the audit ledger.");
+      body,
+    });
+    if (publicReplyOperation.current?.fingerprint !== fingerprint) {
+      publicReplyOperation.current = { fingerprint, key: crypto.randomUUID() };
+    }
+    const pending: PendingPublicReply = {
+      ticketId: selectedTicket.id,
+      ticketNumber: selectedTicket.ticketNumber,
+      expectedVersion: selectedTicket.version,
+      body,
+      idempotencyKey: publicReplyOperation.current.key,
+    };
+    sessionStorage.setItem(PUBLIC_REPLY_PENDING_STORAGE_KEY, JSON.stringify(pending));
+    let refreshedUser;
+    try {
+      refreshedUser = await reauthenticate("/admin/command-center");
+      if (!refreshedUser.reauthenticationToken) {
+        throw new Error("Sign-in confirmation did not return a publication proof.");
+      }
+    } catch (reauthenticationError) {
+      setError(reauthenticationError instanceof Error ? reauthenticationError.message : "The learner reply was not published.");
+      return;
+    }
+    const saved = await publishPublicReply(pending, refreshedUser.reauthenticationToken);
     if (saved) formElement.reset();
   };
 
@@ -462,12 +562,32 @@ export default function CommandCenterPage() {
     if (!selectedApproval || !approvalDecision) return;
     const formElement = event.currentTarget;
     const form = new FormData(formElement);
-    const saved = await runMutation(() => request(`/api/admin/command-center/approvals/${encodeURIComponent(selectedApproval.id)}`, "PATCH", {
+    const reason = String(form.get("reason") ?? "").trim();
+    const fingerprint = JSON.stringify({
+      approvalId: selectedApproval.id,
       expectedVersion: selectedApproval.version,
       decision: approvalDecision,
-      reason: form.get("reason"),
-    }), `${approvalDecision === "approved" ? "Approval" : "Rejection"} recorded in simulation mode. No external action was executed.`);
+      reason,
+    });
+    if (approvalReviewOperation.current?.fingerprint !== fingerprint) {
+      approvalReviewOperation.current = { fingerprint, key: `approval-review-${crypto.randomUUID()}` };
+    }
+    const saved = await runMutation(async () => {
+      const recentlyAuthenticated = await reauthenticate("/admin/command-center");
+      if (!recentlyAuthenticated.reauthenticationToken) {
+        throw new Error("Sign-in confirmation did not return a decision proof.");
+      }
+      await request(`/api/admin/command-center/approvals/${encodeURIComponent(selectedApproval.id)}`, "PATCH", {
+        expectedVersion: selectedApproval.version,
+        decision: approvalDecision,
+        reason,
+      }, {
+        "Idempotency-Key": approvalReviewOperation.current!.key,
+        "X-Reauthentication-Token": recentlyAuthenticated.reauthenticationToken,
+      });
+    }, `${approvalDecision === "approved" ? "Approval" : "Rejection"} recorded in simulation mode. No external action was executed.`);
     if (saved) {
+      approvalReviewOperation.current = null;
       formElement.reset();
       decisionDialog.current?.close();
       setApprovalDecision(null);
@@ -700,7 +820,7 @@ export default function CommandCenterPage() {
             <aside className="cc-inspector" aria-label="Selected work details">
               <button className="cc-mobile-back" onClick={() => setMobileDetailOpen(false)}><ArrowLeft size={16} />Back to {view === "approvals" ? "approvals" : view === "drafts" ? "drafts" : "inbox"}</button>
               {view === "inbox" ? selectedTicket ? (
-                <TicketInspector ticket={selectedTicket} busy={busy} draftAvailable={data.capabilities.draftAgentsAvailable && data.controls.agentFlags[agentForTicket(selectedTicket)] && !data.controls.killSwitchActive} onGenerateDraft={() => void generateDraft(agentForTicket(selectedTicket), selectedTicket)} onUpdate={updateTicket} onAddNote={addNote} onAddPublicReply={addPublicReply} onRequestApproval={() => createApprovalDialog.current?.showModal()} />
+                <TicketInspector key={selectedTicket.id} ticket={selectedTicket} busy={busy} draftAvailable={data.capabilities.draftAgentsAvailable && data.controls.agentFlags[agentForTicket(selectedTicket)] && !data.controls.killSwitchActive} onGenerateDraft={() => void generateDraft(agentForTicket(selectedTicket), selectedTicket)} onUpdate={updateTicket} onAddNote={addNote} onAddPublicReply={addPublicReply} onRequestApproval={() => createApprovalDialog.current?.showModal()} />
               ) : <InspectorEmpty icon={Inbox} title="Select a ticket" body="Choose an item from the queue to inspect evidence, history, and available next steps." />
                 : view === "drafts" ? selectedDraft ? (
                   <DraftInspector draft={selectedDraft} ticket={selectedDraftTicket} busy={busy} onDecision={openDraftDecision} />
@@ -760,7 +880,7 @@ export default function CommandCenterPage() {
       </dialog>
 
       <dialog ref={createApprovalDialog} className="cc-dialog" aria-labelledby="cc-approval-form-title" aria-modal="true">
-        <form onSubmit={createApproval} autoComplete="off">
+        <form key={selectedTicket?.id ?? "no-ticket"} onSubmit={createApproval} autoComplete="off">
           <header><div><h2 id="cc-approval-form-title">Request owner approval</h2><p>This records a proposed action for review. It cannot execute the action.</p></div><button type="button" onClick={() => createApprovalDialog.current?.close()} aria-label="Close"><X size={18} /></button></header>
           <div className="cc-form-grid"><label>Action type<select name="actionType" defaultValue="send_response">{Object.entries(actionLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label><label>Risk level<select name="riskLevel" defaultValue={selectedTicket?.riskLevel === "critical" ? "critical" : "high"}><option value="medium">Medium</option><option value="high">High</option><option value="critical">Critical</option></select></label></div>
           <label>Proposed action<textarea name="proposedAction" minLength={10} maxLength={500} rows={3} required /></label>
@@ -874,4 +994,10 @@ function ApprovalInspector({ approval, ticket, busy, onDecision }: {
 
 function InspectorEmpty({ icon: Icon, title, body }: { icon: typeof Inbox; title: string; body: string }) {
   return <div className="cc-inspector-empty"><Icon size={24} /><h2>{title}</h2><p>{body}</p></div>;
+}
+
+export default function CommandCenterPage() {
+  return process.env.NEXT_PUBLIC_COMMAND_CENTER_V2 === "true"
+    ? <CommandCenterV2 />
+    : <LegacyCommandCenterPage />;
 }

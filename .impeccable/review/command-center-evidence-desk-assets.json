@@ -1,0 +1,76 @@
+{
+  "version": 1,
+  "surface": "Command Center v2 - Owner's Evidence Desk",
+  "approved_comp": ".impeccable/mocks/command-center-evidence-desk-a.png",
+  "supporting_comps": [
+    ".impeccable/mocks/command-center-evidence-desk-b.png",
+    ".impeccable/mocks/command-center-evidence-desk-c.png"
+  ],
+  "decision": "No new production raster assets are required. The approved composition is a semantic operations interface; the only bitmap role is the existing authoritative Filosage mark already rendered by FilosageMark.",
+  "produce": [],
+  "direct": [
+    {
+      "id": "filosage-mark-light",
+      "source_crop": "Approved comps A-C header brand role; generated crest details are not literal brand assets.",
+      "output_path": "public/brand/logo/filosage-theme-light.png",
+      "strategy": "Reuse the existing production asset through src/components/FilosageMark.tsx; no conversion, crop, or duplication.",
+      "prompt_used": null,
+      "dimensions": "600x600 intrinsic; responsive display size remains owned by the existing shell component.",
+      "format": "PNG (32-bit ARGB)",
+      "transparency": "Alpha channel present.",
+      "deviations": "Uses the real Filosage mark instead of the inconsistent generated crests in the comps.",
+      "qa_status": "accepted"
+    },
+    {
+      "id": "filosage-mark-dark",
+      "source_crop": "Approved comps A-C header brand role; inverse placement for the existing dark learning-app header.",
+      "output_path": "public/brand/logo/filosage-theme-dark.png",
+      "strategy": "Reuse the existing production inverse asset through src/components/FilosageMark.tsx; no conversion, crop, or duplication.",
+      "prompt_used": null,
+      "dimensions": "600x600 intrinsic; responsive display size remains owned by the existing shell component.",
+      "format": "PNG (32-bit ARGB)",
+      "transparency": "Alpha channel present.",
+      "deviations": "Preserves the authoritative application shell rather than literalizing the comps' generated header marks.",
+      "qa_status": "accepted"
+    }
+  ],
+  "semantic": [
+    {
+      "id": "paper-workspace",
+      "implementation": "Compose the oatmeal canvas and single cream evidence sheet with route-scoped CSS using existing brand tokens such as --canvas, --surface, --line, and --grain-sheet; CSS owns boundaries, clipping, and responsive stacking.",
+      "notes": "Do not rasterize the paper surface or use the full-page comp as a background.",
+      "qa_status": "accepted"
+    },
+    {
+      "id": "safety-boundary-and-navigation",
+      "implementation": "Use semantic header/nav regions, labeled buttons or links, a deep navy safety band, text state labels, and Lucide icons. Preserve focus order, visible labels, and 44px minimum mobile targets.",
+      "notes": "No custom icon sheet or navigation bitmap is needed.",
+      "qa_status": "accepted"
+    },
+    {
+      "id": "work-ledger-and-evidence-dossier",
+      "implementation": "Render the queue as a semantic list or table and the selected case as article/section content. CSS owns ruled separators, the teal selected edge, risk/status colors, two-column evidence groups, timeline rules, and desktop queue-plus-dossier versus mobile list-to-detail behavior.",
+      "notes": "All case text and evidence remain live repository-backed HTML; no screenshot fragments.",
+      "qa_status": "accepted"
+    },
+    {
+      "id": "reviews-and-system-contracts",
+      "implementation": "Build Reviews with semantic pending lists and document sections, and System with full-width definition/table structures grouped as available, blocked, and future. Use Lucide icons and text labels together; CSS owns rules and restrained state fills.",
+      "notes": "Supporting comps B and C govern composition only; their invented example values must not ship.",
+      "qa_status": "accepted"
+    },
+    {
+      "id": "typography-and-action-dock",
+      "implementation": "Use Source Serif 4 via --font-editorial only for the Command Center page title and Inter via existing body tokens for operations. Build the sticky safe-action dock as semantic buttons with CSS borders/fills; visually isolate Publish to learner and preserve its confirmation contract.",
+      "notes": "No text, button, or decorative treatment is baked into imagery.",
+      "qa_status": "accepted"
+    }
+  ],
+  "execution_order": [],
+  "blockers": [],
+  "assumptions": [
+    "The existing AppShell and FilosageMark remain the source of truth for brand chrome.",
+    "Lucide React remains the production icon source.",
+    "The existing brand token sheet and route-scoped CSS Module are sufficient for the approved paper-and-rules material system."
+  ]
+}

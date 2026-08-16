@@ -16,6 +16,7 @@ export class AuthorizationError extends Error {
   constructor(
     public readonly status: 401 | 403,
     message: string,
+    public readonly code?: string,
   ) {
     super(message);
   }
@@ -52,18 +53,19 @@ export async function requireAccount(request: Request): Promise<ServerAccount> {
 export async function requireRecentlyAuthenticatedUser(
   request: Request,
   recentAuthenticationMessage = "Sign in again before permanently deleting your account.",
+  recentAuthenticationCode?: string,
 ): Promise<VerifiedUser> {
   const user = await requireUser(request);
   if (!isLocalMode()) {
     if (!hasRecentAuthentication(user.auth_time)) {
-      throw new AuthorizationError(401, recentAuthenticationMessage);
+      throw new AuthorizationError(401, recentAuthenticationMessage, recentAuthenticationCode);
     }
     return user;
   }
   const proofToken = request.headers.get("x-reauthentication-token")?.trim();
   const proof = proofToken ? await verifyIdentityToken(proofToken) : null;
   if (!proof || proof.uid !== user.uid || !hasRecentAuthentication(proof.auth_time)) {
-    throw new AuthorizationError(401, recentAuthenticationMessage);
+    throw new AuthorizationError(401, recentAuthenticationMessage, recentAuthenticationCode);
   }
   return user;
 }
@@ -71,17 +73,23 @@ export async function requireRecentlyAuthenticatedUser(
 export async function requireRecentlyAuthenticatedAccount(
   request: Request,
   recentAuthenticationMessage = "Sign in again before permanently deleting your account.",
+  recentAuthenticationCode?: string,
 ): Promise<ServerAccount> {
-  const user = await requireRecentlyAuthenticatedUser(request, recentAuthenticationMessage);
+  const user = await requireRecentlyAuthenticatedUser(request, recentAuthenticationMessage, recentAuthenticationCode);
   const account = await getExistingAccount(user);
   if (!account) throw new AuthorizationError(403, "Complete account setup before managing account data.");
   return account;
 }
 
-export async function requireRecentlyAuthenticatedOwner(request: Request): Promise<ServerAccount> {
+export async function requireRecentlyAuthenticatedOwner(
+  request: Request,
+  recentAuthenticationMessage = "Sign in again before using a publication override.",
+  recentAuthenticationCode?: string,
+): Promise<ServerAccount> {
   const account = await requireRecentlyAuthenticatedAccount(
     request,
-    "Sign in again before using a publication override.",
+    recentAuthenticationMessage,
+    recentAuthenticationCode,
   );
   if (account.accountStatus === "suspended") {
     throw new AuthorizationError(403, "This account is paused. Contact support if you believe this is an error.");
@@ -134,7 +142,10 @@ export async function requirePlanCapability(request: Request, capability: PlanCa
 
 export function authorizationResponse(error: unknown) {
   if (error instanceof AuthorizationError) {
-    return NextResponse.json({ error: error.message }, { status: error.status });
+    return NextResponse.json(
+      error.code ? { error: error.message, code: error.code } : { error: error.message },
+      { status: error.status },
+    );
   }
   return null;
 }

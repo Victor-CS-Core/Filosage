@@ -399,6 +399,7 @@ function stubSourceEvidenceValidation(input: string) {
 
 function stubCommandCenterDraft(input: string) {
   const agentType = line(input, "Agent type:") || "support";
+  const outputMode = line(input, "Output mode:") || "internal_summary";
   const subject = line(input, "Subject:") || "Current operational work";
   const isFounderBrief = agentType === "founderBrief";
   return {
@@ -409,9 +410,9 @@ function stubCommandCenterDraft(input: string) {
     recommendedCategory: isFounderBrief ? null : agentType === "billing" ? "billing" : agentType === "legal" ? "legal" : agentType === "productOperations" ? "product_feedback" : "support",
     recommendedRisk: isFounderBrief ? null : "medium",
     recommendedTags: isFounderBrief ? ["founder-brief"] : ["draft-review"],
-    responseDraft: isFounderBrief || agentType === "legal" || agentType === "productOperations"
-      ? null
-      : "Thanks for sharing these details. We are reviewing the confirmed facts and will follow up after the owner completes the review. (Local draft; not sent.)",
+    responseDraft: outputMode === "response_draft"
+      ? "Thanks for sharing these details. We are reviewing the confirmed facts and will follow up after the owner completes the review. (Local draft; not sent.)"
+      : null,
     missingInformation: isFounderBrief ? [] : ["Confirm the affected record and the exact observed behavior."],
     escalationReasons: agentType === "legal" ? ["Owner review is required for legal intake."] : [],
     evidenceUsed: ["Command-center ticket fields supplied to this run"],

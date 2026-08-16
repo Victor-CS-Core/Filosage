@@ -21,6 +21,8 @@ interface EasyAuthSessionResponse {
 
 const EASY_AUTH_SESSION_MARKER = "azure-easy-auth-session";
 const REAUTHENTICATED_QUERY = "filosage_reauthenticated";
+export const RECENT_AUTHENTICATION_PROOF_MISSING_MESSAGE =
+  "Google did not provide a recent-authentication proof. The requested sensitive action was not completed.";
 
 // Azure Container Apps provides these endpoints only in the deployed
 // production runtime. Development keeps the existing isolated local account.
@@ -86,7 +88,7 @@ export async function beginGoogleReauthentication(postLoginPath = "/privacy-cent
     window.history.replaceState({}, "", `${current.pathname}${current.search}${current.hash}`);
     const session = await easyAuthSession();
     if (!session?.recentAuthentication) {
-      throw new Error("Google did not provide a recent-authentication proof. Your account was not deleted.");
+      throw new Error(RECENT_AUTHENTICATION_PROOF_MISSING_MESSAGE);
     }
     const user = toFilosageUser(session, EASY_AUTH_SESSION_MARKER);
     if (!user) throw new Error("Your Google confirmation did not complete.");

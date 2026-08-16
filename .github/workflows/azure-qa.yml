@@ -32,6 +32,7 @@ jobs:
       - run: npm run build
         env:
           NEXT_PUBLIC_SITE_URL: https://filosage.com
+          NEXT_PUBLIC_COMMAND_CENTER_V2: "true"
           SITE_VERSION: ${{ github.sha }}
 
       - name: Sign in to Azure with GitHub OIDC
@@ -53,6 +54,7 @@ jobs:
           docker build \
             --tag "$IMAGE" \
             --build-arg "NEXT_PUBLIC_SITE_URL=https://filosage.com" \
+            --build-arg "NEXT_PUBLIC_COMMAND_CENTER_V2=true" \
             --build-arg "SITE_VERSION=${GITHUB_SHA}" \
             .
           docker push "$IMAGE"
@@ -74,6 +76,7 @@ jobs:
             --set-env-vars \
               "SITE_VERSION=${GITHUB_SHA}" \
               "NEXT_PUBLIC_SITE_URL=${QA_URL}" \
+              "NEXT_PUBLIC_COMMAND_CENTER_V2=true" \
               "DEPLOYMENT_ENVIRONMENT=qa" \
               "DEPLOYMENT_SLOT=qa" \
               "OPERATIONS_ENVIRONMENT=qa" \

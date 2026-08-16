@@ -2,7 +2,7 @@ import { z } from "zod";
 import {
   commandCenterDraftAgentTypes,
   commandCenterTicketCategories,
-} from "@/lib/command-center-types";
+} from "./command-center-types.ts";
 
 export const commandCenterDraftContentSchema = z.object({
   headline: z.string().trim().min(4).max(160),

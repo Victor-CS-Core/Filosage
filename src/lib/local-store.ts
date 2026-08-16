@@ -85,6 +85,7 @@ interface StructuredQuery {
   from?: Array<{ collectionId?: string; allDescendants?: boolean }>;
   where?: FieldFilter & { compositeFilter?: { op?: string; filters?: FieldFilter[] } };
   orderBy?: Array<{ field?: { fieldPath?: string }; direction?: string }>;
+  startAt?: { values?: FirestoreValue[]; before?: boolean };
   limit?: number;
 }
 
@@ -129,7 +130,25 @@ function runQuery(store: StoreShape, query: StructuredQuery) {
   if (order?.field?.fieldPath) {
     const field = order.field.fieldPath;
     const direction = order.direction === "DESCENDING" ? -1 : 1;
-    rows = rows.sort((a, b) => direction * compare(a.data[field], b.data[field]));
+    rows = rows.sort((a, b) => direction * (field === "__name__"
+      ? (a.path < b.path ? -1 : a.path > b.path ? 1 : 0)
+      : compare(a.data[field], b.data[field])));
+  }
+  if (query.startAt) {
+    const values = query.startAt.values ?? [];
+    const cursorName = filterValue(values[0]);
+    const cursorPath = typeof cursorName === "string" ? pathFromName(cursorName) : "";
+    if (
+      order?.field?.fieldPath !== "__name__"
+      || order.direction !== "ASCENDING"
+      || query.startAt.before !== false
+      || values.length !== 1
+      || !cursorPath.startsWith(`${collectionId}/`)
+      || segmentCount(cursorPath) !== 2
+    ) {
+      throw new Error("Local store received an unsupported document cursor.");
+    }
+    rows = rows.filter((row) => row.path > cursorPath);
   }
   if (query.limit) rows = rows.slice(0, query.limit);
   return rows;
