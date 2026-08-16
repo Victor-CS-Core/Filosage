@@ -122,8 +122,8 @@ export default function AppShell({ children, activeTopic, activeCourseId, active
 
   const displayName = account?.displayName ?? user?.displayName ?? "Learner";
   const firstName = displayName.split(" ")[0] || "Learner";
-  const outlineQuota = account?.quotas.find((quota) => quota.feature === "course_outline");
   const flashcardDecksEnabled = account?.capabilities?.flashcardDecksEnabled === true;
+  const courseCreditBalance = account?.courseCredits?.balance;
   const currentCourse = useMemo(
     () => activeCourse ?? courses.find((course) => (course.id ?? course.courseId) === activeCourseId || course.topic === activeTopic),
     [activeCourse, activeCourseId, activeTopic, courses],
@@ -183,11 +183,11 @@ export default function AppShell({ children, activeTopic, activeCourseId, active
       icon: canCreateCourses ? Plus : Sparkles,
       tone: "coral" as const,
     },
-    ...(account?.plan !== "free" && outlineQuota ? [{
+    ...(account?.plan !== "free" ? [{
       id: "account-plan",
       section: "Account" as const,
       label: account?.plan === "plus" ? "Filosage Plus" : "Filosage Pro",
-      description: outlineQuota.remaining == null ? "Owner course access" : `${outlineQuota.remaining} course credit${outlineQuota.remaining === 1 ? "" : "s"} remaining`,
+      description: courseCreditBalance == null ? "Owner course access" : `${courseCreditBalance} rollover course credit${courseCreditBalance === 1 ? "" : "s"} available`,
       href: "/pricing",
       keywords: "plan subscription quota pricing credits",
       icon: Crown,
@@ -252,7 +252,7 @@ export default function AppShell({ children, activeTopic, activeCourseId, active
       icon: LogOut,
       tone: "slate" as const,
     },
-  ], [account?.plan, canCreateCourses, flashcardDecksEnabled, isOwner, outlineQuota]);
+  ], [account?.plan, canCreateCourses, courseCreditBalance, flashcardDecksEnabled, isOwner]);
 
   const navigate = (href: string) => router.push(href);
   const isLegalPage = ["/terms", "/privacy", "/acceptable-use"].includes(pathname);

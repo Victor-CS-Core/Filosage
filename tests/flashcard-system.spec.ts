@@ -109,12 +109,14 @@ function account(plan: "free" | "plus") {
     capabilities: {
       createCourse: plan === "plus",
       generateLesson: plan === "plus",
-      generateCourseBanner: false,
       flashcardDecksEnabled: true,
       createCustomFlashcardDeck: canCreateCustomFlashcardDeck,
       publishCourse: false,
+      advancedCapstoneAnalysis: false,
+      exportEvidenceReport: false,
+      shareEvidenceReport: false,
     },
-    courseCapacity: { owned: 0, limit: plan === "plus" ? 1 : 0, remaining: plan === "plus" ? 1 : 0, overLimit: false },
+    courseCredits: { balance: plan === "plus" ? 2 : 0, monthlyAllocation: plan === "plus" ? 2 : 0, balanceCap: plan === "plus" ? 24 : 0, nextAccrualAt: null, frozenUntil: null },
     quotas: [{ feature: "flashcard_generation", limit: plan === "plus" ? 40 : 5, used: 0, remaining: plan === "plus" ? 40 : 5, resetAt: "2026-09-01T00:00:00.000Z" }],
   };
 }

@@ -25,7 +25,7 @@ for (const planId of ["plus", "pro"] as const) {
       recurringIntervalCount: 1,
     };
 
-    expect(plan.offerVersion).toBe(`${planId}-v1-closed-launch`);
+    expect(plan.offerVersion).toBe(`${planId}-v2-course-credits`);
     expect(priceMatchesOffer(planId, "monthly", monthly)).toBe(true);
     expect(priceMatchesOffer(planId, "monthly", { ...monthly, active: false })).toBe(false);
     expect(priceMatchesOffer(planId, "monthly", { ...monthly, currency: "eur" })).toBe(false);
@@ -79,18 +79,30 @@ test("the approved capability and quota matrix stays explicit", () => {
   expect(MEMBERSHIP_PLANS.free.capabilities).toEqual({
     create_course: false,
     generate_lesson: false,
-    generate_course_banner: false,
     create_custom_flashcard_deck: false,
     publish_course: false,
+    advanced_capstone_analysis: false,
+    export_evidence_report: false,
+    share_evidence_report: false,
   });
   expect(MEMBERSHIP_PLANS.plus).toMatchObject({
-    limits: { activeOwnedCourses: 1, courseOutlines: 1, generatedLessons: 10, tutorQuestions: 40, courseBanners: 10, flashcardDeckGenerationsPerMonth: 40 },
-    capabilities: { create_course: true, generate_lesson: true, generate_course_banner: true, create_custom_flashcard_deck: true, publish_course: false },
+    limits: { courseCreditsPerMonth: 2, courseCreditBalanceCap: 24, tutorQuestions: 40, flashcardDeckGenerationsPerMonth: 40 },
+    capabilities: { create_course: true, generate_lesson: true, create_custom_flashcard_deck: true, publish_course: false, advanced_capstone_analysis: false, export_evidence_report: false, share_evidence_report: false },
   });
   expect(MEMBERSHIP_PLANS.pro).toMatchObject({
-    limits: { activeOwnedCourses: null, courseOutlines: 3, generatedLessons: 30, tutorQuestions: 100, courseBanners: 30, flashcardDeckGenerationsPerMonth: 100 },
-    capabilities: { create_course: true, generate_lesson: true, generate_course_banner: true, create_custom_flashcard_deck: true, publish_course: true },
+    limits: { courseCreditsPerMonth: 5, courseCreditBalanceCap: 60, tutorQuestions: 100, flashcardDeckGenerationsPerMonth: 100 },
+    capabilities: { create_course: true, generate_lesson: true, create_custom_flashcard_deck: true, publish_course: true, advanced_capstone_analysis: true, export_evidence_report: true, share_evidence_report: true },
   });
+  expect(MEMBERSHIP_PLANS.free.includedFeatures).toContain("Five AI flashcard deck generations each month");
+  expect(MEMBERSHIP_PLANS.free.restrictedFeatures).toContain("Custom flashcard decks");
+  expect(MEMBERSHIP_PLANS.plus.includedFeatures).toEqual(expect.arrayContaining([
+    "Forty AI flashcard deck generations each month",
+    "Create private custom flashcard decks",
+  ]));
+  expect(MEMBERSHIP_PLANS.pro.includedFeatures).toEqual(expect.arrayContaining([
+    "One hundred AI flashcard deck generations each month",
+    "Create private custom flashcard decks",
+  ]));
 });
 
 test("the offline course fixture satisfies the production course-quality gate", () => {

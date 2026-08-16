@@ -85,14 +85,13 @@ export default function CourseMap() {
   const topic = decodeURIComponent(params.topic);
   const requestedCourseId = searchParams.get("id");
   const courseViewKey = `${requestedCourseId ?? "new"}:${topic}`;
-  const { user, isOwner, canCreateCourses, canPublishCourses, loading: authLoading, signInWithGoogle } = useAuth();
+  const { user, isOwner, canCreateCourses, canPublishCourses, account, loading: authLoading, signInWithGoogle } = useAuth();
   const [courseRecord, setCourseRecord] = useState<{ key: string; value: Course | null }>({ key: courseViewKey, value: null });
   const course = courseRecord.key === courseViewKey ? courseRecord.value : null;
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
   const [updating, setUpdating] = useState(false);
-  const [bannerBusy, setBannerBusy] = useState(false);
   const [publicationFailures, setPublicationFailures] = useState<PublicationLessonFailure[]>([]);
   const [publicationAssessment, setPublicationAssessment] = useState<PublicationAssessmentState | null>(null);
   const [validationReport, setValidationReport] = useState<ValidationReport | null>(null);
@@ -166,7 +165,6 @@ export default function CourseMap() {
       setError(null);
       setActionError(null);
       setUpdating(false);
-      setBannerBusy(false);
       setPublicationFailures([]);
       setPublicationAssessment(readStoredPublicationAssessment(courseViewKey));
       setRepairProgress(null);
@@ -631,34 +629,6 @@ export default function CourseMap() {
     }
   };
 
-  const regenerateBanner = async () => {
-    if (!user || !course?.canManage || !course.canRegenerateBanner || !courseId) return;
-    const operationViewKey = activeCourseViewRef.current;
-    const operationCourseId = courseId;
-    const isCurrentView = () => activeCourseViewRef.current === operationViewKey;
-    setBannerBusy(true);
-    setActionError(null);
-    try {
-      const token = await getToken();
-      const response = await fetch(`/api/courses/${operationCourseId}/banner`, {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Idempotency-Key": createClientId(),
-        },
-      });
-      const data = await response.json() as Course & { error?: string };
-      if (!isCurrentView()) return;
-      if (!response.ok) throw new Error(data.error || "A new banner could not be generated.");
-      setCourseRecord({ key: operationViewKey, value: data });
-      window.dispatchEvent(new Event("filosage:courses-changed"));
-    } catch (bannerError) {
-      if (isCurrentView()) setActionError(bannerError instanceof Error ? bannerError.message : "A new banner could not be generated.");
-    } finally {
-      if (isCurrentView()) setBannerBusy(false);
-    }
-  };
-
   const submitCapstone = async () => {
     if (!user || !courseId || capstoneBusy) return;
     const operationViewKey = activeCourseViewRef.current;
@@ -895,7 +865,7 @@ export default function CourseMap() {
               key={publicationFailures.length > 0 || publicationAssessment || validationReport || repairProgress || course.publicationReview?.status === "owner_override" ? "publication-attention" : "course-studio"}
               className="course-owner-controls"
               defaultOpen={Boolean(publicationFailures.length > 0 || publicationAssessment || validationReport || repairProgress || course.publicationReview?.status === "owner_override")}
-              description="Publishing, banner refresh, and course management stay separate from the learner experience."
+              description="Publishing and course management stay separate from the learner experience."
               eyebrow="Creator tools"
               headingId="course-owner-controls-title"
               title="Course studio"
@@ -904,25 +874,18 @@ export default function CourseMap() {
                 <button
                   className="button button-secondary"
                   onClick={updateVisibility}
-                  disabled={updating || bannerBusy}
+                  disabled={updating}
                 >
                     {updating ? <LoaderCircle className="spin" size={16} /> : course.isPublic ? <LockKeyhole size={16} /> : <Globe2 size={16} />}
                     {updating && !course.isPublic ? "Publishing…" : course.isPublic ? "Unpublish course" : "Publish course"}
                 </button>
-                {course.canRegenerateBanner && (
-                  <button className="button button-secondary" onClick={() => void regenerateBanner()} disabled={updating || bannerBusy}>
-                    {bannerBusy ? <LoaderCircle className="spin" size={16} /> : <RefreshCw size={16} />}
-                    {bannerBusy ? "Creating simpler banner…" : "Generate a new banner"}
-                  </button>
-                )}
                 <button className="button button-quiet" onClick={() => {
                   setActionError(null);
                   deleteDrawer.openDrawer();
-                }} disabled={updating || bannerBusy}>
+                }} disabled={updating}>
                   <Trash2 size={16} /> Delete course
                 </button>
               </div>
-              {course.canRegenerateBanner && <p className="owner-action-hint">Banner replacements use one monthly generation request, including failed attempts, and replace the current image automatically.</p>}
               {!course.isPublic && <p className="owner-action-hint">{course.aiAssisted
                 ? "Generate every lesson, then publish. The generated course keeps the safety and quality checks already completed during creation."
                 : isOwner
@@ -1135,7 +1098,7 @@ export default function CourseMap() {
                     <div className="capstone-verdict-heading"><CheckCircle2 size={19} /><strong>Capstone passed</strong><small>Assessed {new Date(capstoneAssessment.assessedAt).toLocaleDateString()}</small></div>
                     <p>{capstoneAssessment.summary}</p>
                     <ul>{capstoneAssessment.criteria.map((criterion) => <li key={criterion.criterion} className="is-met"><Check size={14} /><span><strong>{criterion.criterion}</strong><small>{criterion.feedback}</small></span></li>)}</ul>
-                    {capstoneAssessment.history && capstoneAssessment.history.length > 1 && (
+                    {account?.capabilities?.advancedCapstoneAnalysis && capstoneAssessment.history && capstoneAssessment.history.length > 1 && (
                       <details className="capstone-history">
                         <summary>View revision history ({capstoneAssessment.history.length} attempts)</summary>
                         <ol>{capstoneAssessment.history.map((revision) => <li key={`${revision.attempt}-${revision.assessedAt}`}><span>Attempt {revision.attempt}</span><strong>{revision.status === "passed" ? "Passed" : "Needs revision"}</strong><small>{new Date(revision.assessedAt).toLocaleDateString()} · {revision.summary}</small></li>)}</ol>
@@ -1149,7 +1112,7 @@ export default function CourseMap() {
                         <div className="capstone-verdict-heading"><Circle size={17} /><strong>Not there yet · attempt {capstoneAssessment.attempts}</strong><small>Assessed {new Date(capstoneAssessment.assessedAt).toLocaleDateString()}</small></div>
                         <p>{capstoneAssessment.summary}</p>
                         <ul>{capstoneAssessment.criteria.map((criterion) => <li key={criterion.criterion} className={criterion.met ? "is-met" : ""}>{criterion.met ? <Check size={14} /> : <Circle size={14} />}<span><strong>{criterion.criterion}</strong><small>{criterion.feedback}</small></span></li>)}</ul>
-                        {capstoneAssessment.history && capstoneAssessment.history.length > 1 && (
+                        {account?.capabilities?.advancedCapstoneAnalysis && capstoneAssessment.history && capstoneAssessment.history.length > 1 && (
                           <details className="capstone-history">
                             <summary>Compare {capstoneAssessment.history.length} attempts</summary>
                             <ol>{capstoneAssessment.history.map((revision) => <li key={`${revision.attempt}-${revision.assessedAt}`}><span>Attempt {revision.attempt}</span><strong>{revision.status === "passed" ? "Passed" : "Needs revision"}</strong><small>{new Date(revision.assessedAt).toLocaleDateString()} · {revision.summary}</small></li>)}</ol>

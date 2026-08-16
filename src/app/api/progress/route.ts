@@ -21,6 +21,7 @@ import {
 } from "@/lib/course-pipeline/artifact-access";
 import { publicationContentHash } from "@/lib/publication-content";
 import { safeModelErrorDetails } from "@/lib/model-fallback";
+import { capabilitiesForAccount } from "@/lib/membership-access";
 
 function numberValue(value: unknown) {
   return typeof value === "number" && Number.isFinite(value) ? value : 0;
@@ -59,6 +60,11 @@ function asCourseProgress(value: Record<string, unknown>): CourseProgress {
   };
 }
 
+function progressForAccount(progress: CourseProgress, advancedCapstoneAnalysis: boolean): CourseProgress {
+  if (advancedCapstoneAnalysis || !progress.capstone?.history) return progress;
+  return { ...progress, capstone: { ...progress.capstone, history: undefined } };
+}
+
 async function resolveActiveProgress(
   progress: CourseProgress,
   account: { uid: string; isOwner: boolean },
@@ -81,6 +87,7 @@ async function resolveActiveProgress(
 export async function GET(request: Request) {
   try {
     const account = await requireAccount(request);
+    const advancedCapstoneAnalysis = capabilitiesForAccount(account).advancedCapstoneAnalysis;
     const { searchParams } = new URL(request.url);
     const courseId = searchParams.get("courseId");
     if (courseId) {
@@ -91,7 +98,7 @@ export async function GET(request: Request) {
         : null;
       if (resolved?.status === "deleted") await deleteStoredDocuments([path]);
       return Response.json(
-        { progress: resolved?.progress ?? null },
+          { progress: resolved?.progress ? progressForAccount(resolved.progress, advancedCapstoneAnalysis) : null },
         { headers: { "Cache-Control": "private, no-store" } },
       );
     }
@@ -112,7 +119,7 @@ export async function GET(request: Request) {
     );
     await deleteStoredDocuments(stalePaths);
     const progress = resolutions.flatMap(({ resolution }) =>
-      resolution.progress ? [resolution.progress] : [],
+      resolution.progress ? [progressForAccount(resolution.progress, advancedCapstoneAnalysis)] : [],
     );
     return Response.json({ progress }, { headers: { "Cache-Control": "private, no-store" } });
   } catch (error) {

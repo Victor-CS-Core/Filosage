@@ -11,14 +11,15 @@ import {
 export default function TrafficTracker() {
   const pathname = usePathname();
   const { isOwner, loading } = useAuth();
+  const excludesPublicEvidenceShare = pathname.startsWith("/evidence/shared/");
 
   useEffect(() => {
-    if (loading) return;
+    if (loading || excludesPublicEvidenceShare) return;
     const track = () => trackPageView(pathname, isOwner);
     track();
     window.addEventListener(ANALYTICS_CONSENT_CHANGED_EVENT, track);
     return () => window.removeEventListener(ANALYTICS_CONSENT_CHANGED_EVENT, track);
-  }, [isOwner, loading, pathname]);
+  }, [excludesPublicEvidenceShare, isOwner, loading, pathname]);
 
   return null;
 }

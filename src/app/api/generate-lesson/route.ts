@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { aiClient } from "@/lib/local-ai";
 import { zodTextFormat } from "openai/helpers/zod";
-import { authorizationResponse, requirePlanCapability } from "@/lib/auth-server";
+import { authorizationResponse, requireAcceptedAccount } from "@/lib/auth-server";
 import {
   getCourse,
   getCoursePublishReadiness,
@@ -72,6 +72,7 @@ import { defaultLabApplicability, LAB_REGISTRY_VERSION } from "@/lib/course-pipe
 import { accessibleVisualFallbackFromLesson, defaultVisualApplicability, VISUAL_POLICY_VERSION } from "@/lib/course-pipeline/visuals/registry";
 import { recordCoursePipelineEvent } from "@/lib/course-pipeline/observability";
 import { publicationContentFingerprint } from "@/lib/publication-content";
+import { courseGenerationGrantAllows } from "@/lib/course-credits";
 import { courseUsesPipelineV2 } from "@/lib/course-pipeline/feature-policy";
 import {
   LESSON_GROUNDING_EVALUATOR_VERSION,
@@ -148,7 +149,7 @@ export async function POST(request: Request) {
   let pipelineCorrelationId: string | undefined;
   let pipelineActorHash: string | undefined;
   try {
-    const account = await requirePlanCapability(request, "generate_lesson");
+    const account = await requireAcceptedAccount(request);
     pipelineFlags = coursePipelineFeatureFlags(account);
     profileOptions = { coursePipelineV2: pipelineV2Active };
     standardProfile = openAiExecutionProfile("lesson.standard", undefined, profileOptions);
@@ -175,6 +176,12 @@ export async function POST(request: Request) {
     const canonical = findCourseLesson(course, lessonId);
     if (!canonical) {
       return NextResponse.json({ error: "This lesson is not part of the course." }, { status: 400 });
+    }
+    if (!account.isOwner && !courseGenerationGrantAllows(course, lessonId)) {
+      return NextResponse.json(
+        { error: "This lesson is outside the outline covered by this course credit.", code: "COURSE_GENERATION_GRANT_REQUIRED" },
+        { status: 403, headers: { "Cache-Control": "private, no-store" } },
+      );
     }
     const saved = await getLesson(courseId, lessonId);
     if (saved && !regenerate) {

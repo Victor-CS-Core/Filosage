@@ -510,7 +510,7 @@ test("all 100 evaluation briefs exercise their expected deterministic route and 
   }
 });
 
-test("failed generation releases product allowance and course capacity while retries are payload-bound", async () => {
+test("failed generation releases product allowance and course credit while retries are payload-bound", async () => {
   const [usageSource, courseRoute, lessonRoute] = await Promise.all([
     readFile("src/lib/ai-usage.ts", "utf8"),
     readFile("src/app/api/generate-course/route.ts", "utf8"),
@@ -523,7 +523,7 @@ test("failed generation releases product allowance and course capacity while ret
   expect(usageSource).toContain('request.status !== "reserved"');
   expect(usageSource).toContain("allowCompletedReplay");
   expect(usageSource).toContain("recoveredResultId");
-  expect(courseRoute.match(/releaseCourseCapacityReservation\(capacityReservation\)/g)?.length).toBeGreaterThanOrEqual(3);
+  expect(courseRoute.match(/releaseCourseCreditReservation\(creditReservation\)/g)?.length).toBeGreaterThanOrEqual(3);
   expect(courseRoute).toContain("IDEMPOTENCY_RESULT_MISSING");
   expect(lessonRoute).toContain('`${courseId}:${lessonId}:${regenerate ? "regenerate" : "generate"}`');
   expect(lessonRoute).toContain("if (reservation.recovered)");

@@ -50,15 +50,6 @@ interface LocatedStoredDocument {
   data: StoredDocument;
 }
 
-export class CourseBannerRegenerationError extends Error {
-  constructor(
-    public readonly code: "NOT_FOUND" | "NOT_OWNED" | "ALREADY_USED" | "IN_PROGRESS" | "CLAIM_LOST",
-    message: string,
-  ) {
-    super(message);
-  }
-}
-
 interface TokenResponse {
   access_token: string;
   expires_in: number;
@@ -347,98 +338,6 @@ export async function updateCourseBanner(
   );
   if (!document) throw new Error("Firestore did not return the updated course.");
   return parseDocument(document);
-}
-
-export async function claimCourseBannerRegeneration(
-  courseId: string,
-  uid: string,
-  ownerOverride: boolean,
-  claimId: string,
-) {
-  const path = `courses/${courseId}`;
-  const now = new Date();
-  return runStoredDocumentTransaction([path], (documents) => {
-    const course = documents[path];
-    if (!course) throw new CourseBannerRegenerationError("NOT_FOUND", "Course not found.");
-    if (course.authorId !== uid && !ownerOverride) {
-      throw new CourseBannerRegenerationError("NOT_OWNED", "You do not own this course.");
-    }
-    const leaseUntil = typeof course.bannerRegenerationLeaseUntil === "string"
-      ? Date.parse(course.bannerRegenerationLeaseUntil)
-      : 0;
-    if (course.bannerRegenerationStatus === "generating" && leaseUntil > now.getTime()) {
-      throw new CourseBannerRegenerationError(
-        "IN_PROGRESS",
-        "A new course banner is already being generated.",
-      );
-    }
-    return {
-      writes: [{
-        path,
-        data: {
-          ...course,
-          bannerRegenerationStatus: "generating",
-          bannerRegenerationClaimId: claimId,
-          bannerRegenerationLeaseUntil: new Date(now.getTime() + 120_000).toISOString(),
-          updatedAt: now,
-        },
-      }],
-      result: course,
-    };
-  });
-}
-
-export async function finishCourseBannerRegeneration(
-  courseId: string,
-  claimId: string,
-  banner: { assetId: string; version: 1; generatedAt: string },
-) {
-  const path = `courses/${courseId}`;
-  return runStoredDocumentTransaction([path], (documents) => {
-    const course = documents[path];
-    if (!course) throw new CourseBannerRegenerationError("NOT_FOUND", "Course not found.");
-    if (course.bannerRegenerationClaimId !== claimId) {
-      throw new CourseBannerRegenerationError("CLAIM_LOST", "The banner generation claim expired.");
-    }
-    return {
-      writes: [{
-        path,
-        data: {
-          ...course,
-          banner,
-          bannerRegenerationCount: Number(course.bannerRegenerationCount ?? 0) + 1,
-          bannerRegenerationStatus: null,
-          bannerRegenerationClaimId: null,
-          bannerRegenerationLeaseUntil: null,
-          updatedAt: new Date(),
-        },
-      }],
-      result: undefined,
-    };
-  });
-}
-
-export async function releaseCourseBannerRegeneration(courseId: string, claimId: string) {
-  const path = `courses/${courseId}`;
-  await runStoredDocumentTransaction([path], (documents) => {
-    const course = documents[path];
-    if (!course || course.bannerRegenerationClaimId !== claimId) {
-      return { writes: [], result: undefined };
-    }
-    return {
-      writes: [{
-        path,
-        data: {
-          ...course,
-          bannerRegenerationStatus: null,
-          bannerRegenerationClaimId: null,
-          bannerRegenerationLeaseUntil: null,
-          updatedAt: new Date(),
-        },
-      }],
-      result: undefined,
-    };
-  });
 }
 
 export async function listLessons(courseId: string) {
@@ -1603,6 +1502,8 @@ export async function deleteCourse(courseId: string) {
     flashcardDeckDocuments,
     flashcardDocuments,
     flashcardReviewDocuments,
+    evidenceShareDocuments,
+    evidenceShareReferenceDocuments,
   ] = await Promise.all([
     listLessons(courseId),
     courseScopedDocuments(COURSE_SCOPED_COLLECTION_GROUPS.progress),
@@ -1647,6 +1548,8 @@ export async function deleteCourse(courseId: string) {
     courseScopedDocuments(COURSE_SCOPED_COLLECTION_GROUPS.flashcardDecks),
     courseScopedDocuments(COURSE_SCOPED_COLLECTION_GROUPS.flashcards),
     courseScopedDocuments(COURSE_SCOPED_COLLECTION_GROUPS.flashcardReviewState),
+    courseScopedDocuments(COURSE_SCOPED_COLLECTION_GROUPS.evidenceShares),
+    courseScopedDocuments(COURSE_SCOPED_COLLECTION_GROUPS.evidenceShareRefs),
   ]);
 
   const updatedAt = new Date().toISOString();
@@ -1739,6 +1642,8 @@ export async function deleteCourse(courseId: string) {
     ...lessonInteractionDocuments.map(({ path }) => ({ delete: fullDocumentName(path) })),
     ...lessonInteractionMutationDocuments.map(({ path }) => ({ delete: fullDocumentName(path) })),
     ...flashcardRecoveryWrites,
+    ...evidenceShareDocuments.map(({ path }) => ({ delete: fullDocumentName(path) })),
+    ...evidenceShareReferenceDocuments.map(({ path }) => ({ delete: fullDocumentName(path) })),
     ...preferenceUpdates,
   ];
 
@@ -1766,5 +1671,7 @@ export async function deleteCourse(courseId: string) {
     flashcardDecks: flashcardDeckDocuments.length,
     flashcardCards: flashcardDocuments.length,
     flashcardReviewStates: flashcardReviewDocuments.length,
+    evidenceShares: evidenceShareDocuments.length,
+    evidenceShareReferences: evidenceShareReferenceDocuments.length,
   };
 }

@@ -9,6 +9,9 @@ export interface AccountDeletionInventory {
   flashcardDecks: IdentifiedAccountDocument[];
   flashcards: IdentifiedAccountDocument[];
   flashcardReviewState: IdentifiedAccountDocument[];
+  evidenceShareRefs: IdentifiedAccountDocument[];
+  evidenceShares: IdentifiedAccountDocument[];
+  courseCreditClaims: IdentifiedAccountDocument[];
   lessonNotes: IdentifiedAccountDocument[];
   lessonActivityRecords: IdentifiedAccountDocument[];
   lessonInteractionRecords: IdentifiedAccountDocument[];
@@ -58,6 +61,10 @@ export function accountDeletionDocumentPaths(
     ...documentPaths(`users/${uid}/flashcardDecks`, inventory.flashcardDecks),
     ...documentPaths(`users/${uid}/flashcards`, inventory.flashcards),
     ...documentPaths(`users/${uid}/flashcardReviewState`, inventory.flashcardReviewState),
+    ...documentPaths(`users/${uid}/evidenceShareRefs`, inventory.evidenceShareRefs),
+    ...documentPaths("evidenceShares", inventory.evidenceShares),
+    `users/${uid}/courseCredits/current`,
+    ...documentPaths(`users/${uid}/courseCreditClaims`, inventory.courseCreditClaims),
     ...documentPaths(`users/${uid}/lessonNotes`, inventory.lessonNotes),
     ...documentPaths(`users/${uid}/lessonActivity`, inventory.lessonActivityRecords),
     ...documentPaths(`users/${uid}/lessonInteraction`, inventory.lessonInteractionRecords),

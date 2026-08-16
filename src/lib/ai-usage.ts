@@ -81,10 +81,10 @@ function policyFor(account: ServerAccount, feature: AiFeature, now = new Date())
   }
 
   const planLimits = MEMBERSHIP_PLANS[account.plan].limits;
-  const limits: Record<AiFeature, number> = {
-    course_outline: planLimits.courseOutlines,
-    course_banner: planLimits.courseBanners,
-    lesson_generation: planLimits.generatedLessons,
+  const limits: Record<AiFeature, number | null> = {
+    course_outline: account.plan === "free" ? 0 : null,
+    course_banner: null,
+    lesson_generation: null,
     tutor: planLimits.tutorQuestions,
     flashcard_generation: planLimits.flashcardDeckGenerationsPerMonth,
     command_center_draft: 0,
@@ -538,7 +538,7 @@ export async function finalizeAiUsage(
 
 export async function getAiQuotaSummaries(account: ServerAccount): Promise<AiQuotaSummary[]> {
   const now = new Date();
-  const features: AiQuotaSummary["feature"][] = ["course_outline", "course_banner", "lesson_generation", "tutor", "flashcard_generation"];
+  const features: AiQuotaSummary["feature"][] = ["tutor", "flashcard_generation"];
   return Promise.all(features.map(async (feature) => {
     const policy = policyFor(account, feature, now);
     const path = `usagePeriods/${account.uid}__${feature}__${policy.periodKey}`;

@@ -459,8 +459,8 @@ test("account deletion confirmation explains subscription termination without pr
   await expect(page.getByRole("link", { name: "billing support" })).toHaveAttribute("href", /mailto:support@filosage\.com/);
 });
 
-test("a direct API caller cannot exceed the Plus owned-course limit", async ({ request }, testInfo) => {
-  test.skip(testInfo.project.name !== "chromium", "The API capacity contract is browser-independent.");
+test("a direct API caller receives two complete Plus course credits", async ({ request }, testInfo) => {
+  test.skip(testInfo.project.name !== "chromium", "The API course-credit contract is browser-independent.");
   test.setTimeout(120_000);
   const runId = crypto.randomUUID();
   const plusLearnerUid = `local-plus-learner-${runId}`;
@@ -499,7 +499,7 @@ test("a direct API caller cannot exceed the Plus owned-course limit", async ({ r
   expect(await account.json()).toMatchObject({
     plan: "plus",
     capabilities: { createCourse: true, publishCourse: false },
-    courseCapacity: { owned: 0, limit: 1, remaining: 1, overLimit: false },
+    courseCredits: { balance: 2, monthlyAllocation: 2, balanceCap: 24 },
   });
 
   const firstCourse = await request.post("/api/generate-course", {
@@ -514,22 +514,6 @@ test("a direct API caller cannot exceed the Plus owned-course limit", async ({ r
   expect(firstCourse.ok(), JSON.stringify(firstCourseBody)).toBe(true);
   expect(firstCourseBody.courseId).toBeTruthy();
 
-  const firstLesson = firstCourseBody.modules?.[0]?.lessons[0];
-  expect(firstLesson).toBeTruthy();
-  const generatedLesson = await request.post("/api/generate-lesson", {
-    headers: { ...plusHeaders, "Idempotency-Key": `plus-first-generated-lesson-${runId}` },
-    data: {
-      topic: firstCourseTopic,
-      lessonTitle: firstLesson?.title,
-      lessonConcept: firstLesson?.concept,
-      courseId: firstCourseBody.courseId,
-      lessonId: "0-0",
-    },
-  });
-  expect(generatedLesson.ok(), await generatedLesson.text()).toBe(true);
-  const savedLesson = await request.get(`/api/courses/${firstCourseBody.courseId}/lessons/0-0`, { headers: plusHeaders });
-  expect(savedLesson.ok()).toBe(true);
-
   const retry = await request.post("/api/generate-course", {
     headers: { ...plusHeaders, "Idempotency-Key": firstCourseKey },
     data: { topic: firstCourseTopic, targetWeeks: 4 },
@@ -543,15 +527,20 @@ test("a direct API caller cannot exceed the Plus owned-course limit", async ({ r
   expect(publish.status()).toBe(403);
   expect(await publish.json()).toMatchObject({ code: "PLAN_CAPABILITY_REQUIRED" });
 
-  const overLimit = await request.post("/api/generate-course", {
+  const secondCourse = await request.post("/api/generate-course", {
     headers: { ...plusHeaders, "Idempotency-Key": `plus-capacity-second-course-${runId}` },
     data: { topic: `A second private course ${runId}`, targetWeeks: 4 },
   });
-  expect(overLimit.status()).toBe(409);
-  expect(await overLimit.json()).toMatchObject({
-    code: "COURSE_CAPACITY_REACHED",
-    limit: 1,
-    owned: 1,
+  expect(secondCourse.ok(), await secondCourse.text()).toBe(true);
+
+  const exhausted = await request.post("/api/generate-course", {
+    headers: { ...plusHeaders, "Idempotency-Key": `plus-credit-third-course-${runId}` },
+    data: { topic: `A third private course ${runId}`, targetWeeks: 4 },
+  });
+  expect(exhausted.status()).toBe(409);
+  expect(await exhausted.json()).toMatchObject({
+    code: "COURSE_CREDITS_EXHAUSTED",
+    courseCredits: { balance: 0, monthlyAllocation: 2, balanceCap: 24 },
   });
 });
 
