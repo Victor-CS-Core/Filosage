@@ -12,7 +12,7 @@ export default function EvidenceDossier() {
           <li><CalendarCheck2 size={16} aria-hidden="true" /> Review timing stays visible alongside progress.</li>
           <li><Circle size={16} aria-hidden="true" /> Assessment remains pending until criteria are actually checked.</li>
         </ul>
-        <Link className="marketing-text-link" href="/standard">Read the teaching and evidence standard <ArrowRight size={15} /></Link>
+        <Link className="marketing-text-link" href="/evidence-example">Inspect a fictional evidence example <ArrowRight size={15} /></Link>
       </div>
       <div className="marketing-evidence-stack" aria-label="Illustration of the Filosage evidence model">
         <div className="marketing-assessed-sheet" aria-hidden="true"><strong>Assessed work</strong><span>Outcome</span><i /><span>Apply</span><i /><span>Evaluate</span><i /></div>

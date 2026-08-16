@@ -134,14 +134,17 @@ export default function EvidenceReportPage() {
     const loadProfessionalEvidence = async () => {
       const token = await user.getIdToken();
       const headers = { Authorization: `Bearer ${token}` };
-      const requests: Promise<void>[] = [fetch(`/api/evidence/${encodeURIComponent(courseId)}/shares`, {
-        headers,
-        cache: "no-store",
-      }).then(async (response) => {
-        if (!response.ok) return;
-        const data = await response.json() as { shares?: EvidenceShareSummary[] };
-        if (!cancelled) setShareState({ key: requestKey, items: data.shares ?? [] });
-      })];
+      const requests: Promise<void>[] = [];
+      if (account.capabilities?.shareEvidenceReport) {
+        requests.push(fetch(`/api/evidence/${encodeURIComponent(courseId)}/shares`, {
+          headers,
+          cache: "no-store",
+        }).then(async (response) => {
+          if (!response.ok) return;
+          const data = await response.json() as { shares?: EvidenceShareSummary[] };
+          if (!cancelled) setShareState({ key: requestKey, items: data.shares ?? [] });
+        }));
+      }
       if (account.capabilities?.advancedCapstoneAnalysis) {
         requests.push(fetch(`/api/capstone-analysis?courseId=${encodeURIComponent(courseId)}`, {
           headers,
@@ -169,6 +172,16 @@ export default function EvidenceReportPage() {
       oncePerSession: true,
     });
   }, [course, courseId, journey.ready]);
+
+  useEffect(() => {
+    if (!user || !account || account.capabilities?.exportEvidenceReport || account.capabilities?.shareEvidenceReport) return;
+    trackProductEvent("upgrade_prompt_viewed", {
+      route: "/evidence",
+      surface: "evidence_portable",
+      courseId,
+      oncePerSession: true,
+    });
+  }, [account, courseId, user]);
 
   const objectives = useMemo(
     () => deriveObjectiveMastery(
@@ -332,20 +345,20 @@ export default function EvidenceReportPage() {
 
         {user && <section className="professional-evidence-tools" aria-labelledby="professional-evidence-title">
           <div>
-            <p className="overline">Professional evidence</p>
-            <h2 id="professional-evidence-title">A report built to leave the app</h2>
-            <p>{account?.capabilities?.exportEvidenceReport
-              ? "Download an accessible report for printing or create a revocable 30-day snapshot link. Shared snapshots never include your account identity, notes, or raw responses."
-              : "Pro adds printable evidence reports, revocable snapshot links, and cross-attempt capstone analysis. Your latest assessment remains available on this plan."}</p>
+            <p className="overline">Portable evidence</p>
+            <h2 id="professional-evidence-title">Carry a bounded report beyond the app</h2>
+            <p>{account?.capabilities?.exportEvidenceReport || account?.capabilities?.shareEvidenceReport
+              ? "Use the portable tools available on this account. Shared snapshots never include your account identity, notes, or raw responses."
+              : "On-screen evidence remains available on this plan. Pro adds printable reports, revocable snapshot links, and cross-attempt capstone analysis."}</p>
           </div>
-          {account?.capabilities?.exportEvidenceReport ? <div className="professional-evidence-actions">
-            <button className="button button-secondary" type="button" onClick={() => void exportProfessionalReport()} disabled={professionalBusy !== null}>
+          {account?.capabilities?.exportEvidenceReport || account?.capabilities?.shareEvidenceReport ? <div className="professional-evidence-actions">
+            {account?.capabilities?.exportEvidenceReport && <button className="button button-secondary" type="button" onClick={() => void exportProfessionalReport()} disabled={professionalBusy !== null}>
               {professionalBusy === "export" ? <LoaderCircle className="spin" size={16} /> : <Download size={16} />} Download report
-            </button>
-            <button className="button button-primary" type="button" onClick={() => void createProfessionalShare()} disabled={professionalBusy !== null}>
+            </button>}
+            {account?.capabilities?.shareEvidenceReport && <button className="button button-primary" type="button" onClick={() => void createProfessionalShare()} disabled={professionalBusy !== null}>
               {professionalBusy === "share" ? <LoaderCircle className="spin" size={16} /> : <Share2 size={16} />} Create 30-day link
-            </button>
-          </div> : <Link className="button button-secondary" href="/pricing">Compare Plus and Pro</Link>}
+            </button>}
+          </div> : <Link className="button button-secondary" href="/pricing?plan=pro&from=evidence-portable" onClick={() => trackProductEvent("upgrade_prompt_selected", { route: "/evidence", surface: "evidence_portable", courseId })}>Add portable export with Pro</Link>}
           {professionalError && <p className="form-error" role="alert">{professionalError}</p>}
           {shares.length > 0 && <div className="professional-share-list">
             <strong>Share links</strong>

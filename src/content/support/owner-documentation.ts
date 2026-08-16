@@ -14,12 +14,12 @@ export const ownerDocumentation: OwnerDocumentation = {
       topics: [
         {
           title: "Product contract",
-          body: "Filosage turns a professional outcome into a focused learning path through the Capability Cycle: define one observable win, activate prerequisites, practice with only the explanation required, receive feedback after commitment, transfer the capability, and return through readiness-aware retrieval. Public visitors can inspect published course structure; lesson bodies and saved learning activity require a verified account.",
+          body: "Filosage turns a study, personal, career, or work goal into a focused learning path through the Capability Cycle: define one observable win, activate prerequisites, practice with only the explanation required, receive feedback after commitment, transfer the capability, and return through readiness-aware retrieval. Public visitors can inspect published course structure; lesson bodies and saved learning activity require a verified account.",
           links: [{ label: "Read the teaching standard", href: "/standard" }],
         },
         {
           title: "Access levels",
-          body: "Guests discover published topics. Verified Free accounts can open published lessons and save learning. Plus adds two complete private AI course credits monthly, with rollover up to twenty-four. Pro adds five monthly with rollover up to sixty, advanced capstone analysis, professional evidence exports and share links, and publishing after sequential completion, attestation, and review. Paid accounts can keep every course they create. The verified owner retains platform-wide moderation, operational, and Command Center privileges. Server routes repeat these checks; hiding a button is never the authorization boundary.",
+          body: "Guests discover published topics. Verified Free accounts can open published lessons and save learning. Plus adds two complete private AI course credits monthly, with rollover up to twenty-four. Pro adds five monthly with rollover up to sixty, advanced capstone analysis, portable evidence exports and share links, and publishing after sequential completion, attestation, and review. Paid accounts can keep every course they create. The verified owner retains platform-wide moderation, operational, and Command Center privileges. Server routes repeat these checks; hiding a button is never the authorization boundary.",
           steps: [
             "Use the public library to verify what anonymous visitors can inspect.",
             "Use the profile to confirm a learner's current plan and account state.",

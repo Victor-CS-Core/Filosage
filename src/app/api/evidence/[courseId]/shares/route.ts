@@ -37,7 +37,7 @@ export async function POST(request: Request, { params }: RouteParams) {
       return Response.json({ error: "Report unavailable." }, { status: 404 });
     }
     if (!evidenceReportHasMeaningfulEvidence(result.report)) {
-      return Response.json({ error: "Complete a lesson or assessment before creating a professional evidence link." }, { status: 409 });
+      return Response.json({ error: "Complete a lesson or assessment before creating a portable evidence link." }, { status: 409 });
     }
     const share = await createEvidenceShare(account.uid, courseId, result.report);
     return Response.json({ share }, { status: 201, headers: { "Cache-Control": "private, no-store" } });

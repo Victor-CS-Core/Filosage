@@ -27,6 +27,7 @@ import {
   type BillingInterval,
   type PaidLearnerPlan,
 } from "@/lib/membership-plans";
+import { parsePricingContext, type PricingContextSource } from "@/lib/pricing-context";
 
 const planIcons = { free: Gauge, plus: Layers3, pro: Crown } as const;
 
@@ -47,6 +48,7 @@ export default function PricingPage() {
   const [joinError, setJoinError] = useState<string | null>(null);
   const [interval, setInterval] = useState<BillingInterval>("annual");
   const [selectedPlan, setSelectedPlan] = useState<PaidLearnerPlan>("plus");
+  const [pricingSource, setPricingSource] = useState<PricingContextSource>("direct");
   const [billingReady, setBillingReady] = useState(false);
   const [billingManagementReady, setBillingManagementReady] = useState(false);
   const [billingBusy, setBillingBusy] = useState(false);
@@ -57,6 +59,12 @@ export default function PricingPage() {
   const [intentSaving, setIntentSaving] = useState(false);
   const [intentSaved, setIntentSaved] = useState(false);
   const [intentError, setIntentError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const context = parsePricingContext(window.location.search);
+    setSelectedPlan(context.plan);
+    setPricingSource(context.from);
+  }, []);
 
   useEffect(() => {
     void fetch("/api/billing/status")
@@ -96,7 +104,7 @@ export default function PricingPage() {
       .then((response) => response.ok ? response.json() : Promise.reject(new Error()))
       .then((body: { intent?: { planId?: PaidLearnerPlan; interval?: BillingInterval; readiness?: "ready_now" | "within_30_days" | "researching"; launchEmailConsent?: boolean } | null }) => {
         if (!active || !body.intent) return;
-        if (body.intent.planId) setSelectedPlan(body.intent.planId);
+        if (body.intent.planId && parsePricingContext(window.location.search).from === "direct") setSelectedPlan(body.intent.planId);
         if (body.intent.interval) setInterval(body.intent.interval);
         if (body.intent.readiness) setIntentReadiness(body.intent.readiness);
         setLaunchEmailConsent(body.intent.launchEmailConsent === true);
@@ -177,6 +185,18 @@ export default function PricingPage() {
           <h1>Choose how far Filosage carries your goal.</h1>
           <p>Free connects published learning and practice. Plus adds private course creation. Pro adds advanced capstone analysis, portable evidence reports, revocable sharing, and publishing tools.</p>
         </header>
+
+        {pricingSource !== "direct" && (
+          <section className="pricing-context-note" aria-label="Plan comparison context">
+            <div>
+              <p className="overline">{pricingSource === "evidence-portable" ? "Portable evidence context" : "Course creation context"}</p>
+              <h2>{pricingSource === "evidence-portable" ? "Pro is selected for export and revocable sharing." : "Plus is selected for private course creation."}</h2>
+              <p>{pricingSource === "evidence-portable"
+                ? "Your on-screen learning evidence remains available without Pro. Compare the added portable-report capabilities below."
+                : "Published learning remains available on Free. Compare the private course credits and creation capabilities below."}</p>
+            </div>
+          </section>
+        )}
 
         {checkoutReturn && (
           <section className={`billing-return-status is-${checkoutReturn}`} role="status" aria-live="polite" aria-labelledby="billing-return-title">

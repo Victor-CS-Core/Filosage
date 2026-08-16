@@ -41,7 +41,7 @@ export default function CourseLibrary({ featured = false }: { featured?: boolean
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const { state, update } = useLearnerState();
-  const { user } = useAuth();
+  const { user, canCreateCourses } = useAuth();
   const filterDrawer = useAppDrawer("library-filters");
 
   const load = useCallback(async () => {
@@ -133,6 +133,16 @@ export default function CourseLibrary({ featured = false }: { featured?: boolean
     return featured ? filtered.slice(0, 4) : filtered;
   }, [commitment, courses, featured, level, query]);
   const drafts = useMemo(() => ownedCourses.filter((course) => !course.isPublic), [ownedCourses]);
+  const intentionalSearch = Boolean(query.trim() || level !== defaultLevel || commitment !== defaultCommitment || jobStart);
+
+  useEffect(() => {
+    if (featured || loading || error || !user || !intentionalSearch || visible.length > 0 || canCreateCourses) return;
+    trackProductEvent("upgrade_prompt_viewed", {
+      route: "/library",
+      surface: "library_no_match",
+      oncePerSession: true,
+    });
+  }, [canCreateCourses, error, featured, intentionalSearch, loading, user, visible.length]);
 
   const updateFilters = useCallback((
     nextQuery: string,
@@ -319,10 +329,10 @@ export default function CourseLibrary({ featured = false }: { featured?: boolean
             );
           })}
           </div>
-        </section> : !featured ? <div className="state-panel"><Search size={22} /><div><h3>No matching published courses</h3><p>Your private courses are shown above. Try a broader topic, level, or time commitment.</p></div><button className="button button-secondary" onClick={resetFilters}>Clear filters</button></div> : null}
+        </section> : !featured ? <div className="state-panel"><Search size={22} /><div><h3>No matching published courses</h3><p>Your private courses are shown above. Try a broader topic, level, or time commitment.</p></div><div className="library-no-match-actions"><button className="button button-secondary" onClick={resetFilters}>Clear filters</button>{intentionalSearch && user && (canCreateCourses ? <Link className="button button-primary" href="/create">Create this course <ArrowRight size={15} /></Link> : <Link className="button button-primary" href="/pricing?plan=plus&from=library-no-match" onClick={() => trackProductEvent("upgrade_prompt_selected", { route: "/library", surface: "library_no_match" })}>Create private courses with Plus <ArrowRight size={15} /></Link>)}</div></div> : null}
         </>
       ) : (
-        <div className="state-panel"><Search size={22} /><div><h3>No matching courses</h3><p>Try a broader topic, level, or time commitment.</p></div><button className="button button-secondary" onClick={resetFilters}>Clear filters</button></div>
+        <div className="state-panel"><Search size={22} /><div><h3>No matching courses</h3><p>Try a broader topic, level, or time commitment.</p></div><div className="library-no-match-actions"><button className="button button-secondary" onClick={resetFilters}>Clear filters</button>{intentionalSearch && user && (canCreateCourses ? <Link className="button button-primary" href="/create">Create this course <ArrowRight size={15} /></Link> : <Link className="button button-primary" href="/pricing?plan=plus&from=library-no-match" onClick={() => trackProductEvent("upgrade_prompt_selected", { route: "/library", surface: "library_no_match" })}>Create private courses with Plus <ArrowRight size={15} /></Link>)}</div></div>
       )}
     </div>
   );

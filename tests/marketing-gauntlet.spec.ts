@@ -12,6 +12,7 @@ import {
   marketingJobPreset,
   selectFlagshipCourse,
 } from "../src/lib/marketing-merchandising";
+import { parsePricingContext } from "../src/lib/pricing-context";
 import { restoreLocalLearner } from "./fixtures/local-learner";
 
 async function prepareEligibleCreator(page: Page) {
@@ -241,4 +242,87 @@ test("learning-situation discovery is URL-backed, editable, reversible, and lang
       && event.surface === "library_job_start"
       && event.jobStart === "study_goal"
   ))).toBe(true);
+});
+
+test("evidence example is visibly fictional, role neutral, limited, and makes no private requests", async ({ page }) => {
+  const requests: string[] = [];
+  page.on("request", (request) => requests.push(request.url()));
+  await page.goto("/evidence-example");
+
+  await expect(page.getByText("Demonstration data — not a learner result")).toBeVisible();
+  await expect(page.getByRole("heading", { name: "A fictional learning evidence record" })).toBeVisible();
+  const ledger = page.getByRole("region", { name: "What this fictional record supports" });
+  await expect(ledger.getByText("Self-report", { exact: true })).toBeVisible();
+  await expect(ledger.getByText("Observed practice", { exact: true })).toBeVisible();
+  await expect(ledger.getByText("Assessed criterion", { exact: true })).toBeVisible();
+  await expect(ledger.getByText("Unresolved", { exact: true })).toBeVisible();
+  await expect(page.getByText(/not a credential/i)).toBeVisible();
+  await expect(page.getByRole("link", { name: /Explore published courses/ })).toHaveAttribute("href", "/library");
+  await expect(page.getByRole("button", { name: /export|share/i })).toHaveCount(0);
+  expect(requests.filter((url) => /\/api\/(progress|mastery|evidence|capstone-analysis|referrals)/.test(url))).toEqual([]);
+});
+
+test("contextual plan entry respects course-creation and evidence entitlements", async ({ page }) => {
+  await restoreLocalLearner(page);
+  let canCreate = false;
+  await page.route("**/api/account", (route) => route.fulfill({ json: {
+    access: canCreate ? "plus" : "free",
+    plan: canCreate ? "plus" : "free",
+    isOwner: false,
+    accountStatus: "active",
+    displayName: "Plan Boundary Learner",
+    legalAcceptanceRequired: false,
+    capabilities: {
+      createCourse: canCreate,
+      generateLesson: canCreate,
+      publishCourse: false,
+      advancedCapstoneAnalysis: false,
+      exportEvidenceReport: false,
+      shareEvidenceReport: false,
+    },
+    courseCredits: { balance: canCreate ? 2 : 0, monthlyAllocation: canCreate ? 2 : 0, balanceCap: canCreate ? 24 : 0 },
+    quotas: [],
+  } }));
+  await page.route("**/api/courses?scope=public", (route) => route.fulfill({ json: { courses: [] } }));
+  await page.route("**/api/courses?scope=mine", (route) => route.fulfill({ json: { courses: [] } }));
+
+  await page.goto("/library");
+  await expect(page.getByRole("status")).toContainText("0 published courses found");
+  await page.getByRole("searchbox", { name: "Search published courses" }).fill("A course that is not published");
+  await expect(page.getByRole("link", { name: /Create private courses with Plus/ })).toHaveAttribute("href", "/pricing?plan=plus&from=library-no-match");
+  await expect(page.getByRole("button", { name: "Clear filters" })).toBeVisible();
+
+  canCreate = true;
+  await page.reload();
+  await expect(page.getByRole("status")).toContainText("0 published courses found");
+  await page.getByRole("searchbox", { name: "Search published courses" }).fill("A course that is not published");
+  await expect(page.getByRole("link", { name: /Create this course/ })).toHaveAttribute("href", "/create");
+
+  canCreate = false;
+  await page.route("**/api/courses/evidence-boundary", (route) => route.fulfill({ json: marketingCourse("evidence-boundary", "Evidence boundary") }));
+  await page.route("**/api/progress?courseId=evidence-boundary", (route) => route.fulfill({ json: { progress: null } }));
+  await page.route("**/api/mastery?courseId=evidence-boundary", (route) => route.fulfill({ json: { plan: null, evidence: [] } }));
+  await page.route("**/api/evidence/evidence-boundary/shares", (route) => route.fulfill({ json: { shares: [] } }));
+  await page.goto("/evidence/evidence-boundary");
+  await expect(page.getByRole("heading", { name: "Evidence boundary" })).toBeVisible();
+  await expect(page.getByText("What the record actually shows")).toBeVisible();
+  await expect(page.getByRole("link", { name: /Add portable export with Pro/ })).toHaveAttribute("href", "/pricing?plan=pro&from=evidence-portable");
+  await expect(page.getByText(/on-screen evidence remains available/i)).toBeVisible();
+});
+
+test("pricing context is allowlisted, defaults safely, and never mutates billing by query alone", async ({ page }) => {
+  expect(parsePricingContext("?plan=pro&from=evidence-portable")).toEqual({ plan: "pro", from: "evidence-portable" });
+  expect(parsePricingContext("?plan=enterprise&from=private-goal-text")).toEqual({ plan: "plus", from: "direct" });
+  expect(parsePricingContext("?plan=plus&from=library-no-match")).toEqual({ plan: "plus", from: "library-no-match" });
+
+  const mutationUrls: string[] = [];
+  page.on("request", (request) => {
+    if (request.method() === "POST") mutationUrls.push(request.url());
+  });
+  await page.route("**/api/billing/status", (route) => route.fulfill({ json: { ready: false, managementReady: false } }));
+  await page.goto("/pricing?plan=pro&from=evidence-portable");
+  await expect(page.getByText("Portable evidence context")).toBeVisible();
+  await expect(page.locator(".plan-pro")).toHaveClass(/is-selected/);
+  await page.waitForTimeout(100);
+  expect(mutationUrls.filter((url) => /\/api\/(billing|pricing-intent|waitlist)/.test(url))).toEqual([]);
 });
