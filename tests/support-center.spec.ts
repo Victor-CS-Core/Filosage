@@ -302,6 +302,8 @@ test("switches an open support surface between desktop floating and tablet modal
 });
 
 test("fits the required desktop, tablet, and mobile viewport matrix", async ({ page }) => {
+  // This test measures settled geometry; motion behavior is covered separately.
+  await page.emulateMedia({ reducedMotion: "reduce" });
   const viewports = [
     { width: 1920, height: 1080 },
     { width: 1440, height: 900 },
@@ -321,6 +323,7 @@ test("fits the required desktop, tablet, and mobile viewport matrix", async ({ p
     await trigger.click();
     const dialog = page.getByRole("dialog", { name: "Support center" });
     await expect(dialog).toBeVisible();
+    await expect(dialog).toHaveAttribute("data-state", "open");
     const geometry = await dialog.evaluate((element) => {
       const rect = element.getBoundingClientRect();
       const navigation = document.querySelector<HTMLElement>(".mobile-bottom-nav");
@@ -353,5 +356,7 @@ test("fits the required desktop, tablet, and mobile viewport matrix", async ({ p
       else expect(Math.round(geometry.bottom)).toBe(viewport.height);
     }
     await dialog.getByRole("button", { name: "Close Support Center" }).click();
+    await expect(trigger).toHaveAttribute("aria-expanded", "false");
+    await expect(dialog).toBeHidden();
   }
 });
