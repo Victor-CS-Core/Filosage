@@ -33,3 +33,27 @@ test("animates the course proof only when reduced motion is not requested", asyn
   await expect(cover).toHaveCSS("animation-name", "none");
   await expect(outline).toHaveCSS("animation-name", "none");
 });
+
+test("keeps the primary landing action in the first viewport", async ({ page }) => {
+  await page.route("**/api/courses?scope=public", (route) => route.fulfill({
+    status: 200,
+    contentType: "application/json",
+    body: JSON.stringify({ courses: [publicCourse] }),
+  }));
+
+  for (const viewport of [
+    { width: 1280, height: 720 },
+    { width: 390, height: 844 },
+    { width: 320, height: 568 },
+  ]) {
+    await page.setViewportSize(viewport);
+    await page.goto("/");
+
+    const primary = page.locator(".marketing-hero").getByRole("link", { name: "Explore course outcomes" });
+    await expect(primary).toBeVisible();
+    const bounds = await primary.boundingBox();
+    expect(bounds).not.toBeNull();
+    expect((bounds?.y ?? 0) + (bounds?.height ?? 0)).toBeLessThanOrEqual(viewport.height);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(viewport.width);
+  }
+});

@@ -504,7 +504,7 @@
 .marketing-hero h1 {
   max-width: 11ch;
   margin-top: 0;
-  font-size: clamp(3.35rem, 5.65vw, 5.75rem);
+  font-size: clamp(3.35rem, min(5.65vw, 7.75vh), 5.75rem);
   line-height: 0.94;
   text-wrap: balance;
 }
