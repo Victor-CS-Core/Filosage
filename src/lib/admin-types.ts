@@ -118,19 +118,32 @@ export interface AdminOverview {
   };
   membership: MembershipAnalytics;
   growth: {
-    uniqueActors: number;
+    measuredSessions: number;
+    verifiedLearners: number;
     events: number;
-    funnel: Array<{
+    acquisitionFunnel: Array<{
       event: ProductEventName;
       label: string;
       events: number;
       uniqueActors: number;
       conversionFromPrevious: number | null;
     }>;
+    activationFunnel: Array<{
+      event: ProductEventName;
+      label: string;
+      events: number;
+      uniqueActors: number;
+      conversionFromPrevious: number | null;
+    }>;
+    existingAccountActivation: {
+      courseStarters: number;
+      practiceCompleters: number;
+      percent: number;
+    };
     acquisition: Array<{
       channel: AcquisitionChannel;
       events: number;
-      uniqueActors: number;
+      measuredSessions: number;
       courseStarts: number;
     }>;
   };
@@ -157,9 +170,6 @@ export interface AdminOverview {
     reviewDueActors: number;
     reviewCompleters: number;
     reviewCompletionPercent: number;
-    missionViewers: number;
-    missionStarters: number;
-    missionStartPercent: number;
     delayedCheckCompleters: number;
     appliedCriterionPercent: number;
   };

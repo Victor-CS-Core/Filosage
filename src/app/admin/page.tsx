@@ -305,7 +305,7 @@ export default function AdminPage() {
               <article><Globe2 size={17} /><span>Page views</span><strong>{compactNumber(data.summary.pageViews)}</strong><small>{days}-day total</small></article>
               <article><Users size={17} /><span>Active learners</span><strong>{compactNumber(data.summary.activeUsers)}</strong><small>{data.summary.totalUsers} accounts</small></article>
               <article><Bot size={17} /><span>AI requests</span><strong>{compactNumber(data.summary.generations)}</strong><small>{data.summary.failedRequests} failed</small></article>
-              <article><Target size={17} /><span>Measured visitors</span><strong>{compactNumber(data.growth.uniqueActors)}</strong><small>{data.growth.events} outcome events</small></article>
+              <article><Target size={17} /><span>Measured sessions</span><strong>{compactNumber(data.growth.measuredSessions)}</strong><small>{data.growth.verifiedLearners} verified learners</small></article>
               <article><Coins size={17} /><span>AI cost</span><strong>{currency(data.summary.estimatedCostUsd)}</strong><small>{days}-day estimate</small></article>
               <article className={data.summary.safetyBlocks ? "has-warning" : ""}><ShieldCheck size={17} /><span>Safety blocks</span><strong>{data.summary.safetyBlocks}</strong><small>{data.summary.safetyBlocks ? "Review activity" : "No blocked requests"}</small></article>
             </section>
@@ -342,16 +342,31 @@ export default function AdminPage() {
               </section>
 
               <section className="admin-panel admin-funnel-panel">
-                <header><div><p className="overline">Outcome funnel</p><h2>From interest to demonstrated value</h2></div><span>{data.growth.uniqueActors} measured visitors</span></header>
+                <header><div><p className="overline">Measured journeys</p><h2>Acquisition and verified activation</h2></div><span>Separate identity boundaries</span></header>
                 <div className="admin-funnel-list">
-                  {data.growth.funnel.map((step, index) => (
-                    <div key={step.event}>
+                  <h3>Anonymous acquisition sessions</h3>
+                  {data.growth.acquisitionFunnel.map((step, index) => (
+                    <div key={`acquisition-${step.event}`}>
                       <span>{index + 1}</span>
                       <p><strong>{step.label}</strong><small>{step.events} event{step.events === 1 ? "" : "s"}</small></p>
                       <b>{step.uniqueActors}</b>
                       <em>{step.conversionFromPrevious == null ? "Baseline" : `${step.conversionFromPrevious}%`}</em>
                     </div>
                   ))}
+                  <h3>Verified learner activation</h3>
+                  {data.growth.activationFunnel.map((step, index) => (
+                    <div key={`activation-${step.event}`}>
+                      <span>{index + 1}</span>
+                      <p><strong>{step.label}</strong><small>{step.events} event{step.events === 1 ? "" : "s"}</small></p>
+                      <b>{step.uniqueActors}</b>
+                      <em>{step.conversionFromPrevious == null ? "Baseline" : `${step.conversionFromPrevious}%`}</em>
+                    </div>
+                  ))}
+                  <h3>Existing-account course start to practice</h3>
+                  <div>
+                    <span>→</span>
+                    <p><strong>{data.growth.existingAccountActivation.percent}% reached practice</strong><small>{data.growth.existingAccountActivation.practiceCompleters} of {data.growth.existingAccountActivation.courseStarters} course starters</small></p>
+                  </div>
                 </div>
               </section>
 
@@ -509,7 +524,7 @@ export default function AdminPage() {
               <div className="admin-acquisition-list">
                 <h3>Acquisition evidence</h3>
                 {data.growth.acquisition.length ? data.growth.acquisition.map((channel) => (
-                  <div key={channel.channel}><span>{channel.channel}</span><strong>{channel.uniqueActors} visitors</strong><small>{channel.courseStarts} course starts</small></div>
+                  <div key={channel.channel}><span>{channel.channel}</span><strong>{channel.measuredSessions} sessions</strong><small>{channel.courseStarts} course starts</small></div>
                 )) : <p>No acquisition evidence has been recorded yet.</p>}
               </div>
             </section>
@@ -523,7 +538,7 @@ export default function AdminPage() {
               </div>
               <div className="admin-acquisition-list">
                 <h3>Behavior quality</h3>
-                <div><span>Mission start rate</span><strong>{data.retentionValidation.missionStartPercent}%</strong><small>{data.retentionValidation.missionStarters} of {data.retentionValidation.missionViewers} mission viewers</small></div>
+                 <div><span>Return anchor</span><strong>First practice</strong><small>Only meaningful learning activity counts as a return</small></div>
                 <div><span>Applied criterion</span><strong>{data.retentionValidation.appliedCriterionPercent}%</strong><small>Target: at least 25% of first-practice learners</small></div>
                 <div><span>Delayed checks completed</span><strong>{data.retentionValidation.delayedCheckCompleters}</strong><small>7-day and 28-day evidence checks</small></div>
               </div>

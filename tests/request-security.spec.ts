@@ -34,7 +34,7 @@ test.describe("public mutation request perimeter", () => {
 
   test("rejects forged lifecycle telemetry and binds learning telemetry to authentication", async ({ request }) => {
     const base = {
-      schemaVersion: 1,
+      schemaVersion: 2,
       route: "/pricing",
       source: "internal",
       actorId: "attacker-actor-id",

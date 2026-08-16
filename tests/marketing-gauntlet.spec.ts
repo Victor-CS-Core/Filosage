@@ -1,4 +1,11 @@
 import { expect, test, type Page } from "@playwright/test";
+import { readFileSync } from "node:fs";
+import {
+  buildMarketingFunnels,
+  orderedIntentCompletion,
+  retentionAtDay,
+  type ProductMetricEvent,
+} from "../src/lib/product-metrics";
 import { restoreLocalLearner } from "./fixtures/local-learner";
 
 async function prepareEligibleCreator(page: Page) {
@@ -72,4 +79,88 @@ test("inclusive course creation preserves a personal-study context and bilingual
     language: "Spanish and English",
   });
   expect(JSON.stringify(generationBody)).not.toMatch(/professional|required work context/i);
+});
+
+test("marketing metric contracts separate anonymous acquisition, verified activation, and meaningful retention", () => {
+  const records: ProductMetricEvent[] = [
+    { event: "landing_viewed", sessionId: "session-a", createdAt: "2026-08-01T08:00:00.000Z" },
+    { event: "course_discovered", sessionId: "session-a", createdAt: "2026-08-01T08:02:00.000Z" },
+    { event: "signup_started", sessionId: "session-a", createdAt: "2026-08-01T08:04:00.000Z" },
+    { event: "landing_viewed", sessionId: "session-out-of-order", createdAt: "2026-08-01T09:00:00.000Z" },
+    { event: "signup_started", sessionId: "session-out-of-order", createdAt: "2026-08-01T09:01:00.000Z" },
+    { event: "course_discovered", sessionId: "session-out-of-order", createdAt: "2026-08-01T09:02:00.000Z" },
+    { event: "signup_completed", actorId: "learner-a", createdAt: "2026-08-01T10:00:00.000Z" },
+    { event: "course_started", actorId: "learner-a", createdAt: "2026-08-01T10:05:00.000Z" },
+    { event: "first_practice_completed", actorId: "learner-a", createdAt: "2026-08-01T10:10:00.000Z" },
+    { event: "criterion_demonstrated", actorId: "learner-a", createdAt: "2026-08-01T10:20:00.000Z" },
+    { event: "evidence_report_viewed", actorId: "learner-a", createdAt: "2026-08-01T10:30:00.000Z" },
+    { event: "course_started", actorId: "existing-account", createdAt: "2026-08-01T11:00:00.000Z" },
+    { event: "first_practice_completed", actorId: "existing-account", createdAt: "2026-08-01T11:08:00.000Z" },
+    { event: "lesson_started", actorId: "learner-a", createdAt: "2026-08-08T10:10:00.000Z" },
+    { event: "pricing_viewed", actorId: "existing-account", createdAt: "2026-08-08T11:08:00.000Z" },
+    { event: "first_practice_completed", actorId: "owner-account", createdAt: "2026-07-01T10:00:00.000Z" },
+    { event: "review_completed", actorId: "owner-account", createdAt: "2026-07-08T10:00:00.000Z" },
+    { event: "first_practice_completed", actorId: "too-new", createdAt: "2026-08-09T10:00:00.000Z" },
+    { event: "review_due", actorId: "reviewed-in-order", createdAt: "2026-08-02T10:00:00.000Z" },
+    { event: "review_completed", actorId: "reviewed-in-order", createdAt: "2026-08-03T10:00:00.000Z" },
+    { event: "review_completed", actorId: "reviewed-too-early", createdAt: "2026-08-02T10:00:00.000Z" },
+    { event: "review_due", actorId: "reviewed-too-early", createdAt: "2026-08-03T10:00:00.000Z" },
+  ];
+
+  const funnels = buildMarketingFunnels(records);
+  expect(funnels.acquisition.map((step) => step.event)).toEqual([
+    "landing_viewed",
+    "course_discovered",
+    "signup_started",
+  ]);
+  expect(funnels.acquisition.map((step) => step.uniqueActors)).toEqual([2, 2, 1]);
+  expect(funnels.activation.map((step) => step.event)).toEqual([
+    "signup_completed",
+    "course_started",
+    "first_practice_completed",
+    "criterion_demonstrated",
+    "evidence_report_viewed",
+  ]);
+  expect(funnels.activation.map((step) => step.uniqueActors)).toEqual([1, 1, 1, 1, 1]);
+  expect(funnels.existingAccountActivation).toEqual({ courseStarters: 2, practiceCompleters: 2, percent: 100 });
+  expect(retentionAtDay(records, 7, new Date("2026-08-10T12:00:00.000Z"), "owner-account"))
+    .toEqual({ eligible: 2, returned: 1, percent: 50 });
+  expect(orderedIntentCompletion(records, "review_due", "review_completed"))
+    .toEqual({ intentActors: 2, completionActors: 1, percent: 50 });
+});
+
+test("telemetry context accepts fixed marketing enums and rejects free text or anonymous return events", async ({ request }) => {
+  const base = {
+    schemaVersion: 2,
+    route: "/library",
+    source: "internal",
+    event: "job_start_selected",
+    sessionId: `playwright-${crypto.randomUUID()}`,
+    surface: "library_job_start",
+    jobStart: "study_goal",
+    courseLanguageMode: "bilingual",
+  };
+  const accepted = await request.post("/api/telemetry", { data: base });
+  expect(accepted.status()).toBe(204);
+
+  const arbitraryContext = await request.post("/api/telemetry", {
+    data: { ...base, sessionId: `playwright-${crypto.randomUUID()}`, surface: "calculus-student-private-query" },
+  });
+  expect(arbitraryContext.status()).toBe(400);
+
+  const anonymousReturn = await request.post("/api/telemetry", {
+    data: {
+      ...base,
+      event: "return_recommendation_viewed",
+      route: "/review",
+      surface: "home_review",
+      sessionId: `playwright-${crypto.randomUUID()}`,
+    },
+  });
+  expect(anonymousReturn.status()).toBe(401);
+
+  const telemetryRoute = readFileSync("src/app/api/telemetry/route.ts", "utf8");
+  expect(telemetryRoute).toContain("surface: parsed.data.surface");
+  expect(telemetryRoute).toContain("jobStart: parsed.data.jobStart");
+  expect(telemetryRoute).toContain("courseLanguageMode: parsed.data.courseLanguageMode");
 });

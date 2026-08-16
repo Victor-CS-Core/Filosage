@@ -1,8 +1,9 @@
-export const PRODUCT_EVENT_SCHEMA_VERSION = 1 as const;
+export const PRODUCT_EVENT_SCHEMA_VERSION = 2 as const;
 
 export const PRODUCT_EVENT_NAMES = [
   "landing_viewed",
   "course_discovered",
+  "job_start_selected",
   "course_started",
   "outcome_defined",
   "diagnostic_started",
@@ -31,6 +32,10 @@ export const PRODUCT_EVENT_NAMES = [
   "capstone_criterion_passed",
   "evidence_report_viewed",
   "evidence_report_shared",
+  "upgrade_prompt_viewed",
+  "upgrade_prompt_selected",
+  "return_recommendation_viewed",
+  "return_recommendation_started",
   "referral_link_copied",
   "weekly_report_viewed",
   "weekly_report_shared",
@@ -70,6 +75,7 @@ export type ServerRecordedProductEventName =
 export const ANONYMOUS_PRODUCT_EVENT_NAMES = [
   "landing_viewed",
   "course_discovered",
+  "job_start_selected",
   "course_started",
   "pricing_viewed",
   "signup_started",
@@ -95,6 +101,34 @@ export const PRODUCT_EVENT_ROUTES = [
 ] as const;
 
 export type ProductEventRoute = (typeof PRODUCT_EVENT_ROUTES)[number];
+
+export const MARKETING_SURFACES = [
+  "landing_flagship",
+  "library_job_start",
+  "library_no_match",
+  "evidence_portable",
+  "home_review",
+  "pricing_direct",
+] as const;
+
+export type MarketingSurface = (typeof MARKETING_SURFACES)[number];
+
+export const MARKETING_JOB_STARTS = [
+  "study_goal",
+  "personal_project",
+  "career_goal",
+  "work_goal",
+] as const;
+
+export type MarketingJobStart = (typeof MARKETING_JOB_STARTS)[number];
+
+export const COURSE_LANGUAGE_MODES = [
+  "english",
+  "single_non_english",
+  "bilingual",
+] as const;
+
+export type CourseLanguageMode = (typeof COURSE_LANGUAGE_MODES)[number];
 
 export const ACQUISITION_CHANNELS = [
   "direct",

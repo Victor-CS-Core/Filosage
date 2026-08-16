@@ -34,6 +34,7 @@ import {
 import { calculateMembershipAnalytics, effectiveMembershipPlan } from "@/lib/membership-analytics";
 import { azureInfrastructure } from "@/lib/azure-infrastructure";
 import { courseAuthorIdsForAccount } from "@/lib/course-owner-identity";
+import { buildMarketingFunnels, orderedIntentCompletion, retentionAtDay } from "@/lib/product-metrics";
 
 function numberValue(value: unknown) {
   return typeof value === "number" && Number.isFinite(value) ? value : 0;
@@ -122,17 +123,6 @@ function acquisitionChannel(value: unknown): AcquisitionChannel {
     ? value as AcquisitionChannel
     : "direct";
 }
-
-const funnelDefinition: Array<{ event: ProductEventName; label: string }> = [
-  { event: "landing_viewed", label: "Qualified landing" },
-  { event: "course_started", label: "Course started" },
-  { event: "outcome_defined", label: "Outcome defined" },
-  { event: "diagnostic_completed", label: "Diagnostic completed" },
-  { event: "first_practice_completed", label: "First practice completed" },
-  { event: "capstone_submitted", label: "Capstone submitted" },
-  { event: "criterion_demonstrated", label: "Applied criterion demonstrated" },
-  { event: "evidence_report_viewed", label: "Evidence report viewed" },
-];
 
 function dayKeys(days: number) {
   const today = new Date();
@@ -485,87 +475,28 @@ export async function GET(request: Request) {
         ? [record.actorId]
         : []),
     );
-    let eligibleActors: Map<string, number> | undefined;
-    const funnel = funnelDefinition.map(({ event, label }, index) => {
-      const matchingEvents = productEventsInRange.filter((record) => record.event === event);
-      const actors = new Map<string, number>();
-      for (const record of matchingEvents) {
-        if (typeof record.actorId !== "string") continue;
-        const timestamp = Date.parse(dateValue(record.createdAt) ?? "");
-        if (!Number.isFinite(timestamp)) continue;
-        actors.set(record.actorId, Math.min(actors.get(record.actorId) ?? timestamp, timestamp));
-      }
-      const previous = eligibleActors?.size ?? 0;
-      const progressingActors = eligibleActors
-        ? new Map(Array.from(actors).filter(([actorId, timestamp]) => {
-            const priorTimestamp = eligibleActors?.get(actorId);
-            return priorTimestamp !== undefined && timestamp >= priorTimestamp;
-          }))
-        : actors;
-      eligibleActors = progressingActors;
-      return {
-        event,
-        label,
-        events: matchingEvents.length,
-        uniqueActors: progressingActors.size,
-        conversionFromPrevious: index === 0 || previous === 0
-          ? null
-          : Math.round((progressingActors.size / previous) * 1_000) / 10,
-      };
-    });
+    const accountEventsInRange = productEventsInRange.filter((record) => record.actorId !== owner.uid);
+    const marketingFunnels = buildMarketingFunnels(accountEventsInRange);
     const acquisition = ACQUISITION_CHANNELS.map((channel) => {
       const channelEvents = productEventsInRange.filter((record) => acquisitionChannel(record.channel ?? record.source) === channel);
       return {
         channel,
         events: channelEvents.length,
-        uniqueActors: new Set(channelEvents.flatMap((record) => typeof record.actorId === "string" ? [record.actorId] : [])).size,
+        measuredSessions: new Set(channelEvents.flatMap((record) => typeof record.sessionId === "string" ? [record.sessionId] : [])).size,
         courseStarts: channelEvents.filter((record) => record.event === "course_started").length,
       };
     }).filter((channel) => channel.events);
-    const uniqueActors = new Set(productEventsInRange.flatMap((record) => (
+    const measuredSessions = new Set(productEventsInRange.flatMap((record) => (
+      typeof record.sessionId === "string" ? [record.sessionId] : []
+    ))).size;
+    const verifiedLearners = new Set(accountEventsInRange.flatMap((record) => (
       typeof record.actorId === "string" ? [record.actorId] : []
     ))).size;
-    const actorTimelines = new Map<string, number[]>();
-    for (const record of productEvents) {
-      if (typeof record.actorId !== "string") continue;
-      const createdAt = Date.parse(dateValue(record.createdAt) ?? "");
-      if (!Number.isFinite(createdAt)) continue;
-      const timeline = actorTimelines.get(record.actorId) ?? [];
-      timeline.push(createdAt);
-      actorTimelines.set(record.actorId, timeline);
-    }
-    const retentionAtDay = (day: number) => {
-      const nowTime = Date.now();
-      const eligible = Array.from(actorTimelines.values()).filter((timeline) => {
-        const first = Math.min(...timeline);
-        return first <= nowTime - day * 86_400_000;
-      });
-      const returned = eligible.filter((timeline) => {
-        const first = Math.min(...timeline);
-        const windowStart = first + (day - 1) * 86_400_000;
-        const windowEnd = first + (day + 1) * 86_400_000;
-        return timeline.some((timestamp) => timestamp >= windowStart && timestamp < windowEnd);
-      }).length;
-      return {
-        eligible: eligible.length,
-        returned,
-        percent: eligible.length ? Math.round((returned / eligible.length) * 1_000) / 10 : 0,
-      };
-    };
-    const day7Retention = retentionAtDay(7);
-    const day28Retention = retentionAtDay(28);
+    const day7Retention = retentionAtDay(productEvents, 7, new Date(), owner.uid);
+    const day28Retention = retentionAtDay(productEvents, 28, new Date(), owner.uid);
     const diagnosticActors = eventActors("diagnostic_completed");
     const practiceActors = eventActors("first_practice_completed");
-    const reviewDueActors = eventActors("review_due");
-    const reviewCompletedActors = eventActors("review_completed");
-    const reviewCompleters = new Set(
-      Array.from(reviewCompletedActors).filter((actorId) => reviewDueActors.has(actorId)),
-    );
-    const missionViewers = eventActors("daily_mission_viewed");
-    const missionStartedActors = eventActors("daily_mission_started");
-    const missionStarters = new Set(
-      Array.from(missionStartedActors).filter((actorId) => missionViewers.has(actorId)),
-    );
+    const reviewCompletion = orderedIntentCompletion(accountEventsInRange, "review_due", "review_completed");
     const criterionActors = eventActors("criterion_demonstrated");
     const diagnosticToPracticeActors = new Set(
       Array.from(practiceActors).filter((actorId) => diagnosticActors.has(actorId)),
@@ -681,9 +612,12 @@ export async function GET(request: Request) {
       },
       membership,
       growth: {
-        uniqueActors,
+        measuredSessions,
+        verifiedLearners,
         events: productEventsInRange.length,
-        funnel,
+        acquisitionFunnel: marketingFunnels.acquisition,
+        activationFunnel: marketingFunnels.activation,
+        existingAccountActivation: marketingFunnels.existingAccountActivation,
         acquisition,
       },
       outcomeValidation: {
@@ -714,16 +648,9 @@ export async function GET(request: Request) {
         day28Eligible: day28Retention.eligible,
         day28Returned: day28Retention.returned,
         day28RetentionPercent: day28Retention.percent,
-        reviewDueActors: reviewDueActors.size,
-        reviewCompleters: reviewCompleters.size,
-        reviewCompletionPercent: reviewDueActors.size
-          ? Math.round((reviewCompleters.size / reviewDueActors.size) * 1_000) / 10
-          : 0,
-        missionViewers: missionViewers.size,
-        missionStarters: missionStarters.size,
-        missionStartPercent: missionViewers.size
-          ? Math.round((missionStarters.size / missionViewers.size) * 1_000) / 10
-          : 0,
+        reviewDueActors: reviewCompletion.intentActors,
+        reviewCompleters: reviewCompletion.completionActors,
+        reviewCompletionPercent: reviewCompletion.percent,
         delayedCheckCompleters: eventActors("delayed_check_completed").size,
         appliedCriterionPercent: practiceActors.size
           ? Math.round((criterionActors.size / practiceActors.size) * 1_000) / 10

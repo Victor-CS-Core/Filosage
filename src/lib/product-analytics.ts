@@ -5,6 +5,9 @@ import {
   PRODUCT_EVENT_SCHEMA_VERSION,
   type AcquisitionChannel,
   type AcquisitionContext,
+  type CourseLanguageMode,
+  type MarketingJobStart,
+  type MarketingSurface,
   type ProductEventName,
   type ProductEventRoute,
 } from "@/lib/product-events";
@@ -181,6 +184,9 @@ export interface ProductEventOptions {
   contentVersion?: string;
   elapsedMs?: number;
   score?: number;
+  surface?: MarketingSurface;
+  jobStart?: MarketingJobStart;
+  courseLanguageMode?: CourseLanguageMode;
   exclude?: boolean;
   oncePerSession?: boolean;
 }
@@ -213,6 +219,9 @@ export function trackProductEvent(event: ProductEventName, options: ProductEvent
       contentVersion: options.contentVersion,
       elapsedMs: options.elapsedMs,
       score: options.score,
+      surface: options.surface,
+      jobStart: options.jobStart,
+      courseLanguageMode: options.courseLanguageMode,
     }).catch(() => {
     // Analytics must never interrupt learning.
   });
@@ -245,12 +254,13 @@ export function trackPageView(pathname: string, exclude = false) {
   if (route === "/") {
     trackProductEvent("landing_viewed", {
       route,
-      experimentId: "EXP-001-professional-outcome",
+      experimentId: "EXP-001-outcome-course",
+      surface: "landing_flagship",
       exclude,
       oncePerSession: true,
     });
   }
   if (route === "/pricing") {
-    trackProductEvent("pricing_viewed", { route, exclude, oncePerSession: true });
+    trackProductEvent("pricing_viewed", { route, surface: "pricing_direct", exclude, oncePerSession: true });
   }
 }

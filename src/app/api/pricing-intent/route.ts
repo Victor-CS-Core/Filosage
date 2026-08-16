@@ -7,6 +7,7 @@ import {
 } from "@/lib/firebase-server";
 import { enforceDurableRateLimit } from "@/lib/request-rate-limit";
 import { isPaidLearnerPlan, offerFor, paidPlanFor } from "@/lib/membership-plans";
+import { PRODUCT_EVENT_SCHEMA_VERSION } from "@/lib/product-events";
 
 const pricingIntentSchema = z.object({
   planId: z.enum(["plus", "pro"]),
@@ -113,7 +114,7 @@ export async function POST(request: Request) {
         {
           path: eventPath,
           data: {
-            schemaVersion: 1,
+            schemaVersion: PRODUCT_EVENT_SCHEMA_VERSION,
             date: typeof existingEvent?.date === "string" ? existingEvent.date : now.slice(0, 10),
             route: "/pricing",
             source: "internal",

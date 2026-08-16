@@ -7,6 +7,9 @@ import { isLocalMode } from "@/lib/local-mode";
 import {
   ACQUISITION_CHANNELS,
   ANONYMOUS_PRODUCT_EVENT_NAMES,
+  COURSE_LANGUAGE_MODES,
+  MARKETING_JOB_STARTS,
+  MARKETING_SURFACES,
   PRODUCT_EVENT_NAMES,
   PRODUCT_EVENT_ROUTES,
   PRODUCT_EVENT_SCHEMA_VERSION,
@@ -36,6 +39,9 @@ const telemetrySchema = z.object({
   contentVersion: z.string().trim().max(120).optional(),
   elapsedMs: z.number().int().min(0).max(31_536_000_000).optional(),
   score: z.number().min(0).max(100).optional(),
+  surface: z.enum(MARKETING_SURFACES).optional(),
+  jobStart: z.enum(MARKETING_JOB_STARTS).optional(),
+  courseLanguageMode: z.enum(COURSE_LANGUAGE_MODES).optional(),
 }).strict();
 
 const TRAFFIC_SHARDS = 16;
@@ -110,6 +116,9 @@ export async function POST(request: Request) {
         contentVersion: parsed.data.contentVersion,
         elapsedMs: parsed.data.elapsedMs,
         score: parsed.data.score,
+        surface: parsed.data.surface,
+        jobStart: parsed.data.jobStart,
+        courseLanguageMode: parsed.data.courseLanguageMode,
         createdAt: now.toISOString(),
       });
       return new Response(null, {
