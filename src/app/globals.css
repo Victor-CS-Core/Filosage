@@ -1980,6 +1980,7 @@ html[data-environment="qa"] .environment-pill { display: inline-flex; }
 .course-deck-card[data-position="1"] { box-shadow: var(--shadow-card); }
 .course-deck-card[data-position="2"] { box-shadow: var(--shadow-control); }
 .course-deck-card.is-active { box-shadow: var(--shadow-deck); }
+.course-deck-card.is-wrap-target { box-shadow: var(--shadow-deck); }
 .course-deck-section.is-single .course-deck-card { width: 100%; }
 .course-deck-viewport:not([data-motion-state="idle"]) .course-deck-card { will-change: transform, opacity; }
 .course-deck-viewport:not([data-motion-state="idle"]) .course-deck-card-face { pointer-events: none; }
