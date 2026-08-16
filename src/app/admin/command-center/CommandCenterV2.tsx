@@ -423,7 +423,10 @@ export default function CommandCenterV2() {
   }, [user]);
 
   const load = useCallback(async () => {
-    if (!user || !isOwner) return;
+    if (!user || !isOwner) {
+      setLoading(false);
+      return;
+    }
     setLoading(true);
     setError(null);
     try {

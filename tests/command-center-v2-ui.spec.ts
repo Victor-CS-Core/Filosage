@@ -34,6 +34,13 @@ async function expectNoSeriousAccessibilityViolations(page: Page) {
   expect(blocking, JSON.stringify(blocking, null, 2)).toEqual([]);
 }
 
+test("settles into the owner-only boundary when signed out", async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== "desktop-chromium", "One signed-out state contract is sufficient");
+  await page.goto("/admin/command-center");
+  await expect(page.getByRole("heading", { level: 1, name: "Owner access required" })).toBeVisible();
+  await expect(page.getByText("Loading the owner evidence desk…")).toBeHidden();
+});
+
 test("renders the Evidence Desk, keyboard tabs, publication boundary, and dark theme", async ({ page }, testInfo) => {
   test.skip(testInfo.project.name !== "desktop-chromium", "Desktop visual contract");
   await openEvidenceDesk(page);
