@@ -157,7 +157,7 @@ test("the authoritative lesson-completion path continues to validate server rece
   expect(progressRoute).toContain("due.kind !== reviewKind");
   expect(progressRoute).toContain("submitted.review ? verifiedClaims[0]?.issuedAt");
   expect(progressRoute).toContain("nextDueKind(previousLesson, now)");
-  expect(progressRoute).toContain("update.review\n        ? [...(previous?.completedLessonIds ?? [])]");
+  expect(progressRoute).toMatch(/update\.review\s*\? \[\.\.\.\(previous\?\.completedLessonIds \?\? \[\]\)\]/);
 
   const masteryRoute = readFileSync("src/app/api/mastery/route.ts", "utf8");
   expect(masteryRoute).toContain("normalizeLearnerReportedMasteryEvidence(parsed.data)");
