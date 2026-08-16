@@ -17,6 +17,7 @@ export interface CourseCreditLedger extends Record<string, unknown> {
   frozenUntil: string | null;
   updatedAt: string;
 }
+
 export function courseCreditInteger(value: unknown, fallback = 0) {
   return typeof value === "number" && Number.isFinite(value) ? Math.max(0, Math.floor(value)) : fallback;
 }

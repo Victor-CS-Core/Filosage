@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { CheckCircle2, ExternalLink, Flag, LoaderCircle, ShieldCheck } from "lucide-react";
 import type { LessonData } from "@/lib/course-types";
+import type { LessonDesignPlanV1 } from "@/lib/learning-design";
 import { sourceHostname } from "@/lib/source-safety";
 
 const sourceKindLabel = {
@@ -30,11 +31,13 @@ export default function LessonIntegrityPanel({
   courseId,
   lessonId,
   provenance,
+  design,
   getAuthToken,
 }: {
   courseId: string;
   lessonId: string;
   provenance: LessonData["provenance"];
+  design?: LessonDesignPlanV1;
   getAuthToken?: () => Promise<string | null>;
 }) {
   const [reporting, setReporting] = useState(false);
@@ -94,6 +97,11 @@ export default function LessonIntegrityPanel({
             ? `${provenance.sources.length} ${provenance.sources.length === 1 ? "reference is" : "references are"} attached to this lesson version without a structured claim citation.`
           : "No external source pack is attached to this lesson. Verify consequential claims before relying on them."}
       </p>
+      {design && <dl className="lesson-design-record" aria-label="Lesson design record">
+        <div><dt>Focused win</dt><dd>{design.scopeBudget.singleWin}</dd></div>
+        <div><dt>Practice budget</dt><dd>About {design.scopeBudget.practiceMinutes} of {design.scopeBudget.estimatedMinutes} minutes</dd></div>
+        <div><dt>Reference plan</dt><dd>{design.resources.status === "available" ? "Verified lesson resources available" : "No lesson-specific resource required"}</dd></div>
+      </dl>}
       {citations.length ? (
         <div className="lesson-citation-list" aria-label="Source-backed statements">
           {citations.map((citation) => {

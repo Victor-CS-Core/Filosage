@@ -18,6 +18,7 @@ export interface CourseCreditSummary {
   nextAccrualAt: string | null;
   frozenUntil: string | null;
 }
+
 export interface CourseCreditReservation {
   uid: string;
   claimId: string;

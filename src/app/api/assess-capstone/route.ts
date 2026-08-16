@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { aiClient } from "@/lib/local-ai";
 import { zodTextFormat } from "openai/helpers/zod";
 import { authorizationResponse, requireAcceptedAccount } from "@/lib/auth-server";
-import { getStoredDocument, putStoredDocument } from "@/lib/firebase-server";
+import { getStoredDocument, runStoredDocumentTransaction } from "@/lib/firebase-server";
 import type { Course } from "@/lib/course-types";
 import type { CapstoneAssessment, CapstoneRevision } from "@/lib/learning-types";
 import {
@@ -19,6 +19,7 @@ import { AI_SAFETY_POLICY, assertSafeContent, ContentSafetyError } from "@/lib/c
 import { apiRequestErrorResponse, readJsonBody } from "@/lib/api-security";
 import { aiUsageProfileMetadata, openAiExecutionProfile } from "@/lib/openai-generation";
 import { getCourseRuntimeArtifact, publishedReleaseUnavailableResponse } from "@/lib/course-pipeline/artifact-access";
+import { verifiedCapstoneMasteryEvidence } from "@/lib/mastery-server";
 import { safeModelErrorDetails } from "@/lib/model-fallback";
 import { normalizeSuccessCriteria } from "@/lib/course-criteria";
 import { planAllows } from "@/lib/membership-plans";
@@ -102,47 +103,65 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "The capstone could not be assessed. Please try again." }, { status: 502 });
     }
 
-    const previousCapstone = progress && typeof progress.capstone === "object" && progress.capstone
-      ? progress.capstone as unknown as CapstoneAssessment
-      : null;
-    const previousAttempts = previousCapstone
-      ? Number(previousCapstone.attempts) || 0
-      : 0;
     const status: CapstoneAssessment["status"] = verdict.criteria.every((criterion) => criterion.met)
       ? "passed"
       : "needs_revision";
     const assessedAt = new Date().toISOString();
-    const priorHistory: CapstoneRevision[] = Array.isArray(previousCapstone?.history)
-      ? previousCapstone.history
-      : previousCapstone ? [{
-          status: previousCapstone.status,
-          summary: previousCapstone.summary,
-          criteria: previousCapstone.criteria,
-          assessedAt: previousCapstone.assessedAt,
-          attempt: previousAttempts,
-        }] : [];
-    const assessment: CapstoneAssessment = {
+    const evidencePathSeed: CapstoneAssessment = {
       status,
       summary: verdict.summary,
       criteria: verdict.criteria,
       assessedAt,
-      attempts: previousAttempts + 1,
-      history: [
-        ...priorHistory,
-        {
+      attempts: 1,
+    };
+    const evidencePaths = verifiedCapstoneMasteryEvidence(courseId, course, evidencePathSeed)
+      .map((evidence) => `users/${account.uid}/masteryEvidence/${evidence.id}`);
+    const assessment = await runStoredDocumentTransaction(
+      [progressPath, ...evidencePaths],
+      (documents) => {
+        const currentProgress = documents[progressPath];
+        if (!currentProgress) throw new CapstoneProgressChangedError();
+        const previousCapstone = currentProgress.capstone && typeof currentProgress.capstone === "object"
+          ? currentProgress.capstone as unknown as CapstoneAssessment
+          : null;
+        const previousAttempts = previousCapstone ? Number(previousCapstone.attempts) || 0 : 0;
+        const priorHistory: CapstoneRevision[] = Array.isArray(previousCapstone?.history)
+          ? previousCapstone.history
+          : previousCapstone ? [{
+              status: previousCapstone.status,
+              summary: previousCapstone.summary,
+              criteria: previousCapstone.criteria,
+              assessedAt: previousCapstone.assessedAt,
+              attempt: previousAttempts,
+            }] : [];
+        const nextAssessment: CapstoneAssessment = {
           status,
           summary: verdict.summary,
           criteria: verdict.criteria,
           assessedAt,
-          attempt: previousAttempts + 1,
-        },
-      ].slice(-20),
-    };
-    await putStoredDocument(progressPath, {
-      ...(progress ?? { courseId, topic: course.topic, completedLessonIds: [], lessons: {}, startedAt: new Date().toISOString() }),
-      capstone: assessment as unknown as Record<string, unknown>,
-      lastActivityAt: new Date().toISOString(),
-    });
+          attempts: previousAttempts + 1,
+          history: [...priorHistory, {
+            status,
+            summary: verdict.summary,
+            criteria: verdict.criteria,
+            assessedAt,
+            attempt: previousAttempts + 1,
+          }].slice(-20),
+        };
+        const verifiedCapstoneEvidence = verifiedCapstoneMasteryEvidence(courseId, course, nextAssessment)
+          .map((evidence) => ({
+            path: `users/${account.uid}/masteryEvidence/${evidence.id}`,
+            data: { ...evidence },
+          }));
+        return {
+          writes: [{
+            path: progressPath,
+            data: { ...currentProgress, capstone: nextAssessment as unknown as Record<string, unknown>, lastActivityAt: assessedAt },
+          }, ...verifiedCapstoneEvidence],
+          result: nextAssessment,
+        };
+      },
+    );
 
     await finalizeAiUsage(reservation, {
       ...observedUsage,
@@ -170,6 +189,9 @@ export async function POST(request: Request) {
         console.error(JSON.stringify({ event: "capstone_usage_finalization_failed", ...safeModelErrorDetails(usageError) }));
       });
     }
+    if (error instanceof CapstoneProgressChangedError) {
+      return NextResponse.json({ error: "Your course progress changed before the assessment could be saved. Please reopen the course and try again." }, { status: 409 });
+    }
     if (error instanceof AiQuotaError && error.code === "DUPLICATE_REQUEST") {
       return NextResponse.json(
         { error: "This capstone submission is already being assessed." },
@@ -194,3 +216,5 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Capstone assessment is temporarily unavailable." }, { status: 500 });
   }
 }
+
+class CapstoneProgressChangedError extends Error {}

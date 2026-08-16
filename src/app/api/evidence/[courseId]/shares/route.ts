@@ -8,6 +8,7 @@ import { safeModelErrorDetails } from "@/lib/model-fallback";
 interface RouteParams {
   params: Promise<{ courseId: string }>;
 }
+
 function validCourseId(courseId: string) {
   return Boolean(courseId) && courseId.length <= 200;
 }

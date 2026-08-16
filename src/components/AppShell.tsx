@@ -122,8 +122,8 @@ export default function AppShell({ children, activeTopic, activeCourseId, active
 
   const displayName = account?.displayName ?? user?.displayName ?? "Learner";
   const firstName = displayName.split(" ")[0] || "Learner";
-  const flashcardDecksEnabled = account?.capabilities?.flashcardDecksEnabled === true;
   const courseCreditBalance = account?.courseCredits?.balance;
+  const flashcardDecksEnabled = account?.capabilities?.flashcardDecksEnabled === true;
   const currentCourse = useMemo(
     () => activeCourse ?? courses.find((course) => (course.id ?? course.courseId) === activeCourseId || course.topic === activeTopic),
     [activeCourse, activeCourseId, activeTopic, courses],

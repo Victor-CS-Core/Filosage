@@ -3,21 +3,21 @@ import { defineSupportArticle } from "../types";
 export default defineSupportArticle({
   slug: "use-review",
   title: "Use the Review queue",
-  summary: "Return to due lessons in a focused review session and see what is coming next.",
+  summary: "Return to due, prerequisite-ready capabilities in a focused retrieval session.",
   category: "practice",
   keywords: ["review", "queue", "due", "schedule", "retrieval", "streak", "flashcard", "deck"],
   reviewedOn: "2026-08-16",
-  sources: ["src/app/review/page.tsx", "src/app/review/flashcards/page.tsx", "src/components/flashcards/FlashcardStudio.tsx", "src/lib/adaptive-learning.ts", "src/lib/learning-progress.ts"],
+  sources: ["src/app/review/page.tsx", "src/app/review/flashcards/page.tsx", "src/components/flashcards/FlashcardStudio.tsx", "src/lib/adaptive-learning.ts", "src/lib/retrieval-planning.ts", "src/lib/review-readiness.ts", "src/lib/learning-progress.ts"],
   body: `
 ## Open today's review
 
-Choose **Review** in the main navigation. Filosage builds a queue from lessons with saved learning progress and presents up to 10 due items in one session.
+Choose **Review** in the main navigation. Filosage builds a course-scoped queue from saved learning progress and presents up to 10 due items whose prerequisites are ready.
 
 If you are signed in, the page loads account-backed progress. Without an account, it can use progress stored on the current device.
 
 ## Work through the queue
 
-Start the review session and open each suggested lesson. Review items identify the kind of practice requested and carry the course and lesson context back into the lesson page.
+Start the review session and open each suggested lesson. The review begins with recall before answer-bearing lesson cues become available. After you commit an answer, the explanation and study tools return for feedback and remediation.
 
 ## Study flashcard decks
 
@@ -27,7 +27,7 @@ The deck editor lets you revise or remove generated cards. Plus and Pro members 
 
 ## When nothing is due
 
-The page shows upcoming scheduled reviews when available. A clear queue means there is no due item in the current saved progress; it does not erase completed work.
+The page shows upcoming scheduled reviews when available. A clear queue means no saved item is both due and prerequisite-ready; it does not erase completed work. Older lessons without current review metadata receive a compatible scheduling entry instead of disappearing from the queue.
 `,
   related: ["complete-a-lesson", "use-study-tools", "understand-progress"],
   featured: true,

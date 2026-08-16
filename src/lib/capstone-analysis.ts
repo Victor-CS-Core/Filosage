@@ -9,6 +9,7 @@ export interface CapstoneCriterionObservation {
   feedback: string;
   change: CriterionChange;
 }
+
 export interface CapstoneCriterionTrajectory {
   criterion: string;
   latestMet: boolean;

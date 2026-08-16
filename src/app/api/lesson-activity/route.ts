@@ -20,6 +20,7 @@ import { safeModelErrorDetails } from "@/lib/model-fallback";
 const activityAttemptSchema = z.object({
   courseId: z.string().trim().min(1).max(200),
   lessonId: z.string().regex(/^\d+-\d+$/),
+  progressOperationId: z.string().trim().regex(/^[A-Za-z0-9_-]{12,200}$/),
   quizIndex: z.number().int().min(0).max(20),
   selectedOption: z.string().trim().min(1).max(1_000),
 }).strict();
@@ -38,11 +39,11 @@ export async function POST(request: Request) {
       return Response.json({ error: "This activity attempt is not valid." }, { status: 400 });
     }
 
-    const { courseId, lessonId, quizIndex, selectedOption } = parsed.data;
+    const { courseId, lessonId, progressOperationId, quizIndex, selectedOption } = parsed.data;
     const course = await getCourseRuntimeArtifact(courseId) as Course | null;
     if (!course) return Response.json({ error: "Course not found." }, { status: 404 });
-    if (course.authorId !== account.uid && !account.isOwner) {
-      return Response.json({ error: "Only this course's author can verify creator progression." }, { status: 403 });
+    if (!course.isPublic && course.authorId !== account.uid && !account.isOwner) {
+      return Response.json({ error: "You do not have access to this course." }, { status: 403 });
     }
     const lesson = await getLessonRuntimeArtifact(courseId, lessonId, course) as LessonData | null;
     const quiz = lesson?.quizzes?.[quizIndex];
@@ -50,7 +51,7 @@ export async function POST(request: Request) {
 
     const correct = quiz.options[quiz.correctIndex] === selectedOption;
     const artifactHash = await publicationContentHash(quiz);
-    const documentId = await activityDocumentId(courseId, lessonId, quizIndex, artifactHash);
+    const documentId = await activityDocumentId(courseId, lessonId, progressOperationId, quizIndex, artifactHash);
     const path = `users/${account.uid}/lessonActivity/${documentId}`;
     const now = Date.now();
     const result = await runStoredDocumentTransaction([path], (documents) => {
@@ -63,6 +64,7 @@ export async function POST(request: Request) {
           data: {
             courseId,
             lessonId,
+            progressOperationId,
             quizIndex,
             attempts,
             firstAttemptCorrect,
@@ -77,10 +79,11 @@ export async function POST(request: Request) {
     let receipt: string | undefined;
     if (correct) {
       const claims: ActivityReceiptClaims = {
-        version: 2,
+        version: 3,
         uid: account.uid,
         courseId,
         lessonId,
+        progressOperationId,
         quizIndex,
         artifactHash,
         attempts: result.attempts,

@@ -42,6 +42,7 @@ import type {
 } from "@/lib/learning-types";
 import { getLocalProgress, saveLocalProgress } from "@/lib/learning-progress";
 import { calibrationMessage, reviewKindLabel } from "@/lib/adaptive-learning";
+import { retrievalVariantsForQuizBank, selectRetrievalVariant } from "@/lib/retrieval-planning";
 import { useLearnerState } from "@/components/useLearnerState";
 import SpeakButton from "@/components/SpeakButton";
 import LessonVisualRenderer from "@/components/LessonVisual";
@@ -136,15 +137,19 @@ interface ActivitySection {
 function KnowledgeCheck({
   quiz,
   index,
+  position = index,
   total,
   onMastered,
+  onCommit,
   onContinue,
   verifyAnswer,
 }: {
   quiz: Quiz;
   index: number;
+  position?: number;
   total: number;
   onMastered: (index: number, result: QuizResult) => void;
+  onCommit?: () => void;
   onContinue?: () => void;
   verifyAnswer?: (optionIndex: number) => Promise<{
     correct: boolean;
@@ -166,6 +171,7 @@ function KnowledgeCheck({
 
   const choose = async (optionIndex: number) => {
     if (selected !== null || checking) return;
+    onCommit?.();
     const nextAttempts = attempts + 1;
     setVerificationError(null);
     if (!verifyAnswer) {
@@ -194,13 +200,13 @@ function KnowledgeCheck({
 
   return (
     <fieldset className={`knowledge-check ${submittedConfidence ? "is-complete" : ""}`}>
-      <legend className="sr-only">Practice {index + 1}: {quiz.question}</legend>
+      <legend className="sr-only">Practice {position + 1}: {quiz.question}</legend>
       <div className="activity-meta">
-        <span>Practice {index + 1} of {total}</span>
+        <span>Practice {position + 1} of {total}</span>
         <span aria-live="polite">{submittedConfidence ? "Complete" : choicesVisible ? "Choose an answer" : "Recall first"}</span>
       </div>
       <div className="knowledge-question">
-        <span aria-hidden="true">{index + 1}</span>
+        <span aria-hidden="true">{position + 1}</span>
         <h3>{quiz.question}</h3>
       </div>
       {!choicesVisible && (
@@ -210,7 +216,7 @@ function KnowledgeCheck({
             <small>Write a few words before revealing the choices. This reflection stays private.</small>
           </div>
           <textarea id={`recall-${index}`} value={recall} onChange={(event) => setRecall(event.target.value)} rows={2} placeholder="Capture the key idea in your own words…" />
-          <button className="button button-secondary button-small" type="button" onClick={() => setChoicesVisible(true)}>Reveal answer choices <ChevronRight size={15} /></button>
+          <button className="button button-secondary button-small" type="button" disabled={!recall.trim()} onClick={() => setChoicesVisible(true)}>Reveal answer choices <ChevronRight size={15} /></button>
         </div>
       )}
       {choicesVisible && recall.trim() && (
@@ -265,7 +271,7 @@ function KnowledgeCheck({
           )}
           {submittedConfidence && onContinue && (
             <button className="button button-primary button-small practice-continue" type="button" onClick={onContinue}>
-              Continue to practice {index + 2} <ArrowRight size={15} />
+              Continue to practice {position + 2} <ArrowRight size={15} />
             </button>
           )}
         </div>
@@ -328,6 +334,8 @@ export default function LessonView() {
   const studyToolsOpen = studyToolsDrawer.open;
   const openTutorDrawer = tutorDrawer.openDrawer;
   const [activePracticeState, setActivePracticeState] = useState<{ key: string; index: number }>({ key: "", index: 0 });
+  const [reviewVariantState, setReviewVariantState] = useState<{ key: string; id: string | null }>({ key: "", id: null });
+  const [reviewCommitState, setReviewCommitState] = useState<{ key: string; committed: boolean }>({ key: "", committed: false });
   const [lessonPaneState, setLessonPaneState] = useState<{ key: string; pane: LessonPane }>({ key: "", pane: "learn" });
   const [activitySectionState, setActivitySectionState] = useState<{ key: string; id: ActivitySectionId | null }>({ key: "", id: null });
   const [guidedPracticeState, setGuidedPracticeState] = useState<{ key: string; complete: boolean }>({ key: "", complete: false });
@@ -348,16 +356,41 @@ export default function LessonView() {
   const generationStartedAtRef = useRef(0);
   const generationRequestRef = useRef<{ lessonKey: string; requestId: string } | null>(null);
   const interactionAttemptKeysRef = useRef(new Map<string, string>());
+  const progressOperationKeysRef = useRef(new Map<string, string>());
   const lessonLoadsInFlightRef = useRef(new Set<string>());
   const activeLessonViewRef = useRef(lessonViewKey);
+  const progressOperationIdForView = useCallback((viewKey = lessonViewKey) => {
+    const existing = progressOperationKeysRef.current.get(viewKey);
+    if (existing) return existing;
+    const created = createClientId();
+    progressOperationKeysRef.current.set(viewKey, created);
+    return created;
+  }, [lessonViewKey]);
   const quizResults = useMemo(
-    () => quizResultState.key === noteKey ? quizResultState.results : {},
-    [noteKey, quizResultState],
+    () => quizResultState.key === lessonViewKey ? quizResultState.results : {},
+    [lessonViewKey, quizResultState],
   );
-  const complete = completionState.key === noteKey && completionState.complete;
+  const lessonObjectiveId = lessonData?.lessonDesign?.scopeBudget.primaryObjectiveId
+    ?? `objective-m${moduleIndex}-l${lessonIndex}`;
+  const quizVariants = useMemo(
+    () => retrievalVariantsForQuizBank(lessonData?.quizzes ?? [], lessonObjectiveId, lessonId),
+    [lessonData?.quizzes, lessonId, lessonObjectiveId],
+  );
+  const activeQuizEntries = useMemo(() => {
+    if (!lessonData) return [];
+    const entries = lessonData.quizzes.map((quiz, sourceIndex) => ({ quiz, sourceIndex, variant: quizVariants[sourceIndex] }));
+    if (!reviewMode) return entries.filter(({ quiz }) => quiz.intendedUse !== "review");
+    if (reviewVariantState.key !== lessonViewKey) return [];
+    const selectedId = reviewVariantState.id;
+    const reviewEntries = entries.filter(({ quiz }) => quiz.intendedUse !== "initial");
+    const selected = reviewEntries.find(({ variant }) => variant?.id === selectedId);
+    return selected ? [selected] : [];
+  }, [lessonData, lessonViewKey, quizVariants, reviewMode, reviewVariantState]);
+  const reviewVariantHydrated = !reviewMode || reviewVariantState.key === lessonViewKey;
+  const complete = completionState.key === lessonViewKey && completionState.complete;
   const transferResponse = transferState.key === noteKey ? transferState.response : "";
   const transferRevealed = transferState.key === noteKey && transferState.revealed;
-  const transferComplete = !lessonData?.transferTask || (transferRevealed && transferResponse.trim().length >= 20);
+  const transferComplete = reviewMode || !lessonData?.transferTask || (transferRevealed && transferResponse.trim().length >= 20);
   const experienceValue = useMemo(() => lessonData?.experience
     ? experienceState.key === noteKey && experienceState.value?.type === lessonData.experience.type
       ? experienceState.value
@@ -380,15 +413,22 @@ export default function LessonView() {
   const interactionComplete = reviewMode || !practiceInteraction || Boolean(
     interactionEvidence?.interactionId === practiceInteraction.id && interactionEvidence.completed,
   );
-  const lessonPane = lessonPaneState.key === noteKey ? lessonPaneState.pane : reviewMode ? "activities" : "learn";
-  const guidedPracticeComplete = !lessonData?.guidedPractice
+  const lessonPane = lessonPaneState.key === lessonViewKey ? lessonPaneState.pane : reviewMode ? "activities" : "learn";
+  const reviewRecallLocked = reviewMode && !(reviewCommitState.key === lessonViewKey && reviewCommitState.committed);
+  const guidedPracticeComplete = reviewMode || !lessonData?.guidedPractice
     || (guidedPracticeState.key === noteKey && guidedPracticeState.complete);
   const lessonBookmarked = learnerState.lessonBookmarks.includes(noteKey);
-  const activePracticeIndex = activePracticeState.key === noteKey ? activePracticeState.index : 0;
+  const activePracticeIndex = Math.min(
+    activePracticeState.key === lessonViewKey ? activePracticeState.index : 0,
+    Math.max(0, activeQuizEntries.length - 1),
+  );
   const reviewScheduledAt = reviewScheduleState.key === noteKey ? reviewScheduleState.at : null;
   const confidenceCalibration = calibrationState.key === noteKey ? calibrationState.value : null;
   const activitySections = useMemo<ActivitySection[]>(() => {
     if (!lessonData) return [];
+    if (reviewMode) return activeQuizEntries.length
+      ? [{ id: "checks" as const, label: "Knowledge check", description: "One focused retrieval check" }]
+      : [];
     return [
       ...(lessonData.experience ? [{ id: "experience" as const, label: "Active lesson", description: "Create evidence while you learn" }] : []),
       ...(practiceInteraction && !reviewMode ? [{
@@ -398,30 +438,31 @@ export default function LessonView() {
       }] : []),
       ...(lessonData.guidedPractice ? [{ id: "guided" as const, label: "Guided practice", description: "Work through the method" }] : []),
       ...(lessonData.transferTask ? [{ id: "transfer" as const, label: "Transfer task", description: "Apply it in a new situation" }] : []),
-      ...(lessonData.quizzes.length ? [{ id: "checks" as const, label: "Knowledge checks", description: `${lessonData.quizzes.length} retrieval ${lessonData.quizzes.length === 1 ? "check" : "checks"}` }] : []),
+      ...(activeQuizEntries.length ? [{ id: "checks" as const, label: "Knowledge checks", description: `${activeQuizEntries.length} retrieval ${activeQuizEntries.length === 1 ? "check" : "checks"}` }] : []),
     ];
-  }, [lessonData, practiceInteraction, reviewMode]);
-  const requestedActivityId = activitySectionState.key === noteKey ? activitySectionState.id : null;
+  }, [activeQuizEntries.length, lessonData, practiceInteraction, reviewMode]);
+  const requestedActivityId = activitySectionState.key === lessonViewKey ? activitySectionState.id : null;
   const activeActivityId = activitySections.some((section) => section.id === requestedActivityId)
     ? requestedActivityId
     : activitySections[0]?.id ?? null;
   const activeActivityIndex = Math.max(0, activitySections.findIndex((section) => section.id === activeActivityId));
-  const checksComplete = Boolean(lessonData?.quizzes.length)
-    && Object.keys(quizResults).length === lessonData?.quizzes.length;
+  const checksComplete = Boolean(activeQuizEntries.length)
+    && Object.keys(quizResults).length === activeQuizEntries.length;
   const completedActivityIds = useMemo(() => new Set<ActivitySectionId>([
     ...(complete ? activitySections.map((section) => section.id) : []),
     ...(!complete && lessonData?.experience && experienceComplete ? ["experience" as const] : []),
     ...(!complete && practiceInteraction && interactionComplete ? ["lab" as const] : []),
     ...(!complete && lessonData?.guidedPractice && guidedPracticeComplete ? ["guided" as const] : []),
     ...(!complete && lessonData?.transferTask && transferComplete ? ["transfer" as const] : []),
-    ...(!complete && lessonData?.quizzes.length && checksComplete ? ["checks" as const] : []),
-  ]), [activitySections, checksComplete, complete, experienceComplete, guidedPracticeComplete, interactionComplete, lessonData, practiceInteraction, transferComplete]);
+    ...(!complete && activeQuizEntries.length && checksComplete ? ["checks" as const] : []),
+  ]), [activeQuizEntries.length, activitySections, checksComplete, complete, experienceComplete, guidedPracticeComplete, interactionComplete, lessonData, practiceInteraction, transferComplete]);
   const completedActivityCount = activitySections.filter((section) => completedActivityIds.has(section.id)).length;
   const canAdvanceCurrentActivity = activeActivityId === "guided"
     || Boolean(activeActivityId && completedActivityIds.has(activeActivityId));
 
   const selectLessonPane = (pane: LessonPane) => {
-    setLessonPaneState({ key: noteKey, pane });
+    if (pane === "learn" && reviewRecallLocked) return;
+    setLessonPaneState({ key: lessonViewKey, pane });
   };
 
   const focusLessonPane = (pane: LessonPane) => {
@@ -433,6 +474,7 @@ export default function LessonView() {
     if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return;
     event.preventDefault();
     const nextPane = event.key === "ArrowLeft" || event.key === "Home" ? "learn" : "activities";
+    if (nextPane === "learn" && reviewRecallLocked) return;
     focusLessonPane(nextPane);
   };
 
@@ -440,12 +482,12 @@ export default function LessonView() {
     if (activeActivityId === "guided" && id !== "guided") {
       setGuidedPracticeState({ key: noteKey, complete: true });
     }
-    setActivitySectionState({ key: noteKey, id });
+    setActivitySectionState({ key: lessonViewKey, id });
   };
 
   const openLessonChecks = () => {
     selectLessonPane("activities");
-    setActivitySectionState({ key: noteKey, id: "checks" });
+    setActivitySectionState({ key: lessonViewKey, id: "checks" });
     closeStudyToolsDrawer();
     window.setTimeout(() => {
       document.getElementById("activity-checks-tab")?.scrollIntoView({ behavior: "smooth", block: "center" });
@@ -700,6 +742,17 @@ export default function LessonView() {
   useEffect(() => {
     if (!courseId) return;
     let cancelled = false;
+    const chooseReviewVariant = (savedLesson: CourseProgress["lessons"][string] | undefined) => {
+      if (!reviewMode || !lessonData || cancelled) return;
+      const reviewEligibleVariants = quizVariants.filter((_, index) => lessonData.quizzes[index]?.intendedUse !== "initial");
+      const selected = selectRetrievalVariant(
+        reviewEligibleVariants,
+        savedLesson?.retrievalVariantExposures ?? [],
+      );
+      setReviewVariantState({ key: lessonViewKey, id: selected?.id ?? null });
+      setActivePracticeState({ key: lessonViewKey, index: 0 });
+      setQuizResultState({ key: lessonViewKey, results: {} });
+    };
     const loadProgress = async () => {
       if (user) {
         const token = await user.getIdToken();
@@ -710,8 +763,9 @@ export default function LessonView() {
         if (response.ok) {
           const data = await response.json() as { progress: CourseProgress | null };
           if (!cancelled) {
-            setCompletionState({ key: noteKey, complete: !reviewMode && Boolean(data.progress?.completedLessonIds.includes(lessonId)) });
+            setCompletionState({ key: lessonViewKey, complete: !reviewMode && Boolean(data.progress?.completedLessonIds.includes(lessonId)) });
             const savedLesson = data.progress?.lessons[lessonId];
+            chooseReviewVariant(savedLesson);
             setReviewScheduleState({ key: noteKey, at: savedLesson?.nextReviewAt ?? null });
             if (savedLesson?.experienceEvidence) {
               setExperienceState({ key: noteKey, value: { ...savedLesson.experienceEvidence, completed: true } });
@@ -725,8 +779,9 @@ export default function LessonView() {
       }
       const local = getLocalProgress(courseId, topic);
       if (!cancelled) {
-        setCompletionState({ key: noteKey, complete: !reviewMode && Boolean(local?.completedLessonIds.includes(lessonId)) });
+        setCompletionState({ key: lessonViewKey, complete: !reviewMode && Boolean(local?.completedLessonIds.includes(lessonId)) });
         const savedLesson = local?.lessons[lessonId];
+        chooseReviewVariant(savedLesson);
         setReviewScheduleState({ key: noteKey, at: savedLesson?.nextReviewAt ?? null });
         if (savedLesson?.experienceEvidence) {
           setExperienceState({ key: noteKey, value: { ...savedLesson.experienceEvidence, completed: true } });
@@ -737,10 +792,13 @@ export default function LessonView() {
       }
     };
     void loadProgress().catch(() => {
-      if (!cancelled) setCompletionState({ key: noteKey, complete: false });
+      if (!cancelled) {
+        setCompletionState({ key: lessonViewKey, complete: false });
+        chooseReviewVariant(undefined);
+      }
     });
     return () => { cancelled = true; };
-  }, [courseId, lessonId, noteKey, reviewMode, topic, user]);
+  }, [courseId, lessonData, lessonId, lessonViewKey, noteKey, quizVariants, reviewMode, topic, user]);
 
   useEffect(() => {
     if (!courseId || !user || !practiceInteraction || reviewMode) return;
@@ -751,6 +809,7 @@ export default function LessonView() {
       const query = new URLSearchParams({
         courseId,
         lessonId,
+        progressOperationId: progressOperationIdForView(),
         interactionId: practiceInteraction.id,
       });
       const response = await fetch(`/api/lesson-interaction?${query.toString()}`, {
@@ -770,7 +829,7 @@ export default function LessonView() {
       });
     });
     return () => { cancelled = true; };
-  }, [courseId, interactionHydrationRetry, lessonId, noteKey, practiceInteraction, reviewMode, user]);
+  }, [courseId, interactionHydrationRetry, lessonId, noteKey, practiceInteraction, progressOperationIdForView, reviewMode, user]);
 
   useEffect(() => {
     const behavior = window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth";
@@ -832,10 +891,11 @@ export default function LessonView() {
 
   const markComplete = useCallback(async () => {
     if (!courseId || complete || !lessonData || !lesson || !transferComplete || !experienceComplete || !interactionComplete) return;
+    if (reviewMode && (!reviewVariantHydrated || activeQuizEntries.length !== 1)) return;
     const operationViewKey = activeLessonViewRef.current;
     const isCurrentView = () => activeLessonViewRef.current === operationViewKey;
     const results = Object.values(quizResults);
-    if (lessonData.quizzes.length && results.length !== lessonData.quizzes.length) return;
+    if (activeQuizEntries.length && results.length !== activeQuizEntries.length) return;
     const confidences = results.map((result) => result.confidence);
     const confidence: Confidence = confidences.includes("low") ? "low" : confidences.includes("medium") ? "medium" : "high";
     const update: ProgressUpdate = {
@@ -843,7 +903,12 @@ export default function LessonView() {
       topic,
       lessonId,
       lessonTitle: lesson.title,
-      totalQuestions: lessonData.quizzes.length + (interactionEvidence?.itemCount ?? 0),
+      objectiveId: lessonObjectiveId,
+      prerequisiteObjectiveIds: lessonData.lessonDesign?.prerequisites.objectiveIds,
+      retrievalVariantId: reviewMode ? activeQuizEntries[0]?.variant?.id : undefined,
+      retrievalVariantIds: activeQuizEntries.flatMap(({ variant }) => variant ? [variant.id] : []),
+      retrievalVariantBank: quizVariants.filter((_, index) => lessonData.quizzes[index]?.intendedUse !== "initial"),
+      totalQuestions: activeQuizEntries.length + (interactionEvidence?.itemCount ?? 0),
       firstAttemptCorrect: results.filter((result) => result.firstAttemptCorrect).length + (interactionEvidence?.firstAttemptCorrect ?? 0),
       attempts: results.reduce((sum, result) => sum + result.attempts, 0) + (interactionEvidence?.attempts ?? 0),
       confidence,
@@ -872,39 +937,44 @@ export default function LessonView() {
       },
     };
 
-    const localProgress = saveLocalProgress(update);
-    setReviewScheduleState({ key: noteKey, at: localProgress.lessons[lessonId]?.nextReviewAt ?? null });
-    setCalibrationState({ key: noteKey, value: localProgress.lessons[lessonId]?.calibration ?? null });
     setProgressSyncError(null);
-    const requiresCloudAuthorCompletion = Boolean(course?.canManage && !isOwner);
+    if (!user) {
+      const localProgress = saveLocalProgress(update);
+      setReviewScheduleState({ key: noteKey, at: localProgress.lessons[lessonId]?.nextReviewAt ?? null });
+      setCalibrationState({ key: noteKey, value: localProgress.lessons[lessonId]?.calibration ?? null });
+    }
+    const requiresCloudCompletion = Boolean(user);
     let cloudSaved = !user;
     if (user) {
       try {
         const token = await user.getIdToken();
+        const progressOperationId = progressOperationIdForView(operationViewKey);
         const response = await fetch("/api/progress", {
           method: "POST",
-          headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}`, "Idempotency-Key": progressOperationId },
           body: JSON.stringify(update),
         });
         const data = await response.json().catch(() => ({})) as {
           nextReviewAt?: string;
           calibration?: ConfidenceCalibration;
         };
-        if (!response.ok) throw new Error("Saved on this device. Cloud progress will retry when you complete another activity.");
+        if (!response.ok) throw new Error("Progress was not verified. Keep this page open and try the activity again.");
+        progressOperationKeysRef.current.delete(operationViewKey);
         cloudSaved = true;
+        saveLocalProgress(update);
         if (isCurrentView() && data.nextReviewAt) setReviewScheduleState({ key: noteKey, at: data.nextReviewAt });
         if (isCurrentView() && data.calibration) setCalibrationState({ key: noteKey, value: data.calibration });
       } catch (saveError) {
-        if (isCurrentView()) setProgressSyncError(saveError instanceof Error ? saveError.message : "Saved on this device, but cloud sync is pending.");
+        if (isCurrentView()) setProgressSyncError(saveError instanceof Error ? saveError.message : "Progress could not be verified yet.");
       }
     }
-    if (requiresCloudAuthorCompletion && !cloudSaved) return;
+    if (requiresCloudCompletion && !cloudSaved) return;
     const observedAt = new Date().toISOString();
-    const objectiveId = `module-${moduleIndex}`;
+    const objectiveId = lessonObjectiveId;
     const firstTryScore = update.totalQuestions
       ? update.firstAttemptCorrect / update.totalQuestions
       : 1;
-    if (isCurrentView()) setCompletionState({ key: noteKey, complete: true });
+    if (isCurrentView()) setCompletionState({ key: lessonViewKey, complete: true });
     if (cloudSaved) {
         localStorage.removeItem(`filosage-experience-draft:${noteKey}`);
         localStorage.removeItem(`filosage-transfer-draft:${noteKey}`);
@@ -922,7 +992,7 @@ export default function LessonView() {
         lessonTitle: lesson.title,
         confidence,
       }] : []),
-      ...(lessonData.quizzes.length ? [{
+      ...(activeQuizEntries.length ? [{
         id: createClientId(),
         courseId,
         objectiveId,
@@ -985,7 +1055,7 @@ export default function LessonView() {
       const elapsedMs = masteryPlan?.createdAt
         ? Math.max(0, Date.now() - new Date(masteryPlan.createdAt).getTime())
         : undefined;
-      if (lessonData.quizzes.length) {
+      if (activeQuizEntries.length) {
         trackProductEvent("retrieval_attempted", {
           route: "/lesson",
           courseId,
@@ -1012,27 +1082,27 @@ export default function LessonView() {
         elapsedMs,
       });
     }
-  }, [addMasteryEvidence, allLessons.length, complete, course?.canManage, courseId, experienceComplete, experienceValue, interactionComplete, interactionEvidence, isOwner, lesson, lessonData, lessonId, masteryPlan, moduleIndex, nextLesson, noteKey, quizResults, reviewKind, reviewMode, topic, transferComplete, transferResponse, user]);
+  }, [activeQuizEntries, addMasteryEvidence, allLessons.length, complete, courseId, experienceComplete, experienceValue, interactionComplete, interactionEvidence, isOwner, lesson, lessonData, lessonId, lessonObjectiveId, lessonViewKey, masteryPlan, nextLesson, noteKey, progressOperationIdForView, quizResults, quizVariants, reviewKind, reviewMode, reviewVariantHydrated, topic, transferComplete, transferResponse, user]);
 
   const onMastered = (index: number, result: QuizResult) => {
-    setQuizResultState((current) => ({ key: noteKey, results: { ...(current.key === noteKey ? current.results : {}), [index]: result } }));
+    setQuizResultState((current) => ({ key: lessonViewKey, results: { ...(current.key === lessonViewKey ? current.results : {}), [index]: result } }));
   };
 
   const advancePractice = () => {
-    if (!lessonData) return;
+    if (!activeQuizEntries.length) return;
     setActivePracticeState({
-      key: noteKey,
-      index: Math.min(activePracticeIndex + 1, lessonData.quizzes.length - 1),
+      key: lessonViewKey,
+      index: Math.min(activePracticeIndex + 1, activeQuizEntries.length - 1),
     });
   };
 
   useEffect(() => {
-    if (!lessonData?.quizzes.length || complete) return;
-    if (Object.keys(quizResults).length !== lessonData.quizzes.length) return;
+    if (!activeQuizEntries.length || complete) return;
+    if (Object.keys(quizResults).length !== activeQuizEntries.length) return;
     if (!transferComplete || !experienceComplete || !interactionComplete) return;
     const timeout = window.setTimeout(() => { void markComplete(); }, 250);
     return () => window.clearTimeout(timeout);
-  }, [complete, experienceComplete, interactionComplete, lessonData, markComplete, quizResults, transferComplete]);
+  }, [activeQuizEntries.length, complete, experienceComplete, interactionComplete, markComplete, quizResults, transferComplete]);
 
   const sendMessage = async (event: React.FormEvent) => {
     event.preventDefault();
@@ -1128,6 +1198,7 @@ export default function LessonView() {
       body: JSON.stringify({
         courseId,
         lessonId,
+        progressOperationId: progressOperationIdForView(),
         quizIndex,
         selectedOption: lessonData.quizzes[quizIndex]?.options[optionIndex],
       }),
@@ -1148,13 +1219,14 @@ export default function LessonView() {
       firstAttemptCorrect: data.firstAttemptCorrect === true,
       receipt: data.receipt,
     };
-  }, [courseId, getToken, lessonData, lessonId]);
+  }, [courseId, getToken, lessonData, lessonId, progressOperationIdForView]);
 
   const verifyRecognitionAnswer = useCallback(async (itemId: string, selectedIndex: number) => {
     if (!courseId || !practiceInteraction) throw new Error("This practice lab is not ready.");
     const token = await getToken();
     if (!token) throw new Error("Sign in again to verify this response.");
-    const attemptKey = `${noteKey}:${practiceInteraction.id}:${itemId}:${selectedIndex}`;
+    const progressOperationId = progressOperationIdForView();
+    const attemptKey = `${progressOperationId}:${practiceInteraction.id}:${itemId}:${selectedIndex}`;
     let idempotencyKey = interactionAttemptKeysRef.current.get(attemptKey);
     if (!idempotencyKey) {
       idempotencyKey = createClientId();
@@ -1166,6 +1238,7 @@ export default function LessonView() {
       body: JSON.stringify({
         courseId,
         lessonId,
+        progressOperationId,
         interactionId: practiceInteraction.id,
         itemId,
         selectedIndex,
@@ -1188,7 +1261,7 @@ export default function LessonView() {
       firstAttemptCorrect: data.firstAttemptCorrect === true,
       receipt: data.receipt,
     };
-  }, [courseId, getToken, lessonId, noteKey, practiceInteraction]);
+  }, [courseId, getToken, lessonId, practiceInteraction, progressOperationIdForView]);
 
   const courseHref = `/course/${encodeURIComponent(topic)}${courseId ? `?id=${encodeURIComponent(courseId)}` : ""}`;
   const lessonHref = (id: string) => `/course/${encodeURIComponent(topic)}/lesson/${id}${courseId ? `?id=${encodeURIComponent(courseId)}` : ""}`;
@@ -1292,7 +1365,7 @@ export default function LessonView() {
           </nav>
           <div className="lesson-toolbar-actions">
             <span>{currentPosition + 1} of {allLessons.length}</span>
-            {lessonData && lesson && (
+            {lessonData && lesson && !reviewRecallLocked && (
               <SpeakButton
                 label="Read this lesson aloud"
                 text={lessonSpeechText}
@@ -1306,17 +1379,20 @@ export default function LessonView() {
               type="button"
               aria-expanded={studyToolsOpen}
               aria-controls="lesson-study-panel"
+              aria-describedby={reviewRecallLocked ? "review-cues-locked" : undefined}
+              disabled={reviewRecallLocked}
               onClick={studyToolsDrawer.toggleDrawer}
             >
               <NotebookPen size={16} /> {studyToolsOpen ? "Close tools" : "Study tools"}
             </button>
             {user ? (
-              <button className={`button button-secondary button-small ${tutorOpen ? "is-active" : ""}`} onClick={tutorDrawer.toggleDrawer} aria-expanded={tutorOpen}>
+              <button className={`button button-secondary button-small ${tutorOpen ? "is-active" : ""}`} onClick={tutorDrawer.toggleDrawer} aria-expanded={tutorOpen} aria-describedby={reviewRecallLocked ? "review-cues-locked" : undefined} disabled={reviewRecallLocked}>
                 <MessageSquareText size={16} /> {tutorOpen ? "Close Filosage" : "Ask Filosage"}
               </button>
             ) : (
               <span className="owner-only-note"><LockKeyhole size={14} /> Sign in for lesson help</span>
             )}
+            {reviewRecallLocked && <span id="review-cues-locked" className="review-cue-lock-note" role="status"><LockKeyhole size={14} /> Answer from memory to see lesson cues</span>}
           </div>
         </header>
 
@@ -1327,11 +1403,13 @@ export default function LessonView() {
               <header className="lesson-title-block">
                 <p className="overline">{currentModule?.title}</p>
                 <h1>{lesson.title}</h1>
-                <p>{lesson.concept}</p>
+                {reviewRecallLocked
+                  ? <p>Complete the recall check before reviewing the lesson summary.</p>
+                  : <p>{lesson.concept}</p>}
               </header>
 
               <div className="lesson-mode-tabs" role="tablist" aria-label="Lesson workspace">
-                <button id="lesson-learn-tab" type="button" role="tab" aria-selected={lessonPane === "learn"} aria-controls="lesson-pane-content" tabIndex={lessonPane === "learn" ? 0 : -1} className={lessonPane === "learn" ? "is-active" : ""} onClick={() => selectLessonPane("learn")} onKeyDown={handleLessonPaneKeyDown}>
+                <button id="lesson-learn-tab" type="button" role="tab" aria-selected={lessonPane === "learn"} aria-controls="lesson-pane-content" aria-describedby={reviewRecallLocked ? "review-cues-locked" : undefined} disabled={reviewRecallLocked} tabIndex={lessonPane === "learn" ? 0 : -1} className={lessonPane === "learn" ? "is-active" : ""} onClick={() => selectLessonPane("learn")} onKeyDown={handleLessonPaneKeyDown}>
                   <BookOpenText size={17} /><span><strong>Learn</strong><small>Explanation and key ideas</small></span>
                 </button>
                 <button id="lesson-activities-tab" type="button" role="tab" aria-selected={lessonPane === "activities"} aria-controls="lesson-pane-content" tabIndex={lessonPane === "activities" ? 0 : -1} className={lessonPane === "activities" ? "is-active" : ""} onClick={() => selectLessonPane("activities")} onKeyDown={handleLessonPaneKeyDown}>
@@ -1497,7 +1575,7 @@ export default function LessonView() {
                 </section>
               )}
 
-              {lessonPane === "activities" && activeActivityId === "checks" && lessonData.quizzes.length > 0 && (
+              {lessonPane === "activities" && activeActivityId === "checks" && activeQuizEntries.length > 0 && (
                 <section id="lesson-active-activity" className="lesson-section checks-section" role="tabpanel" aria-labelledby="activity-checks-tab checks-title">
                   <div className="lesson-section-heading">
                     <p className="overline">Retrieval practice</p>
@@ -1505,29 +1583,35 @@ export default function LessonView() {
                     <p>Work through one activity at a time. Recall first, choose the best option, then rate your confidence.</p>
                   </div>
                   <div className="practice-sequence-status" aria-live="polite">
-                    <span>Practice {activePracticeIndex + 1} of {lessonData.quizzes.length}</span>
+                    <span>Practice {activePracticeIndex + 1} of {activeQuizEntries.length}</span>
                     <span>{Object.keys(quizResults).length} complete</span>
                   </div>
-                  <div className="practice-sequence-track" role="progressbar" aria-label="Retrieval practice progress" aria-valuemin={0} aria-valuemax={lessonData.quizzes.length} aria-valuenow={Object.keys(quizResults).length}>
-                    <span style={{ transform: `scaleX(${Object.keys(quizResults).length / lessonData.quizzes.length})` }} />
+                  <div className="practice-sequence-track" role="progressbar" aria-label="Retrieval practice progress" aria-valuemin={0} aria-valuemax={activeQuizEntries.length} aria-valuenow={Object.keys(quizResults).length}>
+                    <span style={{ transform: `scaleX(${Object.keys(quizResults).length / activeQuizEntries.length})` }} />
                   </div>
                   <div className="knowledge-list">
                     <KnowledgeCheck
-                      key={`${noteKey}-${activePracticeIndex}-${lessonData.quizzes[activePracticeIndex].question}`}
-                      quiz={lessonData.quizzes[activePracticeIndex]}
-                      index={activePracticeIndex}
-                      total={lessonData.quizzes.length}
+                      key={`${noteKey}-${activeQuizEntries[activePracticeIndex].sourceIndex}-${activeQuizEntries[activePracticeIndex].quiz.question}`}
+                      quiz={activeQuizEntries[activePracticeIndex].quiz}
+                      index={activeQuizEntries[activePracticeIndex].sourceIndex}
+                      position={activePracticeIndex}
+                      total={activeQuizEntries.length}
                       onMastered={onMastered}
-                      onContinue={activePracticeIndex < lessonData.quizzes.length - 1 ? advancePractice : undefined}
-                      verifyAnswer={course?.canManage && !course.isPublic && !isOwner
-                        ? (optionIndex) => verifyAuthorAnswer(activePracticeIndex, optionIndex)
+                      onCommit={reviewMode ? () => setReviewCommitState({ key: lessonViewKey, committed: true }) : undefined}
+                      onContinue={activePracticeIndex < activeQuizEntries.length - 1 ? advancePractice : undefined}
+                      verifyAnswer={user
+                        ? (optionIndex) => verifyAuthorAnswer(activeQuizEntries[activePracticeIndex].sourceIndex, optionIndex)
                         : undefined}
                     />
                   </div>
                 </section>
               )}
 
-              {lessonPane === "activities" && activitySections.length === 0 && (
+              {lessonPane === "activities" && reviewMode && !reviewVariantHydrated && (
+                <div className="lesson-activities-empty" aria-live="polite"><LoaderCircle className="spin" size={22} /><div><strong>Preparing this review</strong><p>Choosing a retrieval variant you have seen least recently.</p></div></div>
+              )}
+
+              {lessonPane === "activities" && reviewVariantHydrated && activitySections.length === 0 && (
                 <div className="lesson-activities-empty"><CheckCircle2 size={22} /><div><strong>No additional activities</strong><p>Confirm that you reviewed the explanation to finish this lesson.</p></div></div>
               )}
 
@@ -1545,7 +1629,7 @@ export default function LessonView() {
                 </div>
               )}
 
-              {lessonPane === "activities" && <div className={`completion-banner ${complete ? "is-complete" : ""}`} role="status" aria-live="polite">
+              {lessonPane === "activities" && reviewVariantHydrated && <div className={`completion-banner ${complete ? "is-complete" : ""}`} role="status" aria-live="polite">
                 <div>{complete ? <CheckCircle2 size={22} /> : <CircleAlert size={22} />}</div>
                 <span>
                   <strong>{complete ? (reviewMode ? `${reviewKindLabel(reviewKind)} complete` : "Lesson complete") : "Complete the activities"}</strong>
@@ -1559,7 +1643,7 @@ export default function LessonView() {
                     </em>
                   )}
                 </span>
-                {!complete && lessonData.quizzes.length === 0 && transferComplete && experienceComplete && interactionComplete && (
+                {!complete && activeQuizEntries.length === 0 && transferComplete && experienceComplete && interactionComplete && (
                   <button className="button button-secondary button-small" onClick={() => void markComplete()}>Mark learned</button>
                 )}
               </div>}
@@ -1570,6 +1654,7 @@ export default function LessonView() {
                   courseId={courseId}
                   lessonId={lessonId}
                   provenance={lessonData.provenance}
+                  design={lessonData.lessonDesign}
                   getAuthToken={getToken}
                 />
               )}
@@ -1594,7 +1679,7 @@ export default function LessonView() {
             </div>
           </article>
 
-          {!tutorOpen && studyToolsOpen && (
+          {!reviewRecallLocked && !tutorOpen && studyToolsOpen && (
             <AppDrawer open={studyToolsOpen} onClose={studyToolsDrawer.closeDrawer} labelledBy="study-tools-title" size="medium" mobilePlacement="bottom" desktopPresentation="floating" draggable dragLabel="Study workspace window" className="lesson-study-app-drawer">
               <LessonStudyTools
                 lessonKey={noteKey}
@@ -1628,7 +1713,7 @@ export default function LessonView() {
             </AppDrawer>
           )}
 
-          {user && tutorOpen && (
+          {!reviewRecallLocked && user && tutorOpen && (
             <AppDrawer open={tutorOpen} onClose={tutorDrawer.closeDrawer} labelledBy="tutor-title" size="medium" mobilePlacement="full" desktopPresentation="floating" draggable dragLabel="Ask Filosage window" className="tutor-app-drawer">
             <aside className="tutor-drawer">
               <header className="tutor-header">

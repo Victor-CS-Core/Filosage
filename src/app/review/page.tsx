@@ -9,7 +9,8 @@ import { useAuth } from "@/components/AuthProvider";
 import type { CourseProgress } from "@/lib/learning-types";
 import { listLocalProgress } from "@/lib/learning-progress";
 import { removeDeletedLocalCourses } from "@/lib/local-course-data";
-import { buildAdaptiveReviewQueue, reviewKindLabel } from "@/lib/adaptive-learning";
+import { reviewKindLabel } from "@/lib/adaptive-learning";
+import { buildPrerequisiteSafeReviewQueue } from "@/lib/review-readiness";
 import { trackProductEvent } from "@/lib/product-analytics";
 
 const SESSION_SIZE = 10;
@@ -74,7 +75,7 @@ export default function ReviewPage() {
     topic: course.topic,
   }))), [progress]);
   const fullQueue = useMemo(
-    () => buildAdaptiveReviewQueue(progress, new Date(now)),
+    () => buildPrerequisiteSafeReviewQueue(progress, new Date(now)),
     [now, progress],
   );
   const due = useMemo(() => fullQueue.slice(0, SESSION_SIZE), [fullQueue]);

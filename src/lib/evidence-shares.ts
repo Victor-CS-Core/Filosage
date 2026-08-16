@@ -19,6 +19,7 @@ interface StoredEvidenceShare {
   expiresAt: string;
   revokedAt?: string;
 }
+
 export interface EvidenceShareSummary {
   id: string;
   courseId: string;

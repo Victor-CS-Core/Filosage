@@ -4,13 +4,23 @@ import {
   getStoredDocument,
   listAllStoredDocuments,
   putStoredDocument,
+  runStoredDocumentTransaction,
 } from "@/lib/firebase-server";
 import { apiRequestErrorResponse, readJsonBody } from "@/lib/api-security";
-import { BASELINE_LEVELS, EVIDENCE_TYPES } from "@/lib/mastery";
+import {
+  BASELINE_LEVELS,
+  EVIDENCE_TYPES,
+  mergeMasteryEvidence,
+  normalizeLearnerReportedMasteryEvidence,
+  normalizeStoredMasteryEvidence,
+} from "@/lib/mastery";
+import { verifiedCapstoneMasteryEvidence } from "@/lib/mastery-server";
+import type { CapstoneAssessment } from "@/lib/learning-types";
 import { getCourseRuntimeArtifact, publishedReleaseUnavailableResponse } from "@/lib/course-pipeline/artifact-access";
+import { objectiveReferenceSchema } from "@/lib/learning-design";
 
 const diagnosticSchema = z.object({
-  objectiveId: z.string().trim().regex(/^module-\d+$/),
+  objectiveId: objectiveReferenceSchema,
   moduleIndex: z.number().int().min(0).max(50),
   moduleTitle: z.string().trim().min(1).max(160),
   objective: z.string().trim().min(1).max(500),
@@ -45,13 +55,14 @@ const planSchema = z.object({
 const evidenceSchema = z.object({
   id: z.string().trim().regex(/^[A-Za-z0-9_-]{12,100}$/),
   courseId: z.string().trim().min(1).max(200),
-  objectiveId: z.string().trim().regex(/^module-\d+$/),
+  objectiveId: objectiveReferenceSchema,
   type: z.enum(EVIDENCE_TYPES),
   result: z.enum(["attempted", "passed", "needs_work"]),
   label: z.string().trim().min(1).max(300),
   observedAt: z.string().datetime(),
   lessonId: z.string().regex(/^\d+-\d+$/).optional(),
   lessonTitle: z.string().trim().min(1).max(160).optional(),
+  authority: z.enum(["learner-reported", "server-verified"]).optional(),
   confidence: z.enum(["low", "medium", "high"]).optional(),
   score: z.number().min(0).max(1).optional(),
   criterion: z.string().trim().min(1).max(300).optional(),
@@ -78,13 +89,29 @@ export async function GET(request: Request) {
     }
     const denied = await assertCourseAccess(courseId, account);
     if (denied) return denied;
-    const [plan, evidence] = await Promise.all([
+    const [plan, evidence, progress, course] = await Promise.all([
       getStoredDocument(`users/${account.uid}/learningOutcomes/${courseId}`),
       listAllStoredDocuments(`users/${account.uid}/masteryEvidence`, 500),
+      getStoredDocument(`users/${account.uid}/courseProgress/${courseId}`),
+      getCourseRuntimeArtifact(courseId),
     ]);
+    const storedEvidence = evidence.flatMap((item) => {
+      const parsed = evidenceSchema.safeParse(item);
+      return parsed.success && parsed.data.courseId === courseId
+        ? [normalizeStoredMasteryEvidence(parsed.data)]
+        : [];
+    });
+    const capstoneEvidence = course
+      ? verifiedCapstoneMasteryEvidence(
+          courseId,
+          course,
+          progress?.capstone as unknown as CapstoneAssessment | undefined,
+        )
+      : [];
+    const parsedPlan = planSchema.safeParse(plan);
     return Response.json({
-      plan: plan ?? null,
-      evidence: evidence.filter((item) => item.courseId === courseId),
+      plan: parsedPlan.success ? parsedPlan.data : null,
+      evidence: mergeMasteryEvidence([], [...storedEvidence, ...capstoneEvidence]),
     }, { headers: { "Cache-Control": "private, no-store" } });
   } catch (error) {
     return publishedReleaseUnavailableResponse(error)
@@ -128,12 +155,32 @@ export async function POST(request: Request) {
     }
     const denied = await assertCourseAccess(parsed.data.courseId, account);
     if (denied) return denied;
-    await putStoredDocument(`users/${account.uid}/masteryEvidence/${parsed.data.id}`, parsed.data);
-    return Response.json({ saved: true }, { headers: { "Cache-Control": "private, no-store" } });
+    const path = `users/${account.uid}/masteryEvidence/${parsed.data.id}`;
+    const evidence = await runStoredDocumentTransaction([path], (documents) => {
+      const existing = evidenceSchema.safeParse(documents[path]);
+      if (existing.success && existing.data.courseId !== parsed.data.courseId) {
+        throw new MasteryEvidenceConflictError();
+      }
+      const next = existing.success && existing.data.authority === "server-verified"
+        ? normalizeStoredMasteryEvidence(existing.data)
+        : normalizeLearnerReportedMasteryEvidence(parsed.data);
+      return {
+        writes: existing.success && existing.data.authority === "server-verified"
+          ? []
+          : [{ path, data: { ...next } }],
+        result: next,
+      };
+    });
+    return Response.json({ saved: true, evidence }, { headers: { "Cache-Control": "private, no-store" } });
   } catch (error) {
+    if (error instanceof MasteryEvidenceConflictError) {
+      return Response.json({ error: "That evidence identifier is already in use." }, { status: 409 });
+    }
     return publishedReleaseUnavailableResponse(error)
       ?? apiRequestErrorResponse(error)
       ?? authorizationResponse(error)
       ?? Response.json({ error: "Learning evidence could not be saved." }, { status: 500 });
   }
 }
+
+class MasteryEvidenceConflictError extends Error {}

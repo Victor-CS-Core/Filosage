@@ -35,6 +35,7 @@ test("course-credit and Pro feature access are explicit in the shared catalog", 
   expect(JSON.stringify(MEMBERSHIP_PLANS)).not.toContain("activeOwnedCourses");
   expect(JSON.stringify(MEMBERSHIP_PLANS)).not.toContain("generatedLessons");
 });
+
 test("course credits accrue monthly, roll over to the cap, and handle plan transitions", () => {
   const plus = { uid: "learner", plan: "plus" as const, accountStatus: "active" as const };
   const first = reconcileCourseCreditLedger(null, plus, new Date("2026-01-31T12:00:00.000Z"));

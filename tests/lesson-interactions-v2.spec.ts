@@ -127,10 +127,11 @@ test("binds practice receipts to the exact learner and recognition item", async 
   ].join("\n")));
   const artifactHash = await publicationContentHash(interaction);
   const claims: InteractionReceiptClaims = {
-    version: 2,
+    version: 3,
     uid: "learner-1",
     courseId: "morse-course",
     lessonId: "0-0",
+    progressOperationId: "progress-operation-123",
     interactionId: "interaction-recognition-morse",
     itemId: "item-morse-a",
     artifactHash,
@@ -143,6 +144,7 @@ test("binds practice receipts to the exact learner and recognition item", async 
     uid: claims.uid,
     courseId: claims.courseId,
     lessonId: claims.lessonId,
+    progressOperationId: claims.progressOperationId,
     interactionId: claims.interactionId,
     itemId: claims.itemId,
     artifactHash: claims.artifactHash,
@@ -152,8 +154,18 @@ test("binds practice receipts to the exact learner and recognition item", async 
     uid: claims.uid,
     courseId: claims.courseId,
     lessonId: claims.lessonId,
+    progressOperationId: claims.progressOperationId,
     interactionId: claims.interactionId,
     itemId: "item-morse-b",
+    artifactHash: claims.artifactHash,
+  })).resolves.toBeNull();
+  await expect(validateInteractionReceipt(secret, receipt, {
+    uid: claims.uid,
+    courseId: claims.courseId,
+    lessonId: claims.lessonId,
+    progressOperationId: "different-operation-456",
+    interactionId: claims.interactionId,
+    itemId: claims.itemId,
     artifactHash: claims.artifactHash,
   })).resolves.toBeNull();
 });

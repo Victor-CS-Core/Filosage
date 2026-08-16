@@ -13,6 +13,7 @@ export const metadata: Metadata = {
 interface PageProps {
   params: Promise<{ token: string }>;
 }
+
 export default async function SharedEvidencePage({ params }: PageProps) {
   const { token } = await params;
   const report = await readEvidenceShare(token);

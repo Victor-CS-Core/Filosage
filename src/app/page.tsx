@@ -10,7 +10,8 @@ import { useAuth } from "@/components/AuthProvider";
 import { useLearnerState } from "@/components/useLearnerState";
 import type { Course } from "@/lib/course-types";
 import type { CourseProgress, LessonProgress } from "@/lib/learning-types";
-import { buildAdaptiveReviewQueue, buildWeeklyMilestone } from "@/lib/adaptive-learning";
+import { buildPrerequisiteSafeReviewQueue } from "@/lib/review-readiness";
+import { buildWeeklyMilestone } from "@/lib/adaptive-learning";
 
 function streakFor(lessons: LessonProgress[]) {
   const dates = new Set(lessons.map((lesson) => lesson.lastStudiedAt.slice(0, 10)));
@@ -130,7 +131,7 @@ export default function Home() {
   }
 
   const lessons = progress.flatMap((item) => Object.values(item.lessons));
-  const due = buildAdaptiveReviewQueue(progress, new Date(now));
+  const due = buildPrerequisiteSafeReviewQueue(progress, new Date(now));
   const weeklyMilestone = buildWeeklyMilestone(progress, learnerState.weeklyLessonGoal, new Date(now));
   const streak = streakFor(lessons);
   const firstName = (account?.displayName ?? user.displayName ?? "Learner").split(" ")[0];

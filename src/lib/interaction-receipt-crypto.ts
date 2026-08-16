@@ -1,8 +1,9 @@
 export interface InteractionReceiptClaims {
-  version: 2;
+  version: 3;
   uid: string;
   courseId: string;
   lessonId: string;
+  progressOperationId: string;
   interactionId: string;
   itemId: string;
   artifactHash: string;
@@ -35,10 +36,10 @@ async function signingKey(secret: string) {
   );
 }
 
-export async function interactionDocumentId(courseId: string, lessonId: string, interactionId: string, itemId: string, artifactHash: string) {
+export async function interactionDocumentId(courseId: string, lessonId: string, progressOperationId: string, interactionId: string, itemId: string, artifactHash: string) {
   const digest = await crypto.subtle.digest(
     "SHA-256",
-    new TextEncoder().encode(`${courseId}:${lessonId}:${interactionId}:${itemId}:${artifactHash}`),
+    new TextEncoder().encode(`${courseId}:${lessonId}:${progressOperationId}:${interactionId}:${itemId}:${artifactHash}`),
   );
   return base64Url(new Uint8Array(digest));
 }
@@ -56,7 +57,7 @@ export async function signInteractionReceipt(secret: string, claims: Interaction
 export async function validateInteractionReceipt(
   secret: string,
   receipt: string,
-  expected: Pick<InteractionReceiptClaims, "uid" | "courseId" | "lessonId" | "interactionId" | "itemId" | "artifactHash">,
+  expected: Pick<InteractionReceiptClaims, "uid" | "courseId" | "lessonId" | "progressOperationId" | "interactionId" | "itemId" | "artifactHash">,
   now = Date.now(),
 ) {
   const [payload, signature, extra] = receipt.split(".");
@@ -73,10 +74,11 @@ export async function validateInteractionReceipt(
     if (!valid) return null;
     const claims = JSON.parse(new TextDecoder().decode(decodeBase64Url(payload))) as InteractionReceiptClaims;
     if (
-      claims.version !== 2
+      claims.version !== 3
       || claims.uid !== expected.uid
       || claims.courseId !== expected.courseId
       || claims.lessonId !== expected.lessonId
+      || claims.progressOperationId !== expected.progressOperationId
       || claims.interactionId !== expected.interactionId
       || claims.itemId !== expected.itemId
       || claims.artifactHash !== expected.artifactHash

@@ -456,6 +456,7 @@ button:disabled { cursor: not-allowed; opacity: 0.55; }
 .lesson-toolbar-actions > span:first-child { color: var(--ink-muted); font-size: 0.7rem; }
 .study-tools-toggle.is-active { border-color: var(--accent); background: var(--accent-soft); color: var(--accent-ink); }
 .owner-only-note { display: inline-flex; align-items: center; gap: 6px; color: var(--ink-muted); font-size: 0.68rem; }
+.review-cue-lock-note { display: inline-flex; align-items: center; gap: 6px; max-width: 15rem; color: var(--ink-muted); font-size: 0.68rem; line-height: 1.25; }
 .lesson-workspace { display: flex; align-items: stretch; }
 .lesson-scroll { flex: 1; min-width: 0; overflow: visible; background: var(--surface); }
 .reading-column { width: min(820px, calc(100% - 48px)); margin: 0 auto; padding: 0 0 72px; }
@@ -3315,15 +3316,17 @@ button.course-deck-spine { cursor: pointer; }
 
 /* Teaching standard page */
 .standard-page { max-width: 880px; margin: 0 auto; padding: 56px 24px 72px; }
-.standard-header h1 { margin-top: 10px; font-size: clamp(2rem, 5vw, 3rem); line-height: 1.12; }
+.standard-header h1 { max-width: 18ch; font-size: clamp(2rem, 5vw, 3.35rem); line-height: 1.08; letter-spacing: -0.035em; }
 .standard-header > p { margin-top: 18px; color: var(--ink-secondary); font-size: var(--text-body); line-height: 1.75; max-width: 68ch; }
-.standard-list { margin-top: 44px; border-top: 2px solid var(--ink); }
-.standard-list article { display: grid; grid-template-columns: 44px minmax(0, 1fr); gap: 16px; padding: 22px 4px; border-bottom: 1px solid var(--line); }
-.standard-list article > span { width: 40px; height: 40px; display: grid; place-items: center; border-radius: 50%; background: var(--accent-soft); color: var(--accent-ink); }
+.standard-list { margin: 44px 0 0; padding: 0; border-top: 2px solid var(--ink); list-style: none; }
+.standard-list li { display: grid; grid-template-columns: 44px minmax(0, 1fr); gap: 16px; padding: 22px 4px; border-bottom: 1px solid var(--line); }
+.standard-list li > span { width: 40px; height: 40px; display: grid; place-items: center; border-radius: 50%; background: var(--accent-soft); color: var(--accent-ink); }
+.standard-list small { display: block; margin-bottom: 4px; color: var(--accent-ink); font-size: 0.68rem; font-weight: 750; letter-spacing: 0.055em; text-transform: uppercase; }
 .standard-list h2 { font-size: 1rem; }
-.standard-list article p { margin-top: 6px; color: var(--ink-secondary); font-size: var(--text-body); line-height: 1.7; max-width: 66ch; }
+.standard-list li p { margin-top: 6px; color: var(--ink-secondary); font-size: var(--text-body); line-height: 1.7; max-width: 66ch; }
 .standard-mastery, .standard-honesty { display: grid; grid-template-columns: 32px minmax(0, 1fr); gap: 14px; margin-top: 34px; padding: 20px 18px; border: 1px solid var(--line-strong); border-radius: var(--radius-md); background: var(--surface-subtle); }
 .standard-mastery > svg { color: var(--brand-coral, #B4532A); margin-top: 2px; }
+.standard-mastery.standard-sources > svg { color: var(--accent-ink); }
 .standard-honesty > svg { color: var(--accent-ink); margin-top: 2px; }
 .standard-mastery h2, .standard-honesty h2 { font-size: 0.95rem; }
 .standard-mastery p, .standard-honesty p { margin-top: 7px; color: var(--ink-secondary); font-size: var(--text-body); line-height: 1.7; }
@@ -4032,7 +4035,14 @@ button.course-deck-spine { cursor: pointer; }
 .journey-lesson-links button { min-height: 42px; display: grid; grid-template-columns: 34px minmax(0, 1fr) 18px; gap: 8px; align-items: center; border: 0; border-bottom: 1px solid var(--line); background: transparent; text-align: left; cursor: pointer; }
 .journey-lesson-links button > span { color: var(--accent-ink); font-size: var(--text-caption); font-weight: 800; }
 .journey-lesson-links button strong { font-size: 0.8rem; }
+.journey-lesson-links button > div { min-width: 0; display: grid; gap: 3px; }
+.journey-lesson-links button > div > strong { overflow-wrap: anywhere; }
+.journey-lesson-links button > div > small { color: var(--ink-muted); font-size: 0.7rem; line-height: 1.35; overflow-wrap: anywhere; }
 .journey-lesson-links button > svg { color: var(--ink-muted); }
+.lesson-design-record { display: grid; gap: 8px; margin: 14px 0; }
+.lesson-design-record > div { display: grid; grid-template-columns: minmax(90px, 0.35fr) minmax(0, 1fr); gap: 12px; padding-top: 8px; border-top: 1px solid var(--line); }
+.lesson-design-record dt { color: var(--ink-muted); font-size: 0.72rem; font-weight: 750; }
+.lesson-design-record dd { margin: 0; color: var(--ink-secondary); font-size: 0.78rem; line-height: 1.45; overflow-wrap: anywhere; }
 
 .mastery-path, .evidence-portfolio { grid-column: 1 / -1; border: 1px solid var(--line); border-radius: var(--radius-md); background: var(--surface); padding: 22px; }
 .mastery-path .panel-heading > div, .evidence-portfolio .panel-heading > div { align-items: flex-start; }

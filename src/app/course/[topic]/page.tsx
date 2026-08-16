@@ -5,6 +5,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import {
   ArrowLeft,
+  ArrowRight,
   BookOpen,
   Bot,
   CheckCircle2,
@@ -666,7 +667,7 @@ export default function CourseMap() {
           await masteryJourney.addEvidence(course.modules.map((courseModule, moduleIndex) => ({
             id: createClientId(),
             courseId,
-            objectiveId: `module-${moduleIndex}`,
+            objectiveId: courseModule.objectiveId ?? `objective-m${moduleIndex}`,
             type: "capstone" as const,
             result: "passed" as const,
             label: `Capstone demonstrated: ${courseModule.objective ?? courseModule.title}`,
@@ -794,6 +795,23 @@ export default function CourseMap() {
             <section><span><CheckCircle2 size={19} /></span><div><small>By the end</small><strong>{course.capstone?.deliverable ?? course.modules[course.modules.length - 1]?.description ?? "Knowledge you can explain and apply"}</strong></div></section>
             <section><span><BookOpen size={19} /></span><div><small>Before you begin</small><strong>{course.prerequisites?.length ? course.prerequisites.join(" · ") : "No prior knowledge required"}</strong></div></section>
           </div>
+
+          {course.learningDesignSummary && (
+            <CourseDisclosure
+              className="course-apprenticeship course-capability-plan"
+              description="The course is bounded by one observable outcome, one inspectable proof of skill, and one focused win per lesson inside the Filosage Capability Cycle."
+              eyebrow="Capability Cycle"
+              headingId="course-capability-plan-title"
+              title="See how every lesson moves this capability forward."
+            >
+              <div className="course-apprenticeship-grid">
+                <article><span><Target size={18} /> Outcome</span><h3>{course.learningDesignSummary.desiredOutcome}</h3><small>The sequence stays anchored to this capability.</small></article>
+                <article><span><Flag size={18} /> Proof of skill</span><h3>{course.learningDesignSummary.proofOfSkill}</h3><small>Completion is tied to visible work, not exposure alone.</small></article>
+                <article><span><Clock3 size={18} /> Focus budget</span><h3>{course.learningDesignSummary.lessonWins.length} focused lesson {course.learningDesignSummary.lessonWins.length === 1 ? "win" : "wins"}</h3><small>About {course.learningDesignSummary.timeBudgetMinutes} minutes across the planned learning path.</small></article>
+              </div>
+              <p className="method-standard-link"><Link className="text-button" href="/standard">Read the Capability Cycle standard <ArrowRight size={14} /></Link></p>
+            </CourseDisclosure>
+          )}
 
           {(hasApprenticeship || hasCourseEvidence) && (
             <CourseDisclosure

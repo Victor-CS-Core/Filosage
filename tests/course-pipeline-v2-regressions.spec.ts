@@ -19,6 +19,10 @@ import { normalizeSuccessCriteria } from "../src/lib/course-criteria";
 import { courseUsesPipelineV2, resolveCoursePipelineFeatureFlags } from "../src/lib/course-pipeline/feature-policy";
 import { COURSE_QUALITY_RULES } from "../src/lib/course-pipeline/rules";
 import { buildGuardedLessonEvidenceDowngrade, buildGuardedLessonSave } from "../src/lib/course-pipeline/lesson-save";
+import {
+  LEARNING_DESIGN_CONTRACT_VERSION,
+  buildLearningDesignContractV1,
+} from "../src/lib/learning-design";
 import { buildInteractionAttemptMutation } from "../src/lib/course-pipeline/interaction-attempt";
 import {
   parsePendingGoogleRedirectAcceptance,
@@ -743,6 +747,7 @@ test("recognition idempotency keys are durable and payload-bound across practice
   const metadata = {
     courseId: "course-a",
     lessonId: "0-0",
+    progressOperationId: "progress-operation-123",
     interactionId: "interaction-recognition-1",
     itemId: "item-1",
     artifactHash: "a".repeat(64),
@@ -1117,6 +1122,66 @@ test("guarded lesson saves reject publish races and stale edits while invalidati
   )).toThrow(/newer edit was preserved/);
 });
 
+test("capability-cycle publication binds every lesson to one current design plan", async () => {
+  const relatedOutline = {
+    ...withCourseObjectiveRelationships(validOutline()),
+    courseSchemaVersion: COURSE_PIPELINE_VERSIONS.courseSchema,
+  };
+  const learningDesign = buildLearningDesignContractV1(relatedOutline);
+  const course = {
+    ...relatedOutline,
+    learningDesignRequired: true,
+    learningDesignContractVersion: LEARNING_DESIGN_CONTRACT_VERSION,
+    learningDesign,
+  };
+  const lessons = learningDesign.lessonPlans.map((plan) => {
+    const [moduleIndex, lessonIndex] = plan.lessonId.split("-").map(Number);
+    const outlineLesson = course.modules[moduleIndex].lessons[lessonIndex];
+    return {
+      ...compactValidLesson(),
+      id: plan.lessonId,
+      schemaVersion: 5,
+      learningObjective: outlineLesson.objective,
+      objectiveIds: [plan.scopeBudget.primaryObjectiveId],
+      learningDesignContractVersion: LEARNING_DESIGN_CONTRACT_VERSION,
+      lessonDesign: plan,
+      transferTask: { ...compactValidLesson().transferTask, criterionIds: plan.feedback.criterionIds },
+      experience: outlineLesson.lessonMode === "concept" ? {
+        type: "concept",
+        predictionPrompt: "Predict which claim is directly observable.",
+        mentalModel: { title: "Claim types", parts: [{ label: "Observation", role: "Reports a checkable result" }, { label: "Inference", role: "Proposes an explanation" }] },
+        misconceptionCheck: { claim: "A confident explanation is an observation.", correction: "Confidence does not turn an explanation into an observation." },
+      } : undefined,
+      quizzes: compactValidLesson().quizzes.map((quiz, index) => ({
+        ...quiz,
+        objectiveIds: [plan.scopeBudget.primaryObjectiveId],
+        assessmentId: index === 0 ? plan.feedback.assessmentIds[0] : undefined,
+      })),
+    };
+  });
+  const expectedLessonIds = learningDesign.lessonPlans.map((plan) => plan.lessonId);
+  const report = await validateCourseCandidateV2(course, lessons, expectedLessonIds);
+  for (const code of ["CQ_PEDAGOGY_001", "CQ_PEDAGOGY_002", "CQ_PEDAGOGY_003"]) {
+    expect(report.issues).not.toContainEqual(expect.objectContaining({ code }));
+  }
+
+  const missingContract = await validateCourseCandidateV2(
+    { ...course, learningDesign: undefined, learningDesignContractVersion: undefined },
+    lessons,
+    expectedLessonIds,
+  );
+  expect(missingContract.issues).toContainEqual(expect.objectContaining({ code: "CQ_PEDAGOGY_001" }));
+
+  const oversized = lessons.map((lesson, index) => index === 0
+    ? { ...lesson, content: `${lesson.content} ${"Additional unrelated explanation. ".repeat(200)}` }
+    : lesson);
+  const rejected = await validateCourseCandidateV2(course, oversized, expectedLessonIds);
+  expect(rejected.issues).toContainEqual(expect.objectContaining({
+    code: "CQ_PEDAGOGY_002",
+    path: 'lessons["0-0"].lesson.content',
+  }));
+});
+
 test("lesson evidence downgrade and replacement save form one owner-aware atomic write set", () => {
   const course = {
     id: "course-1",
@@ -1135,6 +1200,50 @@ test("lesson evidence downgrade and replacement save form one owner-aware atomic
       verifiedLessonCount: 1,
       modelKnowledgeLessonCount: 0,
       fallbackReasonCodes: [],
+    },
+    learningDesign: {
+      contractVersion: "learning-design-v1.0.0",
+      brief: {
+        version: "course-learning-brief-v1.0.0",
+        desiredOutcome: "Evaluate evidence",
+        proofOfSkill: "Produce an evidence assessment",
+        successCriteria: ["Distinguish supported and unsupported claims"],
+        priorKnowledge: "New to the topic",
+        applicationContext: "Personal study",
+        constraints: [],
+        exclusions: [],
+        timeBudgetMinutes: 30,
+      },
+      lessonPlans: [{
+        version: "lesson-design-plan-v1.0.0",
+        lessonId: "0-0",
+        scopeBudget: {
+          version: "lesson-design-plan-v1.0.0",
+          singleWin: "evaluate one evidence claim",
+          primaryObjectiveId: "objective-m0-l0",
+          estimatedMinutes: 18,
+          practiceMinutes: 8,
+          newConceptLimit: 2,
+          explanationWordLimit: 500,
+        },
+        prerequisites: { objectiveIds: [], connectionStrategy: null },
+        retrieval: { required: false, targets: [] },
+        misconception: null,
+        feedback: {
+          mode: "rubric-self-check",
+          timing: "after-commitment",
+          assessmentIds: ["assessment-m0-l0-practice"],
+          criterionIds: ["criterion-m0-l0-0"],
+          revisionRequiredOnMiss: true,
+          completionEvidence: "attempted",
+        },
+        resources: {
+          status: "available",
+          evidenceSourceIds: ["source-1"],
+          furtherReadingIds: [],
+          rationale: "Use the verified source assigned to this lesson.",
+        },
+      }],
     },
     modules: [{
       title: "Module",
@@ -1192,6 +1301,17 @@ test("lesson evidence downgrade and replacement save form one owner-aware atomic
           verifiedLessonCount: 0,
           modelKnowledgeLessonCount: 1,
           fallbackReasonCodes: ["lesson-grounding-downgraded"],
+        }),
+        learningDesign: expect.objectContaining({
+          lessonPlans: [expect.objectContaining({
+            lessonId: "0-0",
+            resources: {
+              status: "unavailable",
+              evidenceSourceIds: [],
+              furtherReadingIds: [],
+              rationale: "Automatic claim verification did not retain a lesson-specific resource; the lesson continues with disclosed model knowledge.",
+            },
+          })],
         }),
       }),
     }),

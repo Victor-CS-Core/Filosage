@@ -4,6 +4,7 @@ import { safeModelErrorDetails } from "@/lib/model-fallback";
 interface RouteParams {
   params: Promise<{ token: string }>;
 }
+
 const PUBLIC_HEADERS = {
   "Cache-Control": "private, no-store",
   "Content-Security-Policy": "default-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'",

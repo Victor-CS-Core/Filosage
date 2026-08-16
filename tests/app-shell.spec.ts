@@ -455,7 +455,7 @@ test.describe("desktop application shell", () => {
       { path: "/review", heading: /caught up|concept/ },
       { path: "/pricing", heading: /Choose how far Filosage carries the work/ },
       { path: "/support", heading: /What do you need help with/ },
-      { path: "/standard", heading: /Generated is not good enough/ },
+      { path: "/standard", heading: /Capability Cycle turns a goal into usable skill/ },
     ];
 
     for (const route of routes) {

@@ -391,9 +391,7 @@ export async function finalizeAiUsage(
   const nowIso = new Date().toISOString();
   const defaultModel = reservation.feature === "command_center_draft"
     ? serverEnvironment.OPENAI_COMMAND_CENTER_MODEL || serverEnvironment.OPENAI_MODEL || "gpt-5.6-terra"
-    : reservation.feature === "flashcard_generation"
-    ? serverEnvironment.OPENAI_FLASHCARD_MODEL || serverEnvironment.OPENAI_TUTOR_MODEL || "gpt-5.6-luna"
-    : reservation.feature === "tutor"
+    : reservation.feature === "tutor" || reservation.feature === "flashcard_generation"
     ? serverEnvironment.OPENAI_TUTOR_MODEL || "gpt-5.6-luna"
     : reservation.feature === "course_banner"
       ? serverEnvironment.OPENAI_COURSE_IMAGE_MODEL || "gpt-image-1-mini"

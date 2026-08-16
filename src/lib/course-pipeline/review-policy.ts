@@ -1,5 +1,19 @@
 export const COURSE_REVIEW_POLICY_VERSION = "course-review-policy-v1.3.0";
 
+export const MODEL_KNOWLEDGE_HIGH_STAKES_REASON_CODES = [
+  "medical",
+  "legal",
+  "financial",
+  "physical_safety",
+  "freshness",
+] as const;
+
+export function requiresModelKnowledgeHighStakesSafeguard(reasonCodes: readonly string[]) {
+  return reasonCodes.some((code) =>
+    (MODEL_KNOWLEDGE_HIGH_STAKES_REASON_CODES as readonly string[]).includes(code),
+  );
+}
+
 const HIGH_STAKES_PATTERNS = [
   { code: "medical", pattern: /\b(?:medical|medicine|clinical|public[- ]health|health systems?|population health|epidemiolog(?:y|ical)|patients?|symptoms?|first[- ]aid|bleeding|stroke|heart attack|cardiac|choking|airway|insulin|anaphylaxis|allergic reaction|wound care|surgical|surgery|dose|dosage|medication|prescription|cpr|pregnan(?:cy|t)|suicide|self[- ]harm|mental health crisis|diabetes|nutrition therapy|seizure|poisoning|infection|burn care|fracture|(?:diagnos(?:is|e|tic)(?:\s+(?:of|for))?\s+(?:patients?|symptoms?|disease|illness|injur(?:y|ies)|infection|cancer|diabetes|fractures?|wounds?))|(?:treat(?:ment|ing)(?:\s+(?:of|for))?\s+(?:patients?|symptoms?|disease|illness|injur(?:y|ies)|infection|cancer|diabetes|fractures?|wounds?))|primeros auxilios|hemorragia|accidente cerebrovascular|salud mental|medicamento|premiers? secours|hémorragie|accident vasculaire cérébral|santé mentale|médicament|primeiros socorros|sangramento|saúde mental)\b/i },
   { code: "legal", pattern: /\b(?:legal advice|lawsuit|contract law|immigration law|criminal law|liability law|statute|regulation|regulatory obligations?|asesoría legal|derecho migratorio|obligaciones regulatorias|conseil juridique|droit de l'immigration|obligations réglementaires)\b/i },
@@ -23,6 +37,17 @@ export function effectiveCourseReviewPolicy(course: {
   mission?: string;
   outcome?: string;
   freshnessRequired?: boolean;
+  instructionalContext?: {
+    goal?: string;
+    application?: string;
+    background?: string;
+    constraints?: string;
+    exclusions?: string;
+    artifactPreference?: string;
+    scenarioPreference?: string;
+  };
+  artifact?: { title?: string; description?: string; format?: string };
+  scenario?: { title?: string; context?: string; stakes?: string };
   modules?: Array<{
     title?: string;
     description?: string;
@@ -38,6 +63,13 @@ export function effectiveCourseReviewPolicy(course: {
     course.topic,
     course.mission,
     course.outcome,
+    course.instructionalContext?.goal,
+    course.instructionalContext?.application,
+    course.instructionalContext?.background,
+    course.instructionalContext?.constraints,
+    course.instructionalContext?.exclusions,
+    course.instructionalContext?.artifactPreference,
+    course.instructionalContext?.scenarioPreference,
     course.freshnessRequired ? "current regulation requirement" : undefined,
   );
   const currentStoredPolicy = course.manualReviewPolicy?.version === COURSE_REVIEW_POLICY_VERSION

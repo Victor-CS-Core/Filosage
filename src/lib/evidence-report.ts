@@ -11,6 +11,7 @@ import {
   masteryPercent,
   mergeMasteryEvidence,
   moduleObjectiveId,
+  normalizeStoredMasteryEvidence,
   type LearningOutcomePlan,
   type MasteryEvidence,
 } from "@/lib/mastery";
@@ -97,7 +98,7 @@ function evidenceValue(value: Record<string, unknown>, courseId: string): Master
     || !["attempted", "passed", "needs_work"].includes(String(value.result))
     || !stringValue(value.label)
     || !stringValue(value.observedAt)) return null;
-  return value as unknown as MasteryEvidence;
+  return normalizeStoredMasteryEvidence(value as unknown as MasteryEvidence);
 }
 
 export async function buildEvidenceReport(
@@ -171,7 +172,7 @@ export async function buildEvidenceReport(
       result: item.result,
       label: stringValue(item.label),
       observedAt: stringValue(item.observedAt),
-      authority: "learner-reported",
+      authority: item.authority === "server-verified" ? "server-verified" : "learner-reported",
       ...(item.confidence ? { confidence: item.confidence } : {}),
       ...(item.criterion ? { criterion: stringValue(item.criterion) } : {}),
     })),

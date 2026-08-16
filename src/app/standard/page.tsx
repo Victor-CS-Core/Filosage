@@ -1,44 +1,55 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowRight, BookOpenCheck, CalendarCheck2, Check, Flag, Lightbulb, ShieldCheck, Target, Waypoints } from "lucide-react";
+import {
+  ArrowRight,
+  BookOpenCheck,
+  BrainCircuit,
+  CalendarCheck2,
+  CheckCircle2,
+  Flag,
+  ShieldCheck,
+  Target,
+  Waypoints,
+} from "lucide-react";
 import AppShell from "@/components/AppShell";
 
-const requirements = [
+const capabilityCycle = [
   {
     icon: Target,
-    title: "One observable objective",
-    detail: "Every lesson states what you will be able to do afterward: something you could actually demonstrate, not a vague theme. Lessons without one are rejected and regenerated.",
+    stage: "Define",
+    title: "Start with one observable win",
+    detail: "The course begins with a real outcome and proof of skill. Each lesson then receives one focused capability, a practical time budget, and a clear result the learner can demonstrate in one sitting.",
   },
   {
-    icon: Lightbulb,
-    title: "A named misconception",
-    detail: "Each lesson identifies a consequential misconception about its concept and teaches against it directly. Progress records the material you completed without claiming what you personally believed.",
+    icon: BrainCircuit,
+    stage: "Activate",
+    title: "Bring the right prior knowledge forward",
+    detail: "Later lessons name the capabilities they build on and begin with recall, discrimination, or prediction when it is useful. The sequence does not manufacture prerequisite work for an opening lesson.",
   },
   {
     icon: BookOpenCheck,
-    title: "Guided practice with visible reasoning",
-    detail: "Worked steps show how the method reaches an answer, with at least one explicit reasoning step instead of an unexplained result.",
+    stage: "Practice",
+    title: "Use only the explanation the attempt requires",
+    detail: "Concise explanation, worked reasoning, and a named misconception prepare the learner for one central activity and guided attempt. Essential visuals require an accessible text or table equivalent.",
   },
   {
-    icon: Waypoints,
-    title: "A visual or an accessible fallback",
-    detail: "When a lesson marks a visual as essential, publication requires a supported visual or an equivalent text or table explanation. A merely helpful visual may be absent when the fallback still teaches the relationship.",
+    icon: CheckCircle2,
+    stage: "Feedback",
+    title: "Commit before feedback appears",
+    detail: "Feedback stays hidden until the learner commits, uses criteria bound to the saved task, and asks for revision when the attempt misses the target. A self-check records an attempt without overstating what it proved.",
   },
   {
     icon: ArrowRight,
-    title: "A transfer task",
-    detail: "Understanding you can only use in the original example is not understanding. Every lesson asks you to apply the idea in a new situation, with measurable success criteria.",
-  },
-  {
-    icon: Check,
-    title: "Retrieval checks with honest feedback",
-    detail: "You recall from memory before seeing the choices, and every answer option explains why it is right or wrong. Even a wrong guess teaches you something.",
+    stage: "Transfer",
+    title: "Use the capability in a different context",
+    detail: "The transfer task changes the situation instead of repeating guided practice. Its success criteria make the difference between exposure, an attempt, and demonstrated work visible.",
   },
   {
     icon: CalendarCheck2,
-    title: "A place in your review schedule",
-    detail: "Completed concepts return on scheduled intervals: sooner after fragile performance or overconfidence, and later after stronger review performance.",
+    stage: "Return",
+    title: "Review when the capability is ready",
+    detail: "Completed work returns through spaced or interleaved retrieval. Prerequisites, due time, and verified activity determine what enters the queue; a self-report never becomes demonstrated mastery by itself.",
   },
 ];
 
@@ -47,31 +58,43 @@ export default function TeachingStandardPage() {
     <AppShell>
       <div className="standard-page">
         <header className="standard-header">
-          <p className="overline">The Filosage teaching standard</p>
-          <h1>Generated is not good enough.<br />Every lesson is held to a standard.</h1>
+          <h1>The Filosage Capability Cycle turns a goal into usable skill.</h1>
           <p>
-            There are plenty of AI course generators out there. Filosage works differently: every published lesson has
-            to help learners build understanding that lasts. Automated checks reject or rebuild drafts that fall short,
-            and authors review their work before publication. Here is the standard each published lesson must pass.
+            Every private course starts with the outcome, context, prior knowledge, proof of skill, and time available.
+            Its lessons then follow one repeatable cycle so explanation, practice, feedback, transfer, and review work
+            together instead of becoming a collection of generated articles.
           </p>
         </header>
 
-        <section className="standard-list" aria-label="Published lesson review checks">
-          {requirements.map(({ icon: Icon, title, detail }) => (
-            <article key={title}>
+        <ol className="standard-list" aria-label="The six stages of the Filosage Capability Cycle">
+          {capabilityCycle.map(({ icon: Icon, stage, title, detail }) => (
+            <li key={stage}>
               <span><Icon size={20} /></span>
-              <div><h2>{title}</h2><p>{detail}</p></div>
-            </article>
+              <div><small>{stage}</small><h2>{title}</h2><p>{detail}</p></div>
+            </li>
           ))}
-        </section>
+        </ol>
 
         <section className="standard-mastery">
           <Flag size={20} />
           <div>
-            <h2>Lesson completion and assessed work stay separate</h2>
+            <h2>Completion, attempts, and demonstrated capability stay separate</h2>
             <p>
-              Courses end in a capstone with clear success criteria. Finishing the lessons completes the instructional
-              sequence; the capstone is assessed separately and only passes when its criteria are met.
+              Finishing a lesson completes part of the instructional sequence. A self-check records an attempt, verified
+              practice can demonstrate a lesson criterion, and the capstone is assessed separately against its own success
+              criteria. Filosage does not turn exposure or confidence into an invented mastery score.
+            </p>
+          </div>
+        </section>
+
+        <section className="standard-mastery standard-sources">
+          <Waypoints size={20} />
+          <div>
+            <h2>Source status says only what the evidence can support</h2>
+            <p>
+              Source-backed statements retain claim-level grounding to the current lesson version. When suitable evidence
+              cannot be retained, the lesson may continue with clearly disclosed AI general knowledge and no invented
+              citations. Further reading remains optional study material, not proof that a book or page supported a claim.
             </p>
           </div>
         </section>
@@ -79,12 +102,13 @@ export default function TeachingStandardPage() {
         <section className="standard-honesty">
           <ShieldCheck size={20} />
           <div>
-            <h2>What we are honest about</h2>
+            <h2>Private creation is automatic; public publication is reviewed</h2>
             <p>
-              Lessons are AI-assisted and labeled as such. Briefs and outputs are screened for safety, language
-              consistency, structure, and teaching quality; authors must review before publishing. These controls reduce
-              mistakes but cannot guarantee factual accuracy, so important claims should still be verified. Reports can
-              trigger review, restriction, or removal, and the platform owner can unpublish any course.
+              A private course map and its lessons do not wait for a person. They are generated with automated safety,
+              language, structure, evidence, accessibility, and Capability Cycle checks. Making a course public is a
+              separate action that requires review of the exact draft. These controls reduce mistakes but cannot guarantee
+              factual accuracy; consequential claims still require current authoritative guidance. Reports can trigger
+              review, restriction, or removal.
             </p>
           </div>
         </section>

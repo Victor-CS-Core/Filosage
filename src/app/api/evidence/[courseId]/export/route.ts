@@ -6,6 +6,7 @@ import { safeModelErrorDetails } from "@/lib/model-fallback";
 interface RouteParams {
   params: Promise<{ courseId: string }>;
 }
+
 export async function GET(request: Request, { params }: RouteParams) {
   const { courseId } = await params;
   try {

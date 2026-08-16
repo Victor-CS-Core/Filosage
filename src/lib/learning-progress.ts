@@ -119,6 +119,8 @@ export function saveLocalProgress(update: ProgressUpdate) {
       calibration: schedule.calibration,
       performanceBand: schedule.performanceBand,
       intervalStage: schedule.intervalStage,
+      retrievalVariantId: update.retrievalVariantId,
+      evidenceAuthority: "activity-observed" as const,
     },
   ].slice(-50) : previousLesson?.reviewHistory;
 
@@ -136,7 +138,10 @@ export function saveLocalProgress(update: ProgressUpdate) {
       [update.lessonId]: {
         lessonId: update.lessonId,
         lessonTitle: update.lessonTitle,
-        status: update.review && schedule.performanceBand === "secure" ? "mastered" : "learned",
+        objectiveId: update.objectiveId ?? previousLesson?.objectiveId,
+        prerequisiteObjectiveIds: update.prerequisiteObjectiveIds ?? previousLesson?.prerequisiteObjectiveIds,
+        status: "learned",
+        evidenceAuthority: "activity-observed",
         attempts: update.attempts,
         totalQuestions: update.totalQuestions,
         firstAttemptCorrect: update.firstAttemptCorrect,
@@ -150,6 +155,11 @@ export function saveLocalProgress(update: ProgressUpdate) {
         completedAt,
         delayedChecks,
         reviewHistory,
+        retrievalVariantExposures: [
+          ...(previousLesson?.retrievalVariantExposures ?? []),
+          ...(update.retrievalVariantIds ?? []).map((variantId) => ({ variantId, seenAt: observedAt })),
+        ].slice(-100),
+        retrievalVariantBank: update.retrievalVariantBank ?? previousLesson?.retrievalVariantBank,
         estimatedMinutes: update.estimatedMinutes ?? previousLesson?.estimatedMinutes,
         misconception: update.misconception ?? previousLesson?.misconception,
         experienceEvidence: update.activityEvidence?.experienceEvidence ?? previousLesson?.experienceEvidence,

@@ -25,6 +25,7 @@ export interface AdaptiveReviewCandidate {
   topic: string;
   lessonId: string;
   lessonTitle: string;
+  objectiveId: string;
   kind: ReviewKind;
   dueAt: string;
   priority: number;
@@ -154,7 +155,7 @@ function overdueDays(dueAt: string, now: Date) {
   return Math.max(0, Math.floor((now.getTime() - Date.parse(dueAt)) / DAY_MS));
 }
 
-function nextDueKind(lesson: LessonProgress, now: Date): { kind: ReviewKind; dueAt: string } | null {
+export function nextDueKind(lesson: LessonProgress, now: Date): { kind: ReviewKind; dueAt: string } | null {
   const completedTime = Date.parse(lesson.completedAt ?? "");
   const day7 = lesson.delayedChecks?.day7 ?? (
     Number.isFinite(completedTime)
@@ -215,6 +216,7 @@ export function buildAdaptiveReviewQueue(
         topic: course.topic,
         lessonId: lesson.lessonId,
         lessonTitle: lesson.lessonTitle,
+        objectiveId: lesson.objectiveId ?? `objective-${course.courseId}-${lesson.lessonId}`,
         kind: due.kind,
         dueAt: due.dueAt,
         priority: kindWeight + fragilityWeight + calibrationWeight + Math.min(30, overdueDays(due.dueAt, now) * 3),

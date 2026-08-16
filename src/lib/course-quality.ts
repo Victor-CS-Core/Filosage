@@ -1,6 +1,6 @@
 import type { Course, CourseModule, LessonMode, LessonSummary } from "@/lib/course-types";
 
-export const COURSE_QUALITY_GATE_VERSION = "guided-apprenticeship-v1";
+export const COURSE_QUALITY_GATE_VERSION = "guided-apprenticeship-v3-capability-cycle-duration";
 
 type CourseOutline = Pick<Course, "artifact" | "capstone" | "modules" | "outcome">;
 
@@ -66,6 +66,9 @@ function modeIssues(lessons: Array<{ lesson: LessonSummary; label: string }>) {
 export function courseQualityIssues(course: CourseOutline) {
   const issues: string[] = [];
   const lessons = flattenedLessons(course.modules);
+  if (GENERIC_VERBS.test(course.outcome ?? "")) {
+    issues.push("The course outcome must describe an observable capability.");
+  }
   issues.push(...duplicateValues(lessons.map(({ lesson, label }) => ({ label, value: lesson.title })), "The title"));
   issues.push(...duplicateValues(lessons.map(({ lesson, label }) => ({ label, value: lesson.activityPreview })), "The activity", true));
   issues.push(...duplicateValues(lessons.map(({ lesson, label }) => ({ label, value: lesson.artifactContribution })), "The artifact contribution", true));
@@ -76,6 +79,10 @@ export function courseQualityIssues(course: CourseOutline) {
   for (const { lesson, label } of lessons) {
     if (GENERIC_VERBS.test(lesson.objective ?? "")) issues.push(`The objective for ${label} must use an observable action.`);
     if (GENERIC_VERBS.test(lesson.masteryCriteria ?? "")) issues.push(`The mastery criterion for ${label} must describe observable evidence.`);
+    const maximumMinutes = lesson.lessonMode === "practice-lab" || lesson.lessonMode === "synthesis" ? 45 : 30;
+    if ((lesson.estimatedMinutes ?? 0) > maximumMinutes) {
+      issues.push(`The estimate for ${label} exceeds the single-sitting ${maximumMinutes}-minute lesson budget.`);
+    }
   }
   const earlierTitles = new Set<string>();
   for (const { lesson, label } of lessons) {

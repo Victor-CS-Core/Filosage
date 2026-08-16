@@ -1,6 +1,7 @@
 import type { LessonVisual } from "@/lib/lesson-visuals";
 import type { LessonInteraction } from "@/lib/lesson-interactions";
 import type { CourseStage } from "@/lib/course-pipeline/contract";
+import type { LearningDesignContractV1, LessonDesignPlanV1 } from "@/lib/learning-design";
 
 export type LessonMode =
   | "concept"
@@ -222,6 +223,18 @@ export interface Course {
   labRegistryVersion?: string;
   visualPolicyVersion?: string;
   sourcePolicyVersion?: string;
+  learningDesignRequired?: boolean;
+  learningDesignContractVersion?: string;
+  /** Private authoring contract. Public DTOs expose only learningDesignSummary. */
+  learningDesign?: LearningDesignContractV1;
+  learningDesignSummary?: {
+    contractVersion: string;
+    desiredOutcome: string;
+    proofOfSkill: string;
+    successCriteria: string[];
+    timeBudgetMinutes: number;
+    lessonWins: Array<{ lessonId: string; objectiveId: string; singleWin: string; estimatedMinutes: number }>;
+  };
   sourceGroundingEvaluatorVersion?: string;
   sourceGroundingEvaluatorStatus?: "executed" | "not_executed" | "not_applicable";
   sourceGroundingFingerprint?: string;
@@ -287,6 +300,12 @@ export interface Course {
 }
 
 export interface Quiz {
+  id?: string;
+  variantFamilyId?: string;
+  intendedUse?: "initial" | "review" | "both";
+  difficulty?: "foundation" | "contrast" | "transfer";
+  misconceptionId?: string;
+  assessmentId?: string;
   question: string;
   options: string[];
   correctIndex: number;
@@ -303,6 +322,7 @@ export interface LessonData {
   aiAssisted?: boolean;
   learningObjective?: string;
   objectiveIds?: string[];
+  lessonDesign?: LessonDesignPlanV1;
   connection?: string;
   keyTakeaways?: string[];
   experience?: LessonExperience;
@@ -339,6 +359,7 @@ export interface LessonData {
     prompt: string;
     successCriteria: string[];
     modelResponse: string;
+    criterionIds?: string[];
   };
   provenance?: {
     contentVersion: string;
@@ -379,6 +400,7 @@ export interface LessonData {
     labRegistryVersion?: string;
     visualPolicyVersion?: string;
     sourcePolicyVersion?: string;
+    learningDesignContractVersion?: string;
     claimSupportEvaluatorVersion?: string;
     contentBasis?: LessonContentBasis;
     claimSupportEvaluatorStatus?: "executed" | "not_executed" | "not_applicable";
@@ -417,7 +439,7 @@ export interface LearnerAccount {
     createCourse: boolean;
     generateLesson: boolean;
     flashcardDecksEnabled?: boolean;
-    createCustomFlashcardDeck?: boolean;
+    createCustomFlashcardDeck: boolean;
     publishCourse: boolean;
     advancedCapstoneAnalysis: boolean;
     exportEvidenceReport: boolean;

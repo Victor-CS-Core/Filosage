@@ -1,9 +1,50 @@
-import type { LessonData, LessonKind, LessonMode } from "@/lib/course-types";
+import type { LessonData, LessonKind, LessonMode, Quiz } from "@/lib/course-types";
 import { inspectGeneratedContent } from "@/lib/content-language";
 import { hasBlockMarkdownSyntax, hasCollapsedMarkdownTable } from "@/lib/markdown";
 import { interactionQualityIssues } from "@/lib/lesson-interactions";
 
-export const LESSON_QUALITY_GATE_VERSION = "apprenticeship-v8-contract-aligned";
+export const LESSON_QUALITY_GATE_VERSION = "apprenticeship-v10-capability-cycle-bindings";
+
+function optionLength(value: string) {
+  return {
+    characters: value.trim().replace(/\s+/g, " ").length,
+    words: value.match(/[\p{L}\p{N}]+(?:['’][\p{L}\p{N}]+)*/gu)?.length ?? 0,
+  };
+}
+
+function median(values: number[]) {
+  const sorted = [...values].sort((left, right) => left - right);
+  return sorted[Math.floor(sorted.length / 2)] ?? 0;
+}
+
+/**
+ * Detect only strong answer-length cues. Natural variation is desirable; the
+ * gate rejects the cases where the correct option is effectively announced by
+ * being a fully developed response among fragments (or the inverse).
+ */
+export function quizAnswerCueIssues(quizzes: Quiz[]) {
+  const issues: string[] = [];
+  for (const [quizIndex, quiz] of quizzes.entries()) {
+    const correct = quiz.options[quiz.correctIndex];
+    if (!correct || quiz.options.length !== 4) continue;
+    const correctLength = optionLength(correct);
+    const distractorLengths = quiz.options
+      .filter((_, optionIndex) => optionIndex !== quiz.correctIndex)
+      .map(optionLength);
+    const medianWords = median(distractorLengths.map((length) => length.words));
+    const medianCharacters = median(distractorLengths.map((length) => length.characters));
+    const conspicuouslyLong = correctLength.words >= 6
+      && correctLength.words >= Math.max(6, medianWords * 2.4)
+      && correctLength.characters >= Math.max(36, medianCharacters * 2.2);
+    const conspicuouslyShort = medianWords >= 6
+      && medianWords >= Math.max(6, correctLength.words * 2.4)
+      && medianCharacters >= Math.max(36, correctLength.characters * 2.2);
+    if (conspicuouslyLong || conspicuouslyShort) {
+      issues.push(`Quiz ${quizIndex + 1} reveals the correct answer through a conspicuous length difference.`);
+    }
+  }
+  return issues;
+}
 
 export function lessonQualityIssues(
   lesson: LessonData | null,
@@ -51,6 +92,7 @@ export function lessonQualityIssues(
   if (lesson.quizzes.some((quiz) => quiz.options.length !== 4 || quiz.optionFeedback?.length !== 4)) {
     issues.push("Every quiz option needs corresponding feedback.");
   }
+  issues.push(...quizAnswerCueIssues(lesson.quizzes));
   if (expectedMode && !lesson.experience) {
     issues.push("The lesson is missing its mode-specific activity.");
   } else if (expectedMode && lesson.experience?.type !== expectedMode) {

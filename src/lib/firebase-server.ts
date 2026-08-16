@@ -1499,11 +1499,11 @@ export async function deleteCourse(courseId: string) {
     manualReviewMutationDocuments,
     lessonInteractionDocuments,
     lessonInteractionMutationDocuments,
+    evidenceShareDocuments,
+    evidenceShareReferenceDocuments,
     flashcardDeckDocuments,
     flashcardDocuments,
     flashcardReviewDocuments,
-    evidenceShareDocuments,
-    evidenceShareReferenceDocuments,
   ] = await Promise.all([
     listLessons(courseId),
     courseScopedDocuments(COURSE_SCOPED_COLLECTION_GROUPS.progress),
@@ -1545,11 +1545,11 @@ export async function deleteCourse(courseId: string) {
     courseScopedDocuments(COURSE_SCOPED_COLLECTION_GROUPS.manualReviewMutations),
     courseScopedDocuments(COURSE_SCOPED_COLLECTION_GROUPS.lessonInteractions),
     courseScopedDocuments(COURSE_SCOPED_COLLECTION_GROUPS.lessonInteractionMutations),
+    courseScopedDocuments(COURSE_SCOPED_COLLECTION_GROUPS.evidenceShares),
+    courseScopedDocuments(COURSE_SCOPED_COLLECTION_GROUPS.evidenceShareRefs),
     courseScopedDocuments(COURSE_SCOPED_COLLECTION_GROUPS.flashcardDecks),
     courseScopedDocuments(COURSE_SCOPED_COLLECTION_GROUPS.flashcards),
     courseScopedDocuments(COURSE_SCOPED_COLLECTION_GROUPS.flashcardReviewState),
-    courseScopedDocuments(COURSE_SCOPED_COLLECTION_GROUPS.evidenceShares),
-    courseScopedDocuments(COURSE_SCOPED_COLLECTION_GROUPS.evidenceShareRefs),
   ]);
 
   const updatedAt = new Date().toISOString();
@@ -1641,9 +1641,9 @@ export async function deleteCourse(courseId: string) {
     ...manualReviewMutationDocuments.map(({ path }) => ({ delete: fullDocumentName(path) })),
     ...lessonInteractionDocuments.map(({ path }) => ({ delete: fullDocumentName(path) })),
     ...lessonInteractionMutationDocuments.map(({ path }) => ({ delete: fullDocumentName(path) })),
-    ...flashcardRecoveryWrites,
     ...evidenceShareDocuments.map(({ path }) => ({ delete: fullDocumentName(path) })),
     ...evidenceShareReferenceDocuments.map(({ path }) => ({ delete: fullDocumentName(path) })),
+    ...flashcardRecoveryWrites,
     ...preferenceUpdates,
   ];
 
@@ -1668,10 +1668,10 @@ export async function deleteCourse(courseId: string) {
     manualReviewMutations: manualReviewMutationDocuments.length,
     lessonInteractions: lessonInteractionDocuments.length,
     lessonInteractionMutations: lessonInteractionMutationDocuments.length,
+    evidenceShares: evidenceShareDocuments.length,
+    evidenceShareReferences: evidenceShareReferenceDocuments.length,
     flashcardDecks: flashcardDeckDocuments.length,
     flashcardCards: flashcardDocuments.length,
     flashcardReviewStates: flashcardReviewDocuments.length,
-    evidenceShares: evidenceShareDocuments.length,
-    evidenceShareReferences: evidenceShareReferenceDocuments.length,
   };
 }

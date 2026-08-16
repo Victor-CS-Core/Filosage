@@ -1,6 +1,7 @@
 export interface InteractionAttemptMetadata {
   courseId: string;
   lessonId: string;
+  progressOperationId: string;
   interactionId: string;
   itemId: string;
   artifactHash: string;
@@ -43,6 +44,7 @@ export function buildInteractionAttemptMutation(
         data: {
           courseId: metadata.courseId,
           lessonId: metadata.lessonId,
+          progressOperationId: metadata.progressOperationId,
           interactionId: metadata.interactionId,
           itemId: metadata.itemId,
           artifactHash: metadata.artifactHash,
@@ -57,6 +59,7 @@ export function buildInteractionAttemptMutation(
         data: {
           courseId: metadata.courseId,
           lessonId: metadata.lessonId,
+          progressOperationId: metadata.progressOperationId,
           interactionId: metadata.interactionId,
           itemId: metadata.itemId,
           artifactHash: metadata.artifactHash,

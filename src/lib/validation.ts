@@ -22,6 +22,8 @@ export const courseRequestSchema = z.object({
   goal: z.string().trim().max(500, "Keep the learning goal under 500 characters.").optional().default(""),
   application: z.string().trim().max(500, "Keep the application under 500 characters.").optional().default(""),
   background: z.string().trim().max(500, "Keep your background under 500 characters.").optional().default(""),
+  constraints: z.string().trim().max(800, "Keep the course constraints under 800 characters.").optional().default(""),
+  exclusions: z.string().trim().max(800, "Keep the out-of-scope list under 800 characters.").optional().default(""),
   level: z.enum(["Foundations", "Intermediate", "Advanced"]).optional(),
   weeklyMinutes: z.number().int().min(30).max(1_200).optional(),
   targetWeeks: z.number().int().min(2).max(12).optional().default(4),
@@ -266,6 +268,10 @@ export const progressUpdateSchema = z.object({
   topic: topicSchema,
   lessonId: z.string().regex(/^\d+-\d+$/),
   lessonTitle: z.string().trim().min(1).max(160),
+  objectiveId: z.string().trim().regex(/^objective-(?:course|m\d+(?:-l\d+)?)$/).optional(),
+  prerequisiteObjectiveIds: z.array(z.string().trim().regex(/^objective-(?:course|m\d+(?:-l\d+)?)$/)).max(8).optional(),
+  retrievalVariantId: z.string().trim().regex(/^[a-z0-9][a-z0-9-]{0,119}$/).optional(),
+  retrievalVariantIds: z.array(z.string().trim().regex(/^[a-z0-9][a-z0-9-]{0,119}$/)).max(20).optional(),
   totalQuestions: z.number().int().min(0).max(40),
   firstAttemptCorrect: z.number().int().min(0).max(40),
   attempts: z.number().int().min(0).max(800),
@@ -307,6 +313,9 @@ export const progressUpdateSchema = z.object({
     }).strict().optional(),
   }).strict().optional(),
 }).superRefine((value, context) => {
+  if (value.retrievalVariantId && !value.review) {
+    context.addIssue({ code: "custom", path: ["retrievalVariantId"], message: "A retrieval variant can be recorded only for a review." });
+  }
   if (value.firstAttemptCorrect > value.totalQuestions) {
     context.addIssue({ code: "custom", path: ["firstAttemptCorrect"], message: "Correct answers cannot exceed the question count." });
   }

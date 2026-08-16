@@ -3,7 +3,7 @@
 **Status:** Approved by the owner and implemented for commit-and-push publication.
 **Planning date:** August 16, 2026
 **Repository baseline:** `0ab5b3de30143b02f5519d10b6a0979c0b593918` with an existing mixed worktree
-**Release posture:** Commit and push the exact tested SHA only. Keep `BILLING_ENABLED=false`; deployment, Stripe changes, and billing activation require separate authorization.
+**Release posture:** Commit and push the exact tested SHA only. Keep `BILLING_ENABLED=false`; deployment to isolated QA is authorized, while production deployment, Stripe changes, and billing activation require separate authorization.
 
 ## Outcome
 
@@ -412,4 +412,4 @@ This plan does not authorize:
 - adding collaboration, teams, marketplace sales, or creator payouts;
 - using course length as a reason to upsell Pro.
 
-The owner explicitly approved this Gauntlet before application-code implementation began and later authorized commit and push of the exact validated change set.
+The owner explicitly approved this Gauntlet before application-code implementation began and later authorized commit, push, and isolated QA deployment of the validated change set.

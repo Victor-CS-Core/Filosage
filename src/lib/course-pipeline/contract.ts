@@ -1,7 +1,7 @@
 export const COURSE_PIPELINE_VERSIONS = {
   courseSchema: 5,
   qualityContract: "course-quality-v2.0.0",
-  generationPrompt: "2026-08-15-layered-evidence-v5",
+  generationPrompt: "2026-08-15-capability-cycle-v9",
   repairPrompt: "2026-08-11-targeted-repair-v2",
   semanticEvaluator: "2026-08-11-semantic-critic-v2",
   labRegistry: "lab-capabilities-v2.0.0",

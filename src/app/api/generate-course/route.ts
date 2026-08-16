@@ -49,7 +49,11 @@ import {
   certifyDiscoveredBibliographicReferences,
   type BibliographicReference,
 } from "@/lib/bibliographic-references";
-import { courseReviewPolicyForBrief } from "@/lib/course-pipeline/review-policy";
+import {
+  courseReviewPolicyForBrief,
+  requiresModelKnowledgeHighStakesSafeguard,
+} from "@/lib/course-pipeline/review-policy";
+import { privateLearnerContextPrompt } from "@/lib/instructional-context";
 import { coursePipelineFeatureFlags } from "@/lib/feature-flags";
 import { withCourseObjectiveRelationships } from "@/lib/course-pipeline/relationships";
 import { recordCoursePipelineEvent } from "@/lib/course-pipeline/observability";
@@ -68,6 +72,13 @@ import {
 } from "@/lib/source-research";
 import type { CourseEvidenceProfile, CourseSource } from "@/lib/course-types";
 import {
+  COURSE_LEARNING_BRIEF_VERSION,
+  LEARNING_DESIGN_CONTRACT_VERSION,
+  buildLearningDesignContractV1,
+  canonicalCourseLearningBriefV1,
+  learningDesignContractIssues,
+} from "@/lib/learning-design";
+import {
   COURSE_GROUNDING_EVALUATOR_VERSION,
   courseGroundingFingerprint,
   courseGroundingIssues,
@@ -75,6 +86,14 @@ import {
   courseGroundingSchema,
   type CourseGroundingResult,
 } from "@/lib/source-grounding";
+
+function boundedBriefList(value: string) {
+  return [...new Set(value
+    .split(/\r?\n|;/)
+    .map((item) => item.trim())
+    .filter(Boolean))]
+    .slice(0, 8);
+}
 
 export async function POST(request: Request) {
   let pipelineFlags = coursePipelineFeatureFlags();
@@ -115,10 +134,21 @@ export async function POST(request: Request) {
     }
 
     const {
-      topic, goal, application, background, level, weeklyMinutes, targetWeeks, courseStyle,
+      topic, goal, application, background, constraints, exclusions, level, weeklyMinutes, targetWeeks, courseStyle,
       artifactPreference, scenarioPreference, sourcePack: requestedSourcePack,
       language, freshnessRequired,
     } = parsedRequest.data;
+    const reviewPolicy = courseReviewPolicyForBrief(
+      topic,
+      goal,
+      application,
+      background,
+      constraints,
+      exclusions,
+      artifactPreference,
+      scenarioPreference,
+      freshnessRequired ? "current regulation guidance requirement" : undefined,
+    );
     const creatorSourceLeads = requestedSourcePack.map((source) => ({
       ...source,
       declaredKind: source.kind,
@@ -191,16 +221,14 @@ export async function POST(request: Request) {
     }
     await assertSafeContent(
       client,
-      [topic, goal, application, background, artifactPreference, scenarioPreference, ...creatorSourceLeads.flatMap((source) => [source.label, source.note ?? "", source.url ?? ""])].filter(Boolean).join("\n"),
+      [topic, goal, application, background, constraints, exclusions, artifactPreference, scenarioPreference, ...creatorSourceLeads.flatMap((source) => [source.label, source.note ?? "", source.url ?? ""])].filter(Boolean).join("\n"),
       { uid: account.uid, feature: "course_outline", stage: "input" },
     );
     const outlineUsageSamples: AiUsageSample[] = [];
     const researchInput = [
       `Research the course topic: ${topic}`,
-      goal ? `Learning goal: ${goal}` : "",
-      application ? `Application context: ${application}` : "",
-      background ? `Learner background: ${background}` : "",
       `Course language: ${language}.`,
+      "Research only the course topic and public subject matter. Do not search for, infer, or return private learner identity or context.",
       freshnessRequired
         ? "Freshness is required: prefer the newest released authoritative evidence and date any time-sensitive claim."
         : "Prefer durable released evidence; use current sources when the topic has materially changed.",
@@ -218,9 +246,8 @@ export async function POST(request: Request) {
     ].filter(Boolean).join("\n");
     const bibliographyInput = [
       `Find up to 5 reputable books or reference works for further study about: ${topic}`,
-      goal ? `Learning goal: ${goal}` : "",
-      application ? `Application context: ${application}` : "",
       `Course language: ${language}.`,
+      "Search only the public subject matter. Do not search for, infer, or return private learner identity or context.",
       "Search library or book-catalog records and return only works whose metadata is shown by an exact cited catalog record. Prefer primary books, established scholarly monographs, respected reference works, scripture editions, and clearly attributed commentary appropriate to the topic.",
       "This is a reading list, not evidence for lesson claims. Do not claim the work was read, quoted, or used to verify course content. Do not return quotations or page numbers. A catalog link is sufficient; an online full-text link is not required.",
       "For contested, religious, philosophical, or political topics, include works that identify their author, tradition, or interpretive standpoint. When useful, represent materially different reputable perspectives rather than presenting one tradition as universal fact.",
@@ -633,35 +660,28 @@ export async function POST(request: Request) {
       researchFallbackReasonCodes.push(...persistedResearch.fallbackReasonCodes.filter((code): code is string => typeof code === "string"));
     }
     sourceAssessment = assessSourceResearchV5(sourcePack);
-    const preliminaryReviewPolicy = courseReviewPolicyForBrief(
-      topic,
-      goal,
-      application,
-      freshnessRequired ? "current regulation guidance requirement" : undefined,
-    );
-    const modelKnowledgeHighStakes = preliminaryReviewPolicy.reasonCodes.some((code) =>
-      ["medical", "legal", "financial", "freshness"].includes(code),
+    const modelKnowledgeHighStakes = requiresModelKnowledgeHighStakesSafeguard(
+      reviewPolicy.reasonCodes,
     );
     const outlineInput = [
         `Create a complete but efficient course outline for: ${topic}`,
-        goal ? `Learner's observable goal: ${goal}` : "",
-        application ? `Where the learner will apply it: ${application}` : "",
-        background ? `Current background: ${background}` : "",
+        privateLearnerContextPrompt({ goal, application, background, constraints, exclusions, artifactPreference, scenarioPreference }),
         level ? `Requested starting level: ${level}` : "",
         `Target plan: ${targetWeeks} weeks at ${weeklyMinutes ?? 120} minutes per week, approximately ${studyBudget} minutes total. Keep the estimated course time close to this budget rather than padding the outline.`,
         `Teaching approach: ${courseStyle}. ${approach}`,
         `Course language: ${language}. Use other languages only when the learning objective explicitly requires them.`,
         freshnessRequired ? "Freshness is required. Clearly date current claims and rely only on the supplied evidence; do not invent current facts." : "",
-        artifactPreference ? `Preferred real-world artifact: ${artifactPreference}` : "Choose one concrete professional artifact that can demonstrate the course outcome.",
-        scenarioPreference ? `Scenario spine: ${scenarioPreference}` : "Choose one realistic scenario that can develop across modules without inventing factual claims.",
+        "Choose one concrete professional artifact that can demonstrate the course outcome, calibrated to the private learner context when a preference was supplied.",
+        "Choose one realistic, anonymous scenario that can develop across modules without inventing factual claims, calibrated to the private learner context when a preference was supplied.",
         sourcePackPromptBlock(sourcePack, "No externally verified source survived automatic research. Continue by designing a transparent model-knowledge course; never invent a source or citation."),
         "For every lesson, return contentBasis. Use verified-source only when at least one supplied atomic evidence claim directly supports that lesson, and then return only the relevant supplied sourceIds. Otherwise use model-knowledge and return sourceIds: []. Missing evidence must never prevent the course from being designed, and a source must never be stretched merely to increase coverage.",
         "For verified-source lessons, treat the assigned atomic evidence claims as the hard ceiling for factual teaching content. Every named method, criterion, rule, or workflow step must be directly entailed by assigned evidence. For model-knowledge lessons, use durable general knowledge, avoid precise claims you cannot support confidently, never invent references, quotations, dates, statistics, page numbers, or identifiers, and phrase uncertainty honestly.",
         "For religious, philosophical, political, or otherwise interpretive topics, distinguish textual facts from interpretation. Attribute beliefs and doctrines to the relevant work, author, community, or tradition rather than presenting a contested worldview as universal empirical fact.",
         modelKnowledgeHighStakes
-          ? "HIGH-STAKES MODEL-KNOWLEDGE LIMIT: Unsourced lessons must stay foundational and non-prescriptive. Omit diagnosis, treatment, dosing, legal conclusions, regulatory claims, investment recommendations, and claims of current requirements. Use verified-source lessons for those details or leave them outside the course."
+          ? "HIGH-STAKES MODEL-KNOWLEDGE LIMIT: Unsourced lessons must stay foundational and non-prescriptive. Omit diagnosis, treatment, dosing, legal conclusions, regulatory claims, investment recommendations, claims of current requirements, and actionable instructions for weapons, explosives, electrical work, hazardous materials, emergency response, or other physical hazards. Use verified-source lessons for those details or leave them outside the course."
           : "",
         "Use concept and worked-example lessons early, guided practice in the middle, and case, lab, or synthesis work when the learner has enough prerequisite knowledge.",
+        "CAPABILITY-CYCLE CONTRACT: Make every lesson one single-sitting learning move with one observable win and one central practice loop. Recall or predict first, explain only what that activity requires, support one committed attempt, then transfer or reflect without duplicating the same assignment across fields. Keep ordinary lessons between 8 and 30 minutes; labs and synthesis lessons may reach 45 minutes only when the activity requires it. Later lessons must name the earlier lesson titles they retrieve or discriminate through buildsOn. Difficulty should be low while a new model is introduced and effortful only after the learner has enough prerequisite support.",
         "Module challenges and the capstone must be assessable from their success criteria. Adapt examples and practice to the learner's intended application.",
       ].filter(Boolean).join("\n");
     const generateOutline = (profile: AiExecutionProfile, repairIssues: string[] = []) => {
@@ -670,7 +690,7 @@ export async function POST(request: Request) {
       model: profile.model,
       store: false,
       instructions:
-        `Act as an instructional designer. Build a guided apprenticeship, not a collection of standalone articles. Start with a concrete artifact and one realistic scenario spine. Every module must produce an inspectable milestone that advances that artifact, and every lesson must state the activity the learner will perform and its contribution to the artifact. Sequence prerequisite knowledge explicitly. Give every module one observable objective and an applied challenge. Give every lesson one observable objective, the lesson titles it builds on, a specific misconception to correct, a suitable teaching mode, an appropriate practice type, and a clear mastery criterion. Vary lesson modes intentionally so the course does not repeat one template. End with a capstone that directly demonstrates the course outcome. Include the intended audience, a realistic level, total learning time, prerequisites, category, and estimated time for every lesson. Richness must come from prediction, explanation, classification, comparison, decision, creation, critique, or defense, not longer prose. Keep lessons tightly scoped and free of filler. Use plain, specific instructional language without promotional claims, motivational slogans, vague abstractions, invented citations, or repetitive phrasing. Use the term course, not learning path. Return the requested structured course only.\n\n${languagePolicyInstruction(topic, language)}\n\n${AI_SAFETY_POLICY}`,
+        `Act as an instructional designer. Build a guided apprenticeship, not a collection of standalone articles. Start with a concrete artifact and one realistic scenario spine. Every module must produce an inspectable milestone that advances that artifact, and every lesson must state the activity the learner will perform and its contribution to the artifact. Sequence prerequisite knowledge explicitly. Give every module one observable objective and an applied challenge. Give every lesson one observable objective, the lesson titles it builds on, a specific misconception to correct, a suitable teaching mode, an appropriate practice type, and a clear mastery criterion. Each lesson must produce one inspectable learner win through one central practice loop; its explanation, experience, guided practice, transfer, and checks must cooperate rather than become redundant assignments. Keep ordinary lessons to 8–30 minutes and every lesson to one sitting, with a hard maximum of 45 minutes for a justified lab or synthesis. Vary lesson modes intentionally so the course does not repeat one template. End with a capstone that directly demonstrates the course outcome. Include the intended audience, a realistic level, total learning time, prerequisites, category, and estimated time for every lesson. Richness must come from prediction, explanation, classification, comparison, decision, creation, critique, or defense, not longer prose. Keep lessons tightly scoped and free of filler. Use plain, specific instructional language without promotional claims, motivational slogans, vague abstractions, invented citations, or repetitive phrasing. Use the term course, not learning path. Return the requested structured course only.\n\n${languagePolicyInstruction(topic, language)}\n\n${AI_SAFETY_POLICY}`,
       input: repairIssues.length
         ? `${outlineInput}\n\nThe previous draft failed the content-integrity gate. Produce a clean replacement and correct every issue:\n- ${repairIssues.join("\n- ")}`
         : outlineInput,
@@ -976,6 +996,37 @@ export async function POST(request: Request) {
     });
 
     const persistedOutline = pipelineFlags.pipelineV2 ? withCourseObjectiveRelationships(outline) : outline;
+    const learningBrief = canonicalCourseLearningBriefV1({
+      version: COURSE_LEARNING_BRIEF_VERSION,
+      source: goal || application || background || artifactPreference ? "explicit" : "compatibility-derived",
+      topic,
+      desiredOutcome: persistedOutline.outcome,
+      applicationContext: application || persistedOutline.scenario.context,
+      priorKnowledge: background || persistedOutline.prerequisites.join("; ") || "No prior knowledge was recorded.",
+      proofOfSkill: artifactPreference || persistedOutline.artifact.description,
+      successCriteria: persistedOutline.capstone.successCriteria,
+      constraints: boundedBriefList(constraints),
+      exclusions: boundedBriefList(exclusions),
+      timeBudgetMinutes: studyBudget,
+      language,
+    });
+    const learningDesignCandidate = buildLearningDesignContractV1({ ...persistedOutline, topic }, learningBrief);
+    const learningDesignObjectiveIds = learningDesignCandidate.lessonPlans
+      .map((plan) => plan.scopeBudget.primaryObjectiveId);
+    const learningDesignIssues = learningDesignContractIssues(learningDesignCandidate, {
+      knownObjectiveIds: learningDesignObjectiveIds,
+      objectiveOrder: learningDesignObjectiveIds,
+      knownSourceIds: sourcePack.map((source) => source.id),
+      knownFurtherReadingIds: furtherReading.map((reference) => reference.id),
+    });
+    const learningDesign = learningDesignCandidate;
+    if (learningDesignIssues.some((issue) => issue.severity === "blocker" || issue.severity === "error")) {
+      console.warn(JSON.stringify({
+        event: "course_learning_design_needs_repair",
+        actorHash: safetyIdentifier,
+        issues: learningDesignIssues,
+      }));
+    }
     const persistedLessons = persistedOutline.modules.flatMap((courseModule) => courseModule.lessons);
     const verifiedLessonCount = persistedLessons.filter((lesson) => lesson.contentBasis === "verified-source").length;
     const modelKnowledgeLessonCount = persistedLessons.length - verifiedLessonCount;
@@ -1019,15 +1070,12 @@ export async function POST(request: Request) {
         generationProvider: "openai",
         labRegistryVersion: pipelineFlags.labsV2 ? COURSE_ARTIFACT_PROVENANCE_DEFAULTS.labRegistryVersion : undefined,
         visualPolicyVersion: pipelineFlags.visualsV2 ? COURSE_ARTIFACT_PROVENANCE_DEFAULTS.visualPolicyVersion : undefined,
-        manualReviewPolicy: courseReviewPolicyForBrief(
-          topic,
-          goal,
-          application,
-          outline.category,
-          freshnessRequired ? "current regulation guidance requirement" : undefined,
-        ),
       } : {}),
       sourcePolicyVersion: COURSE_ARTIFACT_PROVENANCE_DEFAULTS.sourcePolicyVersion,
+      manualReviewPolicy: reviewPolicy,
+      learningDesignRequired: true,
+      learningDesignContractVersion: LEARNING_DESIGN_CONTRACT_VERSION,
+      learningDesign,
       sourceGroundingEvaluatorVersion: COURSE_GROUNDING_EVALUATOR_VERSION,
       sourceGroundingEvaluatorStatus: verifiedLessonCount > 0 ? "executed" : "not_applicable",
       sourceGroundingFingerprint: verifiedLessonCount > 0 ? courseGroundingFingerprint(outline, sourcePack) : undefined,
@@ -1044,8 +1092,12 @@ export async function POST(request: Request) {
         goal,
         application,
         background,
+        constraints,
+        exclusions,
         artifactPreference,
         scenarioPreference,
+        weeklyMinutes: weeklyMinutes ?? 120,
+        targetWeeks,
       },
       authorId: account.uid,
       authorName: account.displayName ?? (account.isOwner ? "Filosage" : "Filosage learner"),

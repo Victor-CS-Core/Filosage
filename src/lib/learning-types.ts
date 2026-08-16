@@ -14,6 +14,10 @@ export interface ReviewRecord {
   calibration: ConfidenceCalibration;
   performanceBand: PerformanceBand;
   intervalStage: number;
+  retrievalVariantId?: string;
+  evidenceAuthority?: "activity-observed" | "receipt-verified" | "criterion-assessed";
+  assessmentIds?: string[];
+  criterionIds?: string[];
 }
 
 export interface DelayedCheck {
@@ -24,7 +28,10 @@ export interface DelayedCheck {
 export interface LessonProgress {
   lessonId: string;
   lessonTitle: string;
+  objectiveId?: string;
+  prerequisiteObjectiveIds?: string[];
   status: "started" | "learned" | "mastered";
+  evidenceAuthority?: "activity-observed" | "receipt-verified" | "criterion-assessed";
   attempts: number;
   totalQuestions: number;
   firstAttemptCorrect: number;
@@ -41,6 +48,10 @@ export interface LessonProgress {
     day28: DelayedCheck;
   };
   reviewHistory?: ReviewRecord[];
+  retrievalVariantExposures?: Array<{ variantId: string; seenAt: string }>;
+  retrievalVariantBank?: Array<{ id: string; objectiveId: string; contextKey: string }>;
+  assessmentIds?: string[];
+  criterionIds?: string[];
   estimatedMinutes?: number;
   /** The misconception this lesson corrects, recorded at completion. */
   misconception?: string;
@@ -93,6 +104,17 @@ export interface CourseProgress {
   startedAt: string;
   studyMinutes?: number;
   capstone?: CapstoneAssessment;
+  recentOperations?: Array<{
+    id: string;
+    fingerprint: string;
+    observedAt: string;
+    response: {
+      nextReviewAt: string;
+      calibration: ConfidenceCalibration;
+      performanceBand: PerformanceBand;
+      intervalDays: number;
+    };
+  }>;
 }
 
 export interface ProgressUpdate {
@@ -100,6 +122,11 @@ export interface ProgressUpdate {
   topic: string;
   lessonId: string;
   lessonTitle: string;
+  objectiveId?: string;
+  prerequisiteObjectiveIds?: string[];
+  retrievalVariantId?: string;
+  retrievalVariantIds?: string[];
+  retrievalVariantBank?: Array<{ id: string; objectiveId: string; contextKey: string }>;
   totalQuestions: number;
   firstAttemptCorrect: number;
   attempts: number;
