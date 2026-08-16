@@ -5,9 +5,9 @@ export default defineSupportArticle({
   title: "Find a published course",
   summary: "Search the public library and narrow results by level or time commitment.",
   category: "courses",
-  keywords: ["explore", "library", "search", "filter", "bookmark", "published course"],
-  reviewedOn: "2026-08-05",
-  sources: ["src/app/library/page.tsx", "src/components/CourseLibrary.tsx", "src/lib/search.ts"],
+  keywords: ["explore", "library", "search", "filter", "bookmark", "published course", "private course", "my courses"],
+  reviewedOn: "2026-08-16",
+  sources: ["src/app/library/page.tsx", "src/components/CourseLibrary.tsx", "src/components/AppShell.tsx", "src/lib/search.ts"],
   body: `
 ## Search the library
 
@@ -26,7 +26,13 @@ Each course result shows its topic, outcome or mission, lesson count, estimated 
 ## Save a course for later
 
 Use the bookmark control on a course result to add or remove it from your saved courses. To begin learning, open the course and review its complete outline.
+
+## Find a private course or draft
+
+Signed-in creators see **Your current courses** as a private workspace in Explore. A newly created private course appears there even though it is not part of the published search results. You can also open **My courses** from the Command Center to search your own courses and return to a course overview for learning or creator actions.
+
+Public Explore results and My courses serve different purposes: Explore lists published courses available to learners, while My courses includes private work associated with your account.
 `,
-  related: ["getting-started", "follow-a-course", "manage-profile"],
+  related: ["getting-started", "create-a-course", "follow-a-course", "manage-profile"],
   featured: true,
 });

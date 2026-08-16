@@ -1,15 +1,15 @@
 # Filosage
 
-Filosage is an AI-assisted learning product built to turn curiosity into understanding. Public visitors can inspect published course outcomes and structure without an account. Verified Free learner accounts open lesson content and add cloud progress, notes, evidence, and spaced review. Filosage Plus adds one active private course with metered authoring; Filosage Pro removes the owned-course cap and adds publishing after course review.
+Filosage is an AI-assisted learning product built to turn curiosity into understanding. Public visitors can inspect published course outcomes and structure without an account. Verified Free learner accounts open lesson content and add cloud progress, notes, evidence, and spaced review. Filosage Plus adds two complete private-course credits each month with rollover; Filosage Pro adds five monthly credits, reviewed publishing, advanced capstone analysis, and professional evidence export and sharing.
 
 Owner access is resolved server-side from the verified Google account matching the `OWNER_EMAIL` deployment secret. Google authentication and the signed-in session are managed by Azure Container Apps built-in authentication (Easy Auth). The owner email is never sent in the account API or rendered in the interface.
 
 ## Product modes
 
-- Anonymous learning: open discovery, published lessons, retrieval practice, mastery checks, and device progress
+- Anonymous discovery: inspect published course outcomes and structure without lesson access
 - Free learner: Google sign-in, cloud progress, review scheduling, and a small daily tutor allowance
-- Filosage Plus: one active private course with monthly outline, lesson, banner-request, and tutor allowances
-- Filosage Pro: uncapped owned courses, larger monthly AI allowances, and publishing after review
+- Filosage Plus: two complete private-course credits each month, rollover up to twenty-four, custom flashcard decks, and forty monthly tutor questions
+- Filosage Pro: five complete course credits each month, rollover up to sixty, larger AI allowances, advanced evidence tools, and publishing after review
 - Owner: Pro capabilities plus protected operational authority
 
 ## Stack

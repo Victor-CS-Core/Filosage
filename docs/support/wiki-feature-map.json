@@ -1,12 +1,12 @@
 {
   "version": 1,
   "articleDirectory": "src/content/support/articles",
+  "ownerDocumentationFile": "src/content/support/owner-documentation.ts",
   "excludedPagePrefixes": [
     "src/app/acceptable-use/",
     "src/app/admin/",
     "src/app/api/",
     "src/app/copyright/",
-    "src/app/create/",
     "src/app/local-qa/",
     "src/app/privacy/",
     "src/app/standard/",
@@ -32,12 +32,32 @@
     {
       "feature": "Course overview and journey",
       "sources": ["src/app/course/[topic]/page.tsx", "src/components/CourseJourneyMap.tsx", "src/components/CourseDisclosure.tsx"],
-      "articles": ["follow-a-course"]
+      "articles": ["follow-a-course", "complete-a-capstone", "manage-and-publish-a-course", "report-content"]
+    },
+    {
+      "feature": "Private AI course creation",
+      "sources": ["src/app/create/", "src/app/api/generate-course/", "src/lib/course-credits.ts", "src/lib/membership-plans.ts"],
+      "articles": ["create-a-course", "plans-and-billing"]
+    },
+    {
+      "feature": "Personal learning plan and baseline",
+      "sources": ["src/components/OutcomePlanner.tsx", "src/app/api/assess-baseline/", "src/lib/learning-progress.ts"],
+      "articles": ["follow-a-course", "read-evidence-report"]
     },
     {
       "feature": "Lesson experience and completion",
-      "sources": ["src/app/course/[topic]/lesson/[lessonId]/page.tsx", "src/components/LessonSectionNavigator.tsx", "src/components/SpeakButton.tsx"],
+      "sources": ["src/app/course/[topic]/lesson/[lessonId]/page.tsx", "src/components/LessonExperience.tsx", "src/components/InteractiveLessonBlock.tsx", "src/components/LessonSectionNavigator.tsx", "src/components/SpeakButton.tsx"],
       "articles": ["complete-a-lesson", "accessibility"]
+    },
+    {
+      "feature": "Capstone assessment and revision",
+      "sources": ["src/app/api/assess-capstone/", "src/app/api/capstone-analysis/", "src/lib/capstone-analysis.ts"],
+      "articles": ["complete-a-capstone", "read-evidence-report"]
+    },
+    {
+      "feature": "Creator publication and course lifecycle",
+      "sources": ["src/app/api/courses/[courseId]/", "src/lib/publication-readiness.ts", "src/lib/course-quality.ts"],
+      "articles": ["manage-and-publish-a-course", "report-content"]
     },
     {
       "feature": "Lesson study tools",
@@ -51,12 +71,12 @@
     },
     {
       "feature": "Progress dashboard",
-      "sources": ["src/app/progress/", "src/lib/learning-summary.ts", "src/components/MasteryPath.tsx"],
+      "sources": ["src/app/progress/", "src/components/LearningScheduleSettings.tsx", "src/lib/learning-summary.ts", "src/components/MasteryPath.tsx"],
       "articles": ["understand-progress"]
     },
     {
       "feature": "Evidence reports",
-      "sources": ["src/app/evidence/", "src/lib/mastery.ts", "src/components/useMasteryJourney.ts"],
+      "sources": ["src/app/evidence/", "src/app/api/evidence/", "src/components/OutcomeUsefulness.tsx", "src/lib/evidence-shares.ts", "src/lib/mastery.ts", "src/components/useMasteryJourney.ts"],
       "articles": ["read-evidence-report"]
     },
     {
@@ -66,7 +86,7 @@
     },
     {
       "feature": "Authentication",
-      "sources": ["src/components/AuthProvider.tsx", "src/components/AuthModal.tsx"],
+      "sources": ["src/components/AuthProvider.tsx", "src/components/AuthModal.tsx", "src/components/LegalConsentModal.tsx"],
       "articles": ["getting-started", "sign-in-help"]
     },
     {
@@ -81,18 +101,19 @@
     },
     {
       "feature": "Billing availability and pricing",
-      "sources": ["src/app/beta/", "src/app/pricing/", "src/lib/billing-lock.ts", "src/lib/billing-offer.ts", "docs/COMMERCIAL_LAUNCH_RUNBOOK.md", ".env.example"],
+      "sources": ["src/app/pricing/", "src/lib/billing-lock.ts", "src/lib/billing-offer.ts", "docs/COMMERCIAL_LAUNCH_RUNBOOK.md", ".env.example"],
       "articles": ["plans-and-billing"]
     },
     {
       "feature": "Support contact channel",
-      "sources": ["src/app/support/page.tsx", "src/components/support/SupportSearch.tsx", "src/components/support/SupportTicketPanel.tsx", "src/app/api/support/tickets/route.ts", "src/lib/command-center-server.ts", "src/lib/search.ts", "src/lib/legal.ts"],
+      "sources": ["src/app/support/page.tsx", "src/components/support/SupportCenter.tsx", "src/components/support/SupportSearch.tsx", "src/components/support/SupportTicketPanel.tsx", "src/app/api/support/tickets/", "src/lib/command-center-server.ts", "src/lib/search.ts", "src/lib/legal.ts"],
       "articles": ["contact-support"]
     },
     {
       "feature": "Owner product and operations handbook",
       "sources": ["src/app/support/owner/page.tsx", "src/app/api/support/owner-documentation/route.ts", "src/content/support/owner-documentation.ts", "PRODUCT.md", "docs/PRODUCTION_OPERATIONS.md"],
-      "articles": ["navigate-filosage"]
+      "articles": [],
+      "ownerSections": ["product-and-access", "learner-flow", "course-authoring", "ai-quality", "support-command-center", "trust-and-privacy", "billing", "owner-operations", "release-and-recovery"]
     }
   ]
 }

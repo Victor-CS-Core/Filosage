@@ -48,7 +48,7 @@ jobs:
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
-      - name: Verify and promote the selected slot
+      - name: Verify the selected slot
         shell: bash
         run: |
           set -euo pipefail
@@ -57,10 +57,75 @@ jobs:
             exit 1
           fi
           npm run check:production -- "$TARGET_URL" "$EXPECTED_SHA"
+
+      - name: Verify the deployed release safety policy
+        shell: bash
+        run: |
+          set -euo pipefail
+          RESOURCE_GROUP="${{ vars.AZURE_RESOURCE_GROUP }}"
+          APP_NAME="${{ vars.AZURE_CONTAINER_APP_NAME }}"
+          TARGET_REVISION="$(az containerapp show --resource-group "$RESOURCE_GROUP" --name "$APP_NAME" --query "properties.configuration.ingress.traffic[?label=='${TARGET_SLOT}'].revisionName | [0]" --output tsv)"
+          if [[ -z "$TARGET_REVISION" ]]; then
+            echo "The selected label does not resolve to a revision."
+            exit 1
+          fi
+          BILLING_STATE="$(az containerapp revision show --resource-group "$RESOURCE_GROUP" --name "$APP_NAME" --revision "$TARGET_REVISION" --query "properties.template.containers[0].env[?name=='BILLING_ENABLED'].value | [0]" --output tsv)"
+          EASY_AUTH_STATE="$(az containerapp revision show --resource-group "$RESOURCE_GROUP" --name "$APP_NAME" --revision "$TARGET_REVISION" --query "properties.template.containers[0].env[?name=='AZURE_EASY_AUTH_ENABLED'].value | [0]" --output tsv)"
+          SUBSCRIPTION_ID="$(az account show --query id --output tsv)"
+          AUTH_URL="https://management.azure.com/subscriptions/${SUBSCRIPTION_ID}/resourceGroups/${RESOURCE_GROUP}/providers/Microsoft.App/containerApps/${APP_NAME}/authConfigs/current?api-version=2025-01-01"
+          AUTH_ENABLED="$(az rest --method get --url "$AUTH_URL" --query properties.platform.enabled --output tsv)"
+          GOOGLE_ENABLED="$(az rest --method get --url "$AUTH_URL" --query properties.identityProviders.google.enabled --output tsv)"
+          if [[ "$BILLING_STATE" != "false" || "$EASY_AUTH_STATE" != "true" || "$AUTH_ENABLED" != "true" || "$GOOGLE_ENABLED" != "true" ]]; then
+            echo "Release safety policy failed: billing must be closed and Google Easy Auth must be active."
+            exit 1
+          fi
+
+      - name: Capture current traffic weights
+        id: capture_traffic
+        shell: bash
+        run: |
+          set -euo pipefail
+          TRAFFIC="$(az containerapp ingress traffic show --resource-group "${{ vars.AZURE_RESOURCE_GROUP }}" --name "${{ vars.AZURE_CONTAINER_APP_NAME }}" --output json)"
+          export TRAFFIC
+          node -e '
+            const fs = require("node:fs");
+            const traffic = JSON.parse(process.env.TRAFFIC || "[]");
+            const blue = traffic.filter((entry) => entry.label === "blue");
+            const green = traffic.filter((entry) => entry.label === "green");
+            if (traffic.length !== 2 || blue.length !== 1 || green.length !== 1) {
+              throw new Error("Traffic snapshot must contain only one blue and one green label.");
+            }
+            const blueWeight = blue[0].weight;
+            const greenWeight = green[0].weight;
+            if (!Number.isInteger(blueWeight) || !Number.isInteger(greenWeight) || blueWeight < 0 || greenWeight < 0 || blueWeight + greenWeight !== 100) {
+              throw new Error("Blue and green traffic weights must be non-negative integers totaling 100.");
+            }
+            fs.appendFileSync(process.env.GITHUB_OUTPUT, `blue_weight=${blueWeight}\ngreen_weight=${greenWeight}\n`);
+          '
+
+      - name: Switch staging traffic
+        id: traffic_switch
+        shell: bash
+        run: |
+          set -euo pipefail
           OTHER_SLOT="blue"
           if [[ "$TARGET_SLOT" == "blue" ]]; then OTHER_SLOT="green"; fi
           az containerapp ingress traffic set \
             --resource-group "${{ vars.AZURE_RESOURCE_GROUP }}" \
             --name "${{ vars.AZURE_CONTAINER_APP_NAME }}" \
             --label-weight "${TARGET_SLOT}=100" "${OTHER_SLOT}=0"
-          npm run check:production -- "${{ vars.AZURE_STAGING_URL }}" "$EXPECTED_SHA"
+
+      - name: Verify promoted public traffic
+        run: npm run check:production -- "${{ vars.AZURE_STAGING_URL }}" "$EXPECTED_SHA"
+
+      - name: Roll back traffic if promotion fails or is cancelled
+        if: (failure() || cancelled()) && steps.capture_traffic.outcome == 'success'
+        shell: bash
+        run: |
+          set -euo pipefail
+          az containerapp ingress traffic set \
+            --resource-group "${{ vars.AZURE_RESOURCE_GROUP }}" \
+            --name "${{ vars.AZURE_CONTAINER_APP_NAME }}" \
+            --label-weight \
+              "blue=${{ steps.capture_traffic.outputs.blue_weight }}" \
+              "green=${{ steps.capture_traffic.outputs.green_weight }}"

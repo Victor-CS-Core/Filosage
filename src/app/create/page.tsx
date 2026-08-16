@@ -338,7 +338,14 @@ export default function CreateCoursePage() {
               {submitting && (
                 <div className={styles.generationProgress}>
                   <div><span role="status" aria-live="polite" aria-atomic="true">{generationStage}</span><strong aria-hidden="true">{generationProgress}%</strong></div>
-                  <div className={styles.progressTrack} role="progressbar" aria-label="Course creation is in progress"><span style={{ transform: `scaleX(${generationProgress / 100})` }} /></div>
+                  <div
+                    className={styles.progressTrack}
+                    role="progressbar"
+                    aria-label="Course creation is in progress"
+                    aria-valuemin={0}
+                    aria-valuemax={100}
+                    aria-valuenow={generationProgress}
+                  ><span style={{ transform: `scaleX(${generationProgress / 100})` }} /></div>
                   <p>Researching trusted sources and further reading where suitable, planning focused lesson wins, and validating honest evidence labels.</p>
                 </div>
               )}

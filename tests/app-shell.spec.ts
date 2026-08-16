@@ -446,7 +446,6 @@ test.describe("desktop application shell", () => {
   });
 
   test("keeps the B2 paper material coherent across core application routes", async ({ page }) => {
-    await prepareOwnerShell(page);
     const routes = [
       { path: "/library", heading: /Find your next course/ },
       { path: "/create", heading: /Build toward a real outcome/ },
@@ -459,12 +458,18 @@ test.describe("desktop application shell", () => {
     ];
 
     for (const route of routes) {
-      await page.goto(route.path);
-      await expect(page.getByRole("heading", { level: 1, name: route.heading })).toBeVisible();
-      await expect(page.locator(".app-main")).toHaveCSS("background-image", /svg/);
-      await expectNoHorizontalPageOverflow(page);
-      if (process.env.CAPTURE_DASHBOARD === "1" && ["/create", "/progress", "/pricing", "/support"].includes(route.path)) {
-        await page.screenshot({ path: `.impeccable/review/platform-${route.path.slice(1)}-desktop.png`, fullPage: false });
+      const routePage = await page.context().newPage();
+      try {
+        await prepareOwnerShell(routePage);
+        await routePage.goto(route.path);
+        await expect(routePage.getByRole("heading", { level: 1, name: route.heading })).toBeVisible();
+        await expect(routePage.locator(".app-main")).toHaveCSS("background-image", /svg/);
+        await expectNoHorizontalPageOverflow(routePage);
+        if (process.env.CAPTURE_DASHBOARD === "1" && ["/create", "/progress", "/pricing", "/support"].includes(route.path)) {
+          await routePage.screenshot({ path: `.impeccable/review/platform-${route.path.slice(1)}-desktop.png`, fullPage: false });
+        }
+      } finally {
+        await routePage.close();
       }
     }
   });

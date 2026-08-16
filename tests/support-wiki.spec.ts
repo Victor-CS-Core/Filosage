@@ -1,4 +1,5 @@
 import { spawnSync } from "node:child_process";
+import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { expect, test } from "@playwright/test";
 import { supportArticles } from "../src/content/support/articles";
@@ -7,8 +8,90 @@ import { PRIVACY_VERSION, TERMS_VERSION } from "../src/lib/legal";
 
 const root = process.cwd();
 const wikiCheck = resolve(root, "scripts/check-support-wiki.mjs");
+const articleBody = (slug: string) => supportArticles.find((article) => article.slug === slug)?.body ?? "";
 
 test.describe.configure({ mode: "serial" });
+
+test("covers course creation, learning plans, and professional evidence sharing", () => {
+  const manifest = JSON.parse(readFileSync("docs/support/wiki-feature-map.json", "utf8")) as {
+    excludedPagePrefixes: string[];
+    features: Array<{ feature: string; sources: string[]; articles: string[] }>;
+  };
+  const creation = manifest.features.find((entry) => entry.feature === "Private AI course creation");
+  const planning = manifest.features.find((entry) => entry.feature === "Personal learning plan and baseline");
+  const evidence = supportArticles.find((article) => article.slug === "read-evidence-report");
+
+  expect(manifest.excludedPagePrefixes).not.toContain("src/app/create/");
+  expect(creation?.sources).toContain("src/app/create/");
+  expect(creation?.articles).toContain("create-a-course");
+  expect(planning?.sources).toContain("src/components/OutcomePlanner.tsx");
+  expect(planning?.articles).toContain("follow-a-course");
+  expect(supportArticles.some((article) => article.slug === "create-a-course")).toBe(true);
+  expect(evidence?.body).toContain("## Download a professional report");
+  expect(evidence?.body).toContain("## Create and revoke a share link");
+});
+
+test("documents the current sign-in, Today, profile, and private-course discovery behavior", () => {
+  expect(articleBody("sign-in-help")).toContain("same tab");
+  expect(articleBody("sign-in-help")).toContain("age eligibility");
+  expect(articleBody("sign-in-help")).not.toContain("Allow popups");
+  expect(articleBody("getting-started")).toContain("Weekly progress");
+  expect(articleBody("getting-started")).toContain("Review queue");
+  expect(articleBody("getting-started")).toContain("Learning streak");
+  expect(articleBody("getting-started")).not.toContain("learning brief");
+  expect(articleBody("manage-profile")).toContain("does not currently rearrange the fixed Today signals");
+  expect(articleBody("find-a-course")).toContain("Your current courses");
+  expect(articleBody("find-a-course")).toContain("My courses");
+});
+
+test("documents the complete lesson workspace, interactive practice, bookmarks, and Tutor", () => {
+  expect(articleBody("complete-a-lesson")).toContain("Learn and Activities");
+  expect(articleBody("complete-a-lesson")).toContain("20 meaningful characters");
+  expect(articleBody("complete-a-lesson")).toContain("guided practice");
+  expect(articleBody("complete-a-lesson")).toContain("focused retry");
+  expect(articleBody("complete-a-lesson")).toContain("Bookmark lesson");
+  expect(articleBody("use-study-tools")).toContain("Notes, Flashcards, and Next steps");
+  expect(articleBody("use-study-tools")).toContain("Enter sends");
+  expect(articleBody("use-study-tools")).toContain("Shift+Enter");
+  expect(articleBody("use-study-tools")).toContain("verify important answers");
+});
+
+test("documents capstones, ordinary creator publishing, deletion impact, and source reporting", () => {
+  expect(articleBody("complete-a-capstone")).toContain("all lessons");
+  expect(articleBody("complete-a-capstone")).toContain("120 characters");
+  expect(articleBody("complete-a-capstone")).toContain("one Tutor question");
+  expect(articleBody("complete-a-capstone")).toContain("Needs revision");
+  expect(articleBody("manage-and-publish-a-course")).toContain("Unpublish");
+  expect(articleBody("manage-and-publish-a-course")).toContain("all learners");
+  expect(articleBody("manage-and-publish-a-course")).toContain("permanent deletion");
+  expect(articleBody("follow-a-course")).toContain("Source-backed");
+  expect(articleBody("follow-a-course")).toContain("Report source");
+  expect(articleBody("report-content")).toContain("Outdated information");
+  expect(articleBody("report-content")).toContain("Unclear explanation");
+});
+
+test("documents schedules, outcome feedback, next outcomes, and support request tracking", () => {
+  expect(articleBody("understand-progress")).toContain("preferred time");
+  expect(articleBody("understand-progress")).toContain(".ics");
+  expect(articleBody("understand-progress")).toContain("Email delivery is currently off");
+  expect(articleBody("read-evidence-report")).toContain("1–5 usefulness rating");
+  expect(articleBody("read-evidence-report")).toContain("next course");
+  expect(articleBody("contact-support")).toContain("My requests");
+  expect(articleBody("contact-support")).toContain("published owner reply");
+});
+
+test("validates repository-wide wiki coverage and owner handbook sections", () => {
+  const checker = readFileSync("scripts/check-support-wiki.mjs", "utf8");
+  const ownerHandbook = readFileSync("src/content/support/owner-documentation.ts", "utf8");
+  expect(checker).toContain("repositoryPages");
+  expect(checker).toContain("references missing feature source");
+  expect(checker).toContain("ownerSections");
+  expect(ownerHandbook).toContain("Undo an automatic repair");
+  expect(ownerHandbook).toContain("exact course snapshot");
+  expect(ownerHandbook).toContain("Before permanent deletion");
+  expect(ownerHandbook).toContain("partial-data indicator");
+  expect(ownerHandbook).toContain("recorded reason");
+});
 
 function run(args: string[], body = "") {
   return spawnSync(process.execPath, [wikiCheck, ...args], {

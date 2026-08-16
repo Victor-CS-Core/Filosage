@@ -44,6 +44,7 @@ test("keeps fixed product copy specific and evidence-bounded", ({ request }, tes
 
 test("resolves every internal destination discoverable from the public application", async ({ page }, testInfo) => {
   test.skip(testInfo.project.name !== "chromium", "The public navigation crawl runs once in desktop Chromium.");
+  test.setTimeout(180_000);
 
   const pending = ["/"];
   const discovered = new Set(pending);

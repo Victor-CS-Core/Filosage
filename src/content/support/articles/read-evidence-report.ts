@@ -7,7 +7,7 @@ export default defineSupportArticle({
   category: "progress",
   keywords: ["evidence report", "baseline", "mastery", "capstone", "assessment", "share"],
   reviewedOn: "2026-08-16",
-  sources: ["src/app/evidence/[courseId]/page.tsx", "src/app/evidence/shared/[token]/page.tsx", "src/lib/evidence-report.ts", "src/lib/evidence-shares.ts", "src/lib/mastery.ts"],
+  sources: ["src/app/evidence/[courseId]/page.tsx", "src/app/evidence/shared/[token]/page.tsx", "src/app/api/evidence/[courseId]/export/route.ts", "src/app/api/evidence/[courseId]/shares/route.ts", "src/components/OutcomeUsefulness.tsx", "src/lib/evidence-report.ts", "src/lib/evidence-shares.ts", "src/lib/mastery.ts", "src/components/useMasteryJourney.ts"],
   body: `
 ## Understand the three summaries
 
@@ -34,6 +34,26 @@ The objective ledger groups saved records under course module objectives. States
 ## Copy a summary
 
 Use **Copy share summary** to copy the available report measures and a link to the course. Review the text before sharing it outside Filosage.
+
+## Download a professional report
+
+When your membership includes professional evidence export, choose **Download report** to save an accessible HTML snapshot for printing or review outside Filosage. The export reflects the evidence available when you download it. Keep the file secure after it leaves your account.
+
+## Create and revoke a share link
+
+When your membership includes evidence sharing, choose **Create 30-day link** to copy a public snapshot URL. The snapshot excludes your account identity, private notes, and raw responses. Anyone with an active URL can view that snapshot until it expires, so share it only with intended recipients.
+
+The report lists active, expired, and revoked links. Choose **Revoke** beside an active link to disable it before its expiration date. A plan downgrade does not reactivate an expired or revoked link; existing links follow the access rules shown on the Plans page.
+
+## Read capstone history
+
+When advanced capstone analysis is available and at least two attempts exist, the report compares unchanged criteria across attempts. Renamed or removed criteria are shown as changed rather than counted as improvement. The analysis highlights improvement, unresolved criteria, regressions, and possible revision priorities; it remains learning evidence, not a credential.
+
+## Rate usefulness and choose the next outcome
+
+After every lesson has saved evidence, the report can ask for a **1–5 usefulness rating** about how useful the outcome was in practice. Submit only the rating and optional context you intend to share as product feedback.
+
+After a passed capstone, Filosage may show a recommended next course. Treat it as a next-outcome suggestion, inspect its outline and source disclosures, and choose it only if the outcome fits your work.
 `,
-  related: ["understand-progress", "complete-a-lesson", "privacy-controls"],
+  related: ["understand-progress", "complete-a-lesson", "complete-a-capstone", "privacy-controls"],
 });

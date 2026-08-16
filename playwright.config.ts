@@ -27,6 +27,14 @@ const ownedProjects = [
   };
 });
 
+const requestedProject = process.env.FILOSAGE_PLAYWRIGHT_PROJECT;
+const activeProjects = requestedProject
+  ? ownedProjects.filter((project) => project.name === requestedProject)
+  : ownedProjects;
+if (requestedProject && activeProjects.length !== 1) {
+  throw new Error(`Unknown FILOSAGE_PLAYWRIGHT_PROJECT: ${requestedProject}`);
+}
+
 const browserState = (baseURL: string) => ({
   baseURL,
   storageState: {
@@ -40,25 +48,30 @@ const browserState = (baseURL: string) => ({
 
 export default defineConfig({
   testDir: "./tests",
+  testIgnore: [
+    "command-center-v2-contract.spec.ts",
+    "command-center-v2-ui.spec.ts",
+    "shared-evidence-ui.spec.ts",
+  ],
   globalTeardown: server.external ? undefined : "./tests/fixtures/playwright-global-teardown.ts",
   metadata: server.external
     ? {}
-    : { filosagePlaywrightLifecycleDirs: ownedProjects.map((project) => project.lifecycleDir) },
+    : { filosagePlaywrightLifecycleDirs: activeProjects.map((project) => project.lifecycleDir) },
   fullyParallel: true,
   forbidOnly: Boolean(process.env.CI),
   retries: process.env.CI ? 2 : 0,
-  workers: process.env.CI ? 1 : 2,
+  workers: 1,
   reporter: "html",
   use: {
     trace: "on-first-retry",
   },
-  projects: ownedProjects.map((project) => ({
+  projects: activeProjects.map((project) => ({
     name: project.name,
     use: { ...project.device, ...browserState(project.server.baseURL) },
   })),
   webServer: server.external
     ? undefined
-    : ownedProjects.map((project) => ({
+    : activeProjects.map((project) => ({
       // The test-only custom server avoids Next CLI's forked Windows process;
       // global teardown asks this exact owned process to close before the
       // Playwright web-server plugin performs its final cleanup.

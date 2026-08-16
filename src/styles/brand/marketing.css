@@ -642,7 +642,7 @@
 .marketing-story-heading { display: grid; grid-template-columns: 1fr 0.7fr; gap: 40px; align-items: end; padding-bottom: 44px; border-bottom: 1px solid var(--line-strong); }
 .marketing-story-heading h2 { max-width: 15ch; font-family: var(--font-heading); font-size: clamp(2.65rem, 4.6vw, 4.65rem); line-height: 1; letter-spacing: -0.04em; }
 .marketing-story-heading p { max-width: 42ch; margin-left: auto; color: var(--ink-secondary); line-height: 1.68; }
-.marketing-story-note { margin-top: 18px; color: var(--ink-muted); font-size: 0.68rem; font-weight: 750; letter-spacing: 0.055em; text-transform: uppercase; }
+.marketing-story-note { margin-top: 18px; color: var(--ink-secondary); font-size: 0.68rem; font-weight: 750; letter-spacing: 0.055em; text-transform: uppercase; }
 .marketing-story-row { display: grid; grid-template-columns: minmax(300px, 0.8fr) minmax(460px, 1.2fr); gap: clamp(44px, 9vw, 132px); align-items: center; padding-block: clamp(56px, 7vw, 96px); border-bottom: 1px solid var(--line); }
 .marketing-story-row.is-reversed > :first-child { order: 2; }
 .marketing-story-row > div:first-child > svg { color: var(--accent-ink); }

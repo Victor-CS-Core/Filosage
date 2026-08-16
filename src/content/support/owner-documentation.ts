@@ -68,15 +68,21 @@ export const ownerDocumentation: OwnerDocumentation = {
         },
         {
           title: "Publication readiness",
-          body: "Publishing requires structural completeness, teaching quality, language integrity, rights and source checks, and any required lesson regeneration. A rejected item stays private. Owner overrides are consequential and require recent authentication and a recorded reason.",
+          body: "Publishing requires structural completeness, teaching quality, language integrity, rights and source checks, and any required lesson regeneration. Review applies to the exact course snapshot; later content or source changes invalidate snapshot-bound approval. A rejected item stays private. Owner overrides are consequential and require recent authentication and a recorded reason.",
           steps: [
             "Review the course outcome, module sequence, assessments, and source pack.",
-            "Resolve every publication-readiness issue; do not treat a generic failure as proof of a specific lesson defect.",
+            "Resolve creator-correctable blockers. Use an offered automatic repair only after inspecting its declared scope.",
+            "Undo an automatic repair when its recorded result is not acceptable; do not conceal a repair by editing its audit evidence.",
+            "Verify each source attestation against the released source and the exact claim before accepting it.",
             "Publish only after the final review confirms learner-safe content and correct visibility.",
           ],
         },
+        {
+          title: "Before permanent deletion",
+          body: "Deleting a course can remove its lessons and linked learner progress, reviews, bookmarks, notes, evidence, feedback, and open reports for all affected learners. Unpublish first when temporary removal is sufficient. Before permanent deletion, preserve authorized records, resolve safety or rights reports, confirm that no required handoff remains, and record why deletion rather than unpublishing is necessary.",
+        },
       ],
-      sources: ["src/app/create/page.tsx", "src/lib/publication-readiness.ts", "src/lib/course-quality.ts", "src/app/api/courses/", "src/app/api/admin/publication-override/"],
+      sources: ["src/app/create/page.tsx", "src/lib/publication-readiness.ts", "src/lib/course-quality.ts", "src/app/api/courses/", "src/app/api/admin/courses/[courseId]/publication-override/"],
     },
     {
       id: "ai-quality",
@@ -93,7 +99,7 @@ export const ownerDocumentation: OwnerDocumentation = {
           links: [{ label: "Open the Control room", href: "/admin" }],
         },
       ],
-      sources: ["src/lib/openai.ts", "src/lib/openai-generation-profile.ts", "src/lib/course-quality.ts", "src/lib/lesson-quality.ts", "src/app/admin/page.tsx"],
+      sources: ["src/lib/openai-generation.ts", "src/lib/course-quality.ts", "src/lib/lesson-quality.ts", "src/app/admin/page.tsx"],
     },
     {
       id: "support-command-center",
@@ -144,7 +150,7 @@ export const ownerDocumentation: OwnerDocumentation = {
           ],
         },
       ],
-      sources: ["src/app/privacy-center/page.tsx", "src/app/api/account/export/", "src/app/api/account/delete/", "src/app/api/content-reports/route.ts", "src/lib/content-report-policy.ts"],
+      sources: ["src/app/privacy-center/page.tsx", "src/app/api/account/data/route.ts", "src/app/api/content-reports/route.ts", "src/lib/content-report-policy.ts"],
     },
     {
       id: "billing",
@@ -170,7 +176,7 @@ export const ownerDocumentation: OwnerDocumentation = {
       topics: [
         {
           title: "Control room",
-          body: "The Control room summarizes accounts, generation, publication, learning evidence, launch readiness, reports, and owner actions. Use it to investigate signals, not to infer facts that are not recorded. Account and publication mutations are server-authorized and audited.",
+          body: "The Control room summarizes accounts, generation, publication, learning evidence, launch readiness, reports, and owner actions. A partial-data indicator means the summary is incomplete and must not be treated as a complete count. Use the underlying record before acting. Account-status and report-resolution mutations require the allowed transition, a recorded reason, server authorization, and an audit result; the visible control is not the authorization boundary.",
           links: [{ label: "Open the Control room", href: "/admin" }],
         },
         {
@@ -185,7 +191,7 @@ export const ownerDocumentation: OwnerDocumentation = {
           body: "A calm daily review is more useful than broad automation. Escalate uncertain legal, privacy, billing, or content decisions instead of turning draft confidence into authority.",
         },
       ],
-      sources: ["src/app/admin/page.tsx", "src/app/admin/command-center/page.tsx", "src/lib/admin-server.ts", "src/lib/command-center-server.ts"],
+      sources: ["src/app/admin/page.tsx", "src/app/admin/command-center/page.tsx", "src/app/api/admin/overview/route.ts", "src/app/api/admin/users/[uid]/route.ts", "src/lib/admin-types.ts", "src/lib/command-center-server.ts"],
     },
     {
       id: "release-and-recovery",

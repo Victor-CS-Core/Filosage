@@ -8,7 +8,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "oxlint --react-plugin --jsx-a11y-plugin --import-plugin --deny-warnings src tests scripts next.config.ts playwright.config.ts playwright.command-center-v2.config.ts playwright.command-center-v2-ui.config.ts playwright.shared-evidence.config.ts && eslint src tests scripts next.config.ts playwright.config.ts playwright.command-center-v2.config.ts playwright.command-center-v2-ui.config.ts playwright.shared-evidence.config.ts",
-    "test:e2e": "playwright test",
+    "test:e2e": "node scripts/run-playwright-matrix.mjs",
     "test:command-center:v2": "playwright test --config=playwright.command-center-v2.config.ts",
     "test:command-center:v2:ui": "playwright test --config=playwright.command-center-v2-ui.config.ts",
     "test:shared-evidence:ui": "playwright test --config=playwright.shared-evidence.config.ts",
