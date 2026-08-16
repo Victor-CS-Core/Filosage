@@ -9,6 +9,7 @@ import {
   authenticationClaimsFromIdToken,
   hasRecentAuthentication,
 } from "../src/lib/recent-auth";
+import { RECENT_AUTHENTICATION_PROOF_MISSING_MESSAGE } from "../src/lib/identity-client";
 import { PRIVACY_VERSION, TERMS_VERSION } from "../src/lib/legal";
 
 const projectLearnerTokens: Record<string, string> = {
@@ -59,6 +60,13 @@ test("requires account-deletion authentication within the server policy window",
   expect(hasRecentAuthentication(now + 60, now)).toBe(true);
   expect(hasRecentAuthentication(now + 61, now)).toBe(false);
   expect(hasRecentAuthentication(undefined, now)).toBe(false);
+});
+
+test("uses action-neutral copy when the identity provider omits recent-auth proof", () => {
+  expect(RECENT_AUTHENTICATION_PROOF_MISSING_MESSAGE).toBe(
+    "Google did not provide a recent-authentication proof. The requested sensitive action was not completed.",
+  );
+  expect(RECENT_AUTHENTICATION_PROOF_MISSING_MESSAGE).not.toMatch(/deleted|published|approved/i);
 });
 
 test("wires the destructive route to the recent-auth account guard", async () => {
