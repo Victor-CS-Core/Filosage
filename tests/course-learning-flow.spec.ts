@@ -1070,7 +1070,7 @@ test("completes a due seven-day retention check from the review queue", async ({
   await expect(page.getByRole("heading", { name: reviewLesson.quizzes[1].question })).toBeVisible();
   await expect(learnTab).toBeDisabled();
   await expect(page.getByRole("button", { name: "Read this lesson aloud" })).toHaveCount(0);
-  await expect(page.getByText("Answer from memory to unlock lesson cues")).toBeVisible();
+  await expect(page.getByText("Answer from memory to see lesson cues")).toBeVisible();
   await expect(page.getByText(reviewCourse.modules[0].lessons[0].concept)).toHaveCount(0);
   await page.getByLabel("Start from memory").fill("Test the same rule with a new relevant example.");
   await page.getByRole("button", { name: /Reveal answer choices/ }).click();
