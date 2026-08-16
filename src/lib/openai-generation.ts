@@ -1,19 +1,20 @@
 import { serverEnvironment } from "@/lib/runtime-environment";
 
 export const AI_PROMPT_VERSIONS = {
-  research: "2026-08-15-layered-evidence-research-v6",
+  research: "2026-08-15-layered-evidence-research-v7",
   grounding: "2026-08-14-claim-grounding-v5",
-  course: "2026-08-15-layered-evidence-course-v2",
-  lesson: "2026-08-15-layered-evidence-lesson-v17",
+  course: "2026-08-15-capability-cycle-course-v6",
+  lesson: "2026-08-15-capability-cycle-lesson-v20",
   tutor: "2026-08-04-grounded-tutor",
   baseline: "2026-08-04-baseline-assessor",
   capstone: "2026-08-04-capstone-assessor",
   commandCenter: "2026-08-06-draft-only-v5",
+  flashcards: "2026-08-16-grounded-flashcards-v1",
 } as const;
 
 export const COURSE_PIPELINE_V2_PROMPT_VERSIONS = {
-  course: "2026-08-15-layered-evidence-v5",
-  lesson: "2026-08-15-layered-evidence-v19",
+  course: "2026-08-15-capability-cycle-v9",
+  lesson: "2026-08-15-capability-cycle-v22",
 } as const;
 
 export const AI_GENERATION_OUTPUT_BUDGETS = {
@@ -40,7 +41,8 @@ export type AiExecutionProfileId =
   | "tutor.standard"
   | "baseline.standard"
   | "capstone.standard"
-  | "command-center.draft";
+  | "command-center.draft"
+  | "flashcard.standard";
 
 export interface AiExecutionProfile {
   id: AiExecutionProfileId;
@@ -155,6 +157,13 @@ const PROFILE_SPECS: Record<AiExecutionProfileId, ProfileSpec> = {
     defaultModel: "gpt-5.6-terra",
     reasoningEffort: "medium",
     textVerbosity: "medium",
+  },
+  "flashcard.standard": {
+    workload: "flashcards",
+    modelEnv: ["OPENAI_FLASHCARD_MODEL", "OPENAI_TUTOR_MODEL", "OPENAI_MODEL"],
+    defaultModel: "gpt-5.6-luna",
+    reasoningEffort: "low",
+    textVerbosity: "low",
   },
 };
 

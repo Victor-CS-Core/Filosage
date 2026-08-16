@@ -2,8 +2,6 @@ import { NextResponse } from "next/server";
 import { authorizationResponse, requireAccount } from "@/lib/auth-server";
 import { getStoredDocument, listOwnerCourses, listPublicCourses } from "@/lib/firebase-server";
 import { toCourseDto } from "@/lib/course-dto";
-import { planAllows } from "@/lib/membership-plans";
-import { getAiQuotaSummaries } from "@/lib/ai-usage";
 import { safeModelErrorDetails } from "@/lib/model-fallback";
 import { courseUsesPipelineV2 } from "@/lib/course-pipeline/feature-policy";
 import { courseAuthorIdsForAccount } from "@/lib/course-owner-identity";
@@ -45,9 +43,7 @@ export async function GET(request: Request) {
     const courses = [...new Map(
       courseGroups.flat().map((course) => [course.id, course] as const),
     ).values()].sort((left, right) => String(right.updatedAt ?? "").localeCompare(String(left.updatedAt ?? "")));
-    const canGenerateBanner = account.isOwner || (planAllows(account.plan, "generate_course_banner")
-      && (await getAiQuotaSummaries(account)).some((quota) => quota.feature === "course_banner" && quota.remaining !== 0));
-    return NextResponse.json({ courses: courses.map((course) => toCourseDto(course, true, canGenerateBanner)) });
+    return NextResponse.json({ courses: courses.map((course) => toCourseDto(course, true)) });
   } catch (error: unknown) {
     const authResponse = authorizationResponse(error);
     if (authResponse) return authResponse;

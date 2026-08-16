@@ -1,4 +1,4 @@
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { expect, test } from "@playwright/test";
 import { restoreLocalLearner } from "./fixtures/local-learner";
@@ -18,14 +18,13 @@ test("Control Room reporting names and aggregates Plus and Pro explicitly", () =
   expect(page).not.toContain("Pro contribution model");
 });
 
-test("initial and replacement course banners share the monthly plan quota", () => {
+test("new courses keep initial banners while banner regeneration is retired", () => {
   const courseGeneration = source("src/app/api/generate-course/route.ts");
-  const bannerRoute = source("src/app/api/courses/[courseId]/banner/route.ts");
   const storage = source("src/lib/firebase-server.ts");
   expect(courseGeneration).toContain('reserveAiUsage(account, "course_banner", idempotencyKey)');
-  expect(bannerRoute).toContain('reserveAiUsage(account, "course_banner"');
-  expect(storage).toContain("Number(course.bannerRegenerationCount ?? 0) + 1");
-  expect(storage).not.toContain("has already used its one banner regeneration");
+  expect(existsSync(resolve(root, "src/app/api/courses/[courseId]/banner/route.ts"))).toBe(false);
+  expect(storage).not.toContain("claimCourseBannerRegeneration");
+  expect(storage).not.toContain("finishCourseBannerRegeneration");
 });
 
 test("billing events retain tier, interval, offer, and raw lifecycle dimensions", () => {
@@ -75,7 +74,7 @@ test("public and owner-facing tier copy no longer describes a two-tier product",
   expect(source("src/app/library/page.tsx")).toContain("Compare memberships");
   expect(source("src/components/marketing/LandingPage.tsx")).toContain("Paid availability stays explicit");
   expect(source("src/app/api/waitlist/route.ts")).toContain("paid membership launch");
-  expect(source("src/content/support/owner-documentation.ts")).toContain("Plus adds one active private course");
+  expect(source("src/content/support/owner-documentation.ts")).toContain("Plus adds two complete private AI course credits monthly");
 });
 
 test("the rendered owner Control Room exposes reconciled membership reporting", async ({ page }) => {

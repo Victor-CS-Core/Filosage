@@ -38,7 +38,7 @@ function renewalLabel(value: string | undefined, status: string | undefined) {
 
 export default function PricingPage() {
   const { user, account, signInWithGoogle, acceptLegalTerms, refreshAccount } = useAuth();
-  const outlineQuota = account?.quotas.find((quota) => quota.feature === "course_outline");
+  const courseCredits = account?.courseCredits;
   const subscriptionRequiresManagement = subscriptionBlocksCheckout(account?.subscriptionStatus);
   const [email, setEmail] = useState("");
   const [consent, setConsent] = useState(false);
@@ -174,8 +174,8 @@ export default function PricingPage() {
     <AppShell>
       <div className="pricing-page">
         <header className="pricing-header">
-          <h1>Learn freely. Create at the level you need.</h1>
-          <p>Free supports focused learning. Plus adds one private course for a current goal. Pro expands authoring and adds public course publishing.</p>
+          <h1>Choose how far Filosage carries the work.</h1>
+          <p>Plus turns professional goals into private learning paths. Pro adds advanced capstone analysis, professional evidence reports, and publishing tools.</p>
         </header>
 
         {checkoutReturn && (
@@ -219,7 +219,7 @@ export default function PricingPage() {
                 {plan.restrictedFeatures.length > 0 && <ul className="plan-restrictions" aria-label={`${plan.name} exclusions`}>{plan.restrictedFeatures.map((feature) => <li key={feature}><X size={16} /> {feature}</li>)}</ul>}
 
                 {isCurrent ? (
-                  <div className="plan-status"><Sparkles size={17} /><span><strong>{account?.subscriptionStatus === "past_due" ? "Payment needs attention" : `${plan.shortName} is active`}</strong><small>{account?.subscriptionStatus === "past_due" ? "Update your payment method to restore paid access." : renewal ?? (outlineQuota ? `${outlineQuota.remaining ?? "Unlimited"} outline credits remaining` : "Your current membership")}</small></span></div>
+                  <div className="plan-status"><Sparkles size={17} /><span><strong>{account?.subscriptionStatus === "past_due" ? "Payment needs attention" : `${plan.shortName} is active`}</strong><small>{account?.subscriptionStatus === "past_due" ? "Update your payment method to restore paid access." : renewal ?? (courseCredits?.balance === null ? "Unlimited owner course creation" : account?.plan === "free" && courseCredits?.frozenUntil ? `${courseCredits.balance} course credits preserved until ${new Date(courseCredits.frozenUntil).toLocaleDateString()}` : courseCredits ? `${courseCredits.balance} rollover course credits available` : "Your current membership")}</small></span></div>
                 ) : !user && plan.id === "free" ? (
                   <button className="button button-secondary" onClick={() => void signInWithGoogle()}>Create a free account</button>
                 ) : paidPlanId && !user && billingReady ? (
@@ -239,6 +239,15 @@ export default function PricingPage() {
             );
           })}
         </div>
+
+        <section className="pricing-credit-guide" aria-labelledby="course-credit-title">
+          <div><p className="overline">Course credits, in context</p><h2 id="course-credit-title">One credit builds the course the goal requires.</h2><p>An approved outline redeems one credit. Every lesson planned in that outline is included, so a longer course is not penalized with a separate lesson quota.</p></div>
+          <dl>
+            <div><dt>Plus</dt><dd><strong>2 monthly</strong><span>Unused credits roll over, up to 24.</span></dd></div>
+            <div><dt>Pro</dt><dd><strong>5 monthly</strong><span>Unused credits roll over, up to 60.</span></dd></div>
+          </dl>
+          <p>Annual memberships receive credits monthly, not all at once. Paid accounts can keep every course they create. If paid access ends, unused credits are preserved for twelve months and become usable again when paid access resumes.</p>
+        </section>
 
         {subscriptionRequiresManagement && (
           <section className="pricing-account-action" aria-labelledby="manage-membership-title">
@@ -278,7 +287,7 @@ export default function PricingPage() {
         ))}
 
         {billingError && <p className="waitlist-error" role="alert">{billingError}</p>}
-        <p className="pricing-note">Generation allowances reset each month and do not roll over. A downgrade never deletes a course or unpublishes existing work. If an account is over its new owned-course limit, existing courses remain accessible while new course creation is paused.</p>
+        <p className="pricing-note">Tutor-question allowances renew monthly. Course credits carry forward to the stated balance ceiling. A downgrade never deletes a course, assessment history, evidence snapshot, or published work; it changes which new actions are available.</p>
         <section className="billing-readiness-note" aria-labelledby="billing-readiness-title">
           <LockKeyhole size={18} />
           <div><h2 id="billing-readiness-title">Clear terms before any charge</h2><p>{billingReady ? `Secure checkout shows the selected membership, exact price, currency, billing interval, automatic renewal, included limits, online cancellation, and ${PAID_SUBSCRIPTION_POLICY.refundWindowDays}-day initial-charge and annual-renewal refund window before consent. Paid plans are for ${PAID_SUBSCRIPTION_POLICY.launchMarketLabel} residents age ${PAID_SUBSCRIPTION_POLICY.minimumPurchaserAge} or older.` : `Paid checkout remains closed. Before launch, secure checkout will show the selected membership, exact price, currency, billing interval, automatic renewal, included limits, online cancellation, and ${PAID_SUBSCRIPTION_POLICY.refundWindowDays}-day initial-charge and annual-renewal refund window before consent. Paid plans will initially be limited to ${PAID_SUBSCRIPTION_POLICY.launchMarketLabel} residents age ${PAID_SUBSCRIPTION_POLICY.minimumPurchaserAge} or older.`}</p><p><Link href="/terms">Terms of Service</Link> · <Link href="/privacy">Privacy Notice</Link> · <a href={`mailto:${SUPPORT_CONTACT}`}>Contact support</a></p></div>

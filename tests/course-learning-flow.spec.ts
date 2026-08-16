@@ -293,8 +293,25 @@ async function completeQuiz(
     continueToNext?: boolean;
   },
 ) {
+  let attempts = 0;
+  let firstAttemptCorrect = false;
+  await page.route("**/api/lesson-activity", async (route) => {
+    const body = route.request().postDataJSON() as { selectedOption?: string };
+    attempts += 1;
+    const correct = body.selectedOption === options.correctAnswer;
+    if (attempts === 1 && correct) firstAttemptCorrect = true;
+    await route.fulfill({
+      json: {
+        correct,
+        attempts,
+        firstAttemptCorrect,
+        receipt: correct ? `receipt_${"verified".repeat(8)}_${attempts}` : undefined,
+      },
+    });
+  });
   const check = page.locator(".knowledge-check");
   await expect(check).toHaveCount(1);
+  await expect(check.getByRole("button", { name: "Reveal answer choices" })).toBeDisabled();
   await check.getByLabel("Start from memory").fill(options.recall);
   await check.getByRole("button", { name: "Reveal answer choices" }).click();
   await expect(check.getByText(options.recall)).toBeVisible();
@@ -583,6 +600,26 @@ test("completes a published course from discovery through evidence", async ({ pa
           },
         ],
       };
+    if (capstoneAssessment.status === "passed") {
+      course.modules.forEach((courseModule, moduleIndex) => {
+        const evidence: MasteryEvidence = {
+          id: `server_capstone_fixture_${moduleIndex}`,
+          courseId,
+          objectiveId: `module-${moduleIndex}`,
+          type: "capstone",
+          result: "passed",
+          authority: "server-verified",
+          label: `Capstone demonstrated: ${courseModule.objective ?? courseModule.title}`,
+          observedAt: capstoneAssessment!.assessedAt,
+          confidence: "high",
+          score: 1,
+          criterion: course.capstone?.title,
+        };
+        const existingIndex = masteryEvidence.findIndex((item) => item.id === evidence.id);
+        if (existingIndex >= 0) masteryEvidence[existingIndex] = evidence;
+        else masteryEvidence.push(evidence);
+      });
+    }
     return route.fulfill({ json: { assessment: capstoneAssessment } });
   });
   await page.route("**/api/chat", async (route) => {
@@ -790,7 +827,8 @@ test("completes a published course from discovery through evidence", async ({ pa
   await page.getByRole("button", { name: "Submit for assessment" }).click();
   const capstone = page.locator(".course-capstone");
   await expect(capstone.getByText("Capstone passed", { exact: true })).toBeVisible();
-  await expect(capstone.getByText("View revision history (2 attempts)")).toBeVisible();
+  await expect(capstone.getByText("The revised brief supports a proportionate, reversible action with explicit evidence.")).toBeVisible();
+  await expect(capstone.getByText("View revision history (2 attempts)")).toHaveCount(0);
   expect(capstoneSubmissions).toEqual([firstCapstone, revisedCapstone]);
 
   await page.getByRole("link", { name: "View evidence" }).click();
@@ -927,11 +965,21 @@ test("completes a due seven-day retention check from the review queue", async ({
   const reviewLesson: LessonData = {
     content: "## Recall the rule\n\nConfidence should follow the strength of the evidence, not the force of the claim.",
     quizzes: [{
+      id: "quiz-m0-l0-1",
+      intendedUse: "both",
       question: "What should confidence track?",
       options: ["The strength of the evidence", "The speaker's seniority", "The cost already spent", "The number of slides"],
       correctIndex: 0,
       explanation: "Confidence should track evidence strength.",
       optionFeedback: ["Correct.", "Authority is not evidence.", "Sunk cost is not evidence.", "Presentation length is not evidence."],
+    }, {
+      id: "quiz-m0-l0-2",
+      intendedUse: "review",
+      question: "Which new situation best tests the same evidence rule?",
+      options: ["A new relevant example", "The identical saved prompt", "A copied answer key", "A confidence statement alone"],
+      correctIndex: 0,
+      explanation: "A new relevant example tests whether the rule transfers.",
+      optionFeedback: ["Correct.", "Repeating the same prompt measures fluency.", "An answer key removes retrieval.", "Confidence alone is not performance evidence."],
     }],
   };
   const dueProgress: CourseProgress = {
@@ -944,7 +992,9 @@ test("completes a due seven-day retention check from the review queue", async ({
       "0-0": {
         lessonId: "0-0",
         lessonTitle: "Evidence threshold",
+        objectiveId: "objective-m0-l0",
         status: "learned",
+        evidenceAuthority: "receipt-verified",
         attempts: 1,
         totalQuestions: 1,
         firstAttemptCorrect: 1,
@@ -960,6 +1010,11 @@ test("completes a due seven-day retention check from the review queue", async ({
           day7: { dueAt: "2020-01-08T12:00:00.000Z" },
           day28: { dueAt: "2099-01-29T12:00:00.000Z" },
         },
+        retrievalVariantExposures: [{ variantId: "quiz-m0-l0-1", seenAt: "2020-01-01T12:00:00.000Z" }],
+        retrievalVariantBank: [
+          { id: "quiz-m0-l0-1", objectiveId: "objective-m0-l0", contextKey: "foundation" },
+          { id: "quiz-m0-l0-2", objectiveId: "objective-m0-l0", contextKey: "transfer" },
+        ],
         estimatedMinutes: 6,
       },
     },
@@ -973,6 +1028,7 @@ test("completes a due seven-day retention check from the review queue", async ({
   await page.route("**/api/progress*", async (route) => {
     if (route.request().method() === "GET") {
       const singleCourse = new URL(route.request().url()).searchParams.has("courseId");
+      if (singleCourse) await new Promise((resolve) => setTimeout(resolve, 750));
       return route.fulfill({ json: { progress: singleCourse ? dueProgress : [dueProgress] } });
     }
     reviewUpdates.push(route.request().postDataJSON() as ProgressUpdate);
@@ -987,6 +1043,18 @@ test("completes a due seven-day retention check from the review queue", async ({
     if (route.request().method() === "GET") return route.fulfill({ json: { plan: null, evidence: [] } });
     return route.fulfill({ json: { saved: true } });
   });
+  await page.route("**/api/lesson-activity", async (route) => {
+    const body = route.request().postDataJSON() as { selectedOption?: string };
+    const correct = body.selectedOption === "A new relevant example";
+    await route.fulfill({
+      json: {
+        correct,
+        attempts: 1,
+        firstAttemptCorrect: correct,
+        receipt: correct ? `receipt_${"verified".repeat(8)}_1` : undefined,
+      },
+    });
+  });
   await page.route("**/api/courses/retention-review-flow", (route) => route.fulfill({ json: reviewCourse }));
   await page.route("**/api/courses/retention-review-flow/lessons/0-0", (route) => route.fulfill({ json: reviewLesson }));
 
@@ -996,11 +1064,20 @@ test("completes a due seven-day retention check from the review queue", async ({
   await expect(dueItem).toContainText("7-day retention check");
   await dueItem.click();
   await expect(page).toHaveURL(/review=1&check=day7/);
-  await completeQuiz(page, {
-    recall: "Confidence follows the strength of the evidence.",
-    correctAnswer: "The strength of the evidence",
-    confidence: "Certain",
-  });
+  await expect(page.getByText("Preparing this review")).toBeVisible();
+  await expect(page.getByRole("heading", { name: reviewLesson.quizzes[0].question })).toHaveCount(0);
+  const learnTab = page.getByRole("tab", { name: /Learn/ });
+  await expect(page.getByRole("heading", { name: reviewLesson.quizzes[1].question })).toBeVisible();
+  await expect(learnTab).toBeDisabled();
+  await expect(page.getByRole("button", { name: "Read this lesson aloud" })).toHaveCount(0);
+  await expect(page.getByText("Answer from memory to unlock lesson cues")).toBeVisible();
+  await expect(page.getByText(reviewCourse.modules[0].lessons[0].concept)).toHaveCount(0);
+  await page.getByLabel("Start from memory").fill("Test the same rule with a new relevant example.");
+  await page.getByRole("button", { name: /Reveal answer choices/ }).click();
+  await page.getByRole("button", { name: /A new relevant example/ }).click();
+  await expect(learnTab).toBeEnabled();
+  await expect(page.getByText(reviewCourse.modules[0].lessons[0].concept)).toBeVisible();
+  await page.getByRole("button", { name: "Certain" }).click();
 
   await expect(page.locator(".completion-banner").getByText("7-day check complete")).toBeVisible();
   await expect.poll(() => reviewUpdates.length).toBe(1);
@@ -1009,12 +1086,14 @@ test("completes a due seven-day retention check from the review queue", async ({
     lessonId: "0-0",
     review: true,
     reviewKind: "delayed-7",
+    retrievalVariantId: "quiz-m0-l0-2",
+    retrievalVariantIds: ["quiz-m0-l0-2"],
     totalQuestions: 1,
     firstAttemptCorrect: 1,
     attempts: 1,
     confidence: "high",
     activityEvidence: {
-      quizResults: [{ quizIndex: 0, attempts: 1, firstAttemptCorrect: true, confidence: "high" }],
+      quizResults: [{ quizIndex: 1, attempts: 1, firstAttemptCorrect: true, confidence: "high" }],
     },
   });
 });

@@ -24,7 +24,9 @@ type StoreShape = Record<string, Record<string, unknown>>;
 let cache: StoreShape | null = null;
 
 function load(): StoreShape {
-  if (cache) return cache;
+  // Next can bundle API routes into separate server module instances. Reloading
+  // the development store for each operation prevents one route's stale
+  // in-memory snapshot from hiding or overwriting a write made by another.
   try {
     cache = existsSync(STORE_PATH)
       ? JSON.parse(readFileSync(STORE_PATH, "utf8")) as StoreShape

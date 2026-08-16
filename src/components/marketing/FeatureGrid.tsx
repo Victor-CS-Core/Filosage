@@ -10,8 +10,8 @@ export default function FeatureGrid() {
         <div className="marketing-outcome-fragment" aria-label="Illustrative outcome definition fields"><span><small>Outcome</small><strong>Design a defensible product experiment</strong></span><span><small>Use it for</small><strong>A live roadmap decision</strong></span><span><small>Evidence</small><strong>Experiment brief and decision memo</strong></span></div>
       </article>
       <article className="marketing-story-row is-reversed">
-        <div><BookOpenCheck size={24} aria-hidden="true" /><h3>Practice until the idea travels.</h3><p>Explanations and examples lead into retrieval, guided reasoning, and independent transfer—not passive completion alone.</p></div>
-        <ol className="marketing-practice-fragment" aria-label="Illustrative lesson sequence"><li><Check size={15} /> Explain the concept</li><li><Check size={15} /> Work through an example</li><li><FileCheck2 size={15} /> Retrieve it without the example</li><li><ArrowRight size={15} /> Apply it in a new situation</li></ol>
+        <div><BookOpenCheck size={24} aria-hidden="true" /><h3>Practice through the complete cycle.</h3><p>Recall or predict first, commit to one focused attempt, use feedback to revise, and transfer the capability beyond the example.</p></div>
+        <ol className="marketing-practice-fragment" aria-label="Illustrative Capability Cycle lesson sequence"><li><FileCheck2 size={15} /> Recall or predict first</li><li><Check size={15} /> Make a focused attempt</li><li><Check size={15} /> Revise after feedback</li><li><ArrowRight size={15} /> Transfer to a new situation</li></ol>
       </article>
       <article className="marketing-story-row">
         <div><CalendarCheck2 size={24} aria-hidden="true" /><h3>Return to one useful next step.</h3><p>Saved progress, reviews that are due, and a weekly milestone shape the return path. Paused plans resume without punitive catch-up.</p></div>

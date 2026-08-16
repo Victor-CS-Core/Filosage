@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import {
   getLocalMasteryJourney,
   mergeMasteryEvidence,
+  normalizeLearnerReportedMasteryEvidence,
   saveLocalMasteryJourney,
   type LearningOutcomePlan,
   type MasteryEvidence,
@@ -123,13 +124,14 @@ export function useMasteryJourney(courseId: string | null | undefined, user: Tok
 
   const addEvidence = useCallback(async (items: MasteryEvidence[]) => {
     if (!courseId || !items.length) return;
-    const nextEvidence = mergeMasteryEvidence(evidence, items);
+    const learnerReportedItems = items.map(normalizeLearnerReportedMasteryEvidence);
+    const nextEvidence = mergeMasteryEvidence(evidence, learnerReportedItems);
     setEvidence(nextEvidence);
     saveLocalMasteryJourney(courseId, { plan, evidence: nextEvidence });
     if (!user) return;
     try {
       const token = await user.getIdToken();
-      await Promise.all(items.map((item) => fetch("/api/mastery", {
+      await Promise.all(learnerReportedItems.map((item) => fetch("/api/mastery", {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify(item),

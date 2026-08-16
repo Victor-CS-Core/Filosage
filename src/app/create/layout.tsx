@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 
 export const metadata: Metadata = {
   title: "Course Studio",
-  description: "Create and review a private AI-assisted course with Filosage Plus or Filosage Pro.",
+  description: "Create a private AI-assisted course organized by the Filosage Capability Cycle with Filosage Plus or Filosage Pro.",
   robots: { index: false, follow: false },
 };
 

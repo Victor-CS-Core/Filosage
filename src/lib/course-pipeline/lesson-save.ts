@@ -106,6 +106,25 @@ export function buildGuardedLessonEvidenceDowngrade(
         ? { ...lessonSummary, contentBasis: "model-knowledge" as const, sourceIds: [] }
         : lessonSummary),
   }));
+  const currentLearningDesign = course.learningDesign && typeof course.learningDesign === "object"
+    ? course.learningDesign as NonNullable<Course["learningDesign"]>
+    : undefined;
+  const nextLearningDesign = currentLearningDesign && Array.isArray(currentLearningDesign.lessonPlans)
+    ? {
+        ...currentLearningDesign,
+        lessonPlans: currentLearningDesign.lessonPlans.map((plan) => plan.lessonId === lessonId
+          ? {
+              ...plan,
+              resources: {
+                status: "unavailable" as const,
+                evidenceSourceIds: [],
+                furtherReadingIds: [],
+                rationale: "Automatic claim verification did not retain a lesson-specific resource; the lesson continues with disclosed model knowledge.",
+              },
+            }
+          : plan),
+      }
+    : undefined;
   const outlinedLessons = nextModules.flatMap((courseModule) => courseModule.lessons);
   const verifiedLessonCount = outlinedLessons.filter((lessonSummary) => lessonSummary.contentBasis === "verified-source").length;
   const modelKnowledgeLessonCount = outlinedLessons.length - verifiedLessonCount;
@@ -132,6 +151,7 @@ export function buildGuardedLessonEvidenceDowngrade(
   const nextCourse = {
     ...courseWithoutGrounding,
     modules: nextModules,
+    ...(nextLearningDesign ? { learningDesign: nextLearningDesign } : {}),
     evidenceProfile: {
       ...previousProfile,
       mode: verifiedLessonCount ? "hybrid" : "model-knowledge",

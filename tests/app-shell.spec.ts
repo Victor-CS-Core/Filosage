@@ -453,9 +453,9 @@ test.describe("desktop application shell", () => {
       { path: "/progress", heading: /Your progress/ },
       { path: "/profile", heading: /Playwright/ },
       { path: "/review", heading: /caught up|concept/ },
-      { path: "/pricing", heading: /Learn freely/ },
+      { path: "/pricing", heading: /Choose how far Filosage carries the work/ },
       { path: "/support", heading: /What do you need help with/ },
-      { path: "/standard", heading: /Generated is not good enough/ },
+      { path: "/standard", heading: /Capability Cycle turns a goal into usable skill/ },
     ];
 
     for (const route of routes) {
@@ -1050,7 +1050,7 @@ test.describe("mobile application shell", () => {
     const routes = [
       { path: "/create", heading: /Build toward a real outcome/ },
       { path: "/progress", heading: /Your progress/ },
-      { path: "/pricing", heading: /Learn freely/ },
+      { path: "/pricing", heading: /Choose how far Filosage carries the work/ },
       { path: "/support", heading: /What do you need help with/ },
     ];
 

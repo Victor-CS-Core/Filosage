@@ -1,8 +1,9 @@
 export interface ActivityReceiptClaims {
-  version: 2;
+  version: 3;
   uid: string;
   courseId: string;
   lessonId: string;
+  progressOperationId: string;
   quizIndex: number;
   artifactHash: string;
   attempts: number;
@@ -35,10 +36,10 @@ async function signingKey(secret: string) {
   );
 }
 
-export async function activityDocumentId(courseId: string, lessonId: string, quizIndex: number, artifactHash: string) {
+export async function activityDocumentId(courseId: string, lessonId: string, progressOperationId: string, quizIndex: number, artifactHash: string) {
   const digest = await crypto.subtle.digest(
     "SHA-256",
-    new TextEncoder().encode(`${courseId}:${lessonId}:${quizIndex}:${artifactHash}`),
+    new TextEncoder().encode(`${courseId}:${lessonId}:${progressOperationId}:${quizIndex}:${artifactHash}`),
   );
   return base64Url(new Uint8Array(digest));
 }
@@ -56,7 +57,7 @@ export async function signActivityReceipt(secret: string, claims: ActivityReceip
 export async function validateActivityReceipt(
   secret: string,
   receipt: string,
-  expected: Pick<ActivityReceiptClaims, "uid" | "courseId" | "lessonId" | "quizIndex" | "artifactHash">,
+  expected: Pick<ActivityReceiptClaims, "uid" | "courseId" | "lessonId" | "progressOperationId" | "quizIndex" | "artifactHash">,
   now = Date.now(),
 ) {
   const [payload, signature, extra] = receipt.split(".");
@@ -73,10 +74,11 @@ export async function validateActivityReceipt(
     if (!valid) return null;
     const claims = JSON.parse(new TextDecoder().decode(decodeBase64Url(payload))) as ActivityReceiptClaims;
     if (
-      claims.version !== 2
+      claims.version !== 3
       || claims.uid !== expected.uid
       || claims.courseId !== expected.courseId
       || claims.lessonId !== expected.lessonId
+      || claims.progressOperationId !== expected.progressOperationId
       || claims.quizIndex !== expected.quizIndex
       || claims.artifactHash !== expected.artifactHash
       || !Number.isInteger(claims.attempts)

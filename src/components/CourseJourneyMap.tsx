@@ -16,6 +16,10 @@ export default function CourseJourneyMap({
   onOpenLesson: (lessonId: string) => void;
 }) {
   const completed = useMemo(() => new Set(completedLessonIds), [completedLessonIds]);
+  const lessonWins = useMemo(
+    () => new Map((course.learningDesignSummary?.lessonWins ?? []).map((win) => [win.lessonId, win] as const)),
+    [course.learningDesignSummary?.lessonWins],
+  );
   const currentModule = Math.max(0, course.modules.findIndex((courseModule, moduleIndex) => courseModule.lessons.some((_, lessonIndex) => !completed.has(`${moduleIndex}-${lessonIndex}`))));
   const [expanded, setExpanded] = useState(-1);
   const panelIdPrefix = useId();
@@ -50,7 +54,8 @@ export default function CourseJourneyMap({
                     const lessonId = `${moduleIndex}-${lessonIndex}`;
                     const unlocked = canOpenLesson(lessonId);
                     const done = completed.has(lessonId);
-                    return <button type="button" key={lessonId} onClick={() => unlocked && onOpenLesson(lessonId)} disabled={!unlocked}><span>{done ? <Check size={14} /> : `${moduleIndex + 1}.${lessonIndex + 1}`}</span><strong>{lesson.title}</strong>{unlocked ? <ArrowRight size={15} /> : <LockKeyhole size={14} />}</button>;
+                    const win = lessonWins.get(lessonId);
+                    return <button type="button" key={lessonId} onClick={() => unlocked && onOpenLesson(lessonId)} disabled={!unlocked}><span>{done ? <Check size={14} /> : `${moduleIndex + 1}.${lessonIndex + 1}`}</span><div><strong>{lesson.title}</strong>{win && <small>{win.singleWin} · about {win.estimatedMinutes} min</small>}</div>{unlocked ? <ArrowRight size={15} /> : <LockKeyhole size={14} />}</button>;
                   })}
                 </div>
               </div>

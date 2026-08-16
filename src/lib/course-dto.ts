@@ -12,6 +12,7 @@ import { visualPlanSchema } from "@/lib/course-pipeline/schemas";
 import { normalizeSuccessCriteria } from "@/lib/course-criteria";
 import { bibliographicReferenceSchema } from "@/lib/bibliographic-references";
 import { isServerClassifiedResearchSource } from "@/lib/source-research";
+import { buildPublicLearningDesignSummaryV1, learningDesignContractV1Schema, lessonDesignPlanV1Schema } from "@/lib/learning-design";
 
 function structuredText(value: unknown) {
   return typeof value === "string" ? normalizeStructuredMarkdown(value) : "";
@@ -34,8 +35,11 @@ function transferTaskDto(value: unknown): LessonData["transferTask"] {
   const prompt = structuredText(task.prompt);
   const modelResponse = structuredText(task.modelResponse);
   const successCriteria = normalizeSuccessCriteria(task.successCriteria).map(normalizeStructuredMarkdown);
+  const criterionIds = Array.isArray(task.criterionIds)
+    ? task.criterionIds.filter((item): item is string => typeof item === "string" && /^criterion-[a-z0-9-]{1,80}$/.test(item))
+    : [];
   return prompt && modelResponse && successCriteria.length
-    ? { prompt, successCriteria, modelResponse }
+    ? { prompt, successCriteria, modelResponse, criterionIds }
     : undefined;
 }
 
@@ -64,7 +68,7 @@ function lessonExperienceDto(value: unknown): LessonData["experience"] {
     : undefined;
 }
 
-export function toCourseDto(value: Record<string, unknown> | Course, canManage = false, canGenerateBanner = canManage): Course {
+export function toCourseDto(value: Record<string, unknown> | Course, canManage = false): Course {
   const raw = value as Record<string, unknown>;
   const topic = String(raw.topic ?? "");
   const language = typeof raw.language === "string" ? raw.language : "English";
@@ -91,6 +95,18 @@ export function toCourseDto(value: Record<string, unknown> | Course, canManage =
     : modelKnowledgeLessonCount > 0 || currentResearchSources.length < 2 || authorityFamilyCount < 2
       ? "hybrid" as const
       : "fully-grounded" as const;
+  const learningDesign = learningDesignContractV1Schema.safeParse(raw.learningDesign);
+  const publicLearningDesignSummary = learningDesign.success
+    ? buildPublicLearningDesignSummaryV1({
+        topic,
+        outcome: typeof safe.outcome === "string" ? safe.outcome : undefined,
+        mission: typeof safe.mission === "string" ? safe.mission : undefined,
+        estimatedMinutes: typeof safe.estimatedMinutes === "number" ? safe.estimatedMinutes : undefined,
+        artifact: safe.artifact && typeof safe.artifact === "object" ? safe.artifact as Course["artifact"] : undefined,
+        capstone: safeCapstone,
+        modules: Array.isArray(safe.modules) ? safe.modules as Course["modules"] : [],
+      }, learningDesign.data)
+    : undefined;
   return {
     id: typeof safe.id === "string" ? safe.id : undefined,
     courseId: typeof safe.id === "string" ? safe.id : undefined,
@@ -116,6 +132,7 @@ export function toCourseDto(value: Record<string, unknown> | Course, canManage =
     category: typeof safe.category === "string" ? safe.category : undefined,
     audience: typeof safe.audience === "string" ? safe.audience : undefined,
     language,
+    learningDesignSummary: publicLearningDesignSummary,
     pipelineStage: canManage && ["draft", "planning", "generating", "enriching", "validating", "needs_repair", "repairing", "ready_to_publish", "publishing", "published", "manual_review", "failed"].includes(String(raw.pipelineStage ?? ""))
       ? raw.pipelineStage as Course["pipelineStage"]
       : undefined,
@@ -264,7 +281,6 @@ export function toCourseDto(value: Record<string, unknown> | Course, canManage =
             : undefined,
         }
       : undefined,
-    canRegenerateBanner: canManage ? canGenerateBanner : undefined,
     generatedLessonIds: canManage && Array.isArray(raw.generatedLessonIds)
       ? raw.generatedLessonIds.map(String)
       : undefined,
@@ -315,6 +331,7 @@ export function toLessonDto(
   const safeValue = sanitizeGeneratedValue(value, topic, instructionLanguage) as Record<string, unknown>;
   value = safeValue;
   const visualPlan = visualPlanSchema.safeParse(value.visualPlan);
+  const lessonDesign = lessonDesignPlanV1Schema.safeParse(value.lessonDesign);
   const modelKnowledgeLesson = value.contentBasis === "model-knowledge"
     && typeof value.sourcePolicyVersion === "string"
     && value.sourcePolicyVersion.startsWith("source-integrity-v5.");
@@ -357,6 +374,7 @@ export function toLessonDto(
       : undefined,
     learningObjective: typeof value.learningObjective === "string" ? value.learningObjective : undefined,
     objectiveIds: Array.isArray(value.objectiveIds) ? value.objectiveIds.map(String) : undefined,
+    lessonDesign: lessonDesign.success ? lessonDesign.data : undefined,
     connection: typeof value.connection === "string" ? value.connection : undefined,
     keyTakeaways: Array.isArray(value.keyTakeaways)
       ? value.keyTakeaways.filter((item): item is string => typeof item === "string")
@@ -389,6 +407,9 @@ export function toLessonDto(
       labRegistryVersion: typeof value.labRegistryVersion === "string" ? value.labRegistryVersion : undefined,
       visualPolicyVersion: typeof value.visualPolicyVersion === "string" ? value.visualPolicyVersion : undefined,
       sourcePolicyVersion: typeof value.sourcePolicyVersion === "string" ? value.sourcePolicyVersion : undefined,
+      learningDesignContractVersion: typeof value.learningDesignContractVersion === "string"
+        ? value.learningDesignContractVersion
+        : undefined,
       contentBasis: value.contentBasis === "verified-source" || value.contentBasis === "model-knowledge"
         ? value.contentBasis
         : undefined,

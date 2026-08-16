@@ -16,6 +16,11 @@ export const COURSE_DELETION_COLLECTION_GROUP_INDEXES = [
   { collectionGroup: "courseManualReviewMutations", fieldPath: "courseId" },
   { collectionGroup: "lessonInteraction", fieldPath: "courseId" },
   { collectionGroup: "lessonInteractionMutations", fieldPath: "courseId" },
+  { collectionGroup: "evidenceShares", fieldPath: "courseId" },
+  { collectionGroup: "evidenceShareRefs", fieldPath: "courseId" },
+  { collectionGroup: "flashcardDecks", fieldPath: "courseId" },
+  { collectionGroup: "flashcards", fieldPath: "courseId" },
+  { collectionGroup: "flashcardReviewState", fieldPath: "courseId" },
   { collectionGroup: "lessonNotes", fieldPath: "key" },
 ] as const;
 
@@ -32,6 +37,11 @@ export const COURSE_SCOPED_COLLECTION_GROUPS = {
   manualReviewMutations: "courseManualReviewMutations",
   lessonInteractions: "lessonInteraction",
   lessonInteractionMutations: "lessonInteractionMutations",
+  evidenceShares: "evidenceShares",
+  evidenceShareRefs: "evidenceShareRefs",
+  flashcardDecks: "flashcardDecks",
+  flashcards: "flashcards",
+  flashcardReviewState: "flashcardReviewState",
 } as const;
 
 function removePrefixedKeys(value: unknown, prefix: string) {

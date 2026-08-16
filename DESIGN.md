@@ -6,6 +6,8 @@ Filosage is a focused learning product with a restrained, quietly premium interf
 
 The approved B2 **Course Deck** is the north star for course identity and the returning learner home: an oatmeal paper field in light mode and editorial midnight field in dark mode, where tactile, screen-printed course covers turn stored progress into one clear continuation choice. Its deck metaphor belongs to course selection and should not turn lesson reading or every utility surface into cards.
 
+Private study tools use a **quiet study folio** expression: oatmeal canvas and cream paper hold a single navy recall object, teal grounds progress and supporting state, and one coral rule marks the active mode. Editorial type names the deck or study task while Inter carries controls, metadata, and guidance. Structure these workspaces with ruled sections and open spacing rather than nested cards.
+
 The public landing page extends that world through the approved **Course Proof First** expression: a real published course outcome opens into a visible route toward evidence. The hero uses live public course metadata and the shared `CourseBanner`, not fabricated product art, while the rest of the page uses rules, open editorial bands, and authored product fragments instead of a generic AI feature grid.
 
 The symbol combines an open page or gateway, a winding path, and a coral curiosity spark. In the official wordmark, `Filo` is navy and `sage` is teal, always written as one word with a lowercase `s`. The motto is **Turn curiosity into understanding.**, with the final period optionally carried in coral.
@@ -49,12 +51,13 @@ Exact bright brand colors are reserved for the logo, progress, and non-text sign
 - Mobile: 58px top bar, persistent bottom navigation, and explicit modal bottom sheets for course and account controls
 - Public home: an outcome-led editorial hero uses roughly two-fifths of the desktop width while a live published course cover and outline use the remaining three-fifths; **Explore course outcomes** remains visible in the first viewport. The outcome-to-evidence runway is horizontal on desktop and becomes one continuous vertical route on mobile. Later sections use rules and open bands rather than equal card grids
 - Learner home: zero active courses use one intentional create/explore composition; one active course uses one dominant card with no false stack or carousel controls; with three or more courses, at least three equal-width, equal-height cards remain visible in a horizontal stack—active left at z3, center at z2, right at z1—with offsets revealing the right edges rather than progressively smaller spines. Mobile preserves the same three-layer logic without page overflow
+- Private study workspaces: use a compact selector rail beside the study folio on desktop; on mobile it becomes a horizontal, independently scrollable deck selector above the active work. Keep the current recall prompt visible within the first mobile viewport rather than spending that viewport on title, quota, navigation, or setup chrome
 - Course map: header summary, local progress, and a sequential accordion curriculum
 - Lesson: centered reading column with an optional owner-only tutor drawer
 
 ## Components
 
-- Controls use 7px corners, clear focus rings, and 40px minimum action height
+- Controls use 7px corners, clear focus rings, and a 40px minimum action height on desktop; mobile controls use at least 44px
 - Content surfaces use 11–15px corners only where grouping improves comprehension
 - Lists use rules and spacing rather than repetitive floating cards
 - Loading uses structural skeletons; empty and error states explain the next action
@@ -68,6 +71,7 @@ Exact bright brand colors are reserved for the logo, progress, and non-text sign
 - The top Command Center contains stable destinations and account actions only. **My courses** is the single gateway to the bounded searchable shelf: it originates at the top-right profile/Command Center, floats nonmodally above 900px, and becomes a scroll-locking modal bottom sheet at 900px and below, including live viewport crossings. Icon backgrounds use semantic teal, blue, coral, gold, or slate tones while labels remain primary.
 - Floating paper windows expose one small centered grip. Pointer dragging is bounded to a 12px viewport margin; Arrow keys move in precise steps, Shift+Arrow moves in larger steps, and Home returns the window to its trigger origin. Dragging is disabled when the same surface becomes a mobile or tablet modal sheet.
 - Unknown totals stay unknown: show `?` and “Total pending,” omit `aria-valuenow`, and never invent `0%`. Load failures use a distinct recoverable error with truthful reassurance and retry, never a false empty state.
+- Recall practice centers one materially distinct navy object for the prompt and revealed answer. Teal communicates grounding and progress; coral remains the singular active-mode rule. Supporting selectors, ratings, generation settings, and editor sections stay quieter and use rules instead of becoming a field of competing cards.
 
 ## Motion
 

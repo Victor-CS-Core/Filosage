@@ -40,6 +40,15 @@ import {
   supportsCourseGroundingEvaluatorVersion,
   type CourseGroundingResult,
 } from "@/lib/source-grounding";
+import {
+  LEARNING_DESIGN_CONTRACT_VERSION,
+  learningDesignContractIssues,
+  learningDesignContractV1Schema,
+  lessonDesignOutputIssues,
+  lessonDesignPlanV1Schema,
+  type LearningDesignIssue,
+} from "@/lib/learning-design";
+import { canonicalLessonObjectiveId } from "@/lib/course-pipeline/relationships";
 
 function issuePath(prefix: string, path: PropertyKey[]) {
   return path.length ? `${prefix}.${path.map(String).join(".")}` : prefix;
@@ -105,6 +114,23 @@ function outlineIssue(message: string): ValidationIssue {
     return issueFromRule(COURSE_QUALITY_RULES.COURSE_COHERENCE, "course.modules", message);
   }
   return issueFromRule(COURSE_QUALITY_RULES.OBJECTIVE_MISSING, "course", message);
+}
+
+function learningDesignIssue(issue: LearningDesignIssue, pathPrefix = "course"): ValidationIssue {
+  const rule = issue.code.startsWith("LD_OUTPUT") || issue.code.startsWith("LD_SCOPE")
+    ? COURSE_QUALITY_RULES.SINGLE_WIN_LESSON
+    : issue.code.startsWith("LD_RETRIEVAL")
+      || issue.code.startsWith("LD_MISCONCEPTION")
+      || issue.code.startsWith("LD_FEEDBACK")
+      || issue.code.startsWith("LD_PREREQUISITE")
+      ? COURSE_QUALITY_RULES.RETRIEVAL_FEEDBACK_PLAN
+      : COURSE_QUALITY_RULES.LEARNING_DESIGN_CONTRACT;
+  return issueFromRule(
+    rule,
+    `${pathPrefix}.${issue.path}`,
+    issue.message,
+    { severity: issue.severity === "warning" ? "warning" : "blocker" },
+  );
 }
 
 function inspectRegisteredCapabilities(raw: Record<string, unknown>, lessonPath: string) {
@@ -298,6 +324,10 @@ export async function validateCourseCandidateV2(
   ]);
   const parsedCourse = parseCourseCandidate(course);
   const legacyCourse = isLegacyCourseCandidate(course);
+  const learningDesignEnabled = course.learningDesignRequired === true
+    || course.learningDesignContractVersion === LEARNING_DESIGN_CONTRACT_VERSION
+    || course.learningDesign !== undefined;
+  const parsedLearningDesign = learningDesignContractV1Schema.safeParse(course.learningDesign);
   if (legacyCourse) {
     legacyReviewRequired = true;
     executedCodes.add(COURSE_QUALITY_RULES.LEGACY_ADAPTER.code);
@@ -313,6 +343,40 @@ export async function validateCourseCandidateV2(
     executedCodes.add(COURSE_QUALITY_RULES.OBJECTIVE_RELATIONSHIP.code);
     executedCodes.add(COURSE_QUALITY_RULES.ASSESSMENT_RELATIONSHIP.code);
     findings.push(...inspectObjectiveRelationships(course, lessonsById));
+  }
+
+  if (learningDesignEnabled) {
+    [
+      COURSE_QUALITY_RULES.LEARNING_DESIGN_CONTRACT,
+      COURSE_QUALITY_RULES.SINGLE_WIN_LESSON,
+      COURSE_QUALITY_RULES.RETRIEVAL_FEEDBACK_PLAN,
+    ].forEach((rule) => executedCodes.add(rule.code));
+    if (course.learningDesignContractVersion !== LEARNING_DESIGN_CONTRACT_VERSION || !parsedLearningDesign.success) {
+      findings.push(issueFromRule(
+        COURSE_QUALITY_RULES.LEARNING_DESIGN_CONTRACT,
+        "course.learningDesign",
+        "The course does not contain a complete current learning-design contract.",
+      ));
+    } else {
+      const objectiveIds = course.modules.flatMap((courseModule, moduleIndex) => courseModule.lessons
+        .map((lesson, lessonIndex) => lesson.objectiveId ?? canonicalLessonObjectiveId(moduleIndex, lessonIndex)));
+      const expectedPlanIds = new Set(expectedLessonIds);
+      const actualPlanIds = new Set(parsedLearningDesign.data.lessonPlans.map((plan) => plan.lessonId));
+      findings.push(...learningDesignContractIssues(parsedLearningDesign.data, {
+        knownObjectiveIds: objectiveIds,
+        objectiveOrder: objectiveIds,
+        knownSourceIds: (course.sourcePack ?? []).map((source) => source.id),
+        knownFurtherReadingIds: (course.furtherReading ?? []).map((reference) => reference.id),
+      }).map((issue) => learningDesignIssue(issue)));
+      if (expectedPlanIds.size !== actualPlanIds.size
+        || [...expectedPlanIds].some((lessonId) => !actualPlanIds.has(lessonId))) {
+        findings.push(issueFromRule(
+          COURSE_QUALITY_RULES.LEARNING_DESIGN_CONTRACT,
+          "course.learningDesign.lessonPlans",
+          "The learning-design contract must contain exactly one plan for every outlined lesson.",
+        ));
+      }
+    }
   }
 
   if (supportsStructuredSourcePolicy(course.sourcePolicyVersion)) {
@@ -567,6 +631,42 @@ export async function validateCourseCandidateV2(
       instructionLanguage: course.language ?? "English",
     })
       .map((message) => lessonIssue(message, path)));
+    if (learningDesignEnabled && parsedLearningDesign.success) {
+      const coursePlan = parsedLearningDesign.data.lessonPlans.find((plan) => plan.lessonId === lessonId);
+      const storedPlan = lessonDesignPlanV1Schema.safeParse(raw.lessonDesign);
+      if (!coursePlan
+        || raw.learningDesignContractVersion !== LEARNING_DESIGN_CONTRACT_VERSION
+        || !storedPlan.success
+        || JSON.stringify(storedPlan.data) !== JSON.stringify(coursePlan)) {
+        findings.push(issueFromRule(
+          COURSE_QUALITY_RULES.LEARNING_DESIGN_CONTRACT,
+          `${path}.lessonDesign`,
+          "The generated lesson is not bound to its current course learning-design plan.",
+        ));
+      } else {
+        const rawQuizzes = Array.isArray(raw.quizzes) ? raw.quizzes : [];
+        const rawTransferTask = raw.transferTask && typeof raw.transferTask === "object" && !Array.isArray(raw.transferTask)
+          ? raw.transferTask as Record<string, unknown>
+          : null;
+        const lessonWithBindings = {
+          ...lesson,
+          quizzes: lesson.quizzes?.map((quiz, index) => ({
+            ...quiz,
+            assessmentId: typeof (rawQuizzes[index] as Record<string, unknown> | undefined)?.assessmentId === "string"
+              ? String((rawQuizzes[index] as Record<string, unknown>).assessmentId)
+              : undefined,
+          })),
+          transferTask: lesson.transferTask ? {
+            ...lesson.transferTask,
+            criterionIds: Array.isArray(rawTransferTask?.criterionIds)
+              ? rawTransferTask.criterionIds.filter((value): value is string => typeof value === "string")
+              : [],
+          } : undefined,
+        };
+        findings.push(...lessonDesignOutputIssues(lessonWithBindings, coursePlan)
+          .map((issue) => learningDesignIssue(issue, path)));
+      }
+    }
   });
 
   for (const [index, source] of (course.sourcePack ?? []).entries()) {

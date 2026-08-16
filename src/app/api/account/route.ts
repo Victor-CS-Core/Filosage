@@ -1,8 +1,9 @@
 import { authorizationResponse, hasCurrentLegalAcceptance, requireUser } from "@/lib/auth-server";
 import { getExistingAccount } from "@/lib/account-server";
 import { getAiQuotaSummaries } from "@/lib/ai-usage";
+import { courseCreditSummaryForAccount } from "@/lib/course-credits";
 import { PRIVACY_VERSION, TERMS_VERSION } from "@/lib/legal";
-import { capabilitiesForAccount, courseCapacityForAccount } from "@/lib/membership-access";
+import { capabilitiesForAccount } from "@/lib/membership-access";
 
 export async function GET(request: Request) {
   try {
@@ -20,10 +21,14 @@ export async function GET(request: Request) {
         capabilities: {
           createCourse: false,
           generateLesson: false,
-          generateCourseBanner: false,
+          flashcardDecksEnabled: false,
+          createCustomFlashcardDeck: false,
           publishCourse: false,
+          advancedCapstoneAnalysis: false,
+          exportEvidenceReport: false,
+          shareEvidenceReport: false,
         },
-        courseCapacity: { owned: 0, limit: 0, remaining: 0, overLimit: false },
+        courseCredits: { balance: 0, monthlyAllocation: 0, balanceCap: 0, nextAccrualAt: null, frozenUntil: null },
         legalAcceptanceRequired: true,
         applicationAccountExists: false,
         currentTermsVersion: TERMS_VERSION,
@@ -31,9 +36,9 @@ export async function GET(request: Request) {
         quotas: [],
       }, { headers: { "Cache-Control": "private, no-store" } });
     }
-    const [quotas, courseCapacity] = await Promise.all([
+    const [quotas, courseCredits] = await Promise.all([
       getAiQuotaSummaries(account),
-      courseCapacityForAccount(account),
+      courseCreditSummaryForAccount(account),
     ]);
     return Response.json(
       {
@@ -48,7 +53,7 @@ export async function GET(request: Request) {
         billingInterval: account.billingInterval,
         currentPeriodEnd: account.currentPeriodEnd,
         capabilities: capabilitiesForAccount(account),
-        courseCapacity,
+        courseCredits,
         acceptedTermsVersion: account.acceptedTermsVersion,
         acceptedPrivacyVersion: account.acceptedPrivacyVersion,
         legalAcceptanceRequired: !hasCurrentLegalAcceptance(account),

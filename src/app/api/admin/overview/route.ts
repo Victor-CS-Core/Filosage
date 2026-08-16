@@ -341,11 +341,10 @@ export async function GET(request: Request) {
         const usage = recordedUsage.get(feature) ?? { feature, requests: 0, inputTokens: 0, cachedInputTokens: 0, cacheWriteTokens: 0, outputTokens: 0, costUsd: 0 };
         const limit = user.isOwner
           ? null
-          : feature === "course_outline" ? planLimits.courseOutlines
-            : feature === "course_banner" ? planLimits.courseBanners
-              : feature === "lesson_generation" ? planLimits.generatedLessons
-                : feature === "tutor" ? planLimits.tutorQuestions
-                  : 0;
+          : feature === "course_outline" ? (user.plan === "free" ? 0 : null)
+            : feature === "tutor" ? planLimits.tutorQuestions
+              : feature === "command_center_draft" ? 0
+                : null;
         return { ...usage, limit, remaining: limit === null ? null : Math.max(0, limit - usage.requests) };
       });
       const engagement = engagementByUser.get(user.uid);

@@ -15,7 +15,7 @@ export default function LandingPage() {
       <FeatureGrid />
       <EvidenceDossier />
       <section className="marketing-section marketing-trust" aria-labelledby="marketing-trust-title">
-        <div><h2 id="marketing-trust-title">Trust is a visible state, not a marketing badge.</h2><p>Published courses disclose their structure and source status. Generated lessons pass safety, language, structure, and teaching-quality checks, while legacy or unverified material keeps its caveats.</p><Link className="marketing-text-link" href="/standard">See the complete teaching standard <ArrowRight size={15} /></Link></div>
+        <div><h2 id="marketing-trust-title">Trust is a visible state, not a marketing badge.</h2><p>Published courses disclose their Capability Cycle structure and source status. Generated lessons must match their current learning-design plan and quality checks, while model-knowledge or legacy material keeps its caveats.</p><Link className="marketing-text-link" href="/standard">See the complete Capability Cycle standard <ArrowRight size={15} /></Link></div>
         <ul><li><ShieldCheck aria-hidden="true" /><span><strong>Source status stays specific</strong><small>A link is not presented as proof that its page supported a lesson claim.</small></span></li><li><BookOpenCheck aria-hidden="true" /><span><strong>Course structure stays public</strong><small>Inspect outcomes, modules, lesson titles, and assessment shape before joining.</small></span></li><li><LockKeyhole aria-hidden="true" /><span><strong>Learning work stays account-bound</strong><small>Lesson bodies, notes, progress, tools, and evidence require a verified learner.</small></span></li></ul>
       </section>
       <MarketingFAQ />

@@ -6,9 +6,9 @@ export default defineSupportArticle({
   title: "Understand Free, Plus, Pro, and billing status",
   summary: "Compare memberships, check checkout availability, manage a subscription, and recover from common billing states.",
   category: "plans",
-  keywords: ["billing", "pricing", "Plus", "Pro", "checkout", "course limit", "subscription", "downgrade", "cancel", "refund", "payment method"],
-  reviewedOn: "2026-08-11",
-  sources: [".env.example", "src/lib/billing-lock.ts", "src/lib/stripe-server.ts", "src/app/pricing/page.tsx", "src/app/terms/page.tsx", "docs/COMMERCIAL_LAUNCH_RUNBOOK.md"],
+  keywords: ["billing", "pricing", "Plus", "Pro", "course credits", "flashcards", "custom decks", "rollover", "evidence report", "subscription", "downgrade", "cancel", "refund", "payment method"],
+  reviewedOn: "2026-08-16",
+  sources: [".env.example", "src/lib/billing-lock.ts", "src/lib/stripe-server.ts", "src/lib/membership-plans.ts", "src/lib/course-credits.ts", "src/app/pricing/page.tsx", "src/app/terms/page.tsx", "docs/COMMERCIAL_LAUNCH_RUNBOOK.md"],
   body: `
 ## Check current checkout availability
 
@@ -16,15 +16,17 @@ The [Plans page](/pricing) is the source of truth for paid-checkout availability
 
 ## Memberships
 
-- **Free** opens published courses, progress, review scheduling, and five tutor questions each month.
-- **Filosage Plus** is designed for one active private course at a time, with one generated outline, ten generated lessons, forty tutor questions, and ten course-banner generation requests each month. Plus does not include public publishing.
-- **Filosage Pro** removes the owned-course cap, includes three generated outlines, thirty generated lessons, one hundred tutor questions, and thirty course-banner generation requests each month, and includes course publishing after review.
+- **Free** opens published courses, progress, review scheduling, five tutor questions, and five successful AI flashcard deck generations each month. Free accounts cannot create custom flashcard decks.
+- **Filosage Plus** is designed to build private learning paths for professional goals. It adds two complete AI course credits, forty tutor questions, and forty successful AI flashcard deck generations each membership month, plus private custom flashcard decks. Unused course credits roll over up to twenty-four.
+- **Filosage Pro** extends Plus with five complete AI course credits, one hundred tutor questions, one hundred successful AI flashcard deck generations, and custom deck creation each membership month, with credit rollover up to sixty. Pro also includes full capstone revision history, criterion-level progression analysis, downloadable evidence reports, expiring and revocable evidence-share links, and course publishing after review.
 
-Generation-request allowances reset monthly and do not roll over. A failed request still uses one allowance. Course ownership and monthly AI allowances are separate limits.
+A complete AI course credit covers one approved outline and every lesson planned in that outline. The learning goal determines the course length; there is no separate generated-lesson quota and paid accounts can keep every course they create. Annual subscribers receive course credits monthly rather than all at once. Tutor-question and flashcard-generation allowances renew monthly and do not roll over. Manual flashcard editing and custom card writing do not use AI generations.
+
+Unused course credits remain available up to the plan ceiling. If paid access ends, the balance is frozen for twelve months and becomes usable again if paid access resumes during that period. Starting an outline reserves a credit; a failed creation releases it, while a successfully saved course redeems it.
 
 ## Downgrades preserve your work
 
-A downgrade does not delete a course or automatically unpublish existing work. If the new plan has a lower owned-course limit, existing courses remain accessible, but new course creation is paused until the account is within its limit or upgrades. Features that the new plan does not include, such as publishing from Plus, are blocked for new actions.
+A downgrade does not delete a course, flashcard deck, capstone history, evidence record, or automatically unpublish existing work. Saved flashcard decks remain available to study and edit, but a Free account cannot create a new custom deck or add manual cards to a generated deck. The latest capstone verdict, criterion feedback, and revision submission remain available on Free and Plus. Advanced cross-attempt analysis, new professional exports, new share links, and publishing require Pro. Existing share links remain available until their expiration unless revoked, and a downgraded learner can still list and revoke links they created while on Pro.
 
 ## Before a purchase
 

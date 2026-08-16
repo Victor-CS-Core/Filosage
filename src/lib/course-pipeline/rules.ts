@@ -58,6 +58,15 @@ export const COURSE_QUALITY_RULES = {
   LESSON_COMPLETENESS: {
     code: "CQ_COMPLETENESS_002", version: 1, purpose: "Require the core parts of a substantive lesson while permitting declared lesson-kind exceptions", classification: "deterministic", severity: "blocker", source: "deterministic", repairability: "assisted", suggestedAction: "Complete the missing lesson element or declare a supported non-substantive lesson kind.",
   },
+  LEARNING_DESIGN_CONTRACT: {
+    code: "CQ_PEDAGOGY_001", version: 1, purpose: "Require a versioned course brief and one bounded design plan for every lesson", classification: "deterministic", severity: "blocker", source: "deterministic", repairability: "assisted", suggestedAction: "Repair the learning brief, lesson plan, or objective relationship without regenerating valid content.",
+  },
+  SINGLE_WIN_LESSON: {
+    code: "CQ_PEDAGOGY_002", version: 1, purpose: "Keep each generated lesson within one observable win and its explanation and practice budget", classification: "deterministic", severity: "blocker", source: "deterministic", repairability: "assisted", suggestedAction: "Narrow only the affected lesson and keep its guided and transfer work distinct.",
+  },
+  RETRIEVAL_FEEDBACK_PLAN: {
+    code: "CQ_PEDAGOGY_003", version: 1, purpose: "Require prerequisite-safe retrieval, misconception checks, and feedback after learner commitment", classification: "deterministic", severity: "blocker", source: "deterministic", repairability: "assisted", suggestedAction: "Repair the affected retrieval or feedback plan while preserving trusted learner evidence.",
+  },
   CONCISE_EXPLANATION: {
     code: "CQ_ENRICHMENT_001", version: 1, purpose: "Suggest more explanation without imposing a prose quota", classification: "deterministic", severity: "warning", source: "deterministic", repairability: "not_applicable", suggestedAction: "Add detail only if the activity does not already teach the objective.",
   },

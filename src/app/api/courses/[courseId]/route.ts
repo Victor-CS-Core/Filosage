@@ -20,8 +20,7 @@ import {
   reviewCourseForPublication,
 } from "@/lib/publication-review";
 import { planAllows } from "@/lib/membership-plans";
-import { reconcileCourseCapacity } from "@/lib/membership-access";
-import { getAiQuotaSummaries, openAiSafetyIdentifier } from "@/lib/ai-usage";
+import { openAiSafetyIdentifier } from "@/lib/ai-usage";
 import { coursePipelineFeatureFlags } from "@/lib/feature-flags";
 import { recordCoursePipelineEvent } from "@/lib/course-pipeline/observability";
 import { courseUsesPipelineV2 } from "@/lib/course-pipeline/feature-policy";
@@ -37,22 +36,17 @@ export async function GET(request: Request, { params }: RouteParams) {
     if (!course) return NextResponse.json({ error: "Course not found." }, { status: 404 });
 
     let canManage = false;
-    let canGenerateBanner = false;
     if (!course.isPublic) {
       const account = await requireAccount(request);
       if (account.uid !== course.authorId && !account.isOwner) {
         return NextResponse.json({ error: "You do not have access to this course." }, { status: 403 });
       }
       canManage = true;
-      canGenerateBanner = account.isOwner || (planAllows(account.plan, "generate_course_banner")
-        && (await getAiQuotaSummaries(account)).some((quota) => quota.feature === "course_banner" && quota.remaining !== 0));
     } else {
       const user = await getVerifiedUser(request);
       if (user) {
         const account = await requireAccount(request);
         canManage = account.uid === course.authorId || account.isOwner;
-        canGenerateBanner = canManage && (account.isOwner || (planAllows(account.plan, "generate_course_banner")
-          && (await getAiQuotaSummaries(account)).some((quota) => quota.feature === "course_banner" && quota.remaining !== 0)));
       }
     }
 
@@ -67,7 +61,7 @@ export async function GET(request: Request, { params }: RouteParams) {
         }
       : displayCourse;
     return NextResponse.json(
-      toCourseDto(manageableCourse, canManage, canGenerateBanner),
+      toCourseDto(manageableCourse, canManage),
       { headers: course.isPublic && !canManage
         ? {
             "Cache-Control": "public, max-age=60, s-maxage=300, stale-while-revalidate=3600",
@@ -307,11 +301,6 @@ export async function DELETE(request: Request, { params }: RouteParams) {
     }
 
     await deleteCourse(courseId);
-    if (course.authorId) {
-      await reconcileCourseCapacity(course.authorId).catch((capacityError) => {
-        console.error(JSON.stringify({ event: "course_capacity_reconciliation_failed", courseId, ...safeModelErrorDetails(capacityError) }));
-      });
-    }
 
     return NextResponse.json({ success: true });
   } catch (error: unknown) {

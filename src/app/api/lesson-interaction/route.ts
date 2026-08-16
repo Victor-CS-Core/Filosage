@@ -21,6 +21,7 @@ import { buildInteractionAttemptMutation } from "@/lib/course-pipeline/interacti
 const attemptSchema = z.object({
   courseId: z.string().trim().min(1).max(200),
   lessonId: z.string().regex(/^\d+-\d+$/),
+  progressOperationId: z.string().trim().regex(/^[A-Za-z0-9_-]{12,200}$/),
   interactionId: z.string().trim().regex(/^interaction-[a-z0-9-]+$/).max(90),
   itemId: z.string().trim().regex(/^item-[a-z0-9-]+$/).max(90),
   selectedIndex: z.number().int().min(0).max(3),
@@ -29,6 +30,7 @@ const attemptSchema = z.object({
 const hydrationSchema = attemptSchema.pick({
   courseId: true,
   lessonId: true,
+  progressOperationId: true,
   interactionId: true,
 });
 
@@ -68,23 +70,24 @@ export async function GET(request: Request) {
       interactionId: url.searchParams.get("interactionId"),
     });
     if (!parsed.success) return Response.json({ error: "This practice lab request is not valid." }, { status: 400 });
-    const { courseId, lessonId, interactionId } = parsed.data;
+    const { courseId, lessonId, progressOperationId, interactionId } = parsed.data;
     const loaded = await loadRecognition(account, courseId, lessonId, interactionId);
     if (loaded.error) return loaded.error;
     const interaction = loaded.interaction;
     const artifactHash = loaded.artifactHash;
     const storedResults = await Promise.all(interaction.items.map(async (item) => {
-      const documentId = await interactionDocumentId(courseId, lessonId, interactionId, item.id, artifactHash);
+      const documentId = await interactionDocumentId(courseId, lessonId, progressOperationId, interactionId, item.id, artifactHash);
       const stored = await getStoredDocument(`users/${account.uid}/lessonInteraction/${documentId}`);
       if (!stored || numberValue(stored.attempts) < 1) return null;
       const attempts = numberValue(stored.attempts);
       const firstAttemptCorrect = stored.firstAttemptCorrect === true;
       const mastered = stored.mastered === true;
       const receipt = mastered ? await issueInteractionReceipt({
-        version: 2,
+        version: 3,
         uid: account.uid,
         courseId,
         lessonId,
+        progressOperationId,
         interactionId,
         itemId: item.id,
         artifactHash,
@@ -136,7 +139,7 @@ export async function POST(request: Request) {
       );
     }
 
-    const { courseId, lessonId, interactionId, itemId, selectedIndex } = parsed.data;
+    const { courseId, lessonId, progressOperationId, interactionId, itemId, selectedIndex } = parsed.data;
     const loaded = await loadRecognition(account, courseId, lessonId, interactionId);
     if (loaded.error) return loaded.error;
     const interaction = loaded.interaction;
@@ -145,7 +148,7 @@ export async function POST(request: Request) {
     if (!item) return Response.json({ error: "Practice item not found." }, { status: 404 });
 
     const correct = selectedIndex === item.correctIndex;
-    const documentId = await interactionDocumentId(courseId, lessonId, interactionId, itemId, artifactHash);
+    const documentId = await interactionDocumentId(courseId, lessonId, progressOperationId, interactionId, itemId, artifactHash);
     const path = `users/${account.uid}/lessonInteraction/${documentId}`;
     const mutationId = await publicationContentHash({ uid: account.uid, idempotencyKey });
     const mutationPath = `users/${account.uid}/lessonInteractionMutations/${mutationId}`;
@@ -155,6 +158,7 @@ export async function POST(request: Request) {
       buildInteractionAttemptMutation(documents, path, mutationPath, {
         courseId,
         lessonId,
+        progressOperationId,
         interactionId,
         itemId,
         artifactHash,
@@ -166,10 +170,11 @@ export async function POST(request: Request) {
     let receipt: string | undefined;
     if (result.correct) {
       const claims: InteractionReceiptClaims = {
-        version: 2,
+        version: 3,
         uid: account.uid,
         courseId,
         lessonId,
+        progressOperationId,
         interactionId,
         itemId,
         artifactHash,

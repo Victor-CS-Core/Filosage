@@ -5,7 +5,7 @@ export const ownerDocumentation: OwnerDocumentation = {
   title: "Filosage owner handbook",
   introduction: "A practical operating guide to the live product: who can access each surface, how learning and authoring work, where evidence is stored, and which safeguards must remain in place.",
   version: "2026.08",
-  reviewedOn: "2026-08-12",
+  reviewedOn: "2026-08-16",
   sections: [
     {
       id: "product-and-access",
@@ -14,12 +14,12 @@ export const ownerDocumentation: OwnerDocumentation = {
       topics: [
         {
           title: "Product contract",
-          body: "Filosage turns a professional outcome into a focused learning path built from diagnosis, concise instruction, worked examples, retrieval practice, transfer, and capstone evidence. Public visitors can inspect published course structure; lesson bodies and saved learning activity require a verified account.",
+          body: "Filosage turns a professional outcome into a focused learning path through the Capability Cycle: define one observable win, activate prerequisites, practice with only the explanation required, receive feedback after commitment, transfer the capability, and return through readiness-aware retrieval. Public visitors can inspect published course structure; lesson bodies and saved learning activity require a verified account.",
           links: [{ label: "Read the teaching standard", href: "/standard" }],
         },
         {
           title: "Access levels",
-          body: "Guests discover published topics. Verified Free accounts can open published lessons and save learning. Plus adds one active private course with metered generation. Pro removes the owned-course cap and can publish after sequential completion, attestation, and review. The verified owner retains platform-wide moderation, operational, and Command Center privileges. Server routes repeat these checks; hiding a button is never the authorization boundary.",
+          body: "Guests discover published topics. Verified Free accounts can open published lessons and save learning. Plus adds two complete private AI course credits monthly, with rollover up to twenty-four. Pro adds five monthly with rollover up to sixty, advanced capstone analysis, professional evidence exports and share links, and publishing after sequential completion, attestation, and review. Paid accounts can keep every course they create. The verified owner retains platform-wide moderation, operational, and Command Center privileges. Server routes repeat these checks; hiding a button is never the authorization boundary.",
           steps: [
             "Use the public library to verify what anonymous visitors can inspect.",
             "Use the profile to confirm a learner's current plan and account state.",
@@ -41,7 +41,7 @@ export const ownerDocumentation: OwnerDocumentation = {
         },
         {
           title: "Study, practice, and review",
-          body: "Lessons preserve semantic content such as headings, lists, and tables. Study tools support explanation and guided practice. Review orders concepts by evidence need, and the Progress area separates completion from stronger assessed or demonstrated evidence.",
+          body: "Lessons preserve semantic content such as headings, lists, and tables. Study tools support explanation and guided practice after a committed review attempt. Review orders due capabilities by prerequisite readiness and evidence need, while Progress separates completion from stronger assessed or demonstrated evidence.",
           steps: [
             "Inspect the course structure before diagnosing a lesson-access report.",
             "Use Review to verify the learner's due practice queue.",
@@ -63,7 +63,7 @@ export const ownerDocumentation: OwnerDocumentation = {
       topics: [
         {
           title: "Create a private course",
-          body: "The author supplies a real outcome, time horizon, experience level, and learning preferences. Generation first creates a private course map. Lesson generation is staged and credit-aware; the course remains private until explicitly published.",
+          body: "The author supplies a real outcome, proof of skill, time horizon, prior knowledge, and learning preferences. One course credit covers the approved outline and every lesson that learning design places in it, so course length follows the goal rather than a lesson quota. Source research is retained when it can be verified; scarcity falls back to disclosed model knowledge instead of blocking the private course. Lesson generation remains staged, and the course stays private until explicitly published.",
           links: [{ label: "Create a course", href: "/create" }],
         },
         {

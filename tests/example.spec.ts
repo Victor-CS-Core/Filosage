@@ -20,6 +20,7 @@ import {
   buildDailyMission,
   buildWeeklyMilestone,
   confidenceCalibrationFor,
+  nextDueKind,
   scheduleAdaptiveReview,
   updateDelayedChecks,
   weeklyGoalChoices,
@@ -254,10 +255,11 @@ test("uses the configured fallback when the primary lesson model rejects a reque
 
 test("binds creator activity receipts to the exact user, course, lesson, and quiz", async () => {
   const claims = {
-    version: 2 as const,
+    version: 3 as const,
     uid: "pro-author",
     courseId: "creator-course",
     lessonId: "0-0",
+    progressOperationId: "progress-operation-123",
     quizIndex: 1,
     artifactHash: "b".repeat(64),
     attempts: 2,
@@ -270,6 +272,7 @@ test("binds creator activity receipts to the exact user, course, lesson, and qui
     uid: claims.uid,
     courseId: claims.courseId,
     lessonId: claims.lessonId,
+    progressOperationId: claims.progressOperationId,
     quizIndex: claims.quizIndex,
     artifactHash: claims.artifactHash,
   })).resolves.toMatchObject(claims);
@@ -277,6 +280,15 @@ test("binds creator activity receipts to the exact user, course, lesson, and qui
     uid: "another-user",
     courseId: claims.courseId,
     lessonId: claims.lessonId,
+    progressOperationId: claims.progressOperationId,
+    quizIndex: claims.quizIndex,
+    artifactHash: claims.artifactHash,
+  })).resolves.toBeNull();
+  await expect(validateActivityReceipt(secret, receipt, {
+    uid: claims.uid,
+    courseId: claims.courseId,
+    lessonId: claims.lessonId,
+    progressOperationId: "different-operation-456",
     quizIndex: claims.quizIndex,
     artifactHash: claims.artifactHash,
   })).resolves.toBeNull();
@@ -285,6 +297,7 @@ test("binds creator activity receipts to the exact user, course, lesson, and qui
     uid: claims.uid,
     courseId: claims.courseId,
     lessonId: claims.lessonId,
+    progressOperationId: claims.progressOperationId,
     quizIndex: claims.quizIndex,
     artifactHash: claims.artifactHash,
   })).resolves.toBeNull();
@@ -677,15 +690,19 @@ test("keeps the learning library public", async ({ page }) => {
 test("publishes the teaching standard", async ({ page }) => {
   await page.goto("/standard");
 
-  await expect(page.getByRole("heading", { name: "Generated is not good enough. Every lesson is held to a standard." })).toBeVisible();
-  await expect(page.getByRole("heading", { name: "A named misconception" })).toBeVisible();
-  await expect(page.getByRole("heading", { name: "Lesson completion and assessed work stay separate" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "The Filosage Capability Cycle turns a goal into usable skill." })).toBeVisible();
+  await expect(page.locator(".standard-list > li")).toHaveCount(6);
+  await expect(page.getByRole("heading", { name: "Commit before feedback appears" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Completion, attempts, and demonstrated capability stay separate" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Source status says only what the evidence can support" })).toBeVisible();
+  await expect(page.getByText("Private creation is automatic; public publication is reviewed")).toBeVisible();
   await expect(page.getByRole("link", { name: /See courses held to this standard/ })).toBeVisible();
 });
 
 test("describes guest access and Pro publishing consistently across public pages", async ({ page }) => {
   await page.goto("/");
-  await expect(page.getByRole("heading", { name: "From a work outcome to evidence." })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "How the Filosage Capability Cycle works." })).toBeVisible();
+  await expect(page.locator(".landing-runway li")).toHaveCount(6);
 
   await page.goto("/library");
   await expect(page).toHaveTitle("Course Library | Filosage");
@@ -865,10 +882,13 @@ test("keeps Plus and Pro generation visibly metered", async ({ page }) => {
 
   await expect(page.getByRole("heading", { name: "Filosage Plus" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Filosage Pro" })).toBeVisible();
-  await expect(page.getByText("One active private course", { exact: true })).toBeVisible();
-  await expect(page.getByText("One generated course outline each month")).toBeVisible();
-  await expect(page.getByText("Three generated course outlines each month")).toBeVisible();
-  await expect(page.getByText("Thirty generated lessons each month")).toBeVisible();
+  await expect(page.getByText("Two complete AI course credits added each month")).toBeVisible();
+  await expect(page.getByText("Five complete AI course credits added each month")).toBeVisible();
+  await expect(page.getByText("Each credit includes the approved outline and every planned lesson")).toBeVisible();
+  await expect(page.getByText("Advanced capstone history and criterion-level analysis")).toBeVisible();
+  await expect(page.getByText("Downloadable evidence reports and expiring share links")).toBeVisible();
+  await expect(page.getByText("Unused credits roll over, up to 24.")).toBeVisible();
+  await expect(page.getByText("Unused credits roll over, up to 60.")).toBeVisible();
   await expect(page.getByText("$6.66")).toBeVisible();
   await expect(page.getByText("$39.96", { exact: false })).toBeVisible();
   await expect(page.getByText("$119.88", { exact: false })).toBeVisible();
@@ -1034,6 +1054,56 @@ test("does not complete a lesson after a wrong answer", async ({ page }) => {
   await page.route("**/api/courses/demo", (route) => route.fulfill({ json: course }));
   await page.route("**/api/courses/demo/lessons/0-0", (route) => route.fulfill({ json: lesson }));
   await page.route("**/api/courses/demo/lessons/0-1", (route) => route.fulfill({ json: { ...lesson, content: "## Find the leverage point\n\nLook for the relationship that changes the system's behavior." } }));
+  await page.route("**/api/progress*", async (route) => {
+    if (route.request().method() !== "POST") return route.fallback();
+    await route.fulfill({ json: {
+      nextReviewAt: "2026-08-18T12:00:00.000Z",
+      calibration: "calibrated",
+      performanceBand: "secure",
+    } });
+  });
+  const activityAttempts = new Map<number, number>();
+  await page.route("**/api/lesson-activity", async (route) => {
+    const body = route.request().postDataJSON() as { quizIndex: number; selectedOption: string };
+    const attempts = (activityAttempts.get(body.quizIndex) ?? 0) + 1;
+    activityAttempts.set(body.quizIndex, attempts);
+    const correct = body.selectedOption === lesson.quizzes[body.quizIndex]?.options[lesson.quizzes[body.quizIndex]?.correctIndex];
+    await route.fulfill({ json: {
+      correct,
+      attempts,
+      firstAttemptCorrect: attempts === 1 && correct,
+      receipt: correct ? `receipt_${"verified".repeat(8)}_${body.quizIndex}` : undefined,
+    } });
+  });
+  let generatedLessonDeck = false;
+  const lessonDeck = {
+    deck: {
+      id: "lesson-deck-0001", version: 1, ownerUid: "local-owner", revision: 1,
+      title: "Feedback loops: retrieval deck", description: "A checked lesson deck.",
+      kind: "generated", status: "draft", courseId: "demo", courseTopic: "Systems thinking",
+      moduleIndex: 0, lessonIds: ["0-0"], scope: "lesson",
+      generationSettings: { depth: "balanced", emphasis: "balanced", includeAttemptedChecks: true },
+      sourceFingerprint: "source-fingerprint-0000000000000001", cardCount: 2, dueCount: 2,
+      createdAt: "2026-08-16T12:00:00.000Z", updatedAt: "2026-08-16T12:00:00.000Z",
+      lastReviewedAt: null, archivedAt: null, deletedAt: null,
+    },
+    cards: [
+      { id: "lesson-card-0001", version: 1, deckId: "lesson-deck-0001", courseId: "demo", position: 0, prompt: "How does a feedback loop change what happens next?", answer: "A feedback loop connects a system's output to what happens next.", type: "application", origin: "generated", objectiveIds: ["objective-0-0"], sourceRefs: [{ ref: "0-0:content:0", lessonId: "0-0", lessonTitle: "Feedback loops", field: "content" }], sourceFingerprint: "source-fingerprint-0000000000000001", createdAt: "2026-08-16T12:00:00.000Z", updatedAt: "2026-08-16T12:00:00.000Z", deletedAt: null },
+      { id: "lesson-card-0002", version: 1, deckId: "lesson-deck-0001", courseId: "demo", position: 1, prompt: "Why are feedback loops useful for studying change?", answer: "They make change visible over time.", type: "recall", origin: "generated", objectiveIds: ["objective-0-0"], sourceRefs: [{ ref: "0-0:content:1", lessonId: "0-0", lessonTitle: "Feedback loops", field: "content" }], sourceFingerprint: "source-fingerprint-0000000000000001", createdAt: "2026-08-16T12:00:00.000Z", updatedAt: "2026-08-16T12:00:00.000Z", deletedAt: null },
+    ],
+  };
+  await page.route("**/api/flashcards/**", async (route) => {
+    const request = route.request();
+    const pathname = new URL(request.url()).pathname;
+    if (pathname === "/api/flashcards/generate") {
+      generatedLessonDeck = true;
+      return route.fulfill({ status: 201, json: lessonDeck });
+    }
+    if (pathname.endsWith("/review")) return route.fulfill({ json: { review: { dueAt: "2026-08-19T12:00:00.000Z" } } });
+    if (pathname === "/api/flashcards/decks/lesson-deck-0001") return route.fulfill({ json: lessonDeck });
+    if (pathname === "/api/flashcards/decks") return route.fulfill({ json: { decks: generatedLessonDeck ? [lessonDeck.deck] : [], availability: { decksEnabled: true, generationEnabled: true, canCreateCustomDeck: true } } });
+    return route.fallback();
+  });
   await page.goto("/course/Systems%20thinking/lesson/0-0?id=demo");
 
   await expect(page.getByRole("heading", { name: "Feedback loops" })).toHaveCount(1, { timeout: 15_000 });
@@ -1068,53 +1138,23 @@ test("does not complete a lesson after a wrong answer", async ({ page }) => {
   }
   await expect(studyTools.getByRole("tab", { name: "Notes" })).toHaveAttribute("aria-selected", "true");
   await studyTools.getByRole("tab", { name: "Flashcards" }).click();
-  const startRecall = studyTools.getByRole("button", { name: /Start (?:[4-9]|10)-card recall/ });
-  const recallCount = Number((await startRecall.textContent())?.match(/\d+/)?.[0]);
-  expect(recallCount).toBeGreaterThanOrEqual(4);
-  expect(recallCount).toBeLessThanOrEqual(10);
-  await startRecall.click();
-  await expect(studyTools.getByText(new RegExp(`Card 1 of ${recallCount}`))).toBeVisible();
-  const flashcard = studyTools.getByRole("button", { name: "Reveal flashcard answer" });
-  const containedFaces = await flashcard.evaluate((element) => {
-    const card = element.getBoundingClientRect();
-    return Array.from(element.querySelectorAll<HTMLElement>(".flashcard-face")).every((face) => {
-      const bounds = face.getBoundingClientRect();
-      const styles = getComputedStyle(face);
-      return bounds.left >= card.left - 1
-        && bounds.right <= card.right + 1
-        && bounds.top >= card.top - 1
-        && bounds.bottom <= card.bottom + 1
-        && face.scrollWidth <= face.clientWidth + 1
-        && styles.overflowY === "auto";
-    });
-  });
-  expect(containedFaces).toBe(true);
-  const recalledAnswers: string[] = [];
-  for (let cardIndex = 0; cardIndex < recallCount + 1; cardIndex += 1) {
-    await studyTools.getByRole("button", { name: "Reveal flashcard answer" }).click();
-    const revealedFlashcard = studyTools.getByRole("button", { name: "Hide flashcard answer" });
-    await expect(revealedFlashcard).toHaveClass(/is-revealed/);
-    recalledAnswers.push(await revealedFlashcard.locator(".flashcard-back").innerText());
-    if (cardIndex === 0) {
-      await expect(revealedFlashcard.locator(".flashcard-back")).toContainText("How outputs influence future inputs");
-      const flipTransform = await revealedFlashcard.locator(".flashcard-inner").evaluate((element) => getComputedStyle(element).transform);
-      expect(flipTransform).not.toBe("none");
-    }
-    if (cardIndex === 0) {
-      await studyTools.getByRole("button", { name: "Review again" }).click();
-      await expect(studyTools.getByText(`Card 2 of ${recallCount + 1}`)).toBeVisible();
-    } else {
-      await studyTools.getByRole("button", { name: "Got it" }).click();
-    }
-  }
-  expect(recalledAnswers.join(" ")).not.toContain("Output influencing future input");
-  expect(recalledAnswers.join(" ")).not.toContain("The result feeds back into the system.");
-  await expect(studyTools.getByText("Recall session complete", { exact: true })).toBeVisible();
-  await expect(studyTools.getByText(`You remembered all ${recallCount} cards.`)).toBeVisible();
+  await expect(studyTools.getByText("Generated only when you ask, then checked against this lesson.")).toBeVisible();
+  await studyTools.getByRole("button", { name: "Generate deck" }).click();
+  await expect(studyTools.getByText("2-card deck created and checked.")).toBeVisible();
+  await expect(studyTools.getByText("Card 1 of 2")).toBeVisible();
+  await studyTools.getByRole("button", { name: "Reveal answer" }).click();
+  await expect(studyTools.getByText("A feedback loop connects a system's output to what happens next.")).toBeVisible();
+  await expect(studyTools.getByText("Grounded in Feedback loops")).toBeVisible();
+  await studyTools.getByRole("button", { name: /Got it/ }).click();
+  await expect(studyTools.getByText("Card 2 of 2")).toBeVisible();
+  await studyTools.getByRole("button", { name: "Reveal answer" }).click();
+  await studyTools.getByRole("button", { name: /Almost/ }).click();
+  await expect(studyTools.getByText("Deck complete", { exact: true })).toBeVisible();
+  await expect(studyTools.getByText("Your ratings are saved and the next review dates are scheduled.")).toBeVisible();
   await studyTools.getByRole("button", { name: "Close study tools" }).click();
   await page.getByRole("button", { name: "Study tools" }).click();
   await studyTools.getByRole("tab", { name: "Flashcards" }).click();
-  await expect(studyTools.getByText("Recall session complete", { exact: true })).toBeVisible();
+  await expect(studyTools.getByRole("combobox", { name: "Study deck" })).toHaveValue("lesson-deck-0001");
   await studyTools.getByRole("button", { name: "Close study tools" }).click();
   await page.getByRole("button", { name: "Ask Filosage" }).click();
   const tutor = page.getByRole("dialog", { name: "Ask Filosage" });
@@ -1130,6 +1170,7 @@ test("does not complete a lesson after a wrong answer", async ({ page }) => {
   const firstCheck = page.locator(".knowledge-check");
   await expect(firstCheck).toHaveCount(1);
   await expect(firstCheck.getByPlaceholder("Capture the key idea in your own words…")).toBeVisible();
+  await firstCheck.getByPlaceholder("Capture the key idea in your own words…").fill("A feedback loop changes future input.");
   await firstCheck.getByRole("button", { name: "Reveal answer choices" }).click();
   const firstCorrectPosition = await firstCheck.getByRole("button", { name: /Output influencing future input/ }).locator("span").textContent();
   await firstCheck.getByRole("button", { name: /A static list/ }).click();
@@ -1144,6 +1185,7 @@ test("does not complete a lesson after a wrong answer", async ({ page }) => {
 
   const secondCheck = page.locator(".knowledge-check");
   await expect(secondCheck).toHaveCount(1);
+  await secondCheck.getByPlaceholder("Capture the key idea in your own words…").fill("Study the loop to see change over time.");
   await secondCheck.getByRole("button", { name: "Reveal answer choices" }).click();
   const secondCorrectPosition = await secondCheck.getByRole("button", { name: /To see change over time/ }).locator("span").textContent();
   expect(secondCorrectPosition).not.toBe(firstCorrectPosition);
@@ -1807,7 +1849,6 @@ test("explains permanent course deletion before sending a delete request", async
       level: "Foundations",
       isPublic: false,
       canManage: true,
-      canRegenerateBanner: true,
       modules: [{
         title: "Foundations",
         description: "Build a reliable reading practice.",
@@ -2077,6 +2118,7 @@ test("derives mastery only from observed evidence strength", () => {
       objectiveId: moduleObjectiveId(0),
       type: "lesson",
       result: "passed",
+      authority: "server-verified",
       label: "Lesson completed",
       observedAt,
     },
@@ -2086,6 +2128,7 @@ test("derives mastery only from observed evidence strength", () => {
       objectiveId: moduleObjectiveId(1),
       type: "retrieval",
       result: "passed",
+      authority: "server-verified",
       label: "Retrieval passed",
       observedAt,
     },
@@ -2095,6 +2138,7 @@ test("derives mastery only from observed evidence strength", () => {
       objectiveId: moduleObjectiveId(2),
       type: "transfer",
       result: "attempted",
+      authority: "server-verified",
       label: "Transfer attempted",
       observedAt,
     },
@@ -2104,6 +2148,7 @@ test("derives mastery only from observed evidence strength", () => {
       objectiveId: moduleObjectiveId(3),
       type: "capstone",
       result: "passed",
+      authority: "server-verified",
       label: "Capstone passed",
       observedAt,
     },
@@ -2381,6 +2426,31 @@ test("creates and completes seven-day and twenty-eight-day evidence checks", () 
   expect(initial.day28.dueAt).toBe("2026-07-29T12:00:00.000Z");
   expect(afterDay7.day7.completedAt).toBe("2026-07-08T12:00:00.000Z");
   expect(afterDay7.day28.completedAt).toBeUndefined();
+});
+
+test("accepts only the review kind that is currently due", () => {
+  const lesson: CourseProgress["lessons"][string] = {
+    lessonId: "0-0",
+    lessonTitle: "Evidence threshold",
+    status: "learned" as const,
+    attempts: 1,
+    totalQuestions: 1,
+    firstAttemptCorrect: 1,
+    score: 1,
+    confidence: "high" as const,
+    intervalStage: 1,
+    nextReviewAt: "2026-07-02T12:00:00.000Z",
+    lastStudiedAt: "2026-07-01T12:00:00.000Z",
+    completedAt: "2026-07-01T12:00:00.000Z",
+    delayedChecks: {
+      day7: { dueAt: "2026-07-08T12:00:00.000Z" },
+      day28: { dueAt: "2026-07-29T12:00:00.000Z" },
+    },
+  };
+  expect(nextDueKind(lesson, new Date("2026-07-07T12:00:00.000Z"))?.kind).toBe("spaced");
+  expect(nextDueKind(lesson, new Date("2026-07-08T12:00:00.000Z"))?.kind).toBe("delayed-7");
+  lesson.delayedChecks!.day7 = { ...lesson.delayedChecks!.day7, completedAt: "2026-07-08T12:00:00.000Z" };
+  expect(nextDueKind(lesson, new Date("2026-07-29T12:00:00.000Z"))?.kind).toBe("delayed-28");
 });
 
 test("prioritizes fragile delayed checks and pairs them with one forward step", () => {

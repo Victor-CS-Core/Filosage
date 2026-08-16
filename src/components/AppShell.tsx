@@ -12,6 +12,7 @@ import {
   Compass,
   Crown,
   Home,
+  Layers3,
   LifeBuoy,
   LogOut,
   Plus,
@@ -121,7 +122,8 @@ export default function AppShell({ children, activeTopic, activeCourseId, active
 
   const displayName = account?.displayName ?? user?.displayName ?? "Learner";
   const firstName = displayName.split(" ")[0] || "Learner";
-  const outlineQuota = account?.quotas.find((quota) => quota.feature === "course_outline");
+  const courseCreditBalance = account?.courseCredits?.balance;
+  const flashcardDecksEnabled = account?.capabilities?.flashcardDecksEnabled === true;
   const currentCourse = useMemo(
     () => activeCourse ?? courses.find((course) => (course.id ?? course.courseId) === activeCourseId || course.topic === activeTopic),
     [activeCourse, activeCourseId, activeTopic, courses],
@@ -142,9 +144,12 @@ export default function AppShell({ children, activeTopic, activeCourseId, active
       ]),
     ]));
   }, [courseQuery, courses]);
+  const activePrimaryItem = primaryNav.find((item) => item.href === "/"
+    ? pathname === "/"
+    : pathname === item.href || pathname.startsWith(`${item.href}/`));
   const currentSection = pathname.startsWith("/course/")
     ? activeTopic ?? "Course"
-    : primaryNav.find((item) => item.href === pathname)?.label
+    : activePrimaryItem?.label
       ?? (pathname.startsWith("/admin") ? "Control room" : pathname === "/profile" ? "Profile" : pathname === "/create" ? "Create" : pathname.startsWith("/support") ? "Support" : "Learning workspace");
 
   const commandItems = useMemo<CommandPaletteItem[]>(() => [
@@ -158,6 +163,16 @@ export default function AppShell({ children, activeTopic, activeCourseId, active
       icon: item.icon,
       tone: item.href === "/" ? "teal" as const : item.href === "/library" ? "blue" as const : item.href === "/review" ? "coral" as const : "gold" as const,
     })),
+    ...(flashcardDecksEnabled ? [{
+      id: "navigate-flashcard-decks",
+      section: "Navigate" as const,
+      label: "Flashcard decks",
+      description: "Generate, edit, and study private decks",
+      href: "/review/flashcards",
+      keywords: "review recall cards study decks generate",
+      icon: Layers3,
+      tone: "coral" as const,
+    }] : []),
     {
       id: "navigate-create",
       section: "Navigate" as const,
@@ -168,11 +183,11 @@ export default function AppShell({ children, activeTopic, activeCourseId, active
       icon: canCreateCourses ? Plus : Sparkles,
       tone: "coral" as const,
     },
-    ...(account?.plan !== "free" && outlineQuota ? [{
+    ...(account?.plan !== "free" ? [{
       id: "account-plan",
       section: "Account" as const,
       label: account?.plan === "plus" ? "Filosage Plus" : "Filosage Pro",
-      description: outlineQuota.remaining == null ? "Owner course access" : `${outlineQuota.remaining} course credit${outlineQuota.remaining === 1 ? "" : "s"} remaining`,
+      description: courseCreditBalance == null ? "Owner course access" : `${courseCreditBalance} rollover course credit${courseCreditBalance === 1 ? "" : "s"} available`,
       href: "/pricing",
       keywords: "plan subscription quota pricing credits",
       icon: Crown,
@@ -237,7 +252,7 @@ export default function AppShell({ children, activeTopic, activeCourseId, active
       icon: LogOut,
       tone: "slate" as const,
     },
-  ], [account?.plan, canCreateCourses, isOwner, outlineQuota]);
+  ], [account?.plan, canCreateCourses, courseCreditBalance, flashcardDecksEnabled, isOwner]);
 
   const navigate = (href: string) => router.push(href);
   const isLegalPage = ["/terms", "/privacy", "/acceptable-use"].includes(pathname);
@@ -390,7 +405,7 @@ export default function AppShell({ children, activeTopic, activeCourseId, active
         ))}
         <Link className={`mobile-create ${pathname === (canCreateCourses ? "/create" : "/pricing") ? "is-active" : ""}`} href={canCreateCourses ? "/create" : "/pricing"} aria-label={canCreateCourses ? "Create course" : "Compare memberships"} aria-current={pathname === (canCreateCourses ? "/create" : "/pricing") ? "page" : undefined}><Plus size={22} aria-hidden="true" /></Link>
         {primaryNav.slice(2).map(({ href, label, icon: Icon }) => (
-          <Link key={href} className={pathname === href ? "is-active" : ""} href={href} aria-current={pathname === href ? "page" : undefined}><Icon size={20} aria-hidden="true" /><span>{label}</span></Link>
+          <Link key={href} className={pathname === href || pathname.startsWith(`${href}/`) ? "is-active" : ""} href={href} aria-current={pathname === href || pathname.startsWith(`${href}/`) ? "page" : undefined}><Icon size={20} aria-hidden="true" /><span>{label}</span></Link>
         ))}
       </nav>
       <SupportCenter onBeforeOpen={() => setCommandOpen(false)} />

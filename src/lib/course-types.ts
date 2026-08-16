@@ -1,6 +1,7 @@
 import type { LessonVisual } from "@/lib/lesson-visuals";
 import type { LessonInteraction } from "@/lib/lesson-interactions";
 import type { CourseStage } from "@/lib/course-pipeline/contract";
+import type { LearningDesignContractV1, LessonDesignPlanV1 } from "@/lib/learning-design";
 
 export type LessonMode =
   | "concept"
@@ -222,6 +223,18 @@ export interface Course {
   labRegistryVersion?: string;
   visualPolicyVersion?: string;
   sourcePolicyVersion?: string;
+  learningDesignRequired?: boolean;
+  learningDesignContractVersion?: string;
+  /** Private authoring contract. Public DTOs expose only learningDesignSummary. */
+  learningDesign?: LearningDesignContractV1;
+  learningDesignSummary?: {
+    contractVersion: string;
+    desiredOutcome: string;
+    proofOfSkill: string;
+    successCriteria: string[];
+    timeBudgetMinutes: number;
+    lessonWins: Array<{ lessonId: string; objectiveId: string; singleWin: string; estimatedMinutes: number }>;
+  };
   sourceGroundingEvaluatorVersion?: string;
   sourceGroundingEvaluatorStatus?: "executed" | "not_executed" | "not_applicable";
   sourceGroundingFingerprint?: string;
@@ -249,7 +262,6 @@ export interface Course {
   furtherReading?: CourseFurtherReading[];
   evidenceProfile?: CourseEvidenceProfile;
   banner?: CourseBanner;
-  canRegenerateBanner?: boolean;
   generatedLessonIds?: string[];
   moderationStatus?: "approved" | "quarantined";
   publicationReview?: {
@@ -262,6 +274,13 @@ export interface Course {
   };
   updatedAt?: string;
   aiAssisted?: boolean;
+  generationGrant?: {
+    version: string;
+    claimId: string;
+    lessonIds: string[];
+    redeemedAt: string;
+    status: "active" | "revoked";
+  };
   schemaVersion?: number;
   capstone?: {
     title: string;
@@ -281,6 +300,12 @@ export interface Course {
 }
 
 export interface Quiz {
+  id?: string;
+  variantFamilyId?: string;
+  intendedUse?: "initial" | "review" | "both";
+  difficulty?: "foundation" | "contrast" | "transfer";
+  misconceptionId?: string;
+  assessmentId?: string;
   question: string;
   options: string[];
   correctIndex: number;
@@ -297,6 +322,7 @@ export interface LessonData {
   aiAssisted?: boolean;
   learningObjective?: string;
   objectiveIds?: string[];
+  lessonDesign?: LessonDesignPlanV1;
   connection?: string;
   keyTakeaways?: string[];
   experience?: LessonExperience;
@@ -333,6 +359,7 @@ export interface LessonData {
     prompt: string;
     successCriteria: string[];
     modelResponse: string;
+    criterionIds?: string[];
   };
   provenance?: {
     contentVersion: string;
@@ -373,6 +400,7 @@ export interface LessonData {
     labRegistryVersion?: string;
     visualPolicyVersion?: string;
     sourcePolicyVersion?: string;
+    learningDesignContractVersion?: string;
     claimSupportEvaluatorVersion?: string;
     contentBasis?: LessonContentBasis;
     claimSupportEvaluatorStatus?: "executed" | "not_executed" | "not_applicable";
@@ -385,7 +413,7 @@ export type AccessLevel = "anonymous" | "free" | "plus" | "pro" | "owner";
 export type AccountStatus = "active" | "suspended";
 
 export interface AiQuotaSummary {
-  feature: "course_outline" | "course_banner" | "lesson_generation" | "tutor";
+  feature: "course_outline" | "course_banner" | "lesson_generation" | "tutor" | "flashcard_generation";
   limit: number | null;
   used: number;
   remaining: number | null;
@@ -410,14 +438,19 @@ export interface LearnerAccount {
   capabilities: {
     createCourse: boolean;
     generateLesson: boolean;
-    generateCourseBanner: boolean;
+    flashcardDecksEnabled?: boolean;
+    createCustomFlashcardDeck: boolean;
     publishCourse: boolean;
+    advancedCapstoneAnalysis: boolean;
+    exportEvidenceReport: boolean;
+    shareEvidenceReport: boolean;
   };
-  courseCapacity: {
-    owned: number;
-    limit: number | null;
-    remaining: number | null;
-    overLimit: boolean;
+  courseCredits: {
+    balance: number | null;
+    monthlyAllocation: number | null;
+    balanceCap: number | null;
+    nextAccrualAt: string | null;
+    frozenUntil: string | null;
   };
   quotas: AiQuotaSummary[];
 }

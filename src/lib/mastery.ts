@@ -1,5 +1,6 @@
 import type { Course, CourseModule } from "@/lib/course-types";
 import type { BaselineAssessment } from "@/lib/learning-types";
+import { normalizeObjectiveId } from "@/lib/learning-design";
 
 export const BASELINE_LEVELS = ["new", "familiar", "guided", "independent"] as const;
 export type BaselineLevel = (typeof BASELINE_LEVELS)[number];
@@ -7,6 +8,7 @@ export type BaselineLevel = (typeof BASELINE_LEVELS)[number];
 export const EVIDENCE_TYPES = ["lesson", "retrieval", "transfer", "capstone"] as const;
 export type EvidenceType = (typeof EVIDENCE_TYPES)[number];
 export type EvidenceResult = "attempted" | "passed" | "needs_work";
+export type MasteryEvidenceAuthority = "learner-reported" | "server-verified";
 export type MasteryState = "not_started" | "introduced" | "practicing" | "needs_review" | "demonstrated";
 
 export interface DiagnosticItem {
@@ -52,6 +54,7 @@ export interface MasteryEvidence {
   observedAt: string;
   lessonId?: string;
   lessonTitle?: string;
+  authority?: MasteryEvidenceAuthority;
   confidence?: "low" | "medium" | "high";
   score?: number;
   criterion?: string;
@@ -94,7 +97,7 @@ function objectiveText(courseModule: CourseModule) {
 }
 
 export function moduleObjectiveId(moduleIndex: number) {
-  return `module-${moduleIndex}`;
+  return `objective-m${moduleIndex}`;
 }
 
 export function buildDiagnostic(course: Course): DiagnosticItem[] {
@@ -129,6 +132,9 @@ export function explainPlan(diagnostics: DiagnosticItem[], weeklyMinutes: number
 }
 
 function evidenceStrength(evidence: MasteryEvidence): number {
+  // A browser can report that work was attempted, but only server-verified
+  // evidence may advance an objective beyond introduction.
+  if (evidence.authority !== "server-verified") return 1;
   if (evidence.result === "needs_work") return evidence.type === "lesson" ? 1 : 0;
   if (evidence.type === "capstone" && evidence.result === "passed") return 3;
   if (evidence.type === "transfer") return evidence.result === "passed" ? 3 : 2;
@@ -141,9 +147,10 @@ export function deriveObjectiveMastery(
   objectiveIds: string[],
   evidence: MasteryEvidence[],
 ): ObjectiveMastery[] {
-  return objectiveIds.map((objectiveId) => {
+  return objectiveIds.map((declaredObjectiveId) => {
+    const objectiveId = normalizeObjectiveId(declaredObjectiveId) ?? declaredObjectiveId;
     const relevant = evidence
-      .filter((item) => item.objectiveId === objectiveId)
+      .filter((item) => (normalizeObjectiveId(item.objectiveId) ?? item.objectiveId) === objectiveId)
       .sort((left, right) => right.observedAt.localeCompare(left.observedAt));
     const strongest = relevant.reduce((score, item) => Math.max(score, evidenceStrength(item)), 0);
     const latestCheck = relevant.find((item) => item.type === "retrieval" || item.type === "capstone");
@@ -184,11 +191,44 @@ export function mergeMasteryEvidence(
   current: MasteryEvidence[],
   incoming: MasteryEvidence[],
 ) {
-  const merged = new Map(current.map((item) => [item.id, item]));
-  for (const item of incoming) merged.set(item.id, item);
-  return Array.from(merged.values())
+  const merged = new Map(current.map((item) => [item.id, normalizeStoredMasteryEvidence(item)]));
+  for (const item of incoming) merged.set(item.id, normalizeStoredMasteryEvidence(item));
+  const semanticallyDistinct = new Map<string, MasteryEvidence>();
+  for (const item of merged.values()) {
+    const semanticKey = [item.courseId, item.objectiveId, item.type, item.label, item.observedAt].join("|");
+    const existing = semanticallyDistinct.get(semanticKey);
+    if (!existing || (existing.authority !== "server-verified" && item.authority === "server-verified")) {
+      semanticallyDistinct.set(semanticKey, item);
+    }
+  }
+  return Array.from(semanticallyDistinct.values())
     .sort((left, right) => right.observedAt.localeCompare(left.observedAt))
     .slice(0, 500);
+}
+
+export function normalizeLearnerReportedMasteryEvidence(
+  evidence: MasteryEvidence,
+): MasteryEvidence {
+  const normalized: MasteryEvidence = {
+    ...evidence,
+    authority: "learner-reported",
+    result: "attempted",
+    confidence: "low",
+  };
+  delete normalized.score;
+  return normalized;
+}
+
+export function normalizeStoredMasteryEvidence(
+  evidence: MasteryEvidence,
+): MasteryEvidence {
+  const normalized = {
+    ...evidence,
+    objectiveId: normalizeObjectiveId(evidence.objectiveId) ?? evidence.objectiveId,
+  };
+  return normalized.authority === "server-verified"
+    ? normalized
+    : normalizeLearnerReportedMasteryEvidence(normalized);
 }
 
 interface LocalMasteryJourney {
@@ -209,7 +249,9 @@ export function getLocalMasteryJourney(courseId: string): LocalMasteryJourney {
     return {
       plan: parsed.plan?.courseId === courseId ? parsed.plan : null,
       evidence: Array.isArray(parsed.evidence)
-        ? parsed.evidence.filter((item) => item?.courseId === courseId)
+        ? parsed.evidence
+            .filter((item) => item?.courseId === courseId)
+            .map(normalizeStoredMasteryEvidence)
         : [],
     };
   } catch {

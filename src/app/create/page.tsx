@@ -63,6 +63,8 @@ export default function CreateCoursePage() {
   const [goal, setGoal] = useState("");
   const [application, setApplication] = useState("");
   const [background, setBackground] = useState("");
+  const [constraints, setConstraints] = useState("");
+  const [exclusions, setExclusions] = useState("");
   const [artifactPreference, setArtifactPreference] = useState("");
   const [scenarioPreference, setScenarioPreference] = useState("");
   const [language, setLanguage] = useState("English");
@@ -72,11 +74,10 @@ export default function CreateCoursePage() {
   const [courseStyle, setCourseStyle] = useState<(typeof courseStyles)[number]["value"]>("Balanced");
   const [submitting, setSubmitting] = useState(false);
   const [generationProgress, setGenerationProgress] = useState(0);
-  const [generationStage, setGenerationStage] = useState("Researching trusted sources and further reading");
+  const [generationStage, setGenerationStage] = useState("Researching and planning the Capability Cycle");
   const [error, setError] = useState<string | null>(null);
   const requestIdentityRef = useRef<{ signature: string; key: string } | null>(null);
   const stepHeadingRef = useRef<HTMLHeadingElement>(null);
-  const outlineQuota = account?.quotas.find((quota) => quota.feature === "course_outline");
 
   useEffect(() => {
     if (!submitting) return;
@@ -96,14 +97,14 @@ export default function CreateCoursePage() {
 
   const create = async (event: React.FormEvent) => {
     event.preventDefault();
-    if (!user || !canCreateCourses || account?.courseCapacity?.remaining === 0 || !topic.trim() || !goal.trim() || !background.trim()) return;
+    if (!user || !canCreateCourses || account?.courseCredits?.balance === 0 || !topic.trim() || !goal.trim() || !background.trim()) return;
     setSubmitting(true);
     setGenerationProgress(8);
-    setGenerationStage("Researching trusted sources and further reading");
+    setGenerationStage("Researching and planning the Capability Cycle");
     setError(null);
     try {
       const token = await user.getIdToken();
-      const requestBody = { topic, goal, application, background, artifactPreference, scenarioPreference, level, weeklyMinutes, targetWeeks, courseStyle, language };
+      const requestBody = { topic, goal, application, background, constraints, exclusions, artifactPreference, scenarioPreference, level, weeklyMinutes, targetWeeks, courseStyle, language };
       const signature = JSON.stringify(requestBody);
       if (requestIdentityRef.current?.signature !== signature) {
         requestIdentityRef.current = { signature, key: createClientId() };
@@ -151,11 +152,11 @@ export default function CreateCoursePage() {
   };
 
   if (!canCreateCourses) {
-    return <AppShell><div className="center-state"><Sparkles size={26} /><h1>Create a private course for your goal.</h1><p>Filosage Plus and Pro include private AI-assisted course creation with clearly stated monthly limits.</p><Link className="button button-primary" href="/pricing">Compare plans</Link></div></AppShell>;
+    return <AppShell><div className="center-state"><Sparkles size={26} /><h1>Create a private course for your goal.</h1><p>Filosage Plus and Pro include complete AI course credits that cover an approved outline and every lesson it plans.</p><Link className="button button-primary" href="/pricing">Compare plans</Link></div></AppShell>;
   }
 
-  if (account?.courseCapacity?.remaining === 0) {
-    return <AppShell><div className="center-state"><Sparkles size={26} /><h1>Your current plan already has its active private course.</h1><p>Your existing work remains available. Delete a course you no longer need or upgrade to Pro before creating another.</p><div className="state-actions"><Link className="button button-secondary" href="/library">Open my courses</Link><Link className="button button-primary" href="/pricing">Compare plans</Link></div></div></AppShell>;
+  if (account?.courseCredits?.balance === 0) {
+    return <AppShell><div className="center-state"><Sparkles size={26} /><h1>Your next course credit is still ahead.</h1><p>Every existing course and all lessons in its approved outline remain available. Wait for the next monthly credit or compare Pro&apos;s larger rollover allowance.</p><div className="state-actions"><Link className="button button-secondary" href="/library">Open my courses</Link><Link className="button button-primary" href="/pricing">Compare plans</Link></div></div></AppShell>;
   }
 
   const plannedHours = Math.max(1, Math.round((weeklyMinutes * targetWeeks) / 60));
@@ -164,12 +165,13 @@ export default function CreateCoursePage() {
   const paceComplete = Boolean(background.trim() && level && targetWeeks >= 2 && weeklyMinutes >= 30);
   const teachingComplete = Boolean(courseStyle);
   const formReady = outcomeComplete && paceComplete && teachingComplete;
-  const contextCount = [application, artifactPreference, scenarioPreference, background].filter((value) => value.trim()).length;
+  const contextCount = [application, artifactPreference, scenarioPreference, background, constraints, exclusions].filter((value) => value.trim()).length;
   const stepValidity = [outcomeComplete, paceComplete, teachingComplete];
   const stepComplete = stepValidity.map((valid, index) => valid && visitedSteps[index]);
-  const creditLabel = outlineQuota?.remaining == null
+  const creditBalance = account?.courseCredits?.balance;
+  const creditLabel = creditBalance == null
     ? "Course creation available"
-    : `${outlineQuota.remaining} course credit${outlineQuota.remaining === 1 ? "" : "s"} left this month`;
+    : `${creditBalance} rollover course credit${creditBalance === 1 ? "" : "s"} available`;
 
   return (
     <AppShell>
@@ -177,7 +179,7 @@ export default function CreateCoursePage() {
         <header className={styles.intro}>
           <div>
             <h1>Build toward a real outcome.</h1>
-            <p>Give Filosage the result you need, the time you have, and how you learn best. Filosage researches reputable released sources, builds a private course map, and clearly labels any lesson that must rely on AI general knowledge.</p>
+            <p>Give Filosage the result you need, the time you have, and how you learn best. Filosage researches reputable released sources where available, builds a private course map around the Capability Cycle, and clearly labels any lesson that relies on AI general knowledge.</p>
           </div>
           <div className={styles.introMeta} aria-label="Course creation details">
             <span><LockKeyhole size={15} /> Private draft</span>
@@ -247,6 +249,14 @@ export default function CreateCoursePage() {
                           <label htmlFor="course-scenario"><span>Should the course follow a specific situation?</span><small>{scenarioPreference.length}/500</small></label>
                           <textarea id="course-scenario" name="scenarioPreference" value={scenarioPreference} onChange={(event) => setScenarioPreference(event.target.value)} maxLength={500} rows={3} placeholder="A realistic project or decision that becomes more complex as the course progresses." />
                         </div>
+                        <div className={styles.field}>
+                          <label htmlFor="course-constraints"><span>What constraints should the plan respect?</span><small>{constraints.length}/800</small></label>
+                          <textarea id="course-constraints" name="constraints" value={constraints} onChange={(event) => setConstraints(event.target.value)} maxLength={800} rows={3} placeholder="One constraint per line, such as: use tools I already have; keep practice sessions under 30 minutes." />
+                        </div>
+                        <div className={styles.field}>
+                          <label htmlFor="course-exclusions"><span>What should stay out of scope?</span><small>{exclusions.length}/800</small></label>
+                          <textarea id="course-exclusions" name="exclusions" value={exclusions} onChange={(event) => setExclusions(event.target.value)} maxLength={800} rows={3} placeholder="Adjacent topics to defer so this course stays focused." />
+                        </div>
                       </div>
                     </details>
                   </section>
@@ -293,7 +303,7 @@ export default function CreateCoursePage() {
                     <div className={styles.sectionHeading}>
                       <p>Step 3 of 3</p>
                       <h2 id="teaching-step-title" ref={stepHeadingRef} tabIndex={-1}>Choose how the learning should unfold.</h2>
-                      <span>Filosage will still combine explanation, practice, retrieval, and transfer. This choice sets the emphasis.</span>
+                      <span>Every course still follows the Capability Cycle: define, activate, practice, receive feedback, transfer, and return. This choice sets the emphasis.</span>
                     </div>
 
                     <div className={styles.approachGroup} role="radiogroup" aria-label="Teaching approach">
@@ -319,7 +329,7 @@ export default function CreateCoursePage() {
 
                     <div className={styles.reviewNote}>
                       <CheckCircle2 size={18} />
-                      <div><strong>Your first result is a private course map.</strong><span>Source-backed lessons receive automatic claim checks; model-knowledge lessons are labeled and remain citation-free.</span></div>
+                      <div><strong>Your first result is a private Capability Cycle.</strong><span>The course map binds every lesson to one focused win. Source-backed lessons receive automatic claim checks; model-knowledge lessons are labeled and remain citation-free.</span></div>
                     </div>
                   </section>
                 )}
@@ -329,7 +339,7 @@ export default function CreateCoursePage() {
                 <div className={styles.generationProgress}>
                   <div><span role="status" aria-live="polite" aria-atomic="true">{generationStage}</span><strong aria-hidden="true">{generationProgress}%</strong></div>
                   <div className={styles.progressTrack} role="progressbar" aria-label="Course creation is in progress"><span style={{ transform: `scaleX(${generationProgress / 100})` }} /></div>
-                  <p>Researching, generating, and checking the private course against its cited evidence.</p>
+                  <p>Researching trusted sources and further reading where suitable, planning focused lesson wins, and validating honest evidence labels.</p>
                 </div>
               )}
               {error && <p className={styles.formError} role="alert">{error}</p>}

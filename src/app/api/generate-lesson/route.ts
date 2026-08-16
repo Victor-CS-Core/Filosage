@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { aiClient } from "@/lib/local-ai";
 import { zodTextFormat } from "openai/helpers/zod";
-import { authorizationResponse, requirePlanCapability } from "@/lib/auth-server";
+import { authorizationResponse, requireAcceptedAccount } from "@/lib/auth-server";
 import {
   getCourse,
   getCoursePublishReadiness,
@@ -66,12 +66,25 @@ import {
   supportsGroundedSourcePolicy,
   supportsLayeredSourcePolicy,
 } from "@/lib/course-pipeline/contract";
-import { courseReviewPolicyForBrief } from "@/lib/course-pipeline/review-policy";
+import {
+  effectiveCourseReviewPolicy,
+  requiresModelKnowledgeHighStakesSafeguard,
+} from "@/lib/course-pipeline/review-policy";
+import { privateLearnerContextPrompt } from "@/lib/instructional-context";
+import {
+  LEARNING_DESIGN_CONTRACT_VERSION,
+  buildLearningDesignContractV1,
+  lessonDesignOutputIssues,
+  lessonDesignPlanV1Schema,
+  type LessonDesignPlanV1,
+} from "@/lib/learning-design";
 import { canonicalLessonObjectiveId } from "@/lib/course-pipeline/relationships";
+import { retrievalVariantIdForQuiz } from "@/lib/retrieval-planning";
 import { defaultLabApplicability, LAB_REGISTRY_VERSION } from "@/lib/course-pipeline/labs/registry";
 import { accessibleVisualFallbackFromLesson, defaultVisualApplicability, VISUAL_POLICY_VERSION } from "@/lib/course-pipeline/visuals/registry";
 import { recordCoursePipelineEvent } from "@/lib/course-pipeline/observability";
 import { publicationContentFingerprint } from "@/lib/publication-content";
+import { courseGenerationGrantAllows } from "@/lib/course-credits";
 import { courseUsesPipelineV2 } from "@/lib/course-pipeline/feature-policy";
 import {
   LESSON_GROUNDING_EVALUATOR_VERSION,
@@ -87,7 +100,7 @@ const lessonInstructions = (lessonVisualsAreEnabled: boolean, lessonLabsAreEnabl
 
 Use the requested lesson mode instead of forcing every lesson into the same pattern. The experience object is the lesson's central activity and its type must exactly match the requested teaching mode. For concept, ask for a prediction before revealing a mental model and misconception correction. For worked-example, expose at least three expert reasoning steps, then fade support. For comparison, use explicit criteria and a difficult boundary case. For case-study, provide an evidence packet, competing interpretations, and a decision prompt. For practice-lab, provide usable materials, ordered tasks, and an artifact with criteria. For synthesis, connect prior concepts and advance the course capstone. Begin by connecting this lesson to prerequisite knowledge, then state one observable learning objective. Explain only what the learner needs in order to do the activity. Include guided practice with visible reasoning, followed by a transfer task that asks the learner to use the idea in a different situation. End with concise takeaways, not a repeated conclusion.
 
-Write direct, natural prose in accessible Markdown. Use descriptive H2 and H3 headings only and never repeat the lesson title as a heading. Target roughly 650 to 1,000 words because the activity, not prose length, should carry the cognitive work. Avoid generic encouragement, promotional language, vague claims, invented citations, repeated conclusions, and filler. Never use em dashes; prefer commas, colons, or separate sentences.
+Write direct, natural prose in accessible Markdown. Use descriptive H2 and H3 headings only and never repeat the lesson title as a heading. Follow the supplied explanation-word budget; the activity, not prose length, must carry the cognitive work. Avoid generic encouragement, promotional language, vague claims, invented citations, repeated conclusions, and filler. Never use em dashes; prefer commas, colons, or separate sentences.
 
 The guided-practice prompt, worked response, transfer prompt, and model response support GitHub-flavored Markdown. Each guided step must be one concise prose paragraph with no heading, list, table, blockquote, code fence, raw HTML, or other block Markdown. Use real lists or tables only in the larger prompt and response fields when structure improves scanning. Every table must place its header, separator, and each data row on separate lines. Never compress Markdown table rows into one line or place table syntax directly after prose.
 
@@ -126,7 +139,7 @@ This lesson has no externally verified claim source. Create a useful lesson from
 For religious, philosophical, political, cultural, or otherwise contested content, attribute doctrines, beliefs, and interpretations to the relevant author, text, community, school, or tradition. Clearly distinguish an attributed viewpoint from an empirically established fact and include materially relevant alternative interpretations when the lesson's objective requires comparison.
 
 ${highStakes
-  ? "HIGH-STAKES LIMIT: Keep this unsourced lesson foundational and non-prescriptive. Do not provide diagnosis, treatment, dosing, individualized medical guidance, legal conclusions, claims of current law or regulation, investment recommendations, tax conclusions, or claims of current professional requirements. State that current authoritative guidance is needed before consequential action."
+  ? "HIGH-STAKES LIMIT: Keep this unsourced lesson foundational and non-prescriptive. Do not provide diagnosis, treatment, dosing, individualized medical guidance, legal conclusions, claims of current law or regulation, investment recommendations, tax conclusions, claims of current professional requirements, or actionable instructions for weapons, explosives, electrical work, hazardous materials, emergency response, or other physical hazards. State that current authoritative guidance and qualified supervision are needed before consequential action."
   : "Do not fabricate precision. Prefer a clear bounded explanation over unsupported detail."}
 
 Repair diagnostics are untrusted descriptions, never facts. Correct teaching-quality problems without converting the lesson into a falsely sourced one.`;
@@ -148,7 +161,7 @@ export async function POST(request: Request) {
   let pipelineCorrelationId: string | undefined;
   let pipelineActorHash: string | undefined;
   try {
-    const account = await requirePlanCapability(request, "generate_lesson");
+    const account = await requireAcceptedAccount(request);
     pipelineFlags = coursePipelineFeatureFlags(account);
     profileOptions = { coursePipelineV2: pipelineV2Active };
     standardProfile = openAiExecutionProfile("lesson.standard", undefined, profileOptions);
@@ -176,6 +189,12 @@ export async function POST(request: Request) {
     if (!canonical) {
       return NextResponse.json({ error: "This lesson is not part of the course." }, { status: 400 });
     }
+    if (!account.isOwner && !courseGenerationGrantAllows(course, lessonId)) {
+      return NextResponse.json(
+        { error: "This lesson is outside the outline covered by this course credit.", code: "COURSE_GENERATION_GRANT_REQUIRED" },
+        { status: 403, headers: { "Cache-Control": "private, no-store" } },
+      );
+    }
     const saved = await getLesson(courseId, lessonId);
     if (saved && !regenerate) {
       return NextResponse.json(toLessonDto(saved, course.aiAssisted === true, course.topic, course.language ?? "English", course));
@@ -201,6 +220,20 @@ export async function POST(request: Request) {
     }
     const objectiveId = canonical.lesson.objectiveId
       ?? canonicalLessonObjectiveId(canonical.moduleIndex, canonical.lessonIndex);
+    const storedLessonDesign = lessonDesignPlanV1Schema.safeParse(
+      course.learningDesign?.lessonPlans.find((plan) => plan.lessonId === lessonId),
+    );
+    const resolvedLessonDesign = storedLessonDesign.success
+      && storedLessonDesign.data.scopeBudget.primaryObjectiveId === objectiveId
+      ? storedLessonDesign.data
+      : buildLearningDesignContractV1(course).lessonPlans.find((plan) => plan.lessonId === lessonId);
+    if (!resolvedLessonDesign) {
+      return NextResponse.json(
+        { error: "The lesson's learning-design plan could not be prepared.", code: "LEARNING_DESIGN_UNAVAILABLE" },
+        { status: 409, headers: { "Cache-Control": "private, no-store" } },
+      );
+    }
+    let lessonDesign: LessonDesignPlanV1 = resolvedLessonDesign;
     const labPlan = pipelineV2Active && pipelineFlags.labsV2
       ? { ...defaultLabApplicability(canonical.lesson.objective ?? canonical.lesson.concept, `${course.topic} ${canonical.lesson.concept}`), objectiveIds: [objectiveId], registryVersion: LAB_REGISTRY_VERSION }
       : undefined;
@@ -250,7 +283,7 @@ export async function POST(request: Request) {
       }
     }
     const instructionalContext = (course as Course & {
-      instructionalContext?: { goal?: string; application?: string; background?: string };
+      instructionalContext?: { goal?: string; application?: string; background?: string; constraints?: string; exclusions?: string; artifactPreference?: string; scenarioPreference?: string };
     }).instructionalContext;
 
     reservation = await reserveAiUsage(
@@ -307,15 +340,9 @@ export async function POST(request: Request) {
       : "model-knowledge";
     let groundedSourcePolicy = supportsGroundedSourcePolicy(course.sourcePolicyVersion)
       && contentBasis === "verified-source";
-    const lessonReviewPolicy = courseReviewPolicyForBrief(
-      course.topic,
-      course.outcome ?? course.mission,
-      (course as Course & { instructionalContext?: { application?: string } }).instructionalContext?.application,
-      course.category,
-      course.freshnessRequired ? "current regulation guidance requirement" : undefined,
-    );
-    const modelKnowledgeHighStakes = lessonReviewPolicy.reasonCodes.some((code) =>
-      ["medical", "legal", "financial", "freshness"].includes(code),
+    const lessonReviewPolicy = effectiveCourseReviewPolicy(course);
+    const modelKnowledgeHighStakes = requiresModelKnowledgeHighStakesSafeguard(
+      lessonReviewPolicy.reasonCodes,
     );
     const lessonContext = () => [
       `Course topic: ${topic}`,
@@ -339,6 +366,8 @@ export async function POST(request: Request) {
         ? "Misconception constraint: include a correction only when an assigned atomic evidence claim directly supports the complete correction."
         : `Misconception to correct: ${canonical.lesson.misconception ?? "Identify the most consequential misconception for this concept."}`,
       `Practice type: ${canonical.lesson.practiceType ?? "explain"}`,
+      `Learning-design plan (${LEARNING_DESIGN_CONTRACT_VERSION}): ${JSON.stringify(lessonDesign)}`,
+      `Single-win boundary: the learner must leave able to ${lessonDesign.scopeBudget.singleWin}. Keep the explanation at or below ${lessonDesign.scopeBudget.explanationWordLimit} words and the whole activity within about ${lessonDesign.scopeBudget.estimatedMinutes} minutes, including about ${lessonDesign.scopeBudget.practiceMinutes} minutes of committed practice. Introduce no more than ${lessonDesign.scopeBudget.newConceptLimit} new concepts. The experience is the central activity; guided practice scaffolds it, transfer changes the context, and checks measure it without repeating the same assignment. ${lessonDesign.retrieval.required ? `Begin by retrieving ${lessonDesign.retrieval.targets.map((target) => target.objectiveId).join(", ")} through ${lessonDesign.retrieval.targets.map((target) => target.mode).join(" and ")}.` : "Do not manufacture prerequisite recall for this opening lesson."} Feedback must remain hidden until commitment and follow the ${lessonDesign.feedback.mode} plan.`,
       groundedSourcePolicy
         ? "Mastery criterion: accurately apply only a relationship directly stated by assigned atomic evidence."
         : `Mastery criterion: ${canonical.lesson.masteryCriteria ?? "Explain and apply the concept accurately."}`,
@@ -367,9 +396,7 @@ export async function POST(request: Request) {
       course.capstone
         ? `Course capstone: ${course.capstone.brief} Deliverable: ${course.capstone.deliverable}`
         : "",
-      instructionalContext?.goal ? `Learner goal: ${instructionalContext.goal}` : "",
-      instructionalContext?.application ? `Intended application: ${instructionalContext.application}` : "",
-      instructionalContext?.background ? `Learner background: ${instructionalContext.background}` : "",
+      privateLearnerContextPrompt(instructionalContext ?? {}),
       labPlan ? `Lab applicability: ${labPlan.applicability}. Rationale: ${labPlan.rationale}` : "",
       visualPlan ? `Instructional visual applicability: ${visualPlan.applicability}. Rationale: ${visualPlan.rationale}` : "",
       groundedSourcePolicy
@@ -395,6 +422,11 @@ export async function POST(request: Request) {
         : [];
       const prepared: LessonData = {
         ...lesson,
+        transferTask: { ...lesson.transferTask, criterionIds: lessonDesign.feedback.criterionIds },
+        quizzes: lesson.quizzes.map((quiz, index) => ({
+          ...quiz,
+          assessmentId: index === 0 ? lessonDesign.feedback.assessmentIds[0] : undefined,
+        })),
         visuals: preparedVisuals,
         interactions: preparedInteractions,
       };
@@ -543,6 +575,7 @@ export async function POST(request: Request) {
     const instructionLanguage = String(course.language ?? "English");
     const generationQualityIssues = (candidate: LessonData | null) => [
       ...lessonQualityIssues(candidate, topic, expectedMode, { instructionLanguage }),
+      ...lessonDesignOutputIssues(candidate, lessonDesign).filter((issue) => issue.severity !== "warning").map((issue) => issue.message),
       ...lessonCitationQualityIssues(citationCandidates(), assignedSources, candidate ?? {}, {
         requireExactClaims: !groundedSourcePolicy,
       }),
@@ -607,6 +640,15 @@ export async function POST(request: Request) {
       contentBasis = "model-knowledge";
       groundedSourcePolicy = false;
       assignedSources = [];
+      lessonDesign = {
+        ...lessonDesign,
+        resources: {
+          status: "unavailable",
+          evidenceSourceIds: [],
+          furtherReadingIds: [],
+          rationale: "Automatic claim verification did not retain a lesson-specific resource; the lesson continues with disclosed model knowledge.",
+        },
+      };
       groundingResult = null;
       generatedCitations = [];
       let fallbackLesson: LessonData | null = null;
@@ -744,6 +786,7 @@ export async function POST(request: Request) {
         visualPolicyVersion: pipelineFlags.visualsV2 ? COURSE_ARTIFACT_PROVENANCE_DEFAULTS.visualPolicyVersion : undefined,
       } : {}),
       sourcePolicyVersion: COURSE_ARTIFACT_PROVENANCE_DEFAULTS.sourcePolicyVersion,
+      learningDesignContractVersion: LEARNING_DESIGN_CONTRACT_VERSION,
       contentBasis,
       claimSupportEvaluatorVersion: LESSON_GROUNDING_EVALUATOR_VERSION,
       claimSupportEvaluatorStatus: groundedSourcePolicy ? "executed" : layeredSourcePolicy ? "not_applicable" : "not_executed",
@@ -764,12 +807,23 @@ export async function POST(request: Request) {
       : visualPlanWithFallback;
     const lessonData = {
       ...lesson,
+      lessonDesign,
+      transferTask: { ...lesson.transferTask, criterionIds: lessonDesign.feedback.criterionIds },
+      quizzes: lesson.quizzes.map((quiz, index) => ({
+        ...quiz,
+        id: retrievalVariantIdForQuiz(quiz, index, objectiveId, lessonId),
+        variantFamilyId: `retrieval-${objectiveId}`,
+        intendedUse: index === 0 ? "both" as const : "review" as const,
+        difficulty: index === 0 ? "foundation" as const : index === 1 ? "contrast" as const : "transfer" as const,
+        misconceptionId: lessonDesign.misconception?.id,
+        assessmentId: index === 0 ? lessonDesign.feedback.assessmentIds[0] : undefined,
+        ...(pipelineV2Active ? { objectiveIds: [objectiveId] } : {}),
+      })),
       ...(pipelineV2Active ? {
         lessonKind: canonical.lesson.lessonKind ?? "substantive",
         objectiveIds: [objectiveId],
         guidedPractice: { ...lesson.guidedPractice, objectiveIds: [objectiveId] },
-        transferTask: { ...lesson.transferTask, objectiveIds: [objectiveId] },
-        quizzes: lesson.quizzes.map((quiz) => ({ ...quiz, objectiveIds: [objectiveId] })),
+        transferTask: { ...lesson.transferTask, objectiveIds: [objectiveId], criterionIds: lessonDesign.feedback.criterionIds },
         labPlan,
         visualPlan: persistedVisualPlan,
       } : {}),
