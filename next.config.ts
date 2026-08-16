@@ -14,13 +14,26 @@ const nextConfig: NextConfig = {
     ? { typescript: { tsconfigPath: process.env.FILOSAGE_NEXT_TSCONFIG_PATH } }
     : {}),
   async headers() {
-    return [{
-      source: "/:path*",
-      // Request-aware HTTPS enforcement is added by proxy.ts. Keeping the
-      // static fallback protocol-neutral prevents local production runs from
-      // rewriting their own HTTP assets to an unavailable HTTPS origin.
-      headers: securityHeaders(process.env.NODE_ENV === "development", undefined, false),
-    }];
+    return [
+      {
+        source: "/:path*",
+        // Request-aware HTTPS enforcement is added by proxy.ts. Keeping the
+        // static fallback protocol-neutral prevents local production runs from
+        // rewriting their own HTTP assets to an unavailable HTTPS origin.
+        headers: securityHeaders(process.env.NODE_ENV === "development", undefined, false),
+      },
+      {
+        source: "/evidence/shared/:token",
+        headers: [{ key: "Referrer-Policy", value: "no-referrer" }],
+      },
+      {
+        source: "/api/evidence-shares/:token",
+        headers: [
+          { key: "Referrer-Policy", value: "no-referrer" },
+          { key: "Content-Security-Policy", value: "default-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'" },
+        ],
+      },
+    ];
   },
 };
 

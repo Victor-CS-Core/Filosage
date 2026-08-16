@@ -3528,41 +3528,68 @@ html[data-environment="qa"] .environment-pill { display: inline-flex; }
 
 .shared-evidence-page { min-height: 100vh; background: var(--page); color: var(--ink); padding: 56px 24px 88px; }
 .shared-evidence-report,
-.shared-evidence-unavailable { width: min(880px, 100%); margin: 0 auto; }
-.shared-evidence-report > header { border-bottom: 1px solid var(--line-strong); padding-bottom: 28px; }
-.shared-evidence-report h1 { margin-top: 6px; font-family: var(--font-editorial); font-size: clamp(2.2rem, 6vw, 4rem); font-weight: 560; letter-spacing: -0.045em; }
-.shared-evidence-report > header > p:not(.overline) { max-width: 65ch; margin-top: 10px; color: var(--ink-secondary); line-height: 1.6; }
-.shared-evidence-report > header small { display: block; margin-top: 16px; color: var(--ink-muted); font-size: 0.63rem; }
+.shared-evidence-unavailable { width: min(920px, 100%); margin: 0 auto; }
+.shared-evidence-report > header { padding-bottom: 28px; }
+.shared-evidence-report h1 { font-family: var(--font-editorial); font-size: clamp(2.2rem, 6vw, 4rem); font-weight: 560; letter-spacing: -0.04em; }
+.shared-evidence-report > header > p { max-width: 65ch; margin-top: 10px; color: var(--ink-secondary); font-size: 1rem; line-height: 1.65; }
+.shared-evidence-trust { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 14px 20px; align-items: start; border-block: 1px solid var(--line-strong); background: color-mix(in oklch, var(--accent-soft) 34%, transparent); padding: 22px 0; }
+.shared-evidence-trust > svg { color: var(--accent-ink); margin-top: 2px; }
+.shared-evidence-trust h2 { font-size: 1rem; }
+.shared-evidence-trust p { max-width: 60ch; margin-top: 6px; color: var(--ink-secondary); font-size: 0.875rem; line-height: 1.6; }
+.shared-evidence-trust dl { display: grid; grid-template-columns: repeat(3, minmax(104px, auto)); gap: 16px; }
+.shared-evidence-trust dl > div { display: flex; flex-direction: column; gap: 3px; }
+.shared-evidence-trust dt { color: var(--ink-muted); font-size: 0.75rem; font-weight: 650; }
+.shared-evidence-trust dd { color: var(--ink); font-size: 0.8125rem; font-weight: 700; }
 .shared-evidence-metrics { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); border-bottom: 1px solid var(--line-strong); }
-.shared-evidence-metrics > div { display: flex; flex-direction: column; min-height: 115px; justify-content: center; padding: 20px 0; }
-.shared-evidence-metrics > div + div { border-left: 1px solid var(--line); padding-left: 22px; }
-.shared-evidence-metrics small { color: var(--ink-muted); font-size: 0.62rem; }
-.shared-evidence-metrics strong { margin-top: 6px; font-family: var(--font-heading); font-size: 1.55rem; }
+.shared-evidence-metrics > div { display: flex; flex-direction: column; min-height: 176px; justify-content: center; padding: 24px 0; }
+.shared-evidence-metrics > div + div { border-left: 1px solid var(--line); padding-left: 24px; }
+.shared-evidence-metrics span { color: var(--ink-muted); font-size: 0.75rem; font-weight: 650; }
+.shared-evidence-metrics strong { margin-top: 7px; font-family: var(--font-heading); font-size: 1.65rem; }
+.shared-evidence-metrics p { max-width: 30ch; margin-top: 8px; color: var(--ink-secondary); font-size: 0.875rem; line-height: 1.55; }
 .shared-evidence-objectives,
+.shared-evidence-ledger,
 .shared-evidence-capstone,
-.shared-evidence-analysis { margin-top: 48px; }
+.shared-evidence-analysis { margin-top: 52px; }
+.shared-evidence-section-heading { display: flex; align-items: end; justify-content: space-between; gap: 24px; }
+.shared-evidence-section-heading h2,
+.shared-evidence-capstone > h2,
+.shared-evidence-analysis > h2,
+.shared-evidence-method h2 { font-size: 1.25rem; }
+.shared-evidence-section-heading > p { max-width: 52ch; color: var(--ink-secondary); font-size: 0.875rem; line-height: 1.55; text-align: right; }
 .shared-evidence-objectives ol,
-.shared-evidence-capstone ol { margin: 18px 0 0; padding: 0; list-style: none; border-top: 1px solid var(--line-strong); }
-.shared-evidence-objectives li { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 20px; border-bottom: 1px solid var(--line); padding: 16px 0; }
+.shared-evidence-ledger ol,
+.shared-evidence-capstone ol { margin: 20px 0 0; padding: 0; list-style: none; border-top: 1px solid var(--line-strong); }
+.shared-evidence-objectives li { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 24px; border-bottom: 1px solid var(--line); padding: 18px 0; }
 .shared-evidence-objectives li div { display: flex; flex-direction: column; }
 .shared-evidence-objectives li p,
-.shared-evidence-capstone li p { margin-top: 5px; color: var(--ink-secondary); font-size: 0.69rem; line-height: 1.5; }
-.shared-evidence-objectives li span { color: var(--ink-muted); font-size: 0.61rem; text-transform: capitalize; }
-.shared-evidence-capstone > p:not(.overline),
-.shared-evidence-analysis > p { margin-top: 8px; color: var(--ink-secondary); line-height: 1.6; }
-.shared-evidence-capstone li { border-bottom: 1px solid var(--line); padding: 13px 0; }
+.shared-evidence-capstone li p { max-width: 68ch; margin-top: 6px; color: var(--ink-secondary); font-size: 0.9375rem; line-height: 1.6; }
+.shared-evidence-objectives li span { color: var(--ink-muted); font-size: 0.75rem; font-weight: 650; text-transform: capitalize; }
+.shared-evidence-ledger > ol > li { display: grid; grid-template-columns: minmax(180px, 0.75fr) minmax(0, 1.25fr); gap: 24px; border-bottom: 1px solid var(--line); padding: 18px 0; }
+.shared-evidence-ledger > ol > li > div > strong { font-size: 0.9375rem; }
+.shared-evidence-ledger > ol > li > div > p { margin-top: 6px; color: var(--ink-secondary); font-size: 0.875rem; line-height: 1.55; }
+.shared-evidence-ledger dl { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px 20px; }
+.shared-evidence-ledger dl > div { min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.shared-evidence-ledger dt { color: var(--ink-muted); font-size: 0.75rem; font-weight: 650; }
+.shared-evidence-ledger dd { overflow-wrap: anywhere; color: var(--ink); font-size: 0.875rem; }
+.shared-evidence-ledger-empty { margin-top: 20px; border-block: 1px solid var(--line); padding: 18px 0; color: var(--ink-secondary); font-size: 0.9375rem; line-height: 1.6; }
+.shared-evidence-capstone > p,
+.shared-evidence-analysis > p { max-width: 70ch; margin-top: 10px; color: var(--ink-secondary); font-size: 0.9375rem; line-height: 1.6; }
+.shared-evidence-capstone-verdict { display: flex; align-items: baseline; flex-wrap: wrap; gap: 8px 14px; margin-top: 14px; }
+.shared-evidence-capstone-verdict > strong { color: var(--signal); font-size: 1rem; }
+.shared-evidence-capstone-verdict > span { color: var(--ink-muted); font-size: 0.8125rem; }
+.shared-evidence-capstone li { border-bottom: 1px solid var(--line); padding: 15px 0; }
 .shared-evidence-capstone li.is-met > strong { color: var(--success, #1B7F4B); }
-.shared-evidence-analysis h3 { margin-top: 18px; font-size: .78rem; }
-.shared-evidence-analysis ol { margin-top: 8px; padding-left: 22px; }
-.shared-evidence-method { display: flex; gap: 12px; margin-top: 48px; border-top: 1px solid var(--line-strong); padding-top: 22px; }
-.shared-evidence-method > svg { flex: 0 0 auto; color: var(--accent-ink); }
-.shared-evidence-method strong { font-size: .72rem; }
-.shared-evidence-method p { max-width: 75ch; margin-top: 7px; color: var(--ink-secondary); font-size: .67rem; line-height: 1.55; }
+.shared-evidence-analysis h3 { margin-top: 20px; font-size: 0.9375rem; }
+.shared-evidence-analysis ol { margin-top: 10px; padding-left: 22px; }
+.shared-evidence-analysis li { margin-top: 6px; font-size: 0.9375rem; line-height: 1.55; }
+.shared-evidence-method { display: flex; gap: 14px; margin-top: 56px; border-top: 1px solid var(--line-strong); padding-top: 26px; }
+.shared-evidence-method > svg { flex: 0 0 auto; color: var(--accent-ink); margin-top: 2px; }
+.shared-evidence-method p { max-width: 70ch; margin-top: 9px; color: var(--ink-secondary); font-size: 0.875rem; line-height: 1.65; }
 .shared-evidence-unavailable { min-height: 60vh; display: flex; flex-direction: column; align-items: flex-start; justify-content: center; }
 .shared-evidence-unavailable > svg { color: var(--accent-ink); }
-.shared-evidence-unavailable .overline { margin-top: 18px; }
-.shared-evidence-unavailable h1 { margin-top: 6px; font-family: var(--font-editorial); font-size: clamp(2rem, 6vw, 3.7rem); font-weight: 560; }
-.shared-evidence-unavailable > p:last-child { margin-top: 10px; color: var(--ink-secondary); }
+.shared-evidence-unavailable h1 { max-width: 16ch; margin-top: 18px; font-family: var(--font-editorial); font-size: clamp(2rem, 6vw, 3.7rem); font-weight: 560; letter-spacing: -0.04em; }
+.shared-evidence-unavailable > p { max-width: 62ch; margin-top: 12px; color: var(--ink-secondary); font-size: 0.9375rem; line-height: 1.6; }
+.shared-evidence-unavailable > .button { margin-top: 22px; }
 
 .admin-content-reports { grid-column: 1 / -1; }
 .admin-content-reports > div { margin-top: 8px; }
@@ -3638,10 +3665,19 @@ html[data-environment="qa"] .environment-pill { display: inline-flex; }
   .criterion-trajectories > li { grid-template-columns: 1fr; }
   .criterion-attempts { justify-content: flex-start; }
   .shared-evidence-page { padding: 34px 18px 64px; }
+  .shared-evidence-report > header { padding-bottom: 22px; }
+  .shared-evidence-trust { grid-template-columns: auto minmax(0, 1fr); padding: 20px 0; }
+  .shared-evidence-trust > dl { grid-column: 1 / -1; grid-template-columns: 1fr; gap: 12px; border-top: 1px solid var(--line); padding-top: 16px; }
   .shared-evidence-metrics { grid-template-columns: 1fr; }
-  .shared-evidence-metrics > div { min-height: 0; }
+  .shared-evidence-metrics > div { min-height: 0; padding: 22px 0; }
   .shared-evidence-metrics > div + div { border-top: 1px solid var(--line); border-left: 0; padding-left: 0; }
+  .shared-evidence-metrics p { max-width: 44ch; }
+  .shared-evidence-section-heading { align-items: start; flex-direction: column; gap: 8px; }
+  .shared-evidence-section-heading > p { text-align: left; }
   .shared-evidence-objectives li { grid-template-columns: 1fr; gap: 8px; }
+  .shared-evidence-ledger > ol > li { grid-template-columns: 1fr; gap: 14px; }
+  .shared-evidence-method { align-items: flex-start; }
+  .shared-evidence-unavailable > .button { width: 100%; min-height: 44px; justify-content: center; }
   .mastery-ledger .section-heading,
   .evidence-ledger .section-heading { align-items: start; }
   .mastery-objective { grid-template-columns: 1fr auto; gap: 10px; }

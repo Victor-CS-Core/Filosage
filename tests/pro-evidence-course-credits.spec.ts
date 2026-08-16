@@ -157,6 +157,7 @@ test("professional evidence routes enforce Pro creation and preserve downgraded 
   const shareRoute = source("src/app/api/evidence/[courseId]/shares/route.ts");
   const publicRoute = source("src/app/api/evidence-shares/[token]/route.ts");
   const shareStorage = source("src/lib/evidence-shares.ts");
+  const sharedPage = source("src/app/evidence/shared/[token]/page.tsx");
   const progressRoute = source("src/app/api/progress/route.ts");
 
   expect(exportRoute).toContain('requirePlanCapability(request, "export_evidence_report")');
@@ -167,6 +168,12 @@ test("professional evidence routes enforce Pro creation and preserve downgraded 
   expect(shareStorage).toContain("new Uint8Array(32)");
   expect(shareStorage).toContain('digest("SHA-256"');
   expect(shareStorage).not.toContain("data: { token");
+  expect(shareStorage).toContain("readEvidenceShareDetails");
+  expect(sharedPage).toContain("Privacy-preserving learning snapshot");
+  expect(sharedPage).toContain("Evidence behind these results");
+  expect(sharedPage).toContain("EVIDENCE_TYPE_LABELS[item.type]");
+  expect(sharedPage).toContain("Identity, private notes, and raw responses are omitted.");
+  expect(sharedPage).toContain("How evidence reports work");
   expect(publicRoute).toContain("available: false, report: null");
   expect(publicRoute).toContain('"Cache-Control": "private, no-store"');
   expect(publicRoute).toContain('"Referrer-Policy": "no-referrer"');

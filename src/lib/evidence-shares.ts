@@ -30,6 +30,12 @@ export interface EvidenceShareSummary {
   status: "active" | "expired" | "revoked";
 }
 
+export interface PublicEvidenceShare {
+  report: EvidenceReportV1;
+  createdAt: string;
+  expiresAt: string;
+}
+
 function randomShareToken() {
   return Buffer.from(crypto.getRandomValues(new Uint8Array(32))).toString("base64url");
 }
@@ -124,7 +130,7 @@ export async function revokeEvidenceShare(uid: string, shareId: string) {
   });
 }
 
-export async function readEvidenceShare(token: string): Promise<EvidenceReportV1 | null> {
+export async function readEvidenceShareDetails(token: string): Promise<PublicEvidenceShare | null> {
   const validToken = /^[A-Za-z0-9_-]{43}$/.test(token);
   const id = await tokenDigest(validToken ? token : "invalid-token");
   const share = await getStoredDocument(`evidenceShares/${id}`);
@@ -146,5 +152,14 @@ export async function readEvidenceShare(token: string): Promise<EvidenceReportV1
     && course?.moderationStatus !== "quarantined"
     && share.snapshot
     && typeof share.snapshot === "object";
-  return available ? share.snapshot as unknown as EvidenceReportV1 : null;
+  if (!available) return null;
+  return {
+    report: share.snapshot as unknown as EvidenceReportV1,
+    createdAt: typeof share.createdAt === "string" ? share.createdAt : String((share.snapshot as Record<string, unknown>).generatedAt ?? ""),
+    expiresAt: String(share.expiresAt),
+  };
+}
+
+export async function readEvidenceShare(token: string): Promise<EvidenceReportV1 | null> {
+  return (await readEvidenceShareDetails(token))?.report ?? null;
 }

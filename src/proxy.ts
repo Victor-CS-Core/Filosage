@@ -14,6 +14,10 @@ export function proxy(request: NextRequest) {
     nonce,
     isSecureRequest,
   );
+  if (request.nextUrl.pathname.startsWith("/evidence/shared/")) {
+    const referrerPolicy = responseHeaders.find((header) => header.key === "Referrer-Policy");
+    if (referrerPolicy) referrerPolicy.value = "no-referrer";
+  }
   if (isQaEnvironment(serverEnvironment)) {
     responseHeaders.push({ key: "X-Robots-Tag", value: "noindex, nofollow, noarchive" });
   }

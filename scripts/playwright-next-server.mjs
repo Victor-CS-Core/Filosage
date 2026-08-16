@@ -22,18 +22,24 @@ resetPlaywrightOwnedDirectory(process.env.FILOSAGE_NEXT_DIST_DIR, ".next");
 
 const seedName = process.env.FILOSAGE_PLAYWRIGHT_SEED?.trim();
 if (seedName) {
-  const seedOptions = {
+  const commandCenterSeedOptions = {
     "command-center-v2-contract": { includeMalformedTicket: true },
     "command-center-v2-founder": { includeMalformedTicket: false },
   }[seedName];
-  if (!seedOptions) {
+  let seededStore;
+  if (commandCenterSeedOptions) {
+    const { buildCommandCenterV2ContractStore } = await import("../tests/fixtures/command-center-v2-store.mjs");
+    seededStore = buildCommandCenterV2ContractStore(commandCenterSeedOptions);
+  } else if (seedName === "shared-evidence") {
+    const { buildSharedEvidenceStore } = await import("../tests/fixtures/shared-evidence-store.mjs");
+    seededStore = buildSharedEvidenceStore();
+  } else {
     throw new Error(`Unsupported Playwright seed fixture: ${JSON.stringify(seedName)}.`);
   }
-  const { buildCommandCenterV2ContractStore } = await import("../tests/fixtures/command-center-v2-store.mjs");
   mkdirSync(testStoreDir, { recursive: true });
   writeFileSync(
     join(testStoreDir, "store.json"),
-    `${JSON.stringify(buildCommandCenterV2ContractStore(seedOptions), null, 2)}\n`,
+    `${JSON.stringify(seededStore, null, 2)}\n`,
   );
 }
 
