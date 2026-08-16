@@ -39,7 +39,7 @@ interface AuthContextValue {
   clearError: () => void;
   signInWithGoogle: () => Promise<FilosageUser>;
   signInWithGoogleRedirect: () => Promise<void>;
-  reauthenticate: () => Promise<FilosageUser>;
+  reauthenticate: (postLoginPath?: string) => Promise<FilosageUser>;
   acceptLegalTerms: (source: "signup" | "terms-update" | "subscription", targetUser?: FilosageUser) => Promise<void>;
   signOut: () => Promise<void>;
   refreshAccount: () => Promise<void>;
@@ -281,9 +281,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     await signOutFromEasyAuth("/");
   }, []);
 
-  const reauthenticate = useCallback(async () => {
+  const reauthenticate = useCallback(async (postLoginPath = "/privacy-center") => {
     if (localAuthAvailable && localStorage.getItem(LOCAL_SESSION_KEY)) return localOwnerUser();
-    const nextUser = await beginGoogleReauthentication("/privacy-center");
+    const nextUser = await beginGoogleReauthentication(postLoginPath);
     setUser(nextUser);
     return nextUser;
   }, []);

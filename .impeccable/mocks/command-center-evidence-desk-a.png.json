@@ -1,0 +1,11 @@
+{
+  "approved": true,
+  "approvedAt": "2026-08-16",
+  "direction": "A-led synthesis",
+  "promptFile": "command-center-evidence-desk-a.prompt.txt",
+  "supportingComps": [
+    "command-center-evidence-desk-b.png",
+    "command-center-evidence-desk-c.png"
+  ],
+  "notes": "Composition A governs Work and the case dossier. Composition B governs Reviews. Composition C governs System and agent contracts. Generated content is compositional guidance only; implementation uses repository-backed data and copy."
+}

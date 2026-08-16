@@ -114,12 +114,38 @@ export interface CommandCenterDraftContent extends Record<string, unknown> {
   cautions: string[];
 }
 
+export interface CommandCenterFounderBriefSource {
+  ticketId: string;
+  ticketVersion: number;
+}
+
+export interface CommandCenterFounderBriefManifest extends Record<string, unknown> {
+  version: 1;
+  generatedAt: string;
+  query: {
+    statuses: Exclude<CommandCenterTicketStatus, "resolved" | "closed">[];
+    order: "risk_desc_due_asc_id_asc";
+  };
+  queueRevision: number;
+  queueCount: number;
+  queueComplete: true;
+  queueFingerprint: string;
+  queueSources: CommandCenterFounderBriefSource[];
+  promptSelection: {
+    limit: 50;
+    count: number;
+    truncated: boolean;
+    sources: CommandCenterFounderBriefSource[];
+  };
+}
+
 export interface CommandCenterDraft extends Record<string, unknown> {
   id: string;
   version: number;
   scope: "ticket" | "founder_brief";
   ticketId?: string;
   sourceTicketVersion?: number;
+  sourceManifest?: CommandCenterFounderBriefManifest;
   agentType: CommandCenterDraftAgentType;
   status: CommandCenterDraftStatus;
   content: CommandCenterDraftContent;
@@ -217,5 +243,78 @@ export interface CommandCenterSnapshot {
     pendingApprovals: number;
     overdueTickets: number;
     pendingDrafts: number;
+  };
+}
+
+export const commandCenterSnapshotCollections = [
+  "tickets",
+  "approvals",
+  "drafts",
+  "auditEvents",
+] as const;
+
+export type CommandCenterSnapshotCollection = typeof commandCenterSnapshotCollections[number];
+export type CommandCenterSnapshotRecordKind = "controls" | CommandCenterSnapshotCollection;
+
+export interface CommandCenterCollectionSnapshotMeta {
+  /** Raw documents observed by the collection count query. */
+  total: number;
+  /** Raw documents schema-checked while building this response. */
+  inspected: number;
+  /** Valid, normalized records emitted in the corresponding response array. */
+  loaded: number;
+  /** Inspected records rejected by the runtime schema. */
+  malformed: number;
+  limit: number;
+  cursorApplied: boolean;
+  nextCursor: string | null;
+  /** True only when this response inspected the complete raw collection. */
+  scanComplete: boolean;
+  /** True only when the complete raw collection was inspected and every record was valid. */
+  complete: boolean;
+  traversalOrder: {
+    field: "id";
+    direction: "asc";
+  };
+  presentationOrder: {
+    field: "updatedAt" | "createdAt";
+    direction: "desc";
+    tieBreaker: "id";
+    tieDirection: "asc";
+  };
+}
+
+export interface CommandCenterSnapshotWarning {
+  code: "malformed_record";
+  section: CommandCenterSnapshotRecordKind;
+  recordId: string;
+  issues: Array<{
+    path: string;
+    code: string;
+  }>;
+}
+
+/**
+ * Additive snapshot contract. Existing v1 fields deliberately remain flat so
+ * older clients can consume a v2 response without a migration.
+ */
+export interface CommandCenterSnapshotV2 extends CommandCenterSnapshot {
+  contractVersion: 2;
+  /** Server timestamp captured after the snapshot reads and normalization finish. */
+  retrievedAt: string;
+  /** Counts and pages are separate reads in the current document-store abstraction. */
+  consistency: "best_effort_non_atomic";
+  schemaVersions: {
+    controls: 1;
+    tickets: 1;
+    approvals: 1;
+    drafts: 1;
+    auditEvents: 1;
+  };
+  collections: Record<CommandCenterSnapshotCollection, CommandCenterCollectionSnapshotMeta>;
+  warnings: CommandCenterSnapshotWarning[];
+  summaryCompleteness: {
+    basis: "loaded_records";
+    complete: boolean;
   };
 }

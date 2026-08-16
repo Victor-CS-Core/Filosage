@@ -173,6 +173,7 @@ var qaEnvironment = [
   { name: 'AZURE_POSTGRES_SERVER_NAME', value: postgres.name }
   { name: 'AZURE_RESOURCE_GROUP', value: resourceGroup().name }
   { name: 'NEXT_PUBLIC_SITE_URL', value: siteUrl }
+  { name: 'NEXT_PUBLIC_COMMAND_CENTER_V2', value: 'true' }
   { name: 'SITE_VERSION', value: siteVersion }
   { name: 'DEPLOYMENT_ENVIRONMENT', value: 'qa' }
   { name: 'DEPLOYMENT_SLOT', value: 'qa' }

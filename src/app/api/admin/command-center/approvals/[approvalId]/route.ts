@@ -27,6 +27,13 @@ export async function PATCH(
     if (!/^[A-Za-z0-9_-]{8,200}$/.test(approvalId)) {
       return Response.json({ error: "Invalid approval request." }, { status: 400 });
     }
+    const idempotencyKey = request.headers.get("idempotency-key")?.trim();
+    if (!idempotencyKey || !/^[A-Za-z0-9._:-]{16,128}$/.test(idempotencyKey)) {
+      return Response.json(
+        { error: "A valid Idempotency-Key header is required." },
+        { status: 400, headers: { "Cache-Control": "private, no-store" } },
+      );
+    }
     const parsed = reviewSchema.safeParse(await readJsonBody(request, 2_048));
     if (!parsed.success) {
       return Response.json(
@@ -34,9 +41,14 @@ export async function PATCH(
         { status: 400, headers: { "Cache-Control": "private, no-store" } },
       );
     }
-    const approval = await reviewCommandCenterApproval({ actorUid: owner.uid, approvalId, ...parsed.data });
+    const result = await reviewCommandCenterApproval({
+      actorUid: owner.uid,
+      approvalId,
+      idempotencyKey,
+      ...parsed.data,
+    });
     return Response.json(
-      { approval, executed: false, simulationMode: true },
+      { ...result, executed: false, simulationMode: true },
       { headers: { "Cache-Control": "private, no-store" } },
     );
   } catch (error) {

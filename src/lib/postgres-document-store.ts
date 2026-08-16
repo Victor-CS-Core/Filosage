@@ -31,6 +31,7 @@ interface StructuredQuery {
   from?: Array<{ collectionId?: string; allDescendants?: boolean }>;
   where?: FieldFilter & { compositeFilter?: { filters?: FieldFilter[] } };
   orderBy?: Array<{ field?: { fieldPath?: string }; direction?: string }>;
+  startAt?: { values?: FirestoreValue[]; before?: boolean };
   limit?: number;
 }
 
@@ -212,14 +213,39 @@ function queryParts(query: StructuredQuery, countOnly = false) {
     }
   }
 
+  if (query.startAt) {
+    const orderBy = query.orderBy ?? [];
+    const values = query.startAt.values ?? [];
+    const cursorName = fromFirestoreValue(values[0] ?? { nullValue: null });
+    const cursorPath = typeof cursorName === "string" ? pathFromName(cursorName) : "";
+    const cursorCoordinates = cursorPath ? documentCoordinates(cursorPath) : null;
+    if (
+      source.allDescendants
+      || orderBy.length !== 1
+      || orderBy[0]?.field?.fieldPath !== "__name__"
+      || orderBy[0]?.direction !== "ASCENDING"
+      || query.startAt.before !== false
+      || values.length !== 1
+      || cursorCoordinates?.collectionPath !== collectionId
+    ) {
+      throw new Error("Azure document store received an unsupported document cursor.");
+    }
+    parameters.push(cursorPath);
+    clauses.push(`path > $${parameters.length}`);
+  }
+
   let order = "path ASC";
   const orderBy = query.orderBy?.[0];
   const orderField = orderBy?.field?.fieldPath;
   if (orderField) {
     if (!/^[A-Za-z0-9_.-]{1,120}$/.test(orderField)) throw new Error("Invalid document ordering field.");
-    parameters.push(orderField.split("."));
     const direction = orderBy.direction === "ASCENDING" ? "ASC" : "DESC";
-    order = `data #>> $${parameters.length}::text[] ${direction}, path ASC`;
+    if (orderField === "__name__") {
+      order = `path ${direction}`;
+    } else {
+      parameters.push(orderField.split("."));
+      order = `data #>> $${parameters.length}::text[] ${direction}, path ASC`;
+    }
   }
 
   const boundedLimit = Math.min(Math.max(Number(query.limit ?? 1_000), 1), 10_000);

@@ -20,10 +20,16 @@ import {
   commandCenterDraftInstructions,
   normalizeCommandCenterEvidenceReferences,
 } from "@/lib/command-center-draft-prompt";
-import { redactCommandCenterDraftInput } from "@/lib/command-center-policy";
+import {
+  commandCenterDraftEligibility,
+  redactCommandCenterDraftInput,
+  type CommandCenterDraftOutputMode,
+} from "@/lib/command-center-policy";
 import {
   getCommandCenterDraft,
+  getCommandCenterFounderBriefMaterial,
   getCommandCenterSnapshot,
+  getCommandCenterTicket,
   storeGeneratedCommandCenterDraft,
 } from "@/lib/command-center-server";
 import type {
@@ -32,13 +38,6 @@ import type {
   CommandCenterDraftContent,
   CommandCenterTicket,
 } from "@/lib/command-center-types";
-
-const compatibleCategories: Record<Exclude<CommandCenterDraftAgentType, "founderBrief">, CommandCenterTicket["category"][]> = {
-  support: ["support", "security", "abuse", "system_alert", "other", "content_report"],
-  legal: ["legal", "copyright", "privacy"],
-  billing: ["billing"],
-  productOperations: ["product_feedback", "content_report"],
-};
 
 export class CommandCenterDraftGenerationError extends Error {
   readonly status: number;
@@ -82,11 +81,16 @@ function ticketBlock(ticket: CommandCenterTicket) {
   ].filter(Boolean).join("\n");
 }
 
-function contextForAgent(agentType: CommandCenterDraftAgentType, ticket: CommandCenterTicket | undefined, tickets: CommandCenterTicket[]) {
+function contextForAgent(
+  agentType: CommandCenterDraftAgentType,
+  ticket: CommandCenterTicket | undefined,
+  tickets: CommandCenterTicket[],
+  outputMode: Exclude<CommandCenterDraftOutputMode, "ineligible">,
+) {
   const refs: string[] = [];
   const knowledge: string[] = [];
   const relatedData: string[] = [];
-  if (ticket && (agentType === "support" || agentType === "billing")) {
+  if (ticket && outputMode === "response_draft" && (agentType === "support" || agentType === "billing")) {
     for (const source of approvedSupportKnowledge(ticket)) {
       refs.push(source.ref);
       knowledge.push(`[${source.ref}]\n${source.text}`);
@@ -118,22 +122,35 @@ function assertAgentReady(agentType: CommandCenterDraftAgentType, ticket: Comman
   if (!snapshot.controls.systemEnabled) throw new CommandCenterDraftGenerationError("The command center is paused.");
   if (snapshot.controls.killSwitchActive) throw new CommandCenterDraftGenerationError("The kill switch is active. Draft generation is paused.");
   if (!snapshot.controls.agentFlags[agentType]) throw new CommandCenterDraftGenerationError("Enable this draft agent in Controls before generating a draft.");
-  if (agentType !== "founderBrief") {
-    if (!ticket) throw new CommandCenterDraftGenerationError("Ticket not found.", 404);
-    if (!compatibleCategories[agentType].includes(ticket.category)) {
-      throw new CommandCenterDraftGenerationError(`The ${agentType} agent is not approved for ${ticket.category.replaceAll("_", " ")} tickets.`);
-    }
+  if (agentType !== "founderBrief" && !ticket) {
+    throw new CommandCenterDraftGenerationError("Ticket not found.", 404);
   }
+  const eligibility = commandCenterDraftEligibility({
+    agentType,
+    category: ticket?.category,
+    riskLevel: ticket?.riskLevel,
+  });
+  if (!eligibility.eligible) {
+    throw new CommandCenterDraftGenerationError(eligibility.reason);
+  }
+  return eligibility;
 }
 
-function normalizeContent(content: CommandCenterDraftContent, agentType: CommandCenterDraftAgentType, refs: string[]) {
-  const responseAllowed = agentType === "support" || agentType === "billing";
+function normalizeContent(
+  content: CommandCenterDraftContent,
+  outputMode: Exclude<CommandCenterDraftOutputMode, "ineligible">,
+  refs: string[],
+) {
   return {
     ...content,
-    responseDraft: responseAllowed ? content.responseDraft : null,
+    responseDraft: outputMode === "response_draft" ? content.responseDraft : null,
     recommendedTags: Array.from(new Set(content.recommendedTags.map((tag) => tag.toLowerCase().replace(/[^a-z0-9-]/g, "-").replace(/-+/g, "-").replace(/^-|-$/g, "")).filter(Boolean))).slice(0, 10),
     evidenceUsed: normalizeCommandCenterEvidenceReferences(content.evidenceUsed, refs),
-    cautions: Array.from(new Set([...content.cautions, "Review-only output. No message or external action was executed."])).slice(0, 10),
+    cautions: Array.from(new Set([
+      ...content.cautions,
+      ...(outputMode === "response_draft" ? [] : ["Internal-summary-only policy. No response copy is authorized."]),
+      "Review-only output. No message or external action was executed.",
+    ])).slice(0, 10),
   } satisfies CommandCenterDraftContent;
 }
 
@@ -144,12 +161,17 @@ export async function generateCommandCenterDraft(input: {
   expectedTicketVersion?: number;
   idempotencyKey: string | null;
 }): Promise<{ draft: CommandCenterDraft; recovered: boolean }> {
-  const snapshot = await getCommandCenterSnapshot();
-  const ticket = input.ticketId ? snapshot.tickets.find((candidate) => candidate.id === input.ticketId) : undefined;
-  assertAgentReady(input.agentType, ticket, snapshot);
+  const [snapshot, ticket] = await Promise.all([
+    getCommandCenterSnapshot(),
+    input.ticketId ? getCommandCenterTicket(input.ticketId) : Promise.resolve(null),
+  ]);
+  const eligibility = assertAgentReady(input.agentType, ticket ?? undefined, snapshot);
   if (ticket && ticket.version !== input.expectedTicketVersion) {
     throw new CommandCenterDraftGenerationError("The ticket changed. Refresh before generating a draft.");
   }
+  const founderMaterial = input.agentType === "founderBrief"
+    ? await getCommandCenterFounderBriefMaterial()
+    : null;
 
   let reservation: AiReservation | null = null;
   let usage = { inputTokens: 0, cachedInputTokens: 0, cacheWriteTokens: 0, outputTokens: 0 };
@@ -165,11 +187,17 @@ export async function generateCommandCenterDraft(input: {
       }
       throw error;
     }
-    const context = contextForAgent(input.agentType, ticket, snapshot.tickets);
+    const context = contextForAgent(
+      input.agentType,
+      ticket ?? undefined,
+      founderMaterial?.promptTickets ?? snapshot.tickets,
+      eligibility.mode,
+    );
     const client = aiClient();
     const safetyIdentifier = await openAiSafetyIdentifier(input.account.uid);
     const prompt = buildCommandCenterDraftPrompt({
       agentType: input.agentType,
+      outputMode: eligibility.mode,
       workItemLabel: ticket ? ticket.ticketNumber : "current owner queue",
       untrustedWork: [ticket ? ticketBlock(ticket) : "", ...context.relatedData].filter(Boolean).join("\n\n"),
       approvedKnowledge: context.knowledge,
@@ -189,13 +217,14 @@ export async function generateCommandCenterDraft(input: {
     responseId = generated.id;
     usage = extractOpenAiUsage(generated);
     if (!generated.output_parsed) throw new CommandCenterDraftGenerationError("The model did not return a reviewable draft.", 502);
-    const content = normalizeContent(generated.output_parsed, input.agentType, context.refs);
+    const content = normalizeContent(generated.output_parsed, eligibility.mode, context.refs);
     const draft = await storeGeneratedCommandCenterDraft({
       id: reservation.requestId,
       actorUid: input.account.uid,
       agentType: input.agentType,
       ticketId: ticket?.id,
       expectedTicketVersion: ticket?.version,
+      sourceManifest: founderMaterial?.manifest,
       content,
       model: profile.model,
       generationProfile: profile.id,

@@ -161,6 +161,10 @@ test("isolated QA scales to zero and keeps its data stores separate", () => {
   expect(qaBicepSource).toContain("resource qaDeploymentContributor");
   expect(qaBicepSource).toContain("scope: app");
   expect(qaWorkflowSource).toContain("AZURE_QA_CONTAINER_APP_NAME");
+  expect(qaWorkflowSource).toContain('--build-arg "NEXT_PUBLIC_COMMAND_CENTER_V2=true"');
+  expect(qaWorkflowSource).toContain('"NEXT_PUBLIC_COMMAND_CENTER_V2=true"');
+  expect(qaBicepSource).toContain("NEXT_PUBLIC_COMMAND_CENTER_V2', value: 'true'");
+  expect(dockerfileSource).toContain("ARG NEXT_PUBLIC_COMMAND_CENTER_V2=false");
   expect(qaWorkflowSource).toContain('npm run check:production -- "$QA_URL" "$GITHUB_SHA" "$QA_URL"');
   expect(robotsSource).toContain('disallow: "/"');
   expect(robotsSource).toContain('export const dynamic = "force-dynamic"');

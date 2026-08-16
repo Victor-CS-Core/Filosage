@@ -287,7 +287,11 @@ test("isolates learner support tickets, replays duplicate submissions, and separ
 
   const publicReply = "Thanks for the clear reproduction steps. We are reviewing the lesson navigation behavior.";
   const published = await request.post(`/api/admin/command-center/tickets/${created.ticketId}/public-replies`, {
-    headers: ownerHeaders,
+    headers: {
+      ...ownerHeaders,
+      "X-Reauthentication-Token": "playwright-local-owner",
+      "Idempotency-Key": "support-public-reply-0001",
+    },
     data: { expectedVersion: 1, body: publicReply },
   });
   expect(published.status()).toBe(201);
@@ -420,7 +424,11 @@ test("records a versioned ticket and approval without executing an external acti
   expect(approvalBody.approval.executionState).toBe("not_executed");
 
   const decisionResponse = await request.patch(`/api/admin/command-center/approvals/${approvalBody.approval.id}`, {
-    headers: { ...ownerHeaders, "X-Reauthentication-Token": "playwright-local-owner" },
+    headers: {
+      ...ownerHeaders,
+      "Idempotency-Key": `approval-review-${crypto.randomUUID()}`,
+      "X-Reauthentication-Token": "playwright-local-owner",
+    },
     data: {
       expectedVersion: approvalBody.approval.version,
       decision: "approved",
@@ -472,7 +480,7 @@ test("renders the owner command center with visible draft-only safety controls",
   if (usesFinePointer) await expect(page.getByLabel(/Subject/)).toBeFocused();
   else await expect(page.getByLabel(/Subject/)).not.toBeFocused();
   await expect(page.getByText("Evidence quality")).toBeVisible();
-  await expect(page.getByText(/Owner-only/)).toBeVisible();
+  await expect(dialog.getByText(/Owner-only/)).toBeVisible();
   await expect.poll(() => dialog.evaluate((element) => {
     const rect = element.getBoundingClientRect();
     return {

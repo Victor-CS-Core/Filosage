@@ -3,11 +3,12 @@ import "server-only";
 import { requireOwner } from "@/lib/auth-server";
 import { serverEnvironment } from "@/lib/runtime-environment";
 
-export type CommandCenterPermission = "view" | "triage" | "generate_draft" | "review_draft" | "request_approval" | "review_approval" | "manage_controls";
+export type CommandCenterPermission = "view" | "triage" | "publish_reply" | "generate_draft" | "review_draft" | "request_approval" | "review_approval" | "manage_controls";
 
 const ownerPermissions: ReadonlySet<CommandCenterPermission> = new Set([
   "view",
   "triage",
+  "publish_reply",
   "generate_draft",
   "review_draft",
   "request_approval",
