@@ -76,7 +76,6 @@ export default function CreateCoursePage() {
   const [error, setError] = useState<string | null>(null);
   const requestIdentityRef = useRef<{ signature: string; key: string } | null>(null);
   const stepHeadingRef = useRef<HTMLHeadingElement>(null);
-  const outlineQuota = account?.quotas.find((quota) => quota.feature === "course_outline");
 
   useEffect(() => {
     if (!submitting) return;
@@ -96,7 +95,7 @@ export default function CreateCoursePage() {
 
   const create = async (event: React.FormEvent) => {
     event.preventDefault();
-    if (!user || !canCreateCourses || account?.courseCapacity?.remaining === 0 || !topic.trim() || !goal.trim() || !background.trim()) return;
+    if (!user || !canCreateCourses || account?.courseCredits?.balance === 0 || !topic.trim() || !goal.trim() || !background.trim()) return;
     setSubmitting(true);
     setGenerationProgress(8);
     setGenerationStage("Researching trusted sources and further reading");
@@ -151,11 +150,11 @@ export default function CreateCoursePage() {
   };
 
   if (!canCreateCourses) {
-    return <AppShell><div className="center-state"><Sparkles size={26} /><h1>Create a private course for your goal.</h1><p>Filosage Plus and Pro include private AI-assisted course creation with clearly stated monthly limits.</p><Link className="button button-primary" href="/pricing">Compare plans</Link></div></AppShell>;
+    return <AppShell><div className="center-state"><Sparkles size={26} /><h1>Create a private course for your goal.</h1><p>Filosage Plus and Pro include complete AI course credits that cover an approved outline and every lesson it plans.</p><Link className="button button-primary" href="/pricing">Compare plans</Link></div></AppShell>;
   }
 
-  if (account?.courseCapacity?.remaining === 0) {
-    return <AppShell><div className="center-state"><Sparkles size={26} /><h1>Your current plan already has its active private course.</h1><p>Your existing work remains available. Delete a course you no longer need or upgrade to Pro before creating another.</p><div className="state-actions"><Link className="button button-secondary" href="/library">Open my courses</Link><Link className="button button-primary" href="/pricing">Compare plans</Link></div></div></AppShell>;
+  if (account?.courseCredits?.balance === 0) {
+    return <AppShell><div className="center-state"><Sparkles size={26} /><h1>Your next course credit is still ahead.</h1><p>Every existing course and all lessons in its approved outline remain available. Wait for the next monthly credit or compare Pro&apos;s larger rollover allowance.</p><div className="state-actions"><Link className="button button-secondary" href="/library">Open my courses</Link><Link className="button button-primary" href="/pricing">Compare plans</Link></div></div></AppShell>;
   }
 
   const plannedHours = Math.max(1, Math.round((weeklyMinutes * targetWeeks) / 60));
@@ -167,9 +166,10 @@ export default function CreateCoursePage() {
   const contextCount = [application, artifactPreference, scenarioPreference, background].filter((value) => value.trim()).length;
   const stepValidity = [outcomeComplete, paceComplete, teachingComplete];
   const stepComplete = stepValidity.map((valid, index) => valid && visitedSteps[index]);
-  const creditLabel = outlineQuota?.remaining == null
+  const creditBalance = account?.courseCredits?.balance;
+  const creditLabel = creditBalance == null
     ? "Course creation available"
-    : `${outlineQuota.remaining} course credit${outlineQuota.remaining === 1 ? "" : "s"} left this month`;
+    : `${creditBalance} rollover course credit${creditBalance === 1 ? "" : "s"} available`;
 
   return (
     <AppShell>

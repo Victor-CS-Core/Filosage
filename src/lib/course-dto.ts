@@ -64,7 +64,7 @@ function lessonExperienceDto(value: unknown): LessonData["experience"] {
     : undefined;
 }
 
-export function toCourseDto(value: Record<string, unknown> | Course, canManage = false, canGenerateBanner = canManage): Course {
+export function toCourseDto(value: Record<string, unknown> | Course, canManage = false): Course {
   const raw = value as Record<string, unknown>;
   const topic = String(raw.topic ?? "");
   const language = typeof raw.language === "string" ? raw.language : "English";
@@ -264,7 +264,6 @@ export function toCourseDto(value: Record<string, unknown> | Course, canManage =
             : undefined,
         }
       : undefined,
-    canRegenerateBanner: canManage ? canGenerateBanner : undefined,
     generatedLessonIds: canManage && Array.isArray(raw.generatedLessonIds)
       ? raw.generatedLessonIds.map(String)
       : undefined,

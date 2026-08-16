@@ -25,8 +25,8 @@ test("captures the populated flashcard study workspace", async ({ page }, testIn
   const account = {
     access: "plus", plan: "plus", isOwner: false, accountStatus: "active", displayName: "Avery",
     legalAcceptanceRequired: false, applicationAccountExists: true,
-    capabilities: { createCourse: true, generateLesson: true, generateCourseBanner: true, flashcardDecksEnabled: true, createCustomFlashcardDeck: true, publishCourse: false },
-    courseCapacity: { owned: 0, limit: 1, remaining: 1, overLimit: false },
+    capabilities: { createCourse: true, generateLesson: true, flashcardDecksEnabled: true, createCustomFlashcardDeck: true, publishCourse: false, advancedCapstoneAnalysis: false, exportEvidenceReport: false, shareEvidenceReport: false },
+    courseCredits: { balance: 2, monthlyAllocation: 2, balanceCap: 24, nextAccrualAt: null, frozenUntil: null },
     quotas: [{ feature: "flashcard_generation", limit: 40, used: 8, remaining: 32, resetAt: "2026-09-01T00:00:00.000Z" }],
   };
   await page.route("**/api/account", (route) => route.fulfill({ json: account }));

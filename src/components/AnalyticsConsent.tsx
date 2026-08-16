@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { useSyncExternalStore } from "react";
 import {
   readAnalyticsConsent,
@@ -12,6 +13,7 @@ import {
 function serverConsentSnapshot() { return "loading" as const; }
 
 export default function AnalyticsConsent() {
+  const pathname = usePathname();
   const choice = useSyncExternalStore(
     subscribeAnalyticsConsent,
     readAnalyticsConsent,
@@ -22,7 +24,7 @@ export default function AnalyticsConsent() {
     setAnalyticsConsent(value);
   };
 
-  if (choice !== null) return null;
+  if (pathname.startsWith("/evidence/shared/") || choice !== null) return null;
 
   return (
     <aside className="analytics-consent" aria-labelledby="analytics-consent-title">

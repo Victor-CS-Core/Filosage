@@ -33,13 +33,13 @@ import {
 } from "@/lib/openai-generation";
 import { safeModelErrorDetails } from "@/lib/model-fallback";
 import {
-  completeCourseCapacityReservation,
-  courseCapacityClaimId,
-  CourseCapacityError,
-  releaseCourseCapacityReservation,
-  reserveCourseCapacity,
-  type CourseCapacityReservation,
-} from "@/lib/membership-access";
+  completeCourseCreditReservation,
+  courseCreditClaimId,
+  CourseCreditError,
+  releaseCourseCreditReservation,
+  reserveCourseCredit,
+  type CourseCreditReservation,
+} from "@/lib/course-credits";
 import { COURSE_ARTIFACT_PROVENANCE_DEFAULTS } from "@/lib/course-pipeline/contract";
 import {
   BIBLIOGRAPHIC_DISCOVERY_ALLOWED_DOMAINS,
@@ -89,7 +89,7 @@ export async function POST(request: Request) {
   let observedUsage = { inputTokens: 0, cachedInputTokens: 0, cacheWriteTokens: 0, outputTokens: 0 };
   let observedUsageSamples: AiUsageSample[] | null = null;
   let responseId: string | undefined;
-  let capacityReservation: CourseCapacityReservation | null = null;
+  let creditReservation: CourseCreditReservation | null = null;
   let pipelineCorrelationId: string | undefined;
   let pipelineActorHash: string | undefined;
   let accountIsOwner = false;
@@ -135,12 +135,12 @@ export async function POST(request: Request) {
     pipelineActorHash = safetyIdentifier;
     const idempotencyKey = request.headers.get("idempotency-key");
     if (idempotencyKey && idempotencyKey.length >= 12 && idempotencyKey.length <= 200) {
-      capacityReservation = await reserveCourseCapacity(
+      creditReservation = await reserveCourseCredit(
         account,
-        await courseCapacityClaimId(account.uid, idempotencyKey),
+        await courseCreditClaimId(account.uid, idempotencyKey),
       );
     }
-    const requestFingerprint = await courseCapacityClaimId(account.uid, JSON.stringify(parsedRequest.data));
+    const requestFingerprint = await courseCreditClaimId(account.uid, JSON.stringify(parsedRequest.data));
     reservation = await reserveAiUsage(
       account,
       "course_outline",
@@ -164,7 +164,7 @@ export async function POST(request: Request) {
     }
     const recoveredCourse = await getCourse(reservation.requestId);
     if (recoveredCourse && recoveredCourse.authorId === account.uid) {
-      await completeCourseCapacityReservation(capacityReservation, recoveredCourse.id);
+      await completeCourseCreditReservation(creditReservation, recoveredCourse);
       await finalizeAiUsage(reservation, {
         inputTokens: 0,
         cachedInputTokens: 0,
@@ -181,8 +181,8 @@ export async function POST(request: Request) {
       });
     }
     if (reservation.recovered) {
-      await releaseCourseCapacityReservation(capacityReservation);
-      capacityReservation = null;
+      await releaseCourseCreditReservation(creditReservation);
+      creditReservation = null;
       reservation = null;
       return NextResponse.json(
         { error: "The original request completed, but its saved course could not be reopened.", code: "IDEMPOTENCY_RESULT_MISSING" },
@@ -927,8 +927,8 @@ export async function POST(request: Request) {
       }
       await finalizeAiUsage(reservation, { usageSamples: outlineUsageSamples, responseId, failed: true });
       reservation = null;
-      await releaseCourseCapacityReservation(capacityReservation);
-      capacityReservation = null;
+      await releaseCourseCreditReservation(creditReservation);
+      creditReservation = null;
       return NextResponse.json(
         { error: "The course could not be structured. Please try again." },
         { status: 502 },
@@ -957,8 +957,8 @@ export async function POST(request: Request) {
       }
       await finalizeAiUsage(reservation, { usageSamples: outlineUsageSamples, responseId, failed: true });
       reservation = null;
-      await releaseCourseCapacityReservation(capacityReservation);
-      capacityReservation = null;
+      await releaseCourseCreditReservation(creditReservation);
+      creditReservation = null;
       return NextResponse.json(
         {
           error: "The course did not meet Filosage's sequencing and content-quality standard and was not saved. Please try again.",
@@ -1057,7 +1057,7 @@ export async function POST(request: Request) {
       promptVersion: activeProfile.promptVersion,
       fallbackUsed: outlineUsageSamples.length > 1,
     }, reservation.requestId);
-    await completeCourseCapacityReservation(capacityReservation, course.id);
+    await completeCourseCreditReservation(creditReservation, course);
 
     let attachedBanner: { assetId: string; version: 1; generatedAt?: string } | undefined;
     try {
@@ -1151,8 +1151,8 @@ export async function POST(request: Request) {
         console.error(JSON.stringify({ event: "course_banner_usage_finalization_failed", ...safeModelErrorDetails(usageError) }));
       });
     }
-    await releaseCourseCapacityReservation(capacityReservation).catch((capacityError) => {
-      console.error(JSON.stringify({ event: "course_capacity_release_failed", ...safeModelErrorDetails(capacityError) }));
+    await releaseCourseCreditReservation(creditReservation).catch((creditError) => {
+      console.error(JSON.stringify({ event: "course_credit_release_failed", ...safeModelErrorDetails(creditError) }));
     });
     if (reservation) {
       await finalizeAiUsage(
@@ -1185,9 +1185,9 @@ export async function POST(request: Request) {
     }
     const quotaResponse = aiQuotaResponse(error);
     if (quotaResponse) return quotaResponse;
-    if (error instanceof CourseCapacityError) {
+    if (error instanceof CourseCreditError) {
       return NextResponse.json(
-        { error: error.message, code: error.code, limit: error.limit, owned: error.owned },
+        { error: error.message, code: error.code, courseCredits: error.summary },
         { status: error.status, headers: { "Cache-Control": "private, no-store" } },
       );
     }

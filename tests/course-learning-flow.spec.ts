@@ -790,7 +790,8 @@ test("completes a published course from discovery through evidence", async ({ pa
   await page.getByRole("button", { name: "Submit for assessment" }).click();
   const capstone = page.locator(".course-capstone");
   await expect(capstone.getByText("Capstone passed", { exact: true })).toBeVisible();
-  await expect(capstone.getByText("View revision history (2 attempts)")).toBeVisible();
+  await expect(capstone.getByText("The revised brief supports a proportionate, reversible action with explicit evidence.")).toBeVisible();
+  await expect(capstone.getByText("View revision history (2 attempts)")).toHaveCount(0);
   expect(capstoneSubmissions).toEqual([firstCapstone, revisedCapstone]);
 
   await page.getByRole("link", { name: "View evidence" }).click();

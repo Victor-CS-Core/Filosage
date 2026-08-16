@@ -139,6 +139,14 @@
       ]
     },
     {
+      "collectionGroup": "evidenceShares",
+      "fieldPath": "courseId",
+      "indexes": [
+        { "order": "ASCENDING", "queryScope": "COLLECTION_GROUP" },
+        { "order": "DESCENDING", "queryScope": "COLLECTION_GROUP" }
+      ]
+    },
+    {
       "collectionGroup": "flashcards",
       "fieldPath": "courseId",
       "indexes": [
@@ -156,6 +164,14 @@
     },
     {
       "collectionGroup": "flashcardReviewState",
+      "fieldPath": "courseId",
+      "indexes": [
+        { "order": "ASCENDING", "queryScope": "COLLECTION_GROUP" },
+        { "order": "DESCENDING", "queryScope": "COLLECTION_GROUP" }
+      ]
+    },
+    {
+      "collectionGroup": "evidenceShareRefs",
       "fieldPath": "courseId",
       "indexes": [
         { "order": "ASCENDING", "queryScope": "COLLECTION_GROUP" },

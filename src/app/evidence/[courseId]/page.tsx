@@ -10,11 +10,13 @@ import {
   CheckCircle2,
   Circle,
   Clipboard,
+  Download,
   FileCheck2,
   Gauge,
   LoaderCircle,
   Share2,
   ShieldCheck,
+  Trash2,
 } from "lucide-react";
 import AppShell from "@/components/AppShell";
 import { useAuth } from "@/components/AuthProvider";
@@ -31,6 +33,17 @@ import {
   type MasteryState,
 } from "@/lib/mastery";
 import { trackProductEvent } from "@/lib/product-analytics";
+import type { AdvancedCapstoneAnalysis } from "@/lib/capstone-analysis";
+
+interface EvidenceShareSummary {
+  id: string;
+  courseId: string;
+  courseTopic: string;
+  createdAt: string;
+  expiresAt: string;
+  revokedAt?: string;
+  status: "active" | "expired" | "revoked";
+}
 
 const STATE_LABELS: Record<MasteryState, string> = {
   not_started: "No observed evidence",
@@ -44,7 +57,7 @@ export default function EvidenceReportPage() {
   const params = useParams<{ courseId: string }>();
   const router = useRouter();
   const courseId = params.courseId;
-  const { user } = useAuth();
+  const { user, account } = useAuth();
   const journey = useMasteryJourney(courseId, user);
   const [course, setCourse] = useState<Course | null>(null);
   const [progress, setProgress] = useState<CourseProgress | null>(null);
@@ -52,7 +65,17 @@ export default function EvidenceReportPage() {
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const [sharing, setSharing] = useState(false);
+  const [professionalBusy, setProfessionalBusy] = useState<"export" | "share" | string | null>(null);
+  const [professionalError, setProfessionalError] = useState<string | null>(null);
+  const [shareState, setShareState] = useState<{ key: string; items: EvidenceShareSummary[] }>({ key: "", items: [] });
+  const [analysisState, setAnalysisState] = useState<{ key: string; value: AdvancedCapstoneAnalysis | null }>({ key: "", value: null });
   const [nextCourse, setNextCourse] = useState<Course | null>(null);
+  const professionalEvidenceKey = user && account ? `${user.uid}:${courseId}` : "";
+  const shares = shareState.key === professionalEvidenceKey ? shareState.items : [];
+  const analysis = account?.capabilities?.advancedCapstoneAnalysis
+    && analysisState.key === professionalEvidenceKey
+    ? analysisState.value
+    : null;
 
   useEffect(() => {
     let cancelled = false;
@@ -101,6 +124,41 @@ export default function EvidenceReportPage() {
     void load();
     return () => { cancelled = true; };
   }, [courseId, user]);
+
+  useEffect(() => {
+    let cancelled = false;
+    if (!user || !account) {
+      return () => { cancelled = true; };
+    }
+    const requestKey = `${user.uid}:${courseId}`;
+    const loadProfessionalEvidence = async () => {
+      const token = await user.getIdToken();
+      const headers = { Authorization: `Bearer ${token}` };
+      const requests: Promise<void>[] = [fetch(`/api/evidence/${encodeURIComponent(courseId)}/shares`, {
+        headers,
+        cache: "no-store",
+      }).then(async (response) => {
+        if (!response.ok) return;
+        const data = await response.json() as { shares?: EvidenceShareSummary[] };
+        if (!cancelled) setShareState({ key: requestKey, items: data.shares ?? [] });
+      })];
+      if (account.capabilities?.advancedCapstoneAnalysis) {
+        requests.push(fetch(`/api/capstone-analysis?courseId=${encodeURIComponent(courseId)}`, {
+          headers,
+          cache: "no-store",
+        }).then(async (response) => {
+          if (!response.ok) return;
+          const data = await response.json() as { analysis?: AdvancedCapstoneAnalysis | null };
+          if (!cancelled) setAnalysisState({ key: requestKey, value: data.analysis ?? null });
+        }));
+      }
+      await Promise.all(requests);
+    };
+    void loadProfessionalEvidence().catch(() => {
+      if (!cancelled) setProfessionalError("Professional report tools are temporarily unavailable.");
+    });
+    return () => { cancelled = true; };
+  }, [account, courseId, user]);
 
   useEffect(() => {
     if (!course || !journey.ready) return;
@@ -171,6 +229,91 @@ export default function EvidenceReportPage() {
     }
   };
 
+  const exportProfessionalReport = async () => {
+    if (!user || !account?.capabilities?.exportEvidenceReport) return;
+    setProfessionalBusy("export");
+    setProfessionalError(null);
+    try {
+      const token = await user.getIdToken();
+      const response = await fetch(`/api/evidence/${encodeURIComponent(courseId)}/export`, {
+        headers: { Authorization: `Bearer ${token}` },
+        cache: "no-store",
+      });
+      if (!response.ok) {
+        const data = await response.json().catch(() => null) as { error?: string } | null;
+        throw new Error(data?.error || "The evidence report could not be exported.");
+      }
+      const blobUrl = URL.createObjectURL(await response.blob());
+      const anchor = document.createElement("a");
+      anchor.href = blobUrl;
+      anchor.download = `filosage-${courseId}-evidence.html`;
+      anchor.click();
+      URL.revokeObjectURL(blobUrl);
+    } catch (exportError) {
+      setProfessionalError(exportError instanceof Error ? exportError.message : "The evidence report could not be exported.");
+    } finally {
+      setProfessionalBusy(null);
+    }
+  };
+
+  const createProfessionalShare = async () => {
+    if (!user || !account?.capabilities?.shareEvidenceReport) return;
+    setProfessionalBusy("share");
+    setProfessionalError(null);
+    try {
+      const token = await user.getIdToken();
+      const response = await fetch(`/api/evidence/${encodeURIComponent(courseId)}/shares`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await response.json() as { share?: { id: string; path: string; expiresAt: string }; error?: string };
+      if (!response.ok || !data.share) throw new Error(data.error || "The evidence-share link could not be created.");
+      await navigator.clipboard.writeText(new URL(data.share.path, window.location.origin).toString());
+      setCopied(true);
+      setShareState((current) => ({
+        key: professionalEvidenceKey,
+        items: [{
+          id: data.share!.id,
+          courseId,
+          courseTopic: course?.topic ?? "Evidence report",
+          createdAt: new Date().toISOString(),
+          expiresAt: data.share!.expiresAt,
+          status: "active",
+        }, ...(current.key === professionalEvidenceKey ? current.items : [])],
+      }));
+      trackProductEvent("evidence_report_shared", { route: "/evidence", courseId });
+    } catch (shareError) {
+      setProfessionalError(shareError instanceof Error ? shareError.message : "The evidence-share link could not be created.");
+    } finally {
+      setProfessionalBusy(null);
+    }
+  };
+
+  const revokeProfessionalShare = async (shareId: string) => {
+    if (!user) return;
+    setProfessionalBusy(shareId);
+    setProfessionalError(null);
+    try {
+      const token = await user.getIdToken();
+      const response = await fetch(`/api/evidence/${encodeURIComponent(courseId)}/shares?shareId=${encodeURIComponent(shareId)}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await response.json() as { error?: string };
+      if (!response.ok) throw new Error(data.error || "The evidence-share link could not be revoked.");
+      setShareState((current) => ({
+        key: professionalEvidenceKey,
+        items: (current.key === professionalEvidenceKey ? current.items : []).map((share) => (
+          share.id === shareId ? { ...share, status: "revoked", revokedAt: new Date().toISOString() } : share
+        )),
+      }));
+    } catch (revokeError) {
+      setProfessionalError(revokeError instanceof Error ? revokeError.message : "The evidence-share link could not be revoked.");
+    } finally {
+      setProfessionalBusy(null);
+    }
+  };
+
   if (loading || !journey.ready) {
     return <AppShell><div className="center-state"><LoaderCircle className="spin" size={25} /><h1>Building your evidence report</h1></div></AppShell>;
   }
@@ -186,6 +329,29 @@ export default function EvidenceReportPage() {
           <div><p className="overline">Evidence report</p><h1>{course.topic}</h1><p>{journey.plan?.desiredOutcome ?? course.outcome ?? course.mission}</p></div>
           <button className="button button-secondary" disabled={sharing} onClick={() => void copySummary()}>{sharing ? <LoaderCircle className="spin" size={16} /> : copied ? <Clipboard size={16} /> : <Share2 size={16} />} {sharing ? "Preparing link" : copied ? "Share summary copied" : "Copy share summary"}</button>
         </header>
+
+        {user && <section className="professional-evidence-tools" aria-labelledby="professional-evidence-title">
+          <div>
+            <p className="overline">Professional evidence</p>
+            <h2 id="professional-evidence-title">A report built to leave the app</h2>
+            <p>{account?.capabilities?.exportEvidenceReport
+              ? "Download an accessible report for printing or create a revocable 30-day snapshot link. Shared snapshots never include your account identity, notes, or raw responses."
+              : "Pro adds printable evidence reports, revocable snapshot links, and cross-attempt capstone analysis. Your latest assessment remains available on this plan."}</p>
+          </div>
+          {account?.capabilities?.exportEvidenceReport ? <div className="professional-evidence-actions">
+            <button className="button button-secondary" type="button" onClick={() => void exportProfessionalReport()} disabled={professionalBusy !== null}>
+              {professionalBusy === "export" ? <LoaderCircle className="spin" size={16} /> : <Download size={16} />} Download report
+            </button>
+            <button className="button button-primary" type="button" onClick={() => void createProfessionalShare()} disabled={professionalBusy !== null}>
+              {professionalBusy === "share" ? <LoaderCircle className="spin" size={16} /> : <Share2 size={16} />} Create 30-day link
+            </button>
+          </div> : <Link className="button button-secondary" href="/pricing">Compare Plus and Pro</Link>}
+          {professionalError && <p className="form-error" role="alert">{professionalError}</p>}
+          {shares.length > 0 && <div className="professional-share-list">
+            <strong>Share links</strong>
+            <ul>{shares.map((share) => <li key={share.id}><div><span className={`share-status is-${share.status}`}>{share.status}</span><small>{share.status === "active" ? `Expires ${new Date(share.expiresAt).toLocaleDateString()}` : share.status === "revoked" ? "Revoked" : "Expired"}</small></div>{share.status === "active" && <button className="button button-quiet" type="button" onClick={() => void revokeProfessionalShare(share.id)} disabled={professionalBusy !== null}>{professionalBusy === share.id ? <LoaderCircle className="spin" size={15} /> : <Trash2 size={15} />} Revoke</button>}</li>)}</ul>
+          </div>}
+        </section>}
 
         <section className="evidence-metrics" aria-label="Learning evidence summary">
           <article><span><Gauge size={20} /></span><div><small>Starting estimate</small><strong>{selfReportedBaseline === null ? "Pending" : `${selfReportedBaseline}%`}</strong><p>Self-reported diagnostic, used only to choose a route.</p></div></article>
@@ -217,6 +383,19 @@ export default function EvidenceReportPage() {
             })}
           </div>
         </section>
+
+        {analysis && analysis.attempts.length > 1 && (
+          <section className="capstone-analysis" aria-labelledby="capstone-analysis-title">
+            <div className="section-heading"><div><p className="overline">Pro capstone analysis</p><h2 id="capstone-analysis-title">What changed across {analysis.attempts.length} attempts</h2></div><p>Criteria are matched only when their normalized wording is unchanged. Renamed criteria are shown as changed, never as false improvement.</p></div>
+            <div className="capstone-analysis-summary">
+              <div><small>Improved since prior</small><strong>{analysis.improvedSincePriorAttempt.length}</strong></div>
+              <div><small>Still unresolved</small><strong>{analysis.unresolved.length}</strong></div>
+              <div><small>Regressed</small><strong>{analysis.regressedSincePriorAttempt.length}</strong></div>
+            </div>
+            <ol className="criterion-trajectories">{analysis.criteria.map((trajectory) => <li key={trajectory.criterion}><div><strong>{trajectory.criterion}</strong><small>{trajectory.removedAfterAttempt ? `Removed after attempt ${trajectory.removedAfterAttempt}` : trajectory.latestMet ? "Latest result: met" : "Latest result: unresolved"}</small></div><div className="criterion-attempts" aria-label={`Attempt history for ${trajectory.criterion}`}>{trajectory.observations.map((observation) => <span key={`${observation.attempt}-${observation.assessedAt}`} className={observation.met ? "is-met" : "is-unmet"} title={observation.feedback}>Attempt {observation.attempt}: {observation.met ? "met" : "not met"}</span>)}</div></li>)}</ol>
+            {analysis.nextRevisionPriorities.length > 0 && <div className="revision-priorities"><strong>Next revision priorities</strong><ol>{analysis.nextRevisionPriorities.map((criterion) => <li key={criterion}>{criterion}</li>)}</ol></div>}
+          </section>
+        )}
 
         <section className="evidence-ledger" aria-labelledby="evidence-ledger-title">
           <div className="section-heading"><div><p className="overline">Evidence ledger</p><h2 id="evidence-ledger-title">What the record actually shows</h2></div><p>Responses are not stored here. The ledger keeps results, confidence, criteria, and timestamps.</p></div>

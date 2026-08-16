@@ -107,8 +107,9 @@ test("limits local authentication to explicit owner and learner tokens", async (
     headers: { ...authorization(learnerToken), "X-Reauthentication-Token": learnerToken },
     data: { confirmation: "DELETE MY ACCOUNT" },
   });
-  expect(recentlyAuthenticatedDeletion.ok()).toBe(true);
-  expect(await recentlyAuthenticatedDeletion.json()).toMatchObject({ deleted: true });
+  const deletionBody = await recentlyAuthenticatedDeletion.json() as { deleted?: boolean; error?: string };
+  expect(recentlyAuthenticatedDeletion.ok(), JSON.stringify(deletionBody)).toBe(true);
+  expect(deletionBody).toMatchObject({ deleted: true });
 
   for (const token of ["arbitrary-local-bearer", "__proto__"]) {
     const arbitraryToken = await request.get("/api/account", {
@@ -126,6 +127,9 @@ test("deletes every active account-data collection while excluding retained audi
     flashcardDecks: [{ id: "deck-a" }],
     flashcards: [{ id: "card-a" }],
     flashcardReviewState: [{ id: "review-a" }],
+    evidenceShareRefs: [{ id: "share-a" }],
+    evidenceShares: [{ id: "share-a" }],
+    courseCreditClaims: [{ id: "claim-a" }],
     lessonNotes: [{ id: "note-a" }],
     lessonActivityRecords: [{ id: "activity-a" }],
     lessonInteractionRecords: [{ id: "interaction-a" }],
@@ -145,6 +149,10 @@ test("deletes every active account-data collection while excluding retained audi
     "users/learner-123/flashcardDecks/deck-a",
     "users/learner-123/flashcards/card-a",
     "users/learner-123/flashcardReviewState/review-a",
+    "users/learner-123/evidenceShareRefs/share-a",
+    "evidenceShares/share-a",
+    "users/learner-123/courseCredits/current",
+    "users/learner-123/courseCreditClaims/claim-a",
     "users/learner-123/lessonNotes/note-a",
     "users/learner-123/lessonActivity/activity-a",
     "users/learner-123/lessonInteraction/interaction-a",

@@ -249,7 +249,6 @@ export interface Course {
   furtherReading?: CourseFurtherReading[];
   evidenceProfile?: CourseEvidenceProfile;
   banner?: CourseBanner;
-  canRegenerateBanner?: boolean;
   generatedLessonIds?: string[];
   moderationStatus?: "approved" | "quarantined";
   publicationReview?: {
@@ -262,6 +261,13 @@ export interface Course {
   };
   updatedAt?: string;
   aiAssisted?: boolean;
+  generationGrant?: {
+    version: string;
+    claimId: string;
+    lessonIds: string[];
+    redeemedAt: string;
+    status: "active" | "revoked";
+  };
   schemaVersion?: number;
   capstone?: {
     title: string;
@@ -410,16 +416,19 @@ export interface LearnerAccount {
   capabilities: {
     createCourse: boolean;
     generateLesson: boolean;
-    generateCourseBanner: boolean;
     flashcardDecksEnabled?: boolean;
     createCustomFlashcardDeck?: boolean;
     publishCourse: boolean;
+    advancedCapstoneAnalysis: boolean;
+    exportEvidenceReport: boolean;
+    shareEvidenceReport: boolean;
   };
-  courseCapacity: {
-    owned: number;
-    limit: number | null;
-    remaining: number | null;
-    overLimit: boolean;
+  courseCredits: {
+    balance: number | null;
+    monthlyAllocation: number | null;
+    balanceCap: number | null;
+    nextAccrualAt: string | null;
+    frozenUntil: string | null;
   };
   quotas: AiQuotaSummary[];
 }

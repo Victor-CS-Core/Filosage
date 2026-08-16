@@ -19,7 +19,7 @@ export const ownerDocumentation: OwnerDocumentation = {
         },
         {
           title: "Access levels",
-          body: "Guests discover published topics. Verified Free accounts can open published lessons and save learning. Plus adds one active private course with metered generation. Pro removes the owned-course cap and can publish after sequential completion, attestation, and review. The verified owner retains platform-wide moderation, operational, and Command Center privileges. Server routes repeat these checks; hiding a button is never the authorization boundary.",
+          body: "Guests discover published topics. Verified Free accounts can open published lessons and save learning. Plus adds two complete private AI course credits monthly, with rollover up to twenty-four. Pro adds five monthly with rollover up to sixty, advanced capstone analysis, professional evidence exports and share links, and publishing after sequential completion, attestation, and review. Paid accounts can keep every course they create. The verified owner retains platform-wide moderation, operational, and Command Center privileges. Server routes repeat these checks; hiding a button is never the authorization boundary.",
           steps: [
             "Use the public library to verify what anonymous visitors can inspect.",
             "Use the profile to confirm a learner's current plan and account state.",
@@ -63,7 +63,7 @@ export const ownerDocumentation: OwnerDocumentation = {
       topics: [
         {
           title: "Create a private course",
-          body: "The author supplies a real outcome, time horizon, experience level, and learning preferences. Generation first creates a private course map. Lesson generation is staged and credit-aware; the course remains private until explicitly published.",
+          body: "The author supplies a real outcome, time horizon, experience level, and learning preferences. One course credit covers the approved outline and every lesson that learning design places in it, so course length follows the goal rather than a lesson quota. Source research is retained when it can be verified; scarcity falls back to disclosed model knowledge instead of blocking the private course. Lesson generation remains staged, and the course stays private until explicitly published.",
           links: [{ label: "Create a course", href: "/create" }],
         },
         {

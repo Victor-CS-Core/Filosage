@@ -865,10 +865,13 @@ test("keeps Plus and Pro generation visibly metered", async ({ page }) => {
 
   await expect(page.getByRole("heading", { name: "Filosage Plus" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Filosage Pro" })).toBeVisible();
-  await expect(page.getByText("One active private course", { exact: true })).toBeVisible();
-  await expect(page.getByText("One generated course outline each month")).toBeVisible();
-  await expect(page.getByText("Three generated course outlines each month")).toBeVisible();
-  await expect(page.getByText("Thirty generated lessons each month")).toBeVisible();
+  await expect(page.getByText("Two complete AI course credits added each month")).toBeVisible();
+  await expect(page.getByText("Five complete AI course credits added each month")).toBeVisible();
+  await expect(page.getByText("Each credit includes the approved outline and every planned lesson")).toBeVisible();
+  await expect(page.getByText("Advanced capstone history and criterion-level analysis")).toBeVisible();
+  await expect(page.getByText("Downloadable evidence reports and expiring share links")).toBeVisible();
+  await expect(page.getByText("Unused credits roll over, up to 24.")).toBeVisible();
+  await expect(page.getByText("Unused credits roll over, up to 60.")).toBeVisible();
   await expect(page.getByText("$6.66")).toBeVisible();
   await expect(page.getByText("$39.96", { exact: false })).toBeVisible();
   await expect(page.getByText("$119.88", { exact: false })).toBeVisible();
@@ -1806,7 +1809,6 @@ test("explains permanent course deletion before sending a delete request", async
       level: "Foundations",
       isPublic: false,
       canManage: true,
-      canRegenerateBanner: true,
       modules: [{
         title: "Foundations",
         description: "Build a reliable reading practice.",

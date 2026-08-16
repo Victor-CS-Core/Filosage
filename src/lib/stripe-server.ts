@@ -32,6 +32,7 @@ import {
 } from "@/lib/membership-plans";
 import { PAID_SUBSCRIPTION_POLICY, PRIVACY_VERSION, TERMS_VERSION } from "@/lib/legal";
 import { serverEnvironment } from "@/lib/runtime-environment";
+import { reconcileCourseCreditLedger } from "@/lib/course-credit-policy";
 
 const CHECKOUT_CLAIM_STALE_MS = 2 * 60_000;
 
@@ -568,11 +569,12 @@ export async function syncStripeSubscription(
   );
   const currentPeriodEnd = periodEnd > 0 ? new Date(periodEnd * 1_000).toISOString() : null;
   const path = `users/${uid}`;
+  const courseCreditLedgerPath = `users/${uid}/courseCredits/current`;
   const subscriptionCustomerId = typeof subscription.customer === "string"
     ? subscription.customer
     : subscription.customer.id;
 
-  return runStoredDocumentTransaction([path], (documents) => {
+  return runStoredDocumentTransaction([path, courseCreditLedgerPath], (documents) => {
     const current = documents[path];
     if (!current) return { writes: [], result: false };
 
@@ -628,31 +630,53 @@ export async function syncStripeSubscription(
         `Stripe subscription ${subscription.id} has no verified Checkout consent; access was left unchanged.`,
       );
     }
+    const now = new Date();
+    const manualPlan = isPaidLearnerPlan(current.manualPlan) ? current.manualPlan : undefined;
+    const manualPlanUntil = typeof current.manualPlanUntil === "string" ? current.manualPlanUntil : undefined;
+    const manualPlanActive = manualPlanUntil === "permanent"
+      || (Boolean(manualPlanUntil) && Date.parse(manualPlanUntil!) > now.getTime());
+    const creditPlan = subscriptionStatus === "active" || subscriptionStatus === "trialing"
+      ? resolved.planId
+      : manualPlanActive && manualPlan
+        ? manualPlan
+        : "free";
+    const courseCreditLedger = reconcileCourseCreditLedger(
+      documents[courseCreditLedgerPath],
+      {
+        uid,
+        plan: creditPlan,
+        accountStatus: current.accountStatus === "suspended" ? "suspended" : "active",
+      },
+      now,
+    );
     return {
-      writes: [{
-        path,
-        data: {
-          ...current,
-          billingCustomerId: subscriptionCustomerId,
-          billingSubscriptionId: subscription.id,
-          billingRawStatus: subscription.status,
-          billingCancelAtPeriodEnd: subscription.cancel_at_period_end,
-          billingCanceledAt: subscription.canceled_at ? new Date(subscription.canceled_at * 1_000).toISOString() : null,
-          billingTrialEnd: subscription.trial_end ? new Date(subscription.trial_end * 1_000).toISOString() : null,
-          subscriptionStatus,
-          billingPlan: resolved.planId,
-          billingInterval: resolved.billingInterval,
-          currentPeriodEnd,
-          billingPriceId: resolved.priceId,
-          billingPaymentState: paymentState,
-          billingInvoiceId: invoiceId ?? null,
-          billingInvoiceAttemptCount: invoiceAttemptCount ?? null,
-          billingInvoicePaidAt: invoicePaidAt ?? null,
-          billingEventCreated: context.event.created,
-          billingEventId: context.event.id,
-          updatedAt: new Date().toISOString(),
+      writes: [
+        {
+          path,
+          data: {
+            ...current,
+            billingCustomerId: subscriptionCustomerId,
+            billingSubscriptionId: subscription.id,
+            billingRawStatus: subscription.status,
+            billingCancelAtPeriodEnd: subscription.cancel_at_period_end,
+            billingCanceledAt: subscription.canceled_at ? new Date(subscription.canceled_at * 1_000).toISOString() : null,
+            billingTrialEnd: subscription.trial_end ? new Date(subscription.trial_end * 1_000).toISOString() : null,
+            subscriptionStatus,
+            billingPlan: resolved.planId,
+            billingInterval: resolved.billingInterval,
+            currentPeriodEnd,
+            billingPriceId: resolved.priceId,
+            billingPaymentState: paymentState,
+            billingInvoiceId: invoiceId ?? null,
+            billingInvoiceAttemptCount: invoiceAttemptCount ?? null,
+            billingInvoicePaidAt: invoicePaidAt ?? null,
+            billingEventCreated: context.event.created,
+            billingEventId: context.event.id,
+            updatedAt: now.toISOString(),
+          },
         },
-      }],
+        { path: courseCreditLedgerPath, data: courseCreditLedger },
+      ],
       result: true,
     };
   });
