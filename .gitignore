@@ -33,6 +33,7 @@
 /.agents/skills/impeccable/
 /.codex/
 /.codex-tmp/
+/.worktrees/
 
 # misc
 .DS_Store
