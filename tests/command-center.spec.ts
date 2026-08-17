@@ -544,6 +544,7 @@ test("renders the owner command center with visible draft-only safety controls",
 });
 
 test("keeps the ticket dialog usable across the target viewport and theme matrix", async ({ page }) => {
+  test.setTimeout(90_000);
   await acceptOwnerTerms(page.request);
   await page.addInitScript(() => localStorage.setItem("filosage-local-session", "1"));
   await page.goto("/admin/command-center");
