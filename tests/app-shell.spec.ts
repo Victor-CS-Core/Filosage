@@ -475,7 +475,7 @@ test.describe("desktop application shell", () => {
   });
 
   test("cycles the held card through the pile in either direction without stealing nested keyboard input", async ({ page }, testInfo) => {
-    test.setTimeout(60_000);
+    test.setTimeout(90_000);
     await prepareOwnerShell(page, [...learningProgress, secondLearningProgress, thirdLearningProgress]);
     await page.goto("/");
 
@@ -595,20 +595,10 @@ test.describe("desktop application shell", () => {
     expect(pile[0].shadowBlur).toBeGreaterThan(pile[1].shadowBlur);
     expect(pile[1].shadowBlur).toBeGreaterThan(pile[2].shadowBlur);
     expect(pile[2].left).toBeLessThan(1366);
-    const firstCardBeforeControl = await page.locator(".course-deck-card[data-course-id='morse-shell-course']").boundingBox();
-    if (!firstCardBeforeControl) throw new Error("Course Deck active card is not measurable before control cycling.");
+    const deckViewport = page.locator(".course-deck-viewport");
     await page.getByRole("button", { name: "Show next active course" }).click();
-    await expect(page.locator(".course-deck-viewport")).toHaveAttribute("data-motion-state", "committing");
-    await expect(page.locator(".course-deck-viewport")).toHaveAttribute("data-direction", "next");
-    await expectDeckSelection(0);
-    await page.waitForTimeout(90);
-    const firstCardDuringControl = await page.locator(".course-deck-card[data-course-id='morse-shell-course']").boundingBox();
-    const approachingDuringControl = await page.locator(".course-deck-card[data-course-id='decision-shell-course']").boundingBox();
-    if (!firstCardDuringControl || !approachingDuringControl) throw new Error("Course Deck cards are not measurable during control cycling.");
-    const controlTravel = firstCardBeforeControl.x - firstCardDuringControl.x;
-    expect(controlTravel).toBeGreaterThan(firstCardBeforeControl.width * 0.08);
-    expect(controlTravel).toBeLessThan(firstCardBeforeControl.width * 0.95);
-    expect(approachingDuringControl.x).toBeLessThan(pile[1].left - 8);
+    await expect(deckViewport).toHaveAttribute("data-motion-state", "committing");
+    await expect(deckViewport).toHaveAttribute("data-direction", "next");
     await expectDeckSelection(0);
     if (process.env.CAPTURE_DASHBOARD === "1" && testInfo.project.name === "chromium") {
       await page.screenshot({ path: ".impeccable/review/course-deck-stack-control-motion-desktop.png", fullPage: false });

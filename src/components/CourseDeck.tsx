@@ -27,6 +27,11 @@ import * as m from "motion/react-m";
 import { ArrowLeft, ArrowRight, BookOpenCheck, CircleHelp, Clock3, Play } from "lucide-react";
 import CourseBanner from "@/components/CourseBanner";
 import { hashCourseIdentity } from "@/components/CourseArtwork";
+import {
+  arbitrateCourseDeckDragVelocity,
+  arbitrateCourseDeckReleaseVelocity,
+  COMMIT_VELOCITY,
+} from "@/components/course-deck-velocity";
 import type { Course } from "@/lib/course-types";
 
 export interface CourseDeckItem {
@@ -120,7 +125,6 @@ const INERTIA_PROJECTION_SECONDS = 0.22;
 const SPIN_INERTIA_PROJECTION_SECONDS = 0.6;
 const SPIN_OVERRIDE_VELOCITY = 3_000;
 const MAX_INERTIAL_CYCLES = 3;
-const MAX_SAMPLED_VELOCITY = 12_000;
 const SPIN_VELOCITY_DECAY = 0.62;
 const VELOCITY_SAMPLE_FRESH_MS = 80;
 const MOTION_PREFERENCE_STORAGE_KEY = "filosage-motion-preference";
@@ -578,14 +582,12 @@ export default function CourseDeck({ items, firstName, canCreateCourses }: Cours
     const sampledVelocity = previousSample
       ? ((info.offset.x - previousSample.offset) / elapsedMs) * 1_000
       : info.velocity.x;
-    const strongestVelocity = Math.abs(sampledVelocity) > Math.abs(info.velocity.x)
-      ? sampledVelocity
-      : info.velocity.x;
+    const previousVelocity = previousSample?.velocity ?? 0;
     dragVelocitySampleRef.current = {
       inputType: previousSample?.inputType ?? "unknown",
       offset: info.offset.x,
       time: eventTime,
-      velocity: clamp(strongestVelocity, -MAX_SAMPLED_VELOCITY, MAX_SAMPLED_VELOCITY),
+      velocity: arbitrateCourseDeckDragVelocity(previousVelocity, sampledVelocity, info.velocity.x),
     };
     dragX.set(info.offset.x);
     if (Math.abs(info.offset.x) < 3) return;
@@ -603,13 +605,11 @@ export default function CourseDeck({ items, firstName, canCreateCourses }: Cours
     const sampledVelocity = velocitySample && releaseTime - velocitySample.time <= VELOCITY_SAMPLE_FRESH_MS
       ? velocitySample.velocity
       : 0;
-    const effectiveVelocity = Math.abs(sampledVelocity) > Math.abs(releaseVelocity)
-      ? sampledVelocity
-      : releaseVelocity;
+    const effectiveVelocity = arbitrateCourseDeckReleaseVelocity(sampledVelocity, releaseVelocity);
     const visualOffset = dragX.get();
     const releaseOffset = Math.abs(visualOffset) > Math.abs(reportedOffset) ? visualOffset : reportedOffset;
     const distanceThreshold = Math.min(140, Math.max(72, geometry.cardWidth * 0.24));
-    const strongVelocity = Math.abs(effectiveVelocity) >= 650;
+    const strongVelocity = Math.abs(effectiveVelocity) >= COMMIT_VELOCITY;
     const shouldCommit = Math.abs(releaseOffset) >= distanceThreshold
       || (strongVelocity && Math.abs(releaseOffset) >= 12);
 
