@@ -6,6 +6,9 @@ const root = process.cwd();
 const manifestPath = resolve(root, "docs/support/wiki-feature-map.json");
 const manifest = JSON.parse(readFileSync(manifestPath, "utf8"));
 const articleDirectory = resolve(root, manifest.articleDirectory);
+const ownerDocumentationPath = resolve(root, manifest.ownerDocumentationFile);
+const ownerDocumentationSource = readFileSync(ownerDocumentationPath, "utf8");
+const ownerSectionIds = new Set([...ownerDocumentationSource.matchAll(/^\s*id:\s*"([^"]+)"/gm)].map((match) => match[1]));
 const validCategories = new Set(["start", "courses", "practice", "progress", "account", "trust", "plans"]);
 const legalSource = readFileSync(resolve(root, "src/lib/legal.ts"), "utf8");
 const supportContact = legalSource.match(/SUPPORT_CONTACT\s*=\s*"([^"]+)"/)?.[1];
@@ -42,6 +45,13 @@ function extractArray(source, property) {
   return [];
 }
 
+function filesUnder(directory) {
+  return readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
+    const path = resolve(directory, entry.name);
+    return entry.isDirectory() ? filesUnder(path) : [path];
+  });
+}
+
 const articleFiles = readdirSync(articleDirectory)
   .filter((name) => name.endsWith(".ts") && name !== "index.ts")
   .sort();
@@ -70,6 +80,7 @@ for (const article of articles) {
   if (article.slug) slugs.add(article.slug);
   if (!validCategories.has(article.category)) errors.push(`${article.file} has an invalid support category.`);
   if (!article.reviewedOn || Number.isNaN(Date.parse(`${article.reviewedOn}T00:00:00Z`))) errors.push(`${article.file} has an invalid reviewedOn date.`);
+  if (article.reviewedOn && Date.parse(`${article.reviewedOn}T00:00:00Z`) > Date.now() + 86_400_000) errors.push(`${article.file} has a future reviewedOn date.`);
   if (!article.sources.length) errors.push(`${article.file} does not identify any evidence source.`);
   for (const source of article.sources) {
     if (!existsSync(resolve(root, source))) errors.push(`${article.file} references missing evidence source ${source}.`);
@@ -114,10 +125,38 @@ for (const article of articles) {
 
 for (const entry of manifest.features) {
   if (!entry.feature || !Array.isArray(entry.sources) || !entry.sources.length) errors.push("Every feature-map entry needs a name and at least one source.");
+  if (!(entry.articles?.length || entry.ownerSections?.length)) errors.push(`${entry.feature || "Unnamed feature"} needs at least one public article or owner handbook section.`);
+  for (const source of entry.sources ?? []) {
+    if (!existsSync(resolve(root, source))) errors.push(`${entry.feature} references missing feature source ${source}.`);
+  }
   for (const slug of entry.articles ?? []) {
     if (!slugs.has(slug)) errors.push(`Feature map references missing article ${slug}.`);
   }
+  for (const section of entry.ownerSections ?? []) {
+    if (!ownerSectionIds.has(section)) errors.push(`Feature map references missing owner handbook section ${section}.`);
+  }
 }
+
+const mappedOwnerSections = new Set(manifest.features.flatMap((entry) => entry.ownerSections ?? []));
+for (const section of ownerSectionIds) {
+  if (!mappedOwnerSections.has(section)) errors.push(`Owner handbook section ${section} is not represented in the feature map.`);
+}
+
+for (const block of ownerDocumentationSource.matchAll(/sources:\s*\[([\s\S]*?)\]/g)) {
+  for (const source of [...block[1].matchAll(/"([^"]+)"/g)].map((match) => match[1])) {
+    if (!existsSync(resolve(root, source))) errors.push(`Owner handbook references missing evidence source ${source}.`);
+  }
+}
+
+const excludedPagePrefixes = manifest.excludedPagePrefixes ?? [];
+const repositoryPages = filesUnder(resolve(root, "src/app"))
+  .map((path) => path.slice(root.length + 1).replaceAll("\\", "/"))
+  .filter((file) => file === "src/app/page.tsx" || file.endsWith("/page.tsx"));
+const unmappedRepositoryPages = repositoryPages.filter((file) => (
+  !excludedPagePrefixes.some((prefix) => file.startsWith(prefix))
+  && !manifest.features.some((entry) => entry.sources.some((source) => sourceMatches(file, source)))
+));
+if (unmappedRepositoryPages.length) errors.push(`repository learner-facing pages are missing from the feature map: ${unmappedRepositoryPages.join(", ")}.`);
 
 const args = process.argv.slice(2);
 const changedFiles = [];
@@ -154,12 +193,14 @@ if (changedFiles.length) {
     .filter((file) => file.startsWith(`${manifest.articleDirectory}/`) && file.endsWith(".ts"))
     .map((file) => file.slice(`${manifest.articleDirectory}/`.length, -3)));
   const affected = manifest.features.filter((entry) => changed.some((file) => entry.sources.some((source) => sourceMatches(file, source))));
-  const missing = affected.filter((entry) => !entry.articles.some((slug) => changedArticleSlugs.has(slug)));
+  const missing = affected.filter((entry) => {
+    if (entry.ownerSections?.length) return !changed.includes(manifest.ownerDocumentationFile);
+    return !(entry.articles ?? []).some((slug) => changedArticleSlugs.has(slug));
+  });
   const prBody = process.env.SUPPORT_WIKI_PR_BODY ?? "";
   const noImpact = /Wiki impact:\s*none/i.test(prBody);
   const rationale = prBody.match(/Wiki rationale:\s*(.+)/i)?.[1]?.trim() ?? "";
   const validRationale = noImpact && rationale.length >= 20 && !/explain why|n\/a|none|todo/i.test(rationale);
-  const excludedPagePrefixes = manifest.excludedPagePrefixes ?? [];
   const changedPages = changed.filter((file) => file === "src/app/page.tsx" || (file.startsWith("src/app/") && file.endsWith("/page.tsx")));
   const unmappedPages = changedPages.filter((file) => (
     !excludedPagePrefixes.some((prefix) => file.startsWith(prefix))

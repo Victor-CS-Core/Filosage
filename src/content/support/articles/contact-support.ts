@@ -6,8 +6,8 @@ export default defineSupportArticle({
   summary: "Create a private support ticket or send the context needed to investigate an account, course, privacy, or technical problem.",
   category: "plans",
   keywords: ["support", "contact", "ticket", "reference", "email", "help", "search", "guide", "problem", "screenshot", "response"],
-  reviewedOn: "2026-08-06",
-  sources: ["src/app/support/page.tsx", "src/components/support/SupportTicketPanel.tsx", "src/app/api/support/tickets/route.ts", "src/components/support/SupportSearch.tsx", "src/lib/search.ts", "src/lib/legal.ts", "src/components/LessonIntegrityPanel.tsx", "src/lib/content-report-policy.ts"],
+  reviewedOn: "2026-08-16",
+  sources: ["src/app/support/page.tsx", "src/components/support/SupportCenter.tsx", "src/components/support/SupportTicketPanel.tsx", "src/app/api/support/tickets/route.ts", "src/app/api/support/tickets/[ticketId]/route.ts", "src/components/support/SupportSearch.tsx", "src/lib/search.ts", "src/lib/legal.ts", "src/components/LessonIntegrityPanel.tsx", "src/lib/content-report-policy.ts"],
   body: `
 ## Search the help guides
 
@@ -20,6 +20,12 @@ Open the floating Filosage spark from any page, choose **New request**, and desc
 After submission, Filosage shows a ticket reference such as **TKT-123ABCD**. The request enters the private owner review queue. Your description is treated as unverified until it is reviewed, and submitting it cannot trigger a refund, account change, deletion, or other external action.
 
 To protect the queue, each account can submit up to five requests per day.
+
+## Track a request and read replies
+
+Return to Support and open **My requests** to see your submitted tickets. Select a ticket to read its reference, current status, and the conversation details available to your account. Status describes queue progress; it does not by itself prove that a refund, deletion, account change, or content decision occurred.
+
+When the owner deliberately publishes a reply, it appears in the ticket detail as a published owner reply. Filosage draft-agent output is never shown as a reply merely because it was generated or accepted for internal review.
 
 ## Use email when you cannot sign in
 

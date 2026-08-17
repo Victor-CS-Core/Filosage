@@ -6,7 +6,7 @@ export default defineSupportArticle({
   summary: "Review your current focus, learning record, weekly goal, achievements, and dashboard preferences.",
   category: "account",
   keywords: ["profile", "dashboard", "weekly goal", "badges", "preferences", "account"],
-  reviewedOn: "2026-08-05",
+  reviewedOn: "2026-08-16",
   sources: ["src/app/profile/page.tsx", "src/components/AppShell.tsx", "src/components/DashboardCustomizer.tsx", "src/components/useLearnerState.ts"],
   body: `
 ## Open your profile
@@ -19,7 +19,7 @@ The profile highlights the next lesson or course review based on saved progress.
 
 ## Customize the dashboard
 
-Choose **Customize dashboard** to select a preset, show or hide supporting sections, and change their order. The save status indicates whether the preference synced or remains saved on the current device.
+Choose **Customize dashboard** to select and save a preferred dashboard preset and section order. The save status indicates whether the preference synced or remains saved on the current device. The current Today page records these preferences but does not currently rearrange the fixed Today signals; Weekly progress, Review queue, and Learning streak remain visible in their standard layout.
 
 Achievements are secondary summaries of recorded learning behavior and milestones. They are not credentials.
 `,

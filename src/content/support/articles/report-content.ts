@@ -2,18 +2,20 @@ import { defineSupportArticle } from "../types";
 
 export default defineSupportArticle({
   slug: "report-content",
-  title: "Report a lesson content issue",
-  summary: "Send a factual, source, safety, copyright, or quality concern from the affected lesson.",
+  title: "Report a course or lesson content issue",
+  summary: "Send a factual, outdated, source, clarity, safety, copyright, or other concern from the affected content.",
   category: "trust",
   keywords: ["report", "content", "accuracy", "source", "safety", "copyright", "lesson"],
-  reviewedOn: "2026-08-05",
-  sources: ["src/components/LessonIntegrityPanel.tsx", "src/app/api/content-reports/route.ts", "src/lib/content-report-policy.ts"],
+  reviewedOn: "2026-08-16",
+  sources: ["src/app/course/[topic]/page.tsx", "src/components/LessonIntegrityPanel.tsx", "src/app/api/content-reports/route.ts", "src/lib/content-report-policy.ts"],
   body: `
 ## Report from the affected lesson
 
 Open the lesson's content information panel and choose **Report a content issue**. Select the issue type and, when useful, identify the claim or section that should be reviewed.
 
-Available issue types cover possible factual errors, source or citation concerns, harmful or unsafe material, copyright concerns, and other quality problems.
+Available issue types include **Factual error**, **Outdated information**, **Source or citation concern**, **Unclear explanation**, **Harmful or unsafe material**, **Copyright concern**, and **Other**.
+
+For a problem with a source listed on the course overview, choose **Report source** beside that source. This attaches the report to the relevant course and source record instead of requiring you to report an unrelated lesson.
 
 ## What happens next
 

@@ -45,6 +45,7 @@ param operationsAlertWebhookUrl string = ''
 param operationsAlertWebhookSecret string = ''
 
 var unique = toLower(uniqueString(subscription().subscriptionId, resourceGroup().id, prefix))
+var easyAuthConfigured = !empty(googleClientId) && !empty(googleClientSecret)
 var compactPrefix = take(replace(prefix, '-', ''), 10)
 var registryName = take('${compactPrefix}${unique}acr', 50)
 var storageName = take('${compactPrefix}${unique}st', 24)
@@ -362,7 +363,7 @@ var appEnvironment = concat(
     { name: 'AZURE_RESOURCE_GROUP', value: resourceGroup().name }
     { name: 'NEXT_PUBLIC_SITE_URL', value: siteUrl }
     { name: 'SITE_VERSION', value: siteVersion }
-    { name: 'AZURE_EASY_AUTH_ENABLED', value: 'true' }
+    { name: 'AZURE_EASY_AUTH_ENABLED', value: string(easyAuthConfigured) }
     { name: 'OPERATIONS_ENVIRONMENT', value: 'azure-staging' }
     { name: 'OWNER_EMAIL', value: ownerEmail }
     { name: 'ACTIVITY_RECEIPT_SECRET', secretRef: 'activity-receipt-secret' }
@@ -421,7 +422,7 @@ resource app 'Microsoft.App/containerApps@2025-01-01' = if (deployApplication) {
   dependsOn: [acrPull, blobContributor, vaultSecretsUser, database]
 }
 
-resource appAuth 'Microsoft.App/containerApps/authConfigs@2025-01-01' = if (deployApplication && !empty(googleClientId) && !empty(googleClientSecret)) {
+resource appAuth 'Microsoft.App/containerApps/authConfigs@2025-01-01' = if (deployApplication && easyAuthConfigured) {
   parent: app
   name: 'current'
   properties: {

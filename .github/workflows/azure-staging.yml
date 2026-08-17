@@ -65,6 +65,7 @@ jobs:
           npm run check:production -- "$QA_URL" "$EXPECTED_SHA" "$QA_URL"
 
       - name: Deploy the exact image to Azure Container Apps
+        id: deploy_revision
         shell: bash
         run: |
           set -euo pipefail
@@ -115,17 +116,46 @@ jobs:
               "DEPLOYMENT_ENVIRONMENT=production" \
               "OPERATIONS_ENVIRONMENT=azure-staging" \
               "AZURE_EASY_AUTH_ENABLED=true" \
+              "BILLING_ENABLED=false" \
               "DEPLOYMENT_SLOT=${TARGET_SLOT}"
           REVISION="$(az containerapp show \
             --resource-group "${{ vars.AZURE_RESOURCE_GROUP }}" \
             --name "${{ vars.AZURE_CONTAINER_APP_NAME }}" \
             --query properties.latestRevisionName \
             --output tsv)"
+          if [[ -z "$REVISION" ]]; then
+            echo "The deployed revision name could not be resolved."
+            exit 1
+          fi
+          echo "revision=$REVISION" >> "$GITHUB_OUTPUT"
+
+      - name: Verify the deployed release safety policy
+        shell: bash
+        run: |
+          set -euo pipefail
+          RESOURCE_GROUP="${{ vars.AZURE_RESOURCE_GROUP }}"
+          APP_NAME="${{ vars.AZURE_CONTAINER_APP_NAME }}"
+          REVISION_NAME="${{ steps.deploy_revision.outputs.revision }}"
+          BILLING_STATE="$(az containerapp revision show --resource-group "$RESOURCE_GROUP" --name "$APP_NAME" --revision "$REVISION_NAME" --query "properties.template.containers[0].env[?name=='BILLING_ENABLED'].value | [0]" --output tsv)"
+          EASY_AUTH_STATE="$(az containerapp revision show --resource-group "$RESOURCE_GROUP" --name "$APP_NAME" --revision "$REVISION_NAME" --query "properties.template.containers[0].env[?name=='AZURE_EASY_AUTH_ENABLED'].value | [0]" --output tsv)"
+          SUBSCRIPTION_ID="$(az account show --query id --output tsv)"
+          AUTH_URL="https://management.azure.com/subscriptions/${SUBSCRIPTION_ID}/resourceGroups/${RESOURCE_GROUP}/providers/Microsoft.App/containerApps/${APP_NAME}/authConfigs/current?api-version=2025-01-01"
+          AUTH_ENABLED="$(az rest --method get --url "$AUTH_URL" --query properties.platform.enabled --output tsv)"
+          GOOGLE_ENABLED="$(az rest --method get --url "$AUTH_URL" --query properties.identityProviders.google.enabled --output tsv)"
+          if [[ "$BILLING_STATE" != "false" || "$EASY_AUTH_STATE" != "true" || "$AUTH_ENABLED" != "true" || "$GOOGLE_ENABLED" != "true" ]]; then
+            echo "Release safety policy failed: billing must be closed and Google Easy Auth must be active."
+            exit 1
+          fi
+
+      - name: Assign verified revision label
+        shell: bash
+        run: |
+          set -euo pipefail
           az containerapp revision label add \
             --resource-group "${{ vars.AZURE_RESOURCE_GROUP }}" \
             --name "${{ vars.AZURE_CONTAINER_APP_NAME }}" \
             --label "$TARGET_SLOT" \
-            --revision "$REVISION" \
+            --revision "${{ steps.deploy_revision.outputs.revision }}" \
             --yes
 
       - name: Verify the labeled QA candidate

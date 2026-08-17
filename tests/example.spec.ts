@@ -699,22 +699,30 @@ test("publishes the teaching standard", async ({ page }) => {
   await expect(page.getByRole("link", { name: /See courses held to this standard/ })).toBeVisible();
 });
 
-test("describes guest access and Pro publishing consistently across public pages", async ({ page }) => {
-  await page.goto("/");
-  await expect(page.getByRole("heading", { name: "How the Filosage Capability Cycle works." })).toBeVisible();
-  await expect(page.locator(".landing-runway li")).toHaveCount(6);
+test("describes guest access and Pro publishing consistently across public pages", async ({ context }) => {
+  const home = await context.newPage();
+  await home.goto("/");
+  await expect(home.getByRole("heading", { name: "How the Filosage Capability Cycle works." })).toBeVisible();
+  await expect(home.locator(".landing-runway li")).toHaveCount(6);
+  await home.close();
 
-  await page.goto("/library");
-  await expect(page).toHaveTitle("Course Library | Filosage");
-  await expect(page.getByText("A free account opens lessons and keeps your progress, practice, and reviews in sync.")).toBeVisible();
+  const library = await context.newPage();
+  await library.goto("/library");
+  await expect(library).toHaveTitle("Course Library | Filosage");
+  await expect(library.getByText("A free account opens lessons and keeps your progress, practice, and reviews in sync.")).toBeVisible();
+  await library.close();
 
-  await page.goto("/pricing");
-  await expect(page).toHaveTitle("Plans and Pricing | Filosage");
-  await expect(page.getByText("Publish generated courses after completing every lesson")).toBeVisible();
-  await expect(page.getByText("complete the current lesson activities before generating the next", { exact: false })).toBeVisible();
+  const pricing = await context.newPage();
+  await pricing.goto("/pricing");
+  await expect(pricing).toHaveTitle("Plans and Pricing | Filosage");
+  await expect(pricing.getByText("Publish generated courses after completing every lesson")).toBeVisible();
+  await expect(pricing.getByText("complete the current lesson activities before generating the next", { exact: false })).toBeVisible();
+  await pricing.close();
 
-  await page.goto("/create");
-  await expect(page.locator('meta[name="robots"]')).toHaveAttribute("content", "noindex, nofollow");
+  const create = await context.newPage();
+  await create.goto("/create");
+  await expect(create.locator('meta[name="robots"]')).toHaveAttribute("content", "noindex, nofollow");
+  await create.close();
 });
 
 test("keeps the signed-in learner shell on one scroll owner", async ({ page }) => {
@@ -860,21 +868,35 @@ test("lets guests browse outlines while clearly gating lessons behind an account
   await expect(dialog.getByRole("link", { name: "Terms of Service" })).toHaveAttribute("href", "/terms");
 });
 
-test("publishes clear legal documents", async ({ page }) => {
-  await page.goto("/terms");
-  await expect(page.getByRole("heading", { name: "Terms of Service" })).toBeVisible();
-  await expect(page.getByText("automatic renewal", { exact: false }).first()).toBeVisible();
-  await page.goto("/privacy");
-  await expect(page.getByRole("heading", { name: "Privacy Notice" })).toBeVisible();
-  await expect(page.getByLabel("Legal documents").getByRole("link", { name: "Privacy choices" })).toHaveAttribute("href", "/privacy-center");
-  await page.goto("/acceptable-use");
-  await expect(page.getByRole("heading", { name: "Acceptable Use Policy" })).toBeVisible();
-  await page.goto("/copyright");
-  await expect(page.getByRole("heading", { name: "Copyright Policy" })).toBeVisible();
-  await expect(page.getByRole("heading", { name: "Repeat infringement" })).toBeVisible();
-  await page.goto("/privacy-center");
-  await expect(page.getByRole("heading", { name: "Your information, under your control." })).toBeVisible();
-  await expect(page.getByRole("button", { name: "Sign in to export" })).toBeVisible();
+test("publishes clear legal documents", async ({ context }) => {
+  const terms = await context.newPage();
+  await terms.goto("/terms");
+  await expect(terms.getByRole("heading", { name: "Terms of Service" })).toBeVisible();
+  await expect(terms.getByText("automatic renewal", { exact: false }).first()).toBeVisible();
+  await terms.close();
+
+  const privacy = await context.newPage();
+  await privacy.goto("/privacy");
+  await expect(privacy.getByRole("heading", { name: "Privacy Notice" })).toBeVisible();
+  await expect(privacy.getByLabel("Legal documents").getByRole("link", { name: "Privacy choices" })).toHaveAttribute("href", "/privacy-center");
+  await privacy.close();
+
+  const acceptableUse = await context.newPage();
+  await acceptableUse.goto("/acceptable-use");
+  await expect(acceptableUse.getByRole("heading", { name: "Acceptable Use Policy" })).toBeVisible();
+  await acceptableUse.close();
+
+  const copyright = await context.newPage();
+  await copyright.goto("/copyright");
+  await expect(copyright.getByRole("heading", { name: "Copyright Policy" })).toBeVisible();
+  await expect(copyright.getByRole("heading", { name: "Repeat infringement" })).toBeVisible();
+  await copyright.close();
+
+  const privacyCenter = await context.newPage();
+  await privacyCenter.goto("/privacy-center");
+  await expect(privacyCenter.getByRole("heading", { name: "Your information, under your control." })).toBeVisible();
+  await expect(privacyCenter.getByRole("button", { name: "Sign in to export" })).toBeVisible();
+  await privacyCenter.close();
 });
 
 test("keeps Plus and Pro generation visibly metered", async ({ page }) => {
@@ -903,6 +925,31 @@ test("keeps Plus and Pro generation visibly metered", async ({ page }) => {
 });
 
 test("reads a lesson aloud from the toolbar speaker", async ({ page }) => {
+  await page.addInitScript(() => {
+    const speechCalls = { cancel: 0, spoken: [] as string[] };
+    Object.defineProperty(window, "__speechCalls", {
+      configurable: true,
+      value: speechCalls,
+    });
+    class TestSpeechSynthesisUtterance {
+      onend: (() => void) | null = null;
+      onerror: (() => void) | null = null;
+
+      constructor(public text: string) {}
+    }
+
+    Object.defineProperty(window, "SpeechSynthesisUtterance", {
+      configurable: true,
+      value: TestSpeechSynthesisUtterance,
+    });
+    Object.defineProperty(window, "speechSynthesis", {
+      configurable: true,
+      value: {
+        cancel() { speechCalls.cancel += 1; },
+        speak(utterance: TestSpeechSynthesisUtterance) { speechCalls.spoken.push(utterance.text); },
+      },
+    });
+  });
   await restoreLocalLearner(page);
   const course = {
     courseId: "demo",
@@ -924,17 +971,18 @@ test("reads a lesson aloud from the toolbar speaker", async ({ page }) => {
   await page.route("**/api/courses/demo", (route) => route.fulfill({ json: course }));
   await page.route("**/api/courses/demo/lessons/0-0", (route) => route.fulfill({ json: lesson }));
   await page.goto("/course/Systems%20thinking/lesson/0-0?id=demo");
-
-  const speechSupported = await page.evaluate(() => "speechSynthesis" in window);
-  test.skip(!speechSupported, "This browser build has no speech synthesis; the button hides itself.");
+  await page.waitForLoadState("networkidle");
 
   const speaker = page.getByRole("button", { name: "Read this lesson aloud" });
+  const speechControl = page.locator("button.speak-button");
   await expect(speaker).toBeVisible();
   await expect(speaker).toHaveAttribute("aria-pressed", "false");
   await speaker.click();
   await expect(page.getByRole("button", { name: "Stop reading aloud" })).toHaveAttribute("aria-pressed", "true");
-  await page.getByRole("button", { name: "Stop reading aloud" }).click();
+  expect(await page.evaluate(() => (window as typeof window & { __speechCalls: { spoken: string[] } }).__speechCalls.spoken)).toContain("Feedback loops. A feedback loop connects a system's output to what happens next.");
+  await speechControl.click();
   await expect(page.getByRole("button", { name: "Read this lesson aloud" })).toHaveAttribute("aria-pressed", "false");
+  expect(await page.evaluate(() => (window as typeof window & { __speechCalls: { cancel: number } }).__speechCalls.cancel)).toBe(2);
 });
 
 test("keeps the mobile tutor contained above the lesson", async ({ page }) => {

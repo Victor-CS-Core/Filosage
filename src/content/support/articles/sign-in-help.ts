@@ -3,19 +3,23 @@ import { defineSupportArticle } from "../types";
 export default defineSupportArticle({
   slug: "sign-in-help",
   title: "Troubleshoot Google sign-in",
-  summary: "Resolve common popup, embedded-browser, storage, network, and authorized-domain sign-in problems.",
+  summary: "Use the same-tab Google sign-in flow, complete account consent, and resolve common session problems.",
   category: "account",
-  keywords: ["sign in", "Google", "popup", "private browsing", "storage", "network", "account"],
-  reviewedOn: "2026-08-11",
-  sources: ["src/components/AuthProvider.tsx", "src/components/AuthModal.tsx"],
+  keywords: ["sign in", "Google", "consent", "terms", "age eligibility", "storage", "network", "account"],
+  reviewedOn: "2026-08-16",
+  sources: ["src/components/AuthProvider.tsx", "src/components/AuthModal.tsx", "src/components/LegalConsentModal.tsx"],
   body: `
-## If the sign-in window does not open
+## Start Google sign-in
 
-Allow popups for Filosage, then try Google sign-in again. Choose **Google** on Microsoft's secure sign-in page. If the sign-in window closes, is blocked, or does not load in an embedded browser, choose **Open Google sign-in in this tab**. That option returns you to the same Filosage page after Google confirms your account.
+Choose **Continue with Google**. Filosage leaves the current page in the same tab, sends you to the platform-managed Google sign-in flow, and returns you to Filosage after authentication. A separate popup is not required.
+
+## Confirm account consent
+
+Before the first redirect, confirm age eligibility and acceptance of the current Terms and Privacy Notice. If the legal terms change later, Filosage asks you to accept the current versions before continuing; you can sign out instead. Never continue on an account you are not authorized to use.
 
 ## If browser storage is unavailable
 
-Google sign-in requires browser storage. Turn off Private Browsing for the site or allow site storage, then retry.
+The signed-in session requires browser storage and cookies. Turn off Private Browsing for the site or allow site storage, then retry in the same tab.
 
 ## If the network or session is slow
 

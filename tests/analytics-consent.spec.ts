@@ -9,9 +9,9 @@ test.beforeEach(async ({ page }) => {
   });
 });
 
-test("optional analytics stays silent before consent and after refusal", async ({ page }) => {
+test("optional analytics stays silent before consent and after refusal", async ({ page, context }) => {
   let telemetryCalls = 0;
-  await page.route("**/api/telemetry", async (route) => {
+  await context.route("**/api/telemetry", async (route) => {
     telemetryCalls += 1;
     await route.fulfill({ status: 204 });
   });
@@ -30,9 +30,11 @@ test("optional analytics stays silent before consent and after refusal", async (
     session: sessionStorage.getItem("filosage:analytics:session"),
   }))).toEqual({ consent: "declined", actor: null, attribution: null, session: null });
 
-  await page.goto("/pricing");
-  await page.waitForTimeout(150);
+  const pricing = await context.newPage();
+  await pricing.goto("/pricing");
+  await pricing.waitForTimeout(150);
   expect(telemetryCalls).toBe(0);
+  await pricing.close();
 });
 
 test("keeps privacy choices reachable on a short mobile viewport", async ({ page }) => {
@@ -49,9 +51,9 @@ test("keeps privacy choices reachable on a short mobile viewport", async ({ page
   await expect(panel.getByRole("button", { name: "Allow optional analytics" })).toBeVisible();
 });
 
-test("analytics can be allowed and later withdrawn from Privacy choices", async ({ page }) => {
+test("analytics can be allowed and later withdrawn from Privacy choices", async ({ page, context }) => {
   let telemetryCalls = 0;
-  await page.route("**/api/telemetry", async (route) => {
+  await context.route("**/api/telemetry", async (route) => {
     telemetryCalls += 1;
     await route.fulfill({ status: 204 });
   });
@@ -68,18 +70,22 @@ test("analytics can be allowed and later withdrawn from Privacy choices", async 
   expect(acceptedStorage.actor).toMatch(/^[A-Za-z0-9_-]{12,80}$/);
   expect(acceptedStorage.session).toMatch(/^[A-Za-z0-9_-]{12,80}$/);
 
-  await page.goto("/privacy-center");
-  await page.getByRole("button", { name: "Keep analytics off" }).click();
-  await expect(page.getByText("Optional analytics are off and their browser identifiers were removed.")).toBeVisible();
+  const privacyCenter = await context.newPage();
+  await privacyCenter.goto("/privacy-center");
+  await privacyCenter.getByRole("button", { name: "Keep analytics off" }).click();
+  await expect(privacyCenter.getByText("Optional analytics are off and their browser identifiers were removed.")).toBeVisible();
   const callsAfterWithdrawal = telemetryCalls;
-  expect(await page.evaluate(() => ({
+  expect(await privacyCenter.evaluate(() => ({
     consent: localStorage.getItem("filosage:analytics:consent:v1"),
     actor: localStorage.getItem("filosage:analytics:actor"),
     attribution: localStorage.getItem("filosage:analytics:first-touch"),
     session: sessionStorage.getItem("filosage:analytics:session"),
   }))).toEqual({ consent: "declined", actor: null, attribution: null, session: null });
+  await privacyCenter.close();
 
-  await page.goto("/pricing");
-  await page.waitForTimeout(150);
+  const pricing = await context.newPage();
+  await pricing.goto("/pricing");
+  await pricing.waitForTimeout(150);
   expect(telemetryCalls).toBe(callsAfterWithdrawal);
+  await pricing.close();
 });

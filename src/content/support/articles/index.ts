@@ -1,9 +1,12 @@
 import accessibility from "./accessibility";
+import completeACapstone from "./complete-a-capstone";
 import completeALesson from "./complete-a-lesson";
 import contactSupport from "./contact-support";
+import createACourse from "./create-a-course";
 import findACourse from "./find-a-course";
 import followACourse from "./follow-a-course";
 import gettingStarted from "./getting-started";
+import manageAndPublishACourse from "./manage-and-publish-a-course";
 import manageProfile from "./manage-profile";
 import navigateFilosage from "./navigate-filosage";
 import plansAndBilling from "./plans-and-billing";
@@ -19,8 +22,11 @@ export const supportArticles = [
   gettingStarted,
   navigateFilosage,
   findACourse,
+  createACourse,
   followACourse,
   completeALesson,
+  completeACapstone,
+  manageAndPublishACourse,
   useStudyTools,
   useReview,
   understandProgress,
