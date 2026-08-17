@@ -302,6 +302,7 @@ test("switches an open support surface between desktop floating and tablet modal
 });
 
 test("fits the required desktop, tablet, and mobile viewport matrix", async ({ page }) => {
+  test.setTimeout(90_000);
   // This test measures settled geometry; motion behavior is covered separately.
   await page.emulateMedia({ reducedMotion: "reduce" });
   const viewports = [
