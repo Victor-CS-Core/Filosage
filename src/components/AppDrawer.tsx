@@ -130,6 +130,7 @@ export default function AppDrawer({
   const settleCleanupRef = useRef<(() => void) | null>(null);
   const settleFrameRef = useRef<number | null>(null);
   const openFrameRef = useRef<number | null>(null);
+  const openFallbackTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const dragFrameRef = useRef<number | null>(null);
   const resizeFrameRef = useRef<number | null>(null);
   const unlockScrollRef = useRef<(() => void) | null>(null);
@@ -247,6 +248,10 @@ export default function AppDrawer({
       cancelAnimationFrame(openFrameRef.current);
       openFrameRef.current = null;
     }
+    if (openFallbackTimerRef.current) {
+      clearTimeout(openFallbackTimerRef.current);
+      openFallbackTimerRef.current = null;
+    }
     if (settleFrameRef.current !== null) {
       cancelAnimationFrame(settleFrameRef.current);
       settleFrameRef.current = null;
@@ -292,48 +297,54 @@ export default function AppDrawer({
       if (!reduceMotion) {
         // Commit the crumpled start frame before transitioning to the open sheet.
         void dialog.offsetWidth;
-        openFrameRef.current = requestAnimationFrame(() => {
-          if (dialog.open) {
-            dialog.dataset.motionStarted = "true";
-            const surface = dialog.querySelector<HTMLElement>(".app-drawer-surface");
-            const markSettled = () => {
-              surface?.removeEventListener("transitionend", handleTransitionEnd);
-              settleCleanupRef.current = null;
-              if (settleTimerRef.current) clearTimeout(settleTimerRef.current);
-              settleTimerRef.current = null;
-              const commitSettledState = () => {
-                if (settleFallbackTimerRef.current) clearTimeout(settleFallbackTimerRef.current);
-                settleFallbackTimerRef.current = null;
-                if (dialog.open && dialog.dataset.state === "opening") {
-                  dialog.dataset.state = "open";
-                  dialog.dataset.motionSettled = "true";
-                  clampFloatingWindow();
-                }
-              };
+        const startOpening = () => {
+          if (!dialog.open || dialog.dataset.state !== "opening" || dialog.dataset.motionStarted === "true") return;
+          if (openFrameRef.current !== null) cancelAnimationFrame(openFrameRef.current);
+          openFrameRef.current = null;
+          if (openFallbackTimerRef.current) clearTimeout(openFallbackTimerRef.current);
+          openFallbackTimerRef.current = null;
+          dialog.dataset.motionStarted = "true";
+          const surface = dialog.querySelector<HTMLElement>(".app-drawer-surface");
+          const markSettled = () => {
+            surface?.removeEventListener("transitionend", handleTransitionEnd);
+            settleCleanupRef.current = null;
+            if (settleTimerRef.current) clearTimeout(settleTimerRef.current);
+            settleTimerRef.current = null;
+            const commitSettledState = () => {
+              if (settleFallbackTimerRef.current) clearTimeout(settleFallbackTimerRef.current);
+              settleFallbackTimerRef.current = null;
+              if (dialog.open && dialog.dataset.state === "opening") {
+                dialog.dataset.state = "open";
+                dialog.dataset.motionSettled = "true";
+                clampFloatingWindow();
+              }
+            };
+            settleFrameRef.current = requestAnimationFrame(() => {
               settleFrameRef.current = requestAnimationFrame(() => {
-                settleFrameRef.current = requestAnimationFrame(() => {
-                  settleFrameRef.current = null;
-                  commitSettledState();
-                });
-              });
-              // WebKit can defer animation frames for a large clipped dialog
-              // even while its CSS transition has completed. Never leave the
-              // drawer inert in the opening state if those frames are delayed.
-              settleFallbackTimerRef.current = setTimeout(() => {
-                if (settleFrameRef.current !== null) cancelAnimationFrame(settleFrameRef.current);
                 settleFrameRef.current = null;
                 commitSettledState();
-              }, 100);
-            };
-            const handleTransitionEnd = (event: TransitionEvent) => {
-              if (event.target === surface && event.propertyName === "transform") markSettled();
-            };
-            surface?.addEventListener("transitionend", handleTransitionEnd);
-            settleCleanupRef.current = () => surface?.removeEventListener("transitionend", handleTransitionEnd);
-            settleTimerRef.current = setTimeout(markSettled, DRAWER_ENTER_MS + 100);
-          }
-          openFrameRef.current = null;
-        });
+              });
+            });
+            // WebKit can defer animation frames for a large clipped dialog
+            // even while its CSS transition has completed. Never leave the
+            // drawer inert in the opening state if those frames are delayed.
+            settleFallbackTimerRef.current = setTimeout(() => {
+              if (settleFrameRef.current !== null) cancelAnimationFrame(settleFrameRef.current);
+              settleFrameRef.current = null;
+              commitSettledState();
+            }, 100);
+          };
+          const handleTransitionEnd = (event: TransitionEvent) => {
+            if (event.target === surface && event.propertyName === "transform") markSettled();
+          };
+          surface?.addEventListener("transitionend", handleTransitionEnd);
+          settleCleanupRef.current = () => surface?.removeEventListener("transitionend", handleTransitionEnd);
+          settleTimerRef.current = setTimeout(markSettled, DRAWER_ENTER_MS + 100);
+        };
+        openFrameRef.current = requestAnimationFrame(startOpening);
+        // Backgrounded/clipped WebKit contexts may defer the initial frame,
+        // so also start the transition on a bounded timer.
+        openFallbackTimerRef.current = setTimeout(startOpening, 100);
       }
       return;
     }
@@ -406,6 +417,7 @@ export default function AppDrawer({
     if (closeTimerRef.current) clearTimeout(closeTimerRef.current);
     if (settleTimerRef.current) clearTimeout(settleTimerRef.current);
     if (settleFallbackTimerRef.current) clearTimeout(settleFallbackTimerRef.current);
+    if (openFallbackTimerRef.current) clearTimeout(openFallbackTimerRef.current);
     settleCleanupRef.current?.();
     if (openFrameRef.current !== null) cancelAnimationFrame(openFrameRef.current);
     if (settleFrameRef.current !== null) cancelAnimationFrame(settleFrameRef.current);

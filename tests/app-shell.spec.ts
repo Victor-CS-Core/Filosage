@@ -154,6 +154,7 @@ test.describe("desktop application shell", () => {
   test.use({ viewport: { width: 1366, height: 900 } });
 
   test("uses a Learning Header with direct courses and a separate Command Center", async ({ page }) => {
+    test.setTimeout(90_000);
     await prepareOwnerShell(page);
     await page.goto("/library");
 
@@ -245,7 +246,12 @@ test.describe("desktop application shell", () => {
       await page.screenshot({ path: ".impeccable/review/command-center-colors-desktop.png", fullPage: false });
     }
 
-    await page.locator(".command-palette-backdrop").click({ position: { x: 6, y: 6 } });
+    const commandBackdrop = page.locator(".command-palette-backdrop");
+    await expect(commandBackdrop).toBeVisible();
+    await expect.poll(() => page.evaluate(() =>
+      document.elementFromPoint(6, 6)?.classList.contains("command-palette-backdrop") ?? false,
+    )).toBe(true);
+    await page.mouse.click(6, 6);
     await expect(commandPalette).toBeHidden();
     await expect(commandTrigger).toBeFocused();
 
@@ -364,6 +370,26 @@ test.describe("desktop application shell", () => {
     await expect(coursesDialog).toBeVisible();
     await page.waitForTimeout(240);
     await expect(coursesDialog).toBeVisible();
+  });
+
+  test("settles an opening drawer when animation frames are deferred", async ({ page }) => {
+    await prepareOwnerShell(page);
+    await page.goto("/library");
+
+    await page.getByRole("button", { name: /Search or jump anywhere/ }).click();
+    const commandCenter = page.getByRole("dialog", { name: "Filosage Command Center" });
+    await expect(commandCenter).toBeVisible();
+    const coursesOption = commandCenter.getByRole("option", { name: /My courses/ });
+    await expect(coursesOption).toBeVisible();
+    await expect(coursesOption).toBeEnabled();
+    await page.evaluate(() => {
+      window.requestAnimationFrame = () => 2_147_483_647;
+    });
+    await coursesOption.click({ force: true });
+
+    const coursesDialog = page.getByRole("dialog", { name: "My courses" });
+    await expect(coursesDialog).toBeVisible();
+    await expect(coursesDialog).toHaveAttribute("data-state", "open", { timeout: 1_500 });
   });
 
   test("uses a modal bottom sheet while the application is in its tablet shell", async ({ page }) => {

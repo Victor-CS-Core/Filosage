@@ -281,7 +281,19 @@ export default function AppShell({ children, activeTopic, activeCourseId, active
       return;
     }
     if (item.action === "open-courses") {
-      requestAnimationFrame(coursesDrawer.openDrawer);
+      let opened = false;
+      let fallbackTimer = 0;
+      const openCourses = () => {
+        if (opened) return;
+        opened = true;
+        window.clearTimeout(fallbackTimer);
+        coursesDrawer.openDrawer();
+      };
+      const openFrame = requestAnimationFrame(openCourses);
+      fallbackTimer = window.setTimeout(() => {
+        cancelAnimationFrame(openFrame);
+        openCourses();
+      }, 100);
     } else if (item.action === "sign-out") {
       void signOutToLanding();
     }
