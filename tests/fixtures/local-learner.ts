@@ -3,6 +3,7 @@ import { PRIVACY_VERSION, TERMS_VERSION } from "../../src/lib/legal";
 
 export async function restoreLocalLearner(page: Page) {
   const acceptance = await page.request.post("/api/legal/acceptance", {
+    maxRetries: 1,
     headers: { Authorization: "Bearer playwright-local-owner" },
     data: {
       termsVersion: TERMS_VERSION,
