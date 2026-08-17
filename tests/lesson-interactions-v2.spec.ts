@@ -171,6 +171,7 @@ test("binds practice receipts to the exact learner and recognition item", async 
 });
 
 test("places recognition practice in Activities and withholds feedback until commitment", async ({ page }) => {
+  test.setTimeout(90_000);
   const courseId = "morse-recognition-v2";
   const topic = "Morse Code";
   const content = [

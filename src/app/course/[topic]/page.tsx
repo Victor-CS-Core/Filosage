@@ -206,13 +206,16 @@ export default function CourseMap() {
       }
     }
     if (!isOwner) {
-      trackProductEvent("course_started", {
-        route: "/course",
-        courseId,
-        contentVersion: course?.updatedAt,
-        courseLanguageMode: courseLanguageModeFor(course?.language),
-        oncePerSession: true,
-      });
+      await Promise.race([
+        trackProductEvent("course_started", {
+          route: "/course",
+          courseId,
+          contentVersion: course?.updatedAt,
+          courseLanguageMode: courseLanguageModeFor(course?.language),
+          oncePerSession: true,
+        }),
+        new Promise<void>((resolve) => window.setTimeout(resolve, 750)),
+      ]);
     }
     window.location.assign(`/course/${encodeURIComponent(topic)}/lesson/${lessonId}?id=${encodeURIComponent(courseId)}`);
   }, [course?.language, course?.updatedAt, courseId, isOwner, signInWithGoogle, topic, user]);
