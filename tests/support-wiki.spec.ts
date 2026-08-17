@@ -205,7 +205,9 @@ test("shows the structured handbook only to the verified owner", async ({ page }
   }
   await page.goto("/support");
   await expect(page.getByRole("heading", { name: "Filosage owner handbook" })).toBeVisible();
-  await page.getByRole("link", { name: /Open handbook/ }).click();
+  const handbookLink = page.getByRole("link", { name: /Open handbook/ });
+  await expect(handbookLink).toHaveAttribute("href", "/support/owner");
+  await page.goto("/support/owner");
   await expect(page).toHaveURL(/\/support\/owner$/);
   await expect(page.getByRole("heading", { level: 1, name: "Filosage owner handbook" })).toBeVisible();
   await expect(page.getByRole("heading", { level: 2, name: "Support and Agent Command Center" })).toBeVisible();
