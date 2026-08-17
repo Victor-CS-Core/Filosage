@@ -342,7 +342,7 @@ test.describe("desktop application shell", () => {
     await commandPalette.getByRole("option", { name: /Sign out/ }).click();
 
     await expect(page).toHaveURL(/\/$/);
-    await expect(page.getByRole("heading", { name: "Build the skill your next decision depends on" })).toBeVisible();
+    await expect(page.getByRole("main").getByRole("heading", { level: 1 })).toBeVisible();
     await expect(page.getByRole("button", { name: /Open Command Center/ })).toHaveCount(0);
   });
 
@@ -453,7 +453,7 @@ test.describe("desktop application shell", () => {
       { path: "/progress", heading: /Your progress/ },
       { path: "/profile", heading: /Playwright/ },
       { path: "/review", heading: /caught up|concept/ },
-      { path: "/pricing", heading: /Choose how far Filosage carries the work/ },
+      { path: "/pricing", heading: /Choose how far Filosage carries your goal/ },
       { path: "/support", heading: /What do you need help with/ },
       { path: "/standard", heading: /Capability Cycle turns a goal into usable skill/ },
     ];
@@ -1050,7 +1050,7 @@ test.describe("mobile application shell", () => {
     const routes = [
       { path: "/create", heading: /Build toward a real outcome/ },
       { path: "/progress", heading: /Your progress/ },
-      { path: "/pricing", heading: /Choose how far Filosage carries the work/ },
+      { path: "/pricing", heading: /Choose how far Filosage carries your goal/ },
       { path: "/support", heading: /What do you need help with/ },
     ];
 

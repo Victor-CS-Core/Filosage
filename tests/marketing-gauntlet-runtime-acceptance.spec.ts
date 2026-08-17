@@ -98,6 +98,7 @@ async function shot(page: Page, name: string) {
 }
 
 test("captures production-mode marketing gauntlet acceptance", async ({ browser }) => {
+  test.skip(!process.env.ACCEPTANCE_BASE_URL, "Requires an explicitly started optimized production server.");
   mkdirSync(artifactDir, { recursive: true });
 
   const desktop = await contextFor(browser);

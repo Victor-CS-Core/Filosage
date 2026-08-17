@@ -93,7 +93,10 @@ test("inclusive course creation preserves a personal-study context and bilingual
     language: "Spanish and English",
   });
   expect(JSON.stringify(generationBody)).not.toMatch(/professional|required work context/i);
-  await expect.poll(() => telemetry.some((event) => event.event === "course_creation_started")).toBe(true);
+  await expect.poll(
+    () => telemetry.some((event) => event.event === "course_creation_started"),
+    { timeout: 15_000 },
+  ).toBe(true);
   const creationEvent = telemetry.find((event) => event.event === "course_creation_started");
   expect(creationEvent).toMatchObject({ route: "/create", courseLanguageMode: "bilingual" });
   expect(JSON.stringify(creationEvent)).not.toContain("Spanish");

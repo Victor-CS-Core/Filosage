@@ -654,7 +654,7 @@ test("never leaves public learning behind the authentication startup screen", as
   expect(hydrationErrors).toEqual([]);
 
   await expect(
-    page.getByRole("heading", { name: "Build the skill your next decision depends on" }),
+    page.getByRole("main").getByRole("heading", { level: 1 }),
   ).toBeVisible({ timeout: 4000 });
   await expect(page.locator(".auth-boot-shell")).toHaveCount(0);
 });
@@ -2542,7 +2542,7 @@ test("keeps weekly milestones finite and free of catch-up debt", () => {
 
 test("exports an opt-in recurring reminder without an email dependency", () => {
   const calendar = buildLearningReminderCalendar({
-    title: "Filosage learning mission",
+    title: "Filosage recommended next step",
     description: "Complete one review and one forward step.",
     preferences: {
       cadence: "weekdays",

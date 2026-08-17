@@ -40,6 +40,8 @@ const browserState = (baseURL: string) => ({
 
 export default defineConfig({
   testDir: "./tests",
+  // These suites require the seeded servers defined by their dedicated configs.
+  testIgnore: ["command-center-v2-contract.spec.ts", "command-center-v2-ui.spec.ts"],
   globalTeardown: server.external ? undefined : "./tests/fixtures/playwright-global-teardown.ts",
   metadata: server.external
     ? {}
