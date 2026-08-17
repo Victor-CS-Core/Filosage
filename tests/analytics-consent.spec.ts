@@ -1,7 +1,8 @@
 import { expect, test } from "@playwright/test";
 
 test.beforeEach(async ({ page }) => {
-  await page.addInitScript(() => {
+  await page.goto("/");
+  await page.evaluate(() => {
     localStorage.removeItem("filosage:analytics:consent:v1");
     localStorage.removeItem("filosage:analytics:actor");
     localStorage.removeItem("filosage:analytics:first-touch");
@@ -52,15 +53,28 @@ test("keeps privacy choices reachable on a short mobile viewport", async ({ page
 });
 
 test("analytics can be allowed and later withdrawn from Privacy choices", async ({ page, context }) => {
-  let telemetryCalls = 0;
+  const telemetryRoutes: Array<string | null> = [];
   await context.route("**/api/telemetry", async (route) => {
-    telemetryCalls += 1;
+    let telemetryRoute: string | null = null;
+    try {
+      const payload = route.request().postDataJSON() as unknown;
+      if (typeof payload === "object" && payload !== null && "route" in payload && typeof payload.route === "string") {
+        telemetryRoute = payload.route;
+      }
+    } catch {
+      // Malformed telemetry is recorded and rejected by the assertions below.
+    }
+    telemetryRoutes.push(telemetryRoute);
     await route.fulfill({ status: 204 });
+  });
+  await context.route("**/api/auth/session", async (route) => {
+    await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ user: null }) });
   });
 
   await page.goto("/library");
   await page.getByRole("button", { name: "Allow optional analytics" }).click();
-  await expect.poll(() => telemetryCalls).toBeGreaterThan(0);
+  await expect.poll(() => telemetryRoutes.filter((route) => route !== null).length).toBeGreaterThan(0);
+  expect(telemetryRoutes).not.toContain(null);
   const acceptedStorage = await page.evaluate(() => ({
     consent: localStorage.getItem("filosage:analytics:consent:v1"),
     actor: localStorage.getItem("filosage:analytics:actor"),
@@ -74,7 +88,7 @@ test("analytics can be allowed and later withdrawn from Privacy choices", async 
   await privacyCenter.goto("/privacy-center");
   await privacyCenter.getByRole("button", { name: "Keep analytics off" }).click();
   await expect(privacyCenter.getByText("Optional analytics are off and their browser identifiers were removed.")).toBeVisible();
-  const callsAfterWithdrawal = telemetryCalls;
+  const pricingCallsAfterWithdrawal = telemetryRoutes.filter((route) => route === "/pricing").length;
   expect(await privacyCenter.evaluate(() => ({
     consent: localStorage.getItem("filosage:analytics:consent:v1"),
     actor: localStorage.getItem("filosage:analytics:actor"),
@@ -83,9 +97,29 @@ test("analytics can be allowed and later withdrawn from Privacy choices", async 
   }))).toEqual({ consent: "declined", actor: null, attribution: null, session: null });
   await privacyCenter.close();
 
+  await expect.poll(async () => {
+    try {
+      return await page.evaluate(() => localStorage.getItem("filosage:analytics:consent:v1"));
+    } catch {
+      return "navigation-in-progress";
+    }
+  }).toBe("declined");
+
   const pricing = await context.newPage();
+  const billingStatusReady = pricing.waitForResponse((response) => new URL(response.url()).pathname === "/api/billing/status");
   await pricing.goto("/pricing");
-  await pricing.waitForTimeout(150);
-  expect(telemetryCalls).toBe(callsAfterWithdrawal);
+  await billingStatusReady;
+  await expect(pricing.getByRole("heading", { name: "Choose how far Filosage carries your goal." })).toBeVisible();
+  await expect.poll(async () => {
+    try {
+      return await pricing.evaluate(() => new Promise<"ready">((resolve) => {
+        requestAnimationFrame(() => requestAnimationFrame(() => resolve("ready")));
+      }));
+    } catch {
+      return "navigation-in-progress";
+    }
+  }).toBe("ready");
+  expect(telemetryRoutes).not.toContain(null);
+  expect(telemetryRoutes.filter((route) => route === "/pricing")).toHaveLength(pricingCallsAfterWithdrawal);
   await pricing.close();
 });
