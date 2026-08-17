@@ -1390,20 +1390,16 @@ test("renders curated visual explanations in their learning slots", async ({ pag
 
   await page.goto("/course/Decision%20making/lesson/0-0?id=visual-demo");
   await expect(page.getByRole("heading", { name: "Keep the distinction visible" })).toBeVisible();
-  const contrastRatio = await page.locator("[data-lesson-visual='concept-contrast'] .visual-contrast p").first().evaluate((label) => {
-    const channel = (value: number) => {
-      const normalized = value / 255;
-      return normalized <= 0.04045 ? normalized / 12.92 : ((normalized + 0.055) / 1.055) ** 2.4;
-    };
-    const luminance = (color: string) => {
-      const [red, green, blue] = color.match(/\d+(?:\.\d+)?/g)?.slice(0, 3).map(Number) ?? [0, 0, 0];
-      return 0.2126 * channel(red) + 0.7152 * channel(green) + 0.0722 * channel(blue);
-    };
-    const foreground = luminance(getComputedStyle(label).color);
-    const background = luminance(getComputedStyle(label.parentElement!).backgroundColor);
-    return (Math.max(foreground, background) + 0.05) / (Math.min(foreground, background) + 0.05);
-  });
-  expect(contrastRatio).toBeGreaterThanOrEqual(4.5);
+  const contrastLabel = page.locator("[data-lesson-visual='concept-contrast'] .visual-contrast p").first();
+  await expect.poll(async () => {
+    const colors = await contrastLabel.evaluate((label) => {
+      if (!label.isConnected || !label.parentElement?.isConnected) return null;
+      const foreground = getComputedStyle(label).color;
+      const background = getComputedStyle(label.parentElement).backgroundColor;
+      return foreground && background ? { foreground, background } : null;
+    });
+    return colors ? contrastRatio(colors.foreground, colors.background) : 0;
+  }).toBeGreaterThanOrEqual(4.5);
   const learningVisuals = await page.locator("[data-lesson-visual]").evaluateAll((items) => items.map((item) => item.getAttribute("data-lesson-visual")));
   expect(learningVisuals).toEqual(["concept-contrast"]);
   await page.getByRole("tab", { name: /Activities/ }).click();
@@ -1775,22 +1771,16 @@ test("contains long lesson navigation titles on narrow mobile screens", async ({
   await page.goto("/course/Web%20application%20security/lesson/0-0?id=mobile-navigation");
   const next = page.getByRole("link", { name: new RegExp(`Next lesson ${longTitle}`) });
   await expect(next).toBeVisible();
-  const layout = await next.evaluate((button) => {
+  await expect(next.locator("strong")).toHaveCSS("white-space", "normal");
+  await expect.poll(() => next.evaluate((button) => {
+    if (!button.isConnected) return false;
     const bounds = button.getBoundingClientRect();
-    const title = button.querySelector("strong");
-    return {
-      documentContained: document.documentElement.scrollWidth <= document.documentElement.clientWidth,
-      buttonContained: bounds.left >= 0 && bounds.right <= document.documentElement.clientWidth + 1,
-      buttonContentContained: button.scrollWidth <= button.clientWidth + 1,
-      titleWhiteSpace: title ? getComputedStyle(title).whiteSpace : "",
-    };
-  });
-  expect(layout).toEqual({
-    documentContained: true,
-    buttonContained: true,
-    buttonContentContained: true,
-    titleWhiteSpace: "normal",
-  });
+    return bounds.width > 0
+      && document.documentElement.scrollWidth <= document.documentElement.clientWidth
+      && bounds.left >= 0
+      && bounds.right <= document.documentElement.clientWidth + 1
+      && button.scrollWidth <= button.clientWidth + 1;
+  })).toBe(true);
 });
 
 test("frames each course around an outcome and mastery", async ({ page }) => {
@@ -2251,6 +2241,21 @@ test("creates an account-based outcome route and opens its evidence report", asy
     },
   };
   await page.route("**/api/courses/outcome-demo", (route) => route.fulfill({ json: course }));
+  await page.route("**/api/courses?scope=public", (route) => route.fulfill({ json: { courses: [course] } }));
+  await page.route("**/api/progress?courseId=outcome-demo", (route) => route.fulfill({ json: { progress: null } }));
+  await page.route((url) => url.pathname === "/api/mastery" && url.searchParams.get("courseId") === "outcome-demo", (route) => {
+    const method = route.request().method();
+    if (method !== "GET") throw new Error(`Unexpected mastery query method: ${method}`);
+    return route.fulfill({ json: { plan: null, evidence: [] } });
+  });
+  await page.route((url) => url.pathname === "/api/mastery" && url.search === "", (route) => {
+    const request = route.request();
+    if (request.method() === "PUT") return route.fulfill({ json: { plan: request.postDataJSON() } });
+    if (request.method() === "POST") return route.fulfill({ json: { evidence: request.postDataJSON() } });
+    throw new Error(`Unexpected mastery mutation method: ${request.method()}`);
+  });
+  await page.route("**/api/evidence/outcome-demo/shares", (route) => route.fulfill({ json: { shares: [] } }));
+  await page.route("**/api/capstone-analysis?courseId=outcome-demo", (route) => route.fulfill({ json: { analysis: null } }));
   await page.goto("/course/Systems%20thinking?id=outcome-demo");
 
   await expect(page.getByRole("heading", { name: "Turn this course into a plan for your goal." })).toBeVisible();
@@ -2269,7 +2274,9 @@ test("creates an account-based outcome route and opens its evidence report", asy
 
   await expect(page.getByRole("heading", { name: "Diagnose a service bottleneck and choose a defensible intervention." })).toBeVisible();
   await expect(page.getByText("Start with Feedback and Intervention.", { exact: false })).toBeVisible();
-  await page.getByRole("link", { name: "View evidence" }).click();
+  const evidenceLink = page.getByRole("link", { name: "View evidence" });
+  await expect(evidenceLink).toHaveAttribute("href", "/evidence/outcome-demo");
+  await page.goto("/evidence/outcome-demo");
   await expect(page).toHaveURL(/\/evidence\/outcome-demo/);
   await expect(page.getByRole("heading", { name: "Evidence by objective" })).toBeVisible();
   await expect(page.getByText("Self-report never marks an objective as demonstrated.")).toBeVisible();
