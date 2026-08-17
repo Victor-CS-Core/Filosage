@@ -39,8 +39,11 @@ test("the app trusts Easy Auth headers only when the platform auth resource is c
 test("staging explicitly preserves the closed-billing release boundary", () => {
   expect(stagingWorkflow).toContain('"BILLING_ENABLED=false"');
   expect(stagingWorkflow).toContain("Verify the deployed release safety policy");
-  expect(stagingWorkflow).toContain("az containerapp revision show");
+  expect(stagingWorkflow).toContain("properties.latestRevisionFqdn");
   expect(stagingWorkflow).toContain("steps.deploy_revision.outputs.revision");
+  expect(stagingWorkflow).toContain("steps.deploy_revision.outputs.revision_url");
+  expect(stagingWorkflow).toContain('npm run check:release-safety -- "${{ steps.deploy_revision.outputs.revision_url }}"');
+  expect(stagingWorkflow).not.toContain("properties.template.containers[0].env[?name=='BILLING_ENABLED'].value");
   expect(stagingWorkflow.indexOf("Verify the deployed release safety policy")).toBeLessThan(
     stagingWorkflow.indexOf("Assign verified revision label"),
   );
@@ -49,7 +52,9 @@ test("staging explicitly preserves the closed-billing release boundary", () => {
 test("promotion restores the previous traffic weights when verification fails or is cancelled", () => {
   expect(promotionWorkflow).toContain("Verify the deployed release safety policy");
   expect(promotionWorkflow).toContain("TARGET_REVISION=");
-  expect(promotionWorkflow).toContain("az containerapp revision show");
+  expect(promotionWorkflow).toContain("properties.configuration.ingress.traffic");
+  expect(promotionWorkflow).toContain('npm run check:release-safety -- "$TARGET_URL"');
+  expect(promotionWorkflow).not.toContain("properties.template.containers[0].env[?name=='BILLING_ENABLED'].value");
   expect(promotionWorkflow.indexOf("Verify the deployed release safety policy")).toBeLessThan(
     promotionWorkflow.indexOf("Switch staging traffic"),
   );

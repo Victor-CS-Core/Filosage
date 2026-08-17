@@ -19,6 +19,7 @@
     "eval:command-center": "node --experimental-strip-types scripts/evaluate-command-center-drafts.ts",
     "check:release": "node scripts/check-release-env.mjs",
     "check:production": "node scripts/check-production-health.mjs",
+    "check:release-safety": "node scripts/check-release-safety.mjs",
     "check:support-wiki": "node scripts/check-support-wiki.mjs",
     "seed:local-carousel": "node --experimental-strip-types scripts/seed-local-carousel-courses.ts",
     "test:operations-alert": "node --experimental-strip-types scripts/test-operational-alert.ts",

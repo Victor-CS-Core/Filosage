@@ -62,23 +62,12 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          RESOURCE_GROUP="${{ vars.AZURE_RESOURCE_GROUP }}"
-          APP_NAME="${{ vars.AZURE_CONTAINER_APP_NAME }}"
-          TARGET_REVISION="$(az containerapp show --resource-group "$RESOURCE_GROUP" --name "$APP_NAME" --query "properties.configuration.ingress.traffic[?label=='${TARGET_SLOT}'].revisionName | [0]" --output tsv)"
+          TARGET_REVISION="$(az containerapp show --resource-group "${{ vars.AZURE_RESOURCE_GROUP }}" --name "${{ vars.AZURE_CONTAINER_APP_NAME }}" --query "properties.configuration.ingress.traffic[?label=='${TARGET_SLOT}'].revisionName | [0]" --output tsv)"
           if [[ -z "$TARGET_REVISION" ]]; then
             echo "The selected label does not resolve to a revision."
             exit 1
           fi
-          BILLING_STATE="$(az containerapp revision show --resource-group "$RESOURCE_GROUP" --name "$APP_NAME" --revision "$TARGET_REVISION" --query "properties.template.containers[0].env[?name=='BILLING_ENABLED'].value | [0]" --output tsv)"
-          EASY_AUTH_STATE="$(az containerapp revision show --resource-group "$RESOURCE_GROUP" --name "$APP_NAME" --revision "$TARGET_REVISION" --query "properties.template.containers[0].env[?name=='AZURE_EASY_AUTH_ENABLED'].value | [0]" --output tsv)"
-          SUBSCRIPTION_ID="$(az account show --query id --output tsv)"
-          AUTH_URL="https://management.azure.com/subscriptions/${SUBSCRIPTION_ID}/resourceGroups/${RESOURCE_GROUP}/providers/Microsoft.App/containerApps/${APP_NAME}/authConfigs/current?api-version=2025-01-01"
-          AUTH_ENABLED="$(az rest --method get --url "$AUTH_URL" --query properties.platform.enabled --output tsv)"
-          GOOGLE_ENABLED="$(az rest --method get --url "$AUTH_URL" --query properties.identityProviders.google.enabled --output tsv)"
-          if [[ "$BILLING_STATE" != "false" || "$EASY_AUTH_STATE" != "true" || "$AUTH_ENABLED" != "true" || "$GOOGLE_ENABLED" != "true" ]]; then
-            echo "Release safety policy failed: billing must be closed and Google Easy Auth must be active."
-            exit 1
-          fi
+          npm run check:release-safety -- "$TARGET_URL"
 
       - name: Capture current traffic weights
         id: capture_traffic

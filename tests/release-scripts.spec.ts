@@ -5,6 +5,7 @@ import { expect, test } from "@playwright/test";
 const root = process.cwd();
 const releaseScript = resolve(root, "scripts/check-release-env.mjs");
 const healthScript = resolve(root, "scripts/check-production-health.mjs");
+const safetyScript = resolve(root, "scripts/check-release-safety.mjs");
 
 const validReleaseEnvironment = {
   ...process.env,
@@ -73,6 +74,22 @@ test("release checks bind Azure and production health to one full Git SHA", () =
   });
   expect(abbreviatedExpectedVersion.status).toBe(1);
   expect(abbreviatedExpectedVersion.stderr).toContain("full 40-character Git commit SHA");
+
+  const missingSafetyTarget = spawnSync(process.execPath, [safetyScript], {
+    cwd: root,
+    env: process.env,
+    encoding: "utf8",
+  });
+  expect(missingSafetyTarget.status).toBe(1);
+  expect(missingSafetyTarget.stderr).toContain("Provide the deployed revision or slot URL");
+
+  const unsafeSafetyTarget = spawnSync(process.execPath, [safetyScript, "http://release.example"], {
+    cwd: root,
+    env: process.env,
+    encoding: "utf8",
+  });
+  expect(unsafeSafetyTarget.status).toBe(1);
+  expect(unsafeSafetyTarget.stderr).toContain("must be an HTTPS origin");
 });
 
 test("billing activation requires every Plus and Pro Stripe price", () => {
