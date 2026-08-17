@@ -971,7 +971,6 @@ test("reads a lesson aloud from the toolbar speaker", async ({ page }) => {
   await page.route("**/api/courses/demo", (route) => route.fulfill({ json: course }));
   await page.route("**/api/courses/demo/lessons/0-0", (route) => route.fulfill({ json: lesson }));
   await page.goto("/course/Systems%20thinking/lesson/0-0?id=demo");
-  await page.waitForLoadState("networkidle");
 
   const speaker = page.getByRole("button", { name: "Read this lesson aloud" });
   const speechControl = page.locator("button.speak-button");
