@@ -1,5 +1,6 @@
 import { createServer } from "node:http";
 import { mkdirSync, writeFileSync } from "node:fs";
+import { createRequire } from "node:module";
 import { dirname, join, relative, resolve, sep } from "node:path";
 import next from "next";
 import {
@@ -9,6 +10,40 @@ import {
 
 const hostname = process.env.HOSTNAME ?? "127.0.0.1";
 const port = Number(process.env.PORT);
+const require = createRequire(import.meta.url);
+
+const hmrSocketMarker = Symbol("filosage-playwright-hmr");
+const suppressedHmrTypes = new Set([
+  "addedPage",
+  "building",
+  "clientChanges",
+  "devPagesManifestUpdate",
+  "middlewareChanges",
+  "reloadPage",
+  "removedPage",
+  "serverComponentChanges",
+  "serverOnlyChanges",
+]);
+const WebSocket = require("next/dist/compiled/ws");
+const originalWebSocketSend = WebSocket.prototype.send;
+WebSocket.prototype.send = function sendWithoutTestReloads(data, options, callback) {
+  if (this._socket?.[hmrSocketMarker] && typeof data === "string") {
+    let message;
+    try {
+      message = JSON.parse(data);
+    } catch {
+      message = null;
+    }
+    const suppress = suppressedHmrTypes.has(message?.type)
+      || (message?.type === "built" && !message.errors?.length);
+    if (suppress) {
+      const complete = typeof options === "function" ? options : callback;
+      if (complete) queueMicrotask(() => complete());
+      return;
+    }
+  }
+  return originalWebSocketSend.call(this, data, options, callback);
+};
 
 if (!Number.isInteger(port) || port < 1 || port > 65_535) {
   throw new Error(`PORT must be an integer from 1 to 65535; received ${JSON.stringify(process.env.PORT)}.`);
@@ -53,10 +88,27 @@ writeFileSync(testTsconfigPath, `${JSON.stringify({
 }, null, 2)}\n`);
 process.env.FILOSAGE_NEXT_TSCONFIG_PATH = relative(process.cwd(), testTsconfigPath).replaceAll(sep, "/");
 
+let nextUpgradeHandler;
+const upgradeHandlerRegistry = {
+  on(eventName, handler) {
+    if (eventName !== "upgrade") {
+      throw new Error(`Unexpected Next.js server event registration: ${JSON.stringify(eventName)}.`);
+    }
+    nextUpgradeHandler = handler;
+    return this;
+  },
+};
+
 const app = next({
   dev: true,
   hostname,
   port,
+  // Next's development client normally receives HMR messages whenever a new
+  // route is compiled. During a Playwright run no source files are edited, and
+  // those messages can reload the page being left while WebKit is navigating
+  // to the newly compiled route. Register the upgrade handler through a gate
+  // so the test server can keep HMR sockets open without forwarding reloads.
+  httpServer: upgradeHandlerRegistry,
   // Isolated worktrees may share node_modules through a directory link.
   // Turbopack rejects links outside its root, so every owned test server uses
   // webpack rather than making only seeded suites work in isolation.
@@ -75,6 +127,21 @@ const server = createServer(async (request, response) => {
   }
 });
 
+const hmrSockets = new Set();
+server.on("upgrade", (request, socket, head) => {
+  const requestUrl = new URL(request.url ?? "/", `http://${hostname}:${port}`);
+  if (requestUrl.pathname === "/_next/webpack-hmr" && nextUpgradeHandler) {
+    socket[hmrSocketMarker] = true;
+    hmrSockets.add(socket);
+    socket.once("close", () => hmrSockets.delete(socket));
+    socket.once("error", () => hmrSockets.delete(socket));
+    nextUpgradeHandler(request, socket, head);
+    return;
+  }
+  if (nextUpgradeHandler) nextUpgradeHandler(request, socket, head);
+  else socket.destroy();
+});
+
 await new Promise((resolve, reject) => {
   server.once("error", reject);
   server.listen(port, hostname, () => {
@@ -84,6 +151,8 @@ await new Promise((resolve, reject) => {
 });
 
 installPlaywrightServerLifecycle(async () => {
+  for (const socket of hmrSockets) socket.destroy();
+  hmrSockets.clear();
   await new Promise((resolve, reject) => {
     server.close((error) => error ? reject(error) : resolve());
     server.closeAllConnections();

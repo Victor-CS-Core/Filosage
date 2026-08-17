@@ -324,6 +324,18 @@ test("fits the required desktop, tablet, and mobile viewport matrix", async ({ p
     const dialog = page.getByRole("dialog", { name: "Support center" });
     await expect(dialog).toBeVisible();
     await expect(dialog).toHaveAttribute("data-state", "open");
+    if (viewport.width > 900) {
+      await expect.poll(async () => dialog.evaluate((element) => {
+        const rect = element.getBoundingClientRect();
+        return {
+          rightInset: Math.round(window.innerWidth - rect.right),
+          bottomInset: Math.round(window.innerHeight - rect.bottom),
+        };
+      }), { message: `Support Center should settle at the floating inset for ${viewport.width}x${viewport.height}.` }).toEqual({
+        rightInset: 24,
+        bottomInset: 88,
+      });
+    }
     const geometry = await dialog.evaluate((element) => {
       const rect = element.getBoundingClientRect();
       const navigation = document.querySelector<HTMLElement>(".mobile-bottom-nav");

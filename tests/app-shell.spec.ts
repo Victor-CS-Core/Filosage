@@ -289,7 +289,7 @@ test.describe("desktop application shell", () => {
     const moveHandle = shelf.getByRole("button", { name: "Move My courses window" });
     await expect(shelf).toHaveAttribute("data-motion-settled", "true");
     await expect(moveHandle).toBeVisible();
-    expect(await moveHandle.evaluate((handle) => {
+    await expect.poll(() => moveHandle.evaluate((handle) => {
       const rect = handle.getBoundingClientRect();
       const hit = document.elementFromPoint(rect.left + rect.width / 2, rect.top + rect.height / 2);
       return hit === handle || handle.contains(hit);
@@ -470,6 +470,7 @@ test.describe("desktop application shell", () => {
   });
 
   test("cycles the held card through the pile in either direction without stealing nested keyboard input", async ({ page }, testInfo) => {
+    test.setTimeout(60_000);
     await prepareOwnerShell(page, [...learningProgress, secondLearningProgress, thirdLearningProgress]);
     await page.goto("/");
 
@@ -517,6 +518,7 @@ test.describe("desktop application shell", () => {
       const face = card.querySelector<HTMLElement>(".course-deck-card-face");
       return {
         id: (card as HTMLElement).dataset.courseId ?? "",
+        instance: (card as HTMLElement).dataset.deckInstance ?? "canonical",
         position: Number((card as HTMLElement).dataset.position),
         left: rect.left,
         right: rect.right,
@@ -654,6 +656,8 @@ test.describe("desktop application shell", () => {
       expect(nextLayers.find((card) => card.id === "morse-shell-course")?.zIndex).toBe(3);
       expect(nextLayers.find((card) => card.id === "decision-shell-course")?.zIndex).toBe(2);
       expect(nextLayers.find((card) => card.id === "systems-shell-course")?.zIndex).toBe(1);
+      expect(Math.abs((nextLayers.find((card) => card.id === "decision-shell-course")?.scale ?? 0) - 1)).toBeLessThan(0.001);
+      expect(Math.abs((nextLayers.find((card) => card.id === "systems-shell-course")?.scale ?? 0) - 1)).toBeLessThan(0.001);
       await page.mouse.move(startX, startY, { steps: 18 });
       await page.waitForTimeout(100);
       await page.mouse.up();
@@ -677,6 +681,7 @@ test.describe("desktop application shell", () => {
       const incomingNextCard = nextHandoffLayers.find((card) => card.id === "decision-shell-course");
       expect(outgoingNextCard?.zIndex).toBe(0);
       expect(incomingNextCard?.zIndex).toBe(3);
+      expect(nextHandoffLayers.find((card) => card.id === "systems-shell-course")?.zIndex).toBe(2);
       expect(outgoingNextCard?.opacity ?? 1).toBeLessThan(0.99);
       expect(outgoingNextCard?.scale ?? 1).toBeLessThan(0.995);
       expect(incomingNextCard?.hasSpine).toBe(false);
@@ -702,45 +707,93 @@ test.describe("desktop application shell", () => {
       await page.mouse.down();
       await page.mouse.move(decisionX + decisionBox.width * 0.15, decisionY, { steps: 8 });
       await page.evaluate(() => new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))));
-      await expect(page.locator(".course-deck-viewport")).toHaveAttribute("data-direction", "previous");
-      await expectDeckSelection(1);
-      const heldPrevious = await decisionCard.boundingBox();
-      if (!heldPrevious) throw new Error("Course Deck backward-held card is not measurable.");
-      expect(Math.abs((heldPrevious.x - decisionBox.x) - (decisionBox.width * 0.15)), JSON.stringify({ decisionBox, heldPrevious, viewport })).toBeLessThan(6);
-      const previousLayers = await inspectPaintedPile();
-      expectDistinctOverlapLayers(previousLayers);
-      expect(previousLayers.find((card) => card.id === "decision-shell-course")?.zIndex).toBe(3);
-      expect(previousLayers.find((card) => card.id === "morse-shell-course")?.zIndex).toBe(2);
-      expect(previousLayers.find((card) => card.id === "systems-shell-course")?.zIndex).toBe(1);
-      await page.mouse.move(decisionX + decisionBox.width * 0.58, decisionY, { steps: 12 });
+    await expect(page.locator(".course-deck-viewport")).toHaveAttribute("data-direction", "previous");
+    await expectDeckSelection(1);
+    const heldPrevious = await decisionCard.boundingBox();
+    if (!heldPrevious) throw new Error("Course Deck backward-held card is not measurable.");
+    expect(heldPrevious.x, JSON.stringify({ decisionBox, heldPrevious, viewport })).toBeGreaterThan(decisionBox.x);
+    expect(heldPrevious.x, JSON.stringify({ decisionBox, heldPrevious, viewport })).toBeLessThan(postCycle[1].left);
+    const previousLayers = await inspectPaintedPile();
+    expectDistinctOverlapLayers(previousLayers);
+    const earlyCurrentCard = previousLayers.find((card) => card.id === "decision-shell-course" && card.instance === "canonical");
+    const earlyRearCard = previousLayers.find((card) => card.id === "systems-shell-course" && card.instance === "canonical");
+    const earlyExitingCard = previousLayers.find((card) => card.id === "morse-shell-course" && card.instance === "canonical");
+    const earlyWrapCard = previousLayers.find((card) => card.id === "morse-shell-course" && card.instance === "wrap");
+    expect(earlyCurrentCard?.zIndex).toBe(3);
+    expect(earlyRearCard?.zIndex).toBe(2);
+    expect(earlyExitingCard?.zIndex).toBe(1);
+    expect(earlyWrapCard?.zIndex).toBe(0);
+    expect(earlyWrapCard?.left ?? Number.POSITIVE_INFINITY).toBeLessThan(decisionBox.x);
+    expect(earlyRearCard?.left ?? Number.NEGATIVE_INFINITY).toBeGreaterThan(postCycle[1].left);
+    expect(earlyExitingCard?.left ?? Number.NEGATIVE_INFINITY).toBeGreaterThan(postCycle[2].left);
+
+    await page.mouse.move(decisionX + decisionBox.width * 0.42, decisionY, { steps: 8 });
+    await page.evaluate(() => new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))));
+    const previousCrossoverLayers = await inspectPaintedPile();
+    expectDistinctOverlapLayers(previousCrossoverLayers);
+    const crossedCurrentCard = previousCrossoverLayers.find((card) => card.id === "decision-shell-course" && card.instance === "canonical");
+    const crossedRearCard = previousCrossoverLayers.find((card) => card.id === "systems-shell-course" && card.instance === "canonical");
+    const crossedExitingCard = previousCrossoverLayers.find((card) => card.id === "morse-shell-course" && card.instance === "canonical");
+    const crossedWrapCard = previousCrossoverLayers.find((card) => card.id === "morse-shell-course" && card.instance === "wrap");
+    expect(crossedCurrentCard?.zIndex).toBe(3);
+    expect(crossedRearCard?.zIndex).toBe(2);
+    expect(crossedExitingCard?.zIndex).toBe(1);
+    expect(crossedWrapCard?.zIndex).toBe(0);
+    expect(crossedCurrentCard?.left ?? Number.NEGATIVE_INFINITY).toBeGreaterThan(earlyCurrentCard?.left ?? Number.POSITIVE_INFINITY);
+    expect(crossedRearCard?.left ?? Number.NEGATIVE_INFINITY).toBeGreaterThan(earlyRearCard?.left ?? Number.POSITIVE_INFINITY);
+    expect(crossedExitingCard?.left ?? Number.NEGATIVE_INFINITY).toBeGreaterThan(earlyExitingCard?.left ?? Number.POSITIVE_INFINITY);
+    expect(crossedWrapCard?.left ?? Number.NEGATIVE_INFINITY).toBeGreaterThan(earlyWrapCard?.left ?? Number.POSITIVE_INFINITY);
+
+    await page.mouse.move(decisionX + decisionBox.width * 0.58, decisionY, { steps: 8 });
       await page.evaluate(() => new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))));
       await page.waitForTimeout(60);
       const previousHandoffLayers = await inspectPaintedPile();
       expectDistinctOverlapLayers(previousHandoffLayers);
-      const outgoingPreviousCard = previousHandoffLayers.find((card) => card.id === "decision-shell-course");
-      const incomingPreviousCard = previousHandoffLayers.find((card) => card.id === "morse-shell-course");
-      expect(outgoingPreviousCard?.zIndex).toBe(0);
-      expect(incomingPreviousCard?.zIndex).toBe(3);
-      expect(outgoingPreviousCard?.opacity ?? 1).toBeLessThan(0.99);
-      expect(outgoingPreviousCard?.scale ?? 1).toBeLessThan(0.995);
-      expect(Math.abs((outgoingPreviousCard?.opacity ?? 0) - (outgoingNextCard?.opacity ?? 1))).toBeLessThan(0.02);
-      expect(Math.abs((outgoingPreviousCard?.scale ?? 0) - (outgoingNextCard?.scale ?? 1))).toBeLessThan(0.01);
-      expect(Math.abs(Math.abs(outgoingPreviousCard?.rotation ?? 0) - Math.abs(outgoingNextCard?.rotation ?? 0))).toBeLessThan(0.1);
-      expect(Math.sign(outgoingPreviousCard?.rotation ?? 0)).toBe(-Math.sign(outgoingNextCard?.rotation ?? 0));
-      expect(Math.abs(
-        ((outgoingPreviousCard?.left ?? 0) - decisionBox.x)
-        - (start.x - (outgoingNextCard?.left ?? 0)),
-      )).toBeLessThan(10);
-      expect(outgoingPreviousCard?.left ?? 0).toBeGreaterThan(incomingPreviousCard?.left ?? Number.POSITIVE_INFINITY);
-      expect(incomingPreviousCard?.hasSpine).toBe(false);
-      expect(incomingPreviousCard?.hasFullFace).toBe(true);
+    const rotatingCurrentCard = previousHandoffLayers.find((card) => card.id === "decision-shell-course" && card.instance === "canonical");
+    const rotatingRearCard = previousHandoffLayers.find((card) => card.id === "systems-shell-course" && card.instance === "canonical");
+    const exitingPreviousCard = previousHandoffLayers.find((card) => card.id === "morse-shell-course" && card.instance === "canonical");
+    const incomingPreviousCard = previousHandoffLayers.find((card) => card.id === "morse-shell-course" && card.instance === "wrap");
+    expect(incomingPreviousCard?.zIndex).toBe(3);
+    expect(rotatingCurrentCard?.zIndex).toBe(2);
+    expect(rotatingRearCard?.zIndex).toBe(1);
+    expect(exitingPreviousCard?.zIndex).toBe(0);
+    expect(rotatingCurrentCard?.opacity).toBe(1);
+    expect(rotatingCurrentCard?.scale).toBeCloseTo(1, 3);
+    expect(incomingPreviousCard?.left ?? Number.POSITIVE_INFINITY).toBeLessThan(rotatingCurrentCard?.left ?? Number.NEGATIVE_INFINITY);
+    expect(incomingPreviousCard?.hasSpine).toBe(false);
+    expect(incomingPreviousCard?.hasFullFace).toBe(true);
       if (process.env.CAPTURE_DASHBOARD === "1" && viewport.width === 1366) {
         await page.screenshot({ path: ".impeccable/review/course-deck-stack-motion-previous-desktop.png", fullPage: true });
       }
-      await page.mouse.up();
+    await page.mouse.up();
+    await waitForDeckToSettle(page);
+    await expectDeckSelection(0);
+    await expect(page.locator(".course-deck-card[data-deck-instance='wrap']")).toHaveCount(0);
+    }
+
+    if (testInfo.project.name === "chromium") {
+      await page.setViewportSize({ width: 1366, height: 900 });
+      await deck.focus();
+      await deck.press("Home");
       await waitForDeckToSettle(page);
       await expectDeckSelection(0);
+      const spinCard = page.locator(".course-deck-card.is-active");
+      const spinBox = await spinCard.boundingBox();
+      if (!spinBox) throw new Error("Course Deck spin card is not measurable.");
+      const spinStartX = spinBox.x + Math.min(spinBox.width * 0.42, 180);
+      const spinY = spinBox.y + Math.min(spinBox.height * 0.35, 190);
+      await page.mouse.move(spinStartX, spinY);
+      await page.mouse.down();
+      await page.mouse.move(spinStartX + 18, spinY);
+      await page.waitForTimeout(8);
+      await page.mouse.move(spinStartX + 90, spinY);
+      await page.mouse.up();
+      await expect(page.locator(".course-deck-viewport")).toHaveAttribute("data-direction", "previous");
+      await waitForDeckToSettle(page);
+      await expectDeckSelection(1);
+      await expect(page.locator(".course-deck-card[data-deck-instance='wrap']")).toHaveCount(0);
     }
+
     await expect(page).toHaveURL(/\/$/);
     await expectNoHorizontalPageOverflow(page);
   });
