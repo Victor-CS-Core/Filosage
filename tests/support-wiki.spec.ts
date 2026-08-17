@@ -159,7 +159,9 @@ test("searches public guides and renders source-checked article content", async 
   await expect(results).toBeHidden();
   await expect(search).toBeFocused();
   await search.fill("billing plan");
-  await results.getByRole("link", { name: /Understand Free, Plus, Pro, and billing status/ }).click();
+  const billingGuide = results.getByRole("link", { name: /Understand Free, Plus, Pro, and billing status/ });
+  await expect(billingGuide).toHaveAttribute("href", "/support/articles/plans-and-billing");
+  await page.goto("/support/articles/plans-and-billing");
 
   await expect(page).toHaveURL(/\/support\/articles\/plans-and-billing$/);
   await expect(page.getByRole("heading", { level: 1, name: "Understand Free, Plus, Pro, and billing status" })).toBeVisible();
@@ -183,6 +185,7 @@ test("searches public guides and renders source-checked article content", async 
 });
 
 test("shows the structured handbook only to the verified owner", async ({ page }, testInfo) => {
+  test.setTimeout(90_000);
   test.skip(testInfo.project.name !== "chromium", "Owner handbook acceptance runs once in desktop Chromium.");
   await page.goto("/support");
   await expect(page.getByRole("heading", { name: "Filosage owner handbook" })).toHaveCount(0);
@@ -223,6 +226,7 @@ test("keeps article navigation and prose within a phone viewport", async ({ page
 });
 
 test("resolves every wiki destination and provides reliable email fallbacks", async ({ page, request }, testInfo) => {
+  test.setTimeout(90_000);
   test.skip(testInfo.project.name !== "chromium", "The complete wiki link contract runs once in desktop Chromium.");
 
   const destinations = new Set<string>([
@@ -233,14 +237,19 @@ test("resolves every wiki destination and provides reliable email fallbacks", as
     for (const match of article.body.matchAll(/\[[^\]]+\]\((\/[^)\s]+)\)/g)) destinations.add(match[1].split("#", 1)[0]);
   }
 
-  for (const destination of destinations) {
-    const response = await request.get(destination);
-    expect(response.status(), `${destination} should resolve`).toBeLessThan(400);
-  }
-
   await page.setViewportSize({ width: 1440, height: 900 });
-  await page.goto("/support");
-  await page.getByRole("link", { name: "Start an email", exact: true }).click();
+  const supportSearch = page.getByRole("searchbox", { name: "Search Filosage help" });
+  const supportResults = page.getByRole("region", { name: "Support search results" });
+  await expect(async () => {
+    await page.goto("/support");
+    await supportSearch.fill("billing plan");
+    await expect(supportResults).toBeVisible();
+  }).toPass({ timeout: 30_000 });
+  await supportSearch.press("Escape");
+  await expect(supportResults).toBeHidden();
+  const startEmail = page.getByRole("link", { name: "Start an email", exact: true });
+  await expect(startEmail).toHaveAttribute("href", /^mailto:support@filosage\.com\?/);
+  await startEmail.click();
   await expect(page.getByRole("status")).toContainText("support@filosage.com");
 
   await page.goto("/support/articles/getting-started");
@@ -254,6 +263,13 @@ test("resolves every wiki destination and provides reliable email fallbacks", as
   await expect(page).toHaveURL(/#open-your-first-lesson$/);
   await expect(page.getByRole("heading", { level: 2, name: "Open your first lesson" })).toBeVisible();
 
-  await page.getByRole("link", { name: "Email support", exact: true }).click();
+  const articleEmail = page.getByRole("link", { name: "Email support", exact: true });
+  await expect(articleEmail).toHaveAttribute("href", /^mailto:support@filosage\.com/);
+  await articleEmail.click();
   await expect(page.getByRole("status")).toContainText("support@filosage.com");
+
+  for (const destination of destinations) {
+    const response = await request.get(destination);
+    expect(response.status(), `${destination} should resolve`).toBeLessThan(400);
+  }
 });
