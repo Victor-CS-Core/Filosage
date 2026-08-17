@@ -188,9 +188,9 @@ test("pricing and unavailable shared evidence states pass automated accessibilit
   await page.goto("/pricing");
   expect((await new AxeBuilder({ page }).include("main").analyze()).violations).toEqual([]);
 
-  await page.goto("/evidence/shared/invalid");
   await page.evaluate(() => localStorage.removeItem("filosage:analytics:consent:v1"));
-  await page.reload();
+  await page.goto("/evidence/shared/invalid");
+  await expect(page.getByRole("heading", { name: "This report is no longer available." })).toBeVisible();
   await expect(page.locator(".analytics-consent")).toHaveCount(0);
   expect((await new AxeBuilder({ page }).include("main").analyze()).violations).toEqual([]);
 });
