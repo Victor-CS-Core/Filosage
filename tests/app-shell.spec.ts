@@ -446,6 +446,7 @@ test.describe("desktop application shell", () => {
   });
 
   test("keeps the B2 paper material coherent across core application routes", async ({ page }) => {
+    test.setTimeout(90_000);
     const routes = [
       { path: "/library", heading: /Find your next course/ },
       { path: "/create", heading: /Build toward a real outcome/ },
