@@ -88,7 +88,7 @@ export function invalidPlaywrightSuiteSelector(selector: string) {
   return !selector.startsWith("-") && selector.includes(".spec.ts") && !suitePathFromSelector(selector);
 }
 
-const playwrightOptionsWithSeparateValues = new Set(["--grep", "-g", "--grep-invert"]);
+const playwrightOptionsWithSeparateValues = new Set(["--grep", "-g", "--grep-invert", "-G"]);
 
 export function classifyPlaywrightSuiteArguments(arguments_: readonly string[]) {
   const selectors: Array<{ argument: string; path: string }> = [];

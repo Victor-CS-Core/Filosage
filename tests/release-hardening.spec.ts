@@ -102,6 +102,15 @@ test("every Playwright spec belongs to exactly one execution lane", async () => 
   expect(dedicatedSuites).toHaveLength(3);
 });
 
+test("keeps separate-value Playwright grep options out of suite routing", async () => {
+  const { classifyPlaywrightSuiteArguments } = await import("../scripts/playwright-suite-manifest.ts");
+  expect(classifyPlaywrightSuiteArguments(["-G", "marketing-gauntlet.spec.ts", "--list"])).toEqual({
+    invalidSelectors: [],
+    optionArgs: ["-G", "marketing-gauntlet.spec.ts", "--list"],
+    selectors: [],
+  });
+});
+
 test("the browser matrix starts only one isolated Next server at a time", () => {
   expect(packageJson.scripts["test:e2e"]).toBe(
     "node --experimental-strip-types scripts/run-playwright-suites.mjs",
