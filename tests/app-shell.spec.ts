@@ -289,7 +289,7 @@ test.describe("desktop application shell", () => {
     const moveHandle = shelf.getByRole("button", { name: "Move My courses window" });
     await expect(shelf).toHaveAttribute("data-motion-settled", "true");
     await expect(moveHandle).toBeVisible();
-    expect(await moveHandle.evaluate((handle) => {
+    await expect.poll(() => moveHandle.evaluate((handle) => {
       const rect = handle.getBoundingClientRect();
       const hit = document.elementFromPoint(rect.left + rect.width / 2, rect.top + rect.height / 2);
       return hit === handle || handle.contains(hit);

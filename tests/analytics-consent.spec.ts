@@ -5,7 +5,7 @@ test.beforeEach(async ({ page }) => {
     localStorage.removeItem("filosage:analytics:consent:v1");
     localStorage.removeItem("filosage:analytics:actor");
     localStorage.removeItem("filosage:analytics:first-touch");
-    sessionStorage.clear();
+    sessionStorage.removeItem("filosage:analytics:session");
   });
 });
 

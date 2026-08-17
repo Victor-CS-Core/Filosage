@@ -1,6 +1,15 @@
 import "server-only";
 
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import {
+  closeSync,
+  existsSync,
+  mkdirSync,
+  openSync,
+  readFileSync,
+  renameSync,
+  unlinkSync,
+  writeFileSync,
+} from "node:fs";
 import { dirname, join } from "node:path";
 import {
   fromFirestoreFields,
@@ -21,26 +30,70 @@ const STORE_PATH = join(process.cwd(), process.env.FILOSAGE_LOCAL_DIR ?? ".filos
 
 type StoreShape = Record<string, Record<string, unknown>>;
 
-let cache: StoreShape | null = null;
-
 function load(): StoreShape {
   // Next can bundle API routes into separate server module instances. Reloading
   // the development store for each operation prevents one route's stale
   // in-memory snapshot from hiding or overwriting a write made by another.
   try {
-    cache = existsSync(STORE_PATH)
+    return existsSync(STORE_PATH)
       ? JSON.parse(readFileSync(STORE_PATH, "utf8")) as StoreShape
       : {};
   } catch {
-    cache = {};
+    return {};
   }
-  return cache;
 }
 
-function persist() {
-  if (!cache) return;
+function persist(store: StoreShape) {
   mkdirSync(dirname(STORE_PATH), { recursive: true });
-  writeFileSync(STORE_PATH, JSON.stringify(cache, null, 2));
+  const temporaryPath = `${STORE_PATH}.${process.pid}.${crypto.randomUUID()}.tmp`;
+  writeFileSync(temporaryPath, JSON.stringify(store, null, 2));
+  renameSync(temporaryPath, STORE_PATH);
+}
+
+async function mutateStore<T>(mutation: (store: StoreShape) => T): Promise<T> {
+  mkdirSync(dirname(STORE_PATH), { recursive: true });
+  const lockPath = `${STORE_PATH}.lock`;
+  const deadline = Date.now() + 10_000;
+  let lockDescriptor: number;
+  while (true) {
+    try {
+      lockDescriptor = openSync(lockPath, "wx");
+      break;
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== "EEXIST" || Date.now() >= deadline) throw error;
+      await new Promise((resolve) => setTimeout(resolve, 5));
+    }
+  }
+
+  let result: T | undefined;
+  let mutationError: unknown;
+  let mutationFailed = false;
+  try {
+    const store = load();
+    result = mutation(store);
+    persist(store);
+  } catch (error) {
+    mutationFailed = true;
+    mutationError = error;
+  }
+
+  let cleanupError: unknown;
+  try {
+    closeSync(lockDescriptor);
+  } catch (error) {
+    cleanupError = error;
+  }
+  try {
+    unlinkSync(lockPath);
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code !== "ENOENT" && cleanupError === undefined) {
+      cleanupError = error;
+    }
+  }
+
+  if (mutationFailed) throw mutationError;
+  if (cleanupError !== undefined) throw cleanupError;
+  return result as T;
 }
 
 function documentName(path: string) {
@@ -178,7 +231,6 @@ export async function localFirestoreJson<T>(
   init: RequestInit = {},
   allowNotFound = false,
 ): Promise<T | null> {
-  const store = load();
   const method = (init.method ?? "GET").toUpperCase();
   const body = typeof init.body === "string" ? JSON.parse(init.body) as Record<string, unknown> : {};
 
@@ -186,6 +238,7 @@ export async function localFirestoreJson<T>(
     return { transaction: `local-${crypto.randomUUID()}` } as T;
   }
   if (path === "/documents:batchGet") {
+    const store = load();
     const transaction = `local-${crypto.randomUUID()}`;
     const documents = (body.documents as string[] | undefined) ?? [];
     return documents.map((name, index) => {
@@ -198,18 +251,21 @@ export async function localFirestoreJson<T>(
     }) as T;
   }
   if (path === "/documents:commit") {
-    for (const write of (body.writes as Array<Record<string, unknown>> | undefined) ?? []) {
-      applyWrite(store, write);
-    }
-    persist();
-    return {} as T;
+    return mutateStore((store) => {
+      for (const write of (body.writes as Array<Record<string, unknown>> | undefined) ?? []) {
+        applyWrite(store, write);
+      }
+      return {} as T;
+    });
   }
   if (path === "/documents:rollback") return {} as T;
   if (path === "/documents:runQuery") {
+    const store = load();
     const rows = runQuery(store, body.structuredQuery as StructuredQuery);
     return rows.map((row) => ({ document: toDocument(row.path, row.data) })) as T;
   }
   if (path === "/documents:runAggregationQuery") {
+    const store = load();
     const structured = (body.structuredAggregationQuery as { structuredQuery?: StructuredQuery } | undefined)?.structuredQuery;
     const rows = runQuery(store, structured ?? {});
     return [{ result: { aggregateFields: { total: { integerValue: String(rows.length) } } } }] as T;
@@ -220,6 +276,7 @@ export async function localFirestoreJson<T>(
   const documentPath = decodePath(rawPath);
 
   if (method === "GET") {
+    const store = load();
     // Even segment counts address documents; odd counts address collections.
     if (segmentCount(documentPath) % 2 === 0) {
       const data = store[documentPath];
@@ -235,25 +292,27 @@ export async function localFirestoreJson<T>(
   }
 
   if (method === "PATCH") {
-    const incoming = fromFirestoreFields((body.fields as Record<string, FirestoreValue>) ?? {});
-    const masks = search.getAll("updateMask.fieldPaths");
-    if (masks.length) {
-      const current = { ...(store[documentPath] ?? {}) };
-      for (const field of masks) current[field] = incoming[field];
-      store[documentPath] = current;
-    } else {
-      store[documentPath] = incoming;
-    }
-    persist();
-    return toDocument(documentPath, store[documentPath]) as T;
+    return mutateStore((store) => {
+      const incoming = fromFirestoreFields((body.fields as Record<string, FirestoreValue>) ?? {});
+      const masks = search.getAll("updateMask.fieldPaths");
+      if (masks.length) {
+        const current = { ...(store[documentPath] ?? {}) };
+        for (const field of masks) current[field] = incoming[field];
+        store[documentPath] = current;
+      } else {
+        store[documentPath] = incoming;
+      }
+      return toDocument(documentPath, store[documentPath]) as T;
+    });
   }
 
   if (method === "POST") {
-    const id = search.get("documentId") ?? crypto.randomUUID();
-    const createdPath = `${documentPath}/${id}`;
-    store[createdPath] = fromFirestoreFields((body.fields as Record<string, FirestoreValue>) ?? {});
-    persist();
-    return toDocument(createdPath, store[createdPath]) as T;
+    return mutateStore((store) => {
+      const id = search.get("documentId") ?? crypto.randomUUID();
+      const createdPath = `${documentPath}/${id}`;
+      store[createdPath] = fromFirestoreFields((body.fields as Record<string, FirestoreValue>) ?? {});
+      return toDocument(createdPath, store[createdPath]) as T;
+    });
   }
 
   throw new Error(`Local store does not support ${method} ${path}.`);

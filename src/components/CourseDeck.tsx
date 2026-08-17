@@ -75,6 +75,7 @@ interface SpinQueue {
 }
 
 interface DragVelocitySample {
+  inputType: "mouse" | "pen" | "touch" | "unknown";
   offset: number;
   time: number;
   velocity: number;
@@ -96,9 +97,9 @@ interface CourseDeckCardProps {
   direction: CycleDirection | null;
   motionState: MotionState;
   reducedMotion: boolean;
-  onDragStart: (pointerId: number | null) => void;
-  onDragMove: (info: PanInfo) => void;
-  onDragEnd: (info: PanInfo) => void;
+  onDragStart: (pointerId: number | null, eventTime: number, inputType: DragVelocitySample["inputType"]) => void;
+  onDragMove: (info: PanInfo, eventTime: number) => void;
+  onDragEnd: (info: PanInfo, eventTime: number) => void;
 }
 
 const INITIAL_GEOMETRY: DeckGeometry = {
@@ -116,6 +117,8 @@ const DECK_CYCLE_EASE = [0.4, 0, 0.2, 1] as const;
 const DECK_SPIN_EASE = [0.45, 0, 0.55, 1] as const;
 const DECK_HANDOFF_PROGRESS = 0.46;
 const INERTIA_PROJECTION_SECONDS = 0.22;
+const SPIN_INERTIA_PROJECTION_SECONDS = 0.6;
+const SPIN_OVERRIDE_VELOCITY = 3_000;
 const MAX_INERTIAL_CYCLES = 3;
 const MAX_SAMPLED_VELOCITY = 12_000;
 const SPIN_VELOCITY_DECAY = 0.62;
@@ -347,9 +350,15 @@ function CourseDeckCard({
       dragMomentum={false}
       dragDirectionLock
       onPointerDown={handlePointerDown}
-      onDragStart={(event) => onDragStart(event instanceof PointerEvent ? event.pointerId : null)}
-      onDrag={(_, info) => onDragMove(info)}
-      onDragEnd={(_, info) => onDragEnd(info)}
+      onDragStart={(event) => onDragStart(
+        typeof PointerEvent !== "undefined" && event instanceof PointerEvent ? event.pointerId : null,
+        event.timeStamp,
+        typeof PointerEvent !== "undefined" && event instanceof PointerEvent
+          ? (event.pointerType as DragVelocitySample["inputType"])
+          : typeof TouchEvent !== "undefined" && event instanceof TouchEvent ? "touch" : "mouse",
+      )}
+      onDrag={(event, info) => onDragMove(info, event.timeStamp)}
+      onDragEnd={(event, info) => onDragEnd(info, event.timeStamp)}
       onDragStartCapture={(event) => event.preventDefault()}
       style={motionStyle}
     >
@@ -406,7 +415,7 @@ export default function CourseDeck({ items, firstName, canCreateCourses }: Cours
   const reducedGestureRef = useRef<ReducedGestureSession | null>(null);
   const dragPointerIdRef = useRef<number | null>(null);
   const dragVelocitySampleRef = useRef<DragVelocitySample | null>(null);
-  const finishDragRef = useRef<(reportedOffset?: number, releaseVelocity?: number) => void>(() => undefined);
+  const finishDragRef = useRef<(reportedOffset?: number, releaseVelocity?: number, releaseTime?: number) => void>(() => undefined);
   const settleBackRef = useRef<(releaseVelocity?: number) => void>(() => undefined);
   const dragX = useMotionValue(0);
   const systemReducedMotion = useSystemReducedMotion();
@@ -551,18 +560,21 @@ export default function CourseDeck({ items, firstName, canCreateCourses }: Cours
     startCycleAnimation(nextDirection, releaseVelocity, releasedFromDrag, sequence);
   }, [dragX, items.length, reducedMotion, startCycleAnimation, stopAnimation, updateMotionState]);
 
-  const handleDragStart = useCallback((pointerId: number | null) => {
+  const handleDragStart = useCallback((
+    pointerId: number | null,
+    eventTime: number,
+    inputType: DragVelocitySample["inputType"],
+  ) => {
     if (motionStateRef.current !== "idle") return;
     dragPointerIdRef.current = pointerId;
-    dragVelocitySampleRef.current = { offset: dragX.get(), time: performance.now(), velocity: 0 };
+    dragVelocitySampleRef.current = { inputType, offset: dragX.get(), time: eventTime, velocity: 0 };
     updateMotionState("dragging", null);
   }, [dragX, updateMotionState]);
 
-  const handleDragMove = useCallback((info: PanInfo) => {
+  const handleDragMove = useCallback((info: PanInfo, eventTime: number) => {
     if (motionStateRef.current !== "dragging") return;
-    const now = performance.now();
     const previousSample = dragVelocitySampleRef.current;
-    const elapsedMs = previousSample ? Math.max(1, now - previousSample.time) : 1;
+    const elapsedMs = previousSample ? Math.max(1, eventTime - previousSample.time) : 1;
     const sampledVelocity = previousSample
       ? ((info.offset.x - previousSample.offset) / elapsedMs) * 1_000
       : info.velocity.x;
@@ -570,8 +582,9 @@ export default function CourseDeck({ items, firstName, canCreateCourses }: Cours
       ? sampledVelocity
       : info.velocity.x;
     dragVelocitySampleRef.current = {
+      inputType: previousSample?.inputType ?? "unknown",
       offset: info.offset.x,
-      time: now,
+      time: eventTime,
       velocity: clamp(strongestVelocity, -MAX_SAMPLED_VELOCITY, MAX_SAMPLED_VELOCITY),
     };
     dragX.set(info.offset.x);
@@ -582,12 +595,12 @@ export default function CourseDeck({ items, firstName, canCreateCourses }: Cours
     setDirection(nextDirection);
   }, [dragX]);
 
-  const finishDrag = useCallback((reportedOffset = 0, releaseVelocity = 0) => {
+  const finishDrag = useCallback((reportedOffset = 0, releaseVelocity = 0, releaseTime = performance.now()) => {
     if (motionStateRef.current !== "dragging") return;
     dragPointerIdRef.current = null;
     const velocitySample = dragVelocitySampleRef.current;
     dragVelocitySampleRef.current = null;
-    const sampledVelocity = velocitySample && performance.now() - velocitySample.time <= VELOCITY_SAMPLE_FRESH_MS
+    const sampledVelocity = velocitySample && releaseTime - velocitySample.time <= VELOCITY_SAMPLE_FRESH_MS
       ? velocitySample.velocity
       : 0;
     const effectiveVelocity = Math.abs(sampledVelocity) > Math.abs(releaseVelocity)
@@ -609,14 +622,17 @@ export default function CourseDeck({ items, firstName, canCreateCourses }: Cours
       ? (effectiveVelocity < 0 ? "next" : "previous")
       : (releaseOffset < 0 ? "next" : "previous");
     const travel = Math.max(geometry.travel, geometry.cardWidth + 32);
-    const projectedTravel = Math.abs(releaseOffset) + (Math.abs(effectiveVelocity) * INERTIA_PROJECTION_SECONDS);
+    const spinGesture = velocitySample?.inputType === "mouse"
+      || Math.abs(effectiveVelocity) >= SPIN_OVERRIDE_VELOCITY;
+    const projectionSeconds = spinGesture ? SPIN_INERTIA_PROJECTION_SECONDS : INERTIA_PROJECTION_SECONDS;
+    const projectedTravel = Math.abs(releaseOffset) + (Math.abs(effectiveVelocity) * projectionSeconds);
     const maxCycles = Math.min(MAX_INERTIAL_CYCLES, items.length - 1);
     const inertialCycles = clamp(Math.ceil(projectedTravel / Math.max(1, travel)), 1, maxCycles);
     commitCycle(nextDirection, effectiveVelocity, inertialCycles);
   }, [commitCycle, dragX, geometry.cardWidth, geometry.travel, items.length, settleBack]);
 
-  const handleDragEnd = useCallback((info: PanInfo) => {
-    finishDrag(info.offset.x, info.velocity.x);
+  const handleDragEnd = useCallback((info: PanInfo, eventTime: number) => {
+    finishDrag(info.offset.x, info.velocity.x, eventTime);
   }, [finishDrag]);
 
   useLayoutEffect(() => {
@@ -626,18 +642,18 @@ export default function CourseDeck({ items, firstName, canCreateCourses }: Cours
 
   useLayoutEffect(() => {
     let releaseFrame = 0;
-    const completeLostRelease = () => {
+    const completeLostRelease = (eventTime: number) => {
       cancelAnimationFrame(releaseFrame);
       releaseFrame = requestAnimationFrame(() => {
         if (motionStateRef.current !== "dragging") return;
-        finishDragRef.current(dragX.get());
+        finishDragRef.current(dragX.get(), 0, eventTime);
       });
     };
     const isActivePointer = (event: PointerEvent) => (
       dragPointerIdRef.current === null || event.pointerId === dragPointerIdRef.current
     );
     const handleWindowPointerUp = (event: PointerEvent) => {
-      if (motionStateRef.current === "dragging" && isActivePointer(event)) completeLostRelease();
+      if (motionStateRef.current === "dragging" && isActivePointer(event)) completeLostRelease(event.timeStamp);
     };
     const handleWindowPointerCancel = (event: PointerEvent) => {
       if (motionStateRef.current !== "dragging" || !isActivePointer(event)) return;
