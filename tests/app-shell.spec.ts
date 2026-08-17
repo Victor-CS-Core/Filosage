@@ -1289,9 +1289,9 @@ test.describe("mobile application shell", () => {
     }
     await dispatchTouch("touchEnd");
     await waitForDeckToSettle(page);
-    await expect(page.locator(".course-deck-card.is-active")).toHaveAttribute("data-course-id", "decision-shell-course");
-    await expect(page.locator(".course-deck-controls [role='status']")).toContainText("Decision quality");
-    await expect(page.locator(".course-deck-controls [role='status']")).toContainText("2 of 3");
+    await expect(page.locator(".course-deck-card.is-active")).toHaveAttribute("data-course-id", "systems-shell-course");
+    await expect(page.locator(".course-deck-controls [role='status']")).toContainText("Systems thinking");
+    await expect(page.locator(".course-deck-controls [role='status']")).toContainText("3 of 3");
   });
 
   test("keeps the paper mobile navigation labels contained at the narrowest supported width", async ({ page }) => {
