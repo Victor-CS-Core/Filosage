@@ -76,7 +76,7 @@
     },
     {
       "feature": "Evidence reports",
-      "sources": ["src/app/evidence/", "src/app/api/evidence/", "src/components/OutcomeUsefulness.tsx", "src/lib/evidence-shares.ts", "src/lib/mastery.ts", "src/components/useMasteryJourney.ts"],
+      "sources": ["src/app/evidence/", "src/app/evidence-example/page.tsx", "src/app/api/evidence/", "src/components/OutcomeUsefulness.tsx", "src/lib/evidence-shares.ts", "src/lib/mastery.ts", "src/components/useMasteryJourney.ts"],
       "articles": ["read-evidence-report"]
     },
     {
