@@ -1,5 +1,13 @@
 import { resolve } from "node:path";
 import { defineConfig, devices } from "@playwright/test";
+import {
+  apiSuites,
+  browserSuitesByProject,
+  contractSuites,
+  dedicatedSuites,
+  suitePatterns,
+  type BrowserProjectName,
+} from "./scripts/playwright-suite-manifest";
 import { playwrightServerSettings } from "./tests/fixtures/playwright-server";
 
 // Owned runs get fixed loopback ports plus isolated Next build/lock files and
@@ -14,9 +22,9 @@ const projectServer = (offset: number) => {
   return { ...server, port, id: String(port), baseURL: `http://127.0.0.1:${port}` };
 };
 const ownedProjects = [
-  { name: "chromium", server: projectServer(0), device: devices["Desktop Chrome"] },
-  { name: "mobile-chromium", server: projectServer(1), device: devices["Pixel 7"] },
-  { name: "mobile-webkit", server: projectServer(2), device: devices["iPhone 13"] },
+  { name: "chromium" as BrowserProjectName, server: projectServer(0), device: devices["Desktop Chrome"] },
+  { name: "mobile-chromium" as BrowserProjectName, server: projectServer(1), device: devices["Pixel 7"] },
+  { name: "mobile-webkit" as BrowserProjectName, server: projectServer(2), device: devices["iPhone 13"] },
 ].map((project) => {
   const testStoreDir = `.filosage-local-test/${project.server.id}`;
   return {
@@ -48,12 +56,7 @@ const browserState = (baseURL: string) => ({
 
 export default defineConfig({
   testDir: "./tests",
-  // These suites own seeded servers and run through their dedicated configs.
-  testIgnore: [
-    "**/command-center-v2-contract.spec.ts",
-    "**/command-center-v2-ui.spec.ts",
-    "**/shared-evidence-ui.spec.ts",
-  ],
+  testIgnore: suitePatterns([...contractSuites, ...apiSuites, ...dedicatedSuites]),
   globalTeardown: server.external ? undefined : "./tests/fixtures/playwright-global-teardown.ts",
   metadata: server.external
     ? {}
@@ -68,6 +71,7 @@ export default defineConfig({
   },
   projects: activeProjects.map((project) => ({
     name: project.name,
+    testMatch: suitePatterns(browserSuitesByProject[project.name]),
     use: { ...project.device, ...browserState(project.server.baseURL) },
   })),
   webServer: server.external

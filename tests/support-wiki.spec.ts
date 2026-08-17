@@ -144,7 +144,8 @@ test("validates support articles and blocks undocumented mapped feature changes"
   expect(reviewedNoImpact.status, reviewedNoImpact.stderr).toBe(0);
 });
 
-test("searches public guides and renders source-checked article content", async ({ page }, testInfo) => {
+test("searches public guides, renders source-checked content, and resolves wiki destinations", async ({ page, request }, testInfo) => {
+  test.setTimeout(90_000);
   test.skip(testInfo.project.name !== "chromium", "Desktop search coverage runs once to avoid duplicate dynamic-route compilation in the shared development server.");
   await page.goto("/support");
   await expect(page.getByRole("heading", { level: 1, name: "What do you need help with?" })).toBeVisible();
@@ -182,6 +183,41 @@ test("searches public guides and renders source-checked article content", async 
   await expect(page.getByText(/choice takes effect immediately and is remembered in this browser/)).toBeVisible();
   await expect(page.getByRole("link", { name: "Microsoft's Windows instructions" })).toHaveAttribute("href", /support\.microsoft\.com/);
   await expect(page.getByRole("link", { name: "Apple's Mac motion instructions" })).toHaveAttribute("href", /support\.apple\.com/);
+
+  const destinations = new Set<string>([
+    "/support",
+    ...supportArticles.map((article) => `/support/articles/${article.slug}`),
+  ]);
+  for (const article of supportArticles) {
+    for (const match of article.body.matchAll(/\[[^\]]+\]\((\/[^)\s]+)\)/g)) destinations.add(match[1].split("#", 1)[0]);
+  }
+
+  await page.goto("/support");
+  const startEmail = page.getByRole("link", { name: "Start an email", exact: true });
+  await expect(startEmail).toHaveAttribute("href", /^mailto:support@filosage\.com\?/);
+  await startEmail.click();
+  await expect(page.getByRole("status")).toContainText("support@filosage.com");
+
+  await page.goto("/support/articles/getting-started");
+  const contents = page.getByRole("complementary", { name: "On this page" });
+  const contentsSpacing = await contents.locator("ol").evaluate((list) => {
+    const item = list.querySelector("li");
+    return item ? item.getBoundingClientRect().left - list.getBoundingClientRect().left : 0;
+  });
+  expect(contentsSpacing).toBeGreaterThanOrEqual(24);
+  await contents.getByRole("link", { name: "Open your first lesson" }).click();
+  await expect(page).toHaveURL(/#open-your-first-lesson$/);
+  await expect(page.getByRole("heading", { level: 2, name: "Open your first lesson" })).toBeVisible();
+
+  const articleEmail = page.getByRole("link", { name: "Email support", exact: true });
+  await expect(articleEmail).toHaveAttribute("href", /^mailto:support@filosage\.com/);
+  await articleEmail.click();
+  await expect(page.getByRole("status")).toContainText("support@filosage.com");
+
+  for (const destination of destinations) {
+    const response = await request.get(destination);
+    expect(response.status(), `${destination} should resolve`).toBeLessThan(400);
+  }
 });
 
 test("shows the structured handbook only to the verified owner", async ({ page }, testInfo) => {
@@ -223,53 +259,4 @@ test("keeps article navigation and prose within a phone viewport", async ({ page
   expect(dimensions.scrollWidth).toBeLessThanOrEqual(dimensions.clientWidth);
   const categoryNavigation = await page.getByRole("complementary", { name: "Support category navigation" }).locator("ul").evaluate((list) => ({ clientWidth: list.clientWidth, scrollWidth: list.scrollWidth }));
   expect(categoryNavigation.scrollWidth).toBeLessThanOrEqual(categoryNavigation.clientWidth);
-});
-
-test("resolves every wiki destination and provides reliable email fallbacks", async ({ page, request }, testInfo) => {
-  test.setTimeout(90_000);
-  test.skip(testInfo.project.name !== "chromium", "The complete wiki link contract runs once in desktop Chromium.");
-
-  const destinations = new Set<string>([
-    "/support",
-    ...supportArticles.map((article) => `/support/articles/${article.slug}`),
-  ]);
-  for (const article of supportArticles) {
-    for (const match of article.body.matchAll(/\[[^\]]+\]\((\/[^)\s]+)\)/g)) destinations.add(match[1].split("#", 1)[0]);
-  }
-
-  await page.setViewportSize({ width: 1440, height: 900 });
-  const supportSearch = page.getByRole("searchbox", { name: "Search Filosage help" });
-  const supportResults = page.getByRole("region", { name: "Support search results" });
-  await expect(async () => {
-    await page.goto("/support");
-    await supportSearch.fill("billing plan");
-    await expect(supportResults).toBeVisible();
-  }).toPass({ timeout: 30_000 });
-  await supportSearch.press("Escape");
-  await expect(supportResults).toBeHidden();
-  const startEmail = page.getByRole("link", { name: "Start an email", exact: true });
-  await expect(startEmail).toHaveAttribute("href", /^mailto:support@filosage\.com\?/);
-  await startEmail.click();
-  await expect(page.getByRole("status")).toContainText("support@filosage.com");
-
-  await page.goto("/support/articles/getting-started");
-  const contents = page.getByRole("complementary", { name: "On this page" });
-  const contentsSpacing = await contents.locator("ol").evaluate((list) => {
-    const item = list.querySelector("li");
-    return item ? item.getBoundingClientRect().left - list.getBoundingClientRect().left : 0;
-  });
-  expect(contentsSpacing).toBeGreaterThanOrEqual(24);
-  await contents.getByRole("link", { name: "Open your first lesson" }).click();
-  await expect(page).toHaveURL(/#open-your-first-lesson$/);
-  await expect(page.getByRole("heading", { level: 2, name: "Open your first lesson" })).toBeVisible();
-
-  const articleEmail = page.getByRole("link", { name: "Email support", exact: true });
-  await expect(articleEmail).toHaveAttribute("href", /^mailto:support@filosage\.com/);
-  await articleEmail.click();
-  await expect(page.getByRole("status")).toContainText("support@filosage.com");
-
-  for (const destination of destinations) {
-    const response = await request.get(destination);
-    expect(response.status(), `${destination} should resolve`).toBeLessThan(400);
-  }
 });

@@ -28,7 +28,7 @@ jobs:
       - run: npm ci
       - run: npm run lint
       - run: npx tsc --noEmit --incremental false
-      - run: npm run test:e2e -- tests/azure-infrastructure.spec.ts tests/release-scripts.spec.ts
+      - run: npm run test:contracts -- tests/azure-infrastructure.spec.ts tests/release-scripts.spec.ts
       - run: npm run build
         env:
           NEXT_PUBLIC_SITE_URL: https://filosage.com

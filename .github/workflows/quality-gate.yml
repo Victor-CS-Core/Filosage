@@ -26,7 +26,7 @@ jobs:
       - run: npx tsc --noEmit --incremental false
       - run: npm audit --audit-level=high
       - run: npm run check:support-wiki
-      - run: FILOSAGE_PLAYWRIGHT_PROJECT=chromium PLAYWRIGHT_PORT=4400 npx playwright test --project=chromium tests/azure-infrastructure.spec.ts tests/release-scripts.spec.ts tests/release-hardening.spec.ts --reporter=line
+      - run: npm run test:contracts
       - run: npm run build
 
   command-center-contracts:
@@ -63,7 +63,7 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npx playwright install --with-deps chromium webkit
-      - run: npm run test:e2e
+      - run: npm run test:api && npm run test:browser
       - name: Upload browser regression evidence
         if: always()
         uses: actions/upload-artifact@v4

@@ -543,31 +543,6 @@ test("renders the owner command center with visible draft-only safety controls",
   await expect(intakeSwitch).toHaveAttribute("aria-checked", "true");
 });
 
-test("uses a full-screen, internally scrollable ticket dialog on a short mobile viewport", async ({ page }) => {
-  await page.setViewportSize({ width: 375, height: 667 });
-  await acceptOwnerTerms(page.request);
-  await page.addInitScript(() => localStorage.setItem("filosage-local-session", "1"));
-  await page.goto("/admin/command-center");
-  await page.getByRole("button", { name: "New ticket" }).click();
-
-  const dialog = page.getByRole("dialog", { name: "Create a manual ticket" });
-  await expect(dialog).toBeVisible();
-  await expect(page.getByLabel(/Subject/)).not.toBeFocused();
-  await expect.poll(() => dialog.evaluate((element) => {
-    const rect = element.getBoundingClientRect();
-    const body = element.querySelector<HTMLElement>(".cc-ticket-form-body");
-    return {
-      left: Math.round(rect.left),
-      top: Math.round(rect.top),
-      width: Math.round(rect.width),
-      height: Math.round(rect.height),
-      bodyScrollable: Boolean(body && body.scrollHeight > body.clientHeight && getComputedStyle(body).overflowY === "auto"),
-      noHorizontalOverflow: document.documentElement.scrollWidth === document.documentElement.clientWidth,
-    };
-  })).toEqual({ left: 0, top: 0, width: 375, height: 667, bodyScrollable: true, noHorizontalOverflow: true });
-  await expect(page.getByRole("button", { name: "Create ticket" })).toBeVisible();
-});
-
 test("keeps the ticket dialog usable across the target viewport and theme matrix", async ({ page }) => {
   await acceptOwnerTerms(page.request);
   await page.addInitScript(() => localStorage.setItem("filosage-local-session", "1"));
@@ -581,12 +556,15 @@ test("keeps the ticket dialog usable across the target viewport and theme matrix
     { width: 768, height: 1024 },
     { width: 430, height: 932 },
     { width: 390, height: 844 },
+    { width: 375, height: 667 },
   ];
 
   for (const viewport of viewports) {
     await page.setViewportSize(viewport);
     await page.getByRole("button", { name: "New ticket" }).click();
     const dialog = page.getByRole("dialog", { name: "Create a manual ticket" });
+    const isShortMobile = viewport.width === 375 && viewport.height === 667;
+    if (isShortMobile) await expect(page.getByLabel(/Subject/)).not.toBeFocused();
     const geometry = await dialog.evaluate((element) => {
       const rect = element.getBoundingClientRect();
       const body = element.querySelector<HTMLElement>(".cc-ticket-form-body");
@@ -595,6 +573,10 @@ test("keeps the ticket dialog usable across the target viewport and theme matrix
       const risk = element.querySelector<HTMLSelectElement>("#cc-ticket-risk");
       if (body) body.scrollTop = body.scrollHeight;
       return {
+        left: Math.round(rect.left),
+        top: Math.round(rect.top),
+        width: Math.round(rect.width),
+        height: Math.round(rect.height),
         fits: rect.left >= 0 && rect.top >= 0 && rect.right <= window.innerWidth && rect.bottom <= window.innerHeight,
         centered: window.innerWidth <= 540 || (Math.abs(rect.left + rect.width / 2 - window.innerWidth / 2) < 2 && Math.abs(rect.top + rect.height / 2 - window.innerHeight / 2) < 2),
         noHorizontalOverflow: document.documentElement.scrollWidth === document.documentElement.clientWidth,
@@ -610,6 +592,10 @@ test("keeps the ticket dialog usable across the target viewport and theme matrix
     expect(geometry.riskWidth).toBeGreaterThanOrEqual(280);
     expect(geometry.formColumns).toBe(viewport.width <= 1100 ? 1 : 2);
     expect(geometry.controlFontWeight).toBe("400");
+    if (isShortMobile) {
+      expect(geometry).toMatchObject({ left: 0, top: 0, width: 375, height: 667 });
+      await expect(page.getByRole("button", { name: "Create ticket" })).toBeVisible();
+    }
     await page.getByRole("button", { name: "Close ticket dialog" }).click();
   }
 

@@ -1,7 +1,6 @@
 import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { expect, test } from "@playwright/test";
-import AxeBuilder from "@axe-core/playwright";
 import { buildAdvancedCapstoneAnalysis } from "../src/lib/capstone-analysis";
 import { reconcileCourseCreditLedger } from "../src/lib/course-credit-policy";
 import { MEMBERSHIP_PLANS } from "../src/lib/membership-plans";
@@ -184,16 +183,6 @@ test("public evidence pages suppress analytics tracking and consent surfaces", (
   expect(source("src/components/AnalyticsConsent.tsx")).toContain('pathname.startsWith("/evidence/shared/")');
 });
 
-test("pricing and unavailable shared evidence states pass automated accessibility checks", async ({ page }) => {
-  await page.goto("/pricing");
-  expect((await new AxeBuilder({ page }).include("main").analyze()).violations).toEqual([]);
-
-  await page.evaluate(() => localStorage.removeItem("filosage:analytics:consent:v1"));
-  await page.goto("/evidence/shared/invalid");
-  await expect(page.getByRole("heading", { name: "This report is no longer available." })).toBeVisible();
-  await expect(page.locator(".analytics-consent")).toHaveCount(0);
-  expect((await new AxeBuilder({ page }).include("main").analyze()).violations).toEqual([]);
-});
 
 test("paid lifecycle sync initializes and reconciles the course-credit ledger", () => {
   const billing = source("src/lib/stripe-server.ts");

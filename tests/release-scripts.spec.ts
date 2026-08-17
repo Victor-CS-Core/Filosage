@@ -25,10 +25,7 @@ const validReleaseEnvironment = {
   BILLING_ENABLED: "false",
 };
 
-test("release checks bind Azure and production health to one full Git SHA", ({ request }, testInfo) => {
-  void request;
-  test.skip(testInfo.project.name !== "chromium", "One process-level release contract is sufficient.");
-
+test("release checks bind Azure and production health to one full Git SHA", () => {
   const valid = spawnSync(process.execPath, [releaseScript], {
     cwd: root,
     env: validReleaseEnvironment,
@@ -78,10 +75,7 @@ test("release checks bind Azure and production health to one full Git SHA", ({ r
   expect(abbreviatedExpectedVersion.stderr).toContain("full 40-character Git commit SHA");
 });
 
-test("billing activation requires every Plus and Pro Stripe price", ({ request }, testInfo) => {
-  void request;
-  test.skip(testInfo.project.name !== "chromium", "One process-level release contract is sufficient.");
-
+test("billing activation requires every Plus and Pro Stripe price", () => {
   const activationEnvironment = {
     ...validReleaseEnvironment,
     BILLING_ENABLED: "true",

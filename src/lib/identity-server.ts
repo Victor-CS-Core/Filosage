@@ -14,6 +14,10 @@ export interface VerifiedUser {
 }
 
 const LOCAL_PLAYWRIGHT_LEARNERS = new Map<string, { uid: string; email: string }>([
+  ["playwright-free-learner-api", {
+    uid: "local-free-learner-api",
+    email: "learner-api@filosage.local",
+  }],
   ["playwright-free-learner", { uid: "local-free-learner", email: "learner@filosage.local" }],
   ["playwright-free-learner-mobile-chromium", {
     uid: "local-free-learner-mobile-chromium",

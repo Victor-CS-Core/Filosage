@@ -70,6 +70,10 @@ test("renders privacy-safe professional evidence with inspectable proof", async 
 });
 
 test("gives unavailable evidence recipients a privacy-safe recovery path", async ({ page }) => {
+  await page.goto("/pricing");
+  await expectNoAccessibilityViolations(page);
+
+  await page.evaluate(() => localStorage.removeItem("filosage:analytics:consent:v1"));
   await page.goto("/evidence/shared/invalid");
 
   await expect(page.getByRole("heading", { level: 1, name: "This report is no longer available." })).toBeVisible();

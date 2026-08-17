@@ -13,6 +13,7 @@ import { RECENT_AUTHENTICATION_PROOF_MISSING_MESSAGE } from "../src/lib/identity
 import { PRIVACY_VERSION, TERMS_VERSION } from "../src/lib/legal";
 
 const projectLearnerTokens: Record<string, string> = {
+  api: "playwright-free-learner-api",
   chromium: "playwright-free-learner",
   "mobile-chromium": "playwright-free-learner-mobile-chromium",
   "mobile-webkit": "playwright-free-learner-mobile-webkit",
