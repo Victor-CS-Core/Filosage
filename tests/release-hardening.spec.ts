@@ -60,9 +60,9 @@ test("promotion restores the previous traffic weights when verification fails or
 
 test("the general browser matrix excludes suites that require dedicated seeded servers", () => {
   expect(playwrightConfig).toContain("testIgnore:");
-  expect(playwrightConfig).toContain('"command-center-v2-contract.spec.ts"');
-  expect(playwrightConfig).toContain('"command-center-v2-ui.spec.ts"');
-  expect(playwrightConfig).toContain('"shared-evidence-ui.spec.ts"');
+  expect(playwrightConfig).toContain("command-center-v2-contract.spec.ts");
+  expect(playwrightConfig).toContain("command-center-v2-ui.spec.ts");
+  expect(playwrightConfig).toContain("shared-evidence-ui.spec.ts");
   expect(playwrightConfig).toContain("workers: 1");
   expect(playwrightConfig).not.toContain("workers: process.env.CI ? 1 : 2");
 });
@@ -110,9 +110,9 @@ test("the privacy notice describes the automated account export honestly", () =>
 });
 
 test("the README describes the current visitor and paid-plan contracts", () => {
-  expect(readme).toContain("Anonymous discovery: inspect published course outcomes and structure without lesson access");
-  expect(readme).toContain("Filosage Plus: two complete private-course credits each month");
-  expect(readme).toContain("Filosage Pro: five complete course credits each month");
+  expect(readme).toContain("Anonymous discovery: inspect published outcomes, modules, lesson titles, assessment structure, and source status; lesson bodies and learner work remain account-bound");
+  expect(readme).toContain("Filosage Plus: two monthly course credits with rollover up to twenty-four");
+  expect(readme).toContain("Filosage Pro: five monthly course credits with rollover up to sixty");
   expect(readme).not.toContain("Anonymous learning: open discovery, published lessons");
   expect(readme).not.toContain("one active private course");
 });
