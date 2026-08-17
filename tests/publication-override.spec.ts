@@ -1,7 +1,9 @@
 import { expect, test } from "@playwright/test";
 import AxeBuilder from "@axe-core/playwright";
 import { readFile } from "node:fs/promises";
+import type { LearnerAccount } from "../src/lib/course-types";
 import { LESSON_QUALITY_GATE_VERSION } from "../src/lib/lesson-quality";
+import { PRIVACY_VERSION, TERMS_VERSION } from "../src/lib/legal";
 import { inspectCoursePublishReadiness } from "../src/lib/publication-readiness";
 import { restoreLocalLearner } from "./fixtures/local-learner";
 
@@ -80,6 +82,42 @@ test("owner override remains a dedicated, recently authenticated, audited qualit
 
 test("an owner can confirm a quality override only after the normal review fails", async ({ page }) => {
   await restoreLocalLearner(page);
+  const ownerAccount = {
+    access: "owner",
+    plan: "pro",
+    isOwner: true,
+    accountStatus: "active",
+    displayName: "Playwright Owner",
+    subscriptionStatus: "none",
+    capabilities: {
+      createCourse: true,
+      generateLesson: true,
+      flashcardDecksEnabled: true,
+      createCustomFlashcardDeck: true,
+      publishCourse: true,
+      advancedCapstoneAnalysis: true,
+      exportEvidenceReport: true,
+      shareEvidenceReport: true,
+    },
+    courseCredits: { balance: null, monthlyAllocation: null, balanceCap: null, nextAccrualAt: null, frozenUntil: null },
+    acceptedTermsVersion: TERMS_VERSION,
+    acceptedPrivacyVersion: PRIVACY_VERSION,
+    legalAcceptanceRequired: false,
+    applicationAccountExists: true,
+    currentTermsVersion: TERMS_VERSION,
+    currentPrivacyVersion: PRIVACY_VERSION,
+    quotas: [
+      { feature: "tutor", limit: null, used: 0, remaining: null, resetAt: "2026-09-01T00:00:00.000Z" },
+      { feature: "flashcard_generation", limit: null, used: 0, remaining: null, resetAt: "2026-09-01T00:00:00.000Z" },
+    ],
+  } satisfies LearnerAccount & { currentTermsVersion: string; currentPrivacyVersion: string };
+  await page.route(
+    (url) => url.pathname === "/api/account" && url.search === "",
+    (route) => {
+      expect(route.request().method()).toBe("GET");
+      return route.fulfill({ json: ownerAccount });
+    },
+  );
   const courseId = "quality-override-course";
   const course = {
     id: courseId,
