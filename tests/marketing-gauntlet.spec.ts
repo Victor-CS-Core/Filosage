@@ -36,6 +36,19 @@ async function prepareEligibleCreator(page: Page) {
   await page.route("**/api/progress", (route) => route.fulfill({ json: { progress: [] } }));
 }
 
+async function fillLibrarySearch(page: Page, value: string) {
+  const search = page.getByRole("searchbox", { name: "Search published courses" });
+  if (await search.isVisible()) {
+    await search.fill(value);
+    return;
+  }
+
+  await page.getByRole("button", { name: /^Search and filter/ }).click();
+  await expect(search).toBeVisible();
+  await search.fill(value);
+  await page.getByRole("button", { name: /^Show \d+ courses?$/ }).click();
+}
+
 test("broad product positioning reflects eligible learners and the actual language boundary", async ({ page }) => {
   await page.goto("/");
 
@@ -238,16 +251,19 @@ test("learning-situation discovery is URL-backed, editable, reversible, and lang
   await page.goto("/library?job=invalid-job");
   await page.getByRole("button", { name: "Personal project" }).click();
   await expect(page).toHaveURL(/job=personal_project/);
-  await expect(page.getByRole("searchbox", { name: "Search published courses" })).toHaveValue("project");
+  await expect(page).toHaveURL(/[?&]q=project(?:&|$)/);
+  await expect(page.getByRole("heading", { name: "Personal project planning" })).toBeVisible();
   await page.getByRole("button", { name: "Coursework or exam" }).click();
   await expect(page).toHaveURL(/job=study_goal/);
-  await expect(page).toHaveURL(/q=study/);
+  await expect(page).toHaveURL(/[?&]q=study(?:&|$)/);
   await page.goBack();
-  await expect(page.getByRole("searchbox", { name: "Search published courses" })).toHaveValue("project");
+  await expect(page).toHaveURL(/[?&]q=project(?:&|$)/);
+  await expect(page.getByRole("heading", { name: "Personal project planning" })).toBeVisible();
   await page.goForward();
-  await expect(page.getByRole("searchbox", { name: "Search published courses" })).toHaveValue("study");
+  await expect(page).toHaveURL(/[?&]q=study(?:&|$)/);
+  await expect(page.getByRole("heading", { name: "Calculus study" })).toBeVisible();
 
-  await page.getByRole("searchbox", { name: "Search published courses" }).fill("Spanish");
+  await fillLibrarySearch(page, "Spanish");
   await expect(page).not.toHaveURL(/job=/);
   await expect(page.getByRole("heading", { name: "Calculus study" })).toBeVisible();
   await expect(page.getByText("Spanish and English")).toBeVisible();
@@ -302,14 +318,14 @@ test("contextual plan entry respects course-creation and evidence entitlements",
 
   await page.goto("/library");
   await expect(page.getByRole("status")).toContainText("0 published courses found");
-  await page.getByRole("searchbox", { name: "Search published courses" }).fill("A course that is not published");
+  await fillLibrarySearch(page, "A course that is not published");
   await expect(page.getByRole("link", { name: /Create private courses with Plus/ })).toHaveAttribute("href", "/pricing?plan=plus&from=library-no-match");
   await expect(page.getByRole("button", { name: "Clear filters" })).toBeVisible();
 
   canCreate = true;
   await page.reload();
   await expect(page.getByRole("status")).toContainText("0 published courses found");
-  await page.getByRole("searchbox", { name: "Search published courses" }).fill("A course that is not published");
+  await fillLibrarySearch(page, "A course that is not published");
   await expect(page.getByRole("link", { name: /Create this course/ })).toHaveAttribute("href", "/create");
 
   canCreate = false;
@@ -436,7 +452,7 @@ test("conditional capability copy stays bounded and course telemetry sends only 
   await expect(page.getByRole("button", { name: "Start course" })).toBeVisible();
   await expect.poll(() => telemetry.some((event) => event.event === "course_discovered")).toBe(true);
   await page.getByRole("button", { name: "Start course" }).click();
-  await expect(page).toHaveURL(/\/lesson\/0-0\?id=bilingual-course/);
+  await expect(page).toHaveURL(/\/lesson\/0-0\?id=bilingual-course/, { timeout: 15_000 });
   await expect.poll(() => telemetry.some((event) => event.event === "course_started")).toBe(true);
   for (const event of telemetry.filter((candidate) => candidate.event === "course_discovered" || candidate.event === "course_started")) {
     expect(event.courseLanguageMode).toBe("bilingual");

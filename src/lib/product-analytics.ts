@@ -163,8 +163,8 @@ function sourceFor(channel: AcquisitionChannel) {
 }
 
 async function sendTelemetry(payload: Record<string, unknown>) {
-    const token = await currentEasyAuthSession();
-  return fetch("/api/telemetry", {
+  const token = await currentEasyAuthSession();
+  void fetch("/api/telemetry", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -172,6 +172,8 @@ async function sendTelemetry(payload: Record<string, unknown>) {
     },
     body: JSON.stringify(payload),
     keepalive: true,
+  }).catch(() => {
+    // Analytics must never interrupt learning.
   });
 }
 
@@ -192,12 +194,12 @@ export interface ProductEventOptions {
 }
 
 export function trackProductEvent(event: ProductEventName, options: ProductEventOptions = {}) {
-  if (options.exclude || typeof window === "undefined" || readAnalyticsConsent() !== "accepted") return;
+  if (options.exclude || typeof window === "undefined" || readAnalyticsConsent() !== "accepted") return Promise.resolve();
   const route = options.route ?? routeBucket(window.location.pathname);
   const onceKey = `filosage:event:${PRODUCT_EVENT_SCHEMA_VERSION}:${event}:${route}`;
   if (options.oncePerSession) {
     try {
-      if (sessionStorage.getItem(onceKey)) return;
+      if (sessionStorage.getItem(onceKey)) return Promise.resolve();
       sessionStorage.setItem(onceKey, "1");
     } catch {
       // Measurement is best effort when browser storage is unavailable.
@@ -205,7 +207,7 @@ export function trackProductEvent(event: ProductEventName, options: ProductEvent
   }
   const acquisition = acquisitionContext();
   const identity = analyticsIdentity();
-  void sendTelemetry({
+  return sendTelemetry({
       schemaVersion: PRODUCT_EVENT_SCHEMA_VERSION,
       event,
       route,
@@ -222,7 +224,7 @@ export function trackProductEvent(event: ProductEventName, options: ProductEvent
       surface: options.surface,
       jobStart: options.jobStart,
       courseLanguageMode: options.courseLanguageMode,
-    }).catch(() => {
+  }).catch(() => {
     // Analytics must never interrupt learning.
   });
 }
