@@ -317,6 +317,7 @@ test("fits the required desktop, tablet, and mobile viewport matrix", async ({ p
     }
     const geometry = await dialog.evaluate((element) => {
       const rect = element.getBoundingClientRect();
+      const body = element.querySelector<HTMLElement>("[class*='body']");
       const navigation = document.querySelector<HTMLElement>(".mobile-bottom-nav");
       const navigationTop = navigation && getComputedStyle(navigation).display !== "none"
         ? navigation.getBoundingClientRect().top
@@ -330,7 +331,8 @@ test("fits the required desktop, tablet, and mobile viewport matrix", async ({ p
         documentWidth: document.documentElement.scrollWidth,
         viewportWidth: document.documentElement.clientWidth,
         modal: element.matches(":modal"),
-        bodyScrollable: element.querySelector<HTMLElement>("[class*='body']")?.scrollHeight !== undefined,
+        bodyOverflow: body ? getComputedStyle(body).overflowY : "",
+        bodyScrollable: Boolean(body && body.scrollHeight > body.clientHeight),
       };
     });
     expect(geometry.left).toBeGreaterThanOrEqual(0);
@@ -349,6 +351,7 @@ test("fits the required desktop, tablet, and mobile viewport matrix", async ({ p
     }
     if (isShortMobile) {
       expect(geometry).toMatchObject({ left: 0, right: 375, bodyScrollable: true });
+      expect(["auto", "scroll"]).toContain(geometry.bodyOverflow);
     }
     await dialog.getByRole("button", { name: "Close Support Center" }).click();
     await expect(trigger).toHaveAttribute("aria-expanded", "false");

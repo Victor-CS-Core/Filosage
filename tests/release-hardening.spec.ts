@@ -4,6 +4,13 @@ import { existsSync, readFileSync, readdirSync } from "node:fs";
 
 const read = (path: string) => readFileSync(path, "utf8");
 
+const discoverSpecs = (directory: string): string[] => readdirSync(directory, { withFileTypes: true })
+  .flatMap((entry) => {
+    const path = `${directory}/${entry.name}`;
+    if (entry.isDirectory()) return discoverSpecs(path);
+    return entry.isFile() && path.endsWith(".spec.ts") ? [path] : [];
+  });
+
 const azureBicep = read("infra/azure/main.bicep");
 const stagingWorkflow = read(".github/workflows/azure-staging.yml");
 const promotionWorkflow = read(".github/workflows/azure-promote-staging.yml");
@@ -88,10 +95,7 @@ test("every Playwright spec belongs to exactly one execution lane", async () => 
     ...deviceSensitiveSuites,
     ...singleEngineSuites,
   ];
-  const discovered = readdirSync("tests")
-    .filter((file) => file.endsWith(".spec.ts"))
-    .map((file) => `tests/${file}`)
-    .sort();
+  const discovered = discoverSpecs("tests").sort();
 
   expect(new Set(categorized).size).toBe(categorized.length);
   expect(categorized.toSorted()).toEqual(discovered);
