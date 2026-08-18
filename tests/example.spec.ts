@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { readdir, readFile } from "node:fs/promises";
+import { mkdir, readdir, readFile } from "node:fs/promises";
 import { extname, join } from "node:path";
 import { evaluateBadges } from "../src/lib/badges";
 import { normalizeDashboardPreferences } from "../src/lib/dashboard-preferences";
@@ -851,21 +851,53 @@ test("keeps primary navigation actions readable before and after hover", async (
   }
 });
 
-test("lets guests browse outlines while clearly gating lessons behind an account", async ({ page }) => {
+test("lets guests browse outlines while clearly gating lessons behind an account", async ({ page }, testInfo) => {
+  await page.route("**/api/auth/session", (route) => route.fulfill({
+    status: 200,
+    contentType: "application/json",
+    body: JSON.stringify({
+      recentAuthentication: false,
+      authentication: {
+        primaryProvider: "filosage",
+        externalIdAvailable: true,
+        legacyGoogleAvailable: true,
+      },
+      user: null,
+    }),
+  }));
   await page.goto("/");
-  await page.locator(".marketing-hero").getByRole("button", { name: "Create a free account" }).click();
+  const trigger = page.locator(".marketing-hero").getByRole("button", { name: "Create a free account" });
+  await trigger.click();
 
   const dialog = page.getByRole("dialog", { name: "Keep your learning in sync" });
   await expect(dialog).toBeVisible();
   await expect(dialog).toContainText("browse published topics and inspect every course outline without an account");
-  await expect(
-    dialog.getByRole("button", { name: "Continue with Google" }),
-  ).toBeDisabled();
-  await dialog.getByRole("checkbox").check();
-  await expect(dialog.getByRole("button", { name: "Continue with Google" })).toBeEnabled();
-  await expect(dialog).toContainText("Google opens in this tab and returns you directly to Filosage");
-  await expect(dialog).toContainText("Azure securely manages the signed-in session");
+  await expect(dialog).toContainText("Choose Google or a private email code on the next secure Filosage screen");
+  await expect(dialog.getByRole("button", { name: "Continue securely" })).toBeDisabled();
+  await expect(dialog.getByRole("button", { name: "Use my existing Google sign-in" })).toBeVisible();
+  await expect(dialog.locator('input[type="email"]')).toHaveCount(0);
   await expect(dialog.getByRole("link", { name: "Terms of Service" })).toHaveAttribute("href", "/terms");
+  await expect(dialog.getByRole("link", { name: "Privacy Notice" })).toHaveAttribute("href", "/privacy");
+
+  await dialog.getByRole("button", { name: "Close sign-in dialog" }).focus();
+  await page.keyboard.press("Shift+Tab");
+  await expect(dialog.getByRole("button", { name: "Continue browsing course outlines" })).toBeFocused();
+  await page.keyboard.press("Tab");
+  await expect(dialog.getByRole("button", { name: "Close sign-in dialog" })).toBeFocused();
+
+  await dialog.getByRole("checkbox").check();
+  await expect(dialog.getByRole("button", { name: "Continue securely" })).toBeEnabled();
+  await expect(dialog).toContainText("Microsoft securely manages sign-in. Filosage never sees your password or one-time code.");
+
+  if (testInfo.project.name === "chromium" || testInfo.project.name === "mobile-chromium") {
+    const scratch = join(".codex-tmp", "task7-scratch");
+    await mkdir(scratch, { recursive: true });
+    await dialog.screenshot({ path: join(scratch, `${testInfo.project.name}-auth-modal.png`) });
+  }
+
+  await page.keyboard.press("Escape");
+  await expect(dialog).toBeHidden();
+  await expect(trigger).toBeFocused();
 });
 
 test("publishes clear legal documents", async ({ context }) => {

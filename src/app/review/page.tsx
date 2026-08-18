@@ -26,7 +26,7 @@ function streakFor(progress: CourseProgress[]) {
 
 export default function ReviewPage() {
   const router = useRouter();
-  const { user, account, loading: authLoading, signInWithGoogle } = useAuth();
+  const { user, account, loading: authLoading, signIn } = useAuth();
   const [progress, setProgress] = useState<CourseProgress[]>([]);
   const [loaded, setLoaded] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -180,7 +180,7 @@ export default function ReviewPage() {
 
         {!user && allLessons.length > 0 && (
           <div className="review-sync-hint">
-            <p>Your review schedule lives on this device. <button className="text-button" onClick={() => void signInWithGoogle()}>Create a free account</button> to keep it across devices.</p>
+            <p>Your review schedule lives on this device. <button className="text-button" onClick={() => void signIn()}>Create a free account</button> to keep it across devices.</p>
           </div>
         )}
       </div>

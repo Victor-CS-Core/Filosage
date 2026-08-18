@@ -25,8 +25,8 @@ import {
 } from "../src/lib/learning-design";
 import { buildInteractionAttemptMutation } from "../src/lib/course-pipeline/interaction-attempt";
 import {
-  parsePendingGoogleRedirectAcceptance,
-  pendingGoogleRedirectAcceptance,
+  parsePendingManagedRedirectAcceptance,
+  pendingManagedRedirectAcceptance,
 } from "../src/lib/auth-redirect";
 
 function conciseValidLesson() {
@@ -1368,9 +1368,9 @@ test("Azure Easy Auth terminates Google OAuth before requests reach Next.js", as
 
 test("same-tab sign-in preserves only fresh, version-bound legal confirmation", () => {
   const now = Date.UTC(2026, 7, 11, 18, 0, 0);
-  const pending = pendingGoogleRedirectAcceptance(now);
-  expect(parsePendingGoogleRedirectAcceptance(JSON.stringify(pending), now + 60_000)).toEqual(pending);
-  expect(parsePendingGoogleRedirectAcceptance(JSON.stringify(pending), now + 16 * 60_000)).toBeNull();
-  expect(parsePendingGoogleRedirectAcceptance(JSON.stringify({ ...pending, termsVersion: "stale" }), now)).toBeNull();
-  expect(parsePendingGoogleRedirectAcceptance("not-json", now)).toBeNull();
+  const pending = pendingManagedRedirectAcceptance(now);
+  expect(parsePendingManagedRedirectAcceptance(JSON.stringify(pending), now + 60_000)).toEqual(pending);
+  expect(parsePendingManagedRedirectAcceptance(JSON.stringify(pending), now + 16 * 60_000)).toBeNull();
+  expect(parsePendingManagedRedirectAcceptance(JSON.stringify({ ...pending, termsVersion: "stale" }), now)).toBeNull();
+  expect(parsePendingManagedRedirectAcceptance("not-json", now)).toBeNull();
 });

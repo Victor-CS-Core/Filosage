@@ -25,7 +25,7 @@ import {
 function dateKey(date: Date) { return date.toISOString().slice(0, 10); }
 
 export default function ProgressPage() {
-  const { user, loading: authLoading, signInWithGoogle } = useAuth();
+  const { user, loading: authLoading, signIn } = useAuth();
   const { state, update, ready: learnerStateReady } = useLearnerState();
   const [progress, setProgress] = useState<CourseProgress[]>([]);
   const [loaded, setLoaded] = useState(false);
@@ -102,7 +102,7 @@ export default function ProgressPage() {
   };
 
   if (authLoading) return <AppShell><div className="progress-page dashboard-loading" aria-busy="true"><span /><span /><span /></div></AppShell>;
-  if (!user) return <AppShell><div className="center-state"><TrendingUp size={26} /><h1>Keep your learning in one place.</h1><p>Create a free account to sync progress, reviews, saved courses, and notes across devices.</p><button className="button button-primary" onClick={() => void signInWithGoogle()}>Create a free account</button></div></AppShell>;
+  if (!user) return <AppShell><div className="center-state"><TrendingUp size={26} /><h1>Keep your learning in one place.</h1><p>Create a free account to sync progress, reviews, saved courses, and notes across devices.</p><button className="button button-primary" onClick={() => void signIn()}>Create a free account</button></div></AppShell>;
 
   return (
     <AppShell>

@@ -87,7 +87,7 @@ export default function CourseMap() {
   const topic = decodeURIComponent(params.topic);
   const requestedCourseId = searchParams.get("id");
   const courseViewKey = `${requestedCourseId ?? "new"}:${topic}`;
-  const { user, isOwner, canCreateCourses, canPublishCourses, account, loading: authLoading, signInWithGoogle } = useAuth();
+  const { user, isOwner, canCreateCourses, canPublishCourses, account, loading: authLoading, signIn } = useAuth();
   const [courseRecord, setCourseRecord] = useState<{ key: string; value: Course | null }>({ key: courseViewKey, value: null });
   const course = courseRecord.key === courseViewKey ? courseRecord.value : null;
   const [loading, setLoading] = useState(true);
@@ -200,7 +200,7 @@ export default function CourseMap() {
     if (!courseId) return;
     if (!user) {
       try {
-        await signInWithGoogle();
+        await signIn();
       } catch {
         return;
       }
@@ -218,7 +218,7 @@ export default function CourseMap() {
       ]);
     }
     window.location.assign(`/course/${encodeURIComponent(topic)}/lesson/${lessonId}?id=${encodeURIComponent(courseId)}`);
-  }, [course?.language, course?.updatedAt, courseId, isOwner, signInWithGoogle, topic, user]);
+  }, [course?.language, course?.updatedAt, courseId, isOwner, signIn, topic, user]);
   const masteryJourney = useMasteryJourney(courseId, user);
 
   useEffect(() => {

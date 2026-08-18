@@ -14,6 +14,8 @@ export default function LegalConsentModal() {
   const isInitialSetup = account?.applicationAccountExists === false;
   useEffect(() => { dialogRef.current?.focus(); }, []);
 
+  if (account?.identityLinkRequired) return null;
+
   const accept = async () => {
     setSaving(true); setError(null);
     try {

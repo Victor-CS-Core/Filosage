@@ -1,6 +1,6 @@
 import { readFile, writeFile } from "node:fs/promises";
 import { spawnSync } from "node:child_process";
-import { expect, test, type APIResponse } from "@playwright/test";
+import { expect, test, type APIResponse, type Page } from "@playwright/test";
 import {
   IDENTITY_LINK_INTENT_TTL_MS,
   identityRegistryKeys,
@@ -27,6 +27,90 @@ function cacheControl(response: APIResponse) {
 
 function setCookie(response: APIResponse) {
   return response.headers()["set-cookie"] ?? "";
+}
+
+interface AuthenticationFixture {
+  primaryProvider: "google" | "filosage";
+  externalIdAvailable: boolean;
+  legacyGoogleAvailable: boolean;
+}
+
+const signedOutAuthentication: AuthenticationFixture = {
+  primaryProvider: "filosage",
+  externalIdAvailable: true,
+  legacyGoogleAvailable: true,
+} as const;
+
+function managedSession(
+  provider: "google" | "filosage" = "filosage",
+  authentication: AuthenticationFixture = signedOutAuthentication,
+) {
+  return {
+    recentAuthentication: true,
+    authentication,
+    user: {
+      uid: `${provider}-canonical-learner`,
+      displayName: "Managed Learner",
+      email: "learner@example.com",
+      photoURL: null,
+      authenticationProvider: provider,
+    },
+  };
+}
+
+async function routeManagedSession(
+  page: Page,
+  body: ReturnType<typeof managedSession> | {
+    recentAuthentication: boolean;
+    authentication: AuthenticationFixture;
+    user: null;
+  },
+) {
+  await page.route("**/api/auth/session", (route) => route.fulfill({
+    status: 200,
+    contentType: "application/json",
+    body: JSON.stringify(body),
+  }));
+}
+
+async function routeIdentityLinkRequiredAccount(page: Page) {
+  await page.route("**/api/account", (route) => route.fulfill({
+    status: 409,
+    contentType: "application/json",
+    body: JSON.stringify({
+      access: "free",
+      plan: "free",
+      isOwner: false,
+      accountStatus: "active",
+      applicationAccountExists: false,
+      legalAcceptanceRequired: false,
+      identityLinkRequired: true,
+      capabilities: {
+        createCourse: false,
+        generateLesson: false,
+        flashcardDecksEnabled: false,
+        createCustomFlashcardDeck: false,
+        publishCourse: false,
+        advancedCapstoneAnalysis: false,
+        exportEvidenceReport: false,
+        shareEvidenceReport: false,
+      },
+      quotas: [],
+    }),
+  }));
+}
+
+async function seedPendingRecovery(page: Page) {
+  await page.addInitScript(() => {
+    const seedKey = "filosage:task7-recovery-seeded";
+    if (!sessionStorage.getItem(seedKey)) {
+      sessionStorage.setItem(seedKey, "1");
+      sessionStorage.setItem("filosage:identity-recovery:v1", JSON.stringify({
+        createdAt: Date.now(),
+        returnPath: "/profile?identity-linked=1",
+      }));
+    }
+  });
 }
 
 test("identity-link cookies turn Secure on only for production and keep the completion-only path", () => {
@@ -753,4 +837,375 @@ test("completion page aborts a stalled request and announces a bounded timeout",
     "The secure connection took too long. Return to Filosage and try again.",
   );
   expect(completionRequests).toBe(1);
+});
+
+test("session responses expose exact signed-out availability and no provider secrets", async ({ request }) => {
+  const signedOut = await request.get("/api/auth/session");
+  expect(signedOut.ok()).toBe(true);
+  expect(cacheControl(signedOut)).toBe("private, no-store");
+  expect(signedOut.headers().vary.split(",").map((value) => value.trim())).toContain("Cookie");
+  const anonymousBody = await signedOut.json() as Record<string, unknown>;
+  expect(Object.keys(anonymousBody).sort()).toEqual([
+    "authentication",
+    "recentAuthentication",
+    "user",
+  ]);
+  expect(anonymousBody).toEqual({
+    recentAuthentication: false,
+    authentication: {
+      primaryProvider: "google",
+      externalIdAvailable: false,
+      legacyGoogleAvailable: true,
+    },
+    user: null,
+  });
+
+  const signedIn = await request.get("/api/auth/session", {
+    headers: { Authorization: "Bearer playwright-local-owner" },
+  });
+  expect(signedIn.ok()).toBe(true);
+  const signedInBody = await signedIn.json() as {
+    user: Record<string, unknown>;
+  };
+  expect(Object.keys(signedInBody.user).sort()).toEqual([
+    "authenticationProvider",
+    "displayName",
+    "email",
+    "photoURL",
+    "uid",
+  ]);
+  expect(signedInBody.user.authenticationProvider).toBe("local");
+  const serialized = JSON.stringify(signedInBody).toLowerCase();
+  for (const forbidden of ["issuer", "subject", "provideridentity", "registry", "cohort", "claim", "secret", "token"]) {
+    expect(serialized).not.toContain(forbidden);
+  }
+});
+
+test("managed session restoration rejects unknown fields and oversized JSON without exposing it", async ({ page }) => {
+  await page.route("**/api/auth/session", (route) => route.fulfill({
+    status: 200,
+    contentType: "application/json",
+    body: JSON.stringify({
+      recentAuthentication: false,
+      authentication: {
+        ...signedOutAuthentication,
+        issuer: "https://private-tenant.invalid",
+      },
+      user: null,
+    }),
+  }));
+  await page.goto("/");
+  await page.locator(".marketing-hero").getByRole("button", { name: "Create a free account" }).click();
+  let dialog = page.getByRole("dialog", { name: "Keep your learning in sync" });
+  await expect(dialog.getByRole("alert")).toHaveText("Azure authentication status is unavailable.");
+  await expect(dialog).not.toContainText("private-tenant");
+
+  await page.unroute("**/api/auth/session");
+  await page.route("**/api/auth/session", (route) => route.fulfill({
+    status: 200,
+    headers: {
+      "Content-Type": "application/json",
+      "Content-Length": "20000",
+    },
+    body: JSON.stringify({
+      recentAuthentication: false,
+      authentication: signedOutAuthentication,
+      user: null,
+      padding: "private-session-value".repeat(1_000),
+    }),
+  }));
+  await page.goto("/");
+  await page.locator(".marketing-hero").getByRole("button", { name: "Create a free account" }).click();
+  dialog = page.getByRole("dialog", { name: "Keep your learning in sync" });
+  await expect(dialog.getByRole("alert")).toHaveText("Azure authentication status is unavailable.");
+  await expect(dialog).not.toContainText("private-session-value");
+});
+
+test("entry copy follows signed-out provider availability without inventing email sign-in", async ({ page }) => {
+  await routeManagedSession(page, {
+    recentAuthentication: false,
+    authentication: {
+      primaryProvider: "google",
+      externalIdAvailable: false,
+      legacyGoogleAvailable: true,
+    },
+    user: null,
+  });
+  await page.goto("/");
+  await page.locator(".marketing-hero").getByRole("button", { name: "Create a free account" }).click();
+  let dialog = page.getByRole("dialog", { name: "Keep your learning in sync" });
+  await expect(dialog.getByRole("button", { name: "Continue with Google" })).toBeVisible();
+  await expect(dialog).toContainText("Continue with Google on the next secure screen");
+  await expect(dialog).not.toContainText("private email code");
+  await expect(dialog.getByRole("button", { name: "Use my existing Google sign-in" })).toHaveCount(0);
+
+  await page.unroute("**/api/auth/session");
+  await routeManagedSession(page, {
+    recentAuthentication: false,
+    authentication: {
+      primaryProvider: "filosage",
+      externalIdAvailable: true,
+      legacyGoogleAvailable: false,
+    },
+    user: null,
+  });
+  await page.goto("/");
+  await page.locator(".marketing-hero").getByRole("button", { name: "Create a free account" }).click();
+  dialog = page.getByRole("dialog", { name: "Keep your learning in sync" });
+  await expect(dialog.getByRole("button", { name: "Continue securely" })).toBeVisible();
+  await expect(dialog.getByRole("button", { name: "Use my existing Google sign-in" })).toHaveCount(0);
+});
+
+test("link-required account state blocks legal acceptance and remains a focus-contained recovery", async ({ page }) => {
+  let legalPosts = 0;
+  await page.addInitScript(({ termsVersion, privacyVersion }) => {
+    sessionStorage.setItem("filosage:managed-redirect-acceptance:v1", JSON.stringify({
+      source: "signup",
+      termsVersion,
+      privacyVersion,
+      ageEligibilityConfirmed: true,
+      createdAt: Date.now(),
+    }));
+  }, { termsVersion: TERMS_VERSION, privacyVersion: PRIVACY_VERSION });
+  await routeManagedSession(page, managedSession("filosage"));
+  await routeIdentityLinkRequiredAccount(page);
+  await page.route("**/api/legal/acceptance", (route) => {
+    legalPosts += 1;
+    return route.fulfill({ status: 500, json: { error: "must not be called" } });
+  });
+
+  await page.goto("/");
+  const dialog = page.getByRole("dialog", { name: "Confirm your existing sign-in" });
+  await expect(dialog).toBeVisible();
+  await expect(page.getByRole("dialog", { name: /Review before/i })).toHaveCount(0);
+  expect(legalPosts).toBe(0);
+  expect(await page.evaluate(() => sessionStorage.getItem("filosage:managed-redirect-acceptance:v1"))).toBeNull();
+
+  await page.keyboard.press("Escape");
+  await expect(dialog).toBeVisible();
+  for (let index = 0; index < 8; index += 1) await page.keyboard.press("Tab");
+  expect(await page.evaluate(() => document.activeElement?.closest('[role="dialog"]') !== null)).toBe(true);
+  await expect(dialog.getByRole("button", { name: "Sign out and choose another method" })).toBeVisible();
+});
+
+test("legacy recovery is unavailable without the server capability and stores no continuation hint", async ({ page }) => {
+  await routeManagedSession(page, managedSession("filosage", {
+    primaryProvider: "filosage",
+    externalIdAvailable: true,
+    legacyGoogleAvailable: false,
+  }));
+  await routeIdentityLinkRequiredAccount(page);
+  await page.goto("/");
+
+  const dialog = page.getByRole("dialog", { name: "Confirm your existing sign-in" });
+  await dialog.getByRole("button", { name: "Confirm existing Google sign-in" }).click();
+  await expect(dialog.getByRole("alert")).toHaveText(
+    "The existing Google sign-in is not available. Sign out and choose another method.",
+  );
+  expect(await page.evaluate(() => sessionStorage.getItem("filosage:identity-recovery:v1"))).toBeNull();
+});
+
+test("recovery confirmation stores only a bounded continuation hint before Google navigation", async ({ page }) => {
+  let googleNavigations = 0;
+  await routeManagedSession(page, managedSession("filosage"));
+  await routeIdentityLinkRequiredAccount(page);
+  await page.route("**/.auth/login/google?**", (route) => {
+    googleNavigations += 1;
+    return route.fulfill({
+      status: 200,
+      contentType: "text/html",
+      body: "<!doctype html><title>Existing Google sign-in</title>",
+    });
+  });
+  await page.goto("/");
+  const dialog = page.getByRole("dialog", { name: "Confirm your existing sign-in" });
+  await dialog.getByRole("button", { name: "Confirm existing Google sign-in" }).dblclick();
+  await page.waitForURL(/\/\.auth\/login\/google\?/);
+  expect(googleNavigations).toBe(1);
+  const hint = await page.evaluate(() => sessionStorage.getItem("filosage:identity-recovery:v1"));
+  expect(hint).not.toBeNull();
+  const parsed = JSON.parse(hint!) as Record<string, unknown>;
+  expect(Object.keys(parsed).sort()).toEqual(["createdAt", "returnPath"]);
+  expect(parsed.returnPath).toBe("/profile?identity-linked=1");
+  expect(typeof parsed.createdAt).toBe("number");
+  for (const forbidden of ["email", "uid", "subject", "token", "provider"]) {
+    expect(hint!.toLowerCase()).not.toContain(forbidden);
+  }
+});
+
+test("pending recovery is removed before one link request and accepts only the approved local redirect", async ({ page }) => {
+  let linkRequests = 0;
+  await seedPendingRecovery(page);
+  await routeManagedSession(page, managedSession("google"));
+  await page.route("**/api/account", (route) => route.fulfill({
+    status: 200,
+    json: {
+      access: "free",
+      plan: "free",
+      accountStatus: "active",
+      applicationAccountExists: true,
+      legalAcceptanceRequired: false,
+      identityLinkRequired: false,
+      quotas: [],
+    },
+  }));
+  await page.route("**/api/auth/link-intent?**", (route) => {
+    linkRequests += 1;
+    expect(new URL(route.request().url()).searchParams.get("return")).toBe("/profile?identity-linked=1");
+    return route.fulfill({
+      status: 200,
+      json: {
+        redirectTo: "/.auth/login/filosage?post_login_redirect_uri=%2Fauth%2Fcomplete-link",
+      },
+    });
+  });
+  await page.route("**/.auth/login/filosage?**", (route) => route.fulfill({
+    status: 200,
+    contentType: "text/html",
+    body: "<!doctype html><title>Managed sign-in</title>",
+  }));
+
+  await page.goto("/");
+  await page.waitForURL(/\/\.auth\/login\/filosage\?post_login_redirect_uri=%2Fauth%2Fcomplete-link$/);
+  expect(linkRequests).toBe(1);
+  expect(await page.evaluate(() => sessionStorage.getItem("filosage:identity-recovery:v1"))).toBeNull();
+
+  await page.goto("/");
+  await page.waitForTimeout(250);
+  expect(linkRequests).toBe(1);
+});
+
+test("rate-limited recovery keeps link-required state and removes the hint before retryable I/O", async ({ page }) => {
+  let linkRequests = 0;
+  await seedPendingRecovery(page);
+  await routeManagedSession(page, managedSession("google"));
+  await routeIdentityLinkRequiredAccount(page);
+  await page.route("**/api/auth/link-intent?**", (route) => {
+    linkRequests += 1;
+    return route.fulfill({
+      status: 429,
+      contentType: "application/json",
+      body: JSON.stringify({ error: "internal-rate-detail-must-not-win" }),
+    });
+  });
+
+  await page.goto("/");
+  const dialog = page.getByRole("dialog", { name: "Confirm your existing sign-in" });
+  await expect(dialog).toBeVisible();
+  await expect(dialog.getByRole("alert")).toHaveText(
+    "Too many connection attempts. Wait a few minutes, then try again.",
+  );
+  await expect(dialog).not.toContainText("internal-rate-detail");
+  expect(await page.evaluate(() => sessionStorage.getItem("filosage:identity-recovery:v1"))).toBeNull();
+  await page.reload();
+  await expect(dialog).toBeVisible();
+  expect(linkRequests).toBe(1);
+});
+
+test("recovery times out boundedly without erasing the blocking account state", async ({ page }) => {
+  await seedPendingRecovery(page);
+  await routeManagedSession(page, managedSession("google"));
+  await routeIdentityLinkRequiredAccount(page);
+  await page.route("**/api/auth/link-intent?**", () => {
+    // Keep the request pending until AbortController cancels it.
+  });
+
+  await page.goto("/");
+  const dialog = page.getByRole("dialog", { name: "Confirm your existing sign-in" });
+  await expect(dialog).toBeVisible();
+  await expect(dialog.getByRole("alert")).toHaveText(
+    "The secure connection took too long. Check your network and try again.",
+    { timeout: 9_000 },
+  );
+  expect(await page.evaluate(() => sessionStorage.getItem("filosage:identity-recovery:v1"))).toBeNull();
+});
+
+test("recovery byte-bounds chunked JSON", async ({ page }) => {
+  await page.addInitScript(() => {
+    const originalFetch = window.fetch.bind(window);
+    window.fetch = async (input, init) => {
+      const url = new URL(input instanceof Request ? input.url : String(input), window.location.origin);
+      if (url.pathname !== "/api/auth/link-intent") return originalFetch(input, init);
+      const encoder = new TextEncoder();
+      return new Response(new ReadableStream<Uint8Array>({
+        start(controller) {
+          controller.enqueue(encoder.encode('{"redirectTo":"/.auth/login/filosage?post_login_redirect_uri=%2Fauth%2Fcomplete-link","padding":"'));
+          controller.enqueue(encoder.encode("x".repeat(17_000)));
+          controller.enqueue(encoder.encode('"}'));
+          controller.close();
+        },
+      }), { status: 200, headers: { "Content-Type": "application/json" } });
+    };
+  });
+  await seedPendingRecovery(page);
+  await routeManagedSession(page, managedSession("google"));
+  await routeIdentityLinkRequiredAccount(page);
+
+  await page.goto("/");
+  const dialog = page.getByRole("dialog", { name: "Confirm your existing sign-in" });
+  await expect(dialog.getByRole("alert")).toHaveText("The secure connection could not be started.");
+  await expect(page).toHaveURL(/\/$/);
+});
+
+test("recovery rejects external and extra-parameter redirect lookalikes", async ({ page }) => {
+  let attempt = 0;
+  await seedPendingRecovery(page);
+  await routeManagedSession(page, managedSession("google"));
+  await routeIdentityLinkRequiredAccount(page);
+  await page.route("**/api/auth/link-intent?**", (route) => route.fulfill({
+    status: 200,
+    json: {
+      redirectTo: attempt++ === 0
+        ? "https://attacker.invalid/.auth/login/filosage?post_login_redirect_uri=%2Fauth%2Fcomplete-link"
+        : "/.auth/login/filosage?post_login_redirect_uri=%2Fauth%2Fcomplete-link&prompt=login",
+    },
+  }));
+
+  await page.goto("/");
+  let dialog = page.getByRole("dialog", { name: "Confirm your existing sign-in" });
+  await expect(dialog.getByRole("alert")).toHaveText("The secure connection could not be started.");
+  await expect(page).toHaveURL(/\/$/);
+
+  await page.evaluate(() => sessionStorage.setItem("filosage:identity-recovery:v1", JSON.stringify({
+    createdAt: Date.now(),
+    returnPath: "/profile?identity-linked=1",
+  })));
+  await page.reload();
+  dialog = page.getByRole("dialog", { name: "Confirm your existing sign-in" });
+  await expect(dialog.getByRole("alert")).toHaveText("The secure connection could not be started.");
+  await expect(page).toHaveURL(/\/$/);
+});
+
+test("auth modal layout survives long RTL copy, 200 percent zoom, and forced colors", async ({ page }) => {
+  await page.emulateMedia({ forcedColors: "active", reducedMotion: "reduce" });
+  await page.setViewportSize({ width: 320, height: 760 });
+  await routeManagedSession(page, {
+    recentAuthentication: false,
+    authentication: signedOutAuthentication,
+    user: null,
+  });
+  await page.goto("/");
+  await page.locator("html").evaluate((element) => {
+    element.setAttribute("dir", "rtl");
+    element.style.fontSize = "200%";
+  });
+  await page.locator(".marketing-hero").getByRole("button", { name: "Create a free account" }).click();
+  const dialog = page.getByRole("dialog", { name: "Keep your learning in sync" });
+  await dialog.locator(".auth-identity span").evaluate((element) => {
+    element.textContent = "اختر Google أو رمز بريد إلكتروني خاصًا على شاشة Filosage الآمنة التالية مع تعليمات طويلة جدًا لاختبار الالتفاف";
+  });
+  await expect(dialog).toBeVisible();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(320);
+  expect(await dialog.evaluate((element) => element.scrollWidth)).toBeLessThanOrEqual(
+    await dialog.evaluate((element) => element.clientWidth),
+  );
+  const continueButton = dialog.getByRole("button", { name: "Continue securely" });
+  expect(await continueButton.evaluate((element) => element.getBoundingClientRect().height)).toBeGreaterThanOrEqual(44);
+  expect(Number.parseFloat(await dialog.locator(".auth-copy").evaluate((element) => getComputedStyle(element).fontSize))).toBeGreaterThanOrEqual(16);
+  await dialog.getByRole("checkbox").check();
+  await dialog.getByRole("link", { name: "Privacy Notice" }).focus();
+  await page.keyboard.press("Tab");
+  await expect(continueButton).toBeFocused();
+  expect(await continueButton.evaluate((element) => getComputedStyle(element).outlineStyle)).not.toBe("none");
+  expect(await dialog.evaluate((element) => getComputedStyle(element).boxShadow)).toBe("none");
 });

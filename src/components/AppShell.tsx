@@ -27,6 +27,7 @@ import { SUPPORT_CONTACT } from "@/lib/legal";
 import FilosageMark from "@/components/FilosageMark";
 import AuthModal from "@/components/AuthModal";
 import AppDrawer, { useAppDrawer } from "@/components/AppDrawer";
+import IdentityLinkRequiredModal from "@/components/IdentityLinkRequiredModal";
 import LegalConsentModal from "@/components/LegalConsentModal";
 import MarketingFooter from "@/components/marketing/MarketingFooter";
 import MarketingNavigation from "@/components/marketing/MarketingNavigation";
@@ -62,6 +63,7 @@ export default function AppShell({ children, activeTopic, activeCourseId, active
   const { theme, toggle } = useTheme();
   const { user, account, isOwner, canCreateCourses, signOut, loading: authLoading } = useAuth();
   const [showAuth, setShowAuth] = useState(false);
+  const [authReturnFocus, setAuthReturnFocus] = useState<HTMLElement | null>(null);
   const [courses, setCourses] = useState<Course[]>([]);
   const [coursesLoading, setCoursesLoading] = useState(false);
   const [courseQuery, setCourseQuery] = useState("");
@@ -73,10 +75,18 @@ export default function AppShell({ children, activeTopic, activeCourseId, active
   const mobileAccountTriggerRef = useRef<HTMLButtonElement>(null);
   const mobileCommandTriggerRef = useRef<HTMLButtonElement>(null);
   const commandReturnFocusRef = useRef<HTMLElement | null>(null);
+  const closeAuth = useCallback(() => setShowAuth(false), []);
 
   useEffect(() => {
     if (user) return;
-    const openAuth = () => setShowAuth(true);
+    const openAuth = (event: Event) => {
+      setAuthReturnFocus(event instanceof CustomEvent && event.detail instanceof HTMLElement
+        ? event.detail
+        : document.activeElement instanceof HTMLElement
+          ? document.activeElement
+          : null);
+      setShowAuth(true);
+    };
     window.addEventListener("filosage:open-auth", openAuth);
     return () => window.removeEventListener("filosage:open-auth", openAuth);
   }, [user]);
@@ -325,11 +335,17 @@ export default function AppShell({ children, activeTopic, activeCourseId, active
     return (
       <div className="public-shell">
         <a className="skip-link" href="#main-content">Skip to main content</a>
-        <MarketingNavigation theme={theme} onToggleTheme={toggle} onSignIn={() => setShowAuth(true)} />
+        <MarketingNavigation theme={theme} onToggleTheme={toggle} onSignIn={(returnFocus) => {
+          setAuthReturnFocus(returnFocus);
+          setShowAuth(true);
+        }} />
         <main className="public-main" id="main-content" tabIndex={-1}>{children}</main>
         <MarketingFooter />
-        <SupportCenter onRequestSignIn={() => setShowAuth(true)} />
-        {showAuth && <AuthModal onClose={() => setShowAuth(false)} />}
+        <SupportCenter onRequestSignIn={(returnFocus) => {
+          setAuthReturnFocus(returnFocus);
+          setShowAuth(true);
+        }} />
+        {showAuth && <AuthModal returnFocus={authReturnFocus} onClose={closeAuth} />}
       </div>
     );
   }
@@ -421,7 +437,8 @@ export default function AppShell({ children, activeTopic, activeCourseId, active
         ))}
       </nav>
       <SupportCenter onBeforeOpen={() => setCommandOpen(false)} />
-      {account?.legalAcceptanceRequired && !isLegalPage && <LegalConsentModal />}
+      {account?.identityLinkRequired && !isLegalPage && <IdentityLinkRequiredModal />}
+      {!account?.identityLinkRequired && account?.legalAcceptanceRequired && !isLegalPage && <LegalConsentModal />}
     </div>
   );
 }

@@ -47,7 +47,7 @@ function renewalLabel(value: string | undefined, status: string | undefined) {
 }
 
 export default function PricingPage() {
-  const { user, account, signInWithGoogle, acceptLegalTerms, refreshAccount } = useAuth();
+  const { user, account, signIn, acceptLegalTerms, refreshAccount } = useAuth();
   const courseCredits = account?.courseCredits;
   const subscriptionRequiresManagement = subscriptionBlocksCheckout(account?.subscriptionStatus);
   const [email, setEmail] = useState("");
@@ -124,7 +124,7 @@ export default function PricingPage() {
     setBillingError(null);
     try {
       let activeUser = user;
-      if (!activeUser) activeUser = await signInWithGoogle();
+      if (!activeUser) activeUser = await signIn();
       if (account?.legalAcceptanceRequired) await acceptLegalTerms("subscription", activeUser);
       const token = await activeUser.getIdToken();
       const response = await fetch(`/api/billing/${kind}`, {
@@ -246,7 +246,7 @@ export default function PricingPage() {
                 {isCurrent ? (
                   <div className="plan-status"><Sparkles size={17} /><span><strong>{account?.subscriptionStatus === "past_due" ? "Payment needs attention" : `${plan.shortName} is active`}</strong><small>{account?.subscriptionStatus === "past_due" ? "Update your payment method to restore paid access." : renewal ?? (courseCredits?.balance === null ? "Unlimited owner course creation" : account?.plan === "free" && courseCredits?.frozenUntil ? `${courseCredits.balance} course credits preserved until ${new Date(courseCredits.frozenUntil).toLocaleDateString()}` : courseCredits ? `${courseCredits.balance} rollover course credits available` : "Your current membership")}</small></span></div>
                 ) : !user && plan.id === "free" ? (
-                  <button className="button button-secondary" onClick={() => void signInWithGoogle()}>Create a free account</button>
+                  <button className="button button-secondary" onClick={() => void signIn()}>Create a free account</button>
                 ) : paidPlanId && !user && billingReady ? (
                   <button className="button button-primary" type="button" disabled={billingBusy} onClick={() => void openBilling("checkout", paidPlanId)}>
                     {billingBusy ? <LoaderCircle className="spin" size={16} /> : <CreditCard size={16} />}{billingBusy ? "Opening secure checkout…" : `Choose ${plan.shortName} ${interval === "annual" ? "annual" : "monthly"}`}

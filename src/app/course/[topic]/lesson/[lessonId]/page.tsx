@@ -294,7 +294,7 @@ export default function LessonView() {
       ? "delayed-28"
       : "spaced";
   const [moduleIndex, lessonIndex] = lessonId.split("-").map(Number);
-  const { user, isOwner, canGenerateLessons, loading: authLoading, signInWithGoogle } = useAuth();
+  const { user, isOwner, canGenerateLessons, loading: authLoading, signIn } = useAuth();
   const masteryJourney = useMasteryJourney(courseId, user);
   const masteryPlan = masteryJourney.plan;
   const addMasteryEvidence = masteryJourney.addEvidence;
@@ -1275,7 +1275,7 @@ export default function LessonView() {
           <h1>Open the lesson when you’re signed in</h1>
           <p>You can inspect the complete course structure as a guest. Create a free account to read lessons, practice, and keep your progress.</p>
           <div className="state-actions">
-            <button className="button button-primary" onClick={() => void signInWithGoogle()}><LockKeyhole size={16} /> Create a free account</button>
+            <button className="button button-primary" onClick={() => void signIn()}><LockKeyhole size={16} /> Create a free account</button>
             <a className="button button-secondary" href={courseHref}><ArrowLeft size={16} /> Back to course</a>
           </div>
         </div>

@@ -26,7 +26,15 @@ import {
 type BadgeFilter = "all" | "earned" | "in-progress";
 
 export default function ProfilePage() {
-  const { user, account, canCreateCourses, loading: authLoading, signInWithGoogle } = useAuth();
+  const {
+    user,
+    account,
+    authentication,
+    canCreateCourses,
+    loading: authLoading,
+    signIn,
+    connectExternalIdentity,
+  } = useAuth();
   const { state, update, syncStatus } = useLearnerState();
   const [progress, setProgress] = useState<CourseProgress[]>([]);
   const [authoredCourses, setAuthoredCourses] = useState<Course[]>([]);
@@ -51,7 +59,7 @@ export default function ProfilePage() {
   }, [user]);
 
   if (authLoading) return <AppShell><div className="center-state"><LoaderCircle className="spin" size={25} /><h1>Preparing your profile</h1></div></AppShell>;
-  if (!user) return <AppShell><div className="center-state"><UserRound size={28} /><p className="overline">Your learning profile</p><h1>Keep your progress and achievements together.</h1><p>Create a free account to sync learning progress, reviews, bookmarks, notes, and badges across devices.</p><button className="button button-primary" onClick={() => void signInWithGoogle()}>Create a free account</button></div></AppShell>;
+  if (!user) return <AppShell><div className="center-state"><UserRound size={28} /><p className="overline">Your learning profile</p><h1>Keep your progress and achievements together.</h1><p>Create a free account to sync learning progress, reviews, bookmarks, notes, and badges across devices.</p><button className="button button-primary" onClick={() => void signIn()}>Create a free account</button></div></AppShell>;
 
   const lessons = completedLearningLessons(progress);
   const bands = learningBandCounts(progress);
@@ -152,6 +160,11 @@ export default function ProfilePage() {
                   <div className="profile-side-heading"><UserRound size={18} /><h2>Account and privacy</h2></div>
                   <p>Download your information, submit a privacy request, or close your account.</p>
                   <Link href="/privacy-center">Open privacy center</Link>
+                  {user.provider === "google" && authentication.externalIdAvailable && (
+                    <button className="text-button" onClick={() => void connectExternalIdentity().catch(() => undefined)}>
+                      Add email-code sign-in
+                    </button>
+                  )}
                 </section>
               </aside>
             </div>

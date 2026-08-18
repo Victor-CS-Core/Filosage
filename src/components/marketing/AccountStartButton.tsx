@@ -24,7 +24,9 @@ export default function AccountStartButton({ className = "button button-secondar
       className={className}
       type="button"
       disabled={!interactive}
-      onClick={() => window.dispatchEvent(new CustomEvent("filosage:open-auth"))}
+      onClick={(event) => window.dispatchEvent(new CustomEvent("filosage:open-auth", {
+        detail: event.currentTarget,
+      }))}
     >
       <UserRoundPlus size={16} aria-hidden="true" />
       {label}
