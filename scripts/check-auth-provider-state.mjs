@@ -1,6 +1,6 @@
 const expectedInput = process.argv[2]?.trim().toLowerCase();
 if (expectedInput !== "true" && expectedInput !== "false") {
-  console.error("Expected QA External ID application gate must be true or false.");
+  console.error("Expected managed authentication gate must be true or false.");
   process.exit(1);
 }
 
@@ -9,7 +9,7 @@ let byteLength = 0;
 for await (const chunk of process.stdin) {
   byteLength += chunk.length;
   if (byteLength > 1_024) {
-    console.error("QA authentication provider state is invalid.");
+    console.error("Managed authentication provider state is invalid.");
     process.exit(1);
   }
   chunks.push(chunk);
@@ -19,7 +19,7 @@ let state;
 try {
   state = JSON.parse(Buffer.concat(chunks).toString("utf8"));
 } catch {
-  console.error("QA authentication provider state is invalid.");
+  console.error("Managed authentication provider state is invalid.");
   process.exit(1);
 }
 
@@ -31,16 +31,16 @@ if (exactKeys.length !== 2
   || exactKeys[1] !== "google"
   || typeof state.google !== "boolean"
   || typeof state.filosage !== "boolean") {
-  console.error("QA authentication provider state is invalid.");
+  console.error("Managed authentication provider state is invalid.");
   process.exit(1);
 }
 if (!state.google) {
-  console.error("Direct Google Easy Auth must remain enabled in QA.");
+  console.error("Direct Google managed authentication must remain enabled.");
   process.exit(1);
 }
 if (state.filosage !== (expectedInput === "true")) {
-  console.error("Filosage Easy Auth provider state does not match the requested application acceptance gate.");
+  console.error("Filosage managed authentication state does not match the requested gate.");
   process.exit(1);
 }
 
-console.log("QA authentication provider state matches the requested application gate.");
+console.log("Managed authentication provider state matches the requested gate.");

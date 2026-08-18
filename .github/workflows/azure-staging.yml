@@ -67,7 +67,7 @@ jobs:
             echo '```'
           } >> "$GITHUB_STEP_SUMMARY"
           printf '%s' "$PROVIDER_STATE" \
-            | node scripts/check-qa-auth-provider-state.mjs false
+            | node scripts/check-auth-provider-state.mjs false
 
       - name: Verify the exact SHA in isolated QA
         shell: bash
@@ -173,7 +173,7 @@ jobs:
             echo '```'
           } >> "$GITHUB_STEP_SUMMARY"
           printf '%s' "$PROVIDER_STATE" \
-            | node scripts/check-qa-auth-provider-state.mjs false
+            | node scripts/check-auth-provider-state.mjs false
 
       - name: Verify the deployed release safety policy
         shell: bash

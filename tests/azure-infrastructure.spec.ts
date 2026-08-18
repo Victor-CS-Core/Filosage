@@ -427,7 +427,8 @@ test("QA activation is explicit while production staging cannot enable External 
   expect(qaWorkflowSource).toContain("New External ID accounts require the QA External ID provider to be enabled.");
   expect(qaWorkflowSource).toContain('"DIRECT_GOOGLE_AUTH_ENABLED=true"');
   expect(qaWorkflowSource).toContain("customOpenIdConnectProviders.filosage.enabled");
-  expect(qaWorkflowSource).toContain("check-qa-auth-provider-state.mjs");
+  expect(qaWorkflowSource).toContain("check-auth-provider-state.mjs");
+  expect(qaWorkflowSource).not.toContain("check-qa-auth-provider-state.mjs");
   const qaPrecheck = qaWorkflowSource.indexOf("Verify separately configured QA authentication state before deployment");
   const qaUpdate = qaWorkflowSource.indexOf("az containerapp update");
   const qaPostcheck = qaWorkflowSource.indexOf("Verify separately configured QA authentication state after deployment");
@@ -447,7 +448,8 @@ test("QA activation is explicit while production staging cannot enable External 
   expect(stagingPrecheck).toBeGreaterThan(-1);
   expect(stagingUpdate).toBeGreaterThan(stagingPrecheck);
   expect(stagingPostcheck).toBeGreaterThan(stagingUpdate);
-  expect(stagingWorkflowSource.match(/check-qa-auth-provider-state\.mjs false/g)).toHaveLength(2);
+  expect(stagingWorkflowSource.match(/check-auth-provider-state\.mjs false/g)).toHaveLength(2);
+  expect(stagingWorkflowSource).not.toContain("check-qa-auth-provider-state.mjs");
   expect(stagingWorkflowSource).toContain("EXPECTED_AUTH_MODE: direct-google");
   expect(stagingWorkflowSource).not.toMatch(/az containerapp auth (?:openid-connect )?(?:update|set|delete)/);
   expect(stagingWorkflowSource).not.toContain("external_id_auth_enabled:");

@@ -78,7 +78,7 @@ jobs:
             echo '```'
           } >> "$GITHUB_STEP_SUMMARY"
           printf '%s' "$PROVIDER_STATE" \
-            | node scripts/check-qa-auth-provider-state.mjs "${{ inputs.external_id_auth_enabled }}"
+            | node scripts/check-auth-provider-state.mjs "${{ inputs.external_id_auth_enabled }}"
 
       - name: Build and push the immutable QA-approved image
         shell: bash
@@ -140,7 +140,7 @@ jobs:
             echo '```'
           } >> "$GITHUB_STEP_SUMMARY"
           printf '%s' "$PROVIDER_STATE" \
-            | node scripts/check-qa-auth-provider-state.mjs "${{ inputs.external_id_auth_enabled }}"
+            | node scripts/check-auth-provider-state.mjs "${{ inputs.external_id_auth_enabled }}"
 
       - name: Verify isolated QA candidate
         env:

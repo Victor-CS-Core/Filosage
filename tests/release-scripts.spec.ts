@@ -7,7 +7,7 @@ const root = process.cwd();
 const releaseScript = resolve(root, "scripts/check-release-env.mjs");
 const healthScript = resolve(root, "scripts/check-production-health.mjs");
 const safetyScript = resolve(root, "scripts/check-release-safety.mjs");
-const qaProviderStateScript = resolve(root, "scripts/check-qa-auth-provider-state.mjs");
+const providerStateScript = resolve(root, "scripts/check-auth-provider-state.mjs");
 
 const validReleaseEnvironment = {
   ...process.env,
@@ -181,35 +181,43 @@ test("ordinary releases reject unsafe identity provider and billing combinations
   expect(`${externalOnly.stdout}${externalOnly.stderr}`).not.toContain("external-client-id");
 });
 
-test("QA provider evidence must exactly match the requested application gate", () => {
+test("managed provider evidence uses environment-neutral output and exactly matches the requested gate", () => {
   const run = (state: unknown, expected: "true" | "false") => spawnSync(
     process.execPath,
-    [qaProviderStateScript, expected],
+    [providerStateScript, expected],
     { cwd: root, input: JSON.stringify(state), encoding: "utf8" },
   );
 
-  expect(run({ google: true, filosage: false }, "false").status).toBe(0);
-  expect(run({ google: true, filosage: true }, "true").status).toBe(0);
+  for (const [state, expected] of [
+    [{ google: true, filosage: false }, "false"],
+    [{ google: true, filosage: true }, "true"],
+  ] as const) {
+    const result = run(state, expected);
+    expect(result.status, result.stderr).toBe(0);
+    expect(result.stdout).toContain("Managed authentication provider state matches the requested gate.");
+    expect(`${result.stdout}${result.stderr}`).not.toMatch(/\bQA\b|application gate/i);
+  }
 
   for (const [label, state, expected, message] of [
-    ["Google disabled", { google: false, filosage: false }, "false", "Direct Google Easy Auth must remain enabled in QA."],
-    ["Filosage missing", { google: true, filosage: null }, "false", "QA authentication provider state is invalid."],
-    ["requested gate not enabled", { google: true, filosage: false }, "true", "Filosage Easy Auth provider state does not match the requested application acceptance gate."],
-    ["provider enabled behind closed gate", { google: true, filosage: true }, "false", "Filosage Easy Auth provider state does not match the requested application acceptance gate."],
-    ["unexpected metadata", { google: true, filosage: false, clientId: "do-not-print-this" }, "false", "QA authentication provider state is invalid."],
+    ["Google disabled", { google: false, filosage: false }, "false", "Direct Google managed authentication must remain enabled."],
+    ["Filosage missing", { google: true, filosage: null }, "false", "Managed authentication provider state is invalid."],
+    ["requested gate not enabled", { google: true, filosage: false }, "true", "Filosage managed authentication state does not match the requested gate."],
+    ["provider enabled behind closed gate", { google: true, filosage: true }, "false", "Filosage managed authentication state does not match the requested gate."],
+    ["unexpected metadata", { google: true, filosage: false, clientId: "do-not-print-this" }, "false", "Managed authentication provider state is invalid."],
   ] as const) {
     const result = run(state, expected);
     expect(result.status, label).toBe(1);
     expect(result.stderr, label).toContain(message);
     expect(`${result.stdout}${result.stderr}`, label).not.toContain("do-not-print-this");
+    expect(`${result.stdout}${result.stderr}`, label).not.toMatch(/\bQA\b|application gate/i);
   }
 
   for (const [label, input, expected, message] of [
-    ["invalid JSON", "not-json", "false", "QA authentication provider state is invalid."],
-    ["oversized input", JSON.stringify({ google: true, filosage: false, padding: "x".repeat(1_024) }), "false", "QA authentication provider state is invalid."],
-    ["invalid expected gate", JSON.stringify({ google: true, filosage: false }), "yes", "Expected QA External ID application gate must be true or false."],
+    ["invalid JSON", "not-json", "false", "Managed authentication provider state is invalid."],
+    ["oversized input", JSON.stringify({ google: true, filosage: false, padding: "x".repeat(1_024) }), "false", "Managed authentication provider state is invalid."],
+    ["invalid expected gate", JSON.stringify({ google: true, filosage: false }), "yes", "Expected managed authentication gate must be true or false."],
   ] as const) {
-    const result = spawnSync(process.execPath, [qaProviderStateScript, expected], {
+    const result = spawnSync(process.execPath, [providerStateScript, expected], {
       cwd: root,
       input,
       encoding: "utf8",
@@ -217,6 +225,7 @@ test("QA provider evidence must exactly match the requested application gate", (
     expect(result.status, label).toBe(1);
     expect(result.stderr, label).toContain(message);
     expect(`${result.stdout}${result.stderr}`, label).not.toContain("padding");
+    expect(`${result.stdout}${result.stderr}`, label).not.toMatch(/\bQA\b|application gate/i);
   }
 });
 
