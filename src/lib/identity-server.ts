@@ -2,7 +2,7 @@ import { authenticationRuntimeConfiguration } from "@/lib/auth-runtime";
 import "server-only";
 
 import { easyAuthIdentityFromHeaders } from "@/lib/easy-auth-principal";
-import { verifiedEasyAuthUserFromProviderIdentity } from "@/lib/easy-auth-user";
+import { resolveCanonicalIdentity } from "@/lib/identity-link-server";
 import type { VerifiedProviderIdentity, VerifiedUser } from "@/lib/identity-types";
 import { isLocalMode, LOCAL_OWNER_EMAIL, LOCAL_OWNER_UID } from "@/lib/local-mode";
 import { serverEnvironment } from "@/lib/runtime-environment";
@@ -86,15 +86,17 @@ export function verifiedEasyAuthIdentity(request: Request): VerifiedProviderIden
   return easyAuthIdentityFromHeaders(request.headers, authenticationRuntimeConfiguration());
 }
 
-export function verifiedEasyAuthUser(request: Request): VerifiedUser | null {
-  return verifiedEasyAuthUserFromProviderIdentity(verifiedEasyAuthIdentity(request));
+export async function verifiedEasyAuthUser(request: Request) {
+  const identity = verifiedEasyAuthIdentity(request);
+  return identity ? resolveCanonicalIdentity(identity) : null;
 }
 
 export async function verifyProviderIdentity(idToken: string): Promise<VerifiedProviderIdentity | null> {
   return isLocalMode() ? localVerifiedUser(idToken)?.providerIdentity ?? null : null;
 }
 
-/** Temporary local-fixture compatibility bridge until Task 2 registry resolution. */
-export async function verifyIdentityToken(idToken: string): Promise<VerifiedUser | null> {
-  return isLocalMode() ? localVerifiedUser(idToken) : null;
+export async function verifyIdentityToken(idToken: string) {
+  if (!isLocalMode()) return null;
+  const identity = await verifyProviderIdentity(idToken);
+  return identity ? resolveCanonicalIdentity(identity) : null;
 }

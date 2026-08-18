@@ -10,6 +10,7 @@ export const contractSuites = [
   "tests/course-pipeline-v2-regressions.spec.ts",
   "tests/course-research.spec.ts",
   "tests/landing-funnel-contract.spec.ts",
+  "tests/identity-link-server.spec.ts",
   "tests/learner-readiness.spec.ts",
   "tests/learning-design-contract.spec.ts",
   "tests/learning-engine-trust-boundaries.spec.ts",

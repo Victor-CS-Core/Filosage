@@ -23,7 +23,7 @@ export class AuthorizationError extends Error {
 }
 
 export async function getVerifiedUser(request: Request): Promise<VerifiedUser | null> {
-  if (!isLocalMode()) return verifiedEasyAuthUser(request);
+  if (!isLocalMode()) return await verifiedEasyAuthUser(request);
   const authHeader = request.headers.get("authorization");
   if (!authHeader?.startsWith("Bearer ")) return null;
 
