@@ -307,12 +307,11 @@ Expected: build and both suites exit 0.
 
 ```powershell
 npm.cmd audit --omit=dev
-npm.cmd run check:release-safety -- http://127.0.0.1:3000
 git diff --check origin/main...HEAD
 git status --short --branch
 ```
 
-Start the built server on port 3200 with `npm.cmd run start -- -p 3200`, wait until `http://127.0.0.1:3200/api/health` responds, run the safety command against that origin, and stop only the exact server session afterward. Expected: no production dependency vulnerability, no diff errors, and only intentional committed files.
+The release-safety command intentionally accepts only HTTPS origins and production health intentionally fails without the Azure runtime configuration, so do not weaken either contract for a local check. The release-script and release-hardening tests in `test:contracts` cover those fail-closed behaviors locally; run the actual safety command against QA, the zero-traffic staging revision, and production in Task 4. Expected here: no production dependency vulnerability, no diff errors, and only intentional committed files.
 
 - [ ] **Step 5: Review the candidate against every software acceptance item**
 
