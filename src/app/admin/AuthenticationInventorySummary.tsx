@@ -5,10 +5,11 @@ export function AuthenticationInventorySummary({
 }: {
   authentication: AzureInfrastructure["authentication"];
 }) {
+  const ready = authentication.configured && authentication.mode !== "unavailable";
   return (
     <article>
       <span>Identity</span>
-      <strong>{authentication.configured ? "Ready" : "Missing"}</strong>
+      <strong>{ready ? "Ready" : "Missing"}</strong>
       <small>Mode: {authentication.mode}</small>
     </article>
   );

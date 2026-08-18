@@ -1,9 +1,6 @@
 import "server-only";
 
-import {
-  authenticationConfigurationIssues,
-  authenticationRuntimeConfiguration,
-} from "@/lib/auth-runtime";
+import { authenticationRuntimeConfiguration } from "@/lib/auth-runtime";
 import { evaluateBillingConfiguration } from "@/lib/billing-lock";
 import { serverEnvironment } from "@/lib/runtime-environment";
 
@@ -20,9 +17,79 @@ const requiredInProduction = [
   "DIRECT_GOOGLE_AUTH_ENABLED",
   "EXTERNAL_ID_AUTH_ENABLED",
   "EXTERNAL_ID_NEW_ACCOUNTS_ENABLED",
+  "BILLING_ENABLED",
   "AZURE_POSTGRES_SERVER_NAME",
   "AZURE_RESOURCE_GROUP",
 ] as const;
+
+const authenticationBooleanNames = [
+  "AZURE_EASY_AUTH_ENABLED",
+  "DIRECT_GOOGLE_AUTH_ENABLED",
+  "EXTERNAL_ID_AUTH_ENABLED",
+  "EXTERNAL_ID_NEW_ACCOUNTS_ENABLED",
+] as const;
+
+type RuntimeEnvironment = Record<string, string | undefined>;
+
+function exactBoolean(value: string | undefined) {
+  const normalized = value?.trim();
+  if (normalized === "true") return true;
+  if (normalized === "false") return false;
+  return null;
+}
+
+function validHttpsUrl(value: string | undefined) {
+  try {
+    return new URL(value ?? "").protocol === "https:";
+  } catch {
+    return false;
+  }
+}
+
+export function authenticationReadinessIssues(
+  environment: RuntimeEnvironment = serverEnvironment,
+) {
+  const issues: string[] = [];
+  const parsed = Object.fromEntries(authenticationBooleanNames.map((name) => {
+    const value = exactBoolean(environment[name]);
+    if (value === null) issues.push(`${name} must be exactly true or false`);
+    return [name, value];
+  })) as Record<(typeof authenticationBooleanNames)[number], boolean | null>;
+
+  if (parsed.AZURE_EASY_AUTH_ENABLED === false) {
+    issues.push("AZURE_EASY_AUTH_ENABLED must be exactly true");
+  }
+  if (parsed.DIRECT_GOOGLE_AUTH_ENABLED !== null
+    && parsed.EXTERNAL_ID_AUTH_ENABLED !== null
+    && !parsed.DIRECT_GOOGLE_AUTH_ENABLED
+    && !parsed.EXTERNAL_ID_AUTH_ENABLED) {
+    issues.push("At least one production authentication provider must be enabled.");
+  }
+  if (parsed.EXTERNAL_ID_NEW_ACCOUNTS_ENABLED === true
+    && parsed.EXTERNAL_ID_AUTH_ENABLED !== true) {
+    issues.push("EXTERNAL_ID_NEW_ACCOUNTS_ENABLED requires EXTERNAL_ID_AUTH_ENABLED.");
+  }
+  if (parsed.EXTERNAL_ID_AUTH_ENABLED === true) {
+    if (!environment.EXTERNAL_ID_CLIENT_ID?.trim()) {
+      issues.push("EXTERNAL_ID_CLIENT_ID is required when External ID is enabled");
+    }
+    for (const name of ["EXTERNAL_ID_ISSUER", "EXTERNAL_ID_WELL_KNOWN_CONFIGURATION"] as const) {
+      if (!validHttpsUrl(environment[name]?.trim())) {
+        issues.push(`${name} must be a valid HTTPS URL`);
+      }
+    }
+  }
+  if ((environment.IDENTITY_LINK_HMAC_SECRET?.trim().length ?? 0) < 32) {
+    issues.push("IDENTITY_LINK_HMAC_SECRET must contain at least 32 characters");
+  }
+  return issues;
+}
+
+function billingReadinessIssues(environment: RuntimeEnvironment) {
+  const value = exactBoolean(environment.BILLING_ENABLED);
+  if (value === null) return ["BILLING_ENABLED must be exactly true or false"];
+  return value ? ["BILLING_ENABLED must be exactly false"] : [];
+}
 
 const requiredForProductionOperations = [
   "OPERATIONS_ALERT_WEBHOOK_URL",
@@ -35,19 +102,19 @@ export function missingRuntimeConfiguration() {
     ? [...requiredInProduction, ...requiredForProductionOperations]
     : requiredInProduction;
   const issues: string[] = required.filter((name) => !serverEnvironment[name]?.trim());
-  issues.push(...authenticationConfigurationIssues(authenticationRuntimeConfiguration())
-    .map((issue) => `authentication: ${issue}`));
-  const identityLinkHmacSecret = serverEnvironment.IDENTITY_LINK_HMAC_SECRET?.trim();
-  if (identityLinkHmacSecret && identityLinkHmacSecret.length < 32) {
-    issues.push("IDENTITY_LINK_HMAC_SECRET must contain at least 32 characters");
-  }
+  issues.push(...authenticationReadinessIssues(serverEnvironment)
+    .map((issue) => issue.startsWith("IDENTITY_LINK_HMAC_SECRET") ? issue : `authentication: ${issue}`));
+  issues.push(...billingReadinessIssues(serverEnvironment));
   return issues;
 }
 
 export type AuthenticationMode = "direct-google" | "external-id" | "migration-dual" | "unavailable";
 
-export function authenticationMode(): AuthenticationMode {
-  const config = authenticationRuntimeConfiguration();
+export function authenticationMode(
+  environment: RuntimeEnvironment = serverEnvironment,
+): AuthenticationMode {
+  if (authenticationReadinessIssues(environment).length) return "unavailable";
+  const config = authenticationRuntimeConfiguration(environment);
   if (config.directGoogleEnabled && config.externalIdEnabled) return "migration-dual";
   if (config.externalIdEnabled) return "external-id";
   if (config.directGoogleEnabled) return "direct-google";

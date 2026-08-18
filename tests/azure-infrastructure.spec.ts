@@ -53,6 +53,7 @@ function runTypeScript(
       DIRECT_GOOGLE_AUTH_ENABLED: "true",
       EXTERNAL_ID_AUTH_ENABLED: "false",
       EXTERNAL_ID_NEW_ACCOUNTS_ENABLED: "false",
+      BILLING_ENABLED: "false",
       DATABASE_URL: "postgresql://placeholder.invalid/filosage",
       AZURE_STORAGE_ACCOUNT_URL: "https://placeholder.blob.core.windows.net/",
       AZURE_STORAGE_BANNER_CONTAINER: "course-banners",
@@ -176,6 +177,33 @@ test("the executable auth inventory DTO and admin UI reveal only provider, mode,
   expect(ui.status, ui.stderr).toBe(0);
   expect(ui.stdout).toContain("Mode: direct-google");
   expect(ui.stdout).not.toMatch(/account|issuer|client|tenant|secret/i);
+
+  const invalidDto = runTypeScript(`
+    import { azureInfrastructure } from "./src/lib/azure-infrastructure.ts";
+    process.stdout.write(JSON.stringify(azureInfrastructure().authentication));
+  `, true, {
+    DIRECT_GOOGLE_AUTH_ENABLED: "not-a-boolean",
+  });
+  expect(invalidDto.status, invalidDto.stderr).toBe(0);
+  expect(JSON.parse(invalidDto.stdout)).toEqual({
+    provider: "Azure Container Apps Easy Auth",
+    mode: "unavailable",
+    configured: false,
+  });
+
+  const invalidUi = runTypeScript(`
+    import React from "react";
+    import { renderToStaticMarkup } from "react-dom/server";
+    void (async () => {
+      const { AuthenticationInventorySummary } = await import("./src/app/admin/AuthenticationInventorySummary.tsx");
+      process.stdout.write(renderToStaticMarkup(React.createElement(AuthenticationInventorySummary, {
+        authentication: { provider: "Azure Container Apps Easy Auth", mode: "unavailable", configured: true }
+      })));
+    })();
+  `, false);
+  expect(invalidUi.status, invalidUi.stderr).toBe(0);
+  expect(invalidUi.stdout).toContain("Missing");
+  expect(invalidUi.stdout).not.toContain("Ready");
 });
 
 test("runtime health configuration fails closed on unsafe authentication settings without exposing values", () => {
@@ -202,6 +230,113 @@ test("runtime health configuration fails closed on unsafe authentication setting
     "IDENTITY_LINK_HMAC_SECRET must contain at least 32 characters",
   ]));
   expect(invalid.stdout).not.toContain("do-not-print-this");
+
+  for (const [name, value] of [
+    ["AZURE_EASY_AUTH_ENABLED", "yes"],
+    ["DIRECT_GOOGLE_AUTH_ENABLED", "1"],
+    ["EXTERNAL_ID_AUTH_ENABLED", "enabled"],
+    ["EXTERNAL_ID_NEW_ACCOUNTS_ENABLED", "TRUE"],
+    ["BILLING_ENABLED", "FALSE"],
+  ] as const) {
+    const malformed = runTypeScript(`
+      import { missingRuntimeConfiguration } from "./src/lib/runtime-config.ts";
+      process.stdout.write(JSON.stringify(missingRuntimeConfiguration()));
+    `, true, { [name]: value });
+    expect(malformed.status, malformed.stderr).toBe(0);
+    const expectedIssue = `${name} must be exactly true or false`;
+    expect(JSON.parse(malformed.stdout), name).toContain(
+      name === "BILLING_ENABLED" ? expectedIssue : `authentication: ${expectedIssue}`,
+    );
+  }
+
+  for (const [label, environment, expectedIssue] of [
+    ["Easy Auth disabled", { AZURE_EASY_AUTH_ENABLED: "false" }, "AZURE_EASY_AUTH_ENABLED must be exactly true"],
+    ["billing enabled", { BILLING_ENABLED: "true" }, "BILLING_ENABLED must be exactly false"],
+    ["External ID client missing", {
+      DIRECT_GOOGLE_AUTH_ENABLED: "false",
+      EXTERNAL_ID_AUTH_ENABLED: "true",
+      EXTERNAL_ID_CLIENT_ID: "",
+      EXTERNAL_ID_ISSUER: "https://tenant.example/v2.0",
+      EXTERNAL_ID_WELL_KNOWN_CONFIGURATION: "https://tenant.example/.well-known/openid-configuration",
+    }, "EXTERNAL_ID_CLIENT_ID is required when External ID is enabled"],
+    ["External ID issuer insecure", {
+      DIRECT_GOOGLE_AUTH_ENABLED: "false",
+      EXTERNAL_ID_AUTH_ENABLED: "true",
+      EXTERNAL_ID_CLIENT_ID: "external-client-id",
+      EXTERNAL_ID_ISSUER: "http://tenant.example/v2.0",
+      EXTERNAL_ID_WELL_KNOWN_CONFIGURATION: "https://tenant.example/.well-known/openid-configuration",
+    }, "EXTERNAL_ID_ISSUER must be a valid HTTPS URL"],
+    ["External ID discovery insecure", {
+      DIRECT_GOOGLE_AUTH_ENABLED: "false",
+      EXTERNAL_ID_AUTH_ENABLED: "true",
+      EXTERNAL_ID_CLIENT_ID: "external-client-id",
+      EXTERNAL_ID_ISSUER: "https://tenant.example/v2.0",
+      EXTERNAL_ID_WELL_KNOWN_CONFIGURATION: "http://tenant.example/.well-known/openid-configuration",
+    }, "EXTERNAL_ID_WELL_KNOWN_CONFIGURATION must be a valid HTTPS URL"],
+  ] as const) {
+    const result = runTypeScript(`
+      import { authenticationMode, missingRuntimeConfiguration } from "./src/lib/runtime-config.ts";
+      process.stdout.write(JSON.stringify({
+        issues: missingRuntimeConfiguration(),
+        mode: authenticationMode(),
+      }));
+    `, true, environment);
+    expect(result.status, `${label}: ${result.stderr}`).toBe(0);
+    const body = JSON.parse(result.stdout) as { issues: string[]; mode: string };
+    expect(body.issues, label).toContain(
+      label === "billing enabled" ? expectedIssue : `authentication: ${expectedIssue}`,
+    );
+    if (label !== "billing enabled") expect(body.mode, label).toBe("unavailable");
+  }
+});
+
+test("bounded authentication modes require complete valid provider configuration", () => {
+  for (const [label, environment, expectedMode] of [
+    ["direct Google", {}, "direct-google"],
+    ["External ID", {
+      DIRECT_GOOGLE_AUTH_ENABLED: "false",
+      EXTERNAL_ID_AUTH_ENABLED: "true",
+      EXTERNAL_ID_CLIENT_ID: "external-client-id",
+      EXTERNAL_ID_ISSUER: "https://tenant.example/v2.0",
+      EXTERNAL_ID_WELL_KNOWN_CONFIGURATION: "https://tenant.example/.well-known/openid-configuration",
+    }, "external-id"],
+    ["migration dual", {
+      EXTERNAL_ID_AUTH_ENABLED: "true",
+      EXTERNAL_ID_CLIENT_ID: "external-client-id",
+      EXTERNAL_ID_ISSUER: "https://tenant.example/v2.0",
+      EXTERNAL_ID_WELL_KNOWN_CONFIGURATION: "https://tenant.example/.well-known/openid-configuration",
+    }, "migration-dual"],
+  ] as const) {
+    const result = runTypeScript(`
+      import { authenticationMode, missingRuntimeConfiguration } from "./src/lib/runtime-config.ts";
+      process.stdout.write(JSON.stringify({
+        issues: missingRuntimeConfiguration(),
+        mode: authenticationMode(),
+      }));
+    `, true, environment);
+    expect(result.status, `${label}: ${result.stderr}`).toBe(0);
+    expect(JSON.parse(result.stdout), label).toEqual({ issues: [], mode: expectedMode });
+  }
+});
+
+test("public health fails closed without publishing authentication issue details", () => {
+  const result = runTypeScript(`
+    import { GET } from "./src/app/api/health/route.ts";
+    void GET().then(async (response) => {
+      process.stdout.write(JSON.stringify({ status: response.status, body: await response.json() }));
+    });
+  `, true, {
+    EXTERNAL_ID_NEW_ACCOUNTS_ENABLED: "true",
+  });
+  expect(result.status, result.stderr).toBe(0);
+  const response = JSON.parse(result.stdout) as {
+    status: number;
+    body: Record<string, unknown> & { checks: { configuration: boolean }; authenticationMode: string };
+  };
+  expect(response.status).toBe(503);
+  expect(response.body.checks.configuration).toBe(false);
+  expect(response.body.authenticationMode).toBe("unavailable");
+  expect(JSON.stringify(response.body)).not.toMatch(/issue|EXTERNAL_ID|client|issuer|secret/i);
 });
 
 test("customer sign-in delegates directly to Azure Container Apps Easy Auth", () => {
@@ -293,12 +428,28 @@ test("QA activation is explicit while production staging cannot enable External 
   expect(qaWorkflowSource).toContain('"DIRECT_GOOGLE_AUTH_ENABLED=true"');
   expect(qaWorkflowSource).toContain("customOpenIdConnectProviders.filosage.enabled");
   expect(qaWorkflowSource).toContain("check-qa-auth-provider-state.mjs");
+  const qaPrecheck = qaWorkflowSource.indexOf("Verify separately configured QA authentication state before deployment");
+  const qaUpdate = qaWorkflowSource.indexOf("az containerapp update");
+  const qaPostcheck = qaWorkflowSource.indexOf("Verify separately configured QA authentication state after deployment");
+  expect(qaPrecheck).toBeGreaterThan(-1);
+  expect(qaUpdate).toBeGreaterThan(qaPrecheck);
+  expect(qaPostcheck).toBeGreaterThan(qaUpdate);
+  expect(qaWorkflowSource).toContain("inputs.external_id_auth_enabled && 'migration-dual' || 'direct-google'");
   expect(qaWorkflowSource).toContain('"BILLING_ENABLED=false"');
   expect(qaWorkflowSource).not.toMatch(/az containerapp auth (?:openid-connect )?(?:update|set|delete)/);
   expect(stagingWorkflowSource).toContain('"DIRECT_GOOGLE_AUTH_ENABLED=true"');
   expect(stagingWorkflowSource).toContain('"EXTERNAL_ID_AUTH_ENABLED=false"');
   expect(stagingWorkflowSource).toContain('"EXTERNAL_ID_NEW_ACCOUNTS_ENABLED=false"');
   expect(stagingWorkflowSource).toContain('"BILLING_ENABLED=false"');
+  const stagingPrecheck = stagingWorkflowSource.indexOf("Verify inactive production authentication state before staging");
+  const stagingUpdate = stagingWorkflowSource.indexOf("az containerapp update");
+  const stagingPostcheck = stagingWorkflowSource.indexOf("Verify inactive production authentication state after staging");
+  expect(stagingPrecheck).toBeGreaterThan(-1);
+  expect(stagingUpdate).toBeGreaterThan(stagingPrecheck);
+  expect(stagingPostcheck).toBeGreaterThan(stagingUpdate);
+  expect(stagingWorkflowSource.match(/check-qa-auth-provider-state\.mjs false/g)).toHaveLength(2);
+  expect(stagingWorkflowSource).toContain("EXPECTED_AUTH_MODE: direct-google");
+  expect(stagingWorkflowSource).not.toMatch(/az containerapp auth (?:openid-connect )?(?:update|set|delete)/);
   expect(stagingWorkflowSource).not.toContain("external_id_auth_enabled:");
   expect(stagingWorkflowSource).not.toContain("external_id_new_accounts_enabled:");
 });

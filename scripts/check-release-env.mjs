@@ -1,15 +1,15 @@
 const activationMode = process.argv.includes("--billing-activation");
-const required = ["NEXT_PUBLIC_SITE_URL", "DATABASE_URL", "AZURE_EASY_AUTH_ENABLED", "AZURE_STORAGE_ACCOUNT_URL", "AZURE_STORAGE_BANNER_CONTAINER", "AZURE_POSTGRES_SERVER_NAME", "AZURE_RESOURCE_GROUP", "OPENAI_API_KEY", "OWNER_EMAIL", "MIGRATED_OWNER_UID", "ACTIVITY_RECEIPT_SECRET", "IDENTITY_LINK_HMAC_SECRET", "DIRECT_GOOGLE_AUTH_ENABLED", "EXTERNAL_ID_AUTH_ENABLED", "EXTERNAL_ID_NEW_ACCOUNTS_ENABLED", "OPERATIONS_ALERT_WEBHOOK_URL", "OPERATIONS_ALERT_WEBHOOK_SECRET", "SITE_VERSION"];
+const required = ["NEXT_PUBLIC_SITE_URL", "DATABASE_URL", "AZURE_EASY_AUTH_ENABLED", "AZURE_STORAGE_ACCOUNT_URL", "AZURE_STORAGE_BANNER_CONTAINER", "AZURE_POSTGRES_SERVER_NAME", "AZURE_RESOURCE_GROUP", "OPENAI_API_KEY", "OWNER_EMAIL", "MIGRATED_OWNER_UID", "ACTIVITY_RECEIPT_SECRET", "IDENTITY_LINK_HMAC_SECRET", "DIRECT_GOOGLE_AUTH_ENABLED", "EXTERNAL_ID_AUTH_ENABLED", "EXTERNAL_ID_NEW_ACCOUNTS_ENABLED", "BILLING_ENABLED", "OPERATIONS_ALERT_WEBHOOK_URL", "OPERATIONS_ALERT_WEBHOOK_SECRET", "SITE_VERSION"];
 const missing = required.filter((name) => !process.env[name]?.trim());
 if (missing.length) { console.error(`Missing release environment variables: ${missing.join(", ")}`); process.exitCode = 1; }
 else {
   const invalid = [];
-  const enabled = (name) => process.env[name]?.trim().toLowerCase() === "true";
+  const enabled = (name) => process.env[name]?.trim() === "true";
   const directGoogleEnabled = enabled("DIRECT_GOOGLE_AUTH_ENABLED");
   const externalIdEnabled = enabled("EXTERNAL_ID_AUTH_ENABLED");
   const externalIdNewAccountsEnabled = enabled("EXTERNAL_ID_NEW_ACCOUNTS_ENABLED");
-  for (const name of ["DIRECT_GOOGLE_AUTH_ENABLED", "EXTERNAL_ID_AUTH_ENABLED", "EXTERNAL_ID_NEW_ACCOUNTS_ENABLED"]) {
-    if (!/^(?:true|false)$/i.test(process.env[name]?.trim() ?? "")) invalid.push(`${name} must be true or false`);
+  for (const name of ["AZURE_EASY_AUTH_ENABLED", "DIRECT_GOOGLE_AUTH_ENABLED", "EXTERNAL_ID_AUTH_ENABLED", "EXTERNAL_ID_NEW_ACCOUNTS_ENABLED", "BILLING_ENABLED"]) {
+    if (!/^(?:true|false)$/.test(process.env[name]?.trim() ?? "")) invalid.push(`${name} must be exactly true or false`);
   }
   if (!directGoogleEnabled && !externalIdEnabled) invalid.push("At least one production authentication provider must be enabled");
   if (externalIdNewAccountsEnabled && !externalIdEnabled) invalid.push("EXTERNAL_ID_NEW_ACCOUNTS_ENABLED requires EXTERNAL_ID_AUTH_ENABLED");

@@ -62,6 +62,24 @@ jobs:
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
+      - name: Verify separately configured QA authentication state before deployment
+        shell: bash
+        run: |
+          set -euo pipefail
+          PROVIDER_STATE="$(az containerapp auth show \
+            --resource-group "${{ vars.AZURE_RESOURCE_GROUP }}" \
+            --name "${{ vars.AZURE_QA_CONTAINER_APP_NAME }}" \
+            --query "{google:properties.identityProviders.google.enabled,filosage:properties.identityProviders.customOpenIdConnectProviders.filosage.enabled}" \
+            --output json)"
+          {
+            echo "### QA authentication provider state before deployment"
+            echo '```json'
+            echo "$PROVIDER_STATE"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+          printf '%s' "$PROVIDER_STATE" \
+            | node scripts/check-qa-auth-provider-state.mjs "${{ inputs.external_id_auth_enabled }}"
+
       - name: Build and push the immutable QA-approved image
         shell: bash
         run: |
@@ -106,7 +124,7 @@ jobs:
               "EXTERNAL_ID_NEW_ACCOUNTS_ENABLED=${{ inputs.external_id_new_accounts_enabled }}" \
               "BILLING_ENABLED=false"
 
-      - name: Record and verify separately configured QA authentication state
+      - name: Verify separately configured QA authentication state after deployment
         shell: bash
         run: |
           set -euo pipefail
@@ -116,7 +134,7 @@ jobs:
             --query "{google:properties.identityProviders.google.enabled,filosage:properties.identityProviders.customOpenIdConnectProviders.filosage.enabled}" \
             --output json)"
           {
-            echo "### QA authentication provider state"
+            echo "### QA authentication provider state after deployment"
             echo '```json'
             echo "$PROVIDER_STATE"
             echo '```'
@@ -125,4 +143,6 @@ jobs:
             | node scripts/check-qa-auth-provider-state.mjs "${{ inputs.external_id_auth_enabled }}"
 
       - name: Verify isolated QA candidate
+        env:
+          EXPECTED_AUTH_MODE: ${{ inputs.external_id_auth_enabled && 'migration-dual' || 'direct-google' }}
         run: npm run check:production -- "$QA_URL" "$GITHUB_SHA" "$QA_URL"

@@ -152,6 +152,9 @@ test("ordinary releases reject unsafe identity provider and billing combinations
     ["HTTP discovery metadata", { ...validReleaseEnvironment, DIRECT_GOOGLE_AUTH_ENABLED: "false", EXTERNAL_ID_AUTH_ENABLED: "true", EXTERNAL_ID_CLIENT_ID: "external-client-id", EXTERNAL_ID_ISSUER: "https://tenant.example/v2.0", EXTERNAL_ID_WELL_KNOWN_CONFIGURATION: "http://tenant.example/.well-known/openid-configuration" }, "EXTERNAL_ID_WELL_KNOWN_CONFIGURATION must use HTTPS"],
     ["short identity HMAC", { ...validReleaseEnvironment, IDENTITY_LINK_HMAC_SECRET: "too-short" }, "IDENTITY_LINK_HMAC_SECRET must contain at least 32 characters"],
     ["ordinary billing activation", { ...validReleaseEnvironment, BILLING_ENABLED: "true" }, "BILLING_ENABLED must be explicitly false for a closed-billing release"],
+    ["malformed Easy Auth boolean", { ...validReleaseEnvironment, AZURE_EASY_AUTH_ENABLED: "yes" }, "AZURE_EASY_AUTH_ENABLED must be exactly true or false"],
+    ["uppercase provider boolean", { ...validReleaseEnvironment, DIRECT_GOOGLE_AUTH_ENABLED: "TRUE" }, "DIRECT_GOOGLE_AUTH_ENABLED must be exactly true or false"],
+    ["uppercase billing boolean", { ...validReleaseEnvironment, BILLING_ENABLED: "FALSE" }, "BILLING_ENABLED must be exactly true or false"],
   ];
 
   for (const [label, env, message] of rejected) {
@@ -199,6 +202,21 @@ test("QA provider evidence must exactly match the requested application gate", (
     expect(result.status, label).toBe(1);
     expect(result.stderr, label).toContain(message);
     expect(`${result.stdout}${result.stderr}`, label).not.toContain("do-not-print-this");
+  }
+
+  for (const [label, input, expected, message] of [
+    ["invalid JSON", "not-json", "false", "QA authentication provider state is invalid."],
+    ["oversized input", JSON.stringify({ google: true, filosage: false, padding: "x".repeat(1_024) }), "false", "QA authentication provider state is invalid."],
+    ["invalid expected gate", JSON.stringify({ google: true, filosage: false }), "yes", "Expected QA External ID application gate must be true or false."],
+  ] as const) {
+    const result = spawnSync(process.execPath, [qaProviderStateScript, expected], {
+      cwd: root,
+      input,
+      encoding: "utf8",
+    });
+    expect(result.status, label).toBe(1);
+    expect(result.stderr, label).toContain(message);
+    expect(`${result.stdout}${result.stderr}`, label).not.toContain("padding");
   }
 });
 

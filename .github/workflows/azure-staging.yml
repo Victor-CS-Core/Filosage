@@ -34,6 +34,7 @@ jobs:
       TARGET_URL: ${{ inputs.target_slot == 'blue' && vars.AZURE_BLUE_URL || vars.AZURE_GREEN_URL }}
       QA_URL: ${{ vars.AZURE_QA_URL }}
       PUBLIC_SITE_URL: https://filosage.com
+      EXPECTED_AUTH_MODE: direct-google
     steps:
       - uses: actions/checkout@v4
 
@@ -49,6 +50,24 @@ jobs:
           client-id: ${{ secrets.AZURE_CLIENT_ID }}
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Verify inactive production authentication state before staging
+        shell: bash
+        run: |
+          set -euo pipefail
+          PROVIDER_STATE="$(az containerapp auth show \
+            --resource-group "${{ vars.AZURE_RESOURCE_GROUP }}" \
+            --name "${{ vars.AZURE_CONTAINER_APP_NAME }}" \
+            --query "{google:properties.identityProviders.google.enabled,filosage:properties.identityProviders.customOpenIdConnectProviders.filosage.enabled}" \
+            --output json)"
+          {
+            echo "### Production authentication provider state before staging"
+            echo '```json'
+            echo "$PROVIDER_STATE"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+          printf '%s' "$PROVIDER_STATE" \
+            | node scripts/check-qa-auth-provider-state.mjs false
 
       - name: Verify the exact SHA in isolated QA
         shell: bash
@@ -137,6 +156,24 @@ jobs:
           fi
           echo "revision=$REVISION" >> "$GITHUB_OUTPUT"
           echo "revision_url=https://${REVISION_FQDN}" >> "$GITHUB_OUTPUT"
+
+      - name: Verify inactive production authentication state after staging
+        shell: bash
+        run: |
+          set -euo pipefail
+          PROVIDER_STATE="$(az containerapp auth show \
+            --resource-group "${{ vars.AZURE_RESOURCE_GROUP }}" \
+            --name "${{ vars.AZURE_CONTAINER_APP_NAME }}" \
+            --query "{google:properties.identityProviders.google.enabled,filosage:properties.identityProviders.customOpenIdConnectProviders.filosage.enabled}" \
+            --output json)"
+          {
+            echo "### Production authentication provider state after staging"
+            echo '```json'
+            echo "$PROVIDER_STATE"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+          printf '%s' "$PROVIDER_STATE" \
+            | node scripts/check-qa-auth-provider-state.mjs false
 
       - name: Verify the deployed release safety policy
         shell: bash
