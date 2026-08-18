@@ -1789,6 +1789,51 @@ test("uses the deterministic Course Deck artwork on library cards", async ({ pag
   }
 });
 
+test("returns focus to the truthful existing-account course launcher", async ({ page }) => {
+  await page.route("**/api/auth/session", (route) => route.fulfill({
+    status: 200,
+    json: {
+      recentAuthentication: false,
+      authentication: {
+        primaryProvider: "filosage",
+        externalIdAvailable: true,
+        externalIdNewAccountsAvailable: false,
+        legacyGoogleAvailable: false,
+      },
+      user: null,
+    },
+  }));
+  await page.route("**/api/courses/public-preview", (route) => route.fulfill({
+    status: 200,
+    json: {
+      id: "public-preview",
+      courseId: "public-preview",
+      topic: "Systems thinking",
+      mission: "See how connected parts shape outcomes over time.",
+      outcome: "Map a feedback loop and explain one leverage point.",
+      level: "Foundations",
+      estimatedMinutes: 15,
+      category: "Decision-making",
+      isPublic: true,
+      aiAssisted: false,
+      modules: [{
+        title: "Feedback loops",
+        description: "Trace how one change feeds back into a system.",
+        lessons: [{ title: "See the system", concept: "Map a simple feedback loop.", estimatedMinutes: 15 }],
+      }],
+    },
+  }));
+
+  await page.goto("/course/Systems%20thinking?id=public-preview");
+  const launcher = page.locator(".course-resume-card").getByRole("button", { name: "Sign in to begin" });
+  await launcher.click();
+  await expect(page).toHaveURL(/\/course\/Systems%20thinking\?id=public-preview$/);
+  await expect(page.getByRole("dialog", { name: "Keep your learning in sync" })
+    .getByRole("button", { name: "Sign in with email code" })).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(launcher).toBeFocused();
+});
+
 test("shows guests the course structure but never delivers lesson content", async ({ page }) => {
   let lessonRequests = 0;
   await page.route("**/api/auth/session", (route) => route.fulfill({

@@ -1141,6 +1141,78 @@ test("direct learner account entry stays configuration-aware before provider sel
   }
 });
 
+test("course start entry stays truthful for create, existing sign-in, and unavailable modes", async ({ context }) => {
+  const cases: Array<{
+    name: string;
+    authentication: AuthenticationFixture;
+    action: string;
+    note: string;
+    modalAction?: string;
+  }> = [
+    {
+      name: "account creation",
+      authentication: { primaryProvider: "filosage", externalIdAvailable: true, externalIdNewAccountsAvailable: true, legacyGoogleAvailable: false },
+      action: "Create an account to begin",
+      note: "The full outline is public. A free account opens lesson content and saves your progress.",
+      modalAction: "Continue securely",
+    },
+    {
+      name: "existing External ID sign-in",
+      authentication: { primaryProvider: "filosage", externalIdAvailable: true, externalIdNewAccountsAvailable: false, legacyGoogleAvailable: false },
+      action: "Sign in to begin",
+      note: "The full outline is public. Sign in to your existing account to open lesson content and sync your progress.",
+      modalAction: "Sign in with email code",
+    },
+    {
+      name: "no provider",
+      authentication: { primaryProvider: null, externalIdAvailable: false, externalIdNewAccountsAvailable: false, legacyGoogleAvailable: false },
+      action: "Sign-in unavailable",
+      note: "The full outline remains public while lesson sign-in is unavailable.",
+    },
+  ];
+
+  for (const providerCase of cases) {
+    const page = await context.newPage();
+    await routeManagedSession(page, { recentAuthentication: false, authentication: providerCase.authentication, user: null });
+    await page.route("**/api/courses/public-preview", (route) => route.fulfill({
+      status: 200,
+      json: {
+        id: "public-preview",
+        courseId: "public-preview",
+        topic: "Systems thinking",
+        mission: "See how connected parts shape outcomes over time.",
+        outcome: "Map a feedback loop and explain one leverage point.",
+        level: "Foundations",
+        estimatedMinutes: 15,
+        category: "Decision-making",
+        isPublic: true,
+        aiAssisted: false,
+        modules: [{
+          title: "Feedback loops",
+          description: "Trace how one change feeds back into a system.",
+          lessons: [{ title: "See the system", concept: "Map a simple feedback loop.", estimatedMinutes: 15 }],
+        }],
+      },
+    }));
+    await page.goto("/course/Systems%20thinking?id=public-preview");
+    const action = page.locator(".course-resume-card").getByRole("button", { name: providerCase.action });
+    await expect(action, providerCase.name).toBeVisible();
+    await expect(page.locator(".course-resume-card").getByText(providerCase.note, { exact: true })).toBeVisible();
+    if (providerCase.modalAction) {
+      await action.click();
+      await expect(page).toHaveURL(/\/course\/Systems%20thinking\?id=public-preview$/);
+      await expect(page.getByRole("dialog", { name: "Keep your learning in sync" })
+        .getByRole("button", { name: providerCase.modalAction })).toBeVisible();
+    } else {
+      await expect(action).toBeDisabled();
+      await action.evaluate((button) => (button as HTMLButtonElement).click());
+      await expect(page.getByRole("dialog", { name: "Keep your learning in sync" })).toHaveCount(0);
+      await expect(page).toHaveURL(/\/course\/Systems%20thinking\?id=public-preview$/);
+    }
+    await page.close();
+  }
+});
+
 for (const invalidAuthentication of [
   { primaryProvider: "filosage", externalIdAvailable: true, externalIdNewAccountsAvailable: false, legacyGoogleAvailable: true },
   { primaryProvider: "google", externalIdAvailable: true, externalIdNewAccountsAvailable: true, legacyGoogleAvailable: true },
@@ -1176,6 +1248,53 @@ test("shared account entry opens provider choice from direct guest surfaces", as
       .getByRole("button", { name: "Sign in with email code" })).toBeVisible();
     await page.close();
   }
+});
+
+test("support and paid-plan continuation keep their return intent through provider choice", async ({ context }) => {
+  const authentication: AuthenticationFixture = {
+    primaryProvider: "filosage",
+    externalIdAvailable: true,
+    externalIdNewAccountsAvailable: false,
+    legacyGoogleAvailable: false,
+  };
+
+  const supportPage = await context.newPage();
+  await routeManagedSession(supportPage, { recentAuthentication: false, authentication, user: null });
+  await supportPage.route("**/.auth/login/filosage?**", (route) => route.fulfill({
+    status: 200,
+    contentType: "text/html",
+    body: "<!doctype html><title>Support sign-in</title>",
+  }));
+  await supportPage.goto("/support");
+  const supportTrigger = supportPage.getByRole("button", { name: "Open Support Center" });
+  await supportTrigger.click();
+  const supportDialog = supportPage.getByRole("dialog", { name: "Support center" });
+  await supportDialog.getByRole("tab", { name: "New request" }).click();
+  await supportDialog.getByRole("button", { name: "Sign in" }).click();
+  const supportAuth = supportPage.getByRole("dialog", { name: "Keep your learning in sync" });
+  await expect(supportAuth.getByRole("button", { name: "Sign in with email code" })).toBeVisible();
+  await supportAuth.getByRole("button", { name: "Sign in with email code" }).click();
+  await supportPage.waitForURL(/\/\.auth\/login\/filosage\?post_login_redirect_uri=%2Fsupport$/);
+  await supportPage.close();
+
+  const pricingPage = await context.newPage();
+  await routeManagedSession(pricingPage, { recentAuthentication: false, authentication, user: null });
+  await pricingPage.route("**/api/billing/status", (route) => route.fulfill({
+    status: 200,
+    json: { enabled: true, ready: true, checkoutReady: true, managementReady: true },
+  }));
+  await pricingPage.route("**/.auth/login/filosage?**", (route) => route.fulfill({
+    status: 200,
+    contentType: "text/html",
+    body: "<!doctype html><title>Pricing sign-in</title>",
+  }));
+  await pricingPage.goto("/pricing?plan=pro&from=direct");
+  await pricingPage.getByRole("button", { name: "Sign in to choose Pro" }).click();
+  const pricingAuth = pricingPage.getByRole("dialog", { name: "Keep your learning in sync" });
+  await expect(pricingAuth.getByRole("button", { name: "Sign in with email code" })).toBeVisible();
+  await pricingAuth.getByRole("button", { name: "Sign in with email code" }).click();
+  await pricingPage.waitForURL(/\/\.auth\/login\/filosage\?post_login_redirect_uri=%2Fpricing%3Fplan%3Dpro%26from%3Ddirect$/);
+  await pricingPage.close();
 });
 
 test("device review entry offers existing-account sign-in without redirecting", async ({ page }) => {

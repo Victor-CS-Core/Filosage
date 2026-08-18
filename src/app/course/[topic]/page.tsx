@@ -26,7 +26,7 @@ import {
 } from "lucide-react";
 import AppDrawer, { useAppDrawer } from "@/components/AppDrawer";
 import AppShell from "@/components/AppShell";
-import { openAccountEntry, useAccountEntryMode } from "@/components/AccountEntryButton";
+import AccountEntryButton, { openAccountEntry, useAccountEntryMode } from "@/components/AccountEntryButton";
 import CourseBanner from "@/components/CourseBanner";
 import CourseDisclosure from "@/components/CourseDisclosure";
 import CourseJourneyMap from "@/components/CourseJourneyMap";
@@ -786,11 +786,25 @@ export default function CourseMap() {
                   <div className="progress-track" role="progressbar" aria-label="Course progress" aria-valuemin={0} aria-valuemax={100} aria-valuenow={progress}><span style={{ transform: `scaleX(${progress / 100})` }} /></div>
                   <small>{validCompletedLessons.length} of {totalLessons} lessons complete{user ? " · synced" : " · this device"}</small>
                 </div>
-                <button className="button course-resume-action" onClick={() => void openLesson(nextLesson.lessonId)}>
-                  {user ? <Play size={16} /> : <LockKeyhole size={16} />}
-                  {user ? (courseComplete ? "Review course" : validCompletedLessons.length ? "Resume lesson" : "Start course") : "Create an account to begin"}
-                </button>
-                {!user && <small className="course-access-note">The full outline is public. A free account opens lesson content and saves your progress.</small>}
+                {user ? (
+                  <button className="button course-resume-action" onClick={() => void openLesson(nextLesson.lessonId)}>
+                    <Play size={16} />
+                    {courseComplete ? "Review course" : validCompletedLessons.length ? "Resume lesson" : "Start course"}
+                  </button>
+                ) : (
+                  <AccountEntryButton
+                    className="button course-resume-action"
+                    createLabel="Create an account to begin"
+                    signInLabel="Sign in to begin"
+                    unavailableLabel="Sign-in unavailable"
+                    icon={LockKeyhole}
+                  />
+                )}
+                {!user && <small className="course-access-note">{entryMode === "create"
+                  ? "The full outline is public. A free account opens lesson content and saves your progress."
+                  : entryMode === "sign-in"
+                    ? "The full outline is public. Sign in to your existing account to open lesson content and sync your progress."
+                    : "The full outline remains public while lesson sign-in is unavailable."}</small>}
               </aside>
             )}
           </div>
