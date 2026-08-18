@@ -1932,7 +1932,7 @@ html[data-environment="qa"] .environment-pill { display: inline-flex; }
 .motion-preference-control:hover .motion-preference-tooltip,
 .motion-preference-control:focus-within .motion-preference-tooltip { visibility: visible; opacity: 1; }
 .course-deck-viewport { position: relative; width: min(1360px, 100%); min-height: clamp(510px, 61vh, 620px); margin: 0 auto; overflow: hidden; outline: none; touch-action: pan-y pinch-zoom; cursor: grab; }
-.course-deck-viewport:focus-visible { border-radius: var(--radius-lg); outline: 3px solid var(--focus); outline-offset: 5px; }
+.course-deck-viewport:focus-visible { outline: none; }
 .course-deck-viewport[data-motion-state="dragging"] { cursor: grabbing; }
 .course-deck-stage { position: relative; width: 100%; height: clamp(510px, 61vh, 620px); touch-action: pan-y pinch-zoom; }
 .course-deck-card {
@@ -1950,15 +1950,15 @@ html[data-environment="qa"] .environment-pill { display: inline-flex; }
   border-radius: 16px;
   background: var(--deck-paper, #0D1B3D);
   color: var(--deck-ink, var(--brand-offwhite));
-  box-shadow: var(--shadow-card);
+  box-shadow: 0 3px 8px rgb(2 8 23 / 0.14), 0 18px 42px rgb(2 8 23 / 0.16);
   opacity: var(--deck-opacity);
   visibility: hidden;
   transform: translate3d(var(--deck-x), var(--deck-y), 0) rotate(var(--deck-rotation));
   transform-origin: center;
-  transition: none;
+  transition: box-shadow var(--motion-feedback) var(--ease-out);
   user-select: none;
 }
-.course-deck-card-face { position: relative; z-index: 0; width: 100%; height: 100%; min-height: 0; display: grid; grid-template-rows: minmax(220px, 42%) minmax(0, 1fr); overflow: hidden; }
+.course-deck-card-face { position: relative; z-index: 0; width: 100%; height: 100%; min-height: 0; display: grid; grid-template-rows: minmax(220px, 42%) minmax(0, 1fr); overflow: hidden; border-radius: inherit; background: var(--deck-paper); }
 .course-deck-card:not(.is-active) .course-deck-card-face { pointer-events: none; }
 .course-deck-paper-tone-0 { --deck-paper: #051328; --deck-ink: #F3EADC; --deck-muted: #BBC5D4; --deck-accent: #2DD4BF; --deck-rule: #34496E; --deck-edge: #20304C; --deck-progress-track: #31466F; --deck-progress-fill: #2DD4BF; --deck-progress-unknown: #7183A7; }
 .course-deck-paper-tone-1 { --deck-paper: #06434C; --deck-ink: #F3EADC; --deck-muted: #C4D3D1; --deck-accent: #FFD0BE; --deck-rule: #39777B; --deck-edge: #073A42; --deck-progress-track: #205A60; --deck-progress-fill: #FFD0BE; --deck-progress-unknown: #8BB8B9; }
@@ -1972,14 +1972,16 @@ html[data-environment="qa"] .environment-pill { display: inline-flex; }
   pointer-events: none;
   background-image: var(--grain-cover);
   mix-blend-mode: soft-light;
-  opacity: 0.72;
+  border-radius: inherit;
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.18), inset 0 -3px 0 color-mix(in srgb, var(--deck-edge) 70%, var(--deck-paper));
+  opacity: 0.56;
 }
-.course-deck-paper-tone-2::after { opacity: 0.48; }
+.course-deck-paper-tone-2::after { opacity: 0.34; }
 .course-deck-card[data-position="0"],
 .course-deck-card[data-position="1"],
 .course-deck-card[data-position="2"] { --deck-opacity: 1; }
-.course-deck-card[data-position="1"] { --deck-x: 30.645%; --deck-y: 18px; --deck-rotation: 0.28deg; }
-.course-deck-card[data-position="2"] { --deck-x: 61.29%; --deck-y: 36px; --deck-rotation: 0.56deg; }
+.course-deck-card[data-position="1"] { --deck-x: 30.645%; --deck-y: 18px; --deck-rotation: 0.36deg; }
+.course-deck-card[data-position="2"] { --deck-x: 61.29%; --deck-y: 36px; --deck-rotation: 0.72deg; }
 .course-deck-card[data-position="-1"] { --deck-x: 61.29%; --deck-y: 36px; --deck-rotation: -0.7deg; }
 .course-deck-card.is-visible,
 .course-deck-card.is-drag-buffer { opacity: var(--deck-opacity); visibility: visible; }
@@ -1988,10 +1990,12 @@ html[data-environment="qa"] .environment-pill { display: inline-flex; }
 .course-deck-card[data-position="2"] { z-index: 1; }
 .course-deck-card[data-position="-1"] { z-index: 0; }
 .course-deck-card.is-drag-buffer { opacity: var(--deck-opacity); pointer-events: none; }
-.course-deck-card[data-position="1"] { box-shadow: var(--shadow-card); }
-.course-deck-card[data-position="2"] { box-shadow: var(--shadow-control); }
-.course-deck-card.is-active { box-shadow: var(--shadow-deck); }
-.course-deck-card.is-wrap-target { box-shadow: var(--shadow-deck); }
+.course-deck-card[data-position="1"] { box-shadow: 0 2px 6px rgb(2 8 23 / 0.12), 0 14px 32px rgb(2 8 23 / 0.14); }
+.course-deck-card[data-position="2"] { box-shadow: 0 1px 4px rgb(2 8 23 / 0.1), 0 9px 22px rgb(2 8 23 / 0.12); }
+.course-deck-card.is-active,
+.course-deck-card.is-wrap-target { box-shadow: 0 4px 10px rgb(2 8 23 / 0.18), 0 26px 60px rgb(2 8 23 / 0.26); }
+.course-deck-viewport:focus-visible .course-deck-card.is-active { box-shadow: 0 0 0 3px color-mix(in srgb, var(--focus) 78%, transparent), 0 4px 10px rgb(2 8 23 / 0.18), 0 26px 60px rgb(2 8 23 / 0.26); }
+.course-deck-viewport[data-motion-state="dragging"] .course-deck-card.is-active { box-shadow: 0 8px 18px rgb(2 8 23 / 0.16), 0 34px 72px rgb(2 8 23 / 0.3); }
 .course-deck-section.is-single .course-deck-card { width: 100%; }
 .course-deck-viewport:not([data-motion-state="idle"]) .course-deck-card { will-change: transform, opacity; }
 .course-deck-viewport:not([data-motion-state="idle"]) .course-deck-card-face { pointer-events: none; }
@@ -2000,19 +2004,22 @@ html[data-environment="qa"] .environment-pill { display: inline-flex; }
 .course-deck-cover .course-banner::after { content: none; }
 .course-deck-card-body { position: relative; min-height: 0; display: grid; grid-template-columns: minmax(0, 1fr) 250px; gap: 30px; padding: clamp(25px, 3vw, 38px); background-color: var(--deck-paper); }
 .course-deck-card-body > * { position: relative; z-index: 3; }
-.course-deck-card-copy { min-width: 0; display: flex; flex-direction: column; }
-.course-deck-card-copy > p { color: var(--deck-accent); font-size: 0.76rem; font-weight: 720; }
-.course-deck-card-copy h2 { max-width: 19ch; margin-top: 8px; color: var(--deck-ink); font-family: var(--font-editorial); font-size: clamp(2rem, 3.2vw, 3.15rem); font-weight: 560; line-height: 0.98; letter-spacing: -0.035em; overflow-wrap: anywhere; }
-.course-deck-card-copy > strong { margin-top: 16px; color: var(--deck-ink); font-family: var(--font-editorial); font-size: clamp(1.25rem, 2vw, 1.7rem); font-weight: 540; line-height: 1.12; }
-.course-deck-lesson-meta { display: flex; flex-wrap: wrap; gap: 10px 18px; margin-top: 12px; color: var(--deck-muted); font-size: 0.78rem; }
+.course-deck-card-copy { min-width: 0; display: flex; flex-direction: column; transition: opacity var(--motion-feedback) var(--ease-out); }
+.course-deck-card-copy h2 { max-width: 19ch; color: var(--deck-ink); font-family: var(--font-editorial); font-size: clamp(2rem, 3.2vw, 3.15rem); font-weight: 560; line-height: 0.98; letter-spacing: -0.035em; overflow-wrap: anywhere; }
+.course-deck-next-lesson { max-width: 40ch; margin-top: 18px; padding-top: 15px; border-top: 1px solid var(--deck-rule); }
+.course-deck-next-lesson span { display: block; color: var(--deck-accent); font-size: 0.72rem; font-weight: 760; letter-spacing: 0.035em; text-transform: uppercase; }
+.course-deck-next-lesson strong { display: block; margin-top: 7px; color: var(--deck-ink); font-family: var(--font-editorial); font-size: clamp(1.25rem, 2vw, 1.7rem); font-weight: 540; line-height: 1.12; }
+.course-deck-lesson-meta { display: flex; flex-wrap: wrap; gap: 10px 18px; margin-top: 15px; color: var(--deck-muted); font-size: 0.78rem; }
 .course-deck-lesson-meta span { display: inline-flex; align-items: center; gap: 6px; }
-.course-deck-card-action { min-width: 0; align-self: end; }
+.course-deck-card-action { min-width: 0; align-self: end; transition: opacity var(--motion-feedback) var(--ease-out); }
+.course-deck-card:not(.is-active) .course-deck-card-copy { opacity: 0.68; }
+.course-deck-card:not(.is-active) .course-deck-card-action { opacity: 0.24; }
 .course-deck-progress-copy { display: flex; align-items: baseline; justify-content: space-between; gap: 16px; color: var(--deck-muted); font-size: 0.7rem; }
 .course-deck-progress-copy strong { color: var(--deck-accent); font-family: var(--font-editorial); font-size: 1.8rem; font-weight: 560; }
 .course-deck-progress { width: 100%; height: 6px; display: block; overflow: hidden; margin-top: 8px; border-radius: 999px; background: var(--deck-progress-track); }
 .course-deck-progress i { display: block; width: 100%; height: 100%; border-radius: inherit; background: var(--deck-progress-fill); transform-origin: left; transition: transform 430ms var(--ease-out); }
 .course-deck-progress.is-unknown { border: 1px dashed var(--deck-progress-unknown); background: transparent; }
-.course-deck-primary { margin-top: 22px; background: var(--brand-coral); color: var(--brand-navy); box-shadow: 0 8px 18px rgb(2 8 23 / 0.2); }
+.course-deck-primary { margin-top: 22px; background: var(--brand-coral); color: var(--brand-navy); box-shadow: 0 6px 16px rgb(2 8 23 / 0.18), 0 14px 28px rgb(2 8 23 / 0.12); }
 .course-deck-primary:hover { background: #FF9D7F; }
 .course-deck-card-action .course-deck-primary { width: 100%; }
 .course-deck-controls { min-height: 48px; display: flex; align-items: center; justify-content: center; gap: 14px; margin-top: 2px; }
@@ -4557,8 +4564,9 @@ html[data-environment="qa"] .environment-pill { display: inline-flex; }
   .course-deck-card-body { display: flex; flex-direction: column; gap: 0; padding: 20px 22px 22px; }
   .course-deck-card-copy h2 { max-width: 16ch; font-size: clamp(1.8rem, 8vw, 2.45rem); }
   .course-deck-card-copy h2,
-  .course-deck-card-copy > strong { display: -webkit-box; overflow: hidden; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
-  .course-deck-card-copy > strong { margin-top: 12px; font-size: 1.18rem; }
+  .course-deck-next-lesson strong { display: -webkit-box; overflow: hidden; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
+  .course-deck-next-lesson { margin-top: 14px; padding-top: 12px; }
+  .course-deck-next-lesson strong { margin-top: 6px; font-size: 1.18rem; }
   .course-deck-lesson-meta { margin-top: 9px; font-size: 0.7rem; }
   .course-deck-card-action { width: 100%; align-self: stretch; margin-top: 18px; }
   .course-deck-progress { margin-top: 6px; }
@@ -4608,6 +4616,8 @@ html[data-environment="qa"] .environment-pill { display: inline-flex; }
 
 @media (prefers-reduced-motion: reduce) {
   .course-deck-card,
+  .course-deck-card-copy,
+  .course-deck-card-action,
   .course-deck-progress i,
   .course-artwork,
   .course-deck-signals a { transition: none; }

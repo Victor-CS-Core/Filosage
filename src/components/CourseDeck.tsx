@@ -80,7 +80,6 @@ interface SpinQueue {
 }
 
 interface DragVelocitySample {
-  inputType: "mouse" | "pen" | "touch" | "unknown";
   offset: number;
   time: number;
   velocity: number;
@@ -102,7 +101,7 @@ interface CourseDeckCardProps {
   direction: CycleDirection | null;
   motionState: MotionState;
   reducedMotion: boolean;
-  onDragStart: (pointerId: number | null, eventTime: number, inputType: DragVelocitySample["inputType"]) => void;
+  onDragStart: (pointerId: number | null, eventTime: number) => void;
   onDragMove: (info: PanInfo, eventTime: number) => void;
   onDragEnd: (info: PanInfo, eventTime: number) => void;
 }
@@ -112,7 +111,7 @@ const INITIAL_GEOMETRY: DeckGeometry = {
   cardWidth: 0,
   stepX: 0,
   stepY: 18,
-  rotationStep: 0.3,
+  rotationStep: 0.36,
   travel: 0,
 };
 
@@ -121,12 +120,15 @@ const DRAG_CYCLE_MAX_DURATION_SECONDS = 0.34;
 const DECK_CYCLE_EASE = [0.4, 0, 0.2, 1] as const;
 const DECK_SPIN_EASE = [0.45, 0, 0.55, 1] as const;
 const DECK_HANDOFF_PROGRESS = 0.46;
-const INERTIA_PROJECTION_SECONDS = 0.22;
-const SPIN_INERTIA_PROJECTION_SECONDS = 0.6;
-const SPIN_OVERRIDE_VELOCITY = 3_000;
-const MAX_INERTIAL_CYCLES = 3;
+const INERTIA_PROJECTION_SECONDS = 0.18;
+const EXTRA_CYCLE_MIN_VELOCITY = 4_000;
+const EXTRA_CYCLE_MIN_DISTANCE_PX = 64;
+const EXTRA_CYCLE_MIN_DISTANCE_RATIO = 0.2;
+const EXTRA_CYCLE_PROJECTED_TRAVEL_RATIO = 1.35;
+const MAX_INERTIAL_CYCLES = 2;
 const SPIN_VELOCITY_DECAY = 0.62;
 const VELOCITY_SAMPLE_FRESH_MS = 80;
+const VELOCITY_SAMPLE_MIN_INTERVAL_MS = 4;
 const MOTION_PREFERENCE_STORAGE_KEY = "filosage-motion-preference";
 
 function useSystemReducedMotion() {
@@ -357,9 +359,6 @@ function CourseDeckCard({
       onDragStart={(event) => onDragStart(
         typeof PointerEvent !== "undefined" && event instanceof PointerEvent ? event.pointerId : null,
         event.timeStamp,
-        typeof PointerEvent !== "undefined" && event instanceof PointerEvent
-          ? (event.pointerType as DragVelocitySample["inputType"])
-          : typeof TouchEvent !== "undefined" && event instanceof TouchEvent ? "touch" : "mouse",
       )}
       onDrag={(event, info) => onDragMove(info, event.timeStamp)}
       onDragEnd={(event, info) => onDragEnd(info, event.timeStamp)}
@@ -372,9 +371,11 @@ function CourseDeckCard({
         </div>
         <div className="course-deck-card-body">
           <div className="course-deck-card-copy">
-            <p>Current lesson</p>
             <h2>{item.topic}</h2>
-            <strong>{item.nextLessonTitle}</strong>
+            <div className="course-deck-next-lesson">
+              <span>Up next</span>
+              <strong>{item.nextLessonTitle}</strong>
+            </div>
             <span className="course-deck-lesson-meta">
               <span><BookOpenCheck size={15} /> {item.completedLessons} of {item.totalLessons ?? "?"} lessons</span>
               {item.estimatedMinutes && <span><Clock3 size={15} /> {item.estimatedMinutes} min</span>}
@@ -567,24 +568,22 @@ export default function CourseDeck({ items, firstName, canCreateCourses }: Cours
   const handleDragStart = useCallback((
     pointerId: number | null,
     eventTime: number,
-    inputType: DragVelocitySample["inputType"],
   ) => {
     if (motionStateRef.current !== "idle") return;
     dragPointerIdRef.current = pointerId;
-    dragVelocitySampleRef.current = { inputType, offset: dragX.get(), time: eventTime, velocity: 0 };
+    dragVelocitySampleRef.current = { offset: dragX.get(), time: eventTime, velocity: 0 };
     updateMotionState("dragging", null);
   }, [dragX, updateMotionState]);
 
   const handleDragMove = useCallback((info: PanInfo, eventTime: number) => {
     if (motionStateRef.current !== "dragging") return;
     const previousSample = dragVelocitySampleRef.current;
-    const elapsedMs = previousSample ? Math.max(1, eventTime - previousSample.time) : 1;
-    const sampledVelocity = previousSample
+    const elapsedMs = previousSample ? eventTime - previousSample.time : 0;
+    const sampledVelocity = previousSample && elapsedMs >= VELOCITY_SAMPLE_MIN_INTERVAL_MS
       ? ((info.offset.x - previousSample.offset) / elapsedMs) * 1_000
       : info.velocity.x;
     const previousVelocity = previousSample?.velocity ?? 0;
     dragVelocitySampleRef.current = {
-      inputType: previousSample?.inputType ?? "unknown",
       offset: info.offset.x,
       time: eventTime,
       velocity: arbitrateCourseDeckDragVelocity(previousVelocity, sampledVelocity, info.velocity.x),
@@ -622,13 +621,14 @@ export default function CourseDeck({ items, firstName, canCreateCourses }: Cours
       ? (effectiveVelocity < 0 ? "next" : "previous")
       : (releaseOffset < 0 ? "next" : "previous");
     const travel = Math.max(geometry.travel, geometry.cardWidth + 32);
-    const spinGesture = velocitySample?.inputType === "mouse"
-      || Math.abs(effectiveVelocity) >= SPIN_OVERRIDE_VELOCITY;
-    const projectionSeconds = spinGesture ? SPIN_INERTIA_PROJECTION_SECONDS : INERTIA_PROJECTION_SECONDS;
-    const projectedTravel = Math.abs(releaseOffset) + (Math.abs(effectiveVelocity) * projectionSeconds);
+    const releaseDistance = Math.abs(releaseOffset);
+    const projectedTravel = releaseDistance + (Math.abs(effectiveVelocity) * INERTIA_PROJECTION_SECONDS);
+    const extraCycleDistance = Math.max(EXTRA_CYCLE_MIN_DISTANCE_PX, geometry.cardWidth * EXTRA_CYCLE_MIN_DISTANCE_RATIO);
+    const hasDeliberateExtraCycleForce = Math.abs(effectiveVelocity) >= EXTRA_CYCLE_MIN_VELOCITY
+      && releaseDistance >= extraCycleDistance
+      && projectedTravel >= travel * EXTRA_CYCLE_PROJECTED_TRAVEL_RATIO;
     const maxCycles = Math.min(MAX_INERTIAL_CYCLES, items.length - 1);
-    const inertialCycles = clamp(Math.ceil(projectedTravel / Math.max(1, travel)), 1, maxCycles);
-    commitCycle(nextDirection, effectiveVelocity, inertialCycles);
+    commitCycle(nextDirection, effectiveVelocity, hasDeliberateExtraCycleForce ? maxCycles : 1);
   }, [commitCycle, dragX, geometry.cardWidth, geometry.travel, items.length, settleBack]);
 
   const handleDragEnd = useCallback((info: PanInfo, eventTime: number) => {
@@ -720,7 +720,7 @@ export default function CourseDeck({ items, firstName, canCreateCourses }: Cours
       const compact = stageWidth <= 800;
       const stepX = Math.max(0, (stageWidth - cardWidth) / 2);
       const stepY = compact ? 12 : 18;
-      const rotationStep = compact ? 0.38 : 0.28;
+      const rotationStep = compact ? 0.38 : 0.36;
       const travel = cardWidth + Math.max(32, stepX * 0.45);
       setGeometry((current) => {
         if (

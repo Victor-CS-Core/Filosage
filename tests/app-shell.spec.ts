@@ -501,7 +501,7 @@ test.describe("desktop application shell", () => {
     }
   });
 
-  test("cycles the held card through the pile in either direction without stealing nested keyboard input", async ({ page }, testInfo) => {
+  test("cycles the held card precisely and scales intentional flicks by force without stealing nested keyboard input", async ({ page }, testInfo) => {
     test.setTimeout(90_000);
     await prepareOwnerShell(page, [...learningProgress, secondLearningProgress, thirdLearningProgress]);
     await page.goto("/");
@@ -809,6 +809,26 @@ test.describe("desktop application shell", () => {
       await page.mouse.move(spinStartX + 18, spinY);
       await page.waitForTimeout(8);
       await page.mouse.move(spinStartX + 90, spinY);
+      await page.mouse.up();
+      await expect(page.locator(".course-deck-viewport")).toHaveAttribute("data-direction", "previous");
+      await waitForDeckToSettle(page);
+      await expectDeckSelection(2);
+      await expect(page.locator(".course-deck-card[data-deck-instance='wrap']")).toHaveCount(0);
+
+      await deck.focus();
+      await deck.press("Home");
+      await waitForDeckToSettle(page);
+      await expectDeckSelection(0);
+      const forceCard = page.locator(".course-deck-card.is-active");
+      const forceBox = await forceCard.boundingBox();
+      if (!forceBox) throw new Error("Course Deck force-response card is not measurable.");
+      const forceStartX = forceBox.x + Math.min(forceBox.width * 0.42, 180);
+      const forceY = forceBox.y + Math.min(forceBox.height * 0.35, 190);
+      await page.mouse.move(forceStartX, forceY);
+      await page.mouse.down();
+      await page.mouse.move(forceStartX + 60, forceY);
+      await page.waitForTimeout(8);
+      await page.mouse.move(forceStartX + (forceBox.width * 0.48), forceY);
       await page.mouse.up();
       await expect(page.locator(".course-deck-viewport")).toHaveAttribute("data-direction", "previous");
       await waitForDeckToSettle(page);
@@ -1146,6 +1166,7 @@ test.describe("mobile application shell", () => {
 
     await expect(page.getByRole("region", { name: /Active course/ })).toBeVisible();
     await expect(page.getByRole("heading", { name: "Morse Code" })).toBeVisible();
+    await expect(page.getByText("Up next", { exact: true })).toBeVisible();
     await expect(page.getByRole("link", { name: /Continue/ })).toBeVisible();
     await expectNoHorizontalPageOverflow(page);
     if (process.env.CAPTURE_DASHBOARD === "1") {
@@ -1315,9 +1336,9 @@ test.describe("mobile application shell", () => {
     }
     await dispatchTouch("touchEnd");
     await waitForDeckToSettle(page);
-    await expect(page.locator(".course-deck-card.is-active")).toHaveAttribute("data-course-id", "systems-shell-course");
-    await expect(page.locator(".course-deck-controls [role='status']")).toContainText("Systems thinking");
-    await expect(page.locator(".course-deck-controls [role='status']")).toContainText("3 of 3");
+    await expect(page.locator(".course-deck-card.is-active")).toHaveAttribute("data-course-id", "decision-shell-course");
+    await expect(page.locator(".course-deck-controls [role='status']")).toContainText("Decision quality");
+    await expect(page.locator(".course-deck-controls [role='status']")).toContainText("2 of 3");
   });
 
   test("keeps the paper mobile navigation labels contained at the narrowest supported width", async ({ page }) => {
