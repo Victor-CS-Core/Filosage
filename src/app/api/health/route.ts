@@ -1,4 +1,4 @@
-import { missingRuntimeConfiguration } from "@/lib/runtime-config";
+import { authenticationMode, missingRuntimeConfiguration } from "@/lib/runtime-config";
 import { getStoredDocument } from "@/lib/firebase-server";
 import { reportOperationalEvent } from "@/lib/operational-alerts";
 import { serverEnvironment } from "@/lib/runtime-environment";
@@ -41,7 +41,13 @@ export async function GET() {
     }
   })();
   return Response.json(
-    { ok, version, origin, checks: { configuration: missing.length === 0, datastore: datastoreOk } },
+    {
+      ok,
+      version,
+      origin,
+      authenticationMode: authenticationMode(),
+      checks: { configuration: missing.length === 0, datastore: datastoreOk },
+    },
     {
       status: ok ? 200 : 503,
       headers: {

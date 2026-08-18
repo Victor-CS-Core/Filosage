@@ -1,12 +1,13 @@
 import "server-only";
 
 import { isLocalMode } from "@/lib/local-mode";
+import { authenticationMode, type AuthenticationMode } from "@/lib/runtime-config";
 import { serverEnvironment } from "@/lib/runtime-environment";
 
 export interface AzureInfrastructure {
   generatedAt: string;
   status: "configured" | "incomplete" | "local";
-  authentication: { provider: "Azure Container Apps Easy Auth (Google)"; measuredAccounts: number; configured: boolean };
+  authentication: { provider: "Azure Container Apps Easy Auth"; mode: AuthenticationMode; configured: boolean };
   database: { provider: "Azure Database for PostgreSQL"; configured: boolean; serverName?: string; backupRetentionDays: 7 };
   storage: { provider: "Azure Blob Storage"; configured: boolean; container: string };
   hosting: { provider: "Azure Container Apps"; configured: boolean };
@@ -25,7 +26,7 @@ export function azureInfrastructure(): AzureInfrastructure {
   return {
     generatedAt: new Date().toISOString(),
     status: local ? "local" : complete ? "configured" : "incomplete",
-    authentication: { provider: "Azure Container Apps Easy Auth (Google)", measuredAccounts: 0, configured: authenticationConfigured },
+    authentication: { provider: "Azure Container Apps Easy Auth", mode: authenticationMode(), configured: authenticationConfigured },
     database: {
       provider: "Azure Database for PostgreSQL",
       configured: databaseConfigured,

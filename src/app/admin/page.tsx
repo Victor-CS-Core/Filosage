@@ -34,6 +34,7 @@ import AppShell from "@/components/AppShell";
 import { useAuth } from "@/components/AuthProvider";
 import type { AdminOverview, AdminUserSummary, OperationalReadinessState } from "@/lib/admin-types";
 import { matchesSearchQuery } from "@/lib/search";
+import { AuthenticationInventorySummary } from "./AuthenticationInventorySummary";
 
 type AdminTab = "overview" | "costs" | "research" | "launch" | "users" | "ai" | "safety";
 
@@ -460,7 +461,7 @@ export default function AdminPage() {
             </section>
 
             <section className="admin-cost-metrics" aria-label="Azure infrastructure summary">
-              <article><span>Identity</span><strong>{data.infrastructure.authentication.configured ? "Ready" : "Missing"}</strong><small>{data.infrastructure.authentication.measuredAccounts} measured account{data.infrastructure.authentication.measuredAccounts === 1 ? "" : "s"}</small></article>
+              <AuthenticationInventorySummary authentication={data.infrastructure.authentication} />
               <article><span>Database</span><strong>{data.infrastructure.database.configured ? "Ready" : "Missing"}</strong><small>{data.infrastructure.database.serverName || "PostgreSQL server name unavailable"}</small></article>
               <article><span>Blob storage</span><strong>{data.infrastructure.storage.configured ? "Ready" : "Missing"}</strong><small>{data.infrastructure.storage.container} container</small></article>
               <article><span>Hosting</span><strong>{data.infrastructure.hosting.configured ? "Ready" : "Unverified"}</strong><small>{data.infrastructure.hosting.provider}</small></article>
