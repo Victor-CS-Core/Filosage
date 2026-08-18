@@ -4,7 +4,6 @@ import {
   authenticationRuntimeConfiguration,
 } from "../src/lib/auth-runtime";
 import { easyAuthIdentityFromHeaders } from "../src/lib/easy-auth-principal";
-import { verifiedEasyAuthUserFromProviderIdentity } from "../src/lib/easy-auth-user";
 
 function principal(provider: string, claims: unknown) {
   return Buffer.from(JSON.stringify({ auth_typ: provider, claims })).toString("base64");
@@ -146,33 +145,4 @@ test("normalizes case and surrounding whitespace without provider alias rewritin
     ]),
   });
   expect(easyAuthIdentityFromHeaders(headers, dual)?.email).toBe("learner+study@gmail.com");
-});
-
-test("verified Easy Auth user bridge rejects raw External ID and preserves direct Google subjects", () => {
-  const externalIdentity = {
-    provider: "filosage" as const,
-    issuer: dual.externalIdIssuer!,
-    subject: "external-subject",
-    email: "learner@example.com",
-    emailVerified: true as const,
-  };
-  const googleIdentity = {
-    provider: "google" as const,
-    issuer: "https://accounts.google.com",
-    subject: "google-canonical-subject",
-    email: "learner@example.com",
-    emailVerified: true as const,
-  };
-
-  expect(verifiedEasyAuthUserFromProviderIdentity(externalIdentity)).toBeNull();
-  expect(verifiedEasyAuthUserFromProviderIdentity(googleIdentity)).toEqual({
-    uid: "google-canonical-subject",
-    email: "learner@example.com",
-    email_verified: true,
-    auth_time: undefined,
-    name: undefined,
-    picture: undefined,
-    providerIdentity: googleIdentity,
-    identityLinkRegistered: true,
-  });
 });

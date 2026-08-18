@@ -1,4 +1,4 @@
-import type { VerifiedProviderIdentity } from "@/lib/identity-types";
+import type { VerifiedProviderIdentity, VerifiedUser } from "@/lib/identity-types";
 
 export const REGISTRY_KEY_VERSION = "v1" as const;
 
@@ -52,6 +52,74 @@ export interface IdentityRegistryKeys {
   emailHash: string;
   identityPath: string;
   emailPath: string;
+}
+
+export type IdentityRegistryDocument = Record<string, unknown> | null;
+
+function canonicalUser(
+  identity: VerifiedProviderIdentity,
+  uid: string,
+  identityLinkRegistered: boolean,
+): VerifiedUser {
+  return {
+    uid,
+    email: identity.email,
+    email_verified: true,
+    auth_time: identity.authTime,
+    name: identity.name,
+    picture: identity.picture,
+    providerIdentity: identity,
+    identityLinkRegistered,
+  };
+}
+
+export function canonicalIdentityFromRegistry(
+  identity: VerifiedProviderIdentity,
+  keys: IdentityRegistryKeys | null,
+  link: IdentityRegistryDocument,
+  subjectAccountExists: boolean,
+) {
+  if (identity.provider === "local") return canonicalUser(identity, identity.subject, true);
+  if (!keys) throw new IdentityRegistryConflictError();
+  if (link === null && identity.provider === "filosage" && subjectAccountExists) {
+    throw new IdentityRegistryConflictError();
+  }
+  if (link === null) return canonicalUser(identity, identity.subject, false);
+  const canonicalUid = typeof link?.canonicalUid === "string" ? link.canonicalUid.trim() : "";
+  if (
+    !canonicalUid
+    || link.keyVersion !== REGISTRY_KEY_VERSION
+    || link.identityHash !== keys.identityHash
+  ) {
+    throw new IdentityRegistryConflictError();
+  }
+  return canonicalUser(identity, canonicalUid, true);
+}
+
+export type IdentityOnboardingState = "ready" | "new_account" | "identity_link_required";
+
+export function identityOnboardingStateFromRegistry(
+  user: VerifiedUser,
+  keys: IdentityRegistryKeys,
+  account: IdentityRegistryDocument,
+  emailOwner: IdentityRegistryDocument,
+): IdentityOnboardingState {
+  const ownerUid = typeof emailOwner?.canonicalUid === "string"
+    ? emailOwner.canonicalUid.trim()
+    : "";
+  if (emailOwner !== null && (
+    !ownerUid
+    || emailOwner.keyVersion !== REGISTRY_KEY_VERSION
+    || emailOwner.emailHash !== keys.emailHash
+  )) {
+    throw new IdentityRegistryConflictError();
+  }
+  if (account !== null) {
+    if (ownerUid && ownerUid !== user.uid) throw new IdentityRegistryConflictError();
+    return "ready";
+  }
+  if (ownerUid && ownerUid !== user.uid) return "identity_link_required";
+  return "new_account";
 }
 
 export async function identityRegistryKeys(identity: VerifiedProviderIdentity, secret: string) {

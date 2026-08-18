@@ -2,8 +2,8 @@ import "server-only";
 
 import { getStoredDocument } from "@/lib/firebase-server";
 import {
-  IdentityRegistryConflictError,
-  REGISTRY_KEY_VERSION,
+  canonicalIdentityFromRegistry,
+  identityOnboardingStateFromRegistry,
   identityRegistryKeys as identityRegistryKeysWithSecret,
 } from "@/lib/identity-link-policy";
 import type { VerifiedProviderIdentity, VerifiedUser } from "@/lib/identity-types";
@@ -14,6 +14,7 @@ export {
   IdentityLinkRequiredError,
   IdentityRegistryConflictError,
 } from "@/lib/identity-link-policy";
+export type { IdentityOnboardingState } from "@/lib/identity-link-policy";
 
 function requiredHmacSecret(explicit?: string) {
   const secret = explicit?.trim()
@@ -32,45 +33,23 @@ export function configuredIdentityRegistryKeys(
   return identityRegistryKeysWithSecret(identity, requiredHmacSecret(explicit));
 }
 
-function canonicalUser(
-  identity: VerifiedProviderIdentity,
-  uid: string,
-  identityLinkRegistered: boolean,
-): VerifiedUser {
-  return {
-    uid,
-    email: identity.email,
-    email_verified: true,
-    auth_time: identity.authTime,
-    name: identity.name,
-    picture: identity.picture,
-    providerIdentity: identity,
-    identityLinkRegistered,
-  };
-}
-
 export async function resolveCanonicalIdentity(identity: VerifiedProviderIdentity) {
-  if (identity.provider === "local") return canonicalUser(identity, identity.subject, true);
+  if (identity.provider === "local") {
+    return canonicalIdentityFromRegistry(identity, null, null, false);
+  }
   const keys = await configuredIdentityRegistryKeys(identity);
   const link = await getStoredDocument(keys.identityPath);
-  const canonicalUid = typeof link?.canonicalUid === "string" ? link.canonicalUid.trim() : "";
-  if (!canonicalUid) return canonicalUser(identity, identity.subject, false);
-  if (link?.keyVersion !== REGISTRY_KEY_VERSION || link?.identityHash !== keys.identityHash) {
-    throw new IdentityRegistryConflictError();
-  }
-  return canonicalUser(identity, canonicalUid, true);
+  const subjectAccount = link === null && identity.provider === "filosage"
+    ? await getStoredDocument(`users/${identity.subject}`)
+    : null;
+  return canonicalIdentityFromRegistry(identity, keys, link, subjectAccount !== null);
 }
 
-export type IdentityOnboardingState = "ready" | "new_account" | "identity_link_required";
-
-export async function identityOnboardingState(user: VerifiedUser): Promise<IdentityOnboardingState> {
+export async function identityOnboardingState(user: VerifiedUser) {
   const keys = await configuredIdentityRegistryKeys(user.providerIdentity);
   const [account, emailOwner] = await Promise.all([
     getStoredDocument(`users/${user.uid}`),
     getStoredDocument(keys.emailPath),
   ]);
-  if (account) return "ready";
-  const ownerUid = typeof emailOwner?.canonicalUid === "string" ? emailOwner.canonicalUid : "";
-  if (ownerUid && ownerUid !== user.uid) return "identity_link_required";
-  return "new_account";
+  return identityOnboardingStateFromRegistry(user, keys, account, emailOwner);
 }
