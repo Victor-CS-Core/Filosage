@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ArrowRight, Award, BookOpenCheck, BrainCircuit, BriefcaseBusiness, CalendarClock, CheckCircle2, CircleDot, LoaderCircle, SlidersHorizontal, Target, UserRound } from "lucide-react";
 import AchievementBadge from "@/components/AchievementBadge";
 import AppShell from "@/components/AppShell";
@@ -40,8 +40,32 @@ export default function ProfilePage() {
   const [authoredCourses, setAuthoredCourses] = useState<Course[]>([]);
   const [loaded, setLoaded] = useState(false);
   const [filter, setFilter] = useState<BadgeFilter>("all");
+  const [connectBusy, setConnectBusy] = useState(false);
+  const [connectError, setConnectError] = useState<string | null>(null);
+  const connectBusyRef = useRef(false);
   const dashboardCustomizer = useAppDrawer("dashboard-customizer");
   const [now] = useState(() => Date.now());
+
+  const beginExternalConnection = async () => {
+    if (connectBusyRef.current) return;
+    connectBusyRef.current = true;
+    setConnectBusy(true);
+    setConnectError(null);
+    try {
+      await connectExternalIdentity();
+    } catch (connectionError) {
+      const message = connectionError instanceof Error && [
+        "Too many connection attempts. Wait a few minutes, then try again.",
+        "The secure connection took too long. Check your network and try again.",
+      ].includes(connectionError.message)
+        ? connectionError.message
+        : "Email-code sign-in could not be started. Your account is unchanged. Try again.";
+      setConnectError(message);
+    } finally {
+      connectBusyRef.current = false;
+      setConnectBusy(false);
+    }
+  };
 
   useEffect(() => {
     if (!user) return;
@@ -161,9 +185,12 @@ export default function ProfilePage() {
                   <p>Download your information, submit a privacy request, or close your account.</p>
                   <Link href="/privacy-center">Open privacy center</Link>
                   {user.provider === "google" && authentication.externalIdAvailable && (
-                    <button className="text-button" onClick={() => void connectExternalIdentity().catch(() => undefined)}>
-                      Add email-code sign-in
-                    </button>
+                    <div className="profile-connect-action">
+                      <button className="text-button" type="button" aria-label="Add email-code sign-in" disabled={connectBusy} aria-busy={connectBusy} onClick={() => void beginExternalConnection()}>
+                        {connectBusy ? "Opening secure connection…" : "Add email-code sign-in"}
+                      </button>
+                      {connectError && <p className="form-error" role="alert">{connectError}</p>}
+                    </div>
                   )}
                 </section>
               </aside>

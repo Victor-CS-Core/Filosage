@@ -13,8 +13,9 @@ export interface FilosageUser {
 export interface ManagedAuthenticationState {
   recentAuthentication: boolean;
   authentication: {
-    primaryProvider: "google" | "filosage";
+    primaryProvider: "google" | "filosage" | null;
     externalIdAvailable: boolean;
+    externalIdNewAccountsAvailable: boolean;
     legacyGoogleAvailable: boolean;
   };
   user: FilosageUser | null;
@@ -104,18 +105,24 @@ function parsedSession(value: unknown): EasyAuthSessionResponse | null {
     return null;
   }
   const authentication = value.authentication;
-  if (!hasExactKeys(authentication, ["primaryProvider", "externalIdAvailable", "legacyGoogleAvailable"])) {
+  if (!hasExactKeys(authentication, ["primaryProvider", "externalIdAvailable", "externalIdNewAccountsAvailable", "legacyGoogleAvailable"])) {
     return null;
   }
-  if ((authentication.primaryProvider !== "google" && authentication.primaryProvider !== "filosage")
+  if ((authentication.primaryProvider !== null && authentication.primaryProvider !== "google" && authentication.primaryProvider !== "filosage")
     || typeof authentication.externalIdAvailable !== "boolean"
+    || typeof authentication.externalIdNewAccountsAvailable !== "boolean"
     || typeof authentication.legacyGoogleAvailable !== "boolean") {
     return null;
   }
+  if (authentication.externalIdNewAccountsAvailable && !authentication.externalIdAvailable) return null;
+  if (authentication.primaryProvider === "filosage" && !authentication.externalIdAvailable) return null;
+  if (authentication.primaryProvider === "google" && !authentication.legacyGoogleAvailable) return null;
+  if (authentication.primaryProvider === null && (authentication.externalIdAvailable || authentication.legacyGoogleAvailable)) return null;
 
   const safeAuthentication: ManagedAuthenticationState["authentication"] = {
     primaryProvider: authentication.primaryProvider,
     externalIdAvailable: authentication.externalIdAvailable,
+    externalIdNewAccountsAvailable: authentication.externalIdNewAccountsAvailable,
     legacyGoogleAvailable: authentication.legacyGoogleAvailable,
   };
   if (value.user === null) {

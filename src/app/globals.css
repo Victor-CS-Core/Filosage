@@ -934,6 +934,10 @@ button:disabled { cursor: not-allowed; opacity: 0.55; }
 .auth-symbol { width: 48px; height: 54px; display: grid; place-items: center; margin-bottom: 24px; }
 .auth-symbol .brand-mark { width: 42px; height: 48px; }
 .auth-dialog h2 { font-size: 1.75rem; margin-top: 7px; }
+.account-unavailable { min-height: 100dvh; display: grid; place-content: center; justify-items: center; gap: 15px; padding: 24px; text-align: center; background: var(--canvas); color: var(--ink); }
+.account-unavailable p { max-width: 42rem; margin: 0; font-size: 1rem; overflow-wrap: anywhere; }
+.profile-connect-action { display: grid; gap: 7px; min-width: 0; }
+.profile-connect-action .form-error { margin: 0; overflow-wrap: anywhere; }
 .auth-copy { color: var(--ink-secondary); font-size: 0.87rem; line-height: 1.65; margin-top: 13px; }
 .auth-identity { min-width: 0; min-height: 42px; margin: 22px 0 14px; padding: 9px 11px; border: 1px solid var(--line); border-radius: var(--radius-sm); display: flex; align-items: center; gap: 9px; color: var(--ink-secondary); font-size: 0.78rem; }
 .auth-identity svg { flex: 0 0 auto; }

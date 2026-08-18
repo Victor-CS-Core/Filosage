@@ -20,6 +20,7 @@ import {
   type ManagedAuthenticationState,
 } from "@/lib/identity-client";
 import type { AccessLevel, LearnerAccount } from "@/lib/course-types";
+import { isZeroCapabilityLinkRequiredAccount, parseLearnerAccount } from "@/lib/account-client";
 import { PRIVACY_VERSION, TERMS_VERSION } from "@/lib/legal";
 import {
   parsePendingIdentityRecovery,
@@ -46,6 +47,7 @@ interface AuthContextValue {
   clearError: () => void;
   signIn: () => Promise<FilosageUser>;
   signInWithRedirect: () => Promise<void>;
+  signInWithProvider: (provider: "google" | "filosage") => Promise<void>;
   useExistingGoogleSignIn: (recoverIdentity?: boolean) => Promise<void>;
   connectExternalIdentity: (returnPath?: string) => Promise<void>;
   reauthenticate: (postLoginPath?: string) => Promise<FilosageUser>;
@@ -62,6 +64,7 @@ const MAX_LINK_RESPONSE_BYTES = 16 * 1024;
 const DEFAULT_AUTHENTICATION: ManagedAuthenticationState["authentication"] = {
   primaryProvider: "google",
   externalIdAvailable: false,
+  externalIdNewAccountsAvailable: false,
   legacyGoogleAvailable: false,
 };
 
@@ -117,36 +120,6 @@ function exactLinkRequiredError(value: unknown) {
     && Object.keys(value).sort().join(",") === "code,error"
     && value.code === "identity_link_required"
     && value.error === "This email is already connected to a Filosage learning account. Confirm your existing sign-in to connect the new method.";
-}
-
-function hasOnlyDisabledCapabilities(value: unknown) {
-  if (!isRecord(value)) return false;
-  const expected = [
-    "advancedCapstoneAnalysis",
-    "createCourse",
-    "createCustomFlashcardDeck",
-    "exportEvidenceReport",
-    "flashcardDecksEnabled",
-    "generateLesson",
-    "publishCourse",
-    "shareEvidenceReport",
-  ];
-  return Object.keys(value).sort().join(",") === expected.sort().join(",")
-    && expected.every((capability) => value[capability] === false);
-}
-
-function isZeroCapabilityLinkRequiredAccount(value: unknown) {
-  return isRecord(value)
-    && value.access === "free"
-    && value.plan === "free"
-    && value.isOwner === false
-    && value.accountStatus === "active"
-    && value.applicationAccountExists === false
-    && value.legalAcceptanceRequired === false
-    && value.identityLinkRequired === true
-    && hasOnlyDisabledCapabilities(value.capabilities)
-    && Array.isArray(value.quotas)
-    && value.quotas.length === 0;
 }
 
 function exactIdentityLinkRedirect(value: unknown) {
@@ -262,10 +235,22 @@ async function identityLinkRedirect(returnPath: string) {
 
 function managedProviderAvailable(
   authentication: ManagedAuthenticationState["authentication"],
+  forNewAccount = false,
 ) {
+  if (authentication.primaryProvider === null) return false;
   return authentication.primaryProvider === "filosage"
-    ? authentication.externalIdAvailable
+    ? (forNewAccount ? authentication.externalIdNewAccountsAvailable : authentication.externalIdAvailable)
     : authentication.legacyGoogleAvailable;
+}
+
+function boundedAccountError(error: unknown) {
+  return error instanceof Error && [
+    "Azure authentication status is unavailable.",
+    "Your account is taking longer than expected. You can keep learning while it reconnects.",
+    "Your session is taking longer than expected. You can keep learning while it reconnects.",
+  ].includes(error.message)
+    ? error.message
+    : "Your learning account could not be loaded.";
 }
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
@@ -314,7 +299,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       MAX_ACCOUNT_RESPONSE_BYTES,
       "Your learning account could not be loaded.",
     );
-    if ((response.ok || response.status === 409) && isZeroCapabilityLinkRequiredAccount(body)) {
+    const parsedAccount = parseLearnerAccount(body);
+    if ((response.ok || response.status === 409) && parsedAccount && isZeroCapabilityLinkRequiredAccount(parsedAccount)) {
       const linked = identityLinkRequiredAccount();
       setAccount(linked);
       return linked;
@@ -324,8 +310,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setAccount(linked);
       return linked;
     }
-    if (!response.ok || !isRecord(body)) throw new Error("Your learning account could not be loaded.");
-    const nextAccount = body as unknown as LearnerAccount;
+    if (!response.ok || !parsedAccount) throw new Error("Your learning account could not be loaded.");
+    const nextAccount = parsedAccount;
     setAccount(nextAccount);
     return nextAccount;
   }, []);
@@ -349,7 +335,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         try {
           await loadAccount(restored);
         } catch (accountError) {
-          setError(accountError instanceof Error ? accountError.message : "Your learning account could not be loaded.");
+          setError(boundedAccountError(accountError));
         } finally {
           setLoading(false);
         }
@@ -397,7 +383,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
     }).catch((accountError: unknown) => {
       if (!cancelled) {
-        setError(accountError instanceof Error ? accountError.message : "Your learning account could not be loaded.");
+        setError(boundedAccountError(accountError));
       }
     }).finally(() => {
       window.clearTimeout(bootTimeout);
@@ -424,14 +410,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setError("Secure sign-in is not available in this build.");
       throw unavailable;
     }
-    if (!managedProviderAvailable(authentication)) {
+    const provider = authentication.primaryProvider;
+    if (!provider || !managedProviderAvailable(authentication)) {
       const unavailable = new Error("The selected managed provider is unavailable.");
       setError("Secure sign-in is temporarily unavailable.");
       throw unavailable;
     }
     try {
       return await beginManagedSignIn(
-        authentication.primaryProvider,
+        provider,
         `${window.location.pathname}${window.location.search}`,
       );
     } catch (signInError) {
@@ -454,7 +441,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setError("Secure sign-in is not available in this build.");
       throw new Error("Managed authentication is not configured.");
     }
-    if (!managedProviderAvailable(authentication)) {
+    const provider = authentication.primaryProvider;
+    if (!provider || !managedProviderAvailable(authentication, true)) {
       setError("Secure sign-in is temporarily unavailable.");
       throw new Error("The selected managed provider is unavailable.");
     }
@@ -464,7 +452,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         JSON.stringify(pendingManagedRedirectAcceptance()),
       );
       await beginManagedSignIn(
-        authentication.primaryProvider,
+        provider,
         `${window.location.pathname}${window.location.search}`,
       );
     } catch (redirectError) {
@@ -473,6 +461,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       throw redirectError;
     }
   }, [authentication, loadAccount]);
+
+  const signInWithProvider = useCallback(async (provider: "google" | "filosage") => {
+    setError(null);
+    const available = provider === "google"
+      ? authentication.legacyGoogleAvailable
+      : authentication.externalIdAvailable;
+    if (!available) {
+      const message = "The selected sign-in method is temporarily unavailable.";
+      setError(message);
+      throw new Error(message);
+    }
+    try {
+      await beginManagedSignIn(provider, `${window.location.pathname}${window.location.search}`);
+    } catch (signInError) {
+      setError(authErrorMessage(signInError));
+      throw signInError;
+    }
+  }, [authentication.externalIdAvailable, authentication.legacyGoogleAvailable]);
 
   const useExistingGoogleSignIn = useCallback(async (recoverIdentity = false) => {
     setError(null);
@@ -571,6 +577,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       clearError: () => setError(null),
       signIn,
       signInWithRedirect,
+      signInWithProvider,
       useExistingGoogleSignIn,
       connectExternalIdentity,
       reauthenticate,
@@ -586,6 +593,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       error,
       signIn,
       signInWithRedirect,
+      signInWithProvider,
       useExistingGoogleSignIn,
       connectExternalIdentity,
       reauthenticate,

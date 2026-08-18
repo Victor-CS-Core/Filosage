@@ -30,15 +30,56 @@ function setCookie(response: APIResponse) {
 }
 
 interface AuthenticationFixture {
-  primaryProvider: "google" | "filosage";
+  primaryProvider: "google" | "filosage" | null;
   externalIdAvailable: boolean;
+  externalIdNewAccountsAvailable: boolean;
   legacyGoogleAvailable: boolean;
 }
 
 const signedOutAuthentication: AuthenticationFixture = {
   primaryProvider: "filosage",
   externalIdAvailable: true,
+  externalIdNewAccountsAvailable: true,
   legacyGoogleAvailable: true,
+} as const;
+
+const normalLearnerAccount = {
+  access: "free",
+  plan: "free",
+  isOwner: false,
+  accountStatus: "active",
+  displayName: "Managed Learner",
+  photoURL: "https://lh3.googleusercontent.com/a/managed-learner",
+  subscriptionStatus: "none",
+  capabilities: {
+    createCourse: false,
+    generateLesson: false,
+    flashcardDecksEnabled: false,
+    createCustomFlashcardDeck: false,
+    publishCourse: false,
+    advancedCapstoneAnalysis: false,
+    exportEvidenceReport: false,
+    shareEvidenceReport: false,
+  },
+  courseCredits: {
+    balance: 0,
+    monthlyAllocation: 0,
+    balanceCap: 0,
+    nextAccrualAt: null,
+    frozenUntil: null,
+  },
+  legalAcceptanceRequired: false,
+  applicationAccountExists: true,
+  identityLinkRequired: false,
+  currentTermsVersion: TERMS_VERSION,
+  currentPrivacyVersion: PRIVACY_VERSION,
+  quotas: [{
+    feature: "tutor",
+    limit: 20,
+    used: 3,
+    remaining: 17,
+    resetAt: "2026-09-01T00:00:00.000Z",
+  }],
 } as const;
 
 function managedSession(
@@ -95,6 +136,16 @@ async function routeIdentityLinkRequiredAccount(page: Page) {
         exportEvidenceReport: false,
         shareEvidenceReport: false,
       },
+      courseCredits: {
+        balance: 0,
+        monthlyAllocation: 0,
+        balanceCap: 0,
+        nextAccrualAt: null,
+        frozenUntil: null,
+      },
+      subscriptionStatus: "none",
+      currentTermsVersion: TERMS_VERSION,
+      currentPrivacyVersion: PRIVACY_VERSION,
       quotas: [],
     }),
   }));
@@ -111,6 +162,18 @@ async function seedPendingRecovery(page: Page) {
       }));
     }
   });
+}
+
+async function prepareConnectProfile(page: Page) {
+  await routeManagedSession(page, managedSession("google", {
+    primaryProvider: "filosage",
+    externalIdAvailable: true,
+    externalIdNewAccountsAvailable: true,
+    legacyGoogleAvailable: true,
+  }));
+  await page.route("**/api/account", (route) => route.fulfill({ status: 200, json: normalLearnerAccount }));
+  await page.route("**/api/progress", (route) => route.fulfill({ status: 200, json: { progress: [] } }));
+  await page.route("**/api/courses?scope=mine", (route) => route.fulfill({ status: 200, json: { courses: [] } }));
 }
 
 test("identity-link cookies turn Secure on only for production and keep the completion-only path", () => {
@@ -855,6 +918,7 @@ test("session responses expose exact signed-out availability and no provider sec
     authentication: {
       primaryProvider: "google",
       externalIdAvailable: false,
+      externalIdNewAccountsAvailable: false,
       legacyGoogleAvailable: true,
     },
     user: null,
@@ -921,39 +985,223 @@ test("managed session restoration rejects unknown fields and oversized JSON with
   await expect(dialog).not.toContainText("private-session-value");
 });
 
-test("entry copy follows signed-out provider availability without inventing email sign-in", async ({ page }) => {
-  await routeManagedSession(page, {
-    recentAuthentication: false,
-    authentication: {
-      primaryProvider: "google",
-      externalIdAvailable: false,
-      legacyGoogleAvailable: true,
+test("entry actions remain truthful and usable for every provider availability tuple", async ({ context }) => {
+  const cases: Array<{
+    name: string;
+    authentication: AuthenticationFixture;
+    identityCopy: string;
+    primaryAction: string;
+    alternateAction?: string;
+    createsAccount: boolean;
+  }> = [
+    {
+      name: "existing External ID only",
+      authentication: { primaryProvider: "filosage", externalIdAvailable: true, externalIdNewAccountsAvailable: false, legacyGoogleAvailable: false },
+      identityCopy: "Sign in to an existing Filosage account with a private email code on the next secure screen",
+      primaryAction: "Sign in with email code",
+      createsAccount: false,
     },
-    user: null,
-  });
-  await page.goto("/");
-  await page.locator(".marketing-hero").getByRole("button", { name: "Create a free account" }).click();
-  let dialog = page.getByRole("dialog", { name: "Keep your learning in sync" });
-  await expect(dialog.getByRole("button", { name: "Continue with Google" })).toBeVisible();
-  await expect(dialog).toContainText("Continue with Google on the next secure screen");
-  await expect(dialog).not.toContainText("private email code");
-  await expect(dialog.getByRole("button", { name: "Use my existing Google sign-in" })).toHaveCount(0);
+    {
+      name: "Google creation with existing External ID alternate",
+      authentication: { primaryProvider: "google", externalIdAvailable: true, externalIdNewAccountsAvailable: false, legacyGoogleAvailable: true },
+      identityCopy: "Continue with Google to create an account, or use a private email code for an existing account",
+      primaryAction: "Continue with Google",
+      alternateAction: "Use email code for an existing account",
+      createsAccount: true,
+    },
+    {
+      name: "External ID creation only",
+      authentication: { primaryProvider: "filosage", externalIdAvailable: true, externalIdNewAccountsAvailable: true, legacyGoogleAvailable: false },
+      identityCopy: "Choose a private email code on the next secure Filosage screen",
+      primaryAction: "Continue securely",
+      createsAccount: true,
+    },
+    {
+      name: "External ID creation with Google option",
+      authentication: { primaryProvider: "filosage", externalIdAvailable: true, externalIdNewAccountsAvailable: true, legacyGoogleAvailable: true },
+      identityCopy: "Choose Google or a private email code on the next secure Filosage screen",
+      primaryAction: "Continue securely",
+      alternateAction: "Use my existing Google sign-in",
+      createsAccount: true,
+    },
+    {
+      name: "Google only",
+      authentication: { primaryProvider: "google", externalIdAvailable: false, externalIdNewAccountsAvailable: false, legacyGoogleAvailable: true },
+      identityCopy: "Continue with Google on the next secure screen",
+      primaryAction: "Continue with Google",
+      createsAccount: true,
+    },
+    {
+      name: "no provider",
+      authentication: { primaryProvider: null, externalIdAvailable: false, externalIdNewAccountsAvailable: false, legacyGoogleAvailable: false },
+      identityCopy: "Secure sign-in is temporarily unavailable",
+      primaryAction: "Sign-in unavailable",
+      createsAccount: false,
+    },
+  ];
 
-  await page.unroute("**/api/auth/session");
+  for (const providerCase of cases) {
+    const page = await context.newPage();
+    await routeManagedSession(page, {
+      recentAuthentication: false,
+      authentication: providerCase.authentication,
+      user: null,
+    });
+    await page.route("**/.auth/login/**", (route) => route.fulfill({
+      status: 200,
+      contentType: "text/html",
+      body: "<!doctype html><title>Managed sign-in</title>",
+    }));
+    await page.goto("/");
+    await page.locator(".marketing-hero").getByRole("button", { name: "Create a free account" }).click();
+    const dialog = page.getByRole("dialog", { name: "Keep your learning in sync" });
+    await expect(dialog, providerCase.name).toContainText(providerCase.identityCopy);
+    const primary = dialog.getByRole("button", { name: providerCase.primaryAction });
+    await expect(primary).toBeVisible();
+    await expect(dialog.getByRole("checkbox")).toHaveCount(providerCase.createsAccount ? 1 : 0);
+    if (providerCase.createsAccount) {
+      await expect(primary).toBeDisabled();
+      await dialog.getByRole("checkbox").check();
+    }
+    if (providerCase.authentication.primaryProvider === null) await expect(primary).toBeDisabled();
+    else await expect(primary).toBeEnabled();
+    if (providerCase.alternateAction) {
+      await expect(dialog.getByRole("button", { name: providerCase.alternateAction })).toBeVisible();
+    }
+    await page.close();
+  }
+});
+
+test("existing-account email-code entry navigates even when External ID account creation is closed", async ({ page }) => {
   await routeManagedSession(page, {
     recentAuthentication: false,
     authentication: {
       primaryProvider: "filosage",
       externalIdAvailable: true,
+      externalIdNewAccountsAvailable: false,
       legacyGoogleAvailable: false,
     },
     user: null,
   });
+  await page.route("**/.auth/login/filosage?**", (route) => route.fulfill({
+    status: 200,
+    contentType: "text/html",
+    body: "<!doctype html><title>Email-code sign-in</title>",
+  }));
   await page.goto("/");
   await page.locator(".marketing-hero").getByRole("button", { name: "Create a free account" }).click();
-  dialog = page.getByRole("dialog", { name: "Keep your learning in sync" });
-  await expect(dialog.getByRole("button", { name: "Continue securely" })).toBeVisible();
-  await expect(dialog.getByRole("button", { name: "Use my existing Google sign-in" })).toHaveCount(0);
+  await page.getByRole("dialog", { name: "Keep your learning in sync" })
+    .getByRole("button", { name: "Sign in with email code" })
+    .click();
+  await page.waitForURL(/\/\.auth\/login\/filosage\?post_login_redirect_uri=%2F$/);
+});
+
+for (const malformed of [
+  {
+    name: "unknown fields",
+    body: { ...normalLearnerAccount, privateRegistryKey: "must-not-be-trusted" },
+  },
+  {
+    name: "missing onboarding state",
+    body: (() => {
+      const { identityLinkRequired: _removed, ...rest } = normalLearnerAccount;
+      void _removed;
+      return rest;
+    })(),
+  },
+  {
+    name: "wrong capability types",
+    body: {
+      ...normalLearnerAccount,
+      capabilities: { ...normalLearnerAccount.capabilities, createCourse: "false" },
+    },
+  },
+]) {
+  test(`malformed 200 account DTO with ${malformed.name} fails closed before the learner shell`, async ({ page }) => {
+    await routeManagedSession(page, managedSession("google"));
+    await page.route("**/api/account", (route) => route.fulfill({ status: 200, json: malformed.body }));
+
+    await page.goto("/");
+    await expect(page.locator(".learner-shell")).toHaveCount(0);
+    const alert = page.getByRole("alert", { name: "Your learning account is unavailable" });
+    await expect(alert).toBeVisible();
+    await expect(alert).toContainText("Your learning account could not be loaded.");
+    await expect(alert).not.toContainText("privateRegistryKey");
+    await expect(alert.getByRole("button", { name: "Sign out and return to course outlines" })).toBeEnabled();
+  });
+}
+
+test("profile email-code connection blocks double submit, announces a bounded 500, and can retry", async ({ page }) => {
+  await prepareConnectProfile(page);
+  let requests = 0;
+  let releaseFailure: (() => void) | undefined;
+  const heldFailure = new Promise<void>((resolve) => { releaseFailure = resolve; });
+  await page.route("**/api/auth/link-intent?**", async (route) => {
+    requests += 1;
+    await heldFailure;
+    return route.fulfill({
+      status: 500,
+      json: { error: "private provider rejection with tenant detail" },
+    });
+  });
+  await page.goto("/profile");
+  const accountSection = page.locator(".profile-preferences");
+  const connect = accountSection.getByRole("button", { name: "Add email-code sign-in" });
+
+  await connect.evaluate((button) => { (button as HTMLButtonElement).click(); (button as HTMLButtonElement).click(); });
+  await expect(connect).toBeDisabled();
+  expect(requests).toBe(1);
+  releaseFailure?.();
+  const alert = accountSection.getByRole("alert");
+  await expect(alert).toHaveText("Email-code sign-in could not be started. Your account is unchanged. Try again.");
+  await expect(alert).not.toContainText("private provider");
+  await expect(connect).toBeEnabled();
+
+  await page.unroute("**/api/auth/link-intent?**");
+  await page.route("**/api/auth/link-intent?**", (route) => route.fulfill({
+    status: 200,
+    json: { redirectTo: "/.auth/login/filosage?post_login_redirect_uri=%2Fauth%2Fcomplete-link" },
+  }));
+  await page.route("**/.auth/login/filosage?**", (route) => route.fulfill({
+    status: 200,
+    contentType: "text/html",
+    body: "<!doctype html><title>Email-code sign-in</title>",
+  }));
+  await connect.click();
+  await page.waitForURL(/\/\.auth\/login\/filosage\?post_login_redirect_uri=%2Fauth%2Fcomplete-link$/);
+});
+
+test("profile email-code connection announces rate limiting beside a reusable action", async ({ page }) => {
+  await prepareConnectProfile(page);
+  await page.route("**/api/auth/link-intent?**", (route) => route.fulfill({
+    status: 429,
+    json: { error: "private limiter record" },
+  }));
+  await page.goto("/profile");
+  const accountSection = page.locator(".profile-preferences");
+  const connect = accountSection.getByRole("button", { name: "Add email-code sign-in" });
+  await connect.click();
+  await expect(accountSection.getByRole("alert")).toHaveText(
+    "Too many connection attempts. Wait a few minutes, then try again.",
+  );
+  await expect(connect).toBeEnabled();
+});
+
+test("profile email-code connection times out boundedly and restores its action", async ({ page }) => {
+  await prepareConnectProfile(page);
+  await page.route("**/api/auth/link-intent?**", () => {
+    // Keep the request pending until the production AbortController cancels it.
+  });
+  await page.goto("/profile");
+  await page.clock.install();
+  const accountSection = page.locator(".profile-preferences");
+  const connect = accountSection.getByRole("button", { name: "Add email-code sign-in" });
+  await connect.click();
+  await page.clock.runFor(8_000);
+  await expect(accountSection.getByRole("alert")).toHaveText(
+    "The secure connection took too long. Check your network and try again.",
+  );
+  await expect(connect).toBeEnabled();
 });
 
 test("link-required account state blocks legal acceptance and remains a focus-contained recovery", async ({ page }) => {
@@ -992,6 +1240,7 @@ test("legacy recovery is unavailable without the server capability and stores no
   await routeManagedSession(page, managedSession("filosage", {
     primaryProvider: "filosage",
     externalIdAvailable: true,
+    externalIdNewAccountsAvailable: true,
     legacyGoogleAvailable: false,
   }));
   await routeIdentityLinkRequiredAccount(page);
@@ -1039,15 +1288,7 @@ test("pending recovery is removed before one link request and accepts only the a
   await routeManagedSession(page, managedSession("google"));
   await page.route("**/api/account", (route) => route.fulfill({
     status: 200,
-    json: {
-      access: "free",
-      plan: "free",
-      accountStatus: "active",
-      applicationAccountExists: true,
-      legalAcceptanceRequired: false,
-      identityLinkRequired: false,
-      quotas: [],
-    },
+    json: normalLearnerAccount,
   }));
   await page.route("**/api/auth/link-intent?**", (route) => {
     linkRequests += 1;

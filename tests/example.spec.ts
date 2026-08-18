@@ -61,6 +61,7 @@ import { signActivityReceipt, validateActivityReceipt } from "../src/lib/activit
 import { evaluateBillingConfiguration } from "../src/lib/billing-lock";
 import { runWithModelFallback, safeModelErrorDetails } from "../src/lib/model-fallback";
 import { buildModerationInputs, MAX_MODERATION_BATCH_CHARACTERS } from "../src/lib/moderation-inputs";
+import { PRIVACY_VERSION, TERMS_VERSION } from "../src/lib/legal";
 import { restoreLocalLearner } from "./fixtures/local-learner";
 
 async function sourceFiles(directory: string): Promise<string[]> {
@@ -860,6 +861,7 @@ test("lets guests browse outlines while clearly gating lessons behind an account
       authentication: {
         primaryProvider: "filosage",
         externalIdAvailable: true,
+        externalIdNewAccountsAvailable: true,
         legacyGoogleAvailable: true,
       },
       user: null,
@@ -898,6 +900,72 @@ test("lets guests browse outlines while clearly gating lessons behind an account
   await page.keyboard.press("Escape");
   await expect(dialog).toBeHidden();
   await expect(trigger).toBeFocused();
+});
+
+test("keeps same-email recovery blocking and focus-contained", async ({ page }) => {
+  await page.route("**/api/auth/session", (route) => route.fulfill({
+    status: 200,
+    json: {
+      recentAuthentication: true,
+      authentication: {
+        primaryProvider: "filosage",
+        externalIdAvailable: true,
+        externalIdNewAccountsAvailable: true,
+        legacyGoogleAvailable: true,
+      },
+      user: {
+        uid: "filosage-canonical-recovery",
+        displayName: "Recovery Learner",
+        email: "recovery@example.com",
+        photoURL: null,
+        authenticationProvider: "filosage",
+      },
+    },
+  }));
+  await page.route("**/api/account", (route) => route.fulfill({
+    status: 409,
+    json: {
+      access: "free",
+      plan: "free",
+      isOwner: false,
+      accountStatus: "active",
+      subscriptionStatus: "none",
+      capabilities: {
+        createCourse: false,
+        generateLesson: false,
+        flashcardDecksEnabled: false,
+        createCustomFlashcardDeck: false,
+        publishCourse: false,
+        advancedCapstoneAnalysis: false,
+        exportEvidenceReport: false,
+        shareEvidenceReport: false,
+      },
+      courseCredits: {
+        balance: 0,
+        monthlyAllocation: 0,
+        balanceCap: 0,
+        nextAccrualAt: null,
+        frozenUntil: null,
+      },
+      legalAcceptanceRequired: false,
+      applicationAccountExists: false,
+      identityLinkRequired: true,
+      currentTermsVersion: TERMS_VERSION,
+      currentPrivacyVersion: PRIVACY_VERSION,
+      quotas: [],
+    },
+  }));
+
+  await page.goto("/");
+  const dialog = page.getByRole("dialog", { name: "Confirm your existing sign-in" });
+  await expect(dialog).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(dialog).toBeVisible();
+  await page.keyboard.press("Shift+Tab");
+  await expect(dialog.getByRole("button", { name: "Sign out and choose another method" })).toBeFocused();
+  await page.keyboard.press("Tab");
+  await expect(dialog.getByRole("button", { name: "Confirm existing Google sign-in" })).toBeFocused();
+  expect(await page.evaluate(() => document.activeElement?.closest('[role="dialog"]') !== null)).toBe(true);
 });
 
 test("publishes clear legal documents", async ({ context }) => {

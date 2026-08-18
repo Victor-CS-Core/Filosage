@@ -4,16 +4,22 @@ import { hasRecentAuthentication } from "@/lib/recent-auth";
 
 export async function GET(request: Request) {
   const configuration = authenticationRuntimeConfiguration();
-  const primaryProvider = configuration.externalIdEnabled
-    && configuration.externalIdNewAccountsEnabled
+  const externalIdNewAccountsAvailable = configuration.externalIdEnabled
+    && configuration.externalIdNewAccountsEnabled;
+  const primaryProvider = externalIdNewAccountsAvailable
     ? "filosage"
-    : "google";
+    : configuration.directGoogleEnabled
+      ? "google"
+      : configuration.externalIdEnabled
+        ? "filosage"
+        : null;
   const user = await getVerifiedUser(request);
   return Response.json({
     recentAuthentication: Boolean(user && hasRecentAuthentication(user.auth_time)),
     authentication: {
       primaryProvider,
       externalIdAvailable: configuration.externalIdEnabled,
+      externalIdNewAccountsAvailable,
       legacyGoogleAvailable: configuration.directGoogleEnabled,
     },
     user: user ? {

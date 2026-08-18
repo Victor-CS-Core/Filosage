@@ -61,7 +61,7 @@ export default function AppShell({ children, activeTopic, activeCourseId, active
   const router = useRouter();
   const pathname = usePathname();
   const { theme, toggle } = useTheme();
-  const { user, account, isOwner, canCreateCourses, signOut, loading: authLoading } = useAuth();
+  const { user, account, isOwner, canCreateCourses, signOut, loading: authLoading, error: authError } = useAuth();
   const [showAuth, setShowAuth] = useState(false);
   const [authReturnFocus, setAuthReturnFocus] = useState<HTMLElement | null>(null);
   const [courses, setCourses] = useState<Course[]>([]);
@@ -347,6 +347,19 @@ export default function AppShell({ children, activeTopic, activeCourseId, active
         }} />
         {showAuth && <AuthModal returnFocus={authReturnFocus} onClose={closeAuth} />}
       </div>
+    );
+  }
+
+  if (!account) {
+    return (
+      <main className="account-unavailable" role="alert" aria-label="Your learning account is unavailable">
+        <span className="brand-mark" aria-hidden="true"><FilosageMark /></span>
+        <h1>Your learning account is unavailable</h1>
+        <p>{authError ?? "Your learning account could not be loaded."}</p>
+        <button className="button button-primary" type="button" onClick={() => void signOutToLanding()}>
+          Sign out and return to course outlines
+        </button>
+      </main>
     );
   }
 
