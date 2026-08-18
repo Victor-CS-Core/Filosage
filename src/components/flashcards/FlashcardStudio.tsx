@@ -16,6 +16,7 @@ import {
   Trash2,
 } from "lucide-react";
 import { useAuth } from "@/components/AuthProvider";
+import AccountEntryButton from "@/components/AccountEntryButton";
 import FlashcardReviewer from "@/components/flashcards/FlashcardReviewer";
 import type { Course } from "@/lib/course-types";
 import type {
@@ -75,7 +76,7 @@ function generationQuotaLabel(limit: number | null | undefined, remaining: numbe
 }
 
 export default function FlashcardStudio({ lessonContext }: FlashcardStudioProps) {
-  const { user, account, loading: authLoading, signIn, refreshAccount } = useAuth();
+  const { user, account, loading: authLoading, refreshAccount } = useAuth();
   const [decks, setDecks] = useState<FlashcardDeck[]>([]);
   const [selectedDeckId, setSelectedDeckId] = useState<string | null>(null);
   const [detail, setDetail] = useState<FlashcardDeckDetail | null>(null);
@@ -358,7 +359,7 @@ export default function FlashcardStudio({ lessonContext }: FlashcardStudioProps)
       <section className={`flashcard-signin${lessonContext ? " is-lesson" : ""}`}>
         <span><Layers3 size={22} /></span>
         <div><strong>Keep flashcards across devices</strong><p>Sign in to generate grounded decks, edit cards, and save review dates privately.</p></div>
-        <button className="button button-primary" type="button" onClick={() => void signIn()}>Sign in to continue</button>
+        <AccountEntryButton createLabel="Create an account to continue" signInLabel="Sign in to continue" />
       </section>
     );
   }

@@ -26,6 +26,7 @@ import {
 } from "lucide-react";
 import AppDrawer, { useAppDrawer } from "@/components/AppDrawer";
 import AppShell from "@/components/AppShell";
+import { openAccountEntry, useAccountEntryMode } from "@/components/AccountEntryButton";
 import CourseBanner from "@/components/CourseBanner";
 import CourseDisclosure from "@/components/CourseDisclosure";
 import CourseJourneyMap from "@/components/CourseJourneyMap";
@@ -87,7 +88,8 @@ export default function CourseMap() {
   const topic = decodeURIComponent(params.topic);
   const requestedCourseId = searchParams.get("id");
   const courseViewKey = `${requestedCourseId ?? "new"}:${topic}`;
-  const { user, isOwner, canCreateCourses, canPublishCourses, account, loading: authLoading, signIn } = useAuth();
+  const { user, isOwner, canCreateCourses, canPublishCourses, account, loading: authLoading } = useAuth();
+  const entryMode = useAccountEntryMode();
   const [courseRecord, setCourseRecord] = useState<{ key: string; value: Course | null }>({ key: courseViewKey, value: null });
   const course = courseRecord.key === courseViewKey ? courseRecord.value : null;
   const [loading, setLoading] = useState(true);
@@ -199,11 +201,8 @@ export default function CourseMap() {
   const openLesson = useCallback(async (lessonId: string) => {
     if (!courseId) return;
     if (!user) {
-      try {
-        await signIn();
-      } catch {
-        return;
-      }
+      openAccountEntry();
+      return;
     }
     if (!isOwner) {
       await Promise.race([
@@ -218,7 +217,7 @@ export default function CourseMap() {
       ]);
     }
     window.location.assign(`/course/${encodeURIComponent(topic)}/lesson/${lessonId}?id=${encodeURIComponent(courseId)}`);
-  }, [course?.language, course?.updatedAt, courseId, isOwner, signIn, topic, user]);
+  }, [course?.language, course?.updatedAt, courseId, isOwner, topic, user]);
   const masteryJourney = useMasteryJourney(courseId, user);
 
   useEffect(() => {
@@ -1169,7 +1168,11 @@ export default function CourseMap() {
                     )}
                   </div>
                 ) : (
-                  <p className="capstone-submit-hint">Create a free account to open lessons, save progress, and submit this capstone for assessment.</p>
+                  <p className="capstone-submit-hint">{entryMode === "create"
+                    ? "Create a free account to open lessons, save progress, and submit this capstone for assessment."
+                    : entryMode === "sign-in"
+                      ? "Sign in to your existing account to open lessons, save progress, and submit this capstone for assessment."
+                      : "Account sign-in is unavailable right now. You can still inspect this public course outline."}</p>
                 )}
               </div>
             </section>

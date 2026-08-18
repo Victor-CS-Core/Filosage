@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { ArrowRight, Award, BookOpenCheck, BrainCircuit, BriefcaseBusiness, CalendarClock, CheckCircle2, CircleDot, LoaderCircle, SlidersHorizontal, Target, UserRound } from "lucide-react";
 import AchievementBadge from "@/components/AchievementBadge";
+import AccountEntryButton, { useAccountEntryMode } from "@/components/AccountEntryButton";
 import AppShell from "@/components/AppShell";
 import DashboardCustomizer from "@/components/DashboardCustomizer";
 import { useAppDrawer } from "@/components/AppDrawer";
@@ -32,7 +33,6 @@ export default function ProfilePage() {
     authentication,
     canCreateCourses,
     loading: authLoading,
-    signIn,
     connectExternalIdentity,
   } = useAuth();
   const { state, update, syncStatus } = useLearnerState();
@@ -45,6 +45,7 @@ export default function ProfilePage() {
   const connectBusyRef = useRef(false);
   const dashboardCustomizer = useAppDrawer("dashboard-customizer");
   const [now] = useState(() => Date.now());
+  const entryMode = useAccountEntryMode();
 
   const beginExternalConnection = async () => {
     if (connectBusyRef.current) return;
@@ -83,7 +84,11 @@ export default function ProfilePage() {
   }, [user]);
 
   if (authLoading) return <AppShell><div className="center-state"><LoaderCircle className="spin" size={25} /><h1>Preparing your profile</h1></div></AppShell>;
-  if (!user) return <AppShell><div className="center-state"><UserRound size={28} /><p className="overline">Your learning profile</p><h1>Keep your progress and achievements together.</h1><p>Create a free account to sync learning progress, reviews, bookmarks, notes, and badges across devices.</p><button className="button button-primary" onClick={() => void signIn()}>Create a free account</button></div></AppShell>;
+  if (!user) return <AppShell><div className="center-state"><UserRound size={28} /><p className="overline">Your learning profile</p><h1>Keep your progress and achievements together.</h1><p>{entryMode === "create"
+    ? "Create a free account to sync learning progress, reviews, bookmarks, notes, and badges across devices."
+    : entryMode === "sign-in"
+      ? "Sign in to sync your existing learning progress, reviews, bookmarks, notes, and badges across devices."
+      : "Account sign-in is unavailable right now. Your local learning remains on this device."}</p><AccountEntryButton /></div></AppShell>;
 
   const lessons = completedLearningLessons(progress);
   const bands = learningBandCounts(progress);

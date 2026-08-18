@@ -115,9 +115,14 @@ function parsedSession(value: unknown): EasyAuthSessionResponse | null {
     return null;
   }
   if (authentication.externalIdNewAccountsAvailable && !authentication.externalIdAvailable) return null;
-  if (authentication.primaryProvider === "filosage" && !authentication.externalIdAvailable) return null;
-  if (authentication.primaryProvider === "google" && !authentication.legacyGoogleAvailable) return null;
-  if (authentication.primaryProvider === null && (authentication.externalIdAvailable || authentication.legacyGoogleAvailable)) return null;
+  const expectedPrimaryProvider = authentication.externalIdNewAccountsAvailable
+    ? "filosage"
+    : authentication.legacyGoogleAvailable
+      ? "google"
+      : authentication.externalIdAvailable
+        ? "filosage"
+        : null;
+  if (authentication.primaryProvider !== expectedPrimaryProvider) return null;
 
   const safeAuthentication: ManagedAuthenticationState["authentication"] = {
     primaryProvider: authentication.primaryProvider,

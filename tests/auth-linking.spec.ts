@@ -959,7 +959,7 @@ test("managed session restoration rejects unknown fields and oversized JSON with
     }),
   }));
   await page.goto("/");
-  await page.locator(".marketing-hero").getByRole("button", { name: "Create a free account" }).click();
+  await page.locator(".marketing-nav-shell").getByRole("button", { name: "Sign in" }).click();
   let dialog = page.getByRole("dialog", { name: "Keep your learning in sync" });
   await expect(dialog.getByRole("alert")).toHaveText("Azure authentication status is unavailable.");
   await expect(dialog).not.toContainText("private-tenant");
@@ -979,7 +979,7 @@ test("managed session restoration rejects unknown fields and oversized JSON with
     }),
   }));
   await page.goto("/");
-  await page.locator(".marketing-hero").getByRole("button", { name: "Create a free account" }).click();
+  await page.locator(".marketing-nav-shell").getByRole("button", { name: "Sign in" }).click();
   dialog = page.getByRole("dialog", { name: "Keep your learning in sync" });
   await expect(dialog.getByRole("alert")).toHaveText("Azure authentication status is unavailable.");
   await expect(dialog).not.toContainText("private-session-value");
@@ -1053,7 +1053,13 @@ test("entry actions remain truthful and usable for every provider availability t
       body: "<!doctype html><title>Managed sign-in</title>",
     }));
     await page.goto("/");
-    await page.locator(".marketing-hero").getByRole("button", { name: "Create a free account" }).click();
+    if (providerCase.authentication.primaryProvider === null) {
+      await page.locator(".marketing-nav-shell").getByRole("button", { name: "Sign in" }).click();
+    } else {
+      await page.locator(".marketing-hero").getByRole("button", {
+        name: providerCase.createsAccount ? "Create a free account" : "Sign in to your account",
+      }).click();
+    }
     const dialog = page.getByRole("dialog", { name: "Keep your learning in sync" });
     await expect(dialog, providerCase.name).toContainText(providerCase.identityCopy);
     const primary = dialog.getByRole("button", { name: providerCase.primaryAction });
@@ -1070,6 +1076,143 @@ test("entry actions remain truthful and usable for every provider availability t
     }
     await page.close();
   }
+});
+
+test("direct learner account entry stays configuration-aware before provider selection", async ({ context }) => {
+  const cases: Array<{
+    name: string;
+    authentication: AuthenticationFixture;
+    action: string;
+    copy: string;
+    modalAction?: string;
+  }> = [
+    {
+      name: "Google account creation",
+      authentication: { primaryProvider: "google", externalIdAvailable: false, externalIdNewAccountsAvailable: false, legacyGoogleAvailable: true },
+      action: "Create a free account",
+      copy: "Create a free account to sync learning progress, reviews, bookmarks, notes, and badges across devices.",
+      modalAction: "Continue with Google",
+    },
+    {
+      name: "External ID account creation",
+      authentication: { primaryProvider: "filosage", externalIdAvailable: true, externalIdNewAccountsAvailable: true, legacyGoogleAvailable: false },
+      action: "Create a free account",
+      copy: "Create a free account to sync learning progress, reviews, bookmarks, notes, and badges across devices.",
+      modalAction: "Continue securely",
+    },
+    {
+      name: "existing External ID sign-in only",
+      authentication: { primaryProvider: "filosage", externalIdAvailable: true, externalIdNewAccountsAvailable: false, legacyGoogleAvailable: false },
+      action: "Sign in to your account",
+      copy: "Sign in to sync your existing learning progress, reviews, bookmarks, notes, and badges across devices.",
+      modalAction: "Sign in with email code",
+    },
+    {
+      name: "Google creation with existing-email alternate",
+      authentication: { primaryProvider: "google", externalIdAvailable: true, externalIdNewAccountsAvailable: false, legacyGoogleAvailable: true },
+      action: "Create a free account",
+      copy: "Create a free account to sync learning progress, reviews, bookmarks, notes, and badges across devices.",
+      modalAction: "Continue with Google",
+    },
+    {
+      name: "no available provider",
+      authentication: { primaryProvider: null, externalIdAvailable: false, externalIdNewAccountsAvailable: false, legacyGoogleAvailable: false },
+      action: "Sign-in unavailable",
+      copy: "Account sign-in is unavailable right now. Your local learning remains on this device.",
+    },
+  ];
+
+  for (const providerCase of cases) {
+    const page = await context.newPage();
+    await routeManagedSession(page, { recentAuthentication: false, authentication: providerCase.authentication, user: null });
+    await page.goto("/profile");
+    await expect(page.getByText(providerCase.copy, { exact: true }), providerCase.name).toBeVisible();
+    const action = page.getByRole("button", { name: providerCase.action });
+    await expect(action).toBeVisible();
+    if (!providerCase.modalAction) {
+      await expect(action).toBeDisabled();
+    } else {
+      await action.click();
+      await expect(page).toHaveURL(/\/profile$/);
+      await expect(page.getByRole("dialog", { name: "Keep your learning in sync" })
+        .getByRole("button", { name: providerCase.modalAction })).toBeVisible();
+    }
+    await page.close();
+  }
+});
+
+for (const invalidAuthentication of [
+  { primaryProvider: "filosage", externalIdAvailable: true, externalIdNewAccountsAvailable: false, legacyGoogleAvailable: true },
+  { primaryProvider: "google", externalIdAvailable: true, externalIdNewAccountsAvailable: true, legacyGoogleAvailable: true },
+] as const) {
+  test(`session restoration rejects noncanonical provider precedence ${JSON.stringify(invalidAuthentication)}`, async ({ page }) => {
+    await routeManagedSession(page, { recentAuthentication: false, authentication: invalidAuthentication, user: null });
+    await page.goto("/");
+    await expect(page.locator(".marketing-hero").getByRole("button", { name: "Sign-in unavailable" })).toBeDisabled();
+    await page.locator(".marketing-nav-shell").getByRole("button", { name: "Sign in" }).click();
+    await expect(page.getByRole("dialog", { name: "Keep your learning in sync" }).getByRole("alert"))
+      .toHaveText("Azure authentication status is unavailable.");
+  });
+}
+
+test("shared account entry opens provider choice from direct guest surfaces", async ({ context }) => {
+  const surfaces = [
+    { path: "/progress", action: "Sign in to your account" },
+    { path: "/pricing", action: "Sign in to your account" },
+    { path: "/privacy-center", action: "Sign in to export" },
+    { path: "/review/flashcards", action: "Sign in to continue" },
+  ];
+  for (const surface of surfaces) {
+    const page = await context.newPage();
+    await routeManagedSession(page, {
+      recentAuthentication: false,
+      authentication: { primaryProvider: "filosage", externalIdAvailable: true, externalIdNewAccountsAvailable: false, legacyGoogleAvailable: false },
+      user: null,
+    });
+    await page.goto(surface.path);
+    await page.getByRole("button", { name: surface.action }).first().click();
+    await expect(page).toHaveURL(new RegExp(`${surface.path.replace("/", "\\/")}$`));
+    await expect(page.getByRole("dialog", { name: "Keep your learning in sync" })
+      .getByRole("button", { name: "Sign in with email code" })).toBeVisible();
+    await page.close();
+  }
+});
+
+test("device review entry offers existing-account sign-in without redirecting", async ({ page }) => {
+  await page.addInitScript(() => localStorage.setItem("filosage-learning-state-v2", JSON.stringify({
+    "review-entry-course": {
+      courseId: "review-entry-course",
+      topic: "Review entry",
+      lastLessonId: "0-0",
+      lastLessonTitle: "Remember this",
+      nextLessonId: null,
+      nextLessonTitle: null,
+      completedLessonIds: ["0-0"],
+      totalLessons: 1,
+      studyMinutes: 10,
+      lastActivityAt: "2026-08-18T12:00:00.000Z",
+      startedAt: "2026-08-18T12:00:00.000Z",
+      lessons: {
+        "0-0": {
+          lessonId: "0-0", lessonTitle: "Remember this", status: "learned", attempts: 1,
+          totalQuestions: 1, firstAttemptCorrect: 1, confidence: "medium", intervalStage: 0,
+          nextReviewAt: "2026-08-18T12:00:00.000Z", lastStudiedAt: "2026-08-18T12:00:00.000Z",
+          completedAt: "2026-08-18T12:00:00.000Z",
+        },
+      },
+    },
+  })));
+  await routeManagedSession(page, {
+    recentAuthentication: false,
+    authentication: { primaryProvider: "filosage", externalIdAvailable: true, externalIdNewAccountsAvailable: false, legacyGoogleAvailable: false },
+    user: null,
+  });
+  await page.route("**/api/courses/review-entry-course", (route) => route.fulfill({ status: 200, json: { id: "review-entry-course" } }));
+  await page.goto("/review");
+  await page.getByRole("button", { name: "Sign in to your account" }).click();
+  await expect(page).toHaveURL(/\/review$/);
+  await expect(page.getByRole("dialog", { name: "Keep your learning in sync" })
+    .getByRole("button", { name: "Sign in with email code" })).toBeVisible();
 });
 
 test("existing-account email-code entry navigates even when External ID account creation is closed", async ({ page }) => {
@@ -1089,7 +1232,7 @@ test("existing-account email-code entry navigates even when External ID account 
     body: "<!doctype html><title>Email-code sign-in</title>",
   }));
   await page.goto("/");
-  await page.locator(".marketing-hero").getByRole("button", { name: "Create a free account" }).click();
+  await page.locator(".marketing-hero").getByRole("button", { name: "Sign in to your account" }).click();
   await page.getByRole("dialog", { name: "Keep your learning in sync" })
     .getByRole("button", { name: "Sign in with email code" })
     .click();

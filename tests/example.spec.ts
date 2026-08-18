@@ -1791,6 +1791,19 @@ test("uses the deterministic Course Deck artwork on library cards", async ({ pag
 
 test("shows guests the course structure but never delivers lesson content", async ({ page }) => {
   let lessonRequests = 0;
+  await page.route("**/api/auth/session", (route) => route.fulfill({
+    status: 200,
+    json: {
+      recentAuthentication: false,
+      authentication: {
+        primaryProvider: "filosage",
+        externalIdAvailable: true,
+        externalIdNewAccountsAvailable: false,
+        legacyGoogleAvailable: false,
+      },
+      user: null,
+    },
+  }));
   await page.route("**/api/courses/public-preview/lessons/**", (route) => {
     lessonRequests += 1;
     return route.fulfill({ status: 500, json: { error: "This endpoint should not be called for a guest." } });
@@ -1800,6 +1813,11 @@ test("shows guests the course structure but never delivers lesson content", asyn
 
   await expect(page.getByRole("heading", { name: "Open the lesson when you’re signed in" })).toBeVisible();
   await expect(page.getByText("inspect the complete course structure as a guest")).toBeVisible();
+  await expect(page.getByText("Sign in to your existing account to read lessons, practice, and keep your progress.")).toBeVisible();
+  await page.getByRole("button", { name: "Sign in to your account" }).click();
+  await expect(page).toHaveURL(/\/course\/Systems%20thinking\/lesson\/0-0\?id=public-preview$/);
+  await expect(page.getByRole("dialog", { name: "Keep your learning in sync" })
+    .getByRole("button", { name: "Sign in with email code" })).toBeVisible();
   expect(lessonRequests).toBe(0);
 });
 
