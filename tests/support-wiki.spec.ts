@@ -34,6 +34,9 @@ test("covers course creation, learning plans, and professional evidence sharing"
 test("documents the current sign-in, Today, profile, and private-course discovery behavior", () => {
   const signInHelp = articleBody("sign-in-help");
   const gettingStarted = articleBody("getting-started");
+  const signInSummary = supportArticles.find((article) => article.slug === "sign-in-help")?.summary;
+  expect(signInSummary).toBe("Use the secure sign-in methods currently available and troubleshoot Google or email-code sign-in when those methods are enabled.");
+  expect(signInSummary).not.toContain("Choose Google or a private email code");
   expect(signInHelp).toContain("Google sign-in remains available when it is enabled");
   expect(signInHelp).toContain("Email-code sign-in appears only when Microsoft Entra External ID is enabled");
   expect(signInHelp).toContain("existing-account email recovery may be available before new email-code account creation");

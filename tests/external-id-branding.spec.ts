@@ -34,6 +34,10 @@ function pngMetadata(path: string) {
   };
 }
 
+function reviewedBannerMetadata(path: string) {
+  return { ...pngMetadata(path), sha256: sha256(path) };
+}
+
 function rgbChannels(value: string) {
   const match = value.match(/^rgba?\((\d+),\s*(\d+),\s*(\d+)/);
   if (!match) throw new Error(`Unsupported CSS color: ${value}`);
@@ -108,11 +112,12 @@ test("hosted branding declares the complete reviewed non-secret configuration", 
 });
 
 test("portal derivatives have exact PNG signatures, dimensions, and byte ceilings", () => {
-  expect(pngMetadata(`public${String(manifest.bannerLogo)}`)).toEqual({
+  expect(reviewedBannerMetadata(`public${String(manifest.bannerLogo)}`)).toEqual({
     signature: "89504e470d0a1a0a",
     width: 245,
     height: 36,
     bytes: expect.any(Number),
+    sha256: "0c6814319a02faba8954a3e20037f49b8b1bddf77cce369b1500221fda26c43e",
   });
   expect(pngMetadata(`public${String(manifest.bannerLogo)}`).bytes).toBeLessThanOrEqual(10 * 1024);
 
@@ -192,6 +197,7 @@ test("banner preserves the complete approved logo geometry with transparent edge
   expect(source).toMatchObject({ width: 620, height: 160 });
   expect(source.alphaBounds).toMatchObject({ minX: 169, minY: 46, maxX: 343, maxY: 87 });
   expect(banner).toMatchObject({ width: 245, height: 36 });
+  expect(banner.alphaBounds).toEqual({ minX: 56, minY: 2, maxX: 188, maxY: 33, width: 133, height: 32 });
   expect(banner.alphaBounds.minX).toBeGreaterThan(0);
   expect(banner.alphaBounds.minY).toBeGreaterThan(0);
   expect(banner.alphaBounds.maxX).toBeLessThan(banner.width - 1);

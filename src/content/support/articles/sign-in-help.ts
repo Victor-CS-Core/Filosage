@@ -3,7 +3,7 @@ import { defineSupportArticle } from "../types";
 export default defineSupportArticle({
   slug: "sign-in-help",
   title: "Troubleshoot secure sign-in",
-  summary: "Choose Google or a private email code, recover an existing account, and resolve common managed sign-in problems.",
+  summary: "Use the secure sign-in methods currently available and troubleshoot Google or email-code sign-in when those methods are enabled.",
   category: "account",
   keywords: ["sign in", "Google", "email code", "Microsoft", "network", "account", "identity recovery"],
   reviewedOn: "2026-08-18",
