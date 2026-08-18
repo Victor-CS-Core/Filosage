@@ -24,6 +24,7 @@ const migrationImporterSource = readFileSync("scripts/import-azure-authored-cour
 const dockerfileSource = readFileSync("Dockerfile", "utf8");
 const healthRouteSource = readFileSync("src/app/api/health/route.ts", "utf8");
 const healthVerifierSource = readFileSync("scripts/check-production-health.mjs", "utf8");
+const featuredCourseVerifierSource = readFileSync("scripts/check-featured-course.mjs", "utf8");
 const proxySource = readFileSync("src/proxy.ts", "utf8");
 const rootLayoutSource = readFileSync("src/app/layout.tsx", "utf8");
 const appShellSource = readFileSync("src/components/AppShell.tsx", "utf8");
@@ -176,6 +177,11 @@ test("production staging accepts only the exact image already approved in QA", (
   expect(azureBicepSource).toContain("activeRevisionsMode: 'Multiple'");
   expect(stagingWorkflowSource).toContain("target_slot:");
   expect(stagingWorkflowSource).toContain("expected_sha:");
+  expect(stagingWorkflowSource).toContain("featured_course_id:");
+  expect(stagingWorkflowSource).toContain('FEATURED_COURSE_ID: ${{ inputs.featured_course_id }}');
+  expect(stagingWorkflowSource).toContain('[[ "$FEATURED_COURSE_ID" != "none" && ! "$FEATURED_COURSE_ID" =~ ^[a-fA-F0-9]{64}$ ]]');
+  expect(stagingWorkflowSource).toContain('"LANDING_FEATURED_COURSE_ID=${FEATURED_COURSE_ID}"');
+  expect(stagingWorkflowSource).toContain('npm run check:featured-course -- "${{ steps.deploy_revision.outputs.revision_url }}" "$FEATURED_COURSE_ID"');
   expect(stagingWorkflowSource).toContain('npm run check:production -- "$QA_URL" "$EXPECTED_SHA" "$QA_URL"');
   expect(stagingWorkflowSource).toContain('az acr repository show');
   expect(stagingWorkflowSource).toContain('filosage@${DIGEST}');
@@ -199,10 +205,20 @@ test("custom-domain releases prove their canonical origin and redirect www to th
 
 test("staging promotion verifies an exact commit before changing traffic", () => {
   expect(promotionWorkflowSource).toContain("expected_sha:");
+  expect(promotionWorkflowSource).toContain("featured_course_id:");
   expect(promotionWorkflowSource).toContain("^[a-fA-F0-9]{40}$");
   expect(promotionWorkflowSource).toContain('npm run check:production -- "$TARGET_URL" "$EXPECTED_SHA"');
+  expect(promotionWorkflowSource).toContain('npm run check:featured-course -- "$TARGET_URL" "$FEATURED_COURSE_ID"');
   expect(promotionWorkflowSource).toContain('az containerapp ingress traffic set');
   expect(promotionWorkflowSource).toContain('"${TARGET_SLOT}=100" "${OTHER_SLOT}=0"');
+});
+
+test("featured-course release verification fails closed around one explicit public course ID", () => {
+  expect(packageSource).toContain('"check:featured-course": "node scripts/check-featured-course.mjs"');
+  expect(featuredCourseVerifierSource).toContain('expectedCourseId === "none"');
+  expect(featuredCourseVerifierSource).toContain("^[a-fA-F0-9]{64}$");
+  expect(featuredCourseVerifierSource).toContain('payload.featuredCourseId !== expectedCourseId');
+  expect(featuredCourseVerifierSource).toContain('courses.some((course) => course?.id === expectedCourseId)');
 });
 
 test("authored-course migration verification compares content rather than counts alone", () => {

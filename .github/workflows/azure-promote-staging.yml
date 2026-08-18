@@ -14,6 +14,11 @@ on:
         description: Exact 40-character SHA already verified on the target label
         required: true
         type: string
+      featured_course_id:
+        description: Exact public landing-page course ID verified on the selected label, or none
+        required: true
+        default: none
+        type: string
 
 permissions:
   contents: read
@@ -30,6 +35,7 @@ jobs:
     env:
       TARGET_SLOT: ${{ inputs.target_slot }}
       EXPECTED_SHA: ${{ inputs.expected_sha }}
+      FEATURED_COURSE_ID: ${{ inputs.featured_course_id }}
       TARGET_URL: ${{ inputs.target_slot == 'blue' && vars.AZURE_BLUE_URL || vars.AZURE_GREEN_URL }}
     steps:
       - uses: actions/checkout@v4
@@ -56,7 +62,12 @@ jobs:
             echo "expected_sha must be a full 40-character Git SHA."
             exit 1
           fi
+          if [[ "$FEATURED_COURSE_ID" != "none" && ! "$FEATURED_COURSE_ID" =~ ^[a-fA-F0-9]{64}$ ]]; then
+            echo "featured_course_id must be none or a 64-character hexadecimal course ID."
+            exit 1
+          fi
           npm run check:production -- "$TARGET_URL" "$EXPECTED_SHA"
+          npm run check:featured-course -- "$TARGET_URL" "$FEATURED_COURSE_ID"
 
       - name: Verify the deployed release safety policy
         shell: bash
@@ -105,7 +116,11 @@ jobs:
             --label-weight "${TARGET_SLOT}=100" "${OTHER_SLOT}=0"
 
       - name: Verify promoted public traffic
-        run: npm run check:production -- "${{ vars.AZURE_STAGING_URL }}" "$EXPECTED_SHA"
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm run check:production -- "${{ vars.AZURE_STAGING_URL }}" "$EXPECTED_SHA"
+          npm run check:featured-course -- "${{ vars.AZURE_STAGING_URL }}" "$FEATURED_COURSE_ID"
 
       - name: Roll back traffic if promotion fails or is cancelled
         if: (failure() || cancelled()) && steps.capture_traffic.outcome == 'success'

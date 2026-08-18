@@ -6,6 +6,7 @@ const root = process.cwd();
 const releaseScript = resolve(root, "scripts/check-release-env.mjs");
 const healthScript = resolve(root, "scripts/check-production-health.mjs");
 const safetyScript = resolve(root, "scripts/check-release-safety.mjs");
+const featuredCourseScript = resolve(root, "scripts/check-featured-course.mjs");
 
 const validReleaseEnvironment = {
   ...process.env,
@@ -90,6 +91,30 @@ test("release checks bind Azure and production health to one full Git SHA", () =
   });
   expect(unsafeSafetyTarget.status).toBe(1);
   expect(unsafeSafetyTarget.stderr).toContain("must be an HTTPS origin");
+
+  const missingFeaturedCourseId = spawnSync(process.execPath, [featuredCourseScript, "https://release.example"], {
+    cwd: root,
+    env: process.env,
+    encoding: "utf8",
+  });
+  expect(missingFeaturedCourseId.status).toBe(1);
+  expect(missingFeaturedCourseId.stderr).toContain("Provide the expected featured course ID or the explicit value none");
+
+  const malformedFeaturedCourseId = spawnSync(process.execPath, [featuredCourseScript, "https://release.example", "course-123"], {
+    cwd: root,
+    env: process.env,
+    encoding: "utf8",
+  });
+  expect(malformedFeaturedCourseId.status).toBe(1);
+  expect(malformedFeaturedCourseId.stderr).toContain("must be none or a 64-character hexadecimal course ID");
+
+  const unsafeFeaturedCourseTarget = spawnSync(process.execPath, [featuredCourseScript, "http://release.example", "none"], {
+    cwd: root,
+    env: process.env,
+    encoding: "utf8",
+  });
+  expect(unsafeFeaturedCourseTarget.status).toBe(1);
+  expect(unsafeFeaturedCourseTarget.stderr).toContain("must be an HTTPS origin");
 });
 
 test("billing activation requires every Plus and Pro Stripe price", () => {

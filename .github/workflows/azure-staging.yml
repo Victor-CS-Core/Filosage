@@ -15,6 +15,11 @@ on:
         description: Full Git SHA already deployed and verified in isolated QA
         required: true
         type: string
+      featured_course_id:
+        description: Exact public landing-page course ID, or the explicit value none
+        required: true
+        default: none
+        type: string
 
 permissions:
   contents: read
@@ -31,6 +36,7 @@ jobs:
     env:
       TARGET_SLOT: ${{ inputs.target_slot }}
       EXPECTED_SHA: ${{ inputs.expected_sha }}
+      FEATURED_COURSE_ID: ${{ inputs.featured_course_id }}
       TARGET_URL: ${{ inputs.target_slot == 'blue' && vars.AZURE_BLUE_URL || vars.AZURE_GREEN_URL }}
       QA_URL: ${{ vars.AZURE_QA_URL }}
       PUBLIC_SITE_URL: https://filosage.com
@@ -62,6 +68,10 @@ jobs:
             echo "Run this workflow from the exact branch or commit selected in QA."
             exit 1
           fi
+          if [[ "$FEATURED_COURSE_ID" != "none" && ! "$FEATURED_COURSE_ID" =~ ^[a-fA-F0-9]{64}$ ]]; then
+            echo "featured_course_id must be none or a 64-character hexadecimal course ID."
+            exit 1
+          fi
           npm run check:production -- "$QA_URL" "$EXPECTED_SHA" "$QA_URL"
 
       - name: Deploy the exact image to Azure Container Apps
@@ -79,6 +89,33 @@ jobs:
             exit 1
           fi
           IMAGE="${{ vars.AZURE_ACR_NAME }}.azurecr.io/filosage@${DIGEST}"
+          REMOVE_ENV_VARS=(
+            "NEXT_PUBLIC_ENTRA_CLIENT_ID"
+            "NEXT_PUBLIC_ENTRA_AUTHORITY"
+            "NEXT_PUBLIC_ENTRA_TENANT_ID"
+            "NEXT_PUBLIC_ENTRA_API_SCOPE"
+            "NEXT_PUBLIC_ENTRA_REDIRECT_URI"
+            "ENTRA_AUDIENCE"
+            "ENTRA_ISSUER"
+            "ENTRA_JWKS_URI"
+            "ENTRA_DIRECTORY_TENANT_ID"
+            "ENTRA_DIRECTORY_CLIENT_ID"
+            "ENTRA_DIRECTORY_CLIENT_SECRET"
+          )
+          SET_ENV_VARS=(
+            "SITE_VERSION=${EXPECTED_SHA}"
+            "NEXT_PUBLIC_SITE_URL=${PUBLIC_SITE_URL}"
+            "DEPLOYMENT_ENVIRONMENT=production"
+            "OPERATIONS_ENVIRONMENT=azure-staging"
+            "AZURE_EASY_AUTH_ENABLED=true"
+            "BILLING_ENABLED=false"
+            "DEPLOYMENT_SLOT=${TARGET_SLOT}"
+          )
+          if [[ "$FEATURED_COURSE_ID" == "none" ]]; then
+            REMOVE_ENV_VARS+=("LANDING_FEATURED_COURSE_ID")
+          else
+            SET_ENV_VARS+=("LANDING_FEATURED_COURSE_ID=${FEATURED_COURSE_ID}")
+          fi
           ACTIVE_WEIGHT="$(az containerapp show \
             --resource-group "${{ vars.AZURE_RESOURCE_GROUP }}" \
             --name "${{ vars.AZURE_CONTAINER_APP_NAME }}" \
@@ -98,26 +135,8 @@ jobs:
             --name "${{ vars.AZURE_CONTAINER_APP_NAME }}" \
             --image "$IMAGE" \
             --revision-suffix "$REVISION_SUFFIX" \
-            --remove-env-vars \
-              "NEXT_PUBLIC_ENTRA_CLIENT_ID" \
-              "NEXT_PUBLIC_ENTRA_AUTHORITY" \
-              "NEXT_PUBLIC_ENTRA_TENANT_ID" \
-              "NEXT_PUBLIC_ENTRA_API_SCOPE" \
-              "NEXT_PUBLIC_ENTRA_REDIRECT_URI" \
-              "ENTRA_AUDIENCE" \
-              "ENTRA_ISSUER" \
-              "ENTRA_JWKS_URI" \
-              "ENTRA_DIRECTORY_TENANT_ID" \
-              "ENTRA_DIRECTORY_CLIENT_ID" \
-              "ENTRA_DIRECTORY_CLIENT_SECRET" \
-            --set-env-vars \
-              "SITE_VERSION=${EXPECTED_SHA}" \
-              "NEXT_PUBLIC_SITE_URL=${PUBLIC_SITE_URL}" \
-              "DEPLOYMENT_ENVIRONMENT=production" \
-              "OPERATIONS_ENVIRONMENT=azure-staging" \
-              "AZURE_EASY_AUTH_ENABLED=true" \
-              "BILLING_ENABLED=false" \
-              "DEPLOYMENT_SLOT=${TARGET_SLOT}"
+            --remove-env-vars "${REMOVE_ENV_VARS[@]}" \
+            --set-env-vars "${SET_ENV_VARS[@]}"
           REVISION="$(az containerapp show \
             --resource-group "${{ vars.AZURE_RESOURCE_GROUP }}" \
             --name "${{ vars.AZURE_CONTAINER_APP_NAME }}" \
@@ -141,6 +160,7 @@ jobs:
           set -euo pipefail
           npm run check:production -- "${{ steps.deploy_revision.outputs.revision_url }}" "$EXPECTED_SHA" "$PUBLIC_SITE_URL"
           npm run check:release-safety -- "${{ steps.deploy_revision.outputs.revision_url }}"
+          npm run check:featured-course -- "${{ steps.deploy_revision.outputs.revision_url }}" "$FEATURED_COURSE_ID"
 
       - name: Assign verified revision label
         shell: bash
@@ -154,4 +174,8 @@ jobs:
             --yes
 
       - name: Verify the labeled QA candidate
-        run: npm run check:production -- "${TARGET_URL}" "${EXPECTED_SHA}" "${PUBLIC_SITE_URL}"
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm run check:production -- "${TARGET_URL}" "${EXPECTED_SHA}" "${PUBLIC_SITE_URL}"
+          npm run check:featured-course -- "${TARGET_URL}" "$FEATURED_COURSE_ID"
