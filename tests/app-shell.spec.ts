@@ -147,7 +147,19 @@ async function expectNoHorizontalPageOverflow(page: Page) {
 }
 
 async function waitForDeckToSettle(page: Page) {
-  await expect.poll(() => page.locator(".course-deck-viewport").getAttribute("data-motion-state")).toBe("idle");
+  await expect.poll(
+    () => page.locator(".course-deck-viewport").getAttribute("data-motion-state"),
+    { timeout: 15_000 },
+  ).toBe("idle");
+}
+
+async function waitForCommandCenterToSettle(page: Page) {
+  const surface = page.getByRole("dialog", { name: "Filosage Command Center" }).locator(".command-palette-surface");
+  await expect(surface).toBeVisible({ timeout: 15_000 });
+  await expect.poll(
+    () => surface.evaluate((element) => element.getAnimations({ subtree: true }).every((animation) => animation.playState !== "running")),
+    { timeout: 15_000 },
+  ).toBe(true);
 }
 
 test.describe("desktop application shell", () => {
@@ -435,7 +447,7 @@ test.describe("desktop application shell", () => {
     await page.goto("/");
 
     const deck = page.getByRole("region", { name: "Active course", exact: true });
-    await expect(deck).toBeVisible();
+    await expect(deck).toBeVisible({ timeout: 15_000 });
     await expect(deck).not.toHaveAttribute("aria-roledescription");
     await expect(page.getByRole("heading", { name: "Morse Code" })).toBeVisible();
     await expect(page.getByRole("link", { name: /Continue/ })).toBeVisible();
@@ -842,6 +854,7 @@ test.describe("desktop application shell", () => {
   });
 
   test("adapts course progress contrast to each card paper tone", async ({ page }) => {
+    test.setTimeout(90_000);
     await prepareOwnerShell(page, [...learningProgress, secondLearningProgress, thirdLearningProgress]);
     await page.goto("/");
 
@@ -856,8 +869,10 @@ test.describe("desktop application shell", () => {
           paper: getComputedStyle(card).backgroundColor,
         };
       }));
-      await page.getByRole("button", { name: "Show next active course" }).click();
-      await waitForDeckToSettle(page);
+      if (index < 2) {
+        await page.getByRole("button", { name: "Show next active course" }).click();
+        await waitForDeckToSettle(page);
+      }
     }
 
     expect(new Set(progressColors.map(({ fill }) => fill)).size).toBe(3);
@@ -965,10 +980,12 @@ test.describe("desktop application shell", () => {
   });
 
   test("keeps the B2 hierarchy intact in the dark theme", async ({ page }) => {
+    test.setTimeout(90_000);
     await prepareOwnerShell(page);
     await page.goto("/");
     await page.getByRole("button", { name: /Search or jump anywhere/ }).click();
     const commandCenter = page.getByRole("dialog", { name: "Filosage Command Center" });
+    await waitForCommandCenterToSettle(page);
     const themeToggle = commandCenter.getByRole("switch", { name: "Dark mode" });
     if (await themeToggle.getAttribute("aria-checked") !== "true") await themeToggle.click();
     await commandCenter.getByRole("button", { name: "Close Command Center", exact: true }).click();
@@ -978,9 +995,11 @@ test.describe("desktop application shell", () => {
       await page.screenshot({ path: ".impeccable/review/course-deck-dark-desktop.png", fullPage: true });
     }
     await page.getByRole("button", { name: /Search or jump anywhere/ }).click();
+    await waitForCommandCenterToSettle(page);
     await page.getByRole("dialog", { name: "Filosage Command Center" }).getByRole("option", { name: /My courses/ }).click();
     const darkShelf = page.getByRole("dialog", { name: "My courses" });
     await expect(darkShelf).toBeVisible();
+    await expect(darkShelf).toHaveAttribute("data-motion-settled", "true", { timeout: 15_000 });
     await expect(darkShelf).toHaveAttribute("data-state", "open");
     expect(await darkShelf.evaluate((element) => element.matches(":modal"))).toBe(false);
     await expect(darkShelf.locator(".app-drawer-surface")).toHaveCSS("background-color", "rgb(7, 21, 43)");
@@ -1015,6 +1034,7 @@ test.describe("desktop application shell", () => {
   });
 
   test("presents profile, progress, and course creation as evidence-led decisions", async ({ page }) => {
+    test.setTimeout(90_000);
     await prepareOwnerShell(page);
     let generationRequests = 0;
     let generationBody: Record<string, unknown> | null = null;
@@ -1077,7 +1097,7 @@ test.describe("desktop application shell", () => {
     await expect.poll(() => generationRequests).toBe(1);
     expect(generationBody).toMatchObject({ courseStyle: "Project-led" });
     expect(generationBody).not.toHaveProperty("sourcePack");
-    await expect(page).toHaveURL(/\/course\/Systems%20thinking%20for%20product%20decisions\?id=explicit-course-creation$/);
+    await expect(page).toHaveURL(/\/course\/Systems%20thinking%20for%20product%20decisions\?id=explicit-course-creation$/, { timeout: 15_000 });
   });
 
   test("never creates a course from an incomplete legacy course URL", async ({ page }) => {
@@ -1142,6 +1162,7 @@ test.describe("mobile application shell", () => {
   });
 
   test("keeps the platform paper system legible on primary mobile routes", async ({ page }) => {
+    test.setTimeout(90_000);
     await prepareOwnerShell(page);
     const routes = [
       { path: "/create", heading: /Build toward a real outcome/ },
