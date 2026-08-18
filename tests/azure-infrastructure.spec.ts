@@ -1,6 +1,5 @@
 import { expect, test } from "@playwright/test";
 import { readFileSync } from "node:fs";
-import { easyAuthIdentityFromHeaders } from "../src/lib/easy-auth-principal";
 import { courseAuthorIdsForAccount } from "../src/lib/course-owner-identity";
 
 const infrastructureSource = readFileSync("src/lib/azure-infrastructure.ts", "utf8");
@@ -77,9 +76,10 @@ test("browser authentication uses the Azure-managed session without an auth SDK 
   expect(identityClientSource).not.toMatch(/client[_-]?secret/i);
 });
 
-test("the API trusts only Azure-injected Google claims and keeps owner access behind an exact verified email match", () => {
+test("the API reads managed Easy Auth identities and keeps owner access behind an exact verified email match", () => {
   expect(identityServerSource).toContain("easyAuthIdentityFromHeaders");
-  expect(identityServerSource).toContain('AZURE_EASY_AUTH_ENABLED');
+  expect(identityServerSource).toContain("authenticationRuntimeConfiguration");
+  expect(identityServerSource).toContain("verifiedEasyAuthIdentity");
   expect(accountServerSource).toContain("user.email_verified");
   expect(accountServerSource).toContain("user.email?.trim().toLowerCase() === ownerEmail");
 });
@@ -97,52 +97,6 @@ test("only the verified owner inherits the legacy Firebase course-author identit
     { uid: "same-id", isOwner: true },
     "same-id",
   )).toEqual(["same-id"]);
-});
-
-test("Easy Auth principal parsing fails closed and accepts only verified Google identity data", () => {
-  const principal = Buffer.from(JSON.stringify({
-    auth_typ: "google",
-    claims: [
-      { typ: "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/emailaddress", val: "Owner@Example.com" },
-      { typ: "name", val: "Owner" },
-      { typ: "auth_time", val: "1750000000" },
-      { typ: "email_verified", val: "true" },
-    ],
-  })).toString("base64");
-  const headers = new Headers({
-    "x-ms-client-principal": principal,
-    "x-ms-client-principal-id": "google-subject",
-    "x-ms-client-principal-idp": "google",
-    "x-ms-client-principal-name": "Owner@Example.com",
-  });
-  expect(easyAuthIdentityFromHeaders(headers, true)).toEqual({
-    uid: "google-subject",
-    email: "owner@example.com",
-    email_verified: true,
-    auth_time: 1_750_000_000,
-    name: "Owner",
-    picture: undefined,
-  });
-  expect(easyAuthIdentityFromHeaders(headers, false)).toBeNull();
-  headers.set("x-ms-client-principal-idp", "aad");
-  expect(easyAuthIdentityFromHeaders(headers, true)).toBeNull();
-});
-
-test("Easy Auth principal parsing rejects unverified or malformed email claims", () => {
-  const encoded = (email: string, verified: string) => Buffer.from(JSON.stringify({
-    auth_typ: "google",
-    claims: [
-      { typ: "email", val: email },
-      { typ: "email_verified", val: verified },
-      { typ: "sub", val: "subject" },
-    ],
-  })).toString("base64");
-  expect(easyAuthIdentityFromHeaders(new Headers({
-    "x-ms-client-principal": encoded("learner@example.com", "false"),
-  }), true)).toBeNull();
-  expect(easyAuthIdentityFromHeaders(new Headers({
-    "x-ms-client-principal": encoded("not-an-email", "true"),
-  }), true)).toBeNull();
 });
 
 test("staging health does not claim production alert delivery is configured", () => {

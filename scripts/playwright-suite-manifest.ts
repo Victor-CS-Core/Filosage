@@ -1,6 +1,7 @@
 import { resolve } from "node:path";
 
 export const contractSuites = [
+  "tests/auth-identity.spec.ts",
   "tests/azure-infrastructure.spec.ts",
   "tests/bibliographic-references.spec.ts",
   "tests/billing-offer.spec.ts",
