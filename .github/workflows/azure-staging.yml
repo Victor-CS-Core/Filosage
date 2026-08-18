@@ -108,6 +108,8 @@ jobs:
             "DEPLOYMENT_ENVIRONMENT=production"
             "OPERATIONS_ENVIRONMENT=azure-staging"
             "AZURE_EASY_AUTH_ENABLED=true"
+            "FLASHCARD_DECKS_ENABLED=true"
+            "FLASHCARD_AI_GENERATION_ENABLED=true"
             "BILLING_ENABLED=false"
             "DEPLOYMENT_SLOT=${TARGET_SLOT}"
           )

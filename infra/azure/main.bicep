@@ -368,6 +368,8 @@ var appEnvironment = concat(
     { name: 'OWNER_EMAIL', value: ownerEmail }
     { name: 'ACTIVITY_RECEIPT_SECRET', secretRef: 'activity-receipt-secret' }
     { name: 'BILLING_PROVIDER', value: 'stripe' }
+    { name: 'FLASHCARD_DECKS_ENABLED', value: 'true' }
+    { name: 'FLASHCARD_AI_GENERATION_ENABLED', value: 'true' }
     { name: 'BILLING_ENABLED', value: 'false' }
   ],
   !empty(operationsAlertWebhookUrl) ? [{ name: 'OPERATIONS_ALERT_WEBHOOK_URL', value: operationsAlertWebhookUrl }] : [],

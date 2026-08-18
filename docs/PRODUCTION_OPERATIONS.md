@@ -15,6 +15,8 @@ The release contract is validated by `npm.cmd run check:release`. It requires Az
 - `ACTIVITY_RECEIPT_SECRET` is server-only and must contain at least 32 cryptographically random bytes.
 - `SITE_VERSION` is the exact full Git SHA built into and exposed by the image.
 - `OPERATIONS_ALERT_WEBHOOK_URL` and `OPERATIONS_ALERT_WEBHOOK_SECRET` are required before claiming production alert delivery is operational.
+- `FLASHCARD_DECKS_ENABLED=true` is required for a production release so learners can access private flashcard decks.
+- `FLASHCARD_AI_GENERATION_ENABLED=true` is required for a production release so learners can generate grounded flashcards.
 
 Keep `BILLING_ENABLED=false` until checkout activation is separately authorized and all legal, support, backup, alerting, and Stripe launch gates are complete.
 

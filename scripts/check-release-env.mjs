@@ -7,6 +7,8 @@ else {
   if (process.env.ACTIVITY_RECEIPT_SECRET.trim().length < 32) invalid.push("ACTIVITY_RECEIPT_SECRET must contain at least 32 characters");
   if (!/^[a-f0-9]{40}$/i.test(process.env.SITE_VERSION.trim())) invalid.push("SITE_VERSION must be the full 40-character Git commit SHA");
   if (process.env.AZURE_EASY_AUTH_ENABLED.trim().toLowerCase() !== "true") invalid.push("AZURE_EASY_AUTH_ENABLED must be true for production releases");
+  if (process.env.FLASHCARD_DECKS_ENABLED?.trim().toLowerCase() !== "true") invalid.push("FLASHCARD_DECKS_ENABLED must be true for production releases");
+  if (process.env.FLASHCARD_AI_GENERATION_ENABLED?.trim().toLowerCase() !== "true") invalid.push("FLASHCARD_AI_GENERATION_ENABLED must be true for production releases");
   if (!/^https:\/\/[a-z0-9-]+\.blob\.core\.windows\.net\/?$/i.test(process.env.AZURE_STORAGE_ACCOUNT_URL.trim())) invalid.push("AZURE_STORAGE_ACCOUNT_URL must be an Azure Blob service URL");
   if (activationMode) {
     const paidRequired = ["STRIPE_SECRET_KEY", "STRIPE_WEBHOOK_SECRET", "STRIPE_PLUS_MONTHLY_PRICE_ID", "STRIPE_PLUS_ANNUAL_PRICE_ID", "STRIPE_PRO_MONTHLY_PRICE_ID", "STRIPE_PRO_ANNUAL_PRICE_ID", "LEGAL_OPERATOR_NAME", "LEGAL_BUSINESS_ADDRESS", "GOVERNING_JURISDICTION", "SUPPORT_EMAIL"];

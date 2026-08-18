@@ -81,6 +81,8 @@ jobs:
               "DEPLOYMENT_SLOT=qa" \
               "OPERATIONS_ENVIRONMENT=qa" \
               "AZURE_EASY_AUTH_ENABLED=true" \
+              "FLASHCARD_DECKS_ENABLED=true" \
+              "FLASHCARD_AI_GENERATION_ENABLED=true" \
               "BILLING_ENABLED=false"
 
       - name: Verify isolated QA candidate

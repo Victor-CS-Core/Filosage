@@ -25,6 +25,8 @@ const validReleaseEnvironment = {
   OPERATIONS_ALERT_WEBHOOK_SECRET: "y".repeat(32),
   SITE_VERSION: "a".repeat(40),
   BILLING_ENABLED: "false",
+  FLASHCARD_DECKS_ENABLED: "true",
+  FLASHCARD_AI_GENERATION_ENABLED: "true",
 };
 
 test("release checks bind Azure and production health to one full Git SHA", () => {
@@ -35,6 +37,22 @@ test("release checks bind Azure and production health to one full Git SHA", () =
   });
   expect(valid.status, valid.stderr).toBe(0);
   expect(valid.stdout).toContain("Closed-billing release environment looks complete");
+
+  const missingDecksFlag = spawnSync(process.execPath, [releaseScript], {
+    cwd: root,
+    env: { ...validReleaseEnvironment, FLASHCARD_DECKS_ENABLED: "" },
+    encoding: "utf8",
+  });
+  expect(missingDecksFlag.status).toBe(1);
+  expect(missingDecksFlag.stderr).toContain("FLASHCARD_DECKS_ENABLED must be true for production releases");
+
+  const disabledGenerationFlag = spawnSync(process.execPath, [releaseScript], {
+    cwd: root,
+    env: { ...validReleaseEnvironment, FLASHCARD_AI_GENERATION_ENABLED: "false" },
+    encoding: "utf8",
+  });
+  expect(disabledGenerationFlag.status).toBe(1);
+  expect(disabledGenerationFlag.stderr).toContain("FLASHCARD_AI_GENERATION_ENABLED must be true for production releases");
 
   const missingRecovery = spawnSync(process.execPath, [releaseScript], {
     cwd: root,

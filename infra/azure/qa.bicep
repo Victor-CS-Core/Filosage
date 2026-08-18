@@ -184,6 +184,8 @@ var qaEnvironment = [
   { name: 'ACTIVITY_RECEIPT_SECRET', secretRef: 'activity-receipt-secret' }
   { name: 'OPENAI_API_KEY', secretRef: 'openai-api-key' }
   { name: 'BILLING_PROVIDER', value: 'stripe' }
+  { name: 'FLASHCARD_DECKS_ENABLED', value: 'true' }
+  { name: 'FLASHCARD_AI_GENERATION_ENABLED', value: 'true' }
   { name: 'BILLING_ENABLED', value: 'false' }
   { name: 'COMMAND_CENTER_DRAFTS_ENABLED', value: 'true' }
   { name: 'COMMAND_CENTER_ENABLED', value: 'true' }

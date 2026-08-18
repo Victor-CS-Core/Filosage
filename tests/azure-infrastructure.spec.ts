@@ -173,6 +173,17 @@ test("isolated QA scales to zero and keeps its data stores separate", () => {
   expect(proxySourceWithQa).toContain('X-Robots-Tag');
 });
 
+test("QA and production staging explicitly enable the approved flashcard release", () => {
+  expect(qaWorkflowSource).toContain('"FLASHCARD_DECKS_ENABLED=true"');
+  expect(qaWorkflowSource).toContain('"FLASHCARD_AI_GENERATION_ENABLED=true"');
+  expect(qaBicepSource).toContain("FLASHCARD_DECKS_ENABLED', value: 'true'");
+  expect(qaBicepSource).toContain("FLASHCARD_AI_GENERATION_ENABLED', value: 'true'");
+  expect(stagingWorkflowSource).toContain('"FLASHCARD_DECKS_ENABLED=true"');
+  expect(stagingWorkflowSource).toContain('"FLASHCARD_AI_GENERATION_ENABLED=true"');
+  expect(azureBicepSource).toContain("FLASHCARD_DECKS_ENABLED', value: 'true'");
+  expect(azureBicepSource).toContain("FLASHCARD_AI_GENERATION_ENABLED', value: 'true'");
+});
+
 test("production staging accepts only the exact image already approved in QA", () => {
   expect(azureBicepSource).toContain("activeRevisionsMode: 'Multiple'");
   expect(stagingWorkflowSource).toContain("target_slot:");
