@@ -7,6 +7,9 @@ import { hasRecentAuthentication } from "@/lib/recent-auth";
 
 export const REGISTRY_KEY_VERSION = "v1" as const;
 export const IDENTITY_LINK_INTENT_TTL_MS = 10 * 60 * 1000;
+// Managed identity and datastore clocks may differ slightly. Anything more
+// than one minute in the future is treated as corrupt rather than trusted.
+export const IDENTITY_LINK_MAX_CLOCK_SKEW_MS = 60 * 1000;
 
 export type LinkIntentFailureReason =
   | "expired"
@@ -89,8 +92,34 @@ export async function hmacHex(value: string, secret: string) {
   return Array.from(signature, (byte) => byte.toString(16).padStart(2, "0")).join("");
 }
 
+function hasControlCharacter(value: string) {
+  return Array.from(value).some((character) => {
+    const code = character.charCodeAt(0);
+    return code <= 31 || (code >= 127 && code <= 159);
+  });
+}
+
+function unsafeReturnPathLayer(value: string) {
+  return value.includes("\\")
+    || value.startsWith("//")
+    || hasControlCharacter(value);
+}
+
 export function safeAuthenticationReturnPath(value: string | undefined) {
   if (!value || !value.startsWith("/") || value.startsWith("//")) return "/";
+  let inspected = value;
+  for (let depth = 0; depth < 3; depth += 1) {
+    if (unsafeReturnPathLayer(inspected)) return "/";
+    if (!inspected.includes("%")) break;
+    try {
+      const decoded = decodeURIComponent(inspected);
+      if (decoded === inspected) break;
+      inspected = decoded;
+    } catch {
+      return "/";
+    }
+  }
+  if (unsafeReturnPathLayer(inspected)) return "/";
   try {
     const parsed = new URL(value, "https://filosage.invalid");
     return parsed.origin === "https://filosage.invalid"
@@ -330,14 +359,10 @@ export interface IdentityBackfillTransactionResult {
 }
 
 function validCanonicalIdentityId(value: string) {
-  const hasControlCharacter = Array.from(value).some((character) => {
-    const code = character.charCodeAt(0);
-    return code <= 31 || (code >= 127 && code <= 159);
-  });
   return value.length > 0
     && value === value.trim()
     && !/[\s/\\]/.test(value)
-    && !hasControlCharacter;
+    && !hasControlCharacter(value);
 }
 
 function strictTimestamp(value: unknown) {
@@ -386,7 +411,8 @@ export function validateLinkCompletion(
   const createdAt = strictTimestamp(intent.createdAt);
   const expiresAt = strictTimestamp(intent.expiresAt);
   if (
-    intent.schemaVersion !== 1
+    !Number.isFinite(now)
+    || intent.schemaVersion !== 1
     || intent.keyVersion !== REGISTRY_KEY_VERSION
     || !validCanonicalIdentityId(canonicalUid)
     || !/^[a-f0-9]{64}$/.test(String(intent.sourceIdentityHash ?? ""))
@@ -394,6 +420,7 @@ export function validateLinkCompletion(
     || returnPath !== safeAuthenticationReturnPath(returnPath)
     || createdAt === null
     || expiresAt === null
+    || createdAt > now + IDENTITY_LINK_MAX_CLOCK_SKEW_MS
     || expiresAt - createdAt !== IDENTITY_LINK_INTENT_TTL_MS
     || (options.intentPath && intent.id !== options.intentPath.split("/").at(-1))
     || (options.expectedSourceIdentityHash
@@ -410,12 +437,14 @@ export function validateLinkCompletion(
       || updatedAt === null
       || consumedAt !== updatedAt
       || consumedAt < createdAt
+      || consumedAt > expiresAt
+      || consumedAt > now + IDENTITY_LINK_MAX_CLOCK_SKEW_MS
     ) {
       throw new LinkIntentError("invalid");
     }
     throw new LinkIntentError("replayed");
   }
-  if (!Number.isFinite(now) || expiresAt <= now) throw new LinkIntentError("expired");
+  if (expiresAt <= now) throw new LinkIntentError("expired");
   if (intent.emailHash !== expectedEmailHash) throw new LinkIntentError("email_mismatch");
   return { canonicalUid, returnPath };
 }
@@ -432,6 +461,7 @@ export function assertFreshDirectGoogleLinkAuthentication(user: VerifiedUser, no
     || !canonicalEmail
     || canonicalEmail !== providerEmail
     || !validCanonicalIdentityId(user.uid)
+    || user.uid !== identity.subject
     || !user.identityLinkRegistered
     || user.auth_time !== identity.authTime
     || !hasRecentAuthentication(identity.authTime, Math.floor(now / 1_000))
@@ -466,10 +496,14 @@ export function recentAuthenticationProofMatchesUser(
   );
 }
 
-function validRegistryTimes(document: Record<string, unknown>) {
+function validRegistryTimes(document: Record<string, unknown>, now: number) {
   const createdAt = strictTimestamp(document.createdAt);
   const updatedAt = strictTimestamp(document.updatedAt);
-  return createdAt !== null && updatedAt !== null && createdAt <= updatedAt;
+  return Number.isFinite(now)
+    && createdAt !== null
+    && updatedAt !== null
+    && createdAt <= updatedAt
+    && updatedAt <= now + IDENTITY_LINK_MAX_CLOCK_SKEW_MS;
 }
 
 function exactIdentityRegistryDocument(
@@ -480,6 +514,7 @@ function exactIdentityRegistryDocument(
     canonicalUid: string;
     provider: VerifiedProviderIdentity["provider"];
   },
+  now: number,
 ) {
   return Boolean(document
     && exactObjectKeys(document, [
@@ -498,13 +533,14 @@ function exactIdentityRegistryDocument(
     && document.identityHash === expected.identityHash
     && document.canonicalUid === expected.canonicalUid
     && document.provider === expected.provider
-    && validRegistryTimes(document));
+    && validRegistryTimes(document, now));
 }
 
 function exactEmailOwnerDocument(
   document: IdentityRegistryDocument | undefined,
   path: string,
   expected: { emailHash: string; canonicalUid: string },
+  now: number,
 ) {
   return Boolean(document
     && exactObjectKeys(document, [
@@ -521,7 +557,7 @@ function exactEmailOwnerDocument(
     && document.keyVersion === REGISTRY_KEY_VERSION
     && document.emailHash === expected.emailHash
     && document.canonicalUid === expected.canonicalUid
-    && validRegistryTimes(document));
+    && validRegistryTimes(document, now));
 }
 
 function exactCanonicalAccount(
@@ -548,11 +584,11 @@ export function createIdentityLinkTransactionPlan(
       identityHash: input.keys.identityHash,
       canonicalUid: input.user.uid,
       provider: "google",
-    })
+    }, input.now)
     || !exactEmailOwnerDocument(documents[input.keys.emailPath], input.keys.emailPath, {
       emailHash: input.keys.emailHash,
       canonicalUid: input.user.uid,
-    })
+    }, input.now)
     || !exactCanonicalAccount(documents[accountPath], input.user.uid)
   ) {
     throw new LinkIntentError("mapping_conflict");
@@ -606,11 +642,12 @@ export function completeIdentityLinkTransactionPlan(
         canonicalUid: validated.canonicalUid,
         provider: "google",
       },
+      input.now,
     )
     || !exactEmailOwnerDocument(documents[input.keys.emailPath], input.keys.emailPath, {
       emailHash: input.keys.emailHash,
       canonicalUid: validated.canonicalUid,
-    })
+    }, input.now)
     || !exactCanonicalAccount(documents[accountPath], validated.canonicalUid)
   ) {
     throw new LinkIntentError("mapping_conflict");
@@ -624,6 +661,7 @@ export function completeIdentityLinkTransactionPlan(
       canonicalUid: validated.canonicalUid,
       provider: "filosage",
     },
+    input.now,
   )) {
     throw new LinkIntentError("mapping_conflict");
   }

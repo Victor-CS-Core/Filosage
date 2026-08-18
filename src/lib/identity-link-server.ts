@@ -68,6 +68,9 @@ export interface IdentityLinkDependencies {
 }
 
 function dependencies(overrides: IdentityLinkDependencies | undefined) {
+  if (overrides && !isLocalMode()) {
+    throw new Error("Identity-link test dependencies are unavailable outside local mode.");
+  }
   return {
     secret: overrides?.secret,
     getDocument: overrides?.getDocument ?? getStoredDocument,

@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { spawnSync } from "node:child_process";
 import {
   assertFreshDirectGoogleLinkAuthentication,
   assertFreshExternalLinkAuthentication,
@@ -86,6 +87,20 @@ test("link-intent values are opaque HMAC keys and return paths stay same-origin"
   expect(safeAuthenticationReturnPath("/profile?linked=1")).toBe("/profile?linked=1");
   expect(safeAuthenticationReturnPath("https://attacker.invalid/steal")).toBe("/");
   expect(safeAuthenticationReturnPath("//attacker.invalid/steal")).toBe("/");
+  for (const unsafe of [
+    "/\\\\attacker.invalid/steal",
+    "/%5c%5cattacker.invalid/steal",
+    "/%255c%255cattacker.invalid/steal",
+    "/%2f%2fattacker.invalid/steal",
+    "/%252f%252fattacker.invalid/steal",
+    "/profile\u0000",
+    "/profile%00",
+    "/profile%2500",
+    "/profile%7f",
+    "/profile%25c2%2580",
+  ]) {
+    expect(safeAuthenticationReturnPath(unsafe)).toBe("/");
+  }
 });
 
 test("completion accepts only an exact unused intent before its expiry boundary", () => {
@@ -114,6 +129,25 @@ test("completion accepts only an exact unused intent before its expiry boundary"
     usedAt: "2026-08-18T12:04:00.000Z",
     updatedAt: "2026-08-18T12:04:00.000Z",
   }, "b".repeat(64), now)).toThrow(expect.objectContaining({ reason: "replayed" }));
+  expect(() => validateLinkCompletion({
+    ...valid,
+    usedAt: "2026-08-18T12:10:30.000Z",
+    updatedAt: "2026-08-18T12:10:30.000Z",
+  }, "b".repeat(64), Date.parse("2026-08-18T12:09:45.000Z")))
+    .toThrow(expect.objectContaining({ reason: "invalid" }));
+  expect(() => validateLinkCompletion({
+    ...valid,
+    createdAt: new Date(now + 61_000).toISOString(),
+    expiresAt: new Date(now + 61_000 + 10 * 60_000).toISOString(),
+  }, "b".repeat(64), now)).toThrow(expect.objectContaining({ reason: "invalid" }));
+  expect(validateLinkCompletion({
+    ...valid,
+    createdAt: new Date(now + 60_000).toISOString(),
+    expiresAt: new Date(now + 60_000 + 10 * 60_000).toISOString(),
+  }, "b".repeat(64), now)).toEqual({
+    canonicalUid: "google-subject",
+    returnPath: "/profile",
+  });
   for (const corrupt of [
     { ...valid, emailHash: "c".repeat(64) },
     { ...valid, expiresAt: new Date(now).toISOString() },
@@ -152,6 +186,7 @@ test("intent creation requires fresh direct-Google authentication before plannin
   }
   for (const corruptUser of [
     { ...user, email: "different@example.com" },
+    { ...user, uid: "another-safe-canonical-uid" },
     { ...user, uid: "../another-account" },
   ]) {
     expect(() => assertFreshDirectGoogleLinkAuthentication(corruptUser, now))
@@ -187,6 +222,20 @@ test("intent creation validates complete source registries before writing", asyn
     { path: keys.identityPath, patch: { identityHash: "wrong" } },
     { path: keys.emailPath, patch: { canonicalUid: "another-account" } },
     { path: keys.emailPath, patch: { unexpected: true } },
+    {
+      path: keys.identityPath,
+      patch: {
+        createdAt: new Date(now + 61_000).toISOString(),
+        updatedAt: new Date(now + 61_000).toISOString(),
+      },
+    },
+    {
+      path: keys.emailPath,
+      patch: {
+        createdAt: new Date(now + 61_000).toISOString(),
+        updatedAt: new Date(now + 61_000).toISOString(),
+      },
+    },
   ]) {
     const documents = {
       ...base,
@@ -201,6 +250,26 @@ test("intent creation validates complete source registries before writing", asyn
     })).toThrow(LinkIntentError);
     expect(Object.keys(documents).some((path) => path.startsWith("identityLinkIntents/"))).toBe(false);
   }
+  const skewBoundary = {
+    ...base,
+    [keys.identityPath]: {
+      ...base[keys.identityPath],
+      createdAt: new Date(now + 60_000).toISOString(),
+      updatedAt: new Date(now + 60_000).toISOString(),
+    },
+    [keys.emailPath]: {
+      ...base[keys.emailPath],
+      createdAt: new Date(now + 60_000).toISOString(),
+      updatedAt: new Date(now + 60_000).toISOString(),
+    },
+  };
+  expect(createIdentityLinkTransactionPlan(skewBoundary, {
+    intentPath: "identityLinkIntents/v1_" + "e".repeat(64),
+    keys,
+    user,
+    returnPath: "/profile",
+    now,
+  }).writes).toHaveLength(1);
 });
 
 test("completion is atomic single-use and refuses stale auth or a deleted account", async () => {
@@ -304,12 +373,70 @@ test("completion is atomic single-use and refuses stale auth or a deleted accoun
     { ...exactExisting[externalKeys.identityPath], provider: "google" },
     { ...exactExisting[externalKeys.identityPath], unexpected: true },
     { ...exactExisting[externalKeys.identityPath], canonicalUid: "different-account" },
+    {
+      ...exactExisting[externalKeys.identityPath],
+      createdAt: new Date(now + 61_000).toISOString(),
+      updatedAt: new Date(now + 61_000).toISOString(),
+    },
   ]) {
     expect(() => completeIdentityLinkTransactionPlan({
       ...seed,
       [externalKeys.identityPath]: corrupt,
     }, completionInput)).toThrow(LinkIntentError);
   }
+  for (const [path, document] of [
+    [sourceKeys.identityPath, seed[sourceKeys.identityPath]],
+    [externalKeys.emailPath, seed[externalKeys.emailPath]],
+  ] as const) {
+    expect(() => completeIdentityLinkTransactionPlan({
+      ...seed,
+      [path]: {
+        ...document,
+        createdAt: new Date(now + 61_000).toISOString(),
+        updatedAt: new Date(now + 61_000).toISOString(),
+      },
+    }, completionInput)).toThrow(LinkIntentError);
+  }
+});
+
+test("server-only link adapters enforce atomic behavior and bounded identity exposure", () => {
+  const baseArguments = [
+    "--conditions=react-server",
+    "--import",
+    "tsx",
+    "tests/fixtures/identity-link-server-behavior.ts",
+  ];
+  const local = spawnSync(process.execPath, baseArguments, {
+    cwd: process.cwd(),
+    encoding: "utf8",
+    env: {
+      ...process.env,
+      NODE_ENV: "test",
+      FIREBASE_PROJECT_ID: "",
+      FIREBASE_CLIENT_EMAIL: "",
+      FIREBASE_PRIVATE_KEY: "",
+    },
+  });
+  expect(local.status, `${local.stdout}\n${local.stderr}`).toBe(0);
+  expect(local.stdout).toContain("IDENTITY_LINK_SERVER_BEHAVIOR_OK");
+
+  const deployed = spawnSync(process.execPath, [...baseArguments, "--deployed"], {
+    cwd: process.cwd(),
+    encoding: "utf8",
+    env: {
+      ...process.env,
+      NODE_ENV: "production",
+      FIREBASE_PROJECT_ID: "test-project",
+      FIREBASE_CLIENT_EMAIL: "test@example.invalid",
+      FIREBASE_PRIVATE_KEY: "not-used-by-provider-parser",
+      AZURE_EASY_AUTH_ENABLED: "true",
+      DIRECT_GOOGLE_AUTH_ENABLED: "false",
+      EXTERNAL_ID_AUTH_ENABLED: "true",
+      EXTERNAL_ID_ISSUER: "https://qa-filosage.ciamlogin.com/tenant/v2.0",
+    },
+  });
+  expect(deployed.status, `${deployed.stdout}\n${deployed.stderr}`).toBe(0);
+  expect(deployed.stdout).toContain("REQUIRE_PROVIDER_IDENTITY_DEPLOYED_OK");
 });
 
 test("identity and email registry paths are deterministic versioned HMACs", async () => {
