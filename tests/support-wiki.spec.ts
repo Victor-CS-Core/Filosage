@@ -32,9 +32,11 @@ test("covers course creation, learning plans, and professional evidence sharing"
 });
 
 test("documents the current sign-in, Today, profile, and private-course discovery behavior", () => {
-  expect(articleBody("sign-in-help")).toContain("same tab");
-  expect(articleBody("sign-in-help")).toContain("age eligibility");
+  expect(articleBody("sign-in-help")).toContain("Continue with Google");
+  expect(articleBody("sign-in-help")).toContain("email code");
+  expect(articleBody("sign-in-help")).toContain("Never send a password or one-time code");
   expect(articleBody("sign-in-help")).not.toContain("Allow popups");
+  expect(articleBody("getting-started")).toContain("confirm age eligibility");
   expect(articleBody("getting-started")).toContain("Weekly progress");
   expect(articleBody("getting-started")).toContain("Review queue");
   expect(articleBody("getting-started")).toContain("Learning streak");

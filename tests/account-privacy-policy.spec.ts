@@ -107,8 +107,9 @@ test("recent authentication accepts a newly linked provider only for the same ca
 
 test("uses action-neutral copy when the identity provider omits recent-auth proof", () => {
   expect(RECENT_AUTHENTICATION_PROOF_MISSING_MESSAGE).toBe(
-    "Google did not provide a recent-authentication proof. The requested sensitive action was not completed.",
+    "We could not confirm a recent sign-in, so the sensitive action was not completed.",
   );
+  expect(RECENT_AUTHENTICATION_PROOF_MISSING_MESSAGE).not.toMatch(/Google|email code/i);
   expect(RECENT_AUTHENTICATION_PROOF_MISSING_MESSAGE).not.toMatch(/deleted|published|approved/i);
 });
 

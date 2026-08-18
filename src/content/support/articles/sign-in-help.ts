@@ -2,32 +2,30 @@ import { defineSupportArticle } from "../types";
 
 export default defineSupportArticle({
   slug: "sign-in-help",
-  title: "Troubleshoot Google sign-in",
-  summary: "Use the same-tab Google sign-in flow, complete account consent, and resolve common session problems.",
+  title: "Troubleshoot secure sign-in",
+  summary: "Choose Google or a private email code, recover an existing account, and resolve common managed sign-in problems.",
   category: "account",
-  keywords: ["sign in", "Google", "consent", "terms", "age eligibility", "storage", "network", "account"],
-  reviewedOn: "2026-08-16",
+  keywords: ["sign in", "Google", "email code", "Microsoft", "network", "account", "identity recovery"],
+  reviewedOn: "2026-08-18",
   sources: ["src/components/AuthProvider.tsx", "src/components/AuthModal.tsx", "src/components/LegalConsentModal.tsx"],
   body: `
-## Start Google sign-in
+## Choose a sign-in method
 
-Choose **Continue with Google**. Filosage leaves the current page in the same tab, sends you to the platform-managed Google sign-in flow, and returns you to Filosage after authentication. A separate popup is not required.
+Select **Continue securely** in Filosage. On the next secure Filosage screen, choose **Continue with Google** or enter your email address to receive an email code. Microsoft manages both methods and returns you to Filosage after verification.
 
-## Confirm account consent
+## If an email code does not arrive
 
-Before the first redirect, confirm age eligibility and acceptance of the current Terms and Privacy Notice. If the legal terms change later, Filosage asks you to accept the current versions before continuing; you can sign out instead. Never continue on an account you are not authorized to use.
+Check the address for typing mistakes, wait for the resend option on the secure sign-in page, then check spam or junk folders. Do not repeatedly request codes. Filosage support cannot see, generate, or validate a code.
 
-## If browser storage is unavailable
+## If you used Google before
 
-The signed-in session requires browser storage and cookies. Turn off Private Browsing for the site or allow site storage, then retry in the same tab.
+Choose **Use my existing Google sign-in** in Filosage. After Google confirms the existing account, Filosage can connect the new method without moving courses, progress, notes, or review dates.
 
 ## If the network or session is slow
 
-Check your connection and retry. If Filosage reports that the session or account is taking longer than expected, refresh once before starting another sign-in attempt.
+Check your connection and retry once. If Filosage reports that the session or account is taking longer than expected, refresh before starting another attempt.
 
-## If the domain is not authorized
-
-An authorized-domain error is a site configuration problem rather than an account password problem. Contact [Filosage support](/support/articles/contact-support) and include the page address and exact error message. Never send a password or authentication code.
+Contact [Filosage support](/support/articles/contact-support) with the page address and exact error message when the problem continues. Never send a password or one-time code.
 `,
   related: ["getting-started", "contact-support", "privacy-controls"],
   featured: true,

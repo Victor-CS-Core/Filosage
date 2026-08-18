@@ -995,7 +995,9 @@ test("publishes clear legal documents", async ({ context }) => {
   const privacyCenter = await context.newPage();
   await privacyCenter.goto("/privacy-center");
   await expect(privacyCenter.getByRole("heading", { name: "Your information, under your control." })).toBeVisible();
-  await expect(privacyCenter.getByRole("button", { name: "Sign in to export" })).toBeVisible();
+  const exportAccountEntry = privacyCenter.getByRole("button", { name: /to export/ });
+  await expect(exportAccountEntry).toBeVisible();
+  await expect(exportAccountEntry).toBeEnabled();
   await privacyCenter.close();
 });
 
