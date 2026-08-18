@@ -36,6 +36,7 @@ export const apiSuites = [
 
 export const singleEngineSuites = [
   "tests/account-onboarding.spec.ts",
+  "tests/auth-linking.spec.ts",
   "tests/billing-lifecycle.spec.ts",
   "tests/flashcard-system.spec.ts",
   "tests/lesson-interactions-v2.spec.ts",

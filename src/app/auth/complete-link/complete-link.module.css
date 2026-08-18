@@ -1,0 +1,97 @@
+.page {
+  min-height: 100dvh;
+  display: grid;
+  place-items: center;
+  padding: clamp(18px, 5vw, 40px);
+  background-color: var(--canvas);
+  background-image: var(--grain-canvas);
+  color: var(--ink);
+}
+
+.card {
+  width: min(100%, 520px);
+  min-width: 0;
+  display: grid;
+  gap: 22px;
+  padding: clamp(24px, 7vw, 44px);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  background-color: var(--surface);
+  background-image: var(--grain-sheet);
+  box-shadow: var(--shadow-window);
+}
+
+.mark {
+  width: 58px;
+  height: 64px;
+}
+
+.content {
+  min-width: 0;
+  display: grid;
+  justify-items: start;
+  gap: 15px;
+}
+
+.content h1 {
+  max-width: 18ch;
+  font-size: clamp(1.85rem, 8vw, 2.75rem);
+  line-height: 1.06;
+}
+
+.content p:not(:global(.overline)) {
+  max-width: 46ch;
+  color: var(--ink-secondary);
+  font-size: 1rem;
+  line-height: 1.65;
+  overflow-wrap: anywhere;
+}
+
+.action {
+  min-height: 44px;
+  margin-top: 4px;
+}
+
+.action:focus-visible {
+  outline: 3px solid var(--focus);
+  outline-offset: 4px;
+}
+
+@media (max-width: 380px) {
+  .page {
+    place-items: stretch;
+    padding: 12px;
+  }
+
+  .card {
+    align-content: center;
+    min-height: calc(100dvh - 24px);
+    padding: 24px 20px;
+  }
+
+  .action {
+    width: 100%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .page,
+  .card,
+  .action {
+    scroll-behavior: auto;
+    transition: none;
+  }
+}
+
+@media (forced-colors: active) {
+  .card {
+    border-color: CanvasText;
+    background: Canvas;
+    color: CanvasText;
+    box-shadow: none;
+  }
+
+  .action:focus-visible {
+    outline-color: Highlight;
+  }
+}
