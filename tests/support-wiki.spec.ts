@@ -32,11 +32,18 @@ test("covers course creation, learning plans, and professional evidence sharing"
 });
 
 test("documents the current sign-in, Today, profile, and private-course discovery behavior", () => {
-  expect(articleBody("sign-in-help")).toContain("Continue with Google");
-  expect(articleBody("sign-in-help")).toContain("email code");
-  expect(articleBody("sign-in-help")).toContain("Never send a password or one-time code");
-  expect(articleBody("sign-in-help")).not.toContain("Allow popups");
-  expect(articleBody("getting-started")).toContain("confirm age eligibility");
+  const signInHelp = articleBody("sign-in-help");
+  const gettingStarted = articleBody("getting-started");
+  expect(signInHelp).toContain("Google sign-in remains available when it is enabled");
+  expect(signInHelp).toContain("Email-code sign-in appears only when Microsoft Entra External ID is enabled");
+  expect(signInHelp).toContain("existing-account email recovery may be available before new email-code account creation");
+  expect(signInHelp).toContain("Never send a password or one-time code");
+  expect(signInHelp).not.toContain("choose **Continue with Google** or enter your email address");
+  expect(signInHelp).not.toContain("Allow popups");
+  expect(gettingStarted).toContain("confirm age eligibility");
+  expect(gettingStarted).toContain("select one of the sign-in methods currently shown");
+  expect(gettingStarted).toContain("Google remains available when enabled");
+  expect(gettingStarted).toContain("email-code sign-in appears only when Microsoft Entra External ID is enabled");
   expect(articleBody("getting-started")).toContain("Weekly progress");
   expect(articleBody("getting-started")).toContain("Review queue");
   expect(articleBody("getting-started")).toContain("Learning streak");

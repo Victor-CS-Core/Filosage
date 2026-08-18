@@ -7,11 +7,18 @@ export default defineSupportArticle({
   category: "account",
   keywords: ["sign in", "Google", "email code", "Microsoft", "network", "account", "identity recovery"],
   reviewedOn: "2026-08-18",
-  sources: ["src/components/AuthProvider.tsx", "src/components/AuthModal.tsx", "src/components/LegalConsentModal.tsx"],
+  sources: [
+    "src/components/AuthProvider.tsx",
+    "src/components/AuthModal.tsx",
+    "src/components/LegalConsentModal.tsx",
+    "src/components/IdentityLinkRequiredModal.tsx",
+    "src/app/auth/complete-link/page.tsx",
+    "src/app/auth/complete-link/CompleteIdentityLink.tsx",
+  ],
   body: `
 ## Choose a sign-in method
 
-Select **Continue securely** in Filosage. On the next secure Filosage screen, choose **Continue with Google** or enter your email address to receive an email code. Microsoft manages both methods and returns you to Filosage after verification.
+Select **Continue securely** in Filosage. The secure sign-in screen shows only methods enabled for the current environment. Google sign-in remains available when it is enabled. Email-code sign-in appears only when Microsoft Entra External ID is enabled. The managed flow returns you to Filosage after verification.
 
 ## If an email code does not arrive
 
@@ -19,7 +26,7 @@ Check the address for typing mistakes, wait for the resend option on the secure 
 
 ## If you used Google before
 
-Choose **Use my existing Google sign-in** in Filosage. After Google confirms the existing account, Filosage can connect the new method without moving courses, progress, notes, or review dates.
+During a staged rollout, existing-account email recovery may be available before new email-code account creation. When Filosage offers this recovery, choose **Use my existing Google sign-in**. After Google confirms the existing account, Filosage can connect email-code sign-in without moving courses, progress, notes, or review dates. This recovery connects an existing account; it does not create a new one.
 
 ## If the network or session is slow
 
