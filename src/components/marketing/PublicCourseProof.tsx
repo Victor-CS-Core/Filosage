@@ -24,6 +24,7 @@ function timeLabel(minutes: number) {
 
 export default function PublicCourseProof() {
   const [courses, setCourses] = useState<Course[]>([]);
+  const [featuredCourseId, setFeaturedCourseId] = useState<string>();
   const [status, setStatus] = useState<"loading" | "ready" | "error">("loading");
 
   const load = useCallback(async () => {
@@ -31,8 +32,9 @@ export default function PublicCourseProof() {
     try {
       const response = await fetch("/api/courses?scope=public", { cache: "no-store" });
       if (!response.ok) throw new Error("Public courses could not be loaded.");
-      const data = await response.json() as { courses: Course[] };
+      const data = await response.json() as { courses: Course[]; featuredCourseId?: string };
       setCourses(data.courses);
+      setFeaturedCourseId(data.featuredCourseId);
       setStatus("ready");
     } catch {
       setStatus("error");
@@ -43,10 +45,10 @@ export default function PublicCourseProof() {
     void Promise.resolve().then(load);
   }, [load]);
 
-  const course = useMemo(() => selectFlagshipCourse(
-    courses,
-    process.env.NEXT_PUBLIC_MARKETING_FLAGSHIP_COURSE_ID,
-  ), [courses]);
+  const course = useMemo(
+    () => selectFlagshipCourse(courses, featuredCourseId),
+    [courses, featuredCourseId],
+  );
 
   if (status === "loading") {
     return (

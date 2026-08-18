@@ -8,6 +8,7 @@ import {
 } from "../src/lib/product-metrics";
 import type { Course } from "../src/lib/course-types";
 import {
+  configuredFlagshipCourseId,
   MARKETING_JOB_PRESETS,
   marketingJobPreset,
   selectFlagshipCourse,
@@ -230,6 +231,32 @@ test("flagship selection and learning-situation presets stay deterministic and c
     { value: "career_goal", label: "Career transition or interview", query: "career" },
     { value: "work_goal", label: "Current work challenge", query: "work" },
   ]);
+});
+
+test("exposes a configured flagship only when that exact course is publicly eligible", () => {
+  const alpha = marketingCourse("alpha-course", "Calculus exam preparation");
+  const configured = marketingCourse("configured-course", "Urban sketching");
+  const privateCourse = marketingCourse("private-course", "Private study", { isPublic: false });
+
+  expect(configuredFlagshipCourseId([alpha, configured], "configured-course")).toBe("configured-course");
+  expect(configuredFlagshipCourseId([alpha, privateCourse], "private-course")).toBeUndefined();
+  expect(configuredFlagshipCourseId([alpha], "missing-course")).toBeUndefined();
+  expect(configuredFlagshipCourseId([alpha], undefined)).toBeUndefined();
+});
+
+test("landing flagship selection follows the validated API id and falls back stably", async ({ page }) => {
+  const alpha = marketingCourse("alpha-course", "Calculus study");
+  const project = marketingCourse("project-course", "Personal project planning");
+  const work = marketingCourse("work-course", "Work analysis");
+  let response = { courses: [work, project, alpha], featuredCourseId: "project-course" };
+  await page.route("**/api/courses?scope=public", (route) => route.fulfill({ json: response }));
+
+  await page.goto("/");
+  await expect(page.getByRole("link", { name: /Inspect course outline/ })).toHaveAttribute("href", /id=project-course/);
+
+  response = { courses: [alpha, project, work].reverse(), featuredCourseId: "missing-course" };
+  await page.reload();
+  await expect(page.getByRole("link", { name: /Inspect course outline/ })).toHaveAttribute("href", /id=alpha-course/);
 });
 
 test("learning-situation discovery is URL-backed, editable, reversible, and language searchable", async ({ page }) => {

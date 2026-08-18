@@ -42,3 +42,11 @@ export function selectFlagshipCourse(courses: Course[], preferredCourseId?: stri
     : undefined;
   return preferred ?? eligible.sort(deterministicCourseOrder)[0];
 }
+
+export function configuredFlagshipCourseId(courses: Course[], preferredCourseId?: string) {
+  if (!preferredCourseId) return undefined;
+  const preferred = courses.find((course) => (
+    courseId(course) === preferredCourseId && isPublicOutcomeCourse(course)
+  ));
+  return preferred ? courseId(preferred) : undefined;
+}

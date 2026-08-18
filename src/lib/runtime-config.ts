@@ -21,6 +21,10 @@ const requiredForProductionOperations = [
   "OPERATIONS_ALERT_WEBHOOK_SECRET",
 ] as const;
 
+export const optionalRuntimeConfiguration = [
+  "LANDING_FEATURED_COURSE_ID",
+] as const;
+
 export function missingRuntimeConfiguration() {
   if (serverEnvironment.NODE_ENV !== "production") return [] as string[];
   const required = serverEnvironment.OPERATIONS_ENVIRONMENT?.trim() === "production"

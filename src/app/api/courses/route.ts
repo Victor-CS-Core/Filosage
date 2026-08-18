@@ -5,6 +5,8 @@ import { toCourseDto } from "@/lib/course-dto";
 import { safeModelErrorDetails } from "@/lib/model-fallback";
 import { courseUsesPipelineV2 } from "@/lib/course-pipeline/feature-policy";
 import { courseAuthorIdsForAccount } from "@/lib/course-owner-identity";
+import { configuredFlagshipCourseId } from "@/lib/marketing-merchandising";
+import { serverEnvironment } from "@/lib/runtime-environment";
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
@@ -26,8 +28,15 @@ export async function GET(request: Request) {
           publishedAt: release.publishedAt ?? course.publishedAt,
         };
       }));
+      const publicCourses = releaseCourses
+        .filter((course): course is NonNullable<typeof course> => Boolean(course))
+        .map((course) => toCourseDto(course));
+      const featuredCourseId = configuredFlagshipCourseId(
+        publicCourses,
+        serverEnvironment.LANDING_FEATURED_COURSE_ID?.trim(),
+      );
       return NextResponse.json(
-        { courses: releaseCourses.filter((course): course is NonNullable<typeof course> => Boolean(course)).map((course) => toCourseDto(course)) },
+        { courses: publicCourses, ...(featuredCourseId ? { featuredCourseId } : {}) },
         { headers: { "Cache-Control": "public, max-age=60, s-maxage=300, stale-while-revalidate=3600" } },
       );
     }
