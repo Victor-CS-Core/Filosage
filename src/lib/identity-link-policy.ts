@@ -251,11 +251,95 @@ export interface RegistryWrite {
   data: Record<string, unknown>;
 }
 
+export interface IdentityBackfillPlan {
+  candidates: Array<{
+    account: BackfillAccountInput;
+    registration: PreparedIdentityRegistration;
+  }>;
+  writes: RegistryWrite[];
+  errors: string[];
+  counts: {
+    accounts: number;
+    missing: number;
+    exact: number;
+    invalid: number;
+    duplicateEmails: number;
+    conflicts: number;
+  };
+}
+
+export interface IdentityBackfillTransactionResult {
+  writes: RegistryWrite[];
+  created: number;
+  exact: number;
+}
+
+function validCanonicalIdentityId(value: string) {
+  const hasControlCharacter = Array.from(value).some((character) => {
+    const code = character.charCodeAt(0);
+    return code <= 31 || (code >= 127 && code <= 159);
+  });
+  return value.length > 0
+    && value === value.trim()
+    && !/[\s/\\]/.test(value)
+    && !hasControlCharacter;
+}
+
+function strictTimestamp(value: unknown) {
+  if (typeof value !== "string") return null;
+  const timestamp = Date.parse(value);
+  if (!Number.isFinite(timestamp) || new Date(timestamp).toISOString() !== value) return null;
+  return timestamp;
+}
+
 function exactRegistryRecord(
   value: Record<string, unknown> | null | undefined,
+  path: string,
   expected: Record<string, unknown>,
 ) {
-  return Object.entries(expected).every(([key, item]) => value?.[key] === item);
+  if (!value) return false;
+  const pathParts = path.split("/");
+  if (pathParts.length !== 2 || value.id !== pathParts[1]) return false;
+  const allowedKeys = ["id", ...Object.keys(expected)].sort();
+  const actualKeys = Object.keys(value).sort();
+  if (
+    actualKeys.length !== allowedKeys.length
+    || actualKeys.some((key, index) => key !== allowedKeys[index])
+  ) return false;
+  const stableExpected = Object.entries(expected).filter(([key]) => ![
+    "createdAt",
+    "updatedAt",
+  ].includes(key));
+  if (stableExpected.some(([key, item]) => value[key] !== item)) return false;
+  const createdAt = strictTimestamp(value.createdAt);
+  const updatedAt = strictTimestamp(value.updatedAt);
+  return createdAt !== null && updatedAt !== null && createdAt <= updatedAt;
+}
+
+export function identityBackfillTransactionPlan(
+  documents: Record<string, IdentityRegistryDocument>,
+  registration: PreparedIdentityRegistration,
+  now: string,
+): IdentityBackfillTransactionResult {
+  const expected = identityRegistrationWrites(
+    {},
+    registration,
+    now,
+    { allowNewExternalAccounts: false },
+  );
+  const writes: RegistryWrite[] = [];
+  let exact = 0;
+  for (const write of expected) {
+    const found = documents[write.path];
+    if (!found) {
+      writes.push(write);
+    } else if (exactRegistryRecord(found, write.path, write.data)) {
+      exact += 1;
+    } else {
+      throw new IdentityRegistryConflictError();
+    }
+  }
+  return { writes, created: writes.length, exact };
 }
 
 export async function planIdentityBackfill(
@@ -263,7 +347,7 @@ export async function planIdentityBackfill(
   existing: Record<string, Record<string, unknown> | null>,
   secret: string,
   now = new Date().toISOString(),
-) {
+): Promise<IdentityBackfillPlan> {
   const errors: string[] = [];
   const candidates: Array<{
     account: BackfillAccountInput;
@@ -274,10 +358,11 @@ export async function planIdentityBackfill(
   let duplicateEmails = 0;
   let conflicts = 0;
   let exact = 0;
+  let missing = 0;
 
   for (const account of accounts) {
     const email = normalizedVerifiedEmail(account.email);
-    if (!account.uid.trim() || !email) {
+    if (!validCanonicalIdentityId(account.uid) || !email) {
       invalid += 1;
       continue;
     }
@@ -318,15 +403,10 @@ export async function planIdentityBackfill(
     );
     for (const write of expected) {
       const found = existing[write.path];
-      const stableExpected = Object.fromEntries(
-        Object.entries(write.data).filter(([key]) => ![
-          "createdAt",
-          "updatedAt",
-        ].includes(key)),
-      );
       if (!found) {
         writes.push(write);
-      } else if (exactRegistryRecord(found, stableExpected)) {
+        missing += 1;
+      } else if (exactRegistryRecord(found, write.path, write.data)) {
         exact += 1;
       } else {
         conflicts += 1;
@@ -344,7 +424,7 @@ export async function planIdentityBackfill(
     errors,
     counts: {
       accounts: accounts.length,
-      missing: writes.length,
+      missing,
       exact,
       invalid,
       duplicateEmails,
@@ -361,6 +441,7 @@ export function identityIntentPathsToPrune(
 ) {
   const cutoff = now - IDENTITY_LINK_INTENT_RETENTION_MS;
   return records.flatMap((record) => {
+    if (!/^v1_[a-f0-9]{64}$/.test(record.id)) return [];
     const terminal = typeof record.usedAt === "string"
       ? Date.parse(record.usedAt)
       : typeof record.expiresAt === "string"

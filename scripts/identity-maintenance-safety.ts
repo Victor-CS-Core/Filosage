@@ -9,9 +9,20 @@ export function identityMaintenanceTarget(
     } catch {
       throw new Error("The PostgreSQL maintenance target is invalid.");
     }
-    const database = decodeURIComponent(parsed.pathname.replace(/^\//, ""));
-    const server = env.AZURE_POSTGRES_SERVER_NAME?.trim() || parsed.hostname;
-    if (!server || !database) {
+    if (!["postgres:", "postgresql:"].includes(parsed.protocol)) {
+      throw new Error("The PostgreSQL maintenance target uses an unsupported protocol.");
+    }
+    let database: string;
+    try {
+      database = decodeURIComponent(parsed.pathname.replace(/^\//, ""));
+    } catch {
+      throw new Error("The PostgreSQL maintenance target database is invalid.");
+    }
+    const server = parsed.hostname;
+    if (
+      !/^[A-Za-z0-9.-]+$/.test(server)
+      || !/^[A-Za-z0-9_.-]{1,128}$/.test(database)
+    ) {
       throw new Error("The PostgreSQL maintenance target is incomplete.");
     }
     return `postgres:${server}/${database}`;
