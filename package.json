@@ -23,6 +23,8 @@
     "check:support-wiki": "node scripts/check-support-wiki.mjs",
     "seed:local-carousel": "node --experimental-strip-types scripts/seed-local-carousel-courses.ts",
     "test:operations-alert": "node --experimental-strip-types scripts/test-operational-alert.ts",
+    "migrate:identity-links": "node --conditions=react-server --import tsx scripts/backfill-identity-links.ts",
+    "maintenance:identity-link-intents": "node --conditions=react-server --import tsx scripts/prune-identity-link-intents.ts",
     "migrate:azure:database": "node --experimental-strip-types scripts/migrate-azure-database.ts",
     "migrate:azure:export-courses": "node --experimental-strip-types scripts/export-firebase-authored-courses.ts",
     "migrate:azure:complete-courses": "node --experimental-strip-types scripts/complete-azure-course-bundle.ts",
@@ -43,6 +45,7 @@
     "react-dom": "^19.2.7",
     "react-markdown": "^10.1.0",
     "remark-gfm": "^4.0.1",
+    "server-only": "^0.0.1",
     "stripe": "^22.3.2",
     "zod": "^4.4.3"
   },
@@ -59,6 +62,7 @@
     "eslint-plugin-react-hooks": "^7.1.1",
     "globals": "^16.4.0",
     "oxlint": "^1.76.0",
+    "tsx": "^4.23.12",
     "typescript": "^5",
     "typescript-eslint": "^8.65.0"
   },

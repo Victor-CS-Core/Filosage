@@ -2,8 +2,10 @@ import "server-only";
 
 import { getStoredDocument } from "@/lib/firebase-server";
 import {
+  type BackfillAccountInput,
   canonicalIdentityFromRegistry,
   identityOnboardingStateFromRegistry,
+  planIdentityBackfill as planIdentityBackfillWithSecret,
   prepareIdentityRegistration as prepareIdentityRegistrationWithSecret,
   identityRegistryKeys as identityRegistryKeysWithSecret,
 } from "@/lib/identity-link-policy";
@@ -15,6 +17,7 @@ export {
   ExternalIdSignupUnavailableError,
   IdentityLinkRequiredError,
   IdentityRegistryConflictError,
+  identityIntentPathsToPrune,
   identityRegistrationWrites,
 } from "@/lib/identity-link-policy";
 export type { IdentityOnboardingState } from "@/lib/identity-link-policy";
@@ -38,6 +41,20 @@ export function configuredIdentityRegistryKeys(
 
 export function preparedIdentityRegistration(user: VerifiedUser, explicit?: string) {
   return prepareIdentityRegistrationWithSecret(user, requiredHmacSecret(explicit));
+}
+
+export function planIdentityBackfill(
+  accounts: BackfillAccountInput[],
+  existing: Record<string, Record<string, unknown> | null>,
+  explicit?: string,
+  now = new Date().toISOString(),
+) {
+  return planIdentityBackfillWithSecret(
+    accounts,
+    existing,
+    requiredHmacSecret(explicit),
+    now,
+  );
 }
 
 export async function resolveCanonicalIdentity(identity: VerifiedProviderIdentity) {

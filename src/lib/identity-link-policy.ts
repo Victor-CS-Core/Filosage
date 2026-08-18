@@ -1,4 +1,8 @@
-import type { VerifiedProviderIdentity, VerifiedUser } from "@/lib/identity-types";
+import {
+  DIRECT_GOOGLE_ISSUER,
+  type VerifiedProviderIdentity,
+  type VerifiedUser,
+} from "@/lib/identity-types";
 
 export const REGISTRY_KEY_VERSION = "v1" as const;
 
@@ -235,4 +239,135 @@ export function identityRegistrationWrites(
       },
     }] : []),
   ];
+}
+
+export interface BackfillAccountInput {
+  uid: string;
+  email: string;
+}
+
+export interface RegistryWrite {
+  path: string;
+  data: Record<string, unknown>;
+}
+
+function exactRegistryRecord(
+  value: Record<string, unknown> | null | undefined,
+  expected: Record<string, unknown>,
+) {
+  return Object.entries(expected).every(([key, item]) => value?.[key] === item);
+}
+
+export async function planIdentityBackfill(
+  accounts: BackfillAccountInput[],
+  existing: Record<string, Record<string, unknown> | null>,
+  secret: string,
+  now = new Date().toISOString(),
+) {
+  const errors: string[] = [];
+  const candidates: Array<{
+    account: BackfillAccountInput;
+    registration: PreparedIdentityRegistration;
+  }> = [];
+  const emailOwners = new Map<string, string>();
+  let invalid = 0;
+  let duplicateEmails = 0;
+  let conflicts = 0;
+  let exact = 0;
+
+  for (const account of accounts) {
+    const email = normalizedVerifiedEmail(account.email);
+    if (!account.uid.trim() || !email) {
+      invalid += 1;
+      continue;
+    }
+    const priorUid = emailOwners.get(email);
+    if (priorUid && priorUid !== account.uid) {
+      duplicateEmails += 1;
+      errors.push("Two existing accounts share one normalized verified email.");
+      continue;
+    }
+    emailOwners.set(email, account.uid);
+    const providerIdentity: VerifiedProviderIdentity = {
+      provider: "google",
+      issuer: DIRECT_GOOGLE_ISSUER,
+      subject: account.uid,
+      email,
+      emailVerified: true,
+    };
+    const user: VerifiedUser = {
+      uid: account.uid,
+      email,
+      email_verified: true,
+      providerIdentity,
+      identityLinkRegistered: false,
+    };
+    candidates.push({
+      account: { uid: account.uid, email },
+      registration: await prepareIdentityRegistration(user, secret),
+    });
+  }
+
+  const writes: RegistryWrite[] = [];
+  for (const { registration } of candidates) {
+    const expected = identityRegistrationWrites(
+      {},
+      registration,
+      now,
+      { allowNewExternalAccounts: false },
+    );
+    for (const write of expected) {
+      const found = existing[write.path];
+      const stableExpected = Object.fromEntries(
+        Object.entries(write.data).filter(([key]) => ![
+          "createdAt",
+          "updatedAt",
+        ].includes(key)),
+      );
+      if (!found) {
+        writes.push(write);
+      } else if (exactRegistryRecord(found, stableExpected)) {
+        exact += 1;
+      } else {
+        conflicts += 1;
+        errors.push(
+          "An existing identity registry record conflicts with the expected canonical UID.",
+        );
+      }
+    }
+  }
+
+  if (duplicateEmails || conflicts) writes.length = 0;
+  return {
+    candidates,
+    writes,
+    errors,
+    counts: {
+      accounts: accounts.length,
+      missing: writes.length,
+      exact,
+      invalid,
+      duplicateEmails,
+      conflicts,
+    },
+  };
+}
+
+export const IDENTITY_LINK_INTENT_RETENTION_MS = 30 * 24 * 60 * 60 * 1000;
+
+export function identityIntentPathsToPrune(
+  records: Array<{ id: string; expiresAt?: unknown; usedAt?: unknown }>,
+  now = Date.now(),
+) {
+  const cutoff = now - IDENTITY_LINK_INTENT_RETENTION_MS;
+  return records.flatMap((record) => {
+    const terminal = typeof record.usedAt === "string"
+      ? Date.parse(record.usedAt)
+      : typeof record.expiresAt === "string"
+        ? Date.parse(record.expiresAt)
+        : Number.NaN;
+    return Number.isFinite(terminal) && terminal <= cutoff
+      ? [`identityLinkIntents/${record.id}`]
+      : [];
+  });
 }
