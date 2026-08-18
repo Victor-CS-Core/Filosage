@@ -60,7 +60,7 @@ async function boundedJson(response: Response): Promise<CompletionResponse> {
       bytes.set(chunk, offset);
       offset += chunk.byteLength;
     }
-    const value: unknown = JSON.parse(new TextDecoder().decode(bytes));
+    const value: unknown = JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(bytes));
     if (!value || typeof value !== "object" || Array.isArray(value)) return {};
     const body = value as Record<string, unknown>;
     return {

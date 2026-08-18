@@ -684,6 +684,37 @@ test("completion page stops a chunked JSON response after 16 KiB", async ({ page
   );
 });
 
+test("completion page rejects malformed UTF-8 bytes that otherwise describe success", async ({ page }) => {
+  await page.addInitScript(() => {
+    const originalFetch = window.fetch.bind(window);
+    window.fetch = async (input, init) => {
+      const value = input instanceof Request ? input.url : String(input);
+      const url = new URL(value, window.location.origin);
+      if (url.pathname !== "/api/auth/link-intent/complete") return originalFetch(input, init);
+      const encoder = new TextEncoder();
+      return new Response(new ReadableStream<Uint8Array>({
+        start(controller) {
+          controller.enqueue(encoder.encode('{"linked":true,"padding":"'));
+          controller.enqueue(new Uint8Array([0xc3, 0x28]));
+          controller.enqueue(encoder.encode('","returnPath":"/profile"}'));
+          controller.close();
+        },
+      }), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      });
+    };
+  });
+
+  await page.goto("/auth/complete-link");
+  await expect(page.getByRole("heading", { name: "We could not connect that sign-in" })).toBeVisible();
+  await expect(page.locator("main").getByRole("alert")).toHaveText(
+    "The sign-in connection could not be completed.",
+  );
+  await expect(page.getByRole("link", { name: "Continue learning" })).toHaveCount(0);
+  await expect(page).toHaveURL(/\/auth\/complete-link$/);
+});
+
 test("completion page handles a failed completion fetch without leaking the exception", async ({ page }) => {
   await page.addInitScript(() => {
     const originalFetch = window.fetch.bind(window);
