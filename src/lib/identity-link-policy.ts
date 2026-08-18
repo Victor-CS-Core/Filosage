@@ -22,6 +22,17 @@ export class IdentityRegistryConflictError extends Error {
   }
 }
 
+export class IdentityBackfillTransactionConflictError extends IdentityRegistryConflictError {
+  readonly created = 0;
+
+  constructor(
+    readonly exact: number,
+    readonly conflicts: number,
+  ) {
+    super();
+  }
+}
+
 export class ExternalIdSignupUnavailableError extends Error {
   readonly code = "external_id_signup_unavailable";
 
@@ -329,6 +340,7 @@ export function identityBackfillTransactionPlan(
   );
   const writes: RegistryWrite[] = [];
   let exact = 0;
+  let conflicts = 0;
   for (const write of expected) {
     const found = documents[write.path];
     if (!found) {
@@ -336,9 +348,10 @@ export function identityBackfillTransactionPlan(
     } else if (exactRegistryRecord(found, write.path, write.data)) {
       exact += 1;
     } else {
-      throw new IdentityRegistryConflictError();
+      conflicts += 1;
     }
   }
+  if (conflicts) throw new IdentityBackfillTransactionConflictError(exact, conflicts);
   return { writes, created: writes.length, exact };
 }
 

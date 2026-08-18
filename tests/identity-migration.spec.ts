@@ -436,7 +436,82 @@ test("backfill apply reports actual created and race-to-exact registry counts", 
   expect(fake.state.writes).toEqual([]);
 });
 
-test("backfill apply fails closed on a transaction race to conflict", async () => {
+test("backfill apply reports exact and conflict document counts before aborting", async () => {
+  const source: BackfillAccountInput[] = [{ uid: "google-a", email: "sensitive@example.com" }];
+  const initial = await planIdentityBackfill(source, {}, secret, plannedAt);
+  const [identity, owner] = initial.writes;
+  const fake = fakeBackfillDependencies({
+    users: [{ id: "google-a", email: "sensitive@example.com" }],
+    transactionDocuments: {
+      [identity.path]: {
+        id: identity.path.split("/").at(-1),
+        ...identity.data,
+      },
+      [owner.path]: {
+        id: owner.path.split("/").at(-1),
+        ...owner.data,
+        canonicalUid: "other-user",
+      },
+    },
+  });
+
+  let failure: unknown;
+  try {
+    await backfillIdentityLinksMain(
+      ["--apply", "--missing-only", qaTargetArgument],
+      qaEnvironment,
+      fake.dependencies,
+    );
+  } catch (error) {
+    failure = error;
+  }
+  expect(String(failure)).toMatch(/conflict/i);
+  expect(fake.state.writes).toEqual([]);
+  expect(JSON.parse(fake.state.output.at(-1)!)).toEqual({
+    mode: "write",
+    created: 0,
+    exact: 1,
+    conflicts: 1,
+    completed: false,
+  });
+  for (const sensitive of ["google-a", "sensitive@example.com", "other-user", secret]) {
+    expect(String(failure)).not.toContain(sensitive);
+    expect(fake.state.output.join("\n")).not.toContain(sensitive);
+  }
+});
+
+test("backfill apply counts every conflicting document before aborting", async () => {
+  const source: BackfillAccountInput[] = [{ uid: "google-a", email: "sensitive@example.com" }];
+  const initial = await planIdentityBackfill(source, {}, secret, plannedAt);
+  const transactionDocuments = Object.fromEntries(initial.writes.map((write) => [
+    write.path,
+    {
+      id: write.path.split("/").at(-1),
+      ...write.data,
+      canonicalUid: "other-user",
+    },
+  ]));
+  const fake = fakeBackfillDependencies({
+    users: [{ id: "google-a", email: "sensitive@example.com" }],
+    transactionDocuments,
+  });
+
+  await expect(backfillIdentityLinksMain(
+    ["--apply", "--missing-only", qaTargetArgument],
+    qaEnvironment,
+    fake.dependencies,
+  )).rejects.toThrow(/conflict/i);
+  expect(fake.state.writes).toEqual([]);
+  expect(JSON.parse(fake.state.output.at(-1)!)).toEqual({
+    mode: "write",
+    created: 0,
+    exact: 0,
+    conflicts: 2,
+    completed: false,
+  });
+});
+
+test("backfill apply discards a pending missing write when its pair conflicts", async () => {
   const source: BackfillAccountInput[] = [{ uid: "google-a", email: "sensitive@example.com" }];
   const initial = await planIdentityBackfill(source, {}, secret, plannedAt);
   const [identity] = initial.writes;
@@ -457,7 +532,13 @@ test("backfill apply fails closed on a transaction race to conflict", async () =
     fake.dependencies,
   )).rejects.toThrow(/conflict/i);
   expect(fake.state.writes).toEqual([]);
-  expect(fake.state.output.join("\n")).toContain('"conflicts":1');
+  expect(JSON.parse(fake.state.output.at(-1)!)).toEqual({
+    mode: "write",
+    created: 0,
+    exact: 0,
+    conflicts: 1,
+    completed: false,
+  });
 });
 
 test("apply modes mutate only approved collections and output aggregates", async () => {

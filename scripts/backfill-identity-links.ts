@@ -2,9 +2,9 @@ import { resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import {
   type BackfillAccountInput,
+  IdentityBackfillTransactionConflictError,
   type IdentityBackfillPlan,
   type IdentityBackfillTransactionResult,
-  IdentityRegistryConflictError,
   identityBackfillTransactionPlan,
   type IdentityRegistryDocument,
   type RegistryWrite,
@@ -140,8 +140,10 @@ export async function backfillIdentityLinksMain(
       created += result.created;
       exact += result.exact;
     } catch (error) {
-      if (!(error instanceof IdentityRegistryConflictError)) throw error;
-      conflicts += 1;
+      if (!(error instanceof IdentityBackfillTransactionConflictError)) throw error;
+      created += error.created;
+      exact += error.exact;
+      conflicts += error.conflicts;
       dependencies.writeOutput(JSON.stringify({
         mode: "write",
         created,
