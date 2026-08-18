@@ -102,6 +102,34 @@ function localVerifiedUser(idToken: string): VerifiedUser | null {
       identityLinkRegistered: false,
     };
   }
+  // A UUID-bounded, local-mode-only fixture exercises the two real provider
+  // contracts without introducing a deployed authentication bypass.
+  const linkIdentity = /^playwright-link-(google|filosage)-([0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12})$/i.exec(idToken);
+  if (linkIdentity) {
+    const provider = linkIdentity[1].toLowerCase() as "google" | "filosage";
+    const runId = linkIdentity[2].toLowerCase();
+    const subject = `${provider}-${runId}`;
+    const email = `identity-link-${runId}@filosage.local`;
+    return {
+      uid: subject,
+      email,
+      email_verified: true,
+      auth_time,
+      name: "Identity Link Learner",
+      providerIdentity: {
+        provider,
+        issuer: provider === "google"
+          ? "https://accounts.google.com"
+          : "https://local-external-id.filosage.invalid/tenant/v2.0",
+        subject,
+        email,
+        emailVerified: true,
+        authTime: auth_time,
+        name: "Identity Link Learner",
+      },
+      identityLinkRegistered: false,
+    };
+  }
   return null;
 }
 

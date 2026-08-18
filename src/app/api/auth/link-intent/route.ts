@@ -11,11 +11,14 @@ import {
   createIdentityLinkIntent,
   LinkIntentError,
 } from "@/lib/identity-link-server";
+import {
+  IDENTITY_LINK_INTENT_COOKIE,
+  identityLinkCookieAttributes,
+} from "@/lib/identity-link-cookie";
+import { unexpectedIdentityLinkResponse } from "@/lib/identity-link-route-failure";
 import { enforceDurableRateLimit } from "@/lib/request-rate-limit";
 import { serverEnvironment } from "@/lib/runtime-environment";
 
-const INTENT_COOKIE = "filosage_identity_link_intent";
-const COMPLETE_PATH = "/api/auth/link-intent/complete";
 const COMPLETE_PAGE = "/auth/complete-link";
 const PRIVATE_NO_STORE = "private, no-store";
 
@@ -28,6 +31,16 @@ function deniedReason(error: LinkIntentError): AuthenticationEventReason {
   return error.reason === "invalid" ? "mapping_conflict" : error.reason;
 }
 
+function clearIntentCookie(response: NextResponse) {
+  response.cookies.set({
+    name: IDENTITY_LINK_INTENT_COOKIE,
+    value: "",
+    ...identityLinkCookieAttributes(serverEnvironment.NODE_ENV),
+    maxAge: 0,
+  });
+  return response;
+}
+
 function terminalLinkResponse(error: LinkIntentError) {
   const correlationId = crypto.randomUUID();
   recordAuthenticationEvent({
@@ -36,10 +49,10 @@ function terminalLinkResponse(error: LinkIntentError) {
     correlationId,
     reason: deniedReason(error),
   });
-  return NextResponse.json(
+  return clearIntentCookie(NextResponse.json(
     { error: error.message, correlationId },
     { status: 409, headers: { "Cache-Control": PRIVATE_NO_STORE } },
-  );
+  ));
 }
 
 export async function POST(request: Request) {
@@ -50,14 +63,6 @@ export async function POST(request: Request) {
       "Sign in again with your existing Google method before connecting a new sign-in.",
       "recent_authentication_required",
     );
-    const account = await getExistingAccount(user);
-    if (!account || !hasCurrentLegalAcceptance(account)) {
-      return NextResponse.json(
-        { error: "The secure connection could not be started." },
-        { status: 403, headers: { "Cache-Control": PRIVATE_NO_STORE } },
-      );
-    }
-
     const limited = await enforceDurableRateLimit(
       request,
       "identity-link-create",
@@ -66,6 +71,14 @@ export async function POST(request: Request) {
       user.uid,
     );
     if (limited) return privateNoStore(limited);
+
+    const account = await getExistingAccount(user);
+    if (!account || !hasCurrentLegalAcceptance(account)) {
+      return NextResponse.json(
+        { error: "The secure connection could not be started." },
+        { status: 403, headers: { "Cache-Control": PRIVATE_NO_STORE } },
+      );
+    }
 
     const returnPath = new URL(request.url).searchParams.get("return") ?? "/profile";
     const intent = await createIdentityLinkIntent(user, returnPath);
@@ -77,12 +90,9 @@ export async function POST(request: Request) {
       { headers: { "Cache-Control": PRIVATE_NO_STORE } },
     );
     response.cookies.set({
-      name: INTENT_COOKIE,
+      name: IDENTITY_LINK_INTENT_COOKIE,
       value: intent.token,
-      httpOnly: true,
-      secure: serverEnvironment.NODE_ENV === "production",
-      sameSite: "lax",
-      path: COMPLETE_PATH,
+      ...identityLinkCookieAttributes(serverEnvironment.NODE_ENV),
       maxAge: 600,
     });
     return response;
@@ -92,9 +102,6 @@ export async function POST(request: Request) {
     if (requestError) return privateNoStore(requestError);
     const authorizationError = authorizationResponse(error);
     if (authorizationError) return privateNoStore(authorizationError);
-    return NextResponse.json(
-      { error: "The secure connection could not be started." },
-      { status: 503, headers: { "Cache-Control": PRIVATE_NO_STORE } },
-    );
+    return unexpectedIdentityLinkResponse("The secure connection could not be started.");
   }
 }

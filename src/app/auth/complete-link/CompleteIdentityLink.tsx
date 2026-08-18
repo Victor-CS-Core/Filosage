@@ -3,11 +3,12 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import FilosageMark from "@/components/FilosageMark";
-import { safeAuthenticationReturnPath } from "@/lib/identity-link-policy";
+import { safeAuthenticationReturnPath } from "@/lib/auth-return-path";
 import styles from "./complete-link.module.css";
 
 const COMPLETE_PATH = "/api/auth/link-intent/complete";
 const REQUEST_TIMEOUT_MS = 10_000;
+const MAX_RESPONSE_BYTES = 16 * 1_024;
 const DEFAULT_ERROR = "The sign-in connection could not be completed.";
 const PUBLIC_ERRORS = new Set([
   DEFAULT_ERROR,
@@ -33,8 +34,33 @@ async function boundedJson(response: Response): Promise<CompletionResponse> {
   if (!response.headers.get("content-type")?.toLowerCase().includes("application/json")) {
     return {};
   }
+  const declaredLength = Number(response.headers.get("content-length") ?? 0);
+  if (Number.isFinite(declaredLength) && declaredLength > MAX_RESPONSE_BYTES) {
+    await response.body?.cancel();
+    return {};
+  }
   try {
-    const value: unknown = await response.json();
+    const reader = response.body?.getReader();
+    if (!reader) return {};
+    const chunks: Uint8Array[] = [];
+    let size = 0;
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      size += value.byteLength;
+      if (size > MAX_RESPONSE_BYTES) {
+        await reader.cancel();
+        return {};
+      }
+      chunks.push(value);
+    }
+    const bytes = new Uint8Array(size);
+    let offset = 0;
+    for (const chunk of chunks) {
+      bytes.set(chunk, offset);
+      offset += chunk.byteLength;
+    }
+    const value: unknown = JSON.parse(new TextDecoder().decode(bytes));
     if (!value || typeof value !== "object" || Array.isArray(value)) return {};
     const body = value as Record<string, unknown>;
     return {

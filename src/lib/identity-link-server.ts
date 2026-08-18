@@ -52,6 +52,18 @@ function configuredOpaqueIdentityKey(scope: string, value: string, explicit?: st
   return opaqueIdentityKey(scope, value, requiredHmacSecret(explicit));
 }
 
+export function configuredOpaqueProviderIdentityKey(
+  scope: string,
+  identity: VerifiedProviderIdentity,
+  explicit?: string,
+) {
+  return configuredOpaqueIdentityKey(
+    scope,
+    JSON.stringify([identity.provider, identity.issuer, identity.subject]),
+    explicit,
+  );
+}
+
 function configuredLinkIntentPath(token: string, explicit?: string) {
   return linkIntentPath(token, requiredHmacSecret(explicit));
 }

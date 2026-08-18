@@ -14,7 +14,8 @@ export type AuthenticationEventReason =
   | "replayed"
   | "email_mismatch"
   | "mapping_conflict"
-  | "recent_auth_missing";
+  | "recent_auth_missing"
+  | "internal_error";
 
 export interface AuthenticationAuditEvent {
   code: AuthenticationEventCode;
@@ -37,6 +38,7 @@ const EVENT_REASONS = new Set<AuthenticationEventReason>([
   "email_mismatch",
   "mapping_conflict",
   "recent_auth_missing",
+  "internal_error",
 ]);
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const HMAC_KEY = /^[a-f0-9]{64}$/;

@@ -14,8 +14,12 @@ function numberValue(value: unknown) {
   return typeof value === "number" && Number.isFinite(value) ? value : 0;
 }
 
-function requestIdentity(request: Request, accountUid?: string) {
-  if (accountUid) return `account:${accountUid}`;
+function requestIdentity(
+  request: Request,
+  callerKey?: string,
+  callerScope: "account" | "identity" = "account",
+) {
+  if (callerKey) return `${callerScope}:${callerKey}`;
   // The runtime proxy owns forwarded client-address headers. Never trust
   // caller-controlled forwarding headers in production. x-real-ip remains a
   // local/reverse-proxy convenience outside production only.
@@ -60,11 +64,12 @@ export async function enforceDurableRateLimit(
   namespace: string,
   limit: number,
   windowMs = 60_000,
-  accountUid?: string,
+  callerKey?: string,
+  callerScope: "account" | "identity" = "account",
 ) {
   try {
     const now = Date.now();
-    const identity = requestIdentity(request, accountUid);
+    const identity = requestIdentity(request, callerKey, callerScope);
     const [globalId, callerId] = await Promise.all([
       opaqueDocumentId(`global:${namespace}`),
       opaqueDocumentId(`caller:${namespace}:${identity}`),
@@ -96,7 +101,7 @@ export async function enforceDurableRateLimit(
               path: callerPath,
               data: {
                 namespace,
-                scope: accountUid ? "account" : "client",
+                scope: callerKey ? callerScope : "client",
                 ...callerBucket,
                 expiresAt,
                 updatedAt: new Date(now).toISOString(),
