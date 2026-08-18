@@ -11,6 +11,10 @@ interface EasyAuthPrincipal {
   claims?: unknown;
 }
 
+function isEasyAuthClaim(value: unknown): value is EasyAuthClaim {
+  return value !== null && typeof value === "object" && !Array.isArray(value);
+}
+
 function decodedPrincipal(value: string): EasyAuthPrincipal | null {
   try {
     const decoded = Buffer.from(value, "base64").toString("utf8");
@@ -49,7 +53,10 @@ export function easyAuthIdentityFromHeaders(
   if (!encoded) return null;
   const principal = decodedPrincipal(encoded);
   if (!principal) return null;
-  const claims = Array.isArray(principal.claims) ? principal.claims as EasyAuthClaim[] : [];
+  if (principal.claims !== undefined && (
+    !Array.isArray(principal.claims) || !principal.claims.every(isEasyAuthClaim)
+  )) return null;
+  const claims = principal.claims ?? [];
   const headerProvider = headers.get("x-ms-client-principal-idp")?.trim().toLowerCase();
   const bodyProvider = String(principal.auth_typ ?? "").trim().toLowerCase();
   if (!headerProvider || !bodyProvider || headerProvider !== bodyProvider) return null;

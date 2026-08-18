@@ -2,6 +2,7 @@ import { authenticationRuntimeConfiguration } from "@/lib/auth-runtime";
 import "server-only";
 
 import { easyAuthIdentityFromHeaders } from "@/lib/easy-auth-principal";
+import { verifiedEasyAuthUserFromProviderIdentity } from "@/lib/easy-auth-user";
 import type { VerifiedProviderIdentity, VerifiedUser } from "@/lib/identity-types";
 import { isLocalMode, LOCAL_OWNER_EMAIL, LOCAL_OWNER_UID } from "@/lib/local-mode";
 import { serverEnvironment } from "@/lib/runtime-environment";
@@ -85,23 +86,8 @@ export function verifiedEasyAuthIdentity(request: Request): VerifiedProviderIden
   return easyAuthIdentityFromHeaders(request.headers, authenticationRuntimeConfiguration());
 }
 
-/**
- * Temporary compatibility bridge until Task 2 resolves every provider identity
- * through the canonical identity-link registry. External ID remains fail-closed.
- */
 export function verifiedEasyAuthUser(request: Request): VerifiedUser | null {
-  const providerIdentity = verifiedEasyAuthIdentity(request);
-  if (!providerIdentity || providerIdentity.provider !== "google") return null;
-  return {
-    uid: providerIdentity.subject,
-    email: providerIdentity.email,
-    email_verified: true,
-    auth_time: providerIdentity.authTime,
-    name: providerIdentity.name,
-    picture: providerIdentity.picture,
-    providerIdentity,
-    identityLinkRegistered: true,
-  };
+  return verifiedEasyAuthUserFromProviderIdentity(verifiedEasyAuthIdentity(request));
 }
 
 export async function verifyProviderIdentity(idToken: string): Promise<VerifiedProviderIdentity | null> {
