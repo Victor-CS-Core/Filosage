@@ -83,6 +83,8 @@ interface DragVelocitySample {
   offset: number;
   time: number;
   velocity: number;
+  startOffset: number;
+  startTime: number;
 }
 
 interface CourseDeckCardProps {
@@ -122,6 +124,7 @@ const DECK_SPIN_EASE = [0.45, 0, 0.55, 1] as const;
 const DECK_HANDOFF_PROGRESS = 0.46;
 const INERTIA_PROJECTION_SECONDS = 0.18;
 const EXTRA_CYCLE_MIN_VELOCITY = 4_000;
+const EXTRA_CYCLE_MIN_AVERAGE_VELOCITY = 2_400;
 const EXTRA_CYCLE_MIN_DISTANCE_PX = 64;
 const EXTRA_CYCLE_MIN_DISTANCE_RATIO = 0.2;
 const EXTRA_CYCLE_PROJECTED_TRAVEL_RATIO = 1.35;
@@ -571,7 +574,13 @@ export default function CourseDeck({ items, firstName, canCreateCourses }: Cours
   ) => {
     if (motionStateRef.current !== "idle") return;
     dragPointerIdRef.current = pointerId;
-    dragVelocitySampleRef.current = { offset: dragX.get(), time: eventTime, velocity: 0 };
+    dragVelocitySampleRef.current = {
+      offset: dragX.get(),
+      time: eventTime,
+      velocity: 0,
+      startOffset: dragX.get(),
+      startTime: eventTime,
+    };
     updateMotionState("dragging", null);
   }, [dragX, updateMotionState]);
 
@@ -587,6 +596,8 @@ export default function CourseDeck({ items, firstName, canCreateCourses }: Cours
       offset: info.offset.x,
       time: eventTime,
       velocity: arbitrateCourseDeckDragVelocity(previousVelocity, sampledVelocity, info.velocity.x),
+      startOffset: previousSample?.startOffset ?? 0,
+      startTime: previousSample?.startTime ?? eventTime,
     };
     dragX.set(info.offset.x);
     if (Math.abs(info.offset.x) < 3) return;
@@ -624,7 +635,12 @@ export default function CourseDeck({ items, firstName, canCreateCourses }: Cours
     const releaseDistance = Math.abs(releaseOffset);
     const projectedTravel = releaseDistance + (Math.abs(effectiveVelocity) * INERTIA_PROJECTION_SECONDS);
     const extraCycleDistance = Math.max(EXTRA_CYCLE_MIN_DISTANCE_PX, geometry.cardWidth * EXTRA_CYCLE_MIN_DISTANCE_RATIO);
+    const gestureDurationMs = velocitySample ? Math.max(1, releaseTime - velocitySample.startTime) : Number.POSITIVE_INFINITY;
+    const averageGestureVelocity = velocitySample
+      ? (Math.abs(releaseOffset - velocitySample.startOffset) / gestureDurationMs) * 1_000
+      : 0;
     const hasDeliberateExtraCycleForce = Math.abs(effectiveVelocity) >= EXTRA_CYCLE_MIN_VELOCITY
+      && averageGestureVelocity >= EXTRA_CYCLE_MIN_AVERAGE_VELOCITY
       && releaseDistance >= extraCycleDistance
       && projectedTravel >= travel * EXTRA_CYCLE_PROJECTED_TRAVEL_RATIO;
     const maxCycles = Math.min(MAX_INERTIAL_CYCLES, items.length - 1);

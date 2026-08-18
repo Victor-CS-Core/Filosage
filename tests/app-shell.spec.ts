@@ -806,9 +806,10 @@ test.describe("desktop application shell", () => {
       const spinY = spinBox.y + Math.min(spinBox.height * 0.35, 190);
       await page.mouse.move(spinStartX, spinY);
       await page.mouse.down();
-      await page.mouse.move(spinStartX + 18, spinY);
-      await page.waitForTimeout(8);
-      await page.mouse.move(spinStartX + 90, spinY);
+      for (let step = 1; step <= 6; step += 1) {
+        await page.mouse.move(spinStartX + ((spinBox.width * 0.3 * step) / 6), spinY);
+        await page.waitForTimeout(28);
+      }
       await page.mouse.up();
       await expect(page.locator(".course-deck-viewport")).toHaveAttribute("data-direction", "previous");
       await waitForDeckToSettle(page);
@@ -828,7 +829,7 @@ test.describe("desktop application shell", () => {
       await page.mouse.down();
       await page.mouse.move(forceStartX + 60, forceY);
       await page.waitForTimeout(8);
-      await page.mouse.move(forceStartX + (forceBox.width * 0.48), forceY);
+      await page.mouse.move(forceStartX + (forceBox.width * 0.88), forceY);
       await page.mouse.up();
       await expect(page.locator(".course-deck-viewport")).toHaveAttribute("data-direction", "previous");
       await waitForDeckToSettle(page);
