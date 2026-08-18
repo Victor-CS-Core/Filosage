@@ -2,7 +2,7 @@
 
 **Date:** 2026-08-18
 
-**Status:** Approved design; written-spec review pending
+**Status:** Approved by Victor for implementation planning on 2026-08-18
 
 **Project:** Filosage
 
@@ -289,7 +289,8 @@ Client and server logs use stable internal error codes and correlation identifie
 
 ### 8.2 New focused components
 
-- `src/lib/identity-link-server.ts`: HMAC identity keys, email ownership, canonical resolution, initialization, and link transactions.
+- `src/lib/identity-link-policy.ts`: deterministic HMAC-key, ownership, registration, retention, and link-intent rules without datastore or runtime imports.
+- `src/lib/identity-link-server.ts`: configured key adapters, canonical resolution, initialization, link-intent I/O, and link transactions.
 - `src/app/api/auth/link-intent/route.ts`: authenticated, throttled linking-intent creation.
 - `src/app/api/auth/link-intent/complete/route.ts`: same-origin POST completion and transactional intent consumption.
 - `src/app/auth/complete-link/page.tsx`: accessible completion and recovery UI.
