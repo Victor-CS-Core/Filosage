@@ -7,7 +7,11 @@ import { estimateAiUsageCostMicros, summarizeAiUsage } from "../src/lib/ai-prici
 import { curateLessonVisuals } from "../src/lib/lesson-visuals";
 import { curateLessonInteractions, deriveLessonInteractions } from "../src/lib/lesson-interactions";
 import { removeCourseReferences } from "../src/lib/course-deletion";
-import { buildCourseBannerPrompt } from "../src/lib/course-banner-prompt";
+import {
+  buildCourseBannerPrompt,
+  courseBannerFingerprintMaterial,
+  COURSE_BANNER_STYLE_VERSION,
+} from "../src/lib/course-banner-prompt";
 import {
   deriveObjectiveMastery,
   explainPlan,
@@ -1703,22 +1707,42 @@ test("shows guests the course structure but never delivers lesson content", asyn
   expect(lessonRequests).toBe(0);
 });
 
-test("keeps generated course banners simple and text-free", () => {
-  const prompt = buildCourseBannerPrompt({
-    topic: "Retirement planning",
-    category: "Personal finance",
-  });
+test("builds recognizable tactile course banners from the complete course meaning", () => {
+  const input = {
+    topic: "Decode the Night Sky",
+    category: "Astronomy and outdoor observation",
+    outcome: "Orient with a sky map and explain visible change using Earth motion.",
+    mission: "Build an annotated observation plan for a real evening sky session.",
+  };
+  const prompt = buildCourseBannerPrompt(input);
 
-  expect(prompt).toContain("one abstract relationship");
+  expect(COURSE_BANNER_STYLE_VERSION).toBe(5);
+  expect(prompt).toContain(input.outcome);
+  expect(prompt).toContain(input.mission);
+  expect(prompt).toContain("recognizable subject anchor");
+  expect(prompt).toContain("relationship motif");
   expect(prompt).toContain("museum-exhibition geometry");
   expect(prompt).toContain("large circles, partial discs, arcs, fine axes");
   expect(prompt).toContain("deep midnight navy");
   expect(prompt).toContain("partially covered deck card");
+  expect(prompt).toContain("no more than seven major shapes");
   expect(prompt).toContain("Absolute text ban");
-  expect(prompt).toContain("currency symbols");
-  expect(prompt).toContain("Do not use detailed charts, calendars");
-  expect(prompt).not.toContain("Learning outcome:");
-  expect(prompt).not.toContain("Course focus:");
+  expect(prompt).not.toContain("Topic to suggest visually");
+});
+
+test("changes banner identity when the course meaning or visual variant changes", () => {
+  const base = {
+    topic: "Systems thinking",
+    category: "Decision making",
+    outcome: "Map a feedback loop.",
+    mission: "Build an intervention brief.",
+  };
+  const identity = courseBannerFingerprintMaterial(base, 0);
+
+  expect(courseBannerFingerprintMaterial({ ...base, outcome: "Compare two feedback loops." }, 0)).not.toBe(identity);
+  expect(courseBannerFingerprintMaterial({ ...base, mission: "Build a diagnostic memo." }, 0)).not.toBe(identity);
+  expect(courseBannerFingerprintMaterial(base, 1)).not.toBe(identity);
+  expect(courseBannerFingerprintMaterial({ ...base }, 0)).toBe(identity);
 });
 
 test("removes every learner-state reference linked to a deleted course", () => {

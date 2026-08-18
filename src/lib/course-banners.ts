@@ -12,6 +12,7 @@ import {
 } from "@/lib/course-banner-storage";
 import {
   buildCourseBannerPrompt,
+  courseBannerFingerprintMaterial,
   COURSE_BANNER_STYLE_VERSION,
 } from "@/lib/course-banner-prompt";
 import { serverEnvironment } from "@/lib/runtime-environment";
@@ -36,10 +37,6 @@ export interface CourseBannerResult {
   generated: boolean;
   model: string;
   costMicros: number;
-}
-
-function normalized(value: string | undefined) {
-  return value?.trim().replace(/\s+/g, " ") ?? "";
 }
 
 async function sha256(value: string) {
@@ -107,12 +104,7 @@ export async function createOrReuseCourseBanner(
   if (!isEnabled()) return null;
 
   const model = serverEnvironment.OPENAI_COURSE_IMAGE_MODEL?.trim() || DEFAULT_MODEL;
-  const fingerprint = await sha256([
-    STYLE_VERSION,
-    input.variant ?? 0,
-    normalized(input.topic).toLowerCase(),
-    normalized(input.category).toLowerCase(),
-  ].join("|"));
+  const fingerprint = await sha256(courseBannerFingerprintMaterial(input, input.variant ?? 0));
   const keyPath = `courseBannerKeys/${fingerprint}`;
   const assetId = fingerprint.slice(0, 32);
   const claimId = crypto.randomUUID();
