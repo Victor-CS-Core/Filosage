@@ -98,9 +98,10 @@ export function canonicalIdentityFromRegistry(
     throw new IdentityRegistryConflictError();
   }
   if (link === null) return canonicalUser(identity, identity.subject, false);
-  const canonicalUid = typeof link?.canonicalUid === "string" ? link.canonicalUid.trim() : "";
+  const canonicalUid = typeof link?.canonicalUid === "string" ? link.canonicalUid : "";
   if (
-    !canonicalUid
+    !canonicalUid.trim()
+    || canonicalUid !== canonicalUid.trim()
     || link.keyVersion !== REGISTRY_KEY_VERSION
     || link.identityHash !== keys.identityHash
   ) {
@@ -117,11 +118,10 @@ export function identityOnboardingStateFromRegistry(
   account: IdentityRegistryDocument,
   emailOwner: IdentityRegistryDocument,
 ): IdentityOnboardingState {
-  const ownerUid = typeof emailOwner?.canonicalUid === "string"
-    ? emailOwner.canonicalUid.trim()
-    : "";
+  const ownerUid = typeof emailOwner?.canonicalUid === "string" ? emailOwner.canonicalUid : "";
   if (emailOwner !== null && (
-    !ownerUid
+    !ownerUid.trim()
+    || ownerUid !== ownerUid.trim()
     || emailOwner.keyVersion !== REGISTRY_KEY_VERSION
     || emailOwner.emailHash !== keys.emailHash
   )) {
@@ -174,13 +174,12 @@ export function identityRegistrationWrites(
 ) {
   const link = documents[registration.identityPath] ?? null;
   const emailOwner = documents[registration.emailPath] ?? null;
-  const linkedUid = typeof link?.canonicalUid === "string" ? link.canonicalUid.trim() : "";
-  const ownerUid = typeof emailOwner?.canonicalUid === "string"
-    ? emailOwner.canonicalUid.trim()
-    : "";
+  const linkedUid = typeof link?.canonicalUid === "string" ? link.canonicalUid : "";
+  const ownerUid = typeof emailOwner?.canonicalUid === "string" ? emailOwner.canonicalUid : "";
 
   if (link !== null && (
-    !linkedUid
+    !linkedUid.trim()
+    || linkedUid !== linkedUid.trim()
     || linkedUid !== registration.canonicalUid
     || link.keyVersion !== REGISTRY_KEY_VERSION
     || link.identityHash !== registration.identityHash
@@ -188,7 +187,8 @@ export function identityRegistrationWrites(
     throw new IdentityRegistryConflictError();
   }
   if (emailOwner !== null && (
-    !ownerUid
+    !ownerUid.trim()
+    || ownerUid !== ownerUid.trim()
     || emailOwner.keyVersion !== REGISTRY_KEY_VERSION
     || emailOwner.emailHash !== registration.emailHash
   )) {

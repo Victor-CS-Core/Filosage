@@ -81,6 +81,27 @@ function localVerifiedUser(idToken: string): VerifiedUser | null {
       "Same-email Learner",
     );
   }
+  if (idToken === "playwright-external-signup-disabled") {
+    const uid = "local-external-signup-disabled";
+    const email = "external-signup-disabled@filosage.local";
+    return {
+      uid,
+      email,
+      email_verified: true,
+      auth_time,
+      name: "External signup disabled",
+      providerIdentity: {
+        provider: "filosage",
+        issuer: "https://local-external-id.filosage.invalid/tenant/v2.0",
+        subject: uid,
+        email,
+        emailVerified: true,
+        authTime: auth_time,
+        name: "External signup disabled",
+      },
+      identityLinkRegistered: false,
+    };
+  }
   return null;
 }
 

@@ -112,6 +112,7 @@ test("present identity mappings fail closed when canonical UID or key metadata i
   const corruptLinks = [
     { keyVersion: "v1", identityHash: keys.identityHash },
     { canonicalUid: " ", keyVersion: "v1", identityHash: keys.identityHash },
+    { canonicalUid: " existing-google-uid ", keyVersion: "v1", identityHash: keys.identityHash },
     { canonicalUid: "existing-google-uid", keyVersion: "v2", identityHash: keys.identityHash },
     { canonicalUid: "existing-google-uid", keyVersion: "v1", identityHash: "wrong-hash" },
   ];
@@ -149,6 +150,7 @@ test("onboarding fails closed for malformed or conflicting email-owner documents
   const corruptOwners = [
     { keyVersion: "v1", emailHash: keys.emailHash },
     { canonicalUid: " ", keyVersion: "v1", emailHash: keys.emailHash },
+    { canonicalUid: ` ${user.uid} `, keyVersion: "v1", emailHash: keys.emailHash },
     { canonicalUid: user.uid, keyVersion: "v2", emailHash: keys.emailHash },
     { canonicalUid: user.uid, keyVersion: "v1", emailHash: "wrong-hash" },
   ];
@@ -247,6 +249,7 @@ test("registration fails closed for every malformed present registry document", 
   const corruptLinks = [
     { keyVersion: "v1", identityHash: registration.identityHash },
     { canonicalUid: " ", keyVersion: "v1", identityHash: registration.identityHash },
+    { canonicalUid: ` ${registration.canonicalUid} `, keyVersion: "v1", identityHash: registration.identityHash },
     { canonicalUid: "different-canonical-uid", keyVersion: "v1", identityHash: registration.identityHash },
     { canonicalUid: registration.canonicalUid, keyVersion: "v2", identityHash: registration.identityHash },
     { canonicalUid: registration.canonicalUid, keyVersion: "v1", identityHash: "wrong-hash" },
@@ -254,6 +257,7 @@ test("registration fails closed for every malformed present registry document", 
   const corruptOwners = [
     { keyVersion: "v1", emailHash: registration.emailHash },
     { canonicalUid: " ", keyVersion: "v1", emailHash: registration.emailHash },
+    { canonicalUid: ` ${registration.canonicalUid} `, keyVersion: "v1", emailHash: registration.emailHash },
     { canonicalUid: registration.canonicalUid, keyVersion: "v2", emailHash: registration.emailHash },
     { canonicalUid: registration.canonicalUid, keyVersion: "v1", emailHash: "wrong-hash" },
   ];
