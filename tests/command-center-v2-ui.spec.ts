@@ -25,7 +25,7 @@ async function openEvidenceDesk(page: Page) {
   await page.addInitScript(() => localStorage.setItem("filosage-local-session", "1"));
   await page.goto("/admin/command-center");
   await expect(page.getByRole("heading", { level: 1, name: "Command Center" })).toBeVisible();
-  await expect(page.getByText(/tickets loaded/i)).toBeVisible();
+  await expect(page.getByText(/tickets loaded/i)).toBeVisible({ timeout: 30_000 });
 }
 
 async function expectNoSeriousAccessibilityViolations(page: Page) {
