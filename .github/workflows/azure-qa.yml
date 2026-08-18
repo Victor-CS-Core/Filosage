@@ -56,6 +56,8 @@ jobs:
             --build-arg "NEXT_PUBLIC_SITE_URL=https://filosage.com" \
             --build-arg "NEXT_PUBLIC_COMMAND_CENTER_V2=true" \
             --build-arg "SITE_VERSION=${GITHUB_SHA}" \
+            --build-arg "FLASHCARD_DECKS_ENABLED=true" \
+            --build-arg "FLASHCARD_AI_GENERATION_ENABLED=true" \
             .
           docker push "$IMAGE"
 
@@ -73,6 +75,9 @@ jobs:
             --name "${{ vars.AZURE_QA_CONTAINER_APP_NAME }}" \
             --image "$IMAGE" \
             --revision-suffix "qa-${GITHUB_SHA:0:8}-${GITHUB_RUN_ATTEMPT}" \
+            --remove-env-vars \
+              "FLASHCARD_DECKS_ENABLED" \
+              "FLASHCARD_AI_GENERATION_ENABLED" \
             --set-env-vars \
               "SITE_VERSION=${GITHUB_SHA}" \
               "NEXT_PUBLIC_SITE_URL=${QA_URL}" \
@@ -81,8 +86,6 @@ jobs:
               "DEPLOYMENT_SLOT=qa" \
               "OPERATIONS_ENVIRONMENT=qa" \
               "AZURE_EASY_AUTH_ENABLED=true" \
-              "FLASHCARD_DECKS_ENABLED=true" \
-              "FLASHCARD_AI_GENERATION_ENABLED=true" \
               "BILLING_ENABLED=false"
 
       - name: Verify isolated QA candidate

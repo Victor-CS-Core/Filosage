@@ -101,6 +101,8 @@ jobs:
             "ENTRA_DIRECTORY_TENANT_ID"
             "ENTRA_DIRECTORY_CLIENT_ID"
             "ENTRA_DIRECTORY_CLIENT_SECRET"
+            "FLASHCARD_DECKS_ENABLED"
+            "FLASHCARD_AI_GENERATION_ENABLED"
           )
           SET_ENV_VARS=(
             "SITE_VERSION=${EXPECTED_SHA}"
@@ -108,8 +110,6 @@ jobs:
             "DEPLOYMENT_ENVIRONMENT=production"
             "OPERATIONS_ENVIRONMENT=azure-staging"
             "AZURE_EASY_AUTH_ENABLED=true"
-            "FLASHCARD_DECKS_ENABLED=true"
-            "FLASHCARD_AI_GENERATION_ENABLED=true"
             "BILLING_ENABLED=false"
             "DEPLOYMENT_SLOT=${TARGET_SLOT}"
           )

@@ -26,7 +26,15 @@ if (expectedOriginInput) {
 }
 
 const healthUrl = new URL("/api/health", target).toString();
-const attempts = 12;
+function boundedInteger(value, fallback, minimum, maximum) {
+  const normalized = (value || "").trim();
+  if (!/^\d+$/.test(normalized)) return fallback;
+  const parsed = Number(normalized);
+  return Number.isSafeInteger(parsed) && parsed >= minimum && parsed <= maximum ? parsed : fallback;
+}
+
+const attempts = boundedInteger(process.env.FILOSAGE_HEALTH_CHECK_ATTEMPTS, 12, 1, 60);
+const retryDelayMs = boundedInteger(process.env.FILOSAGE_HEALTH_CHECK_DELAY_MS, 10_000, 0, 60_000);
 let lastFailure = "unknown error";
 for (let attempt = 1; attempt <= attempts; attempt += 1) {
   const controller = new AbortController();
@@ -38,7 +46,15 @@ for (let attempt = 1; attempt <= attempts; attempt += 1) {
     });
     const body = await response.json().catch(() => null);
     const originMatches = !expectedOrigin || body?.origin === expectedOrigin;
-    if (response.ok && body?.ok === true && body?.checks?.datastore === true && body?.version === expectedVersion && originMatches) {
+    if (
+      response.ok
+      && body?.ok === true
+      && body?.checks?.datastore === true
+      && body?.checks?.flashcardDecks === true
+      && body?.checks?.flashcardGeneration === true
+      && body?.version === expectedVersion
+      && originMatches
+    ) {
       console.log(`Production health is healthy (version ${body.version}).`);
       process.exit(0);
     }
@@ -46,13 +62,21 @@ for (let attempt = 1; attempt <= attempts; attempt += 1) {
       ? `version mismatch: expected ${expectedVersion}, received ${body.version}`
       : expectedOrigin && body?.origin !== expectedOrigin
         ? `origin mismatch: expected ${expectedOrigin}, received ${body?.origin ?? "none"}`
-        : `health endpoint returned ${response.status}`;
+        : body?.checks?.flashcardDecks === false
+          ? "flashcard decks are disabled at runtime"
+          : body?.checks?.flashcardDecks !== true
+            ? "flashcard deck runtime status is missing"
+            : body?.checks?.flashcardGeneration === false
+              ? "flashcard AI generation is disabled at runtime"
+              : body?.checks?.flashcardGeneration !== true
+                ? "flashcard AI generation runtime status is missing"
+                : `health endpoint returned ${response.status}`;
   } catch (error) {
     lastFailure = error instanceof Error ? error.message : "unknown error";
   } finally {
     clearTimeout(timeout);
   }
-  if (attempt < attempts) await new Promise((resolve) => setTimeout(resolve, 10_000));
+  if (attempt < attempts) await new Promise((resolve) => setTimeout(resolve, retryDelayMs));
 }
 console.error(`Production health check failed after ${attempts} attempts: ${lastFailure}`);
 process.exit(1);

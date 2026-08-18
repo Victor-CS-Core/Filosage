@@ -1,10 +1,12 @@
 import { missingRuntimeConfiguration } from "@/lib/runtime-config";
 import { getStoredDocument } from "@/lib/firebase-server";
+import { flashcardFeatureConfiguration } from "@/lib/flashcard-feature";
 import { reportOperationalEvent } from "@/lib/operational-alerts";
 import { serverEnvironment } from "@/lib/runtime-environment";
 
 export async function GET() {
   const missing = missingRuntimeConfiguration();
+  const flashcards = flashcardFeatureConfiguration();
   const version = (
     serverEnvironment.SITE_VERSION
     || serverEnvironment.CF_PAGES_COMMIT_SHA
@@ -41,7 +43,17 @@ export async function GET() {
     }
   })();
   return Response.json(
-    { ok, version, origin, checks: { configuration: missing.length === 0, datastore: datastoreOk } },
+    {
+      ok,
+      version,
+      origin,
+      checks: {
+        configuration: missing.length === 0,
+        datastore: datastoreOk,
+        flashcardDecks: flashcards.decksEnabled,
+        flashcardGeneration: flashcards.generationEnabled,
+      },
+    },
     {
       status: ok ? 200 : 503,
       headers: {

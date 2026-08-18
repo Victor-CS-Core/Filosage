@@ -28,7 +28,7 @@ test("recommended deck sizes stay bounded by study scope", () => {
   expect(generatedCardTarget("course", "comprehensive")).toBe(24);
 });
 
-test("production rollout remains off while generation accounting stays retry-safe", () => {
+test("local sample configuration stays fail-closed while generation accounting stays retry-safe", () => {
   const environment = source(".env.example");
   const route = source("src/app/api/flashcards/generate/route.ts");
   const usage = source("src/lib/ai-usage.ts");

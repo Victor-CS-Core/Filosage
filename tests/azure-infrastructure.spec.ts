@@ -173,15 +173,35 @@ test("isolated QA scales to zero and keeps its data stores separate", () => {
   expect(proxySourceWithQa).toContain('X-Robots-Tag');
 });
 
-test("QA and production staging explicitly enable the approved flashcard release", () => {
-  expect(qaWorkflowSource).toContain('"FLASHCARD_DECKS_ENABLED=true"');
-  expect(qaWorkflowSource).toContain('"FLASHCARD_AI_GENERATION_ENABLED=true"');
-  expect(qaBicepSource).toContain("FLASHCARD_DECKS_ENABLED', value: 'true'");
-  expect(qaBicepSource).toContain("FLASHCARD_AI_GENERATION_ENABLED', value: 'true'");
-  expect(stagingWorkflowSource).toContain('"FLASHCARD_DECKS_ENABLED=true"');
-  expect(stagingWorkflowSource).toContain('"FLASHCARD_AI_GENERATION_ENABLED=true"');
-  expect(azureBicepSource).toContain("FLASHCARD_DECKS_ENABLED', value: 'true'");
-  expect(azureBicepSource).toContain("FLASHCARD_AI_GENERATION_ENABLED', value: 'true'");
+test("the immutable Azure image owns the approved flashcard release and runtime health gates it", () => {
+  const builderStage = dockerfileSource.split("FROM dependencies AS builder")[1]?.split("FROM dependencies AS production-dependencies")[0] || "";
+  const runtimeStage = dockerfileSource.split("FROM node:22-bookworm-slim AS runtime")[1] || "";
+  for (const stage of [builderStage, runtimeStage]) {
+    expect(stage).toContain("ARG FLASHCARD_DECKS_ENABLED=false");
+    expect(stage).toContain("ARG FLASHCARD_AI_GENERATION_ENABLED=false");
+    expect(stage).toContain("ENV FLASHCARD_DECKS_ENABLED=$FLASHCARD_DECKS_ENABLED");
+    expect(stage).toContain("ENV FLASHCARD_AI_GENERATION_ENABLED=$FLASHCARD_AI_GENERATION_ENABLED");
+  }
+  expect(qaWorkflowSource).toContain('--build-arg "FLASHCARD_DECKS_ENABLED=true"');
+  expect(qaWorkflowSource).toContain('--build-arg "FLASHCARD_AI_GENERATION_ENABLED=true"');
+  expect(qaWorkflowSource).toContain('"FLASHCARD_DECKS_ENABLED"');
+  expect(qaWorkflowSource).toContain('"FLASHCARD_AI_GENERATION_ENABLED"');
+  const qaRuntimeOverrides = qaWorkflowSource.split("--set-env-vars")[1]?.split("- name: Verify isolated QA candidate")[0] || "";
+  expect(qaRuntimeOverrides).not.toContain('"FLASHCARD_DECKS_ENABLED=true"');
+  expect(qaRuntimeOverrides).not.toContain('"FLASHCARD_AI_GENERATION_ENABLED=true"');
+  expect(qaBicepSource).not.toContain("FLASHCARD_DECKS_ENABLED");
+  expect(qaBicepSource).not.toContain("FLASHCARD_AI_GENERATION_ENABLED");
+  expect(stagingWorkflowSource).toContain('"FLASHCARD_DECKS_ENABLED"');
+  expect(stagingWorkflowSource).toContain('"FLASHCARD_AI_GENERATION_ENABLED"');
+  expect(stagingWorkflowSource).not.toContain('"FLASHCARD_DECKS_ENABLED=true"');
+  expect(stagingWorkflowSource).not.toContain('"FLASHCARD_AI_GENERATION_ENABLED=true"');
+  expect(azureBicepSource).not.toContain("FLASHCARD_DECKS_ENABLED");
+  expect(azureBicepSource).not.toContain("FLASHCARD_AI_GENERATION_ENABLED");
+  expect(healthRouteSource).toContain("flashcardFeatureConfiguration");
+  expect(healthRouteSource).toContain("flashcardDecks: flashcards.decksEnabled");
+  expect(healthRouteSource).toContain("flashcardGeneration: flashcards.generationEnabled");
+  expect(healthVerifierSource).toContain("body?.checks?.flashcardDecks === true");
+  expect(healthVerifierSource).toContain("body?.checks?.flashcardGeneration === true");
 });
 
 test("production staging accepts only the exact image already approved in QA", () => {
@@ -205,7 +225,8 @@ test("production staging accepts only the exact image already approved in QA", (
 });
 
 test("custom-domain releases prove their canonical origin and redirect www to the apex", () => {
-  expect(healthRouteSource).toContain("origin, checks:");
+  expect(healthRouteSource).toContain("origin,");
+  expect(healthRouteSource).toContain("checks: {");
   expect(healthVerifierSource).toContain("EXPECTED_SITE_ORIGIN");
   expect(healthVerifierSource).toContain("body?.origin === expectedOrigin");
   expect(proxySource).toContain('host === "www.filosage.com"');

@@ -1,4 +1,6 @@
-import { spawnSync } from "node:child_process";
+import { spawn, spawnSync } from "node:child_process";
+import { createServer } from "node:http";
+import type { AddressInfo } from "node:net";
 import { resolve } from "node:path";
 import { expect, test } from "@playwright/test";
 
@@ -7,6 +9,53 @@ const releaseScript = resolve(root, "scripts/check-release-env.mjs");
 const healthScript = resolve(root, "scripts/check-production-health.mjs");
 const safetyScript = resolve(root, "scripts/check-release-safety.mjs");
 const featuredCourseScript = resolve(root, "scripts/check-featured-course.mjs");
+const healthVersion = "b".repeat(40);
+
+function runNode(args: string[], environment: NodeJS.ProcessEnv) {
+  return new Promise<{ status: number | null; stdout: string; stderr: string }>((resolveRun, rejectRun) => {
+    const child = spawn(process.execPath, args, {
+      cwd: root,
+      env: environment,
+      stdio: ["ignore", "pipe", "pipe"],
+    });
+    let stdout = "";
+    let stderr = "";
+    child.stdout.setEncoding("utf8");
+    child.stderr.setEncoding("utf8");
+    child.stdout.on("data", (chunk: string) => { stdout += chunk; });
+    child.stderr.on("data", (chunk: string) => { stderr += chunk; });
+    child.once("error", rejectRun);
+    child.once("close", (status) => resolveRun({ status, stdout, stderr }));
+  });
+}
+
+async function checkHealthResponse(checks: Record<string, boolean>) {
+  const server = createServer((_request, response) => {
+    response.writeHead(200, { "Content-Type": "application/json" });
+    response.end(JSON.stringify({
+      ok: true,
+      version: healthVersion,
+      origin: "https://release.example",
+      checks: { configuration: true, datastore: true, ...checks },
+    }));
+  });
+  await new Promise<void>((resolveListen) => server.listen(0, "127.0.0.1", resolveListen));
+  const { port } = server.address() as AddressInfo;
+  try {
+    return await runNode(
+      [healthScript, `http://127.0.0.1:${port}`, healthVersion],
+      {
+        ...process.env,
+        FILOSAGE_HEALTH_CHECK_ATTEMPTS: "1",
+        FILOSAGE_HEALTH_CHECK_DELAY_MS: "0",
+      },
+    );
+  } finally {
+    await new Promise<void>((resolveClose, rejectClose) => server.close((error) => (
+      error ? rejectClose(error) : resolveClose()
+    )));
+  }
+}
 
 const validReleaseEnvironment = {
   ...process.env,
@@ -133,6 +182,27 @@ test("release checks bind Azure and production health to one full Git SHA", () =
   });
   expect(unsafeFeaturedCourseTarget.status).toBe(1);
   expect(unsafeFeaturedCourseTarget.stderr).toContain("must be an HTTPS origin");
+});
+
+test("production health rejects a revision with disabled flashcard decks", async () => {
+  const result = await checkHealthResponse({ flashcardDecks: false, flashcardGeneration: true });
+
+  expect(result.status).toBe(1);
+  expect(result.stderr).toContain("flashcard decks are disabled at runtime");
+});
+
+test("production health rejects a revision with disabled flashcard AI generation", async () => {
+  const result = await checkHealthResponse({ flashcardDecks: true, flashcardGeneration: false });
+
+  expect(result.status).toBe(1);
+  expect(result.stderr).toContain("flashcard AI generation is disabled at runtime");
+});
+
+test("production health accepts a revision with both flashcard features enabled", async () => {
+  const result = await checkHealthResponse({ flashcardDecks: true, flashcardGeneration: true });
+
+  expect(result.status).toBe(0);
+  expect(result.stdout).toContain(`Production health is healthy (version ${healthVersion}).`);
 });
 
 test("billing activation requires every Plus and Pro Stripe price", () => {
