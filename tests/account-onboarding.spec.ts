@@ -6,6 +6,11 @@ const authorization = {
   "X-Reauthentication-Token": "playwright-preaccount-learner",
 };
 
+const sameEmailAuthorization = {
+  Authorization: "Bearer playwright-preaccount-same-email-learner",
+  "X-Reauthentication-Token": "playwright-preaccount-same-email-learner",
+};
+
 test("persists no application account until the learner accepts the current legal terms", async ({ request }, testInfo) => {
   test.skip(testInfo.project.name !== "chromium", "One isolated server-side onboarding contract is sufficient.");
 
@@ -23,6 +28,7 @@ test("persists no application account until the learner accepts the current lega
     plan: "free",
     legalAcceptanceRequired: true,
     applicationAccountExists: false,
+    identityLinkRequired: false,
     quotas: [],
   });
 
@@ -56,6 +62,7 @@ test("persists no application account until the learner accepts the current lega
       plan: "free",
       legalAcceptanceRequired: false,
       applicationAccountExists: true,
+      identityLinkRequired: false,
     });
     const consentGranted = await request.post("/api/pricing-intent", {
       headers: authorization,
@@ -82,6 +89,73 @@ test("persists no application account until the learner accepts the current lega
         pricingIntent: { launchEmailConsent: false },
         launchWaitlistRecord: { status: "unsubscribed", marketingConsent: false },
       },
+    });
+  } finally {
+    const cleanup = await request.delete("/api/account/data", {
+      headers: authorization,
+      data: { confirmation: "DELETE MY ACCOUNT" },
+    });
+    expect(cleanup.ok()).toBe(true);
+  }
+});
+
+test("returns only a provider label in the public session identity", async ({ request }) => {
+  const response = await request.get("/api/auth/session", { headers: authorization });
+  expect(response.ok()).toBe(true);
+  const session = await response.json();
+  expect(session.user).toMatchObject({
+    uid: "local-preaccount-learner",
+    authenticationProvider: "local",
+  });
+  expect(session.user).not.toHaveProperty("subject");
+  expect(session.user).not.toHaveProperty("issuer");
+  expect(session.user).not.toHaveProperty("providerIdentity");
+});
+
+test("same-email identities receive bounded link-required state without account creation", async ({ request }, testInfo) => {
+  test.skip(testInfo.project.name !== "chromium", "One isolated server-side linking contract is sufficient.");
+
+  const ownerAcceptance = await request.post("/api/legal/acceptance", {
+    headers: authorization,
+    data: {
+      termsVersion: TERMS_VERSION,
+      privacyVersion: PRIVACY_VERSION,
+      ageEligibilityConfirmed: true,
+      source: "signup",
+    },
+  });
+  expect(ownerAcceptance.ok()).toBe(true);
+
+  try {
+    const pendingAccount = await request.get("/api/account", { headers: sameEmailAuthorization });
+    expect(pendingAccount.ok()).toBe(true);
+    expect(await pendingAccount.json()).toMatchObject({
+      applicationAccountExists: false,
+      legalAcceptanceRequired: false,
+      identityLinkRequired: true,
+    });
+
+    const acceptance = await request.post("/api/legal/acceptance", {
+      headers: sameEmailAuthorization,
+      data: {
+        termsVersion: TERMS_VERSION,
+        privacyVersion: PRIVACY_VERSION,
+        ageEligibilityConfirmed: true,
+        source: "signup",
+      },
+    });
+    expect(acceptance.status()).toBe(409);
+    expect(await acceptance.json()).toEqual({
+      code: "identity_link_required",
+      error: "This email is already connected to a Filosage learning account. Confirm your existing sign-in to connect the new method.",
+    });
+
+    const unchangedAccount = await request.get("/api/account", { headers: sameEmailAuthorization });
+    expect(unchangedAccount.ok()).toBe(true);
+    expect(await unchangedAccount.json()).toMatchObject({
+      applicationAccountExists: false,
+      legalAcceptanceRequired: false,
+      identityLinkRequired: true,
     });
   } finally {
     const cleanup = await request.delete("/api/account/data", {

@@ -74,6 +74,13 @@ function localVerifiedUser(idToken: string): VerifiedUser | null {
   if (idToken === "playwright-preaccount-learner") {
     return localUser("local-preaccount-learner", "preaccount@filosage.local", "Pre-account Learner");
   }
+  if (idToken === "playwright-preaccount-same-email-learner") {
+    return localUser(
+      "local-preaccount-same-email-learner",
+      "preaccount@filosage.local",
+      "Same-email Learner",
+    );
+  }
   return null;
 }
 

@@ -18,6 +18,14 @@ export class IdentityRegistryConflictError extends Error {
   }
 }
 
+export class ExternalIdSignupUnavailableError extends Error {
+  readonly code = "external_id_signup_unavailable";
+
+  constructor() {
+    super("Email-code sign-up is not available yet. You can continue with Google.");
+  }
+}
+
 export function normalizedVerifiedEmail(value: string) {
   const email = value.trim().toLowerCase();
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) ? email : null;
@@ -52,6 +60,11 @@ export interface IdentityRegistryKeys {
   emailHash: string;
   identityPath: string;
   emailPath: string;
+}
+
+export interface PreparedIdentityRegistration extends IdentityRegistryKeys {
+  canonicalUid: string;
+  provider: VerifiedProviderIdentity["provider"];
 }
 
 export type IdentityRegistryDocument = Record<string, unknown> | null;
@@ -142,4 +155,84 @@ export async function identityRegistryKeys(identity: VerifiedProviderIdentity, s
     identityPath: `identityLinks/${REGISTRY_KEY_VERSION}_${identityHash}`,
     emailPath: `identityEmailOwners/${REGISTRY_KEY_VERSION}_${emailHash}`,
   } satisfies IdentityRegistryKeys;
+}
+
+export async function prepareIdentityRegistration(user: VerifiedUser, secret: string) {
+  const keys = await identityRegistryKeys(user.providerIdentity, secret);
+  return {
+    ...keys,
+    canonicalUid: user.uid,
+    provider: user.providerIdentity.provider,
+  } satisfies PreparedIdentityRegistration;
+}
+
+export function identityRegistrationWrites(
+  documents: Record<string, IdentityRegistryDocument>,
+  registration: PreparedIdentityRegistration,
+  now: string,
+  options: { allowNewExternalAccounts: boolean },
+) {
+  const link = documents[registration.identityPath] ?? null;
+  const emailOwner = documents[registration.emailPath] ?? null;
+  const linkedUid = typeof link?.canonicalUid === "string" ? link.canonicalUid.trim() : "";
+  const ownerUid = typeof emailOwner?.canonicalUid === "string"
+    ? emailOwner.canonicalUid.trim()
+    : "";
+
+  if (link !== null && (
+    !linkedUid
+    || linkedUid !== registration.canonicalUid
+    || link.keyVersion !== REGISTRY_KEY_VERSION
+    || link.identityHash !== registration.identityHash
+  )) {
+    throw new IdentityRegistryConflictError();
+  }
+  if (emailOwner !== null && (
+    !ownerUid
+    || emailOwner.keyVersion !== REGISTRY_KEY_VERSION
+    || emailOwner.emailHash !== registration.emailHash
+  )) {
+    throw new IdentityRegistryConflictError();
+  }
+  if (ownerUid && ownerUid !== registration.canonicalUid) {
+    throw new IdentityLinkRequiredError();
+  }
+
+  const account = documents[`users/${registration.canonicalUid}`] ?? null;
+  if (registration.provider === "filosage" && link === null && account !== null) {
+    throw new IdentityRegistryConflictError();
+  }
+  if (
+    registration.provider === "filosage"
+    && link === null
+    && !options.allowNewExternalAccounts
+  ) {
+    throw new ExternalIdSignupUnavailableError();
+  }
+
+  return [
+    ...(link === null ? [{
+      path: registration.identityPath,
+      data: {
+        schemaVersion: 1,
+        keyVersion: REGISTRY_KEY_VERSION,
+        identityHash: registration.identityHash,
+        canonicalUid: registration.canonicalUid,
+        provider: registration.provider,
+        createdAt: now,
+        updatedAt: now,
+      },
+    }] : []),
+    ...(emailOwner === null ? [{
+      path: registration.emailPath,
+      data: {
+        schemaVersion: 1,
+        keyVersion: REGISTRY_KEY_VERSION,
+        emailHash: registration.emailHash,
+        canonicalUid: registration.canonicalUid,
+        createdAt: now,
+        updatedAt: now,
+      },
+    }] : []),
+  ];
 }

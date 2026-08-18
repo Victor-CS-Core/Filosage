@@ -10,6 +10,7 @@ export async function GET(request: Request) {
       displayName: user.name ?? null,
       email: user.email ?? null,
       photoURL: user.picture ?? null,
+      authenticationProvider: user.providerIdentity.provider,
     } : null,
   }, {
     headers: {

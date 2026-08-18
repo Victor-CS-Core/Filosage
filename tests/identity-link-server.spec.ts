@@ -1,12 +1,16 @@
 import { expect, test } from "@playwright/test";
 import {
   canonicalIdentityFromRegistry,
+  ExternalIdSignupUnavailableError,
+  IdentityLinkRequiredError,
   IdentityRegistryConflictError,
   identityOnboardingStateFromRegistry,
+  identityRegistrationWrites,
   identityRegistryKeys,
   normalizedVerifiedEmail,
+  prepareIdentityRegistration,
 } from "../src/lib/identity-link-policy";
-import type { VerifiedProviderIdentity } from "../src/lib/identity-types";
+import type { VerifiedProviderIdentity, VerifiedUser } from "../src/lib/identity-types";
 
 const identity: VerifiedProviderIdentity = {
   provider: "filosage",
@@ -14,6 +18,14 @@ const identity: VerifiedProviderIdentity = {
   subject: "external-subject",
   email: "Learner@Example.com",
   emailVerified: true,
+};
+
+const unregisteredUser: VerifiedUser = {
+  uid: "external-subject",
+  email: "learner@example.com",
+  email_verified: true,
+  providerIdentity: identity,
+  identityLinkRegistered: false,
 };
 
 test("identity and email registry paths are deterministic versioned HMACs", async () => {
@@ -154,4 +166,155 @@ test("onboarding fails closed for malformed or conflicting email-owner documents
     keyVersion: "v1",
     emailHash: keys.emailHash,
   })).toThrow(IdentityRegistryConflictError);
+});
+
+test("new account registration writes identity and email ownership to one canonical UID", async () => {
+  const registration = await prepareIdentityRegistration(
+    unregisteredUser,
+    "test-secret-with-at-least-32-characters",
+  );
+
+  expect(identityRegistrationWrites(
+    {},
+    registration,
+    "2026-08-18T12:00:00.000Z",
+    { allowNewExternalAccounts: true },
+  )).toEqual([
+    expect.objectContaining({
+      path: registration.identityPath,
+      data: expect.objectContaining({ canonicalUid: "external-subject" }),
+    }),
+    expect.objectContaining({
+      path: registration.emailPath,
+      data: expect.objectContaining({ canonicalUid: "external-subject" }),
+    }),
+  ]);
+});
+
+test("an owned email never auto-links a second identity", async () => {
+  const registration = await prepareIdentityRegistration(
+    unregisteredUser,
+    "test-secret-with-at-least-32-characters",
+  );
+
+  expect(() => identityRegistrationWrites(
+    {
+      [registration.emailPath]: {
+        canonicalUid: "existing-google-uid",
+        keyVersion: "v1",
+        emailHash: registration.emailHash,
+      },
+    },
+    registration,
+    "2026-08-18T12:00:00.000Z",
+    { allowNewExternalAccounts: true },
+  )).toThrow(IdentityLinkRequiredError);
+});
+
+test("an inactive External ID signup gate cannot create a new account", async () => {
+  const registration = await prepareIdentityRegistration(
+    unregisteredUser,
+    "test-secret-with-at-least-32-characters",
+  );
+
+  expect(() => identityRegistrationWrites(
+    {},
+    registration,
+    "2026-08-18T12:00:00.000Z",
+    { allowNewExternalAccounts: false },
+  )).toThrow(ExternalIdSignupUnavailableError);
+});
+
+test("an unlinked External ID identity cannot claim an account created during registration", async () => {
+  const registration = await prepareIdentityRegistration(
+    unregisteredUser,
+    "test-secret-with-at-least-32-characters",
+  );
+
+  expect(() => identityRegistrationWrites(
+    { [`users/${registration.canonicalUid}`]: { uid: registration.canonicalUid } },
+    registration,
+    "2026-08-18T12:00:00.000Z",
+    { allowNewExternalAccounts: true },
+  )).toThrow(IdentityRegistryConflictError);
+});
+
+test("registration fails closed for every malformed present registry document", async () => {
+  const registration = await prepareIdentityRegistration(
+    unregisteredUser,
+    "test-secret-with-at-least-32-characters",
+  );
+  const corruptLinks = [
+    { keyVersion: "v1", identityHash: registration.identityHash },
+    { canonicalUid: " ", keyVersion: "v1", identityHash: registration.identityHash },
+    { canonicalUid: "different-canonical-uid", keyVersion: "v1", identityHash: registration.identityHash },
+    { canonicalUid: registration.canonicalUid, keyVersion: "v2", identityHash: registration.identityHash },
+    { canonicalUid: registration.canonicalUid, keyVersion: "v1", identityHash: "wrong-hash" },
+  ];
+  const corruptOwners = [
+    { keyVersion: "v1", emailHash: registration.emailHash },
+    { canonicalUid: " ", keyVersion: "v1", emailHash: registration.emailHash },
+    { canonicalUid: registration.canonicalUid, keyVersion: "v2", emailHash: registration.emailHash },
+    { canonicalUid: registration.canonicalUid, keyVersion: "v1", emailHash: "wrong-hash" },
+  ];
+
+  for (const link of corruptLinks) {
+    expect(() => identityRegistrationWrites(
+      { [registration.identityPath]: link },
+      registration,
+      "2026-08-18T12:00:00.000Z",
+      { allowNewExternalAccounts: false },
+    )).toThrow(IdentityRegistryConflictError);
+  }
+  for (const owner of corruptOwners) {
+    expect(() => identityRegistrationWrites(
+      { [registration.emailPath]: owner },
+      registration,
+      "2026-08-18T12:00:00.000Z",
+      { allowNewExternalAccounts: false },
+    )).toThrow(IdentityRegistryConflictError);
+  }
+});
+
+test("a valid registered External ID or direct Google account preserves compatibility", async () => {
+  const externalRegistration = await prepareIdentityRegistration(
+    { ...unregisteredUser, identityLinkRegistered: true },
+    "test-secret-with-at-least-32-characters",
+  );
+  const validLink = {
+    canonicalUid: externalRegistration.canonicalUid,
+    keyVersion: "v1",
+    identityHash: externalRegistration.identityHash,
+  };
+  expect(identityRegistrationWrites(
+    {
+      [externalRegistration.identityPath]: validLink,
+      [`users/${externalRegistration.canonicalUid}`]: { uid: externalRegistration.canonicalUid },
+    },
+    externalRegistration,
+    "2026-08-18T12:00:00.000Z",
+    { allowNewExternalAccounts: false },
+  )).toEqual([
+    expect.objectContaining({ path: externalRegistration.emailPath }),
+  ]);
+
+  const googleRegistration = await prepareIdentityRegistration({
+    ...unregisteredUser,
+    providerIdentity: {
+      ...identity,
+      provider: "google",
+      issuer: "https://accounts.google.com",
+      subject: "google-subject",
+    },
+    uid: "google-subject",
+  }, "test-secret-with-at-least-32-characters");
+  expect(identityRegistrationWrites(
+    { [`users/${googleRegistration.canonicalUid}`]: { uid: googleRegistration.canonicalUid } },
+    googleRegistration,
+    "2026-08-18T12:00:00.000Z",
+    { allowNewExternalAccounts: false },
+  )).toEqual([
+    expect.objectContaining({ path: googleRegistration.identityPath }),
+    expect.objectContaining({ path: googleRegistration.emailPath }),
+  ]);
 });

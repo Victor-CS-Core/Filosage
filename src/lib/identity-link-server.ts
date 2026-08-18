@@ -4,6 +4,7 @@ import { getStoredDocument } from "@/lib/firebase-server";
 import {
   canonicalIdentityFromRegistry,
   identityOnboardingStateFromRegistry,
+  prepareIdentityRegistration as prepareIdentityRegistrationWithSecret,
   identityRegistryKeys as identityRegistryKeysWithSecret,
 } from "@/lib/identity-link-policy";
 import type { VerifiedProviderIdentity, VerifiedUser } from "@/lib/identity-types";
@@ -11,8 +12,10 @@ import { isLocalMode } from "@/lib/local-mode";
 import { serverEnvironment } from "@/lib/runtime-environment";
 
 export {
+  ExternalIdSignupUnavailableError,
   IdentityLinkRequiredError,
   IdentityRegistryConflictError,
+  identityRegistrationWrites,
 } from "@/lib/identity-link-policy";
 export type { IdentityOnboardingState } from "@/lib/identity-link-policy";
 
@@ -31,6 +34,10 @@ export function configuredIdentityRegistryKeys(
   explicit?: string,
 ) {
   return identityRegistryKeysWithSecret(identity, requiredHmacSecret(explicit));
+}
+
+export function preparedIdentityRegistration(user: VerifiedUser, explicit?: string) {
+  return prepareIdentityRegistrationWithSecret(user, requiredHmacSecret(explicit));
 }
 
 export async function resolveCanonicalIdentity(identity: VerifiedProviderIdentity) {
