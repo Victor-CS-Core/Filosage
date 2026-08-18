@@ -9,7 +9,9 @@ import {
   authenticationClaimsFromIdToken,
   hasRecentAuthentication,
 } from "../src/lib/recent-auth";
+import { recentAuthenticationProofMatchesUser } from "../src/lib/identity-link-policy";
 import { RECENT_AUTHENTICATION_PROOF_MISSING_MESSAGE } from "../src/lib/identity-client";
+import type { VerifiedUser } from "../src/lib/identity-types";
 import { PRIVACY_VERSION, TERMS_VERSION } from "../src/lib/legal";
 
 const projectLearnerTokens: Record<string, string> = {
@@ -61,6 +63,46 @@ test("requires account-deletion authentication within the server policy window",
   expect(hasRecentAuthentication(now + 60, now)).toBe(true);
   expect(hasRecentAuthentication(now + 61, now)).toBe(false);
   expect(hasRecentAuthentication(undefined, now)).toBe(false);
+});
+
+test("recent authentication accepts a newly linked provider only for the same canonical UID", () => {
+  const now = 1_750_000_000;
+  const current = {
+    uid: "canonical-google-uid",
+    email: "learner@example.com",
+    email_verified: true,
+    auth_time: now,
+    providerIdentity: {
+      provider: "google",
+      issuer: "https://accounts.google.com",
+      subject: "google-subject",
+      email: "learner@example.com",
+      emailVerified: true,
+      authTime: now,
+    },
+    identityLinkRegistered: true,
+  } satisfies VerifiedUser;
+  const linkedProof = {
+    ...current,
+    auth_time: now,
+    providerIdentity: {
+      ...current.providerIdentity,
+      provider: "filosage",
+      issuer: "https://qa-filosage.ciamlogin.com/tenant/v2.0",
+      subject: "external-subject",
+      authTime: now,
+    },
+  } satisfies VerifiedUser;
+
+  expect(recentAuthenticationProofMatchesUser(current, linkedProof, now)).toBe(true);
+  for (const proof of [
+    null,
+    { ...linkedProof, uid: "different-canonical-uid" },
+    { ...linkedProof, auth_time: undefined, providerIdentity: { ...linkedProof.providerIdentity, authTime: undefined } },
+    { ...linkedProof, auth_time: now - 301, providerIdentity: { ...linkedProof.providerIdentity, authTime: now - 301 } },
+  ]) {
+    expect(recentAuthenticationProofMatchesUser(current, proof, now)).toBe(false);
+  }
 });
 
 test("uses action-neutral copy when the identity provider omits recent-auth proof", () => {

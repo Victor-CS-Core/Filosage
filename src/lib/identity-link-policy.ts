@@ -3,8 +3,27 @@ import {
   type VerifiedProviderIdentity,
   type VerifiedUser,
 } from "@/lib/identity-types";
+import { hasRecentAuthentication } from "@/lib/recent-auth";
 
 export const REGISTRY_KEY_VERSION = "v1" as const;
+export const IDENTITY_LINK_INTENT_TTL_MS = 10 * 60 * 1000;
+
+export type LinkIntentFailureReason =
+  | "expired"
+  | "replayed"
+  | "email_mismatch"
+  | "mapping_conflict"
+  | "recent_auth_missing"
+  | "invalid";
+
+export class LinkIntentError extends Error {
+  constructor(public readonly reason: LinkIntentFailureReason) {
+    super(reason === "expired"
+      ? "That confirmation expired. Sign in with your existing method and try again."
+      : "We could not connect that sign-in method. No account data was changed.");
+    this.name = "LinkIntentError";
+  }
+}
 
 export class IdentityLinkRequiredError extends Error {
   readonly code = "identity_link_required";
@@ -68,6 +87,31 @@ export async function hmacHex(value: string, secret: string) {
     new TextEncoder().encode(value),
   ));
   return Array.from(signature, (byte) => byte.toString(16).padStart(2, "0")).join("");
+}
+
+export function safeAuthenticationReturnPath(value: string | undefined) {
+  if (!value || !value.startsWith("/") || value.startsWith("//")) return "/";
+  try {
+    const parsed = new URL(value, "https://filosage.invalid");
+    return parsed.origin === "https://filosage.invalid"
+      ? `${parsed.pathname}${parsed.search}${parsed.hash}`
+      : "/";
+  } catch {
+    return "/";
+  }
+}
+
+export function opaqueIdentityKey(scope: string, value: string, secret: string) {
+  return hmacHex(JSON.stringify([REGISTRY_KEY_VERSION, scope, value]), secret);
+}
+
+export async function linkIntentPath(token: string, secret: string) {
+  if (!/^[A-Za-z0-9_-]{43,128}$/.test(token)) throw new LinkIntentError("invalid");
+  return `identityLinkIntents/${REGISTRY_KEY_VERSION}_${await opaqueIdentityKey(
+    "link-intent",
+    token,
+    secret,
+  )}`;
 }
 
 export interface IdentityRegistryKeys {
@@ -301,6 +345,312 @@ function strictTimestamp(value: unknown) {
   const timestamp = Date.parse(value);
   if (!Number.isFinite(timestamp) || new Date(timestamp).toISOString() !== value) return null;
   return timestamp;
+}
+
+function exactObjectKeys(value: Record<string, unknown>, expected: string[]) {
+  const actual = Object.keys(value).sort();
+  const sortedExpected = [...expected].sort();
+  return actual.length === sortedExpected.length
+    && actual.every((key, index) => key === sortedExpected[index]);
+}
+
+export interface LinkCompletionValidationOptions {
+  intentPath?: string;
+  expectedSourceIdentityHash?: string;
+}
+
+export function validateLinkCompletion(
+  intent: Record<string, unknown>,
+  expectedEmailHash: string,
+  now: number,
+  options: LinkCompletionValidationOptions = {},
+) {
+  const baseKeys = [
+    "schemaVersion",
+    "keyVersion",
+    "canonicalUid",
+    "sourceIdentityHash",
+    "emailHash",
+    "returnPath",
+    "createdAt",
+    "expiresAt",
+    "usedAt",
+    ...(options.intentPath ? ["id"] : []),
+  ];
+  const usedAt = intent.usedAt;
+  const expectedKeys = usedAt === null ? baseKeys : [...baseKeys, "updatedAt"];
+  if (!exactObjectKeys(intent, expectedKeys)) throw new LinkIntentError("invalid");
+
+  const canonicalUid = typeof intent.canonicalUid === "string" ? intent.canonicalUid : "";
+  const returnPath = typeof intent.returnPath === "string" ? intent.returnPath : "";
+  const createdAt = strictTimestamp(intent.createdAt);
+  const expiresAt = strictTimestamp(intent.expiresAt);
+  if (
+    intent.schemaVersion !== 1
+    || intent.keyVersion !== REGISTRY_KEY_VERSION
+    || !validCanonicalIdentityId(canonicalUid)
+    || !/^[a-f0-9]{64}$/.test(String(intent.sourceIdentityHash ?? ""))
+    || !/^[a-f0-9]{64}$/.test(String(intent.emailHash ?? ""))
+    || returnPath !== safeAuthenticationReturnPath(returnPath)
+    || createdAt === null
+    || expiresAt === null
+    || expiresAt - createdAt !== IDENTITY_LINK_INTENT_TTL_MS
+    || (options.intentPath && intent.id !== options.intentPath.split("/").at(-1))
+    || (options.expectedSourceIdentityHash
+      && intent.sourceIdentityHash !== options.expectedSourceIdentityHash)
+  ) {
+    throw new LinkIntentError("invalid");
+  }
+
+  if (usedAt !== null) {
+    const consumedAt = strictTimestamp(usedAt);
+    const updatedAt = strictTimestamp(intent.updatedAt);
+    if (
+      consumedAt === null
+      || updatedAt === null
+      || consumedAt !== updatedAt
+      || consumedAt < createdAt
+    ) {
+      throw new LinkIntentError("invalid");
+    }
+    throw new LinkIntentError("replayed");
+  }
+  if (!Number.isFinite(now) || expiresAt <= now) throw new LinkIntentError("expired");
+  if (intent.emailHash !== expectedEmailHash) throw new LinkIntentError("email_mismatch");
+  return { canonicalUid, returnPath };
+}
+
+export function assertFreshDirectGoogleLinkAuthentication(user: VerifiedUser, now: number) {
+  const identity = user.providerIdentity;
+  const canonicalEmail = normalizedVerifiedEmail(user.email);
+  const providerEmail = normalizedVerifiedEmail(identity.email);
+  if (
+    identity.provider !== "google"
+    || identity.issuer !== DIRECT_GOOGLE_ISSUER
+    || identity.emailVerified !== true
+    || user.email_verified !== true
+    || !canonicalEmail
+    || canonicalEmail !== providerEmail
+    || !validCanonicalIdentityId(user.uid)
+    || !user.identityLinkRegistered
+    || user.auth_time !== identity.authTime
+    || !hasRecentAuthentication(identity.authTime, Math.floor(now / 1_000))
+  ) {
+    throw new LinkIntentError("recent_auth_missing");
+  }
+}
+
+export function assertFreshExternalLinkAuthentication(
+  identity: VerifiedProviderIdentity,
+  now: number,
+) {
+  if (
+    identity.provider !== "filosage"
+    || !identity.emailVerified
+    || !hasRecentAuthentication(identity.authTime, Math.floor(now / 1_000))
+  ) {
+    throw new LinkIntentError("recent_auth_missing");
+  }
+}
+
+export function recentAuthenticationProofMatchesUser(
+  current: VerifiedUser,
+  proof: VerifiedUser | null,
+  nowSeconds = Math.floor(Date.now() / 1_000),
+) {
+  return Boolean(
+    proof
+    && proof.uid === current.uid
+    && proof.auth_time === proof.providerIdentity.authTime
+    && hasRecentAuthentication(proof.auth_time, nowSeconds),
+  );
+}
+
+function validRegistryTimes(document: Record<string, unknown>) {
+  const createdAt = strictTimestamp(document.createdAt);
+  const updatedAt = strictTimestamp(document.updatedAt);
+  return createdAt !== null && updatedAt !== null && createdAt <= updatedAt;
+}
+
+function exactIdentityRegistryDocument(
+  document: IdentityRegistryDocument | undefined,
+  path: string,
+  expected: {
+    identityHash: string;
+    canonicalUid: string;
+    provider: VerifiedProviderIdentity["provider"];
+  },
+) {
+  return Boolean(document
+    && exactObjectKeys(document, [
+      "id",
+      "schemaVersion",
+      "keyVersion",
+      "identityHash",
+      "canonicalUid",
+      "provider",
+      "createdAt",
+      "updatedAt",
+    ])
+    && document.id === path.split("/").at(-1)
+    && document.schemaVersion === 1
+    && document.keyVersion === REGISTRY_KEY_VERSION
+    && document.identityHash === expected.identityHash
+    && document.canonicalUid === expected.canonicalUid
+    && document.provider === expected.provider
+    && validRegistryTimes(document));
+}
+
+function exactEmailOwnerDocument(
+  document: IdentityRegistryDocument | undefined,
+  path: string,
+  expected: { emailHash: string; canonicalUid: string },
+) {
+  return Boolean(document
+    && exactObjectKeys(document, [
+      "id",
+      "schemaVersion",
+      "keyVersion",
+      "emailHash",
+      "canonicalUid",
+      "createdAt",
+      "updatedAt",
+    ])
+    && document.id === path.split("/").at(-1)
+    && document.schemaVersion === 1
+    && document.keyVersion === REGISTRY_KEY_VERSION
+    && document.emailHash === expected.emailHash
+    && document.canonicalUid === expected.canonicalUid
+    && validRegistryTimes(document));
+}
+
+function exactCanonicalAccount(
+  document: IdentityRegistryDocument | undefined,
+  canonicalUid: string,
+) {
+  return Boolean(document && document.id === canonicalUid);
+}
+
+export function createIdentityLinkTransactionPlan(
+  documents: Record<string, IdentityRegistryDocument>,
+  input: {
+    intentPath: string;
+    keys: IdentityRegistryKeys;
+    user: VerifiedUser;
+    returnPath: string;
+    now: number;
+  },
+) {
+  const accountPath = `users/${input.user.uid}`;
+  if (documents[input.intentPath]) throw new LinkIntentError("mapping_conflict");
+  if (
+    !exactIdentityRegistryDocument(documents[input.keys.identityPath], input.keys.identityPath, {
+      identityHash: input.keys.identityHash,
+      canonicalUid: input.user.uid,
+      provider: "google",
+    })
+    || !exactEmailOwnerDocument(documents[input.keys.emailPath], input.keys.emailPath, {
+      emailHash: input.keys.emailHash,
+      canonicalUid: input.user.uid,
+    })
+    || !exactCanonicalAccount(documents[accountPath], input.user.uid)
+  ) {
+    throw new LinkIntentError("mapping_conflict");
+  }
+  const createdAt = new Date(input.now).toISOString();
+  return {
+    writes: [{
+      path: input.intentPath,
+      data: {
+        schemaVersion: 1,
+        keyVersion: REGISTRY_KEY_VERSION,
+        canonicalUid: input.user.uid,
+        sourceIdentityHash: input.keys.identityHash,
+        emailHash: input.keys.emailHash,
+        returnPath: safeAuthenticationReturnPath(input.returnPath),
+        createdAt,
+        expiresAt: new Date(input.now + IDENTITY_LINK_INTENT_TTL_MS).toISOString(),
+        usedAt: null,
+      },
+    }],
+    result: undefined,
+  };
+}
+
+export function completeIdentityLinkTransactionPlan(
+  documents: Record<string, IdentityRegistryDocument>,
+  input: {
+    intentPath: string;
+    sourceIdentityPath: string;
+    keys: IdentityRegistryKeys;
+    identity: VerifiedProviderIdentity;
+    candidateCanonicalUid: string;
+    sourceIdentityHash: string;
+    now: number;
+  },
+) {
+  const intent = documents[input.intentPath];
+  if (!intent) throw new LinkIntentError("invalid");
+  const validated = validateLinkCompletion(intent, input.keys.emailHash, input.now, {
+    intentPath: input.intentPath,
+    expectedSourceIdentityHash: input.sourceIdentityHash,
+  });
+  const accountPath = `users/${validated.canonicalUid}`;
+  if (
+    validated.canonicalUid !== input.candidateCanonicalUid
+    || !exactIdentityRegistryDocument(
+      documents[input.sourceIdentityPath],
+      input.sourceIdentityPath,
+      {
+        identityHash: input.sourceIdentityHash,
+        canonicalUid: validated.canonicalUid,
+        provider: "google",
+      },
+    )
+    || !exactEmailOwnerDocument(documents[input.keys.emailPath], input.keys.emailPath, {
+      emailHash: input.keys.emailHash,
+      canonicalUid: validated.canonicalUid,
+    })
+    || !exactCanonicalAccount(documents[accountPath], validated.canonicalUid)
+  ) {
+    throw new LinkIntentError("mapping_conflict");
+  }
+  const existingLink = documents[input.keys.identityPath];
+  if (existingLink && !exactIdentityRegistryDocument(
+    existingLink,
+    input.keys.identityPath,
+    {
+      identityHash: input.keys.identityHash,
+      canonicalUid: validated.canonicalUid,
+      provider: "filosage",
+    },
+  )) {
+    throw new LinkIntentError("mapping_conflict");
+  }
+  const timestamp = new Date(input.now).toISOString();
+  const storedIntent = { ...intent };
+  delete storedIntent.id;
+  return {
+    writes: [
+      ...(!existingLink ? [{
+        path: input.keys.identityPath,
+        data: {
+          schemaVersion: 1,
+          keyVersion: REGISTRY_KEY_VERSION,
+          identityHash: input.keys.identityHash,
+          canonicalUid: validated.canonicalUid,
+          provider: input.identity.provider,
+          createdAt: timestamp,
+          updatedAt: timestamp,
+        },
+      }] : []),
+      {
+        path: input.intentPath,
+        data: { ...storedIntent, usedAt: timestamp, updatedAt: timestamp },
+      },
+    ],
+    result: validated,
+  };
 }
 
 function exactRegistryRecord(

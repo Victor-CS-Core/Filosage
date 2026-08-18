@@ -2,15 +2,17 @@ import "server-only";
 
 import { NextResponse } from "next/server";
 import {
+  verifiedEasyAuthIdentity,
   verifiedEasyAuthUser,
   verifyIdentityToken,
+  verifyProviderIdentity,
   type VerifiedUser,
 } from "@/lib/identity-server";
 import { getExistingAccount, type ServerAccount } from "@/lib/account-server";
 import { isLocalMode } from "@/lib/local-mode";
 import { PRIVACY_VERSION, TERMS_VERSION } from "@/lib/legal";
 import { planAllows, type PlanCapability } from "@/lib/membership-plans";
-import { hasRecentAuthentication } from "@/lib/recent-auth";
+import { recentAuthenticationProofMatchesUser } from "@/lib/identity-link-policy";
 
 export class AuthorizationError extends Error {
   constructor(
@@ -42,6 +44,18 @@ export async function requireUser(request: Request): Promise<VerifiedUser> {
   return user;
 }
 
+export async function requireProviderIdentity(request: Request) {
+  const identity = !isLocalMode()
+    ? verifiedEasyAuthIdentity(request)
+    : await verifyProviderIdentity(
+        request.headers.get("authorization")?.replace(/^Bearer\s+/, "") ?? "",
+      );
+  if (!identity?.emailVerified) {
+    throw new AuthorizationError(401, "Sign in with a verified account to continue.");
+  }
+  return identity;
+}
+
 export async function requireAccount(request: Request): Promise<ServerAccount> {
   const account = await getExistingAccount(await requireUser(request));
   if (!account) {
@@ -57,14 +71,14 @@ export async function requireRecentlyAuthenticatedUser(
 ): Promise<VerifiedUser> {
   const user = await requireUser(request);
   if (!isLocalMode()) {
-    if (!hasRecentAuthentication(user.auth_time)) {
+    if (!recentAuthenticationProofMatchesUser(user, user)) {
       throw new AuthorizationError(401, recentAuthenticationMessage, recentAuthenticationCode);
     }
     return user;
   }
   const proofToken = request.headers.get("x-reauthentication-token")?.trim();
   const proof = proofToken ? await verifyIdentityToken(proofToken) : null;
-  if (!proof || proof.uid !== user.uid || !hasRecentAuthentication(proof.auth_time)) {
+  if (!recentAuthenticationProofMatchesUser(user, proof)) {
     throw new AuthorizationError(401, recentAuthenticationMessage, recentAuthenticationCode);
   }
   return user;

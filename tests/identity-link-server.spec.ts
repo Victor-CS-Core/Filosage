@@ -1,14 +1,22 @@
 import { expect, test } from "@playwright/test";
 import {
+  assertFreshDirectGoogleLinkAuthentication,
+  assertFreshExternalLinkAuthentication,
   canonicalIdentityFromRegistry,
+  completeIdentityLinkTransactionPlan,
+  createIdentityLinkTransactionPlan,
   ExternalIdSignupUnavailableError,
   IdentityLinkRequiredError,
   IdentityRegistryConflictError,
   identityOnboardingStateFromRegistry,
   identityRegistrationWrites,
   identityRegistryKeys,
+  LinkIntentError,
+  linkIntentPath,
   normalizedVerifiedEmail,
   prepareIdentityRegistration,
+  safeAuthenticationReturnPath,
+  validateLinkCompletion,
 } from "../src/lib/identity-link-policy";
 import type { VerifiedProviderIdentity, VerifiedUser } from "../src/lib/identity-types";
 
@@ -27,6 +35,282 @@ const unregisteredUser: VerifiedUser = {
   providerIdentity: identity,
   identityLinkRegistered: false,
 };
+
+const testSecret = "test-secret-with-at-least-32-characters";
+const now = Date.parse("2026-08-18T12:05:00.000Z");
+const nowSeconds = Math.floor(now / 1_000);
+
+function documentId(path: string) {
+  return path.split("/").at(-1) ?? "";
+}
+
+function exactIdentityRegistryDocument(
+  path: string,
+  keys: Awaited<ReturnType<typeof identityRegistryKeys>>,
+  canonicalUid: string,
+  provider: VerifiedProviderIdentity["provider"],
+) {
+  return {
+    id: documentId(path),
+    schemaVersion: 1,
+    keyVersion: "v1",
+    identityHash: keys.identityHash,
+    canonicalUid,
+    provider,
+    createdAt: "2026-08-18T11:00:00.000Z",
+    updatedAt: "2026-08-18T11:00:00.000Z",
+  };
+}
+
+function exactEmailOwnerDocument(
+  path: string,
+  keys: Awaited<ReturnType<typeof identityRegistryKeys>>,
+  canonicalUid: string,
+) {
+  return {
+    id: documentId(path),
+    schemaVersion: 1,
+    keyVersion: "v1",
+    emailHash: keys.emailHash,
+    canonicalUid,
+    createdAt: "2026-08-18T11:00:00.000Z",
+    updatedAt: "2026-08-18T11:00:00.000Z",
+  };
+}
+
+test("link-intent values are opaque HMAC keys and return paths stay same-origin", async () => {
+  const token = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFG";
+  const path = await linkIntentPath(token, testSecret);
+  expect(path).toMatch(/^identityLinkIntents\/v1_[a-f0-9]{64}$/);
+  expect(path).not.toContain(token);
+  expect(safeAuthenticationReturnPath("/profile?linked=1")).toBe("/profile?linked=1");
+  expect(safeAuthenticationReturnPath("https://attacker.invalid/steal")).toBe("/");
+  expect(safeAuthenticationReturnPath("//attacker.invalid/steal")).toBe("/");
+});
+
+test("completion accepts only an exact unused intent before its expiry boundary", () => {
+  const valid = {
+    schemaVersion: 1,
+    keyVersion: "v1",
+    canonicalUid: "google-subject",
+    sourceIdentityHash: "a".repeat(64),
+    emailHash: "b".repeat(64),
+    returnPath: "/profile",
+    createdAt: "2026-08-18T12:00:00.000Z",
+    expiresAt: "2026-08-18T12:10:00.000Z",
+    usedAt: null,
+  };
+  expect(validateLinkCompletion(valid, "b".repeat(64), now)).toEqual({
+    canonicalUid: "google-subject",
+    returnPath: "/profile",
+  });
+  expect(() => validateLinkCompletion({
+    ...valid,
+    createdAt: "2026-08-18T11:55:00.000Z",
+    expiresAt: new Date(now).toISOString(),
+  }, "b".repeat(64), now)).toThrow(expect.objectContaining({ reason: "expired" }));
+  expect(() => validateLinkCompletion({
+    ...valid,
+    usedAt: "2026-08-18T12:04:00.000Z",
+    updatedAt: "2026-08-18T12:04:00.000Z",
+  }, "b".repeat(64), now)).toThrow(expect.objectContaining({ reason: "replayed" }));
+  for (const corrupt of [
+    { ...valid, emailHash: "c".repeat(64) },
+    { ...valid, expiresAt: new Date(now).toISOString() },
+    { ...valid, usedAt: "2026-08-18T12:01:00.000Z" },
+    { ...valid, usedAt: false },
+    { ...valid, unexpected: true },
+    { ...valid, schemaVersion: 2 },
+  ]) {
+    expect(() => validateLinkCompletion(corrupt, "b".repeat(64), now)).toThrow(LinkIntentError);
+  }
+});
+
+test("intent creation requires fresh direct-Google authentication before planning a write", async () => {
+  const sourceIdentity: VerifiedProviderIdentity = {
+    provider: "google",
+    issuer: "https://accounts.google.com",
+    subject: "google-subject",
+    email: "learner@example.com",
+    emailVerified: true,
+    authTime: nowSeconds,
+  };
+  const user: VerifiedUser = {
+    uid: "google-subject",
+    email: sourceIdentity.email,
+    email_verified: true,
+    auth_time: sourceIdentity.authTime,
+    providerIdentity: sourceIdentity,
+    identityLinkRegistered: true,
+  };
+  for (const authTime of [undefined, nowSeconds - 301]) {
+    expect(() => assertFreshDirectGoogleLinkAuthentication({
+      ...user,
+      auth_time: authTime,
+      providerIdentity: { ...sourceIdentity, authTime },
+    }, now)).toThrow(LinkIntentError);
+  }
+  for (const corruptUser of [
+    { ...user, email: "different@example.com" },
+    { ...user, uid: "../another-account" },
+  ]) {
+    expect(() => assertFreshDirectGoogleLinkAuthentication(corruptUser, now))
+      .toThrow(LinkIntentError);
+  }
+});
+
+test("intent creation validates complete source registries before writing", async () => {
+  const sourceIdentity: VerifiedProviderIdentity = {
+    provider: "google",
+    issuer: "https://accounts.google.com",
+    subject: "google-subject",
+    email: "learner@example.com",
+    emailVerified: true,
+    authTime: nowSeconds,
+  };
+  const user: VerifiedUser = {
+    uid: sourceIdentity.subject,
+    email: sourceIdentity.email,
+    email_verified: true,
+    auth_time: sourceIdentity.authTime,
+    providerIdentity: sourceIdentity,
+    identityLinkRegistered: true,
+  };
+  const keys = await identityRegistryKeys(sourceIdentity, testSecret);
+  const base = {
+    [keys.identityPath]: exactIdentityRegistryDocument(keys.identityPath, keys, user.uid, "google"),
+    [keys.emailPath]: exactEmailOwnerDocument(keys.emailPath, keys, user.uid),
+    [`users/${user.uid}`]: { id: user.uid, email: user.email },
+  };
+  for (const corruption of [
+    { path: keys.identityPath, patch: { provider: "filosage" } },
+    { path: keys.identityPath, patch: { identityHash: "wrong" } },
+    { path: keys.emailPath, patch: { canonicalUid: "another-account" } },
+    { path: keys.emailPath, patch: { unexpected: true } },
+  ]) {
+    const documents = {
+      ...base,
+      [corruption.path]: { ...base[corruption.path], ...corruption.patch },
+    };
+    expect(() => createIdentityLinkTransactionPlan(documents, {
+      intentPath: "identityLinkIntents/v1_" + "d".repeat(64),
+      keys,
+      user,
+      returnPath: "/profile",
+      now,
+    })).toThrow(LinkIntentError);
+    expect(Object.keys(documents).some((path) => path.startsWith("identityLinkIntents/"))).toBe(false);
+  }
+});
+
+test("completion is atomic single-use and refuses stale auth or a deleted account", async () => {
+  const token = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFG";
+  const sourceIdentity: VerifiedProviderIdentity = {
+    provider: "google",
+    issuer: "https://accounts.google.com",
+    subject: "google-subject",
+    email: "learner@example.com",
+    emailVerified: true,
+    authTime: nowSeconds,
+  };
+  const externalIdentity: VerifiedProviderIdentity = {
+    provider: "filosage",
+    issuer: "https://qa-filosage.ciamlogin.com/tenant/v2.0",
+    subject: "external-subject",
+    email: sourceIdentity.email,
+    emailVerified: true,
+    authTime: nowSeconds,
+  };
+  const [intentPath, sourceKeys, externalKeys] = await Promise.all([
+    linkIntentPath(token, testSecret),
+    identityRegistryKeys(sourceIdentity, testSecret),
+    identityRegistryKeys(externalIdentity, testSecret),
+  ]);
+  const intent = {
+    id: documentId(intentPath),
+    schemaVersion: 1,
+    keyVersion: "v1",
+    canonicalUid: sourceIdentity.subject,
+    sourceIdentityHash: sourceKeys.identityHash,
+    emailHash: externalKeys.emailHash,
+    returnPath: "/profile",
+    createdAt: "2026-08-18T12:00:00.000Z",
+    expiresAt: "2026-08-18T12:10:00.000Z",
+    usedAt: null,
+  };
+  const seed = {
+    [intentPath]: intent,
+    [sourceKeys.identityPath]: exactIdentityRegistryDocument(
+      sourceKeys.identityPath,
+      sourceKeys,
+      sourceIdentity.subject,
+      "google",
+    ),
+    [externalKeys.emailPath]: exactEmailOwnerDocument(
+      externalKeys.emailPath,
+      externalKeys,
+      sourceIdentity.subject,
+    ),
+    [`users/${sourceIdentity.subject}`]: { id: sourceIdentity.subject, email: sourceIdentity.email },
+  };
+
+  for (const authTime of [undefined, nowSeconds - 301]) {
+    expect(() => assertFreshExternalLinkAuthentication(
+      { ...externalIdentity, authTime },
+      now,
+    )).toThrow(LinkIntentError);
+  }
+
+  const completionInput = {
+    intentPath,
+    sourceIdentityPath: sourceKeys.identityPath,
+    keys: externalKeys,
+    identity: externalIdentity,
+    candidateCanonicalUid: sourceIdentity.subject,
+    sourceIdentityHash: sourceKeys.identityHash,
+    now,
+  };
+  const deletedDocuments = { ...seed };
+  delete deletedDocuments[`users/${sourceIdentity.subject}`];
+  expect(() => completeIdentityLinkTransactionPlan(deletedDocuments, completionInput))
+    .toThrow(LinkIntentError);
+  expect(deletedDocuments[externalKeys.identityPath]).toBeUndefined();
+
+  const serializedDocuments: Record<string, Record<string, unknown> | null> = { ...seed };
+  const first = completeIdentityLinkTransactionPlan(serializedDocuments, completionInput);
+  for (const write of first.writes) {
+    serializedDocuments[write.path] = { ...write.data, id: documentId(write.path) };
+  }
+  expect(() => completeIdentityLinkTransactionPlan(serializedDocuments, completionInput))
+    .toThrow(expect.objectContaining({ reason: "replayed" }));
+  expect(serializedDocuments[externalKeys.identityPath]).toMatchObject({
+    canonicalUid: sourceIdentity.subject,
+    provider: "filosage",
+  });
+  expect(serializedDocuments[intentPath]?.usedAt).toBe("2026-08-18T12:05:00.000Z");
+
+  const exactExisting = {
+    ...seed,
+    [externalKeys.identityPath]: exactIdentityRegistryDocument(
+      externalKeys.identityPath,
+      externalKeys,
+      sourceIdentity.subject,
+      "filosage",
+    ),
+  };
+  const idempotent = completeIdentityLinkTransactionPlan(exactExisting, completionInput);
+  expect(idempotent.writes.map((write) => write.path)).toEqual([intentPath]);
+  for (const corrupt of [
+    { ...exactExisting[externalKeys.identityPath], provider: "google" },
+    { ...exactExisting[externalKeys.identityPath], unexpected: true },
+    { ...exactExisting[externalKeys.identityPath], canonicalUid: "different-account" },
+  ]) {
+    expect(() => completeIdentityLinkTransactionPlan({
+      ...seed,
+      [externalKeys.identityPath]: corrupt,
+    }, completionInput)).toThrow(LinkIntentError);
+  }
+});
 
 test("identity and email registry paths are deterministic versioned HMACs", async () => {
   const first = await identityRegistryKeys(identity, "test-secret-with-at-least-32-characters");
