@@ -84,18 +84,8 @@ async function signedRoutes(page: Page, canCreate: boolean) {
     },
   } }));
   await page.route("**/api/account", (route) => route.fulfill({ json: exactLearnerAccount({
-    access: canCreate ? "plus" : "free",
     plan: canCreate ? "plus" : "free",
     displayName: "Acceptance Learner",
-    capabilities: {
-      createCourse: canCreate,
-      generateLesson: canCreate,
-      publishCourse: false,
-      advancedCapstoneAnalysis: false,
-      exportEvidenceReport: false,
-      shareEvidenceReport: false,
-    },
-    courseCredits: { balance: canCreate ? 2 : 0, monthlyAllocation: canCreate ? 2 : 0, balanceCap: canCreate ? 24 : 0 },
   }) }));
 }
 

@@ -1,8 +1,9 @@
 import { expect, test } from "@playwright/test";
 import { spawnSync } from "node:child_process";
-import { readFileSync } from "node:fs";
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { createRequire } from "node:module";
-import { resolve } from "node:path";
+import { tmpdir } from "node:os";
+import { join, resolve } from "node:path";
 import { courseAuthorIdsForAccount } from "../src/lib/course-owner-identity";
 
 type ArmTemplate = {
@@ -548,4 +549,36 @@ test("migration completion restores immutable release snapshots without overwrit
   expect(migrationImporterSource).toContain("--missing-only");
   expect(migrationImporterSource).toContain("conflicting data");
   expect(migrationVerifierSource).toContain("path LIKE 'courseReleases/%'");
+});
+
+test("authored-course import preflight reports bounded counts without the owner email", () => {
+  const directory = mkdtempSync(join(tmpdir(), "filosage-import-preflight-"));
+  const bundlePath = join(directory, "bundle.json");
+  const ownerEmail = "private-owner+migration@example.test";
+  writeFileSync(bundlePath, JSON.stringify({
+    schemaVersion: 2,
+    owner: { uid: "migration-owner", email: ownerEmail },
+    documents: [{
+      path: "courses/migration-course",
+      fields: { authorId: { stringValue: "migration-owner" } },
+    }],
+    bannerObjects: [],
+  }));
+
+  try {
+    const result = spawnSync(process.execPath, [
+      "--experimental-strip-types",
+      resolve(root, "scripts/import-azure-authored-courses.ts"),
+      `--input=${bundlePath}`,
+    ], {
+      cwd: root,
+      encoding: "utf8",
+    });
+
+    expect(result.status, result.stderr).toBe(0);
+    expect(result.stdout).toContain("Preflight: 1 course(s), 0 lesson(s), 0 banner(s).");
+    expect(result.stdout).not.toContain(ownerEmail);
+  } finally {
+    rmSync(directory, { recursive: true, force: true });
+  }
 });

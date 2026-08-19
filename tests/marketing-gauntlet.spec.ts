@@ -20,11 +20,8 @@ async function prepareEligibleCreator(page: Page) {
   await restoreLocalLearner(page);
   await page.route("**/api/account", (route) => route.fulfill({
     json: exactLearnerAccount({
-      access: "pro",
       plan: "pro",
       displayName: "Independent Learner",
-      capabilities: { createCourse: true, generateLesson: true, publishCourse: true },
-      courseCredits: { balance: 5, monthlyAllocation: 5, balanceCap: 60 },
       quotas: [{ feature: "course_outline", limit: 5, used: 0, remaining: 5, resetAt: "2026-09-01T00:00:00.000Z" }],
     }),
   }));
@@ -293,18 +290,8 @@ test("contextual plan entry respects course-creation and evidence entitlements",
   await restoreLocalLearner(page);
   let canCreate = false;
   await page.route("**/api/account", (route) => route.fulfill({ json: exactLearnerAccount({
-    access: canCreate ? "plus" : "free",
     plan: canCreate ? "plus" : "free",
     displayName: "Plan Boundary Learner",
-    capabilities: {
-      createCourse: canCreate,
-      generateLesson: canCreate,
-      publishCourse: false,
-      advancedCapstoneAnalysis: false,
-      exportEvidenceReport: false,
-      shareEvidenceReport: false,
-    },
-    courseCredits: { balance: canCreate ? 2 : 0, monthlyAllocation: canCreate ? 2 : 0, balanceCap: canCreate ? 24 : 0 },
   }) }));
   await page.route("**/api/courses?scope=public", (route) => route.fulfill({ json: { courses: [] } }));
   await page.route("**/api/courses?scope=mine", (route) => route.fulfill({ json: { courses: [] } }));

@@ -1,29 +1,11 @@
 import { expect, type Page } from "@playwright/test";
 import { PRIVACY_VERSION, TERMS_VERSION } from "../../src/lib/legal";
+import { MEMBERSHIP_PLANS } from "../../src/lib/membership-plans";
 
-type MockLearnerAccountOptions = {
-  access?: "free" | "plus" | "pro" | "owner";
-  plan?: "free" | "plus" | "pro";
-  isOwner?: boolean;
+type CommonMockLearnerAccountOptions = {
   subscriptionStatus?: "none" | "trialing" | "active" | "past_due" | "canceled";
   displayName?: string;
-  capabilities?: Partial<{
-    createCourse: boolean;
-    generateLesson: boolean;
-    flashcardDecksEnabled: boolean;
-    createCustomFlashcardDeck: boolean;
-    publishCourse: boolean;
-    advancedCapstoneAnalysis: boolean;
-    exportEvidenceReport: boolean;
-    shareEvidenceReport: boolean;
-  }>;
-  courseCredits?: Partial<{
-    balance: number | null;
-    monthlyAllocation: number | null;
-    balanceCap: number | null;
-    nextAccrualAt: string | null;
-    frozenUntil: string | null;
-  }>;
+  flashcardDecksEnabled?: boolean;
   quotas?: Array<{
     feature: "course_outline" | "course_banner" | "lesson_generation" | "tutor" | "flashcard_generation";
     limit: number | null;
@@ -33,33 +15,51 @@ type MockLearnerAccountOptions = {
   }>;
 };
 
+type MockLearnerAccountOptions = CommonMockLearnerAccountOptions & (
+  | { isOwner: true; plan?: never }
+  | { isOwner?: false; plan?: keyof typeof MEMBERSHIP_PLANS }
+);
+
 export function exactLearnerAccount(options: MockLearnerAccountOptions = {}) {
+  const isOwner = options.isOwner === true;
+  const plan = isOwner ? "pro" : options.plan ?? "free";
+  const membership = MEMBERSHIP_PLANS[plan];
+  const paidCredits = plan === "free"
+    ? {
+        balance: 0,
+        monthlyAllocation: 0,
+        balanceCap: 0,
+        nextAccrualAt: null,
+        frozenUntil: null,
+      }
+    : {
+        balance: membership.limits.courseCreditsPerMonth,
+        monthlyAllocation: membership.limits.courseCreditsPerMonth,
+        balanceCap: membership.limits.courseCreditBalanceCap,
+        nextAccrualAt: "2026-09-18T00:00:00.000Z",
+        frozenUntil: null,
+      };
+
   return {
-    access: options.access ?? "free",
-    plan: options.plan ?? "free",
-    isOwner: options.isOwner ?? false,
+    access: isOwner ? "owner" as const : plan,
+    plan,
+    isOwner,
     accountStatus: "active" as const,
     subscriptionStatus: options.subscriptionStatus ?? "none",
     displayName: options.displayName ?? "Playwright Learner",
     capabilities: {
-      createCourse: false,
-      generateLesson: false,
-      flashcardDecksEnabled: false,
-      createCustomFlashcardDeck: false,
-      publishCourse: false,
-      advancedCapstoneAnalysis: false,
-      exportEvidenceReport: false,
-      shareEvidenceReport: false,
-      ...options.capabilities,
+      createCourse: isOwner || membership.capabilities.create_course,
+      generateLesson: isOwner || membership.capabilities.generate_lesson,
+      flashcardDecksEnabled: options.flashcardDecksEnabled ?? false,
+      createCustomFlashcardDeck: isOwner || membership.capabilities.create_custom_flashcard_deck,
+      publishCourse: isOwner || membership.capabilities.publish_course,
+      advancedCapstoneAnalysis: isOwner || membership.capabilities.advanced_capstone_analysis,
+      exportEvidenceReport: isOwner || membership.capabilities.export_evidence_report,
+      shareEvidenceReport: isOwner || membership.capabilities.share_evidence_report,
     },
-    courseCredits: {
-      balance: 0,
-      monthlyAllocation: 0,
-      balanceCap: 0,
-      nextAccrualAt: null,
-      frozenUntil: null,
-      ...options.courseCredits,
-    },
+    courseCredits: isOwner
+      ? { balance: null, monthlyAllocation: null, balanceCap: null, nextAccrualAt: null, frozenUntil: null }
+      : paidCredits,
     applicationAccountExists: true,
     identityLinkRequired: false,
     acceptedTermsVersion: TERMS_VERSION,
@@ -100,25 +100,9 @@ export async function mockFreeLearnerAccount(page: Page) {
 export async function mockOwnerLearnerAccount(page: Page, displayName = "Playwright Owner") {
   await page.route("**/api/account", (route) => route.fulfill({
     json: exactLearnerAccount({
-      access: "owner",
-      plan: "pro",
       isOwner: true,
       displayName,
-      capabilities: {
-        createCourse: true,
-        generateLesson: true,
-        flashcardDecksEnabled: true,
-        createCustomFlashcardDeck: true,
-        publishCourse: true,
-        advancedCapstoneAnalysis: true,
-        exportEvidenceReport: true,
-        shareEvidenceReport: true,
-      },
-      courseCredits: {
-        balance: null,
-        monthlyAllocation: null,
-        balanceCap: null,
-      },
+      flashcardDecksEnabled: true,
     }),
   }));
 }

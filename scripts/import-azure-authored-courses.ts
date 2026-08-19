@@ -59,7 +59,7 @@ if (objectAssetIds.size !== bundle.bannerObjects.length || [...assetIds].some((i
 if ([...objectAssetIds].some((id) => !assetIds.has(id))) {
   throw new Error("The bundle contains an unreferenced banner object.");
 }
-console.log(`Preflight: ${courseCount} course(s), ${lessonCount} lesson(s), ${bundle.bannerObjects.length} banner(s), owner ${bundle.owner.email}.`);
+console.log(`Preflight: ${courseCount} course(s), ${lessonCount} lesson(s), ${bundle.bannerObjects.length} banner(s).`);
 if (!apply) {
   console.log("Dry run only. Re-run with --apply after reviewing the counts and target configuration.");
   process.exit(0);
