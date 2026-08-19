@@ -71,6 +71,7 @@ test("renders privacy-safe professional evidence with inspectable proof", async 
 
 test("gives unavailable evidence recipients a privacy-safe recovery path", async ({ page }) => {
   await page.goto("/pricing");
+  await expect(page.locator("main")).toBeVisible();
   await expectNoAccessibilityViolations(page);
 
   await page.evaluate(() => localStorage.removeItem("filosage:analytics:consent:v1"));
