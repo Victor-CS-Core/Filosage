@@ -487,7 +487,6 @@ var configuredIdentityProviders = union(
             wellKnownOpenIdConfiguration: externalIdWellKnownConfiguration
           }
         }
-        validation: { allowedAudiences: [externalIdClientId] }
       }
     }
   } : {}

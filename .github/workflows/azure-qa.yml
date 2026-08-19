@@ -69,7 +69,7 @@ jobs:
           PROVIDER_STATE="$(az containerapp auth show \
             --resource-group "${{ vars.AZURE_RESOURCE_GROUP }}" \
             --name "${{ vars.AZURE_QA_CONTAINER_APP_NAME }}" \
-            --query "{google:properties.identityProviders.google.enabled,filosage:properties.identityProviders.customOpenIdConnectProviders.filosage.enabled}" \
+            --query "{google:identityProviders.google.enabled,filosage:identityProviders.customOpenIdConnectProviders.filosage.enabled}" \
             --output json)"
           {
             echo "### QA authentication provider state before deployment"
@@ -136,7 +136,7 @@ jobs:
           PROVIDER_STATE="$(az containerapp auth show \
             --resource-group "${{ vars.AZURE_RESOURCE_GROUP }}" \
             --name "${{ vars.AZURE_QA_CONTAINER_APP_NAME }}" \
-            --query "{google:properties.identityProviders.google.enabled,filosage:properties.identityProviders.customOpenIdConnectProviders.filosage.enabled}" \
+            --query "{google:identityProviders.google.enabled,filosage:identityProviders.customOpenIdConnectProviders.filosage.enabled}" \
             --output json)"
           {
             echo "### QA authentication provider state after deployment"

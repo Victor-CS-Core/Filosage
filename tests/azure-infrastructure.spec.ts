@@ -382,7 +382,9 @@ test("compiled Azure templates provision direct Google and an inactive Filosage 
     expect(compiled).toContain("EXTERNAL_ID_AUTH_ENABLED");
     expect(compiled).toContain("EXTERNAL_ID_NEW_ACCOUNTS_ENABLED");
     expect(compiled).toContain("BILLING_ENABLED");
-    expect(String(template.variables?.configuredIdentityProviders)).toContain("variables('externalIdRuntimeEnabled')");
+    const configuredIdentityProviders = String(template.variables?.configuredIdentityProviders);
+    expect(configuredIdentityProviders).toContain("variables('externalIdRuntimeEnabled')");
+    expect(configuredIdentityProviders.split("customOpenIdConnectProviders")[1]).not.toContain("'validation'");
     const environment = compiledContainerEnvironment(template);
     if (Array.isArray(environment)) {
       expect(environment).toContainEqual({ name: "BILLING_ENABLED", value: "false" });
@@ -420,6 +422,10 @@ test("compiled identity secrets remain server-only and use Key Vault references"
 });
 
 test("QA activation is explicit while production staging cannot enable External ID", () => {
+  for (const workflowSource of [qaWorkflowSource, stagingWorkflowSource, promotionWorkflowSource]) {
+    expect(workflowSource).toContain("{google:identityProviders.google.enabled,filosage:identityProviders.customOpenIdConnectProviders.filosage.enabled}");
+    expect(workflowSource).not.toContain("properties.identityProviders");
+  }
   expect(qaWorkflowSource).toContain("external_id_auth_enabled:");
   expect(qaWorkflowSource).toContain("external_id_new_accounts_enabled:");
   expect(qaWorkflowSource).toContain("inputs.external_id_auth_enabled");

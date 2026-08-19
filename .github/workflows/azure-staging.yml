@@ -63,7 +63,7 @@ jobs:
           PROVIDER_STATE="$(az containerapp auth show \
             --resource-group "${{ vars.AZURE_RESOURCE_GROUP }}" \
             --name "${{ vars.AZURE_CONTAINER_APP_NAME }}" \
-            --query "{google:properties.identityProviders.google.enabled,filosage:properties.identityProviders.customOpenIdConnectProviders.filosage.enabled}" \
+            --query "{google:identityProviders.google.enabled,filosage:identityProviders.customOpenIdConnectProviders.filosage.enabled}" \
             --output json)"
           {
             echo "### Production authentication provider state before staging"
@@ -186,7 +186,7 @@ jobs:
           PROVIDER_STATE="$(az containerapp auth show \
             --resource-group "${{ vars.AZURE_RESOURCE_GROUP }}" \
             --name "${{ vars.AZURE_CONTAINER_APP_NAME }}" \
-            --query "{google:properties.identityProviders.google.enabled,filosage:properties.identityProviders.customOpenIdConnectProviders.filosage.enabled}" \
+            --query "{google:identityProviders.google.enabled,filosage:identityProviders.customOpenIdConnectProviders.filosage.enabled}" \
             --output json)"
           {
             echo "### Production authentication provider state after staging"
