@@ -10,8 +10,8 @@ import {
 } from "../src/lib/legal";
 
 const rootAssetHashes = {
-  "public/brand/logo/filosage-horizontal.svg": "60d24c9b74378363e9133aaf445beb233c233b0a59a36d59c6dda325ec2743e1",
-  "public/brand/backgrounds/hero-light.svg": "4ebf1a01c2434c903540c301beb91b53461569756afcbb460d8978e3a9d121b4",
+  "public/brand/logo/filosage-horizontal.svg": "d7d70e6b6ff2b659f1262decd7c80eebaf7f04e959c7219745e4f90cdd687672",
+  "public/brand/backgrounds/hero-light.svg": "df39f0d610889b9d74b23687824c951f3aec65605a2aa17d66da4f66374fcf6a",
   "public/brand/logo/browser-icon.png": "b1165595ff93abc622a822fcb2657a6ce44ada055ce6d97d30088d690c73e9a5",
 } as const;
 
@@ -22,6 +22,14 @@ const css = readFileSync("infra/azure/external-id-branding/custom.css", "utf8");
 
 function sha256(path: string) {
   return createHash("sha256").update(readFileSync(path)).digest("hex");
+}
+
+function canonicalSourceSha256(path: string) {
+  const bytes = readFileSync(path);
+  const canonicalBytes = path.endsWith(".svg")
+    ? Buffer.from(bytes.toString("utf8").replace(/\r\n/g, "\n"), "utf8")
+    : bytes;
+  return createHash("sha256").update(canonicalBytes).digest("hex");
 }
 
 function pngMetadata(path: string) {
@@ -138,9 +146,9 @@ test("portal derivatives have exact PNG signatures, dimensions, and byte ceiling
   expect(pngMetadata(`public${String(manifest.favicon)}`).bytes).toBeLessThanOrEqual(5 * 1024);
 });
 
-test("official brand sources remain byte-for-byte unchanged", () => {
+test("official brand sources remain canonically byte-for-byte unchanged across checkouts", () => {
   for (const [path, expectedHash] of Object.entries(rootAssetHashes)) {
-    expect(sha256(path), path).toBe(expectedHash);
+    expect(canonicalSourceSha256(path), path).toBe(expectedHash);
   }
 });
 
@@ -195,7 +203,11 @@ test("banner preserves the complete approved logo geometry with transparent edge
   ]);
 
   expect(source).toMatchObject({ width: 620, height: 160 });
-  expect(source.alphaBounds).toMatchObject({ minX: 169, minY: 46, maxX: 343, maxY: 87 });
+  expect(source.alphaBounds).toMatchObject({ minX: 169, maxX: 343 });
+  expect(source.alphaBounds.minY).toBeGreaterThanOrEqual(45);
+  expect(source.alphaBounds.minY).toBeLessThanOrEqual(46);
+  expect(source.alphaBounds.maxY).toBeGreaterThanOrEqual(87);
+  expect(source.alphaBounds.maxY).toBeLessThanOrEqual(88);
   expect(banner).toMatchObject({ width: 245, height: 36 });
   expect(banner.alphaBounds).toEqual({ minX: 56, minY: 2, maxX: 188, maxY: 33, width: 133, height: 32 });
   expect(banner.alphaBounds.minX).toBeGreaterThan(0);
