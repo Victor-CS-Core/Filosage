@@ -961,10 +961,10 @@ test("keeps same-email recovery blocking and focus-contained", async ({ page }) 
   await expect(dialog).toBeVisible();
   await page.keyboard.press("Escape");
   await expect(dialog).toBeVisible();
-  await page.keyboard.press("Shift+Tab");
-  await expect(dialog.getByRole("button", { name: "Sign out and choose another method" })).toBeFocused();
   await page.keyboard.press("Tab");
   await expect(dialog.getByRole("button", { name: "Confirm existing Google sign-in" })).toBeFocused();
+  await page.keyboard.press("Tab");
+  await expect(dialog.getByRole("button", { name: "Sign out and choose another method" })).toBeFocused();
   expect(await page.evaluate(() => document.activeElement?.closest('[role="dialog"]') !== null)).toBe(true);
 });
 

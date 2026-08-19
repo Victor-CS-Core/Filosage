@@ -52,6 +52,7 @@ export const deviceSensitiveSuites = [
   "tests/admin-research-layout.spec.ts",
   "tests/analytics-consent.spec.ts",
   "tests/app-shell.spec.ts",
+  "tests/auth-accessibility.spec.ts",
   "tests/command-center.spec.ts",
   "tests/course-learning-flow.spec.ts",
   "tests/example.spec.ts",

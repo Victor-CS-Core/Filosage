@@ -1,7 +1,7 @@
 import { expect, test } from "@playwright/test";
 import type { Course } from "../src/lib/course-types";
 import { matchesSearchQuery, normalizeSearchText } from "../src/lib/search";
-import { restoreLocalLearner } from "./fixtures/local-learner";
+import { mockOwnerLearnerAccount, restoreLocalLearner } from "./fixtures/local-learner";
 
 const searchableCourses: Course[] = [
   {
@@ -69,15 +69,7 @@ test("course-library search handles URL queries, lesson metadata, filters, and r
 test("dashboard defers global search to the Command Center", async ({ page }, testInfo) => {
   test.skip(testInfo.project.name !== "chromium", "The dashboard and Command Center handoff only needs one browser project.");
   await restoreLocalLearner(page);
-  await page.route("**/api/account", (route) => route.fulfill({ json: {
-    access: "pro",
-    plan: "pro",
-    isOwner: true,
-    accountStatus: "active",
-    displayName: "Search Tester",
-    legalAcceptanceRequired: false,
-    quotas: [],
-  } }));
+  await mockOwnerLearnerAccount(page, "Search Tester");
   await page.route("**/api/progress", (route) => route.fulfill({ json: { progress: [] } }));
   await page.route("**/api/courses?scope=public", (route) => route.fulfill({ json: { courses: searchableCourses } }));
   await page.route("**/api/courses?scope=mine", (route) => route.fulfill({ json: { courses: [] } }));

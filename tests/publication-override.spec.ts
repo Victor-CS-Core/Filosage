@@ -104,6 +104,7 @@ test("an owner can confirm a quality override only after the normal review fails
     acceptedPrivacyVersion: PRIVACY_VERSION,
     legalAcceptanceRequired: false,
     applicationAccountExists: true,
+    identityLinkRequired: false,
     currentTermsVersion: TERMS_VERSION,
     currentPrivacyVersion: PRIVACY_VERSION,
     quotas: [

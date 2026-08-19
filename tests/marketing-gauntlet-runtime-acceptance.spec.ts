@@ -1,5 +1,6 @@
 import { mkdirSync } from "node:fs";
 import { expect, test, type Browser, type BrowserContext, type Page } from "@playwright/test";
+import { exactLearnerAccount } from "./fixtures/local-learner";
 
 const baseURL = process.env.ACCEPTANCE_BASE_URL ?? "http://127.0.0.1:3401";
 const artifactDir = "docs/research/artifacts/marketing-gauntlet-2026-08-16";
@@ -51,22 +52,41 @@ async function commonRoutes(page: Page) {
 
 async function guestRoutes(page: Page) {
   await commonRoutes(page);
-  await page.route("**/api/auth/session", (route) => route.fulfill({ status: 401, json: { user: null } }));
+  await page.route("**/api/auth/session", (route) => route.fulfill({ json: {
+    recentAuthentication: false,
+    authentication: {
+      primaryProvider: "google",
+      externalIdAvailable: false,
+      externalIdNewAccountsAvailable: false,
+      legacyGoogleAvailable: true,
+    },
+    user: null,
+  } }));
   await page.route("**/api/courses?scope=public", (route) => route.fulfill({ json: { courses } }));
 }
 
 async function signedRoutes(page: Page, canCreate: boolean) {
   await commonRoutes(page);
-  await page.route("**/api/auth/session", (route) => route.fulfill({ json: { user: {
-    uid: "acceptance-learner", displayName: "Acceptance Learner", email: "acceptance@example.test", photoURL: null,
-  } } }));
-  await page.route("**/api/account", (route) => route.fulfill({ json: {
+  await page.route("**/api/auth/session", (route) => route.fulfill({ json: {
+    recentAuthentication: false,
+    authentication: {
+      primaryProvider: "google",
+      externalIdAvailable: false,
+      externalIdNewAccountsAvailable: false,
+      legacyGoogleAvailable: true,
+    },
+    user: {
+      uid: "acceptance-learner",
+      displayName: "Acceptance Learner",
+      email: "acceptance@example.test",
+      photoURL: null,
+      authenticationProvider: "google",
+    },
+  } }));
+  await page.route("**/api/account", (route) => route.fulfill({ json: exactLearnerAccount({
     access: canCreate ? "plus" : "free",
     plan: canCreate ? "plus" : "free",
-    isOwner: false,
-    accountStatus: "active",
     displayName: "Acceptance Learner",
-    legalAcceptanceRequired: false,
     capabilities: {
       createCourse: canCreate,
       generateLesson: canCreate,
@@ -76,8 +96,7 @@ async function signedRoutes(page: Page, canCreate: boolean) {
       shareEvidenceReport: false,
     },
     courseCredits: { balance: canCreate ? 2 : 0, monthlyAllocation: canCreate ? 2 : 0, balanceCap: canCreate ? 24 : 0 },
-    quotas: [],
-  } }));
+  }) }));
 }
 
 async function contextFor(browser: Browser, mobile = false): Promise<BrowserContext> {
@@ -138,6 +157,7 @@ test("captures production-mode marketing gauntlet acceptance", async ({ browser 
     await page.route("**/api/courses?scope=public", (route) => route.fulfill({ json: { courses: [] } }));
     await page.route("**/api/courses?scope=mine", (route) => route.fulfill({ json: { courses: [] } }));
     await page.goto(`${baseURL}/library`);
+    await expect(page.locator(".learner-shell")).toBeVisible();
     await expect(page.getByRole("status")).toContainText("0 published courses found");
     await page.getByRole("searchbox", { name: "Search published courses" }).fill("Unpublished learning goal");
     await expect(page.getByRole("link", { name: canCreate ? /Create this course/ : /Create private courses with Plus/ })).toBeVisible();

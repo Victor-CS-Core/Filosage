@@ -1,6 +1,12 @@
 import { readFile, writeFile } from "node:fs/promises";
 import { spawnSync } from "node:child_process";
-import { expect, test, type APIResponse, type Page } from "@playwright/test";
+import {
+  expect,
+  request as playwrightRequest,
+  test,
+  type APIResponse,
+  type Page,
+} from "@playwright/test";
 import {
   IDENTITY_LINK_INTENT_TTL_MS,
   identityRegistryKeys,
@@ -250,6 +256,57 @@ async function writeStore(baseURL: string, store: LocalStore) {
     "utf8",
   );
 }
+
+test("local link fixtures accept only canonical UUID tokens and stay disabled outside local mode", () => {
+  const runId = crypto.randomUUID();
+  const probe = `
+    const { verifyProviderIdentity } = await import("./src/lib/identity-server.ts");
+    const runId = ${JSON.stringify(runId)};
+    process.env.NODE_ENV = "development";
+    process.env.FIREBASE_PROJECT_ID = "";
+    process.env.FIREBASE_CLIENT_EMAIL = "";
+    process.env.FIREBASE_PRIVATE_KEY = "";
+    const valid = await verifyProviderIdentity(\`playwright-link-google-\${runId}\`);
+    const nearMisses = await Promise.all([
+      verifyProviderIdentity(\`playwright-link-google-\${runId}0\`),
+      verifyProviderIdentity(\`playwright-link-google-\${runId.replaceAll("-", "")}\`),
+      verifyProviderIdentity("playwright-link-google-00000000-0000-0000-0000-000000000000"),
+      verifyProviderIdentity(\`playwright-link-google-\${runId}-learner@example.com\`),
+    ]);
+    process.env.NODE_ENV = "production";
+    const nonlocal = await verifyProviderIdentity(\`playwright-link-google-\${runId}\`);
+    process.stdout.write(JSON.stringify({ valid, nearMisses, nonlocal }));
+  `;
+  const result = spawnSync(process.execPath, [
+    "--conditions=react-server",
+    "--import",
+    "tsx",
+    "--input-type=module",
+    "--eval",
+    probe,
+  ], {
+    cwd: process.cwd(),
+    encoding: "utf8",
+    env: { ...process.env, NODE_ENV: "development" },
+  });
+
+  expect(result.status, result.stderr).toBe(0);
+  const output = JSON.parse(result.stdout) as {
+    valid: VerifiedProviderIdentity | null;
+    nearMisses: Array<VerifiedProviderIdentity | null>;
+    nonlocal: VerifiedProviderIdentity | null;
+  };
+  expect(output.valid).toMatchObject({
+    provider: "google",
+    issuer: DIRECT_GOOGLE_ISSUER,
+    subject: `google-${runId}`,
+    email: `identity-link-${runId}@filosage.local`,
+    emailVerified: true,
+    name: "Identity Link Learner",
+  });
+  expect(output.nearMisses).toEqual([null, null, null, null]);
+  expect(output.nonlocal).toBeNull();
+});
 
 function rateLimitDocuments(store: LocalStore, namespace: string) {
   return Object.fromEntries(Object.entries(store).filter(([path, value]) => (
@@ -675,6 +732,82 @@ test.describe("identity-link mutation routes", () => {
     expect(setCookie(completed)).toContain("Max-Age=0");
     expect(setCookie(completed)).toContain("HttpOnly");
     expect(setCookie(completed)).toContain("SameSite=lax");
+  });
+
+  test("links two verified sessions once and preserves the Google canonical UID", async ({ request }, testInfo) => {
+    test.skip(
+      Boolean(process.env.ACCEPTANCE_BASE_URL?.trim()),
+      "This local datastore contract never runs against an external acceptance URL.",
+    );
+    test.skip(
+      process.env.PLAYWRIGHT_EXTERNAL_SERVER === "1",
+      "This local datastore contract requires a Playwright-owned loopback server.",
+    );
+    const baseURL = String(testInfo.project.use.baseURL);
+    playwrightOwnedStorePath(baseURL);
+    const runId = crypto.randomUUID();
+    const googleToken = `playwright-link-google-${runId}`;
+    const externalToken = `playwright-link-filosage-${runId}`;
+    const googleUid = `google-${runId}`;
+    const trustedHeaders = (token: string) => ({
+      Authorization: `Bearer ${token}`,
+      Origin: baseURL,
+      Accept: "application/json",
+      "X-Real-IP": `identity-link-e2e-${runId}`,
+    });
+
+    const accepted = await request.post("/api/legal/acceptance", {
+      headers: { ...trustedHeaders(googleToken), "Content-Type": "application/json" },
+      data: {
+        termsVersion: TERMS_VERSION,
+        privacyVersion: PRIVACY_VERSION,
+        ageEligibilityConfirmed: true,
+        source: "signup",
+      },
+    });
+    expect(accepted.status()).toBe(200);
+
+    const created = await request.post(
+      "/api/auth/link-intent?return=%2Fprofile%3Fidentity-linked%3D1",
+      {
+        headers: {
+          ...trustedHeaders(googleToken),
+          "X-Reauthentication-Token": googleToken,
+        },
+      },
+    );
+    expect(created.status()).toBe(200);
+    const storageState = await request.storageState();
+    const completionHeaders = trustedHeaders(externalToken);
+    const first = await playwrightRequest.newContext({
+      baseURL,
+      storageState,
+      extraHTTPHeaders: completionHeaders,
+    });
+    const second = await playwrightRequest.newContext({
+      baseURL,
+      storageState,
+      extraHTTPHeaders: completionHeaders,
+    });
+    try {
+      const outcomes = await Promise.all([
+        first.post("/api/auth/link-intent/complete"),
+        second.post("/api/auth/link-intent/complete"),
+      ]);
+      expect(outcomes.map((response) => response.status()).sort()).toEqual([200, 409]);
+
+      const session = await first.get("/api/auth/session");
+      expect(session.status()).toBe(200);
+      expect(await session.json()).toMatchObject({
+        user: {
+          uid: googleUid,
+          authenticationProvider: "filosage",
+        },
+      });
+    } finally {
+      await first.dispose();
+      await second.dispose();
+    }
   });
 });
 

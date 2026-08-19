@@ -14,22 +14,19 @@ import {
 } from "../src/lib/marketing-merchandising";
 import { parsePricingContext } from "../src/lib/pricing-context";
 import { courseLanguageModeFor } from "../src/lib/product-events";
-import { restoreLocalLearner } from "./fixtures/local-learner";
+import { exactLearnerAccount, restoreLocalLearner } from "./fixtures/local-learner";
 
 async function prepareEligibleCreator(page: Page) {
   await restoreLocalLearner(page);
   await page.route("**/api/account", (route) => route.fulfill({
-    json: {
+    json: exactLearnerAccount({
       access: "pro",
       plan: "pro",
-      isOwner: false,
-      accountStatus: "active",
       displayName: "Independent Learner",
-      legalAcceptanceRequired: false,
       capabilities: { createCourse: true, generateLesson: true, publishCourse: true },
       courseCredits: { balance: 5, monthlyAllocation: 5, balanceCap: 60 },
-      quotas: [{ feature: "course_outline", remaining: 5 }],
-    },
+      quotas: [{ feature: "course_outline", limit: 5, used: 0, remaining: 5, resetAt: "2026-09-01T00:00:00.000Z" }],
+    }),
   }));
   await page.route("**/api/courses?scope=mine", (route) => route.fulfill({ json: { courses: [] } }));
   await page.route("**/api/courses?scope=public", (route) => route.fulfill({ json: { courses: [] } }));
@@ -295,13 +292,10 @@ test("evidence example is visibly fictional, role neutral, limited, and makes no
 test("contextual plan entry respects course-creation and evidence entitlements", async ({ page }) => {
   await restoreLocalLearner(page);
   let canCreate = false;
-  await page.route("**/api/account", (route) => route.fulfill({ json: {
+  await page.route("**/api/account", (route) => route.fulfill({ json: exactLearnerAccount({
     access: canCreate ? "plus" : "free",
     plan: canCreate ? "plus" : "free",
-    isOwner: false,
-    accountStatus: "active",
     displayName: "Plan Boundary Learner",
-    legalAcceptanceRequired: false,
     capabilities: {
       createCourse: canCreate,
       generateLesson: canCreate,
@@ -311,8 +305,7 @@ test("contextual plan entry respects course-creation and evidence entitlements",
       shareEvidenceReport: false,
     },
     courseCredits: { balance: canCreate ? 2 : 0, monthlyAllocation: canCreate ? 2 : 0, balanceCap: canCreate ? 24 : 0 },
-    quotas: [],
-  } }));
+  }) }));
   await page.route("**/api/courses?scope=public", (route) => route.fulfill({ json: { courses: [] } }));
   await page.route("**/api/courses?scope=mine", (route) => route.fulfill({ json: { courses: [] } }));
 
@@ -365,11 +358,9 @@ test("return recommendation emits bounded view and start events without controll
     telemetry.push(route.request().postDataJSON() as Record<string, unknown>);
     await route.fulfill({ status: 503 });
   });
-  await page.route("**/api/account", (route) => route.fulfill({ json: {
-    access: "free", plan: "free", isOwner: false, accountStatus: "active", displayName: "Returning Learner",
-    legalAcceptanceRequired: false, capabilities: { createCourse: false, generateLesson: false, publishCourse: false },
-    courseCredits: { balance: 0, monthlyAllocation: 0, balanceCap: 0 }, quotas: [],
-  } }));
+  await page.route("**/api/account", (route) => route.fulfill({
+    json: exactLearnerAccount({ displayName: "Returning Learner" }),
+  }));
   const dueProgress = {
     courseId: "return-course",
     topic: "Return practice",
@@ -438,11 +429,9 @@ test("conditional capability copy stays bounded and course telemetry sends only 
     telemetry.push(route.request().postDataJSON() as Record<string, unknown>);
     await route.fulfill({ status: 204 });
   });
-  await page.route("**/api/account", (route) => route.fulfill({ json: {
-    access: "free", plan: "free", isOwner: false, accountStatus: "active", displayName: "Language Learner",
-    legalAcceptanceRequired: false, capabilities: { createCourse: false, generateLesson: false, publishCourse: false },
-    courseCredits: { balance: 0, monthlyAllocation: 0, balanceCap: 0 }, quotas: [],
-  } }));
+  await page.route("**/api/account", (route) => route.fulfill({
+    json: exactLearnerAccount({ displayName: "Language Learner" }),
+  }));
   const bilingualCourse = marketingCourse("bilingual-course", "Bilingual reasoning", { language: "Spanish and English" });
   await page.route("**/api/courses/bilingual-course", (route) => route.fulfill({ json: bilingualCourse }));
   await page.route("**/api/progress?courseId=bilingual-course", (route) => route.fulfill({ json: { progress: null } }));

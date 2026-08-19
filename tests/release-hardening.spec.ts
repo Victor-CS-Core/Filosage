@@ -26,7 +26,13 @@ const suiteManifest = read("scripts/playwright-suite-manifest.ts");
 
 test("the app trusts Easy Auth headers only when the platform auth resource is configured", () => {
   expect(azureBicep).toContain(
-    "var easyAuthConfigured = !empty(googleClientId) && !empty(googleClientSecret)",
+    "var directGoogleConfigured = directGoogleAuthEnabled && !empty(googleClientId) && !empty(googleClientSecret)",
+  );
+  expect(azureBicep).toContain(
+    "var externalIdConfigurationComplete = !empty(externalIdClientId) && !empty(externalIdClientSecret) && !empty(externalIdIssuer) && !empty(externalIdWellKnownConfiguration)",
+  );
+  expect(azureBicep).toContain(
+    "var easyAuthConfigured = directGoogleConfigured || externalIdConfigurationComplete",
   );
   expect(azureBicep).toContain(
     "{ name: 'AZURE_EASY_AUTH_ENABLED', value: string(easyAuthConfigured) }",
@@ -104,10 +110,10 @@ test("every Playwright spec belongs to exactly one execution lane", async () => 
 
   expect(new Set(categorized).size).toBe(categorized.length);
   expect(categorized.toSorted()).toEqual(discovered);
-  expect(contractSuites).toHaveLength(23);
+  expect(contractSuites).toHaveLength(26);
   expect(apiSuites).toHaveLength(2);
-  expect(singleEngineSuites).toHaveLength(9);
-  expect(deviceSensitiveSuites).toHaveLength(12);
+  expect(singleEngineSuites).toHaveLength(11);
+  expect(deviceSensitiveSuites).toHaveLength(13);
   expect(dedicatedSuites).toHaveLength(3);
 });
 
@@ -140,10 +146,10 @@ test("the browser matrix starts only one isolated Next server at a time", () => 
   };
   expect(plan.projects).toEqual(["chromium", "mobile-chromium", "mobile-webkit"]);
   expect(plan.batchSize).toBe(3);
-  expect(Object.values(plan.batchesByProject).flat(2)).toHaveLength(45);
-  expect(plan.batchesByProject.chromium.flat()).toHaveLength(21);
-  expect(plan.batchesByProject["mobile-chromium"].flat()).toHaveLength(12);
-  expect(plan.batchesByProject["mobile-webkit"].flat()).toHaveLength(12);
+  expect(Object.values(plan.batchesByProject).flat(2)).toHaveLength(50);
+  expect(plan.batchesByProject.chromium.flat()).toHaveLength(24);
+  expect(plan.batchesByProject["mobile-chromium"].flat()).toHaveLength(13);
+  expect(plan.batchesByProject["mobile-webkit"].flat()).toHaveLength(13);
   expect(Object.values(plan.batchesByProject).flat(2)).not.toContain("tests/shared-evidence-ui.spec.ts");
   expect(plan.batchesByProject["mobile-chromium"].flat()).not.toContain("tests/marketing-gauntlet.spec.ts");
   expect(plan.batchesByProject["mobile-webkit"].flat()).not.toContain("tests/marketing-gauntlet.spec.ts");
