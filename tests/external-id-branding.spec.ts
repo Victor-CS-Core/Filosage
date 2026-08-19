@@ -392,6 +392,7 @@ test("operator runbook preserves every gated External ID rollout checkpoint", ()
     "QA new-account enablement",
     "Production external tenant, application, sign-up/sign-in user flow, and Google-provider writes",
     "Production External ID OAuth-secret creation or rotation and one-time identity-link HMAC key creation",
+    "Production registry backfill `--apply --missing-only`",
     "Production inactive zero-traffic deployment",
     "Production External ID provider enablement",
     "Production new-account enablement",
@@ -444,6 +445,20 @@ test("operator runbook preserves every gated External ID rollout checkpoint", ()
   for (const [environment, ...values] of redirectRows) {
     expect(values, `${environment} redirect evidence must remain blank`).toEqual(values.map(() => ""));
   }
+
+  const productionPromotion = section("## Production promotion gates");
+  for (const productionRegistryRequirement of [
+    "### Production registry preparation",
+    "The production dry run is mandatory and non-mutating",
+    "target the recorded production datastore fingerprint",
+    "The environment must report `OPERATIONS_ENVIRONMENT=production`",
+    "Production write mode requires its separate production registry-backfill approval",
+    "npm.cmd run migrate:identity-links -- --apply --missing-only \"--expected-target=$identityTarget\"",
+    "Record counts only",
+    "Fail closed on invalid accounts, duplicate normalized emails, conflicting mappings, a target mismatch",
+    "rerun the non-mutating production dry run to prove idempotency",
+    "before production External ID provider enablement",
+  ]) expect(productionPromotion, productionRegistryRequirement).toContain(productionRegistryRequirement);
 
   for (const command of [
     "npm.cmd run migrate:identity-links",

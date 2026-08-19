@@ -18,6 +18,7 @@ An unchecked row is not authorization. Each gate needs its own complete record b
 | QA new-account enablement | [ ] |  |  |  |  |  |  |
 | Production external tenant, application, sign-up/sign-in user flow, and Google-provider writes | [ ] |  |  |  |  |  |  |
 | Production External ID OAuth-secret creation or rotation and one-time identity-link HMAC key creation | [ ] |  |  |  |  |  |  |
+| Production registry backfill `--apply --missing-only` | [ ] |  |  |  |  |  |  |
 | Production inactive zero-traffic deployment | [ ] |  |  |  |  |  |  |
 | Production External ID provider enablement | [ ] |  |  |  |  |  |  |
 | Production new-account enablement | [ ] |  |  |  |  |  |  |
@@ -243,6 +244,25 @@ The completed QA evidence package also includes automated test output, accessibi
 ## Production promotion gates
 
 Do not execute this section without its separate production approvals. QA success does not authorize production configuration or traffic.
+
+### Production registry preparation
+
+Complete this gate against the maintenance target fingerprint in the approved production inventory, after the production secret approval and before production External ID provider enablement. The production dry run is mandatory and non-mutating, and must target the recorded production datastore fingerprint:
+
+```powershell
+npm.cmd run migrate:identity-links
+```
+
+The environment must report `OPERATIONS_ENVIRONMENT=production`. Record counts only. Fail closed on invalid accounts, duplicate normalized emails, conflicting mappings, a target mismatch, missing target evidence, or any output containing identity data. Do not copy identities, emails, subjects, canonical UIDs, connection strings, or credentials into the evidence package.
+
+Production write mode requires its separate production registry-backfill approval and an exact confirmation of the same recorded production target:
+
+```powershell
+$identityTarget = Read-Host 'Type the exact production datastore target recorded in the approved inventory'
+npm.cmd run migrate:identity-links -- --apply --missing-only "--expected-target=$identityTarget"
+```
+
+The approved command may write missing registry records only; it must never overwrite or merge learner records. Record counts and completion state only, then rerun the non-mutating production dry run to prove idempotency and zero unresolved invalid accounts, duplicate normalized emails, or conflicts. Stop on any discrepancy. This complete evidence is required before production External ID provider enablement; a QA dry run or QA registry write is not production evidence or approval.
 
 The repository's intended inactive production handoff is `.github/workflows/azure-staging.yml`. It requires the approved full `expected_sha` and a zero-traffic `target_slot`; the workflow is designed to recheck that SHA in isolated QA, confirm the production `filosage` provider is disabled, resolve the immutable image digest, refuse to replace a slot carrying traffic, deploy direct-Google-only gates, and run the exact health and release-safety checks.
 

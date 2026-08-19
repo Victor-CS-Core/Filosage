@@ -1,5 +1,8 @@
 import { expect, test } from "@playwright/test";
 import { spawnSync } from "node:child_process";
+import { randomUUID } from "node:crypto";
+import { rmSync } from "node:fs";
+import { resolve, sep } from "node:path";
 import {
   assertFreshDirectGoogleLinkAuthentication,
   assertFreshExternalLinkAuthentication,
@@ -496,11 +499,18 @@ test("canonical identity policy preserves local fixtures, direct Google subjects
     uid: "google-subject",
     identityLinkRegistered: false,
   });
-  expect(canonicalIdentityFromRegistry(identity, keys, {
-    canonicalUid: "existing-google-uid",
-    keyVersion: "v1",
-    identityHash: keys.identityHash,
-  }, false)).toMatchObject({
+  expect(canonicalIdentityFromRegistry(
+    identity,
+    keys,
+    exactIdentityRegistryDocument(
+      keys.identityPath,
+      keys,
+      "existing-google-uid",
+      "filosage",
+    ),
+    false,
+    now,
+  )).toMatchObject({
     uid: "existing-google-uid",
     identityLinkRegistered: true,
   });
@@ -532,6 +542,138 @@ test("present identity mappings fail closed when canonical UID or key metadata i
     expect(() => canonicalIdentityFromRegistry(identity, keys, link, false)).toThrow(
       IdentityRegistryConflictError,
     );
+  }
+});
+
+test("canonical resolution accepts only an exact current identity-registry record", async () => {
+  const keys = await identityRegistryKeys(identity, testSecret);
+  const valid = exactIdentityRegistryDocument(
+    keys.identityPath,
+    keys,
+    "existing-google-uid",
+    "filosage",
+  );
+
+  expect(canonicalIdentityFromRegistry(identity, keys, valid, false, now)).toMatchObject({
+    uid: "existing-google-uid",
+    identityLinkRegistered: true,
+  });
+
+  const missingProvider: Record<string, unknown> = { ...valid };
+  delete missingProvider.provider;
+  for (const corrupt of [
+    { ...valid, id: "v1_wrong-id" },
+    { ...valid, schemaVersion: 2 },
+    { ...valid, keyVersion: "v2" },
+    { ...valid, identityHash: "f".repeat(64) },
+    { ...valid, provider: "google" },
+    { ...valid, unexpected: true },
+    missingProvider,
+    { ...valid, createdAt: "not-a-timestamp" },
+    { ...valid, updatedAt: "2026-08-18T10:59:59.000Z" },
+    {
+      ...valid,
+      createdAt: new Date(now + 61_000).toISOString(),
+      updatedAt: new Date(now + 61_000).toISOString(),
+    },
+  ]) {
+    expect(() => canonicalIdentityFromRegistry(identity, keys, corrupt, false, now))
+      .toThrow(IdentityRegistryConflictError);
+  }
+
+  for (const canonicalUid of [
+    " leading-space",
+    "trailing-space ",
+    "embedded space",
+    "embedded\ttab",
+    "path/segment",
+    "path\\segment",
+    "line\nbreak",
+    "control\u007fcharacter",
+    "control\u0080character",
+  ]) {
+    expect(() => canonicalIdentityFromRegistry(
+      identity,
+      keys,
+      { ...valid, canonicalUid },
+      false,
+      now,
+    )).toThrow(IdentityRegistryConflictError);
+  }
+
+  const wrongPathKeys = {
+    ...keys,
+    identityPath: `identityLinks/v1_${"0".repeat(64)}`,
+  };
+  expect(() => canonicalIdentityFromRegistry(identity, wrongPathKeys, {
+    ...valid,
+    id: `v1_${"0".repeat(64)}`,
+  }, false, now)).toThrow(IdentityRegistryConflictError);
+});
+
+test("exported server resolution rejects a drifted identity-registry record", () => {
+  const relativeStoreDirectory = `.filosage-local-test/identity-resolution-${randomUUID()}`;
+  const storeDirectory = resolve(relativeStoreDirectory);
+  const allowedRoot = `${resolve(".filosage-local-test")}${sep}`;
+  expect(storeDirectory.startsWith(allowedRoot)).toBe(true);
+
+  const script = `
+    import assert from "node:assert/strict";
+    import { putStoredDocument } from "./src/lib/firebase-server.ts";
+    import {
+      configuredIdentityRegistryKeys,
+      IdentityRegistryConflictError,
+      resolveCanonicalIdentity,
+    } from "./src/lib/identity-link-server.ts";
+
+    const identity = {
+      provider: "filosage",
+      issuer: "https://qa-filosage.ciamlogin.com/tenant/v2.0",
+      subject: "external-subject",
+      email: "learner@example.com",
+      emailVerified: true,
+    };
+    const keys = await configuredIdentityRegistryKeys(identity);
+    const timestamp = new Date(Date.now() - 1_000).toISOString();
+    await putStoredDocument(keys.identityPath, {
+      schemaVersion: 1,
+      keyVersion: "v1",
+      identityHash: keys.identityHash,
+      canonicalUid: "existing-google-uid",
+      provider: "filosage",
+      createdAt: timestamp,
+      updatedAt: timestamp,
+      unexpected: true,
+    });
+    await assert.rejects(resolveCanonicalIdentity(identity), IdentityRegistryConflictError);
+    console.log("IDENTITY_REGISTRY_SERVER_RESOLUTION_OK");
+  `;
+
+  try {
+    const result = spawnSync(process.execPath, [
+      "--conditions=react-server",
+      "--import",
+      "tsx",
+      "--eval",
+      script,
+    ], {
+      cwd: process.cwd(),
+      encoding: "utf8",
+      env: {
+        ...process.env,
+        NODE_ENV: "test",
+        FILOSAGE_LOCAL_DIR: relativeStoreDirectory,
+        IDENTITY_LINK_HMAC_SECRET: testSecret,
+        DATABASE_URL: "",
+        FIREBASE_PROJECT_ID: "",
+        FIREBASE_CLIENT_EMAIL: "",
+        FIREBASE_PRIVATE_KEY: "",
+      },
+    });
+    expect(result.status, `${result.stdout}\n${result.stderr}`).toBe(0);
+    expect(result.stdout).toContain("IDENTITY_REGISTRY_SERVER_RESOLUTION_OK");
+  } finally {
+    rmSync(storeDirectory, { recursive: true, force: true });
   }
 });
 

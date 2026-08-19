@@ -151,6 +151,7 @@ export function canonicalIdentityFromRegistry(
   keys: IdentityRegistryKeys | null,
   link: IdentityRegistryDocument,
   subjectAccountExists: boolean,
+  now = Date.now(),
 ) {
   if (identity.provider === "local") return canonicalUser(identity, identity.subject, true);
   if (!keys) throw new IdentityRegistryConflictError();
@@ -159,12 +160,11 @@ export function canonicalIdentityFromRegistry(
   }
   if (link === null) return canonicalUser(identity, identity.subject, false);
   const canonicalUid = typeof link?.canonicalUid === "string" ? link.canonicalUid : "";
-  if (
-    !canonicalUid.trim()
-    || canonicalUid !== canonicalUid.trim()
-    || link.keyVersion !== REGISTRY_KEY_VERSION
-    || link.identityHash !== keys.identityHash
-  ) {
+  if (!exactIdentityRegistryDocument(link, keys.identityPath, {
+    identityHash: keys.identityHash,
+    canonicalUid,
+    provider: identity.provider,
+  }, now)) {
     throw new IdentityRegistryConflictError();
   }
   return canonicalUser(identity, canonicalUid, true);
@@ -489,6 +489,9 @@ function exactIdentityRegistryDocument(
   now: number,
 ) {
   return Boolean(document
+    && /^[a-f0-9]{64}$/.test(expected.identityHash)
+    && path === `identityLinks/${REGISTRY_KEY_VERSION}_${expected.identityHash}`
+    && validCanonicalIdentityId(expected.canonicalUid)
     && exactObjectKeys(document, [
       "id",
       "schemaVersion",
