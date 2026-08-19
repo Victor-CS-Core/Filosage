@@ -283,7 +283,11 @@ test("isolates learner support tickets, replays duplicate submissions, and separ
     headers: learnerAHeaders,
     data: { expectedVersion: 1, body: "This must not be published." },
   });
-  expect(unauthorizedReply.status()).toBe(403);
+  const unauthorizedReplyBody = await unauthorizedReply.text();
+  expect(
+    unauthorizedReply.status(),
+    `Expected learner reply rejection for ${created.ticketNumber} (${created.ticketId}); received ${unauthorizedReplyBody}`,
+  ).toBe(403);
 
   const publicReply = "Thanks for the clear reproduction steps. We are reviewing the lesson navigation behavior.";
   const published = await request.post(`/api/admin/command-center/tickets/${created.ticketId}/public-replies`, {

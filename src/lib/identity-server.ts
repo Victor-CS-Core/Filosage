@@ -1,17 +1,13 @@
+import { authenticationRuntimeConfiguration } from "@/lib/auth-runtime";
 import "server-only";
 
 import { easyAuthIdentityFromHeaders } from "@/lib/easy-auth-principal";
+import { resolveCanonicalIdentity } from "@/lib/identity-link-server";
+import type { VerifiedProviderIdentity, VerifiedUser } from "@/lib/identity-types";
 import { isLocalMode, LOCAL_OWNER_EMAIL, LOCAL_OWNER_UID } from "@/lib/local-mode";
 import { serverEnvironment } from "@/lib/runtime-environment";
 
-export interface VerifiedUser {
-  uid: string;
-  email?: string;
-  email_verified: boolean;
-  auth_time?: number;
-  name?: string;
-  picture?: string;
-}
+export type { VerifiedUser } from "@/lib/identity-types";
 
 const LOCAL_PLAYWRIGHT_LEARNERS = new Map<string, { uid: string; email: string }>([
   ["playwright-free-learner-api", {
@@ -32,44 +28,106 @@ const LOCAL_PLAYWRIGHT_LEARNERS = new Map<string, { uid: string; email: string }
 
 function localVerifiedUser(idToken: string): VerifiedUser | null {
   const auth_time = Math.floor(Date.now() / 1_000);
+  const localUser = (uid: string, email: string, name: string, authTime = auth_time): VerifiedUser => ({
+    uid,
+    email,
+    email_verified: true,
+    auth_time: authTime,
+    name,
+    providerIdentity: {
+      provider: "local",
+      issuer: "https://local.filosage.invalid",
+      subject: uid,
+      email,
+      emailVerified: true,
+      authTime,
+      name,
+    },
+    identityLinkRegistered: true,
+  });
   if (idToken === "local-dev-token" || idToken === "playwright-local-owner") {
-    return {
-      uid: LOCAL_OWNER_UID,
-      email: serverEnvironment.OWNER_EMAIL?.trim().toLowerCase() || LOCAL_OWNER_EMAIL,
-      email_verified: true,
-      auth_time,
-      name: "Local Owner",
-    };
+    return localUser(
+      LOCAL_OWNER_UID,
+      serverEnvironment.OWNER_EMAIL?.trim().toLowerCase() || LOCAL_OWNER_EMAIL,
+      "Local Owner",
+    );
   }
   if (idToken === "playwright-stale-local-owner") {
-    return {
-      uid: LOCAL_OWNER_UID,
-      email: serverEnvironment.OWNER_EMAIL?.trim().toLowerCase() || LOCAL_OWNER_EMAIL,
-      email_verified: true,
-      auth_time: auth_time - 10 * 60,
-      name: "Local Owner",
-    };
+    return localUser(
+      LOCAL_OWNER_UID,
+      serverEnvironment.OWNER_EMAIL?.trim().toLowerCase() || LOCAL_OWNER_EMAIL,
+      "Local Owner",
+      auth_time - 10 * 60,
+    );
   }
   const learner = LOCAL_PLAYWRIGHT_LEARNERS.get(idToken);
-  if (learner) return { ...learner, email_verified: true, auth_time, name: "Playwright Learner" };
+  if (learner) return localUser(learner.uid, learner.email, "Playwright Learner");
   const isolatedPlusLearner = /^playwright-plus-learner-([0-9a-f]{8}-[0-9a-f-]{27})$/i.exec(idToken);
   if (isolatedPlusLearner) {
     const runId = isolatedPlusLearner[1].toLowerCase();
-    return {
-      uid: `local-plus-learner-${runId}`,
-      email: `plus-learner-${runId}@filosage.local`,
-      email_verified: true,
-      auth_time,
-      name: "Playwright Plus Learner",
-    };
+    return localUser(
+      `local-plus-learner-${runId}`,
+      `plus-learner-${runId}@filosage.local`,
+      "Playwright Plus Learner",
+    );
   }
   if (idToken === "playwright-preaccount-learner") {
+    return localUser("local-preaccount-learner", "preaccount@filosage.local", "Pre-account Learner");
+  }
+  if (idToken === "playwright-preaccount-same-email-learner") {
+    return localUser(
+      "local-preaccount-same-email-learner",
+      "preaccount@filosage.local",
+      "Same-email Learner",
+    );
+  }
+  if (idToken === "playwright-external-signup-disabled") {
+    const uid = "local-external-signup-disabled";
+    const email = "external-signup-disabled@filosage.local";
     return {
-      uid: "local-preaccount-learner",
-      email: "preaccount@filosage.local",
+      uid,
+      email,
       email_verified: true,
       auth_time,
-      name: "Pre-account Learner",
+      name: "External signup disabled",
+      providerIdentity: {
+        provider: "filosage",
+        issuer: "https://local-external-id.filosage.invalid/tenant/v2.0",
+        subject: uid,
+        email,
+        emailVerified: true,
+        authTime: auth_time,
+        name: "External signup disabled",
+      },
+      identityLinkRegistered: false,
+    };
+  }
+  // A UUID-bounded, local-mode-only fixture exercises the two real provider
+  // contracts without introducing a deployed authentication bypass.
+  const linkIdentity = /^playwright-link-(google|filosage)-([0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12})$/i.exec(idToken);
+  if (linkIdentity) {
+    const provider = linkIdentity[1].toLowerCase() as "google" | "filosage";
+    const runId = linkIdentity[2].toLowerCase();
+    const subject = `${provider}-${runId}`;
+    const email = `identity-link-${runId}@filosage.local`;
+    return {
+      uid: subject,
+      email,
+      email_verified: true,
+      auth_time,
+      name: "Identity Link Learner",
+      providerIdentity: {
+        provider,
+        issuer: provider === "google"
+          ? "https://accounts.google.com"
+          : "https://local-external-id.filosage.invalid/tenant/v2.0",
+        subject,
+        email,
+        emailVerified: true,
+        authTime: auth_time,
+        name: "Identity Link Learner",
+      },
+      identityLinkRegistered: false,
     };
   }
   return null;
@@ -80,13 +138,21 @@ function localVerifiedUser(idToken: string): VerifiedUser | null {
  * Azure removes these headers from external requests before adding its own,
  * and this path is enabled only in the deployed Easy Auth runtime.
  */
-export function verifiedEasyAuthUser(request: Request): VerifiedUser | null {
-  return easyAuthIdentityFromHeaders(
-    request.headers,
-    serverEnvironment.AZURE_EASY_AUTH_ENABLED?.trim().toLowerCase() === "true",
-  );
+export function verifiedEasyAuthIdentity(request: Request): VerifiedProviderIdentity | null {
+  return easyAuthIdentityFromHeaders(request.headers, authenticationRuntimeConfiguration());
 }
 
-export async function verifyIdentityToken(idToken: string): Promise<VerifiedUser | null> {
-  return isLocalMode() ? localVerifiedUser(idToken) : null;
+export async function verifiedEasyAuthUser(request: Request) {
+  const identity = verifiedEasyAuthIdentity(request);
+  return identity ? resolveCanonicalIdentity(identity) : null;
+}
+
+export async function verifyProviderIdentity(idToken: string): Promise<VerifiedProviderIdentity | null> {
+  return isLocalMode() ? localVerifiedUser(idToken)?.providerIdentity ?? null : null;
+}
+
+export async function verifyIdentityToken(idToken: string) {
+  if (!isLocalMode()) return null;
+  const identity = await verifyProviderIdentity(idToken);
+  return identity ? resolveCanonicalIdentity(identity) : null;
 }

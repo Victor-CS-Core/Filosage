@@ -2,6 +2,7 @@ import { expect, test, type Page } from "@playwright/test";
 import AxeBuilder from "@axe-core/playwright";
 import type { Course } from "../src/lib/course-types";
 import type { CourseProgress } from "../src/lib/learning-types";
+import { PRIVACY_VERSION, TERMS_VERSION } from "../src/lib/legal";
 import { restoreLocalLearner } from "./fixtures/local-learner";
 
 const ownedCourses: Course[] = [
@@ -121,8 +122,24 @@ async function prepareOwnerShell(page: Page, progress: CourseProgress[] = learni
       isOwner: true,
       accountStatus: "active",
       displayName: "Playwright Owner",
+      subscriptionStatus: "active",
+      capabilities: {
+        createCourse: true,
+        generateLesson: true,
+        flashcardDecksEnabled: true,
+        createCustomFlashcardDeck: true,
+        publishCourse: true,
+        advancedCapstoneAnalysis: true,
+        exportEvidenceReport: true,
+        shareEvidenceReport: true,
+      },
+      courseCredits: { balance: null, monthlyAllocation: null, balanceCap: null, nextAccrualAt: null, frozenUntil: null },
       legalAcceptanceRequired: false,
-      quotas: [{ feature: "course_outline", remaining: null }],
+      applicationAccountExists: true,
+      identityLinkRequired: false,
+      currentTermsVersion: TERMS_VERSION,
+      currentPrivacyVersion: PRIVACY_VERSION,
+      quotas: [{ feature: "course_outline", limit: null, used: 0, remaining: null, resetAt: "2026-09-01T00:00:00.000Z" }],
     },
   }));
   await page.route("**/api/courses?scope=mine", (route) => route.fulfill({ json: { courses: ownedCourses } }));

@@ -2,32 +2,37 @@ import { defineSupportArticle } from "../types";
 
 export default defineSupportArticle({
   slug: "sign-in-help",
-  title: "Troubleshoot Google sign-in",
-  summary: "Use the same-tab Google sign-in flow, complete account consent, and resolve common session problems.",
+  title: "Troubleshoot secure sign-in",
+  summary: "Use the secure sign-in methods currently available and troubleshoot Google or email-code sign-in when those methods are enabled.",
   category: "account",
-  keywords: ["sign in", "Google", "consent", "terms", "age eligibility", "storage", "network", "account"],
-  reviewedOn: "2026-08-16",
-  sources: ["src/components/AuthProvider.tsx", "src/components/AuthModal.tsx", "src/components/LegalConsentModal.tsx"],
+  keywords: ["sign in", "Google", "email code", "Microsoft", "network", "account", "identity recovery"],
+  reviewedOn: "2026-08-18",
+  sources: [
+    "src/components/AuthProvider.tsx",
+    "src/components/AuthModal.tsx",
+    "src/components/LegalConsentModal.tsx",
+    "src/components/IdentityLinkRequiredModal.tsx",
+    "src/app/auth/complete-link/page.tsx",
+    "src/app/auth/complete-link/CompleteIdentityLink.tsx",
+  ],
   body: `
-## Start Google sign-in
+## Choose a sign-in method
 
-Choose **Continue with Google**. Filosage leaves the current page in the same tab, sends you to the platform-managed Google sign-in flow, and returns you to Filosage after authentication. A separate popup is not required.
+Select **Continue securely** in Filosage. The secure sign-in screen shows only methods enabled for the current environment. Google sign-in remains available when it is enabled. Email-code sign-in appears only when Microsoft Entra External ID is enabled. The managed flow returns you to Filosage after verification.
 
-## Confirm account consent
+## If an email code does not arrive
 
-Before the first redirect, confirm age eligibility and acceptance of the current Terms and Privacy Notice. If the legal terms change later, Filosage asks you to accept the current versions before continuing; you can sign out instead. Never continue on an account you are not authorized to use.
+Check the address for typing mistakes, wait for the resend option on the secure sign-in page, then check spam or junk folders. Do not repeatedly request codes. Filosage support cannot see, generate, or validate a code.
 
-## If browser storage is unavailable
+## If you used Google before
 
-The signed-in session requires browser storage and cookies. Turn off Private Browsing for the site or allow site storage, then retry in the same tab.
+During a staged rollout, existing-account email recovery may be available before new email-code account creation. When Filosage offers this recovery, choose **Use my existing Google sign-in**. After Google confirms the existing account, Filosage can connect email-code sign-in without moving courses, progress, notes, or review dates. This recovery connects an existing account; it does not create a new one.
 
 ## If the network or session is slow
 
-Check your connection and retry. If Filosage reports that the session or account is taking longer than expected, refresh once before starting another sign-in attempt.
+Check your connection and retry once. If Filosage reports that the session or account is taking longer than expected, refresh before starting another attempt.
 
-## If the domain is not authorized
-
-An authorized-domain error is a site configuration problem rather than an account password problem. Contact [Filosage support](/support/articles/contact-support) and include the page address and exact error message. Never send a password or authentication code.
+Contact [Filosage support](/support/articles/contact-support) with the page address and exact error message when the problem continues. Never send a password or one-time code.
 `,
   related: ["getting-started", "contact-support", "privacy-controls"],
   featured: true,

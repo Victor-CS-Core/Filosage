@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useState, useSyncExternalStore } from "react";
 import { BarChart3, Download, LoaderCircle, LockKeyhole, ShieldCheck, Trash2 } from "lucide-react";
 import AppShell from "@/components/AppShell";
+import AccountEntryButton from "@/components/AccountEntryButton";
 import { useAuth } from "@/components/AuthProvider";
 import { LEGAL_CONTACT, PAID_SUBSCRIPTION_POLICY, SUPPORT_CONTACT } from "@/lib/legal";
 import {
@@ -18,7 +19,7 @@ function serverConsentSnapshot() { return null; }
 
 export default function PrivacyCenterPage() {
   const router = useRouter();
-  const { user, isOwner, loading, signInWithGoogle, reauthenticate, signOut } = useAuth();
+  const { user, isOwner, loading, reauthenticate, signOut } = useAuth();
   const [exporting, setExporting] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [deleteArmed, setDeleteArmed] = useState(false);
@@ -136,7 +137,7 @@ export default function PrivacyCenterPage() {
                 {exporting ? <LoaderCircle className="spin" size={16} /> : <Download size={16} />} Download my data
               </button>
             ) : (
-              <button className="button button-secondary" onClick={() => void signInWithGoogle()}>Sign in to export</button>
+              <AccountEntryButton className="button button-secondary" createLabel="Create an account to export" signInLabel="Sign in to export" />
             )}
           </article>
 
@@ -150,7 +151,7 @@ export default function PrivacyCenterPage() {
             <Trash2 size={20} />
             <div><h2>Delete your account</h2><p>This permanently removes your active profile, learning data, authored courses, launch preferences, waitlist entry, and account-linked analytics. Limited legal-acceptance, completed billing-consent, payment-processor, safety, report, and enforcement records may be retained only for the purposes described in your export and Privacy Notice. This cannot be undone.</p></div>
             {!user ? (
-              <button className="button button-secondary" onClick={() => void signInWithGoogle()}>Sign in to manage account</button>
+              <AccountEntryButton className="button button-secondary" createLabel="Create an account to manage it" signInLabel="Sign in to manage account" />
             ) : isOwner ? (
               <p className="privacy-owner-note">The owner account cannot be deleted automatically because it controls published courses. Contact <a href={`mailto:${LEGAL_CONTACT}`}>{LEGAL_CONTACT}</a> for a documented transfer or shutdown.</p>
             ) : !deleteArmed ? (

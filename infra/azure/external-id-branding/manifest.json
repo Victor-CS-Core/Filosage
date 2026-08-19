@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 1,
+  "provider": "Microsoft Entra External ID",
+  "hostedDomainMode": "microsoft-managed",
+  "template": "partial-screen",
+  "headerVisible": true,
+  "footerVisible": true,
+  "pageBackgroundColor": "#FAFAF7",
+  "bannerLogo": "/brand/identity/filosage-sign-in-banner.png",
+  "backgroundImage": "/brand/identity/filosage-sign-in-background.png",
+  "favicon": "/brand/identity/filosage-sign-in-favicon.png",
+  "customCss": "infra/azure/external-id-branding/custom.css",
+  "privacyText": "Privacy Notice",
+  "privacyUrl": "https://filosage.com/privacy",
+  "termsText": "Terms of Service",
+  "termsUrl": "https://filosage.com/terms",
+  "usernameHintText": "Email address",
+  "signInPageText": "Choose Google or a private email code. Microsoft securely manages sign-in; Filosage never sees your password or one-time code.",
+  "oneTimeCodeTitle": "Enter your private email code",
+  "authenticationMethods": ["google", "email_one_time_code"],
+  "fontStack": "Inter, ui-sans-serif, system-ui, sans-serif",
+  "contrastStandard": "WCAG 2.2 AA"
+}

@@ -68,7 +68,20 @@ test("analytics can be allowed and later withdrawn from Privacy choices", async 
     await route.fulfill({ status: 204 });
   });
   await context.route("**/api/auth/session", async (route) => {
-    await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ user: null }) });
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        recentAuthentication: false,
+        authentication: {
+          primaryProvider: "google",
+          externalIdAvailable: false,
+          externalIdNewAccountsAvailable: false,
+          legacyGoogleAvailable: true,
+        },
+        user: null,
+      }),
+    });
   });
 
   await page.goto("/library");

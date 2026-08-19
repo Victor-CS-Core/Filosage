@@ -1,0 +1,19 @@
+body { color: #0d1b3d; background-color: #fafaf7; font-family: Inter, ui-sans-serif, system-ui, sans-serif; }
+a, a:link, .ext-link { color: #176b64; text-decoration-thickness: .08em; text-underline-offset: .18em; }
+a:hover, .ext-link:hover { color: #0f514c; }
+a:focus, .ext-link:focus { outline: 3px solid #1d4ed8; outline-offset: 3px; border-radius: 4px; }
+.ext-background-image { background-color: #fafaf7; }
+.ext-header { background-color: rgb(250 250 247 / 94%); border-bottom: 1px solid #d9e1e7; }
+.ext-sign-in-box { color: #0d1b3d; background-color: #ffffff; border: 1px solid #d9e1e7; border-radius: 18px; box-shadow: 0 18px 48px rgb(7 17 39 / 14%); }
+.ext-title { color: #0d1b3d; font-weight: 700; letter-spacing: -.025em; }
+.ext-subtitle { color: #43506b; line-height: 1.55; }
+.ext-input { min-height: 46px; border: 1px solid #64748b; border-radius: 10px; color: #0d1b3d; background: #ffffff; }
+.ext-input:focus { outline: 3px solid #1d4ed8; outline-offset: 1px; border-color: #176b64; }
+.ext-button { min-height: 46px; border-radius: 10px; font-weight: 700; }
+.ext-button.ext-primary { color: #ffffff; background-color: #176b64; border-color: #176b64; }
+.ext-button.ext-primary:hover { background-color: #0f514c; border-color: #0f514c; }
+.ext-button:focus { outline: 3px solid #1d4ed8; outline-offset: 3px; }
+.ext-error { color: #8b1e2d; background-color: #fff1f2; border-radius: 10px; }
+@media (max-width: 480px) { .ext-sign-in-box { border-radius: 14px; box-shadow: 0 10px 28px rgb(7 17 39 / 12%); } }
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; } }
+@media (forced-colors: active) { .ext-sign-in-box, .ext-input, .ext-button { border: 1px solid CanvasText; box-shadow: none; } .ext-link:focus, .ext-input:focus, .ext-button:focus { outline: 3px solid Highlight; } }

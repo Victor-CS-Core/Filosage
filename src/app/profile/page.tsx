@@ -1,9 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ArrowRight, Award, BookOpenCheck, BrainCircuit, BriefcaseBusiness, CalendarClock, CheckCircle2, CircleDot, LoaderCircle, SlidersHorizontal, Target, UserRound } from "lucide-react";
 import AchievementBadge from "@/components/AchievementBadge";
+import AccountEntryButton, { useAccountEntryMode } from "@/components/AccountEntryButton";
 import AppShell from "@/components/AppShell";
 import DashboardCustomizer from "@/components/DashboardCustomizer";
 import { useAppDrawer } from "@/components/AppDrawer";
@@ -26,14 +27,46 @@ import {
 type BadgeFilter = "all" | "earned" | "in-progress";
 
 export default function ProfilePage() {
-  const { user, account, canCreateCourses, loading: authLoading, signInWithGoogle } = useAuth();
+  const {
+    user,
+    account,
+    authentication,
+    canCreateCourses,
+    loading: authLoading,
+    connectExternalIdentity,
+  } = useAuth();
   const { state, update, syncStatus } = useLearnerState();
   const [progress, setProgress] = useState<CourseProgress[]>([]);
   const [authoredCourses, setAuthoredCourses] = useState<Course[]>([]);
   const [loaded, setLoaded] = useState(false);
   const [filter, setFilter] = useState<BadgeFilter>("all");
+  const [connectBusy, setConnectBusy] = useState(false);
+  const [connectError, setConnectError] = useState<string | null>(null);
+  const connectBusyRef = useRef(false);
   const dashboardCustomizer = useAppDrawer("dashboard-customizer");
   const [now] = useState(() => Date.now());
+  const entryMode = useAccountEntryMode();
+
+  const beginExternalConnection = async () => {
+    if (connectBusyRef.current) return;
+    connectBusyRef.current = true;
+    setConnectBusy(true);
+    setConnectError(null);
+    try {
+      await connectExternalIdentity();
+    } catch (connectionError) {
+      const message = connectionError instanceof Error && [
+        "Too many connection attempts. Wait a few minutes, then try again.",
+        "The secure connection took too long. Check your network and try again.",
+      ].includes(connectionError.message)
+        ? connectionError.message
+        : "Email-code sign-in could not be started. Your account is unchanged. Try again.";
+      setConnectError(message);
+    } finally {
+      connectBusyRef.current = false;
+      setConnectBusy(false);
+    }
+  };
 
   useEffect(() => {
     if (!user) return;
@@ -51,7 +84,11 @@ export default function ProfilePage() {
   }, [user]);
 
   if (authLoading) return <AppShell><div className="center-state"><LoaderCircle className="spin" size={25} /><h1>Preparing your profile</h1></div></AppShell>;
-  if (!user) return <AppShell><div className="center-state"><UserRound size={28} /><p className="overline">Your learning profile</p><h1>Keep your progress and achievements together.</h1><p>Create a free account to sync learning progress, reviews, bookmarks, notes, and badges across devices.</p><button className="button button-primary" onClick={() => void signInWithGoogle()}>Create a free account</button></div></AppShell>;
+  if (!user) return <AppShell><div className="center-state"><UserRound size={28} /><p className="overline">Your learning profile</p><h1>Keep your progress and achievements together.</h1><p>{entryMode === "create"
+    ? "Create a free account to sync learning progress, reviews, bookmarks, notes, and badges across devices."
+    : entryMode === "sign-in"
+      ? "Sign in to sync your existing learning progress, reviews, bookmarks, notes, and badges across devices."
+      : "Account sign-in is unavailable right now. Your local learning remains on this device."}</p><AccountEntryButton /></div></AppShell>;
 
   const lessons = completedLearningLessons(progress);
   const bands = learningBandCounts(progress);
@@ -152,6 +189,14 @@ export default function ProfilePage() {
                   <div className="profile-side-heading"><UserRound size={18} /><h2>Account and privacy</h2></div>
                   <p>Download your information, submit a privacy request, or close your account.</p>
                   <Link href="/privacy-center">Open privacy center</Link>
+                  {user.provider === "google" && authentication.externalIdAvailable && (
+                    <div className="profile-connect-action">
+                      <button className="text-button" type="button" aria-label="Add email-code sign-in" disabled={connectBusy} aria-busy={connectBusy} onClick={() => void beginExternalConnection()}>
+                        {connectBusy ? "Opening secure connection…" : "Add email-code sign-in"}
+                      </button>
+                      {connectError && <p className="form-error" role="alert">{connectError}</p>}
+                    </div>
+                  )}
                 </section>
               </aside>
             </div>

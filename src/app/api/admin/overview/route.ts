@@ -214,7 +214,6 @@ export async function GET(request: Request) {
       getStoredDocument("operationalEvidence/postgres-restore-latest"),
       azureInfrastructure(),
     ]);
-    infrastructure.authentication.measuredAccounts = totalUsers;
     if (ownerRecord && !rawUsers.some((record) => record.id === owner.uid || record.uid === owner.uid)) {
       rawUsers.unshift(ownerRecord);
     }

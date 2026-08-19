@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { ArrowRight, CalendarClock, CalendarDays, Flame, Lightbulb, RefreshCw, Share2, Target, TrendingUp } from "lucide-react";
 import AppShell from "@/components/AppShell";
+import AccountEntryButton, { useAccountEntryMode } from "@/components/AccountEntryButton";
 import { useAuth } from "@/components/AuthProvider";
 import type { CourseProgress } from "@/lib/learning-types";
 import { useLearnerState } from "@/components/useLearnerState";
@@ -25,7 +26,8 @@ import {
 function dateKey(date: Date) { return date.toISOString().slice(0, 10); }
 
 export default function ProgressPage() {
-  const { user, loading: authLoading, signInWithGoogle } = useAuth();
+  const { user, loading: authLoading } = useAuth();
+  const entryMode = useAccountEntryMode();
   const { state, update, ready: learnerStateReady } = useLearnerState();
   const [progress, setProgress] = useState<CourseProgress[]>([]);
   const [loaded, setLoaded] = useState(false);
@@ -102,7 +104,11 @@ export default function ProgressPage() {
   };
 
   if (authLoading) return <AppShell><div className="progress-page dashboard-loading" aria-busy="true"><span /><span /><span /></div></AppShell>;
-  if (!user) return <AppShell><div className="center-state"><TrendingUp size={26} /><h1>Keep your learning in one place.</h1><p>Create a free account to sync progress, reviews, saved courses, and notes across devices.</p><button className="button button-primary" onClick={() => void signInWithGoogle()}>Create a free account</button></div></AppShell>;
+  if (!user) return <AppShell><div className="center-state"><TrendingUp size={26} /><h1>Keep your learning in one place.</h1><p>{entryMode === "create"
+    ? "Create a free account to sync progress, reviews, saved courses, and notes across devices."
+    : entryMode === "sign-in"
+      ? "Sign in to sync your existing progress, reviews, saved courses, and notes across devices."
+      : "Account sign-in is unavailable right now. Your learning record remains on this device."}</p><AccountEntryButton /></div></AppShell>;
 
   return (
     <AppShell>

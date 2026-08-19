@@ -86,7 +86,7 @@
     },
     {
       "feature": "Authentication",
-      "sources": ["src/components/AuthProvider.tsx", "src/components/AuthModal.tsx", "src/components/LegalConsentModal.tsx"],
+      "sources": ["src/app/auth/complete-link/", "src/components/AuthProvider.tsx", "src/components/AuthModal.tsx", "src/components/LegalConsentModal.tsx"],
       "articles": ["getting-started", "sign-in-help"]
     },
     {

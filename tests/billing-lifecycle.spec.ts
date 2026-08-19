@@ -22,7 +22,7 @@ import {
 } from "../src/lib/billing-lock";
 import { readBoundedRequestText } from "../src/lib/bounded-request-body";
 import { PAID_SUBSCRIPTION_POLICY, PRIVACY_VERSION, TERMS_VERSION } from "../src/lib/legal";
-import { restoreLocalLearner } from "./fixtures/local-learner";
+import { exactLearnerAccount, restoreLocalLearner } from "./fixtures/local-learner";
 
 const stripeLifecycle = {
   BILLING_PROVIDER: "stripe",
@@ -37,6 +37,101 @@ const stripeLifecycle = {
   GOVERNING_JURISDICTION: "New York",
   SUPPORT_EMAIL: "support@filosage.com",
 };
+
+test("exact learner account fixtures derive coherent access, capabilities, and credits", () => {
+  expect(exactLearnerAccount()).toMatchObject({
+    access: "free",
+    plan: "free",
+    isOwner: false,
+    capabilities: {
+      createCourse: false,
+      generateLesson: false,
+      flashcardDecksEnabled: false,
+      createCustomFlashcardDeck: false,
+      publishCourse: false,
+      advancedCapstoneAnalysis: false,
+      exportEvidenceReport: false,
+      shareEvidenceReport: false,
+    },
+    courseCredits: {
+      balance: 0,
+      monthlyAllocation: 0,
+      balanceCap: 0,
+      nextAccrualAt: null,
+      frozenUntil: null,
+    },
+  });
+
+  expect(exactLearnerAccount({ plan: "plus" })).toMatchObject({
+    access: "plus",
+    plan: "plus",
+    isOwner: false,
+    capabilities: {
+      createCourse: true,
+      generateLesson: true,
+      flashcardDecksEnabled: false,
+      createCustomFlashcardDeck: true,
+      publishCourse: false,
+      advancedCapstoneAnalysis: false,
+      exportEvidenceReport: false,
+      shareEvidenceReport: false,
+    },
+    courseCredits: {
+      balance: 2,
+      monthlyAllocation: 2,
+      balanceCap: 24,
+      nextAccrualAt: "2026-09-18T00:00:00.000Z",
+      frozenUntil: null,
+    },
+  });
+
+  expect(exactLearnerAccount({ plan: "pro", subscriptionStatus: "active" })).toMatchObject({
+    access: "pro",
+    plan: "pro",
+    isOwner: false,
+    subscriptionStatus: "active",
+    capabilities: {
+      createCourse: true,
+      generateLesson: true,
+      flashcardDecksEnabled: false,
+      createCustomFlashcardDeck: true,
+      publishCourse: true,
+      advancedCapstoneAnalysis: true,
+      exportEvidenceReport: true,
+      shareEvidenceReport: true,
+    },
+    courseCredits: {
+      balance: 5,
+      monthlyAllocation: 5,
+      balanceCap: 60,
+      nextAccrualAt: "2026-09-18T00:00:00.000Z",
+      frozenUntil: null,
+    },
+  });
+
+  expect(exactLearnerAccount({ isOwner: true })).toMatchObject({
+    access: "owner",
+    plan: "pro",
+    isOwner: true,
+    capabilities: {
+      createCourse: true,
+      generateLesson: true,
+      flashcardDecksEnabled: false,
+      createCustomFlashcardDeck: true,
+      publishCourse: true,
+      advancedCapstoneAnalysis: true,
+      exportEvidenceReport: true,
+      shareEvidenceReport: true,
+    },
+    courseCredits: {
+      balance: null,
+      monthlyAllocation: null,
+      balanceCap: null,
+      nextAccrualAt: null,
+      frozenUntil: null,
+    },
+  });
+});
 
 test("closing checkout preserves existing subscriber management and lifecycle processing", () => {
   expect(evaluateBillingConfiguration({ ...stripeLifecycle, BILLING_ENABLED: "false" })).toMatchObject({
@@ -434,20 +529,11 @@ test("publishes the approved paid eligibility, refund, cancellation, and deletio
 test("account deletion confirmation explains subscription termination without promising a refund", async ({ page }) => {
   await page.addInitScript(() => localStorage.setItem("filosage-local-session", "1"));
   await page.route("**/api/account", (route) => route.fulfill({
-    json: {
-      access: "free",
+    json: exactLearnerAccount({
       plan: "pro",
-      isOwner: false,
-      accountStatus: "active",
       displayName: "Subscriber Learner",
-      acceptedTermsVersion: TERMS_VERSION,
-      acceptedPrivacyVersion: PRIVACY_VERSION,
-      legalAcceptanceRequired: false,
-      currentTermsVersion: TERMS_VERSION,
-      currentPrivacyVersion: PRIVACY_VERSION,
       subscriptionStatus: "active",
-      quotas: [],
-    },
+    }),
   }));
 
   await page.goto("/privacy-center");
@@ -550,20 +636,10 @@ test("a past-due subscriber can reach billing management while checkout is close
     json: { enabled: false, ready: false, checkoutReady: false, managementReady: true },
   }));
   await page.route("**/api/account", (route) => route.fulfill({
-    json: {
-      access: "free",
-      plan: "free",
-      isOwner: false,
-      accountStatus: "active",
+    json: exactLearnerAccount({
       displayName: "Payment Recovery Learner",
-      acceptedTermsVersion: TERMS_VERSION,
-      acceptedPrivacyVersion: PRIVACY_VERSION,
-      legalAcceptanceRequired: false,
-      currentTermsVersion: TERMS_VERSION,
-      currentPrivacyVersion: PRIVACY_VERSION,
       subscriptionStatus: "past_due",
-      quotas: [],
-    },
+    }),
   }));
 
   await page.goto("/pricing");

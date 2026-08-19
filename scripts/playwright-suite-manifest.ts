@@ -1,6 +1,7 @@
 import { resolve } from "node:path";
 
 export const contractSuites = [
+  "tests/auth-identity.spec.ts",
   "tests/azure-infrastructure.spec.ts",
   "tests/bibliographic-references.spec.ts",
   "tests/billing-offer.spec.ts",
@@ -9,6 +10,8 @@ export const contractSuites = [
   "tests/course-pipeline-v2-regressions.spec.ts",
   "tests/course-research.spec.ts",
   "tests/landing-funnel-contract.spec.ts",
+  "tests/identity-link-server.spec.ts",
+  "tests/identity-migration.spec.ts",
   "tests/learner-readiness.spec.ts",
   "tests/learning-design-contract.spec.ts",
   "tests/learning-engine-trust-boundaries.spec.ts",
@@ -33,7 +36,9 @@ export const apiSuites = [
 
 export const singleEngineSuites = [
   "tests/account-onboarding.spec.ts",
+  "tests/auth-linking.spec.ts",
   "tests/billing-lifecycle.spec.ts",
+  "tests/external-id-branding.spec.ts",
   "tests/flashcard-system.spec.ts",
   "tests/lesson-interactions-v2.spec.ts",
   "tests/marketing-gauntlet.spec.ts",
@@ -47,6 +52,7 @@ export const deviceSensitiveSuites = [
   "tests/admin-research-layout.spec.ts",
   "tests/analytics-consent.spec.ts",
   "tests/app-shell.spec.ts",
+  "tests/auth-accessibility.spec.ts",
   "tests/command-center.spec.ts",
   "tests/course-learning-flow.spec.ts",
   "tests/example.spec.ts",

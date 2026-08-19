@@ -29,6 +29,7 @@ import {
 } from "lucide-react";
 import AppDrawer, { useAppDrawer } from "@/components/AppDrawer";
 import AppShell from "@/components/AppShell";
+import AccountEntryButton, { useAccountEntryMode } from "@/components/AccountEntryButton";
 import { useAuth } from "@/components/AuthProvider";
 import { trackProductEvent } from "@/lib/product-analytics";
 import FilosageMark from "@/components/FilosageMark";
@@ -294,7 +295,8 @@ export default function LessonView() {
       ? "delayed-28"
       : "spaced";
   const [moduleIndex, lessonIndex] = lessonId.split("-").map(Number);
-  const { user, isOwner, canGenerateLessons, loading: authLoading, signInWithGoogle } = useAuth();
+  const { user, isOwner, canGenerateLessons, loading: authLoading } = useAuth();
+  const entryMode = useAccountEntryMode();
   const masteryJourney = useMasteryJourney(courseId, user);
   const masteryPlan = masteryJourney.plan;
   const addMasteryEvidence = masteryJourney.addEvidence;
@@ -1273,9 +1275,13 @@ export default function LessonView() {
           <span className="state-icon"><LockKeyhole size={23} /></span>
           <p className="overline">Free learner account required</p>
           <h1>Open the lesson when you’re signed in</h1>
-          <p>You can inspect the complete course structure as a guest. Create a free account to read lessons, practice, and keep your progress.</p>
+          <p>You can inspect the complete course structure as a guest. {entryMode === "create"
+            ? "Create a free account to read lessons, practice, and keep your progress."
+            : entryMode === "sign-in"
+              ? "Sign in to your existing account to read lessons, practice, and keep your progress."
+              : "Lesson sign-in is unavailable right now; the public course outline remains available."}</p>
           <div className="state-actions">
-            <button className="button button-primary" onClick={() => void signInWithGoogle()}><LockKeyhole size={16} /> Create a free account</button>
+            <AccountEntryButton icon={LockKeyhole} />
             <a className="button button-secondary" href={courseHref}><ArrowLeft size={16} /> Back to course</a>
           </div>
         </div>

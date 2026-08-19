@@ -27,6 +27,14 @@ param siteUrl string = 'https://qa.filosage.com'
 
 @description('Google OAuth web client ID shared with production. The secret remains in Key Vault.')
 param googleClientId string
+param directGoogleAuthEnabled bool = true
+param externalIdAuthEnabled bool = false
+param externalIdNewAccountsEnabled bool = false
+param externalIdClientId string = ''
+param externalIdIssuer string = ''
+param externalIdWellKnownConfiguration string = ''
+param externalIdClientSecretName string = 'external-id-client-secret-qa'
+param identityLinkHmacSecretName string = 'identity-link-hmac-secret-qa'
 
 @description('Verified owner email retained in QA.')
 param ownerEmail string
@@ -51,6 +59,10 @@ param qaAppName string = 'filosageqa-app'
 param qaIdentityName string = 'filosageqa-app-identity'
 param qaDatabaseName string = 'filosageqa'
 param qaBannerContainerName string = 'qa-course-banners'
+
+var directGoogleConfigured = directGoogleAuthEnabled && !empty(googleClientId)
+var externalIdConfigurationComplete = !empty(externalIdClientId) && !empty(externalIdIssuer) && !empty(externalIdWellKnownConfiguration)
+var externalIdRuntimeEnabled = externalIdAuthEnabled && externalIdConfigurationComplete
 
 var tags = {
   application: 'filosage'
@@ -160,8 +172,13 @@ var qaSecrets = [
   { name: 'activity-receipt-secret', keyVaultUrl: qaReceiptSecret.properties.secretUriWithVersion, identity: identity.id }
   { name: 'openai-api-key', keyVaultUrl: '${vaultUri}secrets/openai-api-key', identity: identity.id }
   { name: 'google-oauth-secret', keyVaultUrl: '${vaultUri}secrets/google-easy-auth-client-secret', identity: identity.id }
+  { name: 'identity-link-hmac-secret', keyVaultUrl: '${vaultUri}secrets/${identityLinkHmacSecretName}', identity: identity.id }
   { name: 'migrated-owner-uid', keyVaultUrl: '${vaultUri}secrets/migrated-owner-uid', identity: identity.id }
 ]
+
+var externalIdQaSecrets = externalIdConfigurationComplete ? [
+  { name: 'external-id-oauth-secret', keyVaultUrl: '${vaultUri}secrets/${externalIdClientSecretName}', identity: identity.id }
+] : []
 
 var qaEnvironment = [
   { name: 'NODE_ENV', value: 'production' }
@@ -179,6 +196,13 @@ var qaEnvironment = [
   { name: 'DEPLOYMENT_SLOT', value: 'qa' }
   { name: 'OPERATIONS_ENVIRONMENT', value: 'qa' }
   { name: 'AZURE_EASY_AUTH_ENABLED', value: 'true' }
+  { name: 'DIRECT_GOOGLE_AUTH_ENABLED', value: string(directGoogleConfigured) }
+  { name: 'EXTERNAL_ID_AUTH_ENABLED', value: string(externalIdRuntimeEnabled) }
+  { name: 'EXTERNAL_ID_NEW_ACCOUNTS_ENABLED', value: string(externalIdRuntimeEnabled && externalIdNewAccountsEnabled) }
+  { name: 'EXTERNAL_ID_CLIENT_ID', value: externalIdClientId }
+  { name: 'EXTERNAL_ID_ISSUER', value: externalIdIssuer }
+  { name: 'EXTERNAL_ID_WELL_KNOWN_CONFIGURATION', value: externalIdWellKnownConfiguration }
+  { name: 'IDENTITY_LINK_HMAC_SECRET', secretRef: 'identity-link-hmac-secret' }
   { name: 'OWNER_EMAIL', value: ownerEmail }
   { name: 'MIGRATED_OWNER_UID', secretRef: 'migrated-owner-uid' }
   { name: 'ACTIVITY_RECEIPT_SECRET', secretRef: 'activity-receipt-secret' }
@@ -233,7 +257,7 @@ resource app 'Microsoft.App/containerApps@2025-01-01' = {
         transport: 'auto'
       }
       registries: [{ server: registry.properties.loginServer, identity: identity.id }]
-      secrets: qaSecrets
+      secrets: concat(qaSecrets, externalIdQaSecrets)
     }
     template: {
       containers: [{
@@ -260,6 +284,41 @@ resource app 'Microsoft.App/containerApps@2025-01-01' = {
   dependsOn: [acrPull, qaBlobContributor, vaultSecretsUser, qaDatabase]
 }
 
+var configuredIdentityProviders = union(
+  directGoogleConfigured ? {
+    google: {
+      enabled: true
+      registration: {
+        clientId: googleClientId
+        clientSecretSettingName: 'google-oauth-secret'
+      }
+      validation: { allowedAudiences: [googleClientId] }
+    }
+  } : {},
+  externalIdConfigurationComplete ? {
+    customOpenIdConnectProviders: {
+      filosage: {
+        enabled: externalIdRuntimeEnabled
+        login: {
+          nameClaimType: 'name'
+          scopes: ['openid', 'profile', 'email']
+        }
+        registration: {
+          clientId: externalIdClientId
+          clientCredential: {
+            clientSecretSettingName: 'external-id-oauth-secret'
+            method: 'ClientSecretPost'
+          }
+          openIdConnectConfiguration: {
+            wellKnownOpenIdConfiguration: externalIdWellKnownConfiguration
+          }
+        }
+        validation: { allowedAudiences: [externalIdClientId] }
+      }
+    }
+  } : {}
+)
+
 resource appAuth 'Microsoft.App/containerApps/authConfigs@2025-01-01' = {
   parent: app
   name: 'current'
@@ -267,16 +326,7 @@ resource appAuth 'Microsoft.App/containerApps/authConfigs@2025-01-01' = {
     platform: { enabled: true }
     globalValidation: { unauthenticatedClientAction: 'AllowAnonymous' }
     httpSettings: { requireHttps: true }
-    identityProviders: {
-      google: {
-        enabled: true
-        registration: {
-          clientId: googleClientId
-          clientSecretSettingName: 'google-oauth-secret'
-        }
-        validation: { allowedAudiences: [googleClientId] }
-      }
-    }
+    identityProviders: configuredIdentityProviders
     login: {
       preserveUrlFragmentsForLogins: true
       tokenStore: { enabled: false }

@@ -34,6 +34,7 @@ import {
 } from "react";
 import AppDrawer, { useAppDrawer } from "@/components/AppDrawer";
 import { useAuth } from "@/components/AuthProvider";
+import { openAccountEntry } from "@/components/AccountEntryButton";
 import { SUPPORT_CONTACT } from "@/lib/legal";
 import { matchesSearchQuery } from "@/lib/search";
 import type {
@@ -56,7 +57,7 @@ interface TicketDraft {
 }
 
 interface SupportCenterProps {
-  onRequestSignIn?: () => void;
+  onRequestSignIn?: (returnFocus: HTMLElement | null) => void;
   onBeforeOpen?: () => void;
 }
 
@@ -119,7 +120,7 @@ function fieldErrorsFromResponse(value: unknown): TicketErrors {
 
 export default function SupportCenter({ onRequestSignIn, onBeforeOpen }: SupportCenterProps) {
   const pathname = usePathname();
-  const { user, loading: authLoading, signInWithGoogle } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const drawer = useAppDrawer("global-support-center");
   const triggerRef = useRef<HTMLButtonElement>(null);
   const openerRef = useRef<HTMLElement | null>(null);
@@ -391,8 +392,8 @@ export default function SupportCenter({ onRequestSignIn, onBeforeOpen }: Support
 
   const requestSignIn = () => {
     drawer.closeDrawer();
-    if (onRequestSignIn) onRequestSignIn();
-    else void signInWithGoogle();
+    if (onRequestSignIn) onRequestSignIn(triggerRef.current);
+    else openAccountEntry(triggerRef.current);
   };
 
   if (hiddenRoute) return null;

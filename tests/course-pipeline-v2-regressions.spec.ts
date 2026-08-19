@@ -25,8 +25,8 @@ import {
 } from "../src/lib/learning-design";
 import { buildInteractionAttemptMutation } from "../src/lib/course-pipeline/interaction-attempt";
 import {
-  parsePendingGoogleRedirectAcceptance,
-  pendingGoogleRedirectAcceptance,
+  parsePendingManagedRedirectAcceptance,
+  pendingManagedRedirectAcceptance,
 } from "../src/lib/auth-redirect";
 
 function conciseValidLesson() {
@@ -1352,23 +1352,25 @@ test("lesson evidence downgrade and replacement save form one owner-aware atomic
 });
 
 test("Azure Easy Auth terminates Google OAuth before requests reach Next.js", async () => {
-  const [nextConfigSource, proxySource, identitySource] = await Promise.all([
+  const [nextConfigSource, proxySource, identitySource, authRuntimeSource] = await Promise.all([
     readFile("next.config.ts", "utf8"),
     readFile("src/proxy.ts", "utf8"),
     readFile("src/lib/identity-server.ts", "utf8"),
+    readFile("src/lib/auth-runtime.ts", "utf8"),
   ]);
   expect(nextConfigSource).toContain('source: "/:path*"');
   expect(nextConfigSource).not.toContain("firebase-auth");
   expect(proxySource).toContain("api|assets|__|_next/static");
   expect(identitySource).toContain("easyAuthIdentityFromHeaders");
-  expect(identitySource).toContain('AZURE_EASY_AUTH_ENABLED');
+  expect(identitySource).toContain("authenticationRuntimeConfiguration");
+  expect(authRuntimeSource).toContain("AZURE_EASY_AUTH_ENABLED");
 });
 
 test("same-tab sign-in preserves only fresh, version-bound legal confirmation", () => {
   const now = Date.UTC(2026, 7, 11, 18, 0, 0);
-  const pending = pendingGoogleRedirectAcceptance(now);
-  expect(parsePendingGoogleRedirectAcceptance(JSON.stringify(pending), now + 60_000)).toEqual(pending);
-  expect(parsePendingGoogleRedirectAcceptance(JSON.stringify(pending), now + 16 * 60_000)).toBeNull();
-  expect(parsePendingGoogleRedirectAcceptance(JSON.stringify({ ...pending, termsVersion: "stale" }), now)).toBeNull();
-  expect(parsePendingGoogleRedirectAcceptance("not-json", now)).toBeNull();
+  const pending = pendingManagedRedirectAcceptance(now);
+  expect(parsePendingManagedRedirectAcceptance(JSON.stringify(pending), now + 60_000)).toEqual(pending);
+  expect(parsePendingManagedRedirectAcceptance(JSON.stringify(pending), now + 16 * 60_000)).toBeNull();
+  expect(parsePendingManagedRedirectAcceptance(JSON.stringify({ ...pending, termsVersion: "stale" }), now)).toBeNull();
+  expect(parsePendingManagedRedirectAcceptance("not-json", now)).toBeNull();
 });

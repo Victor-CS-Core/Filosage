@@ -2,7 +2,7 @@ import { expect, test, type Page } from "@playwright/test";
 import type { Course, LessonData } from "../src/lib/course-types";
 import type { CapstoneAssessment, CourseProgress, ProgressUpdate } from "../src/lib/learning-types";
 import type { LearningOutcomePlan, MasteryEvidence } from "../src/lib/mastery";
-import { mockFreeLearnerAccount, restoreLocalLearner } from "./fixtures/local-learner";
+import { mockFreeLearnerAccount, mockOwnerLearnerAccount, restoreLocalLearner } from "./fixtures/local-learner";
 
 const courseId = "published-course-flow";
 const topic = "Decision quality";
@@ -337,17 +337,7 @@ async function completeTransfer(page: Page, response: string, modelResponse: str
 
 test("starts one resilient generation request for an owner-only lesson", async ({ page }) => {
   await restoreLocalLearner(page);
-  await page.route("**/api/account", (route) => route.fulfill({
-    json: {
-      access: "pro",
-      plan: "pro",
-      isOwner: true,
-      accountStatus: "active",
-      displayName: "Playwright Owner",
-      legalAcceptanceRequired: false,
-      quotas: [],
-    },
-  }));
+  await mockOwnerLearnerAccount(page);
   await page.route("**/api/courses?scope=mine", (route) => route.fulfill({ json: { courses: [] } }));
   await page.route(`**/api/courses/${courseId}`, (route) => route.fulfill({
     json: { ...course, isPublic: false, canManage: true },
@@ -373,17 +363,7 @@ test("starts one resilient generation request for an owner-only lesson", async (
 
 test("opens and generates the next lesson in a fresh document", async ({ page }) => {
   await restoreLocalLearner(page);
-  await page.route("**/api/account", (route) => route.fulfill({
-    json: {
-      access: "pro",
-      plan: "pro",
-      isOwner: true,
-      accountStatus: "active",
-      displayName: "Playwright Owner",
-      legalAcceptanceRequired: false,
-      quotas: [],
-    },
-  }));
+  await mockOwnerLearnerAccount(page);
   await page.route("**/api/courses?scope=mine", (route) => route.fulfill({ json: { courses: [] } }));
   await page.route(`**/api/courses/${courseId}`, (route) => route.fulfill({
     json: { ...course, isPublic: false, canManage: true },
@@ -415,17 +395,7 @@ test("opens and generates the next lesson in a fresh document", async ({ page })
 
 test("explains a short-lived generation lock instead of hiding the 429", async ({ page }) => {
   await restoreLocalLearner(page);
-  await page.route("**/api/account", (route) => route.fulfill({
-    json: {
-      access: "pro",
-      plan: "pro",
-      isOwner: true,
-      accountStatus: "active",
-      displayName: "Playwright Owner",
-      legalAcceptanceRequired: false,
-      quotas: [],
-    },
-  }));
+  await mockOwnerLearnerAccount(page);
   await page.route("**/api/courses?scope=mine", (route) => route.fulfill({ json: { courses: [] } }));
   await page.route(`**/api/courses/${courseId}`, (route) => route.fulfill({
     json: { ...course, isPublic: false, canManage: true },

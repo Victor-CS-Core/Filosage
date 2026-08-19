@@ -1,12 +1,13 @@
 import "server-only";
 
 import { isLocalMode } from "@/lib/local-mode";
+import { authenticationMode, type AuthenticationMode } from "@/lib/runtime-config";
 import { serverEnvironment } from "@/lib/runtime-environment";
 
 export interface AzureInfrastructure {
   generatedAt: string;
   status: "configured" | "incomplete" | "local";
-  authentication: { provider: "Azure Container Apps Easy Auth (Google)"; measuredAccounts: number; configured: boolean };
+  authentication: { provider: "Azure Container Apps Easy Auth"; mode: AuthenticationMode; configured: boolean };
   database: { provider: "Azure Database for PostgreSQL"; configured: boolean; serverName?: string; backupRetentionDays: 7 };
   storage: { provider: "Azure Blob Storage"; configured: boolean; container: string };
   hosting: { provider: "Azure Container Apps"; configured: boolean };
@@ -16,7 +17,8 @@ export interface AzureInfrastructure {
 
 export function azureInfrastructure(): AzureInfrastructure {
   const local = isLocalMode();
-  const authenticationConfigured = serverEnvironment.AZURE_EASY_AUTH_ENABLED?.trim().toLowerCase() === "true";
+  const mode = authenticationMode();
+  const authenticationConfigured = mode !== "unavailable";
   const databaseConfigured = Boolean(serverEnvironment.DATABASE_URL?.trim());
   const storageConfigured = Boolean(serverEnvironment.AZURE_STORAGE_ACCOUNT_URL?.trim());
   const hostingConfigured = Boolean(serverEnvironment.WEBSITE_HOSTNAME?.trim() || serverEnvironment.CONTAINER_APP_NAME?.trim());
@@ -25,7 +27,7 @@ export function azureInfrastructure(): AzureInfrastructure {
   return {
     generatedAt: new Date().toISOString(),
     status: local ? "local" : complete ? "configured" : "incomplete",
-    authentication: { provider: "Azure Container Apps Easy Auth (Google)", measuredAccounts: 0, configured: authenticationConfigured },
+    authentication: { provider: "Azure Container Apps Easy Auth", mode, configured: authenticationConfigured },
     database: {
       provider: "Azure Database for PostgreSQL",
       configured: databaseConfigured,

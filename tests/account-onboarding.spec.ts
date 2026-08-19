@@ -1,9 +1,69 @@
-import { expect, test } from "@playwright/test";
+import { readFile } from "node:fs/promises";
+import { expect, test, type TestInfo } from "@playwright/test";
 import { PRIVACY_VERSION, TERMS_VERSION } from "../src/lib/legal";
+import { playwrightOwnedStorePath } from "./fixtures/playwright-server";
 
 const authorization = {
   Authorization: "Bearer playwright-preaccount-learner",
   "X-Reauthentication-Token": "playwright-preaccount-learner",
+};
+
+const sameEmailAuthorization = {
+  Authorization: "Bearer playwright-preaccount-same-email-learner",
+  "X-Reauthentication-Token": "playwright-preaccount-same-email-learner",
+};
+
+const disabledExternalSignupAuthorization = {
+  Authorization: "Bearer playwright-external-signup-disabled",
+};
+
+type PlaywrightStore = Record<string, Record<string, unknown>>;
+
+async function readPlaywrightOwnedStore(testInfo: TestInfo) {
+  const baseURL = testInfo.project.use.baseURL;
+  expect(typeof baseURL).toBe("string");
+  return JSON.parse(await readFile(playwrightOwnedStorePath(baseURL), "utf8")) as PlaywrightStore;
+}
+
+function rejectedRegistrationPaths(uid: string) {
+  const acceptanceId = `${TERMS_VERSION}__${PRIVACY_VERSION}`.replace(/[^a-zA-Z0-9_-]/g, "_");
+  return [
+    `users/${uid}`,
+    `users/${uid}/legalAcceptances/${acceptanceId}`,
+    `productEvents/signup-completed-${uid}`,
+  ];
+}
+
+const zeroCapabilityLinkRequiredAccount = {
+  access: "free",
+  plan: "free",
+  isOwner: false,
+  accountStatus: "active",
+  displayName: "Same-email Learner",
+  subscriptionStatus: "none",
+  capabilities: {
+    createCourse: false,
+    generateLesson: false,
+    flashcardDecksEnabled: false,
+    createCustomFlashcardDeck: false,
+    publishCourse: false,
+    advancedCapstoneAnalysis: false,
+    exportEvidenceReport: false,
+    shareEvidenceReport: false,
+  },
+  courseCredits: {
+    balance: 0,
+    monthlyAllocation: 0,
+    balanceCap: 0,
+    nextAccrualAt: null,
+    frozenUntil: null,
+  },
+  legalAcceptanceRequired: false,
+  applicationAccountExists: false,
+  identityLinkRequired: true,
+  currentTermsVersion: TERMS_VERSION,
+  currentPrivacyVersion: PRIVACY_VERSION,
+  quotas: [],
 };
 
 test("persists no application account until the learner accepts the current legal terms", async ({ request }, testInfo) => {
@@ -23,6 +83,7 @@ test("persists no application account until the learner accepts the current lega
     plan: "free",
     legalAcceptanceRequired: true,
     applicationAccountExists: false,
+    identityLinkRequired: false,
     quotas: [],
   });
 
@@ -56,6 +117,7 @@ test("persists no application account until the learner accepts the current lega
       plan: "free",
       legalAcceptanceRequired: false,
       applicationAccountExists: true,
+      identityLinkRequired: false,
     });
     const consentGranted = await request.post("/api/pricing-intent", {
       headers: authorization,
@@ -92,6 +154,98 @@ test("persists no application account until the learner accepts the current lega
   }
 });
 
+test("returns only a provider label in the public session identity", async ({ request }) => {
+  const response = await request.get("/api/auth/session", { headers: authorization });
+  expect(response.ok()).toBe(true);
+  const session = await response.json();
+  expect(session.user).toMatchObject({
+    uid: "local-preaccount-learner",
+    authenticationProvider: "local",
+  });
+  expect(session.user).not.toHaveProperty("subject");
+  expect(session.user).not.toHaveProperty("issuer");
+  expect(session.user).not.toHaveProperty("providerIdentity");
+});
+
+test("same-email identities receive bounded link-required state without account creation", async ({ request }, testInfo) => {
+  test.skip(testInfo.project.name !== "chromium", "One isolated server-side linking contract is sufficient.");
+
+  const ownerAcceptance = await request.post("/api/legal/acceptance", {
+    headers: authorization,
+    data: {
+      termsVersion: TERMS_VERSION,
+      privacyVersion: PRIVACY_VERSION,
+      ageEligibilityConfirmed: true,
+      source: "signup",
+    },
+  });
+  expect(ownerAcceptance.ok()).toBe(true);
+
+  try {
+    const pendingAccount = await request.get("/api/account", { headers: sameEmailAuthorization });
+    expect(pendingAccount.ok()).toBe(true);
+    expect(await pendingAccount.json()).toEqual(zeroCapabilityLinkRequiredAccount);
+
+    const acceptance = await request.post("/api/legal/acceptance", {
+      headers: sameEmailAuthorization,
+      data: {
+        termsVersion: TERMS_VERSION,
+        privacyVersion: PRIVACY_VERSION,
+        ageEligibilityConfirmed: true,
+        source: "signup",
+      },
+    });
+    expect(acceptance.status()).toBe(409);
+    expect(acceptance.headers()["cache-control"]).toBe("private, no-store");
+    expect(await acceptance.json()).toEqual({
+      code: "identity_link_required",
+      error: "This email is already connected to a Filosage learning account. Confirm your existing sign-in to connect the new method.",
+    });
+
+    const unchangedAccount = await request.get("/api/account", { headers: sameEmailAuthorization });
+    expect(unchangedAccount.ok()).toBe(true);
+    expect(await unchangedAccount.json()).toEqual(zeroCapabilityLinkRequiredAccount);
+
+    const store = await readPlaywrightOwnedStore(testInfo);
+    for (const path of rejectedRegistrationPaths("local-preaccount-same-email-learner")) {
+      expect(store[path], `${path} must not be created after identity-link rejection.`).toBeUndefined();
+    }
+  } finally {
+    const cleanup = await request.delete("/api/account/data", {
+      headers: authorization,
+      data: { confirmation: "DELETE MY ACCOUNT" },
+    });
+    expect(cleanup.ok()).toBe(true);
+  }
+});
+
+test("inactive External ID signup returns bounded retry guidance without durable writes", async ({ request }, testInfo) => {
+  test.skip(testInfo.project.name !== "chromium", "One isolated server-side signup-gate contract is sufficient.");
+
+  const acceptance = await request.post("/api/legal/acceptance", {
+    headers: disabledExternalSignupAuthorization,
+    data: {
+      termsVersion: TERMS_VERSION,
+      privacyVersion: PRIVACY_VERSION,
+      ageEligibilityConfirmed: true,
+      source: "signup",
+    },
+  });
+
+  expect(acceptance.status()).toBe(503);
+  expect(acceptance.headers()["cache-control"]).toBe("private, no-store");
+  expect(acceptance.headers()["retry-after"]).toBe("300");
+  expect(await acceptance.json()).toEqual({
+    code: "external_id_signup_unavailable",
+    error: "Email-code sign-up is not available yet. You can continue with Google.",
+  });
+
+  const store = await readPlaywrightOwnedStore(testInfo);
+  for (const path of rejectedRegistrationPaths("local-external-signup-disabled")) {
+    expect(store[path], `${path} must not be created while External ID signup is inactive.`).toBeUndefined();
+  }
+});
+
 test("presents a signed-in identity without an application account as initial setup", async ({ page }, testInfo) => {
   test.skip(testInfo.project.name !== "chromium", "One UI acceptance contract is sufficient.");
 
@@ -102,8 +256,20 @@ test("presents a signed-in identity without an application account as initial se
       isOwner: false,
       accountStatus: "active",
       subscriptionStatus: "none",
+      capabilities: {
+        createCourse: false,
+        generateLesson: false,
+        flashcardDecksEnabled: false,
+        createCustomFlashcardDeck: false,
+        publishCourse: false,
+        advancedCapstoneAnalysis: false,
+        exportEvidenceReport: false,
+        shareEvidenceReport: false,
+      },
+      courseCredits: { balance: 0, monthlyAllocation: 0, balanceCap: 0, nextAccrualAt: null, frozenUntil: null },
       legalAcceptanceRequired: true,
       applicationAccountExists: false,
+      identityLinkRequired: false,
       currentTermsVersion: TERMS_VERSION,
       currentPrivacyVersion: PRIVACY_VERSION,
       quotas: [],
@@ -132,8 +298,20 @@ test("returns initial-setup users to the public landing page when they sign out"
       isOwner: false,
       accountStatus: "active",
       subscriptionStatus: "none",
+      capabilities: {
+        createCourse: false,
+        generateLesson: false,
+        flashcardDecksEnabled: false,
+        createCustomFlashcardDeck: false,
+        publishCourse: false,
+        advancedCapstoneAnalysis: false,
+        exportEvidenceReport: false,
+        shareEvidenceReport: false,
+      },
+      courseCredits: { balance: 0, monthlyAllocation: 0, balanceCap: 0, nextAccrualAt: null, frozenUntil: null },
       legalAcceptanceRequired: true,
       applicationAccountExists: false,
+      identityLinkRequired: false,
       currentTermsVersion: TERMS_VERSION,
       currentPrivacyVersion: PRIVACY_VERSION,
       quotas: [],

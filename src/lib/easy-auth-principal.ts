@@ -1,11 +1,5 @@
-export interface EasyAuthVerifiedIdentity {
-  uid: string;
-  email: string;
-  email_verified: true;
-  auth_time?: number;
-  name?: string;
-  picture?: string;
-}
+import type { AuthenticationRuntimeConfiguration } from "@/lib/auth-runtime";
+import type { VerifiedProviderIdentity } from "@/lib/identity-types";
 
 interface EasyAuthClaim {
   typ?: unknown;
@@ -15,6 +9,10 @@ interface EasyAuthClaim {
 interface EasyAuthPrincipal {
   auth_typ?: unknown;
   claims?: unknown;
+}
+
+function isEasyAuthClaim(value: unknown): value is EasyAuthClaim {
+  return value !== null && typeof value === "object" && !Array.isArray(value);
 }
 
 function decodedPrincipal(value: string): EasyAuthPrincipal | null {
@@ -41,40 +39,60 @@ function integerClaim(claims: EasyAuthClaim[], names: string[]) {
   return Number.isInteger(parsed) && parsed >= 0 ? parsed : undefined;
 }
 
-export function easyAuthIdentityFromHeaders(headers: Headers, enabled: boolean): EasyAuthVerifiedIdentity | null {
-  if (!enabled) return null;
+function normalizedEmail(value: string | undefined) {
+  const email = value?.trim().toLowerCase() ?? "";
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) ? email : null;
+}
+
+export function easyAuthIdentityFromHeaders(
+  headers: Headers,
+  config: AuthenticationRuntimeConfiguration,
+): VerifiedProviderIdentity | null {
+  if (!config.easyAuthEnabled) return null;
   const encoded = headers.get("x-ms-client-principal")?.trim();
   if (!encoded) return null;
   const principal = decodedPrincipal(encoded);
   if (!principal) return null;
+  if (principal.claims !== undefined && (
+    !Array.isArray(principal.claims) || !principal.claims.every(isEasyAuthClaim)
+  )) return null;
+  const claims = principal.claims ?? [];
   const headerProvider = headers.get("x-ms-client-principal-idp")?.trim().toLowerCase();
   const bodyProvider = String(principal.auth_typ ?? "").trim().toLowerCase();
-  if ((headerProvider && headerProvider !== "google") || bodyProvider !== "google") return null;
+  if (!headerProvider || !bodyProvider || headerProvider !== bodyProvider) return null;
 
-  const claims = Array.isArray(principal.claims) ? principal.claims as EasyAuthClaim[] : [];
-  const uid = headers.get("x-ms-client-principal-id")?.trim()
-    || claimValue(claims, [
-      "sub",
-      "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier",
-    ]);
-  const email = headers.get("x-ms-client-principal-name")?.trim().toLowerCase()
-    || claimValue(claims, [
-      "email",
-      "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/emailaddress",
-    ])?.trim().toLowerCase();
-  if (!uid || !email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return null;
-  const emailVerified = claimValue(claims, ["email_verified", "urn:google:email_verified"]);
-  if (emailVerified?.toLowerCase() === "false") return null;
+  const provider = headerProvider === "google" && config.directGoogleEnabled
+    ? "google"
+    : headerProvider === "filosage" && config.externalIdEnabled
+      ? "filosage"
+      : null;
+  if (!provider) return null;
+
+  const assertedIssuer = claimValue(claims, ["iss"])?.trim().replace(/\/$/, "");
+  const expectedIssuer = provider === "google" ? config.directGoogleIssuer : config.externalIdIssuer;
+  if (!expectedIssuer || (assertedIssuer && assertedIssuer !== expectedIssuer)) return null;
+  if (provider === "filosage" && assertedIssuer !== expectedIssuer) return null;
+
+  const subject = claimValue(claims, [
+    "sub",
+    "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier",
+  ])?.trim() || (provider === "google" ? headers.get("x-ms-client-principal-id")?.trim() : "");
+  const email = normalizedEmail(
+    headers.get("x-ms-client-principal-name")
+      ?? claimValue(claims, ["email", "emails", "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/emailaddress"]),
+  );
+  if (!subject || !email) return null;
+  const verified = claimValue(claims, ["email_verified", "urn:google:email_verified"]);
+  if (provider === "google" && verified?.toLowerCase() === "false") return null;
 
   return {
-    uid,
+    provider,
+    issuer: expectedIssuer,
+    subject,
     email,
-    email_verified: true,
-    auth_time: integerClaim(claims, ["auth_time", "urn:google:auth_time"]),
-    name: claimValue(claims, [
-      "name",
-      "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/name",
-    ]),
+    emailVerified: true,
+    authTime: integerClaim(claims, ["auth_time", "urn:google:auth_time"]),
+    name: claimValue(claims, ["name", "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/name"]),
     picture: claimValue(claims, ["picture", "urn:google:picture"]),
   };
 }

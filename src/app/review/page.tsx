@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowRight, CalendarCheck2, Clock3, Flame, Layers3, RefreshCw, Sparkles } from "lucide-react";
 import AppShell from "@/components/AppShell";
+import AccountEntryButton, { useAccountEntryMode } from "@/components/AccountEntryButton";
 import { useAuth } from "@/components/AuthProvider";
 import type { CourseProgress } from "@/lib/learning-types";
 import { listLocalProgress } from "@/lib/learning-progress";
@@ -26,7 +27,8 @@ function streakFor(progress: CourseProgress[]) {
 
 export default function ReviewPage() {
   const router = useRouter();
-  const { user, account, loading: authLoading, signInWithGoogle } = useAuth();
+  const { user, account, loading: authLoading } = useAuth();
+  const entryMode = useAccountEntryMode();
   const [progress, setProgress] = useState<CourseProgress[]>([]);
   const [loaded, setLoaded] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -180,7 +182,8 @@ export default function ReviewPage() {
 
         {!user && allLessons.length > 0 && (
           <div className="review-sync-hint">
-            <p>Your review schedule lives on this device. <button className="text-button" onClick={() => void signInWithGoogle()}>Create a free account</button> to keep it across devices.</p>
+            <p>{entryMode === "create" ? "Your review schedule lives on this device. Create an account to keep it across devices." : entryMode === "sign-in" ? "Your review schedule lives on this device. Sign in to sync it with your existing account." : "Your review schedule remains on this device while sign-in is unavailable."}</p>
+            <AccountEntryButton className="text-button" />
           </div>
         )}
       </div>

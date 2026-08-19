@@ -425,6 +425,7 @@ export interface LearnerAccount {
   plan: LearnerPlan;
   isOwner: boolean;
   accountStatus: AccountStatus;
+  identityLinkRequired?: boolean;
   suspensionReason?: string;
   displayName?: string;
   photoURL?: string;

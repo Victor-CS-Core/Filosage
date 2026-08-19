@@ -2,6 +2,17 @@ name: Deploy isolated Azure QA
 
 on:
   workflow_dispatch:
+    inputs:
+      external_id_auth_enabled:
+        description: Open the application acceptance gate only after the filosage Easy Auth provider is separately approved, configured, and enabled
+        required: true
+        default: false
+        type: boolean
+      external_id_new_accounts_enabled:
+        description: Permit QA-only new External ID accounts after registry preflight
+        required: true
+        default: false
+        type: boolean
 
 permissions:
   contents: read
@@ -35,12 +46,39 @@ jobs:
           NEXT_PUBLIC_COMMAND_CENTER_V2: "true"
           SITE_VERSION: ${{ github.sha }}
 
+      - name: Validate identity activation inputs
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ "${{ inputs.external_id_new_accounts_enabled }}" == "true" && "${{ inputs.external_id_auth_enabled }}" != "true" ]]; then
+            echo "New External ID accounts require the QA External ID provider to be enabled."
+            exit 1
+          fi
+
       - name: Sign in to Azure with GitHub OIDC
         uses: azure/login@v2
         with:
           client-id: ${{ secrets.AZURE_CLIENT_ID }}
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Verify separately configured QA authentication state before deployment
+        shell: bash
+        run: |
+          set -euo pipefail
+          PROVIDER_STATE="$(az containerapp auth show \
+            --resource-group "${{ vars.AZURE_RESOURCE_GROUP }}" \
+            --name "${{ vars.AZURE_QA_CONTAINER_APP_NAME }}" \
+            --query "{google:properties.identityProviders.google.enabled,filosage:properties.identityProviders.customOpenIdConnectProviders.filosage.enabled}" \
+            --output json)"
+          {
+            echo "### QA authentication provider state before deployment"
+            echo '```json'
+            echo "$PROVIDER_STATE"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+          printf '%s' "$PROVIDER_STATE" \
+            | node scripts/check-auth-provider-state.mjs "${{ inputs.external_id_auth_enabled }}"
 
       - name: Build and push the immutable QA-approved image
         shell: bash
@@ -86,7 +124,30 @@ jobs:
               "DEPLOYMENT_SLOT=qa" \
               "OPERATIONS_ENVIRONMENT=qa" \
               "AZURE_EASY_AUTH_ENABLED=true" \
+              "DIRECT_GOOGLE_AUTH_ENABLED=true" \
+              "EXTERNAL_ID_AUTH_ENABLED=${{ inputs.external_id_auth_enabled }}" \
+              "EXTERNAL_ID_NEW_ACCOUNTS_ENABLED=${{ inputs.external_id_new_accounts_enabled }}" \
               "BILLING_ENABLED=false"
 
+      - name: Verify separately configured QA authentication state after deployment
+        shell: bash
+        run: |
+          set -euo pipefail
+          PROVIDER_STATE="$(az containerapp auth show \
+            --resource-group "${{ vars.AZURE_RESOURCE_GROUP }}" \
+            --name "${{ vars.AZURE_QA_CONTAINER_APP_NAME }}" \
+            --query "{google:properties.identityProviders.google.enabled,filosage:properties.identityProviders.customOpenIdConnectProviders.filosage.enabled}" \
+            --output json)"
+          {
+            echo "### QA authentication provider state after deployment"
+            echo '```json'
+            echo "$PROVIDER_STATE"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+          printf '%s' "$PROVIDER_STATE" \
+            | node scripts/check-auth-provider-state.mjs "${{ inputs.external_id_auth_enabled }}"
+
       - name: Verify isolated QA candidate
+        env:
+          EXPECTED_AUTH_MODE: ${{ inputs.external_id_auth_enabled && 'migration-dual' || 'direct-google' }}
         run: npm run check:production -- "$QA_URL" "$GITHUB_SHA" "$QA_URL"

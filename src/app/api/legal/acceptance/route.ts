@@ -1,8 +1,15 @@
 import { z } from "zod";
 import { apiRequestErrorResponse, readJsonBody } from "@/lib/api-security";
 import { authorizationResponse, requireUser } from "@/lib/auth-server";
+import { authenticationRuntimeConfiguration } from "@/lib/auth-runtime";
 import { isOwnerUser } from "@/lib/account-server";
 import { runStoredDocumentTransaction } from "@/lib/firebase-server";
+import {
+  ExternalIdSignupUnavailableError,
+  IdentityLinkRequiredError,
+  identityRegistrationWrites,
+  preparedIdentityRegistration,
+} from "@/lib/identity-link-server";
 import { PRIVACY_VERSION, TERMS_VERSION } from "@/lib/legal";
 import { PRODUCT_EVENT_SCHEMA_VERSION } from "@/lib/product-events";
 
@@ -20,12 +27,27 @@ export async function POST(request: Request) {
     if (!parsed.success) return Response.json({ error: "The legal acceptance is not current." }, { status: 400 });
     const acceptedAt = new Date().toISOString();
     const id = `${TERMS_VERSION}__${PRIVACY_VERSION}`.replace(/[^a-zA-Z0-9_-]/g, "_");
+    const registration = await preparedIdentityRegistration(user);
+    const authConfig = authenticationRuntimeConfiguration();
     const accountPath = `users/${user.uid}`;
     const acceptancePath = `${accountPath}/legalAcceptances/${id}`;
     const signupEventPath = `productEvents/signup-completed-${user.uid}`;
-    await runStoredDocumentTransaction([accountPath, acceptancePath, signupEventPath], (documents) => {
+    const transactionPaths = [
+      registration.identityPath,
+      registration.emailPath,
+      accountPath,
+      acceptancePath,
+      signupEventPath,
+    ];
+    await runStoredDocumentTransaction(transactionPaths, (documents) => {
       const existingAccount = documents[accountPath];
       const existingAcceptance = documents[acceptancePath];
+      const registryWrites = identityRegistrationWrites(
+        documents,
+        registration,
+        acceptedAt,
+        { allowNewExternalAccounts: authConfig.externalIdNewAccountsEnabled },
+      );
       const hasPriorLegalAcceptance = Boolean(existingAccount)
         && (typeof existingAccount?.acceptedTermsVersion === "string"
           || typeof existingAccount?.acceptedPrivacyVersion === "string");
@@ -47,6 +69,7 @@ export async function POST(request: Request) {
         context,
       ]));
       const writes: Array<{ path: string; data: Record<string, unknown> }> = [
+          ...registryWrites,
           {
             path: acceptancePath,
             data: {
@@ -111,6 +134,21 @@ export async function POST(request: Request) {
     });
     return Response.json({ accepted: true, acceptedAt }, { headers: { "Cache-Control": "private, no-store" } });
   } catch (error) {
+    if (error instanceof IdentityLinkRequiredError) {
+      return Response.json(
+        { code: error.code, error: error.message },
+        { status: 409, headers: { "Cache-Control": "private, no-store" } },
+      );
+    }
+    if (error instanceof ExternalIdSignupUnavailableError) {
+      return Response.json(
+        { code: error.code, error: error.message },
+        {
+          status: 503,
+          headers: { "Cache-Control": "private, no-store", "Retry-After": "300" },
+        },
+      );
+    }
     return apiRequestErrorResponse(error)
       ?? authorizationResponse(error)
       ?? Response.json({ error: "Your acceptance could not be saved." }, { status: 500 });

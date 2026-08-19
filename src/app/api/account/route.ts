@@ -2,12 +2,42 @@ import { authorizationResponse, hasCurrentLegalAcceptance, requireUser } from "@
 import { getExistingAccount } from "@/lib/account-server";
 import { getAiQuotaSummaries } from "@/lib/ai-usage";
 import { courseCreditSummaryForAccount } from "@/lib/course-credits";
+import { identityOnboardingState } from "@/lib/identity-link-server";
 import { PRIVACY_VERSION, TERMS_VERSION } from "@/lib/legal";
 import { capabilitiesForAccount } from "@/lib/membership-access";
 
 export async function GET(request: Request) {
   try {
     const user = await requireUser(request);
+    const onboardingState = await identityOnboardingState(user);
+    if (onboardingState === "identity_link_required") {
+      return Response.json({
+        access: "free",
+        plan: "free",
+        isOwner: false,
+        accountStatus: "active",
+        displayName: user.name,
+        photoURL: user.picture,
+        subscriptionStatus: "none",
+        capabilities: {
+          createCourse: false,
+          generateLesson: false,
+          flashcardDecksEnabled: false,
+          createCustomFlashcardDeck: false,
+          publishCourse: false,
+          advancedCapstoneAnalysis: false,
+          exportEvidenceReport: false,
+          shareEvidenceReport: false,
+        },
+        courseCredits: { balance: 0, monthlyAllocation: 0, balanceCap: 0, nextAccrualAt: null, frozenUntil: null },
+        legalAcceptanceRequired: false,
+        applicationAccountExists: false,
+        identityLinkRequired: true,
+        currentTermsVersion: TERMS_VERSION,
+        currentPrivacyVersion: PRIVACY_VERSION,
+        quotas: [],
+      }, { headers: { "Cache-Control": "private, no-store" } });
+    }
     const account = await getExistingAccount(user);
     if (!account) {
       return Response.json({
@@ -31,6 +61,7 @@ export async function GET(request: Request) {
         courseCredits: { balance: 0, monthlyAllocation: 0, balanceCap: 0, nextAccrualAt: null, frozenUntil: null },
         legalAcceptanceRequired: true,
         applicationAccountExists: false,
+        identityLinkRequired: false,
         currentTermsVersion: TERMS_VERSION,
         currentPrivacyVersion: PRIVACY_VERSION,
         quotas: [],
@@ -58,6 +89,7 @@ export async function GET(request: Request) {
         acceptedPrivacyVersion: account.acceptedPrivacyVersion,
         legalAcceptanceRequired: !hasCurrentLegalAcceptance(account),
         applicationAccountExists: true,
+        identityLinkRequired: false,
         currentTermsVersion: TERMS_VERSION,
         currentPrivacyVersion: PRIVACY_VERSION,
         quotas,

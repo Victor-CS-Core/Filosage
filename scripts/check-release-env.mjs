@@ -1,9 +1,52 @@
 const activationMode = process.argv.includes("--billing-activation");
-const required = ["NEXT_PUBLIC_SITE_URL", "DATABASE_URL", "AZURE_EASY_AUTH_ENABLED", "AZURE_STORAGE_ACCOUNT_URL", "AZURE_STORAGE_BANNER_CONTAINER", "AZURE_POSTGRES_SERVER_NAME", "AZURE_RESOURCE_GROUP", "OPENAI_API_KEY", "OWNER_EMAIL", "MIGRATED_OWNER_UID", "ACTIVITY_RECEIPT_SECRET", "OPERATIONS_ALERT_WEBHOOK_URL", "OPERATIONS_ALERT_WEBHOOK_SECRET", "SITE_VERSION"];
+const required = [
+  "NEXT_PUBLIC_SITE_URL",
+  "DATABASE_URL",
+  "AZURE_EASY_AUTH_ENABLED",
+  "AZURE_STORAGE_ACCOUNT_URL",
+  "AZURE_STORAGE_BANNER_CONTAINER",
+  "AZURE_POSTGRES_SERVER_NAME",
+  "AZURE_RESOURCE_GROUP",
+  "OPENAI_API_KEY",
+  "OWNER_EMAIL",
+  "MIGRATED_OWNER_UID",
+  "ACTIVITY_RECEIPT_SECRET",
+  "IDENTITY_LINK_HMAC_SECRET",
+  "DIRECT_GOOGLE_AUTH_ENABLED",
+  "EXTERNAL_ID_AUTH_ENABLED",
+  "EXTERNAL_ID_NEW_ACCOUNTS_ENABLED",
+  "BILLING_ENABLED",
+  "OPERATIONS_ALERT_WEBHOOK_URL",
+  "OPERATIONS_ALERT_WEBHOOK_SECRET",
+  "SITE_VERSION",
+];
 const missing = required.filter((name) => !process.env[name]?.trim());
 if (missing.length) { console.error(`Missing release environment variables: ${missing.join(", ")}`); process.exitCode = 1; }
 else {
   const invalid = [];
+  const enabled = (name) => process.env[name]?.trim() === "true";
+  const directGoogleEnabled = enabled("DIRECT_GOOGLE_AUTH_ENABLED");
+  const externalIdEnabled = enabled("EXTERNAL_ID_AUTH_ENABLED");
+  const externalIdNewAccountsEnabled = enabled("EXTERNAL_ID_NEW_ACCOUNTS_ENABLED");
+  for (const name of ["AZURE_EASY_AUTH_ENABLED", "DIRECT_GOOGLE_AUTH_ENABLED", "EXTERNAL_ID_AUTH_ENABLED", "EXTERNAL_ID_NEW_ACCOUNTS_ENABLED", "BILLING_ENABLED"]) {
+    if (!/^(?:true|false)$/.test(process.env[name]?.trim() ?? "")) invalid.push(`${name} must be exactly true or false`);
+  }
+  if (!directGoogleEnabled && !externalIdEnabled) invalid.push("At least one production authentication provider must be enabled");
+  if (externalIdNewAccountsEnabled && !externalIdEnabled) invalid.push("EXTERNAL_ID_NEW_ACCOUNTS_ENABLED requires EXTERNAL_ID_AUTH_ENABLED");
+  if ((process.env.IDENTITY_LINK_HMAC_SECRET?.trim().length ?? 0) < 32) invalid.push("IDENTITY_LINK_HMAC_SECRET must contain at least 32 characters");
+  if (externalIdEnabled) {
+    for (const name of ["EXTERNAL_ID_CLIENT_ID", "EXTERNAL_ID_ISSUER", "EXTERNAL_ID_WELL_KNOWN_CONFIGURATION"]) {
+      if (!process.env[name]?.trim()) invalid.push(`${name} is required when External ID is enabled`);
+    }
+    for (const name of ["EXTERNAL_ID_ISSUER", "EXTERNAL_ID_WELL_KNOWN_CONFIGURATION"]) {
+      try {
+        const url = new URL(process.env[name]);
+        if (url.protocol !== "https:") invalid.push(`${name} must use HTTPS`);
+      } catch {
+        invalid.push(`${name} must be a valid HTTPS URL`);
+      }
+    }
+  }
   if (process.env.ACTIVITY_RECEIPT_SECRET.trim().length < 32) invalid.push("ACTIVITY_RECEIPT_SECRET must contain at least 32 characters");
   if (!/^[a-f0-9]{40}$/i.test(process.env.SITE_VERSION.trim())) invalid.push("SITE_VERSION must be the full 40-character Git commit SHA");
   if (process.env.AZURE_EASY_AUTH_ENABLED.trim().toLowerCase() !== "true") invalid.push("AZURE_EASY_AUTH_ENABLED must be true for production releases");

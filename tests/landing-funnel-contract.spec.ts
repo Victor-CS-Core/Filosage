@@ -24,7 +24,8 @@ test("keeps public discovery, lesson starts, and sign-up intent as distinct even
 });
 
 test("routes the landing account action through the existing legal-aware modal", () => {
-  expect(source("src/components/marketing/AccountStartButton.tsx")).toContain('new CustomEvent("filosage:open-auth")');
+  expect(source("src/components/marketing/AccountStartButton.tsx")).toContain("AccountEntryButton");
+  expect(source("src/components/AccountEntryButton.tsx")).toContain('new CustomEvent("filosage:open-auth",');
   expect(source("src/components/AppShell.tsx")).toContain('window.addEventListener("filosage:open-auth", openAuth)');
   expect(source("src/components/AuthModal.tsx")).toContain("I confirm I am at least 13");
 });

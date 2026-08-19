@@ -20,9 +20,21 @@ param postgresAdminLogin string = 'filosageadmin'
 param siteUrl string
 param siteVersion string = 'bootstrap'
 param googleClientId string = ''
+param directGoogleAuthEnabled bool = true
+param externalIdAuthEnabled bool = false
+param externalIdNewAccountsEnabled bool = false
+param externalIdClientId string = ''
+param externalIdIssuer string = ''
+param externalIdWellKnownConfiguration string = ''
 
 @secure()
 param googleClientSecret string = ''
+
+@secure()
+param externalIdClientSecret string = ''
+
+@secure()
+param identityLinkHmacSecret string = ''
 
 param ownerEmail string
 
@@ -45,7 +57,10 @@ param operationsAlertWebhookUrl string = ''
 param operationsAlertWebhookSecret string = ''
 
 var unique = toLower(uniqueString(subscription().subscriptionId, resourceGroup().id, prefix))
-var easyAuthConfigured = !empty(googleClientId) && !empty(googleClientSecret)
+var directGoogleConfigured = directGoogleAuthEnabled && !empty(googleClientId) && !empty(googleClientSecret)
+var externalIdConfigurationComplete = !empty(externalIdClientId) && !empty(externalIdClientSecret) && !empty(externalIdIssuer) && !empty(externalIdWellKnownConfiguration)
+var externalIdRuntimeEnabled = externalIdAuthEnabled && externalIdConfigurationComplete
+var easyAuthConfigured = directGoogleConfigured || externalIdConfigurationComplete
 var compactPrefix = take(replace(prefix, '-', ''), 10)
 var registryName = take('${compactPrefix}${unique}acr', 50)
 var storageName = take('${compactPrefix}${unique}st', 24)
@@ -264,6 +279,18 @@ resource googleSecret 'Microsoft.KeyVault/vaults/secrets@2023-07-01' = if (!empt
   properties: { value: googleClientSecret }
 }
 
+resource externalIdSecret 'Microsoft.KeyVault/vaults/secrets@2023-07-01' = if (!empty(externalIdClientSecret)) {
+  parent: vault
+  name: 'external-id-client-secret'
+  properties: { value: externalIdClientSecret }
+}
+
+resource identityLinkSecret 'Microsoft.KeyVault/vaults/secrets@2023-07-01' = if (!empty(identityLinkHmacSecret)) {
+  parent: vault
+  name: 'identity-link-hmac-secret'
+  properties: { value: identityLinkHmacSecret }
+}
+
 resource operationsAlertSecret 'Microsoft.KeyVault/vaults/secrets@2023-07-01' = if (!empty(operationsAlertWebhookSecret)) {
   parent: vault
   name: 'operations-alert-webhook-secret'
@@ -347,6 +374,8 @@ var appSecrets = concat(
   ],
   !empty(openAiApiKey) ? [{ name: 'openai-api-key', keyVaultUrl: openAiSecret!.properties.secretUriWithVersion, identity: identity.id }] : [],
   !empty(googleClientSecret) ? [{ name: 'google-oauth-secret', keyVaultUrl: googleSecret!.properties.secretUriWithVersion, identity: identity.id }] : [],
+  !empty(externalIdClientSecret) ? [{ name: 'external-id-oauth-secret', keyVaultUrl: externalIdSecret!.properties.secretUriWithVersion, identity: identity.id }] : [],
+  !empty(identityLinkHmacSecret) ? [{ name: 'identity-link-hmac-secret', keyVaultUrl: identityLinkSecret!.properties.secretUriWithVersion, identity: identity.id }] : [],
   !empty(operationsAlertWebhookSecret) ? [{ name: 'operations-alert-webhook-secret', keyVaultUrl: operationsAlertSecret!.properties.secretUriWithVersion, identity: identity.id }] : [],
   !empty(migratedOwnerUid) ? [{ name: 'migrated-owner-uid', keyVaultUrl: migratedOwnerUidSecret!.properties.secretUriWithVersion, identity: identity.id }] : []
 )
@@ -364,6 +393,12 @@ var appEnvironment = concat(
     { name: 'NEXT_PUBLIC_SITE_URL', value: siteUrl }
     { name: 'SITE_VERSION', value: siteVersion }
     { name: 'AZURE_EASY_AUTH_ENABLED', value: string(easyAuthConfigured) }
+    { name: 'DIRECT_GOOGLE_AUTH_ENABLED', value: string(directGoogleConfigured) }
+    { name: 'EXTERNAL_ID_AUTH_ENABLED', value: string(externalIdRuntimeEnabled) }
+    { name: 'EXTERNAL_ID_NEW_ACCOUNTS_ENABLED', value: string(externalIdRuntimeEnabled && externalIdNewAccountsEnabled) }
+    { name: 'EXTERNAL_ID_CLIENT_ID', value: externalIdClientId }
+    { name: 'EXTERNAL_ID_ISSUER', value: externalIdIssuer }
+    { name: 'EXTERNAL_ID_WELL_KNOWN_CONFIGURATION', value: externalIdWellKnownConfiguration }
     { name: 'OPERATIONS_ENVIRONMENT', value: 'azure-staging' }
     { name: 'OWNER_EMAIL', value: ownerEmail }
     { name: 'ACTIVITY_RECEIPT_SECRET', secretRef: 'activity-receipt-secret' }
@@ -373,6 +408,7 @@ var appEnvironment = concat(
   !empty(operationsAlertWebhookUrl) ? [{ name: 'OPERATIONS_ALERT_WEBHOOK_URL', value: operationsAlertWebhookUrl }] : [],
   !empty(operationsAlertWebhookSecret) ? [{ name: 'OPERATIONS_ALERT_WEBHOOK_SECRET', secretRef: 'operations-alert-webhook-secret' }] : [],
   !empty(migratedOwnerUid) ? [{ name: 'MIGRATED_OWNER_UID', secretRef: 'migrated-owner-uid' }] : [],
+  !empty(identityLinkHmacSecret) ? [{ name: 'IDENTITY_LINK_HMAC_SECRET', secretRef: 'identity-link-hmac-secret' }] : [],
   !empty(openAiApiKey) ? [{ name: 'OPENAI_API_KEY', secretRef: 'openai-api-key' }] : []
 )
 
@@ -422,6 +458,41 @@ resource app 'Microsoft.App/containerApps@2025-01-01' = if (deployApplication) {
   dependsOn: [acrPull, blobContributor, vaultSecretsUser, database]
 }
 
+var configuredIdentityProviders = union(
+  directGoogleConfigured ? {
+    google: {
+      enabled: true
+      registration: {
+        clientId: googleClientId
+        clientSecretSettingName: 'google-oauth-secret'
+      }
+      validation: { allowedAudiences: [googleClientId] }
+    }
+  } : {},
+  externalIdConfigurationComplete ? {
+    customOpenIdConnectProviders: {
+      filosage: {
+        enabled: externalIdRuntimeEnabled
+        login: {
+          nameClaimType: 'name'
+          scopes: ['openid', 'profile', 'email']
+        }
+        registration: {
+          clientId: externalIdClientId
+          clientCredential: {
+            clientSecretSettingName: 'external-id-oauth-secret'
+            method: 'ClientSecretPost'
+          }
+          openIdConnectConfiguration: {
+            wellKnownOpenIdConfiguration: externalIdWellKnownConfiguration
+          }
+        }
+        validation: { allowedAudiences: [externalIdClientId] }
+      }
+    }
+  } : {}
+)
+
 resource appAuth 'Microsoft.App/containerApps/authConfigs@2025-01-01' = if (deployApplication && easyAuthConfigured) {
   parent: app
   name: 'current'
@@ -429,16 +500,7 @@ resource appAuth 'Microsoft.App/containerApps/authConfigs@2025-01-01' = if (depl
     platform: { enabled: true }
     globalValidation: { unauthenticatedClientAction: 'AllowAnonymous' }
     httpSettings: { requireHttps: true }
-    identityProviders: {
-      google: {
-        enabled: true
-        registration: {
-          clientId: googleClientId
-          clientSecretSettingName: 'google-oauth-secret'
-        }
-        validation: { allowedAudiences: [googleClientId] }
-      }
-    }
+    identityProviders: configuredIdentityProviders
     login: {
       preserveUrlFragmentsForLogins: true
       tokenStore: { enabled: false }
