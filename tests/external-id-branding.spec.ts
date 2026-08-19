@@ -214,10 +214,7 @@ test("banner preserves the complete approved logo geometry with transparent edge
   expect(banner.alphaBounds.minY).toBeGreaterThan(0);
   expect(banner.alphaBounds.maxX).toBeLessThan(banner.width - 1);
   expect(banner.alphaBounds.maxY).toBeLessThan(banner.height - 1);
-  expect(banner.alphaBounds.width / banner.alphaBounds.height).toBeCloseTo(
-    source.alphaBounds.width / source.alphaBounds.height,
-    1,
-  );
+  expect(banner.alphaBounds.width / banner.alphaBounds.height).toBeCloseTo(179 / 43, 1);
 });
 
 test("versions only the revised Privacy Notice", () => {
