@@ -1,5 +1,6 @@
 import { getVerifiedUser } from "@/lib/auth-server";
 import { authenticationRuntimeConfiguration } from "@/lib/auth-runtime";
+import { providerDisplayName } from "@/lib/display-name";
 import { hasRecentAuthentication } from "@/lib/recent-auth";
 
 export async function GET(request: Request) {
@@ -24,7 +25,7 @@ export async function GET(request: Request) {
     },
     user: user ? {
       uid: user.uid,
-      displayName: user.name ?? null,
+      displayName: providerDisplayName(user.name, user.email),
       email: user.email,
       photoURL: user.picture ?? null,
       authenticationProvider: user.providerIdentity.provider,

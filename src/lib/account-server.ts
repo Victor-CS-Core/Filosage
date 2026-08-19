@@ -6,6 +6,7 @@ import {
 import type { VerifiedUser } from "@/lib/identity-server";
 import { isLocalMode, LOCAL_OWNER_UID } from "@/lib/local-mode";
 import type { AccessLevel, AccountStatus, LearnerPlan } from "@/lib/course-types";
+import { normalizeDisplayName, preferredDisplayName } from "@/lib/display-name";
 import { isBillingInterval, isPaidLearnerPlan, type PaidLearnerPlan } from "@/lib/membership-plans";
 import { serverEnvironment } from "@/lib/runtime-environment";
 
@@ -100,7 +101,7 @@ async function resolveAccount(
       ...(existing ?? {}),
       uid: user.uid,
       email: email ?? null,
-      displayName: user.name ?? existing?.displayName ?? null,
+      displayName: preferredDisplayName(existing?.displayName, user.name, email),
       photoURL: user.picture ?? existing?.photoURL ?? null,
       plan,
       accountStatus,
@@ -129,7 +130,7 @@ async function resolveAccount(
   return {
     uid: user.uid,
     email,
-    displayName: String(saved.displayName ?? "") || undefined,
+    displayName: normalizeDisplayName(saved.displayName) ?? undefined,
     photoURL: String(saved.photoURL ?? "") || undefined,
     plan,
     access,

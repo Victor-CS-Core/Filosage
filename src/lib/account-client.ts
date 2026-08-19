@@ -1,4 +1,5 @@
 import type { AiQuotaSummary, LearnerAccount } from "@/lib/course-types";
+import { normalizeDisplayName } from "@/lib/display-name";
 
 const REQUIRED_ACCOUNT_KEYS = [
   "access", "plan", "isOwner", "accountStatus", "subscriptionStatus", "capabilities",
@@ -65,6 +66,9 @@ function parseQuota(value: unknown): AiQuotaSummary | null {
 
 export function parseLearnerAccount(value: unknown): LearnerAccount | null {
   if (!isRecord(value) || !hasExactAllowedKeys(value)) return null;
+  const displayName = Object.hasOwn(value, "displayName")
+    ? normalizeDisplayName(value.displayName)
+    : undefined;
   if (!(["free", "plus", "pro", "owner"] as unknown[]).includes(value.access)
     || !(["free", "plus", "pro"] as unknown[]).includes(value.plan)
     || typeof value.isOwner !== "boolean"
@@ -76,7 +80,7 @@ export function parseLearnerAccount(value: unknown): LearnerAccount | null {
     || !boundedString(value.currentTermsVersion, 128)
     || !boundedString(value.currentPrivacyVersion, 128)
     || !optionalBoundedString(value, "suspensionReason", 500)
-    || !optionalBoundedString(value, "displayName", 200)
+    || (Object.hasOwn(value, "displayName") && displayName === null)
     || !optionalBoundedString(value, "photoURL", 2_048)
     || !optionalBoundedString(value, "currentPeriodEnd", 64)
     || !optionalBoundedString(value, "acceptedTermsVersion", 128)
@@ -110,7 +114,10 @@ export function parseLearnerAccount(value: unknown): LearnerAccount | null {
     applicationAccountExists: value.applicationAccountExists,
     identityLinkRequired: value.identityLinkRequired,
     quotas: quotas as AiQuotaSummary[],
-    ...Object.fromEntries(OPTIONAL_ACCOUNT_KEYS.filter((key) => Object.hasOwn(value, key)).map((key) => [key, value[key]])),
+    ...Object.fromEntries(OPTIONAL_ACCOUNT_KEYS
+      .filter((key) => Object.hasOwn(value, key) && key !== "displayName")
+      .map((key) => [key, value[key]])),
+    ...(displayName ? { displayName } : {}),
   };
 }
 

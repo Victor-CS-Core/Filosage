@@ -4,6 +4,10 @@ import {
   authenticationRuntimeConfiguration,
 } from "../src/lib/auth-runtime";
 import { easyAuthIdentityFromHeaders } from "../src/lib/easy-auth-principal";
+import {
+  normalizeDisplayName,
+  providerDisplayName,
+} from "../src/lib/display-name";
 
 function principal(provider: string, claims: unknown) {
   return Buffer.from(JSON.stringify({ auth_typ: provider, claims })).toString("base64");
@@ -145,4 +149,15 @@ test("normalizes case and surrounding whitespace without provider alias rewritin
     ]),
   });
   expect(easyAuthIdentityFromHeaders(headers, dual)?.email).toBe("learner+study@gmail.com");
+});
+
+test("normalizes learner names without accepting provider placeholders or identity data", () => {
+  expect(normalizeDisplayName("  Avery\t  N.  ")).toBe("Avery N.");
+  expect(normalizeDisplayName("Ａｖｅｒｙ")).toBe("Avery");
+  expect(normalizeDisplayName("unknown")).toBeNull();
+  expect(normalizeDisplayName("ＵＮＫＮＯＷＮ")).toBeNull();
+  expect(normalizeDisplayName("Avery\u0000Learner")).toBeNull();
+  expect(normalizeDisplayName("a".repeat(81))).toBeNull();
+  expect(providerDisplayName("learner@example.com", "learner@example.com")).toBeNull();
+  expect(providerDisplayName("  Managed   Learner ", "learner@example.com")).toBe("Managed Learner");
 });

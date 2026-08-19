@@ -1,10 +1,22 @@
-import { authorizationResponse, hasCurrentLegalAcceptance, requireUser } from "@/lib/auth-server";
+import { z } from "zod";
+import { apiRequestErrorResponse, readJsonBody } from "@/lib/api-security";
+import {
+  authorizationResponse,
+  hasCurrentLegalAcceptance,
+  requireAcceptedAccount,
+  requireUser,
+} from "@/lib/auth-server";
 import { getExistingAccount } from "@/lib/account-server";
 import { getAiQuotaSummaries } from "@/lib/ai-usage";
 import { courseCreditSummaryForAccount } from "@/lib/course-credits";
 import { identityOnboardingState } from "@/lib/identity-link-server";
 import { PRIVACY_VERSION, TERMS_VERSION } from "@/lib/legal";
 import { capabilitiesForAccount } from "@/lib/membership-access";
+import { normalizeDisplayName, providerDisplayName } from "@/lib/display-name";
+import { runStoredDocumentTransaction } from "@/lib/firebase-server";
+
+const displayNameSchema = z.object({ displayName: z.string() }).strict();
+const privateNoStoreHeaders = { "Cache-Control": "private, no-store" };
 
 export async function GET(request: Request) {
   try {
@@ -16,7 +28,7 @@ export async function GET(request: Request) {
         plan: "free",
         isOwner: false,
         accountStatus: "active",
-        displayName: user.name,
+        displayName: providerDisplayName(user.name, user.email) ?? undefined,
         photoURL: user.picture,
         subscriptionStatus: "none",
         capabilities: {
@@ -45,7 +57,7 @@ export async function GET(request: Request) {
         plan: "free",
         isOwner: false,
         accountStatus: "active",
-        displayName: user.name,
+        displayName: providerDisplayName(user.name, user.email) ?? undefined,
         photoURL: user.picture,
         subscriptionStatus: "none",
         capabilities: {
@@ -101,5 +113,47 @@ export async function GET(request: Request) {
     if (authResponse) return authResponse;
     console.error("Account fetch failed:", error);
     return Response.json({ error: "Your account is temporarily unavailable." }, { status: 500 });
+  }
+}
+
+export async function PATCH(request: Request) {
+  try {
+    const account = await requireAcceptedAccount(request);
+    const parsed = displayNameSchema.safeParse(await readJsonBody(request, 1_024));
+    const displayName = parsed.success ? normalizeDisplayName(parsed.data.displayName) : null;
+    if (!displayName) {
+      return Response.json(
+        { error: "Enter a name between 1 and 80 characters." },
+        { status: 400, headers: privateNoStoreHeaders },
+      );
+    }
+    const path = `users/${account.uid}`;
+    await runStoredDocumentTransaction([path], (documents) => {
+      const existing = documents[path];
+      if (!existing) throw new Error("Learner account is unavailable.");
+      return {
+        writes: [{
+          path,
+          data: {
+            ...existing,
+            displayName,
+            updatedAt: new Date().toISOString(),
+          },
+        }],
+        result: null,
+      };
+    });
+
+    return Response.json({ displayName }, { headers: privateNoStoreHeaders });
+  } catch (error) {
+    const requestError = apiRequestErrorResponse(error);
+    if (requestError) return requestError;
+    const authResponse = authorizationResponse(error);
+    if (authResponse) return authResponse;
+    console.error("Account name update failed.");
+    return Response.json(
+      { error: "Your name could not be updated. Try again." },
+      { status: 500, headers: privateNoStoreHeaders },
+    );
   }
 }

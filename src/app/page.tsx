@@ -13,6 +13,7 @@ import type { CourseProgress, LessonProgress } from "@/lib/learning-types";
 import { buildPrerequisiteSafeReviewQueue } from "@/lib/review-readiness";
 import { buildWeeklyMilestone } from "@/lib/adaptive-learning";
 import { trackProductEvent } from "@/lib/product-analytics";
+import { normalizeDisplayName } from "@/lib/display-name";
 
 function streakFor(lessons: LessonProgress[]) {
   const dates = new Set(lessons.map((lesson) => lesson.lastStudiedAt.slice(0, 10)));
@@ -144,7 +145,9 @@ export default function Home() {
   const lessons = progress.flatMap((item) => Object.values(item.lessons));
   const weeklyMilestone = buildWeeklyMilestone(progress, learnerState.weeklyLessonGoal, new Date(now));
   const streak = streakFor(lessons);
-  const firstName = (account?.displayName ?? user.displayName ?? "Learner").split(" ")[0];
+  const firstName = (normalizeDisplayName(account?.displayName)
+    ?? normalizeDisplayName(user.displayName)
+    ?? "Learner").split(" ")[0];
   const reviewLabel = nextReviewLabel(lessons, due.length, now);
 
   return (

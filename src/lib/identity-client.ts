@@ -1,5 +1,7 @@
 "use client";
 
+import { normalizeDisplayName } from "@/lib/display-name";
+
 export interface FilosageUser {
   uid: string;
   displayName: string | null;
@@ -148,7 +150,7 @@ function parsedSession(value: unknown): EasyAuthSessionResponse | null {
   const email = boundedString(value.user.email, 320);
   const displayName = value.user.displayName === null
     ? null
-    : boundedString(value.user.displayName, 200);
+    : normalizeDisplayName(value.user.displayName);
   const photoURL = value.user.photoURL === null
     ? null
     : boundedString(value.user.photoURL, 2_048);

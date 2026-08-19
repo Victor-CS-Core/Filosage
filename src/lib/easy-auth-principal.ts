@@ -1,4 +1,5 @@
 import type { AuthenticationRuntimeConfiguration } from "@/lib/auth-runtime";
+import { providerDisplayName } from "@/lib/display-name";
 import type { VerifiedProviderIdentity } from "@/lib/identity-types";
 
 interface EasyAuthClaim {
@@ -92,7 +93,10 @@ export function easyAuthIdentityFromHeaders(
     email,
     emailVerified: true,
     authTime: integerClaim(claims, ["auth_time", "urn:google:auth_time"]),
-    name: claimValue(claims, ["name", "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/name"]),
+    name: providerDisplayName(
+      claimValue(claims, ["name", "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/name"]),
+      email,
+    ) ?? undefined,
     picture: claimValue(claims, ["picture", "urn:google:picture"]),
   };
 }

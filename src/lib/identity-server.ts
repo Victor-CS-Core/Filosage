@@ -74,6 +74,20 @@ function localVerifiedUser(idToken: string): VerifiedUser | null {
   if (idToken === "playwright-preaccount-learner") {
     return localUser("local-preaccount-learner", "preaccount@filosage.local", "Pre-account Learner");
   }
+  if (idToken === "playwright-display-name-first") {
+    return localUser(
+      "local-display-name-learner",
+      "display-name@filosage.local",
+      "  QA   Learner  ",
+    );
+  }
+  if (idToken === "playwright-display-name-changed") {
+    return localUser(
+      "local-display-name-learner",
+      "display-name@filosage.local",
+      "Changed Provider Claim",
+    );
+  }
   if (idToken === "playwright-preaccount-same-email-learner") {
     return localUser(
       "local-preaccount-same-email-learner",

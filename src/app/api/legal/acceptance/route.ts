@@ -12,6 +12,7 @@ import {
 } from "@/lib/identity-link-server";
 import { PRIVACY_VERSION, TERMS_VERSION } from "@/lib/legal";
 import { PRODUCT_EVENT_SCHEMA_VERSION } from "@/lib/product-events";
+import { preferredDisplayName } from "@/lib/display-name";
 
 const acceptanceSchema = z.object({
   termsVersion: z.literal(TERMS_VERSION),
@@ -95,7 +96,11 @@ export async function POST(request: Request) {
               ...(existingAccount ?? {}),
               uid: user.uid,
               email: user.email?.trim().toLowerCase() ?? existingAccount?.email ?? null,
-              displayName: user.name ?? existingAccount?.displayName ?? null,
+              displayName: preferredDisplayName(
+                existingAccount?.displayName,
+                user.name,
+                user.email,
+              ),
               photoURL: user.picture ?? existingAccount?.photoURL ?? null,
               plan: isOwnerUser(user) ? "pro" : existingAccount?.plan ?? "free",
               accountStatus: isOwnerUser(user)

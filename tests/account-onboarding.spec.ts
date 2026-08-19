@@ -17,6 +17,16 @@ const disabledExternalSignupAuthorization = {
   Authorization: "Bearer playwright-external-signup-disabled",
 };
 
+const firstDisplayNameAuthorization = {
+  Authorization: "Bearer playwright-display-name-first",
+  "X-Reauthentication-Token": "playwright-display-name-first",
+};
+
+const changedDisplayNameAuthorization = {
+  Authorization: "Bearer playwright-display-name-changed",
+  "X-Reauthentication-Token": "playwright-display-name-changed",
+};
+
 type PlaywrightStore = Record<string, Record<string, unknown>>;
 
 async function readPlaywrightOwnedStore(testInfo: TestInfo) {
@@ -243,6 +253,64 @@ test("inactive External ID signup returns bounded retry guidance without durable
   const store = await readPlaywrightOwnedStore(testInfo);
   for (const path of rejectedRegistrationPaths("local-external-signup-disabled")) {
     expect(store[path], `${path} must not be created while External ID signup is inactive.`).toBeUndefined();
+  }
+});
+
+test("seeds a provider name once and preserves an edited Filosage profile name", async ({ request }, testInfo) => {
+  test.skip(testInfo.project.name !== "chromium", "One isolated server-side profile contract is sufficient.");
+
+  await request.delete("/api/account/data", {
+    headers: firstDisplayNameAuthorization,
+    data: { confirmation: "DELETE MY ACCOUNT" },
+  });
+
+  const acceptance = await request.post("/api/legal/acceptance", {
+    headers: firstDisplayNameAuthorization,
+    data: {
+      termsVersion: TERMS_VERSION,
+      privacyVersion: PRIVACY_VERSION,
+      ageEligibilityConfirmed: true,
+      source: "signup",
+    },
+  });
+  expect(acceptance.ok()).toBe(true);
+
+  try {
+    const seeded = await request.get("/api/account", { headers: firstDisplayNameAuthorization });
+    expect(seeded.ok()).toBe(true);
+    expect(await seeded.json()).toMatchObject({ displayName: "QA Learner" });
+
+    const updated = await request.patch("/api/account", {
+      headers: firstDisplayNameAuthorization,
+      data: { displayName: "  Avery\t  N.  " },
+    });
+    expect(updated.status()).toBe(200);
+    expect(updated.headers()["cache-control"]).toBe("private, no-store");
+    expect(await updated.json()).toEqual({ displayName: "Avery N." });
+
+    const changedProviderClaim = await request.get("/api/account", {
+      headers: changedDisplayNameAuthorization,
+    });
+    expect(changedProviderClaim.ok()).toBe(true);
+    expect(await changedProviderClaim.json()).toMatchObject({ displayName: "Avery N." });
+
+    const beforeRejectedUpdate = await readPlaywrightOwnedStore(testInfo);
+    const rejected = await request.patch("/api/account", {
+      headers: changedDisplayNameAuthorization,
+      data: { displayName: "unknown", privateField: "must-not-be-stored" },
+    });
+    expect(rejected.status()).toBe(400);
+    expect(await rejected.json()).toEqual({ error: "Enter a name between 1 and 80 characters." });
+    const afterRejectedUpdate = await readPlaywrightOwnedStore(testInfo);
+    expect(afterRejectedUpdate["users/local-display-name-learner"]).toEqual(
+      beforeRejectedUpdate["users/local-display-name-learner"],
+    );
+  } finally {
+    const cleanup = await request.delete("/api/account/data", {
+      headers: firstDisplayNameAuthorization,
+      data: { confirmation: "DELETE MY ACCOUNT" },
+    });
+    expect(cleanup.ok()).toBe(true);
   }
 });
 

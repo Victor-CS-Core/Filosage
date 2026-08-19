@@ -23,6 +23,8 @@ import {
   passedCapstoneCount,
   practiceEvidenceCount,
 } from "@/lib/learning-summary";
+import { normalizeDisplayName } from "@/lib/display-name";
+import { readBoundedJsonResponse } from "@/lib/identity-client";
 
 type BadgeFilter = "all" | "earned" | "in-progress";
 
@@ -34,6 +36,7 @@ export default function ProfilePage() {
     canCreateCourses,
     loading: authLoading,
     connectExternalIdentity,
+    refreshAccount,
   } = useAuth();
   const { state, update, syncStatus } = useLearnerState();
   const [progress, setProgress] = useState<CourseProgress[]>([]);
@@ -43,9 +46,20 @@ export default function ProfilePage() {
   const [connectBusy, setConnectBusy] = useState(false);
   const [connectError, setConnectError] = useState<string | null>(null);
   const connectBusyRef = useRef(false);
+  const nameInputRef = useRef<HTMLInputElement>(null);
+  const nameBusyRef = useRef(false);
+  const [editingName, setEditingName] = useState(false);
+  const [nameDraft, setNameDraft] = useState("");
+  const [nameBusy, setNameBusy] = useState(false);
+  const [nameError, setNameError] = useState<string | null>(null);
+  const [nameSuccess, setNameSuccess] = useState<string | null>(null);
   const dashboardCustomizer = useAppDrawer("dashboard-customizer");
   const [now] = useState(() => Date.now());
   const entryMode = useAccountEntryMode();
+
+  useEffect(() => {
+    if (editingName) nameInputRef.current?.focus();
+  }, [editingName]);
 
   const beginExternalConnection = async () => {
     if (connectBusyRef.current) return;
@@ -65,6 +79,72 @@ export default function ProfilePage() {
     } finally {
       connectBusyRef.current = false;
       setConnectBusy(false);
+    }
+  };
+
+  const beginNameEdit = () => {
+    setNameDraft(normalizeDisplayName(account?.displayName)
+      ?? normalizeDisplayName(user?.displayName)
+      ?? "");
+    setNameError(null);
+    setNameSuccess(null);
+    setEditingName(true);
+  };
+
+  const saveDisplayName = async () => {
+    if (!user || nameBusyRef.current) return;
+    const displayName = normalizeDisplayName(nameDraft);
+    if (!displayName) {
+      setNameError("Enter a name between 1 and 80 characters.");
+      return;
+    }
+    nameBusyRef.current = true;
+    setNameBusy(true);
+    setNameError(null);
+    setNameSuccess(null);
+    const controller = new AbortController();
+    const timeout = window.setTimeout(() => controller.abort(), 8_000);
+    try {
+      const token = await user.getIdToken();
+      const response = await fetch("/api/account", {
+        method: "PATCH",
+        credentials: "same-origin",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          Accept: "application/json",
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ displayName }),
+        signal: controller.signal,
+      });
+      const body = await readBoundedJsonResponse(
+        response,
+        4 * 1024,
+        "Your name could not be updated. Try again.",
+      );
+      const exactSavedName = typeof body === "object"
+        && body !== null
+        && !Array.isArray(body)
+        && Object.keys(body).length === 1
+        && Object.hasOwn(body, "displayName")
+        ? normalizeDisplayName((body as { displayName?: unknown }).displayName)
+        : null;
+      if (!response.ok || exactSavedName !== displayName) {
+        throw new Error("Your name could not be updated. Try again.");
+      }
+      await refreshAccount();
+      setNameDraft(displayName);
+      setEditingName(false);
+      setNameSuccess("Your Filosage name was updated.");
+    } catch (error) {
+      setNameError(controller.signal.aborted
+        ? "The update took too long. Check your connection and try again."
+        : "Your name could not be updated. Try again.");
+      void error;
+    } finally {
+      window.clearTimeout(timeout);
+      nameBusyRef.current = false;
+      setNameBusy(false);
     }
   };
 
@@ -102,7 +182,9 @@ export default function ProfilePage() {
   const badges = evaluateBadges({ progress, authoredCourses });
   const earned = badges.filter((badge) => badge.earned);
   const visibleBadges = filter === "earned" ? earned : filter === "in-progress" ? badges.filter((badge) => !badge.earned) : badges;
-  const displayName = account?.displayName ?? user.displayName ?? "Filosage learner";
+  const displayName = normalizeDisplayName(account?.displayName)
+    ?? normalizeDisplayName(user.displayName)
+    ?? "Filosage learner";
   const activeSections = Object.values(state.dashboardPreferences.sections).filter(Boolean).length;
   const focusCourse = [...progress].sort((left, right) => right.lastActivityAt.localeCompare(left.lastActivityAt)).find((course) => course.nextLessonId) ?? progress[0];
   const focusCompleted = focusCourse?.completedLessonIds.length ?? 0;
@@ -119,7 +201,43 @@ export default function ProfilePage() {
           <div className="profile-avatar">
             <UserAvatar photoURL={user.photoURL} size={72} fallback={<UserRound size={30} />} />
           </div>
-          <div><p className="overline">Learning profile</p><h1>{displayName}</h1><span>{account?.plan === "pro" ? "Pro learning account" : account?.plan === "plus" ? "Plus learning account" : "Free learning account"} &middot; {syncLabel}</span></div>
+          <div className="profile-identity-copy">
+            <p className="overline">Learning profile</p>
+            {editingName ? (
+              <form className="profile-name-form" onSubmit={(event) => {
+                event.preventDefault();
+                void saveDisplayName();
+              }}>
+                <label htmlFor="profile-display-name">Name shown in Filosage</label>
+                <input
+                  ref={nameInputRef}
+                  id="profile-display-name"
+                  value={nameDraft}
+                  maxLength={160}
+                  autoComplete="name"
+                  disabled={nameBusy}
+                  onChange={(event) => setNameDraft(event.target.value)}
+                />
+                <div>
+                  <button className="button button-primary" type="submit" disabled={nameBusy} aria-busy={nameBusy}>
+                    {nameBusy ? "Saving…" : "Save name"}
+                  </button>
+                  <button className="button button-secondary" type="button" disabled={nameBusy} onClick={() => {
+                    setEditingName(false);
+                    setNameError(null);
+                  }}>Cancel</button>
+                </div>
+              </form>
+            ) : (
+              <div className="profile-name-row">
+                <h1>{displayName}</h1>
+                <button className="text-button" type="button" onClick={beginNameEdit}>Edit name</button>
+              </div>
+            )}
+            <span>{account?.plan === "pro" ? "Pro learning account" : account?.plan === "plus" ? "Plus learning account" : "Free learning account"} &middot; {syncLabel}</span>
+            {nameError && <p className="form-error" role="alert">{nameError}</p>}
+            {nameSuccess && <p className="form-success" role="status">{nameSuccess}</p>}
+          </div>
           <button className="button button-secondary" onClick={dashboardCustomizer.openDrawer} aria-expanded={dashboardCustomizer.open}><SlidersHorizontal size={17} /> Customize dashboard</button>
         </header>
 

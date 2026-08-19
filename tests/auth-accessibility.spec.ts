@@ -1,6 +1,7 @@
 import AxeBuilder from "@axe-core/playwright";
 import { expect, test, type Locator, type Page } from "@playwright/test";
 import { PRIVACY_VERSION, TERMS_VERSION } from "../src/lib/legal";
+import { exactLearnerAccount } from "./fixtures/local-learner";
 
 const signedOutManagedSession = {
   recentAuthentication: false,
@@ -167,4 +168,52 @@ test("identity recovery remains blocking, WCAG-clean, and keyboard-reachable", a
   await page.keyboard.press("Escape");
   await expect(dialog).toBeVisible();
   await expect(dialog.getByRole("button", { name: "Sign out and choose another method" })).toBeVisible();
+});
+
+test("profile name editing remains keyboard reachable and reflows at 200 percent", async ({ page }) => {
+  await page.route("**/api/auth/session", (route) => route.fulfill({
+    status: 200,
+    json: {
+      recentAuthentication: true,
+      authentication: {
+        primaryProvider: "filosage",
+        externalIdAvailable: true,
+        externalIdNewAccountsAvailable: true,
+        legacyGoogleAvailable: true,
+      },
+      user: {
+        uid: "profile-accessibility-learner",
+        displayName: "Accessible Learner",
+        email: "accessible@example.com",
+        photoURL: null,
+        authenticationProvider: "filosage",
+      },
+    },
+  }));
+  await page.route("**/api/account", (route) => route.fulfill({
+    status: 200,
+    json: exactLearnerAccount({ displayName: "Accessible Learner" }),
+  }));
+  await page.route("**/api/progress", (route) => route.fulfill({ status: 200, json: { progress: [] } }));
+  await page.route("**/api/courses?scope=mine", (route) => route.fulfill({ status: 200, json: { courses: [] } }));
+
+  await page.goto("/profile");
+  const profileHeader = page.locator(".profile-identity");
+  await profileHeader.getByRole("button", { name: "Edit name" }).click();
+  const input = profileHeader.getByRole("textbox", { name: "Name shown in Filosage" });
+  await expect(input).toBeFocused();
+  await page.keyboard.press("Tab");
+  await expect(profileHeader.getByRole("button", { name: "Save name" })).toBeFocused();
+  await page.keyboard.press("Tab");
+  await expect(profileHeader.getByRole("button", { name: "Cancel" })).toBeFocused();
+
+  await page.setViewportSize({ width: 320, height: 900 });
+  await page.addStyleTag({ content: "html { font-size: 200% !important; }" });
+  expect(await profileHeader.evaluate((node) => node.scrollWidth <= node.clientWidth)).toBe(true);
+  expect(await input.evaluate((node) => node.getBoundingClientRect().width <= 320)).toBe(true);
+  const accessibility = await new AxeBuilder({ page })
+    .include(".profile-identity")
+    .withTags(["wcag2a", "wcag2aa", "wcag21aa", "wcag22aa"])
+    .analyze();
+  expect(accessibility.violations).toEqual([]);
 });

@@ -36,6 +36,7 @@ import CourseBanner from "@/components/CourseBanner";
 import { hashCourseIdentity } from "@/components/CourseArtwork";
 import SupportCenter from "@/components/support/SupportCenter";
 import UserAvatar from "@/components/UserAvatar";
+import { normalizeDisplayName } from "@/lib/display-name";
 import EnvironmentPill from "@/components/EnvironmentPill";
 import { useAuth } from "@/components/AuthProvider";
 import { useTheme } from "@/components/ThemeProvider";
@@ -130,7 +131,9 @@ export default function AppShell({ children, activeTopic, activeCourseId, active
     };
   }, [refreshCourses]);
 
-  const displayName = account?.displayName ?? user?.displayName ?? "Learner";
+  const displayName = normalizeDisplayName(account?.displayName)
+    ?? normalizeDisplayName(user?.displayName)
+    ?? "Learner";
   const firstName = displayName.split(" ")[0] || "Learner";
   const courseCreditBalance = account?.courseCredits?.balance;
   const flashcardDecksEnabled = account?.capabilities?.flashcardDecksEnabled === true;

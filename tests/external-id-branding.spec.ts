@@ -74,6 +74,8 @@ test("hosted branding declares the complete reviewed non-secret configuration", 
     "bannerLogo",
     "contrastStandard",
     "customCss",
+    "customCssRequired",
+    "displayNameAttribute",
     "favicon",
     "fontStack",
     "footerVisible",
@@ -86,13 +88,15 @@ test("hosted branding declares the complete reviewed non-secret configuration", 
     "provider",
     "schemaVersion",
     "signInPageText",
+    "squareLogo",
+    "squareLogoDark",
     "template",
     "termsText",
     "termsUrl",
     "usernameHintText",
   ]);
   expect(manifest).toEqual({
-    schemaVersion: 1,
+    schemaVersion: 2,
     provider: "Microsoft Entra External ID",
     hostedDomainMode: "microsoft-managed",
     template: "partial-screen",
@@ -102,7 +106,10 @@ test("hosted branding declares the complete reviewed non-secret configuration", 
     bannerLogo: "/brand/identity/filosage-sign-in-banner.png",
     backgroundImage: "/brand/identity/filosage-sign-in-background.png",
     favicon: "/brand/identity/filosage-sign-in-favicon.png",
+    squareLogo: "/brand/identity/filosage-sign-in-square.png",
+    squareLogoDark: "/brand/identity/filosage-sign-in-square-dark.png",
     customCss: "infra/azure/external-id-branding/custom.css",
+    customCssRequired: false,
     privacyText: "Privacy Notice",
     privacyUrl: "https://filosage.com/privacy",
     termsText: "Terms of Service",
@@ -111,6 +118,18 @@ test("hosted branding declares the complete reviewed non-secret configuration", 
     signInPageText: "Choose Google or a private email code. Microsoft securely manages sign-in; Filosage never sees your password or one-time code.",
     oneTimeCodeTitle: "Enter your private email code",
     authenticationMethods: ["google", "email_one_time_code"],
+    displayNameAttribute: {
+      attribute: "displayName",
+      label: "Name shown in Filosage",
+      inputType: "text",
+      defaultValue: null,
+      hidden: false,
+      editable: true,
+      writeToDirectory: true,
+      required: true,
+      validationRegEx: "^.{1,80}$",
+      options: [],
+    },
     fontStack: "Inter, ui-sans-serif, system-ui, sans-serif",
     contrastStandard: "WCAG 2.2 AA",
   });
@@ -144,6 +163,22 @@ test("portal derivatives have exact PNG signatures, dimensions, and byte ceiling
     bytes: expect.any(Number),
   });
   expect(pngMetadata(`public${String(manifest.favicon)}`).bytes).toBeLessThanOrEqual(5 * 1024);
+
+  const reviewedSquareLogos = {
+    squareLogo: "44c214bc9be02b92f6e4b6c1bede530e4e816dc2e2edbc9d1e3c16b763a0324c",
+    squareLogoDark: "fcff43d79411b57aa4d353d451bb5f6f178eae65a17fbb342f3fe9cb40a47135",
+  } as const;
+  for (const [field, expectedHash] of Object.entries(reviewedSquareLogos)) {
+    const path = `public${String(manifest[field])}`;
+    expect(reviewedBannerMetadata(path)).toEqual({
+      signature: "89504e470d0a1a0a",
+      width: 240,
+      height: 240,
+      bytes: expect.any(Number),
+      sha256: expectedHash,
+    });
+    expect(pngMetadata(path).bytes).toBeLessThanOrEqual(10 * 1024);
+  }
 });
 
 test("official brand sources remain canonically byte-for-byte unchanged across checkouts", () => {

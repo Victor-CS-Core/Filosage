@@ -101,17 +101,20 @@ After the tenant/provider-write approval:
 
 1. Register one application with the exact QA Easy Auth callback from the inventory.
 2. Create one sign-up/sign-in user flow with local email one-time passcode and Google federation.
-3. Request only the OIDC scopes `openid profile email`.
-4. Record the exact application client ID, issuer, discovery URL, user-flow ID, and callback; do not record credential material.
-5. Confirm the issuer and discovery URL match the QA tenant and the Container Apps provider name is `filosage`.
+3. Add the built-in `displayName` attribute using the exact `displayNameAttribute` contract in the reviewed manifest. It must be visible, editable, required, and written to the directory. Do not create a custom duplicate attribute or derive a name from an email address.
+4. Request only the OIDC scopes `openid profile email`.
+5. Record the exact application client ID, issuer, discovery URL, user-flow ID, and callback; do not record credential material.
+6. Confirm the issuer and discovery URL match the QA tenant and the Container Apps provider name is `filosage`.
 
 Filosage must not collect, generate, receive, inspect, or validate an email code. Microsoft hosts the credential and code screens and Container Apps owns the HTTP-only browser session.
 
 ### 3. Apply reviewed hosted branding
 
 - Use `infra/azure/external-id-branding/manifest.json` as the reviewed non-secret manifest.
-- Upload the reviewed banner, background, and favicon named by that manifest.
-- Apply `infra/azure/external-id-branding/custom.css` and retain its visible focus, reduced-motion, responsive, and forced-colors behavior.
+- Upload the reviewed banner, background, favicon, light square logo, and dark square logo named by that manifest. Use the banner as the header logo when the portal exposes the header image control.
+- Apply the built-in partial-screen layout, header/footer visibility, background color, sign-in text, username hint, Privacy Notice, and Terms of Service settings even if custom CSS is unavailable. The hosted experience must remain recognizably Filosage without CSS.
+- `infra/azure/external-id-branding/custom.css` is a reviewed optional enhancement only (`customCssRequired=false`). If the exact External ID tenant supports it, apply it and retain its visible focus, reduced-motion, responsive, and forced-colors behavior. If the tenant rejects it, record that bounded capability result and continue only when the built-in experience passes the same accessibility checks.
+- Configure the application registration with the same Privacy Notice and Terms URLs plus the public Filosage marketing and support URLs. This metadata contains no credential or user data.
 - Configure the reviewed footer, Privacy Notice link, and Terms of Service link.
 - Keep the Microsoft-hosted domain for this release; a custom login domain is out of scope.
 - Capture screenshots with no user data for 320 px, 390 px, desktop, dark mode, forced colors, reduced motion, and 200% zoom.

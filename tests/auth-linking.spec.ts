@@ -42,6 +42,18 @@ interface AuthenticationFixture {
   legacyGoogleAvailable: boolean;
 }
 
+interface ManagedSessionFixture {
+  recentAuthentication: boolean;
+  authentication: AuthenticationFixture;
+  user: {
+    uid: string;
+    displayName: string | null;
+    email: string;
+    photoURL: string | null;
+    authenticationProvider: "google" | "filosage";
+  };
+}
+
 const signedOutAuthentication: AuthenticationFixture = {
   primaryProvider: "filosage",
   externalIdAvailable: true,
@@ -91,7 +103,7 @@ const normalLearnerAccount = {
 function managedSession(
   provider: "google" | "filosage" = "filosage",
   authentication: AuthenticationFixture = signedOutAuthentication,
-) {
+): ManagedSessionFixture {
   return {
     recentAuthentication: true,
     authentication,
@@ -1597,6 +1609,62 @@ test("profile email-code connection times out boundedly and restores its action"
     "The secure connection took too long. Check your network and try again.",
   );
   await expect(connect).toBeEnabled();
+});
+
+test("profile lets a learner edit the name shown in Filosage and refreshes the saved account", async ({ page }) => {
+  await routeManagedSession(page, managedSession("filosage"));
+  let displayName = "Managed Learner";
+  let patchRequests = 0;
+  await page.route("**/api/account", async (route) => {
+    if (route.request().method() === "PATCH") {
+      patchRequests += 1;
+      expect(route.request().headers()["content-type"]).toContain("application/json");
+      expect(route.request().postDataJSON()).toEqual({ displayName: "Avery N." });
+      displayName = "Avery N.";
+      return route.fulfill({
+        status: 200,
+        headers: { "Cache-Control": "private, no-store" },
+        json: { displayName },
+      });
+    }
+    return route.fulfill({ status: 200, json: { ...normalLearnerAccount, displayName } });
+  });
+  await page.route("**/api/progress", (route) => route.fulfill({ status: 200, json: { progress: [] } }));
+  await page.route("**/api/courses?scope=mine", (route) => route.fulfill({ status: 200, json: { courses: [] } }));
+
+  await page.goto("/profile");
+  const profileHeader = page.locator(".profile-identity");
+  await expect(profileHeader.getByRole("heading", { name: "Managed Learner" })).toBeVisible();
+  await profileHeader.getByRole("button", { name: "Edit name" }).click();
+  const nameInput = profileHeader.getByRole("textbox", { name: "Name shown in Filosage" });
+  await expect(nameInput).toBeFocused();
+  await nameInput.fill("  Avery   N.  ");
+  await profileHeader.getByRole("button", { name: "Save name" }).click();
+
+  await expect(profileHeader.getByRole("status")).toHaveText("Your Filosage name was updated.");
+  await expect(profileHeader.getByRole("heading", { name: "Avery N." })).toBeVisible();
+  expect(patchRequests).toBe(1);
+});
+
+test("a rejected provider placeholder falls back to a neutral learner greeting", async ({ page }) => {
+  await routeManagedSession(page, {
+    ...managedSession("filosage"),
+    user: { ...managedSession("filosage").user, displayName: null },
+  });
+  const { displayName: _removed, ...accountWithoutName } = normalLearnerAccount;
+  void _removed;
+  await page.route("**/api/account", (route) => route.fulfill({ status: 200, json: accountWithoutName }));
+  await page.route("**/api/progress", (route) => route.fulfill({ status: 200, json: { progress: [] } }));
+  await page.route("**/api/courses?scope=mine", (route) => route.fulfill({ status: 200, json: { courses: [] } }));
+  await page.route("**/api/courses?scope=public", (route) => route.fulfill({ status: 200, json: { courses: [] } }));
+
+  await page.goto("/profile");
+  await expect(page.locator(".profile-identity").getByRole("heading", { name: "Filosage learner" })).toBeVisible();
+  await expect(page.locator(".profile-identity")).not.toContainText("unknown");
+
+  await page.goto("/");
+  await expect(page.getByRole("heading", { name: "Welcome back, Learner." })).toBeVisible();
+  await expect(page.locator(".learner-shell")).not.toContainText("unknown");
 });
 
 test("link-required account state blocks legal acceptance and remains a focus-contained recovery", async ({ page }) => {
