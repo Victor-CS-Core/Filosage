@@ -422,8 +422,10 @@ test("compiled identity secrets remain server-only and use Key Vault references"
 });
 
 test("QA activation is explicit while production staging cannot enable External ID", () => {
+  const boundedProviderStateQuery = "{google:identityProviders.google.enabled || `false`,filosage:identityProviders.customOpenIdConnectProviders.filosage.enabled || `false`}";
   for (const workflowSource of [qaWorkflowSource, stagingWorkflowSource, promotionWorkflowSource]) {
-    expect(workflowSource).toContain("{google:identityProviders.google.enabled,filosage:identityProviders.customOpenIdConnectProviders.filosage.enabled}");
+    expect(workflowSource).toContain(boundedProviderStateQuery);
+    expect(workflowSource).not.toContain("{google:identityProviders.google.enabled,filosage:identityProviders.customOpenIdConnectProviders.filosage.enabled}");
     expect(workflowSource).not.toContain("properties.identityProviders");
   }
   expect(qaWorkflowSource).toContain("external_id_auth_enabled:");
