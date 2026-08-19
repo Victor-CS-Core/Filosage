@@ -359,12 +359,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return;
       }
       const restoredAccount = await loadAccount(state.user);
-      if (!cancelled) setLoading(false);
-      const pendingRecovery = pendingHintsRef.current?.recovery;
-      if (cancelled || (restoredAccount?.identityLinkRequired
-        && !(state.user.provider === "google" && pendingRecovery))) return;
+      const pendingRecovery = pendingHintsRef.current?.recovery ?? null;
+      const pendingAcceptance = pendingHintsRef.current?.acceptance ?? null;
+      const willRecoverIdentity = state.user.provider === "google" && pendingRecovery !== null;
+      const willPersistAcceptance = pendingAcceptance !== null
+        && !restoredAccount?.identityLinkRequired
+        && !willRecoverIdentity;
+      if (!willPersistAcceptance && !cancelled) setLoading(false);
+      if (cancelled || (restoredAccount?.identityLinkRequired && !willRecoverIdentity)) return;
 
-      if (state.user.provider === "google" && pendingRecovery) {
+      if (willRecoverIdentity && pendingRecovery) {
         try {
           window.location.assign(await identityLinkRedirect(pendingRecovery.returnPath));
         } catch (recoveryError) {
@@ -376,8 +380,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
         return;
       }
-      const pendingAcceptance = pendingHintsRef.current?.acceptance;
-      if (pendingAcceptance) {
+      if (willPersistAcceptance && pendingAcceptance) {
         await persistLegalAcceptance(state.user, pendingAcceptance.source);
         await loadAccount(state.user);
       }

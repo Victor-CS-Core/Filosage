@@ -1667,6 +1667,61 @@ test("a rejected provider placeholder falls back to a neutral learner greeting",
   await expect(page.locator(".learner-shell")).not.toContainText("unknown");
 });
 
+test("first login never flashes a second consent prompt while confirmed signup acceptance is saved", async ({ page }) => {
+  let accountReads = 0;
+  let legalPosts = 0;
+  let releaseAcceptance: (() => void) | undefined;
+  const acceptanceGate = new Promise<void>((resolve) => {
+    releaseAcceptance = resolve;
+  });
+  let accepted = false;
+
+  await page.addInitScript(({ termsVersion, privacyVersion }) => {
+    sessionStorage.setItem("filosage:managed-redirect-acceptance:v1", JSON.stringify({
+      source: "signup",
+      termsVersion,
+      privacyVersion,
+      ageEligibilityConfirmed: true,
+      createdAt: Date.now(),
+    }));
+  }, { termsVersion: TERMS_VERSION, privacyVersion: PRIVACY_VERSION });
+  await routeManagedSession(page, managedSession("filosage"));
+  await page.route("**/api/account", (route) => {
+    accountReads += 1;
+    return route.fulfill({
+      status: 200,
+      json: accepted
+        ? normalLearnerAccount
+        : {
+            ...normalLearnerAccount,
+            legalAcceptanceRequired: true,
+            applicationAccountExists: false,
+            quotas: [],
+          },
+    });
+  });
+  await page.route("**/api/legal/acceptance", async (route) => {
+    legalPosts += 1;
+    await acceptanceGate;
+    accepted = true;
+    return route.fulfill({ status: 200, json: { accepted: true } });
+  });
+
+  await page.goto("/");
+  await expect.poll(() => legalPosts).toBe(1);
+  try {
+    expect(await page.getByRole("dialog", { name: "Review before creating your account" }).count()).toBe(0);
+    expect(await page.getByLabel("Restoring your Filosage session").isVisible()).toBe(true);
+  } finally {
+    releaseAcceptance?.();
+  }
+
+  await expect(page.locator(".learner-shell")).toBeVisible();
+  await expect(page.getByRole("dialog", { name: "Review before creating your account" })).toHaveCount(0);
+  expect(accountReads).toBe(2);
+  expect(legalPosts).toBe(1);
+});
+
 test("link-required account state blocks legal acceptance and remains a focus-contained recovery", async ({ page }) => {
   let legalPosts = 0;
   await page.addInitScript(({ termsVersion, privacyVersion }) => {
