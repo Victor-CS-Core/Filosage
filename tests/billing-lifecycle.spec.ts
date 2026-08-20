@@ -133,7 +133,7 @@ test("exact learner account fixtures derive coherent access, capabilities, and c
   });
 });
 
-test("closing checkout preserves existing subscriber management and lifecycle processing", () => {
+test("closing checkout preserves existing subscriber management and lifecycle processing", { tag: "@smoke" }, () => {
   expect(evaluateBillingConfiguration({ ...stripeLifecycle, BILLING_ENABLED: "false" })).toMatchObject({
     enabled: false,
     managementReady: true,
@@ -477,7 +477,7 @@ test("webhook raw bodies are preserved and bounded by bytes", async () => {
   }), bodyBytes)).toBeNull();
 });
 
-test("billing routes report and enforce the closed checkout boundary", async ({ page }) => {
+test("billing routes report and enforce the closed checkout boundary", { tag: "@smoke" }, async ({ page }) => {
   const statusResponse = await page.request.get("/api/billing/status");
   expect(statusResponse.ok()).toBe(true);
   expect(await statusResponse.json()).toMatchObject({

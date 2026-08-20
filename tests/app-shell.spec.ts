@@ -182,7 +182,7 @@ async function waitForCommandCenterToSettle(page: Page) {
 test.describe("desktop application shell", () => {
   test.use({ viewport: { width: 1366, height: 900 } });
 
-  test("uses a Learning Header with direct courses and a separate Command Center", async ({ page }) => {
+  test("uses a Learning Header with direct courses and a separate Command Center", { tag: "@webkit" }, async ({ page }) => {
     test.setTimeout(90_000);
     await prepareOwnerShell(page);
     await page.goto("/library");
@@ -381,7 +381,7 @@ test.describe("desktop application shell", () => {
     await expect(page.getByRole("button", { name: /Open Command Center/ })).toHaveCount(0);
   });
 
-  test("keeps a drawer open when it is reopened during its exit transition", async ({ page }) => {
+  test("keeps a drawer open when it is reopened during its exit transition", { tag: "@webkit" }, async ({ page }) => {
     await prepareOwnerShell(page);
     await page.goto("/library");
 
@@ -401,7 +401,7 @@ test.describe("desktop application shell", () => {
     await expect(coursesDialog).toBeVisible();
   });
 
-  test("settles an opening drawer when animation frames are deferred", async ({ page }) => {
+  test("settles an opening drawer when animation frames are deferred", { tag: "@webkit" }, async ({ page }) => {
     await prepareOwnerShell(page);
     await page.goto("/library");
 
@@ -421,7 +421,7 @@ test.describe("desktop application shell", () => {
     await expect(coursesDialog).toHaveAttribute("data-state", "open", { timeout: 1_500 });
   });
 
-  test("uses a modal bottom sheet while the application is in its tablet shell", async ({ page }) => {
+  test("uses a modal bottom sheet while the application is in its tablet shell", { tag: ["@mobile", "@webkit"] }, async ({ page }) => {
     await page.setViewportSize({ width: 768, height: 1024 });
     await prepareOwnerShell(page);
     await page.goto("/library");
@@ -437,7 +437,7 @@ test.describe("desktop application shell", () => {
     expect(Math.round((box?.y ?? -1) + (box?.height ?? 0))).toBe(1024);
   });
 
-  test("keeps the floating course shelf above a very large active-course deck", async ({ page }) => {
+  test("keeps the floating course shelf above a very large active-course deck", { tag: ["@mobile", "@webkit"] }, async ({ page }) => {
     const largeProgress = Array.from({ length: 45 }, (_, index): CourseProgress => ({
       ...learningProgress[0],
       courseId: `active-course-${index}`,
@@ -1135,7 +1135,7 @@ test.describe("desktop application shell", () => {
 test.describe("mobile application shell", () => {
   test.use({ viewport: { width: 390, height: 844 } });
 
-  test("opens My Courses from the mobile profile and keeps the Command Center separately reachable", async ({ page }) => {
+  test("opens My Courses from the mobile profile and keeps the Command Center separately reachable", { tag: ["@mobile", "@webkit"] }, async ({ page }) => {
     await prepareOwnerShell(page);
     await page.goto("/library");
 
@@ -1165,7 +1165,7 @@ test.describe("mobile application shell", () => {
     await expect(commandCenter.getByRole("option", { name: /Sign out/ })).toBeVisible();
   });
 
-  test("keeps the focused course-builder step and next action reachable on a phone", async ({ page }) => {
+  test("keeps the focused course-builder step and next action reachable on a phone", { tag: ["@mobile", "@webkit"] }, async ({ page }) => {
     await prepareOwnerShell(page);
     await page.goto("/create");
     await page.getByLabel("Subject or skill").fill("Morse communication timing");
@@ -1178,7 +1178,7 @@ test.describe("mobile application shell", () => {
     await expectNoHorizontalPageOverflow(page);
   });
 
-  test("keeps the platform paper system legible on primary mobile routes", async ({ page }) => {
+  test("keeps the platform paper system legible on primary mobile routes", { tag: ["@mobile", "@webkit"] }, async ({ page }) => {
     test.setTimeout(90_000);
     await prepareOwnerShell(page);
     const routes = [
@@ -1199,7 +1199,7 @@ test.describe("mobile application shell", () => {
     }
   });
 
-  test("keeps the learner path legible and actionable on a phone", async ({ page }) => {
+  test("keeps the learner path legible and actionable on a phone", { tag: ["@mobile", "@webkit"] }, async ({ page }) => {
     await prepareOwnerShell(page);
     await page.goto("/");
 
@@ -1213,7 +1213,7 @@ test.describe("mobile application shell", () => {
     }
   });
 
-  test("keeps long mobile course and lesson titles above the primary action", async ({ page }) => {
+  test("keeps long mobile course and lesson titles above the primary action", { tag: ["@mobile", "@webkit"] }, async ({ page }) => {
     const longTopic = "Strategic communication across complex cross-functional organizations";
     await prepareOwnerShell(page, [{
       ...secondLearningProgress,
@@ -1235,7 +1235,7 @@ test.describe("mobile application shell", () => {
     await expectNoHorizontalPageOverflow(page);
   });
 
-  test("shows the fanned course stack on a phone without horizontal overflow", async ({ page }) => {
+  test("shows the fanned course stack on a phone without horizontal overflow", { tag: ["@mobile", "@webkit"] }, async ({ page }) => {
     await prepareOwnerShell(page, [...learningProgress, secondLearningProgress, thirdLearningProgress]);
     for (const viewport of [{ width: 390, height: 844 }, { width: 320, height: 568 }]) {
       await page.setViewportSize(viewport);
@@ -1334,7 +1334,7 @@ test.describe("mobile application shell", () => {
     }
   });
 
-  test("keeps vertical touch scrolling native while a horizontal touch flick changes course", async ({ page }, testInfo) => {
+  test("keeps vertical touch scrolling native while a horizontal touch flick changes course", { tag: "@mobile" }, async ({ page }, testInfo) => {
     test.skip(testInfo.project.name !== "mobile-chromium", "Trusted touch-drag synthesis is only available through Chromium CDP.");
     await prepareOwnerShell(page, [...learningProgress, secondLearningProgress, thirdLearningProgress]);
     await page.goto("/");
@@ -1380,7 +1380,7 @@ test.describe("mobile application shell", () => {
     await expect(page.locator(".course-deck-controls [role='status']")).toContainText("2 of 3");
   });
 
-  test("keeps the paper mobile navigation labels contained at the narrowest supported width", async ({ page }) => {
+  test("keeps the paper mobile navigation labels contained at the narrowest supported width", { tag: ["@mobile", "@webkit"] }, async ({ page }) => {
     await page.setViewportSize({ width: 320, height: 568 });
     await prepareOwnerShell(page, [...learningProgress, secondLearningProgress, thirdLearningProgress]);
     await page.goto("/");
@@ -1424,7 +1424,7 @@ test.describe("mobile application shell", () => {
     }
   });
 
-  test("shows a clear first-course state when there is no learning progress", async ({ page }) => {
+  test("shows a clear first-course state when there is no learning progress", { tag: ["@mobile", "@webkit"] }, async ({ page }) => {
     await prepareOwnerShell(page, []);
     await page.goto("/");
 

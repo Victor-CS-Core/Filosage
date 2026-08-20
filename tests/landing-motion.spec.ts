@@ -12,7 +12,7 @@ const publicCourse = {
   capstone: { title: "Apply the model", brief: "Use it at work.", deliverable: "A decision walkthrough", successCriteria: ["State one boundary"] },
 };
 
-test("animates the course proof only when reduced motion is not requested", async ({ page }) => {
+test("animates the course proof only when reduced motion is not requested", { tag: ["@mobile", "@webkit"] }, async ({ page }) => {
   await page.route("**/api/courses?scope=public", (route) => route.fulfill({
     status: 200,
     contentType: "application/json",
@@ -34,7 +34,7 @@ test("animates the course proof only when reduced motion is not requested", asyn
   await expect(outline).toHaveCSS("animation-name", "none");
 });
 
-test("keeps the primary landing action in the first viewport", async ({ page }) => {
+test("keeps the primary landing action in the first viewport", { tag: ["@mobile", "@webkit"] }, async ({ page }) => {
   await page.route("**/api/courses?scope=public", (route) => route.fulfill({
     status: 200,
     contentType: "application/json",

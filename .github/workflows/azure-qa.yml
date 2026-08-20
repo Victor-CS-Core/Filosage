@@ -15,6 +15,7 @@ on:
         type: boolean
 
 permissions:
+  actions: read
   contents: read
   id-token: write
 
@@ -34,17 +35,22 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-          cache: npm
 
-      - run: npm ci
-      - run: npm run lint
-      - run: npx tsc --noEmit --incremental false
-      - run: npm run test:contracts -- tests/azure-infrastructure.spec.ts tests/release-scripts.spec.ts
-      - run: npm run build
+      - name: Verify the exact SHA passed the required quality gate
         env:
-          NEXT_PUBLIC_SITE_URL: https://filosage.com
-          NEXT_PUBLIC_COMMAND_CENTER_V2: "true"
-          SITE_VERSION: ${{ github.sha }}
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          EVIDENCE="$(gh api --method GET \
+            "repos/${GITHUB_REPOSITORY}/actions/workflows/quality-gate.yml/runs" \
+            -f "head_sha=${GITHUB_SHA}" \
+            -f "status=success" \
+            -f "per_page=1")"
+          printf '%s' "$EVIDENCE" \
+            | node scripts/check-workflow-run-evidence.mjs \
+              "$GITHUB_SHA" \
+              ".github/workflows/quality-gate.yml"
 
       - name: Validate identity activation inputs
         shell: bash

@@ -154,7 +154,7 @@ test("keeps the Phase 1 policy fail-closed and the audit sanitizer bounded", () 
   expect(redactCommandCenterDraftInput("Contact owner@example.com with Bearer abcdefghijklmnopqrstuvwxyz123456 and card 4242 4242 4242 4242.")).toBe("Contact [email redacted] with [credential redacted] and card [number redacted].");
 });
 
-test("protects command-center data at the API boundary", async ({ request }) => {
+test("protects command-center data at the API boundary", { tag: "@smoke" }, async ({ request }) => {
   const snapshot = await request.get("/api/admin/command-center");
   expect(snapshot.status()).toBe(401);
 
@@ -465,7 +465,7 @@ test("records a versioned ticket and approval without executing an external acti
   expect(relatedAudit.filter((event) => event.action === "ticket.created")).toHaveLength(1);
 });
 
-test("renders the owner command center with visible draft-only safety controls", async ({ page }) => {
+test("renders the owner command center with visible draft-only safety controls", { tag: "@smoke" }, async ({ page }) => {
   await page.setViewportSize({ width: 1366, height: 768 });
   await acceptOwnerTerms(page.request);
   await page.addInitScript(() => localStorage.setItem("filosage-local-session", "1"));

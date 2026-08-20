@@ -746,7 +746,7 @@ test.describe("identity-link mutation routes", () => {
     expect(setCookie(completed)).toContain("SameSite=lax");
   });
 
-  test("links two verified sessions once and preserves the Google canonical UID", async ({ request }, testInfo) => {
+  test("links two verified sessions once and preserves the Google canonical UID", { tag: "@smoke" }, async ({ request }, testInfo) => {
     test.skip(
       Boolean(process.env.ACCEPTANCE_BASE_URL?.trim()),
       "This local datastore contract never runs against an external acceptance URL.",
@@ -1047,7 +1047,7 @@ test("completion page aborts a stalled request and announces a bounded timeout",
   expect(completionRequests).toBe(1);
 });
 
-test("session responses expose exact signed-out availability and no provider secrets", async ({ request }) => {
+test("session responses expose exact signed-out availability and no provider secrets", { tag: "@smoke" }, async ({ request }) => {
   const signedOut = await request.get("/api/auth/session");
   expect(signedOut.ok()).toBe(true);
   expect(cacheControl(signedOut)).toBe("private, no-store");
@@ -1611,7 +1611,7 @@ test("profile email-code connection times out boundedly and restores its action"
   await expect(connect).toBeEnabled();
 });
 
-test("profile lets a learner edit the name shown in Filosage and refreshes the saved account", async ({ page }) => {
+test("profile lets a learner edit the name shown in Filosage and refreshes the saved account", { tag: "@smoke" }, async ({ page }) => {
   await routeManagedSession(page, managedSession("filosage"));
   let displayName = "Managed Learner";
   let patchRequests = 0;
@@ -1667,7 +1667,7 @@ test("a rejected provider placeholder falls back to a neutral learner greeting",
   await expect(page.locator(".learner-shell")).not.toContainText("unknown");
 });
 
-test("first login never flashes a second consent prompt while confirmed signup acceptance is saved", async ({ page }) => {
+test("first login never flashes a second consent prompt while confirmed signup acceptance is saved", { tag: "@smoke" }, async ({ page }) => {
   let accountReads = 0;
   let legalPosts = 0;
   let releaseAcceptance: (() => void) | undefined;

@@ -36,32 +36,42 @@ export const apiSuites = [
 
 export const singleEngineSuites = [
   "tests/account-onboarding.spec.ts",
+  "tests/admin-research-layout.spec.ts",
   "tests/auth-linking.spec.ts",
   "tests/billing-lifecycle.spec.ts",
+  "tests/command-center.spec.ts",
   "tests/external-id-branding.spec.ts",
   "tests/flashcard-system.spec.ts",
+  "tests/flashcard-visual.spec.ts",
   "tests/lesson-interactions-v2.spec.ts",
   "tests/marketing-gauntlet.spec.ts",
+  "tests/marketing-gauntlet-runtime-acceptance.spec.ts",
   "tests/navigation-content-integrity.spec.ts",
   "tests/publication-override.spec.ts",
   "tests/release-recovery.spec.ts",
+  "tests/search.spec.ts",
+  "tests/support-center.spec.ts",
   "tests/tier-consistency-contract.spec.ts",
 ] as const;
 
 export const deviceSensitiveSuites = [
-  "tests/admin-research-layout.spec.ts",
   "tests/analytics-consent.spec.ts",
   "tests/app-shell.spec.ts",
   "tests/auth-accessibility.spec.ts",
-  "tests/command-center.spec.ts",
   "tests/course-learning-flow.spec.ts",
   "tests/example.spec.ts",
-  "tests/flashcard-visual.spec.ts",
   "tests/landing-motion.spec.ts",
-  "tests/marketing-gauntlet-runtime-acceptance.spec.ts",
-  "tests/search.spec.ts",
-  "tests/support-center.spec.ts",
   "tests/support-wiki.spec.ts",
+] as const;
+
+export const smokeBrowserSuites = [
+  "tests/account-onboarding.spec.ts",
+  "tests/analytics-consent.spec.ts",
+  "tests/auth-accessibility.spec.ts",
+  "tests/auth-linking.spec.ts",
+  "tests/billing-lifecycle.spec.ts",
+  "tests/command-center.spec.ts",
+  "tests/release-recovery.spec.ts",
 ] as const;
 
 export const dedicatedSuiteConfigs = {
@@ -76,7 +86,10 @@ export type BrowserProjectName = "chromium" | "mobile-chromium" | "mobile-webkit
 
 export const browserSuitesByProject: Record<BrowserProjectName, readonly string[]> = {
   chromium: [...deviceSensitiveSuites, ...singleEngineSuites],
-  "mobile-chromium": deviceSensitiveSuites,
+  "mobile-chromium": deviceSensitiveSuites.filter((suite) => (
+    suite !== "tests/course-learning-flow.spec.ts"
+    && suite !== "tests/support-wiki.spec.ts"
+  )),
   "mobile-webkit": deviceSensitiveSuites,
 };
 

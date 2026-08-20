@@ -12,6 +12,7 @@
     "test:contracts": "playwright test --config=playwright.contracts.config.ts",
     "test:api": "playwright test --config=playwright.api.config.ts",
     "test:browser": "node --experimental-strip-types scripts/run-playwright-matrix.mjs",
+    "test:browser:smoke": "node --experimental-strip-types scripts/run-playwright-smoke.mjs",
     "test:command-center:v2": "playwright test --config=playwright.command-center-v2.config.ts",
     "test:command-center:v2:ui": "playwright test --config=playwright.command-center-v2-ui.config.ts",
     "test:shared-evidence:ui": "playwright test --config=playwright.shared-evidence.config.ts",

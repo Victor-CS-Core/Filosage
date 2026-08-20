@@ -114,7 +114,7 @@ async function expectMobileHardening(
   expect(forcedColorSurface.boxShadow).toBe("none");
 }
 
-test("secure sign-in modal is WCAG-clean, keyboard-contained, and resilient on small screens", async ({ page }) => {
+test("secure sign-in modal is WCAG-clean, keyboard-contained, and resilient on small screens", { tag: ["@mobile", "@webkit", "@smoke"] }, async ({ page }) => {
   await page.route("**/api/auth/session", (route) => route.fulfill({
     status: 200,
     contentType: "application/json",
@@ -140,7 +140,7 @@ test("secure sign-in modal is WCAG-clean, keyboard-contained, and resilient on s
   await expect(trigger).toBeFocused();
 });
 
-test("identity recovery remains blocking, WCAG-clean, and keyboard-reachable", async ({ page }) => {
+test("identity recovery remains blocking, WCAG-clean, and keyboard-reachable", { tag: ["@mobile", "@webkit", "@smoke"] }, async ({ page }) => {
   await page.addInitScript(() => localStorage.setItem("filosage-local-session", "1"));
   await page.route("**/api/account", (route) => route.fulfill({
     status: 409,
@@ -170,7 +170,7 @@ test("identity recovery remains blocking, WCAG-clean, and keyboard-reachable", a
   await expect(dialog.getByRole("button", { name: "Sign out and choose another method" })).toBeVisible();
 });
 
-test("profile name editing remains keyboard reachable and reflows at 200 percent", async ({ page }) => {
+test("profile name editing remains keyboard reachable and reflows at 200 percent", { tag: ["@mobile", "@webkit", "@smoke"] }, async ({ page }) => {
   await page.route("**/api/auth/session", (route) => route.fulfill({
     status: 200,
     json: {

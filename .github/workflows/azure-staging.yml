@@ -22,6 +22,7 @@ on:
         type: string
 
 permissions:
+  actions: read
   contents: read
   id-token: write
 
@@ -46,9 +47,22 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-          cache: npm
 
-      - run: npm ci
+      - name: Verify the exact SHA passed full browser regression
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          EVIDENCE="$(gh api --method GET \
+            "repos/${GITHUB_REPOSITORY}/actions/workflows/full-regression.yml/runs" \
+            -f "head_sha=${EXPECTED_SHA}" \
+            -f "status=success" \
+            -f "per_page=1")"
+          printf '%s' "$EVIDENCE" \
+            | node scripts/check-workflow-run-evidence.mjs \
+              "$EXPECTED_SHA" \
+              ".github/workflows/full-regression.yml"
       - name: Sign in to Azure with GitHub OIDC
         uses: azure/login@v2
         with:

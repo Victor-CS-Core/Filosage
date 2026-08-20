@@ -824,7 +824,7 @@ test("recovers when the review schedule cannot be loaded", async ({ page }) => {
   await expect(page.getByRole("link", { name: "Explore courses" })).toBeVisible();
 });
 
-test("completes every rich lesson mode and records its active evidence", async ({ page }) => {
+test("completes every rich lesson mode and records its active evidence", { tag: "@webkit" }, async ({ page }) => {
   test.slow();
   await restoreLocalLearner(page);
   await mockFreeLearnerAccount(page);

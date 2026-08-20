@@ -262,7 +262,7 @@ test("shows the structured handbook only to the verified owner", async ({ page }
   await expect(page.getByText("Reviewed sources", { exact: true }).first()).toBeVisible();
 });
 
-test("keeps article navigation and prose within a phone viewport", async ({ page }, testInfo) => {
+test("keeps article navigation and prose within a phone viewport", { tag: "@webkit" }, async ({ page }, testInfo) => {
   test.skip(testInfo.project.name !== "mobile-webkit", "The mobile article contract runs in the phone-sized WebKit project.");
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto("/support/articles/complete-a-lesson");

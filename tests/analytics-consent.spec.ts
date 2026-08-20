@@ -10,7 +10,7 @@ test.beforeEach(async ({ page }) => {
   });
 });
 
-test("optional analytics stays silent before consent and after refusal", async ({ page, context }) => {
+test("optional analytics stays silent before consent and after refusal", { tag: ["@webkit", "@smoke"] }, async ({ page, context }) => {
   let telemetryCalls = 0;
   await context.route("**/api/telemetry", async (route) => {
     telemetryCalls += 1;
@@ -38,7 +38,7 @@ test("optional analytics stays silent before consent and after refusal", async (
   await pricing.close();
 });
 
-test("keeps privacy choices reachable on a short mobile viewport", async ({ page }) => {
+test("keeps privacy choices reachable on a short mobile viewport", { tag: ["@mobile", "@webkit"] }, async ({ page }) => {
   await page.setViewportSize({ width: 320, height: 568 });
   await page.goto("/");
 
@@ -52,7 +52,7 @@ test("keeps privacy choices reachable on a short mobile viewport", async ({ page
   await expect(panel.getByRole("button", { name: "Allow optional analytics" })).toBeVisible();
 });
 
-test("analytics can be allowed and later withdrawn from Privacy choices", async ({ page, context }) => {
+test("analytics can be allowed and later withdrawn from Privacy choices", { tag: ["@webkit", "@smoke"] }, async ({ page, context }) => {
   const telemetryRoutes: Array<string | null> = [];
   await context.route("**/api/telemetry", async (route) => {
     let telemetryRoute: string | null = null;

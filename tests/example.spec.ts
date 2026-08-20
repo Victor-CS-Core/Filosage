@@ -646,7 +646,7 @@ test("earns badges from real learning progress", () => {
   expect(badges.find((badge) => badge.id === "course-complete")?.earned).toBe(true);
 });
 
-test("never leaves public learning behind the authentication startup screen", async ({ page }) => {
+test("never leaves public learning behind the authentication startup screen", { tag: ["@mobile", "@webkit"] }, async ({ page }) => {
   const pageErrors: string[] = [];
   const hydrationErrors: string[] = [];
   page.on("pageerror", (error) => pageErrors.push(error.message));
@@ -730,7 +730,7 @@ test("describes guest access and Pro publishing consistently across public pages
   await create.close();
 });
 
-test("keeps the signed-in learner shell on one scroll owner", async ({ page }) => {
+test("keeps the signed-in learner shell on one scroll owner", { tag: ["@mobile", "@webkit"] }, async ({ page }) => {
   const styles = await readFile(join(process.cwd(), "src/app/globals.css"), "utf8");
   await page.setContent(`
     <div class="app-shell learner-shell">
@@ -856,7 +856,7 @@ test("keeps primary navigation actions readable before and after hover", async (
   }
 });
 
-test("lets guests browse outlines while clearly gating lessons behind an account", async ({ page }, testInfo) => {
+test("lets guests browse outlines while clearly gating lessons behind an account", { tag: ["@mobile", "@webkit"] }, async ({ page }, testInfo) => {
   await page.route("**/api/auth/session", (route) => route.fulfill({
     status: 200,
     contentType: "application/json",
@@ -906,7 +906,7 @@ test("lets guests browse outlines while clearly gating lessons behind an account
   await expect(trigger).toBeFocused();
 });
 
-test("keeps same-email recovery blocking and focus-contained", async ({ page }) => {
+test("keeps same-email recovery blocking and focus-contained", { tag: ["@mobile", "@webkit"] }, async ({ page }) => {
   await page.route("**/api/auth/session", (route) => route.fulfill({
     status: 200,
     json: {
@@ -972,7 +972,7 @@ test("keeps same-email recovery blocking and focus-contained", async ({ page }) 
   expect(await page.evaluate(() => document.activeElement?.closest('[role="dialog"]') !== null)).toBe(true);
 });
 
-test("publishes clear legal documents", async ({ context }) => {
+test("publishes clear legal documents", { tag: "@webkit" }, async ({ context }) => {
   const terms = await context.newPage();
   await terms.goto("/terms");
   await expect(terms.getByRole("heading", { name: "Terms of Service" })).toBeVisible();
@@ -1090,7 +1090,7 @@ test("reads a lesson aloud from the toolbar speaker", async ({ page }) => {
   expect(await page.evaluate(() => (window as typeof window & { __speechCalls: { cancel: number } }).__speechCalls.cancel)).toBe(2);
 });
 
-test("keeps the mobile tutor contained above the lesson", async ({ page }) => {
+test("keeps the mobile tutor contained above the lesson", { tag: ["@mobile", "@webkit"] }, async ({ page }) => {
   await restoreLocalLearner(page);
   await page.setViewportSize({ width: 390, height: 844 });
   await page.route("**/api/courses/demo", (route) => route.fulfill({ json: {
@@ -1795,7 +1795,7 @@ test("uses the deterministic Course Deck artwork on library cards", async ({ pag
   }
 });
 
-test("returns focus to the truthful existing-account course launcher", async ({ page }) => {
+test("returns focus to the truthful existing-account course launcher", { tag: ["@mobile", "@webkit"] }, async ({ page }) => {
   await page.route("**/api/auth/session", (route) => route.fulfill({
     status: 200,
     json: {
@@ -1935,7 +1935,7 @@ test("removes every learner-state reference linked to a deleted course", () => {
   });
 });
 
-test("contains long lesson navigation titles on narrow mobile screens", async ({ page }) => {
+test("contains long lesson navigation titles on narrow mobile screens", { tag: ["@mobile", "@webkit"] }, async ({ page }) => {
   await restoreLocalLearner(page);
   await page.setViewportSize({ width: 320, height: 740 });
   const longTitle = "Common Web Risks: Injection, Browser Attacks, Access Failures, and Security Boundary Verification";

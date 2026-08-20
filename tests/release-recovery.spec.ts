@@ -2,7 +2,7 @@ import { expect, test } from "@playwright/test";
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 
-test("uses full document navigation across release-sensitive creation boundaries", async () => {
+test("uses full document navigation across release-sensitive creation boundaries", { tag: "@smoke" }, async () => {
   const [segmentError, globalError, createCourse, courseMap, lessonView] = await Promise.all([
     readFile(join(process.cwd(), "src/app/error.tsx"), "utf8"),
     readFile(join(process.cwd(), "src/app/global-error.tsx"), "utf8"),
@@ -23,7 +23,7 @@ test("uses full document navigation across release-sensitive creation boundaries
   expect(lessonView).toContain('<a className="lesson-nav-link lesson-nav-previous"');
 });
 
-test("gives lost learners a branded, accessible recovery path", async ({ page }) => {
+test("gives lost learners a branded, accessible recovery path", { tag: "@smoke" }, async ({ page }) => {
   await page.goto("/this-course-does-not-exist");
 
   await expect(page.getByRole("heading", { name: "This path does not lead to a lesson." })).toBeVisible();

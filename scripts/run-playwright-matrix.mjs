@@ -52,6 +52,21 @@ if (unownedBySelectedProjects.length > 0) {
 }
 const require = createRequire(import.meta.url);
 const playwrightCli = require.resolve("@playwright/test/cli");
+const batchesFor = (projectFiles) => Array.from(
+  { length: Math.ceil(projectFiles.length / batchSize) },
+  (_, index) => projectFiles.slice(index * batchSize, (index + 1) * batchSize),
+);
+const hasTestFilter = optionArgs.some((argument) => (
+  argument === "--grep"
+  || argument === "-g"
+  || argument === "--grep-invert"
+  || argument === "-G"
+  || argument.startsWith("--grep=")
+  || argument.startsWith("--grep-invert=")
+  || argument === "--last-failed"
+  || argument === "--only-changed"
+  || argument.startsWith("--only-changed=")
+));
 const projectHasMatches = (project, args) => {
   const discoveryArgs = [
     playwrightCli,
@@ -85,12 +100,12 @@ const projectHasMatches = (project, args) => {
 const batchesByProject = Object.fromEntries(projects.map((project) => {
   const projectFiles = browserSuitesByProject[project];
   if (forwardedArgs.length === 0) {
-    return [project, Array.from(
-      { length: Math.ceil(projectFiles.length / batchSize) },
-      (_, index) => projectFiles.slice(index * batchSize, (index + 1) * batchSize),
-    )];
+    return [project, batchesFor(projectFiles)];
   }
   if (requestedFiles.length === 0) {
+    if (!hasTestFilter) {
+      return [project, batchesFor(projectFiles).map((batch) => [...optionArgs, ...batch])];
+    }
     return [project, projectHasMatches(project, forwardedArgs) ? [forwardedArgs] : []];
   }
   const projectSelectors = requestedSelectors.filter(({ path }) => (

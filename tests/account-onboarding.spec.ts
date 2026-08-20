@@ -76,7 +76,7 @@ const zeroCapabilityLinkRequiredAccount = {
   quotas: [],
 };
 
-test("persists no application account until the learner accepts the current legal terms", async ({ request }, testInfo) => {
+test("persists no application account until the learner accepts the current legal terms", { tag: "@smoke" }, async ({ request }, testInfo) => {
   test.skip(testInfo.project.name !== "chromium", "One isolated server-side onboarding contract is sufficient.");
 
   // Make the fixed local identity retry-safe if an earlier interrupted run
@@ -256,7 +256,7 @@ test("inactive External ID signup returns bounded retry guidance without durable
   }
 });
 
-test("seeds a provider name once and preserves an edited Filosage profile name", async ({ request }, testInfo) => {
+test("seeds a provider name once and preserves an edited Filosage profile name", { tag: "@smoke" }, async ({ request }, testInfo) => {
   test.skip(testInfo.project.name !== "chromium", "One isolated server-side profile contract is sufficient.");
 
   await request.delete("/api/account/data", {
@@ -314,7 +314,7 @@ test("seeds a provider name once and preserves an edited Filosage profile name",
   }
 });
 
-test("presents a signed-in identity without an application account as initial setup", async ({ page }, testInfo) => {
+test("presents a signed-in identity without an application account as initial setup", { tag: "@smoke" }, async ({ page }, testInfo) => {
   test.skip(testInfo.project.name !== "chromium", "One UI acceptance contract is sufficient.");
 
   await page.route("**/api/account", (route) => route.fulfill({

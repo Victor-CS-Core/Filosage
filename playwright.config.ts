@@ -54,6 +54,12 @@ const browserState = (baseURL: string) => ({
   },
 });
 
+const projectGrep: Record<BrowserProjectName, RegExp | undefined> = {
+  chromium: undefined,
+  "mobile-chromium": /@mobile|@cross-browser/,
+  "mobile-webkit": /@webkit|@cross-browser/,
+};
+
 export default defineConfig({
   testDir: "./tests",
   testIgnore: suitePatterns([...contractSuites, ...apiSuites, ...dedicatedSuites]),
@@ -72,6 +78,7 @@ export default defineConfig({
   projects: activeProjects.map((project) => ({
     name: project.name,
     testMatch: suitePatterns(browserSuitesByProject[project.name]),
+    grep: projectGrep[project.name],
     use: { ...project.device, ...browserState(project.server.baseURL) },
   })),
   webServer: server.external
