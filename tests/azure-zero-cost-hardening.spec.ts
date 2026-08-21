@@ -108,6 +108,12 @@ test("the PostgreSQL role provisioner keeps QA from connecting to production dat
   expect(source).not.toContain("process.stdout.write");
 });
 
+test("database migrations prefer the admin URL so app roles can stay least-privilege", () => {
+  const source = readFileSync("scripts/migrate-azure-database.ts", "utf8");
+  expect(source).toContain("DATABASE_ADMIN_URL");
+  expect(source).toContain("DATABASE_URL");
+});
+
 test("security and operations docs describe Azure backups instead of Firestore", () => {
   expect(securityDoc).not.toContain("Managed Firestore export");
   expect(securityDoc).not.toContain("live Firestore probe");
