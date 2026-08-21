@@ -31,3 +31,13 @@ test("legacy Firebase index and rules files are not part of the Azure runtime", 
   expect(existsSync("firestore.rules")).toBe(false);
   expect(existsSync("firestore.indexes.json")).toBe(false);
 });
+
+test("production health copy names Azure PostgreSQL and keeps SITE_VERSION", async () => {
+  const health = await readFile("src/app/api/health/route.ts", "utf8");
+  expect(health).toContain("Azure PostgreSQL document store");
+  expect(health).toContain("SITE_VERSION");
+  expect(health).toContain("GITHUB_SHA");
+  expect(health).not.toContain("Firestore");
+  expect(health).not.toContain("CF_PAGES_COMMIT_SHA");
+  expect(health).not.toContain("VERCEL_GIT_COMMIT_SHA");
+});
