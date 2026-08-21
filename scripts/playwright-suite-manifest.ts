@@ -3,6 +3,7 @@ import { resolve } from "node:path";
 export const contractSuites = [
   "tests/auth-identity.spec.ts",
   "tests/azure-infrastructure.spec.ts",
+  "tests/azure-zero-cost-hardening.spec.ts",
   "tests/bibliographic-references.spec.ts",
   "tests/billing-offer.spec.ts",
   "tests/course-deck-velocity.spec.ts",

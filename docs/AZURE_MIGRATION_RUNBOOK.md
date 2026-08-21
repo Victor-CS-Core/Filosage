@@ -27,10 +27,11 @@ Production uses two labeled Container Apps revisions. One label receives 100% of
 | Data | PostgreSQL database `filosageqa` | PostgreSQL database `filosage` |
 | Banners | private container `qa-course-banners` | private container `course-banners` |
 | Scaling | 0-1 replicas | blue/green revisions; active traffic plus rollback |
+| Owner | Azure customer account `ktr0nn@icloud.com` | Verified Google account `viticopq12@gmail.com` |
 | Search indexing | `robots.txt` disallow plus `X-Robots-Tag: noindex` | public indexing rules |
 | Billing | disabled | disabled until an explicit owner launch decision |
 
-Both environments retain `viticopq12@gmail.com` as the server-side owner boundary. QA intentionally shares the Google OAuth client and OpenAI Key Vault secret, but its OAuth callback, datastore, storage container, managed identity, and activity-receipt secret are separately scoped.
+Both environments keep billing disabled. QA owner access is the verified Azure customer-account email `ktr0nn@icloud.com`. Production owner access remains the verified Google account `viticopq12@gmail.com`. QA shares the Google OAuth client and OpenAI Key Vault secret, but its OAuth callback, datastore, storage container, managed identity, database role, and activity-receipt secret are separately scoped.
 
 ## Gate 1: local implementation
 
@@ -58,7 +59,7 @@ The selected subscription is `Azure subscription 1` and the selected region is C
 
 The resource group is `filosage-staging-central-rg`; its historical name is retained to avoid a disruptive rename. Production is `filosagestg-app`. QA is defined by `infra/azure/qa.bicep`. Azure rejected ACR Tasks for this subscription, so GitHub Actions builds on a hosted runner and pushes to ACR using short-lived OIDC. `AcrPush` is scoped to the registry and `Container Apps Contributor` is assigned separately to the production and QA app resources. Pass the GitHub OIDC service-principal object ID as `deploymentPrincipalId` when provisioning QA so this least-privilege assignment remains reproducible. The existing QA assignment was bootstrapped as `cdb56bcd-884d-4b49-b606-71d474bcd931`; pass that value as `deploymentRoleAssignmentName` when reconciling this environment, while a fresh environment may omit it. Never place parameter secrets in a committed parameter file or command history.
 
-The PostgreSQL template enables private networking, seven-day automated backup retention, and no high availability for the inexpensive pre-release staging environment. Burstable Flexible Server does not support on-demand backups. Production requires a renewed cost/reliability decision.
+The PostgreSQL template enables private networking, seven-day automated backup retention, least-privilege `filosage_app` and `filosageqa_app` logins, and no high availability for the inexpensive pre-release environment. Isolated QA never receives the server administrator password. Burstable Flexible Server does not support on-demand backups. Production requires a renewed cost/reliability decision.
 
 ## Gate 4: identity
 
