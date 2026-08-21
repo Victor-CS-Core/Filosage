@@ -1,8 +1,9 @@
 "use client";
 
-import { Link2, ShieldCheck } from "lucide-react";
+import { ShieldCheck } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { useAuth } from "@/components/AuthProvider";
+import GoogleMark from "@/components/GoogleMark";
 
 export default function IdentityLinkRequiredModal() {
   const {
@@ -96,8 +97,8 @@ export default function IdentityLinkRequiredModal() {
       <h2 id="identity-link-title">Confirm your existing sign-in</h2>
       <p id="identity-link-description" className="auth-copy">This email is already connected to a Filosage learning account. Confirm your previous Google sign-in to connect the new method without moving your courses, progress, notes, or review dates.</p>
       {visibleError && <p className="form-error" role="alert">{visibleError}</p>}
-      <button className="button button-primary auth-submit" disabled={busy} onClick={() => void confirm()}>
-        <Link2 size={17} aria-hidden="true" />
+      <button className="button button-google auth-submit" disabled={busy} onClick={() => void confirm()}>
+        <GoogleMark />
         {busy ? "Opening secure sign-in…" : "Confirm existing Google sign-in"}
       </button>
       <button className="button button-quiet" disabled={busy} onClick={() => void leave()}>

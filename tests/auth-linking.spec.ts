@@ -1217,6 +1217,16 @@ test("entry actions remain truthful and usable for every provider availability t
     if (providerCase.alternateAction) {
       await expect(dialog.getByRole("button", { name: providerCase.alternateAction })).toBeVisible();
     }
+    const googleActions = [
+      providerCase.primaryAction,
+      providerCase.alternateAction,
+    ].filter((name): name is string => Boolean(name?.includes("Google")));
+    for (const name of googleActions) {
+      await expect(dialog.getByRole("button", { name }).locator(".auth-google-icon"), providerCase.name).toBeVisible();
+    }
+    if (providerCase.identityCopy.includes("Google")) {
+      await expect(dialog.locator(".auth-identity .auth-google-icon"), providerCase.name).toBeVisible();
+    }
     await page.close();
   }
 });

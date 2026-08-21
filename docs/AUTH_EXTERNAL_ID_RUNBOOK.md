@@ -112,7 +112,7 @@ Filosage must not collect, generate, receive, inspect, or validate an email code
 
 - Use `infra/azure/external-id-branding/manifest.json` as the reviewed non-secret manifest.
 - Upload the reviewed banner, background, favicon, light square logo, and dark square logo named by that manifest. Use the banner as the header logo when the portal exposes the header image control.
-- Apply the built-in partial-screen layout, header/footer visibility, background color, sign-in text, username hint, Privacy Notice, and Terms of Service settings even if custom CSS is unavailable. The hosted experience must remain recognizably Filosage without CSS.
+- Apply the built-in full-screen center-aligned layout, header/footer visibility, light and dark background colors, sign-in text, username hint, Privacy Notice, and Terms of Service settings even if custom CSS is unavailable. The hosted experience must remain recognizably Filosage without CSS. Use the reviewed light background, canvas, and square logo for the default theme and the reviewed dark background, canvas, and square logo when the browser is in dark mode.
 - `infra/azure/external-id-branding/custom.css` is a reviewed optional enhancement only (`customCssRequired=false`). If the exact External ID tenant supports it, apply it and retain its visible focus, reduced-motion, responsive, and forced-colors behavior. If the tenant rejects it, record that bounded capability result and continue only when the built-in experience passes the same accessibility checks.
 - Configure the application registration with the same Privacy Notice and Terms URLs plus the public Filosage marketing and support URLs. This metadata contains no credential or user data.
 - Configure the reviewed footer, Privacy Notice link, and Terms of Service link.
@@ -340,6 +340,7 @@ Portal labels may drift. The selected tenant's generated identifiers and redirec
 - [Customize branding for External ID customers](https://learn.microsoft.com/en-us/entra/external-id/customers/how-to-customize-branding-customers)
 - [Microsoft Entra company-branding themes and image constraints](https://learn.microsoft.com/en-us/entra/fundamentals/how-to-customize-branding-themes-apps)
 - [Microsoft company-branding CSS reference](https://learn.microsoft.com/en-us/entra/fundamentals/reference-company-branding-css-template)
+- [Google Identity branding guidelines](https://developers.google.com/identity/branding-guidelines)
 - [Azure Container Apps authentication and authorization](https://learn.microsoft.com/en-us/azure/container-apps/authentication)
 - [Container Apps `authConfigs` Bicep reference](https://learn.microsoft.com/en-us/azure/templates/microsoft.app/2025-01-01/containerapps/authconfigs)
 - [NIST SP 800-63B digital identity guidelines](https://pages.nist.gov/800-63-4/sp800-63b.html)
