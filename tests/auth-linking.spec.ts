@@ -1903,7 +1903,7 @@ test("auth modal layout survives long RTL copy, 200 percent zoom, and forced col
   });
   await page.locator(".marketing-hero").getByRole("button", { name: "Create a free account" }).click();
   const dialog = page.getByRole("dialog", { name: "Keep your learning in sync" });
-  await dialog.locator(".auth-identity span").evaluate((element) => {
+  await dialog.locator(".auth-identity-copy").evaluate((element) => {
     element.textContent = "اختر Google أو رمز بريد إلكتروني خاصًا على شاشة Filosage الآمنة التالية مع تعليمات طويلة جدًا لاختبار الالتفاف";
   });
   await expect(dialog).toBeVisible();
