@@ -882,6 +882,8 @@ test("lets guests browse outlines while clearly gating lessons behind an account
   await expect(dialog).toContainText("Choose Google or a private email code on the next secure Filosage screen");
   await expect(dialog.getByRole("button", { name: "Continue securely" })).toBeDisabled();
   await expect(dialog.getByRole("button", { name: "Use my existing Google sign-in" })).toBeVisible();
+  await expect(dialog.locator(".auth-identity .auth-google-icon")).toBeVisible();
+  await expect(dialog.getByRole("button", { name: "Use my existing Google sign-in" }).locator(".auth-google-icon")).toBeVisible();
   await expect(dialog.locator('input[type="email"]')).toHaveCount(0);
   await expect(dialog.getByRole("link", { name: "Terms of Service" })).toHaveAttribute("href", "/terms");
   await expect(dialog.getByRole("link", { name: "Privacy Notice" })).toHaveAttribute("href", "/privacy");

@@ -71,6 +71,7 @@ test("hosted branding declares the complete reviewed non-secret configuration", 
   expect(Object.keys(manifest).sort()).toEqual([
     "authenticationMethods",
     "backgroundImage",
+    "backgroundImageDark",
     "bannerLogo",
     "contrastStandard",
     "customCss",
@@ -81,8 +82,10 @@ test("hosted branding declares the complete reviewed non-secret configuration", 
     "footerVisible",
     "headerVisible",
     "hostedDomainMode",
+    "layoutAlignment",
     "oneTimeCodeTitle",
     "pageBackgroundColor",
+    "pageBackgroundColorDark",
     "privacyText",
     "privacyUrl",
     "provider",
@@ -99,12 +102,15 @@ test("hosted branding declares the complete reviewed non-secret configuration", 
     schemaVersion: 2,
     provider: "Microsoft Entra External ID",
     hostedDomainMode: "microsoft-managed",
-    template: "partial-screen",
+    template: "full-screen",
+    layoutAlignment: "center",
     headerVisible: true,
     footerVisible: true,
-    pageBackgroundColor: "#FAFAF7",
+    pageBackgroundColor: "#E7DDCE",
+    pageBackgroundColorDark: "#000D23",
     bannerLogo: "/brand/identity/filosage-sign-in-banner.png",
     backgroundImage: "/brand/identity/filosage-sign-in-background.png",
+    backgroundImageDark: "/brand/identity/filosage-sign-in-background-dark.png",
     favicon: "/brand/identity/filosage-sign-in-favicon.png",
     squareLogo: "/brand/identity/filosage-sign-in-square.png",
     squareLogoDark: "/brand/identity/filosage-sign-in-square-dark.png",
@@ -155,6 +161,14 @@ test("portal derivatives have exact PNG signatures, dimensions, and byte ceiling
     bytes: expect.any(Number),
   });
   expect(pngMetadata(`public${String(manifest.backgroundImage)}`).bytes).toBeLessThanOrEqual(300 * 1024);
+
+  expect(pngMetadata(`public${String(manifest.backgroundImageDark)}`)).toEqual({
+    signature: "89504e470d0a1a0a",
+    width: 1600,
+    height: 900,
+    bytes: expect.any(Number),
+  });
+  expect(pngMetadata(`public${String(manifest.backgroundImageDark)}`).bytes).toBeLessThanOrEqual(300 * 1024);
 
   expect(pngMetadata(`public${String(manifest.favicon)}`)).toEqual({
     signature: "89504e470d0a1a0a",
@@ -264,17 +278,26 @@ test("versions only the revised Privacy Notice", () => {
 });
 
 test("custom CSS parses into the supported responsive and accessible portal surface", async ({ page }) => {
+  await page.emulateMedia({ colorScheme: "light" });
   await page.setContent(`
     <style>${css}</style>
     <main class="ext-background-image">
-      <header class="ext-header"><a class="ext-link" href="#form">Privacy Notice</a></header>
-      <section id="form" class="ext-sign-in-box">
-        <h1 class="ext-title">Keep your learning in sync</h1>
-        <p class="ext-subtitle">Choose a managed sign-in method.</p>
-        <input class="ext-input" aria-label="Email address">
-        <button class="ext-button ext-primary">Continue securely</button>
-        <p class="ext-error">Try again.</p>
-      </section>
+      <div class="ext-middle">
+        <header class="ext-header"><a class="ext-link" href="#form">Privacy Notice</a></header>
+        <section id="form" class="ext-sign-in-box">
+          <h1 class="ext-title">Keep your learning in sync</h1>
+          <p class="ext-subtitle">Choose a managed sign-in method.</p>
+          <div class="ext-promoted-fed-cred-box">
+            <button class="ext-button ext-secondary" type="button">
+              <img alt="" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Ccircle cx='12' cy='12' r='8' fill='%234285F4'/%3E%3C/svg%3E">
+              Google
+            </button>
+          </div>
+          <input class="ext-input" aria-label="Email address">
+          <button class="ext-button ext-primary">Continue securely</button>
+          <p class="ext-error">Try again.</p>
+        </section>
+      </div>
     </main>
   `);
 
@@ -299,7 +322,7 @@ test("custom CSS parses into the supported responsive and accessible portal surf
     visit(document.styleSheets[0].cssRules);
     const link = document.querySelector<HTMLAnchorElement>(".ext-link")!;
     const input = document.querySelector<HTMLInputElement>(".ext-input")!;
-    const button = document.querySelector<HTMLButtonElement>(".ext-button")!;
+    const button = document.querySelector<HTMLButtonElement>(".ext-button.ext-primary")!;
     const inputBorderColor = getComputedStyle(input).borderColor;
     link.focus();
     const linkOutlineColor = getComputedStyle(link).outlineColor;
@@ -310,12 +333,20 @@ test("custom CSS parses into the supported responsive and accessible portal surf
     const buttonOutlineColor = getComputedStyle(button).outlineColor;
     const primary = getComputedStyle(button);
     const signInBox = getComputedStyle(document.querySelector(".ext-sign-in-box")!);
+    const federation = getComputedStyle(document.querySelector(".ext-promoted-fed-cred-box")!);
+    const googleMark = getComputedStyle(document.querySelector(".ext-promoted-fed-cred-box img")!);
     return {
       selectors,
       media,
       declarations,
-      primary: { backgroundColor: primary.backgroundColor, minHeight: primary.minHeight },
-      signInBox: { backgroundColor: signInBox.backgroundColor, borderRadius: signInBox.borderRadius },
+      primary: { backgroundColor: primary.backgroundColor, color: primary.color, minHeight: primary.minHeight },
+      signInBox: {
+        backgroundColor: signInBox.backgroundColor,
+        borderRadius: signInBox.borderRadius,
+        backgroundImage: signInBox.backgroundImage,
+      },
+      federation: { backgroundColor: federation.backgroundColor },
+      googleMark: { display: googleMark.display, visibility: googleMark.visibility, opacity: googleMark.opacity },
       accessibleColors: {
         inputBorderColor,
         inputFocusBorderColor,
@@ -327,24 +358,63 @@ test("custom CSS parses into the supported responsive and accessible portal surf
   });
 
   expect(stylesheet.selectors).toEqual(expect.arrayContaining([
+    ".ext-middle",
     ".ext-sign-in-box",
+    ".ext-promoted-fed-cred-box",
     ".ext-button.ext-primary",
     ".ext-link:focus",
     ".ext-input:focus",
   ]));
   expect(stylesheet.media).toEqual(expect.arrayContaining([
     "(max-width: 480px)",
+    "(prefers-color-scheme: dark)",
     "(prefers-reduced-motion: reduce)",
     "(forced-colors: active)",
   ]));
-  expect(stylesheet.declarations.map(({ property }) => property)).not.toContain("position");
-  expect(stylesheet.declarations.map(({ property }) => property)).not.toContain("z-index");
-  expect(stylesheet.primary).toEqual({ backgroundColor: "rgb(23, 107, 100)", minHeight: "46px" });
-  expect(stylesheet.signInBox).toEqual({ backgroundColor: "rgb(255, 255, 255)", borderRadius: "18px" });
-  for (const color of Object.values(stylesheet.accessibleColors)) {
-    expect(contrastRatio(color, "rgb(255, 255, 255)"), `${color} against white`).toBeGreaterThanOrEqual(3);
-    expect(contrastRatio(color, "rgb(250, 250, 247)"), `${color} against #FAFAF7`).toBeGreaterThanOrEqual(3);
+  const cssProperties = stylesheet.declarations.map(({ property }) => property);
+  for (const forbidden of ["position", "z-index", "display", "margin", "transform", "opacity", "overflow", "visibility", "inset"]) {
+    expect(cssProperties, forbidden).not.toContain(forbidden);
   }
+  expect(stylesheet.primary).toEqual({
+    backgroundColor: "rgb(13, 27, 61)",
+    color: "rgb(243, 234, 220)",
+    minHeight: "44px",
+  });
+  expect(stylesheet.signInBox.backgroundColor).toBe("rgb(255, 249, 240)");
+  expect(stylesheet.signInBox.borderRadius).toBe("15px");
+  expect(stylesheet.signInBox.backgroundImage).toMatch(/url\(/);
+  expect(stylesheet.federation.backgroundColor).toBe("rgb(255, 249, 240)");
+  expect(stylesheet.federation.backgroundColor).not.toBe(stylesheet.primary.backgroundColor);
+  expect(stylesheet.googleMark).toMatchObject({ visibility: "visible", opacity: "1" });
+  for (const color of Object.values(stylesheet.accessibleColors)) {
+    expect(contrastRatio(color, "rgb(255, 249, 240)"), `${color} against #FFF9F0`).toBeGreaterThanOrEqual(3);
+    expect(contrastRatio(color, "rgb(231, 221, 206)"), `${color} against #E7DDCE`).toBeGreaterThanOrEqual(3);
+  }
+
+  await page.emulateMedia({ colorScheme: "dark" });
+  const darkSurface = await page.evaluate(() => {
+    const signInBox = getComputedStyle(document.querySelector(".ext-sign-in-box")!);
+    const canvas = getComputedStyle(document.querySelector(".ext-background-image")!);
+    const title = getComputedStyle(document.querySelector(".ext-title")!);
+    const primary = getComputedStyle(document.querySelector(".ext-button.ext-primary")!);
+    const federation = getComputedStyle(document.querySelector(".ext-promoted-fed-cred-box")!);
+    return {
+      canvas: canvas.backgroundColor,
+      signInBox: signInBox.backgroundColor,
+      title: title.color,
+      primary: { backgroundColor: primary.backgroundColor, color: primary.color },
+      federation: federation.backgroundColor,
+    };
+  });
+  expect(darkSurface.canvas).toBe("rgb(0, 13, 35)");
+  expect(darkSurface.signInBox).toBe("rgb(13, 27, 61)");
+  expect(darkSurface.title).toBe("rgb(243, 234, 220)");
+  expect(darkSurface.primary).toEqual({
+    backgroundColor: "rgb(243, 234, 220)",
+    color: "rgb(13, 27, 61)",
+  });
+  expect(darkSurface.federation).toBe("rgb(13, 27, 61)");
+  expect(darkSurface.signInBox).not.toBe("rgb(255, 249, 240)");
 });
 
 test("privacy and support pages render the managed sign-in disclosures", async ({ page }) => {
@@ -600,6 +670,7 @@ test("operator runbook preserves every gated External ID rollout checkpoint", ()
     "https://learn.microsoft.com/en-us/entra/external-id/customers/how-to-customize-branding-customers",
     "https://learn.microsoft.com/en-us/entra/fundamentals/how-to-customize-branding-themes-apps",
     "https://learn.microsoft.com/en-us/entra/fundamentals/reference-company-branding-css-template",
+    "https://developers.google.com/identity/branding-guidelines",
     "https://learn.microsoft.com/en-us/azure/container-apps/authentication",
     "https://learn.microsoft.com/en-us/azure/templates/microsoft.app/2025-01-01/containerapps/authconfigs",
     "https://pages.nist.gov/800-63-4/sp800-63b.html",
