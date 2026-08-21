@@ -17,6 +17,18 @@ param deployApplication bool = true
 param postgresAdminPassword string
 
 param postgresAdminLogin string = 'filosageadmin'
+
+@secure()
+@description('Least-privilege production database login. Never used by isolated QA.')
+param postgresAppPassword string
+
+param postgresAppLogin string = 'filosage_app'
+
+@secure()
+@description('Least-privilege QA database login. Stored so production bootstrap can create the role; QA never receives the production admin password.')
+param postgresQaAppPassword string
+
+param postgresQaAppLogin string = 'filosageqa_app'
 param siteUrl string
 param siteVersion string = 'bootstrap'
 param googleClientId string = ''
@@ -217,6 +229,7 @@ resource blobService 'Microsoft.Storage/storageAccounts/blobServices@2023-05-01'
   properties: {
     deleteRetentionPolicy: { enabled: true, days: 7 }
     containerDeleteRetentionPolicy: { enabled: true, days: 7 }
+    isVersioningEnabled: true
   }
 }
 
@@ -247,12 +260,31 @@ resource vault 'Microsoft.KeyVault/vaults@2023-07-01' = {
   }
 }
 
-var databaseUrl = 'postgresql://${postgresAdminLogin}:${uriComponent(postgresAdminPassword)}@${postgres.properties.fullyQualifiedDomainName}:5432/filosage?sslmode=verify-full'
+var databaseUrl = 'postgresql://${postgresAppLogin}:${uriComponent(postgresAppPassword)}@${postgres.properties.fullyQualifiedDomainName}:5432/filosage?sslmode=verify-full'
+var databaseAdminUrl = 'postgresql://${postgresAdminLogin}:${uriComponent(postgresAdminPassword)}@${postgres.properties.fullyQualifiedDomainName}:5432/postgres?sslmode=verify-full'
 
 resource databaseUrlSecret 'Microsoft.KeyVault/vaults/secrets@2023-07-01' = {
   parent: vault
   name: 'database-url'
   properties: { value: databaseUrl }
+}
+
+resource databaseAdminUrlSecret 'Microsoft.KeyVault/vaults/secrets@2023-07-01' = {
+  parent: vault
+  name: 'database-admin-url'
+  properties: { value: databaseAdminUrl }
+}
+
+resource postgresAppPasswordSecret 'Microsoft.KeyVault/vaults/secrets@2023-07-01' = {
+  parent: vault
+  name: 'postgres-app-password'
+  properties: { value: postgresAppPassword }
+}
+
+resource postgresQaAppPasswordSecret 'Microsoft.KeyVault/vaults/secrets@2023-07-01' = {
+  parent: vault
+  name: 'postgres-qa-app-password'
+  properties: { value: postgresQaAppPassword }
 }
 
 resource postgresAdminPasswordSecret 'Microsoft.KeyVault/vaults/secrets@2023-07-01' = {
@@ -319,8 +351,8 @@ resource acrPull 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
 }
 
 resource blobContributor 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
-  scope: storage
-  name: guid(storage.id, identity.id, blobContributorRoleId)
+  scope: bannerContainer
+  name: guid(bannerContainer.id, identity.id, blobContributorRoleId)
   properties: {
     principalId: identity.properties.principalId
     principalType: 'ServicePrincipal'
@@ -370,6 +402,9 @@ resource environment 'Microsoft.App/managedEnvironments@2025-01-01' = {
 var appSecrets = concat(
   [
     { name: 'database-url', keyVaultUrl: databaseUrlSecret.properties.secretUriWithVersion, identity: identity.id }
+    { name: 'database-admin-url', keyVaultUrl: databaseAdminUrlSecret.properties.secretUriWithVersion, identity: identity.id }
+    { name: 'postgres-app-password', keyVaultUrl: postgresAppPasswordSecret.properties.secretUriWithVersion, identity: identity.id }
+    { name: 'postgres-qa-app-password', keyVaultUrl: postgresQaAppPasswordSecret.properties.secretUriWithVersion, identity: identity.id }
     { name: 'activity-receipt-secret', keyVaultUrl: receiptSecret.properties.secretUriWithVersion, identity: identity.id }
   ],
   !empty(openAiApiKey) ? [{ name: 'openai-api-key', keyVaultUrl: openAiSecret!.properties.secretUriWithVersion, identity: identity.id }] : [],
@@ -384,6 +419,13 @@ var appEnvironment = concat(
   [
     { name: 'NODE_ENV', value: 'production' }
     { name: 'DATABASE_URL', secretRef: 'database-url' }
+    { name: 'DATABASE_ADMIN_URL', secretRef: 'database-admin-url' }
+    { name: 'POSTGRES_APP_LOGIN', value: postgresAppLogin }
+    { name: 'POSTGRES_APP_PASSWORD', secretRef: 'postgres-app-password' }
+    { name: 'POSTGRES_APP_DATABASE', value: 'filosage' }
+    { name: 'POSTGRES_QA_APP_LOGIN', value: postgresQaAppLogin }
+    { name: 'POSTGRES_QA_APP_PASSWORD', secretRef: 'postgres-qa-app-password' }
+    { name: 'POSTGRES_QA_APP_DATABASE', value: 'filosageqa' }
     { name: 'DATABASE_SSL', value: 'verify-full' }
     { name: 'AZURE_CLIENT_ID', value: identity.properties.clientId }
     { name: 'AZURE_STORAGE_ACCOUNT_URL', value: storage.properties.primaryEndpoints.blob }

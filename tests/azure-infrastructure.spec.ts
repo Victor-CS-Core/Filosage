@@ -364,13 +364,17 @@ test("the API reads managed Easy Auth identities and keeps owner access behind a
 });
 
 test("compiled Azure templates provision direct Google and an inactive Filosage OIDC provider", () => {
+  expect(compiledProductionTemplate.parameters.directGoogleAuthEnabled.defaultValue).toBe(true);
+  expect(compiledProductionTemplate.parameters.externalIdAuthEnabled.defaultValue).toBe(false);
+  expect(compiledProductionTemplate.parameters.externalIdNewAccountsEnabled.defaultValue).toBe(false);
+  expect(compiledQaTemplate.parameters.directGoogleAuthEnabled.defaultValue).toBe(true);
+  expect(compiledQaTemplate.parameters.externalIdAuthEnabled.defaultValue).toBe(true);
+  expect(compiledQaTemplate.parameters.externalIdNewAccountsEnabled.defaultValue).toBe(true);
+  expect(compiledQaTemplate.parameters.ownerEmail.defaultValue).toBe("ktr0nn@icloud.com");
   for (const [template, compiled] of [
     [compiledProductionTemplate, compiledProductionJson],
     [compiledQaTemplate, compiledQaJson],
   ] as const) {
-    expect(template.parameters.directGoogleAuthEnabled.defaultValue).toBe(true);
-    expect(template.parameters.externalIdAuthEnabled.defaultValue).toBe(false);
-    expect(template.parameters.externalIdNewAccountsEnabled.defaultValue).toBe(false);
     expect(compiled).toContain("customOpenIdConnectProviders");
     expect(compiled).toContain("filosage");
     expect(compiled).toContain("ClientSecretPost");

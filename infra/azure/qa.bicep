@@ -28,16 +28,16 @@ param siteUrl string = 'https://qa.filosage.com'
 @description('Google OAuth web client ID shared with production. The secret remains in Key Vault.')
 param googleClientId string
 param directGoogleAuthEnabled bool = true
-param externalIdAuthEnabled bool = false
-param externalIdNewAccountsEnabled bool = false
+param externalIdAuthEnabled bool = true
+param externalIdNewAccountsEnabled bool = true
 param externalIdClientId string = ''
 param externalIdIssuer string = ''
 param externalIdWellKnownConfiguration string = ''
 param externalIdClientSecretName string = 'external-id-client-secret-qa'
 param identityLinkHmacSecretName string = 'identity-link-hmac-secret-qa'
 
-@description('Verified owner email retained in QA.')
-param ownerEmail string
+@description('Verified Azure customer-account owner email for isolated QA. Production owner remains a separate parameter.')
+param ownerEmail string = 'ktr0nn@icloud.com'
 
 @description('Object ID of the GitHub OIDC service principal allowed to update only the QA Container App. Leave empty when deployment automation is not required.')
 param deploymentPrincipalId string = ''
@@ -45,11 +45,11 @@ param deploymentPrincipalId string = ''
 @description('Existing QA deployment role-assignment GUID, when importing a manually bootstrapped assignment. Fresh environments may leave this empty.')
 param deploymentRoleAssignmentName string = ''
 
-param postgresAdminLogin string = 'filosageadmin'
+param postgresQaAppLogin string = 'filosageqa_app'
 
 @secure()
-@description('Existing PostgreSQL administrator password, used only to construct the isolated QA connection secret.')
-param postgresAdminPassword string
+@description('Least-privilege QA database login. Isolated QA never receives the PostgreSQL administrator password.')
+param postgresQaAppPassword string
 
 @secure()
 @description('Independent signing secret for QA learning-activity receipts.')
@@ -111,7 +111,7 @@ resource vault 'Microsoft.KeyVault/vaults@2023-07-01' existing = {
   name: keyVaultName
 }
 
-var qaDatabaseUrl = 'postgresql://${postgresAdminLogin}:${uriComponent(postgresAdminPassword)}@${postgres.properties.fullyQualifiedDomainName}:5432/${qaDatabaseName}?sslmode=verify-full'
+var qaDatabaseUrl = 'postgresql://${postgresQaAppLogin}:${uriComponent(postgresQaAppPassword)}@${postgres.properties.fullyQualifiedDomainName}:5432/${qaDatabaseName}?sslmode=verify-full'
 
 resource qaDatabaseUrlSecret 'Microsoft.KeyVault/vaults/secrets@2023-07-01' = {
   parent: vault

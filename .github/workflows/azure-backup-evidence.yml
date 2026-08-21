@@ -16,7 +16,7 @@ concurrency:
 jobs:
   verify:
     runs-on: ubuntu-latest
-    environment: production-operations
+    environment: azure-staging
     steps:
       - uses: azure/login@v2
         with:
@@ -28,9 +28,21 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          RESOURCE_GROUP="${{ vars.AZURE_RESOURCE_GROUP }}"
+          SERVER_NAME="${{ vars.AZURE_POSTGRES_SERVER_NAME }}"
+          if [[ -z "$SERVER_NAME" ]]; then
+            SERVER_NAME="$(az postgres flexible-server list \
+              --resource-group "$RESOURCE_GROUP" \
+              --query "[0].name" \
+              --output tsv)"
+          fi
+          if [[ -z "$SERVER_NAME" ]]; then
+            echo "No Azure PostgreSQL Flexible Server was found."
+            exit 1
+          fi
           az postgres flexible-server show \
-            --resource-group "${{ vars.AZURE_RESOURCE_GROUP }}" \
-            --name "${{ vars.AZURE_POSTGRES_SERVER_NAME }}" \
+            --resource-group "$RESOURCE_GROUP" \
+            --name "$SERVER_NAME" \
             --query '{server:name,state:state,earliestRestoreDate:backup.earliestRestoreDate,retentionDays:backup.backupRetentionDays,checkedAt:null}' \
             --output json > "${RUNNER_TEMP}/azure-postgres-backup-evidence.json"
           node -e 'const fs=require("fs"); const p=process.env.RUNNER_TEMP+"/azure-postgres-backup-evidence.json"; const v=JSON.parse(fs.readFileSync(p)); v.checkedAt=new Date().toISOString(); if(v.state!=="Ready"||!v.earliestRestoreDate) process.exit(1); fs.writeFileSync(p, JSON.stringify(v,null,2)+"\n")'
