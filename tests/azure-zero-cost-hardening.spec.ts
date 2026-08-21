@@ -101,6 +101,9 @@ test("the PostgreSQL role provisioner keeps QA from connecting to production dat
   expect(source).toContain("REVOKE CONNECT ON DATABASE");
   expect(source).toContain("filosageqa_app");
   expect(source).toContain("filosage_app");
+  expect(source).toContain("SELECT format('CREATE ROLE %I LOGIN PASSWORD %L");
+  expect(source).toContain("SELECT format('ALTER ROLE %I WITH LOGIN PASSWORD %L'");
+  expect(source).not.toContain("PASSWORD $1");
   expect(source).not.toContain("console.log(password");
   expect(source).not.toContain("process.stdout.write");
 });

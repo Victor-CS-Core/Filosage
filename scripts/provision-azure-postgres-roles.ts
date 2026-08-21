@@ -34,8 +34,8 @@ export function roleStatements(role: PostgresAppRole, productionDatabase: string
   const production = quotedIdentifier(productionDatabase, "database");
   return {
     ensureRole: `SELECT 1 FROM pg_roles WHERE rolname = $1`,
-    createRole: `CREATE ROLE ${login} LOGIN PASSWORD $1 NOSUPERUSER NOCREATEDB NOCREATEROLE NOINHERIT`,
-    alterPassword: `ALTER ROLE ${login} WITH LOGIN PASSWORD $1`,
+    createRole: `SELECT format('CREATE ROLE %I LOGIN PASSWORD %L NOSUPERUSER NOCREATEDB NOCREATEROLE NOINHERIT', $1, $2) AS stmt`,
+    alterPassword: `SELECT format('ALTER ROLE %I WITH LOGIN PASSWORD %L', $1, $2) AS stmt`,
     grantConnect: `GRANT CONNECT ON DATABASE ${database} TO ${login}`,
     revokePublic: `REVOKE CONNECT ON DATABASE ${database} FROM PUBLIC`,
     revokeProduction: role.database === productionDatabase
@@ -72,11 +72,13 @@ async function applyRole(adminUrl: string, role: PostgresAppRole, productionData
   await admin.connect();
   try {
     const existing = await admin.query(statements.ensureRole, [role.login]);
-    if (existing.rowCount) {
-      await admin.query(statements.alterPassword, [role.password]);
-    } else {
-      await admin.query(statements.createRole, [role.password]);
+    const passwordSql = existing.rowCount ? statements.alterPassword : statements.createRole;
+    const formatted = await admin.query(passwordSql, [role.login, role.password]);
+    const statement = formatted.rows[0]?.stmt;
+    if (typeof statement !== "string" || statement.length === 0) {
+      throw new Error(`Failed to format PostgreSQL password statement for ${role.login}.`);
     }
+    await admin.query(statement);
     await admin.query(statements.grantConnect);
     await admin.query(statements.revokePublic);
     if (statements.revokeProduction) await admin.query(statements.revokeProduction);
