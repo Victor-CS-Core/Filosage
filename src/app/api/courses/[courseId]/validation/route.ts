@@ -1,7 +1,7 @@
 import { authorizationResponse, requireAcceptedAccount } from "@/lib/auth-server";
 import type { Course } from "@/lib/course-types";
 import { expectedLessonIds, expectedLessonModes } from "@/lib/course-progress";
-import { commitCourseValidationStage, getCourse, listLessons } from "@/lib/firebase-server";
+import { commitCourseValidationStage, getCourse, listLessons } from "@/lib/document-store";
 import { coursePipelineFeatureFlags } from "@/lib/feature-flags";
 import { publicationDecisionFromReport, validateCourseCandidateV2 } from "@/lib/course-pipeline/validation";
 import { recordCoursePipelineEvent } from "@/lib/course-pipeline/observability";

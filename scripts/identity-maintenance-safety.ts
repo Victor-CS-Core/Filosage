@@ -27,8 +27,6 @@ export function identityMaintenanceTarget(
     }
     return `postgres:${server}/${database}`;
   }
-  const project = env.FIREBASE_PROJECT_ID?.trim();
-  if (project) return `firestore:${project}`;
   throw new Error("No supported identity-maintenance datastore is configured.");
 }
 

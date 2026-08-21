@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { authorizationResponse, requireAcceptedAccount } from "@/lib/auth-server";
-import { getCourse } from "@/lib/firebase-server";
+import { getCourse } from "@/lib/document-store";
 import { toLessonDto } from "@/lib/course-dto";
 import { safeModelErrorDetails } from "@/lib/model-fallback";
 import { getLessonRuntimeArtifact, publishedReleaseUnavailableResponse } from "@/lib/course-pipeline/artifact-access";

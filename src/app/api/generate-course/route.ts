@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { aiClient } from "@/lib/local-ai";
 import { zodTextFormat } from "openai/helpers/zod";
 import { authorizationResponse, requirePlanCapability } from "@/lib/auth-server";
-import { createCourse, getCourse, getStoredDocument, runStoredDocumentTransaction, updateCourseBanner } from "@/lib/firebase-server";
+import { createCourse, getCourse, getStoredDocument, runStoredDocumentTransaction, updateCourseBanner } from "@/lib/document-store";
 import {
   AiQuotaError,
   aiQuotaResponse,

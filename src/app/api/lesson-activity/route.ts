@@ -5,7 +5,7 @@ import {
   issueActivityReceipt,
   type ActivityReceiptClaims,
 } from "@/lib/activity-receipts";
-import { runStoredDocumentTransaction } from "@/lib/firebase-server";
+import { runStoredDocumentTransaction } from "@/lib/document-store";
 import type { Course, LessonData } from "@/lib/course-types";
 import { z } from "zod";
 import { enforceDurableRateLimit } from "@/lib/request-rate-limit";

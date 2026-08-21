@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { apiRequestErrorResponse, readJsonBody } from "@/lib/api-security";
 import { authorizationResponse, requireAccount } from "@/lib/auth-server";
-import { putStoredDocument } from "@/lib/firebase-server";
+import { putStoredDocument } from "@/lib/document-store";
 import { enforceDurableRateLimit } from "@/lib/request-rate-limit";
 import { getCourseRuntimeArtifact, publishedReleaseUnavailableResponse } from "@/lib/course-pipeline/artifact-access";
 

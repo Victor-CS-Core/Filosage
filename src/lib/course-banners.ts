@@ -6,7 +6,7 @@ import {
   getStoredDocument,
   putStoredDocument,
   runStoredDocumentTransaction,
-} from "@/lib/firebase-server";
+} from "@/lib/document-store";
 import {
   storeCourseBannerObject,
 } from "@/lib/course-banner-storage";

@@ -415,9 +415,7 @@ test("server-only link adapters enforce atomic behavior and bounded identity exp
     env: {
       ...process.env,
       NODE_ENV: "test",
-      FIREBASE_PROJECT_ID: "",
-      FIREBASE_CLIENT_EMAIL: "",
-      FIREBASE_PRIVATE_KEY: "",
+      DATABASE_URL: "",
     },
   });
   expect(local.status, `${local.stdout}\n${local.stderr}`).toBe(0);
@@ -429,9 +427,6 @@ test("server-only link adapters enforce atomic behavior and bounded identity exp
     env: {
       ...process.env,
       NODE_ENV: "production",
-      FIREBASE_PROJECT_ID: "test-project",
-      FIREBASE_CLIENT_EMAIL: "test@example.invalid",
-      FIREBASE_PRIVATE_KEY: "not-used-by-provider-parser",
       AZURE_EASY_AUTH_ENABLED: "true",
       DIRECT_GOOGLE_AUTH_ENABLED: "false",
       EXTERNAL_ID_AUTH_ENABLED: "true",
@@ -619,7 +614,7 @@ test("exported server resolution rejects a drifted identity-registry record", ()
 
   const script = `
     import assert from "node:assert/strict";
-    import { putStoredDocument } from "./src/lib/firebase-server.ts";
+    import { putStoredDocument } from "./src/lib/document-store.ts";
     import {
       configuredIdentityRegistryKeys,
       IdentityRegistryConflictError,
@@ -665,9 +660,6 @@ test("exported server resolution rejects a drifted identity-registry record", ()
         FILOSAGE_LOCAL_DIR: relativeStoreDirectory,
         IDENTITY_LINK_HMAC_SECRET: testSecret,
         DATABASE_URL: "",
-        FIREBASE_PROJECT_ID: "",
-        FIREBASE_CLIENT_EMAIL: "",
-        FIREBASE_PRIVATE_KEY: "",
       },
     });
     expect(result.status, `${result.stdout}\n${result.stderr}`).toBe(0);

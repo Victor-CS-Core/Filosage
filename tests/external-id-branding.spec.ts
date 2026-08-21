@@ -467,7 +467,7 @@ test("operator runbook preserves every gated External ID rollout checkpoint", ()
     "Container App origin",
     "Easy Auth callback URL ending `/.auth/login/filosage/callback`",
     "Google OAuth web client ID",
-    "Maintenance target fingerprint, exactly `postgres:server/database` or `firestore:project`",
+    "Maintenance target fingerprint, exactly `postgres:server/database`",
     "Key Vault name",
     "External ID OAuth Key Vault secret name, expected QA `external-id-client-secret-qa`, production `external-id-client-secret`",
     "External ID OAuth Key Vault secret version identifier",

@@ -169,7 +169,7 @@ export async function backfillIdentityLinksMain(
 
 async function runBackfillIdentityLinksCli() {
   const [store, server] = await Promise.all([
-    import("../src/lib/firebase-server.ts"),
+    import("../src/lib/document-store.ts"),
     import("../src/lib/identity-link-server.ts"),
   ]);
   await backfillIdentityLinksMain(process.argv.slice(2), process.env, {

@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { apiRequestErrorResponse, assertTrustedMutation, readJsonBody } from "@/lib/api-security";
 import { getVerifiedUser } from "@/lib/auth-server";
-import { createStoredDocument, runStoredDocumentTransaction } from "@/lib/firebase-server";
+import { createStoredDocument, runStoredDocumentTransaction } from "@/lib/document-store";
 import { enforceDurableRateLimit } from "@/lib/request-rate-limit";
 import { isLocalMode } from "@/lib/local-mode";
 import {
@@ -63,7 +63,7 @@ export async function POST(request: Request) {
     if (!parsed.success) {
       return Response.json({ error: "Invalid traffic event." }, { status: 400 });
     }
-    if (!isLocalMode() && (!serverEnvironment.FIREBASE_PROJECT_ID || !serverEnvironment.FIREBASE_CLIENT_EMAIL || !serverEnvironment.FIREBASE_PRIVATE_KEY)) {
+    if (!isLocalMode() && !serverEnvironment.DATABASE_URL?.trim()) {
       return new Response(null, { status: 204 });
     }
 

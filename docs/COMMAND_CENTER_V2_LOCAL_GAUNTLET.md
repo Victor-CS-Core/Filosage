@@ -132,7 +132,7 @@ The complete exclusion contract is in
 `tests/fixtures/command-center-v2-exclusions.md`. Local passing evidence does
 not prove:
 
-- hosted Azure PostgreSQL or Firestore ordering, counts, cursor, transaction,
+- hosted Azure PostgreSQL ordering, counts, cursor, transaction,
   concurrent mutation, or multi-instance behavior;
 - real Easy Auth/Google `auth_time` and browser redirect/resume behavior;
 - mixed-version application instances sharing records;

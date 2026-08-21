@@ -1,10 +1,10 @@
 import { readFile, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import {
-  fromFirestoreFields,
-  toFirestoreFields,
-  type FirestoreValue,
-} from "../src/lib/firestore-values.ts";
+  fromDocumentFields,
+  toDocumentFields,
+  type DocumentValue,
+} from "../src/lib/document-values.ts";
 import { publicationContentFingerprint } from "../src/lib/publication-content.ts";
 
 interface MigrationBundle {
@@ -12,7 +12,7 @@ interface MigrationBundle {
   exportedAt: string;
   sourceProjectId: string;
   owner: { uid: string; email: string };
-  documents: Array<{ path: string; fields: Record<string, FirestoreValue> }>;
+  documents: Array<{ path: string; fields: Record<string, DocumentValue> }>;
   bannerObjects: Array<{ assetId: string; contentType: string; base64: string }>;
   releaseRecovery?: {
     strategy: "canonical-published-documents";
@@ -23,8 +23,8 @@ interface MigrationBundle {
 
 const inputArgument = process.argv.find((value) => value.startsWith("--input="))?.slice(8);
 const outputArgument = process.argv.find((value) => value.startsWith("--output="))?.slice(9);
-const inputPath = resolve(inputArgument || "migration-private/firebase-authored-courses.json");
-const outputPath = resolve(outputArgument || "migration-private/firebase-authored-courses-complete.json");
+const inputPath = resolve(inputArgument || "migration-private/authored-courses.json");
+const outputPath = resolve(outputArgument || "migration-private/authored-courses-complete.json");
 if (inputPath === outputPath) throw new Error("Use a separate output path so the verified source bundle remains unchanged.");
 
 const source = JSON.parse(await readFile(inputPath, "utf8")) as MigrationBundle;
@@ -38,13 +38,13 @@ if (source.documents.some((document) => document.path.startsWith("courseReleases
 const roots = new Map(
   source.documents
     .filter((document) => /^courses\/[^/]+$/.test(document.path))
-    .map((document) => [document.path.split("/")[1], fromFirestoreFields(document.fields)] as const),
+    .map((document) => [document.path.split("/")[1], fromDocumentFields(document.fields)] as const),
 );
 const lessonsByCourse = new Map<string, Array<{ lessonId: string; data: Record<string, unknown> }>>();
 for (const document of source.documents.filter((item) => /^courses\/[^/]+\/lessons\/[^/]+$/.test(item.path))) {
   const [, courseId, , lessonId] = document.path.split("/");
   const lessons = lessonsByCourse.get(courseId) ?? [];
-  lessons.push({ lessonId, data: fromFirestoreFields(document.fields) });
+  lessons.push({ lessonId, data: fromDocumentFields(document.fields) });
   lessonsByCourse.set(courseId, lessons);
 }
 
@@ -61,7 +61,7 @@ for (const [courseId, course] of roots) {
   if (!lessons.length) throw new Error(`Published course ${courseId} has no published lessons.`);
   releaseDocuments.push({
     path: `courseReleases/${releaseId}`,
-    fields: toFirestoreFields({
+    fields: toDocumentFields({
       releaseId,
       courseId,
       snapshotHash: review.artifactSnapshotHash ?? null,
@@ -75,7 +75,7 @@ for (const [courseId, course] of roots) {
   for (const { lessonId, data: lesson } of lessons) {
     releaseDocuments.push({
       path: `courseReleases/${releaseId}/lessons/${lessonId}`,
-      fields: toFirestoreFields({
+      fields: toDocumentFields({
         releaseId,
         courseId,
         lessonId,

@@ -1,7 +1,7 @@
 import type { MetadataRoute } from "next";
 import { supportArticles } from "@/content/support/articles";
 import { isQaEnvironment } from "@/lib/deployment-environment";
-import { listPublicCourses } from "@/lib/firebase-server";
+import { listPublicCourses } from "@/lib/document-store";
 import { serverEnvironment } from "@/lib/runtime-environment";
 
 export const dynamic = "force-dynamic";
@@ -21,11 +21,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     changeFrequency: "monthly",
     priority: 0.45,
   }));
-  const canReadProductionCatalog = Boolean(
-    serverEnvironment.FIREBASE_PROJECT_ID
-    && serverEnvironment.FIREBASE_CLIENT_EMAIL
-    && serverEnvironment.FIREBASE_PRIVATE_KEY,
-  );
+  const canReadProductionCatalog = Boolean(serverEnvironment.DATABASE_URL?.trim());
   if (serverEnvironment.NODE_ENV === "production" && !canReadProductionCatalog) return [...staticRoutes, ...supportRoutes];
 
   try {

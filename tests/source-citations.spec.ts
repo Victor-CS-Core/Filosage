@@ -131,7 +131,7 @@ test("model-knowledge lessons remain citation-free and disclose their evidence b
     readFile("src/app/api/generate-lesson/route.ts", "utf8"),
     readFile("src/lib/course-dto.ts", "utf8"),
     readFile("src/components/LessonIntegrityPanel.tsx", "utf8"),
-    readFile("src/lib/firebase-server.ts", "utf8"),
+    readFile("src/lib/document-store.ts", "utf8"),
     readFile("src/lib/course-pipeline/lesson-save.ts", "utf8"),
     readFile("src/lib/course-types.ts", "utf8"),
     readFile("src/app/course/[topic]/page.tsx", "utf8"),

@@ -51,7 +51,7 @@ param identityLinkHmacSecret string = ''
 param ownerEmail string
 
 @secure()
-@description('Legacy Firebase UID whose authored courses remain managed by the verified owner account.')
+@description('Migrated owner UID whose authored courses remain managed by the verified owner account.')
 param migratedOwnerUid string = ''
 
 @description('Object ID of the human deployment owner who must be able to rotate staging secrets.')

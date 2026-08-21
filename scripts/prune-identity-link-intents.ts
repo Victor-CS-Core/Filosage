@@ -82,7 +82,7 @@ export async function pruneIdentityLinkIntentsMain(
 }
 
 async function runPruneIdentityLinkIntentsCli() {
-  const store = await import("../src/lib/firebase-server.ts");
+  const store = await import("../src/lib/document-store.ts");
   await pruneIdentityLinkIntentsMain(process.argv.slice(2), process.env, {
     deleteStoredDocuments: store.deleteStoredDocuments,
     listCollectionDocumentsPage: store.listCollectionDocumentsPage,

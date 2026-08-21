@@ -184,7 +184,7 @@ Example:
 
 ## Storage proposal
 
-Continue using Firestore for Phase 1 to avoid a premature data-platform migration.
+Continue using Azure PostgreSQL for Phase 1.
 
 Suggested collections:
 

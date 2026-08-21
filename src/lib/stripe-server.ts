@@ -1,7 +1,7 @@
 import "server-only";
 
 import Stripe from "stripe";
-import { runStoredDocumentTransaction } from "@/lib/firebase-server";
+import { runStoredDocumentTransaction } from "@/lib/document-store";
 import type { ServerAccount } from "@/lib/account-server";
 import {
   priceMatchesOffer,

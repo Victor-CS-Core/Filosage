@@ -1,5 +1,5 @@
 import type { CourseStage } from "@/lib/course-pipeline/contract";
-import { createStoredDocument } from "@/lib/firebase-server";
+import { createStoredDocument } from "@/lib/document-store";
 
 export type CoursePipelineEventName =
   | "course_pipeline_started"

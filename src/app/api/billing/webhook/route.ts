@@ -1,6 +1,6 @@
 import { billingConfiguration } from "@/lib/runtime-config";
 import { readBoundedRequestText } from "@/lib/bounded-request-body";
-import { putStoredDocument, runStoredDocumentTransaction } from "@/lib/firebase-server";
+import { putStoredDocument, runStoredDocumentTransaction } from "@/lib/document-store";
 import {
   BillingConsentRequiredError,
   recordBillingConsent,

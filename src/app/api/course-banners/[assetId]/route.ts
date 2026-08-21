@@ -1,4 +1,4 @@
-import { getStoredDocument } from "@/lib/firebase-server";
+import { getStoredDocument } from "@/lib/document-store";
 import { readCourseBannerObject } from "@/lib/course-banner-storage";
 
 interface RouteParams {

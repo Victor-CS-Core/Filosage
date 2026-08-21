@@ -3,12 +3,12 @@ import { resolve } from "node:path";
 import pg from "pg";
 import { BlobClient, BlobServiceClient } from "@azure/storage-blob";
 import { DefaultAzureCredential } from "@azure/identity";
-import { fromFirestoreFields, type FirestoreValue } from "../src/lib/firestore-values.ts";
+import { fromDocumentFields, type DocumentValue } from "../src/lib/document-values.ts";
 
 interface MigrationBundle {
   schemaVersion: 1 | 2;
   owner: { uid: string; email: string };
-  documents: Array<{ path: string; fields: Record<string, FirestoreValue> }>;
+  documents: Array<{ path: string; fields: Record<string, DocumentValue> }>;
   bannerObjects: Array<{ assetId: string; contentType: string; base64: string }>;
 }
 
@@ -16,7 +16,7 @@ const inputArgument = process.argv.find((value) => value.startsWith("--input="))
 const inputBlobArgument = process.argv.find((value) => value.startsWith("--input-blob="))?.slice(13);
 const apply = process.argv.includes("--apply");
 const missingOnly = process.argv.includes("--missing-only");
-const inputPath = resolve(inputArgument || "migration-private/firebase-authored-courses.json");
+const inputPath = resolve(inputArgument || "migration-private/authored-courses.json");
 if (inputArgument && inputBlobArgument) throw new Error("Use either --input or --input-blob, not both.");
 const input = inputBlobArgument
   ? (await new BlobClient(inputBlobArgument, new DefaultAzureCredential()).downloadToBuffer()).toString("utf8")
@@ -38,7 +38,7 @@ const courseIds = new Set(
   bundle.documents
     .filter((item) => /^courses\/[^/]+$/.test(item.path))
     .map((item) => {
-      const data = fromFirestoreFields(item.fields);
+      const data = fromDocumentFields(item.fields);
       if (data.authorId !== bundle.owner.uid) throw new Error(`Course ${item.path} is not authored by the bundle owner.`);
       return item.path.split("/")[1];
     }),
@@ -93,7 +93,7 @@ if (existing.rows[0] && !missingOnly) {
 }
 const bannerObjectIds = new Set(bundle.bannerObjects.map((object) => object.assetId));
 const expectedDocumentData = (document: MigrationBundle["documents"][number]) => {
-  const data = fromFirestoreFields(document.fields);
+  const data = fromDocumentFields(document.fields);
   const assetId = document.path.startsWith("courseBannerAssets/") ? document.path.split("/")[1] : "";
   if (assetId && bannerObjectIds.has(assetId)) {
     delete data.data;

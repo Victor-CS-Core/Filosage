@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { authorizationResponse, requireAccount } from "@/lib/auth-server";
-import { getStoredDocument, listOwnerCourses, listPublicCourses } from "@/lib/firebase-server";
+import { getStoredDocument, listOwnerCourses, listPublicCourses } from "@/lib/document-store";
 import { toCourseDto } from "@/lib/course-dto";
 import { safeModelErrorDetails } from "@/lib/model-fallback";
 import { courseUsesPipelineV2 } from "@/lib/course-pipeline/feature-policy";

@@ -23,4 +23,4 @@ Application environment variables, runtime globals, browser storage, events, cac
 
 ## Operational follow-through
 
-Verify domain routing, TLS, Firebase authorized domains, OAuth behavior, sender authentication, mailbox delivery, analytics, Search Console, and external profiles independently. Source changes alone do not confirm external services.
+Verify domain routing, TLS, OAuth authorized origins, OAuth behavior, sender authentication, mailbox delivery, analytics, Search Console, and external profiles independently. Source changes alone do not confirm external services.

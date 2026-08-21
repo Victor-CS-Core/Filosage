@@ -1,5 +1,5 @@
 import { authenticationMode, missingRuntimeConfiguration } from "@/lib/runtime-config";
-import { getStoredDocument } from "@/lib/firebase-server";
+import { getStoredDocument } from "@/lib/document-store";
 import { flashcardFeatureConfiguration } from "@/lib/flashcard-feature";
 import { reportOperationalEvent } from "@/lib/operational-alerts";
 import { serverEnvironment } from "@/lib/runtime-environment";
@@ -28,7 +28,7 @@ export async function GET() {
       await reportOperationalEvent({
         severity: "critical",
         code: "health.datastore_unavailable",
-        message: "The production health check could not reach Firestore.",
+        message: "The production health check could not reach Azure PostgreSQL.",
       });
     }
   }

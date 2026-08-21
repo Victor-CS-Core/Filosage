@@ -2,7 +2,7 @@ import "server-only";
 
 import type { ServerAccount } from "@/lib/account-server";
 import type { Course } from "@/lib/course-types";
-import { getStoredDocument, runStoredDocumentTransaction } from "@/lib/firebase-server";
+import { getStoredDocument, runStoredDocumentTransaction } from "@/lib/document-store";
 import {
   COURSE_CREDIT_SCHEMA_VERSION,
   courseCreditInteger,
