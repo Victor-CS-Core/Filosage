@@ -30,10 +30,10 @@ No historical content reports are silently backfilled. New reports create their 
 - Route handlers: validate bounded JSON and delegate to the service
 - Client: displays server-authorized capabilities; it is never an authorization source
 
-All state-changing paths use expected versions and Firestore transactions. Audit events are written in the same transaction as the state they describe.
+All state-changing paths use expected versions and document-store transactions. Audit events are written in the same transaction as the state they describe.
 
 AI generation happens outside a database transaction. The resulting draft is committed only after a transaction rechecks the environment, global controls, per-agent flag, kill switch, and source ticket version. Model calls use `store: false`; idempotent usage reservations prevent duplicate runs from silently repeating cost.
 
 ## Migration plan
 
-Firestore creates the four new collections on first write. Current list operations do not require composite indexes. A later query redesign must add its indexes before deployment. Rollback leaves inert records in place for evidence preservation.
+The Azure PostgreSQL document store creates the four new collections on first write. Current list operations do not require composite indexes. A later query redesign must add its indexes before deployment. Rollback leaves inert records in place for evidence preservation.

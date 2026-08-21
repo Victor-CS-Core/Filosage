@@ -60,6 +60,8 @@ Complete QA and production separately before any write. Values must be copied fr
 
 Never place connection strings, secret values, cookies, authorization responses, raw claim headers, provider subjects, email addresses, one-time codes, or link-intent values in this inventory, command output, screenshots, tickets, or logs. Redact correlation evidence to the bounded correlation ID; retain no raw identity payload.
 
+Production and QA identity maintenance use the `postgres:server/database` fingerprint. The leftover `firestore:project` form remains only as a local-mode fallback in the identity-maintenance helper; it is not a release path.
+
 The inventory is incomplete if a placeholder, shortened SHA, unversioned secret reference, or guessed tenant value remains.
 
 ## Google federation redirect URIs

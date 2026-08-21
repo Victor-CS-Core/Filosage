@@ -9,9 +9,7 @@ export async function GET() {
   const flashcards = flashcardFeatureConfiguration();
   const version = (
     serverEnvironment.SITE_VERSION
-    || serverEnvironment.CF_PAGES_COMMIT_SHA
     || serverEnvironment.GITHUB_SHA
-    || serverEnvironment.VERCEL_GIT_COMMIT_SHA
     || ""
   ).trim().slice(0, 40) || null;
   // Configuration names are operational detail: log them for the operator
@@ -28,7 +26,7 @@ export async function GET() {
       await reportOperationalEvent({
         severity: "critical",
         code: "health.datastore_unavailable",
-        message: "The production health check could not reach Firestore.",
+        message: "The production health check could not reach the Azure PostgreSQL document store.",
       });
     }
   }

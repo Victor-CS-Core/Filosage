@@ -1,5 +1,7 @@
 # Stripe sandbox evidence — August 11, 2026
 
+> Historical record from 2026-08-11. Current production data deletion uses the Azure PostgreSQL document store. Firestore purge language below describes the environment at the time of the evidence, not current production.
+
 Status: **core Stripe lifecycle and support/legal inbox delivery passed; Stripe lifecycle-email and full app-deletion evidence remain open**.
 
 This record is intentionally redacted. It contains Stripe Test-mode object identifiers and observed states, but no card data, API keys, webhook signing secrets, hosted-session URLs, personal addresses, or secret environment values.

@@ -182,7 +182,7 @@ The record must never contain a full article, paywalled body, or substantial ver
 | BILL-006 | Paid activation requires complete provider, legal, email, alert, backup/restore, support, and owner evidence. |
 | REL-001 | The dependency audit has no unresolved production high/critical advisory. |
 | REL-002 | Lint, type/build, focused and full E2E, accessibility, secret scan, and exact-SHA checks pass. |
-| REL-003 | `HEAD`, `origin/main`, the Sites source, hosted `SITE_VERSION`, and production health identify the same full SHA before release is called complete. |
+| REL-003 | `HEAD`, `origin/main`, hosted `SITE_VERSION`, and production health identify the same full SHA before release is called complete. |
 
 ## The Gauntlet loop
 

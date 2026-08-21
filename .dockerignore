@@ -2,7 +2,6 @@
 .github
 .next
 .openai
-.wrangler
 .filosage-local
 .filosage-local-test
 dist

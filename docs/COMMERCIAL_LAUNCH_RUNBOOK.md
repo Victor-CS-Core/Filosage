@@ -15,7 +15,7 @@ This runbook prepares Filosage for paid plans without opening subscriptions. The
 Do not enable billing until all of the following are true:
 
 1. Production health checks pass against the intended release version.
-2. Managed Firestore backups are configured and a restore rehearsal has been completed in a non-production target.
+2. Azure Database for PostgreSQL automated backups are in the required recovery window, `.github/workflows/azure-backup-evidence.yml` has recorded that window, and a point-in-time restore rehearsal has been completed on a separate non-production recovery server. The evidence workflow does not restore data.
 3. Critical operational alerts reach an independently monitored destination.
 4. Stripe Live products, monthly and annual prices, webhook endpoint, customer portal, tax behavior, and statement descriptor have been reviewed.
 5. The full lifecycle test matrix below passes with Stripe test objects.
@@ -31,27 +31,27 @@ For an ordinary closed-billing release, set `SITE_VERSION` to the exact Git comm
 
 ## Product release readiness register
 
-Updated: 2026-08-09
+Updated: 2026-08-21
 
 This register is the consolidated source for unresolved release dependencies. A routine closed-billing code release may continue while the broader operational and commercial items remain open, provided the exact release passes its technical checks and `BILLING_ENABLED=false`. Do not describe Filosage as operationally or commercially ready until the applicable gates below are complete.
 
 ### Required for every production code release
 
-- [ ] Deploy the exact intended Git commit and confirm that `HEAD`, `origin/main`, the Sites source version, hosted `SITE_VERSION`, and `/api/health` all identify the same full SHA. The currently validated support-intake release is newer than the code confirmed live on 2026-08-09.
-- [ ] Pass the release checks appropriate to the change: release environment, lint, production build, Sites build, proportionate end-to-end coverage, dependency audit, and tracked-file secret scan.
+- [ ] Deploy the exact intended Git commit and confirm that `HEAD`, `origin/main`, hosted `SITE_VERSION`, and `/api/health` all identify the same full SHA.
+- [ ] Pass the release checks appropriate to the change: release environment, lint, production build, proportionate end-to-end coverage, dependency audit, and tracked-file secret scan.
 - [ ] Verify production health and complete focused smoke tests for every affected public, learner, owner, privacy, support, and billing-lock surface.
 - [ ] Keep `BILLING_ENABLED=false` unless the owner separately approves billing activation after every paid-launch gate passes.
 
 ### Required before relying on production for valuable learner data
 
-- [ ] Configure `FIRESTORE_BACKUP_BUCKET` as a dedicated Google Cloud Storage bucket in the Firestore database location. Managed Firestore export/import requires Google Cloud billing and upgrades Firebase to Blaze; enabling it is a separate owner decision.
-- [ ] Complete one managed export and record its completed backup URI, release SHA, timestamp, and operator.
-- [ ] Restore the latest export into a separate non-production Firebase project and verify representative account, course, lesson, progress, publication, command-center, and entitlement records. Never rehearse restoration against production.
+- [ ] Confirm Azure Database for PostgreSQL Flexible Server automated backup retention on the production server (`AZURE_POSTGRES_SERVER_NAME` / `AZURE_RESOURCE_GROUP`). The current low-cost configuration has a seven-day recovery window and does not support operator-triggered on-demand backups.
+- [ ] Record one successful backup-window evidence run from `.github/workflows/azure-backup-evidence.yml` (server `Ready`, `earliestRestoreDate`, retention days, timestamp, operator). That workflow is concurrency-locked and retains a 90-day artifact; it does not restore data.
+- [ ] Restore a chosen point in time into a separate private recovery server in the same virtual network and private DNS zone. Verify representative course, lesson, progress, publication, command-center, and entitlement records, then obtain separate approval before deleting the recovery server. Never rehearse restoration against the active production server. PostgreSQL point-in-time restore does not restore Azure Blob objects.
 - [ ] Approve a retention schedule covering backup retention, application records, audit evidence, consent records, support cases, deletion tombstones, and legally required holds.
 - [ ] Establish a resumable process for partially completed account deletion and a verified manual owner-account transfer or service-shutdown procedure.
 - [ ] Until these controls pass, treat production data as operationally under-protected and avoid collecting data whose loss cannot be accepted.
 
-Supabase migration is not a release dependency and is not a substitute for this gate. Any database migration requires its own schema, authentication, authorization, data-conversion, dual-run, rollback, and restore plan. A free Supabase project also requires independent logical exports because automatic daily backups are a paid-plan feature.
+Supabase is not a release path, not a backup path, and not a substitute for this gate. Do not treat a Supabase project, dual-run, or planned provider abstraction as current production. Production data is Azure PostgreSQL plus Azure Blob.
 
 ### Required before unattended or broader real-user operation
 
@@ -62,8 +62,8 @@ Supabase migration is not a release dependency and is not a substitute for this 
 - [ ] Configure an external monitor for `/api/health` at a one-to-five-minute interval, alerting after two consecutive failures and again on recovery.
 - [ ] Confirm the support address is actively monitored and run a signed-in owner acceptance test for support intake, owner documentation, the content-report queue, command-center review-only drafts, and audit evidence on the exact hosted release.
 - [ ] Configure a transactional email provider and live-test consent, required notices, delivery, bounce handling, unsubscribe, suppression, cancellation confirmation, renewal, and failed-payment messaging before sending lifecycle email.
-- [ ] Verify backup and alert service-account permissions use the minimum required roles and that secrets are stored only in the hosted secret store.
-  - Automation evidence: `.github/workflows/firestore-backup.yml` is concurrency-locked, waits for completed export evidence, retains an artifact for 90 days, and alerts on both success and failure. A live run and recovery-project restore are still required before checking this gate.
+- [ ] Verify backup and alert identities use the minimum required Azure roles and that secrets are stored only in Key Vault.
+  - Automation evidence: `.github/workflows/azure-backup-evidence.yml` is concurrency-locked, records the PostgreSQL PITR recovery window, and retains an artifact for 90 days. It does not restore. A separate recovery-server restore rehearsal is still required before checking this gate.
 
 ### Required before paid activation
 
@@ -88,7 +88,7 @@ Supabase migration is not a release dependency and is not a substitute for this 
 
 ## Course-generation release acceptance
 
-Before deploying a course-schema or generation-prompt change, use production-like Firebase and OpenAI credentials to create one private flagship course through the user interface. Record the course ID, release SHA, models, reviewer, and test time without copying secrets or private learner text. The acceptance record must confirm:
+Before deploying a course-schema or generation-prompt change, use production-like Azure PostgreSQL, Azure Blob, Easy Auth, and OpenAI credentials to create one private flagship course through the user interface. Record the course ID, release SHA, models, reviewer, and test time without copying secrets or private learner text. The acceptance record must confirm:
 
 1. The outline passes the current course quality gate and visibly advances one artifact through distinct milestones.
 2. At least one generated lesson for each of the six teaching modes opens, reloads, preserves its draft, and stores meaningful active-lesson evidence at completion.

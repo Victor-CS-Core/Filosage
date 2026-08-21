@@ -14,7 +14,7 @@ The visual system uses the approved gateway-and-path symbol, the two-tone `Filo`
 - `https://www.filosage.com` is attached to the same Sites project.
 - Canonical metadata, Open Graph metadata, the sitemap, robots metadata, product-frame labels, reminders, generated assets, production checks, and runtime URL configuration use the Filosage domain.
 - Public contact links use `support@filosage.com` and `legal@filosage.com`.
-- Mailbox delivery, sender authentication, Firebase authorization, OAuth behavior, analytics, Search Console, and external profiles require independent operational verification.
+- Mailbox delivery, sender authentication, Azure Easy Auth / Google OAuth behavior, analytics, Search Console, and external profiles require independent operational verification.
 
 ## Internal identifiers
 

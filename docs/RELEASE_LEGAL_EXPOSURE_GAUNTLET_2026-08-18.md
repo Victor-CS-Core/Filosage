@@ -1,5 +1,7 @@
 # FiloSage Release Legal Exposure Gauntlet
 
+> Current production is Azure Container Apps + Easy Auth (Google) + Azure PostgreSQL + Blob. Firebase/Firestore files named below were leftover deny-all source rules and are not the live datastore.
+
 **Purpose:** Run this task against the FiloSage repository and deployed release candidate before commercial launch. The goal is to reduce preventable legal, privacy, subscription, security, AI-safety, advertising, accessibility, and user-content exposure through verifiable engineering controls and release evidence.
 
 **Important:** This is an engineering/compliance hardening task, not a substitute for legal advice. Do not invent legal conclusions. When a requirement depends on facts that cannot be determined from code or authoritative sources, create a clearly labeled **OWNER/COUNSEL DECISION REQUIRED** blocker rather than guessing.
@@ -39,7 +41,7 @@ The repository already appears to contain several meaningful controls. Treat the
 - `src/lib/account-data-policy.ts` defines deletion inventory and retained-record categories.
 - `src/components/AnalyticsConsent.tsx` implements optional analytics consent.
 - `infra/azure/main.bicep` sets `allowBlobPublicAccess: false`, `allowSharedKeyAccess: false`, OAuth-first authentication, HTTPS/TLS requirements, and `publicAccess: 'None'` for the course-banner container.
-- `firestore.rules` denies browser reads/writes to the legacy Firebase source.
+- Browser clients have no Firebase/Firestore SDK. The Azure PostgreSQL document store is server-only.
 - `src/app/api/billing/portal/route.ts` exposes authenticated Stripe billing-management access.
 - `src/lib/content-safety.ts` performs safety filtering and specifically blocks self-harm instructions, but this is not necessarily the same as a legally or ethically adequate crisis-response flow.
 - `src/components/CourseDisclosure.tsx` and public legal disclosures appear intended to identify AI-assisted content.

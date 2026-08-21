@@ -23,7 +23,7 @@ The lesson API is the authoritative boundary. Client-side locks explain the rule
 - Suspended accounts fail closed. Current Terms and Privacy acceptance is required for learning, generation, and billing actions.
 - Course ownership and owner privileges are checked at the data-access route, not inferred from UI state.
 - Plus and Pro authors generate lessons in order. The server requires saved completion evidence for every earlier lesson before it will generate the next; the owner is exempt from this authoring gate.
-- Firestore denies all direct browser reads and writes. Server routes use the service account and return explicit DTOs.
+- Server routes use the Azure PostgreSQL document store and return explicit DTOs. Browser clients have no Firebase/Firestore SDK and no direct datastore credentials.
 
 ### Generated-content integrity
 

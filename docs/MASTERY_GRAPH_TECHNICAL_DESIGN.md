@@ -184,7 +184,7 @@ Example:
 
 ## Storage proposal
 
-Continue using Firestore for Phase 1 to avoid a premature data-platform migration.
+Continue using the Azure PostgreSQL document store (legacy Firestore-shaped encoding in `firebase-server.ts`) for Phase 1 to avoid a second data-platform migration.
 
 Suggested collections:
 

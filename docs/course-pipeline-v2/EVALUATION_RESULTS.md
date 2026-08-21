@@ -34,5 +34,5 @@ Deterministic validity is separated from semantic certification. Until a calibra
 
 - Scheduled live comparison on the 100-case corpus with pinned model/prompt/contract versions, latency, tokens, cost, false-denial, and repair outcomes.
 - Measured V1/V2 shadow disagreements on real candidates.
-- Firestore-emulator race scheduling beyond pure transaction-callback tests.
+- Hosted Azure PostgreSQL race scheduling beyond pure transaction-callback tests.
 - Production baseline and alert thresholds.

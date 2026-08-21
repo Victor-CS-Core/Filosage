@@ -6,9 +6,10 @@ single-process. Passing it does not prove:
 - Azure PostgreSQL ordering, cursor, transaction, or multi-instance concurrency
   semantics. Those require an ephemeral PostgreSQL database initialized with
   `infra/azure/database/001_document_store.sql`.
-- Firebase/Firestore ordering, aggregation-count, transaction, and cursor
-  behavior. The fixture exercises the shared adapter contract through the
-  local store, not a hosted Firestore project.
+- Shared document-adapter ordering, aggregation-count, transaction, and cursor
+  behavior beyond the local file store. Production uses Azure PostgreSQL through
+  `firebase-server.ts` (leftover adapter name). Firestore is not a hosted
+  runtime or release path.
 - Azure Container Apps Easy Auth or Google reauthentication redirects and
   `auth_time` claims. The local suite proves only missing, wrong-identity, and
   current allowlisted proof behavior.
@@ -24,5 +25,5 @@ single-process. Passing it does not prove:
   records. Schema compatibility is tested in one application version only.
 
 These are exclusions, not skipped passing tests. Release evidence must list the
-separate PostgreSQL, Firestore, Easy Auth/browser-resume, mixed-version,
-live-model, and production checks that actually ran.
+separate PostgreSQL, Easy Auth/browser-resume, mixed-version, live-model, and
+production checks that actually ran.

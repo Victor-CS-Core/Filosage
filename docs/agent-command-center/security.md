@@ -21,4 +21,4 @@ Only bounded ticket fields are sent for draft generation. Account identifiers, i
 
 ## Append-only limitation
 
-The application exposes no update or deletion path for command-center audit events and creates them with unique IDs. The Firebase service account can technically write any server-managed document, so infrastructure-grade write-once enforcement would require a more constrained runtime identity or separate ledger service. Treat this as a known production-hardening item before delegating access beyond the owner.
+The application exposes no update or deletion path for command-center audit events and creates them with unique IDs. The Azure PostgreSQL runtime identity can technically write any server-managed document, so infrastructure-grade write-once enforcement would require a more constrained runtime identity or separate ledger service. Treat this as a known production-hardening item before delegating access beyond the owner.

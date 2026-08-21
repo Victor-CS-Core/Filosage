@@ -5,7 +5,7 @@
 - Server-side ownership and plan authorization on course, lesson, banner, repair, validation, manual review, and publish mutations.
 - Recent owner authentication and audit for quality override and manual-review decisions.
 - Same-origin mutation checks and bounded JSON bodies.
-- Deny-all direct Firestore browser rules.
+- Server-only Azure PostgreSQL document access. Browser clients have no Firebase/Firestore SDK.
 - Structured Zod model output, bounded tokens/timeouts, `store:false`.
 - Topic/source content isolated as untrusted data and input/output moderation.
 - CSP, public DTO redaction of source notes, React Markdown without raw HTML, and typed visual data rather than raw SVG.
