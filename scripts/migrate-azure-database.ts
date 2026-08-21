@@ -1,8 +1,8 @@
 import { readFile } from "node:fs/promises";
 import pg from "pg";
 
-const connectionString = process.env.DATABASE_URL?.trim();
-if (!connectionString) throw new Error("DATABASE_URL is required.");
+const connectionString = process.env.DATABASE_ADMIN_URL?.trim() || process.env.DATABASE_URL?.trim();
+if (!connectionString) throw new Error("DATABASE_ADMIN_URL or DATABASE_URL is required.");
 const sslMode = process.env.DATABASE_SSL?.trim().toLowerCase() ?? "verify-full";
 const client = new pg.Client({
   connectionString,
