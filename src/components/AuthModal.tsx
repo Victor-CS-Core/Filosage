@@ -126,7 +126,7 @@ export default function AuthModal({ onClose, returnFocus }: AuthModalProps) {
           {/email/i.test(identityCopy) ? <Mail size={16} /> : null}
           {identityCopy.includes("Google") || /email/i.test(identityCopy) ? null : <Cloud size={16} />}
         </span>
-        <span>{identityCopy}</span>
+        <span className="auth-identity-copy">{identityCopy}</span>
       </div>
       {(error || acceptanceError) && <p className="form-error" role="alert">{error ?? acceptanceError}</p>}
       {createsAccount && <label className="legal-check">

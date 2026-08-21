@@ -6,7 +6,7 @@ export default defineSupportArticle({
   summary: "Browse published courses, inspect a course outline, and sign in when you are ready to open a lesson.",
   category: "start",
   keywords: ["start", "account", "library", "course", "guest", "sign in"],
-  reviewedOn: "2026-08-18",
+  reviewedOn: "2026-08-21",
   sources: [
     "src/app/library/page.tsx",
     "src/components/CourseLibrary.tsx",
@@ -30,6 +30,8 @@ Guests can open a published course overview and inspect its outcome, modules, le
 2. Review the course outcome and sequence.
 3. Select a lesson.
 4. When prompted, confirm age eligibility and the current Terms and Privacy Notice, then select one of the sign-in methods currently shown. Google remains available when enabled; email-code sign-in appears only when Microsoft Entra External ID is enabled. During rollout, email-code access may be limited to recovering an existing account; that does not mean new email-code account creation is open.
+
+The in-app sign-in screen follows the light or dark appearance already selected in Filosage. Google-labeled actions show the official Google mark.
 
 A signed-in learner can read lessons, complete practice, and keep account-backed progress and reviews in sync.
 

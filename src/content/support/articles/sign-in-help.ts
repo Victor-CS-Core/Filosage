@@ -6,7 +6,7 @@ export default defineSupportArticle({
   summary: "Use the secure sign-in methods currently available and troubleshoot Google or email-code sign-in when those methods are enabled.",
   category: "account",
   keywords: ["sign in", "Google", "email code", "Microsoft", "network", "account", "identity recovery"],
-  reviewedOn: "2026-08-18",
+  reviewedOn: "2026-08-21",
   sources: [
     "src/components/AuthProvider.tsx",
     "src/components/AuthModal.tsx",
@@ -19,6 +19,8 @@ export default defineSupportArticle({
 ## Choose a sign-in method
 
 Select **Continue securely** in Filosage. The secure sign-in screen shows only methods enabled for the current environment. Google sign-in remains available when it is enabled. Email-code sign-in appears only when Microsoft Entra External ID is enabled. The managed flow returns you to Filosage after verification.
+
+The in-app sign-in screen follows the light or dark appearance already selected in Filosage. Google-labeled actions show the official Google mark.
 
 ## If an email code does not arrive
 
