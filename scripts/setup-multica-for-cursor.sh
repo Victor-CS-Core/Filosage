@@ -6,6 +6,8 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 SKILL_SRC="$ROOT/.cursor/skills/multica-cli"
 SKILL_DST="${HOME}/.cursor/skills/multica-cli"
+HELPER_SRC="$ROOT/scripts/login-multica-from-env.py"
+HELPER_DST="${HOME}/.local/lib/multica-cursor/login-multica-from-env.py"
 
 curl -fsSL https://raw.githubusercontent.com/multica-ai/multica/main/scripts/install.sh | bash
 
@@ -34,4 +36,11 @@ if [ -d "$SKILL_SRC" ]; then
   mkdir -p "$SKILL_DST"
   cp -R "$SKILL_SRC"/. "$SKILL_DST"/
   echo "Installed Cursor Multica skill to $SKILL_DST"
+fi
+
+if [ -f "$HELPER_SRC" ]; then
+  mkdir -p "$(dirname "$HELPER_DST")"
+  cp "$HELPER_SRC" "$HELPER_DST"
+  chmod +x "$HELPER_DST"
+  echo "Installed Multica login helper to $HELPER_DST"
 fi

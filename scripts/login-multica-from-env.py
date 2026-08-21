@@ -14,10 +14,12 @@ import sys
 CLOUD_SERVER_URL = "https://api.multica.ai"
 CLOUD_APP_URL = "https://multica.ai"
 SECRET_RE = re.compile(r"(mul_|mcn_)[A-Za-z0-9_-]{8,}")
+TOKEN_LINE_RE = re.compile(r"(?im)^(token\s*:).*$")
 
 
 def redact(text: str) -> str:
-    return SECRET_RE.sub("<redacted>", text)
+    redacted = SECRET_RE.sub("<redacted>", text)
+    return TOKEN_LINE_RE.sub(r"\1 <redacted>", redacted)
 
 
 def run(argv: list[str]) -> subprocess.CompletedProcess[str]:
