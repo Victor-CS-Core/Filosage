@@ -7,7 +7,7 @@ import {
   getCourse,
   listLessons,
   saveCourseManualReviewResolution,
-} from "@/lib/firebase-server";
+} from "@/lib/document-store";
 import { publicationContentFingerprint, publicationContentHash } from "@/lib/publication-content";
 import { publicationDecisionFromReport, validateCourseCandidateV2 } from "@/lib/course-pipeline/validation";
 import { COURSE_PIPELINE_VERSIONS } from "@/lib/course-pipeline/contract";

@@ -25,6 +25,7 @@ export const contractSuites = [
   "tests/release-hardening.spec.ts",
   "tests/release-scripts.spec.ts",
   "tests/retrieval-planning.spec.ts",
+  "tests/retired-systems.spec.ts",
   "tests/source-citations.spec.ts",
   "tests/source-research-v5.spec.ts",
   "tests/worker-runtime-env.spec.ts",

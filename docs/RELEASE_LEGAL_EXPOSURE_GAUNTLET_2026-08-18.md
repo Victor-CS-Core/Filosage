@@ -39,7 +39,7 @@ The repository already appears to contain several meaningful controls. Treat the
 - `src/lib/account-data-policy.ts` defines deletion inventory and retained-record categories.
 - `src/components/AnalyticsConsent.tsx` implements optional analytics consent.
 - `infra/azure/main.bicep` sets `allowBlobPublicAccess: false`, `allowSharedKeyAccess: false`, OAuth-first authentication, HTTPS/TLS requirements, and `publicAccess: 'None'` for the course-banner container.
-- `firestore.rules` denies browser reads/writes to the legacy Firebase source.
+- Browser clients have no direct document-store access; PostgreSQL is server-only.
 - `src/app/api/billing/portal/route.ts` exposes authenticated Stripe billing-management access.
 - `src/lib/content-safety.ts` performs safety filtering and specifically blocks self-harm instructions, but this is not necessarily the same as a legally or ethically adequate crisis-response flow.
 - `src/components/CourseDisclosure.tsx` and public legal disclosures appear intended to identify AI-assisted content.
@@ -169,7 +169,7 @@ Audit:
 - Azure Blob Storage configuration;
 - every container and object prefix;
 - PostgreSQL network exposure;
-- legacy Firestore access rules;
+- server-only PostgreSQL document access;
 - API object-level authorization;
 - evidence-share tokens;
 - course-banner delivery;
@@ -534,7 +534,7 @@ The suite must include regression coverage for at least:
 5. account export ownership isolation;
 6. account deletion end-to-end inventory;
 7. retained-record disclosure;
-8. no browser Firestore access;
+8. no browser document-store access;
 9. no anonymous private Azure blob access;
 10. no cross-account object/API access;
 11. AI interaction disclosure;

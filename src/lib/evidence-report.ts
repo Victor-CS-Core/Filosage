@@ -3,7 +3,7 @@ import "server-only";
 import { buildAdvancedCapstoneAnalysis, type AdvancedCapstoneAnalysis } from "@/lib/capstone-analysis";
 import { getCourseRuntimeArtifact } from "@/lib/course-pipeline/artifact-access";
 import type { Course } from "@/lib/course-types";
-import { getStoredDocument, listAllStoredDocuments } from "@/lib/firebase-server";
+import { getStoredDocument, listAllStoredDocuments } from "@/lib/document-store";
 import type { CapstoneAssessment, CourseProgress } from "@/lib/learning-types";
 import {
   assessmentPercent,

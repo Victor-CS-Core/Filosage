@@ -12,15 +12,15 @@ import {
 } from "node:fs";
 import { dirname, join } from "node:path";
 import {
-  fromFirestoreFields,
-  toFirestoreFields,
-  type FirestoreDocument,
-  type FirestoreValue,
-} from "@/lib/firestore-values";
+  fromDocumentFields,
+  toDocumentFields,
+  type DocumentRecord,
+  type DocumentValue,
+} from "@/lib/document-values";
 
 /**
- * A development-only stand-in for the Firestore REST API, covering exactly the
- * request shapes firebase-server.ts issues: document get/list/patch/create,
+ * A development-only stand-in for the document store, covering exactly the
+ * request shapes document-store.ts issues: document get/list/patch/create,
  * runQuery (equality, AND composites, ranges, orderBy, limit),
  * runAggregationQuery (count), batchGet transactions, and commit. Documents live in
  * a JSON file so state survives dev-server restarts.
@@ -106,8 +106,8 @@ function pathFromName(name: string) {
   return index >= 0 ? name.slice(index + marker.length) : name;
 }
 
-function toDocument(path: string, data: Record<string, unknown>): FirestoreDocument {
-  return { name: documentName(path), fields: toFirestoreFields(data) };
+function toDocument(path: string, data: Record<string, unknown>): DocumentRecord {
+  return { name: documentName(path), fields: toDocumentFields(data) };
 }
 
 function decodePath(encoded: string) {
@@ -130,7 +130,7 @@ interface FieldFilter {
   fieldFilter?: {
     field?: { fieldPath?: string };
     op?: string;
-    value?: FirestoreValue;
+    value?: DocumentValue;
   };
 }
 
@@ -138,13 +138,13 @@ interface StructuredQuery {
   from?: Array<{ collectionId?: string; allDescendants?: boolean }>;
   where?: FieldFilter & { compositeFilter?: { op?: string; filters?: FieldFilter[] } };
   orderBy?: Array<{ field?: { fieldPath?: string }; direction?: string }>;
-  startAt?: { values?: FirestoreValue[]; before?: boolean };
+  startAt?: { values?: DocumentValue[]; before?: boolean };
   limit?: number;
 }
 
-function filterValue(value: FirestoreValue | undefined): unknown {
+function filterValue(value: DocumentValue | undefined): unknown {
   if (!value) return undefined;
-  return fromFirestoreFields({ value }).value;
+  return fromDocumentFields({ value }).value;
 }
 
 function compare(a: unknown, b: unknown) {
@@ -212,10 +212,10 @@ function applyWrite(store: StoreShape, write: Record<string, unknown>) {
     delete store[pathFromName(write.delete)];
     return;
   }
-  const update = write.update as { name?: string; fields?: Record<string, FirestoreValue> } | undefined;
+  const update = write.update as { name?: string; fields?: Record<string, DocumentValue> } | undefined;
   if (!update?.name) return;
   const path = pathFromName(update.name);
-  const incoming = fromFirestoreFields(update.fields ?? {});
+  const incoming = fromDocumentFields(update.fields ?? {});
   const mask = (write.updateMask as { fieldPaths?: string[] } | undefined)?.fieldPaths;
   if (mask?.length) {
     const current = store[path] ?? {};
@@ -226,7 +226,7 @@ function applyWrite(store: StoreShape, write: Record<string, unknown>) {
   }
 }
 
-export async function localFirestoreJson<T>(
+export async function localDocumentStoreJson<T>(
   path: string,
   init: RequestInit = {},
   allowNotFound = false,
@@ -282,7 +282,7 @@ export async function localFirestoreJson<T>(
       const data = store[documentPath];
       if (!data) {
         if (allowNotFound) return null;
-        throw new Error("Firestore request failed (404).");
+        throw new Error("Document store request failed (404).");
       }
       return toDocument(documentPath, data) as T;
     }
@@ -293,7 +293,7 @@ export async function localFirestoreJson<T>(
 
   if (method === "PATCH") {
     return mutateStore((store) => {
-      const incoming = fromFirestoreFields((body.fields as Record<string, FirestoreValue>) ?? {});
+      const incoming = fromDocumentFields((body.fields as Record<string, DocumentValue>) ?? {});
       const masks = search.getAll("updateMask.fieldPaths");
       if (masks.length) {
         const current = { ...(store[documentPath] ?? {}) };
@@ -310,7 +310,7 @@ export async function localFirestoreJson<T>(
     return mutateStore((store) => {
       const id = search.get("documentId") ?? crypto.randomUUID();
       const createdPath = `${documentPath}/${id}`;
-      store[createdPath] = fromFirestoreFields((body.fields as Record<string, FirestoreValue>) ?? {});
+      store[createdPath] = fromDocumentFields((body.fields as Record<string, DocumentValue>) ?? {});
       return toDocument(createdPath, store[createdPath]) as T;
     });
   }

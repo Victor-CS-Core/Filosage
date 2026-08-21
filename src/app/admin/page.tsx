@@ -629,7 +629,7 @@ export default function AdminPage() {
                   <ReadinessItem ready={data.launchReadiness.activityReceiptsConfigured} label="Signed activity receipts" detail="Creator progression is bound to verified lesson activity." />
                   <ReadinessItem ready={data.launchReadiness.productionHealthMonitorConfigured} label="Production health target" detail="A deployment health URL is configured for release checks." />
                   <ReadinessItem ready={data.launchReadiness.operationsAlerts.ready} state={data.launchReadiness.operationsAlerts.state} label="Operational alerts" detail={data.launchReadiness.operationsAlerts.detail} />
-                  <ReadinessItem ready={data.launchReadiness.managedBackups.ready} state={data.launchReadiness.managedBackups.state} label="Managed Firestore backups" detail={data.launchReadiness.managedBackups.detail} />
+                  <ReadinessItem ready={data.launchReadiness.managedBackups.ready} state={data.launchReadiness.managedBackups.state} label="Managed PostgreSQL backups" detail={data.launchReadiness.managedBackups.detail} />
                   <ReadinessItem ready={data.launchReadiness.restoreDrill.ready} state={data.launchReadiness.restoreDrill.state} label="Restore rehearsal" detail={data.launchReadiness.restoreDrill.detail} />
                 </div>
               </section>

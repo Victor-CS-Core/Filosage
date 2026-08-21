@@ -1,5 +1,5 @@
 import { authorizationResponse, requireOwner } from "@/lib/auth-server";
-import { listStoredDocumentsByField } from "@/lib/firebase-server";
+import { listStoredDocumentsByField } from "@/lib/document-store";
 
 export async function GET(
   request: Request,

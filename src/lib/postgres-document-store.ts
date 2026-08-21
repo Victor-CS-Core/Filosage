@@ -2,12 +2,12 @@ import "server-only";
 
 import pg, { type PoolClient, type QueryResultRow } from "pg";
 import {
-  fromFirestoreFields,
-  fromFirestoreValue,
-  toFirestoreFields,
-  type FirestoreDocument,
-  type FirestoreValue,
-} from "@/lib/firestore-values";
+  fromDocumentFields,
+  fromDocumentValue,
+  toDocumentFields,
+  type DocumentRecord,
+  type DocumentValue,
+} from "@/lib/document-values";
 import { serverEnvironment } from "@/lib/runtime-environment";
 
 const { Pool } = pg;
@@ -23,7 +23,7 @@ interface FieldFilter {
   fieldFilter?: {
     field?: { fieldPath?: string };
     op?: string;
-    value?: FirestoreValue;
+    value?: DocumentValue;
   };
 }
 
@@ -31,7 +31,7 @@ interface StructuredQuery {
   from?: Array<{ collectionId?: string; allDescendants?: boolean }>;
   where?: FieldFilter & { compositeFilter?: { filters?: FieldFilter[] } };
   orderBy?: Array<{ field?: { fieldPath?: string }; direction?: string }>;
-  startAt?: { values?: FirestoreValue[]; before?: boolean };
+  startAt?: { values?: DocumentValue[]; before?: boolean };
   limit?: number;
 }
 
@@ -97,10 +97,10 @@ function documentCoordinates(path: string) {
   };
 }
 
-function toDocument(row: DocumentRow): FirestoreDocument {
+function toDocument(row: DocumentRow): DocumentRecord {
   return {
     name: `${DOCUMENT_NAME_PREFIX}${row.path}`,
-    fields: toFirestoreFields(row.data),
+    fields: toDocumentFields(row.data),
   };
 }
 
@@ -111,7 +111,7 @@ function parseBody(init: RequestInit) {
 }
 
 function documentData(fields: unknown) {
-  return fromFirestoreFields((fields ?? {}) as Record<string, FirestoreValue>);
+  return fromDocumentFields((fields ?? {}) as Record<string, DocumentValue>);
 }
 
 async function upsertDocument(
@@ -168,7 +168,7 @@ async function applyWrites(client: PoolClient, writes: Array<Record<string, unkn
       await client.query("DELETE FROM filosage_documents WHERE path = $1", [pathFromName(write.delete)]);
       continue;
     }
-    const update = write.update as { name?: string; fields?: Record<string, FirestoreValue> } | undefined;
+    const update = write.update as { name?: string; fields?: Record<string, DocumentValue> } | undefined;
     if (!update?.name) continue;
     const mask = (write.updateMask as { fieldPaths?: string[] } | undefined)?.fieldPaths;
     await upsertDocument(client, pathFromName(update.name), documentData(update.fields), mask);
@@ -198,7 +198,7 @@ function queryParts(query: StructuredQuery, countOnly = false) {
     const fieldPath = field.split(".");
     parameters.push(fieldPath);
     const fieldParameter = `$${parameters.length}::text[]`;
-    const expected = fromFirestoreValue(filter.fieldFilter?.value ?? { nullValue: null });
+    const expected = fromDocumentValue(filter.fieldFilter?.value ?? { nullValue: null });
     parameters.push(expected);
     const valueParameter = `$${parameters.length}`;
     if (operation === "EQUAL") {
@@ -216,7 +216,7 @@ function queryParts(query: StructuredQuery, countOnly = false) {
   if (query.startAt) {
     const orderBy = query.orderBy ?? [];
     const values = query.startAt.values ?? [];
-    const cursorName = fromFirestoreValue(values[0] ?? { nullValue: null });
+    const cursorName = fromDocumentValue(values[0] ?? { nullValue: null });
     const cursorPath = typeof cursorName === "string" ? pathFromName(cursorName) : "";
     const cursorCoordinates = cursorPath ? documentCoordinates(cursorPath) : null;
     if (

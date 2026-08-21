@@ -49,8 +49,8 @@ function testIdToken(payload: Record<string, unknown>) {
 test("extracts auth_time only from a structurally valid identity token payload", () => {
   expect(authenticationClaimsFromIdToken(testIdToken({
     auth_time: 1_750_000_000,
-    sub: "firebase-user-123",
-  }))).toEqual({ authTime: 1_750_000_000, subject: "firebase-user-123" });
+    sub: "provider-user-123",
+  }))).toEqual({ authTime: 1_750_000_000, subject: "provider-user-123" });
   expect(authenticationClaimsFromIdToken(testIdToken({ auth_time: "1750000000" }))).toEqual({});
   expect(authenticationClaimsFromIdToken("not-a-jwt")).toEqual({});
 });

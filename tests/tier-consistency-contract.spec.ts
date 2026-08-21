@@ -20,7 +20,7 @@ test("Control Room reporting names and aggregates Plus and Pro explicitly", () =
 
 test("new courses keep initial banners while banner regeneration is retired", () => {
   const courseGeneration = source("src/app/api/generate-course/route.ts");
-  const storage = source("src/lib/firebase-server.ts");
+  const storage = source("src/lib/document-store.ts");
   expect(courseGeneration).toContain('reserveAiUsage(account, "course_banner", idempotencyKey)');
   expect(existsSync(resolve(root, "src/app/api/courses/[courseId]/banner/route.ts"))).toBe(false);
   expect(storage).not.toContain("claimCourseBannerRegeneration");

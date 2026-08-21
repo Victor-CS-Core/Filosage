@@ -296,7 +296,7 @@ The approved Free, Filosage Plus, and Filosage Pro model is implemented end to e
 
 - Shared plan catalog: stable `free | plus | pro` IDs, integer-minor-unit prices, capabilities, quotas, included and restricted features, and derived annual math.
 - Account and authorization: resolved membership plan, owner authority kept separate, public capabilities and capacity state, and server-side capability checks.
-- Course capacity: Plus is limited to one active owned private course through a retry-safe Firestore transaction with a bounded reservation lease; direct API bypasses return `409 COURSE_CAPACITY_REACHED`.
+- Course capacity: Plus is limited to one active owned private course through a retry-safe document transaction with a bounded reservation lease; direct API bypasses return `409 COURSE_CAPACITY_REACHED`.
 - Generation: outline, lesson, tutor, and banner allowances resolve from the shared plan catalog. Local course and lesson fixtures satisfy the same current quality contract as production generation.
 - Publishing and downgrade behavior: publishing requires Pro, unpublishing remains available, and downgrades never delete courses or remove existing publications. Over-limit accounts keep read/edit/delete access while new course creation is paused.
 - Billing lifecycle: checkout accepts an explicit plan and interval, every configured Stripe Price maps to one plan/interval pair, ambiguous mappings fail closed, and webhook state persists the resolved plan and interval.

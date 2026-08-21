@@ -5,7 +5,7 @@ import {
   createStoredDocument,
   getStoredDocument,
   runStoredDocumentTransaction,
-} from "@/lib/firebase-server";
+} from "@/lib/document-store";
 import { buildModerationInputs } from "@/lib/moderation-inputs";
 import { serverEnvironment } from "@/lib/runtime-environment";
 import { CONTENT_MODERATION_REQUEST_TIMEOUT_MS } from "@/lib/ai-usage-policy";
@@ -47,7 +47,6 @@ function numberValue(value: unknown) {
 
 async function contentFingerprint(value: string) {
   const secret = serverEnvironment.SAFETY_FINGERPRINT_SECRET
-    ?? serverEnvironment.FIREBASE_PRIVATE_KEY
     ?? serverEnvironment.OPENAI_API_KEY
     ?? "filosage-local-development";
   const key = await crypto.subtle.importKey(

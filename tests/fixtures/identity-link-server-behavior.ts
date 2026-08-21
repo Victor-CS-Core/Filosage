@@ -5,7 +5,7 @@ import {
   type AuthenticationAuditEvent,
 } from "../../src/lib/auth-audit.ts";
 import { requireProviderIdentity } from "../../src/lib/auth-server.ts";
-import type { StoredDocument } from "../../src/lib/firebase-server.ts";
+import type { StoredDocument } from "../../src/lib/document-store.ts";
 import {
   completeIdentityLinkIntent,
   createIdentityLinkIntent,

@@ -89,7 +89,7 @@ This offers more direct control over callbacks and sessions, but it replaces a w
 
 ### 4.3 Rejected: Keep direct Google and add a separate email authentication stack
 
-Filosage could retain direct Google Easy Auth and add Firebase email link, a custom email-code service, or another independent provider for email users.
+Filosage could retain direct Google Easy Auth and add a custom email-code service or another independent provider for email users.
 
 This creates two identity authorities and either two session mechanisms or a custom session broker. It increases duplicate-account risk, makes recent authentication inconsistent, complicates logout and recovery, and partially reverses the existing move to Azure-managed sessions. Building a bespoke code-delivery service would also violate the requirement not to reinvent authentication.
 

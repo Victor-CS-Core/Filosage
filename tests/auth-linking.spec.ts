@@ -275,9 +275,7 @@ test("local link fixtures accept only canonical UUID tokens and stay disabled ou
     const { verifyProviderIdentity } = await import("./src/lib/identity-server.ts");
     const runId = ${JSON.stringify(runId)};
     process.env.NODE_ENV = "development";
-    process.env.FIREBASE_PROJECT_ID = "";
-    process.env.FIREBASE_CLIENT_EMAIL = "";
-    process.env.FIREBASE_PRIVATE_KEY = "";
+    process.env.DATABASE_URL = "";
     const valid = await verifyProviderIdentity(\`playwright-link-google-\${runId}\`);
     const nearMisses = await Promise.all([
       verifyProviderIdentity(\`playwright-link-google-\${runId}0\`),

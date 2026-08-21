@@ -28,7 +28,7 @@ Fingerprint canonicalization recursively removed every property named `id`, so r
 
 Regression: nested relationship/capability ID mutation.
 
-Repair: only root Firestore metadata is omitted. Nested IDs participate in the validated and published snapshot.
+Repair: only root document metadata is omitted. Nested IDs participate in the validated and published snapshot.
 
 ### RC-4: failures leaked capacity and allowance; finalization was replay-unsafe (P1)
 
@@ -53,7 +53,7 @@ Repair: V2 introduces stable objective and assessment mappings, lab/visual plans
 - Claim-level retrieval, provenance, and automated claim-support validation are not implemented. Manual review can record verified primary/official source selection but cannot prove the generated claims are supported.
 - The semantic critic is intentionally skipped until it is calibrated against accepted/rejected fixtures; it cannot block today.
 - Semantic repair and a general typed patch language are not implemented. Automatic runtime repair is limited to two safe deterministic capability removals; missing/semantic content returns an explicit author/generation action.
-- Firestore-emulator tests have not yet proven duplicate-finalize, concurrent publish, immutable-release conflict, or stale repair transactions under real transaction scheduling.
+- PostgreSQL concurrency tests have not yet proven duplicate-finalize, concurrent publish, immutable-release conflict, or stale repair transactions under real transaction scheduling.
 - Non-Recognition interactions do not yet provide the same durable mastery/progress semantics.
 - No live 100-request full-generation evaluation, screenshot regression baseline, or real shadow/canary traffic baseline has been executed. Automated Axe checks do run on the critical manual-review and targeted-repair journeys.
 - The operations timeline exists as an authorized API, but no rendered maintainer dashboard, alert integration, or measured release thresholds exist.

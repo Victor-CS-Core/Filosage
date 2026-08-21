@@ -25,7 +25,7 @@ import {
   listOwnerCourses,
   listStoredDocumentsByField,
   runStoredDocumentTransaction,
-} from "@/lib/firebase-server";
+} from "@/lib/document-store";
 import { courseAuthorIdsForAccount } from "@/lib/course-owner-identity";
 
 const ACCOUNT_SUBCOLLECTION_LIMIT = 2_000;

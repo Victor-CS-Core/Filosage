@@ -2,6 +2,7 @@ import { expect, test } from "@playwright/test";
 import { existsSync, readFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import { spawnSync } from "node:child_process";
+import { RETIRED_SYSTEM_NAMES } from "./fixtures/retired-system-names";
 
 const require = createRequire(import.meta.url);
 const tsxCli = require.resolve("tsx/cli");
@@ -114,9 +115,9 @@ test("database migrations prefer the admin URL so app roles can stay least-privi
   expect(source).toContain("DATABASE_URL");
 });
 
-test("security and operations docs describe Azure backups instead of Firestore", () => {
-  expect(securityDoc).not.toContain("Managed Firestore export");
-  expect(securityDoc).not.toContain("live Firestore probe");
+test("security and operations docs describe Azure backups instead of the retired document store", () => {
+  expect(securityDoc).not.toContain(`Managed ${RETIRED_SYSTEM_NAMES[1][0].toUpperCase()}${RETIRED_SYSTEM_NAMES[1].slice(1)} export`);
+  expect(securityDoc).not.toContain(`live ${RETIRED_SYSTEM_NAMES[1][0].toUpperCase()}${RETIRED_SYSTEM_NAMES[1].slice(1)} probe`);
   expect(securityDoc).toContain("PostgreSQL Flexible Server");
   expect(securityDoc).toContain("seven-day");
   expect(productionOps).toContain("Blob versioning");

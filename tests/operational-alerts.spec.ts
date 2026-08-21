@@ -7,7 +7,7 @@ import {
 
 const event = {
   severity: "critical" as const,
-  code: "backup.firestore_failed",
+  code: "backup.postgres_failed",
   message: "The backup failed.",
   deduplicationKey: "operation-123",
   context: { projectId: "filosage", secret: "safe operational detail" },

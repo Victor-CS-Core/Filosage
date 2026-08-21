@@ -4,7 +4,7 @@ import { apiRequestErrorResponse, readJsonBody } from "@/lib/api-security";
 import {
   createStoredDocument,
   runStoredDocumentTransaction,
-} from "@/lib/firebase-server";
+} from "@/lib/document-store";
 import { isPaidLearnerPlan } from "@/lib/membership-plans";
 
 const userActionSchema = z.discriminatedUnion("action", [

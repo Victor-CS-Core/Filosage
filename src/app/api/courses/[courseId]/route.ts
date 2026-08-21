@@ -7,7 +7,7 @@ import {
   publishCourseWithReview,
   updateCourseVisibility,
   updateCoursePipelineStage,
-} from "@/lib/firebase-server";
+} from "@/lib/document-store";
 import { expectedLessonIds } from "@/lib/course-progress";
 import type { Course } from "@/lib/course-types";
 import { toCourseDto } from "@/lib/course-dto";

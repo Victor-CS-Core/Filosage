@@ -6,7 +6,7 @@
 
 **Architecture:** Microsoft Entra External ID owns Google federation, email-code delivery, credential verification, and the hosted sign-in page. Azure Container Apps Easy Auth remains the session boundary; Filosage parses only Azure-injected claims, resolves each issuer-qualified provider identity through HMAC-keyed registries to a canonical Filosage UID, and links an existing Google account only after recent proof of both identities. The current direct-Google provider stays available behind a separate server gate until migration evidence and an explicit retirement approval exist.
 
-**Tech Stack:** Next.js 16.2 App Router, React 19, TypeScript 5, Zod 4, Azure Container Apps Easy Auth, Microsoft Entra External ID, Bicep `Microsoft.App/containerApps/authConfigs@2025-01-01`, Key Vault-backed Container Apps secrets, the existing Firestore-compatible document transaction layer, Playwright 1.61, oxlint, ESLint.
+**Tech Stack:** Next.js 16.2 App Router, React 19, TypeScript 5, Zod 4, Azure Container Apps Easy Auth, Microsoft Entra External ID, Bicep `Microsoft.App/containerApps/authConfigs@2025-01-01`, Key Vault-backed Container Apps secrets, the existing Azure PostgreSQL document transaction layer, Playwright 1.61, oxlint, ESLint.
 
 **Spec:** `docs/superpowers/specs/2026-08-18-filosage-external-id-auth-design.md`
 
@@ -16,7 +16,7 @@
 - Start execution with `superpowers:using-git-worktrees`; create a clean worktree from the then-current verified `origin/main`, and bring in only the approved authentication spec and plan commits.
 - Preserve the user's unrelated changes in the named checkout. Never stage, commit, reset, delete, or move them.
 - Read the relevant Next.js 16.2 guides in `node_modules/next/dist/docs/` before editing Route Handlers, cookies, redirects, or authentication code. In this version, `cookies()` is asynchronous and cookies may be changed only in a Server Function or Route Handler.
-- Do not add Firebase Auth, MSAL Browser, Auth.js, a password store, an OTP endpoint, a token verifier, or an application-owned browser session.
+- Do not add MSAL Browser, Auth.js, a password store, an OTP endpoint, a token verifier, or an application-owned browser session.
 - `EXTERNAL_ID_AUTH_ENABLED=false`, `EXTERNAL_ID_NEW_ACCOUNTS_ENABLED=false`, and `DIRECT_GOOGLE_AUTH_ENABLED=true` are the default migration state.
 - Reject production configuration in which both External ID and direct Google are disabled.
 - Keep `BILLING_ENABLED=false` in Bicep, workflows, release checks, deployments, and verification evidence.
@@ -630,7 +630,7 @@ Create the beginning of `src/lib/identity-link-server.ts` as the only configurat
 ```ts
 import "server-only";
 
-import { getStoredDocument } from "@/lib/firebase-server";
+import { getStoredDocument } from "@/lib/document-store";
 import {
   IdentityRegistryConflictError,
   identityRegistryKeys as identityRegistryKeysWithSecret,
@@ -1295,8 +1295,6 @@ export function identityMaintenanceTarget(env: Record<string, string | undefined
     if (!server || !database) throw new Error("The PostgreSQL maintenance target is incomplete.");
     return `postgres:${server}/${database}`;
   }
-  const project = env.FIREBASE_PROJECT_ID?.trim();
-  if (project) return `firestore:${project}`;
   throw new Error("No supported identity-maintenance datastore is configured.");
 }
 
@@ -1322,7 +1320,7 @@ import {
   getStoredDocument,
   listCollectionDocumentsPage,
   runStoredDocumentTransaction,
-} from "../src/lib/firebase-server.ts";
+} from "../src/lib/document-store.ts";
 import {
   identityRegistrationWrites,
   planIdentityBackfill,
@@ -1392,7 +1390,7 @@ Create `scripts/prune-identity-link-intents.ts`:
 import {
   deleteStoredDocuments,
   listCollectionDocumentsPage,
-} from "../src/lib/firebase-server.ts";
+} from "../src/lib/document-store.ts";
 import { identityIntentPathsToPrune } from "../src/lib/identity-link-server.ts";
 import {
   assertIdentityMaintenanceWriteTarget,
@@ -1627,7 +1625,7 @@ function configuredLinkIntentPath(token: string) {
 Add the I/O functions to `identity-link-server.ts`:
 
 ```ts
-import { runStoredDocumentTransaction } from "@/lib/firebase-server";
+import { runStoredDocumentTransaction } from "@/lib/document-store";
 import { hasRecentAuthentication } from "@/lib/recent-auth";
 import { recordAuthenticationEvent } from "@/lib/auth-audit";
 
@@ -3323,7 +3321,7 @@ Create `docs/AUTH_EXTERNAL_ID_RUNBOOK.md`. The approval ledger has separate unch
 
 For each row record approver, approval time, operator, target tenant/subscription/resource group, change reference, and evidence link. Leave values blank; never guess an identifier or approval.
 
-The non-secret inventory records the tenant ID, tenant subdomain, user-flow ID, application client ID, exact issuer, exact discovery URL, named Easy Auth provider `filosage`, QA and production Container App names, callback URLs, Google OAuth client ID, the exact `postgres:server/database` or `firestore:project` maintenance target, and Key Vault secret *names and version identifiers only*. It explicitly forbids connection strings, secret values, cookies, authorization responses, raw claim headers, provider subjects, emails, and one-time codes.
+The non-secret inventory records the tenant ID, tenant subdomain, user-flow ID, application client ID, exact issuer, exact discovery URL, named Easy Auth provider `filosage`, QA and production Container App names, callback URLs, Google OAuth client ID, the exact `postgres:server/database` maintenance target, and Key Vault secret *names and version identifiers only*. It explicitly forbids connection strings, secret values, cookies, authorization responses, raw claim headers, provider subjects, emails, and one-time codes.
 
 - [ ] **Step 3: Document the approved External ID setup**
 

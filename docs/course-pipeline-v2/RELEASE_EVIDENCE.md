@@ -18,18 +18,18 @@ Date: 2026-08-11. Decision: **ready for an owner-only production canary, not for
 
 - Application build `d0155008c12354f6fb8bd2d0f4e9cdc66d7b14f5` was pushed to `origin/main` and the Sites-managed source before deployment. Sites version 114 deployed successfully with environment revision 84.
 - Exact-SHA production health passed on `https://filosage.com`, `https://www.filosage.com`, and `https://teach-app-victo.ktr0nn.chatgpt.site`.
-- Google same-tab redirect sign-in completed in the production browser with the owner account after registering both custom-domain OAuth callbacks and Firebase authorized domains.
+- Google same-tab redirect sign-in completed in the production browser with the owner account after registering both custom-domain OAuth callbacks and OAuth authorized origins.
 - The owner generated and inspected the complete course `Evidence-based product decisions for small software teams` (`06f9ad150a1cd1d7d9c311f82113f0af94141780d42a27ce24ff61679ced7c7a`): 4 modules, 12 generated lessons, and four-stage activity workspaces for every lesson.
 - Deterministic validation routed the exact snapshot to manual review only for the explicitly unexecuted semantic/claim-support, runtime-accessibility, and asset-availability lanes. The owner recorded a review reason on the exact hash, approved it, reran publication preflight, and published successfully.
 - The public course API returned 200 with `isPublic: true`. The authenticated immutable learner lesson returned 200, rendered its explanation and banner, and opened the four-stage activity workspace.
-- Recent production logs showed no 5xx responses during acceptance. Firestore contention on concurrent post-sign-in account reads was retried successfully and each associated request returned 200.
+- Recent production logs showed no 5xx responses during acceptance. Datastore contention on concurrent post-sign-in account reads was retried successfully and each associated request returned 200.
 - Production `BILLING_ENABLED` remained `false`.
 
 The application acceptance ran on `d0155008...`. The successor release-record commit contains documentation only and must still follow the same Git-first, Sites-second, exact-SHA deployment check.
 
 ## Authentication relay security evidence
 
-- The rejected broad external rewrite was removed. The deployed same-origin Firebase Auth relay only permits the configured `*.firebaseapp.com` authentication host.
+- The rejected broad external rewrite was removed. Azure Container Apps Easy Auth terminates Google OAuth before requests reach Next.js.
 - The relay does not forward cookies, authorization headers, or API keys; it forwards a small request-header allowlist, caps request bodies at 1 MiB, and applies a response-header allowlist.
 - The production `__/auth/iframe` relay returned 200 without frame-denial headers, while the rest of the application retained its normal security headers.
 - The Sites build completed without the external-rewrite credential-forwarding warning.
@@ -60,7 +60,7 @@ Owner-scoped flags enforce dependencies. `COURSE_PUBLICATION_V2` cannot activate
 - Automatic provider research, server source classification, outline grounding, and lesson claim-to-evidence evaluation are implemented for private creation as of 2026-08-14. Live calibration across adversarial factual domains is still required before describing the system as infallible or removing separate high-stakes publication controls.
 - The 100-request corpus proves deterministic routing/applicability invariants, not 100 live generated courses.
 - A certified request-bound research snapshot is persisted before outline generation and reused after a restart; incomplete or rejected provider research is never persisted as eligible evidence. Lessons remain independently resumable by saved lesson.
-- Firestore transaction callbacks are behaviorally covered, but a dedicated emulator race suite is still recommended.
+- document transaction callbacks are behaviorally covered, but a dedicated emulator race suite is still recommended.
 - An operator timeline API exists; measured alerts, shadow baselines, and general-cohort thresholds still require real traffic.
 
 These are blockers for cohort/general expansion, not hidden omissions. The canary must stay owner-only until they are resolved or supported by measured evidence.

@@ -1,7 +1,7 @@
 import "server-only";
 
 import type { Course, LessonData } from "@/lib/course-types";
-import { getCourse, getLesson, getStoredDocument } from "@/lib/firebase-server";
+import { getCourse, getLesson, getStoredDocument } from "@/lib/document-store";
 import { courseUsesPipelineV2 } from "@/lib/course-pipeline/feature-policy";
 
 export class PublishedReleaseUnavailableError extends Error {

@@ -3,7 +3,7 @@ import { apiRequestErrorResponse, assertTrustedMutation } from "@/lib/api-securi
 import {
   listStoredDocumentsByField,
   runStoredDocumentTransaction,
-} from "@/lib/firebase-server";
+} from "@/lib/document-store";
 import { enforceDurableRateLimit } from "@/lib/request-rate-limit";
 
 function referralCode() {

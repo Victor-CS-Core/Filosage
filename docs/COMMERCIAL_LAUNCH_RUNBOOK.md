@@ -15,7 +15,7 @@ This runbook prepares Filosage for paid plans without opening subscriptions. The
 Do not enable billing until all of the following are true:
 
 1. Production health checks pass against the intended release version.
-2. Managed Firestore backups are configured and a restore rehearsal has been completed in a non-production target.
+2. Managed Azure PostgreSQL backups are configured and a restore rehearsal has been completed in a non-production target.
 3. Critical operational alerts reach an independently monitored destination.
 4. Stripe Live products, monthly and annual prices, webhook endpoint, customer portal, tax behavior, and statement descriptor have been reviewed.
 5. The full lifecycle test matrix below passes with Stripe test objects.
@@ -44,14 +44,12 @@ This register is the consolidated source for unresolved release dependencies. A 
 
 ### Required before relying on production for valuable learner data
 
-- [ ] Configure `FIRESTORE_BACKUP_BUCKET` as a dedicated Google Cloud Storage bucket in the Firestore database location. Managed Firestore export/import requires Google Cloud billing and upgrades Firebase to Blaze; enabling it is a separate owner decision.
+- [ ] Confirm Azure PostgreSQL automated backups and seven-day point-in-time restore are configured for the production Flexible Server.
 - [ ] Complete one managed export and record its completed backup URI, release SHA, timestamp, and operator.
-- [ ] Restore the latest export into a separate non-production Firebase project and verify representative account, course, lesson, progress, publication, command-center, and entitlement records. Never rehearse restoration against production.
+- [ ] Restore the latest Azure PostgreSQL backup into a separate non-production recovery server and verify representative account, course, lesson, progress, publication, command-center, and entitlement records. Never rehearse restoration against production.
 - [ ] Approve a retention schedule covering backup retention, application records, audit evidence, consent records, support cases, deletion tombstones, and legally required holds.
 - [ ] Establish a resumable process for partially completed account deletion and a verified manual owner-account transfer or service-shutdown procedure.
 - [ ] Until these controls pass, treat production data as operationally under-protected and avoid collecting data whose loss cannot be accepted.
-
-Supabase migration is not a release dependency and is not a substitute for this gate. Any database migration requires its own schema, authentication, authorization, data-conversion, dual-run, rollback, and restore plan. A free Supabase project also requires independent logical exports because automatic daily backups are a paid-plan feature.
 
 ### Required before unattended or broader real-user operation
 
@@ -63,7 +61,7 @@ Supabase migration is not a release dependency and is not a substitute for this 
 - [ ] Confirm the support address is actively monitored and run a signed-in owner acceptance test for support intake, owner documentation, the content-report queue, command-center review-only drafts, and audit evidence on the exact hosted release.
 - [ ] Configure a transactional email provider and live-test consent, required notices, delivery, bounce handling, unsubscribe, suppression, cancellation confirmation, renewal, and failed-payment messaging before sending lifecycle email.
 - [ ] Verify backup and alert service-account permissions use the minimum required roles and that secrets are stored only in the hosted secret store.
-  - Automation evidence: `.github/workflows/firestore-backup.yml` is concurrency-locked, waits for completed export evidence, retains an artifact for 90 days, and alerts on both success and failure. A live run and recovery-project restore are still required before checking this gate.
+  - Automation evidence: `.github/workflows/azure-backup-evidence.yml` is concurrency-locked, waits for completed export evidence, retains an artifact for 90 days, and alerts on both success and failure. A live run and recovery-project restore are still required before checking this gate.
 
 ### Required before paid activation
 
@@ -88,7 +86,7 @@ Supabase migration is not a release dependency and is not a substitute for this 
 
 ## Course-generation release acceptance
 
-Before deploying a course-schema or generation-prompt change, use production-like Firebase and OpenAI credentials to create one private flagship course through the user interface. Record the course ID, release SHA, models, reviewer, and test time without copying secrets or private learner text. The acceptance record must confirm:
+Before deploying a course-schema or generation-prompt change, use production-like Azure and OpenAI credentials to create one private flagship course through the user interface. Record the course ID, release SHA, models, reviewer, and test time without copying secrets or private learner text. The acceptance record must confirm:
 
 1. The outline passes the current course quality gate and visibly advances one artifact through distinct milestones.
 2. At least one generated lesson for each of the six teaching modes opens, reloads, preserves its draft, and stores meaningful active-lesson evidence at completion.

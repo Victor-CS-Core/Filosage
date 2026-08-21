@@ -1,6 +1,6 @@
 import "server-only";
 
-import { createStoredDocument, putStoredDocument } from "@/lib/firebase-server";
+import { createStoredDocument, putStoredDocument } from "@/lib/document-store";
 import {
   PRODUCT_EVENT_SCHEMA_VERSION,
   type ProductEventRoute,

@@ -1,5 +1,6 @@
 import { expect, test } from "@playwright/test";
 import { mkdir, readdir, readFile } from "node:fs/promises";
+import { RETIRED_SYSTEM_NAMES } from "./fixtures/retired-system-names";
 import { extname, join } from "node:path";
 import { evaluateBadges } from "../src/lib/badges";
 import { normalizeDashboardPreferences } from "../src/lib/dashboard-preferences";
@@ -587,7 +588,7 @@ test("only upgrades insecure assets on an HTTPS request", () => {
   expect(securePolicy).not.toContain("ciamlogin.com");
   expect(securePolicy).not.toContain("login.microsoftonline.com");
   expect(securePolicy).not.toContain("graph.microsoft.com");
-  expect(securePolicy).not.toContain("firebaseio.com");
+  expect(securePolicy).not.toContain(`${RETIRED_SYSTEM_NAMES[2]}io.com`);
   expect(secureHeaders.some((header) => header.key === "Strict-Transport-Security")).toBe(true);
 });
 

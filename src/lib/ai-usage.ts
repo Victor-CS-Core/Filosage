@@ -10,7 +10,7 @@ import {
 import {
   getStoredDocument,
   runStoredDocumentTransaction,
-} from "@/lib/firebase-server";
+} from "@/lib/document-store";
 import { serverEnvironment } from "@/lib/runtime-environment";
 import { MEMBERSHIP_PLANS } from "@/lib/membership-plans";
 import {
@@ -452,7 +452,7 @@ export async function finalizeAiUsage(
       const request: Record<string, unknown> = documents[reservation.requestPath] ?? {};
       const userBudget: Record<string, unknown> = documents[reservation.userBudgetPath] ?? {};
       const global: Record<string, unknown> = documents[reservation.globalPath] ?? {};
-      // Firestore transactions can be replayed after an ambiguous client
+      // Document transactions can be replayed after an ambiguous client
       // response. Only the reservation owner may move this request out of the
       // reserved state; a repeated finalize must be a no-op so tokens, cost,
       // and product allowance are never applied twice.

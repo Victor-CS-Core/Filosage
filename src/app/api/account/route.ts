@@ -13,7 +13,7 @@ import { identityOnboardingState } from "@/lib/identity-link-server";
 import { PRIVACY_VERSION, TERMS_VERSION } from "@/lib/legal";
 import { capabilitiesForAccount } from "@/lib/membership-access";
 import { normalizeDisplayName, providerDisplayName } from "@/lib/display-name";
-import { runStoredDocumentTransaction } from "@/lib/firebase-server";
+import { runStoredDocumentTransaction } from "@/lib/document-store";
 
 const displayNameSchema = z.object({ displayName: z.string() }).strict();
 const privateNoStoreHeaders = { "Cache-Control": "private, no-store" };

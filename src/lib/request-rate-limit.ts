@@ -1,6 +1,6 @@
 import "server-only";
 
-import { runStoredDocumentTransaction } from "@/lib/firebase-server";
+import { runStoredDocumentTransaction } from "@/lib/document-store";
 import { serverEnvironment } from "@/lib/runtime-environment";
 
 interface RateLimitBucket extends Record<string, unknown> {

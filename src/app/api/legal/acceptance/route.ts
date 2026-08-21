@@ -3,7 +3,7 @@ import { apiRequestErrorResponse, readJsonBody } from "@/lib/api-security";
 import { authorizationResponse, requireUser } from "@/lib/auth-server";
 import { authenticationRuntimeConfiguration } from "@/lib/auth-runtime";
 import { isOwnerUser } from "@/lib/account-server";
-import { runStoredDocumentTransaction } from "@/lib/firebase-server";
+import { runStoredDocumentTransaction } from "@/lib/document-store";
 import {
   ExternalIdSignupUnavailableError,
   IdentityLinkRequiredError,
