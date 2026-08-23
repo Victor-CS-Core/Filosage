@@ -4,7 +4,7 @@ import {
   getStoredDocument,
   listStoredDocuments,
   runStoredDocumentTransaction,
-} from "@/lib/firebase-server";
+} from "@/lib/document-store";
 import { progressUpdateSchema, validationMessage } from "@/lib/validation";
 import type { CapstoneAssessment, CourseProgress, LessonProgress } from "@/lib/learning-types";
 import type { Course, LessonData } from "@/lib/course-types";

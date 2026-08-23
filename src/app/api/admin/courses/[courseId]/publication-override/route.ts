@@ -4,7 +4,7 @@ import { apiRequestErrorResponse, readJsonBody } from "@/lib/api-security";
 import { ContentSafetyError } from "@/lib/content-safety";
 import type { Course } from "@/lib/course-types";
 import { expectedLessonIds } from "@/lib/course-progress";
-import { getCourse, listLessons, publishCourseWithReview, updateCoursePipelineStage } from "@/lib/firebase-server";
+import { getCourse, listLessons, publishCourseWithReview, updateCoursePipelineStage } from "@/lib/document-store";
 import {
   PublicationReviewError,
   reviewCourseForOwnerOverride,

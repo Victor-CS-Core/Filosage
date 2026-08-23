@@ -1,5 +1,6 @@
 import { expect, test } from "@playwright/test";
 import { readFile } from "node:fs/promises";
+import { RETIRED_SYSTEM_NAMES } from "./fixtures/retired-system-names";
 import { assessCourseForPublication } from "../src/lib/publication-assessment";
 import { inspectCoursePublishReadiness } from "../src/lib/publication-readiness";
 import { publicationCandidateContentFingerprint, publicationContentFingerprint } from "../src/lib/publication-content";
@@ -188,7 +189,7 @@ test("reproduction: an inapplicable optional recognition lab cannot block a sche
 
 test("publication fingerprints include nested relationship and capability IDs", () => {
   const original = {
-    id: "firestore-document-id",
+    id: "stored-document-id",
     sourcePack: [{ id: "source-primary", label: "Primary source" }],
     interactions: [{ id: "interaction-classify", items: [{ id: "item-observation" }] }],
   };
@@ -538,7 +539,7 @@ test("publication and repair clients retain retry keys until a response succeeds
   const [coursePage, publishRoute, storage] = await Promise.all([
     readFile("src/app/course/[topic]/page.tsx", "utf8"),
     readFile("src/app/api/courses/[courseId]/route.ts", "utf8"),
-    readFile("src/lib/firebase-server.ts", "utf8"),
+    readFile("src/lib/document-store.ts", "utf8"),
   ]);
 
   expect(coursePage).toContain("repairRequestKeysRef.current.get(requestScope) ?? createClientId()");
@@ -640,7 +641,7 @@ test("manual-review resolution is snapshot-bound, owner-only, evidence-gated, au
   const [routeSource, reviewSource, storageSource, authoringSource] = await Promise.all([
     readFile("src/app/api/admin/courses/[courseId]/manual-review/route.ts", "utf8"),
     readFile("src/lib/publication-review.ts", "utf8"),
-    readFile("src/lib/firebase-server.ts", "utf8"),
+    readFile("src/lib/document-store.ts", "utf8"),
     readFile("src/app/course/[topic]/page.tsx", "utf8"),
   ]);
   expect(routeSource).toContain("requireRecentlyAuthenticatedOwner(request)");
@@ -666,7 +667,7 @@ test("manual-review resolution is snapshot-bound, owner-only, evidence-gated, au
 test("targeted repair is allowlisted, snapshot-bound, idempotent, and undo rejects newer lesson edits", async () => {
   const [routeSource, storageSource, repairSource] = await Promise.all([
     readFile("src/app/api/courses/[courseId]/repair/route.ts", "utf8"),
-    readFile("src/lib/firebase-server.ts", "utf8"),
+    readFile("src/lib/document-store.ts", "utf8"),
     readFile("src/lib/course-pipeline/repair.ts", "utf8"),
   ]);
   expect(routeSource).toContain("requireAcceptedAccount(request)");
@@ -1072,7 +1073,7 @@ test("legacy artifacts stay on V1 while V2 artifacts use actor-scoped active pat
 test("unpublish changes visibility and the V2 stage in one transaction", async () => {
   const [routeSource, storageSource] = await Promise.all([
     readFile("src/app/api/courses/[courseId]/route.ts", "utf8"),
-    readFile("src/lib/firebase-server.ts", "utf8"),
+    readFile("src/lib/document-store.ts", "utf8"),
   ]);
   expect(routeSource).toContain("await updateCourseVisibility(courseId, false)");
   expect(routeSource).not.toContain('updateCoursePipelineStage(courseId, "draft")');
@@ -1359,7 +1360,7 @@ test("Azure Easy Auth terminates Google OAuth before requests reach Next.js", as
     readFile("src/lib/auth-runtime.ts", "utf8"),
   ]);
   expect(nextConfigSource).toContain('source: "/:path*"');
-  expect(nextConfigSource).not.toContain("firebase-auth");
+  expect(nextConfigSource).not.toContain(`${RETIRED_SYSTEM_NAMES[2]}-auth`);
   expect(proxySource).toContain("api|assets|__|_next/static");
   expect(identitySource).toContain("easyAuthIdentityFromHeaders");
   expect(identitySource).toContain("authenticationRuntimeConfiguration");

@@ -4,12 +4,12 @@ import { resolve } from "node:path";
 import { BlobClient, BlobServiceClient } from "@azure/storage-blob";
 import { DefaultAzureCredential } from "@azure/identity";
 import pg from "pg";
-import { fromFirestoreFields, type FirestoreValue } from "../src/lib/firestore-values.ts";
+import { fromDocumentFields, type DocumentValue } from "../src/lib/document-values.ts";
 
 interface MigrationBundle {
   schemaVersion: 1 | 2;
   owner: { uid: string; email: string };
-  documents: Array<{ path: string; fields: Record<string, FirestoreValue> }>;
+  documents: Array<{ path: string; fields: Record<string, DocumentValue> }>;
   bannerObjects: Array<{ assetId: string; contentType: string; base64: string }>;
 }
 
@@ -33,7 +33,7 @@ const inputBlobArgument = process.argv.find((value) => value.startsWith("--input
 if (inputArgument && inputBlobArgument) throw new Error("Use either --input or --input-blob, not both.");
 const input = inputBlobArgument
   ? (await new BlobClient(inputBlobArgument, new DefaultAzureCredential()).downloadToBuffer()).toString("utf8")
-  : await readFile(resolve(inputArgument || "migration-private/firebase-authored-courses.json"), "utf8");
+  : await readFile(resolve(inputArgument || "migration-private/authored-courses.json"), "utf8");
 const bundle = JSON.parse(input) as MigrationBundle;
 if (![1, 2].includes(bundle.schemaVersion) || !Array.isArray(bundle.documents) || !Array.isArray(bundle.bannerObjects)) {
   throw new Error("Unsupported or invalid migration bundle.");
@@ -48,7 +48,7 @@ const bannerById = new Map(bundle.bannerObjects.map((object) => [object.assetId,
 if (bannerById.size !== bundle.bannerObjects.length) throw new Error("The migration bundle has duplicate banner objects.");
 
 const expected = new Map(bundle.documents.map((document) => {
-  const data = fromFirestoreFields(document.fields);
+  const data = fromDocumentFields(document.fields);
   const assetMatch = /^courseBannerAssets\/([^/]+)$/.exec(document.path);
   if (assetMatch && bannerById.has(assetMatch[1])) {
     delete data.data;

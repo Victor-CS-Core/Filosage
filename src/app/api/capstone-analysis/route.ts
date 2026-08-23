@@ -2,7 +2,7 @@ import { authorizationResponse, requirePlanCapability } from "@/lib/auth-server"
 import { buildAdvancedCapstoneAnalysis } from "@/lib/capstone-analysis";
 import { normalizeSuccessCriteria } from "@/lib/course-criteria";
 import { getCourseRuntimeArtifact, publishedReleaseUnavailableResponse } from "@/lib/course-pipeline/artifact-access";
-import { getStoredDocument } from "@/lib/firebase-server";
+import { getStoredDocument } from "@/lib/document-store";
 import type { Course } from "@/lib/course-types";
 import type { CapstoneAssessment } from "@/lib/learning-types";
 import { safeModelErrorDetails } from "@/lib/model-fallback";

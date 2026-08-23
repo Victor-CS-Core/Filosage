@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { authorizationResponse, requireAcceptedAccount } from "@/lib/auth-server";
 import { apiRequestErrorResponse, readJsonBody } from "@/lib/api-security";
-import { getStoredDocument, runStoredDocumentTransaction } from "@/lib/firebase-server";
+import { getStoredDocument, runStoredDocumentTransaction } from "@/lib/document-store";
 import { deriveLessonInteractions } from "@/lib/lesson-interactions";
 import {
   interactionDocumentId,

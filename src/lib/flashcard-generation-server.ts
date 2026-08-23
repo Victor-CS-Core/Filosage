@@ -6,7 +6,7 @@ import type { AiUsageSample } from "@/lib/ai-pricing";
 import { extractOpenAiUsage, openAiSafetyIdentifier } from "@/lib/ai-usage";
 import { assertSafeContent } from "@/lib/content-safety";
 import type { Course, LessonData } from "@/lib/course-types";
-import { getCourse, listAllStoredDocuments } from "@/lib/firebase-server";
+import { getCourse, listAllStoredDocuments } from "@/lib/document-store";
 import {
   flashcardEvaluationOutputSchema,
   flashcardGenerationInputSchema,

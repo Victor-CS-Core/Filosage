@@ -5,7 +5,7 @@ import {
   getStoredDocument,
   runStoredDocumentTransaction,
   type StoredDocument,
-} from "@/lib/firebase-server";
+} from "@/lib/document-store";
 import {
   assertFreshDirectGoogleLinkAuthentication,
   assertFreshExternalLinkAuthentication,

@@ -73,7 +73,7 @@ Dry run:
 Live run (PowerShell):
   $env:MODEL_QUALITY_EVAL_LIVE="1"
   $env:MODEL_QUALITY_EVAL_BASE_URL="http://127.0.0.1:3000"
-  $env:MODEL_QUALITY_EVAL_AUTH_TOKEN="<short-lived Firebase owner ID token>"
+  $env:MODEL_QUALITY_EVAL_AUTH_TOKEN="<short-lived owner session token>"
   npm run eval:model-quality
 
 Optional:
@@ -171,7 +171,7 @@ async function run() {
     throw new Error("Refusing to spend model quota. Set MODEL_QUALITY_EVAL_LIVE=1 or use --dry-run.");
   }
   const token = process.env.MODEL_QUALITY_EVAL_AUTH_TOKEN?.trim();
-  if (!token) throw new Error("MODEL_QUALITY_EVAL_AUTH_TOKEN must be a short-lived Firebase owner ID token.");
+  if (!token) throw new Error("MODEL_QUALITY_EVAL_AUTH_TOKEN must be a short-lived owner session token.");
   const baseUrl = new URL(process.env.MODEL_QUALITY_EVAL_BASE_URL || "http://127.0.0.1:3000");
   if (isProductionHost(baseUrl) && process.env.MODEL_QUALITY_EVAL_ALLOW_PRODUCTION !== "1") {
     throw new Error("Refusing to mutate a production host. Use a preview/local environment, or explicitly set MODEL_QUALITY_EVAL_ALLOW_PRODUCTION=1.");

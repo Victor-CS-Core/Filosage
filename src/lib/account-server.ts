@@ -2,7 +2,7 @@ import "server-only";
 
 import {
   runStoredDocumentTransaction,
-} from "@/lib/firebase-server";
+} from "@/lib/document-store";
 import type { VerifiedUser } from "@/lib/identity-server";
 import { isLocalMode, LOCAL_OWNER_UID } from "@/lib/local-mode";
 import type { AccessLevel, AccountStatus, LearnerPlan } from "@/lib/course-types";

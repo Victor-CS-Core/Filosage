@@ -64,7 +64,7 @@ test("owner override remains a dedicated, recently authenticated, audited qualit
   const [routeSource, reviewSource, storageSource, generationSource] = await Promise.all([
     readFile("src/app/api/admin/courses/[courseId]/publication-override/route.ts", "utf8"),
     readFile("src/lib/publication-review.ts", "utf8"),
-    readFile("src/lib/firebase-server.ts", "utf8"),
+    readFile("src/lib/document-store.ts", "utf8"),
     readFile("src/app/api/generate-lesson/route.ts", "utf8"),
   ]);
 

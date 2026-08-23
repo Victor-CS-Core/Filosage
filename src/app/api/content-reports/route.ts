@@ -4,7 +4,7 @@ import { authorizationResponse, requireAccount } from "@/lib/auth-server";
 import {
   listStoredDocumentsByField,
   quarantineCourse,
-} from "@/lib/firebase-server";
+} from "@/lib/document-store";
 import { enforceDurableRateLimit } from "@/lib/request-rate-limit";
 import type { Course } from "@/lib/course-types";
 import { reportOperationalEvent } from "@/lib/operational-alerts";

@@ -1,6 +1,6 @@
 # Filosage production operations
 
-Updated: 2026-08-13
+Updated: 2026-08-21
 
 Filosage runs on Azure Container Apps with PostgreSQL Flexible Server, Blob Storage, Key Vault, Container Registry, Log Analytics, and Azure Monitor. Google sign-in uses Container Apps built-in authentication (Easy Auth). Git publication, an Azure candidate deployment, and traffic promotion are separate release states.
 
@@ -49,6 +49,7 @@ Never overwrite the slot carrying live traffic. Deploy the next candidate to the
 ## Backups and restore
 
 - PostgreSQL Flexible Server retains seven days of automated backups. The current low-cost `Standard_B1ms` configuration has no high availability and does not support an operator-triggered on-demand backup.
+- Blob versioning and seven-day blob/container soft-delete protect course banners. PostgreSQL point-in-time restore does not restore Blob objects.
 - Before a consequential data or schema change, confirm the recovery window and choose an available restore point.
 - Never test a restore against the active server. Restore to a separate private recovery server in the same virtual network and private DNS zone.
 - Run the authored-course verifier against the recovery database and compare its exact document/banner counts and content fingerprint with the accepted source evidence.

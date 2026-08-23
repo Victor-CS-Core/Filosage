@@ -24,7 +24,7 @@ function stablePublicationValue(value: unknown, depth = 0): unknown {
   if (!value || typeof value !== "object") return value;
   return Object.fromEntries(
     Object.entries(value as Record<string, unknown>)
-      // Firestore document metadata is ignored only at the document root.
+      // Stored document metadata is ignored only at the document root.
       // Nested IDs are course content: changing a source, objective, lab, or
       // interaction ID must invalidate the reviewed snapshot.
       .filter(([key]) => depth > 0 || !OMITTED_ROOT_PUBLICATION_FIELDS.has(key))
@@ -41,7 +41,7 @@ export function publicationCandidateContentFingerprint(
   course: unknown,
   lessons: unknown[],
 ) {
-  // A candidate contains several Firestore documents. Canonicalize each
+  // A candidate contains several stored documents. Canonicalize each
   // document as a root so publication-only metadata never contaminates the
   // immutable content hash, while nested relationship IDs remain content.
   return JSON.stringify({

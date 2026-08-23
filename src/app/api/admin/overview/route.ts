@@ -5,7 +5,7 @@ import {
   listAllStoredDocuments,
   listCollectionDocumentsByRange,
   listStoredDocumentsByField,
-} from "@/lib/firebase-server";
+} from "@/lib/document-store";
 import type {
   AdminFeatureUsage,
   AdminOverview,

@@ -8,7 +8,7 @@ import {
   listCollectionGroupDocumentsByField,
   putStoredDocuments,
   runStoredDocumentTransaction,
-} from "@/lib/firebase-server";
+} from "@/lib/document-store";
 import { flashcardFeatureConfiguration } from "@/lib/flashcard-feature";
 import {
   FLASHCARD_CARD_LIMIT,

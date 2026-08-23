@@ -4,7 +4,7 @@ import { apiRequestErrorResponse, readJsonBody } from "@/lib/api-security";
 import {
   getStoredDocument,
   runStoredDocumentTransaction,
-} from "@/lib/firebase-server";
+} from "@/lib/document-store";
 import { enforceDurableRateLimit } from "@/lib/request-rate-limit";
 import { isPaidLearnerPlan, offerFor, paidPlanFor } from "@/lib/membership-plans";
 import { PRODUCT_EVENT_SCHEMA_VERSION } from "@/lib/product-events";

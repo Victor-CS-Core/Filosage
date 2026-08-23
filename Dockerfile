@@ -37,11 +37,12 @@ COPY --from=builder --chown=nextjs:nodejs /app/public ./public
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 COPY --from=production-dependencies --chown=nextjs:nodejs /app/node_modules ./node_modules
+COPY --from=builder --chown=nextjs:nodejs /app/scripts/provision-azure-postgres-roles.ts ./scripts/provision-azure-postgres-roles.ts
 COPY --from=builder --chown=nextjs:nodejs /app/scripts/migrate-azure-database.ts ./scripts/migrate-azure-database.ts
 COPY --from=builder --chown=nextjs:nodejs /app/scripts/import-azure-authored-courses.ts ./scripts/import-azure-authored-courses.ts
 COPY --from=builder --chown=nextjs:nodejs /app/scripts/verify-azure-authored-courses.ts ./scripts/verify-azure-authored-courses.ts
-COPY --from=builder --chown=nextjs:nodejs /app/src/lib/firestore-values.ts ./src/lib/firestore-values.ts
+COPY --from=builder --chown=nextjs:nodejs /app/src/lib/document-values.ts ./src/lib/document-values.ts
 COPY --from=builder --chown=nextjs:nodejs /app/infra/azure/database ./infra/azure/database
 USER nextjs
 EXPOSE 3000
-CMD ["sh", "-c", "node --experimental-strip-types scripts/migrate-azure-database.ts && exec node server.js"]
+CMD ["sh", "-c", "node --experimental-strip-types scripts/provision-azure-postgres-roles.ts && node --experimental-strip-types scripts/migrate-azure-database.ts && exec node server.js"]

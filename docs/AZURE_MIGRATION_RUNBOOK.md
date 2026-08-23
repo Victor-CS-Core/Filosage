@@ -27,10 +27,11 @@ Production uses two labeled Container Apps revisions. One label receives 100% of
 | Data | PostgreSQL database `filosageqa` | PostgreSQL database `filosage` |
 | Banners | private container `qa-course-banners` | private container `course-banners` |
 | Scaling | 0-1 replicas | blue/green revisions; active traffic plus rollback |
+| Owner | Azure customer account `ktr0nn@icloud.com` | Verified Google account `viticopq12@gmail.com` |
 | Search indexing | `robots.txt` disallow plus `X-Robots-Tag: noindex` | public indexing rules |
 | Billing | disabled | disabled until an explicit owner launch decision |
 
-Both environments retain `viticopq12@gmail.com` as the server-side owner boundary. QA intentionally shares the Google OAuth client and OpenAI Key Vault secret, but its OAuth callback, datastore, storage container, managed identity, and activity-receipt secret are separately scoped.
+Both environments keep billing disabled. QA owner access is the verified Azure customer-account email `ktr0nn@icloud.com`. Production owner access remains the verified Google account `viticopq12@gmail.com`. QA shares the Google OAuth client and OpenAI Key Vault secret, but its OAuth callback, datastore, storage container, managed identity, database role, and activity-receipt secret are separately scoped.
 
 ## Gate 1: local implementation
 
@@ -58,7 +59,7 @@ The selected subscription is `Azure subscription 1` and the selected region is C
 
 The resource group is `filosage-staging-central-rg`; its historical name is retained to avoid a disruptive rename. Production is `filosagestg-app`. QA is defined by `infra/azure/qa.bicep`. Azure rejected ACR Tasks for this subscription, so GitHub Actions builds on a hosted runner and pushes to ACR using short-lived OIDC. `AcrPush` is scoped to the registry and `Container Apps Contributor` is assigned separately to the production and QA app resources. Pass the GitHub OIDC service-principal object ID as `deploymentPrincipalId` when provisioning QA so this least-privilege assignment remains reproducible. The existing QA assignment was bootstrapped as `cdb56bcd-884d-4b49-b606-71d474bcd931`; pass that value as `deploymentRoleAssignmentName` when reconciling this environment, while a fresh environment may omit it. Never place parameter secrets in a committed parameter file or command history.
 
-The PostgreSQL template enables private networking, seven-day automated backup retention, and no high availability for the inexpensive pre-release staging environment. Burstable Flexible Server does not support on-demand backups. Production requires a renewed cost/reliability decision.
+The PostgreSQL template enables private networking, seven-day automated backup retention, least-privilege `filosage_app` and `filosageqa_app` logins, and no high availability for the inexpensive pre-release environment. Isolated QA never receives the server administrator password. Burstable Flexible Server does not support on-demand backups. Production requires a renewed cost/reliability decision.
 
 ## Gate 4: identity
 
@@ -66,26 +67,22 @@ Create a dedicated Google Web OAuth client for Azure Container Apps. Register th
 
 Enable the Container Apps auth platform with Google as the sole provider, HTTPS required, token storage disabled, and `AllowAnonymous` so public learning remains available without adding a token-storage account. The application starts sign-in at `/.auth/login/google`, reads the Azure-injected principal through its same-origin `/api/auth/session` endpoint, and signs out at `/.auth/logout`. Protected routes accept only the Google principal injected by the auth sidecar. `OWNER_EMAIL=viticopq12@gmail.com` remains the exact server-side owner boundary.
 
-The migrated course documents intentionally retain their legacy Firebase author UID so their canonical migration fingerprint remains stable. Store that UID as the Key Vault-backed `MIGRATED_OWNER_UID` setting. Only the exact verified owner account may resolve this alias; other Google accounts remain restricted to their own author UID.
+The migrated course documents intentionally retain their migrated owner UID so their canonical migration fingerprint remains stable. Store that UID as the Key Vault-backed `MIGRATED_OWNER_UID` setting. Only the exact verified owner account may resolve this alias; other Google accounts remain restricted to their own author UID.
 
 Verify owner sign-in, learner sign-in, sign-out, canceled sign-in, expired session, spoofed-header rejection, and non-owner authorization. Account deletion remains fail-closed until live Google claims prove that Azure supplies a recent `auth_time`; do not substitute token issue time or a browser-only marker for that proof.
 
 ## Gate 5: authored-course migration
 
-Export refuses an unresolved owner or missing object-backed banner:
+The authored-course cutover is complete. Import remaining private bundles only with the Azure PostgreSQL importer; do not reintroduce a source-datastore export process.
 
-```powershell
-npm.cmd run migrate:azure:export-courses -- --source-url=https://CURRENT_HOST
-```
-
-The bundle is written under `migration-private/`, which is gitignored and must not be shared. Review the reported course, lesson, and banner counts. The importer is a dry run unless `--apply` is present:
+The importer is a dry run unless `--apply` is present:
 
 ```powershell
 npm.cmd run migrate:azure:import-courses
 npm.cmd run migrate:azure:import-courses -- --apply
 ```
 
-The Azure importer is create-only: it fails if any target document or blob already exists. Import only after the PostgreSQL schema migration has completed and the operator has verified the target connection. The verified source bundle contains 9 owner-authored courses, 106 lessons, 9 referenced banners, 133 allowlisted documents total, and no user/progress/analytics paths. The legacy Firebase data was not deleted.
+The Azure importer is create-only: it fails if any target document or blob already exists. Import only after the PostgreSQL schema migration has completed and the operator has verified the target connection. The verified source bundle contains 9 owner-authored courses, 106 lessons, 9 referenced banners, 133 allowlisted documents total, and no user/progress/analytics paths. The previous source datastore was not used after cutover.
 
 The initial export omitted the immutable `courseReleases` referenced by eight published roots. The preserved 133-document source bundle was completed into a separate private schema-v2 bundle. Completion deterministically derived 8 release roots and 100 released lessons only from the verified published source documents, wrote the private output create-only, and left every source record unchanged. Azure execution `filosagestg-course-verify-pkw9pp1` inserted exactly those 108 missing release documents after confirming all 133 existing records matched. Independent execution `filosagestg-course-verify-19doyvc` then verified all 241 PostgreSQL documents plus all 9 Blob bytes and MIME types, found no unexpected records, and produced content fingerprint `ac8660234fb84eeadb5ea7d04f1fc8310c6d14863b34b46858f9c1414a6afaaf`.
 

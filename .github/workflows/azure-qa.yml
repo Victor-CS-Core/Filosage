@@ -6,12 +6,12 @@ on:
       external_id_auth_enabled:
         description: Open the application acceptance gate only after the filosage Easy Auth provider is separately approved, configured, and enabled
         required: true
-        default: false
+        default: true
         type: boolean
       external_id_new_accounts_enabled:
         description: Permit QA-only new External ID accounts after registry preflight
         required: true
-        default: false
+        default: true
         type: boolean
 
 permissions:
@@ -133,6 +133,7 @@ jobs:
               "DIRECT_GOOGLE_AUTH_ENABLED=true" \
               "EXTERNAL_ID_AUTH_ENABLED=${{ inputs.external_id_auth_enabled }}" \
               "EXTERNAL_ID_NEW_ACCOUNTS_ENABLED=${{ inputs.external_id_new_accounts_enabled }}" \
+              "OWNER_EMAIL=ktr0nn@icloud.com" \
               "BILLING_ENABLED=false"
 
       - name: Verify separately configured QA authentication state after deployment

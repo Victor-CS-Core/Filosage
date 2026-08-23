@@ -5,7 +5,7 @@ import {
   listAllStoredDocuments,
   putStoredDocument,
   putStoredDocuments,
-} from "@/lib/firebase-server";
+} from "@/lib/document-store";
 import {
   learnerPreferencesSchema,
   learnerStateSchema,

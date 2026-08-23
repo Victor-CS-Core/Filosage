@@ -125,7 +125,7 @@ Discord messages must not show:
 - full email bodies or attachments;
 - full sender email addresses;
 - private learner text;
-- account, Firebase, Stripe, or internal record IDs;
+- account, Stripe, or internal record IDs;
 - legal allegations or sensitive privacy-request details;
 - payment amounts or payment credentials;
 - secrets, tokens, prompts, or model inputs.
@@ -221,7 +221,7 @@ Each material pass must cover all six perspectives, whether performed by separat
 
 Work:
 
-- Re-audit the current Command Center, alert sender, runtime configuration, Firestore helpers, support intake, content reports, Stripe webhook, and Sites runtime.
+- Re-audit the current Command Center, alert sender, runtime configuration, document-store helpers, support intake, content reports, Stripe webhook, and Sites runtime.
 - Re-check current Apple, Discord, and candidate inbound-provider documentation.
 - Record the owner-approved provider, retention policy, channel map, notification fields, response times, and automatic-draft eligibility.
 - Create fixtures for support email, legal email, duplicate delivery, spoofed webhook, prompt injection, attachments, and Discord failure.

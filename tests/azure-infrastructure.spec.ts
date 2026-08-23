@@ -5,6 +5,7 @@ import { createRequire } from "node:module";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { courseAuthorIdsForAccount } from "../src/lib/course-owner-identity";
+import { RETIRED_SYSTEM_NAMES } from "./fixtures/retired-system-names";
 
 type ArmTemplate = {
   parameters: Record<string, { type: string; defaultValue?: unknown }>;
@@ -137,9 +138,9 @@ test("production release validation requires Azure services and Easy Auth", () =
   expect(releaseSource).toContain('"DATABASE_URL"');
   expect(releaseSource).toContain('"AZURE_EASY_AUTH_ENABLED"');
   expect(releaseSource).toContain('"AZURE_STORAGE_ACCOUNT_URL"');
-  expect(releaseSource).not.toContain('"NEXT_PUBLIC_FIREBASE_API_KEY"');
+  expect(releaseSource).not.toContain(`"NEXT_PUBLIC_${RETIRED_SYSTEM_NAMES[2].toUpperCase()}_API_KEY"`);
   expect(releaseSource).not.toContain('"NEXT_PUBLIC_ENTRA_CLIENT_ID"');
-  expect(releaseSource).not.toContain('"FIRESTORE_BACKUP_BUCKET"');
+  expect(releaseSource).not.toContain(`"${RETIRED_SYSTEM_NAMES[1].toUpperCase()}_BACKUP_BUCKET"`);
 });
 
 test("Azure status avoids presenting configuration as invoice or restore proof", () => {
@@ -349,7 +350,7 @@ test("customer sign-in delegates directly to Azure Container Apps Easy Auth", ()
 });
 
 test("browser authentication uses the Azure-managed session without an auth SDK or client secret", () => {
-  expect(packageSource).not.toContain('"firebase"');
+  expect(packageSource).not.toContain(`"${RETIRED_SYSTEM_NAMES[2]}"`);
   expect(packageSource).not.toContain('"@azure/msal-browser"');
   expect(identityClientSource).toContain('credentials: "same-origin"');
   expect(identityClientSource).not.toMatch(/client[_-]?secret/i);
@@ -364,13 +365,17 @@ test("the API reads managed Easy Auth identities and keeps owner access behind a
 });
 
 test("compiled Azure templates provision direct Google and an inactive Filosage OIDC provider", () => {
+  expect(compiledProductionTemplate.parameters.directGoogleAuthEnabled.defaultValue).toBe(true);
+  expect(compiledProductionTemplate.parameters.externalIdAuthEnabled.defaultValue).toBe(false);
+  expect(compiledProductionTemplate.parameters.externalIdNewAccountsEnabled.defaultValue).toBe(false);
+  expect(compiledQaTemplate.parameters.directGoogleAuthEnabled.defaultValue).toBe(true);
+  expect(compiledQaTemplate.parameters.externalIdAuthEnabled.defaultValue).toBe(true);
+  expect(compiledQaTemplate.parameters.externalIdNewAccountsEnabled.defaultValue).toBe(true);
+  expect(compiledQaTemplate.parameters.ownerEmail.defaultValue).toBe("ktr0nn@icloud.com");
   for (const [template, compiled] of [
     [compiledProductionTemplate, compiledProductionJson],
     [compiledQaTemplate, compiledQaJson],
   ] as const) {
-    expect(template.parameters.directGoogleAuthEnabled.defaultValue).toBe(true);
-    expect(template.parameters.externalIdAuthEnabled.defaultValue).toBe(false);
-    expect(template.parameters.externalIdNewAccountsEnabled.defaultValue).toBe(false);
     expect(compiled).toContain("customOpenIdConnectProviders");
     expect(compiled).toContain("filosage");
     expect(compiled).toContain("ClientSecretPost");
@@ -480,14 +485,14 @@ test("QA activation is explicit while production staging cannot enable External 
   expect(stagingWorkflowSource).not.toContain("external_id_new_accounts_enabled:");
 });
 
-test("only the verified owner inherits the legacy Firebase course-author identity", () => {
+test("only the verified owner inherits the migrated course-author identity", () => {
   expect(courseAuthorIdsForAccount(
     { uid: "google-owner-subject", isOwner: true },
-    "firebase-owner-uid",
-  )).toEqual(["google-owner-subject", "firebase-owner-uid"]);
+    "migrated-owner-uid",
+  )).toEqual(["google-owner-subject", "migrated-owner-uid"]);
   expect(courseAuthorIdsForAccount(
     { uid: "google-learner-subject", isOwner: false },
-    "firebase-owner-uid",
+    "migrated-owner-uid",
   )).toEqual(["google-learner-subject"]);
   expect(courseAuthorIdsForAccount(
     { uid: "same-id", isOwner: true },
@@ -568,7 +573,7 @@ test("production staging accepts only the exact image already approved in QA", (
   expect(stagingWorkflowSource).toContain('if [[ "${ACTIVE_WEIGHT:-0}" != "0" ]]');
   expect(stagingWorkflowSource).toContain("az containerapp revision label add");
   expect(stagingWorkflowSource).toContain('"AZURE_EASY_AUTH_ENABLED=true"');
-  expect(stagingWorkflowSource).not.toContain("NEXT_PUBLIC_FIREBASE_API_KEY");
+  expect(stagingWorkflowSource).not.toContain(`NEXT_PUBLIC_${RETIRED_SYSTEM_NAMES[2].toUpperCase()}_API_KEY`);
   expect(stagingWorkflowSource).not.toContain("docker build");
   expect(stagingWorkflowSource).toContain('npm run check:production -- "${TARGET_URL}" "${EXPECTED_SHA}" "${PUBLIC_SITE_URL}"');
 });

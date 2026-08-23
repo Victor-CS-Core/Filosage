@@ -1,6 +1,6 @@
 # Repair Protocol
 
-Machine source: `src/lib/course-pipeline/repair.ts`, `schemas.ts`, `src/app/api/courses/[courseId]/repair/route.ts`, and the repair transactions in `src/lib/firebase-server.ts`.
+Machine source: `src/lib/course-pipeline/repair.ts`, `schemas.ts`, `src/app/api/courses/[courseId]/repair/route.ts`, and the repair transactions in `src/lib/document-store.ts`.
 
 ## Required sequence
 
@@ -17,7 +17,7 @@ The implemented deterministic limit is one pass per automatic issue code and is 
 
 ## Current safe automatic scope
 
-`POST /api/courses/[courseId]/repair` is flag-gated and applies only three deterministic, allowlisted changes: remove an unsupported lab (`CQ_LAB_001`), add a text fallback for an essential visual from the lesson's existing validated objective, summary, rationale, and takeaways (`CQ_VISUAL_001`), or remove an unsupported visual (`CQ_VISUAL_003`). It binds the plan to the aggregate snapshot and every course/lesson fingerprint, applies inside a Firestore transaction, writes before/after audit data, fully revalidates, and provides undo that refuses to overwrite newer edits. A missing lesson returns `LESSON_GENERATION_REQUIRED` instead of replacing unrelated content.
+`POST /api/courses/[courseId]/repair` is flag-gated and applies only three deterministic, allowlisted changes: remove an unsupported lab (`CQ_LAB_001`), add a text fallback for an essential visual from the lesson's existing validated objective, summary, rationale, and takeaways (`CQ_VISUAL_001`), or remove an unsupported visual (`CQ_VISUAL_003`). It binds the plan to the aggregate snapshot and every course/lesson fingerprint, applies inside a document transaction, writes before/after audit data, fully revalidates, and provides undo that refuses to overwrite newer edits. A missing lesson returns `LESSON_GENERATION_REQUIRED` instead of replacing unrelated content.
 
 The authoring UI does not expose whole-course or whole-lesson regeneration as repair. It offers `Apply safe fixes` only when the current report contains one of the three allowlisted deterministic defects, explains that lesson text and author edits are preserved, and retains undo. All other blockers link to the affected lesson or require an explicit human decision. Snapshot staleness triggers revalidation rather than pretending to be a content repair.
 

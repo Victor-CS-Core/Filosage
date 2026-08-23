@@ -2,9 +2,10 @@
 
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
-import { Cloud, X } from "lucide-react";
+import { Cloud, Mail, X } from "lucide-react";
 import { useAuth } from "@/components/AuthProvider";
 import FilosageMark from "@/components/FilosageMark";
+import GoogleMark from "@/components/GoogleMark";
 import { trackProductEvent } from "@/lib/product-analytics";
 
 interface AuthModalProps {
@@ -119,13 +120,25 @@ export default function AuthModal({ onClose, returnFocus }: AuthModalProps) {
         : primaryAvailable
           ? "Sign in to an existing account to open lessons and keep your saved learning in sync. You can browse every published course outline without signing in."
           : "Sign-in is unavailable right now. You can still browse published topics and inspect every course outline."}</p>
-      <div className="auth-identity"><Cloud size={16} /><span>{identityCopy}</span></div>
+      <div className="auth-identity">
+        <span className="auth-identity-marks" aria-hidden="true">
+          {identityCopy.includes("Google") ? <GoogleMark /> : null}
+          {/email/i.test(identityCopy) ? <Mail size={16} /> : null}
+          {identityCopy.includes("Google") || /email/i.test(identityCopy) ? null : <Cloud size={16} />}
+        </span>
+        <span className="auth-identity-copy">{identityCopy}</span>
+      </div>
       {(error || acceptanceError) && <p className="form-error" role="alert">{error ?? acceptanceError}</p>}
       {createsAccount && <label className="legal-check">
         <input type="checkbox" checked={agreed} onChange={(event) => setAgreed(event.target.checked)} />
         <span>I confirm I am at least 13 and, if I am not yet the age of legal majority where I live, that my parent or guardian has reviewed and agreed to the <Link href="/terms" target="_blank">Terms of Service</Link>. I acknowledge the <Link href="/privacy" target="_blank">Privacy Notice</Link>.</span>
       </label>}
-      <button className="button button-primary auth-submit" onClick={() => void handleSecureContinue()} disabled={redirecting || !primaryAvailable || (createsAccount && !agreed)}>
+      <button
+        className={`button ${primaryProvider === "google" ? "button-google" : "button-primary"} auth-submit`}
+        onClick={() => void handleSecureContinue()}
+        disabled={redirecting || !primaryAvailable || (createsAccount && !agreed)}
+      >
+        {primaryProvider === "google" ? <GoogleMark /> : null}
         {redirecting ? "Opening secure sign-in…" : primaryProvider === "filosage" ? createsAccount ? "Continue securely" : "Sign in with email code" : primaryProvider === "google" ? "Continue with Google" : "Sign-in unavailable"}
       </button>
       <p className="auth-redirect-help">{primaryProvider === "filosage"
@@ -134,7 +147,8 @@ export default function AuthModal({ onClose, returnFocus }: AuthModalProps) {
           ? "Microsoft securely manages sign-in. Filosage never sees your Google password."
           : "Your learning data has not changed. You can keep browsing published course outlines."}</p>
       {googleAlternate && (
-        <button className="button button-secondary auth-redirect" onClick={() => void handleExistingGoogle()} disabled={redirecting}>
+        <button className="button button-google auth-redirect" onClick={() => void handleExistingGoogle()} disabled={redirecting}>
+          <GoogleMark />
           Use my existing Google sign-in
         </button>
       )}

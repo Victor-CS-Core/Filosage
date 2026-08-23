@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { zodTextFormat } from "openai/helpers/zod";
 import { aiClient } from "@/lib/local-ai";
 import { authorizationResponse, requireAcceptedAccount } from "@/lib/auth-server";
-import { getStoredDocument, putStoredDocument } from "@/lib/firebase-server";
+import { getStoredDocument, putStoredDocument } from "@/lib/document-store";
 import type { Course } from "@/lib/course-types";
 import type { BaselineAssessment } from "@/lib/learning-types";
 import {

@@ -289,9 +289,11 @@ test("write confirmation identifies the datastore without exposing its credentia
 });
 
 test("write confirmation requires a named operational environment", () => {
-  const target = "firestore:filosage-qa";
+  const target = identityMaintenanceTarget({
+    DATABASE_URL: "postgresql://operator:private-value@qa-db.example:5432/filosageqa",
+  });
 
-  expect(identityMaintenanceTarget({ FIREBASE_PROJECT_ID: "filosage-qa" })).toBe(target);
+  expect(target).toBe("postgres:qa-db.example/filosageqa");
   expect(() => assertIdentityMaintenanceWriteTarget(
     ["--apply", `--expected-target=${target}`],
     target,

@@ -5,7 +5,7 @@ import {
   listAllStoredDocuments,
   putStoredDocument,
   runStoredDocumentTransaction,
-} from "@/lib/firebase-server";
+} from "@/lib/document-store";
 import { apiRequestErrorResponse, readJsonBody } from "@/lib/api-security";
 import {
   BASELINE_LEVELS,

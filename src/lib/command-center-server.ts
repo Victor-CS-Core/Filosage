@@ -55,7 +55,7 @@ import {
   runStoredDocumentTransaction,
   type StoredDocument,
   type StoredDocumentPage,
-} from "@/lib/firebase-server";
+} from "@/lib/document-store";
 
 const TICKETS = "commandCenterTickets";
 const APPROVALS = "commandCenterApprovals";

@@ -3,7 +3,7 @@ import { apiRequestErrorResponse, assertTrustedMutation, readJsonBody } from "@/
 import {
   getStoredDocument,
   putStoredDocument,
-} from "@/lib/firebase-server";
+} from "@/lib/document-store";
 import { enforceDurableRateLimit } from "@/lib/request-rate-limit";
 import { recordServerProductEvent } from "@/lib/product-events-server";
 

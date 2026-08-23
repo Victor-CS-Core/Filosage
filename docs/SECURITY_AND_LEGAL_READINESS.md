@@ -1,23 +1,23 @@
 # Filosage security and legal readiness
 
-Updated: 2026-08-03
+Updated: 2026-08-21
 
 This document is an engineering and launch-readiness record, not legal advice.
 
 ## Controls implemented
 
-- Azure Container Apps Easy Auth verifies Google sign-in before requests reach Next.js; protected routes authorize the Azure-injected Google principal independently.
-- Browser Firestore access is denied; privileged database access remains server-side.
+- Azure Container Apps Easy Auth verifies Google sign-in, and can verify Microsoft Entra External ID customer-account sign-in when that provider is enabled, before requests reach Next.js. Protected routes authorize the Azure-injected principal independently.
+- Browser database access is denied; privileged PostgreSQL access remains server-side.
 - Public course and lesson responses use explicit data-transfer objects. Internal user IDs, topic keys, service timestamps, and author profile URLs are not returned.
 - State-changing JSON requests require an allowed origin, `application/json`, and an endpoint-specific body limit.
 - Progress totals are validated so correct answers and attempts cannot exceed their logical bounds. Non-owner Plus and Pro authors must also present short-lived HMAC-signed activity receipts bound to their user, course, lesson, and quiz before a lesson can unlock the next generation step.
 - AI course, lesson, and tutor inputs use moderation. Generated course and lesson content is moderated before storage. Requests include a pseudonymous OpenAI safety identifier.
-- AI generation uses per-plan quotas, per-minute limits, active-request locks, idempotency keys, and a global monthly budget. Other public and authenticated mutation endpoints use Firestore-backed global and per-client or per-account limits shared across Worker instances.
+- AI generation uses per-plan quotas, per-minute limits, active-request locks, idempotency keys, and a global monthly budget. Other public and authenticated mutation endpoints use datastore-backed global and per-client or per-account limits shared across instances.
 - OpenAI Responses requests disable application-state storage. Direct AI interactions and AI-assisted course or lesson content are visibly identified and include machine-readable disclosure attributes.
 - Mermaid output is parsed and sanitized before insertion into the document.
 - Response headers include nonce-based CSP, HSTS on pages, APIs, and hosted assets, clickjacking protection, MIME sniffing protection, a restrictive permissions policy, and cross-origin isolation controls compatible with Google sign-in.
-- `/api/health` performs a live Firestore probe. Critical datastore and verified billing-event failures can be sent to an operator webhook with sanitized metadata and an optional HMAC signature.
-- Managed Firestore export and guarded import scripts support backups and recovery drills. Restore is dry-run by default and requires both `--apply` and the exact project ID.
+- `/api/health` performs a live Azure PostgreSQL probe. Critical datastore and verified billing-event failures can be sent to an operator webhook with sanitized metadata and an optional HMAC signature.
+- Azure Database for PostgreSQL Flexible Server retains seven-day automated backups with point-in-time restore into a separate recovery server. Blob Storage keeps seven-day soft-delete plus object versioning for course banners. Restore is rehearsed against a non-production recovery server; configuration alone is not recovery proof.
 - The production and full installed dependency graphs reported zero known npm audit vulnerabilities on the date above.
 - Signup and future terms updates use an affirmative, versioned acceptance record for the registrant's stated age eligibility and, where applicable, stated guardian review. This is not independent age assurance or verified guardian consent. Guests can inspect published topics and course outlines; lesson bodies require an accepted free account.
 - Signed-in non-owner users can export their account data. Automated deletion requires a recent Google `auth_time` in the Azure-injected claims and otherwise fails closed without deleting data; live claim verification remains a launch gate. The client prompt and token issue time are not accepted as substitutes for recent authentication. Filosage never deletes the user's external Google account. Owner deletion requires a manual course-control transfer or shutdown process.

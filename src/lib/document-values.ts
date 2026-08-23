@@ -1,4 +1,4 @@
-export interface FirestoreValue {
+export interface DocumentValue {
   nullValue?: null;
   booleanValue?: boolean;
   integerValue?: string;
@@ -6,16 +6,16 @@ export interface FirestoreValue {
   timestampValue?: string;
   stringValue?: string;
   referenceValue?: string;
-  arrayValue?: { values?: FirestoreValue[] };
-  mapValue?: { fields?: Record<string, FirestoreValue> };
+  arrayValue?: { values?: DocumentValue[] };
+  mapValue?: { fields?: Record<string, DocumentValue> };
 }
 
-export interface FirestoreDocument {
+export interface DocumentRecord {
   name: string;
-  fields?: Record<string, FirestoreValue>;
+  fields?: Record<string, DocumentValue>;
 }
 
-export function toFirestoreValue(value: unknown): FirestoreValue {
+export function toDocumentValue(value: unknown): DocumentValue {
   if (value === null) return { nullValue: null };
   if (typeof value === "boolean") return { booleanValue: value };
   if (typeof value === "string") return { stringValue: value };
@@ -26,23 +26,23 @@ export function toFirestoreValue(value: unknown): FirestoreValue {
   }
   if (value instanceof Date) return { timestampValue: value.toISOString() };
   if (Array.isArray(value)) {
-    return { arrayValue: { values: value.map(toFirestoreValue) } };
+    return { arrayValue: { values: value.map(toDocumentValue) } };
   }
   if (typeof value === "object") {
-    return { mapValue: { fields: toFirestoreFields(value as Record<string, unknown>) } };
+    return { mapValue: { fields: toDocumentFields(value as Record<string, unknown>) } };
   }
-  throw new Error(`Unsupported Firestore value: ${typeof value}`);
+  throw new Error(`Unsupported document value: ${typeof value}`);
 }
 
-export function toFirestoreFields(data: Record<string, unknown>) {
+export function toDocumentFields(data: Record<string, unknown>) {
   return Object.fromEntries(
     Object.entries(data)
       .filter(([, value]) => value !== undefined)
-      .map(([key, value]) => [key, toFirestoreValue(value)]),
+      .map(([key, value]) => [key, toDocumentValue(value)]),
   );
 }
 
-export function fromFirestoreValue(value: FirestoreValue): unknown {
+export function fromDocumentValue(value: DocumentValue): unknown {
   if ("nullValue" in value) return null;
   if (value.booleanValue !== undefined) return value.booleanValue;
   if (value.integerValue !== undefined) return Number(value.integerValue);
@@ -51,14 +51,14 @@ export function fromFirestoreValue(value: FirestoreValue): unknown {
   if (value.stringValue !== undefined) return value.stringValue;
   if (value.referenceValue !== undefined) return value.referenceValue;
   if (value.arrayValue !== undefined) {
-    return (value.arrayValue.values ?? []).map(fromFirestoreValue);
+    return (value.arrayValue.values ?? []).map(fromDocumentValue);
   }
-  if (value.mapValue !== undefined) return fromFirestoreFields(value.mapValue.fields ?? {});
+  if (value.mapValue !== undefined) return fromDocumentFields(value.mapValue.fields ?? {});
   return null;
 }
 
-export function fromFirestoreFields(fields: Record<string, FirestoreValue>) {
+export function fromDocumentFields(fields: Record<string, DocumentValue>) {
   return Object.fromEntries(
-    Object.entries(fields).map(([key, value]) => [key, fromFirestoreValue(value)]),
+    Object.entries(fields).map(([key, value]) => [key, fromDocumentValue(value)]),
   );
 }

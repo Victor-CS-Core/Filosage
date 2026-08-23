@@ -11,7 +11,7 @@ import {
   listLessons,
   undoDeterministicCourseRepair,
   updateCoursePipelineStage,
-} from "@/lib/firebase-server";
+} from "@/lib/document-store";
 import { publicationContentFingerprint } from "@/lib/publication-content";
 import { COURSE_PIPELINE_VERSIONS, type RepairOperation } from "@/lib/course-pipeline/contract";
 import { assertRepairBaseSnapshot, buildRepairPlan, REPAIR_ATTEMPT_LIMITS } from "@/lib/course-pipeline/repair";

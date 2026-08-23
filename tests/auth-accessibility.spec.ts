@@ -134,6 +134,26 @@ test("secure sign-in modal is WCAG-clean, keyboard-contained, and resilient on s
   await expectWcagClean(page);
   await expectFocusContained(page, dialog);
 
+  const lightSurface = await dialog.evaluate((node) => {
+    const style = getComputedStyle(node);
+    return { color: style.color, backgroundColor: style.backgroundColor, backgroundImage: style.backgroundImage };
+  });
+  expect(lightSurface.backgroundImage).toMatch(/url\(/);
+  await page.evaluate(() => {
+    document.documentElement.setAttribute("data-theme", "dark");
+    localStorage.setItem("filosage-theme", "dark");
+  });
+  await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
+  const darkSurface = await dialog.evaluate((node) => {
+    const style = getComputedStyle(node);
+    return { color: style.color, backgroundColor: style.backgroundColor };
+  });
+  expect(darkSurface.backgroundColor).not.toBe(lightSurface.backgroundColor);
+  expect(darkSurface.color).not.toBe(lightSurface.color);
+  await expect(dialog.locator(".auth-identity .auth-google-icon")).toBeVisible();
+  await expect(dialog.getByRole("button", { name: "Use my existing Google sign-in" }).locator(".auth-google-icon")).toBeVisible();
+  await expectWcagClean(page);
+
   await expectMobileHardening(page, dialog, dialog.locator(".legal-check span"));
   await page.keyboard.press("Escape");
   await expect(dialog).toBeHidden();
@@ -160,6 +180,7 @@ test("identity recovery remains blocking, WCAG-clean, and keyboard-reachable", {
 
   await page.keyboard.press("Tab");
   await expect(dialog.getByRole("button", { name: "Confirm existing Google sign-in" })).toBeFocused();
+  await expect(dialog.getByRole("button", { name: "Confirm existing Google sign-in" }).locator(".auth-google-icon")).toBeVisible();
   await page.keyboard.press("Tab");
   await expect(dialog.getByRole("button", { name: "Sign out and choose another method" })).toBeFocused();
   await expectFocusContained(page, dialog, 8);

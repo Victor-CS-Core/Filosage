@@ -9,7 +9,7 @@ import {
   getStoredDocument,
   saveLesson,
   saveLessonWithEvidenceDowngrade,
-} from "@/lib/firebase-server";
+} from "@/lib/document-store";
 import {
   AiQuotaError,
   aiQuotaResponse,

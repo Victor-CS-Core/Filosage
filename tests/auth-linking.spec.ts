@@ -275,9 +275,7 @@ test("local link fixtures accept only canonical UUID tokens and stay disabled ou
     const { verifyProviderIdentity } = await import("./src/lib/identity-server.ts");
     const runId = ${JSON.stringify(runId)};
     process.env.NODE_ENV = "development";
-    process.env.FIREBASE_PROJECT_ID = "";
-    process.env.FIREBASE_CLIENT_EMAIL = "";
-    process.env.FIREBASE_PRIVATE_KEY = "";
+    process.env.DATABASE_URL = "";
     const valid = await verifyProviderIdentity(\`playwright-link-google-\${runId}\`);
     const nearMisses = await Promise.all([
       verifyProviderIdentity(\`playwright-link-google-\${runId}0\`),
@@ -1219,6 +1217,16 @@ test("entry actions remain truthful and usable for every provider availability t
     if (providerCase.alternateAction) {
       await expect(dialog.getByRole("button", { name: providerCase.alternateAction })).toBeVisible();
     }
+    const googleActions = [
+      providerCase.primaryAction,
+      providerCase.alternateAction,
+    ].filter((name): name is string => Boolean(name?.includes("Google")));
+    for (const name of googleActions) {
+      await expect(dialog.getByRole("button", { name }).locator(".auth-google-icon"), providerCase.name).toBeVisible();
+    }
+    if (providerCase.identityCopy.includes("Google")) {
+      await expect(dialog.locator(".auth-identity .auth-google-icon"), providerCase.name).toBeVisible();
+    }
     await page.close();
   }
 });
@@ -1950,7 +1958,7 @@ test("auth modal layout survives long RTL copy, 200 percent zoom, and forced col
   });
   await page.locator(".marketing-hero").getByRole("button", { name: "Create a free account" }).click();
   const dialog = page.getByRole("dialog", { name: "Keep your learning in sync" });
-  await dialog.locator(".auth-identity span").evaluate((element) => {
+  await dialog.locator(".auth-identity-copy").evaluate((element) => {
     element.textContent = "اختر Google أو رمز بريد إلكتروني خاصًا على شاشة Filosage الآمنة التالية مع تعليمات طويلة جدًا لاختبار الالتفاف";
   });
   await expect(dialog).toBeVisible();

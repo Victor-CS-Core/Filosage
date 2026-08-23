@@ -5,7 +5,7 @@ import {
   getStoredDocument,
   listAllStoredDocuments,
   runStoredDocumentTransaction,
-} from "@/lib/firebase-server";
+} from "@/lib/document-store";
 import type { EvidenceReportV1 } from "@/lib/evidence-report";
 
 const SHARE_LIFETIME_MS = 30 * 24 * 60 * 60 * 1_000;

@@ -1,13 +1,13 @@
 import "server-only";
 
 import {
-  fromFirestoreFields,
-  toFirestoreFields,
-  toFirestoreValue,
-  fromFirestoreValue,
-  type FirestoreDocument,
-  type FirestoreValue,
-} from "@/lib/firestore-values";
+  fromDocumentFields,
+  toDocumentFields,
+  toDocumentValue,
+  fromDocumentValue,
+  type DocumentRecord,
+  type DocumentValue,
+} from "@/lib/document-values";
 import { isLocalMode } from "@/lib/local-mode";
 import { COURSE_SCOPED_COLLECTION_GROUPS, removeCourseReferences } from "@/lib/course-deletion";
 import type { PublicationLessonReview, PublicationOwnerOverride } from "@/lib/publication-review";
@@ -37,20 +37,20 @@ export interface StoredDocumentPage {
   nextAfterId: string | null;
 }
 
-interface FirestoreBatchGetResult {
-  found?: FirestoreDocument;
+interface DocumentBatchGetResult {
+  found?: DocumentRecord;
   missing?: string;
   transaction?: string;
 }
 
-interface FirestoreDocumentList {
-  documents?: FirestoreDocument[];
+interface DocumentRecordList {
+  documents?: DocumentRecord[];
   nextPageToken?: string;
 }
 
-interface FirestoreAggregationResult {
+interface DocumentAggregationResult {
   result?: {
-    aggregateFields?: Record<string, FirestoreValue>;
+    aggregateFields?: Record<string, DocumentValue>;
   };
 }
 
@@ -59,150 +59,29 @@ interface LocatedStoredDocument {
   data: StoredDocument;
 }
 
-interface TokenResponse {
-  access_token: string;
-  expires_in: number;
-}
-
-let accessToken: { value: string; expiresAt: number } | null = null;
-let accessTokenRequest: Promise<string> | null = null;
-
-function requiredEnvironment() {
-  if (isLocalMode()) return { projectId: "local", clientEmail: "local", privateKey: "local" };
-  const projectId = serverEnvironment.FIREBASE_PROJECT_ID;
-  const clientEmail = serverEnvironment.FIREBASE_CLIENT_EMAIL;
-  const privateKey = serverEnvironment.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, "\n");
-
-  if (!projectId || !clientEmail || !privateKey) {
-    throw new Error("Firebase server credentials are not configured.");
-  }
-
-  return { projectId, clientEmail, privateKey };
-}
-
-function base64Url(value: string | Uint8Array) {
-  const bytes = typeof value === "string" ? new TextEncoder().encode(value) : value;
-  let binary = "";
-  for (const byte of bytes) binary += String.fromCharCode(byte);
-  return btoa(binary).replace(/=/g, "").replace(/\+/g, "-").replace(/\//g, "_");
-}
-
-async function createServiceAccountJwt() {
-  const { clientEmail, privateKey } = requiredEnvironment();
-  const now = Math.floor(Date.now() / 1000);
-  const header = base64Url(JSON.stringify({ alg: "RS256", typ: "JWT" }));
-  const payload = base64Url(
-    JSON.stringify({
-      iss: clientEmail,
-      scope: "https://www.googleapis.com/auth/datastore",
-      aud: "https://oauth2.googleapis.com/token",
-      iat: now,
-      exp: now + 3600,
-    }),
-  );
-
-  const keyBody = privateKey
-    .replace("-----BEGIN PRIVATE KEY-----", "")
-    .replace("-----END PRIVATE KEY-----", "")
-    .replace(/\s/g, "");
-  const binary = atob(keyBody);
-  const keyBytes = Uint8Array.from(binary, (character) => character.charCodeAt(0));
-  const key = await crypto.subtle.importKey(
-    "pkcs8",
-    keyBytes,
-    { name: "RSASSA-PKCS1-v1_5", hash: "SHA-256" },
-    false,
-    ["sign"],
-  );
-  const unsigned = `${header}.${payload}`;
-  const signature = await crypto.subtle.sign(
-    "RSASSA-PKCS1-v1_5",
-    key,
-    new TextEncoder().encode(unsigned),
-  );
-  return `${unsigned}.${base64Url(new Uint8Array(signature))}`;
-}
-
-async function requestAccessToken() {
-  if (accessToken && accessToken.expiresAt > Date.now() + 60_000) return accessToken.value;
-  if (accessTokenRequest) return accessTokenRequest;
-
-  accessTokenRequest = (async () => {
-    const assertion = await createServiceAccountJwt();
-    const response = await fetch("https://oauth2.googleapis.com/token", {
-      method: "POST",
-      headers: { "Content-Type": "application/x-www-form-urlencoded" },
-      body: new URLSearchParams({
-        grant_type: "urn:ietf:params:oauth:grant-type:jwt-bearer",
-        assertion,
-      }),
-    });
-    if (!response.ok) throw new Error(`Firebase token request failed (${response.status}).`);
-
-    const token = (await response.json()) as TokenResponse;
-    accessToken = {
-      value: token.access_token,
-      expiresAt: Date.now() + token.expires_in * 1000,
-    };
-    return token.access_token;
-  })();
-
-  try {
-    return await accessTokenRequest;
-  } finally {
-    accessTokenRequest = null;
-  }
-}
-
-function firestoreBaseUrl() {
-  const { projectId } = requiredEnvironment();
-  return `https://firestore.googleapis.com/v1/projects/${projectId}/databases/(default)`;
-}
-
 function encodeDocumentPath(path: string) {
   return path.split("/").map(encodeURIComponent).join("/");
 }
 
-async function firestoreJson<T>(
+async function documentStoreJson<T>(
   path: string,
   init: RequestInit = {},
   allowNotFound = false,
 ): Promise<T | null> {
   if (process.env.NODE_ENV !== "production" && isLocalMode()) {
-    const { localFirestoreJson } = await import("@/lib/local-store");
-    return localFirestoreJson<T>(path, init, allowNotFound);
+    const { localDocumentStoreJson } = await import("@/lib/local-store");
+    return localDocumentStoreJson<T>(path, init, allowNotFound);
   }
   if (serverEnvironment.DATABASE_URL?.trim()) {
     const { postgresDocumentStoreJson } = await import("@/lib/postgres-document-store");
     return postgresDocumentStoreJson<T>(path, init, allowNotFound);
   }
-  if (serverEnvironment.NODE_ENV === "production") {
-    throw new Error("Azure PostgreSQL is required in production.");
-  }
-  // Temporary source compatibility for the one-time migration rehearsal. The
-  // production release contract above cannot fall back to Firebase.
-  const token = await requestAccessToken();
-  const response = await fetch(`${firestoreBaseUrl()}${path}`, {
-    ...init,
-    headers: {
-      Authorization: `Bearer ${token}`,
-      "Content-Type": "application/json",
-      ...init.headers,
-    },
-  });
-
-  if (allowNotFound && response.status === 404) return null;
-  if (!response.ok) {
-    const detail = await response.text();
-    console.error("Firestore request failed", response.status, detail.slice(0, 500));
-    throw new Error(`Firestore request failed (${response.status}).`);
-  }
-  return (await response.json()) as T;
+  throw new Error("Azure PostgreSQL is required outside local development.");
 }
 
-function parseDocument(document: FirestoreDocument): StoredDocument {
+function parseDocument(document: DocumentRecord): StoredDocument {
   const id = document.name.split("/").pop() ?? "";
-  const fields = fromFirestoreFields(document.fields ?? {});
+  const fields = fromDocumentFields(document.fields ?? {});
   if (typeof fields.authorName === "string" && (fields.authorName.includes("@") || fields.authorName === "Teach")) {
     fields.authorName = "Filosage";
   }
@@ -212,10 +91,10 @@ function parseDocument(document: FirestoreDocument): StoredDocument {
   return { ...fields, id };
 }
 
-function parseLocatedDocument(document: FirestoreDocument): LocatedStoredDocument {
+function parseLocatedDocument(document: DocumentRecord): LocatedStoredDocument {
   const marker = "/documents/";
   const markerIndex = document.name.indexOf(marker);
-  if (markerIndex < 0) throw new Error("Firestore returned an invalid document path.");
+  if (markerIndex < 0) throw new Error("The document store returned an invalid document path.");
   return {
     path: document.name.slice(markerIndex + marker.length),
     data: parseDocument(document),
@@ -223,14 +102,12 @@ function parseLocatedDocument(document: FirestoreDocument): LocatedStoredDocumen
 }
 
 function fullDocumentName(path: string) {
-  const projectId = serverEnvironment.DATABASE_URL?.trim()
-    ? "azure"
-    : requiredEnvironment().projectId;
+  const projectId = isLocalMode() ? "local" : "azure";
   return `projects/${projectId}/databases/(default)/documents/${path}`;
 }
 
 async function runCourseQuery(structuredQuery: Record<string, unknown>) {
-  const results = await firestoreJson<Array<{ document?: FirestoreDocument }>>(
+  const results = await documentStoreJson<Array<{ document?: DocumentRecord }>>(
     "/documents:runQuery",
     { method: "POST", body: JSON.stringify({ structuredQuery }) },
   );
@@ -240,7 +117,7 @@ async function runCourseQuery(structuredQuery: Record<string, unknown>) {
 }
 
 async function runLocatedQuery(structuredQuery: Record<string, unknown>) {
-  const results = await firestoreJson<Array<{ document?: FirestoreDocument }>>(
+  const results = await documentStoreJson<Array<{ document?: DocumentRecord }>>(
     "/documents:runQuery",
     { method: "POST", body: JSON.stringify({ structuredQuery }) },
   );
@@ -251,7 +128,7 @@ async function runLocatedQuery(structuredQuery: Record<string, unknown>) {
 
 function collectionGroupFrom(collectionId: string) {
   if (!/^[A-Za-z0-9_-]{1,80}$/.test(collectionId)) {
-    throw new Error("Invalid Firestore collection.");
+    throw new Error("Invalid document collection.");
   }
   return [{ collectionId, allDescendants: true }];
 }
@@ -264,7 +141,7 @@ function courseQuery(
     fieldFilter: {
       field: { fieldPath: field },
       op: "EQUAL",
-      value: toFirestoreValue(value),
+      value: toDocumentValue(value),
     },
   }));
 
@@ -304,7 +181,7 @@ export async function findOwnerCourse(authorId: string, topic: string) {
 }
 
 export async function getCourse(courseId: string) {
-  const document = await firestoreJson<FirestoreDocument>(
+  const document = await documentStoreJson<DocumentRecord>(
     `/documents/${encodeDocumentPath(`courses/${courseId}`)}`,
     {},
     true,
@@ -315,22 +192,22 @@ export async function getCourse(courseId: string) {
 export async function createCourse(data: Record<string, unknown>, courseId?: string) {
   const now = new Date();
   const document = courseId
-    ? await firestoreJson<FirestoreDocument>(
+    ? await documentStoreJson<DocumentRecord>(
         `/documents/${encodeDocumentPath(`courses/${courseId}`)}`,
         {
           method: "PATCH",
           body: JSON.stringify({
-            fields: toFirestoreFields({ ...data, createdAt: now, updatedAt: now }),
+            fields: toDocumentFields({ ...data, createdAt: now, updatedAt: now }),
           }),
         },
       )
-    : await firestoreJson<FirestoreDocument>("/documents/courses", {
+    : await documentStoreJson<DocumentRecord>("/documents/courses", {
         method: "POST",
         body: JSON.stringify({
-          fields: toFirestoreFields({ ...data, createdAt: now, updatedAt: now }),
+          fields: toDocumentFields({ ...data, createdAt: now, updatedAt: now }),
         }),
       });
-  if (!document) throw new Error("Firestore did not return the new course.");
+  if (!document) throw new Error("The document store did not return the new course.");
   return parseDocument(document);
 }
 
@@ -339,28 +216,28 @@ export async function updateCourseBanner(
   banner: { assetId: string; version: 1; generatedAt: string },
 ) {
   const updatedAt = new Date();
-  const document = await firestoreJson<FirestoreDocument>(
+  const document = await documentStoreJson<DocumentRecord>(
     `/documents/${encodeDocumentPath(`courses/${courseId}`)}?updateMask.fieldPaths=banner&updateMask.fieldPaths=updatedAt`,
     {
       method: "PATCH",
       body: JSON.stringify({
-        fields: toFirestoreFields({ banner, updatedAt }),
+        fields: toDocumentFields({ banner, updatedAt }),
       }),
     },
   );
-  if (!document) throw new Error("Firestore did not return the updated course.");
+  if (!document) throw new Error("The document store did not return the updated course.");
   return parseDocument(document);
 }
 
 export async function listLessons(courseId: string) {
-  const response = await firestoreJson<{ documents?: FirestoreDocument[] }>(
+  const response = await documentStoreJson<{ documents?: DocumentRecord[] }>(
     `/documents/${encodeDocumentPath(`courses/${courseId}/lessons`)}?pageSize=300`,
   );
   return (response?.documents ?? []).map(parseDocument);
 }
 
 export async function getLesson(courseId: string, lessonId: string) {
-  const document = await firestoreJson<FirestoreDocument>(
+  const document = await documentStoreJson<DocumentRecord>(
     `/documents/${encodeDocumentPath(`courses/${courseId}/lessons/${lessonId}`)}`,
     {},
     true,
@@ -392,12 +269,12 @@ export async function saveLesson(
   }
   const existing = await getLesson(courseId, lessonId);
   const now = new Date();
-  const document = await firestoreJson<FirestoreDocument>(
+  const document = await documentStoreJson<DocumentRecord>(
     `/documents/${encodeDocumentPath(`courses/${courseId}/lessons/${lessonId}`)}`,
     {
       method: "PATCH",
       body: JSON.stringify({
-        fields: toFirestoreFields({
+        fields: toDocumentFields({
           ...data,
           createdAt: existing?.createdAt ?? now,
           updatedAt: now,
@@ -405,7 +282,7 @@ export async function saveLesson(
       }),
     },
   );
-  if (!document) throw new Error("Firestore did not return the saved lesson.");
+  if (!document) throw new Error("The document store did not return the saved lesson.");
   return parseDocument(document);
 }
 
@@ -431,7 +308,7 @@ export async function saveLessonWithEvidenceDowngrade(
 
 async function commitWrites(writes: Array<Record<string, unknown>>) {
   for (let index = 0; index < writes.length; index += 500) {
-    await firestoreJson("/documents:commit", {
+    await documentStoreJson("/documents:commit", {
       method: "POST",
       body: JSON.stringify({ writes: writes.slice(index, index + 500) }),
     });
@@ -439,7 +316,7 @@ async function commitWrites(writes: Array<Record<string, unknown>>) {
 }
 
 export async function getStoredDocument(path: string) {
-  const document = await firestoreJson<FirestoreDocument>(
+  const document = await documentStoreJson<DocumentRecord>(
     `/documents/${encodeDocumentPath(path)}`,
     {},
     true,
@@ -450,14 +327,14 @@ export async function getStoredDocument(path: string) {
 export async function putStoredDocument(path: string, data: Record<string, unknown>) {
   const storedData = { ...data };
   delete storedData.id;
-  const document = await firestoreJson<FirestoreDocument>(
+  const document = await documentStoreJson<DocumentRecord>(
     `/documents/${encodeDocumentPath(path)}`,
     {
       method: "PATCH",
-      body: JSON.stringify({ fields: toFirestoreFields(storedData) }),
+      body: JSON.stringify({ fields: toDocumentFields(storedData) }),
     },
   );
-  if (!document) throw new Error("Firestore did not return the saved document.");
+  if (!document) throw new Error("The document store did not return the saved document.");
   return parseDocument(document);
 }
 
@@ -471,14 +348,14 @@ export async function putStoredDocuments(
     return {
       update: {
         name: fullDocumentName(path),
-        fields: toFirestoreFields(storedData),
+        fields: toDocumentFields(storedData),
       },
     };
   }));
 }
 
 export async function listStoredDocuments(path: string, pageSize = 100) {
-  const response = await firestoreJson<FirestoreDocumentList>(
+  const response = await documentStoreJson<DocumentRecordList>(
     `/documents/${encodeDocumentPath(path)}?pageSize=${Math.min(Math.max(pageSize, 1), 300)}`,
   );
   return (response?.documents ?? []).map(parseDocument);
@@ -495,7 +372,7 @@ export async function listAllStoredDocuments(path: string, maximum = 500) {
       pageSize: String(Math.min(remaining, 300)),
       ...(pageToken ? { pageToken } : {}),
     });
-    const response = await firestoreJson<FirestoreDocumentList>(
+    const response = await documentStoreJson<DocumentRecordList>(
       `/documents/${encodeDocumentPath(path)}?${query}`,
     );
     documents.push(...(response?.documents ?? []).map(parseDocument));
@@ -517,7 +394,7 @@ export function listStoredDocumentsByField(
       fieldFilter: {
         field: { fieldPath: field },
         op: "EQUAL",
-        value: toFirestoreValue(value),
+        value: toDocumentValue(value),
       },
     },
     limit: Math.min(Math.max(limit, 1), 10_000),
@@ -531,7 +408,7 @@ export function listCollectionGroupDocumentsByField(
   limit = 300,
 ) {
   if (!/^[A-Za-z0-9_.-]{1,120}$/.test(field)) {
-    throw new Error("Invalid Firestore collection-group field query.");
+    throw new Error("Invalid document collection-group field query.");
   }
   return runCourseQuery({
     from: collectionGroupFrom(collectionId),
@@ -539,7 +416,7 @@ export function listCollectionGroupDocumentsByField(
       fieldFilter: {
         field: { fieldPath: field },
         op: "EQUAL",
-        value: toFirestoreValue(value),
+        value: toDocumentValue(value),
       },
     },
     limit: Math.min(Math.max(limit, 1), 10_000),
@@ -548,7 +425,7 @@ export function listCollectionGroupDocumentsByField(
 
 export function listCollectionDocuments(collectionId: string, limit = 1_000) {
   if (!/^[A-Za-z0-9_-]{1,80}$/.test(collectionId)) {
-    throw new Error("Invalid Firestore collection.");
+    throw new Error("Invalid document collection.");
   }
   return runCourseQuery({
     from: [{ collectionId }],
@@ -566,7 +443,7 @@ export async function listCollectionDocumentsPage(
   options: { limit: number; afterId?: string },
 ): Promise<StoredDocumentPage> {
   if (!/^[A-Za-z0-9_-]{1,80}$/.test(collectionId)) {
-    throw new Error("Invalid Firestore collection.");
+    throw new Error("Invalid document collection.");
   }
   if (!Number.isInteger(options.limit) || options.limit < 1 || options.limit > 500) {
     throw new Error("Document page limits must be integers from 1 to 500.");
@@ -606,7 +483,7 @@ export function listCollectionDocumentsByRange(
   limit = 1_000,
 ) {
   if (!/^[A-Za-z0-9_-]{1,80}$/.test(collectionId) || !/^[A-Za-z0-9_.-]{1,120}$/.test(field)) {
-    throw new Error("Invalid Firestore range query.");
+    throw new Error("Invalid document range query.");
   }
   return runCourseQuery({
     from: [{ collectionId }],
@@ -618,14 +495,14 @@ export function listCollectionDocumentsByRange(
             fieldFilter: {
               field: { fieldPath: field },
               op: "GREATER_THAN_OR_EQUAL",
-              value: toFirestoreValue(from),
+              value: toDocumentValue(from),
             },
           },
           {
             fieldFilter: {
               field: { fieldPath: field },
               op: "LESS_THAN_OR_EQUAL",
-              value: toFirestoreValue(to),
+              value: toDocumentValue(to),
             },
           },
         ],
@@ -641,13 +518,13 @@ export async function countCollectionDocuments(
   filters: Array<{ field: string; value: unknown }> = [],
 ) {
   if (!/^[A-Za-z0-9_-]{1,80}$/.test(collectionId)) {
-    throw new Error("Invalid Firestore collection.");
+    throw new Error("Invalid document collection.");
   }
   const fieldFilters = filters.map(({ field, value }) => ({
     fieldFilter: {
       field: { fieldPath: field },
       op: "EQUAL",
-      value: toFirestoreValue(value),
+      value: toDocumentValue(value),
     },
   }));
   const structuredQuery: Record<string, unknown> = { from: [{ collectionId }] };
@@ -655,7 +532,7 @@ export async function countCollectionDocuments(
   if (fieldFilters.length > 1) {
     structuredQuery.where = { compositeFilter: { op: "AND", filters: fieldFilters } };
   }
-  const response = await firestoreJson<FirestoreAggregationResult[]>(
+  const response = await documentStoreJson<DocumentAggregationResult[]>(
     "/documents:runAggregationQuery",
     {
       method: "POST",
@@ -668,7 +545,7 @@ export async function countCollectionDocuments(
     },
   );
   const value = response?.[0]?.result?.aggregateFields?.total;
-  return Number(fromFirestoreValue(value ?? { integerValue: "0" })) || 0;
+  return Number(fromDocumentValue(value ?? { integerValue: "0" })) || 0;
 }
 
 export async function deleteStoredDocuments(paths: string[]) {
@@ -684,14 +561,14 @@ export async function createStoredDocument(
   const storedData = { ...data };
   delete storedData.id;
   const query = documentId ? `?documentId=${encodeURIComponent(documentId)}` : "";
-  const document = await firestoreJson<FirestoreDocument>(
+  const document = await documentStoreJson<DocumentRecord>(
     `/documents/${encodeDocumentPath(collectionPath)}${query}`,
     {
       method: "POST",
-      body: JSON.stringify({ fields: toFirestoreFields(storedData) }),
+      body: JSON.stringify({ fields: toDocumentFields(storedData) }),
     },
   );
-  if (!document) throw new Error("Firestore did not return the created document.");
+  if (!document) throw new Error("The document store did not return the created document.");
   return parseDocument(document);
 }
 
@@ -706,7 +583,7 @@ export async function runStoredDocumentTransaction<T>(
 
   for (let attempt = 0; attempt < 5; attempt += 1) {
     try {
-      const batch = await firestoreJson<FirestoreBatchGetResult[]>("/documents:batchGet", {
+      const batch = await documentStoreJson<DocumentBatchGetResult[]>("/documents:batchGet", {
         method: "POST",
         body: JSON.stringify({
           documents: paths.map(fullDocumentName),
@@ -716,7 +593,7 @@ export async function runStoredDocumentTransaction<T>(
         }),
       });
       const transaction = batch?.find((entry) => entry.transaction)?.transaction;
-      if (!transaction) throw new Error("Firestore did not start a transaction.");
+      if (!transaction) throw new Error("The document store did not start a transaction.");
       retryTransaction = transaction;
 
       const documents: Record<string, StoredDocument | null> = Object.fromEntries(
@@ -733,13 +610,13 @@ export async function runStoredDocumentTransaction<T>(
       try {
         next = update(documents);
       } catch (error) {
-        await firestoreJson("/documents:rollback", {
+        await documentStoreJson("/documents:rollback", {
           method: "POST",
           body: JSON.stringify({ transaction }),
         });
         throw error;
       }
-      await firestoreJson("/documents:commit", {
+      await documentStoreJson("/documents:commit", {
         method: "POST",
         body: JSON.stringify({
           transaction,
@@ -750,7 +627,7 @@ export async function runStoredDocumentTransaction<T>(
               return {
                 update: {
                   name: fullDocumentName(write.path),
-                  fields: toFirestoreFields(storedData),
+                  fields: toDocumentFields(storedData),
                 },
               };
             }),
@@ -761,9 +638,9 @@ export async function runStoredDocumentTransaction<T>(
       return next.result;
     } catch (error) {
       lastError = error;
-      const isRetryableFirestoreConflict = error instanceof Error
-        && /Firestore request failed \((409|412|429|503)\)/.test(error.message);
-      if (!isRetryableFirestoreConflict) throw error;
+      const isRetryableDocumentConflict = error instanceof Error
+        && /Document store request failed \((409|412|429|503)\)/.test(error.message);
+      if (!isRetryableDocumentConflict) throw error;
       if (attempt < 4) {
         const exponentialDelayMs = 100 * (2 ** attempt);
         const jitterMs = Math.floor(Math.random() * 100);
@@ -1491,7 +1368,7 @@ export async function quarantineCourse(courseId: string, reason: string) {
     {
       update: {
         name: fullDocumentName(`courses/${courseId}`),
-        fields: toFirestoreFields({
+        fields: toDocumentFields({
           isPublic: false,
           moderationStatus: "quarantined",
           quarantineReason: reason.slice(0, 240),
@@ -1506,7 +1383,7 @@ export async function quarantineCourse(courseId: string, reason: string) {
     ...lessons.map((lesson) => ({
       update: {
         name: fullDocumentName(`courses/${courseId}/lessons/${lesson.id}`),
-        fields: toFirestoreFields({ isPublic: false }),
+        fields: toDocumentFields({ isPublic: false }),
       },
       updateMask: { fieldPaths: ["isPublic"] },
     })),
@@ -1533,7 +1410,7 @@ export async function deleteCourse(courseId: string) {
       fieldFilter: {
         field: { fieldPath: "courseId" },
         op: "EQUAL",
-        value: toFirestoreValue(courseId),
+        value: toDocumentValue(courseId),
       },
     },
   });
@@ -1574,14 +1451,14 @@ export async function deleteCourse(courseId: string) {
               fieldFilter: {
                 field: { fieldPath: "key" },
                 op: "GREATER_THAN_OR_EQUAL",
-                value: toFirestoreValue(notePrefix),
+                value: toDocumentValue(notePrefix),
               },
             },
             {
               fieldFilter: {
                 field: { fieldPath: "key" },
                 op: "LESS_THAN_OR_EQUAL",
-                value: toFirestoreValue(`${notePrefix}\uf8ff`),
+                value: toDocumentValue(`${notePrefix}\uf8ff`),
               },
             },
           ],
@@ -1616,7 +1493,7 @@ export async function deleteCourse(courseId: string) {
     return [{
       update: {
         name: fullDocumentName(path),
-        fields: toFirestoreFields(storedData),
+        fields: toDocumentFields(storedData),
       },
     }];
   });
@@ -1650,7 +1527,7 @@ export async function deleteCourse(courseId: string) {
     };
     delete nextDeck.id;
     return [
-      { update: { name: fullDocumentName(deckPath), fields: toFirestoreFields(nextDeck) } },
+      { update: { name: fullDocumentName(deckPath), fields: toDocumentFields(nextDeck) } },
       ...cards.map(({ path, data }) => {
         const cardId = typeof data.id === "string" ? data.id : path.split("/").at(-1) ?? "";
         if (!retainedCardIds.has(cardId)) return { delete: fullDocumentName(path) };
@@ -1662,13 +1539,13 @@ export async function deleteCourse(courseId: string) {
           updatedAt,
         };
         delete nextCard.id;
-        return { update: { name: fullDocumentName(path), fields: toFirestoreFields(nextCard) } };
+        return { update: { name: fullDocumentName(path), fields: toDocumentFields(nextCard) } };
       }),
       ...reviewRecords.map(({ path, data }) => {
         if (!retainedCardIds.has(String(data.cardId ?? ""))) return { delete: fullDocumentName(path) };
         const nextReview: Record<string, unknown> = { ...data, courseId: null, updatedAt };
         delete nextReview.id;
-        return { update: { name: fullDocumentName(path), fields: toFirestoreFields(nextReview) } };
+        return { update: { name: fullDocumentName(path), fields: toDocumentFields(nextReview) } };
       }),
     ];
   });
