@@ -13,6 +13,10 @@ import { playwrightServerSettings } from "./tests/fixtures/playwright-server";
 // Owned runs get fixed loopback ports plus isolated Next build/lock files and
 // local-mode stores per browser project. External mode starts and deletes nothing.
 const server = playwrightServerSettings();
+const distNamespace = process.env.FILOSAGE_PLAYWRIGHT_DIST_NAMESPACE?.trim();
+if (distNamespace && !/^matrix-[a-z0-9]+(?:-[a-z0-9]+)*$/.test(distNamespace)) {
+  throw new Error(`Invalid FILOSAGE_PLAYWRIGHT_DIST_NAMESPACE: ${JSON.stringify(distNamespace)}`);
+}
 const projectServer = (offset: number) => {
   if (server.external) return server;
   const port = server.port + offset;
@@ -30,7 +34,7 @@ const ownedProjects = [
   return {
     ...project,
     testStoreDir,
-    testDistDir: `.next/playwright-${project.server.id}`,
+    testDistDir: `.next/playwright-${project.server.id}${distNamespace ? `-${distNamespace}` : ""}`,
     lifecycleDir: resolve(testStoreDir, "server"),
   };
 });
@@ -95,6 +99,7 @@ export default defineConfig({
         FILOSAGE_LOCAL_DIR: project.testStoreDir,
         FILOSAGE_NEXT_DIST_DIR: project.testDistDir,
         FILOSAGE_PLAYWRIGHT_LIFECYCLE_DIR: project.lifecycleDir,
+        FILOSAGE_PLAYWRIGHT_REUSE_DIST: process.env.FILOSAGE_PLAYWRIGHT_REUSE_DIST ?? "0",
         HOSTNAME: "127.0.0.1",
         PORT: String(project.server.port),
         OPENAI_API_KEY: "",

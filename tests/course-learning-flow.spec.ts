@@ -894,8 +894,16 @@ test("completes every rich lesson mode and records its active evidence", { tag: 
   await page.emulateMedia({ forcedColors: "none" });
   await page.evaluate(() => { document.documentElement.style.fontSize = ""; });
   await page.getByRole("button", { name: "Start course" }).click();
-  for (let index = 0; index < experiences.length; index += 1) {
+  const expectLessonReady = async (index: number) => {
+    await page.waitForURL(
+      new RegExp(`/course/${encodeURIComponent(richTopic)}/lesson/0-${index}\\?id=${richCourseId}$`),
+      { timeout: 15_000 },
+    );
+    await expect(page.locator(".lesson-loading")).toHaveCount(0, { timeout: 15_000 });
     await expect(page.getByRole("heading", { level: 1, name: `Mode ${index + 1}: ${experiences[index].type}` })).toBeVisible();
+  };
+  for (let index = 0; index < experiences.length; index += 1) {
+    await expectLessonReady(index);
     await page.getByRole("tab", { name: /Activities/ }).click();
     if (index === 4) {
       await expect(page.locator(".lab-layout table")).toBeVisible();

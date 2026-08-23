@@ -1,53 +1,15 @@
-import { existsSync, lstatSync, mkdirSync, realpathSync, rmSync, writeFileSync } from "node:fs";
-import { isAbsolute, join, relative, resolve, sep } from "node:path";
+import { existsSync, mkdirSync, writeFileSync } from "node:fs";
+import { join } from "node:path";
 
-const lifecycleDir = process.env.FILOSAGE_PLAYWRIGHT_LIFECYCLE_DIR;
-
-if (!lifecycleDir) {
-  throw new Error("FILOSAGE_PLAYWRIGHT_LIFECYCLE_DIR is required for a Playwright-owned server.");
-}
-
-const shutdownFile = join(lifecycleDir, "shutdown");
-const stoppedFile = join(lifecycleDir, "stopped");
-
-function isStrictDescendant(parent, child) {
-  const pathFromParent = relative(parent, child);
-  return pathFromParent !== ""
-    && pathFromParent !== ".."
-    && !pathFromParent.startsWith(`..${sep}`)
-    && !isAbsolute(pathFromParent);
-}
-
-export function resetPlaywrightOwnedDirectory(value, allowedRoot) {
-  if (!value) throw new Error("A Playwright-owned directory was not configured.");
-
-  const workspace = realpathSync(process.cwd());
-  const allowed = resolve(workspace, allowedRoot);
-  const target = resolve(workspace, value);
-  if (!isStrictDescendant(workspace, allowed) || !isStrictDescendant(allowed, target)) {
-    throw new Error(`Refusing to clean Playwright directory outside ${allowed}: ${target}`);
-  }
-
-  if (existsSync(allowed)) {
-    const resolvedAllowed = realpathSync(allowed);
-    if (resolvedAllowed !== workspace && !isStrictDescendant(workspace, resolvedAllowed)) {
-      throw new Error(`Refusing to clean through an allowed-root link outside the workspace: ${allowed}`);
-    }
-  }
-
-  if (!existsSync(target)) return target;
-  if (!lstatSync(target).isSymbolicLink()) {
-    const resolvedTarget = realpathSync(target);
-    if (!isStrictDescendant(workspace, resolvedTarget)) {
-      throw new Error(`Refusing to clean a resolved directory outside the workspace: ${resolvedTarget}`);
-    }
-  }
-
-  rmSync(target, { recursive: true, force: true });
-  return target;
-}
+export { resetPlaywrightOwnedDirectory } from "./playwright-owned-directory.mjs";
 
 export function installPlaywrightServerLifecycle(closeServer) {
+  const lifecycleDir = process.env.FILOSAGE_PLAYWRIGHT_LIFECYCLE_DIR;
+  if (!lifecycleDir) {
+    throw new Error("FILOSAGE_PLAYWRIGHT_LIFECYCLE_DIR is required for a Playwright-owned server.");
+  }
+  const shutdownFile = join(lifecycleDir, "shutdown");
+  const stoppedFile = join(lifecycleDir, "stopped");
   mkdirSync(lifecycleDir, { recursive: true });
   writeFileSync(join(lifecycleDir, "pid"), String(process.pid));
 

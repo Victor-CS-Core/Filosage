@@ -1,7 +1,8 @@
 import { expect, test } from "@playwright/test";
 import { spawnSync } from "node:child_process";
-import { existsSync, readFileSync, readdirSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, readdirSync, symlinkSync } from "node:fs";
 import { createRequire } from "node:module";
+import { resolve } from "node:path";
 
 const read = (path: string) => readFileSync(path, "utf8");
 
@@ -134,7 +135,7 @@ test("every Playwright spec belongs to exactly one execution lane", async () => 
 
   expect(new Set(categorized).size).toBe(categorized.length);
   expect(categorized.toSorted()).toEqual(discovered);
-  expect(contractSuites).toHaveLength(28);
+  expect(contractSuites).toHaveLength(29);
   expect(apiSuites).toHaveLength(2);
   expect(singleEngineSuites).toHaveLength(17);
   expect(deviceSensitiveSuites).toHaveLength(7);
@@ -164,12 +165,29 @@ test("the browser matrix starts only one isolated Next server at a time", () => 
   });
   expect(result.status, result.stderr).toBe(0);
   const plan = JSON.parse(result.stdout) as {
+    batchStrategy: string;
+    estimatedLoadsByProject: Record<string, number[]>;
     projects: string[];
     batchesByProject: Record<string, string[][]>;
     batchSize: number;
+    runtime: {
+      cleanupDistDirectories: string[];
+      distNamespace: string;
+      reuseCompiledOutput: boolean;
+    };
   };
   expect(plan.projects).toEqual(["chromium", "mobile-chromium", "mobile-webkit"]);
+  expect(plan.batchStrategy).toBe("estimated-test-load");
   expect(plan.batchSize).toBe(3);
+  expect(plan.runtime.reuseCompiledOutput).toBe(true);
+  expect(plan.runtime.distNamespace).toMatch(/^matrix-[a-z0-9-]+$/);
+  expect(plan.runtime.cleanupDistDirectories).toEqual([
+    `.next/playwright-3100-${plan.runtime.distNamespace}`,
+    `.next/playwright-3101-${plan.runtime.distNamespace}`,
+    `.next/playwright-3102-${plan.runtime.distNamespace}`,
+  ]);
+  const mobileChromiumLoads = plan.estimatedLoadsByProject["mobile-chromium"];
+  expect(Math.max(...mobileChromiumLoads) - Math.min(...mobileChromiumLoads)).toBeLessThanOrEqual(2);
   expect(Object.values(plan.batchesByProject).flat(2)).toHaveLength(36);
   expect(plan.batchesByProject.chromium.flat()).toHaveLength(24);
   expect(plan.batchesByProject["mobile-chromium"].flat()).toHaveLength(5);
@@ -179,6 +197,9 @@ test("the browser matrix starts only one isolated Next server at a time", () => 
   expect(Object.values(plan.batchesByProject).flat(2)).not.toContain("tests/shared-evidence-ui.spec.ts");
   expect(plan.batchesByProject["mobile-chromium"].flat()).not.toContain("tests/marketing-gauntlet.spec.ts");
   expect(plan.batchesByProject["mobile-webkit"].flat()).not.toContain("tests/marketing-gauntlet.spec.ts");
+  const desktopBatchContaining = (suite: string) => plan.batchesByProject.chromium.find((batch) => batch.includes(suite));
+  expect(desktopBatchContaining("tests/course-learning-flow.spec.ts")).not.toContain("tests/example.spec.ts");
+  expect(desktopBatchContaining("tests/auth-linking.spec.ts")).not.toContain("tests/billing-lifecycle.spec.ts");
   const basenameOnly = spawnSync(
     process.execPath,
     ["--experimental-strip-types", "scripts/run-playwright-matrix.mjs", "marketing-gauntlet.spec.ts"],
@@ -274,6 +295,28 @@ test("the browser matrix starts only one isolated Next server at a time", () => 
   expect(matrixRunner).not.toContain("npx.cmd");
 });
 
+test("a reusable Playwright build cache rejects links while exact cleanup removes only the link", async () => {
+  const {
+    resetPlaywrightOwnedDirectory,
+    resolvePlaywrightOwnedDirectory,
+  } = await import("../scripts/playwright-owned-directory.mjs");
+  const suffix = `${process.pid}-${Date.now()}`;
+  const target = `.next/playwright-owned-target-${suffix}`;
+  const link = `.next/playwright-owned-link-${suffix}`;
+  resetPlaywrightOwnedDirectory(link, ".next");
+  resetPlaywrightOwnedDirectory(target, ".next");
+  mkdirSync(target, { recursive: true });
+  symlinkSync(resolve(target), resolve(link), "junction");
+  try {
+    expect(() => resolvePlaywrightOwnedDirectory(link, ".next")).toThrow(/link/i);
+  } finally {
+    resetPlaywrightOwnedDirectory(link, ".next");
+    resetPlaywrightOwnedDirectory(target, ".next");
+  }
+  expect(existsSync(link)).toBe(false);
+  expect(existsSync(target)).toBe(false);
+});
+
 test("the required quality gate runs a bounded Chromium smoke suite while exhaustive coverage is scheduled separately", () => {
   expect(packageJson.scripts["test:browser:smoke"]).toBe(
     "node --experimental-strip-types scripts/run-playwright-smoke.mjs",
@@ -314,6 +357,7 @@ test("the required quality gate runs a bounded Chromium smoke suite while exhaus
   expect(existsSync(fullRegressionWorkflowPath)).toBe(true);
   expect(fullRegressionWorkflow).toContain("schedule:");
   expect(fullRegressionWorkflow).toContain("workflow_dispatch:");
+  expect(fullRegressionWorkflow).toContain("npm run test:contracts -- tests/tier-consistency-contracts.spec.ts");
   expect(fullRegressionWorkflow).toContain("npm run test:api && npm run test:browser");
   expect(fullRegressionWorkflow).toContain("npm run test:command-center:v2");
   expect(fullRegressionWorkflow).toContain("npm run test:command-center:v2:ui");

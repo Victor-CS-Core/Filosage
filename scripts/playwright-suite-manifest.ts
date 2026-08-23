@@ -28,6 +28,7 @@ export const contractSuites = [
   "tests/retired-systems.spec.ts",
   "tests/source-citations.spec.ts",
   "tests/source-research-v5.spec.ts",
+  "tests/tier-consistency-contracts.spec.ts",
   "tests/worker-runtime-env.spec.ts",
 ] as const;
 
@@ -53,7 +54,7 @@ export const singleEngineSuites = [
   "tests/release-recovery.spec.ts",
   "tests/search.spec.ts",
   "tests/support-center.spec.ts",
-  "tests/tier-consistency-contract.spec.ts",
+  "tests/tier-consistency-ui.spec.ts",
 ] as const;
 
 export const deviceSensitiveSuites = [
@@ -93,6 +94,51 @@ export const browserSuitesByProject: Record<BrowserProjectName, readonly string[
     && suite !== "tests/support-wiki.spec.ts"
   )),
   "mobile-webkit": deviceSensitiveSuites,
+};
+
+export const browserSuiteEstimatedTestLoad: Record<BrowserProjectName, Record<string, number>> = {
+  chromium: {
+    "tests/account-onboarding.spec.ts": 7,
+    "tests/admin-research-layout.spec.ts": 2,
+    "tests/analytics-consent.spec.ts": 3,
+    "tests/app-shell.spec.ts": 32,
+    "tests/auth-accessibility.spec.ts": 3,
+    "tests/auth-linking.spec.ts": 47,
+    "tests/billing-lifecycle.spec.ts": 21,
+    "tests/command-center.spec.ts": 14,
+    "tests/course-learning-flow.spec.ts": 6,
+    "tests/example.spec.ts": 76,
+    "tests/external-id-branding.spec.ts": 9,
+    "tests/flashcard-system.spec.ts": 8,
+    "tests/flashcard-visual.spec.ts": 1,
+    "tests/landing-motion.spec.ts": 2,
+    "tests/lesson-interactions-v2.spec.ts": 7,
+    "tests/marketing-gauntlet.spec.ts": 13,
+    "tests/marketing-gauntlet-runtime-acceptance.spec.ts": 1,
+    "tests/navigation-content-integrity.spec.ts": 2,
+    "tests/publication-override.spec.ts": 7,
+    "tests/release-recovery.spec.ts": 2,
+    "tests/search.spec.ts": 3,
+    "tests/support-center.spec.ts": 8,
+    "tests/support-wiki.spec.ts": 11,
+    "tests/tier-consistency-ui.spec.ts": 1,
+  },
+  "mobile-chromium": {
+    "tests/analytics-consent.spec.ts": 1,
+    "tests/app-shell.spec.ts": 13,
+    "tests/auth-accessibility.spec.ts": 3,
+    "tests/example.spec.ts": 7,
+    "tests/landing-motion.spec.ts": 2,
+  },
+  "mobile-webkit": {
+    "tests/analytics-consent.spec.ts": 3,
+    "tests/app-shell.spec.ts": 15,
+    "tests/auth-accessibility.spec.ts": 3,
+    "tests/course-learning-flow.spec.ts": 1,
+    "tests/example.spec.ts": 8,
+    "tests/landing-motion.spec.ts": 2,
+    "tests/support-wiki.spec.ts": 1,
+  },
 };
 
 export function suitePatterns(suites: readonly string[]) {

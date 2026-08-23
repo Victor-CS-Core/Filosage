@@ -25,6 +25,7 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npx playwright install --with-deps chromium webkit
+      - run: npm run test:contracts -- tests/tier-consistency-contracts.spec.ts
       - run: npm run test:command-center:v2
       - run: npm run test:command-center:v2:ui
       - run: npm run test:shared-evidence:ui

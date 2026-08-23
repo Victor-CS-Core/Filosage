@@ -1,10 +1,12 @@
 import { spawnSync } from "node:child_process";
 import { createRequire } from "node:module";
 import {
+  browserSuiteEstimatedTestLoad,
   browserSuitesByProject,
   classifyPlaywrightSuiteArguments,
   suiteSelectorMatches,
 } from "./playwright-suite-manifest.ts";
+import { resetPlaywrightOwnedDirectory } from "./playwright-owned-directory.mjs";
 
 const allProjects = Object.keys(browserSuitesByProject);
 const requestedProjects = process.env.PLAYWRIGHT_MATRIX_PROJECTS
@@ -18,6 +20,24 @@ if (unknownProjects.length > 0) {
   process.exit(2);
 }
 const batchSize = 3;
+const batchStrategy = "estimated-test-load";
+const requestedRunId = process.env.PLAYWRIGHT_MATRIX_RUN_ID?.trim();
+if (requestedRunId && !/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(requestedRunId)) {
+  console.error(`Invalid PLAYWRIGHT_MATRIX_RUN_ID: ${JSON.stringify(requestedRunId)}`);
+  process.exit(2);
+}
+const generatedRunId = `${process.pid.toString(36)}-${Date.now().toString(36)}`;
+const distNamespace = `matrix-${requestedRunId ?? generatedRunId}`;
+const basePort = Number(process.env.PLAYWRIGHT_PORT ?? 3100);
+if (!Number.isInteger(basePort) || basePort < 1 || basePort + allProjects.length - 1 > 65_535) {
+  console.error(`PLAYWRIGHT_PORT must leave room for three project servers; received ${JSON.stringify(process.env.PLAYWRIGHT_PORT)}.`);
+  process.exit(2);
+}
+const cleanupDistDirectories = projects.map((project) => {
+  const projectOffset = allProjects.indexOf(project);
+  return `.next/playwright-${basePort + projectOffset}-${distNamespace}`;
+});
+const runtime = { cleanupDistDirectories, distNamespace, reuseCompiledOutput: true };
 const forwardedArgs = process.argv.slice(2);
 if (forwardedArgs.some((argument) => argument === "--project" || argument.startsWith("--project="))) {
   console.error("test:e2e owns the browser-project matrix; pass Playwright filters other than --project.");
@@ -52,10 +72,27 @@ if (unownedBySelectedProjects.length > 0) {
 }
 const require = createRequire(import.meta.url);
 const playwrightCli = require.resolve("@playwright/test/cli");
-const batchesFor = (projectFiles) => Array.from(
-  { length: Math.ceil(projectFiles.length / batchSize) },
-  (_, index) => projectFiles.slice(index * batchSize, (index + 1) * batchSize),
-);
+const estimatedLoadFor = (project, file) => browserSuiteEstimatedTestLoad[project]?.[file] ?? 1;
+const batchesFor = (project, projectFiles) => {
+  const indexedFiles = projectFiles.map((file, index) => ({
+    file,
+    index,
+    load: estimatedLoadFor(project, file),
+  }));
+  const batches = Array.from(
+    { length: Math.ceil(projectFiles.length / batchSize) },
+    () => ({ files: [], load: 0 }),
+  );
+  for (const entry of indexedFiles.toSorted((left, right) => right.load - left.load || left.index - right.index)) {
+    const target = batches
+      .map((batch, index) => ({ batch, index }))
+      .filter(({ batch }) => batch.files.length < batchSize)
+      .toSorted((left, right) => left.batch.load - right.batch.load || left.index - right.index)[0].batch;
+    target.files.push(entry);
+    target.load += entry.load;
+  }
+  return batches.map(({ files }) => files.toSorted((left, right) => left.index - right.index).map(({ file }) => file));
+};
 const hasTestFilter = optionArgs.some((argument) => (
   argument === "--grep"
   || argument === "-g"
@@ -100,11 +137,11 @@ const projectHasMatches = (project, args) => {
 const batchesByProject = Object.fromEntries(projects.map((project) => {
   const projectFiles = browserSuitesByProject[project];
   if (forwardedArgs.length === 0) {
-    return [project, batchesFor(projectFiles)];
+    return [project, batchesFor(project, projectFiles)];
   }
   if (requestedFiles.length === 0) {
     if (!hasTestFilter) {
-      return [project, batchesFor(projectFiles).map((batch) => [...optionArgs, ...batch])];
+      return [project, batchesFor(project, projectFiles).map((batch) => [...optionArgs, ...batch])];
     }
     return [project, projectHasMatches(project, forwardedArgs) ? [forwardedArgs] : []];
   }
@@ -118,9 +155,16 @@ const batchesByProject = Object.fromEntries(projects.map((project) => {
       : [],
   ];
 }));
+const estimatedLoadsByProject = Object.fromEntries(projects.map((project) => [
+  project,
+  batchesByProject[project].map((batch) => batch.reduce((total, item) => {
+    const suite = browserSuitesByProject[project].find((candidate) => suiteSelectorMatches(item, candidate));
+    return total + (suite ? estimatedLoadFor(project, suite) : 0);
+  }, 0)),
+]));
 
 if (process.env.PLAYWRIGHT_MATRIX_DRY_RUN === "1") {
-  process.stdout.write(JSON.stringify({ projects, batchesByProject, batchSize }));
+  process.stdout.write(JSON.stringify({ batchStrategy, estimatedLoadsByProject, projects, batchesByProject, batchSize, runtime }));
   process.exit(0);
 }
 
@@ -128,25 +172,40 @@ if (forwardedArgs.length > 0 && requestedFiles.length === 0 && Object.values(bat
   console.error("No Playwright tests matched the provided browser filters.");
   process.exit(2);
 }
-for (const project of projects) {
-  const projectBatches = batchesByProject[project];
-  for (const [index, batch] of projectBatches.entries()) {
-    console.log(`\n=== Playwright project: ${project}; batch ${index + 1}/${projectBatches.length} ===`);
-    const result = spawnSync(
-      process.execPath,
-      [playwrightCli, "test", `--project=${project}`, ...batch],
-      {
-        cwd: process.cwd(),
-        env: { ...process.env, FILOSAGE_PLAYWRIGHT_PROJECT: project },
-        stdio: "inherit",
-      },
-    );
-    if (result.error) {
-      console.error(result.error.message);
-      process.exit(1);
-    }
-    if (result.status !== 0) {
-      process.exit(result.status ?? 1);
+let matrixExitCode = 0;
+try {
+  matrix: for (const project of projects) {
+    const projectBatches = batchesByProject[project];
+    for (const [index, batch] of projectBatches.entries()) {
+      console.log(`\n=== Playwright project: ${project}; batch ${index + 1}/${projectBatches.length} ===`);
+      const result = spawnSync(
+        process.execPath,
+        [playwrightCli, "test", `--project=${project}`, ...batch],
+        {
+          cwd: process.cwd(),
+          env: {
+            ...process.env,
+            FILOSAGE_PLAYWRIGHT_DIST_NAMESPACE: distNamespace,
+            FILOSAGE_PLAYWRIGHT_PROJECT: project,
+            FILOSAGE_PLAYWRIGHT_REUSE_DIST: "1",
+          },
+          stdio: "inherit",
+        },
+      );
+      if (result.error) {
+        console.error(result.error.message);
+        matrixExitCode = 1;
+        break matrix;
+      }
+      if (result.status !== 0) {
+        matrixExitCode = result.status ?? 1;
+        break matrix;
+      }
     }
   }
+} finally {
+  for (const directory of cleanupDistDirectories) {
+    resetPlaywrightOwnedDirectory(directory, ".next");
+  }
 }
+if (matrixExitCode !== 0) process.exit(matrixExitCode);

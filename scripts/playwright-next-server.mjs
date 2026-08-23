@@ -5,8 +5,11 @@ import { dirname, join, relative, resolve, sep } from "node:path";
 import next from "next";
 import {
   installPlaywrightServerLifecycle,
-  resetPlaywrightOwnedDirectory,
 } from "./playwright-server-lifecycle.mjs";
+import {
+  resetPlaywrightOwnedDirectory,
+  resolvePlaywrightOwnedDirectory,
+} from "./playwright-owned-directory.mjs";
 
 const hostname = process.env.HOSTNAME ?? "127.0.0.1";
 const port = Number(process.env.PORT);
@@ -53,7 +56,11 @@ const testStoreDir = resetPlaywrightOwnedDirectory(
   process.env.FILOSAGE_LOCAL_DIR,
   ".filosage-local-test",
 );
-resetPlaywrightOwnedDirectory(process.env.FILOSAGE_NEXT_DIST_DIR, ".next");
+if (process.env.FILOSAGE_PLAYWRIGHT_REUSE_DIST === "1") {
+  resolvePlaywrightOwnedDirectory(process.env.FILOSAGE_NEXT_DIST_DIR, ".next");
+} else {
+  resetPlaywrightOwnedDirectory(process.env.FILOSAGE_NEXT_DIST_DIR, ".next");
+}
 
 const seedName = process.env.FILOSAGE_PLAYWRIGHT_SEED?.trim();
 if (seedName) {

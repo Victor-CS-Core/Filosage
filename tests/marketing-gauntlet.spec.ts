@@ -47,7 +47,17 @@ async function fillLibrarySearch(page: Page, value: string) {
 test("public positioning keeps learner access, AI sourcing, and paid availability truthful", async ({ page }) => {
   await page.goto("/");
 
-  await expect(page.locator(".marketing-hero-lead")).toContainText("bring your own goal");
+  const hero = page.locator(".marketing-hero");
+  await expect(hero.getByRole("heading", { level: 1, name: "Learn it well enough to use it" })).toBeVisible();
+  await expect(hero.locator(".marketing-hero-lead")).toContainText("bring your own goal");
+  await expect(hero.getByRole("link", { name: "View the featured course" })).toHaveAttribute("href", "#featured-course");
+  await expect(hero.getByRole("link", { name: "Browse all courses" })).toHaveAttribute("href", "/library");
+  await expect(hero.getByText("Every course outline is public. Sign up when you want to open lessons and save your work.")).toBeVisible();
+  const trust = page.getByRole("region", { name: "Know where the material comes from." });
+  await expect(trust.getByText("Sources are labeled", { exact: true })).toBeVisible();
+  await expect(trust.getByText("The outline is public", { exact: true })).toBeVisible();
+  await expect(trust.getByText("Your learning stays with your account", { exact: true })).toBeVisible();
+  await expect(page.getByRole("region", { name: "Find a course that fits." }).getByRole("link", { name: "Browse published courses" })).toHaveAttribute("href", "/library");
   await page.getByText("Can I inspect a course before creating an account?").click();
   await expect(page.getByText(/published outcomes.*assessment structure remain public/i)).toBeVisible();
   await page.getByText("How does Filosage use AI?").click();

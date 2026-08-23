@@ -1,7 +1,6 @@
 import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { expect, test } from "@playwright/test";
-import { restoreLocalLearner } from "./fixtures/local-learner";
 
 const root = process.cwd();
 const source = (path: string) => readFileSync(resolve(root, path), "utf8");
@@ -70,20 +69,8 @@ test("malformed pricing intent is rejected instead of invented as Pro", () => {
   expect(route).not.toContain('document.planId === "plus" ? "plus" : "pro"');
 });
 
-test("public and owner-facing tier copy no longer describes a two-tier product", () => {
+test("non-landing membership surfaces keep the three-tier and closed-launch contract", () => {
   expect(source("src/app/library/page.tsx")).toContain("Compare memberships");
-  expect(source("src/components/marketing/LandingPage.tsx")).toContain("Paid availability stays explicit");
   expect(source("src/app/api/waitlist/route.ts")).toContain("paid membership launch");
   expect(source("src/content/support/owner-documentation.ts")).toContain("Plus adds two complete private AI course credits monthly");
-});
-
-test("the rendered owner Control Room exposes reconciled membership reporting", async ({ page }) => {
-  await restoreLocalLearner(page);
-  await page.goto("/admin");
-  await expect(page.getByRole("heading", { name: "Free, Plus, and Pro" })).toBeVisible();
-  await expect(page.getByText("Paid conversion", { exact: true })).toBeVisible();
-  await expect(page.getByText("Nominal MRR", { exact: true })).toBeVisible();
-  await expect(page.getByText("Nominal ARR", { exact: true })).toBeVisible();
-  await expect(page.getByText("Paid pool — Plus and Pro", { exact: true })).toBeVisible();
-  await expect(page.getByText("Pro pool", { exact: true })).toHaveCount(0);
 });
