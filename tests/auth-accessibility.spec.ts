@@ -14,6 +14,18 @@ const signedOutManagedSession = {
   user: null,
 } as const;
 
+const featuredCourse = {
+  id: "accessible-featured-course",
+  courseId: "accessible-featured-course",
+  topic: "Systems thinking",
+  outcome: "Map a feedback loop and explain one useful leverage point.",
+  artifact: { title: "A feedback-loop map", description: "A finished map", format: "document" },
+  level: "Foundations",
+  estimatedMinutes: 60,
+  isPublic: true,
+  modules: [{ title: "Feedback loops", lessons: [{ title: "Map the parts", concept: "Systems" }] }],
+} as const;
+
 const linkRequiredAccount = {
   access: "free",
   plan: "free",
@@ -120,10 +132,12 @@ test("secure sign-in modal is WCAG-clean, keyboard-contained, and resilient on s
     contentType: "application/json",
     body: JSON.stringify(signedOutManagedSession),
   }));
+  await page.route("**/api/courses**", (route) => route.fulfill({
+    status: 200,
+    json: { featuredCourseId: featuredCourse.id, courses: [featuredCourse] },
+  }));
   await page.goto("/");
-  const trigger = page.locator(".marketing-hero").getByRole("button", {
-    name: "Create a free account",
-  });
+  const trigger = page.locator(".marketing-course-proof").getByRole("button", { name: "Create an account to start" });
   await trigger.click();
 
   const dialog = page.getByRole("dialog", { name: "Keep your learning in sync" });

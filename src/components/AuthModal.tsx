@@ -11,9 +11,10 @@ import { trackProductEvent } from "@/lib/product-analytics";
 interface AuthModalProps {
   onClose: () => void;
   returnFocus?: HTMLElement | null;
+  returnPath?: string;
 }
 
-export default function AuthModal({ onClose, returnFocus }: AuthModalProps) {
+export default function AuthModal({ onClose, returnFocus, returnPath }: AuthModalProps) {
   const {
     authentication,
     signInWithRedirect,
@@ -95,18 +96,18 @@ export default function AuthModal({ onClose, returnFocus }: AuthModalProps) {
 
   const handleSecureContinue = () => beginRedirect(
     createsAccount
-      ? signInWithRedirect
-      : () => primaryProvider ? signInWithProvider(primaryProvider) : Promise.reject(new Error("Sign-in unavailable.")),
+      ? () => signInWithRedirect(returnPath)
+      : () => primaryProvider ? signInWithProvider(primaryProvider, returnPath) : Promise.reject(new Error("Sign-in unavailable.")),
     "Secure sign-in could not be started. Your learning data has not changed. Please try again.",
   );
 
   const handleExistingGoogle = () => beginRedirect(
-    () => beginExistingGoogleSignIn(),
+    () => beginExistingGoogleSignIn(false, returnPath),
     "The existing Google sign-in could not be opened. Your learning data has not changed.",
   );
 
   const handleExistingEmail = () => beginRedirect(
-    () => signInWithProvider("filosage"),
+    () => signInWithProvider("filosage", returnPath),
     "Email-code sign-in could not be opened. Your learning data has not changed.",
   );
 

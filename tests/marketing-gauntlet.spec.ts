@@ -44,14 +44,14 @@ async function fillLibrarySearch(page: Page, value: string) {
   await page.getByRole("button", { name: /^Show \d+ courses?$/ }).click();
 }
 
-test("broad product positioning reflects eligible learners and the actual language boundary", async ({ page }) => {
+test("public positioning keeps learner access, AI sourcing, and paid availability truthful", async ({ page }) => {
   await page.goto("/");
 
-  await expect(page.getByRole("heading", { level: 1 })).toContainText("goal");
-  await page.getByText("Who can use Filosage?").click();
-  await expect(page.getByText(/independent students, self-directed learners, career changers, working professionals/i)).toBeVisible();
-  await page.getByText("Can I create a course in another language?").click();
-  await expect(page.getByText(/interface is English today.*course language.*bilingual pairing/i)).toBeVisible();
+  await expect(page.locator(".marketing-hero-lead")).toContainText("bring your own goal");
+  await page.getByText("Can I inspect a course before creating an account?").click();
+  await expect(page.getByText(/published outcomes.*assessment structure remain public/i)).toBeVisible();
+  await page.getByText("How does Filosage use AI?").click();
+  await expect(page.getByText(/distinguish verified sources, AI general knowledge, and further reading/i)).toBeVisible();
   await expect(page.getByText(/real professional outcome/i)).toHaveCount(0);
 
   await page.route("**/api/billing/status", (route) => route.fulfill({ json: { ready: false, managementReady: false } }));
@@ -246,11 +246,11 @@ test("landing flagship selection follows the validated API id and falls back sta
   await page.route("**/api/courses?scope=public", (route) => route.fulfill({ json: response }));
 
   await page.goto("/");
-  await expect(page.getByRole("link", { name: /Inspect course outline/ })).toHaveAttribute("href", /id=project-course/);
+  await expect(page.getByRole("link", { name: /View course outline/ })).toHaveAttribute("href", /id=project-course/);
 
   response = { courses: [alpha, project, work].reverse(), featuredCourseId: "missing-course" };
   await page.reload();
-  await expect(page.getByRole("link", { name: /Inspect course outline/ })).toHaveAttribute("href", /id=alpha-course/);
+  await expect(page.getByRole("link", { name: /View course outline/ })).toHaveAttribute("href", /id=alpha-course/);
 });
 
 test("learning-situation discovery is URL-backed, editable, reversible, and language searchable", async ({ page }) => {
@@ -267,10 +267,10 @@ test("learning-situation discovery is URL-backed, editable, reversible, and lang
 
   await page.goto("/");
   await expect(page.getByText("Featured course outcome")).toBeVisible();
-  await expect(page.getByRole("link", { name: /Inspect course outline/ })).toHaveAttribute("href", /id=alpha-course/);
+  await expect(page.getByRole("link", { name: /View course outline/ })).toHaveAttribute("href", /id=alpha-course/);
 
   await page.goto("/library?job=invalid-job");
-  await page.getByRole("button", { name: "Personal project" }).click();
+  await page.getByRole("button", { name: "Personal project", exact: true }).click();
   await expect(page).toHaveURL(/job=personal_project/);
   await expect(page).toHaveURL(/[?&]q=project(?:&|$)/);
   await expect(page.getByRole("heading", { name: "Personal project planning" })).toBeVisible();

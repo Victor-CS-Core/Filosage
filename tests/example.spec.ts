@@ -678,7 +678,7 @@ test("keeps the learning library public", async ({ page }) => {
   expect(scriptDirective).not.toContain("'unsafe-inline'");
   await expect(page.locator(".skip-link")).toHaveAttribute("href", "#main-content");
   await expect(
-    page.getByRole("heading", { name: "Turn a goal you care about into a course you can practice" }),
+    page.getByRole("heading", { name: "Learn it well enough to use it" }),
   ).toBeVisible();
   await expect(page.locator(".marketing-page > section")).toHaveCount(7);
   await expect(page.locator(".marketing-story-row")).toHaveCount(3);
@@ -686,7 +686,7 @@ test("keeps the learning library public", async ({ page }) => {
   await expect(page.locator('a[href^="/library?q="]')).toHaveCount(0);
 
   if ((page.viewportSize()?.width ?? 0) <= 620) {
-    const primaryHeight = await page.locator(".marketing-hero").getByRole("link", { name: "Explore course outcomes" }).evaluate((link) => link.getBoundingClientRect().height);
+    const primaryHeight = await page.locator(".marketing-hero").getByRole("link", { name: "View the featured course" }).evaluate((link) => link.getBoundingClientRect().height);
     const footerHeight = await page.locator(".marketing-footer").getByRole("link", { name: "Teaching standard" }).evaluate((link) => link.getBoundingClientRect().height);
     expect(primaryHeight).toBeGreaterThanOrEqual(44);
     expect(footerHeight).toBeGreaterThanOrEqual(44);
@@ -708,7 +708,7 @@ test("publishes the teaching standard", async ({ page }) => {
 test("describes guest access and Pro publishing consistently across public pages", async ({ context }) => {
   const home = await context.newPage();
   await home.goto("/");
-  await expect(home.getByRole("heading", { name: "How the Filosage Capability Cycle works." })).toBeVisible();
+  await expect(home.getByRole("heading", { name: "From goal to finished work." })).toBeVisible();
   await expect(home.locator(".landing-runway li")).toHaveCount(6);
   await home.close();
 
@@ -809,7 +809,7 @@ test("preserves the selected theme across navigation and reloads", async ({ page
 
   await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
   await expect(page.locator(".marketing-nav-shell .filosage-mark img")).toHaveAttribute("src", /filosage-theme-dark\.png/);
-  await page.locator(".marketing-hero").getByRole("link", { name: "Explore course outcomes" }).click();
+  await page.locator(".marketing-hero").getByRole("link", { name: "Browse all courses" }).click();
   await expect(page).toHaveURL(/\/library$/);
   await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
   await expect.poll(() => page.evaluate(() => localStorage.getItem("filosage-theme"))).toBe("dark");
@@ -873,8 +873,15 @@ test("lets guests browse outlines while clearly gating lessons behind an account
     }),
   }));
   await page.goto("/");
-  const trigger = page.locator(".marketing-hero").getByRole("button", { name: "Create a free account" });
-  await trigger.click();
+  const mobileMenuTrigger = page.getByRole("button", { name: "Open navigation menu" });
+  const desktopTrigger = page.locator(".marketing-nav-shell").getByRole("button", { name: "Sign in" });
+  const trigger = (page.viewportSize()?.width ?? 0) <= 820 ? mobileMenuTrigger : desktopTrigger;
+  if (trigger === mobileMenuTrigger) {
+    await mobileMenuTrigger.click();
+    await page.locator(".marketing-mobile-menu").getByRole("button", { name: "Sign in" }).click();
+  } else {
+    await desktopTrigger.click();
+  }
 
   const dialog = page.getByRole("dialog", { name: "Keep your learning in sync" });
   await expect(dialog).toBeVisible();
@@ -1956,7 +1963,7 @@ test("contains long lesson navigation titles on narrow mobile screens", { tag: [
     }],
   } }));
   await page.route("**/api/courses/mobile-navigation/lessons/0-0", (route) => route.fulfill({ json: {
-    content: "## Trust boundaries\n\nAuthorization belongs on the server because the browser is not a trusted security boundary.",
+    content: "## Trust boundaries\n\nAuthorization belongs on the server because the browser is not a trusted security boundary.\n\n## Verify enforcement\n\nExercise the same boundary from an untrusted client.\n\n## Record the result\n\nKeep the observed response with the authorization evidence.",
     quizzes: [],
   } }));
 
@@ -1973,6 +1980,12 @@ test("contains long lesson navigation titles on narrow mobile screens", { tag: [
       && bounds.right <= document.documentElement.clientWidth + 1
       && button.scrollWidth <= button.clientWidth + 1;
   })).toBe(true);
+
+  const sectionTargets = await page.getByRole("navigation", { name: "Lesson sections" }).getByRole("button").evaluateAll(
+    (buttons) => buttons.map((button) => button.getBoundingClientRect().height),
+  );
+  expect(sectionTargets.length).toBeGreaterThan(0);
+  expect(Math.min(...sectionTargets)).toBeGreaterThanOrEqual(44);
 });
 
 test("frames each course around an outcome and mastery", async ({ page }) => {

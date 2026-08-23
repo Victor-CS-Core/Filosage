@@ -5,14 +5,14 @@ export default function EvidenceDossier() {
   return (
     <section className="marketing-section marketing-evidence" aria-labelledby="marketing-evidence-title">
       <div className="marketing-evidence-copy">
-        <h2 id="marketing-evidence-title">See what the evidence says—and what it does not.</h2>
-        <p>Filosage keeps a learner&apos;s starting estimate separate from completed practice and assessed work. Pending evidence stays pending rather than turning into an invented score.</p>
+        <h2 id="marketing-evidence-title">See what you&apos;ve practiced and what still needs work.</h2>
+        <p>Your starting estimate stays separate from work you have completed and work that has been assessed. If something has not been checked, it stays pending.</p>
         <ul>
-          <li><Check size={16} aria-hidden="true" /> Completed practice is recorded as observed work.</li>
-          <li><CalendarCheck2 size={16} aria-hidden="true" /> Review timing stays visible alongside progress.</li>
-          <li><Circle size={16} aria-hidden="true" /> Assessment remains pending until criteria are actually checked.</li>
+          <li><Check size={16} aria-hidden="true" /> Finished practice is recorded as completed work.</li>
+          <li><CalendarCheck2 size={16} aria-hidden="true" /> You can see what is due for review.</li>
+          <li><Circle size={16} aria-hidden="true" /> Assessment stays pending until your work is checked.</li>
         </ul>
-        <Link className="marketing-text-link" href="/evidence-example">Inspect a fictional evidence example <ArrowRight size={15} /></Link>
+        <Link className="marketing-text-link" href="/evidence-example">View a sample evidence report <ArrowRight size={15} /></Link>
       </div>
       <div className="marketing-evidence-stack" aria-label="Illustration of the Filosage evidence model">
         <div className="marketing-assessed-sheet" aria-hidden="true"><strong>Assessed work</strong><span>Outcome</span><i /><span>Apply</span><i /><span>Evaluate</span><i /></div>

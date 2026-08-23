@@ -1,4 +1,4 @@
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test, type Locator, type Page } from "@playwright/test";
 import AxeBuilder from "@axe-core/playwright";
 import type { Course } from "../src/lib/course-types";
 import type { CourseProgress } from "../src/lib/learning-types";
@@ -161,6 +161,17 @@ async function expectNoHorizontalPageOverflow(page: Page) {
       .map((child) => ({ tag: child.tagName, className: child.className, parent: child.parentElement?.className, text: child.textContent?.slice(0, 40), right: Math.round(child.getBoundingClientRect().right) })),
   }));
   expect(dimensions.scrollWidth, JSON.stringify(dimensions.offenders)).toBeLessThanOrEqual(dimensions.clientWidth);
+}
+
+async function expectMinimumTargetHeight(locator: Locator, minimum = 44) {
+  const heights = await locator.evaluateAll((elements) => elements
+    .filter((element) => {
+      const style = getComputedStyle(element);
+      return style.display !== "none" && style.visibility !== "hidden";
+    })
+    .map((element) => element.getBoundingClientRect().height));
+  expect(heights.length).toBeGreaterThan(0);
+  expect(Math.min(...heights)).toBeGreaterThanOrEqual(minimum);
 }
 
 async function waitForDeckToSettle(page: Page) {
@@ -473,6 +484,73 @@ test.describe("desktop application shell", () => {
     await expectNoHorizontalPageOverflow(page);
     if (process.env.CAPTURE_DASHBOARD === "1") {
       await page.screenshot({ path: ".impeccable/review/course-deck-desktop.png", fullPage: true });
+    }
+  });
+
+  test("leaves a measured visual pause between the deck and its controls", { tag: ["@mobile", "@webkit"] }, async ({ page }) => {
+    await prepareOwnerShell(page, [learningProgress[0], secondLearningProgress]);
+
+    for (const viewport of [
+      { width: 1440, height: 900, minimumGap: 16 },
+      { width: 390, height: 844, minimumGap: 12 },
+    ]) {
+      await page.setViewportSize(viewport);
+      await page.goto("/");
+      await expect(page.getByRole("button", { name: "Show next active course" })).toBeVisible();
+
+      const gap = await page.locator(".course-deck-section").evaluate((section) => {
+        const stage = section.querySelector<HTMLElement>(".course-deck-stage");
+        const controls = section.querySelector<HTMLElement>(".course-deck-controls");
+        if (!stage || !controls) throw new Error("Course Deck spacing landmarks are unavailable.");
+        return controls.getBoundingClientRect().top - stage.getBoundingClientRect().bottom;
+      });
+
+      expect(gap).toBeGreaterThanOrEqual(viewport.minimumGap);
+      await expectNoHorizontalPageOverflow(page);
+    }
+  });
+
+  test("keeps long desktop course and lesson titles from displacing the primary action", async ({ page }) => {
+    const longTopic = "Verify every consequential AI-generated claim against independent primary sources before publishing a defensible recommendation";
+    const longLessonTitle = "Separate fluent prose from supported evidence while preserving every qualification and unresolved contradiction";
+    await prepareOwnerShell(page, [{
+      ...learningProgress[0],
+      courseId: "long-title-course",
+      topic: longTopic,
+      nextLessonTitle: longLessonTitle,
+      totalLessons: 16,
+    }, secondLearningProgress]);
+    await page.goto("/");
+
+    const activeCard = page.locator(".course-deck-card.is-active");
+    const containment = await activeCard.evaluate((card) => {
+      const courseTitle = card.querySelector<HTMLElement>(".course-deck-card-copy h2");
+      const lessonTitle = card.querySelector<HTMLElement>(".course-deck-next-lesson strong");
+      const action = card.querySelector<HTMLElement>(".course-deck-card-action");
+      if (!courseTitle || !lessonTitle || !action) throw new Error("Course Deck content is incomplete.");
+      const cardBox = card.getBoundingClientRect();
+      const courseTitleBox = courseTitle.getBoundingClientRect();
+      const lessonTitleBox = lessonTitle.getBoundingClientRect();
+      const actionBox = action.getBoundingClientRect();
+      return {
+        cardBottom: cardBox.bottom,
+        actionBottom: actionBox.bottom,
+        courseTitleHeight: courseTitleBox.height,
+        courseTitleLineHeight: Number.parseFloat(getComputedStyle(courseTitle).lineHeight),
+        lessonTitleHeight: lessonTitleBox.height,
+        lessonTitleLineHeight: Number.parseFloat(getComputedStyle(lessonTitle).lineHeight),
+      };
+    });
+
+    expect(containment.courseTitleHeight).toBeLessThanOrEqual((containment.courseTitleLineHeight * 2) + 1);
+    expect(containment.lessonTitleHeight).toBeLessThanOrEqual((containment.lessonTitleLineHeight * 2) + 1);
+    expect(containment.actionBottom).toBeLessThanOrEqual(containment.cardBottom + 1);
+    await expect(activeCard.getByRole("heading", { name: longTopic })).toBeVisible();
+    await expect(activeCard.locator(".course-deck-next-lesson strong")).toHaveText(longLessonTitle);
+    await expect(activeCard.getByRole("link", { name: /Continue/ })).toBeVisible();
+    await expectNoHorizontalPageOverflow(page);
+    if (process.env.CAPTURE_DASHBOARD === "1") {
+      await page.screenshot({ path: ".impeccable/review/course-deck-long-titles-desktop.png", fullPage: true });
     }
   });
 
@@ -1182,10 +1260,14 @@ test.describe("mobile application shell", () => {
     test.setTimeout(90_000);
     await prepareOwnerShell(page);
     const routes = [
+      { path: "/library", heading: /Find your next course/ },
       { path: "/create", heading: /Build toward a real outcome/ },
       { path: "/progress", heading: /Your progress/ },
+      { path: "/profile", heading: /Playwright/ },
+      { path: "/review", heading: /caught up|concept/ },
       { path: "/pricing", heading: /Choose how far Filosage carries your goal/ },
       { path: "/support", heading: /What do you need help with/ },
+      { path: "/standard", heading: /Capability Cycle turns a goal into usable skill/ },
     ];
 
     for (const route of routes) {
@@ -1197,6 +1279,17 @@ test.describe("mobile application shell", () => {
         await page.screenshot({ path: `.impeccable/review/platform-${route.path.slice(1)}-mobile.png`, fullPage: false });
       }
     }
+  });
+
+  test("keeps legal navigation at a 44px phone touch target", { tag: ["@mobile", "@webkit"] }, async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto("/terms");
+
+    const legalNavigation = page.getByRole("navigation", { name: "Legal documents" });
+    await expect(legalNavigation).toBeVisible();
+    await expectMinimumTargetHeight(legalNavigation.getByRole("link"));
+    const horizontalOverflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+    expect(horizontalOverflow).toBeLessThanOrEqual(1);
   });
 
   test("keeps the learner path legible and actionable on a phone", { tag: ["@mobile", "@webkit"] }, async ({ page }) => {
@@ -1233,6 +1326,9 @@ test.describe("mobile application shell", () => {
     expect(containment.actionBottom).toBeLessThanOrEqual(containment.cardBottom + 1);
     await expect(page.getByRole("link", { name: /Continue/ })).toBeVisible();
     await expectNoHorizontalPageOverflow(page);
+    if (process.env.CAPTURE_DASHBOARD === "1") {
+      await page.screenshot({ path: ".impeccable/review/course-deck-long-titles-mobile.png", fullPage: true });
+    }
   });
 
   test("shows the fanned course stack on a phone without horizontal overflow", { tag: ["@mobile", "@webkit"] }, async ({ page }) => {

@@ -54,4 +54,10 @@ test("captures the populated flashcard study workspace", async ({ page }, testIn
     fullPage: false,
     animations: "disabled",
   });
+
+  await page.setViewportSize({ width: 390, height: 844 });
+  await expect(page.getByRole("button", { name: "Reveal answer" })).toBeVisible();
+  await promptCard.scrollIntoViewIfNeeded();
+  const horizontalOverflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+  expect(horizontalOverflow).toBeLessThanOrEqual(1);
 });

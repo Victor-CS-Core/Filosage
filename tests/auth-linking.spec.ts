@@ -1199,9 +1199,7 @@ test("entry actions remain truthful and usable for every provider availability t
     if (providerCase.authentication.primaryProvider === null) {
       await page.locator(".marketing-nav-shell").getByRole("button", { name: "Sign in" }).click();
     } else {
-      await page.locator(".marketing-hero").getByRole("button", {
-        name: providerCase.createsAccount ? "Create a free account" : "Sign in to your account",
-      }).click();
+      await page.locator(".marketing-nav-shell").getByRole("button", { name: "Sign in" }).click();
     }
     const dialog = page.getByRole("dialog", { name: "Keep your learning in sync" });
     await expect(dialog, providerCase.name).toContainText(providerCase.identityCopy);
@@ -1366,6 +1364,55 @@ test("course start entry stays truthful for create, existing sign-in, and unavai
   }
 });
 
+test("featured-course account creation keeps the selected course as its return destination", async ({ page }) => {
+  await routeManagedSession(page, {
+    recentAuthentication: false,
+    authentication: {
+      primaryProvider: "filosage",
+      externalIdAvailable: true,
+      externalIdNewAccountsAvailable: true,
+      legacyGoogleAvailable: false,
+    },
+    user: null,
+  });
+  await page.route(/\/api\/courses(?:\?scope=public)?$/, (route) => {
+    expect(new URL(route.request().url()).searchParams.get("scope")).toBe("public");
+    return route.fulfill({
+      status: 200,
+      json: {
+        featuredCourseId: "public-preview",
+        courses: [{
+          id: "public-preview",
+          courseId: "public-preview",
+          topic: "Systems thinking",
+          mission: "See how connected parts shape outcomes over time.",
+          outcome: "Map a feedback loop and explain one leverage point.",
+          artifact: { title: "A feedback-loop map" },
+          level: "Foundations",
+          estimatedMinutes: 15,
+          category: "Decision-making",
+          isPublic: true,
+          aiAssisted: false,
+          modules: [{
+            title: "Feedback loops",
+            description: "Trace how one change feeds back into a system.",
+            lessons: [{ title: "See the system", concept: "Map a simple feedback loop.", estimatedMinutes: 15 }],
+          }],
+        }],
+      },
+    });
+  });
+  await page.goto("/");
+  const featuredCourse = page.locator(".marketing-course-proof");
+  await expect(featuredCourse.getByRole("heading", { name: "Systems thinking" })).toBeVisible();
+  await featuredCourse.getByRole("button", { name: "Create an account to start" }).click();
+  const authDialog = page.getByRole("dialog", { name: "Keep your learning in sync" });
+  await authDialog.getByRole("checkbox").check();
+  await authDialog.getByRole("button", { name: "Continue securely" }).click();
+
+  await expect(page).toHaveURL(/\/course\/Systems%20thinking\?id=public-preview$/);
+});
+
 for (const invalidAuthentication of [
   { primaryProvider: "filosage", externalIdAvailable: true, externalIdNewAccountsAvailable: false, legacyGoogleAvailable: true },
   { primaryProvider: "google", externalIdAvailable: true, externalIdNewAccountsAvailable: true, legacyGoogleAvailable: true },
@@ -1373,7 +1420,6 @@ for (const invalidAuthentication of [
   test(`session restoration rejects noncanonical provider precedence ${JSON.stringify(invalidAuthentication)}`, async ({ page }) => {
     await routeManagedSession(page, { recentAuthentication: false, authentication: invalidAuthentication, user: null });
     await page.goto("/");
-    await expect(page.locator(".marketing-hero").getByRole("button", { name: "Sign-in unavailable" })).toBeDisabled();
     await page.locator(".marketing-nav-shell").getByRole("button", { name: "Sign in" }).click();
     await expect(page.getByRole("dialog", { name: "Keep your learning in sync" }).getByRole("alert"))
       .toHaveText("Azure authentication status is unavailable.");
@@ -1504,7 +1550,7 @@ test("existing-account email-code entry navigates even when External ID account 
     body: "<!doctype html><title>Email-code sign-in</title>",
   }));
   await page.goto("/");
-  await page.locator(".marketing-hero").getByRole("button", { name: "Sign in to your account" }).click();
+  await page.locator(".marketing-nav-shell").getByRole("button", { name: "Sign in" }).click();
   await page.getByRole("dialog", { name: "Keep your learning in sync" })
     .getByRole("button", { name: "Sign in with email code" })
     .click();
@@ -1956,7 +2002,8 @@ test("auth modal layout survives long RTL copy, 200 percent zoom, and forced col
     element.setAttribute("dir", "rtl");
     element.style.fontSize = "200%";
   });
-  await page.locator(".marketing-hero").getByRole("button", { name: "Create a free account" }).click();
+  await page.getByRole("button", { name: "Open navigation menu" }).click();
+  await page.locator(".marketing-mobile-menu").getByRole("button", { name: "Sign in" }).click();
   const dialog = page.getByRole("dialog", { name: "Keep your learning in sync" });
   await dialog.locator(".auth-identity-copy").evaluate((element) => {
     element.textContent = "اختر Google أو رمز بريد إلكتروني خاصًا على شاشة Filosage الآمنة التالية مع تعليمات طويلة جدًا لاختبار الالتفاف";

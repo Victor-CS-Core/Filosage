@@ -3,19 +3,19 @@ import { ArrowRight, BookOpenCheck, CalendarCheck2, Check, FileCheck2, Target } 
 export default function FeatureGrid() {
   return (
     <section className="marketing-section marketing-story" id="features" aria-labelledby="features-title">
-      <header className="marketing-story-heading"><h2 id="features-title">See the learning task—not a generic dashboard.</h2><p>Filosage keeps the outcome, the next useful practice, and the evidence record connected without pretending they are the same thing.</p></header>
-      <p className="marketing-story-note">Illustrative product views · Course content and learner status vary.</p>
+      <header className="marketing-story-heading"><h2 id="features-title">Know what to do next.</h2><p>Your goal, current lesson, and saved progress stay connected, from the first practice attempt to the final project.</p></header>
+      <p className="marketing-story-note">Examples shown below. Your course and progress will vary.</p>
       <article className="marketing-story-row">
-        <div><Target size={24} aria-hidden="true" /><h3>Define what useful looks like.</h3><p>Record the learning context, the capability to build, and the artifact or decision that would demonstrate it.</p></div>
-        <div className="marketing-outcome-fragment" aria-label="Illustrative outcome definition fields"><span><small>Outcome</small><strong>Explain a system and choose a useful intervention</strong></span><span><small>Use it for</small><strong>A study, personal, career, or work goal</strong></span><span><small>Evidence</small><strong>A model, critique, plan, or portfolio piece</strong></span></div>
+        <div><Target size={24} aria-hidden="true" /><h3>Start with a clear finish line.</h3><p>Each course names the skill you are building and the work you will make to show it.</p></div>
+        <div className="marketing-outcome-fragment" aria-label="Example course goal"><span><small>Learn</small><strong>Explain a system and choose a useful intervention</strong></span><span><small>Use it for</small><strong>A study, personal, career, or work goal</strong></span><span><small>Finish with</small><strong>A model, critique, plan, or portfolio piece</strong></span></div>
       </article>
       <article className="marketing-story-row is-reversed">
-        <div><BookOpenCheck size={24} aria-hidden="true" /><h3>Practice through the complete cycle.</h3><p>Recall or predict first, commit to one focused attempt, use feedback to revise, and transfer the capability beyond the example.</p></div>
-        <ol className="marketing-practice-fragment" aria-label="Illustrative Capability Cycle lesson sequence"><li><FileCheck2 size={15} /> Recall or predict first</li><li><Check size={15} /> Make a focused attempt</li><li><Check size={15} /> Revise after feedback</li><li><ArrowRight size={15} /> Transfer to a new situation</li></ol>
+        <div><BookOpenCheck size={24} aria-hidden="true" /><h3>Practice, then revise.</h3><p>Short explanations lead into an attempt. Feedback arrives after you commit, so there is something real to improve.</p></div>
+        <ol className="marketing-practice-fragment" aria-label="Example lesson sequence"><li><FileCheck2 size={15} /> Recall or predict</li><li><Check size={15} /> Try it yourself</li><li><Check size={15} /> Revise with feedback</li><li><ArrowRight size={15} /> Use it somewhere new</li></ol>
       </article>
       <article className="marketing-story-row">
-        <div><CalendarCheck2 size={24} aria-hidden="true" /><h3>Return to one useful next step.</h3><p>Saved progress, reviews that are due, and a weekly milestone shape the return path. Paused plans resume without punitive catch-up.</p></div>
-        <div className="marketing-return-fragment"><small>Recommended next action</small><strong>One review ready</strong><span>Strengthen the concept before it becomes fragile.</span><i><b /></i><em>Weekly milestone · 2 of 5 lessons</em></div>
+        <div><CalendarCheck2 size={24} aria-hidden="true" /><h3>Come back at the right time.</h3><p>Filosage saves where you stopped and brings back ideas that are due for review. If you take a break, you simply continue.</p></div>
+        <div className="marketing-return-fragment"><small>Up next</small><strong>One review is ready</strong><span>Strengthen the idea before moving on.</span><i><b /></i><em>This week · 2 of 5 lessons</em></div>
       </article>
     </section>
   );

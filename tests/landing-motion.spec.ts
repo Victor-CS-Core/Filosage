@@ -49,7 +49,7 @@ test("keeps the primary landing action in the first viewport", { tag: ["@mobile"
     await page.setViewportSize(viewport);
     await page.goto("/");
 
-    const primary = page.locator(".marketing-hero").getByRole("link", { name: "Explore course outcomes" });
+    const primary = page.locator(".marketing-hero").getByRole("link", { name: "View the featured course" });
     await expect(primary).toBeVisible();
     const bounds = await primary.boundingBox();
     expect(bounds).not.toBeNull();

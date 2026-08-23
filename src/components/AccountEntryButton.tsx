@@ -18,9 +18,17 @@ export function useAccountEntryMode() {
   return accountEntryMode(useAuth().authentication);
 }
 
-export function openAccountEntry(returnFocus?: HTMLElement | null) {
+export interface AccountEntryRequest {
+  returnFocus: HTMLElement | null;
+  returnPath?: string;
+}
+
+export function openAccountEntry(returnFocus?: HTMLElement | null, returnPath?: string) {
   window.dispatchEvent(new CustomEvent("filosage:open-auth", {
-    detail: returnFocus ?? (document.activeElement instanceof HTMLElement ? document.activeElement : null),
+    detail: {
+      returnFocus: returnFocus ?? (document.activeElement instanceof HTMLElement ? document.activeElement : null),
+      ...(returnPath ? { returnPath } : {}),
+    } satisfies AccountEntryRequest,
   }));
 }
 
@@ -30,6 +38,7 @@ interface AccountEntryButtonProps {
   signInLabel?: string;
   unavailableLabel?: string;
   icon?: ComponentType<{ size?: number; "aria-hidden"?: boolean }>;
+  returnPath?: string;
 }
 
 export default function AccountEntryButton({
@@ -38,6 +47,7 @@ export default function AccountEntryButton({
   signInLabel = "Sign in to your account",
   unavailableLabel = "Sign-in unavailable",
   icon: Icon,
+  returnPath,
 }: AccountEntryButtonProps) {
   const mode = useAccountEntryMode();
   const label = mode === "create" ? createLabel : mode === "sign-in" ? signInLabel : unavailableLabel;
@@ -46,7 +56,7 @@ export default function AccountEntryButton({
       className={className}
       type="button"
       disabled={mode === "unavailable"}
-      onClick={(event) => openAccountEntry(event.currentTarget)}
+      onClick={(event) => openAccountEntry(event.currentTarget, returnPath)}
     >
       {Icon && <Icon size={16} aria-hidden={true} />}
       {label}

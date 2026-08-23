@@ -1,12 +1,18 @@
 import { spawnSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
-import { expect, test } from "@playwright/test";
+import { expect, test, type Locator } from "@playwright/test";
 import { supportArticles } from "../src/content/support/articles";
 import type { OwnerDocumentation } from "../src/content/support/owner-documentation-types";
 import { PRIVACY_VERSION, TERMS_VERSION } from "../src/lib/legal";
 
 const root = process.cwd();
+
+async function expectMinimumTargetHeight(locator: Locator, minimum = 44) {
+  const heights = await locator.evaluateAll((elements) => elements.map((element) => element.getBoundingClientRect().height));
+  expect(heights.length).toBeGreaterThan(0);
+  expect(Math.min(...heights)).toBeGreaterThanOrEqual(minimum);
+}
 const wikiCheck = resolve(root, "scripts/check-support-wiki.mjs");
 const articleBody = (slug: string) => supportArticles.find((article) => article.slug === slug)?.body ?? "";
 
@@ -235,6 +241,7 @@ test("searches public guides, renders source-checked content, and resolves wiki 
 test("shows the structured handbook only to the verified owner", async ({ page }, testInfo) => {
   test.setTimeout(90_000);
   test.skip(testInfo.project.name !== "chromium", "Owner handbook acceptance runs once in desktop Chromium.");
+  await page.setViewportSize({ width: 390, height: 844 });
   await page.goto("/support");
   await expect(page.getByRole("heading", { name: "Filosage owner handbook" })).toHaveCount(0);
 
@@ -260,15 +267,19 @@ test("shows the structured handbook only to the verified owner", async ({ page }
   await expect(page.getByRole("heading", { level: 1, name: "Filosage owner handbook" })).toBeVisible();
   await expect(page.getByRole("heading", { level: 2, name: "Support and Agent Command Center" })).toBeVisible();
   await expect(page.getByText("Reviewed sources", { exact: true }).first()).toBeVisible();
+  await expectMinimumTargetHeight(page.locator(".owner-docs-links a"));
+  const horizontalOverflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+  expect(horizontalOverflow).toBeLessThanOrEqual(1);
 });
 
-test("keeps article navigation and prose within a phone viewport", { tag: "@webkit" }, async ({ page }, testInfo) => {
-  test.skip(testInfo.project.name !== "mobile-webkit", "The mobile article contract runs in the phone-sized WebKit project.");
+test("keeps article navigation and prose within a phone viewport", { tag: ["@mobile", "@webkit"] }, async ({ page }, testInfo) => {
+  test.skip(!["mobile-chromium", "mobile-webkit"].includes(testInfo.project.name), "The mobile article contract runs in a phone-sized project.");
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto("/support/articles/complete-a-lesson");
 
   await expect(page.getByRole("heading", { level: 1, name: "Complete a lesson and its activities" })).toBeVisible();
   await expect(page.getByText("On this page", { exact: true }).first()).toBeVisible();
+  await expectMinimumTargetHeight(page.getByRole("complementary", { name: "Support category navigation" }).getByRole("link"));
   const dimensions = await page.locator("body").evaluate((body) => ({ clientWidth: body.clientWidth, scrollWidth: body.scrollWidth }));
   expect(dimensions.scrollWidth).toBeLessThanOrEqual(dimensions.clientWidth);
   const categoryNavigation = await page.getByRole("complementary", { name: "Support category navigation" }).locator("ul").evaluate((list) => ({ clientWidth: list.clientWidth, scrollWidth: list.scrollWidth }));

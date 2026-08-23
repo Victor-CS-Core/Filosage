@@ -26,6 +26,7 @@ import {
 import { SUPPORT_CONTACT } from "@/lib/legal";
 import FilosageMark from "@/components/FilosageMark";
 import AuthModal from "@/components/AuthModal";
+import type { AccountEntryRequest } from "@/components/AccountEntryButton";
 import AppDrawer, { useAppDrawer } from "@/components/AppDrawer";
 import IdentityLinkRequiredModal from "@/components/IdentityLinkRequiredModal";
 import LegalConsentModal from "@/components/LegalConsentModal";
@@ -65,6 +66,7 @@ export default function AppShell({ children, activeTopic, activeCourseId, active
   const { user, account, isOwner, canCreateCourses, signOut, loading: authLoading, error: authError } = useAuth();
   const [showAuth, setShowAuth] = useState(false);
   const [authReturnFocus, setAuthReturnFocus] = useState<HTMLElement | null>(null);
+  const [authReturnPath, setAuthReturnPath] = useState<string>();
   const [courses, setCourses] = useState<Course[]>([]);
   const [coursesLoading, setCoursesLoading] = useState(false);
   const [courseQuery, setCourseQuery] = useState("");
@@ -81,11 +83,15 @@ export default function AppShell({ children, activeTopic, activeCourseId, active
   useEffect(() => {
     if (user) return;
     const openAuth = (event: Event) => {
-      setAuthReturnFocus(event instanceof CustomEvent && event.detail instanceof HTMLElement
-        ? event.detail
+      const request = event instanceof CustomEvent && event.detail && typeof event.detail === "object"
+        ? event.detail as Partial<AccountEntryRequest>
+        : null;
+      setAuthReturnFocus(request?.returnFocus instanceof HTMLElement
+        ? request.returnFocus
         : document.activeElement instanceof HTMLElement
           ? document.activeElement
           : null);
+      setAuthReturnPath(typeof request?.returnPath === "string" ? request.returnPath : undefined);
       setShowAuth(true);
     };
     window.addEventListener("filosage:open-auth", openAuth);
@@ -340,15 +346,17 @@ export default function AppShell({ children, activeTopic, activeCourseId, active
         <a className="skip-link" href="#main-content">Skip to main content</a>
         <MarketingNavigation theme={theme} onToggleTheme={toggle} onSignIn={(returnFocus) => {
           setAuthReturnFocus(returnFocus);
+          setAuthReturnPath(undefined);
           setShowAuth(true);
         }} />
         <main className="public-main" id="main-content" tabIndex={-1}>{children}</main>
         <MarketingFooter />
         <SupportCenter onRequestSignIn={(returnFocus) => {
           setAuthReturnFocus(returnFocus);
+          setAuthReturnPath(undefined);
           setShowAuth(true);
         }} />
-        {showAuth && <AuthModal returnFocus={authReturnFocus} onClose={closeAuth} />}
+        {showAuth && <AuthModal returnFocus={authReturnFocus} returnPath={authReturnPath} onClose={closeAuth} />}
       </div>
     );
   }

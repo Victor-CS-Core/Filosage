@@ -1,6 +1,5 @@
 import Link from "next/link";
 import { ArrowRight, BookOpenCheck, LockKeyhole, ShieldCheck } from "lucide-react";
-import AccountStartButton from "@/components/marketing/AccountStartButton";
 import EvidenceDossier from "@/components/marketing/EvidenceDossier";
 import FeatureGrid from "@/components/marketing/FeatureGrid";
 import HowItWorks from "@/components/marketing/HowItWorks";
@@ -15,25 +14,18 @@ export default function LandingPage() {
       <FeatureGrid />
       <EvidenceDossier />
       <section className="marketing-section marketing-trust" aria-labelledby="marketing-trust-title">
-        <div><h2 id="marketing-trust-title">Trust is a visible state, not a marketing badge.</h2><p>Published courses disclose their Capability Cycle structure and source status. Generated lessons must match their current learning-design plan and quality checks, while model-knowledge or legacy material keeps its caveats.</p><Link className="marketing-text-link" href="/standard">See the complete Capability Cycle standard <ArrowRight size={15} /></Link></div>
-        <ul><li><ShieldCheck aria-hidden="true" /><span><strong>Source status stays specific</strong><small>A link is not presented as proof that its page supported a lesson claim.</small></span></li><li><BookOpenCheck aria-hidden="true" /><span><strong>Course structure stays public</strong><small>Inspect outcomes, modules, lesson titles, and assessment shape before joining.</small></span></li><li><LockKeyhole aria-hidden="true" /><span><strong>Learning work stays account-bound</strong><small>Lesson bodies, notes, progress, tools, and evidence require a verified learner.</small></span></li></ul>
+        <div><h2 id="marketing-trust-title">Know where the material comes from.</h2><p>Course pages show whether a lesson uses verified sources, AI general knowledge, or further reading. They also show the course structure before you create an account.</p><Link className="marketing-text-link" href="/standard">Read the teaching and source standard <ArrowRight size={15} /></Link></div>
+        <ul><li><ShieldCheck aria-hidden="true" /><span><strong>Sources are labeled</strong><small>Verified sources are kept separate from AI general knowledge and reading suggestions.</small></span></li><li><BookOpenCheck aria-hidden="true" /><span><strong>The outline is public</strong><small>Review the outcome, modules, lesson titles, and assessment before joining.</small></span></li><li><LockKeyhole aria-hidden="true" /><span><strong>Your learning stays with your account</strong><small>Lesson access, notes, progress, study tools, and evidence require a verified learner.</small></span></li></ul>
       </section>
       <MarketingFAQ />
       <section className="marketing-section marketing-access" aria-labelledby="marketing-access-title">
         <div className="marketing-access-copy">
-          <h2 id="marketing-access-title">Inspect the path. Join when it fits the work.</h2>
-          <p>Anyone can inspect published outcomes, modules, lesson titles, and assessment structure. A verified account opens lesson content and keeps your notes, progress, review schedule, and evidence connected.</p>
+          <h2 id="marketing-access-title">Find a course that fits.</h2>
+          <p>Browse by topic, level, or time. Open any course outline before deciding whether to sign up.</p>
           <div className="marketing-access-actions">
-            <Link className="button button-primary" href="/library">Explore published courses <ArrowRight size={16} /></Link>
-            <AccountStartButton />
-            <Link className="button button-quiet" href="/pricing">See plans and availability</Link>
+            <Link className="button button-primary" href="/library">Browse published courses <ArrowRight size={16} /></Link>
           </div>
         </div>
-        <ul className="marketing-access-points" aria-label="Ways to use Filosage">
-          <li><BookOpenCheck aria-hidden="true" /><span><strong>Browse before joining</strong><small>Evaluate the full course structure without an account.</small></span></li>
-          <li><ShieldCheck aria-hidden="true" /><span><strong>Keep a learning record</strong><small>Save progress, review work, notes, and evidence after sign-in.</small></span></li>
-          <li><LockKeyhole aria-hidden="true" /><span><strong>Paid availability stays explicit</strong><small>The plans page shows current access and whether paid checkout is open.</small></span></li>
-        </ul>
       </section>
     </div>
   );

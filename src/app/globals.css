@@ -1569,7 +1569,7 @@ html[data-environment="qa"] .environment-pill { display: inline-flex; }
   .support-article-nav { position: static; max-height: none; border-bottom: 1px solid var(--line); padding-bottom: 18px; }
   .support-article-nav ul { display: flex; flex-wrap: wrap; gap: 6px; }
   .support-article-nav li { min-width: 0; flex: 1 1 160px; }
-  .support-article-nav li a { width: 100%; height: 100%; border: 1px solid var(--line); }
+  .support-article-nav li a { width: 100%; height: 100%; min-height: 44px; border: 1px solid var(--line); }
   .support-all-guides { margin-top: 8px; }
   .owner-docs-page { width: min(100% - 36px, 760px); }
   .owner-docs-header { grid-template-columns: 1fr; gap: 22px; }
@@ -1578,6 +1578,7 @@ html[data-environment="qa"] .environment-pill { display: inline-flex; }
   .owner-docs-index { position: static; }
   .owner-docs-index nav { display: none; }
   .owner-docs-index > div { display: none; }
+  .owner-docs-links a { min-height: 44px; }
 }
 
 @media (max-width: 700px) {
@@ -1586,7 +1587,7 @@ html[data-environment="qa"] .environment-pill { display: inline-flex; }
   .public-footer a { min-height: 44px; }
   .legal-page { width: calc(100% - 36px); padding-top: 42px; }
   .legal-local-nav { top: 76px; overflow-x: auto; flex-wrap: nowrap; }
-  .legal-local-nav a { white-space: nowrap; }
+  .legal-local-nav a { min-height: 44px; white-space: nowrap; }
   .privacy-center-page { width: calc(100% - 36px); padding-top: 42px; }
   .privacy-center-grid { grid-template-columns: 1fr; }
   .privacy-center-grid > article,
@@ -2027,11 +2028,13 @@ html[data-environment="qa"] .environment-pill { display: inline-flex; }
 .course-deck-cover .course-banner::after { content: none; }
 .course-deck-card-body { position: relative; min-height: 0; display: grid; grid-template-columns: minmax(0, 1fr) 250px; gap: 30px; padding: clamp(25px, 3vw, 38px); background-color: var(--deck-paper); }
 .course-deck-card-body > * { position: relative; z-index: 3; }
-.course-deck-card-copy { min-width: 0; display: flex; flex-direction: column; transition: opacity var(--motion-feedback) var(--ease-out); }
+.course-deck-card-copy { min-width: 0; min-height: 0; display: flex; flex-direction: column; overflow: hidden; transition: opacity var(--motion-feedback) var(--ease-out); }
 .course-deck-card-copy h2 { max-width: 19ch; color: var(--deck-ink); font-family: var(--font-editorial); font-size: clamp(2rem, 3.2vw, 3.15rem); font-weight: 560; line-height: 0.98; letter-spacing: -0.035em; overflow-wrap: anywhere; }
 .course-deck-next-lesson { max-width: 40ch; margin-top: 18px; padding-top: 15px; border-top: 1px solid var(--deck-rule); }
 .course-deck-next-lesson span { display: block; color: var(--deck-accent); font-size: 0.72rem; font-weight: 760; letter-spacing: 0.035em; text-transform: uppercase; }
 .course-deck-next-lesson strong { display: block; margin-top: 7px; color: var(--deck-ink); font-family: var(--font-editorial); font-size: clamp(1.25rem, 2vw, 1.7rem); font-weight: 540; line-height: 1.12; }
+.course-deck-card-copy h2,
+.course-deck-next-lesson strong { display: -webkit-box; overflow: hidden; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
 .course-deck-lesson-meta { display: flex; flex-wrap: wrap; gap: 10px 18px; margin-top: 15px; color: var(--deck-muted); font-size: 0.78rem; }
 .course-deck-lesson-meta span { display: inline-flex; align-items: center; gap: 6px; }
 .course-deck-card-action { min-width: 0; align-self: end; transition: opacity var(--motion-feedback) var(--ease-out); }
@@ -2045,7 +2048,7 @@ html[data-environment="qa"] .environment-pill { display: inline-flex; }
 .course-deck-primary { margin-top: 22px; background: var(--brand-coral); color: var(--brand-navy); box-shadow: 0 6px 16px rgb(2 8 23 / 0.18), 0 14px 28px rgb(2 8 23 / 0.12); }
 .course-deck-primary:hover { background: #FF9D7F; }
 .course-deck-card-action .course-deck-primary { width: 100%; }
-.course-deck-controls { min-height: 48px; display: flex; align-items: center; justify-content: center; gap: 14px; margin-top: 2px; }
+.course-deck-controls { min-height: 48px; display: flex; align-items: center; justify-content: center; gap: 14px; margin-top: 16px; }
 .course-deck-controls > button { width: 44px; height: 44px; display: grid; place-items: center; border: 1px solid var(--control-outline); border-radius: 50%; background: var(--surface); color: var(--ink); cursor: pointer; box-shadow: var(--shadow-control); transition: background var(--motion-state) var(--ease-out), border-color var(--motion-state) var(--ease-out), transform var(--motion-feedback) var(--ease-out); }
 .course-deck-controls > button:hover { border-color: var(--brand-teal); background: var(--surface-active); }
 .course-deck-controls > div { min-width: 180px; display: flex; align-items: center; justify-content: center; gap: 9px; color: var(--ink-muted); font-size: 0.7rem; }
@@ -3279,6 +3282,12 @@ html[data-environment="qa"] .environment-pill { display: inline-flex; }
   .admin-funnel-list em { grid-column: 2 / -1; margin-top: -11px; text-align: left; }
   .admin-suspend-form, .admin-pro-controls { align-items: stretch; flex-direction: column; }
   .admin-suspend-form input { min-height: 40px; }
+  .admin-tabs button,
+  .admin-header-actions select,
+  .admin-pro-controls select,
+  .admin-account-controls .button,
+  .admin-launch-actions .button,
+  .admin-ai-cost-strip > button { min-height: 44px; }
   .account-suspended-banner { align-items: flex-start; justify-content: flex-start; font-size: 0.72rem; }
 }
 
@@ -4196,6 +4205,7 @@ html[data-environment="qa"] .environment-pill { display: inline-flex; }
   .library-card-grid.is-single-course .course-banner { min-height: 176px; }
   .library-card-grid.is-single-course .course-card-body { min-height: 240px; padding: 20px; }
   .interactive-lesson-block { padding: 21px 16px; }
+  .lesson-section-navigator button { min-height: 44px; }
   .interactive-lesson-block > header { grid-template-columns: 36px minmax(0, 1fr); }
   .interactive-block-icon { width: 36px; height: 36px; }
   .signal-stage-heading, .interaction-actions, .review-recovery > div { align-items: stretch; flex-direction: column; }
@@ -4599,15 +4609,13 @@ html[data-environment="qa"] .environment-pill { display: inline-flex; }
   .course-deck-section.is-single .course-deck-stage { padding-bottom: 0; }
   .course-deck-card-body { display: flex; flex-direction: column; gap: 0; padding: 20px 22px 22px; }
   .course-deck-card-copy h2 { max-width: 16ch; font-size: clamp(1.8rem, 8vw, 2.45rem); }
-  .course-deck-card-copy h2,
-  .course-deck-next-lesson strong { display: -webkit-box; overflow: hidden; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
   .course-deck-next-lesson { margin-top: 14px; padding-top: 12px; }
   .course-deck-next-lesson strong { margin-top: 6px; font-size: 1.18rem; }
   .course-deck-lesson-meta { margin-top: 9px; font-size: 0.7rem; }
   .course-deck-card-action { width: 100%; align-self: stretch; margin-top: 18px; }
   .course-deck-progress { margin-top: 6px; }
   .course-deck-card-action .course-deck-primary { min-height: 44px; margin-top: 12px; scroll-margin-bottom: calc(88px + env(safe-area-inset-bottom)); }
-  .course-deck-controls { margin: 8px 0 0; }
+  .course-deck-controls { margin: 12px 0 0; }
   .course-deck-controls > div { min-width: 0; flex: 1; flex-direction: column; gap: 1px; }
   .course-deck-controls strong { max-width: 26ch; }
   .course-deck-signals { width: 100%; grid-template-columns: 1fr; gap: 10px; margin-top: 18px; }

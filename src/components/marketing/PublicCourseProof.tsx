@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { ArrowRight, BookOpenCheck, Clock3, Gauge, Layers3, RefreshCw, ShieldCheck, Sparkles } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import AccountEntryButton from "@/components/AccountEntryButton";
 import CourseBanner from "@/components/CourseBanner";
 import type { Course } from "@/lib/course-types";
 import { selectFlagshipCourse } from "@/lib/marketing-merchandising";
@@ -99,7 +100,7 @@ export default function PublicCourseProof() {
   const href = `/course/${encodeURIComponent(course.topic)}?id=${encodeURIComponent(id)}`;
 
   return (
-    <article className="marketing-course-proof" aria-labelledby="marketing-course-proof-title">
+    <article className="marketing-course-proof" id="featured-course" aria-labelledby="marketing-course-proof-title">
       <div className="marketing-course-cover">
         <CourseBanner course={course} variant="card" eager />
         <div className="marketing-course-cover-copy">
@@ -128,7 +129,15 @@ export default function PublicCourseProof() {
           <div><dt><Gauge size={14} aria-hidden="true" /> Level</dt><dd>{course.level ?? "Not specified"}</dd></div>
           <div><dt><ShieldCheck size={14} aria-hidden="true" /> Sources</dt><dd>{sourceLabel}</dd></div>
         </dl>
-        <Link className="button button-secondary marketing-course-open" href={href}>Inspect course outline <ArrowRight size={16} /></Link>
+        <div className="marketing-course-actions">
+          <Link className="button button-primary marketing-course-open" href={href}>View course outline <ArrowRight size={16} /></Link>
+          <AccountEntryButton
+            className="button button-secondary marketing-course-start"
+            createLabel="Create an account to start"
+            signInLabel="Sign in to start"
+            returnPath={href}
+          />
+        </div>
       </div>
     </article>
   );

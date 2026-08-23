@@ -21,6 +21,7 @@ import {
 } from "@/lib/identity-client";
 import type { AccessLevel, LearnerAccount } from "@/lib/course-types";
 import { isZeroCapabilityLinkRequiredAccount, parseLearnerAccount } from "@/lib/account-client";
+import { safeAuthenticationReturnPath } from "@/lib/auth-return-path";
 import { PRIVACY_VERSION, TERMS_VERSION } from "@/lib/legal";
 import {
   parsePendingIdentityRecovery,
@@ -46,9 +47,9 @@ interface AuthContextValue {
   error: string | null;
   clearError: () => void;
   signIn: () => Promise<FilosageUser>;
-  signInWithRedirect: () => Promise<void>;
-  signInWithProvider: (provider: "google" | "filosage") => Promise<void>;
-  useExistingGoogleSignIn: (recoverIdentity?: boolean) => Promise<void>;
+  signInWithRedirect: (postLoginPath?: string) => Promise<void>;
+  signInWithProvider: (provider: "google" | "filosage", postLoginPath?: string) => Promise<void>;
+  useExistingGoogleSignIn: (recoverIdentity?: boolean, postLoginPath?: string) => Promise<void>;
   connectExternalIdentity: (returnPath?: string) => Promise<void>;
   reauthenticate: (postLoginPath?: string) => Promise<FilosageUser>;
   acceptLegalTerms: (source: "signup" | "terms-update" | "subscription", targetUser?: FilosageUser) => Promise<void>;
@@ -430,7 +431,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, [authentication, loadAccount]);
 
-  const signInWithRedirect = useCallback(async () => {
+  const signInWithRedirect = useCallback(async (postLoginPath?: string) => {
     setError(null);
     if (!isManagedAuthConfigured) {
       if (localAuthAvailable) {
@@ -439,6 +440,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setUser(localUser);
         await persistLegalAcceptance(localUser, "signup");
         await loadAccount(localUser).catch(() => undefined);
+        if (postLoginPath) window.location.assign(safeAuthenticationReturnPath(postLoginPath));
         return;
       }
       setError("Secure sign-in is not available in this build.");
@@ -456,7 +458,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       );
       await beginManagedSignIn(
         provider,
-        `${window.location.pathname}${window.location.search}`,
+        postLoginPath ?? `${window.location.pathname}${window.location.search}`,
       );
     } catch (redirectError) {
       sessionStorage.removeItem(PENDING_MANAGED_REDIRECT_ACCEPTANCE_KEY);
@@ -465,7 +467,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, [authentication, loadAccount]);
 
-  const signInWithProvider = useCallback(async (provider: "google" | "filosage") => {
+  const signInWithProvider = useCallback(async (provider: "google" | "filosage", postLoginPath?: string) => {
     setError(null);
     const available = provider === "google"
       ? authentication.legacyGoogleAvailable
@@ -476,14 +478,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       throw new Error(message);
     }
     try {
-      await beginManagedSignIn(provider, `${window.location.pathname}${window.location.search}`);
+      await beginManagedSignIn(provider, postLoginPath ?? `${window.location.pathname}${window.location.search}`);
     } catch (signInError) {
       setError(authErrorMessage(signInError));
       throw signInError;
     }
   }, [authentication.externalIdAvailable, authentication.legacyGoogleAvailable]);
 
-  const useExistingGoogleSignIn = useCallback(async (recoverIdentity = false) => {
+  const useExistingGoogleSignIn = useCallback(async (recoverIdentity = false, postLoginPath?: string) => {
     setError(null);
     if (!authentication.legacyGoogleAvailable) {
       const message = "The existing Google sign-in is not available. Sign out and choose another method.";
@@ -499,7 +501,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       await beginManagedSignIn(
         "google",
-        `${window.location.pathname}${window.location.search}`,
+        postLoginPath ?? `${window.location.pathname}${window.location.search}`,
       );
     } catch (signInError) {
       if (recoverIdentity) sessionStorage.removeItem(PENDING_IDENTITY_RECOVERY_KEY);

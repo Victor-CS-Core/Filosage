@@ -59,3 +59,23 @@ for (const theme of ["light", "dark"] as const) {
     await expectNoVerticalOverlap(protocol, phaseFour);
   });
 }
+
+test("keeps admin navigation contained with 44px phone touch targets", { tag: ["@mobile", "@webkit"] }, async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await openResearchTab(page, "light");
+
+  const tabHeights = await page.getByRole("navigation", { name: "Control room sections" }).getByRole("button").evaluateAll(
+    (buttons) => buttons.map((button) => button.getBoundingClientRect().height),
+  );
+  expect(tabHeights.length).toBeGreaterThan(0);
+  expect(Math.min(...tabHeights)).toBeGreaterThanOrEqual(44);
+
+  const selectHeights = await page.locator(".admin-header-actions select:visible").evaluateAll(
+    (selects) => selects.map((select) => select.getBoundingClientRect().height),
+  );
+  expect(selectHeights.length).toBeGreaterThan(0);
+  expect(Math.min(...selectHeights)).toBeGreaterThanOrEqual(44);
+
+  const horizontalOverflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+  expect(horizontalOverflow).toBeLessThanOrEqual(1);
+});
