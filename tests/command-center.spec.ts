@@ -322,12 +322,13 @@ test("isolates learner support tickets, replays duplicate submissions, and separ
 
   const ownerSnapshot = await request.get("/api/admin/command-center", { headers: ownerHeaders });
   const ownerBody = await ownerSnapshot.json() as {
-    tickets: Array<{ id: string; notes: unknown[]; publicReplies: unknown[] }>;
+    tickets: Array<{ id: string; notes: unknown[]; publicReplies: unknown[]; requestContext?: unknown }>;
     auditEvents: Array<{ ticketId?: string; action: string; externalSideEffect: boolean; metadata: Record<string, unknown> }>;
   };
   const ownerTicket = ownerBody.tickets.find((ticket) => ticket.id === created.ticketId);
   expect(ownerTicket?.notes).toHaveLength(1);
   expect(ownerTicket?.publicReplies).toHaveLength(1);
+  expect(ownerTicket?.requestContext).toEqual(payload.requestContext);
   const publishAudit = ownerBody.auditEvents.find((event) => event.ticketId === created.ticketId && event.action === "ticket.public_reply_published");
   expect(publishAudit).toMatchObject({
     externalSideEffect: true,
@@ -342,6 +343,7 @@ test("isolates learner support tickets, replays duplicate submissions, and separ
   if (!exportedTicket) throw new Error("The learner support ticket was missing from the account export.");
   expect(exportedTicket).toMatchObject({
     description: payload.message,
+    requestContext: payload.requestContext,
     publicReplies: [expect.objectContaining({ body: publicReply })],
   });
   for (const internalField of ["notes", "relatedUserId", "riskLevel", "priority", "assignedRole", "confirmedFacts", "unverifiedClaims", "evidenceReferences", "tags", "normalizedSummary", "requiresHumanApproval"]) {
