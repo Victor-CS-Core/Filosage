@@ -441,11 +441,14 @@ var appEnvironment = concat(
     { name: 'EXTERNAL_ID_CLIENT_ID', value: externalIdClientId }
     { name: 'EXTERNAL_ID_ISSUER', value: externalIdIssuer }
     { name: 'EXTERNAL_ID_WELL_KNOWN_CONFIGURATION', value: externalIdWellKnownConfiguration }
-    { name: 'OPERATIONS_ENVIRONMENT', value: 'azure-staging' }
+    { name: 'OPERATIONS_ENVIRONMENT', value: 'production' }
+    { name: 'DEPLOYMENT_ENVIRONMENT', value: 'production' }
     { name: 'OWNER_EMAIL', value: ownerEmail }
     { name: 'ACTIVITY_RECEIPT_SECRET', secretRef: 'activity-receipt-secret' }
     { name: 'BILLING_PROVIDER', value: 'stripe' }
     { name: 'BILLING_ENABLED', value: 'false' }
+    { name: 'BILLING_ROLLOUT_MODE', value: 'closed' }
+    { name: 'STRIPE_TAX_READY', value: 'false' }
   ],
   !empty(operationsAlertWebhookUrl) ? [{ name: 'OPERATIONS_ALERT_WEBHOOK_URL', value: operationsAlertWebhookUrl }] : [],
   !empty(operationsAlertWebhookSecret) ? [{ name: 'OPERATIONS_ALERT_WEBHOOK_SECRET', secretRef: 'operations-alert-webhook-secret' }] : [],
@@ -480,14 +483,35 @@ resource app 'Microsoft.App/containerApps@2025-01-01' = if (deployApplication) {
         name: 'filosage'
         image: containerImage
         env: appEnvironment
-        probes: [{
-          type: 'Liveness'
-          httpGet: { path: '/api/health', port: 3000, scheme: 'HTTP' }
-          initialDelaySeconds: 30
-          periodSeconds: 30
-          timeoutSeconds: 5
-          failureThreshold: 3
-        }]
+        probes: [
+          {
+            type: 'Startup'
+            httpGet: { path: '/api/health/startup', port: 3000, scheme: 'HTTP' }
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 10
+            successThreshold: 1
+          }
+          {
+            type: 'Liveness'
+            httpGet: { path: '/api/health/live', port: 3000, scheme: 'HTTP' }
+            initialDelaySeconds: 10
+            periodSeconds: 30
+            timeoutSeconds: 5
+            failureThreshold: 3
+            successThreshold: 1
+          }
+          {
+            type: 'Readiness'
+            httpGet: { path: '/api/health/ready', port: 3000, scheme: 'HTTP' }
+            initialDelaySeconds: 5
+            periodSeconds: 15
+            timeoutSeconds: 5
+            failureThreshold: 3
+            successThreshold: 1
+          }
+        ]
         resources: { cpu: json('0.5'), memory: '1Gi' }
       }]
       scale: {

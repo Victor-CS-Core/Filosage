@@ -49,8 +49,8 @@ test("Control Room launch gates use exact report counts and disclose capped sour
   expect(overview).toContain("totalContentReportCount - resolvedContentReportCount - dismissedContentReportCount");
   expect(overview).toContain("limitedSources");
   expect(page).toContain("Some totals are partial because the reporting read limit was reached");
-  expect(page).toContain("billing lock remains on");
-  expect(page).toContain("billing lock is off");
+  expect(page).toContain("Billing remains fail-closed");
+  expect(page).toContain("Checkout is available to eligible accounts");
 });
 
 test("manual grants cannot replace billing-managed access", () => {

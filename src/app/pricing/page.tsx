@@ -3,9 +3,11 @@
 import Link from "next/link";
 import { useEffect, useState, useSyncExternalStore } from "react";
 import {
+  ArrowLeftRight,
   Bell,
   Check,
   CheckCircle2,
+  CircleX,
   CreditCard,
   Crown,
   Gauge,
@@ -18,7 +20,10 @@ import {
 import AppShell from "@/components/AppShell";
 import AccountEntryButton from "@/components/AccountEntryButton";
 import { useAuth } from "@/components/AuthProvider";
-import { subscriptionBlocksCheckout } from "@/lib/billing-lock";
+import {
+  CHECKOUT_ELIGIBILITY_VERSION,
+  subscriptionBlocksCheckout,
+} from "@/lib/billing-lock";
 import { PAID_SUBSCRIPTION_POLICY, SUPPORT_CONTACT } from "@/lib/legal";
 import {
   ACTIVE_MEMBERSHIP_PLANS,
@@ -29,6 +34,7 @@ import {
   type PaidLearnerPlan,
 } from "@/lib/membership-plans";
 import { parsePricingContext } from "@/lib/pricing-context";
+import type { BillingPortalAction } from "@/lib/billing-portal";
 
 const planIcons = { free: Gauge, plus: Layers3, pro: Crown } as const;
 
@@ -64,8 +70,13 @@ export default function PricingPage() {
   const [billingReady, setBillingReady] = useState(false);
   const [billingManagementReady, setBillingManagementReady] = useState(false);
   const [billingBusy, setBillingBusy] = useState(false);
+  const [billingPendingAction, setBillingPendingAction] = useState<"checkout" | BillingPortalAction | null>(null);
   const [billingError, setBillingError] = useState<string | null>(null);
   const [checkoutReturn, setCheckoutReturn] = useState<"success" | "canceled" | null>(null);
+  const [checkoutReconciliation, setCheckoutReconciliation] = useState<"idle" | "checking" | "confirmed" | "timed-out">("idle");
+  const [age18OrOlder, setAge18OrOlder] = useState(false);
+  const [usResident, setUsResident] = useState(false);
+  const [automaticRenewalAccepted, setAutomaticRenewalAccepted] = useState(false);
   const [intentReadiness, setIntentReadiness] = useState<"ready_now" | "within_30_days" | "researching">("within_30_days");
   const [launchEmailConsent, setLaunchEmailConsent] = useState(false);
   const [intentSaving, setIntentSaving] = useState(false);
@@ -73,17 +84,27 @@ export default function PricingPage() {
   const [intentError, setIntentError] = useState<string | null>(null);
 
   useEffect(() => {
-    void fetch("/api/billing/status")
-      .then((response) => response.ok ? response.json() : Promise.reject(new Error()))
-      .then((status: { ready?: boolean; managementReady?: boolean }) => {
+    let active = true;
+    void (async () => {
+      try {
+        const token = user ? await user.getIdToken() : null;
+        const response = await fetch("/api/billing/status", {
+          headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+          cache: "no-store",
+        });
+        if (!response.ok) throw new Error();
+        const status = await response.json() as { ready?: boolean; managementReady?: boolean };
+        if (!active) return;
         setBillingReady(status.ready === true);
         setBillingManagementReady(status.managementReady === true);
-      })
-      .catch(() => {
+      } catch {
+        if (!active) return;
         setBillingReady(false);
         setBillingManagementReady(false);
-      });
-  }, []);
+      }
+    })();
+    return () => { active = false; };
+  }, [user]);
 
   useEffect(() => {
     const url = new URL(window.location.href);
@@ -96,11 +117,50 @@ export default function PricingPage() {
   }, []);
 
   useEffect(() => {
-    if (checkoutReturn !== "success" || !user) return;
-    void refreshAccount();
-    const retry = window.setTimeout(() => void refreshAccount(), 2_500);
-    return () => window.clearTimeout(retry);
-  }, [checkoutReturn, refreshAccount, user]);
+    let active = true;
+    let expired = false;
+    let timer: number | undefined;
+    let deadlineTimer: number | undefined;
+    void (async () => {
+      // Let React finish the current commit before updating reconciliation
+      // state, and preserve a cancelable boundary for sign-out/navigation.
+      await Promise.resolve();
+      if (!active) return;
+      if (checkoutReturn !== "success" || !user) {
+        setCheckoutReconciliation("idle");
+        return;
+      }
+      if (account?.plan && account.plan !== "free") {
+        setCheckoutReconciliation("confirmed");
+        return;
+      }
+
+      const delays = [0, 1_500, 3_000, 5_000, 8_000, 12_000];
+      setCheckoutReconciliation("checking");
+      deadlineTimer = window.setTimeout(() => {
+        if (!active) return;
+        expired = true;
+        setCheckoutReconciliation("timed-out");
+      }, 30_000);
+      for (const delay of delays) {
+        if (delay > 0) {
+          await new Promise<void>((resolve) => {
+            timer = window.setTimeout(resolve, delay);
+          });
+        }
+        if (!active || expired) return;
+        await refreshAccount().catch(() => undefined);
+        if (!active || expired) return;
+      }
+      if (deadlineTimer !== undefined) window.clearTimeout(deadlineTimer);
+      setCheckoutReconciliation("timed-out");
+    })();
+    return () => {
+      active = false;
+      if (timer !== undefined) window.clearTimeout(timer);
+      if (deadlineTimer !== undefined) window.clearTimeout(deadlineTimer);
+    };
+  }, [account?.plan, checkoutReturn, refreshAccount, user]);
 
   useEffect(() => {
     if (!user || account?.plan !== "free" || subscriptionRequiresManagement || account.legalAcceptanceRequired) return;
@@ -120,18 +180,35 @@ export default function PricingPage() {
     return () => { active = false; };
   }, [account?.legalAcceptanceRequired, account?.plan, subscriptionRequiresManagement, user]);
 
-  const openBilling = async (kind: "checkout" | "portal", planId: PaidLearnerPlan = selectedPlan) => {
+  const openBilling = async (
+    kind: "checkout" | "portal",
+    planId: PaidLearnerPlan = selectedPlan,
+    portalAction: BillingPortalAction = "manage",
+  ) => {
     setBillingBusy(true);
+    setBillingPendingAction(kind === "checkout" ? "checkout" : portalAction);
     setBillingError(null);
     try {
       const activeUser = user;
       if (!activeUser) throw new Error("Choose a sign-in method before opening billing.");
+      if (kind === "checkout" && (!age18OrOlder || !usResident || !automaticRenewalAccepted)) {
+        throw new Error("Confirm all paid-plan eligibility and renewal terms before continuing to Stripe Checkout.");
+      }
       if (account?.legalAcceptanceRequired) await acceptLegalTerms("subscription", activeUser);
       const token = await activeUser.getIdToken();
       const response = await fetch(`/api/billing/${kind}`, {
         method: "POST",
         headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
-        body: kind === "checkout" ? JSON.stringify({ planId, interval }) : undefined,
+        body: kind === "checkout" ? JSON.stringify({
+          planId,
+          interval,
+          eligibility: {
+            version: CHECKOUT_ELIGIBILITY_VERSION,
+            age18OrOlder,
+            usResident,
+            automaticRenewalAccepted,
+          },
+        }) : JSON.stringify({ action: portalAction }),
       });
       const body = await response.json() as { url?: string; error?: string };
       if (!response.ok || !body.url) throw new Error(body.error ?? "Billing could not be opened.");
@@ -139,8 +216,11 @@ export default function PricingPage() {
     } catch (error) {
       setBillingError(error instanceof Error ? error.message : "Billing could not be opened.");
       setBillingBusy(false);
+      setBillingPendingAction(null);
     }
   };
+
+  const checkoutEligibilityReady = age18OrOlder && usResident && automaticRenewalAccepted;
 
   const joinWaitlist = async (event: React.FormEvent) => {
     event.preventDefault();
@@ -210,8 +290,15 @@ export default function PricingPage() {
             <div>
               <h2 id="billing-return-title">{checkoutReturn === "success" ? "Confirming your membership" : "Checkout did not return success"}</h2>
               <p>{checkoutReturn === "success"
-                ? "You returned from secure checkout. Access activates only after Filosage processes Stripe's verified payment event, which can take a moment. If your membership does not update, check Manage billing below or contact support before trying again."
+                ? checkoutReconciliation === "confirmed"
+                  ? "Stripe's verified payment event has been applied and your membership is active."
+                  : checkoutReconciliation === "timed-out"
+                    ? "Stripe has not confirmed the subscription within 30 seconds. Your access has not changed. Refresh your membership or open Stripe billing before trying checkout again."
+                    : "You returned from secure checkout. Access activates only after Filosage processes Stripe's verified payment event, which can take a moment. This page will check for confirmation for up to 30 seconds."
                 : "This return link reports that Checkout was canceled. A redirect cannot confirm payment or subscription state and does not change your access. Review your current membership and Manage billing below before starting another checkout; contact support if anything looks unexpected."}</p>
+              {checkoutReturn === "success" && checkoutReconciliation === "timed-out" && (
+                <button className="button button-quiet" type="button" onClick={() => void refreshAccount()}>Refresh membership</button>
+              )}
               <Link href="/support/articles/plans-and-billing">See billing and cancellation help</Link>
             </div>
           </section>
@@ -221,6 +308,16 @@ export default function PricingPage() {
           <button type="button" className={interval === "monthly" ? "is-selected" : ""} aria-pressed={interval === "monthly"} onClick={() => setInterval("monthly")}>Monthly</button>
           <button type="button" className={interval === "annual" ? "is-selected" : ""} aria-pressed={interval === "annual"} onClick={() => setInterval("annual")}>Annual <span>Save 33%</span></button>
         </div>
+
+        {billingReady && user && account?.plan === "free" && !subscriptionRequiresManagement && (
+          <fieldset className="pricing-checkout-eligibility">
+            <legend>Confirm before continuing to Stripe Checkout</legend>
+            <p>These confirmations are recorded with the selected offer before Stripe opens its hosted checkout page.</p>
+            <label><input type="checkbox" checked={age18OrOlder} onChange={(event) => setAge18OrOlder(event.target.checked)} /><span>I am at least {PAID_SUBSCRIPTION_POLICY.minimumPurchaserAge} years old.</span></label>
+            <label><input type="checkbox" checked={usResident} onChange={(event) => setUsResident(event.target.checked)} /><span>I am a resident of the {PAID_SUBSCRIPTION_POLICY.launchMarketLabel}.</span></label>
+            <label><input type="checkbox" checked={automaticRenewalAccepted} onChange={(event) => setAutomaticRenewalAccepted(event.target.checked)} /><span>I understand this subscription renews automatically until I cancel it through Stripe.</span></label>
+          </fieldset>
+        )}
 
         <div className="plan-comparison">
           {ACTIVE_MEMBERSHIP_PLANS.map((plan) => {
@@ -257,8 +354,8 @@ export default function PricingPage() {
                 ) : paidPlanId && !user ? (
                   <button className={selectedPlan === paidPlanId ? "button button-secondary" : "button button-quiet"} type="button" onClick={() => setSelectedPlanOverride(paidPlanId)}>{selectedPlan === paidPlanId ? `${plan.shortName} selected` : `Choose ${plan.shortName}`}</button>
                 ) : paidPlanId && billingReady && account?.plan === "free" && !subscriptionRequiresManagement ? (
-                  <button className="button button-primary" type="button" disabled={billingBusy} onClick={() => void openBilling("checkout", paidPlanId)}>
-                    {billingBusy ? <LoaderCircle className="spin" size={16} /> : <CreditCard size={16} />}{billingBusy ? "Opening secure checkout…" : `Choose ${plan.shortName} ${interval === "annual" ? "annual" : "monthly"}`}
+                  <button className="button button-primary" type="button" disabled={billingBusy || !checkoutEligibilityReady} onClick={() => void openBilling("checkout", paidPlanId)}>
+                    {billingBusy ? <LoaderCircle className="spin" size={16} /> : <CreditCard size={16} />}{billingBusy ? "Opening Stripe Checkout…" : checkoutEligibilityReady ? `Continue to Stripe Checkout — ${plan.shortName} ${interval === "annual" ? "annual" : "monthly"}` : "Confirm eligibility to continue"}
                   </button>
                 ) : paidPlanId && !billingReady && account?.plan === "free" && !subscriptionRequiresManagement ? (
                   <button className={selectedPlan === paidPlanId ? "button button-secondary" : "button button-quiet"} type="button" onClick={() => setSelectedPlanOverride(paidPlanId)}>{selectedPlan === paidPlanId ? `${plan.shortName} selected` : `Choose ${plan.shortName}`}</button>
@@ -279,10 +376,27 @@ export default function PricingPage() {
 
         {subscriptionRequiresManagement && (
           <section className="pricing-account-action" aria-labelledby="manage-membership-title">
-            <div><h2 id="manage-membership-title">Manage your membership</h2><p>Review renewal, update your payment method, view invoices, or cancel at the end of the paid period through the secure billing portal.</p></div>
-            <button className="button button-secondary" type="button" disabled={billingBusy || !billingManagementReady} onClick={() => void openBilling("portal")}>
-              {billingBusy ? <LoaderCircle className="spin" size={16} /> : <CreditCard size={16} />} Manage billing
-            </button>
+            <div>
+              <h2 id="manage-membership-title">Manage your membership in Stripe</h2>
+              {account?.subscriptionStatus === "active" || account?.subscriptionStatus === "trialing" ? (
+                <p>Change plan or billing interval in Stripe; the change takes effect immediately and Stripe calculates the prorated invoice; cancellation takes effect at the end of the current paid period.</p>
+              ) : (
+                <p>Review renewal, update your payment method, view invoices, or cancel at the end of the paid period in Stripe's hosted Customer Portal. Plan changes return after payment recovery.</p>
+              )}
+            </div>
+            <div className="pricing-account-actions" aria-label="Stripe subscription actions">
+              {(account?.subscriptionStatus === "active" || account?.subscriptionStatus === "trialing") && (
+                <button aria-label="Change plan in Stripe" className="button button-secondary" type="button" disabled={billingBusy || !billingManagementReady} onClick={() => void openBilling("portal", selectedPlan, "change_plan")}>
+                  {billingPendingAction === "change_plan" ? <LoaderCircle className="spin" size={16} /> : <ArrowLeftRight size={16} />} {billingPendingAction === "change_plan" ? "Opening Stripe…" : "Change plan in Stripe"}
+                </button>
+              )}
+              <button aria-label="Manage billing in Stripe" className="button button-quiet" type="button" disabled={billingBusy || !billingManagementReady} onClick={() => void openBilling("portal", selectedPlan, "manage")}>
+                {billingPendingAction === "manage" ? <LoaderCircle className="spin" size={16} /> : <CreditCard size={16} />} {billingPendingAction === "manage" ? "Opening Stripe…" : "Manage billing in Stripe"}
+              </button>
+              <button aria-label="Cancel membership in Stripe" className="button button-quiet" type="button" disabled={billingBusy || !billingManagementReady} onClick={() => void openBilling("portal", selectedPlan, "cancel")}>
+                {billingPendingAction === "cancel" ? <LoaderCircle className="spin" size={16} /> : <CircleX size={16} />} {billingPendingAction === "cancel" ? "Opening Stripe…" : "Cancel membership in Stripe"}
+              </button>
+            </div>
           </section>
         )}
 

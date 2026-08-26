@@ -209,6 +209,8 @@ var qaEnvironment = [
   { name: 'OPENAI_API_KEY', secretRef: 'openai-api-key' }
   { name: 'BILLING_PROVIDER', value: 'stripe' }
   { name: 'BILLING_ENABLED', value: 'false' }
+  { name: 'BILLING_ROLLOUT_MODE', value: 'closed' }
+  { name: 'STRIPE_TAX_READY', value: 'false' }
   { name: 'COMMAND_CENTER_DRAFTS_ENABLED', value: 'true' }
   { name: 'COMMAND_CENTER_ENABLED', value: 'true' }
   { name: 'COURSE_LABS_V2', value: 'true' }
@@ -264,14 +266,35 @@ resource app 'Microsoft.App/containerApps@2025-01-01' = {
         name: 'filosage'
         image: containerImage
         env: qaEnvironment
-        probes: [{
-          type: 'Liveness'
-          httpGet: { path: '/api/health', port: 3000, scheme: 'HTTP' }
-          initialDelaySeconds: 30
-          periodSeconds: 30
-          timeoutSeconds: 5
-          failureThreshold: 3
-        }]
+        probes: [
+          {
+            type: 'Startup'
+            httpGet: { path: '/api/health/startup', port: 3000, scheme: 'HTTP' }
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 10
+            successThreshold: 1
+          }
+          {
+            type: 'Liveness'
+            httpGet: { path: '/api/health/live', port: 3000, scheme: 'HTTP' }
+            initialDelaySeconds: 10
+            periodSeconds: 30
+            timeoutSeconds: 5
+            failureThreshold: 3
+            successThreshold: 1
+          }
+          {
+            type: 'Readiness'
+            httpGet: { path: '/api/health/ready', port: 3000, scheme: 'HTTP' }
+            initialDelaySeconds: 5
+            periodSeconds: 15
+            timeoutSeconds: 5
+            failureThreshold: 3
+            successThreshold: 1
+          }
+        ]
         resources: { cpu: json('0.5'), memory: '1Gi' }
       }]
       scale: {

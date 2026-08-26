@@ -1,8 +1,12 @@
 export interface BillingEnvironment {
   BILLING_PROVIDER?: string;
   BILLING_ENABLED?: string;
+  BILLING_ROLLOUT_MODE?: string;
+  BILLING_CANARY_UIDS?: string;
+  STRIPE_TAX_READY?: string;
   STRIPE_SECRET_KEY?: string;
   STRIPE_WEBHOOK_SECRET?: string;
+  STRIPE_PORTAL_CONFIGURATION_ID?: string;
   STRIPE_PLUS_MONTHLY_PRICE_ID?: string;
   STRIPE_PLUS_ANNUAL_PRICE_ID?: string;
   STRIPE_PRO_MONTHLY_PRICE_ID?: string;
@@ -15,7 +19,15 @@ export interface BillingEnvironment {
 
 export type StoredSubscriptionStatus = "none" | "trialing" | "active" | "past_due" | "canceled";
 export type BillingPaymentState = "unknown" | "paid" | "failed" | "refunded" | "disputed";
-export const CLOSED_LAUNCH_PAYMENT_METHOD_TYPES = ["card"] as const;
+export type BillingRolloutMode = "closed" | "configured" | "canary" | "open";
+export const CHECKOUT_ELIGIBILITY_VERSION = "paid-checkout-eligibility-v1";
+
+export interface CheckoutEligibilityAttestation {
+  version: typeof CHECKOUT_ELIGIBILITY_VERSION;
+  age18OrOlder: true;
+  usResident: true;
+  automaticRenewalAccepted: true;
+}
 
 export interface BillingEventCursor {
   eventCreated: number;
@@ -34,11 +46,62 @@ function emailAddress(value: string | undefined) {
   return Boolean(value?.trim() && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim()));
 }
 
+function exactBoolean(value: string | undefined) {
+  const normalized = value?.trim();
+  if (normalized === "true") return true;
+  if (normalized === "false") return false;
+  return null;
+}
+
+function canaryUids(value: string | undefined) {
+  const values = (value ?? "").split(",").map((entry) => entry.trim()).filter(Boolean);
+  const valid = values.length > 0
+    && values.length <= 100
+    && values.every((entry) => /^[A-Za-z0-9._:@-]{1,160}$/.test(entry));
+  return { values: valid ? [...new Set(values)] : [], valid };
+}
+
+export function checkoutEligibilityAttestation(value: unknown): CheckoutEligibilityAttestation | null {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  const candidate = value as Record<string, unknown>;
+  if (Object.keys(candidate).sort().join(",") !== [
+    "age18OrOlder",
+    "automaticRenewalAccepted",
+    "usResident",
+    "version",
+  ].join(",")) return null;
+  if (candidate.version !== CHECKOUT_ELIGIBILITY_VERSION
+    || candidate.age18OrOlder !== true
+    || candidate.usResident !== true
+    || candidate.automaticRenewalAccepted !== true) return null;
+  return {
+    version: CHECKOUT_ELIGIBILITY_VERSION,
+    age18OrOlder: true,
+    usResident: true,
+    automaticRenewalAccepted: true,
+  };
+}
+
 export function evaluateBillingConfiguration(environment: BillingEnvironment) {
   const provider = (environment.BILLING_PROVIDER ?? "none").trim().toLowerCase();
-  const enabled = environment.BILLING_ENABLED?.trim().toLowerCase() === "true";
+  const enabledValue = exactBoolean(environment.BILLING_ENABLED);
+  const enabled = enabledValue === true;
+  const enabledValid = enabledValue !== null;
+  const requestedRolloutMode = (environment.BILLING_ROLLOUT_MODE ?? "closed").trim().toLowerCase();
+  const rolloutModeValid = ["closed", "configured", "canary", "open"].includes(requestedRolloutMode);
+  const rolloutMode: BillingRolloutMode = rolloutModeValid
+    ? requestedRolloutMode as BillingRolloutMode
+    : "closed";
+  const taxReadyValue = exactBoolean(environment.STRIPE_TAX_READY);
+  const taxReady = taxReadyValue === true;
+  const taxReadyValid = taxReadyValue !== null;
+  const parsedCanary = canaryUids(environment.BILLING_CANARY_UIDS);
+  const portalConfigurationReady = /^bpc_[A-Za-z0-9]{8,}$/.test(
+    environment.STRIPE_PORTAL_CONFIGURATION_ID?.trim() ?? "",
+  );
   const managementReady = provider === "stripe"
-    && present(environment.STRIPE_SECRET_KEY);
+    && present(environment.STRIPE_SECRET_KEY)
+    && portalConfigurationReady;
   const webhookReady = managementReady
     && present(environment.STRIPE_WEBHOOK_SECRET);
   const productReady = managementReady
@@ -51,21 +114,49 @@ export function evaluateBillingConfiguration(environment: BillingEnvironment) {
     && present(environment.GOVERNING_JURISDICTION)
     && emailAddress(environment.SUPPORT_EMAIL);
   const providerReady = webhookReady && productReady;
-  const checkoutReady = enabled && providerReady && legalReady;
+  const configurationReady = enabledValid
+    && rolloutModeValid
+    && taxReadyValid
+    && taxReady
+    && providerReady
+    && legalReady;
+  const configured = rolloutMode !== "closed"
+    && configurationReady
+    && (rolloutMode !== "canary" || parsedCanary.valid);
+  const canaryReady = configured && enabled && rolloutMode === "canary";
+  const checkoutReady = configured && enabled && rolloutMode === "open";
 
   return {
     provider,
+    rolloutMode,
+    rolloutModeValid,
     enabled,
+    enabledValid,
+    portalConfigurationReady,
     managementReady,
     webhookReady,
     productReady,
     legalReady,
+    taxReady,
+    taxReadyValid,
     providerReady,
+    configurationReady,
+    canaryAllowlistReady: parsedCanary.valid,
+    canaryUids: parsedCanary.values,
+    canaryReady,
     checkoutReady,
-    // Compatibility alias for release checks that predate capability-specific
-    // readiness. New purchase paths should use checkoutReady explicitly.
-    configured: checkoutReady,
+    configured,
   };
+}
+
+export function billingCheckoutAllowedForAccount(
+  configuration: ReturnType<typeof evaluateBillingConfiguration>,
+  uid: string | null | undefined,
+) {
+  if (configuration.checkoutReady) return true;
+  return Boolean(configuration.canaryReady
+    && uid
+    && configuration.canaryUids.includes(uid));
 }
 
 export function subscriptionBlocksCheckout(status: string | null | undefined) {
@@ -151,6 +242,10 @@ export function checkoutConsentMetadataIsCurrent(
     && metadata.offer_currency === expected.currency
     && metadata.offer_amount_minor === String(expected.amountMinor)
     && metadata.automatic_renewal === "true"
+    && metadata.eligibility_version === CHECKOUT_ELIGIBILITY_VERSION
+    && metadata.age_18_or_older === "true"
+    && metadata.us_resident === "true"
+    && metadata.automatic_renewal_acknowledged === "true"
     && metadata.purchaser_minimum_age === String(expected.minimumPurchaserAge)
     && metadata.launch_market === expected.launchMarketCode
     && metadata.refund_window_days === String(expected.refundWindowDays);

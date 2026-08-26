@@ -1,4 +1,4 @@
-name: Verify Azure PostgreSQL backups
+name: Record Azure PostgreSQL recovery window
 
 on:
   schedule:
@@ -18,13 +18,13 @@ jobs:
     runs-on: ubuntu-latest
     environment: azure-staging
     steps:
-      - uses: azure/login@v2
+      - uses: azure/login@7184910d9eb2b1c5e48f7073824a90609bb9b6d6 # v2
         with:
           client-id: ${{ secrets.AZURE_CLIENT_ID }}
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
-      - name: Record managed backup recovery window
+      - name: Record managed backup recovery-window observation
         shell: bash
         run: |
           set -euo pipefail
@@ -45,10 +45,10 @@ jobs:
             --name "$SERVER_NAME" \
             --query '{server:name,state:state,earliestRestoreDate:backup.earliestRestoreDate,retentionDays:backup.backupRetentionDays,checkedAt:null}' \
             --output json > "${RUNNER_TEMP}/azure-postgres-backup-evidence.json"
-          node -e 'const fs=require("fs"); const p=process.env.RUNNER_TEMP+"/azure-postgres-backup-evidence.json"; const v=JSON.parse(fs.readFileSync(p)); v.checkedAt=new Date().toISOString(); if(v.state!=="Ready"||!v.earliestRestoreDate) process.exit(1); fs.writeFileSync(p, JSON.stringify(v,null,2)+"\n")'
+          node -e 'const fs=require("fs"); const p=process.env.RUNNER_TEMP+"/azure-postgres-backup-evidence.json"; const v=JSON.parse(fs.readFileSync(p)); v.checkedAt=new Date().toISOString(); v.evidenceType="managed_backup_window_observation"; v.restoreRehearsal=false; if(v.state!=="Ready"||!v.earliestRestoreDate||!Number.isInteger(v.retentionDays)||v.retentionDays<1) process.exit(1); fs.writeFileSync(p, JSON.stringify(v,null,2)+"\n")'
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
-          name: azure-postgres-backup-evidence-${{ github.run_id }}-${{ github.run_attempt }}
+          name: azure-postgres-recovery-window-observation-${{ github.run_id }}-${{ github.run_attempt }}
           path: ${{ runner.temp }}/azure-postgres-backup-evidence.json
           retention-days: 90

@@ -1,6 +1,7 @@
 import "server-only";
 
 import { billingConfiguration } from "@/lib/runtime-config";
+import { billingCheckoutAllowedForAccount } from "@/lib/billing-lock";
 import {
   ACTIVE_MEMBERSHIP_PLANS,
   annualMonthlyEquivalentMinor,
@@ -32,14 +33,17 @@ function publicPlan(plan: (typeof ACTIVE_MEMBERSHIP_PLANS)[number]) {
 
 export const publicMembershipPlans = ACTIVE_MEMBERSHIP_PLANS.map(publicPlan);
 
-export function billingStatus() {
+export function billingStatus(uid?: string | null) {
   const config = billingConfiguration();
   return {
     provider: config.provider,
+    rolloutMode: config.rolloutMode,
     enabled: config.enabled,
     managementReady: config.managementReady,
-    checkoutReady: config.checkoutReady,
-    ready: config.checkoutReady,
+    taxReady: config.taxReady,
+    configured: config.configured,
+    checkoutReady: billingCheckoutAllowedForAccount(config, uid),
+    ready: billingCheckoutAllowedForAccount(config, uid),
     plans: publicMembershipPlans,
   };
 }

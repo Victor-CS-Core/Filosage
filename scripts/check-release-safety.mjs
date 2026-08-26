@@ -1,3 +1,5 @@
+import { releaseSafetyBillingState } from "./release-safety-contract.mjs";
+
 const targetInput = (process.argv[2] || "").trim();
 if (!targetInput) {
   console.error("Provide the deployed revision or slot URL.");
@@ -24,11 +26,7 @@ for (let attempt = 1; attempt <= attempts; attempt += 1) {
       signal: controller.signal,
     });
     const billing = await billingResponse.json().catch(() => null);
-    if (!billingResponse.ok
-      || billing?.enabled !== false
-      || billing?.checkoutReady !== false
-      || billing?.managementReady !== false
-      || billing?.ready !== false) {
+    if (!billingResponse.ok || !releaseSafetyBillingState(billing)) {
       throw new Error("runtime billing lock is not closed");
     }
 
@@ -46,7 +44,7 @@ for (let attempt = 1; attempt <= attempts; attempt += 1) {
       throw new Error("Google Easy Auth did not issue the expected OAuth redirect");
     }
 
-    console.log("Release safety is healthy (billing closed; Google Easy Auth active).");
+    console.log("Release safety is healthy (new checkout locked; Google Easy Auth active).");
     process.exit(0);
   } catch (error) {
     lastFailure = error instanceof Error ? error.message : "unknown error";

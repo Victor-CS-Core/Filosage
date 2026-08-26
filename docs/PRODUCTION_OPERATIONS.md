@@ -18,7 +18,7 @@ The release contract is validated by `npm.cmd run check:release`. It requires Az
 - `FLASHCARD_DECKS_ENABLED=true` is required for a production release so learners can access private flashcard decks.
 - `FLASHCARD_AI_GENERATION_ENABLED=true` is required for a production release so learners can generate grounded flashcards.
 
-Keep `BILLING_ENABLED=false` until checkout activation is separately authorized and all legal, support, backup, alerting, and Stripe launch gates are complete.
+Keep `BILLING_ENABLED=false` and `BILLING_ROLLOUT_MODE` at `closed` or `configured` until checkout activation is separately authorized and all legal, support, backup, alerting, and Stripe launch gates are complete. `configured` may prove readiness but cannot create Checkout Sessions. An authorized activation must begin with a bounded `canary` allowlist before `open`; Stripe-hosted Checkout and Customer Portal remain the only subscription acquisition and management pages.
 
 ## Blue/green release procedure
 
@@ -56,7 +56,9 @@ Never overwrite the slot carrying live traffic. Deploy the next candidate to the
 - Remove the temporary recovery server only after the verification evidence is retained and the primary server is confirmed healthy.
 - Blob recovery and retention require a separate reviewed policy before paid activation; PostgreSQL point-in-time restore does not restore Blob objects.
 
-The 2026-08-12 restore rehearsal reproduced fingerprint `588c4e2334c555ea0078de9e3cb1dd93e6d5df91dab626513f4233b5bf938757` from a separate recovery server.
+The scheduled Azure workflow captures a recovery-window observation, not a restore rehearsal. Its artifact can show that Azure reports an available restore window and retention period at a point in time, but paid activation still requires a current restore into a separate non-production server and application-level verification of that restored copy.
+
+The historical 2026-08-12 restore rehearsal reproduced fingerprint `588c4e2334c555ea0078de9e3cb1dd93e6d5df91dab626513f4233b5bf938757` from a separate recovery server. That historical result does not satisfy the current paid-release restore gate without a fresh rehearsal against the current schema and candidate.
 
 ## Incident response
 

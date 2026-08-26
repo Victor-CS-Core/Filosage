@@ -1,14 +1,24 @@
 # Commercial launch runbook
 
-This runbook prepares Filosage for paid plans without opening subscriptions. The default and expected preparation state is `BILLING_ENABLED=false`.
+This runbook prepares Filosage for paid plans without opening subscriptions. The default and expected preparation state is `BILLING_ENABLED=false`, `BILLING_ROLLOUT_MODE=closed`, and `STRIPE_TAX_READY=false`.
 
 ## Closed-launch boundary
 
 - Pricing preferences and launch-list consent are research signals. They do not create a Stripe customer, Checkout Session, subscription, invoice, or entitlement.
 - The pricing-intent API is account-bound, server-authorized, rate-limited, body-limited, same-origin protected, and deduplicated by user ID.
 - Checkout must remain unavailable until the payment provider is complete and the separate billing lock is enabled. The billing portal remains available to existing subscribers whenever Stripe account-management credentials are configured, even while new checkout is closed.
-- The billing lock controls new checkout only. After any subscription exists, turning the lock off must leave signed webhooks, the customer portal, payment-state synchronization, and cancellation available for existing subscribers.
+- The billing lock controls new checkout only. After any subscription exists, turning the lock off must leave signed webhooks, the explicitly configured customer portal, payment-state synchronization, plan changes, and cancellation available for existing subscribers.
+- Filosage uses Stripe-hosted Checkout to acquire subscriptions and Stripe's hosted Customer Portal to manage payment methods, invoices, immediate plan/interval changes, renewal, and period-end cancellation. Do not add an in-app payment-method form or custom subscription-management UI.
 - Pro access during preparation may remain owner-granted or allowlisted. Plus or Pro stored billing state is not proof of payment without a verified Stripe lifecycle record.
+
+Use the rollout states in order:
+
+1. `closed`: no paid readiness claim and no new Checkout Sessions. `BILLING_ENABLED` must be `false`.
+2. `configured`: Live Stripe catalog, webhook, legal, support, and tax readiness are locally complete, but new Checkout Sessions remain locked. `BILLING_ENABLED` must be `false`.
+3. `canary`: new Checkout Sessions are available only to the explicitly approved account UIDs in the server-only `BILLING_CANARY_UIDS` allowlist. `BILLING_ENABLED` and `STRIPE_TAX_READY` must both be `true`.
+4. `open`: new Checkout Sessions are available to all otherwise eligible signed-in accounts. `BILLING_ENABLED` and `STRIPE_TAX_READY` must both be `true`.
+
+Every new paid Checkout requires the versioned age, U.S.-residency, and automatic-renewal acknowledgements. The server records those acknowledgements with the exact offer and legal-document versions before it creates or reuses a Stripe Checkout Session.
 
 ## Owner launch gate
 
@@ -17,7 +27,7 @@ Do not enable billing until all of the following are true:
 1. Production health checks pass against the intended release version.
 2. Managed Azure PostgreSQL backups are configured and a restore rehearsal has been completed in a non-production target.
 3. Critical operational alerts reach an independently monitored destination.
-4. Stripe Live products, monthly and annual prices, webhook endpoint, customer portal, tax behavior, and statement descriptor have been reviewed.
+4. Stripe Live products, monthly and annual prices, webhook endpoint, explicit customer-portal configuration ID and four-Price catalog, tax behavior, and statement descriptor have been reviewed.
 5. The full lifecycle test matrix below passes with Stripe test objects.
 6. The published billing-support address and `legal@filosage.com` privacy-request address are monitored, and the owner can access account, webhook, content-report, and audit evidence.
 7. Required receipts, renewal notices, failed-payment messages, cancellation confirmations, unsubscribe handling, and suppression handling have a configured delivery provider.
@@ -27,25 +37,48 @@ Do not enable billing until all of the following are true:
 
 Paid activation also requires four public, owner-approved disclosure values in the release environment: `LEGAL_OPERATOR_NAME`, `LEGAL_BUSINESS_ADDRESS`, `GOVERNING_JURISDICTION`, and `SUPPORT_EMAIL`. The Terms and Privacy Notice render these values without committing a private address to source control. Missing values must leave the public documents in a paid-launch-pending state and must fail the billing-activation release check. The owner must review the exact rendered production text before activation; private Stripe identity verification is not a substitute for public customer-facing disclosure.
 
-For an ordinary closed-billing release, set `SITE_VERSION` to the exact Git commit SHA and run `npm.cmd run check:release`; this check requires `BILLING_ENABLED=false`. After deployment, run `npm.cmd run check:production -- https://your-domain.example <exact-sha>` so a healthy datastore cannot mask a stale or unidentified build. Only after separate billing authorization, run `node scripts/check-release-env.mjs --billing-activation`; that mode requires the Stripe product, webhook, management, and checkout configuration plus `BILLING_ENABLED=true`.
+For an ordinary release, set `SITE_VERSION` to the exact Git commit SHA and run `npm.cmd run check:release`; this check requires `BILLING_ENABLED=false` and permits only `closed` or fully ready `configured` rollout mode. After deployment, run `npm.cmd run check:production -- https://your-domain.example <exact-sha>` so a healthy datastore cannot mask a stale or unidentified build. Only after separate billing authorization, run `node scripts/check-release-env.mjs --billing-activation`; that mode requires the Stripe product, webhook, management, legal, tax, and checkout configuration plus `BILLING_ENABLED=true` and either `canary` or `open` rollout mode.
 
 ## Product release readiness register
 
-Updated: 2026-08-09
+Updated: 2026-08-25
 
 This register is the consolidated source for unresolved release dependencies. A routine closed-billing code release may continue while the broader operational and commercial items remain open, provided the exact release passes its technical checks and `BILLING_ENABLED=false`. Do not describe Filosage as operationally or commercially ready until the applicable gates below are complete.
 
+### Current release-readiness execution checklist
+
+This is the persistent outcome checklist for the August 25 release-readiness execution tracked in Multica as `FILOSAGE-35`. The detailed gates later in this runbook remain authoritative; an item below is complete only when its corresponding detailed gates have current evidence.
+
+- [ ] Reconcile the exact release candidate across local `HEAD`, `origin/main`, CI, deployment source, hosted `SITE_VERSION`, and `/api/health`, then pass the full repository validation and security suite.
+- [ ] Complete a non-production Azure PostgreSQL restore rehearsal and retain representative account, course, lesson, progress, publication, command-center, and entitlement evidence.
+- [ ] Prove independently monitored operational alert delivery, signature verification, deduplication, escalation ownership, recovery notification, and external uptime monitoring.
+- [ ] Pass signed-in Google, email, and linked-identity acceptance on an isolated runtime using the reviewed authentication mode.
+- [ ] Prove monitored support/privacy inboxes, owner support and audit workflows, lifecycle-email delivery, bounce, unsubscribe, suppression, renewal, failed-payment, cancellation, and recovery behavior.
+- [ ] Verify Stripe Live catalog, restricted branded Customer Portal, tax posture, webhook configuration, and the complete signed sandbox subscription lifecycle without creating any Live transactional object.
+- [ ] Resolve open high-risk safety/privacy/content reports and collect owner or qualified-adviser approval for the exact legal, tax, retention, recovery, and public-disclosure decisions that cannot be inferred from code.
+- [ ] Re-read every detailed gate below, retain a redacted release evidence packet, and obtain separate owner decisions for commit/push/merge/deploy and for any later change to `BILLING_ENABLED`.
+
+### Current observed evidence — 2026-08-25
+
+- Source provenance: local `HEAD` and GitHub `origin/main` both identify `859782450d8f7c2991f9eb1e45ebb82d1855afed`. The release-hardening candidate is still an uncommitted working-tree change set, so no candidate commit, push, merge, or deployment is implied.
+- Hosted provenance: production and QA health checks pass while both report `SITE_VERSION=93f60f24afe59b19b6a592f455a09e8e813f1f84`. Both hosts are therefore behind the source baseline and this candidate. Their deployed billing-status response confirms `enabled=false`, `checkoutReady=false`, and `ready=false`, but predates the required `rolloutMode` field, so the strengthened release-safety check correctly fails until the exact candidate is deployed.
+- Local candidate verification: contracts, API coverage, browser smoke coverage, Chromium, mobile Chromium, and the complete 35-test mobile WebKit project pass after correcting the WebKit rounding floor for 44-pixel lesson-section targets. Lint, TypeScript, production build, dependency audit, tracked-secret scan, and support-wiki validation also pass. Re-run the complete final command set after any later change.
+- Azure data protection: Flexible Server `filosagestg-p4ujucgnxq3gs-pg` is Ready on PostgreSQL 16 with seven-day backup retention, earliest observed restore time `2026-08-19T23:49:00.309738+00:00`, geo-redundant backup disabled, high availability disabled, and public network access disabled. This observation was collected manually at `2026-08-25T21:43:12-04:00`; no current-schema recovery server or successful restore rehearsal exists.
+- Azure monitoring: `filosage-console-fatal-errors` and `filosage-platform-failures` are enabled severity-1 scheduled-query rules targeting the Essential action group. This does not prove independent delivery, signed receiver behavior, deduplication, escalation, recovery notification, or external uptime monitoring.
+- Delivery controls: current-head GitHub Actions are prevented from starting because of the GitHub account billing or spending-limit state, and `main` has neither branch protection nor a repository ruleset. Do not configure required checks until the account can execute the exact workflows to be required.
+- Stripe boundary: intended Test and Live prices use exclusive tax behavior and Live has no subscriptions. Both Portal configurations still have plan changes disabled, the Test webhook still targets a retired product domain, and no Test or Live tax registration exists. Keep `STRIPE_TAX_READY=false` and do not create Live transactions.
+
 ### Required for every production code release
 
-- [ ] Deploy the exact intended Git commit and confirm that `HEAD`, `origin/main`, the Sites source version, hosted `SITE_VERSION`, and `/api/health` all identify the same full SHA. The currently validated support-intake release is newer than the code confirmed live on 2026-08-09.
+- [ ] Deploy the exact intended Git commit and confirm that `HEAD`, `origin/main`, the deployment source version, hosted `SITE_VERSION`, and `/api/health` all identify the same full SHA. On 2026-08-25, production and QA reported `93f60f24afe59b19b6a592f455a09e8e813f1f84` while local `HEAD` and `origin/main` reported `859782450d8f7c2991f9eb1e45ebb82d1855afed`, before the uncommitted candidate changes.
 - [ ] Pass the release checks appropriate to the change: release environment, lint, production build, Sites build, proportionate end-to-end coverage, dependency audit, and tracked-file secret scan.
 - [ ] Verify production health and complete focused smoke tests for every affected public, learner, owner, privacy, support, and billing-lock surface.
 - [ ] Keep `BILLING_ENABLED=false` unless the owner separately approves billing activation after every paid-launch gate passes.
 
 ### Required before relying on production for valuable learner data
 
-- [ ] Confirm Azure PostgreSQL automated backups and seven-day point-in-time restore are configured for the production Flexible Server.
-- [ ] Complete one managed export and record its completed backup URI, release SHA, timestamp, and operator.
+- [x] Confirm Azure PostgreSQL automated backups and seven-day point-in-time restore are configured for the production Flexible Server. Manual Azure read-back on 2026-08-25 found the server Ready with seven-day retention and earliest restore time `2026-08-19T23:49:00.309738+00:00`.
+- [ ] Retain a current recovery-window observation with the server, earliest restore time, retention period, timestamp, workflow run, and operator. This metadata does not prove that a restore succeeds.
 - [ ] Restore the latest Azure PostgreSQL backup into a separate non-production recovery server and verify representative account, course, lesson, progress, publication, command-center, and entitlement records. Never rehearse restoration against production.
 - [ ] Approve a retention schedule covering backup retention, application records, audit evidence, consent records, support cases, deletion tombstones, and legally required holds.
 - [ ] Establish a resumable process for partially completed account deletion and a verified manual owner-account transfer or service-shutdown procedure.
@@ -61,12 +94,12 @@ This register is the consolidated source for unresolved release dependencies. A 
 - [ ] Confirm the support address is actively monitored and run a signed-in owner acceptance test for support intake, owner documentation, the content-report queue, command-center review-only drafts, and audit evidence on the exact hosted release.
 - [ ] Configure a transactional email provider and live-test consent, required notices, delivery, bounce handling, unsubscribe, suppression, cancellation confirmation, renewal, and failed-payment messaging before sending lifecycle email.
 - [ ] Verify backup and alert service-account permissions use the minimum required roles and that secrets are stored only in the hosted secret store.
-  - Automation evidence: `.github/workflows/azure-backup-evidence.yml` is concurrency-locked, waits for completed export evidence, retains an artifact for 90 days, and alerts on both success and failure. A live run and recovery-project restore are still required before checking this gate.
+  - Automation evidence: `.github/workflows/azure-backup-evidence.yml` is concurrency-locked, records only Azure's current managed-backup recovery window, and retains that observation for 90 days. It does not perform or prove a restore, and a current live run plus a separate non-production recovery rehearsal are still required before checking this gate.
 
 ### Required before paid activation
 
 - [ ] Complete the entire payment lifecycle test matrix in this runbook with Stripe test objects and retain a redacted evidence record. The August 11, 2026 run is retained in `docs/STRIPE_SANDBOX_EVIDENCE_2026-08-11.md`: core Stripe lifecycle and support/legal inbox delivery passed, while lifecycle-email delivery and a real signed-in Filosage deletion remain open.
-- [ ] Review Stripe Live products, monthly and annual prices, webhook endpoint, webhook signing secret, customer portal, tax behavior, refund handling, statement descriptor, and historical-price lifecycle support.
+- [ ] Review Stripe Live products, monthly and annual prices, webhook endpoint, webhook signing secret, explicit customer-portal configuration ID and restricted four-Price catalog, immediate proration behavior, period-end cancellation, tax behavior, refund handling, statement descriptor, and historical-price lifecycle support.
 - [ ] Establish the formal operator identity, business address, governing jurisdiction, required tax treatment, registered DMCA process or agent where applicable, and jurisdiction-specific legal review.
 - [x] Populate `LEGAL_OPERATOR_NAME`, `LEGAL_BUSINESS_ADDRESS`, `GOVERNING_JURISDICTION`, and `SUPPORT_EMAIL` with owner-approved public values and verify the exact hosted Terms and Privacy disclosure.
 - [x] Send and receive test messages through both the published `SUPPORT_EMAIL` billing-support inbox and the published `legal@filosage.com` privacy-request inbox. Owner-confirmed receiving-side screenshots were reviewed on August 11, 2026.
@@ -100,9 +133,13 @@ Fixture-backed Playwright coverage is necessary but does not satisfy this live a
 
 Run these scenarios in Stripe test mode before any Live activation:
 
-- Confirm Checkout offers cards only during closed launch; adding an asynchronous payment method requires a separately tested async fulfillment lifecycle before activation.
+- Confirm Stripe Dashboard payment-method rules expose only methods supported by the current subscription lifecycle. Checkout uses Stripe's dynamic payment methods; enabling an asynchronous method still requires a separately tested async fulfillment lifecycle before activation.
+- Confirm automatic tax is enabled on every Checkout Session only after Stripe Tax registration and calculation settings are verified, and retain redacted evidence of the Live review.
+- Confirm every new Checkout records the current eligibility version plus explicit age, U.S.-residency, and automatic-renewal acknowledgements with the selected offer snapshot.
 
 - Successful monthly and annual checkout for Plus and Pro grant exactly the selected plan and record the subscription event once.
+- Plus monthly, Plus annual, Pro monthly, and Pro annual are the only Portal plan-change destinations; legacy sandbox Products never appear.
+- Every upgrade, downgrade, and monthly/annual interval change applies immediately, keeps the existing billing-cycle anchor, and produces the expected Stripe-managed prorated invoice before webhook reconciliation changes Filosage state.
 - Every current or historical Stripe Price resolves to one plan, interval, and offer version; unknown or ambiguous prices leave access unchanged.
 - Plus enforces one active owned course through direct API requests as well as the user interface.
 - Pro-to-Plus and paid-to-Free downgrades preserve courses and existing publication state, block only newly restricted mutations, and expose the over-limit recovery path.
@@ -110,7 +147,7 @@ Run these scenarios in Stripe test mode before any Live activation:
 - Invalid webhook signatures are rejected without changing account access.
 - Failed or delayed payment moves the account to the expected recovery state without deleting learning data.
 - Payment recovery restores access from a later valid webhook.
-- Customer-portal cancellation stops future renewal and retains access through the paid period when appropriate.
+- Customer-portal cancellation captures a reason, stops future renewal at period end, and retains access through the paid period when appropriate.
 - Successful and canceled Checkout returns explain the outcome without granting entitlement from a redirect; paid access changes only after a verified Stripe event.
 - Initial-charge and annual-renewal refunds within seven calendar days, non-refundable monthly renewals outside the stated exceptions, immediate account-deletion cancellation, and ordinary period-end cancellation all match the displayed terms and preserve an auditable Stripe/account record.
 - A deleted account with an active subscription is blocked until the subscription is canceled or otherwise safely resolved.

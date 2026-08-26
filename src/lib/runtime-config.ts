@@ -18,6 +18,8 @@ const requiredInProduction = [
   "EXTERNAL_ID_AUTH_ENABLED",
   "EXTERNAL_ID_NEW_ACCOUNTS_ENABLED",
   "BILLING_ENABLED",
+  "BILLING_ROLLOUT_MODE",
+  "STRIPE_TAX_READY",
   "AZURE_POSTGRES_SERVER_NAME",
   "AZURE_RESOURCE_GROUP",
 ] as const;
@@ -86,9 +88,27 @@ export function authenticationReadinessIssues(
 }
 
 function billingReadinessIssues(environment: RuntimeEnvironment) {
-  const value = exactBoolean(environment.BILLING_ENABLED);
-  if (value === null) return ["BILLING_ENABLED must be exactly true or false"];
-  return value ? ["BILLING_ENABLED must be exactly false"] : [];
+  const configuration = evaluateBillingConfiguration(environment);
+  const issues: string[] = [];
+  if (!configuration.enabledValid) issues.push("BILLING_ENABLED must be exactly true or false");
+  if (!configuration.rolloutModeValid) {
+    issues.push("BILLING_ROLLOUT_MODE must be closed, configured, canary, or open");
+  }
+  if (!configuration.taxReadyValid) issues.push("STRIPE_TAX_READY must be exactly true or false");
+  if (configuration.rolloutMode === "closed" && configuration.enabled) {
+    issues.push("BILLING_ENABLED must be false while BILLING_ROLLOUT_MODE is closed");
+  }
+  if (configuration.rolloutMode === "configured" && configuration.enabled) {
+    issues.push("BILLING_ENABLED must be false while BILLING_ROLLOUT_MODE is configured");
+  }
+  if ((configuration.rolloutMode === "canary" || configuration.rolloutMode === "open")
+    && !configuration.enabled) {
+    issues.push(`BILLING_ENABLED must be true while BILLING_ROLLOUT_MODE is ${configuration.rolloutMode}`);
+  }
+  if (configuration.rolloutMode !== "closed" && !configuration.configured) {
+    issues.push("The selected billing rollout mode requires complete provider, catalog, legal, and tax readiness");
+  }
+  return issues;
 }
 
 const requiredForProductionOperations = [
@@ -96,16 +116,44 @@ const requiredForProductionOperations = [
   "OPERATIONS_ALERT_WEBHOOK_SECRET",
 ] as const;
 
+function operationsReadinessIssues(environment: RuntimeEnvironment) {
+  const deploymentEnvironment = environment.DEPLOYMENT_ENVIRONMENT?.trim().toLowerCase() ?? "";
+  const operationsEnvironment = environment.OPERATIONS_ENVIRONMENT?.trim().toLowerCase() ?? "";
+  const issues: string[] = [];
+  if (deploymentEnvironment && !["qa", "production"].includes(deploymentEnvironment)) {
+    issues.push("DEPLOYMENT_ENVIRONMENT must be qa or production");
+  }
+  if (operationsEnvironment && !["qa", "production"].includes(operationsEnvironment)) {
+    issues.push("OPERATIONS_ENVIRONMENT must be qa or production");
+  }
+  if (deploymentEnvironment === "production" && operationsEnvironment !== "production") {
+    issues.push("OPERATIONS_ENVIRONMENT must be production when DEPLOYMENT_ENVIRONMENT is production");
+  }
+  if (deploymentEnvironment !== "production" && operationsEnvironment !== "production") return issues;
+
+  issues.push(...requiredForProductionOperations
+    .filter((name) => !environment[name]?.trim())
+    .map((name) => `${name} is required for production operations`));
+  const webhook = environment.OPERATIONS_ALERT_WEBHOOK_URL?.trim();
+  const secret = environment.OPERATIONS_ALERT_WEBHOOK_SECRET?.trim();
+  if (webhook && !validHttpsUrl(webhook)) {
+    issues.push("OPERATIONS_ALERT_WEBHOOK_URL must be a valid HTTPS URL");
+  }
+  if (secret && secret.length < 32) {
+    issues.push("OPERATIONS_ALERT_WEBHOOK_SECRET must contain at least 32 characters");
+  }
+  return issues;
+}
+
 export const optionalRuntimeConfiguration = [
   "LANDING_FEATURED_COURSE_ID",
 ] as const;
 
 export function missingRuntimeConfiguration() {
   if (serverEnvironment.NODE_ENV !== "production") return [] as string[];
-  const required = serverEnvironment.OPERATIONS_ENVIRONMENT?.trim() === "production"
-    ? [...requiredInProduction, ...requiredForProductionOperations]
-    : requiredInProduction;
-  const issues: string[] = required.filter((name) => !serverEnvironment[name]?.trim());
+  const issues: string[] = requiredInProduction
+    .filter((name) => !serverEnvironment[name]?.trim());
+  issues.push(...operationsReadinessIssues(serverEnvironment));
   issues.push(...authenticationReadinessIssues(serverEnvironment)
     .map((issue) => issue.startsWith("IDENTITY_LINK_HMAC_SECRET") ? issue : `authentication: ${issue}`));
   issues.push(...billingReadinessIssues(serverEnvironment));
@@ -129,8 +177,12 @@ export function billingConfiguration() {
   return evaluateBillingConfiguration({
     BILLING_PROVIDER: serverEnvironment.BILLING_PROVIDER,
     BILLING_ENABLED: serverEnvironment.BILLING_ENABLED,
+    BILLING_ROLLOUT_MODE: serverEnvironment.BILLING_ROLLOUT_MODE,
+    BILLING_CANARY_UIDS: serverEnvironment.BILLING_CANARY_UIDS,
+    STRIPE_TAX_READY: serverEnvironment.STRIPE_TAX_READY,
     STRIPE_SECRET_KEY: serverEnvironment.STRIPE_SECRET_KEY,
     STRIPE_WEBHOOK_SECRET: serverEnvironment.STRIPE_WEBHOOK_SECRET,
+    STRIPE_PORTAL_CONFIGURATION_ID: serverEnvironment.STRIPE_PORTAL_CONFIGURATION_ID,
     STRIPE_PLUS_MONTHLY_PRICE_ID: serverEnvironment.STRIPE_PLUS_MONTHLY_PRICE_ID,
     STRIPE_PLUS_ANNUAL_PRICE_ID: serverEnvironment.STRIPE_PLUS_ANNUAL_PRICE_ID,
     STRIPE_PRO_MONTHLY_PRICE_ID: serverEnvironment.STRIPE_PRO_MONTHLY_PRICE_ID,

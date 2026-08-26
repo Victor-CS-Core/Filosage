@@ -10,10 +10,11 @@ import {
   type PaidLearnerPlan,
 } from "@/lib/billing-offer";
 import {
+  CHECKOUT_ELIGIBILITY_VERSION,
   checkoutFulfillmentIsPaid,
   checkoutConsentMetadataIsCurrent,
+  checkoutEligibilityAttestation,
   accountDeletionBlocksCheckout,
-  CLOSED_LAUNCH_PAYMENT_METHOD_TYPES,
   durableBillingConsentMatches,
   entitlementSubscriptionStatus,
   normalizedSubscriptionStatus,
@@ -23,6 +24,7 @@ import {
   subscriptionBlocksCheckout,
   type BillingEventCursor,
   type BillingPaymentState,
+  type CheckoutEligibilityAttestation,
 } from "@/lib/billing-lock";
 import {
   isBillingInterval,
@@ -33,6 +35,11 @@ import {
 import { PAID_SUBSCRIPTION_POLICY, PRIVACY_VERSION, TERMS_VERSION } from "@/lib/legal";
 import { serverEnvironment } from "@/lib/runtime-environment";
 import { reconcileCourseCreditLedger } from "@/lib/course-credit-policy";
+import {
+  billingPortalSessionParameters,
+  stripeSubscriptionCustomerMatches,
+  type BillingPortalAction,
+} from "@/lib/billing-portal";
 
 const CHECKOUT_CLAIM_STALE_MS = 2 * 60_000;
 
@@ -50,6 +57,7 @@ type CheckoutClaim =
     claimId: string;
     planId: PaidLearnerPlan;
     interval: BillingInterval;
+    eligibility: CheckoutEligibilityAttestation;
     previousSessionId?: string;
   };
 
@@ -67,6 +75,14 @@ export function siteUrl() {
   const value = serverEnvironment.NEXT_PUBLIC_SITE_URL?.trim();
   if (!value) throw new Error("NEXT_PUBLIC_SITE_URL is required for billing.");
   return value.replace(/\/$/, "");
+}
+
+function requiredStripePortalConfigurationId() {
+  const value = serverEnvironment.STRIPE_PORTAL_CONFIGURATION_ID?.trim();
+  if (!value || !/^bpc_[A-Za-z0-9]{8,}$/.test(value)) {
+    throw new Error("Stripe billing management is not configured.");
+  }
+  return value;
 }
 
 export function priceForPlanInterval(planId: PaidLearnerPlan, interval: BillingInterval) {
@@ -151,7 +167,12 @@ async function assertCustomerHasNoNonterminalSubscription(stripe: Stripe, custom
   }
 }
 
-async function claimCheckout(account: ServerAccount, requestedPlanId: PaidLearnerPlan, requestedInterval: BillingInterval) {
+async function claimCheckout(
+  account: ServerAccount,
+  requestedPlanId: PaidLearnerPlan,
+  requestedInterval: BillingInterval,
+  eligibility: CheckoutEligibilityAttestation,
+) {
   const path = `users/${account.uid}/billingCheckout/current`;
   const accountPath = `users/${account.uid}`;
   const now = new Date();
@@ -166,9 +187,12 @@ async function claimCheckout(account: ServerAccount, requestedPlanId: PaidLearne
     const expiresAt = typeof existing?.expiresAt === "string" ? Date.parse(existing.expiresAt) : 0;
     const existingInterval = isBillingInterval(existing?.interval) ? existing.interval : requestedInterval;
     const existingPlanId = isPaidLearnerPlan(existing?.planId) ? existing.planId : requestedPlanId;
+    const existingEligibility = checkoutEligibilityAttestation(existing?.eligibility);
 
     if (status === "open" && expiresAt > now.getTime() && typeof existing?.url === "string") {
-      if (existingInterval === requestedInterval && existingPlanId === requestedPlanId) {
+      if (existingInterval === requestedInterval
+        && existingPlanId === requestedPlanId
+        && existingEligibility) {
         return { writes: [], result: { action: "reuse" as const, url: existing.url } };
       }
     }
@@ -179,7 +203,8 @@ async function claimCheckout(account: ServerAccount, requestedPlanId: PaidLearne
     }
 
     const resumingStaleClaim = (status === "creating" || status === "replacing")
-      && typeof existing?.claimId === "string";
+      && typeof existing?.claimId === "string"
+      && Boolean(existingEligibility);
     const claimId = resumingStaleClaim ? String(existing.claimId) : crypto.randomUUID();
     const interval = resumingStaleClaim ? existingInterval : requestedInterval;
     const planId = resumingStaleClaim ? existingPlanId : requestedPlanId;
@@ -196,12 +221,21 @@ async function claimCheckout(account: ServerAccount, requestedPlanId: PaidLearne
           claimId,
           planId,
           interval,
+          eligibility: resumingStaleClaim ? existingEligibility : eligibility,
           previousSessionId: previousSessionId ?? null,
           claimedAt: now.toISOString(),
           updatedAt: now.toISOString(),
         },
       }],
-      result: { action: "create" as const, path, claimId, planId, interval, previousSessionId },
+      result: {
+        action: "create" as const,
+        path,
+        claimId,
+        planId,
+        interval,
+        eligibility: resumingStaleClaim ? existingEligibility! : eligibility,
+        previousSessionId,
+      },
     };
   });
 }
@@ -236,10 +270,17 @@ async function markCheckoutClaimFailed(path: string, claimId: string) {
   });
 }
 
-export async function createCheckoutSession(account: ServerAccount, planId: PaidLearnerPlan, interval: BillingInterval) {
+export async function createCheckoutSession(
+  account: ServerAccount,
+  planId: PaidLearnerPlan,
+  interval: BillingInterval,
+  eligibility: CheckoutEligibilityAttestation,
+) {
   const stripe = stripeClient();
   const baseUrl = siteUrl();
-  const claim = await claimCheckout(account, planId, interval);
+  const automaticTaxEnabled = serverEnvironment.STRIPE_TAX_READY?.trim() === "true";
+  if (!automaticTaxEnabled) throw new Error("Stripe Tax readiness has not been verified.");
+  const claim = await claimCheckout(account, planId, interval, eligibility);
   if (claim.action === "reuse") return claim.url;
   if (claim.action === "busy") throw new BillingCheckoutInProgressError("A secure checkout is already being prepared. Try again in a moment.");
   if (claim.action === "blocked") throw new BillingAccountDeletionInProgressError("Account deletion is in progress; checkout is unavailable.");
@@ -266,16 +307,14 @@ export async function createCheckoutSession(account: ServerAccount, planId: Paid
     const offer = offerFor(claim.planId, claim.interval);
     const session = await stripe.checkout.sessions.create({
       mode: "subscription",
+      integration_identifier: "filosage_checkout_qmvtzkrp",
       line_items: [{ price, quantity: 1 }],
       success_url: `${baseUrl}/pricing?checkout=success`,
       cancel_url: `${baseUrl}/pricing?checkout=canceled`,
       client_reference_id: account.uid,
       customer,
-      // Closed launch uses synchronous card fulfillment. Enabling an async
-      // payment method requires explicit async success/failure webhook support.
-      payment_method_types: [...CLOSED_LAUNCH_PAYMENT_METHOD_TYPES],
       allow_promotion_codes: true,
-      automatic_tax: { enabled: true },
+      automatic_tax: { enabled: automaticTaxEnabled },
       billing_address_collection: "required",
       customer_update: { address: "auto", name: "auto" },
       tax_id_collection: { enabled: true },
@@ -293,6 +332,10 @@ export async function createCheckoutSession(account: ServerAccount, planId: Paid
         offer_currency: plan.currency,
         offer_amount_minor: String(offer.amountMinor),
         automatic_renewal: "true",
+        eligibility_version: claim.eligibility.version,
+        age_18_or_older: String(claim.eligibility.age18OrOlder),
+        us_resident: String(claim.eligibility.usResident),
+        automatic_renewal_acknowledged: String(claim.eligibility.automaticRenewalAccepted),
         purchaser_minimum_age: String(PAID_SUBSCRIPTION_POLICY.minimumPurchaserAge),
         launch_market: PAID_SUBSCRIPTION_POLICY.launchMarketCode,
         refund_window_days: String(PAID_SUBSCRIPTION_POLICY.refundWindowDays),
@@ -305,6 +348,10 @@ export async function createCheckoutSession(account: ServerAccount, planId: Paid
           filosage_plan: claim.planId,
           filosage_interval: claim.interval,
           offer_version: plan.offerVersion,
+          eligibility_version: claim.eligibility.version,
+          age_18_or_older: String(claim.eligibility.age18OrOlder),
+          us_resident: String(claim.eligibility.usResident),
+          automatic_renewal_acknowledged: String(claim.eligibility.automaticRenewalAccepted),
           purchaser_minimum_age: String(PAID_SUBSCRIPTION_POLICY.minimumPurchaserAge),
           launch_market: PAID_SUBSCRIPTION_POLICY.launchMarketCode,
           refund_window_days: String(PAID_SUBSCRIPTION_POLICY.refundWindowDays),
@@ -314,7 +361,7 @@ export async function createCheckoutSession(account: ServerAccount, planId: Paid
       },
       expires_at: Math.floor(Date.now() / 1_000) + (31 * 60),
     }, {
-      idempotencyKey: `filosage-checkout-v3-${claim.claimId}`,
+      idempotencyKey: `filosage-checkout-v4-${claim.claimId}`,
     });
     if (!session.url) throw new Error("Stripe did not return a checkout URL.");
 
@@ -332,6 +379,7 @@ export async function createCheckoutSession(account: ServerAccount, planId: Paid
             claimId: claim.claimId,
             planId: claim.planId,
             interval: claim.interval,
+            eligibility: claim.eligibility,
             sessionId: session.id,
             url: session.url,
             expiresAt: new Date(session.expires_at * 1_000).toISOString(),
@@ -367,7 +415,10 @@ export async function createCheckoutSession(account: ServerAccount, planId: Paid
   }
 }
 
-export async function createBillingPortalSession(account: ServerAccount) {
+export async function createBillingPortalSession(
+  account: ServerAccount,
+  action: BillingPortalAction,
+) {
   if (!account.billingCustomerId?.startsWith("cus_")) {
     throw new Error("No Stripe customer is available for this account yet.");
   }
@@ -376,10 +427,32 @@ export async function createBillingPortalSession(account: ServerAccount) {
   if (!stripeCustomerBindingMatches(customer, account.uid)) {
     throw new Error("The stored Stripe customer is not bound to this Filosage account.");
   }
-  const session = await stripe.billingPortal.sessions.create({
-    customer: account.billingCustomerId,
-    return_url: `${siteUrl()}/pricing`,
-  });
+  let subscriptionId: string | undefined;
+  if (action !== "manage") {
+    if (!account.billingSubscriptionId?.startsWith("sub_")) {
+      throw new Error("No Stripe subscription is available for this billing action.");
+    }
+    const subscription = await stripe.subscriptions.retrieve(account.billingSubscriptionId);
+    if (!stripeSubscriptionCustomerMatches(subscription.customer, account.billingCustomerId)) {
+      throw new Error("The stored Stripe subscription is not bound to this Filosage account.");
+    }
+    if (!subscriptionBlocksCheckout(subscription.status)) {
+      throw new Error("The stored Stripe subscription is no longer manageable.");
+    }
+    const resolved = resolvedSubscriptionOffer(subscription);
+    if (resolved.priceId !== priceForPlanInterval(resolved.planId, resolved.billingInterval)) {
+      throw new Error("This subscription uses a legacy Price and must be handled by billing support.");
+    }
+    subscriptionId = subscription.id;
+  }
+  const returnUrl = `${siteUrl()}/pricing`;
+  const session = await stripe.billingPortal.sessions.create(billingPortalSessionParameters({
+    action,
+    customerId: account.billingCustomerId,
+    configurationId: requiredStripePortalConfigurationId(),
+    returnUrl,
+    subscriptionId,
+  }));
   return session.url;
 }
 
@@ -826,6 +899,10 @@ export async function recordBillingConsent(
     subtotalAmountMinor: session.amount_subtotal,
     chargedAmountMinor: session.amount_total,
     automaticRenewal: true,
+    eligibilityVersion: CHECKOUT_ELIGIBILITY_VERSION,
+    age18OrOlderConfirmed: true,
+    usResidentConfirmed: true,
+    automaticRenewalAcknowledged: true,
     onlineCancellationAvailable: true,
     purchaserMinimumAge: PAID_SUBSCRIPTION_POLICY.minimumPurchaserAge,
     launchMarket: PAID_SUBSCRIPTION_POLICY.launchMarketCode,
@@ -854,6 +931,10 @@ export async function recordBillingConsent(
         billingConsentPriceId: price.id,
         billingConsentPlanId: planId,
         billingConsentInterval: interval,
+        billingConsentEligibilityVersion: snapshot.eligibilityVersion,
+        billingConsentAge18OrOlderConfirmed: true,
+        billingConsentUsResidentConfirmed: true,
+        billingConsentAutomaticRenewalAcknowledged: true,
         billingConsentCheckoutSessionId: session.id,
         billingConsentRecordedAt: snapshot.acceptedAt,
         updatedAt: new Date().toISOString(),

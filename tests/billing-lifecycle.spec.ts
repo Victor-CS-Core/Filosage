@@ -1,10 +1,13 @@
 import { expect, test } from "@playwright/test";
+import { readFileSync } from "node:fs";
 import {
+  CHECKOUT_ELIGIBILITY_VERSION,
+  billingCheckoutAllowedForAccount,
   checkoutFulfillmentIsPaid,
   checkoutConsentMetadataIsCurrent,
   billingWebhookClaimDisposition,
   accountDeletionBlocksCheckout,
-  CLOSED_LAUNCH_PAYMENT_METHOD_TYPES,
+  checkoutEligibilityAttestation,
   accountDeletionRequiresStripeReconciliation,
   checkoutClaimRequiresDeletionRetry,
   chargeLifecyclePaymentState,
@@ -20,14 +23,23 @@ import {
   terminalSubscriptionCanBeAcknowledgedWithoutAccount,
   type BillingEventCursor,
 } from "../src/lib/billing-lock";
+import {
+  billingPortalSessionParameters,
+  parseBillingPortalRequest,
+  stripeSubscriptionCustomerMatches,
+} from "../src/lib/billing-portal";
 import { readBoundedRequestText } from "../src/lib/bounded-request-body";
 import { PAID_SUBSCRIPTION_POLICY, PRIVACY_VERSION, TERMS_VERSION } from "../src/lib/legal";
 import { exactLearnerAccount, restoreLocalLearner } from "./fixtures/local-learner";
 
 const stripeLifecycle = {
   BILLING_PROVIDER: "stripe",
+  BILLING_ROLLOUT_MODE: "configured",
+  STRIPE_TAX_READY: "true",
+  BILLING_CANARY_UIDS: "canary-learner",
   STRIPE_SECRET_KEY: "sk_live_example",
   STRIPE_WEBHOOK_SECRET: "whsec_example",
+  STRIPE_PORTAL_CONFIGURATION_ID: "bpc_filosage123",
   STRIPE_PLUS_MONTHLY_PRICE_ID: "price_plus_monthly",
   STRIPE_PLUS_ANNUAL_PRICE_ID: "price_plus_annual",
   STRIPE_PRO_MONTHLY_PRICE_ID: "price_monthly",
@@ -37,6 +49,11 @@ const stripeLifecycle = {
   GOVERNING_JURISDICTION: "New York",
   SUPPORT_EMAIL: "support@filosage.com",
 };
+
+const stripeServerSource = readFileSync("src/lib/stripe-server.ts", "utf8");
+const checkoutRouteSource = readFileSync("src/app/api/billing/checkout/route.ts", "utf8");
+const portalRouteSource = readFileSync("src/app/api/billing/portal/route.ts", "utf8");
+const pricingPageSource = readFileSync("src/app/pricing/page.tsx", "utf8");
 
 test("exact learner account fixtures derive coherent access, capabilities, and credits", () => {
   expect(exactLearnerAccount()).toMatchObject({
@@ -135,85 +152,181 @@ test("exact learner account fixtures derive coherent access, capabilities, and c
 
 test("closing checkout preserves existing subscriber management and lifecycle processing", { tag: "@smoke" }, () => {
   expect(evaluateBillingConfiguration({ ...stripeLifecycle, BILLING_ENABLED: "false" })).toMatchObject({
+    rolloutMode: "configured",
     enabled: false,
+    enabledValid: true,
+    portalConfigurationReady: true,
     managementReady: true,
     webhookReady: true,
     productReady: true,
     legalReady: true,
+    taxReady: true,
     providerReady: true,
     checkoutReady: false,
-    configured: false,
-  });
-});
-
-test("billing capabilities fail closed at the narrowest safe boundary", () => {
-  expect(evaluateBillingConfiguration({
-    ...stripeLifecycle,
-    BILLING_ENABLED: "true",
-  })).toMatchObject({
-    managementReady: true,
-    webhookReady: true,
-    productReady: true,
-    legalReady: true,
-    providerReady: true,
-    checkoutReady: true,
     configured: true,
   });
 
-  expect(evaluateBillingConfiguration({
-    ...stripeLifecycle,
-    BILLING_ENABLED: "true",
-    STRIPE_WEBHOOK_SECRET: "",
-  })).toMatchObject({
-    managementReady: true,
-    webhookReady: false,
-    productReady: true,
-    providerReady: false,
-    checkoutReady: false,
-  });
+  for (const portalConfigurationId of [undefined, "", "portal_default"]) {
+    expect(evaluateBillingConfiguration({
+      ...stripeLifecycle,
+      STRIPE_PORTAL_CONFIGURATION_ID: portalConfigurationId,
+      BILLING_ENABLED: "false",
+    })).toMatchObject({
+      portalConfigurationReady: false,
+      managementReady: false,
+      providerReady: false,
+      configured: false,
+      checkoutReady: false,
+    });
+  }
+});
 
-  expect(evaluateBillingConfiguration({
+test("billing rollout states fail closed from configuration through canary and open access", () => {
+  const closed = evaluateBillingConfiguration({
     ...stripeLifecycle,
-    BILLING_ENABLED: "true",
-    STRIPE_PRO_MONTHLY_PRICE_ID: "",
-  })).toMatchObject({
-    managementReady: true,
-    webhookReady: true,
-    productReady: false,
-    providerReady: false,
-    checkoutReady: false,
+    BILLING_ROLLOUT_MODE: "closed",
+    BILLING_ENABLED: "false",
   });
+  expect(closed).toMatchObject({ rolloutMode: "closed", configured: false, checkoutReady: false });
+  expect(billingCheckoutAllowedForAccount(closed, "canary-learner")).toBe(false);
 
-  expect(evaluateBillingConfiguration({
+  const configured = evaluateBillingConfiguration({ ...stripeLifecycle, BILLING_ENABLED: "false" });
+  expect(configured).toMatchObject({ rolloutMode: "configured", configured: true, checkoutReady: false });
+  expect(billingCheckoutAllowedForAccount(configured, "canary-learner")).toBe(false);
+
+  const canary = evaluateBillingConfiguration({
     ...stripeLifecycle,
+    BILLING_ROLLOUT_MODE: "canary",
     BILLING_ENABLED: "true",
-    STRIPE_SECRET_KEY: "",
-  })).toMatchObject({
-    managementReady: false,
-    webhookReady: false,
-    productReady: false,
-    providerReady: false,
-    checkoutReady: false,
   });
+  expect(canary).toMatchObject({ rolloutMode: "canary", configured: true, canaryReady: true, checkoutReady: false });
+  expect(billingCheckoutAllowedForAccount(canary, "canary-learner")).toBe(true);
+  expect(billingCheckoutAllowedForAccount(canary, "other-learner")).toBe(false);
 
-  expect(evaluateBillingConfiguration({
+  const open = evaluateBillingConfiguration({
     ...stripeLifecycle,
+    BILLING_ROLLOUT_MODE: "open",
     BILLING_ENABLED: "true",
-    LEGAL_BUSINESS_ADDRESS: "",
-  })).toMatchObject({
-    managementReady: true,
-    webhookReady: true,
-    productReady: true,
-    legalReady: false,
-    providerReady: true,
-    checkoutReady: false,
   });
+  expect(open).toMatchObject({ rolloutMode: "open", configured: true, canaryReady: false, checkoutReady: true });
+  expect(billingCheckoutAllowedForAccount(open, "other-learner")).toBe(true);
 
-  expect(evaluateBillingConfiguration({
-    ...stripeLifecycle,
-    BILLING_ENABLED: "true",
-    SUPPORT_EMAIL: "not-an-email",
-  })).toMatchObject({ legalReady: false, checkoutReady: false });
+  for (const unsafe of [
+    { ...stripeLifecycle, BILLING_ROLLOUT_MODE: "open", BILLING_ENABLED: "false" },
+    { ...stripeLifecycle, BILLING_ROLLOUT_MODE: "open", BILLING_ENABLED: "true", STRIPE_TAX_READY: "false" },
+    { ...stripeLifecycle, BILLING_ROLLOUT_MODE: "canary", BILLING_ENABLED: "true", BILLING_CANARY_UIDS: "" },
+    { ...stripeLifecycle, BILLING_ROLLOUT_MODE: "surprise", BILLING_ENABLED: "true" },
+    { ...stripeLifecycle, BILLING_ROLLOUT_MODE: "open", BILLING_ENABLED: "yes" },
+    { ...stripeLifecycle, BILLING_ROLLOUT_MODE: "open", BILLING_ENABLED: "true", STRIPE_WEBHOOK_SECRET: "" },
+  ]) {
+    const config = evaluateBillingConfiguration(unsafe);
+    expect(config.checkoutReady, JSON.stringify(unsafe)).toBe(false);
+    expect(billingCheckoutAllowedForAccount(config, "canary-learner"), JSON.stringify(unsafe)).toBe(false);
+  }
+});
+
+test("checkout eligibility is exact, versioned, and bound to Stripe-hosted billing", () => {
+  const accepted = checkoutEligibilityAttestation({
+    version: CHECKOUT_ELIGIBILITY_VERSION,
+    age18OrOlder: true,
+    usResident: true,
+    automaticRenewalAccepted: true,
+  });
+  expect(accepted).toEqual({
+    version: CHECKOUT_ELIGIBILITY_VERSION,
+    age18OrOlder: true,
+    usResident: true,
+    automaticRenewalAccepted: true,
+  });
+  for (const rejected of [
+    null,
+    {},
+    { ...accepted, version: "stale" },
+    { ...accepted, age18OrOlder: false },
+    { ...accepted, usResident: false },
+    { ...accepted, automaticRenewalAccepted: false },
+    { ...accepted, extra: true },
+  ]) {
+    expect(checkoutEligibilityAttestation(rejected)).toBeNull();
+  }
+
+  expect(stripeServerSource).not.toContain("payment_method_types");
+  expect(stripeServerSource).not.toContain("CLOSED_LAUNCH_PAYMENT_METHOD_TYPES");
+  expect(stripeServerSource).toMatch(/integration_identifier:\s*"filosage_checkout_[a-z]{8}"/);
+  expect(stripeServerSource).toContain("billingPortal.sessions.create");
+  expect(portalRouteSource).toContain("createBillingPortalSession");
+  expect(stripeServerSource).toContain("automatic_tax: { enabled: automaticTaxEnabled }");
+  expect(stripeServerSource).toContain("eligibility_version");
+  expect(checkoutRouteSource).toContain("checkoutEligibilityAttestation");
+  expect(pricingPageSource).toContain("Continue to Stripe Checkout");
+  expect(pricingPageSource).toContain("Manage billing in Stripe");
+});
+
+test("billing portal actions are exact and build ownership-bound Stripe-hosted flows", () => {
+  expect(parseBillingPortalRequest({ action: "manage" })).toBe("manage");
+  expect(parseBillingPortalRequest({ action: "change_plan" })).toBe("change_plan");
+  expect(parseBillingPortalRequest({ action: "cancel" })).toBe("cancel");
+  for (const rejected of [
+    null,
+    "manage",
+    {},
+    { action: "upgrade" },
+    { action: "manage", extra: true },
+  ]) {
+    expect(parseBillingPortalRequest(rejected)).toBeNull();
+  }
+
+  const common = {
+    customerId: "cus_bound_customer",
+    configurationId: "bpc_filosage_portal",
+    returnUrl: "https://filosage.com/pricing",
+  };
+  expect(billingPortalSessionParameters({ ...common, action: "manage" })).toEqual({
+    customer: "cus_bound_customer",
+    configuration: "bpc_filosage_portal",
+    return_url: "https://filosage.com/pricing",
+  });
+  expect(billingPortalSessionParameters({
+    ...common,
+    action: "change_plan",
+    subscriptionId: "sub_bound_subscription",
+  })).toEqual({
+    customer: "cus_bound_customer",
+    configuration: "bpc_filosage_portal",
+    return_url: "https://filosage.com/pricing",
+    flow_data: {
+      type: "subscription_update",
+      subscription_update: { subscription: "sub_bound_subscription" },
+      after_completion: {
+        type: "redirect",
+        redirect: { return_url: "https://filosage.com/pricing" },
+      },
+    },
+  });
+  expect(billingPortalSessionParameters({
+    ...common,
+    action: "cancel",
+    subscriptionId: "sub_bound_subscription",
+  })).toEqual({
+    customer: "cus_bound_customer",
+    configuration: "bpc_filosage_portal",
+    return_url: "https://filosage.com/pricing",
+    flow_data: {
+      type: "subscription_cancel",
+      subscription_cancel: { subscription: "sub_bound_subscription" },
+      after_completion: {
+        type: "redirect",
+        redirect: { return_url: "https://filosage.com/pricing" },
+      },
+    },
+  });
+  expect(() => billingPortalSessionParameters({ ...common, action: "change_plan" })).toThrow(
+    "A Stripe subscription is required for this billing action.",
+  );
+
+  expect(stripeSubscriptionCustomerMatches("cus_bound_customer", "cus_bound_customer")).toBe(true);
+  expect(stripeSubscriptionCustomerMatches({ id: "cus_bound_customer" }, "cus_bound_customer")).toBe(true);
+  expect(stripeSubscriptionCustomerMatches("cus_foreign_customer", "cus_bound_customer")).toBe(false);
 });
 
 test("existing and payment-recovery subscriptions cannot start another checkout", () => {
@@ -269,7 +382,6 @@ test("every Stripe subscription status maps to a safe local lifecycle state", ()
 });
 
 test("paid entitlement requires a completed Checkout and paid invoice", () => {
-  expect(CLOSED_LAUNCH_PAYMENT_METHOD_TYPES).toEqual(["card"]);
   const paid = {
     mode: "subscription",
     checkoutStatus: "complete",
@@ -291,6 +403,10 @@ test("checkout consent rejects stale legal or offer snapshots", () => {
     offer_currency: "usd",
     offer_amount_minor: "999",
     automatic_renewal: "true",
+    eligibility_version: CHECKOUT_ELIGIBILITY_VERSION,
+    age_18_or_older: "true",
+    us_resident: "true",
+    automatic_renewal_acknowledged: "true",
     purchaser_minimum_age: String(PAID_SUBSCRIPTION_POLICY.minimumPurchaserAge),
     launch_market: PAID_SUBSCRIPTION_POLICY.launchMarketCode,
     refund_window_days: String(PAID_SUBSCRIPTION_POLICY.refundWindowDays),
@@ -309,6 +425,9 @@ test("checkout consent rejects stale legal or offer snapshots", () => {
   expect(checkoutConsentMetadataIsCurrent({ ...metadata, terms_version: "stale" }, expected)).toBe(false);
   expect(checkoutConsentMetadataIsCurrent({ ...metadata, offer_amount_minor: "998" }, expected)).toBe(false);
   expect(checkoutConsentMetadataIsCurrent({ ...metadata, automatic_renewal: "false" }, expected)).toBe(false);
+  expect(checkoutConsentMetadataIsCurrent({ ...metadata, age_18_or_older: "false" }, expected)).toBe(false);
+  expect(checkoutConsentMetadataIsCurrent({ ...metadata, us_resident: "false" }, expected)).toBe(false);
+  expect(checkoutConsentMetadataIsCurrent({ ...metadata, automatic_renewal_acknowledged: "false" }, expected)).toBe(false);
   expect(checkoutConsentMetadataIsCurrent({ ...metadata, purchaser_minimum_age: "17" }, expected)).toBe(false);
   expect(checkoutConsentMetadataIsCurrent({ ...metadata, launch_market: "worldwide" }, expected)).toBe(false);
   expect(checkoutConsentMetadataIsCurrent({ ...metadata, refund_window_days: "0" }, expected)).toBe(false);
@@ -480,6 +599,7 @@ test("webhook raw bodies are preserved and bounded by bytes", async () => {
 test("billing routes report and enforce the closed checkout boundary", { tag: "@smoke" }, async ({ page }) => {
   const statusResponse = await page.request.get("/api/billing/status");
   expect(statusResponse.ok()).toBe(true);
+  expect(statusResponse.headers()["cache-control"]).toBe("private, no-store");
   expect(await statusResponse.json()).toMatchObject({
     enabled: false,
     managementReady: false,
@@ -507,6 +627,28 @@ test("pricing explains successful and canceled checkout returns without granting
   await expect(page.getByText(/A redirect cannot confirm payment or subscription state and does not change your access/)).toBeVisible();
   await expect(page.getByText(/No new charge or subscription was completed/)).toHaveCount(0);
   await expect(page).toHaveURL(/\/pricing$/);
+});
+
+test("a slow verified-payment return times out safely and offers recovery without a real wait", async ({ page }) => {
+  await page.clock.install({ time: new Date("2026-08-24T12:00:00.000Z") });
+  await page.addInitScript(() => localStorage.setItem("filosage-local-session", "1"));
+  let accountRequests = 0;
+  await page.route("**/api/account", async (route) => {
+    accountRequests += 1;
+    if (accountRequests === 1) await route.fulfill({ json: exactLearnerAccount() });
+    // Leave reconciliation reads pending to prove the visible deadline does
+    // not depend on an account response arriving.
+  });
+
+  await page.goto("/pricing?checkout=success");
+  await expect(page.getByRole("heading", { name: "Confirming your membership" })).toBeVisible();
+  await expect(page.getByText(/check for confirmation for up to 30 seconds/)).toBeVisible();
+
+  await page.clock.runFor(30_000);
+  await expect(page.getByText(/Stripe has not confirmed the subscription within 30 seconds/)).toBeVisible();
+  await expect(page.getByRole("button", { name: "Refresh membership" })).toBeVisible();
+  await expect(page.getByText("Free is active")).toBeVisible();
+  expect(accountRequests).toBeGreaterThan(1);
 });
 
 test("publishes the approved paid eligibility, refund, cancellation, and deletion policy", async ({ page }) => {
@@ -646,6 +788,55 @@ test("a past-due subscriber can reach billing management while checkout is close
   await expect(page.getByText("Payment needs attention")).toBeVisible();
   await expect(page.getByText(/update your payment method, view invoices, or cancel at the end of the paid period/)).toBeVisible();
   await expect(page.getByText(/switch an available plan/)).toHaveCount(0);
-  await expect(page.getByRole("button", { name: "Manage billing" })).toBeEnabled();
+  await expect(page.getByRole("button", { name: "Manage billing in Stripe" })).toBeEnabled();
+  await expect(page.getByRole("button", { name: "Cancel membership in Stripe" })).toBeEnabled();
+  await expect(page.getByRole("button", { name: "Change plan in Stripe" })).toHaveCount(0);
   await expect(page.getByRole("button", { name: /Choose Pro/ })).toHaveCount(0);
+});
+
+test("an active subscriber gets explicit Stripe-hosted manage, plan-change, and cancellation actions", async ({ page }) => {
+  await page.addInitScript(() => localStorage.setItem("filosage-local-session", "1"));
+  await page.route("**/api/billing/status", (route) => route.fulfill({
+    json: { enabled: false, ready: false, checkoutReady: false, managementReady: true },
+  }));
+  await page.route("**/api/account", (route) => route.fulfill({
+    json: exactLearnerAccount({ plan: "plus", subscriptionStatus: "active" }),
+  }));
+
+  const actions: unknown[] = [];
+  let releaseFirstRequest = () => {};
+  const firstRequestGate = new Promise<void>((resolve) => { releaseFirstRequest = resolve; });
+  await page.route("**/api/billing/portal", async (route) => {
+    actions.push(route.request().postDataJSON());
+    if (actions.length === 1) await firstRequestGate;
+    await route.fulfill({ status: 503, json: { error: "Test request held before Stripe redirect." } });
+  });
+
+  await page.goto("/pricing");
+  const changePlan = page.getByRole("button", { name: "Change plan in Stripe" });
+  const manage = page.getByRole("button", { name: "Manage billing in Stripe" });
+  const cancel = page.getByRole("button", { name: "Cancel membership in Stripe" });
+  await expect(changePlan).toBeEnabled();
+  await expect(manage).toBeEnabled();
+  await expect(cancel).toBeEnabled();
+  await expect(page.getByText(/takes effect immediately and Stripe calculates the prorated invoice/)).toBeVisible();
+  await expect(page.getByText(/cancellation takes effect at the end of the current paid period/)).toBeVisible();
+
+  await changePlan.click();
+  await expect.poll(() => actions.length).toBe(1);
+  expect(actions[0]).toEqual({ action: "change_plan" });
+  await expect(changePlan).toBeDisabled();
+  await expect(manage).toBeDisabled();
+  await expect(cancel).toBeDisabled();
+  releaseFirstRequest();
+  await expect(page.getByText("Test request held before Stripe redirect.", { exact: true })).toBeVisible();
+
+  await manage.click();
+  await expect.poll(() => actions.length).toBe(2);
+  expect(actions[1]).toEqual({ action: "manage" });
+  await expect(page.getByText("Test request held before Stripe redirect.", { exact: true })).toBeVisible();
+
+  await cancel.click();
+  await expect.poll(() => actions.length).toBe(3);
+  expect(actions[2]).toEqual({ action: "cancel" });
 });

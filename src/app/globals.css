@@ -1006,6 +1006,11 @@ button:disabled { cursor: not-allowed; opacity: 0.55; }
 .billing-return-status p { max-width: 70ch; margin-top: 5px; font-size: 0.78rem; line-height: 1.65; }
 .billing-return-status a { display: inline-block; margin-top: 8px; color: var(--brand-blue-ink); font-size: 0.75rem; font-weight: 750; }
 .pricing-interval { margin-top: 30px; }
+.pricing-checkout-eligibility { min-width: 0; max-width: 760px; display: grid; gap: 10px; margin: 24px 0 0; border: 1px solid var(--line-strong); border-radius: var(--radius-md); background: var(--surface-subtle); padding: 20px; }
+.pricing-checkout-eligibility legend { max-width: calc(100% - 20px); padding: 0 8px; color: var(--ink); font-size: 0.82rem; font-weight: 800; line-height: 1.35; }
+.pricing-checkout-eligibility > p { margin-bottom: 2px; color: var(--ink-secondary); font-size: 0.72rem; line-height: 1.55; }
+.pricing-checkout-eligibility label { min-height: 44px; display: grid; grid-template-columns: 20px minmax(0, 1fr); align-items: start; gap: 10px; border-top: 1px solid var(--line); padding-top: 11px; color: var(--ink-secondary); font-size: 0.75rem; line-height: 1.5; cursor: pointer; }
+.pricing-checkout-eligibility input { width: 18px; height: 18px; margin: 1px 0 0; accent-color: var(--accent); }
 .plan-comparison { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); margin-top: 24px; border-top: 2px solid var(--ink); border-bottom: 1px solid var(--line-strong); }
 .plan-column { min-width: 0; min-height: 570px; display: flex; flex-direction: column; padding: 30px 26px 34px 0; }
 .plan-column + .plan-column { border-left: 1px solid var(--line); padding-left: 34px; padding-right: 0; }
@@ -1039,6 +1044,8 @@ button:disabled { cursor: not-allowed; opacity: 0.55; }
 .pricing-account-action, .pricing-launch-action { margin-top: 28px; border-top: 1px solid var(--line-strong); padding-top: 24px; }
 .pricing-account-action { display: flex; align-items: center; justify-content: space-between; gap: 24px; }
 .pricing-account-action > div, .pricing-launch-action > div { max-width: 65ch; }
+.pricing-account-actions { display: flex; flex: 0 1 auto; flex-wrap: wrap; justify-content: flex-end; gap: 10px; min-width: 0; }
+.pricing-account-actions .button { min-height: 40px; white-space: normal; }
 .pricing-account-action h2, .pricing-launch-action h2 { font-size: 1rem; }
 .pricing-account-action p, .pricing-launch-action > div p { margin-top: 5px; color: var(--ink-secondary); font-size: 0.78rem; line-height: 1.55; }
 .pricing-launch-action.pricing-intent-form, .pricing-launch-action.waitlist-form { display: grid; max-width: 700px; gap: 14px; }
@@ -1142,6 +1149,8 @@ button:disabled { cursor: not-allowed; opacity: 0.55; }
   .plan-column, .plan-column + .plan-column { min-height: 0; padding: 28px 0; }
   .plan-column + .plan-column { border-left: 0; border-top: 1px solid var(--line); }
   .pricing-account-action { align-items: flex-start; flex-direction: column; }
+  .pricing-account-actions { width: 100%; }
+  .pricing-account-action .button { min-height: 44px; width: 100%; }
   .pricing-credit-guide { grid-template-columns: 1fr; }
   .pricing-credit-guide > p { grid-column: auto; }
   .hero-copy h1 { font-size: clamp(2.6rem, 12vw, 4.8rem); overflow-wrap: anywhere; }
@@ -1167,6 +1176,8 @@ button:disabled { cursor: not-allowed; opacity: 0.55; }
   .today-heading { align-items: flex-start; flex-direction: column; }
   .today-heading h2 { font-size: 1.65rem; }
   .review-page, .pricing-page { width: calc(100% - 40px); padding-top: 42px; }
+  .pricing-checkout-eligibility { padding: 16px; }
+  .pricing-checkout-eligibility legend { padding-inline: 6px; font-size: 0.78rem; }
   .review-header h1, .pricing-header h1 { font-size: 2.25rem; overflow-wrap: anywhere; }
   .review-item { grid-template-columns: 34px 1fr auto; gap: 10px; }
   .review-clear-state { align-items: flex-start; flex-wrap: wrap; }
@@ -4205,7 +4216,7 @@ html[data-environment="qa"] .environment-pill { display: inline-flex; }
   .library-card-grid.is-single-course .course-banner { min-height: 176px; }
   .library-card-grid.is-single-course .course-card-body { min-height: 240px; padding: 20px; }
   .interactive-lesson-block { padding: 21px 16px; }
-  .lesson-section-navigator button { min-height: 44px; }
+  .lesson-section-navigator button { min-height: 45px; }
   .interactive-lesson-block > header { grid-template-columns: 36px minmax(0, 1fr); }
   .interactive-block-icon { width: 36px; height: 36px; }
   .signal-stage-heading, .interaction-actions, .review-recovery > div { align-items: stretch; flex-direction: column; }

@@ -6,17 +6,27 @@ GoDaddy can provide the domain and hosting layer. It is not the recurring subscr
 
 - `BILLING_PROVIDER=none` keeps paid checkout disabled.
 - `BILLING_ENABLED=false` is an independent activation lock and must remain false until the operational and legal launch gates are complete.
-- `/api/billing/status` exposes only non-secret readiness information.
+- `/api/billing/status` exposes only non-secret readiness information and is always private and non-cacheable because canary readiness is account-specific.
 - `/api/billing/checkout` and `/api/billing/portal` fail closed until the provider integration is enabled.
 - `/api/billing/webhook` verifies Stripe signatures, claims events transactionally, ignores duplicate and stale events, and resolves Plus or Pro only from one recognized plan/interval Price mapping. This code is not authorized for activation.
-- Closed-launch Checkout explicitly accepts cards only. Do not enable Dashboard-managed asynchronous payment methods until their Checkout async-success and async-failure events have dedicated entitlement tests and handlers.
+- Stripe-hosted Checkout uses the payment methods enabled for the account in Stripe's Dashboard. Filosage does not collect payment details or hard-code a card-only list. Entitlement still changes only after a verified, paid Stripe lifecycle event.
+- Stripe-hosted Customer Portal remains available to existing subscribers whenever the management credential and reviewed `STRIPE_PORTAL_CONFIGURATION_ID` are configured, including when new checkout is locked for rollback or preparation.
+- The application opens explicit hosted Portal flows for plan changes and period-end cancellation. It never updates entitlement from a Portal redirect; signed subscription and invoice webhooks remain authoritative.
 
 ## Activation checklist
 
 1. Preserve the owner-approved U.S.-only, age-18-plus, seven-day initial-charge and annual-renewal refund policy; confirm final prices, currency, taxes, and independent legal review before activation.
-2. Create matching Stripe products and prices and configure `STRIPE_PLUS_MONTHLY_PRICE_ID`, `STRIPE_PLUS_ANNUAL_PRICE_ID`, `STRIPE_PRO_MONTHLY_PRICE_ID`, and `STRIPE_PRO_ANNUAL_PRICE_ID`.
-3. Configure `STRIPE_SECRET_KEY` and `STRIPE_WEBHOOK_SECRET`, then keep `BILLING_ENABLED=false` while completing test-mode exercises.
-4. Test successful checkout, duplicate and out-of-order webhooks, renewal, failed payment, cancellation at period end, immediate cancellation, refund, account deletion, and portal access.
-5. Publish the operator identity, business address, governing jurisdiction, required consumer notices, and support response process.
-6. Configure uptime and webhook-failure alerts, incident ownership, and a rollback procedure.
-7. Activate with a separate explicit change to `BILLING_PROVIDER=stripe` and `BILLING_ENABLED=true`.
+2. Start at `BILLING_PROVIDER=none`, `BILLING_ENABLED=false`, `BILLING_ROLLOUT_MODE=closed`, and `STRIPE_TAX_READY=false`. An ordinary code release must stay `closed`, or use `configured` only after the complete Live provider configuration exists.
+3. Create matching Stripe products and recurring prices and configure `STRIPE_PLUS_MONTHLY_PRICE_ID`, `STRIPE_PLUS_ANNUAL_PRICE_ID`, `STRIPE_PRO_MONTHLY_PRICE_ID`, and `STRIPE_PRO_ANNUAL_PRICE_ID`. Give all four Prices the same explicit reviewed tax behavior. Enable only reviewed payment methods in Stripe's Dashboard.
+4. Configure `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, the non-secret reviewed `STRIPE_PORTAL_CONFIGURATION_ID`, the Live webhook endpoint, and the public legal/support values. Keep `BILLING_ENABLED=false`.
+5. Restrict that Portal configuration to the four current Filosage Prices. Enable price-only subscription updates with immediate `always_invoice` proration and an unchanged billing-cycle anchor. Keep ordinary cancellation at period end with reason capture, invoices, and payment-method updates enabled. Exclude legacy sandbox Products and Prices.
+6. Verify Stripe Tax registrations, product tax codes, explicit Price tax behavior, customer address collection, and the resulting Checkout and prorated-invoice tax calculation. Only then set `STRIPE_TAX_READY=true`; this flag records completed verification and does not configure Stripe Tax.
+7. Move to `BILLING_ROLLOUT_MODE=configured` while `BILLING_ENABLED=false`. Run the ordinary release check and confirm new Checkout remains locked while an existing subscriber can still open Stripe's portal.
+8. Test successful and canceled hosted Checkout returns, all four immediate plan/interval changes and their prorated invoices, duplicate and out-of-order webhooks, renewal, failed payment and recovery, cancellation at period end, immediate account-deletion cancellation, refund, dispute, and hosted portal access. A return redirect never grants access.
+9. Confirm every Checkout requires the current versioned age-18-or-older, U.S.-residency, and automatic-renewal acknowledgements and that the exact offer and legal versions are stored before redirecting to Stripe.
+10. Publish the operator identity, business address, governing jurisdiction, consumer notices, and support process. Configure uptime and webhook-failure alerts, incident ownership, and a rollback procedure.
+11. After a separate owner approval, configure one to 100 account UIDs in the server-only `BILLING_CANARY_UIDS`, set `BILLING_ROLLOUT_MODE=canary` and `BILLING_ENABLED=true`, then run `node scripts/check-release-env.mjs --billing-activation`. Do not expose the allowlist through public or client environment variables.
+12. Retain canary lifecycle evidence. After a second explicit owner decision, change only `BILLING_ROLLOUT_MODE=open`; rerun the billing-activation check and exact-release verification before broader traffic.
+13. To stop new sales, set `BILLING_ENABLED=false` and return to `configured` (or `closed` if readiness is no longer claimed). Keep Stripe webhooks and Customer Portal operational for existing subscribers.
+
+The authoritative gate details and evidence matrix are in `docs/COMMERCIAL_LAUNCH_RUNBOOK.md`. Tax information may be owner-confirmed in Stripe, but activation remains blocked until it is independently verified and recorded with the other Live configuration evidence.

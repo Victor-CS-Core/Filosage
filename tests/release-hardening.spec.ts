@@ -20,6 +20,10 @@ const qaWorkflow = read(".github/workflows/azure-qa.yml");
 const qualityWorkflow = read(".github/workflows/quality-gate.yml");
 const fullRegressionWorkflowPath = ".github/workflows/full-regression.yml";
 const fullRegressionWorkflow = existsSync(fullRegressionWorkflowPath) ? read(fullRegressionWorkflowPath) : "";
+const workflowPaths = readdirSync(".github/workflows")
+  .filter((name) => name.endsWith(".yml") || name.endsWith(".yaml"))
+  .map((name) => `.github/workflows/${name}`)
+  .sort();
 const playwrightConfig = read("playwright.config.ts");
 const createPage = read("src/app/create/page.tsx");
 const createStyles = read("src/app/create/create.module.css");
@@ -138,7 +142,7 @@ test("every Playwright spec belongs to exactly one execution lane", async () => 
   expect(contractSuites).toHaveLength(29);
   expect(apiSuites).toHaveLength(2);
   expect(singleEngineSuites).toHaveLength(17);
-  expect(deviceSensitiveSuites).toHaveLength(7);
+  expect(deviceSensitiveSuites).toHaveLength(8);
   expect(dedicatedSuites).toHaveLength(3);
 });
 
@@ -187,11 +191,11 @@ test("the browser matrix starts only one isolated Next server at a time", () => 
     `.next/playwright-3102-${plan.runtime.distNamespace}`,
   ]);
   const mobileChromiumLoads = plan.estimatedLoadsByProject["mobile-chromium"];
-  expect(Math.max(...mobileChromiumLoads) - Math.min(...mobileChromiumLoads)).toBeLessThanOrEqual(2);
-  expect(Object.values(plan.batchesByProject).flat(2)).toHaveLength(36);
-  expect(plan.batchesByProject.chromium.flat()).toHaveLength(24);
-  expect(plan.batchesByProject["mobile-chromium"].flat()).toHaveLength(5);
-  expect(plan.batchesByProject["mobile-webkit"].flat()).toHaveLength(7);
+  expect(Math.max(...mobileChromiumLoads) - Math.min(...mobileChromiumLoads)).toBeLessThanOrEqual(3);
+  expect(Object.values(plan.batchesByProject).flat(2)).toHaveLength(39);
+  expect(plan.batchesByProject.chromium.flat()).toHaveLength(25);
+  expect(plan.batchesByProject["mobile-chromium"].flat()).toHaveLength(6);
+  expect(plan.batchesByProject["mobile-webkit"].flat()).toHaveLength(8);
   expect(plan.batchesByProject["mobile-chromium"].flat()).not.toContain("tests/course-learning-flow.spec.ts");
   expect(plan.batchesByProject["mobile-chromium"].flat()).not.toContain("tests/support-wiki.spec.ts");
   expect(Object.values(plan.batchesByProject).flat(2)).not.toContain("tests/shared-evidence-ui.spec.ts");
@@ -247,7 +251,7 @@ test("the browser matrix starts only one isolated Next server at a time", () => 
   );
   expect(reporterOnly.status, reporterOnly.stderr).toBe(0);
   const reporterPlan = JSON.parse(reporterOnly.stdout).batchesByProject.chromium as string[][];
-  expect(reporterPlan).toHaveLength(8);
+  expect(reporterPlan).toHaveLength(9);
   expect(reporterPlan.every((batch) => (
     batch[0] === "--reporter=line" && batch.filter((item) => item.endsWith(".spec.ts")).length <= 3
   ))).toBe(true);
@@ -545,9 +549,41 @@ test("pull requests and main are protected by an automatic engineering quality w
   expect(workflow).toContain("npm run test:contracts");
   expect(workflow).toContain("npm run test:api && npm run test:browser:smoke");
   expect(workflow).toContain("NODE_OPTIONS: --max-old-space-size=3072");
-  expect(workflow).toContain("actions/upload-artifact@v4");
+  expect(workflow).toContain("actions/upload-artifact@");
   expect(fullRegressionWorkflow).toContain("npm run test:command-center:v2");
   expect(fullRegressionWorkflow).toContain("npm run test:command-center:v2:ui");
   expect(fullRegressionWorkflow).toContain("npm run test:shared-evidence:ui");
   expect(fullRegressionWorkflow).toContain("npm run test:api && npm run test:browser");
+});
+
+test("release automation pins third-party actions and includes dependency and code security gates", () => {
+  expect(workflowPaths.length).toBeGreaterThan(0);
+  for (const path of workflowPaths) {
+    const workflow = read(path);
+    expect(workflow, `${path} must declare least-privilege permissions`).toMatch(/^permissions:\s*\n/m);
+    for (const line of workflow.split(/\r?\n/)) {
+      const reference = line.match(/^\s*-?\s*uses:\s*([^\s#]+)(?:\s+#\s*(v[^\s]+))?\s*$/);
+      if (!reference || reference[1].startsWith("./")) continue;
+      expect(reference[1], `${path}: ${line.trim()}`).toMatch(/^[\w.-]+\/[\w.-]+(?:\/[\w.-]+)*@[a-f0-9]{40}$/);
+      expect(reference[2], `${path}: pinned actions retain a readable release comment`).toMatch(/^v\d/);
+    }
+  }
+
+  expect(existsSync(".github/dependabot.yml")).toBe(true);
+  const dependabot = read(".github/dependabot.yml");
+  expect(dependabot).toContain('package-ecosystem: "npm"');
+  expect(dependabot).toContain('package-ecosystem: "github-actions"');
+  expect(dependabot.match(/open-pull-requests-limit:/g)).toHaveLength(2);
+
+  expect(existsSync(".github/workflows/codeql.yml")).toBe(true);
+  const codeql = existsSync(".github/workflows/codeql.yml") ? read(".github/workflows/codeql.yml") : "";
+  expect(codeql).toContain("security-events: write");
+  expect(codeql).toContain("github/codeql-action/init@");
+  expect(codeql).toContain("github/codeql-action/analyze@");
+  expect(codeql).not.toContain("id-token: write");
+
+  expect(packageJson.scripts["check:secrets"]).toBe("node scripts/check-tracked-secrets.mjs");
+  expect(qualityWorkflow).toContain("npm audit --omit=dev --audit-level=high");
+  expect(qualityWorkflow).toContain("npm audit --audit-level=high");
+  expect(qualityWorkflow).toContain("npm run check:secrets");
 });

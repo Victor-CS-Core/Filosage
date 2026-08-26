@@ -1,7 +1,9 @@
 import { spawn, spawnSync } from "node:child_process";
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { createServer } from "node:http";
 import type { AddressInfo } from "node:net";
-import { resolve } from "node:path";
+import { join, resolve } from "node:path";
+import { tmpdir } from "node:os";
 import { expect, test } from "@playwright/test";
 
 const root = process.cwd();
@@ -10,7 +12,114 @@ const healthScript = resolve(root, "scripts/check-production-health.mjs");
 const safetyScript = resolve(root, "scripts/check-release-safety.mjs");
 const featuredCourseScript = resolve(root, "scripts/check-featured-course.mjs");
 const providerStateScript = resolve(root, "scripts/check-auth-provider-state.mjs");
+const trackedSecretScript = resolve(root, "scripts/check-tracked-secrets.mjs");
 const healthVersion = "b".repeat(40);
+
+test("release safety locks new checkout without disabling Stripe account management", async () => {
+  const { releaseSafetyBillingState } = await import("../scripts/release-safety-contract.mjs");
+  const closed = {
+    enabled: false,
+    rolloutMode: "closed",
+    checkoutReady: false,
+    managementReady: false,
+    ready: false,
+  };
+
+  expect(releaseSafetyBillingState(closed)).toBe(true);
+  expect(releaseSafetyBillingState({ ...closed, managementReady: true })).toBe(true);
+  expect(releaseSafetyBillingState({
+    ...closed,
+    rolloutMode: "configured",
+    managementReady: true,
+  })).toBe(true);
+
+  for (const unsafe of [
+    { ...closed, enabled: true },
+    { ...closed, checkoutReady: true },
+    { ...closed, ready: true },
+    { ...closed, rolloutMode: "canary" },
+    { ...closed, rolloutMode: "open" },
+    { ...closed, rolloutMode: "unexpected" },
+  ]) {
+    expect(releaseSafetyBillingState(unsafe)).toBe(false);
+  }
+});
+
+test("tracked secret scanning fails without echoing the credential and permits an explicit fake fixture", () => {
+  const directory = mkdtempSync(join(tmpdir(), "filosage-secret-scan-"));
+  try {
+    expect(spawnSync("git", ["init"], { cwd: directory, encoding: "utf8" }).status).toBe(0);
+    const fakeLiveKey = `sk_live_${"A".repeat(32)}`;
+    writeFileSync(join(directory, "candidate.txt"), `STRIPE_SECRET_KEY=${fakeLiveKey}\n`, "utf8");
+    expect(spawnSync("git", ["add", "candidate.txt"], { cwd: directory, encoding: "utf8" }).status).toBe(0);
+
+    const rejected = spawnSync(process.execPath, [trackedSecretScript], { cwd: directory, encoding: "utf8" });
+    expect(rejected.status).toBe(1);
+    expect(rejected.stderr).toContain("candidate.txt:1 [stripe-live-key]");
+    expect(rejected.stderr).not.toContain(fakeLiveKey);
+
+    writeFileSync(
+      join(directory, "candidate.txt"),
+      `STRIPE_SECRET_KEY=${fakeLiveKey} # secret-scan: allow-test-fixture\n`,
+      "utf8",
+    );
+    const allowed = spawnSync(process.execPath, [trackedSecretScript], { cwd: directory, encoding: "utf8" });
+    expect(allowed.status, allowed.stderr).toBe(0);
+    expect(allowed.stdout).toBe("Tracked-file secret scan passed.\n");
+
+    writeFileSync(join(directory, "candidate.txt"), "security corpus sentinel sk-live-CANARYSECRET123456\n", "utf8");
+    const sentinel = spawnSync(process.execPath, [trackedSecretScript], { cwd: directory, encoding: "utf8" });
+    expect(sentinel.status, sentinel.stderr).toBe(0);
+
+    const fakeOpenAiKey = `sk-proj-${"C".repeat(32)}`;
+    writeFileSync(join(directory, "candidate.txt"), `OPENAI_API_KEY=${fakeOpenAiKey}\n`, "utf8");
+    const openAiRejected = spawnSync(process.execPath, [trackedSecretScript], { cwd: directory, encoding: "utf8" });
+    expect(openAiRejected.status).toBe(1);
+    expect(openAiRejected.stderr).toContain("candidate.txt:1 [openai-api-key]");
+    expect(openAiRejected.stderr).not.toContain(fakeOpenAiKey);
+
+    const representativeSecrets = [
+      ["github-fine-grained-token", `github_pat_${"D".repeat(40)}`],
+      ["google-api-key", `AIza${"E".repeat(35)}`],
+      ["azure-storage-account-key", `AccountKey=${"F".repeat(64)}`],
+      ["postgres-credential-url", `postgresql://release:${"G".repeat(24)}@database.example/filosage`],
+    ] as const;
+    for (const [name, secret] of representativeSecrets) {
+      writeFileSync(join(directory, "candidate.txt"), `${secret}\n`, "utf8");
+      const secretRejected = spawnSync(process.execPath, [trackedSecretScript], { cwd: directory, encoding: "utf8" });
+      expect(secretRejected.status, name).toBe(1);
+      expect(secretRejected.stderr, name).toContain(`[${name}]`);
+      expect(secretRejected.stderr, name).not.toContain(secret);
+    }
+
+    writeFileSync(join(directory, "candidate.txt"), "safe fixture\n", "utf8");
+    const pendingSecret = `github_pat_${"H".repeat(40)}`;
+    writeFileSync(join(directory, "pending.txt"), `${pendingSecret}\n`, "utf8");
+    const untrackedRejected = spawnSync(process.execPath, [trackedSecretScript], { cwd: directory, encoding: "utf8" });
+    expect(untrackedRejected.status).toBe(1);
+    expect(untrackedRejected.stderr).toContain("pending.txt:1 [github-fine-grained-token]");
+    expect(untrackedRejected.stderr).not.toContain(pendingSecret);
+  } finally {
+    rmSync(directory, { recursive: true, force: true });
+  }
+});
+
+test("the billing operator guide matches the hosted rollout contract", () => {
+  const guide = readFileSync(resolve(root, "docs/BILLING_SETUP.md"), "utf8");
+  for (const required of [
+    "Stripe-hosted Checkout",
+    "Stripe-hosted Customer Portal",
+    "BILLING_ROLLOUT_MODE=closed",
+    "BILLING_ROLLOUT_MODE=configured",
+    "BILLING_ROLLOUT_MODE=canary",
+    "BILLING_ROLLOUT_MODE=open",
+    "STRIPE_TAX_READY=true",
+    "BILLING_CANARY_UIDS",
+    "--billing-activation",
+    "versioned age-18-or-older, U.S.-residency, and automatic-renewal acknowledgements",
+  ]) expect(guide).toContain(required);
+  expect(guide).not.toContain("explicitly accepts cards only");
+});
 
 function runNode(args: string[], environment: NodeJS.ProcessEnv) {
   return new Promise<{ status: number | null; stdout: string; stderr: string }>((resolveRun, rejectRun) => {
@@ -77,6 +186,8 @@ const validReleaseEnvironment = {
   OPERATIONS_ALERT_WEBHOOK_SECRET: "y".repeat(32),
   SITE_VERSION: "a".repeat(40),
   BILLING_ENABLED: "false",
+  BILLING_ROLLOUT_MODE: "closed",
+  STRIPE_TAX_READY: "false",
   FLASHCARD_DECKS_ENABLED: "true",
   FLASHCARD_AI_GENERATION_ENABLED: "true",
   IDENTITY_LINK_HMAC_SECRET: "identity-link-hmac-secret-at-least-32-characters",
@@ -295,29 +406,29 @@ test("ordinary releases reject unsafe identity provider and billing combinations
   expect(`${externalOnly.stdout}${externalOnly.stderr}`).not.toContain("external-client-id");
 });
 
-test("managed provider evidence uses environment-neutral output and exactly matches the requested gate", () => {
-  const run = (state: unknown, expected: "true" | "false") => spawnSync(
+test("managed provider evidence uses environment-neutral output and exactly matches the requested mode", () => {
+  const run = (state: unknown, expected: "direct-google" | "migration-dual") => spawnSync(
     process.execPath,
     [providerStateScript, expected],
     { cwd: root, input: JSON.stringify(state), encoding: "utf8" },
   );
 
   for (const [state, expected] of [
-    [{ google: true, filosage: false }, "false"],
-    [{ google: true, filosage: true }, "true"],
+    [{ google: true, filosage: false }, "direct-google"],
+    [{ google: true, filosage: true }, "migration-dual"],
   ] as const) {
     const result = run(state, expected);
     expect(result.status, result.stderr).toBe(0);
-    expect(result.stdout).toContain("Managed authentication provider state matches the requested gate.");
+    expect(result.stdout).toContain("Managed authentication provider state matches the requested mode.");
     expect(`${result.stdout}${result.stderr}`).not.toMatch(/\bQA\b|application gate/i);
   }
 
   for (const [label, state, expected, message] of [
-    ["Google disabled", { google: false, filosage: false }, "false", "Direct Google managed authentication must remain enabled."],
-    ["Filosage missing", { google: true, filosage: null }, "false", "Managed authentication provider state is invalid."],
-    ["requested gate not enabled", { google: true, filosage: false }, "true", "Filosage managed authentication state does not match the requested gate."],
-    ["provider enabled behind closed gate", { google: true, filosage: true }, "false", "Filosage managed authentication state does not match the requested gate."],
-    ["unexpected metadata", { google: true, filosage: false, clientId: "do-not-print-this" }, "false", "Managed authentication provider state is invalid."],
+    ["Google disabled", { google: false, filosage: false }, "direct-google", "Direct Google managed authentication must remain enabled."],
+    ["Filosage missing", { google: true, filosage: null }, "direct-google", "Managed authentication provider state is invalid."],
+    ["dual provider missing", { google: true, filosage: false }, "migration-dual", "Filosage managed authentication state does not match the requested mode."],
+    ["unexpected provider enabled", { google: true, filosage: true }, "direct-google", "Filosage managed authentication state does not match the requested mode."],
+    ["unexpected metadata", { google: true, filosage: false, clientId: "do-not-print-this" }, "direct-google", "Managed authentication provider state is invalid."],
   ] as const) {
     const result = run(state, expected);
     expect(result.status, label).toBe(1);
@@ -327,9 +438,10 @@ test("managed provider evidence uses environment-neutral output and exactly matc
   }
 
   for (const [label, input, expected, message] of [
-    ["invalid JSON", "not-json", "false", "Managed authentication provider state is invalid."],
-    ["oversized input", JSON.stringify({ google: true, filosage: false, padding: "x".repeat(1_024) }), "false", "Managed authentication provider state is invalid."],
-    ["invalid expected gate", JSON.stringify({ google: true, filosage: false }), "yes", "Expected managed authentication gate must be true or false."],
+    ["invalid JSON", "not-json", "direct-google", "Managed authentication provider state is invalid."],
+    ["oversized input", JSON.stringify({ google: true, filosage: false, padding: "x".repeat(1_024) }), "direct-google", "Managed authentication provider state is invalid."],
+    ["boolean-shaped legacy mode", JSON.stringify({ google: true, filosage: false }), "false", "Expected authentication mode must be direct-google or migration-dual."],
+    ["unsupported external-only mode", JSON.stringify({ google: true, filosage: false }), "external-id", "Expected authentication mode must be direct-google or migration-dual."],
   ] as const) {
     const result = spawnSync(process.execPath, [providerStateScript, expected], {
       cwd: root,
@@ -388,9 +500,12 @@ test("billing activation requires every Plus and Pro Stripe price", () => {
   const activationEnvironment = {
     ...validReleaseEnvironment,
     BILLING_ENABLED: "true",
+    BILLING_ROLLOUT_MODE: "open",
+    STRIPE_TAX_READY: "true",
     BILLING_PROVIDER: "stripe",
-    STRIPE_SECRET_KEY: "sk_live_1234567890AbCdEfGhIjKlMn",
-    STRIPE_WEBHOOK_SECRET: "whsec_1234567890AbCdEfGhIjKlMn",
+    STRIPE_SECRET_KEY: `sk_live_${"A".repeat(32)}`,
+    STRIPE_WEBHOOK_SECRET: `whsec_${"B".repeat(32)}`,
+    STRIPE_PORTAL_CONFIGURATION_ID: "bpc_1FilosagePortalAbCd",
     STRIPE_PLUS_MONTHLY_PRICE_ID: "price_1PlusMonthlyAbCd",
     STRIPE_PLUS_ANNUAL_PRICE_ID: "price_1PlusAnnualAbCd",
     STRIPE_PRO_MONTHLY_PRICE_ID: "price_1ProMonthlyAbCd",
@@ -436,6 +551,7 @@ test("billing activation requires every Plus and Pro Stripe price", () => {
     ["STRIPE_SECRET_KEY", "sk_test_1234567890AbCdEfGhIjKlMn", "STRIPE_SECRET_KEY must be a non-placeholder Live secret or restricted key"],
     ["STRIPE_SECRET_KEY", "sk_live_placeholder", "STRIPE_SECRET_KEY must be a non-placeholder Live secret or restricted key"],
     ["STRIPE_WEBHOOK_SECRET", "whsec_placeholder", "STRIPE_WEBHOOK_SECRET must be a non-placeholder whsec_ signing secret"],
+    ["STRIPE_PORTAL_CONFIGURATION_ID", "portal_default", "STRIPE_PORTAL_CONFIGURATION_ID must be a valid Stripe Customer Portal configuration ID"],
     ["STRIPE_PLUS_MONTHLY_PRICE_ID", "not_a_price", "STRIPE_PLUS_MONTHLY_PRICE_ID must be a valid Stripe Price ID"],
   ] as const) {
     const result = spawnSync(process.execPath, [releaseScript, "--billing-activation"], {
@@ -456,4 +572,18 @@ test("billing activation requires every Plus and Pro Stripe price", () => {
   });
   expect(duplicatePrice.status).toBe(1);
   expect(duplicatePrice.stderr).toContain("All four current Stripe Price IDs must be unique");
+
+  for (const [environment, message] of [
+    [{ ...activationEnvironment, BILLING_ROLLOUT_MODE: "configured" }, "BILLING_ROLLOUT_MODE must be canary or open for billing activation"],
+    [{ ...activationEnvironment, STRIPE_TAX_READY: "false" }, "STRIPE_TAX_READY must be true for billing activation"],
+    [{ ...activationEnvironment, BILLING_ROLLOUT_MODE: "canary", BILLING_CANARY_UIDS: "" }, "BILLING_CANARY_UIDS must contain one to 100 valid account UIDs for canary activation"],
+  ] as const) {
+    const result = spawnSync(process.execPath, [releaseScript, "--billing-activation"], {
+      cwd: root,
+      env: environment,
+      encoding: "utf8",
+    });
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain(message);
+  }
 });

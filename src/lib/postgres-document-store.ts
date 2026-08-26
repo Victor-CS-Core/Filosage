@@ -13,6 +13,7 @@ import { serverEnvironment } from "@/lib/runtime-environment";
 const { Pool } = pg;
 const DOCUMENT_NAME_PREFIX = "projects/azure/databases/(default)/documents/";
 const TRANSACTION_TTL_MS = 30_000;
+const HEALTH_QUERY_TIMEOUT_MS = 3_000;
 
 interface DocumentRow extends QueryResultRow {
   path: string;
@@ -42,6 +43,7 @@ interface ActiveTransaction {
 
 declare global {
   var __FILOSAGE_POSTGRES_POOL__: pg.Pool | undefined;
+  var __FILOSAGE_POSTGRES_HEALTH_POOL__: pg.Pool | undefined;
   var __FILOSAGE_POSTGRES_TRANSACTIONS__: Map<string, ActiveTransaction> | undefined;
 }
 
@@ -51,19 +53,43 @@ function requiredDatabaseUrl() {
   return value;
 }
 
+function databaseSsl() {
+  const sslMode = serverEnvironment.DATABASE_SSL?.trim().toLowerCase()
+    ?? (serverEnvironment.NODE_ENV === "production" ? "verify-full" : "disable");
+  return sslMode === "disable" ? false : { rejectUnauthorized: sslMode !== "require" };
+}
+
 function databasePool() {
   if (!globalThis.__FILOSAGE_POSTGRES_POOL__) {
-    const sslMode = serverEnvironment.DATABASE_SSL?.trim().toLowerCase()
-      ?? (serverEnvironment.NODE_ENV === "production" ? "verify-full" : "disable");
     globalThis.__FILOSAGE_POSTGRES_POOL__ = new Pool({
       connectionString: requiredDatabaseUrl(),
       max: Number(serverEnvironment.DATABASE_POOL_MAX ?? 10),
       idleTimeoutMillis: 30_000,
       connectionTimeoutMillis: 10_000,
-      ssl: sslMode === "disable" ? false : { rejectUnauthorized: sslMode !== "require" },
+      ssl: databaseSsl(),
     });
   }
   return globalThis.__FILOSAGE_POSTGRES_POOL__;
+}
+
+function databaseHealthPool() {
+  if (!globalThis.__FILOSAGE_POSTGRES_HEALTH_POOL__) {
+    globalThis.__FILOSAGE_POSTGRES_HEALTH_POOL__ = new Pool({
+      connectionString: requiredDatabaseUrl(),
+      max: 1,
+      idleTimeoutMillis: 10_000,
+      connectionTimeoutMillis: HEALTH_QUERY_TIMEOUT_MS,
+      query_timeout: HEALTH_QUERY_TIMEOUT_MS,
+      statement_timeout: HEALTH_QUERY_TIMEOUT_MS,
+      ssl: databaseSsl(),
+    });
+  }
+  return globalThis.__FILOSAGE_POSTGRES_HEALTH_POOL__;
+}
+
+export async function checkPostgresDocumentStoreReadiness() {
+  const result = await databaseHealthPool().query<{ ready: number }>("SELECT 1 AS ready");
+  if (result.rows[0]?.ready !== 1) throw new Error("PostgreSQL readiness query failed.");
 }
 
 function transactions() {

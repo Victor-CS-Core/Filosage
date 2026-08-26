@@ -64,6 +64,7 @@ export const deviceSensitiveSuites = [
   "tests/course-learning-flow.spec.ts",
   "tests/example.spec.ts",
   "tests/landing-motion.spec.ts",
+  "tests/pricing-mobile.spec.ts",
   "tests/support-wiki.spec.ts",
 ] as const;
 
@@ -104,7 +105,7 @@ export const browserSuiteEstimatedTestLoad: Record<BrowserProjectName, Record<st
     "tests/app-shell.spec.ts": 32,
     "tests/auth-accessibility.spec.ts": 3,
     "tests/auth-linking.spec.ts": 47,
-    "tests/billing-lifecycle.spec.ts": 21,
+    "tests/billing-lifecycle.spec.ts": 23,
     "tests/command-center.spec.ts": 14,
     "tests/course-learning-flow.spec.ts": 6,
     "tests/example.spec.ts": 76,
@@ -116,6 +117,7 @@ export const browserSuiteEstimatedTestLoad: Record<BrowserProjectName, Record<st
     "tests/marketing-gauntlet.spec.ts": 13,
     "tests/marketing-gauntlet-runtime-acceptance.spec.ts": 1,
     "tests/navigation-content-integrity.spec.ts": 2,
+    "tests/pricing-mobile.spec.ts": 1,
     "tests/publication-override.spec.ts": 7,
     "tests/release-recovery.spec.ts": 2,
     "tests/search.spec.ts": 3,
@@ -129,6 +131,7 @@ export const browserSuiteEstimatedTestLoad: Record<BrowserProjectName, Record<st
     "tests/auth-accessibility.spec.ts": 3,
     "tests/example.spec.ts": 7,
     "tests/landing-motion.spec.ts": 2,
+    "tests/pricing-mobile.spec.ts": 1,
   },
   "mobile-webkit": {
     "tests/analytics-consent.spec.ts": 3,
@@ -137,6 +140,7 @@ export const browserSuiteEstimatedTestLoad: Record<BrowserProjectName, Record<st
     "tests/course-learning-flow.spec.ts": 1,
     "tests/example.spec.ts": 8,
     "tests/landing-motion.spec.ts": 2,
+    "tests/pricing-mobile.spec.ts": 1,
     "tests/support-wiki.spec.ts": 1,
   },
 };

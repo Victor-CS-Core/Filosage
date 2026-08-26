@@ -56,6 +56,8 @@ function runTypeScript(
       EXTERNAL_ID_AUTH_ENABLED: "false",
       EXTERNAL_ID_NEW_ACCOUNTS_ENABLED: "false",
       BILLING_ENABLED: "false",
+      BILLING_ROLLOUT_MODE: "closed",
+      STRIPE_TAX_READY: "false",
       DATABASE_URL: "postgresql://placeholder.invalid/filosage",
       AZURE_STORAGE_ACCOUNT_URL: "https://placeholder.blob.core.windows.net/",
       AZURE_STORAGE_BANNER_CONTAINER: "course-banners",
@@ -79,6 +81,14 @@ function compiledContainerEnvironment(template: ArmTemplate): unknown {
     template?: { containers?: Array<{ env?: unknown }> };
   } | undefined;
   return properties?.template?.containers?.[0]?.env;
+}
+
+function compiledContainerProbes(template: ArmTemplate): unknown {
+  const app = template.resources.find((resource) => resource.type === "Microsoft.App/containerApps");
+  const properties = app?.properties as {
+    template?: { containers?: Array<{ probes?: unknown }> };
+  } | undefined;
+  return properties?.template?.containers?.[0]?.probes;
 }
 
 const compiledProductionTemplate = compileBicep("infra/azure/main.bicep");
@@ -254,7 +264,7 @@ test("runtime health configuration fails closed on unsafe authentication setting
 
   for (const [label, environment, expectedIssue] of [
     ["Easy Auth disabled", { AZURE_EASY_AUTH_ENABLED: "false" }, "AZURE_EASY_AUTH_ENABLED must be exactly true"],
-    ["billing enabled", { BILLING_ENABLED: "true" }, "BILLING_ENABLED must be exactly false"],
+    ["billing enabled", { BILLING_ENABLED: "true" }, "BILLING_ENABLED must be false while BILLING_ROLLOUT_MODE is closed"],
     ["External ID client missing", {
       DIRECT_GOOGLE_AUTH_ENABLED: "false",
       EXTERNAL_ID_AUTH_ENABLED: "true",
@@ -342,6 +352,95 @@ test("public health fails closed without publishing authentication issue details
   expect(JSON.stringify(response.body)).not.toMatch(/issue|EXTERNAL_ID|client|issuer|secret/i);
 });
 
+test("container health probes separate process liveness from dependency readiness", () => {
+  const livenessSource = readFileSync("src/app/api/health/live/route.ts", "utf8");
+  const readinessSource = readFileSync("src/app/api/health/ready/route.ts", "utf8");
+  const startupSource = readFileSync("src/app/api/health/startup/route.ts", "utf8");
+
+  expect(livenessSource).not.toContain("getStoredDocument");
+  expect(startupSource).not.toContain("getStoredDocument");
+  expect(readinessSource).toContain("checkDocumentStoreReadiness");
+  expect(readinessSource).toContain("DATASTORE_READINESS_DEADLINE_MS = 3_500");
+  expect(readinessSource).not.toContain("reportOperationalEvent");
+  for (const source of [livenessSource, readinessSource, startupSource]) {
+    expect(source).toContain("Cache-Control");
+    expect(source).toContain("no-store");
+  }
+
+  const expectedProbes = [
+    {
+      type: "Startup",
+      httpGet: { path: "/api/health/startup", port: 3000, scheme: "HTTP" },
+      initialDelaySeconds: 5,
+      periodSeconds: 10,
+      timeoutSeconds: 5,
+      failureThreshold: 10,
+      successThreshold: 1,
+    },
+    {
+      type: "Liveness",
+      httpGet: { path: "/api/health/live", port: 3000, scheme: "HTTP" },
+      initialDelaySeconds: 10,
+      periodSeconds: 30,
+      timeoutSeconds: 5,
+      failureThreshold: 3,
+      successThreshold: 1,
+    },
+    {
+      type: "Readiness",
+      httpGet: { path: "/api/health/ready", port: 3000, scheme: "HTTP" },
+      initialDelaySeconds: 5,
+      periodSeconds: 15,
+      timeoutSeconds: 5,
+      failureThreshold: 3,
+      successThreshold: 1,
+    },
+  ];
+  expect(compiledContainerProbes(compiledProductionTemplate)).toEqual(expectedProbes);
+  expect(compiledContainerProbes(compiledQaTemplate)).toEqual(expectedProbes);
+
+  for (const [name, modulePath, expectedStatus] of [
+    ["liveness", "live", 200],
+    ["startup", "startup", 200],
+    ["readiness", "ready", 503],
+  ] as const) {
+    const result = runTypeScript(`
+      import { GET } from "./src/app/api/health/${modulePath}/route.ts";
+      void GET().then(async (response) => {
+        process.stdout.write(JSON.stringify({
+          status: response.status,
+          cacheControl: response.headers.get("cache-control"),
+          body: await response.json(),
+        }));
+      });
+    `, true, { EXTERNAL_ID_NEW_ACCOUNTS_ENABLED: "true" });
+    expect(result.status, `${name}: ${result.stderr}`).toBe(0);
+    const response = JSON.parse(result.stdout) as {
+      status: number;
+      cacheControl: string;
+      body: Record<string, unknown>;
+    };
+    expect(response.status, name).toBe(expectedStatus);
+    expect(response.cacheControl, name).toBe("no-store");
+    expect(JSON.stringify(response.body), name).not.toMatch(/issue|EXTERNAL_ID|client|issuer|secret/i);
+  }
+});
+
+test("readiness returns before the platform probe deadline when a dependency never settles", () => {
+  const result = runTypeScript(`
+    import { checkWithinDeadline } from "./src/lib/readiness-deadline.ts";
+    const startedAt = Date.now();
+    void checkWithinDeadline(() => new Promise(() => {}), 25).then((ready) => {
+      process.stdout.write(JSON.stringify({ ready, elapsedMs: Date.now() - startedAt }));
+    });
+  `, false);
+  expect(result.status, result.stderr).toBe(0);
+  const response = JSON.parse(result.stdout) as { ready: boolean; elapsedMs: number };
+  expect(response.ready).toBe(false);
+  expect(response.elapsedMs).toBeGreaterThanOrEqual(20);
+  expect(response.elapsedMs).toBeLessThan(500);
+});
+
 test("customer sign-in delegates directly to Azure Container Apps Easy Auth", () => {
   expect(identityClientSource).toContain('fetch("/api/auth/session"');
   expect(identityClientSource).toContain('/.auth/login/${provider}?post_login_redirect_uri=');
@@ -426,7 +525,7 @@ test("compiled identity secrets remain server-only and use Key Vault references"
   expect(releaseSource).not.toContain("EXTERNAL_ID_CLIENT_SECRET");
 });
 
-test("QA activation is explicit while production staging cannot enable External ID", () => {
+test("release workflows preserve an explicitly reviewed authentication mode", () => {
   const boundedProviderStateQuery = "{google:identityProviders.google.enabled || `false`,filosage:identityProviders.customOpenIdConnectProviders.filosage.enabled || `false`}";
   for (const workflowSource of [qaWorkflowSource, stagingWorkflowSource, promotionWorkflowSource]) {
     expect(workflowSource).toContain(boundedProviderStateQuery);
@@ -443,6 +542,7 @@ test("QA activation is explicit while production staging cannot enable External 
   expect(qaWorkflowSource).toContain('"DIRECT_GOOGLE_AUTH_ENABLED=true"');
   expect(qaWorkflowSource).toContain("customOpenIdConnectProviders.filosage.enabled");
   expect(qaWorkflowSource).toContain("check-auth-provider-state.mjs");
+  expect(qaWorkflowSource).toContain("inputs.external_id_auth_enabled && 'migration-dual' || 'direct-google'");
   expect(qaWorkflowSource).not.toContain("check-qa-auth-provider-state.mjs");
   const qaPrecheck = qaWorkflowSource.indexOf("Verify separately configured QA authentication state before deployment");
   const qaUpdate = qaWorkflowSource.indexOf("az containerapp update");
@@ -450,12 +550,18 @@ test("QA activation is explicit while production staging cannot enable External 
   expect(qaPrecheck).toBeGreaterThan(-1);
   expect(qaUpdate).toBeGreaterThan(qaPrecheck);
   expect(qaPostcheck).toBeGreaterThan(qaUpdate);
-  expect(qaWorkflowSource).toContain("inputs.external_id_auth_enabled && 'migration-dual' || 'direct-google'");
   expect(qaWorkflowSource).toContain('"BILLING_ENABLED=false"');
   expect(qaWorkflowSource).not.toMatch(/az containerapp auth (?:openid-connect )?(?:update|set|delete)/);
+  expect(stagingWorkflowSource).toContain("expected_auth_mode:");
+  expect(stagingWorkflowSource).toContain("external_id_new_accounts_enabled:");
+  expect(stagingWorkflowSource).toContain("default: migration-dual");
+  expect(stagingWorkflowSource).toContain("EXPECTED_AUTH_MODE: ${{ inputs.expected_auth_mode }}");
+  expect(stagingWorkflowSource).toContain("EXTERNAL_ID_RUNTIME_ENABLED: ${{ inputs.expected_auth_mode == 'migration-dual' && 'true' || 'false' }}");
+  expect(stagingWorkflowSource).toContain("EXTERNAL_ID_NEW_ACCOUNTS: ${{ inputs.external_id_new_accounts_enabled }}");
+  expect(stagingWorkflowSource).toContain("New External ID accounts require migration-dual authentication mode.");
   expect(stagingWorkflowSource).toContain('"DIRECT_GOOGLE_AUTH_ENABLED=true"');
-  expect(stagingWorkflowSource).toContain('"EXTERNAL_ID_AUTH_ENABLED=false"');
-  expect(stagingWorkflowSource).toContain('"EXTERNAL_ID_NEW_ACCOUNTS_ENABLED=false"');
+  expect(stagingWorkflowSource).toContain('"EXTERNAL_ID_AUTH_ENABLED=${EXTERNAL_ID_RUNTIME_ENABLED}"');
+  expect(stagingWorkflowSource).toContain('"EXTERNAL_ID_NEW_ACCOUNTS_ENABLED=${EXTERNAL_ID_NEW_ACCOUNTS}"');
   expect(stagingWorkflowSource).toContain('"BILLING_ENABLED=false"');
   const stagingPrecheck = stagingWorkflowSource.indexOf("Verify inactive production authentication state before staging");
   const stagingUpdate = stagingWorkflowSource.indexOf("az containerapp update");
@@ -463,7 +569,7 @@ test("QA activation is explicit while production staging cannot enable External 
   expect(stagingPrecheck).toBeGreaterThan(-1);
   expect(stagingUpdate).toBeGreaterThan(stagingPrecheck);
   expect(stagingPostcheck).toBeGreaterThan(stagingUpdate);
-  expect(stagingWorkflowSource.match(/check-auth-provider-state\.mjs false/g)).toHaveLength(2);
+  expect(stagingWorkflowSource.match(/check-auth-provider-state\.mjs "\$EXPECTED_AUTH_MODE"/g)).toHaveLength(2);
   expect(stagingWorkflowSource).not.toContain("check-qa-auth-provider-state.mjs");
   const stagingJobEnvironment = stagingWorkflowSource
     .split("    env:")[1]
@@ -476,13 +582,12 @@ test("QA activation is explicit while production staging cannot enable External 
     ?.split("- name: Assign verified revision label")[0] || "";
   const labeledCandidateVerification = stagingWorkflowSource
     .split("- name: Verify the labeled QA candidate")[1] || "";
-  expect(stagingJobEnvironment).not.toContain("EXPECTED_AUTH_MODE");
+  expect(stagingJobEnvironment).toContain("EXPECTED_AUTH_MODE");
   expect(isolatedQaVerification).toContain("EXPECTED_AUTH_MODE: migration-dual");
-  expect(zeroTrafficVerification).toContain("EXPECTED_AUTH_MODE: direct-google");
-  expect(labeledCandidateVerification).toContain("EXPECTED_AUTH_MODE: direct-google");
+  expect(zeroTrafficVerification).not.toContain("EXPECTED_AUTH_MODE: direct-google");
+  expect(labeledCandidateVerification).not.toContain("EXPECTED_AUTH_MODE: direct-google");
   expect(stagingWorkflowSource).not.toMatch(/az containerapp auth (?:openid-connect )?(?:update|set|delete)/);
   expect(stagingWorkflowSource).not.toContain("external_id_auth_enabled:");
-  expect(stagingWorkflowSource).not.toContain("external_id_new_accounts_enabled:");
 });
 
 test("only the verified owner inherits the migrated course-author identity", () => {
@@ -500,9 +605,48 @@ test("only the verified owner inherits the migrated course-author identity", () 
   )).toEqual(["same-id"]);
 });
 
-test("staging health does not claim production alert delivery is configured", () => {
-  expect(runtimeConfigSource).toContain('OPERATIONS_ENVIRONMENT?.trim() === "production"');
+test("production candidates fail closed until signed alert delivery is configured", () => {
+  expect(runtimeConfigSource).toContain('deploymentEnvironment === "production"');
+  expect(runtimeConfigSource).toContain('operationsEnvironment !== "production"');
   expect(runtimeConfigSource).toContain("requiredForProductionOperations");
+  expect(azureBicepSource).toContain("OPERATIONS_ENVIRONMENT', value: 'production'");
+  expect(azureBicepSource).toContain("DEPLOYMENT_ENVIRONMENT', value: 'production'");
+  expect(stagingWorkflowSource).toContain('"OPERATIONS_ENVIRONMENT=production"');
+  expect(qaBicepSource).toContain("OPERATIONS_ENVIRONMENT', value: 'qa'");
+
+  for (const [label, environment, expectedIssue] of [
+    ["production deployment missing operations label", {
+      DEPLOYMENT_ENVIRONMENT: "production",
+      OPERATIONS_ENVIRONMENT: "",
+    }, "OPERATIONS_ENVIRONMENT must be production"],
+    ["invalid deployment label", {
+      DEPLOYMENT_ENVIRONMENT: "prod",
+      OPERATIONS_ENVIRONMENT: "qa",
+    }, "DEPLOYMENT_ENVIRONMENT must be qa or production"],
+    ["invalid operations label", {
+      DEPLOYMENT_ENVIRONMENT: "qa",
+      OPERATIONS_ENVIRONMENT: "prod",
+    }, "OPERATIONS_ENVIRONMENT must be qa or production"],
+    ["missing receiver", { OPERATIONS_ENVIRONMENT: "production" }, "OPERATIONS_ALERT_WEBHOOK_URL"],
+    ["insecure receiver", {
+      OPERATIONS_ENVIRONMENT: "production",
+      OPERATIONS_ALERT_WEBHOOK_URL: "http://alerts.example/filosage",
+      OPERATIONS_ALERT_WEBHOOK_SECRET: "a".repeat(32),
+    }, "OPERATIONS_ALERT_WEBHOOK_URL must be a valid HTTPS URL"],
+    ["weak signing secret", {
+      OPERATIONS_ENVIRONMENT: "production",
+      OPERATIONS_ALERT_WEBHOOK_URL: "https://alerts.example/filosage",
+      OPERATIONS_ALERT_WEBHOOK_SECRET: "short",
+    }, "OPERATIONS_ALERT_WEBHOOK_SECRET must contain at least 32 characters"],
+  ] as const) {
+    const result = runTypeScript(`
+      import { missingRuntimeConfiguration } from "./src/lib/runtime-config.ts";
+      process.stdout.write(JSON.stringify(missingRuntimeConfiguration()));
+    `, true, environment);
+    expect(result.status, `${label}: ${result.stderr}`).toBe(0);
+    const issues = JSON.parse(result.stdout) as string[];
+    expect(issues.some((issue) => issue.includes(expectedIssue)), label).toBe(true);
+  }
 });
 
 test("isolated QA scales to zero and keeps its data stores separate", () => {
@@ -595,12 +739,14 @@ test("staging promotion verifies an exact commit before changing traffic", () =>
   expect(promotionWorkflowSource).toContain("^[a-fA-F0-9]{40}$");
   expect(promotionWorkflowSource).toContain('npm run check:production -- "$TARGET_URL" "$EXPECTED_SHA"');
   expect(promotionWorkflowSource).toContain('npm run check:featured-course -- "$TARGET_URL" "$FEATURED_COURSE_ID"');
-  expect(promotionWorkflowSource).toContain("EXPECTED_AUTH_MODE: direct-google");
+  expect(promotionWorkflowSource).toContain("expected_auth_mode:");
+  expect(promotionWorkflowSource).toContain("default: migration-dual");
+  expect(promotionWorkflowSource).toContain("EXPECTED_AUTH_MODE: ${{ inputs.expected_auth_mode }}");
   const providerCheck = promotionWorkflowSource.indexOf("Verify inactive production authentication state before promotion");
   const trafficChange = promotionWorkflowSource.indexOf("az containerapp ingress traffic set");
   expect(providerCheck).toBeGreaterThan(-1);
   expect(trafficChange).toBeGreaterThan(providerCheck);
-  expect(promotionWorkflowSource).toContain("check-auth-provider-state.mjs false");
+  expect(promotionWorkflowSource).toContain('check-auth-provider-state.mjs "$EXPECTED_AUTH_MODE"');
   expect(promotionWorkflowSource).not.toMatch(/az containerapp auth (?:openid-connect )?(?:update|set|delete)/);
   expect(promotionWorkflowSource).toContain('az containerapp ingress traffic set');
   expect(promotionWorkflowSource).toContain('"${TARGET_SLOT}=100" "${OTHER_SLOT}=0"');

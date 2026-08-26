@@ -84,6 +84,13 @@ const readinessStateLabels: Record<OperationalReadinessState, string> = {
   failed: "Failed",
 };
 
+const billingRolloutLabels = {
+  closed: "Subscriptions are closed",
+  configured: "Stripe is configured; checkout is locked",
+  canary: "Subscriptions are open to the canary",
+  open: "Subscriptions are open",
+} as const;
+
 function ReadinessItem({
   ready,
   label,
@@ -602,12 +609,16 @@ export default function AdminPage() {
               <span><LockKeyhole size={22} /></span>
               <div>
                 <p className="overline">Commercial master lock</p>
-                <h2>{data.launchReadiness.mode === "closed" ? "Subscriptions are closed" : "Subscriptions are open"}</h2>
-                <p>{data.launchReadiness.billingLockActive
-                  ? "Phase 4B can collect evidence and prepare operations, but no checkout route can create a subscription while the billing lock remains on."
-                  : "The billing lock is off. Confirm every launch gate below before sending traffic to checkout."}</p>
+                <h2>{billingRolloutLabels[data.launchReadiness.mode]}</h2>
+                <p>{data.launchReadiness.mode === "closed"
+                  ? "Billing remains fail-closed while provider, tax, operations, and customer-support evidence is completed."
+                  : data.launchReadiness.mode === "configured"
+                    ? "Stripe management can support existing customers, but new Checkout Sessions remain disabled."
+                    : data.launchReadiness.mode === "canary"
+                      ? "Only the reviewed server-side account allowlist can start Stripe Checkout."
+                      : "Checkout is available to eligible accounts. Confirm every launch gate remains healthy."}</p>
               </div>
-              <em>{data.launchReadiness.billingLockActive ? "Protected" : "Live commerce"}</em>
+              <em>{data.launchReadiness.mode === "canary" ? "Canary" : data.launchReadiness.billingLockActive ? "Protected" : "Live commerce"}</em>
             </section>
 
             <div className="admin-launch-grid">

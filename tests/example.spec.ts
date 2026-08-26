@@ -97,11 +97,13 @@ function contrastRatio(foreground: string, background: string): number {
   return (light + 0.05) / (dark + 0.05);
 }
 
-test("keeps checkout closed until the independent billing lock is enabled", () => {
+test("keeps checkout closed through configuration and opens only in an authorized rollout", () => {
   const stripeObjects = {
     BILLING_PROVIDER: "stripe",
+    STRIPE_TAX_READY: "true",
     STRIPE_SECRET_KEY: "sk_live_example",
     STRIPE_WEBHOOK_SECRET: "whsec_example",
+    STRIPE_PORTAL_CONFIGURATION_ID: "bpc_filosage123",
     STRIPE_PLUS_MONTHLY_PRICE_ID: "price_plus_monthly",
     STRIPE_PLUS_ANNUAL_PRICE_ID: "price_plus_annual",
     STRIPE_PRO_MONTHLY_PRICE_ID: "price_monthly",
@@ -112,21 +114,42 @@ test("keeps checkout closed until the independent billing lock is enabled", () =
     SUPPORT_EMAIL: "billing@example.test",
   };
 
-  expect(evaluateBillingConfiguration({ ...stripeObjects, BILLING_ENABLED: "false" })).toMatchObject({
+  expect(evaluateBillingConfiguration({
+    ...stripeObjects,
+    BILLING_ENABLED: "false",
+    BILLING_ROLLOUT_MODE: "closed",
+  })).toMatchObject({
     providerReady: true,
     enabled: false,
     configured: false,
+    checkoutReady: false,
   });
-  expect(evaluateBillingConfiguration({ ...stripeObjects, BILLING_ENABLED: "true" })).toMatchObject({
+  expect(evaluateBillingConfiguration({
+    ...stripeObjects,
+    BILLING_ENABLED: "false",
+    BILLING_ROLLOUT_MODE: "configured",
+  })).toMatchObject({
     providerReady: true,
-    enabled: true,
+    enabled: false,
     configured: true,
+    checkoutReady: false,
   });
   expect(evaluateBillingConfiguration({
     ...stripeObjects,
     BILLING_ENABLED: "true",
+    BILLING_ROLLOUT_MODE: "open",
+  })).toMatchObject({
+    providerReady: true,
+    enabled: true,
+    configured: true,
+    checkoutReady: true,
+  });
+  expect(evaluateBillingConfiguration({
+    ...stripeObjects,
+    BILLING_ENABLED: "true",
+    BILLING_ROLLOUT_MODE: "open",
     STRIPE_PRO_ANNUAL_PRICE_ID: "",
-  })).toMatchObject({ providerReady: false, configured: false });
+  })).toMatchObject({ providerReady: false, configured: false, checkoutReady: false });
 });
 
 test("summarizes only completed learning and keeps review evidence in the streak", () => {

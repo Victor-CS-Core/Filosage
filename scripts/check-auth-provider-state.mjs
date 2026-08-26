@@ -1,6 +1,6 @@
 const expectedInput = process.argv[2]?.trim().toLowerCase();
-if (expectedInput !== "true" && expectedInput !== "false") {
-  console.error("Expected managed authentication gate must be true or false.");
+if (expectedInput !== "direct-google" && expectedInput !== "migration-dual") {
+  console.error("Expected authentication mode must be direct-google or migration-dual.");
   process.exit(1);
 }
 
@@ -38,9 +38,9 @@ if (!state.google) {
   console.error("Direct Google managed authentication must remain enabled.");
   process.exit(1);
 }
-if (state.filosage !== (expectedInput === "true")) {
-  console.error("Filosage managed authentication state does not match the requested gate.");
+if (state.filosage !== (expectedInput === "migration-dual")) {
+  console.error("Filosage managed authentication state does not match the requested mode.");
   process.exit(1);
 }
 
-console.log("Managed authentication provider state matches the requested gate.");
+console.log("Managed authentication provider state matches the requested mode.");

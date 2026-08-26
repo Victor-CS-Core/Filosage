@@ -324,6 +324,19 @@ export async function getStoredDocument(path: string) {
   return document ? parseDocument(document) : null;
 }
 
+export async function checkDocumentStoreReadiness() {
+  if (process.env.NODE_ENV !== "production" && isLocalMode()) {
+    await getStoredDocument("system/health");
+    return;
+  }
+  if (serverEnvironment.DATABASE_URL?.trim()) {
+    const { checkPostgresDocumentStoreReadiness } = await import("@/lib/postgres-document-store");
+    await checkPostgresDocumentStoreReadiness();
+    return;
+  }
+  throw new Error("Azure PostgreSQL is required outside local development.");
+}
+
 export async function putStoredDocument(path: string, data: Record<string, unknown>) {
   const storedData = { ...data };
   delete storedData.id;

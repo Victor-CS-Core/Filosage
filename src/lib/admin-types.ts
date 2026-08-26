@@ -184,7 +184,7 @@ export interface AdminOverview {
     failedWebhookEvents: number;
   };
   launchReadiness: {
-    mode: "closed" | "open";
+    mode: "closed" | "configured" | "canary" | "open";
     billingLockActive: boolean;
     paymentProviderConfigured: boolean;
     activityReceiptsConfigured: boolean;

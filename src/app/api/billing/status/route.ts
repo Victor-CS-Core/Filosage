@@ -1,5 +1,9 @@
 import { billingStatus } from "@/lib/billing";
+import { getVerifiedUser } from "@/lib/auth-server";
 
-export function GET() {
-  return Response.json(billingStatus(), { headers: { "Cache-Control": "public, max-age=60" } });
+export async function GET(request: Request) {
+  const user = await getVerifiedUser(request);
+  return Response.json(billingStatus(user?.uid), {
+    headers: { "Cache-Control": "private, no-store" },
+  });
 }

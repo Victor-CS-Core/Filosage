@@ -16,6 +16,8 @@ const required = [
   "EXTERNAL_ID_AUTH_ENABLED",
   "EXTERNAL_ID_NEW_ACCOUNTS_ENABLED",
   "BILLING_ENABLED",
+  "BILLING_ROLLOUT_MODE",
+  "STRIPE_TAX_READY",
   "OPERATIONS_ALERT_WEBHOOK_URL",
   "OPERATIONS_ALERT_WEBHOOK_SECRET",
   "SITE_VERSION",
@@ -28,7 +30,7 @@ else {
   const directGoogleEnabled = enabled("DIRECT_GOOGLE_AUTH_ENABLED");
   const externalIdEnabled = enabled("EXTERNAL_ID_AUTH_ENABLED");
   const externalIdNewAccountsEnabled = enabled("EXTERNAL_ID_NEW_ACCOUNTS_ENABLED");
-  for (const name of ["AZURE_EASY_AUTH_ENABLED", "DIRECT_GOOGLE_AUTH_ENABLED", "EXTERNAL_ID_AUTH_ENABLED", "EXTERNAL_ID_NEW_ACCOUNTS_ENABLED", "BILLING_ENABLED"]) {
+  for (const name of ["AZURE_EASY_AUTH_ENABLED", "DIRECT_GOOGLE_AUTH_ENABLED", "EXTERNAL_ID_AUTH_ENABLED", "EXTERNAL_ID_NEW_ACCOUNTS_ENABLED", "BILLING_ENABLED", "STRIPE_TAX_READY"]) {
     if (!/^(?:true|false)$/.test(process.env[name]?.trim() ?? "")) invalid.push(`${name} must be exactly true or false`);
   }
   if (!directGoogleEnabled && !externalIdEnabled) invalid.push("At least one production authentication provider must be enabled");
@@ -53,13 +55,14 @@ else {
   if (process.env.FLASHCARD_DECKS_ENABLED?.trim().toLowerCase() !== "true") invalid.push("FLASHCARD_DECKS_ENABLED must be true for production releases");
   if (process.env.FLASHCARD_AI_GENERATION_ENABLED?.trim().toLowerCase() !== "true") invalid.push("FLASHCARD_AI_GENERATION_ENABLED must be true for production releases");
   if (!/^https:\/\/[a-z0-9-]+\.blob\.core\.windows\.net\/?$/i.test(process.env.AZURE_STORAGE_ACCOUNT_URL.trim())) invalid.push("AZURE_STORAGE_ACCOUNT_URL must be an Azure Blob service URL");
-  if (activationMode) {
-    const paidRequired = ["STRIPE_SECRET_KEY", "STRIPE_WEBHOOK_SECRET", "STRIPE_PLUS_MONTHLY_PRICE_ID", "STRIPE_PLUS_ANNUAL_PRICE_ID", "STRIPE_PRO_MONTHLY_PRICE_ID", "STRIPE_PRO_ANNUAL_PRICE_ID", "LEGAL_OPERATOR_NAME", "LEGAL_BUSINESS_ADDRESS", "GOVERNING_JURISDICTION", "SUPPORT_EMAIL"];
+  const billingRolloutMode = process.env.BILLING_ROLLOUT_MODE?.trim().toLowerCase() ?? "";
+  if (!["closed", "configured", "canary", "open"].includes(billingRolloutMode)) {
+    invalid.push("BILLING_ROLLOUT_MODE must be closed, configured, canary, or open");
+  }
+  const paidRequired = ["STRIPE_SECRET_KEY", "STRIPE_WEBHOOK_SECRET", "STRIPE_PORTAL_CONFIGURATION_ID", "STRIPE_PLUS_MONTHLY_PRICE_ID", "STRIPE_PLUS_ANNUAL_PRICE_ID", "STRIPE_PRO_MONTHLY_PRICE_ID", "STRIPE_PRO_ANNUAL_PRICE_ID", "LEGAL_OPERATOR_NAME", "LEGAL_BUSINESS_ADDRESS", "GOVERNING_JURISDICTION", "SUPPORT_EMAIL"];
+  const validatePaidConfiguration = () => {
     for (const name of paidRequired) {
       if (!process.env[name]?.trim()) invalid.push(`${name} is required for billing activation`);
-    }
-    if (process.env.BILLING_ENABLED?.trim().toLowerCase() !== "true") {
-      invalid.push("BILLING_ENABLED must be true for an explicitly authorized billing activation check");
     }
     if (process.env.BILLING_PROVIDER?.trim().toLowerCase() !== "stripe") {
       invalid.push("BILLING_PROVIDER must be stripe for billing activation");
@@ -75,6 +78,10 @@ else {
     if (!/^whsec_[A-Za-z0-9]{16,}$/.test(webhookSecret)) {
       invalid.push("STRIPE_WEBHOOK_SECRET must be a non-placeholder whsec_ signing secret");
     }
+    const portalConfigurationId = process.env.STRIPE_PORTAL_CONFIGURATION_ID?.trim() ?? "";
+    if (!/^bpc_[A-Za-z0-9]{8,}$/.test(portalConfigurationId)) {
+      invalid.push("STRIPE_PORTAL_CONFIGURATION_ID must be a valid Stripe Customer Portal configuration ID");
+    }
     const priceNames = ["STRIPE_PLUS_MONTHLY_PRICE_ID", "STRIPE_PLUS_ANNUAL_PRICE_ID", "STRIPE_PRO_MONTHLY_PRICE_ID", "STRIPE_PRO_ANNUAL_PRICE_ID"];
     const priceIds = priceNames.map((name) => process.env[name]?.trim() ?? "");
     for (const [index, priceId] of priceIds.entries()) {
@@ -83,8 +90,35 @@ else {
     if (new Set(priceIds).size !== priceIds.length) {
       invalid.push("All four current Stripe Price IDs must be unique");
     }
-  } else if (process.env.BILLING_ENABLED?.trim().toLowerCase() !== "false") {
-    invalid.push("BILLING_ENABLED must be explicitly false for a closed-billing release");
+  };
+  if (activationMode) {
+    validatePaidConfiguration();
+    if (process.env.BILLING_ENABLED?.trim().toLowerCase() !== "true") {
+      invalid.push("BILLING_ENABLED must be true for an explicitly authorized billing activation check");
+    }
+    if (billingRolloutMode !== "canary" && billingRolloutMode !== "open") {
+      invalid.push("BILLING_ROLLOUT_MODE must be canary or open for billing activation");
+    }
+    if (!enabled("STRIPE_TAX_READY")) invalid.push("STRIPE_TAX_READY must be true for billing activation");
+    if (billingRolloutMode === "canary") {
+      const canaryUids = (process.env.BILLING_CANARY_UIDS ?? "").split(",").map((value) => value.trim()).filter(Boolean);
+      if (!canaryUids.length
+        || canaryUids.length > 100
+        || canaryUids.some((value) => !/^[A-Za-z0-9._:@-]{1,160}$/.test(value))) {
+        invalid.push("BILLING_CANARY_UIDS must contain one to 100 valid account UIDs for canary activation");
+      }
+    }
+  } else {
+    if (process.env.BILLING_ENABLED?.trim().toLowerCase() !== "false") {
+      invalid.push("BILLING_ENABLED must be explicitly false for a closed-billing release");
+    }
+    if (billingRolloutMode === "canary" || billingRolloutMode === "open") {
+      invalid.push("Ordinary releases may use only closed or configured billing rollout modes");
+    }
+    if (billingRolloutMode === "configured") {
+      validatePaidConfiguration();
+      if (!enabled("STRIPE_TAX_READY")) invalid.push("STRIPE_TAX_READY must be true for configured billing readiness");
+    }
   }
   const secureUrls = ["NEXT_PUBLIC_SITE_URL", ...(process.env.OPERATIONS_ALERT_WEBHOOK_URL ? ["OPERATIONS_ALERT_WEBHOOK_URL"] : [])];
   for (const name of secureUrls) {

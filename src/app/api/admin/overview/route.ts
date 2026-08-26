@@ -668,7 +668,7 @@ export async function GET(request: Request) {
         failedWebhookEvents: stripeEvents.filter((record) => record.status === "failed").length,
       },
       launchReadiness: {
-        mode: billing.configured ? "open" : "closed",
+        mode: billing.rolloutMode,
         billingLockActive: !billing.enabled,
         paymentProviderConfigured: billing.providerReady,
         activityReceiptsConfigured: Boolean(serverEnvironment.ACTIVITY_RECEIPT_SECRET?.trim()),
