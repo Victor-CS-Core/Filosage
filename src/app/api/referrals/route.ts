@@ -1,3 +1,4 @@
+import { withAccountRequest } from "@/lib/auth-server";
 import { authorizationResponse, requireAcceptedAccount } from "@/lib/auth-server";
 import { apiRequestErrorResponse, assertTrustedMutation } from "@/lib/api-security";
 import {
@@ -45,7 +46,7 @@ async function referralSummary(uid: string, create: boolean) {
   };
 }
 
-export async function GET(request: Request) {
+async function handleGET(request: Request) {
   try {
     const account = await requireAcceptedAccount(request);
     return Response.json(await referralSummary(account.uid, false), {
@@ -58,7 +59,7 @@ export async function GET(request: Request) {
   }
 }
 
-export async function POST(request: Request) {
+async function handlePOST(request: Request) {
   try {
     assertTrustedMutation(request);
     const account = await requireAcceptedAccount(request);
@@ -73,3 +74,6 @@ export async function POST(request: Request) {
       ?? Response.json({ error: "A referral link could not be created." }, { status: 500 });
   }
 }
+
+export const GET = withAccountRequest(handleGET);
+export const POST = withAccountRequest(handlePOST);

@@ -1,3 +1,4 @@
+import { withAccountRequest } from "@/lib/auth-server";
 import { aiClient } from "@/lib/local-ai";
 import { authorizationResponse, requireAcceptedAccount } from "@/lib/auth-server";
 import { findCourseLesson } from "@/lib/course-progress";
@@ -21,7 +22,7 @@ import {
 } from "@/lib/course-pipeline/artifact-access";
 import { safeModelErrorDetails } from "@/lib/model-fallback";
 
-export async function POST(request: Request) {
+async function handlePOST(request: Request) {
   const profile = openAiExecutionProfile("tutor.standard");
   let reservation: AiReservation | null = null;
   try {
@@ -140,3 +141,5 @@ export async function POST(request: Request) {
     return Response.json({ error: "The tutor is temporarily unavailable." }, { status: 500 });
   }
 }
+
+export const POST = withAccountRequest(handlePOST);

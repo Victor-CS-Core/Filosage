@@ -3,7 +3,9 @@ import {
   createOperationalAlertEnvelope,
   deliverOperationalAlert,
   operationalAlertSignature,
+  operationalAlertSenderObservation,
 } from "../src/lib/operational-alert-core";
+import { operationalAlertTransportEvidence } from "../scripts/operations-script-support";
 
 const event = {
   severity: "critical" as const,
@@ -75,4 +77,64 @@ test("does not retry a permanent receiver rejection", async () => {
   expect(result.ok).toBe(false);
   expect(attempts).toBe(1);
   expect(result.status).toBe(401);
+});
+
+test("transient failures back off without Retry-After and bound explicit receiver delays", async () => {
+  for (const [header, expectedDelays] of [
+    [null, [250, 500]], ["", [250, 500]], ["invalid", [250, 500]],
+    ["0", [0, 0]], ["1", [1_000, 1_000]], ["90", [2_000, 2_000]],
+  ] as const) {
+    const delays: number[] = [];
+    const result = await deliverOperationalAlert({
+      webhookUrl: "https://alerts.example/filosage", secret: "s".repeat(32), event,
+      environment: { name: "fixture" },
+      sleep: async (milliseconds) => { delays.push(milliseconds); },
+      fetchImplementation: async () => new Response(null, {
+        status: 503, headers: header === null ? {} : { "Retry-After": header },
+      }),
+    });
+    expect(result.ok).toBe(false);
+    expect(result.attempts).toBe(3);
+    expect(delays).toEqual(expectedDelays);
+  }
+});
+
+test("network failures retain exponential backoff and permanent rejections never sleep", async () => {
+  for (const networkFailure of [true, false]) {
+    const delays: number[] = [];
+    const result = await deliverOperationalAlert({
+      webhookUrl: "https://alerts.example/filosage", secret: "s".repeat(32), event,
+      environment: { name: "fixture" },
+      sleep: async (milliseconds) => { delays.push(milliseconds); },
+      fetchImplementation: async () => {
+        if (networkFailure) throw new Error("offline fixture");
+        return new Response(null, { status: 401 });
+      },
+    });
+    expect(result.ok).toBe(false);
+    expect(delays).toEqual(networkFailure ? [250, 500] : []);
+  }
+});
+
+test("HTTP delivery evidence never attests receiver durability or independent monitoring", () => {
+  const delivery = { ok: true, alertId: "fa_fixture", occurredAt: "2026-09-06T00:00:00Z", attempts: 1, status: 204, error: null };
+  const evidence = operationalAlertTransportEvidence(delivery, { resourceGroup: null, releaseSha: "a".repeat(40) });
+  expect(evidence).toMatchObject({
+    evidenceType: "signed_alert_http_delivery", status: "transport_accepted", receiverStatus: 204,
+    receiverDurableAcknowledgement: "unverified", independentReceiverMonitoring: "unverified",
+  });
+  for (const failure of [{ ...delivery, ok: false }, { ...delivery, status: 503 }, { ...delivery, status: null }]) {
+    expect(() => operationalAlertTransportEvidence(failure, { resourceGroup: null, releaseSha: null })).toThrow(/failed alert delivery/);
+  }
+});
+
+test("legacy HTTP success cannot establish receiver readiness and failure observations survive", () => {
+  const legacy = { status: "succeeded", completedAt: "2026-09-06T00:00:00Z", receiverStatus: 204 };
+  expect(operationalAlertSenderObservation(legacy)).toEqual({ ...legacy, status: "transport_accepted" });
+  expect(legacy.status).toBe("succeeded");
+  expect(operationalAlertSenderObservation(null)).toBeNull();
+  for (const status of ["failed", "running", "transport_accepted"]) {
+    const observation = { status, alertId: "fa_fixture" };
+    expect(operationalAlertSenderObservation(observation)).toEqual(observation);
+  }
 });

@@ -1,10 +1,10 @@
 import "server-only";
 
 import type OpenAI from "openai";
+import { AccountLifecycleError, currentAccountGeneration, runWithBannerUploadReceipt } from "@/lib/account-lifecycle";
 import type { CourseBanner } from "@/lib/course-types";
 import {
   getStoredDocument,
-  putStoredDocument,
   runStoredDocumentTransaction,
 } from "@/lib/document-store";
 import {
@@ -69,7 +69,7 @@ function isEnabled() {
 async function reusableBanner(assetId: string, fallbackModel: string): Promise<CourseBannerResult | null> {
   if (!/^[a-f0-9]{32}$/.test(assetId)) return null;
   const asset = await getStoredDocument(`courseBannerAssets/${assetId}`);
-  if (!asset || asset.contentType !== "image/webp") return null;
+  if (!asset || asset.contentType !== "image/webp" || (asset.status && asset.status !== "uploaded")) return null;
   const available = asset.storage === "azure-blob" || typeof asset.data === "string";
   if (!available) return null;
   return {
@@ -104,10 +104,14 @@ export async function createOrReuseCourseBanner(
   if (!isEnabled()) return null;
 
   const model = serverEnvironment.OPENAI_COURSE_IMAGE_MODEL?.trim() || DEFAULT_MODEL;
-  const fingerprint = await sha256(courseBannerFingerprintMaterial(input, input.variant ?? 0));
+  const account = currentAccountGeneration();
+  if (!account) throw new AccountLifecycleError("Banner generation requires an account generation.");
+  const fingerprint = await sha256(`${account.uid}:${account.generation}:${courseBannerFingerprintMaterial(input, input.variant ?? 0)}`);
   const keyPath = `courseBannerKeys/${fingerprint}`;
-  const assetId = fingerprint.slice(0, 32);
   const claimId = crypto.randomUUID();
+  // A lease retry must never upload to an earlier worker's Blob key. Each
+  // attempt has its own durable receipt until its remote outcome is known.
+  const assetId = (await sha256(`${fingerprint}:${claimId}`)).slice(0, 32);
   let ownsGeneration = false;
 
   try {
@@ -130,6 +134,9 @@ export async function createOrReuseCourseBanner(
           path: keyPath,
           data: {
             status: "generating",
+            ownerUid: account.uid,
+            accountGeneration: account.generation,
+            assetId,
             claimId,
             styleVersion: STYLE_VERSION,
             leaseUntil: new Date(now.getTime() + GENERATION_LEASE_MS).toISOString(),
@@ -164,9 +171,13 @@ export async function createOrReuseCourseBanner(
 
     const createdAt = new Date().toISOString();
     const imageBytes = decodeBase64(data);
-    const objectStorage = await storeCourseBannerObject(assetId, imageBytes);
-    await putStoredDocument(`courseBannerAssets/${assetId}`, {
-      ...(objectStorage ? { storage: objectStorage, objectKey: `course-banners/${assetId}.webp` } : { data }),
+    const assetPath = `courseBannerAssets/${assetId}`;
+    await runStoredDocumentTransaction([keyPath, assetPath], (documents) => {
+      if (documents[keyPath]?.claimId !== claimId || documents[assetPath]) throw new AccountLifecycleError("This banner generation claim was superseded.");
+      return { writes: [{ path: assetPath, data: {
+      ownerUid: account.uid, accountGeneration: account.generation,
+      claimId,
+      ownership: "exclusive", status: "uploading", objectKey: `course-banners/${assetId}.webp`,
       contentType: "image/webp",
       bytes,
       width: 1536,
@@ -175,13 +186,20 @@ export async function createOrReuseCourseBanner(
       styleVersion: STYLE_VERSION,
       fingerprint,
       createdAt,
+      } }], result: undefined };
     });
-    await putStoredDocument(keyPath, {
+    const objectStorage = await storeCourseBannerObject(assetId, imageBytes);
+    await runWithBannerUploadReceipt({ ...account, assetId, claimId }, () => runStoredDocumentTransaction([assetPath], (documents) => ({
+      writes: [{ path: assetPath, data: { ...documents[assetPath], status: "uploaded", ...(objectStorage ? { storage: objectStorage } : { data }), updatedAt: createdAt } }], result: undefined,
+    })));
+    await runStoredDocumentTransaction([keyPath], (documents) => ({ writes: documents[keyPath]?.claimId === claimId ? [{ path: keyPath, data: {
+      ownerUid: account.uid, accountGeneration: account.generation,
       assetId,
+      claimId,
       status: "ready",
       styleVersion: STYLE_VERSION,
       updatedAt: createdAt,
-    });
+    } }] : [], result: undefined }));
 
     return {
       banner: { assetId, version: 1, generatedAt: createdAt },
@@ -190,13 +208,15 @@ export async function createOrReuseCourseBanner(
       costMicros: generationCostMicros(model),
     };
   } catch (error) {
+    // An unknown Azure outcome retains the uploading marker for manual recovery.
     if (ownsGeneration) {
-      await putStoredDocument(keyPath, {
+      await runStoredDocumentTransaction([keyPath], (documents) => ({ writes: documents[keyPath]?.claimId === claimId ? [{ path: keyPath, data: {
         status: "failed",
+        ownerUid: account.uid, accountGeneration: account.generation,
         claimId,
         styleVersion: STYLE_VERSION,
         updatedAt: new Date().toISOString(),
-      }).catch(() => undefined);
+      } }] : [], result: undefined })).catch(() => undefined);
     }
     console.error(
       "Course banner generation failed; the deterministic banner will be used.",

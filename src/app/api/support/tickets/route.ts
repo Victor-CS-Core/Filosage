@@ -1,7 +1,8 @@
+import { withAccountRequest } from "@/lib/auth-server";
 import { z } from "zod";
 import { apiRequestErrorResponse, readJsonBody } from "@/lib/api-security";
 import { authorizationResponse, requireAcceptedAccount } from "@/lib/auth-server";
-import { commandCenterEnvironmentEnabled } from "@/lib/command-center-auth";
+import { supportSubmissionEnabled } from "@/lib/support-availability";
 import {
   commandCenterErrorResponse,
   createUserCommandCenterTicket,
@@ -30,7 +31,7 @@ function idempotencyKey(request: Request) {
   return /^[A-Za-z0-9_-]{16,128}$/.test(value) ? value : undefined;
 }
 
-export async function GET(request: Request) {
+async function handleGET(request: Request) {
   try {
     const account = await requireAcceptedAccount(request);
     const tickets = await listUserCommandCenterTickets(account.uid);
@@ -43,12 +44,12 @@ export async function GET(request: Request) {
   }
 }
 
-export async function POST(request: Request) {
+async function handlePOST(request: Request) {
   try {
     const account = await requireAcceptedAccount(request);
-    if (!commandCenterEnvironmentEnabled()) {
+    if (!await supportSubmissionEnabled()) {
       return Response.json(
-        { error: "In-app support requests are temporarily unavailable. Please use the published support email." },
+        { error: "In-app support requests are temporarily unavailable. Please use the published support email.", code: "SUPPORT_SUBMISSION_UNAVAILABLE", submissionEnabled: false },
         { status: 503, headers: { "Cache-Control": "private, no-store", "Retry-After": "60" } },
       );
     }
@@ -95,3 +96,6 @@ export async function POST(request: Request) {
       ?? Response.json({ error: "Your support request could not be submitted." }, { status: 500 });
   }
 }
+
+export const GET = withAccountRequest(handleGET);
+export const POST = withAccountRequest(handlePOST);

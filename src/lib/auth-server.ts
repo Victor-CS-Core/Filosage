@@ -12,6 +12,8 @@ import { getExistingAccount, type ServerAccount } from "@/lib/account-server";
 import { isLocalMode } from "@/lib/local-mode";
 import { PRIVACY_VERSION, TERMS_VERSION } from "@/lib/legal";
 import { planAllows, type PlanCapability } from "@/lib/membership-plans";
+import { AccountLifecycleError, captureAccountGeneration, currentAccountGeneration, runWithAccountGeneration } from "@/lib/account-lifecycle";
+import { requestAccountGenerationMatches } from "@/lib/account-session";
 import { requestAccountMatchesVerifiedUid } from "@/lib/account-session";
 import { recentAuthenticationProofMatchesUser } from "@/lib/identity-link-policy";
 
@@ -160,11 +162,36 @@ export async function requirePlanCapability(request: Request, capability: PlanCa
 }
 
 export function authorizationResponse(error: unknown) {
-  if (error instanceof AuthorizationError) {
+  if (error instanceof AuthorizationError || error instanceof AccountLifecycleError) {
     return NextResponse.json(
       error.code ? { error: error.message, code: error.code } : { error: error.message },
       { status: error.status },
     );
   }
   return null;
+}
+
+// ALS.run owns the entire asynchronous handler. Capturing inside an awaited
+// requireUser using enterWith would not scope its caller's continuation.
+export function withAccountRequest<R extends Request, Args extends unknown[]>(handler: (request: R, ...args: Args) => Promise<Response>) {
+  return async (request: R, ...args: Args): Promise<Response> => {
+    try {
+      const user = await getVerifiedUser(request);
+      if (!user?.email_verified) return await handler(request, ...args);
+      const existing = currentAccountGeneration();
+      const lifecycle = await captureAccountGeneration(user.uid);
+      if (existing && (existing.uid !== user.uid || existing.generation !== lifecycle.generation)) throw new AccountLifecycleError();
+      const pathname = new URL(request.url).pathname;
+      const recoveryRequest = (pathname === "/api/account/data" && request.method === "DELETE")
+        || (pathname === "/api/account/identity" && request.method === "DELETE")
+        || (pathname === "/api/auth/session" && request.method === "GET");
+      if (lifecycle.state !== "active" && !recoveryRequest) throw new AccountLifecycleError();
+      if (!requestAccountGenerationMatches(request.headers, lifecycle.generation)) throw new AccountLifecycleError();
+      return await runWithAccountGeneration(lifecycle, () => handler(request, ...args));
+    } catch (error) {
+      const response = authorizationResponse(error);
+      if (response) return response;
+      throw error;
+    }
+  };
 }

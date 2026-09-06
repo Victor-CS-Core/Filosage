@@ -194,7 +194,7 @@ export default function PricingPage() {
       if (kind === "checkout" && (!age18OrOlder || !usResident || !automaticRenewalAccepted)) {
         throw new Error("Confirm all paid-plan eligibility and renewal terms before continuing to Stripe Checkout.");
       }
-      if (account?.legalAcceptanceRequired) await acceptLegalTerms("subscription", activeUser);
+      if (kind === "checkout" && account?.legalAcceptanceRequired) await acceptLegalTerms("subscription", activeUser);
       const token = await activeUser.getIdToken();
       const response = await fetch(`/api/billing/${kind}`, {
         method: "POST",
@@ -378,15 +378,16 @@ export default function PricingPage() {
           <section className="pricing-account-action" aria-labelledby="manage-membership-title">
             <div>
               <h2 id="manage-membership-title">Manage your membership in Stripe</h2>
-              {account?.subscriptionStatus === "active" || account?.subscriptionStatus === "trialing" ? (
+              {(account?.subscriptionStatus === "active" || account?.subscriptionStatus === "trialing")
+                && !account?.legalAcceptanceRequired && account?.accountStatus !== "suspended" ? (
                 <p>Change plan or billing interval in Stripe; the change takes effect immediately and Stripe calculates the prorated invoice; cancellation takes effect at the end of the current paid period.</p>
               ) : (
-                <p>Review renewal, update your payment method, view invoices, or cancel at the end of the paid period in Stripe's hosted Customer Portal. Plan changes return after payment recovery.</p>
+                <p>Update your payment method or cancel at the end of the paid period in Stripe. These recovery actions do not require accepting new Terms. Plan changes require an active account, a current payment, and current Terms acceptance.</p>
               )}
             </div>
             <div className="pricing-account-actions" aria-label="Stripe subscription actions">
               {(account?.subscriptionStatus === "active" || account?.subscriptionStatus === "trialing") && (
-                <button aria-label="Change plan in Stripe" className="button button-secondary" type="button" disabled={billingBusy || !billingManagementReady} onClick={() => void openBilling("portal", selectedPlan, "change_plan")}>
+                <button aria-label="Change plan in Stripe" className="button button-secondary" type="button" disabled={billingBusy || !billingManagementReady || account?.legalAcceptanceRequired || account?.accountStatus === "suspended"} onClick={() => void openBilling("portal", selectedPlan, "change_plan")}>
                   {billingPendingAction === "change_plan" ? <LoaderCircle className="spin" size={16} /> : <ArrowLeftRight size={16} />} {billingPendingAction === "change_plan" ? "Opening Stripe…" : "Change plan in Stripe"}
                 </button>
               )}

@@ -1,3 +1,4 @@
+import { withAccountRequest } from "@/lib/auth-server";
 import { z } from "zod";
 import { apiRequestErrorResponse, readJsonBody } from "@/lib/api-security";
 import { authorizationResponse, requireAccount } from "@/lib/auth-server";
@@ -36,7 +37,7 @@ function lessonTitle(course: Course, lessonId: string) {
   return course.modules?.[moduleIndex]?.lessons?.[lessonIndex]?.title;
 }
 
-export async function POST(request: Request) {
+async function handlePOST(request: Request) {
   try {
     const account = await requireAccount(request);
     const limited = await enforceDurableRateLimit(
@@ -144,3 +145,5 @@ export async function POST(request: Request) {
       ?? Response.json({ error: "The content report could not be submitted." }, { status: 500 });
   }
 }
+
+export const POST = withAccountRequest(handlePOST);

@@ -1,3 +1,4 @@
+import { withAccountRequest } from "@/lib/auth-server";
 import { authorizationResponse, requirePlanCapability } from "@/lib/auth-server";
 import { publishedReleaseUnavailableResponse } from "@/lib/course-pipeline/artifact-access";
 import { buildEvidenceReport, renderEvidenceReportHtml } from "@/lib/evidence-report";
@@ -7,7 +8,7 @@ interface RouteParams {
   params: Promise<{ courseId: string }>;
 }
 
-export async function GET(request: Request, { params }: RouteParams) {
+async function handleGET(request: Request, { params }: RouteParams) {
   const { courseId } = await params;
   try {
     const account = await requirePlanCapability(request, "export_evidence_report");
@@ -41,3 +42,5 @@ export async function GET(request: Request, { params }: RouteParams) {
     return Response.json({ error: "The evidence report could not be prepared." }, { status: 500 });
   }
 }
+
+export const GET = withAccountRequest(handleGET);

@@ -1,3 +1,4 @@
+import { withAccountRequest } from "@/lib/auth-server";
 import { z } from "zod";
 import { apiRequestErrorResponse, readJsonBody } from "@/lib/api-security";
 import { authorizationResponse } from "@/lib/auth-server";
@@ -23,7 +24,7 @@ const approvalSchema = z.object({
   expiresInHours: z.number().int().min(1).max(72),
 }).strict();
 
-export async function POST(request: Request) {
+async function handlePOST(request: Request) {
   try {
     const owner = await requireCommandCenterPermission(request, "request_approval");
     const parsed = approvalSchema.safeParse(await readJsonBody(request, 12_288));
@@ -43,3 +44,5 @@ export async function POST(request: Request) {
       ?? Response.json({ error: "The approval request could not be created." }, { status: 500 });
   }
 }
+
+export const POST = withAccountRequest(handlePOST);

@@ -1,7 +1,8 @@
+import { withAccountRequest } from "@/lib/auth-server";
 import { authorizationResponse, requireOwner } from "@/lib/auth-server";
 import { listStoredDocumentsByField } from "@/lib/document-store";
 
-export async function GET(
+async function handleGET(
   request: Request,
   context: { params: Promise<{ courseId: string }> },
 ) {
@@ -28,3 +29,5 @@ export async function GET(
     );
   }
 }
+
+export const GET = withAccountRequest(handleGET);

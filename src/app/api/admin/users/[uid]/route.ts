@@ -1,3 +1,4 @@
+import { withAccountRequest } from "@/lib/auth-server";
 import { z } from "zod";
 import { authorizationResponse, requireOwner } from "@/lib/auth-server";
 import { apiRequestErrorResponse, readJsonBody } from "@/lib/api-security";
@@ -26,7 +27,7 @@ const userActionSchema = z.discriminatedUnion("action", [
   z.object({ action: z.literal("revoke_pro") }).strict(),
 ]);
 
-export async function PATCH(
+async function handlePATCH(
   request: Request,
   context: { params: Promise<{ uid: string }> },
 ) {
@@ -122,3 +123,5 @@ export async function PATCH(
     return Response.json({ error: "The account action could not be completed." }, { status: 500 });
   }
 }
+
+export const PATCH = withAccountRequest(handlePATCH);

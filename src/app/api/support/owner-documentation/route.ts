@@ -1,7 +1,8 @@
+import { withAccountRequest } from "@/lib/auth-server";
 import { authorizationResponse, requireOwner } from "@/lib/auth-server";
 import { ownerDocumentation } from "@/content/support/owner-documentation";
 
-export async function GET(request: Request) {
+async function handleGET(request: Request) {
   try {
     await requireOwner(request);
     return Response.json(ownerDocumentation, {
@@ -12,3 +13,5 @@ export async function GET(request: Request) {
       ?? Response.json({ error: "The owner handbook could not be loaded." }, { status: 500 });
   }
 }
+
+export const GET = withAccountRequest(handleGET);

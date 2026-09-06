@@ -1,3 +1,4 @@
+import { withAccountRequest } from "@/lib/auth-server";
 import { z } from "zod";
 import { authorizationResponse, requireAcceptedAccount } from "@/lib/auth-server";
 import { apiRequestErrorResponse, readJsonBody } from "@/lib/api-security";
@@ -64,7 +65,7 @@ async function finishRepairStage(
   );
 }
 
-export async function POST(
+async function handlePOST(
   request: Request,
   context: { params: Promise<{ courseId: string }> },
 ) {
@@ -383,3 +384,5 @@ export async function POST(
     );
   }
 }
+
+export const POST = withAccountRequest(handlePOST);

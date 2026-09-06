@@ -1,3 +1,4 @@
+import { withAccountRequest } from "@/lib/auth-server";
 import { NextResponse } from "next/server";
 import { zodTextFormat } from "openai/helpers/zod";
 import { aiClient } from "@/lib/local-ai";
@@ -25,7 +26,7 @@ const instructions = `Assess a learner's pre-course attempt against the listed c
 
 ${AI_SAFETY_POLICY}`;
 
-export async function POST(request: Request) {
+async function handlePOST(request: Request) {
   const profile = openAiExecutionProfile("baseline.standard");
   let reservation: AiReservation | null = null;
   let observedUsage = { inputTokens: 0, cachedInputTokens: 0, outputTokens: 0 };
@@ -140,3 +141,5 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Starting-point assessment is temporarily unavailable." }, { status: 500 });
   }
 }
+
+export const POST = withAccountRequest(handlePOST);

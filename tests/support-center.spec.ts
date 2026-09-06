@@ -1,6 +1,79 @@
 import { expect, test } from "@playwright/test";
 import { restoreLocalLearner } from "./fixtures/local-learner";
 
+for (const availability of ["off", "unknown"] as const) {
+  test(`@smoke support ${availability} offers email and Help before composition while preserving history`, async ({ page }) => {
+    await restoreLocalLearner(page);
+    let posts = 0;
+    await page.route("**/api/support/capabilities", (route) => route.fulfill(availability === "off"
+      ? { json: { submissionEnabled: false, historyEnabled: true } }
+      : { status: 503, json: { error: "Availability cannot be confirmed" } }));
+    await page.route("**/api/support/tickets", (route) => {
+      if (route.request().method() === "POST") posts += 1;
+      return route.fulfill({ json: { tickets: [{ id: "existing-private-ticket", ticketNumber: "TKT-HISTORY", category: "support", status: "submitted", subject: "Existing account request", createdAt: "2026-09-06T00:00:00.000Z", updatedAt: "2026-09-06T00:00:00.000Z" }] } });
+    });
+    await page.goto("/support");
+    await expect(page.getByRole("button", { name: "Send a support request" })).toHaveCount(0);
+    await expect(page.getByRole("link", { name: "Open owner queue" })).toHaveCount(0);
+    await page.getByRole("button", { name: "Open Support Center" }).click();
+    const dialog = page.getByRole("dialog", { name: "Support center" });
+    await dialog.getByRole("tab", { name: "Contact support" }).click();
+    await expect(dialog.getByRole("link", { name: /Email support@filosage.com/ })).toBeVisible();
+    await expect(dialog.getByRole("link", { name: "Browse help guides" })).toBeVisible();
+    await expect(dialog.getByLabel("Subject", { exact: true })).toHaveCount(0);
+    await expect(dialog.getByRole("button", { name: "Check availability again" })).toBeVisible();
+    await dialog.getByRole("tab", { name: "My requests" }).click();
+    await expect(dialog.getByText("Existing account request")).toBeVisible();
+    expect(posts).toBe(0);
+  });
+}
+
+test("@smoke losing support availability preserves failed text for copying without another POST", async ({ page }) => {
+  await restoreLocalLearner(page);
+  let available = true; let posts = 0;
+  await page.route("**/api/support/capabilities", (route) => route.fulfill({ json: { submissionEnabled: available, historyEnabled: true } }));
+  await page.route("**/api/support/tickets", (route) => {
+    if (route.request().method() !== "POST") return route.fulfill({ json: { tickets: [] } });
+    posts += 1; available = false;
+    return route.fulfill({ status: 503, json: { code: "SUPPORT_SUBMISSION_UNAVAILABLE", error: "Intake is unavailable." } });
+  });
+  await page.goto("/support");
+  await page.getByRole("button", { name: "Open Support Center" }).click();
+  const dialog = page.getByRole("dialog", { name: "Support center" });
+  await dialog.getByRole("tab", { name: "New request" }).click();
+  await dialog.getByLabel("Subject", { exact: true }).fill("A request to preserve");
+  await dialog.getByLabel("What happened?").fill("Please preserve this message after support intake stops.");
+  await dialog.getByRole("button", { name: "Send request", exact: true }).click();
+  await expect(dialog.getByLabel("Unsent message")).toHaveValue("A request to preserve\n\nPlease preserve this message after support intake stops.");
+  await expect(dialog.getByRole("button", { name: "Send request", exact: true })).toHaveCount(0);
+  expect(posts).toBe(1);
+});
+
+test("@smoke a late private support response cannot survive session invalidation", async ({ page }) => {
+  await restoreLocalLearner(page);
+  let started!: () => void; let release!: () => void;
+  const pending = new Promise<void>((resolve) => { started = resolve; });
+  const released = new Promise<void>((resolve) => { release = resolve; });
+  await page.route("**/api/support/tickets", async (route) => {
+    started(); await released;
+    await route.fulfill({ json: { tickets: [{ id: "late-private-ticket", ticketNumber: "TKT-PRIVATE", category: "support", status: "submitted", subject: "Private data from the old account", createdAt: "2026-09-06T00:00:00.000Z", updatedAt: "2026-09-06T00:00:00.000Z" }] } }).catch(() => undefined);
+  });
+  await page.goto("/support");
+  await page.getByRole("button", { name: "Open Support Center" }).click();
+  await page.getByRole("dialog", { name: "Support center" }).getByRole("tab", { name: "My requests" }).click();
+  await pending;
+  await page.evaluate(() => {
+    localStorage.removeItem("filosage-local-session");
+    window.dispatchEvent(new Event("filosage:learner-session-invalidated"));
+  });
+  release();
+  await page.getByRole("button", { name: "Open Support Center" }).click();
+  const dialog = page.getByRole("dialog", { name: "Support center" });
+  await dialog.getByRole("tab", { name: "My requests" }).click();
+  await expect(dialog.getByRole("heading", { name: "Sign in to view your requests" })).toBeVisible();
+  await expect(page.getByText("Private data from the old account")).toHaveCount(0);
+});
+
 test("gives guests public help plus valid sign-in and email paths", async ({ page }) => {
   await page.goto("/support");
   const trigger = page.getByRole("button", { name: "Open Support Center" });

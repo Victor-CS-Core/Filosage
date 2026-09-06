@@ -64,3 +64,13 @@ export async function readCourseBannerObject(assetId: string) {
   }
   return bytes;
 }
+
+// Caller proves the asset is exclusive and no surviving course references it.
+// Azure deletion is idempotent; an unknown remote result keeps the durable job.
+export async function deleteExclusiveCourseBannerObject(assetId: string, asset: Record<string, unknown>) {
+  if (!/^[a-f0-9]{32}$/.test(assetId) || asset.ownership !== "exclusive" || typeof asset.ownerUid !== "string") throw new Error("Banner ownership is unverified.");
+  if (asset.storage !== "azure-blob") return;
+  const client = blobService();
+  if (!client) throw new Error("Banner storage is unavailable for deletion.");
+  await client.getContainerClient(containerName()).getBlockBlobClient(objectKey(assetId)).deleteIfExists();
+}

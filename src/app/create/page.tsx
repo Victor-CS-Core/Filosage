@@ -18,6 +18,9 @@ import {
 } from "lucide-react";
 import AppShell from "@/components/AppShell";
 import { useAuth } from "@/components/AuthProvider";
+import { learnerRequest, readLearnerStorage, writeLearnerStorage, removeLearnerStorage,
+  learnerSessionSnapshot, isCurrentLearnerSession } from "@/lib/learner-storage";
+import { retainCreationIdentity, type CreationIdentity } from "@/lib/course-creation-identity";
 import { createClientId } from "@/lib/browser-compat";
 import { trackProductEvent } from "@/lib/product-analytics";
 import { courseLanguageModeFor } from "@/lib/product-events";
@@ -44,6 +47,15 @@ const steps = [
 
 type CourseCreationResponse = {
   courseId?: string;
+  admitted?: false;
+  operationId?: string;
+  status?: "running" | "pending" | "completed" | "failed";
+  stage?: string;
+  resultId?: string;
+  topic?: string;
+  code?: string;
+  retryAt?: string;
+  recovery?: string;
   error?: string;
   evaluation?: {
     issues?: string[];
@@ -58,8 +70,16 @@ type CourseCreationResponse = {
   };
 };
 
+const GENERATION_CLIENT_REQUEST_MS = 170_000;
+
 export default function CreateCoursePage() {
-  const { user, canCreateCourses, account } = useAuth();
+  const { user } = useAuth();
+  const generation = user && "accountGeneration" in user ? String(user.accountGeneration) : "legacy";
+  return <CreateCourseForm key={`${user?.uid ?? "anonymous"}:${generation}`} />;
+}
+
+function CreateCourseForm() {
+  const { user, canCreateCourses, account, refreshAccount } = useAuth();
   const [activeStep, setActiveStep] = useState(0);
   const [visitedSteps, setVisitedSteps] = useState([true, false, false]);
   const [topic, setTopic] = useState("");
@@ -76,21 +96,54 @@ export default function CreateCoursePage() {
   const [targetWeeks, setTargetWeeks] = useState(4);
   const [courseStyle, setCourseStyle] = useState<(typeof courseStyles)[number]["value"]>("Balanced");
   const [submitting, setSubmitting] = useState(false);
-  const [generationProgress, setGenerationProgress] = useState(0);
   const [generationStage, setGenerationStage] = useState("Researching and planning the Capability Cycle");
   const [error, setError] = useState<string | null>(null);
-  const requestIdentityRef = useRef<{ signature: string; key: string } | null>(null);
+  const requestIdentityRef = useRef<CreationIdentity | null>(null);
+  const [recoverable, setRecoverable] = useState<CourseCreationResponse | null>(null);
+  const [recoveryChecked, setRecoveryChecked] = useState(false);
+  const [recoveryLoadFailed, setRecoveryLoadFailed] = useState(false);
   const stepHeadingRef = useRef<HTMLHeadingElement>(null);
 
   useEffect(() => {
-    if (!submitting) return;
-    const startedAt = Date.now();
+    requestIdentityRef.current = null;
+    if (!user) return;
+    const session = learnerSessionSnapshot(user.uid);
+    const stored = readLearnerStorage<CreationIdentity>(user.uid, "generation-operation");
+    queueMicrotask(() => {
+      if (!isCurrentLearnerSession(session)) return;
+      if (stored?.key && stored.signature) {
+        requestIdentityRef.current = stored;
+        setRecoverable({ operationId: stored.operationId, status: "pending", stage: "Check your saved course request" });
+      }
+    });
+    void learnerRequest(user, "/api/generation-operations", { signal: AbortSignal.timeout(10_000) })
+      .then(async (response) => {
+        if (!response.ok) throw new Error("Saved course requests could not be checked. You can retry the check.");
+        const data = await response.json() as { operations?: CourseCreationResponse[] };
+        if (!isCurrentLearnerSession(session)) return;
+        const saved = data.operations?.find((item) => item.operationId === stored?.operationId)
+          ?? data.operations?.find((item) => item.status === "running" || item.status === "pending");
+        if (saved) setRecoverable(saved);
+      }).catch((failure: unknown) => {
+        if (isCurrentLearnerSession(session)) { setRecoveryLoadFailed(true); setError(failure instanceof Error ? failure.message : "Saved course requests could not be checked."); }
+      }).finally(() => { if (isCurrentLearnerSession(session)) setRecoveryChecked(true); });
+  }, [user]);
+
+  useEffect(() => {
+    if (!submitting || !user) return;
+    const session = learnerSessionSnapshot(user.uid);
     const timer = window.setInterval(() => {
-      const elapsed = Date.now() - startedAt;
-      setGenerationProgress((current) => current >= 100 ? current : Math.min(95, 8 + Math.round(elapsed / 420)));
-    }, 450);
+      const operationId = requestIdentityRef.current?.operationId ?? recoverable?.operationId;
+      if (!operationId) return;
+      void learnerRequest(user, `/api/generation-operations/${operationId}`, { signal: AbortSignal.timeout(5_000) })
+        .then(async (response) => {
+          if (!response.ok) return;
+          const state = await response.json() as CourseCreationResponse;
+          if (isCurrentLearnerSession(session) && state.stage) setGenerationStage(state.stage);
+        }).catch(() => { /* The active request still supplies its final status. */ });
+    }, 3_000);
     return () => window.clearInterval(timer);
-  }, [submitting]);
+  }, [submitting, user, recoverable?.operationId]);
 
   const goToStep = (nextStep: number) => {
     setVisitedSteps((current) => current.map((visited, index) => visited || index === nextStep));
@@ -98,65 +151,116 @@ export default function CreateCoursePage() {
     window.requestAnimationFrame(() => stepHeadingRef.current?.focus());
   };
 
+  const runCreation = async (identity: CreationIdentity | null, operationId?: string) => {
+    if (!user) return;
+    const session = learnerSessionSnapshot(user.uid);
+    const assertCurrent = () => { if (!isCurrentLearnerSession(session)) throw new Error("Your account session changed. Reopen this request from the current account."); };
+    // Establish recovery before dispatch: even the first response can be lost.
+    setRecoverable((current) => current ?? { operationId, status: "pending", stage: "Confirming your saved course request" });
+    setSubmitting(true);
+    setGenerationStage("Checking your course request");
+    setError(null);
+    const startedAt = Date.now();
+    try {
+      for (let wave = 0; wave < 12 && Date.now() - startedAt < 20 * 60_000; wave += 1) {
+        assertCurrent();
+        const endpoint = operationId ? `/api/generation-operations/${operationId}` : "/api/generate-course";
+        const response = await learnerRequest(user, endpoint, {
+          method: "POST", headers: {
+            "Content-Type": "application/json",
+            ...(identity ? { "Idempotency-Key": identity.key } : {}),
+            ...(account?.isOwner ? { "x-filosage-model-evaluation": "1" } : {}),
+          },
+          body: operationId ? undefined : identity?.signature,
+          signal: AbortSignal.timeout(GENERATION_CLIENT_REQUEST_MS),
+        });
+        const responseText = await response.text();
+        assertCurrent();
+        let data: CourseCreationResponse;
+        try { data = JSON.parse(responseText) as CourseCreationResponse; }
+        catch { throw new Error("The service response could not be confirmed. Check the saved request to recover its current state."); }
+        operationId = data.operationId ?? operationId;
+        if (identity && operationId) {
+          identity = { ...identity, operationId };
+          requestIdentityRef.current = identity;
+          writeLearnerStorage(user.uid, "generation-operation", "all", identity);
+        }
+        if (data.stage) setGenerationStage(data.stage);
+        if (operationId) setRecoverable({ ...data, operationId });
+        if (response.status === 202) continue;
+        if (!response.ok) {
+          if (data.admitted === false && !operationId) {
+            removeLearnerStorage(user.uid, "generation-operation");
+            requestIdentityRef.current = null;
+            setRecoverable(null);
+          }
+          const issues = account?.isOwner ? data.evaluation?.issues?.slice(0, 3).join(" · ") : undefined;
+          throw new Error(`${data.error || "The course could not be confirmed. Check its saved status."}${issues ? ` Validation diagnostic: ${issues}` : ""}`);
+        }
+        const courseId = data.courseId ?? data.resultId;
+        if (!courseId) throw new Error("The course destination is missing. Check this saved request to reopen it.");
+        setGenerationStage("Your course map is ready");
+        removeLearnerStorage(user.uid, "generation-operation");
+        requestIdentityRef.current = null;
+        window.dispatchEvent(new Event("filosage:courses-changed"));
+        const courseTopic = data.topic ?? recoverable?.topic ?? (identity ? (JSON.parse(identity.signature) as { topic?: string }).topic : undefined) ?? topic;
+        assertCurrent();
+        window.location.assign(`/course/${encodeURIComponent(courseTopic || "Course")}?id=${encodeURIComponent(courseId)}`);
+        return;
+      }
+      throw new Error("Your completed stages are saved. Resume this request when you are ready to continue.");
+    } catch (creationError) {
+      if (isCurrentLearnerSession(session)) {
+        setError(creationError instanceof Error ? creationError.message : "The course could not be confirmed. Check its saved status.");
+        setSubmitting(false);
+      }
+    }
+  };
+
   const create = async (event: React.FormEvent) => {
     event.preventDefault();
     if (!user || !canCreateCourses || account?.courseCredits?.balance === 0 || !topic.trim() || !goal.trim() || !background.trim()) return;
-    setSubmitting(true);
-    setGenerationProgress(8);
-    setGenerationStage("Researching and planning the Capability Cycle");
-    setError(null);
-    try {
-      const token = await user.getIdToken();
-      trackProductEvent("course_creation_started", {
-        route: "/create",
-        courseLanguageMode: courseLanguageModeFor(language),
-      });
-      const requestBody = { topic, goal, application, background, constraints, exclusions, artifactPreference, scenarioPreference, level, weeklyMinutes, targetWeeks, courseStyle, language };
-      const signature = JSON.stringify(requestBody);
-      if (requestIdentityRef.current?.signature !== signature) {
-        requestIdentityRef.current = { signature, key: createClientId() };
-      }
-      const response = await fetch("/api/generate-course", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-          "Idempotency-Key": requestIdentityRef.current.key,
-          ...(account?.isOwner ? { "x-filosage-model-evaluation": "1" } : {}),
-        },
-        body: signature,
-      });
-      const responseText = await response.text();
-      let data: CourseCreationResponse = {};
-      try {
-        data = responseText ? JSON.parse(responseText) as CourseCreationResponse : {};
-      } catch {
-        throw new Error(responseText.toLowerCase().includes("timeout")
-          ? "Course creation took too long to confirm. Retry the same request to reopen it if the server finished, or start it again safely."
-          : "The course service returned an unreadable response. No unconfirmed course will be opened.");
-      }
-      if (!response.ok) {
-        const providerError = data?.evaluation?.providerError;
-        const providerDiagnostic = providerError && typeof providerError === "object"
-          ? [providerError.name, providerError.status, providerError.code, providerError.type, providerError.param, providerError.requestId].filter(Boolean).join(" · ")
-          : "";
-        const issueDiagnostic = account?.isOwner && Array.isArray(data.evaluation?.issues)
-          ? data.evaluation.issues.filter((issue): issue is string => typeof issue === "string").slice(0, 3).join(" · ")
-          : "";
-        throw new Error(`${data.error || "The course could not be created."}${providerDiagnostic ? ` Provider diagnostic: ${providerDiagnostic}.` : ""}${issueDiagnostic ? ` Validation diagnostic: ${issueDiagnostic}.` : ""}`);
-      }
-      if (typeof data.courseId !== "string" || !data.courseId) throw new Error("The course was saved, but its destination was missing. Retry to reopen the saved course.");
-      setGenerationProgress(100);
-      setGenerationStage("Your course map is ready");
-      window.dispatchEvent(new Event("filosage:courses-changed"));
-      await new Promise((resolve) => window.setTimeout(resolve, 350));
-      window.location.assign(`/course/${encodeURIComponent(topic.trim())}?id=${encodeURIComponent(data.courseId)}`);
-    } catch (creationError) {
-      setError(creationError instanceof Error ? creationError.message : "The course could not be created.");
-      setSubmitting(false);
-      setGenerationProgress(0);
-    }
+    const requestBody = { topic, goal, application, background, constraints, exclusions, artifactPreference, scenarioPreference, level, weeklyMinutes, targetWeeks, courseStyle, language };
+    const signature = JSON.stringify(requestBody);
+    const identity = retainCreationIdentity(requestIdentityRef.current, signature, createClientId);
+    requestIdentityRef.current = identity;
+    writeLearnerStorage(user.uid, "generation-operation", "all", identity);
+    trackProductEvent("course_creation_started", { route: "/create", courseLanguageMode: courseLanguageModeFor(language) });
+    await runCreation(identity);
   };
+
+  const endRequest = async () => {
+    if (!user || !recoverable?.operationId) return;
+    const session = learnerSessionSnapshot(user.uid);
+    try {
+      const response = await learnerRequest(user, `/api/generation-operations/${recoverable.operationId}`, { method: "DELETE", signal: AbortSignal.timeout(15_000) });
+      const result = await response.json() as CourseCreationResponse;
+      if (!isCurrentLearnerSession(session)) return;
+      if (!response.ok) throw new Error(result.error || "This request is still running. Check again after its current stage ends.");
+      removeLearnerStorage(user.uid, "generation-operation");
+      requestIdentityRef.current = null;
+      setRecoverable(null);
+      setError(null);
+      await refreshAccount();
+    } catch (failure) { if (isCurrentLearnerSession(session)) setError(failure instanceof Error ? failure.message : "The request could not be ended."); }
+  };
+
+  if (recoverable || recoveryLoadFailed || (!recoveryChecked && user)) {
+    const completed = recoverable?.status === "completed";
+    const failed = recoverable?.status === "failed";
+    return <AppShell><div className="center-state">
+      <Sparkles size={26} /><h1>{completed ? "Your course is ready to reopen." : failed ? "This course request has ended." : "Continue your saved course request."}</h1>
+      <p role="status" aria-live="polite">{submitting ? generationStage : recoverable?.stage ?? "Checking saved course requests…"}</p>
+      <p>{failed ? recoverable.recovery ?? "The unused course credit has been restored. You can start a new request." : "Completed stages are saved. Reopening continues the request; your reserved course credit covers recovery."}</p>
+      {recoverable?.retryAt && !submitting && <p>The current attempt can be checked again after {new Date(recoverable.retryAt).toLocaleTimeString()}.</p>}
+      {error && <p role="alert">{error}</p>}
+      <div className="state-actions">
+        {recoveryLoadFailed && <button className="button button-primary" onClick={() => window.location.reload()}>Check saved requests again</button>}
+        {!failed && !recoveryLoadFailed && <button className="button button-primary" disabled={submitting || !recoverable} onClick={() => void runCreation(requestIdentityRef.current, recoverable?.operationId)}>{submitting ? "Working on the current stage…" : completed ? "Open course" : "Resume course request"}</button>}
+        {recoverable?.operationId && !completed && <button className="button button-secondary" disabled={submitting} onClick={() => void endRequest()}>{failed ? "Start a new request" : "End request and restore credit"}</button>}
+      </div>
+    </div></AppShell>;
+  }
 
   if (!canCreateCourses) {
     return <AppShell><div className="center-state"><Sparkles size={26} /><h1>Create a private course for your goal.</h1><p>Filosage Plus and Pro include complete AI course credits that cover an approved outline and every lesson it plans.</p><Link className="button button-primary" href="/pricing">Compare plans</Link></div></AppShell>;
@@ -344,15 +448,7 @@ export default function CreateCoursePage() {
 
               {submitting && (
                 <div className={styles.generationProgress}>
-                  <div><span role="status" aria-live="polite" aria-atomic="true">{generationStage}</span><strong aria-hidden="true">{generationProgress}%</strong></div>
-                  <div
-                    className={styles.progressTrack}
-                    role="progressbar"
-                    aria-label="Course creation is in progress"
-                    aria-valuemin={0}
-                    aria-valuemax={100}
-                    aria-valuenow={generationProgress}
-                  ><span style={{ transform: `scaleX(${generationProgress / 100})` }} /></div>
+                  <div><span role="status" aria-live="polite" aria-atomic="true">{generationStage}</span></div>
                   <p>Researching trusted sources and further reading where suitable, planning focused lesson wins, and validating honest evidence labels.</p>
                 </div>
               )}

@@ -146,3 +146,50 @@ export async function storedCourseCreditSummary(uid: string) {
     frozenUntil: validCourseCreditIso(ledger.frozenUntil),
   } satisfies CourseCreditSummary;
 }
+
+/** Pure transaction plans let generation commit its result and grant together. */
+export function courseCreditPaths(uid: string, claimId: string) {
+  return { ledgerPath: `users/${uid}/courseCredits/current`, claimPath: `users/${uid}/courseCreditClaims/${claimId}` };
+}
+
+export function generationCreditReservationWrites(
+  account: ServerAccount, claimId: string, documents: Record<string, Record<string, unknown> | null>,
+  requestFingerprint: string, accountGeneration: string, now = new Date(),
+) {
+  if (account.isOwner) return [];
+  const { ledgerPath, claimPath } = courseCreditPaths(account.uid, claimId);
+  const claim = documents[claimPath];
+  if (claim) throw new Error("A generation credit claim already exists without its operation.");
+  const ledger = reconcileCourseCreditLedger(documents[ledgerPath], account, now);
+  if (ledger.balance <= 0) throw new CourseCreditError(summaryFromLedger(ledger));
+  return [
+    { path: ledgerPath, data: { ...ledger, balance: ledger.balance - 1, updatedAt: now.toISOString() } },
+    { path: claimPath, data: { uid: account.uid, accountGeneration, claimId, operationId: claimId,
+      requestFingerprint, status: "reserved", reservedAt: now.toISOString(), updatedAt: now.toISOString() } },
+  ];
+}
+
+export function generationCreditSettlementWrites(
+  uid: string, claimId: string, documents: Record<string, Record<string, unknown> | null>,
+  failed: boolean, now = new Date().toISOString(),
+) {
+  const { ledgerPath, claimPath } = courseCreditPaths(uid, claimId);
+  const claim = documents[claimPath];
+  if (!claim || claim.status !== "reserved") return [];
+  if (!failed) return [{ path: claimPath, data: { ...claim, status: "completed", courseId: claimId, completedAt: now, updatedAt: now } }];
+  const ledger = documents[ledgerPath];
+  if (!ledger) throw new Error("The reserved credit ledger is missing.");
+  return [
+    { path: ledgerPath, data: { ...ledger, balance: courseCreditInteger(ledger.balance) + 1, updatedAt: now } },
+    { path: claimPath, data: { ...claim, status: "released", releasedAt: now, updatedAt: now } },
+  ];
+}
+
+export function generationLessonGrant(claimId: string, modules: unknown, now: string) {
+  if (!Array.isArray(modules) || !modules.length) throw new Error("The completed course requires a usable outline.");
+  const lessonIds = modules.flatMap((module, moduleIndex) => {
+    if (!module || !Array.isArray(module.lessons) || !module.lessons.length) throw new Error("Every course module requires planned lessons.");
+    return module.lessons.map((_lesson: unknown, lessonIndex: number) => `${moduleIndex}-${lessonIndex}`);
+  });
+  return { version: COURSE_CREDIT_SCHEMA_VERSION, claimId, lessonIds, redeemedAt: now, status: "active" };
+}

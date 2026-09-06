@@ -1,3 +1,4 @@
+import { withAccountRequest } from "@/lib/auth-server";
 import { z } from "zod";
 import { authorizationResponse, requireAcceptedAccount } from "@/lib/auth-server";
 import { apiRequestErrorResponse, readJsonBody } from "@/lib/api-security";
@@ -13,7 +14,7 @@ const inputSchema = z.object({
   rating: flashcardRatingSchema,
 }).strict();
 
-export async function POST(request: Request, { params }: RouteParams) {
+async function handlePOST(request: Request, { params }: RouteParams) {
   try {
     const account = await requireAcceptedAccount(request);
     const { deckId } = await params;
@@ -28,3 +29,5 @@ export async function POST(request: Request, { params }: RouteParams) {
       ?? Response.json({ error: "Your flashcard rating could not be saved." }, { status: 500 });
   }
 }
+
+export const POST = withAccountRequest(handlePOST);

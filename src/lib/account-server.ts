@@ -3,6 +3,7 @@ import "server-only";
 import {
   runStoredDocumentTransaction,
 } from "@/lib/document-store";
+import { AccountLifecycleError, accountLifecyclePath, currentAccountGeneration } from "@/lib/account-lifecycle";
 import type { VerifiedUser } from "@/lib/identity-server";
 import { isLocalMode, LOCAL_OWNER_UID } from "@/lib/local-mode";
 import type { AccessLevel, AccountStatus, LearnerPlan } from "@/lib/course-types";
@@ -12,6 +13,7 @@ import { serverEnvironment } from "@/lib/runtime-environment";
 
 export interface ServerAccount {
   uid: string;
+  accountGeneration?: string;
   email?: string;
   displayName?: string;
   photoURL?: string;
@@ -71,7 +73,9 @@ async function resolveAccount(
   // Read and write inside one transaction so a concurrent billing webhook
   // update conflicts (and retries) instead of being overwritten with stale
   // subscription state.
-  const resolved = await runStoredDocumentTransaction<ResolvedAccountState | null>([path], (documents) => {
+  const resolved = await runStoredDocumentTransaction<ResolvedAccountState | null>([path, accountLifecyclePath(user.uid)], (documents) => {
+    const lifecycle = documents[accountLifecyclePath(user.uid)];
+    if (lifecycle && lifecycle.state !== "active") throw new AccountLifecycleError();
     const existing = documents[path];
     if (!existing) return { writes: [], result: null };
     const subscriptionStatus = String(existing?.subscriptionStatus ?? "none") as ServerAccount["subscriptionStatus"];
@@ -130,6 +134,7 @@ async function resolveAccount(
 
   return {
     uid: user.uid,
+    accountGeneration: currentAccountGeneration()?.generation,
     email,
     displayName: normalizeDisplayName(saved.displayName) ?? undefined,
     photoURL: String(saved.photoURL ?? "") || undefined,

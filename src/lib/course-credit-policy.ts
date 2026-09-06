@@ -67,8 +67,10 @@ export function reconcileCourseCreditLedger(
       balance,
       monthlyAllocation: 0,
       balanceCap: 0,
-      periodGranted: 0,
-      nextAccrualAt: null,
+      // Preserve accrual identity through payment/suspension recovery. Clearing
+      // it permits repeated failure/recovery cycles to farm a new allocation.
+      periodGranted: courseCreditInteger(stored?.periodGranted),
+      nextAccrualAt: validCourseCreditIso(stored?.nextAccrualAt),
       frozenAt,
       frozenUntil,
       updatedAt: nowIso,
@@ -87,11 +89,21 @@ export function reconcileCourseCreditLedger(
   if (!nextAccrualAt) nextAccrualAt = addCourseCreditUtcMonths(now, 1).toISOString();
 
   if (returningFromFreeze) {
-    balance = Math.min(cap, balance + allocation);
-    periodGranted = allocation;
+    if (!validCourseCreditIso(stored?.nextAccrualAt)) {
+      balance = Math.min(cap, balance + allocation);
+      periodGranted = allocation;
+    } else if (Date.parse(nextAccrualAt) <= now.getTime()) {
+      // Recovery resumes at the current period; unpaid frozen months do not
+      // accrue a backlog. One current allocation is the provisional policy.
+      balance = Math.min(cap, balance + allocation);
+      periodGranted = allocation;
+      while (Date.parse(nextAccrualAt) <= now.getTime()) {
+        nextAccrualAt = addCourseCreditUtcMonths(new Date(nextAccrualAt), 1).toISOString();
+      }
+    }
   }
 
-  if (priorPlan === "plus" && account.plan === "pro" && periodGranted < allocation) {
+  if ((priorPlan === "plus" || returningFromFreeze) && account.plan === "pro" && periodGranted < allocation) {
     balance = Math.min(cap, balance + allocation - periodGranted);
     periodGranted = allocation;
   }
@@ -109,7 +121,7 @@ export function reconcileCourseCreditLedger(
     uid: account.uid,
     schemaVersion: COURSE_CREDIT_SCHEMA_VERSION,
     plan: account.plan,
-    balance,
+    balance: Math.min(cap, balance),
     monthlyAllocation: allocation,
     balanceCap: cap,
     periodGranted,

@@ -1,3 +1,4 @@
+import { withAccountRequest } from "@/lib/auth-server";
 import { NextResponse } from "next/server";
 import { authorizationResponse, requireAcceptedAccount } from "@/lib/auth-server";
 import { getCourse } from "@/lib/document-store";
@@ -10,7 +11,7 @@ interface RouteParams {
   params: Promise<{ courseId: string; lessonId: string }>;
 }
 
-export async function GET(request: Request, { params }: RouteParams) {
+async function handleGET(request: Request, { params }: RouteParams) {
   const { courseId, lessonId } = await params;
   try {
     const account = await requireAcceptedAccount(request);
@@ -47,3 +48,5 @@ export async function GET(request: Request, { params }: RouteParams) {
     return NextResponse.json({ error: "The lesson is temporarily unavailable." }, { status: 500 });
   }
 }
+
+export const GET = withAccountRequest(handleGET);

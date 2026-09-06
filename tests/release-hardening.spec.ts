@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 import { spawnSync } from "node:child_process";
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import { closeSync, existsSync, mkdirSync, mkdtempSync, openSync, readFileSync, readdirSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import { resolve } from "node:path";
 import { browserSuitesByProject } from "../scripts/playwright-suite-manifest";
@@ -17,7 +17,7 @@ const discoverSpecs = (directory: string): string[] => readdirSync(directory, { 
 const azureBicep = read("infra/azure/main.bicep");
 const stagingWorkflow = read(".github/workflows/azure-staging.yml");
 const promotionWorkflow = read(".github/workflows/azure-promote-staging.yml");
-const qaWorkflow = read(".github/workflows/azure-qa.yml");
+const releaseDeployment = read("scripts/azure-blue-green.mjs");
 const qualityWorkflow = read(".github/workflows/quality-gate.yml");
 const fullRegressionWorkflowPath = ".github/workflows/full-regression.yml";
 const fullRegressionWorkflow = existsSync(fullRegressionWorkflowPath) ? read(fullRegressionWorkflowPath) : "";
@@ -39,19 +39,29 @@ const require = createRequire(import.meta.url);
 const playwrightCli = require.resolve("@playwright/test/cli");
 
 const discoverBrowserTests = (project: string, extraArgs: string[] = []) => {
-  const result = spawnSync(
-    process.execPath,
-    [playwrightCli, "test", "--config=playwright.config.ts", ...extraArgs, "--list", "--reporter=line"],
-    {
-      cwd: process.cwd(),
-      env: { ...process.env, FILOSAGE_PLAYWRIGHT_PROJECT: project },
-      encoding: "utf8",
-    },
-  );
-  expect(result.status, result.stderr).toBe(0);
-  const match = result.stdout.match(/Total:\s+(\d+)\s+tests?/);
-  expect(match, result.stdout).not.toBeNull();
-  return Number(match?.[1]);
+  const directory = mkdtempSync(resolve(".browser-discovery-"));
+  const outputPath = resolve(directory, "list.txt");
+  const output = openSync(outputPath, "wx", 0o600);
+  try {
+    // A file avoids losing the tail of the CLI's piped stdout at process exit.
+    const result = spawnSync(
+      process.execPath,
+      [playwrightCli, "test", "--config=playwright.config.ts", ...extraArgs, "--list", "--reporter=line"],
+      {
+        cwd: process.cwd(),
+        env: { ...process.env, FILOSAGE_PLAYWRIGHT_PROJECT: project },
+        encoding: "utf8", stdio: ["ignore", output, "pipe"], timeout: 60_000,
+      },
+    );
+    expect(result.status, result.stderr).toBe(0);
+    const listing = readFileSync(outputPath, "utf8");
+    const match = listing.match(/Total:\s+(\d+)\s+tests?/);
+    expect(match, listing).not.toBeNull();
+    return Number(match?.[1]);
+  } finally {
+    closeSync(output);
+    rmSync(directory, { recursive: true, force: true });
+  }
 };
 
 test("the app trusts Easy Auth headers only when the platform auth resource is configured", () => {
@@ -73,38 +83,21 @@ test("the app trusts Easy Auth headers only when the platform auth resource is c
 });
 
 test("staging explicitly preserves the closed-billing release boundary", () => {
-  expect(stagingWorkflow).toContain('"BILLING_ENABLED=false"');
-  expect(stagingWorkflow).toContain("Verify the deployed release safety policy");
-  expect(stagingWorkflow).toContain("properties.latestRevisionFqdn");
-  expect(stagingWorkflow).toContain("steps.deploy_revision.outputs.revision");
-  expect(stagingWorkflow).toContain("steps.deploy_revision.outputs.revision_url");
-  expect(stagingWorkflow).toContain('npm run check:release-safety -- "${{ steps.deploy_revision.outputs.revision_url }}"');
-  expect(stagingWorkflow).not.toContain("properties.template.containers[0].env[?name=='BILLING_ENABLED'].value");
-  expect(stagingWorkflow.indexOf("Verify the deployed release safety policy")).toBeLessThan(
-    stagingWorkflow.indexOf("Assign verified revision label"),
-  );
+  expect(releaseDeployment).toContain('BILLING_ENABLED: "false"');
+  expect(releaseDeployment).toContain('BILLING_ROLLOUT_MODE: "closed"');
+  expect(releaseDeployment).toContain('check("check-release-safety.mjs", [origin], options)');
+  expect(releaseDeployment.indexOf("smoke(candidate);")).toBeLessThan(releaseDeployment.indexOf("const traffic = candidateTraffic(before, revisionName)"));
+  expect(stagingWorkflow).toContain("node scripts/azure-blue-green.mjs stage");
 });
 
-test("promotion restores the previous traffic weights when verification fails or is cancelled", () => {
-  expect(promotionWorkflow).toContain("Verify the deployed release safety policy");
-  expect(promotionWorkflow).toContain("TARGET_REVISION=");
-  expect(promotionWorkflow).toContain("properties.configuration.ingress.traffic");
-  expect(promotionWorkflow).toContain('npm run check:release-safety -- "$TARGET_URL"');
-  expect(promotionWorkflow).not.toContain("properties.template.containers[0].env[?name=='BILLING_ENABLED'].value");
-  expect(promotionWorkflow.indexOf("Verify the deployed release safety policy")).toBeLessThan(
-    promotionWorkflow.indexOf("Switch staging traffic"),
-  );
-  expect(promotionWorkflow).toContain("id: capture_traffic");
-  expect(promotionWorkflow).toContain("id: traffic_switch");
-  expect(promotionWorkflow).toContain("az containerapp ingress traffic show");
-  expect(promotionWorkflow).toContain("const traffic = JSON.parse");
-  expect(promotionWorkflow).toContain("traffic.length !== 2");
-  expect(promotionWorkflow).toContain("blueWeight + greenWeight !== 100");
-  expect(promotionWorkflow).not.toContain("jq ");
-  expect(promotionWorkflow).toContain("if: (failure() || cancelled()) && steps.capture_traffic.outcome == 'success'");
-  expect(promotionWorkflow).not.toContain("steps.traffic_switch.outcome == 'success'");
-  expect(promotionWorkflow).toContain('"blue=${{ steps.capture_traffic.outputs.blue_weight }}"');
-  expect(promotionWorkflow).toContain('"green=${{ steps.capture_traffic.outputs.green_weight }}"');
+test("failed promotion restores only the reviewed compatible predecessor from known traffic", () => {
+  expect(promotionWorkflow).toContain("if: failure() || cancelled()");
+  expect(promotionWorkflow).toContain("node scripts/azure-blue-green.mjs rollback");
+  expect(releaseDeployment).toContain('json(path)');
+  expect(releaseDeployment).toContain("validateHostedReview(verified.packet, candidate)");
+  expect(releaseDeployment).toContain("verify(candidate, true)");
+  expect(releaseDeployment).toContain('"--revision-weight", `${candidate.previous.revision}=100`, `${candidate.revision}=0`');
+  expect(releaseDeployment).toContain("traffic restoration alone is insufficient");
 });
 
 test("the general browser matrix excludes suites that require dedicated seeded servers", () => {
@@ -140,7 +133,7 @@ test("every Playwright spec belongs to exactly one execution lane", async () => 
 
   expect(new Set(categorized).size).toBe(categorized.length);
   expect(categorized.toSorted()).toEqual(discovered);
-  expect(contractSuites).toHaveLength(33);
+  expect(contractSuites).toHaveLength(39);
   expect(apiSuites).toHaveLength(2);
   expect(singleEngineSuites).toHaveLength(18);
   expect(deviceSensitiveSuites).toHaveLength(8);
@@ -355,12 +348,14 @@ test("the required quality gate runs a bounded Chromium smoke suite while exhaus
     "tests/auth-linking.spec.ts",
     "tests/billing-lifecycle.spec.ts",
     "tests/command-center.spec.ts",
+    "tests/publication-override.spec.ts",
     "tests/release-recovery.spec.ts",
+    "tests/support-center.spec.ts",
   ]);
   expect(smokeRunner).toContain('"--grep=@smoke"');
   const smokeTests = discoverBrowserTests("chromium", smokePlan.batchesByProject.chromium.flat());
   expect(smokeTests).toBeGreaterThanOrEqual(14);
-  expect(smokeTests).toBeLessThanOrEqual(20);
+  expect(smokeTests).toBeLessThanOrEqual(30);
   expect(qualityWorkflow).toContain("needs: static-and-release-contracts");
   expect(qualityWorkflow).toContain("npm run test:api -- --output=test-results/api --reporter=line,blob");
   expect(qualityWorkflow).toContain("run: npm run test:browser:smoke");
@@ -436,11 +431,9 @@ test("release workflows accept only exact successful workflow evidence", () => {
   expect(oversized.status).toBe(1);
   expect(applicationStderr(oversized.stderr)).toBe("Required workflow evidence is unavailable.\n");
   expect(oversized.stdout).toBe("");
-  expect(qaWorkflow).toContain("scripts/check-workflow-run-evidence.mjs");
-  expect(qaWorkflow).not.toContain("- run: npm ci");
-  expect(qaWorkflow).not.toContain("- run: npm run build");
-  expect(stagingWorkflow).toContain("scripts/check-workflow-run-evidence.mjs");
-  expect(stagingWorkflow).toContain(".github/workflows/full-regression.yml");
+  expect(releaseDeployment).toContain("result.head_sha !== sha");
+  expect(releaseDeployment).toContain("result.conclusion !== \"success\"");
+  expect(releaseDeployment).toContain(".github/workflows/full-regression.yml");
   expect(stagingWorkflow).not.toContain("- run: npm ci");
 });
 
@@ -533,10 +526,9 @@ test("the contract lane executes process-level release checks instead of skippin
   expect(releaseScripts).not.toContain('test.skip(testInfo.project.name !== "chromium"');
 });
 
-test("course creation exposes progress values and visible keyboard focus", () => {
-  expect(createPage).toContain('aria-valuemin={0}');
-  expect(createPage).toContain('aria-valuemax={100}');
-  expect(createPage).toContain('aria-valuenow={generationProgress}');
+test("course creation announces observed stages and preserves visible keyboard focus", () => {
+  expect(createPage).toContain('role="status" aria-live="polite" aria-atomic="true">{generationStage}');
+  expect(createPage).not.toContain('aria-valuenow={generationProgress}');
   expect(createStyles).toMatch(/\.approachGroup label:has\(input:focus-visible\)[\s\S]*?outline:/);
 });
 

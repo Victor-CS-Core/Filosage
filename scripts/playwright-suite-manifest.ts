@@ -1,16 +1,21 @@
 import { resolve } from "node:path";
 
 export const contractSuites = [
+  "tests/account-deletion-recovery.spec.ts",
+  "tests/azure-bootstrap-isolation.spec.ts",
+  "tests/blue-green-release.spec.ts",
   "tests/account-storage-contracts.spec.ts",
   "tests/auth-identity.spec.ts",
   "tests/azure-infrastructure.spec.ts",
   "tests/azure-zero-cost-hardening.spec.ts",
   "tests/bibliographic-references.spec.ts",
   "tests/billing-offer.spec.ts",
+  "tests/content-language.spec.ts",
   "tests/course-deck-velocity.spec.ts",
   "tests/course-deletion-indexes.spec.ts",
   "tests/course-pipeline-v2-regressions.spec.ts",
   "tests/course-research.spec.ts",
+  "tests/generation-operations.spec.ts",
   "tests/landing-funnel-contract.spec.ts",
   "tests/identity-link-server.spec.ts",
   "tests/identity-migration.spec.ts",
@@ -32,6 +37,7 @@ export const contractSuites = [
   "tests/retired-systems.spec.ts",
   "tests/source-citations.spec.ts",
   "tests/source-research-v5.spec.ts",
+  "tests/support-availability.spec.ts",
   "tests/tier-consistency-contracts.spec.ts",
   "tests/worker-runtime-env.spec.ts",
 ] as const;
@@ -81,7 +87,9 @@ export const smokeBrowserSuites = [
   "tests/auth-linking.spec.ts",
   "tests/billing-lifecycle.spec.ts",
   "tests/command-center.spec.ts",
+  "tests/publication-override.spec.ts",
   "tests/release-recovery.spec.ts",
+  "tests/support-center.spec.ts",
 ] as const;
 
 export const dedicatedSuiteConfigs = {
@@ -125,10 +133,10 @@ export const browserSuiteEstimatedTestLoad: Record<BrowserProjectName, Record<st
     "tests/marketing-gauntlet-runtime-acceptance.spec.ts": 1,
     "tests/navigation-content-integrity.spec.ts": 2,
     "tests/pricing-mobile.spec.ts": 1,
-    "tests/publication-override.spec.ts": 7,
+    "tests/publication-override.spec.ts": 8,
     "tests/release-recovery.spec.ts": 2,
     "tests/search.spec.ts": 3,
-    "tests/support-center.spec.ts": 8,
+    "tests/support-center.spec.ts": 12,
     "tests/support-wiki.spec.ts": 11,
     "tests/tier-consistency-ui.spec.ts": 1,
   },

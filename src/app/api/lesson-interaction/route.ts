@@ -1,3 +1,4 @@
+import { withAccountRequest } from "@/lib/auth-server";
 import { z } from "zod";
 import { authorizationResponse, requireAcceptedAccount } from "@/lib/auth-server";
 import { apiRequestErrorResponse, readJsonBody } from "@/lib/api-security";
@@ -58,7 +59,7 @@ async function loadRecognition(
   return { course, lesson, interaction, artifactHash: await publicationContentHash(interaction) };
 }
 
-export async function GET(request: Request) {
+async function handleGET(request: Request) {
   try {
     const account = await requireAcceptedAccount(request);
     const limited = await enforceDurableRateLimit(request, "lesson-interaction-read", 120, 60_000, account.uid);
@@ -123,7 +124,7 @@ export async function GET(request: Request) {
   }
 }
 
-export async function POST(request: Request) {
+async function handlePOST(request: Request) {
   try {
     const account = await requireAcceptedAccount(request);
     const limited = await enforceDurableRateLimit(request, "lesson-interaction", 80, 60_000, account.uid);
@@ -208,3 +209,6 @@ export async function POST(request: Request) {
     return Response.json({ error: "This practice response could not be verified. Try again." }, { status: 500 });
   }
 }
+
+export const GET = withAccountRequest(handleGET);
+export const POST = withAccountRequest(handlePOST);

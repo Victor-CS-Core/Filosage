@@ -17,7 +17,22 @@ jobs:
   verify:
     runs-on: ubuntu-latest
     environment: azure-staging
+    env:
+      EXPECTED_POSTGRES_RESOURCE_ID: ${{ vars.AZURE_POSTGRES_RESOURCE_ID }}
+      APPROVED_BACKUP_RETENTION_DAYS: ${{ vars.AZURE_POSTGRES_APPROVED_RETENTION_DAYS }}
     steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 22
+
+      - name: Validate approved observation inputs before Azure login
+        shell: bash
+        run: |
+          set -euo pipefail
+          node scripts/validate-backup-observation.mjs check-inputs
+
       - uses: azure/login@7184910d9eb2b1c5e48f7073824a90609bb9b6d6 # v2
         with:
           client-id: ${{ secrets.AZURE_CLIENT_ID }}
@@ -28,27 +43,17 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          RESOURCE_GROUP="${{ vars.AZURE_RESOURCE_GROUP }}"
-          SERVER_NAME="${{ vars.AZURE_POSTGRES_SERVER_NAME }}"
-          if [[ -z "$SERVER_NAME" ]]; then
-            SERVER_NAME="$(az postgres flexible-server list \
-              --resource-group "$RESOURCE_GROUP" \
-              --query "[0].name" \
-              --output tsv)"
-          fi
-          if [[ -z "$SERVER_NAME" ]]; then
-            echo "No Azure PostgreSQL Flexible Server was found."
-            exit 1
-          fi
           az postgres flexible-server show \
-            --resource-group "$RESOURCE_GROUP" \
-            --name "$SERVER_NAME" \
-            --query '{server:name,state:state,earliestRestoreDate:backup.earliestRestoreDate,retentionDays:backup.backupRetentionDays,checkedAt:null}' \
-            --output json > "${RUNNER_TEMP}/azure-postgres-backup-evidence.json"
-          node -e 'const fs=require("fs"); const p=process.env.RUNNER_TEMP+"/azure-postgres-backup-evidence.json"; const v=JSON.parse(fs.readFileSync(p)); v.checkedAt=new Date().toISOString(); v.evidenceType="managed_backup_window_observation"; v.restoreRehearsal=false; if(v.state!=="Ready"||!v.earliestRestoreDate||!Number.isInteger(v.retentionDays)||v.retentionDays<1) process.exit(1); fs.writeFileSync(p, JSON.stringify(v,null,2)+"\n")'
+            --ids "$EXPECTED_POSTGRES_RESOURCE_ID" \
+            --query '{id:id,state:state,earliestRestoreDate:backup.earliestRestoreDate,retentionDays:backup.backupRetentionDays}' \
+            --output json > "${RUNNER_TEMP}/azure-postgres-backup-response.json"
+          node scripts/validate-backup-observation.mjs observe \
+            < "${RUNNER_TEMP}/azure-postgres-backup-response.json" \
+            > "${RUNNER_TEMP}/azure-postgres-backup-evidence.json"
 
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
-          name: azure-postgres-recovery-window-observation-${{ github.run_id }}-${{ github.run_attempt }}
+          name: azure-postgres-recovery-window-observation-${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}
           path: ${{ runner.temp }}/azure-postgres-backup-evidence.json
           retention-days: 90
+          if-no-files-found: error

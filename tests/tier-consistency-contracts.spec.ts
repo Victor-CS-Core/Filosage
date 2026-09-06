@@ -17,10 +17,10 @@ test("Control Room reporting names and aggregates Plus and Pro explicitly", () =
   expect(page).not.toContain("Pro contribution model");
 });
 
-test("new courses keep initial banners while banner regeneration is retired", () => {
+test("new courses use deterministic covers without an automatic paid banner workflow", () => {
   const courseGeneration = source("src/app/api/generate-course/route.ts");
   const storage = source("src/lib/document-store.ts");
-  expect(courseGeneration).toContain('reserveAiUsage(account, "course_banner", idempotencyKey)');
+  expect(courseGeneration).not.toContain("createOrReuseCourseBanner");
   expect(existsSync(resolve(root, "src/app/api/courses/[courseId]/banner/route.ts"))).toBe(false);
   expect(storage).not.toContain("claimCourseBannerRegeneration");
   expect(storage).not.toContain("finishCourseBannerRegeneration");

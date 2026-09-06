@@ -1,3 +1,4 @@
+import { withAccountRequest } from "@/lib/auth-server";
 import { authorizationResponse, requirePlanCapability } from "@/lib/auth-server";
 import { buildAdvancedCapstoneAnalysis } from "@/lib/capstone-analysis";
 import { normalizeSuccessCriteria } from "@/lib/course-criteria";
@@ -7,7 +8,7 @@ import type { Course } from "@/lib/course-types";
 import type { CapstoneAssessment } from "@/lib/learning-types";
 import { safeModelErrorDetails } from "@/lib/model-fallback";
 
-export async function GET(request: Request) {
+async function handleGET(request: Request) {
   try {
     const account = await requirePlanCapability(request, "advanced_capstone_analysis");
     const courseId = new URL(request.url).searchParams.get("courseId")?.trim();
@@ -37,3 +38,5 @@ export async function GET(request: Request) {
     return Response.json({ error: "Advanced capstone analysis is temporarily unavailable." }, { status: 500 });
   }
 }
+
+export const GET = withAccountRequest(handleGET);

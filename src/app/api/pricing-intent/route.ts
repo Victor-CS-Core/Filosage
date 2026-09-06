@@ -1,3 +1,4 @@
+import { withAccountRequest } from "@/lib/auth-server";
 import { z } from "zod";
 import { authorizationResponse, requireAcceptedAccount } from "@/lib/auth-server";
 import { apiRequestErrorResponse, readJsonBody } from "@/lib/api-security";
@@ -35,7 +36,7 @@ async function emailFingerprint(email: string) {
   return Array.from(new Uint8Array(bytes), (byte) => byte.toString(16).padStart(2, "0")).join("");
 }
 
-export async function GET(request: Request) {
+async function handleGET(request: Request) {
   try {
     const account = await requireAcceptedAccount(request);
     const intent = await getStoredDocument(`pricingIntents/${account.uid}`);
@@ -49,7 +50,7 @@ export async function GET(request: Request) {
   }
 }
 
-export async function POST(request: Request) {
+async function handlePOST(request: Request) {
   try {
     const parsed = pricingIntentSchema.safeParse(await readJsonBody(request, 2_048));
     if (!parsed.success) {
@@ -173,3 +174,6 @@ export async function POST(request: Request) {
       ?? Response.json({ error: "Your launch preference could not be saved." }, { status: 500 });
   }
 }
+
+export const GET = withAccountRequest(handleGET);
+export const POST = withAccountRequest(handlePOST);

@@ -1,3 +1,4 @@
+import { withAccountRequest } from "@/lib/auth-server";
 import { authorizationResponse, requireAcceptedAccount } from "@/lib/auth-server";
 import { apiRequestErrorResponse, readJsonBody } from "@/lib/api-security";
 import {
@@ -18,7 +19,7 @@ import { safeModelErrorDetails } from "@/lib/model-fallback";
 import { aiUsageProfileMetadata, openAiExecutionProfile } from "@/lib/openai-generation";
 import { publicationContentHash } from "@/lib/publication-content";
 
-export async function POST(request: Request) {
+async function handlePOST(request: Request) {
   let reservation: AiReservation | null = null;
   const profile = openAiExecutionProfile("flashcard.standard");
   try {
@@ -97,3 +98,5 @@ export async function POST(request: Request) {
       );
   }
 }
+
+export const POST = withAccountRequest(handlePOST);

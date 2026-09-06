@@ -422,7 +422,8 @@ export type LearningDesignIssueCode =
   | "LD_FEEDBACK_001"
   | "LD_RESOURCE_001"
   | "LD_OUTPUT_001"
-  | "LD_OUTPUT_002";
+  | "LD_OUTPUT_002"
+  | "LD_REPLAN_001";
 
 export interface LearningDesignIssue {
   code: LearningDesignIssueCode;
@@ -800,6 +801,23 @@ export function learningDesignContractIssues(
   ];
 }
 
+export class LearningDesignReplanRequiredError extends Error {
+  readonly code = "LEARNING_DESIGN_REPLAN_REQUIRED";
+  readonly status = 422;
+  readonly recovery = "Revise the goal, constraints or available source material in Course Studio, then deliberately submit a new course request. This blocked request will not automatically regenerate or consume another course credit.";
+
+  constructor(readonly issues: LearningDesignIssue[]) {
+    super("The learning plan has unresolved blockers. No course was saved from this plan.");
+    this.name = "LearningDesignReplanRequiredError";
+  }
+}
+
+export function assertLearningDesignReady(value: unknown, context: LessonDesignValidationContext) {
+  const blockers = learningDesignContractIssues(value, context)
+    .filter((issue) => issue.severity === "blocker" || issue.severity === "error");
+  if (blockers.length) throw new LearningDesignReplanRequiredError(blockers);
+}
+
 function proseWordCount(value: string) {
   return value.match(/[\p{L}\p{N}]+(?:['’][\p{L}\p{N}]+)*/gu)?.length ?? 0;
 }
@@ -822,6 +840,7 @@ export function lessonDesignOutputIssues(
     experience?: { type?: string };
   } | null,
   plan: LessonDesignPlanV1,
+  options: { preservePlannedObjective?: boolean } = {},
 ): LearningDesignIssue[] {
   if (!lesson) return [{
     code: "LD_OUTPUT_001",
@@ -830,6 +849,16 @@ export function lessonDesignOutputIssues(
     message: "No lesson was returned for its learning-design plan.",
   }];
   const issues: LearningDesignIssue[] = [];
+  if (options.preservePlannedObjective
+    && normalizedText(lesson.learningObjective ?? "").toLowerCase().replace(/[.!。]+$/u, "")
+      !== normalizedText(plan.scopeBudget.singleWin).toLowerCase().replace(/[.!。]+$/u, "")) {
+    issues.push({
+      code: "LD_REPLAN_001",
+      severity: "blocker",
+      path: "lesson.learningObjective",
+      message: "The planned objective changed. Restore the saved single-win objective, or explicitly replan the linked practice, quizzes, criteria and capstone before generating this lesson. Evidence limits never authorize a silently narrower capability.",
+    });
+  }
   if (!lesson.learningObjective?.trim() || genericOutcome.test(lesson.learningObjective)) {
     issues.push({
       code: "LD_OUTPUT_001",

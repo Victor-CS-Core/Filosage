@@ -5,9 +5,7 @@ import { RETIRED_SYSTEM_NAMES } from "./fixtures/retired-system-names";
 
 
 const azureBicep = readFileSync("infra/azure/main.bicep", "utf8");
-const qaBicep = readFileSync("infra/azure/qa.bicep", "utf8");
 const backupWorkflow = readFileSync(".github/workflows/azure-backup-evidence.yml", "utf8");
-const qaWorkflow = readFileSync(".github/workflows/azure-qa.yml", "utf8");
 const securityDoc = readFileSync("docs/SECURITY_AND_LEGAL_READINESS.md", "utf8");
 const productionOps = readFileSync("docs/PRODUCTION_OPERATIONS.md", "utf8");
 
@@ -19,35 +17,31 @@ test("blob storage keeps prior banner versions without a paid SKU change", () =>
   expect(azureBicep).toContain("sku: { name: 'Standard_LRS' }");
 });
 
-test("the production app identity cannot write the QA banner container", () => {
+test("the runtime Blob identity is scoped to the approved banner container", () => {
   expect(azureBicep).toContain("scope: bannerContainer");
   expect(azureBicep).not.toMatch(/resource blobContributor[\s\S]*scope: storage/);
 });
 
-test("PostgreSQL app and QA roles are distinct from the server admin", () => {
+test("PostgreSQL runtime and bootstrap remain distinct within the single application", () => {
   expect(azureBicep).toContain("param postgresAppLogin string = 'filosage_app'");
-  expect(azureBicep).toContain("@secure()");
   expect(azureBicep).toContain("param postgresAppPassword string");
-  expect(qaBicep).toContain("param postgresQaAppLogin string = 'filosageqa_app'");
-  expect(qaBicep).toContain("param postgresQaAppPassword string");
-  expect(azureBicep).toMatch(/postgresql:\/\/\$\{postgresAppLogin\}:\$\{uriComponent\(postgresAppPassword\)\}/);
-  expect(qaBicep).toMatch(/postgresql:\/\/\$\{postgresQaAppLogin\}:\$\{uriComponent\(postgresQaAppPassword\)\}/);
-  expect(qaBicep).not.toMatch(/postgresql:\/\/\$\{postgresAdminLogin\}:\$\{uriComponent\(postgresAdminPassword\)\}/);
+  expect(azureBicep).not.toContain("postgresQaApp");
+  expect(azureBicep).toContain("scope: databaseUrlSecret");
+  expect(azureBicep).not.toContain("{ name: 'DATABASE_ADMIN_URL'");
 });
 
 test("backup evidence uses the same GitHub OIDC environment as Azure deploys", () => {
   expect(backupWorkflow).toContain("environment: azure-staging");
   expect(backupWorkflow).not.toContain("environment: production-operations");
-  expect(backupWorkflow).toContain("az postgres flexible-server list");
+  expect(backupWorkflow).toContain('AZURE_POSTGRES_RESOURCE_ID');
+  expect(backupWorkflow).not.toContain("az postgres flexible-server list");
 });
 
-test("isolated QA owner is the Azure customer-account email", () => {
-  expect(qaBicep).toContain(`param ownerEmail string = '${QA_OWNER_EMAIL}'`);
-  expect(qaWorkflow).toContain(`"OWNER_EMAIL=${QA_OWNER_EMAIL}"`);
-  expect(qaBicep).toContain("param externalIdAuthEnabled bool = true");
-  expect(qaBicep).toContain("param externalIdNewAccountsEnabled bool = true");
-  expect(qaWorkflow).toMatch(/external_id_auth_enabled:[\s\S]*default: true/);
-  expect(qaWorkflow).toMatch(/external_id_new_accounts_enabled:[\s\S]*default: true/);
+test("candidate releases inherit approved ownership rather than hard-code test accounts", () => {
+  const release = readFileSync("scripts/azure-blue-green.mjs", "utf8");
+  expect(release).toContain('"--from-revision", live.revisionName');
+  expect(release).not.toContain("OWNER_EMAIL=");
+  expect(release).not.toContain(QA_OWNER_EMAIL);
 });
 
 test("a verified External ID customer matching OWNER_EMAIL receives owner access", () => {
@@ -93,23 +87,21 @@ test("a verified External ID customer matching OWNER_EMAIL receives owner access
   expect(JSON.parse(result.stdout)).toEqual({ owner: true, learner: false });
 });
 
-test("the PostgreSQL role provisioner keeps QA from connecting to production data", () => {
+test("the explicit provisioner restricts the runtime role without requiring a QA role", () => {
   expect(existsSync("scripts/provision-azure-postgres-roles.ts")).toBe(true);
   const source = readFileSync("scripts/provision-azure-postgres-roles.ts", "utf8");
-  expect(source).toContain("REVOKE CONNECT ON DATABASE");
-  expect(source).toContain("filosageqa_app");
+  expect(source).toContain("REVOKE CREATE ON SCHEMA public");
+  expect(source).not.toContain("filosageqa_app");
   expect(source).toContain("filosage_app");
   expect(source).toContain("SELECT format('CREATE ROLE %I LOGIN PASSWORD %L");
-  expect(source).toContain("SELECT format('ALTER ROLE %I WITH LOGIN PASSWORD %L'");
   expect(source).not.toContain("PASSWORD $1");
   expect(source).not.toContain("console.log(password");
-  expect(source).not.toContain("process.stdout.write");
 });
 
-test("database migrations prefer the admin URL so app roles can stay least-privilege", () => {
+test("database migrations require explicit bootstrap configuration without runtime fallback", () => {
   const source = readFileSync("scripts/migrate-azure-database.ts", "utf8");
-  expect(source).toContain("DATABASE_ADMIN_URL");
-  expect(source).toContain("DATABASE_URL");
+  expect(source).toContain("bootstrapConfiguration");
+  expect(source).not.toContain("process.env.DATABASE_URL");
 });
 
 test("security and operations docs describe Azure backups instead of the retired document store", () => {

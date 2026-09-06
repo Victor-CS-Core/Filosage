@@ -4,11 +4,12 @@ import { LESSON_QUALITY_GATE_VERSION } from "@/lib/lesson-quality";
 import { COURSE_PIPELINE_VERSIONS, type ValidationReport } from "@/lib/course-pipeline/contract";
 import { COURSE_REVIEW_POLICY_VERSION } from "@/lib/course-pipeline/review-policy";
 import { publicationContentFingerprint, publicationContentHash } from "@/lib/publication-content";
+import type { PublicationResearchProof } from "@/lib/publication-research";
 
 // Bump the safety version when output moderation or local safety policy changes.
 export const PUBLICATION_SAFETY_POLICY_VERSION = "publication-safety-v1";
 export const PUBLICATION_PROOF_POLICY_VERSION = [
-  "publication-proof-v1", PUBLICATION_SAFETY_POLICY_VERSION,
+  "publication-proof-v2", PUBLICATION_SAFETY_POLICY_VERSION,
   COURSE_PIPELINE_VERSIONS.qualityContract, COURSE_QUALITY_GATE_VERSION,
   LESSON_QUALITY_GATE_VERSION, COURSE_PIPELINE_VERSIONS.sourcePolicy,
   COURSE_REVIEW_POLICY_VERSION,
@@ -53,6 +54,7 @@ export interface PublicationProof {
   evidenceFingerprint: string;
   safety: { status: "passed"; basis: "publication-local-scan"; reviewedAt: string };
   validationReport: ValidationReport;
+  research?: PublicationResearchProof | null;
 }
 
 export function publicationEvidenceFingerprint(course: Record<string, unknown>, lessons: Record<string, unknown>[]) {
@@ -80,6 +82,8 @@ export function publicationProofIsCurrent(
     && proof.evidenceFingerprint === publicationEvidenceFingerprint(course, lessons)
     && proof.safety?.status === "passed" && proof.safety.basis === "publication-local-scan"
     && Number.isFinite(Date.parse(proof.safety.reviewedAt))
+    && (proof.research?.status !== "verified" || (typeof proof.research.expiresAt === "string"
+      && Date.parse(proof.research.expiresAt) > Date.now()))
     && proof.validationReport?.snapshotHash === snapshotHash
     && proof.validationReport.contractVersion === COURSE_PIPELINE_VERSIONS.qualityContract);
 }
@@ -87,7 +91,8 @@ export function publicationProofIsCurrent(
 export function publicationProofApprovalFingerprint(proof: PublicationProof) {
   return JSON.stringify({ policyVersion: proof.policyVersion, snapshotHash: proof.snapshotHash,
     courseId: proof.courseId, lessonIds: proof.lessonIds, evidenceFingerprint: proof.evidenceFingerprint,
-    safetyBasis: proof.safety.basis, report: validationEvidenceFingerprint(proof.validationReport) });
+    safetyBasis: proof.safety.basis, research: proof.research ?? null,
+    report: validationEvidenceFingerprint(proof.validationReport) });
 }
 
 export function publicationProofToken(proof: PublicationProof) {

@@ -381,6 +381,11 @@ export async function postgresDocumentStoreJson<T>(
   const method = (init.method ?? "GET").toUpperCase();
   const body = parseBody(init);
 
+  if (requestPath === "/documents:scan") {
+    const maximum = Math.min(Math.max(Number(body.maximum) || 50_000, 1), 100_000);
+    const rows = await databasePool().query<DocumentRow>("SELECT path, data FROM filosage_documents ORDER BY path ASC LIMIT $1", [maximum + 1]);
+    return { documents: rows.rows.slice(0, maximum).map(toDocument), complete: rows.rows.length <= maximum } as T;
+  }
   if (requestPath === "/documents:runQuery") {
     return await runStructuredQuery(body.structuredQuery as StructuredQuery) as T;
   }

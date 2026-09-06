@@ -1,3 +1,4 @@
+import { withAccountRequest } from "@/lib/auth-server";
 import { authorizationResponse, requireAcceptedAccount, requirePlanCapability } from "@/lib/auth-server";
 import { assertTrustedMutation } from "@/lib/api-security";
 import { publishedReleaseUnavailableResponse } from "@/lib/course-pipeline/artifact-access";
@@ -13,7 +14,7 @@ function validCourseId(courseId: string) {
   return Boolean(courseId) && courseId.length <= 200;
 }
 
-export async function GET(request: Request, { params }: RouteParams) {
+async function handleGET(request: Request, { params }: RouteParams) {
   const { courseId } = await params;
   try {
     const account = await requireAcceptedAccount(request);
@@ -26,7 +27,7 @@ export async function GET(request: Request, { params }: RouteParams) {
   }
 }
 
-export async function POST(request: Request, { params }: RouteParams) {
+async function handlePOST(request: Request, { params }: RouteParams) {
   const { courseId } = await params;
   try {
     assertTrustedMutation(request);
@@ -51,7 +52,7 @@ export async function POST(request: Request, { params }: RouteParams) {
   }
 }
 
-export async function DELETE(request: Request, { params }: RouteParams) {
+async function handleDELETE(request: Request, { params }: RouteParams) {
   const { courseId } = await params;
   try {
     assertTrustedMutation(request);
@@ -73,3 +74,7 @@ export async function DELETE(request: Request, { params }: RouteParams) {
     return Response.json({ error: "The evidence-share link could not be revoked." }, { status: 500 });
   }
 }
+
+export const GET = withAccountRequest(handleGET);
+export const POST = withAccountRequest(handlePOST);
+export const DELETE = withAccountRequest(handleDELETE);

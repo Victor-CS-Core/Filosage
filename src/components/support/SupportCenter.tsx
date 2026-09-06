@@ -36,6 +36,8 @@ import AppDrawer, { useAppDrawer } from "@/components/AppDrawer";
 import { useAuth } from "@/components/AuthProvider";
 import { openAccountEntry } from "@/components/AccountEntryButton";
 import { SUPPORT_CONTACT } from "@/lib/legal";
+import { learnerRequest, learnerSessionSnapshot, isCurrentLearnerSession } from "@/lib/learner-storage";
+import { useSupportCapabilities } from "./useSupportCapabilities";
 import { matchesSearchQuery } from "@/lib/search";
 import type {
   LearnerSupportCategory,
@@ -120,7 +122,10 @@ function fieldErrorsFromResponse(value: unknown): TicketErrors {
 
 export default function SupportCenter({ onRequestSignIn, onBeforeOpen }: SupportCenterProps) {
   const pathname = usePathname();
+  const { status: supportStatus, refresh: refreshSupportCapabilities } = useSupportCapabilities();
+  const submissionAvailable = supportStatus === "available";
   const { user, loading: authLoading } = useAuth();
+  const accountIdentity = user ? `${user.uid}:${user.accountGeneration ?? "legacy"}` : null;
   const drawer = useAppDrawer("global-support-center");
   const triggerRef = useRef<HTMLButtonElement>(null);
   const openerRef = useRef<HTMLElement | null>(null);
@@ -159,12 +164,7 @@ export default function SupportCenter({ onRequestSignIn, onBeforeOpen }: Support
 
   const authenticatedFetch = useCallback(async (url: string, init?: RequestInit) => {
     if (!user) throw new Error("Sign in to continue.");
-    const token = await user.getIdToken();
-    return fetch(url, {
-      ...init,
-      headers: { Authorization: `Bearer ${token}`, ...(init?.headers ?? {}) },
-      cache: "no-store",
-    });
+    return learnerRequest(user, url, { ...init, cache: "no-store" });
   }, [user]);
 
   const loadArticles = useCallback(async () => {
@@ -185,6 +185,8 @@ export default function SupportCenter({ onRequestSignIn, onBeforeOpen }: Support
   }, [articles.length, articlesLoading]);
 
   const loadTickets = useCallback(async () => {
+    const session = learnerSessionSnapshot();
+    const current = () => isCurrentLearnerSession(session);
     if (!user) {
       setTickets([]);
       return;
@@ -195,15 +197,18 @@ export default function SupportCenter({ onRequestSignIn, onBeforeOpen }: Support
       const response = await authenticatedFetch("/api/support/tickets");
       const body = await response.json().catch(() => ({})) as { tickets?: LearnerSupportTicketSummary[]; error?: string };
       if (!response.ok) throw new Error(response.status === 401 ? "Your session expired. Sign in again to view requests." : body.error ?? "Your requests could not be loaded.");
+      if (!current()) return;
       setTickets(Array.isArray(body.tickets) ? body.tickets : []);
     } catch (error) {
+      if (!current()) return;
       setTicketsError(error instanceof Error ? error.message : "Your requests could not be loaded.");
     } finally {
-      setTicketsLoading(false);
+      if (current()) setTicketsLoading(false);
     }
   }, [authenticatedFetch, user]);
 
   const loadTicketDetail = useCallback(async (ticketId: string) => {
+    const session = learnerSessionSnapshot();
     const requestId = ++detailRequestRef.current;
     setSelectedTicketId(ticketId);
     setSelectedTicket(null);
@@ -213,14 +218,14 @@ export default function SupportCenter({ onRequestSignIn, onBeforeOpen }: Support
       const response = await authenticatedFetch(`/api/support/tickets/${encodeURIComponent(ticketId)}`);
       const body = await response.json().catch(() => ({})) as { ticket?: LearnerSupportTicketDetail; error?: string };
       if (!response.ok || !body.ticket) throw new Error(response.status === 404 ? "That support request could not be found." : body.error ?? "The request could not be loaded.");
-      if (detailRequestRef.current !== requestId) return;
+      if (detailRequestRef.current !== requestId || !isCurrentLearnerSession(session)) return;
       setSelectedTicket(body.ticket);
       window.requestAnimationFrame(() => document.getElementById("support-ticket-detail-title")?.focus());
     } catch (error) {
-      if (detailRequestRef.current !== requestId) return;
+      if (detailRequestRef.current !== requestId || !isCurrentLearnerSession(session)) return;
       setDetailError(error instanceof Error ? error.message : "The request could not be loaded.");
     } finally {
-      if (detailRequestRef.current === requestId) setDetailLoading(false);
+      if (detailRequestRef.current === requestId && isCurrentLearnerSession(session)) setDetailLoading(false);
     }
   }, [authenticatedFetch]);
 
@@ -263,9 +268,10 @@ export default function SupportCenter({ onRequestSignIn, onBeforeOpen }: Support
     detailRequestRef.current += 1;
     setDetailError(null);
     drawer.openDrawer();
+    void refreshSupportCapabilities();
     void loadArticles();
     if (nextView === "requests" && user) void loadTickets();
-  }, [drawer, loadArticles, loadTickets, onBeforeOpen, user]);
+  }, [drawer, loadArticles, loadTickets, onBeforeOpen, user, refreshSupportCapabilities]);
 
   const closeSupport = useCallback(() => {
     detailRequestRef.current += 1;
@@ -284,11 +290,14 @@ export default function SupportCenter({ onRequestSignIn, onBeforeOpen }: Support
   }, [openSupport]);
 
   useEffect(() => {
-    const uid = user?.uid ?? null;
+    const uid = accountIdentity;
     if (previousUidRef.current === uid) return;
     previousUidRef.current = uid;
     detailRequestRef.current += 1;
     setTickets([]);
+    setTicketsLoading(false);
+    setDetailLoading(false);
+    submittingRef.current = false;
     setSelectedTicket(null);
     setSelectedTicketId(null);
     setTicketsError(null);
@@ -298,7 +307,7 @@ export default function SupportCenter({ onRequestSignIn, onBeforeOpen }: Support
     setFieldErrors({});
     idempotencyKeyRef.current = null;
     formRef.current?.reset();
-  }, [user?.uid]);
+  }, [accountIdentity]);
 
   const visibleArticles = useMemo(() => {
     if (!deferredQuery.trim()) return articles.filter((article) => article.featured).slice(0, 5);
@@ -321,7 +330,9 @@ export default function SupportCenter({ onRequestSignIn, onBeforeOpen }: Support
 
   const submitTicket = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (!user || submittingRef.current) return;
+    if (!user || submittingRef.current || !submissionAvailable) return;
+    const session = learnerSessionSnapshot();
+    const current = () => isCurrentLearnerSession(session);
     const formElement = event.currentTarget;
     const capturedDraft = {
       category: draft.category,
@@ -367,7 +378,9 @@ export default function SupportCenter({ onRequestSignIn, onBeforeOpen }: Support
         ticketNumber?: string;
         ticketId?: string;
       };
+      if (!current()) return;
       if (!response.ok || !body.ticketNumber || !body.ticketId) {
+        if (response.status === 503) void refreshSupportCapabilities();
         const serverFieldErrors = fieldErrorsFromResponse(body);
         if (Object.keys(serverFieldErrors).length) setFieldErrors(serverFieldErrors);
         if (response.status === 401) throw new Error("Your session expired. Sign in again, then retry—your message is still here.");
@@ -381,12 +394,13 @@ export default function SupportCenter({ onRequestSignIn, onBeforeOpen }: Support
       idempotencyKeyRef.current = null;
       await loadTickets();
     } catch (error) {
+      if (!current()) return;
       setSubmissionState({
         status: "error",
         message: error instanceof Error ? error.message : "We couldn’t send your request. Your message is still here—try again or email support.",
       });
     } finally {
-      submittingRef.current = false;
+      if (current()) submittingRef.current = false;
     }
   };
 
@@ -440,7 +454,7 @@ export default function SupportCenter({ onRequestSignIn, onBeforeOpen }: Support
           <div className={styles.tabs} role="tablist" aria-label="Support Center views">
             {([
               ["help", "Help", BookOpenCheck],
-              ["new", "New request", Send],
+              ["new", submissionAvailable ? "New request" : "Contact support", Send],
               ["requests", "My requests", Inbox],
             ] as const).map(([id, label, Icon]) => (
               <button
@@ -461,7 +475,7 @@ export default function SupportCenter({ onRequestSignIn, onBeforeOpen }: Support
           <div className={styles.body}>
             {view === "help" && (
               <section id="support-panel-help" role="tabpanel" aria-labelledby="support-tab-help" className={styles.view}>
-                <div className={styles.viewIntro}><h3>How can we help?</h3><p>Search current Filosage guidance before opening a request.</p></div>
+                <div className={styles.viewIntro}><h3>How can we help?</h3><p>Search current Filosage guidance or choose the available contact channel.</p></div>
                 <label className={styles.searchField} htmlFor="support-center-search">
                   <Search size={18} aria-hidden="true" />
                   <span className="sr-only">Search help guides</span>
@@ -476,16 +490,26 @@ export default function SupportCenter({ onRequestSignIn, onBeforeOpen }: Support
                     <div className={styles.sectionHeading}><h4 id="support-guide-results-title">{deferredQuery.trim() ? "Search results" : "Common guides"}</h4><span role="status">{visibleArticles.length} {visibleArticles.length === 1 ? "guide" : "guides"}</span></div>
                     {visibleArticles.length ? <ul className={styles.articleList}>{visibleArticles.map((article) => (
                       <li key={article.slug}><Link href={`/support/articles/${article.slug}`} onClick={closeSupport}><span><small>{article.category}</small><strong>{article.title}</strong><p>{article.summary}</p></span><ChevronRight size={18} aria-hidden="true" /></Link></li>
-                    ))}</ul> : <div className={styles.emptyState}><Search size={20} aria-hidden="true" /><strong>No matching guide</strong><p>Try a shorter phrase, open the full help library, or send a request.</p><button className="button button-secondary button-small" type="button" onClick={() => setQuery("")}>Clear search</button></div>}
+                    ))}</ul> : <div className={styles.emptyState}><Search size={20} aria-hidden="true" /><strong>No matching guide</strong><p>Try a shorter phrase, open the full help library, or contact support.</p><button className="button button-secondary button-small" type="button" onClick={() => setQuery("")}>Clear search</button></div>}
                   </section>
                 )}
-                <footer className={styles.viewFooter}><Link href="/support" onClick={closeSupport}>Browse all help guides <ExternalLink size={15} aria-hidden="true" /></Link><button type="button" onClick={() => activateView("new", true)}>Still need help? Send a request <ArrowRight size={15} aria-hidden="true" /></button></footer>
+                <footer className={styles.viewFooter}><Link href="/support" onClick={closeSupport}>Browse all help guides <ExternalLink size={15} aria-hidden="true" /></Link>{!submissionAvailable && <a href={`mailto:${SUPPORT_CONTACT}?subject=Filosage%20support%20request`}>Email {SUPPORT_CONTACT}</a>}<button type="button" onClick={() => activateView("new", true)}>{submissionAvailable ? "Still need help? Send a request" : "Contact support"} <ArrowRight size={15} aria-hidden="true" /></button></footer>
               </section>
             )}
 
             {view === "new" && (
               <section id="support-panel-new" role="tabpanel" aria-labelledby="support-tab-new" className={styles.view}>
-                {!user ? (
+                {!submissionAvailable ? (
+                  <div className={styles.guestState}>
+                    <span><Mail size={22} aria-hidden="true" /></span>
+                    <h3>{supportStatus === "loading" ? "Checking support availability" : "Contact support by email"}</h3>
+                    <p>{supportStatus === "unknown" ? "In-app submission could not be confirmed. Use email or the help guides while it is unavailable." : "In-app submission is currently unavailable. Use email or the help guides; My requests still shows your existing tickets."}</p>
+                    <a className="button button-primary" href={`mailto:${SUPPORT_CONTACT}?subject=Filosage%20support%20request`}>Email {SUPPORT_CONTACT}</a>
+                    <Link className="button button-secondary" href="/support" onClick={closeSupport}>Browse help guides</Link>
+                    {supportStatus !== "loading" && <button className="button button-quiet" type="button" onClick={() => void refreshSupportCapabilities()}>Check availability again</button>}
+                    {draft.message && <label>Unsent message<textarea readOnly value={`${draft.subject}\n\n${draft.message}`} rows={6} /><small>Copy your text before leaving this tab.</small></label>}
+                  </div>
+                ) : !user ? (
                   <GuestRequestState loading={authLoading} onSignIn={requestSignIn} />
                 ) : (
                   <>
@@ -516,7 +540,7 @@ export default function SupportCenter({ onRequestSignIn, onBeforeOpen }: Support
                     <div className={styles.viewIntroRow}><div className={styles.viewIntro}><h3>My requests</h3><p>Track requests submitted from this account.</p></div><button className={styles.iconButton} type="button" onClick={() => void loadTickets()} aria-label="Refresh my requests" disabled={ticketsLoading}><RefreshCw className={ticketsLoading ? "spin" : undefined} size={18} aria-hidden="true" /></button></div>
                     {ticketsLoading && <SupportSkeleton label="Loading your requests" rows={3} />}
                     {ticketsError && <div className={styles.errorState} role="alert"><CircleAlert size={18} aria-hidden="true" /><div><strong>Requests unavailable</strong><p>{ticketsError}</p><button type="button" className="button button-secondary button-small" onClick={() => void loadTickets()}><RefreshCw size={15} aria-hidden="true" />Try again</button></div></div>}
-                    {!ticketsLoading && !ticketsError && tickets.length === 0 && <div className={styles.emptyState}><Inbox size={22} aria-hidden="true" /><strong>No support requests yet</strong><p>When you send a request, its reference and progress will appear here.</p><button className="button button-primary button-small" type="button" onClick={() => activateView("new", true)}>Send a request</button></div>}
+                    {!ticketsLoading && !ticketsError && tickets.length === 0 && <div className={styles.emptyState}><Inbox size={22} aria-hidden="true" /><strong>No support requests yet</strong><p>Previously submitted requests and their published responses appear here.</p><button className="button button-primary button-small" type="button" onClick={() => activateView("new", true)}>{submissionAvailable ? "Send a request" : "Contact support"}</button></div>}
                     {!ticketsLoading && !ticketsError && tickets.length > 0 && <ul className={styles.ticketList}>{tickets.map((ticket) => <li key={ticket.id}><button type="button" onClick={() => void loadTicketDetail(ticket.id)}><span className={styles.ticketMain}><small>{ticket.ticketNumber} · {categoryLabels[ticket.category]}</small><strong>{ticket.subject}</strong><span><Clock3 size={14} aria-hidden="true" />Updated {formatDate(ticket.updatedAt)}</span></span><span className={`${styles.status} ${styles[`status_${ticket.status}`]}`}>{statusLabels[ticket.status]}</span><ChevronRight size={18} aria-hidden="true" /></button></li>)}</ul>}
                   </>
                 )}

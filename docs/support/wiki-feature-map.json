@@ -106,7 +106,7 @@
     },
     {
       "feature": "Support contact channel",
-      "sources": ["src/app/support/page.tsx", "src/components/support/SupportCenter.tsx", "src/components/support/SupportSearch.tsx", "src/components/support/SupportTicketPanel.tsx", "src/app/api/support/tickets/", "src/lib/command-center-server.ts", "src/lib/search.ts", "src/lib/legal.ts"],
+      "sources": ["src/app/support/page.tsx", "src/components/support/SupportCenter.tsx", "src/components/support/SupportSearch.tsx", "src/components/support/SupportTicketPanel.tsx", "src/app/api/support/tickets/", "src/app/api/support/capabilities/route.ts", "src/lib/support-capabilities.ts", "src/lib/support-availability.ts", "src/components/support/useSupportCapabilities.ts", "src/lib/command-center-server.ts", "src/lib/search.ts", "src/lib/legal.ts"],
       "articles": ["contact-support"]
     },
     {

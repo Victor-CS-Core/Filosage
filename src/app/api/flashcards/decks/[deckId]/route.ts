@@ -1,3 +1,4 @@
+import { withAccountRequest } from "@/lib/auth-server";
 import { authorizationResponse, requireAcceptedAccount } from "@/lib/auth-server";
 import { apiRequestErrorResponse, readJsonBody } from "@/lib/api-security";
 import {
@@ -11,7 +12,7 @@ interface RouteParams {
   params: Promise<{ deckId: string }>;
 }
 
-export async function GET(request: Request, { params }: RouteParams) {
+async function handleGET(request: Request, { params }: RouteParams) {
   try {
     const account = await requireAcceptedAccount(request);
     const { deckId } = await params;
@@ -24,7 +25,7 @@ export async function GET(request: Request, { params }: RouteParams) {
   }
 }
 
-export async function PATCH(request: Request, { params }: RouteParams) {
+async function handlePATCH(request: Request, { params }: RouteParams) {
   try {
     const account = await requireAcceptedAccount(request);
     const { deckId } = await params;
@@ -39,7 +40,7 @@ export async function PATCH(request: Request, { params }: RouteParams) {
   }
 }
 
-export async function DELETE(request: Request, { params }: RouteParams) {
+async function handleDELETE(request: Request, { params }: RouteParams) {
   try {
     const account = await requireAcceptedAccount(request);
     const { deckId } = await params;
@@ -51,3 +52,7 @@ export async function DELETE(request: Request, { params }: RouteParams) {
       ?? Response.json({ error: "The flashcard deck could not be removed." }, { status: 500 });
   }
 }
+
+export const GET = withAccountRequest(handleGET);
+export const PATCH = withAccountRequest(handlePATCH);
+export const DELETE = withAccountRequest(handleDELETE);

@@ -1,3 +1,4 @@
+import { withAccountRequest } from "@/lib/auth-server";
 import { z } from "zod";
 import { apiRequestErrorResponse, readJsonBody } from "@/lib/api-security";
 import {
@@ -19,7 +20,7 @@ import { enforceDurableRateLimit } from "@/lib/request-rate-limit";
 const displayNameSchema = z.object({ displayName: z.string() }).strict();
 const privateNoStoreHeaders = { "Cache-Control": "private, no-store" };
 
-export async function GET(request: Request) {
+async function handleGET(request: Request) {
   try {
     const user = await requireUser(request);
     const onboardingState = await identityOnboardingState(user);
@@ -117,7 +118,7 @@ export async function GET(request: Request) {
   }
 }
 
-export async function PATCH(request: Request) {
+async function handlePATCH(request: Request) {
   try {
     const account = await requireAcceptedAccount(request);
     const parsed = displayNameSchema.safeParse(await readJsonBody(request, 1_024));
@@ -160,3 +161,6 @@ export async function PATCH(request: Request) {
     );
   }
 }
+
+export const GET = withAccountRequest(handleGET);
+export const PATCH = withAccountRequest(handlePATCH);

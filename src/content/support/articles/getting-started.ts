@@ -6,8 +6,8 @@ export default defineSupportArticle({
   summary: "Browse published courses, inspect a course outline, and sign in when you are ready to open a lesson.",
   category: "start",
   keywords: ["start", "account", "library", "course", "guest", "sign in"],
-  reviewedOn: "2026-08-21",
-  sources: [
+  reviewedOn: "2026-09-06",
+  sources: ["src/lib/account-server.ts", "src/lib/learner-storage.ts",
     "src/app/library/page.tsx",
     "src/components/CourseLibrary.tsx",
     "src/components/AppShell.tsx",
@@ -40,6 +40,9 @@ A signed-in learner can read lessons, complete practice, and keep account-backed
 The **Today** page shows the active course deck you can continue plus three fixed signals: **Weekly progress**, **Review queue**, and **Learning streak**. If no course is active, use Explore to choose one.
 
 On desktop, use **Search or jump anywhere** in the Learning Header to open the Command Center. It includes **Today**, **Explore**, **Review**, **Progress**, courses, lessons, and account actions. On a phone, the main destinations remain in the bottom navigation and the account control in the top bar opens the same Command Center.
+## Use an individual learning account
+
+Filosage is for independent learners aged 13 or older. Lesson access and saved work require a verified account and current legal acceptance. Signing in does not by itself complete account setup. On a shared device, sign out when finished: another learner or a guest cannot inherit your private notes, progress or drafts.
 `,
   related: ["find-a-course", "complete-a-lesson", "sign-in-help"],
   featured: true,

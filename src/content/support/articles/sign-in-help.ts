@@ -6,8 +6,8 @@ export default defineSupportArticle({
   summary: "Use the secure sign-in methods currently available and troubleshoot Google or email-code sign-in when those methods are enabled.",
   category: "account",
   keywords: ["sign in", "Google", "email code", "Microsoft", "network", "account", "identity recovery"],
-  reviewedOn: "2026-08-21",
-  sources: [
+  reviewedOn: "2026-09-06",
+  sources: ["src/lib/account-session.ts", "src/lib/account-deletion.ts",
     "src/components/AuthProvider.tsx",
     "src/components/AuthModal.tsx",
     "src/components/LegalConsentModal.tsx",
@@ -35,6 +35,9 @@ During a staged rollout, existing-account email recovery may be available before
 Check your connection and retry once. If Filosage reports that the session or account is taking longer than expected, refresh before starting another attempt.
 
 Contact [Filosage support](/support/articles/contact-support) with the page address and exact error message when the problem continues. Never send a password or one-time code.
+## Recover the intended learning session
+
+If Filosage says your learning session changed, sign in again with the account that owns the work. An older tab cannot submit its saved draft into another account. A pending or completed account-deletion request does not reopen when the same identity signs in again. Keep its reference and contact the privacy team through [Privacy choices](/privacy-center) if recovery or identity review is still needed.
 `,
   related: ["getting-started", "contact-support", "privacy-controls"],
   featured: true,

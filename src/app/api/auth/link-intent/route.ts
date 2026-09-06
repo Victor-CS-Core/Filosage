@@ -1,3 +1,4 @@
+import { withAccountRequest } from "@/lib/auth-server";
 import { NextResponse } from "next/server";
 import { getExistingAccount } from "@/lib/account-server";
 import { apiRequestErrorResponse, assertTrustedMutation } from "@/lib/api-security";
@@ -55,7 +56,7 @@ function terminalLinkResponse(error: LinkIntentError) {
   ));
 }
 
-export async function POST(request: Request) {
+async function handlePOST(request: Request) {
   try {
     assertTrustedMutation(request);
     const user = await requireRecentlyAuthenticatedUser(
@@ -105,3 +106,5 @@ export async function POST(request: Request) {
     return unexpectedIdentityLinkResponse("The secure connection could not be started.");
   }
 }
+
+export const POST = withAccountRequest(handlePOST);

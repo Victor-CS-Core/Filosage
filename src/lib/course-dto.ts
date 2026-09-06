@@ -5,7 +5,7 @@ import { curateLessonVisuals } from "@/lib/lesson-visuals";
 import { curateLessonInteractions } from "@/lib/lesson-interactions";
 import { lessonVisualsEnabled } from "@/lib/feature-flags";
 import { normalizeStructuredMarkdown } from "@/lib/markdown";
-import { inspectGeneratedContent, sanitizeGeneratedValue } from "@/lib/content-language";
+import { sanitizeGeneratedValue } from "@/lib/content-language";
 import { isSafePublicSourceUrl, sourceReviewForCourse } from "@/lib/source-safety";
 import { effectiveCourseReviewPolicy } from "@/lib/course-pipeline/review-policy";
 import { visualPlanSchema } from "@/lib/course-pipeline/schemas";
@@ -72,8 +72,9 @@ export function toCourseDto(value: Record<string, unknown> | Course, canManage =
   const raw = value as Record<string, unknown>;
   const topic = String(raw.topic ?? "");
   const language = typeof raw.language === "string" ? raw.language : "English";
-  const repairedForDisplay = inspectGeneratedContent(raw, topic, language).length > 0;
   const safe = sanitizeGeneratedValue(raw, topic, language) as Record<string, unknown>;
+  // Language mismatch is a generation/review finding, not a display repair.
+  const repairedForDisplay = JSON.stringify(safe) !== JSON.stringify(raw);
   const effectiveManualReviewPolicy = effectiveCourseReviewPolicy(raw as unknown as Parameters<typeof effectiveCourseReviewPolicy>[0]);
   const safeCapstone = safe.capstone && typeof safe.capstone === "object"
     ? safe.capstone as Course["capstone"]
@@ -151,6 +152,9 @@ export function toCourseDto(value: Record<string, unknown> | Course, canManage =
       && typeof (raw.manualReviewResolution as Record<string, unknown>).reviewId === "string"
       ? {
           status: (raw.manualReviewResolution as Record<string, unknown>).status as "approved" | "rejected",
+          proofToken: typeof (raw.manualReviewResolution as Record<string, unknown>).proofToken === "string"
+            && /^[a-f0-9]{64}$/.test(String((raw.manualReviewResolution as Record<string, unknown>).proofToken))
+            ? String((raw.manualReviewResolution as Record<string, unknown>).proofToken) : undefined,
           snapshotHash: String((raw.manualReviewResolution as Record<string, unknown>).snapshotHash),
           contractVersion: String((raw.manualReviewResolution as Record<string, unknown>).contractVersion),
           reason: String((raw.manualReviewResolution as Record<string, unknown>).reason),

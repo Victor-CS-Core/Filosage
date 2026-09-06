@@ -1,3 +1,4 @@
+import { withAccountRequest } from "@/lib/auth-server";
 import { z } from "zod";
 import { apiRequestErrorResponse, readJsonBody } from "@/lib/api-security";
 import { authorizationResponse } from "@/lib/auth-server";
@@ -21,7 +22,7 @@ const ticketSchema = z.object({
   tags: z.array(z.string().trim().regex(/^[a-z0-9-]{1,32}$/)).max(10).default([]),
 }).strict();
 
-export async function POST(request: Request) {
+async function handlePOST(request: Request) {
   try {
     const owner = await requireCommandCenterPermission(request, "triage");
     const idempotencyKey = request.headers.get("idempotency-key");
@@ -48,3 +49,5 @@ export async function POST(request: Request) {
       ?? Response.json({ error: "The ticket could not be created." }, { status: 500 });
   }
 }
+
+export const POST = withAccountRequest(handlePOST);

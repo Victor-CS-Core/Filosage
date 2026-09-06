@@ -1,30 +1,26 @@
+import { withAccountRequest } from "@/lib/auth-server";
 import {
   authorizationResponse,
   requireAccount,
-  requireRecentlyAuthenticatedAccount,
+  requireRecentlyAuthenticatedUser,
 } from "@/lib/auth-server";
 import { apiRequestErrorResponse, readJsonBody } from "@/lib/api-security";
 import {
-  accountDeletionDocumentPaths,
   AUTOMATED_ACCOUNT_DELETION_RETENTION,
+  ACCOUNT_DELETION_POLICY_REVIEW,
 } from "@/lib/account-data-policy";
-import { billingConfiguration } from "@/lib/runtime-config";
-import {
-  accountDeletionRequiresStripeReconciliation,
-  checkoutClaimRequiresDeletionRetry,
-} from "@/lib/billing-lock";
-import { cancelStripeBillingForAccountDeletion } from "@/lib/stripe-server";
+import { beginAccountDeletion, resumeAccountDeletion } from "@/lib/account-deletion";
+import { runWithAccountDeletion } from "@/lib/account-lifecycle";
+import { isOwnerUser } from "@/lib/account-server";
 import { learnerSupportTicketDetail } from "@/lib/command-center-server";
 import type { CommandCenterTicket } from "@/lib/command-center-types";
 import {
   countCollectionDocuments,
-  deleteCourse,
-  deleteStoredDocuments,
   getStoredDocument,
   listAllStoredDocuments,
+  scanStoredDocuments,
   listOwnerCourses,
   listStoredDocumentsByField,
-  runStoredDocumentTransaction,
 } from "@/lib/document-store";
 import { courseAuthorIdsForAccount } from "@/lib/course-owner-identity";
 import { enforceDurableRateLimit } from "@/lib/request-rate-limit";
@@ -131,6 +127,17 @@ async function collectAccountData(uid: string, isOwner = false) {
     listCompleteAccountRecordsByField("adminEvents", "targetUid", uid),
     listCompleteAccountRecordsByField("commandCenterTickets", "relatedUserId", uid),
   ]);
+  const completeInventory = await scanStoredDocuments();
+  if (!completeInventory.complete) throw new Error("This account export requires a manual inventory review. Contact legal@filosage.com.");
+  const identityRecoveryMappings = completeInventory.documents
+    .filter(({ data, path }) => path.startsWith("identity") && data.canonicalUid === uid)
+    .map(({ data, path }) => ({ recordClass: path.split("/")[0], canonicalUid: uid, provider: data.provider, createdAt: data.createdAt, updatedAt: data.updatedAt }));
+  const generationRecords = completeInventory.documents.filter(({ data, path }) => (path.startsWith("generationOperations/") || path.startsWith("generationStages/")) && (data.uid === uid || data.ownerUid === uid));
+  const lifecycle = await getStoredDocument(`accountLifecycles/${uid}`);
+  const deletionJob = typeof lifecycle?.jobId === "string" ? await getStoredDocument(`accountDeletionJobs/${lifecycle.jobId}`) : null;
+  const authorIds = new Set(courseAuthorIdsForAccount({ uid, isOwner }));
+  const scannedCourses = completeInventory.documents.filter(({ path, data }) => /^courses\/[^/]+$/.test(path) && typeof data.authorId === "string" && authorIds.has(data.authorId));
+  if (scannedCourses.length !== courses.length) throw new Error("The authored-course export requires a manual inventory review. Contact legal@filosage.com.");
   const learnerSupportTickets = commandCenterTickets
     .filter((ticket) => ticket.source === "user_support")
     .map((ticket) => learnerSupportTicketDetail(ticket as unknown as CommandCenterTicket));
@@ -140,11 +147,20 @@ async function collectAccountData(uid: string, isOwner = false) {
       ? await listCompleteAccountSubcollection(`courses/${String(course.id)}/lessons`)
       : [],
   })));
+  for (const authored of authoredCourses) {
+    const prefix = `courses/${authored.course.id}/lessons/`;
+    const count = completeInventory.documents.filter(({ path }) => path.startsWith(prefix)).length;
+    if (count !== authored.lessons.length) throw new Error("The lesson export requires a manual inventory review. Contact legal@filosage.com.");
+  }
   const launchWaitlistRecord = typeof account?.email === "string"
     ? await getStoredDocument(`waitlist/${await emailFingerprint(account.email)}`)
     : null;
   return {
     account,
+    identityRecoveryMappings,
+    generationRecords,
+    billingRecoveryRecords: completeInventory.documents.filter(({ path, data }) => (path.startsWith(`users/${uid}/billingReconciliation/`) || path.startsWith(`users/${uid}/billingTransitions/`) || (path.startsWith("billingTransitions/") && data.uid === uid))),
+    accountDeletionControl: { lifecycle, deletionJob },
     learningPreferences: preferences,
     lessonNotes,
     lessonActivityRecords,
@@ -187,7 +203,7 @@ async function collectAccountData(uid: string, isOwner = false) {
   };
 }
 
-export async function GET(request: Request) {
+async function handleGET(request: Request) {
   try {
     const account = await requireAccount(request);
     const limited = await enforceDurableRateLimit(request, "account-export", 3, 3_600_000, account.uid);
@@ -197,6 +213,7 @@ export async function GET(request: Request) {
       exportFormat: "filosage-account-data-v2",
       exportedAt: new Date().toISOString(),
       automatedDeletionRetention: AUTOMATED_ACCOUNT_DELETION_RETENTION,
+      retentionReview: ACCOUNT_DELETION_POLICY_REVIEW,
       data,
     }, null, 2), {
       headers: {
@@ -211,131 +228,22 @@ export async function GET(request: Request) {
   }
 }
 
-export async function DELETE(request: Request) {
+async function handleDELETE(request: Request) {
   try {
-    const account = await requireRecentlyAuthenticatedAccount(request);
-    if (account.isOwner) {
-      return Response.json(
-        { error: "Owner account deletion requires a manual transfer or shutdown review. Contact legal@filosage.com." },
-        { status: 403 },
-      );
-    }
+    const user = await requireRecentlyAuthenticatedUser(request);
+    if (isOwnerUser(user)) return Response.json({ error: "Owner account deletion requires a manual transfer or shutdown review. Contact legal@filosage.com." }, { status: 403 });
     const body = await readJsonBody(request, 1_024) as { confirmation?: unknown };
-    if (body.confirmation !== "DELETE MY ACCOUNT") {
-      return Response.json({ error: "Type DELETE MY ACCOUNT to confirm permanent deletion." }, { status: 400 });
-    }
-    const limited = await enforceDurableRateLimit(request, "account-deletion", 10, 600_000, account.uid);
+    if (body.confirmation !== "DELETE MY ACCOUNT") return Response.json({ error: "Type DELETE MY ACCOUNT to confirm permanent deletion." }, { status: 400 });
+    const job = await beginAccountDeletion(user.uid);
+    const limited = await runWithAccountDeletion(job, () => enforceDurableRateLimit(request, "account-deletion", 10, 600_000, user.uid));
     if (limited) return limited;
-
-    const accountPath = `users/${account.uid}`;
-    const checkoutPath = `users/${account.uid}/billingCheckout/current`;
-    const deletionLock = await runStoredDocumentTransaction([accountPath, checkoutPath], (documents) => {
-      const storedAccount = documents[accountPath];
-      if (!storedAccount) throw new Error("The account no longer exists.");
-      const checkout = documents[checkoutPath];
-      const checkoutStatus = typeof checkout?.status === "string" ? checkout.status : "none";
-      return {
-        writes: [{
-          path: accountPath,
-          data: {
-            ...storedAccount,
-            accountDeletionInProgress: true,
-            accountDeletionStartedAt: storedAccount.accountDeletionStartedAt ?? new Date().toISOString(),
-            updatedAt: new Date().toISOString(),
-          },
-        }],
-        result: { checkoutStatus },
-      };
-    });
-    if (checkoutClaimRequiresDeletionRetry(deletionLock.checkoutStatus)) {
-      return Response.json(
-        {
-          error: "Checkout is still being contained. Retry account deletion in a moment.",
-          code: "ACCOUNT_DELETION_WAITING_FOR_CHECKOUT",
-        },
-        { status: 409, headers: { "Retry-After": "5" } },
-      );
-    }
-
-    const data = await collectAccountData(account.uid);
-
-    // Never orphan a paid subscription: cancel it at Stripe before removing
-    // the account, and refuse deletion if cancellation cannot be completed.
-    const subscriptionStatus = String(data.account?.subscriptionStatus ?? "none");
-    const billingRawStatus = typeof data.account?.billingRawStatus === "string"
-      ? data.account.billingRawStatus
-      : undefined;
-    const billingSubscriptionId = typeof data.account?.billingSubscriptionId === "string"
-      ? data.account.billingSubscriptionId
-      : undefined;
-    const billingCustomerId = typeof data.account?.billingCustomerId === "string"
-      ? data.account.billingCustomerId
-      : undefined;
-    const needsStripeReconciliation = accountDeletionRequiresStripeReconciliation({
-      billingCustomerId,
-      billingSubscriptionId,
-      subscriptionStatus,
-      billingRawStatus,
-    });
-    if (needsStripeReconciliation && (billingCustomerId?.startsWith("cus_") || billingSubscriptionId?.startsWith("sub_"))) {
-      if (!billingConfiguration().managementReady) {
-        return Response.json(
-          {
-            error: "Cancel your paid Filosage membership before deleting your account. Contact support@filosage.com if you need help.",
-            code: "SUBSCRIPTION_CANCELLATION_REQUIRED",
-            subscriptionState: billingRawStatus ?? subscriptionStatus,
-          },
-          { status: 409 },
-        );
-      }
-      try {
-        await cancelStripeBillingForAccountDeletion({
-          uid: account.uid,
-          customerId: billingCustomerId,
-          subscriptionId: billingSubscriptionId,
-        });
-      } catch (cancelError) {
-        console.error("Subscription cancellation before deletion failed:", cancelError);
-        return Response.json(
-          {
-            error: "Your subscription could not be canceled automatically. Cancel it from the billing portal, then delete your account.",
-            code: "SUBSCRIPTION_CANCELLATION_UNCONFIRMED",
-            subscriptionState: billingRawStatus ?? subscriptionStatus,
-          },
-          { status: 409 },
-        );
-      }
-    } else if (needsStripeReconciliation) {
-      return Response.json(
-        {
-          error: "Cancel your paid Filosage membership before deleting your account. Contact support@filosage.com if you need help.",
-          code: "SUBSCRIPTION_CANCELLATION_REQUIRED",
-          subscriptionState: billingRawStatus ?? subscriptionStatus,
-        },
-        { status: 409 },
-      );
-    }
-
-    const courses = data.authoredCourses.map(({ course }) => course);
-    for (const course of courses) {
-      if (course.id) await deleteCourse(String(course.id));
-    }
-
-    const waitlistPath = account.email
-      ? `waitlist/${await emailFingerprint(account.email)}`
-      : undefined;
-    await deleteStoredDocuments(accountDeletionDocumentPaths(account.uid, data, waitlistPath));
-
-    return Response.json(
-      {
-        deleted: true,
-        automatedDeletionRetention: AUTOMATED_ACCOUNT_DELETION_RETENTION,
-      },
-      { headers: { "Cache-Control": "private, no-store" } },
-    );
+    const result = await resumeAccountDeletion(job);
+    return Response.json(result.body, { status: result.status, headers: { "Cache-Control": "private, no-store", ...(result.status === 409 ? { "Retry-After": "5" } : {}) } });
   } catch (error) {
-    return apiRequestErrorResponse(error)
-      ?? authorizationResponse(error)
-      ?? Response.json({ error: "Your account data could not be deleted." }, { status: 500 });
+    return apiRequestErrorResponse(error) ?? authorizationResponse(error)
+      ?? Response.json({ error: "Your deletion request is saved if it was started. Retry to resume it.", code: "ACCOUNT_DELETION_INTERRUPTED" }, { status: 500 });
   }
 }
+
+export const GET = withAccountRequest(handleGET);
+export const DELETE = withAccountRequest(handleDELETE);

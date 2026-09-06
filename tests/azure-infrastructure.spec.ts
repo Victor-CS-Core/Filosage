@@ -1,10 +1,9 @@
 import { expect, test } from "@playwright/test";
 import { spawnSync } from "node:child_process";
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { courseAuthorIdsForAccount } from "../src/lib/course-owner-identity";
-import { releaseEnvironment } from "../src/lib/release-capabilities";
 import { RETIRED_SYSTEM_NAMES } from "./fixtures/retired-system-names";
 
 type ArmTemplate = {
@@ -90,9 +89,7 @@ function compiledContainerProbes(template: ArmTemplate): unknown {
 }
 
 const compiledProductionTemplate = compileBicep("infra/azure/main.bicep");
-const compiledQaTemplate = compileBicep("infra/azure/qa.bicep");
 const compiledProductionJson = JSON.stringify(compiledProductionTemplate);
-const compiledQaJson = JSON.stringify(compiledQaTemplate);
 
 const infrastructureSource = readFileSync("src/lib/azure-infrastructure.ts", "utf8");
 const releaseSource = readFileSync("scripts/check-release-env.mjs", "utf8");
@@ -102,10 +99,8 @@ const accountServerSource = readFileSync("src/lib/account-server.ts", "utf8");
 const packageSource = readFileSync("package.json", "utf8");
 const runtimeConfigSource = readFileSync("src/lib/runtime-config.ts", "utf8");
 const stagingWorkflowSource = readFileSync(".github/workflows/azure-staging.yml", "utf8");
-const qaWorkflowSource = readFileSync(".github/workflows/azure-qa.yml", "utf8");
 const promotionWorkflowSource = readFileSync(".github/workflows/azure-promote-staging.yml", "utf8");
 const azureBicepSource = readFileSync("infra/azure/main.bicep", "utf8");
-const qaBicepSource = readFileSync("infra/azure/qa.bicep", "utf8");
 const robotsSource = readFileSync("src/app/robots.ts", "utf8");
 const sitemapSource = readFileSync("src/app/sitemap.ts", "utf8");
 const proxySourceWithQa = readFileSync("src/proxy.ts", "utf8");
@@ -395,7 +390,6 @@ test("container health probes separate process liveness from dependency readines
     },
   ];
   expect(compiledContainerProbes(compiledProductionTemplate)).toEqual(expectedProbes);
-  expect(compiledContainerProbes(compiledQaTemplate)).toEqual(expectedProbes);
 
   for (const [name, modulePath, expectedStatus] of [
     ["liveness", "live", 200],
@@ -465,13 +459,8 @@ test("compiled Azure templates provision direct Google and an inactive Filosage 
   expect(compiledProductionTemplate.parameters.directGoogleAuthEnabled.defaultValue).toBe(true);
   expect(compiledProductionTemplate.parameters.externalIdAuthEnabled.defaultValue).toBe(false);
   expect(compiledProductionTemplate.parameters.externalIdNewAccountsEnabled.defaultValue).toBe(false);
-  expect(compiledQaTemplate.parameters.directGoogleAuthEnabled.defaultValue).toBe(true);
-  expect(compiledQaTemplate.parameters.externalIdAuthEnabled.defaultValue).toBe(true);
-  expect(compiledQaTemplate.parameters.externalIdNewAccountsEnabled.defaultValue).toBe(true);
-  expect(compiledQaTemplate.parameters.ownerEmail.defaultValue).toBe("ktr0nn@icloud.com");
   for (const [template, compiled] of [
     [compiledProductionTemplate, compiledProductionJson],
-    [compiledQaTemplate, compiledQaJson],
   ] as const) {
     expect(compiled).toContain("customOpenIdConnectProviders");
     expect(compiled).toContain("filosage");
@@ -511,81 +500,24 @@ test("compiled Azure templates provision direct Google and an inactive Filosage 
 test("compiled identity secrets remain server-only and use Key Vault references", () => {
   expect(compiledProductionTemplate.parameters.externalIdClientSecret.type).toBe("securestring");
   expect(compiledProductionTemplate.parameters.identityLinkHmacSecret.type).toBe("securestring");
-  expect(compiledQaTemplate.parameters.externalIdClientSecretName.defaultValue).toBe("external-id-client-secret-qa");
-  expect(compiledQaTemplate.parameters.identityLinkHmacSecretName.defaultValue).toBe("identity-link-hmac-secret-qa");
-  expect(compiledQaJson).toContain("secrets/");
-  expect(compiledQaJson).toContain("externalIdClientSecretName");
-  expect(compiledQaJson).toContain("identityLinkHmacSecretName");
   expect(compiledProductionJson).not.toContain("NEXT_PUBLIC_EXTERNAL_ID");
-  expect(compiledQaJson).not.toContain("NEXT_PUBLIC_EXTERNAL_ID");
   expect(environmentExampleSource).not.toContain("EXTERNAL_ID_CLIENT_SECRET");
   expect(environmentExampleSource).not.toContain("NEXT_PUBLIC_EXTERNAL_ID");
   expect(releaseSource).not.toContain("EXTERNAL_ID_CLIENT_SECRET");
 });
 
-test("release workflows preserve an explicitly reviewed authentication mode", () => {
-  const boundedProviderStateQuery = "{google:identityProviders.google.enabled || `false`,filosage:identityProviders.customOpenIdConnectProviders.filosage.enabled || `false`}";
-  for (const workflowSource of [qaWorkflowSource, stagingWorkflowSource, promotionWorkflowSource]) {
-    expect(workflowSource).toContain(boundedProviderStateQuery);
-    expect(workflowSource).not.toContain("{google:identityProviders.google.enabled,filosage:identityProviders.customOpenIdConnectProviders.filosage.enabled}");
-    expect(workflowSource).not.toContain("properties.identityProviders");
+test("release workflows preserve shared authentication without provider mutation", () => {
+  const deployment = readFileSync("scripts/azure-blue-green.mjs", "utf8");
+  for (const workflow of [stagingWorkflowSource, promotionWorkflowSource]) {
+    expect(workflow).toContain("expected_auth_mode:");
+    expect(workflow).toContain("EXPECTED_AUTH_MODE: ${{ inputs.expected_auth_mode }}");
+    expect(workflow).not.toContain("external_id_new_accounts_enabled:");
+    expect(workflow).not.toContain("qa_run_id");
   }
-  expect(qaWorkflowSource).toContain("external_id_auth_enabled:");
-  expect(qaWorkflowSource).toContain("external_id_new_accounts_enabled:");
-  expect(qaWorkflowSource).toContain("inputs.external_id_auth_enabled");
-  expect(qaWorkflowSource).toContain("inputs.external_id_new_accounts_enabled");
-  expect(qaWorkflowSource).not.toContain("Enable the already-configured QA custom OIDC provider for acceptance");
-  expect(qaWorkflowSource).toContain("Open the application acceptance gate only after the filosage Easy Auth provider is separately approved, configured, and enabled");
-  expect(qaWorkflowSource).toContain("New External ID accounts require the QA External ID provider to be enabled.");
-  expect(qaWorkflowSource).toContain('"DIRECT_GOOGLE_AUTH_ENABLED=true"');
-  expect(qaWorkflowSource).toContain("customOpenIdConnectProviders.filosage.enabled");
-  expect(qaWorkflowSource).toContain("check-auth-provider-state.mjs");
-  expect(qaWorkflowSource).toContain("inputs.external_id_auth_enabled && 'migration-dual' || 'direct-google'");
-  expect(qaWorkflowSource).not.toContain("check-qa-auth-provider-state.mjs");
-  const qaPrecheck = qaWorkflowSource.indexOf("Verify separately configured QA authentication state before deployment");
-  const qaUpdate = qaWorkflowSource.indexOf("az containerapp update");
-  const qaPostcheck = qaWorkflowSource.indexOf("Verify separately configured QA authentication state after deployment");
-  expect(qaPrecheck).toBeGreaterThan(-1);
-  expect(qaUpdate).toBeGreaterThan(qaPrecheck);
-  expect(qaPostcheck).toBeGreaterThan(qaUpdate);
-  expect(qaWorkflowSource).toContain('"BILLING_ENABLED=false"');
-  expect(qaWorkflowSource).not.toMatch(/az containerapp auth (?:openid-connect )?(?:update|set|delete)/);
-  expect(stagingWorkflowSource).toContain("expected_auth_mode:");
-  expect(stagingWorkflowSource).toContain("external_id_new_accounts_enabled:");
-  expect(stagingWorkflowSource).toContain("default: migration-dual");
-  expect(stagingWorkflowSource).toContain("EXPECTED_AUTH_MODE: ${{ inputs.expected_auth_mode }}");
-  expect(stagingWorkflowSource).toContain("EXTERNAL_ID_RUNTIME_ENABLED: ${{ inputs.expected_auth_mode == 'migration-dual' && 'true' || 'false' }}");
-  expect(stagingWorkflowSource).toContain("EXTERNAL_ID_NEW_ACCOUNTS: ${{ inputs.external_id_new_accounts_enabled }}");
-  expect(stagingWorkflowSource).toContain("New External ID accounts require migration-dual authentication mode.");
-  expect(stagingWorkflowSource).toContain('"DIRECT_GOOGLE_AUTH_ENABLED=true"');
-  expect(stagingWorkflowSource).toContain('"EXTERNAL_ID_AUTH_ENABLED=${EXTERNAL_ID_RUNTIME_ENABLED}"');
-  expect(stagingWorkflowSource).toContain('"EXTERNAL_ID_NEW_ACCOUNTS_ENABLED=${EXTERNAL_ID_NEW_ACCOUNTS}"');
-  expect(stagingWorkflowSource).toContain('"BILLING_ENABLED=false"');
-  const stagingPrecheck = stagingWorkflowSource.indexOf("Verify inactive production authentication state before staging");
-  const stagingUpdate = stagingWorkflowSource.indexOf("az containerapp update");
-  const stagingPostcheck = stagingWorkflowSource.indexOf("Verify inactive production authentication state after staging");
-  expect(stagingPrecheck).toBeGreaterThan(-1);
-  expect(stagingUpdate).toBeGreaterThan(stagingPrecheck);
-  expect(stagingPostcheck).toBeGreaterThan(stagingUpdate);
-  expect(stagingWorkflowSource.match(/check-auth-provider-state\.mjs "\$EXPECTED_AUTH_MODE"/g)).toHaveLength(2);
-  expect(stagingWorkflowSource).not.toContain("check-qa-auth-provider-state.mjs");
-  const stagingJobEnvironment = stagingWorkflowSource
-    .split("    env:")[1]
-    ?.split("    steps:")[0] || "";
-  const isolatedQaVerification = stagingWorkflowSource
-    .split("- name: Verify the exact SHA in isolated QA")[1]
-    ?.split("- name: Deploy the exact image to Azure Container Apps")[0] || "";
-  const zeroTrafficVerification = stagingWorkflowSource
-    .split("- name: Verify the deployed release safety policy")[1]
-    ?.split("- name: Assign verified revision label")[0] || "";
-  const labeledCandidateVerification = stagingWorkflowSource
-    .split("- name: Verify the labeled QA candidate")[1] || "";
-  expect(stagingJobEnvironment).toContain("EXPECTED_AUTH_MODE");
-  expect(isolatedQaVerification).toContain("EXPECTED_AUTH_MODE: ${{ env.QA_AUTH_MODE }}");
-  expect(zeroTrafficVerification).not.toContain("EXPECTED_AUTH_MODE: direct-google");
-  expect(labeledCandidateVerification).not.toContain("EXPECTED_AUTH_MODE: direct-google");
-  expect(stagingWorkflowSource).not.toMatch(/az containerapp auth (?:openid-connect )?(?:update|set|delete)/);
-  expect(stagingWorkflowSource).not.toContain("external_id_auth_enabled:");
+  expect(deployment).toContain('authConfigurationHash(auth.properties || auth, expectedMode)');
+  expect(deployment).toContain('"--from-revision", live.revisionName');
+  expect(deployment).not.toMatch(/"auth", "(?:update|set|delete)"/);
+  expect(deployment).not.toContain('"revision", "set-mode"');
 });
 
 test("only the verified owner inherits the migrated course-author identity", () => {
@@ -609,8 +541,7 @@ test("production candidates fail closed until signed alert delivery is configure
   expect(runtimeConfigSource).toContain("requiredForProductionOperations");
   expect(azureBicepSource).toContain("OPERATIONS_ENVIRONMENT', value: 'production'");
   expect(azureBicepSource).toContain("DEPLOYMENT_ENVIRONMENT', value: 'production'");
-  expect(stagingWorkflowSource).toContain('"OPERATIONS_ENVIRONMENT=production"');
-  expect(qaBicepSource).toContain("OPERATIONS_ENVIRONMENT', value: 'qa'");
+  expect(readFileSync("scripts/azure-blue-green.mjs", "utf8")).toContain('"--from-revision", live.revisionName');
 
   for (const [label, environment, expectedIssue] of [
     ["production deployment missing operations label", {
@@ -647,78 +578,43 @@ test("production candidates fail closed until signed alert delivery is configure
   }
 });
 
-test("isolated QA scales to zero and keeps its data stores separate", () => {
-  expect(qaBicepSource).toContain("qaDatabaseName string = 'filosageqa'");
-  expect(qaBicepSource).toContain("qaBannerContainerName string = 'qa-course-banners'");
-  expect(qaBicepSource).toContain("minReplicas: 0");
-  expect(qaBicepSource).toContain("maxReplicas: 1");
-  expect(qaBicepSource).toContain("OPERATIONS_ENVIRONMENT', value: 'qa'");
-  expect(qaBicepSource).toContain("param deploymentPrincipalId string = ''");
-  expect(qaBicepSource).toContain("param deploymentRoleAssignmentName string = ''");
-  expect(qaBicepSource).toContain("resource qaDeploymentContributor");
-  expect(qaBicepSource).toContain("scope: app");
-  expect(qaWorkflowSource).toContain("AZURE_QA_CONTAINER_APP_NAME");
-  expect(qaWorkflowSource).toContain('node scripts/release-capabilities.mjs environment');
-  expect(qaWorkflowSource).not.toContain('"NEXT_PUBLIC_COMMAND_CENTER_V2=true"');
-  expect(qaBicepSource).toContain("NEXT_PUBLIC_COMMAND_CENTER_V2', value: string(releaseCapabilities.commandCenterV2)");
-  expect(dockerfileSource).toContain("ARG NEXT_PUBLIC_COMMAND_CENTER_V2=false");
-  expect(qaWorkflowSource).toContain('npm run check:production -- "$QA_URL" "$GITHUB_SHA" "$QA_URL"');
+test("the separate QA deployment is retired and labels remain discoverable only as candidates", () => {
+  expect(existsSync("infra/azure/qa.bicep")).toBe(false);
+  expect(existsSync(".github/workflows/azure-qa.yml")).toBe(false);
+  expect(azureBicepSource).toContain("activeRevisionsMode: 'Multiple'");
+  expect(azureBicepSource).toContain("traffic: revisionTraffic");
   expect(robotsSource).toContain('disallow: "/"');
   expect(robotsSource).toContain('export const dynamic = "force-dynamic"');
   expect(sitemapSource).toContain('export const dynamic = "force-dynamic"');
   expect(proxySourceWithQa).toContain('X-Robots-Tag');
 });
 
-test("the immutable Azure image owns the approved flashcard release and runtime health gates it", () => {
-  const builderStage = dockerfileSource.split("FROM dependencies AS builder")[1]?.split("FROM dependencies AS production-dependencies")[0] || "";
-  const runtimeStage = dockerfileSource.split("FROM node:22-bookworm-slim AS runtime")[1] || "";
-  for (const stage of [builderStage, runtimeStage]) {
+test("one immutable application image owns the approved features at build and runtime", () => {
+  for (const stage of [dockerfileSource.split("FROM dependencies AS builder")[1]?.split("FROM dependencies AS production-dependencies")[0] || "", dockerfileSource.split("FROM node:22-bookworm-slim AS runtime")[1] || ""]) {
     expect(stage).toContain("ARG FLASHCARD_DECKS_ENABLED=false");
     expect(stage).toContain("ARG FLASHCARD_AI_GENERATION_ENABLED=false");
     expect(stage).toContain("ENV FLASHCARD_DECKS_ENABLED=$FLASHCARD_DECKS_ENABLED");
     expect(stage).toContain("ENV FLASHCARD_AI_GENERATION_ENABLED=$FLASHCARD_AI_GENERATION_ENABLED");
   }
-  expect(qaWorkflowSource).toContain('"${BUILD_ARGS[@]}"');
-  expect(qaWorkflowSource).toContain('--set-env-vars "${CAPABILITY_ENV[@]}"');
+  expect(stagingWorkflowSource).toContain('"${BUILD_ARGS[@]}"');
+  expect(stagingWorkflowSource).toContain('--target runtime');
   expect(dockerfileSource).toContain("node scripts/release-capabilities.mjs check-environment");
-  const qaRuntimeOverrides = qaWorkflowSource.split("--set-env-vars")[1]?.split("- name: Verify isolated QA candidate")[0] || "";
-  expect(qaRuntimeOverrides).not.toContain('"FLASHCARD_DECKS_ENABLED=true"');
-  expect(qaRuntimeOverrides).not.toContain('"FLASHCARD_AI_GENERATION_ENABLED=true"');
-  expect(qaBicepSource).toContain("value: string(releaseCapabilities.flashcardDecks)");
-  expect(qaBicepSource).toContain("value: string(releaseCapabilities.flashcardGeneration)");
-  expect(stagingWorkflowSource).toContain('"${CAPABILITY_ENV[@]}"');
-  expect(stagingWorkflowSource).not.toContain('"FLASHCARD_DECKS_ENABLED=true"');
-  expect(stagingWorkflowSource).not.toContain('"FLASHCARD_AI_GENERATION_ENABLED=true"');
-  expect(azureBicepSource).not.toContain("FLASHCARD_DECKS_ENABLED");
-  expect(azureBicepSource).not.toContain("FLASHCARD_AI_GENERATION_ENABLED");
+  expect(readFileSync("scripts/azure-blue-green.mjs", "utf8")).toContain("...releaseEnvironment(manifest)");
   expect(healthRouteSource).toContain("flashcardFeatureConfiguration");
-  expect(healthRouteSource).toContain("flashcardDecks: flashcards.decksEnabled");
-  expect(healthRouteSource).toContain("flashcardGeneration: flashcards.generationEnabled");
-  expect(healthVerifierSource).toContain("releaseCapabilitiesMatch(expectedCapabilities, body?.checks)");
   expect(healthVerifierSource).toContain("releaseSelectionMatches(expectedCapabilities, body?.capabilities)");
   expect(healthVerifierSource).toContain("body?.imageDigest === expectedDigest");
 });
 
-test("production staging accepts only the exact image already approved in QA", () => {
-  expect(azureBicepSource).toContain("activeRevisionsMode: 'Multiple'");
-  expect(stagingWorkflowSource).toContain("target_slot:");
-  expect(stagingWorkflowSource).toContain("expected_sha:");
-  expect(stagingWorkflowSource).toContain("featured_course_id:");
-  expect(stagingWorkflowSource).toContain('FEATURED_COURSE_ID: ${{ inputs.featured_course_id }}');
-  expect(stagingWorkflowSource).toContain('[[ "$FEATURED_COURSE_ID" != "none" && ! "$FEATURED_COURSE_ID" =~ ^[a-fA-F0-9]{64}$ ]]');
-  expect(stagingWorkflowSource).toContain('"LANDING_FEATURED_COURSE_ID=${FEATURED_COURSE_ID}"');
-  expect(stagingWorkflowSource).toContain('npm run check:featured-course -- "${{ steps.deploy_revision.outputs.revision_url }}" "$FEATURED_COURSE_ID"');
-  expect(stagingWorkflowSource).toContain('npm run check:production -- "$QA_URL" "$EXPECTED_SHA" "$QA_URL"');
-  expect(stagingWorkflowSource).toContain('verify-evidence');
-  expect(stagingWorkflowSource).toContain('check-image');
-  expect(stagingWorkflowSource).toContain('filosage@${EXPECTED_IMAGE_DIGEST}');
-  expect(stagingWorkflowSource).not.toContain('az acr repository show');
-  expect(stagingWorkflowSource).toContain('if [[ "${ACTIVE_WEIGHT:-0}" != "0" ]]');
-  expect(stagingWorkflowSource).toContain("az containerapp revision label add");
-  expect(stagingWorkflowSource).toContain('"AZURE_EASY_AUTH_ENABLED=true"');
-  expect(stagingWorkflowSource).not.toContain(`NEXT_PUBLIC_${RETIRED_SYSTEM_NAMES[2].toUpperCase()}_API_KEY`);
-  expect(stagingWorkflowSource).not.toContain("docker build");
-  expect(stagingWorkflowSource).toContain('npm run check:production -- "${TARGET_URL}" "${EXPECTED_SHA}" "${PUBLIC_SITE_URL}"');
+test("staging builds once after engineering evidence and promotion never rebuilds", () => {
+  expect(stagingWorkflowSource).toContain("quality_run_id:");
+  expect(stagingWorkflowSource).toContain("regression_run_id:");
+  expect(stagingWorkflowSource).toContain("az acr build");
+  expect(stagingWorkflowSource).toContain("node scripts/azure-blue-green.mjs preflight");
+  expect(stagingWorkflowSource).toContain("node scripts/azure-blue-green.mjs stage");
+  expect(promotionWorkflowSource).not.toContain("az acr build");
+  expect(promotionWorkflowSource).not.toContain("docker build");
+  expect(promotionWorkflowSource).toContain("candidate_run_id:");
+  expect(promotionWorkflowSource).toContain("verification_run_id:");
 });
 
 test("custom-domain releases prove their canonical origin and redirect www to the apex", () => {
@@ -732,23 +628,14 @@ test("custom-domain releases prove their canonical origin and redirect www to th
   expect(proxySource).toContain("NextResponse.redirect(destination, 308)");
 });
 
-test("staging promotion verifies an exact commit before changing traffic", () => {
-  expect(promotionWorkflowSource).toContain("expected_sha:");
-  expect(promotionWorkflowSource).toContain("featured_course_id:");
-  expect(promotionWorkflowSource).toContain("^[a-fA-F0-9]{40}$");
-  expect(promotionWorkflowSource).toContain('npm run check:production -- "$TARGET_URL" "$EXPECTED_SHA"');
-  expect(promotionWorkflowSource).toContain('npm run check:featured-course -- "$TARGET_URL" "$FEATURED_COURSE_ID"');
-  expect(promotionWorkflowSource).toContain("expected_auth_mode:");
-  expect(promotionWorkflowSource).toContain("default: migration-dual");
-  expect(promotionWorkflowSource).toContain("EXPECTED_AUTH_MODE: ${{ inputs.expected_auth_mode }}");
-  const providerCheck = promotionWorkflowSource.indexOf("Verify inactive production authentication state before promotion");
-  const trafficChange = promotionWorkflowSource.indexOf("az containerapp ingress traffic set");
-  expect(providerCheck).toBeGreaterThan(-1);
-  expect(trafficChange).toBeGreaterThan(providerCheck);
-  expect(promotionWorkflowSource).toContain('check-auth-provider-state.mjs "$EXPECTED_AUTH_MODE"');
-  expect(promotionWorkflowSource).not.toMatch(/az containerapp auth (?:openid-connect )?(?:update|set|delete)/);
-  expect(promotionWorkflowSource).toContain('az containerapp ingress traffic set');
-  expect(promotionWorkflowSource).toContain('"${TARGET_SLOT}=100" "${OTHER_SLOT}=0"');
+test("promotion checks immutable identity and retains measured traffic evidence", () => {
+  const deployment = readFileSync("scripts/azure-blue-green.mjs", "utf8");
+  expect(deployment).toContain("sha !== env.GITHUB_SHA");
+  expect(deployment).toContain("assertCandidateReadback");
+  expect(deployment).toContain("candidateFingerprint");
+  expect(deployment).toContain('"--revision-weight", `${candidate.revision}=100`, `${candidate.previous.revision}=0`');
+  expect(deployment).toContain('smoke(candidate, candidate.productionOrigin)');
+  expect(deployment).toContain('signedInPostSwap: "pending operator evidence"');
 });
 
 test("featured-course release verification fails closed around one explicit public course ID", () => {
@@ -809,28 +696,9 @@ test("authored-course import preflight reports bounded counts without the owner 
   }
 });
 
-test("compiled standalone QA optional environment exactly equals the reviewed manifest", () => {
-  const manifest = JSON.parse(readFileSync("config/release-capabilities.json", "utf8"));
-  const expected = releaseEnvironment(manifest);
-  const variables = compiledQaTemplate.variables ?? {};
-  const app = compiledQaTemplate.resources.find((resource) => resource.type === "Microsoft.App/containerApps");
-  const template = app?.properties?.template as { containers?: Array<{ env?: Array<{ name: string; value: unknown }> }> } | undefined;
-  const environment = template?.containers?.[0]?.env ?? [];
-  const optional = environment.filter((entry) => entry.name in expected);
-  const resolveCompiled = (value: unknown): unknown => {
-    if (typeof value !== "string") return value;
-    const stringExpression = value.match(/^\[string\((.+)\)\]$/);
-    if (stringExpression) return String(resolveCompiled(`[${stringExpression[1]}]`));
-    const variableExpression = value.match(/^\[variables\('([^']+)'\)((?:\.\w+)*)\]$/);
-    if (!variableExpression) return value;
-    let resolved = resolveCompiled(variables[variableExpression[1]]);
-    for (const key of variableExpression[2].split(".").filter(Boolean)) {
-      if (!resolved || typeof resolved !== "object") throw new Error("Compiled capability property is missing.");
-      resolved = (resolved as Record<string, unknown>)[key];
-    }
-    return resolved;
-  };
-  const observed = Object.fromEntries(optional.map((entry) => [entry.name, resolveCompiled(entry.value)]));
-  expect(optional).toHaveLength(Object.keys(expected).length);
-  expect(observed).toEqual(expected);
+test("compiled app and bootstrap are separate workloads with only one web ingress", () => {
+  expect(compiledProductionTemplate.resources.filter((r) => r.type === "Microsoft.App/containerApps")).toHaveLength(1);
+  const bootstrap = compileBicep("infra/azure/bootstrap.bicep");
+  expect(bootstrap.resources.filter((r) => r.type === "Microsoft.App/containerApps")).toHaveLength(0);
+  expect(bootstrap.resources.filter((r) => r.type === "Microsoft.App/jobs")).toHaveLength(1);
 });

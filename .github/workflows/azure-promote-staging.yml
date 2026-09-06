@@ -1,35 +1,24 @@
-name: Promote Azure staging slot
+name: Promote verified BFF revision without rebuilding
 
 on:
   workflow_dispatch:
     inputs:
-      qa_run_id:
-        description: Successful isolated QA run containing the approved SHA, image digest, and capability manifest
-        required: true
-        type: string
-      target_slot:
-        description: Verified slot to receive default staging traffic
-        required: true
-        type: choice
-        options:
-          - green
-          - blue
-      expected_auth_mode:
-        description: Authentication mode verified on the selected staged revision
-        required: true
-        default: migration-dual
-        type: choice
-        options:
-          - migration-dual
-          - direct-google
       expected_sha:
-        description: Exact 40-character SHA already verified on the target label
+        description: Full candidate SHA; execute this workflow from that exact ref
         required: true
         type: string
-      featured_course_id:
-        description: Exact public landing-page course ID verified on the selected label, or none
+      expected_auth_mode:
+        description: Preserve the observed shared application authentication mode
         required: true
-        default: none
+        type: choice
+        options: [direct-google, migration-dual]
+      candidate_run_id:
+        description: Successful immutable inactive-candidate staging run
+        required: true
+        type: string
+      verification_run_id:
+        description: Successful independently reviewed candidate-verification run
+        required: true
         type: string
 
 permissions:
@@ -37,151 +26,50 @@ permissions:
   contents: read
   id-token: write
 
+# One lock covers staging, verification and promotion for the same application.
 concurrency:
-  group: azure-staging
+  group: azure-blue-green-${{ vars.AZURE_CONTAINER_APP_NAME }}
   cancel-in-progress: false
 
 jobs:
-  verify-and-promote:
+  promote:
     runs-on: ubuntu-latest
-    environment: azure-staging
+    timeout-minutes: 20
+    # Victor's concrete promotion approval is required in this protected environment.
+    environment: azure-production-promotion
     env:
-      TARGET_SLOT: ${{ inputs.target_slot }}
-      QA_RUN_ID: ${{ inputs.qa_run_id }}
+      GH_TOKEN: ${{ github.token }}
       EXPECTED_SHA: ${{ inputs.expected_sha }}
-      PUBLIC_SITE_URL: https://filosage.com
-      FEATURED_COURSE_ID: ${{ inputs.featured_course_id }}
-      TARGET_URL: ${{ inputs.target_slot == 'blue' && vars.AZURE_BLUE_URL || vars.AZURE_GREEN_URL }}
       EXPECTED_AUTH_MODE: ${{ inputs.expected_auth_mode }}
+      PUBLIC_SITE_URL: https://filosage.com
+      AZURE_RESOURCE_GROUP: ${{ vars.AZURE_RESOURCE_GROUP }}
+      AZURE_CONTAINER_APP_NAME: ${{ vars.AZURE_CONTAINER_APP_NAME }}
+      AZURE_ACR_NAME: ${{ vars.AZURE_ACR_NAME }}
+      RELEASE_EVIDENCE_DIR: ${{ runner.temp }}/blue-green-evidence
+      CANDIDATE_RUN_ID: ${{ inputs.candidate_run_id }}
+      VERIFICATION_RUN_ID: ${{ inputs.verification_run_id }}
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
-
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: 22
-          cache: npm
-
-      - run: npm ci
-
-      - name: Load the exact successful QA candidate
-        env:
-          GH_TOKEN: ${{ github.token }}
-        shell: bash
-        run: |
-          set -euo pipefail
-          if [[ ! "$QA_RUN_ID" =~ ^[1-9][0-9]*$ || ! "$EXPECTED_SHA" =~ ^[a-f0-9]{40}$ || "$EXPECTED_SHA" != "$GITHUB_SHA" ]]; then
-            echo "Select a numeric QA run and execute from its exact full candidate SHA."
-            exit 1
-          fi
-          gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${QA_RUN_ID}" --jq '{workflow_runs:[.]}' \
-            | node scripts/check-workflow-run-evidence.mjs "$EXPECTED_SHA" ".github/workflows/azure-qa.yml"
-          gh run download "$QA_RUN_ID" --repo "$GITHUB_REPOSITORY" --name "release-candidate-${EXPECTED_SHA}" --dir "$RUNNER_TEMP/qa-candidate"
-          node scripts/release-capabilities.mjs verify-evidence "$RUNNER_TEMP/qa-candidate/release-candidate.json" "$EXPECTED_SHA" "$PUBLIC_SITE_URL" >> "$GITHUB_ENV"
-          node scripts/release-capabilities.mjs environment > "$RUNNER_TEMP/release-capabilities.env"
-
       - name: Sign in to Azure with GitHub OIDC
         uses: azure/login@7184910d9eb2b1c5e48f7073824a90609bb9b6d6 # v2
         with:
           client-id: ${{ secrets.AZURE_CLIENT_ID }}
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
-
-      - name: Verify inactive production authentication state before promotion
-        shell: bash
-        run: |
-          set -euo pipefail
-          PROVIDER_STATE="$(az containerapp auth show \
-            --resource-group "${{ vars.AZURE_RESOURCE_GROUP }}" \
-            --name "${{ vars.AZURE_CONTAINER_APP_NAME }}" \
-            --query '{google:identityProviders.google.enabled || `false`,filosage:identityProviders.customOpenIdConnectProviders.filosage.enabled || `false`}' \
-            --output json)"
-          {
-            echo "### Production authentication provider state before promotion"
-            echo '```json'
-            echo "$PROVIDER_STATE"
-            echo '```'
-          } >> "$GITHUB_STEP_SUMMARY"
-          printf '%s' "$PROVIDER_STATE" \
-            | node scripts/check-auth-provider-state.mjs "$EXPECTED_AUTH_MODE"
-
-      - name: Verify the selected slot
-        shell: bash
-        run: |
-          set -euo pipefail
-          if [[ ! "$EXPECTED_SHA" =~ ^[a-fA-F0-9]{40}$ ]]; then
-            echo "expected_sha must be a full 40-character Git SHA."
-            exit 1
-          fi
-          if [[ "$FEATURED_COURSE_ID" != "none" && ! "$FEATURED_COURSE_ID" =~ ^[a-fA-F0-9]{64}$ ]]; then
-            echo "featured_course_id must be none or a 64-character hexadecimal course ID."
-            exit 1
-          fi
-          npm run check:production -- "$TARGET_URL" "$EXPECTED_SHA" "$PUBLIC_SITE_URL"
-          npm run check:featured-course -- "$TARGET_URL" "$FEATURED_COURSE_ID"
-
-      - name: Verify the deployed release safety policy
-        shell: bash
-        run: |
-          set -euo pipefail
-          TARGET_REVISION="$(az containerapp show --resource-group "${{ vars.AZURE_RESOURCE_GROUP }}" --name "${{ vars.AZURE_CONTAINER_APP_NAME }}" --query "properties.configuration.ingress.traffic[?label=='${TARGET_SLOT}'].revisionName | [0]" --output tsv)"
-          if [[ -z "$TARGET_REVISION" ]]; then
-            echo "The selected label does not resolve to a revision."
-            exit 1
-          fi
-          OBSERVED_IMAGE="$(az containerapp revision show --resource-group "${{ vars.AZURE_RESOURCE_GROUP }}" --name "${{ vars.AZURE_CONTAINER_APP_NAME }}" --revision "$TARGET_REVISION" --query 'properties.template.containers[0].image' --output tsv)"
-          node scripts/release-capabilities.mjs check-image "${{ vars.AZURE_ACR_NAME }}.azurecr.io/filosage" "$EXPECTED_IMAGE_DIGEST" "$OBSERVED_IMAGE"
-          npm run check:release-safety -- "$TARGET_URL"
-
-      - name: Capture current traffic weights
-        id: capture_traffic
-        shell: bash
-        run: |
-          set -euo pipefail
-          TRAFFIC="$(az containerapp ingress traffic show --resource-group "${{ vars.AZURE_RESOURCE_GROUP }}" --name "${{ vars.AZURE_CONTAINER_APP_NAME }}" --output json)"
-          export TRAFFIC
-          node -e '
-            const fs = require("node:fs");
-            const traffic = JSON.parse(process.env.TRAFFIC || "[]");
-            const blue = traffic.filter((entry) => entry.label === "blue");
-            const green = traffic.filter((entry) => entry.label === "green");
-            if (traffic.length !== 2 || blue.length !== 1 || green.length !== 1) {
-              throw new Error("Traffic snapshot must contain only one blue and one green label.");
-            }
-            const blueWeight = blue[0].weight;
-            const greenWeight = green[0].weight;
-            if (!Number.isInteger(blueWeight) || !Number.isInteger(greenWeight) || blueWeight < 0 || greenWeight < 0 || blueWeight + greenWeight !== 100) {
-              throw new Error("Blue and green traffic weights must be non-negative integers totaling 100.");
-            }
-            fs.appendFileSync(process.env.GITHUB_OUTPUT, `blue_weight=${blueWeight}\ngreen_weight=${greenWeight}\n`);
-          '
-
-      - name: Switch staging traffic
-        id: traffic_switch
-        shell: bash
-        run: |
-          set -euo pipefail
-          OTHER_SLOT="blue"
-          if [[ "$TARGET_SLOT" == "blue" ]]; then OTHER_SLOT="green"; fi
-          az containerapp ingress traffic set \
-            --resource-group "${{ vars.AZURE_RESOURCE_GROUP }}" \
-            --name "${{ vars.AZURE_CONTAINER_APP_NAME }}" \
-            --label-weight "${TARGET_SLOT}=100" "${OTHER_SLOT}=0"
-
-      - name: Verify promoted public traffic
-        shell: bash
-        run: |
-          set -euo pipefail
-          npm run check:production -- "${{ vars.AZURE_STAGING_URL }}" "$EXPECTED_SHA" "$PUBLIC_SITE_URL"
-          npm run check:featured-course -- "${{ vars.AZURE_STAGING_URL }}" "$FEATURED_COURSE_ID"
-
-      - name: Roll back traffic if promotion fails or is cancelled
-        if: (failure() || cancelled()) && steps.capture_traffic.outcome == 'success'
-        shell: bash
-        run: |
-          set -euo pipefail
-          az containerapp ingress traffic set \
-            --resource-group "${{ vars.AZURE_RESOURCE_GROUP }}" \
-            --name "${{ vars.AZURE_CONTAINER_APP_NAME }}" \
-            --label-weight \
-              "blue=${{ steps.capture_traffic.outputs.blue_weight }}" \
-              "green=${{ steps.capture_traffic.outputs.green_weight }}"
+      - name: Recheck exact candidate and reviewed evidence then swap 100/0 traffic
+        id: promotion
+        run: node scripts/azure-blue-green.mjs promote
+      - name: Restore only the explicitly reviewed compatible predecessor on failure
+        if: failure() || cancelled()
+        run: node scripts/azure-blue-green.mjs rollback
+      - name: Retain actual promotion and rollback readbacks
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: promotion-${{ inputs.expected_sha }}-${{ github.run_id }}
+          path: ${{ runner.temp }}/blue-green-evidence/*.json
+          if-no-files-found: error
+          retention-days: 30

@@ -1,3 +1,4 @@
+import { withAccountRequest } from "@/lib/auth-server";
 import { z } from "zod";
 import { apiRequestErrorResponse, readJsonBody } from "@/lib/api-security";
 import { authorizationResponse } from "@/lib/auth-server";
@@ -20,7 +21,7 @@ const updateSchema = z.object({
   message: "Choose at least one ticket update.",
 });
 
-export async function PATCH(
+async function handlePATCH(
   request: Request,
   context: { params: Promise<{ ticketId: string }> },
 ) {
@@ -47,3 +48,5 @@ export async function PATCH(
       ?? Response.json({ error: "The ticket could not be updated." }, { status: 500 });
   }
 }
+
+export const PATCH = withAccountRequest(handlePATCH);

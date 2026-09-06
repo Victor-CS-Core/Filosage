@@ -45,6 +45,14 @@ function localVerifiedUser(idToken: string): VerifiedUser | null {
     },
     identityLinkRegistered: true,
   });
+  const isolatedOnboarding = /^(playwright-preaccount-learner|playwright-preaccount-same-email-learner|playwright-display-name-first|playwright-display-name-changed)-([0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12})$/i.exec(idToken);
+  if (isolatedOnboarding) {
+    const base = localVerifiedUser(isolatedOnboarding[1]);
+    if (!base) return null;
+    const suffix = isolatedOnboarding[2].toLowerCase();
+    const email = base.email!.replace("@", `+${suffix}@`);
+    return localUser(`${base.uid}-${suffix}`, email, base.name ?? "Playwright Learner");
+  }
   if (idToken === "local-dev-token" || idToken === "playwright-local-owner") {
     return localUser(
       LOCAL_OWNER_UID,

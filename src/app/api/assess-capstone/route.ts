@@ -1,3 +1,4 @@
+import { withAccountRequest } from "@/lib/auth-server";
 import { NextResponse } from "next/server";
 import { aiClient } from "@/lib/local-ai";
 import { zodTextFormat } from "openai/helpers/zod";
@@ -28,7 +29,7 @@ const instructions = `Act as a rigorous, fair assessor for a course capstone. Ju
 
 ${AI_SAFETY_POLICY}`;
 
-export async function POST(request: Request) {
+async function handlePOST(request: Request) {
   const profile = openAiExecutionProfile("capstone.standard");
   let reservation: AiReservation | null = null;
   let observedUsage = { inputTokens: 0, cachedInputTokens: 0, outputTokens: 0 };
@@ -218,3 +219,5 @@ export async function POST(request: Request) {
 }
 
 class CapstoneProgressChangedError extends Error {}
+
+export const POST = withAccountRequest(handlePOST);

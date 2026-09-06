@@ -528,7 +528,7 @@ test("failed generation releases product allowance and course credit while retri
   expect(usageSource).toContain('request.status !== "reserved"');
   expect(usageSource).toContain("allowCompletedReplay");
   expect(usageSource).toContain("recoveredResultId");
-  expect(courseRoute.match(/releaseCourseCreditReservation\(creditReservation\)/g)?.length).toBeGreaterThanOrEqual(3);
+  expect(courseRoute).toContain("finishGenerationOperation(operation");
   expect(courseRoute).toContain("IDEMPOTENCY_RESULT_MISSING");
   expect(lessonRoute).toContain('`${courseId}:${lessonId}:${regenerate ? "regenerate" : "generate"}`');
   expect(lessonRoute).toContain("if (reservation.recovered)");
@@ -691,11 +691,13 @@ test("requested course language controls the instruction contract", () => {
   expect(instruction).toContain("clear Greek and English");
   expect(instruction).toContain("Greek");
   expect(instruction).not.toContain("in clear English.");
-  expect(inspectGeneratedContent(validOutline(), "Evidence-based product decisions", "Spanish and English")).toEqual([]);
+  expect(inspectGeneratedContent(validOutline(), "Evidence-based product decisions", "Spanish and English"))
+    .toContainEqual(expect.objectContaining({ reason: expect.stringContaining("requested Spanish and English") }));
   expect(inspectGeneratedContent(validOutline(), "Geometry terminology", "Greek and English"))
     .toContainEqual(expect.objectContaining({ reason: expect.stringContaining("requested Greek and English") }));
   const spanishInstruction = { content: "Para este objetivo, una práctica con un ejemplo permite explicar cómo y por qué esta respuesta también funciona. ".repeat(8) };
-  expect(inspectGeneratedContent(spanishInstruction, "Product decisions", "Spanish and English")).toEqual([]);
+  expect(inspectGeneratedContent(spanishInstruction, "Product decisions", "Spanish and English"))
+    .toContainEqual(expect.objectContaining({ reason: expect.stringContaining("requested Spanish and English") }));
 });
 
 test("non-Latin instruction is preserved and validated against the requested language", async () => {
@@ -704,6 +706,10 @@ test("non-Latin instruction is preserved and validated against the requested lan
   const course = { ...validOutline(), language: "Greek" };
   const report = await validateCourseCandidateV2(course, [lesson], ["0-0"]);
   expect(report.issues).not.toContainEqual(expect.objectContaining({ code: "CQ_SECURITY_001" }));
+  // The Greek body is valid, but it cannot translate the English outline and
+  // practice fields inherited from this fixture.
+  expect(report.issues).toContainEqual(expect.objectContaining({ code: COURSE_QUALITY_RULES.LANGUAGE_CONFORMANCE.code }));
+  expect(inspectGeneratedContent({ content: greekContent }, course.topic, course.language)).toEqual([]);
   expect(sanitizeGeneratedText(greekContent, course.topic, course.language)).toContain("γωνία");
   const dtoSource = await readFile("src/lib/course-dto.ts", "utf8");
   expect(dtoSource).toContain("sanitizeGeneratedValue(value, topic, instructionLanguage)");
@@ -735,7 +741,8 @@ test("recognition attempts are retry-safe and saved item evidence is hydrated on
   expect(routeSource).toContain("IDEMPOTENCY_KEY_PAYLOAD_MISMATCH");
   expect(routeSource).toContain("lessonInteractionMutations");
   expect(attemptSource).toContain("expiresAt");
-  expect(routeSource).toContain("export async function GET(request: Request)");
+  expect(routeSource).toContain("async function handleGET(request: Request)");
+  expect(routeSource).toContain("export const GET = withAccountRequest(handleGET)");
   expect(routeSource).toContain("completed: itemResults.length === interaction.items.length");
   expect(pageSource).toContain("interactionAttemptKeysRef");
   expect(pageSource).toContain("/api/lesson-interaction?");

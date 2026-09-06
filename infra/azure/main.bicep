@@ -3,14 +3,20 @@
 @maxLength(12)
 param prefix string
 
-@description('Azure region for the staging environment.')
+@description('Azure region for the single BFF application and its durable services.')
 param location string = resourceGroup().location
 
-@description('Container image to deploy. Use the hello-world image for the infrastructure-only bootstrap.')
-param containerImage string = 'mcr.microsoft.com/azuredocs/containerapps-helloworld:latest'
+@description('Reviewed immutable ACR application image, including its sha256 digest.')
+param containerImage string
 
 @description('Deploy the application after its immutable image exists in ACR.')
-param deployApplication bool = true
+param deployApplication bool = false
+
+@description('Exact reviewed revision traffic readback. Never use latestRevision or implicit traffic.')
+@minLength(2)
+@maxLength(2)
+param revisionTraffic array
+param appRevisionSuffix string = ''
 
 @secure()
 @description('PostgreSQL administrator password. Store the production value outside source control.')
@@ -19,16 +25,11 @@ param postgresAdminPassword string
 param postgresAdminLogin string = 'filosageadmin'
 
 @secure()
-@description('Least-privilege production database login. Never used by isolated QA.')
+@description('Least-privilege shared application database login; no bootstrap administration.')
 param postgresAppPassword string
 
 param postgresAppLogin string = 'filosage_app'
 
-@secure()
-@description('Least-privilege QA database login. Stored so production bootstrap can create the role; QA never receives the production admin password.')
-param postgresQaAppPassword string
-
-param postgresQaAppLogin string = 'filosageqa_app'
 param siteUrl string
 param siteVersion string = 'bootstrap'
 param googleClientId string = ''
@@ -281,18 +282,6 @@ resource postgresAppPasswordSecret 'Microsoft.KeyVault/vaults/secrets@2023-07-01
   properties: { value: postgresAppPassword }
 }
 
-resource postgresQaAppPasswordSecret 'Microsoft.KeyVault/vaults/secrets@2023-07-01' = {
-  parent: vault
-  name: 'postgres-qa-app-password'
-  properties: { value: postgresQaAppPassword }
-}
-
-resource postgresAdminPasswordSecret 'Microsoft.KeyVault/vaults/secrets@2023-07-01' = {
-  parent: vault
-  name: 'postgres-admin-password'
-  properties: { value: postgresAdminPassword }
-}
-
 resource openAiSecret 'Microsoft.KeyVault/vaults/secrets@2023-07-01' = if (!empty(openAiApiKey)) {
   parent: vault
   name: 'openai-api-key'
@@ -360,9 +349,79 @@ resource blobContributor 'Microsoft.Authorization/roleAssignments@2022-04-01' = 
   }
 }
 
-resource vaultSecretsUser 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
-  scope: vault
-  name: guid(vault.id, identity.id, keyVaultSecretsUserRoleId)
+resource runtimedatabaseUrlSecretAccess 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
+  scope: databaseUrlSecret
+  name: guid(databaseUrlSecret.id, identity.id, keyVaultSecretsUserRoleId)
+  properties: {
+    principalId: identity.properties.principalId
+    principalType: 'ServicePrincipal'
+    roleDefinitionId: keyVaultSecretsUserRoleId
+  }
+}
+
+resource runtimereceiptSecretAccess 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
+  scope: receiptSecret
+  name: guid(receiptSecret.id, identity.id, keyVaultSecretsUserRoleId)
+  properties: {
+    principalId: identity.properties.principalId
+    principalType: 'ServicePrincipal'
+    roleDefinitionId: keyVaultSecretsUserRoleId
+  }
+}
+
+resource runtimeopenAiSecretAccess 'Microsoft.Authorization/roleAssignments@2022-04-01' = if (!empty(openAiApiKey)) {
+  scope: openAiSecret
+  name: guid(openAiSecret!.id, identity.id, keyVaultSecretsUserRoleId)
+  properties: {
+    principalId: identity.properties.principalId
+    principalType: 'ServicePrincipal'
+    roleDefinitionId: keyVaultSecretsUserRoleId
+  }
+}
+
+resource runtimegoogleSecretAccess 'Microsoft.Authorization/roleAssignments@2022-04-01' = if (!empty(googleClientSecret)) {
+  scope: googleSecret
+  name: guid(googleSecret!.id, identity.id, keyVaultSecretsUserRoleId)
+  properties: {
+    principalId: identity.properties.principalId
+    principalType: 'ServicePrincipal'
+    roleDefinitionId: keyVaultSecretsUserRoleId
+  }
+}
+
+resource runtimeexternalIdSecretAccess 'Microsoft.Authorization/roleAssignments@2022-04-01' = if (!empty(externalIdClientSecret)) {
+  scope: externalIdSecret
+  name: guid(externalIdSecret!.id, identity.id, keyVaultSecretsUserRoleId)
+  properties: {
+    principalId: identity.properties.principalId
+    principalType: 'ServicePrincipal'
+    roleDefinitionId: keyVaultSecretsUserRoleId
+  }
+}
+
+resource runtimeidentityLinkSecretAccess 'Microsoft.Authorization/roleAssignments@2022-04-01' = if (!empty(identityLinkHmacSecret)) {
+  scope: identityLinkSecret
+  name: guid(identityLinkSecret!.id, identity.id, keyVaultSecretsUserRoleId)
+  properties: {
+    principalId: identity.properties.principalId
+    principalType: 'ServicePrincipal'
+    roleDefinitionId: keyVaultSecretsUserRoleId
+  }
+}
+
+resource runtimeoperationsAlertSecretAccess 'Microsoft.Authorization/roleAssignments@2022-04-01' = if (!empty(operationsAlertWebhookSecret)) {
+  scope: operationsAlertSecret
+  name: guid(operationsAlertSecret!.id, identity.id, keyVaultSecretsUserRoleId)
+  properties: {
+    principalId: identity.properties.principalId
+    principalType: 'ServicePrincipal'
+    roleDefinitionId: keyVaultSecretsUserRoleId
+  }
+}
+
+resource runtimemigratedOwnerUidSecretAccess 'Microsoft.Authorization/roleAssignments@2022-04-01' = if (!empty(migratedOwnerUid)) {
+  scope: migratedOwnerUidSecret
+  name: guid(migratedOwnerUidSecret!.id, identity.id, keyVaultSecretsUserRoleId)
   properties: {
     principalId: identity.properties.principalId
     principalType: 'ServicePrincipal'
@@ -402,9 +461,6 @@ resource environment 'Microsoft.App/managedEnvironments@2025-01-01' = {
 var appSecrets = concat(
   [
     { name: 'database-url', keyVaultUrl: databaseUrlSecret.properties.secretUriWithVersion, identity: identity.id }
-    { name: 'database-admin-url', keyVaultUrl: databaseAdminUrlSecret.properties.secretUriWithVersion, identity: identity.id }
-    { name: 'postgres-app-password', keyVaultUrl: postgresAppPasswordSecret.properties.secretUriWithVersion, identity: identity.id }
-    { name: 'postgres-qa-app-password', keyVaultUrl: postgresQaAppPasswordSecret.properties.secretUriWithVersion, identity: identity.id }
     { name: 'activity-receipt-secret', keyVaultUrl: receiptSecret.properties.secretUriWithVersion, identity: identity.id }
   ],
   !empty(openAiApiKey) ? [{ name: 'openai-api-key', keyVaultUrl: openAiSecret!.properties.secretUriWithVersion, identity: identity.id }] : [],
@@ -419,13 +475,6 @@ var appEnvironment = concat(
   [
     { name: 'NODE_ENV', value: 'production' }
     { name: 'DATABASE_URL', secretRef: 'database-url' }
-    { name: 'DATABASE_ADMIN_URL', secretRef: 'database-admin-url' }
-    { name: 'POSTGRES_APP_LOGIN', value: postgresAppLogin }
-    { name: 'POSTGRES_APP_PASSWORD', secretRef: 'postgres-app-password' }
-    { name: 'POSTGRES_APP_DATABASE', value: 'filosage' }
-    { name: 'POSTGRES_QA_APP_LOGIN', value: postgresQaAppLogin }
-    { name: 'POSTGRES_QA_APP_PASSWORD', secretRef: 'postgres-qa-app-password' }
-    { name: 'POSTGRES_QA_APP_DATABASE', value: 'filosageqa' }
     { name: 'DATABASE_SSL', value: 'verify-full' }
     { name: 'AZURE_CLIENT_ID', value: identity.properties.clientId }
     { name: 'AZURE_STORAGE_ACCOUNT_URL', value: storage.properties.primaryEndpoints.blob }
@@ -474,11 +523,13 @@ resource app 'Microsoft.App/containerApps@2025-01-01' = if (deployApplication) {
         external: true
         targetPort: 3000
         transport: 'auto'
+        traffic: revisionTraffic
       }
       registries: [{ server: registry.properties.loginServer, identity: identity.id }]
       secrets: appSecrets
     }
     template: {
+      revisionSuffix: appRevisionSuffix
       containers: [{
         name: 'filosage'
         image: containerImage
@@ -521,7 +572,7 @@ resource app 'Microsoft.App/containerApps@2025-01-01' = if (deployApplication) {
       }
     }
   }
-  dependsOn: [acrPull, blobContributor, vaultSecretsUser, database]
+  dependsOn: [acrPull, blobContributor, database, runtimedatabaseUrlSecretAccess, runtimereceiptSecretAccess, runtimeopenAiSecretAccess, runtimegoogleSecretAccess, runtimeexternalIdSecretAccess, runtimeidentityLinkSecretAccess, runtimeoperationsAlertSecretAccess, runtimemigratedOwnerUidSecretAccess]
 }
 
 var configuredIdentityProviders = union(

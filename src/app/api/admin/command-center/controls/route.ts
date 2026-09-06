@@ -1,3 +1,4 @@
+import { withAccountRequest } from "@/lib/auth-server";
 import { z } from "zod";
 import { apiRequestErrorResponse, readJsonBody } from "@/lib/api-security";
 import { authorizationResponse } from "@/lib/auth-server";
@@ -26,7 +27,7 @@ const controlsSchema = z.object({
   }).strict(),
 }).strict();
 
-export async function PATCH(request: Request) {
+async function handlePATCH(request: Request) {
   try {
     const owner = await requireCommandCenterPermission(request, "manage_controls");
     const parsed = controlsSchema.safeParse(await readJsonBody(request, 1_024));
@@ -43,3 +44,5 @@ export async function PATCH(request: Request) {
       ?? Response.json({ error: "The controls could not be updated." }, { status: 500 });
   }
 }
+
+export const PATCH = withAccountRequest(handlePATCH);

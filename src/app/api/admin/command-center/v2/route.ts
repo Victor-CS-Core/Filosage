@@ -1,3 +1,4 @@
+import { withAccountRequest } from "@/lib/auth-server";
 import { authorizationResponse } from "@/lib/auth-server";
 import {
   commandCenterAuthorizationResponse,
@@ -14,7 +15,7 @@ const cursorParameters: Record<CommandCenterSnapshotCollection, string> = {
   auditEvents: "auditEventsCursor",
 };
 
-export async function GET(request: Request) {
+async function handleGET(request: Request) {
   try {
     await requireCommandCenterPermission(request, "view");
     const search = new URL(request.url).searchParams;
@@ -47,3 +48,5 @@ export async function GET(request: Request) {
       );
   }
 }
+
+export const GET = withAccountRequest(handleGET);

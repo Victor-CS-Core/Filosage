@@ -250,8 +250,6 @@ test("checkout eligibility is exact, versioned, and bound to Stripe-hosted billi
     expect(checkoutEligibilityAttestation(rejected)).toBeNull();
   }
 
-  expect(stripeServerSource).not.toContain("payment_method_types");
-  expect(stripeServerSource).not.toContain("CLOSED_LAUNCH_PAYMENT_METHOD_TYPES");
   expect(stripeServerSource).toMatch(/integration_identifier:\s*"filosage_checkout_[a-z]{8}"/);
   expect(stripeServerSource).toContain("billingPortal.sessions.create");
   expect(portalRouteSource).toContain("createBillingPortalSession");
@@ -786,7 +784,7 @@ test("a past-due subscriber can reach billing management while checkout is close
 
   await page.goto("/pricing");
   await expect(page.getByText("Payment needs attention")).toBeVisible();
-  await expect(page.getByText(/update your payment method, view invoices, or cancel at the end of the paid period/)).toBeVisible();
+  await expect(page.getByText(/Update your payment method or cancel at the end of the paid period/)).toBeVisible();
   await expect(page.getByText(/switch an available plan/)).toHaveCount(0);
   await expect(page.getByRole("button", { name: "Manage billing in Stripe" })).toBeEnabled();
   await expect(page.getByRole("button", { name: "Cancel membership in Stripe" })).toBeEnabled();

@@ -6,8 +6,8 @@ export default defineSupportArticle({
   summary: "Separate self-reported starting estimates from observed practice and assessed results.",
   category: "progress",
   keywords: ["evidence report", "baseline", "mastery", "capstone", "assessment", "share"],
-  reviewedOn: "2026-08-16",
-  sources: ["src/app/evidence/[courseId]/page.tsx", "src/app/evidence/shared/[token]/page.tsx", "src/app/api/evidence/[courseId]/export/route.ts", "src/app/api/evidence/[courseId]/shares/route.ts", "src/components/OutcomeUsefulness.tsx", "src/lib/evidence-report.ts", "src/lib/evidence-shares.ts", "src/lib/mastery.ts", "src/components/useMasteryJourney.ts"],
+  reviewedOn: "2026-09-06",
+  sources: ["src/lib/account-deletion.ts", "src/lib/learner-storage.ts", "src/app/evidence/[courseId]/page.tsx", "src/app/evidence/shared/[token]/page.tsx", "src/app/api/evidence/[courseId]/export/route.ts", "src/app/api/evidence/[courseId]/shares/route.ts", "src/components/OutcomeUsefulness.tsx", "src/lib/evidence-report.ts", "src/lib/evidence-shares.ts", "src/lib/mastery.ts", "src/components/useMasteryJourney.ts"],
   body: `
 ## Understand the three summaries
 
@@ -54,6 +54,9 @@ When advanced capstone analysis is available and at least two attempts exist, th
 After every lesson has saved evidence, the report can ask for a **1–5 usefulness rating** about how useful the outcome was in practice. Submit only the rating and optional context you intend to share as product feedback.
 
 After a passed capstone, Filosage may show a recommended next course. Treat it as a next-outcome suggestion, inspect its outline and source disclosures, and choose it only if the outcome fits your work.
+## Check the account and saved state
+
+Evidence, feedback and draft work remain with the account that recorded them. If the session changes while a request is loading, reopen the report in the intended account. A failed load is not evidence of zero attempts or no improvement. Account deletion disables access to that account’s shares and removes active learner work through its saved deletion request; a downloaded report already held outside Filosage remains under its recipient’s control.
 `,
   related: ["understand-progress", "complete-a-lesson", "complete-a-capstone", "privacy-controls"],
 });

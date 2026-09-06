@@ -17,7 +17,7 @@ const manifest = JSON.parse(readFileSync(resolve("config/release-capabilities.js
 const sha = "b".repeat(40);
 const digest = `sha256:${"d".repeat(64)}`;
 const origin = "https://filosage.com";
-const evidence = { schemaVersion: 1, sha, imageDigest: digest, manifest, productionOrigin: origin, qaOrigin: "https://qa.example", qaAuthenticationMode: "migration-dual" };
+const evidence = { schemaVersion: 2, sha, imageDigest: digest, manifest, productionOrigin: origin, candidateOrigin: "https://green---app.example", authenticationMode: "migration-dual", appId: "/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/release/providers/Microsoft.App/containerApps/app", revision: "app--candidate", label: "green", authConfigSha256: "a".repeat(64) };
 const script = resolve("scripts/release-capabilities.mjs");
 const run = (args: string[], env: NodeJS.ProcessEnv = process.env) => spawnSync(process.execPath, [script, ...args], { encoding: "utf8", env });
 
@@ -49,9 +49,9 @@ test("capabilities reject missing, nonboolean, unexpected, opposite, and invalid
   expect(releaseCapabilitiesMatch({ flashcardDecks: "false", flashcardGeneration: false } as never, manifest.capabilities)).toBe(false);
 });
 
-test("evidence binds the reviewed manifest to the exact SHA, digest, origins, and bounded QA authentication", () => {
+test("evidence binds the reviewed manifest to the exact SHA, digest, origins, and shared application authentication", () => {
   expect(releaseEvidenceMatches(evidence, sha, manifest, origin)).toBe(true);
-  for (const changed of [null, {}, { ...evidence, sha: "c".repeat(40) }, { ...evidence, imageDigest: "latest" }, { ...evidence, manifest: { ...manifest, capabilities: { ...manifest.capabilities, flashcardDecks: true } } }, { ...evidence, productionOrigin: "https://other.example" }, { ...evidence, qaOrigin: "https://qa.example/path" }, { ...evidence, qaAuthenticationMode: "unexpected" }]) {
+  for (const changed of [null, {}, { ...evidence, sha: "c".repeat(40) }, { ...evidence, imageDigest: "latest" }, { ...evidence, manifest: { ...manifest, capabilities: { ...manifest.capabilities, flashcardDecks: true } } }, { ...evidence, productionOrigin: "https://other.example" }, { ...evidence, candidateOrigin: "https://qa.example/path" }, { ...evidence, authenticationMode: "unexpected" }]) {
     expect(releaseEvidenceMatches(changed, sha, manifest, origin)).toBe(false);
   }
 });
@@ -60,19 +60,19 @@ test("candidate CLI creates and checks evidence without permitting a different d
   const directory = mkdtempSync(join(tmpdir(), "filosage-release-evidence-"));
   const path = join(directory, "release-candidate.json");
   try {
-    const created = run(["create-evidence", sha, digest, origin, evidence.qaOrigin, evidence.qaAuthenticationMode]);
+    const created = run(["create-evidence", sha, digest, origin, evidence.candidateOrigin, evidence.authenticationMode, evidence.appId, evidence.revision, evidence.label, evidence.authConfigSha256]);
     expect(created.status, created.stderr).toBe(0);
     expect(JSON.parse(created.stdout)).toEqual(evidence);
     writeFileSync(path, created.stdout);
     const verified = run(["verify-evidence", path, sha, origin]);
     expect(verified.status, verified.stderr).toBe(0);
     expect(verified.stdout).toContain(`EXPECTED_IMAGE_DIGEST=${digest}`);
-    expect(verified.stdout).toContain("QA_AUTH_MODE=migration-dual");
+    expect(verified.stdout).toContain("EXPECTED_AUTH_MODE=migration-dual");
     expect(run(["verify-evidence", path, "c".repeat(40), origin]).status).toBe(1);
     expect(run(["check-image", "registry.azurecr.io/filosage", digest, `registry.azurecr.io/filosage@${digest}`]).status).toBe(0);
     expect(run(["check-image", "registry.azurecr.io/filosage", digest, `registry.azurecr.io/filosage@sha256:${"e".repeat(64)}`]).status).toBe(1);
     expect(run(["check-image", "registry.azurecr.io/filosage", digest, `registry.azurecr.io/filosage:${sha}`]).status).toBe(1);
-    writeFileSync(path, JSON.stringify({ ...evidence, qaAuthenticationMode: "secret-do-not-print" }));
+    writeFileSync(path, JSON.stringify({ ...evidence, authenticationMode: "secret-do-not-print" }));
     const rejected = run(["verify-evidence", path, sha, origin]);
     expect(rejected.status).toBe(1);
     expect(rejected.stderr).not.toContain("secret-do-not-print");

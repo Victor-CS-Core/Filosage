@@ -226,6 +226,8 @@ function applyWrite(store: StoreShape, write: Record<string, unknown>) {
   }
 }
 
+const localTransactionReads = new Map<string, Record<string, string>>();
+
 export async function localDocumentStoreJson<T>(
   path: string,
   init: RequestInit = {},
@@ -241,6 +243,7 @@ export async function localDocumentStoreJson<T>(
     const store = load();
     const transaction = `local-${crypto.randomUUID()}`;
     const documents = (body.documents as string[] | undefined) ?? [];
+    localTransactionReads.set(transaction, Object.fromEntries(documents.map((name) => [pathFromName(name), JSON.stringify(store[pathFromName(name)] ?? null)])));
     return documents.map((name, index) => {
       const documentPath = pathFromName(name);
       const data = store[documentPath];
@@ -252,13 +255,27 @@ export async function localDocumentStoreJson<T>(
   }
   if (path === "/documents:commit") {
     return mutateStore((store) => {
+      const transaction = typeof body.transaction === "string" ? body.transaction : undefined;
+      const reads = transaction ? localTransactionReads.get(transaction) : undefined;
+      if (transaction && !reads) throw new Error("Document store request failed (409).");
+      if (transaction) localTransactionReads.delete(transaction);
+      if (reads && Object.entries(reads).some(([key, value]) => JSON.stringify(store[key] ?? null) !== value)) throw new Error("Document store request failed (409).");
       for (const write of (body.writes as Array<Record<string, unknown>> | undefined) ?? []) {
         applyWrite(store, write);
       }
       return {} as T;
     });
   }
-  if (path === "/documents:rollback") return {} as T;
+  if (path === "/documents:rollback") {
+    if (typeof body.transaction === "string") localTransactionReads.delete(body.transaction);
+    return {} as T;
+  }
+  if (path === "/documents:scan") {
+    const store = load();
+    const paths = Object.keys(store).sort();
+    const maximum = Math.min(Math.max(Number(body.maximum) || 50_000, 1), 100_000);
+    return { documents: paths.slice(0, maximum).map((key) => toDocument(key, store[key])), complete: paths.length <= maximum } as T;
+  }
   if (path === "/documents:runQuery") {
     const store = load();
     const rows = runQuery(store, body.structuredQuery as StructuredQuery);

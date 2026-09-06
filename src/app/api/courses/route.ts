@@ -1,3 +1,4 @@
+import { withAccountRequest } from "@/lib/auth-server";
 import { NextResponse } from "next/server";
 import { authorizationResponse, requireAccount } from "@/lib/auth-server";
 import { getStoredDocument, listOwnerCourses, listPublicCourses } from "@/lib/document-store";
@@ -8,7 +9,7 @@ import { courseAuthorIdsForAccount } from "@/lib/course-owner-identity";
 import { configuredFlagshipCourseId } from "@/lib/marketing-merchandising";
 import { serverEnvironment } from "@/lib/runtime-environment";
 
-export async function GET(request: Request) {
+async function handleGET(request: Request) {
   const { searchParams } = new URL(request.url);
   const scope = searchParams.get("scope") ?? "public";
 
@@ -60,3 +61,5 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: "Courses are temporarily unavailable." }, { status: 500 });
   }
 }
+
+export const GET = withAccountRequest(handleGET);

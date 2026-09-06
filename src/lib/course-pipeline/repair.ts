@@ -2,7 +2,8 @@ import type { RepairOperation, ValidationReport } from "@/lib/course-pipeline/co
 
 export const REPAIR_ATTEMPT_LIMITS = {
   deterministic: 1,
-  semantic: 2,
+  // The base release has no semantic subtree executor or semantic-proof writer.
+  semantic: 0,
 } as const;
 
 export interface RepairPlan {

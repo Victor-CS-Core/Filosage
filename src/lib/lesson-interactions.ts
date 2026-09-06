@@ -119,9 +119,10 @@ function neutralSequenceLabel(value: string) {
 function normalizeSequence(interaction: SequenceInteraction): SequenceInteraction {
   return {
     ...interaction,
-    // Generated prompts often restate the ordered procedure. The cards provide
-    // the task context, so a neutral instruction protects the retrieval task.
-    prompt: SEQUENCE_PROMPT,
+    // Neutralize an explicit English ordering giveaway without replacing every
+    // authored prompt, including other requested instruction languages.
+    prompt: /\bfirst\b[\s\S]*\bthen\b[\s\S]*\bfinally\b/i.test(interaction.prompt)
+      ? SEQUENCE_PROMPT : interaction.prompt,
     steps: interaction.steps.map((step) => ({
       ...step,
       label: neutralSequenceLabel(step.label),

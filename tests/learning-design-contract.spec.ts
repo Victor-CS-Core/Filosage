@@ -19,6 +19,8 @@ import {
   objectiveIdForCapability,
   learningDesignContractIssues,
   lessonDesignOutputIssues,
+  assertLearningDesignReady,
+  LearningDesignReplanRequiredError,
 } from "../src/lib/learning-design";
 
 const referenceA = "reference-0123456789abcdef";
@@ -92,6 +94,22 @@ test("publishes stable independent learning-design contract versions", () => {
   expect(LEARNING_DESIGN_CONTRACT_VERSION).toBe("learning-design-v1.0.0");
   expect(COURSE_LEARNING_BRIEF_VERSION).toBe("course-learning-brief-v1.0.0");
   expect(LESSON_DESIGN_PLAN_VERSION).toBe("lesson-design-plan-v1.0.0");
+});
+
+test("an invalid learning plan returns actionable blockers instead of authorizing persistence", () => {
+  const plan = canonicalLessonDesignPlanV1(validPlan());
+  const contract = { contractVersion: LEARNING_DESIGN_CONTRACT_VERSION, brief: canonicalCourseLearningBriefV1(validBrief()), lessonPlans: [plan] };
+  const context = { knownObjectiveIds: ["objective-m0", "objective-m0-l0", "objective-m0-l1"], knownSourceIds: ["source-primary"], knownFurtherReadingIds: [referenceA] };
+  expect(() => assertLearningDesignReady(contract, context)).not.toThrow();
+  try {
+    assertLearningDesignReady(contract, { ...context, knownSourceIds: [] });
+    throw new Error("An invalid plan was accepted.");
+  } catch (error) {
+    expect(error).toBeInstanceOf(LearningDesignReplanRequiredError);
+    expect(error).toMatchObject({ code: "LEARNING_DESIGN_REPLAN_REQUIRED", status: 422, issues: expect.arrayContaining([expect.objectContaining({ code: "LD_RESOURCE_001" })]) });
+    expect((error as LearningDesignReplanRequiredError).recovery).toContain("Course Studio");
+    expect((error as LearningDesignReplanRequiredError).recovery).toContain("new course request");
+  }
 });
 
 test("public learning-design summary cannot echo private brief context", () => {
@@ -398,6 +416,20 @@ test("accepts a concise one-win lesson with distinct guided and transfer work", 
     quizzes: [{ assessmentId: "assessment-claim-check" }],
     experience: { type: "concept" },
   }, plan)).toEqual([]);
+});
+
+test("new generation cannot silently replace the planned capability with source-fidelity practice", () => {
+  const plan = canonicalLessonDesignPlanV1(validPlan());
+  const lesson = {
+    learningObjective: "Identify whether a sentence repeats the supplied source claim.",
+    content: "Read the supplied statement before comparing the examples.",
+    guidedPractice: { prompt: "Compare the first wording with the source." },
+    transferTask: { prompt: "Check a new wording independently.", successCriteria: ["Preserves the claim"], criterionIds: [] },
+    quizzes: [{ assessmentId: "assessment-claim-check" }],
+  };
+  expect(lessonDesignOutputIssues(lesson, plan, { preservePlannedObjective: true }))
+    .toContainEqual(expect.objectContaining({ code: "LD_REPLAN_001", severity: "blocker", path: "lesson.learningObjective" }));
+  expect(lessonDesignOutputIssues({ ...lesson, learningObjective: plan.scopeBudget.singleWin }, plan, { preservePlannedObjective: true })).toEqual([]);
 });
 
 test("requires every feedback assessment and rubric criterion to bind exactly once", () => {

@@ -6,8 +6,8 @@ export default defineSupportArticle({
   summary: "Send a factual, outdated, source, clarity, safety, copyright, or other concern from the affected content.",
   category: "trust",
   keywords: ["report", "content", "accuracy", "source", "safety", "copyright", "lesson"],
-  reviewedOn: "2026-08-16",
-  sources: ["src/app/course/[topic]/page.tsx", "src/components/LessonIntegrityPanel.tsx", "src/app/api/content-reports/route.ts", "src/lib/content-report-policy.ts"],
+  reviewedOn: "2026-09-06",
+  sources: ["src/app/api/support/capabilities/route.ts", "src/app/course/[topic]/page.tsx", "src/components/LessonIntegrityPanel.tsx", "src/app/api/content-reports/route.ts", "src/lib/content-report-policy.ts"],
   body: `
 ## Report from the affected lesson
 
@@ -24,6 +24,9 @@ After a successful submission, Filosage confirms that the report entered the con
 ## If the in-lesson tool is unavailable
 
 Use [contact support](/support/articles/contact-support). Include the course name, lesson title, affected section, what you expected, and what happened. Do not send private identity or ownership evidence unless support requests it through an appropriate channel.
+## Keep the report separate from a support request
+
+Content reporting and the Support Center are separate controls. An accepted content report does not by itself confirm that a support ticket was created, that a reply was published, or that content was removed. If in-app support intake is unavailable, use the email option in [contact support](/support/articles/contact-support) and include the report reference if one was provided.
 `,
   related: ["complete-a-lesson", "contact-support", "privacy-controls"],
 });

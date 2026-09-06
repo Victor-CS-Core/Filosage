@@ -112,6 +112,9 @@ export const COURSE_QUALITY_RULES = {
   SOURCE_RESEARCH_INVALID: {
     code: "CQ_SOURCE_005", version: 2, purpose: "Require current API provenance for retained evidence and an exact layered evidence profile while permitting sparse or empty research", classification: "deterministic", severity: "blocker", source: "source_integrity", repairability: "assisted", suggestedAction: "Repair only invalid provenance or evidence labels; preserve the course and use disclosed model knowledge when trusted evidence is unavailable.",
   },
+  SOURCE_RESEARCH_STALE: {
+    code: "CQ_SOURCE_006", version: 1, purpose: "Bind publication to unexpired research for the exact draft and author", classification: "deterministic", severity: "blocker", source: "source_integrity", repairability: "not_applicable", suggestedAction: "Create a new draft with current research, then validate it. Keep the existing draft until its replacement is ready.",
+  },
   SEMANTIC_REVIEW_REQUIRED: {
     code: "CQ_SEMANTIC_001", version: 1, purpose: "Require calibrated semantic or human review before V2 publication", classification: "semantic", severity: "error", source: "semantic", repairability: "manual", suggestedAction: "Review accuracy, coherence, filler, and objective-to-assessment meaning on this exact snapshot.",
   },

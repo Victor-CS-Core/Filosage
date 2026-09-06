@@ -21,6 +21,9 @@ import { openAiSafetyIdentifier } from "@/lib/ai-usage";
 import { expectedLessonModes } from "@/lib/course-progress";
 import { currentManualReviewResolution, publicationEvidenceFingerprint, publicationProofIsCurrent, PUBLICATION_PROOF_POLICY_VERSION, validationEvidenceFingerprint, type PublicationProof } from "@/lib/publication-proofs";
 import { courseUsesPipelineV2 } from "@/lib/course-pipeline/feature-policy";
+import { publicationResearchArtifactPath, publicationResearchProof, assertPublicationResearchUnchanged } from "@/lib/publication-research";
+import { getStoredDocument } from "@/lib/document-store";
+import { COURSE_QUALITY_RULES, issueFromRule } from "@/lib/course-pipeline/rules";
 
 export const PUBLICATION_REVIEW_VERSION = "publication-v5-snapshot-proof";
 export const PUBLICATION_SAFETY_REVIEW_BASIS = "generation-output-moderation+publication-local-scan";
@@ -96,6 +99,13 @@ export async function buildPublicationValidationProof(
   const byId = new Map(lessons.map((lesson) => [String(lesson.id ?? ""), lesson]));
   const orderedLessons = expectedLessonIds.map((id) => byId.get(id) ?? { missingLessonId: id });
   const validationReport = await validateCourseCandidateV2(course, lessons, expectedLessonIds, expectedLessonModes(course));
+  const researchPath = publicationResearchArtifactPath(course);
+  const research = publicationResearchProof(course, researchPath ? await getStoredDocument(researchPath) : null);
+  if (research?.status === "blocked") {
+    validationReport.issues.push(issueFromRule(COURSE_QUALITY_RULES.SOURCE_RESEARCH_STALE,
+      "course.sourcePack", "Source research is missing, changed, or expired. Current research is required before publication."));
+    validationReport.publishable = false;
+  }
   await assertLocallySafeContentBatch([course, ...orderedLessons].map((document) => JSON.stringify(document)), {
     uid: reviewer.uid, feature: "lesson_generation", stage: "output",
   });
@@ -105,7 +115,7 @@ export async function buildPublicationValidationProof(
     courseId: String(course.id ?? course.courseId ?? "unpersisted-course"),
     lessonIds: expectedLessonIds, evidenceFingerprint: publicationEvidenceFingerprint(course, orderedLessons),
     safety: { status: "passed", basis: "publication-local-scan", reviewedAt: new Date().toISOString() },
-    validationReport,
+    validationReport, research,
   };
 }
 
@@ -167,6 +177,8 @@ async function reviewCourse(
   const byId = new Map(lessons.map((lesson) => [String(lesson.id ?? ""), lesson]));
   const orderedLessons = expectedLessonIds.map((id) => byId.get(id) ?? { missingLessonId: id });
   const proof = course.publicationProof as PublicationProof | undefined;
+  const researchPath = publicationResearchArtifactPath(course);
+  assertPublicationResearchUnchanged(course, researchPath ? await getStoredDocument(researchPath) : null, proof?.research);
   if (!publicationProofIsCurrent(course, orderedLessons, expectedLessonIds, validationReport.snapshotHash, proof)
     || validationEvidenceFingerprint(proof.validationReport) !== validationEvidenceFingerprint(validationReport)) {
     throw new PublicationReviewError("Validate this exact draft to obtain a current publication proof.",

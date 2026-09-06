@@ -1,3 +1,4 @@
+import { withAccountRequest } from "@/lib/auth-server";
 import { publicationProofToken } from "@/lib/publication-proofs";
 import { buildPublicationValidationProof } from "@/lib/publication-review";
 import { ContentSafetyError } from "@/lib/content-safety";
@@ -12,7 +13,7 @@ import { openAiSafetyIdentifier } from "@/lib/ai-usage";
 import { publicationContentFingerprint } from "@/lib/publication-content";
 import { courseUsesPipelineV2 } from "@/lib/course-pipeline/feature-policy";
 
-export async function GET(
+async function handleGET(
   request: Request,
   context: { params: Promise<{ courseId: string }> },
 ) {
@@ -99,3 +100,5 @@ export async function GET(
     );
   }
 }
+
+export const GET = withAccountRequest(handleGET);

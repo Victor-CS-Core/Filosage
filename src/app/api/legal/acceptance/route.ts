@@ -1,3 +1,4 @@
+import { withAccountRequest } from "@/lib/auth-server";
 import { z } from "zod";
 import { apiRequestErrorResponse, readJsonBody } from "@/lib/api-security";
 import { authorizationResponse, requireUser } from "@/lib/auth-server";
@@ -22,7 +23,7 @@ const acceptanceSchema = z.object({
   source: z.enum(["signup", "terms-update", "subscription"]),
 });
 
-export async function POST(request: Request) {
+async function handlePOST(request: Request) {
   try {
     const user = await requireUser(request);
     const parsed = acceptanceSchema.safeParse(await readJsonBody(request, 2_048));
@@ -162,3 +163,5 @@ export async function POST(request: Request) {
       ?? Response.json({ error: "Your acceptance could not be saved." }, { status: 500 });
   }
 }
+
+export const POST = withAccountRequest(handlePOST);

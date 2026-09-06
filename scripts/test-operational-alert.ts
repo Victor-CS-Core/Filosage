@@ -1,5 +1,5 @@
 import pg from "pg";
-import { deliverScriptAlert, writeEvidenceFile } from "./operations-script-support.ts";
+import { deliverScriptAlert, operationalAlertTransportEvidence, writeEvidenceFile } from "./operations-script-support.ts";
 
 const evidenceFile = process.argv.find((value) => value.startsWith("--evidence-file="))?.slice(16);
 const testId = `manual-${new Date().toISOString()}`;
@@ -13,16 +13,10 @@ try {
     context: { resourceGroup: process.env.AZURE_RESOURCE_GROUP?.trim() || "unconfigured", testId },
   });
   if (!result.ok) throw new Error(result.error ?? "Operational alert was not acknowledged.");
-  const evidence = {
-    operation: "operational_alert_test",
-    status: "succeeded",
+  const evidence = operationalAlertTransportEvidence(result, {
     resourceGroup: process.env.AZURE_RESOURCE_GROUP?.trim() || null,
-    completedAt: new Date().toISOString(),
-    alertId: result.alertId,
-    attempts: result.attempts,
-    receiverStatus: result.status,
     releaseSha: process.env.SITE_VERSION?.trim() || process.env.GITHUB_SHA?.trim() || null,
-  };
+  });
   const databaseUrl = process.env.DATABASE_URL?.trim();
   if (databaseUrl) {
     const pool = new pg.Pool({ connectionString: databaseUrl, ssl: { rejectUnauthorized: true }, max: 1 });
@@ -38,7 +32,7 @@ try {
     }
   }
   await writeEvidenceFile(evidenceFile, evidence);
-  console.log(`Signed operational alert acknowledged: ${result.alertId}`);
+  console.log(`Signed alert HTTP delivery accepted: ${result.alertId}. Receiver durability and independent monitoring remain unverified.`);
 } catch (error) {
   console.error(error instanceof Error ? error.message : "Operational alert test failed.");
   process.exitCode = 1;

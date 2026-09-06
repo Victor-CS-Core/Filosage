@@ -91,19 +91,27 @@ export const validReleaseSha = (value: unknown): value is string => typeof value
 export const validReleaseDigest = (value: unknown): value is string => typeof value === "string" && /^sha256:[a-f0-9]{64}$/.test(value);
 
 export interface ReleaseEvidence {
-  schemaVersion: 1;
+  schemaVersion: 2;
   sha: string;
   imageDigest: string;
   manifest: ReleaseManifest;
   productionOrigin: string;
-  qaOrigin: string;
-  qaAuthenticationMode: string;
+  candidateOrigin: string;
+  authenticationMode: string;
+  appId: string;
+  revision: string;
+  label: string;
+  authConfigSha256: string;
 }
 export function releaseEvidenceMatches(value: unknown, sha: string, manifest: ReleaseManifest, productionOrigin: string): value is ReleaseEvidence {
-  return record(value) && value.schemaVersion === 1 && validReleaseSha(sha) && value.sha === sha
+  return record(value) && value.schemaVersion === 2 && validReleaseSha(sha) && value.sha === sha
     && validReleaseDigest(value.imageDigest) && validReleaseManifest(value.manifest)
     && releaseSelectionMatches(manifest.capabilities, value.manifest.capabilities)
     && validReleaseOrigin(productionOrigin) && value.productionOrigin === productionOrigin
-    && validReleaseOrigin(value.qaOrigin)
-    && releaseAuthenticationModes.some((mode) => mode === value.qaAuthenticationMode);
+    && validReleaseOrigin(value.candidateOrigin)
+    && typeof value.appId === "string" && /^\/subscriptions\/[a-f0-9-]{36}\/resourceGroups\/[\w.-]+\/providers\/Microsoft.App\/containerApps\/[a-z0-9-]+$/i.test(value.appId)
+    && typeof value.revision === "string" && value.revision.startsWith(`${value.appId.split("/").at(-1)}--`) && /^[a-z0-9-]+$/.test(value.revision)
+    && ["blue", "green"].includes(String(value.label))
+    && typeof value.authConfigSha256 === "string" && /^[a-f0-9]{64}$/.test(value.authConfigSha256)
+    && releaseAuthenticationModes.some((mode) => mode === value.authenticationMode);
 }

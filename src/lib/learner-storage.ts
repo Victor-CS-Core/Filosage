@@ -1,17 +1,19 @@
-import { EXPECTED_ACCOUNT_HEADER } from "@/lib/account-session";
+import { EXPECTED_ACCOUNT_HEADER, EXPECTED_GENERATION_HEADER } from "@/lib/account-session";
 
 // Browser learning records are owned by a canonical account, never by the next
 // person using the device. Unowned historical keys are deliberately not read,
 // migrated, or erased: their ownership cannot be established.
-export type LearnerStorageFamily = "learner-state" | "progress" | "mastery" | "experience-draft" | "transfer-draft" | "outcome-feedback";
+export type LearnerStorageFamily = "learner-state" | "progress" | "mastery" | "experience-draft" | "transfer-draft" | "outcome-feedback" | "generation-operation";
 export interface LearnerStorageUser {
   uid: string;
+  accountGeneration?: string;
   getIdToken(): Promise<string>;
 }
 export const LEARNER_SESSION_CHANGE_KEY = "filosage:learner-session-change:v1";
 export const LEARNER_SESSION_INVALIDATED_EVENT = "filosage:learner-session-invalidated";
 
 let activeUid: string | null = null;
+let activeGeneration: string | null = null;
 let revision = 0;
 let controller = new AbortController();
 
@@ -30,12 +32,24 @@ export function isCurrentLearnerSession(session: ReturnType<typeof learnerSessio
   return session.uid === activeUid && session.revision === revision && !session.signal.aborted;
 }
 
-export function setLearnerStorageIdentity(uid: string | null) {
+export function setLearnerStorageIdentity(uid: string | null, generation: string | null = null) {
   if (uid !== null && (!uid || uid !== uid.trim())) throw new Error("A canonical account ID is required for learning storage.");
-  if (activeUid !== uid) {
+  if (activeUid !== uid || activeGeneration !== generation) {
     controller.abort();
     controller = new AbortController();
+    if (typeof window !== "undefined" && uid && generation) {
+      try {
+        const key = `filosage:learner-generation:v1:${encodeURIComponent(uid)}`;
+        const previous = localStorage.getItem(key);
+        if (previous && previous !== generation) {
+          const prefix = `filosage:learner:v1:${encodeURIComponent(uid)}:`;
+          for (const entry of Array.from({ length: localStorage.length }, (_, index) => localStorage.key(index)).filter((key): key is string => key !== null)) if (entry.startsWith(prefix)) localStorage.removeItem(entry);
+        }
+        localStorage.setItem(key, generation);
+      } catch { /* Storage is optional. */ }
+    }
     activeUid = uid;
+    activeGeneration = generation;
     revision += 1;
   }
   return revision;
@@ -43,7 +57,7 @@ export function setLearnerStorageIdentity(uid: string | null) {
 
 export function announceLearnerSessionChange(reason: "refresh" | "signed-out" = "refresh") {
   try {
-    const hint = `${reason}:${encodeURIComponent(activeUid ?? "")}:`;
+    const hint = `${reason}:${encodeURIComponent(activeUid ?? "")}:${encodeURIComponent(activeGeneration ?? "")}:`;
     // Opening a second tab as the same account must not reset an active draft.
     // This hint only suppresses redundant notifications; it never authorizes IO.
     if (reason === "refresh" && localStorage.getItem(LEARNER_SESSION_CHANGE_KEY)?.startsWith(hint)) return;
@@ -92,9 +106,19 @@ export async function learnerRequest(user: LearnerStorageUser | null, input: str
   const headers = new Headers(init.headers);
   headers.set("Authorization", `Bearer ${token}`);
   headers.set(EXPECTED_ACCOUNT_HEADER, encodeURIComponent(user!.uid));
+  if (user!.accountGeneration) headers.set(EXPECTED_GENERATION_HEADER, encodeURIComponent(user!.accountGeneration!));
   const signal = init.signal ? AbortSignal.any([session.signal, init.signal]) : session.signal;
   const response = await fetch(input, { ...init, headers, signal });
   assertCurrent();
-  if (response.status === 401) invalidateLearnerSession();
+  if (response.status === 401 || (response.status === 403 && (await response.clone().json().catch(() => ({}))).code === "ACCOUNT_GENERATION_UNAVAILABLE")) invalidateLearnerSession();
   return response;
+}
+
+export function clearLearnerAccountStorage(uid: string) {
+  if (typeof window === "undefined" || !uid || uid !== activeUid) return;
+  try {
+    const prefix = `filosage:learner:v1:${encodeURIComponent(uid)}:`;
+    for (const key of Array.from({ length: localStorage.length }, (_, index) => localStorage.key(index)).filter((key): key is string => key !== null)) if (key.startsWith(prefix)) localStorage.removeItem(key);
+  } catch { /* Storage is optional. */ }
+  invalidateLearnerSession();
 }

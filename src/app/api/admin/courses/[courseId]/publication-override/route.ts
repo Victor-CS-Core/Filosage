@@ -1,3 +1,5 @@
+import { PublicationResearchChangedError } from "@/lib/publication-research";
+import { withAccountRequest } from "@/lib/auth-server";
 import { z } from "zod";
 import { authorizationResponse, requireRecentlyAuthenticatedOwner } from "@/lib/auth-server";
 import { apiRequestErrorResponse, readJsonBody } from "@/lib/api-security";
@@ -20,7 +22,7 @@ const overrideSchema = z.object({
   confirmation: z.literal("PUBLISH WITH QUALITY OVERRIDE"),
 }).strict();
 
-export async function POST(
+async function handlePOST(
   request: Request,
   context: { params: Promise<{ courseId: string }> },
 ) {
@@ -143,6 +145,10 @@ export async function POST(
         { status: 409, headers: { "Cache-Control": "private, no-store" } },
       );
     }
+    if (error instanceof PublicationResearchChangedError) {
+      return Response.json({ error: "Source evidence changed or expired. Validate the draft to review the required next step.", code: "STALE_PUBLICATION_PROOF" },
+        { status: 409, headers: { "Cache-Control": "private, no-store" } });
+    }
     if (error instanceof PublicationReviewError) {
       return Response.json(
         {
@@ -166,3 +172,5 @@ export async function POST(
     );
   }
 }
+
+export const POST = withAccountRequest(handlePOST);

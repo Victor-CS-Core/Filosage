@@ -3,23 +3,27 @@ import { defineSupportArticle } from "../types";
 export default defineSupportArticle({
   slug: "contact-support",
   title: "Contact Filosage support",
-  summary: "Create a private support ticket or send the context needed to investigate an account, course, privacy, or technical problem.",
+  summary: "Check the available support channel, read existing requests, or send the context needed to investigate a problem.",
   category: "plans",
   keywords: ["support", "contact", "ticket", "reference", "email", "help", "search", "guide", "problem", "screenshot", "response"],
-  reviewedOn: "2026-08-16",
-  sources: ["src/app/support/page.tsx", "src/components/support/SupportCenter.tsx", "src/components/support/SupportTicketPanel.tsx", "src/app/api/support/tickets/route.ts", "src/app/api/support/tickets/[ticketId]/route.ts", "src/components/support/SupportSearch.tsx", "src/lib/search.ts", "src/lib/legal.ts", "src/components/LessonIntegrityPanel.tsx", "src/lib/content-report-policy.ts"],
+  reviewedOn: "2026-09-06",
+  sources: ["src/app/api/support/capabilities/route.ts", "src/lib/support-capabilities.ts", "src/app/support/page.tsx", "src/components/support/SupportCenter.tsx", "src/components/support/SupportTicketPanel.tsx", "src/app/api/support/tickets/route.ts", "src/app/api/support/tickets/[ticketId]/route.ts", "src/components/support/SupportSearch.tsx", "src/lib/search.ts", "src/lib/legal.ts", "src/components/LessonIntegrityPanel.tsx", "src/lib/content-report-policy.ts"],
   body: `
 ## Search the help guides
 
 Open [Support](/support) and search for the task or problem first. Search checks guide titles, summaries, categories, and keywords; multiple words can appear in any order, and matching ignores capitalization, punctuation, and accents. Choose the clear control or press **Escape** to reset the search while keeping focus in the search field.
 
-## Create a private ticket
+## Check the available support channel
 
-Open the floating Filosage spark from any page, choose **New request**, and describe the problem. You can also start from [Support](/support) by choosing **Send a support request**. Select the closest request type, add a concise subject, and explain which page or course you were using, what you expected, and what happened instead.
+Open the floating Filosage spark or the [Support page](/support). Filosage checks whether in-app submission is available before showing a new-request form. If submission is off or cannot be confirmed, **Contact support** offers email and Help immediately. **My requests** remains available for existing tickets. An email link opens your email app; it does not itself create a ticket or confirm delivery.
+
+## Create a private ticket when offered
+
+When **New request** is available, sign in with your verified account and describe the problem. You can also start from [Support](/support) by choosing **Send a support request**. Select the closest request type, add a concise subject, and explain which page or course you were using, what you expected, and what happened instead.
 
 After submission, Filosage shows a ticket reference such as **TKT-123ABCD**. The request enters the private owner review queue. Your description is treated as unverified until it is reviewed, and submitting it cannot trigger a refund, account change, deletion, or other external action.
 
-To protect the queue, each account can submit up to five requests per day.
+To protect the queue, each account can submit up to five requests in 24 hours. A retry of the same unchanged request keeps its reference instead of creating a duplicate. Failed text remains in the current tab; copy it before leaving. Signing out or changing accounts clears that account’s support form and request view.
 
 ## Track a request and read replies
 

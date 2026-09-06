@@ -27,6 +27,7 @@ interface BillingPortalSessionInput {
   configurationId: string;
   returnUrl: string;
   subscriptionId?: string;
+  recoveryOnly?: boolean;
 }
 
 export function billingPortalSessionParameters(
@@ -37,7 +38,13 @@ export function billingPortalSessionParameters(
     configuration: input.configurationId,
     return_url: input.returnUrl,
   } satisfies Stripe.BillingPortal.SessionCreateParams;
-  if (input.action === "manage") return base;
+  if (input.action === "manage") return input.recoveryOnly ? {
+    ...base,
+    flow_data: {
+      type: "payment_method_update",
+      after_completion: { type: "redirect", redirect: { return_url: input.returnUrl } },
+    },
+  } : base;
   if (!input.subscriptionId?.startsWith("sub_")) {
     throw new Error("A Stripe subscription is required for this billing action.");
   }

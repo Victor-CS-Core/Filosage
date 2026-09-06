@@ -1,8 +1,9 @@
+import { withAccountRequest } from "@/lib/auth-server";
 import { apiRequestErrorResponse } from "@/lib/api-security";
 import { authorizationResponse, requireAcceptedAccount } from "@/lib/auth-server";
 import { commandCenterErrorResponse, getUserCommandCenterTicket } from "@/lib/command-center-server";
 
-export async function GET(
+async function handleGET(
   request: Request,
   context: { params: Promise<{ ticketId: string }> },
 ) {
@@ -24,3 +25,5 @@ export async function GET(
       ?? Response.json({ error: "Your support request could not be loaded." }, { status: 500 });
   }
 }
+
+export const GET = withAccountRequest(handleGET);

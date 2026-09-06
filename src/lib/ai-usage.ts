@@ -1,5 +1,7 @@
 import "server-only";
 
+import { randomUUID } from "node:crypto";
+import { currentAccountGeneration, runWithAccountGeneration, runWithGlobalUsageAccounting } from "@/lib/account-lifecycle";
 import type { AiQuotaSummary } from "@/lib/course-types";
 import type { ServerAccount } from "@/lib/account-server";
 import {
@@ -36,6 +38,8 @@ export interface AiReservation {
   uid: string;
   feature: AiFeature;
   requestId: string;
+  attemptToken?: string;
+  accountGeneration?: string;
   periodPath: string;
   globalPath: string;
   userBudgetPath: string;
@@ -173,24 +177,40 @@ export async function reserveAiUsage(
   }
 
   const requestId = await sha256(`${account.uid}:${feature}:${rawIdempotencyKey}`);
-  const periodPath = `usagePeriods/${account.uid}__${feature}__${policy.periodKey}`;
+  let periodPath = `usagePeriods/${account.uid}__${feature}__${policy.periodKey}`;
   const requestPath = `aiRequests/${requestId}`;
   const globalPeriod = monthWindow(now);
   const budgetPool = budgetPoolFor(account);
   const budgetShard = budgetShardFor(requestId);
-  const globalPath = `systemUsageShards/${budgetPool}__${globalPeriod.key}__${budgetShard}`;
-  const userBudgetPath = `userAiBudgets/${account.uid}__${globalPeriod.key}`;
+  let globalPath = `systemUsageShards/${budgetPool}__${globalPeriod.key}__${budgetShard}`;
+  let userBudgetPath = `userAiBudgets/${account.uid}__${globalPeriod.key}`;
+  const original = await getStoredDocument(requestPath);
+  // A retry retains the paths acquired by the original reservation, including
+  // across month rollover. Legacy records without paths fail closed on reclaim.
+  if (original && typeof original.periodPath === "string" && typeof original.globalPath === "string" && typeof original.userBudgetPath === "string") {
+    periodPath = original.periodPath; globalPath = original.globalPath; userBudgetPath = original.userBudgetPath;
+    policy.periodKey = String(original.accountingPeriodKey ?? periodPath.split("__").at(-1));
+    globalPeriod.key = policy.periodKey;
+    if (typeof original.accountingResetAt === "string") {
+      policy.resetAt = original.accountingResetAt; globalPeriod.resetAt = original.accountingResetAt;
+    }
+  }
+  const attemptToken = randomUUID();
+  const accountGeneration = currentAccountGeneration()?.generation;
   const minuteKey = nowIso.slice(0, 16);
 
   const reservationState = await runStoredDocumentTransaction(
-    [periodPath, requestPath, userBudgetPath, globalPath],
+    [periodPath, requestPath, userBudgetPath, globalPath, aiUsageAttemptPath({ requestId, attemptToken })],
     (documents) => {
       const period = documents[periodPath];
       const previousRequest = documents[requestPath];
       const userBudget = documents[userBudgetPath];
       const global = documents[globalPath];
       const activeUntil = typeof period?.activeUntil === "string" ? Date.parse(period.activeUntil) : 0;
-      const staleReservedRequest = previousRequest?.status === "reserved" && activeUntil <= now.getTime();
+      if (previousRequest?.operationId) throw new AiQuotaError(409, "DURABLE_OPERATION_REQUIRED", "Resume this request through its durable course operation.");
+      const requestActiveUntil = typeof previousRequest?.leaseUntil === "string" ? Date.parse(previousRequest.leaseUntil) : activeUntil;
+      const staleReservedRequest = previousRequest?.status === "reserved" && requestActiveUntil <= now.getTime();
+      if (staleReservedRequest) throw new AiQuotaError(409, "AI_OUTCOME_RECONCILIATION_REQUIRED", "An earlier provider result is unconfirmed and must be reconciled before another paid attempt.");
       const reserveDeltaMicros = staleReservedRequest ? 0 : policy.reserveCostMicros;
       if (
         previousRequest
@@ -251,7 +271,7 @@ export async function reserveAiUsage(
         });
       }
 
-      const userActual = numberValue(userBudget?.actualCostMicros);
+      const userActual = numberValue(userBudget?.actualCostMicros) + numberValue(userBudget?.uncertainCostMicros);
       const userReserved = numberValue(userBudget?.reservedCostMicros);
       if (userActual + userReserved + reserveDeltaMicros > userBudgetLimitMicros(account)) {
         throw new AiQuotaError(429, "USER_BUDGET_REACHED", "Your monthly AI cost allowance has been reached.", {
@@ -259,7 +279,7 @@ export async function reserveAiUsage(
         });
       }
 
-      const globalActual = numberValue(global?.actualCostMicros);
+      const globalActual = numberValue(global?.actualCostMicros) + numberValue(global?.uncertainCostMicros);
       const globalReserved = numberValue(global?.reservedCostMicros);
       const poolBudgetMicros = aiBudgetLimitsUsd()[budgetPool] * 1_000_000;
       const shardBudgetMicros = poolBudgetMicros / BUDGET_SHARDS;
@@ -273,6 +293,11 @@ export async function reserveAiUsage(
 
       return {
         writes: [
+          { path: aiUsageAttemptPath({ requestId, attemptToken }), data: {
+            kind: "ai-usage-attempt", uid: account.uid, accountGeneration, requestId, attemptToken, feature,
+            periodPath, userBudgetPath, globalPath, requestPath, reservedCostMicros: policy.reserveCostMicros,
+            status: "accounting_reserved", createdAt: nowIso,
+          } },
           {
             path: periodPath,
             data: {
@@ -290,6 +315,7 @@ export async function reserveAiUsage(
               outputTokens: numberValue(period?.outputTokens),
               actualCostMicros: numberValue(period?.actualCostMicros),
               activeRequestId: requestId,
+              activeAttemptToken: attemptToken,
               activeUntil: new Date(now.getTime() + policy.lockMs).toISOString(),
               resetAt: policy.resetAt,
               updatedAt: nowIso,
@@ -300,6 +326,9 @@ export async function reserveAiUsage(
             data: {
               uid: account.uid,
               feature,
+              attemptToken, accountGeneration,
+              periodPath, globalPath, userBudgetPath, accountingPeriodKey: policy.periodKey, accountingResetAt: policy.resetAt,
+              leaseUntil: new Date(now.getTime() + policy.lockMs).toISOString(),
               status: "reserved",
               payloadFingerprint: payloadFingerprint ?? previousRequest?.payloadFingerprint ?? null,
               reservedCostMicros: policy.reserveCostMicros,
@@ -315,7 +344,7 @@ export async function reserveAiUsage(
               plan: budgetPool,
               periodKey: globalPeriod.key,
               reservedCostMicros: userReserved + reserveDeltaMicros,
-              actualCostMicros: userActual,
+              actualCostMicros: numberValue(userBudget?.actualCostMicros),
               updatedAt: nowIso,
             },
           },
@@ -327,7 +356,7 @@ export async function reserveAiUsage(
               shard: budgetShard,
               periodKey: globalPeriod.key,
               reservedCostMicros: globalReserved + reserveDeltaMicros,
-              actualCostMicros: globalActual,
+              actualCostMicros: numberValue(global?.actualCostMicros),
               updatedAt: nowIso,
             },
           },
@@ -341,6 +370,7 @@ export async function reserveAiUsage(
     uid: account.uid,
     feature,
     requestId,
+    attemptToken, accountGeneration,
     periodPath,
     requestPath,
     globalPath,
@@ -388,6 +418,7 @@ export async function finalizeAiUsage(
     promptCacheKey?: string;
   },
 ) {
+  if (reservation.recovered) return;
   const nowIso = new Date().toISOString();
   const defaultModel = reservation.feature === "command_center_draft"
     ? serverEnvironment.OPENAI_COMMAND_CENTER_MODEL || serverEnvironment.OPENAI_MODEL || "gpt-5.6-terra"
@@ -420,6 +451,17 @@ export async function finalizeAiUsage(
   const actualCostMicros = samples.length === 1
     ? estimateAiUsageCostMicros({ ...samples[0], cachedInputTokens, cacheWriteTokens })
     : usage.actualCostMicros;
+  // A failed call with no observed response cannot certify zero provider spend.
+  // Preserve uncertainty until a late actual response or operator reconciliation.
+  if (result.failed && actualCostMicros === 0 && !result.responseId && !samples.some((sample) => sample.responseId)) {
+    const expired = await runStoredDocumentTransaction([reservation.requestPath], (documents) => {
+      const request = documents[reservation.requestPath];
+      if (!request || request.status !== "reserved" || request.attemptToken !== reservation.attemptToken) return { writes: [], result: false };
+      return { writes: [{ path: reservation.requestPath, data: { ...request, leaseUntil: nowIso } }], result: true };
+    });
+    if (expired) await reconcileExpiredAiUsage(reservation.requestId, true, new Date(nowIso));
+    return;
+  }
   const models = Array.from(new Set(samples.map((sample) => sample.model)));
   const responseIds = samples.flatMap((sample) => sample.responseId ? [sample.responseId] : []);
   const promptVersions = Array.from(new Set(samples.flatMap((sample) => sample.promptVersion ? [sample.promptVersion] : [])));
@@ -440,98 +482,75 @@ export async function finalizeAiUsage(
     costMicros: estimateAiUsageCostMicros(sample),
   }));
 
-  await runStoredDocumentTransaction(
-    [
-      reservation.periodPath,
-      reservation.requestPath,
-      reservation.userBudgetPath,
-      reservation.globalPath,
-    ],
-    (documents) => {
-      const period: Record<string, unknown> = documents[reservation.periodPath] ?? {};
-      const request: Record<string, unknown> = documents[reservation.requestPath] ?? {};
-      const userBudget: Record<string, unknown> = documents[reservation.userBudgetPath] ?? {};
-      const global: Record<string, unknown> = documents[reservation.globalPath] ?? {};
-      // Document transactions can be replayed after an ambiguous client
-      // response. Only the reservation owner may move this request out of the
-      // reserved state; a repeated finalize must be a no-op so tokens, cost,
-      // and product allowance are never applied twice.
-      if (request.status !== "reserved") {
-        return { writes: [], result: undefined };
-      }
-      return {
-        writes: [
-          {
-            path: reservation.periodPath,
-            data: {
-              ...period,
-              // A failed generation has no completed metered product event.
-              // Keep its actual provider cost for operations, but release the
-              // user's request allowance so a retry cannot double-consume it.
-              requestCount: result.failed
-                ? Math.max(0, numberValue(period.requestCount) - 1)
-                : numberValue(period.requestCount),
-              reservedCostMicros: Math.max(0, numberValue(period.reservedCostMicros) - reservation.reserveCostMicros),
-              inputTokens: numberValue(period.inputTokens) + inputTokens,
-              cachedInputTokens: numberValue(period.cachedInputTokens) + cachedInputTokens,
-              cacheWriteTokens: numberValue(period.cacheWriteTokens) + cacheWriteTokens,
-              outputTokens: numberValue(period.outputTokens) + outputTokens,
-              actualCostMicros: numberValue(period.actualCostMicros) + actualCostMicros,
-              activeRequestId: null,
-              activeUntil: null,
-              updatedAt: nowIso,
-            },
-          },
-          {
-            path: reservation.requestPath,
-            data: {
-              ...request,
-              status: result.failed ? "failed" : "completed",
-              inputTokens,
-              cachedInputTokens,
-              cacheWriteTokens,
-              outputTokens,
-              actualCostMicros,
-              model: models.join(" -> "),
-              models,
-              promptVersion: promptVersions.at(-1) ?? null,
-              promptVersions,
-              profile: profiles.at(-1) ?? null,
-              profiles,
-              reasoningEfforts,
-              promptCacheKeys,
-              attemptCount: attempts.length,
-              recoveryUsed: samples.some((sample) => sample.profile?.endsWith(".recovery") === true),
-              attempts,
-              responseId: result.responseId ?? responseIds.at(-1) ?? null,
-              responseIds,
-              resultId: result.resultId ?? request.resultId ?? null,
-              updatedAt: nowIso,
-            },
-          },
-          {
-            path: reservation.userBudgetPath,
-            data: {
-              ...userBudget,
-              reservedCostMicros: Math.max(0, numberValue(userBudget.reservedCostMicros) - reservation.reserveCostMicros),
-              actualCostMicros: numberValue(userBudget.actualCostMicros) + actualCostMicros,
-              updatedAt: nowIso,
-            },
-          },
-          {
-            path: reservation.globalPath,
-            data: {
-              ...global,
-              reservedCostMicros: Math.max(0, numberValue(global.reservedCostMicros) - reservation.reserveCostMicros),
-              actualCostMicros: numberValue(global.actualCostMicros) + actualCostMicros,
-              updatedAt: nowIso,
-            },
-          },
-        ],
-        result: undefined,
-      };
-    },
-  );
+  const receiptPath = `generationUsageReceipts/legacy-${reservation.requestId}-${reservation.attemptToken ?? "v0"}`;
+  const lateUsage = () => runWithGlobalUsageAccounting(() => runStoredDocumentTransaction([receiptPath, reservation.globalPath], (documents) => {
+    const receipt = documents[receiptPath];
+    if (receipt && receipt.status !== "uncertain") return { writes: [], result: undefined };
+    const global: Record<string, unknown> = documents[reservation.globalPath] ?? {};
+    return { writes: [
+      { path: receiptPath, data: { version: 1, kind: "legacy-ai-completion", status: "observed", actualCostMicros, inputTokens, cachedInputTokens, cacheWriteTokens, outputTokens, failed: result.failed === true, globalPath: reservation.globalPath, updatedAt: nowIso } },
+      { path: reservation.globalPath, data: { ...global, reservedCostMicros: Math.max(0, numberValue(global.reservedCostMicros) - (receipt ? 0 : reservation.reserveCostMicros)), uncertainCostMicros: Math.max(0, numberValue(global.uncertainCostMicros) - numberValue(receipt?.uncertainCostMicros)), actualCostMicros: numberValue(global.actualCostMicros) + actualCostMicros, updatedAt: nowIso } },
+    ], result: undefined };
+  }));
+  await lateUsage();
+  await settleAiUsageAttempt(reservation, {
+    status: "observed", actualCostMicros, inputTokens, cachedInputTokens, cacheWriteTokens, outputTokens,
+    failed: result.failed === true,
+  }, {
+    model: models.join(" -> "), models, promptVersion: promptVersions.at(-1) ?? null, promptVersions,
+    profile: profiles.at(-1) ?? null, profiles, reasoningEfforts, promptCacheKeys, attemptCount: attempts.length,
+    recoveryUsed: samples.some((sample) => sample.profile?.endsWith(".recovery") === true), attempts,
+    responseId: result.responseId ?? responseIds.at(-1) ?? null, responseIds, resultId: result.resultId ?? null,
+  });
+}
+
+/** Personal accounting is addressed by immutable attempt, not the replaceable retry key. */
+export function aiUsageAttemptPath(value: { requestId: string; attemptToken?: string }) {
+  return `aiRequests/${value.requestId}__attempt__${value.attemptToken ?? "v0"}`;
+}
+
+async function settleAiUsageAttempt(
+  reservation: Pick<AiReservation, "uid" | "accountGeneration" | "requestId" | "attemptToken" | "requestPath" | "periodPath" | "userBudgetPath" | "reserveCostMicros">,
+  observed: Record<string, unknown>, details: Record<string, unknown> = {},
+) {
+  const attemptPath = aiUsageAttemptPath(reservation);
+  const settle = () => runStoredDocumentTransaction([attemptPath, reservation.requestPath, reservation.periodPath, reservation.userBudgetPath], (documents) => {
+    const request = documents[reservation.requestPath];
+    const period = documents[reservation.periodPath];
+    const budget = documents[reservation.userBudgetPath];
+    const sameRequest = Boolean(request) && request?.attemptToken === reservation.attemptToken;
+    // Additive migration supports attempts admitted just before this schema. An
+    // absent/deleted account or an overwritten old attempt is never recreated.
+    const attempt = documents[attemptPath] ?? (sameRequest ? request : undefined);
+    if (!attempt || !period || !budget || attempt.uid !== reservation.uid
+      || (reservation.accountGeneration && attempt.accountGeneration !== reservation.accountGeneration)
+      || ["completed", "accounting_observed"].includes(String(attempt.status))
+      || (attempt.status === "failed" && attempt.terminalReason !== "provider_outcome_unknown")) return { writes: [], result: false };
+    const uncertain = numberValue(attempt.uncertainCostMicros);
+    const wasReserved = ["reserved", "accounting_reserved"].includes(String(attempt.status));
+    const actual = numberValue(observed.actualCostMicros);
+    const tokens = Object.fromEntries(["inputTokens", "cachedInputTokens", "cacheWriteTokens", "outputTokens"].map((key) => [key, numberValue(period[key]) + numberValue(observed[key])]));
+    const ownsPeriod = period.activeRequestId === reservation.requestId && period.activeAttemptToken === reservation.attemptToken;
+    const now = new Date().toISOString();
+    return { writes: [
+      { path: attemptPath, data: { ...attempt, kind: "ai-usage-attempt", requestPath: reservation.requestPath, requestId: reservation.requestId,
+        ...observed, status: "accounting_observed", uncertainCostMicros: 0, updatedAt: now } },
+      { path: reservation.periodPath, data: { ...period, ...tokens,
+        requestCount: Math.max(0, numberValue(period.requestCount) - (wasReserved && observed.failed ? 1 : 0)),
+        reservedCostMicros: Math.max(0, numberValue(period.reservedCostMicros) - (wasReserved ? reservation.reserveCostMicros : 0)),
+        uncertainCostMicros: Math.max(0, numberValue(period.uncertainCostMicros) - uncertain), actualCostMicros: numberValue(period.actualCostMicros) + actual,
+        ...(ownsPeriod ? { activeRequestId: null, activeAttemptToken: null, activeUntil: null } : {}), updatedAt: now } },
+      { path: reservation.userBudgetPath, data: { ...budget,
+        reservedCostMicros: Math.max(0, numberValue(budget.reservedCostMicros) - (wasReserved ? reservation.reserveCostMicros : 0)),
+        uncertainCostMicros: Math.max(0, numberValue(budget.uncertainCostMicros) - uncertain), actualCostMicros: numberValue(budget.actualCostMicros) + actual, updatedAt: now } },
+      ...(sameRequest ? [{ path: reservation.requestPath, data: { ...request, ...observed, ...details,
+        status: wasReserved ? (observed.failed ? "failed" : "completed") : request?.status,
+        uncertainCostMicros: 0, updatedAt: now } }] : []),
+    ], result: true };
+  });
+  return reservation.accountGeneration
+    ? runWithAccountGeneration({ uid: reservation.uid, generation: reservation.accountGeneration }, settle)
+    : settle();
 }
 
 export async function getAiQuotaSummaries(account: ServerAccount): Promise<AiQuotaSummary[]> {
@@ -558,4 +577,94 @@ export function aiQuotaResponse(error: unknown) {
     { error: error.message, code: error.code, ...error.details },
     { status: error.status, headers: { "Cache-Control": "no-store" } },
   );
+}
+
+/** Shared admission policy for the atomic, durable course operation. */
+export function courseOutlineAccountingContext(account: ServerAccount, requestId: string, now = new Date()) {
+  const policy = policyFor(account, "course_outline", now);
+  const budgetPool = budgetPoolFor(account);
+  const shard = budgetShardFor(requestId);
+  return {
+    ...policy, budgetPool, shard,
+    userLimitMicros: userBudgetLimitMicros(account),
+    poolLimitMicros: aiBudgetLimitsUsd()[budgetPool] * 1_000_000 / BUDGET_SHARDS,
+    periodPath: `usagePeriods/${account.uid}__course_outline__${policy.periodKey}`,
+    requestPath: `aiRequests/${requestId}`,
+    userBudgetPath: `userAiBudgets/${account.uid}__${policy.periodKey}`,
+    globalPath: `systemUsageShards/${budgetPool}__${policy.periodKey}__${shard}`,
+  };
+}
+
+
+/** Expired non-operation reservations are contained without repeating paid work. */
+export async function reconcileExpiredAiUsage(requestId: string, apply: boolean, now = new Date()) {
+  const requestPath = `aiRequests/${requestId}`;
+  const initial = await getStoredDocument(requestPath);
+  if (initial?.kind === "ai-usage-attempt") {
+    if (initial.status === "accounting_observed") return "none";
+    const receipt = await getStoredDocument(`generationUsageReceipts/legacy-${initial.requestId}-${initial.attemptToken}`);
+    if (receipt?.status !== "observed") return "none";
+    if (!apply) return "would_reconcile_observed_attempt";
+    const repaired = await settleAiUsageAttempt({
+      uid: String(initial.uid), accountGeneration: String(initial.accountGeneration), requestId: String(initial.requestId),
+      attemptToken: String(initial.attemptToken), requestPath: String(initial.requestPath), periodPath: String(initial.periodPath),
+      userBudgetPath: String(initial.userBudgetPath), reserveCostMicros: numberValue(initial.reservedCostMicros),
+    }, receipt);
+    return repaired ? "reconciled_observed_attempt" : "none";
+  }
+  if (!initial || initial.operationId || initial.status !== "reserved" || Date.parse(String(initial.leaseUntil)) > now.getTime()) return "none";
+  if (![initial.uid, initial.attemptToken, initial.accountGeneration, initial.periodPath, initial.userBudgetPath, initial.globalPath].every((value) => typeof value === "string" && value.length > 0)) return "manual_reconciliation_required";
+  if (!apply) return "would_contain_unknown_outcome";
+  const uid = String(initial.uid);
+  const generation = String(initial.accountGeneration);
+  const token = String(initial.attemptToken);
+  const periodPath = String(initial.periodPath);
+  const userBudgetPath = String(initial.userBudgetPath);
+  const globalPath = String(initial.globalPath);
+  const receiptPath = `generationUsageReceipts/legacy-${requestId}-${token}`;
+  const attemptPath = aiUsageAttemptPath({ requestId, attemptToken: token });
+  return runWithAccountGeneration({ uid, generation }, () => runStoredDocumentTransaction([requestPath, periodPath, userBudgetPath, globalPath, receiptPath, attemptPath], (documents) => {
+    const request = documents[requestPath];
+    if (!request || request.status !== "reserved" || request.attemptToken !== token || Date.parse(String(request.leaseUntil)) > now.getTime()) return { writes: [], result: "none" };
+    const receipt = documents[receiptPath];
+    const reserved = numberValue(request.reservedCostMicros);
+    const uncertain = receipt ? 0 : reserved;
+    const actual = numberValue(receipt?.actualCostMicros);
+    const period: Record<string, unknown> = documents[periodPath] ?? {};
+    const budget: Record<string, unknown> = documents[userBudgetPath] ?? {};
+    const global: Record<string, unknown> = documents[globalPath] ?? {};
+    const ownsPeriod = period.activeRequestId === requestId && period.activeAttemptToken === token;
+    return { writes: [
+      { path: attemptPath, data: { ...request, ...documents[attemptPath], kind: "ai-usage-attempt", requestPath, requestId,
+        status: receipt ? "accounting_observed" : "accounting_uncertain", actualCostMicros: actual, uncertainCostMicros: uncertain } },
+      { path: requestPath, data: { ...request, status: "failed", terminalReason: receipt ? "completion_accounting_recovered" : "provider_outcome_unknown", actualCostMicros: actual, uncertainCostMicros: uncertain, updatedAt: now.toISOString() } },
+      { path: periodPath, data: { ...period, requestCount: Math.max(0, numberValue(period.requestCount) - 1), reservedCostMicros: Math.max(0, numberValue(period.reservedCostMicros) - reserved), actualCostMicros: numberValue(period.actualCostMicros) + actual, uncertainCostMicros: numberValue(period.uncertainCostMicros) + uncertain, ...(ownsPeriod ? { activeRequestId: null, activeAttemptToken: null, activeUntil: null } : {}) } },
+      { path: userBudgetPath, data: { ...budget, reservedCostMicros: Math.max(0, numberValue(budget.reservedCostMicros) - reserved), actualCostMicros: numberValue(budget.actualCostMicros) + actual, uncertainCostMicros: numberValue(budget.uncertainCostMicros) + uncertain } },
+      ...(!receipt ? [
+        { path: receiptPath, data: { version: 1, kind: "legacy-ai-completion", status: "uncertain", actualCostMicros: 0, uncertainCostMicros: uncertain, globalPath } },
+        { path: globalPath, data: { ...global, reservedCostMicros: Math.max(0, numberValue(global.reservedCostMicros) - reserved), uncertainCostMicros: numberValue(global.uncertainCostMicros) + uncertain } },
+      ] : []),
+    ], result: "contained_unknown_outcome" };
+  }));
+}
+
+/** Called before account-owned request records are removed. No personal write. */
+export async function abandonAiUsage(requestId: string): Promise<void> {
+  const request = await getStoredDocument(`aiRequests/${requestId}`);
+  if (!request || request.kind === "ai-usage-attempt" || request.operationId || request.status !== "reserved") return;
+  if (![request.attemptToken, request.globalPath].every((value) => typeof value === "string" && value.length > 0)) {
+    throw new Error("AI_USAGE_MANUAL_RECONCILIATION_REQUIRED");
+  }
+  const globalPath = String(request.globalPath);
+  const receiptPath = `generationUsageReceipts/legacy-${requestId}-${request.attemptToken}`;
+  await runWithGlobalUsageAccounting(() => runStoredDocumentTransaction([receiptPath, globalPath], (documents) => {
+    if (documents[receiptPath]) return { writes: [], result: undefined };
+    const global = documents[globalPath];
+    if (!global) throw new Error("AI_USAGE_MANUAL_RECONCILIATION_REQUIRED");
+    const uncertain = numberValue(request.reservedCostMicros);
+    return { writes: [
+      { path: receiptPath, data: { version: 1, kind: "legacy-ai-completion", status: "uncertain", actualCostMicros: 0, uncertainCostMicros: uncertain, globalPath } },
+      { path: globalPath, data: { ...global, reservedCostMicros: Math.max(0, numberValue(global.reservedCostMicros) - uncertain), uncertainCostMicros: numberValue(global.uncertainCostMicros) + uncertain } },
+    ], result: undefined };
+  }));
 }

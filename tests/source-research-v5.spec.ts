@@ -8,6 +8,7 @@ import {
   sourceResearchSchema,
 } from "../src/lib/source-research";
 import type { CourseSource } from "../src/lib/course-types";
+import { assertPublicationResearchUnchanged, publicationResearchProof } from "../src/lib/publication-research";
 
 function candidate(url: string, label: string, publisher: string) {
   return {
@@ -196,6 +197,44 @@ function completedEvidenceArtifact(sourcePack: CourseSource[] = []) {
 }
 
 const resumeContext = { requestFingerprint: "brief-1", now: Date.parse("2026-09-06T12:00:00.000Z"), freshnessRequired: false };
+
+function publicationResearchFixture() {
+  const nist = candidate("https://www.nist.gov/publications/publication-proof", "NIST publication guidance", "NIST");
+  const sources = certifyResearchSourcesV5({ sources: [nist] }, researchResponse([nist.url]), "2026-09-06T10:00:00.000Z").sources.map(validatedSource);
+  const artifact = { ...completedEvidenceArtifact(sources), ownerUid: "author", requestFingerprint: "a".repeat(64) };
+  const course = { authorId: "author", sourcePack: sources, sourceResearchArtifactId: "research-1",
+    sourceResearchRequestFingerprint: artifact.requestFingerprint, sourceResearchResponseId: artifact.responseId,
+    sourceResearchPolicyVersion: SOURCE_RESEARCH_POLICY_VERSION, freshnessRequired: true };
+  return { artifact, course };
+}
+
+test("publication binds the evidence artifact while independent bibliography updates preserve approval", () => {
+  const { artifact, course } = publicationResearchFixture();
+  const proof = publicationResearchProof(course, artifact, resumeContext.now);
+  expect(proof?.status).toBe("verified");
+  expect(proof?.expiresAt).toBe("2026-09-07T10:00:00.000Z");
+  expect(() => assertPublicationResearchUnchanged(course, { ...artifact, bibliographyComplete: true,
+    bibliographyResponseId: "new-reading", furtherReading: [{ title: "A reading suggestion" }] }, proof, resumeContext.now)).not.toThrow();
+});
+
+test("publication rejects substituted identity, response, source pack, policy and expiry despite unchanged content", () => {
+  const { artifact, course } = publicationResearchFixture();
+  const proof = publicationResearchProof(course, artifact, resumeContext.now);
+  for (const replacement of [null, { ...artifact, ownerUid: "other" }, { ...artifact, responseId: "other" },
+    { ...artifact, requestFingerprint: "b".repeat(64) }, { ...artifact, sourcePack: [] },
+    { ...artifact, policyVersion: "obsolete" }, { ...artifact, evidenceExpiresAt: "2026-09-06T11:59:00.000Z" }]) {
+    expect(() => assertPublicationResearchUnchanged(course, replacement, proof, resumeContext.now)).toThrow(/source evidence changed or expired/);
+  }
+  expect(() => assertPublicationResearchUnchanged(course, artifact, proof,
+    Date.parse("2026-09-07T10:00:00.000Z"))).toThrow(/expired/);
+});
+
+test("current-claim drafts cannot bypass research by removing bindings or relying on further reading", () => {
+  const { artifact, course } = publicationResearchFixture();
+  expect(publicationResearchProof({ ...course, sourceResearchArtifactId: "../other" }, artifact, resumeContext.now)?.status).toBe("blocked");
+  expect(publicationResearchProof({ topic: "Current regulation guidance", furtherReading: [{ title: "Handbook" }] }, null, resumeContext.now)?.status).toBe("blocked");
+  expect(publicationResearchProof({ topic: "Observation and inference", sourcePack: [] }, null, resumeContext.now)).toBeNull();
+});
 
 test("completed empty evidence resumes independently after a bibliography outage", async () => {
   const research = await import("../src/lib/source-research");

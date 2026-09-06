@@ -270,8 +270,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const initialSessionLoadedRef = useRef(false);
 
   const commitUser = useCallback((nextUser: FilosageUser | null, broadcast = true) => {
-    const changed = userRef.current?.uid !== nextUser?.uid;
-    setSessionRevision(setLearnerStorageIdentity(nextUser?.uid ?? null));
+    const changed = userRef.current?.uid !== nextUser?.uid
+      || userRef.current?.accountGeneration !== nextUser?.accountGeneration;
+    setSessionRevision(setLearnerStorageIdentity(nextUser?.uid ?? null, nextUser?.accountGeneration ?? null));
     const session = learnerSessionSnapshot();
     const guardedUser = nextUser ? {
       ...nextUser,

@@ -1,3 +1,4 @@
+import { withAccountRequest } from "@/lib/auth-server";
 import { authorizationResponse, requireAcceptedAccount, requireAccount } from "@/lib/auth-server";
 import {
   deleteStoredDocuments,
@@ -44,7 +45,7 @@ function objectStrings(value: unknown) {
   );
 }
 
-export async function GET(request: Request) {
+async function handleGET(request: Request) {
   try {
     const account = await requireAccount(request);
     const [saved, noteDocuments] = await Promise.all([
@@ -113,7 +114,7 @@ export async function GET(request: Request) {
   }
 }
 
-export async function PUT(request: Request) {
+async function handlePUT(request: Request) {
   try {
     const account = await requireAcceptedAccount(request);
     const body = await readJsonBody(request, 524_288);
@@ -157,3 +158,6 @@ export async function PUT(request: Request) {
     return apiRequestErrorResponse(error) ?? authorizationResponse(error) ?? Response.json({ error: "Learning preferences could not be saved." }, { status: 500 });
   }
 }
+
+export const GET = withAccountRequest(handleGET);
+export const PUT = withAccountRequest(handlePUT);

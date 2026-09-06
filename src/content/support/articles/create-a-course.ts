@@ -6,7 +6,7 @@ export default defineSupportArticle({
   summary: "Use a course credit to build a private learning path around a specific professional outcome.",
   category: "courses",
   keywords: ["create course", "private course", "course credit", "outcome", "pace", "teaching approach", "sources", "generation"],
-  reviewedOn: "2026-08-16",
+  reviewedOn: "2026-09-06",
   sources: ["src/app/create/page.tsx", "src/app/api/generate-course/route.ts", "src/lib/course-credits.ts", "src/lib/membership-plans.ts"],
   body: `
 ## Check that creation is available
@@ -37,7 +37,13 @@ Filosage researches suitable released sources and checks supported claims when t
 
 ## Recover from an interruption
 
-Keep the page open while generation is in progress. If the app reports that creation took too long to confirm, retry the same request so Filosage can reopen a completed result or continue safely. If the error persists, use [contact support](/support/articles/contact-support) and do not include confidential source material in the ticket.
+Reopen **Create course** to check a saved request. When **Resume course request** is offered, continue that request; completed stages stay saved and its reserved credit covers recovery. **Open course** returns to a completed result. Avoid starting a new request merely because a response was delayed.
+
+If the provider result cannot be confirmed, Filosage may end the request and restore the course credit instead of repeating an uncertain paid call. Read the displayed status before starting again. Use [contact support](/support/articles/contact-support) if recovery remains unresolved, without including confidential source material.
+
+## Course language and availability
+
+Filosage’s menus remain in English. The language requested for a course applies to its teaching content; requested bilingual support is subject to the course’s available generation options and checks. If the requested language or evidence requirements cannot be satisfied, review the reported issue before resuming. A generated result is not proof that every claim, interactive activity, or example has been independently verified.
 `,
   related: ["plans-and-billing", "follow-a-course", "contact-support"],
   featured: true,

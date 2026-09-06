@@ -1,3 +1,4 @@
+import { withAccountRequest } from "@/lib/auth-server";
 import { authorizationResponse, requireAcceptedAccount } from "@/lib/auth-server";
 import { apiRequestErrorResponse, readJsonBody } from "@/lib/api-security";
 import {
@@ -8,7 +9,7 @@ import {
 import { flashcardFeatureConfiguration } from "@/lib/flashcard-feature";
 import { planAllows } from "@/lib/membership-plans";
 
-export async function GET(request: Request) {
+async function handleGET(request: Request) {
   try {
     const account = await requireAcceptedAccount(request);
     const decks = await listFlashcardDecks(account);
@@ -28,7 +29,7 @@ export async function GET(request: Request) {
   }
 }
 
-export async function POST(request: Request) {
+async function handlePOST(request: Request) {
   try {
     const account = await requireAcceptedAccount(request);
     const body = await readJsonBody(request, 256_000);
@@ -45,3 +46,6 @@ export async function POST(request: Request) {
       ?? Response.json({ error: "The custom deck could not be created." }, { status: 500 });
   }
 }
+
+export const GET = withAccountRequest(handleGET);
+export const POST = withAccountRequest(handlePOST);

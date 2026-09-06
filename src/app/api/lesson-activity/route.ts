@@ -1,3 +1,4 @@
+import { withAccountRequest } from "@/lib/auth-server";
 import { authorizationResponse, requireAcceptedAccount } from "@/lib/auth-server";
 import { apiRequestErrorResponse, readJsonBody } from "@/lib/api-security";
 import {
@@ -29,7 +30,7 @@ function numberValue(value: unknown) {
   return typeof value === "number" && Number.isInteger(value) ? value : 0;
 }
 
-export async function POST(request: Request) {
+async function handlePOST(request: Request) {
   try {
     const account = await requireAcceptedAccount(request);
     const limited = await enforceDurableRateLimit(request, "lesson-activity", 60, 60_000, account.uid);
@@ -107,3 +108,5 @@ export async function POST(request: Request) {
     return Response.json({ error: "This activity could not be verified. Try again." }, { status: 500 });
   }
 }
+
+export const POST = withAccountRequest(handlePOST);

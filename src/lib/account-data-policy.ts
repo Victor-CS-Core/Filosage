@@ -24,7 +24,25 @@ export interface AccountDeletionInventory {
   courseResearchArtifacts: IdentifiedAccountDocument[];
 }
 
+export const ACCOUNT_DELETION_POLICY_REVIEW = {
+  status: "owner_privacy_review_pending",
+  approvedRetentionDurations: null,
+  approvedHolds: null,
+  contact: "legal@filosage.com",
+  completionClaimPermitted: false,
+} as const;
+
 export const AUTOMATED_ACCOUNT_DELETION_RETENTION = [
+  {
+    category: "Deletion control and identity recovery records",
+    records: ["Immutable account-generation tombstones", "Resumable deletion jobs and cancellation references", "Identity links and email ownership mappings"],
+    reason: "Retained to prevent account resurrection and keep verified identity and privacy recovery possible. Exact retention durations and holds require owner and privacy review; complete erasure is not claimed while that review is pending.",
+  },
+  {
+    category: "Shared assets and operational cost totals",
+    records: ["Previously shared course-banner assets with unverified exclusive ownership", "Non-personal aggregate AI cost and usage receipts", "Other learners' work referencing formerly published courses"],
+    reason: "Shared assets and other learners' work are preserved under explicit ownership policy. Exclusive assets are removed only after upload completion and reference checks; uncertain ownership remains subject to manual review.",
+  },
   {
     category: "Legal acceptance records",
     records: ["Versioned Terms, Privacy Notice, and age-eligibility acceptance records"],

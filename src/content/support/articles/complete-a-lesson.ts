@@ -6,8 +6,8 @@ export default defineSupportArticle({
   summary: "Move through the lesson's Capability Cycle, complete its practice, and save honest learning evidence.",
   category: "courses",
   keywords: ["lesson", "activities", "practice", "quiz", "transfer", "complete", "mark learned"],
-  reviewedOn: "2026-08-16",
-  sources: ["src/app/course/[topic]/lesson/[lessonId]/page.tsx", "src/components/LessonExperience.tsx", "src/components/InteractiveLessonBlock.tsx", "src/components/LessonSectionNavigator.tsx", "src/components/SpeakButton.tsx", "src/lib/learning-design.ts", "src/lib/learning-progress.ts"],
+  reviewedOn: "2026-09-06",
+  sources: ["src/lib/learner-storage.ts", "src/lib/auth-server.ts", "src/app/course/[topic]/lesson/[lessonId]/page.tsx", "src/components/LessonExperience.tsx", "src/components/InteractiveLessonBlock.tsx", "src/components/LessonSectionNavigator.tsx", "src/components/SpeakButton.tsx", "src/lib/learning-design.ts", "src/lib/learning-progress.ts"],
   body: `
 ## Follow the Capability Cycle
 
@@ -34,6 +34,9 @@ When the required activities are complete, Filosage can mark the lesson complete
 ## Check the save status
 
 The completion panel states whether progress synced to your account or was saved on the current device. If syncing fails, keep the page open and use the displayed recovery guidance before repeating work.
+## Return after a session change
+
+Notes, practice drafts, mastery evidence and completion are isolated by account on this device. After signing out or switching accounts, reopen the lesson using the account that owns the work. A delayed response cannot save work into another account’s session; guest mode does not claim private drafts left by a previous learner.
 `,
   related: ["use-study-tools", "use-review", "report-content"],
   featured: true,

@@ -7,12 +7,12 @@ export default defineSupportArticle({
   summary: "Compare memberships, check checkout availability, manage a subscription, and recover from common billing states.",
   category: "plans",
   keywords: ["billing", "pricing", "Plus", "Pro", "course credits", "rollover", "evidence report", "subscription", "downgrade", "cancel", "refund", "payment method"],
-  reviewedOn: "2026-08-16",
-  sources: [".env.example", "src/lib/billing-lock.ts", "src/lib/stripe-server.ts", "src/lib/membership-plans.ts", "src/lib/course-credits.ts", "src/app/pricing/page.tsx", "src/app/terms/page.tsx", "docs/COMMERCIAL_LAUNCH_RUNBOOK.md"],
+  reviewedOn: "2026-09-06",
+  sources: ["src/lib/runtime-config.ts", ".env.example", "src/lib/billing-lock.ts", "src/lib/stripe-server.ts", "src/lib/membership-plans.ts", "src/lib/course-credits.ts", "src/app/pricing/page.tsx", "src/app/terms/page.tsx", "docs/COMMERCIAL_LAUNCH_RUNBOOK.md"],
   body: `
 ## Check current checkout availability
 
-The [Plans page](/pricing) is the source of truth for paid-checkout availability. When checkout is open, choosing Plus or Pro sends a signed-in learner to Stripe's secure checkout. When checkout is closed, the page offers a launch update or preference form instead. Joining that list or saving a preference never creates a Stripe customer, subscription, invoice, or charge.
+Paid checkout remains closed for this release until separate commercial approval. The [Plans page](/pricing) displays the current availability. When checkout is open, choosing Plus or Pro sends a signed-in learner to Stripe's secure checkout. When checkout is closed, the page offers a launch update or preference form instead. Joining that list or saving a preference never creates a Stripe customer, subscription, invoice, or charge.
 
 ## Memberships
 
@@ -44,7 +44,7 @@ If the browser returns with Checkout marked canceled, the return link alone does
 
 ## Manage or cancel a subscription
 
-Signed-in subscribers can use **Manage billing** on the [Plans page](/pricing) to open Stripe's billing portal. The launch portal is limited to reviewing the subscription, updating a payment method, viewing invoices, and canceling at the end of the paid period. It does not offer plan switching. Cancellation ordinarily stops the next renewal while access continues through the current paid period; the portal shows the effective date before confirmation.
+Signed-in subscribers can use **Manage billing** on the [Plans page](/pricing) to open Stripe's billing portal. When available, the portal supports reviewing the subscription, updating a payment method, viewing invoices, immediate Plus/Pro and monthly/annual changes, and cancellation at the end of the paid period. Review Stripe’s displayed proration and invoice before confirming an immediate change. The billing-cycle anchor remains unchanged; course-credit adjustments follow the confirmed subscription transition. Cancellation ordinarily stops the next renewal while access continues through the current paid period; the portal shows the effective date before confirmation.
 
 If a payment needs attention, use **Manage billing** to review the payment method and current subscription state. Filosage does not delete learning data because a payment is delayed or a membership is downgraded.
 
@@ -56,11 +56,14 @@ Contact support from the account email with the approximate charge date, plan na
 
 ## Account deletion is not ordinary cancellation
 
-Deleting a Filosage account immediately cancels any nonterminal Stripe subscription and ends paid access. It does not automatically create or waive refund eligibility. Use **Manage billing** instead of account deletion when you only want to stop renewal and keep access through the paid period.
+A deletion request closes the account to new learning activity and attempts immediate cancellation of any nonterminal Stripe subscription. If cancellation cannot be confirmed, deletion stays pending and preserves the billing references needed to retry. It does not automatically create or waive refund eligibility. Use **Manage billing** instead of account deletion when you only want to stop renewal and keep access through the paid period.
 
 ## Ask a billing question
 
 Use [contact support](/support/articles/contact-support) for a question about plan access, cancellation, a refund request, or an unexpected billing message.
+## When billing management is unavailable
+
+A closed checkout does not cancel an existing subscription or stop payment-event reconciliation. **Manage billing** depends on the billing portal being available separately from new checkout. If the portal is unavailable, contact support from the account email for cancellation help. A failed or missing portal link is not confirmation that renewal stopped.
 `,
   related: ["contact-support", "privacy-controls", "getting-started"],
   featured: true,

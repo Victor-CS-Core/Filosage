@@ -5,7 +5,7 @@ import type { LearnerAccount } from "../src/lib/course-types";
 import { LESSON_QUALITY_GATE_VERSION } from "../src/lib/lesson-quality";
 import { PRIVACY_VERSION, TERMS_VERSION } from "../src/lib/legal";
 import { inspectCoursePublishReadiness } from "../src/lib/publication-readiness";
-import { restoreLocalLearner } from "./fixtures/local-learner";
+import { exactLearnerAccount, restoreLocalLearner } from "./fixtures/local-learner";
 
 function schemaValidLesson(content: string) {
   return {
@@ -201,10 +201,19 @@ test("an owner can confirm a quality override only after the normal review fails
   await expect(page.getByRole("heading", { name: "Publication review needs attention" })).toHaveCount(0);
 });
 
-test("an owner records a snapshot-bound manual-review decision before publishing", async ({ page }) => {
+test("@smoke an owner revalidates stale evidence before approving the same snapshot", async ({ page }) => {
   await restoreLocalLearner(page);
+  await page.route(
+    (url) => url.pathname === "/api/account" && url.search === "",
+    (route) => {
+      expect(route.request().method()).toBe("GET");
+      return route.fulfill({ json: exactLearnerAccount({ isOwner: true }) });
+    },
+  );
   const courseId = "manual-review-course";
   const snapshotHash = "b".repeat(64);
+  const firstProofToken = "a".repeat(64);
+  const freshProofToken = "c".repeat(64);
   const contractVersion = "course-quality-v2.0.0";
   const course = {
     id: courseId,
@@ -226,76 +235,184 @@ test("an owner records a snapshot-bound manual-review decision before publishing
     modules: [{
       title: "Response",
       description: "Recognize and describe the response.",
-      lessons: [{ title: "Severe bleeding response", concept: "Emergency response" }],
+      lessons: [{ title: "Severe bleeding response", concept: "Emergency response", sourceIds: ["source-emergency-guidance"] }],
     }],
   };
-  let reviewBody: Record<string, unknown> | null = null;
-  let reviewKey: string | null = null;
+  const validationReport = {
+    courseId,
+    snapshotHash,
+    contractVersion,
+    validatedAt: "2026-09-06T12:00:00.000Z",
+    publishable: false,
+    requiresManualReview: true,
+    issues: [{
+      code: "CQ_SOURCE_002",
+      severity: "error",
+      category: "cq_source",
+      path: "course.manualReviewPolicy",
+      message: "Human review is required for: medical.",
+      repairability: "manual",
+      source: "source_integrity",
+      contractVersion,
+    }],
+    warnings: [],
+    passedRuleCodes: [],
+  };
+  const reviewRequests: Array<{ body: Record<string, unknown>; key: string | undefined }> = [];
+  let validationRequests = 0;
   await page.route(`**/api/courses/${courseId}`, (route) => {
-    if (route.request().method() === "PATCH") {
-      return route.fulfill({ status: 409, json: {
-        error: "A human evidence decision is required.",
-        validationReport: {
-          courseId,
-          snapshotHash,
-          contractVersion,
-          validatedAt: "2026-08-11T12:00:00.000Z",
-          publishable: false,
-          requiresManualReview: true,
-          issues: [{
-            code: "CQ_SOURCE_002",
-            severity: "error",
-            category: "cq_source",
-            path: "course.manualReviewPolicy",
-            message: "Human review is required for: medical.",
-            repairability: "manual",
-            source: "source_integrity",
-            contractVersion,
-          }],
-          warnings: [],
-          passedRuleCodes: [],
-        },
-      } });
-    }
+    expect(route.request().method()).toBe("GET");
     return route.fulfill({ json: course });
+  });
+  await page.route(`**/api/courses/${courseId}/validation`, (route) => {
+    expect(route.request().method()).toBe("GET");
+    validationRequests += 1;
+    return route.fulfill({ json: {
+      validationReport,
+      proofToken: validationRequests === 1 ? firstProofToken : freshProofToken,
+    } });
   });
   await page.route(`**/api/progress?courseId=${courseId}`, (route) => route.fulfill({ json: { progress: null } }));
   await page.route(`**/api/admin/courses/${courseId}/manual-review`, async (route) => {
-    reviewBody = route.request().postDataJSON() as Record<string, unknown>;
-    reviewKey = route.request().headers()["idempotency-key"] ?? null;
+    expect(route.request().method()).toBe("POST");
+    reviewRequests.push({
+      body: route.request().postDataJSON() as Record<string, unknown>,
+      key: route.request().headers()["idempotency-key"],
+    });
+    if (reviewRequests.length === 1) {
+      return route.fulfill({ status: 409, json: {
+        code: "STALE_PUBLICATION_PROOF",
+        error: "Review evidence changed. Validate the draft again before deciding.",
+      } });
+    }
     await route.fulfill({ json: {
       success: true,
       manualReviewResolution: {
         status: "approved",
         snapshotHash,
+        proofToken: freshProofToken,
         contractVersion,
-        reason: "Primary emergency guidance supports the bounded sequence in this exact draft.",
-        reviewedAt: "2026-08-11T12:05:00.000Z",
-        reviewId: "review-1",
+        reason: "I rechecked the current emergency guidance against this unchanged draft.",
+        reviewedAt: "2026-09-06T12:05:00.000Z",
+        reviewId: "review-fresh-proof",
       },
     } });
   });
 
   await page.goto(`/course/First-aid%20response?id=${courseId}`);
   await page.locator("details.course-owner-controls > summary").click();
-  await page.getByRole("button", { name: "Publish course" }).click();
+  await expect(page.getByRole("button", { name: "Approve exact snapshot" })).toHaveCount(0);
+  const validateButton = page.getByRole("button", { name: "Validate draft", exact: true });
+  await validateButton.click();
   await expect(page.getByText("Human decision required for this snapshot")).toBeVisible();
+  const sourceCheckbox = page.getByRole("checkbox", { name: /Official emergency guidance/ });
+  const reason = page.getByLabel("Manual-review reason");
+  const approveButton = page.getByRole("button", { name: "Approve exact snapshot" });
+  await expect(approveButton).toBeDisabled();
   await expect(page.getByRole("group", { name: "Sources personally verified for this snapshot" })).toBeVisible();
   expect((await new AxeBuilder({ page }).include(".course-owner-controls").analyze()).violations).toEqual([]);
-  await page.getByRole("checkbox", { name: /Official emergency guidance/ }).check();
-  await page.getByLabel("Manual-review reason").fill("Primary emergency guidance supports the bounded sequence in this exact draft.");
-  await page.getByRole("button", { name: "Approve exact snapshot" }).click();
+  await sourceCheckbox.check();
+  await reason.fill("Primary emergency guidance supports the bounded sequence in this exact draft.");
+  await approveButton.click();
 
-  expect(reviewBody).toMatchObject({
+  await expect(page.getByText("Review evidence changed. Validate the draft again before deciding.")).toBeVisible();
+  await expect(approveButton).toHaveCount(0);
+  await expect(reason).toHaveCount(0);
+  await expect(page.getByText(/Manual review approved for this exact snapshot/)).toHaveCount(0);
+  expect(validationRequests).toBe(1);
+  expect(reviewRequests).toHaveLength(1);
+  expect(reviewRequests[0].body).toMatchObject({
     decision: "approved",
     snapshotHash,
+    proofToken: firstProofToken,
     contractVersion,
     verifiedSourceIds: ["source-emergency-guidance"],
     confirmation: "APPROVE MANUAL REVIEW",
   });
-  expect(typeof reviewKey).toBe("string");
-  expect(String(reviewKey).length).toBeGreaterThanOrEqual(12);
+
+  await validateButton.click();
+  await expect(reason).toBeVisible();
+  await expect(reason).toHaveValue("");
+  await expect(sourceCheckbox).not.toBeChecked();
+  await expect(approveButton).toBeDisabled();
+  expect(validationRequests).toBe(2);
+  expect(reviewRequests).toHaveLength(1);
+  await sourceCheckbox.check();
+  const freshReason = "I rechecked the current emergency guidance against this unchanged draft.";
+  await reason.fill(freshReason);
+  await approveButton.click();
+
   await expect(page.getByText(/Manual review approved for this exact snapshot/)).toBeVisible();
+  expect(reviewRequests).toHaveLength(2);
+  expect(reviewRequests[1].body).toMatchObject({
+    decision: "approved",
+    snapshotHash,
+    proofToken: freshProofToken,
+    contractVersion,
+    reason: freshReason,
+    verifiedSourceIds: ["source-emergency-guidance"],
+    confirmation: "APPROVE MANUAL REVIEW",
+  });
+  for (const request of reviewRequests) {
+    expect(typeof request.key).toBe("string");
+    expect(String(request.key).length).toBeGreaterThanOrEqual(12);
+  }
+  expect(reviewRequests[1].key).not.toBe(reviewRequests[0].key);
+  expect(validationRequests).toBe(2);
+  await expect(approveButton).toHaveCount(0);
+});
+
+test("@smoke a delayed validation cannot revive an earlier account session", async ({ page }) => {
+  let uid = "account-A";
+  const courseId = "delayed-review-account-course";
+  const delayedFinding = "Previous account session review evidence";
+  let releaseValidation!: () => void;
+  let validationStarted = false;
+  const delayedValidation = new Promise<void>((resolve) => { releaseValidation = resolve; });
+  await page.route("**/api/auth/session", (route) => route.fulfill({ json: {
+    recentAuthentication: true,
+    authentication: { primaryProvider: "filosage", externalIdAvailable: true, externalIdNewAccountsAvailable: true, legacyGoogleAvailable: true },
+    user: { uid, displayName: uid, email: `${uid.toLowerCase()}@example.com`, photoURL: null, authenticationProvider: "filosage" },
+  } }));
+  await page.route("**/api/account", (route) => route.fulfill({ json: exactLearnerAccount({ isOwner: true, displayName: uid }) }));
+  await page.route(`**/api/courses/${courseId}`, (route) => route.fulfill({ json: {
+    id: courseId, courseId, topic: "Evidence review", mission: `Draft opened by ${uid}`,
+    isPublic: false, canManage: true,
+    modules: [{ title: "Evidence", lessons: [{ title: "Inspect evidence", concept: "Evidence" }] }],
+  } }));
+  await page.route(/\/api\/(mastery|progress|learner-state)(\?|$)/, (route) => route.fulfill({ json: { progress: null, plan: null, evidence: [] } }));
+  await page.route(`**/api/courses/${courseId}/validation`, async (route) => {
+    validationStarted = true;
+    await delayedValidation;
+    await route.fulfill({ json: {
+      proofToken: "d".repeat(64),
+      validationReport: {
+        courseId, snapshotHash: "e".repeat(64), contractVersion: "course-quality-v2.0.0",
+        validatedAt: "2026-09-06T12:00:00.000Z", publishable: false, requiresManualReview: true,
+        issues: [{ code: "CQ_SOURCE_002", message: delayedFinding, path: "course", repairability: "manual", severity: "error" }],
+        warnings: [], passedRuleCodes: [],
+      },
+    } });
+  });
+  await page.goto(`/course/Evidence%20review?id=${courseId}`);
+  await expect(page.getByText("Draft opened by account-A", { exact: true })).toBeVisible();
+  await page.locator("details.course-owner-controls > summary").click();
+  const validationAborted = page.waitForEvent("requestfailed", (request) => new URL(request.url()).pathname === `/api/courses/${courseId}/validation`);
+  await page.getByRole("button", { name: "Validate draft", exact: true }).click();
+  await expect.poll(() => validationStarted).toBe(true);
+  for (const nextUid of ["account-B", "account-A"]) {
+    uid = nextUid;
+    await page.evaluate((nextAccount) => window.dispatchEvent(new StorageEvent("storage", {
+      key: "filosage:learner-session-change:v1", newValue: `refresh:${nextAccount}:test`,
+    })), nextUid);
+    await expect(page.getByText(`Draft opened by ${nextUid}`, { exact: true })).toBeVisible();
+  }
+  await validationAborted;
+  releaseValidation();
+  await page.locator("details.course-owner-controls > summary").click();
+  await expect(page.getByRole("button", { name: "Validate draft", exact: true })).toBeEnabled();
+  await expect(page.getByText(delayedFinding)).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Approve exact snapshot" })).toHaveCount(0);
 });
 
 test("a published approved course does not present its audit report as an active publication problem", async ({ page }) => {

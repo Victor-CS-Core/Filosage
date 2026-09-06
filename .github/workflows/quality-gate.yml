@@ -23,6 +23,8 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run lint
+      - run: npm run test:eval-harness
+      - run: npm run test:billing
       - run: npx tsc --noEmit --incremental false
       - run: npm audit --omit=dev --audit-level=high
       - run: npm audit --audit-level=high
@@ -127,6 +129,11 @@ jobs:
           set -o pipefail
           mkdir -p test-results/postgres
           npm run test:postgres 2>&1 | tee test-results/postgres/results.tap
+      - name: Verify signed billing lifecycle against PostgreSQL
+        shell: bash
+        run: |
+          set -o pipefail
+          npm run test:billing 2>&1 | tee test-results/postgres/billing-results.tap
       - name: Upload PostgreSQL transaction evidence
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4

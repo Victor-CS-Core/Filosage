@@ -3,9 +3,9 @@ import type { OwnerDocumentation } from "@/content/support/owner-documentation-t
 
 export const ownerDocumentation: OwnerDocumentation = {
   title: "Filosage owner handbook",
-  introduction: "A practical operating guide to the live product: who can access each surface, how learning and authoring work, where evidence is stored, and which safeguards must remain in place.",
-  version: "2026.08",
-  reviewedOn: "2026-08-16",
+  introduction: "A source-reviewed operating guide for the September release candidate. Feature availability follows the deployed capability manifest; implementation and local checks do not establish hosted acceptance or authorization to enable billing.",
+  version: "2026.09",
+  reviewedOn: "2026-09-06",
   sections: [
     {
       id: "product-and-access",
@@ -14,7 +14,7 @@ export const ownerDocumentation: OwnerDocumentation = {
       topics: [
         {
           title: "Product contract",
-          body: "Filosage turns a study, personal, career, or work goal into a focused learning path through the Capability Cycle: define one observable win, activate prerequisites, practice with only the explanation required, receive feedback after commitment, transfer the capability, and return through readiness-aware retrieval. Public visitors can inspect published course structure; lesson bodies and saved learning activity require a verified account.",
+          body: "Filosage turns a study, personal, career, or work goal into a focused learning path through the Capability Cycle: define one observable win, activate prerequisites, practice with only the explanation required, receive feedback after commitment, transfer the capability, and return through readiness-aware retrieval. The service is for individual learners aged 13 and older. Public visitors can inspect published course structure; lesson bodies and saved learning activity require a verified account, accepted current legal terms and age eligibility.",
           links: [{ label: "Read the teaching standard", href: "/standard" }],
         },
         {
@@ -41,7 +41,7 @@ export const ownerDocumentation: OwnerDocumentation = {
         },
         {
           title: "Study, practice, and review",
-          body: "Lessons preserve semantic content such as headings, lists, and tables. Study tools support explanation and guided practice after a committed review attempt. Review orders due capabilities by prerequisite readiness and evidence need, while Progress separates completion from stronger assessed or demonstrated evidence.",
+          body: "Lessons preserve semantic content such as headings, lists, and tables. Study tools support explanation and guided practice after a committed review attempt. Review orders due capabilities by prerequisite readiness and evidence need, while Progress separates completion from stronger assessed or demonstrated evidence. Notes, goals, baseline answers, capstone drafts and review state belong to the verified account and its current generation. Changing accounts or generations invalidates pending browser work; legacy guest storage is not adopted by a signed-in learner. A failed queue or evidence load must remain visibly unavailable rather than appear as an empty or zero result.",
           steps: [
             "Inspect the course structure before diagnosing a lesson-access report.",
             "Use Review to verify the learner's due practice queue.",
@@ -54,7 +54,7 @@ export const ownerDocumentation: OwnerDocumentation = {
           ],
         },
       ],
-      sources: ["src/app/library/", "src/app/course/[topic]/", "src/app/review/page.tsx", "src/app/progress/page.tsx", "src/app/evidence/"],
+      sources: ["src/app/library/", "src/app/course/[topic]/", "src/app/review/page.tsx", "src/lib/learner-storage.ts", "src/app/progress/page.tsx", "src/app/evidence/"],
     },
     {
       id: "course-authoring",
@@ -63,12 +63,12 @@ export const ownerDocumentation: OwnerDocumentation = {
       topics: [
         {
           title: "Create a private course",
-          body: "The author supplies a real outcome, proof of skill, time horizon, prior knowledge, and learning preferences. One course credit covers the approved outline and every lesson that learning design places in it, so course length follows the goal rather than a lesson quota. Source research is retained when it can be verified; scarcity falls back to disclosed model knowledge instead of blocking the private course. Lesson generation remains staged, and the course stays private until explicitly published.",
+          body: "The author supplies a real outcome, proof of skill, time horizon, prior knowledge, and learning preferences. One course credit covers the approved outline and every lesson that learning design places in it, so course length follows the goal rather than a lesson quota. Source research is retained when it can be verified; scarcity falls back to disclosed model knowledge instead of blocking the private course. Generation saves operation stages and credit reservation durably. Create offers Resume course request or Open course for the same account and generation after a reload. A lost provider outcome is not blindly replayed: recovery may end the request and restore the course credit while retaining explicit uncertain provider cost. The course stays private until explicitly published. Menus remain English; requested single-language or bilingual course content must pass language and teaching checks.",
           links: [{ label: "Create a course", href: "/create" }],
         },
         {
           title: "Publication readiness",
-          body: "Publishing requires structural completeness, teaching quality, language integrity, rights and source checks, and any required lesson regeneration. Review applies to the exact course snapshot; later content or source changes invalidate snapshot-bound approval. A rejected item stays private. Owner overrides are consequential and require recent authentication and a recorded reason.",
+          body: "Use Validate draft before publishing. Publishing requires structural completeness, teaching quality, language integrity, rights and source checks, and any required lesson regeneration. Review applies to the exact course snapshot and proof token; later lesson, moderation, source-pack or expiry changes invalidate approval. A manual source review resolves only the reviewed ambiguity and cannot waive malformed, unsafe or incomplete content. A rejected item stays private. Publication commits an immutable release, so draft edits do not alter released lessons. Owner overrides are consequential and require recent authentication and a recorded reason.",
           steps: [
             "Review the course outcome, module sequence, assessments, and source pack.",
             "Resolve creator-correctable blockers. Use an offered automatic repair only after inspecting its declared scope.",
@@ -82,7 +82,7 @@ export const ownerDocumentation: OwnerDocumentation = {
           body: "Deleting a course can remove its lessons and linked learner progress, reviews, bookmarks, notes, evidence, feedback, and open reports for all affected learners. Unpublish first when temporary removal is sufficient. Before permanent deletion, preserve authorized records, resolve safety or rights reports, confirm that no required handoff remains, and record why deletion rather than unpublishing is necessary.",
         },
       ],
-      sources: ["src/app/create/page.tsx", "src/lib/publication-readiness.ts", "src/lib/course-quality.ts", "src/app/api/courses/", "src/app/api/admin/courses/[courseId]/publication-override/"],
+      sources: ["src/app/create/page.tsx", "src/lib/publication-readiness.ts", "src/lib/publication-proofs.ts", "src/lib/course-quality.ts", "src/app/api/courses/", "src/app/api/admin/courses/[courseId]/publication-override/"],
     },
     {
       id: "ai-quality",
@@ -108,7 +108,7 @@ export const ownerDocumentation: OwnerDocumentation = {
       topics: [
         {
           title: "Ticket intake",
-          body: "Signed-in learners can submit private support, billing, privacy, product-feedback, or general requests from the Support wiki. Each request receives a ticket number, is rate-limited, and enters the owner queue as unverified context. Content reports create linked tickets with immutable record references. The owner can also create a normalized manual ticket.",
+          body: "The selected release keeps Command Center off. The public no-store support capability checks the server environment and normalized owner intake control before the browser offers composition. Off or unknown status offers published email and Help immediately; My requests still reads existing private tickets and published replies. A mailto link proves neither delivery nor a monitored mailbox. Support coverage is a separate operational acceptance item. When intake is explicitly enabled, verified learners can submit support, billing, privacy, product-feedback or general requests. A durable retry key produces one ticket for an unchanged submission; failed text stays in the current tab and clears on account change. Content-report receipt does not prove linked ticket creation while Command Center is off.",
           links: [
             { label: "Support wiki", href: "/support" },
             { label: "Agent Command Center", href: "/admin/command-center" },
@@ -118,7 +118,7 @@ export const ownerDocumentation: OwnerDocumentation = {
           title: "Available draft agents",
           body: "Support, Legal intake, Billing explanation, Product operations, and Founder brief agents can create review-only drafts. Privacy, Content action, and Knowledge maintenance remain planned and unavailable. A visible environment flag and an owner control must both be enabled before an available agent can run.",
           steps: [
-            "Triage the ticket and verify the facts before generating a draft.",
+            "When Command Center is enabled, triage the ticket and verify the facts before generating a draft; select only the owner context needed for that ticket.",
             "Review evidence references, missing information, confidence, and cautions.",
             "Accept or reject the draft as an audit decision; acceptance does not send or execute it.",
           ],
@@ -128,7 +128,7 @@ export const ownerDocumentation: OwnerDocumentation = {
           body: "Draft-agent simulation is locked on. Agents cannot auto-send, refund, restrict accounts, delete data, remove content, change policy, or publish status updates. A verified owner may separately publish a support reply from a learner ticket; that deliberate action is immediately visible to the requester and recorded in the audit log. The global kill switch blocks future agent execution while keeping evidence available for review.",
         },
       ],
-      sources: ["src/app/support/page.tsx", "src/app/api/support/tickets/route.ts", "src/app/admin/command-center/page.tsx", "src/lib/command-center-server.ts", "src/lib/command-center-policy.ts"],
+      sources: ["src/app/support/page.tsx", "src/app/api/support/tickets/route.ts", "src/app/api/support/capabilities/route.ts", "src/lib/support-availability.ts", "src/app/admin/command-center/page.tsx", "src/lib/command-center-server.ts", "src/lib/command-center-policy.ts"],
     },
     {
       id: "trust-and-privacy",
@@ -137,7 +137,7 @@ export const ownerDocumentation: OwnerDocumentation = {
       topics: [
         {
           title: "Privacy controls",
-          body: "Signed-in users can review consent, export account-linked data, and request deletion from the Privacy Center. Recent authentication protects destructive requests. The owner account cannot be automatically deleted because it controls published courses and requires a documented transfer or shutdown path.",
+          body: "Signed-in users can review consent, export account-linked data, and request deletion from the Privacy Center. Recent authentication protects destructive requests. A durable deletion job immediately closes the account generation to new writes and resumes inventory, billing containment, owned documents and exclusive assets. Unknown cancellation or upload results remain pending. Another learner's evidence and shares remain theirs; public sharing can become unavailable when the source course is removed. Active-data removal is not complete erasure: identity mappings, billing consent, safety and support records remain under explicit review. No exact retention duration or legal hold is approved by this implementation. Retain the job reference and verify external identity, object storage and retention outcomes before closing that review. The owner account cannot be automatically deleted because it controls published courses and requires a documented transfer or shutdown path.",
           links: [{ label: "Privacy Center", href: "/privacy-center" }],
         },
         {
@@ -146,11 +146,11 @@ export const ownerDocumentation: OwnerDocumentation = {
           steps: [
             "Open the linked course, lesson, or source without altering the evidence.",
             "Separate the reporter's claim from confirmed application facts.",
-            "Resolve or dismiss the source report so its Command Center ticket stays synchronized.",
+            "Resolve or dismiss the source report using its own status; inspect any linked Command Center ticket separately, because disabled intake or failed reconciliation can leave a ticket unavailable.",
           ],
         },
       ],
-      sources: ["src/app/privacy-center/page.tsx", "src/app/api/account/data/route.ts", "src/app/api/content-reports/route.ts", "src/lib/content-report-policy.ts"],
+      sources: ["src/app/privacy-center/page.tsx", "src/app/api/account/data/route.ts", "src/lib/account-deletion.ts", "src/lib/account-lifecycle.ts", "src/app/api/content-reports/route.ts", "src/lib/content-report-policy.ts"],
     },
     {
       id: "billing",
@@ -159,7 +159,7 @@ export const ownerDocumentation: OwnerDocumentation = {
       topics: [
         {
           title: "Current state",
-          body: "Billing is a separately controlled capability. With the billing lock disabled, pricing can explain future terms and collect non-binding interest, but checkout cannot create a subscription and users cannot be charged. Enabling AI drafts does not change billing state.",
+          body: "Billing is a separately controlled capability. New paid checkout remains locked pending a separately approved launch. Pricing can explain terms and collect non-binding interest; that interest is not a purchase. Existing subscriptions still require verified provider reconciliation, cancellation containment and customer-management recovery independently of new acquisition. Enabling AI drafts does not change billing state. Stripe API readiness is independent of Portal readiness, so a missing Portal configuration must not block verified deletion cancellation. Portal return URLs and payment redirect parameters do not grant access or course credits. Approved immediate Plus/Pro monthly or annual transitions use Stripe proration with an unchanged billing anchor; entitlement and credit changes follow confirmed provider state through an idempotent transition ledger.",
           links: [{ label: "Plans and billing", href: "/pricing" }],
         },
         {
@@ -183,7 +183,7 @@ export const ownerDocumentation: OwnerDocumentation = {
           title: "Routine review",
           steps: [
             "Check production health and recent failed generation requests.",
-            "Review high-risk and overdue Command Center tickets.",
+            "When Command Center is enabled, review high-risk and overdue tickets; otherwise verify the actual support channel and its operational owner without assuming the published mailbox is monitored.",
             "Review content reports and any pending approvals.",
             "Inspect publication failures and private drafts without exposing learner content.",
             "Confirm the billing lock before and after every release.",
@@ -200,20 +200,20 @@ export const ownerDocumentation: OwnerDocumentation = {
       topics: [
         {
           title: "Release acceptance",
-          body: "A source build does not prove production health. For an exact release, verify the intended commit, the hosted version marker, the production health endpoint, datastore connectivity, billing state, and visible behavior on the deployed URL. Keep unrelated local changes out of the release.",
+          body: "One Azure Container App runs the Next.js frontend and same-origin backend routes in one immutable image. Blue and green are revisions of that app; there is no separate QA website. A source build does not prove production health. Bind the exact commit, image digest, capability manifest, canonical origin and auth mode to inactive-revision evidence. A zero-traffic revision URL is not private and uses shared durable services. Hosted mutations require approved test identities and data; a source commit does not authorize traffic changes. An alert webhook HTTP success proves transport only, not independent monitored acknowledgment, escalation or recovery. Existing-customer webhook and billing monitoring remain required even with checkout closed.",
           steps: [
             "Run lint, TypeScript, focused tests, and the full production build.",
-            "Publish the exact validated source revision.",
-            "Confirm the hosted version and production health endpoint.",
-            "Perform visible acceptance on the changed owner and learner flows.",
+            "Build the selected SHA once and verify the inactive revision digest at zero public traffic while the current revision remains at 100%.",
+            "Confirm the hosted version, datastore and Blob readiness, actual traffic bindings and billing lock; collect evidence against that exact revision.",
+            "Complete changed learner and owner flows before a separately approved 100% traffic swap. Recheck evidence and digest without rebuilding, then verify the canonical URL.",
           ],
         },
         {
           title: "Incident response",
-          body: "If a release is unhealthy, stop new consequential work, preserve evidence, activate the relevant kill switch, and restore the last known-good version. Never diagnose from a single dashboard number when the live route and datastore can be checked directly.",
+          body: "If a release is unhealthy, stop new consequential work, preserve evidence, activate the relevant kill switch, and restore the last known-good version. Both revisions share services. Rollback requires compatible write protocols: retire old binaries and already-loaded legacy clients before accepting generation fences as hosted-proven. An old revision that can bypass account, publication or usage checks is not a safe rollback target. Preserve backups and evidence under the approved recovery procedure; a traffic swap cannot undo shared datastore writes.",
         },
       ],
-      sources: ["docs/PRODUCTION_OPERATIONS.md", "docs/AZURE_MIGRATION_RUNBOOK.md", "docs/agent-command-center/incident-response.md", "src/app/api/health/route.ts", "scripts/check-production-health.mjs", ".github/workflows/azure-staging.yml", ".github/workflows/azure-promote-staging.yml"],
+      sources: ["docs/PRODUCTION_OPERATIONS.md", "docs/AZURE_MIGRATION_RUNBOOK.md", "docs/agent-command-center/incident-response.md", "src/app/api/health/route.ts", "scripts/check-production-health.mjs"],
     },
   ],
 };

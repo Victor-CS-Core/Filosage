@@ -11,6 +11,7 @@ import * as sourceSafety from "../../src/lib/source-safety";
 import * as reviewPolicy from "../../src/lib/course-pipeline/review-policy";
 import * as contentLanguage from "../../src/lib/content-language";
 import * as instructionalContext from "../../src/lib/instructional-context";
+import * as learningDesign from "../../src/lib/learning-design";
 import * as modelFallback from "../../src/lib/model-fallback";
 import type { AiUsageSample } from "../../src/lib/ai-pricing";
 
@@ -30,11 +31,12 @@ export function researchRouteFixture(
   const documents = new Map<string, Record<string, unknown>>();
   const finalizations: Array<{ failed?: boolean; usageSamples?: AiUsageSample[] }> = [];
   const captured: CapturedResearchRequest[] = [];
+  const checkpointUsage: AiUsageSample[] = [];
   const bindings: Record<string, unknown> = {
     "next/server": { NextResponse: Response },
     "openai/helpers/zod": { zodTextFormat },
     "@/lib/local-ai": { aiClient: () => ({ responses: { parse: async (request: CapturedResearchRequest) => { captured.push(request); return provider(request); } } }) },
-    "@/lib/auth-server": { requirePlanCapability: async () => ({ uid: "fixture-owner", isOwner: true }), authorizationResponse: () => null },
+    "@/lib/auth-server": { requireAcceptedAccount: async () => ({ uid: "fixture-owner", isOwner: true }), withAccountRequest: (handler: unknown) => handler, authorizationResponse: () => null },
     "@/lib/document-store": {
       getCourse: async () => null,
       getStoredDocument: async (path: string) => documents.get(path),
@@ -58,6 +60,32 @@ export function researchRouteFixture(
       courseCreditClaimId: async (_uid: string, value: string) => createHash("sha256").update(value).digest("hex"),
       releaseCourseCreditReservation: async () => undefined,
     },
+    "@/lib/local-mode": { isLocalMode: () => true },
+    "@/lib/runtime-environment": { serverEnvironment: {} },
+    "@/lib/generation-operations": {
+      GenerationOperationError: class extends Error {}, GenerationPauseError: class extends Error {},
+      isGenerationControlError: () => false, GENERATION_REQUEST_MS: 150_000,
+      beginGenerationOperation: async (_account: unknown, _key: unknown, payload: unknown) => ({
+        operationId: "fixture-request", startedAt: Date.now(), operation: { accountGeneration: "fixture-generation", status: "running", requestFingerprint: createHash("sha256").update(JSON.stringify(payload)).digest("hex") },
+      }),
+      generationOperationId: () => "fixture-request",
+      configureGenerationOperation: async () => undefined,
+      generationResponseObservedAt: () => new Date().toISOString(),
+      runGenerationProviderCall: async (_lease: unknown, input: CapturedResearchRequest, providerCall: () => Promise<{ id: string; usage: { input_tokens: number; output_tokens: number } }>) => {
+        const response = await providerCall();
+        checkpointUsage.push({ model: input.model, inputTokens: response.usage.input_tokens, cachedInputTokens: 0, cacheWriteTokens: 0, outputTokens: response.usage.output_tokens, responseId: response.id, promptCacheKey: input.prompt_cache_key });
+        for (let index = 0; index < research.webSearchCallCount(response); index += 1) checkpointUsage.push({ model: "openai-web-search", inputTokens: 0, cachedInputTokens: 0, cacheWriteTokens: 0, outputTokens: 0, fixedCostMicros: 10_000 });
+        return response;
+      },
+      runGenerationTransaction: async (_lease: unknown, paths: string[], callback: unknown) => {
+        const store = bindings["@/lib/document-store"] as { runStoredDocumentTransaction: (paths: string[], callback: unknown) => Promise<unknown> };
+        return store.runStoredDocumentTransaction(paths, callback);
+      },
+      finishGenerationOperation: async (_lease: unknown, result: { failed?: boolean }) => {
+        finalizations.push({ failed: result.failed, usageSamples: structuredClone(checkpointUsage) });
+      },
+      pauseGenerationOperation: async () => undefined,
+    },
     "@/lib/content-safety": { AI_SAFETY_POLICY: "Fixture safety policy", assertSafeContent: async () => undefined, ContentSafetyError: class extends Error {} },
     "@/lib/api-security": { readJsonBody: (request: Request) => request.json(), apiRequestErrorResponse: () => null },
     "@/lib/feature-flags": { coursePipelineFeatureFlags: () => ({ pipelineV2: false }) },
@@ -65,7 +93,7 @@ export function researchRouteFixture(
     "@/lib/bibliographic-references": bibliography, "@/lib/openai-generation": profiles,
     "@/lib/source-safety": sourceSafety, "@/lib/course-pipeline/review-policy": reviewPolicy,
     "@/lib/instructional-context": instructionalContext, "@/lib/content-language": contentLanguage,
-    "@/lib/model-fallback": modelFallback,
+    "@/lib/model-fallback": modelFallback, "@/lib/learning-design": learningDesign,
   };
   const source = options.routeSource ?? readFileSync("src/app/api/generate-course/route.ts", "utf8");
   const compiled = ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } }).outputText;

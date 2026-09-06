@@ -1,3 +1,4 @@
+import { withAccountRequest } from "@/lib/auth-server";
 import { z } from "zod";
 import { apiRequestErrorResponse, readJsonBody } from "@/lib/api-security";
 import { authorizationResponse, requireRecentlyAuthenticatedOwner } from "@/lib/auth-server";
@@ -9,7 +10,7 @@ const publicReplySchema = z.object({
   body: z.string().trim().min(2).max(2_000),
 }).strict();
 
-export async function POST(
+async function handlePOST(
   request: Request,
   context: { params: Promise<{ ticketId: string }> },
 ) {
@@ -65,3 +66,5 @@ export async function POST(
       ?? Response.json({ error: "The public reply could not be published." }, { status: 500 });
   }
 }
+
+export const POST = withAccountRequest(handlePOST);

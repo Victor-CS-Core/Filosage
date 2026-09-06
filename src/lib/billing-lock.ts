@@ -99,10 +99,10 @@ export function evaluateBillingConfiguration(environment: BillingEnvironment) {
   const portalConfigurationReady = /^bpc_[A-Za-z0-9]{8,}$/.test(
     environment.STRIPE_PORTAL_CONFIGURATION_ID?.trim() ?? "",
   );
-  const managementReady = provider === "stripe"
-    && present(environment.STRIPE_SECRET_KEY)
-    && portalConfigurationReady;
-  const webhookReady = managementReady
+  const apiReady = provider === "stripe" && present(environment.STRIPE_SECRET_KEY);
+  const portalReady = apiReady && portalConfigurationReady;
+  const managementReady = portalReady;
+  const webhookReady = apiReady
     && present(environment.STRIPE_WEBHOOK_SECRET);
   const productReady = managementReady
     && present(environment.STRIPE_PLUS_MONTHLY_PRICE_ID)
@@ -133,6 +133,8 @@ export function evaluateBillingConfiguration(environment: BillingEnvironment) {
     enabled,
     enabledValid,
     portalConfigurationReady,
+    apiReady,
+    portalReady,
     managementReady,
     webhookReady,
     productReady,
@@ -184,6 +186,7 @@ export function resolvedBillingPaymentState(
 ): BillingPaymentState {
   if (incoming) {
     const restrictive = current === "refunded" || current === "disputed";
+    if (restrictive && options?.sameInvoice && (incoming === "unknown" || incoming === "failed")) return current;
     if (restrictive
       && incoming === "paid"
       && options?.sameInvoice

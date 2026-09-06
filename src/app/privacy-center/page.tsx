@@ -1,10 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { useState, useSyncExternalStore } from "react";
 import { BarChart3, Download, LoaderCircle, LockKeyhole, ShieldCheck, Trash2 } from "lucide-react";
 import AppShell from "@/components/AppShell";
+import { clearLearnerAccountStorage } from "@/lib/learner-storage";
 import AccountEntryButton from "@/components/AccountEntryButton";
 import { useAuth } from "@/components/AuthProvider";
 import { LEGAL_CONTACT, PAID_SUBSCRIPTION_POLICY, SUPPORT_CONTACT } from "@/lib/legal";
@@ -18,8 +18,7 @@ import {
 function serverConsentSnapshot() { return null; }
 
 export default function PrivacyCenterPage() {
-  const router = useRouter();
-  const { user, isOwner, loading, reauthenticate, signOut } = useAuth();
+  const { user, isOwner, loading, reauthenticate } = useAuth();
   const [exporting, setExporting] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [deleteArmed, setDeleteArmed] = useState(false);
@@ -88,21 +87,15 @@ export default function PrivacyCenterPage() {
         body: JSON.stringify({ confirmation }),
       });
       const body = await response.json().catch(() => ({}));
-      if (!response.ok) throw new Error(body.error || "Your account data could not be deleted.");
-      try {
-        const identityResponse = await fetch("/api/account/identity", {
-          method: "DELETE",
-          headers: {
-            Authorization: `Bearer ${token}`,
-            "X-Reauthentication-Token": reauthenticationToken,
-          },
-        });
-        if (!identityResponse.ok) throw new Error("The sign-in identity could not be removed.");
-      } catch {
-        await signOut();
-        throw new Error(`Your Filosage application data was deleted, but the sign-in identity could not be removed. Contact ${LEGAL_CONTACT} to finish the identity request.`);
+      if (body.activeDataRemoved === true) clearLearnerAccountStorage(refreshedUser.uid);
+      if (body.jobId) {
+        setMessage(`${body.message || body.error || "Deletion is pending."} Reference: ${body.jobId}. ${body.activeDataRemoved ? "Retention and identity review remain pending." : "Retry to resume the saved request."}`);
+        setDeleting(false);
+        return;
       }
-      router.replace("/");
+      if (!response.ok || body.deleted !== true) throw new Error(body.error || "Your account deletion could not be confirmed.");
+      setMessage("Your account data has been removed.");
+      setDeleting(false);
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Your account could not be deleted.");
       setDeleting(false);
@@ -149,7 +142,7 @@ export default function PrivacyCenterPage() {
 
           <article className="privacy-danger-zone">
             <Trash2 size={20} />
-            <div><h2>Delete your account</h2><p>This permanently removes your active profile, learning data, authored courses, launch preferences, waitlist entry, and account-linked analytics. Limited legal-acceptance, completed billing-consent, payment-processor, safety, report, and enforcement records may be retained only for the purposes described in your export and Privacy Notice. This cannot be undone.</p></div>
+            <div><h2>Delete your account</h2><p>Starting deletion closes your account to new activity and saves a resumable request to remove your active profile, learning data, authored courses, launch preferences, waitlist entry, and account-linked analytics. Limited legal-acceptance, completed billing-consent, payment-processor, safety, report, and enforcement records may be retained only for the purposes described in your export and Privacy Notice. Deletion control records, identity mappings, shared assets, and retention or hold decisions require a separate review. A pending request is not confirmation of complete erasure. This cannot be undone.</p></div>
             {!user ? (
               <AccountEntryButton className="button button-secondary" createLabel="Create an account to manage it" signInLabel="Sign in to manage account" />
             ) : isOwner ? (

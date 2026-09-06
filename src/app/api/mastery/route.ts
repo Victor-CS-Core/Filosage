@@ -1,3 +1,4 @@
+import { withAccountRequest } from "@/lib/auth-server";
 import { z } from "zod";
 import { authorizationResponse, requireAcceptedAccount, requireAccount } from "@/lib/auth-server";
 import {
@@ -81,7 +82,7 @@ async function assertCourseAccess(
   return null;
 }
 
-export async function GET(request: Request) {
+async function handleGET(request: Request) {
   try {
     const account = await requireAccount(request);
     const courseId = new URL(request.url).searchParams.get("courseId")?.trim();
@@ -121,7 +122,7 @@ export async function GET(request: Request) {
   }
 }
 
-export async function PUT(request: Request) {
+async function handlePUT(request: Request) {
   try {
     const account = await requireAcceptedAccount(request);
     const parsed = planSchema.safeParse(await readJsonBody(request, 16_384));
@@ -149,7 +150,7 @@ export async function PUT(request: Request) {
   }
 }
 
-export async function POST(request: Request) {
+async function handlePOST(request: Request) {
   try {
     const account = await requireAcceptedAccount(request);
     const parsed = evidenceSchema.safeParse(await readJsonBody(request, 8_192));
@@ -189,3 +190,7 @@ export async function POST(request: Request) {
 }
 
 class MasteryEvidenceConflictError extends Error {}
+
+export const GET = withAccountRequest(handleGET);
+export const PUT = withAccountRequest(handlePUT);
+export const POST = withAccountRequest(handlePOST);

@@ -5,6 +5,7 @@ import { normalizeDisplayName } from "@/lib/display-name";
 
 export interface FilosageUser {
   uid: string;
+  accountGeneration?: string;
   displayName: string | null;
   email: string;
   photoURL: string | null;
@@ -29,6 +30,7 @@ interface EasyAuthSessionResponse {
   authentication: ManagedAuthenticationState["authentication"];
   user: {
     uid: string;
+  accountGeneration?: string;
     displayName: string | null;
     email: string;
     photoURL: string | null;
@@ -140,6 +142,7 @@ function parsedSession(value: unknown): EasyAuthSessionResponse | null {
     };
   }
   if (!isRecord(value.user) || !hasExactKeys(value.user, [
+    ...(value.user.accountGeneration !== undefined ? ["accountGeneration"] : []),
     "uid",
     "displayName",
     "email",
@@ -147,6 +150,8 @@ function parsedSession(value: unknown): EasyAuthSessionResponse | null {
     "authenticationProvider",
   ])) return null;
   const uid = boundedString(value.user.uid, 512);
+  const accountGeneration = value.user.accountGeneration === undefined ? undefined : boundedString(value.user.accountGeneration, 128);
+  if (accountGeneration === null || accountGeneration === "") return null;
   const email = boundedString(value.user.email, 320);
   const displayName = value.user.displayName === null
     ? null
@@ -168,6 +173,7 @@ function parsedSession(value: unknown): EasyAuthSessionResponse | null {
     authentication: safeAuthentication,
     user: {
       uid,
+      accountGeneration,
       displayName,
       email: normalizedEmail,
       photoURL,
@@ -183,11 +189,12 @@ function toFilosageUser(
   if (!session.user) return null;
   return {
     uid: session.user.uid,
+    accountGeneration: session.user.accountGeneration,
     displayName: session.user.displayName,
     email: session.user.email,
     photoURL: session.user.photoURL,
     provider: session.user.authenticationProvider,
-    getIdToken: async () => accountSessionMarker(session.user!.uid),
+    getIdToken: async () => accountSessionMarker(session.user!.uid, session.user!.accountGeneration),
     ...(reauthenticationToken ? { reauthenticationToken } : {}),
   };
 }
@@ -218,7 +225,7 @@ export async function currentEasyAuthUser() {
 
 export async function currentEasyAuthSession() {
   const user = (await currentEasyAuthState()).user;
-  return user ? accountSessionMarker(user.uid) : null;
+  return user ? accountSessionMarker(user.uid, user.accountGeneration) : null;
 }
 
 function sameOriginPath(path: string) {
@@ -265,7 +272,7 @@ export async function beginManagedReauthentication(
     }
     return {
       ...state.user,
-      reauthenticationToken: accountSessionMarker(state.user.uid),
+      reauthenticationToken: accountSessionMarker(state.user.uid, state.user.accountGeneration),
     } as FilosageUser;
   }
   const destination = new URL(sameOriginPath(postLoginPath), window.location.origin);

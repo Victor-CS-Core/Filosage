@@ -1,3 +1,4 @@
+import { withAccountRequest } from "@/lib/auth-server";
 import { NextRequest, NextResponse } from "next/server";
 import { apiRequestErrorResponse, assertTrustedMutation } from "@/lib/api-security";
 import { recordAuthenticationEvent, type AuthenticationEventReason } from "@/lib/auth-audit";
@@ -50,7 +51,7 @@ function terminalLinkResponse(error: LinkIntentError) {
   ));
 }
 
-export async function POST(request: NextRequest) {
+async function handlePOST(request: NextRequest) {
   try {
     assertTrustedMutation(request);
     const identity = await requireProviderIdentity(request);
@@ -83,3 +84,5 @@ export async function POST(request: NextRequest) {
     return unexpectedIdentityLinkResponse("The sign-in connection could not be completed.");
   }
 }
+
+export const POST = withAccountRequest(handlePOST);

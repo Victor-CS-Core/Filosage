@@ -14,8 +14,8 @@ try {
     if (!releaseSelectionMatches(manifest.capabilities, observedReleaseCapabilities(process.env))) throw new Error();
     console.log("Build/runtime capabilities match the approved manifest.");
   } else if (command === "create-evidence") {
-    const [sha, imageDigest, productionOrigin, qaOrigin, qaAuthenticationMode] = args;
-    const evidence = { schemaVersion: 1, sha, imageDigest, manifest, productionOrigin, qaOrigin, qaAuthenticationMode };
+    const [sha, imageDigest, productionOrigin, candidateOrigin, authenticationMode, appId, revision, label, authConfigSha256] = args;
+    const evidence = { schemaVersion: 2, sha, imageDigest, manifest, productionOrigin, candidateOrigin, authenticationMode, appId, revision, label, authConfigSha256 };
     if (!releaseEvidenceMatches(evidence, sha, manifest, productionOrigin)) throw new Error();
     console.log(JSON.stringify(evidence, null, 2));
   } else if (command === "verify-evidence") {
@@ -25,12 +25,12 @@ try {
     const evidence = JSON.parse(source);
     if (!releaseEvidenceMatches(evidence, sha, manifest, productionOrigin)) throw new Error();
     console.log(`EXPECTED_IMAGE_DIGEST=${evidence.imageDigest}`);
-    console.log(`QA_AUTH_MODE=${evidence.qaAuthenticationMode}`);
-    console.log(`QA_EVIDENCE_ORIGIN=${evidence.qaOrigin}`);
+    console.log(`EXPECTED_AUTH_MODE=${evidence.authenticationMode}`);
+    console.log(`CANDIDATE_ORIGIN=${evidence.candidateOrigin}`);
   } else if (command === "check-image") {
     const [repository, digest, observed] = args;
     if (!/^[a-z0-9]+\.azurecr\.io\/filosage$/.test(repository ?? "") || !validReleaseDigest(digest) || observed !== `${repository}@${digest}`) throw new Error();
-    console.log("Deployed image matches the QA-approved digest.");
+    console.log("Deployed image matches the candidate-approved digest.");
   } else {
     throw new Error();
   }

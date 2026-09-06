@@ -1,3 +1,4 @@
+import { withAccountRequest } from "@/lib/auth-server";
 import { z } from "zod";
 import { apiRequestErrorResponse, readJsonBody } from "@/lib/api-security";
 import { authorizationResponse, requireRecentlyAuthenticatedOwner } from "@/lib/auth-server";
@@ -16,7 +17,7 @@ const reviewSchema = z.object({
   reason: z.string().trim().min(10).max(500),
 }).strict();
 
-export async function PATCH(
+async function handlePATCH(
   request: Request,
   context: { params: Promise<{ approvalId: string }> },
 ) {
@@ -59,3 +60,5 @@ export async function PATCH(
       ?? Response.json({ error: "The approval decision could not be recorded." }, { status: 500 });
   }
 }
+
+export const PATCH = withAccountRequest(handlePATCH);

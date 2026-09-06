@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { test, after } from "node:test";
+import { test as nodeTest, after } from "node:test";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, relative } from "node:path";
@@ -9,10 +9,85 @@ import { createGenerationSafetyProof, publicationProofToken, publicationProofApp
 import type { Course } from "../../src/lib/course-types.ts";
 import { publicationDecisionFromReport } from "../../src/lib/course-pipeline/validation.ts";
 
+import { captureAccountGeneration, runWithAccountGeneration } from "../../src/lib/account-lifecycle.ts";
+function test(name: string, work: () => Promise<void>) {
+  nodeTest(name, async () => runWithAccountGeneration(await captureAccountGeneration("local-owner"), work));
+}
+
 const directory = mkdtempSync(join(tmpdir(), "publication-proof-"));
 process.env.FILOSAGE_LOCAL_DIR = relative(process.cwd(), directory);
 after(() => rmSync(directory, { recursive: true, force: true }));
 import { buildGeneratedCoursePublication } from "../../src/lib/publication-review.ts";
+import { certifyResearchSourcesV5, SOURCE_RESEARCH_POLICY_VERSION } from "../../src/lib/source-research.ts";
+
+async function researchBoundCandidate() {
+  const value = candidate();
+  const now = Date.now();
+  const url = "https://www.nist.gov/publications/evidence-review";
+  const certified = certifyResearchSourcesV5({ sources: [{
+    label: "NIST evidence guidance", url, author: null, publisher: "NIST", publicationDate: null,
+    publicationStatus: "released", statusCheck: "released-no-withdrawal-found", evidenceType: "official-guidance",
+    evidenceClaims: [{ claim: "Observations distinguish recorded evidence from proposed explanations.", locator: null }],
+    reputationRationale: "NIST is the responsible official publisher.", limitations: "This guidance has a bounded scope.",
+  }] }, { id: "research-response", output: [
+    { type: "web_search_call", id: "search-proof", status: "completed", action: { type: "search", query: "evidence" } },
+    { type: "message", content: [{ type: "output_text", text: "Evidence guidance", annotations: [{ type: "url_citation", url, title: "NIST" }] }] },
+  ] }, new Date(now - 1000).toISOString());
+  assert.equal(certified.sources.length, 1);
+  const sourcePack = certified.sources.map((source) => ({ ...source, qualityTier: "vetted" as const,
+    evidenceValidationResponseId: "validation-response", evidenceValidationCallIds: ["validation-call"] }));
+  const artifact = { ownerUid: "author", requestFingerprint: "a".repeat(64), policyVersion: SOURCE_RESEARCH_POLICY_VERSION,
+    responseId: "research-response", sourcePack, evidenceResearchComplete: true,
+    evidenceCreatedAt: new Date(now - 1000).toISOString(), evidenceExpiresAt: new Date(now + 60_000).toISOString() };
+  const artifactPath = "courseResearchArtifacts/publication-research";
+  Object.assign(value.course, { authorId: "author", sourcePack, sourceResearchArtifactId: "publication-research",
+    sourceResearchRequestFingerprint: artifact.requestFingerprint, sourceResearchResponseId: artifact.responseId,
+    sourceResearchPolicyVersion: SOURCE_RESEARCH_POLICY_VERSION });
+  await putStoredDocument(artifactPath, artifact);
+  const proof = await buildPublicationValidationProof(value.course, value.lessons, value.ids, { uid: "owner" });
+  assert.equal(proof.research?.status, "verified");
+  value.course.publicationProof = proof;
+  value.course.manualReviewResolution = { status: "approved", snapshotHash: proof.snapshotHash,
+    contractVersion: proof.validationReport.contractVersion, proofPolicyVersion: PUBLICATION_PROOF_POLICY_VERSION,
+    proofFingerprint: publicationProofApprovalFingerprint(proof), proofToken: publicationProofToken(proof),
+    reviewId: "research-review", reason: "Reviewed the evidence in the exact draft.", reviewedAt: new Date().toISOString() } as Course["manualReviewResolution"];
+  await putStoredDocument(`courses/${value.course.id}`, value.course);
+  for (const lesson of value.lessons) await putStoredDocument(`courses/${value.course.id}/lessons/${lesson.id}`, lesson);
+  return { ...value, proof, artifact, artifactPath };
+}
+
+test("source evidence expiring after validation cannot be committed as current proof", async () => {
+  const value = await researchBoundCandidate();
+  const { commitCourseValidationStage } = await import("../../src/lib/document-store.ts");
+  const { publicationContentFingerprint } = await import("../../src/lib/publication-content.ts");
+  await putStoredDocument(value.artifactPath, { ...value.artifact, evidenceExpiresAt: new Date(Date.now() - 1).toISOString() });
+  await assert.rejects(commitCourseValidationStage(String(value.course.id), value.ids, {
+    course: publicationContentFingerprint(value.course),
+    lessons: Object.fromEntries(value.lessons.map((lesson) => [lesson.id, publicationContentFingerprint(lesson)])),
+  }, "manual_review", { decision: "manual_review", snapshotHash: value.proof.snapshotHash, publicationProof: value.proof }), /source evidence changed or expired/);
+});
+
+test("expired research produces a registered typed non-overridable publication diagnostic", async () => {
+  const value = await researchBoundCandidate();
+  await putStoredDocument(value.artifactPath, { ...value.artifact, evidenceExpiresAt: new Date(Date.now() - 1).toISOString() });
+  const proof = await buildPublicationValidationProof(value.course, value.lessons, value.ids, { uid: "owner" });
+  const { validationReportSchema } = await import("../../src/lib/course-pipeline/schemas.ts");
+  const { COURSE_QUALITY_RULE_CODES } = await import("../../src/lib/course-pipeline/rules.ts");
+  assert.equal(validationReportSchema.safeParse(proof.validationReport).success, true);
+  const issue = proof.validationReport.issues.find((item) => item.code === "CQ_SOURCE_006");
+  assert.ok(issue);
+  assert.ok(COURSE_QUALITY_RULE_CODES.includes(issue.code as typeof COURSE_QUALITY_RULE_CODES[number]));
+  assert.ok(issue.suggestedAction);
+  assert.equal(publicationDecisionFromReport(proof.validationReport).decision, "blocked");
+});
+
+test("publication transaction rereads research after the successful course review", async () => {
+  const value = await researchBoundCandidate();
+  const review = await buildGeneratedCoursePublication(value.course, value.lessons, value.ids, { uid: "owner", isOwner: true });
+  await putStoredDocument(value.artifactPath, { ...value.artifact, responseId: "substituted-response" });
+  await assert.rejects(publishCourseWithReview(String(value.course.id), value.ids, review), /source evidence changed or expired/);
+  assert.notEqual((await getStoredDocument(`courses/${value.course.id}`))?.isPublic, true);
+});
 
 function conciseValidLesson() {
   return {
@@ -101,7 +176,7 @@ function validOutline() {
 
 function candidate() {
   const outline = validOutline();
-  const course = { ...outline, id: "proof-course", aiAssisted: true } as Course & Record<string, unknown>;
+  const course = { ...outline, id: "proof-course", authorId: "local-owner", aiAssisted: true } as Course & Record<string, unknown>;
   const ids = ["0-0", "0-1", "1-0", "1-1"];
   const experiences = [
     { type: "concept", predictionPrompt: "Predict which claim is observed.", mentalModel: { title: "Claim types", parts: [{ label: "Observation", role: "Checkable result" }, { label: "Inference", role: "Possible explanation" }] }, misconceptionCheck: { claim: "Confidence is evidence.", correction: "Evidence requires an observation." } },

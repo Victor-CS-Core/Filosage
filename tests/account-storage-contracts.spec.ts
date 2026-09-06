@@ -6,7 +6,7 @@ import { getLocalMasteryJourney, saveLocalMasteryJourney, type LearningOutcomePl
 
 import {
   isCurrentLearnerSession, learnerRequest, learnerSessionSnapshot, setLearnerStorageIdentity,
-  readLearnerStorage, writeLearnerStorage,
+  readLearnerStorage, writeLearnerStorage, clearLearnerAccountStorage,
 } from "../src/lib/learner-storage";
 
 test("the required smoke runner selects account switching and delayed cross-tab privacy regressions", () => {
@@ -176,6 +176,27 @@ test("deployed authorization compares the account marker with the independently 
   expect(result.stdout).toContain("ACCOUNT_STORAGE_DEPLOYED_IDENTITY_OK");
 });
 
+test("a new account generation invalidates same-UID drafts and removes only that account's browser records", async () => {
+  await withStorage(new Map(), () => {
+    setLearnerStorageIdentity("account-A", "generation-old");
+    writeLearnerStorage("account-A", "transfer-draft", "course", "old private draft");
+    const oldSession = learnerSessionSnapshot();
+    setLearnerStorageIdentity("account-B", "generation-B");
+    writeLearnerStorage("account-B", "transfer-draft", "course", "B private draft");
+    setLearnerStorageIdentity("account-A", "generation-new");
+    expect(isCurrentLearnerSession(oldSession)).toBe(false);
+    expect(readLearnerStorage("account-A", "transfer-draft", "course")).toBeNull();
+    writeLearnerStorage("account-A", "transfer-draft", "course", "new draft");
+    clearLearnerAccountStorage("account-B");
+    expect(readLearnerStorage("account-A", "transfer-draft", "course")).toBe("new draft");
+    clearLearnerAccountStorage("account-A");
+    setLearnerStorageIdentity("account-A", "generation-new");
+    expect(readLearnerStorage("account-A", "transfer-draft", "course")).toBeNull();
+    setLearnerStorageIdentity("account-B", "generation-B");
+    expect(readLearnerStorage("account-B", "transfer-draft", "course")).toBe("B private draft");
+  });
+});
+
 async function withStorage(stored: Map<string, string>, run: () => void | Promise<void>) {
   const storage: Storage = {
     get length() { return stored.size; },
@@ -187,7 +208,7 @@ async function withStorage(stored: Map<string, string>, run: () => void | Promis
   };
   const originalWindow = Object.getOwnPropertyDescriptor(globalThis, "window");
   const originalStorage = Object.getOwnPropertyDescriptor(globalThis, "localStorage");
-  Object.defineProperty(globalThis, "window", { configurable: true, value: { localStorage: storage } });
+  Object.defineProperty(globalThis, "window", { configurable: true, value: { localStorage: storage, dispatchEvent: () => true } });
   Object.defineProperty(globalThis, "localStorage", { configurable: true, value: storage });
   setLearnerStorageIdentity("account-A");
   try { await run(); } finally {

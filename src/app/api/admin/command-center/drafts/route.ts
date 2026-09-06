@@ -1,3 +1,4 @@
+import { withAccountRequest } from "@/lib/auth-server";
 import { apiRequestErrorResponse, readJsonBody } from "@/lib/api-security";
 import { aiQuotaResponse } from "@/lib/ai-usage";
 import { authorizationResponse } from "@/lib/auth-server";
@@ -9,7 +10,7 @@ import {
 } from "@/lib/command-center-draft-server";
 import { commandCenterErrorResponse } from "@/lib/command-center-server";
 
-export async function POST(request: Request) {
+async function handlePOST(request: Request) {
   try {
     const owner = await requireCommandCenterPermission(request, "generate_draft");
     const parsed = commandCenterDraftRequestSchema.safeParse(await readJsonBody(request, 2_048));
@@ -38,3 +39,5 @@ export async function POST(request: Request) {
       ?? Response.json({ error: "The review draft could not be generated." }, { status: 500 });
   }
 }
+
+export const POST = withAccountRequest(handlePOST);

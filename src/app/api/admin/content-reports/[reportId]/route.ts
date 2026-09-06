@@ -1,3 +1,4 @@
+import { withAccountRequest } from "@/lib/auth-server";
 import { z } from "zod";
 import { authorizationResponse, requireOwner } from "@/lib/auth-server";
 import { apiRequestErrorResponse, assertTrustedMutation, readJsonBody } from "@/lib/api-security";
@@ -14,7 +15,7 @@ const updateSchema = z.object({
   status: z.enum(["resolved", "dismissed"]),
 }).strict();
 
-export async function PATCH(request: Request, { params }: RouteParams) {
+async function handlePATCH(request: Request, { params }: RouteParams) {
   try {
     assertTrustedMutation(request);
     const owner = await requireOwner(request);
@@ -37,3 +38,5 @@ export async function PATCH(request: Request, { params }: RouteParams) {
       ?? Response.json({ error: "The content report could not be updated." }, { status: 500 });
   }
 }
+
+export const PATCH = withAccountRequest(handlePATCH);

@@ -1,3 +1,4 @@
+import { withAccountRequest } from "@/lib/auth-server";
 import { z } from "zod";
 import { apiRequestErrorResponse, assertTrustedMutation, readJsonBody } from "@/lib/api-security";
 import { getVerifiedUser } from "@/lib/auth-server";
@@ -54,7 +55,7 @@ function documentRouteKey(route: string) {
   return route === "/" ? "home" : route.slice(1).replace(/[^a-z-]/g, "-");
 }
 
-export async function POST(request: Request) {
+async function handlePOST(request: Request) {
   try {
     assertTrustedMutation(request);
     const limited = await enforceDurableRateLimit(request, "telemetry", 60);
@@ -164,3 +165,5 @@ export async function POST(request: Request) {
     return new Response(null, { status: 204 });
   }
 }
+
+export const POST = withAccountRequest(handlePOST);

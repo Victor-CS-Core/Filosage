@@ -1,3 +1,4 @@
+import { withAccountRequest } from "@/lib/auth-server";
 import { authorizationResponse, requireOwner } from "@/lib/auth-server";
 import {
   countCollectionDocuments,
@@ -22,6 +23,7 @@ import {
   type ProductEventName,
 } from "@/lib/product-events";
 import { serverEnvironment } from "@/lib/runtime-environment";
+import { operationalAlertSenderObservation } from "@/lib/operational-alert-core";
 import {
   annualMonthlyEquivalentMinor,
   annualSavingsPercent,
@@ -141,7 +143,7 @@ function labelForUser(user: { displayName: string; email?: string; isOwner: bool
   return user.displayName || user.email || "Learner";
 }
 
-export async function GET(request: Request) {
+async function handleGET(request: Request) {
   try {
     const owner = await requireOwner(request);
     const requestedDays = Number(new URL(request.url).searchParams.get("days") ?? 30);
@@ -228,11 +230,13 @@ export async function GET(request: Request) {
     );
     const operationsAlerts = operationalControl({
       configured: alertsConfigured,
-      evidence: alertTestEvidence,
+      // This key contains sender transport observations, including legacy
+      // "succeeded" records. Neither establishes independent receiver readiness.
+      evidence: operationalAlertSenderObservation(alertTestEvidence),
       healthyForHours: 90 * 24,
       missingDetail: "A monitored webhook URL and signing secret are both required.",
-      unverifiedDetail: "Configuration exists, but no acknowledged signed test is recorded.",
-      healthyDetail: "A signed test alert was acknowledged and retained as evidence.",
+      unverifiedDetail: "Independently verify receiver durability, signature rejection, escalation and recovery; sender HTTP acceptance alone is insufficient.",
+      healthyDetail: "Independent receiver verification is required.",
     });
     const managedBackups = operationalControl({
       configured: backupsConfigured,
@@ -806,3 +810,5 @@ export async function GET(request: Request) {
     return Response.json({ error: "The control room is temporarily unavailable." }, { status: 500 });
   }
 }
+
+export const GET = withAccountRequest(handleGET);

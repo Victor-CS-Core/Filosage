@@ -1,3 +1,4 @@
+import { withAccountRequest } from "@/lib/auth-server";
 import { authorizationResponse, requireAcceptedAccount } from "@/lib/auth-server";
 import { apiRequestErrorResponse, assertTrustedMutation, readJsonBody } from "@/lib/api-security";
 import {
@@ -15,7 +16,7 @@ import {
 import { recordServerProductEvent } from "@/lib/product-events-server";
 import { isBillingInterval, isPaidLearnerPlan, paidPlanFor } from "@/lib/membership-plans";
 
-export async function POST(request: Request) {
+async function handlePOST(request: Request) {
   try {
     assertTrustedMutation(request);
     const account = await requireAcceptedAccount(request);
@@ -66,3 +67,5 @@ export async function POST(request: Request) {
     return apiRequestErrorResponse(error) ?? authorizationResponse(error) ?? Response.json({ error: "Checkout could not be started." }, { status: 500 });
   }
 }
+
+export const POST = withAccountRequest(handlePOST);

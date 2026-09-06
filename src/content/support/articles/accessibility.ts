@@ -6,8 +6,8 @@ export default defineSupportArticle({
   summary: "Navigate by keyboard, use visible focus and semantic controls, reduce motion, or change the theme.",
   category: "trust",
   keywords: ["accessibility", "keyboard", "screen reader", "focus", "reduced motion", "animation", "motion preference", "dark mode", "speech"],
-  reviewedOn: "2026-08-15",
-  sources: ["DESIGN.md", "src/app/globals.css", "src/components/AppShell.tsx", "src/components/AppDrawer.tsx", "src/components/CourseDeck.tsx", "src/components/LessonStudyTools.tsx", "src/components/SpeakButton.tsx"],
+  reviewedOn: "2026-09-06",
+  sources: ["src/components/support/SupportCenter.tsx", "DESIGN.md", "src/app/globals.css", "src/components/AppShell.tsx", "src/components/AppDrawer.tsx", "src/components/CourseDeck.tsx", "src/components/LessonStudyTools.tsx", "src/components/SpeakButton.tsx"],
   body: `
 ## Navigate by keyboard
 
@@ -60,6 +60,9 @@ When the browser provides speech synthesis, an open lesson can show **Read this 
 ## Report an access barrier
 
 Contact [Filosage support](/support/articles/contact-support) with the page, device, browser, assistive technology if relevant, and the task you could not complete. Describe the barrier rather than sending sensitive account information.
+## Use support when the form is unavailable
+
+The Support Center keeps keyboard-accessible Help and My requests available when new-request intake is closed. **Contact support** offers the published email address and help guides before composition. If availability cannot be confirmed, use **Check availability again** or email from your own email app; describe the affected control, focus movement and task in your message.
 `,
   related: ["navigate-filosage", "contact-support", "sign-in-help"],
 });

@@ -1,3 +1,5 @@
+import { PublicationResearchChangedError } from "@/lib/publication-research";
+import { withAccountRequest } from "@/lib/auth-server";
 import { NextResponse } from "next/server";
 import { authorizationResponse, getVerifiedUser, requireAccount, requireAcceptedAccount } from "@/lib/auth-server";
 import {
@@ -29,7 +31,7 @@ import { getCourseRuntimeArtifact, publishedReleaseUnavailableResponse } from "@
 interface RouteParams {
   params: Promise<{ courseId: string }>;
 }
-export async function GET(request: Request, { params }: RouteParams) {
+async function handleGET(request: Request, { params }: RouteParams) {
   const { courseId } = await params;
   try {
     const course = await getCourse(courseId);
@@ -79,7 +81,7 @@ export async function GET(request: Request, { params }: RouteParams) {
   }
 }
 
-export async function PATCH(request: Request, { params }: RouteParams) {
+async function handlePATCH(request: Request, { params }: RouteParams) {
   const { courseId } = await params;
   let visibilityUpdateStage = "authorization";
   let pipelineCorrelationId = courseId;
@@ -227,6 +229,10 @@ export async function PATCH(request: Request, { params }: RouteParams) {
     if (authResponse) return authResponse;
     const releaseError = publishedReleaseUnavailableResponse(error);
     if (releaseError) return releaseError;
+    if (error instanceof PublicationResearchChangedError) {
+      return Response.json({ error: "Source evidence changed or expired. Validate the draft to review the required next step.", code: "STALE_PUBLICATION_PROOF" },
+        { status: 409, headers: { "Cache-Control": "private, no-store" } });
+    }
     if (error instanceof PublicationReviewError) {
       console.info(JSON.stringify({
         event: "course_publication_review_rejected",
@@ -289,7 +295,7 @@ export async function PATCH(request: Request, { params }: RouteParams) {
   }
 }
 
-export async function DELETE(request: Request, { params }: RouteParams) {
+async function handleDELETE(request: Request, { params }: RouteParams) {
   const { courseId } = await params;
   try {
     assertTrustedMutation(request);
@@ -312,3 +318,7 @@ export async function DELETE(request: Request, { params }: RouteParams) {
     return NextResponse.json({ error: "The course could not be deleted." }, { status: 500 });
   }
 }
+
+export const GET = withAccountRequest(handleGET);
+export const PATCH = withAccountRequest(handlePATCH);
+export const DELETE = withAccountRequest(handleDELETE);

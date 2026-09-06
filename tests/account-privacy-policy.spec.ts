@@ -14,12 +14,6 @@ import { RECENT_AUTHENTICATION_PROOF_MISSING_MESSAGE } from "../src/lib/identity
 import type { VerifiedUser } from "../src/lib/identity-types";
 import { PRIVACY_VERSION, TERMS_VERSION } from "../src/lib/legal";
 
-const projectLearnerTokens: Record<string, string> = {
-  api: "playwright-free-learner-api",
-  chromium: "playwright-free-learner",
-  "mobile-chromium": "playwright-free-learner-mobile-chromium",
-  "mobile-webkit": "playwright-free-learner-mobile-webkit",
-};
 
 function authorization(token: string) {
   return { Authorization: `Bearer ${token}` };
@@ -115,20 +109,13 @@ test("uses action-neutral copy when the identity provider omits recent-auth proo
 
 test("wires the destructive route to the recent-auth account guard", async () => {
   const source = await readFile("src/app/api/account/data/route.ts", "utf8");
-  expect(source).toContain("requireRecentlyAuthenticatedAccount(request)");
+  expect(source).toContain("requireRecentlyAuthenticatedUser(request)");
   expect(source).not.toMatch(/export async function DELETE[\s\S]*?requireAccount\(request\)/);
 });
 
-test("limits local authentication to explicit owner and learner tokens", async ({ request }, testInfo) => {
-  const learnerToken = projectLearnerTokens[testInfo.project.name];
-  expect(learnerToken, `Add an explicit learner token for ${testInfo.project.name}.`).toBeTruthy();
-
-  // Account records are created only by affirmative legal acceptance. Give
-  // each project a distinct learner because this test permanently deletes it.
-  await request.delete("/api/account/data", {
-    headers: { ...authorization(learnerToken), "X-Reauthentication-Token": learnerToken },
-    data: { confirmation: "DELETE MY ACCOUNT" },
-  });
+test("limits local authentication to explicit owner and learner tokens", async ({ request }) => {
+  const learnerToken = `playwright-plus-learner-${crypto.randomUUID()}`;
+  // A deleted UID is never reopened. Each destructive test owns a fresh identity.
   await acceptCurrentLegalTerms(request, "local-dev-token");
   await acceptCurrentLegalTerms(request, learnerToken);
 
@@ -152,7 +139,7 @@ test("limits local authentication to explicit owner and learner tokens", async (
     isOwner: false,
     access: "free",
     plan: "free",
-    displayName: "Playwright Learner",
+    displayName: "Playwright Plus Learner",
   });
 
   const recentlyAuthenticatedDeletion = await request.delete("/api/account/data", {
@@ -161,7 +148,7 @@ test("limits local authentication to explicit owner and learner tokens", async (
   });
   const deletionBody = await recentlyAuthenticatedDeletion.json() as { deleted?: boolean; error?: string };
   expect(recentlyAuthenticatedDeletion.ok(), JSON.stringify(deletionBody)).toBe(true);
-  expect(deletionBody).toMatchObject({ deleted: true });
+  expect(deletionBody).toMatchObject({ deleted: false, activeDataRemoved: true, status: "retention_review" });
 
   for (const token of ["arbitrary-local-bearer", "__proto__"]) {
     const arbitraryToken = await request.get("/api/account", {
@@ -232,6 +219,8 @@ test("deletes every active account-data collection while excluding retained audi
 
 test("documents every intentionally retained automated-deletion category", () => {
   expect(AUTOMATED_ACCOUNT_DELETION_RETENTION.map((entry) => entry.category)).toEqual([
+    "Deletion control and identity recovery records",
+    "Shared assets and operational cost totals",
     "Legal acceptance records",
     "Safety and enforcement records",
     "Billing and transaction records",
@@ -254,7 +243,8 @@ test("exports the expanded account inventory and retention boundary", async ({ r
   expect(response.ok()).toBe(true);
   const exported = await response.json();
   expect(exported.exportFormat).toBe("filosage-account-data-v2");
-  expect(exported.automatedDeletionRetention).toHaveLength(3);
+  expect(exported.automatedDeletionRetention).toHaveLength(5);
+  expect(exported.retentionReview).toMatchObject({ status: "owner_privacy_review_pending", completionClaimPermitted: false });
   expect(Object.keys(exported.data)).toEqual(expect.arrayContaining([
     "lessonActivityRecords",
     "billingConsents",

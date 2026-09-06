@@ -1,8 +1,11 @@
+import { captureAccountGeneration, runWithAccountGeneration } from "@/lib/account-lifecycle";
 import { billingConfiguration } from "@/lib/runtime-config";
 import { readBoundedRequestText } from "@/lib/bounded-request-body";
 import { putStoredDocument, runStoredDocumentTransaction } from "@/lib/document-store";
 import {
   BillingConsentRequiredError,
+  hasRecordedBillingConsent,
+  containStripeSubscriptionForDeletedAccount,
   recordBillingConsent,
   recordSubscriptionConsentFromCheckout,
   resolvedSubscriptionOffer,
@@ -172,7 +175,6 @@ async function currentSubscriptionPayment(subscription: Stripe.Subscription) {
   if (stripeInvoiceSubscriptionId(invoice) !== subscription.id) {
     throw new Error(`Stripe invoice ${invoice.id} does not belong to subscription ${subscription.id}.`);
   }
-  if (invoice.status !== "paid") return undefined;
   return stripeInvoicePaymentSnapshot(invoice);
 }
 
@@ -216,6 +218,7 @@ async function reconcileInvoice(
   event: Pick<Stripe.Event, "id" | "created" | "type">,
   eventInvoice: Stripe.Invoice,
   override?: BillingPaymentSnapshot["state"],
+  evidence?: Pick<BillingPaymentSnapshot, "chargeId" | "disputeId">,
 ) {
   const stripe = stripeClient();
   const invoice = await stripe.invoices.retrieve(eventInvoice.id);
@@ -223,7 +226,7 @@ async function reconcileInvoice(
   if (!stripeSubscriptionId) return false;
   const subscription = await stripe.subscriptions.retrieve(stripeSubscriptionId);
   const paymentSnapshot = latestInvoiceId(subscription) === invoice.id
-    ? stripeInvoicePaymentSnapshot(invoice, override)
+    ? { ...stripeInvoicePaymentSnapshot(invoice, override), ...evidence }
     : await currentSubscriptionPayment(subscription);
   const payment = paymentSnapshot?.state === "unknown" ? undefined : paymentSnapshot;
   const synchronized = await syncSubscriptionWithConsentBootstrap(subscription, event, payment);
@@ -237,6 +240,7 @@ async function reconcileCharge(
   event: Pick<Stripe.Event, "id" | "created" | "type">,
   eventCharge: Stripe.Charge,
   state: BillingPaymentSnapshot["state"] | "refund",
+  disputeId?: string,
 ) {
   const charge = await stripeClient().charges.retrieve(eventCharge.id);
   const invoice = await invoiceForCharge(charge);
@@ -246,7 +250,7 @@ async function reconcileCharge(
     amountRefunded: charge.amount_refunded,
     refunded: charge.refunded,
   });
-  return reconcileInvoice(event, invoice, resolvedState);
+  return reconcileInvoice(event, invoice, resolvedState, { chargeId: charge.id, disputeId });
 }
 
 export async function POST(request: Request) {
@@ -283,7 +287,7 @@ export async function POST(request: Request) {
     );
   }
 
-  try {
+  const processEvent = async () => {
     switch (event.type) {
       case "checkout.session.completed": {
         const session = event.data.object as Stripe.Checkout.Session;
@@ -292,8 +296,12 @@ export async function POST(request: Request) {
         {
           const stripe = stripeClient();
           const subscription = await stripe.subscriptions.retrieve(stripeSubscriptionId);
-          const payment = await verifyCheckoutFulfillment(stripe, session, subscription);
-          const consentRecorded = await recordBillingConsent(session, subscription, event);
+          if (await containStripeSubscriptionForDeletedAccount(subscription)) break;
+          const historicalConsent = await hasRecordedBillingConsent(subscription);
+          const payment = historicalConsent
+            ? await currentSubscriptionPayment(subscription)
+            : await verifyCheckoutFulfillment(stripe, session, subscription);
+          const consentRecorded = historicalConsent ? false : await recordBillingConsent(session, subscription, event);
           if (consentRecorded === null) {
             if (terminalSubscriptionCanBeAcknowledgedWithoutAccount(subscription.status)) break;
             throw new Error(`Stripe subscription ${subscription.id} completed for a missing Filosage account.`);
@@ -348,6 +356,7 @@ export async function POST(request: Request) {
       case "customer.subscription.resumed":
         {
           const subscription = await currentSubscription(event.data.object as Stripe.Subscription);
+          if (await containStripeSubscriptionForDeletedAccount(subscription)) break;
           const payment = await currentSubscriptionPayment(subscription);
           const synchronized = await syncSubscriptionWithConsentBootstrap(subscription, event, payment);
           const uid = subscription.metadata.filosage_uid;
@@ -375,7 +384,7 @@ export async function POST(request: Request) {
           ? await stripeClient().charges.retrieve(dispute.charge)
           : dispute.charge;
         const recovered = dispute.status === "won" || dispute.status === "prevented" || dispute.status === "warning_closed";
-        await reconcileCharge(event, charge, recovered ? "paid" : "disputed");
+        await reconcileCharge(event, charge, recovered ? "paid" : "disputed", dispute.id);
         break;
       }
       case "charge.dispute.closed": {
@@ -384,12 +393,23 @@ export async function POST(request: Request) {
           ? await stripeClient().charges.retrieve(dispute.charge)
           : dispute.charge;
         const recovered = dispute.status === "won" || dispute.status === "prevented" || dispute.status === "warning_closed";
-        await reconcileCharge(event, charge, recovered ? "paid" : "disputed");
+        await reconcileCharge(event, charge, recovered ? "paid" : "disputed", dispute.id);
         break;
       }
       default:
         break;
     }
+  };
+  try {
+    // Capture the signed subscription/Checkout identity once for the whole
+    // operation, including consent and product audit writes after Stripe awaits.
+    const object = event.data.object;
+    const uid = object.object === "subscription" ? object.metadata.filosage_uid
+      : object.object === "checkout.session" ? object.metadata?.filosage_uid || object.client_reference_id
+      : undefined;
+    const lifecycle = uid ? await captureAccountGeneration(uid) : null;
+    if (lifecycle?.state === "active") await runWithAccountGeneration(lifecycle, processEvent);
+    else await processEvent();
   } catch (error) {
     await putStoredDocument(eventPath, {
       type: event.type,

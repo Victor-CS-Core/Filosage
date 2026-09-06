@@ -615,6 +615,7 @@ test("exported server resolution rejects a drifted identity-registry record", ()
   const script = `
     import assert from "node:assert/strict";
     import { putStoredDocument } from "./src/lib/document-store.ts";
+    import { captureAccountGeneration, runWithAccountGeneration } from "./src/lib/account-lifecycle.ts";
     import {
       configuredIdentityRegistryKeys,
       IdentityRegistryConflictError,
@@ -630,7 +631,8 @@ test("exported server resolution rejects a drifted identity-registry record", ()
     };
     const keys = await configuredIdentityRegistryKeys(identity);
     const timestamp = new Date(Date.now() - 1_000).toISOString();
-    await putStoredDocument(keys.identityPath, {
+    const accountGeneration = await captureAccountGeneration("existing-google-uid");
+    await runWithAccountGeneration(accountGeneration, () => putStoredDocument(keys.identityPath, {
       schemaVersion: 1,
       keyVersion: "v1",
       identityHash: keys.identityHash,
@@ -639,7 +641,7 @@ test("exported server resolution rejects a drifted identity-registry record", ()
       createdAt: timestamp,
       updatedAt: timestamp,
       unexpected: true,
-    });
+    }));
     await assert.rejects(resolveCanonicalIdentity(identity), IdentityRegistryConflictError);
     console.log("IDENTITY_REGISTRY_SERVER_RESOLUTION_OK");
   `;

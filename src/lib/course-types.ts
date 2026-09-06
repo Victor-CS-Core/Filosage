@@ -249,6 +249,7 @@ export interface Course {
   manualReviewPolicy?: { version: string; required: boolean; reasonCodes: string[] };
   manualReviewResolution?: {
     status: "approved" | "rejected";
+    proofToken?: string;
     snapshotHash: string;
     contractVersion: string;
     reason: string;

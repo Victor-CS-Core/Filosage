@@ -1,9 +1,11 @@
+import { withAccountRequest } from "@/lib/auth-server";
+import { currentAccountGeneration } from "@/lib/account-lifecycle";
 import { getVerifiedUser } from "@/lib/auth-server";
 import { authenticationRuntimeConfiguration } from "@/lib/auth-runtime";
 import { providerDisplayName } from "@/lib/display-name";
 import { hasRecentAuthentication } from "@/lib/recent-auth";
 
-export async function GET(request: Request) {
+async function handleGET(request: Request) {
   const configuration = authenticationRuntimeConfiguration();
   const externalIdNewAccountsAvailable = configuration.externalIdEnabled
     && configuration.externalIdNewAccountsEnabled;
@@ -25,6 +27,7 @@ export async function GET(request: Request) {
     },
     user: user ? {
       uid: user.uid,
+      accountGeneration: currentAccountGeneration()?.generation,
       displayName: providerDisplayName(user.name, user.email),
       email: user.email,
       photoURL: user.picture ?? null,
@@ -37,3 +40,5 @@ export async function GET(request: Request) {
     },
   });
 }
+
+export const GET = withAccountRequest(handleGET);

@@ -1,3 +1,4 @@
+import { withAccountRequest } from "@/lib/auth-server";
 import { authorizationResponse, requireAcceptedAccount, requireAccount } from "@/lib/auth-server";
 import {
   deleteStoredDocuments,
@@ -94,7 +95,7 @@ async function resolveActiveProgress(
   };
 }
 
-export async function GET(request: Request) {
+async function handleGET(request: Request) {
   try {
     const account = await requireAccount(request);
     const advancedCapstoneAnalysis = capabilitiesForAccount(account).advancedCapstoneAnalysis;
@@ -142,7 +143,7 @@ export async function GET(request: Request) {
   }
 }
 
-export async function POST(request: Request) {
+async function handlePOST(request: Request) {
   try {
     const account = await requireAcceptedAccount(request);
     const parsed = progressUpdateSchema.safeParse(await readJsonBody(request, 16_384));
@@ -568,3 +569,6 @@ export async function POST(request: Request) {
     return Response.json({ error: "Progress could not be saved." }, { status: 500 });
   }
 }
+
+export const GET = withAccountRequest(handleGET);
+export const POST = withAccountRequest(handlePOST);

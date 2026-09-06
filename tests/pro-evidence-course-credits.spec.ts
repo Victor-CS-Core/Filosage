@@ -191,9 +191,9 @@ test("paid lifecycle sync initializes and reconciles the course-credit ledger", 
   expect(billing).toContain("{ path: courseCreditLedgerPath, data: courseCreditLedger }");
 });
 
-test("banner regeneration is absent while initial banner generation remains", () => {
+test("initial covers require no paid banner workflow and regeneration remains retired", () => {
   expect(existsSync(resolve(root, "src/app/api/courses/[courseId]/banner/route.ts"))).toBe(false);
-  expect(source("src/app/api/generate-course/route.ts")).toContain("createOrReuseCourseBanner");
+  expect(source("src/app/api/generate-course/route.ts")).not.toContain("createOrReuseCourseBanner");
   expect(source("src/lib/course-dto.ts")).not.toContain("canRegenerateBanner");
   expect(source("src/app/course/[topic]/page.tsx")).not.toContain("regenerateBanner");
 });

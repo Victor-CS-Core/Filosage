@@ -11,6 +11,8 @@ import {
   outlineSourceCoverageIssues,
   sourcePackPromptBlock,
 } from "../src/lib/source-safety";
+import { groundedLessonFinalBoundary, groundedLessonInstruction } from "../src/lib/grounded-lesson-contract";
+import { lessonGroundingIssues, lessonGroundingSchema } from "../src/lib/source-grounding";
 import { supportsStructuredSourcePolicy } from "../src/lib/course-pipeline/contract";
 import { courseRequestSchema, lessonDataSchema } from "../src/lib/validation";
 import {
@@ -86,30 +88,20 @@ test("grounded lesson generation maps every factual assertion and exposes owner-
     readFile("src/app/api/generate-lesson/route.ts", "utf8"),
     readFile("src/app/course/[topic]/lesson/[lessonId]/page.tsx", "utf8"),
   ]);
-  expect(routeSource).toContain("Every externally verifiable factual assertion anywhere in the lesson");
-  expect(routeSource).toContain("Select exactly one relevant assigned source and one of its atomic evidence claims");
-  expect(routeSource).toContain("Do not force an irrelevant assigned source into the lesson");
-  expect(routeSource).toContain("Return exactly one structured citation whose section is content");
-  expect(routeSource).toContain("Place it exactly once as its own plain prose paragraph in content");
-  expect(routeSource).toContain("one physical line with no internal newline, soft break, hard break, or surrounding label");
-  expect(routeSource).toContain("section is content and whose claim copies that exact physical-line sentence verbatim, including terminal punctuation");
-  expect(routeSource).toContain("narrow and reframe the generated learning objective and activity to the supported subset");
-  expect(routeSource).toContain("supply every prerequisite value as a hypothetical exercise input");
-  expect(routeSource).toContain("Never claim or imply that a spreadsheet, template, checklist, diagram, or other tool");
-  expect(routeSource).toContain("Evidence-bounded objective: derive one narrow observable objective from the assigned atomic evidence claims");
-  expect(routeSource).toContain("Activity constraint: create a concrete mode-specific activity that uses only hypothetical inputs");
-  expect(routeSource).toContain("Never assert that the learner previously completed, selected, observed, understood, or produced something");
-  expect(routeSource).toContain("silently audit every sentence");
-  expect(routeSource).toContain("Do not infer mnemonics, category exclusions, definitions");
-  expect(routeSource).toContain("For this exercise, ...");
-  expect(routeSource).toContain("write 450 to 750 words");
-  expect(routeSource).toContain("FINAL EVIDENCE BOUNDARY:");
-  expect(routeSource).toContain("counterfactual requirements; causal comparison rules");
-  expect(routeSource.indexOf("Course capstone:")).toBeLessThan(routeSource.indexOf("FINAL EVIDENCE BOUNDARY:"));
-  expect(routeSource).toContain("GROUNDED LESSON OVERRIDE: Apply this contract after every generic lesson-design and language instruction");
-  expect(routeSource).toContain("Calling a scenario hypothetical does not make those interpretations evidence-free");
-  expect(routeSource).toContain("do not claim suitability, sufficiency, causal explanation, diagnostic meaning, recommendation");
-  expect(routeSource).toContain("Model answers, model responses, quiz explanations, and option feedback may judge only whether learner text accurately preserves");
+  expect(groundedLessonInstruction).toContain("Several independently supported factual sentences are allowed");
+  expect(groundedLessonInstruction).toContain("one citation, one exact rendered sentence");
+  expect(groundedLessonInstruction).toContain("Each cited sentence must occur exactly once across the entire lesson");
+  expect(groundedLessonInstruction).toContain("Copy the saved scopeBudget.singleWin into learningObjective");
+  expect(groundedLessonInstruction).toContain("supplied material must make the promised practice solvable");
+  expect(groundedLessonInstruction).toContain("Calling a scenario hypothetical does not make domain interpretations evidence-free");
+  expect(groundedLessonInstruction).toContain("do not claim suitability, sufficiency, causal explanation, diagnostic meaning, recommendation");
+  expect(groundedLessonFinalBoundary).toContain("require explicit replanning");
+  expect(routeSource).not.toContain("Write exactly one externally verifiable");
+  expect(routeSource).not.toContain("narrow and reframe the generated learning objective");
+  expect(routeSource).not.toContain("write 450 to 750 words");
+  expect(routeSource).toContain("preservePlannedObjective: true");
+  expect(routeSource).toContain("LEARNING_DESIGN_REPLAN_REQUIRED");
+  expect(routeSource.indexOf("Course capstone:")).toBeLessThan(routeSource.lastIndexOf("? groundedLessonFinalBoundary"));
   expect(routeSource).toContain("groundedSourcePolicy && assignedSources.length ? groundedLessonInstruction : \"\"");
   expect(routeSource).toContain("Delete every rejected claim. Do not paraphrase, recycle, or preserve it");
   expect(routeSource.indexOf("lessonInstructions(lessonVisualsAreEnabled, lessonLabsAreEnabled)"))
@@ -190,7 +182,7 @@ test("the course reservation covers the complete bounded recovery and grounding 
   expect(COURSE_OUTLINE_RESERVE_COST_MICROS).toBeGreaterThan(maximumOutputCostMicros);
   expect(aiUsageSource).toContain("feature === \"course_outline\" ? COURSE_OUTLINE_RESERVE_COST_MICROS");
   expect(aiUsageSource).toContain("COURSE_OUTLINE_RESERVATION_LOCK_MS");
-  expect(aiUsageSource).toContain("staleReservedRequest = previousRequest?.status === \"reserved\" && activeUntil <= now.getTime()");
+  expect(aiUsageSource).toContain("staleReservedRequest = previousRequest?.status === \"reserved\" && requestActiveUntil <= now.getTime()");
   expect(contentSafetySource).toContain("signal: AbortSignal.timeout(CONTENT_MODERATION_REQUEST_TIMEOUT_MS)");
   expect(contentSafetySource).toContain("maxRetries: 0");
 });
@@ -245,6 +237,31 @@ test("lesson citations resolve only to assigned sources and exact visible claims
     assignedSourcePack([source, { ...source, id: "source-secondary" }], [source.id, "source-secondary"]),
     lesson,
   )).toEqual([]);
+});
+
+test("several factual sentences retain independent atomic bindings and cannot share unsupported proof", () => {
+  const first = "Evidence can be checked against an observed record.";
+  const second = "An inference proposes an explanation of an observation.";
+  const teaching = { content: `## Claims\n\n${first}\n\n${second}` };
+  const claims = [first, second].map((claim, index) => ({
+    id: `citation-claim-${index + 1}`, sourceId: source.id, evidenceClaimId: `evidence-claim-${index + 1}`, claim, section: "content" as const,
+  }));
+  const assigned = [{ ...source, evidenceClaims: claims.map((claim) => ({ id: claim.evidenceClaimId, claim: claim.claim })) }];
+  expect(lessonCitationQualityIssues(claims, assigned, teaching)).toEqual([]);
+  expect(lessonCitationCanonicalBindingIssues(claims, teaching)).toEqual([]);
+  const evaluated = lessonGroundingSchema.parse({
+    overallVerdict: "supported", unsupportedClaims: [],
+    assessments: claims.map((claim) => ({ citationId: claim.id, sourceId: claim.sourceId, evidenceClaimId: claim.evidenceClaimId,
+      canonicalClaim: claim.claim, canonicalSection: claim.section, verdict: "supported", evidenceNoteMatched: true,
+      rationale: "The assigned evidence entails this complete sentence.",
+    })),
+  });
+  expect(lessonGroundingIssues(evaluated, claims)).toEqual([]);
+  expect(lessonGroundingIssues({ ...evaluated, assessments: evaluated.assessments.slice(0, 1) }, claims))
+    .toContain("citation-claim-2 was not evaluated for claim support.");
+  expect(lessonCitationCanonicalBindingIssues([{ ...claims[0], claim: `${first} ${second}` }], teaching)).not.toEqual([]);
+  expect(lessonGroundingIssues({ ...evaluated, assessments: evaluated.assessments.map((assessment, index) => index === 1 ? { ...assessment, verdict: "unsupported" as const } : assessment) }, claims))
+    .toContainEqual(expect.stringContaining("citation-claim-2 is unsupported"));
 });
 
 test("citations can bind factual claims in every field scanned by the grounding verifier", () => {

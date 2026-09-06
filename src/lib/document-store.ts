@@ -1,11 +1,13 @@
 import "server-only";
-import { createHash } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
+import { accountFenceReadPaths, assertAccountMutation } from "@/lib/account-write-fence";
 import type { Course } from "@/lib/course-types";
 import { expectedLessonIds as outlinedLessonIds } from "@/lib/course-progress";
 import { assertPublicationProofToken, StalePublicationProofError, currentManualReviewResolution, publicationProofApprovalFingerprint, publicationProofIsCurrent, PUBLICATION_PROOF_POLICY_VERSION, type PublicationProof } from "@/lib/publication-proofs";
 import { publicationDecisionFromReport } from "@/lib/course-pipeline/validation";
 import { courseUsesPipelineV2 } from "@/lib/course-pipeline/feature-policy";
 import { coursePipelineFeatureFlags } from "@/lib/feature-flags";
+import { assertPublicationResearchUnchanged } from "@/lib/publication-research";
 
 import {
   fromDocumentFields,
@@ -70,7 +72,7 @@ function encodeDocumentPath(path: string) {
   return path.split("/").map(encodeURIComponent).join("/");
 }
 
-async function documentStoreJson<T>(
+async function rawDocumentStoreJson<T>(
   path: string,
   init: RequestInit = {},
   allowNotFound = false,
@@ -84,6 +86,30 @@ async function documentStoreJson<T>(
     return postgresDocumentStoreJson<T>(path, init, allowNotFound);
   }
   throw new Error("Azure PostgreSQL is required outside local development.");
+}
+
+// Every mutation uses the same transaction boundary, including legacy PATCH,
+// masked course updates and generated-ID creates. Adapter access stays private.
+async function documentStoreJson<T>(path: string, init: RequestInit = {}, allowNotFound = false): Promise<T | null> {
+  const method = (init.method ?? "GET").toUpperCase();
+  if (path.startsWith("/documents/") && (method === "PATCH" || method === "POST")) {
+    const [rawPath, query] = path.slice("/documents/".length).split("?");
+    const search = new URLSearchParams(query);
+    const decoded = rawPath.split("/").map(decodeURIComponent).join("/");
+    const target = method === "POST" ? `${decoded}/${search.get("documentId") ?? randomUUID()}` : decoded;
+    const body = JSON.parse(String(init.body ?? "{}"));
+    const incoming = fromDocumentFields(body.fields ?? {});
+    const masks = search.getAll("updateMask.fieldPaths");
+    return runStoredDocumentTransaction([target], (documents) => {
+      const before = documents[target];
+      if (method === "POST" && before) throw new Error("Document already exists.");
+      if (masks.length && !before) throw new Error("The document was removed before its update.");
+      const data = masks.length ? { ...before, ...Object.fromEntries(masks.map((key) => [key, incoming[key]])) } : incoming;
+      delete data.id;
+      return { writes: [{ path: target, data }], result: { name: fullDocumentName(target), fields: toDocumentFields(data) } as T };
+    });
+  }
+  return rawDocumentStoreJson<T>(path, init, allowNotFound);
 }
 
 function parseDocument(document: DocumentRecord): StoredDocument {
@@ -314,11 +340,21 @@ export async function saveLessonWithEvidenceDowngrade(
 }
 
 async function commitWrites(writes: Array<Record<string, unknown>>) {
-  for (let index = 0; index < writes.length; index += 500) {
-    await documentStoreJson("/documents:commit", {
-      method: "POST",
-      body: JSON.stringify({ writes: writes.slice(index, index + 500) }),
-    });
+  for (let index = 0; index < writes.length; index += 400) {
+    const chunk = writes.slice(index, index + 400);
+    const pathOf = (write: Record<string, unknown>) => String(write.delete ?? (write.update as { name: string }).name).split("/documents/")[1];
+    await runStoredDocumentTransaction(chunk.map(pathOf), (documents) => ({
+      writes: chunk.flatMap((write) => {
+        if (!write.update) return [];
+        const path = pathOf(write);
+        const update = write.update as { fields: Record<string, DocumentValue> };
+        const incoming = fromDocumentFields(update.fields ?? {});
+        const masks = (write.updateMask as { fieldPaths?: string[] } | undefined)?.fieldPaths;
+        if (masks?.length && !documents[path]) throw new Error("The document was removed before its update.");
+        return [{ path, data: masks?.length ? { ...documents[path], ...Object.fromEntries(masks.map((key) => [key, incoming[key]])) } : incoming }];
+      }),
+      deletes: chunk.filter((write) => write.delete).map(pathOf), result: undefined,
+    }));
   }
 }
 
@@ -594,82 +630,65 @@ export async function createStoredDocument(
 
 export async function runStoredDocumentTransaction<T>(
   paths: string[],
-  update: (
-    documents: Record<string, StoredDocument | null>,
-  ) => { writes: Array<{ path: string; data: Record<string, unknown> }>; deletes?: string[]; result: T },
+  update: (documents: Record<string, StoredDocument | null>) => {
+    writes: Array<{ path: string; data: Record<string, unknown> }>; deletes?: string[]; result: T;
+  },
 ): Promise<T> {
-  let lastError: unknown;
-  let retryTransaction: string | undefined;
-
-  for (let attempt = 0; attempt < 5; attempt += 1) {
+  let readPaths = accountFenceReadPaths(paths, {}, { writes: [] });
+  if (!readPaths.length) readPaths = ["system/transaction"];
+  let conflicts = 0;
+  // The callback is pure: discovering additional ownership reads rolls back and
+  // reruns it with the complete lock set. All locks are acquired in sorted order
+  // by PostgreSQL, including absent lifecycle keys via advisory locks.
+  for (let expansion = 0; expansion < 16; expansion += 1) {
+    let transaction: string | undefined;
     try {
-      const batch = await documentStoreJson<DocumentBatchGetResult[]>("/documents:batchGet", {
-        method: "POST",
-        body: JSON.stringify({
-          documents: paths.map(fullDocumentName),
-          newTransaction: {
-            readWrite: retryTransaction ? { retryTransaction } : {},
-          },
-        }),
+      const batch = await rawDocumentStoreJson<DocumentBatchGetResult[]>("/documents:batchGet", {
+        method: "POST", body: JSON.stringify({ documents: readPaths.map(fullDocumentName), newTransaction: { readWrite: {} } }),
       });
-      const transaction = batch?.find((entry) => entry.transaction)?.transaction;
+      transaction = batch?.find((entry) => entry.transaction)?.transaction;
       if (!transaction) throw new Error("The document store did not start a transaction.");
-      retryTransaction = transaction;
-
-      const documents: Record<string, StoredDocument | null> = Object.fromEntries(
-        paths.map((path) => [path, null]),
-      );
-      for (const entry of batch ?? []) {
-        if (entry.found) {
-          const located = parseLocatedDocument(entry.found);
-          if (located.path in documents) documents[located.path] = located.data;
-        }
+      const documents: Record<string, StoredDocument | null> = Object.fromEntries(readPaths.map((path) => [path, null]));
+      for (const entry of batch ?? []) if (entry.found) {
+        const located = parseLocatedDocument(entry.found);
+        if (located.path in documents) documents[located.path] = located.data;
       }
-
-      let next: ReturnType<typeof update>;
-      try {
-        next = update(documents);
-      } catch (error) {
-        await documentStoreJson("/documents:rollback", {
-          method: "POST",
-          body: JSON.stringify({ transaction }),
-        });
-        throw error;
+      const next = update(documents);
+      const needed = accountFenceReadPaths(readPaths, documents, next);
+      if (needed.some((path) => !readPaths.includes(path))) {
+        await rawDocumentStoreJson("/documents:rollback", { method: "POST", body: JSON.stringify({ transaction }) });
+        transaction = undefined;
+        readPaths = needed;
+        continue;
       }
-      await documentStoreJson("/documents:commit", {
-        method: "POST",
-        body: JSON.stringify({
-          transaction,
-          writes: [
-            ...next.writes.map((write) => {
-              const storedData = { ...write.data };
-              delete storedData.id;
-              return {
-                update: {
-                  name: fullDocumentName(write.path),
-                  fields: toDocumentFields(storedData),
-                },
-              };
-            }),
-            ...(next.deletes ?? []).map((path) => ({ delete: fullDocumentName(path) })),
-          ],
-        }),
+      assertAccountMutation(documents, next);
+      await rawDocumentStoreJson("/documents:commit", {
+        method: "POST", body: JSON.stringify({ transaction, writes: [
+          ...next.writes.map(({ path, data }) => {
+            const storedData = { ...data }; delete storedData.id;
+            return { update: { name: fullDocumentName(path), fields: toDocumentFields(storedData) } };
+          }),
+          ...(next.deletes ?? []).map((path) => ({ delete: fullDocumentName(path) })),
+        ] }),
       });
       return next.result;
     } catch (error) {
-      lastError = error;
-      const isRetryableDocumentConflict = error instanceof Error
-        && /Document store request failed \((409|412|429|503)\)/.test(error.message);
-      if (!isRetryableDocumentConflict) throw error;
-      if (attempt < 4) {
-        const exponentialDelayMs = 100 * (2 ** attempt);
-        const jitterMs = Math.floor(Math.random() * 100);
-        await new Promise((resolve) => setTimeout(resolve, exponentialDelayMs + jitterMs));
-      }
+      if (transaction) await rawDocumentStoreJson("/documents:rollback", { method: "POST", body: JSON.stringify({ transaction }) }).catch(() => undefined);
+      if (!(error instanceof Error) || !/Document store request failed \((409|412|429|503)\)/.test(error.message) || ++conflicts >= 5) throw error;
+      await new Promise((resolve) => setTimeout(resolve, 25 * 2 ** conflicts));
     }
   }
+  throw new Error("The mutation ownership inventory could not be resolved.");
+}
 
-  throw lastError;
+// Bounded full-store inventory detects unknown subcollections and dependencies.
+// Returning complete=false must produce a manual/pending deletion, never success.
+export async function scanStoredDocuments(maximum = 50_000): Promise<{ documents: LocatedStoredDocument[]; complete: boolean }> {
+  const result = await rawDocumentStoreJson<{ documents: DocumentRecord[]; complete: boolean }>("/documents:scan", {
+    method: "POST", body: JSON.stringify({ maximum }),
+  });
+  if (!result) throw new Error("Account inventory is unavailable.");
+  return { documents: result.documents.map(parseLocatedDocument), complete: result.complete };
 }
 
 export async function updateCourseVisibility(courseId: string, isPublic: boolean) {
@@ -750,7 +769,8 @@ export async function commitCourseValidationStage(
   const { assertCourseStageTransition } = await import("@/lib/course-pipeline/state");
   const coursePath = `courses/${courseId}`;
   const lessonPaths = expectedLessonIds.map((lessonId) => `${coursePath}/lessons/${lessonId}`);
-  return runStoredDocumentTransaction([coursePath, ...lessonPaths], (documents) => {
+  const researchPath = validation.publicationProof?.research?.artifactPath;
+  return runStoredDocumentTransaction([coursePath, ...lessonPaths, ...(researchPath ? [researchPath] : [])], (documents) => {
     const course = documents[coursePath];
     if (!course) throw new Error("Course not found while committing validation.");
     if (publicationContentFingerprint(course) !== expectedFingerprints.course) {
@@ -766,6 +786,8 @@ export async function commitCourseValidationStage(
       lessonPaths.map((path) => documents[path] ?? {}), expectedLessonIds, validation.snapshotHash, validation.publicationProof)) {
       throw new Error("STALE_VALIDATION_SNAPSHOT: publication proof evidence changed during validation.");
     }
+    if (validation.publicationProof) assertPublicationResearchUnchanged(course,
+      researchPath ? documents[researchPath] : null, validation.publicationProof.research);
     const current = typeof course.pipelineStage === "string"
       ? course.pipelineStage as import("@/lib/course-pipeline/contract").CourseStage
       : "draft";
@@ -854,9 +876,11 @@ export async function publishCourseWithReview(
   const releasePath = `courseReleases/${releaseId}`;
   const releaseLessonPaths = expectedLessonIds.map((lessonId) => `courseReleases/${releaseId}/lessons/${lessonId}`);
   const reviewByLessonId = new Map(review.reviews.map((item) => [item.lessonId, item]));
+  const researchPath = review.publicationProof?.research?.artifactPath;
   await runStoredDocumentTransaction([
     coursePath,
     ...lessonPaths,
+    ...(researchPath ? [researchPath] : []),
     ...(immutableReleaseEnabled ? [releasePath, ...releaseLessonPaths] : []),
     ...(auditPath ? [auditPath] : []),
   ], (documents) => {
@@ -882,6 +906,7 @@ export async function publishCourseWithReview(
     const orderedLessons = lessonPaths.map((path) => documents[path] ?? {});
     const snapshotHash = createHash("sha256").update(publicationCandidateContentFingerprint(course, orderedLessons)).digest("hex");
     const proof = course.publicationProof as PublicationProof | undefined;
+    assertPublicationResearchUnchanged(course, researchPath ? documents[researchPath] : null, proof?.research);
     if (!publicationProofIsCurrent(course, orderedLessons, expectedLessonIds, snapshotHash, proof)
       || JSON.stringify(proof) !== JSON.stringify(review.publicationProof)
       || review.artifactSnapshotHash !== snapshotHash) {

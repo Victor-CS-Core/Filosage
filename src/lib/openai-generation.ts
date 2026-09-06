@@ -5,7 +5,7 @@ export const AI_PROMPT_VERSIONS = {
   research: "2026-08-15-layered-evidence-research-v7",
   grounding: "2026-08-14-claim-grounding-v5",
   course: "2026-08-15-capability-cycle-course-v6",
-  lesson: "2026-08-15-capability-cycle-lesson-v20",
+  lesson: "2026-09-06-capability-preserving-lesson-v21",
   tutor: "2026-08-04-grounded-tutor",
   baseline: "2026-08-04-baseline-assessor",
   capstone: "2026-08-04-capstone-assessor",
@@ -15,7 +15,7 @@ export const AI_PROMPT_VERSIONS = {
 
 export const COURSE_PIPELINE_V2_PROMPT_VERSIONS = {
   course: "2026-08-15-capability-cycle-v9",
-  lesson: "2026-08-15-capability-cycle-v22",
+  lesson: "2026-09-06-capability-preserving-v23",
 } as const;
 
 export const AI_GENERATION_OUTPUT_BUDGETS = {

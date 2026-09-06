@@ -1,8 +1,8 @@
 # Reviewed release capabilities
 
-Updated 2026-09-06. This document describes source behavior and the proposed candidate selection. It contains no claim that a CI run, hosted QA, production promotion, or commercial activation has passed.
+Updated 2026-09-06. This document describes source behavior and the proposed candidate selection. It contains no claim that a CI run, hosted candidate verification, production promotion, or commercial activation has passed.
 
-`config/release-capabilities.json` is the reviewed optional-feature selection. A change to that file requires a new candidate SHA and new QA image evidence. The selection preserves the approved owner V2 canary: pipeline, validation, repair, and publication on with owner-only eligibility and cohort zero. Flashcards, Command Center, labs, and visuals remain off. These values do not assert any current hosted flag state.
+`config/release-capabilities.json` is the reviewed optional-feature selection. A change to that file requires a new candidate SHA and new inactive-revision image evidence. The selection preserves the approved owner V2 canary: pipeline, validation, repair, and publication on with owner-only eligibility and cohort zero. Flashcards, Command Center, labs, and visuals remain off. These values do not assert any current hosted flag state.
 
 | Capability | Manifest key | Runtime/build variable | Selection |
 | --- | --- | --- | --- |
@@ -26,34 +26,32 @@ Flashcards accept exactly `false/false`, `true/false` (manual decks/review witho
 
 Core published discovery and verified-account learning are governed by authorization and learner gates, not by this optional-feature manifest. The public command palette remains distinct from the owner operational Command Center. Free/Plus/Pro/owner entitlements and the verified-account boundary are unchanged. Enabling a flag does not grant an entitlement, prove teaching quality, or authorize marketing. Billing is separately checked and the workflows keep `BILLING_ENABLED=false`, `BILLING_ROLLOUT_MODE=closed`, and `STRIPE_TAX_READY=false`. Existing subscriber management and webhooks remain governed by their provider configuration and separate gates.
 
-## One candidate through QA, staging, and promotion
+## One candidate through inactive verification and promotion
 
-1. Review the manifest in Git and qualify its full 40-character SHA through the existing quality/full-regression workflows. Do not change the feature selection using ad hoc environment overrides after QA.
-2. The QA workflow renders manifest values using `node scripts/release-capabilities.mjs environment`. It supplies that exact set as Docker build arguments and explicit Azure runtime settings. Docker validates the build environment before Next builds; the image retains matching runtime defaults. Standalone `infra/azure/qa.bicep` also loads the same committed manifest for every release-controlled environment value, so applying the template cannot restore an independent feature selection. This matters especially for `NEXT_PUBLIC_COMMAND_CENTER_V2`, which Next freezes into browser bundles during build.
-3. QA resolves the pushed image digest, deploys the digest reference, and verifies the actual Azure revision image plus health. Only after success does it upload `release-candidate-<full-sha>` containing `release-candidate.json`. Evidence includes schema version, SHA, image digest, full manifest, canonical production origin, QA origin, and QA auth mode. The successful workflow run is the approval evidence; the JSON alone is not.
-4. Staging and promotion require `qa_run_id`, execute from the same candidate SHA, verify that exact QA run using `check-workflow-run-evidence.mjs`, and download that run's candidate artifact. The manifest must match the current candidate checkout exactly. Expired/missing artifacts require a fresh QA run; a mutable SHA tag is never substituted.
-5. Staging verifies QA's recorded origin/auth mode, reads the QA image from Azure, deploys the same digest with the same explicit features to an inactive revision, and checks production's separately reviewed auth mode and canonical origin. Promotion rechecks the selected revision's Azure image and health before switching traffic. Both promotion health calls explicitly expect `https://filosage.com`.
+The [single-application runbook](BLUE_GREEN_BFF_OPERATIONS.md) supersedes the separate-QA flow. `azure-staging.yml` builds the committed selection once, deploys by digest to the observed inactive revision, verifies 100/0 traffic and shared auth stability, and retains `release-candidate-<sha>`. `azure-candidate-verification.yml` binds the hosted proof artifacts and human review to that candidate; `azure-promote-staging.yml` rechecks the exact image and evidence and swaps traffic without rebuilding.
+
+Build arguments and revision runtime values both come from `node scripts/release-capabilities.mjs environment`; Docker validates them before Next builds. This is necessary for browser build-time flags such as `NEXT_PUBLIC_COMMAND_CENTER_V2`. The artifact includes schema version 2, full SHA, image digest, manifest, canonical production origin, revision URL/name/label, app resource ID and shared authentication fingerprint. Successful exact-SHA run and artifact identities are checked together; the JSON alone is not a hosted approval.
 
 The image digest in `/api/health` is a deployment assertion (`RELEASE_IMAGE_DIGEST`), because a process cannot infer its registry digest. Each workflow also reads the actual image reference from Azure and compares it with the artifact. A reported digest without that platform readback is insufficient deployment proof.
 
 ## Manual verification and downstream interface
 
-Use Node 22. Work from the candidate checkout and retain the successful QA run ID and downloaded artifact. The following commands validate non-secret evidence; populate the release environment separately through the approved process.
+Use Node 22. Work from the candidate checkout and retain the successful candidate run ID and downloaded artifact. The following commands validate non-secret evidence; populate the release environment separately through the approved process.
 
 ```bash
 node scripts/release-capabilities.mjs verify-evidence /path/to/release-candidate.json <full-sha> https://filosage.com
 node scripts/release-capabilities.mjs environment
 ```
 
-The first command prints only validated `EXPECTED_IMAGE_DIGEST`, `QA_AUTH_MODE`, and `QA_EVIDENCE_ORIGIN` assignments. Set `EXPECTED_IMAGE_DIGEST` from that output, set `EXPECTED_AUTH_MODE` to the separately approved mode for the target, and run:
+The first command prints only validated `EXPECTED_IMAGE_DIGEST`, `EXPECTED_AUTH_MODE`, and `CANDIDATE_ORIGIN` assignments. Set `EXPECTED_IMAGE_DIGEST` from that output, set `EXPECTED_AUTH_MODE` to the separately approved mode for the target, and run:
 
 ```bash
 npm run check:production -- https://target-revision.example <full-sha> https://filosage.com
 ```
 
-For QA use the recorded QA origin as the final argument and the recorded QA auth mode. `check:release` requires `SITE_VERSION` to match the approved full `EXPECTED_SITE_VERSION`, exact explicit runtime switches, `EXPECTED_SITE_ORIGIN`, and `EXPECTED_AUTH_MODE`; it also validates the closed-billing and provider configuration. `RELEASE_CAPABILITIES_JSON` accepts a complete, strictly validated manifest for isolated local matrix fixtures; release workflows always use the committed file and do not expose an override input.
+The expected canonical origin remains `https://filosage.com` when testing the candidate revision URL. `check:release` requires `SITE_VERSION` to match the approved full `EXPECTED_SITE_VERSION`, exact explicit runtime switches, `EXPECTED_SITE_ORIGIN`, and `EXPECTED_AUTH_MODE`; it also validates the closed-billing and provider configuration. `RELEASE_CAPABILITIES_JSON` accepts a complete, strictly validated manifest for isolated local matrix fixtures; release workflows always use the committed file and do not expose an override input.
 
-Downstream R19–R25 consume the same artifact, SHA, digest, manifest, canonical origin, auth selection, and actual Azure revision image. Record independent local test, CI, QA journey, inactive-slot, production readback, rollback, and paid-activation evidence. Optional feature activation needs its separate persistence, recovery, accessibility, quality, cost, and entitlement proof. No command here authorizes deployment, promotion, secret changes, or paid activation.
+Downstream R19–R25 consume the same artifact, SHA, digest, manifest, canonical origin, auth selection, and actual Azure revision image. Record independent local test, CI, inactive-revision journey, production readback, rollback, and paid-activation evidence. Optional feature activation needs its separate persistence, recovery, accessibility, quality, cost, and entitlement proof. No command here authorizes deployment, promotion, secret changes, or paid activation.
 
 ## Historical evidence
 

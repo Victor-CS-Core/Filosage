@@ -3,14 +3,16 @@ import { expect, test, type TestInfo } from "@playwright/test";
 import { PRIVACY_VERSION, TERMS_VERSION } from "../src/lib/legal";
 import { playwrightOwnedStorePath } from "./fixtures/playwright-server";
 
+const onboardingRun = crypto.randomUUID();
+const displayRun = crypto.randomUUID();
 const authorization = {
-  Authorization: "Bearer playwright-preaccount-learner",
-  "X-Reauthentication-Token": "playwright-preaccount-learner",
+  Authorization: `Bearer playwright-preaccount-learner-${onboardingRun}`,
+  "X-Reauthentication-Token": `playwright-preaccount-learner-${onboardingRun}`,
 };
 
 const sameEmailAuthorization = {
-  Authorization: "Bearer playwright-preaccount-same-email-learner",
-  "X-Reauthentication-Token": "playwright-preaccount-same-email-learner",
+  Authorization: `Bearer playwright-preaccount-same-email-learner-${onboardingRun}`,
+  "X-Reauthentication-Token": `playwright-preaccount-same-email-learner-${onboardingRun}`,
 };
 
 const disabledExternalSignupAuthorization = {
@@ -18,13 +20,13 @@ const disabledExternalSignupAuthorization = {
 };
 
 const firstDisplayNameAuthorization = {
-  Authorization: "Bearer playwright-display-name-first",
-  "X-Reauthentication-Token": "playwright-display-name-first",
+  Authorization: `Bearer playwright-display-name-first-${displayRun}`,
+  "X-Reauthentication-Token": `playwright-display-name-first-${displayRun}`,
 };
 
 const changedDisplayNameAuthorization = {
-  Authorization: "Bearer playwright-display-name-changed",
-  "X-Reauthentication-Token": "playwright-display-name-changed",
+  Authorization: `Bearer playwright-display-name-changed-${displayRun}`,
+  "X-Reauthentication-Token": `playwright-display-name-changed-${displayRun}`,
 };
 
 type PlaywrightStore = Record<string, Record<string, unknown>>;
@@ -79,12 +81,8 @@ const zeroCapabilityLinkRequiredAccount = {
 test("persists no application account until the learner accepts the current legal terms", { tag: "@smoke" }, async ({ request }, testInfo) => {
   test.skip(testInfo.project.name !== "chromium", "One isolated server-side onboarding contract is sufficient.");
 
-  // Make the fixed local identity retry-safe if an earlier interrupted run
-  // completed acceptance but stopped before cleanup.
-  await request.delete("/api/account/data", {
-    headers: authorization,
-    data: { confirmation: "DELETE MY ACCOUNT" },
-  });
+  const token = `playwright-preaccount-learner-${crypto.randomUUID()}`;
+  const authorization = { Authorization: `Bearer ${token}`, "X-Reauthentication-Token": token };
 
   const pendingAccount = await request.get("/api/account", { headers: authorization });
   expect(pendingAccount.ok()).toBe(true);
@@ -169,7 +167,7 @@ test("returns only a provider label in the public session identity", async ({ re
   expect(response.ok()).toBe(true);
   const session = await response.json();
   expect(session.user).toMatchObject({
-    uid: "local-preaccount-learner",
+    uid: `local-preaccount-learner-${onboardingRun}`,
     authenticationProvider: "local",
   });
   expect(session.user).not.toHaveProperty("subject");
@@ -217,7 +215,7 @@ test("same-email identities receive bounded link-required state without account 
     expect(await unchangedAccount.json()).toEqual(zeroCapabilityLinkRequiredAccount);
 
     const store = await readPlaywrightOwnedStore(testInfo);
-    for (const path of rejectedRegistrationPaths("local-preaccount-same-email-learner")) {
+    for (const path of rejectedRegistrationPaths(`local-preaccount-same-email-learner-${onboardingRun}`)) {
       expect(store[path], `${path} must not be created after identity-link rejection.`).toBeUndefined();
     }
   } finally {
@@ -259,11 +257,6 @@ test("inactive External ID signup returns bounded retry guidance without durable
 test("seeds a provider name once and preserves an edited Filosage profile name", { tag: "@smoke" }, async ({ request }, testInfo) => {
   test.skip(testInfo.project.name !== "chromium", "One isolated server-side profile contract is sufficient.");
 
-  await request.delete("/api/account/data", {
-    headers: firstDisplayNameAuthorization,
-    data: { confirmation: "DELETE MY ACCOUNT" },
-  });
-
   const acceptance = await request.post("/api/legal/acceptance", {
     headers: firstDisplayNameAuthorization,
     data: {
@@ -302,8 +295,8 @@ test("seeds a provider name once and preserves an edited Filosage profile name",
     expect(rejected.status()).toBe(400);
     expect(await rejected.json()).toEqual({ error: "Enter a name between 1 and 80 characters." });
     const afterRejectedUpdate = await readPlaywrightOwnedStore(testInfo);
-    expect(afterRejectedUpdate["users/local-display-name-learner"]).toEqual(
-      beforeRejectedUpdate["users/local-display-name-learner"],
+    expect(afterRejectedUpdate[`users/local-display-name-learner-${displayRun}`]).toEqual(
+      beforeRejectedUpdate[`users/local-display-name-learner-${displayRun}`],
     );
   } finally {
     const cleanup = await request.delete("/api/account/data", {

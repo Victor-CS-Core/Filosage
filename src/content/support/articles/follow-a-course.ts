@@ -6,8 +6,8 @@ export default defineSupportArticle({
   summary: "Read the course overview, move through its stages, and continue from the next incomplete lesson.",
   category: "courses",
   keywords: ["course overview", "learning plan", "diagnostic", "baseline", "pause", "module", "stage", "lesson", "next lesson", "capstone"],
-  reviewedOn: "2026-08-16",
-  sources: [
+  reviewedOn: "2026-09-06",
+  sources: ["src/lib/learner-storage.ts", "src/lib/auth-server.ts",
     "src/app/course/[topic]/page.tsx",
     "src/components/CourseJourneyMap.tsx",
     "src/components/CourseDisclosure.tsx",
@@ -41,6 +41,9 @@ The primary course action points to the first incomplete lesson. After a lesson,
 The course information panel identifies its evidence mode. **Source-backed** material connects supported claims to released sources. Hybrid material combines verified sources with clearly labeled model knowledge. Model-knowledge sections do not present invented citations, and further reading is optional context rather than claim-level support.
 
 Inspect a source before relying on an important claim. If a course-level source is wrong, outdated, unsafe, or unrelated, choose **Report source** beside that source. Lesson-specific concerns can be reported from the lesson integrity panel.
+## Keep the route with the correct account
+
+Your goal, baseline, progress and drafts belong to the account that recorded them. Sign back into that account to continue after switching users. A loading error does not mean the plan is empty, and an old tab cannot save work into the next account’s session. A course that is removed or made unavailable may require returning to Explore.
 `,
   related: ["find-a-course", "complete-a-lesson", "complete-a-capstone", "understand-progress", "report-content"],
 });

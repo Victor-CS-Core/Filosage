@@ -1,3 +1,4 @@
+import { withAccountRequest } from "@/lib/auth-server";
 import { authorizationResponse } from "@/lib/auth-server";
 import {
   commandCenterAuthorizationResponse,
@@ -5,7 +6,7 @@ import {
 } from "@/lib/command-center-auth";
 import { getCommandCenterSnapshot } from "@/lib/command-center-server";
 
-export async function GET(request: Request) {
+async function handleGET(request: Request) {
   try {
     await requireCommandCenterPermission(request, "view");
     return Response.json(
@@ -21,3 +22,5 @@ export async function GET(request: Request) {
       );
   }
 }
+
+export const GET = withAccountRequest(handleGET);

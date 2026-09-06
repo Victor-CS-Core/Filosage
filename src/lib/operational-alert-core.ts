@@ -34,6 +34,14 @@ export interface OperationalAlertDeliveryResult {
 
 const DEFAULT_DEDUPLICATION_MS = 5 * 60_000;
 
+export function operationalAlertSenderObservation(evidence: Record<string, unknown> | null) {
+  // Legacy sender tests called HTTP acceptance "succeeded". Preserve failed or
+  // running observations, but never promote a transport result to receiver health.
+  return evidence?.status === "succeeded"
+    ? { ...evidence, status: "transport_accepted" }
+    : evidence;
+}
+
 function sanitizedContext(context: OperationalAlertContext | undefined) {
   return Object.fromEntries(
     Object.entries(context ?? {})
@@ -99,7 +107,8 @@ function retryableStatus(status: number) {
 }
 
 function retryDelay(response: Response | null, attempt: number) {
-  const retryAfter = Number(response?.headers.get("Retry-After"));
+  const header = response?.headers.get("Retry-After")?.trim();
+  const retryAfter = header ? Number(header) : Number.NaN;
   if (Number.isFinite(retryAfter) && retryAfter >= 0) return Math.min(2_000, retryAfter * 1_000);
   return Math.min(2_000, 250 * (2 ** (attempt - 1)));
 }

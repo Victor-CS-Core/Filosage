@@ -45,6 +45,15 @@ RUN node scripts/release-capabilities.mjs check-environment && npm run build
 FROM dependencies AS production-dependencies
 RUN npm prune --omit=dev
 
+# Explicit maintenance target: no application ingress, never used by the web app.
+FROM node:22-bookworm-slim AS bootstrap
+WORKDIR /app
+COPY --from=production-dependencies /app/node_modules ./node_modules
+COPY scripts/provision-azure-postgres-roles.ts scripts/migrate-azure-database.ts ./scripts/
+COPY infra/azure/database ./infra/azure/database
+USER node
+CMD ["sh", "-c", "node scripts/migrate-azure-database.ts && exec node scripts/provision-azure-postgres-roles.ts"]
+
 FROM node:22-bookworm-slim AS runtime
 ARG SITE_VERSION
 ARG FLASHCARD_DECKS_ENABLED=false
@@ -90,12 +99,10 @@ COPY --from=builder --chown=nextjs:nodejs /app/public ./public
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 COPY --from=production-dependencies --chown=nextjs:nodejs /app/node_modules ./node_modules
-COPY --from=builder --chown=nextjs:nodejs /app/scripts/provision-azure-postgres-roles.ts ./scripts/provision-azure-postgres-roles.ts
-COPY --from=builder --chown=nextjs:nodejs /app/scripts/migrate-azure-database.ts ./scripts/migrate-azure-database.ts
 COPY --from=builder --chown=nextjs:nodejs /app/scripts/import-azure-authored-courses.ts ./scripts/import-azure-authored-courses.ts
 COPY --from=builder --chown=nextjs:nodejs /app/scripts/verify-azure-authored-courses.ts ./scripts/verify-azure-authored-courses.ts
 COPY --from=builder --chown=nextjs:nodejs /app/src/lib/document-values.ts ./src/lib/document-values.ts
-COPY --from=builder --chown=nextjs:nodejs /app/infra/azure/database ./infra/azure/database
+COPY --from=builder --chown=nextjs:nodejs /app/scripts/verify-azure-database.ts ./scripts/verify-azure-database.ts
 USER nextjs
 EXPOSE 3000
-CMD ["sh", "-c", "node --experimental-strip-types scripts/provision-azure-postgres-roles.ts && node --experimental-strip-types scripts/migrate-azure-database.ts && exec node server.js"]
+CMD ["sh", "-c", "node scripts/verify-azure-database.ts && exec node server.js"]
