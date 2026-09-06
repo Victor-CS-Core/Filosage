@@ -622,3 +622,72 @@ export function certifyResearchSourcesV5(
     coverageWarnings: sourceResearchCoverageWarnings(certified.sources),
   };
 }
+
+export interface ResearchStageResumeContext {
+  requestFingerprint: string;
+  freshnessRequired?: boolean;
+  now?: number;
+}
+
+// Reuse limits are application policy, not a guarantee that a claim stays current.
+export const RESEARCH_STAGE_MAX_AGE_MS = 30 * 24 * 60 * 60 * 1_000;
+export const FRESH_EVIDENCE_MAX_AGE_MS = 24 * 60 * 60 * 1_000;
+
+export function researchStageLifetime(createdAt: unknown, expiresAt: unknown, maxAge: number, now = Date.now()) {
+  if (typeof createdAt !== "string" || typeof expiresAt !== "string") return null;
+  const created = Date.parse(createdAt);
+  const expires = Math.min(Date.parse(expiresAt), created + maxAge);
+  if (!Number.isFinite(created) || !Number.isFinite(expires) || created > now || expires <= now) return null;
+  return { createdAt, expiresAt: new Date(expires).toISOString() };
+}
+
+export function restoreEvidenceResearchStage(
+  artifact: Record<string, unknown> | null | undefined,
+  context: ResearchStageResumeContext,
+) {
+  if (!artifact || artifact.requestFingerprint !== context.requestFingerprint
+    || artifact.policyVersion !== SOURCE_RESEARCH_POLICY_VERSION
+    || (artifact.evidenceResearchComplete ?? artifact.researchComplete) !== true
+    || !Array.isArray(artifact.sourcePack)) return null;
+  const lifetime = researchStageLifetime(
+    artifact.evidenceCreatedAt ?? artifact.createdAt,
+    artifact.evidenceExpiresAt ?? artifact.expiresAt,
+    context.freshnessRequired ? FRESH_EVIDENCE_MAX_AGE_MS : RESEARCH_STAGE_MAX_AGE_MS,
+    context.now,
+  );
+  if (!lifetime) return null;
+  const sourcePack = artifact.sourcePack as CourseSource[];
+  // Persisted input may be malformed. Never let one corrupt snapshot crash resume.
+  try {
+    if (assessSourceResearchV5(sourcePack).integrityIssues.length) return null;
+    for (const source of sourcePack) {
+      const url = canonicalProviderUrl(source.url!);
+      const authority = authorityRuleForUrl(url);
+      const hash = createHash("sha256").update(url).digest("hex").slice(0, 16);
+      if (source.id !== `source-${hash}`
+        || source.evidenceClaims?.some((claim) => !claim.id.startsWith(`evidence-${hash}-`))
+        || source.authorityClass !== authority?.authorityClass
+        || source.authorityFamily !== authority?.family
+        || [source.label, source.author, source.publisher, source.reputationRationale, source.limitations].some(hasSourceControlArtifact)) return null;
+    }
+    for (const source of sourcePack) {
+      const proofLifetime = researchStageLifetime(
+        source.retrievedAt, lifetime.expiresAt,
+        context.freshnessRequired ? FRESH_EVIDENCE_MAX_AGE_MS : RESEARCH_STAGE_MAX_AGE_MS,
+        context.now,
+      );
+      if (!proofLifetime) return null;
+      lifetime.expiresAt = proofLifetime.expiresAt;
+    }
+  } catch {
+    return null;
+  }
+  return {
+    sourcePack,
+    responseId: typeof artifact.responseId === "string" ? artifact.responseId : undefined,
+    fallbackReasonCodes: Array.isArray(artifact.fallbackReasonCodes)
+      ? artifact.fallbackReasonCodes.filter((code): code is string => typeof code === "string" && !code.startsWith("bibliography-"))
+      : [],
+    ...lifetime,
+  };
+}

@@ -1,8 +1,9 @@
 import { expect, test } from "@playwright/test";
 import { spawnSync } from "node:child_process";
-import { existsSync, mkdirSync, readFileSync, readdirSync, symlinkSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import { resolve } from "node:path";
+import { browserSuitesByProject } from "../scripts/playwright-suite-manifest";
 
 const read = (path: string) => readFileSync(path, "utf8");
 
@@ -139,9 +140,9 @@ test("every Playwright spec belongs to exactly one execution lane", async () => 
 
   expect(new Set(categorized).size).toBe(categorized.length);
   expect(categorized.toSorted()).toEqual(discovered);
-  expect(contractSuites).toHaveLength(29);
+  expect(contractSuites).toHaveLength(33);
   expect(apiSuites).toHaveLength(2);
-  expect(singleEngineSuites).toHaveLength(17);
+  expect(singleEngineSuites).toHaveLength(18);
   expect(deviceSensitiveSuites).toHaveLength(8);
   expect(dedicatedSuites).toHaveLength(3);
 });
@@ -192,10 +193,14 @@ test("the browser matrix starts only one isolated Next server at a time", () => 
   ]);
   const mobileChromiumLoads = plan.estimatedLoadsByProject["mobile-chromium"];
   expect(Math.max(...mobileChromiumLoads) - Math.min(...mobileChromiumLoads)).toBeLessThanOrEqual(3);
-  expect(Object.values(plan.batchesByProject).flat(2)).toHaveLength(39);
-  expect(plan.batchesByProject.chromium.flat()).toHaveLength(25);
-  expect(plan.batchesByProject["mobile-chromium"].flat()).toHaveLength(6);
-  expect(plan.batchesByProject["mobile-webkit"].flat()).toHaveLength(8);
+  for (const project of plan.projects) {
+    const batches = plan.batchesByProject[project];
+    const ownedSuites = browserSuitesByProject[project as keyof typeof browserSuitesByProject];
+    // Exact inventory equality catches omitted, duplicated and cross-project suites as ownership grows.
+    expect(batches.flat().toSorted()).toEqual([...ownedSuites].toSorted());
+    expect(batches).toHaveLength(Math.ceil(ownedSuites.length / plan.batchSize));
+    expect(batches.every((batch) => batch.length > 0 && batch.length <= plan.batchSize)).toBe(true);
+  }
   expect(plan.batchesByProject["mobile-chromium"].flat()).not.toContain("tests/course-learning-flow.spec.ts");
   expect(plan.batchesByProject["mobile-chromium"].flat()).not.toContain("tests/support-wiki.spec.ts");
   expect(Object.values(plan.batchesByProject).flat(2)).not.toContain("tests/shared-evidence-ui.spec.ts");
@@ -343,6 +348,7 @@ test("the required quality gate runs a bounded Chromium smoke suite while exhaus
   expect(smokePlan.batchesByProject.chromium).toHaveLength(1);
   expect(smokePlan.batchesByProject.chromium.flat()).toEqual([
     "--grep=@smoke",
+    "tests/account-storage-isolation.spec.ts",
     "tests/account-onboarding.spec.ts",
     "tests/analytics-consent.spec.ts",
     "tests/auth-accessibility.spec.ts",
@@ -356,13 +362,15 @@ test("the required quality gate runs a bounded Chromium smoke suite while exhaus
   expect(smokeTests).toBeGreaterThanOrEqual(14);
   expect(smokeTests).toBeLessThanOrEqual(20);
   expect(qualityWorkflow).toContain("needs: static-and-release-contracts");
-  expect(qualityWorkflow).toContain("npm run test:api && npm run test:browser:smoke");
+  expect(qualityWorkflow).toContain("npm run test:api -- --output=test-results/api --reporter=line,blob");
+  expect(qualityWorkflow).toContain("run: npm run test:browser:smoke");
   expect(qualityWorkflow).not.toContain("npm run test:api && npm run test:browser\n");
   expect(existsSync(fullRegressionWorkflowPath)).toBe(true);
   expect(fullRegressionWorkflow).toContain("schedule:");
   expect(fullRegressionWorkflow).toContain("workflow_dispatch:");
   expect(fullRegressionWorkflow).toContain("npm run test:contracts -- tests/tier-consistency-contracts.spec.ts");
-  expect(fullRegressionWorkflow).toContain("npm run test:api && npm run test:browser");
+  expect(fullRegressionWorkflow).toContain("run: npm run test:api --");
+  expect(fullRegressionWorkflow).toContain("run: npm run test:browser\n");
   expect(fullRegressionWorkflow).toContain("npm run test:command-center:v2");
   expect(fullRegressionWorkflow).toContain("npm run test:command-center:v2:ui");
   expect(fullRegressionWorkflow).toContain("npm run test:shared-evidence:ui");
@@ -384,7 +392,9 @@ test("mobile projects execute only explicitly owned cross-device behavior", () =
 test("release workflows accept only exact successful workflow evidence", () => {
   const script = "scripts/check-workflow-run-evidence.mjs";
   const sha = "a".repeat(40);
+  const privateSentinel = "workflow-private-input-must-never-appear";
   const evidence = {
+    note: privateSentinel,
     total_count: 1,
     workflow_runs: [{
       conclusion: "success",
@@ -398,9 +408,17 @@ test("release workflows accept only exact successful workflow evidence", () => {
     [script, expectedSha, expectedPath],
     { cwd: process.cwd(), input: JSON.stringify(body), encoding: "utf8" },
   );
+  // Runtime diagnostics are independent of the bounded application output contract.
+  const applicationStderr = (stderr: string) => stderr.split("\n").filter((line) => (
+    !/^\(node:\d+\) \[UNDICI-EHPA\] Warning: EnvHttpProxyAgent is experimental, expect them to change at any time\.$/.test(line)
+    && !/^\(node:\d+\) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set\.$/.test(line)
+    && line !== "(Use `node --trace-warnings ...` to show where the warning was created)"
+  )).join("\n");
   const accepted = run(evidence);
   expect(accepted.status, accepted.stderr).toBe(0);
   expect(accepted.stdout).toBe("Workflow evidence verified.\n");
+  expect(applicationStderr(accepted.stderr)).toBe("");
+  expect(accepted.stdout + accepted.stderr).not.toContain(privateSentinel);
   for (const invalid of [
     { ...evidence, workflow_runs: [{ ...evidence.workflow_runs[0], conclusion: "failure" }] },
     { ...evidence, workflow_runs: [{ ...evidence.workflow_runs[0], head_sha: "b".repeat(40) }] },
@@ -410,11 +428,14 @@ test("release workflows accept only exact successful workflow evidence", () => {
   ]) {
     const rejected = run(invalid);
     expect(rejected.status).toBe(1);
-    expect(rejected.stderr).toBe("Required workflow evidence is unavailable.\n");
+    expect(applicationStderr(rejected.stderr)).toBe("Required workflow evidence is unavailable.\n");
+    expect(rejected.stdout).toBe("");
+    expect(rejected.stdout + rejected.stderr).not.toContain(privateSentinel);
   }
   const oversized = run({ workflow_runs: [{ note: "x".repeat(70_000) }] });
   expect(oversized.status).toBe(1);
-  expect(oversized.stderr).toBe("Required workflow evidence is unavailable.\n");
+  expect(applicationStderr(oversized.stderr)).toBe("Required workflow evidence is unavailable.\n");
+  expect(oversized.stdout).toBe("");
   expect(qaWorkflow).toContain("scripts/check-workflow-run-evidence.mjs");
   expect(qaWorkflow).not.toContain("- run: npm ci");
   expect(qaWorkflow).not.toContain("- run: npm run build");
@@ -547,13 +568,15 @@ test("pull requests and main are protected by an automatic engineering quality w
   expect(workflow).toContain("npm run build");
   expect(workflow).toContain("npm audit --audit-level=high");
   expect(workflow).toContain("npm run test:contracts");
-  expect(workflow).toContain("npm run test:api && npm run test:browser:smoke");
+  expect(workflow).toContain("run: npm run test:api --");
+  expect(workflow).toContain("run: npm run test:browser:smoke");
   expect(workflow).toContain("NODE_OPTIONS: --max-old-space-size=3072");
   expect(workflow).toContain("actions/upload-artifact@");
   expect(fullRegressionWorkflow).toContain("npm run test:command-center:v2");
   expect(fullRegressionWorkflow).toContain("npm run test:command-center:v2:ui");
   expect(fullRegressionWorkflow).toContain("npm run test:shared-evidence:ui");
-  expect(fullRegressionWorkflow).toContain("npm run test:api && npm run test:browser");
+  expect(fullRegressionWorkflow).toContain("run: npm run test:api --");
+  expect(fullRegressionWorkflow).toContain("run: npm run test:browser\n");
 });
 
 test("release automation pins third-party actions and includes dependency and code security gates", () => {
@@ -586,4 +609,120 @@ test("release automation pins third-party actions and includes dependency and co
   expect(qualityWorkflow).toContain("npm audit --omit=dev --audit-level=high");
   expect(qualityWorkflow).toContain("npm audit --audit-level=high");
   expect(qualityWorkflow).toContain("npm run check:secrets");
+});
+
+test("browser batches retain failures, retries, skips and distinct merged evidence", () => {
+  test.setTimeout(120_000);
+  const fixture = mkdtempSync(resolve(".matrix-fixture-"));
+  const runId = `evidence-${process.pid}-${Date.now()}`;
+  const evidenceDirectory = resolve(fixture, "playwright-report", `matrix-${runId}`);
+  const fixtureSuites = ["failure", "retry", "skip", "pass-a", "pass-b", "pass-c", "pass-d"]
+    .map((name) => `tests/${name}.spec.ts`);
+  try {
+    mkdirSync(`${fixture}/tests`);
+    mkdirSync(`${fixture}/scripts`);
+    symlinkSync(resolve("node_modules"), `${fixture}/node_modules`, "dir");
+    writeFileSync(`${fixture}/package.json`, '{"type":"module"}');
+    writeFileSync(`${fixture}/scripts/run-playwright-matrix.mjs`, matrixRunner);
+    writeFileSync(`${fixture}/scripts/playwright-owned-directory.mjs`, read("scripts/playwright-owned-directory.mjs"));
+    // Exercise the real runner with a fixed inventory, independent of new product suites and load estimates.
+    writeFileSync(`${fixture}/scripts/playwright-suite-manifest.ts`, `
+      export { classifyPlaywrightSuiteArguments, suiteSelectorMatches } from ${JSON.stringify(new URL("../scripts/playwright-suite-manifest.ts", import.meta.url).href)};
+      export const browserSuitesByProject = { chromium: ${JSON.stringify(fixtureSuites)} };
+      export const browserSuiteEstimatedTestLoad = {};
+    `);
+    writeFileSync(`${fixture}/playwright.config.ts`, `export default {
+      testDir: './tests', retries: 1, workers: 1,
+      projects: [{ name: 'chromium' }],
+    };`);
+    for (const suite of fixtureSuites) {
+      const name = suite.slice("tests/".length);
+      const behavior = name === "failure.spec.ts"
+        ? 'expect(false, "retained permanent failure").toBe(true);'
+        : name === "retry.spec.ts"
+          ? 'expect(testInfo.retry, "retained first attempt").toBe(1);'
+          : name === "skip.spec.ts"
+            ? 'test.skip(true, "intentional fixture skip reason");'
+            : 'expect(true).toBe(true);';
+      writeFileSync(`${fixture}/tests/${name}`, `import { test, expect } from '@playwright/test';
+        test('${name}', async ({}, testInfo) => { ${behavior} });`);
+    }
+    const result = spawnSync(process.execPath, [
+      "--experimental-strip-types", "scripts/run-playwright-matrix.mjs",
+    ], {
+      cwd: fixture, encoding: "utf8", timeout: 110_000,
+      env: { ...process.env, PLAYWRIGHT_MATRIX_PROJECTS: "chromium", PLAYWRIGHT_MATRIX_RUN_ID: runId },
+    });
+    expect(result.status, result.stderr).toBe(1);
+    expect(existsSync(`${evidenceDirectory}/batches.json`), result.stdout).toBe(true);
+    const outcomes = JSON.parse(read(`${evidenceDirectory}/batches.json`)) as {
+      batches: Array<{ status: string; resultsDirectory: string; blobDirectory: string }>;
+      mergeExitCode: number;
+    };
+    expect(outcomes.batches).toHaveLength(3);
+    expect(outcomes.batches.every((batch) => ["passed", "failed"].includes(batch.status))).toBe(true);
+    expect(outcomes.batches.filter((batch) => batch.status === "failed")).toHaveLength(1);
+    expect(outcomes.batches[0].status).toBe("failed");
+    expect(outcomes.batches.slice(1).every((batch) => batch.status === "passed")).toBe(true);
+    expect(new Set(outcomes.batches.map((batch) => batch.resultsDirectory)).size).toBe(3);
+    expect(new Set(outcomes.batches.map((batch) => batch.blobDirectory)).size).toBe(3);
+    for (const batch of outcomes.batches) {
+      expect(readdirSync(batch.blobDirectory).filter((file) => file.endsWith(".zip"))).toHaveLength(1);
+    }
+    expect(outcomes.mergeExitCode).toBe(0);
+    const mergedText = read(`${evidenceDirectory}/merged/results.json`);
+    const merged = JSON.parse(mergedText) as { stats: { unexpected: number; flaky: number; skipped: number; expected: number } };
+    expect(merged.stats).toMatchObject({ unexpected: 1, flaky: 1, skipped: 1, expected: 4 });
+    for (const suite of fixtureSuites) expect(mergedText).toContain(suite.slice("tests/".length));
+    expect(mergedText).toContain("retained permanent failure");
+    expect(mergedText).toContain("retained first attempt");
+    expect(mergedText).toContain("intentional fixture skip reason");
+    expect(existsSync(`${evidenceDirectory}/merged/index.html`)).toBe(true);
+  } finally {
+    rmSync(fixture, { recursive: true, force: true });
+    expect(existsSync(fixture), "The completed fixture must remove only its own temporary tree.").toBe(false);
+  }
+});
+
+test("list-only browser discovery preserves retained evidence and keeps JSON on stdout", () => {
+  const fixture = mkdtempSync(resolve(".matrix-list-fixture-"));
+  try {
+    mkdirSync(`${fixture}/tests`);
+    mkdirSync(`${fixture}/playwright-report/retained`, { recursive: true });
+    symlinkSync(resolve("scripts"), `${fixture}/scripts`, "dir");
+    symlinkSync(resolve("node_modules"), `${fixture}/node_modules`, "dir");
+    writeFileSync(`${fixture}/package.json`, '{"type":"module"}');
+    writeFileSync(`${fixture}/playwright.config.ts`, `export default {
+      testDir: './tests', reporter: 'html', projects: [{ name: 'chromium' }],
+    };`);
+    writeFileSync(`${fixture}/tests/example.spec.ts`, `import { test } from '@playwright/test';
+      test('discover without running', () => { throw new Error('must never execute'); });`);
+    const sentinel = `${fixture}/playwright-report/retained/existing-evidence.txt`;
+    writeFileSync(sentinel, "retained previous failure");
+    for (const reporterArgs of [[], ["--reporter=json"], ["--reporter", "json"], ["--reporter=html"]]) {
+      const result = spawnSync(process.execPath, [
+        "--experimental-strip-types", "scripts/run-playwright-matrix.mjs", "--list",
+        "tests/example.spec.ts", ...reporterArgs,
+      ], {
+        cwd: fixture, encoding: "utf8", timeout: 15_000,
+        env: {
+          ...process.env, PLAYWRIGHT_MATRIX_PROJECTS: "chromium",
+          PLAYWRIGHT_JSON_OUTPUT_NAME: `${fixture}/redirected-json.json`,
+          PLAYWRIGHT_JSON_OUTPUT_DIR: fixture,
+          PLAYWRIGHT_JSON_OUTPUT_FILE: reporterArgs.includes("json") ? `${fixture}/redirected-file.json` : undefined,
+          PLAYWRIGHT_HTML_OPEN: "never",
+        },
+      });
+      expect(result.status, result.stderr).toBe(reporterArgs.includes("--reporter=html") ? 2 : 0);
+      expect(existsSync(sentinel), result.stdout).toBe(true);
+      expect(read(sentinel)).toBe("retained previous failure");
+      expect(existsSync(`${fixture}/playwright-report/index.html`)).toBe(false);
+      expect(existsSync(`${fixture}/redirected-json.json`)).toBe(false);
+      expect(existsSync(`${fixture}/redirected-file.json`)).toBe(false);
+      if (reporterArgs.join(" ").includes("json")) expect(result.stdout).toContain('"suites"');
+      if (reporterArgs.includes("--reporter=html")) expect(result.stderr).toContain("stdout-only reporters");
+    }
+  } finally {
+    rmSync(fixture, { recursive: true, force: true });
+  }
 });

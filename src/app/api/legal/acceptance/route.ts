@@ -13,6 +13,7 @@ import {
 import { PRIVACY_VERSION, TERMS_VERSION } from "@/lib/legal";
 import { PRODUCT_EVENT_SCHEMA_VERSION } from "@/lib/product-events";
 import { preferredDisplayName } from "@/lib/display-name";
+import { enforceDurableRateLimit } from "@/lib/request-rate-limit";
 
 const acceptanceSchema = z.object({
   termsVersion: z.literal(TERMS_VERSION),
@@ -26,6 +27,8 @@ export async function POST(request: Request) {
     const user = await requireUser(request);
     const parsed = acceptanceSchema.safeParse(await readJsonBody(request, 2_048));
     if (!parsed.success) return Response.json({ error: "The legal acceptance is not current." }, { status: 400 });
+    const limited = await enforceDurableRateLimit(request, "legal-acceptance", 20, 60_000, user.uid);
+    if (limited) return limited;
     const acceptedAt = new Date().toISOString();
     const id = `${TERMS_VERSION}__${PRIVACY_VERSION}`.replace(/[^a-zA-Z0-9_-]/g, "_");
     const registration = await preparedIdentityRegistration(user);

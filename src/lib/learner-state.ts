@@ -23,7 +23,7 @@ export interface LearnerState {
   updatedAt?: string;
 }
 
-const KEY = "filosage-learner-state-v1";
+import { activeLearnerUid, readLearnerStorage, writeLearnerStorage } from "@/lib/learner-storage";
 
 export const EMPTY_LEARNER_STATE: LearnerState = {
   courseBookmarks: [],
@@ -35,16 +35,16 @@ export const EMPTY_LEARNER_STATE: LearnerState = {
   reminderPreferences: DEFAULT_REMINDER_PREFERENCES,
 };
 
-export function readLearnerState(): LearnerState {
+export function readLearnerState(uid = activeLearnerUid()): LearnerState {
   if (typeof window === "undefined") return EMPTY_LEARNER_STATE;
   try {
-    const value = JSON.parse(localStorage.getItem(KEY) ?? "{}");
+    const value = readLearnerStorage<Partial<LearnerState>>(uid, "learner-state") ?? {};
     return {
       courseBookmarks: Array.isArray(value.courseBookmarks) ? value.courseBookmarks.map(String) : [],
       lessonBookmarks: Array.isArray(value.lessonBookmarks) ? value.lessonBookmarks.map(String) : [],
       notes: value.notes && typeof value.notes === "object" ? value.notes : {},
       noteUpdatedAt: value.noteUpdatedAt && typeof value.noteUpdatedAt === "object" ? value.noteUpdatedAt : {},
-      weeklyLessonGoal: Number.isInteger(value.weeklyLessonGoal) ? value.weeklyLessonGoal : 5,
+      weeklyLessonGoal: typeof value.weeklyLessonGoal === "number" && Number.isInteger(value.weeklyLessonGoal) ? value.weeklyLessonGoal : 5,
       dashboardPreferences: normalizeDashboardPreferences(value.dashboardPreferences),
       reminderPreferences: normalizeReminderPreferences(value.reminderPreferences),
       updatedAt: typeof value.updatedAt === "string" ? value.updatedAt : undefined,
@@ -54,13 +54,13 @@ export function readLearnerState(): LearnerState {
   }
 }
 
-export function writeLearnerState(value: LearnerState) {
-  localStorage.setItem(KEY, JSON.stringify(value));
+export function writeLearnerState(value: LearnerState, uid = activeLearnerUid()) {
+  return writeLearnerStorage(uid, "learner-state", "all", value);
 }
 
-export function removeCourseFromLearnerState(courseId: string) {
+export function removeCourseFromLearnerState(courseId: string, uid = activeLearnerUid()) {
   if (typeof window === "undefined") return EMPTY_LEARNER_STATE;
-  const current = readLearnerState();
+  const current = readLearnerState(uid);
   const cleaned = removeCourseReferences(
     current as unknown as Record<string, unknown>,
     courseId,
@@ -69,6 +69,6 @@ export function removeCourseFromLearnerState(courseId: string) {
     ...(cleaned.value as unknown as LearnerState),
     updatedAt: new Date().toISOString(),
   };
-  writeLearnerState(next);
+  writeLearnerState(next, uid);
   return next;
 }

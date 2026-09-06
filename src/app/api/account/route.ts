@@ -14,6 +14,7 @@ import { PRIVACY_VERSION, TERMS_VERSION } from "@/lib/legal";
 import { capabilitiesForAccount } from "@/lib/membership-access";
 import { normalizeDisplayName, providerDisplayName } from "@/lib/display-name";
 import { runStoredDocumentTransaction } from "@/lib/document-store";
+import { enforceDurableRateLimit } from "@/lib/request-rate-limit";
 
 const displayNameSchema = z.object({ displayName: z.string() }).strict();
 const privateNoStoreHeaders = { "Cache-Control": "private, no-store" };
@@ -127,6 +128,8 @@ export async function PATCH(request: Request) {
         { status: 400, headers: privateNoStoreHeaders },
       );
     }
+    const limited = await enforceDurableRateLimit(request, "account-profile", 30, 60_000, account.uid);
+    if (limited) return limited;
     const path = `users/${account.uid}`;
     await runStoredDocumentTransaction([path], (documents) => {
       const existing = documents[path];

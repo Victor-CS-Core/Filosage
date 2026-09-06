@@ -3,90 +3,31 @@
 import type { CourseProgress, ProgressUpdate } from "@/lib/learning-types";
 import { scheduleAdaptiveReview, updateDelayedChecks } from "@/lib/adaptive-learning";
 
-const INDEX_KEY = "filosage-learning-state-v2";
-const LEGACY_INDEX_KEY = "teach-learning-state-v2";
+import { activeLearnerUid, readLearnerStorage, writeLearnerStorage } from "@/lib/learner-storage";
 
-function readIndex(): Record<string, CourseProgress> {
-  if (typeof window === "undefined") return {};
-  try {
-    const stored = localStorage.getItem(INDEX_KEY) ?? localStorage.getItem(LEGACY_INDEX_KEY) ?? "{}";
-    const value = JSON.parse(stored);
-    if (!localStorage.getItem(INDEX_KEY) && localStorage.getItem(LEGACY_INDEX_KEY)) {
-      localStorage.setItem(INDEX_KEY, JSON.stringify(value));
-    }
-    return value && typeof value === "object" ? value : {};
-  } catch {
-    return {};
-  }
+function readIndex(uid: string | null): Record<string, CourseProgress> {
+  const value = readLearnerStorage<Record<string, CourseProgress>>(uid, "progress");
+  return value && typeof value === "object" && !Array.isArray(value) ? value : {};
 }
 
-function writeIndex(index: Record<string, CourseProgress>) {
-  localStorage.setItem(INDEX_KEY, JSON.stringify(index));
+export function listLocalProgress(uid = activeLearnerUid()) {
+  return Object.values(readIndex(uid)).sort((a, b) => b.lastActivityAt.localeCompare(a.lastActivityAt));
 }
 
-function removeFromStoredIndex(key: string, courseId: string) {
-  try {
-    const value = JSON.parse(localStorage.getItem(key) ?? "{}");
-    if (!value || typeof value !== "object" || Array.isArray(value) || !(courseId in value)) return;
-    delete value[courseId];
-    localStorage.setItem(key, JSON.stringify(value));
-  } catch {
-    localStorage.removeItem(key);
-  }
+export function getLocalProgress(courseId: string, uid = activeLearnerUid()) {
+  return readIndex(uid)[courseId] ?? null;
 }
 
-export function listLocalProgress() {
-  return Object.values(readIndex()).sort((a, b) => b.lastActivityAt.localeCompare(a.lastActivityAt));
+export function removeLocalProgress(courseId: string, uid = activeLearnerUid()) {
+  const index = readIndex(uid);
+  delete index[courseId];
+  writeLearnerStorage(uid, "progress", "all", index);
 }
 
-export function getLocalProgress(courseId: string, topic = "") {
-  const index = readIndex();
-  const current = index[courseId];
-  if (current) return current;
-
-  // Preserve progress created by the original device-only implementation.
-  try {
-    const completed = JSON.parse(
-      localStorage.getItem(`filosage-progress:${courseId}`)
-      ?? localStorage.getItem(`teach-progress:${courseId}`)
-      ?? "[]",
-    );
-    if (Array.isArray(completed) && completed.length) {
-      const migrated: CourseProgress = {
-        courseId,
-        topic,
-        lastLessonId: String(completed[completed.length - 1] ?? ""),
-        lastLessonTitle: "Continue your course",
-        nextLessonId: null,
-        nextLessonTitle: null,
-        completedLessonIds: completed.map(String),
-        lessons: {},
-        studyMinutes: 0,
-        lastActivityAt: new Date().toISOString(),
-        startedAt: new Date().toISOString(),
-      };
-      index[courseId] = migrated;
-      writeIndex(index);
-      return migrated;
-    }
-  } catch {
-    // A damaged legacy value should not block learning.
-  }
-  return null;
-}
-
-export function removeLocalProgress(courseId: string) {
-  if (typeof window === "undefined") return;
-  removeFromStoredIndex(INDEX_KEY, courseId);
-  removeFromStoredIndex(LEGACY_INDEX_KEY, courseId);
-  localStorage.removeItem(`filosage-progress:${courseId}`);
-  localStorage.removeItem(`teach-progress:${courseId}`);
-}
-
-export function saveLocalProgress(update: ProgressUpdate) {
+export function saveLocalProgress(update: ProgressUpdate, uid = activeLearnerUid()) {
   const now = new Date();
   const observedAt = now.toISOString();
-  const index = readIndex();
+  const index = readIndex(uid);
   const previous = index[update.courseId];
   const previousLesson = previous?.lessons[update.lessonId];
   const firstTryRate = update.totalQuestions
@@ -173,7 +114,6 @@ export function saveLocalProgress(update: ProgressUpdate) {
   };
 
   index[update.courseId] = next;
-  writeIndex(index);
-  localStorage.setItem(`filosage-progress:${update.courseId}`, JSON.stringify(completedLessonIds));
+  writeLearnerStorage(uid, "progress", "all", index);
   return next;
 }

@@ -1,5 +1,7 @@
 import { spawnSync } from "node:child_process";
 import { createRequire } from "node:module";
+import { copyFileSync, mkdirSync, readdirSync, writeFileSync } from "node:fs";
+import { resolve } from "node:path";
 import {
   browserSuiteEstimatedTestLoad,
   browserSuitesByProject,
@@ -172,38 +174,123 @@ if (forwardedArgs.length > 0 && requestedFiles.length === 0 && Object.values(bat
   console.error("No Playwright tests matched the provided browser filters.");
   process.exit(2);
 }
-let matrixExitCode = 0;
-try {
-  matrix: for (const project of projects) {
-    const projectBatches = batchesByProject[project];
-    for (const [index, batch] of projectBatches.entries()) {
-      console.log(`\n=== Playwright project: ${project}; batch ${index + 1}/${projectBatches.length} ===`);
-      const result = spawnSync(
-        process.execPath,
-        [playwrightCli, "test", `--project=${project}`, ...batch],
-        {
-          cwd: process.cwd(),
-          env: {
-            ...process.env,
-            FILOSAGE_PLAYWRIGHT_DIST_NAMESPACE: distNamespace,
-            FILOSAGE_PLAYWRIGHT_PROJECT: project,
-            FILOSAGE_PLAYWRIGHT_REUSE_DIST: "1",
-          },
-          stdio: "inherit",
-        },
-      );
-      if (result.error) {
-        console.error(result.error.message);
-        matrixExitCode = 1;
-        break matrix;
+// Each invocation owns its evidence; later batches must never erase earlier failures.
+const listOnly = optionArgs.includes("--list");
+let listReporter = "line";
+if (listOnly) {
+  const stdoutReporters = new Set(["line", "list", "dot", "json", "null"]);
+  for (let index = 0; index < optionArgs.length; index += 1) {
+    const argument = optionArgs[index];
+    if (argument === "--reporter" || argument.startsWith("--reporter=")) {
+      const requested = argument === "--reporter" ? optionArgs[++index] : argument.slice("--reporter=".length);
+      if (!requested || requested.split(",").some((reporter) => !stdoutReporters.has(reporter))) {
+        console.error("List-only discovery accepts stdout-only reporters: line, list, dot, json, null.");
+        process.exit(2);
       }
-      if (result.status !== 0) {
-        matrixExitCode = result.status ?? 1;
-        break matrix;
-      }
+      listReporter = requested;
     }
   }
+}
+const evidenceDirectory = resolve("playwright-report", distNamespace);
+const mergedBlobDirectory = resolve(evidenceDirectory, "blobs");
+const mergedDirectory = resolve(evidenceDirectory, "merged");
+const outcomes = {
+  runId: distNamespace,
+  projects,
+  skippedProjects: projects.filter((project) => batchesByProject[project].length === 0)
+    .map((project) => ({ project, reason: "No selected suites belong to this project." })),
+  batches: projects.flatMap((project) => batchesByProject[project].map((args, index) => ({
+    project,
+    batch: index + 1,
+    args,
+    status: "pending",
+    exitCode: null,
+    resultsDirectory: resolve("test-results", distNamespace, project, `batch-${index + 1}`),
+    blobDirectory: resolve(evidenceDirectory, project, `batch-${index + 1}`, "blob"),
+    htmlDirectory: resolve(evidenceDirectory, project, `batch-${index + 1}`, "html"),
+  }))),
+  mergeExitCode: null,
+};
+const writeOutcomes = () => {
+  if (!listOnly) writeFileSync(resolve(evidenceDirectory, "batches.json"), `${JSON.stringify(outcomes, null, 2)}\n`);
+};
+if (!listOnly) {
+  mkdirSync(resolve("playwright-report"), { recursive: true });
+  // An explicit run ID must not silently mix with evidence from an earlier invocation.
+  mkdirSync(evidenceDirectory);
+  mkdirSync(mergedBlobDirectory);
+  writeOutcomes();
+}
+let matrixExitCode = 0;
+try {
+  for (const outcome of outcomes.batches) {
+    const { project, batch, args } = outcome;
+    console.log(`\n=== Playwright project: ${project}; batch ${batch}/${batchesByProject[project].length} ===`);
+    outcome.status = "running";
+    writeOutcomes();
+    const result = spawnSync(
+      process.execPath,
+      [playwrightCli, "test", `--project=${project}`, ...args, ...(!listOnly ? [
+        `--output=${outcome.resultsDirectory}`, "--reporter=line,blob,html",
+      ] : [`--reporter=${listReporter}`])],
+      {
+        cwd: process.cwd(),
+        env: {
+          ...process.env,
+          FILOSAGE_PLAYWRIGHT_DIST_NAMESPACE: distNamespace,
+          FILOSAGE_PLAYWRIGHT_PROJECT: project,
+          FILOSAGE_PLAYWRIGHT_REUSE_DIST: "1",
+          ...(!listOnly ? {
+            PLAYWRIGHT_BLOB_OUTPUT_DIR: outcome.blobDirectory,
+            PLAYWRIGHT_BLOB_OUTPUT_FILE: undefined,
+            PLAYWRIGHT_HTML_OUTPUT_DIR: outcome.htmlDirectory,
+            PLAYWRIGHT_HTML_OPEN: "never",
+          } : {
+            // JSON list callers must also stay on stdout even when a parent sets report paths.
+            PLAYWRIGHT_JSON_OUTPUT_NAME: undefined,
+            PLAYWRIGHT_JSON_OUTPUT_DIR: undefined,
+            PLAYWRIGHT_JSON_OUTPUT_FILE: undefined,
+          }),
+        },
+        stdio: "inherit",
+      },
+    );
+    outcome.exitCode = result.status ?? 1;
+    outcome.status = result.error ? "could-not-start" : outcome.exitCode === 0 ? "passed" : "failed";
+    if (result.error) console.error(result.error.message);
+    if (outcome.exitCode !== 0 && matrixExitCode === 0) matrixExitCode = outcome.exitCode;
+    if (!listOnly) {
+      // Blob reporter clears its own directory, so collect from isolated batch directories.
+      let blobs = [];
+      try { blobs = readdirSync(outcome.blobDirectory).filter((file) => file.endsWith(".zip")); }
+      catch (error) { if (error.code !== "ENOENT") throw error; }
+      for (const [index, file] of blobs.entries()) {
+        copyFileSync(resolve(outcome.blobDirectory, file), resolve(mergedBlobDirectory, `${project}-${batch}-${index}.zip`));
+      }
+      if (blobs.length === 0) {
+        outcome.status = "missing-evidence";
+        if (matrixExitCode === 0) matrixExitCode = 1;
+      }
+    }
+    writeOutcomes();
+  }
 } finally {
+  if (!listOnly && readdirSync(mergedBlobDirectory).length > 0) {
+    const merge = spawnSync(process.execPath, [playwrightCli, "merge-reports", "--reporter=html,json", mergedBlobDirectory], {
+      cwd: process.cwd(),
+      env: {
+        ...process.env,
+        PLAYWRIGHT_HTML_OUTPUT_DIR: mergedDirectory,
+        PLAYWRIGHT_HTML_OPEN: "never",
+        PLAYWRIGHT_JSON_OUTPUT_NAME: resolve(mergedDirectory, "results.json"),
+      },
+      stdio: "inherit",
+    });
+    outcomes.mergeExitCode = merge.status ?? 1;
+    if (merge.error) console.error(merge.error.message);
+    if (outcomes.mergeExitCode !== 0 && matrixExitCode === 0) matrixExitCode = outcomes.mergeExitCode;
+    writeOutcomes();
+  }
   for (const directory of cleanupDistDirectories) {
     resetPlaywrightOwnedDirectory(directory, ".next");
   }

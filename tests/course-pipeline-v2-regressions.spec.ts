@@ -637,7 +637,7 @@ test("manual review cannot override an independent structural blocker", async ()
   expect(decision.automaticRepairAvailable).toBe(false);
 });
 
-test("manual-review resolution is snapshot-bound, owner-only, evidence-gated, audited, and disabled outside publication V2", async () => {
+test("manual-review resolution is snapshot-bound, owner-only, evidence-gated, audited, and respects the V2 pause", async () => {
   const [routeSource, reviewSource, storageSource, authoringSource] = await Promise.all([
     readFile("src/app/api/admin/courses/[courseId]/manual-review/route.ts", "utf8"),
     readFile("src/lib/publication-review.ts", "utf8"),
@@ -660,7 +660,7 @@ test("manual-review resolution is snapshot-bound, owner-only, evidence-gated, au
   expect(storageSource).toContain("stored.contractVersion !== resolution.contractVersion");
   expect(storageSource).toContain('manualResolution?.status === "approved"');
   expect(reviewSource).toContain("manualReviewApproved");
-  expect(reviewSource).toContain("manualReviewResolution.snapshotHash === validationReport?.snapshotHash");
+  expect(reviewSource).toContain("currentManualReviewResolution(course, validationReport.snapshotHash)");
   expect(authoringSource).toContain("Sources personally verified for this snapshot");
 });
 
@@ -1049,7 +1049,7 @@ test("V2 provenance fails closed when its generation or publication path is paus
   expect(overrideRoute).toContain("COURSE_PUBLICATION_V2_PAUSED");
 });
 
-test("legacy artifacts stay on V1 while V2 artifacts use actor-scoped active paths", async () => {
+test("legacy review remains available while V2 artifacts use actor-scoped active paths", async () => {
   const [validationRoute, lessonRoute, publishRoute, overrideRoute, publicationReview, repairRoute, manualReviewRoute] = await Promise.all([
     readFile("src/app/api/courses/[courseId]/validation/route.ts", "utf8"),
     readFile("src/app/api/generate-lesson/route.ts", "utf8"),
@@ -1059,15 +1059,15 @@ test("legacy artifacts stay on V1 while V2 artifacts use actor-scoped active pat
     readFile("src/app/api/courses/[courseId]/repair/route.ts", "utf8"),
     readFile("src/app/api/admin/courses/[courseId]/manual-review/route.ts", "utf8"),
   ]);
-  expect(validationRoute).toContain("const validationV2Active = flags.validationV2 && courseUsesPipelineV2(course)");
-  expect(validationRoute).toContain("if (!course.isPublic && validationV2Active)");
+  expect(validationRoute).toContain("const validationActive = !pipelineV2Artifact || flags.validationV2");
+  expect(validationRoute).toContain("if (!course.isPublic && validationActive)");
   expect(lessonRoute).toContain("pipelineV2Active = pipelineFlags.pipelineV2");
   expect(lessonRoute).toContain("&& courseUsesPipelineV2(course as unknown as Record<string, unknown>)");
   expect(publishRoute).toContain("publicationV2Active = flags.publicationV2 && courseUsesPipelineV2(course)");
   expect(overrideRoute).toContain("publicationV2Active = flags.publicationV2 && courseUsesPipelineV2(course)");
   expect(publicationReview).toContain("const publicationV2Active = flags.publicationV2 && pipelineV2Artifact");
   expect(repairRoute).toContain("!courseUsesPipelineV2(course)");
-  expect(manualReviewRoute).toContain("!courseUsesPipelineV2(course)");
+  expect(manualReviewRoute).toContain("courseUsesPipelineV2(course) && !flags.publicationV2");
 });
 
 test("unpublish changes visibility and the V2 stage in one transaction", async () => {

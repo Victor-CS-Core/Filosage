@@ -3,10 +3,14 @@ import { getStoredDocument } from "@/lib/document-store";
 import { flashcardFeatureConfiguration } from "@/lib/flashcard-feature";
 import { reportOperationalEvent } from "@/lib/operational-alerts";
 import { serverEnvironment } from "@/lib/runtime-environment";
+import { observedReleaseCapabilities, releaseSelectionMatches } from "@/lib/release-capabilities";
+import releaseManifest from "../../../../config/release-capabilities.json";
 
 export async function GET() {
   const missing = missingRuntimeConfiguration();
   const flashcards = flashcardFeatureConfiguration();
+  const capabilities = observedReleaseCapabilities(serverEnvironment);
+  const capabilitiesOk = releaseSelectionMatches(releaseManifest.capabilities, capabilities);
   const version = (
     serverEnvironment.SITE_VERSION
     || serverEnvironment.CF_PAGES_COMMIT_SHA
@@ -32,7 +36,7 @@ export async function GET() {
       });
     }
   }
-  const ok = missing.length === 0 && datastoreOk;
+  const ok = missing.length === 0 && datastoreOk && capabilitiesOk;
   const origin = (() => {
     try {
       return serverEnvironment.NEXT_PUBLIC_SITE_URL
@@ -46,10 +50,12 @@ export async function GET() {
     {
       ok,
       version,
+      imageDigest: serverEnvironment.RELEASE_IMAGE_DIGEST || null,
+      capabilities,
       origin,
       authenticationMode: authenticationMode(),
       checks: {
-        configuration: missing.length === 0,
+        configuration: missing.length === 0 && capabilitiesOk,
         datastore: datastoreOk,
         flashcardDecks: flashcards.decksEnabled,
         flashcardGeneration: flashcards.generationEnabled,

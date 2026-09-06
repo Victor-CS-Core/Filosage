@@ -1,5 +1,8 @@
 # Filosage product capability and marketing audit
 
+> Historical record retained with its original date. Reconciliation on 2026-09-06: new candidates use `config/release-capabilities.json` and `docs/RELEASE_CAPABILITIES.md`. Earlier all-on activation or publication-review statements do not establish current hosted availability or completion of the unified publication-proof gate. No historical run is reclassified as a current pass.
+
+
 **Status:** Owner-approved implementation basis
 **Audit date:** 2026-08-16
 **Base SHA:** `242c479ec4707dceb79cc48c2082b71694ae2eaa`

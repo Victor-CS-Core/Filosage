@@ -29,6 +29,7 @@ import {
   AI_GENERATION_OUTPUT_BUDGETS,
   aiUsageProfileMetadata,
   openAiExecutionProfile,
+  stablePromptCacheKey,
   type AiExecutionProfile,
 } from "@/lib/openai-generation";
 import { safeModelErrorDetails } from "@/lib/model-fallback";
@@ -45,7 +46,7 @@ import {
   BIBLIOGRAPHIC_DISCOVERY_ALLOWED_DOMAINS,
   BIBLIOGRAPHIC_REFERENCE_POLICY_VERSION,
   bibliographicDiscoverySchema,
-  bibliographicReferenceSchema,
+  restoreBibliographyStage,
   certifyDiscoveredBibliographicReferences,
   type BibliographicReference,
 } from "@/lib/bibliographic-references";
@@ -63,6 +64,9 @@ import {
   completedWebSearchCallIds,
   isolateSourceEvidenceValidation,
   researchAuthorityDomainForUrl,
+  restoreEvidenceResearchStage,
+  RESEARCH_STAGE_MAX_AGE_MS,
+  FRESH_EVIDENCE_MAX_AGE_MS,
   SOURCE_RESEARCH_ALLOWED_DOMAINS,
   SOURCE_RESEARCH_POLICY_VERSION,
   sourceEvidenceValidationSchema,
@@ -225,6 +229,8 @@ export async function POST(request: Request) {
       { uid: account.uid, feature: "course_outline", stage: "input" },
     );
     const outlineUsageSamples: AiUsageSample[] = [];
+    // Keep the same live array available to the catch path before any paid stage.
+    observedUsageSamples = outlineUsageSamples;
     const researchInput = [
       `Research the course topic: ${topic}`,
       `Course language: ${language}.`,
@@ -244,6 +250,7 @@ export async function POST(request: Request) {
         ? `Untrusted creator-suggested leads follow. They may guide searches, but they are not evidence and must not be returned unless independently found and cited by web search:\n<CREATOR_LEADS>${JSON.stringify(creatorSourceLeads.map((source) => ({ label: source.label, url: source.url, note: source.note })))}</CREATOR_LEADS>`
         : "No creator leads were supplied; discover the evidence independently.",
     ].filter(Boolean).join("\n");
+    const bibliographyCacheKey = stablePromptCacheKey(researchProfile.workload, researchProfile.promptVersion, researchProfile.model, "bibliography");
     const bibliographyInput = [
       `Find up to 5 reputable books or reference works for further study about: ${topic}`,
       `Course language: ${language}.`,
@@ -321,7 +328,7 @@ export async function POST(request: Request) {
           format: zodTextFormat(bibliographicDiscoverySchema, "course_bibliography"),
           verbosity: researchProfile.textVerbosity,
         },
-        prompt_cache_key: `${researchProfile.promptCacheKey}:bibliography`,
+        prompt_cache_key: bibliographyCacheKey,
         max_output_tokens: AI_GENERATION_OUTPUT_BUDGETS.research,
         safety_identifier: safetyIdentifier,
       }, { signal: AbortSignal.timeout(75_000) });
@@ -330,6 +337,7 @@ export async function POST(request: Request) {
         ...extractOpenAiUsage(bibliographyResponse),
         responseId: bibliographyResponse.id,
         ...aiUsageProfileMetadata(researchProfile),
+        promptCacheKey: bibliographyCacheKey,
       });
       for (let index = 0; index < webSearchCallCount(bibliographyResponse); index += 1) {
         outlineUsageSamples.push({
@@ -354,68 +362,36 @@ export async function POST(request: Request) {
     };
     const researchArtifactPath = `courseResearchArtifacts/${reservation.requestId}`;
     const existingResearchArtifact = await getStoredDocument(researchArtifactPath);
-    const researchArtifactIsCurrent = (artifact: Record<string, unknown> | null | undefined) =>
-      typeof artifact?.expiresAt === "string"
-      && Number.isFinite(Date.parse(artifact.expiresAt))
-      && Date.parse(artifact.expiresAt) > Date.now();
-    let sourcePack: CourseSource[] = [];
-    let furtherReading: BibliographicReference[] = [];
-    let researchResponseId: string | undefined;
-    let bibliographyResponseId: string | undefined;
-    let bibliographySearchCallIds: string[] = [];
-    let researchArtifactReused = false;
-    let researchArtifactComplete = true;
+    const stageContext = { requestFingerprint, freshnessRequired: freshnessRequired || reviewPolicy.reasonCodes.includes("freshness") };
+    const restoredEvidence = restoreEvidenceResearchStage(existingResearchArtifact, stageContext);
+    const restoredBibliography = restoreBibliographyStage(existingResearchArtifact, stageContext);
+    let sourcePack: CourseSource[] = restoredEvidence?.sourcePack ?? [];
+    let furtherReading: BibliographicReference[] = restoredBibliography?.furtherReading ?? [];
+    let researchResponseId = restoredEvidence?.responseId;
+    let bibliographyResponseId = restoredBibliography?.responseId;
+    let bibliographySearchCallIds: string[] = restoredBibliography?.searchCallIds ?? [];
+    const researchArtifactReused = Boolean(restoredEvidence);
+    const bibliographyArtifactReused = Boolean(restoredBibliography);
+    // These flags describe work completed in this attempt, never cached work.
+    let evidenceResearchComplete = false;
+    let bibliographyComplete = false;
     let researchOutcome: "complete" | "partial" | "unavailable" = "unavailable";
     let researchCoverageWarnings: string[] = [];
-    const researchFallbackReasonCodes: string[] = [];
-    if (existingResearchArtifact?.requestFingerprint === requestFingerprint
-      && researchArtifactIsCurrent(existingResearchArtifact)
-      && existingResearchArtifact.policyVersion === SOURCE_RESEARCH_POLICY_VERSION
-      && existingResearchArtifact.researchComplete === true
-      && existingResearchArtifact.bibliographicPolicyVersion === BIBLIOGRAPHIC_REFERENCE_POLICY_VERSION
-      && Array.isArray(existingResearchArtifact.sourcePack)
-      && Array.isArray(existingResearchArtifact.furtherReading)) {
-      const restored = existingResearchArtifact.sourcePack as CourseSource[];
-      const restoredReading = existingResearchArtifact.furtherReading
-        .flatMap((value) => {
-          const parsed = bibliographicReferenceSchema.safeParse(value);
-          return parsed.success ? [parsed.data] : [];
-        });
-      if (restored.every((source) => source.researchPolicyVersion === SOURCE_RESEARCH_POLICY_VERSION)
-        && restoredReading.length === existingResearchArtifact.furtherReading.length
-        && !assessSourceResearchV5(restored).integrityIssues.length) {
-        sourcePack = restored;
-        furtherReading = restoredReading;
-        researchResponseId = typeof existingResearchArtifact.responseId === "string"
-          ? existingResearchArtifact.responseId
-          : undefined;
-        researchOutcome = existingResearchArtifact.researchOutcome === "complete"
-          || existingResearchArtifact.researchOutcome === "partial"
-          ? existingResearchArtifact.researchOutcome
-          : "unavailable";
-        researchCoverageWarnings = Array.isArray(existingResearchArtifact.coverageWarnings)
-          ? existingResearchArtifact.coverageWarnings.filter((warning): warning is string => typeof warning === "string")
-          : assessSourceResearchV5(restored).coverageWarnings;
-        if (Array.isArray(existingResearchArtifact.fallbackReasonCodes)) {
-          researchFallbackReasonCodes.push(...existingResearchArtifact.fallbackReasonCodes.filter((code): code is string => typeof code === "string"));
-        }
-        researchArtifactReused = true;
-      }
-    }
+    const researchFallbackReasonCodes: string[] = [...(restoredEvidence?.fallbackReasonCodes ?? [])];
     let certifiedResearchIssues: string[] = [];
     let certifiedResearchRejections: string[] = [];
-    if (!researchArtifactReused) {
+    if (!researchArtifactReused || !bibliographyArtifactReused) {
       const [researchAttempt, bibliographyAttempt] = await Promise.allSettled([
-        performResearch(),
-        performBibliographicDiscovery(),
+        researchArtifactReused ? Promise.resolve(null) : performResearch(),
+        bibliographyArtifactReused ? Promise.resolve(null) : performBibliographicDiscovery(),
       ]);
-      if (researchAttempt.status === "fulfilled") {
+      if (researchAttempt.status === "fulfilled" && researchAttempt.value) {
         sourcePack = researchAttempt.value.certified.sources;
         certifiedResearchIssues = researchAttempt.value.certified.issues;
         certifiedResearchRejections = researchAttempt.value.certified.rejections;
         researchResponseId = researchAttempt.value.responseId;
-        if (researchAttempt.value.certified.issues.length) researchArtifactComplete = false;
-      } else {
+        evidenceResearchComplete = researchAttempt.value.certified.issues.length === 0;
+      } else if (researchAttempt.status === "rejected") {
         const error = researchAttempt.reason;
         const providerError = safeModelErrorDetails(error);
         console.warn(JSON.stringify({
@@ -424,16 +400,18 @@ export async function POST(request: Request) {
           developmentMessage: process.env.NODE_ENV === "production" || !(error instanceof Error) ? undefined : error.message,
         }));
         researchFallbackReasonCodes.push("research-provider-unavailable");
-        researchArtifactComplete = false;
+        evidenceResearchComplete = false;
         certifiedResearchIssues.push("Automatic source research was unavailable; generation continued with disclosed model knowledge.");
         sourcePack = [];
       }
-      if (bibliographyAttempt.status === "fulfilled") {
+      if (bibliographyAttempt.status === "fulfilled" && bibliographyAttempt.value) {
         furtherReading = bibliographyAttempt.value.references;
         bibliographyResponseId = bibliographyAttempt.value.responseId;
         bibliographySearchCallIds = bibliographyAttempt.value.searchCallIds;
+        bibliographyComplete = !bibliographyAttempt.value.incomplete;
         if (bibliographyAttempt.value.incomplete) {
-          researchArtifactComplete = false;
+          bibliographyComplete = false;
+          researchFallbackReasonCodes.push("bibliography-incomplete");
         }
         if (bibliographyAttempt.value.rejections.length) {
           console.info(JSON.stringify({
@@ -442,14 +420,14 @@ export async function POST(request: Request) {
             rejections: bibliographyAttempt.value.rejections,
           }));
         }
-      } else {
+      } else if (bibliographyAttempt.status === "rejected") {
         console.warn(JSON.stringify({
           event: "course_bibliography_unavailable",
           actorHash: safetyIdentifier,
           ...safeModelErrorDetails(bibliographyAttempt.reason),
         }));
         researchFallbackReasonCodes.push("bibliography-unavailable");
-        researchArtifactComplete = false;
+        bibliographyComplete = false;
       }
     }
     if (certifiedResearchRejections.length) {
@@ -511,7 +489,7 @@ export async function POST(request: Request) {
             ...safeModelErrorDetails(attempt.reason),
           }));
           validationRejections.push(`Source ${source.id} could not complete independent evidence validation.`);
-          researchArtifactComplete = false;
+          evidenceResearchComplete = false;
           continue;
         }
         const { validationResponse } = attempt.value;
@@ -537,7 +515,7 @@ export async function POST(request: Request) {
           ? validateSourceEvidence(validationResponse.output_parsed, validationResponse, [source])
           : { sources: [], issues: [`Source ${source.id} validation did not return exactly one structured source.`], rejections: [] };
         if (rawEvidenceValidation.issues.length) {
-          researchArtifactComplete = false;
+          evidenceResearchComplete = false;
         } else {
           completedValidationCount += 1;
         }
@@ -584,69 +562,60 @@ export async function POST(request: Request) {
         if (current && current.requestFingerprint !== requestFingerprint) {
           throw new Error("The saved research snapshot belongs to a different course brief.");
         }
-        const restored = current && Array.isArray(current.sourcePack) ? current.sourcePack as CourseSource[] : null;
-        const restoredReading = current && Array.isArray(current.furtherReading)
-          ? current.furtherReading.flatMap((value) => {
-              const parsed = bibliographicReferenceSchema.safeParse(value);
-              return parsed.success ? [parsed.data] : [];
-            })
-          : null;
-        if (restored
-          && restoredReading
-          && restoredReading.length === (Array.isArray(current?.furtherReading) ? current.furtherReading.length : -1)
-          && researchArtifactIsCurrent(current)
-          && current?.policyVersion === SOURCE_RESEARCH_POLICY_VERSION
-          && current?.bibliographicPolicyVersion === BIBLIOGRAPHIC_REFERENCE_POLICY_VERSION
-          && current?.researchComplete === true
-          && restored.every((source) => source.researchPolicyVersion === SOURCE_RESEARCH_POLICY_VERSION)
-          && !assessSourceResearchV5(restored).integrityIssues.length) {
-          return {
-            writes: [],
-            result: {
-              sourcePack: restored,
-              furtherReading: restoredReading,
-              reused: true,
-              researchOutcome: current.researchOutcome,
-              coverageWarnings: current.coverageWarnings,
-              fallbackReasonCodes: current.fallbackReasonCodes,
-              responseId: current.responseId,
-            },
-          };
-        }
-        return {
-          writes: [{
-            path: researchArtifactPath,
-            data: {
-              requestFingerprint,
-              ownerUid: account.uid,
-              actorHash: safetyIdentifier,
-              sourcePack,
-              furtherReading,
-              responseId: researchResponseId,
-              policyVersion: SOURCE_RESEARCH_POLICY_VERSION,
-              bibliographicPolicyVersion: BIBLIOGRAPHIC_REFERENCE_POLICY_VERSION,
-              bibliographyResponseId,
-              bibliographySearchCallIds,
-              researchComplete: researchArtifactComplete,
-              researchOutcome,
-              coverageWarnings: researchCoverageWarnings,
-              fallbackReasonCodes: [...new Set(researchFallbackReasonCodes)],
-              createdAt: new Date().toISOString(),
-              expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1_000).toISOString(),
-            },
-          }],
-          result: {
-            sourcePack,
-            furtherReading,
-            reused: false,
-            researchOutcome,
-            coverageWarnings: researchCoverageWarnings,
-            fallbackReasonCodes: [...new Set(researchFallbackReasonCodes)],
-            responseId: researchResponseId,
-          },
+        // Cached stages must still be valid at this checkpoint. Preflight results
+        // can expire while the missing opposite stage is running.
+        const now = Date.now();
+        const transactionContext = { ...stageContext, now };
+        const selectedEvidence = restoreEvidenceResearchStage(current, transactionContext);
+        const selectedBibliography = restoreBibliographyStage(current, transactionContext);
+        const requiresStageRetry = (researchArtifactReused && !selectedEvidence)
+          || (bibliographyArtifactReused && !selectedBibliography);
+        const createdAt = new Date(now).toISOString();
+        const mergedSourcePack = selectedEvidence?.sourcePack ?? (researchArtifactReused ? [] : sourcePack);
+        const mergedReading = selectedBibliography?.furtherReading ?? (bibliographyArtifactReused ? [] : furtherReading);
+        const assessment = assessSourceResearchV5(mergedSourcePack);
+        const evidenceComplete = Boolean(selectedEvidence) || evidenceResearchComplete;
+        const readingComplete = Boolean(selectedBibliography) || bibliographyComplete;
+        const fallbackReasonCodes = [...new Set([
+          ...(selectedEvidence?.fallbackReasonCodes ?? researchFallbackReasonCodes.filter((code) => !code.startsWith("bibliography-"))),
+          ...(readingComplete ? [] : researchFallbackReasonCodes.filter((code) => code.startsWith("bibliography-"))),
+        ])];
+        const data = {
+          requestFingerprint,
+          ownerUid: account.uid,
+          actorHash: safetyIdentifier,
+          sourcePack: mergedSourcePack,
+          furtherReading: mergedReading,
+          responseId: selectedEvidence?.responseId ?? (researchArtifactReused ? undefined : researchResponseId),
+          policyVersion: SOURCE_RESEARCH_POLICY_VERSION,
+          bibliographicPolicyVersion: BIBLIOGRAPHIC_REFERENCE_POLICY_VERSION,
+          bibliographyResponseId: selectedBibliography?.responseId ?? (bibliographyArtifactReused ? undefined : bibliographyResponseId),
+          bibliographySearchCallIds: selectedBibliography?.searchCallIds ?? (bibliographyArtifactReused ? [] : bibliographySearchCallIds),
+          evidenceResearchComplete: evidenceComplete,
+          bibliographyComplete: readingComplete,
+          // Legacy readers may reuse only when both stages completed.
+          researchComplete: evidenceComplete && readingComplete,
+          researchOutcome: assessment.evidenceMode === "fully-grounded" ? "complete" : assessment.evidenceMode === "hybrid" ? "partial" : "unavailable",
+          coverageWarnings: assessment.coverageWarnings,
+          fallbackReasonCodes,
+          evidenceCreatedAt: selectedEvidence?.createdAt ?? restoredEvidence?.createdAt ?? createdAt,
+          evidenceExpiresAt: selectedEvidence?.expiresAt ?? restoredEvidence?.expiresAt ?? new Date(now + (stageContext.freshnessRequired ? FRESH_EVIDENCE_MAX_AGE_MS : RESEARCH_STAGE_MAX_AGE_MS)).toISOString(),
+          bibliographyCreatedAt: selectedBibliography?.createdAt ?? restoredBibliography?.createdAt ?? createdAt,
+          bibliographyExpiresAt: selectedBibliography?.expiresAt ?? restoredBibliography?.expiresAt ?? new Date(now + RESEARCH_STAGE_MAX_AGE_MS).toISOString(),
+          createdAt,
+          expiresAt: new Date(now + RESEARCH_STAGE_MAX_AGE_MS).toISOString(),
         };
+        return { writes: [{ path: researchArtifactPath, data }], result: { ...data, requiresStageRetry } };
       },
     );
+    const consumptionContext = { ...stageContext, now: Date.now() };
+    if (persistedResearch.requiresStageRetry
+      || (persistedResearch.evidenceResearchComplete && !restoreEvidenceResearchStage(persistedResearch, consumptionContext))
+      || (persistedResearch.bibliographyComplete && !restoreBibliographyStage(persistedResearch, consumptionContext))) {
+      // The valid opposite stage is already checkpointed. Recheck after storage
+      // latency too, before any source data is consumed by outline generation.
+      throw new Error("A cached source stage expired during generation; retry to refresh it.");
+    }
     sourcePack = persistedResearch.sourcePack;
     furtherReading = persistedResearch.furtherReading;
     researchResponseId = typeof persistedResearch.responseId === "string" ? persistedResearch.responseId : undefined;
@@ -656,9 +625,7 @@ export async function POST(request: Request) {
     researchCoverageWarnings = Array.isArray(persistedResearch.coverageWarnings)
       ? persistedResearch.coverageWarnings.filter((warning): warning is string => typeof warning === "string")
       : assessSourceResearchV5(sourcePack).coverageWarnings;
-    if (Array.isArray(persistedResearch.fallbackReasonCodes)) {
-      researchFallbackReasonCodes.push(...persistedResearch.fallbackReasonCodes.filter((code): code is string => typeof code === "string"));
-    }
+    researchFallbackReasonCodes.splice(0, researchFallbackReasonCodes.length, ...persistedResearch.fallbackReasonCodes);
     sourceAssessment = assessSourceResearchV5(sourcePack);
     const modelKnowledgeHighStakes = requiresModelKnowledgeHighStakesSafeguard(
       reviewPolicy.reasonCodes,

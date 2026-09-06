@@ -1,3 +1,4 @@
+import { activeLearnerUid, readLearnerStorage, writeLearnerStorage, removeLearnerStorage } from "@/lib/learner-storage";
 import type { Course, CourseModule } from "@/lib/course-types";
 import type { BaselineAssessment } from "@/lib/learning-types";
 import { normalizeObjectiveId } from "@/lib/learning-design";
@@ -67,8 +68,6 @@ export interface ObjectiveMastery {
   latestEvidenceAt?: string;
 }
 
-const MASTERY_STORAGE_VERSION = 1;
-const MASTERY_STORAGE_PREFIX = `filosage-mastery-v${MASTERY_STORAGE_VERSION}:`;
 
 export const BASELINE_LEVEL_LABELS: Record<BaselineLevel, string> = {
   new: "New to me",
@@ -236,16 +235,11 @@ interface LocalMasteryJourney {
   evidence: MasteryEvidence[];
 }
 
-function storageKey(courseId: string) {
-  return `${MASTERY_STORAGE_PREFIX}${courseId}`;
-}
-
-export function getLocalMasteryJourney(courseId: string): LocalMasteryJourney {
+export function getLocalMasteryJourney(courseId: string, uid = activeLearnerUid()): LocalMasteryJourney {
   if (typeof window === "undefined") return { plan: null, evidence: [] };
   try {
-    const saved = localStorage.getItem(storageKey(courseId));
-    if (!saved) return { plan: null, evidence: [] };
-    const parsed = JSON.parse(saved) as Partial<LocalMasteryJourney>;
+    const parsed = readLearnerStorage<Partial<LocalMasteryJourney>>(uid, "mastery", courseId);
+    if (!parsed) return { plan: null, evidence: [] };
     return {
       plan: parsed.plan?.courseId === courseId ? parsed.plan : null,
       evidence: Array.isArray(parsed.evidence)
@@ -262,20 +256,11 @@ export function getLocalMasteryJourney(courseId: string): LocalMasteryJourney {
 export function saveLocalMasteryJourney(
   courseId: string,
   journey: LocalMasteryJourney,
+  uid = activeLearnerUid(),
 ) {
-  if (typeof window === "undefined") return;
-  try {
-    localStorage.setItem(storageKey(courseId), JSON.stringify(journey));
-  } catch {
-    // Learning remains usable when browser storage is unavailable.
-  }
+  return writeLearnerStorage(uid, "mastery", courseId, journey);
 }
 
-export function removeLocalMasteryJourney(courseId: string) {
-  if (typeof window === "undefined") return;
-  try {
-    localStorage.removeItem(storageKey(courseId));
-  } catch {
-    // Cleanup can continue even when browser storage is unavailable.
-  }
+export function removeLocalMasteryJourney(courseId: string, uid = activeLearnerUid()) {
+  removeLearnerStorage(uid, "mastery", courseId);
 }

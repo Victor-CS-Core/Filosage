@@ -5,6 +5,7 @@ import type { AddressInfo } from "node:net";
 import { join, resolve } from "node:path";
 import { tmpdir } from "node:os";
 import { expect, test } from "@playwright/test";
+import { releaseEnvironment } from "../src/lib/release-capabilities";
 
 const root = process.cwd();
 const releaseScript = resolve(root, "scripts/check-release-env.mjs");
@@ -14,6 +15,15 @@ const featuredCourseScript = resolve(root, "scripts/check-featured-course.mjs");
 const providerStateScript = resolve(root, "scripts/check-auth-provider-state.mjs");
 const trackedSecretScript = resolve(root, "scripts/check-tracked-secrets.mjs");
 const healthVersion = "b".repeat(40);
+const approvedManifest = JSON.parse(readFileSync(resolve(root, "config/release-capabilities.json"), "utf8"));
+const healthDigest = `sha256:${"d".repeat(64)}`;
+function selectedManifest(decks = true, generation = true) {
+  return { ...approvedManifest, capabilities: { ...approvedManifest.capabilities, flashcardDecks: decks, flashcardGeneration: generation } };
+}
+function manifestEnvironment(decks = true, generation = true) {
+  return { RELEASE_CAPABILITIES_JSON: JSON.stringify(selectedManifest(decks, generation)) };
+}
+
 
 test("release safety locks new checkout without disabling Stripe account management", async () => {
   const { releaseSafetyBillingState } = await import("../scripts/release-safety-contract.mjs");
@@ -139,11 +149,13 @@ function runNode(args: string[], environment: NodeJS.ProcessEnv) {
   });
 }
 
-async function checkHealthResponse(checks: Record<string, boolean>) {
+async function checkHealthResponse(checks: Record<string, unknown>, expectedDecks = true, expectedGeneration = true) {
   const server = createServer((_request, response) => {
     response.writeHead(200, { "Content-Type": "application/json" });
     response.end(JSON.stringify({
       ok: true,
+      imageDigest: healthDigest,
+      capabilities: { ...approvedManifest.capabilities, ...checks },
       version: healthVersion,
       origin: "https://release.example",
       authenticationMode: "direct-google",
@@ -158,6 +170,9 @@ async function checkHealthResponse(checks: Record<string, boolean>) {
       {
         ...process.env,
         EXPECTED_AUTH_MODE: "direct-google",
+        EXPECTED_SITE_ORIGIN: "https://release.example",
+        ...manifestEnvironment(expectedDecks, expectedGeneration),
+        EXPECTED_IMAGE_DIGEST: healthDigest,
         FILOSAGE_HEALTH_CHECK_ATTEMPTS: "1",
         FILOSAGE_HEALTH_CHECK_DELAY_MS: "0",
       },
@@ -171,6 +186,11 @@ async function checkHealthResponse(checks: Record<string, boolean>) {
 
 const validReleaseEnvironment = {
   ...process.env,
+  ...manifestEnvironment(),
+  EXPECTED_AUTH_MODE: "direct-google",
+  EXPECTED_SITE_ORIGIN: "https://release.example",
+  // Every optional switch is explicit in a release environment.
+  ...releaseEnvironment(selectedManifest()),
   NEXT_PUBLIC_SITE_URL: "https://release.example",
   DATABASE_URL: "postgresql://release:placeholder@filosage-release.postgres.database.azure.com:5432/filosage?sslmode=verify-full",
   AZURE_EASY_AUTH_ENABLED: "true",
@@ -185,6 +205,7 @@ const validReleaseEnvironment = {
   OPERATIONS_ALERT_WEBHOOK_URL: "https://alerts.release.example/filosage",
   OPERATIONS_ALERT_WEBHOOK_SECRET: "y".repeat(32),
   SITE_VERSION: "a".repeat(40),
+  EXPECTED_SITE_VERSION: "a".repeat(40),
   BILLING_ENABLED: "false",
   BILLING_ROLLOUT_MODE: "closed",
   STRIPE_TAX_READY: "false",
@@ -254,7 +275,7 @@ test("release checks bind Azure and production health to one full Git SHA", () =
     encoding: "utf8",
   });
   expect(missingDecksFlag.status).toBe(1);
-  expect(missingDecksFlag.stderr).toContain("FLASHCARD_DECKS_ENABLED must be true for production releases");
+  expect(missingDecksFlag.stderr).toContain("release capabilities must match the approved manifest");
 
   const disabledGenerationFlag = spawnSync(process.execPath, [releaseScript], {
     cwd: root,
@@ -262,7 +283,7 @@ test("release checks bind Azure and production health to one full Git SHA", () =
     encoding: "utf8",
   });
   expect(disabledGenerationFlag.status).toBe(1);
-  expect(disabledGenerationFlag.stderr).toContain("FLASHCARD_AI_GENERATION_ENABLED must be true for production releases");
+  expect(disabledGenerationFlag.stderr).toContain("release capabilities must match the approved manifest");
 
   const missingRecovery = spawnSync(process.execPath, [releaseScript], {
     cwd: root,
@@ -349,14 +370,14 @@ test("production health rejects a revision with disabled flashcard decks", async
   const result = await checkHealthResponse({ flashcardDecks: false, flashcardGeneration: true });
 
   expect(result.status).toBe(1);
-  expect(result.stderr).toContain("flashcard decks are disabled at runtime");
+  expect(result.stderr).toContain("release capabilities mismatch");
 });
 
 test("production health rejects a revision with disabled flashcard AI generation", async () => {
   const result = await checkHealthResponse({ flashcardDecks: true, flashcardGeneration: false });
 
   expect(result.status).toBe(1);
-  expect(result.stderr).toContain("flashcard AI generation is disabled at runtime");
+  expect(result.stderr).toContain("release capabilities mismatch");
 });
 
 test("production health accepts a revision with both flashcard features enabled", async () => {
@@ -394,6 +415,7 @@ test("ordinary releases reject unsafe identity provider and billing combinations
     env: {
       ...validReleaseEnvironment,
       DIRECT_GOOGLE_AUTH_ENABLED: "false",
+      EXPECTED_AUTH_MODE: "external-id",
       EXTERNAL_ID_AUTH_ENABLED: "true",
       EXTERNAL_ID_NEW_ACCOUNTS_ENABLED: "true",
       EXTERNAL_ID_CLIENT_ID: "external-client-id",
@@ -459,6 +481,8 @@ test("production health verifies and reports only the bounded authentication mod
   const version = "b".repeat(40);
   await withHealthResponse({
     ok: true,
+    imageDigest: healthDigest,
+    capabilities: selectedManifest().capabilities,
     version,
     origin: "https://release.example",
     authenticationMode: "direct-google",
@@ -471,6 +495,9 @@ test("production health verifies and reports only the bounded authentication mod
   }, async (origin) => {
     const healthy = await runNodeScript(healthScript, [origin, version], {
       ...process.env,
+      ...manifestEnvironment(),
+      EXPECTED_SITE_ORIGIN: "https://release.example",
+      EXPECTED_IMAGE_DIGEST: healthDigest,
       EXPECTED_AUTH_MODE: "direct-google",
     });
     expect(healthy.timedOut).toBe(false);
@@ -479,6 +506,9 @@ test("production health verifies and reports only the bounded authentication mod
 
     const mismatch = await runNodeScript(healthScript, [origin, version], {
       ...process.env,
+      ...manifestEnvironment(),
+      EXPECTED_SITE_ORIGIN: "https://release.example",
+      EXPECTED_IMAGE_DIGEST: healthDigest,
       EXPECTED_AUTH_MODE: "external-id",
     });
     expect(mismatch.timedOut).toBe(false);
@@ -585,5 +615,86 @@ test("billing activation requires every Plus and Pro Stripe price", () => {
     });
     expect(result.status).toBe(1);
     expect(result.stderr).toContain(message);
+  }
+});
+
+for (const [decks, generation] of [[false, false], [true, false], [true, true]]) {
+  test(`production health accepts exact approved flashcards ${decks}/${generation}`, async () => {
+    const result = await checkHealthResponse({ flashcardDecks: decks, flashcardGeneration: generation }, decks, generation);
+    expect(result.status, result.stderr).toBe(0);
+  });
+  test(`production health rejects changed or malformed flashcards ${decks}/${generation}`, async () => {
+    for (const observed of [{}, { flashcardDecks: String(decks), flashcardGeneration: generation }, { flashcardDecks: decks, flashcardGeneration: !generation }, { flashcardDecks: !decks, flashcardGeneration: generation }]) {
+      const result = await checkHealthResponse(observed, decks, generation);
+      expect(result.status, JSON.stringify(observed)).toBe(1);
+    }
+  });
+  test(`release environment accepts approved flashcards ${decks}/${generation}`, () => {
+    const result = spawnSync(process.execPath, [releaseScript], {
+      cwd: root,
+      env: { ...validReleaseEnvironment, FLASHCARD_DECKS_ENABLED: String(decks), FLASHCARD_AI_GENERATION_ENABLED: String(generation), ...manifestEnvironment(decks, generation) },
+      encoding: "utf8",
+    });
+    expect(result.status, result.stderr).toBe(0);
+  });
+}
+
+test("release rejects generation without decks even when selected", async () => {
+  const result = await checkHealthResponse({ flashcardDecks: false, flashcardGeneration: true }, false, true);
+  expect(result.status).toBe(1);
+});
+
+test("release environment rejects a different full candidate SHA", () => {
+  const result = spawnSync(process.execPath, [releaseScript], {
+    cwd: root,
+    env: { ...validReleaseEnvironment, EXPECTED_SITE_VERSION: "c".repeat(40) },
+    encoding: "utf8",
+  });
+  expect(result.status).toBe(1);
+  expect(result.stderr).toContain("SITE_VERSION must match the approved EXPECTED_SITE_VERSION");
+});
+
+test("health binds the approved SHA, digest, origin, configuration, and every selected capability", async () => {
+  const base = {
+    ok: true,
+    version: healthVersion,
+    imageDigest: healthDigest,
+    origin: "https://release.example",
+    authenticationMode: "direct-google",
+    capabilities: selectedManifest().capabilities,
+    checks: { configuration: true, datastore: true, flashcardDecks: true, flashcardGeneration: true },
+  };
+  for (const changed of [
+    { version: "c".repeat(40) },
+    { imageDigest: `sha256:${"e".repeat(64)}` },
+    { imageDigest: null },
+    { origin: "https://wrong.example" },
+    { capabilities: { ...base.capabilities, commandCenter: true } },
+    { capabilities: { ...base.capabilities, pipelineV2: "false" } },
+    { capabilities: undefined },
+    { checks: { ...base.checks, configuration: false } },
+    { checks: { ...base.checks, datastore: "true" } },
+  ]) {
+    await withHealthResponse({ ...base, ...changed }, async (url) => {
+      const result = await runNodeScript(healthScript, [url, healthVersion, base.origin], {
+        ...process.env,
+        ...manifestEnvironment(),
+        EXPECTED_AUTH_MODE: "direct-google",
+        EXPECTED_IMAGE_DIGEST: healthDigest,
+        FILOSAGE_HEALTH_CHECK_ATTEMPTS: "1",
+        FILOSAGE_HEALTH_CHECK_DELAY_MS: "0",
+      });
+      expect(result.timedOut).toBe(false);
+      expect(result.status, JSON.stringify(changed)).toBe(1);
+    });
+  }
+});
+
+test("health requires explicit approved origin, authentication, and digest before fetching", () => {
+  const environment = { ...process.env, ...manifestEnvironment(), EXPECTED_AUTH_MODE: "direct-google", EXPECTED_IMAGE_DIGEST: healthDigest, EXPECTED_SITE_ORIGIN: "https://release.example" };
+  for (const changed of [{ EXPECTED_AUTH_MODE: "" }, { EXPECTED_IMAGE_DIGEST: "" }, { EXPECTED_SITE_ORIGIN: "" }]) {
+    const result = spawnSync(process.execPath, [healthScript, "https://release.example", healthVersion], { encoding: "utf8", timeout: 2_000, env: { ...environment, ...changed } });
+    expect(result.error).toBeUndefined();
+    expect(result.status).toBe(1);
   }
 });

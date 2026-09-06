@@ -145,7 +145,7 @@ export default function CourseMap() {
         });
         const data = await response.json();
         if (!isCurrentView()) return;
-        if (response.status === 404) clearLocalCourseData(requestedCourseId);
+        if (response.status === 404) clearLocalCourseData(requestedCourseId, user?.uid ?? null);
         if (!response.ok) throw new Error(data.error || "The course could not be opened.");
         setCourseRecord({ key: requestViewKey, value: { ...data, id: requestedCourseId, courseId: requestedCourseId } });
         return;
@@ -157,7 +157,7 @@ export default function CourseMap() {
     } finally {
       if (isCurrentView()) setLoading(false);
     }
-  }, [authLoading, courseViewKey, requestedCourseId, getToken]);
+  }, [authLoading, courseViewKey, requestedCourseId, getToken, user]);
 
   useEffect(() => {
     activeCourseViewRef.current = courseViewKey;
@@ -624,7 +624,7 @@ export default function CourseMap() {
       const data = await response.json();
       if (!isCurrentView()) return;
       if (!response.ok) throw new Error(data.error || "The course could not be deleted.");
-      clearLocalCourseData(operationCourseId);
+      clearLocalCourseData(operationCourseId, user?.uid ?? null);
       deleteDrawer.closeDrawer();
       router.push("/");
     } catch (deleteError) {

@@ -12,7 +12,7 @@ Owner access is resolved server-side from the verified Google account matching t
 - Filosage Pro: five monthly course credits with rollover up to sixty, advanced capstone analysis, portable evidence export and revocable sharing, publishing after completion and review, and one hundred monthly tutor questions
 - Owner: Pro capabilities plus protected operational authority
 
-Flashcard decks, AI flashcard generation, V2 labs and visuals, Command Center functions, course publication, and checkout each have separate feature, entitlement, review, or hosted-configuration gates. Public copy must not treat a disabled or unverified capability as currently available.
+Flashcard decks, AI flashcard generation, V2 labs and visuals, Command Center functions, course publication, and checkout each have separate feature, entitlement, review, or hosted-configuration gates. Public copy must not treat a disabled or unverified capability as currently available. The reviewed selection is in `config/release-capabilities.json`; see `docs/RELEASE_CAPABILITIES.md` for the exact-SHA/digest release contract and current evidence boundaries.
 
 ## Stack
 
@@ -27,7 +27,7 @@ Flashcard decks, AI flashcard generation, V2 labs and visuals, Command Center fu
 
 1. Copy `.env.example` to `.env.local`.
 2. For cloud-backed development, add the Azure PostgreSQL and Blob Storage values. Credential-free local mode needs none of them; deployed sign-in is supplied by Container Apps Easy Auth.
-3. Add `OPENAI_API_KEY`. Course outlines and lessons default to `gpt-5.6-terra`; the grounded tutor defaults to `gpt-5.6-luna`.
+3. Add `OPENAI_API_KEY`. Course outlines default to `gpt-5.6-terra`; lessons and the grounded tutor default to `gpt-5.6-luna`, with `gpt-5.6-terra` as the lesson fallback and `gpt-5.6-sol` reserved for recovery.
 4. Configure the separate Free, paid (Plus and Pro), and owner OpenAI budget pools plus the plan-specific per-account cost ceilings shown in `.env.example`. Course briefs are screened with the free `omni-moderation-latest` model before generation and generated outlines are screened again before storage.
 5. `PREMIUM_EMAILS` is a legacy Pro-access allowlist for controlled testing; prefer explicit owner grants for new test accounts.
 6. Run `npm install` and then `npm run dev`.

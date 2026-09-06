@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 1,
+  "capabilities": {
+    "flashcardDecks": false,
+    "flashcardGeneration": false,
+    "lessonVisuals": false,
+    "commandCenter": false,
+    "commandCenterDrafts": false,
+    "commandCenterV2": false,
+    "pipelineV2": true,
+    "validationV2": true,
+    "repairV2": true,
+    "labsV2": false,
+    "visualsV2": false,
+    "publicationV2": true,
+    "pipelineShadowMode": false,
+    "pipelineOwnerOnly": true,
+    "pipelineCohortPercent": 0
+  }
+}

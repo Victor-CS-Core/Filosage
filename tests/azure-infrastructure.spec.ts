@@ -1,10 +1,10 @@
 import { expect, test } from "@playwright/test";
 import { spawnSync } from "node:child_process";
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
-import { createRequire } from "node:module";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { courseAuthorIdsForAccount } from "../src/lib/course-owner-identity";
+import { releaseEnvironment } from "../src/lib/release-capabilities";
 import { RETIRED_SYSTEM_NAMES } from "./fixtures/retired-system-names";
 
 type ArmTemplate = {
@@ -14,8 +14,6 @@ type ArmTemplate = {
 };
 
 const root = process.cwd();
-const require = createRequire(import.meta.url);
-const tsxCli = require.resolve("tsx/cli");
 const azureCli = process.platform === "win32"
   ? "C:\\Program Files\\Microsoft SDKs\\Azure\\CLI2\\wbin\\az.cmd"
   : "az";
@@ -46,7 +44,7 @@ function runTypeScript(
   reactServer = true,
   environment: Record<string, string> = {},
 ) {
-  return spawnSync(process.execPath, [tsxCli, ...(reactServer ? ["--conditions=react-server"] : []), "-e", source], {
+  return spawnSync(process.execPath, ["--import", "tsx", "--input-type=module", ...(reactServer ? ["--conditions=react-server"] : []), "-e", source], {
     cwd: root,
     env: {
       ...process.env,
@@ -583,7 +581,7 @@ test("release workflows preserve an explicitly reviewed authentication mode", ()
   const labeledCandidateVerification = stagingWorkflowSource
     .split("- name: Verify the labeled QA candidate")[1] || "";
   expect(stagingJobEnvironment).toContain("EXPECTED_AUTH_MODE");
-  expect(isolatedQaVerification).toContain("EXPECTED_AUTH_MODE: migration-dual");
+  expect(isolatedQaVerification).toContain("EXPECTED_AUTH_MODE: ${{ env.QA_AUTH_MODE }}");
   expect(zeroTrafficVerification).not.toContain("EXPECTED_AUTH_MODE: direct-google");
   expect(labeledCandidateVerification).not.toContain("EXPECTED_AUTH_MODE: direct-google");
   expect(stagingWorkflowSource).not.toMatch(/az containerapp auth (?:openid-connect )?(?:update|set|delete)/);
@@ -660,9 +658,9 @@ test("isolated QA scales to zero and keeps its data stores separate", () => {
   expect(qaBicepSource).toContain("resource qaDeploymentContributor");
   expect(qaBicepSource).toContain("scope: app");
   expect(qaWorkflowSource).toContain("AZURE_QA_CONTAINER_APP_NAME");
-  expect(qaWorkflowSource).toContain('--build-arg "NEXT_PUBLIC_COMMAND_CENTER_V2=true"');
-  expect(qaWorkflowSource).toContain('"NEXT_PUBLIC_COMMAND_CENTER_V2=true"');
-  expect(qaBicepSource).toContain("NEXT_PUBLIC_COMMAND_CENTER_V2', value: 'true'");
+  expect(qaWorkflowSource).toContain('node scripts/release-capabilities.mjs environment');
+  expect(qaWorkflowSource).not.toContain('"NEXT_PUBLIC_COMMAND_CENTER_V2=true"');
+  expect(qaBicepSource).toContain("NEXT_PUBLIC_COMMAND_CENTER_V2', value: string(releaseCapabilities.commandCenterV2)");
   expect(dockerfileSource).toContain("ARG NEXT_PUBLIC_COMMAND_CENTER_V2=false");
   expect(qaWorkflowSource).toContain('npm run check:production -- "$QA_URL" "$GITHUB_SHA" "$QA_URL"');
   expect(robotsSource).toContain('disallow: "/"');
@@ -680,17 +678,15 @@ test("the immutable Azure image owns the approved flashcard release and runtime 
     expect(stage).toContain("ENV FLASHCARD_DECKS_ENABLED=$FLASHCARD_DECKS_ENABLED");
     expect(stage).toContain("ENV FLASHCARD_AI_GENERATION_ENABLED=$FLASHCARD_AI_GENERATION_ENABLED");
   }
-  expect(qaWorkflowSource).toContain('--build-arg "FLASHCARD_DECKS_ENABLED=true"');
-  expect(qaWorkflowSource).toContain('--build-arg "FLASHCARD_AI_GENERATION_ENABLED=true"');
-  expect(qaWorkflowSource).toContain('"FLASHCARD_DECKS_ENABLED"');
-  expect(qaWorkflowSource).toContain('"FLASHCARD_AI_GENERATION_ENABLED"');
+  expect(qaWorkflowSource).toContain('"${BUILD_ARGS[@]}"');
+  expect(qaWorkflowSource).toContain('--set-env-vars "${CAPABILITY_ENV[@]}"');
+  expect(dockerfileSource).toContain("node scripts/release-capabilities.mjs check-environment");
   const qaRuntimeOverrides = qaWorkflowSource.split("--set-env-vars")[1]?.split("- name: Verify isolated QA candidate")[0] || "";
   expect(qaRuntimeOverrides).not.toContain('"FLASHCARD_DECKS_ENABLED=true"');
   expect(qaRuntimeOverrides).not.toContain('"FLASHCARD_AI_GENERATION_ENABLED=true"');
-  expect(qaBicepSource).not.toContain("FLASHCARD_DECKS_ENABLED");
-  expect(qaBicepSource).not.toContain("FLASHCARD_AI_GENERATION_ENABLED");
-  expect(stagingWorkflowSource).toContain('"FLASHCARD_DECKS_ENABLED"');
-  expect(stagingWorkflowSource).toContain('"FLASHCARD_AI_GENERATION_ENABLED"');
+  expect(qaBicepSource).toContain("value: string(releaseCapabilities.flashcardDecks)");
+  expect(qaBicepSource).toContain("value: string(releaseCapabilities.flashcardGeneration)");
+  expect(stagingWorkflowSource).toContain('"${CAPABILITY_ENV[@]}"');
   expect(stagingWorkflowSource).not.toContain('"FLASHCARD_DECKS_ENABLED=true"');
   expect(stagingWorkflowSource).not.toContain('"FLASHCARD_AI_GENERATION_ENABLED=true"');
   expect(azureBicepSource).not.toContain("FLASHCARD_DECKS_ENABLED");
@@ -698,8 +694,9 @@ test("the immutable Azure image owns the approved flashcard release and runtime 
   expect(healthRouteSource).toContain("flashcardFeatureConfiguration");
   expect(healthRouteSource).toContain("flashcardDecks: flashcards.decksEnabled");
   expect(healthRouteSource).toContain("flashcardGeneration: flashcards.generationEnabled");
-  expect(healthVerifierSource).toContain("body?.checks?.flashcardDecks === true");
-  expect(healthVerifierSource).toContain("body?.checks?.flashcardGeneration === true");
+  expect(healthVerifierSource).toContain("releaseCapabilitiesMatch(expectedCapabilities, body?.checks)");
+  expect(healthVerifierSource).toContain("releaseSelectionMatches(expectedCapabilities, body?.capabilities)");
+  expect(healthVerifierSource).toContain("body?.imageDigest === expectedDigest");
 });
 
 test("production staging accepts only the exact image already approved in QA", () => {
@@ -712,8 +709,10 @@ test("production staging accepts only the exact image already approved in QA", (
   expect(stagingWorkflowSource).toContain('"LANDING_FEATURED_COURSE_ID=${FEATURED_COURSE_ID}"');
   expect(stagingWorkflowSource).toContain('npm run check:featured-course -- "${{ steps.deploy_revision.outputs.revision_url }}" "$FEATURED_COURSE_ID"');
   expect(stagingWorkflowSource).toContain('npm run check:production -- "$QA_URL" "$EXPECTED_SHA" "$QA_URL"');
-  expect(stagingWorkflowSource).toContain('az acr repository show');
-  expect(stagingWorkflowSource).toContain('filosage@${DIGEST}');
+  expect(stagingWorkflowSource).toContain('verify-evidence');
+  expect(stagingWorkflowSource).toContain('check-image');
+  expect(stagingWorkflowSource).toContain('filosage@${EXPECTED_IMAGE_DIGEST}');
+  expect(stagingWorkflowSource).not.toContain('az acr repository show');
   expect(stagingWorkflowSource).toContain('if [[ "${ACTIVE_WEIGHT:-0}" != "0" ]]');
   expect(stagingWorkflowSource).toContain("az containerapp revision label add");
   expect(stagingWorkflowSource).toContain('"AZURE_EASY_AUTH_ENABLED=true"');
@@ -808,4 +807,30 @@ test("authored-course import preflight reports bounded counts without the owner 
   } finally {
     rmSync(directory, { recursive: true, force: true });
   }
+});
+
+test("compiled standalone QA optional environment exactly equals the reviewed manifest", () => {
+  const manifest = JSON.parse(readFileSync("config/release-capabilities.json", "utf8"));
+  const expected = releaseEnvironment(manifest);
+  const variables = compiledQaTemplate.variables ?? {};
+  const app = compiledQaTemplate.resources.find((resource) => resource.type === "Microsoft.App/containerApps");
+  const template = app?.properties?.template as { containers?: Array<{ env?: Array<{ name: string; value: unknown }> }> } | undefined;
+  const environment = template?.containers?.[0]?.env ?? [];
+  const optional = environment.filter((entry) => entry.name in expected);
+  const resolveCompiled = (value: unknown): unknown => {
+    if (typeof value !== "string") return value;
+    const stringExpression = value.match(/^\[string\((.+)\)\]$/);
+    if (stringExpression) return String(resolveCompiled(`[${stringExpression[1]}]`));
+    const variableExpression = value.match(/^\[variables\('([^']+)'\)((?:\.\w+)*)\]$/);
+    if (!variableExpression) return value;
+    let resolved = resolveCompiled(variables[variableExpression[1]]);
+    for (const key of variableExpression[2].split(".").filter(Boolean)) {
+      if (!resolved || typeof resolved !== "object") throw new Error("Compiled capability property is missing.");
+      resolved = (resolved as Record<string, unknown>)[key];
+    }
+    return resolved;
+  };
+  const observed = Object.fromEntries(optional.map((entry) => [entry.name, resolveCompiled(entry.value)]));
+  expect(optional).toHaveLength(Object.keys(expected).length);
+  expect(observed).toEqual(expected);
 });

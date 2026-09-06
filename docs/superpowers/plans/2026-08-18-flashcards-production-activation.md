@@ -1,5 +1,8 @@
 # Flashcards Production Activation Plan
 
+> Historical record retained with its original date. Reconciliation on 2026-09-06: new candidates use `config/release-capabilities.json` and `docs/RELEASE_CAPABILITIES.md`. Earlier all-on activation or publication-review statements do not establish current hosted availability or completion of the unified publication-proof gate. No historical run is reclassified as a current pass.
+
+
 **Goal:** Make the already-deployed flashcard deck and AI-generation system available in isolated Azure QA and the guarded blue/green production release path while keeping billing closed.
 
 **Root cause:** Production code contains the flashcard UI and APIs, but `FLASHCARD_DECKS_ENABLED` resolves false because the Azure deployment paths do not set either flashcard flag.

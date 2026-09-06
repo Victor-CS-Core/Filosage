@@ -2,6 +2,7 @@
 
 import {
   createContext,
+  Fragment,
   useCallback,
   useContext,
   useEffect,
@@ -31,6 +32,12 @@ import {
   PENDING_IDENTITY_RECOVERY_KEY,
   PENDING_MANAGED_REDIRECT_ACCEPTANCE_KEY,
 } from "@/lib/auth-redirect";
+
+import {
+  announceLearnerSessionChange, invalidateLearnerSession, isCurrentLearnerSession,
+  learnerSessionSnapshot, setLearnerStorageIdentity,
+  LEARNER_SESSION_CHANGE_KEY, LEARNER_SESSION_INVALIDATED_EVENT,
+} from "@/lib/learner-storage";
 
 interface AuthContextValue {
   user: FilosageUser | null;
@@ -256,8 +263,34 @@ function boundedAccountError(error: unknown) {
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<FilosageUser | null>(null);
-  const [authentication, setAuthentication] = useState(DEFAULT_AUTHENTICATION);
   const [account, setAccount] = useState<LearnerAccount | null>(null);
+  const [sessionRevision, setSessionRevision] = useState(0);
+  const userRef = useRef<FilosageUser | null>(null);
+  const authOperationRef = useRef(0);
+  const initialSessionLoadedRef = useRef(false);
+
+  const commitUser = useCallback((nextUser: FilosageUser | null, broadcast = true) => {
+    const changed = userRef.current?.uid !== nextUser?.uid;
+    setSessionRevision(setLearnerStorageIdentity(nextUser?.uid ?? null));
+    const session = learnerSessionSnapshot();
+    const guardedUser = nextUser ? {
+      ...nextUser,
+      getIdToken: async (forceRefresh?: boolean) => {
+        if (!isCurrentLearnerSession(session)) throw new Error("Your learning session changed. Sign in again to continue.");
+        const token = await nextUser.getIdToken(forceRefresh);
+        // Managed tokens carry an expected canonical UID. The server compares
+        // it with the verified cookie identity at dispatch, closing the race.
+        if (!isCurrentLearnerSession(session)) throw new Error("Your learning session changed. Sign in again to continue.");
+        return token;
+      },
+    } : null;
+    userRef.current = guardedUser;
+    setUser(guardedUser);
+    if (changed) setAccount(null);
+    if (changed && broadcast) announceLearnerSessionChange(nextUser ? "refresh" : "signed-out");
+    return guardedUser;
+  }, []);
+  const [authentication, setAuthentication] = useState(DEFAULT_AUTHENTICATION);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const pendingHintsRef = useRef<{
@@ -266,6 +299,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   } | null>(null);
 
   const loadAccount = useCallback(async (nextUser: FilosageUser | null) => {
+    const session = learnerSessionSnapshot();
+    const isCurrent = () => session.uid === nextUser?.uid && isCurrentLearnerSession(session);
     if (!nextUser) {
       setAccount(null);
       return null;
@@ -275,6 +310,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       6_000,
       "Your session is taking longer than expected. You can keep learning while it reconnects.",
     );
+    if (!isCurrent()) return null;
     const controller = new AbortController();
     const requestTimeout = window.setTimeout(() => controller.abort(), 8_000);
     let response: Response;
@@ -282,7 +318,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       response = await fetch("/api/account", {
         headers: { Authorization: `Bearer ${token}`, Accept: "application/json" },
         cache: "no-store",
-        signal: controller.signal,
+        signal: AbortSignal.any([controller.signal, session.signal]),
       });
     } catch (requestError) {
       if (controller.signal.aborted) {
@@ -300,6 +336,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       MAX_ACCOUNT_RESPONSE_BYTES,
       "Your learning account could not be loaded.",
     );
+    if (!isCurrent()) return null;
+    if (response.status === 401) { invalidateLearnerSession(); return null; }
     const parsedAccount = parseLearnerAccount(body);
     if ((response.ok || response.status === 409) && parsedAccount && isZeroCapabilityLinkRequiredAccount(parsedAccount)) {
       const linked = identityLinkRequiredAccount();
@@ -318,6 +356,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   useEffect(() => {
+    const operation = ++authOperationRef.current;
     if (pendingHintsRef.current === null) {
       const storedAcceptance = sessionStorage.getItem(PENDING_MANAGED_REDIRECT_ACCEPTANCE_KEY);
       const storedRecovery = sessionStorage.getItem(PENDING_IDENTITY_RECOVERY_KEY);
@@ -332,13 +371,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (localAuthAvailable && localStorage.getItem(LOCAL_SESSION_KEY)) {
       const restored = localOwnerUser();
       void Promise.resolve().then(async () => {
-        setUser(restored);
+        if (operation !== authOperationRef.current) return;
+        const active = commitUser(restored);
         try {
-          await loadAccount(restored);
+          await loadAccount(active);
         } catch (accountError) {
           setError(boundedAccountError(accountError));
         } finally {
-          setLoading(false);
+          if (operation === authOperationRef.current) { initialSessionLoadedRef.current = true; setLoading(false); }
         }
       });
       return;
@@ -346,20 +386,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     let cancelled = false;
     const bootTimeout = window.setTimeout(() => {
-      if (!cancelled) {
+      if (!cancelled && operation === authOperationRef.current) {
+        initialSessionLoadedRef.current = true;
         setError("Your session is taking longer than expected. Refresh to try again.");
         setLoading(false);
       }
     }, 10_000);
     void currentEasyAuthState().then(async (state) => {
-      if (cancelled) return;
+      if (cancelled || operation !== authOperationRef.current) return;
       setAuthentication(state.authentication);
-      setUser(state.user);
+      const active = commitUser(state.user);
       if (!state.user) {
         setAccount(null);
         return;
       }
-      const restoredAccount = await loadAccount(state.user);
+      const restoredAccount = await loadAccount(active);
+      if (cancelled || operation !== authOperationRef.current) return;
       const pendingRecovery = pendingHintsRef.current?.recovery ?? null;
       const pendingAcceptance = pendingHintsRef.current?.acceptance ?? null;
       const willRecoverIdentity = state.user.provider === "google" && pendingRecovery !== null;
@@ -391,14 +433,69 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
     }).finally(() => {
       window.clearTimeout(bootTimeout);
-      if (!cancelled) setLoading(false);
+      if (!cancelled && operation === authOperationRef.current) { initialSessionLoadedRef.current = true; setLoading(false); }
     });
 
     return () => {
       cancelled = true;
       window.clearTimeout(bootTimeout);
     };
-  }, [loadAccount]);
+  }, [commitUser, loadAccount]);
+
+  useEffect(() => {
+    let disposed = false;
+    const refreshSession = async (clearFirst: boolean) => {
+      const operation = ++authOperationRef.current;
+      if (clearFirst) commitUser(null, false);
+      try {
+        const state = localAuthAvailable && localStorage.getItem(LOCAL_SESSION_KEY)
+          ? { user: localOwnerUser(), authentication: DEFAULT_AUTHENTICATION }
+          : await currentEasyAuthState();
+        if (disposed || operation !== authOperationRef.current) return;
+        setAuthentication(state.authentication);
+        if (state.user?.uid !== userRef.current?.uid) {
+          const active = commitUser(state.user, false);
+          await loadAccount(active);
+        }
+      } catch {
+        // A failed check cannot authorize another account. Explicitly owned
+        // offline drafts remain on disk and can be resumed after sign-in.
+        if (clearFirst && !disposed) setError("Your session could not be confirmed. Sign in again to continue.");
+      } finally {
+        if (!disposed && operation === authOperationRef.current) { initialSessionLoadedRef.current = true; setLoading(false); }
+      }
+    };
+    const onStorage = (event: StorageEvent) => {
+      if (event.key !== LEARNER_SESSION_CHANGE_KEY && event.key !== LOCAL_SESSION_KEY && event.key !== null) return;
+      authOperationRef.current += 1;
+      if (event.newValue?.startsWith("signed-out:") || (event.key === LOCAL_SESSION_KEY && !event.newValue) || event.key === null) {
+        commitUser(null, false);
+        setLoading(false);
+      } else {
+        void refreshSession(true);
+      }
+    };
+    const onInvalidated = () => {
+      authOperationRef.current += 1;
+      commitUser(null, false);
+      setLoading(false);
+    };
+    const onFocus = () => { if (initialSessionLoadedRef.current) void refreshSession(false); };
+    const onVisibility = () => { if (document.visibilityState === "visible") onFocus(); };
+    window.addEventListener("storage", onStorage);
+    window.addEventListener(LEARNER_SESSION_INVALIDATED_EVENT, onInvalidated);
+    window.addEventListener("focus", onFocus);
+    window.addEventListener("pageshow", onFocus);
+    document.addEventListener("visibilitychange", onVisibility);
+    return () => {
+      disposed = true;
+      window.removeEventListener("storage", onStorage);
+      window.removeEventListener(LEARNER_SESSION_INVALIDATED_EVENT, onInvalidated);
+      window.removeEventListener("focus", onFocus);
+      window.removeEventListener("pageshow", onFocus);
+      document.removeEventListener("visibilitychange", onVisibility);
+    };
+  }, [commitUser, loadAccount]);
 
   const signIn = useCallback(async () => {
     setError(null);
@@ -406,8 +503,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (localAuthAvailable) {
         const localUser = localOwnerUser();
         localStorage.setItem(LOCAL_SESSION_KEY, "1");
-        setUser(localUser);
-        await loadAccount(localUser).catch(() => undefined);
+        const active = commitUser(localUser);
+        await loadAccount(active).catch(() => undefined);
         return localUser;
       }
       const unavailable = new Error("Managed authentication is not configured.");
@@ -429,7 +526,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setError(authErrorMessage(signInError));
       throw signInError;
     }
-  }, [authentication, loadAccount]);
+  }, [authentication, commitUser, loadAccount]);
 
   const signInWithRedirect = useCallback(async (postLoginPath?: string) => {
     setError(null);
@@ -437,9 +534,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (localAuthAvailable) {
         const localUser = localOwnerUser();
         localStorage.setItem(LOCAL_SESSION_KEY, "1");
-        setUser(localUser);
+        const active = commitUser(localUser);
         await persistLegalAcceptance(localUser, "signup");
-        await loadAccount(localUser).catch(() => undefined);
+        await loadAccount(active).catch(() => undefined);
         if (postLoginPath) window.location.assign(safeAuthenticationReturnPath(postLoginPath));
         return;
       }
@@ -465,7 +562,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setError(authErrorMessage(redirectError));
       throw redirectError;
     }
-  }, [authentication, loadAccount]);
+  }, [authentication, commitUser, loadAccount]);
 
   const signInWithProvider = useCallback(async (provider: "google" | "filosage", postLoginPath?: string) => {
     setError(null);
@@ -540,26 +637,28 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [account?.identityLinkRequired, loadAccount, user]);
 
   const signOut = useCallback(async () => {
+    initialSessionLoadedRef.current = true;
+    authOperationRef.current += 1;
+    commitUser(null);
+    setAccount(null);
+    setLoading(false);
     setError(null);
     sessionStorage.removeItem(PENDING_MANAGED_REDIRECT_ACCEPTANCE_KEY);
     sessionStorage.removeItem(PENDING_IDENTITY_RECOVERY_KEY);
     if (localAuthAvailable && localStorage.getItem(LOCAL_SESSION_KEY)) {
       localStorage.removeItem(LOCAL_SESSION_KEY);
-      setUser(null);
-      setAccount(null);
       return;
     }
     if (!isManagedAuthConfigured && !user) return;
     await signOutFromEasyAuth("/");
-  }, [user]);
+  }, [commitUser, user]);
 
   const reauthenticate = useCallback(async (postLoginPath = "/privacy-center") => {
     if (localAuthAvailable && localStorage.getItem(LOCAL_SESSION_KEY)) return localOwnerUser();
     if (!user || user.provider === "local") throw new Error("Sign in before confirming this action.");
     const nextUser = await beginManagedReauthentication(user.provider, user.uid, postLoginPath);
-    setUser(nextUser);
-    return nextUser;
-  }, [user]);
+    return commitUser(nextUser)!;
+  }, [commitUser, user]);
 
   const refreshAccount = useCallback(async () => {
     await loadAccount(user);
@@ -608,5 +707,5 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     ],
   );
 
-  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+  return <AuthContext.Provider value={value}><Fragment key={sessionRevision}>{children}</Fragment></AuthContext.Provider>;
 }

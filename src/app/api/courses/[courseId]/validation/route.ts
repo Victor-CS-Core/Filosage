@@ -1,9 +1,12 @@
+import { publicationProofToken } from "@/lib/publication-proofs";
+import { buildPublicationValidationProof } from "@/lib/publication-review";
+import { ContentSafetyError } from "@/lib/content-safety";
 import { authorizationResponse, requireAcceptedAccount } from "@/lib/auth-server";
 import type { Course } from "@/lib/course-types";
-import { expectedLessonIds, expectedLessonModes } from "@/lib/course-progress";
+import { expectedLessonIds } from "@/lib/course-progress";
 import { commitCourseValidationStage, getCourse, listLessons } from "@/lib/document-store";
 import { coursePipelineFeatureFlags } from "@/lib/feature-flags";
-import { publicationDecisionFromReport, validateCourseCandidateV2 } from "@/lib/course-pipeline/validation";
+import { publicationDecisionFromReport } from "@/lib/course-pipeline/validation";
 import { recordCoursePipelineEvent } from "@/lib/course-pipeline/observability";
 import { openAiSafetyIdentifier } from "@/lib/ai-usage";
 import { publicationContentFingerprint } from "@/lib/publication-content";
@@ -17,19 +20,14 @@ export async function GET(
   try {
     const account = await requireAcceptedAccount(request);
     const flags = coursePipelineFeatureFlags(account);
-    if (!flags.validationV2 && !flags.shadowMode) {
-      return Response.json(
-        { error: "V2 validation is disabled." },
-        { status: 404, headers: { "Cache-Control": "private, no-store" } },
-      );
-    }
     const course = await getCourse(courseId) as (Course & Record<string, unknown>) | null;
     if (!course) return Response.json({ error: "Course not found." }, { status: 404 });
     if (course.authorId !== account.uid && !account.isOwner) {
       return Response.json({ error: "You do not own this course." }, { status: 403 });
     }
-    const validationV2Active = flags.validationV2 && courseUsesPipelineV2(course);
-    if (!validationV2Active && !flags.shadowMode) {
+    const pipelineV2Artifact = courseUsesPipelineV2(course);
+    const validationActive = !pipelineV2Artifact || flags.validationV2;
+    if (!validationActive && !flags.shadowMode) {
       return Response.json(
         { error: "V2 validation is not active for this course artifact." },
         { status: 404, headers: { "Cache-Control": "private, no-store" } },
@@ -37,9 +35,10 @@ export async function GET(
     }
     const lessonIds = expectedLessonIds(course);
     const lessons = await listLessons(courseId);
-    const report = await validateCourseCandidateV2(course, lessons, lessonIds, expectedLessonModes(course));
+    const publicationProof = await buildPublicationValidationProof(course, lessons, lessonIds, account);
+    const report = publicationProof.validationReport;
     const decision = publicationDecisionFromReport(report);
-    if (!course.isPublic && validationV2Active) {
+    if (!course.isPublic && validationActive) {
       const nextStage = decision.decision === "publishable"
         ? "ready_to_publish"
         : decision.decision === "manual_review"
@@ -57,7 +56,7 @@ export async function GET(
           ])),
         },
         nextStage,
-        { decision: decision.decision, snapshotHash: report.snapshotHash },
+        { decision: decision.decision, snapshotHash: report.snapshotHash, publicationProof },
       );
     }
     await recordCoursePipelineEvent({
@@ -73,10 +72,14 @@ export async function GET(
       featureFlags: flags,
     });
     return Response.json(
-      { validationReport: report, decision },
+      { validationReport: report, decision, proofToken: publicationProofToken(publicationProof) },
       { headers: { "Cache-Control": "private, no-store" } },
     );
   } catch (error) {
+    if (error instanceof ContentSafetyError) return Response.json(
+      { error: "The current draft failed the safety scan.", code: "PUBLICATION_SAFETY_BLOCK" },
+      { status: 409, headers: { "Cache-Control": "private, no-store" } },
+    );
     const authResponse = authorizationResponse(error);
     if (authResponse) return authResponse;
     if (error instanceof Error && error.message.startsWith("STALE_VALIDATION_SNAPSHOT:")) {

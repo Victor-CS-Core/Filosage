@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { assertPublicationProofToken, publicationProofIsCurrent, StalePublicationProofError, validationEvidenceFingerprint, type PublicationProof } from "@/lib/publication-proofs";
 import { authorizationResponse, requireRecentlyAuthenticatedOwner } from "@/lib/auth-server";
 import { apiRequestErrorResponse, readJsonBody } from "@/lib/api-security";
 import type { Course } from "@/lib/course-types";
@@ -21,6 +22,7 @@ const manualReviewSchema = z.object({
   decision: z.enum(["approved", "rejected"]),
   reason: z.string().trim().min(20).max(1_000),
   snapshotHash: z.string().regex(/^[a-f0-9]{64}$/),
+  proofToken: z.string().regex(/^[a-f0-9]{64}$/),
   contractVersion: z.literal(COURSE_PIPELINE_VERSIONS.qualityContract),
   verifiedSourceIds: z.array(z.string().trim().regex(/^source-[a-z0-9-]{1,40}$/)).max(5).default([]),
   confirmation: z.enum(["APPROVE MANUAL REVIEW", "REJECT MANUAL REVIEW"]),
@@ -39,12 +41,6 @@ export async function POST(
   try {
     const owner = await requireRecentlyAuthenticatedOwner(request);
     const flags = coursePipelineFeatureFlags(owner);
-    if (!flags.publicationV2) {
-      return Response.json(
-        { error: "Manual-review resolution is available only in the disabled V2 publication path." },
-        { status: 404, headers: { "Cache-Control": "private, no-store" } },
-      );
-    }
     const idempotencyKey = request.headers.get("idempotency-key")?.trim();
     if (!idempotencyKey || idempotencyKey.length < 12 || idempotencyKey.length > 200) {
       return Response.json(
@@ -55,15 +51,15 @@ export async function POST(
     const parsed = manualReviewSchema.safeParse(await readJsonBody(request, 4_096));
     if (!parsed.success) {
       return Response.json(
-        { error: "Provide a reason, the exact validation snapshot, and the matching decision confirmation." },
+        { error: "Provide a reason, the exact validation snapshot and proof token, and the matching decision confirmation." },
         { status: 400, headers: { "Cache-Control": "private, no-store" } },
       );
     }
     const course = await getCourse(courseId) as (Course & Record<string, unknown>) | null;
     if (!course) return Response.json({ error: "Course not found." }, { status: 404 });
-    if (!courseUsesPipelineV2(course)) {
+    if (courseUsesPipelineV2(course) && !flags.publicationV2) {
       return Response.json(
-        { error: "Manual-review resolution is available only for a V2 course artifact." },
+        { error: "V2 manual-review resolution is paused." },
         { status: 404, headers: { "Cache-Control": "private, no-store" } },
       );
     }
@@ -83,6 +79,13 @@ export async function POST(
         { status: 409, headers: { "Cache-Control": "private, no-store" } },
       );
     }
+    const proof = course.publicationProof as PublicationProof | undefined;
+    const proofLessons = new Map(lessons.map((lesson) => [String(lesson.id ?? ""), lesson]));
+    if (!publicationProofIsCurrent(course, lessonIds.map((id) => proofLessons.get(id) ?? {}), lessonIds, report.snapshotHash, proof)
+      || validationEvidenceFingerprint(proof.validationReport) !== validationEvidenceFingerprint(report)) {
+      throw new StalePublicationProofError();
+    }
+    assertPublicationProofToken(proof, parsed.data.proofToken);
     if (publicationDecision.decision !== "manual_review") {
       return Response.json(
         { error: "This snapshot is not eligible for a manual-review decision.", code: "MANUAL_REVIEW_NOT_APPLICABLE", publicationDecision },
@@ -151,6 +154,7 @@ export async function POST(
       lessonIds,
       {
         courseFingerprint: publicationContentFingerprint(course),
+        proofToken: parsed.data.proofToken,
         lessonFingerprints: Object.fromEntries(lessonIds.map((lessonId) => [
           lessonId,
           publicationContentFingerprint(lessonsById.get(lessonId)),
@@ -184,6 +188,7 @@ export async function POST(
         recovered: savedResolution.recovered,
         manualReviewResolution: {
           status: savedResolution.resolution.status,
+          proofToken: savedResolution.resolution.proofToken,
           snapshotHash: savedResolution.resolution.snapshotHash,
           contractVersion: savedResolution.resolution.contractVersion,
           reason: savedResolution.resolution.reason,
@@ -195,6 +200,10 @@ export async function POST(
       { headers: { "Cache-Control": "private, no-store" } },
     );
   } catch (error) {
+    if (error instanceof StalePublicationProofError) return Response.json(
+      { error: error.message, code: "STALE_PUBLICATION_PROOF" },
+      { status: 409, headers: { "Cache-Control": "private, no-store" } },
+    );
     const authResponse = authorizationResponse(error);
     if (authResponse) return authResponse;
     const requestResponse = apiRequestErrorResponse(error);

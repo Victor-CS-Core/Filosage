@@ -120,14 +120,16 @@ Trust:
 
 ## Business model
 
+Reconciled with the source contract on 2026-09-06. The original July 28 proposal used anonymous local progress and one monthly Plus outline/ten lessons; those assumptions are superseded below. This is source documentation, not hosted acceptance. `config/release-capabilities.json` records the optional release selection; paid availability still requires the separate commercial gates.
+
+
 ### Free
 
 Free exists to deliver genuine learning value and create qualified demand:
 
-- Read all curated public courses.
-- Complete public lessons, quizzes, retrieval, and scheduled reviews.
-- Save progress locally without an account.
-- Sync progress with a free account.
+- Discover published course outcomes and structure without an account.
+- Open published lesson bodies, quizzes, retrieval, and scheduled reviews with a verified Free account.
+- Save and sync learner work under that verified account.
 - Complete one guided outcome plan from the public catalog.
 - Receive a small grounded-tutor allowance.
 - View a basic evidence-of-learning summary.
@@ -136,14 +138,16 @@ Free exists to deliver genuine learning value and create qualified demand:
 
 Plus is the focused private-authoring step for one current outcome:
 
-- Build one active private course.
-- Generate one course outline, ten lessons, ten course banners, and forty tutor answers each month.
+- Receive two monthly course credits, with unused credits rolling over up to 24.
+- Redeem a credit for a private outline and its planned lessons, plus forty monthly tutor questions.
 - Complete lesson activities sequentially before generating the next lesson.
 - Keep the course private; public publishing remains a Pro capability.
 
 The current $9.99 monthly and $79.92 annual prices remain hypotheses until real demand and retention evidence support activation.
 
 ### Pro
+
+Pro receives five monthly course credits with rollover up to 60; a redeemed outline grants its planned lessons. Publishing requires completion, attestation, and the applicable publication-proof contract.
 
 Pro must be positioned around personal outcomes, not raw generations:
 

@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { serverEnvironment } from "@/lib/runtime-environment";
 
 export const AI_PROMPT_VERSIONS = {
@@ -179,12 +180,17 @@ export function stablePromptCacheKey(
   workload: AiExecutionProfile["workload"],
   promptVersion: string,
   model: string,
+  task = "default",
 ) {
-  const normalized = `filosage:${workload}:${promptVersion}:${model}`
+  const identity = JSON.stringify([workload, task, promptVersion, model]);
+  const suffix = createHash("sha256").update(identity).digest("hex").slice(0, 16);
+  const normalized = `filosage:${workload}:${task}:${model}:${promptVersion}`
     .toLowerCase()
     .replace(/[^a-z0-9:._-]+/g, "-");
-  // The Responses API rejects prompt_cache_key values longer than 64 chars.
-  return normalized.slice(0, 64);
+  // Application bound, not a claim of provider rejection: the current Responses
+  // reference and installed SDK do not specify a prompt_cache_key maximum.
+  // Hash the full identity before bounding, so suffixes and model changes survive.
+  return `${normalized.slice(0, 47)}:${suffix}`;
 }
 
 export function openAiExecutionProfile(

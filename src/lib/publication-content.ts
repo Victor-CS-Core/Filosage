@@ -5,6 +5,8 @@ const OMITTED_ROOT_PUBLICATION_FIELDS = new Set([
   "isPublic",
   "publishedAt",
   "publicationReview",
+  "publicationProof",
+  "generationSafetyProof",
   "publicationMutation",
   "manualReviewResolution",
   "lastRepair",

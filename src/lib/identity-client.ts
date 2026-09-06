@@ -1,5 +1,6 @@
 "use client";
 
+import { accountSessionMarker } from "@/lib/account-session";
 import { normalizeDisplayName } from "@/lib/display-name";
 
 export interface FilosageUser {
@@ -35,7 +36,6 @@ interface EasyAuthSessionResponse {
   } | null;
 }
 
-const EASY_AUTH_SESSION_MARKER = "azure-easy-auth-session";
 const REAUTHENTICATED_QUERY = "filosage_reauthenticated";
 const MAX_SESSION_RESPONSE_BYTES = 16 * 1024;
 const SESSION_UNAVAILABLE_MESSAGE = "Azure authentication status is unavailable.";
@@ -187,7 +187,7 @@ function toFilosageUser(
     email: session.user.email,
     photoURL: session.user.photoURL,
     provider: session.user.authenticationProvider,
-    getIdToken: async () => EASY_AUTH_SESSION_MARKER,
+    getIdToken: async () => accountSessionMarker(session.user!.uid),
     ...(reauthenticationToken ? { reauthenticationToken } : {}),
   };
 }
@@ -217,7 +217,8 @@ export async function currentEasyAuthUser() {
 }
 
 export async function currentEasyAuthSession() {
-  return (await currentEasyAuthState()).user ? EASY_AUTH_SESSION_MARKER : null;
+  const user = (await currentEasyAuthState()).user;
+  return user ? accountSessionMarker(user.uid) : null;
 }
 
 function sameOriginPath(path: string) {
@@ -264,7 +265,7 @@ export async function beginManagedReauthentication(
     }
     return {
       ...state.user,
-      reauthenticationToken: EASY_AUTH_SESSION_MARKER,
+      reauthenticationToken: accountSessionMarker(state.user.uid),
     } as FilosageUser;
   }
   const destination = new URL(sameOriginPath(postLoginPath), window.location.origin);

@@ -94,10 +94,12 @@ export default function LessonExperience({
   experience,
   value,
   onChange,
+  deviceSaved,
 }: {
   experience: LessonExperienceData;
   value: LessonExperienceState;
   onChange: (value: LessonExperienceState) => void;
+  deviceSaved?: boolean | null;
 }) {
   return (
     <section className={`lesson-experience experience-${experience.type}`} aria-labelledby="lesson-experience-title">
@@ -192,7 +194,7 @@ export default function LessonExperience({
         />
       </>}
 
-      <small className="experience-privacy" id="experience-privacy">Drafts are saved on this device. When you complete the lesson, this response becomes part of your private learning evidence and is never sent to the tutor.</small>
+      <small className="experience-privacy" id="experience-privacy">{deviceSaved === false ? "This browser could not save your draft. Keep this page open and copy your response before leaving." : "Drafts are saved on this device. When you complete the lesson, this response becomes part of your private learning evidence and is never sent to the tutor."}</small>
     </section>
   );
 }

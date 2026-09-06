@@ -12,6 +12,7 @@ import { getExistingAccount, type ServerAccount } from "@/lib/account-server";
 import { isLocalMode } from "@/lib/local-mode";
 import { PRIVACY_VERSION, TERMS_VERSION } from "@/lib/legal";
 import { planAllows, type PlanCapability } from "@/lib/membership-plans";
+import { requestAccountMatchesVerifiedUid } from "@/lib/account-session";
 import { recentAuthenticationProofMatchesUser } from "@/lib/identity-link-policy";
 
 export class AuthorizationError extends Error {
@@ -25,12 +26,16 @@ export class AuthorizationError extends Error {
 }
 
 export async function getVerifiedUser(request: Request): Promise<VerifiedUser | null> {
-  if (!isLocalMode()) return await verifiedEasyAuthUser(request);
+  if (!isLocalMode()) {
+    const user = await verifiedEasyAuthUser(request);
+    return user && requestAccountMatchesVerifiedUid(request.headers, user.uid) ? user : null;
+  }
   const authHeader = request.headers.get("authorization");
   if (!authHeader?.startsWith("Bearer ")) return null;
 
   try {
-    return await verifyIdentityToken(authHeader.slice(7));
+    const user = await verifyIdentityToken(authHeader.slice(7));
+    return user && requestAccountMatchesVerifiedUid(request.headers, user.uid) ? user : null;
   } catch {
     return null;
   }

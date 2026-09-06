@@ -148,7 +148,7 @@ export async function PATCH(request: Request, { params }: RouteParams) {
         );
       }
       const generatedPublication = course.aiAssisted === true;
-      if (!generatedPublication && publicationV2Active && course.pipelineStage !== "ready_to_publish" && course.pipelineStage !== "publishing") {
+      if (publicationV2Active && course.pipelineStage !== "ready_to_publish" && course.pipelineStage !== "publishing") {
         return NextResponse.json(
           { error: "Validate this exact draft before publishing it.", code: "COURSE_NOT_READY_TO_PUBLISH" },
           { status: 409, headers: { "Cache-Control": "no-store" } },

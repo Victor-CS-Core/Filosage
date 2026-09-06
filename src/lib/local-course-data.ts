@@ -5,19 +5,19 @@ import { removeCourseFromLearnerState } from "@/lib/learner-state";
 import { removeLocalProgress } from "@/lib/learning-progress";
 import { removeLocalMasteryJourney } from "@/lib/mastery";
 
-const OUTCOME_FEEDBACK_PREFIX = "filosage:outcome-feedback:";
+import { activeLearnerUid, isCurrentLearnerSession, learnerSessionSnapshot, learnerStorageKey, removeLearnerStorage } from "@/lib/learner-storage";
 
-export function outcomeFeedbackStorageKey(courseId: string) {
-  return `${OUTCOME_FEEDBACK_PREFIX}${courseId}`;
+export function outcomeFeedbackStorageKey(courseId: string, uid = activeLearnerUid()) {
+  return uid ? learnerStorageKey(uid, "outcome-feedback", courseId) : null;
 }
 
-export function clearLocalCourseData(courseId: string) {
-  if (typeof window === "undefined" || !courseId) return;
-  removeLocalProgress(courseId);
-  removeCourseFromLearnerState(courseId);
-  removeLocalMasteryJourney(courseId);
+export function clearLocalCourseData(courseId: string, uid: string | null) {
+  if (typeof window === "undefined" || !courseId || !uid || uid !== activeLearnerUid()) return;
+  removeLocalProgress(courseId, uid);
+  removeCourseFromLearnerState(courseId, uid);
+  removeLocalMasteryJourney(courseId, uid);
   try {
-    localStorage.removeItem(outcomeFeedbackStorageKey(courseId));
+    removeLearnerStorage(uid, "outcome-feedback", courseId);
   } catch {
     // The rest of the cleanup is still useful when one storage write fails.
   }
@@ -26,13 +26,15 @@ export function clearLocalCourseData(courseId: string) {
 }
 
 export async function removeDeletedLocalCourses(progress: CourseProgress[]) {
+  const session = learnerSessionSnapshot();
   const resolutions = await Promise.all(progress.map(async (courseProgress) => {
     try {
       const response = await fetch(`/api/courses/${encodeURIComponent(courseProgress.courseId)}`, {
         cache: "no-store",
       });
+      if (!isCurrentLearnerSession(session)) return null;
       if (response.status === 404) {
-        clearLocalCourseData(courseProgress.courseId);
+        clearLocalCourseData(courseProgress.courseId, session.uid);
         return null;
       }
       if (response.status === 401 || response.status === 403) {

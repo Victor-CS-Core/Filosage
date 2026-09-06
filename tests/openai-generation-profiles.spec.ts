@@ -175,3 +175,15 @@ test("keeps Recognition v2 optional and removes long-request browser keepalive",
   expect(routeSource).not.toContain("requireInteractionV2: true");
   expect(lessonPageSource).not.toContain("keepalive: true");
 });
+
+test("bounds the final task key while preserving long model and prompt identities", () => {
+  const version = "long-prompt-version-".repeat(8);
+  const model = "custom-model-".repeat(8);
+  const base = stablePromptCacheKey("research", version, model);
+  expect(base).not.toBe(stablePromptCacheKey("research", `${version}changed`, model));
+  expect(base).not.toBe(stablePromptCacheKey("research", version, `${model}changed`));
+  const bibliography = stablePromptCacheKey("research", version, model, "bibliography");
+  expect(bibliography).not.toBe(base);
+  expect(bibliography).toHaveLength(64);
+  expect(bibliography).toMatch(/^[a-z0-9:._-]+:[a-f0-9]{16}$/);
+});

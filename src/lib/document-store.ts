@@ -1,4 +1,11 @@
 import "server-only";
+import { createHash } from "node:crypto";
+import type { Course } from "@/lib/course-types";
+import { expectedLessonIds as outlinedLessonIds } from "@/lib/course-progress";
+import { assertPublicationProofToken, StalePublicationProofError, currentManualReviewResolution, publicationProofApprovalFingerprint, publicationProofIsCurrent, PUBLICATION_PROOF_POLICY_VERSION, type PublicationProof } from "@/lib/publication-proofs";
+import { publicationDecisionFromReport } from "@/lib/course-pipeline/validation";
+import { courseUsesPipelineV2 } from "@/lib/course-pipeline/feature-policy";
+import { coursePipelineFeatureFlags } from "@/lib/feature-flags";
 
 import {
   fromDocumentFields,
@@ -11,7 +18,7 @@ import {
 import { isLocalMode } from "@/lib/local-mode";
 import { COURSE_SCOPED_COLLECTION_GROUPS, removeCourseReferences } from "@/lib/course-deletion";
 import type { PublicationLessonReview, PublicationOwnerOverride } from "@/lib/publication-review";
-import { publicationContentFingerprint } from "@/lib/publication-content";
+import { publicationContentFingerprint, publicationCandidateContentFingerprint } from "@/lib/publication-content";
 import {
   buildGuardedLessonEvidenceDowngrade,
   buildGuardedLessonSave,
@@ -738,7 +745,7 @@ export async function commitCourseValidationStage(
   expectedLessonIds: string[],
   expectedFingerprints: { course: string; lessons: Record<string, string> },
   nextStage: "needs_repair" | "ready_to_publish" | "manual_review",
-  validation: { decision: string; snapshotHash: string },
+  validation: { decision: string; snapshotHash: string; publicationProof?: PublicationProof },
 ) {
   const { assertCourseStageTransition } = await import("@/lib/course-pipeline/state");
   const coursePath = `courses/${courseId}`;
@@ -755,14 +762,20 @@ export async function commitCourseValidationStage(
         throw new Error(`STALE_VALIDATION_SNAPSHOT: lesson ${lessonId} changed during validation.`);
       }
     }
+    if (validation.publicationProof && !publicationProofIsCurrent(course,
+      lessonPaths.map((path) => documents[path] ?? {}), expectedLessonIds, validation.snapshotHash, validation.publicationProof)) {
+      throw new Error("STALE_VALIDATION_SNAPSHOT: publication proof evidence changed during validation.");
+    }
     const current = typeof course.pipelineStage === "string"
       ? course.pipelineStage as import("@/lib/course-pipeline/contract").CourseStage
       : "draft";
-    const manualResolution = course.manualReviewResolution as { status?: string; snapshotHash?: string } | undefined;
+    const manualResolution = currentManualReviewResolution({
+      ...course, publicationProof: validation.publicationProof ?? course.publicationProof,
+    }, validation.snapshotHash);
     if (nextStage === "manual_review"
       && manualResolution?.status === "approved"
       && manualResolution.snapshotHash === validation.snapshotHash) {
-      if (current === "ready_to_publish") return { writes: [], result: current };
+      if (current === "ready_to_publish" && !validation.publicationProof) return { writes: [], result: current };
       if (current !== "validating") assertCourseStageTransition(current, "validating");
       assertCourseStageTransition("validating", "ready_to_publish");
       const now = new Date().toISOString();
@@ -775,6 +788,7 @@ export async function commitCourseValidationStage(
             pipelineStageUpdatedAt: now,
             lastValidationDecision: "manual_review_approved",
             lastValidationSnapshotHash: validation.snapshotHash,
+            ...(validation.publicationProof ? { publicationProof: validation.publicationProof } : {}),
             updatedAt: course.updatedAt,
           },
         }],
@@ -793,6 +807,7 @@ export async function commitCourseValidationStage(
           pipelineStageUpdatedAt: now,
           lastValidationDecision: validation.decision,
           lastValidationSnapshotHash: validation.snapshotHash,
+          ...(validation.publicationProof ? { publicationProof: validation.publicationProof } : {}),
           updatedAt: course.updatedAt,
         },
       }],
@@ -817,6 +832,7 @@ export async function publishCourseWithReview(
     reviews: PublicationLessonReview[];
     ownerOverride?: PublicationOwnerOverride;
     artifactSnapshotHash?: string;
+    publicationProof?: PublicationProof;
     qualityContractVersion?: string;
     validationReport?: import("@/lib/course-pipeline/contract").ValidationReport;
     publicationMutationKey?: string;
@@ -829,8 +845,12 @@ export async function publishCourseWithReview(
   const auditPath = review.ownerOverride
     ? `adminEvents/${review.ownerOverride.auditEventId}`
     : undefined;
-  const immutableReleaseEnabled = review.publishPipelineStage === true;
-  const releaseId = `${courseId}__${review.artifactSnapshotHash ?? review.outlineHash}`;
+  const immutableReleaseEnabled = true;
+  const releaseProofHash = createHash("sha256").update(JSON.stringify({
+    proof: review.publicationProof ? publicationProofApprovalFingerprint(review.publicationProof) : null,
+    manualReviewResolutionId: review.manualReviewResolutionId ?? null,
+  })).digest("hex");
+  const releaseId = `${courseId}__${review.artifactSnapshotHash ?? review.outlineHash}__${releaseProofHash}`;
   const releasePath = `courseReleases/${releaseId}`;
   const releaseLessonPaths = expectedLessonIds.map((lessonId) => `courseReleases/${releaseId}/lessons/${lessonId}`);
   const reviewByLessonId = new Map(review.reviews.map((item) => [item.lessonId, item]));
@@ -849,6 +869,33 @@ export async function publishCourseWithReview(
       }
       if (course.isPublic === true) return { writes: [], result: undefined };
       throw new Error("IDEMPOTENCY_RESULT_SUPERSEDED: this publication was followed by an explicit unpublish action.");
+    }
+    if (course.moderationStatus === "quarantined") throw new Error("A quarantined course cannot be published.");
+    const reviewer = review.reviews[0];
+    if (courseUsesPipelineV2(course) && (!review.publishPipelineStage || !reviewer
+      || !coursePipelineFeatureFlags({ uid: reviewer.reviewedBy, isOwner: reviewer.reviewerRole === "owner" }).publicationV2)) {
+      throw new Error("V2 publication is paused; this draft cannot use the legacy publication path.");
+    }
+    if (JSON.stringify(outlinedLessonIds(course as unknown as Course)) !== JSON.stringify(expectedLessonIds)) {
+      throw new Error("Publication proof does not cover every outlined lesson.");
+    }
+    const orderedLessons = lessonPaths.map((path) => documents[path] ?? {});
+    const snapshotHash = createHash("sha256").update(publicationCandidateContentFingerprint(course, orderedLessons)).digest("hex");
+    const proof = course.publicationProof as PublicationProof | undefined;
+    if (!publicationProofIsCurrent(course, orderedLessons, expectedLessonIds, snapshotHash, proof)
+      || JSON.stringify(proof) !== JSON.stringify(review.publicationProof)
+      || review.artifactSnapshotHash !== snapshotHash) {
+      throw new Error("The publication proof is missing, stale, or changed during review. Validate the current draft.");
+    }
+    const decision = publicationDecisionFromReport(proof.validationReport);
+    if (decision.decision !== "publishable" && decision.decision !== "manual_review") {
+      throw new Error("The publication proof contains a non-overridable blocker.");
+    }
+    if (decision.decision === "manual_review") {
+      const resolution = currentManualReviewResolution(course, snapshotHash);
+      if (!resolution || resolution.reviewId !== review.manualReviewResolutionId) {
+        throw new Error("The exact publication manual review is missing or changed before commit.");
+      }
     }
     if (review.sourceUpdatedAt && course.updatedAt !== review.sourceUpdatedAt) {
       throw new Error("The course changed during publication review. Try publishing again.");
@@ -873,6 +920,9 @@ export async function publishCourseWithReview(
             snapshotHash: review.artifactSnapshotHash ?? null,
             qualityContractVersion: review.qualityContractVersion ?? null,
             courseFingerprint: review.sourceFingerprint,
+            publicationProof: proof,
+            publicationDecision: decision,
+            manualReviewResolution: course.manualReviewResolution ?? null,
             course,
             publishedBy: review.reviews[0]?.reviewedBy ?? null,
             publishedAt: now,
@@ -946,7 +996,9 @@ export async function publishCourseWithReview(
           artifactSnapshotHash: review.artifactSnapshotHash ?? null,
           qualityContractVersion: review.qualityContractVersion ?? null,
           manualReviewResolutionId: review.manualReviewResolutionId ?? null,
-          validationReport: review.validationReport ?? null,
+          validationReport: proof.validationReport,
+          publicationProof: proof,
+          publicationDecision: decision,
           ...(immutableReleaseEnabled ? { releaseId } : {}),
         },
         publicationMutation: review.publicationMutationKey ? {
@@ -993,6 +1045,7 @@ export async function saveCourseManualReviewResolution(
   expectedLessonIds: string[],
   expected: {
     courseFingerprint: string;
+    proofToken: string;
     lessonFingerprints: Record<string, string>;
     manualReviewResolutionId?: string;
   },
@@ -1017,10 +1070,19 @@ export async function saveCourseManualReviewResolution(
   return runStoredDocumentTransaction([coursePath, ...lessonPaths, auditPath, mutationPath], (documents) => {
     const course = documents[coursePath];
     if (!course) throw new Error("Course not found.");
+    const proof = course.publicationProof as PublicationProof | undefined;
+    if (!publicationProofIsCurrent(course, lessonPaths.map((path) => documents[path] ?? {}),
+      expectedLessonIds, resolution.snapshotHash, proof)) {
+      throw new StalePublicationProofError();
+    }
+    assertPublicationProofToken(proof, expected.proofToken);
+    const reviewedResolution = { ...resolution, proofToken: expected.proofToken, proofPolicyVersion: PUBLICATION_PROOF_POLICY_VERSION,
+      proofFingerprint: publicationProofApprovalFingerprint(proof) };
     if (course.isPublic === true) throw new Error("Unpublish this course before changing its manual-review resolution.");
-    const mutation = documents[mutationPath] as { resolution?: typeof resolution } | undefined;
+    const mutation = documents[mutationPath] as { resolution?: typeof resolution & { proofToken: string } } | undefined;
     if (mutation?.resolution) {
       const stored = mutation.resolution;
+      if (stored.proofToken !== expected.proofToken) throw new StalePublicationProofError();
       if (stored.snapshotHash !== resolution.snapshotHash
         || stored.status !== resolution.status
         || stored.contractVersion !== resolution.contractVersion
@@ -1070,7 +1132,7 @@ export async function saveCourseManualReviewResolution(
           path: coursePath,
           data: {
             ...course,
-            manualReviewResolution: resolution,
+            manualReviewResolution: reviewedResolution,
             ...(resolution.status === "approved" ? {
               pipelineStage: "ready_to_publish",
               pipelineStageUpdatedAt: resolution.reviewedAt,
@@ -1089,6 +1151,7 @@ export async function saveCourseManualReviewResolution(
             reason: resolution.reason,
             snapshotHash: resolution.snapshotHash,
             contractVersion: resolution.contractVersion,
+            proofToken: expected.proofToken,
             verifiedSourceIds: resolution.verifiedSourceIds,
             createdAt: resolution.reviewedAt,
           },
@@ -1097,12 +1160,12 @@ export async function saveCourseManualReviewResolution(
           path: mutationPath,
           data: {
             courseId,
-            resolution,
+            resolution: reviewedResolution,
             createdAt: resolution.reviewedAt,
           },
         },
       ],
-      result: { recovered: false, resolution },
+      result: { recovered: false, resolution: reviewedResolution },
     };
   });
 }

@@ -180,7 +180,11 @@ var externalIdQaSecrets = externalIdConfigurationComplete ? [
   { name: 'external-id-oauth-secret', keyVaultUrl: '${vaultUri}secrets/${externalIdClientSecretName}', identity: identity.id }
 ] : []
 
+var releaseCapabilities = loadJsonContent('../../config/release-capabilities.json').capabilities
+
 var qaEnvironment = [
+  { name: 'FLASHCARD_AI_GENERATION_ENABLED', value: string(releaseCapabilities.flashcardGeneration) }
+  { name: 'FLASHCARD_DECKS_ENABLED', value: string(releaseCapabilities.flashcardDecks) }
   { name: 'NODE_ENV', value: 'production' }
   { name: 'DATABASE_URL', secretRef: 'database-url' }
   { name: 'DATABASE_SSL', value: 'verify-full' }
@@ -190,7 +194,7 @@ var qaEnvironment = [
   { name: 'AZURE_POSTGRES_SERVER_NAME', value: postgres.name }
   { name: 'AZURE_RESOURCE_GROUP', value: resourceGroup().name }
   { name: 'NEXT_PUBLIC_SITE_URL', value: siteUrl }
-  { name: 'NEXT_PUBLIC_COMMAND_CENTER_V2', value: 'true' }
+  { name: 'NEXT_PUBLIC_COMMAND_CENTER_V2', value: string(releaseCapabilities.commandCenterV2) }
   { name: 'SITE_VERSION', value: siteVersion }
   { name: 'DEPLOYMENT_ENVIRONMENT', value: 'qa' }
   { name: 'DEPLOYMENT_SLOT', value: 'qa' }
@@ -211,18 +215,18 @@ var qaEnvironment = [
   { name: 'BILLING_ENABLED', value: 'false' }
   { name: 'BILLING_ROLLOUT_MODE', value: 'closed' }
   { name: 'STRIPE_TAX_READY', value: 'false' }
-  { name: 'COMMAND_CENTER_DRAFTS_ENABLED', value: 'true' }
-  { name: 'COMMAND_CENTER_ENABLED', value: 'true' }
-  { name: 'COURSE_LABS_V2', value: 'true' }
-  { name: 'COURSE_PIPELINE_SHADOW_MODE', value: 'false' }
-  { name: 'COURSE_PIPELINE_V2', value: 'true' }
-  { name: 'COURSE_PIPELINE_V2_COHORT_PERCENT', value: '0' }
-  { name: 'COURSE_PIPELINE_V2_OWNER_ONLY', value: 'true' }
-  { name: 'COURSE_PUBLICATION_V2', value: 'true' }
-  { name: 'COURSE_REPAIR_V2', value: 'true' }
-  { name: 'COURSE_VALIDATION_V2', value: 'true' }
-  { name: 'COURSE_VISUALS_V2', value: 'true' }
-  { name: 'LESSON_VISUALS_ENABLED', value: 'true' }
+  { name: 'COMMAND_CENTER_DRAFTS_ENABLED', value: string(releaseCapabilities.commandCenterDrafts) }
+  { name: 'COMMAND_CENTER_ENABLED', value: string(releaseCapabilities.commandCenter) }
+  { name: 'COURSE_LABS_V2', value: string(releaseCapabilities.labsV2) }
+  { name: 'COURSE_PIPELINE_SHADOW_MODE', value: string(releaseCapabilities.pipelineShadowMode) }
+  { name: 'COURSE_PIPELINE_V2', value: string(releaseCapabilities.pipelineV2) }
+  { name: 'COURSE_PIPELINE_V2_COHORT_PERCENT', value: string(releaseCapabilities.pipelineCohortPercent) }
+  { name: 'COURSE_PIPELINE_V2_OWNER_ONLY', value: string(releaseCapabilities.pipelineOwnerOnly) }
+  { name: 'COURSE_PUBLICATION_V2', value: string(releaseCapabilities.publicationV2) }
+  { name: 'COURSE_REPAIR_V2', value: string(releaseCapabilities.repairV2) }
+  { name: 'COURSE_VALIDATION_V2', value: string(releaseCapabilities.validationV2) }
+  { name: 'COURSE_VISUALS_V2', value: string(releaseCapabilities.visualsV2) }
+  { name: 'LESSON_VISUALS_ENABLED', value: string(releaseCapabilities.lessonVisuals) }
   { name: 'NEXT_TELEMETRY_DISABLED', value: '1' }
   { name: 'OPENAI_ASSESSMENT_MODEL', value: 'gpt-5.6-luna' }
   { name: 'OPENAI_COMMAND_CENTER_MODEL', value: 'gpt-5.6-terra' }

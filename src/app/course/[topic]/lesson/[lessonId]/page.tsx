@@ -41,6 +41,8 @@ import type {
   ProgressUpdate,
   ReviewKind,
 } from "@/lib/learning-types";
+import { isCurrentLearnerSession, learnerRequest, learnerSessionSnapshot, readLearnerStorage, writeLearnerStorage, removeLearnerStorage } from "@/lib/learner-storage";
+import { readLearnerState, writeLearnerState } from "@/lib/learner-state";
 import { getLocalProgress, saveLocalProgress } from "@/lib/learning-progress";
 import { calibrationMessage, reviewKindLabel } from "@/lib/adaptive-learning";
 import { retrievalVariantsForQuizBank, selectRetrievalVariant } from "@/lib/retrieval-planning";
@@ -296,6 +298,7 @@ export default function LessonView() {
       : "spaced";
   const [moduleIndex, lessonIndex] = lessonId.split("-").map(Number);
   const { user, isOwner, canGenerateLessons, loading: authLoading } = useAuth();
+  const session = useMemo(() => learnerSessionSnapshot(user?.uid ?? null), [user?.uid]);
   const entryMode = useAccountEntryMode();
   const masteryJourney = useMasteryJourney(courseId, user);
   const masteryPlan = masteryJourney.plan;
@@ -308,7 +311,7 @@ export default function LessonView() {
     syncError: learnerSyncError,
   } = useLearnerState();
   const noteKey = courseId ? `${courseId}:${lessonId}` : `${topic}:${lessonId}`;
-  const lessonViewKey = `${noteKey}:${reviewKind}:${reviewMode ? "review" : "learn"}`;
+  const lessonViewKey = `${user?.uid ?? "guest"}:${noteKey}:${reviewKind}:${reviewMode ? "review" : "learn"}`;
   const [courseRecord, setCourseRecord] = useState<{ key: string; value: Course | null }>({ key: lessonViewKey, value: null });
   const [lessonDataRecord, setLessonDataRecord] = useState<{ key: string; value: LessonData | null }>({ key: lessonViewKey, value: null });
   const course = courseRecord.key === lessonViewKey ? courseRecord.value : null;
@@ -319,11 +322,13 @@ export default function LessonView() {
   const [error, setError] = useState<string | null>(null);
   const [quizResultState, setQuizResultState] = useState<{ key: string; results: Record<number, QuizResult> }>({ key: "", results: {} });
   const [completionState, setCompletionState] = useState<{ key: string; complete: boolean }>({ key: "", complete: false });
+  const [transferDeviceSaved, setTransferDeviceSaved] = useState<boolean | null>(null);
   const [transferState, setTransferState] = useState<{ key: string; response: string; revealed: boolean }>({
     key: "",
     response: "",
     revealed: false,
   });
+  const [experienceDeviceSaved, setExperienceDeviceSaved] = useState<boolean | null>(null);
   const [experienceState, setExperienceState] = useState<{ key: string; value: LessonExperienceState | null }>({ key: "", value: null });
   const [interactionEvidenceState, setInteractionEvidenceState] = useState<{ key: string; value: InteractionEvidence | null }>({ key: "", value: null });
   const [interactionHydrationErrorState, setInteractionHydrationErrorState] = useState<{ key: string; message: string | null }>({ key: "", message: null });
@@ -346,6 +351,7 @@ export default function LessonView() {
   const [chatting, setChatting] = useState(false);
   const [chatError, setChatError] = useState<string | null>(null);
   const [noteDraft, setNoteDraft] = useState("");
+  const [noteDeviceSaved, setNoteDeviceSaved] = useState<boolean | null>(null);
   const [progressSyncError, setProgressSyncError] = useState<string | null>(null);
   const [reviewScheduleState, setReviewScheduleState] = useState<{ key: string; at: string | null }>({ key: "", at: null });
   const [calibrationState, setCalibrationState] = useState<{
@@ -527,28 +533,29 @@ export default function LessonView() {
     let cancelled = false;
     const expectedType = lessonData.experience.type;
     deferClientTask(() => {
-      if (cancelled) return;
+      if (cancelled || !isCurrentLearnerSession(session)) return;
       let saved: LessonExperienceState | null = null;
       try {
-        const parsed = JSON.parse(localStorage.getItem(`filosage-experience-draft:${noteKey}`) ?? "null") as Partial<LessonExperienceState> | null;
+        const parsed = readLearnerStorage<Partial<LessonExperienceState>>(user?.uid ?? null, "experience-draft", noteKey);
         if (parsed?.type === expectedType && typeof parsed.response === "string") {
           saved = { type: expectedType, response: parsed.response.slice(0, 8_000), completed: parsed.completed === true && parsed.response.trim().length >= 20 };
         }
       } catch {
-        localStorage.removeItem(`filosage-experience-draft:${noteKey}`);
+        removeLearnerStorage(user?.uid ?? null, "experience-draft", noteKey);
       }
       setExperienceState((current) => current.key === noteKey
         ? current
         : { key: noteKey, value: saved ?? { type: expectedType, response: "", completed: false } });
     });
     return () => { cancelled = true; };
-  }, [lessonData?.experience, noteKey]);
+  }, [lessonData?.experience, noteKey, session, user?.uid]);
 
   useEffect(() => {
     if (!lessonData?.transferTask || transferState.key === noteKey) return;
     deferClientTask(() => {
+      if (!isCurrentLearnerSession(session)) return;
       try {
-        const parsed = JSON.parse(localStorage.getItem(`filosage-transfer-draft:${noteKey}`) ?? "null") as { response?: unknown; revealed?: unknown } | null;
+        const parsed = readLearnerStorage<{ response?: unknown; revealed?: unknown }>(user?.uid ?? null, "transfer-draft", noteKey);
         const savedResponse = parsed?.response;
         if (typeof savedResponse === "string") {
           setTransferState((current) => current.key === noteKey ? current : {
@@ -558,10 +565,10 @@ export default function LessonView() {
           });
         }
       } catch {
-        localStorage.removeItem(`filosage-transfer-draft:${noteKey}`);
+        removeLearnerStorage(user?.uid ?? null, "transfer-draft", noteKey);
       }
     });
-  }, [lessonData?.transferTask, noteKey, transferState.key]);
+  }, [lessonData?.transferTask, noteKey, session, transferState.key, user?.uid]);
 
   useEffect(() => {
     if (!learnerStateReady) return;
@@ -578,6 +585,7 @@ export default function LessonView() {
   useEffect(() => {
     if (!noteHydratedRef.current || noteDraft === (learnerState.notes[noteKey] ?? "")) return;
     const timeout = window.setTimeout(() => {
+      if (!isCurrentLearnerSession(session)) return;
       const timestamp = new Date().toISOString();
       updateLearnerState((current) => ({
         ...current,
@@ -586,7 +594,18 @@ export default function LessonView() {
       }));
     }, 600);
     return () => window.clearTimeout(timeout);
-  }, [learnerState.notes, noteDraft, noteKey, updateLearnerState]);
+  }, [learnerState.notes, noteDraft, noteKey, session, updateLearnerState]);
+
+  const updateNoteDraft = useCallback((value: string) => {
+    if (!user || !isCurrentLearnerSession(session)) return;
+    setNoteDraft(value);
+    const local = readLearnerState(user.uid);
+    const timestamp = new Date().toISOString();
+    setNoteDeviceSaved(writeLearnerState({
+      ...local, notes: { ...local.notes, [noteKey]: value },
+      noteUpdatedAt: { ...local.noteUpdatedAt, [noteKey]: timestamp }, updatedAt: timestamp,
+    }, user.uid));
+  }, [noteKey, session, user]);
 
   const getToken = useCallback(async () => (user ? user.getIdToken() : null), [user]);
 
@@ -635,7 +654,7 @@ export default function LessonView() {
 
   const loadLesson = useCallback(async () => {
     const requestViewKey = lessonViewKey;
-    const isCurrentView = () => activeLessonViewRef.current === requestViewKey;
+    const isCurrentView = () => isCurrentLearnerSession(session) && activeLessonViewRef.current === requestViewKey;
     if (authLoading) return;
     if (!user) {
       if (isCurrentView()) setLoading(false);
@@ -660,9 +679,7 @@ export default function LessonView() {
     setGenerationProgress(0);
     setError(null);
     try {
-      const token = await getToken();
-      const headers = token ? { Authorization: `Bearer ${token}` } : undefined;
-      const courseResponse = await fetch(`/api/courses/${courseId}`, { headers });
+      const courseResponse = await learnerRequest(user, `/api/courses/${courseId}`);
       const courseData = await courseResponse.json();
       if (!isCurrentView()) return;
       if (!courseResponse.ok) throw new Error(courseData.error || "The course could not be opened.");
@@ -672,7 +689,7 @@ export default function LessonView() {
       if (!lesson) throw new Error("This lesson is not part of the course.");
       setCourseRecord({ key: requestViewKey, value: resolvedCourse });
 
-      const lessonResponse = await fetch(`/api/courses/${courseId}/lessons/${lessonId}`, { headers });
+      const lessonResponse = await learnerRequest(user, `/api/courses/${courseId}/lessons/${lessonId}`);
       if (lessonResponse.ok) {
         const loadedLesson = await lessonResponse.json() as LessonData;
         if (isCurrentView()) setLessonDataRecord({ key: requestViewKey, value: randomizeQuizAnswers(loadedLesson) });
@@ -691,11 +708,10 @@ export default function LessonView() {
       if (generationRequestRef.current?.lessonKey !== generationKey) {
         generationRequestRef.current = { lessonKey: generationKey, requestId: createClientId() };
       }
-      const generationResponse = await fetch("/api/generate-lesson", {
+      const generationResponse = await learnerRequest(user, "/api/generate-lesson", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
           "Idempotency-Key": generationRequestRef.current.requestId,
         },
         body: JSON.stringify({
@@ -735,7 +751,7 @@ export default function LessonView() {
         setLoading(false);
       }
     }
-  }, [authLoading, courseId, getToken, isOwner, moduleIndex, lessonIndex, lessonId, lessonViewKey, topic, user]);
+  }, [authLoading, courseId, session, isOwner, moduleIndex, lessonIndex, lessonId, lessonViewKey, topic, user]);
 
   useEffect(() => {
     void Promise.resolve().then(loadLesson);
@@ -756,71 +772,51 @@ export default function LessonView() {
       setQuizResultState({ key: lessonViewKey, results: {} });
     };
     const loadProgress = async () => {
+      let progress = getLocalProgress(courseId, user?.uid ?? null);
       if (user) {
-        const token = await user.getIdToken();
-        const response = await fetch(`/api/progress?courseId=${encodeURIComponent(courseId)}`, {
-          headers: { Authorization: `Bearer ${token}` },
-          cache: "no-store",
-        });
-        if (response.ok) {
-          const data = await response.json() as { progress: CourseProgress | null };
-          if (!cancelled) {
-            setCompletionState({ key: lessonViewKey, complete: !reviewMode && Boolean(data.progress?.completedLessonIds.includes(lessonId)) });
-            const savedLesson = data.progress?.lessons[lessonId];
-            chooseReviewVariant(savedLesson);
-            setReviewScheduleState({ key: noteKey, at: savedLesson?.nextReviewAt ?? null });
-            if (savedLesson?.experienceEvidence) {
-              setExperienceState({ key: noteKey, value: { ...savedLesson.experienceEvidence, completed: true } });
-            }
-            if (savedLesson?.interactionEvidence) {
-              setInteractionEvidenceState({ key: noteKey, value: savedLesson.interactionEvidence });
-            }
+        try {
+          const response = await learnerRequest(user, `/api/progress?courseId=${encodeURIComponent(courseId)}`, { cache: "no-store" });
+          if (response.ok) {
+            const data = await response.json() as { progress: CourseProgress | null };
+            progress = data.progress ?? progress;
           }
-          return;
+        } catch {
+          // The fallback belongs to this exact account; guests never inherit it.
         }
       }
-      const local = getLocalProgress(courseId, topic);
-      if (!cancelled) {
-        setCompletionState({ key: lessonViewKey, complete: !reviewMode && Boolean(local?.completedLessonIds.includes(lessonId)) });
-        const savedLesson = local?.lessons[lessonId];
-        chooseReviewVariant(savedLesson);
-        setReviewScheduleState({ key: noteKey, at: savedLesson?.nextReviewAt ?? null });
-        if (savedLesson?.experienceEvidence) {
-          setExperienceState({ key: noteKey, value: { ...savedLesson.experienceEvidence, completed: true } });
-        }
-        if (savedLesson?.interactionEvidence) {
-          setInteractionEvidenceState({ key: noteKey, value: savedLesson.interactionEvidence });
-        }
+      if (cancelled || !isCurrentLearnerSession(session)) return;
+      setCompletionState({ key: lessonViewKey, complete: !reviewMode && Boolean(progress?.completedLessonIds.includes(lessonId)) });
+      const savedLesson = progress?.lessons[lessonId];
+      chooseReviewVariant(savedLesson);
+      setReviewScheduleState({ key: noteKey, at: savedLesson?.nextReviewAt ?? null });
+      if (savedLesson?.experienceEvidence) {
+        setExperienceState((current) => current.key === noteKey && current.value?.response
+          ? current
+          : { key: noteKey, value: { ...savedLesson.experienceEvidence!, completed: true } });
       }
+      if (savedLesson?.interactionEvidence) setInteractionEvidenceState({ key: noteKey, value: savedLesson.interactionEvidence });
     };
-    void loadProgress().catch(() => {
-      if (!cancelled) {
-        setCompletionState({ key: lessonViewKey, complete: false });
-        chooseReviewVariant(undefined);
-      }
-    });
+    void loadProgress();
     return () => { cancelled = true; };
-  }, [courseId, lessonData, lessonId, lessonViewKey, noteKey, quizVariants, reviewMode, topic, user]);
+  }, [courseId, lessonData, lessonId, lessonViewKey, noteKey, quizVariants, reviewMode, session, topic, user]);
 
   useEffect(() => {
     if (!courseId || !user || !practiceInteraction || reviewMode) return;
     let cancelled = false;
     const loadInteractionEvidence = async () => {
       setInteractionHydrationErrorState({ key: noteKey, message: null });
-      const token = await user.getIdToken();
       const query = new URLSearchParams({
         courseId,
         lessonId,
         progressOperationId: progressOperationIdForView(),
         interactionId: practiceInteraction.id,
       });
-      const response = await fetch(`/api/lesson-interaction?${query.toString()}`, {
-        headers: { Authorization: `Bearer ${token}` },
+      const response = await learnerRequest(user, `/api/lesson-interaction?${query.toString()}`, {
         cache: "no-store",
       });
       const data = await response.json().catch(() => ({})) as { evidence?: InteractionEvidence; error?: string };
       if (!response.ok) throw new Error(data.error || "Saved practice progress could not be loaded.");
-      if (!cancelled && data.evidence?.interactionId === practiceInteraction.id && data.evidence.itemResults.length) {
+      if (!cancelled && isCurrentLearnerSession(session) && data.evidence?.interactionId === practiceInteraction.id && data.evidence.itemResults.length) {
         setInteractionEvidenceState({ key: noteKey, value: data.evidence });
       }
     };
@@ -831,7 +827,7 @@ export default function LessonView() {
       });
     });
     return () => { cancelled = true; };
-  }, [courseId, interactionHydrationRetry, lessonId, noteKey, practiceInteraction, progressOperationIdForView, reviewMode, user]);
+  }, [courseId, interactionHydrationRetry, lessonId, noteKey, practiceInteraction, progressOperationIdForView, reviewMode, session, user]);
 
   useEffect(() => {
     const behavior = window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth";
@@ -892,10 +888,10 @@ export default function LessonView() {
   }, [courseId, isOwner, lesson, lessonData, lessonId]);
 
   const markComplete = useCallback(async () => {
-    if (!courseId || complete || !lessonData || !lesson || !transferComplete || !experienceComplete || !interactionComplete) return;
+    if (!isCurrentLearnerSession(session) || !courseId || complete || !lessonData || !lesson || !transferComplete || !experienceComplete || !interactionComplete) return;
     if (reviewMode && (!reviewVariantHydrated || activeQuizEntries.length !== 1)) return;
     const operationViewKey = activeLessonViewRef.current;
-    const isCurrentView = () => activeLessonViewRef.current === operationViewKey;
+    const isCurrentView = () => isCurrentLearnerSession(session) && activeLessonViewRef.current === operationViewKey;
     const results = Object.values(quizResults);
     if (activeQuizEntries.length && results.length !== activeQuizEntries.length) return;
     const confidences = results.map((result) => result.confidence);
@@ -941,7 +937,7 @@ export default function LessonView() {
 
     setProgressSyncError(null);
     if (!user) {
-      const localProgress = saveLocalProgress(update);
+      const localProgress = saveLocalProgress(update, null);
       setReviewScheduleState({ key: noteKey, at: localProgress.lessons[lessonId]?.nextReviewAt ?? null });
       setCalibrationState({ key: noteKey, value: localProgress.lessons[lessonId]?.calibration ?? null });
     }
@@ -949,28 +945,28 @@ export default function LessonView() {
     let cloudSaved = !user;
     if (user) {
       try {
-        const token = await user.getIdToken();
         const progressOperationId = progressOperationIdForView(operationViewKey);
-        const response = await fetch("/api/progress", {
+        const response = await learnerRequest(user, "/api/progress", {
           method: "POST",
-          headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}`, "Idempotency-Key": progressOperationId },
+          headers: { "Content-Type": "application/json", "Idempotency-Key": progressOperationId },
           body: JSON.stringify(update),
         });
         const data = await response.json().catch(() => ({})) as {
           nextReviewAt?: string;
           calibration?: ConfidenceCalibration;
         };
+        if (!isCurrentView()) return;
         if (!response.ok) throw new Error("Progress was not verified. Keep this page open and try the activity again.");
         progressOperationKeysRef.current.delete(operationViewKey);
         cloudSaved = true;
-        saveLocalProgress(update);
+        saveLocalProgress(update, user?.uid ?? null);
         if (isCurrentView() && data.nextReviewAt) setReviewScheduleState({ key: noteKey, at: data.nextReviewAt });
         if (isCurrentView() && data.calibration) setCalibrationState({ key: noteKey, value: data.calibration });
       } catch (saveError) {
         if (isCurrentView()) setProgressSyncError(saveError instanceof Error ? saveError.message : "Progress could not be verified yet.");
       }
     }
-    if (requiresCloudCompletion && !cloudSaved) return;
+    if (!isCurrentView() || (requiresCloudCompletion && !cloudSaved)) return;
     const observedAt = new Date().toISOString();
     const objectiveId = lessonObjectiveId;
     const firstTryScore = update.totalQuestions
@@ -978,8 +974,8 @@ export default function LessonView() {
       : 1;
     if (isCurrentView()) setCompletionState({ key: lessonViewKey, complete: true });
     if (cloudSaved) {
-        localStorage.removeItem(`filosage-experience-draft:${noteKey}`);
-        localStorage.removeItem(`filosage-transfer-draft:${noteKey}`);
+        removeLearnerStorage(user?.uid ?? null, "experience-draft", noteKey);
+        removeLearnerStorage(user?.uid ?? null, "transfer-draft", noteKey);
     }
     await addMasteryEvidence([
       ...(!reviewMode ? [{
@@ -1084,7 +1080,7 @@ export default function LessonView() {
         elapsedMs,
       });
     }
-  }, [activeQuizEntries, addMasteryEvidence, allLessons.length, complete, courseId, experienceComplete, experienceValue, interactionComplete, interactionEvidence, isOwner, lesson, lessonData, lessonId, lessonObjectiveId, lessonViewKey, masteryPlan, nextLesson, noteKey, progressOperationIdForView, quizResults, quizVariants, reviewKind, reviewMode, reviewVariantHydrated, topic, transferComplete, transferResponse, user]);
+  }, [activeQuizEntries, addMasteryEvidence, allLessons.length, complete, courseId, experienceComplete, experienceValue, interactionComplete, interactionEvidence, isOwner, lesson, lessonData, lessonId, lessonObjectiveId, lessonViewKey, masteryPlan, nextLesson, noteKey, progressOperationIdForView, quizResults, quizVariants, reviewKind, reviewMode, reviewVariantHydrated, session, topic, transferComplete, transferResponse, user]);
 
   const onMastered = (index: number, result: QuizResult) => {
     setQuizResultState((current) => ({ key: lessonViewKey, results: { ...(current.key === lessonViewKey ? current.results : {}), [index]: result } }));
@@ -1111,7 +1107,7 @@ export default function LessonView() {
     const input = chatInput.trim();
     if (!input || !lessonData || !lesson || !courseId || !user || chatting) return;
     const operationViewKey = activeLessonViewRef.current;
-    const isCurrentView = () => activeLessonViewRef.current === operationViewKey;
+    const isCurrentView = () => isCurrentLearnerSession(session) && activeLessonViewRef.current === operationViewKey;
     const nextMessages: Message[] = [...messages, { id: createClientId(), role: "user", content: input }];
     setMessages(nextMessages);
     setChatInput("");
@@ -1119,10 +1115,9 @@ export default function LessonView() {
     setChatError(null);
 
     try {
-      const token = await getToken();
-      const response = await fetch("/api/chat", {
+      const response = await learnerRequest(user, "/api/chat", {
         method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}`, "Idempotency-Key": createClientId() },
+        headers: { "Content-Type": "application/json", "Idempotency-Key": createClientId() },
         body: JSON.stringify({
           messages: nextMessages.slice(-11).map(({ role, content }) => ({ role, content })),
           data: {
@@ -1173,30 +1168,31 @@ export default function LessonView() {
   };
 
   const updateExperienceEvidence = useCallback((value: LessonExperienceState) => {
+    if (!isCurrentLearnerSession(session)) return;
     setExperienceState({ key: noteKey, value });
     try {
-      localStorage.setItem(`filosage-experience-draft:${noteKey}`, JSON.stringify(value));
+      setExperienceDeviceSaved(writeLearnerStorage(user?.uid ?? null, "experience-draft", noteKey, value));
     } catch {
       // Storage can be unavailable in private browsing; the in-memory draft still works.
     }
-  }, [noteKey]);
+  }, [noteKey, session, user]);
 
   const updateTransferDraft = useCallback((response: string, revealed: boolean) => {
+    if (!isCurrentLearnerSession(session)) return;
     const value = { key: noteKey, response, revealed };
     setTransferState(value);
     try {
-      localStorage.setItem(`filosage-transfer-draft:${noteKey}`, JSON.stringify({ response, revealed }));
+      setTransferDeviceSaved(writeLearnerStorage(user?.uid ?? null, "transfer-draft", noteKey, { response, revealed }));
     } catch {
       // Storage can be unavailable in private browsing; the in-memory draft still works.
     }
-  }, [noteKey]);
+  }, [noteKey, session, user]);
 
   const verifyAuthorAnswer = useCallback(async (quizIndex: number, optionIndex: number) => {
     if (!courseId || !lessonData) throw new Error("This activity is not ready.");
-    const token = await getToken();
-    const response = await fetch("/api/lesson-activity", {
+    const response = await learnerRequest(user, "/api/lesson-activity", {
       method: "POST",
-      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         courseId,
         lessonId,
@@ -1212,6 +1208,7 @@ export default function LessonView() {
       firstAttemptCorrect?: boolean;
       receipt?: string;
     };
+    if (!isCurrentLearnerSession(session)) throw new Error("Your learning session changed. Try again after signing in.");
     if (!response.ok || typeof data.correct !== "boolean" || typeof data.attempts !== "number") {
       throw new Error(data.error || "This answer could not be verified.");
     }
@@ -1221,12 +1218,11 @@ export default function LessonView() {
       firstAttemptCorrect: data.firstAttemptCorrect === true,
       receipt: data.receipt,
     };
-  }, [courseId, getToken, lessonData, lessonId, progressOperationIdForView]);
+  }, [courseId, lessonData, lessonId, progressOperationIdForView, session, user]);
 
   const verifyRecognitionAnswer = useCallback(async (itemId: string, selectedIndex: number) => {
     if (!courseId || !practiceInteraction) throw new Error("This practice lab is not ready.");
-    const token = await getToken();
-    if (!token) throw new Error("Sign in again to verify this response.");
+    if (!user) throw new Error("Sign in again to verify this response.");
     const progressOperationId = progressOperationIdForView();
     const attemptKey = `${progressOperationId}:${practiceInteraction.id}:${itemId}:${selectedIndex}`;
     let idempotencyKey = interactionAttemptKeysRef.current.get(attemptKey);
@@ -1234,9 +1230,9 @@ export default function LessonView() {
       idempotencyKey = createClientId();
       interactionAttemptKeysRef.current.set(attemptKey, idempotencyKey);
     }
-    const response = await fetch("/api/lesson-interaction", {
+    const response = await learnerRequest(user, "/api/lesson-interaction", {
       method: "POST",
-      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}`, "Idempotency-Key": idempotencyKey },
+      headers: { "Content-Type": "application/json", "Idempotency-Key": idempotencyKey },
       body: JSON.stringify({
         courseId,
         lessonId,
@@ -1253,6 +1249,7 @@ export default function LessonView() {
       firstAttemptCorrect?: boolean;
       receipt?: string;
     };
+    if (!isCurrentLearnerSession(session)) throw new Error("Your learning session changed. Try again after signing in.");
     if (!response.ok || typeof data.correct !== "boolean" || typeof data.attempts !== "number") {
       throw new Error(data.error || "This practice response could not be verified.");
     }
@@ -1263,7 +1260,7 @@ export default function LessonView() {
       firstAttemptCorrect: data.firstAttemptCorrect === true,
       receipt: data.receipt,
     };
-  }, [courseId, getToken, lessonId, practiceInteraction, progressOperationIdForView]);
+  }, [courseId, lessonId, practiceInteraction, progressOperationIdForView, session, user]);
 
   const courseHref = `/course/${encodeURIComponent(topic)}${courseId ? `?id=${encodeURIComponent(courseId)}` : ""}`;
   const lessonHref = (id: string) => `/course/${encodeURIComponent(topic)}/lesson/${id}${courseId ? `?id=${encodeURIComponent(courseId)}` : ""}`;
@@ -1466,7 +1463,7 @@ export default function LessonView() {
               {lessonPane === "learn" && <LessonSectionNavigator markdown={normalizedContent} containerId="lesson-explanation" />}
 
               {lessonPane === "activities" && activeActivityId === "experience" && lessonData.experience && experienceValue && (
-                <div id="lesson-active-activity" role="tabpanel" aria-labelledby="activity-experience-tab"><LessonExperience experience={lessonData.experience} value={experienceValue} onChange={updateExperienceEvidence} /></div>
+                <div id="lesson-active-activity" role="tabpanel" aria-labelledby="activity-experience-tab"><LessonExperience experience={lessonData.experience} value={experienceValue} onChange={updateExperienceEvidence} deviceSaved={experienceDeviceSaved} /></div>
               )}
 
               {lessonPane === "learn" && <div className="markdown-content" id="lesson-explanation"><ReactMarkdown remarkPlugins={[remarkGfm]} components={{ h2: ({ children }) => <h2 tabIndex={-1}>{children}</h2>, h3: ({ children }) => <h3 tabIndex={-1}>{children}</h3> }}>{normalizedContent}</ReactMarkdown></div>}
@@ -1560,7 +1557,7 @@ export default function LessonView() {
                     onChange={(event) => updateTransferDraft(event.target.value, false)}
                     placeholder="Apply the idea in your own words."
                   />
-                  <small>This draft is saved on this device. On completion, it becomes part of your private learning evidence and is not sent to the tutor.</small>
+                  <small>{transferDeviceSaved === false ? "This browser could not save your draft. Keep this page open and copy your response before leaving." : transferResponse ? "This draft is saved on this device. On completion, it becomes part of your private learning evidence and is not sent to the tutor." : "Your response will be saved on this device as you write."}</small>
                   <button
                     className="button button-secondary button-small"
                     type="button"
@@ -1701,8 +1698,8 @@ export default function LessonView() {
                 quizzes={lessonData.quizzes}
                 quizOutcomes={quizResults}
                 noteDraft={noteDraft}
-                onNoteChange={setNoteDraft}
-                noteStatus={learnerSyncStatus === "saving" ? "Saving…" : learnerSyncStatus === "error" ? learnerSyncError ?? "Could not save" : learnerSyncStatus === "saved" ? "Saved" : user ? "Synced" : "On this device"}
+                onNoteChange={updateNoteDraft}
+                noteStatus={noteDeviceSaved === false && learnerSyncStatus !== "saved" ? "This browser could not save your draft. Keep this page open." : noteDraft !== (learnerState.notes[noteKey] ?? "") ? "Saved on this device" : learnerSyncStatus === "saving" ? "Saving…" : learnerSyncStatus === "error" ? learnerSyncError ?? "Could not save" : learnerSyncStatus === "saved" ? "Saved" : user ? "Synced" : "On this device"}
                 noteStatusIsError={learnerSyncStatus === "error"}
                 canUseTutor={Boolean(user)}
                 experienceAvailable={Boolean(lessonData.experience)}

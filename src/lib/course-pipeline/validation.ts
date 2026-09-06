@@ -50,6 +50,8 @@ import {
 } from "@/lib/learning-design";
 import { canonicalLessonObjectiveId } from "@/lib/course-pipeline/relationships";
 
+import { generationSafetyProofStatus } from "@/lib/publication-proofs";
+
 function issuePath(prefix: string, path: PropertyKey[]) {
   return path.length ? `${prefix}.${path.map(String).join(".")}` : prefix;
 }
@@ -719,6 +721,20 @@ export async function validateCourseCandidateV2(
       "Runtime asset-availability verification has not executed for this snapshot. Owner review is required before publication.",
     ),
   );
+  const safetyDocuments = [{ document: course, scope: "course" },
+    ...orderedLessons.map((document, index) => ({ document, scope: `lesson:${expectedLessonIds[index]}` }))];
+  for (const { document, scope } of safetyDocuments) {
+    const status = await generationSafetyProofStatus(document, scope);
+    if (status !== "passed") findings.push({
+      code: status === "missing" ? "CQ_SAFETY_001" : "CQ_SAFETY_002",
+      severity: status === "missing" ? "error" : "blocker", category: "safety", path: scope,
+      message: status === "missing"
+        ? "No snapshot-bound generation moderation record exists. The local safety scan does not establish moderation; explicit safety review is required."
+        : "The generation safety proof is blocked, stale, edited, or belongs to another document. Regenerate or restore the correctly reviewed content.",
+      repairability: status === "missing" ? "manual" : "assisted", source: "security",
+      contractVersion: COURSE_PIPELINE_VERSIONS.qualityContract,
+    });
+  }
   const warnings = findings.filter((issue) => issue.severity === "warning" || issue.severity === "info");
   const issues = findings.filter((issue) => issue.severity === "blocker" || issue.severity === "error");
   const failedCodes = new Set(findings.map((issue) => issue.code));

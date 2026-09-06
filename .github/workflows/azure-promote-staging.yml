@@ -3,6 +3,10 @@ name: Promote Azure staging slot
 on:
   workflow_dispatch:
     inputs:
+      qa_run_id:
+        description: Successful isolated QA run containing the approved SHA, image digest, and capability manifest
+        required: true
+        type: string
       target_slot:
         description: Verified slot to receive default staging traffic
         required: true
@@ -29,6 +33,7 @@ on:
         type: string
 
 permissions:
+  actions: read
   contents: read
   id-token: write
 
@@ -42,7 +47,9 @@ jobs:
     environment: azure-staging
     env:
       TARGET_SLOT: ${{ inputs.target_slot }}
+      QA_RUN_ID: ${{ inputs.qa_run_id }}
       EXPECTED_SHA: ${{ inputs.expected_sha }}
+      PUBLIC_SITE_URL: https://filosage.com
       FEATURED_COURSE_ID: ${{ inputs.featured_course_id }}
       TARGET_URL: ${{ inputs.target_slot == 'blue' && vars.AZURE_BLUE_URL || vars.AZURE_GREEN_URL }}
       EXPECTED_AUTH_MODE: ${{ inputs.expected_auth_mode }}
@@ -55,6 +62,22 @@ jobs:
           cache: npm
 
       - run: npm ci
+
+      - name: Load the exact successful QA candidate
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ ! "$QA_RUN_ID" =~ ^[1-9][0-9]*$ || ! "$EXPECTED_SHA" =~ ^[a-f0-9]{40}$ || "$EXPECTED_SHA" != "$GITHUB_SHA" ]]; then
+            echo "Select a numeric QA run and execute from its exact full candidate SHA."
+            exit 1
+          fi
+          gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${QA_RUN_ID}" --jq '{workflow_runs:[.]}' \
+            | node scripts/check-workflow-run-evidence.mjs "$EXPECTED_SHA" ".github/workflows/azure-qa.yml"
+          gh run download "$QA_RUN_ID" --repo "$GITHUB_REPOSITORY" --name "release-candidate-${EXPECTED_SHA}" --dir "$RUNNER_TEMP/qa-candidate"
+          node scripts/release-capabilities.mjs verify-evidence "$RUNNER_TEMP/qa-candidate/release-candidate.json" "$EXPECTED_SHA" "$PUBLIC_SITE_URL" >> "$GITHUB_ENV"
+          node scripts/release-capabilities.mjs environment > "$RUNNER_TEMP/release-capabilities.env"
 
       - name: Sign in to Azure with GitHub OIDC
         uses: azure/login@7184910d9eb2b1c5e48f7073824a90609bb9b6d6 # v2
@@ -93,7 +116,7 @@ jobs:
             echo "featured_course_id must be none or a 64-character hexadecimal course ID."
             exit 1
           fi
-          npm run check:production -- "$TARGET_URL" "$EXPECTED_SHA"
+          npm run check:production -- "$TARGET_URL" "$EXPECTED_SHA" "$PUBLIC_SITE_URL"
           npm run check:featured-course -- "$TARGET_URL" "$FEATURED_COURSE_ID"
 
       - name: Verify the deployed release safety policy
@@ -105,6 +128,8 @@ jobs:
             echo "The selected label does not resolve to a revision."
             exit 1
           fi
+          OBSERVED_IMAGE="$(az containerapp revision show --resource-group "${{ vars.AZURE_RESOURCE_GROUP }}" --name "${{ vars.AZURE_CONTAINER_APP_NAME }}" --revision "$TARGET_REVISION" --query 'properties.template.containers[0].image' --output tsv)"
+          node scripts/release-capabilities.mjs check-image "${{ vars.AZURE_ACR_NAME }}.azurecr.io/filosage" "$EXPECTED_IMAGE_DIGEST" "$OBSERVED_IMAGE"
           npm run check:release-safety -- "$TARGET_URL"
 
       - name: Capture current traffic weights
@@ -146,7 +171,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          npm run check:production -- "${{ vars.AZURE_STAGING_URL }}" "$EXPECTED_SHA"
+          npm run check:production -- "${{ vars.AZURE_STAGING_URL }}" "$EXPECTED_SHA" "$PUBLIC_SITE_URL"
           npm run check:featured-course -- "${{ vars.AZURE_STAGING_URL }}" "$FEATURED_COURSE_ID"
 
       - name: Roll back traffic if promotion fails or is cancelled

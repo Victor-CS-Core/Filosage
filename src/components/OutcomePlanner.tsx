@@ -24,6 +24,7 @@ import {
   type BaselineLevel,
   type LearningOutcomePlan,
 } from "@/lib/mastery";
+import { learnerRequest, type LearnerStorageUser } from "@/lib/learner-storage";
 import { createClientId } from "@/lib/browser-compat";
 import { trackProductEvent } from "@/lib/product-analytics";
 import CourseDisclosure from "@/components/CourseDisclosure";
@@ -32,9 +33,9 @@ interface OutcomePlannerProps {
   course: Course;
   courseId: string;
   topic: string;
-  user: { getIdToken(): Promise<string> } | null;
+  user: LearnerStorageUser | null;
   plan: LearningOutcomePlan | null;
-  syncStatus: "idle" | "saving" | "saved" | "error";
+  syncStatus: "idle" | "saving" | "saved" | "error" | "unsaved";
   onSave(plan: LearningOutcomePlan): Promise<void>;
   onBaseline(assessment: BaselineAssessment): void;
 }
@@ -157,12 +158,10 @@ export default function OutcomePlanner({
     setBaselineBusy(true);
     setBaselineError(null);
     try {
-      const token = await user.getIdToken();
-      const response = await fetch("/api/assess-baseline", {
+      const response = await learnerRequest(user, "/api/assess-baseline", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
           "Idempotency-Key": createClientId(),
         },
         body: JSON.stringify({ courseId, submission: baselineSubmission }),
@@ -223,7 +222,7 @@ export default function OutcomePlanner({
               <button className="text-button" type="button" disabled={saving} onClick={() => void togglePause()}><PauseCircle size={14} /> Pause plan</button>
             )}
           </div>
-          <small className="outcome-sync-status">{syncStatus === "saving" ? "Syncing plan…" : syncStatus === "error" ? "Saved on this device; account sync is pending." : user ? "Plan available across your devices." : "Plan saved on this device."}</small>
+          <small className="outcome-sync-status">{syncStatus === "unsaved" ? "Your plan could not be saved. Keep this page open and try again." : syncStatus === "saving" ? "Syncing plan…" : syncStatus === "error" ? "Saved on this device; account sync is pending." : user ? "Plan available across your devices." : "Plan saved on this device."}</small>
         </div>
 
         {course.capstone && (

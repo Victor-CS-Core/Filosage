@@ -1,12 +1,15 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useAuth } from "@/components/AuthProvider";
 import { EMPTY_LEARNER_STATE, readLearnerState, writeLearnerState, type LearnerState } from "@/lib/learner-state";
+import { isCurrentLearnerSession, learnerRequest, learnerSessionSnapshot } from "@/lib/learner-storage";
 import { deferClientTask } from "@/lib/browser-compat";
 
 export function useLearnerState() {
   const { user, account, loading: authLoading } = useAuth();
+  const uid = user?.uid ?? null;
+  const session = useMemo(() => learnerSessionSnapshot(uid), [uid]);
   const [state, setState] = useState<LearnerState>(EMPTY_LEARNER_STATE);
   const [ready, setReady] = useState(false);
   const [syncStatus, setSyncStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
@@ -16,21 +19,21 @@ export function useLearnerState() {
 
   useEffect(() => {
     if (authLoading) return;
-    const local = readLearnerState();
-    stateRef.current = local;
-    deferClientTask(() => setState(local));
-    if (!user || account?.legalAcceptanceRequired) {
-      deferClientTask(() => setReady(true));
-      return;
-    }
+    const local = readLearnerState(uid);
+    const sessionCurrent = () => isCurrentLearnerSession(session);
     let cancelled = false;
-    void user.getIdToken().then((token) => fetch("/api/learner-state", {
-      headers: { Authorization: `Bearer ${token}` },
-      cache: "no-store",
-    })).then(async (response) => {
+    const controller = new AbortController();
+    stateRef.current = local;
+    deferClientTask(() => { if (!cancelled && sessionCurrent()) { setState(local); setReady(false); setSyncStatus("idle"); setSyncError(null); } });
+    if (!user || account?.legalAcceptanceRequired) {
+      deferClientTask(() => { if (!cancelled && sessionCurrent()) setReady(true); });
+      return () => { cancelled = true; controller.abort(); };
+    }
+    void learnerRequest(user, "/api/learner-state", { cache: "no-store", signal: controller.signal }).then(async (response) => {
       if (!response.ok) return;
       const cloud = await response.json() as LearnerState;
-      if (!cancelled) {
+      if (!cancelled && sessionCurrent()) {
+        const local = readLearnerState(uid);
         const noteKeys = new Set([...Object.keys(local.notes), ...Object.keys(cloud.notes)]);
         const notes: Record<string, string> = {};
         const noteUpdatedAt: Record<string, string> = {};
@@ -57,18 +60,28 @@ export function useLearnerState() {
         };
         stateRef.current = merged;
         setState(merged);
-        writeLearnerState(merged);
+        writeLearnerState(merged, uid);
+        if (preferLocalSettings || Object.keys(notes).some((key) => notes[key] !== cloud.notes[key])) {
+          setSyncStatus("error");
+          setSyncError("Your latest learning changes are saved on this device but have not synced yet.");
+        }
       }
-    }).finally(() => { if (!cancelled) setReady(true); });
-    return () => { cancelled = true; };
-  }, [account?.legalAcceptanceRequired, authLoading, user]);
+    }).catch(() => {
+      if (!cancelled && sessionCurrent()) {
+        setSyncStatus("error");
+        setSyncError("Your learning changes are available on this device. Account sync is unavailable.");
+      }
+    }).finally(() => { if (!cancelled && sessionCurrent()) setReady(true); });
+    return () => { cancelled = true; controller.abort(); };
+  }, [account?.legalAcceptanceRequired, authLoading, session, uid, user]);
 
   const update = useCallback((recipe: (current: LearnerState) => LearnerState) => {
+    if (!user || session.uid !== user.uid || !isCurrentLearnerSession(session) || account?.legalAcceptanceRequired) return;
     const previous = stateRef.current;
     const next = { ...recipe(previous), updatedAt: new Date().toISOString() };
     stateRef.current = next;
     setState(next);
-    writeLearnerState(next);
+    const deviceSaved = writeLearnerState(next, uid);
     if (user) {
       const noteChanges = Object.keys(next.notes).flatMap((key) => {
         if (next.notes[key] === previous.notes[key] && next.noteUpdatedAt[key] === previous.noteUpdatedAt[key]) return [];
@@ -94,20 +107,24 @@ export function useLearnerState() {
       setSyncStatus("saving");
       setSyncError(null);
       syncQueue.current = syncQueue.current.catch(() => undefined).then(async () => {
-        const token = await user.getIdToken();
-        const response = await fetch("/api/learner-state", {
+        if (!isCurrentLearnerSession(session)) return;
+        const response = await learnerRequest(user, "/api/learner-state", {
           method: "PUT",
-          headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+          headers: { "Content-Type": "application/json" },
           body: JSON.stringify(payload),
         });
-        if (!response.ok) throw new Error("Your latest learning changes are saved on this device but have not synced yet.");
-        setSyncStatus("saved");
-      }).catch((error: unknown) => {
+        if (!response.ok) throw new Error("sync failed");
+        if (isCurrentLearnerSession(session)) setSyncStatus("saved");
+      }).catch(() => {
+        if (!isCurrentLearnerSession(session)) return;
         setSyncStatus("error");
-        setSyncError(error instanceof Error ? error.message : "Learning changes have not synced yet.");
+        setSyncError(deviceSaved
+          ? "Your latest learning changes are saved on this device but have not synced yet."
+          : "Your browser could not save these changes. Keep this page open and try again.");
       });
     }
-  }, [user]);
+  }, [account?.legalAcceptanceRequired, session, uid, user]);
 
-  return { state, update, ready, syncStatus, syncError };
+  const visible = session.uid === uid && isCurrentLearnerSession(session);
+  return { state: visible ? state : EMPTY_LEARNER_STATE, update, ready: visible && ready, syncStatus, syncError };
 }

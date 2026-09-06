@@ -24,12 +24,54 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
+        id: dependencies
+      - name: Install pinned Bicep compiler
+        run: az bicep install --version v0.46.1
       - run: npx playwright install --with-deps chromium webkit
-      - run: npm run test:contracts -- tests/tier-consistency-contracts.spec.ts
-      - run: npm run test:command-center:v2
-      - run: npm run test:command-center:v2:ui
-      - run: npm run test:shared-evidence:ui
-      - run: npm run test:api && npm run test:browser
+        id: browsers
+      - name: Tier contracts
+        if: ${{ !cancelled() && steps.browsers.outcome == 'success' }}
+        run: npm run test:contracts -- tests/tier-consistency-contracts.spec.ts --output=test-results/tier-contracts --reporter=line,blob
+        env:
+          PLAYWRIGHT_BLOB_OUTPUT_DIR: playwright-report/tier-contracts/blob
+      - name: Command center contracts
+        if: ${{ !cancelled() && steps.browsers.outcome == 'success' }}
+        run: npm run test:command-center:v2 -- --output=test-results/command-center-contracts --reporter=line,blob
+        env:
+          PLAYWRIGHT_BLOB_OUTPUT_DIR: playwright-report/command-center-contracts/blob
+      - name: Command center UI
+        if: ${{ !cancelled() && steps.browsers.outcome == 'success' }}
+        run: npm run test:command-center:v2:ui -- --output=test-results/command-center-ui --reporter=line,blob
+        env:
+          PLAYWRIGHT_BLOB_OUTPUT_DIR: playwright-report/command-center-ui/blob
+      - name: Shared evidence UI
+        if: ${{ !cancelled() && steps.browsers.outcome == 'success' }}
+        run: npm run test:shared-evidence:ui -- --output=test-results/shared-evidence-ui --reporter=line,blob
+        env:
+          PLAYWRIGHT_BLOB_OUTPUT_DIR: playwright-report/shared-evidence-ui/blob
+      - name: API regression
+        if: ${{ !cancelled() && steps.browsers.outcome == 'success' }}
+        run: npm run test:api -- --output=test-results/api --reporter=line,blob
+        env:
+          PLAYWRIGHT_BLOB_OUTPUT_DIR: playwright-report/api/blob
+      - name: Browser matrix
+        if: ${{ !cancelled() && steps.browsers.outcome == 'success' }}
+        run: npm run test:browser
+      - name: Merge all completed lane reports
+        if: ${{ !cancelled() && steps.dependencies.outcome == 'success' }}
+        env:
+          PLAYWRIGHT_HTML_OUTPUT_DIR: playwright-report/complete
+          PLAYWRIGHT_HTML_OPEN: never
+          PLAYWRIGHT_JSON_OUTPUT_NAME: playwright-report/complete/results.json
+        run: |
+          mkdir -p playwright-report/all-blobs
+          index=0
+          while IFS= read -r -d '' report; do
+            cp "$report" "playwright-report/all-blobs/report-${index}.zip"
+            index=$((index + 1))
+          done < <(find playwright-report -type f -path '*/blob/*.zip' -print0)
+          test "$index" -gt 0
+          npx --no-install playwright merge-reports --reporter=html,json playwright-report/all-blobs
       - name: Upload full regression evidence
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4

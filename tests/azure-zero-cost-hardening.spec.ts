@@ -1,11 +1,8 @@
 import { expect, test } from "@playwright/test";
 import { existsSync, readFileSync } from "node:fs";
-import { createRequire } from "node:module";
 import { spawnSync } from "node:child_process";
 import { RETIRED_SYSTEM_NAMES } from "./fixtures/retired-system-names";
 
-const require = createRequire(import.meta.url);
-const tsxCli = require.resolve("tsx/cli");
 
 const azureBicep = readFileSync("infra/azure/main.bicep", "utf8");
 const qaBicep = readFileSync("infra/azure/qa.bicep", "utf8");
@@ -54,7 +51,7 @@ test("isolated QA owner is the Azure customer-account email", () => {
 });
 
 test("a verified External ID customer matching OWNER_EMAIL receives owner access", () => {
-  const result = spawnSync(process.execPath, [tsxCli, "--conditions=react-server", "-e", `
+  const result = spawnSync(process.execPath, ["--import", "tsx", "--input-type=module", "--conditions=react-server", "-e", `
     import { isOwnerUser } from "./src/lib/account-server.ts";
     const owner = isOwnerUser({
       uid: "external-id-subject",

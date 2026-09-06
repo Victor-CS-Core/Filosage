@@ -20,11 +20,13 @@ function requestIdentity(
   callerScope: "account" | "identity" = "account",
 ) {
   if (callerKey) return `${callerScope}:${callerKey}`;
-  // The runtime proxy owns forwarded client-address headers. Never trust
-  // caller-controlled forwarding headers in production. x-real-ip remains a
-  // local/reverse-proxy convenience outside production only.
-  const platformIp = request.headers.get("cf-connecting-ip")
-    ?? (serverEnvironment.NODE_ENV === "production" ? null : request.headers.get("x-real-ip"));
+  // Azure ingress has not been proven to strip/replace a client-address header
+  // on every path to this app. Neither a Cloudflare-named header nor XFF proves
+  // that boundary. Keep anonymous production requests in a conservative shared
+  // bucket until a separately verified ingress adapter can supply identity.
+  // x-real-ip is only a local test/reverse-proxy convenience.
+  const platformIp = serverEnvironment.NODE_ENV === "production"
+    ? null : request.headers.get("x-real-ip");
   return platformIp ? `ip:${platformIp}` : "unattributed";
 }
 
@@ -83,7 +85,14 @@ export async function enforceDurableRateLimit(
         const callerBucket = nextBucket(documents[callerPath], now, windowMs);
         const globalLimited = globalBucket.count > limit * GLOBAL_MULTIPLIER;
         const callerLimited = callerBucket.count > limit;
-        const resetAt = callerLimited ? callerBucket.resetAt : globalBucket.resetAt;
+        const resetAt = callerLimited && globalLimited
+          ? Math.max(callerBucket.resetAt, globalBucket.resetAt)
+          : callerLimited ? callerBucket.resetAt : globalBucket.resetAt;
+        // Reserve capacity only for admitted work. Rejected retries must not
+        // consume other accounts' global allowance or extend either window.
+        if (globalLimited || callerLimited) {
+          return { writes: [], result: { limited: true, resetAt } };
+        }
         const expiresAt = new Date(Math.max(globalBucket.resetAt, callerBucket.resetAt) + windowMs).toISOString();
         return {
           writes: [
@@ -108,7 +117,7 @@ export async function enforceDurableRateLimit(
               },
             },
           ],
-          result: { limited: globalLimited || callerLimited, resetAt },
+          result: { limited: false, resetAt },
         };
       },
     );

@@ -3,16 +3,18 @@
 import { useEffect, useState } from "react";
 import { CheckCircle2, LoaderCircle, MessageSquareText } from "lucide-react";
 import { createClientId, deferClientTask } from "@/lib/browser-compat";
+import { useAuth } from "@/components/AuthProvider";
+import { isCurrentLearnerSession, learnerRequest, learnerSessionSnapshot } from "@/lib/learner-storage";
 import { outcomeFeedbackStorageKey } from "@/lib/local-course-data";
 import { trackProductEvent } from "@/lib/product-analytics";
 
 export default function OutcomeUsefulness({
   courseId,
-  getAuthToken,
 }: {
   courseId: string;
   getAuthToken?: () => Promise<string | null>;
 }) {
+  const { user } = useAuth();
   const storageKey = outcomeFeedbackStorageKey(courseId);
   const [rating, setRating] = useState<number | null>(null);
   const [note, setNote] = useState("");
@@ -23,7 +25,7 @@ export default function OutcomeUsefulness({
   useEffect(() => {
     deferClientTask(() => {
       try {
-        setSent(localStorage.getItem(storageKey) === "sent");
+        setSent(Boolean(storageKey && localStorage.getItem(storageKey) === "sent"));
       } catch {
         setSent(false);
       }
@@ -32,24 +34,24 @@ export default function OutcomeUsefulness({
 
   const submit = async (event: React.FormEvent) => {
     event.preventDefault();
-    if (!rating || busy) return;
+    if (!rating || busy || !user) return;
+    const session = learnerSessionSnapshot();
     setBusy(true);
     setError(null);
     try {
-      const token = await getAuthToken?.();
-      const response = await fetch("/api/outcome-feedback", {
+      const response = await learnerRequest(user, "/api/outcome-feedback", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
         body: JSON.stringify({ feedbackId: createClientId(), courseId, rating, note }),
       });
       const data = await response.json() as { error?: string };
+      if (!isCurrentLearnerSession(session)) return;
       if (!response.ok) throw new Error(data.error || "Your feedback could not be recorded.");
       setSent(true);
       try {
-        localStorage.setItem(storageKey, "sent");
+        if (storageKey) localStorage.setItem(storageKey, "sent");
       } catch {
         // The thank-you state can remain session-only when storage is unavailable.
       }
@@ -59,9 +61,10 @@ export default function OutcomeUsefulness({
         score: rating,
       });
     } catch (submitError) {
+      if (!isCurrentLearnerSession(session)) return;
       setError(submitError instanceof Error ? submitError.message : "Your feedback could not be recorded.");
     } finally {
-      setBusy(false);
+      if (isCurrentLearnerSession(session)) setBusy(false);
     }
   };
 

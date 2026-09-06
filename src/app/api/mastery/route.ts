@@ -18,6 +18,7 @@ import { verifiedCapstoneMasteryEvidence } from "@/lib/mastery-server";
 import type { CapstoneAssessment } from "@/lib/learning-types";
 import { getCourseRuntimeArtifact, publishedReleaseUnavailableResponse } from "@/lib/course-pipeline/artifact-access";
 import { objectiveReferenceSchema } from "@/lib/learning-design";
+import { enforceDurableRateLimit } from "@/lib/request-rate-limit";
 
 const diagnosticSchema = z.object({
   objectiveId: objectiveReferenceSchema,
@@ -127,6 +128,8 @@ export async function PUT(request: Request) {
     if (!parsed.success) {
       return Response.json({ error: parsed.error.issues[0]?.message ?? "Check your learning plan." }, { status: 400 });
     }
+    const limited = await enforceDurableRateLimit(request, "mastery-plan", 30, 60_000, account.uid);
+    if (limited) return limited;
     const denied = await assertCourseAccess(parsed.data.courseId, account);
     if (denied) return denied;
     const path = `users/${account.uid}/learningOutcomes/${parsed.data.courseId}`;
@@ -153,6 +156,8 @@ export async function POST(request: Request) {
     if (!parsed.success) {
       return Response.json({ error: parsed.error.issues[0]?.message ?? "Check the evidence record." }, { status: 400 });
     }
+    const limited = await enforceDurableRateLimit(request, "mastery-evidence", 120, 60_000, account.uid);
+    if (limited) return limited;
     const denied = await assertCourseAccess(parsed.data.courseId, account);
     if (denied) return denied;
     const path = `users/${account.uid}/masteryEvidence/${parsed.data.id}`;

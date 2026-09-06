@@ -28,8 +28,22 @@ jobs:
       - run: npm audit --audit-level=high
       - run: npm run check:secrets
       - run: npm run check:support-wiki
-      - run: npm run test:contracts
+      - name: Install pinned Bicep compiler
+        run: az bicep install --version v0.46.1
+      - run: npm run test:contracts -- --output=test-results/contracts --reporter=line,blob
+        env:
+          PLAYWRIGHT_BLOB_OUTPUT_DIR: playwright-report/contracts/blob
       - run: npm run build
+      - name: Upload contract evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: release-contract-evidence
+          path: |
+            playwright-report/
+            test-results/
+          if-no-files-found: ignore
+          retention-days: 14
 
   browser-smoke:
     needs: static-and-release-contracts
@@ -43,8 +57,32 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
+        id: dependencies
       - run: npx playwright install --with-deps --only-shell chromium
-      - run: npm run test:api && npm run test:browser:smoke
+        id: browsers
+      - name: API regression
+        id: api
+        run: npm run test:api -- --output=test-results/api --reporter=line,blob
+        env:
+          PLAYWRIGHT_BLOB_OUTPUT_DIR: playwright-report/api/blob
+      - name: Chromium smoke regression
+        if: ${{ !cancelled() && steps.browsers.outcome == 'success' }}
+        run: npm run test:browser:smoke
+      - name: Merge all completed lane reports
+        if: ${{ !cancelled() && steps.dependencies.outcome == 'success' }}
+        env:
+          PLAYWRIGHT_HTML_OUTPUT_DIR: playwright-report/complete
+          PLAYWRIGHT_HTML_OPEN: never
+          PLAYWRIGHT_JSON_OUTPUT_NAME: playwright-report/complete/results.json
+        run: |
+          mkdir -p playwright-report/all-blobs
+          index=0
+          while IFS= read -r -d '' report; do
+            cp "$report" "playwright-report/all-blobs/report-${index}.zip"
+            index=$((index + 1))
+          done < <(find playwright-report -type f -path '*/blob/*.zip' -print0)
+          test "$index" -gt 0
+          npx --no-install playwright merge-reports --reporter=html,json playwright-report/all-blobs
       - name: Upload smoke-test evidence
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
@@ -54,4 +92,46 @@ jobs:
             playwright-report/
             test-results/
           if-no-files-found: ignore
+          retention-days: 14
+
+  postgres-transactions:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: filosage_test
+          POSTGRES_PASSWORD: testfixture-ci-only
+          POSTGRES_DB: filosage_integration_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U filosage_test -d filosage_integration_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      # Ephemeral CI service credentials; never a repository or production secret.
+      FILOSAGE_POSTGRES_TEST_URL: postgresql://filosage_test:testfixture-ci-only@127.0.0.1:5432/filosage_integration_test # secret-scan: allow-test-fixture
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Verify real PostgreSQL transaction behavior
+        shell: bash
+        run: |
+          set -o pipefail
+          mkdir -p test-results/postgres
+          npm run test:postgres 2>&1 | tee test-results/postgres/results.tap
+      - name: Upload PostgreSQL transaction evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: postgres-transaction-evidence
+          path: test-results/postgres/
+          if-no-files-found: error
           retention-days: 14

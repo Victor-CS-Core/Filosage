@@ -32,7 +32,7 @@ The lesson API is the authoritative boundary. Client-side locks explain the rule
 - One clean regeneration is attempted. A second failure is rejected and never stored.
 - Language courses remain supported through topic-aware script allowances. For example, Han is allowed for a Chinese course but rejected from an unrelated Spanish course.
 - Legacy output is sanitized at the DTO boundary so obvious trailing contamination is not rendered while the source record remains available for owner review.
-- Pro publication requires every lesson to exist, every lesson to be completed by the author, an explicit author attestation, and a fresh course-wide safety, language, structure, and teaching-quality review. The owner can quarantine, unpublish, or delete published material.
+- Pro publication requires every outlined lesson and a current snapshot-bound safety, quality, grounding, and review proof. Valid generation evidence is reused; missing historical moderation and unresolved semantic/runtime/high-stakes checks require explicit owner review. Structural and source-security blockers cannot be overridden. See `PUBLICATION_PROOF_CONTRACT.md`. The owner can quarantine, unpublish, or delete published material.
 
 ### Request and browser security
 

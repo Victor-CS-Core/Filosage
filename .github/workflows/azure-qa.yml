@@ -29,6 +29,7 @@ jobs:
     environment: azure-staging
     env:
       QA_URL: ${{ vars.AZURE_QA_URL }}
+      PUBLIC_SITE_URL: https://filosage.com
       EXPECTED_AUTH_MODE: ${{ inputs.external_id_auth_enabled && 'migration-dual' || 'direct-google' }}
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
@@ -36,6 +37,12 @@ jobs:
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: 22
+
+      - name: Validate the reviewed capability selection
+        shell: bash
+        run: |
+          set -euo pipefail
+          node scripts/release-capabilities.mjs environment > "$RUNNER_TEMP/release-capabilities.env"
 
       - name: Verify the exact SHA passed the required quality gate
         env:
@@ -96,15 +103,19 @@ jobs:
             --username 00000000-0000-0000-0000-000000000000 \
             --password-stdin
           IMAGE="${{ vars.AZURE_ACR_NAME }}.azurecr.io/filosage:${GITHUB_SHA}"
+          mapfile -t CAPABILITY_ENV < "$RUNNER_TEMP/release-capabilities.env"
+          BUILD_ARGS=()
+          for value in "${CAPABILITY_ENV[@]}"; do BUILD_ARGS+=(--build-arg "$value"); done
           docker build \
             --tag "$IMAGE" \
-            --build-arg "NEXT_PUBLIC_SITE_URL=https://filosage.com" \
-            --build-arg "NEXT_PUBLIC_COMMAND_CENTER_V2=true" \
+            --build-arg "NEXT_PUBLIC_SITE_URL=${PUBLIC_SITE_URL}" \
             --build-arg "SITE_VERSION=${GITHUB_SHA}" \
-            --build-arg "FLASHCARD_DECKS_ENABLED=true" \
-            --build-arg "FLASHCARD_AI_GENERATION_ENABLED=true" \
+            "${BUILD_ARGS[@]}" \
             .
           docker push "$IMAGE"
+          DIGEST="$(az acr repository show --name "${{ vars.AZURE_ACR_NAME }}" --image "filosage:${GITHUB_SHA}" --query digest --output tsv)"
+          node scripts/release-capabilities.mjs create-evidence "$GITHUB_SHA" "$DIGEST" "$PUBLIC_SITE_URL" "$QA_URL" "$EXPECTED_AUTH_MODE" > "$RUNNER_TEMP/release-candidate.json"
+          node scripts/release-capabilities.mjs verify-evidence "$RUNNER_TEMP/release-candidate.json" "$GITHUB_SHA" "$PUBLIC_SITE_URL" >> "$GITHUB_ENV"
 
       - name: Deploy the exact image to isolated QA
         shell: bash
@@ -114,19 +125,17 @@ jobs:
             echo "AZURE_QA_URL must be an HTTPS origin without a path."
             exit 1
           fi
-          IMAGE="${{ vars.AZURE_ACR_NAME }}.azurecr.io/filosage:${GITHUB_SHA}"
+          IMAGE="${{ vars.AZURE_ACR_NAME }}.azurecr.io/filosage@${EXPECTED_IMAGE_DIGEST}"
+          mapfile -t CAPABILITY_ENV < "$RUNNER_TEMP/release-capabilities.env"
           az containerapp update \
             --resource-group "${{ vars.AZURE_RESOURCE_GROUP }}" \
             --name "${{ vars.AZURE_QA_CONTAINER_APP_NAME }}" \
             --image "$IMAGE" \
             --revision-suffix "qa-${GITHUB_SHA:0:8}-${GITHUB_RUN_ATTEMPT}" \
-            --remove-env-vars \
-              "FLASHCARD_DECKS_ENABLED" \
-              "FLASHCARD_AI_GENERATION_ENABLED" \
-            --set-env-vars \
+            --set-env-vars "${CAPABILITY_ENV[@]}" \
+              "RELEASE_IMAGE_DIGEST=${EXPECTED_IMAGE_DIGEST}" \
               "SITE_VERSION=${GITHUB_SHA}" \
               "NEXT_PUBLIC_SITE_URL=${QA_URL}" \
-              "NEXT_PUBLIC_COMMAND_CENTER_V2=true" \
               "DEPLOYMENT_ENVIRONMENT=qa" \
               "DEPLOYMENT_SLOT=qa" \
               "OPERATIONS_ENVIRONMENT=qa" \
@@ -158,6 +167,18 @@ jobs:
             | node scripts/check-auth-provider-state.mjs "$EXPECTED_AUTH_MODE"
 
       - name: Verify isolated QA candidate
-        env:
-          EXPECTED_AUTH_MODE: ${{ inputs.external_id_auth_enabled && 'migration-dual' || 'direct-google' }}
-        run: npm run check:production -- "$QA_URL" "$GITHUB_SHA" "$QA_URL"
+        shell: bash
+        run: |
+          set -euo pipefail
+          OBSERVED_IMAGE="$(az containerapp show --resource-group "${{ vars.AZURE_RESOURCE_GROUP }}" --name "${{ vars.AZURE_QA_CONTAINER_APP_NAME }}" --query 'properties.template.containers[0].image' --output tsv)"
+          node scripts/release-capabilities.mjs check-image "${{ vars.AZURE_ACR_NAME }}.azurecr.io/filosage" "$EXPECTED_IMAGE_DIGEST" "$OBSERVED_IMAGE"
+          npm run check:production -- "$QA_URL" "$GITHUB_SHA" "$QA_URL"
+          npm run check:release-safety -- "$QA_URL"
+
+      - name: Retain exact QA candidate evidence
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: release-candidate-${{ github.sha }}
+          path: ${{ runner.temp }}/release-candidate.json
+          if-no-files-found: error
+          retention-days: 90

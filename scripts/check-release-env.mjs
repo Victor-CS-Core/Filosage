@@ -1,3 +1,6 @@
+import { observedReleaseCapabilities, releaseSelectionMatches, validReleaseOrigin } from "../src/lib/release-capabilities.ts";
+import { readReleaseManifest } from "./release-manifest.mjs";
+
 const activationMode = process.argv.includes("--billing-activation");
 const required = [
   "NEXT_PUBLIC_SITE_URL",
@@ -21,6 +24,7 @@ const required = [
   "OPERATIONS_ALERT_WEBHOOK_URL",
   "OPERATIONS_ALERT_WEBHOOK_SECRET",
   "SITE_VERSION",
+  "EXPECTED_SITE_VERSION",
 ];
 const missing = required.filter((name) => !process.env[name]?.trim());
 if (missing.length) { console.error(`Missing release environment variables: ${missing.join(", ")}`); process.exitCode = 1; }
@@ -51,9 +55,17 @@ else {
   }
   if (process.env.ACTIVITY_RECEIPT_SECRET.trim().length < 32) invalid.push("ACTIVITY_RECEIPT_SECRET must contain at least 32 characters");
   if (!/^[a-f0-9]{40}$/i.test(process.env.SITE_VERSION.trim())) invalid.push("SITE_VERSION must be the full 40-character Git commit SHA");
+  if (!/^[a-f0-9]{40}$/.test(process.env.EXPECTED_SITE_VERSION ?? "") || process.env.SITE_VERSION !== process.env.EXPECTED_SITE_VERSION) invalid.push("SITE_VERSION must match the approved EXPECTED_SITE_VERSION");
   if (process.env.AZURE_EASY_AUTH_ENABLED.trim().toLowerCase() !== "true") invalid.push("AZURE_EASY_AUTH_ENABLED must be true for production releases");
-  if (process.env.FLASHCARD_DECKS_ENABLED?.trim().toLowerCase() !== "true") invalid.push("FLASHCARD_DECKS_ENABLED must be true for production releases");
-  if (process.env.FLASHCARD_AI_GENERATION_ENABLED?.trim().toLowerCase() !== "true") invalid.push("FLASHCARD_AI_GENERATION_ENABLED must be true for production releases");
+  try {
+    if (!releaseSelectionMatches(readReleaseManifest().capabilities, observedReleaseCapabilities(process.env))) {
+      invalid.push("release capabilities must match the approved manifest (all flags explicit; generation requires decks)");
+    }
+  } catch { invalid.push("Invalid approved release manifest"); }
+  const expectedOrigin = process.env.EXPECTED_SITE_ORIGIN;
+  if (!validReleaseOrigin(expectedOrigin) || process.env.NEXT_PUBLIC_SITE_URL !== expectedOrigin) invalid.push("canonical origin must match EXPECTED_SITE_ORIGIN");
+  const mode = directGoogleEnabled && externalIdEnabled ? "migration-dual" : externalIdEnabled ? "external-id" : "direct-google";
+  if (process.env.EXPECTED_AUTH_MODE !== mode) invalid.push("authentication mode must match EXPECTED_AUTH_MODE");
   if (!/^https:\/\/[a-z0-9-]+\.blob\.core\.windows\.net\/?$/i.test(process.env.AZURE_STORAGE_ACCOUNT_URL.trim())) invalid.push("AZURE_STORAGE_ACCOUNT_URL must be an Azure Blob service URL");
   const billingRolloutMode = process.env.BILLING_ROLLOUT_MODE?.trim().toLowerCase() ?? "";
   if (!["closed", "configured", "canary", "open"].includes(billingRolloutMode)) {

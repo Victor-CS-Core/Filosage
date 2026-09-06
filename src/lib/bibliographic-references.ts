@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import { z } from "zod";
 import { isSafePublicSourceUrl } from "@/lib/source-safety";
-import { canonicalProviderUrl, providerGroundedUrls } from "@/lib/source-research";
+import { canonicalProviderUrl, completedWebSearchCallIds, providerGroundedUrls, researchStageLifetime, RESEARCH_STAGE_MAX_AGE_MS, type ResearchStageResumeContext } from "@/lib/source-research";
 
 export const BIBLIOGRAPHIC_REFERENCE_POLICY_VERSION = "bibliographic-reference-v1.1.0";
 export const BIBLIOGRAPHIC_METADATA_RESOLVER_VERSION = "catalog-metadata-resolver-v1.0.0";
@@ -280,7 +280,9 @@ export const bibliographicDiscoverySchema = z.object({
       olid: optionalDiscoveryText(1, 40),
     }).strict(),
     metadataProvider: z.enum(["open-library", "google-books"]),
-    catalogUrl: z.string().url().max(1_000),
+    // Validate URL/host/record identity during certification; Responses does not
+    // support JSON Schema format: uri in structured output.
+    catalogUrl: z.string().startsWith("https://").max(1_000),
   }).strict()).max(5),
 }).strict();
 
@@ -462,6 +464,9 @@ export async function certifyDiscoveredBibliographicReferences(
   if (!parsed.success) {
     return { references: [], rejections: ["The further-reading response did not match the bibliographic schema."], incomplete: true };
   }
+  if (!completedWebSearchCallIds(response).length) {
+    return { references: [], rejections: ["The further-reading response did not contain a completed web-search call."], incomplete: true };
+  }
   const groundedUrls = providerGroundedUrls(response);
   const attempts = await Promise.allSettled(parsed.data.references.map(async (candidate) => {
     const url = new URL(candidate.catalogUrl);
@@ -574,4 +579,38 @@ export function normalizeBibliographicReferences(values: unknown[]) {
   const normalized = values.map(normalizeBibliographicReference);
   const byId = new Map(normalized.map((reference) => [reference.id, reference]));
   return [...byId.values()].sort((left, right) => left.id.localeCompare(right.id));
+}
+
+export function restoreBibliographyStage(
+  artifact: Record<string, unknown> | null | undefined,
+  context: ResearchStageResumeContext,
+) {
+  if (!artifact || artifact.requestFingerprint !== context.requestFingerprint
+    || artifact.bibliographicPolicyVersion !== BIBLIOGRAPHIC_REFERENCE_POLICY_VERSION
+    || (artifact.bibliographyComplete ?? artifact.researchComplete) !== true
+    || !Array.isArray(artifact.furtherReading)) return null;
+  const lifetime = researchStageLifetime(
+    artifact.bibliographyCreatedAt ?? artifact.createdAt,
+    artifact.bibliographyExpiresAt ?? artifact.expiresAt,
+    RESEARCH_STAGE_MAX_AGE_MS,
+    context.now,
+  );
+  if (!lifetime) return null;
+  const parsed = z.array(bibliographicReferenceSchema).safeParse(artifact.furtherReading);
+  if (!parsed.success || parsed.data.some((reference) => reference.contentVerified !== Boolean(reference.contentVerification))) return null;
+  try {
+    for (const reference of parsed.data) {
+      const input = Object.fromEntries(Object.entries(reference).filter(([key]) => !["id", "policyVersion", "role", "claimEvidence", "contentVerified"].includes(key)));
+      if (normalizeBibliographicReference(input).id !== reference.id) return null;
+    }
+  } catch {
+    return null;
+  }
+  return {
+    furtherReading: parsed.data,
+    responseId: typeof artifact.bibliographyResponseId === "string" ? artifact.bibliographyResponseId : undefined,
+    searchCallIds: Array.isArray(artifact.bibliographySearchCallIds)
+      ? artifact.bibliographySearchCallIds.filter((id): id is string => typeof id === "string") : [],
+    ...lifetime,
+  };
 }

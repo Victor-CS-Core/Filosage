@@ -1,6 +1,7 @@
 import { resolve } from "node:path";
 
 export const contractSuites = [
+  "tests/account-storage-contracts.spec.ts",
   "tests/auth-identity.spec.ts",
   "tests/azure-infrastructure.spec.ts",
   "tests/azure-zero-cost-hardening.spec.ts",
@@ -22,8 +23,11 @@ export const contractSuites = [
   "tests/operational-alerts.spec.ts",
   "tests/operations-scripts.spec.ts",
   "tests/pro-evidence-course-credits.spec.ts",
+  "tests/publication-proofs.spec.ts",
   "tests/release-hardening.spec.ts",
+  "tests/release-capabilities.spec.ts",
   "tests/release-scripts.spec.ts",
+  "tests/request-rate-limit.spec.ts",
   "tests/retrieval-planning.spec.ts",
   "tests/retired-systems.spec.ts",
   "tests/source-citations.spec.ts",
@@ -38,6 +42,7 @@ export const apiSuites = [
 ] as const;
 
 export const singleEngineSuites = [
+  "tests/account-storage-isolation.spec.ts",
   "tests/account-onboarding.spec.ts",
   "tests/admin-research-layout.spec.ts",
   "tests/auth-linking.spec.ts",
@@ -69,6 +74,7 @@ export const deviceSensitiveSuites = [
 ] as const;
 
 export const smokeBrowserSuites = [
+  "tests/account-storage-isolation.spec.ts",
   "tests/account-onboarding.spec.ts",
   "tests/analytics-consent.spec.ts",
   "tests/auth-accessibility.spec.ts",
@@ -99,6 +105,7 @@ export const browserSuitesByProject: Record<BrowserProjectName, readonly string[
 
 export const browserSuiteEstimatedTestLoad: Record<BrowserProjectName, Record<string, number>> = {
   chromium: {
+    "tests/account-storage-isolation.spec.ts": 5,
     "tests/account-onboarding.spec.ts": 7,
     "tests/admin-research-layout.spec.ts": 2,
     "tests/analytics-consent.spec.ts": 3,

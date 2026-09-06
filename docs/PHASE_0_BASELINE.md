@@ -1,7 +1,9 @@
 # Phase 0 Baseline
 
 Baseline date: July 28, 2026  
-Status: instrumentation ready; real market data pending
+Status: historical instrumentation record; real market data pending
+
+> Reconciliation, 2026-09-06: this July 28 baseline is retained as historical evidence. Its anonymous-access wording refers to discovery only under the current contract: lesson bodies and saved learner work require a verified account. It does not establish current hosted readiness.
 
 ## Why values are pending
 

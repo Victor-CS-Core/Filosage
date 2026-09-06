@@ -27,6 +27,7 @@ import {
   runStoredDocumentTransaction,
 } from "@/lib/document-store";
 import { courseAuthorIdsForAccount } from "@/lib/course-owner-identity";
+import { enforceDurableRateLimit } from "@/lib/request-rate-limit";
 
 const ACCOUNT_SUBCOLLECTION_LIMIT = 2_000;
 const ACCOUNT_FIELD_QUERY_LIMIT = 1_000;
@@ -189,6 +190,8 @@ async function collectAccountData(uid: string, isOwner = false) {
 export async function GET(request: Request) {
   try {
     const account = await requireAccount(request);
+    const limited = await enforceDurableRateLimit(request, "account-export", 3, 3_600_000, account.uid);
+    if (limited) return limited;
     const data = await collectAccountData(account.uid, account.isOwner);
     return new Response(JSON.stringify({
       exportFormat: "filosage-account-data-v2",
@@ -221,6 +224,8 @@ export async function DELETE(request: Request) {
     if (body.confirmation !== "DELETE MY ACCOUNT") {
       return Response.json({ error: "Type DELETE MY ACCOUNT to confirm permanent deletion." }, { status: 400 });
     }
+    const limited = await enforceDurableRateLimit(request, "account-deletion", 10, 600_000, account.uid);
+    if (limited) return limited;
 
     const accountPath = `users/${account.uid}`;
     const checkoutPath = `users/${account.uid}/billingCheckout/current`;

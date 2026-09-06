@@ -577,13 +577,13 @@ test("course generation gives every external stage an independent bounded deadli
   expect(route).toContain("This request contains exactly one source.");
   expect(route).toContain("allowed_domains: [authorityDomain]");
   expect(route).toContain("validatedSources.push(...evidenceValidation.sources)");
-  expect(route).toContain("source.researchPolicyVersion === SOURCE_RESEARCH_POLICY_VERSION");
+  expect(route).toContain("restoreEvidenceResearchStage(existingResearchArtifact, stageContext)");
   expect(route).toContain("Never return doi.org, Crossref, OpenAlex");
   expect(route).toContain("atomic evidence claims as the hard ceiling");
   expect(route).toContain("change contentBasis to model-knowledge and remove all sourceIds");
-  expect(route.match(/researchArtifactIsCurrent\(/g)?.length).toBeGreaterThanOrEqual(2);
-  expect(route).toContain("restoredReading.length === (Array.isArray(current?.furtherReading)");
-  expect(route).toContain("responseId: current.responseId");
+  expect(route).toContain("restoreEvidenceResearchStage(current, transactionContext)");
+  expect(route).toContain("restoreBibliographyStage(current, transactionContext)");
+  expect(route).toContain("responseId: selectedEvidence?.responseId ?? (researchArtifactReused ? undefined : researchResponseId)");
   expect(route).toContain('researchResponseId = typeof persistedResearch.responseId === "string"');
 });
 
@@ -594,4 +594,162 @@ test("maps a certified source URL to its narrow validation authority domain", ()
     .toBe("imf.org");
   expect(researchAuthorityDomainForUrl("https://example.com/research/article"))
     .toBeUndefined();
+});
+
+test("bibliography discovery stays inside the Responses structured-output schema subset", async () => {
+  const { bibliographicDiscoverySchema } = await import("../src/lib/bibliographic-references");
+  expect(JSON.stringify(zodTextFormat(bibliographicDiscoverySchema, "course_bibliography"))).not.toContain('"format":"uri"');
+});
+
+test("actual source requests resume completed evidence after bibliography failure and preserve incurred usage", async () => {
+  const { researchRouteFixture, emptyStageResponse } = await import("./fixtures/research-route");
+  let bibliographyCalls = 0;
+  const fixture = researchRouteFixture(async (request) => {
+    const name = request.text.format.name;
+    if (name === "course_bibliography" && ++bibliographyCalls === 1) throw new Error("fixture bibliography outage");
+    if (name === "course_outline") throw new Error("fixture later outline failure");
+    if (name === "course_research") {
+      const sources = researchFixture().sources;
+      return { ...researchResponse(sources.map((source) => source.url)), ...emptyStageResponse(name), output: researchResponse(sources.map((source) => source.url)).output, output_parsed: { sources } };
+    }
+    if (name === "source_evidence_validation") {
+      const [source] = sourceVerificationDataFromInput(request.input);
+      return { ...emptyStageResponse(name), output: researchResponse([source.url!]).output, output_parsed: { sources: [{ url: source.url, statusVerdict: "released-no-withdrawal-found", claims: source.evidenceClaims!.map((claim) => ({ evidenceClaimId: claim.id, verdict: "supported", rationale: "The exact fixture source directly supports this claim." })) }] } };
+    }
+    return emptyStageResponse(name);
+  });
+  expect((await fixture.run()).status).toBe(500);
+  const first = fixture.documents.get("courseResearchArtifacts/fixture-request");
+  expect((await fixture.run()).status).toBe(500);
+  expect(fixture.captured.filter((request) => request.text.format.name === "course_research")).toHaveLength(1);
+  expect(fixture.captured.filter((request) => request.text.format.name === "source_evidence_validation")).toHaveLength(2);
+  expect(first).toMatchObject({ evidenceResearchComplete: true, bibliographyComplete: false, researchComplete: false });
+  expect((first!.sourcePack as CourseSource[]).map((source) => source.url)).toEqual(researchFixture().sources.map((source) => source.url));
+  expect(fixture.finalizations[0].usageSamples).toEqual(expect.arrayContaining([expect.objectContaining({ responseId: "response-course_research", inputTokens: 40, outputTokens: 20 })]));
+  const saved = fixture.documents.get("courseResearchArtifacts/fixture-request");
+  expect(saved).toMatchObject({ evidenceResearchComplete: true, bibliographyComplete: true, researchComplete: true, responseId: "response-course_research", bibliographyResponseId: "response-course_bibliography" });
+  expect(Date.parse(String(saved?.evidenceExpiresAt))).toBeLessThanOrEqual(Date.parse(String(first?.evidenceExpiresAt)));
+  expect(saved?.fallbackReasonCodes).not.toContain("bibliography-unavailable");
+  expect(fixture.captured.filter((request) => request.text.format.name === "course_research")).toHaveLength(1);
+  expect(fixture.captured.filter((request) => request.text.format.name === "course_bibliography")).toHaveLength(2);
+  for (const request of fixture.captured) expect(request.prompt_cache_key.length).toBeLessThanOrEqual(64);
+  const bibliographyRequest = fixture.captured.find((request) => request.text.format.name === "course_bibliography")!;
+  expect(JSON.stringify(bibliographyRequest.text.format.schema)).not.toContain('"format":"uri"');
+  expect(fixture.finalizations[1].usageSamples?.find((sample) => sample.responseId === "response-course_bibliography")?.promptCacheKey).toBe(bibliographyRequest.prompt_cache_key);
+});
+
+test("actual source requests reuse completed bibliography after evidence provider failure", async () => {
+  const { researchRouteFixture, emptyStageResponse } = await import("./fixtures/research-route");
+  let evidenceCalls = 0;
+  const fixture = researchRouteFixture(async (request) => {
+    const name = request.text.format.name;
+    if (name === "course_research" && ++evidenceCalls === 1) throw new Error("fixture evidence outage");
+    if (name === "course_outline") throw new Error("fixture later outline failure");
+    return emptyStageResponse(name);
+  });
+  expect((await fixture.run()).status).toBe(500);
+  const first = fixture.documents.get("courseResearchArtifacts/fixture-request");
+  expect((await fixture.run()).status).toBe(500);
+  expect(fixture.captured.filter((request) => request.text.format.name === "course_bibliography")).toHaveLength(1);
+  expect(first).toMatchObject({ evidenceResearchComplete: false, bibliographyComplete: true });
+  expect(fixture.captured.filter((request) => request.text.format.name === "course_research")).toHaveLength(2);
+});
+
+test("a storage failure after source generation retains actual response and search costs", async () => {
+  const { researchRouteFixture, emptyStageResponse } = await import("./fixtures/research-route");
+  const fixture = researchRouteFixture(async (request) => emptyStageResponse(request.text.format.name), { failPersistence: true });
+  expect((await fixture.run()).status).toBe(500);
+  const samples = fixture.finalizations[0].usageSamples!;
+  expect(samples).toBeDefined();
+  expect(samples.filter((sample) => sample.responseId).map((sample) => sample.responseId).sort()).toEqual(["response-course_bibliography", "response-course_research"]);
+  expect(samples.filter((sample) => sample.model === "openai-web-search")).toHaveLength(2);
+  expect(samples.reduce((sum, sample) => sum + (sample.fixedCostMicros ?? 0), 0)).toBe(20_000);
+  expect(fixture.documents.size).toBe(0);
+});
+
+for (const cachedStage of ["evidence", "bibliography"] as const) {
+  test(`cached ${cachedStage} expiry during the opposite request checkpoints only the valid stage`, async () => {
+    const { mock } = await import("node:test");
+    const { researchRouteFixture, emptyStageResponse } = await import("./fixtures/research-route");
+    const { normalizeBibliographicReference } = await import("../src/lib/bibliographic-references");
+    mock.timers.enable({ apis: ["Date"], now: Date.parse("2026-09-06T12:00:00.000Z") });
+    try {
+      const cachedName = cachedStage === "evidence" ? "course_research" : "course_bibliography";
+      const oppositeName = cachedStage === "evidence" ? "course_bibliography" : "course_research";
+      const completeField = cachedStage === "evidence" ? "evidenceResearchComplete" : "bibliographyComplete";
+      const oppositeCompleteField = cachedStage === "evidence" ? "bibliographyComplete" : "evidenceResearchComplete";
+      const expiryField = cachedStage === "evidence" ? "evidenceExpiresAt" : "bibliographyExpiresAt";
+      const resultField = cachedStage === "evidence" ? "sourcePack" : "furtherReading";
+      let attempt = 1;
+      const fixture = researchRouteFixture(async (request) => {
+        const name = request.text.format.name;
+        if (name === oppositeName && attempt === 1) throw new Error("fixture initial opposite-stage outage");
+        if (name === oppositeName && attempt === 2) mock.timers.tick(2_000);
+        if (name === "course_outline") throw new Error("fixture later outline failure");
+        return emptyStageResponse(name);
+      });
+      expect((await fixture.run()).status).toBe(500);
+      const artifact = fixture.documents.get("courseResearchArtifacts/fixture-request")!;
+      artifact[expiryField] = new Date(Date.now() + 1_000).toISOString();
+      // Nonempty certified results ensure old array fallbacks cannot survive expiry.
+      if (cachedStage === "evidence") {
+        const candidates = researchFixture();
+        artifact.sourcePack = certifyResearchSources(candidates, researchResponse(candidates.sources.map((source) => source.url)), new Date().toISOString()).sources.map((source) => ({
+          ...source, qualityTier: "vetted", evidenceValidationResponseId: "fixture-validation", evidenceValidationCallIds: ["fixture-validation-call"],
+        }));
+      } else {
+        artifact.furtherReading = [normalizeBibliographicReference({
+          materialType: "book", title: "Fixture reference book", contributors: [{ name: "Fixture Author", role: "author" }],
+          publisher: "Fixture Press", publicationYear: 2020, language: "en", identifiers: { olid: "OL1M" },
+          metadataVerification: { status: "verified", provider: "open-library", recordId: "/books/OL1M", recordFingerprint: "a".repeat(64), verifiedAt: new Date().toISOString() },
+        })];
+      }
+      const outlineCount = fixture.captured.filter((request) => request.text.format.name === "course_outline").length;
+      attempt = 2;
+      expect((await fixture.run()).status).toBe(500);
+      const checkpoint = fixture.documents.get("courseResearchArtifacts/fixture-request")!;
+      expect(checkpoint[completeField]).toBe(false);
+      expect(checkpoint[resultField]).toEqual([]);
+      expect(checkpoint.researchComplete).toBe(false);
+      expect(Date.parse(String(checkpoint[expiryField]))).toBeLessThanOrEqual(Date.now());
+      expect(checkpoint[oppositeCompleteField]).toBe(true);
+      expect(fixture.captured.filter((request) => request.text.format.name === "course_outline")).toHaveLength(outlineCount);
+      expect(fixture.finalizations[1].usageSamples).toEqual(expect.arrayContaining([expect.objectContaining({ responseId: `response-${oppositeName}` })]));
+      attempt = 3;
+      expect((await fixture.run()).status).toBe(500);
+      expect(fixture.captured.filter((request) => request.text.format.name === cachedName)).toHaveLength(2);
+      expect(fixture.captured.filter((request) => request.text.format.name === oppositeName)).toHaveLength(2);
+      expect(fixture.documents.get("courseResearchArtifacts/fixture-request")?.researchComplete).toBe(true);
+    } finally {
+      mock.timers.reset();
+    }
+  });
+}
+
+test("cached evidence that expires while the checkpoint commits is not consumed by the outline", async () => {
+  const { mock } = await import("node:test");
+  const { researchRouteFixture, emptyStageResponse } = await import("./fixtures/research-route");
+  mock.timers.enable({ apis: ["Date"], now: Date.parse("2026-09-06T12:00:00.000Z") });
+  try {
+    let attempt = 1;
+    const fixture = researchRouteFixture(async (request) => {
+      if (request.text.format.name === "course_outline") throw new Error("fixture later outline failure");
+      return emptyStageResponse(request.text.format.name);
+    }, { afterPersistence: () => { if (attempt === 2) mock.timers.tick(2_000); } });
+    expect((await fixture.run()).status).toBe(500);
+    fixture.documents.get("courseResearchArtifacts/fixture-request")!.evidenceExpiresAt = new Date(Date.now() + 1_000).toISOString();
+    const outlineCount = fixture.captured.filter((request) => request.text.format.name === "course_outline").length;
+    attempt = 2;
+    expect((await fixture.run()).status).toBe(500);
+    expect(fixture.captured.filter((request) => request.text.format.name === "course_outline")).toHaveLength(outlineCount);
+    const checkpoint = fixture.documents.get("courseResearchArtifacts/fixture-request")!;
+    expect(checkpoint.bibliographyComplete).toBe(true);
+    expect(Date.parse(String(checkpoint.evidenceExpiresAt))).toBeLessThanOrEqual(Date.now());
+    attempt = 3;
+    expect((await fixture.run()).status).toBe(500);
+    expect(fixture.captured.filter((request) => request.text.format.name === "course_research")).toHaveLength(2);
+    expect(fixture.captured.filter((request) => request.text.format.name === "course_bibliography")).toHaveLength(1);
+  } finally {
+    mock.timers.reset();
+  }
 });

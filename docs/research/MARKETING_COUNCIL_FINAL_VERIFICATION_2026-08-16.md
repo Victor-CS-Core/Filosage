@@ -1,5 +1,8 @@
 # Marketing Council final verification — 2026-08-16
 
+> Historical record retained with its original date. Reconciliation on 2026-09-06: new candidates use `config/release-capabilities.json` and `docs/RELEASE_CAPABILITIES.md`. Earlier all-on activation or publication-review statements do not establish current hosted availability or completion of the unified publication-proof gate. No historical run is reclassified as a current pass.
+
+
 > Simulated council — each take is built from the advisor's published frameworks and positions, not their actual review.
 
 ## The question before the council
