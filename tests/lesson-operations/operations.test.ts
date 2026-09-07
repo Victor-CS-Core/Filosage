@@ -9,11 +9,11 @@ import * as operations from "../../src/lib/generation-operations.ts";
 import { captureAccountGeneration, runWithAccountGeneration } from "../../src/lib/account-lifecycle.ts";
 import { lessonCourseFingerprint, lessonPublicationState } from "../../src/lib/course-pipeline/lesson-save.ts";
 import type { ServerAccount } from "../../src/lib/account-server.ts";
+import { generationAccountingContext } from "../../src/lib/ai-usage.ts";
 const directory = mkdtempSync(join(tmpdir(), "lesson-operations-"));
 process.env.FILOSAGE_LOCAL_DIR = relative(process.cwd(), directory);
 after(() => rmSync(directory, { recursive: true, force: true }));
-async function fixture() {
-  const uid = randomUUID();
+async function fixture(uid: string = randomUUID()) {
   const scope = await captureAccountGeneration(uid);
   const owned = <T>(work: () => T) => runWithAccountGeneration(scope, work);
   const account: ServerAccount = { uid, isOwner: true, plan: "pro", access: "owner", accountStatus: "active", subscriptionStatus: "active" };
@@ -22,7 +22,7 @@ async function fixture() {
   const request = { courseId: uid, lessonId: "0-0", regenerate: false };
   const guard = { courseFingerprint: lessonCourseFingerprint(course, "0-0"), publicationState: lessonPublicationState(course), scopeVersion: 1 as const, invalidateReadiness: true };
   const key = `lesson-operation-${uid}`;
-  const begin = () => owned(() => operations.beginGenerationOperation(account, key, request, new Date(), { kind: "lesson", lessonGuard: guard }));
+  const begin = (operationKey = key, now = new Date()) => owned(() => operations.beginGenerationOperation(account, operationKey, request, now, { kind: "lesson", lessonGuard: guard }));
   return { uid, scope, owned, account, course, request, guard, key, begin };
 }
 test("lesson admission retains planned grant and shares budgets with independent lesson locks", async () => {
@@ -51,9 +51,31 @@ test("lesson status resumes saved paid stages without another provider call or r
   assert.deepEqual(next.operation.lessonGuard, first.operation.lessonGuard);
 });
 test("durable lesson result and original accounting finish atomically and recover without another call", async () => {
-  const f = await fixture();
-  const lease = await f.begin();
+  const f = await fixture("lesson-commit-account");
+  const peer = await fixture("lesson-shared-shard-peer");
+  const now = new Date();
+  const context = generationAccountingContext(f.account, operations.generationOperationId(f.uid, f.key, "lesson"), "lesson_generation", now);
+  const peerKey = Array.from({ length: 1024 }, (_, index) => `${peer.key}-${index}`).find((key) =>
+    generationAccountingContext(peer.account, operations.generationOperationId(peer.uid, key, "lesson"), "lesson_generation", now).globalPath === context.globalPath);
+  assert.ok(peerKey, "The fixture must deliberately share a real budget shard.");
+  const unrelatedReserved = Number((await store.getStoredDocument(context.globalPath))?.reservedCostMicros ?? 0);
+  const peerLease = await peer.begin(peerKey, now);
+  await operations.runGenerationProviderCall(peerLease, { model: "gpt-5.6-luna", input: "peer paid stage" }, async () => ({ id: "response-peer", usage: { input_tokens: 2, output_tokens: 2 } }));
+  const peerReceipt = (await store.getStoredDocument(peerLease.receiptPath))!;
+  assert.equal(peerReceipt.actualCostMicros, 14);
+  assert.equal(peerReceipt.remainingReserveMicros, peerLease.operation.accounting.reserveCostMicros - 14);
+  const retainedReserved = unrelatedReserved + Number(peerReceipt.remainingReserveMicros);
+  assert.equal((await store.getStoredDocument(context.globalPath))?.reservedCostMicros, retainedReserved);
+  const peerPaths = [peerLease.operationPath, peerLease.receiptPath, peerLease.operation.accounting.requestPath,
+    peerLease.operation.accounting.periodPath, peerLease.operation.accounting.userBudgetPath];
+  const peerDocuments = await Promise.all(peerPaths.map((path) => store.getStoredDocument(path)));
+  const lease = await f.begin(f.key, now);
+  assert.notEqual(lease.operation.uid, peerLease.operation.uid);
+  assert.equal(lease.operation.accounting.globalPath, peerLease.operation.accounting.globalPath);
   await operations.runGenerationProviderCall(lease, { model: "gpt-5.6-luna", input: "lesson body" }, async () => ({ id: "response-commit", usage: { input_tokens: 4, output_tokens: 4 }, output_parsed: { content: "Confirmed stage" } }));
+  const beforeCommit = (await store.getStoredDocument(context.globalPath))!;
+  const ownReceipt = (await store.getStoredDocument(lease.receiptPath))!;
+  assert.equal(beforeCommit.reservedCostMicros, retainedReserved + Number(ownReceipt.remainingReserveMicros));
   const reservation = operations.lessonOperationReservation(lease);
   const guard = { ...f.guard, actor: f.account, reservation, operation: lease, usage: { usageSamples: [] } };
   await f.owned(() => store.saveLesson(f.uid, "0-0", { authorId: f.uid, content: "Confirmed stage" }, guard));
@@ -61,11 +83,18 @@ test("durable lesson result and original accounting finish atomically and recove
   assert.equal(operation?.status, "completed");
   assert.equal((await store.getStoredDocument(reservation.periodPath))?.reservedCostMicros, 0);
   assert.equal((await store.getStoredDocument(reservation.userBudgetPath))?.reservedCostMicros, 0);
-  assert.equal((await store.getStoredDocument(reservation.globalPath))?.reservedCostMicros, 0);
+  const committedGlobal = (await store.getStoredDocument(reservation.globalPath))!;
+  assert.equal(committedGlobal.reservedCostMicros, retainedReserved);
+  assert.equal(committedGlobal.actualCostMicros, beforeCommit.actualCostMicros);
+  assert.equal((await store.getStoredDocument(lease.receiptPath))?.remainingReserveMicros, 0);
   assert.equal((await store.getStoredDocument(reservation.requestPath))?.actualCostMicros, (await store.getStoredDocument(lease.receiptPath))?.actualCostMicros);
   await operations.finishGenerationOperation(lease, { failed: true });
   assert.equal((await store.getStoredDocument(reservation.periodPath))?.requestCount, 1);
   assert.equal((await f.owned(() => store.recoverCommittedLesson(f.uid, "0-0", reservation))).content, "Confirmed stage");
+  assert.deepEqual(await store.getStoredDocument(reservation.globalPath), committedGlobal);
+  assert.deepEqual(await Promise.all(peerPaths.map((path) => store.getStoredDocument(path))), peerDocuments);
+  await operations.finishGenerationOperation(peerLease, { failed: true });
+  assert.equal((await store.getStoredDocument(reservation.globalPath))?.reservedCostMicros, unrelatedReserved);
 });
 test("pre-dispatch refusal removes only its unstarted intent and preserves prior paid checkpoints", async () => {
   const f = await fixture();
