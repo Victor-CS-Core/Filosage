@@ -222,7 +222,7 @@ export default function OutcomePlanner({
               <button className="text-button" type="button" disabled={saving} onClick={() => void togglePause()}><PauseCircle size={14} /> Pause plan</button>
             )}
           </div>
-          <small className="outcome-sync-status">{syncStatus === "unsaved" ? "Your plan could not be saved. Keep this page open and try again." : syncStatus === "saving" ? "Syncing plan…" : syncStatus === "error" ? "Saved on this device; account sync is pending." : user ? "Plan available across your devices." : "Plan saved on this device."}</small>
+          <small className="outcome-sync-status">{syncStatus === "unsaved" ? "Your plan could not be saved. Keep this page open and try again." : syncStatus === "saving" ? "Syncing plan…" : syncStatus === "error" ? "Saved on this device; account sync is pending." : syncStatus === "saved" ? "Plan synced to your account." : user ? "Checking account sync…" : "Plan saved on this device."}</small>
         </div>
 
         {course.capstone && (

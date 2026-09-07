@@ -26,6 +26,11 @@ import {
 import type { MarketingJobStart } from "@/lib/product-events";
 import { trackProductEvent } from "@/lib/product-analytics";
 
+import { useLearnerSource } from "@/components/useLearnerSource";
+import LearnerSourceNotice from "@/components/LearnerSourceNotice";
+const EMPTY_COURSES: Course[] = [];
+const emptyCourses = (value: { courses: Course[] }) => value.courses.length === 0;
+
 const defaultLevel = "All levels";
 const defaultCommitment = "Any commitment";
 const commitmentOptions = [defaultCommitment, "Up to 3 hours", "4 to 6 hours", "More than 6 hours"] as const;
@@ -33,7 +38,6 @@ type Commitment = typeof commitmentOptions[number];
 
 export default function CourseLibrary({ featured = false }: { featured?: boolean }) {
   const [courses, setCourses] = useState<Course[]>([]);
-  const [ownedCourses, setOwnedCourses] = useState<Course[]>([]);
   const [query, setQuery] = useState("");
   const [level, setLevel] = useState(defaultLevel);
   const [commitment, setCommitment] = useState<Commitment>(defaultCommitment);
@@ -42,6 +46,14 @@ export default function CourseLibrary({ featured = false }: { featured?: boolean
   const [error, setError] = useState<string | null>(null);
   const { state, update } = useLearnerState();
   const { user, canCreateCourses } = useAuth();
+  const ownedSource = useLearnerSource(user, "/api/courses?scope=mine", emptyCourses);
+  const ownedCourses = ownedSource.data?.courses ?? EMPTY_COURSES;
+  const retryOwned = ownedSource.retry;
+  useEffect(() => {
+    window.addEventListener("filosage:courses-changed", retryOwned);
+    return () => window.removeEventListener("filosage:courses-changed", retryOwned);
+  }, [retryOwned]);
+  const ownedReady = ownedSource.status === "loaded" || ownedSource.status === "empty";
   const filterDrawer = useAppDrawer("library-filters");
 
   const load = useCallback(async () => {
@@ -52,31 +64,12 @@ export default function CourseLibrary({ featured = false }: { featured?: boolean
       if (!response.ok) throw new Error("The public library could not be reached.");
       const data = await response.json() as { courses: Course[] };
       setCourses(data.courses);
-      if (user) {
-        try {
-          const token = await user.getIdToken();
-          const ownedResponse = await fetch("/api/courses?scope=mine", {
-            headers: { Authorization: `Bearer ${token}` },
-            cache: "no-store",
-          });
-          if (ownedResponse.ok) {
-            const ownedData = await ownedResponse.json() as { courses: Course[] };
-            setOwnedCourses(ownedData.courses);
-          } else {
-            setOwnedCourses([]);
-          }
-        } catch {
-          setOwnedCourses([]);
-        }
-      } else {
-        setOwnedCourses([]);
-      }
     } catch (loadError) {
       setError(loadError instanceof Error ? loadError.message : "The public library could not be reached.");
     } finally {
       setLoading(false);
     }
-  }, [user]);
+  }, []);
 
   useEffect(() => {
     if (featured) return;
@@ -136,13 +129,13 @@ export default function CourseLibrary({ featured = false }: { featured?: boolean
   const intentionalSearch = Boolean(query.trim() || level !== defaultLevel || commitment !== defaultCommitment || jobStart);
 
   useEffect(() => {
-    if (featured || loading || error || !user || !intentionalSearch || visible.length > 0 || canCreateCourses) return;
+    if (featured || loading || error || !ownedReady || !user || !intentionalSearch || visible.length > 0 || canCreateCourses) return;
     trackProductEvent("upgrade_prompt_viewed", {
       route: "/library",
       surface: "library_no_match",
       oncePerSession: true,
     });
-  }, [canCreateCourses, error, featured, intentionalSearch, loading, user, visible.length]);
+  }, [canCreateCourses, error, featured, intentionalSearch, loading, ownedReady, user, visible.length]);
 
   const updateFilters = useCallback((
     nextQuery: string,
@@ -259,6 +252,7 @@ export default function CourseLibrary({ featured = false }: { featured?: boolean
 
       {!featured && !loading && !error && <p className="sr-only" role="status">{visible.length} published {visible.length === 1 ? "course" : "courses"} found</p>}
 
+      {!featured && user && <LearnerSourceNotice label="Your courses" {...ownedSource} />}
       {loading ? (
         <div className="library-card-grid" aria-label="Loading published courses">
           {[0, 1, 2, 3].map((item) => <div className="course-card-skeleton" key={item} />)}
@@ -329,10 +323,10 @@ export default function CourseLibrary({ featured = false }: { featured?: boolean
             );
           })}
           </div>
-        </section> : !featured ? <div className="state-panel"><Search size={22} /><div><h3>No matching published courses</h3><p>Your private courses are shown above. Try a broader topic, level, or time commitment.</p></div><div className="library-no-match-actions"><button className="button button-secondary" onClick={resetFilters}>Clear filters</button>{intentionalSearch && user && (canCreateCourses ? <Link className="button button-primary" href="/create">Create this course <ArrowRight size={15} /></Link> : <Link className="button button-primary" href="/pricing?plan=plus&from=library-no-match" onClick={() => trackProductEvent("upgrade_prompt_selected", { route: "/library", surface: "library_no_match" })}>Create private courses with Plus <ArrowRight size={15} /></Link>)}</div></div> : null}
+        </section> : !featured ? <div className="state-panel"><Search size={22} /><div><h3>No matching published courses</h3><p>Your private courses are shown above. Try a broader topic, level, or time commitment.</p></div><div className="library-no-match-actions"><button className="button button-secondary" onClick={resetFilters}>Clear filters</button>{intentionalSearch && user && ownedReady && (canCreateCourses ? <Link className="button button-primary" href="/create">Create this course <ArrowRight size={15} /></Link> : <Link className="button button-primary" href="/pricing?plan=plus&from=library-no-match" onClick={() => trackProductEvent("upgrade_prompt_selected", { route: "/library", surface: "library_no_match" })}>Create private courses with Plus <ArrowRight size={15} /></Link>)}</div></div> : null}
         </>
       ) : (
-        <div className="state-panel"><Search size={22} /><div><h3>No matching courses</h3><p>Try a broader topic, level, or time commitment.</p></div><div className="library-no-match-actions"><button className="button button-secondary" onClick={resetFilters}>Clear filters</button>{intentionalSearch && user && (canCreateCourses ? <Link className="button button-primary" href="/create">Create this course <ArrowRight size={15} /></Link> : <Link className="button button-primary" href="/pricing?plan=plus&from=library-no-match" onClick={() => trackProductEvent("upgrade_prompt_selected", { route: "/library", surface: "library_no_match" })}>Create private courses with Plus <ArrowRight size={15} /></Link>)}</div></div>
+        <div className="state-panel"><Search size={22} /><div><h3>{user && !ownedReady ? "No matching published courses" : "No matching courses"}</h3><p>Try a broader topic, level, or time commitment.</p></div><div className="library-no-match-actions"><button className="button button-secondary" onClick={resetFilters}>Clear filters</button>{intentionalSearch && user && ownedReady && (canCreateCourses ? <Link className="button button-primary" href="/create">Create this course <ArrowRight size={15} /></Link> : <Link className="button button-primary" href="/pricing?plan=plus&from=library-no-match" onClick={() => trackProductEvent("upgrade_prompt_selected", { route: "/library", surface: "library_no_match" })}>Create private courses with Plus <ArrowRight size={15} /></Link>)}</div></div>
       )}
     </div>
   );

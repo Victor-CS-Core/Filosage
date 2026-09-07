@@ -9,6 +9,10 @@ import AppShell from "@/components/AppShell";
 import DashboardCustomizer from "@/components/DashboardCustomizer";
 import { useAppDrawer } from "@/components/AppDrawer";
 import { useAuth } from "@/components/AuthProvider";
+import { useLearnerSource } from "@/components/useLearnerSource";
+import { assertLearnerSession } from "@/lib/learner-source";
+import { isCurrentLearnerSession, learnerRequest, learnerSessionSnapshot } from "@/lib/learner-storage";
+import LearnerSourceNotice from "@/components/LearnerSourceNotice";
 import { useLearnerState } from "@/components/useLearnerState";
 import UserAvatar from "@/components/UserAvatar";
 import { evaluateBadges } from "@/lib/badges";
@@ -26,6 +30,9 @@ import {
 import { normalizeDisplayName } from "@/lib/display-name";
 import { readBoundedJsonResponse } from "@/lib/identity-client";
 
+const emptyProgress = (data: { progress: CourseProgress[] }) => data.progress.length === 0;
+const emptyCourses = (data: { courses: Course[] }) => data.courses.length === 0;
+
 type BadgeFilter = "all" | "earned" | "in-progress";
 
 export default function ProfilePage() {
@@ -38,10 +45,12 @@ export default function ProfilePage() {
     connectExternalIdentity,
     refreshAccount,
   } = useAuth();
-  const { state, update, syncStatus } = useLearnerState();
-  const [progress, setProgress] = useState<CourseProgress[]>([]);
-  const [authoredCourses, setAuthoredCourses] = useState<Course[]>([]);
-  const [loaded, setLoaded] = useState(false);
+  const { state, update, syncStatus, syncError, loadStatus, retry } = useLearnerState();
+  const progressSource = useLearnerSource(user, "/api/progress", emptyProgress);
+  const authoredSource = useLearnerSource(user, "/api/courses?scope=mine", emptyCourses);
+  const progress = progressSource.data?.progress ?? [];
+  const authoredCourses = authoredSource.data?.courses ?? [];
+  const loaded = progressSource.data !== undefined && authoredSource.data !== undefined;
   const [filter, setFilter] = useState<BadgeFilter>("all");
   const [connectBusy, setConnectBusy] = useState(false);
   const [connectError, setConnectError] = useState<string | null>(null);
@@ -98,6 +107,7 @@ export default function ProfilePage() {
       setNameError("Enter a name between 1 and 80 characters.");
       return;
     }
+    const session = learnerSessionSnapshot(user.uid);
     nameBusyRef.current = true;
     setNameBusy(true);
     setNameError(null);
@@ -105,12 +115,10 @@ export default function ProfilePage() {
     const controller = new AbortController();
     const timeout = window.setTimeout(() => controller.abort(), 8_000);
     try {
-      const token = await user.getIdToken();
-      const response = await fetch("/api/account", {
+      const response = await learnerRequest(user, "/api/account", {
         method: "PATCH",
         credentials: "same-origin",
         headers: {
-          Authorization: `Bearer ${token}`,
           Accept: "application/json",
           "Content-Type": "application/json",
         },
@@ -122,6 +130,7 @@ export default function ProfilePage() {
         4 * 1024,
         "Your name could not be updated. Try again.",
       );
+      assertLearnerSession(session);
       const exactSavedName = typeof body === "object"
         && body !== null
         && !Array.isArray(body)
@@ -133,10 +142,12 @@ export default function ProfilePage() {
         throw new Error("Your name could not be updated. Try again.");
       }
       await refreshAccount();
+      assertLearnerSession(session);
       setNameDraft(displayName);
       setEditingName(false);
       setNameSuccess("Your Filosage name was updated.");
     } catch (error) {
+      if (!isCurrentLearnerSession(session)) return;
       setNameError(controller.signal.aborted
         ? "The update took too long. Check your connection and try again."
         : "Your name could not be updated. Try again.");
@@ -144,24 +155,9 @@ export default function ProfilePage() {
     } finally {
       window.clearTimeout(timeout);
       nameBusyRef.current = false;
-      setNameBusy(false);
+      if (isCurrentLearnerSession(session)) setNameBusy(false);
     }
   };
-
-  useEffect(() => {
-    if (!user) return;
-    let cancelled = false;
-    void user.getIdToken().then((token) => Promise.all([
-      fetch("/api/progress", { headers: { Authorization: `Bearer ${token}` }, cache: "no-store" }).then((response) => response.ok ? response.json() : { progress: [] }),
-      fetch("/api/courses?scope=mine", { headers: { Authorization: `Bearer ${token}` }, cache: "no-store" }).then((response) => response.ok ? response.json() : { courses: [] }),
-    ])).then(([progressData, courseData]) => {
-      if (!cancelled) {
-        setProgress((progressData as { progress: CourseProgress[] }).progress);
-        setAuthoredCourses((courseData as { courses: Course[] }).courses);
-      }
-    }).finally(() => { if (!cancelled) setLoaded(true); });
-    return () => { cancelled = true; };
-  }, [user]);
 
   if (authLoading) return <AppShell><div className="center-state"><LoaderCircle className="spin" size={25} /><h1>Preparing your profile</h1></div></AppShell>;
   if (!user) return <AppShell><div className="center-state"><UserRound size={28} /><p className="overline">Your learning profile</p><h1>Keep your progress and achievements together.</h1><p>{entryMode === "create"
@@ -192,10 +188,11 @@ export default function ProfilePage() {
   const focusPercent = focusCourse ? Math.round((focusCompleted / focusTotal) * 100) : 0;
   const publishedCourses = authoredCourses.filter((course) => course.isPublic).length;
   const draftCourses = authoredCourses.length - publishedCourses;
-  const syncLabel = syncStatus === "saving" ? "Syncing changes" : syncStatus === "error" ? "Saved on this device" : "Learning record synced";
+  const syncLabel = syncStatus === "saving" ? "Syncing changes" : syncStatus === "error" ? "Account sync unavailable" : syncStatus === "saved" ? "Learning record synced" : "Checking learning record";
 
   return (
     <AppShell>
+      <LearnerSourceNotice label="Learning preferences" status={syncStatus === "error" ? "stale" : loadStatus} error={syncError} retry={retry} />
       <div className="profile-page">
         <header className="profile-identity">
           <div className="profile-avatar">
@@ -241,7 +238,9 @@ export default function ProfilePage() {
           <button className="button button-secondary" onClick={dashboardCustomizer.openDrawer} aria-expanded={dashboardCustomizer.open}><SlidersHorizontal size={17} /> Customize dashboard</button>
         </header>
 
-        {!loaded ? <div className="dashboard-loading"><span /><span /><span /></div> : (
+        <LearnerSourceNotice label="Profile progress" {...progressSource} />
+        <LearnerSourceNotice label="Authored courses" {...authoredSource} />
+        {!loaded ? (progressSource.status === "loading" || authoredSource.status === "loading" ? <div className="dashboard-loading"><span /><span /><span /></div> : null) : (
           <>
             <section className="profile-summary profile-record-summary" aria-label="Capability record">
               <article><span><CheckCircle2 size={20} /></span><div><small>Secure concepts</small><strong>{bands.secure}</strong><em>Holding after practice</em></div></article>

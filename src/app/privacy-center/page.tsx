@@ -4,7 +4,9 @@ import Link from "next/link";
 import { useState, useSyncExternalStore } from "react";
 import { BarChart3, Download, LoaderCircle, LockKeyhole, ShieldCheck, Trash2 } from "lucide-react";
 import AppShell from "@/components/AppShell";
-import { clearLearnerAccountStorage } from "@/lib/learner-storage";
+import { isCurrentLearnerSession, learnerSessionSnapshot } from "@/lib/learner-storage";
+import { assertLearnerSession, learnerJsonResponse } from "@/lib/learner-source";
+import { acknowledgeActiveDataRemoval, downloadLearnerFile, readDeletionReceipt, subscribeDeletionReceipt } from "@/lib/learner-actions";
 import AccountEntryButton from "@/components/AccountEntryButton";
 import { useAuth } from "@/components/AuthProvider";
 import { LEGAL_CONTACT, PAID_SUBSCRIPTION_POLICY, SUPPORT_CONTACT } from "@/lib/legal";
@@ -24,6 +26,7 @@ export default function PrivacyCenterPage() {
   const [deleteArmed, setDeleteArmed] = useState(false);
   const [confirmation, setConfirmation] = useState("");
   const [message, setMessage] = useState<string | null>(null);
+  const receipt = useSyncExternalStore(subscribeDeletionReceipt, readDeletionReceipt, serverConsentSnapshot);
   const analyticsChoice = useSyncExternalStore(
     subscribeAnalyticsConsent,
     readAnalyticsConsent,
@@ -39,64 +42,53 @@ export default function PrivacyCenterPage() {
 
   const downloadData = async () => {
     if (!user || exporting) return;
+    const session = learnerSessionSnapshot(user.uid);
     setExporting(true);
     setMessage(null);
     try {
-      const token = await user.getIdToken();
-      const response = await fetch("/api/account/data", {
-        headers: { Authorization: `Bearer ${token}` },
-        cache: "no-store",
-      });
-      if (!response.ok) {
-        const body = await response.json().catch(() => ({}));
-        throw new Error(body.error || "Your export could not be prepared.");
-      }
-      const blob = await response.blob();
-      const url = URL.createObjectURL(blob);
-      const anchor = document.createElement("a");
-      anchor.href = url;
-      anchor.download = `filosage-data-${new Date().toISOString().slice(0, 10)}.json`;
-      document.body.appendChild(anchor);
-      anchor.click();
-      anchor.remove();
-      URL.revokeObjectURL(url);
+      await downloadLearnerFile(user, "/api/account/data", `filosage-data-${new Date().toISOString().slice(0, 10)}.json`);
+      assertLearnerSession(session);
       setMessage("Your Filosage data export has been downloaded.");
     } catch (error) {
+      if (!isCurrentLearnerSession(session)) return;
       setMessage(error instanceof Error ? error.message : "Your export could not be prepared.");
     } finally {
-      setExporting(false);
+      if (isCurrentLearnerSession(session)) setExporting(false);
     }
   };
 
   const deleteAccount = async () => {
     if (!user || deleting || confirmation !== "DELETE MY ACCOUNT") return;
+    const session = learnerSessionSnapshot(user.uid);
     setDeleting(true);
     setMessage(null);
     try {
       const refreshedUser = await reauthenticate();
+      assertLearnerSession(session);
+      if (refreshedUser.uid !== user.uid) throw new Error("Your learning session changed. Sign in again to continue.");
       const reauthenticationToken = refreshedUser.reauthenticationToken;
       if (!reauthenticationToken) throw new Error("Sign-in confirmation did not return a deletion proof.");
       const token = await refreshedUser.getIdToken(true);
-      const response = await fetch("/api/account/data", {
+      assertLearnerSession(session);
+      const result = await learnerJsonResponse<{ activeDataRemoved?: boolean; jobId?: string; message?: string; error?: string; deleted?: boolean }>({ ...refreshedUser, getIdToken: async () => token }, "/api/account/data", {
         method: "DELETE",
         headers: {
-          Authorization: `Bearer ${token}`,
           "X-Reauthentication-Token": reauthenticationToken,
           "Content-Type": "application/json",
         },
         body: JSON.stringify({ confirmation }),
       });
-      const body = await response.json().catch(() => ({}));
-      if (body.activeDataRemoved === true) clearLearnerAccountStorage(refreshedUser.uid);
+      assertLearnerSession(session);
+      const body = result.data;
+      if (body.activeDataRemoved === true || (result.ok && body.deleted === true)) { acknowledgeActiveDataRemoval(refreshedUser); return; }
       if (body.jobId) {
         setMessage(`${body.message || body.error || "Deletion is pending."} Reference: ${body.jobId}. ${body.activeDataRemoved ? "Retention and identity review remain pending." : "Retry to resume the saved request."}`);
         setDeleting(false);
         return;
       }
-      if (!response.ok || body.deleted !== true) throw new Error(body.error || "Your account deletion could not be confirmed.");
-      setMessage("Your account data has been removed.");
-      setDeleting(false);
+      throw new Error(body.error || "Your account deletion could not be confirmed.");
     } catch (error) {
+      if (!isCurrentLearnerSession(session)) return;
       setMessage(error instanceof Error ? error.message : "Your account could not be deleted.");
       setDeleting(false);
     }
@@ -112,6 +104,7 @@ export default function PrivacyCenterPage() {
           <p>Review how Filosage handles learning data, download a portable copy, or permanently close your account.</p>
         </header>
 
+        {receipt && <p className="form-message" role="status">{receipt}</p>}
         <section className="privacy-center-grid" aria-label="Privacy controls">
           <article>
             <BarChart3 size={20} />

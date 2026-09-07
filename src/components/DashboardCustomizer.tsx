@@ -212,7 +212,7 @@ export default function DashboardCustomizer({ open, preferences, syncStatus, onC
 
         <footer>
           <button className="button button-quiet" type="button" onClick={() => setDraft(cloneDashboardPreferences(DASHBOARD_PRESETS.default))}><RotateCcw size={16} /> Reset</button>
-          <span aria-live="polite">{syncStatus === "saving" ? "Syncing…" : syncStatus === "error" ? "Saved on this device" : "Preferences sync to your account"}</span>
+          <span aria-live="polite">{syncStatus === "saving" ? "Syncing…" : syncStatus === "error" ? "Account sync unavailable" : syncStatus === "saved" ? "Preferences synced to your account" : "Checking account sync…"}</span>
           <button className="button button-primary" type="button" onClick={() => { onSave(draft); onClose(); }}>Save dashboard</button>
         </footer>
       </section>

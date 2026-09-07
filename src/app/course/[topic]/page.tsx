@@ -32,6 +32,7 @@ import CourseDisclosure from "@/components/CourseDisclosure";
 import CourseJourneyMap from "@/components/CourseJourneyMap";
 import OutcomePlanner from "@/components/OutcomePlanner";
 import SpeakButton from "@/components/SpeakButton";
+import LearnerSourceNotice from "@/components/LearnerSourceNotice";
 import { useMasteryJourney } from "@/components/useMasteryJourney";
 import { useAuth } from "@/components/AuthProvider";
 import type { Course } from "@/lib/course-types";
@@ -1162,7 +1163,8 @@ export default function CourseMap() {
           )}
         </header>
 
-        {user && courseId && masteryJourney.ready && (
+        {user && <LearnerSourceNotice label="Learning evidence" status={masteryJourney.loadStatus} error={masteryJourney.loadError} retry={masteryJourney.retry} />}
+        {user && courseId && masteryJourney.ready && (masteryJourney.loadStatus === "loaded" || masteryJourney.loadStatus === "empty" || masteryJourney.plan) && (
           <OutcomePlanner
             key={courseId}
             course={course}

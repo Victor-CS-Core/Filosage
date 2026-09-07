@@ -6,40 +6,47 @@ import {
   saveLocalMasteryJourney, type LearningOutcomePlan, type MasteryEvidence,
 } from "@/lib/mastery";
 import { deferClientTask } from "@/lib/browser-compat";
-import { isCurrentLearnerSession, learnerRequest, learnerSessionSnapshot, type LearnerStorageUser } from "@/lib/learner-storage";
+import { isCurrentLearnerSession, learnerSessionSnapshot, type LearnerStorageUser } from "@/lib/learner-storage";
+
+import { learnerJson, type LearnerSourceStatus } from "@/lib/learner-source";
 
 type Journey = { plan: LearningOutcomePlan | null; evidence: MasteryEvidence[] };
 const EMPTY_JOURNEY: Journey = { plan: null, evidence: [] };
 
 export function useMasteryJourney(courseId: string | null | undefined, user: LearnerStorageUser | null) {
-  const scope = JSON.stringify([user?.uid ?? null, courseId ?? null]);
-  const session = useMemo(() => learnerSessionSnapshot(user?.uid ?? null), [user?.uid]);
+  const scope = JSON.stringify([user?.uid ?? null, user?.accountGeneration ?? null, courseId ?? null]);
+  const session = useMemo(() => ({ ...learnerSessionSnapshot(user?.uid ?? null), accountGeneration: user?.accountGeneration }), [user?.uid, user?.accountGeneration]);
   const [record, setRecord] = useState<{ scope: string; journey: Journey }>({ scope: "", journey: EMPTY_JOURNEY });
   const [hydratedScope, setHydratedScope] = useState<string | null>(null);
   const [syncStatus, setSyncStatus] = useState<"idle" | "saving" | "saved" | "error" | "unsaved">("idle");
+  const [loadStatus, setLoadStatus] = useState<LearnerSourceStatus>("loading");
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [attempt, setAttempt] = useState(0);
+  const retry = useCallback(() => setAttempt((value) => value + 1), []);
   const latest = useRef(EMPTY_JOURNEY);
+  const latestScope = useRef(scope);
+  const latestDeviceSaved = useRef(true);
   const journey = record.scope === scope ? record.journey : EMPTY_JOURNEY;
   const current = useCallback(() => Boolean(user && session.uid === user.uid && isCurrentLearnerSession(session)), [session, user]);
   const storeJourney = useCallback((value: Journey) => {
     if (!courseId || !current()) return false;
-    latest.current = value;
+    latest.current = value; latestScope.current = scope;
     setRecord({ scope, journey: value });
-    return saveLocalMasteryJourney(courseId, value, user!.uid);
+    latestDeviceSaved.current = saveLocalMasteryJourney(courseId, value, user!.uid);
+    return latestDeviceSaved.current;
   }, [courseId, current, scope, user]);
 
   useEffect(() => {
     let cancelled = false;
     const requestController = new AbortController();
     const active = () => !cancelled && current();
-    const local = courseId && user ? getLocalMasteryJourney(courseId, user.uid) : EMPTY_JOURNEY;
+    const local = latestScope.current === scope && !latestDeviceSaved.current ? latest.current : courseId && user ? getLocalMasteryJourney(courseId, user.uid) : EMPTY_JOURNEY;
     const loadCloud = async () => {
       if (!courseId || !user || !active()) return;
       try {
-        const response = await learnerRequest(user, `/api/mastery?courseId=${encodeURIComponent(courseId)}`, {
+        const cloud = await learnerJson<Journey>(user, `/api/mastery?courseId=${encodeURIComponent(courseId)}`, {
           cache: "no-store", signal: requestController.signal,
         });
-        if (!response.ok) return;
-        const cloud = await response.json() as Journey;
         if (!active()) return;
         const owned = latest.current;
         const preferredPlan = !owned.plan ? cloud.plan : !cloud.plan || owned.plan.updatedAt >= cloud.plan.updatedAt ? owned.plan : cloud.plan;
@@ -47,24 +54,35 @@ export function useMasteryJourney(courseId: string | null | undefined, user: Lea
           ...preferredPlan,
           baselineAssessment: preferredPlan.baselineAssessment ?? cloud.plan?.baselineAssessment ?? owned.plan?.baselineAssessment,
         } : null;
-        storeJourney({ plan: nextPlan, evidence: mergeMasteryEvidence(owned.evidence, cloud.evidence ?? []) });
+        const mergedEvidence = mergeMasteryEvidence(owned.evidence, cloud.evidence ?? []);
+        storeJourney({ plan: nextPlan, evidence: mergedEvidence });
         const cloudEvidenceIds = new Set((cloud.evidence ?? []).map((item) => item.id));
-        const missingEvidence = owned.evidence.filter((item) => !cloudEvidenceIds.has(item.id)).slice(0, 100);
+        const pendingEvidence = owned.evidence.filter((item) => !cloudEvidenceIds.has(item.id));
+        const missingEvidence = pendingEvidence.slice(0, 100);
         if (!active()) return;
-        const responses = await Promise.all([
+        await Promise.all([
           ...(owned.plan && (!cloud.plan || owned.plan.updatedAt >= cloud.plan.updatedAt)
-            ? [learnerRequest(user, "/api/mastery", {
+            ? [learnerJson(user, "/api/mastery", {
                 method: "PUT", headers: { "Content-Type": "application/json" },
                 body: JSON.stringify(owned.plan), signal: requestController.signal,
               })] : []),
-          ...missingEvidence.map((item) => learnerRequest(user, "/api/mastery", {
+          ...missingEvidence.map((item) => learnerJson(user, "/api/mastery", {
             method: "POST", headers: { "Content-Type": "application/json" },
             body: JSON.stringify(item), signal: requestController.signal,
           })),
         ]);
-        if (responses.some((response) => !response.ok)) throw new Error("sync failed");
-      } catch {
-        if (active()) setSyncStatus("error");
+        if (active()) {
+          if (pendingEvidence.length > missingEvidence.length) {
+            setLoadStatus("stale"); setSyncStatus(latestDeviceSaved.current ? "error" : "unsaved");
+            setLoadError("Some learning evidence still needs account sync. Retry to continue without duplicating saved records.");
+          } else { setLoadStatus(nextPlan || mergedEvidence.length ? "loaded" : "empty"); setSyncStatus("saved"); }
+        }
+      } catch (error) {
+        if (active()) {
+          setSyncStatus(latestDeviceSaved.current ? "error" : "unsaved");
+          setLoadStatus(latest.current.plan || latest.current.evidence.length ? "stale" : "error");
+          setLoadError(error instanceof Error ? error.message : "Your learning evidence is unavailable. Try again.");
+        }
       }
     };
     deferClientTask(() => {
@@ -73,22 +91,22 @@ export function useMasteryJourney(courseId: string | null | undefined, user: Lea
       setRecord({ scope, journey: local });
       setHydratedScope(scope);
       setSyncStatus("idle");
+      setLoadStatus("loading"); setLoadError(null);
       void loadCloud();
     });
     return () => { cancelled = true; requestController.abort(); };
-  }, [courseId, current, scope, session, storeJourney, user]);
+  }, [attempt, courseId, current, scope, session, storeJourney, user]);
 
   const savePlan = useCallback(async (plan: LearningOutcomePlan) => {
     if (!courseId || !user || !current()) return;
     const deviceSaved = storeJourney({ ...latest.current, plan });
     setSyncStatus("saving");
     try {
-      const response = await learnerRequest(user, "/api/mastery", {
+      const data = await learnerJson<{ plan: LearningOutcomePlan }>(user, "/api/mastery", {
         method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(plan),
       });
-      if (!response.ok) throw new Error("sync failed");
-      const data = await response.json() as { plan: LearningOutcomePlan };
       if (!current()) return;
+      if (latest.current.plan?.updatedAt !== plan.updatedAt) return;
       storeJourney({ ...latest.current, plan: data.plan });
       setSyncStatus("saved");
     } catch {
@@ -99,13 +117,14 @@ export function useMasteryJourney(courseId: string | null | undefined, user: Lea
   const addEvidence = useCallback(async (items: MasteryEvidence[]) => {
     if (!courseId || !user || !items.length || !current()) return;
     const normalized = items.map(normalizeLearnerReportedMasteryEvidence);
-    storeJourney({ ...latest.current, evidence: mergeMasteryEvidence(latest.current.evidence, normalized) });
+    const deviceSaved = storeJourney({ ...latest.current, evidence: mergeMasteryEvidence(latest.current.evidence, normalized) });
+    setSyncStatus("saving");
     try {
-      const responses = await Promise.all(normalized.map((item) => learnerRequest(user, "/api/mastery", {
+      await Promise.all(normalized.map((item) => learnerJson(user, "/api/mastery", {
         method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(item),
       })));
-      if (responses.some((response) => !response.ok)) throw new Error("sync failed");
-    } catch { if (current()) setSyncStatus("error"); }
+      if (current()) setSyncStatus("saved");
+    } catch { if (current()) setSyncStatus(deviceSaved ? "error" : "unsaved"); }
   }, [courseId, current, storeJourney, user]);
 
   const applyBaselineAssessment = useCallback((assessment: LearningOutcomePlan["baselineAssessment"]) => {
@@ -113,5 +132,5 @@ export function useMasteryJourney(courseId: string | null | undefined, user: Lea
     storeJourney({ ...latest.current, plan: { ...latest.current.plan, baselineAssessment: assessment, updatedAt: new Date().toISOString() } });
   }, [current, storeJourney]);
 
-  return { ...journey, ready: hydratedScope === scope, syncStatus, savePlan, addEvidence, applyBaselineAssessment };
+  return { ...journey, ready: hydratedScope === scope, syncStatus, loadStatus, loadError, retry, savePlan, addEvidence, applyBaselineAssessment };
 }

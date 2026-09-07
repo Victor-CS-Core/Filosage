@@ -1,6 +1,7 @@
 import "server-only";
 
 import OpenAI from "openai";
+import { evaluationClientOptions } from "@/lib/evaluation-budget";
 import { isLocalMode } from "@/lib/local-mode";
 import { localCourseOutlineFixture } from "@/lib/local-course-fixture";
 import { serverEnvironment } from "@/lib/runtime-environment";
@@ -14,7 +15,7 @@ import { sourceVerificationDataFromInput } from "@/lib/source-verification-data"
  */
 export function aiClient(): OpenAI {
   if (serverEnvironment.OPENAI_API_KEY || !isLocalMode()) {
-    return new OpenAI({ apiKey: serverEnvironment.OPENAI_API_KEY });
+    return new OpenAI({ apiKey: serverEnvironment.OPENAI_API_KEY, ...evaluationClientOptions() });
   }
   return localAiStub() as unknown as OpenAI;
 }

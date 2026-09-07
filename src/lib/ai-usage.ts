@@ -1,3 +1,4 @@
+import { aiUsageLockWrite, aiUsageReleaseLock, aiUsageConflictingUntil } from "@/lib/ai-usage-lock";
 import "server-only";
 
 import { randomUUID } from "node:crypto";
@@ -39,6 +40,7 @@ export interface AiReservation {
   feature: AiFeature;
   requestId: string;
   attemptToken?: string;
+  lockKey?: string;
   accountGeneration?: string;
   periodPath: string;
   globalPath: string;
@@ -154,12 +156,16 @@ function budgetShardFor(requestId: string) {
   return Number.parseInt(requestId.slice(0, 8), 16) % BUDGET_SHARDS;
 }
 
+export async function aiUsageRequestId(uid: string, feature: AiFeature, key: string) {
+  return sha256(`${uid}:${feature}:${key}`);
+}
+
 export async function reserveAiUsage(
   account: ServerAccount,
   feature: AiFeature,
   rawIdempotencyKey: string | null,
   payloadFingerprint?: string,
-  options: { allowCompletedReplay?: boolean } = {},
+  options: { allowCompletedReplay?: boolean; resourceKey?: string } = {},
 ) {
   if (!rawIdempotencyKey || rawIdempotencyKey.length < 12 || rawIdempotencyKey.length > 200) {
     throw new AiQuotaError(409, "IDEMPOTENCY_KEY_REQUIRED", "Retry-safe generation could not be started. Please try again.");
@@ -176,7 +182,7 @@ export async function reserveAiUsage(
     });
   }
 
-  const requestId = await sha256(`${account.uid}:${feature}:${rawIdempotencyKey}`);
+  const requestId = await aiUsageRequestId(account.uid, feature, rawIdempotencyKey);
   let periodPath = `usagePeriods/${account.uid}__${feature}__${policy.periodKey}`;
   const requestPath = `aiRequests/${requestId}`;
   const globalPeriod = monthWindow(now);
@@ -184,7 +190,10 @@ export async function reserveAiUsage(
   const budgetShard = budgetShardFor(requestId);
   let globalPath = `systemUsageShards/${budgetPool}__${globalPeriod.key}__${budgetShard}`;
   let userBudgetPath = `userAiBudgets/${account.uid}__${globalPeriod.key}`;
+  if (options.resourceKey && (feature !== "lesson_generation" || options.resourceKey.length > 250)) throw new AiQuotaError(409, "IDEMPOTENCY_CONFLICT", "Invalid lesson resource scope.");
+  const lockKey = options.resourceKey ? await sha256(options.resourceKey) : undefined;
   const original = await getStoredDocument(requestPath);
+  if (original && original.lockKey !== lockKey) throw new AiQuotaError(409, "IDEMPOTENCY_CONFLICT", "The request belongs to another resource lock or an older writer.");
   // A retry retains the paths acquired by the original reservation, including
   // across month rollover. Legacy records without paths fail closed on reclaim.
   if (original && typeof original.periodPath === "string" && typeof original.globalPath === "string" && typeof original.userBudgetPath === "string") {
@@ -204,9 +213,10 @@ export async function reserveAiUsage(
     (documents) => {
       const period = documents[periodPath];
       const previousRequest = documents[requestPath];
+      if (previousRequest && previousRequest.lockKey !== lockKey) throw new AiQuotaError(409, "IDEMPOTENCY_CONFLICT", "The request belongs to another resource lock or an older writer.");
       const userBudget = documents[userBudgetPath];
       const global = documents[globalPath];
-      const activeUntil = typeof period?.activeUntil === "string" ? Date.parse(period.activeUntil) : 0;
+      const activeUntil = aiUsageConflictingUntil(period, lockKey);
       if (previousRequest?.operationId) throw new AiQuotaError(409, "DURABLE_OPERATION_REQUIRED", "Resume this request through its durable course operation.");
       const requestActiveUntil = typeof previousRequest?.leaseUntil === "string" ? Date.parse(previousRequest.leaseUntil) : activeUntil;
       const staleReservedRequest = previousRequest?.status === "reserved" && requestActiveUntil <= now.getTime();
@@ -294,7 +304,7 @@ export async function reserveAiUsage(
       return {
         writes: [
           { path: aiUsageAttemptPath({ requestId, attemptToken }), data: {
-            kind: "ai-usage-attempt", uid: account.uid, accountGeneration, requestId, attemptToken, feature,
+            kind: "ai-usage-attempt", uid: account.uid, accountGeneration, requestId, attemptToken, lockKey, feature,
             periodPath, userBudgetPath, globalPath, requestPath, reservedCostMicros: policy.reserveCostMicros,
             status: "accounting_reserved", createdAt: nowIso,
           } },
@@ -314,9 +324,7 @@ export async function reserveAiUsage(
               cacheWriteTokens: numberValue(period?.cacheWriteTokens),
               outputTokens: numberValue(period?.outputTokens),
               actualCostMicros: numberValue(period?.actualCostMicros),
-              activeRequestId: requestId,
-              activeAttemptToken: attemptToken,
-              activeUntil: new Date(now.getTime() + policy.lockMs).toISOString(),
+              ...aiUsageLockWrite(period, lockKey, requestId, attemptToken, new Date(now.getTime() + policy.lockMs).toISOString()),
               resetAt: policy.resetAt,
               updatedAt: nowIso,
             },
@@ -326,7 +334,7 @@ export async function reserveAiUsage(
             data: {
               uid: account.uid,
               feature,
-              attemptToken, accountGeneration,
+              attemptToken, accountGeneration, lockKey,
               periodPath, globalPath, userBudgetPath, accountingPeriodKey: policy.periodKey, accountingResetAt: policy.resetAt,
               leaseUntil: new Date(now.getTime() + policy.lockMs).toISOString(),
               status: "reserved",
@@ -370,7 +378,7 @@ export async function reserveAiUsage(
     uid: account.uid,
     feature,
     requestId,
-    attemptToken, accountGeneration,
+    attemptToken, accountGeneration, lockKey,
     periodPath,
     requestPath,
     globalPath,
@@ -510,7 +518,7 @@ export function aiUsageAttemptPath(value: { requestId: string; attemptToken?: st
 }
 
 async function settleAiUsageAttempt(
-  reservation: Pick<AiReservation, "uid" | "accountGeneration" | "requestId" | "attemptToken" | "requestPath" | "periodPath" | "userBudgetPath" | "reserveCostMicros">,
+  reservation: Pick<AiReservation, "uid" | "accountGeneration" | "requestId" | "attemptToken" | "requestPath" | "periodPath" | "userBudgetPath" | "reserveCostMicros" | "lockKey">,
   observed: Record<string, unknown>, details: Record<string, unknown> = {},
 ) {
   const attemptPath = aiUsageAttemptPath(reservation);
@@ -530,7 +538,7 @@ async function settleAiUsageAttempt(
     const wasReserved = ["reserved", "accounting_reserved"].includes(String(attempt.status));
     const actual = numberValue(observed.actualCostMicros);
     const tokens = Object.fromEntries(["inputTokens", "cachedInputTokens", "cacheWriteTokens", "outputTokens"].map((key) => [key, numberValue(period[key]) + numberValue(observed[key])]));
-    const ownsPeriod = period.activeRequestId === reservation.requestId && period.activeAttemptToken === reservation.attemptToken;
+
     const now = new Date().toISOString();
     return { writes: [
       { path: attemptPath, data: { ...attempt, kind: "ai-usage-attempt", requestPath: reservation.requestPath, requestId: reservation.requestId,
@@ -539,7 +547,7 @@ async function settleAiUsageAttempt(
         requestCount: Math.max(0, numberValue(period.requestCount) - (wasReserved && observed.failed ? 1 : 0)),
         reservedCostMicros: Math.max(0, numberValue(period.reservedCostMicros) - (wasReserved ? reservation.reserveCostMicros : 0)),
         uncertainCostMicros: Math.max(0, numberValue(period.uncertainCostMicros) - uncertain), actualCostMicros: numberValue(period.actualCostMicros) + actual,
-        ...(ownsPeriod ? { activeRequestId: null, activeAttemptToken: null, activeUntil: null } : {}), updatedAt: now } },
+        ...aiUsageReleaseLock(period, reservation.lockKey, reservation.requestId, reservation.attemptToken), updatedAt: now } },
       { path: reservation.userBudgetPath, data: { ...budget,
         reservedCostMicros: Math.max(0, numberValue(budget.reservedCostMicros) - (wasReserved ? reservation.reserveCostMicros : 0)),
         uncertainCostMicros: Math.max(0, numberValue(budget.uncertainCostMicros) - uncertain), actualCostMicros: numberValue(budget.actualCostMicros) + actual, updatedAt: now } },
@@ -608,7 +616,7 @@ export async function reconcileExpiredAiUsage(requestId: string, apply: boolean,
     const repaired = await settleAiUsageAttempt({
       uid: String(initial.uid), accountGeneration: String(initial.accountGeneration), requestId: String(initial.requestId),
       attemptToken: String(initial.attemptToken), requestPath: String(initial.requestPath), periodPath: String(initial.periodPath),
-      userBudgetPath: String(initial.userBudgetPath), reserveCostMicros: numberValue(initial.reservedCostMicros),
+      userBudgetPath: String(initial.userBudgetPath), reserveCostMicros: numberValue(initial.reservedCostMicros), lockKey: typeof initial.lockKey === "string" ? initial.lockKey : undefined,
     }, receipt);
     return repaired ? "reconciled_observed_attempt" : "none";
   }
@@ -633,12 +641,12 @@ export async function reconcileExpiredAiUsage(requestId: string, apply: boolean,
     const period: Record<string, unknown> = documents[periodPath] ?? {};
     const budget: Record<string, unknown> = documents[userBudgetPath] ?? {};
     const global: Record<string, unknown> = documents[globalPath] ?? {};
-    const ownsPeriod = period.activeRequestId === requestId && period.activeAttemptToken === token;
+
     return { writes: [
       { path: attemptPath, data: { ...request, ...documents[attemptPath], kind: "ai-usage-attempt", requestPath, requestId,
         status: receipt ? "accounting_observed" : "accounting_uncertain", actualCostMicros: actual, uncertainCostMicros: uncertain } },
       { path: requestPath, data: { ...request, status: "failed", terminalReason: receipt ? "completion_accounting_recovered" : "provider_outcome_unknown", actualCostMicros: actual, uncertainCostMicros: uncertain, updatedAt: now.toISOString() } },
-      { path: periodPath, data: { ...period, requestCount: Math.max(0, numberValue(period.requestCount) - 1), reservedCostMicros: Math.max(0, numberValue(period.reservedCostMicros) - reserved), actualCostMicros: numberValue(period.actualCostMicros) + actual, uncertainCostMicros: numberValue(period.uncertainCostMicros) + uncertain, ...(ownsPeriod ? { activeRequestId: null, activeAttemptToken: null, activeUntil: null } : {}) } },
+      { path: periodPath, data: { ...period, requestCount: Math.max(0, numberValue(period.requestCount) - 1), reservedCostMicros: Math.max(0, numberValue(period.reservedCostMicros) - reserved), actualCostMicros: numberValue(period.actualCostMicros) + actual, uncertainCostMicros: numberValue(period.uncertainCostMicros) + uncertain, ...aiUsageReleaseLock(period, typeof request.lockKey === "string" ? request.lockKey : undefined, requestId, token) } },
       { path: userBudgetPath, data: { ...budget, reservedCostMicros: Math.max(0, numberValue(budget.reservedCostMicros) - reserved), actualCostMicros: numberValue(budget.actualCostMicros) + actual, uncertainCostMicros: numberValue(budget.uncertainCostMicros) + uncertain } },
       ...(!receipt ? [
         { path: receiptPath, data: { version: 1, kind: "legacy-ai-completion", status: "uncertain", actualCostMicros: 0, uncertainCostMicros: uncertain, globalPath } },

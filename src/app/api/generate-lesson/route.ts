@@ -1,3 +1,8 @@
+import { LessonSaveError, lessonCourseFingerprint, lessonPublicationState } from "@/lib/course-pipeline/lesson-save";
+import { createGenerationSafetyProof } from "@/lib/publication-proofs";
+import { isLocalMode } from "@/lib/local-mode";
+import { serverEnvironment } from "@/lib/runtime-environment";
+import { AccountLifecycleError } from "@/lib/account-lifecycle";
 import { withAccountRequest } from "@/lib/auth-server";
 import { NextResponse } from "next/server";
 import { aiClient } from "@/lib/local-ai";
@@ -8,11 +13,12 @@ import {
   getCoursePublishReadiness,
   getLesson,
   getStoredDocument,
+  recoverCommittedLesson,
   saveLesson,
   saveLessonWithEvidenceDowngrade,
 } from "@/lib/document-store";
 import {
-  AiQuotaError,
+  aiUsageRequestId,
   aiQuotaResponse,
   extractOpenAiUsage,
   finalizeAiUsage,
@@ -149,7 +155,6 @@ async function handlePOST(request: Request) {
   let responseId: string | undefined;
   const generationStartedAt = Date.now();
   let requestedCourseId: string | undefined;
-  let requestedLessonId: string | undefined;
   let pipelineCorrelationId: string | undefined;
   let pipelineActorHash: string | undefined;
   try {
@@ -169,7 +174,6 @@ async function handlePOST(request: Request) {
 
     const { courseId, lessonId, regenerate } = parsed.data;
     requestedCourseId = courseId;
-    requestedLessonId = lessonId;
     const course = await getCourse(courseId) as Course | null;
     if (!course) {
       return NextResponse.json({ error: "Course not found." }, { status: 404 });
@@ -188,7 +192,18 @@ async function handlePOST(request: Request) {
       );
     }
     const saved = await getLesson(courseId, lessonId);
+    const idempotencyKey = request.headers.get("idempotency-key");
+    const payloadFingerprint = `${courseId}:${lessonId}:${regenerate ? "regenerate" : "generate"}`;
+    const requestId = idempotencyKey && idempotencyKey.length >= 12 && idempotencyKey.length <= 200 ? await aiUsageRequestId(account.uid, "lesson_generation", idempotencyKey) : null;
+    const requestPath = requestId ? `aiRequests/${requestId}` : null;
+    const priorRequest = requestPath ? await getStoredDocument(requestPath) : null;
+    if (priorRequest?.status === "completed" && requestId && requestPath) {
+      if (priorRequest.payloadFingerprint !== payloadFingerprint) throw new LessonSaveError("IDEMPOTENCY_CONFLICT", "This retry key belongs to another lesson request.", "reopen_lesson");
+      const original = await recoverCommittedLesson(courseId, lessonId, { uid: account.uid, requestId, requestPath });
+      return NextResponse.json({ ...toLessonDto(original, course.aiAssisted === true, course.topic, course.language ?? "English", course), recovered: true });
+    }
     if (saved && !regenerate) {
+      if (priorRequest) throw new LessonSaveError("IDEMPOTENCY_RESULT_SUPERSEDED", "A lesson was saved after this request. Reopen it before explicitly choosing to regenerate.", "reopen_lesson");
       return NextResponse.json(toLessonDto(saved, course.aiAssisted === true, course.topic, course.language ?? "English", course));
     }
     if (courseUsesPipelineV2(course as unknown as Record<string, unknown>) && !pipelineFlags.pipelineV2) {
@@ -278,26 +293,19 @@ async function handlePOST(request: Request) {
       instructionalContext?: { goal?: string; application?: string; background?: string; constraints?: string; exclusions?: string; artifactPreference?: string; scenarioPreference?: string };
     }).instructionalContext;
 
+    const courseSaveFingerprint = lessonCourseFingerprint(course as unknown as Record<string, unknown>, lessonId);
+    const publicationState = lessonPublicationState(course as unknown as Record<string, unknown>);
     reservation = await reserveAiUsage(
       account,
       "lesson_generation",
-      request.headers.get("idempotency-key"),
-      `${courseId}:${lessonId}:${regenerate ? "regenerate" : "generate"}`,
-      { allowCompletedReplay: true },
+      idempotencyKey,
+      payloadFingerprint,
+      { allowCompletedReplay: true, resourceKey: `${courseId}:${lessonId}` },
     );
     if (reservation.recovered) {
-      if (!saved) {
-        reservation = null;
-        return NextResponse.json(
-          { error: "The original request completed, but its saved lesson could not be reopened.", code: "IDEMPOTENCY_RESULT_MISSING" },
-          { status: 409, headers: { "Cache-Control": "private, no-store" } },
-        );
-      }
+      const original = await recoverCommittedLesson(courseId, lessonId, reservation);
       reservation = null;
-      return NextResponse.json({
-        ...toLessonDto(saved, course.aiAssisted === true, course.topic, course.language ?? "English", course),
-        recovered: true,
-      });
+      return NextResponse.json({ ...toLessonDto(original, course.aiAssisted === true, course.topic, course.language ?? "English", course), recovered: true });
     }
     const client = aiClient();
     await assertSafeContent(
@@ -619,7 +627,6 @@ async function handlePOST(request: Request) {
       }
     }
 
-    const courseSaveFingerprint = publicationContentFingerprint(course);
     let pendingEvidenceDowngrade = false;
     if (groundedSourcePolicy && lesson && !qualityIssues.length && groundingQualityIssues.length && layeredSourcePolicy) {
       const originalGroundingIssues = [...groundingQualityIssues];
@@ -706,12 +713,6 @@ async function handlePOST(request: Request) {
         { status: objectiveReplanningRequired ? 422 : 502 },
       );
     }
-    await assertSafeContent(client, JSON.stringify(lesson), {
-      uid: account.uid,
-      feature: "lesson_generation",
-      stage: "output",
-    });
-
     const citedSourceIds = new Set(generatedCitations.map((citation) => citation.sourceId));
     const sourceReferences = assignedSources
       .filter((source) => citedSourceIds.has(source.id))
@@ -795,7 +796,7 @@ async function handlePOST(request: Request) {
           accessibleFallback: accessibleVisualFallbackFromLesson({ ...lesson, visualPlan: visualPlanWithFallback }),
         }
       : visualPlanWithFallback;
-    const lessonData = {
+    const lessonData: Record<string, unknown> = {
       ...lesson,
       lessonDesign,
       transferTask: { ...lesson.transferTask, criterionIds: lessonDesign.feedback.criterionIds },
@@ -828,22 +829,23 @@ async function handlePOST(request: Request) {
       fallbackUsed: usageSamples.length > 1 || activeProfile.id !== standardProfile.id,
       ...generationMetadata,
     };
+    // Moderate the exact final payload after all content, IDs and provenance
+    // are assembled. Local fixtures never attest a remote safety decision.
+    await assertSafeContent(client, JSON.stringify(lessonData), { uid: account.uid, feature: "lesson_generation", stage: "output" });
+    if (!(isLocalMode() && !serverEnvironment.OPENAI_API_KEY)) lessonData.generationSafetyProof = await createGenerationSafetyProof(lessonData, `lesson:${lessonId}`);
     const lessonSaveGuard = {
+      scopeVersion: 1 as const,
+      actor: { uid: account.uid, isOwner: account.isOwner }, reservation,
+      publicationState, usage: { usageSamples, responseId },
       courseFingerprint: courseSaveFingerprint,
       lessonFingerprint: saved ? publicationContentFingerprint(saved) : undefined,
       invalidateReadiness: true,
     };
-    if (pendingEvidenceDowngrade) {
-      await saveLessonWithEvidenceDowngrade(courseId, lessonId, lessonData, {
-        ...lessonSaveGuard,
-        actorId: account.uid,
-        ownerOverride: account.isOwner,
-      });
-    } else {
-      await saveLesson(courseId, lessonId, lessonData, pipelineV2Active ? lessonSaveGuard : undefined);
-    }
-
-    await finalizeAiUsage(reservation, { usageSamples, responseId, resultId: `${courseId}:${lessonId}` });
+    const committedLesson = pendingEvidenceDowngrade
+      ? await saveLessonWithEvidenceDowngrade(courseId, lessonId, lessonData, { ...lessonSaveGuard, actorId: account.uid, ownerOverride: account.isOwner })
+      : await saveLesson(courseId, lessonId, lessonData, lessonSaveGuard);
+    // Usage, result binding and lesson were committed atomically. A later
+    // telemetry/HTTP failure cannot refund or regenerate the committed result.
     reservation = null;
     if (pipelineV2Active) {
       await recordCoursePipelineEvent({
@@ -888,13 +890,7 @@ async function handlePOST(request: Request) {
       }
     }
 
-    const lessonDto = toLessonDto({
-      ...lesson,
-      aiAssisted: true,
-      schemaVersion: 5,
-      generationModel: activeProfile.model,
-      ...generationMetadata,
-    }, true, topic, instructionLanguage, course);
+    const lessonDto = toLessonDto(committedLesson, true, topic, instructionLanguage, course);
     return NextResponse.json({
       ...lessonDto,
       publicationReadiness,
@@ -932,35 +928,8 @@ async function handlePOST(request: Request) {
         console.error(JSON.stringify({ event: "lesson_usage_finalization_failed", ...safeModelErrorDetails(usageError) }));
       });
     }
-    if (
-      error instanceof AiQuotaError
-      && error.code === "DUPLICATE_REQUEST"
-      && error.details.requestStatus === "completed"
-      && requestedCourseId
-      && requestedLessonId
-    ) {
-      const [savedLesson, savedCourse] = await Promise.all([
-        getLesson(requestedCourseId, requestedLessonId),
-        getCourse(requestedCourseId) as Promise<Course | null>,
-      ]);
-      if (savedLesson && savedCourse) {
-        const lessonIds = expectedLessonIds(savedCourse);
-        const publicationReadiness = await getCoursePublishReadiness(
-          requestedCourseId,
-          lessonIds,
-          savedCourse.topic,
-          Object.fromEntries(savedCourse.modules.flatMap((courseModule, moduleIndex) =>
-            courseModule.lessons.map((courseLesson, lessonIndex) => [`${moduleIndex}-${lessonIndex}`, courseLesson.lessonMode]),
-          )),
-          savedCourse.language ?? "English",
-        );
-        return NextResponse.json({
-          ...toLessonDto(savedLesson, savedCourse.aiAssisted === true, savedCourse.topic, savedCourse.language ?? "English", savedCourse),
-          publicationReadiness,
-          recovered: true,
-        });
-      }
-    }
+    if (error instanceof LessonSaveError) return NextResponse.json({ error: error.message, code: error.code, recovery: error.recovery }, { status: error.status, headers: { "Cache-Control": "private, no-store" } });
+    if (error instanceof AccountLifecycleError) return NextResponse.json({ error: error.message, code: error.code, recovery: "sign_in" }, { status: error.status, headers: { "Cache-Control": "private, no-store" } });
     if (isLessonGenerationTimeout(error)) {
       return NextResponse.json(
         {

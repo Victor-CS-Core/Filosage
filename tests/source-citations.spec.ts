@@ -145,9 +145,10 @@ test("model-knowledge lessons remain citation-free and disclose their evidence b
   expect(routeSource).not.toContain("boundedGroundedLesson");
   expect(routeSource.indexOf("if (!lesson || qualityIssues.length || groundingQualityIssues.length)"))
     .toBeLessThan(routeSource.indexOf("await saveLessonWithEvidenceDowngrade"));
-  expect(routeSource.indexOf("await assertSafeContent(client, JSON.stringify(lesson)"))
-    .toBeLessThan(routeSource.indexOf("await saveLessonWithEvidenceDowngrade"));
-  expect(storageSource).toContain("runStoredDocumentTransaction([coursePath, lessonPath]");
+  const finalModeration = routeSource.indexOf("await assertSafeContent(client, JSON.stringify(lessonData)");
+  expect(finalModeration).toBeGreaterThan(routeSource.indexOf("const lessonData:"));
+  expect(finalModeration).toBeLessThan(routeSource.indexOf("await saveLessonWithEvidenceDowngrade"));
+  expect(storageSource).toContain("runStoredDocumentTransaction([coursePath, lessonPath, ...lessonCommitPaths(guard)]");
   expect(coursePageSource).not.toContain("course.aiAssisted && (course.evidenceProfile");
   expect(dtoSource).not.toContain("recordFingerprint:");
   expect(dtoSource).not.toContain("metadataVerification:");

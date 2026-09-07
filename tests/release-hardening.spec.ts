@@ -135,7 +135,7 @@ test("every Playwright spec belongs to exactly one execution lane", async () => 
   expect(categorized.toSorted()).toEqual(discovered);
   expect(contractSuites).toHaveLength(39);
   expect(apiSuites).toHaveLength(2);
-  expect(singleEngineSuites).toHaveLength(18);
+  expect(singleEngineSuites).toHaveLength(19);
   expect(deviceSensitiveSuites).toHaveLength(8);
   expect(dedicatedSuites).toHaveLength(3);
 });
@@ -350,12 +350,13 @@ test("the required quality gate runs a bounded Chromium smoke suite while exhaus
     "tests/command-center.spec.ts",
     "tests/publication-override.spec.ts",
     "tests/release-recovery.spec.ts",
+    "tests/learner-recovery.spec.ts",
     "tests/support-center.spec.ts",
   ]);
   expect(smokeRunner).toContain('"--grep=@smoke"');
   const smokeTests = discoverBrowserTests("chromium", smokePlan.batchesByProject.chromium.flat());
   expect(smokeTests).toBeGreaterThanOrEqual(14);
-  expect(smokeTests).toBeLessThanOrEqual(30);
+  expect(smokeTests).toBeLessThanOrEqual(35);
   expect(qualityWorkflow).toContain("needs: static-and-release-contracts");
   expect(qualityWorkflow).toContain("npm run test:api -- --output=test-results/api --reporter=line,blob");
   expect(qualityWorkflow).toContain("run: npm run test:browser:smoke");
@@ -381,7 +382,8 @@ test("mobile projects execute only explicitly owned cross-device behavior", () =
   expect(mobileChromium).toBeLessThanOrEqual(35);
   expect(mobileWebkit).toBeGreaterThan(0);
   expect(mobileWebkit).toBeLessThanOrEqual(40);
-  expect(chromium + mobileChromium + mobileWebkit).toBeLessThanOrEqual(365);
+  // Three learner recovery cases plus two legal cases on each of three projects.
+  expect(chromium + mobileChromium + mobileWebkit).toBeLessThanOrEqual(374);
 });
 
 test("release workflows accept only exact successful workflow evidence", () => {

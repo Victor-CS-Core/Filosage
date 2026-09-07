@@ -1,0 +1,74 @@
+import { aiUsageLock, aiUsageReleaseLock } from "@/lib/ai-usage-lock";
+import type { AiReservation } from "@/lib/ai-usage";
+import { summarizeAiUsage, type AiUsageSample } from "@/lib/ai-pricing";
+import { publicationContentFingerprint } from "@/lib/publication-content";
+import { LessonSaveError, lessonPublicationState, lessonCourseFingerprint, type LessonSavePipelineGuard } from "./lesson-save";
+
+type Document = Record<string, unknown>;
+type Documents = Record<string, Document | null | undefined>;
+export interface LessonGenerationGuard extends LessonSavePipelineGuard {
+  actor: { uid: string; isOwner: boolean };
+  publicationState: string;
+  reservation: AiReservation;
+  usage: { usageSamples: AiUsageSample[]; responseId?: string };
+}
+const number = (value: unknown) => typeof value === "number" && Number.isFinite(value) ? value : 0;
+export const lessonAttemptPath = (reservation: AiReservation) => `aiRequests/${reservation.requestId}__attempt__${reservation.attemptToken}`;
+export const lessonUsageReceiptPath = (reservation: AiReservation) => `generationUsageReceipts/legacy-${reservation.requestId}-${reservation.attemptToken}`;
+export function lessonCommitPaths(guard: LessonGenerationGuard) {
+  const r = guard.reservation;
+  return [r.requestPath, r.periodPath, r.userBudgetPath, r.globalPath, lessonAttemptPath(r), lessonUsageReceiptPath(r)];
+}
+export function assertLessonAttempt(documents: Documents, guard: LessonGenerationGuard, now: string, courseId: string, lessonId: string) {
+  const r = guard.reservation;
+  const request = documents[r.requestPath];
+  const period = documents[r.periodPath];
+  const attempt = documents[lessonAttemptPath(r)];
+  const lock = aiUsageLock(period, r.lockKey);
+  if (!request || !period || !attempt || r.feature !== "lesson_generation" || r.recovered
+    || !r.attemptToken || !r.accountGeneration || r.uid !== guard.actor.uid
+    || request.uid !== r.uid || request.accountGeneration !== r.accountGeneration
+    || request.attemptToken !== r.attemptToken || request.status !== "reserved" || request.feature !== "lesson_generation"
+    || ![`${courseId}:${lessonId}:generate`, `${courseId}:${lessonId}:regenerate`].includes(String(request.payloadFingerprint))
+    || request.reservedCostMicros !== r.reserveCostMicros
+    || attempt.attemptToken !== r.attemptToken || attempt.status !== "accounting_reserved"
+    || attempt.uid !== r.uid || attempt.accountGeneration !== r.accountGeneration
+    || attempt.requestId !== r.requestId || attempt.requestPath !== r.requestPath || attempt.feature !== r.feature
+    || attempt.reservedCostMicros !== r.reserveCostMicros || attempt.lockKey !== r.lockKey
+    || attempt.periodPath !== r.periodPath || attempt.userBudgetPath !== r.userBudgetPath || attempt.globalPath !== r.globalPath
+    || request.periodPath !== r.periodPath || request.globalPath !== r.globalPath || request.userBudgetPath !== r.userBudgetPath
+    || r.requestPath !== `aiRequests/${r.requestId}`
+    || request.lockKey !== r.lockKey || lock.activeRequestId !== r.requestId || lock.activeAttemptToken !== r.attemptToken
+    || !Number.isFinite(Date.parse(String(request.leaseUntil))) || Date.parse(String(request.leaseUntil)) <= Date.parse(now)
+    || !Number.isFinite(Date.parse(String(lock.activeUntil))) || Date.parse(String(lock.activeUntil)) <= Date.parse(now)) {
+    throw new LessonSaveError("LESSON_ATTEMPT_SUPERSEDED", "The lesson attempt expired or changed. Reopen its status before trying again.", "reconcile_generation");
+  }
+  if (!documents[r.userBudgetPath] || !documents[r.globalPath] || documents[lessonUsageReceiptPath(r)]) {
+    throw new LessonSaveError("LESSON_ACCOUNTING_CHANGED", "The lesson accounting changed. Reconcile this request before continuing.", "reconcile_generation");
+  }
+}
+/** The result and all original-period accounting commit in the lesson transaction. */
+export function lessonAccountingWrites(courseId: string, lessonId: string, course: Document, lesson: Document, documents: Documents, guard: LessonGenerationGuard, now: string) {
+  const r = guard.reservation;
+  const samples = guard.usage.usageSamples;
+  if (!Array.isArray(samples) || !samples.length) throw new LessonSaveError("LESSON_USAGE_MISSING", "Observed lesson usage is required before committing a result.", "reconcile_generation");
+  const usage = summarizeAiUsage(samples);
+  for (const value of Object.values(usage)) if (typeof value === "number" && (!Number.isFinite(value) || value < 0)) throw new LessonSaveError("LESSON_USAGE_MISSING", "Lesson usage cannot be reconciled.", "reconcile_generation");
+  const request = documents[r.requestPath]!;
+  const period = documents[r.periodPath]!;
+  const budget = documents[r.userBudgetPath]!;
+  const global = documents[r.globalPath]!;
+  const cost = usage.actualCostMicros;
+  const tokens = Object.fromEntries(["inputTokens", "cachedInputTokens", "cacheWriteTokens", "outputTokens"].map((key) => [key, number(period[key]) + usage[key as keyof typeof usage]]));
+  const observed = { actualCostMicros: cost, inputTokens: usage.inputTokens, cachedInputTokens: usage.cachedInputTokens, cacheWriteTokens: usage.cacheWriteTokens, outputTokens: usage.outputTokens, failed: false };
+  const resultId = `${courseId}:${lessonId}`;
+  const lessonResult = { version: 1, courseId, lessonId, fingerprint: publicationContentFingerprint(lesson), courseFingerprint: lessonCourseFingerprint(course, lessonId), publicationState: lessonPublicationState(course), committedAt: now };
+  return [
+    { path: r.requestPath, data: { ...request, ...observed, status: "completed", resultId, lessonResult, usageSamples: samples, responseId: guard.usage.responseId ?? null, updatedAt: now } },
+    { path: lessonAttemptPath(r), data: { ...documents[lessonAttemptPath(r)], ...observed, status: "accounting_observed", uncertainCostMicros: 0, resultId, updatedAt: now } },
+    { path: r.periodPath, data: { ...period, ...tokens, reservedCostMicros: Math.max(0, number(period.reservedCostMicros) - r.reserveCostMicros), actualCostMicros: number(period.actualCostMicros) + cost, ...aiUsageReleaseLock(period, r.lockKey, r.requestId, r.attemptToken), updatedAt: now } },
+    { path: r.userBudgetPath, data: { ...budget, reservedCostMicros: Math.max(0, number(budget.reservedCostMicros) - r.reserveCostMicros), actualCostMicros: number(budget.actualCostMicros) + cost, updatedAt: now } },
+    { path: r.globalPath, data: { ...global, reservedCostMicros: Math.max(0, number(global.reservedCostMicros) - r.reserveCostMicros), actualCostMicros: number(global.actualCostMicros) + cost, updatedAt: now } },
+    { path: lessonUsageReceiptPath(r), data: { version: 1, kind: "legacy-ai-completion", status: "observed", ...observed, globalPath: r.globalPath, updatedAt: now } },
+  ];
+}

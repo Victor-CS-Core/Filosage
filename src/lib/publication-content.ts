@@ -8,6 +8,7 @@ const OMITTED_ROOT_PUBLICATION_FIELDS = new Set([
   "publicationProof",
   "generationSafetyProof",
   "publicationMutation",
+  "lessonWriteEpoch",
   "manualReviewResolution",
   "lastRepair",
   "moderationStatus",

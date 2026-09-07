@@ -58,6 +58,7 @@ export const singleEngineSuites = [
   "tests/flashcard-system.spec.ts",
   "tests/flashcard-visual.spec.ts",
   "tests/lesson-interactions-v2.spec.ts",
+  "tests/learner-recovery.spec.ts",
   "tests/marketing-gauntlet.spec.ts",
   "tests/marketing-gauntlet-runtime-acceptance.spec.ts",
   "tests/navigation-content-integrity.spec.ts",
@@ -89,6 +90,7 @@ export const smokeBrowserSuites = [
   "tests/command-center.spec.ts",
   "tests/publication-override.spec.ts",
   "tests/release-recovery.spec.ts",
+  "tests/learner-recovery.spec.ts",
   "tests/support-center.spec.ts",
 ] as const;
 
@@ -118,7 +120,7 @@ export const browserSuiteEstimatedTestLoad: Record<BrowserProjectName, Record<st
     "tests/admin-research-layout.spec.ts": 2,
     "tests/analytics-consent.spec.ts": 3,
     "tests/app-shell.spec.ts": 32,
-    "tests/auth-accessibility.spec.ts": 3,
+    "tests/auth-accessibility.spec.ts": 5,
     "tests/auth-linking.spec.ts": 47,
     "tests/billing-lifecycle.spec.ts": 23,
     "tests/command-center.spec.ts": 14,
@@ -129,6 +131,7 @@ export const browserSuiteEstimatedTestLoad: Record<BrowserProjectName, Record<st
     "tests/flashcard-visual.spec.ts": 1,
     "tests/landing-motion.spec.ts": 2,
     "tests/lesson-interactions-v2.spec.ts": 7,
+    "tests/learner-recovery.spec.ts": 3,
     "tests/marketing-gauntlet.spec.ts": 13,
     "tests/marketing-gauntlet-runtime-acceptance.spec.ts": 1,
     "tests/navigation-content-integrity.spec.ts": 2,
@@ -143,7 +146,7 @@ export const browserSuiteEstimatedTestLoad: Record<BrowserProjectName, Record<st
   "mobile-chromium": {
     "tests/analytics-consent.spec.ts": 1,
     "tests/app-shell.spec.ts": 13,
-    "tests/auth-accessibility.spec.ts": 3,
+    "tests/auth-accessibility.spec.ts": 5,
     "tests/example.spec.ts": 7,
     "tests/landing-motion.spec.ts": 2,
     "tests/pricing-mobile.spec.ts": 1,
@@ -151,7 +154,7 @@ export const browserSuiteEstimatedTestLoad: Record<BrowserProjectName, Record<st
   "mobile-webkit": {
     "tests/analytics-consent.spec.ts": 3,
     "tests/app-shell.spec.ts": 15,
-    "tests/auth-accessibility.spec.ts": 3,
+    "tests/auth-accessibility.spec.ts": 5,
     "tests/course-learning-flow.spec.ts": 1,
     "tests/example.spec.ts": 8,
     "tests/landing-motion.spec.ts": 2,

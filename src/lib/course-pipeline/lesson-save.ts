@@ -2,10 +2,54 @@ import { publicationContentFingerprint } from "@/lib/publication-content";
 import type { Course, CourseSource } from "@/lib/course-types";
 import { courseGroundingFingerprint } from "@/lib/source-grounding";
 
+export class LessonSaveError extends Error {
+  readonly status = 409;
+  constructor(public readonly code: string, message: string, public readonly recovery: string) { super(message); }
+}
+export function lessonPublicationState(course: Record<string, unknown>) {
+  return publicationContentFingerprint({ state: { isPublic: course.isPublic === true, epoch: course.lessonWriteEpoch ?? null,
+    mutation: course.publicationMutation ?? null, releaseId: course.publishedReleaseId ?? null } });
+}
+
+/** Other lessons may downgrade their evidence without changing this curriculum. */
+export function lessonCourseFingerprint(course: Record<string, unknown>, lessonId: string) {
+  const value = structuredClone(course);
+  delete value.evidenceProfile;
+  delete value.sourceGroundingFingerprint;
+  delete value.sourceGroundingEvaluatorStatus;
+  if (Array.isArray(value.sourceGroundingAssessments)) {
+    value.sourceGroundingAssessments = value.sourceGroundingAssessments.filter((assessment) => {
+      const item = assessment as Record<string, unknown>;
+      return `${item.moduleIndex}-${item.lessonIndex}` === lessonId;
+    });
+    // Absence and empty both mean no retained target claim assessment.
+    if (!(value.sourceGroundingAssessments as unknown[]).length) delete value.sourceGroundingAssessments;
+  }
+  if (Array.isArray(value.modules)) value.modules = value.modules.map((module, mi) => {
+    const item = module as Record<string, unknown>;
+    return { ...item, lessons: Array.isArray(item.lessons) ? item.lessons.map((lesson, li) => {
+      const next = { ...lesson as Record<string, unknown> };
+      if (`${mi}-${li}` !== lessonId) { delete next.contentBasis; delete next.sourceIds; }
+      return next;
+    }) : item.lessons };
+  });
+  if (value.learningDesign && typeof value.learningDesign === "object") {
+    const design = value.learningDesign as Record<string, unknown>;
+    if (Array.isArray(design.lessonPlans)) design.lessonPlans = design.lessonPlans.map((plan) => {
+      const next = { ...plan as Record<string, unknown> };
+      if (next.lessonId !== lessonId) delete next.resources;
+      return next;
+    });
+  }
+  return publicationContentFingerprint(value);
+}
+
 export interface LessonSavePipelineGuard {
   courseFingerprint: string;
   lessonFingerprint?: string;
   invalidateReadiness: boolean;
+  publicationState?: string;
+  scopeVersion?: 1;
 }
 
 export interface LessonEvidenceDowngradeGuard extends LessonSavePipelineGuard {
@@ -23,16 +67,19 @@ export function buildGuardedLessonSave(
   now: string,
 ) {
   if (!course) throw new Error("Course not found while saving the generated lesson.");
-  if (course.isPublic === true) throw new Error("Unpublish this course before changing a lesson.");
-  if (publicationContentFingerprint(course) !== guard.courseFingerprint) {
-    throw new Error("The course changed while this lesson was generated. Regenerate against the current draft.");
+  if (course.isPublic === true) throw new LessonSaveError("LESSON_PUBLICATION_CHANGED", "Unpublish this course before changing a lesson.", "reopen_course");
+  if (guard.publicationState !== undefined && lessonPublicationState(course) !== guard.publicationState) {
+    throw new LessonSaveError("LESSON_PUBLICATION_CHANGED", "The course publication state changed while this lesson was generated. Reopen the current draft.", "reopen_course");
+  }
+  if ((guard.scopeVersion === 1 ? lessonCourseFingerprint(course, lessonId) : publicationContentFingerprint(course)) !== guard.courseFingerprint) {
+    throw new LessonSaveError("LESSON_COURSE_CHANGED", "The course changed while this lesson was generated. Regenerate against the current draft.", "reopen_course");
   }
   if (guard.lessonFingerprint) {
     if (!existing || publicationContentFingerprint(existing) !== guard.lessonFingerprint) {
-      throw new Error("This lesson changed while its replacement was generated. The newer edit was preserved.");
+      throw new LessonSaveError("LESSON_CONTENT_CHANGED", "This lesson changed while its replacement was generated. The newer edit was preserved.", "reopen_lesson");
     }
   } else if (existing) {
-    throw new Error("This lesson was created by another request. The duplicate generation was not saved.");
+    throw new LessonSaveError("LESSON_CONTENT_CHANGED", "This lesson was created by another request. The duplicate generation was not saved.", "reopen_lesson");
   }
   const nextLesson = {
     ...data,

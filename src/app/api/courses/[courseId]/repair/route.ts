@@ -13,6 +13,7 @@ import {
   undoDeterministicCourseRepair,
   updateCoursePipelineStage,
 } from "@/lib/document-store";
+import { LessonSaveError, lessonPublicationState } from "@/lib/course-pipeline/lesson-save";
 import { publicationContentFingerprint } from "@/lib/publication-content";
 import { COURSE_PIPELINE_VERSIONS, type RepairOperation } from "@/lib/course-pipeline/contract";
 import { assertRepairBaseSnapshot, buildRepairPlan, REPAIR_ATTEMPT_LIMITS } from "@/lib/course-pipeline/repair";
@@ -208,6 +209,7 @@ async function handlePOST(
         idempotencyKey,
         account.uid,
         new Date().toISOString(),
+        { actor: account, publicationState: lessonPublicationState(course) },
       );
       const [nextCourse, nextLessons] = await Promise.all([getCourse(courseId), listLessons(courseId)]);
       if (!nextCourse) throw new Error("Course not found after repair undo.");
@@ -301,6 +303,7 @@ async function handlePOST(
         requestedIssueCodes,
         attemptLimit: REPAIR_ATTEMPT_LIMITS.deterministic,
       },
+      { actor: account, publicationState: lessonPublicationState(course) },
     );
     const [nextCourse, nextLessons] = await Promise.all([getCourse(courseId), listLessons(courseId)]);
     if (!nextCourse) throw new Error("Course not found after repair.");
@@ -357,6 +360,7 @@ async function handlePOST(
         featureFlags: flags,
       });
     }
+    if (error instanceof LessonSaveError) return Response.json({ error: error.message, code: error.code, recovery: error.recovery }, { status: error.status, headers: { "Cache-Control": "private, no-store" } });
     const authResponse = authorizationResponse(error);
     if (authResponse) return authResponse;
     const requestResponse = apiRequestErrorResponse(error);

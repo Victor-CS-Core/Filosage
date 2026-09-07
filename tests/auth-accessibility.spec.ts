@@ -256,3 +256,61 @@ test("profile name editing remains keyboard reachable and reflows at 200 percent
     .analyze();
   expect(accessibility.violations).toEqual([]);
 });
+
+for (const initialSetup of [true, false]) {
+  test(`legal ${initialSetup ? "account setup" : "terms update"} contains keyboard focus over the real shell`, { tag: ["@smoke", "@mobile", "@webkit"] }, async ({ page }) => {
+    await page.emulateMedia({ colorScheme: initialSetup ? "light" : "dark", reducedMotion: "reduce" });
+    await page.route("**/api/auth/session", (route) => route.fulfill({ json: {
+      ...signedOutManagedSession, recentAuthentication: true,
+      user: { uid: "legal-learner", displayName: "Legal Learner", email: "legal@example.com", photoURL: null, authenticationProvider: "filosage" },
+    } }));
+    await page.route("**/api/account", (route) => route.fulfill({ json: {
+      ...exactLearnerAccount(), applicationAccountExists: !initialSetup, legalAcceptanceRequired: true,
+    } }));
+    await page.route("**/api/courses?*", (route) => route.fulfill({ json: { courses: [] } }));
+    let acceptanceRequests = 0;
+    await page.route("**/api/legal/acceptance", (route) => {
+      acceptanceRequests += 1;
+      return route.fulfill({ status: 503, json: { error: "Temporarily unavailable" } });
+    });
+    await page.goto("/profile");
+    const dialog = page.getByRole("dialog", { name: initialSetup ? "Review before creating your account" : "Review before continuing" });
+    await expect(dialog).toBeVisible();
+    await expect(dialog).toHaveJSProperty("open", true);
+    await expect(page.locator("body")).toHaveCSS("overflow", "hidden");
+    await page.keyboard.press("Escape");
+    await expect(dialog).toBeVisible();
+    const within = () => dialog.evaluate((node) => node.contains(document.activeElement));
+    for (const shortcut of ["Control+k", "Meta+k"]) {
+      await page.keyboard.press(shortcut);
+      await expect(page.getByRole("dialog", { name: "Filosage Command Center", exact: true })).toHaveCount(0);
+      await expect(dialog).toHaveJSProperty("open", true);
+      expect(await within()).toBe(true);
+    }
+    for (const direction of ["Tab", "Shift+Tab"]) {
+      for (let index = 0; index < 14; index += 1) { await page.keyboard.press(direction); expect(await within()).toBe(true); }
+    }
+    await page.locator(".learning-command-trigger").first().evaluate((node) => (node as HTMLElement).focus());
+    expect(await within()).toBe(true);
+    await page.setViewportSize({ width: 320, height: 900 });
+    await page.addStyleTag({ content: "html { font-size: 200% !important; }" });
+    for (const name of ["Terms of Service", "Privacy Notice", "Acceptable Use Policy"]) {
+      const link = dialog.getByRole("link", { name });
+      await link.scrollIntoViewIfNeeded(); await expect(link).toBeVisible();
+    }
+    await expect(dialog.getByRole("button", { name: "Accept and continue" })).toBeDisabled();
+    expect(acceptanceRequests).toBe(0);
+    await dialog.getByRole("checkbox").check();
+    await dialog.getByRole("button", { name: "Accept and continue" }).click();
+    await expect(dialog.getByRole("alert")).toHaveText("Your acceptance could not be saved. Check your connection and try again.");
+    expect(acceptanceRequests).toBe(1);
+    const leave = dialog.getByRole("button", { name: "Sign out", exact: true });
+    await leave.scrollIntoViewIfNeeded(); await expect(leave).toBeVisible(); await leave.focus(); await expect(leave).toBeFocused();
+    expect(await dialog.evaluate((node) => node.scrollWidth <= node.clientWidth)).toBe(true);
+    expect((await new AxeBuilder({ page }).include(".legal-consent-dialog").withTags(["wcag2a", "wcag2aa", "wcag21aa", "wcag22aa"]).analyze()).violations).toEqual([]);
+    await dialog.getByRole("link", { name: "Terms of Service" }).click();
+    await expect(page).toHaveURL(/\/terms$/);
+    await expect(dialog).toHaveCount(0);
+    await expect(page.locator("body")).not.toHaveCSS("overflow", "hidden");
+  });
+}

@@ -1,0 +1,44 @@
+import assert from "node:assert/strict";
+import { test, after } from "node:test";
+import { randomUUID } from "node:crypto";
+import { mkdtempSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join, relative } from "node:path";
+import * as store from "../../src/lib/document-store.ts";
+import { captureAccountGeneration, runWithAccountGeneration } from "../../src/lib/account-lifecycle.ts";
+import { lessonPublicationState } from "../../src/lib/course-pipeline/lesson-save.ts";
+import { publicationContentFingerprint } from "../../src/lib/publication-content.ts";
+const directory = mkdtempSync(join(tmpdir(), "lesson-repair-"));
+process.env.FILOSAGE_LOCAL_DIR = relative(process.cwd(), directory);
+after(() => rmSync(directory, { recursive: true, force: true }));
+for (const owner of [false, true]) {
+  test(`actual repair apply and undo preserve newer lesson edits (owner=${owner})`, async () => {
+    const uid = randomUUID();
+    const scope = await captureAccountGeneration(uid);
+    const owned = <T>(work: () => T) => runWithAccountGeneration(scope, work);
+    Object.assign(process.env, { COURSE_PIPELINE_V2: "true", COURSE_VALIDATION_V2: "true", COURSE_REPAIR_V2: "true", COURSE_PIPELINE_V2_OWNER_ONLY: "false", COURSE_PIPELINE_V2_COHORT_PERCENT: "100" });
+    const course = { authorId: uid, isPublic: false, courseSchemaVersion: 5, modules: [{ lessons: [{ title: "One" }] }] };
+    const lesson = { content: "Author content", interactions: [{ id: "diagnosed-invalid" }] };
+    await owned(() => store.putStoredDocument(`courses/${uid}`, course));
+    await owned(() => store.putStoredDocument(`courses/${uid}/lessons/0-0`, lesson));
+    const guard = { actor: { uid, isOwner: owner }, publicationState: lessonPublicationState(course) };
+    const metadata = { repairId: randomUUID(), idempotencyKey: `repair-${uid}`, actorUid: uid, baseSnapshotHash: "a".repeat(64), contractVersion: "fixture", appliedAt: new Date().toISOString(), requestedIssueCodes: ["CQ_LAB_001"], attemptLimit: 2 };
+    const apply = () => owned(() => store.applyDeterministicCourseRepair(uid, ["0-0"], { courseFingerprint: publicationContentFingerprint(course), lessonFingerprints: { "0-0": publicationContentFingerprint(lesson) } }, [{ issueCode: "CQ_LAB_001", targetPath: 'lessons["0-0"].interactions[0]', operation: "remove", rationale: "Remove diagnosed invalid fixture lab" }], metadata, guard));
+    await owned(() => store.updateCourseVisibility(uid, true));
+    await owned(() => store.updateCourseVisibility(uid, false));
+    await assert.rejects(apply(), /publication/);
+    guard.publicationState = lessonPublicationState((await store.getCourse(uid))!);
+    await apply();
+    assert.deepEqual((await store.getLesson(uid, "0-0"))?.interactions, []);
+    assert.equal((await apply()).recovered, true);
+    const after = (await store.getLesson(uid, "0-0"))!;
+    await owned(() => store.putStoredDocument(`courses/${uid}/lessons/0-0`, { ...after, content: "New author edit" }));
+    await assert.rejects(owned(() => store.undoDeterministicCourseRepair(uid, ["0-0"], metadata.repairId, `undo-${uid}`, uid, new Date().toISOString(), guard)), /newer edits/);
+    assert.equal((await store.getLesson(uid, "0-0"))?.content, "New author edit");
+    await owned(() => store.putStoredDocument(`courses/${uid}/lessons/0-0`, after));
+    await owned(() => store.undoDeterministicCourseRepair(uid, ["0-0"], metadata.repairId, `undo-${uid}`, uid, new Date().toISOString(), guard));
+    assert.deepEqual((await store.getLesson(uid, "0-0"))?.interactions, lesson.interactions);
+    await owned(() => store.undoDeterministicCourseRepair(uid, ["0-0"], metadata.repairId, `undo-${uid}`, uid, new Date().toISOString(), guard));
+    assert.deepEqual((await store.getLesson(uid, "0-0"))?.interactions, lesson.interactions);
+  });
+}

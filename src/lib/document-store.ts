@@ -29,6 +29,9 @@ import {
 } from "@/lib/course-pipeline/lesson-save";
 import { inspectCoursePublishReadiness } from "@/lib/publication-readiness";
 import { serverEnvironment } from "@/lib/runtime-environment";
+import { currentAccountGeneration } from "@/lib/account-lifecycle";
+import { assertLessonAttempt, lessonAccountingWrites, lessonCommitPaths, type LessonGenerationGuard } from "@/lib/course-pipeline/lesson-commit";
+import { LessonSaveError, lessonPublicationState, lessonCourseFingerprint } from "@/lib/course-pipeline/lesson-save";
 
 export interface StoredDocument extends Record<string, unknown> {
   id: string;
@@ -278,65 +281,65 @@ export async function getLesson(courseId: string, lessonId: string) {
   return document ? parseDocument(document) : null;
 }
 
-export async function saveLesson(
-  courseId: string,
-  lessonId: string,
-  data: Record<string, unknown>,
-  pipelineGuard?: LessonSavePipelineGuard,
-) {
-  if (pipelineGuard) {
-    const coursePath = `courses/${courseId}`;
-    const lessonPath = `${coursePath}/lessons/${lessonId}`;
-    return runStoredDocumentTransaction([coursePath, lessonPath], (documents) => {
-      const now = new Date().toISOString();
-      return buildGuardedLessonSave(
-        courseId,
-        lessonId,
-        documents[coursePath] ?? undefined,
-        documents[lessonPath] ?? undefined,
-        data,
-        pipelineGuard,
-        now,
-      );
-    });
+function requireLessonGenerationGuard(guard: LessonSavePipelineGuard | undefined): LessonGenerationGuard {
+  const value = guard as LessonGenerationGuard | undefined;
+  const scope = currentAccountGeneration();
+  if (!value?.reservation || !value.actor || !value.usage || !value.publicationState || !scope
+      || scope.uid !== value.actor.uid || scope.generation !== value.reservation.accountGeneration) {
+    throw new LessonSaveError("LESSON_SAVE_GUARD_REQUIRED", "A current account and lesson attempt guard are required. Reopen the draft before generating.", "reopen_course");
   }
-  const existing = await getLesson(courseId, lessonId);
-  const now = new Date();
-  const document = await documentStoreJson<DocumentRecord>(
-    `/documents/${encodeDocumentPath(`courses/${courseId}/lessons/${lessonId}`)}`,
-    {
-      method: "PATCH",
-      body: JSON.stringify({
-        fields: toDocumentFields({
-          ...data,
-          createdAt: existing?.createdAt ?? now,
-          updatedAt: now,
-        }),
-      }),
-    },
-  );
-  if (!document) throw new Error("The document store did not return the saved lesson.");
-  return parseDocument(document);
+  return value;
 }
-
-export async function saveLessonWithEvidenceDowngrade(
-  courseId: string,
-  lessonId: string,
-  data: Record<string, unknown>,
-  guard: LessonEvidenceDowngradeGuard,
-) {
+async function commitGeneratedLesson(courseId: string, lessonId: string, data: Record<string, unknown>, supplied: LessonSavePipelineGuard | undefined, downgrade = false) {
+  const guard = requireLessonGenerationGuard(supplied);
   const coursePath = `courses/${courseId}`;
   const lessonPath = `${coursePath}/lessons/${lessonId}`;
-  return runStoredDocumentTransaction([coursePath, lessonPath], (documents) =>
-    buildGuardedLessonEvidenceDowngrade(
-      courseId,
-      lessonId,
-      documents[coursePath] ?? undefined,
-      documents[lessonPath] ?? undefined,
-      data,
-      guard,
-      new Date().toISOString(),
-    ));
+  return runStoredDocumentTransaction([coursePath, lessonPath, ...lessonCommitPaths(guard)], (documents) => {
+    const course = documents[coursePath];
+    const now = new Date().toISOString();
+    if (course && course.authorId !== guard.actor.uid && !guard.actor.isOwner) throw new LessonSaveError("LESSON_AUTHOR_CHANGED", "This course belongs to another account.", "reopen_course");
+    if (course && courseUsesPipelineV2(course) && !coursePipelineFeatureFlags(guard.actor).pipelineV2) throw new LessonSaveError("COURSE_PIPELINE_V2_PAUSED", "Course Pipeline V2 is paused. This draft was preserved.", "reopen_course");
+    if (course?.moderationStatus === "quarantined") throw new LessonSaveError("LESSON_COURSE_QUARANTINED", "This course is quarantined. Resolve its moderation hold before generating.", "reopen_course");
+    assertLessonAttempt(documents, guard, now, courseId, lessonId);
+    const target = lessonId.match(/^(\d+)-(\d+)$/);
+    const modules = course?.modules as Array<{ lessons?: unknown[] }> | undefined;
+    if (!target || !Array.isArray(modules) || !modules[Number(target[1])]?.lessons?.[Number(target[2])]) throw new LessonSaveError("LESSON_TARGET_CHANGED", "This lesson is not in the current course outline.", "reopen_course");
+    const next = downgrade
+      ? buildGuardedLessonEvidenceDowngrade(courseId, lessonId, course ?? undefined, documents[lessonPath] ?? undefined, data,
+          { ...guard, actorId: guard.actor.uid, ownerOverride: guard.actor.isOwner }, now)
+      : buildGuardedLessonSave(courseId, lessonId, course ?? undefined, documents[lessonPath] ?? undefined, data, guard, now);
+    const finalCourse = next.writes.find((write) => write.path === coursePath)?.data ?? course!;
+    const finalLesson = next.writes.find((write) => write.path === lessonPath)!.data;
+    return { writes: [...next.writes, ...lessonAccountingWrites(courseId, lessonId, finalCourse, finalLesson, documents, guard, now)], result: next.result };
+  });
+}
+export async function saveLesson(courseId: string, lessonId: string, data: Record<string, unknown>, pipelineGuard?: LessonSavePipelineGuard | LessonGenerationGuard) {
+  return commitGeneratedLesson(courseId, lessonId, data, pipelineGuard);
+}
+export async function saveLessonWithEvidenceDowngrade(courseId: string, lessonId: string, data: Record<string, unknown>, guard: LessonEvidenceDowngradeGuard | (LessonGenerationGuard & { actorId: string; ownerOverride: boolean })) {
+  return commitGeneratedLesson(courseId, lessonId, data, guard, true);
+}
+
+/** Reopen only the exact committed output; a later edit is not that result. */
+export async function recoverCommittedLesson(courseId: string, lessonId: string, reservation: Pick<import("@/lib/ai-usage").AiReservation, "uid" | "requestId" | "requestPath">) {
+  const coursePath = `courses/${courseId}`;
+  const lessonPath = `${coursePath}/lessons/${lessonId}`;
+  const scope = currentAccountGeneration();
+  return runStoredDocumentTransaction([coursePath, lessonPath, reservation.requestPath], (documents) => {
+    const request = documents[reservation.requestPath];
+    const course = documents[coursePath];
+    const lesson = documents[lessonPath];
+    const result = request?.lessonResult as Record<string, unknown> | undefined;
+    if (!scope || scope.uid !== reservation.uid || request?.uid !== scope.uid || request?.accountGeneration !== scope.generation
+      || reservation.requestPath !== `aiRequests/${reservation.requestId}` || request.status !== "completed"
+      || !result || result.version !== 1 || result.courseId !== courseId || result.lessonId !== lessonId || !lesson || !course) {
+      throw new LessonSaveError("IDEMPOTENCY_RESULT_MISSING", "The original lesson result could not be confirmed. Reconcile the saved request before generating again.", "reconcile_generation");
+    }
+    if (result.fingerprint !== publicationContentFingerprint(lesson) || result.publicationState !== lessonPublicationState(course) || result.courseFingerprint !== lessonCourseFingerprint(course, lessonId)) {
+      throw new LessonSaveError("IDEMPOTENCY_RESULT_SUPERSEDED", "The lesson or its publication state changed after this request. Reopen the current lesson; the newer work was preserved.", "reopen_lesson");
+    }
+    return { writes: [], result: lesson };
+  });
 }
 
 async function commitWrites(writes: Array<Record<string, unknown>>) {
@@ -707,6 +710,7 @@ export async function updateCourseVisibility(courseId: string, isPublic: boolean
           data: {
             ...course,
             isPublic,
+            lessonWriteEpoch: randomUUID(),
             ...(resetsPublishedStage ? {
               pipelineStage: "draft",
               pipelineStageUpdatedAt: updatedAt,
@@ -1026,6 +1030,7 @@ export async function publishCourseWithReview(
           publicationDecision: decision,
           ...(immutableReleaseEnabled ? { releaseId } : {}),
         },
+        lessonWriteEpoch: randomUUID(),
         publicationMutation: review.publicationMutationKey ? {
           key: review.publicationMutationKey,
           target: "published",
@@ -1213,6 +1218,17 @@ function deterministicRepairTarget(targetPath: string): DeterministicRepairTarge
   throw new Error(`Unsupported deterministic repair target: ${targetPath}`);
 }
 
+export interface CourseRepairGuard { actor: { uid: string; isOwner: boolean }; publicationState: string }
+function assertCourseRepairGuard(course: Record<string, unknown>, actorUid: string, guard: CourseRepairGuard | undefined) {
+  const scope = currentAccountGeneration();
+  if (!guard || !scope || scope.uid !== actorUid || guard.actor.uid !== actorUid) throw new LessonSaveError("REPAIR_GUARD_REQUIRED", "A current account and repair guard are required.", "reopen_course");
+  if (course.authorId !== actorUid && !guard.actor.isOwner) throw new LessonSaveError("REPAIR_AUTHOR_CHANGED", "This course belongs to another account.", "reopen_course");
+  const flags = coursePipelineFeatureFlags(guard.actor);
+  if (!courseUsesPipelineV2(course) || !flags.repairV2 || !flags.validationV2) throw new LessonSaveError("COURSE_REPAIR_PAUSED", "Targeted repair is paused for this draft.", "reopen_course");
+  if (course.moderationStatus === "quarantined") throw new LessonSaveError("COURSE_REPAIR_QUARANTINED", "Resolve this course's moderation hold before repairing.", "reopen_course");
+  if (lessonPublicationState(course) !== guard.publicationState) throw new LessonSaveError("COURSE_PUBLICATION_CHANGED", "The course publication state changed. Validate its current draft again.", "reopen_course");
+}
+
 export async function applyDeterministicCourseRepair(
   courseId: string,
   expectedLessonIds: string[],
@@ -1228,6 +1244,7 @@ export async function applyDeterministicCourseRepair(
     requestedIssueCodes: string[];
     attemptLimit: number;
   },
+  guard?: CourseRepairGuard,
 ) {
   const coursePath = `courses/${courseId}`;
   const affectedLessonIds = Array.from(new Set(operations.map((operation) => deterministicRepairTarget(operation.targetPath).lessonId)));
@@ -1239,6 +1256,7 @@ export async function applyDeterministicCourseRepair(
   return runStoredDocumentTransaction([coursePath, ...lessonPaths, repairPath], (documents) => {
     const course = documents[coursePath];
     if (!course) throw new Error("Course not found.");
+    assertCourseRepairGuard(course, metadata.actorUid, guard);
     if (course.isPublic === true) throw new Error("Unpublish this course before repairing its draft.");
     const previous = course.lastRepair as { idempotencyKey?: string; repairId?: string; baseSnapshotHash?: string; requestedIssueCodes?: string[] } | undefined;
     if (previous?.idempotencyKey === metadata.idempotencyKey) {
@@ -1376,6 +1394,7 @@ export async function undoDeterministicCourseRepair(
   idempotencyKey: string,
   actorUid: string,
   undoneAt: string,
+  guard?: CourseRepairGuard,
 ) {
   const coursePath = `courses/${courseId}`;
   const repairPath = `courseRepairs/${repairId}`;
@@ -1394,6 +1413,7 @@ export async function undoDeterministicCourseRepair(
     const course = documents[coursePath];
     const currentRepair = documents[repairPath];
     if (!course || !currentRepair) throw new Error("Repair record not found.");
+    assertCourseRepairGuard(course, actorUid, guard);
     if (course.isPublic === true) throw new Error("Unpublish this course before undoing a repair.");
     if (currentRepair.status === "undone") {
       if (currentRepair.undoIdempotencyKey !== idempotencyKey) throw new Error("This repair was already undone by another request.");

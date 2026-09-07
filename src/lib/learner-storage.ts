@@ -3,7 +3,7 @@ import { EXPECTED_ACCOUNT_HEADER, EXPECTED_GENERATION_HEADER } from "@/lib/accou
 // Browser learning records are owned by a canonical account, never by the next
 // person using the device. Unowned historical keys are deliberately not read,
 // migrated, or erased: their ownership cannot be established.
-export type LearnerStorageFamily = "learner-state" | "progress" | "mastery" | "experience-draft" | "transfer-draft" | "outcome-feedback" | "generation-operation";
+export type LearnerStorageFamily = "learner-state" | "progress" | "mastery" | "experience-draft" | "transfer-draft" | "outcome-feedback" | "generation-operation" | "learner-sync" | "source-cache";
 export interface LearnerStorageUser {
   uid: string;
   accountGeneration?: string;
@@ -11,6 +11,11 @@ export interface LearnerStorageUser {
 }
 export const LEARNER_SESSION_CHANGE_KEY = "filosage:learner-session-change:v1";
 export const LEARNER_SESSION_INVALIDATED_EVENT = "filosage:learner-session-invalidated";
+
+const sessionListeners = new Set<() => void>();
+export function subscribeLearnerSession(listener: () => void) {
+  sessionListeners.add(listener); return () => { sessionListeners.delete(listener); };
+}
 
 let activeUid: string | null = null;
 let activeGeneration: string | null = null;
@@ -51,6 +56,7 @@ export function setLearnerStorageIdentity(uid: string | null, generation: string
     activeUid = uid;
     activeGeneration = generation;
     revision += 1;
+    sessionListeners.forEach((listener) => listener());
   }
   return revision;
 }
@@ -103,6 +109,7 @@ export async function learnerRequest(user: LearnerStorageUser | null, input: str
   assertCurrent();
   const token = await user!.getIdToken();
   assertCurrent();
+  init.signal?.throwIfAborted();
   const headers = new Headers(init.headers);
   headers.set("Authorization", `Bearer ${token}`);
   headers.set(EXPECTED_ACCOUNT_HEADER, encodeURIComponent(user!.uid));
@@ -110,7 +117,10 @@ export async function learnerRequest(user: LearnerStorageUser | null, input: str
   const signal = init.signal ? AbortSignal.any([session.signal, init.signal]) : session.signal;
   const response = await fetch(input, { ...init, headers, signal });
   assertCurrent();
-  if (response.status === 401 || (response.status === 403 && (await response.clone().json().catch(() => ({}))).code === "ACCOUNT_GENERATION_UNAVAILABLE")) invalidateLearnerSession();
+  const generationUnavailable = response.status === 403
+    && (await response.clone().json().catch(() => ({}))).code === "ACCOUNT_GENERATION_UNAVAILABLE";
+  assertCurrent();
+  if (response.status === 401 || generationUnavailable) invalidateLearnerSession();
   return response;
 }
 

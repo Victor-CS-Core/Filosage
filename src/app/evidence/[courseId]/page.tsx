@@ -33,6 +33,12 @@ import {
   type MasteryState,
 } from "@/lib/mastery";
 import { trackProductEvent } from "@/lib/product-analytics";
+import { useLearnerSource } from "@/components/useLearnerSource";
+import LearnerSourceNotice from "@/components/LearnerSourceNotice";
+import AccountEntryButton from "@/components/AccountEntryButton";
+import { assertLearnerSession, learnerJson, withLearnerDeadline } from "@/lib/learner-source";
+import { isCurrentLearnerSession, learnerSessionSnapshot } from "@/lib/learner-storage";
+import { copyLearnerText, downloadLearnerFile } from "@/lib/learner-actions";
 import type { AdvancedCapstoneAnalysis } from "@/lib/capstone-analysis";
 
 interface EvidenceShareSummary {
@@ -44,6 +50,11 @@ interface EvidenceShareSummary {
   revokedAt?: string;
   status: "active" | "expired" | "revoked";
 }
+
+const courseEmpty = () => false;
+const progressEmpty = (value: { progress: CourseProgress | null }) => value.progress === null;
+const sharesEmpty = (value: { shares: EvidenceShareSummary[] }) => value.shares.length === 0;
+const analysisEmpty = (value: { analysis: AdvancedCapstoneAnalysis | null }) => value.analysis === null;
 
 const STATE_LABELS: Record<MasteryState, string> = {
   not_started: "No observed evidence",
@@ -59,109 +70,34 @@ export default function EvidenceReportPage() {
   const courseId = params.courseId;
   const { user, account } = useAuth();
   const journey = useMasteryJourney(courseId, user);
-  const [course, setCourse] = useState<Course | null>(null);
-  const [progress, setProgress] = useState<CourseProgress | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const courseSource = useLearnerSource<Course>(user, `/api/courses/${encodeURIComponent(courseId)}`, courseEmpty);
+  const progressSource = useLearnerSource(user, `/api/progress?courseId=${encodeURIComponent(courseId)}`, progressEmpty);
+  const sharesSource = useLearnerSource(user, account?.capabilities?.shareEvidenceReport ? `/api/evidence/${encodeURIComponent(courseId)}/shares` : null, sharesEmpty);
+  const analysisSource = useLearnerSource(user, account?.capabilities?.advancedCapstoneAnalysis ? `/api/capstone-analysis?courseId=${encodeURIComponent(courseId)}` : null, analysisEmpty);
+  const course = courseSource.data ?? null;
+  const progress = progressSource.data?.progress ?? null;
+  const shares = sharesSource.data?.shares ?? [];
+  const analysis = analysisSource.data?.analysis ?? null;
   const [copied, setCopied] = useState(false);
   const [sharing, setSharing] = useState(false);
   const [professionalBusy, setProfessionalBusy] = useState<"export" | "share" | string | null>(null);
   const [professionalError, setProfessionalError] = useState<string | null>(null);
-  const [shareState, setShareState] = useState<{ key: string; items: EvidenceShareSummary[] }>({ key: "", items: [] });
-  const [analysisState, setAnalysisState] = useState<{ key: string; value: AdvancedCapstoneAnalysis | null }>({ key: "", value: null });
   const [nextCourse, setNextCourse] = useState<Course | null>(null);
-  const professionalEvidenceKey = user && account ? `${user.uid}:${courseId}` : "";
-  const shares = shareState.key === professionalEvidenceKey ? shareState.items : [];
-  const analysis = account?.capabilities?.advancedCapstoneAnalysis
-    && analysisState.key === professionalEvidenceKey
-    ? analysisState.value
-    : null;
 
   useEffect(() => {
-    let cancelled = false;
-    const load = async () => {
-      try {
-        const token = user ? await user.getIdToken() : null;
-        const headers = token ? { Authorization: `Bearer ${token}` } : undefined;
-        const courseResponse = await fetch(`/api/courses/${encodeURIComponent(courseId)}`, { headers });
-        const courseData = await courseResponse.json() as Course & { error?: string };
-        if (!courseResponse.ok) throw new Error(courseData.error || "The course could not be opened.");
-        if (cancelled) return;
-        setCourse(courseData);
-        try {
-          const libraryResponse = await fetch("/api/courses?scope=public", { cache: "no-store" });
-          if (libraryResponse.ok) {
-            const libraryData = await libraryResponse.json() as { courses?: Course[] };
-            const candidates = (libraryData.courses ?? []).filter((item) => (
-              (item.id ?? item.courseId) !== courseId
-            ));
-            const recommendation = candidates.sort((left, right) => {
-              const leftMatch = left.category && left.category === courseData.category ? 1 : 0;
-              const rightMatch = right.category && right.category === courseData.category ? 1 : 0;
-              return rightMatch - leftMatch;
-            })[0] ?? null;
-            if (!cancelled) setNextCourse(recommendation);
-          }
-        } catch {
-          // The evidence report remains useful if catalog recommendations are unavailable.
-        }
-        if (user) {
-          const progressResponse = await fetch(`/api/progress?courseId=${encodeURIComponent(courseId)}`, {
-            headers: headers as Record<string, string>,
-            cache: "no-store",
-          });
-          if (progressResponse.ok) {
-            const data = await progressResponse.json() as { progress: CourseProgress | null };
-            if (!cancelled) setProgress(data.progress);
-          }
-        }
-      } catch (loadError) {
-        if (!cancelled) setError(loadError instanceof Error ? loadError.message : "The evidence report could not be opened.");
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    };
-    void load();
-    return () => { cancelled = true; };
-  }, [courseId, user]);
-
-  useEffect(() => {
-    let cancelled = false;
-    if (!user || !account) {
-      return () => { cancelled = true; };
-    }
-    const requestKey = `${user.uid}:${courseId}`;
-    const loadProfessionalEvidence = async () => {
-      const token = await user.getIdToken();
-      const headers = { Authorization: `Bearer ${token}` };
-      const requests: Promise<void>[] = [];
-      if (account.capabilities?.shareEvidenceReport) {
-        requests.push(fetch(`/api/evidence/${encodeURIComponent(courseId)}/shares`, {
-          headers,
-          cache: "no-store",
-        }).then(async (response) => {
-          if (!response.ok) return;
-          const data = await response.json() as { shares?: EvidenceShareSummary[] };
-          if (!cancelled) setShareState({ key: requestKey, items: data.shares ?? [] });
-        }));
-      }
-      if (account.capabilities?.advancedCapstoneAnalysis) {
-        requests.push(fetch(`/api/capstone-analysis?courseId=${encodeURIComponent(courseId)}`, {
-          headers,
-          cache: "no-store",
-        }).then(async (response) => {
-          if (!response.ok) return;
-          const data = await response.json() as { analysis?: AdvancedCapstoneAnalysis | null };
-          if (!cancelled) setAnalysisState({ key: requestKey, value: data.analysis ?? null });
-        }));
-      }
-      await Promise.all(requests);
-    };
-    void loadProfessionalEvidence().catch(() => {
-      if (!cancelled) setProfessionalError("Professional report tools are temporarily unavailable.");
-    });
-    return () => { cancelled = true; };
-  }, [account, courseId, user]);
+    if (!course) return;
+    const controller = new AbortController();
+    // Optional recommendations never delay the required evidence sources.
+    void withLearnerDeadline(controller.signal, async (signal) => {
+      const response = await fetch("/api/courses?scope=public", { cache: "no-store", signal });
+      if (!response.ok) return;
+      const data = await response.json() as { courses: Course[] };
+      const candidates = data.courses.filter((item) => (item.id ?? item.courseId) !== courseId);
+      const next = candidates.find((item) => item.category === course.category) ?? candidates[0] ?? null;
+      if (!signal.aborted) setNextCourse(next);
+    }).catch(() => { /* Optional catalog recommendations do not gate evidence. */ });
+    return () => controller.abort();
+  }, [course, courseId]);
 
   useEffect(() => {
     if (!course || !journey.ready) return;
@@ -203,22 +139,17 @@ export default function EvidenceReportPage() {
   ).size;
 
   const copySummary = async () => {
-    if (!course) return;
+    if (!course || !user) return;
+    const session = learnerSessionSnapshot(user.uid);
     setSharing(true);
     const demonstrated = objectives.filter((item) => item.state === "demonstrated").length;
     const courseUrl = new URL(`/course/${encodeURIComponent(course.topic)}`, window.location.origin);
     courseUrl.searchParams.set("id", courseId);
     if (user) {
       try {
-        const token = await user.getIdToken();
-        const response = await fetch("/api/referrals", {
-          method: "POST",
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        if (response.ok) {
-          const referral = await response.json() as { code?: string };
-          if (referral.code) courseUrl.searchParams.set("ref", referral.code);
-        }
+        const referral = await learnerJson<{ code?: string }>(user, "/api/referrals", { method: "POST" });
+        assertLearnerSession(session);
+        if (referral.code) courseUrl.searchParams.set("ref", referral.code);
       } catch {
         // A clean course link remains shareable if referral attribution is unavailable.
       }
@@ -233,117 +164,98 @@ export default function EvidenceReportPage() {
       `Explore the course: ${courseUrl.toString()}`,
     ].filter(Boolean).join("\n");
     try {
-      await navigator.clipboard.writeText(summary);
+      await copyLearnerText(session, summary);
+      assertLearnerSession(session);
       setCopied(true);
       trackProductEvent("evidence_report_shared", { route: "/evidence", courseId });
       trackProductEvent("referral_link_copied", { route: "/evidence", courseId });
+    } catch {
+      if (isCurrentLearnerSession(session)) setProfessionalError("The summary could not be copied. Try again.");
     } finally {
-      setSharing(false);
+      if (isCurrentLearnerSession(session)) setSharing(false);
     }
   };
 
   const exportProfessionalReport = async () => {
     if (!user || !account?.capabilities?.exportEvidenceReport) return;
+    const session = learnerSessionSnapshot(user.uid);
     setProfessionalBusy("export");
     setProfessionalError(null);
     try {
-      const token = await user.getIdToken();
-      const response = await fetch(`/api/evidence/${encodeURIComponent(courseId)}/export`, {
-        headers: { Authorization: `Bearer ${token}` },
-        cache: "no-store",
-      });
-      if (!response.ok) {
-        const data = await response.json().catch(() => null) as { error?: string } | null;
-        throw new Error(data?.error || "The evidence report could not be exported.");
-      }
-      const blobUrl = URL.createObjectURL(await response.blob());
-      const anchor = document.createElement("a");
-      anchor.href = blobUrl;
-      anchor.download = `filosage-${courseId}-evidence.html`;
-      anchor.click();
-      URL.revokeObjectURL(blobUrl);
+      await downloadLearnerFile(user, `/api/evidence/${encodeURIComponent(courseId)}/export`, `filosage-${courseId}-evidence.html`);
+      assertLearnerSession(session);
     } catch (exportError) {
+      if (!isCurrentLearnerSession(session)) return;
       setProfessionalError(exportError instanceof Error ? exportError.message : "The evidence report could not be exported.");
     } finally {
-      setProfessionalBusy(null);
+      if (isCurrentLearnerSession(session)) setProfessionalBusy(null);
     }
   };
 
   const createProfessionalShare = async () => {
     if (!user || !account?.capabilities?.shareEvidenceReport) return;
+    const session = learnerSessionSnapshot(user.uid);
     setProfessionalBusy("share");
     setProfessionalError(null);
     try {
-      const token = await user.getIdToken();
-      const response = await fetch(`/api/evidence/${encodeURIComponent(courseId)}/shares`, {
-        method: "POST",
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      const data = await response.json() as { share?: { id: string; path: string; expiresAt: string }; error?: string };
-      if (!response.ok || !data.share) throw new Error(data.error || "The evidence-share link could not be created.");
-      await navigator.clipboard.writeText(new URL(data.share.path, window.location.origin).toString());
+      const data = await learnerJson<{ share: { id: string; path: string; expiresAt: string } }>(user, `/api/evidence/${encodeURIComponent(courseId)}/shares`, { method: "POST" });
+      assertLearnerSession(session);
+      if (!data.share) throw new Error("The evidence-share link could not be created.");
+      sharesSource.replace({ shares: [{
+        id: data.share.id, courseId, courseTopic: course?.topic ?? "Evidence report", createdAt: new Date().toISOString(),
+        expiresAt: data.share.expiresAt, status: "active",
+      }, ...shares.filter((share) => share.id !== data.share.id)] });
+      await copyLearnerText(session, new URL(data.share.path, window.location.origin).toString());
+      assertLearnerSession(session);
       setCopied(true);
-      setShareState((current) => ({
-        key: professionalEvidenceKey,
-        items: [{
-          id: data.share!.id,
-          courseId,
-          courseTopic: course?.topic ?? "Evidence report",
-          createdAt: new Date().toISOString(),
-          expiresAt: data.share!.expiresAt,
-          status: "active",
-        }, ...(current.key === professionalEvidenceKey ? current.items : [])],
-      }));
       trackProductEvent("evidence_report_shared", { route: "/evidence", courseId });
     } catch (shareError) {
+      if (!isCurrentLearnerSession(session)) return;
       setProfessionalError(shareError instanceof Error ? shareError.message : "The evidence-share link could not be created.");
     } finally {
-      setProfessionalBusy(null);
+      if (isCurrentLearnerSession(session)) setProfessionalBusy(null);
     }
   };
 
   const revokeProfessionalShare = async (shareId: string) => {
     if (!user) return;
+    const session = learnerSessionSnapshot(user.uid);
     setProfessionalBusy(shareId);
     setProfessionalError(null);
     try {
-      const token = await user.getIdToken();
-      const response = await fetch(`/api/evidence/${encodeURIComponent(courseId)}/shares?shareId=${encodeURIComponent(shareId)}`, {
-        method: "DELETE",
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      const data = await response.json() as { error?: string };
-      if (!response.ok) throw new Error(data.error || "The evidence-share link could not be revoked.");
-      setShareState((current) => ({
-        key: professionalEvidenceKey,
-        items: (current.key === professionalEvidenceKey ? current.items : []).map((share) => (
-          share.id === shareId ? { ...share, status: "revoked", revokedAt: new Date().toISOString() } : share
-        )),
-      }));
+      await learnerJson(user, `/api/evidence/${encodeURIComponent(courseId)}/shares?shareId=${encodeURIComponent(shareId)}`, { method: "DELETE" });
+      assertLearnerSession(session);
+      sharesSource.replace({ shares: shares.map((share) => share.id === shareId ? { ...share, status: "revoked", revokedAt: new Date().toISOString() } : share) });
     } catch (revokeError) {
+      if (!isCurrentLearnerSession(session)) return;
       setProfessionalError(revokeError instanceof Error ? revokeError.message : "The evidence-share link could not be revoked.");
     } finally {
-      setProfessionalBusy(null);
+      if (isCurrentLearnerSession(session)) setProfessionalBusy(null);
     }
   };
 
-  if (loading || !journey.ready) {
-    return <AppShell><div className="center-state"><LoaderCircle className="spin" size={25} /><h1>Building your evidence report</h1></div></AppShell>;
-  }
-  if (error || !course) {
-    return <AppShell><div className="center-state"><FileCheck2 size={26} /><p className="overline">Evidence report</p><h1>This report cannot be opened.</h1><p>{error}</p><Link className="button button-secondary" href="/library">Browse courses</Link></div></AppShell>;
+  const requiredNotices = <>
+    <LearnerSourceNotice label="Course" {...courseSource} />
+    <LearnerSourceNotice label="Progress" {...progressSource} />
+    <LearnerSourceNotice label="Learning evidence" status={journey.loadStatus} error={journey.loadError} retry={journey.retry} />
+  </>;
+  if (!user) return <AppShell><div className="center-state"><h1>Sign in to open your evidence report</h1><AccountEntryButton createLabel="Sign in" signInLabel="Sign in" /></div></AppShell>;
+  const journeyKnown = journey.loadStatus === "loaded" || journey.loadStatus === "empty" || (journey.loadStatus === "stale" && Boolean(journey.plan || journey.evidence.length));
+  if (!course || progressSource.data === undefined || !journeyKnown) {
+    return <AppShell><div className="center-state"><FileCheck2 size={26} /><h1>Your evidence report</h1>{requiredNotices}<Link className="button button-secondary" href="/library">Browse courses</Link></div></AppShell>;
   }
 
   return (
     <AppShell activeTopic={course.topic} activeCourseId={courseId} activeCourse={course}>
       <div className="evidence-page">
+        {requiredNotices}
         <header className="evidence-header">
           <Link className="text-button" href={`/course/${encodeURIComponent(course.topic)}?id=${courseId}`}><ArrowLeft size={15} /> Course overview</Link>
           <div><p className="overline">Evidence report</p><h1>{course.topic}</h1><p>{journey.plan?.desiredOutcome ?? course.outcome ?? course.mission}</p></div>
           <button className="button button-secondary" disabled={sharing} onClick={() => void copySummary()}>{sharing ? <LoaderCircle className="spin" size={16} /> : copied ? <Clipboard size={16} /> : <Share2 size={16} />} {sharing ? "Preparing link" : copied ? "Share summary copied" : "Copy share summary"}</button>
         </header>
 
-        {user && <section className="professional-evidence-tools" aria-labelledby="professional-evidence-title">
+        {user && account && <section className="professional-evidence-tools" aria-labelledby="professional-evidence-title">
           <div>
             <p className="overline">Portable evidence</p>
             <h2 id="professional-evidence-title">Carry a bounded report beyond the app</h2>
@@ -359,6 +271,8 @@ export default function EvidenceReportPage() {
               {professionalBusy === "share" ? <LoaderCircle className="spin" size={16} /> : <Share2 size={16} />} Create 30-day link
             </button>}
           </div> : <Link className="button button-secondary" href="/pricing?plan=pro&from=evidence-portable" onClick={() => trackProductEvent("upgrade_prompt_selected", { route: "/evidence", surface: "evidence_portable", courseId })}>Add portable export with Pro</Link>}
+          {account?.capabilities?.shareEvidenceReport && <LearnerSourceNotice label="Share links" {...sharesSource} />}
+          {account?.capabilities?.advancedCapstoneAnalysis && <LearnerSourceNotice label="Capstone analysis" {...analysisSource} />}
           {professionalError && <p className="form-error" role="alert">{professionalError}</p>}
           {shares.length > 0 && <div className="professional-share-list">
             <strong>Share links</strong>

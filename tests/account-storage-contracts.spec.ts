@@ -58,6 +58,7 @@ test("keeps notes, goals, evidence, completion and both draft families private w
     writeLearnerState({ ...EMPTY_LEARNER_STATE, notes: { "course:0-0": "A-private-note" } }, "account-A");
     saveLocalMasteryJourney("course", { plan, evidence: [{ id: "A-evidence", courseId: "course", objectiveId: "objective-m0-l0", type: "transfer", result: "attempted", label: "A-private-evidence", observedAt: plan.createdAt }] }, "account-A");
     saveLocalProgress({ courseId: "course", topic: "Evidence", lessonId: "0-0", lessonTitle: "A-private-completion", totalQuestions: 0, firstAttemptCorrect: 0, attempts: 0, confidence: "high" }, "account-A");
+    writeLearnerStorage("account-A", "source-cache", "/api/courses?scope=mine", ["A-private-course"]);
     writeLearnerStorage("account-A", "experience-draft", "course:0-0", "A-private-experience");
     writeLearnerStorage("account-A", "transfer-draft", "course:0-0", "A-private-transfer");
     for (const other of [null, "account-B"]) {
@@ -65,6 +66,7 @@ test("keeps notes, goals, evidence, completion and both draft families private w
       expect(readLearnerState(other).notes).toEqual({});
       expect(getLocalMasteryJourney("course", other)).toEqual({ plan: null, evidence: [] });
       expect(getLocalProgress("course", other)).toBeNull();
+      expect(readLearnerStorage(other, "source-cache", "/api/courses?scope=mine")).toBeNull();
       expect(readLearnerStorage(other, "experience-draft", "course:0-0")).toBeNull();
       expect(readLearnerStorage(other, "transfer-draft", "course:0-0")).toBeNull();
       expect(writeLearnerStorage("account-A", "transfer-draft", "course:0-0", "stale write")).toBe(false);
@@ -74,6 +76,7 @@ test("keeps notes, goals, evidence, completion and both draft families private w
     expect(getLocalMasteryJourney("course", "account-A").plan?.desiredOutcome).toBe("A-private-goal");
     expect(getLocalMasteryJourney("course", "account-A").evidence[0].label).toBe("A-private-evidence");
     expect(getLocalProgress("course", "account-A")?.completedLessonIds).toEqual(["0-0"]);
+    expect(readLearnerStorage("account-A", "source-cache", "/api/courses?scope=mine")).toEqual(["A-private-course"]);
     expect(readLearnerStorage("account-A", "experience-draft", "course:0-0")).toBe("A-private-experience");
     expect(readLearnerStorage("account-A", "transfer-draft", "course:0-0")).toBe("A-private-transfer");
   });
@@ -219,3 +222,267 @@ async function withStorage(stored: Map<string, string>, run: () => void | Promis
     else Reflect.deleteProperty(globalThis, "localStorage");
   }
 }
+
+test("a delayed A generation-error body cannot invalidate B after the response headers arrive", async () => {
+  await withStorage(new Map(), async () => {
+    const originalFetch = globalThis.fetch;
+    let release!: (value: unknown) => void;
+    let started!: () => void;
+    const reading = new Promise<void>((resolve) => { started = resolve; });
+    const body = new Promise((resolve) => { release = resolve; });
+    const response = new Response(null, { status: 403 });
+    response.clone = () => ({ json: () => { started(); return body; } }) as Response;
+    globalThis.fetch = async () => response;
+    try {
+      const pending = learnerRequest({ uid: "account-A", getIdToken: async () => "A" }, "/api/mastery");
+      const rejected = expect(pending).rejects.toThrow("learning session changed");
+      await reading;
+      setLearnerStorageIdentity("account-B");
+      const currentB = learnerSessionSnapshot();
+      release({ code: "ACCOUNT_GENERATION_UNAVAILABLE" });
+      await rejected;
+      expect(isCurrentLearnerSession(currentB)).toBe(true);
+    } finally { globalThis.fetch = originalFetch; }
+  });
+});
+
+test("failed cloud reads retain last-known data and retry certifies empty only on success", async () => {
+  const { createLearnerSource, learnerJson } = await import("../src/lib/learner-source");
+  await withStorage(new Map(), async () => {
+    const originalFetch = globalThis.fetch;
+    let status = 503;
+    let data = ["A-private-record"];
+    globalThis.fetch = async () => Response.json(data, { status });
+    const user = { uid: "account-A", getIdToken: async () => "A" };
+    const source = createLearnerSource(user, (signal) => learnerJson<string[]>(user, "/api/progress", { signal }), (items) => !items.length, undefined,
+      (items) => { writeLearnerStorage(user.uid, "source-cache", "/api/progress", items); });
+    try {
+      await source.load();
+      expect(source.getSnapshot()).toMatchObject({ status: "error", data: undefined });
+      status = 200; await source.load();
+      expect(source.getSnapshot()).toMatchObject({ status: "loaded", data: ["A-private-record"] });
+      status = 503; await source.load();
+      expect(source.getSnapshot()).toMatchObject({ status: "stale", data: ["A-private-record"] });
+      expect(readLearnerStorage(user.uid, "source-cache", "/api/progress")).toEqual(["A-private-record"]);
+      status = 200; data = []; await source.load();
+      expect(source.getSnapshot()).toMatchObject({ status: "empty", data: [] });
+    } finally { source.cancel(); globalThis.fetch = originalFetch; }
+  });
+});
+
+test("learner cloud deadlines include delayed token and body reads and abort stale completion", async () => {
+  const { learnerJson } = await import("../src/lib/learner-source");
+  await withStorage(new Map(), async () => {
+    const originalFetch = globalThis.fetch;
+    let requests = 0;
+    globalThis.fetch = async () => { requests += 1; return Response.json({}); };
+    try {
+      await expect(learnerJson({ uid: "account-A", getIdToken: () => new Promise(() => {}) }, "/api/mastery", {}, 10)).rejects.toThrow("taking too long");
+      expect(requests).toBe(0);
+      globalThis.fetch = async () => new Response(new ReadableStream({ start() { /* Deliberately never supplies a body. */ } }));
+      await expect(learnerJson({ uid: "account-A", getIdToken: async () => "A" }, "/api/mastery", {}, 10)).rejects.toThrow("taking too long");
+    } finally { globalThis.fetch = originalFetch; }
+  });
+});
+
+test("51 queued note deletions survive offline reentry and retry acknowledges bounded successful batches", async () => {
+  const { queueLearnerStateChanges, mergeLearnerCloud, pendingLearnerSync, syncLearnerState } = await import("../src/lib/learner-sync");
+  await withStorage(new Map(), async () => {
+    const before = { ...EMPTY_LEARNER_STATE, notes: Object.fromEntries(Array.from({ length: 51 }, (_, index) => [`course:${index}`, `private-${index}`])) };
+    const after = { ...EMPTY_LEARNER_STATE, updatedAt: "2026-09-07T00:00:00.000Z" };
+    writeLearnerState(before, "account-A");
+    queueLearnerStateChanges("account-A", before, after);
+    writeLearnerState(after, "account-A");
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = async () => Response.json({}, { status: 503 });
+    const user = { uid: "account-A", getIdToken: async () => "A" };
+    try {
+      await expect(syncLearnerState(user)).rejects.toThrow("unavailable");
+      setLearnerStorageIdentity(null); setLearnerStorageIdentity("account-B");
+      expect(Object.keys(pendingLearnerSync("account-B").deleted)).toHaveLength(0);
+      setLearnerStorageIdentity("account-A");
+      expect(mergeLearnerCloud("account-A", before).notes).toEqual({});
+      expect(Object.keys(pendingLearnerSync("account-A").deleted)).toHaveLength(51);
+      const batches: string[][] = [];
+      globalThis.fetch = async (_input, init) => {
+        const payload = JSON.parse(String(init?.body));
+        batches.push(payload.deletedNoteKeys);
+        expect(payload.deletedNoteKeys.length).toBeLessThanOrEqual(50);
+        expect(payload.noteChanges.length).toBeLessThanOrEqual(50);
+        return Response.json({ success: true });
+      };
+      await syncLearnerState(user);
+      expect(batches.map((batch) => batch.length)).toEqual([50, 1]);
+      expect(new Set(batches.flat()).size).toBe(51);
+      expect(pendingLearnerSync("account-A")).toEqual({ notes: {}, deleted: {} });
+      await syncLearnerState(user);
+      expect(batches).toHaveLength(2);
+    } finally { globalThis.fetch = originalFetch; }
+  });
+});
+
+test("a successful in-flight note save does not acknowledge a newer draft", async () => {
+  const { queueLearnerStateChanges, syncLearnerState, pendingLearnerSync } = await import("../src/lib/learner-sync");
+  await withStorage(new Map(), async () => {
+    const originalFetch = globalThis.fetch;
+    let release!: (value: Response) => void;
+    let started!: () => void;
+    const requested = new Promise<void>((resolve) => { started = resolve; });
+    const first = { ...EMPTY_LEARNER_STATE, notes: { "course:0": "first" }, updatedAt: "2026-09-07T01:00:00.000Z" };
+    const second = { ...first, notes: { "course:0": "newer draft" }, updatedAt: "2026-09-07T02:00:00.000Z" };
+    queueLearnerStateChanges("account-A", EMPTY_LEARNER_STATE, first); writeLearnerState(first, "account-A");
+    let calls = 0;
+    globalThis.fetch = async () => ++calls === 1 ? (started(), new Promise<Response>((resolve) => { release = resolve; })) : Response.json({}, { status: 503 });
+    try {
+      const pending = syncLearnerState({ uid: "account-A", getIdToken: async () => "A" });
+      const rejected = expect(pending).rejects.toThrow("unavailable");
+      await requested;
+      queueLearnerStateChanges("account-A", first, second); writeLearnerState(second, "account-A");
+      release(Response.json({ success: true })); await rejected;
+      expect(pendingLearnerSync("account-A").notes["course:0"].content).toBe("newer draft");
+      expect(readLearnerState("account-A").notes["course:0"]).toBe("newer draft");
+    } finally { globalThis.fetch = originalFetch; }
+  });
+});
+
+test("a delayed private export body cannot trigger a download after switching accounts", async () => {
+  const { downloadLearnerFile } = await import("../src/lib/learner-actions");
+  await withStorage(new Map(), async () => {
+    const originalFetch = globalThis.fetch;
+    let bodyStarted!: () => void;
+    let release!: (blob: Blob) => void;
+    const reading = new Promise<void>((resolve) => { bodyStarted = resolve; });
+    const response = new Response();
+    response.blob = () => { bodyStarted(); return new Promise((resolve) => { release = resolve; }); };
+    globalThis.fetch = async () => response;
+    try {
+      const download = downloadLearnerFile({ uid: "account-A", getIdToken: async () => "A" }, "/api/account/data", "private.json");
+      const rejected = expect(download).rejects.toThrow("learning session changed");
+      await reading; setLearnerStorageIdentity("account-B");
+      release(new Blob(["A-private-export"]));
+      await rejected;
+      // No document exists in this process; reaching anchor creation would fail
+      // instead of the expected session rejection above.
+    } finally { globalThis.fetch = originalFetch; }
+  });
+});
+
+test("clipboard completion rejects the old epoch and cannot acknowledge B's UI", async () => {
+  const { copyLearnerText } = await import("../src/lib/learner-actions");
+  await withStorage(new Map(), async () => {
+    const originalNavigator = Object.getOwnPropertyDescriptor(globalThis, "navigator");
+    let release!: () => void;
+    Object.defineProperty(globalThis, "navigator", { configurable: true, value: { clipboard: { writeText: () => new Promise<void>((resolve) => { release = resolve; }) } } });
+    try {
+      const copy = copyLearnerText(learnerSessionSnapshot(), "A-private-summary");
+      let visibleAcknowledgements = 0;
+      const guarded = copy.then(() => { visibleAcknowledgements += 1; });
+      const rejected = expect(guarded).rejects.toThrow("learning session changed");
+      setLearnerStorageIdentity("account-B"); release(); await rejected;
+      expect(visibleAcknowledgements).toBe(0);
+    } finally {
+      if (originalNavigator) Object.defineProperty(globalThis, "navigator", originalNavigator);
+      else Reflect.deleteProperty(globalThis, "navigator");
+    }
+  });
+});
+
+test("active-data deletion keeps only a generic tab receipt across invalidation, never for B", async () => {
+  const { acknowledgeActiveDataRemoval, readDeletionReceipt } = await import("../src/lib/learner-actions");
+  const stored = new Map<string, string>();
+  await withStorage(stored, () => {
+    writeLearnerStorage("account-A", "transfer-draft", "course", "A-private");
+    acknowledgeActiveDataRemoval({ uid: "account-A", getIdToken: async () => "A" });
+    expect(readDeletionReceipt()).toBe("Your active learning data has been removed. Retention and identity review remain pending.");
+    expect([...stored.values()].join(" ")).not.toContain("A-private");
+    expect([...stored.values()].join(" ")).not.toContain("Retention");
+    setLearnerStorageIdentity("account-B"); expect(readDeletionReceipt()).toBeNull();
+    setLearnerStorageIdentity(null); expect(readDeletionReceipt()).toBeNull();
+  });
+});
+
+for (const failure of [401, 403, 503, "network", "deadline"] as const) {
+  test(`required learner sources distinguish ${failure} from successful empty and recover with a new attempt`, async () => {
+    const { createLearnerSource, learnerJson } = await import("../src/lib/learner-source");
+    await withStorage(new Map(), async () => {
+      const originalFetch = globalThis.fetch;
+      try {
+        for (const path of ["/api/mastery?courseId=one", "/api/progress?courseId=one", "/api/courses?scope=mine", "/api/evidence/one/shares", "/api/capstone-analysis?courseId=one"]) {
+          setLearnerStorageIdentity("account-A");
+          const session = learnerSessionSnapshot();
+          const user = { uid: "account-A", getIdToken: async () => "A" };
+          globalThis.fetch = async () => {
+            if (failure === "network") throw new TypeError("offline");
+            if (failure === "deadline") return new Promise<Response>(() => {});
+            return Response.json({ error: "Unavailable" }, { status: failure });
+          };
+          const source = createLearnerSource(user, (signal) => learnerJson<unknown[]>(user, path, { signal }, 10), (items) => !items.length);
+          await source.load();
+          expect(source.getSnapshot().data).toBeUndefined();
+          expect(source.getSnapshot().status).not.toBe("empty");
+          if (failure === 401) expect(isCurrentLearnerSession(session)).toBe(false);
+          else expect(source.getSnapshot().status).toBe("error");
+          source.cancel();
+          setLearnerStorageIdentity("account-A");
+          globalThis.fetch = async () => Response.json(["restored record"]);
+          const recovered = createLearnerSource(user, (signal) => learnerJson<unknown[]>(user, path, { signal }), (items) => !items.length);
+          await recovered.load();
+          expect(recovered.getSnapshot()).toMatchObject({ status: "loaded", data: ["restored record"] });
+          recovered.cancel();
+        }
+      } finally { globalThis.fetch = originalFetch; }
+    });
+  });
+}
+
+test("a share mutation cannot be erased by the older source read it supersedes", async () => {
+  const { createLearnerSource } = await import("../src/lib/learner-source");
+  await withStorage(new Map(), async () => {
+    let release!: (value: string[]) => void;
+    const source = createLearnerSource({ uid: "account-A", getIdToken: async () => "A" }, () => new Promise<string[]>((resolve) => { release = resolve; }), (items) => !items.length);
+    const loading = source.load();
+    await Promise.resolve();
+    source.replace(["newly-created-share"]);
+    release([]);
+    await loading;
+    expect(source.getSnapshot()).toMatchObject({ status: "loaded", data: ["newly-created-share"] });
+    source.cancel();
+  });
+});
+
+
+test("an acknowledged deletion fences out an older cloud read and a fresh retry stays deleted", async () => {
+  const { beginLearnerStateRead, queueLearnerStateChanges, syncLearnerState, pendingLearnerSync } = await import("../src/lib/learner-sync");
+  const { learnerJson } = await import("../src/lib/learner-source");
+  await withStorage(new Map(), async () => {
+    const before = { ...EMPTY_LEARNER_STATE, notes: { "course:0": "deleted private text" } };
+    const after = { ...EMPTY_LEARNER_STATE, updatedAt: "2026-09-07T03:00:00.000Z" };
+    writeLearnerState(before, "account-A");
+    const originalFetch = globalThis.fetch;
+    let release!: (response: Response) => void;
+    let started!: () => void;
+    const requested = new Promise<void>((resolve) => { started = resolve; });
+    globalThis.fetch = async (_input, init) => init?.method === "PUT"
+      ? Response.json({ success: true })
+      : (started(), new Promise<Response>((resolve) => { release = resolve; }));
+    const user = { uid: "account-A", getIdToken: async () => "A" };
+    try {
+      const merge = beginLearnerStateRead("account-A");
+      const read = learnerJson<typeof before>(user, "/api/learner-state");
+      await requested;
+      queueLearnerStateChanges("account-A", before, after); writeLearnerState(after, "account-A");
+      await syncLearnerState(user);
+      expect(pendingLearnerSync("account-A").deleted).toEqual({});
+      release(Response.json(before));
+      const cloud = await read;
+      expect(() => merge(cloud)).toThrow("changed while loading");
+      expect(readLearnerState("account-A").notes).toEqual({});
+      globalThis.fetch = async () => Response.json(after);
+      const retryMerge = beginLearnerStateRead("account-A");
+      const recovered = retryMerge(await learnerJson<typeof after>(user, "/api/learner-state"));
+      expect(recovered.notes).toEqual({});
+      writeLearnerState(recovered, "account-A");
+      expect(readLearnerState("account-A").notes).toEqual({});
+    } finally { globalThis.fetch = originalFetch; }
+  });
+});

@@ -46,6 +46,7 @@ import { readLearnerState, writeLearnerState } from "@/lib/learner-state";
 import { getLocalProgress, saveLocalProgress } from "@/lib/learning-progress";
 import { calibrationMessage, reviewKindLabel } from "@/lib/adaptive-learning";
 import { retrievalVariantsForQuizBank, selectRetrievalVariant } from "@/lib/retrieval-planning";
+import LearnerSourceNotice from "@/components/LearnerSourceNotice";
 import { useLearnerState } from "@/components/useLearnerState";
 import SpeakButton from "@/components/SpeakButton";
 import LessonVisualRenderer from "@/components/LessonVisual";
@@ -309,6 +310,8 @@ export default function LessonView() {
     ready: learnerStateReady,
     syncStatus: learnerSyncStatus,
     syncError: learnerSyncError,
+    loadStatus: learnerLoadStatus,
+    retry: retryLearnerState,
   } = useLearnerState();
   const noteKey = courseId ? `${courseId}:${lessonId}` : `${topic}:${lessonId}`;
   const lessonViewKey = `${user?.uid ?? "guest"}:${noteKey}:${reviewKind}:${reviewMode ? "review" : "learn"}`;
@@ -1359,6 +1362,8 @@ export default function LessonView() {
 
   return (
     <AppShell activeTopic={topic} activeLessonId={lessonId} activeCourseId={courseId} activeCourse={course}>
+      <LearnerSourceNotice label="Learning notes" status={learnerSyncStatus === "error" ? "stale" : learnerLoadStatus} error={learnerSyncError} retry={retryLearnerState} />
+      <LearnerSourceNotice label="Learning evidence" status={masteryJourney.syncStatus === "error" || masteryJourney.syncStatus === "unsaved" ? "stale" : masteryJourney.loadStatus} error={masteryJourney.loadError} retry={masteryJourney.retry} />
       <div className="lesson-page">
         <header className="lesson-toolbar">
           <nav aria-label="Breadcrumb">

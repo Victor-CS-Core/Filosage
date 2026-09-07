@@ -5076,3 +5076,7 @@ main h1 { animation: platform-title-in 440ms var(--ease-out) both; }
   .deck-study-card, .deck-study-card > strong { animation: none; transition: none; }
   .deck-study-card:hover { translate: 0; }
 }
+
+/* The blocking legal dialog lives in the native top layer and remains usable at zoom. */
+dialog.legal-consent-dialog[open] { position: fixed; inset: 0; margin: auto; width: min(440px, calc(100vw - 32px)); max-height: calc(100dvh - 32px); overflow-y: auto; }
+dialog.legal-consent-dialog::backdrop { background: color-mix(in srgb, var(--canvas) 28%, rgb(7 17 39 / 0.72)); }

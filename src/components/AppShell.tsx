@@ -44,6 +44,11 @@ import { useTheme } from "@/components/ThemeProvider";
 import type { Course } from "@/lib/course-types";
 import { matchesSearchQuery } from "@/lib/search";
 
+import { useLearnerSource } from "@/components/useLearnerSource";
+import LearnerSourceNotice from "@/components/LearnerSourceNotice";
+const EMPTY_COURSES: Course[] = [];
+const emptyCourses = (value: { courses: Course[] }) => value.courses.length === 0;
+
 interface AppShellProps {
   children: React.ReactNode;
   activeTopic?: string;
@@ -67,8 +72,10 @@ export default function AppShell({ children, activeTopic, activeCourseId, active
   const [showAuth, setShowAuth] = useState(false);
   const [authReturnFocus, setAuthReturnFocus] = useState<HTMLElement | null>(null);
   const [authReturnPath, setAuthReturnPath] = useState<string>();
-  const [courses, setCourses] = useState<Course[]>([]);
-  const [coursesLoading, setCoursesLoading] = useState(false);
+  const courseSource = useLearnerSource(user, "/api/courses?scope=mine", emptyCourses);
+  const courses = courseSource.data?.courses ?? EMPTY_COURSES;
+  const retryCourses = courseSource.retry;
+  const coursesLoading = courseSource.status === "loading";
   const [courseQuery, setCourseQuery] = useState("");
   const [commandOpen, setCommandOpen] = useState(false);
   const coursesDrawer = useAppDrawer("course-switcher");
@@ -98,44 +105,11 @@ export default function AppShell({ children, activeTopic, activeCourseId, active
     return () => window.removeEventListener("filosage:open-auth", openAuth);
   }, [user]);
 
-  const refreshCourses = useCallback(async () => {
-    if (!user) {
-      setCourses([]);
-      setCoursesLoading(false);
-      return;
-    }
-    setCoursesLoading(true);
-    const controller = new AbortController();
-    const timeout = window.setTimeout(() => controller.abort(), 8000);
-    try {
-      const token = await user.getIdToken();
-      const response = await fetch("/api/courses?scope=mine", {
-        headers: { Authorization: `Bearer ${token}` },
-        cache: "no-store",
-        signal: controller.signal,
-      });
-      if (!response.ok) throw new Error("Courses could not be loaded.");
-      const data = await response.json() as { courses: Course[] };
-      setCourses(data.courses);
-    } finally {
-      window.clearTimeout(timeout);
-      setCoursesLoading(false);
-    }
-  }, [user]);
-
   useEffect(() => {
-    const load = async () => {
-      try {
-        await refreshCourses();
-      } catch { /* Preserve the last known course list during transient failures. */ }
-    };
-    void load();
-    const onCoursesChanged = () => { void load(); };
-    window.addEventListener("filosage:courses-changed", onCoursesChanged);
-    return () => {
-      window.removeEventListener("filosage:courses-changed", onCoursesChanged);
-    };
-  }, [refreshCourses]);
+    const changed = () => retryCourses();
+    window.addEventListener("filosage:courses-changed", changed);
+    return () => window.removeEventListener("filosage:courses-changed", changed);
+  }, [retryCourses]);
 
   const displayName = normalizeDisplayName(account?.displayName)
     ?? normalizeDisplayName(user?.displayName)
@@ -275,13 +249,15 @@ export default function AppShell({ children, activeTopic, activeCourseId, active
 
   const navigate = (href: string) => router.push(href);
   const isLegalPage = ["/terms", "/privacy", "/acceptable-use"].includes(pathname);
+  const legalBlocked = Boolean(account?.legalAcceptanceRequired && !account?.identityLinkRequired && !isLegalPage);
 
   const openCommand = useCallback((trigger?: HTMLElement | null) => {
+    if (legalBlocked) return;
     commandReturnFocusRef.current = trigger ?? (document.activeElement instanceof HTMLElement ? document.activeElement : commandTriggerRef.current);
     coursesDrawer.closeDrawer();
     supportDrawer.closeDrawer();
     setCommandOpen(true);
-  }, [coursesDrawer, supportDrawer]);
+  }, [coursesDrawer, legalBlocked, supportDrawer]);
 
   const closeCommand = useCallback(() => {
     setCommandOpen(false);
@@ -323,12 +299,13 @@ export default function AppShell({ children, activeTopic, activeCourseId, active
     const openFromKeyboard = (event: KeyboardEvent) => {
       if (!(event.ctrlKey || event.metaKey) || event.key.toLowerCase() !== "k") return;
       event.preventDefault();
+      if (legalBlocked) return;
       if (commandOpen) closeCommand();
       else openCommand(commandTriggerRef.current);
     };
     document.addEventListener("keydown", openFromKeyboard);
     return () => document.removeEventListener("keydown", openFromKeyboard);
-  }, [closeCommand, commandOpen, openCommand, user]);
+  }, [closeCommand, commandOpen, legalBlocked, openCommand, user]);
 
   if (authLoading) {
     return (
@@ -432,6 +409,7 @@ export default function AppShell({ children, activeTopic, activeCourseId, active
               visibleCourses={visibleCourses}
               totalCourses={courses.length}
               coursesLoading={coursesLoading}
+              courseSource={courseSource}
               courseQuery={courseQuery}
               setCourseQuery={setCourseQuery}
               canCreateCourses={canCreateCourses}
@@ -439,7 +417,7 @@ export default function AppShell({ children, activeTopic, activeCourseId, active
             />
       </AppDrawer>
 
-      {commandOpen && <CommandPalette open items={commandItems} theme={theme} onClose={closeCommand} onSelect={selectCommand} onToggleTheme={toggle} />}
+      {commandOpen && !legalBlocked && <CommandPalette open items={commandItems} theme={theme} onClose={closeCommand} onSelect={selectCommand} onToggleTheme={toggle} />}
 
       <main className="app-main" id="main-content" tabIndex={-1}>
         {account?.accountStatus === "suspended" && (
@@ -467,12 +445,13 @@ export default function AppShell({ children, activeTopic, activeCourseId, active
   );
 }
 
-function CourseSwitcherPanel({ headingId, currentCourse, visibleCourses, totalCourses, coursesLoading, courseQuery, setCourseQuery, canCreateCourses, onClose }: {
+function CourseSwitcherPanel({ headingId, currentCourse, visibleCourses, totalCourses, coursesLoading, courseSource, courseQuery, setCourseQuery, canCreateCourses, onClose }: {
   headingId: string;
   currentCourse?: Course;
   visibleCourses: Course[];
   totalCourses: number;
   coursesLoading: boolean;
+  courseSource: { status: import("@/lib/learner-source").LearnerSourceStatus; error: string | null; retry: () => void };
   courseQuery: string;
   setCourseQuery: (query: string) => void;
   canCreateCourses: boolean;
@@ -501,7 +480,8 @@ function CourseSwitcherPanel({ headingId, currentCourse, visibleCourses, totalCo
         {canCreateCourses && <Link className="button button-primary button-small" href="/create" onClick={onClose}><Plus size={15} /> Create</Link>}
       </div>
       <div className="app-drawer-body course-switcher-body">
-        <p className="sr-only" role="status">{visibleCourses.length} {visibleCourses.length === 1 ? "course" : "courses"} found</p>
+        <LearnerSourceNotice label="My courses" {...courseSource} />
+        {courseSource.status === "loaded" || courseSource.status === "empty" ? <p className="sr-only" role="status">{visibleCourses.length} {visibleCourses.length === 1 ? "course" : "courses"} found</p> : null}
         {currentCourse && currentCourseVisible && (
           <section className="course-switcher-group" aria-label="Current course">
             <div className="drawer-section-heading"><span>Current course</span><small>In progress</small></div>
@@ -513,9 +493,9 @@ function CourseSwitcherPanel({ headingId, currentCourse, visibleCourses, totalCo
           <div className="course-switcher-list">
             {coursesLoading && totalCourses === 0 && Array.from({ length: 4 }, (_, index) => <span className="course-switcher-skeleton" key={index} aria-hidden="true"><i /><b /></span>)}
             {moreCourses.map((course) => <CourseSwitcherLink key={courseIdentity(course)} course={course} onNavigate={onClose} />)}
-            {!coursesLoading && totalCourses > 0 && visibleCourses.length === 0 && <div className="course-switcher-empty"><Search size={20} /><strong>No matching courses</strong><p>Try a shorter title, lesson, or skill.</p><button className="button button-quiet button-small" type="button" onClick={clearSearch}>Clear search</button></div>}
-            {!coursesLoading && canCreateCourses && totalCourses === 0 && <div className="course-switcher-empty"><BookOpen size={20} /><strong>Your course shelf is ready</strong><p>Create a focused course and it will appear here.</p><Link className="button button-primary button-small" href="/create" onClick={onClose}>Create a course</Link></div>}
-            {!coursesLoading && !canCreateCourses && totalCourses === 0 && <div className="course-switcher-empty"><Sparkles size={20} /><strong>Create courses around your goals</strong><p>Filosage Plus and Pro include private AI-assisted course creation with stated monthly limits.</p><Link className="button button-primary button-small" href="/pricing" onClick={onClose}>Compare plans</Link></div>}
+            {!coursesLoading && !courseSource.error && totalCourses > 0 && visibleCourses.length === 0 && <div className="course-switcher-empty"><Search size={20} /><strong>No matching courses</strong><p>Try a shorter title, lesson, or skill.</p><button className="button button-quiet button-small" type="button" onClick={clearSearch}>Clear search</button></div>}
+            {courseSource.status === "empty" && canCreateCourses && totalCourses === 0 && <div className="course-switcher-empty"><BookOpen size={20} /><strong>Your course shelf is ready</strong><p>Create a focused course and it will appear here.</p><Link className="button button-primary button-small" href="/create" onClick={onClose}>Create a course</Link></div>}
+            {courseSource.status === "empty" && !canCreateCourses && totalCourses === 0 && <div className="course-switcher-empty"><Sparkles size={20} /><strong>Create courses around your goals</strong><p>Filosage Plus and Pro include private AI-assisted course creation with stated monthly limits.</p><Link className="button button-primary button-small" href="/pricing" onClick={onClose}>Compare plans</Link></div>}
           </div>
         </section>
       </div>
