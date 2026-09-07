@@ -619,14 +619,14 @@ test("actual source requests resume completed evidence after bibliography failur
     return emptyStageResponse(name);
   });
   expect((await fixture.run()).status).toBe(500);
-  const first = fixture.documents.get("courseResearchArtifacts/fixture-request");
+  const first = fixture.documents.get(`courseResearchArtifacts/${fixture.operationId}`);
   expect((await fixture.run()).status).toBe(500);
   expect(fixture.captured.filter((request) => request.text.format.name === "course_research")).toHaveLength(1);
   expect(fixture.captured.filter((request) => request.text.format.name === "source_evidence_validation")).toHaveLength(2);
   expect(first).toMatchObject({ evidenceResearchComplete: true, bibliographyComplete: false, researchComplete: false });
   expect((first!.sourcePack as CourseSource[]).map((source) => source.url)).toEqual(researchFixture().sources.map((source) => source.url));
   expect(fixture.finalizations[0].usageSamples).toEqual(expect.arrayContaining([expect.objectContaining({ responseId: "response-course_research", inputTokens: 40, outputTokens: 20 })]));
-  const saved = fixture.documents.get("courseResearchArtifacts/fixture-request");
+  const saved = fixture.documents.get(`courseResearchArtifacts/${fixture.operationId}`);
   expect(saved).toMatchObject({ evidenceResearchComplete: true, bibliographyComplete: true, researchComplete: true, responseId: "response-course_research", bibliographyResponseId: "response-course_bibliography" });
   expect(Date.parse(String(saved?.evidenceExpiresAt))).toBeLessThanOrEqual(Date.parse(String(first?.evidenceExpiresAt)));
   expect(saved?.fallbackReasonCodes).not.toContain("bibliography-unavailable");
@@ -648,7 +648,7 @@ test("actual source requests reuse completed bibliography after evidence provide
     return emptyStageResponse(name);
   });
   expect((await fixture.run()).status).toBe(500);
-  const first = fixture.documents.get("courseResearchArtifacts/fixture-request");
+  const first = fixture.documents.get(`courseResearchArtifacts/${fixture.operationId}`);
   expect((await fixture.run()).status).toBe(500);
   expect(fixture.captured.filter((request) => request.text.format.name === "course_bibliography")).toHaveLength(1);
   expect(first).toMatchObject({ evidenceResearchComplete: false, bibliographyComplete: true });
@@ -689,7 +689,7 @@ for (const cachedStage of ["evidence", "bibliography"] as const) {
         return emptyStageResponse(name);
       });
       expect((await fixture.run()).status).toBe(500);
-      const artifact = fixture.documents.get("courseResearchArtifacts/fixture-request")!;
+      const artifact = fixture.documents.get(`courseResearchArtifacts/${fixture.operationId}`)!;
       artifact[expiryField] = new Date(Date.now() + 1_000).toISOString();
       // Nonempty certified results ensure old array fallbacks cannot survive expiry.
       if (cachedStage === "evidence") {
@@ -707,7 +707,7 @@ for (const cachedStage of ["evidence", "bibliography"] as const) {
       const outlineCount = fixture.captured.filter((request) => request.text.format.name === "course_outline").length;
       attempt = 2;
       expect((await fixture.run()).status).toBe(500);
-      const checkpoint = fixture.documents.get("courseResearchArtifacts/fixture-request")!;
+      const checkpoint = fixture.documents.get(`courseResearchArtifacts/${fixture.operationId}`)!;
       expect(checkpoint[completeField]).toBe(false);
       expect(checkpoint[resultField]).toEqual([]);
       expect(checkpoint.researchComplete).toBe(false);
@@ -719,7 +719,7 @@ for (const cachedStage of ["evidence", "bibliography"] as const) {
       expect((await fixture.run()).status).toBe(500);
       expect(fixture.captured.filter((request) => request.text.format.name === cachedName)).toHaveLength(2);
       expect(fixture.captured.filter((request) => request.text.format.name === oppositeName)).toHaveLength(2);
-      expect(fixture.documents.get("courseResearchArtifacts/fixture-request")?.researchComplete).toBe(true);
+      expect(fixture.documents.get(`courseResearchArtifacts/${fixture.operationId}`)?.researchComplete).toBe(true);
     } finally {
       mock.timers.reset();
     }
@@ -737,12 +737,12 @@ test("cached evidence that expires while the checkpoint commits is not consumed 
       return emptyStageResponse(request.text.format.name);
     }, { afterPersistence: () => { if (attempt === 2) mock.timers.tick(2_000); } });
     expect((await fixture.run()).status).toBe(500);
-    fixture.documents.get("courseResearchArtifacts/fixture-request")!.evidenceExpiresAt = new Date(Date.now() + 1_000).toISOString();
+    fixture.documents.get(`courseResearchArtifacts/${fixture.operationId}`)!.evidenceExpiresAt = new Date(Date.now() + 1_000).toISOString();
     const outlineCount = fixture.captured.filter((request) => request.text.format.name === "course_outline").length;
     attempt = 2;
     expect((await fixture.run()).status).toBe(500);
     expect(fixture.captured.filter((request) => request.text.format.name === "course_outline")).toHaveLength(outlineCount);
-    const checkpoint = fixture.documents.get("courseResearchArtifacts/fixture-request")!;
+    const checkpoint = fixture.documents.get(`courseResearchArtifacts/${fixture.operationId}`)!;
     expect(checkpoint.bibliographyComplete).toBe(true);
     expect(Date.parse(String(checkpoint.evidenceExpiresAt))).toBeLessThanOrEqual(Date.now());
     attempt = 3;

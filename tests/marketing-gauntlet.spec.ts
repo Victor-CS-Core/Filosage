@@ -76,6 +76,9 @@ test("inclusive course creation preserves a personal-study context and bilingual
   const telemetry: Array<Record<string, unknown>> = [];
   await page.addInitScript(() => localStorage.setItem("filosage:analytics:consent:v1", "accepted"));
   await prepareEligibleCreator(page);
+  // This form/telemetry scenario starts without an interrupted generation.
+  // Keep recovery readiness in the same isolated API fixture as course creation.
+  await page.route("**/api/generation-operations", (route) => route.fulfill({ json: { operations: [] } }));
   let generationBody: Record<string, unknown> | null = null;
   await page.route("**/api/telemetry", async (route) => {
     telemetry.push(route.request().postDataJSON() as Record<string, unknown>);

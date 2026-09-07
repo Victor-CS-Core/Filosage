@@ -531,7 +531,8 @@ test("failed generation releases product allowance and course credit while retri
   expect(courseRoute).toContain("finishGenerationOperation(operation");
   expect(courseRoute).toContain("IDEMPOTENCY_RESULT_MISSING");
   expect(lessonRoute).toContain('`${courseId}:${lessonId}:${regenerate ? "regenerate" : "generate"}`');
-  expect(lessonRoute).toContain("if (reservation.recovered)");
+  // Completed replay is exercised by the registered lesson-integrity and
+  // lesson-operations route suites; it now uses the durable operation state.
   expect(lessonRoute).toContain("recovered: true");
 });
 

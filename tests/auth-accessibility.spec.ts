@@ -298,6 +298,10 @@ for (const initialSetup of [true, false]) {
     expect(await within()).toBe(true);
     await page.setViewportSize({ width: 320, height: 900 });
     await page.addStyleTag({ content: "html { font-size: 200% !important; }" });
+    await page.evaluate(() => document.fonts.ready.then(() => undefined));
+    const heading = dialog.getByRole("heading", { level: 2 });
+    const headingSize = await heading.evaluate((node) => ({ scrollWidth: node.scrollWidth, clientWidth: node.clientWidth }));
+    expect(headingSize.scrollWidth, JSON.stringify(headingSize)).toBeLessThanOrEqual(headingSize.clientWidth);
     for (const name of ["Terms of Service", "Privacy Notice", "Acceptable Use Policy"]) {
       const link = dialog.getByRole("link", { name });
       await link.scrollIntoViewIfNeeded(); await expect(link).toBeVisible();

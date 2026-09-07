@@ -1324,6 +1324,7 @@ html[data-environment="qa"] .environment-pill { display: inline-flex; }
 .legal-check a { color: var(--brand-blue-ink); font-weight: 750; text-underline-offset: 2px; }
 .legal-consent-layer { z-index: calc(var(--z-modal) + 2); }
 .legal-consent-dialog { width: min(500px, 100%); }
+.legal-consent-dialog h2 { overflow-wrap: anywhere; }
 .legal-consent-icon { width: 44px; height: 44px; display: grid; place-items: center; margin-bottom: 18px; border-radius: 14px; background: var(--accent-soft); color: var(--accent-ink); }
 .legal-page { width: min(820px, calc(100% - 48px)); margin: 0 auto; padding: 72px 0 100px; }
 .legal-page > header { padding-bottom: 30px; border-bottom: 1px solid var(--line); }

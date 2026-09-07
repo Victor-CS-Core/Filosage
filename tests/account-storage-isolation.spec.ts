@@ -1,5 +1,6 @@
 import { expect, test, type BrowserContext, type Page } from "@playwright/test";
 import { EMPTY_LEARNER_STATE } from "../src/lib/learner-state";
+import { learnerStorageKey } from "../src/lib/learner-storage";
 import type { Course, LessonData } from "../src/lib/course-types";
 import type { LearningOutcomePlan } from "../src/lib/mastery";
 import { exactLearnerAccount } from "./fixtures/local-learner";
@@ -171,6 +172,17 @@ test("an expired managed session prevents autosave of the old account's draft", 
 
 test("completion and evidence stay with A when B has an empty cloud and goes offline", async ({ page, context }) => {
   const state = await fixture(context);
+  const savedCompletion = () => page.evaluate(({ key, courseId }) => {
+    const progress = JSON.parse(localStorage.getItem(key) ?? "{}")[courseId];
+    return {
+      completedLessonIds: progress?.completedLessonIds,
+      experienceEvidence: progress?.lessons?.["0-0"]?.experienceEvidence,
+    };
+  }, { key: learnerStorageKey("account-A", "progress"), courseId });
+  const expectedCompletion = {
+    completedLessonIds: ["0-0"],
+    experienceEvidence: { type: "synthesis", response: `${secret}-experience`, completed: true },
+  };
   await page.goto(lessonPath);
   await fillDrafts(page);
   await page.getByRole("tab", { name: /Active lesson/ }).click();
@@ -181,6 +193,7 @@ test("completion and evidence stay with A when B has an empty cloud and goes off
   await page.getByRole("button", { name: "Mark learned" }).click();
   await expect(page.locator(".completion-banner.is-complete").getByText("Lesson complete", { exact: true })).toBeVisible();
   await expect.poll(() => state.writes.some((write) => write.uid === "account-A" && write.path === "/api/progress" && write.body.includes(secret))).toBe(true);
+  await expect.poll(savedCompletion).toEqual(expectedCompletion);
   await signOut(page);
   state.setUid("account-B");
   state.setOffline(true);
@@ -193,7 +206,13 @@ test("completion and evidence stay with A when B has an empty cloud and goes off
   state.setUid("account-A");
   state.setOffline(true);
   await page.goto(lessonPath);
+  await expect.poll(savedCompletion).toEqual(expectedCompletion);
+  // A fresh lesson visit opens Learn; completion is shown in Activities.
+  await page.getByRole("tab", { name: /Activities/ }).click();
   await expect(page.locator(".completion-banner.is-complete").getByText("Lesson complete", { exact: true })).toBeVisible();
+  await page.getByRole("tab", { name: /Active lesson/ }).click();
+  await expect(page.getByLabel("Your reflection")).toHaveValue(`${secret}-experience`);
+  await expect(page.getByRole("button", { name: "Activity evidence saved", exact: true })).toBeVisible();
 });
 
 test("unowned device records are never assigned to the next signed-in learner", async ({ page, context }) => {

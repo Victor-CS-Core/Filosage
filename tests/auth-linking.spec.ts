@@ -638,6 +638,7 @@ test.describe("identity-link mutation routes", () => {
       expect(setCookie(terminal)).toContain("SameSite=lax");
     }
 
+    const admittedLimits = rateLimitDocuments(await readStore(baseURL), "identity-link-complete");
     const limited = await request.post(COMPLETE_COOKIE_PATH, { headers: firstHeaders });
     expect(limited.status()).toBe(429);
     expect(await limited.json()).toEqual({ error: "Too many requests. Please wait a moment and try again." });
@@ -645,6 +646,8 @@ test.describe("identity-link mutation routes", () => {
     expect(Number(limited.headers()["retry-after"])).toBeGreaterThan(540);
     expect(Number(limited.headers()["retry-after"])).toBeLessThanOrEqual(600);
     expect(setCookie(limited)).toBe("");
+    // Rejection reserves no capacity and does not extend either durable window.
+    expect(rateLimitDocuments(await readStore(baseURL), "identity-link-complete")).toEqual(admittedLimits);
 
     const isolated = await request.post(COMPLETE_COOKIE_PATH, {
       headers: { ...sharedHeaders, Authorization: `Bearer ${second.token}` },
@@ -653,15 +656,21 @@ test.describe("identity-link mutation routes", () => {
     expect(cacheControl(isolated)).toBe("private, no-store");
 
     const completionLimits = rateLimitDocuments(await readStore(baseURL), "identity-link-complete");
-    const completionBuckets = Object.values(completionLimits);
-    expect(completionBuckets.filter((bucket) => bucket.scope === "global")).toEqual([
-      expect.objectContaining({ namespace: "identity-link-complete", count: 10 }),
+    // The local server retains other cases' and retries' global reservations.
+    // Assert only this attempt's admitted work: eight for A, then one for B.
+    const completionDeltas = Object.entries(completionLimits)
+      .filter(([path, value]) => JSON.stringify(value) !== JSON.stringify(limitsBefore[path]))
+      .map(([path, value]) => {
+        const previous = limitsBefore[path];
+        const priorCount = previous?.resetAt === value.resetAt ? Number(previous?.count ?? 0) : 0;
+        return { scope: value.scope, count: Number(value.count) - priorCount };
+      });
+    expect(completionDeltas).toHaveLength(3);
+    expect(completionDeltas.filter((bucket) => bucket.scope === "global")).toEqual([
+      { scope: "global", count: 9 },
     ]);
-    expect(completionBuckets.filter((bucket) => bucket.scope === "identity"))
-      .toEqual(expect.arrayContaining([
-        expect.objectContaining({ count: 9 }),
-        expect.objectContaining({ count: 1 }),
-      ]));
+    expect(completionDeltas.filter((bucket) => bucket.scope === "identity")
+      .map((bucket) => bucket.count).sort((left, right) => left - right)).toEqual([1, 8]);
     const stored = JSON.stringify(completionLimits);
     for (const rawValue of [first.token, first.identity.subject, first.identity.email, second.token, second.identity.subject, second.identity.email]) {
       expect(stored).not.toContain(rawValue);
