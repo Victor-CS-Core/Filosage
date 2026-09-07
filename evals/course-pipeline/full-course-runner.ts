@@ -21,7 +21,7 @@ export interface EvaluationConfig {
 }
 export interface ProviderCall {
   id: string;
-  kind: "generation" | "research" | "verifier" | "fallback" | "recovery";
+  kind: "generation" | "research" | "verifier" | "fallback" | "recovery" | "moderation";
   status: "completed" | "failed" | "in_flight" | "unknown";
   costMicros: number;
   samples: Array<{ model: string; responseId: string; promptVersion: string; inputTokens: number; outputTokens: number; [key: string]: unknown }>;
@@ -32,6 +32,7 @@ export interface OperationEvidence {
   profile: string;
   actualCostMicros: number;
   uncertainCostMicros: number;
+  reconciliationRequired?: boolean;
   calls: ProviderCall[];
   versions: Record<string, string>;
 }
@@ -44,6 +45,7 @@ export interface OperationStatus {
   resumable?: boolean;
   terminalReason?: string;
   evaluation?: OperationEvidence;
+  evaluationError?: "INVALID_PROVIDER_EVIDENCE";
 }
 export interface EvaluationCapabilities {
   version: 1;
@@ -72,6 +74,7 @@ export interface StepCheckpoint {
   actualCostMicros: number;
   uncertainCostMicros: number;
   evidence?: OperationEvidence;
+  evaluationError?: "INVALID_PROVIDER_EVIDENCE";
   resultId?: string;
   lastStage?: string;
   startedAt: string;
@@ -142,6 +145,11 @@ function assertCapabilities(capabilities: EvaluationCapabilities | undefined, co
 }
 
 function recordEvidence(step: StepCheckpoint, status: OperationStatus, config: EvaluationConfig) {
+  if (status.evaluationError) {
+    step.evaluationError = status.evaluationError;
+    throw new Error("INVALID_PROVIDER_EVIDENCE: retain operation identity and reservation until trustworthy status evidence is available.");
+  }
+  delete step.evaluationError;
   const evidence = status.evaluation;
   if (!evidence || evidence.provider !== "openai" || evidence.stub !== false || evidence.profile !== config.profile
     || !Array.isArray(evidence.calls) || !evidence.versions || !Object.keys(evidence.versions).length) {
@@ -153,11 +161,12 @@ function recordEvidence(step: StepCheckpoint, status: OperationStatus, config: E
   if (evidence.actualCostMicros < step.actualCostMicros) throw new Error("Durable usage cannot decrease across checkpoints.");
   if (new Set(evidence.calls.map((call) => call.id)).size !== evidence.calls.length) throw new Error("Duplicate provider call receipts.");
   for (const call of evidence.calls) {
-    if (!call.id || !["generation", "research", "verifier", "fallback", "recovery"].includes(call.kind)
+    if (!call.id || !["generation", "research", "verifier", "fallback", "recovery", "moderation"].includes(call.kind)
       || !["completed", "failed", "in_flight", "unknown"].includes(call.status)
       || !Number.isSafeInteger(call.costMicros) || call.costMicros < 0 || !Array.isArray(call.samples)) throw new Error("Invalid provider call receipt.");
     for (const sample of call.samples) {
-      if (!/^resp_[a-z0-9]+$/i.test(sample.responseId) || /stub|mock|fixture|local/i.test(sample.model)
+      const responseIdPattern = call.kind === "moderation" ? /^modr-[a-z0-9]+$/i : /^resp_[a-z0-9]+$/i;
+      if (!responseIdPattern.test(sample.responseId) || /stub|mock|fixture|local/i.test(sample.model)
         || !sample.model || !sample.promptVersion || !Number.isSafeInteger(sample.inputTokens) || sample.inputTokens < 0
         || !Number.isSafeInteger(sample.outputTokens) || sample.outputTokens < 0) throw new Error("Stub or incomplete provider usage cannot count as live evidence.");
     }
@@ -170,13 +179,14 @@ function recordEvidence(step: StepCheckpoint, status: OperationStatus, config: E
   step.uncertainCostMicros = evidence.uncertainCostMicros;
   step.evidence = evidence;
   if (evidence.actualCostMicros + evidence.uncertainCostMicros > step.reservedMicros) throw new Error("SERVER_BUDGET_BREACH: stop and reconcile; the declared ceiling was exceeded.");
+  if (evidence.reconciliationRequired) throw new Error("RECONCILIATION_REQUIRED: retain identity, cost and reservation until the provider receipt is reconciled.");
 }
 
 export function callCounts(step: StepCheckpoint) {
   const calls = step.evidence?.calls ?? [];
   const count = (kind: ProviderCall["kind"]) => calls.filter((call) => call.kind === kind).length;
   const generationAttempts = count("generation") + count("fallback") + count("recovery");
-  return { generationAttempts, generationRetries: Math.max(0, generationAttempts - 1), researchCalls: count("research"), verifierCalls: count("verifier"), fallbackCalls: count("fallback"), recoveryCalls: count("recovery") };
+  return { generationAttempts, generationRetries: Math.max(0, generationAttempts - 1), researchCalls: count("research"), verifierCalls: count("verifier"), fallbackCalls: count("fallback"), recoveryCalls: count("recovery"), moderationCalls: count("moderation") };
 }
 
 export function plannedLessonIds(course: Json): string[] {
@@ -228,9 +238,9 @@ export async function runFullCourseEvaluation(options: {
       if (step?.status === "complete") return step.resultId!;
       if (step?.status === "failed") throw new Error("TERMINAL_OPERATION: retain this failed case; a new paid experiment requires a new approved run.");
       if (step && !step.operationId) throw new Error("UNKNOWN_OPERATION: intent was persisted but no operation ID returned; reconcile server status, never submit another creation automatically.");
-      if (budgetState(run).uncertainMicros > 0) throw new Error("UNKNOWN_COST: reconcile uncertain provider cost before further spending.");
       let status: OperationStatus;
       if (!step) {
+        if (budgetState(run).uncertainMicros > 0) throw new Error("UNKNOWN_COST: reconcile uncertain provider cost before further spending.");
         if (budgetState(run).availableMicros < run.config.operationCeilingMicros) throw new Error("BUDGET_EXHAUSTED: remaining ceiling cannot fund another bounded operation.");
         step = { key: `eval-${fingerprint([run.config.runId, item.id, name])}`, payloadHash: fingerprint(payload), status: "intent", reservedMicros: run.config.operationCeilingMicros, actualCostMicros: 0, uncertainCostMicros: 0, startedAt: new Date(now()).toISOString() };
         item.steps[name] = step;
@@ -243,13 +253,14 @@ export async function runFullCourseEvaluation(options: {
       for (;;) {
         if (!/^[a-f0-9]{64}$/.test(status.operationId) || (step.operationId && step.operationId !== status.operationId)) throw new Error("Operation identity changed or is missing.");
         step.operationId = status.operationId;
+        step.evaluationError = status.evaluationError;
         step.status = "active";
         step.lastStage = status.stage;
         step.lastObservedAt = new Date(now()).toISOString();
         step.elapsedMs = now() - Date.parse(step.startedAt);
         // Save the identity before rejecting incomplete cost evidence so a lost response remains recoverable.
         await checkpoint(item, "operation_observed", name, status.stage);
-        if (!status.evaluation) {
+        if (!status.evaluation && !status.evaluationError) {
           status = await bounded((signal) => backend.status(step.operationId!, signal), caseDeadline);
           if (status.operationId !== step.operationId) throw new Error("Operation identity changed during evidence recovery.");
           step.lastStage = status.stage;
@@ -273,6 +284,7 @@ export async function runFullCourseEvaluation(options: {
         if (!["pending", "running"].includes(status.status)) throw new Error("Unsupported operation status.");
         if (now() >= caseDeadline) throw new Error("CASE_DEADLINE_EXPIRED: operation retained for reconciliation.");
         if (status.status === "pending" && status.resumable === true) {
+          if (budgetState(run).uncertainMicros > 0) throw new Error("UNKNOWN_COST: reconcile uncertain provider cost before further spending.");
           await checkpoint(item, "resume_intent", name, status.stage);
           status = await bounded((signal) => backend.resume(step.operationId!, step.reservedMicros, signal), caseDeadline);
         } else {

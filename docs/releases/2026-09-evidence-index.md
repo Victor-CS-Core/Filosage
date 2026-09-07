@@ -6,6 +6,10 @@ Baseline: `be16cd6810d8135d0a2f8de45650db2f73e3191b`; implementation branch `cod
 
 A complete final record will list implemented tasks, commits, actual local/CI tests and unresolved hosted/provider gates. Unknown and blocked states must remain explicit.
 
+## Recovery checkpoint
+
+[September 7 restoration, reviewed fixes, verification and remaining source work](2026-09-07-recovery-checkpoint.md). Previous local test counts do not certify reconstructed source; final exact-commit CI is still required.
+
 ## Current external gates
 
 - Current Azure effective permissions, production authentication and deployed version are not read back.

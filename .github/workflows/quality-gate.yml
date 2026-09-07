@@ -17,6 +17,18 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - name: Verify release source SHA
+        shell: bash
+        env:
+          EXPECTED_RELEASE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          set -euo pipefail
+          actual_sha="$(git rev-parse HEAD)"
+          mkdir -p test-results/release
+          printf '%s\n' "$actual_sha" > test-results/release/source-sha.txt
+          test "$actual_sha" = "$EXPECTED_RELEASE_SHA"
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: 22
@@ -54,6 +66,18 @@ jobs:
       NODE_OPTIONS: --max-old-space-size=3072
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - name: Verify release source SHA
+        shell: bash
+        env:
+          EXPECTED_RELEASE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          set -euo pipefail
+          actual_sha="$(git rev-parse HEAD)"
+          mkdir -p test-results/release
+          printf '%s\n' "$actual_sha" > test-results/release/source-sha.txt
+          test "$actual_sha" = "$EXPECTED_RELEASE_SHA"
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: 22
@@ -118,6 +142,18 @@ jobs:
       FILOSAGE_POSTGRES_TEST_URL: postgresql://filosage_test:testfixture-ci-only@127.0.0.1:5432/filosage_integration_test # secret-scan: allow-test-fixture
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - name: Verify release source SHA
+        shell: bash
+        env:
+          EXPECTED_RELEASE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          set -euo pipefail
+          actual_sha="$(git rev-parse HEAD)"
+          mkdir -p test-results/postgres
+          printf '%s\n' "$actual_sha" > test-results/postgres/source-sha.txt
+          test "$actual_sha" = "$EXPECTED_RELEASE_SHA"
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: 22

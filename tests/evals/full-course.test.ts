@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { test } from "node:test";
+import { mock, test } from "node:test";
 import { spawnSync } from "node:child_process";
 import { mkdtemp, rm, readFile, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -7,7 +7,7 @@ import { join } from "node:path";
 import { fullCourseCases } from "../../evals/course-pipeline/catalog.ts";
 import { budgetState, callCounts, fingerprint, newRun, runFullCourseEvaluation, type EvaluationBackend, type EvaluationConfig, type OperationStatus, type ProviderCall, type RunCheckpoint } from "../../evals/course-pipeline/full-course-runner.ts";
 import { openCheckpointDirectory } from "../../evals/course-pipeline/checkpoints.ts";
-import { normalizeOperationEvidence, validateEvaluationOrigin } from "../../evals/course-pipeline/http-backend.ts";
+import { httpEvaluationBackend, normalizeOperationEvidence, validateEvaluationOrigin } from "../../evals/course-pipeline/http-backend.ts";
 
 const config: EvaluationConfig = {
   runId: "offline-regression", origin: "http://127.0.0.1:3000", buildSha: "a".repeat(40),
@@ -139,7 +139,7 @@ test("early research survives failed outline; sample count is not retry count", 
   });
   await f.execute();
   assert.equal(budgetState(f.run).actualMicros, 10);
-  assert.deepEqual(callCounts(f.run.cases[0].steps.outline), { generationAttempts: 1, generationRetries: 0, researchCalls: 1, verifierCalls: 1, fallbackCalls: 0, recoveryCalls: 0 });
+  assert.deepEqual(callCounts(f.run.cases[0].steps.outline), { generationAttempts: 1, generationRetries: 0, researchCalls: 1, verifierCalls: 1, fallbackCalls: 0, recoveryCalls: 0, moderationCalls: 0 });
 });
 
 test("resumes a known operation without another creation or duplicate accounting", async () => {
@@ -259,11 +259,175 @@ test("disk checkpoints preserve partial evidence, reject concurrent writers and 
 test("owner operation telemetry mapping preserves separate research and verifier calls", () => {
   const telemetry = normalizeOperationEvidence({ evaluation: {
     actualCostMicros: 10, uncertainCostMicros: 0, configuration: { provider: "openai", stub: false, profiles: [{ id: "course.research", promptVersion: "v1" }] },
-    calls: [{ callId: "research1", status: "observed", costMicros: 10, samples: [{ ...call("research").samples[0], profile: "course.research" }] }],
+    calls: [{ callId: "research1", kind: "research", status: "observed", costMicros: 10, samples: [{ ...call("research").samples[0], profile: "course.research" }] }],
   } }, "product-default");
   assert.equal(telemetry?.calls[0].kind, "research");
   assert.equal(telemetry?.calls[0].costMicros, 10);
   assert.throws(() => validateEvaluationOrigin("https://filosage.com"), /Production/);
   assert.throws(() => validateEvaluationOrigin("https://user:password@example.com"), /credentials/);
   assert.throws(() => validateEvaluationOrigin("http://example.com"), /literal loopback/);
+});
+
+function receipt(kind: string | undefined = "generation", reconciliationRequired = false) {
+  return { actualCostMicros: 4, uncertainCostMicros: 0, reconciliationRequired,
+    configuration: { provider: "openai", stub: false, profiles: [{ id: "course.standard", promptVersion: "v1" }] },
+    calls: [{ callId: "content", kind, status: "observed", costMicros: 4,
+      samples: [{ ...call("content").samples[0], profile: "course.standard" }] }],
+  };
+}
+
+test("evaluation HTTP requests bind the approved build, profile and ceiling", async () => {
+  const headers: Headers[] = [];
+  const transport = mock.method(globalThis, "fetch", async (input: string | URL | Request, init?: RequestInit) => {
+    headers.push(new Headers(init?.headers));
+    return Response.json(new URL(String(input)).pathname === "/api/health" ? { ok: true, version: config.buildSha }
+      : { operationId: fingerprint("bounded"), status: "completed", courseId: "course1" });
+  });
+  try {
+    const backend = httpEvaluationBackend(config, "synthetic-token");
+    const signal = new AbortController().signal;
+    await backend.preflight(signal);
+    await backend.start("course", {}, "key", 100, signal);
+    await backend.start("lesson", {}, "lesson-key", 100, signal);
+    await backend.status(fingerprint("bounded"), signal);
+    await backend.resume(fingerprint("bounded"), 100, signal);
+    await backend.artifact("course1", undefined, signal);
+    await backend.artifact("course1", "0-0", signal);
+    assert.equal(headers.length, 8);
+    for (const value of headers) {
+      assert.equal(value.get("X-Filosage-Model-Evaluation"), "1");
+      assert.equal(value.get("X-Filosage-Evaluation-Profile"), config.profile);
+      assert.equal(value.get("X-Filosage-Evaluation-Build-Sha"), config.buildSha);
+      assert.equal(value.get("X-Filosage-Evaluation-Max-Cost-Micros"), "100");
+    }
+  } finally { transport.mock.restore(); }
+});
+
+test("call purpose is explicit even when a verifier uses a generation profile", () => {
+  const evidence = normalizeOperationEvidence({ evaluation: receipt("verifier") }, config.profile);
+  assert.equal(evidence?.calls[0].kind, "verifier");
+});
+
+test("moderation receipts are counted separately and require moderation response IDs", async () => {
+  for (const responseId of ["modr-123", "resp_123"]) {
+    const f = fixture();
+    const start = f.backend.start.bind(f.backend);
+    f.backend.start = async (...args) => {
+      const status = await start(...args);
+      const raw = receipt();
+      raw.actualCostMicros = 5;
+      raw.calls.push({ callId: "safety", kind: "moderation", status: "observed", costMicros: 1,
+        samples: [{ model: "omni-moderation-latest", responseId, profile: "moderation.standard", promptVersion: "moderation-provider-v1", inputTokens: 0, outputTokens: 0 }] });
+      status.evaluation = normalizeOperationEvidence({ evaluation: raw }, config.profile);
+      return status;
+    };
+    await f.execute();
+    assert.equal(f.run.cases[0].status, responseId.startsWith("modr-") ? "fixture_complete" : "blocked");
+    if (responseId.startsWith("modr-")) {
+      assert.equal(callCounts(f.run.cases[0].steps.outline).moderationCalls, 1);
+      assert.equal(callCounts(f.run.cases[0].steps.outline).generationAttempts, 1);
+    }
+  }
+});
+
+test("reconciliation-required receipts retain identity, cost and reservation without acceptance", async () => {
+  const f = fixture();
+  f.backend.start = async () => ({ ...observed("reconcile"), evaluation: normalizeOperationEvidence({ evaluation: receipt("generation", true) }, config.profile) });
+  await f.execute();
+  assert.equal(f.run.cases[0].error, "RECONCILIATION_REQUIRED");
+  assert.equal(f.run.cases[0].steps.outline.operationId, fingerprint("reconcile"));
+  assert.equal(budgetState(f.run).actualMicros, 4);
+  assert.equal(budgetState(f.run).reservedMicros, 96);
+});
+
+test("rejected HTTP telemetry retains its operation for status-only reconciliation", async () => {
+  const f = fixture();
+  const capabilities = await f.backend.preflight(new AbortController().signal);
+  const operationId = fingerprint("malformed-telemetry");
+  let creations = 0;
+  let statusReads = 0;
+  let repaired = false;
+  const transport = mock.method(globalThis, "fetch", async (input: string | URL | Request, init?: RequestInit) => {
+    const path = new URL(String(input)).pathname;
+    if (path === "/api/health") return Response.json({ ok: true, version: config.buildSha });
+    if (path === "/api/generation-operations") return Response.json({ evaluationCapabilities: capabilities });
+    if (path === "/api/generate-course") {
+      assert.equal(init?.method, "POST");
+      creations++;
+    } else {
+      assert.equal(path, `/api/generation-operations/${operationId}`);
+      assert.equal(init?.method, "GET");
+      statusReads++;
+    }
+    const evaluation = receipt(repaired ? "generation" : "unclassified", !repaired);
+    return Response.json({ operationId, status: "failed", stage: "outline", evaluation,
+      privateProviderOutput: "never-retain-raw-provider-payload" });
+  });
+  try {
+    const backend: EvaluationBackend = { ...httpEvaluationBackend(config, "synthetic-token"), evidenceKind: "offline_fixture" };
+    await f.execute({ backend });
+    assert.equal(f.run.cases[0].steps.outline.operationId, operationId);
+    assert.equal(f.run.cases[0].error, "INVALID_PROVIDER_EVIDENCE");
+    assert.equal(f.run.cases[0].steps.outline.evaluationError, "INVALID_PROVIDER_EVIDENCE");
+    assert.equal(budgetState(f.run).actualMicros, 0, "malformed receipts cannot establish trusted cost");
+    assert.equal(budgetState(f.run).reservedMicros, 100);
+    assert.equal(creations, 1);
+    assert.equal(statusReads, 0);
+    assert.doesNotMatch(JSON.stringify(f.run), /never-retain-raw-provider-payload/);
+    await f.execute({ backend });
+    assert.equal(f.run.cases[0].error, "INVALID_PROVIDER_EVIDENCE");
+    assert.equal(statusReads, 1);
+    repaired = true;
+    await f.execute({ backend });
+    assert.equal(creations, 1);
+    assert.equal(statusReads, 2);
+    assert.equal(f.run.cases[0].error, "GENERATION_FAILED");
+    assert.equal(f.run.cases[0].steps.outline.evaluationError, undefined);
+    assert.equal(budgetState(f.run).actualMicros, 4);
+    assert.equal(budgetState(f.run).reservedMicros, 0);
+  } finally { transport.mock.restore(); }
+});
+
+test("known uncertain operations can reconcile through status without another mutation", async () => {
+  const f = fixture();
+  let creations = 0;
+  let statusReads = 0;
+  f.backend.start = async () => {
+    creations++;
+    const status = observed("uncertain");
+    status.evaluation!.uncertainCostMicros = 96;
+    status.evaluation!.reconciliationRequired = true;
+    return status;
+  };
+  f.backend.status = async (id) => {
+    statusReads++;
+    assert.equal(id, fingerprint("uncertain"));
+    return observed("uncertain", { status: "failed" });
+  };
+  f.backend.resume = async () => { assert.fail("status reconciliation must not start provider work"); };
+  await f.execute();
+  assert.equal(f.run.cases[0].error, "RECONCILIATION_REQUIRED");
+  assert.equal(budgetState(f.run).uncertainMicros, 96);
+  await f.execute();
+  assert.equal(statusReads, 1);
+  assert.equal(creations, 1);
+  assert.equal(f.run.cases[0].error, "GENERATION_FAILED");
+  assert.equal(budgetState(f.run).actualMicros, 4);
+  assert.equal(budgetState(f.run).uncertainMicros, 0);
+});
+
+test("malformed reconciliation flags reject telemetry without losing HTTP operation identity", async () => {
+  const operationId = fingerprint("invalid-reconciliation-flag");
+  for (const invalid of ["true", "false", null, 0, 1]) {
+    const transport = mock.method(globalThis, "fetch", async () => Response.json({
+      operationId, status: "completed", stage: "saved",
+      evaluation: { ...receipt(), reconciliationRequired: invalid },
+    }));
+    try {
+      const status = await httpEvaluationBackend(config, "synthetic-token").status(operationId, new AbortController().signal);
+      assert.equal(status.operationId, operationId);
+      assert.equal(status.evaluationError, "INVALID_PROVIDER_EVIDENCE");
+      assert.equal(status.evaluation, undefined);
+    } finally { transport.mock.restore(); }
+  }
 });

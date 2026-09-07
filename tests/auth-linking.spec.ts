@@ -15,6 +15,7 @@ import {
 import { DIRECT_GOOGLE_ISSUER, type VerifiedProviderIdentity } from "../src/lib/identity-types";
 import { identityLinkCookieAttributes } from "../src/lib/identity-link-cookie";
 import { safeAuthenticationReturnPath as safeClientReturnPath } from "../src/lib/auth-return-path";
+import { EMPTY_LEARNER_STATE } from "../src/lib/learner-state";
 import { PRIVACY_VERSION, TERMS_VERSION } from "../src/lib/legal";
 import { playwrightOwnedStorePath } from "./fixtures/playwright-server";
 
@@ -129,6 +130,11 @@ async function routeManagedSession(
     status: 200,
     contentType: "application/json",
     body: JSON.stringify(body),
+  }));
+  // These managed identities have no real server cookie. Keep their learner
+  // state fixture complete so an unrelated 401 cannot invalidate the session.
+  await page.route("**/api/learner-state", (route) => route.fulfill({
+    json: route.request().method() === "GET" ? EMPTY_LEARNER_STATE : { saved: true },
   }));
 }
 
@@ -1075,6 +1081,7 @@ test("session responses expose exact signed-out availability and no provider sec
     user: Record<string, unknown>;
   };
   expect(Object.keys(signedInBody.user).sort()).toEqual([
+    "accountGeneration",
     "authenticationProvider",
     "displayName",
     "email",

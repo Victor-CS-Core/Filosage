@@ -23,8 +23,8 @@ export function roleStatements(role: PostgresAppRole) {
   const database = quotedIdentifier(role.database, "database");
   return {
     ensureRole: "SELECT 1 FROM pg_roles WHERE rolname = $1",
-    createRole: "SELECT format('CREATE ROLE %I LOGIN PASSWORD %L NOSUPERUSER NOCREATEDB NOCREATEROLE NOINHERIT NOBYPASSRLS', $1, $2) AS stmt",
-    alterPassword: "SELECT format('ALTER ROLE %I WITH LOGIN PASSWORD %L NOSUPERUSER NOCREATEDB NOCREATEROLE NOINHERIT NOBYPASSRLS', $1, $2) AS stmt",
+    createRole: "SELECT format('CREATE ROLE %I LOGIN PASSWORD %L NOSUPERUSER NOCREATEDB NOCREATEROLE NOINHERIT NOBYPASSRLS', $1::text, $2::text) AS stmt",
+    alterPassword: "SELECT format('ALTER ROLE %I WITH LOGIN PASSWORD %L NOSUPERUSER NOCREATEDB NOCREATEROLE NOINHERIT NOBYPASSRLS', $1::text, $2::text) AS stmt",
     grantConnect: `GRANT CONNECT ON DATABASE ${database} TO ${login}`,
     revokePublic: `REVOKE CONNECT, CREATE ON DATABASE ${database} FROM PUBLIC`,
     revokeDatabaseCreate: `REVOKE CREATE ON DATABASE ${database} FROM ${login}`,

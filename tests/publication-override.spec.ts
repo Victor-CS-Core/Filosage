@@ -315,7 +315,7 @@ test("@smoke an owner revalidates stale evidence before approving the same snaps
   await reason.fill("Primary emergency guidance supports the bounded sequence in this exact draft.");
   await approveButton.click();
 
-  await expect(page.getByText("Review evidence changed. Validate the draft again before deciding.")).toBeVisible();
+  await expect(page.locator(".course-owner-controls").getByText("Review evidence changed. Validate the draft again before deciding.", { exact: true })).toBeVisible();
   await expect(approveButton).toHaveCount(0);
   await expect(reason).toHaveCount(0);
   await expect(page.getByText(/Manual review approved for this exact snapshot/)).toHaveCount(0);
@@ -395,7 +395,9 @@ test("@smoke a delayed validation cannot revive an earlier account session", asy
     } });
   });
   await page.goto(`/course/Evidence%20review?id=${courseId}`);
-  await expect(page.getByText("Draft opened by account-A", { exact: true })).toBeVisible();
+  const mission = page.locator(".course-mission");
+  await expect(mission).toBeVisible();
+  await expect(mission).toHaveText("Draft opened by account-A");
   await page.locator("details.course-owner-controls > summary").click();
   const validationAborted = page.waitForEvent("requestfailed", (request) => new URL(request.url()).pathname === `/api/courses/${courseId}/validation`);
   await page.getByRole("button", { name: "Validate draft", exact: true }).click();
@@ -405,7 +407,8 @@ test("@smoke a delayed validation cannot revive an earlier account session", asy
     await page.evaluate((nextAccount) => window.dispatchEvent(new StorageEvent("storage", {
       key: "filosage:learner-session-change:v1", newValue: `refresh:${nextAccount}:test`,
     })), nextUid);
-    await expect(page.getByText(`Draft opened by ${nextUid}`, { exact: true })).toBeVisible();
+    await expect(mission).toBeVisible();
+    await expect(mission).toHaveText(`Draft opened by ${nextUid}`);
   }
   await validationAborted;
   releaseValidation();

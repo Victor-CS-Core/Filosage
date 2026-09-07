@@ -15,14 +15,17 @@ export function normalizeOperationEvidence(value: Json, profile: string): Operat
   const raw = value.evaluation as Json | undefined;
   const configuration = raw?.configuration as Json | undefined;
   if (!raw || !configuration || !Array.isArray(raw.calls) || !Array.isArray(configuration.profiles)) return undefined;
+  if (Object.hasOwn(raw, "reconciliationRequired") && typeof raw.reconciliationRequired !== "boolean") {
+    throw new Error("INVALID_PROVIDER_EVIDENCE: the reconciliation flag must be boolean.");
+  }
   const calls = raw.calls.map((entry: Json): ProviderCall => {
     const samples = (Array.isArray(entry.samples) ? entry.samples : []) as ProviderCall["samples"];
     const profiles = samples.map((sample) => String(sample.profile ?? ""));
     if (entry.status === "observed" && (!profiles.length || profiles.some((name) => !/^\w+\.(?:research|grounding|standard|fallback|recovery|repair|bibliography|evidence-validation)$/.test(name)))) throw new Error("UNCLASSIFIED_PROVIDER_CALL: receipt profile cannot support trustworthy attempt counts.");
-    const kind = profiles.every((name) => /research|bibliograph/i.test(name)) && profiles.length ? "research"
-      : profiles.every((name) => /grounding|verif|evidence-validation/i.test(name)) && profiles.length ? "verifier"
-        : profiles.some((name) => /fallback/i.test(name)) ? "fallback"
-          : profiles.some((name) => /recovery|repair/i.test(name)) ? "recovery" : "generation";
+    const kind = entry.kind as ProviderCall["kind"];
+    if (!["generation", "research", "verifier", "fallback", "recovery", "moderation"].includes(kind)) {
+      throw new Error("UNCLASSIFIED_PROVIDER_CALL: a durable explicit call purpose is required.");
+    }
     return {
       id: String(entry.callId ?? ""), kind,
       status: entry.status === "observed" ? "completed" : entry.status === "in_flight" ? "in_flight" : "unknown",
@@ -32,13 +35,14 @@ export function normalizeOperationEvidence(value: Json, profile: string): Operat
         inputTokens: sample.inputTokens, outputTokens: sample.outputTokens,
         cachedInputTokens: sample.cachedInputTokens, cacheWriteTokens: sample.cacheWriteTokens,
         profile: sample.profile, reasoningEffort: sample.reasoningEffort,
-        fixedCostMicros: sample.fixedCostMicros,
+        fixedCostMicros: sample.fixedCostMicros, toolCalls: sample.toolCalls,
       })),
     };
   });
   return {
     provider: configuration.provider as "openai", stub: configuration.stub as false, profile,
     actualCostMicros: Number(raw.actualCostMicros), uncertainCostMicros: Number(raw.uncertainCostMicros), calls,
+    reconciliationRequired: raw.reconciliationRequired === true,
     versions: Object.fromEntries(configuration.profiles.map((entry: Json) => [`prompt:${String(entry.id)}`, String(entry.promptVersion)])),
   };
 }
@@ -51,7 +55,9 @@ export function httpEvaluationBackend(config: EvaluationConfig, token: string): 
       headers: {
         Authorization: `Bearer ${token}`, "Content-Type": "application/json", "X-Filosage-Model-Evaluation": "1",
         ...(key ? { "Idempotency-Key": key } : {}),
-        ...(ceiling ? { "X-Filosage-Evaluation-Max-Cost-Micros": String(ceiling) } : {}),
+        "X-Filosage-Evaluation-Profile": config.profile,
+        "X-Filosage-Evaluation-Build-Sha": config.buildSha,
+        "X-Filosage-Evaluation-Max-Cost-Micros": String(ceiling ?? config.operationCeilingMicros),
       },
       ...(body === undefined ? {} : { body: JSON.stringify(body) }),
     });
@@ -62,15 +68,23 @@ export function httpEvaluationBackend(config: EvaluationConfig, token: string): 
     if (!response.ok && !(typeof value.operationId === "string" && /^[a-f0-9]{64}$/.test(value.operationId))) throw new Error(`HTTP_${response.status}: no resumable operation identity was returned.`);
     return value;
   };
+  const evidenceEnvelope = (value: Json): Pick<OperationStatus, "evaluation" | "evaluationError"> => {
+    try { return { evaluation: normalizeOperationEvidence(value, config.profile) }; }
+    catch {
+      // Reject telemetry without discarding a resumable identity. Never retain raw
+      // provider data or exception text as evidence; the full reservation remains held.
+      return { evaluation: undefined, evaluationError: "INVALID_PROVIDER_EVIDENCE" };
+    }
+  };
   const status = async (id: string, signal: AbortSignal): Promise<OperationStatus> => {
     if (!/^[a-f0-9]{64}$/.test(id)) throw new Error("Invalid operation ID.");
     const value = await json(`/api/generation-operations/${id}`, signal);
-    return { ...value, evaluation: normalizeOperationEvidence(value, config.profile) } as unknown as OperationStatus;
+    return { ...value, ...evidenceEnvelope(value) } as unknown as OperationStatus;
   };
   const observeMutation = async (path: string, signal: AbortSignal, body: unknown, key?: string, ceiling?: number) => {
     const value = await json(path, signal, "POST", body, key, ceiling);
     // Return identity even without telemetry; the orchestrator persists it before requesting reconciliation.
-    return { ...value, status: value.status ?? (value.courseId ? "completed" : "pending"), resultId: value.resultId ?? value.courseId, evaluation: normalizeOperationEvidence(value, config.profile) } as unknown as OperationStatus;
+    return { ...value, status: value.status ?? (value.courseId ? "completed" : "pending"), resultId: value.resultId ?? value.courseId, ...evidenceEnvelope(value) } as unknown as OperationStatus;
   };
   return {
     evidenceKind: "real_provider",

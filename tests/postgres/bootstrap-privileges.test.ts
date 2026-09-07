@@ -43,11 +43,17 @@ test("PostgreSQL bootstrap targets the app database and runtime can perform DML 
     assert.equal(typeof formatted.rows[0]?.stmt, "string");
     await fixture.monitor.query(formatted.rows[0].stmt);
     roleCreated = true;
+    // Exercise the existing-role branch too, including its parameter typing and
+    // password change before connecting as the restricted runtime role.
+    const rotatedPassword = randomBytes(32).toString("hex");
+    const altered = await fixture.monitor.query(statements.alterPassword, [roleName, rotatedPassword]);
+    assert.equal(typeof altered.rows[0]?.stmt, "string");
+    await fixture.monitor.query(altered.rows[0].stmt);
     // Exercise the same role-specific grants as bootstrap without changing PUBLIC
     // or other fixture roles. PostgreSQL 16 defaults already deny PUBLIC CREATE.
     for (const key of ["grantConnect", "revokeDatabaseCreate", "revokeCreate", "grantSchema", "grantTables"] as const) await fixture.monitor.query(statements[key]);
     const runtimeUrl = new URL(testUrl);
-    runtimeUrl.username = roleName; runtimeUrl.password = password;
+    runtimeUrl.username = roleName; runtimeUrl.password = rotatedPassword;
     runtime = new pg.Client({ connectionString: runtimeUrl.toString(), ssl: false, connectionTimeoutMillis: 3_000, query_timeout: 5_000 });
     await runtime.connect();
     await verifyAzureDatabaseSchema(runtime);

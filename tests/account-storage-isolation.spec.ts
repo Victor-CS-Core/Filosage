@@ -41,7 +41,7 @@ async function fixture(context: BrowserContext) {
     uid = null;
     await route.fulfill({ status: 302, headers: { location: "/" } });
   });
-  await context.route("**/api/account", (route) => route.fulfill({ json: exactLearnerAccount() }));
+  await context.route("**/api/account", (route) => route.fulfill({ json: exactLearnerAccount({ displayName: uid ?? "Guest" }) }));
   await context.route("**/api/courses?*", (route) => route.fulfill({ json: { courses: [course] } }));
   await context.route(`**/api/courses/${courseId}`, (route) => route.fulfill({ json: course }));
   await context.route(`**/api/courses/${courseId}/lessons/*`, (route) => route.fulfill({ json: lesson }));
@@ -81,7 +81,7 @@ async function openNotes(page: Page) {
   await expect(page.getByLabel("Your notes", { exact: true })).toBeVisible();
 }
 async function signOut(page: Page) {
-  await page.keyboard.press("Control+k");
+  await page.locator(".learning-command-trigger:visible").click();
   await page.getByRole("combobox", { name: "Search Filosage" }).fill("sign out");
   await page.getByRole("option", { name: /Sign out End this session/ }).click();
   await expect(page).toHaveURL(/\/$/);
@@ -101,7 +101,7 @@ async function expectNoPrivateWork(page: Page) {
   await expect(page.getByLabel("Your reflection")).toHaveValue("");
   await page.getByRole("tab", { name: /Transfer/ }).click();
   await expect(page.getByLabel("Your response", { exact: true })).toHaveValue("");
-  await expect(page.locator(".completion-banner")).toHaveCount(0);
+  await expect(page.locator(".completion-banner.is-complete")).toHaveCount(0);
 }
 
 test("A signs out; guest and B see none of A's work and B uploads no A payload; A's offline drafts survive reload", { tag: "@smoke" }, async ({ page, context }) => {
@@ -139,15 +139,18 @@ test("a cross-tab signout invalidates mounted private work and ignores a delayed
   const state = await fixture(context);
   state.delay();
   await page.goto(lessonPath);
-  await fillDrafts(page);
   await expect.poll(state.pending).toBe(true);
   const otherTab = await context.newPage();
   await otherTab.goto("/profile");
+  await expect(otherTab.locator(".profile-identity").getByRole("heading", { name: "account-A", exact: true })).toBeVisible();
+  await page.bringToFront();
+  await fillDrafts(page);
   await expect(page.getByLabel("Your response", { exact: true })).toHaveValue(`${secret}-transfer`);
   await signOut(otherTab);
   await expect(page.getByRole("heading", { level: 1, name: "Inspect evidence" })).toHaveCount(0);
   state.setUid("account-B");
   await otherTab.goto("/profile");
+  await expect(otherTab.locator(".profile-identity").getByRole("heading", { name: "account-B", exact: true })).toBeVisible();
   state.release();
   await page.bringToFront();
   await expectNoPrivateWork(page);
@@ -175,7 +178,7 @@ test("completion and evidence stay with A when B has an empty cloud and goes off
   await page.getByRole("tab", { name: /Transfer/ }).click();
   await page.getByRole("button", { name: "Compare with a model response" }).click();
   await page.getByRole("button", { name: "Mark learned" }).click();
-  await expect(page.locator(".completion-banner").getByText("Lesson complete")).toBeVisible();
+  await expect(page.locator(".completion-banner.is-complete").getByText("Lesson complete", { exact: true })).toBeVisible();
   await expect.poll(() => state.writes.some((write) => write.uid === "account-A" && write.path === "/api/progress" && write.body.includes(secret))).toBe(true);
   await signOut(page);
   state.setUid("account-B");
@@ -189,7 +192,7 @@ test("completion and evidence stay with A when B has an empty cloud and goes off
   state.setUid("account-A");
   state.setOffline(true);
   await page.goto(lessonPath);
-  await expect(page.locator(".completion-banner").getByText("Lesson complete")).toBeVisible();
+  await expect(page.locator(".completion-banner.is-complete").getByText("Lesson complete", { exact: true })).toBeVisible();
 });
 
 test("unowned device records are never assigned to the next signed-in learner", async ({ page, context }) => {

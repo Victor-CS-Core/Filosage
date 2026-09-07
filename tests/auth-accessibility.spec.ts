@@ -1,5 +1,6 @@
 import AxeBuilder from "@axe-core/playwright";
 import { expect, test, type Locator, type Page } from "@playwright/test";
+import { EMPTY_LEARNER_STATE } from "../src/lib/learner-state";
 import { PRIVACY_VERSION, TERMS_VERSION } from "../src/lib/legal";
 import { exactLearnerAccount } from "./fixtures/local-learner";
 
@@ -228,6 +229,9 @@ test("profile name editing remains keyboard reachable and reflows at 200 percent
   await page.route("**/api/account", (route) => route.fulfill({
     status: 200,
     json: exactLearnerAccount({ displayName: "Accessible Learner" }),
+  }));
+  await page.route("**/api/learner-state", (route) => route.fulfill({
+    json: route.request().method() === "GET" ? EMPTY_LEARNER_STATE : { saved: true },
   }));
   await page.route("**/api/progress", (route) => route.fulfill({ status: 200, json: { progress: [] } }));
   await page.route("**/api/courses?scope=mine", (route) => route.fulfill({ status: 200, json: { courses: [] } }));
