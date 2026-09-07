@@ -1,4 +1,6 @@
 import assert from "node:assert/strict";
+import { z } from "zod";
+import { zodTextFormat } from "openai/helpers/zod";
 import { after, mock, test } from "node:test";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -7,7 +9,9 @@ import { captureAccountGeneration, runWithAccountGeneration } from "../../src/li
 import { beginGenerationOperation, configureGenerationOperation, generationFingerprint } from "../../src/lib/generation-operations.ts";
 import { getStoredDocument, runStoredDocumentTransaction } from "../../src/lib/document-store.ts";
 import { aiClient } from "../../src/lib/local-ai.ts";
-import { bindEvaluationOperation, evaluationBudgetErrorFrom, readEvaluationBudgetEvidence, runWithEvaluationCall, runWithEvaluationRequest } from "../../src/lib/evaluation-budget.ts";
+import { bindEvaluationOperation, evaluationBudgetErrorFrom, evaluationUsageSamples, readEvaluationBudgetEvidence, runWithEvaluationCall, runWithEvaluationRequest } from "../../src/lib/evaluation-budget.ts";
+import { durableGenerationResponse, checkpointGenerationModeration } from "../../src/lib/generation-provider-client.ts";
+import { openAiExecutionProfile } from "../../src/lib/openai-generation.ts";
 import type { ServerAccount } from "../../src/lib/account-server.ts";
 
 const directory = mkdtempSync(join(tmpdir(), "evaluation-budget-"));
@@ -66,6 +70,7 @@ test("actual SDK transport reserves the full upper bound before dispatch and sto
     await f.run(create);
     const evidence = await f.evidence();
     assert.equal(evidence?.actualCostMicros, 17);
+    assert.equal((await f.run(() => evaluationUsageSamples("resp_abc123")))?.[0].fixedCostMicros, 17);
     assert.equal(evidence?.uncertainCostMicros, 0);
     assert.equal(evidence?.calls[0].samples[0].cacheWriteTokens, 3);
     await assert.rejects(f.run(create), (error) => evaluationBudgetErrorFrom(error)?.code === "EVALUATION_BUDGET_EXHAUSTED");
@@ -290,8 +295,8 @@ test("review: an unresolved admission from a replaced attempt blocks new transpo
     assert.equal(before?.reconciliationRequired, false);
     // Advance the operation clock beyond its lease to model a process that
     // disappeared after transport admission without a catch/finally callback.
-    const renewed = await runWithAccountGeneration(f.actor, () => beginGenerationOperation(
-      f.account, "evaluation-review-lost-process", { topic: "Synthetic" }, new Date(Date.now() + 600_000)));
+    const renewed = await runWithAccountGeneration(f.actor, () => runWithEvaluationRequest(headers(cap * 2), () => beginGenerationOperation(
+      f.account, "evaluation-review-lost-process", { topic: "Synthetic" }, new Date(Date.now() + 600_000))));
     assert.notEqual(renewed.attemptToken, f.lease.attemptToken);
     const next = runWithAccountGeneration(f.actor, () => runWithEvaluationRequest(headers(cap * 2), async () => {
       await bindEvaluationOperation(f.account, renewed);
@@ -327,5 +332,92 @@ test("review: a client created outside evaluation preserves ambiguous classifica
       (error) => evaluationBudgetErrorFrom(error)?.preDispatch === false);
     assert.equal(dispatches, 1);
     assert.equal((await f.evidence())?.reconciliationRequired, true);
+  } finally { transport.mock.restore(); }
+});
+
+
+test("durable Responses stage replays its saved result without another budget admission", async () => {
+  const f = await fixture("durable-response");
+  const profile = { ...openAiExecutionProfile("course.standard"), model: "gpt-5.6-luna", promptVersion: "test-version" };
+  let dispatches = 0;
+  const transport = mock.method(globalThis, "fetch", async () => { dispatches++; return response(); });
+  try {
+    await f.run(async () => {
+      const call = durableGenerationResponse(aiClient(), f.lease, profile, "generation");
+      const params = { model: "gpt-5.6-luna", input: "Synthetic", max_output_tokens: 64, store: false };
+      const first = await call(params);
+      const replay = await call(params);
+      assert.equal(replay.id, first.id);
+    });
+    assert.equal(dispatches, 1);
+    assert.equal((await f.evidence())?.calls.length, 1);
+  } finally { transport.mock.restore(); }
+});
+
+test("real safety moderation array is checkpointed and replayed without another provider call", async () => {
+  const f = await fixture("durable-moderation");
+  let dispatches = 0;
+  const transport = mock.method(globalThis, "fetch", async () => { dispatches++; return Response.json({ id: "modr-safe1", model: "omni-moderation-latest", results: [{ flagged: false }] }); });
+  try {
+    await f.run(async () => {
+      const client = checkpointGenerationModeration(aiClient(), f.lease);
+      const params = { model: "omni-moderation-latest", input: ["Synthetic"] };
+      const first = await client.moderations.create(params);
+      const replay = await client.moderations.create(params);
+      assert.equal(replay.id, first.id);
+    });
+    assert.equal(dispatches, 1);
+    assert.equal((await f.evidence())?.calls[0].kind, "moderation");
+  } finally { transport.mock.restore(); }
+});
+
+test("a previously unbudgeted operation cannot start a fresh evaluation ceiling on resume", async () => {
+  const f = await fixture("legacy-resume");
+  const renewed = await runWithAccountGeneration(f.actor, () => beginGenerationOperation(f.account, "evaluation-legacy-resume", { topic: "Synthetic" }, new Date(Date.now() + 600_000)));
+  const transport = mock.method(globalThis, "fetch", async () => { assert.fail("legacy operation obtained fresh evaluation budget"); });
+  try {
+    await assert.rejects(runWithAccountGeneration(f.actor, () => runWithEvaluationRequest(headers(), () => bindEvaluationOperation(f.account, renewed))),
+      (error) => evaluationBudgetErrorFrom(error)?.code === "EVALUATION_FRESH_OPERATION_REQUIRED");
+  } finally { transport.mock.restore(); }
+});
+
+
+test("schema failure happens after raw provider output and usage are checkpointed", async () => {
+  const f = await fixture("raw-before-parse");
+  const profile = { ...openAiExecutionProfile("course.standard"), model: "gpt-5.6-luna", promptVersion: "test-version" };
+  let dispatches = 0;
+  const transport = mock.method(globalThis, "fetch", async () => {
+    dispatches++;
+    return response({ output: [{ type: "message", id: "msg_1", status: "completed", role: "assistant",
+      content: [{ type: "output_text", text: JSON.stringify({ value: "wrong-type" }), annotations: [] }] }] });
+  });
+  try {
+    const params = { model: "gpt-5.6-luna", input: "Synthetic", max_output_tokens: 64, store: false,
+      text: { format: zodTextFormat(z.object({ value: z.boolean() }), "synthetic_schema") } };
+    const call = () => durableGenerationResponse(aiClient(), f.lease, profile, "generation")(params);
+    await assert.rejects(f.run(call), (error) => error instanceof z.ZodError);
+    await assert.rejects(f.run(call), (error) => error instanceof z.ZodError);
+    assert.equal(dispatches, 1);
+    assert.equal((await f.evidence())?.actualCostMicros, 17);
+    const operation = await getStoredDocument(f.lease.operationPath);
+    assert.deepEqual(operation?.pendingCalls, []);
+    const receipt = await getStoredDocument(f.lease.receiptPath);
+    const calls = Object.values(receipt?.calls as Record<string, { status: string }>);
+    assert.equal(calls.length, 1);
+    assert.equal(calls[0].status, "observed");
+  } finally { transport.mock.restore(); }
+});
+
+test("dropping evaluation headers cannot reopen an existing budgeted operation", async () => {
+  const f = await fixture("headerless");
+  let dispatches = 0;
+  const transport = mock.method(globalThis, "fetch", async () => { dispatches++; return response(); });
+  try {
+    await f.run(create);
+    const before = await getStoredDocument(f.lease.operationPath);
+    await assert.rejects(runWithAccountGeneration(f.actor, () => bindEvaluationOperation(f.account, f.lease)),
+      (error) => evaluationBudgetErrorFrom(error)?.code === "EVALUATION_APPROVAL_REQUIRED");
+    assert.deepEqual(await getStoredDocument(f.lease.operationPath), before);
+    assert.equal(dispatches, 1);
   } finally { transport.mock.restore(); }
 });

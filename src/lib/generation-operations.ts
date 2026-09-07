@@ -4,9 +4,13 @@ import { createHash, randomUUID } from "node:crypto";
 import type { ServerAccount } from "@/lib/account-server";
 import { currentAccountGeneration, captureAccountGeneration, runWithAccountGeneration, runWithGlobalUsageAccounting } from "@/lib/account-lifecycle";
 import { getStoredDocument, runStoredDocumentTransaction } from "@/lib/document-store";
-import { AiQuotaError, courseOutlineAccountingContext, extractOpenAiUsage } from "@/lib/ai-usage";
+import { AiQuotaError, courseOutlineAccountingContext, generationAccountingContext, extractOpenAiUsage, type AiReservation } from "@/lib/ai-usage";
 import { summarizeAiUsage, type AiUsageSample } from "@/lib/ai-pricing";
 import { courseCreditPaths, generationCreditReservationWrites, generationCreditSettlementWrites, generationLessonGrant } from "@/lib/course-credits";
+import { aiUsageLock, aiUsageLockWrite, aiUsageReleaseLock, aiUsageConflictingUntil } from "@/lib/ai-usage-lock";
+import { isEvaluationPreDispatchError } from "@/lib/evaluation-errors";
+import { assertEvaluationOperationLedger, assertEvaluationOperationRequest, evaluationUsageSamples } from "@/lib/evaluation-budget";
+import type { LessonSavePipelineGuard } from "@/lib/course-pipeline/lesson-save";
 import { webSearchCallCount } from "@/lib/source-research";
 
 // A request starts at most one slow wave. Reopening executes the next wave.
@@ -20,6 +24,9 @@ const responseTimes = new WeakMap<object, string>();
 export function generationResponseObservedAt(response: unknown) {
   return response && typeof response === "object" ? responseTimes.get(response) ?? new Date().toISOString() : new Date().toISOString();
 }
+export function preserveGenerationResponseObservedAt(source: unknown, target: object) {
+  responseTimes.set(target, generationResponseObservedAt(source));
+}
 type Document = Record<string, unknown>;
 type Documents = Record<string, Document | null>;
 type Accounting = ReturnType<typeof courseOutlineAccountingContext>;
@@ -29,9 +36,18 @@ export type GenerationOperation = Document & {
   uid: string; accountGeneration: string; operationId: string; requestFingerprint: string; request: Document;
   idempotencyKey: string; status: "running" | "pending" | "completed" | "failed";
   stage: string; attemptToken: string; leaseUntil: string; createdAt: string; updatedAt: string;
+  kind?: "course" | "lesson"; lessonGuard?: LessonSavePipelineGuard;
   accounting: Accounting; resultId?: string; terminalReason?: string; pendingCalls: string[];
 };
 export interface GenerationLease { operationId: string; operationPath: string; receiptPath: string; attemptToken: string; startedAt: number; waveStartedAt?: number; operation: GenerationOperation }
+export function lessonOperationReservation(lease: GenerationLease): AiReservation {
+  if (lease.operation.kind !== "lesson") throw new GenerationOperationError("LESSON_OPERATION_REQUIRED", "A lesson operation is required.");
+  const c = lease.operation.accounting;
+  return { uid: lease.operation.uid, feature: "lesson_generation", requestId: lease.operationId, operationId: lease.operationId,
+    attemptToken: lease.attemptToken, accountGeneration: lease.operation.accountGeneration, requestPath: c.requestPath,
+    periodPath: c.periodPath, userBudgetPath: c.userBudgetPath, globalPath: c.globalPath, lockKey: c.lockKey,
+    reserveCostMicros: c.reserveCostMicros, budgetPool: c.budgetPool, recovered: lease.operation.status === "completed" };
+}
 export class GenerationOperationError extends Error {
   constructor(public readonly code: string, message: string, public readonly status = 409) { super(message); }
 }
@@ -47,10 +63,10 @@ function stable(value: unknown): string {
   return JSON.stringify(value);
 }
 export const generationFingerprint = (value: unknown) => createHash("sha256").update(stable(value)).digest("hex");
-export const generationOperationId = (uid: string, key: string) => createHash("sha256").update(`${uid}:course_outline:${key}`).digest("hex");
+export const generationOperationId = (uid: string, key: string, kind: "course" | "lesson" = "course") => createHash("sha256").update(`${uid}:${kind === "lesson" ? "lesson_generation" : "course_outline"}:${key}`).digest("hex");
 function paths(operation: GenerationOperation) {
   const credit = courseCreditPaths(operation.uid, operation.operationId);
-  return [`generationOperations/${operation.operationId}`, `generationUsageReceipts/${operation.operationId}`, ...Object.values(credit),
+  return [`generationOperations/${operation.operationId}`, `generationUsageReceipts/${operation.operationId}`, ...(operation.kind === "lesson" ? [`aiRequests/${operation.operationId}__attempt__${operation.attemptToken}`] : Object.values(credit)),
     operation.accounting.requestPath, operation.accounting.periodPath, operation.accounting.userBudgetPath, operation.accounting.globalPath];
 }
 function leaseFor(operation: GenerationOperation, now: Date): GenerationLease {
@@ -64,7 +80,8 @@ function assertOwner(lease: GenerationLease, documents: Documents, active = true
   if (active) {
     const period: Document = documents[operation.accounting.periodPath] ?? {};
     const request = documents[operation.accounting.requestPath];
-    if (operation.status !== "running" || Date.parse(operation.leaseUntil) <= now || period?.activeRequestId !== operation.operationId || period.activeAttemptToken !== lease.attemptToken || request?.attemptToken !== lease.attemptToken) {
+    const lock = aiUsageLock(period, operation.accounting.lockKey);
+    if (operation.status !== "running" || !Number.isFinite(Date.parse(operation.leaseUntil)) || Date.parse(operation.leaseUntil) <= now || lock.activeRequestId !== operation.operationId || lock.activeAttemptToken !== lease.attemptToken || !Number.isFinite(Date.parse(String(lock.activeUntil))) || Date.parse(String(lock.activeUntil)) <= now || request?.attemptToken !== lease.attemptToken) {
       throw new GenerationOperationError("GENERATION_OWNERSHIP_LOST", "Generation attempt ownership expired. Reopen its current status.");
     }
   }
@@ -86,6 +103,7 @@ export function generationOperationStatus(operation: GenerationOperation) {
     retryAt: operation.status === "running" ? operation.leaseUntil : undefined,
     resumable: operation.status === "pending" || (operation.status === "running" && Date.parse(operation.leaseUntil) <= Date.now()),
     ...(operation.failure && typeof operation.failure === "object" ? { recovery: (operation.failure as Document).recovery, code: (operation.failure as Document).code, error: (operation.failure as Document).error } : {}),
+    kind: operation.kind ?? "course", courseId: operation.request.courseId, lessonId: operation.request.lessonId,
     topic: operation.request.topic, updatedAt: operation.updatedAt };
 }
 
@@ -104,15 +122,18 @@ export async function denyGenerationAdmission(operationId: string): Promise<bool
   });
 }
 
-export async function beginGenerationOperation(account: ServerAccount, key: string | null, request: Document, now = new Date()): Promise<GenerationLease> {
+export async function beginGenerationOperation(account: ServerAccount, key: string | null, request: Document, now = new Date(), options: { kind?: "course" | "lesson"; lessonGuard?: LessonSavePipelineGuard } = {}): Promise<GenerationLease> {
+  const kind = options.kind ?? "course";
+  if (kind === "lesson" && (!options.lessonGuard?.publicationState || options.lessonGuard.scopeVersion !== 1 || typeof request.courseId !== "string" || !request.courseId || typeof request.lessonId !== "string" || !/^\d+-\d+$/.test(request.lessonId))) throw new GenerationOperationError("LESSON_SAVE_GUARD_REQUIRED", "A current lesson outline and publication guard is required.");
   const actor = currentAccountGeneration();
   if (!actor) {
     const captured = await captureAccountGeneration(account.uid);
-    return runWithAccountGeneration(captured, () => beginGenerationOperation(account, key, request, now));
+    return runWithAccountGeneration(captured, () => beginGenerationOperation(account, key, request, now, options));
   }
   if (actor.uid !== account.uid) throw new GenerationOperationError("GENERATION_OWNERSHIP_LOST", "The authoring account changed.");
   if (!key || key.length < 12 || key.length > 200) throw new GenerationOperationError("IDEMPOTENCY_KEY_REQUIRED", "A retry-safe operation key is required.");
-  const operationId = generationOperationId(account.uid, key);
+  const operationId = generationOperationId(account.uid, key, kind);
+  await assertEvaluationOperationRequest(account.uid, operationId);
   const operationPath = `generationOperations/${operationId}`;
   const requestFingerprint = generationFingerprint(request);
   const previous = await getGenerationOperation(account.uid, operationId);
@@ -121,23 +142,25 @@ export async function beginGenerationOperation(account: ServerAccount, key: stri
   // ambiguous paid call; refund the product and retain explicitly uncertain cost.
   if (previous?.status === "running" && Date.parse(previous.leaseUntil) <= now.getTime() && previous.pendingCalls.length) {
     await finishGenerationOperation(leaseFor(previous, now), { failed: true, reason: "provider_outcome_unknown", reconcile: true }, now);
-    throw new GenerationOperationError("GENERATION_OUTCOME_UNKNOWN", "The provider result could not be confirmed. Your course credit was restored; start a new course request.");
+    throw new GenerationOperationError("GENERATION_OUTCOME_UNKNOWN", kind === "lesson" ? "The provider result could not be confirmed. This lesson request was released; start a new request." : "The provider result could not be confirmed. Your course credit was restored; start a new course request.");
   }
   if (previous?.status === "pending" && Date.parse(previous.updatedAt) + GENERATION_ABANDONED_MS <= now.getTime()) {
     await finishGenerationOperation(leaseFor(previous, now), { failed: true, reason: "abandoned", reconcile: true }, now);
-    throw new GenerationOperationError("GENERATION_FAILED", "This saved request expired and its course credit was restored. Start a new request.");
+    throw new GenerationOperationError("GENERATION_FAILED", kind === "lesson" ? "This saved lesson request expired and was released. Start a new request." : "This saved request expired and its course credit was restored. Start a new request.");
   }
-  const context = previous?.accounting ?? courseOutlineAccountingContext(account, operationId, now);
+  const context = previous?.accounting ?? (kind === "lesson" ? generationAccountingContext(account, operationId, "lesson_generation", now, `${request.courseId}:${request.lessonId}`) : courseOutlineAccountingContext(account, operationId, now));
   const accountGeneration = currentAccountGeneration()!.generation;
-  const proposed: GenerationOperation = { uid: account.uid, accountGeneration, operationId, requestFingerprint, request,
-    idempotencyKey: key, activeOwnerUid: account.uid, version: VERSION, status: "running", stage: "Preparing course", attemptToken: randomUUID(),
+  const proposed: GenerationOperation = { kind, ...(kind === "lesson" ? { lessonGuard: options.lessonGuard } : {}), uid: account.uid, accountGeneration, operationId, requestFingerprint, request,
+    idempotencyKey: key, activeOwnerUid: account.uid, version: VERSION, status: "running", stage: kind === "lesson" ? "Preparing lesson" : "Preparing course", attemptToken: randomUUID(),
     leaseUntil: new Date(now.getTime() + GENERATION_LEASE_MS).toISOString(), createdAt: now.toISOString(), updatedAt: now.toISOString(),
     accounting: context, pendingCalls: [] };
-  const operation = await runStoredDocumentTransaction(paths(proposed), (documents) => {
+  const evaluationPath = `generationUsageReceipts/${operationId}__evaluation`;
+  const operation = await runStoredDocumentTransaction([...paths(proposed), evaluationPath], (documents) => {
+    assertEvaluationOperationLedger(account.uid, documents[evaluationPath]);
     const current = documents[operationPath] as GenerationOperation | null;
     if (current && (current.uid !== account.uid || current.accountGeneration !== accountGeneration || current.requestFingerprint !== requestFingerprint)) throw new GenerationOperationError("IDEMPOTENCY_CONFLICT", "This operation belongs to a different request.");
     if (current?.status === "completed") return { writes: [], result: current };
-    if (current?.status === "failed") throw new GenerationOperationError("GENERATION_FAILED", "This operation ended and its course credit was restored. Start a new request.");
+    if (current?.status === "failed") throw new GenerationOperationError("GENERATION_FAILED", kind === "lesson" ? "This lesson operation ended. Start a new request." : "This operation ended and its course credit was restored. Start a new request.");
     if (current?.status === "running" && Date.parse(current.leaseUntil) > now.getTime()) throw new GenerationOperationError("GENERATION_IN_PROGRESS", "This operation is already running. Reopen its status.");
     if (current?.pendingCalls.length) throw new GenerationOperationError("GENERATION_OUTCOME_UNKNOWN", "A provider result requires reconciliation before another attempt.");
     if (current && stable(current.accounting) !== stable(context)) throw new GenerationOperationError("GENERATION_OWNERSHIP_LOST", "The original accounting period changed.");
@@ -145,26 +168,32 @@ export async function beginGenerationOperation(account: ServerAccount, key: stri
     const period: Document = documents[context.periodPath] ?? {};
     const global: Document = documents[context.globalPath] ?? {};
     const budget: Document = documents[context.userBudgetPath] ?? {};
-    if (Date.parse(String(period.activeUntil ?? "")) > now.getTime()) throw new AiQuotaError(429, "GENERATION_IN_PROGRESS", "Another course operation is already running.");
+    if (aiUsageConflictingUntil(period, context.lockKey) > now.getTime()) throw new AiQuotaError(429, "GENERATION_IN_PROGRESS", "Another course operation is already running.");
     if (!current && documents[context.requestPath]) throw new GenerationOperationError("LEGACY_GENERATION_RECONCILIATION_REQUIRED", "An earlier course request requires reconciliation before this key can be reused.");
     const newReserve = current ? 0 : context.reserveCostMicros;
     if (!current && context.limit === 0) throw new AiQuotaError(429, "PLAN_LIMIT", "Your current plan does not include course creation.");
     if (amount(global.actualCostMicros) + amount(global.uncertainCostMicros) + amount(global.reservedCostMicros) + newReserve > context.poolLimitMicros) throw new AiQuotaError(503, "POOL_BUDGET_REACHED", "Course generation is temporarily paused for this plan.");
     if (amount(budget.actualCostMicros) + amount(budget.uncertainCostMicros) + amount(budget.reservedCostMicros) + newReserve > context.userLimitMicros) throw new AiQuotaError(429, "USER_BUDGET_REACHED", "Your monthly AI cost allowance has been reached.");
+    // Determine product eligibility before a temporary throttle. These writes
+    // remain part of the same transaction and are discarded if any gate fails.
+    const creditWrites = !current && kind !== "lesson"
+      ? generationCreditReservationWrites(account, operationId, documents, requestFingerprint, accountGeneration, now)
+      : [];
     const minuteKey = now.toISOString().slice(0, 16);
     const minuteCount = period.minuteKey === minuteKey ? amount(period.minuteCount) : 0;
     if (!current && minuteCount >= context.maxPerMinute) throw new AiQuotaError(429, "RATE_LIMITED", "Please wait before starting another course.");
     const next = { ...(current ?? proposed), status: "running" as const, attemptToken: proposed.attemptToken, leaseUntil: proposed.leaseUntil, updatedAt: now.toISOString() };
     const writes: Array<{path: string; data: Document}> = [
       { path: operationPath, data: next },
-      { path: context.requestPath, data: { ...(documents[context.requestPath] ?? {}), uid: account.uid, accountGeneration, feature: "course_outline", operationId,
-        payloadFingerprint: requestFingerprint, status: "reserved", attemptToken: next.attemptToken, ...context, createdAt: current?.createdAt ?? now.toISOString(), updatedAt: now.toISOString() } },
-      { path: context.periodPath, data: { ...period, uid: account.uid, accountGeneration, feature: "course_outline", periodKey: context.periodKey,
+      { path: context.requestPath, data: { ...(documents[context.requestPath] ?? {}), uid: account.uid, accountGeneration, feature: kind === "lesson" ? "lesson_generation" : "course_outline", operationId,
+        payloadFingerprint: kind === "lesson" ? `${request.courseId}:${request.lessonId}:${request.regenerate ? "regenerate" : "generate"}` : requestFingerprint, leaseUntil: next.leaseUntil, reservedCostMicros: context.reserveCostMicros, status: "reserved", attemptToken: next.attemptToken, ...context, createdAt: current?.createdAt ?? now.toISOString(), updatedAt: now.toISOString() } },
+      { path: context.periodPath, data: { ...period, uid: account.uid, accountGeneration, feature: kind === "lesson" ? "lesson_generation" : "course_outline", periodKey: context.periodKey,
         requestCount: amount(period.requestCount) + (current ? 0 : 1), reservedCostMicros: amount(period.reservedCostMicros) + newReserve,
-        minuteKey, minuteCount: minuteCount + (current ? 0 : 1), activeRequestId: operationId, activeAttemptToken: next.attemptToken, activeUntil: next.leaseUntil, resetAt: context.resetAt } },
+        minuteKey, minuteCount: minuteCount + (current ? 0 : 1), ...aiUsageLockWrite(period, context.lockKey, operationId, next.attemptToken, next.leaseUntil), resetAt: context.resetAt } },
     ];
+    if (kind === "lesson") writes.push({ path: `aiRequests/${operationId}__attempt__${next.attemptToken}`, data: { kind: "ai-usage-attempt", operationId, uid: account.uid, accountGeneration, requestId: operationId, attemptToken: next.attemptToken, feature: "lesson_generation", ...context, reservedCostMicros: context.reserveCostMicros, status: "accounting_reserved", createdAt: now.toISOString() } });
     if (!current) writes.push(
-      ...generationCreditReservationWrites(account, operationId, documents, requestFingerprint, accountGeneration, now),
+      ...creditWrites,
       { path: context.userBudgetPath, data: { ...budget, uid: account.uid, accountGeneration, plan: context.budgetPool, periodKey: context.periodKey, reservedCostMicros: amount(budget.reservedCostMicros) + newReserve, actualCostMicros: amount(budget.actualCostMicros) } },
       { path: context.globalPath, data: { ...global, pool: context.budgetPool, shard: context.shard, periodKey: context.periodKey, reservedCostMicros: amount(global.reservedCostMicros) + newReserve, actualCostMicros: amount(global.actualCostMicros) } },
       { path: `generationUsageReceipts/${operationId}`, data: { version: VERSION, globalPath: context.globalPath, remainingReserveMicros: newReserve, actualCostMicros: 0, uncertainCostMicros: 0, calls: {}, status: "reserved" } },
@@ -210,7 +239,7 @@ export async function runGenerationProviderCall<T>(lease: GenerationLease, input
   const saved = await runGenerationTransaction(lease, [stagePath, lease.receiptPath], (documents) => {
     const existing = documents[stagePath];
     if (existing?.status === "completed" && existing.requestFingerprint === fingerprint) return { writes: [], result: { reused: true, response: existing.response as T, observedAt: String(existing.completedAt) } };
-    if (existing) throw new GenerationOperationError("GENERATION_OUTCOME_UNKNOWN", "A provider call has an unconfirmed result. Reopen this operation after its lease expires.");
+    if (existing && existing.status !== "not_started") throw new GenerationOperationError("GENERATION_OUTCOME_UNKNOWN", "A provider call has an unconfirmed result. Reopen this operation after its lease expires.");
     lease.waveStartedAt ??= Date.now();
     if (Date.now() - lease.waveStartedAt! > START_WAVE_MS || Date.now() - lease.startedAt > GENERATION_REQUEST_MS - 25_000) throw new GenerationPauseError();
     const receipt = documents[lease.receiptPath] as unknown as Receipt;
@@ -227,14 +256,30 @@ export async function runGenerationProviderCall<T>(lease: GenerationLease, input
     return saved.response as T;
   }
   let response: T;
-  try { response = await provider(); } catch {
+  try { response = await provider(); } catch (error) {
+    if (isEvaluationPreDispatchError(error)) {
+      await runGenerationTransaction(lease, [stagePath, lease.receiptPath], (documents) => {
+        const existing = documents[stagePath];
+        const receipt = documents[lease.receiptPath] as Receipt;
+        const operation = documents[lease.operationPath] as GenerationOperation;
+        if (existing?.attemptToken !== lease.attemptToken || existing.status !== "in_flight" || receipt.calls[callId]?.status !== "in_flight") throw new GenerationOperationError("GENERATION_OUTCOME_UNKNOWN", "Provider intent ownership changed before admission refusal could be recorded.");
+        const calls = { ...receipt.calls }; delete calls[callId];
+        return { writes: [
+          { path: stagePath, data: { ...existing, status: "not_started", refusedAt: new Date().toISOString() } },
+          { path: lease.receiptPath, data: { ...receipt, calls } },
+          { path: lease.operationPath, data: { ...operation, pendingCalls: operation.pendingCalls.filter((id) => id !== callId) } },
+        ], result: undefined };
+      });
+      throw error;
+    }
     throw new GenerationOperationError("GENERATION_OUTCOME_UNKNOWN", "The provider result is unconfirmed. Check this operation after its lease expires; the same paid call will not be repeated automatically.");
   }
   const observedAt = new Date().toISOString();
   if (response && typeof response === "object") responseTimes.set(response, observedAt);
-  const samples: AiUsageSample[] = [{ model: params.model ?? "unknown", ...extractOpenAiUsage(response),
+  const selectedUsage = await evaluationUsageSamples((response as { id?: string }).id);
+  const samples: AiUsageSample[] = selectedUsage ?? [{ model: params.model ?? "unknown", ...extractOpenAiUsage(response),
     responseId: (response as { id?: string }).id, profile: stage, ...metadata, promptCacheKey: params.prompt_cache_key }];
-  for (let index = 0; index < webSearchCallCount(response); index += 1) samples.push({ model: "openai-web-search", inputTokens: 0, cachedInputTokens: 0, cacheWriteTokens: 0, outputTokens: 0, fixedCostMicros: 10_000 });
+  for (let index = 0; !selectedUsage && index < webSearchCallCount(response); index += 1) samples.push({ model: "openai-web-search", inputTokens: 0, cachedInputTokens: 0, cacheWriteTokens: 0, outputTokens: 0, fixedCostMicros: 10_000 });
   // Cost is checkpointed before any parsing/certification or personal output save.
   await recordProviderUsage(lease, callId, samples);
   await reconcileGenerationPersonalUsage(lease).catch(() => undefined);
@@ -256,7 +301,7 @@ export async function pauseGenerationOperation(lease: GenerationLease) {
     if (operation.pendingCalls.length) throw new GenerationOperationError("GENERATION_OUTCOME_UNKNOWN", "An unconfirmed provider call cannot be resumed automatically.");
     return { writes: [
       { path: lease.operationPath, data: { ...operation, status: "pending", leaseUntil: new Date().toISOString(), updatedAt: new Date().toISOString() } },
-      { path: operation.accounting.periodPath, data: { ...documents[operation.accounting.periodPath], activeUntil: null } },
+      { path: operation.accounting.periodPath, data: { ...documents[operation.accounting.periodPath], ...aiUsageReleaseLock(documents[operation.accounting.periodPath], operation.accounting.lockKey, operation.operationId, lease.attemptToken) } },
     ], result: undefined };
   });
 }
@@ -276,6 +321,7 @@ export async function finishGenerationOperation(lease: GenerationLease, result: 
     if (!receipt) throw new Error("The generation usage reservation is missing.");
     const failed = Boolean(result.failed);
     if (!failed && (!result.course || operation.pendingCalls.length)) throw new Error("The completed generation requires confirmed stage results.");
+    if (operation.kind === "lesson" && !failed) throw new GenerationOperationError("LESSON_COMMIT_REQUIRED", "A lesson must finish inside its guarded result transaction.");
     const course = failed ? null : prepareGenerationCourse(lease, result.course!, now);
     const period: Document = documents[context.periodPath] ?? {};
     const budget: Document = documents[context.userBudgetPath] ?? {};
@@ -289,9 +335,9 @@ export async function finishGenerationOperation(lease: GenerationLease, result: 
       calls[id] = { status: "uncertain", estimateMicros };
     });
     const usage = summarizeAiUsage(Object.values(calls).flatMap((call) => call.samples ?? []));
-    const ownsPeriod = period.activeRequestId === operation.operationId && period.activeAttemptToken === lease.attemptToken;
+
     const writes: Array<{path: string; data: Document}> = [
-      { path: lease.operationPath, data: { ...operation, status: failed ? "failed" : "completed", stage: failed ? "Course creation ended" : "Course ready", resultId: course?.id ?? null, failure: result.failure ?? null, activeOwnerUid: null, terminalReason: failed ? result.reason ?? "generation_failed" : "course_committed", leaseUntil: now.toISOString(), updatedAt: now.toISOString() } },
+      { path: lease.operationPath, data: { ...operation, status: failed ? "failed" : "completed", stage: failed ? (operation.kind === "lesson" ? "Lesson creation ended" : "Course creation ended") : "Course ready", resultId: course?.id ?? null, failure: result.failure ?? null, activeOwnerUid: null, terminalReason: failed ? result.reason ?? "generation_failed" : "course_committed", leaseUntil: now.toISOString(), updatedAt: now.toISOString() } },
       { path: context.requestPath, data: { ...request, status: failed ? "failed" : "completed", resultId: course?.id ?? null, ...usage, uncertainCostMicros: uncertain, accountedCallIds: Object.keys(calls).filter((id) => calls[id].status === "observed"), updatedAt: now.toISOString() } },
       { path: lease.receiptPath, data: { ...receipt, remainingReserveMicros: 0, uncertainCostMicros: receipt.uncertainCostMicros + uncertain, calls, status: failed ? "failed" : "completed" } },
       { path: context.globalPath, data: { ...global, reservedCostMicros: Math.max(0, amount(global.reservedCostMicros) - receipt.remainingReserveMicros), uncertainCostMicros: amount(global.uncertainCostMicros) + uncertain } },
@@ -299,9 +345,9 @@ export async function finishGenerationOperation(lease: GenerationLease, result: 
         inputTokens: amount(period.inputTokens) + usage.inputTokens, cachedInputTokens: amount(period.cachedInputTokens) + usage.cachedInputTokens,
         cacheWriteTokens: amount(period.cacheWriteTokens) + usage.cacheWriteTokens, outputTokens: amount(period.outputTokens) + usage.outputTokens,
         actualCostMicros: amount(period.actualCostMicros) + usage.actualCostMicros, uncertainCostMicros: amount(period.uncertainCostMicros) + uncertain,
-        ...(ownsPeriod ? { activeRequestId: null, activeAttemptToken: null, activeUntil: null } : {}) } },
+        ...aiUsageReleaseLock(period, context.lockKey, operation.operationId, lease.attemptToken) } },
       { path: context.userBudgetPath, data: { ...budget, reservedCostMicros: Math.max(0, amount(budget.reservedCostMicros) - context.reserveCostMicros), actualCostMicros: amount(budget.actualCostMicros) + usage.actualCostMicros, uncertainCostMicros: amount(budget.uncertainCostMicros) + uncertain } },
-      ...generationCreditSettlementWrites(operation.uid, operation.operationId, documents, failed, now.toISOString()),
+      ...(operation.kind === "lesson" ? [{ path: `aiRequests/${operation.operationId}__attempt__${operation.attemptToken}`, data: { ...documents[`aiRequests/${operation.operationId}__attempt__${operation.attemptToken}`], status: "accounting_observed", ...usage, uncertainCostMicros: uncertain, failed, updatedAt: now.toISOString() } }] : generationCreditSettlementWrites(operation.uid, operation.operationId, documents, failed, now.toISOString())),
       ...(course ? [{ path: coursePath, data: course }] : []),
     ];
     return { writes, result: course };
@@ -372,7 +418,7 @@ export async function configureGenerationOperation(lease: GenerationLease, confi
     // A revision may only resume the exact model/prompt/runtime contract it
     // began with. Drain/reconcile older operations before incompatible cutover.
     if (existing && generationFingerprint(existing) !== generationFingerprint(configuration)) {
-      throw new GenerationOperationError("GENERATION_WRITER_VERSION_CHANGED", "This course request requires its original generation configuration or explicit reconciliation.");
+      throw new GenerationOperationError("GENERATION_WRITER_VERSION_CHANGED", "This request requires its original generation configuration or explicit reconciliation.");
     }
     return { writes: existing ? [] : [{ path: lease.operationPath, data: { ...operation, configuration } }], result: undefined };
   });
@@ -389,12 +435,13 @@ export async function generationOperationTelemetry(operation: GenerationOperatio
 
 async function reconcileGenerationPersonalUsage(lease: GenerationLease) {
   const context = lease.operation.accounting;
+  const attemptPath = lease.operation.kind === "lesson" ? `aiRequests/${lease.operationId}__attempt__${lease.attemptToken}` : undefined;
   return runWithAccountGeneration({ uid: lease.operation.uid, generation: lease.operation.accountGeneration }, () =>
-    runStoredDocumentTransaction([lease.operationPath, lease.receiptPath, context.requestPath, context.periodPath, context.userBudgetPath], (documents) => {
+    runStoredDocumentTransaction([lease.operationPath, lease.receiptPath, context.requestPath, context.periodPath, context.userBudgetPath, ...(attemptPath ? [attemptPath] : [])], (documents) => {
       const operation = documents[lease.operationPath];
       const request = documents[context.requestPath];
       const receipt = documents[lease.receiptPath] as unknown as Receipt | null;
-      if (!operation || !request || !receipt || operation.status !== "failed" || request.attemptToken !== lease.attemptToken) return { writes: [], result: undefined };
+      if (!operation || !request || !receipt || operation.status !== "failed" || operation.attemptToken !== lease.attemptToken || request.attemptToken !== lease.attemptToken) return { writes: [], result: undefined };
       const accounted = Array.isArray(request.accountedCallIds) ? request.accountedCallIds.map(String) : [];
       const observed = Object.entries(receipt.calls).filter(([id, call]) => call.status === "observed" && !accounted.includes(id));
       if (!observed.length) return { writes: [], result: undefined };
@@ -402,9 +449,17 @@ async function reconcileGenerationPersonalUsage(lease: GenerationLease) {
       const uncertain = observed.reduce((sum, [, call]) => sum + amount(call.estimateMicros), 0);
       const period: Document = documents[context.periodPath] ?? {};
       const budget: Document = documents[context.userBudgetPath] ?? {};
+      const attempt = attemptPath ? documents[attemptPath] : undefined;
+      if (attemptPath && (!attempt || attempt.uid !== operation.uid || attempt.accountGeneration !== operation.accountGeneration || attempt.attemptToken !== lease.attemptToken || attempt.requestId !== lease.operationId || attempt.periodPath !== context.periodPath || attempt.userBudgetPath !== context.userBudgetPath || attempt.globalPath !== context.globalPath)) throw new GenerationOperationError("GENERATION_OWNERSHIP_LOST", "The original lesson usage attempt requires reconciliation.");
+      const addUsage = (record: Document) => ({
+        actualCostMicros: amount(record.actualCostMicros) + usage.actualCostMicros,
+        uncertainCostMicros: Math.max(0, amount(record.uncertainCostMicros) - uncertain),
+        inputTokens: amount(record.inputTokens) + usage.inputTokens, cachedInputTokens: amount(record.cachedInputTokens) + usage.cachedInputTokens,
+        cacheWriteTokens: amount(record.cacheWriteTokens) + usage.cacheWriteTokens, outputTokens: amount(record.outputTokens) + usage.outputTokens,
+      });
       return { writes: [
-        { path: context.requestPath, data: { ...request, actualCostMicros: amount(request.actualCostMicros) + usage.actualCostMicros,
-          uncertainCostMicros: Math.max(0, amount(request.uncertainCostMicros) - uncertain), accountedCallIds: [...accounted, ...observed.map(([id]) => id)] } },
+        { path: context.requestPath, data: { ...request, ...addUsage(request), accountedCallIds: [...accounted, ...observed.map(([id]) => id)] } },
+        ...(attemptPath && attempt ? [{ path: attemptPath, data: { ...attempt, ...addUsage(attempt) } }] : []),
         { path: context.periodPath, data: { ...period, actualCostMicros: amount(period.actualCostMicros) + usage.actualCostMicros, uncertainCostMicros: Math.max(0, amount(period.uncertainCostMicros) - uncertain),
           inputTokens: amount(period.inputTokens) + usage.inputTokens, cachedInputTokens: amount(period.cachedInputTokens) + usage.cachedInputTokens,
           cacheWriteTokens: amount(period.cacheWriteTokens) + usage.cacheWriteTokens, outputTokens: amount(period.outputTokens) + usage.outputTokens } },

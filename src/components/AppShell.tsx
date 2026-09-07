@@ -72,7 +72,7 @@ export default function AppShell({ children, activeTopic, activeCourseId, active
   const [showAuth, setShowAuth] = useState(false);
   const [authReturnFocus, setAuthReturnFocus] = useState<HTMLElement | null>(null);
   const [authReturnPath, setAuthReturnPath] = useState<string>();
-  const courseSource = useLearnerSource(user, "/api/courses?scope=mine", emptyCourses);
+  const courseSource = useLearnerSource(user, authLoading || !account || account.legalAcceptanceRequired || account?.identityLinkRequired ? null : "/api/courses?scope=mine", emptyCourses);
   const courses = courseSource.data?.courses ?? EMPTY_COURSES;
   const retryCourses = courseSource.retry;
   const coursesLoading = courseSource.status === "loading";

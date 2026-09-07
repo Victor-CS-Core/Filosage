@@ -1,7 +1,7 @@
 import { aiUsageLockWrite, aiUsageReleaseLock, aiUsageConflictingUntil } from "@/lib/ai-usage-lock";
 import "server-only";
 
-import { randomUUID } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import { currentAccountGeneration, runWithAccountGeneration, runWithGlobalUsageAccounting } from "@/lib/account-lifecycle";
 import type { AiQuotaSummary } from "@/lib/course-types";
 import type { ServerAccount } from "@/lib/account-server";
@@ -39,6 +39,7 @@ export interface AiReservation {
   uid: string;
   feature: AiFeature;
   requestId: string;
+  operationId?: string;
   attemptToken?: string;
   lockKey?: string;
   accountGeneration?: string;
@@ -427,6 +428,7 @@ export async function finalizeAiUsage(
   },
 ) {
   if (reservation.recovered) return;
+  if (reservation.operationId) throw new AiQuotaError(409, "DURABLE_OPERATION_REQUIRED", "Durable usage must settle through its operation.");
   const nowIso = new Date().toISOString();
   const defaultModel = reservation.feature === "command_center_draft"
     ? serverEnvironment.OPENAI_COMMAND_CENTER_MODEL || serverEnvironment.OPENAI_MODEL || "gpt-5.6-terra"
@@ -587,20 +589,24 @@ export function aiQuotaResponse(error: unknown) {
   );
 }
 
-/** Shared admission policy for the atomic, durable course operation. */
-export function courseOutlineAccountingContext(account: ServerAccount, requestId: string, now = new Date()) {
-  const policy = policyFor(account, "course_outline", now);
+/** Shared original-period policy for both durable generation kinds. */
+export function generationAccountingContext(account: ServerAccount, requestId: string, feature: "course_outline" | "lesson_generation", now = new Date(), resourceKey?: string) {
+  const policy = policyFor(account, feature, now);
   const budgetPool = budgetPoolFor(account);
   const shard = budgetShardFor(requestId);
   return {
     ...policy, budgetPool, shard,
+    lockKey: resourceKey ? createHash("sha256").update(resourceKey).digest("hex") : undefined,
     userLimitMicros: userBudgetLimitMicros(account),
     poolLimitMicros: aiBudgetLimitsUsd()[budgetPool] * 1_000_000 / BUDGET_SHARDS,
-    periodPath: `usagePeriods/${account.uid}__course_outline__${policy.periodKey}`,
+    periodPath: `usagePeriods/${account.uid}__${feature}__${policy.periodKey}`,
     requestPath: `aiRequests/${requestId}`,
     userBudgetPath: `userAiBudgets/${account.uid}__${policy.periodKey}`,
     globalPath: `systemUsageShards/${budgetPool}__${policy.periodKey}__${shard}`,
   };
+}
+export function courseOutlineAccountingContext(account: ServerAccount, requestId: string, now = new Date()) {
+  return generationAccountingContext(account, requestId, "course_outline", now);
 }
 
 

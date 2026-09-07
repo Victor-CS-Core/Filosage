@@ -30,7 +30,7 @@ import {
 } from "../src/lib/billing-portal";
 import { readBoundedRequestText } from "../src/lib/bounded-request-body";
 import { PAID_SUBSCRIPTION_POLICY, PRIVACY_VERSION, TERMS_VERSION } from "../src/lib/legal";
-import { exactLearnerAccount, restoreLocalLearner } from "./fixtures/local-learner";
+import { ensureLocalLearnerAccepted, exactLearnerAccount, restoreLocalLearner } from "./fixtures/local-learner";
 
 const stripeLifecycle = {
   BILLING_PROVIDER: "stripe",
@@ -629,7 +629,19 @@ test("pricing explains successful and canceled checkout returns without granting
 
 test("a slow verified-payment return times out safely and offers recovery without a real wait", async ({ page }) => {
   await page.clock.install({ time: new Date("2026-08-24T12:00:00.000Z") });
-  await page.addInitScript(() => localStorage.setItem("filosage-local-session", "1"));
+  let releaseSession!: () => void;
+  const sessionRestoration = new Promise<void>((resolve) => { releaseSession = resolve; });
+  let sessionRequested = false;
+  await page.route("**/api/auth/session", async (route) => {
+    sessionRequested = true;
+    await sessionRestoration;
+    await route.fulfill({ json: {
+      recentAuthentication: true,
+      authentication: { primaryProvider: "filosage", externalIdAvailable: true, externalIdNewAccountsAvailable: true, legacyGoogleAvailable: true },
+      user: { uid: "checkout-learner", displayName: "Checkout Learner", email: "checkout@example.com", photoURL: null, authenticationProvider: "filosage" },
+    } });
+  });
+  await page.route("**/api/courses?scope=mine", (route) => route.fulfill({ json: { courses: [] } }));
   let accountRequests = 0;
   await page.route("**/api/account", async (route) => {
     accountRequests += 1;
@@ -639,7 +651,14 @@ test("a slow verified-payment return times out safely and offers recovery withou
   });
 
   await page.goto("/pricing?checkout=success");
+  await expect.poll(() => sessionRequested).toBe(true);
+  // The bootstrap watchdog can release the loading UI before auth resolves.
+  // Its timeout must not consume the marker before the canonical remount.
+  await page.clock.runFor(10_001);
+  await expect(page).toHaveURL(/checkout=success/);
+  releaseSession();
   await expect(page.getByRole("heading", { name: "Confirming your membership" })).toBeVisible();
+  await expect(page).toHaveURL(/\/pricing$/);
   await expect(page.getByText(/check for confirmation for up to 30 seconds/)).toBeVisible();
 
   await page.clock.runFor(30_000);
@@ -704,16 +723,7 @@ test("a direct API caller receives two complete Plus course credits", async ({ r
   });
   expect(acceptance.ok()).toBe(true);
 
-  const ownerAcceptance = await request.post("/api/legal/acceptance", {
-    headers: { Authorization: "Bearer playwright-local-owner" },
-    data: {
-      termsVersion: TERMS_VERSION,
-      privacyVersion: PRIVACY_VERSION,
-      ageEligibilityConfirmed: true,
-      source: "signup",
-    },
-  });
-  expect(ownerAcceptance.ok()).toBe(true);
+  await ensureLocalLearnerAccepted(request);
 
   const grant = await request.patch(`/api/admin/users/${plusLearnerUid}`, {
     headers: { Authorization: "Bearer playwright-local-owner" },

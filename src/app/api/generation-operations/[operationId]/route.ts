@@ -1,6 +1,9 @@
 import { NextResponse } from "next/server";
 import { authorizationResponse, requireAcceptedAccount, withAccountRequest } from "@/lib/auth-server";
-import { getGenerationOperation, generationOperationStatus, abandonGenerationOperation, generationOperationTelemetry } from "@/lib/generation-operations";
+import { getGenerationOperation, generationOperationStatus, abandonGenerationOperation } from "@/lib/generation-operations";
+import { readEvaluationBudgetEvidence, runWithEvaluationRequest } from "@/lib/evaluation-budget";
+import { EvaluationBudgetError, evaluationBudgetErrorFrom } from "@/lib/evaluation-errors";
+import { POST as generateLesson } from "@/app/api/generate-lesson/route";
 import { POST as generateCourse } from "@/app/api/generate-course/route";
 
 const headers = { "Cache-Control": "private, no-store" };
@@ -11,11 +14,13 @@ async function getOperation(request: Request, context: Context) {
     const account = await requireAcceptedAccount(request);
     const { operationId } = await context.params;
     const operation = await getGenerationOperation(account.uid, operationId);
-    if (!operation) return NextResponse.json({ error: "Course operation not found." }, { status: 404, headers });
-    return NextResponse.json({ ...generationOperationStatus(operation),
-      ...(account.isOwner && request.headers.get("x-filosage-model-evaluation") === "1" ? { evaluation: await generationOperationTelemetry(operation) } : {}),
-    }, { headers });
-  } catch (error) { return authorizationResponse(error) ?? NextResponse.json({ error: "The course operation could not be read." }, { status: 500, headers }); }
+    if (!operation) return NextResponse.json({ error: "Generation operation not found." }, { status: 404, headers });
+    if (request.headers.has("x-filosage-model-evaluation")) {
+      if (!account.isOwner) throw new EvaluationBudgetError("EVALUATION_OWNER_REQUIRED");
+      return await runWithEvaluationRequest(request.headers, async () => NextResponse.json({ ...generationOperationStatus(operation), evaluation: await readEvaluationBudgetEvidence(operationId) }, { headers }));
+    }
+    return NextResponse.json(generationOperationStatus(operation), { headers });
+  } catch (error) { const budget = evaluationBudgetErrorFrom(error); return authorizationResponse(error) ?? NextResponse.json({ error: budget?.message ?? "The generation operation could not be read.", code: budget?.code }, { status: budget?.status ?? 500, headers }); }
 }
 
 async function postOperation(request: Request, context: Context) {
@@ -23,14 +28,15 @@ async function postOperation(request: Request, context: Context) {
     const account = await requireAcceptedAccount(request);
     const { operationId } = await context.params;
     const operation = await getGenerationOperation(account.uid, operationId);
-    if (!operation) return NextResponse.json({ error: "Course operation not found." }, { status: 404, headers });
+    if (!operation) return NextResponse.json({ error: "Generation operation not found." }, { status: 404, headers });
     const forwardedHeaders = new Headers(request.headers);
     forwardedHeaders.set("Content-Type", "application/json");
     forwardedHeaders.set("Idempotency-Key", operation.idempotencyKey);
-    return generateCourse(new Request(new URL("/api/generate-course", request.url), {
+    const generate = operation.kind === "lesson" ? generateLesson : generateCourse;
+    return generate(new Request(new URL(operation.kind === "lesson" ? "/api/generate-lesson" : "/api/generate-course", request.url), {
       method: "POST", headers: forwardedHeaders, body: JSON.stringify(operation.request), signal: request.signal,
     }));
-  } catch (error) { return authorizationResponse(error) ?? NextResponse.json({ error: "The course operation could not be resumed." }, { status: 500, headers }); }
+  } catch (error) { return authorizationResponse(error) ?? NextResponse.json({ error: "The generation operation could not be resumed." }, { status: 500, headers }); }
 }
 
 async function deleteOperation(request: Request, context: Context) {
@@ -38,7 +44,7 @@ async function deleteOperation(request: Request, context: Context) {
     const account = await requireAcceptedAccount(request);
     const { operationId } = await context.params;
     const operation = await getGenerationOperation(account.uid, operationId);
-    if (!operation) return NextResponse.json({ error: "Course operation not found." }, { status: 404, headers });
+    if (!operation) return NextResponse.json({ error: "Generation operation not found." }, { status: 404, headers });
     await abandonGenerationOperation(operation);
     return NextResponse.json({ operationId, status: operation.status === "completed" ? "completed" : "failed" }, { headers });
   } catch (error) {

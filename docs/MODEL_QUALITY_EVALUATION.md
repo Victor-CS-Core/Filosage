@@ -6,7 +6,7 @@ The selected coverage is **8 English, 2 Spanish, 1 Japanese and 1 English/Spanis
 
 ## Live execution is currently blocked
 
-**No real-provider run or spend is authorized by this implementation.** Current R08 operation receipts improve cost recovery but do not prove a hard upper bound on a call's final input/search spend. R09 durable lesson operation support is also required. The tool therefore fails before mutation when these capabilities are absent; setting an environment variable cannot bypass this check.
+**No real-provider run or spend is authorized by this implementation.** The server now composes durable course/lesson operations with transport admission under an explicit reviewed tariff and whole-input bound. Synthetic tests do not validate live prices or tool-generated context limits. The tool fails before mutation when the exact approved capability is absent; the client cannot substitute its own capability assertion.
 
 The real HTTP adapter uses existing app routes:
 
@@ -17,7 +17,7 @@ The real HTTP adapter uses existing app routes:
 
 It never publishes, grants credits, overrides product models, invokes the provider independently, or deletes courses. The local exact-candidate deterministic validator consumes the collected complete course; no length-based quality score or first-lesson proxy remains.
 
-Before a future approved live run, the owner-only `GET /api/generation-operations` response must implement and truthfully return this capability contract:
+The owner-only `GET /api/generation-operations` response now returns this capability contract only when the exact runtime has a valid explicit evaluation approval:
 
 ```json
 {
@@ -34,11 +34,11 @@ Before a future approved live run, the owner-only `GET /api/generation-operation
 }
 ```
 
-The zero above is deliberately non-runnable. The advertised enforced ceiling must exactly equal the operator-approved per-operation ceiling; a larger server ceiling cannot justify the smaller client reservation. The implemented backend must enforce a reviewed positive ceiling across the **whole operation, including every resumed research/generation/verifier/fallback call**, using `X-Filosage-Evaluation-Max-Cost-Micros` on start/resume. An admission estimate, a configured key, a client-side timer, or a self-attested capability value is not evidence that enforcement works. Add real service/provider-boundary cap tests before enabling this capability. Do not advertise it in production merely to satisfy the harness.
+The zero above is deliberately non-runnable. The advertised enforced ceiling must exactly equal the operator-approved per-operation ceiling; a larger server ceiling cannot justify the smaller client reservation. The implemented backend must enforce a reviewed positive ceiling across the **whole operation, including every resumed research/generation/verifier/fallback call**, using `X-Filosage-Evaluation-Max-Cost-Micros` on start/resume. An admission estimate, a configured key, a client-side timer, or a self-attested capability value is not evidence that enforcement works. The SDK transport, course route, lesson resume and preflight regression tests exercise this boundary using intercepted synthetic responses. They do not establish current provider prices or live quality. An explicit reviewed server approval remains required; production enablement is not part of this source change.
 
-R08's separate `evaluation` receipt supplies `actualCostMicros`, `uncertainCostMicros`, `remainingReserveMicros`, bounded calls with samples, and runtime configuration/profiles. The adapter retains model, prompt, token/cache and profile metadata; it excludes provider prompts, authentication credentials and raw error payloads. The application's `actualCostMicros` is its token/pricing estimate, **not a provider invoice**. Pricing and search-cost coverage must be reviewed for the selected models; unknown cost halts execution. No Astra price is invented.
+R08's separate `evaluation` receipt supplies `actualCostMicros`, `uncertainCostMicros`, `enforcedOperationCeilingMicros`, reconciliation status, bounded calls with samples, and runtime configuration/profiles. The adapter retains model, prompt, token/cache and profile metadata; it excludes provider prompts, authentication credentials and raw error payloads. The evaluation receipt's `actualCostMicros` uses the explicit approved token, tool and moderation tariff, **not a provider invoice**. Pricing and search-cost coverage must be reviewed for the selected models; unknown cost halts execution. No Astra price is invented.
 
-## Approved operator setup, once the backend gate exists
+## Approved operator setup
 
 Use `--help` for the required explicit arguments. A run needs:
 

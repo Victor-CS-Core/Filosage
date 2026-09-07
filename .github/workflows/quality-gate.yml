@@ -38,6 +38,7 @@ jobs:
       - run: npm run test:eval-harness
       - run: npm run test:evaluation-budget
       - run: npm run test:lesson-integrity
+      - run: npm run test:lesson-operations
       - run: npm run test:billing
       - run: npx tsc --noEmit --incremental false
       - run: npm audit --omit=dev --audit-level=high

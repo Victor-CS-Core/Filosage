@@ -1,6 +1,6 @@
 # Model evaluation budget boundary
 
-This module is a source-level transport guard. It is not an enabled provider evaluation, a price recommendation, or proof that the complete evaluation HTTP contract is implemented. Course/lesson route composition, durable lesson stages, capability registration and end-to-end acceptance remain required before advertising the capability.
+The transport guard is integrated with course and durable lesson routes and the owner-only evaluation capability response. Synthetic SDK, route and preflight regressions verify admission and replay behavior. This is not an enabled provider evaluation or verified current pricing. Full-course acceptance and the explicit provider/context-bound review below remain required before a live run.
 
 An evaluation request must supply the evaluation flag, exact build SHA, profile and operation ceiling. `FILOSAGE_MODEL_EVALUATION_APPROVAL` must contain a strict version-1 approval for one owner, unexpired build/profile, immutable course and lesson configuration fingerprints, explicit model tariffs and bounds, moderation tariff, and rate version. There are no default prices or approvals. `SITE_VERSION` must equal the approved SHA. Test values are synthetic and must never be used as real approval.
 

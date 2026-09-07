@@ -11,6 +11,7 @@ import { deferClientTask } from "@/lib/browser-compat";
 export function useLearnerState() {
   const { user, account, loading: authLoading } = useAuth();
   const uid = user?.uid ?? null;
+  const privateDataBlocked = authLoading || !account || account.legalAcceptanceRequired || account.identityLinkRequired;
   const session = useMemo(() => ({ ...learnerSessionSnapshot(uid), accountGeneration: user?.accountGeneration }), [uid, user?.accountGeneration]);
   const [state, setState] = useState<LearnerState>(EMPTY_LEARNER_STATE);
   const [ready, setReady] = useState(false);
@@ -32,7 +33,7 @@ export function useLearnerState() {
       if (!current()) return;
       stateRef.current = local;
       setState(local); setReady(true); setLoadStatus("loading"); setSyncError(null);
-      if (!user || account?.legalAcceptanceRequired) return;
+      if (!user || privateDataBlocked) return;
       void (async () => {
         try {
           if (!deviceSaved.current) {
@@ -63,10 +64,10 @@ export function useLearnerState() {
       })();
     });
     return () => { cancelled = true; controller.abort(); };
-  }, [account?.legalAcceptanceRequired, attempt, authLoading, session, uid, user]);
+  }, [privateDataBlocked, attempt, authLoading, session, uid, user]);
 
   const update = useCallback((recipe: (current: LearnerState) => LearnerState) => {
-    if (!user || session.uid !== user.uid || !isCurrentLearnerSession(session) || account?.legalAcceptanceRequired) return;
+    if (privateDataBlocked || !user || session.uid !== user.uid || !isCurrentLearnerSession(session)) return;
     const previous = stateRef.current;
     const next = { ...recipe(previous), updatedAt: new Date().toISOString() };
     stateRef.current = next; setState(next);
@@ -85,7 +86,7 @@ export function useLearnerState() {
       setSyncStatus("error");
       setSyncError("Your latest learning changes are saved on this device but have not synced yet. Try again.");
     });
-  }, [account?.legalAcceptanceRequired, session, uid, user]);
+  }, [privateDataBlocked, session, uid, user]);
 
   const visible = session.uid === uid && isCurrentLearnerSession(session);
   return { state: visible ? state : EMPTY_LEARNER_STATE, update, ready: visible && ready, syncStatus, syncError, loadStatus, retry };

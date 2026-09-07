@@ -36,7 +36,8 @@
     "migrate:azure:import-courses": "node --experimental-strip-types scripts/import-azure-authored-courses.ts",
     "migrate:azure:verify-courses": "node --experimental-strip-types scripts/verify-azure-authored-courses.ts",
     "test:evaluation-budget": "node --conditions=react-server --import tsx --test --test-concurrency=1 --test-reporter=tap tests/evaluation-budget/*.test.ts",
-    "test:lesson-integrity": "node --conditions=react-server --import tsx --experimental-test-module-mocks --test --test-concurrency=1 --test-reporter=tap tests/lesson-integrity/*.test.ts"
+    "test:lesson-integrity": "node --conditions=react-server --import tsx --experimental-test-module-mocks --test --test-concurrency=1 --test-reporter=tap tests/lesson-integrity/*.test.ts",
+    "test:lesson-operations": "node --conditions=react-server --import tsx --experimental-test-module-mocks --test --test-concurrency=1 --test-reporter=tap tests/lesson-operations/*.test.ts"
   },
   "dependencies": {
     "@azure/identity": "^4.13.1",

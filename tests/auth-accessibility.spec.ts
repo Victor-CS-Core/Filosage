@@ -267,7 +267,11 @@ for (const initialSetup of [true, false]) {
     await page.route("**/api/account", (route) => route.fulfill({ json: {
       ...exactLearnerAccount(), applicationAccountExists: !initialSetup, legalAcceptanceRequired: true,
     } }));
-    await page.route("**/api/courses?*", (route) => route.fulfill({ json: { courses: [] } }));
+    const prematureReads: string[] = [];
+    await page.route(/\/api\/(progress|learner-state|courses)(\?|$)/, (route) => {
+      prematureReads.push(new URL(route.request().url()).pathname);
+      return route.fulfill({ status: 401, json: { error: "Complete legal acceptance first." } });
+    });
     let acceptanceRequests = 0;
     await page.route("**/api/legal/acceptance", (route) => {
       acceptanceRequests += 1;
@@ -304,6 +308,7 @@ for (const initialSetup of [true, false]) {
     await dialog.getByRole("button", { name: "Accept and continue" }).click();
     await expect(dialog.getByRole("alert")).toHaveText("Your acceptance could not be saved. Check your connection and try again.");
     expect(acceptanceRequests).toBe(1);
+    expect(prematureReads).toEqual([]);
     const leave = dialog.getByRole("button", { name: "Sign out", exact: true });
     await leave.scrollIntoViewIfNeeded(); await expect(leave).toBeVisible(); await leave.focus(); await expect(leave).toBeFocused();
     expect(await dialog.evaluate((node) => node.scrollWidth <= node.clientWidth)).toBe(true);
@@ -312,5 +317,50 @@ for (const initialSetup of [true, false]) {
     await expect(page).toHaveURL(/\/terms$/);
     await expect(dialog).toHaveCount(0);
     await expect(page.locator("body")).not.toHaveCSS("overflow", "hidden");
+  });
+}
+
+
+for (const gate of ["legal", "identity"] as const) {
+  test(`account switch waits for ${gate} readiness before private reads`, { tag: ["@smoke", "@mobile", "@webkit"] }, async ({ page }) => {
+    let uid = "ready-account-A";
+    let accountRequested = false;
+    let releaseAccount!: () => void;
+    const pendingAccount = new Promise<void>((resolve) => { releaseAccount = resolve; });
+    const prematureReads: string[] = [];
+    await page.route("**/api/auth/session", (route) => route.fulfill({ json: {
+      ...signedOutManagedSession, recentAuthentication: true,
+      user: { uid, displayName: uid, email: `${uid.toLowerCase()}@example.com`, photoURL: null, authenticationProvider: "filosage" },
+    } }));
+    await page.route("**/api/account", async (route) => {
+      if (uid === "ready-account-A") return route.fulfill({ json: exactLearnerAccount({ displayName: uid }) });
+      accountRequested = true;
+      await pendingAccount;
+      return route.fulfill({ json: gate === "legal"
+        ? { ...exactLearnerAccount(), legalAcceptanceRequired: true }
+        : linkRequiredAccount });
+    });
+    await page.route(/\/api\/(progress|learner-state|courses)(\?|$)/, (route) => {
+      if (route.request().headers()["x-filosage-expected-uid"] === "blocked-account-B"
+        || route.request().headers().authorization?.includes("blocked-account-B")) {
+        prematureReads.push(new URL(route.request().url()).pathname);
+        return route.fulfill({ status: 401, json: { error: "Resolve the new account first." } });
+      }
+      return route.fulfill({ json: { ...EMPTY_LEARNER_STATE, progress: [], courses: [] } });
+    });
+    await page.goto("/profile");
+    await expect(page.getByRole("heading", { name: "ready-account-A", exact: true })).toBeVisible();
+    uid = "blocked-account-B";
+    await page.evaluate(() => window.dispatchEvent(new StorageEvent("storage", {
+      key: "filosage:learner-session-change:v1", newValue: "refresh:blocked-account-B:test",
+    })));
+    await expect.poll(() => accountRequested).toBe(true);
+    // Wait through a render turn while the new account DTO is unresolved.
+    await page.evaluate(() => new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))));
+    expect(prematureReads).toEqual([]);
+    releaseAccount();
+    const dialog = page.getByRole("dialog", { name: gate === "legal" ? "Review before continuing" : "Confirm your existing sign-in" });
+    await expect(dialog).toBeVisible();
+    expect(prematureReads).toEqual([]);
   });
 }

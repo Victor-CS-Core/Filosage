@@ -1,3 +1,5 @@
+> Historical subsystem report. Current integration and remaining gates: [September 7 generation recovery](2026-09-07-generation-recovery.md). Later lesson/budget integration supersedes the exclusions below.
+
 # R08 generation durability — implementation report
 
 Status: local implementation and focused tests complete; awaiting parent integration/review and candidate PostgreSQL/hosted gates. Branch `codex/r08-generation-durability`, requested base `9e1206685718084b3a8df02da0eb6799faf576b8`. Root alone pushes. No subagents, paid provider calls, Azure changes, deployment, production mutation, billing activation or secret administration.

@@ -8,8 +8,6 @@ import AppShell from "@/components/AppShell";
 import AccountEntryButton, { useAccountEntryMode } from "@/components/AccountEntryButton";
 import { useAuth } from "@/components/AuthProvider";
 import type { CourseProgress } from "@/lib/learning-types";
-import { listLocalProgress } from "@/lib/learning-progress";
-import { removeDeletedLocalCourses } from "@/lib/local-course-data";
 import { reviewKindLabel } from "@/lib/adaptive-learning";
 import { buildPrerequisiteSafeReviewQueue } from "@/lib/review-readiness";
 import { trackProductEvent } from "@/lib/product-analytics";
@@ -35,14 +33,15 @@ export default function ReviewPage() {
   const [loadAttempt, setLoadAttempt] = useState(0);
   const [now] = useState(() => Date.now());
 
+  const privateDataBlocked = authLoading || Boolean(user && !account) || account?.legalAcceptanceRequired || account?.identityLinkRequired;
   useEffect(() => {
-    if (authLoading) return;
+    if (privateDataBlocked) return;
     let cancelled = false;
     const controller = new AbortController();
     const timeout = window.setTimeout(() => controller.abort(), 8000);
     const load = async (): Promise<CourseProgress[]> => {
-      // Reviews work without an account: device progress carries the schedule.
-      if (!user) return removeDeletedLocalCourses(listLocalProgress());
+      // Device progress belongs to its canonical account, never to a guest.
+      if (!user) return [];
       const token = await user.getIdToken();
       const response = await fetch("/api/progress", {
         headers: { Authorization: `Bearer ${token}` },
@@ -69,7 +68,7 @@ export default function ReviewPage() {
       window.clearTimeout(timeout);
       controller.abort();
     };
-  }, [authLoading, loadAttempt, user]);
+  }, [privateDataBlocked, loadAttempt, user]);
 
   const allLessons = useMemo(() => progress.flatMap((course) => Object.values(course.lessons).map((lesson) => ({
     ...lesson,
@@ -180,9 +179,9 @@ export default function ReviewPage() {
           </section>
         )}
 
-        {!user && allLessons.length > 0 && (
+        {!user && (
           <div className="review-sync-hint">
-            <p>{entryMode === "create" ? "Your review schedule lives on this device. Create an account to keep it across devices." : entryMode === "sign-in" ? "Your review schedule lives on this device. Sign in to sync it with your existing account." : "Your review schedule remains on this device while sign-in is unavailable."}</p>
+            <p>{entryMode === "create" ? "Create an account to keep your learning and review schedule across devices." : entryMode === "sign-in" ? "Sign in to see your existing account’s review schedule." : "Your account’s review schedule will be available when sign-in returns."}</p>
             <AccountEntryButton className="text-button" />
           </div>
         )}

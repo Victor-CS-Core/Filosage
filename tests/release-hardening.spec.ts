@@ -356,7 +356,7 @@ test("the required quality gate runs a bounded Chromium smoke suite while exhaus
   expect(smokeRunner).toContain('"--grep=@smoke"');
   const smokeTests = discoverBrowserTests("chromium", smokePlan.batchesByProject.chromium.flat());
   expect(smokeTests).toBeGreaterThanOrEqual(14);
-  expect(smokeTests).toBeLessThanOrEqual(35);
+  expect(smokeTests).toBeLessThanOrEqual(37);
   expect(qualityWorkflow).toContain("needs: static-and-release-contracts");
   expect(qualityWorkflow).toContain("npm run test:api -- --output=test-results/api --reporter=line,blob");
   expect(qualityWorkflow).toContain("run: npm run test:browser:smoke");
@@ -382,8 +382,8 @@ test("mobile projects execute only explicitly owned cross-device behavior", () =
   expect(mobileChromium).toBeLessThanOrEqual(35);
   expect(mobileWebkit).toBeGreaterThan(0);
   expect(mobileWebkit).toBeLessThanOrEqual(40);
-  // Three learner recovery cases plus two legal cases on each of three projects.
-  expect(chromium + mobileChromium + mobileWebkit).toBeLessThanOrEqual(374);
+  // Includes three learner recovery cases and four legal/account-readiness cases on each applicable project.
+  expect(chromium + mobileChromium + mobileWebkit).toBeLessThanOrEqual(380);
 });
 
 test("release workflows accept only exact successful workflow evidence", () => {

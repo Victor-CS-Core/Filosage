@@ -67,7 +67,7 @@ import { evaluateBillingConfiguration } from "../src/lib/billing-lock";
 import { runWithModelFallback, safeModelErrorDetails } from "../src/lib/model-fallback";
 import { buildModerationInputs, MAX_MODERATION_BATCH_CHARACTERS } from "../src/lib/moderation-inputs";
 import { PRIVACY_VERSION, TERMS_VERSION } from "../src/lib/legal";
-import { restoreLocalLearner } from "./fixtures/local-learner";
+import { exactLearnerAccount, restoreLocalLearner } from "./fixtures/local-learner";
 
 async function sourceFiles(directory: string): Promise<string[]> {
   const entries = await readdir(directory, { withFileTypes: true });
@@ -921,6 +921,13 @@ test("lets guests browse outlines while clearly gating lessons behind an account
 });
 
 test("keeps same-email recovery blocking and focus-contained", { tag: ["@mobile", "@webkit"] }, async ({ page }) => {
+  const prematureReads: string[] = [];
+  for (const path of ["/api/learner-state", "/api/progress", "/api/courses?scope=mine"]) {
+    await page.route(`**${path}`, (route) => {
+      prematureReads.push(path);
+      return route.fulfill({ status: 401, json: { error: "Complete identity recovery first." } });
+    });
+  }
   await page.route("**/api/auth/session", (route) => route.fulfill({
     status: 200,
     json: {
@@ -984,6 +991,7 @@ test("keeps same-email recovery blocking and focus-contained", { tag: ["@mobile"
   await page.keyboard.press("Tab");
   await expect(dialog.getByRole("button", { name: "Sign out and choose another method" })).toBeFocused();
   expect(await page.evaluate(() => document.activeElement?.closest('[role="dialog"]') !== null)).toBe(true);
+  expect(prematureReads).toEqual([]);
 });
 
 test("publishes clear legal documents", { tag: "@webkit" }, async ({ context }) => {
@@ -2221,9 +2229,14 @@ test("resets lesson-scoped content, reporting, and progression state on next-les
 
 test("purges every local artifact when a deleted course is encountered", async ({ page }) => {
   const courseId = "delete-cleanup-demo";
+  await restoreLocalLearner(page);
+  await page.route("**/api/account", (route) => route.fulfill({ json: exactLearnerAccount() }));
+  await page.route("**/api/courses?scope=mine", (route) => route.fulfill({ json: { courses: [] } }));
+  await page.route("**/api/learner-state", (route) => route.fulfill({ status: 503, json: { error: "Sync temporarily unavailable." } }));
+  await page.route("**/api/mastery**", (route) => route.fulfill({ status: 503, json: { error: "Sync temporarily unavailable." } }));
   await page.addInitScript((deletedCourseId) => {
     const now = "2026-07-28T12:00:00.000Z";
-    localStorage.setItem("filosage-learning-state-v2", JSON.stringify({
+    localStorage.setItem("filosage:learner:v1:local-owner:progress:all", JSON.stringify({
       [deletedCourseId]: {
         courseId: deletedCourseId,
         topic: "Obsolete course",
@@ -2243,14 +2256,14 @@ test("purges every local artifact when a deleted course is encountered", async (
         startedAt: now,
       },
     }));
-    localStorage.setItem("filosage-learner-state-v1", JSON.stringify({
+    localStorage.setItem("filosage:learner:v1:local-owner:learner-state:all", JSON.stringify({
       courseBookmarks: [deletedCourseId, "keep-course"],
       lessonBookmarks: [`${deletedCourseId}:0-0`, "keep-course:0-0"],
       notes: { [`${deletedCourseId}:0-0`]: "delete", "keep-course:0-0": "keep" },
       noteUpdatedAt: { [`${deletedCourseId}:0-0`]: now, "keep-course:0-0": now },
       weeklyLessonGoal: 5,
     }));
-    localStorage.setItem(`filosage-mastery-v1:${deletedCourseId}`, JSON.stringify({
+    localStorage.setItem(`filosage:learner:v1:local-owner:mastery:${deletedCourseId}`, JSON.stringify({
       plan: {
         courseId: deletedCourseId,
         courseTopic: "Obsolete course",
@@ -2272,7 +2285,7 @@ test("purges every local artifact when a deleted course is encountered", async (
       },
       evidence: [{ courseId: deletedCourseId }],
     }));
-    localStorage.setItem(`filosage:outcome-feedback:${deletedCourseId}`, "sent");
+    localStorage.setItem(`filosage:learner:v1:local-owner:outcome-feedback:${deletedCourseId}`, "sent");
   }, courseId);
   await page.route(`**/api/courses/${courseId}`, (route) =>
     route.fulfill({ status: 404, json: { error: "Course not found." } }));
@@ -2280,11 +2293,12 @@ test("purges every local artifact when a deleted course is encountered", async (
   await page.goto(`/course/Obsolete%20course?id=${courseId}`);
   await expect(page.getByText("Course unavailable")).toBeVisible();
 
+  await expect.poll(() => page.evaluate(() => Object.keys(JSON.parse(localStorage.getItem("filosage:learner:v1:local-owner:progress:all") ?? "{}")))).toEqual(["keep-course"]);
   const remaining = await page.evaluate((deletedCourseId) => ({
-    progress: JSON.parse(localStorage.getItem("filosage-learning-state-v2") ?? "{}"),
-    learnerState: JSON.parse(localStorage.getItem("filosage-learner-state-v1") ?? "{}"),
-    mastery: localStorage.getItem(`filosage-mastery-v1:${deletedCourseId}`),
-    feedback: localStorage.getItem(`filosage:outcome-feedback:${deletedCourseId}`),
+    progress: JSON.parse(localStorage.getItem("filosage:learner:v1:local-owner:progress:all") ?? "{}"),
+    learnerState: JSON.parse(localStorage.getItem("filosage:learner:v1:local-owner:learner-state:all") ?? "{}"),
+    mastery: localStorage.getItem(`filosage:learner:v1:local-owner:mastery:${deletedCourseId}`),
+    feedback: localStorage.getItem(`filosage:learner:v1:local-owner:outcome-feedback:${deletedCourseId}`),
   }), courseId);
   expect(Object.keys(remaining.progress)).toEqual(["keep-course"]);
   expect(remaining.learnerState.courseBookmarks).toEqual(["keep-course"]);
@@ -2294,7 +2308,7 @@ test("purges every local artifact when a deleted course is encountered", async (
   expect(remaining.feedback).toBeNull();
 });
 
-test("removes deleted courses from the anonymous review schedule", async ({ page }) => {
+test("keeps unowned legacy review records private while signed out", async ({ page }) => {
   await page.addInitScript(() => {
     const past = "2026-07-01T12:00:00.000Z";
     const progress = (courseId: string, topic: string, lessonTitle: string) => ({
@@ -2333,8 +2347,9 @@ test("removes deleted courses from the anonymous review schedule", async ({ page
       evidence: [{ courseId: "deleted-course" }],
     }));
   });
+  let courseReads = 0;
   await page.route("**/api/courses/deleted-course", (route) =>
-    route.fulfill({ status: 404, json: { error: "Course not found." } }));
+    { courseReads += 1; return route.fulfill({ status: 404, json: { error: "Course not found." } }); });
   await page.route("**/api/courses/active-course", (route) =>
     route.fulfill({ json: {
       id: "active-course",
@@ -2345,14 +2360,16 @@ test("removes deleted courses from the anonymous review schedule", async ({ page
     } }));
 
   await page.goto("/review");
-  await expect(page.getByText("Current lesson")).toBeVisible();
+  await expect(page.getByRole("heading", { name: "You are caught up for today." })).toBeVisible();
+  await expect(page.getByText("Current lesson")).toHaveCount(0);
   await expect(page.getByText("Stale lesson")).toHaveCount(0);
   const localState = await page.evaluate(() => ({
     progress: JSON.parse(localStorage.getItem("filosage-learning-state-v2") ?? "{}"),
     mastery: localStorage.getItem("filosage-mastery-v1:deleted-course"),
   }));
-  expect(Object.keys(localState.progress)).toEqual(["active-course"]);
-  expect(localState.mastery).toBeNull();
+  expect(Object.keys(localState.progress)).toEqual(["deleted-course", "active-course"]);
+  expect(JSON.parse(localState.mastery ?? "null")).toMatchObject({ plan: { courseId: "deleted-course" } });
+  expect(courseReads).toBe(0);
 });
 
 test("derives mastery only from observed evidence strength", () => {
@@ -2537,9 +2554,13 @@ test("shows lesson provenance and submits a content report", async ({ page }) =>
 
 test("collects pathway usefulness only after the course has evidence", async ({ page }) => {
   let feedback: Record<string, unknown> | null = null;
-  await page.addInitScript(() => {
+  await restoreLocalLearner(page);
+  await page.route("**/api/account", (route) => route.fulfill({ json: exactLearnerAccount() }));
+  await page.route("**/api/courses?scope=mine", (route) => route.fulfill({ json: { courses: [] } }));
+  await page.route("**/api/progress?courseId=outcome-demo", (route) => route.fulfill({ json: { progress: null } }));
+  await page.route("**/api/mastery?courseId=outcome-demo", (route) => {
     const observedAt = "2026-07-28T12:00:00.000Z";
-    localStorage.setItem("filosage-mastery-v1:outcome-demo", JSON.stringify({
+    return route.fulfill({ json: {
       plan: {
         courseId: "outcome-demo",
         courseTopic: "Systems thinking",
@@ -2560,7 +2581,7 @@ test("collects pathway usefulness only after the course has evidence", async ({ 
         { id: "lesson_evidence_0001", courseId: "outcome-demo", objectiveId: "module-0", type: "lesson", result: "passed", label: "Feedback complete", lessonId: "0-0", observedAt },
         { id: "lesson_evidence_0002", courseId: "outcome-demo", objectiveId: "module-1", type: "lesson", result: "passed", label: "Intervention complete", lessonId: "1-0", observedAt },
       ],
-    }));
+    } });
   });
   await page.route("**/api/courses/outcome-demo", (route) => route.fulfill({ json: {
     id: "outcome-demo",

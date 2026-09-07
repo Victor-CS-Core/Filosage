@@ -1,4 +1,5 @@
 import { readFileSync } from "node:fs";
+import { spawnSync } from "node:child_process";
 import { resolve } from "node:path";
 import { expect, test } from "@playwright/test";
 import { restoreLocalLearner } from "./fixtures/local-learner";
@@ -31,7 +32,6 @@ test("recommended deck sizes stay bounded by study scope", () => {
 test("local sample configuration stays fail-closed while generation accounting stays retry-safe", () => {
   const environment = source(".env.example");
   const route = source("src/app/api/flashcards/generate/route.ts");
-  const usage = source("src/lib/ai-usage.ts");
   const server = source("src/lib/flashcards-server.ts");
   const page = source("src/app/review/flashcards/page.tsx");
   expect(environment).toContain("FLASHCARD_DECKS_ENABLED=false");
@@ -40,10 +40,19 @@ test("local sample configuration stays fail-closed while generation accounting s
   expect(route).toContain('"flashcard_generation"');
   expect(route).toContain("allowCompletedReplay: true");
   expect(route).toContain("failed: true");
-  expect(usage).toContain("A failed generation has no completed metered product event.");
   expect(server.match(/await assertFlashcardDeckCapacity\(/g)).toHaveLength(2);
   expect(server).toContain("deletes: removed.flatMap");
   expect(page).toContain('redirect("/review")');
+});
+
+test("flashcard failure refunds the metered event while observed cost and completed replay settle once", () => {
+  const result = spawnSync(process.execPath, ["--conditions=react-server", "--import", "tsx", "--test", "--test-reporter=tap", "tests/fixtures/flashcard-usage-behavior.ts"], {
+    cwd: process.cwd(), encoding: "utf8", timeout: 30_000,
+    env: { ...process.env, NODE_ENV: "test", DATABASE_URL: "" },
+  });
+  expect(result.status, `${result.stdout}\n${result.stderr}`).toBe(0);
+  expect(result.stdout).toContain("# fail 0");
+  expect(result.stdout).toContain("# pass 2");
 });
 
 test("quality gate rejects arbitrary cues, duplicates, leaked answers, and invented sources", () => {

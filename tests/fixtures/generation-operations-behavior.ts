@@ -134,6 +134,28 @@ test("recovery is allowed when the reserved credit was the final available credi
   assert.equal((await getStoredDocument(path))?.balance, 1);
 });
 
+test("exhausted course credits remain actionable during minute throttling without weakening the throttle", async () => {
+  const actor: ServerAccount = { ...paid, uid: "plus-exhausted-throttle", plan: "plus", access: "plus" };
+  const now = new Date("9405-01-01T12:00:00.000Z");
+  const first = await begin("plus-throttle-first", actor, { topic: "Evidence" }, now);
+  await finishGenerationOperation(first, { failed: true }, now);
+  const creditPath = `users/${actor.uid}/courseCredits/current`;
+  const periodPath = first.operation.accounting.periodPath;
+  const credit = await getStoredDocument(creditPath);
+  const period = await getStoredDocument(periodPath);
+  await putStoredDocument(creditPath, { ...credit, balance: 0 });
+  await putStoredDocument(periodPath, { ...period, minuteKey: now.toISOString().slice(0, 16), minuteCount: first.operation.accounting.maxPerMinute });
+  const exhausted = await getStoredDocument(creditPath);
+  const throttled = await getStoredDocument(periodPath);
+  await assert.rejects(begin("plus-throttle-empty", actor, { topic: "Evidence" }, now), (error: unknown) => (error as { code?: string }).code === "COURSE_CREDITS_EXHAUSTED");
+  assert.deepEqual(await getStoredDocument(creditPath), exhausted);
+  assert.deepEqual(await getStoredDocument(periodPath), throttled);
+  await putStoredDocument(creditPath, { ...credit, balance: 2 });
+  await assert.rejects(begin("plus-throttle-funded", actor, { topic: "Evidence" }, now), (error: unknown) => (error as { code?: string }).code === "RATE_LIMITED");
+  assert.equal((await getStoredDocument(creditPath))?.balance, 2);
+  assert.deepEqual(await getStoredDocument(periodPath), throttled);
+});
+
 test("provider failure is ambiguous and cannot issue the same paid call again", async () => {
   const lease = await begin("timeout");
   let calls = 0;

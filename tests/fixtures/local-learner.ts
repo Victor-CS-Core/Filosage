@@ -1,4 +1,4 @@
-import { expect, type Page } from "@playwright/test";
+import { expect, type APIRequestContext, type Page } from "@playwright/test";
 import { PRIVACY_VERSION, TERMS_VERSION } from "../../src/lib/legal";
 import { MEMBERSHIP_PLANS } from "../../src/lib/membership-plans";
 
@@ -71,10 +71,19 @@ export function exactLearnerAccount(options: MockLearnerAccountOptions = {}) {
   };
 }
 
-export async function restoreLocalLearner(page: Page) {
-  const acceptance = await page.request.post("/api/legal/acceptance", {
+export async function ensureLocalLearnerAccepted(request: APIRequestContext) {
+  const headers = { Authorization: "Bearer playwright-local-owner" };
+  const response = await request.get("/api/account", { headers });
+  expect(response.ok(), "The local learner account must be readable before setup.").toBe(true);
+  const account = await response.json();
+  if (account.legalAcceptanceRequired === false
+    && account.identityLinkRequired === false
+    && account.acceptedTermsVersion === TERMS_VERSION
+    && account.acceptedPrivacyVersion === PRIVACY_VERSION) return;
+
+  const acceptance = await request.post("/api/legal/acceptance", {
     maxRetries: 1,
-    headers: { Authorization: "Bearer playwright-local-owner" },
+    headers,
     data: {
       termsVersion: TERMS_VERSION,
       privacyVersion: PRIVACY_VERSION,
@@ -83,6 +92,18 @@ export async function restoreLocalLearner(page: Page) {
     },
   });
   expect(acceptance.ok()).toBe(true);
+  const acceptedAccount = await request.get("/api/account", { headers });
+  expect(acceptedAccount.ok()).toBe(true);
+  expect(await acceptedAccount.json()).toMatchObject({
+    legalAcceptanceRequired: false,
+    identityLinkRequired: false,
+    acceptedTermsVersion: TERMS_VERSION,
+    acceptedPrivacyVersion: PRIVACY_VERSION,
+  });
+}
+
+export async function restoreLocalLearner(page: Page) {
+  await ensureLocalLearnerAccepted(page.request);
   await page.addInitScript(() => {
     const bootstrapKey = "filosage-playwright-session-bootstrapped";
     if (sessionStorage.getItem(bootstrapKey)) return;

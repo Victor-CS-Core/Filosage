@@ -21,8 +21,9 @@ for (const owner of [false, true]) for (const v2 of [false, true]) {
       const scope = await captureAccountGeneration(uid);
       const owned = <T>(work: () => T) => runWithAccountGeneration(scope, work);
       const account: ServerAccount = { uid, plan: "pro", isOwner: owner, access: owner ? "owner" : "pro", accountStatus: "active", subscriptionStatus: "active" };
-      // A unique far-future accounting month keeps cleanup away from other tests' shared pool shards.
-      const future = Date.UTC(10_000 + Math.floor(Math.random() * 100_000), 1, 1);
+      // Distinct four-digit years isolate cohort accounting while preserving ISO
+      // minute keys. Extended years shift the minute substring and hide clock advances.
+      const future = Date.UTC(9400 + (owner ? 2 : 0) + (v2 ? 1 : 0), 1, 1);
       let sequence = 0;
       async function setup() {
         const id = `${uid}-${++sequence}`;

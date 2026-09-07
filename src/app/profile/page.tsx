@@ -46,8 +46,9 @@ export default function ProfilePage() {
     refreshAccount,
   } = useAuth();
   const { state, update, syncStatus, syncError, loadStatus, retry } = useLearnerState();
-  const progressSource = useLearnerSource(user, "/api/progress", emptyProgress);
-  const authoredSource = useLearnerSource(user, "/api/courses?scope=mine", emptyCourses);
+  const privateDataBlocked = authLoading || !account || account.legalAcceptanceRequired || account?.identityLinkRequired;
+  const progressSource = useLearnerSource(user, privateDataBlocked ? null : "/api/progress", emptyProgress);
+  const authoredSource = useLearnerSource(user, privateDataBlocked ? null : "/api/courses?scope=mine", emptyCourses);
   const progress = progressSource.data?.progress ?? [];
   const authoredCourses = authoredSource.data?.courses ?? [];
   const loaded = progressSource.data !== undefined && authoredSource.data !== undefined;

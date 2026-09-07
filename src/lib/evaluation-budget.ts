@@ -2,6 +2,9 @@ import "server-only";
 import { AsyncLocalStorage } from "node:async_hooks";
 import { randomUUID } from "node:crypto";
 import { z } from "zod";
+import { EvaluationBudgetError } from "@/lib/evaluation-errors";
+export { EvaluationBudgetError, evaluationBudgetErrorFrom, isEvaluationPreDispatchError } from "@/lib/evaluation-errors";
+import type { AiUsageSample } from "@/lib/ai-pricing";
 import type { ServerAccount } from "@/lib/account-server";
 import { currentAccountGeneration, runWithGlobalUsageAccounting } from "@/lib/account-lifecycle";
 import { getStoredDocument, runStoredDocumentTransaction } from "@/lib/document-store";
@@ -33,18 +36,7 @@ type Call = { attemptToken: string; callId: string; requestFingerprint: string; 
 type Ledger = Json & { approvalId: string; configurationFingerprint: string; operationCeilingMicros: number; actualCostMicros: number; reconciliationRequired: boolean; calls: Record<string, Call> };
 const context = new AsyncLocalStorage<Context | undefined>();
 const callContext = new AsyncLocalStorage<EvaluationCallMetadata>();
-export class EvaluationBudgetError extends Error {
-  readonly status = 409;
-  constructor(readonly code: string, readonly preDispatch = true) { super(`${code}: evaluation requires its approved configuration, sufficient reserved budget and reconciled provider evidence.`); }
-}
 const reject = (code = "EVALUATION_APPROVAL_REQUIRED"): never => { throw new EvaluationBudgetError(code); };
-export function evaluationBudgetErrorFrom(error: unknown): EvaluationBudgetError | undefined {
-  for (let i = 0; i < 8 && error; i++) {
-    if (error instanceof EvaluationBudgetError) return error;
-    error = typeof error === "object" ? (error as { cause?: unknown }).cause : undefined;
-  }
-}
-export function isEvaluationPreDispatchError(error: unknown) { return evaluationBudgetErrorFrom(error)?.preDispatch === true; }
 function readApproval(headers: Headers) {
   let approval: Approval;
   try { approval = approvalSchema.parse(JSON.parse(process.env.FILOSAGE_MODEL_EVALUATION_APPROVAL ?? "")); }
@@ -73,34 +65,37 @@ function assertConfiguration(configuration: Json, approval: Approval, kind: "cou
     if (typeof profile.id !== "string" || typeof profile.promptVersion !== "string" || typeof profile.model !== "string" || !approval.models[profile.model]) return reject("EVALUATION_CONFIGURATION_CHANGED");
   }
 }
-function assertOperation(operation: Json | null, scope: Context) {
+function assertOperation(operation: Json | null, scope: Context, active = true) {
   const actor = currentAccountGeneration();
   if (!actor || actor.uid !== scope.approval.uid || !operation || operation.uid !== actor.uid || operation.accountGeneration !== actor.generation) return reject("EVALUATION_OWNER_REQUIRED");
   if (operation.kind !== undefined && operation.kind !== "course" && operation.kind !== "lesson") return reject("EVALUATION_CONFIGURATION_CHANGED");
-  if (operation.status !== "running" || typeof operation.leaseUntil !== "string"
-    || !Number.isFinite(Date.parse(operation.leaseUntil)) || Date.parse(operation.leaseUntil) <= Date.now()) return reject("EVALUATION_OPERATION_REQUIRED");
+  if (active && (operation.status !== "running" || typeof operation.leaseUntil !== "string"
+    || !Number.isFinite(Date.parse(operation.leaseUntil)) || Date.parse(operation.leaseUntil) <= Date.now())) return reject("EVALUATION_OPERATION_REQUIRED");
   const configuration = operation.configuration as Json;
   if (!configuration || typeof configuration !== "object") return reject("EVALUATION_CONFIGURATION_CHANGED");
   assertConfiguration(configuration, scope.approval, operation.kind === "lesson" ? "lesson" : "course");
   return configuration;
 }
-function assertLedger(ledger: Ledger | null, scope: Context) {
+function assertLedger(ledger: Ledger | null, scope: Context, configurationFingerprint = scope.bound?.configurationFingerprint) {
   if (!ledger || ledger.approvalId !== scope.approvalId || ledger.operationCeilingMicros !== scope.approval.operationCeilingMicros
-    || ledger.configurationFingerprint !== scope.bound?.configurationFingerprint) return reject("EVALUATION_CONFIGURATION_CHANGED");
+    || ledger.configurationFingerprint !== configurationFingerprint) return reject("EVALUATION_CONFIGURATION_CHANGED");
   return ledger;
 }
 export async function bindEvaluationOperation(account: ServerAccount, lease: GenerationLease) {
   const operationId = lease.operationId;
+  await assertEvaluationOperationRequest(account.uid, operationId);
   const scope = context.getStore();
   if (!scope) return;
   if (!account.isOwner || account.uid !== scope.approval.uid || !/^[a-f0-9]{64}$/.test(operationId)
     || (scope.bound && scope.bound.operationId !== operationId)) return reject("EVALUATION_OWNER_REQUIRED");
   const operationPath = `generationOperations/${operationId}`;
   const path = `generationUsageReceipts/${operationId}__evaluation`;
-  const configuration = await runGenerationTransaction(lease, [operationPath, path], (documents) => {
+  const configuration = await runGenerationTransaction(lease, [operationPath, path, lease.receiptPath], (documents) => {
     const configured = assertOperation(documents[operationPath], scope);
     const fingerprint = generationFingerprint(configured);
     const ledger = documents[path] as Ledger | null;
+    if (!ledger && (documents[operationPath]?.createdAt !== new Date(lease.startedAt).toISOString()
+      || Object.keys((documents[lease.receiptPath]?.calls ?? {}) as Json).length > 0)) return reject("EVALUATION_FRESH_OPERATION_REQUIRED");
     if (ledger && (ledger.approvalId !== scope.approvalId || ledger.configurationFingerprint !== fingerprint)) return reject("EVALUATION_CONFIGURATION_CHANGED");
     if (ledger && (ledger.reconciliationRequired || Object.values(ledger.calls).some((call) => call.status !== "observed" && call.attemptToken !== lease.attemptToken))) return reject("EVALUATION_RECONCILIATION_REQUIRED");
     return { writes: ledger ? [] : [{ path, data: { approvalId: scope.approvalId, configurationFingerprint: fingerprint,
@@ -123,6 +118,8 @@ export async function readEvaluationBudgetEvidence(operationId: string) {
   const operation = await getStoredDocument(`generationOperations/${operationId}`);
   if (!actor || !operation || operation.uid !== actor.uid || operation.accountGeneration !== actor.generation) return null;
   const ledger = await getStoredDocument(`generationUsageReceipts/${operationId}__evaluation`) as Ledger | null;
+  const scope = context.getStore();
+  if (scope) assertLedger(ledger, scope, generationFingerprint(assertOperation(operation, scope, false)));
   if (!ledger) return null;
   const calls = Object.values(ledger.calls);
   return { actualCostMicros: ledger.actualCostMicros, uncertainCostMicros: calls.filter((call) => call.status !== "observed").reduce((sum, call) => sum + call.upperBoundMicros, 0),
@@ -157,10 +154,11 @@ function dispatchPlan(scope: Context, input: string | URL | Request, init?: Requ
     || init?.method !== "POST" || typeof init.body !== "string") return reject("EVALUATION_UNSUPPORTED_REQUEST");
   let body: Json;
   try { body = JSON.parse(init.body) as Json; } catch { return reject("EVALUATION_UNSUPPORTED_REQUEST"); }
-  if (!body || Array.isArray(body) || !textInput(body.input)) return reject("EVALUATION_UNSUPPORTED_REQUEST");
+  if (!body || Array.isArray(body)) return reject("EVALUATION_UNSUPPORTED_REQUEST");
   const moderation = url.pathname === "/v1/moderations";
   if (moderation) {
-    if (body.model !== scope.approval.moderation.model || Buffer.byteLength(JSON.stringify(body.input)) > scope.approval.moderation.maxInputBytes
+    if (!(typeof body.input === "string" || (Array.isArray(body.input) && body.input.length > 0 && body.input.every((item) => typeof item === "string")))
+      || body.model !== scope.approval.moderation.model || Buffer.byteLength(JSON.stringify(body.input)) > scope.approval.moderation.maxInputBytes
       || Object.keys(body).some((key) => !["model", "input"].includes(key))) return reject("EVALUATION_UNSUPPORTED_REQUEST");
     return { body, moderation, kind: "moderation" as EvaluationCallKind, profile: "moderation.standard", promptVersion: "moderation-provider-v1",
       upperBoundMicros: scope.approval.moderation.requestCostMicros, maxToolCalls: 0, rate: undefined };
@@ -169,8 +167,8 @@ function dispatchPlan(scope: Context, input: string | URL | Request, init?: Requ
   const profiles = scope.bound!.configuration.profiles as Json[];
   const profile = profiles.find((candidate) => candidate.id === metadata?.profile);
   const rate = scope.approval.models[String(body.model)];
-  const allowed = ["model", "input", "instructions", "text", "reasoning", "max_output_tokens", "store", "tools", "tool_choice", "max_tool_calls", "parallel_tool_calls", "prompt_cache_key", "metadata", "temperature", "top_p", "include", "truncation", "service_tier"];
-  if (!metadata || !["generation", "research", "verifier", "fallback", "recovery"].includes(metadata.kind)
+  const allowed = ["model", "input", "instructions", "text", "reasoning", "max_output_tokens", "store", "tools", "tool_choice", "max_tool_calls", "parallel_tool_calls", "prompt_cache_key", "metadata", "temperature", "top_p", "include", "truncation", "service_tier", "safety_identifier"];
+  if (!textInput(body.input) || !metadata || !["generation", "research", "verifier", "fallback", "recovery"].includes(metadata.kind)
     || !profile || profile.model !== body.model || profile.promptVersion !== metadata.promptVersion || !rate
     || Object.keys(body).some((key) => !allowed.includes(key)) || body.store !== false
     || body.service_tier !== "default"
@@ -249,4 +247,44 @@ async function evaluationFetch(input: string | URL | Request, init?: RequestInit
 }
 export function evaluationClientOptions() {
   return { fetch: evaluationFetch, ...(context.getStore() ? { maxRetries: 0 } : {}) };
+}
+
+
+/** Apply only reviewed evaluation transport bounds; ordinary generation is unchanged. */
+export function evaluationResponseParameters<T extends { model?: string; tools?: unknown; max_tool_calls?: number | null }>(params: T): T {
+  const scope = context.getStore();
+  if (!scope) return params;
+  const rate = scope.approval.models[String(params.model)];
+  if (!rate) return reject("EVALUATION_CONFIGURATION_CHANGED");
+  return { ...params, service_tier: "default", ...(Array.isArray(params.tools) && params.tools.length
+    ? { max_tool_calls: Math.min(params.max_tool_calls ?? rate.maxToolCalls, rate.maxToolCalls) } : {}) };
+}
+
+
+/** Use the already observed approved tariff once in the ordinary durable accounting receipt. */
+export async function evaluationUsageSamples(responseId: string | undefined): Promise<AiUsageSample[] | undefined> {
+  const scope = context.getStore();
+  if (!scope) return undefined;
+  if (!scope.bound || !responseId) throw new EvaluationBudgetError("EVALUATION_RECONCILIATION_REQUIRED", false);
+  const ledger = await getStoredDocument(scope.bound.path) as Ledger | null;
+  assertLedger(ledger, scope);
+  const matches = Object.values(ledger!.calls).filter((call) => call.status === "observed" && call.samples.some((sample) => sample.responseId === responseId));
+  if (matches.length !== 1 || matches[0].samples.length !== 1) throw new EvaluationBudgetError("EVALUATION_RECONCILIATION_REQUIRED", false);
+  return [{ ...matches[0].samples[0], fixedCostMicros: matches[0].costMicros }];
+}
+
+
+/** Run before admission changes a lease: a budgeted operation cannot shed its approval. */
+export async function assertEvaluationOperationRequest(uid: string, operationId: string) {
+  if (!/^[a-f0-9]{64}$/.test(operationId)) return reject("EVALUATION_OPERATION_REQUIRED");
+  const ledger = await getStoredDocument(`generationUsageReceipts/${operationId}__evaluation`) as Ledger | null;
+  assertEvaluationOperationLedger(uid, ledger);
+}
+
+/** Recheck under the admission transaction lock, including the evaluation ledger path. */
+export function assertEvaluationOperationLedger(uid: string, ledger: Json | null) {
+  if (!ledger) return;
+  const scope = context.getStore();
+  if (!scope || scope.approval.uid !== uid) return reject("EVALUATION_APPROVAL_REQUIRED");
+  if (ledger.approvalId !== scope.approvalId || ledger.operationCeilingMicros !== scope.approval.operationCeilingMicros) return reject("EVALUATION_CONFIGURATION_CHANGED");
 }

@@ -375,6 +375,7 @@ test("@smoke a delayed validation cannot revive an earlier account session", asy
     user: { uid, displayName: uid, email: `${uid.toLowerCase()}@example.com`, photoURL: null, authenticationProvider: "filosage" },
   } }));
   await page.route("**/api/account", (route) => route.fulfill({ json: exactLearnerAccount({ isOwner: true, displayName: uid }) }));
+  await page.route("**/api/courses?scope=mine", (route) => route.fulfill({ json: { courses: [] } }));
   await page.route(`**/api/courses/${courseId}`, (route) => route.fulfill({ json: {
     id: courseId, courseId, topic: "Evidence review", mission: `Draft opened by ${uid}`,
     isPublic: false, canManage: true,

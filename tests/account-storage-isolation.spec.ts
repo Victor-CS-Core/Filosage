@@ -176,7 +176,8 @@ test("completion and evidence stay with A when B has an empty cloud and goes off
   await page.getByRole("tab", { name: /Active lesson/ }).click();
   await page.getByRole("button", { name: "Save synthesis evidence" }).click();
   await page.getByRole("tab", { name: /Transfer/ }).click();
-  await page.getByRole("button", { name: "Compare with a model response" }).click();
+  await page.getByRole("button", { name: "Compare response", exact: true }).click();
+  await expect(page.locator(".transfer-model").getByText("Model response", { exact: true })).toBeVisible();
   await page.getByRole("button", { name: "Mark learned" }).click();
   await expect(page.locator(".completion-banner.is-complete").getByText("Lesson complete", { exact: true })).toBeVisible();
   await expect.poll(() => state.writes.some((write) => write.uid === "account-A" && write.path === "/api/progress" && write.body.includes(secret))).toBe(true);

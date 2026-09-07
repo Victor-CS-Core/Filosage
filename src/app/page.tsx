@@ -99,8 +99,9 @@ export default function Home() {
   const [loadAttempt, setLoadAttempt] = useState(0);
   const [now] = useState(() => Date.now());
 
+  const privateDataBlocked = authLoading || !account || account.legalAcceptanceRequired || account.identityLinkRequired;
   useEffect(() => {
-    if (authLoading || !user) return;
+    if (!user || privateDataBlocked) return;
     let cancelled = false;
     const readJson = async (input: RequestInfo | URL, init?: RequestInit) => {
       const response = await fetch(input, init);
@@ -120,7 +121,7 @@ export default function Home() {
     }).catch(() => { if (!cancelled) setLoadError(true); })
       .finally(() => { if (!cancelled) setLoaded(true); });
     return () => { cancelled = true; };
-  }, [authLoading, loadAttempt, user]);
+  }, [privateDataBlocked, loadAttempt, user]);
 
   const deckItems = useMemo(() => buildDeckItems(progress, courses, authoredCourses), [authoredCourses, courses, progress]);
   const due = useMemo(() => buildPrerequisiteSafeReviewQueue(progress, new Date(now)), [now, progress]);

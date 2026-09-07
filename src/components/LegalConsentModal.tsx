@@ -21,7 +21,23 @@ export default function LegalConsentModal() {
     document.body.style.overflow = "hidden";
     if (!dialog.open) dialog.showModal();
     dialog.focus();
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== "Tab") return;
+      const items = Array.from(dialog.querySelectorAll<HTMLElement>(
+        "button:not([disabled]), input:not([disabled]), a[href], [tabindex]:not([tabindex='-1'])",
+      ));
+      const first = items[0];
+      const last = items[items.length - 1];
+      if (!first || !last) { event.preventDefault(); dialog.focus(); return; }
+      if (event.shiftKey && (document.activeElement === first || document.activeElement === dialog)) {
+        event.preventDefault(); last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault(); first.focus();
+      }
+    };
+    dialog.addEventListener("keydown", onKeyDown);
     return () => {
+      dialog.removeEventListener("keydown", onKeyDown);
       if (dialog.open) dialog.close();
       document.body.style.overflow = overflow;
       if (previousFocus?.isConnected) previousFocus.focus();

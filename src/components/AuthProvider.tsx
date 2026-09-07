@@ -51,6 +51,7 @@ interface AuthContextValue {
   access: AccessLevel;
   account: LearnerAccount | null;
   loading: boolean;
+  sessionResolved: boolean;
   error: string | null;
   clearError: () => void;
   signIn: () => Promise<FilosageUser>;
@@ -265,6 +266,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<FilosageUser | null>(null);
   const [account, setAccount] = useState<LearnerAccount | null>(null);
   const [sessionRevision, setSessionRevision] = useState(0);
+  // The loading watchdog can expire while the canonical session is unresolved.
+  const [sessionResolved, setSessionResolved] = useState(false);
   const userRef = useRef<FilosageUser | null>(null);
   const authOperationRef = useRef(0);
   const initialSessionLoadedRef = useRef(false);
@@ -285,6 +288,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return token;
       },
     } : null;
+    setSessionResolved(true);
     userRef.current = guardedUser;
     setUser(guardedUser);
     if (changed) setAccount(null);
@@ -447,13 +451,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     let disposed = false;
     const refreshSession = async (clearFirst: boolean) => {
       const operation = ++authOperationRef.current;
-      if (clearFirst) commitUser(null, false);
+      if (clearFirst) {
+        commitUser(null, false);
+        setSessionResolved(false);
+      }
       try {
         const state = localAuthAvailable && localStorage.getItem(LOCAL_SESSION_KEY)
           ? { user: localOwnerUser(), authentication: DEFAULT_AUTHENTICATION }
           : await currentEasyAuthState();
         if (disposed || operation !== authOperationRef.current) return;
         setAuthentication(state.authentication);
+        setSessionResolved(true);
         if (state.user?.uid !== userRef.current?.uid) {
           const active = commitUser(state.user, false);
           await loadAccount(active);
@@ -678,6 +686,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       access: account?.access ?? (user ? "free" : "anonymous"),
       account,
       loading,
+      sessionResolved,
       error,
       clearError: () => setError(null),
       signIn,
@@ -695,6 +704,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       authentication,
       account,
       loading,
+      sessionResolved,
       error,
       signIn,
       signInWithRedirect,

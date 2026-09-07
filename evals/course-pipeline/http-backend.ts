@@ -92,7 +92,8 @@ export function httpEvaluationBackend(config: EvaluationConfig, token: string): 
       const health = await json("/api/health", signal);
       if (health.ok !== true || health.version !== config.buildSha) throw new Error("CANDIDATE_MISMATCH: health does not identify the exact approved build.");
       const operations = await json("/api/generation-operations", signal);
-      // Deliberately absent in current R08: reservations alone are not hard provider spend caps.
+      // The server advertises this only for the exact owner-approved runtime;
+      // every provider call must pass its durable operation budget admission.
       return operations.evaluationCapabilities as EvaluationCapabilities | undefined;
     },
     start: (kind, payload, key, ceiling, signal) => observeMutation(`/api/generate-${kind}`, signal, payload, key, ceiling),

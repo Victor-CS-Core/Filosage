@@ -54,7 +54,7 @@ function renewalLabel(value: string | undefined, status: string | undefined) {
 }
 
 export default function PricingPage() {
-  const { user, account, acceptLegalTerms, refreshAccount } = useAuth();
+  const { user, account, loading: authLoading, sessionResolved, acceptLegalTerms, refreshAccount } = useAuth();
   const courseCredits = account?.courseCredits;
   const subscriptionRequiresManagement = subscriptionBlocksCheckout(account?.subscriptionStatus);
   const [email, setEmail] = useState("");
@@ -107,14 +107,19 @@ export default function PricingPage() {
   }, [user]);
 
   useEffect(() => {
+    // Canonical account restoration remounts this page. Keep the return marker
+    // until that boundary has settled so the new account sees the confirmation.
+    if (authLoading || !sessionResolved) return;
     const url = new URL(window.location.href);
     const checkout = url.searchParams.get("checkout");
     if (checkout !== "success" && checkout !== "canceled") return;
-    const update = window.setTimeout(() => setCheckoutReturn(checkout), 0);
-    url.searchParams.delete("checkout");
-    window.history.replaceState(window.history.state, "", `${url.pathname}${url.search}${url.hash}`);
+    const update = window.setTimeout(() => {
+      setCheckoutReturn(checkout);
+      url.searchParams.delete("checkout");
+      window.history.replaceState(window.history.state, "", `${url.pathname}${url.search}${url.hash}`);
+    }, 0);
     return () => window.clearTimeout(update);
-  }, []);
+  }, [authLoading, sessionResolved]);
 
   useEffect(() => {
     let active = true;

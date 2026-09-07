@@ -408,6 +408,7 @@ test.describe("identity-link mutation routes", () => {
     });
     expect(cacheControl(staleAuthentication)).toBe("private, no-store");
 
+    const beforeAdmission = rateLimitDocuments(await readStore(baseURL), "identity-link-create");
     for (let attempt = 1; attempt <= 5; attempt += 1) {
       const preAccount = await request.post("/api/auth/link-intent", {
         headers: recentHeaders,
@@ -419,6 +420,17 @@ test.describe("identity-link mutation routes", () => {
       expect(cacheControl(preAccount)).toBe("private, no-store");
     }
 
+    const afterAdmission = rateLimitDocuments(await readStore(baseURL), "identity-link-create");
+    const changedBuckets = Object.entries(afterAdmission).filter(([path, value]) =>
+      JSON.stringify(value) !== JSON.stringify(beforeAdmission[path]));
+    expect(changedBuckets).toHaveLength(2);
+    for (const [path, value] of changedBuckets) {
+      const previous = beforeAdmission[path];
+      const priorCount = previous?.resetAt === value.resetAt ? Number(previous?.count ?? 0) : 0;
+      expect(Number(value.count) - priorCount).toBe(5);
+    }
+    expect(changedBuckets.map(([, value]) => value.scope).sort()).toEqual(["account", "global"]);
+
     const limited = await request.post("/api/auth/link-intent", {
       headers: recentHeaders,
     });
@@ -428,13 +440,8 @@ test.describe("identity-link mutation routes", () => {
     expect(Number(limited.headers()["retry-after"])).toBeGreaterThan(540);
     expect(Number(limited.headers()["retry-after"])).toBeLessThanOrEqual(600);
     expect(setCookie(limited)).toBe("");
-    const sixthAttemptLimits = Object.values(
-      rateLimitDocuments(await readStore(baseURL), "identity-link-create"),
-    );
-    expect(sixthAttemptLimits).toEqual(expect.arrayContaining([
-      expect.objectContaining({ namespace: "identity-link-create", scope: "global", count: 6 }),
-      expect.objectContaining({ namespace: "identity-link-create", scope: "account", count: 6 }),
-    ]));
+    // A rejected request neither consumes shared capacity nor extends its window.
+    expect(rateLimitDocuments(await readStore(baseURL), "identity-link-create")).toEqual(afterAdmission);
 
     const staleUpdatedAt = "2020-01-01T00:00:00.000Z";
     await seedCanonicalGoogleAccount(baseURL, fixture, {
@@ -1534,6 +1541,7 @@ test("device review entry offers existing-account sign-in without redirecting", 
   });
   await page.route("**/api/courses/review-entry-course", (route) => route.fulfill({ status: 200, json: { id: "review-entry-course" } }));
   await page.goto("/review");
+  await expect(page.getByText("Remember this", { exact: true })).toHaveCount(0);
   await page.getByRole("button", { name: "Sign in to your account" }).click();
   await expect(page).toHaveURL(/\/review$/);
   await expect(page.getByRole("dialog", { name: "Keep your learning in sync" })

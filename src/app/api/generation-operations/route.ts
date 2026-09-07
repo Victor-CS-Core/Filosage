@@ -3,11 +3,20 @@ import { authorizationResponse, requireAcceptedAccount, withAccountRequest } fro
 import { listStoredDocumentsByField } from "@/lib/document-store";
 import { currentAccountGeneration } from "@/lib/account-lifecycle";
 import { generationOperationStatus, type GenerationOperation } from "@/lib/generation-operations";
+import { evaluationBudgetCapability, evaluationBudgetErrorFrom } from "@/lib/evaluation-budget";
+import { courseGenerationConfiguration } from "@/lib/course-generation-configuration";
+import { lessonGenerationConfiguration } from "@/lib/lesson-generation-configuration";
 
 async function getOperation(request: Request) {
   const headers = { "Cache-Control": "private, no-store" };
   try {
     const account = await requireAcceptedAccount(request);
+    const evaluationCapabilities = request.headers.has("x-filosage-model-evaluation")
+      ? { version: 1, provider: "openai", stub: false, operationUsage: true, lessonOperations: true,
+          ...await evaluationBudgetCapability(account, request.headers, {
+            course: courseGenerationConfiguration(account), lesson: lessonGenerationConfiguration(account),
+          }) }
+      : undefined;
     const actor = currentAccountGeneration();
     const [active, recent] = await Promise.all([
       listStoredDocumentsByField("generationOperations", "activeOwnerUid", account.uid, 100),
@@ -19,9 +28,10 @@ async function getOperation(request: Request) {
       .sort((a, b) => Number(b.activeOwnerUid === account.uid) - Number(a.activeOwnerUid === account.uid) || String(b.updatedAt).localeCompare(String(a.updatedAt)))
       .slice(0, 100)
       .map((record) => generationOperationStatus(record as unknown as GenerationOperation));
-    return NextResponse.json({ operations }, { headers });
+    return NextResponse.json({ operations, ...(evaluationCapabilities ? { evaluationCapabilities } : {}) }, { headers });
   } catch (error) {
-    return authorizationResponse(error) ?? NextResponse.json({ error: "Course operations could not be read." }, { status: 500, headers });
+    const budget = evaluationBudgetErrorFrom(error);
+    return authorizationResponse(error) ?? NextResponse.json({ error: budget?.message ?? "Course operations could not be read.", code: budget?.code }, { status: budget?.status ?? 500, headers });
   }
 }
 
