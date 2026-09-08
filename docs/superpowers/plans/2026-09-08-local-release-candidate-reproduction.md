@@ -70,7 +70,7 @@ npm ls --depth=0
 git status --short --branch
 ```
 
-Expected: the dependency tree resolves; the only Git change is this plan file until later plan-owned work begins.
+Expected: the dependency tree resolves; tracked Git state is clean until later plan-owned work begins.
 
 ---
 
@@ -88,12 +88,13 @@ Expected: the dependency tree resolves; the only Git change is this plan file un
 
 ```bash
 git fetch --prune origin
-test "$(git rev-parse HEAD)" = "8b4c8c271243de249ea4a6d5303f6a66186ab4f1"
-test "$(git rev-parse 'HEAD^{tree}')" = "741b9743a636d79b977ced27413e4e3aafeb18b8"
-test "$(git rev-parse origin/codex/release-implementation-20260906)" = "8b4c8c271243de249ea4a6d5303f6a66186ab4f1"
+candidate="$(git rev-parse origin/codex/release-implementation-20260906)"
+test "$candidate" = "8b4c8c271243de249ea4a6d5303f6a66186ab4f1"
+test "$(git rev-parse "${candidate}^{tree}")" = "741b9743a636d79b977ced27413e4e3aafeb18b8"
+git merge-base --is-ancestor "$candidate" HEAD
 ```
 
-Expected: all three identity checks exit zero.
+Expected: the remote candidate still resolves to the reviewed SHA/tree, and all local plan or repair commits descend from it.
 
 - [ ] **Step 2: Run static, security, and release-contract gates**
 
