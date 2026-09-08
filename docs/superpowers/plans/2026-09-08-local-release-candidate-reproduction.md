@@ -169,12 +169,12 @@ Expected: if neither tool is present, do not claim local PostgreSQL execution; r
 
 ```bash
 mkdir -p .superpowers/sdd/2026-09-08-local-release-candidate-reproduction
-git log --oneline --decorate origin/main..HEAD > .superpowers/sdd/2026-09-08-local-release-candidate-reproduction/full-diff-review.txt
-git diff --stat origin/main...HEAD >> .superpowers/sdd/2026-09-08-local-release-candidate-reproduction/full-diff-review.txt
-git diff -U10 origin/main...HEAD >> .superpowers/sdd/2026-09-08-local-release-candidate-reproduction/full-diff-review.txt
+git log --oneline --decorate origin/main..8b4c8c271243de249ea4a6d5303f6a66186ab4f1 > .superpowers/sdd/2026-09-08-local-release-candidate-reproduction/full-diff-review.txt
+git diff --stat origin/main...8b4c8c271243de249ea4a6d5303f6a66186ab4f1 >> .superpowers/sdd/2026-09-08-local-release-candidate-reproduction/full-diff-review.txt
+git diff -U10 origin/main...8b4c8c271243de249ea4a6d5303f6a66186ab4f1 >> .superpowers/sdd/2026-09-08-local-release-candidate-reproduction/full-diff-review.txt
 ```
 
-Expected: one review artifact contains the complete commit list, stat, and diff without modifying tracked files.
+Expected: one review artifact contains the exact release candidate's complete commit list, stat, and diff without including later local planning/evidence commits or modifying tracked files.
 
 - [ ] **Step 2: Review three independent risk domains**
 
