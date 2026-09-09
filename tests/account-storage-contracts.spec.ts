@@ -76,6 +76,23 @@ test("migrates legacy notes transactionally without overwriting timestamp winner
     noteUpdatedAt: { "course:0-0": newer },
   });
   expect(failing.directMigrationWrites()).toBe(0);
+  const invalidTimestamp = learnerStateRouteMigrationFixture({
+    legacy: { content: "legacy-invalid-timestamp", updatedAt: "not-a-timestamp" },
+  });
+  const invalidTimestampResponse = await invalidTimestamp.run();
+  expect(invalidTimestampResponse.status).toBe(200);
+  expect((await invalidTimestampResponse.json()).notes["course:0-0"]).toBe("legacy-invalid-timestamp");
+  expect(invalidTimestamp.durable()).toMatchObject({ content: "legacy-invalid-timestamp" });
+  expect(invalidTimestamp.durable()?.updatedAt).not.toBe("not-a-timestamp");
+  expect(Number.isFinite(Date.parse(String(invalidTimestamp.durable()?.updatedAt)))).toBe(true);
+  expect(invalidTimestamp.preferences()).not.toHaveProperty("notes");
+  expect(invalidTimestamp.preferences()).not.toHaveProperty("noteUpdatedAt");
+  const epochTimestamp = "1970-01-01T00:00:00.000Z";
+  const epoch = learnerStateRouteMigrationFixture({
+    legacy: { content: "legacy-epoch", updatedAt: epochTimestamp },
+  });
+  expect((await epoch.run()).status).toBe(200);
+  expect(epoch.durable()).toMatchObject({ content: "legacy-epoch", updatedAt: epochTimestamp });
   const maximumLegacyNotes = Object.fromEntries(Array.from({ length: 500 }, (_, index) => [
     `course:${index}`,
     { content: `legacy-${index}`, updatedAt: newer },
@@ -94,6 +111,22 @@ test("migrates legacy notes transactionally without overwriting timestamp winner
   }
   expect(maximum.preferences()).not.toHaveProperty("notes");
   expect(maximum.preferences()).not.toHaveProperty("noteUpdatedAt");
+  const overLimitLegacyNotes = Object.fromEntries(Array.from({ length: 501 }, (_, index) => [
+    `course:over-limit-${index}`,
+    { content: `legacy-over-limit-${index}`, updatedAt: newer },
+  ]));
+  const overLimit = learnerStateRouteMigrationFixture({
+    legacy: { content: "unused" },
+    legacyNotes: overLimitLegacyNotes,
+  });
+  expect((await overLimit.run()).status).toBe(500);
+  expect(overLimit.transactionCalls()).toBe(1);
+  expect(overLimit.maximumTransactionWrites()).toBe(0);
+  expect(overLimit.preferences()).toMatchObject({
+    notes: Object.fromEntries(Object.entries(overLimitLegacyNotes).map(([noteKey, note]) => [noteKey, note.content])),
+    noteUpdatedAt: Object.fromEntries(Object.entries(overLimitLegacyNotes).map(([noteKey]) => [noteKey, newer])),
+  });
+  for (const noteKey of Object.keys(overLimitLegacyNotes)) expect(overLimit.durable(noteKey)).toBeNull();
 });
 
 test("does not hydrate unowned mastery evidence for automatic cloud replay", async () => {

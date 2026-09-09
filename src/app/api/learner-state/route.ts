@@ -87,6 +87,7 @@ async function handleGET(request: Request) {
           const currentLegacyNotes = objectStrings(currentPreferences?.notes);
           const currentLegacyEntries = Object.entries(currentLegacyNotes);
           if (!currentLegacyEntries.length) return { writes: [], result: true };
+          if (currentLegacyEntries.length > 500) throw new Error("Legacy note migration exceeds the 500-note limit.");
           const currentLegacyUpdatedAt = objectStrings(currentPreferences?.noteUpdatedAt);
           const parsedPreferences = learnerPreferencesSchema.safeParse(currentPreferences ?? defaults);
           const cleanPreferences = parsedPreferences.success ? parsedPreferences.data : {
@@ -104,11 +105,12 @@ async function handleGET(request: Request) {
             const path = notePath(account.uid, key);
             const currentNote = documents[path];
             const legacyUpdatedAt = currentLegacyUpdatedAt[key];
-            const legacyTime = Date.parse(legacyUpdatedAt ?? "") || 0;
+            const parsedLegacyTime = Date.parse(legacyUpdatedAt ?? "");
+            const legacyTime = parsedLegacyTime || 0;
             const durableTime = Date.parse(typeof currentNote?.updatedAt === "string" ? currentNote.updatedAt : "") || 0;
             return currentNote && durableTime >= legacyTime ? [] : [{
               path,
-              data: { key, content, updatedAt: legacyUpdatedAt ?? fallbackUpdatedAt },
+              data: { key, content, updatedAt: Number.isFinite(parsedLegacyTime) ? legacyUpdatedAt! : fallbackUpdatedAt },
             }];
           });
           const migratedPreferences = remainingEntries.length ? {
