@@ -344,11 +344,11 @@ test("contextual plan entry respects course-creation and evidence entitlements",
     await route.fulfill({ json: { courses: [] } });
   });
 
-  await page.goto("/library");
-  await privateCoursesRequested;
   const privateCoursesLoadingStatus = page.getByRole("status").filter({ hasText: /^Loading your courses…$/ });
-  await expect(privateCoursesLoadingStatus).toBeVisible();
   try {
+    await page.goto("/library");
+    await privateCoursesRequested;
+    await expect(privateCoursesLoadingStatus).toBeVisible();
     await expect(page.getByRole("status").filter({ hasText: /^0 published courses found$/ })).toContainText("0 published courses found");
   } finally {
     releasePrivateCourses();
