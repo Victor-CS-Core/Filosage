@@ -56,6 +56,7 @@ async function handlePOST(request: Request) {
         const checkpoint = await recoverAiUsageResult<FlashcardDeckDetail>(reservation, {
           kind: "flashcard_deck",
           resourceId: input.data.courseId,
+          resultId: reservation.requestId.slice(0, 40),
         });
         const draft = preparedGeneratedFlashcardDraftFromDetail(account, checkpoint.result, checkpoint.productGuard);
         if (draft.detail.deck.id !== checkpoint.resultId) {

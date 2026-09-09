@@ -32,12 +32,26 @@ const instructions = `Assess a learner's pre-course attempt against the listed c
 ${AI_SAFETY_POLICY}`;
 
 function baselineAssessment(value: unknown): BaselineAssessment | null {
-  if (!value || typeof value !== "object") return null;
-  const assessment = value as Partial<BaselineAssessment>;
-  return typeof assessment.summary === "string" && Array.isArray(assessment.criteria)
-    && typeof assessment.assessedAt === "string" && typeof assessment.score === "number"
-    ? assessment as BaselineAssessment
-    : null;
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  const assessment = value as Record<string, unknown>;
+  const criteria = assessment.criteria;
+  if (Object.keys(assessment).some((key) => !["summary", "criteria", "assessedAt", "score"].includes(key))
+    || !Array.isArray(criteria)
+    || criteria.some((criterion) => !criterion || typeof criterion !== "object" || Array.isArray(criterion)
+      || Object.keys(criterion).some((key) => !["criterion", "met", "feedback"].includes(key)))) return null;
+  const verdict = capstoneVerdictSchema.safeParse({ summary: assessment.summary, criteria });
+  const assessedAt = assessment.assessedAt;
+  const score = assessment.score;
+  if (!verdict.success || verdict.data.summary !== assessment.summary
+    || verdict.data.criteria.some((criterion, index) => {
+      const saved = criteria[index] as Record<string, unknown>;
+      return criterion.criterion !== saved.criterion || criterion.met !== saved.met || criterion.feedback !== saved.feedback;
+    })
+    || typeof assessedAt !== "string" || assessedAt.length > 40 || !Number.isFinite(Date.parse(assessedAt))
+    || new Date(Date.parse(assessedAt)).toISOString() !== assessedAt
+    || typeof score !== "number" || !Number.isSafeInteger(score) || score < 0 || score > 100
+    || score !== Math.round((verdict.data.criteria.filter((criterion) => criterion.met).length / verdict.data.criteria.length) * 100)) return null;
+  return { summary: verdict.data.summary, criteria: verdict.data.criteria, assessedAt, score };
 }
 
 async function handlePOST(request: Request) {
@@ -81,23 +95,30 @@ async function handlePOST(request: Request) {
         const checkpoint = await recoverAiUsageResult<BaselineAssessment>(reservation, {
           kind: "baseline_assessment",
           resourceId: courseId,
+          resultId: courseId,
         });
+        const recoveredAssessment = baselineAssessment(checkpoint.result);
+        if (!recoveredAssessment) {
+          throw new AiQuotaError(409, "AI_OUTCOME_RECONCILIATION_REQUIRED", "The saved starting-point result cannot be safely recovered.");
+        }
         if (reservation.recoveredStatus === "result_checkpointed") {
           const settlingReservation = reservation;
           reservation = null;
           assessment = await settleAiUsageProduct(settlingReservation, checkpoint, [outcomePath], (documents, saved) => {
             const currentOutcome = documents[outcomePath];
-            if (!currentOutcome || aiUsageProductGuard(currentOutcome.baselineAssessment ?? null) !== saved.productGuard) {
+            const savedAssessment = baselineAssessment(saved.result);
+            if (!currentOutcome || !savedAssessment
+              || aiUsageProductGuard(currentOutcome.baselineAssessment ?? null) !== saved.productGuard) {
               throw new AiQuotaError(409, "AI_PRODUCT_CHANGED", "The starting-point record changed before recovery completed.");
             }
             return {
               writes: [{ path: outcomePath, data: { ...currentOutcome,
-                baselineAssessment: saved.result as unknown as Record<string, unknown>, updatedAt: saved.checkpointedAt } }],
-              result: saved.result,
+                baselineAssessment: savedAssessment as unknown as Record<string, unknown>, updatedAt: saved.checkpointedAt } }],
+              result: savedAssessment,
             };
           });
         } else {
-          assessment = baselineAssessment(checkpoint.result);
+          assessment = recoveredAssessment;
         }
       } else {
         assessment = baselineAssessment(outcome.baselineAssessment);
@@ -170,13 +191,15 @@ async function handlePOST(request: Request) {
     reservation = null;
     const savedAssessment = await settleAiUsageProduct(settlingReservation, checkpoint, [outcomePath], (documents, saved) => {
       const currentOutcome = documents[outcomePath];
-      if (!currentOutcome || aiUsageProductGuard(currentOutcome.baselineAssessment ?? null) !== saved.productGuard) {
+      const recoveredAssessment = baselineAssessment(saved.result);
+      if (!currentOutcome || !recoveredAssessment
+        || aiUsageProductGuard(currentOutcome.baselineAssessment ?? null) !== saved.productGuard) {
         throw new AiQuotaError(409, "AI_PRODUCT_CHANGED", "The starting-point record changed before the assessment could be saved.");
       }
       return {
         writes: [{ path: outcomePath, data: { ...currentOutcome,
-          baselineAssessment: saved.result as unknown as Record<string, unknown>, updatedAt: saved.checkpointedAt } }],
-        result: saved.result,
+          baselineAssessment: recoveredAssessment as unknown as Record<string, unknown>, updatedAt: saved.checkpointedAt } }],
+        result: recoveredAssessment,
       };
     });
     return NextResponse.json({ assessment: savedAssessment }, { headers: { "Cache-Control": "private, no-store" } });

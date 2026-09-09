@@ -3,7 +3,7 @@ import type { Course } from "@/lib/course-types";
 import type { CapstoneAssessment } from "@/lib/learning-types";
 import type { MasteryEvidence } from "@/lib/mastery";
 
-function verifiedCapstoneEvidenceId(courseId: string, objectiveId: string) {
+export function verifiedCapstoneEvidenceId(courseId: string, objectiveId: string) {
   const fingerprint = createHash("sha256").update(`${courseId}:${objectiveId}`).digest("hex").slice(0, 20);
   return `server_capstone_${fingerprint}`;
 }

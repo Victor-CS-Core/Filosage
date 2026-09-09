@@ -73,6 +73,7 @@ async function replaceCheckpointCopies(
   reservation: { requestPath: string; requestId: string; attemptToken?: string },
   checkpoint: Record<string, unknown>,
   rootChanges: Record<string, unknown> = {},
+  attemptChanges: Record<string, unknown> = {},
 ) {
   const attemptPath = aiUsageAttemptPath(reservation);
   const [root, attempt] = await Promise.all([
@@ -83,7 +84,7 @@ async function replaceCheckpointCopies(
   assert(attempt);
   await putStoredDocuments([
     { path: reservation.requestPath, data: { ...root, ...rootChanges, resultCheckpoint: checkpoint } },
-    { path: attemptPath, data: { ...attempt, resultCheckpoint: checkpoint } },
+    { path: attemptPath, data: { ...attempt, ...attemptChanges, resultCheckpoint: checkpoint } },
   ]);
 }
 
@@ -209,15 +210,15 @@ test("checkpoint recovery enforces identity and settlement cannot clear a later 
     });
 
     await assert.rejects(
-      recoverAiUsageResult({ ...reservation, accountGeneration: "replacement-generation" }, { kind: "baseline_assessment", resourceId: "course-identity" }),
+      recoverAiUsageResult({ ...reservation, accountGeneration: "replacement-generation" }, { kind: "baseline_assessment", resourceId: "course-identity", resultId: "course-identity" }),
       (error: unknown) => error instanceof AiQuotaError && error.code === "AI_OUTCOME_RECONCILIATION_REQUIRED",
     );
     await assert.rejects(
-      recoverAiUsageResult({ ...reservation, uid: "another-account" }, { kind: "baseline_assessment", resourceId: "course-identity" }),
+      recoverAiUsageResult({ ...reservation, uid: "another-account" }, { kind: "baseline_assessment", resourceId: "course-identity", resultId: "course-identity" }),
       (error: unknown) => error instanceof AiQuotaError && error.code === "AI_OUTCOME_RECONCILIATION_REQUIRED",
     );
     await assert.rejects(
-      recoverAiUsageResult(reservation, { kind: "baseline_assessment", resourceId: "another-course" }),
+      recoverAiUsageResult(reservation, { kind: "baseline_assessment", resourceId: "another-course", resultId: "course-identity" }),
       (error: unknown) => error instanceof AiQuotaError && error.code === "AI_OUTCOME_RECONCILIATION_REQUIRED",
     );
     await assert.rejects(
@@ -325,6 +326,7 @@ test("a self-consistent checkpoint with negative usage fails closed", async () =
     await expectSameKeyBlocked(() => recoverAiUsageResult(reservation, {
       kind: "baseline_assessment",
       resourceId: "course-negative",
+      resultId: "course-negative",
     }));
   });
 });
@@ -355,6 +357,7 @@ test("a self-consistent checkpoint with an invalid timestamp fails closed", asyn
     await expectSameKeyBlocked(() => recoverAiUsageResult(reservation, {
       kind: "baseline_assessment",
       resourceId: "course-date",
+      resultId: "course-date",
     }));
   });
 });
@@ -386,6 +389,45 @@ test("checkpoint recovery rejects root result identity drift", async () => {
     await expectSameKeyBlocked(() => recoverAiUsageResult(reservation, {
       kind: "baseline_assessment",
       resourceId: "course-reference",
+      resultId: "course-reference",
+    }));
+  });
+});
+
+test("checkpoint recovery rejects a self-consistent result identity for another product", async () => {
+  const scopedActor = { ...actor, uid: `${actor.uid}-self-consistent-result-reference` };
+  const generation = await captureAccountGeneration(scopedActor.uid);
+  await runWithAccountGeneration(generation, async () => {
+    const reservation = await reserveAiUsage(
+      scopedActor,
+      "tutor",
+      "checkpoint-self-consistent-result-reference-key",
+      "checkpoint-self-consistent-result-reference-payload",
+      { allowCompletedReplay: true },
+    );
+    const saved = await checkpointAiUsageResult(reservation, {
+      kind: "baseline_assessment",
+      resourceId: "course-a",
+      resultId: "course-a",
+      productGuard: productGuard(null),
+      result: { summary: "Course A result" },
+      usage: { model: "gpt-5.6-luna", inputTokens: 10, outputTokens: 10, responseId: "self-consistent-reference-response" },
+    });
+    const otherResult = structuredClone(saved) as unknown as Record<string, unknown>;
+    otherResult.resultId = "course-b";
+    (otherResult.details as Record<string, unknown>).resultId = "course-b";
+    const resigned = resignCheckpoint(otherResult);
+    await replaceCheckpointCopies(
+      reservation,
+      resigned,
+      { resultId: "course-b" },
+      { resultId: "course-b" },
+    );
+
+    await expectSameKeyBlocked(() => recoverAiUsageResult(reservation, {
+      kind: "baseline_assessment",
+      resourceId: "course-a",
+      resultId: "course-a",
     }));
   });
 });
@@ -416,6 +458,7 @@ test("a self-consistent checkpoint with contradictory bounded details fails clos
     await expectSameKeyBlocked(() => recoverAiUsageResult(reservation, {
       kind: "baseline_assessment",
       resourceId: "course-details",
+      resultId: "course-details",
     }));
   });
 });
@@ -479,6 +522,7 @@ test("a self-consistent oversized saved checkpoint fails closed on read", async 
     await expectSameKeyBlocked(() => recoverAiUsageResult(reservation, {
       kind: "baseline_assessment",
       resourceId: "course-oversized-read",
+      resultId: "course-oversized-read",
     }));
   });
 });

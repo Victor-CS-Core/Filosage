@@ -25,7 +25,7 @@ import { AI_SAFETY_POLICY, assertSafeContent, ContentSafetyError } from "@/lib/c
 import { apiRequestErrorResponse, readJsonBody } from "@/lib/api-security";
 import { aiUsageProfileMetadata, openAiExecutionProfile } from "@/lib/openai-generation";
 import { getCourseRuntimeArtifact, publishedReleaseUnavailableResponse } from "@/lib/course-pipeline/artifact-access";
-import { verifiedCapstoneMasteryEvidence } from "@/lib/mastery-server";
+import { verifiedCapstoneEvidenceId, verifiedCapstoneMasteryEvidence } from "@/lib/mastery-server";
 import { safeModelErrorDetails } from "@/lib/model-fallback";
 import { normalizeSuccessCriteria } from "@/lib/course-criteria";
 import { planAllows } from "@/lib/membership-plans";
@@ -35,14 +35,65 @@ const instructions = `Act as a rigorous, fair assessor for a course capstone. Ju
 
 ${AI_SAFETY_POLICY}`;
 
+function exactObject(value: unknown, keys: string[]) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  const record = value as Record<string, unknown>;
+  return Object.keys(record).every((key) => keys.includes(key)) ? record : null;
+}
+
+function canonicalIsoDate(value: unknown): value is string {
+  return typeof value === "string" && value.length > 0 && value.length <= 40 && value === value.trim()
+    && Number.isFinite(Date.parse(value)) && new Date(Date.parse(value)).toISOString() === value;
+}
+
+function sameCriteria(
+  left: Array<{ criterion: string; met: boolean; feedback: string }>,
+  right: Array<{ criterion: string; met: boolean; feedback: string }>,
+) {
+  return left.length === right.length && left.every((criterion, index) => criterion.criterion === right[index].criterion
+    && criterion.met === right[index].met && criterion.feedback === right[index].feedback);
+}
+
+function storedCapstoneVerdict(value: Record<string, unknown>) {
+  if (!["passed", "needs_revision"].includes(String(value.status)) || !Array.isArray(value.criteria)
+    || value.criteria.some((criterion) => !exactObject(criterion, ["criterion", "met", "feedback"]))) return null;
+  const verdict = capstoneVerdictSchema.safeParse({ summary: value.summary, criteria: value.criteria });
+  if (!verdict.success || verdict.data.summary !== value.summary
+    || !sameCriteria(verdict.data.criteria, value.criteria as Array<{ criterion: string; met: boolean; feedback: string }>)
+    || (value.status === "passed") !== verdict.data.criteria.every((criterion) => criterion.met)) return null;
+  return { status: value.status as CapstoneAssessment["status"], ...verdict.data };
+}
+
+function storedCapstoneRevision(value: unknown): CapstoneRevision | null {
+  const revision = exactObject(value, ["status", "summary", "criteria", "assessedAt", "attempt"]);
+  if (!revision) return null;
+  const verdict = storedCapstoneVerdict(revision);
+  if (!verdict || !canonicalIsoDate(revision.assessedAt)
+    || typeof revision.attempt !== "number" || !Number.isSafeInteger(revision.attempt) || revision.attempt < 0) return null;
+  return { ...verdict, assessedAt: revision.assessedAt, attempt: revision.attempt };
+}
+
 function storedCapstoneAssessment(value: unknown): CapstoneAssessment | null {
-  if (!value || typeof value !== "object") return null;
-  const assessment = value as Partial<CapstoneAssessment>;
-  return ["passed", "needs_revision"].includes(String(assessment.status))
-    && typeof assessment.summary === "string" && Array.isArray(assessment.criteria)
-    && typeof assessment.assessedAt === "string" && typeof assessment.attempts === "number"
-    ? assessment as CapstoneAssessment
-    : null;
+  const assessment = exactObject(value, ["status", "summary", "criteria", "assessedAt", "attempts", "history"]);
+  if (!assessment) return null;
+  const verdict = storedCapstoneVerdict(assessment);
+  if (!verdict || !canonicalIsoDate(assessment.assessedAt)
+    || typeof assessment.attempts !== "number" || !Number.isSafeInteger(assessment.attempts) || assessment.attempts < 0) return null;
+  const parsed: CapstoneAssessment = { ...verdict, assessedAt: assessment.assessedAt, attempts: assessment.attempts };
+  if (assessment.history === undefined) return parsed;
+  if (!Array.isArray(assessment.history) || assessment.history.length < 1 || assessment.history.length > 20
+    || assessment.history.length > assessment.attempts) return null;
+  const history = assessment.history.map(storedCapstoneRevision);
+  if (history.some((revision) => !revision)) return null;
+  const revisions = history as CapstoneRevision[];
+  const firstAttempt = assessment.attempts - revisions.length + 1;
+  if (revisions.some((revision, index) => revision.attempt !== firstAttempt + index
+      || (index > 0 && revision.assessedAt < revisions[index - 1].assessedAt))) return null;
+  const latest = revisions.at(-1)!;
+  if (latest.attempt !== assessment.attempts || latest.status !== verdict.status
+    || latest.summary !== verdict.summary || latest.assessedAt !== assessment.assessedAt
+    || !sameCriteria(latest.criteria, verdict.criteria)) return null;
+  return { ...parsed, history: revisions };
 }
 
 interface CapstoneCheckpointResult {
@@ -51,17 +102,22 @@ interface CapstoneCheckpointResult {
 }
 
 function storedCapstoneCheckpointResult(value: unknown, courseId: string): CapstoneCheckpointResult | null {
-  if (!value || typeof value !== "object") return null;
-  const raw = value as { assessment?: unknown; evidence?: unknown };
+  const raw = exactObject(value, ["assessment", "evidence"]);
+  if (!raw) return null;
   const assessment = storedCapstoneAssessment(raw.assessment);
-  if (!assessment || !Array.isArray(raw.evidence) || raw.evidence.length > 200) return null;
+  if (!assessment || !Array.isArray(assessment.history) || !Array.isArray(raw.evidence) || raw.evidence.length > 200) return null;
   const evidence = raw.evidence as Array<Partial<MasteryEvidence>>;
-  const validEvidence = evidence.every((item) => typeof item.id === "string" && /^[A-Za-z0-9_-]{1,200}$/.test(item.id)
+  const validEvidence = evidence.every((item) => Boolean(exactObject(item, ["id", "courseId", "objectiveId", "type", "result",
+    "label", "observedAt", "authority", "confidence", "score", "criterion"]))
+    && typeof item.id === "string" && /^[A-Za-z0-9_-]{1,200}$/.test(item.id)
     && item.courseId === courseId && typeof item.objectiveId === "string" && /^[A-Za-z0-9_-]{1,200}$/.test(item.objectiveId)
+    && item.id === verifiedCapstoneEvidenceId(courseId, item.objectiveId)
     && item.type === "capstone" && item.result === "passed" && item.authority === "server-verified"
-    && typeof item.label === "string" && item.label.length > 0 && item.label.length <= 300
+    && typeof item.label === "string" && item.label === item.label.trim() && item.label.length > 0 && item.label.length <= 300
     && item.observedAt === assessment.assessedAt && item.confidence === "high" && item.score === 1
-    && (item.criterion === undefined || (typeof item.criterion === "string" && item.criterion.length <= 300)));
+    && canonicalIsoDate(item.observedAt)
+    && (item.criterion === undefined || (typeof item.criterion === "string" && item.criterion === item.criterion.trim()
+      && item.criterion.length > 0 && item.criterion.length <= 300)));
   if (!validEvidence || new Set(evidence.map((item) => item.id)).size !== evidence.length
     || new Set(evidence.map((item) => item.objectiveId)).size !== evidence.length
     || (assessment.status === "passed") !== (evidence.length > 0)) return null;
@@ -123,6 +179,7 @@ async function handlePOST(request: Request) {
         const checkpoint = await recoverAiUsageResult<CapstoneCheckpointResult>(reservation, {
           kind: "capstone_assessment",
           resourceId: courseId,
+          resultId: courseId,
         });
         const recoveredResult = storedCapstoneCheckpointResult(checkpoint.result, courseId);
         if (reservation.recoveredStatus === "result_checkpointed") {

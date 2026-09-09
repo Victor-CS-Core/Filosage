@@ -799,6 +799,22 @@ function checkpointReceiptPath(value: Pick<AiReservation, "requestId" | "attempt
   return `generationUsageReceipts/legacy-${value.requestId}-${value.attemptToken ?? "v0"}`;
 }
 
+function legacyObservedReceiptMatchesCheckpoint(
+  receipt: StoredDocument,
+  reservation: Pick<AiReservation, "globalPath">,
+  checkpoint: AiResultCheckpoint,
+) {
+  return hasOnlyKeys(receipt, ["id", "version", "kind", "status", "actualCostMicros", "inputTokens",
+    "cachedInputTokens", "cacheWriteTokens", "outputTokens", "failed", "globalPath", "updatedAt"])
+    && receipt.version === 1 && receipt.kind === "legacy-ai-completion" && receipt.status === "observed"
+    && receipt.globalPath === reservation.globalPath && receipt.failed === false && canonicalIsoDate(receipt.updatedAt)
+    && receipt.actualCostMicros === checkpoint.observed.actualCostMicros
+    && receipt.inputTokens === checkpoint.observed.inputTokens
+    && receipt.cachedInputTokens === checkpoint.observed.cachedInputTokens
+    && receipt.cacheWriteTokens === checkpoint.observed.cacheWriteTokens
+    && receipt.outputTokens === checkpoint.observed.outputTokens;
+}
+
 export async function checkpointAiUsageResult<Result>(
   reservation: AiReservation,
   input: {
@@ -905,7 +921,7 @@ export async function checkpointAiUsageResult<Result>(
 
 export async function recoverAiUsageResult<Result>(
   reservation: AiReservation,
-  expected: { kind: AiProductKind; resourceId: string },
+  expected: { kind: AiProductKind; resourceId: string; resultId: string },
 ): Promise<AiResultCheckpoint<Result>> {
   if (!reservation.attemptToken || !reservation.accountGeneration || !reservation.payloadFingerprint) {
     throw new AiQuotaError(409, "AI_OUTCOME_RECONCILIATION_REQUIRED", "The saved provider result is missing immutable recovery identity.");
@@ -920,7 +936,7 @@ export async function recoverAiUsageResult<Result>(
   if (!checkpoint || !attemptCheckpoint || checkpoint.checkpointFingerprint !== attemptCheckpoint.checkpointFingerprint
     || !checkpointMatchesReservation(checkpoint, reservation)
     || !checkpointMatchesDocuments(checkpoint, request, attempt)
-    || checkpoint.kind !== expected.kind || checkpoint.resourceId !== expected.resourceId
+    || checkpoint.kind !== expected.kind || checkpoint.resourceId !== expected.resourceId || checkpoint.resultId !== expected.resultId
     || !["result_checkpointed", "completed"].includes(String(request?.status))
     || !["result_checkpointed", "accounting_observed"].includes(String(attempt?.status))) {
     throw new AiQuotaError(409, "AI_OUTCOME_RECONCILIATION_REQUIRED", "The saved provider result cannot be safely recovered.");
@@ -937,12 +953,18 @@ async function settleAiUsageCheckpointGlobal(reservation: AiReservation, checkpo
   await runWithGlobalUsageAccounting(() => runStoredDocumentTransaction([receiptPath, reservation.globalPath], (documents) => {
     const receipt = documents[receiptPath];
     if (receipt?.status === "observed") {
-      if (receipt.checkpointFingerprint !== checkpoint.checkpointFingerprint
-        || receipt.globalPath !== reservation.globalPath
-        || numberValue(receipt.actualCostMicros) !== checkpoint.observed.actualCostMicros) {
-        throw new AiQuotaError(409, "AI_OUTCOME_RECONCILIATION_REQUIRED", "A different observed cost is already bound to this attempt.");
+      if (receipt.version === 2 && receipt.kind === "generic-ai-result"
+        && receipt.checkpointFingerprint === checkpoint.checkpointFingerprint
+        && receipt.globalPath === reservation.globalPath
+        && numberValue(receipt.actualCostMicros) === checkpoint.observed.actualCostMicros) {
+        return { writes: [], result: undefined };
       }
-      return { writes: [], result: undefined };
+      if (legacyObservedReceiptMatchesCheckpoint(receipt, reservation, checkpoint)) {
+        return { writes: [{ path: receiptPath, data: { version: 2, kind: "generic-ai-result",
+          checkpointFingerprint: checkpoint.checkpointFingerprint, globalPath: reservation.globalPath,
+          ...checkpoint.observed, updatedAt: now } }], result: undefined };
+      }
+      throw new AiQuotaError(409, "AI_OUTCOME_RECONCILIATION_REQUIRED", "A different observed cost is already bound to this attempt.");
     }
     if (receipt && receipt.status !== "uncertain") {
       throw new AiQuotaError(409, "AI_OUTCOME_RECONCILIATION_REQUIRED", "The global usage receipt cannot be safely settled.");

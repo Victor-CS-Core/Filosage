@@ -42,6 +42,10 @@ let pausedGlobalRead: {
   reached: () => void;
   resume: Promise<void>;
 } | null = null;
+let pausedGlobalCommit: {
+  reached: () => void;
+  resume: Promise<void>;
+} | null = null;
 
 function pauseNextGlobalSettlementRead() {
   let reached!: () => void;
@@ -49,6 +53,15 @@ function pauseNextGlobalSettlementRead() {
   const reachedPromise = new Promise<void>((resolve) => { reached = resolve; });
   const resumePromise = new Promise<void>((resolve) => { resume = resolve; });
   pausedGlobalRead = { reached, resume: resumePromise };
+  return { reached: reachedPromise, resume };
+}
+
+function pauseNextGlobalSettlementCommit() {
+  let reached!: () => void;
+  let resume!: () => void;
+  const reachedPromise = new Promise<void>((resolve) => { reached = resolve; });
+  const resumePromise = new Promise<void>((resolve) => { resume = resolve; });
+  pausedGlobalCommit = { reached, resume: resumePromise };
   return { reached: reachedPromise, resume };
 }
 
@@ -113,6 +126,12 @@ mock.module("../../src/lib/local-store.ts", {
         const checkpoint = writesCheckpoint(writes);
         const globalSettlement = isGlobalSettlement(paths);
         const personalSettlement = isPersonalProductSettlement(paths);
+        if (pausedGlobalCommit && globalSettlement) {
+          const pause = pausedGlobalCommit;
+          pausedGlobalCommit = null;
+          pause.reached();
+          await pause.resume;
+        }
         if ((activeFault === "after_checkpoint" && checkpoint)
           || (activeFault === "after_global" && globalSettlement)
           || (activeFault === "after_personal" && personalSettlement)) {
@@ -301,6 +320,78 @@ async function accounting(uid: string, feature: "tutor" | "flashcard_generation"
 
 function productGuard(value: unknown) {
   return createHash("sha256").update(publication.publicationContentFingerprint(value)).digest("hex");
+}
+
+function resignCheckpoint(value: Record<string, unknown>) {
+  const checkpoint = structuredClone(value);
+  const identity = { ...checkpoint };
+  delete identity.checkpointFingerprint;
+  checkpoint.checkpointFingerprint = productGuard(identity);
+  return checkpoint;
+}
+
+async function mutateRouteCheckpoint(
+  uid: string,
+  feature: "tutor" | "flashcard_generation",
+  key: string,
+  mutate: (result: Record<string, unknown>) => void,
+) {
+  const state = await accounting(uid, feature, key);
+  const checkpoint = structuredClone(state.request.resultCheckpoint) as Record<string, unknown>;
+  assert(checkpoint);
+  const result = checkpoint.result as Record<string, unknown>;
+  assert(result);
+  mutate(result);
+  checkpoint.resultFingerprint = productGuard(result);
+  const resigned = resignCheckpoint(checkpoint);
+  assert(state.attempt);
+  await lifecycle.runWithAccountGeneration(activeGeneration, () => documents.putStoredDocuments([
+    { path: `aiRequests/${state.requestId}`, data: { ...state.request, resultCheckpoint: resigned } },
+    { path: aiUsage.aiUsageAttemptPath({ requestId: state.requestId, attemptToken: String(state.request.attemptToken) }),
+      data: { ...state.attempt, resultCheckpoint: resigned } },
+  ]));
+}
+
+async function productState(uid: string, product: "baseline" | "capstone", courseId: string) {
+  const exactPath = product === "baseline"
+    ? `users/${uid}/learningOutcomes/${courseId}`
+    : `users/${uid}/courseProgress/${courseId}`;
+  const scan = await documents.scanStoredDocuments();
+  return scan.documents.filter(({ path }) => path === exactPath
+    || (product === "capstone" && path.startsWith(`users/${uid}/masteryEvidence/`)));
+}
+
+async function prepareMalformedCheckpoint(
+  product: "baseline" | "capstone",
+  stage: string,
+  mutate: (result: Record<string, unknown>) => void,
+) {
+  const { uid, courseId } = await seed(product, stage);
+  const key = `${product}-${stage}-key`;
+  providerCalls = 0;
+  activeFault = "after_checkpoint";
+  const first = await routeFor(product)(requestFor(product, courseId, key));
+  assert.equal(first.status, 500, JSON.stringify(await first.clone().json()));
+  assert(providerCalls > 0);
+  activeFault = null;
+  await mutateRouteCheckpoint(uid, "tutor", key, mutate);
+  return { uid, courseId, key, providerCallsAfterCheckpoint: providerCalls };
+}
+
+async function assertMalformedCheckpointRejected(
+  product: "baseline" | "capstone",
+  fixture: Awaited<ReturnType<typeof prepareMalformedCheckpoint>>,
+) {
+  const { uid, courseId, key, providerCallsAfterCheckpoint } = fixture;
+  const accountingBefore = await accounting(uid, "tutor", key);
+  const productBefore = await productState(uid, product, courseId);
+  const response = await routeFor(product)(requestFor(product, courseId, key));
+  const responseBody = await response.json() as { code?: string };
+  assert.equal(response.status, 409, JSON.stringify(responseBody));
+  assert.equal(responseBody.code, "AI_OUTCOME_RECONCILIATION_REQUIRED");
+  assert.equal(providerCalls, providerCallsAfterCheckpoint);
+  assert.deepEqual(await accounting(uid, "tutor", key), accountingBefore);
+  assert.deepEqual(await productState(uid, product, courseId), productBefore);
 }
 
 async function completeLegacyBaseline(courseId: string, key: string) {
@@ -547,6 +638,80 @@ test("legacy finalization interleaved after a result checkpoint cannot strand ch
   await assertConverged("baseline", uid, courseId, key, { assessment });
 });
 
+test("a result checkpoint after an exact legacy global receipt safely adopts that receipt", async () => {
+  const { uid, courseId } = await seed("baseline", "inverse_finalization_interleave");
+  const key = "baseline-inverse-finalization-interleave-key";
+  const body = bodyFor("baseline", courseId) as { courseId: string; submission: string };
+  const fingerprint = await publication.publicationContentHash({ ...body, submission: body.submission.trim() });
+  const reservation = await lifecycle.runWithAccountGeneration(activeGeneration, () => aiUsage.reserveAiUsage(
+    activeAccount,
+    "tutor",
+    key,
+    fingerprint,
+    { allowCompletedReplay: true },
+  ));
+  const assessment = {
+    summary: "The legacy-observed checkpoint remains recoverable.",
+    criteria: [{ criterion: "Use evidence.", met: true, feedback: "Evidence is explicit." }],
+    assessedAt: "2026-09-09T12:00:00.000Z",
+    score: 100,
+  };
+  const pause = pauseNextGlobalSettlementCommit();
+  const finalization = lifecycle.runWithAccountGeneration(activeGeneration, () => aiUsage.finalizeAiUsage(reservation, {
+    model: "gpt-5.6-luna",
+    inputTokens: 100,
+    outputTokens: 50,
+    responseId: "inverse-interleaved-response",
+    resultId: courseId,
+    profile: "baseline.standard",
+  }));
+  await pause.reached;
+  let checkpoint: Awaited<ReturnType<typeof aiUsage.checkpointAiUsageResult<typeof assessment>>>;
+  try {
+    const afterLegacyGlobal = await accounting(uid, "tutor", key);
+    assert.equal(afterLegacyGlobal.receipt?.version, 1);
+    assert.equal(afterLegacyGlobal.receipt?.kind, "legacy-ai-completion");
+    assert.equal(afterLegacyGlobal.receipt?.status, "observed");
+    assert.equal(afterLegacyGlobal.request.status, "reserved");
+    assert.equal(afterLegacyGlobal.attempt?.status, "accounting_reserved");
+    checkpoint = await lifecycle.runWithAccountGeneration(activeGeneration, () => aiUsage.checkpointAiUsageResult(reservation, {
+      kind: "baseline_assessment",
+      resourceId: courseId,
+      resultId: courseId,
+      productGuard: productGuard(null),
+      result: assessment,
+      usage: {
+        model: "gpt-5.6-luna",
+        inputTokens: 100,
+        outputTokens: 50,
+        responseId: "inverse-interleaved-response",
+        resultId: courseId,
+        profile: "baseline.standard",
+      },
+    }));
+    assert.equal(checkpoint.resultId, courseId);
+  } finally {
+    pause.resume();
+  }
+  await finalization;
+
+  const interrupted = await accounting(uid, "tutor", key);
+  assert.equal(interrupted.request.status, "result_checkpointed");
+  assert.equal(interrupted.attempt?.status, "result_checkpointed");
+  assert.equal(interrupted.receipt?.version, 1);
+  assert.equal(interrupted.receipt?.kind, "legacy-ai-completion");
+  providerCalls = 0;
+  const replay = await assessBaseline(requestFor("baseline", courseId, key));
+  const replayBody = await replay.json() as Record<string, unknown>;
+  assert.equal(replay.status, 200, JSON.stringify(replayBody));
+  assert.deepEqual(replayBody.assessment, assessment);
+  assert.equal(providerCalls, 0);
+  await assertConverged("baseline", uid, courseId, key, replayBody);
+  const converged = await accounting(uid, "tutor", key);
+  assert.equal(converged.receipt?.version, 2);
+  assert.equal(converged.receipt?.kind, "generic-ai-result");
+});
+
 test("a checkpoint product guard is a fixed digest and does not expose private prior product JSON", async () => {
   const { uid, courseId } = await seed("baseline", "private_product_guard");
   const outcomePath = `users/${uid}/learningOutcomes/${courseId}`;
@@ -569,6 +734,65 @@ test("a checkpoint product guard is a fixed digest and does not expose private p
   const guard = String((state.request.resultCheckpoint as { productGuard?: string }).productGuard);
   assert.match(guard, /^[a-f0-9]{64}$/);
   assert.equal(guard.includes(privateMarker), false);
+});
+
+test("baseline rejects a hash-consistent checkpoint that is not a valid baseline assessment", async () => {
+  const fixture = await prepareMalformedCheckpoint("baseline", "malformed_schema", (result) => {
+    result.assessedAt = "September 9, 2026";
+    result.score = -1;
+    result.criteria = [{ criterion: "", met: "yes", feedback: "" }];
+  });
+  await assertMalformedCheckpointRejected("baseline", fixture);
+});
+
+test("capstone rejects a hash-consistent checkpoint with noncanonical assessment and evidence dates", async () => {
+  const fixture = await prepareMalformedCheckpoint("capstone", "malformed_date", (result) => {
+    const assessment = result.assessment as Record<string, unknown>;
+    assessment.assessedAt = "September 9, 2026";
+    const history = assessment.history as Array<Record<string, unknown>>;
+    history.at(-1)!.assessedAt = assessment.assessedAt;
+    const evidence = result.evidence as Array<Record<string, unknown>>;
+    for (const item of evidence) item.observedAt = assessment.assessedAt;
+  });
+  await assertMalformedCheckpointRejected("capstone", fixture);
+});
+
+test("capstone rejects a hash-consistent checkpoint with a negative attempt", async () => {
+  const fixture = await prepareMalformedCheckpoint("capstone", "malformed_attempt", (result) => {
+    const assessment = result.assessment as Record<string, unknown>;
+    assessment.attempts = -1;
+    const history = assessment.history as Array<Record<string, unknown>>;
+    history.at(-1)!.attempt = -1;
+  });
+  await assertMalformedCheckpointRejected("capstone", fixture);
+});
+
+test("capstone rejects a hash-consistent checkpoint with malformed criteria entries", async () => {
+  const fixture = await prepareMalformedCheckpoint("capstone", "malformed_criteria", (result) => {
+    const assessment = result.assessment as Record<string, unknown>;
+    const malformedCriteria = [{ criterion: "", met: "yes", feedback: "" }];
+    assessment.criteria = malformedCriteria;
+    const history = assessment.history as Array<Record<string, unknown>>;
+    history.at(-1)!.criteria = structuredClone(malformedCriteria);
+  });
+  await assertMalformedCheckpointRejected("capstone", fixture);
+});
+
+test("capstone rejects a hash-consistent checkpoint whose history does not end at the saved assessment", async () => {
+  const fixture = await prepareMalformedCheckpoint("capstone", "malformed_history", (result) => {
+    const assessment = result.assessment as Record<string, unknown>;
+    const history = assessment.history as Array<Record<string, unknown>>;
+    history.at(-1)!.summary = "A different historical verdict.";
+  });
+  await assertMalformedCheckpointRejected("capstone", fixture);
+});
+
+test("capstone rejects a hash-consistent checkpoint whose evidence id is not bound to its objective", async () => {
+  const fixture = await prepareMalformedCheckpoint("capstone", "malformed_evidence", (result) => {
+    const evidence = result.evidence as Array<Record<string, unknown>>;
+    evidence[0].id = "server_capstone_safe_but_unbound";
+  });
+  await assertMalformedCheckpointRejected("capstone", fixture);
 });
 
 test("a checkpointless legacy baseline cannot replay as a capstone under the shared tutor key", async () => {
@@ -703,7 +927,14 @@ for (const product of ["baseline", "capstone", "flashcards"] as const) {
       };
       await lifecycle.runWithAccountGeneration(activeGeneration, () => documents.putStoredDocument(path, {
         ...current,
-        capstone: { ...revision, attempts: 1, history: [revision] },
+        capstone: {
+          status: revision.status,
+          summary: revision.summary,
+          criteria: revision.criteria,
+          assessedAt: revision.assessedAt,
+          attempts: 1,
+          history: [revision],
+        },
       }));
     } else {
       await lifecycle.runWithAccountGeneration(activeGeneration, () => flashcards.createGeneratedFlashcardDraft({
@@ -807,10 +1038,8 @@ for (const product of ["baseline", "capstone", "flashcards"] as const) {
     assert.equal(state.period?.requestCount, 0);
     assert.equal(state.period?.reservedCostMicros, 0);
     assert.equal(state.budget?.reservedCostMicros, 0);
-    assert.equal(state.global?.reservedCostMicros, 0);
     assert.equal(state.period?.uncertainCostMicros, state.request.reservedCostMicros);
     assert.equal(state.budget?.uncertainCostMicros, state.request.reservedCostMicros);
-    assert.equal(state.global?.uncertainCostMicros, state.request.reservedCostMicros);
     assert.equal(state.period?.actualCostMicros, 0);
     assert.equal(state.budget?.actualCostMicros, 0);
     assert.equal(state.receipt?.actualCostMicros, 0);
@@ -821,10 +1050,22 @@ for (const product of ["baseline", "capstone", "flashcards"] as const) {
     assert.equal(state.period?.activeAttemptToken, null);
 
     const scan = await documents.scanStoredDocuments();
+    const reservedOnShard = scan.documents
+      .filter(({ path, data }) => path.startsWith("aiRequests/") && !path.includes("__attempt__")
+        && data.globalPath === state.request.globalPath
+        && (data.status === "reserved" || (data.status === "result_checkpointed"
+          && (data.resultCheckpoint as { accountingStatus?: string } | undefined)?.accountingStatus === "accounting_reserved")))
+      .reduce((total, { data }) => total + Number(data.reservedCostMicros ?? 0), 0);
+    const uncertainOnShard = scan.documents
+      .filter(({ path, data }) => path.startsWith("generationUsageReceipts/")
+        && data.status === "uncertain" && data.globalPath === state.request.globalPath)
+      .reduce((total, { data }) => total + Number(data.uncertainCostMicros ?? 0), 0);
     const observedOnShard = scan.documents
       .filter(({ path, data }) => path.startsWith("generationUsageReceipts/")
         && data.status === "observed" && data.globalPath === state.request.globalPath)
       .reduce((total, { data }) => total + Number(data.actualCostMicros ?? 0), 0);
+    assert.equal(state.global?.reservedCostMicros, reservedOnShard);
+    assert.equal(state.global?.uncertainCostMicros, uncertainOnShard);
     assert.equal(state.global?.actualCostMicros, observedOnShard);
     if (product === "baseline") {
       const outcome = await documents.getStoredDocument(`users/${uid}/learningOutcomes/${courseId}`);
