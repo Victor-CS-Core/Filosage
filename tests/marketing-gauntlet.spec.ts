@@ -329,22 +329,38 @@ test("evidence example is visibly fictional, role neutral, limited, and makes no
 test("contextual plan entry respects course-creation and evidence entitlements", async ({ page }) => {
   await restoreLocalLearner(page);
   let canCreate = false;
+  let signalPrivateCoursesRequested!: () => void;
+  let releasePrivateCourses!: () => void;
+  const privateCoursesRequested = new Promise<void>((resolve) => { signalPrivateCoursesRequested = resolve; });
+  const privateCoursesGate = new Promise<void>((resolve) => { releasePrivateCourses = resolve; });
   await page.route("**/api/account", (route) => route.fulfill({ json: exactLearnerAccount({
     plan: canCreate ? "plus" : "free",
     displayName: "Plan Boundary Learner",
   }) }));
   await page.route("**/api/courses?scope=public", (route) => route.fulfill({ json: { courses: [] } }));
-  await page.route("**/api/courses?scope=mine", (route) => route.fulfill({ json: { courses: [] } }));
+  await page.route("**/api/courses?scope=mine", async (route) => {
+    signalPrivateCoursesRequested();
+    await privateCoursesGate;
+    await route.fulfill({ json: { courses: [] } });
+  });
 
   await page.goto("/library");
-  await expect(page.getByRole("status")).toContainText("0 published courses found");
+  await privateCoursesRequested;
+  const privateCoursesLoadingStatus = page.getByRole("status").filter({ hasText: /^Loading your courses…$/ });
+  await expect(privateCoursesLoadingStatus).toBeVisible();
+  try {
+    await expect(page.getByRole("status").filter({ hasText: /^0 published courses found$/ })).toContainText("0 published courses found");
+  } finally {
+    releasePrivateCourses();
+  }
+  await expect(privateCoursesLoadingStatus).toHaveCount(0);
   await fillLibrarySearch(page, "A course that is not published");
   await expect(page.getByRole("link", { name: /Create private courses with Plus/ })).toHaveAttribute("href", "/pricing?plan=plus&from=library-no-match");
   await expect(page.getByRole("button", { name: "Clear filters" })).toBeVisible();
 
   canCreate = true;
   await page.reload();
-  await expect(page.getByRole("status")).toContainText("0 published courses found");
+  await expect(page.getByRole("status").filter({ hasText: /^0 published courses found$/ })).toContainText("0 published courses found");
   await fillLibrarySearch(page, "A course that is not published");
   await expect(page.getByRole("link", { name: /Create this course/ })).toHaveAttribute("href", "/create");
 
