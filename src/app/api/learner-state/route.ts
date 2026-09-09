@@ -6,6 +6,7 @@ import {
   listAllStoredDocuments,
   putStoredDocument,
   putStoredDocuments,
+  runStoredDocumentTransaction,
 } from "@/lib/document-store";
 import {
   learnerPreferencesSchema,
@@ -72,28 +73,41 @@ async function handleGET(request: Request) {
     }
 
     if (Object.keys(legacyNotes).length) {
-      const now = new Date().toISOString();
-      await Promise.all([
-        putStoredDocuments(Object.entries(legacyNotes).map(([key, content]) => ({
-          path: notePath(account.uid, key),
-          data: {
-            key,
-            content,
-            updatedAt: legacyUpdatedAt[key] ?? now,
-          },
-        }))),
-        putStoredDocument(
-          `users/${account.uid}/learningData/preferences`,
-          preferences.success ? preferences.data : {
+      const preferencesPath = `users/${account.uid}/learningData/preferences`;
+      const fallbackUpdatedAt = new Date().toISOString();
+      await runStoredDocumentTransaction(
+        [preferencesPath, ...Object.keys(legacyNotes).map((key) => notePath(account.uid, key))],
+        (documents) => {
+          const currentPreferences = documents[preferencesPath];
+          const currentLegacyNotes = objectStrings(currentPreferences?.notes);
+          if (!Object.keys(currentLegacyNotes).length) return { writes: [], result: null };
+          const currentLegacyUpdatedAt = objectStrings(currentPreferences?.noteUpdatedAt);
+          const parsedPreferences = learnerPreferencesSchema.safeParse(currentPreferences ?? defaults);
+          const migratedPreferences = parsedPreferences.success ? parsedPreferences.data : {
             courseBookmarks: defaults.courseBookmarks,
             lessonBookmarks: defaults.lessonBookmarks,
             weeklyLessonGoal: defaults.weeklyLessonGoal,
             dashboardPreferences: defaults.dashboardPreferences,
             reminderPreferences: defaults.reminderPreferences,
-            updatedAt: now,
-          },
-        ),
-      ]);
+            updatedAt: fallbackUpdatedAt,
+          };
+          const noteWrites = Object.entries(currentLegacyNotes).flatMap(([key, content]) => {
+            const path = notePath(account.uid, key);
+            const currentNote = documents[path];
+            const legacyUpdatedAt = currentLegacyUpdatedAt[key] ?? fallbackUpdatedAt;
+            const legacyTime = Date.parse(legacyUpdatedAt) || 0;
+            const durableTime = Date.parse(typeof currentNote?.updatedAt === "string" ? currentNote.updatedAt : "") || 0;
+            return currentNote && durableTime >= legacyTime ? [] : [{
+              path,
+              data: { key, content, updatedAt: legacyUpdatedAt },
+            }];
+          });
+          return {
+            writes: [...noteWrites, { path: preferencesPath, data: migratedPreferences }],
+            result: null,
+          };
+        },
+      );
     }
 
     return Response.json({

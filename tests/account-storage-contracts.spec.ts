@@ -3,6 +3,7 @@ import { expect, test } from "@playwright/test";
 import { EMPTY_LEARNER_STATE, readLearnerState, writeLearnerState } from "../src/lib/learner-state";
 import { getLocalProgress, saveLocalProgress } from "../src/lib/learning-progress";
 import { getLocalMasteryJourney, saveLocalMasteryJourney, type LearningOutcomePlan } from "../src/lib/mastery";
+import { learnerStateRouteMigrationFixture } from "./fixtures/learner-state-route-migration";
 
 import {
   isCurrentLearnerSession, learnerRequest, learnerSessionSnapshot, setLearnerStorageIdentity,
@@ -37,6 +38,41 @@ test("does not migrate unowned legacy completion into a learner record", async (
   await withStorage(new Map([["teach-progress:course", '["0-0"]']]), () => {
     expect(getLocalProgress("course")).toBeNull();
   });
+});
+
+test("migrates legacy notes transactionally without overwriting timestamp winners", async () => {
+  const older = "2026-09-08T00:00:00.000Z";
+  const newer = "2026-09-08T01:00:00.000Z";
+  const cases = [
+    { name: "durable newer", legacy: { content: "legacy-old", updatedAt: older }, durable: { content: "durable-new", updatedAt: newer }, response: "durable-new", durableResult: "durable-new" },
+    { name: "legacy newer", legacy: { content: "legacy-new", updatedAt: newer }, durable: { content: "durable-old", updatedAt: older }, response: "legacy-new", durableResult: "legacy-new" },
+    { name: "equal timestamps", legacy: { content: "legacy-tie", updatedAt: newer }, durable: { content: "durable-tie", updatedAt: newer }, response: "durable-tie", durableResult: "durable-tie" },
+    { name: "concurrent durable edit", legacy: { content: "legacy-stale", updatedAt: newer }, durable: { content: "durable-old", updatedAt: older }, concurrentDurable: { content: "durable-concurrent", updatedAt: "2026-09-08T02:00:00.000Z" }, response: "legacy-stale", durableResult: "durable-concurrent" },
+  ];
+  for (const scenario of cases) {
+    const fixture = learnerStateRouteMigrationFixture(scenario);
+    const response = await fixture.run();
+    expect(response.status, scenario.name).toBe(200);
+    expect((await response.json()).notes["course:0-0"], scenario.name).toBe(scenario.response);
+    expect(fixture.durable(), scenario.name).toMatchObject({ content: scenario.durableResult });
+    expect(fixture.preferences(), scenario.name).not.toHaveProperty("notes");
+    expect(fixture.preferences(), scenario.name).not.toHaveProperty("noteUpdatedAt");
+    expect(fixture.directMigrationWrites(), scenario.name).toBe(0);
+    expect(fixture.transactionCalls(), scenario.name).toBeGreaterThan(0);
+  }
+  const failing = learnerStateRouteMigrationFixture({
+    legacy: { content: "legacy-rollback", updatedAt: newer },
+    durable: { content: "durable-before-failure", updatedAt: older },
+    failBeforeCommit: true,
+  });
+  const failure = await failing.run();
+  expect(failure.status).toBe(500);
+  expect(failing.durable()).toMatchObject({ content: "durable-before-failure", updatedAt: older });
+  expect(failing.preferences()).toMatchObject({
+    notes: { "course:0-0": "legacy-rollback" },
+    noteUpdatedAt: { "course:0-0": newer },
+  });
+  expect(failing.directMigrationWrites()).toBe(0);
 });
 
 test("does not hydrate unowned mastery evidence for automatic cloud replay", async () => {
