@@ -68,6 +68,10 @@ import { runWithModelFallback, safeModelErrorDetails } from "../src/lib/model-fa
 import { buildModerationInputs, MAX_MODERATION_BATCH_CHARACTERS } from "../src/lib/moderation-inputs";
 import { PRIVACY_VERSION, TERMS_VERSION } from "../src/lib/legal";
 import { exactLearnerAccount, restoreLocalLearner } from "./fixtures/local-learner";
+import {
+  pressNativeSequentialFocus,
+  resolveNativeSequentialFocusGesture,
+} from "./fixtures/native-sequential-focus";
 
 async function sourceFiles(directory: string): Promise<string[]> {
   const entries = await readdir(directory, { withFileTypes: true });
@@ -921,6 +925,7 @@ test("lets guests browse outlines while clearly gating lessons behind an account
 });
 
 test("keeps same-email recovery blocking and focus-contained", { tag: ["@mobile", "@webkit"] }, async ({ page }) => {
+  const sequentialFocus = await resolveNativeSequentialFocusGesture(page);
   const prematureReads: string[] = [];
   for (const path of ["/api/learner-state", "/api/progress", "/api/courses?scope=mine"]) {
     await page.route(`**${path}`, (route) => {
@@ -986,9 +991,9 @@ test("keeps same-email recovery blocking and focus-contained", { tag: ["@mobile"
   await expect(dialog).toBeVisible();
   await page.keyboard.press("Escape");
   await expect(dialog).toBeVisible();
-  await page.keyboard.press("Tab");
+  await pressNativeSequentialFocus(page, sequentialFocus, "forward");
   await expect(dialog.getByRole("button", { name: "Confirm existing Google sign-in" })).toBeFocused();
-  await page.keyboard.press("Tab");
+  await pressNativeSequentialFocus(page, sequentialFocus, "forward");
   await expect(dialog.getByRole("button", { name: "Sign out and choose another method" })).toBeFocused();
   expect(await page.evaluate(() => document.activeElement?.closest('[role="dialog"]') !== null)).toBe(true);
   expect(prematureReads).toEqual([]);

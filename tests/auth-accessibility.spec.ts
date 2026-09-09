@@ -3,6 +3,11 @@ import { expect, test, type Locator, type Page } from "@playwright/test";
 import { EMPTY_LEARNER_STATE } from "../src/lib/learner-state";
 import { PRIVACY_VERSION, TERMS_VERSION } from "../src/lib/legal";
 import { exactLearnerAccount } from "./fixtures/local-learner";
+import {
+  pressNativeSequentialFocus,
+  resolveNativeSequentialFocusGesture,
+  type NativeSequentialFocusGesture,
+} from "./fixtures/native-sequential-focus";
 
 const signedOutManagedSession = {
   recentAuthentication: false,
@@ -75,9 +80,14 @@ async function expectWcagClean(page: Page) {
   expect(accessibility.violations).toEqual([]);
 }
 
-async function expectFocusContained(page: Page, dialog: Locator, tabCount = 10) {
+async function expectFocusContained(
+  page: Page,
+  dialog: Locator,
+  gesture: NativeSequentialFocusGesture,
+  tabCount = 10,
+) {
   for (let index = 0; index < tabCount; index += 1) {
-    await page.keyboard.press("Tab");
+    await pressNativeSequentialFocus(page, gesture, "forward");
     expect(await page.evaluate(() => (
       document.activeElement?.closest('[role="dialog"]') !== null
     ))).toBe(true);
@@ -128,6 +138,7 @@ async function expectMobileHardening(
 }
 
 test("secure sign-in modal is WCAG-clean, keyboard-contained, and resilient on small screens", { tag: ["@mobile", "@webkit", "@smoke"] }, async ({ page }) => {
+  const sequentialFocus = await resolveNativeSequentialFocusGesture(page);
   await page.route("**/api/auth/session", (route) => route.fulfill({
     status: 200,
     contentType: "application/json",
@@ -147,7 +158,7 @@ test("secure sign-in modal is WCAG-clean, keyboard-contained, and resilient on s
   await legalConfirmation.check();
   await expect(dialog.getByRole("button", { name: "Continue securely" })).toBeEnabled();
   await expectWcagClean(page);
-  await expectFocusContained(page, dialog);
+  await expectFocusContained(page, dialog, sequentialFocus);
 
   const lightSurface = await dialog.evaluate((node) => {
     const style = getComputedStyle(node);
@@ -176,6 +187,7 @@ test("secure sign-in modal is WCAG-clean, keyboard-contained, and resilient on s
 });
 
 test("identity recovery remains blocking, WCAG-clean, and keyboard-reachable", { tag: ["@mobile", "@webkit", "@smoke"] }, async ({ page }) => {
+  const sequentialFocus = await resolveNativeSequentialFocusGesture(page);
   await page.addInitScript(() => localStorage.setItem("filosage-local-session", "1"));
   await page.route("**/api/account", (route) => route.fulfill({
     status: 409,
@@ -193,12 +205,12 @@ test("identity recovery remains blocking, WCAG-clean, and keyboard-reachable", {
   await page.keyboard.press("Escape");
   await expect(dialog).toBeVisible();
 
-  await page.keyboard.press("Tab");
+  await pressNativeSequentialFocus(page, sequentialFocus, "forward");
   await expect(dialog.getByRole("button", { name: "Confirm existing Google sign-in" })).toBeFocused();
   await expect(dialog.getByRole("button", { name: "Confirm existing Google sign-in" }).locator(".auth-google-icon")).toBeVisible();
-  await page.keyboard.press("Tab");
+  await pressNativeSequentialFocus(page, sequentialFocus, "forward");
   await expect(dialog.getByRole("button", { name: "Sign out and choose another method" })).toBeFocused();
-  await expectFocusContained(page, dialog, 8);
+  await expectFocusContained(page, dialog, sequentialFocus, 8);
 
   await expectMobileHardening(page, dialog, dialog.locator("#identity-link-description"));
   await page.keyboard.press("Escape");
@@ -207,6 +219,7 @@ test("identity recovery remains blocking, WCAG-clean, and keyboard-reachable", {
 });
 
 test("profile name editing remains keyboard reachable and reflows at 200 percent", { tag: ["@mobile", "@webkit", "@smoke"] }, async ({ page }) => {
+  const sequentialFocus = await resolveNativeSequentialFocusGesture(page);
   await page.route("**/api/auth/session", (route) => route.fulfill({
     status: 200,
     json: {
@@ -241,9 +254,9 @@ test("profile name editing remains keyboard reachable and reflows at 200 percent
   await profileHeader.getByRole("button", { name: "Edit name" }).click();
   const input = profileHeader.getByRole("textbox", { name: "Name shown in Filosage" });
   await expect(input).toBeFocused();
-  await page.keyboard.press("Tab");
+  await pressNativeSequentialFocus(page, sequentialFocus, "forward");
   await expect(profileHeader.getByRole("button", { name: "Save name" })).toBeFocused();
-  await page.keyboard.press("Tab");
+  await pressNativeSequentialFocus(page, sequentialFocus, "forward");
   await expect(profileHeader.getByRole("button", { name: "Cancel" })).toBeFocused();
 
   await page.setViewportSize({ width: 320, height: 900 });
@@ -259,6 +272,7 @@ test("profile name editing remains keyboard reachable and reflows at 200 percent
 
 for (const initialSetup of [true, false]) {
   test(`legal ${initialSetup ? "account setup" : "terms update"} contains keyboard focus over the real shell`, { tag: ["@smoke", "@mobile", "@webkit"] }, async ({ page }) => {
+    const sequentialFocus = await resolveNativeSequentialFocusGesture(page);
     await page.emulateMedia({ colorScheme: initialSetup ? "light" : "dark", reducedMotion: "reduce" });
     await page.route("**/api/auth/session", (route) => route.fulfill({ json: {
       ...signedOutManagedSession, recentAuthentication: true,
@@ -291,8 +305,8 @@ for (const initialSetup of [true, false]) {
       await expect(dialog).toHaveJSProperty("open", true);
       expect(await within()).toBe(true);
     }
-    for (const direction of ["Tab", "Shift+Tab"]) {
-      for (let index = 0; index < 14; index += 1) { await page.keyboard.press(direction); expect(await within()).toBe(true); }
+    for (const direction of ["forward", "reverse"] as const) {
+      for (let index = 0; index < 14; index += 1) { await pressNativeSequentialFocus(page, sequentialFocus, direction); expect(await within()).toBe(true); }
     }
     await page.locator(".learning-command-trigger").first().evaluate((node) => (node as HTMLElement).focus());
     expect(await within()).toBe(true);
