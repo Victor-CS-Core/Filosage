@@ -151,6 +151,100 @@ test("normalizes case and surrounding whitespace without provider alias rewritin
   expect(easyAuthIdentityFromHeaders(headers, dual)?.email).toBe("learner+study@gmail.com");
 });
 
+test("accepts Google identity only with exactly one true email-verification assertion", () => {
+  const cases = [
+    {
+      name: "canonical true assertion",
+      verificationClaims: [{ typ: "email_verified", val: "true" }],
+      accepted: true,
+    },
+    {
+      name: "normalized URN true assertion",
+      verificationClaims: [{ typ: "URN:GOOGLE:EMAIL_VERIFIED", val: " TrUe " }],
+      accepted: true,
+    },
+    {
+      name: "missing assertion",
+      verificationClaims: [],
+      accepted: false,
+    },
+    {
+      name: "false assertion with case and whitespace variation",
+      verificationClaims: [{ typ: "email_verified", val: " FaLsE " }],
+      accepted: false,
+    },
+    {
+      name: "non-string boolean assertion",
+      verificationClaims: [{ typ: "email_verified", val: true }],
+      accepted: false,
+    },
+    {
+      name: "unrecognized assertion value",
+      verificationClaims: [{ typ: "email_verified", val: "yes" }],
+      accepted: false,
+    },
+    {
+      name: "duplicate canonical true assertions",
+      verificationClaims: [
+        { typ: "email_verified", val: "true" },
+        { typ: "email_verified", val: "true" },
+      ],
+      accepted: false,
+    },
+    {
+      name: "duplicate recognized true assertions across names",
+      verificationClaims: [
+        { typ: "email_verified", val: "true" },
+        { typ: "urn:google:email_verified", val: "TRUE" },
+      ],
+      accepted: false,
+    },
+    {
+      name: "conflicting canonical true and URN false assertions",
+      verificationClaims: [
+        { typ: "email_verified", val: "true" },
+        { typ: "urn:google:email_verified", val: "false" },
+      ],
+      accepted: false,
+    },
+    {
+      name: "conflicting canonical false and URN true assertions",
+      verificationClaims: [
+        { typ: "email_verified", val: "false" },
+        { typ: "urn:google:email_verified", val: "true" },
+      ],
+      accepted: false,
+    },
+  ];
+
+  for (const scenario of cases) {
+    const headers = new Headers({
+      "x-ms-client-principal-idp": "google",
+      "x-ms-client-principal": principal("google", [
+        { typ: "iss", val: dual.directGoogleIssuer },
+        { typ: "sub", val: "google-subject" },
+        { typ: "email", val: "learner@example.com" },
+        ...scenario.verificationClaims,
+      ]),
+    });
+    const identity = easyAuthIdentityFromHeaders(headers, dual);
+    if (scenario.accepted) {
+      expect.soft(identity, scenario.name).toEqual({
+        provider: "google",
+        issuer: dual.directGoogleIssuer,
+        subject: "google-subject",
+        email: "learner@example.com",
+        emailVerified: true,
+        authTime: undefined,
+        name: undefined,
+        picture: undefined,
+      });
+    } else {
+      expect.soft(identity, scenario.name).toBeNull();
+    }
+  }
+});
+
 test("normalizes learner names without accepting provider placeholders or identity data", () => {
   expect(normalizeDisplayName("  Avery\t  N.  ")).toBe("Avery N.");
   expect(normalizeDisplayName("Ａｖｅｒｙ")).toBe("Avery");

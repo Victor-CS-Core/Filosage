@@ -83,8 +83,14 @@ export function easyAuthIdentityFromHeaders(
       ?? claimValue(claims, ["email", "emails", "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/emailaddress"]),
   );
   if (!subject || !email) return null;
-  const verified = claimValue(claims, ["email_verified", "urn:google:email_verified"]);
-  if (provider === "google" && verified?.toLowerCase() === "false") return null;
+  if (provider === "google") {
+    const verificationClaims = claims.filter((claim) =>
+      typeof claim.typ === "string" &&
+      ["email_verified", "urn:google:email_verified"].includes(claim.typ.toLowerCase()));
+    if (verificationClaims.length !== 1) return null;
+    const verified = verificationClaims[0].val;
+    if (typeof verified !== "string" || verified.trim().toLowerCase() !== "true") return null;
+  }
 
   return {
     provider,
