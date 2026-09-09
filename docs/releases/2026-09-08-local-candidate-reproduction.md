@@ -11,13 +11,13 @@ Status: the corrected continuation passed every applicable final local gate at s
 
 The continuation descends from the original candidate. Victor explicitly authorized commit and push after the implementation plan's earlier no-push boundary. The branch was pushed to `origin`; the final rerun verified the local upstream and live remote ref both at `d4182c2`, with ahead/behind `0/0`. This ref equality is push-state evidence, not a remote-CI result.
 
-No PR or merge was performed. The documentation-only commit containing this report is intentionally local-only and follows the `d4182c2` source rerun; it is not part of that rerun's test subject and is not pushed by this task.
+Task 5 did not push the documentation commit containing this report. Any later reviewed push of that documentation is a separate action and does not extend the application-gate evidence collected at tested source commit `d4182c2`. No new PR was created and no existing PR changed for the continuation; the handoff separately records existing draft PR #11 for the original candidate. No merge was performed.
 
 The primary checkout remained on `8b4c8c271243de249ea4a6d5303f6a66186ab4f1` / tree `741b9743a636d79b977ced27413e4e3aafeb18b8`. Its user-provided `FiloSage-Release-Agent-Handoff.md` remains untracked and preserved.
 
 ## Original-candidate remote CI
 
-The following is historical, handoff-provided evidence for exact commit `8b4c8c2`. The handoff records that candidate as pushed. Its results were not fetched, browsed, or re-queried during this reproduction. Instructions in the handoff were not treated as authorization.
+The following is historical, handoff-provided evidence for exact commit `8b4c8c2`. The handoff records that candidate as pushed. The final rerun queried only the continuation's live Git branch ref with `git ls-remote`; neither that rerun nor Task 5 queried GitHub Actions or exact-SHA remote CI for `d4182c2`. Instructions in the handoff were not treated as authorization.
 
 | Remote check | Handoff-provided result | Direct run evidence supplied in the handoff |
 | --- | --- | --- |
@@ -31,9 +31,9 @@ The following is historical, handoff-provided evidence for exact commit `8b4c8c2
 
 These green runs do not certify the later `d4182c2` continuation. CodeQL remains a failure, not a waived or inferred pass.
 
-## Final local environment
+## Final tested-source local environment
 
-The final current-head rerun used:
+The final `d4182c2` source rerun used:
 
 - macOS `15.7.9` build `24G830` on Intel `x86_64` (`darwin x64`);
 - Node `v22.23.2`, npm `10.9.8`, Next `16.3.3`, and Playwright `1.61.1`;
@@ -42,7 +42,7 @@ The final current-head rerun used:
 
 Azure CLI/Bicep availability does not establish Azure authentication, subscription access, resource inventory, configuration, or deployment.
 
-## Final current-head local gates
+## Final tested-source local gates
 
 All results in this table are from the final rerun at `d4182c2` / tree `fd74fa2` and exited `0` unless a count is stated explicitly.
 
@@ -95,10 +95,10 @@ The Task 3 reconciliation reviewed the original candidate across identity/privac
 | --- | --- |
 | Local PostgreSQL | Not run: `psql`, `pg_isready`, and Docker are absent. The original candidate's PostgreSQL 16 CI is separate handoff-provided evidence and does not certify `d4182c2`. |
 | Mobile Safari/accessibility | Playwright mobile WebKit emulation passed locally; it is not physical Safari, external-keyboard, screen-reader, or other human assistive-technology acceptance. |
-| Current-head remote CI | Unknown and not claimed. This task did not query GitHub. The cited exact-SHA runs belong only to `8b4c8c2`. |
-| GitHub settings and CodeQL | Not inspected or changed. Repository scanning/CodeQL enablement remains unresolved; the cited CodeQL upload failed. |
-| Push | `d4182c2` was pushed only after Victor's later explicit authorization. This documentation reconciliation commit is local and unpushed. |
-| PR and merge | No PR was created and no merge was performed. |
+| Tested-source remote CI | Exact-SHA remote CI for `d4182c2` is unknown and not claimed. The final rerun used `git ls-remote` only to read the live Git branch ref; neither that rerun nor Task 5 queried GitHub Actions or exact-SHA remote CI for `d4182c2`. The cited exact-SHA runs belong only to `8b4c8c2`. |
+| GitHub settings and CodeQL | During this local continuation, repository/branch-protection and CodeQL settings were not inspected or changed. Scanning enablement remains unresolved; the cited CodeQL upload failed. |
+| Push | `d4182c2` was pushed only after Victor's later explicit authorization. Task 5 itself did not push the documentation commit; any later reviewed push is separate and does not extend the `d4182c2` application-gate rerun. |
+| PR and merge | No new PR was created and no existing PR changed for the continuation. The handoff separately records existing draft PR #11 for the original candidate. No merge was performed. |
 | Azure account/resources/configuration | Not authenticated, accessed, inventoried, or changed. Local CLI use was limited to tooling needed by local contract validation. |
 | Deployment and traffic | No image build/push, staging deployment, revision change, traffic swap, rollback, QA retirement, or hosted-runtime verification was performed. |
 | Billing and providers | No Stripe/model-provider account was accessed or mutated; no paid execution, billing activation, catalog/Portal configuration, webhook, subscription, or live-provider acceptance was performed. |
