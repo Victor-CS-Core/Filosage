@@ -4,6 +4,7 @@ import { EMPTY_LEARNER_STATE, readLearnerState, writeLearnerState } from "../src
 import { getLocalProgress, saveLocalProgress } from "../src/lib/learning-progress";
 import { getLocalMasteryJourney, saveLocalMasteryJourney, type LearningOutcomePlan } from "../src/lib/mastery";
 import { learnerStateRouteMigrationFixture } from "./fixtures/learner-state-route-migration";
+import { learnerStateRouteUpdateConflictFixture } from "./fixtures/learner-state-route-update-conflict";
 
 import {
   isCurrentLearnerSession, learnerRequest, learnerSessionSnapshot, setLearnerStorageIdentity,
@@ -127,6 +128,56 @@ test("migrates legacy notes transactionally without overwriting timestamp winner
     noteUpdatedAt: Object.fromEntries(Object.entries(overLimitLegacyNotes).map(([noteKey]) => [noteKey, newer])),
   });
   for (const noteKey of Object.keys(overLimitLegacyNotes)) expect(overLimit.durable(noteKey)).toBeNull();
+});
+
+test("rejects one learner-state update that saves and deletes the same note", async () => {
+  const timestamp = "2026-09-08T03:00:00.000Z";
+  const preferences = { courseBookmarks: [], lessonBookmarks: [], weeklyLessonGoal: 5 };
+  const conflictMessage = "One learning update cannot both save and delete the same note.";
+  const assertRejectedBeforePersistence = async (body: unknown) => {
+    const fixture = learnerStateRouteUpdateConflictFixture();
+    const response = await fixture.run(body);
+    expect(response.status).toBe(400);
+    await expect(response.json()).resolves.toEqual({ error: conflictMessage });
+    expect(fixture.operations()).toEqual({ preferenceWrites: [], noteWrites: [], noteDeletes: [] });
+  };
+
+  await assertRejectedBeforePersistence({
+    preferences,
+    noteChanges: [{ key: "course:save-delete", content: "save", updatedAt: timestamp }],
+    deletedNoteKeys: ["course:save-delete"],
+  });
+  await assertRejectedBeforePersistence({
+    preferences,
+    noteChanges: [{ key: " course:whitespace-conflict ", content: "save", updatedAt: timestamp }],
+    deletedNoteKeys: ["course:whitespace-conflict"],
+  });
+  await assertRejectedBeforePersistence({
+    preferences,
+    noteChanges: [
+      { key: "course:change-conflict", content: "save", updatedAt: timestamp },
+      { key: " course:change-conflict ", content: "   ", updatedAt: timestamp },
+    ],
+  });
+
+  const accepted = learnerStateRouteUpdateConflictFixture();
+  const response = await accepted.run({
+    preferences,
+    noteChanges: [
+      { key: "course:save", content: "save", updatedAt: timestamp },
+      { key: "course:blank-delete", content: "  ", updatedAt: timestamp },
+    ],
+    deletedNoteKeys: ["course:explicit-delete"],
+  });
+  expect(response.status).toBe(200);
+  await expect(response.json()).resolves.toEqual({ success: true });
+  const operations = accepted.operations();
+  expect(operations.preferenceWrites).toHaveLength(1);
+  expect(operations.noteWrites).toHaveLength(1);
+  expect(operations.noteWrites[0]).toHaveLength(1);
+  expect(operations.noteWrites[0][0].data).toMatchObject({ key: "course:save", content: "save", updatedAt: timestamp });
+  expect(operations.noteDeletes).toHaveLength(1);
+  expect(operations.noteDeletes[0]).toHaveLength(2);
 });
 
 test("does not hydrate unowned mastery evidence for automatic cloud replay", async () => {

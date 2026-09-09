@@ -410,7 +410,15 @@ export const learnerStateUpdateSchema = z.object({
     updatedAt: isoDateTimeSchema,
   })).max(50),
   deletedNoteKeys: z.array(z.string().trim().min(1).max(400)).max(50).default([]),
-}).strict();
+}).strict().superRefine(({ noteChanges, deletedNoteKeys }, context) => {
+  const deletedKeys = new Set([
+    ...deletedNoteKeys,
+    ...noteChanges.filter((note) => !note.content.trim()).map((note) => note.key),
+  ]);
+  if (noteChanges.some((note) => note.content.trim() && deletedKeys.has(note.key))) {
+    context.addIssue({ code: "custom", message: "One learning update cannot both save and delete the same note." });
+  }
+});
 
 export function validationMessage(error: z.ZodError) {
   return error.issues[0]?.message ?? "Check the form and try again.";
