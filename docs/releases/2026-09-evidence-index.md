@@ -1,10 +1,19 @@
 # September 2026 implementation evidence
 
-Status: implementation in progress. This is not release certification.
+Status: implementation and local correction work are recorded. This is not release certification.
 
-Baseline: `be16cd6810d8135d0a2f8de45650db2f73e3191b`; implementation branch `codex/release-implementation-20260906`. [Scope and authorization](2026-09-release-contract.md).
+Baseline: `be16cd6810d8135d0a2f8de45650db2f73e3191b`. The original reviewed candidate and its locally corrected continuation are separate evidence subjects. [Scope and authorization](2026-09-release-contract.md).
 
 A complete final record will list implemented tasks, commits, actual local/CI tests and unresolved hosted/provider gates. Unknown and blocked states must remain explicit.
+
+## Candidate snapshots
+
+| Subject | Git identity | Evidence state |
+| --- | --- | --- |
+| Original reviewed candidate | Branch `codex/release-implementation-20260906`; commit `8b4c8c271243de249ea4a6d5303f6a66186ab4f1`; tree `741b9743a636d79b977ced27413e4e3aafeb18b8` | The user-provided handoff records successful exact-SHA engineering, PostgreSQL 16, support-wiki, Chromium smoke, and full-browser workflows. CodeQL failed because analysis-result upload was blocked while repository scanning was disabled. These historical results were not freshly queried during the local continuation. |
+| Locally corrected continuation | Branch `codex/release-local-verification-20260908`; locally verified source commit `d4182c2baae721a612afcd44ab39ce150473816e`; tree `fd74fa2bf9ebe673c326437b673718d129ab06ff` | Victor explicitly authorized commit and push after the original no-push plan boundary. The branch was pushed, and the final local rerun verified local upstream/live-ref equality and ahead/behind `0/0`. Every applicable local gate passed. No current-head remote CI result is claimed. |
+
+[Local reproduction, correction, and evidence-boundary report](2026-09-08-local-candidate-reproduction.md).
 
 ## Recovery checkpoint
 
@@ -18,8 +27,8 @@ The original 26 requirements remain in scope. “Source present” identifies im
 
 | Requirement | Source state | Remaining acceptance |
 | --- | --- | --- |
-| R01 candidate integrity | Baseline preserved; reviewed fixes integrated | Final push, whole-branch review and exact candidate evidence |
-| R02 engineering checks | Exact-SHA CI and test lanes registered | Final Node22, PG16 and browser runs; CodeQL repository enablement |
+| R01 candidate integrity | Original candidate SHA/tree preserved; corrected continuation SHA/tree independently reviewed, locally verified, and pushed with `0/0` upstream divergence | Current-head remote CI, PR disposition, and merge remain explicit separate gates |
+| R02 engineering checks | Handoff-provided exact-SHA CI exists for `8b4c8c2`; current-head Node 22 static/build/API/browser gates are locally green at `d4182c2` | No local PostgreSQL; no current-head remote CI; CodeQL repository enablement/result upload remains unresolved |
 | R03 private learner state | UID/session ownership and delayed-effect guards | Hosted identity switching and privacy journey |
 | R04 deletion | Lifecycle fencing, bounded inventory and late-usage containment | Retention decision, actual provider cleanup and old-writer cutover |
 | R05 abuse limits | Durable UID/global admission and failure closure | Trusted ingress identity and replica contention evidence |
@@ -49,10 +58,10 @@ The original 26 requirements remain in scope. “Source present” identifies im
 
 - Current Azure effective permissions, production authentication and deployed version are not read back.
 - Current Stripe subscription obligations and complete hosted lifecycle are not verified.
-- Main branch protection and current full exact-SHA CI still require proof.
+- GitHub repository/branch-protection settings were not inspected or changed. CodeQL scanning enablement remains unresolved, and current-head remote CI is not claimed.
 - Database/Blob restore, alert delivery and rollout/rollback rehearsal are not performed.
 - Real provider course evaluation, specialist content/legal review and flagship learner acceptance remain evidence gates.
-- No merge, deployment, production mutation or billing activation is part of completed work.
+- The continuation branch was pushed after Victor's later explicit authorization. No PR, merge, deployment, production mutation or billing/provider activation is part of completed work.
 
 ## Tooling reference
 
