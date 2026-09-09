@@ -10,36 +10,21 @@ import {
   resetPlaywrightOwnedDirectory,
   resolvePlaywrightOwnedDirectory,
 } from "./playwright-owned-directory.mjs";
+import {
+  isPlaywrightHmrPathname,
+  shouldSuppressSuccessfulPlaywrightHmrMessage,
+} from "./playwright-hmr-filter.mjs";
 
 const hostname = process.env.HOSTNAME ?? "127.0.0.1";
 const port = Number(process.env.PORT);
 const require = createRequire(import.meta.url);
 
 const hmrSocketMarker = Symbol("filosage-playwright-hmr");
-const suppressedHmrTypes = new Set([
-  "addedPage",
-  "building",
-  "clientChanges",
-  "devPagesManifestUpdate",
-  "middlewareChanges",
-  "reloadPage",
-  "removedPage",
-  "serverComponentChanges",
-  "serverOnlyChanges",
-]);
 const WebSocket = require("next/dist/compiled/ws");
 const originalWebSocketSend = WebSocket.prototype.send;
 WebSocket.prototype.send = function sendWithoutTestReloads(data, options, callback) {
   if (this._socket?.[hmrSocketMarker] && typeof data === "string") {
-    let message;
-    try {
-      message = JSON.parse(data);
-    } catch {
-      message = null;
-    }
-    const suppress = suppressedHmrTypes.has(message?.type)
-      || (message?.type === "built" && !message.errors?.length);
-    if (suppress) {
+    if (shouldSuppressSuccessfulPlaywrightHmrMessage(data)) {
       const complete = typeof options === "function" ? options : callback;
       if (complete) queueMicrotask(() => complete());
       return;
@@ -137,7 +122,7 @@ const server = createServer(async (request, response) => {
 const hmrSockets = new Set();
 server.on("upgrade", (request, socket, head) => {
   const requestUrl = new URL(request.url ?? "/", `http://${hostname}:${port}`);
-  if (requestUrl.pathname === "/_next/webpack-hmr" && nextUpgradeHandler) {
+  if (isPlaywrightHmrPathname(requestUrl.pathname) && nextUpgradeHandler) {
     socket[hmrSocketMarker] = true;
     hmrSockets.add(socket);
     socket.once("close", () => hmrSockets.delete(socket));

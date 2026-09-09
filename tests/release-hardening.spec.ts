@@ -38,6 +38,26 @@ const suiteManifest = read("scripts/playwright-suite-manifest.ts");
 const require = createRequire(import.meta.url);
 const playwrightCli = require.resolve("@playwright/test/cli");
 
+test("the Playwright server filters successful recompiles on Next's current HMR endpoint", async () => {
+  const {
+    isPlaywrightHmrPathname,
+    shouldSuppressSuccessfulPlaywrightHmrMessage,
+  } = await import("../scripts/playwright-hmr-filter.mjs");
+
+  expect(isPlaywrightHmrPathname("/_next/hmr")).toBe(true);
+  expect(shouldSuppressSuccessfulPlaywrightHmrMessage(JSON.stringify({
+    type: "built",
+    errors: [],
+    warnings: [],
+  }))).toBe(true);
+  expect(shouldSuppressSuccessfulPlaywrightHmrMessage(JSON.stringify({
+    type: "built",
+    errors: [{ message: "broken module" }],
+    warnings: [],
+  }))).toBe(false);
+  expect(shouldSuppressSuccessfulPlaywrightHmrMessage(JSON.stringify({ type: "isrManifest" }))).toBe(false);
+});
+
 const discoverBrowserTests = (project: string, extraArgs: string[] = []) => {
   const directory = mkdtempSync(resolve(".browser-discovery-"));
   const outputPath = resolve(directory, "list.txt");
