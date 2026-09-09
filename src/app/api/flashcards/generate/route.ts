@@ -3,6 +3,7 @@ import { authorizationResponse, requireAcceptedAccount } from "@/lib/auth-server
 import { apiRequestErrorResponse, readJsonBody } from "@/lib/api-security";
 import {
   aiQuotaResponse,
+  aiUsageRequestId,
   checkpointAiUsageResult,
   finalizeAiUsage,
   recoverAiUsageResult,
@@ -38,12 +39,16 @@ async function handlePOST(request: Request) {
       throw new FlashcardServiceError(400, "INVALID_GENERATION_REQUEST", input.error.issues[0]?.message ?? "Invalid generation request.");
     }
     const fingerprint = await publicationContentHash(body);
+    const idempotencyKey = request.headers.get("idempotency-key");
+    const legacyResultId = idempotencyKey
+      ? (await aiUsageRequestId(account.uid, "flashcard_generation", idempotencyKey)).slice(0, 40)
+      : "";
     reservation = await reserveAiUsage(
       account,
       "flashcard_generation",
-      request.headers.get("idempotency-key"),
+      idempotencyKey,
       fingerprint,
-      { allowCompletedReplay: true },
+      { allowCompletedReplay: true, legacyReplay: { profile: profile.id, resultId: legacyResultId } },
     );
     if (reservation.recovered) {
       let detail: FlashcardDeckDetail;
@@ -73,6 +78,9 @@ async function handlePOST(request: Request) {
           throw new Error("Completed flashcard generation is missing its result reference.");
         }
         detail = await getFlashcardDeckDetail(account, reservation.recoveredResultId);
+        if (detail.deck.courseId !== input.data.courseId || detail.deck.kind !== "generated") {
+          throw new FlashcardServiceError(409, "DECK_RECOVERY_INVALID", "The completed deck belongs to another generation request.");
+        }
       }
       reservation = null;
       return Response.json(

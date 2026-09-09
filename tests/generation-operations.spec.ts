@@ -17,7 +17,7 @@ test("generic AI products fail closed across pre-checkpoint and legacy post-prod
   });
   expect(result.status, `${result.stdout}\n${result.stderr}`).toBe(0);
   expect(result.stdout).toContain("# fail 0");
-  expect(result.stdout).toContain("# pass 5");
+  expect(result.stdout).toContain("# pass 14");
 });
 
 test("generic AI routes recover every provider, checkpoint, accounting, product, and response kill point", () => {
@@ -27,5 +27,5 @@ test("generic AI routes recover every provider, checkpoint, accounting, product,
   });
   expect(result.status, `${result.stdout}\n${result.stderr}`).toBe(0);
   expect(result.stdout).toContain("# fail 0");
-  expect(result.stdout).toContain("# pass 29");
+  expect(result.stdout).toContain("# pass 34");
 });

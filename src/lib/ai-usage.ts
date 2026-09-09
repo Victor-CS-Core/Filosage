@@ -116,6 +116,11 @@ export interface AiProductMutation<Result> {
 }
 
 const RESULT_CHECKPOINT_MAX_BYTES = 256_000;
+const RESULT_CHECKPOINT_DETAILS_MAX_BYTES = 64_000;
+const RESULT_CHECKPOINT_MAX_SAMPLES = 8;
+const RESULT_CHECKPOINT_MAX_TEXT_BYTES = 512;
+const SHA256_PATTERN = /^[a-f0-9]{64}$/;
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 function recordValue(value: unknown): Record<string, unknown> | null {
   return value && typeof value === "object" && !Array.isArray(value)
@@ -127,29 +132,149 @@ function contentHash(value: unknown) {
   return createHash("sha256").update(publicationContentFingerprint(value)).digest("hex");
 }
 
-function checkpointIdentity(value: Omit<AiResultCheckpoint, "checkpointFingerprint" | "checkpointedAt">) {
+export function aiUsageProductGuard(value: unknown) {
   return contentHash(value);
+}
+
+function checkpointIdentity(value: Omit<AiResultCheckpoint, "checkpointFingerprint">) {
+  return contentHash(value);
+}
+
+function serializedByteLength(value: unknown) {
+  try {
+    const serialized = JSON.stringify(value);
+    return serialized ? Buffer.byteLength(serialized, "utf8") : null;
+  } catch {
+    return null;
+  }
+}
+
+function boundedText(value: unknown, maximum = RESULT_CHECKPOINT_MAX_TEXT_BYTES): value is string {
+  return typeof value === "string" && value.length > 0 && value === value.trim()
+    && Buffer.byteLength(value, "utf8") <= maximum;
+}
+
+function optionalBoundedText(value: unknown, maximum = RESULT_CHECKPOINT_MAX_TEXT_BYTES) {
+  return value === undefined || boundedText(value, maximum);
+}
+
+function safeCheckpointId(value: unknown) {
+  return boundedText(value, 250) && !value.includes("/")
+    && !Array.from(value).some((character) => character.charCodeAt(0) < 32 || character.charCodeAt(0) === 127);
+}
+
+function nonnegativeInteger(value: unknown): value is number {
+  return typeof value === "number" && Number.isSafeInteger(value) && value >= 0;
+}
+
+function hasOnlyKeys(value: Record<string, unknown>, allowed: readonly string[]) {
+  const keys = new Set(allowed);
+  return Object.keys(value).every((key) => keys.has(key));
+}
+
+function canonicalIsoDate(value: unknown): value is string {
+  return boundedText(value, 40) && Number.isFinite(Date.parse(value)) && new Date(Date.parse(value)).toISOString() === value;
+}
+
+function parsedUsageSamples(value: unknown): AiUsageSample[] | null {
+  if (!Array.isArray(value) || value.length < 1 || value.length > RESULT_CHECKPOINT_MAX_SAMPLES) return null;
+  const samples: AiUsageSample[] = [];
+  for (const raw of value) {
+    const sample = recordValue(raw);
+    if (!sample || !hasOnlyKeys(sample, ["model", "inputTokens", "cachedInputTokens", "cacheWriteTokens", "outputTokens",
+      "fixedCostMicros", "responseId", "promptVersion", "profile", "reasoningEffort", "promptCacheKey"])
+      || !boundedText(sample.model, 200)
+      || ![sample.inputTokens, sample.cachedInputTokens, sample.cacheWriteTokens, sample.outputTokens].every(nonnegativeInteger)
+      || (sample.fixedCostMicros !== undefined && !nonnegativeInteger(sample.fixedCostMicros))
+      || !optionalBoundedText(sample.responseId) || !optionalBoundedText(sample.promptVersion)
+      || !optionalBoundedText(sample.profile) || !optionalBoundedText(sample.reasoningEffort)
+      || !optionalBoundedText(sample.promptCacheKey)) return null;
+    samples.push(sample as unknown as AiUsageSample);
+  }
+  return samples;
+}
+
+function usageDetailsFor(samples: AiUsageSample[], responseId: string, resultId: string) {
+  const models = Array.from(new Set(samples.map((sample) => sample.model)));
+  const responseIds = samples.flatMap((sample) => sample.responseId ? [sample.responseId] : []);
+  const promptVersions = Array.from(new Set(samples.flatMap((sample) => sample.promptVersion ? [sample.promptVersion] : [])));
+  const profiles = Array.from(new Set(samples.flatMap((sample) => sample.profile ? [sample.profile] : [])));
+  const reasoningEfforts = Array.from(new Set(samples.flatMap((sample) => sample.reasoningEffort ? [sample.reasoningEffort] : [])));
+  const promptCacheKeys = Array.from(new Set(samples.flatMap((sample) => sample.promptCacheKey ? [sample.promptCacheKey] : [])));
+  return {
+    model: models.join(" -> "),
+    models,
+    promptVersion: promptVersions.at(-1) ?? null,
+    promptVersions,
+    profile: profiles.at(-1) ?? null,
+    profiles,
+    reasoningEfforts,
+    promptCacheKeys,
+    attemptCount: samples.length,
+    recoveryUsed: samples.some((sample) => sample.profile?.endsWith(".recovery") === true),
+    attempts: samples.map((sample) => ({
+      model: sample.model,
+      promptVersion: sample.promptVersion ?? null,
+      profile: sample.profile ?? null,
+      reasoningEffort: sample.reasoningEffort ?? null,
+      promptCacheKey: sample.promptCacheKey ?? null,
+      responseId: sample.responseId ?? null,
+      inputTokens: sample.inputTokens,
+      cachedInputTokens: sample.cachedInputTokens,
+      cacheWriteTokens: sample.cacheWriteTokens,
+      outputTokens: sample.outputTokens,
+      costMicros: estimateAiUsageCostMicros(sample),
+    })),
+    responseId,
+    responseIds,
+    resultId,
+  };
 }
 
 function parsedResultCheckpoint(value: unknown): AiResultCheckpoint | null {
   const checkpoint = recordValue(value);
   const observed = recordValue(checkpoint?.observed);
-  if (!checkpoint || checkpoint.version !== 1
+  const samples = parsedUsageSamples(checkpoint?.usageSamples);
+  const details = recordValue(checkpoint?.details);
+  const checkpointBytes = serializedByteLength(checkpoint);
+  const detailsBytes = serializedByteLength(details);
+  if (!checkpoint || checkpointBytes === null || checkpointBytes > RESULT_CHECKPOINT_MAX_BYTES
+    || detailsBytes === null || detailsBytes > RESULT_CHECKPOINT_DETAILS_MAX_BYTES
+    || !hasOnlyKeys(checkpoint, ["version", "kind", "uid", "accountGeneration", "feature", "requestId", "attemptToken",
+      "payloadFingerprint", "resourceId", "resultId", "productGuard", "resultFingerprint", "checkpointFingerprint",
+      "result", "usageSamples", "responseId", "accountingStatus", "observed", "details", "checkpointedAt"])
+    || checkpoint.version !== 1
     || !["baseline_assessment", "capstone_assessment", "flashcard_deck"].includes(String(checkpoint.kind))
-    || ![checkpoint.uid, checkpoint.accountGeneration, checkpoint.feature, checkpoint.requestId,
-      checkpoint.attemptToken, checkpoint.payloadFingerprint, checkpoint.resourceId, checkpoint.resultId,
-      checkpoint.productGuard, checkpoint.resultFingerprint, checkpoint.checkpointFingerprint,
-      checkpoint.responseId, checkpoint.checkpointedAt]
-      .every((item) => typeof item === "string" && item.length > 0)
+    || !boundedText(checkpoint.uid, 256) || checkpoint.uid.includes("/")
+    || !boundedText(checkpoint.accountGeneration, 64) || !UUID_PATTERN.test(checkpoint.accountGeneration)
+    || !["course_outline", "course_banner", "lesson_generation", "tutor", "flashcard_generation", "command_center_draft"].includes(String(checkpoint.feature))
+    || typeof checkpoint.requestId !== "string" || !SHA256_PATTERN.test(checkpoint.requestId)
+    || typeof checkpoint.attemptToken !== "string" || !UUID_PATTERN.test(checkpoint.attemptToken)
+    || !boundedText(checkpoint.payloadFingerprint, 512)
+    || !safeCheckpointId(checkpoint.resourceId) || !safeCheckpointId(checkpoint.resultId)
+    || typeof checkpoint.productGuard !== "string" || !SHA256_PATTERN.test(checkpoint.productGuard)
+    || typeof checkpoint.resultFingerprint !== "string" || !SHA256_PATTERN.test(checkpoint.resultFingerprint)
+    || typeof checkpoint.checkpointFingerprint !== "string" || !SHA256_PATTERN.test(checkpoint.checkpointFingerprint)
+    || !boundedText(checkpoint.responseId) || !canonicalIsoDate(checkpoint.checkpointedAt)
     || !["accounting_reserved", "accounting_uncertain"].includes(String(checkpoint.accountingStatus))
-    || !Array.isArray(checkpoint.usageSamples)
-    || !recordValue(checkpoint.details)
-    || observed?.status !== "observed" || observed.failed !== false) return null;
+    || !samples || !details
+    || !observed || !hasOnlyKeys(observed, ["status", "actualCostMicros", "inputTokens", "cachedInputTokens",
+      "cacheWriteTokens", "outputTokens", "failed"])
+    || observed.status !== "observed" || observed.failed !== false
+    || ![observed.actualCostMicros, observed.inputTokens, observed.cachedInputTokens,
+      observed.cacheWriteTokens, observed.outputTokens].every(nonnegativeInteger)) return null;
+  const usage = summarizeAiUsage(samples);
+  const inputTokens = usage.inputTokens;
+  const cachedInputTokens = Math.min(inputTokens, usage.cachedInputTokens);
+  const cacheWriteTokens = Math.min(inputTokens - cachedInputTokens, usage.cacheWriteTokens);
+  if (observed.actualCostMicros !== usage.actualCostMicros || observed.inputTokens !== inputTokens
+    || observed.cachedInputTokens !== cachedInputTokens || observed.cacheWriteTokens !== cacheWriteTokens
+    || observed.outputTokens !== usage.outputTokens
+    || contentHash(details) !== contentHash(usageDetailsFor(samples, checkpoint.responseId as string, checkpoint.resultId as string))) return null;
   const identity: Partial<AiResultCheckpoint> = { ...checkpoint };
   delete identity.checkpointFingerprint;
-  delete identity.checkpointedAt;
   if (contentHash(checkpoint.result) !== checkpoint.resultFingerprint
-    || checkpointIdentity(identity as Omit<AiResultCheckpoint, "checkpointFingerprint" | "checkpointedAt">) !== checkpoint.checkpointFingerprint) return null;
+    || checkpointIdentity(identity as Omit<AiResultCheckpoint, "checkpointFingerprint">) !== checkpoint.checkpointFingerprint) return null;
   return checkpoint as unknown as AiResultCheckpoint;
 }
 
@@ -160,6 +285,22 @@ function checkpointMatchesReservation(checkpoint: AiResultCheckpoint, reservatio
     && checkpoint.requestId === reservation.requestId
     && checkpoint.attemptToken === reservation.attemptToken
     && checkpoint.payloadFingerprint === reservation.payloadFingerprint;
+}
+
+function checkpointMatchesDocuments(
+  checkpoint: AiResultCheckpoint,
+  request: StoredDocument | null,
+  attempt: StoredDocument | null,
+) {
+  const statusesMatch = (request?.status === "result_checkpointed" && attempt?.status === "result_checkpointed")
+    || (request?.status === "completed" && attempt?.status === "accounting_observed");
+  return statusesMatch
+    && request?.uid === checkpoint.uid && request.feature === checkpoint.feature
+    && request.attemptToken === checkpoint.attemptToken && request.accountGeneration === checkpoint.accountGeneration
+    && request.payloadFingerprint === checkpoint.payloadFingerprint && request.resultId === checkpoint.resultId
+    && attempt?.uid === checkpoint.uid && attempt.feature === checkpoint.feature && attempt.requestId === checkpoint.requestId
+    && attempt.attemptToken === checkpoint.attemptToken && attempt.accountGeneration === checkpoint.accountGeneration
+    && attempt.resultId === checkpoint.resultId;
 }
 
 export class AiQuotaError extends Error {
@@ -275,10 +416,18 @@ export async function reserveAiUsage(
   feature: AiFeature,
   rawIdempotencyKey: string | null,
   payloadFingerprint?: string,
-  options: { allowCompletedReplay?: boolean; resourceKey?: string } = {},
+  options: {
+    allowCompletedReplay?: boolean;
+    resourceKey?: string;
+    legacyReplay?: { profile: string; resultId: string };
+  } = {},
 ) {
   if (!rawIdempotencyKey || rawIdempotencyKey.length < 12 || rawIdempotencyKey.length > 200) {
     throw new AiQuotaError(409, "IDEMPOTENCY_KEY_REQUIRED", "Retry-safe generation could not be started. Please try again.");
+  }
+  if (options.legacyReplay && (!boundedText(options.legacyReplay.profile)
+    || !safeCheckpointId(options.legacyReplay.resultId))) {
+    throw new AiQuotaError(409, "IDEMPOTENCY_CONFLICT", "The legacy replay identity is invalid.");
   }
 
   const now = new Date();
@@ -352,11 +501,6 @@ export async function reserveAiUsage(
       if (previousRequest?.operationId) throw new AiQuotaError(409, "DURABLE_OPERATION_REQUIRED", "Resume this request through its durable course operation.");
       const requestActiveUntil = typeof previousRequest?.leaseUntil === "string" ? Date.parse(previousRequest.leaseUntil) : activeUntil;
       const staleReservedRequest = previousRequest?.status === "reserved" && requestActiveUntil <= now.getTime();
-      if (staleReservedRequest) throw new AiQuotaError(409, "AI_OUTCOME_RECONCILIATION_REQUIRED", "An earlier provider result is unconfirmed and must be reconciled before another paid attempt.");
-      if (previousRequest?.status === "failed" && previousRequest.terminalReason !== "pre_provider_failure") {
-        throw new AiQuotaError(409, "AI_OUTCOME_RECONCILIATION_REQUIRED", "An earlier provider result is unconfirmed and must be reconciled before another paid attempt.");
-      }
-      const reserveDeltaMicros = staleReservedRequest ? 0 : policy.reserveCostMicros;
       if (
         previousRequest
         && payloadFingerprint
@@ -365,6 +509,11 @@ export async function reserveAiUsage(
       ) {
         throw new AiQuotaError(409, "IDEMPOTENCY_CONFLICT", "This retry key was already used for a different request.");
       }
+      if (staleReservedRequest) throw new AiQuotaError(409, "AI_OUTCOME_RECONCILIATION_REQUIRED", "An earlier provider result is unconfirmed and must be reconciled before another paid attempt.");
+      if (previousRequest?.status === "failed" && previousRequest.terminalReason !== "pre_provider_failure") {
+        throw new AiQuotaError(409, "AI_OUTCOME_RECONCILIATION_REQUIRED", "An earlier provider result is unconfirmed and must be reconciled before another paid attempt.");
+      }
+      const reserveDeltaMicros = staleReservedRequest ? 0 : policy.reserveCostMicros;
       if (previousRequest && ["result_checkpointed", "completed"].includes(String(previousRequest.status)) && !staleReservedRequest) {
         if (!options.allowCompletedReplay) {
           throw new AiQuotaError(409, "DUPLICATE_REQUEST", "This request was already completed.", {
@@ -378,8 +527,12 @@ export async function reserveAiUsage(
           ? documents[aiUsageAttemptPath({ requestId, attemptToken: previousToken })]
           : null;
         const attemptCheckpoint = parsedResultCheckpoint(previousAttempt?.resultCheckpoint);
-        if (previousRequest.resultCheckpoint !== undefined && (!checkpoint || !attemptCheckpoint
+        const hasCheckpointState = previousRequest.resultCheckpoint !== undefined
+          || previousAttempt?.resultCheckpoint !== undefined || previousRequest.status === "result_checkpointed"
+          || previousAttempt?.status === "result_checkpointed";
+        if (hasCheckpointState && (!checkpoint || !attemptCheckpoint
           || checkpoint.checkpointFingerprint !== attemptCheckpoint.checkpointFingerprint
+          || !checkpointMatchesDocuments(checkpoint, previousRequest, previousAttempt)
           || checkpoint.uid !== account.uid || checkpoint.accountGeneration !== accountGeneration
           || checkpoint.feature !== feature || checkpoint.requestId !== requestId
           || checkpoint.attemptToken !== previousToken
@@ -388,6 +541,12 @@ export async function reserveAiUsage(
         }
         if (previousRequest.status === "result_checkpointed" && !checkpoint) {
           throw new AiQuotaError(409, "AI_OUTCOME_RECONCILIATION_REQUIRED", "The saved provider result cannot be safely recovered.");
+        }
+        if (!checkpoint && (!options.legacyReplay
+          || previousRequest.profile !== options.legacyReplay.profile
+          || !safeCheckpointId(previousRequest.resultId)
+          || previousRequest.resultId !== options.legacyReplay.resultId)) {
+          throw new AiQuotaError(409, "AI_OUTCOME_RECONCILIATION_REQUIRED", "The completed result is not safely bound to this product and resource.");
         }
         return {
           writes: [],
@@ -586,7 +745,7 @@ function defaultModelFor(feature: AiFeature) {
   return serverEnvironment.OPENAI_COURSE_MODEL || serverEnvironment.OPENAI_MODEL || "gpt-5.6-terra";
 }
 
-function observedUsageFor(reservation: Pick<AiReservation, "feature">, result: AiUsageFinalization) {
+function observedUsageFor(reservation: Pick<AiReservation, "feature">, result: AiUsageFinalization, resultId: string) {
   const rawSamples = result.usageSamples?.length
     ? result.usageSamples
     : [{
@@ -619,14 +778,10 @@ function observedUsageFor(reservation: Pick<AiReservation, "feature">, result: A
   const cachedInputTokens = Math.min(inputTokens, usage.cachedInputTokens);
   const cacheWriteTokens = Math.min(inputTokens - cachedInputTokens, usage.cacheWriteTokens);
   const responseIds = samples.flatMap((sample) => sample.responseId ? [sample.responseId] : []);
-  const models = Array.from(new Set(samples.map((sample) => sample.model)));
-  const promptVersions = Array.from(new Set(samples.flatMap((sample) => sample.promptVersion ? [sample.promptVersion] : [])));
-  const profiles = Array.from(new Set(samples.flatMap((sample) => sample.profile ? [sample.profile] : [])));
-  const reasoningEfforts = Array.from(new Set(samples.flatMap((sample) => sample.reasoningEffort ? [sample.reasoningEffort] : [])));
-  const promptCacheKeys = Array.from(new Set(samples.flatMap((sample) => sample.promptCacheKey ? [sample.promptCacheKey] : [])));
+  const responseId = result.responseId ?? responseIds.at(-1);
   return {
     samples,
-    responseId: result.responseId ?? responseIds.at(-1),
+    responseId,
     observed: {
       status: "observed" as const,
       actualCostMicros: usage.actualCostMicros,
@@ -636,34 +791,7 @@ function observedUsageFor(reservation: Pick<AiReservation, "feature">, result: A
       outputTokens: usage.outputTokens,
       failed: result.failed === true,
     },
-    details: {
-      model: models.join(" -> "),
-      models,
-      promptVersion: promptVersions.at(-1) ?? null,
-      promptVersions,
-      profile: profiles.at(-1) ?? null,
-      profiles,
-      reasoningEfforts,
-      promptCacheKeys,
-      attemptCount: samples.length,
-      recoveryUsed: samples.some((sample) => sample.profile?.endsWith(".recovery") === true),
-      attempts: samples.map((sample) => ({
-        model: sample.model,
-        promptVersion: sample.promptVersion ?? null,
-        profile: sample.profile ?? null,
-        reasoningEffort: sample.reasoningEffort ?? null,
-        promptCacheKey: sample.promptCacheKey ?? null,
-        responseId: sample.responseId ?? null,
-        inputTokens: sample.inputTokens,
-        cachedInputTokens: sample.cachedInputTokens,
-        cacheWriteTokens: sample.cacheWriteTokens,
-        outputTokens: sample.outputTokens,
-        costMicros: estimateAiUsageCostMicros(sample),
-      })),
-      responseId: result.responseId ?? responseIds.at(-1) ?? null,
-      responseIds,
-      resultId: result.resultId ?? null,
-    },
+    details: responseId ? usageDetailsFor(samples, responseId, resultId) : {},
   };
 }
 
@@ -683,15 +811,21 @@ export async function checkpointAiUsageResult<Result>(
   },
 ): Promise<AiResultCheckpoint<Result>> {
   if (reservation.operationId || !reservation.attemptToken || !reservation.accountGeneration
-    || !reservation.payloadFingerprint || !input.resourceId || !input.resultId || !input.productGuard) {
+    || !reservation.payloadFingerprint || !safeCheckpointId(input.resourceId) || !safeCheckpointId(input.resultId)
+    || !SHA256_PATTERN.test(input.productGuard)) {
     throw new AiQuotaError(409, "AI_OUTCOME_RECONCILIATION_REQUIRED", "The provider result is missing immutable recovery identity.");
   }
-  const serialized = JSON.stringify(input.result);
+  let serialized: string | undefined;
+  try {
+    serialized = JSON.stringify(input.result);
+  } catch {
+    serialized = undefined;
+  }
   if (!serialized || Buffer.byteLength(serialized, "utf8") > RESULT_CHECKPOINT_MAX_BYTES) {
     throw new AiQuotaError(409, "AI_RESULT_CHECKPOINT_INVALID", "The provider result is too large to recover safely.");
   }
   const result = JSON.parse(serialized) as Result;
-  const usage = observedUsageFor(reservation, input.usage);
+  const usage = observedUsageFor(reservation, input.usage, input.resultId);
   if (usage.observed.failed || !usage.responseId) {
     throw new AiQuotaError(409, "AI_RESULT_CHECKPOINT_INVALID", "An observed provider response is required before checkpointing its result.");
   }
@@ -709,7 +843,7 @@ export async function checkpointAiUsageResult<Result>(
       const existingAttempt = parsedResultCheckpoint(attempt?.resultCheckpoint);
       if (existing || existingAttempt) {
         if (!existing || !existingAttempt || existing.checkpointFingerprint !== existingAttempt.checkpointFingerprint
-          || !checkpointMatchesReservation(existing, reservation)
+          || !checkpointMatchesReservation(existing, reservation) || !checkpointMatchesDocuments(existing, request, attempt)
           || existing.kind !== input.kind || existing.resourceId !== input.resourceId || existing.resultId !== input.resultId
           || existing.productGuard !== input.productGuard || existing.resultFingerprint !== contentHash(result)
           || existing.responseId !== usage.responseId || contentHash(existing.usageSamples) !== contentHash(usage.samples)) {
@@ -729,7 +863,7 @@ export async function checkpointAiUsageResult<Result>(
       if (!identityMatches || (!reserved && !uncertain)) {
         throw new AiQuotaError(409, "AI_OUTCOME_RECONCILIATION_REQUIRED", "The provider result no longer belongs to an active recoverable attempt.");
       }
-      const base: Omit<AiResultCheckpoint<Result>, "checkpointFingerprint" | "checkpointedAt"> = {
+      const identity: Omit<AiResultCheckpoint<Result>, "checkpointFingerprint"> = {
         version: 1,
         kind: input.kind,
         uid: reservation.uid,
@@ -748,12 +882,15 @@ export async function checkpointAiUsageResult<Result>(
         accountingStatus: uncertain ? "accounting_uncertain" : "accounting_reserved",
         observed: { ...usage.observed, failed: false },
         details: usage.details,
-      };
-      const checkpoint: AiResultCheckpoint<Result> = {
-        ...base,
-        checkpointFingerprint: checkpointIdentity(base as Omit<AiResultCheckpoint, "checkpointFingerprint" | "checkpointedAt">),
         checkpointedAt: now,
       };
+      const checkpoint: AiResultCheckpoint<Result> = {
+        ...identity,
+        checkpointFingerprint: checkpointIdentity(identity as Omit<AiResultCheckpoint, "checkpointFingerprint">),
+      };
+      if (!parsedResultCheckpoint(checkpoint)) {
+        throw new AiQuotaError(409, "AI_RESULT_CHECKPOINT_INVALID", "The provider result checkpoint exceeds its safe recovery bounds.");
+      }
       return {
         writes: [
           { path: reservation.requestPath, data: { ...request, status: "result_checkpointed", terminalReason: null,
@@ -782,6 +919,7 @@ export async function recoverAiUsageResult<Result>(
   const attemptCheckpoint = parsedResultCheckpoint(attempt?.resultCheckpoint);
   if (!checkpoint || !attemptCheckpoint || checkpoint.checkpointFingerprint !== attemptCheckpoint.checkpointFingerprint
     || !checkpointMatchesReservation(checkpoint, reservation)
+    || !checkpointMatchesDocuments(checkpoint, request, attempt)
     || checkpoint.kind !== expected.kind || checkpoint.resourceId !== expected.resourceId
     || !["result_checkpointed", "completed"].includes(String(request?.status))
     || !["result_checkpointed", "accounting_observed"].includes(String(attempt?.status))) {
@@ -836,7 +974,8 @@ export async function settleAiUsageProduct<Result>(
   productPaths: string[],
   mutateProduct: (documents: Record<string, StoredDocument | null>, checkpoint: AiResultCheckpoint<Result>) => AiProductMutation<Result>,
 ): Promise<Result> {
-  if (!reservation.attemptToken || !reservation.accountGeneration || !checkpointMatchesReservation(checkpoint, reservation)) {
+  if (!reservation.attemptToken || !reservation.accountGeneration || !parsedResultCheckpoint(checkpoint)
+    || !checkpointMatchesReservation(checkpoint, reservation)) {
     throw new AiQuotaError(409, "AI_OUTCOME_RECONCILIATION_REQUIRED", "The saved provider result belongs to another attempt.");
   }
   await settleAiUsageCheckpointGlobal(reservation, checkpoint);
@@ -858,6 +997,7 @@ export async function settleAiUsageProduct<Result>(
       const requestCheckpoint = parsedResultCheckpoint(request?.resultCheckpoint);
       const attemptCheckpoint = parsedResultCheckpoint(attempt?.resultCheckpoint);
       if (request?.status === "completed" && attempt?.status === "accounting_observed"
+        && checkpointMatchesDocuments(checkpoint, request, attempt)
         && requestCheckpoint?.checkpointFingerprint === checkpoint.checkpointFingerprint
         && attemptCheckpoint?.checkpointFingerprint === checkpoint.checkpointFingerprint) {
         return { writes: [], result: checkpoint.result };
@@ -866,6 +1006,7 @@ export async function settleAiUsageProduct<Result>(
       const period = documents[reservation.periodPath];
       const budget = documents[reservation.userBudgetPath];
       if (request?.status !== "result_checkpointed" || attempt?.status !== "result_checkpointed"
+        || !checkpointMatchesDocuments(checkpoint, request, attempt)
         || requestCheckpoint?.checkpointFingerprint !== checkpoint.checkpointFingerprint
         || attemptCheckpoint?.checkpointFingerprint !== checkpoint.checkpointFingerprint
         || receipt?.status !== "observed" || receipt.checkpointFingerprint !== checkpoint.checkpointFingerprint
@@ -919,10 +1060,6 @@ export async function finalizeAiUsage(
 ) {
   if (reservation.recovered) return;
   if (reservation.operationId) throw new AiQuotaError(409, "DURABLE_OPERATION_REQUIRED", "Durable usage must settle through its operation.");
-  const checkpointedRequest = await getStoredDocument(reservation.requestPath);
-  if (checkpointedRequest && checkpointedRequest.attemptToken === reservation.attemptToken
-    && checkpointedRequest.status === "result_checkpointed"
-    && parsedResultCheckpoint(checkpointedRequest.resultCheckpoint)) return;
   const nowIso = new Date().toISOString();
   const defaultModel = reservation.feature === "command_center_draft"
     ? serverEnvironment.OPENAI_COMMAND_CENTER_MODEL || serverEnvironment.OPENAI_MODEL || "gpt-5.6-terra"
@@ -991,16 +1128,30 @@ export async function finalizeAiUsage(
   }));
 
   const receiptPath = `generationUsageReceipts/legacy-${reservation.requestId}-${reservation.attemptToken ?? "v0"}`;
-  const lateUsage = () => runWithGlobalUsageAccounting(() => runStoredDocumentTransaction([receiptPath, reservation.globalPath], (documents) => {
+  const attemptPath = aiUsageAttemptPath(reservation);
+  const lateUsage = () => runWithGlobalUsageAccounting(() => runStoredDocumentTransaction([
+    receiptPath,
+    reservation.globalPath,
+    reservation.requestPath,
+    attemptPath,
+  ], (documents) => {
     const receipt = documents[receiptPath];
-    if (receipt && receipt.status !== "uncertain") return { writes: [], result: undefined };
+    const request = documents[reservation.requestPath];
+    const attempt = documents[attemptPath];
+    const exactRequest = request?.attemptToken === reservation.attemptToken;
+    const exactAttempt = attempt?.requestId === reservation.requestId && attempt.attemptToken === reservation.attemptToken;
+    if ((exactRequest && (request?.status === "result_checkpointed" || request?.resultCheckpoint !== undefined))
+      || (exactAttempt && (attempt?.status === "result_checkpointed" || attempt?.resultCheckpoint !== undefined))) {
+      return { writes: [], result: false };
+    }
+    if (receipt && receipt.status !== "uncertain") return { writes: [], result: true };
     const global: Record<string, unknown> = documents[reservation.globalPath] ?? {};
     return { writes: [
       { path: receiptPath, data: { version: 1, kind: "legacy-ai-completion", status: "observed", actualCostMicros, inputTokens, cachedInputTokens, cacheWriteTokens, outputTokens, failed: result.failed === true, globalPath: reservation.globalPath, updatedAt: nowIso } },
       { path: reservation.globalPath, data: { ...global, reservedCostMicros: Math.max(0, numberValue(global.reservedCostMicros) - (receipt ? 0 : reservation.reserveCostMicros)), uncertainCostMicros: Math.max(0, numberValue(global.uncertainCostMicros) - numberValue(receipt?.uncertainCostMicros)), actualCostMicros: numberValue(global.actualCostMicros) + actualCostMicros, updatedAt: nowIso } },
-    ], result: undefined };
+    ], result: true };
   }));
-  await lateUsage();
+  if (!await lateUsage()) return;
   await settleAiUsageAttempt(reservation, {
     status: "observed", actualCostMicros, inputTokens, cachedInputTokens, cacheWriteTokens, outputTokens,
     failed: result.failed === true,
@@ -1030,7 +1181,14 @@ async function settleAiUsageAttempt(
     const sameRequest = Boolean(request) && request?.attemptToken === reservation.attemptToken;
     // Additive migration supports attempts admitted just before this schema. An
     // absent/deleted account or an overwritten old attempt is never recreated.
-    const attempt = documents[attemptPath] ?? (sameRequest ? request : undefined);
+    const storedAttempt = documents[attemptPath];
+    const sameAttempt = Boolean(storedAttempt) && storedAttempt?.requestId === reservation.requestId
+      && storedAttempt.attemptToken === reservation.attemptToken;
+    if ((sameRequest && (request?.status === "result_checkpointed" || request?.resultCheckpoint !== undefined))
+      || (sameAttempt && (storedAttempt?.status === "result_checkpointed" || storedAttempt?.resultCheckpoint !== undefined))) {
+      return { writes: [], result: false };
+    }
+    const attempt = storedAttempt ?? (sameRequest ? request : undefined);
     if (!attempt || !period || !budget || attempt.uid !== reservation.uid
       || (reservation.accountGeneration && attempt.accountGeneration !== reservation.accountGeneration)
       || ["completed", "accounting_observed"].includes(String(attempt.status))

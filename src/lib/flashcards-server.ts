@@ -1,6 +1,7 @@
 import "server-only";
 
 import type { ServerAccount } from "@/lib/account-server";
+import { aiUsageProductGuard } from "@/lib/ai-usage";
 import {
   deleteStoredDocuments,
   getStoredDocument,
@@ -28,7 +29,6 @@ import {
   type GeneratedDeckOutput,
 } from "@/lib/flashcards";
 import { planAllows } from "@/lib/membership-plans";
-import { publicationContentFingerprint } from "@/lib/publication-content";
 
 const DECK_COLLECTION = "flashcardDecks";
 const CARD_COLLECTION = "flashcards";
@@ -290,7 +290,7 @@ export async function prepareGeneratedFlashcardDraft(input: GeneratedFlashcardDr
     detail: { deck, cards },
     paths: writes.map((write) => write.path),
     writes,
-    productGuard: publicationContentFingerprint(null),
+    productGuard: aiUsageProductGuard(null),
   };
 }
 
@@ -298,7 +298,7 @@ export function generatedFlashcardDraftMutation(
   documents: Record<string, Record<string, unknown> | null>,
   draft: PreparedGeneratedFlashcardDraft,
 ) {
-  if (publicationContentFingerprint(documents[draft.paths[0]] ?? null) !== draft.productGuard
+  if (aiUsageProductGuard(documents[draft.paths[0]] ?? null) !== draft.productGuard
     || draft.paths.slice(1).some((path) => documents[path])) {
     throw new FlashcardServiceError(409, "DECK_CONFLICT", "The generated deck changed before it could be saved.");
   }
@@ -310,7 +310,7 @@ export function preparedGeneratedFlashcardDraftFromDetail(
   value: unknown,
   productGuard: string,
 ): PreparedGeneratedFlashcardDraft {
-  if (!value || typeof value !== "object" || productGuard !== publicationContentFingerprint(null)) {
+  if (!value || typeof value !== "object" || productGuard !== aiUsageProductGuard(null)) {
     throw new FlashcardServiceError(409, "DECK_RECOVERY_INVALID", "The saved generated deck cannot be safely recovered.");
   }
   const raw = value as { deck?: unknown; cards?: unknown };

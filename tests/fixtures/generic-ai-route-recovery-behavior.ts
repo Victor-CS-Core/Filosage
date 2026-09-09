@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { after, mock, test, type TestContext } from "node:test";
+import { createHash } from "node:crypto";
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { spawnSync } from "node:child_process";
 import { tmpdir } from "node:os";
@@ -37,6 +38,19 @@ let activeAccount: {
 let activeGeneration: Awaited<ReturnType<typeof lifecycle.captureAccountGeneration>>;
 let activeFault: FaultStage | null = null;
 let providerCalls = 0;
+let pausedGlobalRead: {
+  reached: () => void;
+  resume: Promise<void>;
+} | null = null;
+
+function pauseNextGlobalSettlementRead() {
+  let reached!: () => void;
+  let resume!: () => void;
+  const reachedPromise = new Promise<void>((resolve) => { reached = resolve; });
+  const resumePromise = new Promise<void>((resolve) => { resume = resolve; });
+  pausedGlobalRead = { reached, resume: resumePromise };
+  return { reached: reachedPromise, resume };
+}
 
 const isGlobalSettlement = (paths: string[]) => (
   paths.some((path) => path.startsWith("generationUsageReceipts/legacy-"))
@@ -79,6 +93,12 @@ mock.module("../../src/lib/local-store.ts", {
           ? (result as Array<{ transaction?: string }>).find((entry) => entry.transaction)?.transaction
           : undefined;
         if (transaction) transactionPaths.set(transaction, paths);
+        if (pausedGlobalRead && isGlobalSettlement(paths)) {
+          const pause = pausedGlobalRead;
+          pausedGlobalRead = null;
+          pause.reached();
+          await pause.resume;
+        }
         return result;
       }
       if (path === "/documents:commit") {
@@ -279,6 +299,40 @@ async function accounting(uid: string, feature: "tutor" | "flashcard_generation"
   return { requestId, request, attempt, period, budget, global, receipt };
 }
 
+function productGuard(value: unknown) {
+  return createHash("sha256").update(publication.publicationContentFingerprint(value)).digest("hex");
+}
+
+async function completeLegacyBaseline(courseId: string, key: string) {
+  const reservation = await lifecycle.runWithAccountGeneration(activeGeneration, () => aiUsage.reserveAiUsage(
+    activeAccount,
+    "tutor",
+    key,
+    undefined,
+    { allowCompletedReplay: true },
+  ));
+  const outcomePath = `users/${activeAccount.uid}/learningOutcomes/${courseId}`;
+  const outcome = await documents.getStoredDocument(outcomePath);
+  await lifecycle.runWithAccountGeneration(activeGeneration, () => documents.putStoredDocument(outcomePath, {
+    ...outcome,
+    baselineAssessment: {
+      summary: `Legacy baseline for ${courseId}.`,
+      criteria: [{ criterion: "Use evidence.", met: true, feedback: "Evidence is explicit." }],
+      assessedAt: "2026-09-09T12:00:00.000Z",
+      score: 100,
+    },
+  }));
+  await lifecycle.runWithAccountGeneration(activeGeneration, () => aiUsage.finalizeAiUsage(reservation, {
+    model: "gpt-5.6-luna",
+    inputTokens: 100,
+    outputTokens: 50,
+    responseId: `legacy-baseline-${courseId}`,
+    resultId: courseId,
+    profile: "baseline.standard",
+  }));
+  return reservation;
+}
+
 async function assertConverged(product: Product, uid: string, courseId: string, key: string, body: Record<string, unknown>) {
   const feature = product === "flashcards" ? "flashcard_generation" : "tutor";
   const state = await accounting(uid, feature, key);
@@ -381,6 +435,197 @@ for (const product of ["baseline", "capstone", "flashcards"] as const) {
     });
   }
 }
+
+test("capstone recovery persists the checkpointed mastery evidence after the course objectives change", async () => {
+  const { uid, courseId } = await seed("capstone", "mutable_course_evidence");
+  const key = "capstone-mutable-course-evidence-key";
+  providerCalls = 0;
+  activeFault = "after_checkpoint";
+  const first = await assessCapstone(requestFor("capstone", courseId, key));
+  assert.equal(first.status, 500, JSON.stringify(await first.clone().json()));
+  const callsAfterCheckpoint = providerCalls;
+  assert(callsAfterCheckpoint > 0);
+
+  const coursePath = `courses/${courseId}`;
+  const course = await documents.getStoredDocument(coursePath);
+  assert(course);
+  const modules = structuredClone(course.modules) as Array<Record<string, unknown>>;
+  modules[0] = {
+    ...modules[0],
+    title: "Mutated module",
+    objective: "A post-checkpoint objective must not receive evidence.",
+    objectiveId: "objective-mutated",
+  };
+  await lifecycle.runWithAccountGeneration(activeGeneration, () => documents.putStoredDocument(coursePath, {
+    ...course,
+    modules,
+    capstone: {
+      ...(course.capstone as Record<string, unknown>),
+      title: "Mutated capstone",
+      objectiveIds: ["objective-mutated"],
+    },
+  }));
+
+  const replay = await assessCapstone(requestFor("capstone", courseId, key));
+  const replayBody = await replay.json() as Record<string, unknown>;
+  assert.equal(replay.status, 200, JSON.stringify(replayBody));
+  assert.equal(providerCalls, callsAfterCheckpoint);
+  const evidence = (await documents.scanStoredDocuments()).documents
+    .filter(({ path }) => path.startsWith(`users/${uid}/masteryEvidence/`))
+    .map(({ data }) => data);
+  assert.equal(evidence.length, 1);
+  assert.equal(evidence[0].objectiveId, "objective-evidence");
+  assert.match(String(evidence[0].label), /Evaluate a claim with bounded evidence/);
+  assert.equal(evidence[0].criterion, "Evidence decision");
+  assert.equal(evidence.some((item) => item.objectiveId === "objective-mutated"), false);
+});
+
+test("legacy finalization interleaved after a result checkpoint cannot strand checkpoint recovery", async () => {
+  const { uid, courseId } = await seed("baseline", "finalization_interleave");
+  const key = "baseline-finalization-interleave-key";
+  const fingerprint = await publication.publicationContentHash(bodyFor("baseline", courseId));
+  const reservation = await lifecycle.runWithAccountGeneration(activeGeneration, () => aiUsage.reserveAiUsage(
+    activeAccount,
+    "tutor",
+    key,
+    fingerprint,
+    { allowCompletedReplay: true },
+  ));
+  const assessment = {
+    summary: "The checkpointed assessment remains recoverable.",
+    criteria: [{ criterion: "Use evidence.", met: true, feedback: "Evidence is explicit." }],
+    assessedAt: "2026-09-09T12:00:00.000Z",
+    score: 100,
+  };
+  const pause = pauseNextGlobalSettlementRead();
+  const finalization = lifecycle.runWithAccountGeneration(activeGeneration, () => aiUsage.finalizeAiUsage(reservation, {
+    model: "gpt-5.6-luna",
+    inputTokens: 100,
+    outputTokens: 50,
+    responseId: "interleaved-response",
+    resultId: courseId,
+    profile: "baseline.standard",
+  }));
+  await pause.reached;
+  let checkpoint: Awaited<ReturnType<typeof aiUsage.checkpointAiUsageResult<typeof assessment>>>;
+  try {
+    checkpoint = await lifecycle.runWithAccountGeneration(activeGeneration, () => aiUsage.checkpointAiUsageResult(reservation, {
+      kind: "baseline_assessment",
+      resourceId: courseId,
+      resultId: courseId,
+      productGuard: productGuard(null),
+      result: assessment,
+      usage: {
+        model: "gpt-5.6-luna",
+        inputTokens: 100,
+        outputTokens: 50,
+        responseId: "interleaved-response",
+        resultId: courseId,
+        profile: "baseline.standard",
+      },
+    }));
+  } finally {
+    pause.resume();
+  }
+  await finalization;
+
+  const interrupted = await accounting(uid, "tutor", key);
+  assert.equal(interrupted.request.status, "result_checkpointed");
+  assert.equal(interrupted.attempt?.status, "result_checkpointed");
+  assert.equal(interrupted.receipt, null);
+  const outcomePath = `users/${uid}/learningOutcomes/${courseId}`;
+  const settled = await aiUsage.settleAiUsageProduct(reservation, checkpoint!, [outcomePath], (stored, saved) => {
+    const outcome = stored[outcomePath];
+    assert(outcome);
+    assert.equal(productGuard(outcome.baselineAssessment ?? null), saved.productGuard);
+    return {
+      writes: [{ path: outcomePath, data: { ...outcome, baselineAssessment: saved.result as Record<string, unknown> } }],
+      result: saved.result,
+    };
+  });
+  assert.deepEqual(settled, assessment);
+  await assertConverged("baseline", uid, courseId, key, { assessment });
+});
+
+test("a checkpoint product guard is a fixed digest and does not expose private prior product JSON", async () => {
+  const { uid, courseId } = await seed("baseline", "private_product_guard");
+  const outcomePath = `users/${uid}/learningOutcomes/${courseId}`;
+  const outcome = await documents.getStoredDocument(outcomePath);
+  const privateMarker = "PRIVATE-PRIOR-ASSESSMENT-MARKER";
+  await lifecycle.runWithAccountGeneration(activeGeneration, () => documents.putStoredDocument(outcomePath, {
+    ...outcome,
+    baselineAssessment: {
+      summary: privateMarker,
+      criteria: [],
+      assessedAt: "2026-09-08T12:00:00.000Z",
+      score: 0,
+    },
+  }));
+  const key = "baseline-private-product-guard-key";
+  activeFault = "after_checkpoint";
+  const first = await assessBaseline(requestFor("baseline", courseId, key));
+  assert.equal(first.status, 500, JSON.stringify(await first.clone().json()));
+  const state = await accounting(uid, "tutor", key);
+  const guard = String((state.request.resultCheckpoint as { productGuard?: string }).productGuard);
+  assert.match(guard, /^[a-f0-9]{64}$/);
+  assert.equal(guard.includes(privateMarker), false);
+});
+
+test("a checkpointless legacy baseline cannot replay as a capstone under the shared tutor key", async () => {
+  const { uid, courseId } = await seed("baseline", "legacy_cross_product");
+  const key = "legacy-cross-product-tutor-key";
+  await completeLegacyBaseline(courseId, key);
+  const progressPath = `users/${uid}/courseProgress/${courseId}`;
+  const progress = await documents.getStoredDocument(progressPath);
+  const revision = {
+    status: "passed",
+    summary: "This unrelated capstone must not be replayed.",
+    criteria: [{ criterion: "Use evidence.", met: true, feedback: "Evidence is explicit." }],
+    assessedAt: "2026-09-09T12:00:00.000Z",
+    attempt: 1,
+  };
+  await lifecycle.runWithAccountGeneration(activeGeneration, () => documents.putStoredDocument(progressPath, {
+    ...progress,
+    capstone: { ...revision, attempts: 1, history: [revision] },
+  }));
+  const before = await accounting(uid, "tutor", key);
+  providerCalls = 0;
+  const response = await assessCapstone(requestFor("capstone", courseId, key));
+  const body = await response.json() as { code?: string };
+  assert.equal(response.status, 409, JSON.stringify(body));
+  assert.equal(body.code, "AI_OUTCOME_RECONCILIATION_REQUIRED");
+  assert.equal(providerCalls, 0);
+  assert.deepEqual(await accounting(uid, "tutor", key), before);
+});
+
+test("a checkpointless legacy baseline cannot replay another course under the same key", async () => {
+  const { uid, courseId } = await seed("baseline", "legacy_cross_resource");
+  const key = "legacy-cross-resource-tutor-key";
+  await completeLegacyBaseline(courseId, key);
+  const otherCourseId = `${courseId}-other`;
+  const course = await documents.getStoredDocument(`courses/${courseId}`);
+  await lifecycle.runWithAccountGeneration(activeGeneration, () => documents.putStoredDocuments([
+    { path: `courses/${otherCourseId}`, data: { ...course, authorId: uid } },
+    { path: `users/${uid}/learningOutcomes/${otherCourseId}`, data: {
+      uid,
+      courseId: otherCourseId,
+      baselineAssessment: {
+        summary: "The other course result must not be replayed.",
+        criteria: [{ criterion: "Use evidence.", met: true, feedback: "Evidence is explicit." }],
+        assessedAt: "2026-09-09T12:00:00.000Z",
+        score: 100,
+      },
+    } },
+  ]));
+  const before = await accounting(uid, "tutor", key);
+  providerCalls = 0;
+  const response = await assessBaseline(requestFor("baseline", otherCourseId, key));
+  const body = await response.json() as { code?: string };
+  assert.equal(response.status, 409, JSON.stringify(body));
+  assert.equal(body.code, "AI_OUTCOME_RECONCILIATION_REQUIRED");
+  assert.equal(providerCalls, 0);
+  assert.deepEqual(await accounting(uid, "tutor", key), before);
+});
 
 for (const product of ["baseline", "capstone", "flashcards"] as const) {
   test(`${product} rejects a different payload under its completed key without provider or product mutation`, async () => {
@@ -491,6 +736,8 @@ for (const product of ["baseline", "capstone", "flashcards"] as const) {
       outputTokens: 50,
       responseId: `legacy-${product}-response`,
       resultId: product === "flashcards" ? reservation.requestId.slice(0, 40) : courseId,
+      profile: product === "baseline" ? "baseline.standard"
+        : product === "capstone" ? "capstone.standard" : "flashcard.standard",
     }));
     const before = await accounting(uid, feature, key);
     assert.equal(before.request.resultCheckpoint, undefined);

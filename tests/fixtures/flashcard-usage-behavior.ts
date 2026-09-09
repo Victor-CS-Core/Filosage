@@ -66,11 +66,12 @@ test("completed flashcard replay returns the saved deck without another metered 
   await runWithAccountGeneration(generation, async () => {
     const key = "completed-flashcard-request";
     const fingerprint = "same-course-source-and-generation-settings";
+    const legacyReplay = { profile: "flashcard.standard", resultId: "saved-flashcard-deck" };
     const reservation = await reserveAiUsage(actor, "flashcard_generation", key, fingerprint, { allowCompletedReplay: true });
     const reserved = await accounting(reservation);
     assert.equal(reservation.recovered, false);
     assert.equal(reserved.period?.requestCount, 1);
-    await finalizeAiUsage(reservation, { ...observedUsage, resultId: "saved-flashcard-deck" });
+    await finalizeAiUsage(reservation, { ...observedUsage, resultId: "saved-flashcard-deck", profile: legacyReplay.profile });
     const completed = await accounting(reservation);
     assert.equal(completed.request?.status, "completed");
     assert.equal(completed.request?.resultId, "saved-flashcard-deck");
@@ -79,10 +80,10 @@ test("completed flashcard replay returns the saved deck without another metered 
       assert.equal(completed[name]?.reservedCostMicros, 0);
       assert.equal(Number(completed[name]?.actualCostMicros) - Number(reserved[name]?.actualCostMicros), 400);
     }
-    await finalizeAiUsage(reservation, { ...observedUsage, resultId: "saved-flashcard-deck" });
+    await finalizeAiUsage(reservation, { ...observedUsage, resultId: "saved-flashcard-deck", profile: legacyReplay.profile });
     assert.deepEqual(await accounting(reservation), completed);
 
-    const replay = await reserveAiUsage(actor, "flashcard_generation", key, fingerprint, { allowCompletedReplay: true });
+    const replay = await reserveAiUsage(actor, "flashcard_generation", key, fingerprint, { allowCompletedReplay: true, legacyReplay });
     assert.equal(replay.recovered, true);
     assert.equal(replay.recoveredResultId, "saved-flashcard-deck");
     assert.equal(replay.requestId, reservation.requestId);
