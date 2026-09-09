@@ -68,6 +68,7 @@ async function handleGET(request: Request) {
     const parsed = hydrationSchema.safeParse({
       courseId: url.searchParams.get("courseId"),
       lessonId: url.searchParams.get("lessonId"),
+      progressOperationId: url.searchParams.get("progressOperationId"),
       interactionId: url.searchParams.get("interactionId"),
     });
     if (!parsed.success) return Response.json({ error: "This practice lab request is not valid." }, { status: 400 });

@@ -29,6 +29,7 @@ import {
   parsePendingManagedRedirectAcceptance,
   pendingManagedRedirectAcceptance,
 } from "../src/lib/auth-redirect";
+import { lessonInteractionHydrationRouteFixture } from "./fixtures/lesson-interaction-hydration-route";
 
 function conciseValidLesson() {
   return {
@@ -748,6 +749,33 @@ test("recognition attempts are retry-safe and saved item evidence is hydrated on
   expect(pageSource).toContain("interactionAttemptKeysRef");
   expect(pageSource).toContain("/api/lesson-interaction?");
   expect(pageSource).toContain('"Idempotency-Key": idempotencyKey');
+});
+
+test("recognition hydration reads stored item evidence through the exported GET handler", async () => {
+  const fixture = lessonInteractionHydrationRouteFixture();
+
+  const hydrated = await fixture.run(fixture.validRequest());
+  expect(hydrated.status).toBe(200);
+  expect(await hydrated.json()).toMatchObject({
+    evidence: {
+      interactionId: "interaction-recognition-morse",
+      itemCount: 6,
+      minimumFirstAttemptCorrect: 6,
+      firstAttemptCorrect: 0,
+      attempts: 2,
+      completed: false,
+      itemResults: [{
+        itemId: "item-morse-a",
+        attempts: 2,
+        firstAttemptCorrect: false,
+        mastered: true,
+        receipt: "fixture-receipt-item-morse-a",
+      }],
+    },
+  });
+
+  expect((await fixture.run(fixture.missingProgressOperationIdRequest())).status).toBe(400);
+  expect((await fixture.run(fixture.invalidProgressOperationIdRequest())).status).toBe(400);
 });
 
 test("recognition idempotency keys are durable and payload-bound across practice items", () => {

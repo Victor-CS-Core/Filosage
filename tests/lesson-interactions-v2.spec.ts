@@ -1,6 +1,8 @@
 import { expect, test } from "@playwright/test";
+import { readFile, writeFile } from "node:fs/promises";
 import type { Course, LessonData } from "../src/lib/course-types";
 import { mockFreeLearnerAccount, restoreLocalLearner } from "./fixtures/local-learner";
+import { playwrightOwnedStorePath } from "./fixtures/playwright-server";
 import {
   signInteractionReceipt,
   validateInteractionReceipt,
@@ -26,6 +28,19 @@ function lesson(content: string, interactions?: LessonInteraction[]): LessonData
     interactions,
     quizzes: [],
   };
+}
+
+async function seedRecognitionCourse(baseURL: string, course: Course, lessonData: LessonData) {
+  const storePath = playwrightOwnedStorePath(baseURL);
+  const store = JSON.parse(await readFile(storePath, "utf8")) as Record<string, Record<string, unknown>>;
+  store[`courses/${course.id}`] = {
+    ...course,
+    authorId: "local-owner",
+    isPublic: false,
+    language: "English",
+  };
+  store[`courses/${course.id}/lessons/0-0`] = { ...lessonData, id: "0-0" };
+  await writeFile(storePath, `${JSON.stringify(store, null, 2)}\n`, "utf8");
 }
 
 test("builds an objective-aligned Morse recognition lab from the lesson reference", () => {
@@ -170,7 +185,7 @@ test("binds practice receipts to the exact learner and recognition item", async 
   })).resolves.toBeNull();
 });
 
-test("places recognition practice in Activities and withholds feedback until commitment", async ({ page }) => {
+test("restores recognition evidence from the real interaction route after reload", async ({ page }, testInfo) => {
   test.setTimeout(90_000);
   const courseId = "morse-recognition-v2";
   const topic = "Morse Code";
@@ -201,48 +216,18 @@ test("places recognition practice in Activities and withholds feedback until com
 
   await restoreLocalLearner(page);
   await mockFreeLearnerAccount(page);
+  const baseURL = testInfo.project.use.baseURL;
+  if (typeof baseURL !== "string") throw new Error("The Playwright-owned recognition store requires a base URL.");
+  await seedRecognitionCourse(baseURL, course, lessonData);
+  await page.addInitScript(() => {
+    Object.defineProperty(crypto, "randomUUID", {
+      configurable: true,
+      value: () => "progress-operation-0001",
+    });
+  });
   await page.route(`**/api/courses/${courseId}`, (route) => route.fulfill({ json: course }));
   await page.route(`**/api/courses/${courseId}/lessons/0-0`, (route) => route.fulfill({ json: lessonData }));
   await page.route("**/api/progress?**", (route) => route.fulfill({ json: { progress: null } }));
-  const savedItemResults = new Map<string, { itemId: string; attempts: number; firstAttemptCorrect: boolean; mastered: boolean; receipt?: string }>();
-  await page.route("**/api/lesson-interaction**", async (route) => {
-    if (route.request().method() === "GET") {
-      const itemResults = [...savedItemResults.values()];
-      await route.fulfill({
-        json: {
-          evidence: {
-            interactionId: "interaction-recognition-morse",
-            itemCount: morseRows.length,
-            minimumFirstAttemptCorrect: 10,
-            firstAttemptCorrect: itemResults.filter((result) => result.firstAttemptCorrect).length,
-            attempts: itemResults.reduce((total, result) => total + result.attempts, 0),
-            completed: itemResults.length === morseRows.length,
-            itemResults,
-          },
-        },
-      });
-      return;
-    }
-    const body = route.request().postDataJSON() as { itemId: string; selectedIndex: number };
-    const expectedIndex = morseRows.findIndex(([character]) => body.itemId === `item-morse-${character.toLowerCase()}`) % 4;
-    const correct = body.selectedIndex === expectedIndex;
-    const receipt = correct ? "signed-practice-receipt-placeholder-with-enough-length" : undefined;
-    savedItemResults.set(body.itemId, {
-      itemId: body.itemId,
-      attempts: 1,
-      firstAttemptCorrect: correct,
-      mastered: correct,
-      receipt,
-    });
-    await route.fulfill({
-      json: {
-        correct,
-        attempts: 1,
-        firstAttemptCorrect: correct,
-        receipt,
-      },
-    });
-  });
 
   await page.goto(`/course/${encodeURIComponent(topic)}/lesson/0-0?id=${courseId}`);
   await expect(page.getByRole("heading", { name: "Read whole patterns" })).toBeVisible();
@@ -256,11 +241,21 @@ test("places recognition practice in Activities and withholds feedback until com
   await expect(page.getByText("First-pass target: 10 of 12.")).toBeVisible();
   await expect(page.locator(".recognition-feedback")).toHaveCount(0);
 
+  const persistedAttempt = page.waitForResponse((response) => (
+    new URL(response.url()).pathname === "/api/lesson-interaction"
+    && response.request().method() === "POST"
+  ));
   await page.locator(".recognition-choices button").first().click();
+  expect((await persistedAttempt).status()).toBe(200);
   await expect(page.locator(".recognition-feedback")).toContainText("Correct");
   await expect(page.locator(".recognition-feedback")).toContainText("A is .-");
 
+  const hydratedEvidence = page.waitForResponse((response) => (
+    new URL(response.url()).pathname === "/api/lesson-interaction"
+    && response.request().method() === "GET"
+  ));
   await page.reload();
+  expect((await hydratedEvidence).status()).toBe(200);
   await page.getByRole("tab", { name: /Activities/ }).click();
   await expect(page.getByText("1 completed")).toBeVisible();
 });
