@@ -15,6 +15,11 @@ const suppressedHmrTypes = new Set([
   HMR_MESSAGE_SENT_TO_BROWSER.SERVER_ONLY_CHANGES,
 ]);
 
+const successfulRecompileTypes = new Set([
+  HMR_MESSAGE_SENT_TO_BROWSER.BUILT,
+  HMR_MESSAGE_SENT_TO_BROWSER.SYNC,
+]);
+
 export function isPlaywrightHmrPathname(pathname) {
   return pathname === "/_next/webpack-hmr" || pathname === "/_next/hmr";
 }
@@ -30,7 +35,7 @@ export function shouldSuppressSuccessfulPlaywrightHmrMessage(data) {
   }
 
   return suppressedHmrTypes.has(message?.type)
-    || (message?.type === HMR_MESSAGE_SENT_TO_BROWSER.BUILT
+    || (successfulRecompileTypes.has(message?.type)
       && !message.errors?.length
       && !message.warnings?.length);
 }
