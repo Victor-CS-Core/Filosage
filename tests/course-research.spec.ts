@@ -30,6 +30,10 @@ import {
 import { supportsGroundedSourcePolicy } from "../src/lib/course-pipeline/contract";
 import type { CourseSource } from "../src/lib/course-types";
 import { sourceVerificationDataFromInput } from "../src/lib/source-verification-data";
+import {
+  BIBLIOGRAPHIC_REFERENCE_POLICY_VERSION,
+  normalizeBibliographicReference,
+} from "../src/lib/bibliographic-references";
 
 function researchResponse(urls: string[]) {
   return {
@@ -667,11 +671,66 @@ test("a storage failure after source generation retains actual response and sear
   expect(fixture.documents.size).toBe(0);
 });
 
+function seedExpiringSourceStage(
+  fixture: { documents: Map<string, Record<string, unknown>>; operationId: string; requestFingerprint: string },
+  cachedStage: "evidence" | "bibliography",
+) {
+  const createdAt = new Date().toISOString();
+  const expiresSoon = new Date(Date.now() + 1_000).toISOString();
+  const expiresLater = new Date(Date.now() + 30 * 24 * 60 * 60_000).toISOString();
+  const candidates = researchFixture();
+  const sourcePack = certifyResearchSources(candidates, researchResponse(candidates.sources.map((source) => source.url)), createdAt).sources.map((source) => ({
+    ...source,
+    qualityTier: "vetted" as const,
+    evidenceValidationResponseId: "expired-evidence-validation",
+    evidenceValidationCallIds: ["expired-evidence-validation-call"],
+  }));
+  const furtherReading = [normalizeBibliographicReference({
+    materialType: "book",
+    title: "Expired bibliography marker",
+    contributors: [{ name: "Fixture Author", role: "author" }],
+    publisher: "Fixture Press",
+    publicationYear: 2020,
+    language: "en",
+    identifiers: { olid: "OL1M" },
+    metadataVerification: { status: "verified", provider: "open-library", recordId: "/books/OL1M", recordFingerprint: "a".repeat(64), verifiedAt: createdAt },
+  })];
+  fixture.documents.set(`courseResearchArtifacts/${fixture.operationId}`, {
+    requestFingerprint: fixture.requestFingerprint,
+    ownerUid: "fixture-owner",
+    uid: "fixture-owner",
+    accountGeneration: "fixture-generation",
+    generationOperationId: fixture.operationId,
+    actorHash: "fixture-safety-id",
+    sourcePack: cachedStage === "evidence" ? sourcePack : [],
+    furtherReading: cachedStage === "bibliography" ? furtherReading : [],
+    responseId: cachedStage === "evidence" ? "expired-evidence-response" : undefined,
+    policyVersion: SOURCE_RESEARCH_POLICY_VERSION,
+    bibliographicPolicyVersion: BIBLIOGRAPHIC_REFERENCE_POLICY_VERSION,
+    bibliographyResponseId: cachedStage === "bibliography" ? "expired-bibliography-response" : undefined,
+    bibliographySearchCallIds: cachedStage === "bibliography" ? ["expired-bibliography-search"] : [],
+    evidenceResearchComplete: cachedStage === "evidence",
+    bibliographyComplete: cachedStage === "bibliography",
+    researchComplete: false,
+    researchOutcome: cachedStage === "evidence" ? "complete" : "unavailable",
+    coverageWarnings: [],
+    fallbackReasonCodes: [],
+    evidenceCreatedAt: createdAt,
+    evidenceExpiresAt: cachedStage === "evidence" ? expiresSoon : expiresLater,
+    bibliographyCreatedAt: createdAt,
+    bibliographyExpiresAt: cachedStage === "bibliography" ? expiresSoon : expiresLater,
+    createdAt,
+    expiresAt: expiresLater,
+  });
+  return {
+    marker: cachedStage === "evidence" ? candidates.sources[0].url : "Expired bibliography marker",
+  };
+}
+
 for (const cachedStage of ["evidence", "bibliography"] as const) {
-  test(`cached ${cachedStage} expiry during the opposite request checkpoints only the valid stage`, async () => {
+  test(`cached ${cachedStage} expiry during the opposite request pauses and resumes the actual operation`, async () => {
     const { mock } = await import("node:test");
     const { researchRouteFixture, emptyStageResponse } = await import("./fixtures/research-route");
-    const { normalizeBibliographicReference } = await import("../src/lib/bibliographic-references");
     mock.timers.enable({ apis: ["Date"], now: Date.parse("2026-09-06T12:00:00.000Z") });
     try {
       const cachedName = cachedStage === "evidence" ? "course_research" : "course_bibliography";
@@ -680,46 +739,62 @@ for (const cachedStage of ["evidence", "bibliography"] as const) {
       const oppositeCompleteField = cachedStage === "evidence" ? "bibliographyComplete" : "evidenceResearchComplete";
       const expiryField = cachedStage === "evidence" ? "evidenceExpiresAt" : "bibliographyExpiresAt";
       const resultField = cachedStage === "evidence" ? "sourcePack" : "furtherReading";
-      let attempt = 1;
+      const oppositeCreatedField = cachedStage === "evidence" ? "bibliographyCreatedAt" : "evidenceCreatedAt";
+      let oppositeAdvancedClock = false;
       const fixture = researchRouteFixture(async (request) => {
         const name = request.text.format.name;
-        if (name === oppositeName && attempt === 1) throw new Error("fixture initial opposite-stage outage");
-        if (name === oppositeName && attempt === 2) mock.timers.tick(2_000);
-        if (name === "course_outline") throw new Error("fixture later outline failure");
+        if (name === oppositeName && !oppositeAdvancedClock) {
+          oppositeAdvancedClock = true;
+          mock.timers.tick(2_000);
+        }
+        if (name === "course_outline") throw new Error("fixture stops after capturing refreshed outline input");
         return emptyStageResponse(name);
+      }, { actualOperationLifecycle: true });
+      const { marker } = seedExpiringSourceStage(fixture, cachedStage);
+
+      const firstResponse = await fixture.run();
+      const firstBody = await firstResponse.json() as Record<string, unknown>;
+      const checkpoint = structuredClone(fixture.documents.get(`courseResearchArtifacts/${fixture.operationId}`)!);
+      const pausedOperation = structuredClone(fixture.documents.get(`generationOperations/${fixture.operationId}`)!);
+      const pausedRequest = structuredClone(fixture.documents.get(fixture.accountingRequestPath)!);
+      const releasedPeriod = structuredClone(fixture.documents.get(fixture.accountingPeriodPath)!);
+      const retryResponse = await fixture.run();
+      const retryBody = await retryResponse.json() as Record<string, unknown>;
+      const resumedOperation = fixture.documents.get(`generationOperations/${fixture.operationId}`)!;
+      const resumedArtifact = fixture.documents.get(`courseResearchArtifacts/${fixture.operationId}`)!;
+      const outlineRequest = fixture.captured.find((request) => request.text.format.name === "course_outline");
+
+      expect({
+        first: { status: firstResponse.status, body: firstBody },
+        persisted: { status: pausedOperation.status, terminalReason: pausedOperation.terminalReason },
+        retry: { status: retryResponse.status, body: retryBody },
+      }).toMatchObject({
+        first: { status: 202, body: { code: "GENERATION_RESUME_REQUIRED", operationId: fixture.operationId, status: "pending", resumable: true } },
+        persisted: { status: "pending", terminalReason: undefined },
+        retry: { status: 409, body: { code: "GENERATION_OUTCOME_UNKNOWN", operationId: fixture.operationId } },
       });
-      expect((await fixture.run()).status).toBe(500);
-      const artifact = fixture.documents.get(`courseResearchArtifacts/${fixture.operationId}`)!;
-      artifact[expiryField] = new Date(Date.now() + 1_000).toISOString();
-      // Nonempty certified results ensure old array fallbacks cannot survive expiry.
-      if (cachedStage === "evidence") {
-        const candidates = researchFixture();
-        artifact.sourcePack = certifyResearchSources(candidates, researchResponse(candidates.sources.map((source) => source.url)), new Date().toISOString()).sources.map((source) => ({
-          ...source, qualityTier: "vetted", evidenceValidationResponseId: "fixture-validation", evidenceValidationCallIds: ["fixture-validation-call"],
-        }));
-      } else {
-        artifact.furtherReading = [normalizeBibliographicReference({
-          materialType: "book", title: "Fixture reference book", contributors: [{ name: "Fixture Author", role: "author" }],
-          publisher: "Fixture Press", publicationYear: 2020, language: "en", identifiers: { olid: "OL1M" },
-          metadataVerification: { status: "verified", provider: "open-library", recordId: "/books/OL1M", recordFingerprint: "a".repeat(64), verifiedAt: new Date().toISOString() },
-        })];
-      }
-      const outlineCount = fixture.captured.filter((request) => request.text.format.name === "course_outline").length;
-      attempt = 2;
-      expect((await fixture.run()).status).toBe(500);
-      const checkpoint = fixture.documents.get(`courseResearchArtifacts/${fixture.operationId}`)!;
+      expect(pausedOperation).toMatchObject({ operationId: fixture.operationId, status: "pending", pendingCalls: [] });
+      expect(pausedOperation.terminalReason).toBeUndefined();
+      expect(pausedRequest).toMatchObject({ operationId: fixture.operationId, status: "reserved", attemptToken: pausedOperation.attemptToken });
+      expect(releasedPeriod).toMatchObject({ activeRequestId: null, activeAttemptToken: null, activeUntil: null });
       expect(checkpoint[completeField]).toBe(false);
       expect(checkpoint[resultField]).toEqual([]);
       expect(checkpoint.researchComplete).toBe(false);
       expect(Date.parse(String(checkpoint[expiryField]))).toBeLessThanOrEqual(Date.now());
       expect(checkpoint[oppositeCompleteField]).toBe(true);
-      expect(fixture.captured.filter((request) => request.text.format.name === "course_outline")).toHaveLength(outlineCount);
-      expect(fixture.finalizations[1].usageSamples).toEqual(expect.arrayContaining([expect.objectContaining({ responseId: `response-${oppositeName}` })]));
-      attempt = 3;
-      expect((await fixture.run()).status).toBe(500);
-      expect(fixture.captured.filter((request) => request.text.format.name === cachedName)).toHaveLength(2);
-      expect(fixture.captured.filter((request) => request.text.format.name === oppositeName)).toHaveLength(2);
-      expect(fixture.documents.get(`courseResearchArtifacts/${fixture.operationId}`)?.researchComplete).toBe(true);
+      expect(fixture.captured.filter((request) => request.text.format.name === cachedName)).toHaveLength(1);
+      expect(fixture.captured.filter((request) => request.text.format.name === oppositeName)).toHaveLength(1);
+      expect(fixture.captured.filter((request) => request.text.format.name === "course_outline")).toHaveLength(1);
+      expect({ status: retryResponse.status, body: retryBody }).toMatchObject({
+        status: 409,
+        body: { code: "GENERATION_OUTCOME_UNKNOWN", operationId: fixture.operationId },
+      });
+      expect(resumedOperation).toMatchObject({ operationId: fixture.operationId, status: "running" });
+      expect(resumedOperation.attemptToken).not.toBe(pausedOperation.attemptToken);
+      expect(resumedOperation.terminalReason).toBeUndefined();
+      expect(resumedArtifact).toMatchObject({ evidenceResearchComplete: true, bibliographyComplete: true, researchComplete: true });
+      expect(resumedArtifact[oppositeCreatedField]).toBe(checkpoint[oppositeCreatedField]);
+      expect(outlineRequest?.input).not.toContain(marker);
     } finally {
       mock.timers.reset();
     }
@@ -731,24 +806,49 @@ test("cached evidence that expires while the checkpoint commits is not consumed 
   const { researchRouteFixture, emptyStageResponse } = await import("./fixtures/research-route");
   mock.timers.enable({ apis: ["Date"], now: Date.parse("2026-09-06T12:00:00.000Z") });
   try {
-    let attempt = 1;
+    let researchCheckpointCommitted = false;
     const fixture = researchRouteFixture(async (request) => {
-      if (request.text.format.name === "course_outline") throw new Error("fixture later outline failure");
+      if (request.text.format.name === "course_outline") throw new Error("fixture stops after capturing refreshed outline input");
       return emptyStageResponse(request.text.format.name);
-    }, { afterPersistence: () => { if (attempt === 2) mock.timers.tick(2_000); } });
-    expect((await fixture.run()).status).toBe(500);
-    fixture.documents.get(`courseResearchArtifacts/${fixture.operationId}`)!.evidenceExpiresAt = new Date(Date.now() + 1_000).toISOString();
-    const outlineCount = fixture.captured.filter((request) => request.text.format.name === "course_outline").length;
-    attempt = 2;
-    expect((await fixture.run()).status).toBe(500);
-    expect(fixture.captured.filter((request) => request.text.format.name === "course_outline")).toHaveLength(outlineCount);
-    const checkpoint = fixture.documents.get(`courseResearchArtifacts/${fixture.operationId}`)!;
-    expect(checkpoint.bibliographyComplete).toBe(true);
+    }, {
+      actualOperationLifecycle: true,
+      afterPersistence: (paths) => {
+        if (!researchCheckpointCommitted && paths.includes(`courseResearchArtifacts/${fixture.operationId}`)) {
+          researchCheckpointCommitted = true;
+          mock.timers.tick(2_000);
+        }
+      },
+    });
+    const { marker } = seedExpiringSourceStage(fixture, "evidence");
+
+    const firstResponse = await fixture.run();
+    const firstBody = await firstResponse.json() as Record<string, unknown>;
+    const checkpoint = structuredClone(fixture.documents.get(`courseResearchArtifacts/${fixture.operationId}`)!);
+    const pausedOperation = structuredClone(fixture.documents.get(`generationOperations/${fixture.operationId}`)!);
+    const retryResponse = await fixture.run();
+    const retryBody = await retryResponse.json() as Record<string, unknown>;
+    const outlineRequest = fixture.captured.find((request) => request.text.format.name === "course_outline");
+
+    expect({
+      first: { status: firstResponse.status, body: firstBody },
+      persisted: { status: pausedOperation.status, terminalReason: pausedOperation.terminalReason },
+      retry: { status: retryResponse.status, body: retryBody },
+    }).toMatchObject({
+      first: { status: 202, body: { code: "GENERATION_RESUME_REQUIRED", operationId: fixture.operationId, status: "pending", resumable: true } },
+      persisted: { status: "pending", terminalReason: undefined },
+      retry: { status: 409, body: { code: "GENERATION_OUTCOME_UNKNOWN", operationId: fixture.operationId } },
+    });
+    expect(pausedOperation).toMatchObject({ operationId: fixture.operationId, status: "pending", pendingCalls: [] });
+    expect(checkpoint).toMatchObject({ evidenceResearchComplete: true, bibliographyComplete: true, researchComplete: true });
     expect(Date.parse(String(checkpoint.evidenceExpiresAt))).toBeLessThanOrEqual(Date.now());
-    attempt = 3;
-    expect((await fixture.run()).status).toBe(500);
-    expect(fixture.captured.filter((request) => request.text.format.name === "course_research")).toHaveLength(2);
+    expect(fixture.captured.filter((request) => request.text.format.name === "course_outline")).toHaveLength(1);
+    expect({ status: retryResponse.status, body: retryBody }).toMatchObject({
+      status: 409,
+      body: { code: "GENERATION_OUTCOME_UNKNOWN", operationId: fixture.operationId },
+    });
+    expect(fixture.captured.filter((request) => request.text.format.name === "course_research")).toHaveLength(1);
     expect(fixture.captured.filter((request) => request.text.format.name === "course_bibliography")).toHaveLength(1);
+    expect(outlineRequest?.input).not.toContain(marker);
   } finally {
     mock.timers.reset();
   }

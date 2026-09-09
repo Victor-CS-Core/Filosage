@@ -586,7 +586,7 @@ async function generateCourseRequest(request: Request) {
       || (persistedResearch.bibliographyComplete && !restoreBibliographyStage(persistedResearch, consumptionContext))) {
       // The valid opposite stage is already checkpointed. Recheck after storage
       // latency too, before any source data is consumed by outline generation.
-      throw new Error("A cached source stage expired during generation; retry to refresh it.");
+      throw new GenerationPauseError();
     }
     sourcePack = persistedResearch.sourcePack;
     furtherReading = persistedResearch.furtherReading;

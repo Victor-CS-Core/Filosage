@@ -5,6 +5,8 @@ import * as asyncHooks from "node:async_hooks";
 import * as zod from "zod";
 import * as responseParser from "openai/lib/ResponsesParser";
 import * as evaluationErrors from "../../src/lib/evaluation-errors";
+import * as aiPricing from "../../src/lib/ai-pricing";
+import * as aiUsageLock from "../../src/lib/ai-usage-lock";
 import { runInNewContext } from "node:vm";
 import ts from "typescript";
 import { zodTextFormat } from "openai/helpers/zod";
@@ -31,45 +33,90 @@ export interface CapturedResearchRequest {
 // network, account, credit ledger, or production document can be touched.
 export function researchRouteFixture(
   provider: (request: CapturedResearchRequest) => Promise<unknown>,
-  options: { failPersistence?: boolean; routeSource?: string; afterPersistence?: () => void } = {},
+  options: { failPersistence?: boolean; routeSource?: string; afterPersistence?: (paths: string[]) => void; actualOperationLifecycle?: boolean } = {},
 ) {
   const operationId = createHash("sha256").update("fixture-owner:course_outline:research-fixture").digest("hex");
   const documents = new Map<string, Record<string, unknown>>();
   const finalizations: Array<{ failed?: boolean; usageSamples?: AiUsageSample[] }> = [];
   const captured: CapturedResearchRequest[] = [];
   const checkpointUsage: AiUsageSample[] = [];
+  class FixtureAiQuotaError extends Error {
+    constructor(public readonly status: number, public readonly code: string, message: string) { super(message); }
+  }
+  const operationAccounting = {
+    limit: 10,
+    maxPerMinute: 10,
+    reserveCostMicros: 1_000_000,
+    userLimitMicros: 10_000_000,
+    poolLimitMicros: 10_000_000,
+    budgetPool: "owner",
+    shard: "fixture",
+    periodKey: "2026-09",
+    periodPath: "usagePeriods/fixture-owner__course_outline__2026-09",
+    requestPath: `aiRequests/${operationId}`,
+    userBudgetPath: "userAiBudgets/fixture-owner__2026-09",
+    globalPath: "systemUsageShards/owner__2026-09__fixture",
+    resetAt: "2026-10-01T00:00:00.000Z",
+    lockKey: undefined,
+  };
+  const accountLifecycle = {
+    currentAccountGeneration: () => ({ uid: "fixture-owner", generation: "fixture-generation" }),
+    captureAccountGeneration: async () => ({ uid: "fixture-owner", generation: "fixture-generation" }),
+    runWithAccountGeneration: <T>(_actor: unknown, work: () => T) => work(),
+    runWithGlobalUsageAccounting: <T>(work: () => T) => work(),
+  };
+  const documentStore = {
+    getCourse: async () => null,
+    getStoredDocument: async (path: string) => documents.get(path) ?? null,
+    runStoredDocumentTransaction: async (paths: string[], callback: (data: Record<string, Record<string, unknown> | null>) => { writes: Array<{ path: string; data: Record<string, unknown> }>; result: unknown }) => {
+      if (options.failPersistence) throw new Error("fixture storage outage");
+      const selected = Object.fromEntries(paths.map((path) => [path, documents.get(path) ?? null]));
+      const result = callback(selected);
+      for (const write of result.writes) documents.set(write.path, structuredClone(write.data));
+      options.afterPersistence?.(paths);
+      return result.result;
+    },
+  };
+  const aiUsage = {
+    AiQuotaError: FixtureAiQuotaError,
+    aiQuotaResponse: (error: unknown) => error instanceof FixtureAiQuotaError
+      ? Response.json({ error: error.message, code: error.code }, { status: error.status })
+      : null,
+    openAiSafetyIdentifier: async () => "fixture-safety-id",
+    reserveAiUsage: async () => ({ requestId: operationId, uid: "fixture-owner" }),
+    courseOutlineAccountingContext: () => operationAccounting,
+    generationAccountingContext: () => operationAccounting,
+    extractOpenAiUsage: (response: { usage: { input_tokens: number; output_tokens: number } }) => ({ inputTokens: response.usage.input_tokens, cachedInputTokens: 0, cacheWriteTokens: 0, outputTokens: response.usage.output_tokens }),
+    finalizeAiUsage: async (_reservation: unknown, result: { failed?: boolean; usageSamples?: AiUsageSample[] }) => { finalizations.push(structuredClone(result)); },
+  };
+  const courseCredits = {
+    CourseCreditError: class extends Error {},
+    courseCreditClaimId: async (_uid: string, value: string) => createHash("sha256").update(value).digest("hex"),
+    courseCreditPaths: () => ({}),
+    generationCreditReservationWrites: () => [],
+    generationCreditSettlementWrites: () => [],
+    generationLessonGrant: () => ({ version: 1, claimId: operationId, lessonIds: [], redeemedAt: new Date().toISOString(), status: "active" }),
+    releaseCourseCreditReservation: async () => undefined,
+  };
   const bindings: Record<string, unknown> = {
     "server-only": {},
     "node:crypto": crypto, "node:async_hooks": asyncHooks, zod,
     "openai/lib/ResponsesParser": responseParser,
     "@/lib/evaluation-errors": evaluationErrors,
-    "@/lib/account-lifecycle": { currentAccountGeneration: () => ({ uid: "fixture-owner", generation: "fixture-generation" }) },
+    "@/lib/account-lifecycle": accountLifecycle,
     "next/server": { NextResponse: Response },
     "openai/helpers/zod": { zodTextFormat },
     "@/lib/local-ai": { aiClient: () => ({ moderations: { create: async () => ({ results: [{ flagged: false }] }) }, responses: { parse: async (request: CapturedResearchRequest) => { captured.push(request); return provider(request); } } }) },
     "@/lib/auth-server": { requireAcceptedAccount: async () => ({ uid: "fixture-owner", isOwner: true }), withAccountRequest: (handler: unknown) => handler, authorizationResponse: () => null },
-    "@/lib/document-store": {
-      getCourse: async () => null,
-      getStoredDocument: async (path: string) => documents.get(path),
-      runStoredDocumentTransaction: async (_paths: string[], callback: (data: Record<string, Record<string, unknown>>) => { writes: Array<{ path: string; data: Record<string, unknown> }>; result: unknown }) => {
-        if (options.failPersistence) throw new Error("fixture storage outage");
-        const result = callback(Object.fromEntries(documents));
-        for (const write of result.writes) documents.set(write.path, structuredClone(write.data));
-        options.afterPersistence?.();
-        return result.result;
-      },
-    },
-    "@/lib/ai-usage": {
-      AiQuotaError: class extends Error {}, aiQuotaResponse: () => null,
-      openAiSafetyIdentifier: async () => "fixture-safety-id",
-      reserveAiUsage: async () => ({ requestId: operationId, uid: "fixture-owner" }),
-      extractOpenAiUsage: (response: { usage: { input_tokens: number; output_tokens: number } }) => ({ inputTokens: response.usage.input_tokens, cachedInputTokens: 0, cacheWriteTokens: 0, outputTokens: response.usage.output_tokens }),
-      finalizeAiUsage: async (_reservation: unknown, result: { failed?: boolean; usageSamples?: AiUsageSample[] }) => { finalizations.push(structuredClone(result)); },
-    },
-    "@/lib/course-credits": {
-      CourseCreditError: class extends Error {},
-      courseCreditClaimId: async (_uid: string, value: string) => createHash("sha256").update(value).digest("hex"),
-      releaseCourseCreditReservation: async () => undefined,
+    "@/lib/document-store": documentStore,
+    "@/lib/ai-usage": aiUsage,
+    "@/lib/ai-pricing": aiPricing,
+    "@/lib/ai-usage-lock": aiUsageLock,
+    "@/lib/course-credits": courseCredits,
+    "@/lib/evaluation-budget": {
+      assertEvaluationOperationRequest: async () => undefined,
+      assertEvaluationOperationLedger: () => undefined,
+      evaluationUsageSamples: async () => null,
     },
     "@/lib/local-mode": { isLocalMode: () => true },
     "@/lib/runtime-environment": { serverEnvironment: {} },
@@ -114,6 +161,11 @@ export function researchRouteFixture(
       console: { warn() {}, error() {}, info() {} } });
     return exports;
   };
+  if (options.actualOperationLifecycle) {
+    // The route receives the production operation exports. Only their storage,
+    // account, policy, credit, and provider dependencies are isolated above.
+    bindings["@/lib/generation-operations"] = evaluateModule(readFileSync("src/lib/generation-operations.ts", "utf8"));
+  }
   // Keep the route's extracted configuration, ordinary-request evaluation guard,
   // and durable provider adapter real. Only their IO/account boundaries above
   // are fixtures; provider accounting still goes through runGenerationProviderCall.
@@ -121,9 +173,17 @@ export function researchRouteFixture(
     bindings[`@/lib/${name}`] = evaluateModule(readFileSync(`src/lib/${name}.ts`, "utf8"));
   }
   const exports = evaluateModule(options.routeSource ?? readFileSync("src/app/api/generate-course/route.ts", "utf8")) as { POST: (request: Request) => Promise<Response> };
+  const requestBody = { topic: "Scientific reasoning", goal: "Practice comparing the evidence behind claims.", language: "English" };
+  const parsedRequest = validation.courseRequestSchema.parse(requestBody);
+  const generationOperations = bindings["@/lib/generation-operations"] as { generationFingerprint: (value: unknown) => string };
   return {
     documents, finalizations, captured, operationId,
-    run: () => exports.POST!(new Request("https://fixture.invalid/api/generate-course", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ topic: "Scientific reasoning", goal: "Practice comparing the evidence behind claims.", language: "English" }) })),
+    requestFingerprint: options.actualOperationLifecycle
+      ? generationOperations.generationFingerprint(parsedRequest)
+      : createHash("sha256").update(JSON.stringify(parsedRequest)).digest("hex"),
+    accountingPeriodPath: operationAccounting.periodPath,
+    accountingRequestPath: operationAccounting.requestPath,
+    run: () => exports.POST!(new Request("https://fixture.invalid/api/generate-course", { method: "POST", headers: { "Content-Type": "application/json", "Idempotency-Key": "research-fixture" }, body: JSON.stringify(requestBody) })),
   };
 }
 
