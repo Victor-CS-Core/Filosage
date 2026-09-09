@@ -30,5 +30,7 @@ export function shouldSuppressSuccessfulPlaywrightHmrMessage(data) {
   }
 
   return suppressedHmrTypes.has(message?.type)
-    || (message?.type === HMR_MESSAGE_SENT_TO_BROWSER.BUILT && !message.errors?.length);
+    || (message?.type === HMR_MESSAGE_SENT_TO_BROWSER.BUILT
+      && !message.errors?.length
+      && !message.warnings?.length);
 }

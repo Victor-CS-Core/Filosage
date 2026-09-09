@@ -52,6 +52,11 @@ test("the Playwright server filters successful recompiles on Next's current HMR 
   }))).toBe(true);
   expect(shouldSuppressSuccessfulPlaywrightHmrMessage(JSON.stringify({
     type: "built",
+    errors: [],
+    warnings: [{ message: "needs investigation" }],
+  }))).toBe(false);
+  expect(shouldSuppressSuccessfulPlaywrightHmrMessage(JSON.stringify({
+    type: "built",
     errors: [{ message: "broken module" }],
     warnings: [],
   }))).toBe(false);
