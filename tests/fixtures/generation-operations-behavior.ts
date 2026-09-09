@@ -293,13 +293,13 @@ test("generic retry keeps the original accounting month after a failed attempt",
   const actor = { ...account, uid: "generic-month" };
   const generation = await captureAccountGeneration(actor.uid);
   const first = await runWithAccountGeneration(generation, () => reserveAiUsage(actor, "lesson_generation", "month-rollover-key"));
-  await runWithAccountGeneration(generation, () => finalizeAiUsage(first, { failed: true }));
+  await runWithAccountGeneration(generation, () => finalizeAiUsage(first, { failed: true, providerOutcome: "not_started" }));
   context.mock.timers.tick(60 * 60_000);
   const next = await runWithAccountGeneration(generation, () => reserveAiUsage(actor, "lesson_generation", "month-rollover-key"));
   assert.equal(next.periodPath, first.periodPath);
   assert.equal(next.globalPath, first.globalPath);
   assert.equal((await getStoredDocument(next.globalPath))?.periodKey, "2026-01");
-  await runWithAccountGeneration(generation, () => finalizeAiUsage(next, { failed: true }));
+  await runWithAccountGeneration(generation, () => finalizeAiUsage(next, { failed: true, providerOutcome: "not_started" }));
 });
 
 import { GET as operationStatus, POST as operationResume } from "../../src/app/api/generation-operations/[operationId]/route.ts";
@@ -331,7 +331,7 @@ test('late generic response after a replacement token reconciles individual unce
  await runWithAccountGeneration(generation, async () => {
   const first = await reserveAiUsage(actor, 'lesson_generation', 'review-late-same-key');
   await finalizeAiUsage(first, {failed:true});
-  const second = await reserveAiUsage(actor, 'lesson_generation', 'review-late-same-key');
+  const second = await reserveAiUsage(actor, 'lesson_generation', 'review-late-replacement-key');
   await finalizeAiUsage(second, {model:'gpt-5.6-luna', inputTokens:10, outputTokens:10});
   await finalizeAiUsage(first, {model:'gpt-5.6-luna', inputTokens:10, outputTokens:10});
   const global = await getStoredDocument(first.globalPath);
@@ -370,7 +370,7 @@ test("late usage settles once without clearing the replacement attempt's lock", 
   await runWithAccountGeneration(generation, async () => {
     const first = await reserveAiUsage(actor, "lesson_generation", "same-key-active-lock");
     await finalizeAiUsage(first, { failed: true });
-    const second = await reserveAiUsage(actor, "lesson_generation", "same-key-active-lock");
+    const second = await reserveAiUsage(actor, "lesson_generation", "replacement-active-lock");
     await finalizeAiUsage(first, { model: "gpt-5.6-luna", inputTokens: 10, outputTokens: 10 });
     await finalizeAiUsage(first, { model: "gpt-5.6-luna", inputTokens: 10, outputTokens: 10 });
     const period = await getStoredDocument(first.periodPath);
@@ -388,7 +388,7 @@ test("maintenance can settle a retained attempt after the global checkpoint alon
   await runWithAccountGeneration(generation, async () => {
     const first = await reserveAiUsage(actor, "lesson_generation", "late-maintenance");
     await finalizeAiUsage(first, { failed: true });
-    const second = await reserveAiUsage(actor, "lesson_generation", "late-maintenance");
+    const second = await reserveAiUsage(actor, "lesson_generation", "late-maintenance-replacement");
     const receiptPath = `generationUsageReceipts/legacy-${first.requestId}-${first.attemptToken}`;
     await putStoredDocument(receiptPath, { version: 1, kind: "legacy-ai-completion", status: "observed", actualCostMicros: 70, inputTokens: 10, outputTokens: 10, globalPath: first.globalPath });
     const id = aiUsageAttemptPath(first).split("/")[1];

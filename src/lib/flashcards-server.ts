@@ -28,6 +28,7 @@ import {
   type GeneratedDeckOutput,
 } from "@/lib/flashcards";
 import { planAllows } from "@/lib/membership-plans";
+import { publicationContentFingerprint } from "@/lib/publication-content";
 
 const DECK_COLLECTION = "flashcardDecks";
 const CARD_COLLECTION = "flashcards";
@@ -203,7 +204,7 @@ export async function createCustomFlashcardDeck(
   return { deck, cards };
 }
 
-export async function createGeneratedFlashcardDraft(input: {
+export interface GeneratedFlashcardDraftInput {
   account: Pick<ServerAccount, "uid">;
   deckId: string;
   courseId: string;
@@ -217,9 +218,20 @@ export async function createGeneratedFlashcardDraft(input: {
   sourceFingerprint: string;
   output: GeneratedDeckOutput;
   sources: Map<string, FlashcardSourceRef>;
-}) {
-  const existing = parsedDeck(await getStoredDocument(deckPath(input.account.uid, input.deckId)));
-  if (existing) return getFlashcardDeckDetail(input.account, input.deckId);
+}
+
+export interface PreparedGeneratedFlashcardDraft {
+  detail: FlashcardDeckDetail;
+  paths: string[];
+  writes: Array<{ path: string; data: Record<string, unknown> }>;
+  productGuard: string;
+}
+
+export async function prepareGeneratedFlashcardDraft(input: GeneratedFlashcardDraftInput): Promise<PreparedGeneratedFlashcardDraft> {
+  const targetDeckPath = deckPath(input.account.uid, input.deckId);
+  if (await getStoredDocument(targetDeckPath)) {
+    throw new FlashcardServiceError(409, "DECK_CONFLICT", "The generated deck identity is already in use.");
+  }
   await assertFlashcardDeckCapacity(input.account);
   const now = new Date().toISOString();
   const cards: Flashcard[] = await Promise.all(input.output.cards.map(async (card, position) => ({
@@ -270,11 +282,65 @@ export async function createGeneratedFlashcardDraft(input: {
     archivedAt: null,
     deletedAt: null,
   };
-  await putStoredDocuments([
-    { path: deckPath(input.account.uid, deck.id), data: deck },
+  const writes = [
+    { path: targetDeckPath, data: deck as unknown as Record<string, unknown> },
     ...cards.map((card) => ({ path: cardPath(input.account.uid, card.id), data: card })),
-  ]);
-  return { deck, cards };
+  ];
+  return {
+    detail: { deck, cards },
+    paths: writes.map((write) => write.path),
+    writes,
+    productGuard: publicationContentFingerprint(null),
+  };
+}
+
+export function generatedFlashcardDraftMutation(
+  documents: Record<string, Record<string, unknown> | null>,
+  draft: PreparedGeneratedFlashcardDraft,
+) {
+  if (publicationContentFingerprint(documents[draft.paths[0]] ?? null) !== draft.productGuard
+    || draft.paths.slice(1).some((path) => documents[path])) {
+    throw new FlashcardServiceError(409, "DECK_CONFLICT", "The generated deck changed before it could be saved.");
+  }
+  return { writes: draft.writes, result: draft.detail };
+}
+
+export function preparedGeneratedFlashcardDraftFromDetail(
+  account: Pick<ServerAccount, "uid">,
+  value: unknown,
+  productGuard: string,
+): PreparedGeneratedFlashcardDraft {
+  if (!value || typeof value !== "object" || productGuard !== publicationContentFingerprint(null)) {
+    throw new FlashcardServiceError(409, "DECK_RECOVERY_INVALID", "The saved generated deck cannot be safely recovered.");
+  }
+  const raw = value as { deck?: unknown; cards?: unknown };
+  const deck = parsedDeck(raw.deck);
+  const cards = Array.isArray(raw.cards) ? raw.cards.map(parsedCard) : [];
+  if (!deck || deck.ownerUid !== account.uid || deck.kind !== "generated" || deck.status !== "draft"
+    || cards.some((card) => !card || card.deckId !== deck.id || card.deletedAt)
+    || new Set(cards.flatMap((card) => card ? [card.id] : [])).size !== cards.length
+    || deck.cardCount !== cards.length) {
+    throw new FlashcardServiceError(409, "DECK_RECOVERY_INVALID", "The saved generated deck cannot be safely recovered.");
+  }
+  const recoveredCards = cards as Flashcard[];
+  const writes = [
+    { path: deckPath(account.uid, deck.id), data: deck as unknown as Record<string, unknown> },
+    ...recoveredCards.map((card) => ({ path: cardPath(account.uid, card.id), data: card })),
+  ];
+  return {
+    detail: { deck, cards: recoveredCards },
+    paths: writes.map((write) => write.path),
+    writes,
+    productGuard,
+  };
+}
+
+export async function createGeneratedFlashcardDraft(input: GeneratedFlashcardDraftInput) {
+  const existing = parsedDeck(await getStoredDocument(deckPath(input.account.uid, input.deckId)));
+  if (existing) return getFlashcardDeckDetail(input.account, input.deckId);
+  const draft = await prepareGeneratedFlashcardDraft(input);
+  await putStoredDocuments(draft.writes);
+  return draft.detail;
 }
 
 export async function updateFlashcardDeck(

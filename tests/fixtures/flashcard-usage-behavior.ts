@@ -86,8 +86,9 @@ test("completed flashcard replay returns the saved deck without another metered 
     assert.equal(replay.recovered, true);
     assert.equal(replay.recoveredResultId, "saved-flashcard-deck");
     assert.equal(replay.requestId, reservation.requestId);
+    assert.equal(replay.attemptToken, reservation.attemptToken);
     assert.deepEqual(await accounting(reservation), completed);
-    assert.equal(await getStoredDocument(aiUsageAttemptPath(replay)), null);
+    assert.deepEqual(await getStoredDocument(aiUsageAttemptPath(replay)), completed.attempt);
     await finalizeAiUsage(replay, { ...observedUsage, resultId: "saved-flashcard-deck" });
     assert.deepEqual(await accounting(reservation), completed);
   });

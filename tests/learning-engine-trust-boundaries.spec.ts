@@ -167,7 +167,7 @@ test("the authoritative lesson-completion path continues to validate server rece
 
   const capstoneRoute = readFileSync("src/app/api/assess-capstone/route.ts", "utf8");
   expect(capstoneRoute).toContain("verifiedCapstoneMasteryEvidence");
-  expect(capstoneRoute).toContain("runStoredDocumentTransaction");
+  expect(capstoneRoute).toContain("settleAiUsageProduct");
   expect(masteryRoute).toContain("courseProgress");
   expect(masteryRoute).toContain("verifiedCapstoneMasteryEvidence");
 });

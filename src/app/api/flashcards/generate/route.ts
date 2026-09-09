@@ -3,21 +3,28 @@ import { authorizationResponse, requireAcceptedAccount } from "@/lib/auth-server
 import { apiRequestErrorResponse, readJsonBody } from "@/lib/api-security";
 import {
   aiQuotaResponse,
+  checkpointAiUsageResult,
   finalizeAiUsage,
+  recoverAiUsageResult,
   reserveAiUsage,
+  settleAiUsageProduct,
   type AiReservation,
 } from "@/lib/ai-usage";
 import { ContentSafetyError } from "@/lib/content-safety";
 import { generateFlashcardDeck } from "@/lib/flashcard-generation-server";
 import {
   assertGenerationEnabled,
-  createGeneratedFlashcardDraft,
+  FlashcardServiceError,
   flashcardErrorResponse,
+  generatedFlashcardDraftMutation,
   getFlashcardDeckDetail,
+  prepareGeneratedFlashcardDraft,
+  preparedGeneratedFlashcardDraftFromDetail,
 } from "@/lib/flashcards-server";
 import { safeModelErrorDetails } from "@/lib/model-fallback";
 import { aiUsageProfileMetadata, openAiExecutionProfile } from "@/lib/openai-generation";
 import { publicationContentHash } from "@/lib/publication-content";
+import { flashcardGenerationInputSchema, type FlashcardDeckDetail } from "@/lib/flashcards";
 
 async function handlePOST(request: Request) {
   let reservation: AiReservation | null = null;
@@ -26,6 +33,10 @@ async function handlePOST(request: Request) {
     assertGenerationEnabled();
     const account = await requireAcceptedAccount(request);
     const body = await readJsonBody(request, 32_000);
+    const input = flashcardGenerationInputSchema.safeParse(body);
+    if (!input.success) {
+      throw new FlashcardServiceError(400, "INVALID_GENERATION_REQUEST", input.error.issues[0]?.message ?? "Invalid generation request.");
+    }
     const fingerprint = await publicationContentHash(body);
     reservation = await reserveAiUsage(
       account,
@@ -35,10 +46,34 @@ async function handlePOST(request: Request) {
       { allowCompletedReplay: true },
     );
     if (reservation.recovered) {
-      if (!reservation.recoveredResultId) {
-        throw new Error("Completed flashcard generation is missing its result reference.");
+      let detail: FlashcardDeckDetail;
+      if (reservation.recoveredCheckpoint) {
+        const checkpoint = await recoverAiUsageResult<FlashcardDeckDetail>(reservation, {
+          kind: "flashcard_deck",
+          resourceId: input.data.courseId,
+        });
+        const draft = preparedGeneratedFlashcardDraftFromDetail(account, checkpoint.result, checkpoint.productGuard);
+        if (draft.detail.deck.id !== checkpoint.resultId) {
+          throw new FlashcardServiceError(409, "DECK_RECOVERY_INVALID", "The saved generated deck has a mismatched result reference.");
+        }
+        if (reservation.recoveredStatus === "result_checkpointed") {
+          const settlingReservation = reservation;
+          reservation = null;
+          detail = await settleAiUsageProduct(
+            settlingReservation,
+            checkpoint,
+            draft.paths,
+            (documents) => generatedFlashcardDraftMutation(documents, draft),
+          );
+        } else {
+          detail = draft.detail;
+        }
+      } else {
+        if (!reservation.recoveredResultId) {
+          throw new Error("Completed flashcard generation is missing its result reference.");
+        }
+        detail = await getFlashcardDeckDetail(account, reservation.recoveredResultId);
       }
-      const detail = await getFlashcardDeckDetail(account, reservation.recoveredResultId);
       reservation = null;
       return Response.json(
         { ...detail, replayed: true },
@@ -46,8 +81,8 @@ async function handlePOST(request: Request) {
       );
     }
 
-    const generated = await generateFlashcardDeck(account, body);
-    const detail = await createGeneratedFlashcardDraft({
+    const generated = await generateFlashcardDeck(account, input.data);
+    const draft = await prepareGeneratedFlashcardDraft({
       account,
       deckId: reservation.requestId.slice(0, 40),
       courseId: generated.input.courseId,
@@ -62,13 +97,27 @@ async function handlePOST(request: Request) {
       output: generated.output,
       sources: generated.sources,
     });
-    await finalizeAiUsage(reservation, {
-      usageSamples: generated.usageSamples,
-      responseId: generated.responseId,
-      resultId: detail.deck.id,
-      ...aiUsageProfileMetadata(profile),
+    const checkpoint = await checkpointAiUsageResult(reservation, {
+      kind: "flashcard_deck",
+      resourceId: generated.input.courseId,
+      resultId: draft.detail.deck.id,
+      productGuard: draft.productGuard,
+      result: draft.detail,
+      usage: {
+        usageSamples: generated.usageSamples,
+        responseId: generated.responseId,
+        resultId: draft.detail.deck.id,
+        ...aiUsageProfileMetadata(profile),
+      },
     });
+    const settlingReservation = reservation;
     reservation = null;
+    const detail = await settleAiUsageProduct(
+      settlingReservation,
+      checkpoint,
+      draft.paths,
+      (documents) => generatedFlashcardDraftMutation(documents, draft),
+    );
     return Response.json(
       { ...detail, replayed: false },
       { status: 201, headers: { "Cache-Control": "private, no-store" } },
