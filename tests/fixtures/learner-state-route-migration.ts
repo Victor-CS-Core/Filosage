@@ -8,13 +8,15 @@ import { DEFAULT_REMINDER_PREFERENCES } from "../../src/lib/learning-reminders";
 const uid = "migration-fixture-owner";
 const key = "course:0-0";
 const preferencesPath = `users/${uid}/learningData/preferences`;
-const notePath = `users/${uid}/lessonNotes/Y291cnNlOjAtMA`;
 
 type Document = Record<string, unknown>;
+type Note = { content: string; updatedAt?: string };
 
 export interface LearnerStateMigrationFixtureOptions {
-  legacy: { content: string; updatedAt: string };
-  durable?: { content: string; updatedAt: string };
+  legacy: Note;
+  legacyNotes?: Record<string, Note>;
+  durable?: Note;
+  durableNotes?: Record<string, Note>;
   concurrentDurable?: { content: string; updatedAt: string };
   failBeforeCommit?: boolean;
 }
@@ -23,7 +25,16 @@ function clone<T>(value: T): T {
   return structuredClone(value);
 }
 
-function preferencesWithLegacy(legacy: LearnerStateMigrationFixtureOptions["legacy"]): Document {
+function notePath(key: string) {
+  return `users/${uid}/lessonNotes/${Buffer.from(key).toString("base64").replace(/=/g, "").replace(/\+/g, "-").replace(/\//g, "_")}`;
+}
+
+function preferenceNotes(options: LearnerStateMigrationFixtureOptions) {
+  return options.legacyNotes ?? { [key]: options.legacy };
+}
+
+function preferencesWithLegacy(options: LearnerStateMigrationFixtureOptions): Document {
+  const notes = preferenceNotes(options);
   return {
     courseBookmarks: [],
     lessonBookmarks: [],
@@ -31,27 +42,33 @@ function preferencesWithLegacy(legacy: LearnerStateMigrationFixtureOptions["lega
     dashboardPreferences: clone(DEFAULT_DASHBOARD_PREFERENCES),
     reminderPreferences: clone(DEFAULT_REMINDER_PREFERENCES),
     updatedAt: "2026-09-08T00:00:00.000Z",
-    notes: { [key]: legacy.content },
-    noteUpdatedAt: { [key]: legacy.updatedAt },
+    notes: Object.fromEntries(Object.entries(notes).map(([key, note]) => [key, note.content])),
+    noteUpdatedAt: Object.fromEntries(Object.entries(notes).flatMap(([key, note]) => note.updatedAt === undefined ? [] : [[key, note.updatedAt]])),
   };
+}
+
+function noteDocument(key: string, note: Note): Document {
+  return { key, content: note.content, ...(note.updatedAt === undefined ? {} : { updatedAt: note.updatedAt }) };
 }
 
 // Executes the actual exported GET handler with only its auth and document-store
 // boundaries replaced. The in-memory adapter mimics transaction lock expansion:
 // it reruns a pure callback after adding any document it intends to write.
 export function learnerStateRouteMigrationFixture(options: LearnerStateMigrationFixtureOptions) {
-  let documents = new Map<string, Document>([[preferencesPath, preferencesWithLegacy(options.legacy)]]);
-  if (options.durable) {
-    documents.set(notePath, { key, content: options.durable.content, updatedAt: options.durable.updatedAt });
+  let documents = new Map<string, Document>([[preferencesPath, preferencesWithLegacy(options)]]);
+  const durableNotes = options.durableNotes ?? (options.durable ? { [key]: options.durable } : {});
+  for (const [key, note] of Object.entries(durableNotes)) {
+    documents.set(notePath(key), noteDocument(key, note));
   }
   let completedInitialReads = 0;
   let directMigrationWrites = 0;
   let transactionCalls = 0;
+  let maximumTransactionWrites = 0;
 
   const completeInitialRead = () => {
     completedInitialReads += 1;
     if (completedInitialReads !== 2 || !options.concurrentDurable) return;
-    documents.set(notePath, { key, content: options.concurrentDurable.content, updatedAt: options.concurrentDurable.updatedAt });
+    documents.set(notePath(key), noteDocument(key, options.concurrentDurable));
   };
   const readDocument = (path: string) => clone(documents.get(path) ?? null);
   const bindings: Record<string, unknown> = {
@@ -97,6 +114,9 @@ export function learnerStateRouteMigrationFixture(options: LearnerStateMigration
         for (let expansion = 0; expansion < 4; expansion += 1) {
           const current = Object.fromEntries(locked.map((path) => [path, readDocument(path)]));
           const next = callback(current);
+          const writeCount = next.writes.length + (next.deletes ?? []).length;
+          maximumTransactionWrites = Math.max(maximumTransactionWrites, writeCount);
+          if (writeCount > 500) throw new Error("Fixture transaction exceeds the 500-write limit.");
           const expanded = [...new Set([...locked, ...next.writes.map((write) => write.path), ...(next.deletes ?? [])])];
           if (expanded.length !== locked.length) {
             locked = expanded;
@@ -136,9 +156,10 @@ export function learnerStateRouteMigrationFixture(options: LearnerStateMigration
   });
   return {
     run: async () => (exports.GET as (request: Request) => Promise<Response>)(new Request("https://fixture.invalid/api/learner-state")),
-    durable: () => readDocument(notePath),
+    durable: (noteKey = key) => readDocument(notePath(noteKey)),
     preferences: () => readDocument(preferencesPath),
     directMigrationWrites: () => directMigrationWrites,
     transactionCalls: () => transactionCalls,
+    maximumTransactionWrites: () => maximumTransactionWrites,
   };
 }

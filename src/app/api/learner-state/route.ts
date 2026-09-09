@@ -27,6 +27,8 @@ const defaults = {
   dashboardPreferences: DEFAULT_DASHBOARD_PREFERENCES,
   reminderPreferences: DEFAULT_REMINDER_PREFERENCES,
 };
+const migrationNotesPerTransaction = 499;
+const maximumMigrationTransactions = 2;
 
 function noteDocumentId(key: string) {
   const bytes = new TextEncoder().encode(key);
@@ -75,15 +77,19 @@ async function handleGET(request: Request) {
     if (Object.keys(legacyNotes).length) {
       const preferencesPath = `users/${account.uid}/learningData/preferences`;
       const fallbackUpdatedAt = new Date().toISOString();
-      await runStoredDocumentTransaction(
-        [preferencesPath, ...Object.keys(legacyNotes).map((key) => notePath(account.uid, key))],
-        (documents) => {
+      const migrationKeys = Object.keys(legacyNotes);
+      let migrationComplete = false;
+      for (let batch = 0; batch < maximumMigrationTransactions; batch += 1) {
+        migrationComplete = await runStoredDocumentTransaction(
+          [preferencesPath, ...migrationKeys.slice(batch * migrationNotesPerTransaction, (batch + 1) * migrationNotesPerTransaction).map((key) => notePath(account.uid, key))],
+          (documents) => {
           const currentPreferences = documents[preferencesPath];
           const currentLegacyNotes = objectStrings(currentPreferences?.notes);
-          if (!Object.keys(currentLegacyNotes).length) return { writes: [], result: null };
+          const currentLegacyEntries = Object.entries(currentLegacyNotes);
+          if (!currentLegacyEntries.length) return { writes: [], result: true };
           const currentLegacyUpdatedAt = objectStrings(currentPreferences?.noteUpdatedAt);
           const parsedPreferences = learnerPreferencesSchema.safeParse(currentPreferences ?? defaults);
-          const migratedPreferences = parsedPreferences.success ? parsedPreferences.data : {
+          const cleanPreferences = parsedPreferences.success ? parsedPreferences.data : {
             courseBookmarks: defaults.courseBookmarks,
             lessonBookmarks: defaults.lessonBookmarks,
             weeklyLessonGoal: defaults.weeklyLessonGoal,
@@ -91,23 +97,36 @@ async function handleGET(request: Request) {
             reminderPreferences: defaults.reminderPreferences,
             updatedAt: fallbackUpdatedAt,
           };
-          const noteWrites = Object.entries(currentLegacyNotes).flatMap(([key, content]) => {
+          const batchEntries = currentLegacyEntries.slice(0, migrationNotesPerTransaction);
+          const remainingEntries = currentLegacyEntries.slice(migrationNotesPerTransaction);
+          const remainingKeys = new Set(remainingEntries.map(([key]) => key));
+          const noteWrites = batchEntries.flatMap(([key, content]) => {
             const path = notePath(account.uid, key);
             const currentNote = documents[path];
-            const legacyUpdatedAt = currentLegacyUpdatedAt[key] ?? fallbackUpdatedAt;
-            const legacyTime = Date.parse(legacyUpdatedAt) || 0;
+            const legacyUpdatedAt = currentLegacyUpdatedAt[key];
+            const legacyTime = Date.parse(legacyUpdatedAt ?? "") || 0;
             const durableTime = Date.parse(typeof currentNote?.updatedAt === "string" ? currentNote.updatedAt : "") || 0;
             return currentNote && durableTime >= legacyTime ? [] : [{
               path,
-              data: { key, content, updatedAt: legacyUpdatedAt },
+              data: { key, content, updatedAt: legacyUpdatedAt ?? fallbackUpdatedAt },
             }];
           });
+          const migratedPreferences = remainingEntries.length ? {
+            ...cleanPreferences,
+            notes: Object.fromEntries(remainingEntries),
+            noteUpdatedAt: Object.fromEntries(
+              Object.entries(currentLegacyUpdatedAt).filter(([key]) => remainingKeys.has(key)),
+            ),
+          } : cleanPreferences;
           return {
             writes: [...noteWrites, { path: preferencesPath, data: migratedPreferences }],
-            result: null,
+            result: !remainingEntries.length,
           };
         },
-      );
+        );
+        if (migrationComplete) break;
+      }
+      if (!migrationComplete) throw new Error("Legacy notes could not be migrated within the bounded transaction limit.");
     }
 
     return Response.json({

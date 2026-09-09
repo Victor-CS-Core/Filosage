@@ -48,6 +48,9 @@ test("migrates legacy notes transactionally without overwriting timestamp winner
     { name: "legacy newer", legacy: { content: "legacy-new", updatedAt: newer }, durable: { content: "durable-old", updatedAt: older }, response: "legacy-new", durableResult: "legacy-new" },
     { name: "equal timestamps", legacy: { content: "legacy-tie", updatedAt: newer }, durable: { content: "durable-tie", updatedAt: newer }, response: "durable-tie", durableResult: "durable-tie" },
     { name: "concurrent durable edit", legacy: { content: "legacy-stale", updatedAt: newer }, durable: { content: "durable-old", updatedAt: older }, concurrentDurable: { content: "durable-concurrent", updatedAt: "2026-09-08T02:00:00.000Z" }, response: "legacy-stale", durableResult: "durable-concurrent" },
+    { name: "missing legacy timestamp and durable valid timestamp", legacy: { content: "legacy-missing-time" }, durable: { content: "durable-valid-time", updatedAt: newer }, response: "durable-valid-time", durableResult: "durable-valid-time" },
+    { name: "missing legacy timestamp and durable missing timestamp", legacy: { content: "legacy-missing-time" }, durable: { content: "durable-missing-time" }, response: "durable-missing-time", durableResult: "durable-missing-time" },
+    { name: "missing legacy timestamp and durable invalid timestamp", legacy: { content: "legacy-missing-time" }, durable: { content: "durable-invalid-time", updatedAt: "not-a-timestamp" }, response: "durable-invalid-time", durableResult: "durable-invalid-time" },
   ];
   for (const scenario of cases) {
     const fixture = learnerStateRouteMigrationFixture(scenario);
@@ -73,6 +76,24 @@ test("migrates legacy notes transactionally without overwriting timestamp winner
     noteUpdatedAt: { "course:0-0": newer },
   });
   expect(failing.directMigrationWrites()).toBe(0);
+  const maximumLegacyNotes = Object.fromEntries(Array.from({ length: 500 }, (_, index) => [
+    `course:${index}`,
+    { content: `legacy-${index}`, updatedAt: newer },
+  ]));
+  const maximum = learnerStateRouteMigrationFixture({
+    legacy: { content: "unused" },
+    legacyNotes: maximumLegacyNotes,
+  });
+  const maximumResponse = await maximum.run();
+  expect(maximumResponse.status).toBe(200);
+  expect(Object.keys((await maximumResponse.json()).notes)).toHaveLength(500);
+  expect(maximum.maximumTransactionWrites()).toBeLessThanOrEqual(500);
+  expect(maximum.transactionCalls()).toBe(2);
+  for (const [noteKey, note] of Object.entries(maximumLegacyNotes)) {
+    expect(maximum.durable(noteKey)).toMatchObject(note);
+  }
+  expect(maximum.preferences()).not.toHaveProperty("notes");
+  expect(maximum.preferences()).not.toHaveProperty("noteUpdatedAt");
 });
 
 test("does not hydrate unowned mastery evidence for automatic cloud replay", async () => {
