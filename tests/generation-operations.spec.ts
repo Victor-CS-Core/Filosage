@@ -27,5 +27,5 @@ test("generic AI routes recover every provider, checkpoint, accounting, product,
   });
   expect(result.status, `${result.stdout}\n${result.stderr}`).toBe(0);
   expect(result.stdout).toContain("# fail 0");
-  expect(result.stdout).toContain("# pass 41");
+  expect(result.stdout).toContain("# pass 65");
 });

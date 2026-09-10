@@ -267,11 +267,11 @@ async function seed(product: Product, stage: string) {
   return { uid, courseId };
 }
 
-function requestFor(product: Product, courseId: string, key: string) {
+function requestFor(product: Product, courseId: string, key: string, body: Record<string, unknown> = bodyFor(product, courseId)) {
   return new Request(`https://fixture.invalid/api/${product}`, {
     method: "POST",
     headers: { "Content-Type": "application/json", "Idempotency-Key": key },
-    body: JSON.stringify(bodyFor(product, courseId)),
+    body: JSON.stringify(body),
   });
 }
 
@@ -352,7 +352,13 @@ async function mutateRouteCheckpoint(
   ]));
 }
 
-async function productState(uid: string, product: "baseline" | "capstone", courseId: string) {
+async function productState(uid: string, product: Product, courseId: string) {
+  if (product === "flashcards") {
+    const scan = await documents.scanStoredDocuments();
+    return scan.documents.filter(({ path }) => path.startsWith(`users/${uid}/flashcardDecks/`)
+      || path.startsWith(`users/${uid}/flashcards/`)
+      || path.startsWith(`users/${uid}/flashcardReviewState/`));
+  }
   const exactPath = product === "baseline"
     ? `users/${uid}/learningOutcomes/${courseId}`
     : `users/${uid}/courseProgress/${courseId}`;
@@ -362,7 +368,7 @@ async function productState(uid: string, product: "baseline" | "capstone", cours
 }
 
 async function prepareMalformedCheckpoint(
-  product: "baseline" | "capstone",
+  product: Product,
   stage: string,
   mutate: (result: Record<string, unknown>) => void,
 ) {
@@ -374,24 +380,117 @@ async function prepareMalformedCheckpoint(
   assert.equal(first.status, 500, JSON.stringify(await first.clone().json()));
   assert(providerCalls > 0);
   activeFault = null;
-  await mutateRouteCheckpoint(uid, "tutor", key, mutate);
+  await mutateRouteCheckpoint(uid, product === "flashcards" ? "flashcard_generation" : "tutor", key, mutate);
   return { uid, courseId, key, providerCallsAfterCheckpoint: providerCalls };
 }
 
 async function assertMalformedCheckpointRejected(
-  product: "baseline" | "capstone",
+  product: Product,
   fixture: Awaited<ReturnType<typeof prepareMalformedCheckpoint>>,
 ) {
   const { uid, courseId, key, providerCallsAfterCheckpoint } = fixture;
-  const accountingBefore = await accounting(uid, "tutor", key);
+  const feature = product === "flashcards" ? "flashcard_generation" : "tutor";
+  const accountingBefore = await accounting(uid, feature, key);
   const productBefore = await productState(uid, product, courseId);
   const response = await routeFor(product)(requestFor(product, courseId, key));
   const responseBody = await response.json() as { code?: string };
   assert.equal(response.status, 409, JSON.stringify(responseBody));
   assert.equal(responseBody.code, "AI_OUTCOME_RECONCILIATION_REQUIRED");
   assert.equal(providerCalls, providerCallsAfterCheckpoint);
-  assert.deepEqual(await accounting(uid, "tutor", key), accountingBefore);
+  assert.deepEqual(await accounting(uid, feature, key), accountingBefore);
   assert.deepEqual(await productState(uid, product, courseId), productBefore);
+}
+
+function lateBaselineAssessment(label: string) {
+  return {
+    summary: `The late ${label} assessment remains bound to its original provider result.`,
+    criteria: [{ criterion: "Use evidence.", met: true, feedback: "Evidence is explicit." }],
+    assessedAt: "2026-09-09T12:00:00.000Z",
+    score: 100,
+  };
+}
+
+async function prepareUncertainBaselineCheckpoint(stage: string) {
+  const { uid, courseId } = await seed("baseline", stage);
+  const key = `baseline-${stage}-key`;
+  const requestBody = bodyFor("baseline", courseId) as { courseId: string; submission: string };
+  const fingerprint = await publication.publicationContentHash({ ...requestBody, submission: requestBody.submission.trim() });
+  const reservation = await lifecycle.runWithAccountGeneration(activeGeneration, () => aiUsage.reserveAiUsage(
+    activeAccount,
+    "tutor",
+    key,
+    fingerprint,
+    { allowCompletedReplay: true },
+  ));
+  assert.equal(
+    await aiUsage.reconcileExpiredAiUsage(reservation.requestId, true, new Date(Date.now() + 10 * 60_000)),
+    "contained_unknown_outcome",
+  );
+  const assessment = lateBaselineAssessment(stage);
+  const checkpoint = await lifecycle.runWithAccountGeneration(activeGeneration, () => aiUsage.checkpointAiUsageResult(reservation, {
+    kind: "baseline_assessment",
+    resourceId: courseId,
+    resultId: courseId,
+    productGuard: productGuard(null),
+    result: assessment,
+    usage: {
+      model: "gpt-5.6-luna",
+      inputTokens: 100,
+      outputTokens: 50,
+      responseId: `late-${stage}-response`,
+      resultId: courseId,
+      profile: "baseline.standard",
+    },
+  }));
+  assert.equal(checkpoint.accountingStatus, "accounting_uncertain");
+  const state = await accounting(uid, "tutor", key);
+  assert.equal(state.receipt?.status, "uncertain");
+  return { uid, courseId, key, reservation, checkpoint, assessment };
+}
+
+async function prepareObservedBaselineCheckpoint(stage: string) {
+  const { uid, courseId } = await seed("baseline", stage);
+  const key = `baseline-${stage}-key`;
+  providerCalls = 0;
+  activeFault = "after_global";
+  const response = await assessBaseline(requestFor("baseline", courseId, key));
+  assert.equal(response.status, 500, JSON.stringify(await response.clone().json()));
+  assert(providerCalls > 0);
+  activeFault = null;
+  const state = await accounting(uid, "tutor", key);
+  assert.equal(state.request.status, "result_checkpointed");
+  assert.equal(state.receipt?.version, 2);
+  assert.equal(state.receipt?.status, "observed");
+  return { uid, courseId, key, providerCallsAfterCheckpoint: providerCalls };
+}
+
+async function replaceUsageReceipt(
+  uid: string,
+  key: string,
+  mutate: (receipt: Record<string, unknown>, state: Awaited<ReturnType<typeof accounting>>) => Record<string, unknown>,
+) {
+  const state = await accounting(uid, "tutor", key);
+  assert(state.receipt);
+  const receipt = state.receipt;
+  const receiptPath = `generationUsageReceipts/legacy-${state.requestId}-${state.request.attemptToken}`;
+  await lifecycle.runWithGlobalUsageAccounting(() => documents.putStoredDocument(
+    receiptPath,
+    mutate(structuredClone(receipt), state),
+  ));
+}
+
+async function assertMalformedBaselineReceiptRejected(
+  fixture: { uid: string; courseId: string; key: string; providerCallsAfterCheckpoint: number },
+) {
+  const beforeAccounting = await accounting(fixture.uid, "tutor", fixture.key);
+  const beforeProduct = await productState(fixture.uid, "baseline", fixture.courseId);
+  const response = await assessBaseline(requestFor("baseline", fixture.courseId, fixture.key));
+  const body = await response.json() as { code?: string };
+  assert.equal(response.status, 409, JSON.stringify(body));
+  assert.equal(body.code, "AI_OUTCOME_RECONCILIATION_REQUIRED");
+  assert.equal(providerCalls, fixture.providerCallsAfterCheckpoint);
+  assert.deepEqual(await accounting(fixture.uid, "tutor", fixture.key), beforeAccounting);
+  assert.deepEqual(await productState(fixture.uid, "baseline", fixture.courseId), beforeProduct);
 }
 
 async function completeLegacyBaseline(courseId: string, key: string) {
@@ -525,6 +624,58 @@ for (const product of ["baseline", "capstone", "flashcards"] as const) {
       await assertConverged(product, uid, courseId, key, repeatedBody);
     });
   }
+}
+
+for (const [scope, selection] of [
+  ["lesson", { lessonId: "0-0" }],
+  ["module", { moduleIndex: 0 }],
+] as const) {
+  test(`flashcards preserve exact ${scope} request relationships through checkpoint recovery and replay`, async () => {
+    const { uid, courseId } = await seed("flashcards", `positive_${scope}_scope`);
+    const key = `flashcards-positive-${scope}-scope-key`;
+    const requestBody = {
+      courseId,
+      scope,
+      ...selection,
+      depth: "focused",
+      emphasis: "key-ideas",
+      includeAttemptedChecks: false,
+    };
+    providerCalls = 0;
+    activeFault = "after_checkpoint";
+    const first = await generateFlashcards(requestFor("flashcards", courseId, key, requestBody));
+    assert.equal(first.status, 500, JSON.stringify(await first.clone().json()));
+    const callsAfterCheckpoint = providerCalls;
+    assert(callsAfterCheckpoint > 0);
+    activeFault = null;
+
+    const recovered = await generateFlashcards(requestFor("flashcards", courseId, key, requestBody));
+    const recoveredBody = await recovered.json() as Record<string, unknown>;
+    assert.equal(recovered.status, 200, JSON.stringify(recoveredBody));
+    assert.equal(providerCalls, callsAfterCheckpoint);
+    await assertConverged("flashcards", uid, courseId, key, recoveredBody);
+    const deck = recoveredBody.deck as Record<string, unknown>;
+    assert.equal(deck.scope, scope);
+    assert.deepEqual(deck.generationSettings, {
+      depth: "focused",
+      emphasis: "key-ideas",
+      includeAttemptedChecks: false,
+    });
+    if (scope === "lesson") {
+      assert.deepEqual(deck.lessonIds, [selection.lessonId]);
+      assert.equal(deck.moduleIndex, null);
+    } else {
+      assert.equal(deck.moduleIndex, selection.moduleIndex);
+      assert.deepEqual(deck.lessonIds, ["0-0"]);
+    }
+
+    const settled = await accounting(uid, "flashcard_generation", key);
+    const replay = await generateFlashcards(requestFor("flashcards", courseId, key, requestBody));
+    assert.equal(replay.status, 200, JSON.stringify(await replay.clone().json()));
+    assert.deepEqual(await replay.json(), recoveredBody);
+    assert.equal(providerCalls, callsAfterCheckpoint);
+    assert.deepEqual(await accounting(uid, "flashcard_generation", key), settled);
+  });
 }
 
 test("capstone recovery persists the checkpointed mastery evidence after the course objectives change", async () => {
@@ -793,6 +944,137 @@ test("capstone rejects a hash-consistent checkpoint whose evidence id is not bou
     evidence[0].id = "server_capstone_safe_but_unbound";
   });
   await assertMalformedCheckpointRejected("capstone", fixture);
+});
+
+test("flashcards reject a hash-consistent checkpoint for another course", async () => {
+  const fixture = await prepareMalformedCheckpoint("flashcards", "malformed_course", (result) => {
+    const deck = result.deck as Record<string, unknown>;
+    const cards = result.cards as Array<Record<string, unknown>>;
+    deck.courseId = `${deck.courseId}-other`;
+    for (const card of cards) card.courseId = deck.courseId;
+  });
+  await assertMalformedCheckpointRejected("flashcards", fixture);
+});
+
+test("flashcards reject a hash-consistent checkpoint with a different request scope", async () => {
+  const fixture = await prepareMalformedCheckpoint("flashcards", "malformed_scope", (result) => {
+    const deck = result.deck as Record<string, unknown>;
+    deck.scope = "module";
+    deck.moduleIndex = 0;
+  });
+  await assertMalformedCheckpointRejected("flashcards", fixture);
+});
+
+test("flashcards reject a hash-consistent checkpoint with different generation settings", async () => {
+  const fixture = await prepareMalformedCheckpoint("flashcards", "malformed_settings", (result) => {
+    const deck = result.deck as Record<string, unknown>;
+    deck.generationSettings = {
+      depth: "focused",
+      emphasis: "application",
+      includeAttemptedChecks: true,
+    };
+  });
+  await assertMalformedCheckpointRejected("flashcards", fixture);
+});
+
+test("flashcards reject a hash-consistent checkpoint with noncanonical generated card identity and counts", async () => {
+  const fixture = await prepareMalformedCheckpoint("flashcards", "malformed_card_topology", (result) => {
+    const deck = result.deck as Record<string, unknown>;
+    const cards = result.cards as Array<Record<string, unknown>>;
+    result.cards = [{ ...cards[0], id: "malformed-generated-card-id", position: 7 }];
+    deck.cardCount = 1;
+    deck.dueCount = 0;
+  });
+  await assertMalformedCheckpointRejected("flashcards", fixture);
+});
+
+test("flashcards reject a hash-consistent checkpoint with unbound source and generated-card relationships", async () => {
+  const fixture = await prepareMalformedCheckpoint("flashcards", "malformed_card_binding", (result) => {
+    const cards = result.cards as Array<Record<string, unknown>>;
+    const card = cards[0];
+    card.origin = "manual";
+    card.sourceFingerprint = "different-source-fingerprint";
+    const sourceRefs = card.sourceRefs as Array<Record<string, unknown>>;
+    sourceRefs[0].lessonId = "9-9";
+  });
+  await assertMalformedCheckpointRejected("flashcards", fixture);
+});
+
+test("flashcards reject a hash-consistent checkpoint whose stored strings require schema normalization", async () => {
+  const fixture = await prepareMalformedCheckpoint("flashcards", "malformed_normalization", (result) => {
+    const cards = result.cards as Array<Record<string, unknown>>;
+    cards[0].prompt = `  ${cards[0].prompt}  `;
+  });
+  await assertMalformedCheckpointRejected("flashcards", fixture);
+});
+
+for (const [label, mutate] of [
+  ["wrong shard", (receipt: Record<string, unknown>) => ({ ...receipt, globalPath: "systemUsageShards/paid__2099-01__15" })],
+  ["zero uncertainty", (receipt: Record<string, unknown>) => ({ ...receipt, uncertainCostMicros: 0 })],
+  ["oversized uncertainty", (receipt: Record<string, unknown>, state: Awaited<ReturnType<typeof accounting>>) => ({
+    ...receipt,
+    uncertainCostMicros: Number(state.request.reservedCostMicros) + 1,
+  })],
+  ["wrong kind", (receipt: Record<string, unknown>) => ({ ...receipt, kind: "generic-ai-result" })],
+  ["wrong version", (receipt: Record<string, unknown>) => ({ ...receipt, version: 2 })],
+  ["wrong status", (receipt: Record<string, unknown>) => ({ ...receipt, status: "reserved" })],
+  ["extra fields", (receipt: Record<string, unknown>) => ({ ...receipt, privateResult: "must-not-be-accepted" })],
+] as const) {
+  test(`a checkpoint rejects a legacy uncertainty receipt with ${label} without any settlement mutation`, async () => {
+    const fixture = await prepareUncertainBaselineCheckpoint(`malformed_uncertain_${label.replaceAll(" ", "_")}`);
+    await replaceUsageReceipt(fixture.uid, fixture.key, mutate);
+    providerCalls = 0;
+    await assertMalformedBaselineReceiptRejected({ ...fixture, providerCallsAfterCheckpoint: 0 });
+  });
+}
+
+for (const [label, mutate] of [
+  ["wrong shard", (receipt: Record<string, unknown>) => ({ ...receipt, globalPath: "systemUsageShards/paid__2099-01__15" })],
+  ["wrong kind", (receipt: Record<string, unknown>) => ({ ...receipt, kind: "legacy-ai-completion" })],
+  ["wrong version", (receipt: Record<string, unknown>) => ({ ...receipt, version: 1 })],
+  ["wrong checkpoint fingerprint", (receipt: Record<string, unknown>) => ({ ...receipt, checkpointFingerprint: "0".repeat(64) })],
+  ["mismatched observed amount", (receipt: Record<string, unknown>) => ({ ...receipt, actualCostMicros: Number(receipt.actualCostMicros) + 1 })],
+  ["mismatched observed usage", (receipt: Record<string, unknown>) => ({ ...receipt, inputTokens: Number(receipt.inputTokens) + 1 })],
+  ["noncanonical timestamp", (receipt: Record<string, unknown>) => ({ ...receipt, updatedAt: "September 9, 2026" })],
+  ["extra fields", (receipt: Record<string, unknown>) => ({ ...receipt, result: { private: true } })],
+] as const) {
+  test(`a checkpoint rejects an observed receipt with ${label} without any settlement mutation`, async () => {
+    const fixture = await prepareObservedBaselineCheckpoint(`malformed_observed_${label.replaceAll(" ", "_")}`);
+    await replaceUsageReceipt(fixture.uid, fixture.key, mutate);
+    await assertMalformedBaselineReceiptRejected(fixture);
+  });
+}
+
+test("a legitimate late checkpoint clears exactly its uncertainty and settles its product once", async () => {
+  const fixture = await prepareUncertainBaselineCheckpoint("legitimate_late_result");
+  const before = await accounting(fixture.uid, "tutor", fixture.key);
+  const beforeProduct = await productState(fixture.uid, "baseline", fixture.courseId);
+  assert.equal(beforeProduct[0]?.data.baselineAssessment, undefined);
+  providerCalls = 0;
+
+  const response = await assessBaseline(requestFor("baseline", fixture.courseId, fixture.key));
+  const body = await response.json() as Record<string, unknown>;
+  assert.equal(response.status, 200, JSON.stringify(body));
+  assert.deepEqual(body.assessment, fixture.assessment);
+  assert.equal(providerCalls, 0);
+  const settled = await accounting(fixture.uid, "tutor", fixture.key);
+  assert.equal(settled.global?.uncertainCostMicros, Number(before.global?.uncertainCostMicros) - fixture.reservation.reserveCostMicros);
+  assert.equal(settled.period?.uncertainCostMicros, Number(before.period?.uncertainCostMicros) - fixture.reservation.reserveCostMicros);
+  assert.equal(settled.budget?.uncertainCostMicros, Number(before.budget?.uncertainCostMicros) - fixture.reservation.reserveCostMicros);
+  assert.equal(settled.global?.actualCostMicros, Number(before.global?.actualCostMicros) + fixture.checkpoint.observed.actualCostMicros);
+  assert.equal(settled.period?.actualCostMicros, Number(before.period?.actualCostMicros) + fixture.checkpoint.observed.actualCostMicros);
+  assert.equal(settled.budget?.actualCostMicros, Number(before.budget?.actualCostMicros) + fixture.checkpoint.observed.actualCostMicros);
+  assert.equal(settled.receipt?.version, 2);
+  assert.equal(settled.receipt?.status, "observed");
+  assert.equal(settled.receipt?.uncertainCostMicros, undefined);
+  assert.equal(settled.request.status, "completed");
+  assert.equal(settled.attempt?.status, "accounting_observed");
+
+  const replay = await assessBaseline(requestFor("baseline", fixture.courseId, fixture.key));
+  assert.equal(replay.status, 200, JSON.stringify(await replay.clone().json()));
+  assert.deepEqual(await replay.json(), body);
+  assert.equal(providerCalls, 0);
+  assert.deepEqual(await accounting(fixture.uid, "tutor", fixture.key), settled);
 });
 
 test("a checkpointless legacy baseline cannot replay as a capstone under the shared tutor key", async () => {

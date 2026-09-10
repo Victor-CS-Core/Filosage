@@ -58,10 +58,16 @@ async function handlePOST(request: Request) {
           resourceId: input.data.courseId,
           resultId: reservation.requestId.slice(0, 40),
         });
-        const draft = preparedGeneratedFlashcardDraftFromDetail(account, checkpoint.result, checkpoint.productGuard);
-        if (draft.detail.deck.id !== checkpoint.resultId) {
-          throw new FlashcardServiceError(409, "DECK_RECOVERY_INVALID", "The saved generated deck has a mismatched result reference.");
-        }
+        const draft = await preparedGeneratedFlashcardDraftFromDetail(account, checkpoint.result, checkpoint.productGuard, {
+          deckId: checkpoint.resultId,
+          courseId: input.data.courseId,
+          scope: input.data.scope,
+          lessonId: input.data.lessonId,
+          moduleIndex: input.data.scope === "module" ? input.data.moduleIndex! : null,
+          depth: input.data.depth,
+          emphasis: input.data.emphasis,
+          includeAttemptedChecks: input.data.includeAttemptedChecks,
+        });
         if (reservation.recoveredStatus === "result_checkpointed") {
           const settlingReservation = reservation;
           reservation = null;
@@ -96,7 +102,7 @@ async function handlePOST(request: Request) {
       deckId: reservation.requestId.slice(0, 40),
       courseId: generated.input.courseId,
       courseTopic: generated.courseTopic,
-      moduleIndex: generated.input.moduleIndex ?? null,
+      moduleIndex: generated.input.scope === "module" ? generated.input.moduleIndex! : null,
       lessonIds: generated.lessonIds,
       scope: generated.input.scope,
       depth: generated.input.depth,

@@ -799,20 +799,83 @@ function checkpointReceiptPath(value: Pick<AiReservation, "requestId" | "attempt
   return `generationUsageReceipts/legacy-${value.requestId}-${value.attemptToken ?? "v0"}`;
 }
 
-function legacyObservedReceiptMatchesCheckpoint(
-  receipt: StoredDocument,
-  reservation: Pick<AiReservation, "globalPath">,
+function checkpointReceiptId(value: Pick<AiReservation, "requestId" | "attemptToken">) {
+  return `legacy-${value.requestId}-${value.attemptToken ?? "v0"}`;
+}
+
+function parsedLegacyObservedReceipt(
+  value: unknown,
+  reservation: Pick<AiReservation, "requestId" | "attemptToken" | "globalPath">,
+  expected?: AiResultCheckpoint["observed"],
+) {
+  const receipt = recordValue(value);
+  if (!receipt || !hasOnlyKeys(receipt, ["id", "version", "kind", "status", "actualCostMicros", "inputTokens",
+    "cachedInputTokens", "cacheWriteTokens", "outputTokens", "failed", "globalPath", "updatedAt"])
+    || receipt.id !== checkpointReceiptId(reservation)
+    || receipt.version !== 1 || receipt.kind !== "legacy-ai-completion" || receipt.status !== "observed"
+    || receipt.globalPath !== reservation.globalPath || !canonicalIsoDate(receipt.updatedAt)
+    || typeof receipt.failed !== "boolean"
+    || ![receipt.actualCostMicros, receipt.inputTokens, receipt.cachedInputTokens,
+      receipt.cacheWriteTokens, receipt.outputTokens].every(nonnegativeInteger)
+    || Number(receipt.cachedInputTokens) + Number(receipt.cacheWriteTokens) > Number(receipt.inputTokens)
+    || (expected && (receipt.failed !== expected.failed
+      || receipt.actualCostMicros !== expected.actualCostMicros
+      || receipt.inputTokens !== expected.inputTokens
+      || receipt.cachedInputTokens !== expected.cachedInputTokens
+      || receipt.cacheWriteTokens !== expected.cacheWriteTokens
+      || receipt.outputTokens !== expected.outputTokens))) return null;
+  return receipt;
+}
+
+function parsedLegacyUncertainReceipt(
+  value: unknown,
+  reservation: Pick<AiReservation, "requestId" | "attemptToken" | "globalPath" | "reserveCostMicros">,
+) {
+  const receipt = recordValue(value);
+  if (!receipt || !hasOnlyKeys(receipt, ["id", "version", "kind", "status", "actualCostMicros", "uncertainCostMicros", "globalPath"])
+    || receipt.id !== checkpointReceiptId(reservation)
+    || receipt.version !== 1 || receipt.kind !== "legacy-ai-completion" || receipt.status !== "uncertain"
+    || receipt.globalPath !== reservation.globalPath || receipt.actualCostMicros !== 0
+    || !nonnegativeInteger(reservation.reserveCostMicros) || reservation.reserveCostMicros <= 0
+    || receipt.uncertainCostMicros !== reservation.reserveCostMicros) return null;
+  return receipt;
+}
+
+function parsedGenericObservedReceipt(
+  value: unknown,
+  reservation: Pick<AiReservation, "requestId" | "attemptToken" | "globalPath">,
   checkpoint: AiResultCheckpoint,
 ) {
-  return hasOnlyKeys(receipt, ["id", "version", "kind", "status", "actualCostMicros", "inputTokens",
-    "cachedInputTokens", "cacheWriteTokens", "outputTokens", "failed", "globalPath", "updatedAt"])
-    && receipt.version === 1 && receipt.kind === "legacy-ai-completion" && receipt.status === "observed"
-    && receipt.globalPath === reservation.globalPath && receipt.failed === false && canonicalIsoDate(receipt.updatedAt)
-    && receipt.actualCostMicros === checkpoint.observed.actualCostMicros
-    && receipt.inputTokens === checkpoint.observed.inputTokens
-    && receipt.cachedInputTokens === checkpoint.observed.cachedInputTokens
-    && receipt.cacheWriteTokens === checkpoint.observed.cacheWriteTokens
-    && receipt.outputTokens === checkpoint.observed.outputTokens;
+  const receipt = recordValue(value);
+  if (!receipt || !hasOnlyKeys(receipt, ["id", "version", "kind", "checkpointFingerprint", "globalPath", "status",
+    "actualCostMicros", "inputTokens", "cachedInputTokens", "cacheWriteTokens", "outputTokens", "failed", "updatedAt"])
+    || receipt.id !== checkpointReceiptId(reservation)
+    || receipt.version !== 2 || receipt.kind !== "generic-ai-result" || receipt.status !== "observed"
+    || receipt.checkpointFingerprint !== checkpoint.checkpointFingerprint || !SHA256_PATTERN.test(String(receipt.checkpointFingerprint))
+    || receipt.globalPath !== reservation.globalPath || !canonicalIsoDate(receipt.updatedAt)
+    || receipt.failed !== false
+    || receipt.actualCostMicros !== checkpoint.observed.actualCostMicros
+    || receipt.inputTokens !== checkpoint.observed.inputTokens
+    || receipt.cachedInputTokens !== checkpoint.observed.cachedInputTokens
+    || receipt.cacheWriteTokens !== checkpoint.observed.cacheWriteTokens
+    || receipt.outputTokens !== checkpoint.observed.outputTokens) return null;
+  return receipt;
+}
+
+function usageCounter(value: unknown) {
+  if (value === undefined) return 0;
+  return nonnegativeInteger(value) ? value : null;
+}
+
+function genericObservedReceipt(checkpoint: AiResultCheckpoint, reservation: AiReservation, updatedAt: string) {
+  return {
+    version: 2,
+    kind: "generic-ai-result",
+    checkpointFingerprint: checkpoint.checkpointFingerprint,
+    globalPath: reservation.globalPath,
+    ...checkpoint.observed,
+    updatedAt,
+  };
 }
 
 export async function checkpointAiUsageResult<Result>(
@@ -953,36 +1016,39 @@ async function settleAiUsageCheckpointGlobal(reservation: AiReservation, checkpo
   await runWithGlobalUsageAccounting(() => runStoredDocumentTransaction([receiptPath, reservation.globalPath], (documents) => {
     const receipt = documents[receiptPath];
     if (receipt?.status === "observed") {
-      if (receipt.version === 2 && receipt.kind === "generic-ai-result"
-        && receipt.checkpointFingerprint === checkpoint.checkpointFingerprint
-        && receipt.globalPath === reservation.globalPath
-        && numberValue(receipt.actualCostMicros) === checkpoint.observed.actualCostMicros) {
+      if (parsedGenericObservedReceipt(receipt, reservation, checkpoint)) {
         return { writes: [], result: undefined };
       }
-      if (legacyObservedReceiptMatchesCheckpoint(receipt, reservation, checkpoint)) {
-        return { writes: [{ path: receiptPath, data: { version: 2, kind: "generic-ai-result",
-          checkpointFingerprint: checkpoint.checkpointFingerprint, globalPath: reservation.globalPath,
-          ...checkpoint.observed, updatedAt: now } }], result: undefined };
+      if (parsedLegacyObservedReceipt(receipt, reservation, checkpoint.observed)) {
+        return { writes: [{ path: receiptPath, data: genericObservedReceipt(checkpoint, reservation, now) }], result: undefined };
       }
       throw new AiQuotaError(409, "AI_OUTCOME_RECONCILIATION_REQUIRED", "A different observed cost is already bound to this attempt.");
     }
-    if (receipt && receipt.status !== "uncertain") {
+    const uncertainReceipt = receipt ? parsedLegacyUncertainReceipt(receipt, reservation) : null;
+    if (receipt && !uncertainReceipt) {
       throw new AiQuotaError(409, "AI_OUTCOME_RECONCILIATION_REQUIRED", "The global usage receipt cannot be safely settled.");
     }
     const global = documents[reservation.globalPath];
-    if (!global || (receipt && checkpoint.accountingStatus !== "accounting_uncertain")
-      || (!receipt && checkpoint.accountingStatus !== "accounting_reserved")) {
+    const reservedCostMicros = usageCounter(global?.reservedCostMicros);
+    const uncertainCostMicros = usageCounter(global?.uncertainCostMicros);
+    const actualCostMicros = usageCounter(global?.actualCostMicros);
+    const reservedDelta = uncertainReceipt ? 0 : reservation.reserveCostMicros;
+    const uncertainDelta = uncertainReceipt ? reservation.reserveCostMicros : 0;
+    if (!global || reservedCostMicros === null || uncertainCostMicros === null || actualCostMicros === null
+      || !nonnegativeInteger(reservation.reserveCostMicros) || reservation.reserveCostMicros <= 0
+      || (uncertainReceipt && checkpoint.accountingStatus !== "accounting_uncertain")
+      || (!uncertainReceipt && checkpoint.accountingStatus !== "accounting_reserved")
+      || reservedCostMicros < reservedDelta || uncertainCostMicros < uncertainDelta
+      || !Number.isSafeInteger(actualCostMicros + checkpoint.observed.actualCostMicros)) {
       throw new AiQuotaError(409, "AI_OUTCOME_RECONCILIATION_REQUIRED", "The global usage reservation cannot be safely settled.");
     }
     return {
       writes: [
-        { path: receiptPath, data: { version: 2, kind: "generic-ai-result",
-          checkpointFingerprint: checkpoint.checkpointFingerprint, globalPath: reservation.globalPath,
-          ...checkpoint.observed, updatedAt: now } },
+        { path: receiptPath, data: genericObservedReceipt(checkpoint, reservation, now) },
         { path: reservation.globalPath, data: { ...global,
-          reservedCostMicros: Math.max(0, numberValue(global.reservedCostMicros) - (receipt ? 0 : reservation.reserveCostMicros)),
-          uncertainCostMicros: Math.max(0, numberValue(global.uncertainCostMicros) - numberValue(receipt?.uncertainCostMicros)),
-          actualCostMicros: numberValue(global.actualCostMicros) + checkpoint.observed.actualCostMicros,
+          reservedCostMicros: reservedCostMicros - reservedDelta,
+          uncertainCostMicros: uncertainCostMicros - uncertainDelta,
+          actualCostMicros: actualCostMicros + checkpoint.observed.actualCostMicros,
           updatedAt: now } },
       ],
       result: undefined,
@@ -1024,15 +1090,14 @@ export async function settleAiUsageProduct<Result>(
         && attemptCheckpoint?.checkpointFingerprint === checkpoint.checkpointFingerprint) {
         return { writes: [], result: checkpoint.result };
       }
-      const receipt = documents[receiptPath];
+      const receipt = parsedGenericObservedReceipt(documents[receiptPath], reservation, checkpoint);
       const period = documents[reservation.periodPath];
       const budget = documents[reservation.userBudgetPath];
       if (request?.status !== "result_checkpointed" || attempt?.status !== "result_checkpointed"
         || !checkpointMatchesDocuments(checkpoint, request, attempt)
         || requestCheckpoint?.checkpointFingerprint !== checkpoint.checkpointFingerprint
         || attemptCheckpoint?.checkpointFingerprint !== checkpoint.checkpointFingerprint
-        || receipt?.status !== "observed" || receipt.checkpointFingerprint !== checkpoint.checkpointFingerprint
-        || receipt.globalPath !== reservation.globalPath || !period || !budget) {
+        || !receipt || !period || !budget) {
         throw new AiQuotaError(409, "AI_OUTCOME_RECONCILIATION_REQUIRED", "The checkpoint cannot be atomically settled into the product.");
       }
       const product = mutateProduct(documents, checkpoint);

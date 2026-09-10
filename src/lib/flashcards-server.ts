@@ -1,7 +1,7 @@
 import "server-only";
 
 import type { ServerAccount } from "@/lib/account-server";
-import { aiUsageProductGuard } from "@/lib/ai-usage";
+import { AiQuotaError, aiUsageProductGuard } from "@/lib/ai-usage";
 import {
   deleteStoredDocuments,
   getStoredDocument,
@@ -15,11 +15,13 @@ import {
   FLASHCARD_CARD_LIMIT,
   FLASHCARD_DECK_LIMIT,
   FLASHCARD_SCHEMA_VERSION,
+  GENERATED_FLASHCARD_LIMIT,
   customDeckInputSchema,
   deckUpdateInputSchema,
   flashcardDeckSchema,
   flashcardReviewStateSchema,
   flashcardSchema,
+  generatedDeckOutputSchema,
   nextFlashcardDueAt,
   type Flashcard,
   type FlashcardDeck,
@@ -227,14 +229,26 @@ export interface PreparedGeneratedFlashcardDraft {
   productGuard: string;
 }
 
+export interface RecoveredGeneratedFlashcardDraftIdentity {
+  deckId: string;
+  courseId: string;
+  scope: "lesson" | "module" | "course";
+  lessonId?: string;
+  moduleIndex: number | null;
+  depth: "focused" | "balanced" | "comprehensive";
+  emphasis: "balanced" | "key-ideas" | "application";
+  includeAttemptedChecks: boolean;
+}
+
 export async function prepareGeneratedFlashcardDraft(input: GeneratedFlashcardDraftInput): Promise<PreparedGeneratedFlashcardDraft> {
   const targetDeckPath = deckPath(input.account.uid, input.deckId);
   if (await getStoredDocument(targetDeckPath)) {
     throw new FlashcardServiceError(409, "DECK_CONFLICT", "The generated deck identity is already in use.");
   }
   await assertFlashcardDeckCapacity(input.account);
+  const output = generatedDeckOutputSchema.parse(input.output);
   const now = new Date().toISOString();
-  const cards: Flashcard[] = await Promise.all(input.output.cards.map(async (card, position) => ({
+  const cards: Flashcard[] = await Promise.all(output.cards.map(async (card, position) => flashcardSchema.parse({
     id: (await sha256(`${input.deckId}:${position}:${card.prompt}:${card.answer}`)).slice(0, 40),
     version: FLASHCARD_SCHEMA_VERSION,
     deckId: input.deckId,
@@ -254,13 +268,13 @@ export async function prepareGeneratedFlashcardDraft(input: GeneratedFlashcardDr
     updatedAt: now,
     deletedAt: null,
   })));
-  const deck: FlashcardDeck = {
+  const deck: FlashcardDeck = flashcardDeckSchema.parse({
     id: input.deckId,
     version: FLASHCARD_SCHEMA_VERSION,
     ownerUid: input.account.uid,
     revision: 1,
-    title: input.output.title,
-    description: input.output.description,
+    title: output.title,
+    description: output.description,
     kind: "generated",
     status: "draft",
     courseId: input.courseId,
@@ -281,7 +295,7 @@ export async function prepareGeneratedFlashcardDraft(input: GeneratedFlashcardDr
     lastReviewedAt: null,
     archivedAt: null,
     deletedAt: null,
-  };
+  });
   const writes = [
     { path: targetDeckPath, data: deck as unknown as Record<string, unknown> },
     ...cards.map((card) => ({ path: cardPath(input.account.uid, card.id), data: card })),
@@ -305,24 +319,54 @@ export function generatedFlashcardDraftMutation(
   return { writes: draft.writes, result: draft.detail };
 }
 
-export function preparedGeneratedFlashcardDraftFromDetail(
+export async function preparedGeneratedFlashcardDraftFromDetail(
   account: Pick<ServerAccount, "uid">,
   value: unknown,
   productGuard: string,
-): PreparedGeneratedFlashcardDraft {
-  if (!value || typeof value !== "object" || productGuard !== aiUsageProductGuard(null)) {
-    throw new FlashcardServiceError(409, "DECK_RECOVERY_INVALID", "The saved generated deck cannot be safely recovered.");
-  }
+  expected: RecoveredGeneratedFlashcardDraftIdentity,
+): Promise<PreparedGeneratedFlashcardDraft> {
+  const invalid = (): never => {
+    throw new AiQuotaError(409, "AI_OUTCOME_RECONCILIATION_REQUIRED", "The saved generated deck cannot be safely recovered.");
+  };
+  if (!value || typeof value !== "object" || Array.isArray(value)
+    || Object.keys(value).some((key) => !["deck", "cards"].includes(key))
+    || productGuard !== aiUsageProductGuard(null)) invalid();
   const raw = value as { deck?: unknown; cards?: unknown };
   const deck = parsedDeck(raw.deck);
   const cards = Array.isArray(raw.cards) ? raw.cards.map(parsedCard) : [];
-  if (!deck || deck.ownerUid !== account.uid || deck.kind !== "generated" || deck.status !== "draft"
-    || cards.some((card) => !card || card.deckId !== deck.id || card.deletedAt)
-    || new Set(cards.flatMap((card) => card ? [card.id] : [])).size !== cards.length
-    || deck.cardCount !== cards.length) {
-    throw new FlashcardServiceError(409, "DECK_RECOVERY_INVALID", "The saved generated deck cannot be safely recovered.");
-  }
+  if (!deck || cards.some((card) => !card)) return invalid();
   const recoveredCards = cards as Flashcard[];
+  const lessonIds = new Set(deck.lessonIds);
+  const settings = deck.generationSettings;
+  const scopeMatches = deck.scope === expected.scope
+    && (expected.scope === "lesson"
+      ? Boolean(expected.lessonId) && deck.lessonIds.length === 1 && deck.lessonIds[0] === expected.lessonId
+      : expected.scope === "module"
+        ? expected.moduleIndex !== null && deck.moduleIndex === expected.moduleIndex
+          && deck.lessonIds.every((lessonId) => lessonId.startsWith(`${expected.moduleIndex}-`))
+        : deck.moduleIndex === null);
+  const expectedCardIds = await Promise.all(recoveredCards.map((card, position) => (
+    sha256(`${expected.deckId}:${position}:${card.prompt}:${card.answer}`).then((id) => id.slice(0, 40))
+  )));
+  if (deck.id !== expected.deckId || deck.ownerUid !== account.uid || deck.version !== FLASHCARD_SCHEMA_VERSION
+    || deck.revision !== 1 || deck.kind !== "generated" || deck.status !== "draft"
+    || deck.courseId !== expected.courseId || typeof deck.courseTopic !== "string"
+    || !scopeMatches || deck.moduleIndex !== expected.moduleIndex
+    || deck.lessonIds.length < 1 || deck.lessonIds.length > 40 || lessonIds.size !== deck.lessonIds.length
+    || deck.lessonIds.some((lessonId) => !/^\d+-\d+$/.test(lessonId))
+    || !settings || settings.depth !== expected.depth || settings.emphasis !== expected.emphasis
+    || settings.includeAttemptedChecks !== expected.includeAttemptedChecks
+    || typeof deck.sourceFingerprint !== "string" || !/^[a-f0-9]{64}$/.test(deck.sourceFingerprint)
+    || recoveredCards.length < 2 || recoveredCards.length > GENERATED_FLASHCARD_LIMIT
+    || deck.cardCount !== recoveredCards.length || deck.dueCount !== recoveredCards.length
+    || deck.createdAt !== deck.updatedAt || deck.lastReviewedAt !== null || deck.archivedAt !== null || deck.deletedAt !== null
+    || recoveredCards.some((card, position) => card.id !== expectedCardIds[position]
+      || card.version !== FLASHCARD_SCHEMA_VERSION || card.deckId !== deck.id || card.courseId !== expected.courseId
+      || card.position !== position || card.origin !== "generated" || card.deletedAt !== null
+      || card.sourceFingerprint !== deck.sourceFingerprint || card.createdAt !== deck.createdAt || card.updatedAt !== deck.updatedAt
+      || card.sourceRefs.length < 1 || card.sourceRefs.some((source) => !lessonIds.has(source.lessonId)))
+    || new Set(recoveredCards.map((card) => card.id)).size !== recoveredCards.length
+    || aiUsageProductGuard({ deck, cards: recoveredCards }) !== aiUsageProductGuard(value)) invalid();
   const writes = [
     { path: deckPath(account.uid, deck.id), data: deck as unknown as Record<string, unknown> },
     ...recoveredCards.map((card) => ({ path: cardPath(account.uid, card.id), data: card })),
