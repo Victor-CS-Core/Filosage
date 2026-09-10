@@ -64,6 +64,7 @@ async function handlePOST(request: Request) {
           scope: input.data.scope,
           lessonId: input.data.lessonId,
           moduleIndex: input.data.scope === "module" ? input.data.moduleIndex! : null,
+          legacyModuleIndex: input.data.moduleIndex ?? null,
           depth: input.data.depth,
           emphasis: input.data.emphasis,
           includeAttemptedChecks: input.data.includeAttemptedChecks,

@@ -1,6 +1,7 @@
 import { z } from "zod";
 
-export const FLASHCARD_SCHEMA_VERSION = 1 as const;
+export const FLASHCARD_LEGACY_SCHEMA_VERSION = 1 as const;
+export const FLASHCARD_SCHEMA_VERSION = 2 as const;
 export const FLASHCARD_DECK_LIMIT = 250;
 export const FLASHCARD_CARD_LIMIT = 200;
 export const GENERATED_FLASHCARD_LIMIT = 24;
@@ -11,6 +12,10 @@ export const flashcardEmphasisSchema = z.enum(["balanced", "key-ideas", "applica
 export const flashcardTypeSchema = z.enum(["recall", "contrast", "misconception", "application"]);
 export const flashcardRatingSchema = z.enum(["again", "almost", "got-it"]);
 export const flashcardDeckStatusSchema = z.enum(["draft", "active", "archived", "deleted"]);
+const flashcardRecordVersionSchema = z.union([
+  z.literal(FLASHCARD_LEGACY_SCHEMA_VERSION),
+  z.literal(FLASHCARD_SCHEMA_VERSION),
+]);
 
 export type FlashcardScope = z.infer<typeof flashcardScopeSchema>;
 export type FlashcardDepth = z.infer<typeof flashcardDepthSchema>;
@@ -30,7 +35,7 @@ export type FlashcardSourceRef = z.infer<typeof flashcardSourceRefSchema>;
 
 export const flashcardSchema = z.object({
   id: z.string().trim().min(8).max(120),
-  version: z.literal(FLASHCARD_SCHEMA_VERSION),
+  version: flashcardRecordVersionSchema,
   deckId: z.string().trim().min(8).max(120),
   courseId: z.string().trim().min(1).max(180).nullable(),
   position: z.number().int().min(0).max(FLASHCARD_CARD_LIMIT - 1),
@@ -50,7 +55,7 @@ export type Flashcard = z.infer<typeof flashcardSchema>;
 
 export const flashcardDeckSchema = z.object({
   id: z.string().trim().min(8).max(120),
-  version: z.literal(FLASHCARD_SCHEMA_VERSION),
+  version: flashcardRecordVersionSchema,
   ownerUid: z.string().trim().min(1).max(256),
   revision: z.number().int().min(1),
   title: z.string().trim().min(1).max(120),
@@ -85,7 +90,7 @@ export interface FlashcardDeckDetail {
 }
 
 export const flashcardReviewStateSchema = z.object({
-  version: z.literal(FLASHCARD_SCHEMA_VERSION),
+  version: flashcardRecordVersionSchema,
   deckId: z.string().trim().min(8).max(120),
   cardId: z.string().trim().min(8).max(120),
   courseId: z.string().trim().min(1).max(180).nullable(),

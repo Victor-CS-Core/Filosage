@@ -38,6 +38,7 @@ let activeAccount: {
 let activeGeneration: Awaited<ReturnType<typeof lifecycle.captureAccountGeneration>>;
 let activeFault: FaultStage | null = null;
 let providerCalls = 0;
+let collisionDeckOutput = false;
 let pausedGlobalRead: {
   reached: () => void;
   resume: Promise<void>;
@@ -164,8 +165,37 @@ mock.module("../../src/lib/local-ai.ts", {
       const parse = client.responses.parse.bind(client.responses);
       client.responses.parse = (async (...args: Parameters<typeof parse>) => {
         providerCalls += 1;
-        const parameters = args[0] as { text?: { format?: { name?: string } } };
-        const response = parameters.text?.format?.name === "baseline_verdict"
+        const parameters = args[0] as { input?: unknown; text?: { format?: { name?: string } } };
+        const formatName = parameters.text?.format?.name;
+        const collisionSourceRef = collisionDeckOutput && formatName === "flashcard_deck"
+          ? (JSON.parse(String(parameters.input)) as { sources: Array<{ ref: string }> }).sources[0]?.ref
+          : undefined;
+        const response = collisionDeckOutput && formatName === "flashcard_deck"
+          ? {
+              id: `local-flashcard-collision-${providerCalls}`,
+              output_parsed: {
+                title: "Delimiter identity deck",
+                description: "Two cards whose legacy delimiter framing is ambiguous.",
+                cards: [
+                  { prompt: "Question:alpha", answer: "beta", type: "recall", objectiveIds: ["objective-evidence"], sourceRefIds: [collisionSourceRef] },
+                  { prompt: "Question", answer: "alpha:beta", type: "contrast", objectiveIds: ["objective-evidence"], sourceRefIds: [collisionSourceRef] },
+                ],
+              },
+            }
+          : collisionDeckOutput && formatName === "flashcard_evaluation"
+            ? {
+                id: `local-flashcard-collision-evaluation-${providerCalls}`,
+                output_parsed: {
+                  results: [0, 1].map((index) => ({
+                    index,
+                    grounded: true,
+                    atomic: true,
+                    specific: true,
+                    reason: "The fixture card is source-bound and atomic.",
+                  })),
+                },
+              }
+          : formatName === "baseline_verdict"
           ? {
               id: `local-baseline-${providerCalls}`,
               output_parsed: {
@@ -678,6 +708,160 @@ for (const [scope, selection] of [
   });
 }
 
+function legacyGeneratedCardId(deckId: string, position: number, prompt: string, answer: string) {
+  return createHash("sha256").update(`${deckId}:${position}:${prompt}:${answer}`).digest("hex").slice(0, 40);
+}
+
+test("generated flashcard identity frames prompt and answer boundaries unambiguously", async () => {
+  const { courseId } = await seed("flashcards", "delimiter_collision_identity");
+  const deckId = "delimiter-collision-deck-identity";
+  const sourceRef = {
+    ref: "0-0:concept:0",
+    lessonId: "0-0",
+    lessonTitle: "Evidence lesson",
+    field: "concept" as const,
+  };
+  const common = {
+    account: activeAccount,
+    deckId,
+    courseId,
+    courseTopic: "Careful evidence",
+    moduleIndex: null,
+    lessonIds: ["0-0"],
+    scope: "course" as const,
+    depth: "focused" as const,
+    emphasis: "key-ideas" as const,
+    includeAttemptedChecks: false,
+    sourceFingerprint: "a".repeat(64),
+    sources: new Map([[sourceRef.ref, sourceRef]]),
+  };
+  const output = (prompt: string, answer: string) => ({
+    title: "Delimiter identity deck",
+    description: "A focused identity fixture.",
+    cards: [
+      { prompt, answer, type: "recall" as const, objectiveIds: ["objective-evidence"], sourceRefIds: [sourceRef.ref] },
+      { prompt: "Why must evidence stay bounded?", answer: "Limitations can change confidence.", type: "application" as const,
+        objectiveIds: ["objective-evidence"], sourceRefIds: [sourceRef.ref] },
+    ],
+  });
+  const left = await flashcards.prepareGeneratedFlashcardDraft({
+    ...common,
+    output: output("Question:alpha", "beta"),
+  });
+  const right = await flashcards.prepareGeneratedFlashcardDraft({
+    ...common,
+    output: output("Question", "alpha:beta"),
+  });
+  assert.notEqual(left.detail.cards[0].id, right.detail.cards[0].id);
+  assert.equal(left.detail.deck.version, 2);
+  assert.equal(right.detail.deck.version, 2);
+});
+
+for (const [profile, scope, selection, persistedModuleIndex] of [
+  ["pre-round-3", "course", {}, 7],
+  ["pre-round-3", "lesson", { lessonId: "0-0" }, 7],
+  ["round-3-canonical", "course", {}, null],
+  ["round-3-canonical", "lesson", { lessonId: "0-0" }, null],
+] as const) {
+  test(`flashcards recover a ${profile} version-1 ${scope} checkpoint with its historical non-module index`, async () => {
+    const { uid, courseId } = await seed("flashcards", `legacy_${profile}_${scope}_module_index`);
+    const key = `flashcards-legacy-${profile}-${scope}-module-index-key`;
+    const requestBody = {
+      courseId,
+      scope,
+      ...selection,
+      moduleIndex: 7,
+      depth: "focused",
+      emphasis: "key-ideas",
+      includeAttemptedChecks: false,
+    };
+    providerCalls = 0;
+    activeFault = "after_checkpoint";
+    const first = await generateFlashcards(requestFor("flashcards", courseId, key, requestBody));
+    assert.equal(first.status, 500, JSON.stringify(await first.clone().json()));
+    const callsAfterCheckpoint = providerCalls;
+    assert(callsAfterCheckpoint > 0);
+    activeFault = null;
+
+    await mutateRouteCheckpoint(uid, "flashcard_generation", key, (result) => {
+      const deck = result.deck as Record<string, unknown>;
+      const cards = result.cards as Array<Record<string, unknown>>;
+      deck.version = 1;
+      deck.moduleIndex = persistedModuleIndex;
+      for (const [position, card] of cards.entries()) {
+        card.version = 1;
+        card.id = legacyGeneratedCardId(
+          String(deck.id),
+          position,
+          String(card.prompt),
+          String(card.answer),
+        );
+      }
+    });
+
+    const recovered = await generateFlashcards(requestFor("flashcards", courseId, key, requestBody));
+    const recoveredBody = await recovered.json() as Record<string, unknown>;
+    assert.equal(recovered.status, 200, JSON.stringify(recoveredBody));
+    assert.equal(providerCalls, callsAfterCheckpoint);
+    await assertConverged("flashcards", uid, courseId, key, recoveredBody);
+    const deck = recoveredBody.deck as Record<string, unknown>;
+    const cards = recoveredBody.cards as Array<Record<string, unknown>>;
+    assert.equal(deck.version, 1);
+    assert.equal(deck.moduleIndex, persistedModuleIndex);
+    assert(cards.every((card) => card.version === 1));
+    assert.deepEqual(cards.map((card) => card.id), cards.map((card, position) => legacyGeneratedCardId(
+      String(deck.id),
+      position,
+      String(card.prompt),
+      String(card.answer),
+    )));
+
+    const settledAccounting = await accounting(uid, "flashcard_generation", key);
+    const settledProduct = await productState(uid, "flashcards", courseId);
+    const replay = await generateFlashcards(requestFor("flashcards", courseId, key, requestBody));
+    assert.equal(replay.status, 200, JSON.stringify(await replay.clone().json()));
+    assert.deepEqual(await replay.json(), recoveredBody);
+    assert.equal(providerCalls, callsAfterCheckpoint);
+    assert.deepEqual(await accounting(uid, "flashcard_generation", key), settledAccounting);
+    assert.deepEqual(await productState(uid, "flashcards", courseId), settledProduct);
+  });
+}
+
+test("fresh flashcard generation gives delimiter-collision tuples distinct versioned identities", async () => {
+  const { uid, courseId } = await seed("flashcards", "canonical_tuple_identity");
+  const key = "flashcards-canonical-tuple-identity-key";
+  const requestBody = bodyFor("flashcards", courseId);
+  providerCalls = 0;
+  activeFault = null;
+  collisionDeckOutput = true;
+  let response: Response;
+  try {
+    response = await generateFlashcards(requestFor("flashcards", courseId, key, requestBody));
+  } finally {
+    collisionDeckOutput = false;
+  }
+  const body = await response.json() as Record<string, unknown>;
+  assert.equal(response.status, 201, JSON.stringify(body));
+  const deck = body.deck as Record<string, unknown>;
+  const cards = body.cards as Array<Record<string, unknown>>;
+  assert.equal(deck.version, 2);
+  assert.equal(deck.moduleIndex, null);
+  assert.equal(cards.length, 2);
+  assert(cards.every((card) => card.version === 2));
+  assert.equal(new Set(cards.map((card) => card.id)).size, 2);
+  await assertConverged("flashcards", uid, courseId, key, body);
+
+  const callsAfterSettlement = providerCalls;
+  const settledAccounting = await accounting(uid, "flashcard_generation", key);
+  const settledProduct = await productState(uid, "flashcards", courseId);
+  const replay = await generateFlashcards(requestFor("flashcards", courseId, key, requestBody));
+  assert.equal(replay.status, 200, JSON.stringify(await replay.clone().json()));
+  assert.deepEqual(await replay.json(), { ...body, replayed: true });
+  assert.equal(providerCalls, callsAfterSettlement);
+  assert.deepEqual(await accounting(uid, "flashcard_generation", key), settledAccounting);
+  assert.deepEqual(await productState(uid, "flashcards", courseId), settledProduct);
+});
+
 test("capstone recovery persists the checkpointed mastery evidence after the course objectives change", async () => {
   const { uid, courseId } = await seed("capstone", "mutable_course_evidence");
   const key = "capstone-mutable-course-evidence-key";
@@ -1005,6 +1189,23 @@ test("flashcards reject a hash-consistent checkpoint whose stored strings requir
     const cards = result.cards as Array<Record<string, unknown>>;
     cards[0].prompt = `  ${cards[0].prompt}  `;
   });
+  await assertMalformedCheckpointRejected("flashcards", fixture);
+});
+
+test("flashcards reject a version-2 checkpoint that reuses an old delimiter-collision card identity", async () => {
+  collisionDeckOutput = true;
+  let fixture: Awaited<ReturnType<typeof prepareMalformedCheckpoint>>;
+  try {
+    fixture = await prepareMalformedCheckpoint("flashcards", "malformed_delimiter_identity", (result) => {
+      const cards = result.cards as Array<Record<string, unknown>>;
+      assert.equal(cards[0].prompt, "Question:alpha");
+      assert.equal(cards[0].answer, "beta");
+      cards[0].prompt = "Question";
+      cards[0].answer = "alpha:beta";
+    });
+  } finally {
+    collisionDeckOutput = false;
+  }
   await assertMalformedCheckpointRejected("flashcards", fixture);
 });
 

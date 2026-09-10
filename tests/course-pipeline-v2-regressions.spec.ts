@@ -525,7 +525,9 @@ test("failed generation releases product allowance and course credit while retri
 
   expect(usageSource).toContain("IDEMPOTENCY_CONFLICT");
   expect(usageSource).toContain("payloadFingerprint");
-  expect(usageSource).toContain("Math.max(0, numberValue(period.requestCount) - 1)");
+  expect(usageSource).toContain("periodRequests! < 1");
+  expect(usageSource).toContain("requestCount: periodRequests! - 1");
+  expect(usageSource).not.toContain("Math.max(0, numberValue(period.requestCount) - 1)");
   expect(usageSource).toContain('request.status !== "reserved"');
   expect(usageSource).toContain("allowCompletedReplay");
   expect(usageSource).toContain("recoveredResultId");

@@ -172,6 +172,10 @@ function hasOnlyKeys(value: Record<string, unknown>, allowed: readonly string[])
   return Object.keys(value).every((key) => keys.has(key));
 }
 
+function hasExactKeys(value: Record<string, unknown>, expected: readonly string[]) {
+  return Object.keys(value).length === expected.length && hasOnlyKeys(value, expected);
+}
+
 function canonicalIsoDate(value: unknown): value is string {
   return boundedText(value, 40) && Number.isFinite(Date.parse(value)) && new Date(Date.parse(value)).toISOString() === value;
 }
@@ -803,13 +807,23 @@ function checkpointReceiptId(value: Pick<AiReservation, "requestId" | "attemptTo
   return `legacy-${value.requestId}-${value.attemptToken ?? "v0"}`;
 }
 
+interface ObservedAiUsage {
+  status: "observed";
+  actualCostMicros: number;
+  inputTokens: number;
+  cachedInputTokens: number;
+  cacheWriteTokens: number;
+  outputTokens: number;
+  failed: boolean;
+}
+
 function parsedLegacyObservedReceipt(
   value: unknown,
   reservation: Pick<AiReservation, "requestId" | "attemptToken" | "globalPath">,
-  expected?: AiResultCheckpoint["observed"],
+  expected?: ObservedAiUsage,
 ) {
   const receipt = recordValue(value);
-  if (!receipt || !hasOnlyKeys(receipt, ["id", "version", "kind", "status", "actualCostMicros", "inputTokens",
+  if (!receipt || !hasExactKeys(receipt, ["id", "version", "kind", "status", "actualCostMicros", "inputTokens",
     "cachedInputTokens", "cacheWriteTokens", "outputTokens", "failed", "globalPath", "updatedAt"])
     || receipt.id !== checkpointReceiptId(reservation)
     || receipt.version !== 1 || receipt.kind !== "legacy-ai-completion" || receipt.status !== "observed"
@@ -832,7 +846,7 @@ function parsedLegacyUncertainReceipt(
   reservation: Pick<AiReservation, "requestId" | "attemptToken" | "globalPath" | "reserveCostMicros">,
 ) {
   const receipt = recordValue(value);
-  if (!receipt || !hasOnlyKeys(receipt, ["id", "version", "kind", "status", "actualCostMicros", "uncertainCostMicros", "globalPath"])
+  if (!receipt || !hasExactKeys(receipt, ["id", "version", "kind", "status", "actualCostMicros", "uncertainCostMicros", "globalPath"])
     || receipt.id !== checkpointReceiptId(reservation)
     || receipt.version !== 1 || receipt.kind !== "legacy-ai-completion" || receipt.status !== "uncertain"
     || receipt.globalPath !== reservation.globalPath || receipt.actualCostMicros !== 0
@@ -846,25 +860,152 @@ function parsedGenericObservedReceipt(
   reservation: Pick<AiReservation, "requestId" | "attemptToken" | "globalPath">,
   checkpoint: AiResultCheckpoint,
 ) {
+  const parsed = parsedGenericObservedReceiptProfile(value, reservation, checkpoint.observed);
+  return parsed?.checkpointFingerprint === checkpoint.checkpointFingerprint ? parsed.raw : null;
+}
+
+function parsedGenericObservedReceiptProfile(
+  value: unknown,
+  reservation: Pick<AiReservation, "requestId" | "attemptToken" | "globalPath">,
+  expected?: ObservedAiUsage,
+) {
   const receipt = recordValue(value);
-  if (!receipt || !hasOnlyKeys(receipt, ["id", "version", "kind", "checkpointFingerprint", "globalPath", "status",
+  if (!receipt || !hasExactKeys(receipt, ["id", "version", "kind", "checkpointFingerprint", "globalPath", "status",
     "actualCostMicros", "inputTokens", "cachedInputTokens", "cacheWriteTokens", "outputTokens", "failed", "updatedAt"])
     || receipt.id !== checkpointReceiptId(reservation)
     || receipt.version !== 2 || receipt.kind !== "generic-ai-result" || receipt.status !== "observed"
-    || receipt.checkpointFingerprint !== checkpoint.checkpointFingerprint || !SHA256_PATTERN.test(String(receipt.checkpointFingerprint))
+    || !SHA256_PATTERN.test(String(receipt.checkpointFingerprint))
     || receipt.globalPath !== reservation.globalPath || !canonicalIsoDate(receipt.updatedAt)
     || receipt.failed !== false
-    || receipt.actualCostMicros !== checkpoint.observed.actualCostMicros
-    || receipt.inputTokens !== checkpoint.observed.inputTokens
-    || receipt.cachedInputTokens !== checkpoint.observed.cachedInputTokens
-    || receipt.cacheWriteTokens !== checkpoint.observed.cacheWriteTokens
-    || receipt.outputTokens !== checkpoint.observed.outputTokens) return null;
-  return receipt;
+    || ![receipt.actualCostMicros, receipt.inputTokens, receipt.cachedInputTokens,
+      receipt.cacheWriteTokens, receipt.outputTokens].every(nonnegativeInteger)
+    || Number(receipt.cachedInputTokens) + Number(receipt.cacheWriteTokens) > Number(receipt.inputTokens)) return null;
+  const observed: ObservedAiUsage = {
+    status: "observed",
+    actualCostMicros: Number(receipt.actualCostMicros),
+    inputTokens: Number(receipt.inputTokens),
+    cachedInputTokens: Number(receipt.cachedInputTokens),
+    cacheWriteTokens: Number(receipt.cacheWriteTokens),
+    outputTokens: Number(receipt.outputTokens),
+    failed: false,
+  };
+  if (expected && !sameObservedUsage(observed, expected)) return null;
+  return { raw: receipt, checkpointFingerprint: String(receipt.checkpointFingerprint), observed };
+}
+
+type LegacyObservedReceipt = {
+  profile: "minimal_v1" | "full_v1";
+  observed: ObservedAiUsage;
+};
+
+function parsedLegacyMinimalObservedReceipt(
+  value: unknown,
+  reservation: Pick<AiReservation, "requestId" | "attemptToken" | "globalPath">,
+): LegacyObservedReceipt | null {
+  const receipt = recordValue(value);
+  if (!receipt || !hasExactKeys(receipt, ["id", "version", "kind", "status", "actualCostMicros", "inputTokens", "outputTokens", "globalPath"])
+    || receipt.id !== checkpointReceiptId(reservation)
+    || receipt.version !== 1 || receipt.kind !== "legacy-ai-completion" || receipt.status !== "observed"
+    || receipt.globalPath !== reservation.globalPath
+    || ![receipt.actualCostMicros, receipt.inputTokens, receipt.outputTokens].every(nonnegativeInteger)) return null;
+  return {
+    profile: "minimal_v1",
+    observed: {
+      status: "observed",
+      actualCostMicros: Number(receipt.actualCostMicros),
+      inputTokens: Number(receipt.inputTokens),
+      cachedInputTokens: 0,
+      cacheWriteTokens: 0,
+      outputTokens: Number(receipt.outputTokens),
+      failed: false,
+    },
+  };
+}
+
+function sameObservedUsage(left: ObservedAiUsage, right: ObservedAiUsage) {
+  return left.status === right.status && left.actualCostMicros === right.actualCostMicros
+    && left.inputTokens === right.inputTokens && left.cachedInputTokens === right.cachedInputTokens
+    && left.cacheWriteTokens === right.cacheWriteTokens && left.outputTokens === right.outputTokens
+    && left.failed === right.failed;
+}
+
+function parsedObservedAccountingState(value: unknown): ObservedAiUsage | null {
+  const state = recordValue(value);
+  if (!state || typeof state.failed !== "boolean"
+    || ![state.actualCostMicros, state.inputTokens, state.cachedInputTokens,
+      state.cacheWriteTokens, state.outputTokens].every(nonnegativeInteger)
+    || Number(state.cachedInputTokens) + Number(state.cacheWriteTokens) > Number(state.inputTokens)) return null;
+  return {
+    status: "observed",
+    actualCostMicros: Number(state.actualCostMicros),
+    inputTokens: Number(state.inputTokens),
+    cachedInputTokens: Number(state.cachedInputTokens),
+    cacheWriteTokens: Number(state.cacheWriteTokens),
+    outputTokens: Number(state.outputTokens),
+    failed: state.failed,
+  };
+}
+
+function parsedLegacyObservedReceiptProfile(
+  value: unknown,
+  reservation: Pick<AiReservation, "requestId" | "attemptToken" | "globalPath">,
+  expected?: ObservedAiUsage,
+): LegacyObservedReceipt | null {
+  const full = parsedLegacyObservedReceipt(value, reservation);
+  const parsed = full
+    ? {
+        profile: "full_v1" as const,
+        observed: {
+          status: "observed" as const,
+          actualCostMicros: Number(full.actualCostMicros),
+          inputTokens: Number(full.inputTokens),
+          cachedInputTokens: Number(full.cachedInputTokens),
+          cacheWriteTokens: Number(full.cacheWriteTokens),
+          outputTokens: Number(full.outputTokens),
+          failed: Boolean(full.failed),
+        },
+      }
+    : parsedLegacyMinimalObservedReceipt(value, reservation);
+  if (!parsed || (expected && !sameObservedUsage(parsed.observed, expected))) return null;
+  return parsed;
 }
 
 function usageCounter(value: unknown) {
   if (value === undefined) return 0;
   return nonnegativeInteger(value) ? value : null;
+}
+
+function reconciliationRequired(message: string) {
+  return new AiQuotaError(409, "AI_OUTCOME_RECONCILIATION_REQUIRED", message);
+}
+
+function safeCounterAdd(left: number, right: number) {
+  const result = left + right;
+  return Number.isSafeInteger(result) ? result : null;
+}
+
+function exactAttemptIdentity(
+  attempt: StoredDocument | null | undefined,
+  reservation: Pick<AiReservation, "uid" | "feature" | "requestId" | "attemptToken" | "accountGeneration" | "requestPath" | "periodPath" | "userBudgetPath" | "globalPath" | "reserveCostMicros">,
+) {
+  return Boolean(attempt) && attempt?.id === aiUsageAttemptPath(reservation).split("/")[1]
+    && attempt.kind === "ai-usage-attempt"
+    && attempt.uid === reservation.uid && attempt.feature === reservation.feature
+    && attempt.requestId === reservation.requestId && attempt.attemptToken === reservation.attemptToken
+    && attempt.accountGeneration === reservation.accountGeneration && attempt.requestPath === reservation.requestPath
+    && attempt.periodPath === reservation.periodPath && attempt.userBudgetPath === reservation.userBudgetPath
+    && attempt.globalPath === reservation.globalPath && attempt.reservedCostMicros === reservation.reserveCostMicros;
+}
+
+function exactRootIdentity(
+  request: StoredDocument | null | undefined,
+  reservation: Pick<AiReservation, "uid" | "feature" | "requestId" | "attemptToken" | "accountGeneration" | "periodPath" | "userBudgetPath" | "globalPath" | "reserveCostMicros">,
+) {
+  return Boolean(request) && request?.id === reservation.requestId
+    && request.uid === reservation.uid && request.feature === reservation.feature
+    && request.attemptToken === reservation.attemptToken && request.accountGeneration === reservation.accountGeneration
+    && request.periodPath === reservation.periodPath && request.userBudgetPath === reservation.userBudgetPath
+    && request.globalPath === reservation.globalPath && request.reservedCostMicros === reservation.reserveCostMicros;
 }
 
 function genericObservedReceipt(checkpoint: AiResultCheckpoint, reservation: AiReservation, updatedAt: string) {
@@ -1015,11 +1156,21 @@ async function settleAiUsageCheckpointGlobal(reservation: AiReservation, checkpo
   const now = new Date().toISOString();
   await runWithGlobalUsageAccounting(() => runStoredDocumentTransaction([receiptPath, reservation.globalPath], (documents) => {
     const receipt = documents[receiptPath];
+    const global = documents[reservation.globalPath];
+    const reservedCostMicros = usageCounter(global?.reservedCostMicros);
+    const uncertainCostMicros = usageCounter(global?.uncertainCostMicros);
+    const actualCostMicros = usageCounter(global?.actualCostMicros);
     if (receipt?.status === "observed") {
-      if (parsedGenericObservedReceipt(receipt, reservation, checkpoint)) {
+      const genericReceipt = parsedGenericObservedReceipt(receipt, reservation, checkpoint);
+      const legacyReceipt = parsedLegacyObservedReceipt(receipt, reservation, checkpoint.observed);
+      if (!global || reservedCostMicros === null || uncertainCostMicros === null || actualCostMicros === null
+        || actualCostMicros < checkpoint.observed.actualCostMicros) {
+        throw new AiQuotaError(409, "AI_OUTCOME_RECONCILIATION_REQUIRED", "The observed receipt is not represented by its global shard.");
+      }
+      if (genericReceipt) {
         return { writes: [], result: undefined };
       }
-      if (parsedLegacyObservedReceipt(receipt, reservation, checkpoint.observed)) {
+      if (legacyReceipt) {
         return { writes: [{ path: receiptPath, data: genericObservedReceipt(checkpoint, reservation, now) }], result: undefined };
       }
       throw new AiQuotaError(409, "AI_OUTCOME_RECONCILIATION_REQUIRED", "A different observed cost is already bound to this attempt.");
@@ -1028,11 +1179,7 @@ async function settleAiUsageCheckpointGlobal(reservation: AiReservation, checkpo
     if (receipt && !uncertainReceipt) {
       throw new AiQuotaError(409, "AI_OUTCOME_RECONCILIATION_REQUIRED", "The global usage receipt cannot be safely settled.");
     }
-    const global = documents[reservation.globalPath];
-    const reservedCostMicros = usageCounter(global?.reservedCostMicros);
-    const uncertainCostMicros = usageCounter(global?.uncertainCostMicros);
-    const actualCostMicros = usageCounter(global?.actualCostMicros);
-    const reservedDelta = uncertainReceipt ? 0 : reservation.reserveCostMicros;
+    const reservedDelta = receipt ? 0 : reservation.reserveCostMicros;
     const uncertainDelta = uncertainReceipt ? reservation.reserveCostMicros : 0;
     if (!global || reservedCostMicros === null || uncertainCostMicros === null || actualCostMicros === null
       || !nonnegativeInteger(reservation.reserveCostMicros) || reservation.reserveCostMicros <= 0
@@ -1186,12 +1333,10 @@ export async function finalizeAiUsage(
   // A failed call with no observed response cannot certify zero provider spend.
   // Preserve uncertainty until a late actual response or operator reconciliation.
   if (result.failed && !confirmedNotStarted && actualCostMicros === 0 && !result.responseId && !samples.some((sample) => sample.responseId)) {
-    const expired = await runStoredDocumentTransaction([reservation.requestPath], (documents) => {
-      const request = documents[reservation.requestPath];
-      if (!request || request.status !== "reserved" || request.attemptToken !== reservation.attemptToken) return { writes: [], result: false };
-      return { writes: [{ path: reservation.requestPath, data: { ...request, leaseUntil: nowIso } }], result: true };
-    });
-    if (expired) await reconcileExpiredAiUsage(reservation.requestId, true, new Date(nowIso));
+    const action = await reconcileAiUsageRoot(reservation.requestId, true, new Date(nowIso), reservation);
+    if (action === "manual_reconciliation_required") {
+      throw reconciliationRequired("The global usage receipt cannot be safely contained.");
+    }
     return;
   }
   const models = Array.from(new Set(samples.map((sample) => sample.model)));
@@ -1216,6 +1361,15 @@ export async function finalizeAiUsage(
 
   const receiptPath = `generationUsageReceipts/legacy-${reservation.requestId}-${reservation.attemptToken ?? "v0"}`;
   const attemptPath = aiUsageAttemptPath(reservation);
+  const expectedObserved: ObservedAiUsage = {
+    status: "observed",
+    actualCostMicros,
+    inputTokens,
+    cachedInputTokens,
+    cacheWriteTokens,
+    outputTokens,
+    failed: result.failed === true,
+  };
   const lateUsage = () => runWithGlobalUsageAccounting(() => runStoredDocumentTransaction([
     receiptPath,
     reservation.globalPath,
@@ -1231,18 +1385,60 @@ export async function finalizeAiUsage(
       || (exactAttempt && (attempt?.status === "result_checkpointed" || attempt?.resultCheckpoint !== undefined))) {
       return { writes: [], result: false };
     }
-    if (receipt && receipt.status !== "uncertain") return { writes: [], result: true };
-    const global: Record<string, unknown> = documents[reservation.globalPath] ?? {};
+    const rootMatches = exactRootIdentity(request, reservation);
+    const attemptMatches = exactAttemptIdentity(attempt, reservation);
+    if ((request || attempt) && (!rootMatches || !attemptMatches)) {
+      throw reconciliationRequired("The observed usage belongs to another request attempt.");
+    }
+    const existingObserved = receipt
+      ? parsedLegacyObservedReceiptProfile(receipt, reservation, expectedObserved)
+      : null;
+    const deletedCheckpointObserved = receipt
+      ? parsedGenericObservedReceiptProfile(receipt, reservation, expectedObserved)
+      : null;
+    const uncertainReceipt = receipt ? parsedLegacyUncertainReceipt(receipt, reservation) : null;
+    if (receipt && !existingObserved && !deletedCheckpointObserved && !uncertainReceipt) {
+      throw reconciliationRequired("The global usage receipt cannot be safely settled.");
+    }
+    if (deletedCheckpointObserved && (request || attempt)) {
+      throw reconciliationRequired("A checkpoint receipt contradicts the remaining request state.");
+    }
+    const reservedState = rootMatches && attemptMatches
+      && request?.status === "reserved" && attempt?.status === "accounting_reserved";
+    const uncertainState = rootMatches && attemptMatches
+      && request?.status === "failed" && request.terminalReason === "provider_outcome_unknown"
+      && attempt?.status === "accounting_uncertain";
+    const observedState = reservedState || uncertainState || (rootMatches && attemptMatches
+      && ["completed", "failed"].includes(String(request?.status)) && attempt?.status === "accounting_observed");
+    if ((!receipt && !reservedState)
+      || (uncertainReceipt && request && !reservedState && !uncertainState)
+      || (existingObserved && request && !observedState)) {
+      throw reconciliationRequired("The global usage receipt contradicts the request attempt state.");
+    }
+    const global = documents[reservation.globalPath];
+    const reserved = usageCounter(global?.reservedCostMicros);
+    const uncertain = usageCounter(global?.uncertainCostMicros);
+    const actual = usageCounter(global?.actualCostMicros);
+    const reservedDelta = receipt ? 0 : reservation.reserveCostMicros;
+    const uncertainDelta = uncertainReceipt ? reservation.reserveCostMicros : 0;
+    const nextActual = actual === null ? null : safeCounterAdd(actual, actualCostMicros);
+    if (!global || reserved === null || uncertain === null || actual === null || nextActual === null
+      || !nonnegativeInteger(reservation.reserveCostMicros) || reservation.reserveCostMicros <= 0
+      || ((existingObserved || deletedCheckpointObserved)
+        && actual < (existingObserved?.observed.actualCostMicros ?? deletedCheckpointObserved!.observed.actualCostMicros))
+      || reserved < reservedDelta || uncertain < uncertainDelta) {
+      throw reconciliationRequired("The global usage counters cannot be safely settled.");
+    }
+    if (existingObserved || deletedCheckpointObserved) return { writes: [], result: true };
     return { writes: [
-      { path: receiptPath, data: { version: 1, kind: "legacy-ai-completion", status: "observed", actualCostMicros, inputTokens, cachedInputTokens, cacheWriteTokens, outputTokens, failed: result.failed === true, globalPath: reservation.globalPath, updatedAt: nowIso } },
-      { path: reservation.globalPath, data: { ...global, reservedCostMicros: Math.max(0, numberValue(global.reservedCostMicros) - (receipt ? 0 : reservation.reserveCostMicros)), uncertainCostMicros: Math.max(0, numberValue(global.uncertainCostMicros) - numberValue(receipt?.uncertainCostMicros)), actualCostMicros: numberValue(global.actualCostMicros) + actualCostMicros, updatedAt: nowIso } },
+      { path: receiptPath, data: { version: 1, kind: "legacy-ai-completion", ...expectedObserved,
+        globalPath: reservation.globalPath, updatedAt: nowIso } },
+      { path: reservation.globalPath, data: { ...global, reservedCostMicros: reserved - reservedDelta,
+        uncertainCostMicros: uncertain - uncertainDelta, actualCostMicros: nextActual, updatedAt: nowIso } },
     ], result: true };
   }));
   if (!await lateUsage()) return;
-  await settleAiUsageAttempt(reservation, {
-    status: "observed", actualCostMicros, inputTokens, cachedInputTokens, cacheWriteTokens, outputTokens,
-    failed: result.failed === true,
-  }, {
+  await settleAiUsageAttempt(reservation, expectedObserved, {
     model: models.join(" -> "), models, promptVersion: promptVersions.at(-1) ?? null, promptVersions,
     profile: profiles.at(-1) ?? null, profiles, reasoningEfforts, promptCacheKeys, attemptCount: attempts.length,
     recoveryUsed: samples.some((sample) => sample.profile?.endsWith(".recovery") === true), attempts,
@@ -1257,46 +1453,100 @@ export function aiUsageAttemptPath(value: { requestId: string; attemptToken?: st
 }
 
 async function settleAiUsageAttempt(
-  reservation: Pick<AiReservation, "uid" | "accountGeneration" | "requestId" | "attemptToken" | "requestPath" | "periodPath" | "userBudgetPath" | "reserveCostMicros" | "lockKey">,
-  observed: Record<string, unknown>, details: Record<string, unknown> = {},
+  reservation: Pick<AiReservation, "uid" | "feature" | "accountGeneration" | "requestId" | "attemptToken" | "requestPath" | "periodPath" | "userBudgetPath" | "globalPath" | "reserveCostMicros" | "lockKey">,
+  observed: ObservedAiUsage, details: Record<string, unknown> = {},
 ) {
   const attemptPath = aiUsageAttemptPath(reservation);
-  const settle = () => runStoredDocumentTransaction([attemptPath, reservation.requestPath, reservation.periodPath, reservation.userBudgetPath], (documents) => {
+  const receiptPath = checkpointReceiptPath(reservation);
+  const settle = () => runStoredDocumentTransaction([
+    attemptPath,
+    reservation.requestPath,
+    reservation.periodPath,
+    reservation.userBudgetPath,
+    reservation.globalPath,
+    receiptPath,
+  ], (documents) => {
     const request = documents[reservation.requestPath];
     const period = documents[reservation.periodPath];
     const budget = documents[reservation.userBudgetPath];
-    const sameRequest = Boolean(request) && request?.attemptToken === reservation.attemptToken;
+    const sameRequest = exactRootIdentity(request, reservation);
     // Additive migration supports attempts admitted just before this schema. An
     // absent/deleted account or an overwritten old attempt is never recreated.
     const storedAttempt = documents[attemptPath];
-    const sameAttempt = Boolean(storedAttempt) && storedAttempt?.requestId === reservation.requestId
-      && storedAttempt.attemptToken === reservation.attemptToken;
+    const sameAttempt = exactAttemptIdentity(storedAttempt, reservation);
     if ((sameRequest && (request?.status === "result_checkpointed" || request?.resultCheckpoint !== undefined))
       || (sameAttempt && (storedAttempt?.status === "result_checkpointed" || storedAttempt?.resultCheckpoint !== undefined))) {
       return { writes: [], result: false };
     }
-    const attempt = storedAttempt ?? (sameRequest ? request : undefined);
-    if (!attempt || !period || !budget || attempt.uid !== reservation.uid
-      || (reservation.accountGeneration && attempt.accountGeneration !== reservation.accountGeneration)
-      || ["completed", "accounting_observed"].includes(String(attempt.status))
-      || (attempt.status === "failed" && attempt.terminalReason !== "provider_outcome_unknown")) return { writes: [], result: false };
-    const uncertain = numberValue(attempt.uncertainCostMicros);
+    const receiptValue = documents[receiptPath];
+    const receipt = parsedLegacyObservedReceiptProfile(receiptValue, reservation, observed);
+    const deletedCheckpointReceipt = parsedGenericObservedReceiptProfile(receiptValue, reservation, observed);
+    if (!receipt && !deletedCheckpointReceipt) {
+      throw reconciliationRequired("The observed usage receipt cannot be safely applied to personal accounting.");
+    }
+    const globalActual = usageCounter(documents[reservation.globalPath]?.actualCostMicros);
+    const receiptActual = receipt?.observed.actualCostMicros ?? deletedCheckpointReceipt!.observed.actualCostMicros;
+    if (globalActual === null || globalActual < receiptActual) {
+      throw reconciliationRequired("The observed usage receipt is not represented by its global shard.");
+    }
+    if (!storedAttempt && !request) return { writes: [], result: false };
+    if (deletedCheckpointReceipt) {
+      throw reconciliationRequired("A checkpoint receipt cannot settle non-checkpoint personal state.");
+    }
+    if ((storedAttempt && !sameAttempt) || (request?.attemptToken === reservation.attemptToken && !sameRequest)) {
+      throw reconciliationRequired("The personal usage attempt identity is inconsistent.");
+    }
+    const attempt = sameAttempt ? storedAttempt : sameRequest ? request : undefined;
+    if (!attempt) return { writes: [], result: false };
+    if (["completed", "accounting_observed"].includes(String(attempt.status))) return { writes: [], result: false };
     const wasReserved = ["reserved", "accounting_reserved"].includes(String(attempt.status));
-    const actual = numberValue(observed.actualCostMicros);
-    const tokens = Object.fromEntries(["inputTokens", "cachedInputTokens", "cacheWriteTokens", "outputTokens"].map((key) => [key, numberValue(period[key]) + numberValue(observed[key])]));
+    const wasUncertain = (attempt.status === "failed" && attempt.terminalReason === "provider_outcome_unknown")
+      || attempt.status === "accounting_uncertain";
+    const uncertain = usageCounter(attempt.uncertainCostMicros);
+    if (!period || !budget || (!wasReserved && !wasUncertain) || uncertain === null
+      || (wasUncertain && uncertain !== reservation.reserveCostMicros)) {
+      throw reconciliationRequired("The personal usage attempt cannot be safely settled.");
+    }
+    const periodReserved = usageCounter(period.reservedCostMicros);
+    const periodUncertain = usageCounter(period.uncertainCostMicros);
+    const periodActual = usageCounter(period.actualCostMicros);
+    const periodRequests = usageCounter(period.requestCount);
+    const budgetReserved = usageCounter(budget.reservedCostMicros);
+    const budgetUncertain = usageCounter(budget.uncertainCostMicros);
+    const budgetActual = usageCounter(budget.actualCostMicros);
+    const reservedDelta = wasReserved ? reservation.reserveCostMicros : 0;
+    const uncertainDelta = wasUncertain ? uncertain : 0;
+    const nextPeriodActual = periodActual === null ? null : safeCounterAdd(periodActual, observed.actualCostMicros);
+    const nextBudgetActual = budgetActual === null ? null : safeCounterAdd(budgetActual, observed.actualCostMicros);
+    const tokenEntries = ["inputTokens", "cachedInputTokens", "cacheWriteTokens", "outputTokens"].map((key) => {
+      const current = usageCounter(period[key]);
+      const delta = observed[key as keyof typeof observed];
+      return [key, current === null || typeof delta !== "number" ? null : safeCounterAdd(current, delta)] as const;
+    });
+    const invalidToken = tokenEntries.some(([, value]) => value === null);
+    const requestDelta = wasReserved && observed.failed ? 1 : 0;
+    if ([periodReserved, periodUncertain, periodActual, periodRequests, budgetReserved, budgetUncertain, budgetActual]
+      .some((value) => value === null)
+      || invalidToken || nextPeriodActual === null || nextBudgetActual === null
+      || periodReserved! < reservedDelta || budgetReserved! < reservedDelta
+      || periodUncertain! < uncertainDelta || budgetUncertain! < uncertainDelta
+      || periodRequests! < requestDelta) {
+      throw reconciliationRequired("The personal usage counters cannot be safely settled.");
+    }
+    const tokens = Object.fromEntries(tokenEntries);
 
     const now = new Date().toISOString();
     return { writes: [
       { path: attemptPath, data: { ...attempt, kind: "ai-usage-attempt", requestPath: reservation.requestPath, requestId: reservation.requestId,
         ...observed, status: "accounting_observed", uncertainCostMicros: 0, updatedAt: now } },
       { path: reservation.periodPath, data: { ...period, ...tokens,
-        requestCount: Math.max(0, numberValue(period.requestCount) - (wasReserved && observed.failed ? 1 : 0)),
-        reservedCostMicros: Math.max(0, numberValue(period.reservedCostMicros) - (wasReserved ? reservation.reserveCostMicros : 0)),
-        uncertainCostMicros: Math.max(0, numberValue(period.uncertainCostMicros) - uncertain), actualCostMicros: numberValue(period.actualCostMicros) + actual,
+        requestCount: periodRequests! - requestDelta,
+        reservedCostMicros: periodReserved! - reservedDelta,
+        uncertainCostMicros: periodUncertain! - uncertainDelta, actualCostMicros: nextPeriodActual,
         ...aiUsageReleaseLock(period, reservation.lockKey, reservation.requestId, reservation.attemptToken), updatedAt: now } },
       { path: reservation.userBudgetPath, data: { ...budget,
-        reservedCostMicros: Math.max(0, numberValue(budget.reservedCostMicros) - (wasReserved ? reservation.reserveCostMicros : 0)),
-        uncertainCostMicros: Math.max(0, numberValue(budget.uncertainCostMicros) - uncertain), actualCostMicros: numberValue(budget.actualCostMicros) + actual, updatedAt: now } },
+        reservedCostMicros: budgetReserved! - reservedDelta,
+        uncertainCostMicros: budgetUncertain! - uncertainDelta, actualCostMicros: nextBudgetActual, updatedAt: now } },
       ...(sameRequest ? [{ path: reservation.requestPath, data: { ...request, ...observed, ...details,
         status: wasReserved ? (observed.failed ? "failed" : "completed") : request?.status,
         uncertainCostMicros: 0, updatedAt: now } }] : []),
@@ -1354,67 +1604,197 @@ export function courseOutlineAccountingContext(account: ServerAccount, requestId
 }
 
 
+function parsedRootReservation(requestId: string, request: StoredDocument | null | undefined): AiReservation | null {
+  const feature = request?.feature;
+  const budgetPool = typeof request?.globalPath === "string"
+    ? request.globalPath.split("/").at(-1)?.split("__")[0]
+    : undefined;
+  if (!request || !["course_outline", "course_banner", "lesson_generation", "tutor", "flashcard_generation", "command_center_draft"].includes(String(feature))
+    || !["free", "paid", "owner"].includes(String(budgetPool))
+    || ![request.uid, request.attemptToken, request.accountGeneration, request.periodPath, request.userBudgetPath, request.globalPath]
+      .every((value) => typeof value === "string" && value.length > 0)
+    || !nonnegativeInteger(request.reservedCostMicros) || request.reservedCostMicros <= 0) return null;
+  const uid = String(request.uid);
+  if (!String(request.periodPath).startsWith(`usagePeriods/${uid}__`)
+    || !String(request.userBudgetPath).startsWith(`userAiBudgets/${uid}__`)
+    || !String(request.globalPath).startsWith("systemUsageShards/")) return null;
+  return {
+    uid,
+    feature: feature as AiFeature,
+    requestId,
+    attemptToken: String(request.attemptToken),
+    accountGeneration: String(request.accountGeneration),
+    periodPath: String(request.periodPath),
+    globalPath: String(request.globalPath),
+    userBudgetPath: String(request.userBudgetPath),
+    budgetPool: budgetPool as AiBudgetPool,
+    requestPath: `aiRequests/${requestId}`,
+    reserveCostMicros: request.reservedCostMicros,
+    lockKey: typeof request.lockKey === "string" ? request.lockKey : undefined,
+    recovered: false,
+  };
+}
+
+async function reconcileAiUsageRoot(
+  requestId: string,
+  apply: boolean,
+  now: Date,
+  expected?: AiReservation,
+) {
+  const requestPath = `aiRequests/${requestId}`;
+  const initial = await getStoredDocument(requestPath);
+  if (!initial || initial.kind === "ai-usage-attempt" || initial.operationId || initial.status !== "reserved") return "none";
+  const reservation = parsedRootReservation(requestId, initial);
+  if (!reservation || (expected && (expected.requestId !== requestId
+    || !exactRootIdentity(initial, expected)))) return "manual_reconciliation_required";
+  if (!expected && Date.parse(String(initial.leaseUntil)) > now.getTime()) return "none";
+  const attemptPath = aiUsageAttemptPath(reservation);
+  const receiptPath = checkpointReceiptPath(reservation);
+  return runWithAccountGeneration({ uid: reservation.uid, generation: reservation.accountGeneration! }, () =>
+    runStoredDocumentTransaction([
+      requestPath,
+      attemptPath,
+      reservation.periodPath,
+      reservation.userBudgetPath,
+      reservation.globalPath,
+      receiptPath,
+    ], (documents) => {
+      const request = documents[requestPath];
+      const attempt = documents[attemptPath];
+      if (!request || request.status !== "reserved" || (!expected && Date.parse(String(request.leaseUntil)) > now.getTime())) {
+        return { writes: [], result: "none" };
+      }
+      if (!exactRootIdentity(request, reservation) || !exactAttemptIdentity(attempt, reservation)
+        || attempt?.status !== "accounting_reserved") {
+        return { writes: [], result: "manual_reconciliation_required" };
+      }
+      const receiptValue = documents[receiptPath];
+      const observedReceipt = receiptValue
+        ? parsedLegacyObservedReceiptProfile(receiptValue, reservation)
+        : null;
+      const uncertainReceipt = receiptValue
+        ? parsedLegacyUncertainReceipt(receiptValue, reservation)
+        : null;
+      if (receiptValue && !observedReceipt && !uncertainReceipt) {
+        return { writes: [], result: "manual_reconciliation_required" };
+      }
+
+      const period = documents[reservation.periodPath];
+      const budget = documents[reservation.userBudgetPath];
+      const global = documents[reservation.globalPath];
+      const periodRequests = usageCounter(period?.requestCount);
+      const periodReserved = usageCounter(period?.reservedCostMicros);
+      const periodUncertain = usageCounter(period?.uncertainCostMicros);
+      const periodActual = usageCounter(period?.actualCostMicros);
+      const budgetReserved = usageCounter(budget?.reservedCostMicros);
+      const budgetUncertain = usageCounter(budget?.uncertainCostMicros);
+      const budgetActual = usageCounter(budget?.actualCostMicros);
+      const globalReserved = usageCounter(global?.reservedCostMicros);
+      const globalUncertain = usageCounter(global?.uncertainCostMicros);
+      const globalActual = usageCounter(global?.actualCostMicros);
+      const observed = observedReceipt?.observed;
+      const actual = observed?.actualCostMicros ?? 0;
+      const uncertainty = observed ? 0 : reservation.reserveCostMicros;
+      const nextPeriodActual = periodActual === null ? null : safeCounterAdd(periodActual, actual);
+      const nextBudgetActual = budgetActual === null ? null : safeCounterAdd(budgetActual, actual);
+      const nextPeriodUncertain = periodUncertain === null ? null : safeCounterAdd(periodUncertain, uncertainty);
+      const nextBudgetUncertain = budgetUncertain === null ? null : safeCounterAdd(budgetUncertain, uncertainty);
+      const nextGlobalUncertain = globalUncertain === null ? null : safeCounterAdd(globalUncertain, uncertainty);
+      const tokenEntries = ["inputTokens", "cachedInputTokens", "cacheWriteTokens", "outputTokens"].map((key) => {
+        const current = usageCounter(period?.[key]);
+        const delta = observed ? observed[key as keyof typeof observed] : 0;
+        return [key, current === null || typeof delta !== "number" ? null : safeCounterAdd(current, delta)] as const;
+      });
+      const validCounters = Boolean(period && budget && global)
+        && ![periodRequests, periodReserved, periodUncertain, periodActual, budgetReserved, budgetUncertain,
+          budgetActual, globalReserved, globalUncertain, globalActual, nextPeriodActual, nextBudgetActual,
+          nextPeriodUncertain, nextBudgetUncertain]
+          .some((value) => value === null);
+      const receiptGloballyBound = observedReceipt
+        ? globalActual! >= observedReceipt.observed.actualCostMicros
+        : uncertainReceipt
+          ? globalUncertain! >= reservation.reserveCostMicros
+          : globalReserved! >= reservation.reserveCostMicros && nextGlobalUncertain !== null;
+      if (!validCounters || tokenEntries.some(([, value]) => value === null)
+        || periodRequests! < 1 || periodReserved! < reservation.reserveCostMicros
+        || budgetReserved! < reservation.reserveCostMicros || !receiptGloballyBound) {
+        return { writes: [], result: "manual_reconciliation_required" };
+      }
+      if (!apply) return { writes: [], result: "would_contain_unknown_outcome" };
+
+      const nowIso = now.toISOString();
+      const tokens = Object.fromEntries(tokenEntries);
+      return {
+        writes: [
+          { path: attemptPath, data: { ...attempt, ...(observed ?? {}), status: observed ? "accounting_observed" : "accounting_uncertain",
+            actualCostMicros: actual, uncertainCostMicros: uncertainty, updatedAt: nowIso } },
+          { path: requestPath, data: { ...request, ...(observed ?? {}), status: "failed",
+            terminalReason: observed ? "completion_accounting_recovered" : "provider_outcome_unknown",
+            actualCostMicros: actual, uncertainCostMicros: uncertainty, updatedAt: nowIso } },
+          { path: reservation.periodPath, data: { ...period, ...tokens, requestCount: periodRequests! - 1,
+            reservedCostMicros: periodReserved! - reservation.reserveCostMicros,
+            actualCostMicros: nextPeriodActual, uncertainCostMicros: nextPeriodUncertain,
+            ...aiUsageReleaseLock(period, reservation.lockKey, requestId, reservation.attemptToken), updatedAt: nowIso } },
+          { path: reservation.userBudgetPath, data: { ...budget,
+            reservedCostMicros: budgetReserved! - reservation.reserveCostMicros,
+            actualCostMicros: nextBudgetActual, uncertainCostMicros: nextBudgetUncertain, updatedAt: nowIso } },
+          ...(!receiptValue ? [
+            { path: receiptPath, data: { version: 1, kind: "legacy-ai-completion", status: "uncertain",
+              actualCostMicros: 0, uncertainCostMicros: reservation.reserveCostMicros, globalPath: reservation.globalPath } },
+            { path: reservation.globalPath, data: { ...global,
+              reservedCostMicros: globalReserved! - reservation.reserveCostMicros,
+              uncertainCostMicros: nextGlobalUncertain, updatedAt: nowIso } },
+          ] : []),
+        ],
+        result: "contained_unknown_outcome",
+      };
+    }));
+}
+
 /** Expired non-operation reservations are contained without repeating paid work. */
 export async function reconcileExpiredAiUsage(requestId: string, apply: boolean, now = new Date()) {
   const requestPath = `aiRequests/${requestId}`;
   const initial = await getStoredDocument(requestPath);
-  if (initial?.kind === "ai-usage-attempt") {
-    if (initial.status === "accounting_observed") return "none";
-    // A durable product checkpoint must be completed by its owning route so
-    // product mutation and personal accounting remain one transaction. Legacy
-    // receipt repair has no product mutation context and must not split them.
-    if (initial.status === "result_checkpointed" || initial.resultCheckpoint !== undefined) return "none";
-    const receipt = await getStoredDocument(`generationUsageReceipts/legacy-${initial.requestId}-${initial.attemptToken}`);
-    if (receipt?.status !== "observed") return "none";
-    if (!apply) return "would_reconcile_observed_attempt";
-    const repaired = await settleAiUsageAttempt({
-      uid: String(initial.uid), accountGeneration: String(initial.accountGeneration), requestId: String(initial.requestId),
-      attemptToken: String(initial.attemptToken), requestPath: String(initial.requestPath), periodPath: String(initial.periodPath),
-      userBudgetPath: String(initial.userBudgetPath), reserveCostMicros: numberValue(initial.reservedCostMicros), lockKey: typeof initial.lockKey === "string" ? initial.lockKey : undefined,
-    }, receipt);
-    return repaired ? "reconciled_observed_attempt" : "none";
+  if (initial?.kind !== "ai-usage-attempt") return reconcileAiUsageRoot(requestId, apply, now);
+  if (initial.status === "accounting_observed") return "none";
+  // A durable product checkpoint must be completed by its owning route so
+  // product mutation and personal accounting remain one transaction. Legacy
+  // receipt repair has no product mutation context and must not split them.
+  if (initial.status === "result_checkpointed" || initial.resultCheckpoint !== undefined) return "none";
+  const rootRequestId = typeof initial.requestId === "string" ? initial.requestId : "";
+  const reservation = parsedRootReservation(rootRequestId, {
+    ...initial,
+    status: "reserved",
+    attemptToken: initial.attemptToken,
+  });
+  if (!reservation || requestPath !== aiUsageAttemptPath(reservation)
+    || !exactAttemptIdentity(initial, reservation)) return "manual_reconciliation_required";
+  const [receipt, global] = await Promise.all([
+    getStoredDocument(checkpointReceiptPath(reservation)),
+    getStoredDocument(reservation.globalPath),
+  ]);
+  const observedReceipt = receipt ? parsedLegacyObservedReceiptProfile(receipt, reservation) : null;
+  const uncertainReceipt = receipt ? parsedLegacyUncertainReceipt(receipt, reservation) : null;
+  if (receipt && !observedReceipt && !uncertainReceipt) return "manual_reconciliation_required";
+  const globalActual = usageCounter(global?.actualCostMicros);
+  const globalUncertain = usageCounter(global?.uncertainCostMicros);
+  if (!global || globalActual === null || globalUncertain === null
+    || (observedReceipt && globalActual < observedReceipt.observed.actualCostMicros)
+    || (uncertainReceipt && globalUncertain < reservation.reserveCostMicros)) {
+    return "manual_reconciliation_required";
   }
-  if (!initial || initial.operationId || initial.status !== "reserved" || Date.parse(String(initial.leaseUntil)) > now.getTime()) return "none";
-  if (![initial.uid, initial.attemptToken, initial.accountGeneration, initial.periodPath, initial.userBudgetPath, initial.globalPath].every((value) => typeof value === "string" && value.length > 0)) return "manual_reconciliation_required";
-  if (!apply) return "would_contain_unknown_outcome";
-  const uid = String(initial.uid);
-  const generation = String(initial.accountGeneration);
-  const token = String(initial.attemptToken);
-  const periodPath = String(initial.periodPath);
-  const userBudgetPath = String(initial.userBudgetPath);
-  const globalPath = String(initial.globalPath);
-  const receiptPath = `generationUsageReceipts/legacy-${requestId}-${token}`;
-  const attemptPath = aiUsageAttemptPath({ requestId, attemptToken: token });
-  return runWithAccountGeneration({ uid, generation }, () => runStoredDocumentTransaction([requestPath, periodPath, userBudgetPath, globalPath, receiptPath, attemptPath], (documents) => {
-    const request = documents[requestPath];
-    if (!request || request.status !== "reserved" || request.attemptToken !== token || Date.parse(String(request.leaseUntil)) > now.getTime()) return { writes: [], result: "none" };
-    const receipt = documents[receiptPath];
-    const reserved = numberValue(request.reservedCostMicros);
-    const uncertain = receipt ? 0 : reserved;
-    const actual = numberValue(receipt?.actualCostMicros);
-    const period: Record<string, unknown> = documents[periodPath] ?? {};
-    const budget: Record<string, unknown> = documents[userBudgetPath] ?? {};
-    const global: Record<string, unknown> = documents[globalPath] ?? {};
-
-    return { writes: [
-      { path: attemptPath, data: { ...request, ...documents[attemptPath], kind: "ai-usage-attempt", requestPath, requestId,
-        status: receipt ? "accounting_observed" : "accounting_uncertain", actualCostMicros: actual, uncertainCostMicros: uncertain } },
-      { path: requestPath, data: { ...request, status: "failed", terminalReason: receipt ? "completion_accounting_recovered" : "provider_outcome_unknown", actualCostMicros: actual, uncertainCostMicros: uncertain, updatedAt: now.toISOString() } },
-      { path: periodPath, data: { ...period, requestCount: Math.max(0, numberValue(period.requestCount) - 1), reservedCostMicros: Math.max(0, numberValue(period.reservedCostMicros) - reserved), actualCostMicros: numberValue(period.actualCostMicros) + actual, uncertainCostMicros: numberValue(period.uncertainCostMicros) + uncertain, ...aiUsageReleaseLock(period, typeof request.lockKey === "string" ? request.lockKey : undefined, requestId, token) } },
-      { path: userBudgetPath, data: { ...budget, reservedCostMicros: Math.max(0, numberValue(budget.reservedCostMicros) - reserved), actualCostMicros: numberValue(budget.actualCostMicros) + actual, uncertainCostMicros: numberValue(budget.uncertainCostMicros) + uncertain } },
-      ...(!receipt ? [
-        { path: receiptPath, data: { version: 1, kind: "legacy-ai-completion", status: "uncertain", actualCostMicros: 0, uncertainCostMicros: uncertain, globalPath } },
-        { path: globalPath, data: { ...global, reservedCostMicros: Math.max(0, numberValue(global.reservedCostMicros) - reserved), uncertainCostMicros: numberValue(global.uncertainCostMicros) + uncertain } },
-      ] : []),
-    ], result: "contained_unknown_outcome" };
-  }));
+  if (uncertainReceipt) return initial.status === "accounting_uncertain" ? "none" : "manual_reconciliation_required";
+  if (!observedReceipt) return initial.status === "accounting_uncertain" ? "manual_reconciliation_required" : "none";
+  if (!apply) return "would_reconcile_observed_attempt";
+  const repaired = await settleAiUsageAttempt(reservation, observedReceipt.observed);
+  return repaired ? "reconciled_observed_attempt" : "none";
 }
 
 /** Called before account-owned request records are removed. No personal write. */
 export async function abandonAiUsage(requestId: string): Promise<void> {
   const request = await getStoredDocument(`aiRequests/${requestId}`);
   if (!request || request.kind === "ai-usage-attempt" || request.operationId) return;
-  if (request.status === "result_checkpointed") {
+  if (request.status === "result_checkpointed" || request.resultCheckpoint !== undefined) {
     const checkpoint = parsedResultCheckpoint(request.resultCheckpoint);
     if (!checkpoint || checkpoint.requestId !== requestId
       || ![request.uid, request.feature, request.attemptToken, request.accountGeneration, request.periodPath,
@@ -1422,40 +1802,102 @@ export async function abandonAiUsage(requestId: string): Promise<void> {
         .every((value) => typeof value === "string" && value.length > 0)) {
       throw new Error("AI_USAGE_MANUAL_RECONCILIATION_REQUIRED");
     }
-    await settleAiUsageCheckpointGlobal({
-      uid: String(request.uid),
-      feature: request.feature as AiFeature,
-      requestId,
-      attemptToken: String(request.attemptToken),
-      accountGeneration: String(request.accountGeneration),
-      periodPath: String(request.periodPath),
-      globalPath: String(request.globalPath),
-      userBudgetPath: String(request.userBudgetPath),
-      budgetPool: String(request.globalPath).split("/").at(-1)?.split("__")[0] as AiBudgetPool,
-      requestPath: `aiRequests/${requestId}`,
-      reserveCostMicros: numberValue(request.reservedCostMicros),
-      payloadFingerprint: String(request.payloadFingerprint),
-      recovered: true,
-      recoveredStatus: "result_checkpointed",
-      recoveredCheckpoint: true,
-      lockKey: typeof request.lockKey === "string" ? request.lockKey : undefined,
-    }, checkpoint);
+    const attempt = await getStoredDocument(aiUsageAttemptPath({ requestId, attemptToken: String(request.attemptToken) }));
+    const attemptCheckpoint = parsedResultCheckpoint(attempt?.resultCheckpoint);
+    if (!attemptCheckpoint || attemptCheckpoint.checkpointFingerprint !== checkpoint.checkpointFingerprint
+      || !checkpointMatchesDocuments(checkpoint, request, attempt)) {
+      throw new Error("AI_USAGE_MANUAL_RECONCILIATION_REQUIRED");
+    }
+    try {
+      await settleAiUsageCheckpointGlobal({
+        uid: String(request.uid),
+        feature: request.feature as AiFeature,
+        requestId,
+        attemptToken: String(request.attemptToken),
+        accountGeneration: String(request.accountGeneration),
+        periodPath: String(request.periodPath),
+        globalPath: String(request.globalPath),
+        userBudgetPath: String(request.userBudgetPath),
+        budgetPool: String(request.globalPath).split("/").at(-1)?.split("__")[0] as AiBudgetPool,
+        requestPath: `aiRequests/${requestId}`,
+        reserveCostMicros: numberValue(request.reservedCostMicros),
+        payloadFingerprint: String(request.payloadFingerprint),
+        recovered: true,
+        recoveredStatus: "result_checkpointed",
+        recoveredCheckpoint: true,
+        lockKey: typeof request.lockKey === "string" ? request.lockKey : undefined,
+      }, checkpoint);
+    } catch (error) {
+      if (error instanceof AiQuotaError && error.code === "AI_OUTCOME_RECONCILIATION_REQUIRED") {
+        throw new Error("AI_USAGE_MANUAL_RECONCILIATION_REQUIRED", { cause: error });
+      }
+      throw error;
+    }
     return;
   }
-  if (request.status !== "reserved") return;
-  if (![request.attemptToken, request.globalPath].every((value) => typeof value === "string" && value.length > 0)) {
+  const reservation = parsedRootReservation(requestId, request);
+  if (!reservation) {
     throw new Error("AI_USAGE_MANUAL_RECONCILIATION_REQUIRED");
   }
-  const globalPath = String(request.globalPath);
-  const receiptPath = `generationUsageReceipts/legacy-${requestId}-${request.attemptToken}`;
-  await runWithGlobalUsageAccounting(() => runStoredDocumentTransaction([receiptPath, globalPath], (documents) => {
-    if (documents[receiptPath]) return { writes: [], result: undefined };
-    const global = documents[globalPath];
-    if (!global) throw new Error("AI_USAGE_MANUAL_RECONCILIATION_REQUIRED");
-    const uncertain = numberValue(request.reservedCostMicros);
+  const receiptPath = checkpointReceiptPath(reservation);
+  const attemptPath = aiUsageAttemptPath(reservation);
+  await runWithGlobalUsageAccounting(() => runStoredDocumentTransaction([
+    receiptPath,
+    reservation.globalPath,
+    reservation.requestPath,
+    attemptPath,
+  ], (documents) => {
+    const storedRequest = documents[reservation.requestPath];
+    const attempt = documents[attemptPath];
+    const reservedState = storedRequest?.status === "reserved" && attempt?.status === "accounting_reserved";
+    const uncertainState = storedRequest?.status === "failed" && storedRequest.terminalReason === "provider_outcome_unknown"
+      && attempt?.status === "accounting_uncertain";
+    const observedState = ["completed", "failed"].includes(String(storedRequest?.status))
+      && attempt?.status === "accounting_observed";
+    if (!exactRootIdentity(storedRequest, reservation) || !exactAttemptIdentity(attempt, reservation)
+      || (!reservedState && !uncertainState && !observedState)) {
+      throw new Error("AI_USAGE_MANUAL_RECONCILIATION_REQUIRED");
+    }
+    const receiptValue = documents[receiptPath];
+    const observedReceipt = receiptValue ? parsedLegacyObservedReceiptProfile(receiptValue, reservation) : null;
+    const uncertainReceipt = receiptValue ? parsedLegacyUncertainReceipt(receiptValue, reservation) : null;
+    if (receiptValue && !observedReceipt && !uncertainReceipt) {
+      throw new Error("AI_USAGE_MANUAL_RECONCILIATION_REQUIRED");
+    }
+    if (uncertainState && !uncertainReceipt) {
+      throw new Error("AI_USAGE_MANUAL_RECONCILIATION_REQUIRED");
+    }
+    if (observedState) {
+      const requestObserved = parsedObservedAccountingState(storedRequest);
+      const attemptObserved = parsedObservedAccountingState(attempt);
+      if (!observedReceipt || !requestObserved || !attemptObserved
+        || !sameObservedUsage(observedReceipt.observed, requestObserved)
+        || !sameObservedUsage(observedReceipt.observed, attemptObserved)) {
+        throw new Error("AI_USAGE_MANUAL_RECONCILIATION_REQUIRED");
+      }
+    }
+    const global = documents[reservation.globalPath];
+    const reserved = usageCounter(global?.reservedCostMicros);
+    const uncertain = usageCounter(global?.uncertainCostMicros);
+    const actual = usageCounter(global?.actualCostMicros);
+    if (!global || reserved === null || uncertain === null || actual === null
+      || (observedReceipt && actual < observedReceipt.observed.actualCostMicros)
+      || (uncertainReceipt && uncertain < reservation.reserveCostMicros)) {
+      throw new Error("AI_USAGE_MANUAL_RECONCILIATION_REQUIRED");
+    }
+    if (receiptValue) return { writes: [], result: undefined };
+    if (!reservedState) {
+      throw new Error("AI_USAGE_MANUAL_RECONCILIATION_REQUIRED");
+    }
+    const nextUncertain = safeCounterAdd(uncertain, reservation.reserveCostMicros);
+    if (reserved < reservation.reserveCostMicros || nextUncertain === null) {
+      throw new Error("AI_USAGE_MANUAL_RECONCILIATION_REQUIRED");
+    }
     return { writes: [
-      { path: receiptPath, data: { version: 1, kind: "legacy-ai-completion", status: "uncertain", actualCostMicros: 0, uncertainCostMicros: uncertain, globalPath } },
-      { path: globalPath, data: { ...global, reservedCostMicros: Math.max(0, numberValue(global.reservedCostMicros) - uncertain), uncertainCostMicros: numberValue(global.uncertainCostMicros) + uncertain } },
+      { path: receiptPath, data: { version: 1, kind: "legacy-ai-completion", status: "uncertain", actualCostMicros: 0,
+        uncertainCostMicros: reservation.reserveCostMicros, globalPath: reservation.globalPath } },
+      { path: reservation.globalPath, data: { ...global,
+        reservedCostMicros: reserved - reservation.reserveCostMicros, uncertainCostMicros: nextUncertain } },
     ], result: undefined };
   }));
 }

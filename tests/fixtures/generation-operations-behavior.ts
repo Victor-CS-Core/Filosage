@@ -222,8 +222,276 @@ test("late completion after private deletion changes global cost without recreat
   assert.equal((await getStoredDocument(lease.receiptPath))?.uncertainCostMicros, 0);
 });
 
-import { reserveAiUsage, finalizeAiUsage, reconcileExpiredAiUsage } from "../../src/lib/ai-usage.ts";
-import { captureAccountGeneration, runWithAccountGeneration, runWithAccountDeletion, currentAccountGeneration } from "../../src/lib/account-lifecycle.ts";
+import { abandonAiUsage, aiUsageAttemptPath, reserveAiUsage, finalizeAiUsage, reconcileExpiredAiUsage } from "../../src/lib/ai-usage.ts";
+import { captureAccountGeneration, runWithAccountGeneration, runWithAccountDeletion, runWithGlobalUsageAccounting, currentAccountGeneration } from "../../src/lib/account-lifecycle.ts";
+
+type GenericAiReservation = Awaited<ReturnType<typeof reserveAiUsage>>;
+
+function genericAiReceiptPath(reservation: GenericAiReservation) {
+  return `generationUsageReceipts/legacy-${reservation.requestId}-${reservation.attemptToken}`;
+}
+
+function exactUncertainReceipt(reservation: GenericAiReservation) {
+  return {
+    version: 1,
+    kind: "legacy-ai-completion",
+    status: "uncertain",
+    actualCostMicros: 0,
+    uncertainCostMicros: reservation.reserveCostMicros,
+    globalPath: reservation.globalPath,
+  };
+}
+
+function exactObservedReceipt(reservation: GenericAiReservation) {
+  return {
+    version: 1,
+    kind: "legacy-ai-completion",
+    status: "observed",
+    actualCostMicros: 70,
+    inputTokens: 10,
+    cachedInputTokens: 0,
+    cacheWriteTokens: 0,
+    outputTokens: 10,
+    failed: false,
+    globalPath: reservation.globalPath,
+    updatedAt: "2026-09-10T12:00:00.000Z",
+  };
+}
+
+async function putGenericAiReceipt(reservation: GenericAiReservation, receipt: Record<string, unknown>) {
+  await runWithGlobalUsageAccounting(() => rawPutStoredDocument(genericAiReceiptPath(reservation), receipt));
+}
+
+async function prepareGenericAiReceiptConsumer(label: string) {
+  const actor = { ...account, uid: `f11-${label}` };
+  const generation = await captureAccountGeneration(actor.uid);
+  const reservation = await runWithAccountGeneration(generation, () => reserveAiUsage(
+    actor,
+    "lesson_generation",
+    `f11-${label}-key`,
+  ));
+  const productPath = `users/${actor.uid}/flashcardDecks/f11-product-sentinel`;
+  await runWithAccountGeneration(generation, () => rawPutStoredDocument(productPath, {
+    ownerUid: actor.uid,
+    marker: "must-remain-byte-identical",
+  }));
+  return { actor, generation, reservation, productPath };
+}
+
+async function genericAiConsumerBytes(
+  reservation: GenericAiReservation,
+  productPath: string,
+) {
+  const paths = [
+    reservation.requestPath,
+    aiUsageAttemptPath(reservation),
+    genericAiReceiptPath(reservation),
+    reservation.globalPath,
+    reservation.periodPath,
+    reservation.userBudgetPath,
+    productPath,
+  ];
+  return JSON.stringify(await Promise.all(paths.map(async (path) => ({
+    path,
+    document: await getStoredDocument(path),
+  }))));
+}
+
+async function cleanupGenericAiReceiptConsumer(fixture: Awaited<ReturnType<typeof prepareGenericAiReceiptConsumer>>) {
+  const attempt = await getStoredDocument(aiUsageAttemptPath(fixture.reservation));
+  if (attempt?.status === "accounting_reserved") {
+    await runWithGlobalUsageAccounting(() => runStoredDocumentTransaction([
+      genericAiReceiptPath(fixture.reservation),
+      fixture.reservation.globalPath,
+    ], (documents) => {
+      const global = documents[fixture.reservation.globalPath];
+      const reserved = Number(global?.reservedCostMicros ?? 0);
+      const uncertain = Number(global?.uncertainCostMicros ?? 0);
+      return {
+        writes: [
+          { path: genericAiReceiptPath(fixture.reservation), data: exactUncertainReceipt(fixture.reservation) },
+          { path: fixture.reservation.globalPath, data: { ...global,
+            reservedCostMicros: reserved - fixture.reservation.reserveCostMicros,
+            uncertainCostMicros: uncertain + fixture.reservation.reserveCostMicros } },
+        ],
+        result: undefined,
+      };
+    }));
+  } else {
+    await putGenericAiReceipt(fixture.reservation, exactUncertainReceipt(fixture.reservation));
+  }
+  await runWithAccountGeneration(fixture.generation, () => finalizeAiUsage(fixture.reservation, {
+    model: "gpt-5.6-luna",
+    inputTokens: 10,
+    outputTokens: 10,
+    responseId: `f11-cleanup-${fixture.reservation.requestId}`,
+  }));
+}
+
+function isManualAiReconciliationError(error: unknown) {
+  return (error as { code?: string; message?: string }).code === "AI_OUTCOME_RECONCILIATION_REQUIRED"
+    || (error as { message?: string }).message === "AI_USAGE_MANUAL_RECONCILIATION_REQUIRED";
+}
+
+for (const [label, malformedReceipt] of [
+  ["wrong-shard-uncertainty", (reservation: GenericAiReservation) => ({
+    ...exactUncertainReceipt(reservation), globalPath: "systemUsageShards/paid__2099-01__15",
+  })],
+  ["zero-uncertainty", (reservation: GenericAiReservation) => ({
+    ...exactUncertainReceipt(reservation), uncertainCostMicros: 0,
+  })],
+  ["extra-uncertainty-field", (reservation: GenericAiReservation) => ({
+    ...exactUncertainReceipt(reservation), privateResult: "must-not-be-accepted",
+  })],
+  ["negative-observed-tokens", (reservation: GenericAiReservation) => ({
+    ...exactObservedReceipt(reservation), inputTokens: -1,
+  })],
+  ["extra-observed-field", (reservation: GenericAiReservation) => ({
+    ...exactObservedReceipt(reservation), result: { private: true },
+  })],
+] as const) {
+  test(`generic finalize rejects ${label} receipt state without any accounting, lock, or product mutation`, async () => {
+    const fixture = await prepareGenericAiReceiptConsumer(`finalize-${label}`);
+    await putGenericAiReceipt(fixture.reservation, malformedReceipt(fixture.reservation));
+    const before = await genericAiConsumerBytes(fixture.reservation, fixture.productPath);
+    await assert.rejects(
+      runWithAccountGeneration(fixture.generation, () => finalizeAiUsage(fixture.reservation, {
+        model: "gpt-5.6-luna",
+        inputTokens: 10,
+        outputTokens: 10,
+        responseId: `f11-${label}-response`,
+      })),
+      isManualAiReconciliationError,
+    );
+    assert.equal(await genericAiConsumerBytes(fixture.reservation, fixture.productPath), before);
+    await cleanupGenericAiReceiptConsumer(fixture);
+  });
+}
+
+test("generic failed finalize validates an existing receipt before changing its lease", async () => {
+  const fixture = await prepareGenericAiReceiptConsumer("finalize-failure-malformed-receipt");
+  await putGenericAiReceipt(fixture.reservation, {
+    ...exactUncertainReceipt(fixture.reservation),
+    uncertainCostMicros: 0,
+  });
+  const before = await genericAiConsumerBytes(fixture.reservation, fixture.productPath);
+  await assert.rejects(
+    runWithAccountGeneration(fixture.generation, () => finalizeAiUsage(fixture.reservation, { failed: true })),
+    isManualAiReconciliationError,
+  );
+  assert.equal(await genericAiConsumerBytes(fixture.reservation, fixture.productPath), before);
+  await cleanupGenericAiReceiptConsumer(fixture);
+});
+
+for (const [label, malformedReceipt] of [
+  ["wrong-shard-uncertainty", (reservation: GenericAiReservation) => ({
+    ...exactUncertainReceipt(reservation), globalPath: "systemUsageShards/paid__2099-01__15",
+  })],
+  ["negative-observed-usage", (reservation: GenericAiReservation) => ({
+    ...exactObservedReceipt(reservation), cachedInputTokens: -1,
+  })],
+  ["extra-observed-field", (reservation: GenericAiReservation) => ({
+    ...exactObservedReceipt(reservation), privateResult: "must-not-be-accepted",
+  })],
+] as const) {
+  test(`generic root reconciliation reports manual work for ${label} without any state mutation`, async () => {
+    const fixture = await prepareGenericAiReceiptConsumer(`root-reconcile-${label}`);
+    await putGenericAiReceipt(fixture.reservation, malformedReceipt(fixture.reservation));
+    const request = await getStoredDocument(fixture.reservation.requestPath);
+    const expired = new Date(Date.parse(String(request?.leaseUntil)) + 1);
+    const before = await genericAiConsumerBytes(fixture.reservation, fixture.productPath);
+    assert.equal(
+      await reconcileExpiredAiUsage(fixture.reservation.requestId, false, expired),
+      "manual_reconciliation_required",
+    );
+    assert.equal(await genericAiConsumerBytes(fixture.reservation, fixture.productPath), before);
+    assert.equal(
+      await reconcileExpiredAiUsage(fixture.reservation.requestId, true, expired),
+      "manual_reconciliation_required",
+    );
+    assert.equal(await genericAiConsumerBytes(fixture.reservation, fixture.productPath), before);
+    await cleanupGenericAiReceiptConsumer(fixture);
+  });
+}
+
+for (const [label, malformedReceipt] of [
+  ["wrong-shard-uncertainty", (reservation: GenericAiReservation) => ({
+    ...exactUncertainReceipt(reservation), globalPath: "systemUsageShards/paid__2099-01__15",
+  })],
+  ["negative-observed-usage", (reservation: GenericAiReservation) => ({
+    ...exactObservedReceipt(reservation), outputTokens: -1,
+  })],
+  ["extra-observed-field", (reservation: GenericAiReservation) => ({
+    ...exactObservedReceipt(reservation), privateResult: "must-not-be-accepted",
+  })],
+] as const) {
+  test(`generic attempt reconciliation reports manual work for ${label} without any state mutation`, async () => {
+    const fixture = await prepareGenericAiReceiptConsumer(`attempt-reconcile-${label}`);
+    await runWithAccountGeneration(fixture.generation, () => finalizeAiUsage(fixture.reservation, { failed: true }));
+    await putGenericAiReceipt(fixture.reservation, malformedReceipt(fixture.reservation));
+    const before = await genericAiConsumerBytes(fixture.reservation, fixture.productPath);
+    const attemptId = aiUsageAttemptPath(fixture.reservation).split("/")[1];
+    assert.equal(await reconcileExpiredAiUsage(attemptId, false), "manual_reconciliation_required");
+    assert.equal(await genericAiConsumerBytes(fixture.reservation, fixture.productPath), before);
+    assert.equal(await reconcileExpiredAiUsage(attemptId, true), "manual_reconciliation_required");
+    assert.equal(await genericAiConsumerBytes(fixture.reservation, fixture.productPath), before);
+    await cleanupGenericAiReceiptConsumer(fixture);
+  });
+}
+
+for (const [label, malformedReceipt] of [
+  ["wrong-version", (reservation: GenericAiReservation) => ({
+    ...exactUncertainReceipt(reservation), version: 2,
+  })],
+  ["zero-uncertainty", (reservation: GenericAiReservation) => ({
+    ...exactUncertainReceipt(reservation), uncertainCostMicros: 0,
+  })],
+  ["extra-fields", (reservation: GenericAiReservation) => ({
+    ...exactUncertainReceipt(reservation), result: { private: true },
+  })],
+] as const) {
+  test(`generic abandonment rejects ${label} receipt state before deletion can mutate accounting`, async () => {
+    const fixture = await prepareGenericAiReceiptConsumer(`abandon-${label}`);
+    await putGenericAiReceipt(fixture.reservation, malformedReceipt(fixture.reservation));
+    const before = await genericAiConsumerBytes(fixture.reservation, fixture.productPath);
+    await assert.rejects(abandonAiUsage(fixture.reservation.requestId), isManualAiReconciliationError);
+    assert.equal(await genericAiConsumerBytes(fixture.reservation, fixture.productPath), before);
+    await cleanupGenericAiReceiptConsumer(fixture);
+  });
+}
+
+test("generic abandonment validates a malformed uncertainty receipt after the request became terminal", async () => {
+  const fixture = await prepareGenericAiReceiptConsumer("abandon-terminal-uncertain");
+  await runWithAccountGeneration(fixture.generation, () => finalizeAiUsage(fixture.reservation, { failed: true }));
+  await putGenericAiReceipt(fixture.reservation, {
+    ...exactUncertainReceipt(fixture.reservation),
+    result: { private: true },
+  });
+  const before = await genericAiConsumerBytes(fixture.reservation, fixture.productPath);
+  await assert.rejects(abandonAiUsage(fixture.reservation.requestId), isManualAiReconciliationError);
+  assert.equal(await genericAiConsumerBytes(fixture.reservation, fixture.productPath), before);
+  await cleanupGenericAiReceiptConsumer(fixture);
+});
+
+test("generic abandonment validates a malformed observed receipt after the request became terminal", async () => {
+  const fixture = await prepareGenericAiReceiptConsumer("abandon-terminal-observed");
+  await runWithAccountGeneration(fixture.generation, () => finalizeAiUsage(fixture.reservation, {
+    model: "gpt-5.6-luna",
+    inputTokens: 10,
+    outputTokens: 10,
+    responseId: "f11-abandon-terminal-observed-response",
+  }));
+  const observedReceipt = await getStoredDocument(genericAiReceiptPath(fixture.reservation));
+  assert.ok(observedReceipt);
+  await putGenericAiReceipt(fixture.reservation, {
+    ...observedReceipt,
+    result: { private: true },
+  });
+  const before = await genericAiConsumerBytes(fixture.reservation, fixture.productPath);
+  await assert.rejects(abandonAiUsage(fixture.reservation.requestId), isManualAiReconciliationError);
+  assert.equal(await genericAiConsumerBytes(fixture.reservation, fixture.productPath), before);
+  await putGenericAiReceipt(fixture.reservation, observedReceipt);
+});
 
 test("generic AI settlement retains original paths and cannot clear a replacement token", async () => {
   const actor = { ...account, uid: "generic-owner" };
@@ -350,8 +618,6 @@ test('maintenance exits nonzero when a legacy AI request requires manual reconci
 });
 
 import { retainCreationIdentity } from "../../src/lib/course-creation-identity.ts";
-import { aiUsageAttemptPath, abandonAiUsage } from "../../src/lib/ai-usage.ts";
-
 test("lost first POST retains the client identity even if the form changes", async () => {
   let keys = 0;
   const identity = retainCreationIdentity(null, JSON.stringify({ topic: "Inference", goal: "Interpret evidence carefully.", language: "English" }), () => `client-identity-${++keys}`);
@@ -390,7 +656,19 @@ test("maintenance can settle a retained attempt after the global checkpoint alon
     await finalizeAiUsage(first, { failed: true });
     const second = await reserveAiUsage(actor, "lesson_generation", "late-maintenance-replacement");
     const receiptPath = `generationUsageReceipts/legacy-${first.requestId}-${first.attemptToken}`;
-    await putStoredDocument(receiptPath, { version: 1, kind: "legacy-ai-completion", status: "observed", actualCostMicros: 70, inputTokens: 10, outputTokens: 10, globalPath: first.globalPath });
+    await runStoredDocumentTransaction([receiptPath, first.globalPath], (documents) => {
+      const global = documents[first.globalPath];
+      assert(global);
+      return {
+        writes: [
+          { path: receiptPath, data: { version: 1, kind: "legacy-ai-completion", status: "observed", actualCostMicros: 70, inputTokens: 10, outputTokens: 10, globalPath: first.globalPath } },
+          { path: first.globalPath, data: { ...global,
+            uncertainCostMicros: Number(global.uncertainCostMicros) - first.reserveCostMicros,
+            actualCostMicros: Number(global.actualCostMicros) + 70 } },
+        ],
+        result: undefined,
+      };
+    });
     const id = aiUsageAttemptPath(first).split("/")[1];
     assert.equal(await reconcileExpiredAiUsage(id, true), "reconciled_observed_attempt");
     assert.equal(await reconcileExpiredAiUsage(id, true), "none");

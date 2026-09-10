@@ -14,6 +14,7 @@ import { flashcardFeatureConfiguration } from "@/lib/flashcard-feature";
 import {
   FLASHCARD_CARD_LIMIT,
   FLASHCARD_DECK_LIMIT,
+  FLASHCARD_LEGACY_SCHEMA_VERSION,
   FLASHCARD_SCHEMA_VERSION,
   GENERATED_FLASHCARD_LIMIT,
   customDeckInputSchema,
@@ -98,6 +99,19 @@ async function sha256(value: string) {
   return Array.from(new Uint8Array(bytes), (byte) => byte.toString(16).padStart(2, "0")).join("");
 }
 
+async function deterministicCardId(
+  version: typeof FLASHCARD_LEGACY_SCHEMA_VERSION | typeof FLASHCARD_SCHEMA_VERSION,
+  deckId: string,
+  position: number,
+  prompt: string,
+  answer: string,
+) {
+  const identity = version === FLASHCARD_LEGACY_SCHEMA_VERSION
+    ? `${deckId}:${position}:${prompt}:${answer}`
+    : JSON.stringify([deckId, position, prompt, answer]);
+  return (await sha256(identity)).slice(0, 40);
+}
+
 async function stableMutationId(uid: string, purpose: string, idempotencyKey: string) {
   if (idempotencyKey.length < 12 || idempotencyKey.length > 200) {
     throw new FlashcardServiceError(409, "IDEMPOTENCY_KEY_REQUIRED", "Retry-safe deck creation requires an idempotency key.");
@@ -159,7 +173,7 @@ export async function createCustomFlashcardDeck(
   await assertFlashcardDeckCapacity(account);
   const now = new Date().toISOString();
   const cards: Flashcard[] = await Promise.all(input.data.cards.map(async (card, position) => ({
-    id: card.id ?? (await sha256(`${deckId}:${position}:${card.prompt}:${card.answer}`)).slice(0, 40),
+    id: card.id ?? await deterministicCardId(FLASHCARD_SCHEMA_VERSION, deckId, position, card.prompt, card.answer),
     version: FLASHCARD_SCHEMA_VERSION,
     deckId,
     courseId: null,
@@ -235,6 +249,7 @@ export interface RecoveredGeneratedFlashcardDraftIdentity {
   scope: "lesson" | "module" | "course";
   lessonId?: string;
   moduleIndex: number | null;
+  legacyModuleIndex: number | null;
   depth: "focused" | "balanced" | "comprehensive";
   emphasis: "balanced" | "key-ideas" | "application";
   includeAttemptedChecks: boolean;
@@ -249,7 +264,7 @@ export async function prepareGeneratedFlashcardDraft(input: GeneratedFlashcardDr
   const output = generatedDeckOutputSchema.parse(input.output);
   const now = new Date().toISOString();
   const cards: Flashcard[] = await Promise.all(output.cards.map(async (card, position) => flashcardSchema.parse({
-    id: (await sha256(`${input.deckId}:${position}:${card.prompt}:${card.answer}`)).slice(0, 40),
+    id: await deterministicCardId(FLASHCARD_SCHEMA_VERSION, input.deckId, position, card.prompt, card.answer),
     version: FLASHCARD_SCHEMA_VERSION,
     deckId: input.deckId,
     courseId: input.courseId,
@@ -344,14 +359,19 @@ export async function preparedGeneratedFlashcardDraftFromDetail(
       : expected.scope === "module"
         ? expected.moduleIndex !== null && deck.moduleIndex === expected.moduleIndex
           && deck.lessonIds.every((lessonId) => lessonId.startsWith(`${expected.moduleIndex}-`))
-        : deck.moduleIndex === null);
+        : true);
+  const moduleIndexMatches = expected.scope === "module"
+    ? deck.moduleIndex === expected.moduleIndex
+    : deck.version === FLASHCARD_LEGACY_SCHEMA_VERSION
+      ? deck.moduleIndex === null || deck.moduleIndex === expected.legacyModuleIndex
+      : deck.moduleIndex === null;
   const expectedCardIds = await Promise.all(recoveredCards.map((card, position) => (
-    sha256(`${expected.deckId}:${position}:${card.prompt}:${card.answer}`).then((id) => id.slice(0, 40))
+    deterministicCardId(deck.version, expected.deckId, position, card.prompt, card.answer)
   )));
-  if (deck.id !== expected.deckId || deck.ownerUid !== account.uid || deck.version !== FLASHCARD_SCHEMA_VERSION
+  if (deck.id !== expected.deckId || deck.ownerUid !== account.uid
     || deck.revision !== 1 || deck.kind !== "generated" || deck.status !== "draft"
     || deck.courseId !== expected.courseId || typeof deck.courseTopic !== "string"
-    || !scopeMatches || deck.moduleIndex !== expected.moduleIndex
+    || !scopeMatches || !moduleIndexMatches
     || deck.lessonIds.length < 1 || deck.lessonIds.length > 40 || lessonIds.size !== deck.lessonIds.length
     || deck.lessonIds.some((lessonId) => !/^\d+-\d+$/.test(lessonId))
     || !settings || settings.depth !== expected.depth || settings.emphasis !== expected.emphasis
@@ -361,7 +381,7 @@ export async function preparedGeneratedFlashcardDraftFromDetail(
     || deck.cardCount !== recoveredCards.length || deck.dueCount !== recoveredCards.length
     || deck.createdAt !== deck.updatedAt || deck.lastReviewedAt !== null || deck.archivedAt !== null || deck.deletedAt !== null
     || recoveredCards.some((card, position) => card.id !== expectedCardIds[position]
-      || card.version !== FLASHCARD_SCHEMA_VERSION || card.deckId !== deck.id || card.courseId !== expected.courseId
+      || card.version !== deck.version || card.deckId !== deck.id || card.courseId !== expected.courseId
       || card.position !== position || card.origin !== "generated" || card.deletedAt !== null
       || card.sourceFingerprint !== deck.sourceFingerprint || card.createdAt !== deck.createdAt || card.updatedAt !== deck.updatedAt
       || card.sourceRefs.length < 1 || card.sourceRefs.some((source) => !lessonIds.has(source.lessonId)))
@@ -408,7 +428,7 @@ export async function updateFlashcardDeck(
     const changed = previous && (previous.prompt !== card.prompt || previous.answer !== card.answer || previous.type !== card.type);
     return {
       id,
-      version: FLASHCARD_SCHEMA_VERSION,
+      version: previous?.version ?? FLASHCARD_SCHEMA_VERSION,
       deckId,
       courseId: previous?.courseId ?? current.deck.courseId,
       position,
