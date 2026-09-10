@@ -6,6 +6,7 @@ import type { Course, LessonData } from "@/lib/course-types";
 import { tutorInputSchema, validationMessage } from "@/lib/validation";
 import {
   aiQuotaResponse,
+  AiUsageObservationError,
   extractOpenAiUsage,
   finalizeAiUsage,
   reserveAiUsage,
@@ -75,6 +76,7 @@ async function handlePOST(request: Request) {
       async start(controller) {
         let observedUsage = { inputTokens: 0, cachedInputTokens: 0, outputTokens: 0 };
         let responseId: string | undefined;
+        let completed = false;
         try {
           for await (const event of stream) {
             if (event.type === "response.output_text.delta") {
@@ -83,7 +85,11 @@ async function handlePOST(request: Request) {
               const extractedUsage = extractOpenAiUsage(event.response);
               responseId = event.response.id;
               observedUsage = extractedUsage;
+              completed = true;
             }
+          }
+          if (!completed) {
+            throw new AiUsageObservationError("The provider stream ended without a completed usage observation.");
           }
           await finalizeAiUsage(activeReservation, {
             ...observedUsage,

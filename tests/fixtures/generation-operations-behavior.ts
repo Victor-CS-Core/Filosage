@@ -186,6 +186,17 @@ test("provider usage extraction requires paid usage while keeping explicit moder
     cacheWriteTokens: 0,
     outputTokens: 0,
   });
+  for (const response of [
+    { usage: {} },
+    { usage: { input_tokens: 10 } },
+    { usage: { output_tokens: 4 } },
+    { usage: undefined },
+  ]) {
+    assert.throws(
+      () => extractOpenAiUsage(response, { allowMissingUsage: true }),
+      AiUsageObservationError,
+    );
+  }
   for (const usage of [
     { input_tokens: 10.5, output_tokens: 4 },
     { input_tokens: -1, output_tokens: 4 },
@@ -228,6 +239,44 @@ test("durable invalid or missing provider usage preserves the paid call as unkno
     await finishGenerationOperation(lease, { failed: true, reason: "provider_outcome_unknown" });
   }
 });
+
+for (const [label, response] of [
+  ["empty", { id: "empty-provider-usage", usage: {} }],
+  ["input-only", { id: "input-only-provider-usage", usage: { input_tokens: 10 } }],
+  ["output-only", { id: "output-only-provider-usage", usage: { output_tokens: 4 } }],
+] as const) {
+  test(`durable ${label} paid provider usage remains in flight without recording actual cost`, async () => {
+    const actor = { ...paid, uid: `recovery-paid-${label}-usage` };
+    const lease = await begin(`${label}-paid-provider-usage`, actor);
+    const beforeGlobal = await getStoredDocument(lease.operation.accounting.globalPath);
+    let calls = 0;
+    const provider = async () => {
+      calls += 1;
+      return response;
+    };
+    const first = await Promise.allSettled([
+      runGenerationProviderCall(lease, { model: "gpt-5.6-luna" }, provider),
+    ]);
+    const second = await Promise.allSettled([
+      runGenerationProviderCall(lease, { model: "gpt-5.6-luna" }, provider),
+    ]);
+    const afterGlobal = await getStoredDocument(lease.operation.accounting.globalPath);
+    const inFlightOperation = await getGenerationOperation(actor.uid, lease.operationId);
+    const receipt = await getStoredDocument(lease.receiptPath);
+    const receiptCalls = receipt?.calls as Record<string, { status?: string }>;
+    await finishGenerationOperation(lease, { failed: true, reason: "provider_outcome_unknown" });
+    assert.equal(first[0].status, "rejected");
+    assert.equal(second[0].status, "rejected");
+    assert.equal((first[0] as PromiseRejectedResult).reason?.code, "GENERATION_OUTCOME_UNKNOWN");
+    assert.equal((second[0] as PromiseRejectedResult).reason?.code, "GENERATION_OUTCOME_UNKNOWN");
+    assert.equal(calls, 1);
+    assert.equal(afterGlobal?.actualCostMicros, beforeGlobal?.actualCostMicros);
+    assert.equal(afterGlobal?.reservedCostMicros, beforeGlobal?.reservedCostMicros);
+    assert.equal(afterGlobal?.uncertainCostMicros, beforeGlobal?.uncertainCostMicros);
+    assert.equal(inFlightOperation?.pendingCalls.length, 1);
+    assert.equal(Object.values(receiptCalls).at(0)?.status, "in_flight");
+  });
+}
 
 import { POST as actualGenerateCourse } from "../../src/app/api/generate-course/route.ts";
 import { TERMS_VERSION, PRIVACY_VERSION } from "../../src/lib/legal.ts";
@@ -392,6 +441,10 @@ async function cleanupGenericAiReceiptConsumer(fixture: Awaited<ReturnType<typeo
 }
 
 const invalidObservedUsageCases: ReadonlyArray<readonly [string, AiUsageFinalization]> = [
+  ["empty-success", {}],
+  ["input-only", { model: "gpt-5.6-luna", inputTokens: 10, responseId: "invalid-input-only" }],
+  ["output-only", { model: "gpt-5.6-luna", outputTokens: 10, responseId: "invalid-output-only" }],
+  ["empty-samples", { usageSamples: [] }],
   ["fractional-input-token", { model: "gpt-5.6-luna", inputTokens: 10.5, outputTokens: 10, responseId: "invalid-fractional-input" }],
   ["negative-output-token", { model: "gpt-5.6-luna", inputTokens: 10, outputTokens: -1, responseId: "invalid-negative-output" }],
   ["nonnumeric-cached-token", { model: "gpt-5.6-luna", inputTokens: 10, cachedInputTokens: "1" as unknown as number, outputTokens: 10, responseId: "invalid-string-cached" }],

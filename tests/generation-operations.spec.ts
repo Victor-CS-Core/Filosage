@@ -8,7 +8,7 @@ test("durable course operations recover accounting and reject competing owners",
   });
   expect(result.status, `${result.stdout}\n${result.stderr}`).toBe(0);
   expect(result.stdout).toContain("# fail 0");
-  expect(result.stdout).toContain("# pass 75");
+  expect(result.stdout).toContain("# pass 82");
 });
 
 test("generic AI products fail closed across pre-checkpoint and legacy post-product crashes", () => {
@@ -28,5 +28,5 @@ test("generic AI routes recover every provider, checkpoint, accounting, product,
   });
   expect(result.status, `${result.stdout}\n${result.stderr}`).toBe(0);
   expect(result.stdout).toContain("# fail 0");
-  expect(result.stdout).toContain("# pass 90");
+  expect(result.stdout).toContain("# pass 91");
 });

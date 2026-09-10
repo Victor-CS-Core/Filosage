@@ -734,20 +734,26 @@ export function extractOpenAiUsage(
   options: { allowMissingUsage?: boolean } = {},
 ) {
   const response = recordValue(value);
-  const suppliedUsage = response && Object.hasOwn(response, "usage") ? response.usage : undefined;
-  if (suppliedUsage === undefined && !options.allowMissingUsage) throw new AiUsageObservationError();
-  const usage = suppliedUsage === undefined ? null : recordValue(suppliedUsage);
-  if (suppliedUsage !== undefined && !usage) throw new AiUsageObservationError();
+  if (!response) throw new AiUsageObservationError();
+  const hasSuppliedUsage = Object.hasOwn(response, "usage");
+  if (!hasSuppliedUsage) {
+    if (!options.allowMissingUsage) throw new AiUsageObservationError();
+    return { inputTokens: 0, cachedInputTokens: 0, cacheWriteTokens: 0, outputTokens: 0 };
+  }
+  const usage = recordValue(response.usage);
+  if (!usage || !Object.hasOwn(usage, "input_tokens") || !Object.hasOwn(usage, "output_tokens")) {
+    throw new AiUsageObservationError();
+  }
   const suppliedDetails = usage && Object.hasOwn(usage, "input_tokens_details")
     ? usage.input_tokens_details
     : undefined;
   const details = suppliedDetails === undefined ? null : recordValue(suppliedDetails);
   if (suppliedDetails !== undefined && !details) throw new AiUsageObservationError();
   const counter = (supplied: unknown) => supplied === undefined ? 0 : supplied;
-  const inputTokens = counter(usage?.input_tokens);
+  const inputTokens = usage.input_tokens;
   const cachedInputTokens = counter(details?.cached_tokens);
   const cacheWriteTokens = counter(details?.cache_write_tokens);
-  const outputTokens = counter(usage?.output_tokens);
+  const outputTokens = usage.output_tokens;
   const cachedTotal = nonnegativeInteger(cachedInputTokens) && nonnegativeInteger(cacheWriteTokens)
     ? safeCounterAdd(cachedInputTokens, cacheWriteTokens)
     : null;
@@ -793,26 +799,41 @@ function validatedObservedUsage(
     || (result.model !== undefined && !boundedText(result.model, 200))) return null;
 
   let samples: AiUsageSample[] | null;
-  if (result.usageSamples?.length) {
+  if (Object.hasOwn(value, "usageSamples")) {
     samples = parsedUsageSamples(result.usageSamples);
-  } else if (result.usageSamples !== undefined && !Array.isArray(result.usageSamples)) {
-    samples = null;
   } else {
-    const counters = [result.inputTokens, result.cachedInputTokens, result.cacheWriteTokens, result.outputTokens]
-      .map((counter) => counter === undefined ? 0 : counter);
-    if (!counters.every(nonnegativeInteger)) return null;
-    samples = [{
-      model: result.model ?? defaultModelFor(reservation.feature),
-      inputTokens: counters[0],
-      cachedInputTokens: counters[1],
-      cacheWriteTokens: counters[2],
-      outputTokens: counters[3],
-      ...(result.responseId !== undefined ? { responseId: result.responseId } : {}),
-      ...(result.promptVersion !== undefined ? { promptVersion: result.promptVersion } : {}),
-      ...(result.profile !== undefined ? { profile: result.profile } : {}),
-      ...(result.reasoningEffort !== undefined ? { reasoningEffort: result.reasoningEffort } : {}),
-      ...(result.promptCacheKey !== undefined ? { promptCacheKey: result.promptCacheKey } : {}),
-    }];
+    const directKeys = ["inputTokens", "cachedInputTokens", "cacheWriteTokens", "outputTokens"] as const;
+    const hasDirectUsage = directKeys.some((key) => Object.hasOwn(value, key));
+    if (!hasDirectUsage) {
+      if (result.failed !== true || result.responseId !== undefined) return null;
+      samples = [{
+        model: result.model ?? defaultModelFor(reservation.feature),
+        inputTokens: 0,
+        cachedInputTokens: 0,
+        cacheWriteTokens: 0,
+        outputTokens: 0,
+        ...(result.promptVersion !== undefined ? { promptVersion: result.promptVersion } : {}),
+        ...(result.profile !== undefined ? { profile: result.profile } : {}),
+        ...(result.reasoningEffort !== undefined ? { reasoningEffort: result.reasoningEffort } : {}),
+        ...(result.promptCacheKey !== undefined ? { promptCacheKey: result.promptCacheKey } : {}),
+      }];
+    } else {
+      if (!Object.hasOwn(value, "inputTokens") || !Object.hasOwn(value, "outputTokens")) return null;
+      const counters = [result.inputTokens, result.cachedInputTokens ?? 0, result.cacheWriteTokens ?? 0, result.outputTokens];
+      if (!counters.every(nonnegativeInteger)) return null;
+      samples = [{
+        model: result.model ?? defaultModelFor(reservation.feature),
+        inputTokens: counters[0]!,
+        cachedInputTokens: counters[1]!,
+        cacheWriteTokens: counters[2]!,
+        outputTokens: counters[3]!,
+        ...(result.responseId !== undefined ? { responseId: result.responseId } : {}),
+        ...(result.promptVersion !== undefined ? { promptVersion: result.promptVersion } : {}),
+        ...(result.profile !== undefined ? { profile: result.profile } : {}),
+        ...(result.reasoningEffort !== undefined ? { reasoningEffort: result.reasoningEffort } : {}),
+        ...(result.promptCacheKey !== undefined ? { promptCacheKey: result.promptCacheKey } : {}),
+      }];
+    }
   }
   if (!samples) return null;
 

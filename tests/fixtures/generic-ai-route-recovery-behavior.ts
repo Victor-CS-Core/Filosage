@@ -39,6 +39,7 @@ let activeGeneration: Awaited<ReturnType<typeof lifecycle.captureAccountGenerati
 let activeFault: FaultStage | null = null;
 let providerCalls = 0;
 let collisionDeckOutput = false;
+let streamWithoutCompletion = false;
 let pausedGlobalRead: {
   reached: () => void;
   resume: Promise<void>;
@@ -197,6 +198,14 @@ mock.module("../../src/lib/local-ai.ts", {
           },
         };
       }) as typeof client.responses.parse;
+      if (streamWithoutCompletion) {
+        client.responses.create = (async () => {
+          providerCalls += 1;
+          return (async function* () {
+            yield { type: "response.output_text.delta", delta: "A partial tutor response." };
+          })();
+        }) as unknown as typeof client.responses.create;
+      }
       return client;
     },
   },
@@ -208,6 +217,7 @@ const flashcards = await import("../../src/lib/flashcards-server.ts");
 const { POST: assessBaseline } = await import("../../src/app/api/assess-baseline/route.ts");
 const { POST: assessCapstone } = await import("../../src/app/api/assess-capstone/route.ts");
 const { POST: generateFlashcards } = await import("../../src/app/api/flashcards/generate/route.ts");
+const { POST: chat } = await import("../../src/app/api/chat/route.ts");
 
 const stages: FaultStage[] = [
   "after_checkpoint",
@@ -290,6 +300,49 @@ function routeFor(product: Product) {
   if (product === "capstone") return assessCapstone;
   return generateFlashcards;
 }
+
+test("a tutor stream ending without response.completed contains uncertainty instead of observed zero", async () => {
+  const { uid, courseId } = await seed("baseline", "tutor_missing_completion");
+  const key = "tutor-missing-completion-key";
+  providerCalls = 0;
+  streamWithoutCompletion = true;
+  let response: Response;
+  try {
+    response = await chat(new Request("https://fixture.invalid/api/chat", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "Idempotency-Key": key },
+      body: JSON.stringify({
+        messages: [{ role: "user", content: "How should evidence change the decision?" }],
+        data: { courseId, lessonId: "0-0" },
+      }),
+    }));
+  } finally {
+    streamWithoutCompletion = false;
+  }
+  assert.equal(response.status, 200);
+  const streamResult = await Promise.allSettled([response.text()]);
+  const state = await accounting(uid, "tutor", key);
+  assert.equal(providerCalls, 1);
+  assert.equal(state.request.status, "failed");
+  assert.equal(state.request.terminalReason, "provider_outcome_unknown");
+  assert.equal(state.request.actualCostMicros, 0);
+  assert.equal(state.request.uncertainCostMicros, state.request.reservedCostMicros);
+  assert.equal(state.attempt?.status, "accounting_uncertain");
+  assert.equal(state.attempt?.actualCostMicros, 0);
+  assert.equal(state.attempt?.uncertainCostMicros, state.request.reservedCostMicros);
+  assert.equal(state.receipt?.status, "uncertain");
+  assert.equal(state.global?.actualCostMicros, 0);
+  assert.equal(state.global?.reservedCostMicros, 0);
+  assert.equal(state.global?.uncertainCostMicros, state.request.reservedCostMicros);
+  assert.equal(state.period?.actualCostMicros, 0);
+  assert.equal(state.period?.reservedCostMicros, 0);
+  assert.equal(state.period?.uncertainCostMicros, state.request.reservedCostMicros);
+  assert.equal(state.period?.activeRequestId, null);
+  assert.equal(state.budget?.actualCostMicros, 0);
+  assert.equal(state.budget?.reservedCostMicros, 0);
+  assert.equal(state.budget?.uncertainCostMicros, state.request.reservedCostMicros);
+  assert.equal(streamResult[0].status, "rejected");
+});
 
 function installResponseFault(product: Product, context: TestContext) {
   if (product === "flashcards") {
