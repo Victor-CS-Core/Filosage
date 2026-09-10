@@ -819,7 +819,12 @@ function validatedObservedUsage(
       }];
     } else {
       if (!Object.hasOwn(value, "inputTokens") || !Object.hasOwn(value, "outputTokens")) return null;
-      const counters = [result.inputTokens, result.cachedInputTokens ?? 0, result.cacheWriteTokens ?? 0, result.outputTokens];
+      const counters = [
+        result.inputTokens,
+        result.cachedInputTokens === undefined ? 0 : result.cachedInputTokens,
+        result.cacheWriteTokens === undefined ? 0 : result.cacheWriteTokens,
+        result.outputTokens,
+      ];
       if (!counters.every(nonnegativeInteger)) return null;
       samples = [{
         model: result.model ?? defaultModelFor(reservation.feature),

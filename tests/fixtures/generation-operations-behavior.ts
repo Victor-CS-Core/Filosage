@@ -448,6 +448,8 @@ const invalidObservedUsageCases: ReadonlyArray<readonly [string, AiUsageFinaliza
   ["fractional-input-token", { model: "gpt-5.6-luna", inputTokens: 10.5, outputTokens: 10, responseId: "invalid-fractional-input" }],
   ["negative-output-token", { model: "gpt-5.6-luna", inputTokens: 10, outputTokens: -1, responseId: "invalid-negative-output" }],
   ["nonnumeric-cached-token", { model: "gpt-5.6-luna", inputTokens: 10, cachedInputTokens: "1" as unknown as number, outputTokens: 10, responseId: "invalid-string-cached" }],
+  ["null-cached-input-token", { model: "gpt-5.6-luna", inputTokens: 10, cachedInputTokens: null as unknown as number, outputTokens: 10, responseId: "invalid-null-cached" }],
+  ["null-cache-write-token", { model: "gpt-5.6-luna", inputTokens: 10, cacheWriteTokens: null as unknown as number, outputTokens: 10, responseId: "invalid-null-cache-write" }],
   ["unsafe-cache-write-token", { model: "gpt-5.6-luna", inputTokens: Number.MAX_SAFE_INTEGER, cacheWriteTokens: Number.MAX_SAFE_INTEGER + 1, outputTokens: 0, responseId: "invalid-unsafe-cache-write" }],
   ["infinite-input-token", { model: "gpt-5.6-luna", inputTokens: Number.POSITIVE_INFINITY, outputTokens: 10, responseId: "invalid-infinite-input" }],
   ["fractional-fixed-cost", { usageSamples: [{ model: "gpt-image-1-mini", inputTokens: 0, cachedInputTokens: 0, cacheWriteTokens: 0, outputTokens: 0, fixedCostMicros: 0.5, responseId: "invalid-fractional-cost" }] }],
