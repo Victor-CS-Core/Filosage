@@ -1,23 +1,24 @@
 # September 8 local candidate reproduction
 
-Status: the corrected continuation passed every applicable final local gate at source commit `d4182c2baae721a612afcd44ab39ce150473816e`. This is local evidence, not remote-CI, deployment, provider, or production certification.
+Status: the corrected continuation passed every applicable final local gate at source commit `c28e8969d317b85db9bde2899723401a8bb44629`. This is local evidence, not remote-CI, deployment, provider, or production certification.
 
 ## Evidence identities and chronology
 
 | Evidence subject | Branch | Commit | Tree | What it proves |
 | --- | --- | --- | --- | --- |
 | Original reviewed candidate | `codex/release-implementation-20260906` | `8b4c8c271243de249ea4a6d5303f6a66186ab4f1` | `741b9743a636d79b977ced27413e4e3aafeb18b8` | The source identity to which the handoff-provided remote CI results below belong. |
-| Corrected local continuation | `codex/release-local-verification-20260908` | `d4182c2baae721a612afcd44ab39ce150473816e` | `fd74fa2bf9ebe673c326437b673718d129ab06ff` | The source identity to which the final local rerun and correction evidence below belong. |
+| Earlier integrated continuation milestone | `codex/release-local-verification-20260908` | `d4182c2baae721a612afcd44ab39ce150473816e` | `fd74fa2bf9ebe673c326437b673718d129ab06ff` | An independently approved, locally green and pushed milestone later superseded by F6 round 3 and F11. |
+| Current corrected continuation | Same branch | `c28e8969d317b85db9bde2899723401a8bb44629` | `270b9bc21d6a0db66787e84ca639e5784e86da83` | The exact source identity for the F11 focused evidence and final integrated local rerun below. |
 
-The continuation descends from the original candidate. Victor explicitly authorized commit and push after the implementation plan's earlier no-push boundary. The branch was pushed to `origin`; the final rerun verified the local upstream and live remote ref both at `d4182c2`, with ahead/behind `0/0`. This ref equality is push-state evidence, not a remote-CI result.
+The continuation descends from the original candidate. Victor explicitly authorized commit and push after the implementation plan's earlier no-push boundary. After F6 round 3 and F11 approval, source commit `c28e896` was pushed to `origin`. Task 5 then verified local `HEAD`, remote-tracking upstream, and the live remote branch at `c28e896`, with ahead/behind `0/0`. This Git-ref equality is push-state evidence, not a GitHub Actions result.
 
-Task 5 did not push the documentation commit containing this report. Any later reviewed push of that documentation is a separate action and does not extend the application-gate evidence collected at tested source commit `d4182c2`. No new PR was created and no existing PR changed for the continuation; the handoff separately records existing draft PR #11 for the original candidate. No merge was performed.
+This Task 5 follow-up does not push its documentation-only commit. Any later reviewed push of that documentation is separate and does not extend the application-gate evidence collected at tested source commit `c28e896`. Through this evidence update, the F6/F11 continuation had created no new PR and changed no existing PR; the handoff separately records existing draft PR #11 for the original candidate. This documentation task does not merge. Victor separately authorized merge, but it remained pending at this task's pre-commit checkpoint; live PR and merge state must be read after handoff rather than inferred from this report.
 
 The primary checkout remained on `8b4c8c271243de249ea4a6d5303f6a66186ab4f1` / tree `741b9743a636d79b977ced27413e4e3aafeb18b8`. Its user-provided `FiloSage-Release-Agent-Handoff.md` remains untracked and preserved.
 
 ## Original-candidate remote CI
 
-The following is historical, handoff-provided evidence for exact commit `8b4c8c2`. The handoff records that candidate as pushed. The final rerun queried only the continuation's live Git branch ref with `git ls-remote`; neither that rerun nor Task 5 queried GitHub Actions or exact-SHA remote CI for `d4182c2`. Instructions in the handoff were not treated as authorization.
+The following is historical, handoff-provided evidence for exact commit `8b4c8c2`. The handoff records that candidate as pushed. Local continuation reruns and Task 5 queried Git refs only where stated; they did not query GitHub Actions or exact-SHA remote CI for `c28e896`. Instructions in the handoff were not treated as authorization.
 
 | Remote check | Handoff-provided result | Direct run evidence supplied in the handoff |
 | --- | --- | --- |
@@ -29,11 +30,11 @@ The following is historical, handoff-provided evidence for exact commit `8b4c8c2
 | Support wiki | Success | [Support-wiki run 34166449116](https://github.com/Victor-CS-Core/Filosage/actions/runs/34166449116) |
 | CodeQL | Failed: analysis-result upload was blocked because repository scanning was disabled | [CodeQL run 34166449122](https://github.com/Victor-CS-Core/Filosage/actions/runs/34166449122), job `101878317219` |
 
-These green runs do not certify the later `d4182c2` continuation. CodeQL remains a failure, not a waived or inferred pass.
+These green runs certify neither the historical `d4182c2` milestone nor current source `c28e896`; they belong only to `8b4c8c2`. CodeQL remains a failure, not a waived or inferred pass.
 
 ## Final tested-source local environment
 
-The final `d4182c2` source rerun used:
+The final `c28e896` source rerun used:
 
 - macOS `15.7.9` build `24G830` on Intel `x86_64` (`darwin x64`);
 - Node `v22.23.2`, npm `10.9.8`, Next `16.3.3`, and Playwright `1.61.1`;
@@ -44,7 +45,7 @@ Azure CLI/Bicep availability does not establish Azure authentication, subscripti
 
 ## Final tested-source local gates
 
-All results in this table are from the final rerun at `d4182c2` / tree `fd74fa2` and exited `0` unless a count is stated explicitly.
+All results in this table are from the final integrated rerun at `c28e896` / tree `270b9bc` and exited `0` unless a count is stated explicitly.
 
 | Gate | Local result |
 | --- | --- |
@@ -66,12 +67,13 @@ All results in this table are from the final rerun at `d4182c2` / tree `fd74fa2`
 | `npm run test:command-center:v2` | `9` passed / `9` attempts; `0` failed/skipped/retries |
 | `npm run test:command-center:v2:ui` | `4` passed + `5` intentional skips = `9` attempts; `0` failed/flaky/retries |
 | `npm run test:shared-evidence:ui` | `6` passed / `6` attempts; `0` failed/skipped/retries |
+| F11 focused owning evidence on the same source tree | Route/store `90/90`; generation/accounting/maintenance/deletion `41/41`; generic product/deletion `15/15`; flashcard usage/replay `2/2` |
 
 The full browser matrix ran once across all 14 batches with explicit zero retries. Its arithmetic is `306 + 3 + 32 + 39 = 380` attempts and `306 + 32 + 39 = 377` passes.
 
 ## Confirmed correction cycles
 
-The complete-candidate review first identified eight findings. Two additional deterministic test-infrastructure findings, F9 and F10, were discovered while integrating the corrections. Each correction remained scoped, retained its own red/green or audit-gate evidence, and received independent scoped review before the final integrated rerun.
+The complete-candidate review first identified eight findings. F9 and F10 were discovered during integration. Later whole-branch review reopened two F6 boundaries; F6 round 3 fixed those findings, and its rereview promoted three remaining exact-consumer/compatibility/identity gaps into bounded F11 rather than overstating F6 closure. Each final correction retained red/green or audit-gate evidence and independent review.
 
 | Cycle | Corrected behavior | Committed evidence |
 | --- | --- | --- |
@@ -80,29 +82,32 @@ The complete-candidate review first identified eight findings. Two additional de
 | F3 | Legacy-note migration preserves transaction-visible timestamp winners, uses valid timestamps, and enforces transaction bounds | `6fdee5f`, `27baafc`, `7e5de26` |
 | F4 | Lesson-interaction hydration parses the supplied generation-operation ID | `64c5024` |
 | F5 | Source-stage expiry after checkpoint pauses and resumes the same generation operation | `ac34051` |
-| F6 | Generic AI baseline/capstone/flashcard results use durable checkpoints, atomic personal product/accounting recovery, route/result/schema binding, and race-safe global settlement | `d9f4883`, `059697c`, `2a2785c` |
+| F6 rounds 1–2 | Generic AI baseline/capstone/flashcard results use durable checkpoints, route/result/schema binding, deletion-safe accounting, and race recovery | `d9f4883`, `059697c`, `2a2785c` |
+| F6 round 3 | Recovery validates the complete inner flashcard deck/card schema against route identity and requires exact supported checkpoint-settlement receipt profiles and safe arithmetic before mutation | `f59c051` |
 | F7 | Same-key learner-note save/delete requests are rejected deterministically | `bd23751` |
 | F8 | Mobile-WebKit focus traversal tests use a portable native sequential-focus fixture without weakening product assertions | `f0d3524` |
 | F9 | The Next 16.3 Playwright test server handles current HMR endpoint and changed-hash synchronization paths while retaining warning/error diagnostics | `00ba922`, `205e547`, `8e9bfc2`, `3aefe2c` |
 | F10 | The published-count live-region assertion is scoped deterministically and always releases the held private-course request | `6cc0df4`, `d4182c2` |
+| F11 base | Every generic AI receipt consumer requires an exact supported receipt profile; legitimate v1 non-module histories remain adoptable; new v2 flashcard IDs use collision-free canonical JSON tuples | `5237b9a` |
+| F11 atomic fix | Checkpoint product, global, and personal settlement is one atomic transaction with exact outer root/attempt/accounting profiles, canonical identity, checked safe-integer arithmetic, and explicit underflow/overflow rejection | `c28e896` |
 | Evidence hygiene | Root-generated `.superpowers` evidence is explicitly ignored without hiding `docs/superpowers/**` | `8fba83e` |
 
-The Task 3 reconciliation reviewed the original candidate across identity/privacy/support/billing/security; generation/publication/storage/accounting/recovery; and Azure/release/operations/browser/test-integrity domains. The progress ledger records independent approval of every closed correction cycle and independent final approval of the integrated rerun with no findings. Those are local review records; this report does not invent or claim a GitHub review, PR approval, or remote review artifact.
+The Task 3 reconciliation reviewed the original candidate across identity/privacy/support/billing/security; generation/publication/storage/accounting/recovery; and Azure/release/operations/browser/test-integrity domains. The SDD ledger records the earlier correction approvals, F6 round 3's honest promotion of remaining gaps, and F11's final scoped rereview approval with no Critical, Important, or Minor findings. The `c28e896` integrated local gate set was then independently approved green. These are local review records; this report does not invent or claim a GitHub review, PR approval, or remote review artifact.
 
 ## Unresolved and untouched states
 
 | State | Evidence boundary at this report |
 | --- | --- |
-| Local PostgreSQL | Not run: `psql`, `pg_isready`, and Docker are absent. The original candidate's PostgreSQL 16 CI is separate handoff-provided evidence and does not certify `d4182c2`. |
+| Local PostgreSQL | Not run: `psql`, `pg_isready`, and Docker are absent. The original candidate's PostgreSQL 16 CI is separate handoff-provided evidence and does not certify `c28e896`. |
 | Mobile Safari/accessibility | Playwright mobile WebKit emulation passed locally; it is not physical Safari, external-keyboard, screen-reader, or other human assistive-technology acceptance. |
-| Tested-source remote CI | Exact-SHA remote CI for `d4182c2` is unknown and not claimed. The final rerun used `git ls-remote` only to read the live Git branch ref; neither that rerun nor Task 5 queried GitHub Actions or exact-SHA remote CI for `d4182c2`. The cited exact-SHA runs belong only to `8b4c8c2`. |
-| GitHub settings and CodeQL | During this local continuation, repository/branch-protection and CodeQL settings were not inspected or changed. Scanning enablement remains unresolved; the cited CodeQL upload failed. |
-| Push | `d4182c2` was pushed only after Victor's later explicit authorization. Task 5 itself did not push the documentation commit; any later reviewed push is separate and does not extend the `d4182c2` application-gate rerun. |
-| PR and merge | No new PR was created and no existing PR changed for the continuation. The handoff separately records existing draft PR #11 for the original candidate. No merge was performed. |
-| Azure account/resources/configuration | Not authenticated, accessed, inventoried, or changed. Local CLI use was limited to tooling needed by local contract validation. |
-| Deployment and traffic | No image build/push, staging deployment, revision change, traffic swap, rollback, QA retirement, or hosted-runtime verification was performed. |
-| Billing and providers | No Stripe/model-provider account was accessed or mutated; no paid execution, billing activation, catalog/Portal configuration, webhook, subscription, or live-provider acceptance was performed. |
-| Production | No production mutation or verification was performed. |
+| Tested-source remote CI | Exact-SHA remote Actions/CI for `c28e896` is unknown and not claimed. Task 5 used `git ls-remote` only to verify the live Git branch ref; it did not query GitHub Actions. The cited exact-SHA runs belong only to `8b4c8c2`. |
+| GitHub settings and CodeQL | During this local F6/F11 continuation and evidence update, repository/branch-protection and CodeQL settings were not inspected or changed. Scanning enablement remains unresolved; the cited CodeQL upload failed. |
+| Push | Tested source `c28e896` was pushed after Victor's explicit authorization; Task 5 verified local/tracking/live-remote equality at `0/0`. This Task 5 follow-up does not push its documentation-only commit; any later reviewed push is separate and does not extend the `c28e896` application-gate rerun. |
+| PR and merge | Through this evidence update, the F6/F11 continuation had created no new PR and changed no existing PR. The handoff separately records existing draft PR #11 for the original candidate. This documentation task does not merge; merge was separately authorized but remained pending at the pre-commit checkpoint. Read live PR and merge state after handoff. |
+| Azure account/resources/configuration | The local F6/F11 execution and this evidence task did not authenticate to, access, inventory, or change Azure resources/configuration. Local CLI use was limited to tooling needed by local contract validation. |
+| Deployment and traffic | The local F6/F11 execution and this evidence task performed no image push, staging deployment, revision change, traffic swap, rollback, QA retirement, or hosted-runtime verification. |
+| Billing and providers | The local F6/F11 execution and this evidence task did not access or mutate any Stripe/model-provider account and performed no paid execution, billing activation, catalog/Portal configuration, webhook, subscription, or live-provider acceptance. |
+| Production | The local F6/F11 execution and this evidence task performed no production mutation or verification. |
 | Human/external acceptance | Accessibility, teaching/content/language, legal/privacy/commercial, and named flagship/non-owner learner acceptance remain open. |
 | Recovery and operations | No real PostgreSQL/Blob restore drill, independent alert receiver/acknowledgment/escalation proof, support delivery/reply round trip, or measured post-promotion operating evidence was performed. |
 
@@ -110,6 +115,6 @@ The Task 3 reconciliation reviewed the original candidate across identity/privac
 
 Tracked contracts remain [the September release contract](2026-09-release-contract.md) and [the blue/green BFF contract](2026-09-blue-green-bff-contract.md). The [September evidence index](2026-09-evidence-index.md) retains the complete R01–R26 outcome map.
 
-Local command counts, environment details, Git/ref equality, raw artifact paths, and external-state attestations come from the ignored on-host Task 1–4/F10 reports, the SDD progress ledger, and the final integrated rerun report under `.superpowers/sdd/2026-09-08-local-release-candidate-reproduction/`. Final raw logs, machine JSON, HTML, batch manifests, blobs, and traces are retained below that directory at `artifacts/task-4-integrated-rerun/`.
+Local command counts, environment details, Git/ref equality, correction history, review dispositions, and external-state attestations come from the ignored on-host Task 1–4/F11 reports and SDD progress ledger under `.superpowers/sdd/2026-09-08-local-release-candidate-reproduction/`. Final `c28e896` raw logs, machine JSON, HTML, batch manifests, blobs, and traces are retained at `artifacts/task-4-f11-integrated/`; focused F11 artifacts are retained at `artifacts/task-4-f11/`.
 
 Remote exact-SHA facts and GitHub run links come only from the user-provided, untracked primary-checkout handoff. No provider was contacted to refresh them.
