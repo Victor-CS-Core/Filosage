@@ -69,7 +69,6 @@ function pauseNextGlobalSettlementCommit() {
 const isGlobalSettlement = (paths: string[]) => (
   paths.some((path) => path.startsWith("generationUsageReceipts/legacy-"))
   && paths.some((path) => path.startsWith("systemUsageShards/"))
-  && !paths.some((path) => path.startsWith("usagePeriods/"))
 );
 const isPersonalProductSettlement = (paths: string[]) => (
   paths.some((path) => path.startsWith("usagePeriods/"))
@@ -478,20 +477,123 @@ async function prepareUncertainBaselineCheckpoint(stage: string) {
   return { uid, courseId, key, reservation, checkpoint, assessment };
 }
 
-async function prepareObservedBaselineCheckpoint(stage: string) {
+async function prepareReservedBaselineCheckpoint(stage: string) {
   const { uid, courseId } = await seed("baseline", stage);
   const key = `baseline-${stage}-key`;
-  providerCalls = 0;
-  activeFault = "after_global";
-  const response = await assessBaseline(requestFor("baseline", courseId, key));
-  assert.equal(response.status, 500, JSON.stringify(await response.clone().json()));
-  assert(providerCalls > 0);
-  activeFault = null;
+  const requestBody = bodyFor("baseline", courseId) as { courseId: string; submission: string };
+  const fingerprint = await publication.publicationContentHash({ ...requestBody, submission: requestBody.submission.trim() });
+  const reservation = await lifecycle.runWithAccountGeneration(activeGeneration, () => aiUsage.reserveAiUsage(
+    activeAccount,
+    "tutor",
+    key,
+    fingerprint,
+    { allowCompletedReplay: true },
+  ));
+  const assessment = lateBaselineAssessment(stage);
+  const checkpoint = await lifecycle.runWithAccountGeneration(activeGeneration, () => aiUsage.checkpointAiUsageResult(reservation, {
+    kind: "baseline_assessment",
+    resourceId: courseId,
+    resultId: courseId,
+    productGuard: productGuard(null),
+    result: assessment,
+    usage: {
+      model: "gpt-5.6-luna",
+      inputTokens: 100,
+      outputTokens: 50,
+      responseId: `reserved-${stage}-response`,
+      resultId: courseId,
+      profile: "baseline.standard",
+    },
+  }));
+  assert.equal(checkpoint.accountingStatus, "accounting_reserved");
   const state = await accounting(uid, "tutor", key);
-  assert.equal(state.request.status, "result_checkpointed");
-  assert.equal(state.receipt?.version, 2);
-  assert.equal(state.receipt?.status, "observed");
-  return { uid, courseId, key, providerCallsAfterCheckpoint: providerCalls };
+  assert.equal(state.receipt, null);
+  return { uid, courseId, key, reservation, checkpoint, assessment };
+}
+
+type CheckpointFixture = Awaited<ReturnType<typeof prepareReservedBaselineCheckpoint>>;
+type CheckpointAccountingTarget = "request" | "attempt" | "period" | "budget";
+
+function checkpointAccountingPath(fixture: CheckpointFixture, target: CheckpointAccountingTarget) {
+  if (target === "request") return fixture.reservation.requestPath;
+  if (target === "attempt") return aiUsage.aiUsageAttemptPath(fixture.reservation);
+  if (target === "period") return fixture.reservation.periodPath;
+  return fixture.reservation.userBudgetPath;
+}
+
+async function mutateCheckpointAccounting(
+  fixture: CheckpointFixture,
+  target: CheckpointAccountingTarget,
+  mutate: (value: Record<string, unknown>) => void,
+) {
+  const path = checkpointAccountingPath(fixture, target);
+  const current = await documents.getStoredDocument(path);
+  assert(current);
+  const changed = structuredClone(current);
+  mutate(changed);
+  await lifecycle.runWithAccountGeneration(activeGeneration, () => documents.putStoredDocument(path, changed));
+}
+
+async function checkpointSettlementBytes(fixture: CheckpointFixture) {
+  const reservation = fixture.reservation;
+  const receiptPath = `generationUsageReceipts/legacy-${reservation.requestId}-${reservation.attemptToken}`;
+  const [request, attempt, period, budget, global, receipt, product] = await Promise.all([
+    documents.getStoredDocument(reservation.requestPath),
+    documents.getStoredDocument(aiUsage.aiUsageAttemptPath(reservation)),
+    documents.getStoredDocument(reservation.periodPath),
+    documents.getStoredDocument(reservation.userBudgetPath),
+    documents.getStoredDocument(reservation.globalPath),
+    documents.getStoredDocument(receiptPath),
+    productState(fixture.uid, "baseline", fixture.courseId),
+  ]);
+  return JSON.stringify({ request, attempt, receipt, global, period, budget, product });
+}
+
+async function assertCheckpointAccountingRejected(fixture: CheckpointFixture) {
+  const before = await checkpointSettlementBytes(fixture);
+  providerCalls = 0;
+  const response = await assessBaseline(requestFor("baseline", fixture.courseId, fixture.key));
+  const body = await response.json() as { code?: string };
+  assert.equal(response.status, 409, JSON.stringify(body));
+  assert.equal(body.code, "AI_OUTCOME_RECONCILIATION_REQUIRED");
+  assert.equal(providerCalls, 0);
+  assert.equal(await checkpointSettlementBytes(fixture), before);
+}
+
+async function prepareObservedBaselineCheckpoint(stage: string) {
+  const fixture = await prepareReservedBaselineCheckpoint(stage);
+  const { uid, courseId, key, reservation, checkpoint } = fixture;
+  const state = await accounting(uid, "tutor", key);
+  const global = state.global;
+  assert(global);
+  await lifecycle.runWithGlobalUsageAccounting(() => documents.putStoredDocuments([
+    {
+      path: `generationUsageReceipts/legacy-${reservation.requestId}-${reservation.attemptToken}`,
+      data: {
+        version: 2,
+        kind: "generic-ai-result",
+        checkpointFingerprint: checkpoint.checkpointFingerprint,
+        globalPath: reservation.globalPath,
+        ...checkpoint.observed,
+        updatedAt: "2026-09-09T12:00:00.000Z",
+      },
+    },
+    {
+      path: reservation.globalPath,
+      data: {
+        ...global,
+        reservedCostMicros: Number(global.reservedCostMicros) - reservation.reserveCostMicros,
+        actualCostMicros: Number(global.actualCostMicros) + checkpoint.observed.actualCostMicros,
+        updatedAt: "2026-09-09T12:00:00.000Z",
+      },
+    },
+  ]));
+  providerCalls = 0;
+  const observedState = await accounting(uid, "tutor", key);
+  assert.equal(observedState.request.status, "result_checkpointed");
+  assert.equal(observedState.receipt?.version, 2);
+  assert.equal(observedState.receipt?.status, "observed");
+  return { uid, courseId, key, providerCallsAfterCheckpoint: 0 };
 }
 
 async function replaceUsageReceipt(
@@ -1243,6 +1345,91 @@ for (const [label, mutate] of [
     const fixture = await prepareObservedBaselineCheckpoint(`malformed_observed_${label.replaceAll(" ", "_")}`);
     await replaceUsageReceipt(fixture.uid, fixture.key, mutate);
     await assertMalformedBaselineReceiptRejected(fixture);
+  });
+}
+
+for (const [label, target, mutate] of [
+  ["root period path", "request", (value: Record<string, unknown>) => { value.periodPath = "usagePeriods/different__tutor__2099-01"; }],
+  ["attempt global path", "attempt", (value: Record<string, unknown>) => { value.globalPath = "systemUsageShards/paid__2099-01__15"; }],
+] as const) {
+  test(`checkpoint settlement rejects a drifted ${label} before any global or personal mutation`, async () => {
+    const fixture = await prepareReservedBaselineCheckpoint(`drifted_identity_${label.replaceAll(" ", "_")}`);
+    await mutateCheckpointAccounting(fixture, target, mutate);
+    await assertCheckpointAccountingRejected(fixture);
+  });
+}
+
+for (const [label, mutate] of [
+  ["drifted", (value: Record<string, unknown>, reserve: number) => { value.uncertainCostMicros = reserve - 1; }],
+  ["missing", (value: Record<string, unknown>) => { delete value.uncertainCostMicros; }],
+  ["zero", (value: Record<string, unknown>) => { value.uncertainCostMicros = 0; }],
+] as const) {
+  test(`an accounting-uncertain checkpoint rejects ${label} attempt uncertainty as a byte no-op`, async () => {
+    const fixture = await prepareUncertainBaselineCheckpoint(`attempt_uncertainty_${label}`);
+    await mutateCheckpointAccounting(fixture, "attempt", (value) => mutate(value, fixture.reservation.reserveCostMicros));
+    await assertCheckpointAccountingRejected(fixture);
+  });
+}
+
+test("an accounting-uncertain checkpoint rejects root uncertainty that differs from its immutable reserve", async () => {
+  const fixture = await prepareUncertainBaselineCheckpoint("root_uncertainty_drift");
+  await mutateCheckpointAccounting(fixture, "request", (value) => {
+    value.uncertainCostMicros = fixture.reservation.reserveCostMicros + 1;
+  });
+  await assertCheckpointAccountingRejected(fixture);
+});
+
+test("an accounting-reserved checkpoint rejects an uncertain attempt outer profile", async () => {
+  const fixture = await prepareReservedBaselineCheckpoint("reserved_with_uncertainty");
+  await mutateCheckpointAccounting(fixture, "attempt", (value) => {
+    value.uncertainCostMicros = fixture.reservation.reserveCostMicros;
+  });
+  await assertCheckpointAccountingRejected(fixture);
+});
+
+test("an accounting-reserved checkpoint rejects a nonzero root actual counter", async () => {
+  const fixture = await prepareReservedBaselineCheckpoint("reserved_with_actual");
+  await mutateCheckpointAccounting(fixture, "request", (value) => { value.actualCostMicros = 1; });
+  await assertCheckpointAccountingRejected(fixture);
+});
+
+for (const [profile, target, field] of [
+  ["reserved", "period", "reservedCostMicros"],
+  ["reserved", "budget", "reservedCostMicros"],
+  ["uncertain", "period", "uncertainCostMicros"],
+  ["uncertain", "budget", "uncertainCostMicros"],
+] as const) {
+  test(`${profile} checkpoint settlement rejects ${target} ${field} underflow as a byte no-op`, async () => {
+    const fixture = profile === "reserved"
+      ? await prepareReservedBaselineCheckpoint(`${profile}_${target}_underflow`)
+      : await prepareUncertainBaselineCheckpoint(`${profile}_${target}_underflow`);
+    await mutateCheckpointAccounting(fixture, target, (value) => {
+      value[field] = fixture.reservation.reserveCostMicros - 1;
+    });
+    await assertCheckpointAccountingRejected(fixture);
+  });
+}
+
+for (const [label, profile, target, mutate] of [
+  ["negative request count", "reserved", "period", (value: Record<string, unknown>) => { value.requestCount = -1; }],
+  ["fractional period actual", "reserved", "period", (value: Record<string, unknown>) => { value.actualCostMicros = 0.5; }],
+  ["nonnumeric budget actual", "reserved", "budget", (value: Record<string, unknown>) => { value.actualCostMicros = "0"; }],
+  ["overflow-adjacent period input tokens", "reserved", "period", (value: Record<string, unknown>) => {
+    value.inputTokens = Number.MAX_SAFE_INTEGER;
+  }],
+  ["overflow-adjacent budget actual", "reserved", "budget", (value: Record<string, unknown>) => {
+    value.actualCostMicros = Number.MAX_SAFE_INTEGER;
+  }],
+  ["overflow-adjacent uncertain request count", "uncertain", "period", (value: Record<string, unknown>) => {
+    value.requestCount = Number.MAX_SAFE_INTEGER;
+  }],
+] as const) {
+  test(`checkpoint settlement rejects a ${label} without accounting, lock, receipt, shard, or product mutation`, async () => {
+    const fixture = profile === "reserved"
+      ? await prepareReservedBaselineCheckpoint(`malformed_counter_${label.replaceAll(" ", "_")}`)
+      : await prepareUncertainBaselineCheckpoint(`malformed_counter_${label.replaceAll(" ", "_")}`);
+    await mutateCheckpointAccounting(fixture, target, mutate);
+    await assertCheckpointAccountingRejected(fixture);
   });
 }
 

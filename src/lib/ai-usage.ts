@@ -1008,6 +1008,112 @@ function exactRootIdentity(
     && request.globalPath === reservation.globalPath && request.reservedCostMicros === reservation.reserveCostMicros;
 }
 
+type CheckpointAccountingState = "checkpointed" | "completed";
+
+function exactCheckpointAccountingState(
+  request: StoredDocument | null | undefined,
+  attempt: StoredDocument | null | undefined,
+  reservation: AiReservation,
+  checkpoint: AiResultCheckpoint,
+): CheckpointAccountingState | null {
+  if (!request || !attempt || !exactRootIdentity(request, reservation) || !exactAttemptIdentity(attempt, reservation)) return null;
+  const requestCheckpoint = parsedResultCheckpoint(request.resultCheckpoint);
+  const attemptCheckpoint = parsedResultCheckpoint(attempt.resultCheckpoint);
+  if (!requestCheckpoint || !attemptCheckpoint
+    || requestCheckpoint.checkpointFingerprint !== checkpoint.checkpointFingerprint
+    || attemptCheckpoint.checkpointFingerprint !== checkpoint.checkpointFingerprint
+    || !checkpointMatchesDocuments(checkpoint, request, attempt)) return null;
+
+  const requestUncertain = usageCounter(request.uncertainCostMicros);
+  const attemptUncertain = usageCounter(attempt.uncertainCostMicros);
+  if (requestUncertain === null || attemptUncertain === null) return null;
+  if (request.status === "completed" && attempt.status === "accounting_observed") {
+    const requestObserved = parsedObservedAccountingState(request);
+    const attemptObserved = parsedObservedAccountingState(attempt);
+    return requestUncertain === 0 && attemptUncertain === 0
+      && Boolean(requestObserved) && Boolean(attemptObserved)
+      && sameObservedUsage(requestObserved!, checkpoint.observed)
+      && sameObservedUsage(attemptObserved!, checkpoint.observed)
+      ? "completed"
+      : null;
+  }
+  if (request.status !== "result_checkpointed" || attempt.status !== "result_checkpointed"
+    || request.terminalReason !== null) return null;
+  const expectedUncertain = checkpoint.accountingStatus === "accounting_uncertain"
+    ? reservation.reserveCostMicros
+    : 0;
+  const outerObservedCounters = [
+    request.actualCostMicros,
+    request.inputTokens,
+    request.cachedInputTokens,
+    request.cacheWriteTokens,
+    request.outputTokens,
+    attempt.actualCostMicros,
+    attempt.inputTokens,
+    attempt.cachedInputTokens,
+    attempt.cacheWriteTokens,
+    attempt.outputTokens,
+  ].map(usageCounter);
+  return requestUncertain === expectedUncertain && attemptUncertain === expectedUncertain
+    && outerObservedCounters.every((value) => value === 0)
+    ? "checkpointed"
+    : null;
+}
+
+function checkpointGlobalSettlementWrites(
+  documents: Record<string, StoredDocument | null>,
+  reservation: AiReservation,
+  checkpoint: AiResultCheckpoint,
+  accountingState: CheckpointAccountingState,
+  updatedAt: string,
+) {
+  const receiptPath = checkpointReceiptPath(reservation);
+  const receipt = documents[receiptPath];
+  const global = documents[reservation.globalPath];
+  const reservedCostMicros = usageCounter(global?.reservedCostMicros);
+  const uncertainCostMicros = usageCounter(global?.uncertainCostMicros);
+  const actualCostMicros = usageCounter(global?.actualCostMicros);
+  if (!global || reservedCostMicros === null || uncertainCostMicros === null || actualCostMicros === null
+    || !nonnegativeInteger(reservation.reserveCostMicros) || reservation.reserveCostMicros <= 0) {
+    throw reconciliationRequired("The global usage counters cannot be safely settled.");
+  }
+
+  const genericReceipt = receipt ? parsedGenericObservedReceipt(receipt, reservation, checkpoint) : null;
+  const legacyReceipt = receipt ? parsedLegacyObservedReceipt(receipt, reservation, checkpoint.observed) : null;
+  const uncertainReceipt = receipt ? parsedLegacyUncertainReceipt(receipt, reservation) : null;
+  if (receipt && Number(Boolean(genericReceipt)) + Number(Boolean(legacyReceipt)) + Number(Boolean(uncertainReceipt)) !== 1) {
+    throw reconciliationRequired("The global usage receipt cannot be safely settled.");
+  }
+  if (genericReceipt || legacyReceipt) {
+    if (actualCostMicros < checkpoint.observed.actualCostMicros) {
+      throw reconciliationRequired("The observed receipt is not represented by its global shard.");
+    }
+    return legacyReceipt
+      ? [{ path: receiptPath, data: genericObservedReceipt(checkpoint, reservation, updatedAt) }]
+      : [];
+  }
+  if (accountingState !== "checkpointed") {
+    throw reconciliationRequired("Completed checkpoint accounting requires an exact observed receipt.");
+  }
+
+  const reservedDelta = receipt ? 0 : reservation.reserveCostMicros;
+  const uncertainDelta = uncertainReceipt ? reservation.reserveCostMicros : 0;
+  const nextActual = safeCounterAdd(actualCostMicros, checkpoint.observed.actualCostMicros);
+  if ((uncertainReceipt && checkpoint.accountingStatus !== "accounting_uncertain")
+    || (!uncertainReceipt && checkpoint.accountingStatus !== "accounting_reserved")
+    || reservedCostMicros < reservedDelta || uncertainCostMicros < uncertainDelta || nextActual === null) {
+    throw reconciliationRequired("The global usage reservation cannot be safely settled.");
+  }
+  return [
+    { path: receiptPath, data: genericObservedReceipt(checkpoint, reservation, updatedAt) },
+    { path: reservation.globalPath, data: { ...global,
+      reservedCostMicros: reservedCostMicros - reservedDelta,
+      uncertainCostMicros: uncertainCostMicros - uncertainDelta,
+      actualCostMicros: nextActual,
+      updatedAt } },
+  ];
+}
+
 function genericObservedReceipt(checkpoint: AiResultCheckpoint, reservation: AiReservation, updatedAt: string) {
   return {
     version: 2,
@@ -1153,53 +1259,24 @@ async function settleAiUsageCheckpointGlobal(reservation: AiReservation, checkpo
     throw new AiQuotaError(409, "AI_OUTCOME_RECONCILIATION_REQUIRED", "The observed usage belongs to another attempt.");
   }
   const receiptPath = checkpointReceiptPath(reservation);
+  const attemptPath = aiUsageAttemptPath(reservation);
   const now = new Date().toISOString();
-  await runWithGlobalUsageAccounting(() => runStoredDocumentTransaction([receiptPath, reservation.globalPath], (documents) => {
-    const receipt = documents[receiptPath];
-    const global = documents[reservation.globalPath];
-    const reservedCostMicros = usageCounter(global?.reservedCostMicros);
-    const uncertainCostMicros = usageCounter(global?.uncertainCostMicros);
-    const actualCostMicros = usageCounter(global?.actualCostMicros);
-    if (receipt?.status === "observed") {
-      const genericReceipt = parsedGenericObservedReceipt(receipt, reservation, checkpoint);
-      const legacyReceipt = parsedLegacyObservedReceipt(receipt, reservation, checkpoint.observed);
-      if (!global || reservedCostMicros === null || uncertainCostMicros === null || actualCostMicros === null
-        || actualCostMicros < checkpoint.observed.actualCostMicros) {
-        throw new AiQuotaError(409, "AI_OUTCOME_RECONCILIATION_REQUIRED", "The observed receipt is not represented by its global shard.");
-      }
-      if (genericReceipt) {
-        return { writes: [], result: undefined };
-      }
-      if (legacyReceipt) {
-        return { writes: [{ path: receiptPath, data: genericObservedReceipt(checkpoint, reservation, now) }], result: undefined };
-      }
-      throw new AiQuotaError(409, "AI_OUTCOME_RECONCILIATION_REQUIRED", "A different observed cost is already bound to this attempt.");
+  await runWithGlobalUsageAccounting(() => runStoredDocumentTransaction([
+    receiptPath,
+    reservation.globalPath,
+    reservation.requestPath,
+    attemptPath,
+  ], (documents) => {
+    const accountingState = exactCheckpointAccountingState(
+      documents[reservation.requestPath],
+      documents[attemptPath],
+      reservation,
+      checkpoint,
+    );
+    if (!accountingState) {
+      throw reconciliationRequired("The checkpoint request attempt cannot be safely settled.");
     }
-    const uncertainReceipt = receipt ? parsedLegacyUncertainReceipt(receipt, reservation) : null;
-    if (receipt && !uncertainReceipt) {
-      throw new AiQuotaError(409, "AI_OUTCOME_RECONCILIATION_REQUIRED", "The global usage receipt cannot be safely settled.");
-    }
-    const reservedDelta = receipt ? 0 : reservation.reserveCostMicros;
-    const uncertainDelta = uncertainReceipt ? reservation.reserveCostMicros : 0;
-    if (!global || reservedCostMicros === null || uncertainCostMicros === null || actualCostMicros === null
-      || !nonnegativeInteger(reservation.reserveCostMicros) || reservation.reserveCostMicros <= 0
-      || (uncertainReceipt && checkpoint.accountingStatus !== "accounting_uncertain")
-      || (!uncertainReceipt && checkpoint.accountingStatus !== "accounting_reserved")
-      || reservedCostMicros < reservedDelta || uncertainCostMicros < uncertainDelta
-      || !Number.isSafeInteger(actualCostMicros + checkpoint.observed.actualCostMicros)) {
-      throw new AiQuotaError(409, "AI_OUTCOME_RECONCILIATION_REQUIRED", "The global usage reservation cannot be safely settled.");
-    }
-    return {
-      writes: [
-        { path: receiptPath, data: genericObservedReceipt(checkpoint, reservation, now) },
-        { path: reservation.globalPath, data: { ...global,
-          reservedCostMicros: reservedCostMicros - reservedDelta,
-          uncertainCostMicros: uncertainCostMicros - uncertainDelta,
-          actualCostMicros: actualCostMicros + checkpoint.observed.actualCostMicros,
-          updatedAt: now } },
-      ],
-      result: undefined,
-    };
+    return { writes: checkpointGlobalSettlementWrites(documents, reservation, checkpoint, accountingState, now), result: undefined };
   }));
 }
 
@@ -1213,7 +1290,6 @@ export async function settleAiUsageProduct<Result>(
     || !checkpointMatchesReservation(checkpoint, reservation)) {
     throw new AiQuotaError(409, "AI_OUTCOME_RECONCILIATION_REQUIRED", "The saved provider result belongs to another attempt.");
   }
-  await settleAiUsageCheckpointGlobal(reservation, checkpoint);
   const attemptPath = aiUsageAttemptPath(reservation);
   const receiptPath = checkpointReceiptPath(reservation);
   const allowedProductPaths = new Set(productPaths);
@@ -1224,28 +1300,53 @@ export async function settleAiUsageProduct<Result>(
     reservation.periodPath,
     reservation.userBudgetPath,
     receiptPath,
+    reservation.globalPath,
   ])];
   return runWithAccountGeneration({ uid: reservation.uid, generation: reservation.accountGeneration }, () =>
     runStoredDocumentTransaction(transactionPaths, (documents) => {
       const request = documents[reservation.requestPath];
       const attempt = documents[attemptPath];
-      const requestCheckpoint = parsedResultCheckpoint(request?.resultCheckpoint);
-      const attemptCheckpoint = parsedResultCheckpoint(attempt?.resultCheckpoint);
-      if (request?.status === "completed" && attempt?.status === "accounting_observed"
-        && checkpointMatchesDocuments(checkpoint, request, attempt)
-        && requestCheckpoint?.checkpointFingerprint === checkpoint.checkpointFingerprint
-        && attemptCheckpoint?.checkpointFingerprint === checkpoint.checkpointFingerprint) {
-        return { writes: [], result: checkpoint.result };
-      }
-      const receipt = parsedGenericObservedReceipt(documents[receiptPath], reservation, checkpoint);
       const period = documents[reservation.periodPath];
       const budget = documents[reservation.userBudgetPath];
-      if (request?.status !== "result_checkpointed" || attempt?.status !== "result_checkpointed"
-        || !checkpointMatchesDocuments(checkpoint, request, attempt)
-        || requestCheckpoint?.checkpointFingerprint !== checkpoint.checkpointFingerprint
-        || attemptCheckpoint?.checkpointFingerprint !== checkpoint.checkpointFingerprint
-        || !receipt || !period || !budget) {
+      const accountingState = exactCheckpointAccountingState(request, attempt, reservation, checkpoint);
+      const periodRequests = usageCounter(period?.requestCount);
+      const periodReserved = usageCounter(period?.reservedCostMicros);
+      const periodUncertain = usageCounter(period?.uncertainCostMicros);
+      const periodActual = usageCounter(period?.actualCostMicros);
+      const budgetReserved = usageCounter(budget?.reservedCostMicros);
+      const budgetUncertain = usageCounter(budget?.uncertainCostMicros);
+      const budgetActual = usageCounter(budget?.actualCostMicros);
+      const periodTokenCounters = ["inputTokens", "cachedInputTokens", "cacheWriteTokens", "outputTokens"].map((key) => (
+        [key, usageCounter(period?.[key])] as const
+      ));
+      if (!accountingState || !request || !attempt || !period || !budget
+        || [periodRequests, periodReserved, periodUncertain, periodActual,
+          budgetReserved, budgetUncertain, budgetActual].some((value) => value === null)
+        || periodTokenCounters.some(([, value]) => value === null)) {
         throw new AiQuotaError(409, "AI_OUTCOME_RECONCILIATION_REQUIRED", "The checkpoint cannot be atomically settled into the product.");
+      }
+      const now = new Date().toISOString();
+      const globalWrites = checkpointGlobalSettlementWrites(documents, reservation, checkpoint, accountingState, now);
+      if (accountingState === "completed") {
+        return { writes: globalWrites, result: checkpoint.result };
+      }
+
+      const reserved = checkpoint.accountingStatus === "accounting_reserved";
+      const uncertain = checkpoint.accountingStatus === "accounting_uncertain";
+      const reservedDelta = reserved ? reservation.reserveCostMicros : 0;
+      const uncertainDelta = uncertain ? reservation.reserveCostMicros : 0;
+      const requestDelta = uncertain ? 1 : 0;
+      const nextPeriodRequests = safeCounterAdd(periodRequests!, requestDelta);
+      const nextPeriodActual = safeCounterAdd(periodActual!, checkpoint.observed.actualCostMicros);
+      const nextBudgetActual = safeCounterAdd(budgetActual!, checkpoint.observed.actualCostMicros);
+      const periodTokenEntries = periodTokenCounters.map(([key, value]) => (
+        [key, safeCounterAdd(value!, checkpoint.observed[key as keyof typeof checkpoint.observed] as number)] as const
+      ));
+      if (periodReserved! < reservedDelta || budgetReserved! < reservedDelta
+        || periodUncertain! < uncertainDelta || budgetUncertain! < uncertainDelta
+        || nextPeriodRequests === null || nextPeriodActual === null || nextBudgetActual === null
+        || periodTokenEntries.some(([, value]) => value === null)) {
+        throw reconciliationRequired("The checkpoint personal usage counters cannot be safely settled.");
       }
       const product = mutateProduct(documents, checkpoint);
       const productMutationPaths = [...product.writes.map((write) => write.path), ...(product.deletes ?? [])];
@@ -1253,30 +1354,24 @@ export async function settleAiUsageProduct<Result>(
         || contentHash(product.result) !== checkpoint.resultFingerprint) {
         throw new AiQuotaError(409, "AI_OUTCOME_RECONCILIATION_REQUIRED", "The product mutation does not match the immutable provider result.");
       }
-      const now = new Date().toISOString();
-      const reserved = checkpoint.accountingStatus === "accounting_reserved";
-      const uncertain = checkpoint.accountingStatus === "accounting_uncertain";
-      const uncertainCost = uncertain ? numberValue(attempt.uncertainCostMicros) : 0;
-      const periodTokens = Object.fromEntries(
-        ["inputTokens", "cachedInputTokens", "cacheWriteTokens", "outputTokens"]
-          .map((key) => [key, numberValue(period[key]) + numberValue(checkpoint.observed[key as keyof typeof checkpoint.observed])]),
-      );
+      const periodTokens = Object.fromEntries(periodTokenEntries);
       return {
         writes: [
+          ...globalWrites,
           ...product.writes,
           { path: attemptPath, data: { ...attempt, ...checkpoint.observed, status: "accounting_observed",
             uncertainCostMicros: 0, resultId: checkpoint.resultId, resultCheckpoint: checkpoint, updatedAt: now } },
           { path: reservation.periodPath, data: { ...period, ...periodTokens,
-            requestCount: numberValue(period.requestCount) + (uncertain ? 1 : 0),
-            reservedCostMicros: Math.max(0, numberValue(period.reservedCostMicros) - (reserved ? reservation.reserveCostMicros : 0)),
-            uncertainCostMicros: Math.max(0, numberValue(period.uncertainCostMicros) - uncertainCost),
-            actualCostMicros: numberValue(period.actualCostMicros) + checkpoint.observed.actualCostMicros,
+            requestCount: nextPeriodRequests,
+            reservedCostMicros: periodReserved! - reservedDelta,
+            uncertainCostMicros: periodUncertain! - uncertainDelta,
+            actualCostMicros: nextPeriodActual,
             ...aiUsageReleaseLock(period, reservation.lockKey, reservation.requestId, reservation.attemptToken),
             updatedAt: now } },
           { path: reservation.userBudgetPath, data: { ...budget,
-            reservedCostMicros: Math.max(0, numberValue(budget.reservedCostMicros) - (reserved ? reservation.reserveCostMicros : 0)),
-            uncertainCostMicros: Math.max(0, numberValue(budget.uncertainCostMicros) - uncertainCost),
-            actualCostMicros: numberValue(budget.actualCostMicros) + checkpoint.observed.actualCostMicros,
+            reservedCostMicros: budgetReserved! - reservedDelta,
+            uncertainCostMicros: budgetUncertain! - uncertainDelta,
+            actualCostMicros: nextBudgetActual,
             updatedAt: now } },
           { path: reservation.requestPath, data: { ...request, ...checkpoint.observed, ...checkpoint.details,
             status: "completed", terminalReason: null, uncertainCostMicros: 0,
@@ -1800,12 +1895,6 @@ export async function abandonAiUsage(requestId: string): Promise<void> {
       || ![request.uid, request.feature, request.attemptToken, request.accountGeneration, request.periodPath,
         request.userBudgetPath, request.globalPath, request.payloadFingerprint]
         .every((value) => typeof value === "string" && value.length > 0)) {
-      throw new Error("AI_USAGE_MANUAL_RECONCILIATION_REQUIRED");
-    }
-    const attempt = await getStoredDocument(aiUsageAttemptPath({ requestId, attemptToken: String(request.attemptToken) }));
-    const attemptCheckpoint = parsedResultCheckpoint(attempt?.resultCheckpoint);
-    if (!attemptCheckpoint || attemptCheckpoint.checkpointFingerprint !== checkpoint.checkpointFingerprint
-      || !checkpointMatchesDocuments(checkpoint, request, attempt)) {
       throw new Error("AI_USAGE_MANUAL_RECONCILIATION_REQUIRED");
     }
     try {
