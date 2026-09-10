@@ -80,8 +80,9 @@ async function handlePOST(request: Request) {
             if (event.type === "response.output_text.delta") {
               controller.enqueue(encoder.encode(event.delta));
             } else if (event.type === "response.completed") {
+              const extractedUsage = extractOpenAiUsage(event.response);
               responseId = event.response.id;
-              observedUsage = extractOpenAiUsage(event.response);
+              observedUsage = extractedUsage;
             }
           }
           await finalizeAiUsage(activeReservation, {

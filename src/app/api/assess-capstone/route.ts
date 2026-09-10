@@ -250,8 +250,9 @@ async function handlePOST(request: Request) {
       max_output_tokens: 1_200,
       safety_identifier: await openAiSafetyIdentifier(account.uid),
     });
+    const extractedUsage = extractOpenAiUsage(response);
     responseId = response.id;
-    observedUsage = extractOpenAiUsage(response);
+    observedUsage = extractedUsage;
 
     const verdict = response.output_parsed;
     if (!verdict) {

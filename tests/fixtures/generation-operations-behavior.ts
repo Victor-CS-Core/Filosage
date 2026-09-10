@@ -166,6 +166,69 @@ test("provider failure is ambiguous and cannot issue the same paid call again", 
   await finishGenerationOperation(lease, { failed: true, reason: "timeout" });
 });
 
+test("provider usage extraction requires paid usage while keeping explicit moderation and optional counters compatible", () => {
+  assert.deepEqual(extractOpenAiUsage({ usage: { input_tokens: 10, output_tokens: 4 } }), {
+    inputTokens: 10,
+    cachedInputTokens: 0,
+    cacheWriteTokens: 0,
+    outputTokens: 4,
+  });
+  assert.throws(
+    () => extractOpenAiUsage({ id: "paid-response-without-usage" }),
+    AiUsageObservationError,
+  );
+  assert.deepEqual(extractOpenAiUsage(
+    { id: "moderation-without-metered-usage" },
+    { allowMissingUsage: true },
+  ), {
+    inputTokens: 0,
+    cachedInputTokens: 0,
+    cacheWriteTokens: 0,
+    outputTokens: 0,
+  });
+  for (const usage of [
+    { input_tokens: 10.5, output_tokens: 4 },
+    { input_tokens: -1, output_tokens: 4 },
+    { input_tokens: "10", output_tokens: 4 },
+    { input_tokens: Number.MAX_SAFE_INTEGER + 1, output_tokens: 4 },
+    { input_tokens: 10, output_tokens: Number.NaN },
+    { input_tokens: 10, output_tokens: 4, input_tokens_details: { cached_tokens: 6, cache_write_tokens: 5 } },
+  ]) {
+    assert.throws(() => extractOpenAiUsage({ usage }), AiUsageObservationError);
+  }
+});
+
+test("durable invalid or missing provider usage preserves the paid call as unknown without recording actual cost", async () => {
+  for (const [label, response] of [
+    ["malformed", { id: "malformed-provider-response", usage: { input_tokens: 10.5, output_tokens: 4 } }],
+    ["missing", { id: "missing-provider-usage" }],
+  ] as const) {
+    const lease = await begin(`${label}-provider-usage`);
+    const beforeGlobal = await getStoredDocument(lease.operation.accounting.globalPath);
+    let calls = 0;
+    const provider = async () => {
+      calls += 1;
+      return response;
+    };
+    await assert.rejects(
+      runGenerationProviderCall(lease, { model: "gpt-5.6-luna" }, provider),
+      (error: unknown) => (error as { code?: string }).code === "GENERATION_OUTCOME_UNKNOWN",
+    );
+    await assert.rejects(
+      runGenerationProviderCall(lease, { model: "gpt-5.6-luna" }, provider),
+      (error: unknown) => (error as { code?: string }).code === "GENERATION_OUTCOME_UNKNOWN",
+    );
+    assert.equal(calls, 1);
+    const afterGlobal = await getStoredDocument(lease.operation.accounting.globalPath);
+    assert.equal(afterGlobal?.actualCostMicros, beforeGlobal?.actualCostMicros);
+    assert.equal(afterGlobal?.reservedCostMicros, beforeGlobal?.reservedCostMicros);
+    const receipt = await getStoredDocument(lease.receiptPath);
+    const receiptCalls = receipt?.calls as Record<string, { status?: string }>;
+    assert.equal(Object.values(receiptCalls).at(0)?.status, "in_flight");
+    await finishGenerationOperation(lease, { failed: true, reason: "provider_outcome_unknown" });
+  }
+});
+
 import { POST as actualGenerateCourse } from "../../src/app/api/generate-course/route.ts";
 import { TERMS_VERSION, PRIVACY_VERSION } from "../../src/lib/legal.ts";
 import { generationOperationId, abandonGenerationUsage, prepareGenerationCourse } from "../../src/lib/generation-operations.ts";
@@ -222,7 +285,7 @@ test("late completion after private deletion changes global cost without recreat
   assert.equal((await getStoredDocument(lease.receiptPath))?.uncertainCostMicros, 0);
 });
 
-import { abandonAiUsage, aiUsageAttemptPath, reserveAiUsage, finalizeAiUsage, reconcileExpiredAiUsage } from "../../src/lib/ai-usage.ts";
+import { abandonAiUsage, aiUsageAttemptPath, reserveAiUsage, finalizeAiUsage, reconcileExpiredAiUsage, extractOpenAiUsage, AiUsageObservationError, type AiUsageFinalization } from "../../src/lib/ai-usage.ts";
 import { captureAccountGeneration, runWithAccountGeneration, runWithAccountDeletion, runWithGlobalUsageAccounting, currentAccountGeneration } from "../../src/lib/account-lifecycle.ts";
 
 type GenericAiReservation = Awaited<ReturnType<typeof reserveAiUsage>>;
@@ -327,6 +390,140 @@ async function cleanupGenericAiReceiptConsumer(fixture: Awaited<ReturnType<typeo
     responseId: `f11-cleanup-${fixture.reservation.requestId}`,
   }));
 }
+
+const invalidObservedUsageCases: ReadonlyArray<readonly [string, AiUsageFinalization]> = [
+  ["fractional-input-token", { model: "gpt-5.6-luna", inputTokens: 10.5, outputTokens: 10, responseId: "invalid-fractional-input" }],
+  ["negative-output-token", { model: "gpt-5.6-luna", inputTokens: 10, outputTokens: -1, responseId: "invalid-negative-output" }],
+  ["nonnumeric-cached-token", { model: "gpt-5.6-luna", inputTokens: 10, cachedInputTokens: "1" as unknown as number, outputTokens: 10, responseId: "invalid-string-cached" }],
+  ["unsafe-cache-write-token", { model: "gpt-5.6-luna", inputTokens: Number.MAX_SAFE_INTEGER, cacheWriteTokens: Number.MAX_SAFE_INTEGER + 1, outputTokens: 0, responseId: "invalid-unsafe-cache-write" }],
+  ["infinite-input-token", { model: "gpt-5.6-luna", inputTokens: Number.POSITIVE_INFINITY, outputTokens: 10, responseId: "invalid-infinite-input" }],
+  ["fractional-fixed-cost", { usageSamples: [{ model: "gpt-image-1-mini", inputTokens: 0, cachedInputTokens: 0, cacheWriteTokens: 0, outputTokens: 0, fixedCostMicros: 0.5, responseId: "invalid-fractional-cost" }] }],
+  ["negative-fixed-cost", { usageSamples: [{ model: "gpt-image-1-mini", inputTokens: 0, cachedInputTokens: 0, cacheWriteTokens: 0, outputTokens: 0, fixedCostMicros: -1, responseId: "invalid-negative-cost" }] }],
+  ["nonnumeric-fixed-cost", { usageSamples: [{ model: "gpt-image-1-mini", inputTokens: 0, cachedInputTokens: 0, cacheWriteTokens: 0, outputTokens: 0, fixedCostMicros: "1" as unknown as number, responseId: "invalid-string-cost" }] }],
+  ["unsafe-fixed-cost", { usageSamples: [{ model: "gpt-image-1-mini", inputTokens: 0, cachedInputTokens: 0, cacheWriteTokens: 0, outputTokens: 0, fixedCostMicros: Number.MAX_SAFE_INTEGER + 1, responseId: "invalid-unsafe-cost" }] }],
+  ["aggregate-input-overflow", { usageSamples: [
+    { model: "gpt-5.6-luna", inputTokens: Number.MAX_SAFE_INTEGER, cachedInputTokens: 0, cacheWriteTokens: 0, outputTokens: 0, fixedCostMicros: 0, responseId: "invalid-token-overflow-a" },
+    { model: "gpt-5.6-luna", inputTokens: 1, cachedInputTokens: 0, cacheWriteTokens: 0, outputTokens: 0, fixedCostMicros: 0, responseId: "invalid-token-overflow-b" },
+  ] }],
+  ["aggregate-cost-overflow", { usageSamples: [
+    { model: "gpt-image-1-mini", inputTokens: 0, cachedInputTokens: 0, cacheWriteTokens: 0, outputTokens: 0, fixedCostMicros: Number.MAX_SAFE_INTEGER, responseId: "invalid-cost-overflow-a" },
+    { model: "gpt-image-1-mini", inputTokens: 0, cachedInputTokens: 0, cacheWriteTokens: 0, outputTokens: 0, fixedCostMicros: 1, responseId: "invalid-cost-overflow-b" },
+  ] }],
+  ["cached-token-over-input", { model: "gpt-5.6-luna", inputTokens: 10, cachedInputTokens: 11, outputTokens: 10, responseId: "invalid-cached-relation" }],
+  ["cache-total-over-input", { model: "gpt-5.6-luna", inputTokens: 10, cachedInputTokens: 6, cacheWriteTokens: 5, outputTokens: 10, responseId: "invalid-cache-total" }],
+  ["nonboolean-failure", { model: "gpt-5.6-luna", inputTokens: 10, outputTokens: 10, responseId: "invalid-failure", failed: "false" as unknown as boolean }],
+  ["unknown-provider-outcome", { model: "gpt-5.6-luna", inputTokens: 10, outputTokens: 10, responseId: "invalid-provider-outcome", providerOutcome: "started" as "not_started" }],
+  ["not-started-without-failure", { model: "gpt-5.6-luna", providerOutcome: "not_started" }],
+  ["blank-response-id", { model: "gpt-5.6-luna", inputTokens: 10, outputTokens: 10, responseId: " " }],
+];
+
+for (const [label, usage] of invalidObservedUsageCases) {
+  test(`generic finalize rejects ${label} before any accounting document changes`, async () => {
+    const fixture = await prepareGenericAiReceiptConsumer(`invalid-usage-${label}`);
+    const before = await genericAiConsumerBytes(fixture.reservation, fixture.productPath);
+    await assert.rejects(
+      runWithAccountGeneration(fixture.generation, () => finalizeAiUsage(fixture.reservation, usage)),
+      isManualAiReconciliationError,
+    );
+    assert.equal(await genericAiConsumerBytes(fixture.reservation, fixture.productPath), before);
+    await cleanupGenericAiReceiptConsumer(fixture);
+  });
+}
+
+type TerminalDriftTarget = "root" | "attempt" | "both";
+type TerminalDrift = Readonly<{ label: string; target: TerminalDriftTarget; changes: Record<string, unknown> }>;
+
+const terminalObservedDrifts: readonly TerminalDrift[] = [
+  { label: "root-only actual cost", target: "root", changes: { actualCostMicros: 999 } },
+  { label: "attempt-only actual cost", target: "attempt", changes: { actualCostMicros: 999 } },
+  { label: "both actual cost", target: "both", changes: { actualCostMicros: 999 } },
+  { label: "both input tokens", target: "both", changes: { inputTokens: 999 } },
+  { label: "root-only cached tokens", target: "root", changes: { cachedInputTokens: 1 } },
+  { label: "attempt-only cache-write tokens", target: "attempt", changes: { cacheWriteTokens: 1 } },
+  { label: "both output tokens", target: "both", changes: { outputTokens: 999 } },
+  { label: "root-only failure", target: "root", changes: { failed: true } },
+  { label: "attempt-only failure", target: "attempt", changes: { failed: true } },
+  { label: "both failure", target: "both", changes: { failed: true } },
+  { label: "root-only uncertainty", target: "root", changes: { uncertainCostMicros: 1 } },
+  { label: "attempt-only uncertainty", target: "attempt", changes: { uncertainCostMicros: 1 } },
+  { label: "both uncertainty", target: "both", changes: { uncertainCostMicros: 1 } },
+];
+
+for (const { label, target, changes } of terminalObservedDrifts) {
+  test(`generic repeated finalize rejects terminal ${label} drift byte-for-byte`, async () => {
+    const fixture = await prepareGenericAiReceiptConsumer(`terminal-drift-${label.replaceAll(" ", "-")}`);
+    const usage = { model: "gpt-5.6-luna", inputTokens: 10, outputTokens: 10,
+      responseId: `terminal-drift-${label.replaceAll(" ", "-")}` };
+    await runWithAccountGeneration(fixture.generation, () => finalizeAiUsage(fixture.reservation, usage));
+    const rootPath = fixture.reservation.requestPath;
+    const attemptPath = aiUsageAttemptPath(fixture.reservation);
+    if (target === "root" || target === "both") {
+      const root = await getStoredDocument(rootPath);
+      assert.ok(root);
+      await putStoredDocument(rootPath, { ...root, ...changes });
+    }
+    if (target === "attempt" || target === "both") {
+      const attempt = await getStoredDocument(attemptPath);
+      assert.ok(attempt);
+      await putStoredDocument(attemptPath, { ...attempt, ...changes });
+    }
+    const before = await genericAiConsumerBytes(fixture.reservation, fixture.productPath);
+    await assert.rejects(
+      runWithAccountGeneration(fixture.generation, () => finalizeAiUsage(fixture.reservation, usage)),
+      isManualAiReconciliationError,
+    );
+    assert.equal(await genericAiConsumerBytes(fixture.reservation, fixture.productPath), before);
+  });
+}
+
+test("generic recovered finalization still rejects terminal accounting drift byte-for-byte", async () => {
+  const label = "recovered-terminal-drift";
+  const fixture = await prepareGenericAiReceiptConsumer(label);
+  const usage = { model: "gpt-5.6-luna", inputTokens: 10, outputTokens: 10,
+    responseId: "recovered-terminal-response", resultId: "recovered-terminal-product",
+    profile: "recovered-terminal-profile" };
+  await runWithAccountGeneration(fixture.generation, () => finalizeAiUsage(fixture.reservation, usage));
+  const replay = await runWithAccountGeneration(fixture.generation, () => reserveAiUsage(
+    fixture.actor,
+    "lesson_generation",
+    `f11-${label}-key`,
+    undefined,
+    { allowCompletedReplay: true, legacyReplay: {
+      profile: usage.profile,
+      resultId: usage.resultId,
+    } },
+  ));
+  assert.equal(replay.recovered, true);
+  const root = await getStoredDocument(replay.requestPath);
+  assert.ok(root);
+  await putStoredDocument(replay.requestPath, { ...root, actualCostMicros: 999 });
+  const before = await genericAiConsumerBytes(replay, fixture.productPath);
+  await assert.rejects(
+    runWithAccountGeneration(fixture.generation, () => finalizeAiUsage(replay, usage)),
+    isManualAiReconciliationError,
+  );
+  assert.equal(await genericAiConsumerBytes(replay, fixture.productPath), before);
+});
+
+test("generic terminal failure cleanup validates persisted accounting before idempotent success", async () => {
+  const fixture = await prepareGenericAiReceiptConsumer("terminal-failure-cleanup-drift");
+  await runWithAccountGeneration(fixture.generation, () => finalizeAiUsage(fixture.reservation, {
+    model: "gpt-5.6-luna",
+    inputTokens: 10,
+    outputTokens: 10,
+    responseId: "terminal-failure-cleanup-response",
+  }));
+  const attemptPath = aiUsageAttemptPath(fixture.reservation);
+  const attempt = await getStoredDocument(attemptPath);
+  assert.ok(attempt);
+  await putStoredDocument(attemptPath, { ...attempt, outputTokens: 999 });
+  const before = await genericAiConsumerBytes(fixture.reservation, fixture.productPath);
+  await assert.rejects(
+    runWithAccountGeneration(fixture.generation, () => finalizeAiUsage(fixture.reservation, { failed: true })),
+    isManualAiReconciliationError,
+  );
+  assert.equal(await genericAiConsumerBytes(fixture.reservation, fixture.productPath), before);
+});
 
 function isManualAiReconciliationError(error: unknown) {
   return (error as { code?: string; message?: string }).code === "AI_OUTCOME_RECONCILIATION_REQUIRED"

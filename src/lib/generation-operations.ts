@@ -4,7 +4,7 @@ import { createHash, randomUUID } from "node:crypto";
 import type { ServerAccount } from "@/lib/account-server";
 import { currentAccountGeneration, captureAccountGeneration, runWithAccountGeneration, runWithGlobalUsageAccounting } from "@/lib/account-lifecycle";
 import { getStoredDocument, runStoredDocumentTransaction } from "@/lib/document-store";
-import { AiQuotaError, courseOutlineAccountingContext, generationAccountingContext, extractOpenAiUsage, type AiReservation } from "@/lib/ai-usage";
+import { AiQuotaError, AiUsageObservationError, courseOutlineAccountingContext, generationAccountingContext, extractOpenAiUsage, type AiReservation } from "@/lib/ai-usage";
 import { summarizeAiUsage, type AiUsageSample } from "@/lib/ai-pricing";
 import { courseCreditPaths, generationCreditReservationWrites, generationCreditSettlementWrites, generationLessonGrant } from "@/lib/course-credits";
 import { aiUsageLock, aiUsageLockWrite, aiUsageReleaseLock, aiUsageConflictingUntil } from "@/lib/ai-usage-lock";
@@ -234,7 +234,7 @@ export async function runGenerationProviderCall<T>(lease: GenerationLease, input
   const fingerprint = generationFingerprint(input);
   const callId = generationFingerprint({ operationId: lease.operationId, fingerprint });
   const stagePath = `generationStages/${callId}`;
-  const params = input as { model?: string; text?: { format?: { name?: string } }; prompt_cache_key?: string };
+  const params = input as { model?: string; endpoint?: string; text?: { format?: { name?: string } }; prompt_cache_key?: string };
   const stage = params.text?.format?.name?.replaceAll("_", " ") ?? "Course generation";
   const saved = await runGenerationTransaction(lease, [stagePath, lease.receiptPath], (documents) => {
     const existing = documents[stagePath];
@@ -277,8 +277,18 @@ export async function runGenerationProviderCall<T>(lease: GenerationLease, input
   const observedAt = new Date().toISOString();
   if (response && typeof response === "object") responseTimes.set(response, observedAt);
   const selectedUsage = await evaluationUsageSamples((response as { id?: string }).id);
-  const samples: AiUsageSample[] = selectedUsage ?? [{ model: params.model ?? "unknown", ...extractOpenAiUsage(response),
-    responseId: (response as { id?: string }).id, profile: stage, ...metadata, promptCacheKey: params.prompt_cache_key }];
+  let samples: AiUsageSample[];
+  try {
+    samples = selectedUsage ?? [{ model: params.model ?? "unknown", ...extractOpenAiUsage(response, {
+      allowMissingUsage: params.endpoint === "moderations",
+    }),
+      responseId: (response as { id?: string }).id, profile: stage, ...metadata, promptCacheKey: params.prompt_cache_key }];
+  } catch (error) {
+    if (error instanceof AiUsageObservationError) {
+      throw new GenerationOperationError("GENERATION_OUTCOME_UNKNOWN", "The provider returned malformed usage accounting. Reconcile this operation before another paid call.");
+    }
+    throw error;
+  }
   for (let index = 0; !selectedUsage && index < webSearchCallCount(response); index += 1) samples.push({ model: "openai-web-search", inputTokens: 0, cachedInputTokens: 0, cacheWriteTokens: 0, outputTokens: 0, fixedCostMicros: 10_000 });
   // Cost is checkpointed before any parsing/certification or personal output save.
   await recordProviderUsage(lease, callId, samples);

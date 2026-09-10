@@ -214,8 +214,9 @@ export async function generateCommandCenterDraft(input: {
       max_output_tokens: 2_500,
       safety_identifier: safetyIdentifier,
     });
+    const extractedUsage = extractOpenAiUsage(generated);
     responseId = generated.id;
-    usage = extractOpenAiUsage(generated);
+    usage = extractedUsage;
     if (!generated.output_parsed) throw new CommandCenterDraftGenerationError("The model did not return a reviewable draft.", 502);
     const content = normalizeContent(generated.output_parsed, eligibility.mode, context.refs);
     const draft = await storeGeneratedCommandCenterDraft({

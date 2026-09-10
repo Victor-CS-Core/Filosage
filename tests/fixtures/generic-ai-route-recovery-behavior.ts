@@ -43,10 +43,6 @@ let pausedGlobalRead: {
   reached: () => void;
   resume: Promise<void>;
 } | null = null;
-let pausedGlobalCommit: {
-  reached: () => void;
-  resume: Promise<void>;
-} | null = null;
 
 function pauseNextGlobalSettlementRead() {
   let reached!: () => void;
@@ -54,15 +50,6 @@ function pauseNextGlobalSettlementRead() {
   const reachedPromise = new Promise<void>((resolve) => { reached = resolve; });
   const resumePromise = new Promise<void>((resolve) => { resume = resolve; });
   pausedGlobalRead = { reached, resume: resumePromise };
-  return { reached: reachedPromise, resume };
-}
-
-function pauseNextGlobalSettlementCommit() {
-  let reached!: () => void;
-  let resume!: () => void;
-  const reachedPromise = new Promise<void>((resolve) => { reached = resolve; });
-  const resumePromise = new Promise<void>((resolve) => { resume = resolve; });
-  pausedGlobalCommit = { reached, resume: resumePromise };
   return { reached: reachedPromise, resume };
 }
 
@@ -126,12 +113,6 @@ mock.module("../../src/lib/local-store.ts", {
         const checkpoint = writesCheckpoint(writes);
         const globalSettlement = isGlobalSettlement(paths);
         const personalSettlement = isPersonalProductSettlement(paths);
-        if (pausedGlobalCommit && globalSettlement) {
-          const pause = pausedGlobalCommit;
-          pausedGlobalCommit = null;
-          pause.reached();
-          await pause.resume;
-        }
         if ((activeFault === "after_checkpoint" && checkpoint)
           || (activeFault === "after_global" && globalSettlement)
           || (activeFault === "after_personal" && personalSettlement)) {
@@ -1093,44 +1074,48 @@ test("a result checkpoint after an exact legacy global receipt safely adopts tha
     assessedAt: "2026-09-09T12:00:00.000Z",
     score: 100,
   };
-  const pause = pauseNextGlobalSettlementCommit();
-  const finalization = lifecycle.runWithAccountGeneration(activeGeneration, () => aiUsage.finalizeAiUsage(reservation, {
-    model: "gpt-5.6-luna",
-    inputTokens: 100,
-    outputTokens: 50,
-    responseId: "inverse-interleaved-response",
-    resultId: courseId,
-    profile: "baseline.standard",
+  const receiptPath = `generationUsageReceipts/legacy-${reservation.requestId}-${reservation.attemptToken}`;
+  await lifecycle.runWithGlobalUsageAccounting(() => documents.runStoredDocumentTransaction([
+    receiptPath,
+    reservation.globalPath,
+  ], (stored) => {
+    const global = stored[reservation.globalPath];
+    assert(global);
+    return {
+      writes: [
+        { path: receiptPath, data: { version: 1, kind: "legacy-ai-completion", status: "observed",
+          actualCostMicros: 400, inputTokens: 100, cachedInputTokens: 0, cacheWriteTokens: 0,
+          outputTokens: 50, failed: false, globalPath: reservation.globalPath,
+          updatedAt: "2026-09-09T12:00:00.000Z" } },
+        { path: reservation.globalPath, data: { ...global,
+          reservedCostMicros: Number(global.reservedCostMicros) - reservation.reserveCostMicros,
+          actualCostMicros: Number(global.actualCostMicros) + 400 } },
+      ],
+      result: undefined,
+    };
   }));
-  await pause.reached;
-  let checkpoint: Awaited<ReturnType<typeof aiUsage.checkpointAiUsageResult<typeof assessment>>>;
-  try {
-    const afterLegacyGlobal = await accounting(uid, "tutor", key);
-    assert.equal(afterLegacyGlobal.receipt?.version, 1);
-    assert.equal(afterLegacyGlobal.receipt?.kind, "legacy-ai-completion");
-    assert.equal(afterLegacyGlobal.receipt?.status, "observed");
-    assert.equal(afterLegacyGlobal.request.status, "reserved");
-    assert.equal(afterLegacyGlobal.attempt?.status, "accounting_reserved");
-    checkpoint = await lifecycle.runWithAccountGeneration(activeGeneration, () => aiUsage.checkpointAiUsageResult(reservation, {
-      kind: "baseline_assessment",
-      resourceId: courseId,
+  const afterLegacyGlobal = await accounting(uid, "tutor", key);
+  assert.equal(afterLegacyGlobal.receipt?.version, 1);
+  assert.equal(afterLegacyGlobal.receipt?.kind, "legacy-ai-completion");
+  assert.equal(afterLegacyGlobal.receipt?.status, "observed");
+  assert.equal(afterLegacyGlobal.request.status, "reserved");
+  assert.equal(afterLegacyGlobal.attempt?.status, "accounting_reserved");
+  const checkpoint = await lifecycle.runWithAccountGeneration(activeGeneration, () => aiUsage.checkpointAiUsageResult(reservation, {
+    kind: "baseline_assessment",
+    resourceId: courseId,
+    resultId: courseId,
+    productGuard: productGuard(null),
+    result: assessment,
+    usage: {
+      model: "gpt-5.6-luna",
+      inputTokens: 100,
+      outputTokens: 50,
+      responseId: "inverse-interleaved-response",
       resultId: courseId,
-      productGuard: productGuard(null),
-      result: assessment,
-      usage: {
-        model: "gpt-5.6-luna",
-        inputTokens: 100,
-        outputTokens: 50,
-        responseId: "inverse-interleaved-response",
-        resultId: courseId,
-        profile: "baseline.standard",
-      },
-    }));
-    assert.equal(checkpoint.resultId, courseId);
-  } finally {
-    pause.resume();
-  }
-  await finalization;
+      profile: "baseline.standard",
+    },
+  }));
+  assert.equal(checkpoint.resultId, courseId);
 
   const interrupted = await accounting(uid, "tutor", key);
   assert.equal(interrupted.request.status, "result_checkpointed");
