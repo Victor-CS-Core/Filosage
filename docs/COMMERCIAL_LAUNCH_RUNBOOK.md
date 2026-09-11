@@ -37,7 +37,7 @@ Do not enable billing until all of the following are true:
 
 Paid activation also requires four public, owner-approved disclosure values in the release environment: `LEGAL_OPERATOR_NAME`, `LEGAL_BUSINESS_ADDRESS`, `GOVERNING_JURISDICTION`, and `SUPPORT_EMAIL`. The Terms and Privacy Notice render these values without committing a private address to source control. Missing values must leave the public documents in a paid-launch-pending state and must fail the billing-activation release check. The owner must review the exact rendered production text before activation; private Stripe identity verification is not a substitute for public customer-facing disclosure.
 
-For an ordinary release, set `SITE_VERSION` and `EXPECTED_SITE_VERSION` to the approved full Git commit SHA, provide the reviewed manifest/auth/origin values described in `docs/RELEASE_CAPABILITIES.md`, and run `npm.cmd run check:release`; this check requires `BILLING_ENABLED=false` and permits only `closed` or fully ready `configured` rollout mode. After deployment, verify the QA candidate artifact and follow `docs/RELEASE_CAPABILITIES.md`: health checks require the full SHA, approved image digest, exact canonical origin, reviewed auth mode, and the capability manifest. Only after separate billing authorization, run `node scripts/check-release-env.mjs --billing-activation`; that mode requires the Stripe product, webhook, management, legal, tax, and checkout configuration plus `BILLING_ENABLED=true` and either `canary` or `open` rollout mode.
+For an ordinary release, set `SITE_VERSION` and `EXPECTED_SITE_VERSION` to the approved full Git commit SHA, provide the reviewed manifest/auth/origin values described in `docs/RELEASE_CAPABILITIES.md`, and run `npm.cmd run check:release`; this check requires `BILLING_ENABLED=false` and permits only `closed` or fully ready `configured` rollout mode. After deployment, verify the inactive revision's candidate artifact and follow `docs/BLUE_GREEN_BFF_OPERATIONS.md` and `docs/RELEASE_CAPABILITIES.md`: health checks require the full SHA, approved image digest, exact canonical origin, reviewed auth mode, and the capability manifest. Only after separate billing authorization, run `node scripts/check-release-env.mjs --billing-activation`; that mode requires the Stripe product, webhook, management, legal, tax, and checkout configuration plus `BILLING_ENABLED=true` and either `canary` or `open` rollout mode.
 
 ## Product release readiness register
 
@@ -133,7 +133,7 @@ Fixture-backed Playwright coverage is necessary but does not satisfy this live a
 
 Run these scenarios in Stripe test mode before any Live activation:
 
-- Confirm Stripe Dashboard payment-method rules expose only methods supported by the current subscription lifecycle. Checkout uses Stripe's dynamic payment methods; enabling an asynchronous method still requires a separately tested async fulfillment lifecycle before activation.
+- Confirm hosted Checkout exposes the currently supported card payments. Checkout explicitly requests `payment_method_types: ["card"]`; adding another payment method requires a separately reviewed and tested fulfillment lifecycle before activation.
 - Confirm automatic tax is enabled on every Checkout Session only after Stripe Tax registration and calculation settings are verified, and retain redacted evidence of the Live review.
 - Confirm every new Checkout records the current eligibility version plus explicit age, U.S.-residency, and automatic-renewal acknowledgements with the selected offer snapshot.
 
