@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useCallback, useContext, useEffect, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
 import { deferClientTask } from "@/lib/browser-compat";
 
 type Theme = "light" | "dark";
@@ -17,16 +17,14 @@ export function useTheme() {
   return useContext(ThemeContext);
 }
 
-function storedTheme(): Theme {
+function storedPreference(): Theme | null {
   try {
     const stored = localStorage.getItem(THEME_KEY) ?? localStorage.getItem(LEGACY_THEME_KEY);
     if (stored === "light" || stored === "dark") return stored;
   } catch {
     // Storage can be unavailable in strict privacy modes; the applied theme remains usable.
   }
-  const applied = document.documentElement.getAttribute("data-theme");
-  if (applied === "light" || applied === "dark") return applied;
-  return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+  return null;
 }
 
 function applyTheme(theme: Theme) {
@@ -40,6 +38,7 @@ function applyTheme(theme: Theme) {
 function persistTheme(theme: Theme) {
   try {
     localStorage.setItem(THEME_KEY, theme);
+    localStorage.removeItem(LEGACY_THEME_KEY);
   } catch {
     // Keep the in-memory selection working when persistent storage is unavailable.
   }
@@ -48,34 +47,51 @@ function persistTheme(theme: Theme) {
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const [theme, setTheme] = useState<Theme>("light");
   const [restored, setRestored] = useState(false);
+  const preference = useRef<Theme | null>(null);
 
   useEffect(() => {
-    const savedTheme = storedTheme();
+    const systemTheme = window.matchMedia("(prefers-color-scheme: dark)");
+    preference.current = storedPreference();
+    const resolvedTheme = () => preference.current ?? (systemTheme.matches ? "dark" : "light");
+    const savedTheme = resolvedTheme();
+    // Only migrate an existing choice. Saving a system-derived value would
+    // silently turn automatic appearance into a permanent user override.
+    if (preference.current) persistTheme(preference.current);
     applyTheme(savedTheme);
+    let active = true;
     deferClientTask(() => {
-      setTheme(savedTheme);
+      if (!active) return;
+      setTheme(resolvedTheme());
       setRestored(true);
     });
 
-    const syncThemeAcrossTabs = (event: StorageEvent) => {
-      if (event.key !== THEME_KEY || (event.newValue !== "light" && event.newValue !== "dark")) return;
-      applyTheme(event.newValue);
-      setTheme(event.newValue);
+    const syncSystemTheme = () => {
+      if (preference.current) return;
+      const nextTheme = resolvedTheme();
+      applyTheme(nextTheme);
+      setTheme(nextTheme);
     };
+    const syncThemeAcrossTabs = (event: StorageEvent) => {
+      if (event.key !== null && event.key !== THEME_KEY && event.key !== LEGACY_THEME_KEY) return;
+      preference.current = storedPreference();
+      const nextTheme = resolvedTheme();
+      applyTheme(nextTheme);
+      setTheme(nextTheme);
+    };
+    systemTheme.addEventListener("change", syncSystemTheme);
     window.addEventListener("storage", syncThemeAcrossTabs);
-    return () => window.removeEventListener("storage", syncThemeAcrossTabs);
+    return () => {
+      active = false;
+      systemTheme.removeEventListener("change", syncSystemTheme);
+      window.removeEventListener("storage", syncThemeAcrossTabs);
+    };
   }, []);
-
-  useEffect(() => {
-    if (!restored) return;
-    applyTheme(theme);
-    persistTheme(theme);
-  }, [restored, theme]);
 
   const toggle = useCallback(() => {
     const applied = document.documentElement.getAttribute("data-theme");
     const activeTheme = applied === "light" || applied === "dark" ? applied : theme;
     const nextTheme = activeTheme === "light" ? "dark" : "light";
+    preference.current = nextTheme;
     applyTheme(nextTheme);
     persistTheme(nextTheme);
     setTheme(nextTheme);
