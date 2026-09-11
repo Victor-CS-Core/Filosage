@@ -40,13 +40,13 @@
     "test:lesson-operations": "node --conditions=react-server --import tsx --experimental-test-module-mocks --test --test-concurrency=1 --test-reporter=tap tests/lesson-operations/*.test.ts"
   },
   "dependencies": {
-    "@azure/identity": "^4.13.1",
+    "@azure/identity": "^4.13.2",
     "@azure/storage-blob": "^12.33.0",
-    "@fontsource-variable/inter": "^5.2.8",
+    "@fontsource-variable/inter": "^5.3.0",
     "@fontsource-variable/source-serif-4": "^5.3.0",
-    "lucide-react": "^1.24.0",
-    "motion": "^13.1.0",
-    "next": "16.3.3",
+    "lucide-react": "^1.42.0",
+    "motion": "^13.2.0",
+    "next": "16.3.4",
     "openai": "^6.47.0",
     "pg": "^8.23.0",
     "react": "^19.2.7",
@@ -54,8 +54,8 @@
     "react-markdown": "^10.1.0",
     "remark-gfm": "^4.0.1",
     "server-only": "^0.0.1",
-    "stripe": "^22.5.0",
-    "zod": "^4.4.3"
+    "stripe": "^22.6.1",
+    "zod": "^4.5.4"
   },
   "devDependencies": {
     "@axe-core/playwright": "^4.13.0",
