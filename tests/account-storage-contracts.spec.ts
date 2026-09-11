@@ -20,9 +20,10 @@ test("the required smoke runner selects account switching and delayed cross-tab 
   });
   expect(result.status, result.stderr).toBe(0);
   const selected = result.stdout.split("\n").filter((line) => line.includes("account-storage-isolation.spec.ts:"));
-  expect(selected).toHaveLength(2);
+  expect(selected).toHaveLength(3);
   expect(selected.some((line) => line.includes("A signs out; guest and B see none of A's work"))).toBe(true);
   expect(selected.some((line) => line.includes("a cross-tab signout invalidates mounted private work and ignores a delayed A mastery response"))).toBe(true);
+  expect(selected.some((line) => line.includes("home hides A's courses during a direct focus refresh to B before B's data arrives"))).toBe(true);
 });
 
 // A device-wide record has no evidence of ownership. Signing in cannot claim it.
