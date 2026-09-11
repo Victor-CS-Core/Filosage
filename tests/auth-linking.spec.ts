@@ -1436,6 +1436,109 @@ test("featured-course account creation keeps the selected course as its return d
   await expect(page).toHaveURL(/\/course\/Systems%20thinking\?id=public-preview$/);
 });
 
+const lessonEntryCourse = {
+  id: "public-preview",
+  topic: "Systems & decisions",
+  isPublic: true,
+  canManage: false,
+  modules: [{
+    title: "Feedback loops",
+    lessons: [
+      { title: "See the system", concept: "Map a simple feedback loop." },
+      { title: "Choose an intervention", concept: "Compare two possible changes." },
+    ],
+  }],
+};
+const lessonEntryOutline = "/course/Systems%20%26%20decisions?id=public-preview";
+
+for (const entry of ["selected lesson", "begin course"] as const) {
+  test(`${entry} keeps its lesson destination through existing-account sign-in`, async ({ page }) => {
+    let lessonRequests = 0;
+    let legalPosts = 0;
+    await routeManagedSession(page, {
+      recentAuthentication: false,
+      authentication: { primaryProvider: "filosage", externalIdAvailable: true, externalIdNewAccountsAvailable: false, legacyGoogleAvailable: false },
+      user: null,
+    });
+    await page.route("**/api/courses/public-preview", (route) => route.fulfill({ json: lessonEntryCourse }));
+    await page.route("**/api/courses/public-preview/lessons/**", (route) => {
+      lessonRequests += 1;
+      expect(route.request().headers().authorization).toBe("Bearer azure-easy-auth-session.v1:filosage-canonical-learner");
+      return route.fulfill({ status: 503, json: { error: "Lesson fixture reached after sign-in." } });
+    });
+    await page.route("**/api/legal/acceptance", (route) => {
+      legalPosts += 1;
+      return route.fulfill({ json: { accepted: true } });
+    });
+    await page.route("**/.auth/login/filosage?**", (route) => route.fulfill({ contentType: "text/html", body: "<p>Hosted sign-in fixture</p>" }));
+    await page.goto(`${lessonEntryOutline}&next=https://attacker.invalid`);
+    if (entry === "selected lesson") {
+      await page.getByRole("button", { name: /Current stage Feedback loops/ }).click();
+      await page.getByRole("button", { name: /Choose an intervention/ }).click();
+    } else {
+      await page.locator(".course-resume-card").getByRole("button", { name: "Sign in to begin" }).click();
+    }
+    const dialog = page.getByRole("dialog", { name: "Keep your learning in sync" });
+    await expect(dialog.getByRole("checkbox")).toHaveCount(0);
+    expect(lessonRequests).toBe(0);
+    await dialog.getByRole("button", { name: "Sign in with email code" }).click();
+    await page.waitForURL(/\/\.auth\/login\/filosage\?/);
+    const destination = `/course/Systems%20%26%20decisions/lesson/${entry === "selected lesson" ? "0-1" : "0-0"}?id=public-preview`;
+    const redirect = new URL(page.url());
+    expect([...redirect.searchParams]).toEqual([["post_login_redirect_uri", destination]]);
+    expect(new URL(destination, redirect.origin).origin).toBe(redirect.origin);
+    expect(lessonRequests).toBe(0);
+    expect(legalPosts).toBe(0);
+
+    // Simulate only the hosted return; the canonical identity and existing
+    // consent are supplied by the same managed-session fixture as other tests.
+    await routeManagedSession(page, managedSession("filosage"));
+    await page.route("**/api/account", (route) => route.fulfill({ json: normalLearnerAccount }));
+    await page.route("**/api/courses?scope=mine", (route) => route.fulfill({ json: { courses: [] } }));
+    await page.route("**/api/progress?**", (route) => route.fulfill({ json: { progress: null } }));
+    await page.route("**/api/mastery?**", (route) => route.fulfill({ json: { plan: null, evidence: [] } }));
+    await page.goto(destination);
+    await expect(page.getByText("Lesson fixture reached after sign-in.", { exact: true })).toBeVisible({ timeout: 15_000 });
+    expect(lessonRequests).toBeGreaterThan(0);
+    expect(legalPosts).toBe(0);
+  });
+}
+
+test("course signup opens the first lesson only after confirmed consent", async ({ page }) => {
+  let accepted = false;
+  let legalPosts = 0;
+  let lessonRequests = 0;
+  await routeManagedSession(page, { recentAuthentication: false, authentication: signedOutAuthentication, user: null });
+  await page.route("**/api/courses/public-preview", (route) => route.fulfill({ json: lessonEntryCourse }));
+  await page.route("**/api/account", (route) => route.fulfill({ json: normalLearnerAccount }));
+  await page.route("**/api/legal/acceptance", (route) => {
+    legalPosts += 1;
+    expect(route.request().postDataJSON()).toEqual({
+      termsVersion: TERMS_VERSION, privacyVersion: PRIVACY_VERSION, ageEligibilityConfirmed: true, source: "signup",
+    });
+    accepted = true;
+    return route.fulfill({ json: { accepted: true } });
+  });
+  await page.route("**/api/courses/public-preview/lessons/**", (route) => {
+    lessonRequests += 1;
+    expect(accepted).toBe(true);
+    return route.fulfill({ status: 503, json: { error: "Lesson fixture reached after consent." } });
+  });
+  await page.goto(lessonEntryOutline);
+  await page.locator(".course-resume-card").getByRole("button", { name: "Create an account to begin" }).click();
+  const dialog = page.getByRole("dialog", { name: "Keep your learning in sync" });
+  const submit = dialog.getByRole("button", { name: "Continue securely" });
+  await expect(submit).toBeDisabled();
+  expect(lessonRequests).toBe(0);
+  expect(legalPosts).toBe(0);
+  await dialog.getByRole("checkbox").check();
+  await submit.click();
+  await expect(page).toHaveURL(/\/course\/Systems%20%26%20decisions\/lesson\/0-0\?id=public-preview$/, { timeout: 15_000 });
+  await expect(page.getByText("Lesson fixture reached after consent.", { exact: true })).toBeVisible({ timeout: 15_000 });
+  expect(legalPosts).toBe(1);
+  expect(lessonRequests).toBeGreaterThan(0);
+});
+
 for (const invalidAuthentication of [
   { primaryProvider: "filosage", externalIdAvailable: true, externalIdNewAccountsAvailable: false, legacyGoogleAvailable: true },
   { primaryProvider: "google", externalIdAvailable: true, externalIdNewAccountsAvailable: true, legacyGoogleAvailable: true },
