@@ -1,0 +1,15 @@
+jobs:
+  unsafe:
+    steps:
+      # ruleid: filosage-workflow-shell-injection
+      - run: echo "${{ github.event.pull_request.title }}"
+      # ruleid: filosage-workflow-shell-injection
+      - run: deploy "${{ inputs.target }}"
+  safe:
+    steps:
+      - env:
+          TITLE: ${{ github.event.pull_request.title }}
+        # ok: filosage-workflow-shell-injection
+        run: printf '%s\n' "$TITLE"
+      # ok: filosage-workflow-shell-injection
+      - run: node scripts/check-tracked-secrets.mjs

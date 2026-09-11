@@ -1,0 +1,43 @@
+rules:
+  - id: filosage-request-shell-injection
+    languages: [typescript, javascript]
+    severity: ERROR
+    message: Request input reaches a shell command. Use a fixed executable and an argument array without a shell.
+    metadata:
+      category: security
+      cwe: CWE-78
+    mode: taint
+    pattern-sources:
+      - pattern: $REQUEST.json(...)
+      - pattern: $REQUEST.text(...)
+      - pattern: $REQUEST.formData(...)
+      - pattern: $REQUEST.url
+      - pattern: $REQUEST.headers.get(...)
+    pattern-sinks:
+      - patterns:
+          - pattern-either:
+              - pattern: exec($COMMAND, ...)
+              - pattern: execSync($COMMAND, ...)
+              - pattern: $CP.exec($COMMAND, ...)
+              - pattern: $CP.execSync($COMMAND, ...)
+              - pattern: spawn($COMMAND, ..., { ..., shell: true, ... })
+              - pattern: spawnSync($COMMAND, ..., { ..., shell: true, ... })
+              - pattern: $CP.spawn($COMMAND, ..., { ..., shell: true, ... })
+              - pattern: $CP.spawnSync($COMMAND, ..., { ..., shell: true, ... })
+          - focus-metavariable: $COMMAND
+      - patterns:
+          - pattern-either:
+              - pattern-inside: |
+                  import { ..., exec as $EXEC, ... } from "node:child_process";
+                  ...
+              - pattern-inside: |
+                  import { ..., execSync as $EXEC, ... } from "node:child_process";
+                  ...
+              - pattern-inside: |
+                  import { ..., exec as $EXEC, ... } from "child_process";
+                  ...
+              - pattern-inside: |
+                  import { ..., execSync as $EXEC, ... } from "child_process";
+                  ...
+          - pattern: $EXEC($COMMAND, ...)
+          - focus-metavariable: $COMMAND

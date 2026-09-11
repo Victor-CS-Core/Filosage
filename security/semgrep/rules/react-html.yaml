@@ -1,0 +1,22 @@
+rules:
+  - id: filosage-react-unsafe-html
+    languages: [typescript, javascript]
+    severity: ERROR
+    message: Component input reaches raw HTML. Render it as React text or use a reviewed HTML sanitizer.
+    metadata:
+      category: security
+      cwe: CWE-79
+    mode: taint
+    pattern-sources:
+      - patterns:
+          - pattern-inside: |
+              function $COMPONENT(..., $PROPS, ...) { ... }
+          - focus-metavariable: $PROPS
+      - patterns:
+          - pattern-inside: |
+              function $COMPONENT({ ..., $HTML, ... }) { ... }
+          - focus-metavariable: $HTML
+    pattern-sinks:
+      - patterns:
+          - pattern: '<$ELEMENT ... dangerouslySetInnerHTML={{__html: $HTML}} ... />'
+          - focus-metavariable: $HTML
