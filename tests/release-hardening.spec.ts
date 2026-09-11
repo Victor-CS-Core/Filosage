@@ -142,9 +142,9 @@ test("Azure release workflows resolve runner paths only after a runner starts", 
     expect(
       workflow,
       `${path} cannot use the runner context in job-level environment variables`,
-    ).not.toMatch(/^ {6}[A-Z0-9_]+:\s*\$\{\{\s*runner\./m);
+    ).not.toMatch(/^ {6}[A-Z_][A-Z0-9_]*:.*\$\{\{\s*runner\./m);
   }
-  expect(releaseDeployment).toContain('process.env.RUNNER_TEMP || "/tmp"');
+  expect(releaseDeployment).toContain('join(process.env.RUNNER_TEMP || "/tmp", "blue-green-evidence")');
 });
 
 test("failed promotion restores only the reviewed compatible predecessor from known traffic", () => {
