@@ -44,7 +44,7 @@ If the browser returns with Checkout marked canceled, the return link alone does
 
 ## Manage or cancel a subscription
 
-Signed-in subscribers can use **Manage billing** on the [Plans page](/pricing) to open Stripe's billing portal. When available, the portal supports reviewing the subscription, updating a payment method, viewing invoices, immediate Plus/Pro and monthly/annual changes, and cancellation at the end of the paid period. Review Stripe’s displayed proration and invoice before confirming an immediate change. The billing-cycle anchor remains unchanged; course-credit adjustments follow the confirmed subscription transition. Cancellation ordinarily stops the next renewal while access continues through the current paid period; the portal shows the effective date before confirmation.
+Signed-in subscribers can use **Manage billing** on the [Plans page](/pricing) to open Stripe's billing portal. When available, the portal supports reviewing the subscription, updating a payment method, viewing invoices, immediate Plus/Pro and monthly/annual changes, and cancellation at the end of the paid period. Review Stripe’s displayed prorated amount, invoice, and next billing date before confirming an immediate change. Course-credit adjustments follow the confirmed subscription transition. Cancellation ordinarily stops the next renewal while access continues through the current paid period; the portal shows the effective date before confirmation.
 
 If a payment needs attention, use **Manage billing** to review the payment method and current subscription state. Filosage does not delete learning data because a payment is delayed or a membership is downgraded.
 

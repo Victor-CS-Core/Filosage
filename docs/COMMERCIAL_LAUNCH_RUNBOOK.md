@@ -139,7 +139,7 @@ Run these scenarios in Stripe test mode before any Live activation:
 
 - Successful monthly and annual checkout for Plus and Pro grant exactly the selected plan and record the subscription event once.
 - Plus monthly, Plus annual, Pro monthly, and Pro annual are the only Portal plan-change destinations; legacy sandbox Products never appear.
-- Every upgrade, downgrade, and monthly/annual interval change applies immediately, keeps the existing billing-cycle anchor, and produces the expected Stripe-managed prorated invoice before webhook reconciliation changes Filosage state.
+- Every upgrade, downgrade, and monthly/annual interval change applies immediately and produces the expected Stripe-managed prorated invoice before webhook reconciliation changes Filosage state. Verify the actual billing mode and next renewal date: the Portal requests an unchanged anchor, but historical classic subscriptions can reset it on an interval change. Record the customer-visible dates rather than inferring them from configuration.
 - Every current or historical Stripe Price resolves to one plan, interval, and offer version; unknown or ambiguous prices leave access unchanged.
 - Plus enforces one active owned course through direct API requests as well as the user interface.
 - Pro-to-Plus and paid-to-Free downgrades preserve courses and existing publication state, block only newly restricted mutations, and expose the over-limit recovery path.
