@@ -13,6 +13,17 @@ async function beforeDeadline<T>(operation: Promise<T>, milliseconds = 15_000): 
   } finally { clearTimeout(timer); }
 }
 
+async function waitForDeferredCommit(fixture: Awaited<ReturnType<typeof createPostgresFixture>>, pid: number) {
+  const deadline = Date.now() + 3_000;
+  while (Date.now() < deadline) {
+    const result = await fixture.monitor.query(`SELECT 1 FROM pg_stat_activity
+      WHERE pid = $1 AND datname = current_database() AND query = 'COMMIT' AND wait_event = 'PgSleep'`, [pid]);
+    if (result.rowCount === 1) return;
+    await new Promise((resolve) => setTimeout(resolve, 20));
+  }
+  throw new Error("Expected this fixture's backend to reach deferred COMMIT before its deadline.");
+}
+
 test("PostgreSQL bounds advisory-lock acquisition and reuses the rolled-back connection", { timeout: 25_000 }, async () => {
   const fixture = await createPostgresFixture();
   let pending: Promise<unknown> | undefined;
@@ -97,8 +108,9 @@ for (const existingTransaction of [true, false]) {
   });
 }
 
-test("PostgreSQL statement timeout during COMMIT rolls back earlier writes and permits connection reuse", { timeout: 10_000 }, async () => {
+test("PostgreSQL cancellation during deferred COMMIT rolls back earlier writes and permits connection reuse", { timeout: 10_000 }, async () => {
   const fixture = await createPostgresFixture();
+  let pending: Promise<unknown> | undefined;
   try {
     process.env.DATABASE_POOL_MAX = "1";
     const first = fixture.path("first");
@@ -110,18 +122,24 @@ test("PostgreSQL statement timeout during COMMIT rolls back earlier writes and p
     assert.ok(transaction);
     const client = globalThis.__FILOSAGE_POSTGRES_TRANSACTIONS__!.get(transaction)!.client;
     const initial = await client.query<{ pid: number }>("SELECT pg_backend_pid() AS pid");
-    // Session-local deferred work makes COMMIT itself time out, without modifying
-    // shared tables/triggers or waiting for the production 30-second deadline.
+    // PostgreSQL 16 disables statement_timeout before deferred COMMIT work.
+    // Observe that work before cancelling this fixture's own backend explicitly.
     await client.query("CREATE TEMP TABLE deadline_commit (id integer) ON COMMIT DROP");
     await client.query(`CREATE FUNCTION pg_temp.deadline_commit_wait() RETURNS trigger LANGUAGE plpgsql AS $$
-      BEGIN PERFORM pg_sleep(1); RETURN NEW; END $$`);
+      BEGIN PERFORM pg_sleep(5); RETURN NEW; END $$`);
     await client.query(`CREATE CONSTRAINT TRIGGER deadline_commit_wait AFTER INSERT ON deadline_commit
       DEFERRABLE INITIALLY DEFERRED FOR EACH ROW EXECUTE FUNCTION pg_temp.deadline_commit_wait()`);
     await client.query("INSERT INTO deadline_commit VALUES (1)");
-    await client.query("SET LOCAL statement_timeout = '100ms'");
-    await assert.rejects(beforeDeadline(fixture.request("/documents:commit", {
+    pending = fixture.request("/documents:commit", {
       method: "POST", body: JSON.stringify({ transaction, writes: [fixture.write(first, { value: 1 }), fixture.write(second, { value: 1 })] }),
-    }), 5_000), { code: "57014" });
+    });
+    void pending.catch(() => undefined);
+    await waitForDeferredCommit(fixture, initial.rows[0].pid);
+    const cancelled = await fixture.monitor.query<{ cancelled: boolean }>(`SELECT pg_cancel_backend(pid) AS cancelled
+      FROM pg_stat_activity WHERE pid = $1 AND datname = current_database()
+        AND query = 'COMMIT' AND wait_event = 'PgSleep'`, [initial.rows[0].pid]);
+    assert.equal(cancelled.rows[0]?.cancelled, true, "Cancel only the observed deferred COMMIT owned by this fixture.");
+    await assert.rejects(beforeDeadline(pending, 5_000), { code: "57014" });
     assert.equal(await fixture.read("first"), null);
     assert.equal(await fixture.read("second"), null);
     assert.equal(globalThis.__FILOSAGE_POSTGRES_TRANSACTIONS__?.size, 0);
@@ -129,7 +147,72 @@ test("PostgreSQL statement timeout during COMMIT rolls back earlier writes and p
     assert.equal(recovered.rows[0].pid, initial.rows[0].pid);
     await fixture.store.runStoredDocumentTransaction([first], () => ({ writes: [{ path: first, data: { value: 2 } }], result: null }));
     assert.deepEqual(await fixture.read("first"), { value: 2 });
-  } finally { await fixture.close(); }
+  } finally {
+    await pending?.catch(() => undefined);
+    await fixture.close();
+  }
+});
+
+test("PostgreSQL COMMIT read timeout discards its connection and never retries an uncertain atomic result", { timeout: 10_000 }, async () => {
+  const fixture = await createPostgresFixture();
+  let pending: Promise<unknown> | undefined;
+  try {
+    process.env.DATABASE_POOL_MAX = "1";
+    const first = fixture.path("first");
+    const second = fixture.path("second");
+    await fixture.store.runStoredDocumentTransaction([first, second], () => ({
+      writes: [first, second].map((path) => ({ path, data: { value: 1 } })), result: null,
+    }));
+    const pool = globalThis.__FILOSAGE_POSTGRES_POOL__!;
+    (await pool.connect()).release(true);
+    pool.options.query_timeout = 250;
+    const batch = await fixture.request<Array<{ transaction?: string }>>("/documents:batchGet", {
+      method: "POST", body: JSON.stringify({ documents: [fixture.name(first), fixture.name(second)] }),
+    });
+    const transaction = batch?.[0].transaction;
+    assert.ok(transaction);
+    const client = globalThis.__FILOSAGE_POSTGRES_TRANSACTIONS__!.get(transaction)!.client;
+    const initial = await client.query<{ pid: number }>("SELECT pg_backend_pid() AS pid");
+    await client.query("CREATE TEMP TABLE deadline_commit (id integer) ON COMMIT DROP");
+    await client.query(`CREATE FUNCTION pg_temp.deadline_commit_wait() RETURNS trigger LANGUAGE plpgsql AS $$
+      BEGIN PERFORM pg_sleep(1); RETURN NEW; END $$`);
+    await client.query(`CREATE CONSTRAINT TRIGGER deadline_commit_wait AFTER INSERT ON deadline_commit
+      DEFERRABLE INITIALLY DEFERRED FOR EACH ROW EXECUTE FUNCTION pg_temp.deadline_commit_wait()`);
+    await client.query("INSERT INTO deadline_commit VALUES (1)");
+    pending = fixture.request("/documents:commit", {
+      method: "POST", body: JSON.stringify({ transaction, writes: [fixture.write(first, { value: 2 }), fixture.write(second, { value: 2 })] }),
+    });
+    void pending.catch(() => undefined);
+    await waitForDeferredCommit(fixture, initial.rows[0].pid);
+    await assert.rejects(beforeDeadline(pending, 3_000), { message: "Query read timeout" });
+    assert.equal(globalThis.__FILOSAGE_POSTGRES_TRANSACTIONS__?.size, 0);
+    pool.options.query_timeout = 35_000;
+    const recovered = await pool.query<{ pid: number }>("SELECT pg_backend_pid() AS pid");
+    assert.notEqual(recovered.rows[0].pid, initial.rows[0].pid);
+    // A lost COMMIT response is not evidence of rollback. Wait for that backend
+    // to finish, then accept either complete result, never partial writes/retry.
+    const deadline = Date.now() + 4_000;
+    let active = true;
+    while (Date.now() < deadline && active) {
+      const result = await fixture.monitor.query<{ active: boolean }>(
+        "SELECT EXISTS (SELECT 1 FROM pg_stat_activity WHERE pid = $1) AS active", [initial.rows[0].pid],
+      );
+      active = result.rows[0].active;
+      if (active) await new Promise((resolve) => setTimeout(resolve, 20));
+    }
+    assert.equal(active, false, "The discarded backend must finish before inspecting its result.");
+    const rows = await fixture.monitor.query<{ data: { value: number }; version: string }>(
+      "SELECT data, version FROM filosage_documents WHERE path = ANY($1::text[]) ORDER BY path", [[first, second]],
+    );
+    assert.equal(rows.rowCount, 2);
+    const outcome = rows.rows.map(({ data, version }) => ({ value: data.value, version: Number(version) }));
+    assert.ok(outcome.every(({ value, version }) => value === 1 && version === 1)
+      || outcome.every(({ value, version }) => value === 2 && version === 2),
+    "Both original records or both single-update records are valid; partial writes or an automatic retry are not.");
+  } finally {
+    await pending?.catch(() => undefined);
+    await fixture.close();
+  }
 });
 
 test("PostgreSQL client read timeout discards an uncertain transaction connection without committing partial writes", { timeout: 10_000 }, async () => {

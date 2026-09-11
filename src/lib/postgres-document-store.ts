@@ -69,9 +69,10 @@ function databasePool() {
       max: Number(serverEnvironment.DATABASE_POOL_MAX ?? 10),
       idleTimeoutMillis: 30_000,
       connectionTimeoutMillis: 10_000,
-      // Server deadlines also cover lock acquisition and writes/COMMIT outside
-      // the transaction-handle TTL. Allow the cancellation response to arrive
-      // before the longer client deadline treats the connection as uncertain.
+      // Server deadlines cover lock acquisition and mutation statements outside
+      // the transaction-handle TTL. PostgreSQL disables statement_timeout before
+      // deferred COMMIT work; the client deadline bounds that wait but its result
+      // remains uncertain, so timeout cleanup must discard the connection.
       lock_timeout: LOCK_TIMEOUT_MS,
       statement_timeout: STATEMENT_TIMEOUT_MS,
       query_timeout: QUERY_RESPONSE_TIMEOUT_MS,
