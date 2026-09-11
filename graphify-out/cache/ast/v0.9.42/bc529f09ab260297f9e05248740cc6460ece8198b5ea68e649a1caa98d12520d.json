@@ -1,0 +1,1 @@
+{"nodes": [{"id": "$graphify-root$_infra_azure_database_001_document_store_sql", "label": "001_document_store.sql", "file_type": "code", "source_file": "infra/azure/database/001_document_store.sql", "source_location": null}], "edges": []}
