@@ -133,7 +133,7 @@ Fixture-backed Playwright coverage is necessary but does not satisfy this live a
 
 Run these scenarios in Stripe test mode before any Live activation:
 
-- Confirm Stripe Dashboard payment-method rules expose only methods supported by the current subscription lifecycle. Checkout uses Stripe's dynamic payment methods; enabling an asynchronous method still requires a separately tested async fulfillment lifecycle before activation.
+- Confirm hosted Checkout presents only the currently supported card payment methods. The release candidate explicitly restricts Checkout to cards, and the billing transport tests verify that restriction for all four offers. Moving to Stripe's recommended dynamic payment methods requires reviewed provider configuration and separately tested asynchronous fulfillment before activation; Dashboard settings alone do not remove the current application restriction.
 - Confirm automatic tax is enabled on every Checkout Session only after Stripe Tax registration and calculation settings are verified, and retain redacted evidence of the Live review.
 - Confirm every new Checkout records the current eligibility version plus explicit age, U.S.-residency, and automatic-renewal acknowledgements with the selected offer snapshot.
 
