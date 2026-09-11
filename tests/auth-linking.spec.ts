@@ -1892,7 +1892,8 @@ test("first login never flashes a second consent prompt while confirmed signup a
   await expect.poll(() => legalPosts).toBe(1);
   try {
     expect(await page.getByRole("dialog", { name: "Review before creating your account" }).count()).toBe(0);
-    expect(await page.getByLabel("Restoring your Filosage session").isVisible()).toBe(true);
+    await expect(page.getByLabel("Restoring your Filosage session")).toBeVisible();
+    await expect(page.locator(".learner-shell")).toHaveCount(0);
   } finally {
     releaseAcceptance?.();
   }

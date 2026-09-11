@@ -686,15 +686,15 @@ test("keeps the learning library public", async ({ page }) => {
   expect(scriptDirective).not.toContain("'unsafe-inline'");
   await expect(page.locator(".skip-link")).toHaveAttribute("href", "#main-content");
   await expect(
-    page.getByRole("heading", { name: "Learn it well enough to use it" }),
+    page.getByRole("heading", { name: "Learn something you can use" }),
   ).toBeVisible();
-  await expect(page.locator(".marketing-page > section")).toHaveCount(7);
-  await expect(page.locator(".marketing-story-row")).toHaveCount(3);
+  await expect(page.locator(".marketing-hero").getByRole("link", { name: "Explore courses" })).toHaveAttribute("href", "/library");
+  await expect(page.getByText("Browse the outlines. Create a free account to take a course.")).toBeVisible();
   await expect(page.locator(".marketing-hero-visual > *")).toBeVisible();
   await expect(page.locator('a[href^="/library?q="]')).toHaveCount(0);
 
   if ((page.viewportSize()?.width ?? 0) <= 620) {
-    const primaryHeight = await page.locator(".marketing-hero").getByRole("link", { name: "View the featured course" }).evaluate((link) => link.getBoundingClientRect().height);
+    const primaryHeight = await page.locator(".marketing-hero").getByRole("link", { name: "Explore courses" }).evaluate((link) => link.getBoundingClientRect().height);
     const footerHeight = await page.locator(".marketing-footer").getByRole("link", { name: "Teaching standard" }).evaluate((link) => link.getBoundingClientRect().height);
     expect(primaryHeight).toBeGreaterThanOrEqual(44);
     expect(footerHeight).toBeGreaterThanOrEqual(44);
@@ -716,8 +716,9 @@ test("publishes the teaching standard", async ({ page }) => {
 test("describes guest access and Pro publishing consistently across public pages", async ({ context }) => {
   const home = await context.newPage();
   await home.goto("/");
-  await expect(home.getByRole("heading", { name: "From goal to finished work." })).toBeVisible();
-  await expect(home.locator(".landing-runway li")).toHaveCount(6);
+  await expect(home.getByRole("heading", { name: "Start with a course." })).toBeVisible();
+  await expect(home.locator(".visitor-steps li")).toHaveCount(3);
+  await expect(home.getByText("When you’re ready, sign up to open the lessons and save your work.")).toBeVisible();
   await home.close();
 
   const library = await context.newPage();
@@ -817,7 +818,7 @@ test("preserves the selected theme across navigation and reloads", async ({ page
 
   await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
   await expect(page.locator(".marketing-nav-shell .filosage-mark img")).toHaveAttribute("src", /filosage-theme-dark\.png/);
-  await page.locator(".marketing-hero").getByRole("link", { name: "Browse all courses" }).click();
+  await page.locator(".marketing-hero").getByRole("link", { name: "Explore courses" }).click();
   await expect(page).toHaveURL(/\/library$/);
   await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
   await expect.poll(() => page.evaluate(() => localStorage.getItem("filosage-theme"))).toBe("dark");

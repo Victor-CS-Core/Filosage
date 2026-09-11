@@ -102,16 +102,20 @@ export default function LearnerHome() {
   useEffect(() => {
     if (!user || privateDataBlocked) return;
     let cancelled = false;
+    const controller = new AbortController();
     const readJson = async (input: RequestInfo | URL, init?: RequestInit) => {
-      const response = await fetch(input, init);
+      const response = await fetch(input, { ...init, signal: controller.signal });
       if (!response.ok) throw new Error(`Learner home request failed with ${response.status}.`);
       return response.json() as Promise<unknown>;
     };
-    void user.getIdToken().then((token) => Promise.all([
-      readJson("/api/progress", { headers: { Authorization: `Bearer ${token}` }, cache: "no-store" }),
-      readJson("/api/courses?scope=public", { cache: "no-store" }),
-      readJson("/api/courses?scope=mine", { headers: { Authorization: `Bearer ${token}` }, cache: "no-store" }),
-    ])).then(([progressData, courseData, authoredCourseData]) => {
+    void user.getIdToken().then((token) => {
+      controller.signal.throwIfAborted();
+      return Promise.all([
+        readJson("/api/progress", { headers: { Authorization: `Bearer ${token}` }, cache: "no-store" }),
+        readJson("/api/courses?scope=public", { cache: "no-store" }),
+        readJson("/api/courses?scope=mine", { headers: { Authorization: `Bearer ${token}` }, cache: "no-store" }),
+      ]);
+    }).then(([progressData, courseData, authoredCourseData]) => {
       if (!cancelled) {
         setProgress((progressData as { progress: CourseProgress[] }).progress);
         setCourses((courseData as { courses: Course[] }).courses);
@@ -119,7 +123,7 @@ export default function LearnerHome() {
       }
     }).catch(() => { if (!cancelled) setLoadError(true); })
       .finally(() => { if (!cancelled) setLoaded(true); });
-    return () => { cancelled = true; };
+    return () => { cancelled = true; controller.abort(); };
   }, [privateDataBlocked, loadAttempt, user]);
 
   const deckItems = useMemo(() => buildDeckItems(progress, courses, authoredCourses), [authoredCourses, courses, progress]);
