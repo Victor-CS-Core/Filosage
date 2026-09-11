@@ -1,0 +1,44 @@
+name: Offline static security
+
+on:
+  pull_request:
+  push:
+    branches: [main, 'codex/opengrep-security-*']
+  schedule:
+    - cron: "41 8 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: static-security-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  scan:
+    name: OpenGrep local rules
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - name: Download and verify pinned scanner
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error --location --proto '=https' --proto-redir '=https' --max-time 120 \
+            https://github.com/opengrep/opengrep/releases/download/v1.30.0/opengrep_manylinux_x86 \
+            --output "$RUNNER_TEMP/opengrep"
+          printf '%s  %s\n' '35779bdd72e92129c8df2a77f0c55e8c08356801ea92591ef32108d6b28d564c' "$RUNNER_TEMP/opengrep" | sha256sum --check --status
+          chmod 500 "$RUNNER_TEMP/opengrep"
+      - name: Test fail-closed report handling
+        run: python3 -B -m unittest discover -s tests/security -v
+      - name: Validate rules, prove fixtures, and scan without networking
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo unshare --net -- env -i PATH=/usr/bin:/bin RUNNER_TEMP="$RUNNER_TEMP" \
+            python3 -B scripts/run-static-security.py --binary "$RUNNER_TEMP/opengrep"

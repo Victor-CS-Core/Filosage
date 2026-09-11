@@ -45,22 +45,26 @@ function hasMalformedCharacters(value: string) {
   return Array.from(value).some(isMalformedCharacter);
 }
 
-function isGreekNotation(run: string, context: string) {
+const GREEK_NOTATION_CONTEXT = /\b(?:angle|angular|product|formula|equation|coefficient|variable|displacement|derivative|integral)\b|[=+×÷∑]/i;
+
+function isGreekNotation(run: string, hasMathContext: boolean) {
   if (Array.from(run).length === 1) return true;
   // Adjacent variables and differentials occur in ordinary STEM prose too.
   // Limit this exception to short unaccented runs in an explicit math context.
   return /^[α-ωΑ-Ω]{2,4}$/u.test(run)
-    && /\b(?:angle|angular|product|formula|equation|coefficient|variable|displacement|derivative|integral)\b|[=+×÷∑]/i.test(context);
+    && hasMathContext;
 }
 
 function unexpectedScriptText(value: string, script: (typeof SCRIPT_RULES)[number]) {
   if (script.name !== "Greek") return value;
-  return value.replace(script.matcher, (run) => isGreekNotation(run, value) ? "" : run);
+  const hasMathContext = GREEK_NOTATION_CONTEXT.test(value);
+  return value.replace(script.matcher, (run) => isGreekNotation(run, hasMathContext) ? "" : run);
 }
 
 function stripDisallowedScript(value: string, script: (typeof SCRIPT_RULES)[number]) {
   if (script.name !== "Greek") return value.replace(script.matcher, "");
-  return value.replace(script.matcher, (run) => isGreekNotation(run, value) ? run : "");
+  const hasMathContext = GREEK_NOTATION_CONTEXT.test(value);
+  return value.replace(script.matcher, (run) => isGreekNotation(run, hasMathContext) ? run : "");
 }
 
 export interface ContentLanguagePolicy {

@@ -1,0 +1,337 @@
+{
+  "files": {
+    "javascript/crypto/rule-node_aes_ecb.yml": {
+      "id": "rules_lgpl_javascript_crypto_rule-node-aes-ecb",
+      "sha256": "0edd3c248b77f67a5f7e6287200f62e85225124960a1b696a5353c2baab0f65b"
+    },
+    "javascript/crypto/rule-node_aes_noiv.yml": {
+      "id": "rules_lgpl_javascript_crypto_rule-node-aes-noiv",
+      "sha256": "830440b44fa0d9ba1e79c47a985e6d6525de4a7871a1875c525f2331c5dc99fd"
+    },
+    "javascript/crypto/rule-node_insecure_random_generator.yml": {
+      "id": "rules_lgpl_javascript_crypto_rule-node-insecure-random-generator",
+      "sha256": "ab7d1db5a50ebe3046b83c1a04a36f9605642fd8e317fcbca762de68092ac18f"
+    },
+    "javascript/crypto/rule-node_md5.yml": {
+      "id": "rules_lgpl_javascript_crypto_rule-node-md5",
+      "sha256": "ebc338b67c53d118693aec2819b53d3633096197321383853ffd490151ff3780"
+    },
+    "javascript/crypto/rule-node_sha1.yml": {
+      "id": "rules_lgpl_javascript_crypto_rule-node-sha1",
+      "sha256": "d6c06430be94acd1a5a4752b19bff2b5663b2b50e375e71883f477106f0cd93d"
+    },
+    "javascript/crypto/rule-node_timing_attack.yml": {
+      "id": "rules_lgpl_javascript_crypto_rule-node-timing-attack",
+      "sha256": "37425d0e6a7c4cda9b12e8384b2b828f90d29c0d451a17dd145d58d1023095da"
+    },
+    "javascript/crypto/rule-node_tls_reject.yml": {
+      "id": "rules_lgpl_javascript_crypto_rule-node-tls-reject",
+      "sha256": "a2e6354397304419608e9f39b0099c27e716f14cb7b587635a552ceafc1b77e6"
+    },
+    "javascript/crypto/rule-node_weak_crypto.yml": {
+      "id": "rules_lgpl_javascript_crypto_rule-node-weak-crypto",
+      "sha256": "06085c38827464d0ca60f6f889a8c6749b74b537cabcee32df82e350fb9a4a81"
+    },
+    "javascript/database/rule-node_knex_sqli_injection.yml": {
+      "id": "rules_lgpl_javascript_database_rule-node-knex-sqli-injection",
+      "sha256": "d223b3b05cdb61bd523007cc1ff50b151d98702d2bf2f435cae71823471f0d49"
+    },
+    "javascript/database/rule-node_nosqli_injection.yml": {
+      "id": "rules_lgpl_javascript_database_rule-node-nosqli-injection",
+      "sha256": "e64e9af666a92f22b21839a8cb5d4f84b5e4125218138e53839dd5d17eb43600"
+    },
+    "javascript/database/rule-node_nosqli_js_injection.yml": {
+      "id": "rules_lgpl_javascript_database_rule-node-nosqli-js-injection",
+      "sha256": "61dd1d6f2181220343a9568bc7ad1a0df6e1f71049fcbabe1edd08542ded86e8"
+    },
+    "javascript/database/rule-node_sqli_injection.yml": {
+      "id": "rules_lgpl_javascript_database_rule-node-sqli-injection",
+      "sha256": "44f17d8b81f33d1ee6b436d3b4ca9f77f8b448244a80a90cad591cee78d12515"
+    },
+    "javascript/database/rule-sequelize_tls_cert_validation.yml": {
+      "id": "rules_lgpl_javascript_database_rule-sequelize-tls-cert-validation",
+      "sha256": "18bfcbb5626cad64ac2f48a682b6cf4f6acbf2aeab336a7b8b1cdc25f02a723f"
+    },
+    "javascript/database/rule-sequelize_tls.yml": {
+      "id": "rules_lgpl_javascript_database_rule-sequelize-tls",
+      "sha256": "36d0daf388f7618e8ed819717f7564c48d0fc72b4724e0cd08f1e75b8c363b66"
+    },
+    "javascript/database/rule-sequelize_weak_tls.yml": {
+      "id": "rules_lgpl_javascript_database_rule-sequelize-weak-tls",
+      "sha256": "1afea824617e0556f1db7c256faf5712ffe27371202802180b5861ca268b2bcf"
+    },
+    "javascript/dos/rule-layer7_object_dos.yml": {
+      "id": "rules_lgpl_javascript_dos_rule-layer7-object-dos",
+      "sha256": "766e3b36e1cdca2fa633bc5dfde4171c634a62e5ead4b792318c01ff8343076e"
+    },
+    "javascript/dos/rule-regex_dos.yml": {
+      "id": "rules_lgpl_javascript_dos_rule-regex-dos",
+      "sha256": "87ec76ed0ab5e914ec391b02c922b72c367b9ac4b48d0ce4e2cc528af773db89"
+    },
+    "javascript/electronjs/rule-electron_allow_http.yml": {
+      "id": "rules_lgpl_javascript_electronjs_rule-electron-allow-http",
+      "sha256": "53423a7c2aa6921751a25073e0b6a9d8e97b77d70282982ac2ae4511f0b8713f"
+    },
+    "javascript/electronjs/rule-electron_blink_integration.yml": {
+      "id": "rules_lgpl_javascript_electronjs_rule-electron-blink-integration",
+      "sha256": "70e5f4792b6ed563dfe6474a7055f87c39a035296272ae6175a54f9a38228c41"
+    },
+    "javascript/electronjs/rule-electron_context_isolation.yml": {
+      "id": "rules_lgpl_javascript_electronjs_rule-electron-context-isolation",
+      "sha256": "5edfcefc40a915082961540e61758fbfd1c4d1dca14b8d15ce4cbe6631032b8e"
+    },
+    "javascript/electronjs/rule-electron_disable_websecurity.yml": {
+      "id": "rules_lgpl_javascript_electronjs_rule-electron-disable-websecurity",
+      "sha256": "8f61cca6dfd5514aa6e45845d05ae6baeb995f8048ece8d234e55bc9e7fcb2bc"
+    },
+    "javascript/electronjs/rule-electron_experimental_features.yml": {
+      "id": "rules_lgpl_javascript_electronjs_rule-electron-experimental-features",
+      "sha256": "40ad387bf052d9bd4cf0a68cc0283d2bc458142774a12daca87d2a7f9a5e3e4d"
+    },
+    "javascript/electronjs/rule-electron_nodejs_integration.yml": {
+      "id": "rules_lgpl_javascript_electronjs_rule-electron-nodejs-integration",
+      "sha256": "1ca6ac4e37b8991daf0864803e82656c8c31d6fba9c8be8c0c0299c1bad2253a"
+    },
+    "javascript/eval/rule-eval_nodejs.yml": {
+      "id": "rules_lgpl_javascript_eval_rule-eval-nodejs",
+      "sha256": "85c411168f2d59d4d6059be69e528c4624095a88fbf3363746bca1d56d4cfe4c"
+    },
+    "javascript/eval/rule-eval_require.yml": {
+      "id": "rules_lgpl_javascript_eval_rule-eval-require",
+      "sha256": "b57481341981c15a40dfd5c06ff5ab1faab421d75b6e88c95d71e7791eb99002"
+    },
+    "javascript/eval/rule-grpc_insecure_connection.yml": {
+      "id": "rules_lgpl_javascript_eval_rule-grpc-insecure-connection",
+      "sha256": "26ecb665a6ad94a05296a7fdee1818b04a1a91ce49e00dfe84ffe2da399492ee"
+    },
+    "javascript/eval/rule-node_deserialize.yml": {
+      "id": "rules_lgpl_javascript_eval_rule-node-deserialize",
+      "sha256": "a80c58b11fb95a113e9e6d6e3b4dac844337f291d0848e24fa0ede82bd8a638c"
+    },
+    "javascript/eval/rule-sandbox_code_injection.yml": {
+      "id": "rules_lgpl_javascript_eval_rule-sandbox-code-injection",
+      "sha256": "9165566ba312a2d1477fa65461aabf4dc71286031da88d6fff510b1a680bba38"
+    },
+    "javascript/eval/rule-serializetojs_deserialize.yml": {
+      "id": "rules_lgpl_javascript_eval_rule-serializetojs-deserialize",
+      "sha256": "b28820366b07689fae728c03e45cee7bd0a149ff1dbbcb50131ab0eceae8691d"
+    },
+    "javascript/eval/rule-server_side_template_injection.yml": {
+      "id": "rules_lgpl_javascript_eval_rule-server-side-template-injection",
+      "sha256": "acca9fea1c3c60209b5a36505fca1c0fecdc53e83b604312f420e7a7d0e697bb"
+    },
+    "javascript/eval/rule-vm_code_injection.yml": {
+      "id": "rules_lgpl_javascript_eval_rule-vm-code-injection",
+      "sha256": "0c594a440b48733106e4e48d5b4b537aef73fbd113660e0a7989134b60abd261"
+    },
+    "javascript/eval/rule-vm_compilefunction_injection.yml": {
+      "id": "rules_lgpl_javascript_eval_rule-vm-compilefunction-injection",
+      "sha256": "073137f9c0718691f9c4180b680c73981ad6f577e8d43353e182bf4ad0fd453d"
+    },
+    "javascript/eval/rule-vm_runincontext_injection.yml": {
+      "id": "rules_lgpl_javascript_eval_rule-vm-runincontext-injection",
+      "sha256": "7ed3de5d6c18095621d4a3d5d9fdcc6055ce78c37f124f6af25d4a74f37b1346"
+    },
+    "javascript/eval/rule-vm_runinnewcontext_injection.yml": {
+      "id": "rules_lgpl_javascript_eval_rule-vm-runinnewcontext-injection",
+      "sha256": "314bb31c9684412377c6882325dbcd3157a4c9e25d6faf4e1c418d61d55edd4b"
+    },
+    "javascript/eval/rule-vm2_code_injection.yml": {
+      "id": "rules_lgpl_javascript_eval_rule-vm2-code-injection",
+      "sha256": "1a2d2ae2b192ac24ee8eb81625516abea5c5c7f47c3410d1d6ffcc37dd4eed66"
+    },
+    "javascript/eval/rule-vm2_context_injection.yml": {
+      "id": "rules_lgpl_javascript_eval_rule-vm2-context-injection",
+      "sha256": "80e5afffab6258e91104677f8ec1ead1f5555df397292b634cb0619f8c909eb7"
+    },
+    "javascript/eval/rule-yaml_deserialize.yml": {
+      "id": "rules_lgpl_javascript_eval_rule-yaml-deserialize",
+      "sha256": "ef60956716c496fc72f36fe365c2c03dfdf46fae942d51f7cf61d9b8f75c695d"
+    },
+    "javascript/exec/rule-shelljs_os_command_exec.yml": {
+      "id": "rules_lgpl_javascript_exec_rule-shelljs-os-command-exec",
+      "sha256": "39e8e5f51ab6ab5b60ec5cc354508de34c779f928824dc8fc2699ffd1ccd6b7f"
+    },
+    "javascript/headers/rule-cookie_session_default.yml": {
+      "id": "rules_lgpl_javascript_headers_rule-cookie-session-default",
+      "sha256": "7ae38eacaaceb78681321d4857b425f3ef0ce2d6caad078336f4579a86a7d17e"
+    },
+    "javascript/headers/rule-cookie_session_no_domain.yml": {
+      "id": "rules_lgpl_javascript_headers_rule-cookie-session-no-domain",
+      "sha256": "e4f858acba685934a2b7421b472d103e6334d6f8679500f9c4be2e5a52286e99"
+    },
+    "javascript/headers/rule-cookie_session_no_httponly.yml": {
+      "id": "rules_lgpl_javascript_headers_rule-cookie-session-no-httponly",
+      "sha256": "5470e841a48451b18e6bf507fed38496b7d5d91ee2a0e362075ab16bc0e570ea"
+    },
+    "javascript/headers/rule-cookie_session_no_maxage.yml": {
+      "id": "rules_lgpl_javascript_headers_rule-cookie-session-no-maxage",
+      "sha256": "55b157e3af93b2b4c2d3475d16bd6e2f26b5966f69cfa22668e46a356cdb2295"
+    },
+    "javascript/headers/rule-cookie_session_no_path.yml": {
+      "id": "rules_lgpl_javascript_headers_rule-cookie-session-no-path",
+      "sha256": "ab19f1524dd814e5e0c6525def081c320f7c965a73d9eb52212a3b1284bc4bd1"
+    },
+    "javascript/headers/rule-cookie_session_no_samesite.yml": {
+      "id": "rules_lgpl_javascript_headers_rule-cookie-session-no-samesite",
+      "sha256": "e915ecc0296f06ce95dfd1d53a85713e0411f04e74404e436e03fef98439a586"
+    },
+    "javascript/headers/rule-cookie_session_no_secure.yml": {
+      "id": "rules_lgpl_javascript_headers_rule-cookie-session-no-secure",
+      "sha256": "2527f81459498981a553fd68c14ceb820b9149de82cc2043e6d481acf510cb50"
+    },
+    "javascript/headers/rule-express_cors.yml": {
+      "id": "rules_lgpl_javascript_headers_rule-express-cors",
+      "sha256": "997be43b262f80e8731c198e3cd87411a60197f144ccdd00c181eea8cda9a8ac"
+    },
+    "javascript/headers/rule-generic_cors.yml": {
+      "id": "rules_lgpl_javascript_headers_rule-generic-cors",
+      "sha256": "86e6f0d30534f4173ac00ba9f3b6f9d1042380dc7c8c36edcfbdc1754caa4a9b"
+    },
+    "javascript/headers/rule-generic_header_injection.yml": {
+      "id": "rules_lgpl_javascript_headers_rule-generic-header-injection",
+      "sha256": "6d2807ff335c56770d26b131269ba8ac986fe1c3df4cb8dc924f61e694e690ec"
+    },
+    "javascript/headers/rule-header_xss_generic.yml": {
+      "id": "rules_lgpl_javascript_headers_rule-header-xss-generic",
+      "sha256": "742dbaa39275ef2a274116d4f802d9203befd1773bd24361f4ce38f1426193df"
+    },
+    "javascript/headers/rule-header_xss_lusca.yml": {
+      "id": "rules_lgpl_javascript_headers_rule-header-xss-lusca",
+      "sha256": "195173d64408389c83726b1a2707797049bc9e7f9cfa5343631e045cb190bd6b"
+    },
+    "javascript/headers/rule-helmet_feature_disabled.yml": {
+      "id": "rules_lgpl_javascript_headers_rule-helmet-feature-disabled",
+      "sha256": "fbf4b50603a243335d844712c3d12a13e8185f6e53708f68dfae54b788a29c6e"
+    },
+    "javascript/headers/rule-host_header_injection.yml": {
+      "id": "rules_lgpl_javascript_headers_rule-host-header-injection",
+      "sha256": "9b7ad862741a85e5bcc544655762702e55eb13cdae033da44de9bb79fa6b3f7d"
+    },
+    "javascript/jwt/rule-hardcoded_jwt_secret.yml": {
+      "id": "rules_lgpl_javascript_jwt_rule-hardcoded-jwt-secret",
+      "sha256": "b3ab5617fa21ae7b98c626238d321890f14bc45d0880f8f20ae15c4e018f077e"
+    },
+    "javascript/jwt/rule-jwt_exposed_credentials.yml": {
+      "id": "rules_lgpl_javascript_jwt_rule-jwt-exposed-credentials",
+      "sha256": "36cb8dc30197a3ebad5f94350baced9f247112bfacf757486e9a256aab25667a"
+    },
+    "javascript/jwt/rule-jwt_exposed_data.yml": {
+      "id": "rules_lgpl_javascript_jwt_rule-jwt-exposed-data",
+      "sha256": "f278106720e61f37e23f01d3a1fb472a675ab9bff64732301456aedcfbdddb60"
+    },
+    "javascript/jwt/rule-jwt_express_hardcoded.yml": {
+      "id": "rules_lgpl_javascript_jwt_rule-jwt-express-hardcoded",
+      "sha256": "42a592fde94a162b0c0701fac99352ccd345cba95b95417f6251b0dc0f540620"
+    },
+    "javascript/jwt/rule-jwt_not_revoked.yml": {
+      "id": "rules_lgpl_javascript_jwt_rule-jwt-not-revoked",
+      "sha256": "a03ea5f548a1b99ce478a62c2bfcea9e789c5be2089c2ffa3929466f850f71cd"
+    },
+    "javascript/jwt/rule-node_jwt_none_algorithm.yml": {
+      "id": "rules_lgpl_javascript_jwt_rule-node-jwt-none-algorithm",
+      "sha256": "f378e040d87a7e235a63fea5774c8410617a98acaf841be3b29e4113dc5ad478"
+    },
+    "javascript/redirect/rule-express_open_redirect.yml": {
+      "id": "rules_lgpl_javascript_redirect_rule-express-open-redirect",
+      "sha256": "c6a2f016e4e9d4e6e47946ac1da50d0895ce23f2407d4e8486bda1f3d39bfbc2"
+    },
+    "javascript/redirect/rule-express_open_redirect2.yml": {
+      "id": "rules_lgpl_javascript_redirect_rule-express-open-redirect2",
+      "sha256": "84a318dbff1f09c831bb562177e67c8840f3cef2d3ecf8ef60a05e26d7f8e722"
+    },
+    "javascript/ssrf/rule-node_ssrf.yml": {
+      "id": "rules_lgpl_javascript_ssrf_rule-node-ssrf",
+      "sha256": "d2b3984e9957a950e80debdab8d2850b4bb9019ee1bcd2a5bbd61be8491c2064"
+    },
+    "javascript/ssrf/rule-phantom_ssrf.yml": {
+      "id": "rules_lgpl_javascript_ssrf_rule-phantom-ssrf",
+      "sha256": "f03690bc1f9b089a6282d0ee272fbacb58f92e7601f8845434a344a877f30c93"
+    },
+    "javascript/ssrf/rule-playwright_ssrf.yml": {
+      "id": "rules_lgpl_javascript_ssrf_rule-playwright-ssrf",
+      "sha256": "e7798afa04999c340540fa135685bb693ee6f5794c864490771b31eb1e4bf589"
+    },
+    "javascript/ssrf/rule-puppeteer_ssrf.yml": {
+      "id": "rules_lgpl_javascript_ssrf_rule-puppeteer-ssrf",
+      "sha256": "281d3b2cefa161974bb3c17f31ff33328cea670de0ae34bbde8f4bf04a5b7a67"
+    },
+    "javascript/ssrf/rule-wkhtmltoimage_ssrf.yml": {
+      "id": "rules_lgpl_javascript_ssrf_rule-wkhtmltoimage-ssrf",
+      "sha256": "8f37ef97a1741cb00083417e81261ae2fd5a3b15480ba5ffc24e8a63eb4dd148"
+    },
+    "javascript/ssrf/rule-wkhtmltopdf_ssrf.yml": {
+      "id": "rules_lgpl_javascript_ssrf_rule-wkhtmltopdf-ssrf",
+      "sha256": "5d5a561eff8ef0c3a7816ac48295eeb2042bd37ac02c31772a8be095cda9aeaf"
+    },
+    "javascript/traversal/rule-admzip_path_overwrite.yml": {
+      "id": "rules_lgpl_javascript_traversal_rule-admzip-path-overwrite",
+      "sha256": "9a5091cfbe5e3ed5a6a4396d39a820da9460b5e94d10bcaa3ec407fbee090cc7"
+    },
+    "javascript/traversal/rule-express_lfr_warning.yml": {
+      "id": "rules_lgpl_javascript_traversal_rule-express-lfr-warning",
+      "sha256": "686654a58cebb32dd3d268fc241979bf06cbd3c2f7963cbf201b4266323c912a"
+    },
+    "javascript/traversal/rule-express_lfr.yml": {
+      "id": "rules_lgpl_javascript_traversal_rule-express-lfr",
+      "sha256": "07c3f831ba53364906962252fb6077b45bffc6038fd6f6580cbb75fc997bc957"
+    },
+    "javascript/traversal/rule-generic_path_traversal.yml": {
+      "id": "rules_lgpl_javascript_traversal_rule-generic-path-traversal",
+      "sha256": "28997eff7089d69ca19f21cc60c0d5b19888247b673e52c249770fcbbac0d6c4"
+    },
+    "javascript/traversal/rule-join_resolve_path_traversal.yml": {
+      "id": "rules_lgpl_javascript_traversal_rule-join-resolve-path-traversal",
+      "sha256": "8ce2f7e480e5928c2ec2d09296b124aa4d033693856e90cfd3075781bd1104fa"
+    },
+    "javascript/traversal/rule-tar_path_overwrite.yml": {
+      "id": "rules_lgpl_javascript_traversal_rule-tar-path-overwrite",
+      "sha256": "29f58e0feed2e0658732f061348a46b0dbd3521c541727aac73da71f1399400b"
+    },
+    "javascript/traversal/rule-zip_path_overwrite.yml": {
+      "id": "rules_lgpl_javascript_traversal_rule-zip-path-overwrite",
+      "sha256": "39f41d8f638f5141ceb16bc7a65bf4b840027e4539020f92f4c7a47ee5cbbb0a"
+    },
+    "javascript/xml/rule-node_entity_expansion.yml": {
+      "id": "rules_lgpl_javascript_xml_rule-node-entity-expansion",
+      "sha256": "af1d153def2338e188ad8d6b248c392b2303be9d7da5c23705b12b8507a5ef53"
+    },
+    "javascript/xml/rule-node_xpath_injection.yml": {
+      "id": "rules_lgpl_javascript_xml_rule-node-xpath-injection",
+      "sha256": "0398d25fe7214c09e72c49e393033a4ecf4802ffb285efdbaee686d168f3132f"
+    },
+    "javascript/xml/rule-node_xxe.yml": {
+      "id": "rules_lgpl_javascript_xml_rule-node-xxe",
+      "sha256": "21607a5dffb95e0d824922ff56afd210b715d60138e5e53605eeb3955b6c30da"
+    },
+    "javascript/xml/rule-xxe_expat.yml": {
+      "id": "rules_lgpl_javascript_xml_rule-xxe-expat",
+      "sha256": "2ec01718d8efa830a60260b283cc88ea0f98e31963df5f091fa2c8227a2c76ef"
+    },
+    "javascript/xss/rule-express_xss.yml": {
+      "id": "rules_lgpl_javascript_xss_rule-express-xss",
+      "sha256": "0c11e6e60aad9614122c3b518b28203a3b3aceca0481caf5b362a007593056e6"
+    },
+    "javascript/xss/rule-handlebars_noescape.yml": {
+      "id": "rules_lgpl_javascript_xss_rule-handlebars-noescape",
+      "sha256": "7a1a2e4aee710237bd6a0680f99c0f35e9bbdae5f64266654555bdce5f27179a"
+    },
+    "javascript/xss/rule-handlebars_safestring.yml": {
+      "id": "rules_lgpl_javascript_xss_rule-handlebars-safestring",
+      "sha256": "32801c53d6337a4cf17ea708a45e30b4ed1f50b73e5c9980c3098df64372e09f"
+    },
+    "javascript/xss/rule-squirrelly_autoescape.yml": {
+      "id": "rules_lgpl_javascript_xss_rule-squirrelly-autoescape",
+      "sha256": "30116bd187ff324cfafdeff1bfdbe092c72b879921c3a15a9fa7a56d6f02f5d3"
+    },
+    "javascript/xss/rule-xss_disable_mustache_escape.yml": {
+      "id": "rules_lgpl_javascript_xss_rule-xss-disable-mustache-escape",
+      "sha256": "863f04d67fd4b482aedd58dc3bd76815ac9be61dd531e42f46b34fe0a7037d73"
+    },
+    "javascript/xss/rule-xss_serialize_javascript.yml": {
+      "id": "rules_lgpl_javascript_xss_rule-xss-serialize-javascript",
+      "sha256": "01e58c53e77c535b9378dd730ae49f4e8c25129ad76bba8f5fd99678642f945f"
+    }
+  },
+  "commit": "7051ea7602a210dfb0793916afedc9a0555addb7"
+}

@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { execFileSync } from "node:child_process";
+import { execFileSync, spawnSync } from "node:child_process";
 import {
   evaluateInstructionLanguage,
   inspectGeneratedContent,
@@ -132,6 +132,48 @@ test("adjacent Greek symbols in STEM prose are preserved while Greek sentences a
   expect(inspectGeneratedContent({ content: `The formula describes an angle. ${greek}` }, "STEM notation", "English"))
     .toContainEqual(expect.objectContaining({ reason: "contains unexpected Greek script" }));
 });
+
+test("Greek notation exceptions remain limited to single symbols and short unaccented math runs", () => {
+  for (const content of ["Read α β Δ.", "The formula uses αβ ΑΒΓΔ."]) {
+    expect(inspectGeneratedContent({ note: content }, "Evidence", "English")).toEqual([]);
+    expect(sanitizeGeneratedText(content, "Evidence", "English")).toBe(content);
+  }
+  for (const [content, sanitized] of [
+    ["Read αβ.", "Read ."],
+    ["The formula uses άβ.", "The formula uses ."],
+    ["The formula uses αβγδε.", "The formula uses ."],
+  ]) {
+    expect(inspectGeneratedContent({ note: content }, "Evidence", "English"))
+      .toContainEqual(expect.objectContaining({ reason: "contains unexpected Greek script" }));
+    expect(sanitizeGeneratedText(content, "Evidence", "English")).toBe(sanitized);
+  }
+});
+
+for (const { operation, expression, expected } of [
+  {
+    operation: "inspection",
+    expression: "inspectGeneratedContent({ note: content }, 'Evidence').some(issue => issue.reason === 'contains unexpected Greek script')",
+    expected: true,
+  },
+  {
+    operation: "sanitization",
+    expression: "sanitizeGeneratedText(content, 'Evidence')",
+    expected: "Read the symbols:",
+  },
+]) {
+  test(`Greek ${operation} completes for many short runs without math context`, () => {
+    // A separate process bounds a regression's synchronous quadratic work. The
+    // deadline allows startup and slow CI; it is not a microbenchmark threshold.
+    const result = spawnSync(process.execPath, ["--import", "tsx", "--input-type=module", "-e", `
+      import { inspectGeneratedContent, sanitizeGeneratedText } from './src/lib/content-language.ts';
+      const content = 'Read the symbols: ' + 'αβ '.repeat(200_000);
+      console.log(JSON.stringify(${expression}));
+    `], { encoding: "utf8", timeout: 8_000 });
+    expect(result.error, `${operation} must finish within the child-process deadline`).toBeUndefined();
+    expect(result.status, result.stderr).toBe(0);
+    expect(JSON.parse(result.stdout)).toBe(expected);
+  });
+}
 
 test("legitimate AI and API teaching is neither rejected nor silently truncated", () => {
   const content = "A tool call requests work from a function. Compare the tool result with the expected tool output, then ask an assistant to explain the difference. The responses.create API accepts a schema named course_outline; function_call describes an API concept.\n\n```text\nassistant to=example\n<|tool|> example result\n```\n\nThe quoted fragment “assistant to=example” is a teaching example. Keep this concluding explanation.";

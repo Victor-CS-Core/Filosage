@@ -57,7 +57,7 @@ export function lessonQualityIssues(
   const lessonKind = options.lessonKind ?? lesson.lessonKind ?? "substantive";
   if (lessonKind !== "substantive") {
     if (!lesson.learningObjective?.trim()) issues.push("The observable learning objective is missing.");
-    if (/```(?:mermaid|dot|graphviz)\b|^\s*(?:flowchart|graph)\s+(?:TB|TD|BT|RL|LR)\b/im.test(lesson.content)) {
+    if (/```(?:mermaid|dot|graphviz)\b|^[^\S\r\n\u2028\u2029]*(?:flowchart|graph)\s+(?:TB|TD|BT|RL|LR)\b/im.test(lesson.content)) {
       issues.push("Remove all diagram and graph syntax; teach the relationships in prose.");
     }
     issues.push(...interactionQualityIssues(lesson, options.requireInteractionV2 === true));
@@ -85,7 +85,7 @@ export function lessonQualityIssues(
   if ((lesson.transferTask?.successCriteria.length ?? 0) < 1) {
     issues.push("The transfer task needs measurable success criteria.");
   }
-  if (/```(?:mermaid|dot|graphviz)\b|^\s*(?:flowchart|graph)\s+(?:TB|TD|BT|RL|LR)\b/im.test(lesson.content)) {
+  if (/```(?:mermaid|dot|graphviz)\b|^[^\S\r\n\u2028\u2029]*(?:flowchart|graph)\s+(?:TB|TD|BT|RL|LR)\b/im.test(lesson.content)) {
     issues.push("Remove all diagram and graph syntax; teach the relationships in prose.");
   }
   if (lesson.quizzes.length < 1) issues.push("At least one application-focused check is required.");

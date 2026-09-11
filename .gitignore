@@ -59,6 +59,10 @@ debug.log
 *.tsbuildinfo
 next-env.d.ts
 
+# Python security-gate tooling
+__pycache__/
+*.pyc
+
 # Playwright
 node_modules/
 /test-results/

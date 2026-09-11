@@ -1,7 +1,9 @@
 import "server-only";
 import { createHash, randomUUID } from "node:crypto";
 import { accountFenceReadPaths, assertAccountMutation } from "@/lib/account-write-fence";
-import type { Course } from "@/lib/course-types";
+import type { Course, LessonMode } from "@/lib/course-types";
+import type { AiReservation } from "@/lib/ai-usage";
+import type { CourseStage, RepairOperation, ValidationReport } from "@/lib/course-pipeline/contract";
 import { expectedLessonIds as outlinedLessonIds } from "@/lib/course-progress";
 import { assertPublicationProofToken, StalePublicationProofError, currentManualReviewResolution, publicationProofApprovalFingerprint, publicationProofIsCurrent, PUBLICATION_PROOF_POLICY_VERSION, type PublicationProof } from "@/lib/publication-proofs";
 import { publicationDecisionFromReport } from "@/lib/course-pipeline/validation";
@@ -321,7 +323,7 @@ export async function saveLessonWithEvidenceDowngrade(courseId: string, lessonId
 }
 
 /** Reopen only the exact committed output; a later edit is not that result. */
-export async function recoverCommittedLesson(courseId: string, lessonId: string, reservation: Pick<import("@/lib/ai-usage").AiReservation, "uid" | "requestId" | "requestPath">) {
+export async function recoverCommittedLesson(courseId: string, lessonId: string, reservation: Pick<AiReservation, "uid" | "requestId" | "requestPath">) {
   const coursePath = `courses/${courseId}`;
   const lessonPath = `${coursePath}/lessons/${lessonId}`;
   const scope = currentAccountGeneration();
@@ -733,7 +735,7 @@ export async function updateCourseVisibility(courseId: string, isPublic: boolean
 
 export async function updateCoursePipelineStage(
   courseId: string,
-  nextStage: import("@/lib/course-pipeline/contract").CourseStage,
+  nextStage: CourseStage,
   validation?: { decision: string; snapshotHash: string },
 ) {
   const { assertCourseStageTransition } = await import("@/lib/course-pipeline/state");
@@ -742,7 +744,7 @@ export async function updateCoursePipelineStage(
     const course = documents[path];
     if (!course) throw new Error("Course not found while updating its pipeline stage.");
     const current = typeof course.pipelineStage === "string"
-      ? course.pipelineStage as import("@/lib/course-pipeline/contract").CourseStage
+      ? course.pipelineStage as CourseStage
       : "draft";
     if (current === nextStage) return { writes: [], result: current };
     assertCourseStageTransition(current, nextStage);
@@ -793,7 +795,7 @@ export async function commitCourseValidationStage(
     if (validation.publicationProof) assertPublicationResearchUnchanged(course,
       researchPath ? documents[researchPath] : null, validation.publicationProof.research);
     const current = typeof course.pipelineStage === "string"
-      ? course.pipelineStage as import("@/lib/course-pipeline/contract").CourseStage
+      ? course.pipelineStage as CourseStage
       : "draft";
     const manualResolution = currentManualReviewResolution({
       ...course, publicationProof: validation.publicationProof ?? course.publicationProof,
@@ -860,7 +862,7 @@ export async function publishCourseWithReview(
     artifactSnapshotHash?: string;
     publicationProof?: PublicationProof;
     qualityContractVersion?: string;
-    validationReport?: import("@/lib/course-pipeline/contract").ValidationReport;
+    validationReport?: ValidationReport;
     publicationMutationKey?: string;
     manualReviewResolutionId?: string;
     publishPipelineStage?: boolean;
@@ -1200,7 +1202,7 @@ export async function saveCourseManualReviewResolution(
   });
 }
 
-type DeterministicRepairOperation = import("@/lib/course-pipeline/contract").RepairOperation & {
+type DeterministicRepairOperation = RepairOperation & {
   operation: "add" | "remove";
 };
 
@@ -1516,7 +1518,7 @@ export async function getCoursePublishReadiness(
   courseId: string,
   expectedLessonIds: string[],
   topic: string,
-  expectedModesByLessonId: Readonly<Record<string, import("@/lib/course-types").LessonMode | undefined>> = {},
+  expectedModesByLessonId: Readonly<Record<string, LessonMode | undefined>> = {},
   instructionLanguage = "English",
 ) {
   const lessons = await listLessons(courseId);
