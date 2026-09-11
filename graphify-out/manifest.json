@@ -35,18 +35,6 @@
     "ast_hash": "afdde73471d84d0598e49814baaac832",
     "semantic_hash": "afdde73471d84d0598e49814baaac832"
   },
-  "D:\\dev\\filosage\\firebase.json": {
-    "mtime": 1786648887.8626044,
-    "seen": 1786650398.9600804,
-    "ast_hash": "329a07d924bb83a4cff275b2a7796050",
-    "semantic_hash": "329a07d924bb83a4cff275b2a7796050"
-  },
-  "D:\\dev\\filosage\\firestore.indexes.json": {
-    "mtime": 1786648887.8626044,
-    "seen": 1786650398.960081,
-    "ast_hash": "921cc4cf6e6890eb2452010e665ed750",
-    "semantic_hash": "921cc4cf6e6890eb2452010e665ed750"
-  },
   "D:\\dev\\filosage\\infra\\azure\\database\\001_document_store.sql": {
     "mtime": 1786648887.8626044,
     "seen": 1786650398.9600823,
@@ -118,12 +106,6 @@
     "seen": 1786650398.960091,
     "ast_hash": "dab65fde549c8cf66c9d1dbd83cf4244",
     "semantic_hash": "dab65fde549c8cf66c9d1dbd83cf4244"
-  },
-  "D:\\dev\\filosage\\scripts\\export-firebase-authored-courses.ts": {
-    "mtime": 1786648887.92608,
-    "seen": 1786650398.9600918,
-    "ast_hash": "311cc35257fda786293d211767ced455",
-    "semantic_hash": "311cc35257fda786293d211767ced455"
   },
   "D:\\dev\\filosage\\scripts\\generate-brand-assets.mjs": {
     "mtime": 1786648887.92608,
@@ -1499,18 +1481,6 @@
     "ast_hash": "01b800c39c3ccf2d62715b7e8eaffd90",
     "semantic_hash": "01b800c39c3ccf2d62715b7e8eaffd90"
   },
-  "D:\\dev\\filosage\\src\\lib\\firebase-server.ts": {
-    "mtime": 1786648888.0434034,
-    "seen": 1786650398.9602818,
-    "ast_hash": "24089959e38429cf075d447db89f48ab",
-    "semantic_hash": "24089959e38429cf075d447db89f48ab"
-  },
-  "D:\\dev\\filosage\\src\\lib\\firestore-values.ts": {
-    "mtime": 1786648888.045408,
-    "seen": 1786650398.9602826,
-    "ast_hash": "eb04a363a31005953e2f89eba06726fb",
-    "semantic_hash": "eb04a363a31005953e2f89eba06726fb"
-  },
   "D:\\dev\\filosage\\src\\lib\\identity-client.ts": {
     "mtime": 1786648888.045408,
     "seen": 1786650398.9602833,
@@ -1624,12 +1594,6 @@
     "seen": 1786650398.9602978,
     "ast_hash": "1460a69e61f229a46b11d5e8c035c730",
     "semantic_hash": "1460a69e61f229a46b11d5e8c035c730"
-  },
-  "D:\\dev\\filosage\\src\\lib\\local-store.ts": {
-    "mtime": 1786648888.0514174,
-    "seen": 1786650398.9602985,
-    "ast_hash": "971d52e9d131ee345ffcc41def92ec02",
-    "semantic_hash": "971d52e9d131ee345ffcc41def92ec02"
   },
   "D:\\dev\\filosage\\src\\lib\\markdown.ts": {
     "mtime": 1786648888.0514174,
@@ -1864,12 +1828,6 @@
     "seen": 1786650398.960329,
     "ast_hash": "4989221f7b8e5788aa928a081e0e9156",
     "semantic_hash": "4989221f7b8e5788aa928a081e0e9156"
-  },
-  "D:\\dev\\filosage\\tests\\course-deletion-indexes.spec.ts": {
-    "mtime": 1786648888.062591,
-    "seen": 1786650398.9603298,
-    "ast_hash": "98b89a83793396e101febe9abe72eb04",
-    "semantic_hash": "98b89a83793396e101febe9abe72eb04"
   },
   "D:\\dev\\filosage\\tests\\course-learning-flow.spec.ts": {
     "mtime": 1786648888.062591,
