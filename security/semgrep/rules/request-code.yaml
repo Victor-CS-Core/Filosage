@@ -1,0 +1,18 @@
+rules:
+  - id: filosage-request-code-injection
+    languages: [typescript, javascript]
+    severity: ERROR
+    message: Request input is executed as JavaScript. Parse and validate data instead.
+    metadata:
+      category: security
+      cwe: CWE-95
+    mode: taint
+    pattern-sources:
+      - pattern: $REQUEST.json(...)
+      - pattern: $REQUEST.text(...)
+      - pattern: $REQUEST.formData(...)
+      - pattern: $REQUEST.url
+      - pattern: $REQUEST.headers.get(...)
+    pattern-sinks:
+      - pattern: eval(...)
+      - pattern: new Function(...)

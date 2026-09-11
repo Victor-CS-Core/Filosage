@@ -1,0 +1,42 @@
+name: Offline security scan
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: security-scan-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  semgrep:
+    name: Semgrep CE security gate
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 22
+      - name: Verify report privacy and failure policy
+        run: node --test tests/security/semgrep-report.test.mjs
+      - name: Verify detectors and scan the exact checkout without network access
+        env:
+          EXPECTED_RELEASE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: node scripts/run-security-scan.mjs
+      - name: Retain sanitized security evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: offline-security-evidence
+          path: test-results/security/summary.json
+          if-no-files-found: error
+          retention-days: 14

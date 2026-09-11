@@ -1,0 +1,19 @@
+rules:
+  - id: filosage-request-sql-injection
+    languages: [typescript, javascript]
+    severity: ERROR
+    message: Request input reaches SQL text. Pass values separately as query parameters.
+    metadata:
+      category: security
+      cwe: CWE-89
+    mode: taint
+    pattern-sources:
+      - pattern: $REQUEST.json(...)
+      - pattern: $REQUEST.text(...)
+      - pattern: $REQUEST.formData(...)
+      - pattern: $REQUEST.url
+      - pattern: $REQUEST.headers.get(...)
+    pattern-sinks:
+      - patterns:
+          - pattern: $CLIENT.query($SQL, ...)
+          - focus-metavariable: $SQL
