@@ -49,7 +49,6 @@ jobs:
       AZURE_RESOURCE_GROUP: ${{ vars.AZURE_RESOURCE_GROUP }}
       AZURE_CONTAINER_APP_NAME: ${{ vars.AZURE_CONTAINER_APP_NAME }}
       AZURE_ACR_NAME: ${{ vars.AZURE_ACR_NAME }}
-      RELEASE_EVIDENCE_DIR: ${{ runner.temp }}/blue-green-evidence
       QUALITY_RUN_ID: ${{ inputs.quality_run_id }}
       REGRESSION_RUN_ID: ${{ inputs.regression_run_id }}
       FEATURED_COURSE_ID: ${{ inputs.featured_course_id }}

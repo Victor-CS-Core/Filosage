@@ -15,6 +15,7 @@ const discoverSpecs = (directory: string): string[] => readdirSync(directory, { 
   });
 
 const azureBicep = read("infra/azure/main.bicep");
+const candidateVerificationWorkflow = read(".github/workflows/azure-candidate-verification.yml");
 const stagingWorkflow = read(".github/workflows/azure-staging.yml");
 const promotionWorkflow = read(".github/workflows/azure-promote-staging.yml");
 const releaseDeployment = read("scripts/azure-blue-green.mjs");
@@ -128,6 +129,22 @@ test("staging explicitly preserves the closed-billing release boundary", () => {
   expect(releaseDeployment).toContain('check("check-release-safety.mjs", [origin], options)');
   expect(releaseDeployment.indexOf("smoke(candidate);")).toBeLessThan(releaseDeployment.indexOf("const traffic = candidateTraffic(before, revisionName)"));
   expect(stagingWorkflow).toContain("node scripts/azure-blue-green.mjs stage");
+});
+
+test("Azure release workflows resolve runner paths only after a runner starts", () => {
+  const workflows = [
+    [".github/workflows/azure-candidate-verification.yml", candidateVerificationWorkflow],
+    [".github/workflows/azure-staging.yml", stagingWorkflow],
+    [".github/workflows/azure-promote-staging.yml", promotionWorkflow],
+  ] as const;
+
+  for (const [path, workflow] of workflows) {
+    expect(
+      workflow,
+      `${path} cannot use the runner context in job-level environment variables`,
+    ).not.toMatch(/^ {6}[A-Z0-9_]+:\s*\$\{\{\s*runner\./m);
+  }
+  expect(releaseDeployment).toContain('process.env.RUNNER_TEMP || "/tmp"');
 });
 
 test("failed promotion restores only the reviewed compatible predecessor from known traffic", () => {
