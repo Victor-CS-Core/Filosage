@@ -13,9 +13,12 @@ rules:
               function $COMPONENT(..., $PROPS, ...) { ... }
           - focus-metavariable: $PROPS
       - patterns:
-          - pattern-inside: |
-              function $COMPONENT({ ..., $HTML, ... }) { ... }
-          - focus-metavariable: $HTML
+          - pattern-either:
+              - pattern-inside: |
+                  function $COMPONENT({ ..., $KEY: $HTML, ... }) { ... }
+              - pattern-inside: |
+                  function $COMPONENT({ ..., $KEY: $HTML, ... }: $TYPE) { ... }
+          - pattern: $HTML
     pattern-sinks:
       - patterns:
           - pattern: '<$ELEMENT ... dangerouslySetInnerHTML={{__html: $HTML}} ... />'

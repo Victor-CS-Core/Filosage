@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { summarizeFixtureTests, summarizeScan } from "../../scripts/semgrep-report.mjs";
+import { fixtureDiagnostics, summarizeFixtureTests, summarizeScan } from "../../scripts/semgrep-report.mjs";
 
 const contract = {
   version: "1.177.0", ruleIds: ["filosage-request-sql-injection"],
@@ -22,6 +22,13 @@ test("fixture success requires every expected detector to run", () => {
     ["5/6: 1 unit tests did not pass\n", 1], ["6/6: ✓ All tests passed\n", 2]]) {
     assert.throws(() => summarizeFixtureTests(output, exit, 6), /fixture/);
   }
+});
+
+test("fixture-only diagnostics are bounded plain text, never terminal controls", () => {
+  const diagnostic = fixtureDiagnostics(`synthetic fixture\n${String.fromCharCode(0, 27)}\t${"x".repeat(20_000)}`);
+  assert.equal(diagnostic.length, 8_192);
+  assert.ok(diagnostic.startsWith("synthetic fixture\n\t"));
+  assert.ok([...diagnostic].every((character) => character.charCodeAt(0) >= 32 || "\n\t".includes(character)));
 });
 
 test("a valid clean scan must cover every configured source target", () => {
