@@ -1,0 +1,117 @@
+{
+  "sourceCommit": "bf3ec9a5599a754ea9796685b8b5e7fee615c2dd",
+  "test": "tests/account-storage-isolation.spec.ts:174",
+  "testGitBlob": "b3862e102810444303a239e8c450d6a6935d3ad3",
+  "conditions": "One unchanged Chromium test on isolated Windows development webpack harness after HTTP prewarming the home, lesson, and course page routes. All API account/course/learning responses use the existing synthetic fixture. Trace capture enabled. Whole-test timeout remains30000ms; no force clicks, skips, or source/test changes.",
+  "prewarm": [
+    {
+      "path": "/",
+      "status": 200,
+      "elapsedMs": 11457
+    },
+    {
+      "path": "/course/Account%20isolation/lesson/0-0?id=account-isolation-course",
+      "status": 200,
+      "elapsedMs": 9997
+    },
+    {
+      "path": "/course/Account%20isolation?id=account-isolation-course",
+      "status": 200,
+      "elapsedMs": 2102
+    }
+  ],
+  "outcome": {
+    "passed": false,
+    "timeoutMs": 30000,
+    "failedAt": "Final return to A: Study tools click at helper line81, called from line196",
+    "finalControlAvailableBudgetMs": 454,
+    "finalTransferClickReached": false,
+    "earlierTransferClickDurationsMs": [
+      179,
+      440
+    ],
+    "navigationAndSignOutTotalMs": 24032,
+    "guestAndBPrivacyAssertionsReached": true,
+    "noAPayloadWrittenByBAssertionAtLine193Passed": true,
+    "finalOfflineDraftRestorationUnverified": true
+  },
+  "originalRootFailure": {
+    "run": "release-desktop-recovery-20260911-b9",
+    "failedAt": "Final Transfer click, line201",
+    "cause": "Whole-test30000ms timeout during a few element-stability retries"
+  },
+  "interpretation": "Both failures exhaust the whole scenario budget at different final controls. Earlier Transfer clicks complete normally. Navigation/sign-out time is measured; the original Transfer control defect is not reproduced. Prewarming alone did not make this trace-enabled local run pass.",
+  "limits": "This remains a failed local verification attempt. Trace capture can add overhead. No claim of a clean full scenario, production performance, or resolution of the original full matrix. Original privacy assertions and30s budget remain unchanged.",
+  "actionTimings": [
+    {
+      "action": "Navigate to \"/course/Account%20isolation/lesson/0-0?id=account-isolation-course\"",
+      "startMs": 2323,
+      "durationMs": 4543,
+      "error": false,
+      "sourceLine": 176
+    },
+    {
+      "action": "Click getByRole('tab', { name: /Transfer/ })",
+      "startMs": 8050,
+      "durationMs": 179,
+      "error": false,
+      "sourceLine": 93
+    },
+    {
+      "action": "Click getByRole('option', { name: /Sign out End this session/ })",
+      "startMs": 10512,
+      "durationMs": 5051,
+      "error": false,
+      "sourceLine": 87
+    },
+    {
+      "action": "Navigate to \"/course/Account%20isolation/lesson/0-0?id=account-isolation-course\"",
+      "startMs": 15598,
+      "durationMs": 5869,
+      "error": false,
+      "sourceLine": 186
+    },
+    {
+      "action": "Reload",
+      "startMs": 21626,
+      "durationMs": 3000,
+      "error": false,
+      "sourceLine": 189
+    },
+    {
+      "action": "Click getByRole('tab', { name: /Transfer/ })",
+      "startMs": 26102,
+      "durationMs": 440,
+      "error": false,
+      "sourceLine": 103
+    },
+    {
+      "action": "Navigate to \"/course/Account%20isolation?id=account-isolation-course\"",
+      "startMs": 26581,
+      "durationMs": 3005,
+      "error": false,
+      "sourceLine": 191
+    },
+    {
+      "action": "Expect \"toEqual\"",
+      "startMs": 30035,
+      "durationMs": 1,
+      "error": false,
+      "sourceLine": 193
+    },
+    {
+      "action": "Navigate to \"/course/Account%20isolation/lesson/0-0?id=account-isolation-course\"",
+      "startMs": 30039,
+      "durationMs": 2564,
+      "error": false,
+      "sourceLine": 195
+    },
+    {
+      "action": "Click getByRole('button', { name: 'Study tools', exact: true })",
+      "startMs": 32605,
+      "durationMs": 454,
+      "error": true,
+      "sourceLine": 81
+    }
+  ]
+}
