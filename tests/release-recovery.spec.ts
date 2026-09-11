@@ -17,8 +17,12 @@ test("uses full document navigation across release-sensitive creation boundaries
   expect(globalError).not.toContain('from "next/link"');
   expect(createCourse).toContain("window.location.assign(`/course/");
   expect(createCourse).not.toContain("router.push(`/course/");
-  expect(courseMap).toContain("window.location.assign(`/course/");
-  expect(courseMap).not.toContain("router.push(`/course/${encodeURIComponent(topic)}/lesson/");
+  const openLesson = courseMap.match(/const openLesson = useCallback\(([\s\S]*?)\n\s*}, \[/)?.[1];
+  expect(openLesson, "the course map must expose its guarded lesson-entry callback").toBeDefined();
+  expect(openLesson).toContain("const lessonPath = `/course/${encodeURIComponent(topic)}/lesson/${lessonId}?id=${encodeURIComponent(courseId)}`;");
+  expect(openLesson).toMatch(/if \(!user\) \{\s*openAccountEntry\(undefined, lessonPath\);\s*return;\s*}/);
+  expect(openLesson).toMatch(/if \(!isCurrentLearnerSession\(session\) \|\| activeCourseViewRef\.current !== requestViewKey\) return;\s*window\.location\.assign\(lessonPath\);/);
+  expect(openLesson).not.toMatch(/router\.(?:push|replace)\(/);
   expect(lessonView).toContain('<a className="lesson-nav-link lesson-nav-next"');
   expect(lessonView).toContain('<a className="lesson-nav-link lesson-nav-previous"');
 });
