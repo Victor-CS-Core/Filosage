@@ -1,6 +1,6 @@
-# GitHub Actions usage and proposed controls
+# GitHub Actions usage and applied controls
 
-Status: explicitly approved by Victor; remote application in progress. Full regression and CodeQL are temporarily disabled until their manual-only definitions reach main. No new workflow has been manually dispatched. This audit supplements the [release handoff](../AGENT_PROGRESS.md).
+Status: approved controls applied through PR #23 on main ae1abe3. All four workflow blobs match the reviewed patch. Full regression and CodeQL were re-enabled for manual dispatch only; automatic fast checks remain. No workflow was manually dispatched. This audit supplements the [release handoff](../AGENT_PROGRESS.md).
 
 ## What is consuming time
 
@@ -36,7 +36,7 @@ The retained August history also contains 78 manually dispatched isolated-QA dep
 
 An older `codex/opengrep-security-20260911` branch has one failed static-security run, separate from the two new offline candidate runs. Its existence is recorded to avoid treating old workflow names as additional active triggers on the visitor branch. Only one replacement should ultimately be integrated after evidence review.
 
-## Concrete proposal for approval
+## Approved controls
 
 1. Make full regression **manual-only**, retaining every test lane, its timeout, source-SHA verification and evidence artifact. Run it on a frozen release candidate. Azure's existing verifier must continue to require successful quality and full-regression evidence for that exact SHA; manual runs satisfy the same existing contract.
 2. Make CodeQL **manual-only** until the private repository has its required code-scanning capability. Retain its pinned actions and restricted permissions. Do not remove dependency, secret or offline scan checks, and do not declare the replacement verified prematurely.
@@ -44,9 +44,9 @@ An older `codex/opengrep-security-20260911` branch has one failed static-securit
 4. Remove `npm ci` from the separate support-wiki impact check because the checker uses Node built-ins. Add a five-minute cap and cancel superseded runs on the same ref.
 5. Commit locally as often as needed; batch remote checkpoints after local checks. Avoid full-matrix reruns until the candidate is ready. Existing weekly npm minor/patch grouping is already configured; no dependency-security updates are disabled.
 
-This would remove the automatic triggers responsible for 1,170 of the 1,399 estimated minutes in this snapshot (about 84%). That is the historical share targeted, not a guaranteed future saving: deliberate full-release checks would still consume time. Existing fast checks remain necessary and still run automatically.
+These controls remove the automatic triggers responsible for 1,170 of the 1,399 estimated minutes in this snapshot (about 84%). That is the historical share targeted, not a guaranteed future saving: deliberate full-release checks would still consume time. Existing fast checks remain necessary and still run automatically.
 
-## Current action and approval state
+## Approval and application history
 
 - Canceled [full regression 34639584955](https://github.com/Victor-CS-Core/Filosage/actions/runs/34639584955); GitHub confirms `completed / cancelled` at 19:52:04 UTC. A subsequent API read found no in-progress run.
 - Paused all further agent pushes, workflow dispatches and reruns during this investigation.
@@ -55,3 +55,5 @@ This would remove the automatic triggers responsible for 1,170 of the 1,399 esti
 - No repository visibility, billing plan, credentials, Azure deployment or production data changed. Existing public-release blockers remain in the handoff.
 
 - 2026-09-11: Victor explicitly approved applying the tested CI controls and the described temporary pause. Both workflow IDs (340366410 full regression, 351364370 CodeQL) read back disabled_manually. The earlier rejection is resolved by this new authorization. A main-based CI-only patch is prepared as c122924; the unfinished application PR is not part of that integration. Both workflows will be re-enabled after their manual-only definitions are verified on main.
+
+- 2026-09-11 completion: PR #23 merged reviewed head d2cd615 into main ae1abe3 after all quality, PostgreSQL, wiki and browser-smoke jobs passed (quality 34651321397; wiki 34651321305). The first attempt exposed a pre-existing generated-graph guard failure; the previously tested cleanup and filename-only regression corrected it without exclusions or application changes. Four workflow blobs on remote main match the reviewed commit exactly. Both full regression and CodeQL now read back active with workflow_dispatch as their sole trigger. The temporary pause is over. Read-back evidence: ../research/artifacts/visitor-release-2026-09-11/ci-controls-applied.json. No manual full run or deployment was started.
