@@ -376,7 +376,7 @@ test("a reusable Playwright build cache rejects links while exact cleanup remove
   expect(existsSync(target)).toBe(false);
 });
 
-test("the required quality gate runs a bounded Chromium smoke suite while exhaustive coverage is scheduled separately", () => {
+test("the required quality gate runs a bounded Chromium smoke suite while exhaustive coverage is requested separately", () => {
   expect(packageJson.scripts["test:browser:smoke"]).toBe(
     "node --experimental-strip-types scripts/run-playwright-smoke.mjs",
   );
@@ -419,11 +419,12 @@ test("the required quality gate runs a bounded Chromium smoke suite while exhaus
   expect(qualityWorkflow).toContain("run: npm run test:browser:smoke");
   expect(qualityWorkflow).not.toContain("npm run test:api && npm run test:browser\n");
   expect(existsSync(fullRegressionWorkflowPath)).toBe(true);
-  expect(fullRegressionWorkflow).toContain("schedule:");
+  expect(fullRegressionWorkflow).not.toContain("schedule:");
+  expect(fullRegressionWorkflow).not.toContain("pull_request:");
   expect(fullRegressionWorkflow).toContain("workflow_dispatch:");
   expect(fullRegressionWorkflow).toContain("npm run test:contracts -- tests/tier-consistency-contracts.spec.ts");
   expect(fullRegressionWorkflow).toContain("run: npm run test:api --");
-  expect(fullRegressionWorkflow).toContain("run: npm run test:browser\n");
+  expect(fullRegressionWorkflow).toMatch(/^\s+run: npm run test:browser\r?$/m);
   expect(fullRegressionWorkflow).toContain("npm run test:command-center:v2");
   expect(fullRegressionWorkflow).toContain("npm run test:command-center:v2:ui");
   expect(fullRegressionWorkflow).toContain("npm run test:shared-evidence:ui");
@@ -627,7 +628,35 @@ test("pull requests and main are protected by an automatic engineering quality w
   expect(fullRegressionWorkflow).toContain("npm run test:command-center:v2:ui");
   expect(fullRegressionWorkflow).toContain("npm run test:shared-evidence:ui");
   expect(fullRegressionWorkflow).toContain("run: npm run test:api --");
-  expect(fullRegressionWorkflow).toContain("run: npm run test:browser\n");
+  expect(fullRegressionWorkflow).toMatch(/^\s+run: npm run test:browser\r?$/m);
+});
+
+test("CI cost controls preserve automatic quality and exact manual release proof", () => {
+  const fullTriggers = fullRegressionWorkflow.match(/^on:\s*\n([\s\S]*?)^permissions:/m)?.[1].trim();
+  expect(fullTriggers).toBe("workflow_dispatch:");
+  expect(fullRegressionWorkflow).toContain("timeout-minutes: 60");
+  for (const command of ["test:contracts -- tests/tier-consistency-contracts.spec.ts", "test:command-center:v2 --",
+    "test:command-center:v2:ui --", "test:shared-evidence:ui --", "test:api --", "test:browser\n"]) {
+    expect(fullRegressionWorkflow.replaceAll("\r\n", "\n")).toContain(`run: npm run ${command}`);
+  }
+  expect(fullRegressionWorkflow).toContain('test "$actual_sha" = "$EXPECTED_RELEASE_SHA"');
+  expect(fullRegressionWorkflow).toContain("name: full-regression-evidence");
+  expect(read("scripts/azure-blue-green.mjs")).toContain('requireRun(env.QUALITY_RUN_ID, ".github/workflows/quality-gate.yml")');
+  expect(read("scripts/azure-blue-green.mjs")).toContain('requireRun(env.REGRESSION_RUN_ID, ".github/workflows/full-regression.yml")');
+
+  const jobs = qualityWorkflow.replaceAll("\r\n", "\n").split("\njobs:\n")[1] ?? "";
+  const timeouts = Object.fromEntries([...jobs.matchAll(/^ {2}([\w-]+):\n((?: {4}[^\n]*\n|\n)+)/gm)]
+    .map(([, job, body]) => [job, Number(body.match(/^ {4}timeout-minutes: (\d+)$/m)?.[1])]));
+  expect(timeouts).toEqual({ "static-and-release-contracts": 15, "browser-smoke": 20, "postgres-transactions": 10 });
+  expect(qualityWorkflow).toContain("cancel-in-progress: true");
+
+  const wiki = read(".github/workflows/support-wiki.yml");
+  expect(wiki).not.toContain("npm ci");
+  expect(wiki).toContain("group: support-wiki-${{ github.ref }}");
+  expect(wiki).toContain("cancel-in-progress: true");
+  expect(wiki).toContain("timeout-minutes: 5");
+  expect(wiki).toContain('npm run check:support-wiki -- --base "${{ github.event.pull_request.base.sha }}"');
+  expect(wiki).toContain("npm run check:support-wiki -- --stale-after 180");
 });
 
 test("release automation pins third-party actions and includes dependency and code security gates", () => {
@@ -651,6 +680,7 @@ test("release automation pins third-party actions and includes dependency and co
 
   expect(existsSync(".github/workflows/codeql.yml")).toBe(true);
   const codeql = existsSync(".github/workflows/codeql.yml") ? read(".github/workflows/codeql.yml") : "";
+  expect(codeql.match(/^on:\s*\n([\s\S]*?)^permissions:/m)?.[1].trim()).toBe("workflow_dispatch:");
   expect(codeql).toContain("security-events: write");
   expect(codeql).toContain("github/codeql-action/init@");
   expect(codeql).toContain("github/codeql-action/analyze@");

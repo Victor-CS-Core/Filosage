@@ -1,9 +1,7 @@
 name: Full browser regression
 
+# Run once on the frozen release ref; staging requires its exact-SHA success.
 on:
-  pull_request:
-  schedule:
-    - cron: "17 6 * * *"
   workflow_dispatch:
 
 permissions:
