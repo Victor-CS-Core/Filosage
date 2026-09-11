@@ -43,7 +43,12 @@ for (const owner of [false, true]) for (const v2 of [false, true]) {
         const data = { authorId: uid, content: "Committed result" };
         return { id, path, course: stored, guard, reserve, reservation, data, save: () => owned(() => f.store.saveLesson(id, "0-0", data, guard)) };
       }
-      async function blockedSave(s: Awaited<ReturnType<typeof setup>>, change: () => Promise<unknown>, pattern: RegExp) {
+      async function blockedSave(
+        s: Awaited<ReturnType<typeof setup>>,
+        change: () => Promise<unknown>,
+        pattern: RegExp,
+        expectReconciliation = false,
+      ) {
         await f.monitor.query("BEGIN");
         await f.monitor.query("SELECT pg_advisory_xact_lock(hashtextextended($1, 0))", [s.path]);
         const pid = await f.monitor.query<{ pid: number }>("SELECT pg_backend_pid() AS pid");
@@ -54,7 +59,15 @@ for (const owner of [false, true]) for (const v2 of [false, true]) {
         await f.monitor.query("COMMIT");
         await rejection;
         assert.equal((await f.store.getStoredDocument(s.reservation.requestPath))?.status, "reserved");
-        await owned(() => finalizeAiUsage(s.reservation, { usageSamples: s.guard.usage.usageSamples, failed: true }));
+        const finalization = owned(() => finalizeAiUsage(s.reservation, { usageSamples: s.guard.usage.usageSamples, failed: true }));
+        if (expectReconciliation) {
+          await assert.rejects(
+            finalization,
+            (error: unknown) => (error as { code?: string }).code === "AI_OUTCOME_RECONCILIATION_REQUIRED",
+          );
+        } else {
+          await finalization;
+        }
       }
       for (const race of ["publish", "ABA", "edit", "attempt", "expired", "pause"] as const) {
         const s = await setup();
@@ -64,7 +77,7 @@ for (const owner of [false, true]) for (const v2 of [false, true]) {
           else if (race === "attempt" || race === "expired") await f.monitor.query("UPDATE filosage_documents SET data = data || $2::jsonb WHERE path = $1", [s.reservation.requestPath, JSON.stringify(race === "attempt" ? { attemptToken: "newer-owner" } : { leaseUntil: "2000-01-01T00:00:00Z" })]);
           else if (race === "pause") process.env.COURSE_PIPELINE_V2 = "false";
           else await f.monitor.query("UPDATE filosage_documents SET data = data || $2::jsonb WHERE path = $1", [s.path, JSON.stringify({ isPublic: race === "publish", lessonWriteEpoch: randomUUID() })]);
-        }, /publish|publication|another request|attempt|expired|paused/i);
+        }, /publish|publication|another request|attempt|expired|paused/i, race === "attempt");
         process.env.COURSE_PIPELINE_V2 = "true";
         assert.equal((await f.store.getLesson(s.id, "0-0"))?.content ?? null, race === "edit" ? "Winning edit" : null);
       }

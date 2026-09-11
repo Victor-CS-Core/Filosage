@@ -68,7 +68,7 @@ test("independent lesson reservations share budgets without serializing their re
   assert.notEqual(first.lockKey, second.lockKey);
   await assert.rejects(f.owned(() => reserveAiUsage(f.actor, "lesson_generation", `${f.id}-duplicate`, `${f.id}:0-1:generate`, { resourceKey: `${f.id}:0-1` })), /in progress/);
   await f.owned(() => store.saveLesson(f.id, "0-0", f.data, { ...f.guard, reservation: first }));
-  await f.owned(() => finalizeAiUsage(first, { usageSamples: f.guard.usage.usageSamples, failed: true }));
+  await f.owned(() => finalizeAiUsage(first, { usageSamples: f.guard.usage.usageSamples, failed: false }));
   await f.owned(() => store.saveLesson(f.id, "0-1", f.data, { ...f.guard, reservation: second }));
   assert.equal((await store.getStoredDocument(first.periodPath))?.requestCount, 2);
   assert.equal((await store.getStoredDocument(first.userBudgetPath))?.reservedCostMicros, 0);
