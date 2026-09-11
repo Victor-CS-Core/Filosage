@@ -56,18 +56,21 @@ export default function CourseLibrary({ featured = false }: { featured?: boolean
   const ownedReady = ownedSource.status === "loaded" || ownedSource.status === "empty";
   const filterDrawer = useAppDrawer("library-filters");
 
-  const load = useCallback(async () => {
+  const load = useCallback(async (signal?: AbortSignal) => {
+    if (signal?.aborted) return;
     setLoading(true);
     setError(null);
     try {
-      const response = await fetch("/api/courses?scope=public", { cache: "no-store" });
+      const response = await fetch("/api/courses?scope=public", { signal });
       if (!response.ok) throw new Error("The public library could not be reached.");
       const data = await response.json() as { courses: Course[] };
+      if (signal?.aborted) return;
+      if (!Array.isArray(data.courses)) throw new Error("The public library could not be read.");
       setCourses(data.courses);
     } catch (loadError) {
-      setError(loadError instanceof Error ? loadError.message : "The public library could not be reached.");
+      if (!signal?.aborted) setError(loadError instanceof Error ? loadError.message : "The public library could not be reached.");
     } finally {
-      setLoading(false);
+      if (!signal?.aborted) setLoading(false);
     }
   }, []);
 
@@ -88,7 +91,9 @@ export default function CourseLibrary({ featured = false }: { featured?: boolean
   }, [featured]);
 
   useEffect(() => {
-    void Promise.resolve().then(load);
+    const controller = new AbortController();
+    void Promise.resolve().then(() => load(controller.signal));
+    return () => controller.abort();
   }, [load]);
 
   const levels = useMemo(() => ["All levels", ...Array.from(new Set(courses.map((course) => course.level).filter(Boolean)))], [courses]);
@@ -258,7 +263,7 @@ export default function CourseLibrary({ featured = false }: { featured?: boolean
           {[0, 1, 2, 3].map((item) => <div className="course-card-skeleton" key={item} />)}
         </div>
       ) : error ? (
-        <div className="state-panel"><RefreshCw size={22} /><div><h3>Library unavailable</h3><p>{error}</p></div><button className="button button-secondary" onClick={load}>Try again</button></div>
+        <div className="state-panel"><RefreshCw size={22} /><div><h3>Library unavailable</h3><p>{error}</p></div><button className="button button-secondary" onClick={() => void load()}>Try again</button></div>
       ) : visible.length || drafts.length ? (
         <>
         {!featured && drafts.length > 0 && (

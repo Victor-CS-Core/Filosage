@@ -116,7 +116,7 @@ export const browserSuitesByProject: Record<BrowserProjectName, readonly string[
 
 export const browserSuiteEstimatedTestLoad: Record<BrowserProjectName, Record<string, number>> = {
   chromium: {
-    "tests/visitor-release.spec.ts": 5,
+    "tests/visitor-release.spec.ts": 8,
     "tests/account-storage-isolation.spec.ts": 5,
     "tests/account-onboarding.spec.ts": 7,
     "tests/admin-research-layout.spec.ts": 2,
@@ -146,7 +146,7 @@ export const browserSuiteEstimatedTestLoad: Record<BrowserProjectName, Record<st
     "tests/tier-consistency-ui.spec.ts": 1,
   },
   "mobile-chromium": {
-    "tests/visitor-release.spec.ts": 4,
+    "tests/visitor-release.spec.ts": 7,
     "tests/analytics-consent.spec.ts": 1,
     "tests/app-shell.spec.ts": 13,
     "tests/auth-accessibility.spec.ts": 7,
@@ -155,7 +155,7 @@ export const browserSuiteEstimatedTestLoad: Record<BrowserProjectName, Record<st
     "tests/pricing-mobile.spec.ts": 1,
   },
   "mobile-webkit": {
-    "tests/visitor-release.spec.ts": 4,
+    "tests/visitor-release.spec.ts": 7,
     "tests/analytics-consent.spec.ts": 3,
     "tests/app-shell.spec.ts": 15,
     "tests/auth-accessibility.spec.ts": 7,

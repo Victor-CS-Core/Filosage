@@ -16,12 +16,12 @@
   "features": [
     {
       "feature": "Today learning dashboard",
-      "sources": ["src/app/page.tsx", "src/components/CourseDeck.tsx"],
+      "sources": ["src/app/page.tsx", "src/components/LearnerHome.tsx", "src/components/CourseDeck.tsx"],
       "articles": ["getting-started", "navigate-filosage", "accessibility"]
     },
     {
       "feature": "Application navigation and Command Center",
-      "sources": ["src/components/AppShell.tsx", "src/components/CommandPalette.tsx", "src/components/AppDrawer.tsx", "src/lib/search.ts"],
+      "sources": ["src/components/AppShell.tsx", "src/components/marketing/MarketingNavigation.tsx", "src/components/CommandPalette.tsx", "src/components/AppDrawer.tsx", "src/lib/search.ts"],
       "articles": ["getting-started", "navigate-filosage"]
     },
     {

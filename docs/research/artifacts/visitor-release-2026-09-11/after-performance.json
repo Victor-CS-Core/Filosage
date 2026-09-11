@@ -2,27 +2,27 @@
   "conditions": "Optimized local build, fresh Chromium context, 390x844, reduced motion, empty catalog, session response delayed 750ms; three samples. Not field CWV.",
   "samples": [
     {
-      "ttfbMs": 323,
-      "fcpMs": 556,
-      "observedReadyMs": 945,
+      "ttfbMs": 19,
+      "fcpMs": 164,
+      "observedReadyMs": 372,
       "scriptCount": 14,
       "scriptTransferBytes": 203818,
       "scriptDecodedBytes": 654602,
       "pageHeight": 4087
     },
     {
-      "ttfbMs": 39,
-      "fcpMs": 244,
-      "observedReadyMs": 683,
+      "ttfbMs": 12,
+      "fcpMs": 148,
+      "observedReadyMs": 372,
       "scriptCount": 14,
       "scriptTransferBytes": 203818,
       "scriptDecodedBytes": 654602,
       "pageHeight": 3893
     },
     {
-      "ttfbMs": 15,
-      "fcpMs": 180,
-      "observedReadyMs": 559,
+      "ttfbMs": 9,
+      "fcpMs": 132,
+      "observedReadyMs": 359,
       "scriptCount": 14,
       "scriptTransferBytes": 203818,
       "scriptDecodedBytes": 654602,

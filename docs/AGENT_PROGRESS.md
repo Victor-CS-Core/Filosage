@@ -1,6 +1,6 @@
 # Filosage audit and visitor experience handoff
 
-Last updated: 2026-09-11. Owner: Codex coordinator. Status: active, initial audit.
+Last updated: 2026-09-11. Owner: Codex coordinator. Status: active, implementation and release verification.
 Branch: `codex/visitor-experience-20260911`. Starting commit: `96559246b89b81f5b3cebcc36147932400c8cc4c`.
 
 ## Read first
@@ -15,8 +15,8 @@ Complete one baseline audit and fix the recorded in-scope findings, including re
 
 ## Outcome checklist
 
-- [ ] A. Inventory and baseline the main app and public visitor journey; record reproducible findings and severity.
-- [ ] B. Inspect current brand/assets and rendered landing page; design and implement a substantially clearer public landing page.
+- [x] A. Inventory and baseline the main app and public visitor journey; record reproducible findings and severity.
+- [x] B. Inspect current brand/assets and rendered landing page; design and implement a substantially clearer public landing page.
 - [ ] C. Verify exploration, course selection, authentication, cancellation/error recovery, return destination, and first meaningful use; fix broken or unnecessarily long transitions.
 - Access invariant (Victor reiterated): anonymous visitors may inspect public catalog/course outlines only. Lesson bodies and actual course participation require a registered, signed-in account and the existing verification/authorization checks. Test UI and server enforcement; never introduce anonymous lesson access to shorten the journey.
 - [ ] D. Diagnose Azure sign-up/sign-in branding and selected/system light/dark continuity; implement supported behavior and verify the hosted boundary.
@@ -33,19 +33,21 @@ Complete one baseline audit and fix the recorded in-scope findings, including re
 - Authentication agent: isolated worktree; trace Azure auth/theme boundary and recommend/prove a supported fix before changing shared auth contracts.
 - Billing agent: isolated worktree; trace Stripe lifecycle, entitlement behavior, existing tests and release readiness; implement and test discovered gaps.
 - Coordinator also owns performance measurement; delegate focused follow-up once an agent slot becomes available.
-- Next: finish source tracing and run an isolated local baseline; inspect public deployed auth read-only if available. Reuse existing local fixtures and avoid production accounts or writes.
+- Active review: https://github.com/Victor-CS-Core/Filosage/pull/22 (draft). CI provides exact integrated-SHA PostgreSQL evidence; keep draft until remaining code and release review are ready.
+- Next: push the integrated recovery/wiki checkpoint; resolve exact-SHA CI findings and run the new database deadline cases. Finish the security-scanner replacement proof. Prepare the supported Azure identity/theme change and inactive deployment for review; hosted Stripe and tax-readiness gates remain open.
 
 ## Findings register
 
 | ID | Finding | Evidence | State |
 | --- | --- | --- | --- |
 | UX-01 | Landing repeats six teaching stages, three illustrative fragments and an evidence dossier before the FAQ; featured anchor has no target on loading/empty/error | Local browser baseline and MarketingHero/PublicCourseProof source | Implemented shorter composition; working library action, retry and responsive/theme checks pass |
-| AUTH-01 | Hosted CSS follows OS theme, not explicit app selection; app also incorrectly saves system-derived theme as explicit and does not listen for OS changes | Agent traced deployed customer-tenant stylesheet and ThemeProvider | App fix in progress; supported hosted parity solution under investigation |
+| AUTH-01 | Hosted CSS follows OS theme, not explicit app selection; app also incorrectly saves system-derived theme as explicit and does not listen for OS changes | Agent traced deployed customer-tenant stylesheet and ThemeProvider | App preference fix integrated and locally verified; hosted parity requires an identity-compatible configuration |
 | PERF-01 | AppShell hides all public content while session request resolves; static public content is absent from initial response | AppShell.tsx authLoading branch; live session-restoring screen observed | Public-only opt-in rendering and learner-code split implemented; private loading gates retained |
 | BILL-01 | Paid access can survive paid-through expiry when terminal webhook is delayed | Agent reproduced with failing account-resolution regression test | Fixed and integrated at eb3871d; live webhook delivery remains unverified |
 | BILL-02 | Archived/legacy prices can prevent cancellation; scheduled cancellation is not shown clearly in account UI | Agent reproduced cancellation and summary tests | Fixed and integrated at eb3871d; future cancellation boundaries and old-client compatibility reviewed |
 | RELEASE-01 | Live Stripe portal subscription changes disabled; deployed billing flag false; tax-ready/portal config IDs absent from current container template | Read-only Stripe portal and Azure template inspection | Configuration blocker; no live settings changed |
 | RELEASE-02 | Live Stripe Tax API returns no active registrations although user reports tax information approved | Read-only live GetTaxRegistrations, empty and has_more=false | Needs verified tax-readiness evidence; no tax settings changed |
+| RELEASE-03 | CodeQL completes analysis but cannot upload results because code scanning is not enabled on this private repository | PR #22 CodeQL run 34635427937; GitHub eligibility docs | Repository capability/configuration blocker; not a vulnerability finding |
 
 ## Verification and risks
 
@@ -71,6 +73,14 @@ Complete one baseline audit and fix the recorded in-scope findings, including re
 
 ## Commit / push / deployment state
 
+- 2026-09-11 peer review: Performance fixture omitted required `recentAuthentication`, making earlier latency samples an auth-error path. Corrected to the exact guest DTO and rerunning the controlled before/after pair; do not use the earlier 1,333/683ms figures as healthy-session evidence. Transfer-byte counts remain unchanged.
+- 2026-09-11 peer review correction: The proposed direct A-to-B home leak was disproved. AuthProvider already keys the whole subtree by sessionRevision. The new held-B-response regression passes without a production change; integrated as `5755258`. This is verified protection, not an open vulnerability.
+- 2026-09-11 DB candidate milestone: Main pool lock/statement/client deadlines and rollback/discard cleanup integrated as `2f2c04d` after peer review. Five guarded real-PG tests await actual disposable PG execution; local TypeScript, focused lint, fixture safety 3/3 and whitespace pass. The next PR push will supply PostgreSQL execution; no local runtime reproduction claimed.
+
+- 2026-09-11 checkpoint: `ba0c86d` landing/performance commit pushed with prior auth/billing integrations; draft PR #22 opened. Disposable PostgreSQL job passed on this exact SHA. Support-wiki impact validation failed because the changed navigation, auth and billing guidance needs article updates; coordinator is correcting the articles rather than bypassing the impact gate.
+- 2026-09-11 checkpoint: Guest selected-lesson return fix integrated as `dd190a9` from pushed agent `5c7ecf2`; six focused browser checks pass including unchanged consent, canonical identity, safe return path and zero guest lesson requests.
+- 2026-09-11 hosted read-only: Four active live Stripe prices match repository USD amounts and intervals (Plus $9.99/month or $79.92/year; Pro $14.99/month or $119.88/year). Production webhook `we_1TwwFXRANh4MnfmajnqAdEA3` is enabled at the correct endpoint with the expected 15 events. This confirms configuration only, not delivery or a completed lifecycle.
+
 - 2026-09-11 milestone: Integrated pushed auth and billing checkpoints as `6217e5a` and `eb3871d`. The shorter landing page preserves public outlines and signed-in course participation. Learner-only home code and conditional account dialogs now load separately. Initial desktop 4/4 and mobile 8/8 visitor/motion checks pass; retry and light/dark accessibility/menu checks pass 6/6 across Chromium, mobile Chromium and mobile WebKit. Fixed a light-theme step-number contrast finding and duplicate development preview loads found by these checks.
 - 2026-09-11 milestone: Optimized integrated build and full lint pass. Controlled after samples record 203,818 transferred script bytes (38% below baseline), median 683ms observed public-ready time (49% below baseline), and shorter page height. The after artifact precedes the subsequent tiny preview abort/contrast/copy fixes; final candidate verification still required. Actual hosted signup, Stripe lifecycle and production deployment are not covered by these results.
 - 2026-09-11 finding: Anonymous production catalog and outline GETs return 200; lesson, progress and practice GETs return 401. Local anonymous protected requests return 401 and verified-but-unregistered identities return 403. Guest lesson selection is discarded by the signup return path; auth agent now owns this bounded fix. Existing full course-flow test exhausted a 5s local navigation assertion, so optimized candidate rerun remains pending.
@@ -80,7 +90,13 @@ Complete one baseline audit and fix the recorded in-scope findings, including re
 - 2026-09-11 milestone: Billing candidate passes 32 lifecycle tests, 4 pricing mobile checks, 25 existing billing browser/API checks, 51 contracts, TypeScript and focused lint. Includes negotiated optional account cancellation field for compatibility with already-open older clients. Peer review precedes its checkpoint; no live Stripe writes.
 - 2026-09-11 milestone: Optimized baseline succeeded after stale route types were regenerated. Three controlled mobile samples recorded in `docs/research/artifacts/visitor-release-2026-09-11/baseline-performance.json`; 329,318 transferred script bytes and median 1,333ms observed public-ready time under a 750ms session delay. This is local laboratory evidence, not field Core Web Vitals. Visitor regression tests reproduce both hidden public content and the missing primary exploration action.
 
-- Commit/push: `9c4e018` pushed to `origin/codex/visitor-experience-20260911`; next checkpoint pending.
+- 2026-09-11 verification: Complete course-learning-flow file passes 7/7 Chromium on the integrated visitor/entry behavior, after prewarming 16 localhost routes. Assertions/timeouts unchanged. Covers discovery, lesson practice, capstone/evidence/progress, review recovery, six rich lesson modes and seven-day retention. Local fixture authentication and mocked course responses; no hosted sign-in proof. Agent harness stopped cleanly.
+- 2026-09-11 verification: Public library slow-session regression failed before opt-in and now passes; private pages retain their loading gate and do not request private learning data while unresolved. Root visitor/search Chromium passes 9 checks with one optional performance test skipped; 12 mobile visitor checks pass across both engines. Library retry callback corrected after TypeScript caught an event/signal mismatch; both public retry paths then pass, and TypeScript passes.
+- 2026-09-11 measurement correction: The healthy exact-session DTO rerun gives median observed public-ready time 1,200ms before and 372ms after on warm optimized local servers, with 750ms delayed session and fresh mobile contexts. JSON artifacts replace the invalid earlier pair. Transferred JavaScript remains 329,318 versus 203,818 bytes. Final post-integration build measurement remains pending.
+- 2026-09-11 hosted reads: Three anonymous requests each give catalog 200 (1,443/596/459ms round trip, 199,187-byte body, public cache headers) and billing status 200 (187/178/171ms). New liveness route is 404 on the older deployed image; it must be rechecked after candidate deployment. These are single-location network observations, not load-test or field-CWV evidence.
+- 2026-09-11 security decision: Victor asked whether failing CodeQL is needed. Analysis completes but result upload is unavailable for the private repository; official GitHub docs confirm Code Security requirement. Optional choice offered; root proceeds with stated free offline Semgrep default while keeping CodeQL unchanged until replacement detection/scan proof. No license purchase, repository visibility change or source upload.
+- 2026-09-11 checkpoint preparation: Mobile public home/library retry cases pass 4/4 after the final callback correction; focused lint and TypeScript pass. Updated support articles and feature ownership map accompany the recovery changes. Four Engineering Quality contract failures are assigned to the authentication agent: outdated browser inventory limits and a retired-name scan subprocess failure. PostgreSQL passed on the earlier `ba0c86d`; the new deadline cases still need the next exact-SHA CI run.
+- Commit/push: `ba0c86d` is pushed to `origin/codex/visitor-experience-20260911`; integrated local `dd190a9`, `2f2c04d`, `5755258` and this library/wiki/performance correction form the next checkpoint.
 - Deployment: none in this goal.
 - Production verification: none in this goal.
 - Approval: Victor authorized audit, fixes, landing redesign, theme continuity work, and regular commits/pushes. No unrelated external communications or production data changes authorized.

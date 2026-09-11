@@ -6,9 +6,13 @@ export default defineSupportArticle({
   summary: "Use the Command Center, course switcher, and mobile navigation to move through Filosage.",
   category: "start",
   keywords: ["navigation", "command center", "search", "shortcut", "today", "explore", "review", "progress", "mobile", "menu", "owner handbook", "documentation"],
-  reviewedOn: "2026-08-12",
-  sources: ["src/components/AppShell.tsx", "src/components/CommandPalette.tsx", "src/components/AppDrawer.tsx", "src/app/support/owner/page.tsx", "src/content/support/owner-documentation.ts", "src/lib/search.ts"],
+  reviewedOn: "2026-09-11",
+  sources: ["src/components/AppShell.tsx", "src/components/marketing/MarketingNavigation.tsx", "src/components/CommandPalette.tsx", "src/components/AppDrawer.tsx", "src/app/support/owner/page.tsx", "src/content/support/owner-documentation.ts", "src/lib/search.ts"],
   body: `
+## Before signing in
+
+Use **Explore courses** to open the public library. The public header also links to **How it works**, **Plans**, and **Teaching standard**. On a phone, open the navigation menu for these links and **Sign in**. Press **Escape** to close the menu and return focus to its button.
+
 ## Main destinations
 
 - **Today** returns to your current learning focus.

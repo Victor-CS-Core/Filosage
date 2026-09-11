@@ -29,10 +29,7 @@ test("records an optimized visitor performance sample", async ({ browser }) => {
     await page.route("**/api/auth/session", async (route) => {
       // A repeatable slow-session scenario, not a field Core Web Vitals claim.
       await new Promise((resolve) => setTimeout(resolve, 750));
-      await route.fulfill({ json: { user: null, authentication: {
-        primaryProvider: "google", externalIdAvailable: false,
-        externalIdNewAccountsAvailable: false, legacyGoogleAvailable: true,
-      } } });
+      await route.fulfill({ json: guestSession });
     });
     await page.route("**/api/courses?scope=public", (route) => route.fulfill({ json: { courses: [] } }));
     await page.goto(process.env.VISITOR_PERF_URL ?? "http://127.0.0.1:3511");
@@ -62,7 +59,7 @@ test("records an optimized visitor performance sample", async ({ browser }) => {
   console.log(JSON.stringify({ label, samples }));
 });
 
-test("a failed course preview can be retried without leaving the page", { tag: ["@mobile", "@webkit"] }, async ({ page }) => {
+for (const path of ["/", "/library"]) test(`failed public courses at ${path} can be retried without leaving the page`, { tag: ["@mobile", "@webkit"] }, async ({ page }) => {
   await page.route("**/api/auth/session", (route) => route.fulfill({ json: guestSession }));
   let attempts = 0;
   await page.route("**/api/courses?scope=public", (route) => {
@@ -71,12 +68,12 @@ test("a failed course preview can be retried without leaving the page", { tag: [
       ? route.fulfill({ status: 503, json: { error: "Temporary failure" } })
       : route.fulfill({ json: { courses: [previewCourse] } });
   });
-  await page.goto("/");
-  await expect(page.getByRole("heading", { name: "We couldn’t load the course preview." })).toBeVisible();
-  await expect(page.locator(".marketing-hero").getByRole("link", { name: "Explore courses" })).toHaveAttribute("href", "/library");
+  await page.goto(path);
+  await expect(page.getByRole("heading", { name: path === "/" ? "We couldn’t load the course preview." : "Library unavailable" })).toBeVisible();
+  if (path === "/") await expect(page.locator(".marketing-hero").getByRole("link", { name: "Explore courses" })).toHaveAttribute("href", "/library");
   await page.getByRole("button", { name: "Try again", exact: true }).click();
   await expect(page.getByRole("heading", { name: previewCourse.topic, exact: true })).toBeVisible();
-  await expect(page.getByRole("link", { name: "View course outline" })).toHaveAttribute("href", "/course/Check%20a%20claim%20before%20you%20share%20it?id=visitor-preview");
+  if (path === "/") await expect(page.getByRole("link", { name: "View course outline" })).toHaveAttribute("href", "/course/Check%20a%20claim%20before%20you%20share%20it?id=visitor-preview");
   expect(attempts).toBe(2);
 });
 
@@ -108,7 +105,7 @@ test("visitor page stays accessible in both themes and the mobile menu returns f
   }
 });
 
-test("public home is usable while authentication is still resolving", { tag: ["@mobile", "@webkit"] }, async ({ page }) => {
+for (const path of ["/", "/library"]) test(`public page ${path} is usable while authentication is still resolving`, { tag: ["@mobile", "@webkit"] }, async ({ page }) => {
   let releaseSession!: () => void;
   const sessionHeld = new Promise<void>((resolve) => { releaseSession = resolve; });
   await page.route("**/api/auth/session", async (route) => {
@@ -116,9 +113,9 @@ test("public home is usable while authentication is still resolving", { tag: ["@
     await route.continue();
   });
   try {
-    await page.goto("/", { waitUntil: "domcontentloaded" });
-    await expect(page.locator(".marketing-hero h1")).toBeVisible({ timeout: 3000 });
-    await expect(page.locator(".marketing-hero").getByRole("link", { name: "Explore courses", exact: true })).toHaveAttribute("href", "/library");
+    await page.goto(path, { waitUntil: "domcontentloaded" });
+    await expect(page.getByRole("heading", { level: 1 })).toBeVisible({ timeout: 3000 });
+    if (path === "/") await expect(page.locator(".marketing-hero").getByRole("link", { name: "Explore courses", exact: true })).toHaveAttribute("href", "/library");
     await expect(page.locator(".marketing-sign-in")).toBeDisabled();
     await expect(page.locator(".learner-shell")).toHaveCount(0);
   } finally {
@@ -143,4 +140,27 @@ test("an empty catalog leaves a useful exploration action and no missing feature
   expect(brokenAnchors).toEqual([]);
   await primary.click();
   await expect(page).toHaveURL(/\/library$/);
+});
+
+test("a private page keeps its session loading gate", { tag: ["@mobile", "@webkit"] }, async ({ page }) => {
+  let releaseSession!: () => void;
+  const sessionHeld = new Promise<void>((resolve) => { releaseSession = resolve; });
+  await page.route("**/api/auth/session", async (route) => {
+    await sessionHeld;
+    await route.fulfill({ json: guestSession });
+  });
+  const privateRequests: string[] = [];
+  page.on("request", (request) => {
+    if (/\/api\/(progress|learner-state|mastery)(?:\?|$)/.test(request.url())) privateRequests.push(request.url());
+  });
+  try {
+    await page.goto("/progress", { waitUntil: "domcontentloaded" });
+    await expect(page.getByLabel("Restoring your Filosage session")).toBeVisible();
+    await expect(page.locator(".learner-shell")).toHaveCount(0);
+    await expect(page.locator(".public-main")).toHaveCount(0);
+    expect(privateRequests).toEqual([]);
+  } finally {
+    releaseSession();
+    await page.unrouteAll({ behavior: "wait" });
+  }
 });
