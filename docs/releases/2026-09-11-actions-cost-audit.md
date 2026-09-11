@@ -1,6 +1,6 @@
 # GitHub Actions usage and proposed controls
 
-Status: local proposal, remote controls unchanged pending Victor's approval. The current full regression was canceled; no new workflow has been dispatched. This audit supplements the [release handoff](../AGENT_PROGRESS.md).
+Status: explicitly approved by Victor; remote application in progress. Full regression and CodeQL are temporarily disabled until their manual-only definitions reach main. No new workflow has been manually dispatched. This audit supplements the [release handoff](../AGENT_PROGRESS.md).
 
 ## What is consuming time
 
@@ -53,3 +53,5 @@ This would remove the automatic triggers responsible for 1,170 of the 1,399 esti
 - Automatic approval review rejected disabling full regression and CodeQL remotely because it would weaken CI/security controls without specific authorization. No workflow was disabled and the rejected operation was not retried through another mechanism.
 - The local workflow patch is committed as `1718133` (agent source `0092687`). Four focused contracts pass on the integrated root tree. TypeScript, support-wiki and tracked-secret checks pass; the isolated worktree also passed YAML parsing and focused lint. Approval must cover applying these controls remotely and temporarily pausing full/CodeQL until the manual-only definitions reach main. Until then, existing main schedules and PR triggers remain active.
 - No repository visibility, billing plan, credentials, Azure deployment or production data changed. Existing public-release blockers remain in the handoff.
+
+- 2026-09-11: Victor explicitly approved applying the tested CI controls and the described temporary pause. Both workflow IDs (340366410 full regression, 351364370 CodeQL) read back disabled_manually. The earlier rejection is resolved by this new authorization. A main-based CI-only patch is prepared as c122924; the unfinished application PR is not part of that integration. Both workflows will be re-enabled after their manual-only definitions are verified on main.
