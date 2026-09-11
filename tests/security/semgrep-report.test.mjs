@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { fixtureDiagnostics, summarizeFixtureTests, summarizeScan } from "../../scripts/semgrep-report.mjs";
+import { fixtureDiagnostics, scanDiagnostics, summarizeFixtureTests, summarizeScan } from "../../scripts/semgrep-report.mjs";
 
 const contract = {
   version: "1.177.0", ruleIds: ["filosage-request-sql-injection"],
@@ -66,4 +66,61 @@ test("malformed results, unexpected rules and unsafe paths are rejected without 
   }
   assert.throws(() => summarizeScan({ ...clean(), results: [{ ...finding(), check_id: "private-rule-content" }] }, 1, contract), /rule/);
   assert.throws(() => summarizeScan({ ...clean(), results: [{ ...finding(), start: { line: 0, col: 1 } }] }, 1, contract), /location/);
+});
+
+test("incomplete scans preserve only known error types and verified input locations without becoming successful", () => {
+  const raw = { ...clean(), results: [finding()], errors: [
+    { type: "Syntax error", path: "scripts/example.mjs", message: "PRIVATE SOURCE",
+      spans: [{ file: "scripts/example.mjs", start: { line: 12, col: 5 }, source_hash: "PRIVATE SOURCE" }] },
+    { type: ["PartialParsing", [{ path: "src/app/api/example/route.ts", start: { line: 8, col: 1 }, message: "PRIVATE SOURCE" }]],
+      long_msg: "PRIVATE SOURCE", rule_id: "PRIVATE SOURCE" },
+  ] };
+  const diagnostic = scanDiagnostics(raw, contract, clean().paths.scanned);
+  assert.deepEqual(diagnostic, {
+    errorCount: 2, errors: [
+      { type: "Syntax error", locations: [{ path: "scripts/example.mjs", line: 12 }] },
+      { type: "PartialParsing", locations: [{ path: "src/app/api/example/route.ts", line: 8 }] },
+    ],
+    findingCount: 1, findings: [{ ruleId: "filosage-request-sql-injection", path: "src/app/api/example/route.ts", line: 7, column: 2 }],
+    truncated: false,
+  });
+  assert.doesNotMatch(JSON.stringify(diagnostic), /PRIVATE SOURCE|message|source_hash|long_msg/);
+  assert.throws(() => summarizeScan(raw, 1, contract), /incomplete/);
+});
+
+test("incomplete diagnostics redact malformed, unknown and private paths even if the scanner calls them scanned", () => {
+  const privatePaths = ["/private", "C:\\private", "src/../private", "src/private\nvalue", "src/untracked-private.ts", ".env.local"];
+  const raw = { ...clean(), paths: { scanned: privatePaths }, errors: [null,
+    { type: "PRIVATE SOURCE", path: "scripts/example.mjs" },
+    ...privatePaths.map((path) => ({ type: "Timeout", path, spans: [{ file: path, start: { line: 1 } }] })),
+    { type: "Syntax error", spans: [{ file: "scripts/example.mjs", start: { line: "PRIVATE SOURCE" } }] },
+  ], results: [null, { ...finding(), check_id: "PRIVATE SOURCE" }, ...privatePaths.map((path) => ({ ...finding(), path })),
+    { ...finding(), start: { line: 0, col: 1 } }] };
+  const diagnostic = scanDiagnostics(raw, contract, clean().paths.scanned);
+  assert.equal(diagnostic.errors[0].type, "Unknown scanner error");
+  assert.equal(diagnostic.errors[1].type, "Unknown scanner error");
+  assert.deepEqual(diagnostic.errors.at(-1), { type: "Syntax error", locations: [{ path: "scripts/example.mjs" }] });
+  assert.deepEqual(diagnostic.findings, []);
+  assert.doesNotMatch(JSON.stringify(diagnostic), /PRIVATE SOURCE|private|untracked|\.env/);
+  assert.throws(() => summarizeScan(raw, 1, contract), /incomplete/);
+  for (const invalid of [null, {}, { errors: "PRIVATE SOURCE", results: {} }]) {
+    assert.deepEqual(scanDiagnostics(invalid, contract, []), { errorCount: null, errors: [], findingCount: null, findings: [], truncated: false });
+  }
+});
+
+test("incomplete diagnostics cap retained errors, locations and findings while keeping total counts", () => {
+  const raw = { ...clean(), errors: Array.from({ length: 200 }, () => ({ type: "Timeout", path: "scripts/example.mjs" })),
+    results: Array.from({ length: 200 }, finding) };
+  const diagnostic = scanDiagnostics(raw, contract, clean().paths.scanned);
+  assert.equal(diagnostic.errorCount, 200);
+  assert.equal(diagnostic.findingCount, 200);
+  assert.equal(diagnostic.errors.length, 20);
+  assert.equal(diagnostic.findings.length, 20);
+  assert.equal(diagnostic.truncated, true);
+  const manyLocations = scanDiagnostics({ ...clean(), errors: [{ type: "Syntax error",
+    spans: Array.from({ length: 10 }, (_, index) => ({ file: "scripts/example.mjs", start: { line: index + 1 } })) }] }, contract, clean().paths.scanned);
+  assert.deepEqual(manyLocations.errors[0].locations, [
+    { path: "scripts/example.mjs", line: 1 }, { path: "scripts/example.mjs", line: 2 }, { path: "scripts/example.mjs", line: 3 },
+  ]);
+  assert.equal(manyLocations.truncated, true);
 });

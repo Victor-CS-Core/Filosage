@@ -1,4 +1,5 @@
 import pg, { Pool, type PoolClient } from "pg";
+import { readFile } from "node:fs/promises";
 
 const defaultPool = new pg.Pool();
 const namedPool = new Pool();
@@ -31,4 +32,10 @@ export function safeConstantSql() {
   const sql = "SELECT " + "1 AS ready";
   // ok: filosage-request-sql-injection
   return defaultPool.query(sql);
+}
+
+export async function safeModuleRelativeMigration(client: PoolClient) {
+  const migration = await readFile(new URL("../migrations/fixed.sql", import.meta.url), "utf8");
+  // ok: filosage-request-sql-injection
+  return client.query(migration);
 }

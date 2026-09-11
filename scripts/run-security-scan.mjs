@@ -3,7 +3,7 @@ import { randomUUID } from "node:crypto";
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
-import { fixtureDiagnostics, summarizeFixtureTests, summarizeScan } from "./semgrep-report.mjs";
+import { fixtureDiagnostics, scanDiagnostics, summarizeFixtureTests, summarizeScan } from "./semgrep-report.mjs";
 
 const root = process.cwd();
 const output = resolve("test-results/security");
@@ -33,11 +33,18 @@ function scanner(args, timeout = 240_000) {
 }
 
 function scan(targets, filename) {
+  const inventory = run("git", ["ls-files", "-z", "--", ...targets], 10_000);
+  if (inventory.status !== 0) throw new Error("Scanner input inventory could not be verified.");
   const result = scanner(["scan", "--config", "security/semgrep/rules", ...privacyFlags,
     "--strict", "--error", "--quiet", "--json-output", `/out/${filename}`, ...targets]);
   let raw;
   try { raw = JSON.parse(readFileSync(join(temporary, filename), "utf8")); }
   catch { throw new Error("Scanner did not produce a readable JSON report."); }
+  // Retain safe diagnostics before validation can throw and finally removes raw
+  // reports. Even a useful partial result must still fail the strict gate.
+  evidence[filename === "probe.json" ? "syntheticDiagnostics" : "sourceDiagnostics"] = scanDiagnostics(
+    raw, { ...manifest, targets }, inventory.stdout.split("\0").filter(Boolean),
+  );
   return summarizeScan(raw, result.status, { ...manifest, targets });
 }
 

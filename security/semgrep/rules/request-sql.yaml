@@ -11,7 +11,10 @@ rules:
       - pattern: $REQUEST.json(...)
       - pattern: $REQUEST.text(...)
       - pattern: $REQUEST.formData(...)
-      - pattern: $REQUEST.url
+      - patterns:
+          - pattern: $REQUEST.url
+          # The module's own fixed file URL is not HTTP request input.
+          - pattern-not: import.meta.url
       - pattern: $REQUEST.headers.get(...)
     pattern-sinks:
       - patterns:
