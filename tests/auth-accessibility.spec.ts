@@ -20,6 +20,69 @@ const signedOutManagedSession = {
   user: null,
 } as const;
 
+test("@cross-browser follows system appearance without saving an explicit choice", async ({ page }) => {
+  await page.emulateMedia({ colorScheme: "light" });
+  await page.goto("/standard");
+  await expect(page.locator(".marketing-nav-shell .filosage-mark img")).toBeVisible({ timeout: 30_000 });
+  await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
+  expect(await page.evaluate(() => localStorage.getItem("filosage-theme"))).toBeNull();
+
+  await page.emulateMedia({ colorScheme: "dark" });
+  await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
+  await expect(page.locator('meta[name="theme-color"]').first()).toHaveAttribute("content", "#071127");
+  await page.reload();
+  await expect(page.locator(".marketing-nav-shell .filosage-mark img")).toBeVisible();
+  await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
+  expect(await page.evaluate(() => localStorage.getItem("filosage-theme"))).toBeNull();
+});
+
+test("@cross-browser preserves a chosen appearance across the managed sign-in return", async ({ page }) => {
+  await page.emulateMedia({ colorScheme: "light" });
+  await page.route("**/api/auth/session", (route) => route.fulfill({ json: {
+    ...signedOutManagedSession,
+    authentication: { ...signedOutManagedSession.authentication, externalIdNewAccountsAvailable: false, legacyGoogleAvailable: false },
+  } }));
+  await page.route("**/.auth/login/filosage?**", (route) => route.fulfill({
+    status: 200,
+    contentType: "text/html",
+    body: '<!doctype html><title>Managed sign-in boundary</title><a href="/standard">Return to Filosage</a>',
+  }));
+  await page.goto("/standard");
+  await expect(page.locator(".marketing-nav-shell .filosage-mark img")).toBeVisible();
+  await page.locator(".marketing-nav-shell").getByRole("button", { name: "Use dark mode" }).click();
+  await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
+  await page.emulateMedia({ colorScheme: "dark" });
+  await page.emulateMedia({ colorScheme: "light" });
+  await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
+
+  const menu = page.getByRole("button", { name: "Open navigation menu" });
+  if (await menu.isVisible()) await menu.click();
+  await page.locator(".marketing-nav-shell").getByRole("button", { name: "Sign in" }).click();
+  await page.getByRole("dialog").getByRole("button", { name: "Sign in with email code" }).click();
+  await page.waitForURL(/\/\.auth\/login\/filosage\?post_login_redirect_uri=%2Fstandard$/);
+  await page.getByRole("link", { name: "Return to Filosage" }).click();
+  await expect(page.locator(".marketing-nav-shell .filosage-mark img")).toBeVisible();
+  await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
+  expect(await page.evaluate(() => localStorage.getItem("filosage-theme"))).toBe("dark");
+});
+
+test("@cross-browser resumes system appearance when another tab removes the choice", async ({ page, context }) => {
+  await page.emulateMedia({ colorScheme: "dark" });
+  await page.goto("/standard");
+  await expect(page.locator(".marketing-nav-shell .filosage-mark img")).toBeVisible();
+  await page.locator(".marketing-nav-shell").getByRole("button", { name: "Use light mode" }).click();
+  await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
+
+  const otherTab = await context.newPage();
+  await otherTab.goto("/standard");
+  await expect(otherTab.locator(".marketing-nav-shell .filosage-mark img")).toBeVisible();
+  await otherTab.evaluate(() => localStorage.removeItem("filosage-theme"));
+  await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
+  await page.emulateMedia({ colorScheme: "light" });
+  await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
+  expect(await page.evaluate(() => localStorage.getItem("filosage-theme"))).toBeNull();
+});
+
 const featuredCourse = {
   id: "accessible-featured-course",
   courseId: "accessible-featured-course",
