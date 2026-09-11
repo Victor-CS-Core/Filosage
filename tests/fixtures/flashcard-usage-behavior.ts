@@ -1,16 +1,21 @@
 import assert from "node:assert/strict";
 import { after, test } from "node:test";
 import { mkdtempSync, rmSync } from "node:fs";
-import { tmpdir } from "node:os";
-import { join, relative } from "node:path";
+import { dirname, join, relative } from "node:path";
 import { captureAccountGeneration, runWithAccountGeneration } from "../../src/lib/account-lifecycle.ts";
 import type { ServerAccount } from "../../src/lib/account-server.ts";
 import { aiUsageAttemptPath, finalizeAiUsage, reserveAiUsage, type AiReservation } from "../../src/lib/ai-usage.ts";
 import { getStoredDocument } from "../../src/lib/document-store.ts";
 
-const directory = mkdtempSync(join(tmpdir(), "flashcard-usage-"));
+// The local store resolves its directory relative to cwd. Keep the fixture on
+// that drive: path.relative() cannot make a C: temp directory relative to D:.
+const workspace = process.cwd();
+const directory = mkdtempSync(join(workspace, ".flashcard-usage-"));
 process.env.FILOSAGE_LOCAL_DIR = relative(process.cwd(), directory);
-after(() => rmSync(directory, { recursive: true, force: true }));
+after(() => {
+  assert.equal(dirname(directory), workspace);
+  rmSync(directory, { recursive: true, force: true });
+});
 
 const observedUsage = {
   model: "gpt-5.6-luna", inputTokens: 100, outputTokens: 50,
