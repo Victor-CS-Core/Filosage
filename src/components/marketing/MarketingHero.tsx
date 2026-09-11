@@ -6,13 +6,13 @@ export default function MarketingHero() {
   return (
     <section className="marketing-hero" aria-labelledby="marketing-hero-title">
       <div className="marketing-hero-copy">
-        <h1 id="marketing-hero-title">Learn it well enough to use it<b aria-hidden="true">.</b></h1>
-        <p className="marketing-hero-lead">Choose a published course or bring your own goal. Filosage takes you through short lessons, hands-on practice, timely review, and a final piece of work you can inspect.</p>
+        <h1 id="marketing-hero-title">Learn something you can use<b aria-hidden="true">.</b></h1>
+        <p className="marketing-hero-lead">Clear explanations. A chance to practice. A place to pick up where you left off.</p>
         <div className="marketing-hero-actions">
-          <Link className="button button-primary" href="#featured-course">View the featured course <ArrowRight size={17} /></Link>
-          <Link className="button button-secondary" href="/library">Browse all courses</Link>
+          <Link className="button button-primary" href="/library">Explore courses <ArrowRight size={17} /></Link>
+          <Link className="marketing-text-link" href="#how-it-works">How it works <ArrowRight size={15} /></Link>
         </div>
-        <p className="marketing-hero-access"><LockKeyhole size={15} aria-hidden="true" /> Every course outline is public. Sign up when you want to open lessons and save your work.</p>
+        <p className="marketing-hero-access"><LockKeyhole size={15} aria-hidden="true" /> Browse the outlines. Create a free account to take a course.</p>
       </div>
       <div className="marketing-hero-visual"><PublicCourseProof /></div>
     </section>

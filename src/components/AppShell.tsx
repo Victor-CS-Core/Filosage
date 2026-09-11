@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import dynamic from "next/dynamic";
 import { usePathname, useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
@@ -25,11 +26,8 @@ import {
 } from "lucide-react";
 import { SUPPORT_CONTACT } from "@/lib/legal";
 import FilosageMark from "@/components/FilosageMark";
-import AuthModal from "@/components/AuthModal";
 import type { AccountEntryRequest } from "@/components/AccountEntryButton";
 import AppDrawer, { useAppDrawer } from "@/components/AppDrawer";
-import IdentityLinkRequiredModal from "@/components/IdentityLinkRequiredModal";
-import LegalConsentModal from "@/components/LegalConsentModal";
 import MarketingFooter from "@/components/marketing/MarketingFooter";
 import MarketingNavigation from "@/components/marketing/MarketingNavigation";
 import CommandPalette, { type CommandPaletteItem } from "@/components/CommandPalette";
@@ -47,10 +45,15 @@ import { matchesSearchQuery } from "@/lib/search";
 import { useLearnerSource } from "@/components/useLearnerSource";
 import LearnerSourceNotice from "@/components/LearnerSourceNotice";
 const EMPTY_COURSES: Course[] = [];
+const AuthModal = dynamic(() => import("@/components/AuthModal"));
+const IdentityLinkRequiredModal = dynamic(() => import("@/components/IdentityLinkRequiredModal"));
+const LegalConsentModal = dynamic(() => import("@/components/LegalConsentModal"));
 const emptyCourses = (value: { courses: Course[] }) => value.courses.length === 0;
 
 interface AppShellProps {
   children: React.ReactNode;
+  /** Opt in only when children contain public information while session state is unknown. */
+  publicWhileLoading?: boolean;
   activeTopic?: string;
   activeLessonId?: string;
   activeCourseId?: string | null;
@@ -64,7 +67,7 @@ const primaryNav = [
   { href: "/progress", label: "Progress", icon: TrendingUp },
 ];
 
-export default function AppShell({ children, activeTopic, activeCourseId, activeCourse }: AppShellProps) {
+export default function AppShell({ children, publicWhileLoading = false, activeTopic, activeCourseId, activeCourse }: AppShellProps) {
   const router = useRouter();
   const pathname = usePathname();
   const { theme, toggle } = useTheme();
@@ -307,7 +310,7 @@ export default function AppShell({ children, activeTopic, activeCourseId, active
     return () => document.removeEventListener("keydown", openFromKeyboard);
   }, [closeCommand, commandOpen, legalBlocked, openCommand, user]);
 
-  if (authLoading) {
+  if (authLoading && (!publicWhileLoading || user)) {
     return (
       <div className="auth-boot-shell" aria-busy="true" aria-label="Restoring your Filosage session">
         <span className="brand-mark" aria-hidden="true"><FilosageMark /></span>
@@ -321,7 +324,7 @@ export default function AppShell({ children, activeTopic, activeCourseId, active
     return (
       <div className="public-shell">
         <a className="skip-link" href="#main-content">Skip to main content</a>
-        <MarketingNavigation theme={theme} onToggleTheme={toggle} onSignIn={(returnFocus) => {
+        <MarketingNavigation theme={theme} onToggleTheme={toggle} authPending={authLoading} onSignIn={(returnFocus) => {
           setAuthReturnFocus(returnFocus);
           setAuthReturnPath(undefined);
           setShowAuth(true);
