@@ -26,7 +26,7 @@ Full regression accounts for about 74% of the estimate. Its triggers explain the
 - Five earlier release PR runs used about 185 minutes.
 - Four visitor-audit checkpoint pushes used about 65 minutes. Cancellation limits overlap, but already-executed minutes are still spent. Frequent remote checkpoints were therefore contributing to the problem.
 
-CodeQL consumed another approximately 129 minutes without usable uploaded results. The [latest failure](https://github.com/Victor-CS-Core/Filosage/actions/runs/34639584877) is a repository code-scanning capability failure after analysis, not an application vulnerability finding. CodeQL is not a runtime dependency. The separate offline scanner remains a narrow candidate: detector fixtures and its deliberate-failure probe pass, but the full-source scan is not yet proven. It must not be described as equivalent coverage or a passing release gate.
+CodeQL consumed another approximately 129 minutes without usable uploaded results. The [latest failure](https://github.com/Victor-CS-Core/Filosage/actions/runs/34639584877) is a repository code-scanning capability failure after analysis, not an application vulnerability finding. CodeQL is not a runtime dependency. The separate offline scanner has six project-owned detectors. Strict fixtures and its deliberate-failure probe pass; a network-isolated local scan at `4bd9d7c` subsequently passed with 428 eligible source files, zero errors and zero findings. The pinned CI image remains unverified. This is narrower coverage than CodeQL and does not establish that every security issue has been found; see the offline-security record and static-security triage.
 
 ## High run counts that are different problems
 

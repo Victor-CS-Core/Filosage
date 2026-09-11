@@ -2744,5 +2744,33 @@
     "Local installed Semgrep CE runtime; the pinned Docker CI execution remains pending.",
     "Six repository-owned detectors; no CodeQL-equivalent coverage claim.",
     "No deployment or production verification."
-  ]
+  ],
+  "independentEvidenceReview": {
+    "verifiedAt": "2026-09-11T20:44:17.544Z",
+    "inputBlobIdsMatchSourceTree": true,
+    "mismatches": [],
+    "sourceInventoryHashMatches": true,
+    "trackedTargetFiles": 438,
+    "eligibleTargetFiles": 428,
+    "eligibleByTarget": {
+      "src": 376,
+      "scripts": 43,
+      ".github/workflows": 9
+    },
+    "outsideConfiguredRuleLanguages": [
+      "src/app/admin/command-center/command-center-v2.module.css",
+      "src/app/auth/complete-link/complete-link.module.css",
+      "src/app/create/create.module.css",
+      "src/app/globals.css",
+      "src/app/icon.svg",
+      "src/components/support/SupportCenter.module.css",
+      "src/styles/brand/README.md",
+      "src/styles/brand/marketing.css",
+      "src/styles/brand/tokens.css",
+      "src/styles/brand/visitor-home.css"
+    ],
+    "scannedPathSetRetained": false,
+    "originalRawReportAvailable": false,
+    "interpretation": "Reported scan counts equal the independently derived eligible source inventory. The discarded raw report prevents a path-by-path comparison of the scanner output. The pinned CI image was not executed."
+  }
 }
