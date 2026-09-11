@@ -3,7 +3,7 @@ import { randomUUID } from "node:crypto";
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
-import { summarizeFixtureTests, summarizeScan } from "./semgrep-report.mjs";
+import { fixtureDiagnostics, summarizeFixtureTests, summarizeScan } from "./semgrep-report.mjs";
 
 const root = process.cwd();
 const output = resolve("test-results/security");
@@ -50,8 +50,12 @@ try {
   if (run("docker", ["pull", manifest.image], 120_000).status !== 0) throw new Error("Pinned scanner image could not be pulled.");
   const version = scanner(["--version"], 30_000);
   if (version.status !== 0 || version.stdout.trim() !== manifest.version) throw new Error("Pinned scanner version could not be verified.");
-  const fixtures = scanner(["scan", "--test", "--config", "security/semgrep/rules", "security/semgrep/tests", ...privacyFlags], 120_000);
+  const fixtures = scanner(["scan", "--test", "--strict", "--config", "security/semgrep/rules", "security/semgrep/tests", ...privacyFlags], 120_000);
   evidence.fixtureTests = "failed";
+  evidence.fixtureExitCode = fixtures.status;
+  // This command reads only synthetic fixtures. Application scan output never
+  // enters this diagnostic field, including failures and parse errors.
+  evidence.fixtureDiagnostics = fixtureDiagnostics(`${fixtures.stdout}\n${fixtures.stderr}`);
   evidence.fixtureRuleCount = summarizeFixtureTests(`${fixtures.stdout}\n${fixtures.stderr}`, fixtures.status, manifest.ruleIds.length);
   evidence.fixtureTests = "passed";
   const probe = scan(["security/semgrep/probe"], "probe.json");

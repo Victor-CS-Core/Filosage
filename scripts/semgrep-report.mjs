@@ -5,6 +5,11 @@ function safePath(value) {
     && !value.split("/").some((part) => part === ".." || part === "." || !part);
 }
 
+/** Only call for project-owned synthetic fixture tests, never source scans. */
+export function fixtureDiagnostics(output) {
+  return [...output].filter((character) => character.charCodeAt(0) >= 32 || "\n\t".includes(character)).join("").slice(0, 8_192);
+}
+
 /** The pinned CLI documents this summary; reject zero or omitted rule tests. */
 export function summarizeFixtureTests(output, exitCode, expectedCount) {
   const summary = output.match(/(?:^|\n)(\d+)\/(\d+):[^\r\n]*All tests passed(?:\r?\n|$)/);
