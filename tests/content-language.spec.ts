@@ -133,6 +133,36 @@ test("adjacent Greek symbols in STEM prose are preserved while Greek sentences a
     .toContainEqual(expect.objectContaining({ reason: "contains unexpected Greek script" }));
 });
 
+test("Greek notation checks scan context once per prose operation regardless of symbol count", () => {
+  for (const count of [16, 2_000]) {
+    for (const hasMathContext of [false, true]) {
+      const content = `${"αβ ".repeat(count)}${hasMathContext ? "Compare the product." : "Compare the evidence."}`;
+      for (const operation of ["inspect", "sanitize"] as const) {
+        const nativeTest = RegExp.prototype.test;
+        let contextScans = 0;
+        let output: unknown;
+        try {
+          RegExp.prototype.test = function (value: string) {
+            if (this.source.includes("coefficient|variable|displacement")) contextScans += 1;
+            return nativeTest.call(this, value);
+          };
+          output = operation === "inspect"
+            ? inspectGeneratedContent({ content }, "Evidence", "English")
+            : sanitizeGeneratedText(content, "Evidence", "English");
+        } finally {
+          RegExp.prototype.test = nativeTest;
+        }
+        expect(contextScans, `${operation}, ${count} runs, math=${hasMathContext}`).toBe(1);
+        if (operation === "inspect") {
+          expect(output).toEqual(hasMathContext ? [] : [expect.objectContaining({ reason: "contains unexpected Greek script" })]);
+        } else {
+          expect(output).toBe(hasMathContext ? content : "Compare the evidence.");
+        }
+      }
+    }
+  }
+});
+
 test("legitimate AI and API teaching is neither rejected nor silently truncated", () => {
   const content = "A tool call requests work from a function. Compare the tool result with the expected tool output, then ask an assistant to explain the difference. The responses.create API accepts a schema named course_outline; function_call describes an API concept.\n\n```text\nassistant to=example\n<|tool|> example result\n```\n\nThe quoted fragment “assistant to=example” is a teaching example. Keep this concluding explanation.";
   expect(inspectGeneratedContent({ content }, "Understanding API tools", "English")).toEqual([]);

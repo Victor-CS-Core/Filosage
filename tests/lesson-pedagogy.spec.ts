@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
-import type { Quiz } from "../src/lib/course-types";
-import { quizAnswerCueIssues } from "../src/lib/lesson-quality";
+import type { LessonData, Quiz } from "../src/lib/course-types";
+import { lessonQualityIssues, quizAnswerCueIssues } from "../src/lib/lesson-quality";
 import { curateLessonInteractions, deriveLessonInteractions } from "../src/lib/lesson-interactions";
 
 function quiz(options: string[], correctIndex = 0): Quiz {
@@ -12,6 +12,39 @@ function quiz(options: string[], correctIndex = 0): Quiz {
     optionFeedback: options.map(() => "Compare this response with the supplied evidence."),
   };
 }
+
+test("diagram detection preserves whitespace semantics without rescanning preceding blank lines", () => {
+  const warning = "Remove all diagram and graph syntax; teach the relationships in prose.";
+  for (const lessonKind of ["substantive", "introduction"] as const) {
+    const check = (content: string) => lessonQualityIssues({ content, quizzes: [] } as unknown as LessonData, "Evidence", undefined, { lessonKind });
+    for (const content of ["```mermaid", "```dot", "```graphviz", "  flowchart LR", "\tGRAPH\r\nTD", "\u00a0graph\u2028BT", "\u2029\u2003flowchart RL"]) {
+      expect(check(content), `${lessonKind}: ${JSON.stringify(content)}`).toContain(warning);
+    }
+    for (const content of ["Describe the graph LR in prose.", "graph LABEL", "flowchart LRX", "The equation compares α with β."]) {
+      expect(check(content)).not.toContain(warning);
+    }
+    const prefix = "Intro\r\n" + "\n".repeat(2_000);
+    const input = `${prefix}\tflowchart LR`;
+    const nativeTest = RegExp.prototype.test;
+    let diagramMatch: RegExpExecArray | null = null;
+    let diagramChecks = 0;
+    try {
+      RegExp.prototype.test = function (value: string) {
+        if (this.source.includes("mermaid|dot|graphviz")) {
+          diagramChecks += 1;
+          diagramMatch = new RegExp(this.source, this.flags).exec(value);
+        }
+        return nativeTest.call(this, value);
+      };
+      expect(check(input)).toContain(warning);
+    } finally {
+      RegExp.prototype.test = nativeTest;
+    }
+    expect(diagramChecks).toBe(1);
+    expect(diagramMatch).toMatchObject({ index: prefix.length, 0: "\tflowchart LR" });
+    expect(check(`${prefix}End.`)).not.toContain(warning);
+  }
+});
 
 test("sequence curation preserves authored Spanish guidance while neutralizing explicit English order giveaways", () => {
   const interaction = {
