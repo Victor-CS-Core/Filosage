@@ -52,3 +52,25 @@ test("hosted subscription actions wrap into touch-safe controls without mobile o
   }
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
 });
+
+for (const theme of ["light", "dark"] as const) {
+  test(`scheduled cancellation shows its end date in ${theme} mode`, { tag: ["@mobile", "@webkit"] }, async ({ page }) => {
+    await page.setViewportSize({ width: 320, height: 740 });
+    await page.emulateMedia({ colorScheme: theme });
+    await page.addInitScript(() => localStorage.setItem("filosage-local-session", "1"));
+    await page.route("**/api/account", (route) => {
+      expect(route.request().headers()["x-filosage-account-fields"]).toBe("billing-cancellation");
+      return route.fulfill({
+        json: { ...exactLearnerAccount({ plan: "plus", subscriptionStatus: "active" }), currentPeriodEnd: "2099-10-11T12:00:00Z", billingCancelAtPeriodEnd: true },
+      });
+    });
+    await page.route("**/api/billing/status", (route) => route.fulfill({
+      json: { enabled: false, ready: false, checkoutReady: false, managementReady: true },
+    }));
+    await page.goto("/pricing");
+    await expect(page.getByText("Cancels October 11, 2099; paid access continues until then")).toBeVisible();
+    await expect(page.getByText("Renews October 11, 2099")).toHaveCount(0);
+    await expect(page.getByRole("button", { name: "Manage billing in Stripe" })).toBeEnabled();
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
+  });
+}

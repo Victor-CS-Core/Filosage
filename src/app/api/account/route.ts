@@ -97,6 +97,8 @@ async function handleGET(request: Request) {
         subscriptionStatus: account.subscriptionStatus,
         billingInterval: account.billingInterval,
         currentPeriodEnd: account.currentPeriodEnd,
+        ...(request.headers.get("X-Filosage-Account-Fields") === "billing-cancellation"
+          ? { billingCancelAtPeriodEnd: account.billingCancelAtPeriodEnd } : {}),
         capabilities: capabilitiesForAccount(account),
         courseCredits,
         acceptedTermsVersion: account.acceptedTermsVersion,

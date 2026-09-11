@@ -433,6 +433,7 @@ export interface LearnerAccount {
   subscriptionStatus?: "none" | "trialing" | "active" | "past_due" | "canceled";
   billingInterval?: "monthly" | "annual";
   currentPeriodEnd?: string;
+  billingCancelAtPeriodEnd?: boolean;
   acceptedTermsVersion?: string;
   acceptedPrivacyVersion?: string;
   legalAcceptanceRequired?: boolean;

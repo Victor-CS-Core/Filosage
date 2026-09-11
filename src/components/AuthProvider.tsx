@@ -321,7 +321,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     let response: Response;
     try {
       response = await fetch("/api/account", {
-        headers: { Authorization: `Bearer ${token}`, Accept: "application/json" },
+        headers: { Authorization: `Bearer ${token}`, Accept: "application/json", "X-Filosage-Account-Fields": "billing-cancellation" },
         cache: "no-store",
         signal: AbortSignal.any([controller.signal, session.signal]),
       });
