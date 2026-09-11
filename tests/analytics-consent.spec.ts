@@ -122,7 +122,7 @@ test("analytics can be allowed and later withdrawn from Privacy choices", { tag:
   const billingStatusReady = pricing.waitForResponse((response) => new URL(response.url()).pathname === "/api/billing/status");
   await pricing.goto("/pricing");
   await billingStatusReady;
-  await expect(pricing.getByRole("heading", { name: "Choose how far Filosage carries your goal." })).toBeVisible();
+  await expect(pricing.getByRole("heading", { name: "Choose your plan." })).toBeVisible();
   await expect.poll(async () => {
     try {
       return await pricing.evaluate(() => new Promise<"ready">((resolve) => {

@@ -1,0 +1,58 @@
+{
+  "conditions": "Isolated local development harness; fresh device contexts; session response held; billing readiness mocked true; chosen theme opposite system; no hosted authentication or Stripe request.",
+  "sourceHashes": {
+    "src/app/pricing/page.tsx": "6ae99ff0f49be36f85512d3fe3ef80a371de3b6495f6da0e61be867faf873d60",
+    "tests/example.spec.ts": "c5828682fdb8a9d52629efdef705a1654c5c3b9fa8f6df83c343af37ac06e349",
+    "tests/analytics-consent.spec.ts": "d66682f0327e92b7e9fa4832b21fe2699da77ed1c4fa917355aedd5eaf3e7a05"
+  },
+  "results": [
+    {
+      "engine": "chromium",
+      "theme": "light",
+      "oppositeSystemTheme": true,
+      "heldSession": true,
+      "billingConfiguredReady": true,
+      "accountEntryDisabled": true,
+      "stripeActionsAbsent": true,
+      "privateRequests": 0,
+      "overflow": 0,
+      "passed": true
+    },
+    {
+      "engine": "chromium",
+      "theme": "dark",
+      "oppositeSystemTheme": true,
+      "heldSession": true,
+      "billingConfiguredReady": true,
+      "accountEntryDisabled": true,
+      "stripeActionsAbsent": true,
+      "privateRequests": 0,
+      "overflow": 0,
+      "passed": true
+    },
+    {
+      "engine": "webkit",
+      "theme": "light",
+      "oppositeSystemTheme": true,
+      "heldSession": true,
+      "billingConfiguredReady": true,
+      "accountEntryDisabled": true,
+      "stripeActionsAbsent": true,
+      "privateRequests": 0,
+      "overflow": 0,
+      "passed": true
+    },
+    {
+      "engine": "webkit",
+      "theme": "dark",
+      "oppositeSystemTheme": true,
+      "heldSession": true,
+      "billingConfiguredReady": true,
+      "accountEntryDisabled": true,
+      "stripeActionsAbsent": true,
+      "privateRequests": 0,
+      "overflow": 0,
+      "passed": true
+    }
+  ]
+}

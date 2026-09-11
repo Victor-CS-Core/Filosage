@@ -272,10 +272,10 @@ export default function PricingPage() {
   };
 
   return (
-    <AppShell>
+    <AppShell publicWhileLoading>
       <div className="pricing-page">
         <header className="pricing-header">
-          <h1>Choose how far Filosage carries your goal.</h1>
+          <h1>Choose your plan.</h1>
           <p>Free connects published learning and practice. Plus adds private course creation. Pro adds advanced capstone analysis, portable evidence reports, revocable sharing, and publishing tools.</p>
         </header>
 

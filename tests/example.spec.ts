@@ -728,10 +728,38 @@ test("describes guest access and Pro publishing consistently across public pages
   await library.close();
 
   const pricing = await context.newPage();
-  await pricing.goto("/pricing");
-  await expect(pricing).toHaveTitle("Plans and Pricing | Filosage");
-  await expect(pricing.getByText("Publish generated courses after completing every lesson")).toBeVisible();
-  await expect(pricing.getByText("complete the current lesson activities before generating the next", { exact: false })).toBeVisible();
+  let releaseSession!: () => void;
+  const sessionHeld = new Promise<void>((resolve) => { releaseSession = resolve; });
+  await pricing.route("**/api/auth/session", async (route) => {
+    await sessionHeld;
+    await route.fulfill({ json: {
+      user: null, recentAuthentication: false,
+      authentication: { primaryProvider: "filosage", externalIdAvailable: true, externalIdNewAccountsAvailable: true, legacyGoogleAvailable: false },
+    } });
+  });
+  await pricing.route("**/api/billing/status", (route) => route.fulfill({ json: { ready: true, managementReady: true } }));
+  const privateRequests: string[] = [];
+  pricing.on("request", (request) => {
+    const url = new URL(request.url());
+    if (/^\/api\/(account|progress|learner-state|mastery|pricing-intent|billing\/(checkout|portal))(?:\/|$)/.test(url.pathname)
+      || (url.pathname === "/api/courses" && url.searchParams.get("scope") === "mine")) privateRequests.push(url.pathname);
+  });
+  try {
+    await pricing.goto("/pricing");
+    await expect(pricing).toHaveTitle("Plans and Pricing | Filosage");
+    await expect(pricing.getByRole("heading", { level: 1, name: "Choose your plan." })).toBeVisible();
+    await expect(pricing.getByText("Publish generated courses after completing every lesson")).toBeVisible();
+    await expect(pricing.getByText("complete the current lesson activities before generating the next", { exact: false })).toBeVisible();
+    await expect(pricing.getByText("Secure checkout shows the selected membership", { exact: false })).toBeVisible();
+    await expect(pricing.locator(".auth-boot-shell, .learner-shell, .plan-status")).toHaveCount(0);
+    await expect(pricing.locator(".marketing-sign-in")).toBeDisabled();
+    await expect(pricing.locator(".plan-free").getByRole("button")).toBeDisabled();
+    await expect(pricing.getByRole("button", { name: /Continue to Stripe Checkout|Manage billing in Stripe|Change plan in Stripe|Cancel membership in Stripe/ })).toHaveCount(0);
+    expect(privateRequests).toEqual([]);
+  } finally {
+    releaseSession();
+  }
+  await expect(pricing.getByRole("button", { name: "Create a free account", exact: true })).toBeEnabled();
   await pricing.close();
 
   const create = await context.newPage();
