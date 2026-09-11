@@ -224,8 +224,9 @@ export default function CourseMap() {
   const openLesson = useCallback(async (lessonId: string) => {
     if (!courseId || !isCurrentLearnerSession(session)) return;
     const requestViewKey = courseViewKey;
+    const lessonPath = `/course/${encodeURIComponent(topic)}/lesson/${lessonId}?id=${encodeURIComponent(courseId)}`;
     if (!user) {
-      openAccountEntry();
+      openAccountEntry(undefined, lessonPath);
       return;
     }
     if (!isOwner) {
@@ -241,7 +242,7 @@ export default function CourseMap() {
       ]);
     }
     if (!isCurrentLearnerSession(session) || activeCourseViewRef.current !== requestViewKey) return;
-    window.location.assign(`/course/${encodeURIComponent(topic)}/lesson/${lessonId}?id=${encodeURIComponent(courseId)}`);
+    window.location.assign(lessonPath);
   }, [course?.language, course?.updatedAt, courseId, courseViewKey, isOwner, session, topic, user]);
   const masteryJourney = useMasteryJourney(courseId, user);
 
@@ -853,6 +854,7 @@ export default function CourseMap() {
                     signInLabel="Sign in to begin"
                     unavailableLabel="Sign-in unavailable"
                     icon={LockKeyhole}
+                    returnPath={`/course/${encodeURIComponent(topic)}/lesson/${nextLesson.lessonId}?id=${encodeURIComponent(courseId ?? "")}`}
                   />
                 )}
                 {!user && <small className="course-access-note">{entryMode === "create"
