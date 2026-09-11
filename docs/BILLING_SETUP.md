@@ -12,9 +12,12 @@ GoDaddy can provide the domain and hosting layer. It is not the recurring subscr
 - New Checkout sessions explicitly permit only `card`; Dashboard-enabled delayed methods are outside the verified release scope.
 - Verified suspended or stale-Terms subscribers may update payment methods through a restricted Portal flow or cancel. They do not need to accept new Terms for those recovery actions. Plan changes require an active account, current legal acceptance, and an active/trialing subscription.
 - The candidate credit policy and outstanding owner decision are recorded in `docs/releases/R22-R23-report.md`.
-- Stripe-hosted Checkout uses the payment methods enabled for the account in Stripe's Dashboard. Filosage does not collect payment details or hard-code a card-only list. Entitlement still changes only after a verified, paid Stripe lifecycle event.
+- Stripe-hosted Checkout collects payment details; Filosage retains the reviewed card-only acquisition scope. Entitlement changes only after a verified, paid Stripe lifecycle event.
 - Stripe-hosted Customer Portal remains available to existing subscribers whenever the management credential and reviewed `STRIPE_PORTAL_CONFIGURATION_ID` are configured, including when new checkout is locked for rollback or preparation.
 - The application opens explicit hosted Portal flows for plan changes and period-end cancellation. It never updates entitlement from a Portal redirect; signed subscription and invoice webhooks remain authoritative.
+- Paid access requires an active/trialing subscription and a valid, future verified period end. An expired, missing, or invalid boundary grants Free access until paid renewal is verified; provider status remains available for recovery and cancellation. Independent owner/manual entitlements still apply. A trial or scheduled cancellation can shorten this boundary. No additional webhook-outage grace period is assumed.
+- Cancellation requires the account/customer/subscription ownership binding, but does not require its Price to remain in the current sales catalog. A recognized archived Price can continue to renew and reconcile cancellation; new purchases and plan changes still require active current Prices.
+- The account response carries a non-secret `billingCancelAtPeriodEnd` flag. Pricing distinguishes scheduled cancellation from renewal, including Stripe flexible-mode `cancel_at` dates.
 
 ## Activation checklist
 

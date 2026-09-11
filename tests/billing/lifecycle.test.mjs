@@ -311,6 +311,103 @@ test('restricted recovery preserves cancellation and cannot open plan changes', 
   } finally { delete process.env.STRIPE_PORTAL_CONFIGURATION_ID; }
 });
 
+test('cancellation remains available when the subscriber price is archived or no longer offered', async () => {
+  process.env.STRIPE_PORTAL_CONFIGURATION_ID = 'bpc_fixture12345';
+  try {
+    for (const priceState of ['archived', 'legacy']) {
+      const f = fixture(); await seed(f);
+      const account = (await read(f)).account;
+      if (priceState === 'archived') f.subscription.items.data[0].price.active = false;
+      else f.subscription.items.data[0].price.id = 'price_retired_membership';
+      assert.equal(await billing.createBillingPortalSession(account, 'cancel'), 'https://billing.stripe.com/p/session/fixture');
+      const params = new URLSearchParams(calls.at(-1).body);
+      assert.equal(params.get('flow_data[subscription_cancel][subscription]'), f.subscription.id);
+      await assert.rejects(billing.createBillingPortalSession(account, 'change_plan'));
+      f.subscription.customer = 'cus_someone_else';
+      await assert.rejects(billing.createBillingPortalSession(account, 'cancel'), /not bound/);
+    }
+  } finally { delete process.env.STRIPE_PORTAL_CONFIGURATION_ID; }
+});
+
+test('archiving an existing price preserves paid renewal and terminal cancellation reconciliation', async () => {
+  const f = fixture(); await seed(f);
+  f.subscription.items.data[0].price.active = false;
+  assert.equal((await deliver(f, 'customer.subscription.updated')).status, 200);
+  assert.equal((await read(f)).account.subscriptionStatus, 'active');
+  f.subscription.status = 'canceled';
+  assert.equal((await deliver(f, 'customer.subscription.deleted')).status, 200);
+  assert.equal((await read(f)).account.subscriptionStatus, 'canceled');
+  assert.equal((await read(f)).ledger.plan, 'free');
+});
+
+test('account access expires at the verified paid boundary and returns after a paid renewal', async () => {
+  const { getExistingAccount } = await import('../../src/lib/account-server.ts');
+  const { capabilitiesForAccount } = await import('../../src/lib/membership-access.ts');
+  const f = fixture(offers[2]); await seed(f);
+  const generation = await lifecycleApi.captureAccountGeneration(f.uid);
+  const resolve = () => lifecycleApi.runWithAccountGeneration(generation, () => getExistingAccount({ uid: f.uid, email: `${f.uid}@example.test`, email_verified: true }));
+  const paid = (await read(f)).account;
+  assert.equal((await resolve()).plan, 'pro');
+  for (const currentPeriodEnd of [new Date(Date.now() - 1000).toISOString(), null, 'invalid']) {
+    await store.putStoredDocument(paths(f.uid).account, { ...paid, currentPeriodEnd });
+    const expired = await resolve();
+    assert.equal(expired.plan, 'free', `No paid access with boundary ${currentPeriodEnd}`);
+    assert.equal(capabilitiesForAccount(expired).createCourse, false);
+    assert.equal(expired.subscriptionStatus, 'active', 'Provider status stays intact for management and recovery');
+  }
+  update(f, offers[2]);
+  assert.equal((await deliver(f, 'invoice.paid', { object: provider.get(`/v1/invoices/${f.subscription.latest_invoice}`) })).status, 200);
+  assert.equal((await resolve()).plan, 'pro');
+  await store.putStoredDocument(paths(f.uid).account, { ...(await read(f)).account, currentPeriodEnd: new Date(Date.now() - 1000).toISOString(), manualPlan: 'plus', manualPlanUntil: 'permanent' });
+  assert.equal((await resolve()).plan, 'plus', 'Independent manual entitlement survives a subscription expiry');
+});
+
+test('scheduled cancellation is exposed before expiry including flexible billing cancel_at', async () => {
+  const { getExistingAccount } = await import('../../src/lib/account-server.ts');
+  const f = fixture(); await seed(f);
+  f.subscription.cancel_at_period_end = false;
+  f.subscription.cancel_at = currentSecond() + 60;
+  assert.equal((await deliver(f, 'customer.subscription.updated')).status, 200);
+  const generation = await lifecycleApi.captureAccountGeneration(f.uid);
+  const account = await lifecycleApi.runWithAccountGeneration(generation, () => getExistingAccount({ uid: f.uid, email: `${f.uid}@example.test`, email_verified: true }));
+  assert.equal(account.billingCancelAtPeriodEnd, true);
+  assert.equal(account.currentPeriodEnd, new Date(f.subscription.cancel_at * 1000).toISOString());
+  assert.equal(account.plan, 'plus');
+  const paidPeriodEnd = f.subscription.items.data[0].current_period_end;
+  f.subscription.cancel_at = paidPeriodEnd + 86400;
+  assert.equal((await deliver(f, 'customer.subscription.updated')).status, 200);
+  const scheduledLater = (await read(f)).account;
+  assert.equal(scheduledLater.billingCancelAtPeriodEnd, false, 'Cancellation in a later billing period does not prevent the next renewal');
+  assert.equal(scheduledLater.currentPeriodEnd, new Date(paidPeriodEnd * 1000).toISOString(), 'Future cancellation cannot extend current paid access');
+  f.subscription.cancel_at = null;
+  assert.equal((await deliver(f, 'customer.subscription.updated')).status, 200);
+  assert.equal((await read(f)).account.billingCancelAtPeriodEnd, false);
+});
+
+test('account API and strict client parser carry scheduled cancellation without provider identifiers', { skip: Boolean(pgFixture) }, async () => {
+  const f = fixture(offers[0], 'local-free-learner'); await seed(f);
+  f.subscription.cancel_at_period_end = true;
+  assert.equal((await deliver(f, 'customer.subscription.updated')).status, 200);
+  const { GET: accountGet } = await import('../../src/app/api/account/route.ts');
+  const { parseLearnerAccount } = await import('../../src/lib/account-client.ts');
+  const generation = await lifecycleApi.captureAccountGeneration(f.uid);
+  const headers = { authorization: 'Bearer playwright-free-learner', 'X-Filosage-Account-Fields': 'billing-cancellation' };
+  const response = await lifecycleApi.runWithAccountGeneration(generation, () => accountGet(new Request('https://filosage.test/api/account', { headers })));
+  assert.equal(response.status, 200);
+  const body = await response.json();
+  assert.equal(parseLearnerAccount(body)?.billingCancelAtPeriodEnd, true);
+  assert.equal(body.billingCustomerId, undefined);
+  assert.equal(body.billingSubscriptionId, undefined);
+  assert.equal(parseLearnerAccount({ ...body, billingCancelAtPeriodEnd: 'true' }), null);
+  const legacyResponse = await lifecycleApi.runWithAccountGeneration(generation, () => accountGet(new Request('https://filosage.test/api/account', { headers: { authorization: 'Bearer playwright-free-learner' } })));
+  assert.equal((await legacyResponse.json()).billingCancelAtPeriodEnd, undefined, 'Old clients reject unknown account fields');
+  await store.putStoredDocument(paths(f.uid).account, { ...(await read(f)).account, currentPeriodEnd: 'invalid' });
+  const invalidBoundary = await lifecycleApi.runWithAccountGeneration(generation, () => accountGet(new Request('https://filosage.test/api/account', { headers })));
+  const recovery = parseLearnerAccount(await invalidBoundary.json());
+  assert.equal(recovery?.plan, 'free', 'An invalid paid boundary must leave a usable Free account for billing recovery');
+  assert.equal(recovery.subscriptionStatus, 'active');
+});
+
 test('four Checkout offers restrict methods to card and signed completion records original consent', async () => {
   for (const offer of offers) {
     const f = fixture(offer);
