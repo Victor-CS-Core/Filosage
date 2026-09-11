@@ -105,6 +105,72 @@ async function expectNoPrivateWork(page: Page) {
   await expect(page.locator(".completion-banner.is-complete")).toHaveCount(0);
 }
 
+test("home hides A's courses during a direct focus refresh to B before B's data arrives", { tag: "@smoke" }, async ({ page }) => {
+  let uid = "account-A";
+  let heldProgress = 0;
+  let heldCourses = 0;
+  let releaseData!: () => void;
+  const dataHeld = new Promise<void>((resolve) => { releaseData = resolve; });
+  const privateTopic = (accountId: string) => `${accountId}-private-home-course`;
+  const homeCourse = (accountId: string) => ({
+    id: `private-${accountId}`, topic: privateTopic(accountId), isPublic: false,
+    modules: [{ title: "Private work", lessons: [{ title: "First step" }, { title: "Next step" }] }],
+  });
+  const homeProgress = (accountId: string) => ({
+    courseId: `private-${accountId}`, topic: privateTopic(accountId),
+    lastLessonId: "0-0", lastLessonTitle: "First step", nextLessonId: "0-1", nextLessonTitle: "Next step",
+    completedLessonIds: ["0-0"], lessons: {}, totalLessons: 2, studyMinutes: 12,
+    lastActivityAt: "2026-09-11T12:00:00Z", startedAt: "2026-09-11T12:00:00Z",
+  });
+  await page.route("**/api/auth/session", (route) => route.fulfill({ json: {
+    recentAuthentication: true,
+    authentication: { primaryProvider: "filosage", externalIdAvailable: true, externalIdNewAccountsAvailable: true, legacyGoogleAvailable: false },
+    user: { uid, accountGeneration: `generation-${uid}`, displayName: uid, email: `${uid.toLowerCase()}@example.com`, photoURL: null, authenticationProvider: "filosage" },
+  } }));
+  await page.route("**/api/account", (route) => route.fulfill({
+    json: exactLearnerAccount({ displayName: uid === "account-A" ? "Alice" : "Blair" }),
+  }));
+  await page.route("**/api/learner-state", (route) => route.fulfill({ json: EMPTY_LEARNER_STATE }));
+  await page.route("**/api/telemetry", (route) => route.fulfill({ status: 204 }));
+  await page.route("**/api/courses?scope=public", (route) => route.fulfill({ json: { courses: [] } }));
+  await page.route("**/api/courses?scope=mine", async (route) => {
+    const requestUid = uid;
+    if (requestUid === "account-B") {
+      heldCourses += 1;
+      expect(route.request().headers().authorization).toBe("Bearer azure-easy-auth-session.v2:account-B:generation-account-B");
+      await dataHeld;
+    }
+    return route.fulfill({ json: { courses: [homeCourse(requestUid)] } });
+  });
+  await page.route("**/api/progress", async (route) => {
+    const requestUid = uid;
+    if (requestUid === "account-B") {
+      heldProgress += 1;
+      expect(route.request().headers().authorization).toBe("Bearer azure-easy-auth-session.v2:account-B:generation-account-B");
+      await dataHeld;
+    }
+    return route.fulfill({ json: { progress: [homeProgress(requestUid)] } });
+  });
+  try {
+    await page.goto("/");
+    await expect(page.getByRole("heading", { name: privateTopic("account-A"), exact: true })).toBeVisible({ timeout: 15_000 });
+    uid = "account-B";
+    // Unlike storage-event invalidation, focus refresh changes directly from
+    // A to B without rendering a signed-out state or navigating the document.
+    await page.evaluate(() => window.dispatchEvent(new Event("focus")));
+    await expect(page.locator(".learning-header").getByRole("button", { name: "Open My Courses for Blair" })).toBeVisible();
+    await expect.poll(() => heldProgress > 0 && heldCourses > 0).toBe(true);
+    await expect(page.locator(".app-main")).not.toContainText(privateTopic("account-A"));
+    await expect(page.getByLabel("Preparing your active courses")).toBeVisible();
+    releaseData();
+    await expect(page.getByRole("heading", { name: privateTopic("account-B"), exact: true })).toBeVisible();
+    await expect(page.locator(".app-main")).not.toContainText(privateTopic("account-A"));
+  } finally {
+    releaseData();
+    await page.unrouteAll({ behavior: "wait" });
+  }
+});
+
 test("A signs out; guest and B see none of A's work and B uploads no A payload; A's offline drafts survive reload", { tag: "@smoke" }, async ({ page, context }) => {
   const state = await fixture(context);
   await page.goto(lessonPath);
