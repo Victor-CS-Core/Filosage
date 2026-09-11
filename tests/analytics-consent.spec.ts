@@ -1,14 +1,9 @@
 import { expect, test } from "@playwright/test";
 
-test.beforeEach(async ({ page }) => {
-  await page.goto("/");
-  await page.evaluate(() => {
-    localStorage.removeItem("filosage:analytics:consent:v1");
-    localStorage.removeItem("filosage:analytics:actor");
-    localStorage.removeItem("filosage:analytics:first-touch");
-    sessionStorage.removeItem("filosage:analytics:session");
-  });
-});
+// These tests exercise the first consent decision. Start with empty storage
+// instead of visiting another page just to remove the default declined choice;
+// that page's hydration can still update history during the next navigation.
+test.use({ storageState: { cookies: [], origins: [] } });
 
 test("optional analytics stays silent before consent and after refusal", { tag: ["@webkit", "@smoke"] }, async ({ page, context }) => {
   let telemetryCalls = 0;

@@ -1,0 +1,436 @@
+{
+  "recordedAt": "2026-09-11T21:01:57.853Z",
+  "sourceCommit": "4bd9d7c1ee947fb7dafc627ef97e4eb449b496f1",
+  "environment": {
+    "platform": "Windows",
+    "playwright": "1.61.1",
+    "devices": [
+      "Pixel 7",
+      "iPhone 13"
+    ],
+    "harness": "Existing owned Next development harness; loopback only; original base port3810, diagnostic port3814",
+    "runtimeDependencies": "Existing root node_modules; no install",
+    "githubActionsMinutesUsed": 0
+  },
+  "fullMatrix": {
+    "runDirectory": "playwright-report/matrix-release-mobile-recovery-20260911",
+    "stats": {
+      "startTime": "2026-09-11T20:42:33.531Z",
+      "duration": 702725.1440429688,
+      "expected": 87,
+      "skipped": 0,
+      "unexpected": 8,
+      "flaky": 0
+    },
+    "projects": {
+      "mobile-chromium": {
+        "total": 44,
+        "passed": 44,
+        "failed": 0,
+        "skipped": 0,
+        "flaky": 0
+      },
+      "mobile-webkit": {
+        "total": 51,
+        "passed": 43,
+        "failed": 8,
+        "skipped": 0,
+        "flaky": 0
+      }
+    },
+    "failures": [
+      {
+        "project": "mobile-webkit",
+        "file": "tests/example.spec.ts",
+        "line": 928,
+        "title": "keeps same-email recovery blocking and focus-contained",
+        "category": "windows-webkit-native-focus-capability"
+      },
+      {
+        "project": "mobile-webkit",
+        "file": "tests/analytics-consent.spec.ts",
+        "line": 13,
+        "title": "optional analytics stays silent before consent and after refusal",
+        "category": "analytics-fixture-navigation-race"
+      },
+      {
+        "project": "mobile-webkit",
+        "file": "tests/analytics-consent.spec.ts",
+        "line": 55,
+        "title": "analytics can be allowed and later withdrawn from Privacy choices",
+        "category": "analytics-fixture-navigation-race"
+      },
+      {
+        "project": "mobile-webkit",
+        "file": "tests/auth-accessibility.spec.ts",
+        "line": 203,
+        "title": "secure sign-in modal is WCAG-clean, keyboard-contained, and resilient on small screens",
+        "category": "windows-webkit-native-focus-capability"
+      },
+      {
+        "project": "mobile-webkit",
+        "file": "tests/auth-accessibility.spec.ts",
+        "line": 252,
+        "title": "identity recovery remains blocking, WCAG-clean, and keyboard-reachable",
+        "category": "windows-webkit-native-focus-capability"
+      },
+      {
+        "project": "mobile-webkit",
+        "file": "tests/auth-accessibility.spec.ts",
+        "line": 284,
+        "title": "profile name editing remains keyboard reachable and reflows at 200 percent",
+        "category": "windows-webkit-native-focus-capability"
+      },
+      {
+        "project": "mobile-webkit",
+        "file": "tests/auth-accessibility.spec.ts",
+        "line": 337,
+        "title": "legal account setup contains keyboard focus over the real shell",
+        "category": "windows-webkit-native-focus-capability"
+      },
+      {
+        "project": "mobile-webkit",
+        "file": "tests/auth-accessibility.spec.ts",
+        "line": 337,
+        "title": "legal terms update contains keyboard focus over the real shell",
+        "category": "windows-webkit-native-focus-capability"
+      }
+    ],
+    "mergeExitCode": 0,
+    "resultSha256": "492b200cd5f8ceb2a4214b6bb22b61468b9f37346a90942ff3a7625c178f861a"
+  },
+  "keyboardCapability": {
+    "classification": "Six Windows WebKit native sequential-focus preflight failures; no app behavior evaluated beyond preflight in these cases.",
+    "probe": "Isolated Playwright setContent input#first,button#second,a#third. No app code, no network navigation. Three forward key presses after focusing first. Both desktop and iPhone13 contexts; fragment and HTTPS href variants.",
+    "observations": [
+      {
+        "engine": "webkit",
+        "mode": "desktop",
+        "href": "#probe",
+        "key": "Tab",
+        "forwardOrder": [
+          "second",
+          "",
+          "first"
+        ]
+      },
+      {
+        "engine": "webkit",
+        "mode": "desktop",
+        "href": "#probe",
+        "key": "Alt+Tab",
+        "forwardOrder": [
+          "second",
+          "",
+          "first"
+        ]
+      },
+      {
+        "engine": "webkit",
+        "mode": "desktop",
+        "href": "https://example.test/probe",
+        "key": "Tab",
+        "forwardOrder": [
+          "second",
+          "",
+          "first"
+        ]
+      },
+      {
+        "engine": "webkit",
+        "mode": "desktop",
+        "href": "https://example.test/probe",
+        "key": "Alt+Tab",
+        "forwardOrder": [
+          "second",
+          "",
+          "first"
+        ]
+      },
+      {
+        "engine": "webkit",
+        "mode": "mobile",
+        "href": "#probe",
+        "key": "Tab",
+        "forwardOrder": [
+          "second",
+          "",
+          "first"
+        ]
+      },
+      {
+        "engine": "webkit",
+        "mode": "mobile",
+        "href": "#probe",
+        "key": "Alt+Tab",
+        "forwardOrder": [
+          "second",
+          "",
+          "first"
+        ]
+      },
+      {
+        "engine": "webkit",
+        "mode": "mobile",
+        "href": "https://example.test/probe",
+        "key": "Tab",
+        "forwardOrder": [
+          "second",
+          "",
+          "first"
+        ]
+      },
+      {
+        "engine": "webkit",
+        "mode": "mobile",
+        "href": "https://example.test/probe",
+        "key": "Alt+Tab",
+        "forwardOrder": [
+          "second",
+          "",
+          "first"
+        ]
+      },
+      {
+        "engine": "chromium",
+        "mode": "desktop",
+        "href": "#probe",
+        "key": "Tab",
+        "forwardOrder": [
+          "second",
+          "third",
+          ""
+        ]
+      },
+      {
+        "engine": "chromium",
+        "mode": "desktop",
+        "href": "#probe",
+        "key": "Alt+Tab",
+        "forwardOrder": [
+          "first",
+          "first",
+          "first"
+        ]
+      },
+      {
+        "engine": "chromium",
+        "mode": "desktop",
+        "href": "https://example.test/probe",
+        "key": "Tab",
+        "forwardOrder": [
+          "second",
+          "third",
+          ""
+        ]
+      },
+      {
+        "engine": "chromium",
+        "mode": "desktop",
+        "href": "https://example.test/probe",
+        "key": "Alt+Tab",
+        "forwardOrder": [
+          "first",
+          "first",
+          "first"
+        ]
+      },
+      {
+        "engine": "chromium",
+        "mode": "mobile",
+        "href": "#probe",
+        "key": "Tab",
+        "forwardOrder": [
+          "second",
+          "third",
+          ""
+        ]
+      },
+      {
+        "engine": "chromium",
+        "mode": "mobile",
+        "href": "#probe",
+        "key": "Alt+Tab",
+        "forwardOrder": [
+          "first",
+          "first",
+          "first"
+        ]
+      },
+      {
+        "engine": "chromium",
+        "mode": "mobile",
+        "href": "https://example.test/probe",
+        "key": "Tab",
+        "forwardOrder": [
+          "second",
+          "third",
+          ""
+        ]
+      },
+      {
+        "engine": "chromium",
+        "mode": "mobile",
+        "href": "https://example.test/probe",
+        "key": "Alt+Tab",
+        "forwardOrder": [
+          "first",
+          "first",
+          "first"
+        ]
+      }
+    ],
+    "action": "No skipped tests, manufactured focus events, internal protocol changes, or browser flags. Linux/pinned-CI WebKit proof remains pending."
+  },
+  "analytics": {
+    "originalReproduction": {
+      "tests": 2,
+      "passed": 1,
+      "failed": 1,
+      "log": ".codex-tmp/analytics-original-red.log"
+    },
+    "cause": "The preliminary home navigation used only to clear inherited consent storage can still hydrate while the next library navigation is pending. Instrumentation observed a home history.replaceState after the library document request. Installed Next16.3.3 HistoryUpdater updates the canonical URL in an insertion effect; the test starts the second navigation before that first-page update is settled.",
+    "timeline": [
+      {
+        "at": "2026-09-11T20:56:08.094Z",
+        "type": "document-request",
+        "path": "/"
+      },
+      {
+        "at": "2026-09-11T20:56:19.887Z",
+        "type": "navigation",
+        "path": "/"
+      },
+      {
+        "at": "2026-09-11T20:56:22.407Z",
+        "type": "document-request",
+        "path": "/"
+      },
+      {
+        "at": "2026-09-11T20:56:24.633Z",
+        "type": "navigation",
+        "path": "/"
+      },
+      {
+        "at": "2026-09-11T20:56:25.538Z",
+        "type": "action",
+        "action": "goto-library"
+      },
+      {
+        "at": "2026-09-11T20:56:25.545Z",
+        "type": "document-request",
+        "path": "/library"
+      },
+      {
+        "at": "2026-09-11T20:56:25.847Z",
+        "type": "console",
+        "observation": "NAVIGATION-PROBE replaceState /"
+      },
+      {
+        "at": "2026-09-11T20:56:25.847Z",
+        "type": "navigation",
+        "path": "/"
+      },
+      {
+        "at": "2026-09-11T20:56:26.489Z",
+        "type": "navigation",
+        "path": "/library"
+      },
+      {
+        "at": "2026-09-11T20:56:27.584Z",
+        "type": "action",
+        "action": "library-loaded"
+      },
+      {
+        "at": "2026-09-11T20:56:27.943Z",
+        "type": "console",
+        "observation": "NAVIGATION-PROBE replaceState /library"
+      },
+      {
+        "at": "2026-09-11T20:56:27.943Z",
+        "type": "navigation",
+        "path": "/library"
+      },
+      {
+        "at": "2026-09-11T20:56:28.070Z",
+        "type": "action",
+        "action": "consent-ready"
+      }
+    ],
+    "fix": "Replace beforeEach home visit and storage removal with test.use({ storageState: { cookies: [], origins: [] } }). A fresh Playwright context starts without the default declined choice or analytics identifiers. All behavior assertions remain unchanged.",
+    "changedFile": "tests/analytics-consent.spec.ts",
+    "changedFileSha256": "077bce889297489b7b4546e1472c68f453eb4f9f8e79e616c39a04480d57de6f",
+    "verification": {
+      "runDirectory": "playwright-report/matrix-analytics-storage-fix-20260911",
+      "stats": {
+        "startTime": "2026-09-11T20:58:33.181Z",
+        "duration": 120814.63696289062,
+        "expected": 14,
+        "skipped": 0,
+        "unexpected": 0,
+        "flaky": 0
+      },
+      "projects": {
+        "chromium": {
+          "total": 6,
+          "passed": 6,
+          "failed": 0,
+          "skipped": 0,
+          "flaky": 0
+        },
+        "mobile-chromium": {
+          "total": 2,
+          "passed": 2,
+          "failed": 0,
+          "skipped": 0,
+          "flaky": 0
+        },
+        "mobile-webkit": {
+          "total": 6,
+          "passed": 6,
+          "failed": 0,
+          "skipped": 0,
+          "flaky": 0
+        }
+      },
+      "failures": [],
+      "mergeExitCode": 0,
+      "resultSha256": "4dadba5a9088e406d19c0e638daadaa2102fa10d331297cc9b645d688acf6588"
+    },
+    "repeatEach": 2
+  },
+  "checks": {
+    "typeScript": "tsc --noEmit --incremental false: exit0",
+    "focusedOxlint": "exit0",
+    "focusedEslint": "exit0"
+  },
+  "limitations": [
+    "Original full mobile matrix remains87passed/8failed; the targeted fixture verification subsequently passes14/14.",
+    "App source unchanged from4bd9d7c; only the analytics test fixture changed.",
+    "These are local development-harness browser checks, not production, hosted Azure theme or live Stripe lifecycle proof.",
+    "Six native-focus cases still require a supported WebKit environment."
+  ],
+  "cleanup": {
+    "verifiedAt": "2026-09-11T21:02:37.063Z",
+    "ports": [
+      {
+        "port": 3810,
+        "error": "ECONNREFUSED"
+      },
+      {
+        "port": 3811,
+        "error": "ECONNREFUSED"
+      },
+      {
+        "port": 3812,
+        "error": "ECONNREFUSED"
+      },
+      {
+        "port": 3814,
+        "error": "ECONNREFUSED"
+      }
+    ],
+    "diagnosticStoppedMarker": true,
+    "evidenceRetained": true
+  }
+}
