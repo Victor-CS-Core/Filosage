@@ -251,7 +251,25 @@ test("secure sign-in modal is WCAG-clean, keyboard-contained, and resilient on s
 
 test("identity recovery remains blocking, WCAG-clean, and keyboard-reachable", { tag: ["@mobile", "@webkit", "@smoke"] }, async ({ page }) => {
   const sequentialFocus = await resolveNativeSequentialFocusGesture(page);
-  await page.addInitScript(() => localStorage.setItem("filosage-local-session", "1"));
+  await page.route("**/api/auth/session", (route) => route.fulfill({
+    status: 200,
+    json: {
+      recentAuthentication: true,
+      authentication: {
+        primaryProvider: "filosage",
+        externalIdAvailable: true,
+        externalIdNewAccountsAvailable: true,
+        legacyGoogleAvailable: true,
+      },
+      user: {
+        uid: "filosage-canonical-recovery",
+        displayName: "Recovery Learner",
+        email: "recovery@example.com",
+        photoURL: null,
+        authenticationProvider: "filosage",
+      },
+    },
+  }));
   await page.route("**/api/account", (route) => route.fulfill({
     status: 409,
     contentType: "application/json",
