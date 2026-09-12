@@ -21,9 +21,11 @@ function run(binary, args, timeout) {
 function scanner(args, timeout = 240_000) {
   const name = `filosage-semgrep-${randomUUID()}`;
   const result = run("docker", ["run", "--rm", "--name", name, "--network", "none", "--cap-drop", "ALL",
-    "--security-opt", "no-new-privileges", "--mount", `type=bind,src=${root},dst=/src,readonly`,
+    "--security-opt", "no-new-privileges", "--user", `${process.getuid()}:${process.getgid()}`,
+    "--mount", `type=bind,src=${root},dst=/src,readonly`,
     "--mount", `type=bind,src=${temporary},dst=/out`, "--workdir", "/src", "--entrypoint", "semgrep",
-    "--env", "SEMGREP_SEND_METRICS=off", "--env", "SEMGREP_ENABLE_VERSION_CHECK=0", manifest.image, ...args], timeout);
+    "--env", "HOME=/out", "--env", "SEMGREP_SEND_METRICS=off", "--env", "SEMGREP_ENABLE_VERSION_CHECK=0",
+    manifest.image, ...args], timeout);
   if (result.error) {
     // Clean up only this invocation's uniquely named container after a killed client.
     run("docker", ["rm", "--force", name], 15_000);

@@ -1,4 +1,8 @@
 import assert from "node:assert/strict";
+import { spawnSync } from "node:child_process";
+import { chmodSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join, resolve } from "node:path";
 import { test } from "node:test";
 import { fixtureDiagnostics, scanDiagnostics, summarizeFixtureTests, summarizeScan } from "../../scripts/semgrep-report.mjs";
 
@@ -123,4 +127,79 @@ test("incomplete diagnostics cap retained errors, locations and findings while k
     { path: "scripts/example.mjs", line: 1 }, { path: "scripts/example.mjs", line: 2 }, { path: "scripts/example.mjs", line: 3 },
   ]);
   assert.equal(manyLocations.truncated, true);
+});
+
+test("the capability-free scanner writes private reports as the invoking host identity", () => {
+  const sandbox = mkdtempSync(join(tmpdir(), "filosage-scanner-runner-test-"));
+  const bin = join(sandbox, "bin");
+  const sourceSha = "a".repeat(40);
+  mkdirSync(bin);
+  const fakeGit = `#!/usr/bin/env node
+const args = process.argv.slice(2);
+if (args[0] === "rev-parse") { process.stdout.write("${sourceSha}\\n"); process.exit(0); }
+if (args[0] === "ls-files") {
+  const targets = args.slice(args.indexOf("--") + 1);
+  const files = targets.includes("security/semgrep/probe")
+    ? ["security/semgrep/probe/unsafe.ts"]
+    : ["src/example.ts", "scripts/example.mjs", ".github/workflows/example.yml"];
+  process.stdout.write(files.join("\\0") + "\\0");
+  process.exit(0);
+}
+process.exit(2);
+`;
+  const fakeDocker = `#!/usr/bin/env node
+const { mkdirSync, statSync, writeFileSync } = require("node:fs");
+const { basename, join } = require("node:path");
+const args = process.argv.slice(2);
+if (args[0] === "pull") process.exit(0);
+if (args[0] !== "run") process.exit(2);
+const expectedUser = process.getuid() + ":" + process.getgid();
+const userIndex = args.indexOf("--user");
+if (userIndex < 0 || args[userIndex + 1] !== expectedUser) process.exit(2);
+if (!args.includes("none") || !args.includes("ALL") || !args.includes("no-new-privileges")) process.exit(2);
+if (!args.some((value) => value.startsWith("type=bind,src=") && value.endsWith(",dst=/src,readonly"))) process.exit(2);
+const mount = args.find((value) => value.startsWith("type=bind,src=") && value.endsWith(",dst=/out"));
+if (!mount) process.exit(2);
+const outputDirectory = mount.slice("type=bind,src=".length, -",dst=/out".length);
+if ((statSync(outputDirectory).mode & 0o777) !== 0o700) process.exit(2);
+const environments = args.flatMap((value, index) => value === "--env" ? [args[index + 1]] : []);
+if (!environments.includes("HOME=/out")) process.exit(2);
+mkdirSync(join(outputDirectory, ".cache"), { recursive: true });
+if (args.includes("--version")) { process.stdout.write("1.177.0\\n"); process.exit(0); }
+if (args.includes("--test")) { process.stdout.write("6/6: ✓ All tests passed\\n"); process.exit(0); }
+const outputIndex = args.indexOf("--json-output");
+if (outputIndex < 0) process.exit(2);
+const outputName = basename(args[outputIndex + 1]);
+const probe = outputName === "probe.json";
+const paths = probe
+  ? ["security/semgrep/probe/unsafe.ts"]
+  : ["src/example.ts", "scripts/example.mjs", ".github/workflows/example.yml"];
+const results = probe ? [{
+  check_id: "filosage-request-sql-injection",
+  path: paths[0],
+  start: { line: 1, col: 1 },
+}] : [];
+writeFileSync(join(outputDirectory, outputName), JSON.stringify({
+  version: "1.177.0", results, errors: [], skipped_rules: [], paths: { scanned: paths },
+}));
+process.exit(probe ? 1 : 0);
+`;
+  writeFileSync(join(bin, "git"), fakeGit, { mode: 0o755 });
+  writeFileSync(join(bin, "docker"), fakeDocker, { mode: 0o755 });
+  chmodSync(join(bin, "git"), 0o755);
+  chmodSync(join(bin, "docker"), 0o755);
+  try {
+    const result = spawnSync(process.execPath, [resolve("scripts/run-security-scan.mjs")], {
+      cwd: sandbox,
+      encoding: "utf8",
+      env: { ...process.env, EXPECTED_RELEASE_SHA: sourceSha, PATH: `${bin}:${process.env.PATH}` },
+    });
+    assert.equal(result.status, 0, `${result.stdout}\n${result.stderr}`);
+    const summary = JSON.parse(readFileSync(join(sandbox, "test-results/security/summary.json"), "utf8"));
+    assert.equal(summary.status, "passed");
+    assert.equal(summary.fixtureTests, "passed");
+    assert.equal(summary.syntheticFailure, "passed");
+  } finally {
+    rmSync(sandbox, { recursive: true, force: true });
+  }
 });
