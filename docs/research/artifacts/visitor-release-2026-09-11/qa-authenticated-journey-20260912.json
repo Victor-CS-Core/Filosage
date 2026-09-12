@@ -1,0 +1,89 @@
+{
+  "checkedAt": "2026-09-12T12:49:49.840820+00:00",
+  "sourceHead": "6de6a0bcdd88c7542eb7136d41521ea315d7b8b0",
+  "deployedAppSource": "c7d9c2c274bfcaee805332a83d94a208af32f09e",
+  "qaRevision": "filosageqa-app--qa-stripe-test-1",
+  "currentTermsAccepted": true,
+  "existingAccountJourney": {
+    "dashboardLoaded": true,
+    "privateLessonLoaded": true,
+    "profileLoaded": true,
+    "librarySearchLoaded": true,
+    "publishedOutlineLoaded": true,
+    "publishedLessonLoaded": true,
+    "checkedAt": "2026-09-12T12:47:36.013002+00:00",
+    "origin": "https://qa.filosage.com",
+    "publishedCourseId": "995dd15bd2684898e9d17d09af0e8cddb064fbcfbf21e69ea7a55cb7d14bc50b",
+    "lessonId": "0-1",
+    "bookmarkBaseline": false,
+    "bookmarkChangedTo": true,
+    "uiReportedSaved": true,
+    "reloadVerification": "bookmarked state persisted",
+    "restoreOriginalBookmarkSetting": "restored false; Saved acknowledged; false persisted after second reload",
+    "lessonCompletionOrAssessmentSubmitted": false,
+    "notesModified": false,
+    "profilePlanLabel": "Free learning account",
+    "courseCreatorControlsVisible": true,
+    "independentNonCreatorLearnerCoverage": false,
+    "theme": {
+      "baseline": "light",
+      "darkVisuallyVerified": true,
+      "darkPersistedAfterReload": true,
+      "restoredTo": "light",
+      "lightVisuallyVerified": true
+    },
+    "viewport": {
+      "requested": {
+        "width": 390,
+        "height": 844
+      },
+      "observed": {
+        "width": 1298,
+        "height": 1256
+      },
+      "overrideEffective": false,
+      "overrideReset": true,
+      "mobileCoverageClaimed": false
+    }
+  },
+  "accountApiInspection": {
+    "attempted": true,
+    "outcome": "Browser blocked direct API navigation; no API account/UID evidence collected",
+    "tokensOrCookiesExtracted": false
+  },
+  "stripeTax": {
+    "livemode": false,
+    "settingsStatus": "active",
+    "headOfficeAddressPresent": true,
+    "registrationCount": 0,
+    "registrationsHasMore": false,
+    "calculationId": "taxcalc_1UEqLTRANh4Mnfma8Dz8LQlZ",
+    "productId": "prod_V3P5lUmdV84hAD",
+    "syntheticCustomerLocation": {
+      "country": "US",
+      "state": "NJ",
+      "postalCode": "08540"
+    },
+    "amountMinor": 999,
+    "currency": "usd",
+    "taxMinor": 0,
+    "taxabilityReason": "not_collecting",
+    "effectiveProductTaxCode": "txcd_10000000",
+    "taxCollectionVerified": false,
+    "settingsOrRegistrationsChanged": false,
+    "customerOrSubscriptionCreated": false,
+    "documentation": "https://docs.stripe.com/tax/testing"
+  },
+  "remainingGates": [
+    "Independent non-creator learner flow",
+    "Hosted branding CSS upload and identity-compatible theme continuity",
+    "Supported real mobile viewport evidence",
+    "Exact authenticated billing-account preflight",
+    "TEST tax collection readiness and four-offer hosted lifecycle",
+    "Final frozen-candidate checks, integration, public deployment and verification"
+  ],
+  "localEvidenceSha256": {
+    "qa-authenticated-journey-20260912.json": "029aa2ad29ec6508967ad59cc55479e0698e7d995651ef99b9e6fe049682c121",
+    "qa-stripe-tax-readiness-20260912.json": "473e73f60ce10f404190dc06102f35a3e1d9dfe6bb3a24716cfb45395f1c2907"
+  }
+}
