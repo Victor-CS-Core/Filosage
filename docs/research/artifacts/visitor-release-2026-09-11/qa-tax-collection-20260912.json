@@ -1,0 +1,106 @@
+{
+  "checkedAt": "2026-09-12T13:55:45.332Z",
+  "stripeContext": "acct_1TtgXPRANh4Mnfma",
+  "livemode": false,
+  "businessTaxInformationVerification": {
+    "status": "Verified",
+    "source": "Victor-supplied Business Tax details screenshot",
+    "privateScreenshotCopiedToRepository": false,
+    "personalIdentityFieldsRecorded": false
+  },
+  "registration": {
+    "id": "taxreg_1UErNqRANh4Mnfma1k1Duknf",
+    "object": "tax.registration",
+    "active_from": 1789221262,
+    "country": "US",
+    "country_options": {
+      "us": {
+        "state": "NJ",
+        "type": "state_sales_tax"
+      }
+    },
+    "created": 1789221262,
+    "expires_at": 1789307662,
+    "livemode": false,
+    "status": "active"
+  },
+  "registrationExpiresUtc": "2026-09-13T13:54:22.000Z",
+  "calculation": {
+    "id": "taxcalc_1UErOMRANh4Mnfma2MmUOnuT",
+    "object": "tax.calculation",
+    "amount_total": 1065,
+    "currency": "usd",
+    "customer": null,
+    "customer_details": {
+      "address": {
+        "city": null,
+        "country": "US",
+        "line1": null,
+        "line2": null,
+        "postal_code": "08540",
+        "state": "NJ"
+      },
+      "address_source": "billing",
+      "ip_address": null,
+      "tax_ids": [],
+      "taxability_override": "none"
+    },
+    "expires_at": 1796997294,
+    "line_items": {
+      "object": "list",
+      "data": [
+        {
+          "id": "tax_li_VFM6hpFg2pFReI",
+          "object": "tax.calculation_line_item",
+          "amount": 999,
+          "amount_tax": 66,
+          "livemode": false,
+          "metadata": {},
+          "performance_location": null,
+          "product": "prod_V3P5lUmdV84hAD",
+          "quantity": 1,
+          "reference": "filosage_qa_plus_monthly_tax_collecting_20260912",
+          "tax_behavior": "exclusive",
+          "tax_code": "txcd_10000000"
+        }
+      ],
+      "has_more": false,
+      "total_count": 1,
+      "url": "/v1/tax/calculations/taxcalc_1UErOMRANh4Mnfma2MmUOnuT/line_items"
+    },
+    "livemode": false,
+    "ship_from_details": null,
+    "shipping_cost": null,
+    "tax_amount_exclusive": 66,
+    "tax_amount_inclusive": 0,
+    "tax_breakdown": [
+      {
+        "amount": 66,
+        "inclusive": false,
+        "tax_rate_details": {
+          "country": "US",
+          "flat_amount": null,
+          "percentage_decimal": "6.625",
+          "rate_type": "percentage",
+          "state": "NJ",
+          "tax_type": "sales_tax"
+        },
+        "taxability_reason": "standard_rated",
+        "taxable_amount": 999
+      }
+    ],
+    "tax_date": 1789221294
+  },
+  "liveModeTouched": false,
+  "qaBillingActivated": false,
+  "customerCreated": false,
+  "financialChargeMade": false,
+  "decision": {
+    "businessTaxInformationVerified": true,
+    "qaTaxCollectionProbePassed": true,
+    "hostedCheckoutVerified": false,
+    "productionTaxObligationsDetermined": false
+  },
+  "documentation": "https://docs.stripe.com/tax/testing",
+  "settingsDefaultsOrHeadOfficeModifiedByThisTask": false
+}
