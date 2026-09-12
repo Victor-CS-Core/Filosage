@@ -134,6 +134,9 @@ test("the capability-free scanner writes private reports as the invoking host id
   const bin = join(sandbox, "bin");
   const sourceSha = "a".repeat(40);
   mkdirSync(bin);
+  // A caller may place TMPDIR inside this ESM repository. Keep the fake CLI
+  // executables in their own CommonJS package regardless of ancestor metadata.
+  writeFileSync(join(sandbox, "package.json"), JSON.stringify({ type: "commonjs" }));
   const fakeGit = `#!/usr/bin/env node
 const args = process.argv.slice(2);
 if (args[0] === "rev-parse") { process.stdout.write("${sourceSha}\\n"); process.exit(0); }

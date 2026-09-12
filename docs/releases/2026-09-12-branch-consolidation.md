@@ -1,6 +1,6 @@
 # Branch consolidation — 2026-09-12
 
-Status: started. Owner: current Codex task.
+Status: review_ready. Owner: current Codex task.
 
 ## Scope and authorization
 
@@ -9,8 +9,8 @@ Victor requested consolidation of every branch with work not merged into `main`,
 ## Outcome checklist
 
 - [x] Inventory fresh local/remote branches, worktrees, uncommitted changes, pull requests, and active owners; preserve all unfinished work.
-- [ ] Reconcile every unique branch change with current `main`, resolve conflicts without reviving superseded behavior, and commit unfinished in-scope work.
-- [ ] Review the combined diff and pass proportionate repository checks; document any dependency or policy blocker.
+- [x] Reconcile every unique branch change with current `main`, resolve conflicts without reviving superseded behavior, and commit unfinished in-scope work.
+- [x] Review the combined diff and pass proportionate repository checks; document any dependency or policy blocker.
 - [ ] Merge the verified consolidation into `main` and push without bypassing protections or rewriting published history.
 - [ ] Delete consolidated local/remote branches only after verifying their work is retained; preserve non-source local artifacts when retiring worktrees.
 - [ ] Confirm fresh remote/local `main`, branch/worktree state, and bounded CI results; update the active handoff and report final evidence.
@@ -73,3 +73,10 @@ Risks: stale historical branches may restore retired systems; automated dependen
 | `refs/remotes/origin/docs/filosage-agent-command-center-product-design` | `99adc45f4e81b3e3e901e557aa0c781a1ea08782` | yes |
 
 The visitor final tip is `8353de5591a758d9fcec2f71328795333bfac5f0`; cleanup must verify that newer tip as well.
+
+- Progress: all 35 initially inventoried refs (32 remote non-main refs and three local refs, including one duplicate branch name) are ancestors of the consolidated history. Final visitor tip and both integration-agent tips are retained. Eight dependency branches are merged with pinned action upgrades and Microsoft's supported TypeScript 7 CLI / TypeScript 6 compatibility API aliases; existing runtime/test APIs and workflow triggers are preserved. Extra OpenGrep is manual-only; automatic Semgrep and manual CodeQL remain available.
+- Combined verification: clean locked install, production build, TypeScript 7, lint (zero errors; four existing full-navigation warnings), 469 release contracts, 114 offline application tests, eight OpenGrep runner tests, secret/wiki checks and zero-vulnerability dependency audit passed. All ten Semgrep report tests pass after explicitly declaring the fake CLI sandbox CommonJS; a task-local temporary directory had otherwise inherited the repository's ESM package type. Scanner production code and all test assertions are unchanged.
+- Browser verification: initial support run passed 12/13; the newly merged context test raced public-library session restoration. Waiting for the visible restored account preserves the identity-reset behavior and passes the focused regression. The new Command Center context UI test passes. Combined Chromium smoke and the context API assertion are still running. The API assertion belongs to the browser execution lane; the initial API-only command selected no tests and provides no verification.
+- Independent review approved historical conflicts, eleven patch-equivalent merges, dependency/compiler/action changes, security reconciliation, and the two test-environment corrections. Manual OpenGrep validated 83 rule hashes and positive/negative fixtures, then failed closed at its unchanged 300-second full-scan deadline. No completed full OpenGrep scan is claimed; the automatic Semgrep gate remains required in CI.
+
+- Review readiness: combined Chromium smoke passed 34/34 without retries. The submitted-context API regression passed in its owned browser lane, and the new Command Center UI regression passed. All relevant local gates are now passed; lint retains four non-failing navigation warnings. No running local test watcher remains. Proceed with Victor-authorized ordinary main fast-forward/push, then verify automatic engineering/PostgreSQL/Semgrep CI with a 30-minute deadline and a final bounded read before branch cleanup. No manual heavy workflow or deployment will be dispatched.
