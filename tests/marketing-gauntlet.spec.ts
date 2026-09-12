@@ -65,7 +65,7 @@ test("public positioning keeps learner access, AI sourcing, and paid availabilit
 
   await page.route("**/api/billing/status", (route) => route.fulfill({ json: { ready: false, managementReady: false } }));
   await page.goto("/pricing");
-  await expect(page.getByRole("heading", { level: 1 })).toContainText("goal");
+  await expect(page.getByRole("heading", { level: 1, name: "Choose your plan.", exact: true })).toBeVisible();
   await expect(page.getByText(/professional goals/i)).toHaveCount(0);
   await expect(page.getByText(/professional evidence/i)).toHaveCount(0);
   await expect(page.getByText(/flashcard/i)).toHaveCount(0);

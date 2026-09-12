@@ -586,7 +586,7 @@ test.describe("desktop application shell", () => {
       { path: "/progress", heading: /Your progress/ },
       { path: "/profile", heading: /Playwright/ },
       { path: "/review", heading: /caught up|concept/ },
-      { path: "/pricing", heading: /Choose how far Filosage carries your goal/ },
+      { path: "/pricing", heading: /Choose your plan\./ },
       { path: "/support", heading: /What do you need help with/ },
       { path: "/standard", heading: /Capability Cycle turns a goal into usable skill/ },
     ];
@@ -1265,7 +1265,7 @@ test.describe("mobile application shell", () => {
       { path: "/progress", heading: /Your progress/ },
       { path: "/profile", heading: /Playwright/ },
       { path: "/review", heading: /caught up|concept/ },
-      { path: "/pricing", heading: /Choose how far Filosage carries your goal/ },
+      { path: "/pricing", heading: /Choose your plan\./ },
       { path: "/support", heading: /What do you need help with/ },
       { path: "/standard", heading: /Capability Cycle turns a goal into usable skill/ },
     ];
