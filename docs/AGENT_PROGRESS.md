@@ -1,4 +1,32 @@
-# Filosage audit and visitor experience handoff
+# Filosage release readiness and production testing
+
+## Active approved outcome — September 12 release
+
+Status: started. Owner: current Codex release coordinator. Worktree: `.worktrees/release-ready-20260912`, branch `codex/release-ready-20260912`, starting SHA `a99e1f96c2ef54e3f2385cee4a0dfcec175520a8`. Victor explicitly requested implementation of the complete release plan in this task. The [approved implementation record](superpowers/plans/2026-09-12-release-readiness-production-testing.md) is the current scope. The older visitor handoff below is historical evidence; its unfinished hosted checks are carried into this checklist, not discarded. Branch consolidation is already complete; PR22 is merged.
+
+### Single outcome checklist
+
+- [ ] R1. Audit core visitor/learner/account/support/enabled-owner journeys on desktop/mobile, Chromium/WebKit, both themes; include real non-owner learner, hosted auth appearance, keyboard/accessibility, cancellation, loading/errors/retries and anonymous/private enforcement. Record reproducible findings/screenshots and fix release friction without redesign.
+- [ ] R2. Measure production-build page loading/JavaScript, API latency, cold/warm startup, CPU/memory/restarts, DB connections/query plans and model latency/cost. Apply measured improvements; retain current scaling initially and report warm-replica cost/benefit.
+- [ ] R3. Resolve actual release prerequisites: protected workflow environments, backup observation inputs, production least-privilege runtime and database allow/deny evidence, current recovery and compatible predecessor/write-protocol checks.
+- [ ] R4. Review and integrate fixes, commit/push validated checkpoints, freeze exact SHA, pass required engineering/security/PostgreSQL/billing/browser gates including one full regression on the frozen SHA.
+- [ ] R5. Build once, pin digest, stage zero-public-traffic candidate without changing live routing/auth/flags; collect exact-candidate hosted learner/privacy/publication/operations/billing-containment evidence. New checkout remains closed; verify existing subscriber obligations. Historical paid-launch lifecycle/tax activation stays deferred and unclaimed.
+- [ ] R6. Promote verified image 100/0, verify canonical routing/SHA/digest/health, real sign-in, lesson access/progress and monitoring; observe 30 minutes with bounded reads and compatible rollback on specified failures. Retain predecessor through retirement.
+- [ ] R7. Inventory exact QA resource/dependency/content/retention disposition; preserve required content/recovery evidence, then after production acceptance retire exclusive integrations/site/compute/access/data/identity. Verify production and absence of resources/dangling references; preserve shared consumers and configured recovery/holds.
+- [ ] R8. Deliver React/.NET feasibility report: current Next BFF, incremental .NET, and React SPA served by ASP.NET Core; map handlers/security/data/AI/billing/rendering, reuse, contract tests, sequence, effort and cost. No migration in this release.
+- [ ] R9. Final fresh checklist/Git/CI/process/deployment/provider readback; updated runbooks and handoff distinguish local, committed, pushed, deployed, production-verified and retired states. No unbounded watchers or unreported outstanding gate.
+
+### Authorization, invariants, risks and evidence
+
+The approved plan authorizes its implementation, minimum-access runtime correction, release workflow setup, production staging/promotion, and dependency-verified exclusive QA retirement after acceptance. Preserve current design, capability manifest, migration-dual authentication and closed new checkout. Do not activate paid billing or migrate platform. Honor actual required reviewer protections; do not fabricate approvals or hosted evidence. Use designated accounts/data for shared-production canary mutations; destructive/payment simulations require isolated fixtures. No secrets, environment values, raw claims or private logs in tracked evidence.
+
+Plan baseline, to revalidate: public production `93f60f24`, live green/inactive blue, 0.5 CPU/1Gi, min0/max3; source a99e1f9 engineering/security green. QA separate single-revision app exists. Production MI has vault-wide Secrets User while QA has eight secret scopes. Missing candidate-review/promotion environments and backup observation inputs were observed. PostgreSQL reports seven-day recovery window; this is not a current restore proof. Shared-service/in-flight-write compatibility and actual learner/provider evidence are release gates. QA removal must not remove shared tenant/apps, database server, vault, storage account, registry or managed environment.
+
+Progress: re-read current policies/handoff; fresh local main is clean at a99e1f9. Created isolated coordinator worktree. No application/provider mutation, deployment, traffic switch or QA deletion yet. Coordinator owns this shared record; bounded workers report evidence here through the coordinator.
+
+---
+
+# Historical visitor experience handoff
 
 Last updated: 2026-09-12, 13:57 UTC. Owner: Codex coordinator. Status: business tax information verified by supplied evidence and TEST tax collection probe passed; hosted account/billing lifecycle and branding gates remain open.
 Source integrated into `main`; original visitor branch removed after verification. Historical starting commit: `96559246b89b81f5b3cebcc36147932400c8cc4c`.
