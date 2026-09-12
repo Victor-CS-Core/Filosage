@@ -1,3 +1,4 @@
+import { inspectBannerReferences } from './recovery-banner-references.mjs';
 import { createHmac } from 'node:crypto';
 import { createRequire } from 'node:module';
 import { runtimeDatabaseOptions } from './inspect-runtime-database.mjs';
@@ -16,7 +17,7 @@ const count = (value) => {
 };
 const digest = (key, value) => createHmac('sha256', key).update(value).digest('hex');
 
-export async function inspectRecoveryDatabase(client, database, key) {
+export async function inspectRecoveryDatabase(client, database, key, includeBannerReferences = false) {
   if (!['filosage', 'postgres'].includes(database) || !/^[a-f0-9]{64}$/.test(key)) throw new Error('Invalid inspection context.');
   await client.query('BEGIN ISOLATION LEVEL REPEATABLE READ READ ONLY');
   try {
@@ -79,6 +80,7 @@ export async function inspectRecoveryDatabase(client, database, key) {
       Object.assign(result, { schemaCompatible: true, schemaHmac: digest(key, schema.columns), documents,
         courses: count(counts.courses), documentsHmac: hmac.digest('hex') });
     }
+    if (database === 'filosage' && includeBannerReferences) result.bannerReferences = await inspectBannerReferences(client, key);
     return result;
   } finally { await client.query('ROLLBACK'); }
 }
@@ -92,7 +94,7 @@ export async function runRecoveryInspection(expectedSha, target, key) {
     const client = new pg.Client(recoveryOptions(process.env.DATABASE_URL, process.env.DATABASE_SSL, target, database));
     try {
       await client.connect();
-      const result = await inspectRecoveryDatabase(client, database, key);
+      const result = await inspectRecoveryDatabase(client, database, key, target === 'restore');
       if (target === 'source' && !result.cronDatabaseIsPostgres) throw new Error('Source cron configuration changed.');
       databases.push(result);
     }

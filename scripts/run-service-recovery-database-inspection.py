@@ -83,6 +83,8 @@ def run(args: argparse.Namespace) -> dict:
     dependency = Path(__file__).with_name("inspect-runtime-database.mjs").read_bytes()
     source = Path(__file__).with_name("inspect-service-recovery-database.mjs").read_text(encoding="utf8")
     source = source.replace("./inspect-runtime-database.mjs", "data:text/javascript;base64," + base64.b64encode(dependency).decode())
+    banners = Path(__file__).with_name("recovery-banner-references.mjs").read_bytes()
+    source = source.replace("./recovery-banner-references.mjs", "data:text/javascript;base64," + base64.b64encode(banners).decode())
     encoded = base64.b64encode(source.encode()).decode()
     digest = hashlib.sha256(encoded.encode()).hexdigest()
     nonce = secrets.token_hex(16)

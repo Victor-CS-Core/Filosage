@@ -60,3 +60,15 @@ test('clone without loaded cron accepts absent cron settings but loaded cron can
   assert.equal(result.cronPreloaded, false); assert.equal(result.cronLaunchEnabled, null);
   await assert.rejects(inspectRecoveryDatabase(client({ preloaded: true, cronDatabase: null }), 'postgres', key));
 });
+
+test('banner proof runs only when requested and inside the read-only transaction', async () => {
+  const baseline = client({ database: 'filosage' });
+  await inspectRecoveryDatabase(baseline, 'filosage', key);
+  assert.ok(!baseline.queries.some(sql => sql.includes('LIMIT 1001')));
+  const restored = client({ database: 'filosage' });
+  const result = await inspectRecoveryDatabase(restored, 'filosage', key, true);
+  assert.equal(result.bannerReferences.references, 0);
+  assert.equal(restored.queries[0], 'BEGIN ISOLATION LEVEL REPEATABLE READ READ ONLY');
+  assert.ok(restored.queries.some(sql => sql.includes('LIMIT 1001')));
+  assert.equal(restored.queries.at(-1), 'ROLLBACK');
+});
