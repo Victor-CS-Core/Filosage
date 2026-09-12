@@ -11,7 +11,7 @@ export default defineSupportArticle({
   body: `
 ## Open your profile
 
-Open the account control to launch the Command Center, then choose **Learning profile**. A profile requires a signed-in account because it combines synced progress, account access, and learner preferences.
+On desktop, choose **Search or jump anywhere** to open the Command Center, then choose **Learning profile**. On a phone, use the command icon labelled **Open Command Center**. You can also press **Ctrl+K** on Windows or **Command+K** on macOS. The account/avatar control opens **My Courses**. A profile requires a signed-in account because it combines synced progress, account access, and learner preferences.
 
 ## Review your current direction
 

@@ -26,7 +26,7 @@ Use **Tab** and **Shift+Tab** to move between navigation controls. The focus ind
 
 ## Use the Command Center
 
-On desktop, choose **Search or jump anywhere** in the Learning Header. You can also press **Ctrl+K** on Windows or **Command+K** on macOS. The account control opens the same Command Center instead of a separate profile menu. On a phone, open it from the account control in the mobile header.
+On desktop, choose **Search or jump anywhere** in the Learning Header. You can also press **Ctrl+K** on Windows or **Command+K** on macOS. On a phone, use the command icon labelled **Open Command Center** in the mobile header. The account/avatar control opens **My Courses**.
 
 The Command Center brings together main destinations, available courses, the current course and its lessons, profile and support links, appearance control, and sign out. Options such as course creation or the control room appear only when your account can use them.
 
@@ -42,7 +42,7 @@ If course creation is available to your account, **Create a course** appears in 
 
 ## Open account controls
 
-Open the account control bearing your name or profile image to open the Command Center. From there you can reach your profile and its privacy controls, support, appearance switch, and sign out. Available options can vary by account access.
+Open the Command Center using the search control or command icon described above. From there you can reach your profile and its privacy controls, support, appearance switch, and sign out. Available options can vary by account access.
 
 ## Owner documentation
 

@@ -1,0 +1,15 @@
+{
+  "observedAt": "2026-09-12 15:46:11 UTC",
+  "provider": "Stripe",
+  "account": "Filosage",
+  "livemode": true,
+  "operation": "GET /v1/invoices",
+  "parameters": {
+    "status": "open",
+    "limit": 100
+  },
+  "openInvoices": 0,
+  "hasMore": false,
+  "providerMutation": false,
+  "limitation": "Open invoice inventory only; not full paid-launch lifecycle or webhook acceptance."
+}
