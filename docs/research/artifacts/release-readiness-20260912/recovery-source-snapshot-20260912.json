@@ -1,0 +1,47 @@
+{
+  "schemaVersion": 1,
+  "operation": "read-only-recovery-database",
+  "sourceSha": "93f60f24afe59b19b6a592f455a09e8e813f1f84",
+  "target": "source",
+  "observedAt": "2026-09-12T20:19:48.355Z",
+  "databases": [
+    {
+      "database": "filosage",
+      "snapshotAt": "2026-09-12T20:19:47.915Z",
+      "readOnly": true,
+      "extensionCount": 1,
+      "extensionHmac": "a126c81cec5b4d1a67544aa76e7f1ef9512d1c7f40263e9a6b2bfaa483995799",
+      "cronDatabaseIsPostgres": true,
+      "cronLaunchEnabled": true,
+      "cronPreloaded": true,
+      "cronInstalled": false,
+      "cronVisibilityVerified": true,
+      "cronJobs": null,
+      "activeCronJobs": null,
+      "schemaCompatible": true,
+      "schemaHmac": "86e57dd15028a9b871347f289b4865ee93fca570ab0cc48d7a1300c07e850ac0",
+      "documents": 510,
+      "courses": 13,
+      "documentsHmac": "79ae2712cc242eebeffc680937e5248694b26ae9ae382aa4159eebe0c5b84e59"
+    },
+    {
+      "database": "postgres",
+      "snapshotAt": "2026-09-12T20:19:48.338Z",
+      "readOnly": true,
+      "extensionCount": 3,
+      "extensionHmac": "d91d576ef6bb77c0fd3eb3ebb2c58b81b41218e068a2d6a790e4e3944b5c9e76",
+      "cronDatabaseIsPostgres": true,
+      "cronLaunchEnabled": true,
+      "cronPreloaded": true,
+      "cronInstalled": false,
+      "cronVisibilityVerified": true,
+      "cronJobs": null,
+      "activeCronJobs": null
+    }
+  ],
+  "rpoVerified": false,
+  "serviceRecoveryVerified": false,
+  "revision": "filosagestg-app--green-93f60f24-1",
+  "imageDigest": "sha256:0c006852322a91d5e2540cfd27ab58e47dad33a3a1f793fd6afc1e2240bbadf2",
+  "probeSourceSha256": "c879b3e01b88c3b6869eaa66de4fc3768608edf96928ee58aaab56f163ffe134"
+}

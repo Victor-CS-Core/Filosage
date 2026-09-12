@@ -1,0 +1,15 @@
+{
+  "schemaVersion": 1,
+  "operation": "private-postgresql-pitr",
+  "sourceId": "/subscriptions/bfc8f890-2681-43dc-8eac-51644341ae12/resourceGroups/filosage-staging-central-rg/providers/Microsoft.DBforPostgreSQL/flexibleServers/filosagestg-p4ujucgnxq3gs-pg",
+  "destinationId": "/subscriptions/bfc8f890-2681-43dc-8eac-51644341ae12/resourceGroups/filosage-staging-central-rg/providers/Microsoft.DBforPostgreSQL/flexibleServers/filosage-recovery-20260912-a",
+  "restorePoint": "2026-09-12T20:19:48.338Z",
+  "startedAt": "2026-09-12T20:20:24.271993+00:00",
+  "validationDeadline": "2026-09-12T21:20:24.271993+00:00",
+  "intendedCleanupDeadline": "2026-09-12T22:20:24.271993+00:00",
+  "requestStatus": "accepted",
+  "restoreRehearsal": true,
+  "requestExitCode": 0,
+  "requestElapsedSeconds": 3.466,
+  "requestFinishedAt": "2026-09-12T20:20:27.737714+00:00"
+}
