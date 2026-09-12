@@ -46,3 +46,23 @@ Source: [Azure Container Apps pricing](https://azure.microsoft.com/en-us/pricing
 Hosted candidate page/API measurements, repeat database execution latency and actual model-call duration/cost remain open. Model telemetry must use existing sanitized aggregate receipts or isolated recorded-provider fixtures; do not trigger paid calls merely to create benchmark data or export prompts/responses. Cold-start measurements must identify initial replica state and compare like conditions. Do not warm legacy zero-traffic revisions for measurement: their startup runs schema migration and they lack the modern write protocol. A candidate built on the verified modern baseline is the appropriate hosted comparison target. This report does not claim a measured warm-replica benefit or .NET performance advantage.
 
 A bounded read-only telemetry check at17:37UTC examined only aggregate metadata from the last seven days of console logs for exact production revision`filosagestg-app--green-93f60f24-1`. Of17,901log rows, zero parsed structured events contained a course-pipeline event, model tag, pipeline duration or recognized cost field. [Availability evidence](../research/artifacts/release-readiness-20260912/model-telemetry-availability.json) retains counts and time coverage, with no raw log, account identifier, prompt or response. This establishes an unavailable console-log measurement for this sample, not zero model use/cost; persisted receipts, differently formatted logs, other destinations and periods are not excluded. No paid benchmark call or provider configuration change occurred. Model latency/cost remains an explicit release measurement gap.
+
+## Retained legacy model cost estimates
+
+A separately reviewed read-only PostgreSQL probe succeeded at17:52:05UTC through the exact live green93f60f24 revision. The repeatable-read transaction returned only closed aggregate groups and rolled back; no new model call, database write or runtime configuration change occurred. [Result, reviewed SQL and adapter evidence](../research/artifacts/release-readiness-20260912/legacy-model-accounting/legacy-model-aggregate-result.json) retain the exact revision/image/probe identities. The source SHA identifies the executing binary; these records may have been created by older revisions and are not candidate3a0e772 measurements.
+
+The34surviving request snapshots cover reservations/updates from August13–21. Their143recorded usage samples reconcile separately to the same3,650,146micro-USD (**$3.650146**) in recorded application estimates. These two views describe the same cost; do not add them. Inputs total562,310tokens and outputs140,956; cached/cache-write token counts are subsets of input. Usage samples can include default or fixed image/search charges and do not prove143individual provider calls.
+
+| Retained request feature/status | Snapshots | Recorded estimate, USD |
+| --- | ---: | ---: |
+| Course outline, completed | 6 | 2.116293 |
+| Course outline, failed | 2 | 1.153505 |
+| Lesson generation, completed | 16 | 0.306692 |
+| Lesson generation, failed | 1 | 0.023965 |
+| Course banner, completed | 6 | 0.036000 |
+| Flashcard generation, completed | 1 | 0.010092 |
+| Tutor, completed | 2 | 0.003599 |
+
+All returned numeric/timestamp fields pass validation, with no missing or oversized attempt arrays. The database contains18system budget-shard records across its retained periods, but the separate September2026 query returned no rows. That is absent retained September evidence, not verified zero provider spend. Retried request snapshots can be replaced while cumulative budget estimates persist, and deletion/retention can remove records; these snapshots therefore do not establish total historical spend. The stored values use then-configured rates and fixed charges, are not invoice-verified, and should not be repriced or extrapolated to monthly operating cost from this small historical sample.
+
+Per-sample start/end/duration is absent; reservation-to-update elapsed time includes application/queue/retry work and cannot measure model latency. Hosted candidate model latency/cost and matched before/after performance remain open. Both apex/www health returned200, unchanged93f60f24, migration-dual and healthy configuration/datastore at17:52:23UTC after the probe. The runtime is still the existing administrative DB login; this read does not satisfy minimum-access acceptance.
