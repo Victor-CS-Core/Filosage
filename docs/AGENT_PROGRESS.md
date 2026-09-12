@@ -7,7 +7,7 @@ Branch: `codex/visitor-experience-20260911`. Starting commit: `96559246b89b81f5b
 
 Victor explicitly requested all unmerged and active branches consolidated into `main`, conflicts fixed, committed/pushed and source branches removed. The current consolidation coordinator owns [the complete consolidation outcome checklist](releases/2026-09-12-branch-consolidation.md) on `codex/consolidate-20260912`; the historical A–K release checklist below remains open where hosted evidence is missing. No deployment or billing activation is part of consolidation.
 
-Initial inventory: three existing non-main local worktrees, 30 remote non-main branches, 14 open PRs and the root policy edit. Visitor/QA changes and the Node 26 publication-proof correction have been integrated locally. The visitor owner is making one final documentation checkpoint before freezing branch writes. Separate isolated agents are consolidating dependency updates and earlier security alternatives; the coordinator handles historical branch reconciliation, combined validation, landing and cleanup. Main is not yet changed or pushed.
+Initial inventory: three existing non-main local worktrees, 32 remote non-main branches, 14 open PRs and the root policy edit. Visitor/QA changes and the Node 26 publication-proof correction have been integrated locally. The visitor owner froze source branch writes after final documentation checkpoint `8353de5`, now integrated locally. Separate isolated agents are consolidating dependency updates and earlier security alternatives; the coordinator handles historical branch reconciliation, combined validation, landing and cleanup. Main is not yet changed or pushed.
 
 ## Read first
 
