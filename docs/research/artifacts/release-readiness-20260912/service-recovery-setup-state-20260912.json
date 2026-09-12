@@ -1,0 +1,33 @@
+{
+  "observedAt": "2026-09-12T22:52:17.154410+00:00",
+  "googleClientId": "557534798515-f1419k6iqqb0ptk6b1a4f8qs20uqd1hv.apps.googleusercontent.com",
+  "project": "teachapp-d73c3",
+  "existingRedirectCount": 7,
+  "preparedAdditionalRedirect": "https://filosage-recovery-app-20260912.salmontree-eb10220f.centralus.azurecontainerapps.io/.auth/login/google/callback",
+  "existingEntriesPreservedInForm": true,
+  "saved": false,
+  "confirmationPending": true,
+  "environmentDomainVerified": "salmontree-eb10220f.centralus.azurecontainerapps.io",
+  "newAppAbsentAtRead": true,
+  "sourceDatabaseReady": true,
+  "sourcePublicNetworkAccess": "Disabled",
+  "sourceDocs": 522,
+  "sourceCourses": 13,
+  "providerResourcesCreated": false,
+  "verification": {
+    "javascriptTests": 11,
+    "pythonTests": 13,
+    "actualRuntimeValidatorPassed": true,
+    "actualSdkLoopbackContainmentPassed": true,
+    "independentReview": "approved after runtime-environment and retention-evidence corrections",
+    "applicationSourceChanged": false,
+    "liveSetupExecuted": false
+  },
+  "publicReadback": {
+    "at": "2026-09-12T22:59:17.364719+00:00",
+    "status": 200,
+    "ok": true,
+    "sourceSha": "93f60f24afe59b19b6a592f455a09e8e813f1f84",
+    "authenticationMode": "migration-dual"
+  }
+}
