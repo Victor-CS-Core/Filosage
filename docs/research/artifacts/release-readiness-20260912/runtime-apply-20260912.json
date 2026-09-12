@@ -1,0 +1,38 @@
+{
+  "schemaVersion": 1,
+  "operation": "production-runtime-preparation",
+  "sourceSha": "93f60f24afe59b19b6a592f455a09e8e813f1f84",
+  "mode": "apply",
+  "observedAt": "2026-09-12T20:57:50.712Z",
+  "ok": true,
+  "created": true,
+  "capacity": {
+    "maxConnections": 50,
+    "reservedConnections": 5,
+    "superuserReservedConnections": 10,
+    "modernConnections": 18,
+    "qaAllowance": 11,
+    "operationalReserve": 6
+  },
+  "role": "filosage_runtime",
+  "connectionLimit": 18,
+  "catalog": {
+    "attributes": true,
+    "database_acl": true,
+    "schema_acl": true,
+    "dml": true,
+    "no_ddl": true,
+    "exact_acl": true,
+    "no_memberships": true,
+    "owns_nothing": true,
+    "no_qa_connect": true
+  },
+  "runtimeTlsLoginVerified": true,
+  "rolledBackDmlVerified": true,
+  "currentSchemaSqlVerified": true,
+  "oldRuntimeBindingChanged": false,
+  "schemaGuardSourceSha256": "45cf0ffa2ceb43d9caa9aeb795b6be54fe63006db442cafc69e6782b22078d79",
+  "revision": "filosagestg-app--green-93f60f24-1",
+  "imageDigest": "sha256:0c006852322a91d5e2540cfd27ab58e47dad33a3a1f793fd6afc1e2240bbadf2",
+  "probeSourceSha256": "17b48bdc7828f0940b1ff3a25ae36cc7ebbe47b2c2139622e425d46f1d95fc2a"
+}
