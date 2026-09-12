@@ -1,7 +1,7 @@
 import { expect, test } from "@playwright/test";
 import { releaseEnvironment, type ReleaseEvidence } from "../src/lib/release-capabilities";
 import { readFileSync } from "node:fs";
-import { assertBlueGreenState, assertCandidateReadback, authConfigurationHash, candidateTraffic, labelOrigin } from "../scripts/blue-green-contract";
+import { assertBlueGreenState, assertCandidateReadback, authConfigurationHash, candidateTraffic, labelOrigin, azureLocationName } from "../scripts/blue-green-contract";
 
 const appId = "/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/release/providers/Microsoft.App/containerApps/filosage-app";
 const sha = "a".repeat(40);
@@ -13,6 +13,14 @@ const state = () => ({ appId, location: "westus", mode: "Multiple", fqdn: "filos
   { label: "blue", revisionName: "filosage-app--old", weight: 100 },
   { label: "green", revisionName: "filosage-app--candidate", weight: 0 },
 ] });
+
+test("Azure display locations become stable region names before release state validation", () => {
+  expect(azureLocationName("Central US")).toBe("centralus");
+  expect(azureLocationName("West US 2")).toBe("westus2");
+  expect(azureLocationName("centralus")).toBe("centralus");
+  expect(() => assertBlueGreenState({ ...state(), location: azureLocationName("Central US") })).not.toThrow();
+  for (const value of [null, "", " centralus", "Central  US", "centralus/other", "Central\nUS"]) expect(() => azureLocationName(value)).toThrow();
+});
 
 test("inactive color is derived only from exact observed 100/0 revision bindings", () => {
   expect(assertBlueGreenState(state()).candidate.label).toBe("green");

@@ -1,0 +1,57 @@
+# Prepared maintenance transition packet
+
+Status: prepared locally; **execution remains blocked and no maintenance is active**. Victor selected preparation of a temporary maintenance transition and retained native GitHub reviewer gates. No alternative approval policy or billing-plan change is authorized. Owner: release coordinator. This packet extends [release prerequisites](2026-09-12-release-prerequisites.md) and the complete R1–R9 outcome; it is not deployment evidence.
+
+## Concrete target and read-only preflight
+
+Target app: `/subscriptions/bfc8f890-2681-43dc-8eac-51644341ae12/resourceGroups/filosage-staging-central-rg/providers/Microsoft.App/containerApps/filosagestg-app`. Preserve migration-dual, shared authentication, production origin, capability selection and closed checkout. Current bindings are green `filosagestg-app--green-93f60f24-1` 100%, blue `filosagestg-app--blue-7abae96f-1` 0%; both are active legacy writers. Neither qualifies as a modern rollback target.
+
+Run the non-mutating preflight:
+
+```sh
+node scripts/check-release-prerequisites.mjs Victor-CS-Core/Filosage filosage-staging-central-rg filosagestg-app migration-dual
+```
+
+Its `maintenance` record contains the ingress fingerprint, canonical and custom hosts, the default app host, both label hosts and **every active revision host**, including unlabeled writers. It rejects missing bound revisions and malformed/ambiguous origins. It records IP-restriction/extra-port presence without printing IP rules. `maintenanceReady` and `drainVerified` remain false; this inventory cannot certify a write fence or a human approval. A nonzero exit from actual prerequisites is the expected blocked result, not permission to skip a check.
+
+Actual read-only preflight at 15:30:36 UTC found exactly the seven HTTP origins below, two active revisions, no configured IP restrictions and no additional port mappings. Ingress fingerprint was `279d915d6855dccbbf8ac28286777982866cc7ce5037cc93e718a7d23e9e268a`; auth and legacy 100/0 routing were unchanged. This records current coverage targets, not future enforcement.
+
+Required route coverage includes:
+
+| Surface | Coverage required before the first modern write |
+| --- | --- |
+| `https://filosage.com` and `https://www.filosage.com` | Canonical/custom entrypoints and redirect behavior; a maintenance response at the edge must not leave direct-origin bypass. |
+| `https://filosagestg-app.salmontree-eb10220f.centralus.azurecontainerapps.io` | Direct default origin, all methods and paths, including `/.auth` and account/session GETs that can write. |
+| `https://filosagestg-app---blue.salmontree-eb10220f.centralus.azurecontainerapps.io` and `https://filosagestg-app---green.salmontree-eb10220f.centralus.azurecontainerapps.io` | Both labels irrespective of public traffic weight. |
+| Exact FQDN of each active revision from preflight | Both known old revisions and any unlabelled active revision; re-inventory after each reviewed new revision creation. |
+| New modern baseline/candidate endpoints | Operator-only access until the old writers are drained; being at zero public weight does not establish isolation. |
+| Internal callers, jobs, provider callbacks, manual scripts and direct database/Blob clients | Inventory and separately stop or fence writers that do not enter via app HTTP. HTTP rules alone do not cover them. |
+
+Azure supports application ingress IP restrictions through its ingress configuration ([Microsoft documentation](https://learn.microsoft.com/en-us/azure/container-apps/ip-restrictions)). A prospective implementation is a temporary exact operator-CIDR allow rule at app ingress, with an external maintenance response if needed. **No CIDR, upstream proxy path, denied/allowed probe vantage, exemption or enforcement command is preapproved here.** Before proposing the write, capture current ingress, confirm the real proxy/source-IP path, and prove that the rule covers every listed default/label/revision/custom route and `/.auth`. A proxy-wide allow rule can admit all visitors. Protect any additional TCP ports separately. Shared auth itself must remain unchanged. Review the exact scoped ingress patch and its exact restore patch; do not replace the whole app configuration.
+
+## Entry gates and operation sequence
+
+1. Resolve native required-reviewer capability and protections for the staged/reviewed/promotion workflow identities. The provider rejected the required-reviewer operation under the current private-repository plan; preparation can continue, execution/promotion cannot claim that gate passed. Collect actual required human approval of the exact transition packet.
+2. Freeze modern baseline B's complete source SHA and immutable image digest. Require the complete account-generation, publication-proof/epoch, attempt/original-period accounting and atomic lesson commit protocols plus read-only startup. Establish B's engineering, PostgreSQL, security and browser evidence; define C's final exact source/image independently. A health backport or legacy startup override is insufficient. Build each selected image once and retain registry digest provenance.
+
+   Resolve the database connection budget before admitting overlapping modern replicas: two revisions × three maximum replicas × (10 main-pool + one health-pool connection) is a possible **66 connections**, above the server's observed limit of 50 before QA, operator and reserved connections. Pools are lazy; the coordinator observed a peak of 18, which does not bound future saturation. Keep scaling unchanged in this package. Prove an isolated concurrency scenario and review an explicit pool/replica/operational reserve budget before release; any later pool or scale change needs its own source/configuration and latency/timeout evidence. Restrict replica counts during a controlled rehearsal only through a separately reviewed operation.
+3. Retain a current recovery rehearsal artifact with an actual private PostgreSQL restore, Blob/version inventory, measured recovery time/consistency and retained-accounting checks. State the approved RPO/RTO and owners. A successful backup-window artifact is not a restore. Preserve shared owners `filosageqa_app`, `filosageadmin` and `azure_pg_admin`, live/QA data, recovery material and legal holds.
+4. Review the separate distinct non-owner production login/new versioned-secret binding operation. Prove catalog allow/deny, rolled-back DML, default modern startup and exact health without altering existing owners or broad PUBLIC permissions. Prepare B at zero weight with no uncontrolled access or mutating hosted tests while legacy writers remain live.
+5. Establish an exclusive operator lease and execute only the reviewed ingress/other-writer fence. Capture exact before/after hashes and denied/allowed vantage results for every origin. If any origin, method or non-HTTP writer remains uncontrolled, stop before new writes. Do not equate traffic weights, flags, DNS changes or a successful maintenance page with a fence.
+6. Drain for at most 15 minutes with bounded reads and a final status read. Inventory request/attempt/resource leases, deletion jobs, publication mutations, provider work and accounting outcomes. Retain uncertain provider cost; do not erase attempts or infer a refund. Deactivate known old revisions under the reviewed procedure and verify no old replicas/processes or attributable sessions remain. Production currently uses the administrator login, so same-user sessions may have other consumers; ambiguous sessions block progress, and broad session termination is not authorized.
+7. Under maintenance establish B as the baseline with a distinct modern zero-weight revision. Run exact hosted account/privacy/learner/publication/accounting/operations tests with approved data. The initialization is separately reviewed because the standard preflight correctly rejects the old predecessor. It must not falsify a staging artifact or claim old health has new fields.
+8. Once B is actually proven, run the unchanged standard stage/review/promote workflows for C using B as captured predecessor. Keep all seven immutable exact-candidate proofs, matching full-regression/quality runs, real native human review, OIDC restrictions and compatible fallback authorization. No rebuild occurs in promotion.
+
+## Exit, rollback and stopped states
+
+Before any modern writes, a failed entry/drain gate leaves the old version unchanged and the operator can restore only the exact captured ingress/paused-caller state after checking that no modern writer ran. Recheck old health and real sign-in; do not advertise a successful release.
+
+After modern writes, never restore writable traffic to either legacy image. Keep maintenance enforced on any ambiguity. Fallback may use only the verified modern B with the reviewed SHA/digest/protocol evidence. Database restore is a separate reviewed recovery operation and must account for writes since its recovery point, provider obligations and uncertain accounting. It is not implied by a traffic rollback.
+
+Maintenance exit requires exact public routing, SHA/digest, canonical origin and health; actual sign-in/lesson/progress; all HTTP and non-HTTP writers compatible; preserved auth/closed-checkout/capabilities; operations receiver and escalation checks; and the reviewed modern rollback target retained. Restore only the approved ingress/caller controls and verify their actual readback. Then perform the specified 30-minute bounded observation, escalating on a critical journey failure, identity mismatch or two consecutive unhealthy reads. Do not retire QA until that acceptance and dependency/retention gates pass.
+
+On any timeout, retain a final status read and sanitized incident state. The packet must state whether ingress is restricted, which writers/revisions remain, which modern writes happened, and which recovery path is still valid. Never leave a watcher or an unreported maintenance window running.
+
+## Remaining concrete inputs
+
+Native reviewer support/protection remains unavailable; no plan change will be made by this task. The operator CIDR/proxy path, independent denied/allowed probe locations, complete non-HTTP writer inventory, current restore/RPO/RTO proof, baseline B and candidate C identities and successful engineering/hosted evidence remain required. This packet intentionally supplies no generic mutation script that could bypass those prerequisites. The checked-in preflight is read-only and fails closed.

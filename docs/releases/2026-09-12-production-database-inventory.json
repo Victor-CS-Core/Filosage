@@ -1,0 +1,73 @@
+{
+  "schemaVersion": 1,
+  "operation": "read-only-production-database-catalog",
+  "observedAt": "2026-09-12T15:16:31.140Z",
+  "roles": {
+    "runtime_role": "filosageadmin",
+    "database_owner": "filosageqa_app",
+    "schema_owner": "azure_pg_admin",
+    "table_owner": "filosageadmin"
+  },
+  "privileges": {
+    "correct_database": true,
+    "can_select": true,
+    "can_insert": true,
+    "can_update": true,
+    "can_delete": true,
+    "schema_create": true,
+    "database_create": true,
+    "elevated_membership": true,
+    "table_owner_membership": true,
+    "public_database_create": false,
+    "public_schema_create": false,
+    "schema_columns_compatible": true,
+    "primary_key_compatible": true
+  },
+  "directMemberships": 8,
+  "counts": {
+    "documents": 510,
+    "courses": 13,
+    "databaseSessions": 2,
+    "runtimeSessions": 2
+  },
+  "settings": {
+    "maxConnections": 50,
+    "idleTransactionTimeout": "0",
+    "idleSessionTimeout": "0",
+    "probeStatementTimeoutMs": 15000,
+    "probeLockTimeoutMs": 3000
+  },
+  "publicCoursePlan": {
+    "nodeType": "Limit",
+    "totalCost": 18.34,
+    "rows": 1,
+    "width": 352,
+    "plans": [
+      {
+        "nodeType": "Bitmap Heap Scan",
+        "totalCost": 18.34,
+        "rows": 1,
+        "width": 352,
+        "plans": [
+          {
+            "nodeType": "Bitmap Index Scan",
+            "indexName": "filosage_documents_collection_path_idx",
+            "totalCost": 2.37,
+            "rows": 13,
+            "width": 0,
+            "plans": []
+          }
+        ]
+      }
+    ]
+  },
+  "dmlExecution": "not-performed",
+  "modelTelemetry": "not-collected",
+  "restoreRehearsal": false,
+  "sourceSha": "93f60f24afe59b19b6a592f455a09e8e813f1f84",
+  "configuredPoolMax": null,
+  "poolDefaultSourceReviewRequired": true,
+  "revision": "filosagestg-app--green-93f60f24-1",
+  "imageDigest": "sha256:0c006852322a91d5e2540cfd27ab58e47dad33a3a1f793fd6afc1e2240bbadf2",
+  "probeSourceSha256": "022e231a6a84316600d6de4b6b56abb0f5edd8555ec0ec5a57839273d1f3e766"
+}

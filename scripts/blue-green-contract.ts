@@ -4,6 +4,11 @@ import { releaseEvidenceMatches, releaseEnvironment, type ReleaseEvidence } from
 const object = (value: unknown): value is Record<string, unknown> => Boolean(value) && typeof value === "object" && !Array.isArray(value);
 export const canonical = (value: unknown): string => JSON.stringify(value, (_, item: unknown) => object(item) ? Object.fromEntries(Object.keys(item).sort().map((key) => [key, item[key]])) : item);
 export const fingerprint = (value: unknown): string => createHash("sha256").update(canonical(value)).digest("hex");
+/** Azure CLI may return the region display name (for example Central US). */
+export function azureLocationName(value: unknown): string {
+  if (typeof value !== "string" || !/^[A-Za-z][A-Za-z0-9]*(?: [A-Za-z0-9]+)*$/.test(value)) throw new Error("Invalid Azure location metadata.");
+  return value.replaceAll(" ", "").toLowerCase();
+}
 export interface TrafficBinding { label: "blue" | "green"; revisionName: string; weight: number; latestRevision?: boolean }
 export interface BlueGreenState { appId: string; location: string; mode: string; fqdn: string; authConfigSha256: string; traffic: TrafficBinding[] }
 export function assertBlueGreenState(value: unknown): { state: BlueGreenState; live: TrafficBinding; candidate: TrafficBinding } {

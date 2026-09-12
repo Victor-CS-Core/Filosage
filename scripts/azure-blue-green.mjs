@@ -1,7 +1,7 @@
 import { spawnSync } from "node:child_process";
 import { mkdirSync, readFileSync, writeFileSync, existsSync } from "node:fs";
 import { join } from "node:path";
-import { assertBlueGreenState, assertCandidateReadback, authConfigurationHash, fingerprint, canonical, candidateTraffic, labelOrigin } from "./blue-green-contract.ts";
+import { assertBlueGreenState, assertCandidateReadback, authConfigurationHash, fingerprint, canonical, candidateTraffic, labelOrigin, azureLocationName } from "./blue-green-contract.ts";
 import { readReleaseManifest } from "./release-manifest.mjs";
 import { releaseEnvironment, releaseEvidenceMatches, validReleaseSha, validReleaseDigest, observedReleaseCapabilities, validReleaseManifest } from "../src/lib/release-capabilities.ts";
 
@@ -32,7 +32,7 @@ const expectedMode = env.EXPECTED_AUTH_MODE;
 const snapshot = () => {
   const app = az(["containerapp", "show", ...appArgs]);
   const auth = az(["containerapp", "auth", "show", ...appArgs]);
-  const state = { appId: app.id, location: app.location, mode: app.properties?.configuration?.activeRevisionsMode, fqdn: app.properties?.configuration?.ingress?.fqdn,
+  const state = { appId: app.id, location: azureLocationName(app.location), mode: app.properties?.configuration?.activeRevisionsMode, fqdn: app.properties?.configuration?.ingress?.fqdn,
     traffic: app.properties?.configuration?.ingress?.traffic, authConfigSha256: authConfigurationHash(auth.properties || auth, expectedMode) };
   assertBlueGreenState(state);
   state.traffic = state.traffic.map(({ label, revisionName, weight }) => ({ label, revisionName, weight })).sort((a, b) => a.label.localeCompare(b.label));
