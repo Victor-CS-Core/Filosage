@@ -4,7 +4,7 @@
 
 The later approved security policy retains the automatic [Semgrep CE gate](2026-09-11-offline-security-scan.md) and manual-only CodeQL. This OpenGrep implementation is retained as an additional manual workflow, with all 83 immutable rules, strict finding failures, private reports, and fixture checks preserved. Its historical CodeQL deletion and automatic PR, branch, and weekly triggers are superseded. No historical finding is suppressed or reclassified as a pass by this consolidation. The evidence below belongs to the earlier branch and does not certify the current source.
 
-The later shared diagram expression and deterministic operation-count regressions are retained alongside this branch's unique notation, line-boundary, and bounded large-input tests. Named type-only imports remain to support the pinned OpenGrep parser. Both CodeQL action components are being consolidated at the same pinned release while keeping dispatch manual.
+The later shared diagram expression and deterministic operation-count regressions are retained alongside this branch's unique notation, line-boundary, and bounded large-input tests. Named type-only imports remain to support the pinned OpenGrep parser. Both CodeQL action components are consolidated at verified v4.37.9 commit `cdf488f595d80d6e07e03d4674febd5ab45fa938`, with dispatch remaining manual.
 
 ## Original branch record
 
