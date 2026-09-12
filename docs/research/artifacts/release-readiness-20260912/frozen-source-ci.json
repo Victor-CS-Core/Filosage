@@ -1,68 +1,31 @@
 {
   "schemaVersion": 1,
-  "observedAt": "2026-09-12T17:15:28.990285+00:00",
-  "sourceSha": "50c0bfe24cf66195e3a7fb40dc5017b7162c33aa",
-  "sourceFrozen": false,
+  "observedAt": "2026-09-12T17:19:28.811896+00:00",
+  "sourceSha": "3a0e772fbb41a16396cf6761274e75b65f175f02",
+  "sourceFrozen": true,
+  "candidateAccepted": false,
   "productionDeployed": false,
   "quality": {
-    "runId": 34704519592,
-    "status": "completed",
-    "conclusion": "success",
-    "contractsPassed": 480,
-    "postgresTestsPassed": 23,
-    "signedDatabaseBillingTestsPassed": 32,
-    "apiAndSmoke": {
-      "passed": 45,
-      "skipped": 0,
-      "failed": 0,
-      "flaky": 0
-    }
+    "runId": 34707820480,
+    "status": "in_progress",
+    "conclusion": null
   },
   "security": {
-    "runId": 34704519576,
-    "status": "completed",
-    "conclusion": "success"
+    "runId": 34707820471,
+    "status": "in_progress",
+    "conclusion": null
   },
   "supportWiki": {
-    "runId": 34704519581,
+    "runId": 34707820470,
     "status": "completed",
     "conclusion": "success"
   },
   "fullRegression": {
-    "runId": 34704520499,
-    "status": "completed",
-    "conclusion": "failure",
-    "observationDeadline": "2026-09-12T17:15:00Z",
-    "completedAt": "2026-09-12T16:59:49Z",
-    "failedStep": "Browser matrix",
-    "artifactId": 10301961495,
-    "artifactDigest": "sha256:dfa8b5dbbfb7eb79dbce071c8996b801bbdaaa4dbe33bd1cc8c16906f6d1c06a",
-    "archiveDigestVerified": true,
-    "embeddedSourceShaVerified": true,
-    "observationClosed": true
+    "runId": 34707824138,
+    "status": "in_progress",
+    "conclusion": null,
+    "observationDeadline": "2026-09-12T18:30:00Z"
   },
-  "verifiedArtifacts": [
-    {
-      "id": 10301153456,
-      "name": "release-contract-evidence",
-      "digest": "sha256:ba3ac63746425b28ee82a96be07b4a320bc9425ba4308376773b5a55447b51e4",
-      "archiveDigestVerified": true,
-      "embeddedSourceShaVerified": true
-    },
-    {
-      "id": 10301083951,
-      "name": "browser-smoke-evidence",
-      "digest": "sha256:e6dc2f048e828d6e3cc9d78114fc0b5462eb79035e62aa4ca2a6b6368b470635",
-      "archiveDigestVerified": true,
-      "embeddedSourceShaVerified": true
-    },
-    {
-      "id": 10301048528,
-      "name": "postgres-transaction-evidence",
-      "digest": "sha256:f50ce3857f5a1cdb166f53aeb9811e7609836dcfd6c873bd21789cb58bbb14bd",
-      "archiveDigestVerified": true,
-      "embeddedSourceShaVerified": true
-    }
-  ],
-  "candidateAccepted": false
+  "verifiedArtifacts": [],
+  "previousRejectedSource": "source-ci-50c0bfe.json"
 }
