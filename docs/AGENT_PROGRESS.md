@@ -124,6 +124,15 @@ Progress: re-read current policies/handoff; fresh local main is clean at a99e1f9
 - Coordinator is moving only the latest handoff/recovery/verification records to `codex/release-evidence-20260912`, based on50c0bfe in the same worktree. The application source branch and PR24 remain fixed at50c0bfe while full34704520499 runs. No app/test/script/workflow/manifest/container/infrastructure differences exist between the evidence branch and selected source.
 - This preserves regular validated documentation commits without invalidating the exact-SHA source evidence. Full regression is still running its browser matrix; source main is not advanced yet. No deploy, restoration, maintenance, traffic switch or QA retirement. The coordinator owns this single complete checklist on the evidence branch; do not substitute a later documentation SHA for the candidate.
 
+### September 12, 16:39 UTC — bounded full-matrix observation
+
+- Evidence checkpoint467c8ff is committed/pushed; source branch remains50c0bfe and main remainsa99e1f9. PR24 validation text now identifies the exact successful engineering/security/wiki runs, downloaded artifact verification and the still-pending full result. No review request or submitted GitHub review is present; independent source reviews remain recorded separately.
+- Full34704520499 is still running the browser-matrix step, with all preceding lanes successful and no reported failure annotation at the last annotation read. This is not a passing matrix result. Only this release-owned CI job remains active; deadline17:15UTC and final terminal read remain mandatory. No local watcher, source drift or provider mutation has been introduced during observation.
+
+### September 12, 16:49 UTC — full regression remains active
+
+- Latest read at16:48:41UTC: full34704520499 remains in_progress at Browser matrix; no completed lane failed. Preserve the original17:15UTC bound and collect its terminal artifact/result. Engineering/security/wiki remain successful on50c0bfe. Source branch/PR24 are unchanged, source integration is still pending this gate, and no production or QA operation is running. This checkpoint records ongoing verification rather than claiming completion or a passed matrix.
+
 ---
 
 # Historical visitor experience handoff
