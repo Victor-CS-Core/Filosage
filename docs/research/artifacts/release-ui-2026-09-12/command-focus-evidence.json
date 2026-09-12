@@ -1,0 +1,78 @@
+{
+  "recordedAt": "2026-09-12T17:14:50.614680+00:00",
+  "base": "50c0bfe24cf66195e3a7fb40dc5017b7162c33aa",
+  "runtime": {
+    "node": "26.8.1",
+    "next": "16.3.4",
+    "playwright": "1.63.0",
+    "webkit": "26.6",
+    "host": "Omarchy with retained Ubuntu fallback libraries; unsupported host caveat"
+  },
+  "buildId": "pxxSFYYR_8hKFOXzPwZTP",
+  "appShellBlob": "aa6177ca38d06bab8ba8dd132c2d1a0e5780d0fb",
+  "testBlob": "6df0794bfaca1a8fd62ca64e8f881bfdb0edcbd5",
+  "results": {
+    "baselineWholeHeaderWebKit": {
+      "passed": 5,
+      "failed": 1,
+      "failure": "course drawer opening state"
+    },
+    "baselineNormalFirstEscapeWebKit": {
+      "passed": 20,
+      "failed": 0
+    },
+    "baselineDeferredFrameEscape": {
+      "passed": 0,
+      "failed": 2,
+      "failure": "opener inactive (Chromium and WebKit)"
+    },
+    "intermediateWholeHeaderTraceOn": {
+      "passed": 9,
+      "failed": 3,
+      "failures": [
+        "2 WebKit course drawer opening state failures",
+        "1 Chromium response.finished wait exceeded90s despite rendered Support page; this wait removed"
+      ]
+    },
+    "delayedSupportOldSynchronization": {
+      "passed": 0,
+      "failed": 2,
+      "failures": [
+        "Chromium unchanged URL assertion expires before6s response",
+        "WebKit baseline course drawer opening failure before navigation"
+      ]
+    },
+    "delayedSupportFinalSynchronization": {
+      "passed": 4,
+      "failed": 0,
+      "durationSeconds": 44.4,
+      "conditions": "actual support RSC response held6s,2 per engine,trace on"
+    },
+    "finalWholeHeader": {
+      "passed": 12,
+      "failed": 0,
+      "durationSeconds": 29.8,
+      "conditions": "6 per engine,trace off as CI first attempt,retries0"
+    }
+  },
+  "limits": [
+    "Controlled local session fixtures are not real accounts.",
+    "Actual CI first-attempt rAF deferral inferred, not directly recorded; deterministic deferred-frame failure proven.",
+    "Earlier native WebKit drawer-opening failures remain recorded; no separate drawer behavior fix claimed.",
+    "No push, merge, deployment, provider call or shared progress edit."
+  ],
+  "commit": "89494cd7cde0520788d07e92d8aee431a8fe6cce",
+  "processState": {
+    "ownedProcessesRemaining": 0,
+    "loopback3217": "ECONNREFUSED",
+    "trackedWorktree": "clean"
+  },
+  "commands": {
+    "build": "TMPDIR=$PWD/.filosage-local/command-focus/tmp OPENAI_API_KEY= npm run build -- --webpack",
+    "final": "TMPDIR=$PWD/.filosage-local/command-focus/tmp npx playwright test -c .filosage-local/command-focus/playwright.config.ts --repeat-each=6 --trace=off --output=.filosage-local/command-focus/final-artifacts",
+    "delayedNavigation": "TMPDIR=$PWD/.filosage-local/command-focus/tmp NAVIGATION_RESPONSE_SYNC=1 npx playwright test -c .filosage-local/command-focus/navigation.config.ts --repeat-each=2 --output=.filosage-local/command-focus/navigation-green-artifacts",
+    "lint": "npx eslint src/components/AppShell.tsx tests/app-shell.spec.ts",
+    "secrets": "npm run check:secrets",
+    "whitespace": "git diff --check"
+  }
+}
