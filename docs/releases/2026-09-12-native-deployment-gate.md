@@ -1,8 +1,24 @@
-# Native deployment approval gate
+# Deployment approval policy
 
-Status: blocked on Enterprise organization and independent human reviewer selection. This is the current R3 step in [the release checklist](../AGENT_PROGRESS.md). It does not replace the remaining R1–R9 outcome or the tested source `3a0e772fbb41a16396cf6761274e75b65f175f02`.
+Status: native GitHub deployment reviewer prerequisite removed under Victor's explicit September 12 instruction. This is the current R3 policy in [the release checklist](../AGENT_PROGRESS.md); remaining R1–R9 operational and hosted gates stay open. This documentation change is not a deployment or acceptance of a new source SHA.
 
-## Verified September 12 at 19:32 UTC
+## Current release policy
+
+Stage (`azure-staging.yml`), candidate review (`azure-candidate-verification.yml`) and promotion (`azure-promote-staging.yml`) all use the existing `azure-staging` environment. Require exactly one allowed deployment rule: `main`, type `branch`. Preserve the existing deployment identity, input references and exact Azure OIDC issuer/audience/subject trust; do not broaden trust or create new release environments. `production-operations` remains outside this change.
+
+Before each concrete production operation, obtain Victor's explicit approval of its resource-scoped packet and record that approval in the current task/handoff. Approval must cover the actual operation, targets and applicable rollback; general plan approval, workflow dispatch, an agent-written `reviewedBy` value or environment metadata does not establish it. This is a procedural operator control, not GitHub-enforced independent review. No new machine approval protocol is required.
+
+Native required reviewers, self-review prevention and administrator-bypass prevention are no longer release prerequisites. Enterprise, repository transfer, a new collaborator, a separate workflow initiator and new environment/identity setup are not required. The earlier organization/reviewer question and remediation proposal are superseded; they must not block this release or authorize account, billing, ownership, visibility or access changes.
+
+Preserve all seven hosted candidate gates and their packet validation and honest review attribution, exact source SHA, immutable image/artifact digests and successful matching CI. Reviewers must inspect the evidence; metadata cannot manufacture a review or test result. Preserve current recovery proof, minimum runtime privileges and actual allow/deny tests, compatible predecessor/write protocols, complete legacy drain, exclusive deployment control, safe rollback, privacy, closed new checkout and bounded post-promotion observation. See [release prerequisites](2026-09-12-release-prerequisites.md), [maintenance packet](2026-09-12-maintenance-transition.md) and [operational runbook](../BLUE_GREEN_BFF_OPERATIONS.md).
+
+Verify current `azure-staging` branch restriction, required input names and exact OIDC trust through fresh metadata. A passing environment-readiness check proves configuration only, never approval, hosted acceptance or production readiness. Do not dispatch a deployment merely to test this configuration before its operation-specific gates and Victor's approval are satisfied.
+
+## Historical native-gate investigation (superseded requirement)
+
+The former policy required native independent reviewers, self-review prevention and no administrator bypass on three separate release environments. Its private-repository protection attempt returned HTTP 422, and the investigation proposed Enterprise ownership and a distinct human reviewer. Victor subsequently approved removing that prerequisite while retaining his explicit approval before production changes. The observations below remain historical evidence; no plan entitlement, ownership transfer, invitation or provider mutation is implied by the new policy.
+
+### Verified September 12 at 19:32 UTC
 
 [Sanitized GitHub/Azure metadata](../research/artifacts/release-readiness-20260912/github-native-gate-20260912.json) records:
 
@@ -12,32 +28,4 @@ Status: blocked on Enterprise organization and independent human reviewer select
 - The deployment application's one federated credential trusts staging only. The repository uses immutable OIDC subjects, with prefix `repo:Victor-CS-Core@216034367/Filosage@1281583859`. The actual staging trust matches that prefix plus `:environment:azure-staging`, issuer `https://token.actions.githubusercontent.com`, and audience `api://AzureADTokenExchange`.
 - Staging has all three deployment identity secret names and required deployment variable names. No secret or variable values were emitted or saved in this record.
 
-## Supported remedy and required decisions
-
-GitHub makes required deployment reviewers available on private repositories through Enterprise. Free, Pro and Team offer that rule only for public repositories. Pro's private pull-request review feature does not satisfy this deployment rule. [Deployment protection rules](https://docs.github.com/en/actions/reference/workflows-and-actions/deployments-and-environments), [GitHub plans](https://docs.github.com/en/get-started/learning-about-github/githubs-plans).
-
-Keeping the repository private and retaining Victor's selected native gates therefore requires an Enterprise organization to own this repository. First identify an existing suitable organization, or obtain Victor's decision on Enterprise setup. Membership in an organization alone proves neither Enterprise entitlement nor authority to transfer Filosage there. The current task asked Victor for the target and a separate human reviewer's GitHub username. Neither has been selected or invited by the coordinator.
-
-The checklist also requires self-review prevention. The workflow initiator cannot approve their own deployment, even if they are a configured reviewer. Current CLI dispatches use Victor's account, so an agent using that same account does not provide independent approval. Promotion still requires Victor's concrete approval; its initiator must be a different authorized person when self-review prevention is enabled. [Reviewing deployments](https://docs.github.com/en/actions/how-tos/deploy/configure-and-manage-deployments/review-deployments).
-
-Billing, account creation, repository transfer and collaborator invitations await the exact target/participant decision and any required explicit approval. No visibility change or alternate approval mechanism is part of the current remedy. These limits come from the current handoff and [maintenance packet](2026-09-12-maintenance-transition.md), not a failed automatic approval review.
-
-## Configuration to execute after selection and approval
-
-1. Verify the selected organization's Enterprise entitlement, Victor's transfer/create authority, absence of a conflicting repository, default repository access, Actions policy and the designated reviewer's access. Capture current repository settings and federated trust metadata before presenting the exact ownership/access change for approval. Transfer changes who can administer the repository and applies the destination organization's permissions. [Repository transfer documentation](https://docs.github.com/en/repositories/creating-and-managing-repositories/transferring-a-repository).
-2. Preserve repository privacy, name, commit history and frozen source. After an approved transfer, read the actual OIDC subject configuration again. Prepare exact environment subjects from that readback; do not substitute legacy name-only subjects or wildcard trust. GitHub's immutable format includes owner and repository IDs. [OIDC reference](https://docs.github.com/en/actions/reference/security/oidc).
-3. Configure the three release environments below with actual selected reviewers, self-review prevention, administrator bypass disabled, and exactly one allowed branch rule (`main`, type `branch`). Preserve existing unrelated environment data. Keep `production-operations` outside this change unless separately scoped.
-
-| Environment | Purpose | Required human participation |
-| --- | --- | --- |
-| `azure-staging` | Stage an exact inactive candidate | Reviewer distinct from the run initiator |
-| `azure-candidate-review` | Review exact hosted candidate evidence | Independent reviewer distinct from the run initiator |
-| `azure-production-promotion` | Promote the reviewed digest | Victor's concrete approval; another authorized person initiates |
-
-4. Bind the verified Azure target variables and deployment identity references to each environment through the private authorized channel. GitHub cannot return existing secret values. Preserve OIDC authentication and review the Azure role scope for each operation; do not add client passwords or broaden trust to all branches/environments. Add only the exact needed federated subjects after the protected environment readbacks pass. Recheck existing staging/backup access before retiring obsolete trust under a reviewed cleanup step.
-5. Run the existing `environmentReadiness` assessment on fresh metadata for all three environments. Require `independentReview`, `noAdminBypass`, `onlyMain`, complete input names and `ready` to pass. Verify the exact issuer/audience/subject configuration independently. A successful write response alone is insufficient; inspect for partial state after any failed update.
-6. Preserve the other release prerequisites. Environment configuration can close this setup blocker only; it does not prove an actual human approved a candidate, a restore passed, database access is least privilege, legacy writers drained, or production was released. Actual reviews remain mandatory on the relevant future runs. Do not dispatch deployment workflows just to test this setup before their recovery/runtime/maintenance gates pass.
-
-## Current next action
-
-Await Victor's Enterprise organization and reviewer selection. If no Enterprise organization exists, prepare its exact account/cost/ownership proposal before requesting approval. All provider operations in this checkpoint were read-only. No deployment, new account, invitation, repository transfer, billing change or workflow dispatch occurred.
+The investigation and this policy update performed no deployment, new account, invitation, repository transfer, billing change or workflow dispatch. Continue with the remaining recovery/runtime/maintenance and exact-candidate gates in the coordinator's checklist.
