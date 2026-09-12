@@ -2,6 +2,12 @@
 
 Status: implementation and local correction work are recorded. This is not release certification.
 
+Historical main-based work: [September 11 OpenGrep investigation](2026-09-11-offline-security-gate.md)
+recorded 40 blocking findings on that source. Consolidation retains its scanner as
+a strict manual workflow alongside the later automatic Semgrep CE gate and
+manual-only CodeQL policy. The candidate snapshots below remain historical,
+point-in-time evidence and do not establish current security clearance.
+
 Baseline: `be16cd6810d8135d0a2f8de45650db2f73e3191b`. The original reviewed candidate and its locally corrected continuation are separate evidence subjects. [Scope and authorization](2026-09-release-contract.md).
 
 A complete final record will list implemented tasks, commits, actual local/CI tests and unresolved hosted/provider gates. Unknown and blocked states must remain explicit.

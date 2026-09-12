@@ -1,7 +1,51 @@
+import { spawnSync } from "node:child_process";
 import { expect, test } from "@playwright/test";
 import type { LessonData, Quiz } from "../src/lib/course-types";
 import { lessonQualityIssues, quizAnswerCueIssues } from "../src/lib/lesson-quality";
 import { curateLessonInteractions, deriveLessonInteractions } from "../src/lib/lesson-interactions";
+
+const diagramIssue = "Remove all diagram and graph syntax; teach the relationships in prose.";
+
+for (const lessonKind of ["substantive", "introduction"] as const) {
+  test(`${lessonKind} diagram checks preserve fences, indentation, and line boundaries`, () => {
+    const cases: Array<[string, boolean]> = [
+      ["```mermaid\nflowchart LR", true],
+      ["```dot\ndigraph Example {}", true],
+      ["```graphviz\ndigraph Example {}", true],
+      ["\t\u00a0Flowchart LR", true],
+      ["\n\n  graph TD", true],
+      ["\r  graph BT", true],
+      ["\r\n  graph RL", true],
+      ["\u2028  graph TB", true],
+      ["\u2029  graph LR", true],
+      ["flowchart\nLR", true],
+      ["Explain the flowchart LR notation in prose.", false],
+      ["graph THEORY", false],
+      ["flowchart LRX", false],
+      ["```mermaidx", false],
+      ["\n\nPlain explanation.", false],
+    ];
+    for (const [content, expected] of cases) {
+      const issues = lessonQualityIssues({ content, quizzes: [], lessonKind }, "Diagrams");
+      expect(issues.includes(diagramIssue), JSON.stringify(content)).toBe(expected);
+    }
+  });
+
+  test(`${lessonKind} quality gate finishes on many blank lines`, () => {
+    // A separate process gives the real quality gate a generous deadline while
+    // keeping a backtracking regression from hanging the test worker.
+    const result = spawnSync(process.execPath, ["--import", "tsx", "--input-type=module", "-e", `
+      import { lessonQualityIssues } from './src/lib/lesson-quality.ts';
+      const issues = lessonQualityIssues({
+        content: '\\n'.repeat(250_000) + '!', quizzes: [], lessonKind: ${JSON.stringify(lessonKind)},
+      }, 'Diagrams');
+      console.log(JSON.stringify(issues));
+    `], { encoding: "utf8", timeout: 5_000, windowsHide: true });
+    expect(result.error, "The quality gate must complete within the child-process deadline.").toBeUndefined();
+    expect(result.status, result.stderr).toBe(0);
+    expect(JSON.parse(result.stdout)).not.toContain(diagramIssue);
+  });
+}
 
 function quiz(options: string[], correctIndex = 0): Quiz {
   return {

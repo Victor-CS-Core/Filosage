@@ -744,6 +744,36 @@ test("release automation pins third-party actions and includes dependency and co
   expect(qualityWorkflow).toContain("npm run check:secrets");
 });
 
+test("manual OpenGrep security verifies the approved executable and never grants upload or login privileges", () => {
+  const path = ".github/workflows/static-security.yml";
+  expect(existsSync(path)).toBe(true);
+  const workflow = existsSync(path) ? read(path) : "";
+  expect(workflow).toMatch(/permissions:\s*\n {2}contents: read\s*\n/);
+  expect(workflow.match(/^on:\s*\n([\s\S]*?)^permissions:/m)?.[1].trim()).toBe("workflow_dispatch:");
+  expect(workflow).toContain("https://github.com/opengrep/opengrep/releases/download/v1.30.0/opengrep_manylinux_x86");
+  expect(workflow).toContain("35779bdd72e92129c8df2a77f0c55e8c08356801ea92591ef32108d6b28d564c");
+  expect(workflow.indexOf("sha256sum --check --status")).toBeLessThan(workflow.indexOf("chmod"));
+  expect(workflow).toContain("persist-credentials: false");
+  expect(workflow).toContain("unshare --net");
+  expect(workflow).not.toMatch(/security-events|id-token|token:|login|continue-on-error|upload-artifact|codeql|--config\s+auto|\bp\//i);
+  const actions = [...workflow.matchAll(/uses:\s*(\S+)/g)].map((match) => match[1].split("@")[0]);
+  expect(actions).toEqual(["actions/checkout"]);
+});
+
+test("offline security runs only local rules and treats incomplete scans as failures", () => {
+  const path = "scripts/run-static-security.py";
+  expect(existsSync(path)).toBe(true);
+  const runner = existsSync(path) ? read(path) : "";
+  for (const flag of ["--disable-version-check", "--strict", "--error", "--taint-intrafile", "--disable-nosem", "--no-git-ignore"]) {
+    expect(runner).toContain(flag);
+  }
+  expect(runner).toContain("security/rules/javascript");
+  expect(runner).toContain("RUNNER_TEMP");
+  expect(runner).not.toMatch(/--config[ =]+auto|https?:\/\/|\bp\/semgrep/);
+  expect(existsSync("security/rules/LICENSE")).toBe(true);
+  expect(existsSync("security/rules/PROVENANCE.md")).toBe(true);
+});
+
 test("browser batches retain failures, retries, skips and distinct merged evidence", () => {
   test.setTimeout(120_000);
   const fixture = mkdtempSync(resolve(".matrix-fixture-"));
