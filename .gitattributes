@@ -1,0 +1,4 @@
+# Preserve immutable third-party rule/license bytes, including upstream whitespace.
+security/rules/javascript/** -text -whitespace
+security/rules/LICENSE -text -whitespace
+security/rules/LICENSE.GPL-3.0 -text -whitespace

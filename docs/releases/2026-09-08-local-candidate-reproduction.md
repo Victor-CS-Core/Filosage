@@ -2,6 +2,10 @@
 
 Status: final corrected source commit `55ef5fdf2df3f6a5770a060507ff7de75c595b24` passed every applicable final local gate and was approved by the independent integrated evidence review in this Codex task. This is local evidence, not remote-CI, deployment, provider, or production certification.
 
+The later [September 11 offline-security continuation](2026-09-11-offline-security-gate.md)
+records main-based replacement work and its blocking scanner findings. It does
+not change the exact-source identities or point-in-time evidence in this report.
+
 ## Evidence identities and chronology
 
 | Evidence subject | Branch | Commit | Tree | What it proves |

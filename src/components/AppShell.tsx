@@ -41,6 +41,7 @@ import { useAuth } from "@/components/AuthProvider";
 import { useTheme } from "@/components/ThemeProvider";
 import type { Course } from "@/lib/course-types";
 import { matchesSearchQuery } from "@/lib/search";
+import type { LearnerSourceStatus } from "@/lib/learner-source";
 
 import { useLearnerSource } from "@/components/useLearnerSource";
 import LearnerSourceNotice from "@/components/LearnerSourceNotice";
@@ -454,7 +455,7 @@ function CourseSwitcherPanel({ headingId, currentCourse, visibleCourses, totalCo
   visibleCourses: Course[];
   totalCourses: number;
   coursesLoading: boolean;
-  courseSource: { status: import("@/lib/learner-source").LearnerSourceStatus; error: string | null; retry: () => void };
+  courseSource: { status: LearnerSourceStatus; error: string | null; retry: () => void };
   courseQuery: string;
   setCourseQuery: (query: string) => void;
   canCreateCourses: boolean;
