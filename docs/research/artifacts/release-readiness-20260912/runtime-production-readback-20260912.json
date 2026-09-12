@@ -1,0 +1,21 @@
+{
+  "observedAt": "2026-09-12T21:10:12.478083+00:00",
+  "sourceReady": true,
+  "sourceNetworkUnchanged": true,
+  "sourceSkuUnchanged": true,
+  "sourceStorageUnchanged": true,
+  "productionConfigurationUnchanged": true,
+  "productionTemplateUnchanged": true,
+  "productionTrafficUnchanged": true,
+  "publicHealth": {
+    "observedAt": "2026-09-12T21:11:46.171948+00:00",
+    "httpStatus": 200,
+    "ok": true,
+    "version": "93f60f24afe59b19b6a592f455a09e8e813f1f84",
+    "authenticationMode": "migration-dual"
+  },
+  "newDeploymentPerformed": false,
+  "billingActivated": false,
+  "configurationObservedAt": "2026-09-12T21:10:50.429721+00:00",
+  "fingerprintSerialization": "json.dumps(sort_keys=True), matching baseline; compact serialization is not comparable"
+}
