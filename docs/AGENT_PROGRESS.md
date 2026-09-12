@@ -79,6 +79,18 @@ Progress: re-read current policies/handoff; fresh local main is clean at a99e1f9
 - Independent article review found and corrected another concrete guidance mismatch: desktop/mobile avatar opens **My Courses**, while desktop search or the separate mobile command icon opens **Command Center**. Coordinator verified the actual handlers and labels before correcting both guides. New profile/course keyboard instructions were independently confirmed; no runtime behavior changed.
 - At `c5440e4`, support wiki34703041939 and offline Semgrep34703041936 pass; engineering34703041965 is still running. These results do not certify the final pending documentation checkpoint. Additional authenticated Stripe LIVE read found zero open invoices with has_more=false; combined with earlier empty all-status subscription inventory, no existing live subscription/open-invoice obligation was observed. No billing mutation or full paid-launch claim.
 
+### September 12, 15:54 UTC — application candidate frozen
+
+- Application candidate is frozen at `39038d15cf70fdec1b15da8e097f90b4c26a8115` after final source/article review. Support wiki34703225601, offline Semgrep34703225610 and the PostgreSQL job in engineering34703225597 pass. Engineering static/contracts/build and browser-smoke completion remain under observation. Full regression manually dispatched once for the exact branch SHA; dispatch identity/readback pending below. Full-run observation deadline is16:40UTC with a final read; no unbounded watcher.
+- All application changes are committed/pushed. Subsequent handoff-record-only commits must not silently replace the frozen candidate or imply their SHA was tested. Main integration must preserve or freshly validate the exact selected SHA; production is still93f60f24 and no immutable new image has been built/staged.
+
+### September 12, 15:56 UTC — combined inventory correction verified
+
+- `39038d1` was not accepted: engineering34703225597 finished with479/480contracts passing. The sole failure was the mobile inventory budget (expected≤44, actual45) after the new owner navigation/creation contrast-and-retry test. PostgreSQL/signed billing and security were passing; build/smoke did not complete. Full run34703563769 was canceled immediately when the engineering failure became visible; final read confirms cancelled before its browser/test steps. No full-regression success is claimed and the candidate freeze is superseded.
+- Coordinator reproduced the failure locally. Actual discovery is328desktop/45mobile Chromium/52mobile WebKit, with the new explicitly owned test selected exactly once in each. Updated only the three bounded count limits to45/52/425 and the rationale; exact suite ownership and all test filters remain unchanged. Independent review requested.
+- The complete integrated local contract suite now passes480/480 in18.9seconds. Test-inventory evidence is retained with the release. Fresh CI will run for the corrected committed SHA, then the one complete full regression will run after engineering acceptance. Revised bounded CI deadline16:20UTC reflects the diagnosed source correction; a final read remains required. Production routing/configuration and all data remain unchanged by this source fix.
+- Independent operations review confirms the exact328+45+52=425 accounting, one new tagged case per project and unchanged ownership/filtering/coverage assertions; no findings.
+
 ---
 
 # Historical visitor experience handoff

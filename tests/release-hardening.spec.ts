@@ -481,13 +481,13 @@ test("mobile projects execute only explicitly owned cross-device behavior", () =
   expect(chromium.count).toBeGreaterThanOrEqual(280);
   expect(mobileChromium.count).toBeGreaterThan(0);
   expect(mobileWebkit.count).toBeGreaterThan(0);
-  // September visitor-release discovery: 327 desktop / 44 mobile Chromium / 51 WebKit.
-  // Includes system-theme continuity, scheduled billing cancellation, public loading/retry
-  // and the consolidated submitted-support-context persistence regression.
+  // September 12 release discovery: 328 desktop / 45 mobile Chromium / 52 WebKit.
+  // The audited owner-navigation/creation contrast and retry regression adds
+  // exactly one explicitly owned case to each existing project inventory.
   // Keep bounded budgets as well as exact suite ownership so mobile coverage cannot grow unnoticed.
-  expect(mobileChromium.count).toBeLessThanOrEqual(44);
-  expect(mobileWebkit.count).toBeLessThanOrEqual(51);
-  expect(chromium.count + mobileChromium.count + mobileWebkit.count).toBeLessThanOrEqual(422);
+  expect(mobileChromium.count).toBeLessThanOrEqual(45);
+  expect(mobileWebkit.count).toBeLessThanOrEqual(52);
+  expect(chromium.count + mobileChromium.count + mobileWebkit.count).toBeLessThanOrEqual(425);
 });
 
 test("release workflows accept only exact successful workflow evidence", () => {

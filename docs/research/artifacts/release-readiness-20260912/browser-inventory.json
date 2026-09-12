@@ -1,0 +1,17 @@
+{
+  "chromium": {
+    "total": 328,
+    "authAccessibilityTests": 11,
+    "newOwnerContrastRegression": 1
+  },
+  "mobile-chromium": {
+    "total": 45,
+    "authAccessibilityTests": 11,
+    "newOwnerContrastRegression": 1
+  },
+  "mobile-webkit": {
+    "total": 52,
+    "authAccessibilityTests": 11,
+    "newOwnerContrastRegression": 1
+  }
+}
