@@ -1,0 +1,1144 @@
+{
+  "schemaVersion": 1,
+  "observedFrom": "2026-09-12T15:12:32.986099+00:00",
+  "observedTo": "2026-09-12T15:12:41.443255+00:00",
+  "scope": "Read-only QA retirement metadata; no secret values, environment values apart from public QA configuration locators, private content, tokens or logs",
+  "reads": {
+    "apps": {
+      "readSucceeded": true,
+      "data": [
+        {
+          "environment": "/subscriptions/bfc8f890-2681-43dc-8eac-51644341ae12/resourceGroups/filosage-staging-central-rg/providers/Microsoft.App/managedEnvironments/filosagestg-environment",
+          "id": "/subscriptions/bfc8f890-2681-43dc-8eac-51644341ae12/resourceGroups/filosage-staging-central-rg/providers/Microsoft.App/containerapps/filosagestg-app",
+          "identity": {
+            "type": "UserAssigned",
+            "userAssignedIdentities": {
+              "/subscriptions/bfc8f890-2681-43dc-8eac-51644341ae12/resourcegroups/filosage-staging-central-rg/providers/Microsoft.ManagedIdentity/userAssignedIdentities/filosagestg-app-identity": {
+                "clientId": "fc8fec59-9873-4502-80e2-21f4dacc301c",
+                "principalId": "ed1a4afb-922a-4a2f-a70e-37602cad5dbf"
+              }
+            }
+          },
+          "ingress": {
+            "additionalPortMappings": null,
+            "allowInsecure": false,
+            "clientCertificateMode": null,
+            "corsPolicy": null,
+            "customDomains": [
+              {
+                "bindingType": "SniEnabled",
+                "certificateId": "/subscriptions/bfc8f890-2681-43dc-8eac-51644341ae12/resourceGroups/filosage-staging-central-rg/providers/Microsoft.App/managedEnvironments/filosagestg-environment/managedCertificates/filosage-apex-managed",
+                "name": "filosage.com"
+              },
+              {
+                "bindingType": "SniEnabled",
+                "certificateId": "/subscriptions/bfc8f890-2681-43dc-8eac-51644341ae12/resourceGroups/filosage-staging-central-rg/providers/Microsoft.App/managedEnvironments/filosagestg-environment/managedCertificates/filosage-www-managed",
+                "name": "www.filosage.com"
+              }
+            ],
+            "exposedPort": 0,
+            "external": true,
+            "fqdn": "filosagestg-app.salmontree-eb10220f.centralus.azurecontainerapps.io",
+            "ipSecurityRestrictions": null,
+            "stickySessions": null,
+            "targetPort": 3000,
+            "traffic": [
+              {
+                "label": "blue",
+                "revisionName": "filosagestg-app--blue-7abae96f-1",
+                "weight": 0
+              },
+              {
+                "label": "green",
+                "revisionName": "filosagestg-app--green-93f60f24-1",
+                "weight": 100
+              }
+            ],
+            "transport": "Auto"
+          },
+          "name": "filosagestg-app",
+          "registries": [
+            {
+              "identity": "/subscriptions/bfc8f890-2681-43dc-8eac-51644341ae12/resourceGroups/filosage-staging-central-rg/providers/Microsoft.ManagedIdentity/userAssignedIdentities/filosagestg-app-identity",
+              "server": "filosagestp4ujucgnxq3gsacr.azurecr.io"
+            }
+          ],
+          "secretRefs": [
+            [
+              {
+                "name": "DATABASE_URL",
+                "secretRef": "database-url"
+              },
+              {
+                "name": "ACTIVITY_RECEIPT_SECRET",
+                "secretRef": "activity-receipt-secret"
+              },
+              {
+                "name": "OPENAI_API_KEY",
+                "secretRef": "openai-api-key"
+              },
+              {
+                "name": "MIGRATED_OWNER_UID",
+                "secretRef": "migrated-owner-uid"
+              },
+              {
+                "name": "IDENTITY_LINK_HMAC_SECRET",
+                "secretRef": "identity-link-hmac-secret"
+              }
+            ]
+          ],
+          "secrets": [
+            {
+              "identity": "/subscriptions/bfc8f890-2681-43dc-8eac-51644341ae12/resourcegroups/filosage-staging-central-rg/providers/Microsoft.ManagedIdentity/userAssignedIdentities/filosagestg-app-identity",
+              "keyVaultUrl": "https://filosagestg-p4ujucgnxq3g.vault.azure.net/secrets/google-easy-auth-client-secret/9ddabe7a44794df28ba60eb1dd5a910f",
+              "name": "google-oauth-secret"
+            },
+            {
+              "identity": "/subscriptions/bfc8f890-2681-43dc-8eac-51644341ae12/resourcegroups/filosage-staging-central-rg/providers/Microsoft.ManagedIdentity/userAssignedIdentities/filosagestg-app-identity",
+              "keyVaultUrl": "https://filosagestg-p4ujucgnxq3g.vault.azure.net/secrets/identity-link-hmac-secret/97c1e917ca9c46468cb354e8e83ea191",
+              "name": "identity-link-hmac-secret"
+            },
+            {
+              "identity": "/subscriptions/bfc8f890-2681-43dc-8eac-51644341ae12/resourcegroups/filosage-staging-central-rg/providers/Microsoft.ManagedIdentity/userAssignedIdentities/filosagestg-app-identity",
+              "keyVaultUrl": "https://filosagestg-p4ujucgnxq3g.vault.azure.net/secrets/migrated-owner-uid/54b66f67819747178968135649f2330a",
+              "name": "migrated-owner-uid"
+            },
+            {
+              "identity": "/subscriptions/bfc8f890-2681-43dc-8eac-51644341ae12/resourceGroups/filosage-staging-central-rg/providers/Microsoft.ManagedIdentity/userAssignedIdentities/filosagestg-app-identity",
+              "keyVaultUrl": "https://filosagestg-p4ujucgnxq3g.vault.azure.net/secrets/openai-api-key/46690ef173004bb584f74f2b94ed2fe3",
+              "name": "openai-api-key"
+            },
+            {
+              "identity": "/subscriptions/bfc8f890-2681-43dc-8eac-51644341ae12/resourceGroups/filosage-staging-central-rg/providers/Microsoft.ManagedIdentity/userAssignedIdentities/filosagestg-app-identity",
+              "keyVaultUrl": "https://filosagestg-p4ujucgnxq3g.vault.azure.net/secrets/activity-receipt-secret/54f214fa2b114e8ab6acc67a5fb4efda",
+              "name": "activity-receipt-secret"
+            },
+            {
+              "identity": "/subscriptions/bfc8f890-2681-43dc-8eac-51644341ae12/resourceGroups/filosage-staging-central-rg/providers/Microsoft.ManagedIdentity/userAssignedIdentities/filosagestg-app-identity",
+              "keyVaultUrl": "https://filosagestg-p4ujucgnxq3g.vault.azure.net/secrets/database-url/cfe74c3b15524d8b90100a5844acd8e0",
+              "name": "database-url"
+            },
+            {
+              "identity": "/subscriptions/bfc8f890-2681-43dc-8eac-51644341ae12/resourcegroups/filosage-staging-central-rg/providers/Microsoft.ManagedIdentity/userAssignedIdentities/filosagestg-app-identity",
+              "keyVaultUrl": "https://filosagestg-p4ujucgnxq3g.vault.azure.net/secrets/external-id-client-secret/b1fa1e1c6529416eaf1b9f7a63069002",
+              "name": "filosage-oauth"
+            }
+          ]
+        },
+        {
+          "environment": "/subscriptions/bfc8f890-2681-43dc-8eac-51644341ae12/resourceGroups/filosage-staging-central-rg/providers/Microsoft.App/managedEnvironments/filosagestg-environment",
+          "id": "/subscriptions/bfc8f890-2681-43dc-8eac-51644341ae12/resourceGroups/filosage-staging-central-rg/providers/Microsoft.App/containerapps/filosageqa-app",
+          "identity": {
+            "type": "UserAssigned",
+            "userAssignedIdentities": {
+              "/subscriptions/bfc8f890-2681-43dc-8eac-51644341ae12/resourcegroups/filosage-staging-central-rg/providers/Microsoft.ManagedIdentity/userAssignedIdentities/filosageqa-app-identity": {
+                "clientId": "aa4f7188-36bc-49dd-a4eb-a6f296b81094",
+                "principalId": "ace6a746-1953-483b-b4e0-d4429753d6b6"
+              }
+            }
+          },
+          "ingress": {
+            "additionalPortMappings": null,
+            "allowInsecure": false,
+            "clientCertificateMode": null,
+            "corsPolicy": null,
+            "customDomains": [
+              {
+                "bindingType": "SniEnabled",
+                "certificateId": "/subscriptions/bfc8f890-2681-43dc-8eac-51644341ae12/resourceGroups/filosage-staging-central-rg/providers/Microsoft.App/managedEnvironments/filosagestg-environment/managedCertificates/mc-filosagestg-en-qa-filosage-com-4745",
+                "name": "qa.filosage.com"
+              }
+            ],
+            "exposedPort": 0,
+            "external": true,
+            "fqdn": "filosageqa-app.salmontree-eb10220f.centralus.azurecontainerapps.io",
+            "ipSecurityRestrictions": null,
+            "stickySessions": null,
+            "targetPort": 3000,
+            "traffic": [
+              {
+                "latestRevision": true,
+                "weight": 100
+              }
+            ],
+            "transport": "Auto"
+          },
+          "name": "filosageqa-app",
+          "registries": [
+            {
+              "identity": "/subscriptions/bfc8f890-2681-43dc-8eac-51644341ae12/resourceGroups/filosage-staging-central-rg/providers/Microsoft.ManagedIdentity/userAssignedIdentities/filosageqa-app-identity",
+              "server": "filosagestp4ujucgnxq3gsacr.azurecr.io"
+            }
+          ],
+          "secretRefs": [
+            [
+              {
+                "name": "DATABASE_URL",
+                "secretRef": "database-url-qa-runtime-v2"
+              },
+              {
+                "name": "MIGRATED_OWNER_UID",
+                "secretRef": "migrated-owner-uid"
+              },
+              {
+                "name": "ACTIVITY_RECEIPT_SECRET",
+                "secretRef": "activity-receipt-secret"
+              },
+              {
+                "name": "OPENAI_API_KEY",
+                "secretRef": "openai-api-key"
+              },
+              {
+                "name": "IDENTITY_LINK_HMAC_SECRET",
+                "secretRef": "identity-link-hmac-secret"
+              },
+              {
+                "name": "STRIPE_SECRET_KEY",
+                "secretRef": "stripe-qa-api-key"
+              },
+              {
+                "name": "STRIPE_WEBHOOK_SECRET",
+                "secretRef": "stripe-qa-webhook-secret"
+              }
+            ]
+          ],
+          "secrets": [
+            {
+              "identity": "/subscriptions/bfc8f890-2681-43dc-8eac-51644341ae12/resourceGroups/filosage-staging-central-rg/providers/Microsoft.ManagedIdentity/userAssignedIdentities/filosageqa-app-identity",
+              "keyVaultUrl": "https://filosagestg-p4ujucgnxq3g.vault.azure.net/secrets/openai-api-key",
+              "name": "openai-api-key"
+            },
+            {
+              "identity": null,
+              "keyVaultUrl": null,
+              "name": "stripe-qa-webhook-secret"
+            },
+            {
+              "identity": "/subscriptions/bfc8f890-2681-43dc-8eac-51644341ae12/resourceGroups/filosage-staging-central-rg/providers/Microsoft.ManagedIdentity/userAssignedIdentities/filosageqa-app-identity",
+              "keyVaultUrl": "https://filosagestg-p4ujucgnxq3g.vault.azure.net/secrets/activity-receipt-secret-qa/4feb1823a26c4982bb3d57e203886636",
+              "name": "activity-receipt-secret"
+            },
+            {
+              "identity": "/subscriptions/bfc8f890-2681-43dc-8eac-51644341ae12/resourceGroups/filosage-staging-central-rg/providers/Microsoft.ManagedIdentity/userAssignedIdentities/filosageqa-app-identity",
+              "keyVaultUrl": "https://filosagestg-p4ujucgnxq3g.vault.azure.net/secrets/database-url-qa-runtime-v2/c766b1d64fbd46af81ddf15538587612",
+              "name": "database-url-qa-runtime-v2"
+            },
+            {
+              "identity": "/subscriptions/bfc8f890-2681-43dc-8eac-51644341ae12/resourcegroups/filosage-staging-central-rg/providers/Microsoft.ManagedIdentity/userAssignedIdentities/filosageqa-app-identity",
+              "keyVaultUrl": "https://filosagestg-p4ujucgnxq3g.vault.azure.net/secrets/external-id-client-secret-qa",
+              "name": "external-id-oauth-secret"
+            },
+            {
+              "identity": "/subscriptions/bfc8f890-2681-43dc-8eac-51644341ae12/resourceGroups/filosage-staging-central-rg/providers/Microsoft.ManagedIdentity/userAssignedIdentities/filosageqa-app-identity",
+              "keyVaultUrl": "https://filosagestg-p4ujucgnxq3g.vault.azure.net/secrets/google-easy-auth-client-secret",
+              "name": "google-oauth-secret"
+            },
+            {
+              "identity": "/subscriptions/bfc8f890-2681-43dc-8eac-51644341ae12/resourcegroups/filosage-staging-central-rg/providers/Microsoft.ManagedIdentity/userAssignedIdentities/filosageqa-app-identity",
+              "keyVaultUrl": "https://filosagestg-p4ujucgnxq3g.vault.azure.net/secrets/identity-link-hmac-secret-qa",
+              "name": "identity-link-hmac-secret"
+            },
+            {
+              "identity": "/subscriptions/bfc8f890-2681-43dc-8eac-51644341ae12/resourceGroups/filosage-staging-central-rg/providers/Microsoft.ManagedIdentity/userAssignedIdentities/filosageqa-app-identity",
+              "keyVaultUrl": "https://filosagestg-p4ujucgnxq3g.vault.azure.net/secrets/migrated-owner-uid",
+              "name": "migrated-owner-uid"
+            },
+            {
+              "identity": "/subscriptions/bfc8f890-2681-43dc-8eac-51644341ae12/resourceGroups/filosage-staging-central-rg/providers/Microsoft.ManagedIdentity/userAssignedIdentities/filosageqa-app-identity",
+              "keyVaultUrl": "https://filosagestg-p4ujucgnxq3g.vault.azure.net/secrets/stripe-qa-api-key/32b3ae7827d04beb8880bc44debca691",
+              "name": "stripe-qa-api-key"
+            }
+          ]
+        }
+      ]
+    },
+    "qaRevisions": {
+      "readSucceeded": true,
+      "data": [
+        {
+          "active": false,
+          "health": "Healthy",
+          "id": "/subscriptions/bfc8f890-2681-43dc-8eac-51644341ae12/resourceGroups/filosage-staging-central-rg/providers/Microsoft.App/containerApps/filosageqa-app/revisions/filosageqa-app--qa-93f60f24-1",
+          "image": "filosagestp4ujucgnxq3gsacr.azurecr.io/filosage:93f60f24afe59b19b6a592f455a09e8e813f1f84",
+          "name": "filosageqa-app--qa-93f60f24-1",
+          "running": "Stopped",
+          "traffic": 0
+        },
+        {
+          "active": false,
+          "health": "Healthy",
+          "id": "/subscriptions/bfc8f890-2681-43dc-8eac-51644341ae12/resourceGroups/filosage-staging-central-rg/providers/Microsoft.App/containerApps/filosageqa-app/revisions/filosageqa-app--qa-c7d9c2c-1",
+          "image": "filosagestp4ujucgnxq3gsacr.azurecr.io/filosage-qa@sha256:3d33eacc178c4e6323c957ab9fd1d81c2dd2f8e149b3b43bbe44e9b09a76bf14",
+          "name": "filosageqa-app--qa-c7d9c2c-1",
+          "running": "Stopped",
+          "traffic": 0
+        },
+        {
+          "active": true,
+          "health": "Healthy",
+          "id": "/subscriptions/bfc8f890-2681-43dc-8eac-51644341ae12/resourceGroups/filosage-staging-central-rg/providers/Microsoft.App/containerApps/filosageqa-app/revisions/filosageqa-app--qa-stripe-test-1",
+          "image": "filosagestp4ujucgnxq3gsacr.azurecr.io/filosage-qa@sha256:3d33eacc178c4e6323c957ab9fd1d81c2dd2f8e149b3b43bbe44e9b09a76bf14",
+          "name": "filosageqa-app--qa-stripe-test-1",
+          "running": "ScaledToZero",
+          "traffic": 100
+        }
+      ]
+    },
+    "qaRoleAssignments": {
+      "readSucceeded": true,
+      "data": [
+        {
+          "id": "/subscriptions/bfc8f890-2681-43dc-8eac-51644341ae12/resourcegroups/filosage-staging-central-rg/providers/Microsoft.ContainerRegistry/registries/filosagestp4ujucgnxq3gsacr/providers/Microsoft.Authorization/roleAssignments/e663dbe1-1ef5-5829-bf83-217e0caaee2c",
+          "principalId": "ace6a746-1953-483b-b4e0-d4429753d6b6",
+          "role": "AcrPull",
+          "scope": "/subscriptions/bfc8f890-2681-43dc-8eac-51644341ae12/resourcegroups/filosage-staging-central-rg/providers/Microsoft.ContainerRegistry/registries/filosagestp4ujucgnxq3gsacr"
+        },
+        {
+          "id": "/subscriptions/bfc8f890-2681-43dc-8eac-51644341ae12/resourcegroups/filosage-staging-central-rg/providers/Microsoft.Storage/storageAccounts/filosagestp4ujucgnxq3gss/blobServices/default/containers/qa-course-banners/providers/Microsoft.Authorization/roleAssignments/07de23d2-73c8-53b1-8537-0686359841e8",
+          "principalId": "ace6a746-1953-483b-b4e0-d4429753d6b6",
+          "role": "Storage Blob Data Contributor",
+          "scope": "/subscriptions/bfc8f890-2681-43dc-8eac-51644341ae12/resourcegroups/filosage-staging-central-rg/providers/Microsoft.Storage/storageAccounts/filosagestp4ujucgnxq3gss/blobServices/default/containers/qa-course-banners"
+        },
+        {
+          "id": "/subscriptions/bfc8f890-2681-43dc-8eac-51644341ae12/resourceGroups/filosage-staging-central-rg/providers/Microsoft.KeyVault/vaults/filosagestg-p4ujucgnxq3g/secrets/activity-receipt-secret-qa/providers/Microsoft.Authorization/roleAssignments/717ab5b9-4d21-5880-8a32-4580ad1f5ed1",
+          "principalId": "ace6a746-1953-483b-b4e0-d4429753d6b6",
+          "role": "Key Vault Secrets User",
+          "scope": "/subscriptions/bfc8f890-2681-43dc-8eac-51644341ae12/resourceGroups/filosage-staging-central-rg/providers/Microsoft.KeyVault/vaults/filosagestg-p4ujucgnxq3g/secrets/activity-receipt-secret-qa"
+        },
+        {
+          "id": "/subscriptions/bfc8f890-2681-43dc-8eac-51644341ae12/resourceGroups/filosage-staging-central-rg/providers/Microsoft.KeyVault/vaults/filosagestg-p4ujucgnxq3g/secrets/database-url-qa-runtime-v2/providers/Microsoft.Authorization/roleAssignments/bcd65c93-f179-586d-bb83-baea501cda98",
+          "principalId": "ace6a746-1953-483b-b4e0-d4429753d6b6",
+          "role": "Key Vault Secrets User",
+          "scope": "/subscriptions/bfc8f890-2681-43dc-8eac-51644341ae12/resourceGroups/filosage-staging-central-rg/providers/Microsoft.KeyVault/vaults/filosagestg-p4ujucgnxq3g/secrets/database-url-qa-runtime-v2"
+        },
+        {
+          "id": "/subscriptions/bfc8f890-2681-43dc-8eac-51644341ae12/resourceGroups/filosage-staging-central-rg/providers/Microsoft.KeyVault/vaults/filosagestg-p4ujucgnxq3g/secrets/external-id-client-secret-qa/providers/Microsoft.Authorization/roleAssignments/699dd219-a3d5-5d2f-84fc-a9c46d8d250a",
+          "principalId": "ace6a746-1953-483b-b4e0-d4429753d6b6",
+          "role": "Key Vault Secrets User",
+          "scope": "/subscriptions/bfc8f890-2681-43dc-8eac-51644341ae12/resourceGroups/filosage-staging-central-rg/providers/Microsoft.KeyVault/vaults/filosagestg-p4ujucgnxq3g/secrets/external-id-client-secret-qa"
+        },
+        {
+          "id": "/subscriptions/bfc8f890-2681-43dc-8eac-51644341ae12/resourceGroups/filosage-staging-central-rg/providers/Microsoft.KeyVault/vaults/filosagestg-p4ujucgnxq3g/secrets/google-easy-auth-client-secret/providers/Microsoft.Authorization/roleAssignments/d45a2a45-70fc-524e-8625-0d47b016c9e1",
+          "principalId": "ace6a746-1953-483b-b4e0-d4429753d6b6",
+          "role": "Key Vault Secrets User",
+          "scope": "/subscriptions/bfc8f890-2681-43dc-8eac-51644341ae12/resourceGroups/filosage-staging-central-rg/providers/Microsoft.KeyVault/vaults/filosagestg-p4ujucgnxq3g/secrets/google-easy-auth-client-secret"
+        },
+        {
+          "id": "/subscriptions/bfc8f890-2681-43dc-8eac-51644341ae12/resourceGroups/filosage-staging-central-rg/providers/Microsoft.KeyVault/vaults/filosagestg-p4ujucgnxq3g/secrets/identity-link-hmac-secret-qa/providers/Microsoft.Authorization/roleAssignments/2067861d-dee4-57cd-87cd-0230b69e10b8",
+          "principalId": "ace6a746-1953-483b-b4e0-d4429753d6b6",
+          "role": "Key Vault Secrets User",
+          "scope": "/subscriptions/bfc8f890-2681-43dc-8eac-51644341ae12/resourceGroups/filosage-staging-central-rg/providers/Microsoft.KeyVault/vaults/filosagestg-p4ujucgnxq3g/secrets/identity-link-hmac-secret-qa"
+        },
+        {
+          "id": "/subscriptions/bfc8f890-2681-43dc-8eac-51644341ae12/resourceGroups/filosage-staging-central-rg/providers/Microsoft.KeyVault/vaults/filosagestg-p4ujucgnxq3g/secrets/migrated-owner-uid/providers/Microsoft.Authorization/roleAssignments/ef23077c-a508-508a-91cf-0f82fe4aa91f",
+          "principalId": "ace6a746-1953-483b-b4e0-d4429753d6b6",
+          "role": "Key Vault Secrets User",
+          "scope": "/subscriptions/bfc8f890-2681-43dc-8eac-51644341ae12/resourceGroups/filosage-staging-central-rg/providers/Microsoft.KeyVault/vaults/filosagestg-p4ujucgnxq3g/secrets/migrated-owner-uid"
+        },
+        {
+          "id": "/subscriptions/bfc8f890-2681-43dc-8eac-51644341ae12/resourceGroups/filosage-staging-central-rg/providers/Microsoft.KeyVault/vaults/filosagestg-p4ujucgnxq3g/secrets/openai-api-key/providers/Microsoft.Authorization/roleAssignments/264a42cc-8512-58a4-aa14-9cd7a851f197",
+          "principalId": "ace6a746-1953-483b-b4e0-d4429753d6b6",
+          "role": "Key Vault Secrets User",
+          "scope": "/subscriptions/bfc8f890-2681-43dc-8eac-51644341ae12/resourceGroups/filosage-staging-central-rg/providers/Microsoft.KeyVault/vaults/filosagestg-p4ujucgnxq3g/secrets/openai-api-key"
+        },
+        {
+          "id": "/subscriptions/bfc8f890-2681-43dc-8eac-51644341ae12/resourceGroups/filosage-staging-central-rg/providers/Microsoft.KeyVault/vaults/filosagestg-p4ujucgnxq3g/secrets/stripe-qa-api-key/providers/Microsoft.Authorization/roleAssignments/b040221e-bd5e-5de9-967b-f09ddc825db1",
+          "principalId": "ace6a746-1953-483b-b4e0-d4429753d6b6",
+          "role": "Key Vault Secrets User",
+          "scope": "/subscriptions/bfc8f890-2681-43dc-8eac-51644341ae12/resourceGroups/filosage-staging-central-rg/providers/Microsoft.KeyVault/vaults/filosagestg-p4ujucgnxq3g/secrets/stripe-qa-api-key"
+        }
+      ]
+    },
+    "deploymentRoles": {
+      "readSucceeded": true,
+      "data": [
+        {
+          "id": "/subscriptions/bfc8f890-2681-43dc-8eac-51644341ae12/resourceGroups/filosage-staging-central-rg/providers/Microsoft.ContainerRegistry/registries/filosagestp4ujucgnxq3gsacr/providers/Microsoft.Authorization/roleAssignments/b9c234a4-4381-43f8-87ca-5a5c9188a941",
+          "principalId": "6a25b4c2-f60a-4995-82ae-d2ea64786577",
+          "role": "AcrPush",
+          "scope": "/subscriptions/bfc8f890-2681-43dc-8eac-51644341ae12/resourceGroups/filosage-staging-central-rg/providers/Microsoft.ContainerRegistry/registries/filosagestp4ujucgnxq3gsacr"
+        },
+        {
+          "id": "/subscriptions/bfc8f890-2681-43dc-8eac-51644341ae12/resourceGroups/filosage-staging-central-rg/providers/Microsoft.App/containerapps/filosagestg-app/providers/Microsoft.Authorization/roleAssignments/56cfcbb8-8e55-481d-89ee-23b262e86f22",
+          "principalId": "6a25b4c2-f60a-4995-82ae-d2ea64786577",
+          "role": "Container Apps Contributor",
+          "scope": "/subscriptions/bfc8f890-2681-43dc-8eac-51644341ae12/resourceGroups/filosage-staging-central-rg/providers/Microsoft.App/containerapps/filosagestg-app"
+        },
+        {
+          "id": "/subscriptions/bfc8f890-2681-43dc-8eac-51644341ae12/resourceGroups/filosage-staging-central-rg/providers/Microsoft.App/managedEnvironments/filosagestg-environment/providers/Microsoft.Authorization/roleAssignments/4c7dd090-4697-41f2-80fa-6602d30190f2",
+          "principalId": "6a25b4c2-f60a-4995-82ae-d2ea64786577",
+          "role": "Container Apps Contributor",
+          "scope": "/subscriptions/bfc8f890-2681-43dc-8eac-51644341ae12/resourceGroups/filosage-staging-central-rg/providers/Microsoft.App/managedEnvironments/filosagestg-environment"
+        },
+        {
+          "id": "/subscriptions/bfc8f890-2681-43dc-8eac-51644341ae12/resourceGroups/filosage-staging-central-rg/providers/Microsoft.ManagedIdentity/userAssignedIdentities/filosagestg-app-identity/providers/Microsoft.Authorization/roleAssignments/6a42c05d-2274-4acd-bb3e-9d6452088e20",
+          "principalId": "6a25b4c2-f60a-4995-82ae-d2ea64786577",
+          "role": "Managed Identity Operator",
+          "scope": "/subscriptions/bfc8f890-2681-43dc-8eac-51644341ae12/resourceGroups/filosage-staging-central-rg/providers/Microsoft.ManagedIdentity/userAssignedIdentities/filosagestg-app-identity"
+        },
+        {
+          "id": "/subscriptions/bfc8f890-2681-43dc-8eac-51644341ae12/resourceGroups/filosage-staging-central-rg/providers/Microsoft.App/containerapps/filosageqa-app/providers/Microsoft.Authorization/roleAssignments/cdb56bcd-884d-4b49-b606-71d474bcd931",
+          "principalId": "6a25b4c2-f60a-4995-82ae-d2ea64786577",
+          "role": "Container Apps Contributor",
+          "scope": "/subscriptions/bfc8f890-2681-43dc-8eac-51644341ae12/resourceGroups/filosage-staging-central-rg/providers/Microsoft.App/containerapps/filosageqa-app"
+        },
+        {
+          "id": "/subscriptions/bfc8f890-2681-43dc-8eac-51644341ae12/resourceGroups/filosage-staging-central-rg/providers/Microsoft.DBforPostgreSQL/flexibleServers/filosagestg-p4ujucgnxq3gs-pg/providers/Microsoft.Authorization/roleAssignments/1ac35c24-3844-40d7-8c13-926a631f82fa",
+          "principalId": "6a25b4c2-f60a-4995-82ae-d2ea64786577",
+          "role": "Reader",
+          "scope": "/subscriptions/bfc8f890-2681-43dc-8eac-51644341ae12/resourceGroups/filosage-staging-central-rg/providers/Microsoft.DBforPostgreSQL/flexibleServers/filosagestg-p4ujucgnxq3gs-pg"
+        }
+      ]
+    },
+    "qaFederation": {
+      "readSucceeded": true,
+      "data": []
+    },
+    "deploymentFederation": {
+      "readSucceeded": true,
+      "data": [
+        {
+          "audiences": [
+            "api://AzureADTokenExchange"
+          ],
+          "id": "74a21f13-cb0b-48d6-9f56-674979544b13",
+          "issuer": "https://token.actions.githubusercontent.com",
+          "name": "github-filosage-staging",
+          "subject": "repo:Victor-CS-Core@216034367/Filosage@1281583859:environment:azure-staging"
+        }
+      ]
+    },
+    "postgresServer": {
+      "readSucceeded": true,
+      "data": {
+        "backup": {
+          "backupRetentionDays": 7,
+          "earliestRestoreDate": "2026-09-06T00:07:39.641251+00:00",
+          "geoRedundantBackup": "Disabled"
+        },
+        "id": "/subscriptions/bfc8f890-2681-43dc-8eac-51644341ae12/resourceGroups/filosage-staging-central-rg/providers/Microsoft.DBforPostgreSQL/flexibleServers/filosagestg-p4ujucgnxq3gs-pg",
+        "network": {
+          "delegatedSubnetResourceId": "/subscriptions/bfc8f890-2681-43dc-8eac-51644341ae12/resourceGroups/filosage-staging-central-rg/providers/Microsoft.Network/virtualNetworks/filosagestg-vnet/subnets/postgres",
+          "privateDnsZoneArmResourceId": "/subscriptions/bfc8f890-2681-43dc-8eac-51644341ae12/resourceGroups/filosage-staging-central-rg/providers/Microsoft.Network/privateDnsZones/filosagestg.private.postgres.database.azure.com",
+          "publicNetworkAccess": "Disabled"
+        },
+        "state": "Ready",
+        "version": "16"
+      }
+    },
+    "databases": {
+      "readSucceeded": true,
+      "data": [
+        {
+          "id": "/subscriptions/bfc8f890-2681-43dc-8eac-51644341ae12/resourceGroups/filosage-staging-central-rg/providers/Microsoft.DBforPostgreSQL/flexibleServers/filosagestg-p4ujucgnxq3gs-pg/databases/azure_maintenance",
+          "name": "azure_maintenance"
+        },
+        {
+          "id": "/subscriptions/bfc8f890-2681-43dc-8eac-51644341ae12/resourceGroups/filosage-staging-central-rg/providers/Microsoft.DBforPostgreSQL/flexibleServers/filosagestg-p4ujucgnxq3gs-pg/databases/postgres",
+          "name": "postgres"
+        },
+        {
+          "id": "/subscriptions/bfc8f890-2681-43dc-8eac-51644341ae12/resourceGroups/filosage-staging-central-rg/providers/Microsoft.DBforPostgreSQL/flexibleServers/filosagestg-p4ujucgnxq3gs-pg/databases/azure_sys",
+          "name": "azure_sys"
+        },
+        {
+          "id": "/subscriptions/bfc8f890-2681-43dc-8eac-51644341ae12/resourceGroups/filosage-staging-central-rg/providers/Microsoft.DBforPostgreSQL/flexibleServers/filosagestg-p4ujucgnxq3gs-pg/databases/filosage",
+          "name": "filosage"
+        },
+        {
+          "id": "/subscriptions/bfc8f890-2681-43dc-8eac-51644341ae12/resourceGroups/filosage-staging-central-rg/providers/Microsoft.DBforPostgreSQL/flexibleServers/filosagestg-p4ujucgnxq3gs-pg/databases/filosageqa",
+          "name": "filosageqa"
+        }
+      ]
+    },
+    "vaultRetention": {
+      "readSucceeded": true,
+      "data": {
+        "id": "/subscriptions/bfc8f890-2681-43dc-8eac-51644341ae12/resourceGroups/filosage-staging-central-rg/providers/Microsoft.KeyVault/vaults/filosagestg-p4ujucgnxq3g",
+        "purgeProtection": true,
+        "retentionDays": 30,
+        "softDelete": true
+      }
+    },
+    "secretMetadata": {
+      "readSucceeded": true,
+      "data": [
+        {
+          "enabled": true,
+          "expires": null,
+          "id": "https://filosagestg-p4ujucgnxq3g.vault.azure.net/secrets/activity-receipt-secret",
+          "name": "activity-receipt-secret",
+          "recoveryLevel": "CustomizedRecoverable"
+        },
+        {
+          "enabled": true,
+          "expires": null,
+          "id": "https://filosagestg-p4ujucgnxq3g.vault.azure.net/secrets/activity-receipt-secret-qa",
+          "name": "activity-receipt-secret-qa",
+          "recoveryLevel": "CustomizedRecoverable"
+        },
+        {
+          "enabled": true,
+          "expires": null,
+          "id": "https://filosagestg-p4ujucgnxq3g.vault.azure.net/secrets/database-admin-url",
+          "name": "database-admin-url",
+          "recoveryLevel": "CustomizedRecoverable"
+        },
+        {
+          "enabled": true,
+          "expires": null,
+          "id": "https://filosagestg-p4ujucgnxq3g.vault.azure.net/secrets/database-url",
+          "name": "database-url",
+          "recoveryLevel": "CustomizedRecoverable"
+        },
+        {
+          "enabled": true,
+          "expires": null,
+          "id": "https://filosagestg-p4ujucgnxq3g.vault.azure.net/secrets/database-url-qa",
+          "name": "database-url-qa",
+          "recoveryLevel": "CustomizedRecoverable"
+        },
+        {
+          "enabled": true,
+          "expires": null,
+          "id": "https://filosagestg-p4ujucgnxq3g.vault.azure.net/secrets/database-url-qa-runtime-v2",
+          "name": "database-url-qa-runtime-v2",
+          "recoveryLevel": "CustomizedRecoverable"
+        },
+        {
+          "enabled": true,
+          "expires": "2027-02-15T21:22:14+00:00",
+          "id": "https://filosagestg-p4ujucgnxq3g.vault.azure.net/secrets/external-id-client-secret",
+          "name": "external-id-client-secret",
+          "recoveryLevel": "CustomizedRecoverable"
+        },
+        {
+          "enabled": true,
+          "expires": null,
+          "id": "https://filosagestg-p4ujucgnxq3g.vault.azure.net/secrets/external-id-client-secret-qa",
+          "name": "external-id-client-secret-qa",
+          "recoveryLevel": "CustomizedRecoverable"
+        },
+        {
+          "enabled": true,
+          "expires": null,
+          "id": "https://filosagestg-p4ujucgnxq3g.vault.azure.net/secrets/google-easy-auth-client-secret",
+          "name": "google-easy-auth-client-secret",
+          "recoveryLevel": "CustomizedRecoverable"
+        },
+        {
+          "enabled": true,
+          "expires": null,
+          "id": "https://filosagestg-p4ujucgnxq3g.vault.azure.net/secrets/identity-link-hmac-secret",
+          "name": "identity-link-hmac-secret",
+          "recoveryLevel": "CustomizedRecoverable"
+        },
+        {
+          "enabled": true,
+          "expires": null,
+          "id": "https://filosagestg-p4ujucgnxq3g.vault.azure.net/secrets/identity-link-hmac-secret-qa",
+          "name": "identity-link-hmac-secret-qa",
+          "recoveryLevel": "CustomizedRecoverable"
+        },
+        {
+          "enabled": true,
+          "expires": null,
+          "id": "https://filosagestg-p4ujucgnxq3g.vault.azure.net/secrets/migrated-owner-uid",
+          "name": "migrated-owner-uid",
+          "recoveryLevel": "CustomizedRecoverable"
+        },
+        {
+          "enabled": true,
+          "expires": null,
+          "id": "https://filosagestg-p4ujucgnxq3g.vault.azure.net/secrets/openai-api-key",
+          "name": "openai-api-key",
+          "recoveryLevel": "CustomizedRecoverable"
+        },
+        {
+          "enabled": true,
+          "expires": null,
+          "id": "https://filosagestg-p4ujucgnxq3g.vault.azure.net/secrets/postgres-admin-password",
+          "name": "postgres-admin-password",
+          "recoveryLevel": "CustomizedRecoverable"
+        },
+        {
+          "enabled": true,
+          "expires": null,
+          "id": "https://filosagestg-p4ujucgnxq3g.vault.azure.net/secrets/postgres-app-password",
+          "name": "postgres-app-password",
+          "recoveryLevel": "CustomizedRecoverable"
+        },
+        {
+          "enabled": true,
+          "expires": null,
+          "id": "https://filosagestg-p4ujucgnxq3g.vault.azure.net/secrets/postgres-qa-app-password",
+          "name": "postgres-qa-app-password",
+          "recoveryLevel": "CustomizedRecoverable"
+        },
+        {
+          "enabled": true,
+          "expires": null,
+          "id": "https://filosagestg-p4ujucgnxq3g.vault.azure.net/secrets/stripe-qa-api-key",
+          "name": "stripe-qa-api-key",
+          "recoveryLevel": "CustomizedRecoverable"
+        }
+      ]
+    },
+    "containers": {
+      "readSucceeded": true,
+      "data": [
+        {
+          "deleted": false,
+          "hasImmutabilityPolicy": false,
+          "hasLegalHold": false,
+          "id": "/subscriptions/bfc8f890-2681-43dc-8eac-51644341ae12/resourceGroups/filosage-staging-central-rg/providers/Microsoft.Storage/storageAccounts/filosagestp4ujucgnxq3gss/blobServices/default/containers/course-banners",
+          "name": "course-banners",
+          "publicAccess": "None"
+        },
+        {
+          "deleted": false,
+          "hasImmutabilityPolicy": false,
+          "hasLegalHold": false,
+          "id": "/subscriptions/bfc8f890-2681-43dc-8eac-51644341ae12/resourceGroups/filosage-staging-central-rg/providers/Microsoft.Storage/storageAccounts/filosagestp4ujucgnxq3gss/blobServices/default/containers/qa-course-banners",
+          "name": "qa-course-banners",
+          "publicAccess": "None"
+        }
+      ]
+    },
+    "blobRetention": {
+      "readSucceeded": true,
+      "data": {
+        "changeFeed": null,
+        "containerDeleteRetention": {
+          "allowPermanentDelete": null,
+          "days": 7,
+          "enabled": true
+        },
+        "deleteRetention": {
+          "allowPermanentDelete": false,
+          "days": 7,
+          "enabled": true
+        },
+        "id": "/subscriptions/bfc8f890-2681-43dc-8eac-51644341ae12/resourceGroups/filosage-staging-central-rg/providers/Microsoft.Storage/storageAccounts/filosagestp4ujucgnxq3gss/blobServices/default",
+        "restorePolicy": null,
+        "versioning": true
+      }
+    },
+    "alerts": {
+      "readSucceeded": true,
+      "data": [
+        {
+          "actions": [
+            "/subscriptions/BFC8F890-2681-43DC-8EAC-51644341AE12/resourceGroups/filosage-staging-central-rg/providers/microsoft.insights/actionGroups/filosage-essential-ops-ag"
+          ],
+          "enabled": true,
+          "id": "/subscriptions/bfc8f890-2681-43dc-8eac-51644341ae12/resourceGroups/filosage-staging-central-rg/providers/Microsoft.Insights/metricAlerts/filosage-prod-http-5xx",
+          "name": "filosage-prod-http-5xx",
+          "scopes": [
+            "/subscriptions/bfc8f890-2681-43dc-8eac-51644341ae12/resourceGroups/filosage-staging-central-rg/providers/Microsoft.App/containerapps/filosagestg-app"
+          ]
+        },
+        {
+          "actions": [
+            "/subscriptions/BFC8F890-2681-43DC-8EAC-51644341AE12/resourceGroups/filosage-staging-central-rg/providers/microsoft.insights/actionGroups/filosage-essential-ops-ag"
+          ],
+          "enabled": true,
+          "id": "/subscriptions/bfc8f890-2681-43dc-8eac-51644341ae12/resourceGroups/filosage-staging-central-rg/providers/Microsoft.Insights/metricAlerts/filosage-db-storage-high",
+          "name": "filosage-db-storage-high",
+          "scopes": [
+            "/subscriptions/bfc8f890-2681-43dc-8eac-51644341ae12/resourceGroups/filosage-staging-central-rg/providers/Microsoft.DBforPostgreSQL/flexibleServers/filosagestg-p4ujucgnxq3gs-pg"
+          ]
+        },
+        {
+          "actions": [
+            "/subscriptions/BFC8F890-2681-43DC-8EAC-51644341AE12/resourceGroups/filosage-staging-central-rg/providers/microsoft.insights/actionGroups/filosage-essential-ops-ag"
+          ],
+          "enabled": true,
+          "id": "/subscriptions/bfc8f890-2681-43dc-8eac-51644341ae12/resourceGroups/filosage-staging-central-rg/providers/Microsoft.Insights/metricAlerts/filosage-qa-high-cpu",
+          "name": "filosage-qa-high-cpu",
+          "scopes": [
+            "/subscriptions/bfc8f890-2681-43dc-8eac-51644341ae12/resourceGroups/filosage-staging-central-rg/providers/Microsoft.App/containerapps/filosageqa-app"
+          ]
+        },
+        {
+          "actions": [
+            "/subscriptions/BFC8F890-2681-43DC-8EAC-51644341AE12/resourceGroups/filosage-staging-central-rg/providers/microsoft.insights/actionGroups/filosage-essential-ops-ag"
+          ],
+          "enabled": true,
+          "id": "/subscriptions/bfc8f890-2681-43dc-8eac-51644341ae12/resourceGroups/filosage-staging-central-rg/providers/Microsoft.Insights/metricAlerts/filosage-prod-restarts",
+          "name": "filosage-prod-restarts",
+          "scopes": [
+            "/subscriptions/bfc8f890-2681-43dc-8eac-51644341ae12/resourceGroups/filosage-staging-central-rg/providers/Microsoft.App/containerapps/filosagestg-app"
+          ]
+        },
+        {
+          "actions": [
+            "/subscriptions/BFC8F890-2681-43DC-8EAC-51644341AE12/resourceGroups/filosage-staging-central-rg/providers/microsoft.insights/actionGroups/filosage-essential-ops-ag"
+          ],
+          "enabled": true,
+          "id": "/subscriptions/bfc8f890-2681-43dc-8eac-51644341ae12/resourceGroups/filosage-staging-central-rg/providers/Microsoft.Insights/metricAlerts/filosage-qa-http-5xx",
+          "name": "filosage-qa-http-5xx",
+          "scopes": [
+            "/subscriptions/bfc8f890-2681-43dc-8eac-51644341ae12/resourceGroups/filosage-staging-central-rg/providers/Microsoft.App/containerapps/filosageqa-app"
+          ]
+        },
+        {
+          "actions": [
+            "/subscriptions/BFC8F890-2681-43DC-8EAC-51644341AE12/resourceGroups/filosage-staging-central-rg/providers/microsoft.insights/actionGroups/filosage-essential-ops-ag"
+          ],
+          "enabled": true,
+          "id": "/subscriptions/bfc8f890-2681-43dc-8eac-51644341ae12/resourceGroups/filosage-staging-central-rg/providers/Microsoft.Insights/metricAlerts/filosage-db-unavailable",
+          "name": "filosage-db-unavailable",
+          "scopes": [
+            "/subscriptions/bfc8f890-2681-43dc-8eac-51644341ae12/resourceGroups/filosage-staging-central-rg/providers/Microsoft.DBforPostgreSQL/flexibleServers/filosagestg-p4ujucgnxq3gs-pg"
+          ]
+        },
+        {
+          "actions": [
+            "/subscriptions/BFC8F890-2681-43DC-8EAC-51644341AE12/resourceGroups/filosage-staging-central-rg/providers/microsoft.insights/actionGroups/filosage-essential-ops-ag"
+          ],
+          "enabled": true,
+          "id": "/subscriptions/bfc8f890-2681-43dc-8eac-51644341ae12/resourceGroups/filosage-staging-central-rg/providers/Microsoft.Insights/metricAlerts/filosage-qa-restarts",
+          "name": "filosage-qa-restarts",
+          "scopes": [
+            "/subscriptions/bfc8f890-2681-43dc-8eac-51644341ae12/resourceGroups/filosage-staging-central-rg/providers/Microsoft.App/containerapps/filosageqa-app"
+          ]
+        },
+        {
+          "actions": [
+            "/subscriptions/BFC8F890-2681-43DC-8EAC-51644341AE12/resourceGroups/filosage-staging-central-rg/providers/microsoft.insights/actionGroups/filosage-essential-ops-ag"
+          ],
+          "enabled": true,
+          "id": "/subscriptions/bfc8f890-2681-43dc-8eac-51644341ae12/resourceGroups/filosage-staging-central-rg/providers/Microsoft.Insights/metricAlerts/filosage-qa-high-memory",
+          "name": "filosage-qa-high-memory",
+          "scopes": [
+            "/subscriptions/bfc8f890-2681-43dc-8eac-51644341ae12/resourceGroups/filosage-staging-central-rg/providers/Microsoft.App/containerapps/filosageqa-app"
+          ]
+        },
+        {
+          "actions": [
+            "/subscriptions/BFC8F890-2681-43DC-8EAC-51644341AE12/resourceGroups/filosage-staging-central-rg/providers/microsoft.insights/actionGroups/filosage-essential-ops-ag"
+          ],
+          "enabled": true,
+          "id": "/subscriptions/bfc8f890-2681-43dc-8eac-51644341ae12/resourceGroups/filosage-staging-central-rg/providers/Microsoft.Insights/metricAlerts/filosage-prod-high-cpu",
+          "name": "filosage-prod-high-cpu",
+          "scopes": [
+            "/subscriptions/bfc8f890-2681-43dc-8eac-51644341ae12/resourceGroups/filosage-staging-central-rg/providers/Microsoft.App/containerapps/filosagestg-app"
+          ]
+        },
+        {
+          "actions": [
+            "/subscriptions/BFC8F890-2681-43DC-8EAC-51644341AE12/resourceGroups/filosage-staging-central-rg/providers/microsoft.insights/actionGroups/filosage-essential-ops-ag"
+          ],
+          "enabled": true,
+          "id": "/subscriptions/bfc8f890-2681-43dc-8eac-51644341ae12/resourceGroups/filosage-staging-central-rg/providers/Microsoft.Insights/metricAlerts/filosage-prod-high-memory",
+          "name": "filosage-prod-high-memory",
+          "scopes": [
+            "/subscriptions/bfc8f890-2681-43dc-8eac-51644341ae12/resourceGroups/filosage-staging-central-rg/providers/Microsoft.App/containerapps/filosagestg-app"
+          ]
+        }
+      ]
+    },
+    "certificates": {
+      "readSucceeded": true,
+      "data": [
+        {
+          "id": "/subscriptions/bfc8f890-2681-43dc-8eac-51644341ae12/resourceGroups/filosage-staging-central-rg/providers/Microsoft.App/managedEnvironments/filosagestg-environment/managedCertificates/filosage-www-managed",
+          "name": "filosage-www-managed",
+          "provisioningState": "Succeeded",
+          "subject": "www.filosage.com",
+          "validationMethod": "HTTP"
+        },
+        {
+          "id": "/subscriptions/bfc8f890-2681-43dc-8eac-51644341ae12/resourceGroups/filosage-staging-central-rg/providers/Microsoft.App/managedEnvironments/filosagestg-environment/managedCertificates/filosage-apex-managed",
+          "name": "filosage-apex-managed",
+          "provisioningState": "Succeeded",
+          "subject": "filosage.com",
+          "validationMethod": "HTTP"
+        },
+        {
+          "id": "/subscriptions/bfc8f890-2681-43dc-8eac-51644341ae12/resourceGroups/filosage-staging-central-rg/providers/Microsoft.App/managedEnvironments/filosagestg-environment/managedCertificates/mc-filosagestg-en-qa-filosage-com-4745",
+          "name": "mc-filosagestg-en-qa-filosage-com-4745",
+          "provisioningState": "Succeeded",
+          "subject": "qa.filosage.com",
+          "validationMethod": "CNAME"
+        }
+      ]
+    },
+    "identityConsumers": {
+      "readSucceeded": true,
+      "data": [
+        {
+          "id": "/subscriptions/bfc8f890-2681-43dc-8eac-51644341ae12/resourceGroups/filosage-staging-central-rg/providers/Microsoft.App/containerApps/filosagestg-app",
+          "identities": {
+            "/subscriptions/bfc8f890-2681-43dc-8eac-51644341ae12/resourcegroups/filosage-staging-central-rg/providers/Microsoft.ManagedIdentity/userAssignedIdentities/filosagestg-app-identity": {
+              "clientId": "fc8fec59-9873-4502-80e2-21f4dacc301c",
+              "principalId": "ed1a4afb-922a-4a2f-a70e-37602cad5dbf"
+            }
+          }
+        },
+        {
+          "id": "/subscriptions/bfc8f890-2681-43dc-8eac-51644341ae12/resourceGroups/filosage-staging-central-rg/providers/Microsoft.App/containerApps/filosageqa-app",
+          "identities": {
+            "/subscriptions/bfc8f890-2681-43dc-8eac-51644341ae12/resourcegroups/filosage-staging-central-rg/providers/Microsoft.ManagedIdentity/userAssignedIdentities/filosageqa-app-identity": {
+              "clientId": "aa4f7188-36bc-49dd-a4eb-a6f296b81094",
+              "principalId": "ace6a746-1953-483b-b4e0-d4429753d6b6"
+            }
+          }
+        }
+      ]
+    },
+    "jobs": {
+      "readSucceeded": true,
+      "data": []
+    },
+    "locks": {
+      "readSucceeded": true,
+      "data": []
+    },
+    "logRetention": {
+      "readSucceeded": true,
+      "data": {
+        "id": "/subscriptions/bfc8f890-2681-43dc-8eac-51644341ae12/resourceGroups/filosage-staging-central-rg/providers/Microsoft.OperationalInsights/workspaces/filosagestg-logs",
+        "retentionInDays": 30
+      }
+    },
+    "auth-filosageqa-app": {
+      "readSucceeded": true,
+      "data": {
+        "enabled": true,
+        "providers": {
+          "customOpenIdConnectProviders": {
+            "filosage": {
+              "enabled": true,
+              "login": {
+                "nameClaimType": "name",
+                "scopes": [
+                  "openid",
+                  "profile",
+                  "email"
+                ]
+              },
+              "registration": {
+                "clientCredential": {
+                  "clientSecretSettingName": "external-id-oauth-secret",
+                  "method": "ClientSecretPost"
+                },
+                "clientId": "4cfac47a-8324-43e1-aea9-2f2da51e5645",
+                "openIdConnectConfiguration": {
+                  "wellKnownOpenIdConfiguration": "https://filosagecustomers.ciamlogin.com/69d76567-5377-4393-bfe5-47565b8df5dd/v2.0/.well-known/openid-configuration"
+                }
+              }
+            }
+          },
+          "google": {
+            "enabled": true,
+            "registration": {
+              "clientId": "557534798515-f1419k6iqqb0ptk6b1a4f8qs20uqd1hv.apps.googleusercontent.com",
+              "clientSecretSettingName": "google-oauth-secret"
+            },
+            "validation": {
+              "allowedAudiences": [
+                "557534798515-f1419k6iqqb0ptk6b1a4f8qs20uqd1hv.apps.googleusercontent.com"
+              ]
+            }
+          }
+        },
+        "redirects": null
+      }
+    },
+    "auth-filosagestg-app": {
+      "readSucceeded": true,
+      "data": {
+        "enabled": true,
+        "providers": {
+          "customOpenIdConnectProviders": {
+            "filosage": {
+              "enabled": true,
+              "login": {
+                "nameClaimType": "name",
+                "scopes": [
+                  "openid",
+                  "profile",
+                  "email"
+                ]
+              },
+              "registration": {
+                "clientCredential": {
+                  "clientSecretSettingName": "filosage-oauth",
+                  "method": "ClientSecretPost"
+                },
+                "clientId": "d544f3da-63cb-49d4-9021-47444063865e",
+                "openIdConnectConfiguration": {
+                  "wellKnownOpenIdConfiguration": "https://filosagecustomersprod.ciamlogin.com/4964ba2f-fc79-4933-b272-0bb3671a841a/v2.0/.well-known/openid-configuration"
+                }
+              }
+            }
+          },
+          "google": {
+            "enabled": true,
+            "registration": {
+              "clientId": "557534798515-f1419k6iqqb0ptk6b1a4f8qs20uqd1hv.apps.googleusercontent.com",
+              "clientSecretSettingName": "google-oauth-secret"
+            },
+            "validation": {
+              "allowedAudiences": [
+                "557534798515-f1419k6iqqb0ptk6b1a4f8qs20uqd1hv.apps.googleusercontent.com"
+              ]
+            }
+          }
+        },
+        "redirects": null
+      }
+    },
+    "secretVersions-database-url-qa": {
+      "readSucceeded": true,
+      "data": [
+        {
+          "created": "2026-08-13T16:26:53+00:00",
+          "enabled": true,
+          "expires": null,
+          "id": "https://filosagestg-p4ujucgnxq3g.vault.azure.net/secrets/database-url-qa/932feae4b80f4f26a2cddc6c93aa9398"
+        },
+        {
+          "created": "2026-08-21T19:06:43+00:00",
+          "enabled": true,
+          "expires": null,
+          "id": "https://filosagestg-p4ujucgnxq3g.vault.azure.net/secrets/database-url-qa/b4d342b1f00c46d88a156a1844159291"
+        }
+      ]
+    },
+    "secretVersions-postgres-qa-app-password": {
+      "readSucceeded": true,
+      "data": [
+        {
+          "created": "2026-08-21T19:02:08+00:00",
+          "enabled": true,
+          "expires": null,
+          "id": "https://filosagestg-p4ujucgnxq3g.vault.azure.net/secrets/postgres-qa-app-password/03212c86ad794d2daf8db598d7b9f1b8"
+        }
+      ]
+    },
+    "secretVersions-database-url-qa-runtime-v2": {
+      "readSucceeded": true,
+      "data": [
+        {
+          "created": "2026-09-12T02:05:38+00:00",
+          "enabled": true,
+          "expires": null,
+          "id": "https://filosagestg-p4ujucgnxq3g.vault.azure.net/secrets/database-url-qa-runtime-v2/c766b1d64fbd46af81ddf15538587612"
+        }
+      ]
+    },
+    "secretVersions-activity-receipt-secret-qa": {
+      "readSucceeded": true,
+      "data": [
+        {
+          "created": "2026-08-13T16:28:13+00:00",
+          "enabled": true,
+          "expires": null,
+          "id": "https://filosagestg-p4ujucgnxq3g.vault.azure.net/secrets/activity-receipt-secret-qa/4feb1823a26c4982bb3d57e203886636"
+        },
+        {
+          "created": "2026-08-13T16:26:53+00:00",
+          "enabled": true,
+          "expires": null,
+          "id": "https://filosagestg-p4ujucgnxq3g.vault.azure.net/secrets/activity-receipt-secret-qa/dc971b81e060422ca809693a430bcde3"
+        }
+      ]
+    },
+    "secretVersions-external-id-client-secret-qa": {
+      "readSucceeded": true,
+      "data": [
+        {
+          "created": "2026-08-19T14:43:18+00:00",
+          "enabled": true,
+          "expires": null,
+          "id": "https://filosagestg-p4ujucgnxq3g.vault.azure.net/secrets/external-id-client-secret-qa/ee5e4932033e4d5985c036069e9b4a65"
+        }
+      ]
+    },
+    "secretVersions-identity-link-hmac-secret-qa": {
+      "readSucceeded": true,
+      "data": [
+        {
+          "created": "2026-08-19T14:43:17+00:00",
+          "enabled": true,
+          "expires": null,
+          "id": "https://filosagestg-p4ujucgnxq3g.vault.azure.net/secrets/identity-link-hmac-secret-qa/b9d6af16c1f14c3b8c5aad430d35bae4"
+        }
+      ]
+    },
+    "secretVersions-stripe-qa-api-key": {
+      "readSucceeded": true,
+      "data": [
+        {
+          "created": "2026-09-12T10:25:50+00:00",
+          "enabled": true,
+          "expires": null,
+          "id": "https://filosagestg-p4ujucgnxq3g.vault.azure.net/secrets/stripe-qa-api-key/32b3ae7827d04beb8880bc44debca691"
+        }
+      ]
+    },
+    "blobAggregate": {
+      "readSucceeded": true,
+      "data": {
+        "entryCount": 10,
+        "bytes": 628248,
+        "deletedEntries": 0,
+        "snapshotEntries": 0,
+        "versionEntries": 0,
+        "legalHoldEntries": 0,
+        "earliestModified": "2026-08-14T12:59:13+00:00",
+        "latestModified": "2026-08-14T22:06:04+00:00",
+        "namesBodiesMetadataTagsOmitted": true,
+        "pagination": "--num-results *; all pages",
+        "emptyImmutabilityDescriptors": 10,
+        "activeImmutabilityPolicyEntries": 0,
+        "immutabilityDescriptorReadback": {
+          "expiryTime": null,
+          "policyMode": null
+        },
+        "legalHoldReadback": null,
+        "policyShapeVerifiedAt": "2026-09-12T15:14:04.208226+00:00"
+      }
+    },
+    "dns": {
+      "filosage.com": {
+        "type": "NS",
+        "status": 0,
+        "answers": [
+          {
+            "name": "filosage.com.",
+            "type": 2,
+            "TTL": 3129,
+            "data": "ns15.domaincontrol.com."
+          },
+          {
+            "name": "filosage.com.",
+            "type": 2,
+            "TTL": 3129,
+            "data": "ns16.domaincontrol.com."
+          }
+        ]
+      },
+      "qa.filosage.com": {
+        "type": "CNAME",
+        "status": 0,
+        "answers": [
+          {
+            "name": "qa.filosage.com.",
+            "type": 5,
+            "TTL": 3600,
+            "data": "filosageqa-app.salmontree-eb10220f.centralus.azurecontainerapps.io."
+          }
+        ]
+      },
+      "asuid.qa.filosage.com": {
+        "type": "TXT",
+        "status": 0,
+        "answers": [
+          {
+            "name": "asuid.qa.filosage.com.",
+            "type": 16,
+            "TTL": 3600,
+            "data": "5BE2EB19F32BE0B3DC543B241AEEDE99ECC126A1AF48BE49559191B6684CAAA2"
+          }
+        ]
+      }
+    },
+    "githubEnvironments": {
+      "readSucceeded": true,
+      "data": [
+        {
+          "deployment_branch_policy": {
+            "custom_branch_policies": true,
+            "protected_branches": false
+          },
+          "name": "azure-staging",
+          "protection_rules": [
+            {
+              "id": 62870255,
+              "node_id": "GA_kwDOTGNq884Dv1Lv",
+              "type": "branch_policy"
+            }
+          ]
+        },
+        {
+          "deployment_branch_policy": {
+            "custom_branch_policies": true,
+            "protected_branches": false
+          },
+          "name": "production-operations",
+          "protection_rules": [
+            {
+              "id": 62870256,
+              "node_id": "GA_kwDOTGNq884Dv1Lw",
+              "type": "branch_policy"
+            }
+          ]
+        }
+      ]
+    },
+    "githubQaVariables": {
+      "readSucceeded": true,
+      "data": [
+        {
+          "name": "AZURE_QA_CONTAINER_APP_NAME",
+          "value": "filosageqa-app"
+        },
+        {
+          "name": "AZURE_QA_URL",
+          "value": "https://qa.filosage.com"
+        }
+      ]
+    },
+    "githubRepositoryVariableNames": {
+      "readSucceeded": true,
+      "data": {
+        "names": [],
+        "total_count": 0
+      }
+    },
+    "githubRepositorySecretNames": {
+      "readSucceeded": true,
+      "data": {
+        "names": [],
+        "total_count": 0
+      }
+    },
+    "githubEnvironmentSecretNames": {
+      "readSucceeded": true,
+      "data": {
+        "names": [
+          "AZURE_CLIENT_ID",
+          "AZURE_SUBSCRIPTION_ID",
+          "AZURE_TENANT_ID"
+        ],
+        "total_count": 3
+      }
+    },
+    "sharedLogAlertQaReferences": {
+      "readSucceeded": true,
+      "data": [
+        {
+          "name": "filosage-console-fatal-errors",
+          "containsQaName": true,
+          "preserveSharedRule": true
+        },
+        {
+          "name": "filosage-platform-failures",
+          "containsQaName": true,
+          "preserveSharedRule": true
+        }
+      ]
+    }
+  },
+  "knownReadLimitations": [
+    "Customer tenant app not addressable with current infrastructure-tenant CLI account",
+    "No DNS provider management connector",
+    "Blob lifecycle policy API returned ManagementPolicyNotFound"
+  ],
+  "databaseEvidence": "qa-retirement-database.json",
+  "criticalFinding": "filosageqa_app role OID 25351 owns both production and QA databases; preserve role and shared dependencies"
+}

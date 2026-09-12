@@ -1,0 +1,266 @@
+{
+  "observedFrom": "2026-09-12T15:13:03.167184+00:00",
+  "observedTo": "2026-09-12T15:13:32.316174+00:00",
+  "method": "Independently reviewed exact-QA runtime probe; existing credential used in process; BEGIN READ ONLY; aggregate/catalog SELECT; ROLLBACK",
+  "httpPreflightStatus": 200,
+  "exitCode": 0,
+  "result": {
+    "counts": [
+      {
+        "category": "accountLifecycles",
+        "count": 1
+      },
+      {
+        "category": "aiRequests",
+        "count": 160
+      },
+      {
+        "category": "commandCenterApprovals",
+        "count": 2
+      },
+      {
+        "category": "commandCenterAuditEvents",
+        "count": 12
+      },
+      {
+        "category": "commandCenterTicketRequests",
+        "count": 2
+      },
+      {
+        "category": "commandCenterTickets",
+        "count": 2
+      },
+      {
+        "category": "courseBannerAssets",
+        "count": 10
+      },
+      {
+        "category": "courseBannerKeys",
+        "count": 10
+      },
+      {
+        "category": "courseCredits",
+        "count": 2
+      },
+      {
+        "category": "coursePipelineEvents",
+        "count": 198
+      },
+      {
+        "category": "courseProgress",
+        "count": 3
+      },
+      {
+        "category": "courseReleases",
+        "count": 1
+      },
+      {
+        "category": "courseResearchArtifacts",
+        "count": 11
+      },
+      {
+        "category": "courses",
+        "count": 4
+      },
+      {
+        "category": "evidenceShareRefs",
+        "count": 1
+      },
+      {
+        "category": "evidenceShares",
+        "count": 1
+      },
+      {
+        "category": "identityEmailOwners",
+        "count": 2
+      },
+      {
+        "category": "identityLinks",
+        "count": 2
+      },
+      {
+        "category": "learningData",
+        "count": 1
+      },
+      {
+        "category": "learningOutcomes",
+        "count": 1
+      },
+      {
+        "category": "legalAcceptances",
+        "count": 3
+      },
+      {
+        "category": "lessons",
+        "count": 34
+      },
+      {
+        "category": "masteryEvidence",
+        "count": 9
+      },
+      {
+        "category": "productEvents",
+        "count": 2
+      },
+      {
+        "category": "stripeEvents",
+        "count": 1
+      },
+      {
+        "category": "systemUsageShards",
+        "count": 16
+      },
+      {
+        "category": "_unclassified",
+        "count": 8
+      },
+      {
+        "category": "usagePeriods",
+        "count": 3
+      },
+      {
+        "category": "userAiBudgets",
+        "count": 1
+      },
+      {
+        "category": "userEngagement",
+        "count": 1
+      },
+      {
+        "category": "users",
+        "count": 2
+      }
+    ],
+    "databases": [
+      {
+        "bytes": null,
+        "database": "filosage",
+        "oid": 24762,
+        "owner_oid": 25351,
+        "runtime_connect": false
+      },
+      {
+        "bytes": "10427415",
+        "database": "filosageqa",
+        "oid": 25042,
+        "owner_oid": 25351,
+        "runtime_connect": true
+      }
+    ],
+    "dependencies": [
+      {
+        "count": 2,
+        "database": "_shared",
+        "database_oid": 0,
+        "dependency_type": "o",
+        "role": "filosageqa_app"
+      },
+      {
+        "count": 3,
+        "database": "filosageqa",
+        "database_oid": 25042,
+        "dependency_type": "a",
+        "role": "filosageqa_app"
+      },
+      {
+        "count": 1,
+        "database": "filosageqa",
+        "database_oid": 25042,
+        "dependency_type": "o",
+        "role": "filosageqa_app"
+      },
+      {
+        "count": 1,
+        "database": "_shared",
+        "database_oid": 0,
+        "dependency_type": "a",
+        "role": "filosageqa_runtime"
+      },
+      {
+        "count": 2,
+        "database": "filosageqa",
+        "database_oid": 25042,
+        "dependency_type": "a",
+        "role": "filosageqa_runtime"
+      }
+    ],
+    "identity": {
+      "correct_database": true,
+      "correct_role": true,
+      "read_only": true
+    },
+    "memberships": [
+      {
+        "admin_option": true,
+        "granted_role_oid": 25351,
+        "member_role_oid": 24610
+      },
+      {
+        "admin_option": false,
+        "granted_role_oid": 25351,
+        "member_role_oid": 24610
+      },
+      {
+        "admin_option": true,
+        "granted_role_oid": 25364,
+        "member_role_oid": 24610
+      }
+    ],
+    "ok": true,
+    "relation": [
+      {
+        "bytes": "2293760",
+        "oid": 25043,
+        "owner_oid": 25351,
+        "runtime_database_create": false,
+        "runtime_schema_create": false
+      }
+    ],
+    "roles": [
+      {
+        "bypass_rls": false,
+        "create_database": false,
+        "create_role": false,
+        "inherit": false,
+        "login": true,
+        "oid": 25351,
+        "role": "filosageqa_app",
+        "superuser": false
+      },
+      {
+        "bypass_rls": false,
+        "create_database": false,
+        "create_role": false,
+        "inherit": false,
+        "login": true,
+        "oid": 25364,
+        "role": "filosageqa_runtime",
+        "superuser": false
+      }
+    ],
+    "sessions": [
+      {
+        "connection_count": 0,
+        "other_connection_count": 0,
+        "role": "filosageqa_app"
+      },
+      {
+        "connection_count": 2,
+        "other_connection_count": 1,
+        "role": "filosageqa_runtime"
+      }
+    ],
+    "summary": {
+      "account_deletion_job_documents": 0,
+      "banner_reference_documents": 20,
+      "documents_with_account_relation": 186,
+      "documents_with_billing_relation": 0,
+      "documents_with_course_relation": 222,
+      "earliest_created_at": "2026-08-13 17:18:15.89269+00",
+      "latest_updated_at": "2026-09-12 12:48:10.084008+00",
+      "public_course_documents": 1,
+      "retained_policy_category_documents": 26,
+      "total_documents": 506
+    }
+  }
+}

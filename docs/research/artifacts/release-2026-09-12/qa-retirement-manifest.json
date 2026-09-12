@@ -1,0 +1,311 @@
+{
+  "schemaVersion": 1,
+  "status": "read-only-preparation-not-executed",
+  "sourceEvidence": [
+    "qa-retirement-inventory.json",
+    "qa-retirement-database.json",
+    "qa-retirement-stripe.json"
+  ],
+  "allProviderMutationsPerformed": false,
+  "actions": [
+    {
+      "id": "P0",
+      "operation": "Record accepted production SHA/digest, compatible predecessor and 30-minute verification; preserve private QA content and recovery evidence",
+      "exactTargets": [],
+      "requires": [],
+      "status": "blocked",
+      "details": {
+        "blockers": [
+          "production acceptance not provided to this worker",
+          "private preservation/disposition of 506 documents and 10 Blob entries not completed",
+          "26 retained-policy records and 8 unclassified records need disposition; no legal hold determination inferred"
+        ]
+      }
+    },
+    {
+      "id": "I1",
+      "operation": "Disable exact QA TEST webhook and QA Portal configuration",
+      "exactTargets": [
+        "stripe:acct_1TtgXPRANh4Mnfma:test:webhook_endpoint:we_1UENu8RANh4Mnfmav0d4Pf8k",
+        "stripe:acct_1TtgXPRANh4Mnfma:test:billing_portal.configuration:bpc_1UENu8RANh4Mnfmafj0zDVuU"
+      ],
+      "requires": [
+        "P0"
+      ],
+      "status": "pending-production-acceptance",
+      "details": {
+        "preserve": "All processor history, unrelated TEST integrations, products/prices, account and all LIVE resources; disable before optional deletion after evidence disposition"
+      }
+    },
+    {
+      "id": "I2",
+      "operation": "Remove only verified QA callback/JavaScript-origin entries from provider registries",
+      "exactTargets": [
+        "google-oauth-client:557534798515-f1419k6iqqb0ptk6b1a4f8qs20uqd1hv.apps.googleusercontent.com",
+        "entra-tenant:69d76567-5377-4393-bfe5-47565b8df5dd:appId:4cfac47a-8324-43e1-aea9-2f2da51e5645"
+      ],
+      "requires": [
+        "P0"
+      ],
+      "status": "blocked",
+      "details": {
+        "blockers": [
+          "Google exact registry entries/other consumers unavailable",
+          "Customer-tenant app object ID, callback entries and service-principal/flow consumers unavailable"
+        ],
+        "preserve": "Shared Google client, both customer tenants and every production callback; do not delete an auth app by display name"
+      }
+    },
+    {
+      "id": "I3",
+      "operation": "Remove exact authoritative QA CNAME and allow previous TTL to expire",
+      "exactTargets": [
+        "dns:filosage.com:CNAME:qa"
+      ],
+      "requires": [
+        "P0",
+        "I1",
+        "I2"
+      ],
+      "status": "blocked",
+      "details": {
+        "expectedCname": "filosageqa-app.salmontree-eb10220f.centralus.azurecontainerapps.io.",
+        "observedTtlSeconds": 3600,
+        "blocker": "Authoritative provider management access/readback missing; public DNS locator is exact but provider record identifier is unverified"
+      }
+    },
+    {
+      "id": "G1",
+      "operation": "Remove two unused QA variables from existing shared GitHub environment",
+      "exactTargets": [
+        "github:Victor-CS-Core/Filosage:environment:azure-staging:variable:AZURE_QA_CONTAINER_APP_NAME",
+        "github:Victor-CS-Core/Filosage:environment:azure-staging:variable:AZURE_QA_URL"
+      ],
+      "requires": [
+        "P0"
+      ],
+      "status": "pending-production-acceptance",
+      "details": {
+        "preserve": "azure-staging environment, three AZURE_* deployment secret references, shared app registration/federation and production settings"
+      }
+    },
+    {
+      "id": "C1",
+      "operation": "Unbind exact QA custom domain, drain/stop QA revisions, delete QA app and its dedicated certificate",
+      "exactTargets": [
+        "/subscriptions/bfc8f890-2681-43dc-8eac-51644341ae12/resourceGroups/filosage-staging-central-rg/providers/Microsoft.App/containerapps/filosageqa-app#customDomain=qa.filosage.com",
+        "/subscriptions/bfc8f890-2681-43dc-8eac-51644341ae12/resourceGroups/filosage-staging-central-rg/providers/Microsoft.App/containerapps/filosageqa-app",
+        "/subscriptions/bfc8f890-2681-43dc-8eac-51644341ae12/resourceGroups/filosage-staging-central-rg/providers/Microsoft.App/managedEnvironments/filosagestg-environment/managedCertificates/mc-filosagestg-en-qa-filosage-com-4745"
+      ],
+      "requires": [
+        "I1",
+        "I2",
+        "I3"
+      ],
+      "status": "pending-production-acceptance",
+      "details": {
+        "revisions": [
+          "/subscriptions/bfc8f890-2681-43dc-8eac-51644341ae12/resourceGroups/filosage-staging-central-rg/providers/Microsoft.App/containerApps/filosageqa-app/revisions/filosageqa-app--qa-93f60f24-1",
+          "/subscriptions/bfc8f890-2681-43dc-8eac-51644341ae12/resourceGroups/filosage-staging-central-rg/providers/Microsoft.App/containerApps/filosageqa-app/revisions/filosageqa-app--qa-c7d9c2c-1",
+          "/subscriptions/bfc8f890-2681-43dc-8eac-51644341ae12/resourceGroups/filosage-staging-central-rg/providers/Microsoft.App/containerApps/filosageqa-app/revisions/filosageqa-app--qa-stripe-test-1"
+        ],
+        "drain": "Stop only QA compute, poll at bounded deadline for zero QA runtime sessions and no in-flight write holders before data removal; do not terminate other sessions",
+        "productionPredecessorMustRemain": true
+      }
+    },
+    {
+      "id": "C2",
+      "operation": "Remove exact QA ownership TXT after QA custom domain unbind and CNAME absence",
+      "exactTargets": [
+        "dns:filosage.com:TXT:asuid.qa"
+      ],
+      "requires": [
+        "I3",
+        "C1"
+      ],
+      "status": "blocked",
+      "details": {
+        "expectedTxt": "5BE2EB19F32BE0B3DC543B241AEEDE99ECC126A1AF48BE49559191B6684CAAA2",
+        "blocker": "Authoritative provider management access/readback missing"
+      }
+    },
+    {
+      "id": "O1",
+      "operation": "Remove four dedicated QA metric alerts; remove only QA app selector from two shared log alert queries",
+      "exactTargets": [
+        "/subscriptions/bfc8f890-2681-43dc-8eac-51644341ae12/resourceGroups/filosage-staging-central-rg/providers/Microsoft.Insights/metricAlerts/filosage-qa-high-cpu",
+        "/subscriptions/bfc8f890-2681-43dc-8eac-51644341ae12/resourceGroups/filosage-staging-central-rg/providers/Microsoft.Insights/metricAlerts/filosage-qa-http-5xx",
+        "/subscriptions/bfc8f890-2681-43dc-8eac-51644341ae12/resourceGroups/filosage-staging-central-rg/providers/Microsoft.Insights/metricAlerts/filosage-qa-restarts",
+        "/subscriptions/bfc8f890-2681-43dc-8eac-51644341ae12/resourceGroups/filosage-staging-central-rg/providers/Microsoft.Insights/metricAlerts/filosage-qa-high-memory",
+        "/subscriptions/bfc8f890-2681-43dc-8eac-51644341ae12/resourceGroups/filosage-staging-central-rg/providers/Microsoft.Insights/scheduledqueryrules/filosage-console-fatal-errors",
+        "/subscriptions/bfc8f890-2681-43dc-8eac-51644341ae12/resourceGroups/filosage-staging-central-rg/providers/Microsoft.Insights/scheduledqueryrules/filosage-platform-failures"
+      ],
+      "requires": [
+        "C1"
+      ],
+      "status": "pending-production-acceptance",
+      "details": {
+        "sharedSelectorBefore": "ContainerAppName_s in (\"filosagestg-app\", \"filosageqa-app\")",
+        "sharedSelectorAfter": "ContainerAppName_s in (\"filosagestg-app\")",
+        "preserve": "All non-selector shared query predicates, scopes, action groups and 30-day logs"
+      }
+    },
+    {
+      "id": "A1",
+      "operation": "Delete only exact ten grants to QA MI and exact shared-deployer grant at QA app scope",
+      "exactTargets": [
+        "/subscriptions/bfc8f890-2681-43dc-8eac-51644341ae12/resourcegroups/filosage-staging-central-rg/providers/Microsoft.ContainerRegistry/registries/filosagestp4ujucgnxq3gsacr/providers/Microsoft.Authorization/roleAssignments/e663dbe1-1ef5-5829-bf83-217e0caaee2c",
+        "/subscriptions/bfc8f890-2681-43dc-8eac-51644341ae12/resourcegroups/filosage-staging-central-rg/providers/Microsoft.Storage/storageAccounts/filosagestp4ujucgnxq3gss/blobServices/default/containers/qa-course-banners/providers/Microsoft.Authorization/roleAssignments/07de23d2-73c8-53b1-8537-0686359841e8",
+        "/subscriptions/bfc8f890-2681-43dc-8eac-51644341ae12/resourceGroups/filosage-staging-central-rg/providers/Microsoft.KeyVault/vaults/filosagestg-p4ujucgnxq3g/secrets/activity-receipt-secret-qa/providers/Microsoft.Authorization/roleAssignments/717ab5b9-4d21-5880-8a32-4580ad1f5ed1",
+        "/subscriptions/bfc8f890-2681-43dc-8eac-51644341ae12/resourceGroups/filosage-staging-central-rg/providers/Microsoft.KeyVault/vaults/filosagestg-p4ujucgnxq3g/secrets/database-url-qa-runtime-v2/providers/Microsoft.Authorization/roleAssignments/bcd65c93-f179-586d-bb83-baea501cda98",
+        "/subscriptions/bfc8f890-2681-43dc-8eac-51644341ae12/resourceGroups/filosage-staging-central-rg/providers/Microsoft.KeyVault/vaults/filosagestg-p4ujucgnxq3g/secrets/external-id-client-secret-qa/providers/Microsoft.Authorization/roleAssignments/699dd219-a3d5-5d2f-84fc-a9c46d8d250a",
+        "/subscriptions/bfc8f890-2681-43dc-8eac-51644341ae12/resourceGroups/filosage-staging-central-rg/providers/Microsoft.KeyVault/vaults/filosagestg-p4ujucgnxq3g/secrets/google-easy-auth-client-secret/providers/Microsoft.Authorization/roleAssignments/d45a2a45-70fc-524e-8625-0d47b016c9e1",
+        "/subscriptions/bfc8f890-2681-43dc-8eac-51644341ae12/resourceGroups/filosage-staging-central-rg/providers/Microsoft.KeyVault/vaults/filosagestg-p4ujucgnxq3g/secrets/identity-link-hmac-secret-qa/providers/Microsoft.Authorization/roleAssignments/2067861d-dee4-57cd-87cd-0230b69e10b8",
+        "/subscriptions/bfc8f890-2681-43dc-8eac-51644341ae12/resourceGroups/filosage-staging-central-rg/providers/Microsoft.KeyVault/vaults/filosagestg-p4ujucgnxq3g/secrets/migrated-owner-uid/providers/Microsoft.Authorization/roleAssignments/ef23077c-a508-508a-91cf-0f82fe4aa91f",
+        "/subscriptions/bfc8f890-2681-43dc-8eac-51644341ae12/resourceGroups/filosage-staging-central-rg/providers/Microsoft.KeyVault/vaults/filosagestg-p4ujucgnxq3g/secrets/openai-api-key/providers/Microsoft.Authorization/roleAssignments/264a42cc-8512-58a4-aa14-9cd7a851f197",
+        "/subscriptions/bfc8f890-2681-43dc-8eac-51644341ae12/resourceGroups/filosage-staging-central-rg/providers/Microsoft.KeyVault/vaults/filosagestg-p4ujucgnxq3g/secrets/stripe-qa-api-key/providers/Microsoft.Authorization/roleAssignments/b040221e-bd5e-5de9-967b-f09ddc825db1",
+        "/subscriptions/bfc8f890-2681-43dc-8eac-51644341ae12/resourceGroups/filosage-staging-central-rg/providers/Microsoft.App/containerapps/filosageqa-app/providers/Microsoft.Authorization/roleAssignments/cdb56bcd-884d-4b49-b606-71d474bcd931"
+      ],
+      "requires": [
+        "C1"
+      ],
+      "status": "pending-production-acceptance",
+      "details": {
+        "qaPrincipalId": "ace6a746-1953-483b-b4e0-d4429753d6b6",
+        "sharedDeploymentPrincipalId": "6a25b4c2-f60a-4995-82ae-d2ea64786577",
+        "preserve": "Every other grant and every shared resource scope itself; already-cascaded app-scoped grant should be recorded absent, not recreated"
+      }
+    },
+    {
+      "id": "D1",
+      "operation": "Remove exclusive QA database and QA Blob container only after preservation/readback/drain",
+      "exactTargets": [
+        "/subscriptions/bfc8f890-2681-43dc-8eac-51644341ae12/resourceGroups/filosage-staging-central-rg/providers/Microsoft.DBforPostgreSQL/flexibleServers/filosagestg-p4ujucgnxq3gs-pg/databases/filosageqa",
+        "/subscriptions/bfc8f890-2681-43dc-8eac-51644341ae12/resourceGroups/filosage-staging-central-rg/providers/Microsoft.Storage/storageAccounts/filosagestp4ujucgnxq3gss/blobServices/default/containers/qa-course-banners"
+      ],
+      "requires": [
+        "P0",
+        "C1"
+      ],
+      "status": "blocked",
+      "details": {
+        "blockers": [
+          "Private data preservation/disposition is pending",
+          "No current selective restore/export evidence supplied",
+          "Shared/cross-environment banner and identity references need private aggregate comparison"
+        ],
+        "preserve": "Shared PostgreSQL server, production database, storage account/course-banners, configured backup/versioning/soft-delete retention; no purge"
+      }
+    },
+    {
+      "id": "A2",
+      "operation": "Remove exact non-owner QA runtime role after QA DB removal and zero remaining server dependencies",
+      "exactTargets": [
+        "postgres:filosagestg-p4ujucgnxq3gs-pg:role:filosageqa_runtime:oid:25364"
+      ],
+      "requires": [
+        "D1"
+      ],
+      "status": "blocked",
+      "details": {
+        "blocker": "Re-read all pg_shdepend, memberships and sessions after drain/database removal; exact residual membership only can be revoked after review",
+        "neverTouch": "filosageqa_app OID25351 owns BOTH production and QA DBs; do not DROP OWNED, REASSIGN OWNED, drop, revoke or alter this shared owner"
+      }
+    },
+    {
+      "id": "S1",
+      "operation": "Retire proven exclusive QA secret names through normal recoverable deletion only",
+      "exactTargets": [
+        "https://filosagestg-p4ujucgnxq3g.vault.azure.net/secrets/activity-receipt-secret-qa",
+        "https://filosagestg-p4ujucgnxq3g.vault.azure.net/secrets/database-url-qa-runtime-v2",
+        "https://filosagestg-p4ujucgnxq3g.vault.azure.net/secrets/external-id-client-secret-qa",
+        "https://filosagestg-p4ujucgnxq3g.vault.azure.net/secrets/identity-link-hmac-secret-qa",
+        "https://filosagestg-p4ujucgnxq3g.vault.azure.net/secrets/stripe-qa-api-key"
+      ],
+      "requires": [
+        "A1",
+        "A2",
+        "I2"
+      ],
+      "status": "blocked",
+      "details": {
+        "blockers": [
+          "Exact external consumer and recovery requirements not resolved",
+          "Stripe standard TEST API credential may serve other TEST consumers; no key revocation by prefix"
+        ],
+        "preserve": [
+          "database-url-qa",
+          "postgres-qa-app-password",
+          "google-easy-auth-client-secret",
+          "openai-api-key",
+          "migrated-owner-uid"
+        ],
+        "noPurge": "Key Vault soft delete and purge protection 30 days; keep all required recovery versions"
+      }
+    },
+    {
+      "id": "A3",
+      "operation": "Remove QA user-assigned MI after fresh zero-consumer and zero-grant readback",
+      "exactTargets": [
+        "/subscriptions/bfc8f890-2681-43dc-8eac-51644341ae12/resourcegroups/filosage-staging-central-rg/providers/Microsoft.ManagedIdentity/userAssignedIdentities/filosageqa-app-identity"
+      ],
+      "requires": [
+        "A1",
+        "S1"
+      ],
+      "status": "pending-production-acceptance",
+      "details": {
+        "observedFederatedCredentials": [],
+        "observedAttachedResources": [
+          "/subscriptions/bfc8f890-2681-43dc-8eac-51644341ae12/resourceGroups/filosage-staging-central-rg/providers/Microsoft.App/containerapps/filosageqa-app"
+        ],
+        "scopeOfConsumerInventory": "Accessible subscription resource inventory and resource-group Container Apps/jobs only"
+      }
+    },
+    {
+      "id": "V1",
+      "operation": "Final absence/dangling-reference and production verification",
+      "exactTargets": [],
+      "requires": [
+        "G1",
+        "C1",
+        "O1",
+        "A1",
+        "D1",
+        "A2",
+        "S1",
+        "A3",
+        "C2"
+      ],
+      "status": "pending-production-acceptance",
+      "details": {
+        "required": [
+          "Azure exact IDs absent or documented retained/soft-deleted",
+          "DNS QA records absent by authoritative read and public resolution",
+          "Provider QA callback/endpoint entries absent or disabled as approved",
+          "GitHub QA variables and exact QA deployment grant absent",
+          "No QA reference in live operational selector/configuration",
+          "Production app/auth/routing/SHA/digest/health and signed-in learner check pass",
+          "Shared owner role and production database unchanged; configured recovery retained"
+        ]
+      }
+    }
+  ],
+  "explicitlyPreserve": [
+    "/subscriptions/bfc8f890-2681-43dc-8eac-51644341ae12/resourceGroups/filosage-staging-central-rg/providers/Microsoft.App/containerapps/filosagestg-app",
+    "/subscriptions/bfc8f890-2681-43dc-8eac-51644341ae12/resourceGroups/filosage-staging-central-rg/providers/Microsoft.App/managedEnvironments/filosagestg-environment",
+    "/subscriptions/bfc8f890-2681-43dc-8eac-51644341ae12/resourceGroups/filosage-staging-central-rg/providers/Microsoft.DBforPostgreSQL/flexibleServers/filosagestg-p4ujucgnxq3gs-pg",
+    "/subscriptions/bfc8f890-2681-43dc-8eac-51644341ae12/resourceGroups/filosage-staging-central-rg/providers/Microsoft.DBforPostgreSQL/flexibleServers/filosagestg-p4ujucgnxq3gs-pg/databases/filosage",
+    "/subscriptions/bfc8f890-2681-43dc-8eac-51644341ae12/resourceGroups/filosage-staging-central-rg/providers/Microsoft.KeyVault/vaults/filosagestg-p4ujucgnxq3g",
+    "/subscriptions/bfc8f890-2681-43dc-8eac-51644341ae12/resourceGroups/filosage-staging-central-rg/providers/Microsoft.Storage/storageAccounts/filosagestp4ujucgnxq3gss",
+    "/subscriptions/bfc8f890-2681-43dc-8eac-51644341ae12/resourceGroups/filosage-staging-central-rg/providers/Microsoft.ContainerRegistry/registries/filosagestp4ujucgnxq3gsacr",
+    "/subscriptions/bfc8f890-2681-43dc-8eac-51644341ae12/resourceGroups/filosage-staging-central-rg/providers/Microsoft.OperationalInsights/workspaces/filosagestg-logs",
+    "/subscriptions/bfc8f890-2681-43dc-8eac-51644341ae12/resourceGroups/filosage-staging-central-rg/providers/Microsoft.Insights/actiongroups/filosage-essential-ops-ag",
+    "/subscriptions/bfc8f890-2681-43dc-8eac-51644341ae12/resourceGroups/filosage-staging-central-rg/providers/Microsoft.AzureActiveDirectory/ciamDirectories/filosagecustomers",
+    "/subscriptions/bfc8f890-2681-43dc-8eac-51644341ae12/resourceGroups/filosage-staging-central-rg/providers/Microsoft.AzureActiveDirectory/ciamDirectories/filosagecustomersprod",
+    "postgres:filosagestg-p4ujucgnxq3gs-pg:role:filosageqa_app:oid:25351",
+    "entra:application:c90eb4a8-aa20-4872-9fb4-9ed528911898",
+    "google-oauth-client:557534798515-f1419k6iqqb0ptk6b1a4f8qs20uqd1hv.apps.googleusercontent.com"
+  ],
+  "note": "Reviewed inputs, not a deletion script. Every target must be re-read immediately before separately authorized execution; stop on mismatch. No wildcard deletion or resource-group teardown."
+}

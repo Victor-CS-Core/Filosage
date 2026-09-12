@@ -1,0 +1,42 @@
+{
+  "account": "acct_1TtgXPRANh4Mnfma",
+  "livemode": false,
+  "observedAt": "2026-09-12T15:14:04.140Z",
+  "method": "Stripe connector GET /v1/webhook_endpoints and GET /v1/billing_portal/configurations, full pagination; only exact QA entries retained",
+  "webhooks": [
+    {
+      "id": "we_1UENu8RANh4Mnfmav0d4Pf8k",
+      "livemode": false,
+      "status": "enabled",
+      "url": "https://qa.filosage.com/api/billing/webhook",
+      "api_version": "2026-07-29.dahlia",
+      "enabled_events": [
+        "checkout.session.completed",
+        "customer.subscription.created",
+        "customer.subscription.updated",
+        "customer.subscription.deleted",
+        "customer.subscription.paused",
+        "customer.subscription.resumed",
+        "invoice.paid",
+        "invoice.payment_failed",
+        "invoice.finalization_failed",
+        "invoice.payment_action_required",
+        "invoice.marked_uncollectible",
+        "invoice.voided",
+        "charge.refunded",
+        "charge.dispute.created",
+        "charge.dispute.closed"
+      ]
+    }
+  ],
+  "portal": {
+    "id": "bpc_1UENu8RANh4Mnfmafj0zDVuU",
+    "livemode": false,
+    "active": true,
+    "is_default": false,
+    "default_return_url": "https://qa.filosage.com/pricing",
+    "privacy_policy_url": "https://qa.filosage.com/privacy",
+    "terms_of_service_url": "https://qa.filosage.com/terms"
+  },
+  "preserve": "All unrelated TEST endpoints, default Portal, products/prices, TEST account and all LIVE configuration; actual customer/subscription history not accessed."
+}
