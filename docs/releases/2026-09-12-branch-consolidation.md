@@ -1,6 +1,6 @@
 # Branch consolidation — 2026-09-12
 
-Status: review_ready. Owner: current Codex task.
+Status: completed. Owner: current Codex task.
 
 ## Scope and authorization
 
@@ -11,9 +11,9 @@ Victor requested consolidation of every branch with work not merged into `main`,
 - [x] Inventory fresh local/remote branches, worktrees, uncommitted changes, pull requests, and active owners; preserve all unfinished work.
 - [x] Reconcile every unique branch change with current `main`, resolve conflicts without reviving superseded behavior, and commit unfinished in-scope work.
 - [x] Review the combined diff and pass proportionate repository checks; document any dependency or policy blocker.
-- [ ] Merge the verified consolidation into `main` and push without bypassing protections or rewriting published history.
-- [ ] Delete consolidated local/remote branches only after verifying their work is retained; preserve non-source local artifacts when retiring worktrees.
-- [ ] Confirm fresh remote/local `main`, branch/worktree state, and bounded CI results; update the active handoff and report final evidence.
+- [x] Merge the verified consolidation into `main` and push without bypassing protections or rewriting published history.
+- [x] Delete consolidated local/remote branches only after verifying their work is retained; preserve non-source local artifacts when retiring worktrees.
+- [x] Confirm fresh remote/local `main`, branch/worktree state, and bounded CI results; update the active handoff and report final evidence.
 
 ## Plan, risks, and evidence
 
@@ -80,3 +80,13 @@ The visitor final tip is `8353de5591a758d9fcec2f71328795333bfac5f0`; cleanup mus
 - Independent review approved historical conflicts, eleven patch-equivalent merges, dependency/compiler/action changes, security reconciliation, and the two test-environment corrections. Manual OpenGrep validated 83 rule hashes and positive/negative fixtures, then failed closed at its unchanged 300-second full-scan deadline. No completed full OpenGrep scan is claimed; the automatic Semgrep gate remains required in CI.
 
 - Review readiness: combined Chromium smoke passed 34/34 without retries. The submitted-context API regression passed in its owned browser lane, and the new Command Center UI regression passed. All relevant local gates are now passed; lint retains four non-failing navigation warnings. No running local test watcher remains. Proceed with Victor-authorized ordinary main fast-forward/push, then verify automatic engineering/PostgreSQL/Semgrep CI with a 30-minute deadline and a final bounded read before branch cleanup. No manual heavy workflow or deployment will be dispatched.
+
+- Main pushed: `4cbbd016c80733bfe9b02990400e1030dd05cc36` was fast-forwarded and pushed normally. Fresh `ls-remote` matches local main; no protection bypass or force push. Automatic engineering run `34698844861` and Semgrep run `34698844943` started on this exact head. CI deadline: **2026-09-12 14:47:47 UTC**, followed by a final bounded read. Source branch deletion remains pending their conclusions. No deployment or manual heavy workflow started.
+
+## Completion evidence
+
+- All branch work is retained in main source checkpoint `4cbbd016c80733bfe9b02990400e1030dd05cc36`, including final visitor `8353de5`, dependency integration `434e7a8`, security integration `34587a6`, original policy edits, and previously uncommitted handoffs. Original publication, billing, account and release guards are preserved.
+- Exact-source GitHub CI completed successfully before the deadline: [engineering contracts, build, PostgreSQL/billing and API/browser smoke](https://github.com/Victor-CS-Core/Filosage/actions/runs/34698844861) and [automatic Semgrep](https://github.com/Victor-CS-Core/Filosage/actions/runs/34698844943). No skipped required jobs; no production deployment or manual full-regression/OpenGrep/CodeQL workflow was dispatched.
+- All 14 initially open PRs are verified merged. All 32 remote non-main branches are gone: ten dependency branches were removed automatically after merge, and the remaining 22 were deleted atomically after fresh ancestry checks. All six local non-main branches, including three temporary integration branches, were deleted using Git's merged-branch check. Remote and local branch inventories now contain only `main` (plus the symbolic remote default pointer).
+- Four task-created worktrees were removed after their checks stopped and evidence was copied. The three original worktrees remain detached at their original tips, preserving all ignored helper/evidence files and the old release documents. Root locked dependencies were refreshed successfully. Original document bytes and detailed evidence are retained under ignored `.filosage-local/branch-consolidation-20260912/`.
+- Final handoff changes are documentation only. The completed source CI above remains the application verification evidence; automatic runs triggered by this final documentation checkpoint are separate. The original hosted-release A–K gates remain open where evidence is missing; branch consolidation does not certify production or activate billing.
