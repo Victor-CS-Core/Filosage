@@ -10,6 +10,8 @@ import {
 } from "@/lib/document-values";
 import { serverEnvironment } from "@/lib/runtime-environment";
 
+import { databasePoolMaximum, databaseHealthPoolMax } from "@/lib/database-connection-budget";
+
 const { Pool } = pg;
 const DOCUMENT_NAME_PREFIX = "projects/azure/databases/(default)/documents/";
 const TRANSACTION_TTL_MS = 30_000;
@@ -66,7 +68,7 @@ function databasePool() {
   if (!globalThis.__FILOSAGE_POSTGRES_POOL__) {
     globalThis.__FILOSAGE_POSTGRES_POOL__ = new Pool({
       connectionString: requiredDatabaseUrl(),
-      max: Number(serverEnvironment.DATABASE_POOL_MAX ?? 10),
+      max: databasePoolMaximum(serverEnvironment.DATABASE_POOL_MAX),
       idleTimeoutMillis: 30_000,
       connectionTimeoutMillis: 10_000,
       // Server deadlines cover lock acquisition and mutation statements outside
@@ -86,7 +88,7 @@ function databaseHealthPool() {
   if (!globalThis.__FILOSAGE_POSTGRES_HEALTH_POOL__) {
     globalThis.__FILOSAGE_POSTGRES_HEALTH_POOL__ = new Pool({
       connectionString: requiredDatabaseUrl(),
-      max: 1,
+      max: databaseHealthPoolMax,
       idleTimeoutMillis: 10_000,
       connectionTimeoutMillis: HEALTH_QUERY_TIMEOUT_MS,
       query_timeout: HEALTH_QUERY_TIMEOUT_MS,

@@ -1,7 +1,19 @@
 import pg from "pg";
+import { databasePoolMaximum, requiredUnreservedConnections } from "../src/lib/database-connection-budget.ts";
 import { pathToFileURL } from "node:url";
 
 export interface SchemaClient { query(sql: string): Promise<{ rows: Array<{ compatible: boolean }> }> }
+export async function verifyDatabaseConnectionCapacity(client: SchemaClient) {
+  await client.query("BEGIN READ ONLY");
+  try {
+    const result = await client.query(`SELECT (
+      current_setting('max_connections')::integer >= 50
+      AND current_setting('max_connections')::integer - current_setting('reserved_connections')::integer
+        - current_setting('superuser_reserved_connections')::integer >= ${requiredUnreservedConnections}
+    ) AS compatible`);
+    if (result.rows[0]?.compatible !== true) throw new Error("Server connection capacity is below the reviewed runtime/QA/operator budget.");
+  } finally { await client.query("ROLLBACK"); }
+}
 /** Read-only startup contract; overlapping revisions use the additive document schema. */
 export async function verifyAzureDatabaseSchema(client: SchemaClient) {
   await client.query("BEGIN READ ONLY");
@@ -27,11 +39,12 @@ AND has_table_privilege(current_user, 'public.filosage_documents', 'DELETE')
 
 export async function verifyAzureDatabase() {
   if (process.env.DATABASE_ADMIN_URL || process.env.POSTGRES_APP_PASSWORD || process.env.POSTGRES_QA_APP_PASSWORD) throw new Error("Runtime must not receive bootstrap credentials.");
+  databasePoolMaximum(process.env.DATABASE_POOL_MAX);
   const connectionString = process.env.DATABASE_URL?.trim();
   if (!connectionString) throw new Error("DATABASE_URL is required.");
   const client = new pg.Client({ connectionString, connectionTimeoutMillis: 15_000, query_timeout: 15_000,
     ssl: process.env.DATABASE_SSL === "disable" ? false : { rejectUnauthorized: true } });
-  try { await client.connect(); await verifyAzureDatabaseSchema(client); console.log("AZURE_DATABASE_SCHEMA_VERIFIED"); }
+  try { await client.connect(); await verifyAzureDatabaseSchema(client); await verifyDatabaseConnectionCapacity(client); console.log("AZURE_DATABASE_SCHEMA_VERIFIED"); }
   finally { await client.end().catch(() => undefined); }
 }
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {

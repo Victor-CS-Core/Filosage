@@ -2,6 +2,8 @@ import { spawnSync } from "node:child_process";
 import { mkdirSync, readFileSync, writeFileSync, existsSync } from "node:fs";
 import { join } from "node:path";
 import { assertBlueGreenState, assertCandidateReadback, authConfigurationHash, fingerprint, canonical, candidateTraffic, labelOrigin, azureLocationName } from "./blue-green-contract.ts";
+import { assertRevisionConnectionBudget, assertQaConnectionBudget } from "./database-connection-budget.ts";
+import { modernDatabasePoolMax } from "../src/lib/database-connection-budget.ts";
 import { readReleaseManifest } from "./release-manifest.mjs";
 import { releaseEnvironment, releaseEvidenceMatches, validReleaseSha, validReleaseDigest, observedReleaseCapabilities, validReleaseManifest } from "../src/lib/release-capabilities.ts";
 
@@ -68,7 +70,17 @@ const loadCandidate = () => {
   if (!releaseEvidenceMatches(candidate, sha, manifest, env.PUBLIC_SITE_URL) || candidate.authenticationMode !== expectedMode || candidate.stageRunId !== String(env.CANDIDATE_RUN_ID)) throw new Error("Candidate source, manifest, origin or stage run mismatched.");
   return { candidate, artifact };
 };
+const connectionBudget = (addingCandidate = false) => {
+  const production = assertRevisionConnectionBudget(az(["containerapp", "revision", "list", ...appArgs]), addingCandidate);
+  const apps = az(["containerapp", "list", "--resource-group", env.AZURE_RESOURCE_GROUP]);
+  if (!Array.isArray(apps) || apps.some((app) => typeof app?.name !== "string")) throw new Error("Incomplete shared-server app inventory.");
+  const qa = apps.filter((app) => app.name === "filosageqa-app");
+  if (qa.length > 1) throw new Error("Ambiguous QA app inventory.");
+  const qaBudget = assertQaConnectionBudget(qa.length ? az(["containerapp", "revision", "list", "--resource-group", env.AZURE_RESOURCE_GROUP, "--name", "filosageqa-app"]) : []);
+  return { production, qa: qaBudget };
+};
 const verify = (candidate, promoted = false) => {
+  connectionBudget();
   const observed = snapshot();
   assertCandidateReadback(candidate, observed, revision(candidate.revision), candidate.before, promoted);
   const previous = revision(candidate.previous.revision);
@@ -85,6 +97,7 @@ try {
   mkdirSync(directory, { recursive: true });
   if (command === "preflight") {
     const engineering = [requireRun(env.QUALITY_RUN_ID, ".github/workflows/quality-gate.yml"), requireRun(env.REGRESSION_RUN_ID, ".github/workflows/full-regression.yml")];
+    const budget = connectionBudget(true);
     const before = snapshot();
     const { live } = assertBlueGreenState(before);
     const liveRevision = revision(live.revisionName);
@@ -100,7 +113,7 @@ try {
       imageDigest: container.image.split("@")[1], manifest: previousManifest, productionOrigin: env.PUBLIC_SITE_URL,
       candidateOrigin: env.PUBLIC_SITE_URL, authenticationMode: expectedMode, featuredCourseId: liveEnvironment.LANDING_FEATURED_COURSE_ID || "none" };
     smoke(previous);
-    save(join(directory, "preflight.json"), { before, previous, engineering });
+    save(join(directory, "preflight.json"), { before, previous, engineering, connectionBudget: budget });
   } else if (command === "stage") {
     const preflight = json(join(directory, "preflight.json"));
     const before = snapshot();
@@ -115,8 +128,9 @@ try {
     // Copy the observed live template; do not mutate shared auth, secrets, identity,
     // ingress, or revision mode. Existing explicit revision weights stay pinned.
     const settings = { ...releaseEnvironment(manifest), SITE_VERSION: sha, RELEASE_IMAGE_DIGEST: digest,
-      NEXT_PUBLIC_SITE_URL: env.PUBLIC_SITE_URL, BILLING_ENABLED: "false", BILLING_ROLLOUT_MODE: "closed", DEPLOYMENT_SLOT: inactive.label };
+      DATABASE_POOL_MAX: String(modernDatabasePoolMax), NEXT_PUBLIC_SITE_URL: env.PUBLIC_SITE_URL, BILLING_ENABLED: "false", BILLING_ROLLOUT_MODE: "closed", DEPLOYMENT_SLOT: inactive.label };
     if (featured !== "none") settings.LANDING_FEATURED_COURSE_ID = featured;
+    connectionBudget(true);
     mutate(["containerapp", "revision", "copy", ...appArgs, "--from-revision", live.revisionName, "--image", `${env.AZURE_ACR_NAME}.azurecr.io/filosage@${digest}`, "--revision-suffix", suffix,
       ...(featured === "none" ? ["--remove-env-vars", "LANDING_FEATURED_COURSE_ID"] : []), "--set-env-vars", ...Object.entries(settings).map(([key, value]) => `${key}=${value}`)]);
     const afterDeployment = snapshot();
