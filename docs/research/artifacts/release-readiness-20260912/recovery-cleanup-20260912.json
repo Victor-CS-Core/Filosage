@@ -1,0 +1,19 @@
+{
+  "operation": "delete-owned-recovery-server",
+  "resourceId": "/subscriptions/bfc8f890-2681-43dc-8eac-51644341ae12/resourceGroups/filosage-staging-central-rg/providers/Microsoft.DBforPostgreSQL/flexibleServers/filosage-recovery-20260912-a",
+  "startedAt": "2026-09-12T20:32:14.561859+00:00",
+  "requestStatus": "uncertain-timeout",
+  "sourceDeletion": false,
+  "requestSeconds": 90.094,
+  "requestFinishedAt": "2026-09-12T20:33:44.655558+00:00",
+  "serverAbsentVerified": true,
+  "absenceObservedAt": "2026-09-12T20:34:18.955504+00:00",
+  "dnsBaselineRestored": true,
+  "remainingARecordNames": [
+    "a690440b9645"
+  ],
+  "sharedDnsZoneDeleted": false,
+  "blobContainerSoftDeleted": true,
+  "blobRetentionDays": 7,
+  "fingerprintKeyRemoved": true
+}

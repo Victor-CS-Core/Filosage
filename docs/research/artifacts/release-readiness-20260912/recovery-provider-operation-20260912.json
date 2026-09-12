@@ -1,0 +1,23 @@
+[
+  {
+    "correlationId": "fb9b11b2-de31-490b-b534-a0b0a95aeb63",
+    "eventTimestamp": "2026-09-12T20:29:31.9718659Z",
+    "operation": "Microsoft.DBforPostgreSQL/flexibleServers/write",
+    "operationId": "15d389fb-f9bd-4554-b667-0033bb63c48d",
+    "status": "Succeeded"
+  },
+  {
+    "correlationId": "fb9b11b2-de31-490b-b534-a0b0a95aeb63",
+    "eventTimestamp": "2026-09-12T20:20:27.6359156Z",
+    "operation": "Microsoft.DBforPostgreSQL/flexibleServers/write",
+    "operationId": "fb9b11b2-de31-490b-b534-a0b0a95aeb63",
+    "status": "Accepted"
+  },
+  {
+    "correlationId": "fb9b11b2-de31-490b-b534-a0b0a95aeb63",
+    "eventTimestamp": "2026-09-12T20:20:26.339022Z",
+    "operation": "Microsoft.DBforPostgreSQL/flexibleServers/write",
+    "operationId": "fb9b11b2-de31-490b-b534-a0b0a95aeb63",
+    "status": "Started"
+  }
+]

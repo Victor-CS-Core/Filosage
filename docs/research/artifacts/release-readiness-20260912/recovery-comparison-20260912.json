@@ -1,0 +1,21 @@
+{
+  "snapshotEquality": true,
+  "checks": [
+    {
+      "database": "filosage",
+      "matches": true
+    },
+    {
+      "database": "postgres",
+      "matches": true
+    }
+  ],
+  "rpoVerified": false,
+  "serviceRecoveryVerified": false,
+  "restorePoint": "2026-09-12T20:19:48.338Z",
+  "readyObservedAt": "2026-09-12T20:29:26.375298+00:00",
+  "validatedAt": "2026-09-12T20:30:28.370Z",
+  "databaseValidationSeconds": 604.099,
+  "documentSnapshotCoverageAgeSeconds": 0.423,
+  "databaseConnectedNoLaterThan": "2026-09-12T20:30:27.418Z"
+}

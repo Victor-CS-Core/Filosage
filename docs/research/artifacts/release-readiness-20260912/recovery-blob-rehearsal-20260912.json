@@ -1,0 +1,43 @@
+{
+  "schemaVersion": 1,
+  "operation": "isolated-blob-recovery-rehearsal",
+  "passed": true,
+  "currentCopiesVerified": true,
+  "replacedFixtureRecovered": true,
+  "deletedFixtureRecovered": true,
+  "historicalSourcePointVerified": false,
+  "databaseOwnershipReferencesVerified": false,
+  "serviceRecoveryVerified": false,
+  "cleanupVerified": true,
+  "retentionSettingsVerified": false,
+  "account": "filosagestp4ujucgnxq3gss",
+  "sourceContainer": "course-banners",
+  "recoveryContainer": "recovery-20260912-assets-a",
+  "startedAt": "2026-09-12T20:27:32.077005+00:00",
+  "ownerFingerprint": "dd8d2493124096a48c5b31f06a48d6eedd1eeb070b9b955dd53da387d9663f7c",
+  "sourceObjects": 15,
+  "sourceBytes": 727010,
+  "copiesHmac": "0270480573abca5ea0d0c8cf0c6634f456cf8ee9b64f618812b141c07e693777",
+  "validationSeconds": 43.122,
+  "totalSeconds": 44.659,
+  "finishedAt": "2026-09-12T20:28:16.735522+00:00",
+  "independentRetentionReadback": {
+    "observedAt": "2026-09-12T20:29:00.237197+00:00",
+    "matchesPreflight": true,
+    "properties": {
+      "isVersioningEnabled": true,
+      "deleteRetentionPolicy": {
+        "allowPermanentDelete": false,
+        "days": 7,
+        "enabled": true
+      },
+      "containerDeleteRetentionPolicy": {
+        "allowPermanentDelete": null,
+        "days": 7,
+        "enabled": true
+      },
+      "restorePolicy": null,
+      "changeFeed": null
+    }
+  }
+}

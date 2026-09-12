@@ -1,0 +1,20 @@
+{
+  "observedAt": "2026-09-12T20:33:56.508788+00:00",
+  "sourceId": "/subscriptions/bfc8f890-2681-43dc-8eac-51644341ae12/resourceGroups/filosage-staging-central-rg/providers/Microsoft.DBforPostgreSQL/flexibleServers/filosagestg-p4ujucgnxq3gs-pg",
+  "sourceReady": true,
+  "sourceNetworkUnchanged": true,
+  "sourceSkuUnchanged": true,
+  "sourceStorageUnchanged": true,
+  "productionConfigurationUnchanged": true,
+  "productionTemplateUnchanged": true,
+  "productionTrafficUnchanged": true,
+  "qaPresent": true,
+  "publicHealth": {
+    "httpStatus": 200,
+    "ok": true,
+    "version": "93f60f24afe59b19b6a592f455a09e8e813f1f84",
+    "authenticationMode": "migration-dual"
+  },
+  "newDeploymentPerformed": false,
+  "billingActivated": false
+}

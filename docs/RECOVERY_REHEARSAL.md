@@ -1,6 +1,6 @@
 # Recovery rehearsal and evidence
 
-Status: procedure prepared; no Azure restore, permission change, production write or cleanup has been performed. The release owner must approve the exact resource inventory, recovery targets, cost ceiling, access controls, RPO/RTO and cleanup before execution. A candidate at zero public traffic still shares production services; it is not a recovery database or a safe target for destructive tests.
+Status: September12 bounded private PostgreSQL and isolated Blob recovery checks have executed and their task-created resources have been cleaned up; see [execution packet](releases/2026-09-12-recovery-rehearsal.md). Full service recovery, historical asset/reference consistency and candidate learner acceptance remain unverified. No production write or permission change was performed. The release owner must approve the exact resource inventory, recovery targets, cost ceiling, access controls, RPO/RTO and cleanup before execution. A candidate at zero public traffic still shares production services; it is not a recovery database or a safe target for destructive tests.
 
 ## Backup observation
 

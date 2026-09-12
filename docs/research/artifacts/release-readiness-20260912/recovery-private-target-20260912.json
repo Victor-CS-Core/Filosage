@@ -1,0 +1,29 @@
+{
+  "id": "/subscriptions/bfc8f890-2681-43dc-8eac-51644341ae12/resourceGroups/filosage-staging-central-rg/providers/Microsoft.DBforPostgreSQL/flexibleServers/filosage-recovery-20260912-a",
+  "name": "filosage-recovery-20260912-a",
+  "state": "Ready",
+  "network": {
+    "delegatedSubnetResourceId": "/subscriptions/bfc8f890-2681-43dc-8eac-51644341ae12/resourceGroups/filosage-staging-central-rg/providers/Microsoft.Network/virtualNetworks/filosagestg-vnet/subnets/postgres",
+    "privateDnsZoneArmResourceId": "/subscriptions/bfc8f890-2681-43dc-8eac-51644341ae12/resourceGroups/filosage-staging-central-rg/providers/Microsoft.Network/privateDnsZones/filosagestg.private.postgres.database.azure.com",
+    "publicNetworkAccess": "Disabled"
+  },
+  "fullyQualifiedDomainName": "filosage-recovery-20260912-a.postgres.database.azure.com",
+  "version": "16",
+  "sku": {
+    "name": "Standard_B1ms",
+    "tier": "Burstable"
+  },
+  "storage": {
+    "autoGrow": "Disabled",
+    "iops": 120,
+    "storageSizeGb": 32,
+    "throughput": null,
+    "tier": "P4",
+    "type": "Premium_LRS"
+  },
+  "observedAt": "2026-09-12T20:31:01.268664+00:00",
+  "firewallRules": {
+    "enumeration": "not-supported-for-private-access",
+    "publicAccessDisabledVerified": true
+  }
+}
