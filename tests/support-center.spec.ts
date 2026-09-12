@@ -1,6 +1,8 @@
 import { expect, test } from "@playwright/test";
 import { restoreLocalLearner } from "./fixtures/local-learner";
 
+const ownerHeaders = { Authorization: "Bearer playwright-local-owner" };
+
 for (const availability of ["off", "unknown"] as const) {
   test(`@smoke support ${availability} offers email and Help before composition while preserving history`, async ({ page }) => {
     await restoreLocalLearner(page);
@@ -110,6 +112,81 @@ test("gives guests public help plus valid sign-in and email paths", async ({ pag
   await expect(dialog.getByRole("tab", { name: "New request" })).toHaveAttribute("aria-selected", "true");
   await page.keyboard.press("Escape");
   await expect(gateway).toBeFocused();
+});
+
+test("persists the actual originating page and supported ticket fields", async ({ page }) => {
+  await restoreLocalLearner(page);
+  await page.goto("/library");
+  const originTitle = (await page.title()).replace(/\s+[|\u2014]\s+Filosage.*$/i, "").slice(0, 120);
+  await page.getByRole("button", { name: "Open Support Center" }).click();
+  const dialog = page.getByRole("dialog", { name: "Support center" });
+  await dialog.getByRole("tab", { name: "New request" }).click();
+  await expect(dialog.getByText(`/library · ${originTitle}`)).toBeVisible();
+
+  const subject = `Disposable context audit ${crypto.randomUUID().slice(0, 8)}`;
+  const message = "Disposable local ticket verifying the originating page and supported submission fields.";
+  await dialog.getByLabel("Request type").selectOption("product_feedback");
+  await dialog.getByLabel("Subject").fill(subject);
+  await dialog.getByLabel("What happened?").fill(message);
+  const submissionResponse = page.waitForResponse((response) => (
+    response.request().method() === "POST"
+    && new URL(response.url()).pathname === "/api/support/tickets"
+  ));
+  await dialog.getByRole("button", { name: "Send request" }).click();
+  const response = await submissionResponse;
+  expect(response.status()).toBe(201);
+  const created = await response.json() as { ticketId: string; ticketNumber: string };
+
+  const learnerResponse = await page.request.get(`/api/support/tickets/${created.ticketId}`, { headers: ownerHeaders });
+  expect(learnerResponse.ok()).toBe(true);
+  const learnerBody = await learnerResponse.json() as { ticket: Record<string, unknown> };
+  expect(learnerBody.ticket).toMatchObject({
+    id: created.ticketId,
+    ticketNumber: created.ticketNumber,
+    category: "product_feedback",
+    status: "submitted",
+    subject,
+    description: message,
+    requestContext: { pathname: "/library", pageTitle: originTitle },
+    replyCount: 0,
+    publicReplies: [],
+  });
+
+  const ownerResponse = await page.request.get("/api/admin/command-center", { headers: ownerHeaders });
+  expect(ownerResponse.ok()).toBe(true);
+  const ownerBody = await ownerResponse.json() as { tickets: Array<Record<string, unknown>> };
+  const persisted = ownerBody.tickets.find((ticket) => ticket.id === created.ticketId);
+  expect(persisted).toMatchObject({
+    id: created.ticketId,
+    ticketNumber: created.ticketNumber,
+    version: 1,
+    source: "user_support",
+    category: "product_feedback",
+    riskLevel: "low",
+    priority: 4,
+    status: "new",
+    subject,
+    untrustedExcerpt: message,
+    requestContext: { pathname: "/library", pageTitle: originTitle },
+    relatedUserId: "local-owner",
+    assignedRole: "owner",
+    requiresHumanApproval: false,
+    confirmedFacts: [
+      "The request was submitted from a verified Filosage account.",
+      "Request category: product feedback",
+    ],
+    unverifiedClaims: ["The request description has not yet been verified by the owner."],
+    evidenceReferences: [],
+    tags: ["user-submitted", "product-feedback"],
+    notes: [],
+    publicReplies: [],
+  });
+  expect(persisted).toMatchObject({
+    normalizedSummary: expect.any(String),
+    createdAt: expect.stringMatching(/^\d{4}-\d{2}-\d{2}T/),
+    updatedAt: expect.stringMatching(/^\d{4}-\d{2}-\d{2}T/),
+    dueAt: expect.stringMatching(/^\d{4}-\d{2}-\d{2}T/),
+  });
 });
 
 test("preserves request text after failure and safely resets after an asynchronous retry", async ({ page }) => {

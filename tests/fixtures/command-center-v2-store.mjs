@@ -53,6 +53,13 @@ function validTicket(index) {
             : `Command Center v2 fixture ticket ${index}`,
     normalizedSummary: `Deterministic Command Center v2 fixture record ${index} for local contract validation.`,
     ...(source === "user_support" ? { relatedUserId: "local-free-learner" } : {}),
+    ...(index === 0 ? {
+      requestContext: {
+        pathname: "/course/context-audit/lesson/1-2",
+        pageTitle: "Context audit lesson",
+        feature: "lesson-experience",
+      },
+    } : {}),
     requiresHumanApproval: true,
     confirmedFacts: [`Fixture record ${index} exists in the isolated local store.`],
     unverifiedClaims: [],

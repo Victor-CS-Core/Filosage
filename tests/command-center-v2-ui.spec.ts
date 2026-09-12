@@ -59,6 +59,10 @@ test("renders the Evidence Desk, keyboard tabs, publication boundary, and dark t
 
   await page.getByRole("button", { name: /Contract support ticket A/ }).click();
   await expect(page.getByRole("article", { name: "Selected case evidence dossier" })).toBeFocused();
+  const submittedContext = page.getByRole("region", { name: "Submitted page context" });
+  await expect(submittedContext).toContainText("/course/context-audit/lesson/1-2");
+  await expect(submittedContext).toContainText("Context audit lesson");
+  await expect(submittedContext).toContainText("lesson-experience");
   await page.evaluate(() => document.querySelector<HTMLElement>(".app-main")?.scrollTo(0, 0));
   await page.screenshot({ path: ".impeccable/review/command-center-v2-desktop.png", fullPage: true });
 
