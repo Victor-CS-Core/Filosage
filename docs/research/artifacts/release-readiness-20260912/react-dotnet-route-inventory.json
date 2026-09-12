@@ -1,0 +1,1597 @@
+{
+  "sourceCommit": "a99e1f96c2ef54e3f2385cee4a0dfcec175520a8",
+  "method": "Static source inventory; imports/direct guard names do not prove effective authorization or cover delegated controls. No platform migration implemented.",
+  "routeFiles": 68,
+  "exportedMethodCount": 87,
+  "routeGroups": {
+    "account": 3,
+    "admin": 16,
+    "assess-baseline": 1,
+    "assess-capstone": 1,
+    "auth": 3,
+    "billing": 4,
+    "capstone-analysis": 1,
+    "chat": 1,
+    "content-reports": 1,
+    "course-banners": 1,
+    "courses": 5,
+    "evidence": 2,
+    "evidence-shares": 1,
+    "flashcards": 4,
+    "generate-course": 1,
+    "generate-lesson": 1,
+    "generation-operations": 2,
+    "health": 4,
+    "learner-state": 1,
+    "legal": 1,
+    "lesson-activity": 1,
+    "lesson-interaction": 1,
+    "mastery": 1,
+    "outcome-feedback": 1,
+    "pricing-intent": 1,
+    "progress": 1,
+    "referrals": 1,
+    "support": 5,
+    "telemetry": 1,
+    "waitlist": 1
+  },
+  "routes": [
+    {
+      "route": "/api/account/data",
+      "source": "src/app/api/account/data/route.ts",
+      "methods": [
+        "DELETE",
+        "GET"
+      ],
+      "group": "account",
+      "directAuthorizationCalls": [
+        "requireAccount",
+        "requireRecentlyAuthenticatedUser",
+        "withAccountRequest"
+      ],
+      "localImports": [
+        "@/lib/account-data-policy",
+        "@/lib/account-deletion",
+        "@/lib/account-lifecycle",
+        "@/lib/account-server",
+        "@/lib/api-security",
+        "@/lib/auth-server",
+        "@/lib/command-center-server",
+        "@/lib/command-center-types",
+        "@/lib/course-owner-identity",
+        "@/lib/document-store",
+        "@/lib/request-rate-limit"
+      ]
+    },
+    {
+      "route": "/api/account/identity",
+      "source": "src/app/api/account/identity/route.ts",
+      "methods": [
+        "DELETE"
+      ],
+      "group": "account",
+      "directAuthorizationCalls": [
+        "requireRecentlyAuthenticatedUser",
+        "withAccountRequest"
+      ],
+      "localImports": [
+        "@/lib/account-deletion",
+        "@/lib/auth-server"
+      ]
+    },
+    {
+      "route": "/api/account",
+      "source": "src/app/api/account/route.ts",
+      "methods": [
+        "GET",
+        "PATCH"
+      ],
+      "group": "account",
+      "directAuthorizationCalls": [
+        "requireAcceptedAccount",
+        "requireUser",
+        "withAccountRequest"
+      ],
+      "localImports": [
+        "@/lib/account-server",
+        "@/lib/ai-usage",
+        "@/lib/api-security",
+        "@/lib/auth-server",
+        "@/lib/course-credits",
+        "@/lib/display-name",
+        "@/lib/document-store",
+        "@/lib/identity-link-server",
+        "@/lib/legal",
+        "@/lib/membership-access",
+        "@/lib/request-rate-limit"
+      ]
+    },
+    {
+      "route": "/api/admin/command-center/approvals/[approvalId]",
+      "source": "src/app/api/admin/command-center/approvals/[approvalId]/route.ts",
+      "methods": [
+        "PATCH"
+      ],
+      "group": "admin",
+      "directAuthorizationCalls": [
+        "requireRecentlyAuthenticatedOwner",
+        "withAccountRequest"
+      ],
+      "localImports": [
+        "@/lib/api-security",
+        "@/lib/auth-server",
+        "@/lib/command-center-auth",
+        "@/lib/command-center-server"
+      ]
+    },
+    {
+      "route": "/api/admin/command-center/approvals",
+      "source": "src/app/api/admin/command-center/approvals/route.ts",
+      "methods": [
+        "POST"
+      ],
+      "group": "admin",
+      "directAuthorizationCalls": [
+        "withAccountRequest"
+      ],
+      "localImports": [
+        "@/lib/api-security",
+        "@/lib/auth-server",
+        "@/lib/command-center-auth",
+        "@/lib/command-center-server",
+        "@/lib/command-center-types"
+      ]
+    },
+    {
+      "route": "/api/admin/command-center/controls",
+      "source": "src/app/api/admin/command-center/controls/route.ts",
+      "methods": [
+        "PATCH"
+      ],
+      "group": "admin",
+      "directAuthorizationCalls": [
+        "withAccountRequest"
+      ],
+      "localImports": [
+        "@/lib/api-security",
+        "@/lib/auth-server",
+        "@/lib/command-center-auth",
+        "@/lib/command-center-server"
+      ]
+    },
+    {
+      "route": "/api/admin/command-center/drafts/[draftId]",
+      "source": "src/app/api/admin/command-center/drafts/[draftId]/route.ts",
+      "methods": [
+        "PATCH"
+      ],
+      "group": "admin",
+      "directAuthorizationCalls": [
+        "withAccountRequest"
+      ],
+      "localImports": [
+        "@/lib/api-security",
+        "@/lib/auth-server",
+        "@/lib/command-center-auth",
+        "@/lib/command-center-draft-schema",
+        "@/lib/command-center-server"
+      ]
+    },
+    {
+      "route": "/api/admin/command-center/drafts",
+      "source": "src/app/api/admin/command-center/drafts/route.ts",
+      "methods": [
+        "POST"
+      ],
+      "group": "admin",
+      "directAuthorizationCalls": [
+        "withAccountRequest"
+      ],
+      "localImports": [
+        "@/lib/ai-usage",
+        "@/lib/api-security",
+        "@/lib/auth-server",
+        "@/lib/command-center-auth",
+        "@/lib/command-center-draft-schema",
+        "@/lib/command-center-draft-server",
+        "@/lib/command-center-server"
+      ]
+    },
+    {
+      "route": "/api/admin/command-center",
+      "source": "src/app/api/admin/command-center/route.ts",
+      "methods": [
+        "GET"
+      ],
+      "group": "admin",
+      "directAuthorizationCalls": [
+        "withAccountRequest"
+      ],
+      "localImports": [
+        "@/lib/auth-server",
+        "@/lib/command-center-auth",
+        "@/lib/command-center-server"
+      ]
+    },
+    {
+      "route": "/api/admin/command-center/tickets/[ticketId]/public-replies",
+      "source": "src/app/api/admin/command-center/tickets/[ticketId]/public-replies/route.ts",
+      "methods": [
+        "POST"
+      ],
+      "group": "admin",
+      "directAuthorizationCalls": [
+        "requireRecentlyAuthenticatedOwner",
+        "withAccountRequest"
+      ],
+      "localImports": [
+        "@/lib/api-security",
+        "@/lib/auth-server",
+        "@/lib/command-center-auth",
+        "@/lib/command-center-server"
+      ]
+    },
+    {
+      "route": "/api/admin/command-center/tickets/[ticketId]",
+      "source": "src/app/api/admin/command-center/tickets/[ticketId]/route.ts",
+      "methods": [
+        "PATCH"
+      ],
+      "group": "admin",
+      "directAuthorizationCalls": [
+        "withAccountRequest"
+      ],
+      "localImports": [
+        "@/lib/api-security",
+        "@/lib/auth-server",
+        "@/lib/command-center-auth",
+        "@/lib/command-center-server"
+      ]
+    },
+    {
+      "route": "/api/admin/command-center/tickets",
+      "source": "src/app/api/admin/command-center/tickets/route.ts",
+      "methods": [
+        "POST"
+      ],
+      "group": "admin",
+      "directAuthorizationCalls": [
+        "withAccountRequest"
+      ],
+      "localImports": [
+        "@/lib/api-security",
+        "@/lib/auth-server",
+        "@/lib/command-center-auth",
+        "@/lib/command-center-server",
+        "@/lib/command-center-types"
+      ]
+    },
+    {
+      "route": "/api/admin/command-center/v2",
+      "source": "src/app/api/admin/command-center/v2/route.ts",
+      "methods": [
+        "GET"
+      ],
+      "group": "admin",
+      "directAuthorizationCalls": [
+        "withAccountRequest"
+      ],
+      "localImports": [
+        "@/lib/auth-server",
+        "@/lib/command-center-auth",
+        "@/lib/command-center-schemas",
+        "@/lib/command-center-server",
+        "@/lib/command-center-types"
+      ]
+    },
+    {
+      "route": "/api/admin/content-reports/[reportId]",
+      "source": "src/app/api/admin/content-reports/[reportId]/route.ts",
+      "methods": [
+        "PATCH"
+      ],
+      "group": "admin",
+      "directAuthorizationCalls": [
+        "requireOwner",
+        "withAccountRequest"
+      ],
+      "localImports": [
+        "@/lib/api-security",
+        "@/lib/auth-server",
+        "@/lib/command-center-server"
+      ]
+    },
+    {
+      "route": "/api/admin/courses/[courseId]/manual-review",
+      "source": "src/app/api/admin/courses/[courseId]/manual-review/route.ts",
+      "methods": [
+        "POST"
+      ],
+      "group": "admin",
+      "directAuthorizationCalls": [
+        "requireRecentlyAuthenticatedOwner",
+        "withAccountRequest"
+      ],
+      "localImports": [
+        "@/lib/api-security",
+        "@/lib/auth-server",
+        "@/lib/course-pipeline/contract",
+        "@/lib/course-pipeline/feature-policy",
+        "@/lib/course-pipeline/review-policy",
+        "@/lib/course-pipeline/validation",
+        "@/lib/course-progress",
+        "@/lib/course-types",
+        "@/lib/document-store",
+        "@/lib/feature-flags",
+        "@/lib/publication-content",
+        "@/lib/publication-proofs",
+        "@/lib/source-research",
+        "@/lib/source-safety"
+      ]
+    },
+    {
+      "route": "/api/admin/courses/[courseId]/pipeline-events",
+      "source": "src/app/api/admin/courses/[courseId]/pipeline-events/route.ts",
+      "methods": [
+        "GET"
+      ],
+      "group": "admin",
+      "directAuthorizationCalls": [
+        "requireOwner",
+        "withAccountRequest"
+      ],
+      "localImports": [
+        "@/lib/auth-server",
+        "@/lib/document-store"
+      ]
+    },
+    {
+      "route": "/api/admin/courses/[courseId]/publication-override",
+      "source": "src/app/api/admin/courses/[courseId]/publication-override/route.ts",
+      "methods": [
+        "POST"
+      ],
+      "group": "admin",
+      "directAuthorizationCalls": [
+        "requireRecentlyAuthenticatedOwner",
+        "withAccountRequest"
+      ],
+      "localImports": [
+        "@/lib/ai-usage",
+        "@/lib/api-security",
+        "@/lib/auth-server",
+        "@/lib/content-safety",
+        "@/lib/course-pipeline/feature-policy",
+        "@/lib/course-progress",
+        "@/lib/course-types",
+        "@/lib/document-store",
+        "@/lib/feature-flags",
+        "@/lib/model-fallback",
+        "@/lib/publication-research",
+        "@/lib/publication-review"
+      ]
+    },
+    {
+      "route": "/api/admin/overview",
+      "source": "src/app/api/admin/overview/route.ts",
+      "methods": [
+        "GET"
+      ],
+      "group": "admin",
+      "directAuthorizationCalls": [
+        "requireOwner",
+        "withAccountRequest"
+      ],
+      "localImports": [
+        "@/lib/admin-types",
+        "@/lib/ai-usage",
+        "@/lib/auth-server",
+        "@/lib/azure-infrastructure",
+        "@/lib/course-owner-identity",
+        "@/lib/document-store",
+        "@/lib/legal",
+        "@/lib/membership-analytics",
+        "@/lib/membership-plans",
+        "@/lib/operational-alert-core",
+        "@/lib/product-events",
+        "@/lib/product-metrics",
+        "@/lib/runtime-config",
+        "@/lib/runtime-environment"
+      ]
+    },
+    {
+      "route": "/api/admin/users/[uid]",
+      "source": "src/app/api/admin/users/[uid]/route.ts",
+      "methods": [
+        "PATCH"
+      ],
+      "group": "admin",
+      "directAuthorizationCalls": [
+        "requireOwner",
+        "withAccountRequest"
+      ],
+      "localImports": [
+        "@/lib/api-security",
+        "@/lib/auth-server",
+        "@/lib/document-store",
+        "@/lib/membership-plans"
+      ]
+    },
+    {
+      "route": "/api/assess-baseline",
+      "source": "src/app/api/assess-baseline/route.ts",
+      "methods": [
+        "POST"
+      ],
+      "group": "assess-baseline",
+      "directAuthorizationCalls": [
+        "requireAcceptedAccount",
+        "withAccountRequest"
+      ],
+      "localImports": [
+        "@/lib/ai-usage",
+        "@/lib/api-security",
+        "@/lib/auth-server",
+        "@/lib/content-safety",
+        "@/lib/course-pipeline/artifact-access",
+        "@/lib/course-types",
+        "@/lib/document-store",
+        "@/lib/learning-types",
+        "@/lib/local-ai",
+        "@/lib/model-fallback",
+        "@/lib/openai-generation",
+        "@/lib/publication-content",
+        "@/lib/validation"
+      ]
+    },
+    {
+      "route": "/api/assess-capstone",
+      "source": "src/app/api/assess-capstone/route.ts",
+      "methods": [
+        "POST"
+      ],
+      "group": "assess-capstone",
+      "directAuthorizationCalls": [
+        "requireAcceptedAccount",
+        "withAccountRequest"
+      ],
+      "localImports": [
+        "@/lib/ai-usage",
+        "@/lib/api-security",
+        "@/lib/auth-server",
+        "@/lib/content-safety",
+        "@/lib/course-criteria",
+        "@/lib/course-pipeline/artifact-access",
+        "@/lib/course-types",
+        "@/lib/document-store",
+        "@/lib/learning-types",
+        "@/lib/local-ai",
+        "@/lib/mastery",
+        "@/lib/mastery-server",
+        "@/lib/membership-plans",
+        "@/lib/model-fallback",
+        "@/lib/openai-generation",
+        "@/lib/publication-content",
+        "@/lib/validation"
+      ]
+    },
+    {
+      "route": "/api/auth/link-intent/complete",
+      "source": "src/app/api/auth/link-intent/complete/route.ts",
+      "methods": [
+        "POST"
+      ],
+      "group": "auth",
+      "directAuthorizationCalls": [
+        "requireProviderIdentity",
+        "withAccountRequest"
+      ],
+      "localImports": [
+        "@/lib/api-security",
+        "@/lib/auth-audit",
+        "@/lib/auth-server",
+        "@/lib/identity-link-cookie",
+        "@/lib/identity-link-route-failure",
+        "@/lib/identity-link-server",
+        "@/lib/request-rate-limit",
+        "@/lib/runtime-environment"
+      ]
+    },
+    {
+      "route": "/api/auth/link-intent",
+      "source": "src/app/api/auth/link-intent/route.ts",
+      "methods": [
+        "POST"
+      ],
+      "group": "auth",
+      "directAuthorizationCalls": [
+        "requireRecentlyAuthenticatedUser",
+        "withAccountRequest"
+      ],
+      "localImports": [
+        "@/lib/account-server",
+        "@/lib/api-security",
+        "@/lib/auth-audit",
+        "@/lib/auth-server",
+        "@/lib/identity-link-cookie",
+        "@/lib/identity-link-route-failure",
+        "@/lib/identity-link-server",
+        "@/lib/request-rate-limit",
+        "@/lib/runtime-environment"
+      ]
+    },
+    {
+      "route": "/api/auth/session",
+      "source": "src/app/api/auth/session/route.ts",
+      "methods": [
+        "GET"
+      ],
+      "group": "auth",
+      "directAuthorizationCalls": [
+        "getVerifiedUser",
+        "withAccountRequest"
+      ],
+      "localImports": [
+        "@/lib/account-lifecycle",
+        "@/lib/auth-runtime",
+        "@/lib/auth-server",
+        "@/lib/display-name",
+        "@/lib/recent-auth"
+      ]
+    },
+    {
+      "route": "/api/billing/checkout",
+      "source": "src/app/api/billing/checkout/route.ts",
+      "methods": [
+        "POST"
+      ],
+      "group": "billing",
+      "directAuthorizationCalls": [
+        "requireAcceptedAccount",
+        "withAccountRequest"
+      ],
+      "localImports": [
+        "@/lib/api-security",
+        "@/lib/auth-server",
+        "@/lib/billing-lock",
+        "@/lib/membership-plans",
+        "@/lib/product-events-server",
+        "@/lib/request-rate-limit",
+        "@/lib/runtime-config",
+        "@/lib/stripe-server"
+      ]
+    },
+    {
+      "route": "/api/billing/portal",
+      "source": "src/app/api/billing/portal/route.ts",
+      "methods": [
+        "POST"
+      ],
+      "group": "billing",
+      "directAuthorizationCalls": [
+        "requireAccount",
+        "withAccountRequest"
+      ],
+      "localImports": [
+        "@/lib/api-security",
+        "@/lib/auth-server",
+        "@/lib/billing-portal",
+        "@/lib/request-rate-limit",
+        "@/lib/runtime-config",
+        "@/lib/stripe-server"
+      ]
+    },
+    {
+      "route": "/api/billing/status",
+      "source": "src/app/api/billing/status/route.ts",
+      "methods": [
+        "GET"
+      ],
+      "group": "billing",
+      "directAuthorizationCalls": [
+        "getVerifiedUser",
+        "withAccountRequest"
+      ],
+      "localImports": [
+        "@/lib/auth-server",
+        "@/lib/billing"
+      ]
+    },
+    {
+      "route": "/api/billing/webhook",
+      "source": "src/app/api/billing/webhook/route.ts",
+      "methods": [
+        "POST"
+      ],
+      "group": "billing",
+      "directAuthorizationCalls": [],
+      "localImports": [
+        "@/lib/account-lifecycle",
+        "@/lib/billing-lock",
+        "@/lib/bounded-request-body",
+        "@/lib/document-store",
+        "@/lib/membership-plans",
+        "@/lib/operational-alerts",
+        "@/lib/product-events-server",
+        "@/lib/runtime-config",
+        "@/lib/runtime-environment",
+        "@/lib/stripe-server"
+      ]
+    },
+    {
+      "route": "/api/capstone-analysis",
+      "source": "src/app/api/capstone-analysis/route.ts",
+      "methods": [
+        "GET"
+      ],
+      "group": "capstone-analysis",
+      "directAuthorizationCalls": [
+        "requirePlanCapability",
+        "withAccountRequest"
+      ],
+      "localImports": [
+        "@/lib/auth-server",
+        "@/lib/capstone-analysis",
+        "@/lib/course-criteria",
+        "@/lib/course-pipeline/artifact-access",
+        "@/lib/course-types",
+        "@/lib/document-store",
+        "@/lib/learning-types",
+        "@/lib/model-fallback"
+      ]
+    },
+    {
+      "route": "/api/chat",
+      "source": "src/app/api/chat/route.ts",
+      "methods": [
+        "POST"
+      ],
+      "group": "chat",
+      "directAuthorizationCalls": [
+        "requireAcceptedAccount",
+        "withAccountRequest"
+      ],
+      "localImports": [
+        "@/lib/ai-usage",
+        "@/lib/api-security",
+        "@/lib/auth-server",
+        "@/lib/content-safety",
+        "@/lib/course-pipeline/artifact-access",
+        "@/lib/course-progress",
+        "@/lib/course-types",
+        "@/lib/local-ai",
+        "@/lib/model-fallback",
+        "@/lib/openai-generation",
+        "@/lib/validation"
+      ]
+    },
+    {
+      "route": "/api/content-reports",
+      "source": "src/app/api/content-reports/route.ts",
+      "methods": [
+        "POST"
+      ],
+      "group": "content-reports",
+      "directAuthorizationCalls": [
+        "requireAccount",
+        "withAccountRequest"
+      ],
+      "localImports": [
+        "@/lib/api-security",
+        "@/lib/auth-server",
+        "@/lib/command-center-auth",
+        "@/lib/command-center-server",
+        "@/lib/content-report-policy",
+        "@/lib/course-pipeline/artifact-access",
+        "@/lib/course-types",
+        "@/lib/document-store",
+        "@/lib/operational-alerts",
+        "@/lib/product-events-server",
+        "@/lib/request-rate-limit"
+      ]
+    },
+    {
+      "route": "/api/course-banners/[assetId]",
+      "source": "src/app/api/course-banners/[assetId]/route.ts",
+      "methods": [
+        "GET"
+      ],
+      "group": "course-banners",
+      "directAuthorizationCalls": [],
+      "localImports": [
+        "@/lib/course-banner-storage",
+        "@/lib/document-store"
+      ]
+    },
+    {
+      "route": "/api/courses/[courseId]/lessons/[lessonId]",
+      "source": "src/app/api/courses/[courseId]/lessons/[lessonId]/route.ts",
+      "methods": [
+        "GET"
+      ],
+      "group": "courses",
+      "directAuthorizationCalls": [
+        "requireAcceptedAccount",
+        "withAccountRequest"
+      ],
+      "localImports": [
+        "@/lib/auth-server",
+        "@/lib/course-dto",
+        "@/lib/course-pipeline/artifact-access",
+        "@/lib/course-types",
+        "@/lib/document-store",
+        "@/lib/model-fallback"
+      ]
+    },
+    {
+      "route": "/api/courses/[courseId]/repair",
+      "source": "src/app/api/courses/[courseId]/repair/route.ts",
+      "methods": [
+        "POST"
+      ],
+      "group": "courses",
+      "directAuthorizationCalls": [
+        "requireAcceptedAccount",
+        "withAccountRequest"
+      ],
+      "localImports": [
+        "@/lib/ai-usage",
+        "@/lib/api-security",
+        "@/lib/auth-server",
+        "@/lib/course-pipeline/contract",
+        "@/lib/course-pipeline/feature-policy",
+        "@/lib/course-pipeline/lesson-save",
+        "@/lib/course-pipeline/observability",
+        "@/lib/course-pipeline/repair",
+        "@/lib/course-pipeline/validation",
+        "@/lib/course-pipeline/visuals/registry",
+        "@/lib/course-progress",
+        "@/lib/course-types",
+        "@/lib/document-store",
+        "@/lib/feature-flags",
+        "@/lib/publication-content"
+      ]
+    },
+    {
+      "route": "/api/courses/[courseId]",
+      "source": "src/app/api/courses/[courseId]/route.ts",
+      "methods": [
+        "DELETE",
+        "GET",
+        "PATCH"
+      ],
+      "group": "courses",
+      "directAuthorizationCalls": [
+        "getVerifiedUser",
+        "requireAcceptedAccount",
+        "requireAccount",
+        "withAccountRequest"
+      ],
+      "localImports": [
+        "@/lib/ai-usage",
+        "@/lib/api-security",
+        "@/lib/auth-server",
+        "@/lib/content-safety",
+        "@/lib/course-dto",
+        "@/lib/course-pipeline/artifact-access",
+        "@/lib/course-pipeline/feature-policy",
+        "@/lib/course-pipeline/observability",
+        "@/lib/course-progress",
+        "@/lib/course-types",
+        "@/lib/document-store",
+        "@/lib/feature-flags",
+        "@/lib/membership-plans",
+        "@/lib/model-fallback",
+        "@/lib/publication-research",
+        "@/lib/publication-review"
+      ]
+    },
+    {
+      "route": "/api/courses/[courseId]/validation",
+      "source": "src/app/api/courses/[courseId]/validation/route.ts",
+      "methods": [
+        "GET"
+      ],
+      "group": "courses",
+      "directAuthorizationCalls": [
+        "requireAcceptedAccount",
+        "withAccountRequest"
+      ],
+      "localImports": [
+        "@/lib/ai-usage",
+        "@/lib/auth-server",
+        "@/lib/content-safety",
+        "@/lib/course-pipeline/feature-policy",
+        "@/lib/course-pipeline/observability",
+        "@/lib/course-pipeline/validation",
+        "@/lib/course-progress",
+        "@/lib/course-types",
+        "@/lib/document-store",
+        "@/lib/feature-flags",
+        "@/lib/publication-content",
+        "@/lib/publication-proofs",
+        "@/lib/publication-review"
+      ]
+    },
+    {
+      "route": "/api/courses",
+      "source": "src/app/api/courses/route.ts",
+      "methods": [
+        "GET"
+      ],
+      "group": "courses",
+      "directAuthorizationCalls": [
+        "requireAccount",
+        "withAccountRequest"
+      ],
+      "localImports": [
+        "@/lib/auth-server",
+        "@/lib/course-dto",
+        "@/lib/course-owner-identity",
+        "@/lib/course-pipeline/feature-policy",
+        "@/lib/document-store",
+        "@/lib/marketing-merchandising",
+        "@/lib/model-fallback",
+        "@/lib/runtime-environment"
+      ]
+    },
+    {
+      "route": "/api/evidence/[courseId]/export",
+      "source": "src/app/api/evidence/[courseId]/export/route.ts",
+      "methods": [
+        "GET"
+      ],
+      "group": "evidence",
+      "directAuthorizationCalls": [
+        "requirePlanCapability",
+        "withAccountRequest"
+      ],
+      "localImports": [
+        "@/lib/auth-server",
+        "@/lib/course-pipeline/artifact-access",
+        "@/lib/evidence-report",
+        "@/lib/model-fallback"
+      ]
+    },
+    {
+      "route": "/api/evidence/[courseId]/shares",
+      "source": "src/app/api/evidence/[courseId]/shares/route.ts",
+      "methods": [
+        "DELETE",
+        "GET",
+        "POST"
+      ],
+      "group": "evidence",
+      "directAuthorizationCalls": [
+        "requireAcceptedAccount",
+        "requirePlanCapability",
+        "withAccountRequest"
+      ],
+      "localImports": [
+        "@/lib/api-security",
+        "@/lib/auth-server",
+        "@/lib/course-pipeline/artifact-access",
+        "@/lib/evidence-report",
+        "@/lib/evidence-shares",
+        "@/lib/model-fallback"
+      ]
+    },
+    {
+      "route": "/api/evidence-shares/[token]",
+      "source": "src/app/api/evidence-shares/[token]/route.ts",
+      "methods": [
+        "GET"
+      ],
+      "group": "evidence-shares",
+      "directAuthorizationCalls": [],
+      "localImports": [
+        "@/lib/evidence-shares",
+        "@/lib/model-fallback"
+      ]
+    },
+    {
+      "route": "/api/flashcards/decks/[deckId]/review",
+      "source": "src/app/api/flashcards/decks/[deckId]/review/route.ts",
+      "methods": [
+        "POST"
+      ],
+      "group": "flashcards",
+      "directAuthorizationCalls": [
+        "requireAcceptedAccount",
+        "withAccountRequest"
+      ],
+      "localImports": [
+        "@/lib/api-security",
+        "@/lib/auth-server",
+        "@/lib/flashcards",
+        "@/lib/flashcards-server"
+      ]
+    },
+    {
+      "route": "/api/flashcards/decks/[deckId]",
+      "source": "src/app/api/flashcards/decks/[deckId]/route.ts",
+      "methods": [
+        "DELETE",
+        "GET",
+        "PATCH"
+      ],
+      "group": "flashcards",
+      "directAuthorizationCalls": [
+        "requireAcceptedAccount",
+        "withAccountRequest"
+      ],
+      "localImports": [
+        "@/lib/api-security",
+        "@/lib/auth-server",
+        "@/lib/flashcards-server"
+      ]
+    },
+    {
+      "route": "/api/flashcards/decks",
+      "source": "src/app/api/flashcards/decks/route.ts",
+      "methods": [
+        "GET",
+        "POST"
+      ],
+      "group": "flashcards",
+      "directAuthorizationCalls": [
+        "requireAcceptedAccount",
+        "withAccountRequest"
+      ],
+      "localImports": [
+        "@/lib/api-security",
+        "@/lib/auth-server",
+        "@/lib/flashcard-feature",
+        "@/lib/flashcards-server",
+        "@/lib/membership-plans"
+      ]
+    },
+    {
+      "route": "/api/flashcards/generate",
+      "source": "src/app/api/flashcards/generate/route.ts",
+      "methods": [
+        "POST"
+      ],
+      "group": "flashcards",
+      "directAuthorizationCalls": [
+        "requireAcceptedAccount",
+        "withAccountRequest"
+      ],
+      "localImports": [
+        "@/lib/ai-usage",
+        "@/lib/api-security",
+        "@/lib/auth-server",
+        "@/lib/content-safety",
+        "@/lib/flashcard-generation-server",
+        "@/lib/flashcards",
+        "@/lib/flashcards-server",
+        "@/lib/model-fallback",
+        "@/lib/openai-generation",
+        "@/lib/publication-content"
+      ]
+    },
+    {
+      "route": "/api/generate-course",
+      "source": "src/app/api/generate-course/route.ts",
+      "methods": [
+        "POST"
+      ],
+      "group": "generate-course",
+      "directAuthorizationCalls": [
+        "requireAcceptedAccount",
+        "withAccountRequest"
+      ],
+      "localImports": [
+        "@/lib/ai-pricing",
+        "@/lib/ai-usage",
+        "@/lib/api-security",
+        "@/lib/auth-server",
+        "@/lib/bibliographic-references",
+        "@/lib/content-language",
+        "@/lib/content-safety",
+        "@/lib/course-credits",
+        "@/lib/course-dto",
+        "@/lib/course-generation-configuration",
+        "@/lib/course-pipeline/contract",
+        "@/lib/course-pipeline/observability",
+        "@/lib/course-pipeline/relationships",
+        "@/lib/course-pipeline/review-policy",
+        "@/lib/course-quality",
+        "@/lib/course-types",
+        "@/lib/document-store",
+        "@/lib/evaluation-budget",
+        "@/lib/feature-flags",
+        "@/lib/generation-operations",
+        "@/lib/generation-provider-client",
+        "@/lib/instructional-context",
+        "@/lib/learning-design",
+        "@/lib/local-ai",
+        "@/lib/local-mode",
+        "@/lib/model-fallback",
+        "@/lib/openai-generation",
+        "@/lib/publication-proofs",
+        "@/lib/runtime-environment",
+        "@/lib/source-grounding",
+        "@/lib/source-research",
+        "@/lib/source-safety",
+        "@/lib/validation"
+      ]
+    },
+    {
+      "route": "/api/generate-lesson",
+      "source": "src/app/api/generate-lesson/route.ts",
+      "methods": [
+        "POST"
+      ],
+      "group": "generate-lesson",
+      "directAuthorizationCalls": [
+        "requireAcceptedAccount",
+        "withAccountRequest"
+      ],
+      "localImports": [
+        "@/lib/account-lifecycle",
+        "@/lib/ai-pricing",
+        "@/lib/ai-usage",
+        "@/lib/api-security",
+        "@/lib/auth-server",
+        "@/lib/authoring-gate",
+        "@/lib/content-language",
+        "@/lib/content-safety",
+        "@/lib/course-credits",
+        "@/lib/course-dto",
+        "@/lib/course-pipeline/contract",
+        "@/lib/course-pipeline/feature-policy",
+        "@/lib/course-pipeline/labs/registry",
+        "@/lib/course-pipeline/lesson-save",
+        "@/lib/course-pipeline/observability",
+        "@/lib/course-pipeline/relationships",
+        "@/lib/course-pipeline/review-policy",
+        "@/lib/course-pipeline/visuals/registry",
+        "@/lib/course-progress",
+        "@/lib/course-types",
+        "@/lib/document-store",
+        "@/lib/evaluation-budget",
+        "@/lib/evaluation-errors",
+        "@/lib/feature-flags",
+        "@/lib/generation-operations",
+        "@/lib/generation-provider-client",
+        "@/lib/grounded-lesson-contract",
+        "@/lib/instructional-context",
+        "@/lib/learning-design",
+        "@/lib/lesson-generation-configuration",
+        "@/lib/lesson-generation-runtime",
+        "@/lib/lesson-interactions",
+        "@/lib/lesson-quality",
+        "@/lib/lesson-visuals",
+        "@/lib/local-ai",
+        "@/lib/local-mode",
+        "@/lib/model-fallback",
+        "@/lib/openai-generation",
+        "@/lib/publication-content",
+        "@/lib/publication-proofs",
+        "@/lib/retrieval-planning",
+        "@/lib/runtime-environment",
+        "@/lib/source-grounding",
+        "@/lib/source-safety",
+        "@/lib/validation"
+      ]
+    },
+    {
+      "route": "/api/generation-operations/[operationId]",
+      "source": "src/app/api/generation-operations/[operationId]/route.ts",
+      "methods": [
+        "DELETE",
+        "GET",
+        "POST"
+      ],
+      "group": "generation-operations",
+      "directAuthorizationCalls": [
+        "requireAcceptedAccount",
+        "withAccountRequest"
+      ],
+      "localImports": [
+        "@/app/api/generate-course/route",
+        "@/app/api/generate-lesson/route",
+        "@/lib/auth-server",
+        "@/lib/evaluation-budget",
+        "@/lib/evaluation-errors",
+        "@/lib/generation-operations"
+      ]
+    },
+    {
+      "route": "/api/generation-operations",
+      "source": "src/app/api/generation-operations/route.ts",
+      "methods": [
+        "GET"
+      ],
+      "group": "generation-operations",
+      "directAuthorizationCalls": [
+        "requireAcceptedAccount",
+        "withAccountRequest"
+      ],
+      "localImports": [
+        "@/lib/account-lifecycle",
+        "@/lib/auth-server",
+        "@/lib/course-generation-configuration",
+        "@/lib/document-store",
+        "@/lib/evaluation-budget",
+        "@/lib/generation-operations",
+        "@/lib/lesson-generation-configuration"
+      ]
+    },
+    {
+      "route": "/api/health/live",
+      "source": "src/app/api/health/live/route.ts",
+      "methods": [
+        "GET"
+      ],
+      "group": "health",
+      "directAuthorizationCalls": [],
+      "localImports": []
+    },
+    {
+      "route": "/api/health/ready",
+      "source": "src/app/api/health/ready/route.ts",
+      "methods": [
+        "GET"
+      ],
+      "group": "health",
+      "directAuthorizationCalls": [],
+      "localImports": [
+        "@/lib/document-store",
+        "@/lib/readiness-deadline",
+        "@/lib/runtime-config"
+      ]
+    },
+    {
+      "route": "/api/health",
+      "source": "src/app/api/health/route.ts",
+      "methods": [
+        "GET"
+      ],
+      "group": "health",
+      "directAuthorizationCalls": [],
+      "localImports": [
+        "@/lib/document-store",
+        "@/lib/flashcard-feature",
+        "@/lib/operational-alerts",
+        "@/lib/release-capabilities",
+        "@/lib/runtime-config",
+        "@/lib/runtime-environment"
+      ]
+    },
+    {
+      "route": "/api/health/startup",
+      "source": "src/app/api/health/startup/route.ts",
+      "methods": [
+        "GET"
+      ],
+      "group": "health",
+      "directAuthorizationCalls": [],
+      "localImports": []
+    },
+    {
+      "route": "/api/learner-state",
+      "source": "src/app/api/learner-state/route.ts",
+      "methods": [
+        "GET",
+        "PUT"
+      ],
+      "group": "learner-state",
+      "directAuthorizationCalls": [
+        "requireAcceptedAccount",
+        "requireAccount",
+        "withAccountRequest"
+      ],
+      "localImports": [
+        "@/lib/api-security",
+        "@/lib/auth-server",
+        "@/lib/dashboard-preferences",
+        "@/lib/document-store",
+        "@/lib/learning-reminders",
+        "@/lib/validation"
+      ]
+    },
+    {
+      "route": "/api/legal/acceptance",
+      "source": "src/app/api/legal/acceptance/route.ts",
+      "methods": [
+        "POST"
+      ],
+      "group": "legal",
+      "directAuthorizationCalls": [
+        "requireUser",
+        "withAccountRequest"
+      ],
+      "localImports": [
+        "@/lib/account-server",
+        "@/lib/api-security",
+        "@/lib/auth-runtime",
+        "@/lib/auth-server",
+        "@/lib/display-name",
+        "@/lib/document-store",
+        "@/lib/identity-link-server",
+        "@/lib/legal",
+        "@/lib/product-events",
+        "@/lib/request-rate-limit"
+      ]
+    },
+    {
+      "route": "/api/lesson-activity",
+      "source": "src/app/api/lesson-activity/route.ts",
+      "methods": [
+        "POST"
+      ],
+      "group": "lesson-activity",
+      "directAuthorizationCalls": [
+        "requireAcceptedAccount",
+        "withAccountRequest"
+      ],
+      "localImports": [
+        "@/lib/activity-receipts",
+        "@/lib/api-security",
+        "@/lib/auth-server",
+        "@/lib/course-pipeline/artifact-access",
+        "@/lib/course-types",
+        "@/lib/document-store",
+        "@/lib/model-fallback",
+        "@/lib/publication-content",
+        "@/lib/request-rate-limit"
+      ]
+    },
+    {
+      "route": "/api/lesson-interaction",
+      "source": "src/app/api/lesson-interaction/route.ts",
+      "methods": [
+        "GET",
+        "POST"
+      ],
+      "group": "lesson-interaction",
+      "directAuthorizationCalls": [
+        "requireAcceptedAccount",
+        "withAccountRequest"
+      ],
+      "localImports": [
+        "@/lib/api-security",
+        "@/lib/auth-server",
+        "@/lib/course-pipeline/artifact-access",
+        "@/lib/course-pipeline/interaction-attempt",
+        "@/lib/course-types",
+        "@/lib/document-store",
+        "@/lib/interaction-receipts",
+        "@/lib/lesson-interactions",
+        "@/lib/publication-content",
+        "@/lib/request-rate-limit"
+      ]
+    },
+    {
+      "route": "/api/mastery",
+      "source": "src/app/api/mastery/route.ts",
+      "methods": [
+        "GET",
+        "POST",
+        "PUT"
+      ],
+      "group": "mastery",
+      "directAuthorizationCalls": [
+        "requireAcceptedAccount",
+        "requireAccount",
+        "withAccountRequest"
+      ],
+      "localImports": [
+        "@/lib/api-security",
+        "@/lib/auth-server",
+        "@/lib/course-pipeline/artifact-access",
+        "@/lib/document-store",
+        "@/lib/learning-design",
+        "@/lib/learning-types",
+        "@/lib/mastery",
+        "@/lib/mastery-server",
+        "@/lib/request-rate-limit"
+      ]
+    },
+    {
+      "route": "/api/outcome-feedback",
+      "source": "src/app/api/outcome-feedback/route.ts",
+      "methods": [
+        "POST"
+      ],
+      "group": "outcome-feedback",
+      "directAuthorizationCalls": [
+        "requireAccount",
+        "withAccountRequest"
+      ],
+      "localImports": [
+        "@/lib/api-security",
+        "@/lib/auth-server",
+        "@/lib/course-pipeline/artifact-access",
+        "@/lib/document-store",
+        "@/lib/request-rate-limit"
+      ]
+    },
+    {
+      "route": "/api/pricing-intent",
+      "source": "src/app/api/pricing-intent/route.ts",
+      "methods": [
+        "GET",
+        "POST"
+      ],
+      "group": "pricing-intent",
+      "directAuthorizationCalls": [
+        "requireAcceptedAccount",
+        "withAccountRequest"
+      ],
+      "localImports": [
+        "@/lib/api-security",
+        "@/lib/auth-server",
+        "@/lib/document-store",
+        "@/lib/membership-plans",
+        "@/lib/product-events",
+        "@/lib/request-rate-limit"
+      ]
+    },
+    {
+      "route": "/api/progress",
+      "source": "src/app/api/progress/route.ts",
+      "methods": [
+        "GET",
+        "POST"
+      ],
+      "group": "progress",
+      "directAuthorizationCalls": [
+        "requireAcceptedAccount",
+        "requireAccount",
+        "withAccountRequest"
+      ],
+      "localImports": [
+        "@/lib/activity-receipts",
+        "@/lib/adaptive-learning",
+        "@/lib/api-security",
+        "@/lib/auth-server",
+        "@/lib/course-pipeline/artifact-access",
+        "@/lib/course-pipeline/relationships",
+        "@/lib/course-progress",
+        "@/lib/course-types",
+        "@/lib/document-store",
+        "@/lib/interaction-receipts",
+        "@/lib/learning-types",
+        "@/lib/lesson-interactions",
+        "@/lib/membership-access",
+        "@/lib/model-fallback",
+        "@/lib/publication-content",
+        "@/lib/retrieval-planning",
+        "@/lib/validation"
+      ]
+    },
+    {
+      "route": "/api/referrals",
+      "source": "src/app/api/referrals/route.ts",
+      "methods": [
+        "GET",
+        "POST"
+      ],
+      "group": "referrals",
+      "directAuthorizationCalls": [
+        "requireAcceptedAccount",
+        "withAccountRequest"
+      ],
+      "localImports": [
+        "@/lib/api-security",
+        "@/lib/auth-server",
+        "@/lib/document-store",
+        "@/lib/request-rate-limit"
+      ]
+    },
+    {
+      "route": "/api/support/articles",
+      "source": "src/app/api/support/articles/route.ts",
+      "methods": [
+        "GET"
+      ],
+      "group": "support",
+      "directAuthorizationCalls": [],
+      "localImports": [
+        "@/content/support/articles",
+        "@/content/support/categories"
+      ]
+    },
+    {
+      "route": "/api/support/capabilities",
+      "source": "src/app/api/support/capabilities/route.ts",
+      "methods": [
+        "GET"
+      ],
+      "group": "support",
+      "directAuthorizationCalls": [],
+      "localImports": [
+        "@/lib/support-availability",
+        "@/lib/support-capabilities"
+      ]
+    },
+    {
+      "route": "/api/support/owner-documentation",
+      "source": "src/app/api/support/owner-documentation/route.ts",
+      "methods": [
+        "GET"
+      ],
+      "group": "support",
+      "directAuthorizationCalls": [
+        "requireOwner",
+        "withAccountRequest"
+      ],
+      "localImports": [
+        "@/content/support/owner-documentation",
+        "@/lib/auth-server"
+      ]
+    },
+    {
+      "route": "/api/support/tickets/[ticketId]",
+      "source": "src/app/api/support/tickets/[ticketId]/route.ts",
+      "methods": [
+        "GET"
+      ],
+      "group": "support",
+      "directAuthorizationCalls": [
+        "requireAcceptedAccount",
+        "withAccountRequest"
+      ],
+      "localImports": [
+        "@/lib/api-security",
+        "@/lib/auth-server",
+        "@/lib/command-center-server"
+      ]
+    },
+    {
+      "route": "/api/support/tickets",
+      "source": "src/app/api/support/tickets/route.ts",
+      "methods": [
+        "GET",
+        "POST"
+      ],
+      "group": "support",
+      "directAuthorizationCalls": [
+        "requireAcceptedAccount",
+        "withAccountRequest"
+      ],
+      "localImports": [
+        "@/lib/api-security",
+        "@/lib/auth-server",
+        "@/lib/command-center-server",
+        "@/lib/request-rate-limit",
+        "@/lib/support-availability",
+        "@/lib/support-center-types"
+      ]
+    },
+    {
+      "route": "/api/telemetry",
+      "source": "src/app/api/telemetry/route.ts",
+      "methods": [
+        "POST"
+      ],
+      "group": "telemetry",
+      "directAuthorizationCalls": [
+        "getVerifiedUser",
+        "withAccountRequest"
+      ],
+      "localImports": [
+        "@/lib/api-security",
+        "@/lib/auth-server",
+        "@/lib/document-store",
+        "@/lib/local-mode",
+        "@/lib/product-events",
+        "@/lib/request-rate-limit",
+        "@/lib/runtime-environment"
+      ]
+    },
+    {
+      "route": "/api/waitlist",
+      "source": "src/app/api/waitlist/route.ts",
+      "methods": [
+        "POST"
+      ],
+      "group": "waitlist",
+      "directAuthorizationCalls": [],
+      "localImports": [
+        "@/lib/api-security",
+        "@/lib/document-store",
+        "@/lib/product-events-server",
+        "@/lib/request-rate-limit"
+      ]
+    }
+  ],
+  "frameworkInventory": {
+    "nextImportStatements": 100,
+    "filesWithNextImports": 86,
+    "nextImportFiles": [
+      "src/app/acceptable-use/page.tsx",
+      "src/app/admin/command-center/page.tsx",
+      "src/app/admin/layout.tsx",
+      "src/app/admin/page.tsx",
+      "src/app/api/account/identity/route.ts",
+      "src/app/api/assess-baseline/route.ts",
+      "src/app/api/assess-capstone/route.ts",
+      "src/app/api/auth/link-intent/complete/route.ts",
+      "src/app/api/auth/link-intent/route.ts",
+      "src/app/api/courses/[courseId]/lessons/[lessonId]/route.ts",
+      "src/app/api/courses/[courseId]/route.ts",
+      "src/app/api/courses/route.ts",
+      "src/app/api/generate-course/route.ts",
+      "src/app/api/generate-lesson/route.ts",
+      "src/app/api/generation-operations/[operationId]/route.ts",
+      "src/app/api/generation-operations/route.ts",
+      "src/app/auth/complete-link/CompleteIdentityLink.tsx",
+      "src/app/copyright/page.tsx",
+      "src/app/course/[topic]/layout.tsx",
+      "src/app/course/[topic]/lesson/[lessonId]/page.tsx",
+      "src/app/course/[topic]/page.tsx",
+      "src/app/create/layout.tsx",
+      "src/app/create/page.tsx",
+      "src/app/evidence-example/layout.tsx",
+      "src/app/evidence/[courseId]/page.tsx",
+      "src/app/evidence/layout.tsx",
+      "src/app/evidence/shared/[token]/page.tsx",
+      "src/app/layout.tsx",
+      "src/app/library/layout.tsx",
+      "src/app/library/page.tsx",
+      "src/app/manifest.ts",
+      "src/app/not-found.tsx",
+      "src/app/page.tsx",
+      "src/app/pricing/layout.tsx",
+      "src/app/pricing/page.tsx",
+      "src/app/privacy-center/layout.tsx",
+      "src/app/privacy-center/page.tsx",
+      "src/app/privacy/page.tsx",
+      "src/app/profile/layout.tsx",
+      "src/app/profile/page.tsx",
+      "src/app/progress/layout.tsx",
+      "src/app/progress/page.tsx",
+      "src/app/review/flashcards/page.tsx",
+      "src/app/review/layout.tsx",
+      "src/app/review/page.tsx",
+      "src/app/robots.ts",
+      "src/app/sitemap.ts",
+      "src/app/standard/layout.tsx",
+      "src/app/standard/page.tsx",
+      "src/app/support/articles/[slug]/not-found.tsx",
+      "src/app/support/articles/[slug]/page.tsx",
+      "src/app/support/layout.tsx",
+      "src/app/support/owner/page.tsx",
+      "src/app/support/page.tsx",
+      "src/app/terms/page.tsx",
+      "src/components/AnalyticsConsent.tsx",
+      "src/components/AppShell.tsx",
+      "src/components/AuthModal.tsx",
+      "src/components/CourseBanner.tsx",
+      "src/components/CourseDeck.tsx",
+      "src/components/CourseLibrary.tsx",
+      "src/components/EvidencePortfolio.tsx",
+      "src/components/FilosageMark.tsx",
+      "src/components/LearnerHome.tsx",
+      "src/components/LearnerSourceNotice.tsx",
+      "src/components/LegalConsentModal.tsx",
+      "src/components/LegalDocument.tsx",
+      "src/components/OutcomePlanner.tsx",
+      "src/components/TrafficTracker.tsx",
+      "src/components/flashcards/FlashcardStudio.tsx",
+      "src/components/marketing/BrandLogo.tsx",
+      "src/components/marketing/EvidenceDossier.tsx",
+      "src/components/marketing/EvidenceExample.tsx",
+      "src/components/marketing/LandingPage.tsx",
+      "src/components/marketing/MarketingFooter.tsx",
+      "src/components/marketing/MarketingHero.tsx",
+      "src/components/marketing/MarketingNavigation.tsx",
+      "src/components/marketing/PublicCourseProof.tsx",
+      "src/components/support/OwnerDocumentationEntry.tsx",
+      "src/components/support/SupportArticleBody.tsx",
+      "src/components/support/SupportCenter.tsx",
+      "src/components/support/SupportSearch.tsx",
+      "src/components/support/SupportTicketPanel.tsx",
+      "src/lib/auth-server.ts",
+      "src/lib/identity-link-route-failure.ts",
+      "src/proxy.ts"
+    ],
+    "pageFiles": 25,
+    "layoutFiles": 14,
+    "componentTsxFiles": 59
+  }
+}

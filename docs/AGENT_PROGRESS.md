@@ -40,6 +40,21 @@ Progress: re-read current policies/handoff; fresh local main is clean at a99e1f9
 
 ---
 
+### September 12, 15:19 UTC — database and UI audit milestone
+
+- R1: optimized source audit reproduced three release defects: light-mode owner-tab contrast, profile dashboard-control contrast/touch size, and Escape focus restoration when its drawer is prematurely unmounted. The UI worker is fixing and verifying them in both engines/themes. Controlled learner fixtures are not the required real non-owner acceptance; designated-account reply is still pending. Existing owner sign-in and lesson loading passed only on old production.
+- R3: exact production read-only catalog probe passed at 15:16:31 UTC. Runtime login `filosageadmin` has DML plus database/schema CREATE, elevated membership and table ownership; minimum access is not satisfied. Production database owner is `filosageqa_app`; document table owner is `filosageadmin`. Preserve both owners. Current schema/primary key are compatible and PUBLIC CREATE is already denied. No production DML, role change or credential extraction occurred.
+- R2: observed production collection query uses the existing collection-path bitmap index; this is EXPLAIN without ANALYZE, not measured execution latency. Two point-in-time database/runtime sessions include the probe; server maximum connections is 50 and legacy per-process pool default is 10. No unmeasured index or pool change is justified yet.
+- R3: both active old revisions and shared authentication consume exactly seven current secret references. A separate reviewed IAM containment operation can replace the broad vault grant with these seven scopes while retaining the legacy database credential; this would not satisfy database least privilege. Helper preparation/review is ongoing; no vault grant mutation has occurred.
+- R7: exact QA probe passed read-only. The QA-named owner role owns BOTH production and QA databases and has shared dependencies, so it is excluded from deletion/revocation. QA contains 506 documents, four courses (one public), 34 lessons, two users and eight unclassified records; private preservation/disposition remains required before deleting its database or blobs. Shared Google/OpenAI/owner references and infrastructure remain preserved. Authoritative external DNS and customer-tenant identity reads are unavailable.
+- R3/R5/R6: backup observation is passing, but native GitHub reviewer protection, current restore proof, least-privilege database runtime and a compatible predecessor remain open. Operations report proposes a separately reviewed modern-baseline initialization under complete old-writer quiescence; no maintenance, candidate staging, traffic switch or production release has occurred.
+- Coordinator checkpoint `e67744c` is committed and pushed. Main is still `a99e1f9`; production remains `93f60f24`. UI, operations and QA packages remain in isolated branches pending independent review and integration.
+- Victor selected **retain native GitHub reviewer gates** and **prepare temporary maintenance transition**. No alternate approval policy will be introduced. Native provider capability remains an external prerequisite; maintenance preparation is authorized, but no maintenance window has begun.
+- Independent review reproduced a connection-parser containment defect in both new read-only DB helpers: query parameters could override a previously checked hostname/port/TLS setting. Workers are hardening explicit connection configuration with offline negative tests before reuse. No malicious parameter or actual misrouted connection was observed; no additional production probe is authorized by this fix alone.
+- R8 draft assessment and exact static inventory now cover 68 route files / 87 exported HTTP methods. Recommendation is retain Next for this release; incremental .NET and single-process React SPA/ASP.NET hosting remain separate decisions. No migration implemented; independent review pending.
+
+---
+
 # Historical visitor experience handoff
 
 Last updated: 2026-09-12, 13:57 UTC. Owner: Codex coordinator. Status: business tax information verified by supplied evidence and TEST tax collection probe passed; hosted account/billing lifecycle and branding gates remain open.
