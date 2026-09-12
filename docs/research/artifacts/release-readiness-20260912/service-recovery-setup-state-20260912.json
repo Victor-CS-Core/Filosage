@@ -1,27 +1,25 @@
 {
-  "observedAt": "2026-09-12T22:52:17.154410+00:00",
   "googleClientId": "557534798515-f1419k6iqqb0ptk6b1a4f8qs20uqd1hv.apps.googleusercontent.com",
   "project": "teachapp-d73c3",
   "existingRedirectCount": 7,
   "preparedAdditionalRedirect": "https://filosage-recovery-app-20260912.salmontree-eb10220f.centralus.azurecontainerapps.io/.auth/login/google/callback",
   "existingEntriesPreservedInForm": true,
-  "saved": false,
-  "confirmationPending": true,
+  "saved": true,
+  "confirmationPending": false,
   "environmentDomainVerified": "salmontree-eb10220f.centralus.azurecontainerapps.io",
-  "newAppAbsentAtRead": true,
   "sourceDatabaseReady": true,
   "sourcePublicNetworkAccess": "Disabled",
   "sourceDocs": 522,
   "sourceCourses": 13,
-  "providerResourcesCreated": false,
+  "providerResourcesCreated": true,
   "verification": {
-    "javascriptTests": 11,
-    "pythonTests": 13,
+    "javascriptTests": 30,
+    "pythonTests": 19,
     "actualRuntimeValidatorPassed": true,
     "actualSdkLoopbackContainmentPassed": true,
-    "independentReview": "approved after runtime-environment and retention-evidence corrections",
+    "independentReview": "approved setup/helpers and sanitized resource/database evidence; authenticated learner acceptance pending",
     "applicationSourceChanged": false,
-    "liveSetupExecuted": false
+    "liveSetupExecuted": true
   },
   "publicReadback": {
     "at": "2026-09-12T22:59:17.364719+00:00",
@@ -29,5 +27,15 @@
     "ok": true,
     "sourceSha": "93f60f24afe59b19b6a592f455a09e8e813f1f84",
     "authenticationMode": "migration-dual"
-  }
+  },
+  "callbackApproval": "Victor: yes go ahead",
+  "callbackSaveVerifiedAt": "2026-09-12T23:10:59.832470+00:00",
+  "callbackSaveEvidence": "Google Cloud UI: OAuth client saved; pre-save exact8redirects and7origins verified.",
+  "actualExecutionEvidence": "service-recovery-execution-20260912.json",
+  "callbackSaved": true,
+  "accountChooserReady": true,
+  "learnerAcceptancePending": true,
+  "preparationObservedAt": "2026-09-12T22:52:17.154410+00:00",
+  "observedAt": "2026-09-12T23:29:50.587285+00:00",
+  "newAppAbsentAtPreparationRead": true
 }

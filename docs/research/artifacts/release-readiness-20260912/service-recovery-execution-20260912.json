@@ -1,0 +1,247 @@
+{
+  "operation": "approved-isolated-recovery-execution",
+  "callbackSaved": true,
+  "identity": {
+    "name": "filosage-recovery-identity-20260912-b",
+    "requestedAt": "2026-09-12T23:12:29.899218+00:00",
+    "assignmentIntents": [
+      {
+        "name": "89cef310-4b93-427c-97fd-0c7de23bd582",
+        "role": "AcrPull",
+        "scope": "/subscriptions/bfc8f890-2681-43dc-8eac-51644341ae12/resourceGroups/filosage-staging-central-rg/providers/Microsoft.ContainerRegistry/registries/filosagestp4ujucgnxq3gsacr",
+        "id": "/subscriptions/bfc8f890-2681-43dc-8eac-51644341ae12/resourceGroups/filosage-staging-central-rg/providers/Microsoft.ContainerRegistry/registries/filosagestp4ujucgnxq3gsacr/providers/Microsoft.Authorization/roleAssignments/89cef310-4b93-427c-97fd-0c7de23bd582",
+        "created": true
+      },
+      {
+        "name": "10384ec0-bd83-4e63-a262-62c42216e502",
+        "role": "Storage Blob Data Reader",
+        "scope": "/subscriptions/bfc8f890-2681-43dc-8eac-51644341ae12/resourceGroups/filosage-staging-central-rg/providers/Microsoft.Storage/storageAccounts/filosagestp4ujucgnxq3gss/blobServices/default/containers/recovery-20260912-assets-b",
+        "id": "/subscriptions/bfc8f890-2681-43dc-8eac-51644341ae12/resourceGroups/filosage-staging-central-rg/providers/Microsoft.Storage/storageAccounts/filosagestp4ujucgnxq3gss/blobServices/default/containers/recovery-20260912-assets-b/providers/Microsoft.Authorization/roleAssignments/10384ec0-bd83-4e63-a262-62c42216e502",
+        "created": true
+      }
+    ],
+    "id": "/subscriptions/bfc8f890-2681-43dc-8eac-51644341ae12/resourcegroups/filosage-staging-central-rg/providers/Microsoft.ManagedIdentity/userAssignedIdentities/filosage-recovery-identity-20260912-b",
+    "clientId": "8b127807-ea57-4476-bfaa-3b8ebabffb30",
+    "principalId": "35c616bb-f4e0-4c0d-9649-9729fa8238f9"
+  },
+  "restore": {
+    "target": "filosage-recovery-20260912-b",
+    "restorePoint": "2026-09-12T23:11:22.747Z",
+    "requestedAt": "2026-09-12T23:11:44.967992+00:00",
+    "validationDeadline": "2026-09-13T00:11:44.967992+00:00",
+    "cleanupDeadline": "2026-09-13T01:11:44.967992+00:00",
+    "sourceId": "/subscriptions/bfc8f890-2681-43dc-8eac-51644341ae12/resourceGroups/filosage-staging-central-rg/providers/Microsoft.DBforPostgreSQL/flexibleServers/filosagestg-p4ujucgnxq3gs-pg",
+    "accepted": true,
+    "readyObservedAt": "2026-09-12T23:21:10.074356+00:00",
+    "readyObservationSeconds": 565.106371
+  },
+  "assets": {
+    "operation": "stage-private-recovery-assets",
+    "account": "filosagestp4ujucgnxq3gss",
+    "sourceContainer": "course-banners",
+    "recoveryContainer": "recovery-20260912-assets-b",
+    "currentCopiesVerified": true,
+    "originalObjectKeysPreserved": true,
+    "sourceObjects": 15,
+    "sourceBytes": 727010,
+    "privateInventoryFingerprint": "6548a5d77ad571a58b365992b85f36b211fec59960e1d9bd67eb58c2eb927415",
+    "historicalSourcePointVerified": false,
+    "databaseOwnershipReferencesVerified": false,
+    "serviceRecoveryVerified": false,
+    "retainedForLearnerChecks": true,
+    "expiresAt": "2026-09-13T01:10:50.031591+00:00"
+  },
+  "appCreated": true,
+  "serviceRecoveryVerified": false,
+  "productionDeploymentPerformed": false,
+  "runtimePreparation": {
+    "schemaVersion": 1,
+    "operation": "recovery-runtime-preparation",
+    "sourceSha": "93f60f24afe59b19b6a592f455a09e8e813f1f84",
+    "targetHost": "filosage-recovery-20260912-b.postgres.database.azure.com",
+    "mode": "apply",
+    "observedAt": "2026-09-12T23:22:35.112Z",
+    "ok": true,
+    "created": true,
+    "capacity": {
+      "maxConnections": 50,
+      "reservedConnections": 5,
+      "superuserReservedConnections": 10,
+      "recoveryConnections": 3,
+      "unreservedConnections": 35
+    },
+    "role": "filosage_recovery_runtime",
+    "connectionLimit": 3,
+    "catalog": {
+      "attributes": true,
+      "database_acl": true,
+      "schema_acl": true,
+      "dml": true,
+      "no_ddl": true,
+      "exact_acl": true,
+      "no_memberships": true,
+      "owns_nothing": true,
+      "no_qa_connect": true
+    },
+    "runtimeTlsLoginVerified": true,
+    "rolledBackDmlVerified": true,
+    "currentSchemaSqlVerified": true,
+    "oldRuntimeBindingChanged": false,
+    "schemaGuardSourceSha256": "45cf0ffa2ceb43d9caa9aeb795b6be54fe63006db442cafc69e6782b22078d79",
+    "revision": "filosagestg-app--green-93f60f24-1",
+    "imageDigest": "sha256:0c006852322a91d5e2540cfd27ab58e47dad33a3a1f793fd6afc1e2240bbadf2",
+    "probeSourceSha256": "7f863c01b7593bc6a5adb4aad8ec5d64c81a26ecfb4406346f38f3bbb5c13e05"
+  },
+  "bannerMembership": {
+    "operation": "recovery-banner-membership",
+    "stagedObjects": 15,
+    "stagedBytes": 727010,
+    "blobReferences": 13,
+    "inlineReferences": 0,
+    "invalidReferences": 0,
+    "missingBlobReferences": 0,
+    "blobMembershipVerified": true,
+    "inlineContentsVerified": false,
+    "historicalPointConsistencyVerified": false,
+    "applicationAccessVerified": false
+  },
+  "authBinding": {
+    "operation": "reconcile-recovery-auth",
+    "appName": "filosage-recovery-app-20260912",
+    "startedAt": "2026-09-12T23:24:23.313Z",
+    "passed": true,
+    "writeAttempted": true,
+    "authenticationConfigured": true,
+    "appConfigurationUnchanged": true,
+    "appConfigurationSha256": "46a53feea63b91f2fe6ddec447009003c2e50f8a5d92180243a00c609ced08b3",
+    "finishedAt": "2026-09-12T23:24:26.057Z"
+  },
+  "startup": {
+    "operation": "recovery-normal-startup",
+    "logReadSucceeded": true,
+    "schemaVerifiedMarker": true,
+    "nextReadyMarker": true,
+    "rawLogsRetained": false
+  },
+  "health": {
+    "ok": true,
+    "version": "7c48bc02ff6623a81fee382b194864f1d04b76c0",
+    "imageDigest": "sha256:95cc9529e6abcfdef5918f39996cfed55703e5b29b82d75304a69765c844b344",
+    "capabilities": {
+      "flashcardDecks": false,
+      "flashcardGeneration": false,
+      "lessonVisuals": false,
+      "commandCenter": false,
+      "commandCenterDrafts": false,
+      "commandCenterV2": false,
+      "pipelineV2": true,
+      "validationV2": true,
+      "repairV2": true,
+      "labsV2": false,
+      "visualsV2": false,
+      "publicationV2": true,
+      "pipelineShadowMode": false,
+      "pipelineOwnerOnly": true,
+      "pipelineCohortPercent": 0
+    },
+    "origin": "https://filosage-recovery-app-20260912.salmontree-eb10220f.centralus.azurecontainerapps.io",
+    "authenticationMode": "direct-google",
+    "checks": {
+      "configuration": true,
+      "datastore": true,
+      "flashcardDecks": false,
+      "flashcardGeneration": false
+    },
+    "observedAt": "2026-09-12T23:28:45.823413+00:00"
+  },
+  "productionInvariants": {
+    "observedAt": "2026-09-12T23:26:16.915264+00:00",
+    "productionConfigurationUnchanged": true,
+    "productionTemplateUnchanged": true,
+    "productionAuthUnchanged": true,
+    "productionHealthOk": true,
+    "productionVersion": "93f60f24afe59b19b6a592f455a09e8e813f1f84",
+    "productionAuthenticationMode": "migration-dual",
+    "qa": {
+      "name": "filosageqa-app",
+      "revision": "filosageqa-app--qa-stripe-test-1"
+    }
+  },
+  "ingressDenial": {
+    "fenceVerified": true,
+    "differentFromOperator": true,
+    "checks": [
+      {
+        "origin": "https://filosage-recovery-app-20260912.salmontree-eb10220f.centralus.azurecontainerapps.io",
+        "path": "/api/health",
+        "method": "HEAD",
+        "status": 403,
+        "requestFailed": false
+      },
+      {
+        "origin": "https://filosage-recovery-app-20260912.salmontree-eb10220f.centralus.azurecontainerapps.io",
+        "path": "/api/health",
+        "method": "GET",
+        "status": 403,
+        "requestFailed": false
+      },
+      {
+        "origin": "https://filosage-recovery-app-20260912.salmontree-eb10220f.centralus.azurecontainerapps.io",
+        "path": "/",
+        "method": "HEAD",
+        "status": 403,
+        "requestFailed": false
+      },
+      {
+        "origin": "https://filosage-recovery-app-20260912.salmontree-eb10220f.centralus.azurecontainerapps.io",
+        "path": "/",
+        "method": "GET",
+        "status": 403,
+        "requestFailed": false
+      },
+      {
+        "origin": "https://filosage-recovery-app-20260912.salmontree-eb10220f.centralus.azurecontainerapps.io",
+        "path": "/.auth/login/google",
+        "method": "HEAD",
+        "status": 403,
+        "requestFailed": false
+      },
+      {
+        "origin": "https://filosage-recovery-app-20260912.salmontree-eb10220f.centralus.azurecontainerapps.io",
+        "path": "/.auth/login/google",
+        "method": "GET",
+        "status": 403,
+        "requestFailed": false
+      },
+      {
+        "origin": "https://filosage-recovery-app-20260912.salmontree-eb10220f.centralus.azurecontainerapps.io",
+        "path": "/api/account",
+        "method": "HEAD",
+        "status": 403,
+        "requestFailed": false
+      },
+      {
+        "origin": "https://filosage-recovery-app-20260912.salmontree-eb10220f.centralus.azurecontainerapps.io",
+        "path": "/api/account",
+        "method": "GET",
+        "status": 403,
+        "requestFailed": false
+      }
+    ],
+    "startedAt": "2026-09-12T23:26:03.366Z",
+    "finishedAt": "2026-09-12T23:26:03.704Z",
+    "revision": "filosageqa-app--qa-stripe-test-1",
+    "imageDigest": "sha256:3d33eacc178c4e6323c957ab9fd1d81c2dd2f8e149b3b43bbe44e9b09a76bf14",
+    "probeSourceSha256": "668df408a523b0e422dd50404f155b3659ae288237ab708de25e55d1725918a7"
+  },
+  "browser": {
+    "managedGoogleReturnObserved": true,
+    "existingRestoredAccountLoaded": true,
+    "nonOwnerConfirmed": false,
+    "accountChooserReady": true,
+    "signedOutClientErrorObserved": true,
+    "serviceRecoveryVerified": false
+  },
+  "historicalBlobPointConsistencyVerified": false,
+  "learnerAcceptancePending": true
+}
