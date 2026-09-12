@@ -1,0 +1,20 @@
+{
+  "observedAt": "2026-09-12T17:37:58.139077+00:00",
+  "scope": "Seven-day ContainerAppConsoleLogs_CL aggregate restricted to production app and exact green93f60f24 revision",
+  "revision": "filosagestg-app--green-93f60f24-1",
+  "window": "P7D",
+  "counts": {
+    "logRows": 17901,
+    "pipelineEvents": 0,
+    "timedPipelineEvents": 0,
+    "modelTaggedEvents": 0,
+    "costTaggedEvents": 0
+  },
+  "firstLog": "2026-09-05T17:46:24.0829886Z",
+  "lastLog": "2026-09-12T17:35:26.3536348Z",
+  "rawLogsExported": false,
+  "paidCallsTriggered": false,
+  "providerConfigurationChanged": false,
+  "interpretation": "No structured course/model/duration/cost events found in this console-log sample. This does not mean zero model usage/cost or exclude persisted database receipts, prefixed/non-JSON events, another log destination or events outside the window. Model latency/cost remains unmeasured.",
+  "localTooling": "Azure CLI automatically installed its log-analytics preview extension to execute the read-only query; no Azure configuration changed."
+}

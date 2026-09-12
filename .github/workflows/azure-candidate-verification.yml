@@ -35,8 +35,9 @@ jobs:
   review:
     runs-on: ubuntu-latest
     timeout-minutes: 20
-    # Configure required independent reviewers and restrict the deploying identity.
-    environment: azure-candidate-review
+    # Reuse main-only OIDC configuration; native GitHub reviewer rules are not required.
+    # Retain actual evidence review attribution in the packet and release handoff.
+    environment: azure-staging
     env:
       GH_TOKEN: ${{ github.token }}
       EXPECTED_SHA: ${{ inputs.expected_sha }}

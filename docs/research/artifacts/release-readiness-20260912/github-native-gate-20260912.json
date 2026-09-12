@@ -1,0 +1,78 @@
+{
+  "observedAt": "2026-09-12T19:32:54.368190+00:00",
+  "sourceSha": "3a0e772fbb41a16396cf6761274e75b65f175f02",
+  "repository": {
+    "full_name": "Victor-CS-Core/Filosage",
+    "visibility": "private",
+    "default_branch": "main"
+  },
+  "ownerType": "User",
+  "authenticatedPlan": "unavailable from current token",
+  "collaborators": [
+    {
+      "login": "Victor-CS-Core",
+      "role": "admin"
+    }
+  ],
+  "oidcSubjectConfiguration": {
+    "use_default": true,
+    "use_immutable_subject": true,
+    "sub_claim_prefix": "repo:Victor-CS-Core@216034367/Filosage@1281583859"
+  },
+  "environments": [
+    {
+      "name": "azure-staging",
+      "canAdminsBypass": true,
+      "rules": [
+        {
+          "id": 62870255,
+          "node_id": "GA_kwDOTGNq884Dv1Lv",
+          "type": "branch_policy"
+        }
+      ],
+      "deploymentBranchPolicy": {
+        "protected_branches": false,
+        "custom_branch_policies": true
+      },
+      "branches": [
+        {
+          "name": "main",
+          "type": "branch"
+        }
+      ]
+    },
+    {
+      "name": "production-operations",
+      "canAdminsBypass": true,
+      "rules": [
+        {
+          "id": 62870256,
+          "node_id": "GA_kwDOTGNq884Dv1Lw",
+          "type": "branch_policy"
+        }
+      ],
+      "deploymentBranchPolicy": {
+        "protected_branches": false,
+        "custom_branch_policies": true
+      },
+      "branches": [
+        {
+          "name": "main",
+          "type": "branch"
+        }
+      ]
+    }
+  ],
+  "providerWritesPerformed": false,
+  "nativeGateSatisfied": false,
+  "azureFederatedTrust": [
+    {
+      "name": "github-filosage-staging",
+      "issuer": "https://token.actions.githubusercontent.com",
+      "subject": "repo:Victor-CS-Core@216034367/Filosage@1281583859:environment:azure-staging",
+      "audiences": [
+        "api://AzureADTokenExchange"
+      ]
+    }
+  ]
+}

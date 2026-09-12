@@ -1,0 +1,35 @@
+{
+  "observedAt": "2026-09-12T19:41:42.493Z",
+  "operation": "read-only-release-prerequisite-inventory",
+  "environments": [
+    {
+      "name": "azure-staging",
+      "exists": true,
+      "ready": true,
+      "independentReview": false,
+      "noAdminBypass": false,
+      "onlyMain": true,
+      "missingVariables": [],
+      "missingSecrets": []
+    }
+  ],
+  "backupInputsPresent": true,
+  "metadataReady": false,
+  "releaseReady": false,
+  "pendingEvidence": [
+    "Victor's explicit approval of the concrete production operation and deployment identity restrictions",
+    "approved backup input values and successful recovery-window observation",
+    "current restore rehearsal",
+    "runtime database allow/deny and read-only startup",
+    "actual managed-identity secret allow/deny",
+    "overlapping account/publication/accounting and in-flight writer compatibility",
+    "all seven exact-candidate hosted gates"
+  ],
+  "implementationBase": "379d15743d95064cf72e7b5dc72bd38f76b3bf5a",
+  "implementationState": "local policy patch; not yet committed at observation",
+  "scriptSha256": {
+    "scripts/release-prerequisites.ts": "27405649c4ff16ee3d8d2a529bd6939668b25c03e11c13a4291673dae94c0452",
+    "scripts/check-release-prerequisites.mjs": "4628bd8727048b1381dcda2d74856bb030b856f4f0d503ed74b771127991bb2d"
+  },
+  "providerMutations": false
+}

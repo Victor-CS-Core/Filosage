@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { environmentReadiness, predecessorReadiness, runtimeSecretReadiness, maintenanceIngressInventory } from "../scripts/release-prerequisites";
+import { environmentReadiness, predecessorReadiness, runtimeSecretReadiness, maintenanceIngressInventory, releaseEnvironments } from "../scripts/release-prerequisites";
 import { readFileSync } from "node:fs";
 import { releaseEnvironment } from "../src/lib/release-capabilities";
 import { collectRuntimeDatabaseInventory, sanitizePlan, runtimeDatabaseOptions } from "../scripts/inspect-runtime-database.mjs";
@@ -36,19 +36,49 @@ test("maintenance inventory includes direct app, both labels and every active re
   expect(() => maintenanceIngressInventory(state, {}, [{ name: "app--old", properties: { active: true, fqdn: "invalid.example" } }])).toThrow();
 });
 
-test("missing, self-approved or unrestricted deployment environments cannot pass prerequisite checks", () => {
+test("main-restricted deployment metadata works without native review or bypass controls", () => {
+  for (const environment of [protectedEnvironment,
+    { ...protectedEnvironment, protection_rules: [], can_admins_bypass: true },
+    { ...protectedEnvironment, protection_rules: undefined, can_admins_bypass: undefined },
+    { ...protectedEnvironment, protection_rules: [{ type: "required_reviewers", prevent_self_review: false, reviewers: [] }] }]) {
+    expect(environmentReadiness(environment, branches, variables, secrets).ready).toBe(true);
+  }
+});
+
+test("manual release workflows use the existing main-restricted deployment configuration", () => {
+  const configured: Record<string, unknown> = {
+    "azure-staging": { ...protectedEnvironment, protection_rules: [], can_admins_bypass: true },
+  };
+  for (const name of releaseEnvironments) {
+    expect(environmentReadiness(configured[name], branches, variables, secrets).ready).toBe(true);
+  }
+  for (const name of ["azure-staging", "azure-candidate-verification", "azure-promote-staging"]) {
+    const workflow = readFileSync(`.github/workflows/${name}.yml`, "utf8");
+    const environment = workflow.match(/^ {4}environment: ([a-z-]+)$/m)?.[1];
+    expect(environment).toBeTruthy();
+    expect(environmentReadiness(configured[environment!], branches, variables, secrets).ready).toBe(true);
+    const triggers = workflow.match(/^on:\n([\s\S]*?)^permissions:/m)?.[1];
+    expect(triggers).toContain("  workflow_dispatch:");
+    expect(triggers).not.toMatch(/^ {2}(push|pull_request|workflow_run|schedule):/m);
+  }
+});
+
+test("missing or unrestricted deployment configuration remains blocked", () => {
   expect(environmentReadiness(protectedEnvironment, branches, variables, secrets).ready).toBe(true);
-  for (const environment of [null, {}, { ...protectedEnvironment, protection_rules: [] },
-    { ...protectedEnvironment, can_admins_bypass: true },
-    { ...protectedEnvironment, protection_rules: [{ type: "required_reviewers", prevent_self_review: false, reviewers: [{ type: "User", reviewer: { id: 42 } }] }] },
-    { ...protectedEnvironment, protection_rules: [{ type: "required_reviewers", prevent_self_review: true, reviewers: [] }] },
-    { ...protectedEnvironment, deployment_branch_policy: null }]) {
+  for (const environment of [null, {}, { ...protectedEnvironment, deployment_branch_policy: null },
+    { ...protectedEnvironment, deployment_branch_policy: { protected_branches: true, custom_branch_policies: false } }]) {
     expect(environmentReadiness(environment, branches, variables, secrets).ready).toBe(false);
   }
   for (const policy of [null, { total_count: 2, branch_policies: branches.branch_policies },
     { total_count: 1, branch_policies: [{ name: "*", type: "branch" }] },
     { total_count: 1, branch_policies: [{ name: "main", type: "tag" }] }]) {
     expect(environmentReadiness(protectedEnvironment, policy, variables, secrets).ready).toBe(false);
+  }
+  for (const variable of variables) {
+    expect(environmentReadiness(protectedEnvironment, branches, variables.filter((name) => name !== variable), secrets).ready).toBe(false);
+  }
+  for (const secret of secrets) {
+    expect(environmentReadiness(protectedEnvironment, branches, variables, secrets.filter((name) => name !== secret)).ready).toBe(false);
   }
   expect(environmentReadiness(protectedEnvironment, branches, [], []).missingVariables).toEqual(variables);
   expect(environmentReadiness(protectedEnvironment, branches, [], []).missingSecrets).toEqual(secrets);

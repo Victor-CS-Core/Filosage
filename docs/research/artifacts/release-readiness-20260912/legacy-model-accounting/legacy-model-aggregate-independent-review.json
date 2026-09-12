@@ -1,0 +1,39 @@
+{
+  "reviewedAt": "2026-09-12T17:54:28.209932+00:00",
+  "resultSha256": "28cf71fd3fbf90b9ac96b2d4a9a16ebf1df80c13d0e4f2d9d37cd56119190c2d",
+  "closedOutputSchema": "passed",
+  "targetAndProbeIdentity": "passed",
+  "requestSnapshots": 34,
+  "recordedUsageSamples": 143,
+  "matchingSeparateViewMetrics": {
+    "input_tokens": 562310,
+    "cached_input_tokens": 147371,
+    "cache_write_tokens": 108608,
+    "output_tokens": 140956,
+    "estimated_cost_micros": 3650146
+  },
+  "estimatedUSD": "3.650146",
+  "statusBreakdown": {
+    "completed": {
+      "snapshots": 31,
+      "estimatedCostMicros": 2472676
+    },
+    "failed": {
+      "snapshots": 3,
+      "estimatedCostMicros": 1177470
+    }
+  },
+  "allMissingCountersZero": true,
+  "SeptemberShardRows": 0,
+  "allMonthShardDocumentCount": 18,
+  "matchingLocalProbeProcesses": [],
+  "furtherProviderCalls": 0,
+  "limits": [
+    "Both totals represent overlapping views, not additive spend.",
+    "Application estimates are not invoice-verified costs.",
+    "Historical surviving snapshots cover August13\u201321 and are not complete billing history.",
+    "September empty shard result does not establish zero spend.",
+    "No per-call latency or exclusive producing-revision attribution is available.",
+    "Local process inventory is fresh; remote cleanup command was built into successful runner, not independently re-probed."
+  ]
+}

@@ -1,0 +1,33 @@
+{
+  "observedAt": "2026-09-12T17:52:23.128856+00:00",
+  "health": [
+    {
+      "origin": "https://filosage.com",
+      "status": 200,
+      "finalOrigin": "https://filosage.com",
+      "ok": true,
+      "version": "93f60f24afe59b19b6a592f455a09e8e813f1f84",
+      "authenticationMode": "migration-dual",
+      "checks": {
+        "configuration": true,
+        "datastore": true,
+        "flashcardDecks": true,
+        "flashcardGeneration": true
+      }
+    },
+    {
+      "origin": "https://www.filosage.com",
+      "status": 200,
+      "finalOrigin": "https://www.filosage.com",
+      "ok": true,
+      "version": "93f60f24afe59b19b6a592f455a09e8e813f1f84",
+      "authenticationMode": "migration-dual",
+      "checks": {
+        "configuration": true,
+        "datastore": true,
+        "flashcardDecks": true,
+        "flashcardGeneration": true
+      }
+    }
+  ]
+}

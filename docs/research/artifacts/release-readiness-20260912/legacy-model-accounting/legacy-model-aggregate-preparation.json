@@ -1,0 +1,31 @@
+{
+  "recordedAt": "2026-09-12T17:50:54.660266+00:00",
+  "stage": "prepared-offline-awaiting-independent-review",
+  "providerCalls": 0,
+  "databaseConnections": 0,
+  "sourceCandidateChanged": false,
+  "ownedProcessesRemaining": 0,
+  "verification": {
+    "nodeTests": {
+      "passed": 12,
+      "failed": 0,
+      "durationMs": 74.5
+    },
+    "pythonTests": {
+      "passed": 4,
+      "failed": 0,
+      "durationMs": 1
+    },
+    "nodeSyntax": "passed",
+    "pythonCompilation": "passed",
+    "sqlLiveValidation": "not-performed",
+    "initialRed": "collector module absent before implementation; test import failed as expected"
+  },
+  "hashes": {
+    "legacy-model-aggregate-plan.sql": "31229d3b63c439f649adfc3d9eb78709cc9f1f3fdaf7c10a590458e1ff59ff53",
+    "legacy-model-aggregate.mjs": "02b921cd7e0df03972c9afa3eb616c856d39f8c30df9f27e1949630c9c1ec266",
+    "run-legacy-model-aggregate.py": "a38f615728cf9e173084c17400030298af975c5c7f19519c8287d975acb1ebf8",
+    "legacy-model-aggregate.test.mjs": "d552ec77d5c2889c65d54cc55f0e5e2201e5f06c95a09ae6604abbeb0d322c3a",
+    "legacy-model-transport.test.py": "2fd724df22f7a1a8e77745464d23a16dc5d71da78eda8127d59ed73071006aeb"
+  }
+}
