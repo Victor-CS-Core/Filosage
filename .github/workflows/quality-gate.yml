@@ -17,7 +17,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
       - name: Verify release source SHA
@@ -54,7 +54,7 @@ jobs:
       - run: npm run build
       - name: Upload contract evidence
         if: always()
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: release-contract-evidence
           path: |
@@ -70,7 +70,7 @@ jobs:
     env:
       NODE_OPTIONS: --max-old-space-size=3072
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
       - name: Verify release source SHA
@@ -116,7 +116,7 @@ jobs:
           npx --no-install playwright merge-reports --reporter=html,json playwright-report/all-blobs
       - name: Upload smoke-test evidence
         if: always()
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: browser-smoke-evidence
           path: |
@@ -146,7 +146,7 @@ jobs:
       # Ephemeral CI service credentials; never a repository or production secret.
       FILOSAGE_POSTGRES_TEST_URL: postgresql://filosage_test:testfixture-ci-only@127.0.0.1:5432/filosage_integration_test # secret-scan: allow-test-fixture
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
       - name: Verify release source SHA
@@ -177,7 +177,7 @@ jobs:
           npm run test:billing 2>&1 | tee test-results/postgres/billing-results.tap
       - name: Upload PostgreSQL transaction evidence
         if: always()
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: postgres-transaction-evidence
           path: test-results/postgres/

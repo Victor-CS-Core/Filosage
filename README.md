@@ -50,4 +50,6 @@ npx tsc --noEmit --incremental false
 npm run build
 ```
 
+The standalone `tsc` check uses TypeScript 7 through the `@typescript/native` npm alias. The `typescript` alias supplies Microsoft's TypeScript 6 compatibility API for ESLint and the isolated route-test fixtures; it exposes `tsc6`, leaving `tsc` on version 7. Next.js 16.3.4 resolves its additional build check from the `typescript` package, so that check uses version 6. Keep both aliases together when updating the compiler, following Microsoft's [side-by-side guidance](https://devblogs.microsoft.com/typescript/announcing-typescript-7-0/).
+
 Deployment is intentionally separate from local validation. See `docs/AZURE_MIGRATION_RUNBOOK.md`; Azure staging provisioning, data import, custom-domain cutover, and production traffic each require their own evidence or approval.
