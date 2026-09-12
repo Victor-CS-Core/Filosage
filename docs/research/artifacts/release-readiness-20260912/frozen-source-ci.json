@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "observedAt": "2026-09-12T18:05:06.075458+00:00",
+  "observedAt": "2026-09-12T18:07:44.730260+00:00",
   "sourceSha": "3a0e772fbb41a16396cf6761274e75b65f175f02",
   "sourceFrozen": true,
   "candidateAccepted": false,
@@ -77,5 +77,16 @@
   ],
   "previousRejectedSource": "source-ci-50c0bfe.json",
   "sourceChecksAccepted": true,
-  "candidateAcceptancePending": "Actual native deployment reviews, recovery, database runtime, compatible baseline and hosted candidate acceptance are still required."
+  "candidateAcceptancePending": "Actual native deployment reviews, recovery, database runtime, compatible baseline and hosted candidate acceptance are still required.",
+  "mainIntegration": {
+    "sha": "3a0e772fbb41a16396cf6761274e75b65f175f02",
+    "method": "non-force fast-forward",
+    "pullRequest": 24,
+    "mergedAt": "2026-09-12T18:06:49Z",
+    "localAndRemoteVerified": true,
+    "postPushQualityRun": 34710208910,
+    "postPushSecurityRun": 34710208872,
+    "postPushChecks": "in_progress",
+    "observationDeadline": "2026-09-12T18:30:00Z"
+  }
 }
