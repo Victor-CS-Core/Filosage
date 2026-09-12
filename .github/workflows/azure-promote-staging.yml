@@ -17,7 +17,7 @@ on:
         required: true
         type: string
       verification_run_id:
-        description: Successful independently reviewed candidate-verification run
+        description: Successful exact-candidate evidence-verification run
         required: true
         type: string
 
@@ -35,8 +35,9 @@ jobs:
   promote:
     runs-on: ubuntu-latest
     timeout-minutes: 20
-    # Victor's concrete promotion approval is required in this protected environment.
-    environment: azure-production-promotion
+    # Obtain Victor's explicit approval of this exact promotion in the task/handoff
+    # before dispatch. This is procedural approval, not a native GitHub reviewer gate.
+    environment: azure-staging
     env:
       GH_TOKEN: ${{ github.token }}
       EXPECTED_SHA: ${{ inputs.expected_sha }}

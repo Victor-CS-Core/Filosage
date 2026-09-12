@@ -40,6 +40,8 @@ jobs:
   candidate:
     runs-on: ubuntu-latest
     timeout-minutes: 40
+    # Obtain Victor's explicit approval of concrete production changes before dispatch.
+    # The shared main-only environment retains the existing scoped Azure OIDC login.
     environment: azure-staging
     env:
       GH_TOKEN: ${{ github.token }}

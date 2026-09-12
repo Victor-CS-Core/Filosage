@@ -68,7 +68,7 @@ try {
     environments, backupInputsPresent, predecessor, runtimeSecrets, maintenance,
     metadataReady: environments.every((entry) => entry.ready) && backupInputsPresent && predecessor.contractReady && runtimeSecrets.metadataReady,
     releaseReady: false,
-    pendingEvidence: ["actual independent human review and deployment identity restrictions", "approved backup input values and successful recovery-window observation", "current restore rehearsal", "runtime database allow/deny and read-only startup", "actual managed-identity secret allow/deny", "overlapping account/publication/accounting and in-flight writer compatibility", "all seven exact-candidate hosted gates"] };
+    pendingEvidence: ["Victor's explicit approval of the concrete production operation and deployment identity restrictions", "approved backup input values and successful recovery-window observation", "current restore rehearsal", "runtime database allow/deny and read-only startup", "actual managed-identity secret allow/deny", "overlapping account/publication/accounting and in-flight writer compatibility", "all seven exact-candidate hosted gates"] };
   console.log(JSON.stringify(result, null, 2));
   if (!result.metadataReady) process.exitCode = 1;
 } catch {

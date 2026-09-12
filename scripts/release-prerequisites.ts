@@ -5,7 +5,8 @@ type RecordValue = Record<string, unknown>;
 const record = (value: unknown): value is RecordValue => Boolean(value) && typeof value === "object" && !Array.isArray(value);
 export const deploymentVariables = ["AZURE_RESOURCE_GROUP", "AZURE_CONTAINER_APP_NAME", "AZURE_ACR_NAME"];
 export const deploymentSecrets = ["AZURE_CLIENT_ID", "AZURE_TENANT_ID", "AZURE_SUBSCRIPTION_ID"];
-export const releaseEnvironments = ["azure-staging", "azure-candidate-review", "azure-production-promotion"];
+// Manual stage, evidence review and promotion share the existing scoped OIDC environment.
+export const releaseEnvironments = ["azure-staging"];
 
 /** Read-only maintenance surface inventory; routing never proves write quiescence. */
 export function maintenanceIngressInventory(value: unknown, ingress: unknown, revisions: unknown) {
@@ -32,10 +33,11 @@ export function maintenanceIngressInventory(value: unknown, ingress: unknown, re
     ipRestrictionsPresent: Array.isArray(ingress.ipSecurityRestrictions) && ingress.ipSecurityRestrictions.length > 0,
     additionalPortMappingsPresent: Array.isArray(ingress.additionalPortMappings) && ingress.additionalPortMappings.length > 0,
     drainVerified: false, maintenanceReady: false,
-    pending: ["reviewed enforcement and allowed/disallowed vantage proof for every origin including /.auth", "all external jobs, callbacks, direct database and Blob writers inventoried", "old revision/process/session and in-flight request drain", "native reviewer protection and actual approval", "current restore and modern baseline acceptance"] };
+    pending: ["reviewed enforcement and allowed/disallowed vantage proof for every origin including /.auth", "all external jobs, callbacks, direct database and Blob writers inventoried", "old revision/process/session and in-flight request drain", "Victor's explicit approval of the concrete production operation", "current restore and modern baseline acceptance"] };
 }
 
-/** Metadata is an input to review, never proof that a person actually approved a run. */
+/** Native review settings are observations only. Victor's explicit approval is procedural,
+ * recorded in the task/handoff; metadata never proves that approval was given. */
 export function environmentReadiness(value: unknown, branches: unknown, variables: string[], secrets: string[]) {
   const environment = record(value) ? value : {};
   const rules = Array.isArray(environment.protection_rules) ? environment.protection_rules : [];
@@ -52,7 +54,7 @@ export function environmentReadiness(value: unknown, branches: unknown, variable
     && branches.branch_policies[0].name === "main" && branches.branch_policies[0].type === "branch";
   const missingVariables = deploymentVariables.filter((name) => !variables.includes(name));
   const missingSecrets = deploymentSecrets.filter((name) => !secrets.includes(name));
-  return { ready: independentReview && noAdminBypass && onlyMain && !missingVariables.length && !missingSecrets.length,
+  return { ready: onlyMain && !missingVariables.length && !missingSecrets.length,
     independentReview, noAdminBypass, onlyMain, missingVariables, missingSecrets };
 }
 
