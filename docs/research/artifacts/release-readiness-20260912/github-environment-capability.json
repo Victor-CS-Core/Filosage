@@ -1,0 +1,9 @@
+{
+  "operation": "configure required-reviewer candidate environment",
+  "observedAt": "2026-09-12T15:03:35.348409+00:00",
+  "success": false,
+  "name": null,
+  "message": "Failed to create the environment protection rule. Please ensure the billing plan supports the required reviewers protection rule.",
+  "status": "422",
+  "protectionTypes": []
+}

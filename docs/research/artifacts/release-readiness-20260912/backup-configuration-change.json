@@ -1,0 +1,23 @@
+{
+  "inputs": "azure-staging exact server resource ID and approved retention7",
+  "scope": "exact PostgreSQL Flexible Server ARM resource",
+  "principalObjectId": "6a25b4c2-f60a-4995-82ae-d2ea64786577",
+  "roleDefinitionId": "acdd72a7-3385-48ef-bd42-f606fba81ae7",
+  "roleAssignmentId": "1ac35c24-3844-40d7-8c13-926a631f82fa",
+  "review": "release_ops independent scope review; no database login/data/secret privileges",
+  "workflowRun": "34701167484",
+  "attempts": [
+    {
+      "attempt": 1,
+      "result": "failed",
+      "cause": "ARM server read not authorized"
+    },
+    {
+      "attempt": 2,
+      "result": "success"
+    }
+  ],
+  "artifactId": 10299594406,
+  "artifactDigest": "sha256:338d6c368365a5048d49ad85bc78a1e354fe35b2e234563f3f4abb4a4c83e2ff",
+  "restorationRehearsal": false
+}

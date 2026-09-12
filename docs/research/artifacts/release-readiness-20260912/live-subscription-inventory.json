@@ -1,0 +1,16 @@
+{
+  "observedAt": "2026-09-12T15:08:30.430750+00:00",
+  "provider": "Stripe",
+  "account": "Filosage",
+  "livemode": true,
+  "operation": "GET /v1/subscriptions",
+  "parameters": {
+    "status": "all",
+    "limit": 100
+  },
+  "count": 0,
+  "hasMore": false,
+  "complete": true,
+  "providerMutation": false,
+  "scope": "subscription inventory; not paid lifecycle or outstanding non-subscription invoice proof"
+}

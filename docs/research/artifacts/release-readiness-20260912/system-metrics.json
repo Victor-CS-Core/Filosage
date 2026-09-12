@@ -1,0 +1,91 @@
+{
+  "observedAt": "2026-09-12T15:05:56.919987+00:00",
+  "window": {
+    "start": "2026-09-11T15:05:56.919987+00:00",
+    "end": "2026-09-12T15:05:56.919987+00:00"
+  },
+  "resources": {
+    "app": {
+      "status": "read",
+      "metrics": {
+        "UsageNanoCores": {
+          "unit": "NanoCores",
+          "sampleCount": 19,
+          "meanOfHourlyAverages": 5247885.704652395,
+          "maximum": 141665419.0
+        },
+        "WorkingSetBytes": {
+          "unit": "Bytes",
+          "sampleCount": 19,
+          "meanOfHourlyAverages": 330387459.8628193,
+          "maximum": 432197632.0
+        },
+        "RestartCount": {
+          "unit": "Count",
+          "sampleCount": 24,
+          "meanOfHourlyAverages": 0.0,
+          "maximum": 0.0
+        },
+        "Requests": {
+          "unit": "Count",
+          "sampleCount": 24,
+          "meanOfHourlyAverages": 2.957697619646149,
+          "maximum": 77.0
+        },
+        "Replicas": {
+          "unit": "Count",
+          "sampleCount": 24,
+          "meanOfHourlyAverages": 0.24937554896794026,
+          "maximum": 1.0
+        },
+        "ResponseTime": {
+          "unit": "MilliSeconds",
+          "sampleCount": 18,
+          "meanOfHourlyAverages": 274.80839198927436,
+          "maximum": 2395.0
+        }
+      }
+    },
+    "database": {
+      "status": "read",
+      "metrics": {
+        "cpu_percent": {
+          "unit": "Percent",
+          "sampleCount": 24,
+          "meanOfHourlyAverages": 13.016084869402702,
+          "maximum": 77.52970831832913
+        },
+        "memory_percent": {
+          "unit": "Percent",
+          "sampleCount": 24,
+          "meanOfHourlyAverages": 60.3381712514169,
+          "maximum": 78.68468905075005
+        },
+        "active_connections": {
+          "unit": "Count",
+          "sampleCount": 24,
+          "meanOfHourlyAverages": 6.9677785573025455,
+          "maximum": 18.0
+        },
+        "storage_percent": {
+          "unit": "Percent",
+          "sampleCount": 24,
+          "meanOfHourlyAverages": 13.244060646440618,
+          "maximum": 13.244155253486309
+        },
+        "read_iops": {
+          "unit": "Count",
+          "sampleCount": 24,
+          "meanOfHourlyAverages": 0.007523148148148148,
+          "maximum": 2.0
+        },
+        "write_iops": {
+          "unit": "Count",
+          "sampleCount": 24,
+          "meanOfHourlyAverages": 0.5350839120370371,
+          "maximum": 2.0
+        }
+      }
+    }
+  }
+}

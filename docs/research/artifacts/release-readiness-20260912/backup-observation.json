@@ -1,0 +1,16 @@
+{
+  "schemaVersion": 1,
+  "evidenceType": "managed_backup_window_observation",
+  "restoreRehearsal": false,
+  "resourceId": "/subscriptions/bfc8f890-2681-43dc-8eac-51644341ae12/resourceGroups/filosage-staging-central-rg/providers/Microsoft.DBforPostgreSQL/flexibleServers/filosagestg-p4ujucgnxq3gs-pg",
+  "approvedRetentionDays": 7,
+  "candidateSha": "a99e1f96c2ef54e3f2385cee4a0dfcec175520a8",
+  "repository": "Victor-CS-Core/Filosage",
+  "runId": "34701167484",
+  "runAttempt": "2",
+  "runUrl": "https://github.com/Victor-CS-Core/Filosage/actions/runs/34701167484/attempts/2",
+  "observedAt": "2026-09-12T15:09:52.732Z",
+  "state": "Ready",
+  "earliestRestoreDate": "2026-09-06T00:07:39.641251+00:00",
+  "retentionDays": 7
+}

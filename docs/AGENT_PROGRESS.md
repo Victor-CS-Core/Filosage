@@ -24,6 +24,20 @@ Plan baseline, to revalidate: public production `93f60f24`, live green/inactive 
 
 Progress: re-read current policies/handoff; fresh local main is clean at a99e1f9. Created isolated coordinator worktree. No application/provider mutation, deployment, traffic switch or QA deletion yet. Coordinator owns this shared record; bounded workers report evidence here through the coordinator.
 
+### September 12, 15:07 UTC — execution evidence
+
+- R1/R2 worker `release_ui` owns isolated UI/source audit, optimized build and local browser measurement; no product defect justified yet. Current host lacks current WebKit shared libraries; supported user-space runtime investigation continues. Coordinator owns real hosted account verification; current task browser has no existing Filosage session. Requested designated existing non-owner test identity without credentials; reply pending.
+- R3 worker `release_ops` confirms old production health lacks digest/capabilities and old source lacks account/publication/accounting fences. Legacy Docker startup provisions/migrates. Normal staging cannot accept it as a compatible predecessor. Preparing explicit transition options; no gate bypass or production transition occurred.
+- Native GitHub required-reviewer configuration was attempted under approved setup scope and rejected with HTTP422: account billing plan does not support the rule. Actual candidate/promotion review protections remain unavailable; partial-create readback pending. This is a provider capability blocker, not missing general release permission.
+- Fresh authenticated Stripe LIVE list with status=all, limit100 returned an empty list and has_more=false. No existing live subscriptions were observed; new checkout stays closed. This is read-only subscription inventory, not paid-launch lifecycle proof.
+- R7 worker confirms QA and prod share Google secret, OpenAI key, migrated-owner secret, managed environment and datastore infrastructure. Exact QA identity/content/DNS consumer proofs are still required; no QA deletion. Azure DNS zone list empty means external DNS provider remains to identify.
+- Approved seven-day backup-observation input repair is being applied in azure-staging followed by bounded manual observation workflow; this does not change retention or prove a restore. Pipeline deadline: 15:17 UTC, final read mandatory.
+- Backup correction verified: workflow34701167484 attempt1 reached Azure but failed exact PG metadata read. Independently reviewed built-in Reader was added only at that server for existing deployment SP; assignment1ac35c24-3844-40d7-8c13-926a631f82fa read back. Attempt2 passed at15:09:52UTC; artifact10299594406 with digest338d6c368365a5048d49ad85bc78a1e354fe35b2e234563f3f4abb4a4c83e2ff downloaded and verified. It explicitly says restoreRehearsal=false. Existing assignments and DB/service configuration retained.
+- Failed required-reviewer creation partially created an empty environment. Coordinator detected and removed that task-created unprotected environment; fresh list contains only original azure-staging and production-operations. Reviewer capability remains blocked; no unprotected replacement is accepted.
+- Real existing Google sign-in succeeded on old production and loaded Victor's owner dashboard. This is baseline owner evidence, not candidate or non-owner acceptance. Non-owner account answer remains pending.
+- System baseline: Azure 24h hourly observations show zero app restarts, maximum0.142CPU core and412.2MiB memory; database peak77.53%CPU and78.68%memory is shared with QA. Retail API rates captured; one0.5core/1Gi warm replica is$11.83/month at idle or$39.42 continuously active before grants. Current scaling retained; exact query/model/cold-start measurement incomplete.
+- Tracking checkpoint40f02c7 committed and pushed to codex/release-ready-20260912; tracked-secret scan and whitespace pass. Source main/public production remain unchanged. No live billing activation, migration or deletion occurred.
+
 ---
 
 # Historical visitor experience handoff
