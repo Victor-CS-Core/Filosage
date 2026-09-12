@@ -1,0 +1,33 @@
+{
+  "observedAt": "2026-09-12T21:58:11.063Z",
+  "account": "Filosage",
+  "livemode": true,
+  "webhooks": [
+    {
+      "id": "we_1TwwFXRANh4MnfmajnqAdEA3",
+      "url": "https://filosage.com/api/billing/webhook",
+      "status": "enabled",
+      "enabledEvents": [
+        "checkout.session.completed",
+        "invoice.paid",
+        "invoice.payment_failed",
+        "invoice.finalization_failed",
+        "invoice.payment_action_required",
+        "invoice.marked_uncollectible",
+        "invoice.voided",
+        "customer.subscription.created",
+        "customer.subscription.updated",
+        "customer.subscription.deleted",
+        "customer.subscription.paused",
+        "customer.subscription.resumed",
+        "charge.refunded",
+        "charge.dispute.created",
+        "charge.dispute.closed"
+      ]
+    }
+  ],
+  "webhooksHasMore": false,
+  "subscriptionCount": 0,
+  "subscriptionsHasMore": false,
+  "providerChangesPerformed": false
+}

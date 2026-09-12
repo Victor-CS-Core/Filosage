@@ -1,0 +1,286 @@
+{
+  "verifiedAt": "2026-09-12T22:28:20.717394+00:00",
+  "runId": 34720798392,
+  "runUrl": "https://github.com/Victor-CS-Core/Filosage/actions/runs/34720798392",
+  "sourceSha": "7c48bc02ff6623a81fee382b194864f1d04b76c0",
+  "status": "completed",
+  "conclusion": "success",
+  "runAttempt": 1,
+  "startedAt": "2026-09-12T21:44:21Z",
+  "updatedAt": "2026-09-12T22:26:19Z",
+  "artifact": {
+    "id": 10307170778,
+    "name": "full-regression-evidence",
+    "digest": "sha256:593c699618f3806cc2e24eee0c4fe371c2078d7802be8ed7207d8faa0a5ce2ce",
+    "size_in_bytes": 47586004,
+    "created_at": "2026-09-12T22:26:15Z",
+    "expires_at": "2026-09-26T22:26:12Z",
+    "expired": false
+  },
+  "downloadedArchiveDigest": "sha256:593c699618f3806cc2e24eee0c4fe371c2078d7802be8ed7207d8faa0a5ce2ce",
+  "archiveDigestVerified": true,
+  "embeddedSourceVerified": true,
+  "reportStats": {
+    "startTime": "2026-09-12T21:45:39.230Z",
+    "duration": 2429144.1010742188,
+    "expected": 457,
+    "skipped": 9,
+    "unexpected": 0,
+    "flaky": 1
+  },
+  "reportErrors": 0,
+  "qualificationCases": [
+    {
+      "file": "visitor-release.spec.ts",
+      "title": "records an optimized visitor performance sample",
+      "project": "chromium",
+      "status": "skipped",
+      "annotations": [
+        {
+          "type": "skip",
+          "description": "Only run against an explicitly started optimized build.",
+          "location": {
+            "file": "/home/runner/work/Filosage/Filosage/tests/visitor-release.spec.ts",
+            "line": 24,
+            "column": 8
+          }
+        }
+      ],
+      "attemptStatuses": [
+        "skipped"
+      ]
+    },
+    {
+      "file": "marketing-gauntlet.spec.ts",
+      "title": "return recommendation emits bounded view and start events without controlling navigation",
+      "project": "chromium",
+      "status": "flaky",
+      "annotations": [],
+      "attemptStatuses": [
+        "failed",
+        "passed"
+      ]
+    },
+    {
+      "file": "app-shell.spec.ts",
+      "title": "keeps vertical touch scrolling native while a horizontal touch flick changes course",
+      "project": "chromium",
+      "status": "skipped",
+      "annotations": [
+        {
+          "type": "skip",
+          "description": "Trusted touch-drag synthesis is only available through Chromium CDP.",
+          "location": {
+            "file": "/home/runner/work/Filosage/Filosage/tests/app-shell.spec.ts",
+            "line": 1447,
+            "column": 10
+          }
+        }
+      ],
+      "attemptStatuses": [
+        "skipped"
+      ]
+    },
+    {
+      "file": "command-center-v2-ui.spec.ts",
+      "title": "preserves labelled mobile list-to-detail navigation without horizontal overflow",
+      "project": "desktop-chromium",
+      "status": "skipped",
+      "annotations": [
+        {
+          "type": "serial",
+          "location": {
+            "file": "/home/runner/work/Filosage/Filosage/tests/command-center-v2-ui.spec.ts",
+            "line": 0,
+            "column": 0
+          }
+        },
+        {
+          "type": "skip",
+          "description": "Mobile visual contract",
+          "location": {
+            "file": "/home/runner/work/Filosage/Filosage/tests/command-center-v2-ui.spec.ts",
+            "line": 94,
+            "column": 8
+          }
+        }
+      ],
+      "attemptStatuses": [
+        "skipped"
+      ]
+    },
+    {
+      "file": "command-center-v2-ui.spec.ts",
+      "title": "settles into the owner-only boundary when signed out",
+      "project": "mobile-chromium",
+      "status": "skipped",
+      "annotations": [
+        {
+          "type": "serial",
+          "location": {
+            "file": "/home/runner/work/Filosage/Filosage/tests/command-center-v2-ui.spec.ts",
+            "line": 0,
+            "column": 0
+          }
+        },
+        {
+          "type": "skip",
+          "description": "One signed-out state contract is sufficient",
+          "location": {
+            "file": "/home/runner/work/Filosage/Filosage/tests/command-center-v2-ui.spec.ts",
+            "line": 38,
+            "column": 8
+          }
+        }
+      ],
+      "attemptStatuses": [
+        "skipped"
+      ]
+    },
+    {
+      "file": "command-center-v2-ui.spec.ts",
+      "title": "renders the Evidence Desk, keyboard tabs, publication boundary, and dark theme",
+      "project": "mobile-chromium",
+      "status": "skipped",
+      "annotations": [
+        {
+          "type": "serial",
+          "location": {
+            "file": "/home/runner/work/Filosage/Filosage/tests/command-center-v2-ui.spec.ts",
+            "line": 0,
+            "column": 0
+          }
+        },
+        {
+          "type": "skip",
+          "description": "Desktop visual contract",
+          "location": {
+            "file": "/home/runner/work/Filosage/Filosage/tests/command-center-v2-ui.spec.ts",
+            "line": 45,
+            "column": 8
+          }
+        }
+      ],
+      "attemptStatuses": [
+        "skipped"
+      ]
+    },
+    {
+      "file": "command-center-v2-ui.spec.ts",
+      "title": "settles into the owner-only boundary when signed out",
+      "project": "mobile-webkit",
+      "status": "skipped",
+      "annotations": [
+        {
+          "type": "serial",
+          "location": {
+            "file": "/home/runner/work/Filosage/Filosage/tests/command-center-v2-ui.spec.ts",
+            "line": 0,
+            "column": 0
+          }
+        },
+        {
+          "type": "skip",
+          "description": "One signed-out state contract is sufficient",
+          "location": {
+            "file": "/home/runner/work/Filosage/Filosage/tests/command-center-v2-ui.spec.ts",
+            "line": 38,
+            "column": 8
+          }
+        }
+      ],
+      "attemptStatuses": [
+        "skipped"
+      ]
+    },
+    {
+      "file": "command-center-v2-ui.spec.ts",
+      "title": "renders the Evidence Desk, keyboard tabs, publication boundary, and dark theme",
+      "project": "mobile-webkit",
+      "status": "skipped",
+      "annotations": [
+        {
+          "type": "serial",
+          "location": {
+            "file": "/home/runner/work/Filosage/Filosage/tests/command-center-v2-ui.spec.ts",
+            "line": 0,
+            "column": 0
+          }
+        },
+        {
+          "type": "skip",
+          "description": "Desktop visual contract",
+          "location": {
+            "file": "/home/runner/work/Filosage/Filosage/tests/command-center-v2-ui.spec.ts",
+            "line": 45,
+            "column": 8
+          }
+        }
+      ],
+      "attemptStatuses": [
+        "skipped"
+      ]
+    },
+    {
+      "file": "support-wiki.spec.ts",
+      "title": "keeps article navigation and prose within a phone viewport",
+      "project": "chromium",
+      "status": "skipped",
+      "annotations": [
+        {
+          "type": "serial",
+          "location": {
+            "file": "/home/runner/work/Filosage/Filosage/tests/support-wiki.spec.ts",
+            "line": 0,
+            "column": 0
+          }
+        },
+        {
+          "type": "skip",
+          "description": "The mobile article contract runs in a phone-sized project.",
+          "location": {
+            "file": "/home/runner/work/Filosage/Filosage/tests/support-wiki.spec.ts",
+            "line": 276,
+            "column": 8
+          }
+        }
+      ],
+      "attemptStatuses": [
+        "skipped"
+      ]
+    },
+    {
+      "file": "marketing-gauntlet-runtime-acceptance.spec.ts",
+      "title": "captures production-mode marketing gauntlet acceptance",
+      "project": "chromium",
+      "status": "skipped",
+      "annotations": [
+        {
+          "type": "skip",
+          "description": "Requires an explicitly started optimized production server.",
+          "location": {
+            "file": "/home/runner/work/Filosage/Filosage/tests/marketing-gauntlet-runtime-acceptance.spec.ts",
+            "line": 110,
+            "column": 8
+          }
+        }
+      ],
+      "attemptStatuses": [
+        "skipped"
+      ]
+    }
+  ],
+  "retryInvestigation": {
+    "reviewer": "approval_docs",
+    "finding": "First attempt remained on / after correct /review link click; URL assertion timed out at5000ms. First-attempt network trace was not retained; mechanism unknown. Retry passed both navigations.",
+    "fixture503": "Telemetry503 responses are intentional and nonblocking; no provider outage inferred.",
+    "policy": "Existing configuration allows2CIretries; nozero-flake gate. Exactsource fullregression succeeded with oneflaky test.",
+    "action": "No speculative change or unchanged rerun. Retain qualification and verify realreviewjourney during hosted acceptance."
+  },
+  "skipAssessment": {
+    "platformSpecificSkippedCases": 7,
+    "matchingCasesPassedInIntendedProjects": true,
+    "explicitOptimizedServerCasesNotExecuted": 2,
+    "remainingGates": "R1/R2/R5 retain optimized-server and hosted acceptance; generic fullregression does not satisfy these."
+  }
+}

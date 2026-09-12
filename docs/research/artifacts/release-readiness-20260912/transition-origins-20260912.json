@@ -1,0 +1,179 @@
+{
+  "observedAt": "2026-09-12T21:50:56.103468+00:00",
+  "operation": "readonly-origin-baseline",
+  "origins": [
+    {
+      "origin": "https://filosage.com",
+      "dns": {
+        "canonical": "filosage.com",
+        "aliases": [],
+        "ipv4": [
+          "4.249.188.219"
+        ]
+      },
+      "checks": [
+        {
+          "path": "/api/health",
+          "method": "GET",
+          "status": 200,
+          "bodyRead": false
+        },
+        {
+          "path": "/.auth/me",
+          "method": "GET",
+          "status": 404,
+          "bodyRead": false
+        }
+      ]
+    },
+    {
+      "origin": "https://filosagestg-app---blue.salmontree-eb10220f.centralus.azurecontainerapps.io",
+      "dns": {
+        "canonical": "filosagestg-app---blue.salmontree-eb10220f.centralus.azurecontainerapps.io",
+        "aliases": [],
+        "ipv4": [
+          "4.249.188.219"
+        ]
+      },
+      "checks": [
+        {
+          "path": "/api/health",
+          "method": "GET",
+          "status": null,
+          "bodyRead": false
+        },
+        {
+          "path": "/.auth/me",
+          "method": "GET",
+          "status": 404,
+          "bodyRead": false
+        }
+      ]
+    },
+    {
+      "origin": "https://filosagestg-app---green.salmontree-eb10220f.centralus.azurecontainerapps.io",
+      "dns": {
+        "canonical": "filosagestg-app---green.salmontree-eb10220f.centralus.azurecontainerapps.io",
+        "aliases": [],
+        "ipv4": [
+          "4.249.188.219"
+        ]
+      },
+      "checks": [
+        {
+          "path": "/api/health",
+          "method": "GET",
+          "status": 200,
+          "bodyRead": false
+        },
+        {
+          "path": "/.auth/me",
+          "method": "GET",
+          "status": 404,
+          "bodyRead": false
+        }
+      ]
+    },
+    {
+      "origin": "https://filosagestg-app--blue-7abae96f-1.salmontree-eb10220f.centralus.azurecontainerapps.io",
+      "dns": {
+        "canonical": "filosagestg-app--blue-7abae96f-1.salmontree-eb10220f.centralus.azurecontainerapps.io",
+        "aliases": [],
+        "ipv4": [
+          "4.249.188.219"
+        ]
+      },
+      "checks": [
+        {
+          "path": "/api/health",
+          "method": "GET",
+          "status": null,
+          "bodyRead": false
+        },
+        {
+          "path": "/.auth/me",
+          "method": "GET",
+          "status": 404,
+          "bodyRead": false
+        }
+      ]
+    },
+    {
+      "origin": "https://filosagestg-app--green-93f60f24-1.salmontree-eb10220f.centralus.azurecontainerapps.io",
+      "dns": {
+        "canonical": "filosagestg-app--green-93f60f24-1.salmontree-eb10220f.centralus.azurecontainerapps.io",
+        "aliases": [],
+        "ipv4": [
+          "4.249.188.219"
+        ]
+      },
+      "checks": [
+        {
+          "path": "/api/health",
+          "method": "GET",
+          "status": 200,
+          "bodyRead": false
+        },
+        {
+          "path": "/.auth/me",
+          "method": "GET",
+          "status": 404,
+          "bodyRead": false
+        }
+      ]
+    },
+    {
+      "origin": "https://filosagestg-app.salmontree-eb10220f.centralus.azurecontainerapps.io",
+      "dns": {
+        "canonical": "filosagestg-app.salmontree-eb10220f.centralus.azurecontainerapps.io",
+        "aliases": [],
+        "ipv4": [
+          "4.249.188.219"
+        ]
+      },
+      "checks": [
+        {
+          "path": "/api/health",
+          "method": "GET",
+          "status": 200,
+          "bodyRead": false
+        },
+        {
+          "path": "/.auth/me",
+          "method": "GET",
+          "status": 404,
+          "bodyRead": false
+        }
+      ]
+    },
+    {
+      "origin": "https://www.filosage.com",
+      "dns": {
+        "canonical": "filosagestg-app.salmontree-eb10220f.centralus.azurecontainerapps.io",
+        "aliases": [],
+        "ipv4": [
+          "4.249.188.219"
+        ]
+      },
+      "checks": [
+        {
+          "path": "/api/health",
+          "method": "GET",
+          "status": 200,
+          "bodyRead": false
+        },
+        {
+          "path": "/.auth/me",
+          "method": "GET",
+          "status": 308,
+          "bodyRead": false
+        }
+      ]
+    }
+  ],
+  "operatorCidrSha256": "5f4bede6bf6b73796f4d9b5438c2a83d60311810f9378218300dfca763fb7e92",
+  "operatorProxyEnvironmentPresent": false,
+  "privateOperatorCidrSaved": true,
+  "restrictionsApplied": false,
+  "allowedDeniedEnforcementVerified": false
+}

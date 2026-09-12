@@ -1,0 +1,35 @@
+{
+  "schemaVersion": 1,
+  "operation": "registry-oci-config-verification",
+  "observedAt": "2026-09-12T21:55:44.047663+00:00",
+  "imageDigest": "sha256:95cc9529e6abcfdef5918f39996cfed55703e5b29b82d75304a69765c844b344",
+  "passed": true,
+  "imageExecuted": false,
+  "layersDownloaded": false,
+  "sourceSha": "7c48bc02ff6623a81fee382b194864f1d04b76c0",
+  "configDigest": "sha256:e759122eeba3cfbaffaefa5fd2c0d21b7a63f5c7d89d8ea64c56897b4e5f2d48",
+  "checks": {
+    "manifestDigest": true,
+    "configDigest": true,
+    "platform": true,
+    "sourceLabel": true,
+    "user": true,
+    "command": true,
+    "capabilitiesAndSourceEnvironment": true,
+    "noUnexpectedEnvironment": true,
+    "productionEnvironment": true,
+    "workingDirectory": true,
+    "entrypoint": true
+  },
+  "tokenScope": "repository:filosage:pull",
+  "capabilityEnvironmentCount": 15,
+  "runtimeOriginExpected": false,
+  "priorReadAttempt": {
+    "observedAt": "2026-09-12T21:55:02.558333+00:00",
+    "passed": false,
+    "failedStage": "config",
+    "reason": "Registry blob redirect rejected before download; no image or token disclosed."
+  },
+  "redirectPolicy": "At most one HTTPS Azure blob/data-host redirect for config only; registry Authorization not forwarded; final descriptor digest and length mandatory.",
+  "finishedAt": "2026-09-12T21:56:01.369098+00:00"
+}

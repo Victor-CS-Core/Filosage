@@ -1,0 +1,85 @@
+{
+  "schemaVersion": 1,
+  "observedAt": "2026-09-12T21:45:49.150Z",
+  "operation": "read-only-release-prerequisite-inventory",
+  "appId": "/subscriptions/bfc8f890-2681-43dc-8eac-51644341ae12/resourceGroups/filosage-staging-central-rg/providers/Microsoft.App/containerapps/filosagestg-app",
+  "traffic": [
+    {
+      "label": "blue",
+      "revisionName": "filosagestg-app--blue-7abae96f-1",
+      "weight": 0
+    },
+    {
+      "label": "green",
+      "revisionName": "filosagestg-app--green-93f60f24-1",
+      "weight": 100
+    }
+  ],
+  "authConfigSha256": "9bf95fcfbfd064ecbbae1fe88db80f071572ddbc772d714d99da5c9e7ba1aee6",
+  "authenticationMode": "migration-dual",
+  "environments": [
+    {
+      "name": "azure-staging",
+      "exists": true,
+      "ready": true,
+      "independentReview": false,
+      "noAdminBypass": false,
+      "onlyMain": true,
+      "missingVariables": [],
+      "missingSecrets": []
+    }
+  ],
+  "backupInputsPresent": true,
+  "predecessor": {
+    "contractReady": false,
+    "immutableImage": true,
+    "manifestPresent": false,
+    "noBootstrapEnvironment": true,
+    "healthMatches": false,
+    "sourceSha": "93f60f24afe59b19b6a592f455a09e8e813f1f84",
+    "imageDigest": "sha256:0c006852322a91d5e2540cfd27ab58e47dad33a3a1f793fd6afc1e2240bbadf2",
+    "writeCompatibility": "pending",
+    "startupAndDatabaseProbe": "pending"
+  },
+  "runtimeSecrets": {
+    "metadataReady": false,
+    "unexpectedGrant": true,
+    "missingGrantCount": 0,
+    "effectiveProbe": "pending"
+  },
+  "maintenance": {
+    "ingressFingerprint": "279d915d6855dccbbf8ac28286777982866cc7ce5037cc93e718a7d23e9e268a",
+    "httpOrigins": [
+      "https://filosage.com",
+      "https://filosagestg-app---blue.salmontree-eb10220f.centralus.azurecontainerapps.io",
+      "https://filosagestg-app---green.salmontree-eb10220f.centralus.azurecontainerapps.io",
+      "https://filosagestg-app--blue-7abae96f-1.salmontree-eb10220f.centralus.azurecontainerapps.io",
+      "https://filosagestg-app--green-93f60f24-1.salmontree-eb10220f.centralus.azurecontainerapps.io",
+      "https://filosagestg-app.salmontree-eb10220f.centralus.azurecontainerapps.io",
+      "https://www.filosage.com"
+    ],
+    "activeRevisionCount": 2,
+    "ipRestrictionsPresent": false,
+    "additionalPortMappingsPresent": false,
+    "drainVerified": false,
+    "maintenanceReady": false,
+    "pending": [
+      "reviewed enforcement and allowed/disallowed vantage proof for every origin including /.auth",
+      "all external jobs, callbacks, direct database and Blob writers inventoried",
+      "old revision/process/session and in-flight request drain",
+      "Victor's explicit approval of the concrete production operation",
+      "current restore and modern baseline acceptance"
+    ]
+  },
+  "metadataReady": false,
+  "releaseReady": false,
+  "pendingEvidence": [
+    "Victor's explicit approval of the concrete production operation and deployment identity restrictions",
+    "approved backup input values and successful recovery-window observation",
+    "current restore rehearsal",
+    "runtime database allow/deny and read-only startup",
+    "actual managed-identity secret allow/deny",
+    "overlapping account/publication/accounting and in-flight writer compatibility",
+    "all seven exact-candidate hosted gates"
+  ]
+}

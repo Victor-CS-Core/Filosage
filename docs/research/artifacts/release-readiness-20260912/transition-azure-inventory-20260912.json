@@ -1,0 +1,30 @@
+{
+  "observedOn": "2026-09-12",
+  "scope": "Azure subscription metadata plus resource-group Container App Jobs list",
+  "resourceTypeCounts": {
+    "Microsoft.AzureActiveDirectory/ciamDirectories": 2,
+    "Microsoft.OperationalInsights/workspaces": 1,
+    "Microsoft.ManagedIdentity/userAssignedIdentities": 2,
+    "Microsoft.Network/privateDnsZones": 1,
+    "Microsoft.ContainerRegistry/registries": 1,
+    "Microsoft.KeyVault/vaults": 1,
+    "Microsoft.Storage/storageAccounts": 1,
+    "Microsoft.Network/virtualNetworks": 1,
+    "Microsoft.App/managedEnvironments": 1,
+    "Microsoft.Network/privateDnsZones/virtualNetworkLinks": 1,
+    "Microsoft.Network/publicIPAddresses": 1,
+    "Microsoft.Network/loadBalancers": 1,
+    "Microsoft.DBforPostgreSQL/flexibleServers": 1,
+    "Microsoft.App/containerApps": 2,
+    "Microsoft.App/managedEnvironments/managedCertificates": 3,
+    "Microsoft.Insights/actiongroups": 1,
+    "Microsoft.Network/networkWatchers": 2,
+    "Microsoft.Insights/activityLogAlerts": 1,
+    "Microsoft.Insights/metricalerts": 10,
+    "Microsoft.Insights/scheduledqueryrules": 2
+  },
+  "containerAppJobCount": 0,
+  "limitations": [
+    "Does not enumerate external manual scripts, establish writer ownership, or verify drain."
+  ]
+}

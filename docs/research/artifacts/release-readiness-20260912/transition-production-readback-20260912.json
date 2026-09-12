@@ -1,0 +1,32 @@
+{
+  "observedAt": "2026-09-12T22:29:08.465142+00:00",
+  "configurationUnchanged": true,
+  "templateUnchanged": true,
+  "authUnchanged": true,
+  "traffic": [
+    {
+      "label": "blue",
+      "revisionName": "filosagestg-app--blue-7abae96f-1",
+      "weight": 0
+    },
+    {
+      "label": "green",
+      "revisionName": "filosagestg-app--green-93f60f24-1",
+      "weight": 100
+    }
+  ],
+  "qaPresent": true,
+  "publicHealthStatus": 200,
+  "publicHealth": {
+    "ok": true,
+    "version": "93f60f24afe59b19b6a592f455a09e8e813f1f84",
+    "origin": "https://filosage.com",
+    "authenticationMode": "migration-dual",
+    "checks": {
+      "configuration": true,
+      "datastore": true,
+      "flashcardDecks": true,
+      "flashcardGeneration": true
+    }
+  }
+}

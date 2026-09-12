@@ -1,0 +1,77 @@
+{
+  "schemaVersion": 1,
+  "operation": "modern-baseline-registry-build",
+  "passed": true,
+  "sourceSha": "7c48bc02ff6623a81fee382b194864f1d04b76c0",
+  "sourceTree": "76aa7bca462885bd904fe7b4e1522e6d9468f720",
+  "registryResourceId": "/subscriptions/bfc8f890-2681-43dc-8eac-51644341ae12/resourceGroups/filosage-staging-central-rg/providers/Microsoft.ContainerRegistry/registries/filosagestp4ujucgnxq3gsacr",
+  "image": "filosagestp4ujucgnxq3gsacr.azurecr.io/filosage@sha256:95cc9529e6abcfdef5918f39996cfed55703e5b29b82d75304a69765c844b344",
+  "tag": "filosage:7c48bc02ff6623a81fee382b194864f1d04b76c0-baseline-20260912",
+  "imageDigest": "sha256:95cc9529e6abcfdef5918f39996cfed55703e5b29b82d75304a69765c844b344",
+  "run": {
+    "runId": "cj1",
+    "status": "Succeeded",
+    "createTime": "2026-09-12T21:47:31.979307+00:00",
+    "startTime": "2026-09-12T21:47:32.227218+00:00",
+    "finishTime": "2026-09-12T21:52:59.345878+00:00",
+    "outputImages": [
+      {
+        "digest": "sha256:95cc9529e6abcfdef5918f39996cfed55703e5b29b82d75304a69765c844b344",
+        "registry": "filosagestp4ujucgnxq3gsacr.azurecr.io",
+        "repository": "filosage",
+        "tag": "7c48bc02ff6623a81fee382b194864f1d04b76c0-baseline-20260912"
+      }
+    ]
+  },
+  "requestAt": "2026-09-12T21:47:22.641579+00:00",
+  "readbackAt": "2026-09-12T21:53:10.610041+00:00",
+  "buildTarget": "runtime",
+  "platform": "linux/amd64",
+  "productionOrigin": "https://filosage.com",
+  "sourceArchiveSha256": "7dfb6d522e1d0aa43895d15f85722ddb570059501c47e5e454b1ebe3e9f25950",
+  "sourceFilesSha256": {
+    "Dockerfile": "0f4839e65d3b7ec3b5c8b7e928cb6bdb95ac863a91ff58f17130a15097882a1c",
+    "package-lock.json": "b9ad8b393f32c3f700e5caa4d28139b513bbc5dda18c5c03f9b44569a807fddb",
+    "config/release-capabilities.json": "52e6c217c28adb9fbcb5252f70b2cb0cdfd80ff0477776d8b8dd07e2e6b64bfb"
+  },
+  "buildArguments": {
+    "FLASHCARD_DECKS_ENABLED": "false",
+    "FLASHCARD_AI_GENERATION_ENABLED": "false",
+    "LESSON_VISUALS_ENABLED": "false",
+    "COMMAND_CENTER_ENABLED": "false",
+    "COMMAND_CENTER_DRAFTS_ENABLED": "false",
+    "NEXT_PUBLIC_COMMAND_CENTER_V2": "false",
+    "COURSE_PIPELINE_V2": "true",
+    "COURSE_VALIDATION_V2": "true",
+    "COURSE_REPAIR_V2": "true",
+    "COURSE_LABS_V2": "false",
+    "COURSE_VISUALS_V2": "false",
+    "COURSE_PUBLICATION_V2": "true",
+    "COURSE_PIPELINE_SHADOW_MODE": "false",
+    "COURSE_PIPELINE_V2_OWNER_ONLY": "true",
+    "COURSE_PIPELINE_V2_COHORT_PERCENT": "0",
+    "SITE_VERSION": "7c48bc02ff6623a81fee382b194864f1d04b76c0",
+    "NEXT_PUBLIC_SITE_URL": "https://filosage.com"
+  },
+  "tagAndDigestReadbacksMatch": true,
+  "submissionAttempts": 1,
+  "emptySubmissionResponseReconciled": true,
+  "containerEntrypointExecuted": false,
+  "applicationRevisionCreated": false,
+  "deploymentPerformed": false,
+  "configurationChanged": false,
+  "imageConfigVerified": true,
+  "limitations": [
+    "No application startup, hosted learner/recovery or release acceptance is inferred.",
+    "Node base image tag is floating; exact output digest is pinned but hermetic reproducibility is not claimed.",
+    "Empty asynchronous CLI response was reconciled to sole newly created run; final exact output tag/repository/registry match verified."
+  ],
+  "cleanup": {
+    "observedAt": "2026-09-12T21:53:34.160634+00:00",
+    "ownedExtractedContextRemoved": true,
+    "privateProviderOutputRemoved": true,
+    "localBuilderStarted": false,
+    "providerRunTerminal": true
+  },
+  "imageConfigEvidenceSha256": "01ece05d452c0d4677aa21466ac4117f0704339096b16156ead72cb8f9996475"
+}

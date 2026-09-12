@@ -1,0 +1,31 @@
+{
+  "observedAt": "2026-09-12T21:57:45.230341+00:00",
+  "appId": "/subscriptions/bfc8f890-2681-43dc-8eac-51644341ae12/resourceGroups/filosage-staging-central-rg/providers/Microsoft.App/containerapps/filosagestg-app",
+  "apiVersion": "2025-01-01",
+  "beforeConfigurationSha256": "d74d7ed61ce2b312065f9fb8e806e8897881372004c7d33bca5844cead9a3660",
+  "beforeTemplateSha256": "eaa44ea39c1a52c191c1a500109375eb5d8ca3a698f71ecc3721819d5873f964",
+  "beforeAuthSha256": "9bf95fcfbfd064ecbbae1fe88db80f071572ddbc772d714d99da5c9e7ba1aee6",
+  "beforeTraffic": [
+    {
+      "label": "blue",
+      "revisionName": "filosagestg-app--blue-7abae96f-1",
+      "weight": 0
+    },
+    {
+      "label": "green",
+      "revisionName": "filosagestg-app--green-93f60f24-1",
+      "weight": 100
+    }
+  ],
+  "restrictionPatchSha256": "76bd55eeade5eaba0dc0a4220613bb560ef231dc8ad6af59b32747eb9d0bd17b",
+  "restorePatchSha256": "735b72cce982ee10ef092d43572b5386871321f68f6f54210e7fa8cbd5199a71",
+  "restrictionOnlyField": "properties.configuration.ingress.ipSecurityRestrictions",
+  "operatorCidrSha256": "5f4bede6bf6b73796f4d9b5438c2a83d60311810f9378218300dfca763fb7e92",
+  "identityResourceId": "/subscriptions/bfc8f890-2681-43dc-8eac-51644341ae12/resourcegroups/filosage-staging-central-rg/providers/Microsoft.ManagedIdentity/userAssignedIdentities/filosagestg-app-identity",
+  "newRuntimeSecretVersionUrl": "https://filosagestg-p4ujucgnxq3g.vault.azure.net/secrets/database-url-runtime-v1/8725c9748b8a4acbbb48b94c0c9d7662",
+  "legacySecretReferenceName": "database-url",
+  "legacySecretScope": "/subscriptions/bfc8f890-2681-43dc-8eac-51644341ae12/resourceGroups/filosage-staging-central-rg/providers/Microsoft.KeyVault/vaults/filosagestg-p4ujucgnxq3g/secrets/database-url",
+  "legacySecretAssignmentId": "/subscriptions/bfc8f890-2681-43dc-8eac-51644341ae12/resourceGroups/filosage-staging-central-rg/providers/Microsoft.KeyVault/vaults/filosagestg-p4ujucgnxq3g/secrets/database-url/providers/Microsoft.Authorization/roleAssignments/353dc70c-614f-5df9-8163-954be81d9121",
+  "operationsExecuted": false,
+  "maintenanceApproved": false
+}

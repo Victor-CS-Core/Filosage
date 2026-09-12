@@ -1,0 +1,89 @@
+{
+  "schemaVersion": 1,
+  "operation": "qa-vantage-baseline",
+  "sourceSha": "c7d9c2c274bfcaee805332a83d94a208af32f09e",
+  "startedAt": "2026-09-12T22:07:30.353Z",
+  "finishedAt": "2026-09-12T22:07:47.084Z",
+  "egressIpv4Sha256": "259b7e80cdc103454701aa1bfcd7ae44edcb0bff749800cc22f2cca167792f7c",
+  "differentFromOperator": true,
+  "checks": [
+    {
+      "origin": "https://filosage.com",
+      "path": "/api/health",
+      "status": 200,
+      "requestFailed": false
+    },
+    {
+      "origin": "https://filosage.com",
+      "path": "/.auth/me",
+      "status": 404,
+      "requestFailed": false
+    },
+    {
+      "origin": "https://filosagestg-app---blue.salmontree-eb10220f.centralus.azurecontainerapps.io",
+      "path": "/.auth/me",
+      "status": null,
+      "requestFailed": true
+    },
+    {
+      "origin": "https://filosagestg-app---green.salmontree-eb10220f.centralus.azurecontainerapps.io",
+      "path": "/api/health",
+      "status": 200,
+      "requestFailed": false
+    },
+    {
+      "origin": "https://filosagestg-app---green.salmontree-eb10220f.centralus.azurecontainerapps.io",
+      "path": "/.auth/me",
+      "status": 404,
+      "requestFailed": false
+    },
+    {
+      "origin": "https://filosagestg-app--blue-7abae96f-1.salmontree-eb10220f.centralus.azurecontainerapps.io",
+      "path": "/.auth/me",
+      "status": null,
+      "requestFailed": true
+    },
+    {
+      "origin": "https://filosagestg-app--green-93f60f24-1.salmontree-eb10220f.centralus.azurecontainerapps.io",
+      "path": "/api/health",
+      "status": 200,
+      "requestFailed": false
+    },
+    {
+      "origin": "https://filosagestg-app--green-93f60f24-1.salmontree-eb10220f.centralus.azurecontainerapps.io",
+      "path": "/.auth/me",
+      "status": 404,
+      "requestFailed": false
+    },
+    {
+      "origin": "https://filosagestg-app.salmontree-eb10220f.centralus.azurecontainerapps.io",
+      "path": "/api/health",
+      "status": 200,
+      "requestFailed": false
+    },
+    {
+      "origin": "https://filosagestg-app.salmontree-eb10220f.centralus.azurecontainerapps.io",
+      "path": "/.auth/me",
+      "status": 404,
+      "requestFailed": false
+    },
+    {
+      "origin": "https://www.filosage.com",
+      "path": "/api/health",
+      "status": 200,
+      "requestFailed": false
+    },
+    {
+      "origin": "https://www.filosage.com",
+      "path": "/.auth/me",
+      "status": 308,
+      "requestFailed": false
+    }
+  ],
+  "blueHealthOmitted": true,
+  "fenceVerified": false,
+  "drainVerified": false,
+  "revision": "filosageqa-app--qa-stripe-test-1",
+  "imageDigest": "sha256:3d33eacc178c4e6323c957ab9fd1d81c2dd2f8e149b3b43bbe44e9b09a76bf14",
+  "probeSourceSha256": "a05ca55931122d5e63bf8afeab94ad8dea4ac6ddcfae020bc0ec486f478876b2"
+}

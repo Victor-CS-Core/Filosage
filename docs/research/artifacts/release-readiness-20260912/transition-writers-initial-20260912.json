@@ -1,0 +1,40 @@
+{
+  "schemaVersion": 1,
+  "operation": "transition-writer-observation",
+  "observedAt": "2026-09-12T21:50:07.800Z",
+  "sessions": {
+    "total": 3,
+    "active": 0,
+    "idle_in_transaction": 0,
+    "administrator": 1,
+    "modern_runtime": 0,
+    "qa_runtime": 0,
+    "production_database": 1,
+    "other_roles": 2
+  },
+  "work": {
+    "documents": 510,
+    "generation_operations": 0,
+    "unfinished_generation": 0,
+    "unconfirmed_generation_stages": 0,
+    "unfinished_deletion": 0,
+    "unresolved_ai_requests": 0,
+    "uploading_assets": 0,
+    "documents_with_lease_fields": 8,
+    "billing_work_documents": 0,
+    "publication_mutation_documents": 0
+  },
+  "cronInstalledInProductionDatabase": false,
+  "drainVerified": false,
+  "externalWriterInventoryComplete": false,
+  "limitations": [
+    "Counts precede maintenance and cannot prove drain.",
+    "Shared administrator sessions are not attributed to a revision.",
+    "Lease-field counts include expired leases; null or unknown states are not classified as completed.",
+    "No user records, work items or provider outcomes were changed."
+  ],
+  "sourceSha": "93f60f24afe59b19b6a592f455a09e8e813f1f84",
+  "revision": "filosagestg-app--green-93f60f24-1",
+  "imageDigest": "sha256:0c006852322a91d5e2540cfd27ab58e47dad33a3a1f793fd6afc1e2240bbadf2",
+  "probeSourceSha256": "cb5e23c3eaff42757f3aa55f8031a8ce830d19cbd7c3f62c5160a0d85675c5e1"
+}
