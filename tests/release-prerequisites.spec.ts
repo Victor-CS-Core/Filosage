@@ -213,3 +213,66 @@ for change in [{'checks':checks+checks[:1]},{'checks':[dict(row,status='private-
   const result = spawnSync("python", ["-c", code], { encoding: "utf8", timeout: 3000 });
   expect(result.status, result.stderr).toBe(0);
 });
+
+test("modern database pool rejects coercion and settings above the approved per-process maximum", async () => {
+  const { databasePoolMaximum, modernDatabasePoolMax } = await import("../src/lib/database-connection-budget");
+  expect(databasePoolMaximum(undefined)).toBe(modernDatabasePoolMax);
+  expect(databasePoolMaximum(String(modernDatabasePoolMax))).toBe(modernDatabasePoolMax);
+  expect(databasePoolMaximum("1")).toBe(1);
+  for (const value of ["", "0", "-1", "1.5", " 1", "1 ", "01", "1e0", "NaN", "Infinity", String(modernDatabasePoolMax + 1)]) {
+    expect(() => databasePoolMaximum(value)).toThrow();
+  }
+});
+
+test("release connection budget accounts every active revision and rejects unbounded or legacy pools", async () => {
+  const { assertRevisionConnectionBudget } = await import("../scripts/database-connection-budget");
+  const revision = (name: string, pool = "2", maximum = 3) => ({ name, properties: { active: true, template: { scale: { minReplicas: 0, maxReplicas: maximum }, containers: [{ env: [{ name: "DATABASE_POOL_MAX", value: pool }] }] } } });
+  expect(() => assertRevisionConnectionBudget([revision("app--live")], true)).not.toThrow();
+  expect(() => assertRevisionConnectionBudget([revision("app--live"), revision("app--candidate")], false)).not.toThrow();
+  for (const rows of [[revision("app--live"), revision("app--old"), revision("app--unlabelled")], [revision("app--live", "10")], [revision("app--live", "2", 4)]]) {
+    expect(() => assertRevisionConnectionBudget(rows, false)).toThrow();
+  }
+  expect(() => assertRevisionConnectionBudget([revision("app--live"), revision("app--old")], true)).toThrow();
+  expect(() => assertRevisionConnectionBudget([], true)).toThrow();
+  const missing = revision("app--live"); missing.properties.template.containers[0].env = [];
+  expect(() => assertRevisionConnectionBudget([missing], false)).toThrow();
+});
+
+test("QA overlap cannot exceed the reserved eleven connections", async () => {
+  const { assertQaConnectionBudget } = await import("../scripts/database-connection-budget");
+  const qa = { name: "qa--one", properties: { active: true, template: { scale: { maxReplicas: 1 }, containers: [{ env: [] as Array<{ name: string; value: string }> }] } } };
+  expect(assertQaConnectionBudget([qa]).maximumConnections).toBe(11);
+  expect(assertQaConnectionBudget([]).maximumConnections).toBe(0);
+  expect(() => assertQaConnectionBudget([qa, { ...qa, name: "qa--extra" }])).toThrow();
+  qa.properties.template.scale.maxReplicas = 2;
+  expect(() => assertQaConnectionBudget([qa])).toThrow();
+  qa.properties.template.scale.maxReplicas = 1;
+  qa.properties.template.containers[0].env = [{ name: "DATABASE_POOL_MAX", value: "Infinity" }];
+  expect(() => assertQaConnectionBudget([qa])).toThrow();
+});
+
+test("startup capacity guard includes reserved settings and rolls back insufficient capacity", async () => {
+  const { verifyDatabaseConnectionCapacity } = await import("../scripts/verify-azure-database");
+  for (const compatible of [true, false]) {
+    const queries: string[] = [];
+    const client = { async query(sql: string) { queries.push(sql); return { rows: [{ compatible }] }; } };
+    if (compatible) await verifyDatabaseConnectionCapacity(client);
+    else await expect(verifyDatabaseConnectionCapacity(client)).rejects.toThrow();
+    expect(queries[0]).toBe("BEGIN READ ONLY"); expect(queries.at(-1)).toBe("ROLLBACK");
+    expect(queries[1]).toContain("current_setting('reserved_connections')");
+    expect(queries[1]).toContain("current_setting('superuser_reserved_connections')");
+    expect(queries[1]).toContain(">= 35");
+  }
+});
+
+test("modern runtime configuration and real release paths enforce the shared capacity budget", () => {
+  const runtime = readFileSync("src/lib/postgres-document-store.ts", "utf8");
+  expect(runtime).toContain("max: databasePoolMaximum(serverEnvironment.DATABASE_POOL_MAX)");
+  expect(runtime).toContain("max: databaseHealthPoolMax");
+  expect(readFileSync("infra/azure/main.bicep", "utf8")).toContain("{ name: 'DATABASE_POOL_MAX', value: '2' }");
+  expect(readFileSync("Dockerfile", "utf8")).toContain("./src/lib/database-connection-budget.ts");
+  const release = readFileSync("scripts/azure-blue-green.mjs", "utf8");
+  expect(release).toContain("DATABASE_POOL_MAX: String(modernDatabasePoolMax)");
+  expect(release).toContain('connectionBudget(true);\n    mutate(["containerapp", "revision", "copy"');
+  expect(release).toContain("const verify = (candidate, promoted = false) => {\n  connectionBudget();");
+});

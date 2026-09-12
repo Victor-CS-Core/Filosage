@@ -103,6 +103,7 @@ COPY --from=builder --chown=nextjs:nodejs /app/scripts/import-azure-authored-cou
 COPY --from=builder --chown=nextjs:nodejs /app/scripts/verify-azure-authored-courses.ts ./scripts/verify-azure-authored-courses.ts
 COPY --from=builder --chown=nextjs:nodejs /app/src/lib/document-values.ts ./src/lib/document-values.ts
 COPY --from=builder --chown=nextjs:nodejs /app/scripts/verify-azure-database.ts ./scripts/verify-azure-database.ts
+COPY --from=builder --chown=nextjs:nodejs /app/src/lib/database-connection-budget.ts ./src/lib/database-connection-budget.ts
 USER nextjs
 EXPOSE 3000
 CMD ["sh", "-c", "node scripts/verify-azure-database.ts && exec node server.js"]

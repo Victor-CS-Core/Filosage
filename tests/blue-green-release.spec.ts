@@ -52,7 +52,7 @@ test("candidate readback binds exact runtime image, manifest, SHA, canonical ori
   const previous = state();
   const candidate: ReleaseEvidence = { schemaVersion: 2, sha, imageDigest: digest, manifest, productionOrigin: "https://filosage.com", candidateOrigin: "https://filosage-app--candidate.region.azurecontainerapps.io", authenticationMode: "migration-dual", appId, revision: "filosage-app--candidate", label: "green", authConfigSha256: previous.authConfigSha256 };
   const revision = { name: candidate.revision, properties: { active: true, fqdn: candidate.candidateOrigin.slice(8), template: { containers: [{ image, env: [
-    ...Object.entries({ ...releaseEnvironment(manifest), AZURE_EASY_AUTH_ENABLED: "true", DIRECT_GOOGLE_AUTH_ENABLED: "true", EXTERNAL_ID_AUTH_ENABLED: "true" }).map(([name, value]) => ({ name, value })),
+    ...Object.entries({ ...releaseEnvironment(manifest), DATABASE_POOL_MAX: "2", AZURE_EASY_AUTH_ENABLED: "true", DIRECT_GOOGLE_AUTH_ENABLED: "true", EXTERNAL_ID_AUTH_ENABLED: "true" }).map(([name, value]) => ({ name, value })),
     { name: "SITE_VERSION", value: sha }, { name: "NEXT_PUBLIC_SITE_URL", value: candidate.productionOrigin }, { name: "RELEASE_IMAGE_DIGEST", value: digest },
     { name: "BILLING_ENABLED", value: "false" }, { name: "BILLING_ROLLOUT_MODE", value: "closed" },
   ] }] } } };
@@ -60,6 +60,9 @@ test("candidate readback binds exact runtime image, manifest, SHA, canonical ori
   for (const change of [{ imageDigest: `sha256:${"e".repeat(64)}` }, { revision: "filosage-app--other" }, { appId: `${appId}other` }, { authConfigSha256: "f".repeat(64) }, { productionOrigin: "https://other.example" }]) {
     expect(() => assertCandidateReadback({ ...candidate, ...change }, state(), revision, previous)).toThrow();
   }
+  const changedPool = structuredClone(revision);
+  changedPool.properties.template.containers[0].env.find((entry) => entry.name === "DATABASE_POOL_MAX")!.value = "10";
+  expect(() => assertCandidateReadback(candidate, state(), changedPool, previous)).toThrow();
   const changedLive = state(); changedLive.traffic[0].revisionName = "filosage-app--different";
   expect(() => assertCandidateReadback(candidate, changedLive, revision, previous)).toThrow();
 });
@@ -79,7 +82,7 @@ test("hosted review requires every exact-candidate artifact and compatible prede
 
 test("candidate runtime readback rejects a capability mismatch even when health metadata could agree", () => {
   const candidate: ReleaseEvidence = { schemaVersion: 2, sha, imageDigest: digest, manifest, productionOrigin: "https://filosage.com", candidateOrigin: "https://filosage-app--candidate.region.azurecontainerapps.io", authenticationMode: "migration-dual", appId, revision: "filosage-app--candidate", label: "green", authConfigSha256: state().authConfigSha256 };
-  const environment = { ...releaseEnvironment(manifest), AZURE_EASY_AUTH_ENABLED: "true", DIRECT_GOOGLE_AUTH_ENABLED: "true", EXTERNAL_ID_AUTH_ENABLED: "true", SITE_VERSION: sha, NEXT_PUBLIC_SITE_URL: candidate.productionOrigin, RELEASE_IMAGE_DIGEST: digest, BILLING_ENABLED: "false", BILLING_ROLLOUT_MODE: "closed", COURSE_PIPELINE_V2: "false" };
+  const environment = { ...releaseEnvironment(manifest), DATABASE_POOL_MAX: "2", AZURE_EASY_AUTH_ENABLED: "true", DIRECT_GOOGLE_AUTH_ENABLED: "true", EXTERNAL_ID_AUTH_ENABLED: "true", SITE_VERSION: sha, NEXT_PUBLIC_SITE_URL: candidate.productionOrigin, RELEASE_IMAGE_DIGEST: digest, BILLING_ENABLED: "false", BILLING_ROLLOUT_MODE: "closed", COURSE_PIPELINE_V2: "false" };
   const revision = { name: candidate.revision, properties: { active: true, fqdn: candidate.candidateOrigin.slice(8), template: { containers: [{ image, env: Object.entries(environment).map(([name, value]) => ({ name, value })) }] } } };
   expect(() => assertCandidateReadback(candidate, state(), revision, state())).toThrow();
 });
@@ -96,7 +99,7 @@ test("binding replaces the previous inactive row atomically and constructs the A
 
 test("promoted readback accepts only the verified candidate at 100 and its captured predecessor at 0", () => {
   const candidate: ReleaseEvidence = { schemaVersion: 2, sha, imageDigest: digest, manifest, productionOrigin: "https://filosage.com", candidateOrigin: "https://filosage-app--candidate.region.azurecontainerapps.io", authenticationMode: "migration-dual", appId, revision: "filosage-app--candidate", label: "green", authConfigSha256: state().authConfigSha256 };
-  const environment = { ...releaseEnvironment(manifest), AZURE_EASY_AUTH_ENABLED: "true", DIRECT_GOOGLE_AUTH_ENABLED: "true", EXTERNAL_ID_AUTH_ENABLED: "true", SITE_VERSION: sha, NEXT_PUBLIC_SITE_URL: candidate.productionOrigin, RELEASE_IMAGE_DIGEST: digest, BILLING_ENABLED: "false", BILLING_ROLLOUT_MODE: "closed" };
+  const environment = { ...releaseEnvironment(manifest), DATABASE_POOL_MAX: "2", AZURE_EASY_AUTH_ENABLED: "true", DIRECT_GOOGLE_AUTH_ENABLED: "true", EXTERNAL_ID_AUTH_ENABLED: "true", SITE_VERSION: sha, NEXT_PUBLIC_SITE_URL: candidate.productionOrigin, RELEASE_IMAGE_DIGEST: digest, BILLING_ENABLED: "false", BILLING_ROLLOUT_MODE: "closed" };
   const revision = { name: candidate.revision, properties: { active: true, fqdn: candidate.candidateOrigin.slice(8), template: { containers: [{ image, env: Object.entries(environment).map(([name, value]) => ({ name, value })) }] } } };
   const promoted = state(); promoted.traffic[0].weight = 0; promoted.traffic[1].weight = 100;
   expect(() => assertCandidateReadback(candidate, promoted, revision, state(), true)).not.toThrow();
