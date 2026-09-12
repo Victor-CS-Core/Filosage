@@ -1,3 +1,4 @@
+import { modernDatabasePoolMax } from "../src/lib/database-connection-budget.ts";
 import { createHash } from "node:crypto";
 import { releaseEvidenceMatches, releaseEnvironment, type ReleaseEvidence } from "../src/lib/release-capabilities.ts";
 
@@ -58,7 +59,7 @@ export function assertCandidateReadback(evidence: ReleaseEvidence, observed: unk
     if (!object(entry) || typeof entry.name !== "string" || environment.has(entry.name)) throw new Error("Ambiguous runtime environment.");
     environment.set(entry.name, entry.value);
   }
-  for (const [name, value] of Object.entries({ ...releaseEnvironment(evidence.manifest), AZURE_EASY_AUTH_ENABLED: "true", DIRECT_GOOGLE_AUTH_ENABLED: "true", EXTERNAL_ID_AUTH_ENABLED: evidence.authenticationMode === "migration-dual" ? "true" : "false", SITE_VERSION: evidence.sha, NEXT_PUBLIC_SITE_URL: evidence.productionOrigin, RELEASE_IMAGE_DIGEST: evidence.imageDigest, BILLING_ENABLED: "false", BILLING_ROLLOUT_MODE: "closed" })) {
+  for (const [name, value] of Object.entries({ ...releaseEnvironment(evidence.manifest), DATABASE_POOL_MAX: String(modernDatabasePoolMax), AZURE_EASY_AUTH_ENABLED: "true", DIRECT_GOOGLE_AUTH_ENABLED: "true", EXTERNAL_ID_AUTH_ENABLED: evidence.authenticationMode === "migration-dual" ? "true" : "false", SITE_VERSION: evidence.sha, NEXT_PUBLIC_SITE_URL: evidence.productionOrigin, RELEASE_IMAGE_DIGEST: evidence.imageDigest, BILLING_ENABLED: "false", BILLING_ROLLOUT_MODE: "closed" })) {
     if (environment.get(name) !== value) throw new Error("Candidate runtime selection changed.");
   }
 }

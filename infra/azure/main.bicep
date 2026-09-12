@@ -476,6 +476,7 @@ var appEnvironment = concat(
     { name: 'NODE_ENV', value: 'production' }
     { name: 'DATABASE_URL', secretRef: 'database-url' }
     { name: 'DATABASE_SSL', value: 'verify-full' }
+    { name: 'DATABASE_POOL_MAX', value: '2' }
     { name: 'AZURE_CLIENT_ID', value: identity.properties.clientId }
     { name: 'AZURE_STORAGE_ACCOUNT_URL', value: storage.properties.primaryEndpoints.blob }
     { name: 'AZURE_STORAGE_BANNER_CONTAINER', value: bannerContainer.name }
