@@ -117,6 +117,9 @@ test("gives guests public help plus valid sign-in and email paths", async ({ pag
 test("persists the actual originating page and supported ticket fields", async ({ page }) => {
   await restoreLocalLearner(page);
   await page.goto("/library");
+  // The public library renders before session restoration; wait for the account
+  // before opening private support state, which resets when identity changes.
+  await expect(page.getByRole("button", { name: "Open My Courses for Local" })).toBeVisible();
   const originTitle = (await page.title()).replace(/\s+[|\u2014]\s+Filosage.*$/i, "").slice(0, 120);
   await page.getByRole("button", { name: "Open Support Center" }).click();
   const dialog = page.getByRole("dialog", { name: "Support center" });
