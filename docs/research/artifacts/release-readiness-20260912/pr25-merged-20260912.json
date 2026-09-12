@@ -1,0 +1,34 @@
+{
+  "observedAt": "2026-09-12T20:07:12.502477+00:00",
+  "pullRequest": {
+    "headRefOid": "974987bc193448e491592a779e4cf8fbb4b9dda2",
+    "mergeCommit": {
+      "oid": "17c9f30103490e48e58d195c6707b7ecb4f77732"
+    },
+    "mergedAt": "2026-09-12T20:05:08Z",
+    "state": "MERGED",
+    "url": "https://github.com/Victor-CS-Core/Filosage/pull/25"
+  },
+  "approval": "Victor explicitly approved merging PR25 at its unchanged reviewed head in the current task",
+  "method": "normal GitHub merge commit via exact-head landing helper; no bypass",
+  "mainTree": "7d32893e4d7474c41c0929123fb16042699d2e37",
+  "reviewedHeadTree": "7d32893e4d7474c41c0929123fb16042699d2e37",
+  "mainCiAtReadback": [
+    {
+      "conclusion": "",
+      "databaseId": 34716044527,
+      "headSha": "17c9f30103490e48e58d195c6707b7ecb4f77732",
+      "status": "in_progress",
+      "url": "https://github.com/Victor-CS-Core/Filosage/actions/runs/34716044527"
+    },
+    {
+      "conclusion": "success",
+      "databaseId": 34716044546,
+      "headSha": "17c9f30103490e48e58d195c6707b7ecb4f77732",
+      "status": "completed",
+      "url": "https://github.com/Victor-CS-Core/Filosage/actions/runs/34716044546"
+    }
+  ],
+  "deploymentStarted": false,
+  "nextBlocker": "current private restore rehearsal; RPO at most 15 minutes and RTO at most 60 minutes"
+}
