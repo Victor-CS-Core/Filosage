@@ -1,0 +1,78 @@
+{
+  "sourceCommit": "6113a0deab3cad77aa717b9441d5d98995e7a918",
+  "recordedAt": "2026-09-11T21:08:26.559Z",
+  "scope": "Flashcard usage test fixture path; no application or storage-contract change",
+  "failure": {
+    "fixture": "tests/fixtures/flashcard-usage-behavior.ts",
+    "originalWrapper": "tests/flashcard-system.spec.ts:48",
+    "reproducedTests": 2,
+    "passed": 0,
+    "failed": 2,
+    "error": "ENOENT before business assertions: a Windows absolute TEMP path on C: was appended below cwd on D:",
+    "log": ".codex-tmp/flashcard-usage-red.log",
+    "cleanup": "An import hook verified the exact owned TEMP parent and flashcard-usage name before the original recursive cleanup."
+  },
+  "contract": {
+    "source": "src/lib/local-store.ts:29",
+    "behavior": "STORE_PATH joins cwd, FILOSAGE_LOCAL_DIR, and store.json; existing owned harness callers provide relative directories.",
+    "cause": "path.relative() returns an absolute path when the Windows roots differ. The fixture assumed that tmpdir() and cwd share a drive.",
+    "existingPattern": "tests/billing/lifecycle.test.mjs creates its temporary fixture directory under cwd."
+  },
+  "fix": {
+    "file": "tests/fixtures/flashcard-usage-behavior.ts",
+    "behavior": "Create .flashcard-usage-* under cwd, keep FILOSAGE_LOCAL_DIR relative, and assert the exact workspace parent before cleanup.",
+    "preserved": "All refund, observed-cost, token, receipt, completed-replay, and idempotency assertions are unchanged."
+  },
+  "verification": {
+    "refundAndReplay": {
+      "passed": 2,
+      "failed": 0,
+      "log": ".codex-tmp/flashcard-usage-green.log"
+    },
+    "originalPlaywrightWrapper": {
+      "passed": 1,
+      "failed": 0,
+      "log": ".codex-tmp/flashcard-wrapper-green.log"
+    },
+    "existingOwnedDirectorySafety": {
+      "passed": 1,
+      "failed": 0,
+      "log": ".codex-tmp/flashcard-path-safety-green.log"
+    },
+    "focusedOxlint": "exit0",
+    "focusedEslint": "exit0",
+    "typeScript": "tsc --noEmit --incremental false: exit0",
+    "cleanup": "Exact originally owned C: temporary directory absent; no .flashcard-usage-* directories remain in this workspace."
+  },
+  "relatedUnmodifiedFixtures": {
+    "count": 19,
+    "files": [
+      "tests/evaluation-budget/budget.test.ts",
+      "tests/evaluation-budget/capability.test.ts",
+      "tests/evaluation-budget/completed-replay.test.ts",
+      "tests/evaluation-budget/course-route.test.ts",
+      "tests/evaluation-budget/full-route.test.ts",
+      "tests/fixtures/account-deletion-recovery-behavior.mjs",
+      "tests/fixtures/account-lifecycle-behavior.mjs",
+      "tests/fixtures/banner-deletion-race.mjs",
+      "tests/fixtures/generation-operations-behavior.ts",
+      "tests/fixtures/generic-ai-product-recovery-behavior.ts",
+      "tests/fixtures/generic-ai-route-recovery-behavior.ts",
+      "tests/fixtures/publication-proof-behavior.ts",
+      "tests/fixtures/support-availability-behavior.mjs",
+      "tests/lesson-integrity/repair-route.test.ts",
+      "tests/lesson-integrity/repair.test.ts",
+      "tests/lesson-integrity/route.test.ts",
+      "tests/lesson-integrity/save.test.ts",
+      "tests/lesson-operations/operations.test.ts",
+      "tests/lesson-operations/sdk-route.test.ts"
+    ],
+    "classification": "Source-audit exposure to the same cross-drive assumption; not executed as part of this bounded flashcard repair."
+  },
+  "externalChanges": {
+    "push": false,
+    "githubActions": false,
+    "deployment": false,
+    "billing": false
+  }
+}

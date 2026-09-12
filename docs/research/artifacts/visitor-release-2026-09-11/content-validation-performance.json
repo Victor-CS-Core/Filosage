@@ -1,0 +1,34 @@
+{
+  "scope": "Local synchronous lesson validation; generated or stored content bounded by the current 24000-character schema",
+  "baselineSourceSha": "3f491c8ac02c14cac10f69a6b8206715acf801b0",
+  "optimizedSourceSha": "28bea973595bb6f50b0a74dc4240f92da42d87f5",
+  "optimizedSourceBranch": "codex/content-validation-bounds-20260911",
+  "method": "Same-process baseline then optimized module measurements, three samples per operation, milliseconds. Timings are observations, not test thresholds or production latency claims.",
+  "cases": [
+    {
+      "operation": "sanitizeGeneratedText",
+      "inputRecipe": "'αβ '.repeat(8000)",
+      "inputCharacters": 24000,
+      "baselineMs": [315.23, 301.25, 373.79],
+      "optimizedMs": [9.14, 14.58, 10.64],
+      "expectedBehavior": "Remove disallowed Greek runs without a math context; preserve single symbols and short math notation under the existing policy"
+    },
+    {
+      "operation": "inspectGeneratedContent",
+      "inputRecipe": "{content: 'αβ '.repeat(8000)}",
+      "inputCharacters": 24000,
+      "baselineMs": [314.21, 350.66, 352.12],
+      "optimizedMs": [15.66, 21.30, 17.44],
+      "expectedBehavior": "Report unexpected Greek script; one full context check regardless of the number of short runs"
+    },
+    {
+      "operation": "lessonQualityIssues with introduction lessonKind",
+      "inputRecipe": "'Intro' + '\\n'.repeat(23990) + 'End.'",
+      "inputCharacters": 23999,
+      "baselineMs": [558.11, 707.19, 806.53],
+      "optimizedMs": [56.79, 56.74, 54.61],
+      "expectedBehavior": "Ordinary prose with blank lines is not a diagram; diagram fences, indentation, Unicode whitespace and multiline direction tokens remain detected"
+    }
+  ],
+  "regressionEvidence": "Both added contracts failed before the fix; complete content-language and lesson-pedagogy files pass 28/28 after. Tests assert operation count and preserved matching semantics, not elapsed time."
+}

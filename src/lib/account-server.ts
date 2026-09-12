@@ -10,6 +10,7 @@ import type { AccessLevel, AccountStatus, LearnerPlan } from "@/lib/course-types
 import { normalizeDisplayName, preferredDisplayName } from "@/lib/display-name";
 import { isBillingInterval, isPaidLearnerPlan, type PaidLearnerPlan } from "@/lib/membership-plans";
 import { serverEnvironment } from "@/lib/runtime-environment";
+import { subscriptionAccessIsCurrent } from "@/lib/billing-lock";
 
 export interface ServerAccount {
   uid: string;
@@ -28,6 +29,7 @@ export interface ServerAccount {
   subscriptionStatus: "none" | "trialing" | "active" | "past_due" | "canceled";
   billingInterval?: "monthly" | "annual";
   currentPeriodEnd?: string;
+  billingCancelAtPeriodEnd?: boolean;
   billingCustomerId?: string;
   billingSubscriptionId?: string;
   billingRawStatus?: string;
@@ -79,7 +81,13 @@ async function resolveAccount(
     const existing = documents[path];
     if (!existing) return { writes: [], result: null };
     const subscriptionStatus = String(existing?.subscriptionStatus ?? "none") as ServerAccount["subscriptionStatus"];
-    const subscribed = subscriptionStatus === "active" || subscriptionStatus === "trialing";
+    // A delayed or missing webhook must not extend the last verified paid period.
+    // Preserve provider status so an expired account can still recover or cancel.
+    const subscribed = subscriptionAccessIsCurrent({
+      subscriptionStatus,
+      currentPeriodEnd: existing.currentPeriodEnd,
+      billingTrialEnd: existing.billingTrialEnd,
+    });
     const legacyManualProUntil = typeof existing?.manualProUntil === "string" ? existing.manualProUntil : undefined;
     const manualPlanUntil = typeof existing?.manualPlanUntil === "string" ? existing.manualPlanUntil : legacyManualProUntil;
     const manualPlan = isPaidLearnerPlan(existing?.manualPlan)
@@ -148,7 +156,9 @@ async function resolveAccount(
     manualProUntil: typeof saved.manualProUntil === "string" ? saved.manualProUntil : undefined,
     subscriptionStatus: String(saved.subscriptionStatus ?? "none") as ServerAccount["subscriptionStatus"],
     billingInterval: isBillingInterval(saved.billingInterval) ? saved.billingInterval : undefined,
-    currentPeriodEnd: typeof saved.currentPeriodEnd === "string" ? saved.currentPeriodEnd : undefined,
+    currentPeriodEnd: typeof saved.currentPeriodEnd === "string" && Number.isFinite(Date.parse(saved.currentPeriodEnd))
+      ? saved.currentPeriodEnd : undefined,
+    billingCancelAtPeriodEnd: saved.billingCancelAtPeriodEnd === true,
     billingCustomerId: typeof saved.billingCustomerId === "string" ? saved.billingCustomerId : undefined,
     billingSubscriptionId: typeof saved.billingSubscriptionId === "string" ? saved.billingSubscriptionId : undefined,
     billingRawStatus: typeof saved.billingRawStatus === "string" ? saved.billingRawStatus : undefined,

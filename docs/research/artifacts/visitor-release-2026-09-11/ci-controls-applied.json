@@ -1,0 +1,52 @@
+{
+  "observedAt": "2026-09-11T22:02:15.6876886Z",
+  "mainSha": "ae1abe3d5d3f51fa7e0bdf004972a9555852166e",
+  "pr": "https://github.com/Victor-CS-Core/Filosage/pull/23",
+  "reviewedHead": "d2cd615a0bcf53c8a19c8e8231fb3cceecd50831",
+  "qualityRun": 34651321397,
+  "wikiRun": 34651321305,
+  "checkedBeforeMerge": [
+    "browser-smoke",
+    "static-and-release-contracts",
+    "validate",
+    "postgres-transactions"
+  ],
+  "mainWorkflowBlobs": [
+    {
+      "path": ".github/workflows/codeql.yml",
+      "blobSha": "c956f4dbbe76fd11dd8d8e4677ba7a3c99736c05",
+      "matchesReviewedHead": true
+    },
+    {
+      "path": ".github/workflows/full-regression.yml",
+      "blobSha": "ed271378fa31f1c1db89af1be27f8aff702c5841",
+      "matchesReviewedHead": true
+    },
+    {
+      "path": ".github/workflows/quality-gate.yml",
+      "blobSha": "7c381152945ad82811989ad29025ece5bac4178c",
+      "matchesReviewedHead": true
+    },
+    {
+      "path": ".github/workflows/support-wiki.yml",
+      "blobSha": "39d43d0a6743fb9745bd00ea729282a9fd82b9b0",
+      "matchesReviewedHead": true
+    }
+  ],
+  "manualWorkflows": [
+    {
+      "id": 340366410,
+      "name": "Full browser regression",
+      "path": ".github/workflows/full-regression.yml",
+      "state": "active"
+    },
+    {
+      "id": 351364370,
+      "name": "CodeQL security analysis",
+      "path": ".github/workflows/codeql.yml",
+      "state": "active"
+    }
+  ],
+  "manualDispatchesPerformed": 0,
+  "deploymentPerformed": false
+}

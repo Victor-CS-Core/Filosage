@@ -6,7 +6,7 @@ export default defineSupportArticle({
   summary: "Read the course overview, move through its stages, and continue from the next incomplete lesson.",
   category: "courses",
   keywords: ["course overview", "learning plan", "diagnostic", "baseline", "pause", "module", "stage", "lesson", "next lesson", "capstone"],
-  reviewedOn: "2026-09-06",
+  reviewedOn: "2026-09-11",
   sources: ["src/lib/learner-storage.ts", "src/lib/auth-server.ts",
     "src/app/course/[topic]/page.tsx",
     "src/components/CourseJourneyMap.tsx",
@@ -19,6 +19,8 @@ export default defineSupportArticle({
 A course overview explains the intended outcome, estimated commitment, modules, lesson sequence, and any milestone or capstone included with that course.
 
 Guests can inspect the structure of a published course. A free learner account is required to open lesson content.
+
+Choose a lesson to sign in and open that lesson after any required account setup. **Begin course** takes a new learner to the first lesson. You can inspect the outline without starting this flow.
 
 ## Build a personal learning route
 

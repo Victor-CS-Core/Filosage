@@ -1,0 +1,52 @@
+{
+  "status": "proposal-not-applied",
+  "inspectedOn": "2026-09-11",
+  "stripeAccount": "acct_1TtgXPRANh4Mnfma",
+  "livemode": true,
+  "configurationId": "bpc_1U2xj2RANh4Mnfmah5qcy8AY",
+  "parameters": {
+    "business_profile": {
+      "privacy_policy_url": "https://filosage.com/privacy",
+      "terms_of_service_url": "https://filosage.com/terms"
+    },
+    "features": {
+      "subscription_update": {
+        "enabled": true,
+        "default_allowed_updates": [
+          "price"
+        ],
+        "billing_cycle_anchor": "unchanged",
+        "proration_behavior": "always_invoice",
+        "schedule_at_period_end": {
+          "conditions": []
+        },
+        "products": [
+          {
+            "product": "prod_V32BJNJLz0qABm",
+            "prices": [
+              "price_1U2w6mRANh4MnfmaGEAWN8ot",
+              "price_1U2w6tRANh4MnfmaAPBkbZbc"
+            ]
+          },
+          {
+            "product": "prod_UwpssS1zZn2K3T",
+            "prices": [
+              "price_1TwwCbRANh4MnfmaUIzqyAgu",
+              "price_1TwwDYRANh4MnfmaSObWCWRD"
+            ]
+          }
+        ]
+      }
+    }
+  },
+  "preconditions": [
+    "Re-read the active configuration and live price/product relationships immediately before applying; stop if they differ from this review.",
+    "Verify the equivalent four-price setup through the hosted Stripe test-mode lifecycle first; test IDs must be resolved separately and never replaced with Live IDs.",
+    "Obtain Victor's approval for this exact live configuration change. This proposal does not enable new checkout or create a subscription."
+  ],
+  "preservedBehavior": [
+    "Ordinary cancellation remains enabled at period end with existing reason collection.",
+    "Invoice history and payment-method updates remain enabled.",
+    "New paid checkout remains closed until the separate complete commercial release gates pass."
+  ]
+}

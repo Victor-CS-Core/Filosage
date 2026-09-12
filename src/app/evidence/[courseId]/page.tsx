@@ -270,7 +270,7 @@ export default function EvidenceReportPage() {
             {account?.capabilities?.shareEvidenceReport && <button className="button button-primary" type="button" onClick={() => void createProfessionalShare()} disabled={professionalBusy !== null}>
               {professionalBusy === "share" ? <LoaderCircle className="spin" size={16} /> : <Share2 size={16} />} Create 30-day link
             </button>}
-          </div> : <Link className="button button-secondary" href="/pricing?plan=pro&from=evidence-portable" onClick={() => trackProductEvent("upgrade_prompt_selected", { route: "/evidence", surface: "evidence_portable", courseId })}>Add portable export with Pro</Link>}
+          </div> : <Link className="button button-secondary" href={"/pricing?plan=pro&from=evidence-portable"} onClick={() => trackProductEvent("upgrade_prompt_selected", { route: "/evidence", surface: "evidence_portable", courseId })}>Add portable export with Pro</Link>}
           {account?.capabilities?.shareEvidenceReport && <LearnerSourceNotice label="Share links" {...sharesSource} />}
           {account?.capabilities?.advancedCapstoneAnalysis && <LearnerSourceNotice label="Capstone analysis" {...analysisSource} />}
           {professionalError && <p className="form-error" role="alert">{professionalError}</p>}

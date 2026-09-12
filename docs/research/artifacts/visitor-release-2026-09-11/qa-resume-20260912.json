@@ -1,0 +1,126 @@
+{
+  "recordedAt": "2026-09-12T02:34:00Z",
+  "qaSourceCommit": "c7d9c2c274bfcaee805332a83d94a208af32f09e",
+  "qaRevision": "filosageqa-app--qa-c7d9c2c-1",
+  "qaImageDigest": "sha256:3d33eacc178c4e6323c957ab9fd1d81c2dd2f8e149b3b43bbe44e9b09a76bf14",
+  "qaOrigin": "https://qa.filosage.com",
+  "requiredCiAtC7": {
+    "security": 34663630384,
+    "engineering": 34663630394,
+    "wiki": 34663630427,
+    "allFiveRequiredJobsPassed": true,
+    "heavyManualWorkflowsDispatched": false
+  },
+  "qaDatabase": {
+    "role": "filosageqa_runtime",
+    "database": "filosageqa",
+    "runtimeLoginAndRolledBackDmlVerified": true,
+    "vaultWriteReadbackEqual": true
+  },
+  "qaHealth": {
+    "status": 200,
+    "ok": true,
+    "versionMatches": true,
+    "digestMatches": true,
+    "originMatches": true,
+    "manifestMatches": true,
+    "configurationHealthy": true,
+    "datastoreHealthy": true,
+    "authenticationMode": "migration-dual"
+  },
+  "startupDatabaseGuardVerified": true,
+  "authConfigurationUnchanged": true,
+  "hostedWebkit": {
+    "revision": "filosageqa-app--qa-c7d9c2c-1",
+    "project": "mobile-webkit",
+    "passed": 2,
+    "failed": 0,
+    "skipped": 0,
+    "retried": 0
+  },
+  "hostedWebkitProvenance": {
+    "source": "c7d9c2c274bfcaee805332a83d94a208af32f09e",
+    "origin": "https://qa.filosage.com",
+    "productionAssets": true,
+    "controlledSessionFixtures": true,
+    "realAccountLoginVerified": false,
+    "tlsVerificationEnabled": true,
+    "systemCaPackage": "ca-certificates 20250419~deb12u1",
+    "resultSha256": "a8868dd5469a149ba2abfab3fd73fd75b992494d6914d30da56c29872133eae1",
+    "startTime": "2026-09-12T02:27:44.588Z",
+    "durationMs": 12609.514,
+    "previousAttempts": {
+      "initialContext": "configuration omitted; no tests launched",
+      "withoutSystemCa": "two TLS navigation failures; no assertions reached"
+    }
+  },
+  "priorSupportedWebkit": {
+    "initialPassed": 4,
+    "initialFailed": 2,
+    "focusedDiagnosticPassed": 2,
+    "focusedDiagnosticFailed": 0,
+    "initialEvidenceRetained": true
+  },
+  "anonymousApiChecks": [
+    {
+      "path": "/api/auth/session",
+      "status": 200,
+      "anonymousSession": true
+    },
+    {
+      "path": "/api/account",
+      "status": 401,
+      "privateAccessDenied": true
+    },
+    {
+      "path": "/api/courses?scope=mine",
+      "status": 401,
+      "privateAccessDenied": true
+    }
+  ],
+  "realOwnedAccountLoginVerified": false,
+  "manualQaChecks": [
+    "Public featured course outline loads",
+    "Account-start dialog opens",
+    "Escape restores focus to account-start trigger",
+    "Light and dark course presentation inspected"
+  ],
+  "publicProductionDeployed": false,
+  "liveBillingActivated": false,
+  "remaining": [
+    "Owned-account authentication and selected-lesson return",
+    "Hosted Azure explicit theme and identity compatibility",
+    "QA Stripe durable TEST API credential and full four-offer lifecycle",
+    "Final frozen-candidate review, integration and production verification"
+  ],
+  "tracking": {
+    "primarySyncKey": "filosage-visitor-audit-20260911",
+    "relatedSyncKey": "filosage-public-release-2026-09-11",
+    "owner": "Codex coordinator",
+    "status": "in progress",
+    "multicaDelivery": "unavailable; no remote item/event claimed"
+  },
+  "localEvidenceSha256": {
+    "qa-bootstrap-result.json": "fca689ba619e018b3c4be03a8baaf283e114981f9a61519fe2e12ce1049cd9f7",
+    "qa-health-c7d9c2c.json": "52de6b76f6b9f3460c2747add524e58c62e3248c8da1ba81e9bd3cb2425db155",
+    "qa-startup-c7d9c2c.json": "c74869cdaa895f7da407445e303a1ed1cf85f02cf911527405e178497a10a5ae",
+    "qa-prod-webkit-hosted-result.json": "5ce7d960a0c22f714054197ccbd228b12568a4a53153bfb736735ba79fcde61f",
+    "qa-prod-webkit-hosted-provenance.json": "900157cc9b47ae28089518813e10f0368a5ea3af4ed040676b2a1a87f5ceb8d1",
+    "qa-vault-access-c7d9c2c-precutover.json": "04a08aa0a1625245de21d8462138119600d5e50eb2778e09839eacd6d81680cf",
+    "qa-owner-secret-cutover-result.json": "626cc03060fee56ed540f635dda323f9db471d3538887e64edefb42db3bbba30",
+    "qa-vault-access-final-result.json": "0a2b4d314ffba546d89f116216ba9342c289c78a8a0f45ee30c545ad5abc5871",
+    "qa-owner-secret-final-state.json": "a824579f6bdc418e312dd9775f9665bce18393a8cb05f3e5ab50a804b024f5c9"
+  },
+  "qaVaultIsolation": {
+    "finalAllowed": 7,
+    "finalDenied": 5,
+    "strictRedirectHandling": true,
+    "actualManagedIdentityProbePassed": true,
+    "oldAppSecretReferenceRemoved": true,
+    "oldOwnerSecretScopeGrantRemoved": true,
+    "oldVaultSecretVersionPreserved": true,
+    "rollbackRequiresGrantThenSecretReferenceRestoration": true,
+    "unrelatedStatePreserved": true,
+    "freshHealthAndAuthVerified": true
+  }
+}

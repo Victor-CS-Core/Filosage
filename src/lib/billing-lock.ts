@@ -168,6 +168,17 @@ export function subscriptionBlocksCheckout(status: string | null | undefined) {
   return true;
 }
 
+export function subscriptionAccessIsCurrent(input: {
+  subscriptionStatus?: unknown;
+  currentPeriodEnd?: unknown;
+  billingTrialEnd?: unknown;
+}, nowMs = Date.now()) {
+  if (input.subscriptionStatus !== "active" && input.subscriptionStatus !== "trialing") return false;
+  if (typeof input.currentPeriodEnd !== "string" || !(Date.parse(input.currentPeriodEnd) > nowMs)) return false;
+  return input.subscriptionStatus !== "trialing" || input.billingTrialEnd == null
+    || (typeof input.billingTrialEnd === "string" && Date.parse(input.billingTrialEnd) > nowMs);
+}
+
 export function normalizedSubscriptionStatus(status: string | null | undefined): StoredSubscriptionStatus {
   if (status === "active" || status === "trialing") return status;
   if (status === "canceled" || status === "incomplete_expired") return "canceled";

@@ -1,0 +1,79 @@
+{
+  "conditions": "Warm optimized local servers, fresh Chromium contexts, 390x844, reduced motion, empty catalog, exact guest session DTO delayed 750ms; three samples per build. Measured September 11, 2026. These are local laboratory observations, not field Core Web Vitals.",
+  "baseline": {
+    "sourceSha": "9c4e018b767e6b269e30000010517d8d1f1cfa9f",
+    "samples": [
+      {
+        "ttfbMs": 27,
+        "fcpMs": 196,
+        "observedReadyMs": 1225,
+        "scriptCount": 15,
+        "scriptTransferBytes": 329318,
+        "scriptDecodedBytes": 1130368,
+        "pageHeight": 8492
+      },
+      {
+        "ttfbMs": 9,
+        "fcpMs": 160,
+        "observedReadyMs": 1182,
+        "scriptCount": 15,
+        "scriptTransferBytes": 329318,
+        "scriptDecodedBytes": 1130368,
+        "pageHeight": 8412
+      },
+      {
+        "ttfbMs": 8,
+        "fcpMs": 152,
+        "observedReadyMs": 1157,
+        "scriptCount": 15,
+        "scriptTransferBytes": 329318,
+        "scriptDecodedBytes": 1130368,
+        "pageHeight": 8412
+      }
+    ]
+  },
+  "after": {
+    "sourceSha": "7c26c8f77ebe71b149d46e9e8b573a7a898b3960",
+    "samples": [
+      {
+        "ttfbMs": 38,
+        "fcpMs": 252,
+        "observedReadyMs": 556,
+        "scriptCount": 14,
+        "scriptTransferBytes": 203887,
+        "scriptDecodedBytes": 654788,
+        "pageHeight": 3857
+      },
+      {
+        "ttfbMs": 15,
+        "fcpMs": 180,
+        "observedReadyMs": 459,
+        "scriptCount": 14,
+        "scriptTransferBytes": 203887,
+        "scriptDecodedBytes": 654788,
+        "pageHeight": 3857
+      },
+      {
+        "ttfbMs": 13,
+        "fcpMs": 212,
+        "observedReadyMs": 382,
+        "scriptCount": 14,
+        "scriptTransferBytes": 203887,
+        "scriptDecodedBytes": 654788,
+        "pageHeight": 3857
+      }
+    ]
+  },
+  "summary": {
+    "baselineMedianReadyMs": 1182,
+    "afterMedianReadyMs": 459,
+    "scriptTransferReductionPercent": 38.1,
+    "observedReadyReductionPercent": 61.2
+  },
+  "limitations": [
+    "Ready time uses polling and varies with local scheduling; it is not a Core Web Vital.",
+    "Fixed delayed session and empty catalog isolate public rendering and bundle delivery; production course payload and real identity-provider latency are not measured.",
+    "Page height can vary before fonts settle.",
+    "Optimized builds were served using next start for this laboratory comparison; hosted standalone deployment remains unverified."
+  ]
+}

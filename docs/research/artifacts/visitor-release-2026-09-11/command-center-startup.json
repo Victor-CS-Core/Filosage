@@ -1,0 +1,109 @@
+{
+  "conditions": "Local development webpack harness; fresh build/store for cold sample; exact existing owner terms and local-session setup; fresh Chromium contexts; initial heading assertion remains 5000ms. Late diagnostic observation is not a passing initial test.",
+  "samples": [
+    {
+      "condition": "cold-compile",
+      "gotoCompletedMs": 11114,
+      "initialHeadingWithinFiveSeconds": true,
+      "stateAfterAssertion": {
+        "authBoot": 0,
+        "accountUnavailable": 0
+      },
+      "eventuallyVisible": true,
+      "observedHeadingMs": 13580,
+      "pageErrors": 0,
+      "requests": [
+        {
+          "path": "/admin/command-center",
+          "startedMs": 6,
+          "finishedMs": 9880,
+          "durationMs": 9739,
+          "status": 200
+        },
+        {
+          "path": "/api/account",
+          "startedMs": 11236,
+          "finishedMs": 13028,
+          "durationMs": 1790,
+          "status": 200
+        },
+        {
+          "path": "/api/support/capabilities",
+          "startedMs": 13230,
+          "failed": true,
+          "finishedMs": 13250
+        }
+      ]
+    },
+    {
+      "condition": "prewarmed",
+      "gotoCompletedMs": 1321,
+      "initialHeadingWithinFiveSeconds": true,
+      "stateAfterAssertion": {
+        "authBoot": 0,
+        "accountUnavailable": 0
+      },
+      "eventuallyVisible": true,
+      "observedHeadingMs": 1604,
+      "pageErrors": 0,
+      "requests": [
+        {
+          "path": "/admin/command-center",
+          "startedMs": 3,
+          "finishedMs": 394,
+          "durationMs": 284,
+          "status": 200
+        },
+        {
+          "path": "/api/account",
+          "startedMs": 1413,
+          "finishedMs": 1450,
+          "durationMs": 35,
+          "status": 200
+        },
+        {
+          "path": "/api/support/capabilities",
+          "startedMs": 1587,
+          "failed": true,
+          "finishedMs": 1600
+        },
+        {
+          "path": "/api/support/capabilities",
+          "startedMs": 1588,
+          "finishedMs": 1607,
+          "durationMs": 16,
+          "status": 200
+        }
+      ]
+    }
+  ],
+  "sourceCommit": "0f1d7c50ac119bd8d23102c88a7e7c3227ce76a9",
+  "originalFailure": {
+    "rootRun": "release-desktop-recovery-20260911-b5",
+    "test": "tests/command-center.spec.ts:468",
+    "state": "auth boot shell only",
+    "assertionTimeoutMs": 5000,
+    "diagnosis": "Not reproduced. Cold compilation overhead is measured, but the original timeout cause is unconfirmed."
+  },
+  "serverTimings": {
+    "cold": {
+      "commandCenterMs": 8100,
+      "nextCompileMs": 7600,
+      "accountMs": 1787,
+      "accountNextCompileMs": 1534
+    },
+    "warm": {
+      "commandCenterMs": 278,
+      "nextCompileMs": 62,
+      "accountMs": 33,
+      "accountNextCompileMs": 12
+    }
+  },
+  "unchangedFullOwnerCase": {
+    "passed": 1,
+    "failed": 0,
+    "durationSeconds": 7.9,
+    "command": "PLAYWRIGHT_EXTERNAL_SERVER=1 PLAYWRIGHT_PORT=3710 FILOSAGE_PLAYWRIGHT_PROJECT=chromium npx playwright test tests/command-center.spec.ts --project=chromium --grep \"renders the owner command center with visible draft-only safety controls\" --reporter=line"
+  },
+  "limits": "Local webpack development evidence only. No auth-loading bypass, timeout change, or skipped assertion. Does not prove production latency or a passing original full matrix. Canceled support requests in samples were observed during development effect replay/context closure and were not classified as successful requests."
+}

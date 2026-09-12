@@ -1,0 +1,167 @@
+{
+  "recordedAt": "2026-09-12T10:58:58.661321+00:00",
+  "scope": "Recovery and closed QA Stripe TEST binding; full release goal remains incomplete",
+  "qaRuntime": {
+    "appShowEmptyValueFieldsAlongsidePreexistingSecretRefs": [
+      "ACTIVITY_RECEIPT_SECRET",
+      "DATABASE_URL",
+      "IDENTITY_LINK_HMAC_SECRET",
+      "MIGRATED_OWNER_UID",
+      "OPENAI_API_KEY"
+    ],
+    "applicationSecretsExactFromRollbackManifestPlusStripeKey": true,
+    "authSha256": "2b93970b2ffe8ebd82cdeffbedd6ba061519350ce833d289bb1a734a348e8600",
+    "baselineRevision": {
+      "active": false,
+      "name": "filosageqa-app--qa-c7d9c2c-1",
+      "runningState": "Stopped",
+      "trafficWeight": 0
+    },
+    "billingEnabled": false,
+    "billingProvider": "stripe",
+    "billingRolloutMode": "closed",
+    "checkedAt": "2026-09-12T10:54:35.754273+00:00",
+    "currentSharedConfigurationSha256": "9bbbb9c4662e5d189048dc8725fa4c9f4f3f3e98f6cc3d1864d90dcb83fd69d9",
+    "currentSharedConfigurationVerified": true,
+    "environmentExactFromRetainedC7PlusReviewedStripeDelta": true,
+    "health": {
+      "configuration": true,
+      "datastore": true,
+      "httpStatus": 200,
+      "origin": "https://qa.filosage.com"
+    },
+    "historicalComparisonSources": {
+      "applicationSecretsAndRoles": "rollback-20260912T104742Z.json",
+      "auth": "established pre-deployment fingerprint",
+      "environmentAndTemplate": "retained c7 revision show vs target revision show"
+    },
+    "historicalFullSharedConfigurationSnapshotAvailable": false,
+    "image": "filosagestp4ujucgnxq3gsacr.azurecr.io/filosage-qa@sha256:3d33eacc178c4e6323c957ab9fd1d81c2dd2f8e149b3b43bbe44e9b09a76bf14",
+    "imageDigest": "sha256:3d33eacc178c4e6323c957ab9fd1d81c2dd2f8e149b3b43bbe44e9b09a76bf14",
+    "initialHelperResult": "failed post-deploy while old c7 was transiently active Deprovisioning at traffic 0; no mutation retried",
+    "managedIdentity": {
+      "allowed200": 8,
+      "denied403": 5,
+      "passed": true,
+      "revision": "filosageqa-app--qa-stripe-test-1"
+    },
+    "ok": true,
+    "revision": "filosageqa-app--qa-stripe-test-1",
+    "roleIdsExactFromRollbackManifestPlusStripeGrant": true,
+    "rollbackManifest": "rollback-20260912T104742Z.json",
+    "runtimeRevisionEnvironmentCanonical": true,
+    "sourceSha": "c7d9c2c274bfcaee805332a83d94a208af32f09e",
+    "stripeTaxReady": false,
+    "target": {
+      "active": true,
+      "healthState": "Healthy",
+      "provisioningState": "Succeeded",
+      "runningState": "RunningAtMaxScale",
+      "trafficWeight": 100
+    },
+    "templateExactFromRetainedC7": true
+  },
+  "recovery": {
+    "initialQaAndPublicConnectionTimeout": true,
+    "containerAppsErrorCode": "ManagedClusterSuspended",
+    "subscriptionReportedEnabled": true,
+    "qaRecoveredAt": "2026-09-12T10:33:54Z",
+    "recoveryRequiredOurMutation": false,
+    "publicHttpStatus": 200,
+    "publicUnchangedVersion": "93f60f24afe59b19b6a592f455a09e8e813f1f84"
+  },
+  "stripe": {
+    "account": "acct_1TtgXPRANh4Mnfma",
+    "livemode": false,
+    "existingCredentialStoredAndVerified": true,
+    "newStripeCredentialCreated": false,
+    "qaRuntimeBound": true,
+    "existingFourPricesVerified": true,
+    "existingQaWebhookVerified": true,
+    "existingQaPortalExpandedPricesVerified": true,
+    "providerObjectsReused": true,
+    "actualStripeDeliveryVerified": false,
+    "fullFourOfferLifecycleVerified": false
+  },
+  "browser": {
+    "qaHomepageLoaded": true,
+    "featuredCourseLoaded": true,
+    "libraryLoaded": true,
+    "pricingLoaded": true,
+    "paidCheckoutClosed": true,
+    "realLearnerSignInVerified": false
+  },
+  "hostedTheme": {
+    "qaTenantBrandingUiAccessible": true,
+    "draft": "unassigned fixed-light, unsaved",
+    "cssUploaded": false,
+    "themeCreated": false,
+    "identityOrDefaultBrandingChanged": false,
+    "blocker": "Supported in-app browser file chooser attempts timed out"
+  },
+  "manualCleanup": {
+    "resourceGroup": "kbot-m0-recovery-lab",
+    "groupExists": false,
+    "activityLogDeleteStatus": "Succeeded",
+    "activityLogDeleteAt": "2026-09-12T10:13:50.837Z",
+    "deletedByThisTask": false
+  },
+  "release": {
+    "publicPromotion": false,
+    "liveBillingActivation": false,
+    "heavyManualWorkflowDispatched": false,
+    "fullGoalComplete": false,
+    "remaining": [
+      "Owned learner sign-in, recovery and selected-lesson return",
+      "Hosted fixed-theme visual and identity-compatible integration",
+      "Actual Stripe delivery and four-offer billing lifecycle",
+      "Frozen candidate verification, final review/integration and production verification"
+    ]
+  },
+  "tracking": {
+    "primarySyncKey": "filosage-visitor-audit-20260911",
+    "relatedSyncKey": "filosage-public-release-2026-09-11",
+    "owner": "Codex coordinator",
+    "localStatus": "in progress",
+    "multicaDelivery": "unavailable; no delivered/queued item or event claimed"
+  },
+  "localEvidenceSha256": {
+    "stripe-test-key-verified-20260912.json": "415bbba648284eacdfdb71cfa84a8d02f40ab0e41963a4431ba4703364a2ac34",
+    "stripe-test-provider-fresh-20260912.json": "591dcb6d4caa8252836d4fb40ab34ae1cd0c0d44b173198d27daf111f3ee3798",
+    "qa-suspension-20260912.json": "59a0a70069de1e4c303ad21488fd008b6919e4978b3f0631d589d313b27c03d4",
+    "qa-browser-recovery-20260912.json": "80a1412bf9d6273c4fb8351410971a6356d5ce010475d8505ba9d417546d4f25",
+    "qa-stripe-target-final-20260912.json": "ee9088dca48acac9a6016a4cb7acb7f5c918af33ecf6005ad816de2096f14a72",
+    "qa-stripe-target-final-review-20260912.md": "3447d0c0eea89e0929a65007b6d003647c7a0714aa1b87499923d7075e46b367",
+    "qa-stripe-webhook-guard-review-20260912.md": "fb2b322a382313c238bb18ed4f412f5a6be73b0c3ac892c1adf337ae5c1481f3",
+    "qa-stripe-webhook-transport-20260912.json": "35028a0dba26b6a0d4bbf0ca69681ca2dedb7147fd536838f742e7e442a31f15",
+    "verify-qa-stripe-webhook-transport.py": "ae0b5bd17b94d7bd34b9f3f4af6aeabbb5869091fc105b49cd947a1ad8436d51"
+  },
+  "webhookTransport": {
+    "checkedAt": "2026-09-12T10:58:30.758895+00:00",
+    "revision": "filosageqa-app--qa-stripe-test-1",
+    "origin": "https://qa.filosage.com",
+    "syntheticEventId": "evt_filosage_qa_transport_87c8c7095cfa4de9b503fadbd37a5070",
+    "billingEnabled": false,
+    "results": [
+      {
+        "case": "invalid_signature",
+        "status": 400,
+        "passed": true
+      },
+      {
+        "case": "valid_synthetic_event",
+        "status": 200,
+        "passed": true
+      },
+      {
+        "case": "duplicate_synthetic_event",
+        "status": 200,
+        "passed": true
+      }
+    ],
+    "syntheticTransportOnly": true,
+    "actualStripeDeliveryVerified": false,
+    "customerAccountOrSubscriptionModified": false,
+    "retainedQaEventEvidenceRecords": 1
+  }
+}

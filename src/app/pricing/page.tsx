@@ -47,10 +47,12 @@ function locationSearch() {
   return window.location.search;
 }
 
-function renewalLabel(value: string | undefined, status: string | undefined) {
+function renewalLabel(value: string | undefined, status: string | undefined, cancelAtPeriodEnd?: boolean) {
   if (!value) return null;
   const formatted = new Intl.DateTimeFormat("en-US", { month: "long", day: "numeric", year: "numeric" }).format(new Date(value));
-  return status === "canceled" ? `Access ends ${formatted}` : `Next billing boundary ${formatted}`;
+  if (status === "canceled") return "Subscription canceled; paid access has ended";
+  if (Date.parse(value) <= Date.now()) return `Paid access ended ${formatted}`;
+  return cancelAtPeriodEnd ? `Cancels ${formatted}; paid access continues until then` : `Renews ${formatted}`;
 }
 
 export default function PricingPage() {
@@ -270,10 +272,10 @@ export default function PricingPage() {
   };
 
   return (
-    <AppShell>
+    <AppShell publicWhileLoading>
       <div className="pricing-page">
         <header className="pricing-header">
-          <h1>Choose how far Filosage carries your goal.</h1>
+          <h1>Choose your plan.</h1>
           <p>Free connects published learning and practice. Plus adds private course creation. Pro adds advanced capstone analysis, portable evidence reports, revocable sharing, and publishing tools.</p>
         </header>
 
@@ -333,7 +335,7 @@ export default function PricingPage() {
             const primaryAmount = paidPlanId
               ? interval === "monthly" ? plan.prices!.monthly.amountMinor : annualMonthlyEquivalentMinor(paidPlanId)
               : 0;
-            const renewal = isCurrent ? renewalLabel(account?.currentPeriodEnd, account?.subscriptionStatus) : null;
+            const renewal = isCurrent ? renewalLabel(account?.currentPeriodEnd, account?.subscriptionStatus, account?.billingCancelAtPeriodEnd) : null;
             return (
               <section className={`plan-column plan-${plan.id}${selectedPlan === plan.id ? " is-selected" : ""}`} aria-labelledby={`${plan.id}-plan-title`} key={plan.id}>
                 <div className="plan-heading"><span><Icon size={19} /></span><div><h2 id={`${plan.id}-plan-title`}>{plan.name}</h2><p>{plan.description}</p></div></div>

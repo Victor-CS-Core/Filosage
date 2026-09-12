@@ -1,0 +1,268 @@
+{
+  "sourceSha": "4bd9d7c1ee947fb7dafc627ef97e4eb449b496f1",
+  "environment": "Windows; local development harness; Chromium; no CI or hosted authentication",
+  "originalInterruption": {
+    "runId": "matrix-release-local-20260911",
+    "completedBatches": [
+      1
+    ],
+    "interruptedBatch": 2,
+    "partialTestsCounted": false,
+    "confirmation": "Original tool process disappeared; OS process inventory and ports3610-3612 confirmed stopped before recovery."
+  },
+  "recovery": {
+    "startedAt": "2026-09-11T20:42:40.0862783Z",
+    "completedAt": "2026-09-11T21:02:44.0269308Z",
+    "globalStartDeadlineMinutes": 45,
+    "perBatchDeadlineMinutes": 6,
+    "runIds": [
+      "matrix-release-desktop-recovery-20260911-b2",
+      "matrix-release-desktop-recovery-20260911-b3",
+      "matrix-release-desktop-recovery-20260911-b4",
+      "matrix-release-desktop-recovery-20260911-b5",
+      "matrix-release-desktop-recovery-20260911-b6",
+      "matrix-release-desktop-recovery-20260911-b7",
+      "matrix-release-desktop-recovery-20260911-b8",
+      "matrix-release-desktop-recovery-20260911-b9",
+      "matrix-release-desktop-recovery-20260911-b10"
+    ]
+  },
+  "totals": {
+    "expected": 318,
+    "unexpected": 4,
+    "skipped": 4,
+    "flaky": 0
+  },
+  "batches": [
+    {
+      "originalBatch": 1,
+      "evidence": "playwright-report/matrix-release-local-20260911/chromium/batch-1",
+      "stats": {
+        "startTime": "2026-09-11T20:28:27.095Z",
+        "duration": 270429.0869140625,
+        "expected": 73,
+        "skipped": 0,
+        "unexpected": 1,
+        "flaky": 0
+      },
+      "exceptions": [
+        {
+          "file": "example.spec.ts",
+          "line": 716,
+          "title": "describes guest access and Pro publishing consistently across public pages",
+          "status": "unexpected",
+          "expectedStatus": "passed",
+          "skipReasons": []
+        }
+      ],
+      "reportErrors": 0
+    },
+    {
+      "originalBatch": 2,
+      "status": "passed",
+      "evidence": "playwright-report/matrix-release-desktop-recovery-20260911-b2/merged/results.json",
+      "stats": {
+        "startTime": "2026-09-11T20:42:41.526Z",
+        "duration": 213669.96606445312,
+        "expected": 54,
+        "skipped": 1,
+        "unexpected": 0,
+        "flaky": 0
+      },
+      "exceptions": [
+        {
+          "file": "marketing-gauntlet-runtime-acceptance.spec.ts",
+          "line": 109,
+          "title": "captures production-mode marketing gauntlet acceptance",
+          "status": "skipped",
+          "expectedStatus": "skipped",
+          "skipReasons": [
+            "Requires an explicitly started optimized production server."
+          ]
+        }
+      ],
+      "reportErrors": 0
+    },
+    {
+      "originalBatch": 3,
+      "status": "passed",
+      "evidence": "playwright-report/matrix-release-desktop-recovery-20260911-b3/merged/results.json",
+      "stats": {
+        "startTime": "2026-09-11T20:46:17.243Z",
+        "duration": 193347.01098632812,
+        "expected": 36,
+        "skipped": 1,
+        "unexpected": 0,
+        "flaky": 0
+      },
+      "exceptions": [
+        {
+          "file": "app-shell.spec.ts",
+          "line": 1433,
+          "title": "keeps vertical touch scrolling native while a horizontal touch flick changes course",
+          "status": "skipped",
+          "expectedStatus": "skipped",
+          "skipReasons": [
+            "Trusted touch-drag synthesis is only available through Chromium CDP."
+          ]
+        }
+      ],
+      "reportErrors": 0
+    },
+    {
+      "originalBatch": 4,
+      "status": "passed",
+      "evidence": "playwright-report/matrix-release-desktop-recovery-20260911-b4/merged/results.json",
+      "stats": {
+        "startTime": "2026-09-11T20:49:33.186Z",
+        "duration": 79181.88305664062,
+        "expected": 29,
+        "skipped": 0,
+        "unexpected": 0,
+        "flaky": 0
+      },
+      "exceptions": [],
+      "reportErrors": 0
+    },
+    {
+      "originalBatch": 5,
+      "status": "failed",
+      "evidence": "playwright-report/matrix-release-desktop-recovery-20260911-b5/merged/results.json",
+      "stats": {
+        "startTime": "2026-09-11T20:50:55.410Z",
+        "duration": 182593.69799804688,
+        "expected": 19,
+        "skipped": 0,
+        "unexpected": 1,
+        "flaky": 0
+      },
+      "exceptions": [
+        {
+          "file": "command-center.spec.ts",
+          "line": 468,
+          "title": "renders the owner command center with visible draft-only safety controls",
+          "status": "unexpected",
+          "expectedStatus": "passed",
+          "skipReasons": []
+        }
+      ],
+      "reportErrors": 0
+    },
+    {
+      "originalBatch": 6,
+      "status": "passed",
+      "evidence": "playwright-report/matrix-release-desktop-recovery-20260911-b6/merged/results.json",
+      "stats": {
+        "startTime": "2026-09-11T20:54:01.318Z",
+        "duration": 74004.5439453125,
+        "expected": 23,
+        "skipped": 0,
+        "unexpected": 0,
+        "flaky": 0
+      },
+      "exceptions": [],
+      "reportErrors": 0
+    },
+    {
+      "originalBatch": 7,
+      "status": "passed",
+      "evidence": "playwright-report/matrix-release-desktop-recovery-20260911-b7/merged/results.json",
+      "stats": {
+        "startTime": "2026-09-11T20:55:17.419Z",
+        "duration": 85322.93408203125,
+        "expected": 22,
+        "skipped": 0,
+        "unexpected": 0,
+        "flaky": 0
+      },
+      "exceptions": [],
+      "reportErrors": 0
+    },
+    {
+      "originalBatch": 8,
+      "status": "passed",
+      "evidence": "playwright-report/matrix-release-desktop-recovery-20260911-b8/merged/results.json",
+      "stats": {
+        "startTime": "2026-09-11T20:56:44.693Z",
+        "duration": 118488.61694335938,
+        "expected": 22,
+        "skipped": 1,
+        "unexpected": 0,
+        "flaky": 0
+      },
+      "exceptions": [
+        {
+          "file": "support-wiki.spec.ts",
+          "line": 275,
+          "title": "keeps article navigation and prose within a phone viewport",
+          "status": "skipped",
+          "expectedStatus": "skipped",
+          "skipReasons": [
+            "The mobile article contract runs in a phone-sized project."
+          ]
+        }
+      ],
+      "reportErrors": 0
+    },
+    {
+      "originalBatch": 9,
+      "status": "failed",
+      "evidence": "playwright-report/matrix-release-desktop-recovery-20260911-b9/merged/results.json",
+      "stats": {
+        "startTime": "2026-09-11T20:58:45.482Z",
+        "duration": 151399.373046875,
+        "expected": 21,
+        "skipped": 1,
+        "unexpected": 1,
+        "flaky": 0
+      },
+      "exceptions": [
+        {
+          "file": "account-storage-isolation.spec.ts",
+          "line": 174,
+          "title": "A signs out; guest and B see none of A's work and B uploads no A payload; A's offline drafts survive reload",
+          "status": "unexpected",
+          "expectedStatus": "passed",
+          "skipReasons": []
+        },
+        {
+          "file": "visitor-release.spec.ts",
+          "line": 22,
+          "title": "records an optimized visitor performance sample",
+          "status": "skipped",
+          "expectedStatus": "skipped",
+          "skipReasons": [
+            "Only run against an explicitly started optimized build."
+          ]
+        }
+      ],
+      "reportErrors": 0
+    },
+    {
+      "originalBatch": 10,
+      "status": "failed",
+      "evidence": "playwright-report/matrix-release-desktop-recovery-20260911-b10/merged/results.json",
+      "stats": {
+        "startTime": "2026-09-11T21:01:19.168Z",
+        "duration": 83152.85888671875,
+        "expected": 19,
+        "skipped": 0,
+        "unexpected": 1,
+        "flaky": 0
+      },
+      "exceptions": [
+        {
+          "file": "flashcard-system.spec.ts",
+          "line": 48,
+          "title": "flashcard failure refunds the metered event while observed cost and completed replay settle once",
+          "status": "unexpected",
+          "expectedStatus": "passed",
+          "skipReasons": []
+        }
+      ],
+      "reportErrors": 0
+    }
+  ],
+  "status": "failed",
+  "interpretation": "Original failures and skips are retained. Later focused fixes or reruns are separate evidence; they do not retrospectively turn this matrix into a passing run."
+}

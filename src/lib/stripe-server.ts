@@ -22,6 +22,7 @@ import {
   resolvedBillingPaymentState,
   stripeCustomerBindingMatches,
   subscriptionBlocksCheckout,
+  subscriptionAccessIsCurrent,
   type BillingPaymentState,
   type CheckoutEligibilityAttestation,
 } from "@/lib/billing-lock";
@@ -541,9 +542,11 @@ export async function createBillingPortalSession(
     if (action === "change_plan" && subscription.status !== "active" && subscription.status !== "trialing") {
       throw new Error("Recover your payment before changing plans.");
     }
-    const resolved = resolvedSubscriptionOffer(subscription);
-    if (resolved.priceId !== priceForPlanInterval(resolved.planId, resolved.billingInterval)) {
-      throw new Error("This subscription uses a legacy Price and must be handled by billing support.");
+    if (action === "change_plan") {
+      const resolved = resolvedSubscriptionOffer(subscription);
+      if (!resolved.item.price.active || resolved.priceId !== priceForPlanInterval(resolved.planId, resolved.billingInterval)) {
+        throw new Error("This subscription uses a legacy Price and must be handled by billing support.");
+      }
     }
     subscriptionId = subscription.id;
   }
@@ -741,7 +744,9 @@ function supportedSubscriptionPrice(subscription: Stripe.Subscription) {
   }
   const resolved = matches[0];
   if (!resolved.mapping.legacy && !priceMatchesOffer(resolved.mapping.planId, resolved.mapping.interval, {
-    active: resolved.item.price.active,
+    // Archiving prevents new purchases, but existing Stripe subscriptions still
+    // renew. Validate their immutable offer independently of acquisition status.
+    active: true,
     currency: resolved.item.price.currency,
     unitAmount: resolved.item.price.unit_amount,
     type: resolved.item.price.type,
@@ -883,7 +888,9 @@ async function applyVerifiedStripeSubscription(
     (latest, item) => Math.max(latest, item.current_period_end),
     0,
   );
-  const currentPeriodEnd = periodEnd > 0 ? new Date(periodEnd * 1_000).toISOString() : null;
+  const accessEnd = Math.min(periodEnd, subscription.cancel_at ?? Infinity,
+    subscription.status === "trialing" ? subscription.trial_end ?? Infinity : Infinity);
+  const currentPeriodEnd = accessEnd > 0 ? new Date(accessEnd * 1_000).toISOString() : null;
   const path = `users/${uid}`;
   const courseCreditLedgerPath = `users/${uid}/courseCredits/current`;
   const subscriptionCustomerId = typeof subscription.customer === "string"
@@ -965,7 +972,7 @@ async function applyVerifiedStripeSubscription(
     const manualPlanUntil = typeof current.manualPlanUntil === "string" ? current.manualPlanUntil : undefined;
     const manualPlanActive = manualPlanUntil === "permanent"
       || (Boolean(manualPlanUntil) && Date.parse(manualPlanUntil!) > now.getTime());
-    const creditPlan = subscriptionStatus === "active" || subscriptionStatus === "trialing"
+    const creditPlan = subscriptionAccessIsCurrent({ subscriptionStatus, currentPeriodEnd }, now.getTime())
       ? resolved.planId
       : manualPlanActive && manualPlan
         ? manualPlan
@@ -988,7 +995,8 @@ async function applyVerifiedStripeSubscription(
             billingCustomerId: subscriptionCustomerId,
             billingSubscriptionId: subscription.id,
             billingRawStatus: subscription.status,
-            billingCancelAtPeriodEnd: subscription.cancel_at_period_end,
+            billingCancelAtPeriodEnd: subscription.cancel_at_period_end
+              || Boolean(subscription.cancel_at && subscription.cancel_at <= periodEnd),
             billingCanceledAt: subscription.canceled_at ? new Date(subscription.canceled_at * 1_000).toISOString() : null,
             billingTrialEnd: subscription.trial_end ? new Date(subscription.trial_end * 1_000).toISOString() : null,
             subscriptionStatus,

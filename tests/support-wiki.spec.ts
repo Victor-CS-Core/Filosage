@@ -189,7 +189,7 @@ test("searches public guides, renders source-checked content, and resolves wiki 
   await expect(page.getByText(/return to Filosage does not grant membership access by itself/)).toBeVisible();
   await expect(page.getByText(/return link alone does not confirm payment or subscription state and does not change access/)).toBeVisible();
   await expect(page.getByText(/immediate Plus\/Pro and monthly\/annual changes/)).toBeVisible();
-  await expect(page.getByText(/billing-cycle anchor remains unchanged/)).toBeVisible();
+  await expect(page.getByText(/Review Stripe’s displayed prorated amount, invoice, and next billing date/)).toBeVisible();
   await expect(page.getByText(/Reviewed against the app on/)).toBeVisible();
   await expect(page.locator("body")).not.toContainText("src/app/");
 

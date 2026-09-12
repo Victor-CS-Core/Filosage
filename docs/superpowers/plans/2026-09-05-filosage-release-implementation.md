@@ -26,7 +26,7 @@
 - Preserve the August 25 approved hosted-management policy: immediate upgrades, downgrades and interval changes; Stripe `always_invoice` proration; unchanged billing-cycle anchor; cancellation at the end of the paid period. New engineering work must honor that decision.
 - Retain the approved FiloSage design system, assets, light/dark themes and WCAG 2.2 AA target. Fix evidenced defects; do not redesign the application wholesale.
 - Read the installed Next.js guides in `node_modules/next/dist/docs/` before changing framework behavior, as required by `AGENTS.md`.
-- Git is authoritative for code/documentation; Multica is authoritative for operational tracking when connected. Never invent a Multica ID, claim an unsent event was queued, or let missing integration block safe repository investigation.
+- Git is authoritative for code/documentation; repository handoff records and the task conversation track operational state. Multica is optional and used only on Victor's explicit request; its availability is not a work or release dependency.
 - No merge, deployment, production mutation, secret/RBAC change, external account creation, destructive cleanup or billing activation is implied by this planning request.
 - Record source review, local test, CI, hosted QA, production and paid activation separately. Each release gate applies to one full candidate SHA and image digest.
 
@@ -185,7 +185,7 @@ flowchart TD
 - **Shared files:** lead serializes `src/lib/document-store.ts`, `src/lib/auth-server.ts`, `src/lib/account-server.ts`, `src/lib/ai-usage.ts`, `src/lib/stripe-server.ts`, `src/components/AppShell.tsx` and workflow edits. Worker branches target agreed contracts and rebase after dependencies land.
 - **Stop rule:** after focused checks and required gates pass, broaden testing only for a concrete unresolved risk. Stop runaway repair/review loops at the largest remaining defect; report the blocker with evidence.
 - **Model scope:** Astra is the development/review engine. Do not switch every in-product model to Astra. Current source defaults are Luna outline/lesson, Terra lesson fallback and Sol outline recovery; README's Terra-default description is stale. R13 compares measured model profiles before any product-model change.
-- **Tracking:** one Multica parent outcome with distinct deliverable children when the connector is restored. Check for an existing matching item before creation. Until then retain explicit local evidence and mark synchronization unavailable.
+- **Tracking:** one persistent outcome checklist in repository handoff records, with child tasks only for distinct deliverables, owners or verification gates. Keep evidence current; no external tracker or synchronization is required.
 
 Every work packet must include:
 

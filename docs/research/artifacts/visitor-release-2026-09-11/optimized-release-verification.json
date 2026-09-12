@@ -1,0 +1,43 @@
+{
+  "buildSourceSha": "af382e9fb92eafc78ecf341a17b0684c97e145b4",
+  "verifiedAt": "2026-09-11T21:15:03.539Z",
+  "runtime": "Generated Next16.3.3 standalone server on Windows loopback3910; production mode; copied public/static assets per installed Next output guide.",
+  "conditions": {
+    "databaseConfigured": false,
+    "aiCredentialsConfigured": false,
+    "billingEnabled": false,
+    "authentication": "Browser tests use existing mocked session/account APIs; no hosted identity or database proof."
+  },
+  "build": {
+    "passed": true,
+    "log": ".codex-tmp/release-final-build.log"
+  },
+  "checks": {
+    "accountIsolation": {
+      "startTime": "2026-09-11T21:10:47.944Z",
+      "duration": 10223.288,
+      "expected": 1,
+      "skipped": 0,
+      "unexpected": 0,
+      "flaky": 0
+    },
+    "pricingAndAnalytics": {
+      "startTime": "2026-09-11T21:12:47.570Z",
+      "duration": 9787.248000000001,
+      "expected": 4,
+      "skipped": 0,
+      "unexpected": 0,
+      "flaky": 0
+    },
+    "fullLintPassed": true,
+    "supportWikiArticles": 19,
+    "trackedSecretCheckPassed": true
+  },
+  "sourceHashes": {
+    "tests/account-storage-isolation.spec.ts": "fe919fad60ee12cd13ca9831612421760a1f1dd946cbb7b9ee582031221b7a28",
+    "tests/example.spec.ts": "991af435c42647879053af998980f22ab2464f3b19794ca67bdb267cc276b5e1",
+    "tests/analytics-consent.spec.ts": "b7520b034f9213626428aaafa0f639e4ee370bde324929fa3dcbaf3c8420d645",
+    "src/app/pricing/page.tsx": "6ae99ff0f49be36f85512d3fe3ef80a371de3b6495f6da0e61be867faf873d60"
+  },
+  "interpretation": "The unchanged30-second A/guest/B/A scenario completes, including final offline-note/reflection/transfer restoration. Public pricing and analytics scenarios pass on the combined change. Earlier dev-matrix failures remain in their original artifacts. No deployment or actual hosted Stripe lifecycle was performed."
+}

@@ -1,0 +1,68 @@
+{
+  "observedAt": "2026-09-11T22:08:03.6900838Z",
+  "stoppingRequested": true,
+  "observerProcessesRemaining": false,
+  "runs": [
+    {
+      "conclusion": "success",
+      "databaseId": 34652192900,
+      "headSha": "ae1abe3d5d3f51fa7e0bdf004972a9555852166e",
+      "status": "completed",
+      "url": "https://github.com/Victor-CS-Core/Filosage/actions/runs/34652192900",
+      "workflowName": "Dependabot Updates"
+    },
+    {
+      "conclusion": "",
+      "databaseId": 34652089241,
+      "headSha": "ae1abe3d5d3f51fa7e0bdf004972a9555852166e",
+      "status": "in_progress",
+      "url": "https://github.com/Victor-CS-Core/Filosage/actions/runs/34652089241",
+      "workflowName": "Engineering quality gate"
+    },
+    {
+      "conclusion": "",
+      "databaseId": 34652335600,
+      "headSha": "943abc9c8f53367076092b97ff07ec2422be9e5e",
+      "status": "queued",
+      "url": "https://github.com/Victor-CS-Core/Filosage/actions/runs/34652335600",
+      "workflowName": "Engineering quality gate"
+    },
+    {
+      "conclusion": "failure",
+      "databaseId": 34652335594,
+      "headSha": "943abc9c8f53367076092b97ff07ec2422be9e5e",
+      "status": "completed",
+      "url": "https://github.com/Victor-CS-Core/Filosage/actions/runs/34652335594",
+      "workflowName": "Support wiki"
+    },
+    {
+      "conclusion": "failure",
+      "databaseId": 34652335593,
+      "headSha": "943abc9c8f53367076092b97ff07ec2422be9e5e",
+      "status": "completed",
+      "url": "https://github.com/Victor-CS-Core/Filosage/actions/runs/34652335593",
+      "workflowName": "Offline security scan"
+    }
+  ],
+  "scanner": {
+    "run": 34652335593,
+    "sourceSha": "943abc9c8f53367076092b97ff07ec2422be9e5e",
+    "conclusion": "failure",
+    "fixturePassCount": 6,
+    "engineVersion": "1.177.0",
+    "pinnedImageDigest": "sha256:acaac22ffc7b7cc5926de0751b223bce0b2491c33d18422fa72f632c78d81198",
+    "error": "Scanner did not produce a readable JSON report.",
+    "syntheticFailure": "not-run",
+    "fullSourceScanVerified": false,
+    "artifactId": 10284550965,
+    "artifactDigest": "sha256:e678f2a285429d0b07e1857da3753e7afe50aa274ca8c22d2dd445e0406cccf1",
+    "underlyingCause": "not established before requested stopping point"
+  },
+  "wikiImpactCorrection": {
+    "originalRun": 34652335594,
+    "sourceChange": "Equivalent JSX string expression for the existing evidence pricing Link href",
+    "localBaseCheck": "passed",
+    "prRationaleUpdated": true,
+    "rerunDispatched": false
+  }
+}

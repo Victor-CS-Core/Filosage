@@ -28,22 +28,27 @@ export default function PublicCourseProof() {
   const [featuredCourseId, setFeaturedCourseId] = useState<string>();
   const [status, setStatus] = useState<"loading" | "ready" | "error">("loading");
 
-  const load = useCallback(async () => {
+  const load = useCallback(async (signal?: AbortSignal) => {
+    if (signal?.aborted) return;
     setStatus("loading");
     try {
-      const response = await fetch("/api/courses?scope=public", { cache: "no-store" });
+      const response = await fetch("/api/courses?scope=public", { signal });
       if (!response.ok) throw new Error("Public courses could not be loaded.");
       const data = await response.json() as { courses: Course[]; featuredCourseId?: string };
+      if (signal?.aborted) return;
+      if (!Array.isArray(data.courses)) throw new Error("Invalid public course response.");
       setCourses(data.courses);
       setFeaturedCourseId(data.featuredCourseId);
       setStatus("ready");
     } catch {
-      setStatus("error");
+      if (!signal?.aborted) setStatus("error");
     }
   }, []);
 
   useEffect(() => {
-    void Promise.resolve().then(load);
+    const controller = new AbortController();
+    void Promise.resolve().then(() => load(controller.signal));
+    return () => controller.abort();
   }, [load]);
 
   const course = useMemo(
@@ -64,7 +69,7 @@ export default function PublicCourseProof() {
     return (
       <div className="marketing-course-proof-state" role="status">
         <RefreshCw size={28} aria-hidden="true" />
-        <div><h2>Course previews are temporarily unavailable.</h2><p>The published library is still the source of truth. Try this preview again or open the library directly.</p></div>
+        <div><h2>We couldn’t load the course preview.</h2><p>Try again, or check the course library.</p></div>
         <div className="marketing-course-proof-state-actions">
           <button className="button button-secondary" type="button" onClick={() => void load()}>Try again</button>
           <Link className="button button-primary" href="/library">Open the library <ArrowRight size={16} /></Link>
@@ -78,7 +83,7 @@ export default function PublicCourseProof() {
     return (
       <div className="marketing-course-proof-state" role="status">
         <BookOpenCheck size={28} aria-hidden="true" />
-        <div><h2>Published courses are being prepared.</h2><p>Filosage will show complete outcomes and course structures here as soon as the reviewed catalog is available.</p></div>
+        <div><h2>New courses are on the way.</h2><p>There are no published courses to show yet. Read how we build and review them.</p></div>
         <Link className="button button-secondary" href="/standard">See the teaching standard <ArrowRight size={16} /></Link>
       </div>
     );

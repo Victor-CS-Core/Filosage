@@ -1,0 +1,13 @@
+rules:
+  - id: filosage-workflow-shell-injection
+    languages: [yaml]
+    severity: ERROR
+    message: Untrusted workflow data is interpolated into a shell script. Pass it through an environment variable and quote its use.
+    metadata:
+      category: security
+      cwe: CWE-78
+    patterns:
+      - pattern: 'run: $SCRIPT'
+      - metavariable-regex:
+          metavariable: $SCRIPT
+          regex: '(?s).*\$\{\{[^}]*\b(inputs\b|github\.(head_ref|base_ref|ref_name|ref)\b|github\.event\.(inputs\b|pull_request\.(title|body|head\.(ref|label))\b|issue\.(title|body)\b|comment\.body\b|head_commit\.message\b))'

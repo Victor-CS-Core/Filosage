@@ -8,6 +8,7 @@ const REQUIRED_ACCOUNT_KEYS = [
 ] as const;
 const OPTIONAL_ACCOUNT_KEYS = [
   "suspensionReason", "displayName", "photoURL", "billingInterval", "currentPeriodEnd",
+  "billingCancelAtPeriodEnd",
   "acceptedTermsVersion", "acceptedPrivacyVersion",
 ] as const;
 const CAPABILITY_KEYS = [
@@ -83,6 +84,7 @@ export function parseLearnerAccount(value: unknown): LearnerAccount | null {
     || (Object.hasOwn(value, "displayName") && displayName === null)
     || !optionalBoundedString(value, "photoURL", 2_048)
     || !optionalBoundedString(value, "currentPeriodEnd", 64)
+    || (Object.hasOwn(value, "billingCancelAtPeriodEnd") && typeof value.billingCancelAtPeriodEnd !== "boolean")
     || !optionalBoundedString(value, "acceptedTermsVersion", 128)
     || !optionalBoundedString(value, "acceptedPrivacyVersion", 128)
     || (Object.hasOwn(value, "billingInterval") && value.billingInterval !== "monthly" && value.billingInterval !== "annual")) return null;

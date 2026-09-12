@@ -6,8 +6,8 @@ export default defineSupportArticle({
   summary: "Navigate by keyboard, use visible focus and semantic controls, reduce motion, or change the theme.",
   category: "trust",
   keywords: ["accessibility", "keyboard", "screen reader", "focus", "reduced motion", "animation", "motion preference", "dark mode", "speech"],
-  reviewedOn: "2026-09-06",
-  sources: ["src/components/support/SupportCenter.tsx", "DESIGN.md", "src/app/globals.css", "src/components/AppShell.tsx", "src/components/AppDrawer.tsx", "src/components/CourseDeck.tsx", "src/components/LessonStudyTools.tsx", "src/components/SpeakButton.tsx"],
+  reviewedOn: "2026-09-11",
+  sources: ["src/components/support/SupportCenter.tsx", "DESIGN.md", "src/app/globals.css", "src/components/AppShell.tsx", "src/components/ThemeProvider.tsx", "src/components/AppDrawer.tsx", "src/components/CourseDeck.tsx", "src/components/LessonStudyTools.tsx", "src/components/SpeakButton.tsx"],
   body: `
 ## Navigate by keyboard
 
@@ -51,7 +51,7 @@ If the Filosage pill and the device setting disagree, the choice made in the Fil
 
 ## Change the theme
 
-Open the account menu to switch between light and dark mode. Theme and motion are separate preferences.
+Use the sun or moon button in the public header, or the appearance control in the signed-in account menu, to switch between light and dark mode. Your choice is remembered in this browser and across Filosage sign-in returns. Without a saved choice, Filosage follows the device appearance, including changes made while the page is open. Theme and motion are separate preferences.
 
 ## Listen to a lesson
 

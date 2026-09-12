@@ -4,6 +4,12 @@
 This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` before writing any code. Heed deprecation notices.
 <!-- END:nextjs-agent-rules -->
 
+## Required progress and handoff record
+
+Before starting new work, resuming work, or accepting a handoff, read `docs/AGENT_PROGRESS.md`. It contains the active outcome checklist, findings, branch ownership, verification evidence, blockers, and next actions. Preserve the full requested outcome across handoffs.
+
+Update that record after each meaningful investigation, implementation, or verification milestone, before each checkpoint commit/push, and before pausing or handing work to another agent. During sustained work, record progress at least every ten minutes. Record actual evidence and distinguish unverified work from passing checks. Commit and push coherent validated checkpoints regularly; never include credentials or private logs. Parallel agents send evidence to the coordinator, who owns this shared record.
+
 ## Work tracking and execution
 
 Track Filosage work in the repository's progress and handoff documents and the current task conversation. Git is authoritative for code and documentation; the active handoff records scope, ownership, plans, progress, blockers, review and evidence.

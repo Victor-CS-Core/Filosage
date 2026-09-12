@@ -277,7 +277,7 @@ test("versions only the revised Privacy Notice", () => {
   });
 });
 
-test("custom CSS parses into the supported responsive and accessible portal surface", async ({ page }) => {
+test("custom CSS parses into the supported responsive and accessible portal surface", async ({ page }, testInfo) => {
   await page.emulateMedia({ colorScheme: "light" });
   await page.setContent(`
     <style>${css}</style>
@@ -297,6 +297,7 @@ test("custom CSS parses into the supported responsive and accessible portal surf
           <button class="ext-button ext-primary">Continue securely</button>
           <p class="ext-error">Try again.</p>
         </section>
+        <footer class="ext-footer">Your sign-in is managed by Microsoft.</footer>
       </div>
     </main>
   `);
@@ -415,6 +416,93 @@ test("custom CSS parses into the supported responsive and accessible portal surf
   });
   expect(darkSurface.federation).toBe("rgb(13, 27, 61)");
   expect(darkSurface.signInBox).not.toBe("rgb(255, 249, 240)");
+
+  const replaceStylesheet = async (value: string) => {
+    await page.locator("style").evaluate((element, text) => { element.textContent = text; }, value);
+  };
+  const snapshotSurface = async () => page.evaluate(() => {
+    const properties = [
+      "color", "background-color", "background-image", "border-color", "border-radius",
+      "box-shadow", "min-height", "font-family", "font-weight", "letter-spacing", "line-height",
+      "outline-color", "outline-width", "outline-style", "outline-offset", "text-decoration-thickness",
+      "text-underline-offset", "visibility", "opacity",
+    ];
+    return Array.from(document.querySelectorAll("body, [class]"), (element) => {
+      const style = getComputedStyle(element);
+      return Object.fromEntries(properties.map((property) => [property, style.getPropertyValue(property)]));
+    });
+  });
+  const snapshotStates = async () => {
+    await page.mouse.move(0, 0);
+    await page.locator(".ext-input").focus();
+    const inputFocus = await snapshotSurface();
+    await page.locator(".ext-link").focus();
+    const linkFocus = await snapshotSurface();
+    await page.locator(".ext-button.ext-primary").focus();
+    const buttonFocus = await snapshotSurface();
+    await page.locator(".ext-button.ext-primary").hover();
+    const primaryHover = await snapshotSurface();
+    await page.locator(".ext-button.ext-secondary").hover();
+    const secondaryHover = await snapshotSurface();
+    return { inputFocus, linkFocus, buttonFocus, primaryHover, secondaryHover };
+  };
+
+  for (const theme of ["light", "dark"] as const) {
+    const fixedCss = readFileSync(`infra/azure/external-id-branding/custom-${theme}.css`, "utf8");
+    expect(fixedCss).not.toContain("prefers-color-scheme");
+    // The same source selectors and declarations remain, in the same cascade order.
+    const conditionalSource = fixedCss.slice(fixedCss.indexOf("body {"))
+      .replace(theme === "light" ? "@media not all {" : "@media all {", "@media (prefers-color-scheme: dark) {");
+    expect(conditionalSource.replace(/\r\n/g, "\n")).toBe(css.replace(/\r\n/g, "\n"));
+    for (const width of [1280, 320]) {
+      await page.setViewportSize({ width, height: 900 });
+      await page.emulateMedia({ colorScheme: theme, forcedColors: "none", reducedMotion: "no-preference" });
+      await replaceStylesheet(css);
+      await expect(page.locator(".ext-sign-in-box")).toHaveCSS("border-radius", width === 320 ? "11px" : "15px");
+      const expectedStates = await snapshotStates();
+      for (const osTheme of ["light", "dark"] as const) {
+        await page.emulateMedia({ colorScheme: osTheme });
+        await replaceStylesheet(fixedCss);
+        expect(await snapshotStates(), `${theme} asset, ${osTheme} OS, ${width}px`).toEqual(expectedStates);
+        const nativeScheme = await page.locator("html").evaluate((element) => getComputedStyle(element).colorScheme);
+        expect(nativeScheme.split(" ").sort()).toEqual(["only", theme].sort());
+        expect(await page.locator(".ext-sign-in-box").evaluate((element) => getComputedStyle(element).borderRadius)).toBe(width === 320 ? "11px" : "15px");
+        if (theme !== osTheme) {
+          await page.mouse.move(0, 0);
+          await testInfo.attach(`fixed-${theme}-os-${osTheme}-${width}px`, {
+            body: await page.screenshot({ fullPage: true }), contentType: "image/png",
+          });
+        }
+      }
+    }
+
+    await page.emulateMedia({ colorScheme: theme === "light" ? "dark" : "light", reducedMotion: "reduce", forcedColors: "active" });
+    const accessibility = await page.evaluate(() => {
+      const box = document.querySelector<HTMLElement>(".ext-sign-in-box")!;
+      const input = document.querySelector<HTMLInputElement>(".ext-input")!;
+      input.focus();
+      const probe = document.createElement("span");
+      probe.style.cssText = "color: CanvasText; outline-color: Highlight";
+      document.body.append(probe);
+      const system = getComputedStyle(probe);
+      const boxStyle = getComputedStyle(box);
+      const inputStyle = getComputedStyle(input);
+      const result = {
+        border: boxStyle.borderColor, systemBorder: system.color,
+        outline: inputStyle.outlineColor, systemOutline: system.outlineColor,
+        shadow: boxStyle.boxShadow, forcedColorAdjust: boxStyle.forcedColorAdjust,
+        animationDuration: boxStyle.animationDuration, transitionDuration: boxStyle.transitionDuration,
+      };
+      probe.remove();
+      return result;
+    });
+    expect(accessibility.border).toBe(accessibility.systemBorder);
+    expect(accessibility.outline).toBe(accessibility.systemOutline);
+    expect(accessibility.shadow).toBe("none");
+    expect(accessibility.forcedColorAdjust).toBe("auto");
+    expect(accessibility.animationDuration).toBe("1e-05s");
+    expect(accessibility.transitionDuration).toBe("1e-05s");
+  }
 });
 
 test("privacy and support pages render the managed sign-in disclosures", async ({ page }) => {

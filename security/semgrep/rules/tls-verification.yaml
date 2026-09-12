@@ -1,0 +1,9 @@
+rules:
+  - id: filosage-disabled-tls-verification
+    languages: [typescript, javascript]
+    severity: ERROR
+    message: TLS certificate verification is explicitly disabled. Keep certificate verification enabled.
+    metadata:
+      category: security
+      cwe: CWE-295
+    pattern: '{ ..., rejectUnauthorized: false, ... }'

@@ -13,6 +13,9 @@ import { serverEnvironment } from "@/lib/runtime-environment";
 const { Pool } = pg;
 const DOCUMENT_NAME_PREFIX = "projects/azure/databases/(default)/documents/";
 const TRANSACTION_TTL_MS = 30_000;
+const LOCK_TIMEOUT_MS = 10_000;
+const STATEMENT_TIMEOUT_MS = 30_000;
+const QUERY_RESPONSE_TIMEOUT_MS = 35_000;
 const HEALTH_QUERY_TIMEOUT_MS = 3_000;
 
 interface DocumentRow extends QueryResultRow {
@@ -66,6 +69,13 @@ function databasePool() {
       max: Number(serverEnvironment.DATABASE_POOL_MAX ?? 10),
       idleTimeoutMillis: 30_000,
       connectionTimeoutMillis: 10_000,
+      // Server deadlines cover lock acquisition and mutation statements outside
+      // the transaction-handle TTL. PostgreSQL disables statement_timeout before
+      // deferred COMMIT work; the client deadline bounds that wait but its result
+      // remains uncertain, so timeout cleanup must discard the connection.
+      lock_timeout: LOCK_TIMEOUT_MS,
+      statement_timeout: STATEMENT_TIMEOUT_MS,
+      query_timeout: QUERY_RESPONSE_TIMEOUT_MS,
       ssl: databaseSsl(),
     });
   }
@@ -300,6 +310,17 @@ async function countStructuredQuery(query: StructuredQuery) {
   return [{ result: { aggregateFields: { total: { integerValue: result.rows[0]?.total ?? "0" } } } }];
 }
 
+async function rollbackAndRelease(client: PoolClient, cause?: unknown) {
+  // pg's client read timeout does not cancel a non-pipelined server statement.
+  // Never queue rollback or reuse that connection while its result is unknown.
+  let discard = cause instanceof Error && cause.message === "Query read timeout";
+  if (!discard) {
+    try { await client.query("ROLLBACK"); }
+    catch { discard = true; }
+  }
+  client.release(discard);
+}
+
 async function beginTransaction(documentNames: string[]) {
   const client = await databasePool().connect();
   const id = crypto.randomUUID();
@@ -320,7 +341,9 @@ async function beginTransaction(documentNames: string[]) {
       const active = transactions().get(id);
       if (!active) return;
       transactions().delete(id);
-      void active.client.query("ROLLBACK").finally(() => active.client.release());
+      void rollbackAndRelease(active.client).catch(() => {
+        console.error("Expired PostgreSQL transaction cleanup failed.");
+      });
     }, TRANSACTION_TTL_MS);
     timeout.unref?.();
     transactions().set(id, { client, timeout });
@@ -333,8 +356,7 @@ async function beginTransaction(documentNames: string[]) {
       };
     });
   } catch (error) {
-    await client.query("ROLLBACK").catch(() => undefined);
-    client.release();
+    await rollbackAndRelease(client, error);
     throw error;
   }
 }
@@ -352,11 +374,10 @@ async function finishTransaction(id: string, writes: Array<Record<string, unknow
       await active.client.query("ROLLBACK");
     }
   } catch (error) {
-    await active.client.query("ROLLBACK").catch(() => undefined);
+    await rollbackAndRelease(active.client, error);
     throw error;
-  } finally {
-    active.client.release();
   }
+  active.client.release();
 }
 
 async function commitWithoutExistingTransaction(writes: Array<Record<string, unknown>>) {
@@ -366,11 +387,10 @@ async function commitWithoutExistingTransaction(writes: Array<Record<string, unk
     await applyWrites(client, writes);
     await client.query("COMMIT");
   } catch (error) {
-    await client.query("ROLLBACK").catch(() => undefined);
+    await rollbackAndRelease(client, error);
     throw error;
-  } finally {
-    client.release();
   }
+  client.release();
 }
 
 export async function postgresDocumentStoreJson<T>(

@@ -3,9 +3,36 @@ import { spawnSync } from "node:child_process";
 import { closeSync, existsSync, mkdirSync, mkdtempSync, openSync, readFileSync, readdirSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import { resolve } from "node:path";
-import { browserSuitesByProject } from "../scripts/playwright-suite-manifest";
+import { browserSuiteEstimatedTestLoad, browserSuitesByProject } from "../scripts/playwright-suite-manifest";
 
-const read = (path: string) => readFileSync(path, "utf8");
+const read = (path: string) => readFileSync(path, "utf8").replaceAll("\r\n", "\n");
+
+// Exhaustive assignment of this small mobile inventory establishes the best
+// attainable balance with indivisible suites and the actual per-batch size cap.
+const minimumBatchLoadSpread = (loads: number[], batchSize: number): number => {
+  const totals = Array<number>(Math.ceil(loads.length / batchSize)).fill(0);
+  const sizes = totals.map(() => 0);
+  let minimum = Infinity;
+  const assign = (index: number) => {
+    if (index === loads.length) {
+      if (sizes.every((size) => size > 0)) minimum = Math.min(minimum, Math.max(...totals) - Math.min(...totals));
+      return;
+    }
+    const visited = new Set<string>();
+    for (let batch = 0; batch < totals.length; batch += 1) {
+      const state = `${sizes[batch]}:${totals[batch]}`;
+      if (sizes[batch] === batchSize || visited.has(state)) continue;
+      visited.add(state);
+      sizes[batch] += 1;
+      totals[batch] += loads[index];
+      assign(index + 1);
+      sizes[batch] -= 1;
+      totals[batch] -= loads[index];
+    }
+  };
+  assign(0);
+  return minimum;
+};
 
 const discoverSpecs = (directory: string): string[] => readdirSync(directory, { withFileTypes: true })
   .flatMap((entry) => {
@@ -98,7 +125,11 @@ const discoverBrowserTests = (project: string, extraArgs: string[] = []) => {
     const listing = readFileSync(outputPath, "utf8");
     const match = listing.match(/Total:\s+(\d+)\s+tests?/);
     expect(match, listing).not.toBeNull();
-    return Number(match?.[1]);
+    const files = [...listing.matchAll(/^\s+\[[^\]]+\] › (.+?\.spec\.ts):/gm)]
+      .map((entry) => `tests/${entry[1].replaceAll("\\", "/")}`);
+    const count = Number(match?.[1]);
+    expect(files, listing).toHaveLength(count);
+    return { count, suites: [...new Set(files)].toSorted() };
   } finally {
     closeSync(output);
     rmSync(directory, { recursive: true, force: true });
@@ -193,7 +224,7 @@ test("every Playwright spec belongs to exactly one execution lane", async () => 
   expect(contractSuites).toHaveLength(39);
   expect(apiSuites).toHaveLength(2);
   expect(singleEngineSuites).toHaveLength(19);
-  expect(deviceSensitiveSuites).toHaveLength(8);
+  expect(deviceSensitiveSuites).toHaveLength(9);
   expect(dedicatedSuites).toHaveLength(3);
 });
 
@@ -242,7 +273,10 @@ test("the browser matrix starts only one isolated Next server at a time", () => 
     `.next/playwright-3102-${plan.runtime.distNamespace}`,
   ]);
   const mobileChromiumLoads = plan.estimatedLoadsByProject["mobile-chromium"];
-  expect(Math.max(...mobileChromiumLoads) - Math.min(...mobileChromiumLoads)).toBeLessThanOrEqual(3);
+  const mobileSuiteLoads = browserSuitesByProject["mobile-chromium"]
+    .map((suite) => browserSuiteEstimatedTestLoad["mobile-chromium"][suite]);
+  expect(Math.max(...mobileChromiumLoads) - Math.min(...mobileChromiumLoads))
+    .toBe(minimumBatchLoadSpread(mobileSuiteLoads, plan.batchSize));
   for (const project of plan.projects) {
     const batches = plan.batchesByProject[project];
     const ownedSuites = browserSuitesByProject[project as keyof typeof browserSuitesByProject];
@@ -306,7 +340,9 @@ test("the browser matrix starts only one isolated Next server at a time", () => 
   );
   expect(reporterOnly.status, reporterOnly.stderr).toBe(0);
   const reporterPlan = JSON.parse(reporterOnly.stdout).batchesByProject.chromium as string[][];
-  expect(reporterPlan).toHaveLength(9);
+  expect(reporterPlan).toHaveLength(Math.ceil(browserSuitesByProject.chromium.length / plan.batchSize));
+  expect(reporterPlan.flat().filter((item) => item.endsWith(".spec.ts")).toSorted())
+    .toEqual([...browserSuitesByProject.chromium].toSorted());
   expect(reporterPlan.every((batch) => (
     batch[0] === "--reporter=line" && batch.filter((item) => item.endsWith(".spec.ts")).length <= 3
   ))).toBe(true);
@@ -412,8 +448,8 @@ test("the required quality gate runs a bounded Chromium smoke suite while exhaus
   ]);
   expect(smokeRunner).toContain('"--grep=@smoke"');
   const smokeTests = discoverBrowserTests("chromium", smokePlan.batchesByProject.chromium.flat());
-  expect(smokeTests).toBeGreaterThanOrEqual(14);
-  expect(smokeTests).toBeLessThanOrEqual(37);
+  expect(smokeTests.count).toBeGreaterThanOrEqual(14);
+  expect(smokeTests.count).toBeLessThanOrEqual(37);
   expect(qualityWorkflow).toContain("needs: static-and-release-contracts");
   expect(qualityWorkflow).toContain("npm run test:api -- --output=test-results/api --reporter=line,blob");
   expect(qualityWorkflow).toContain("run: npm run test:browser:smoke");
@@ -435,13 +471,22 @@ test("mobile projects execute only explicitly owned cross-device behavior", () =
   const chromium = discoverBrowserTests("chromium");
   const mobileChromium = discoverBrowserTests("mobile-chromium");
   const mobileWebkit = discoverBrowserTests("mobile-webkit");
-  expect(chromium).toBeGreaterThanOrEqual(280);
-  expect(mobileChromium).toBeGreaterThan(0);
-  expect(mobileChromium).toBeLessThanOrEqual(35);
-  expect(mobileWebkit).toBeGreaterThan(0);
-  expect(mobileWebkit).toBeLessThanOrEqual(40);
-  // Includes three learner recovery cases and four legal/account-readiness cases on each applicable project.
-  expect(chromium + mobileChromium + mobileWebkit).toBeLessThanOrEqual(380);
+  for (const [project, discovery] of [
+    ["chromium", chromium],
+    ["mobile-chromium", mobileChromium],
+    ["mobile-webkit", mobileWebkit],
+  ] as const) {
+    expect(discovery.suites).toEqual([...browserSuitesByProject[project]].toSorted());
+  }
+  expect(chromium.count).toBeGreaterThanOrEqual(280);
+  expect(mobileChromium.count).toBeGreaterThan(0);
+  expect(mobileWebkit.count).toBeGreaterThan(0);
+  // September visitor-release discovery: 326 desktop / 44 mobile Chromium / 51 WebKit.
+  // Includes system-theme continuity, scheduled billing cancellation and public loading/retry cases.
+  // Keep bounded budgets as well as exact suite ownership so mobile coverage cannot grow unnoticed.
+  expect(mobileChromium.count).toBeLessThanOrEqual(44);
+  expect(mobileWebkit.count).toBeLessThanOrEqual(51);
+  expect(chromium.count + mobileChromium.count + mobileWebkit.count).toBeLessThanOrEqual(421);
 });
 
 test("release workflows accept only exact successful workflow evidence", () => {
@@ -685,6 +730,13 @@ test("release automation pins third-party actions and includes dependency and co
   expect(codeql).toContain("github/codeql-action/init@");
   expect(codeql).toContain("github/codeql-action/analyze@");
   expect(codeql).not.toContain("id-token: write");
+
+  const offlineSecurity = read(".github/workflows/security-scan.yml");
+  expect(offlineSecurity).toContain("pull_request:");
+  expect(offlineSecurity).toContain("push:");
+  expect(offlineSecurity).toContain("branches: [main]");
+  expect(offlineSecurity).toContain("run: node scripts/run-security-scan.mjs");
+  expect(offlineSecurity).toContain("path: test-results/security/summary.json");
 
   expect(packageJson.scripts["check:secrets"]).toBe("node scripts/check-tracked-secrets.mjs");
   expect(qualityWorkflow).toContain("npm audit --omit=dev --audit-level=high");

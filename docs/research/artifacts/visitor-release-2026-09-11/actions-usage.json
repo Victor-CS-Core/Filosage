@@ -1,0 +1,922 @@
+{
+  "scope": "Filosage retained runs created September 1-11 2026, snapshot before later pushes",
+  "method": "Sum positive completed runner job durations rounded up independently to minutes; jobs API filter=all includes retained attempts. Estimates, not a billing statement. 69 invalid workflow records were excluded; one representative has zero jobs.",
+  "billingApi": "Unavailable with current login scope; timing endpoint returned zero billable durations even for executed jobs and was not used.",
+  "errors": [],
+  "groups": {
+    "Verify Azure PostgreSQL backups": {
+      "runs": 10,
+      "executedJobs": 10,
+      "roundedJobMinutes": 10
+    },
+    "Full browser regression": {
+      "runs": 30,
+      "executedJobs": 30,
+      "roundedJobMinutes": 1041
+    },
+    "Engineering quality gate": {
+      "runs": 28,
+      "executedJobs": 63,
+      "roundedJobMinutes": 179
+    },
+    "Support wiki": {
+      "runs": 22,
+      "executedJobs": 22,
+      "roundedJobMinutes": 23
+    },
+    "CodeQL security analysis": {
+      "runs": 27,
+      "executedJobs": 27,
+      "roundedJobMinutes": 129
+    },
+    "npm_and_yarn in /. - Update #1570037724": {
+      "runs": 1,
+      "executedJobs": 1,
+      "roundedJobMinutes": 4
+    },
+    "github_actions in /. - Update #1570037732": {
+      "runs": 1,
+      "executedJobs": 1,
+      "roundedJobMinutes": 5
+    },
+    "Offline static security": {
+      "runs": 1,
+      "executedJobs": 1,
+      "roundedJobMinutes": 5
+    },
+    "Record Azure PostgreSQL recovery window": {
+      "runs": 1,
+      "executedJobs": 1,
+      "roundedJobMinutes": 1
+    },
+    "Offline security scan": {
+      "runs": 2,
+      "executedJobs": 2,
+      "roundedJobMinutes": 2
+    }
+  },
+  "totalRoundedJobMinutes": 1399,
+  "sources": [
+    {
+      "runId": 33504129338,
+      "workflow": "Verify Azure PostgreSQL backups",
+      "event": "schedule",
+      "createdAt": "2026-09-01T11:45:43Z",
+      "roundedJobMinutes": 1
+    },
+    {
+      "runId": 33504129651,
+      "workflow": "Full browser regression",
+      "event": "schedule",
+      "createdAt": "2026-09-01T11:45:44Z",
+      "roundedJobMinutes": 28
+    },
+    {
+      "runId": 33624641114,
+      "workflow": "Verify Azure PostgreSQL backups",
+      "event": "schedule",
+      "createdAt": "2026-09-02T11:26:55Z",
+      "roundedJobMinutes": 1
+    },
+    {
+      "runId": 33624658468,
+      "workflow": "Full browser regression",
+      "event": "schedule",
+      "createdAt": "2026-09-02T11:27:07Z",
+      "roundedJobMinutes": 30
+    },
+    {
+      "runId": 33749374359,
+      "workflow": "Verify Azure PostgreSQL backups",
+      "event": "schedule",
+      "createdAt": "2026-09-03T11:22:57Z",
+      "roundedJobMinutes": 1
+    },
+    {
+      "runId": 33749397680,
+      "workflow": "Full browser regression",
+      "event": "schedule",
+      "createdAt": "2026-09-03T11:23:14Z",
+      "roundedJobMinutes": 36
+    },
+    {
+      "runId": 33867945195,
+      "workflow": "Verify Azure PostgreSQL backups",
+      "event": "schedule",
+      "createdAt": "2026-09-04T11:26:21Z",
+      "roundedJobMinutes": 1
+    },
+    {
+      "runId": 33867957032,
+      "workflow": "Full browser regression",
+      "event": "schedule",
+      "createdAt": "2026-09-04T11:26:30Z",
+      "roundedJobMinutes": 44
+    },
+    {
+      "runId": 33961384172,
+      "workflow": "Full browser regression",
+      "event": "schedule",
+      "createdAt": "2026-09-05T10:42:38Z",
+      "roundedJobMinutes": 37
+    },
+    {
+      "runId": 33961384919,
+      "workflow": "Verify Azure PostgreSQL backups",
+      "event": "schedule",
+      "createdAt": "2026-09-05T10:42:38Z",
+      "roundedJobMinutes": 1
+    },
+    {
+      "runId": 34015250808,
+      "workflow": "Engineering quality gate",
+      "event": "pull_request",
+      "createdAt": "2026-09-06T05:57:17Z",
+      "roundedJobMinutes": 2
+    },
+    {
+      "runId": 34015250816,
+      "workflow": "Support wiki",
+      "event": "pull_request",
+      "createdAt": "2026-09-06T05:57:17Z",
+      "roundedJobMinutes": 1
+    },
+    {
+      "runId": 34015250826,
+      "workflow": "CodeQL security analysis",
+      "event": "pull_request",
+      "createdAt": "2026-09-06T05:57:17Z",
+      "roundedJobMinutes": 5
+    },
+    {
+      "runId": 34018240845,
+      "workflow": "Engineering quality gate",
+      "event": "pull_request",
+      "createdAt": "2026-09-06T07:06:11Z",
+      "roundedJobMinutes": 6
+    },
+    {
+      "runId": 34018240848,
+      "workflow": "CodeQL security analysis",
+      "event": "pull_request",
+      "createdAt": "2026-09-06T07:06:11Z",
+      "roundedJobMinutes": 5
+    },
+    {
+      "runId": 34018240859,
+      "workflow": "Support wiki",
+      "event": "pull_request",
+      "createdAt": "2026-09-06T07:06:11Z",
+      "roundedJobMinutes": 1
+    },
+    {
+      "runId": 34021189057,
+      "workflow": "Support wiki",
+      "event": "pull_request",
+      "createdAt": "2026-09-06T08:11:59Z",
+      "roundedJobMinutes": 1
+    },
+    {
+      "runId": 34021189074,
+      "workflow": "Engineering quality gate",
+      "event": "pull_request",
+      "createdAt": "2026-09-06T08:11:59Z",
+      "roundedJobMinutes": 16
+    },
+    {
+      "runId": 34021189082,
+      "workflow": "CodeQL security analysis",
+      "event": "pull_request",
+      "createdAt": "2026-09-06T08:11:59Z",
+      "roundedJobMinutes": 5
+    },
+    {
+      "runId": 34029169030,
+      "workflow": "Verify Azure PostgreSQL backups",
+      "event": "schedule",
+      "createdAt": "2026-09-06T11:04:12Z",
+      "roundedJobMinutes": 1
+    },
+    {
+      "runId": 34029176418,
+      "workflow": "Full browser regression",
+      "event": "schedule",
+      "createdAt": "2026-09-06T11:04:23Z",
+      "roundedJobMinutes": 39
+    },
+    {
+      "runId": 34123462308,
+      "workflow": "Verify Azure PostgreSQL backups",
+      "event": "schedule",
+      "createdAt": "2026-09-07T12:43:55Z",
+      "roundedJobMinutes": 1
+    },
+    {
+      "runId": 34123462981,
+      "workflow": "Full browser regression",
+      "event": "schedule",
+      "createdAt": "2026-09-07T12:43:55Z",
+      "roundedJobMinutes": 29
+    },
+    {
+      "runId": 34140915911,
+      "workflow": "Engineering quality gate",
+      "event": "pull_request",
+      "createdAt": "2026-09-07T15:57:38Z",
+      "roundedJobMinutes": 9
+    },
+    {
+      "runId": 34140916022,
+      "workflow": "Support wiki",
+      "event": "pull_request",
+      "createdAt": "2026-09-07T15:57:38Z",
+      "roundedJobMinutes": 1
+    },
+    {
+      "runId": 34140916023,
+      "workflow": "CodeQL security analysis",
+      "event": "pull_request",
+      "createdAt": "2026-09-07T15:57:38Z",
+      "roundedJobMinutes": 5
+    },
+    {
+      "runId": 34140916152,
+      "workflow": "Full browser regression",
+      "event": "pull_request",
+      "createdAt": "2026-09-07T15:57:38Z",
+      "roundedJobMinutes": 51
+    },
+    {
+      "runId": 34145416321,
+      "workflow": "Support wiki",
+      "event": "pull_request",
+      "createdAt": "2026-09-07T16:55:20Z",
+      "roundedJobMinutes": 1
+    },
+    {
+      "runId": 34145416384,
+      "workflow": "Full browser regression",
+      "event": "pull_request",
+      "createdAt": "2026-09-07T16:55:20Z",
+      "roundedJobMinutes": 45
+    },
+    {
+      "runId": 34145416462,
+      "workflow": "CodeQL security analysis",
+      "event": "pull_request",
+      "createdAt": "2026-09-07T16:55:20Z",
+      "roundedJobMinutes": 5
+    },
+    {
+      "runId": 34145416475,
+      "workflow": "Engineering quality gate",
+      "event": "pull_request",
+      "createdAt": "2026-09-07T16:55:20Z",
+      "roundedJobMinutes": 13
+    },
+    {
+      "runId": 34162614497,
+      "workflow": "Support wiki",
+      "event": "pull_request",
+      "createdAt": "2026-09-07T21:17:46Z",
+      "roundedJobMinutes": 1
+    },
+    {
+      "runId": 34162614500,
+      "workflow": "CodeQL security analysis",
+      "event": "pull_request",
+      "createdAt": "2026-09-07T21:17:46Z",
+      "roundedJobMinutes": 5
+    },
+    {
+      "runId": 34162614520,
+      "workflow": "Engineering quality gate",
+      "event": "pull_request",
+      "createdAt": "2026-09-07T21:17:46Z",
+      "roundedJobMinutes": 5
+    },
+    {
+      "runId": 34162614521,
+      "workflow": "Full browser regression",
+      "event": "pull_request",
+      "createdAt": "2026-09-07T21:17:46Z",
+      "roundedJobMinutes": 45
+    },
+    {
+      "runId": 34165922455,
+      "workflow": "Support wiki",
+      "event": "pull_request",
+      "createdAt": "2026-09-07T22:13:34Z",
+      "roundedJobMinutes": 1
+    },
+    {
+      "runId": 34165922459,
+      "workflow": "Engineering quality gate",
+      "event": "pull_request",
+      "createdAt": "2026-09-07T22:13:34Z",
+      "roundedJobMinutes": 4
+    },
+    {
+      "runId": 34165922465,
+      "workflow": "Full browser regression",
+      "event": "pull_request",
+      "createdAt": "2026-09-07T22:13:34Z",
+      "roundedJobMinutes": 10
+    },
+    {
+      "runId": 34165922537,
+      "workflow": "CodeQL security analysis",
+      "event": "pull_request",
+      "createdAt": "2026-09-07T22:13:35Z",
+      "roundedJobMinutes": 5
+    },
+    {
+      "runId": 34166449106,
+      "workflow": "Engineering quality gate",
+      "event": "pull_request",
+      "createdAt": "2026-09-07T22:22:30Z",
+      "roundedJobMinutes": 11
+    },
+    {
+      "runId": 34166449116,
+      "workflow": "Support wiki",
+      "event": "pull_request",
+      "createdAt": "2026-09-07T22:22:30Z",
+      "roundedJobMinutes": 1
+    },
+    {
+      "runId": 34166449122,
+      "workflow": "CodeQL security analysis",
+      "event": "pull_request",
+      "createdAt": "2026-09-07T22:22:30Z",
+      "roundedJobMinutes": 5
+    },
+    {
+      "runId": 34166449125,
+      "workflow": "Full browser regression",
+      "event": "pull_request",
+      "createdAt": "2026-09-07T22:22:30Z",
+      "roundedJobMinutes": 34
+    },
+    {
+      "runId": 34220690261,
+      "workflow": "Verify Azure PostgreSQL backups",
+      "event": "schedule",
+      "createdAt": "2026-09-08T11:26:22Z",
+      "roundedJobMinutes": 1
+    },
+    {
+      "runId": 34220726640,
+      "workflow": "Full browser regression",
+      "event": "schedule",
+      "createdAt": "2026-09-08T11:26:48Z",
+      "roundedJobMinutes": 40
+    },
+    {
+      "runId": 34346041076,
+      "workflow": "Verify Azure PostgreSQL backups",
+      "event": "schedule",
+      "createdAt": "2026-09-09T11:31:48Z",
+      "roundedJobMinutes": 1
+    },
+    {
+      "runId": 34346090471,
+      "workflow": "Full browser regression",
+      "event": "schedule",
+      "createdAt": "2026-09-09T11:32:23Z",
+      "roundedJobMinutes": 31
+    },
+    {
+      "runId": 34471484094,
+      "workflow": "Verify Azure PostgreSQL backups",
+      "event": "schedule",
+      "createdAt": "2026-09-10T11:28:34Z",
+      "roundedJobMinutes": 1
+    },
+    {
+      "runId": 34471506048,
+      "workflow": "Full browser regression",
+      "event": "schedule",
+      "createdAt": "2026-09-10T11:28:49Z",
+      "roundedJobMinutes": 32
+    },
+    {
+      "runId": 34546783864,
+      "workflow": "CodeQL security analysis",
+      "event": "push",
+      "createdAt": "2026-09-11T00:30:35Z",
+      "roundedJobMinutes": 5
+    },
+    {
+      "runId": 34546783881,
+      "workflow": "Engineering quality gate",
+      "event": "push",
+      "createdAt": "2026-09-11T00:30:35Z",
+      "roundedJobMinutes": 3
+    },
+    {
+      "runId": 34546784524,
+      "workflow": "npm_and_yarn in /. - Update #1570037724",
+      "event": "dynamic",
+      "createdAt": "2026-09-11T00:30:36Z",
+      "roundedJobMinutes": 4
+    },
+    {
+      "runId": 34546785189,
+      "workflow": "github_actions in /. - Update #1570037732",
+      "event": "dynamic",
+      "createdAt": "2026-09-11T00:30:36Z",
+      "roundedJobMinutes": 5
+    },
+    {
+      "runId": 34546934362,
+      "workflow": "Engineering quality gate",
+      "event": "pull_request",
+      "createdAt": "2026-09-11T00:32:41Z",
+      "roundedJobMinutes": 4
+    },
+    {
+      "runId": 34546934368,
+      "workflow": "CodeQL security analysis",
+      "event": "pull_request",
+      "createdAt": "2026-09-11T00:32:41Z",
+      "roundedJobMinutes": 4
+    },
+    {
+      "runId": 34546934381,
+      "workflow": "Full browser regression",
+      "event": "pull_request",
+      "createdAt": "2026-09-11T00:32:41Z",
+      "roundedJobMinutes": 45
+    },
+    {
+      "runId": 34546934397,
+      "workflow": "Support wiki",
+      "event": "pull_request",
+      "createdAt": "2026-09-11T00:32:41Z",
+      "roundedJobMinutes": 1
+    },
+    {
+      "runId": 34546960480,
+      "workflow": "Support wiki",
+      "event": "pull_request",
+      "createdAt": "2026-09-11T00:33:05Z",
+      "roundedJobMinutes": 1
+    },
+    {
+      "runId": 34546960490,
+      "workflow": "CodeQL security analysis",
+      "event": "pull_request",
+      "createdAt": "2026-09-11T00:33:05Z",
+      "roundedJobMinutes": 3
+    },
+    {
+      "runId": 34546960509,
+      "workflow": "Full browser regression",
+      "event": "pull_request",
+      "createdAt": "2026-09-11T00:33:05Z",
+      "roundedJobMinutes": 48
+    },
+    {
+      "runId": 34546960511,
+      "workflow": "Engineering quality gate",
+      "event": "pull_request",
+      "createdAt": "2026-09-11T00:33:05Z",
+      "roundedJobMinutes": 3
+    },
+    {
+      "runId": 34546965777,
+      "workflow": "CodeQL security analysis",
+      "event": "pull_request",
+      "createdAt": "2026-09-11T00:33:09Z",
+      "roundedJobMinutes": 5
+    },
+    {
+      "runId": 34546965816,
+      "workflow": "Support wiki",
+      "event": "pull_request",
+      "createdAt": "2026-09-11T00:33:09Z",
+      "roundedJobMinutes": 1
+    },
+    {
+      "runId": 34546965821,
+      "workflow": "Engineering quality gate",
+      "event": "pull_request",
+      "createdAt": "2026-09-11T00:33:09Z",
+      "roundedJobMinutes": 4
+    },
+    {
+      "runId": 34546965853,
+      "workflow": "Full browser regression",
+      "event": "pull_request",
+      "createdAt": "2026-09-11T00:33:09Z",
+      "roundedJobMinutes": 44
+    },
+    {
+      "runId": 34546970382,
+      "workflow": "Engineering quality gate",
+      "event": "pull_request",
+      "createdAt": "2026-09-11T00:33:13Z",
+      "roundedJobMinutes": 3
+    },
+    {
+      "runId": 34546970386,
+      "workflow": "Support wiki",
+      "event": "pull_request",
+      "createdAt": "2026-09-11T00:33:13Z",
+      "roundedJobMinutes": 1
+    },
+    {
+      "runId": 34546970417,
+      "workflow": "CodeQL security analysis",
+      "event": "pull_request",
+      "createdAt": "2026-09-11T00:33:13Z",
+      "roundedJobMinutes": 5
+    },
+    {
+      "runId": 34546970423,
+      "workflow": "Full browser regression",
+      "event": "pull_request",
+      "createdAt": "2026-09-11T00:33:13Z",
+      "roundedJobMinutes": 46
+    },
+    {
+      "runId": 34546976679,
+      "workflow": "Support wiki",
+      "event": "pull_request",
+      "createdAt": "2026-09-11T00:33:18Z",
+      "roundedJobMinutes": 1
+    },
+    {
+      "runId": 34546976711,
+      "workflow": "CodeQL security analysis",
+      "event": "pull_request",
+      "createdAt": "2026-09-11T00:33:18Z",
+      "roundedJobMinutes": 5
+    },
+    {
+      "runId": 34546976721,
+      "workflow": "Engineering quality gate",
+      "event": "pull_request",
+      "createdAt": "2026-09-11T00:33:18Z",
+      "roundedJobMinutes": 3
+    },
+    {
+      "runId": 34546976742,
+      "workflow": "Full browser regression",
+      "event": "pull_request",
+      "createdAt": "2026-09-11T00:33:18Z",
+      "roundedJobMinutes": 45
+    },
+    {
+      "runId": 34547015933,
+      "workflow": "CodeQL security analysis",
+      "event": "pull_request",
+      "createdAt": "2026-09-11T00:33:50Z",
+      "roundedJobMinutes": 4
+    },
+    {
+      "runId": 34547015938,
+      "workflow": "Support wiki",
+      "event": "pull_request",
+      "createdAt": "2026-09-11T00:33:50Z",
+      "roundedJobMinutes": 2
+    },
+    {
+      "runId": 34547015978,
+      "workflow": "Full browser regression",
+      "event": "pull_request",
+      "createdAt": "2026-09-11T00:33:50Z",
+      "roundedJobMinutes": 40
+    },
+    {
+      "runId": 34547016003,
+      "workflow": "Engineering quality gate",
+      "event": "pull_request",
+      "createdAt": "2026-09-11T00:33:50Z",
+      "roundedJobMinutes": 3
+    },
+    {
+      "runId": 34547026729,
+      "workflow": "Full browser regression",
+      "event": "pull_request",
+      "createdAt": "2026-09-11T00:33:59Z",
+      "roundedJobMinutes": 1
+    },
+    {
+      "runId": 34547026730,
+      "workflow": "CodeQL security analysis",
+      "event": "pull_request",
+      "createdAt": "2026-09-11T00:33:59Z",
+      "roundedJobMinutes": 5
+    },
+    {
+      "runId": 34547026734,
+      "workflow": "Engineering quality gate",
+      "event": "pull_request",
+      "createdAt": "2026-09-11T00:33:59Z",
+      "roundedJobMinutes": 2
+    },
+    {
+      "runId": 34547026751,
+      "workflow": "Support wiki",
+      "event": "pull_request",
+      "createdAt": "2026-09-11T00:33:59Z",
+      "roundedJobMinutes": 1
+    },
+    {
+      "runId": 34547035787,
+      "workflow": "Engineering quality gate",
+      "event": "pull_request",
+      "createdAt": "2026-09-11T00:34:08Z",
+      "roundedJobMinutes": 3
+    },
+    {
+      "runId": 34547035809,
+      "workflow": "Full browser regression",
+      "event": "pull_request",
+      "createdAt": "2026-09-11T00:34:08Z",
+      "roundedJobMinutes": 37
+    },
+    {
+      "runId": 34547035827,
+      "workflow": "Support wiki",
+      "event": "pull_request",
+      "createdAt": "2026-09-11T00:34:08Z",
+      "roundedJobMinutes": 1
+    },
+    {
+      "runId": 34547035831,
+      "workflow": "CodeQL security analysis",
+      "event": "pull_request",
+      "createdAt": "2026-09-11T00:34:08Z",
+      "roundedJobMinutes": 4
+    },
+    {
+      "runId": 34547042254,
+      "workflow": "Full browser regression",
+      "event": "pull_request",
+      "createdAt": "2026-09-11T00:34:14Z",
+      "roundedJobMinutes": 47
+    },
+    {
+      "runId": 34547042257,
+      "workflow": "Support wiki",
+      "event": "pull_request",
+      "createdAt": "2026-09-11T00:34:14Z",
+      "roundedJobMinutes": 1
+    },
+    {
+      "runId": 34547042360,
+      "workflow": "CodeQL security analysis",
+      "event": "pull_request",
+      "createdAt": "2026-09-11T00:34:14Z",
+      "roundedJobMinutes": 4
+    },
+    {
+      "runId": 34547042413,
+      "workflow": "Engineering quality gate",
+      "event": "pull_request",
+      "createdAt": "2026-09-11T00:34:14Z",
+      "roundedJobMinutes": 3
+    },
+    {
+      "runId": 34547096966,
+      "workflow": "Full browser regression",
+      "event": "pull_request",
+      "createdAt": "2026-09-11T00:35:01Z",
+      "roundedJobMinutes": 52
+    },
+    {
+      "runId": 34547097014,
+      "workflow": "Engineering quality gate",
+      "event": "pull_request",
+      "createdAt": "2026-09-11T00:35:01Z",
+      "roundedJobMinutes": 3
+    },
+    {
+      "runId": 34547097020,
+      "workflow": "Support wiki",
+      "event": "pull_request",
+      "createdAt": "2026-09-11T00:35:01Z",
+      "roundedJobMinutes": 1
+    },
+    {
+      "runId": 34547097067,
+      "workflow": "CodeQL security analysis",
+      "event": "pull_request",
+      "createdAt": "2026-09-11T00:35:01Z",
+      "roundedJobMinutes": 3
+    },
+    {
+      "runId": 34547156156,
+      "workflow": "CodeQL security analysis",
+      "event": "push",
+      "createdAt": "2026-09-11T00:35:50Z",
+      "roundedJobMinutes": 5
+    },
+    {
+      "runId": 34547156177,
+      "workflow": "Engineering quality gate",
+      "event": "push",
+      "createdAt": "2026-09-11T00:35:50Z",
+      "roundedJobMinutes": 13
+    },
+    {
+      "runId": 34548142582,
+      "workflow": "Engineering quality gate",
+      "event": "push",
+      "createdAt": "2026-09-11T00:49:45Z",
+      "roundedJobMinutes": 5
+    },
+    {
+      "runId": 34548142595,
+      "workflow": "CodeQL security analysis",
+      "event": "push",
+      "createdAt": "2026-09-11T00:49:45Z",
+      "roundedJobMinutes": 4
+    },
+    {
+      "runId": 34548324408,
+      "workflow": "Engineering quality gate",
+      "event": "push",
+      "createdAt": "2026-09-11T00:52:25Z",
+      "roundedJobMinutes": 10
+    },
+    {
+      "runId": 34548324459,
+      "workflow": "CodeQL security analysis",
+      "event": "push",
+      "createdAt": "2026-09-11T00:52:25Z",
+      "roundedJobMinutes": 5
+    },
+    {
+      "runId": 34551201901,
+      "workflow": "Engineering quality gate",
+      "event": "push",
+      "createdAt": "2026-09-11T01:34:19Z",
+      "roundedJobMinutes": 13
+    },
+    {
+      "runId": 34551201939,
+      "workflow": "Offline static security",
+      "event": "push",
+      "createdAt": "2026-09-11T01:34:19Z",
+      "roundedJobMinutes": 5
+    },
+    {
+      "runId": 34594336080,
+      "workflow": "Record Azure PostgreSQL recovery window",
+      "event": "schedule",
+      "createdAt": "2026-09-11T11:30:11Z",
+      "roundedJobMinutes": 1
+    },
+    {
+      "runId": 34594365918,
+      "workflow": "Full browser regression",
+      "event": "schedule",
+      "createdAt": "2026-09-11T11:30:32Z",
+      "roundedJobMinutes": 40
+    },
+    {
+      "runId": 34630736871,
+      "workflow": "CodeQL security analysis",
+      "event": "push",
+      "createdAt": "2026-09-11T17:59:13Z",
+      "roundedJobMinutes": 6
+    },
+    {
+      "runId": 34630736936,
+      "workflow": "Engineering quality gate",
+      "event": "push",
+      "createdAt": "2026-09-11T17:59:14Z",
+      "roundedJobMinutes": 6
+    },
+    {
+      "runId": 34635427884,
+      "workflow": "Support wiki",
+      "event": "pull_request",
+      "createdAt": "2026-09-11T18:49:12Z",
+      "roundedJobMinutes": 1
+    },
+    {
+      "runId": 34635427894,
+      "workflow": "Full browser regression",
+      "event": "pull_request",
+      "createdAt": "2026-09-11T18:49:12Z",
+      "roundedJobMinutes": 27
+    },
+    {
+      "runId": 34635427937,
+      "workflow": "CodeQL security analysis",
+      "event": "pull_request",
+      "createdAt": "2026-09-11T18:49:12Z",
+      "roundedJobMinutes": 5
+    },
+    {
+      "runId": 34635427946,
+      "workflow": "Engineering quality gate",
+      "event": "pull_request",
+      "createdAt": "2026-09-11T18:49:12Z",
+      "roundedJobMinutes": 7
+    },
+    {
+      "runId": 34637804114,
+      "workflow": "Engineering quality gate",
+      "event": "pull_request",
+      "createdAt": "2026-09-11T19:15:01Z",
+      "roundedJobMinutes": 6
+    },
+    {
+      "runId": 34637804123,
+      "workflow": "Support wiki",
+      "event": "pull_request",
+      "createdAt": "2026-09-11T19:15:01Z",
+      "roundedJobMinutes": 1
+    },
+    {
+      "runId": 34637804259,
+      "workflow": "CodeQL security analysis",
+      "event": "pull_request",
+      "createdAt": "2026-09-11T19:15:01Z",
+      "roundedJobMinutes": 5
+    },
+    {
+      "runId": 34637804282,
+      "workflow": "Full browser regression",
+      "event": "pull_request",
+      "createdAt": "2026-09-11T19:15:01Z",
+      "roundedJobMinutes": 11
+    },
+    {
+      "runId": 34638823540,
+      "workflow": "Engineering quality gate",
+      "event": "pull_request",
+      "createdAt": "2026-09-11T19:26:13Z",
+      "roundedJobMinutes": 6
+    },
+    {
+      "runId": 34638823563,
+      "workflow": "Support wiki",
+      "event": "pull_request",
+      "createdAt": "2026-09-11T19:26:13Z",
+      "roundedJobMinutes": 1
+    },
+    {
+      "runId": 34638823586,
+      "workflow": "Full browser regression",
+      "event": "pull_request",
+      "createdAt": "2026-09-11T19:26:13Z",
+      "roundedJobMinutes": 10
+    },
+    {
+      "runId": 34638823617,
+      "workflow": "Offline security scan",
+      "event": "pull_request",
+      "createdAt": "2026-09-11T19:26:13Z",
+      "roundedJobMinutes": 1
+    },
+    {
+      "runId": 34638823659,
+      "workflow": "CodeQL security analysis",
+      "event": "pull_request",
+      "createdAt": "2026-09-11T19:26:13Z",
+      "roundedJobMinutes": 6
+    },
+    {
+      "runId": 34639584877,
+      "workflow": "CodeQL security analysis",
+      "event": "pull_request",
+      "createdAt": "2026-09-11T19:34:41Z",
+      "roundedJobMinutes": 6
+    },
+    {
+      "runId": 34639584892,
+      "workflow": "Engineering quality gate",
+      "event": "pull_request",
+      "createdAt": "2026-09-11T19:34:41Z",
+      "roundedJobMinutes": 13
+    },
+    {
+      "runId": 34639584945,
+      "workflow": "Offline security scan",
+      "event": "pull_request",
+      "createdAt": "2026-09-11T19:34:41Z",
+      "roundedJobMinutes": 1
+    },
+    {
+      "runId": 34639584955,
+      "workflow": "Full browser regression",
+      "event": "pull_request",
+      "createdAt": "2026-09-11T19:34:41Z",
+      "roundedJobMinutes": 17
+    },
+    {
+      "runId": 34639584957,
+      "workflow": "Support wiki",
+      "event": "pull_request",
+      "createdAt": "2026-09-11T19:34:41Z",
+      "roundedJobMinutes": 1
+    }
+  ]
+}

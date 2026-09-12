@@ -7,7 +7,7 @@ export default defineSupportArticle({
   summary: "Compare memberships, check checkout availability, manage a subscription, and recover from common billing states.",
   category: "plans",
   keywords: ["billing", "pricing", "Plus", "Pro", "course credits", "rollover", "evidence report", "subscription", "downgrade", "cancel", "refund", "payment method"],
-  reviewedOn: "2026-09-06",
+  reviewedOn: "2026-09-11",
   sources: ["src/lib/runtime-config.ts", ".env.example", "src/lib/billing-lock.ts", "src/lib/stripe-server.ts", "src/lib/membership-plans.ts", "src/lib/course-credits.ts", "src/app/pricing/page.tsx", "src/app/terms/page.tsx", "docs/COMMERCIAL_LAUNCH_RUNBOOK.md"],
   body: `
 ## Check current checkout availability
@@ -44,9 +44,13 @@ If the browser returns with Checkout marked canceled, the return link alone does
 
 ## Manage or cancel a subscription
 
-Signed-in subscribers can use **Manage billing** on the [Plans page](/pricing) to open Stripe's billing portal. When available, the portal supports reviewing the subscription, updating a payment method, viewing invoices, immediate Plus/Pro and monthly/annual changes, and cancellation at the end of the paid period. Review Stripe’s displayed proration and invoice before confirming an immediate change. The billing-cycle anchor remains unchanged; course-credit adjustments follow the confirmed subscription transition. Cancellation ordinarily stops the next renewal while access continues through the current paid period; the portal shows the effective date before confirmation.
+Signed-in subscribers can use **Manage billing** on the [Plans page](/pricing) to open Stripe's billing portal. When available, the portal supports reviewing the subscription, updating a payment method, viewing invoices, immediate Plus/Pro and monthly/annual changes, and cancellation at the end of the paid period. Review Stripe’s displayed prorated amount, invoice, and next billing date before confirming an immediate change. Course-credit adjustments follow the confirmed subscription transition. Cancellation ordinarily stops the next renewal while access continues through the current paid period; the portal shows the effective date before confirmation.
 
 If a payment needs attention, use **Manage billing** to review the payment method and current subscription state. Filosage does not delete learning data because a payment is delayed or a membership is downgraded.
+
+After cancellation is confirmed for the current paid period, the Plans page shows when access ends and that renewal is stopped. If cancellation is scheduled for a later period, check the exact date in Stripe; another renewal can still occur first.
+
+Paid features require a confirmed, unexpired paid period. If Filosage cannot confirm a renewal, the account can show Free while the payment is checked. Your saved work remains, and billing management is still available when the portal is working. Do not pay again simply to clear a delayed update; check Stripe or contact support first.
 
 ## Refund questions
 

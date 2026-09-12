@@ -1,0 +1,32 @@
+{
+  "conditions": "Optimized local build, fresh Chromium context, 390x844, reduced motion, empty catalog, session response delayed 750ms; three samples. Not field CWV.",
+  "samples": [
+    {
+      "ttfbMs": 16,
+      "fcpMs": 192,
+      "observedReadyMs": 1218,
+      "scriptCount": 15,
+      "scriptTransferBytes": 329318,
+      "scriptDecodedBytes": 1130368,
+      "pageHeight": 8492
+    },
+    {
+      "ttfbMs": 8,
+      "fcpMs": 172,
+      "observedReadyMs": 1171,
+      "scriptCount": 15,
+      "scriptTransferBytes": 329318,
+      "scriptDecodedBytes": 1130368,
+      "pageHeight": 8412
+    },
+    {
+      "ttfbMs": 8,
+      "fcpMs": 164,
+      "observedReadyMs": 1200,
+      "scriptCount": 15,
+      "scriptTransferBytes": 329318,
+      "scriptDecodedBytes": 1130368,
+      "pageHeight": 8412
+    }
+  ]
+}

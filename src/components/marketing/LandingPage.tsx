@@ -1,31 +1,30 @@
 import Link from "next/link";
-import { ArrowRight, BookOpenCheck, LockKeyhole, ShieldCheck } from "lucide-react";
-import EvidenceDossier from "@/components/marketing/EvidenceDossier";
-import FeatureGrid from "@/components/marketing/FeatureGrid";
+import { ArrowRight } from "lucide-react";
 import HowItWorks from "@/components/marketing/HowItWorks";
 import MarketingFAQ from "@/components/marketing/MarketingFAQ";
 import MarketingHero from "@/components/marketing/MarketingHero";
 
 export default function LandingPage() {
   return (
-    <div className="marketing-page">
+    <div className="marketing-page visitor-home">
       <MarketingHero />
       <HowItWorks />
-      <FeatureGrid />
-      <EvidenceDossier />
-      <section className="marketing-section marketing-trust" aria-labelledby="marketing-trust-title">
-        <div><h2 id="marketing-trust-title">Know where the material comes from.</h2><p>Course pages show whether a lesson uses verified sources, AI general knowledge, or further reading. They also show the course structure before you create an account.</p><Link className="marketing-text-link" href="/standard">Read the teaching and source standard <ArrowRight size={15} /></Link></div>
-        <ul><li><ShieldCheck aria-hidden="true" /><span><strong>Sources are labeled</strong><small>Verified sources are kept separate from AI general knowledge and reading suggestions.</small></span></li><li><BookOpenCheck aria-hidden="true" /><span><strong>The outline is public</strong><small>Review the outcome, modules, lesson titles, and assessment before joining.</small></span></li><li><LockKeyhole aria-hidden="true" /><span><strong>Your learning stays with your account</strong><small>Lesson access, notes, progress, study tools, and evidence require a verified learner.</small></span></li></ul>
+      <section className="marketing-section visitor-practice" id="features" aria-labelledby="visitor-practice-title">
+        <div>
+          <h2 id="visitor-practice-title">Practice is part of the lesson.</h2>
+          <p>Read an explanation, follow an example, and make your own attempt. Use feedback to see what needs another try.</p>
+          <Link className="marketing-text-link" href="/standard">Read the teaching standard <ArrowRight size={15} /></Link>
+        </div>
+        <dl>
+          <div><dt>Work you can revisit</dt><dd>Your notes, practice, and progress stay in your account.</dd></div>
+          <div><dt>Sources you can inspect</dt><dd>Lessons distinguish source-backed material from AI general knowledge. A reference alone does not verify a claim.</dd></div>
+          <div><dt>Progress that stays honest</dt><dd>Completed practice, assessed work, and unchecked attempts are shown separately.</dd></div>
+        </dl>
       </section>
       <MarketingFAQ />
-      <section className="marketing-section marketing-access" aria-labelledby="marketing-access-title">
-        <div className="marketing-access-copy">
-          <h2 id="marketing-access-title">Find a course that fits.</h2>
-          <p>Browse by topic, level, or time. Open any course outline before deciding whether to sign up.</p>
-          <div className="marketing-access-actions">
-            <Link className="button button-primary" href="/library">Browse published courses <ArrowRight size={16} /></Link>
-          </div>
-        </div>
+      <section className="marketing-section visitor-next" aria-labelledby="visitor-next-title">
+        <div><h2 id="visitor-next-title">See what you could learn.</h2><p>Start with a course outline. Sign up when you’re ready for the lessons.</p></div>
+        <Link className="button button-primary" href="/library">Explore courses <ArrowRight size={16} /></Link>
       </section>
     </div>
   );
