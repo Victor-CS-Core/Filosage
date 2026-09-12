@@ -1,0 +1,67 @@
+{
+  "actions": [],
+  "errors": [],
+  "observedAt": "2026-09-12T21:33:35.181566Z",
+  "policy": {
+    "checkPolicy": "all",
+    "configPath": null,
+    "requiredReviewers": [],
+    "source": "defaults",
+    "strictChangesRequested": false
+  },
+  "schemaVersion": 1,
+  "state": "merged",
+  "targets": [
+    {
+      "actions": [],
+      "checks": {
+        "fail": [],
+        "malformed": [],
+        "pass": [],
+        "pending": [],
+        "skipping": [],
+        "total": 0,
+        "unknown": []
+      },
+      "kind": "explicit",
+      "landingAuthorization": {
+        "current": true,
+        "currentHead": "f5940145df0294ad86f830e7a0785a00c4a58f03",
+        "expectedHead": "f5940145df0294ad86f830e7a0785a00c4a58f03",
+        "mode": "auto"
+      },
+      "path": "/home/ktr0nn/Work/Filosage/.worktrees/database-budget-pr-20260912",
+      "pending": [],
+      "pr": {
+        "autoMerge": null,
+        "autoMergeEnabled": false,
+        "baseRefName": "main",
+        "baseSha": "1bacb608c671bed5ab091c2ae0720cdbfaa6b366",
+        "headRefName": "codex/database-connection-budget-20260912",
+        "headSha": "f5940145df0294ad86f830e7a0785a00c4a58f03",
+        "isMergeQueueEnabled": null,
+        "mergeQueueEntry": null,
+        "mergeStateStatus": "UNKNOWN",
+        "mergeable": "UNKNOWN",
+        "number": 27,
+        "reviewDecision": null,
+        "state": "MERGED",
+        "url": "https://github.com/Victor-CS-Core/Filosage/pull/27"
+      },
+      "repository": "Victor-CS-Core/Filosage",
+      "repositoryPolicy": {
+        "mergeCommitAllowed": true,
+        "rebaseMergeAllowed": true,
+        "squashMergeAllowed": true
+      },
+      "reviews": {
+        "missingRequiredReviewers": [],
+        "requiredReviewers": [],
+        "unresolvedThreadCount": 0
+      },
+      "state": "merged"
+    }
+  ],
+  "mergeCommit": "7c48bc02ff6623a81fee382b194864f1d04b76c0",
+  "approvedHeadTreeMatchesMain": true
+}
