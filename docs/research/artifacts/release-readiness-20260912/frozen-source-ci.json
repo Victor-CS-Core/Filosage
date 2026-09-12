@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "observedAt": "2026-09-12T17:29:28.218016+00:00",
+  "observedAt": "2026-09-12T18:05:06.075458+00:00",
   "sourceSha": "3a0e772fbb41a16396cf6761274e75b65f175f02",
   "sourceFrozen": true,
   "candidateAccepted": false,
@@ -34,9 +34,23 @@
   },
   "fullRegression": {
     "runId": 34707824138,
-    "status": "in_progress",
-    "conclusion": null,
-    "observationDeadline": "2026-09-12T18:30:00Z"
+    "status": "completed",
+    "conclusion": "success",
+    "observationDeadline": "2026-09-12T18:30:00Z",
+    "completedAt": "2026-09-12T18:02:07Z",
+    "observationClosed": true,
+    "stats": {
+      "startTime": "2026-09-12T17:19:58.303Z",
+      "duration": 2505546.8688964844,
+      "expected": 456,
+      "skipped": 9,
+      "unexpected": 0,
+      "flaky": 2
+    },
+    "artifactId": 10302193574,
+    "artifactDigest": "sha256:001cac45b531eddc82e23cf93bcdb9f9f282516fa203f157d85c44e12bd6a112",
+    "archiveDigestVerified": true,
+    "embeddedSourceShaVerified": true
   },
   "verifiedArtifacts": [
     {
@@ -61,5 +75,7 @@
       "embeddedSourceShaVerified": true
     }
   ],
-  "previousRejectedSource": "source-ci-50c0bfe.json"
+  "previousRejectedSource": "source-ci-50c0bfe.json",
+  "sourceChecksAccepted": true,
+  "candidateAcceptancePending": "Actual native deployment reviews, recovery, database runtime, compatible baseline and hosted candidate acceptance are still required."
 }
