@@ -53,7 +53,10 @@ export async function createPostgresFixture() {
     const table = await monitor.query<{ name: string | null }>("SELECT to_regclass('public.filosage_documents')::text AS name");
     assert.equal(table.rows[0]?.name, "filosage_documents");
     // Set application routing only after validating the explicit test target and live database.
-    Object.assign(process.env, { NODE_ENV: "production", DATABASE_URL: connectionString, DATABASE_SSL: "disable", DATABASE_POOL_MAX: "8" });
+    // Exercise the supported production maximum: two application connections can
+    // contend on real locks while the separate monitor observes the blocker.
+    // Deadline tests deliberately reduce this to one to exercise pool exhaustion.
+    Object.assign(process.env, { NODE_ENV: "production", DATABASE_URL: connectionString, DATABASE_SSL: "disable", DATABASE_POOL_MAX: "2" });
     const store = await import("../../src/lib/document-store.ts");
     const { postgresDocumentStoreJson } = await import("../../src/lib/postgres-document-store.ts");
     const { toDocumentFields } = await import("../../src/lib/document-values.ts");
