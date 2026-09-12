@@ -43,3 +43,12 @@ Lifecycle meanings:
 - `completed`: requested outcome is genuinely finished and no required approval, review, merge, deployment or verification remains.
 
 Scale work reports to the task. For material implementation or release checkpoints, include relevant ownership, status, evidence, actual blockers and required approvals, and distinguish commit, push, deployment and production-verification state. No fixed tracking footer, Multica identifier or availability notice is required. If no concrete task was requested, create no tracking record and dispatch no agent.
+
+## CI usage discipline
+
+- Commit locally as often as needed, but batch remote pushes into coherent, locally validated review checkpoints. Do not push after each investigation note, progress update or intermediate fix merely to save work remotely.
+- Updating this progress record does not itself require an immediate push. Preserve the record locally during active work and include it with the next validated checkpoint or handoff.
+- Every update to an open code PR triggers engineering, security and wiki checks. A documentation-only latest commit does not make a PR documentation-only if its cumulative diff still contains code.
+- Prefer fixing and testing locally before the next push. Do not rerun unchanged failed checks unless evidence identifies a transient runner/provider failure; fix deterministic failures first.
+- Full browser regression remains manual-only. Dispatch once on a frozen, locally validated candidate after its engineering checks pass; rerun only after a relevant correction or a demonstrated transient failure.
+- Documentation-only PR engineering runs are lightweight and are not release proof. Use a successful full PR/main run or manually dispatch Engineering quality gate at the exact candidate SHA, and retain the separate full regression requirement.
