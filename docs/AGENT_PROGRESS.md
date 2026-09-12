@@ -3,6 +3,12 @@
 Last updated: 2026-09-12, 12:49 UTC. Owner: Codex coordinator. Status: current QA Terms accepted and existing-account bookmark/theme checks passed; hosted branding and full billing lifecycle gates remain open.
 Branch: `codex/visitor-experience-20260911`. Starting commit: `96559246b89b81f5b3cebcc36147932400c8cc4c`.
 
+## Active branch consolidation — September 12
+
+Victor explicitly requested all unmerged and active branches consolidated into `main`, conflicts fixed, committed/pushed and source branches removed. The current consolidation coordinator owns [the complete consolidation outcome checklist](releases/2026-09-12-branch-consolidation.md) on `codex/consolidate-20260912`; the historical A–K release checklist below remains open where hosted evidence is missing. No deployment or billing activation is part of consolidation.
+
+Initial inventory: three existing non-main local worktrees, 30 remote non-main branches, 14 open PRs and the root policy edit. Visitor/QA changes and the Node 26 publication-proof correction have been integrated locally. The visitor owner is making one final documentation checkpoint before freezing branch writes. Separate isolated agents are consolidating dependency updates and earlier security alternatives; the coordinator handles historical branch reconciliation, combined validation, landing and cleanup. Main is not yet changed or pushed.
+
 ## Read first
 
 Every agent starting or continuing work must read this file and the current `AGENTS.md`, inspect Git status, and verify referenced evidence before relying on it. Do not silently narrow this checklist. The coordinator updates this file at milestones, at least every ten minutes during sustained work, before checkpoint commits/pushes, and before handoffs. Keep credentials, tokens, private user data, and environment values out of this log.

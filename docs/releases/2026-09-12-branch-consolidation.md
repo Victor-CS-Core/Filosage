@@ -24,3 +24,6 @@ Risks: stale historical branches may restore retired systems; automated dependen
 ## Progress
 
 - Started: root `main` is at `ae1abe3`; three other local branches have worktrees, and root `AGENTS.md` has an existing edit. Remote inventory is being refreshed.
+
+- Progress: isolated integration worktree created; visitor/QA work and Node 26 proof fix merged locally. `AGENTS.md` retained both the optional-tracker policy and the required progress-record section; checkout documentation retained the fuller card-only explanation. Visitor owner will supply one final documentation-only tip. Dependency and security consolidation run in separate worktrees with no push/deployment authority.
+- Patch-equivalent helper branches are verified using `git cherry -v`; their exact source tips will be linked as ancestors without replaying already integrated or subsequently improved code.
