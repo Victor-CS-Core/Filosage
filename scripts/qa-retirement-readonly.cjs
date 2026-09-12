@@ -1,5 +1,4 @@
 /* Read-only QA catalog and aggregate probe. Credentials never leave this process. */
-const { Client } = require('pg');
 const nonce = '__PROTOCOL_NONCE__';
 const stages = ['target', 'connect', 'transaction', 'catalog', 'aggregates', 'rollback'];
 let stage = 'target';
@@ -8,7 +7,6 @@ function emit(value) {
   if (!sent) process.stdout.write(`__FSG_RESULT_${nonce}__${Buffer.from(JSON.stringify(value)).toString('base64')}\n`);
   sent = true;
 }
-const deadline = setTimeout(() => { emit({ ok: false, stage, sqlstate: null }); process.exit(1); }, 55000);
 const collections = [
   'users', 'courses', 'lessons', 'courseReleases', 'courseProgress', 'learningData',
   'lessonNotes', 'lessonActivity', 'lessonInteraction', 'lessonInteractionMutations',
@@ -31,20 +29,32 @@ const retained = ['legalAcceptances', 'billingConsents', 'userSafety', 'safetyEv
   'commandCenterAuditEvents', 'commandCenterTicketRequests', 'commandCenterPublicReplyRequests',
   'commandCenterApprovalReviewRequests', 'identityLinks', 'identityEmails', 'identityEmailOwners',
   'identityLinkIntents', 'identityLinkEvents', 'accountLifecycles', 'accountDeletionJobs'];
+function connectionConfig(dsn, siteVersion) {
+  const url = new URL(dsn);
+  if (!['postgres:', 'postgresql:'].includes(url.protocol)
+      || url.hostname !== 'filosagestg-p4ujucgnxq3gs-pg.postgres.database.azure.com'
+      || url.pathname !== '/filosageqa' || url.username !== 'filosageqa_runtime' || !url.password
+      || (url.port && url.port !== '5432') || url.hash
+      || url.searchParams.getAll('sslmode').length !== 1
+      || url.searchParams.get('sslmode') !== 'verify-full'
+      || [...url.searchParams.keys()].some(key => key !== 'sslmode')
+      || siteVersion !== 'c7d9c2c274bfcaee805332a83d94a208af32f09e') throw new Error('target');
+  // Never pass connectionString: pg query options can override validated host,
+  // port, user/password, TLS and timeouts. Construct the allowlisted config.
+  return { host: url.hostname, port: 5432, database: 'filosageqa', user: 'filosageqa_runtime',
+    password: decodeURIComponent(url.password), ssl: { rejectUnauthorized: true },
+    connectionTimeoutMillis: 8000, query_timeout: 10000, statement_timeout: 10000,
+    application_name: 'qa-retirement-readonly', options: '-c default_transaction_read_only=on' };
+}
 async function main() {
   let client;
   let transaction = false;
+  const deadline = setTimeout(() => { emit({ ok: false, stage, sqlstate: null }); process.exit(1); }, 55000);
   try {
-    const dsn = process.env.DATABASE_URL;
-    const url = new URL(dsn);
-    if (url.hostname !== 'filosagestg-p4ujucgnxq3gs-pg.postgres.database.azure.com'
-        || url.pathname !== '/filosageqa' || url.username !== 'filosageqa_runtime'
-        || url.searchParams.get('sslmode') !== 'verify-full'
-        || process.env.SITE_VERSION !== 'c7d9c2c274bfcaee805332a83d94a208af32f09e') throw new Error('target');
+    const config = connectionConfig(process.env.DATABASE_URL, process.env.SITE_VERSION);
     stage = 'connect';
-    client = new Client({ connectionString: dsn, ssl: { rejectUnauthorized: true },
-      connectionTimeoutMillis: 8000, query_timeout: 10000, statement_timeout: 10000,
-      application_name: 'qa-retirement-readonly', options: '-c default_transaction_read_only=on' });
+    const { default: pg } = await import('pg');
+    client = new pg.Client(config);
     await client.connect();
     stage = 'transaction';
     await client.query('BEGIN READ ONLY'); transaction = true;
@@ -111,4 +121,6 @@ async function main() {
     clearTimeout(deadline);
   }
 }
-main();
+module.exports = { connectionConfig };
+// Local imports are test-only. The reviewed transport replaces the nonce for execution.
+if (require.main === module || nonce !== '__PROTOCOL_' + 'NONCE__') main();

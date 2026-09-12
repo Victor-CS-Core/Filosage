@@ -84,7 +84,7 @@ QA's `stripe-qa-webhook-secret` is an app-local secret reference with no Key Vau
 | Stripe TEST Portal | `bpc_1UENu8RANh4Mnfmafj0zDVuU`, active, non-default; QA pricing return URL and QA Terms/Privacy links; candidate for deactivation after preservation. Preserve default Portal, unrelated endpoints/products/prices, processor history and all LIVE configuration |
 | GitHub QA variables | Only `AZURE_QA_CONTAINER_APP_NAME=filosageqa-app` and `AZURE_QA_URL=https://qa.filosage.com` in shared `azure-staging` environment; no repo-level vars or secrets; no `azure-qa` environment |
 | GitHub deployment principal | App ID `8156a54e-d644-4792-9b8e-65444e004dc8`, object ID `c90eb4a8-aa20-4872-9fb4-9ed528911898`, SP `6a25b4c2-f60a-4995-82ae-d2ea64786577`; preserve shared app and federation `74a21f13-cb0b-48d6-9f56-674979544b13` for `azure-staging` |
-| Exclusive deploy grant | `Container Apps Contributor` at QA app only, assignment `cdb56bcd-884d-4b49-b606-71d474bcd931`; remove only this grant, preserving deployer's four other production/shared grants |
+| Exclusive deploy grant | `Container Apps Contributor` at QA app only, assignment `cdb56bcd-884d-4b49-b606-71d474bcd931`; remove only this grant, preserving all unrelated production/shared grants, including the coordinator's subsequent PostgreSQL Reader assignment |
 
 Current `.github` and `infra` search finds no `AZURE_QA`, `qa.filosage`, `filosageqa` or `qa-course-banners` consumer. Do not remove shared GitHub environment or `AZURE_CLIENT_ID`, `AZURE_SUBSCRIPTION_ID`, `AZURE_TENANT_ID` secret references.
 
@@ -150,3 +150,10 @@ The coordinator independently reviewed the new [Python transport adapter](../../
 Six [offline containment tests](../../scripts/qa-retirement-readonly.test.py) cover accepted aggregate output and rejection of extra private fields, unknown category labels, writable transactions, raw error text and mismatched totals. Python compilation, Node syntax and whitespace checks passed. No app code, dependencies or Next.js behavior changed. The adapter uses the preserved local transport path and intentionally fails closed if that file is missing or changes; review is required before reuse on another machine or revision.
 
 All owned local inventory/probe processes exited; no watcher or background job remains. No provider mutation, private export, secret retrieval, push, merge, deployment, production acceptance or QA retirement occurred. The coordinator owns final review, integration and any subsequent authorized execution.
+
+
+### Connection-containment hardening after review
+
+Independent operations review reproduced an offline driver behavior: URL query parameters such as `host`, `port`, `user` and `ssl` can override a validated URL and explicit `ssl` option when passed through `connectionString`. The QA probe now rejects all query keys except one required `sslmode=verify-full` and constructs the driver config from explicit host/port/database/user/password fields with mandatory certificate verification and read-only defaults. No full connection string reaches the driver. Three offline [connection-containment tests](../../scripts/qa-retirement-readonly.test.mjs) validate effective driver options without connecting and reject query/target/TLS overrides.
+
+The live read-only evidence belongs to the original reviewed source in commit `b49da3051142eb39f9b2eece2a083fa5c8283d1e`; the subsequent hardened probe has not been rerun against a provider. There is no evidence of an actual credential disclosure or misdirected connection in the recorded run. The hardening and nine total offline cases require coordinator review before reuse. All unrelated deployment-principal grants remain protected regardless of changes after the metadata snapshot; the coordinator subsequently added a narrow PostgreSQL ARM Reader grant.
