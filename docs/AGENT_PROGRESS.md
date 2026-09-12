@@ -1,6 +1,6 @@
 # Filosage audit and visitor experience handoff
 
-Last updated: 2026-09-12, 02:34 UTC. Owner: Codex coordinator. Status: active release goal; scanner repaired and exact c7 candidate deployed to isolated QA; hosted account, theme and billing gates remain open.
+Last updated: 2026-09-12, 02:43 UTC. Owner: Codex coordinator. Status: active release goal; scanner repaired and exact c7 candidate deployed to isolated QA; hosted account, theme and billing gates remain open.
 Branch: `codex/visitor-experience-20260911`. Starting commit: `96559246b89b81f5b3cebcc36147932400c8cc4c`.
 
 ## Read first
@@ -204,7 +204,7 @@ Wiki run34663630427 passed; engineering run34663630394 remains in progress with 
 
 ### QA execution continued — September 12, 01:28 UTC
 
-Fresh PR readback confirms all five required jobs green atc7d9c2c, including browser smoke and static/release contracts. PR description now records the pinned scan pass and current hosted gates. Supabase Preview is skipped. No manual full regression was launched.
+Fresh PR readback confirms all five required jobs green atc7d9c2c, including browser smoke and static/release contracts. PR description now records the pinned scan pass and current hosted gates. The external preview is skipped. No manual full regression was launched.
 
 The QA bootstrap helper now handles the verified administrator DSN's original production-database path by explicitly rebuilding a QA-only connection before any use. It also verifies a non-echoing private transport, reconstructs bounded source chunks, handles split result frames, and retains the same runtime credential across uncertainty. Five local tests pass; independent review precedes real execution. No role/secret mutation has yet occurred.
 
@@ -259,3 +259,9 @@ The reviewed second-phase QA cutover succeeded. It removed only the unused Conta
 Anonymous real QA API checks return a null user session and401 for account and own-course endpoints. The QA browser remains at sign-in for Victor's existing account; actual sign-in, lesson return and hosted theme coverage remain incomplete. Stripe provider objects remain verified and unchanged, but a durable TEST runtime key is absent. The plugin cannot mint that server key. No full regression, public production promotion or live billing activation occurred.
 
 Source checkpoint comprises only the independently reviewed recovery-session test fixture plus documentation/sanitized evidence. Focused ESLint and whitespace checks pass. Exactc7 remains the deployed QA source and the previously green CI head; this subsequent checkpoint must obtain its own CI. The full A–K checklist remains: A/B/E/I/K complete; C/D/F/G/H/J open with the bounded browser and isolation gates above now satisfied. Multica tools/CLI remain unavailable; intended keys/owner unchanged, no delivered item/event claimed. All general in-scope permissions are recorded; the remaining account, OAuth-client and runtime-key gaps are technical dependencies.
+
+## Checkpoint CI documentation correction
+
+Checkpoint5ebaf9fc123d9fa43ae093fe20d54862733b1e8b was committed and pushed to PR22. Fresh security34668117733, wiki34668117833 and PostgreSQL passed. Engineering34668117717 reached457/458 passing contract cases; the sole failure was the tracked retired-name guard matching a vendor label in a historical handoff sentence. Browser smoke was skipped after that failure. The guard correctly remains unchanged. The sentence now says “external preview,” preserving its skipped-state meaning. An isolated worker reproduced the failure and the minimal wording correction passes all three focused guard cases. The coordinator reviewed the patch independently. This correction changes documentation only; QA remains on verifiedc7. Observe the new checkpoint’s own CI before claiming it green.
+
+The source worktree and isolated fixture worktree were clean after the earlier integrated fixture was preserved in5ebaf9f; this current one-sentence worker edit is also integrated. Local build/browser helpers are stopped. Fresh public health at02:39UTC remains200 on93f60f24, baseline only. The active goal remains incomplete at the owned-account, hosted-theme/identity, TEST runtime-key and full billing lifecycle gates. No general permission is missing, no public promotion or live activation occurred, and Multica remains unavailable.
