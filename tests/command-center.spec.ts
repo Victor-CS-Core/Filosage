@@ -467,11 +467,17 @@ test("records a versioned ticket and approval without executing an external acti
   expect(relatedAudit.filter((event) => event.action === "ticket.created")).toHaveLength(1);
 });
 
-test("renders the owner command center with visible draft-only safety controls", { tag: "@smoke" }, async ({ page }) => {
+test("renders the owner command center with visible draft-only safety controls", { tag: "@smoke" }, async ({ page, baseURL }) => {
   await page.setViewportSize({ width: 1366, height: 768 });
   await acceptOwnerTerms(page.request);
   await page.addInitScript(() => localStorage.setItem("filosage-local-session", "1"));
-  await page.goto("/admin/command-center");
+  // HTML load can finish before the initial owner snapshot is available.
+  const [snapshotResponse] = await Promise.all([
+    page.waitForResponse((response) => response.url() === new URL("/api/admin/command-center", baseURL).href
+      && response.request().method() === "GET"),
+    page.goto("/admin/command-center"),
+  ]);
+  expect(snapshotResponse.ok(), "The initial owner command-center snapshot must load successfully.").toBe(true);
 
   await expect(page.getByRole("heading", { name: "Agent command center" })).toBeVisible();
   await expect(page.getByText("Agent simulation")).toBeVisible();
