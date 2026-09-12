@@ -1,6 +1,6 @@
 # Recovery rehearsal and evidence
 
-Status: September12 bounded private PostgreSQL and isolated Blob recovery checks have executed and their task-created resources have been cleaned up; see [execution packet](releases/2026-09-12-recovery-rehearsal.md). Full service recovery, historical asset/reference consistency and candidate learner acceptance remain unverified. No production write or permission change was performed. The release owner must approve the exact resource inventory, recovery targets, cost ceiling, access controls, RPO/RTO and cleanup before execution. A candidate at zero public traffic still shares production services; it is not a recovery database or a safe target for destructive tests.
+Status: September12 bounded private PostgreSQL and isolated Blob recovery checks have executed and their task-created resources have been cleaned up; see [execution packet](releases/2026-09-12-recovery-rehearsal.md). The frozen candidate’s representative non-owner sign-in, private-course denial, lesson completion, reload persistence and restored banner display now pass in the isolated app; see [learner evidence](research/artifacts/release-readiness-20260912/service-recovery-learner-20260912.json) and [final cleanup](research/artifacts/release-readiness-20260912/service-recovery-cleanup-20260912.json). Full service RPO/RTO acceptance, historical asset/reference and retained-accounting consistency remain unverified. No production write or permission change was performed. The release owner must approve the exact resource inventory, recovery targets, cost ceiling, access controls, RPO/RTO and cleanup before execution. A candidate at zero public traffic still shares production services; it is not a recovery database or a safe target for destructive tests.
 
 ## Backup observation
 
@@ -8,9 +8,9 @@ Status: September12 bounded private PostgreSQL and isolated Blob recovery checks
 
 Before enabling the observation, inventory the principal's effective inherited permissions and approve the required server-scoped read access. Record the resulting role assignment IDs and a readback; a template or successful login does not establish least privilege. Run a manual observation and retain the next scheduled result. A failed scheduled run requires an assigned operator response. The output explicitly says `restoreRehearsal: false`.
 
-## Proposed service targets requiring an owner decision
+## Approved service targets and remaining evidence
 
-Record a maximum tolerable loss of committed learner work (RPO), a maximum period before validated service resumes (RTO), the required availability target, and the person responsible for an incident. Select targets using measured restore time, business impact and the available service tier. Backup retention alone proves none of these. Until the owner supplies values and the rehearsal meets them, recovery acceptance remains blocked.
+Victor approved RPO of15minutes and RTO of60minutes for this rehearsal; do not ask for those values again. The September12 isolated learner path completed in approximately23minutes13seconds from restore request, including setup and human sign-in. This is observed rehearsal duration, not a production-outage guarantee. Committed-work loss, historical Blob consistency and retained accounting checks remain needed for full recovery acceptance; backup retention alone proves none of these.
 
 ## Approve an isolated rehearsal
 
