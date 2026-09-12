@@ -1,0 +1,53 @@
+{
+  "schemaVersion": 1,
+  "recordedAt": "2026-09-12T16:10:40.687067+00:00",
+  "candidateSha": "b22069ba5cd06651c41bc5494532730cb0301e37",
+  "classification": "source-assessment-only",
+  "loadExperimentPerformed": false,
+  "latencyMeasured": false,
+  "providerCalls": 0,
+  "databaseConnections": 0,
+  "ownedBackgroundProcessesStarted": 0,
+  "localFixture": {
+    "dedicatedUrlConfigured": false,
+    "serverBinaryAvailable": false,
+    "runningPostgresProcesses": 0,
+    "dockerEndpointLocalUnix": true,
+    "dockerReadAccess": "permission-denied"
+  },
+  "source": {
+    "mainDefaultMax": 10,
+    "healthMax": 1,
+    "mainAcquireTimeoutMs": 10000,
+    "healthAcquireTimeoutMs": 3000,
+    "mainIdleTimeoutMs": 30000,
+    "healthIdleTimeoutMs": 10000,
+    "lockTimeoutMs": 10000,
+    "statementTimeoutMs": 30000,
+    "queryTimeoutMs": 35000,
+    "transactionTtlMs": 30000,
+    "override": "DATABASE_POOL_MAX",
+    "overrideApplied": false
+  },
+  "budget": {
+    "observedServerMaxConnections": 50,
+    "modernRevisions": 2,
+    "maxReplicasPerRevision": 3,
+    "assumedProcessesPerReplica": 1,
+    "defaultPotential": 66,
+    "illustrativeMainMax": 3,
+    "illustrativeProductionPotential": 24,
+    "conditionalQAReserve": 11,
+    "proposedOperatorReserve": 5,
+    "assumedServerReserve": 5,
+    "spareHeadroom": 5,
+    "measuredRecommendation": false
+  },
+  "sourceHashes": {
+    "src/lib/postgres-document-store.ts": "f5ebfbf9035a686309f738a70207d33d0de7412c2885458afc32cf97e9a07d75",
+    "src/lib/runtime-environment.ts": "7c860e6556beab838caee18824bb1088d44f5dae6f0e46eeef1d0eb3f01d92f5",
+    "infra/azure/main.bicep": "bd0223a0c4cc168f50a3c5a37e833eaf0215ec1a15878828d85d2c73e84b2c5b",
+    "Dockerfile": "c227160bd4c277e7f8df78374309977dd887373e71109e3b8a953fb4f2c07613",
+    "tests/postgres/fixture.ts": "ff2b48707b5c96728deaad1ad51c59ee3f7edb8a7044cc72d5aa566091414772"
+  }
+}
