@@ -498,6 +498,11 @@ test("release workflows accept only exact successful workflow evidence", () => {
     note: privateSentinel,
     total_count: 1,
     workflow_runs: [{
+      id: 123,
+      run_attempt: 1,
+      jobs: { total_count: 3, jobs: ["static-and-release-contracts", "browser-smoke", "postgres-transactions"].map((name, index) => ({
+        id: index + 1, run_id: 123, run_attempt: 1, head_sha: sha, name, status: "completed", conclusion: "success",
+      })) },
       conclusion: "success",
       head_sha: sha,
       path: ".github/workflows/quality-gate.yml",
@@ -695,6 +700,19 @@ test("CI cost controls preserve automatic quality and exact manual release proof
     .map(([, job, body]) => [job, Number(body.match(/^ {4}timeout-minutes: (\d+)$/m)?.[1])]));
   expect(timeouts).toEqual({ "static-and-release-contracts": 15, "browser-smoke": 20, "postgres-transactions": 10 });
   expect(qualityWorkflow).toContain("cancel-in-progress: true");
+  expect(qualityWorkflow).toContain("workflow_dispatch:");
+  expect(qualityWorkflow).not.toMatch(/^\s+paths(?:-ignore)?:/m);
+  expect(qualityWorkflow).toContain("fetch-depth: 0");
+  expect(qualityWorkflow).toContain("run: node scripts/ci-change-scope.mjs");
+  expect(qualityWorkflow).toContain("run: node --test tests/ci/*.test.mjs tests/workflow-quality-evidence.test.mjs");
+  for (const job of ["browser-smoke", "postgres-transactions"]) {
+    expect(qualityWorkflow).toContain(`${job}:\n    needs: static-and-release-contracts\n    if: needs.static-and-release-contracts.outputs.full == 'true'`);
+  }
+  for (const command of ["npm ci", "npm run lint", "npm run build", "npm run test:billing", "npm audit --audit-level=high"]) {
+    expect(qualityWorkflow).toContain(`- run: ${command}\n        if: steps.scope.outputs.full == 'true'`);
+  }
+  expect(qualityWorkflow).toContain("- run: npm run check:secrets\n      - run: npm run check:support-wiki\n");
+
 
   const wiki = read(".github/workflows/support-wiki.yml");
   expect(wiki).not.toContain("npm ci");

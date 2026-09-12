@@ -4,6 +4,7 @@ on:
   pull_request:
   push:
     branches: [main]
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -16,10 +17,14 @@ jobs:
   static-and-release-contracts:
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    outputs:
+      full: ${{ steps.scope.outputs.full }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
       - name: Verify release source SHA
         shell: bash
         env:
@@ -34,26 +39,47 @@ jobs:
         with:
           node-version: 22
           cache: npm
+      - name: Classify the complete PR diff
+        id: scope
+        env:
+          CI_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          CI_HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: node scripts/ci-change-scope.mjs
+      - name: Verify CI scope and release evidence safeguards
+        run: node --test tests/ci/*.test.mjs tests/workflow-quality-evidence.test.mjs
       - run: npm ci
+        if: steps.scope.outputs.full == 'true'
       - run: npm run lint
+        if: steps.scope.outputs.full == 'true'
       - run: npm run test:eval-harness
+        if: steps.scope.outputs.full == 'true'
       - run: npm run test:evaluation-budget
+        if: steps.scope.outputs.full == 'true'
       - run: npm run test:lesson-integrity
+        if: steps.scope.outputs.full == 'true'
       - run: npm run test:lesson-operations
+        if: steps.scope.outputs.full == 'true'
       - run: npm run test:billing
+        if: steps.scope.outputs.full == 'true'
       - run: npx tsc --noEmit --incremental false
+        if: steps.scope.outputs.full == 'true'
       - run: npm audit --omit=dev --audit-level=high
+        if: steps.scope.outputs.full == 'true'
       - run: npm audit --audit-level=high
+        if: steps.scope.outputs.full == 'true'
       - run: npm run check:secrets
       - run: npm run check:support-wiki
       - name: Install pinned Bicep compiler
+        if: steps.scope.outputs.full == 'true'
         run: az bicep install --version v0.46.1
       - run: npm run test:contracts -- --output=test-results/contracts --reporter=line,blob
+        if: steps.scope.outputs.full == 'true'
         env:
           PLAYWRIGHT_BLOB_OUTPUT_DIR: playwright-report/contracts/blob
       - run: npm run build
+        if: steps.scope.outputs.full == 'true'
       - name: Upload contract evidence
-        if: always()
+        if: always() && steps.scope.outputs.full == 'true'
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: release-contract-evidence
@@ -65,6 +91,7 @@ jobs:
 
   browser-smoke:
     needs: static-and-release-contracts
+    if: needs.static-and-release-contracts.outputs.full == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 20
     env:
@@ -126,6 +153,8 @@ jobs:
           retention-days: 14
 
   postgres-transactions:
+    needs: static-and-release-contracts
+    if: needs.static-and-release-contracts.outputs.full == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     services:

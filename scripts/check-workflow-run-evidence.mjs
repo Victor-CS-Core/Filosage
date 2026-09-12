@@ -1,3 +1,5 @@
+import { qualityJobsPassed, qualityWorkflowPath } from "./workflow-quality-evidence.mjs";
+
 const MAX_INPUT_BYTES = 64 * 1024;
 const GENERIC_ERROR = "Required workflow evidence is unavailable.";
 
@@ -31,6 +33,7 @@ try {
     && run.conclusion === "success"
     && run.head_sha === expectedSha
     && run.path === expectedPath
+    && (expectedPath !== qualityWorkflowPath || qualityJobsPassed(run, run.jobs))
   ));
   if (!accepted) fail();
 } catch {
