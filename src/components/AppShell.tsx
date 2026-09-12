@@ -89,6 +89,7 @@ export default function AppShell({ children, publicWhileLoading = false, activeT
   const mobileAccountTriggerRef = useRef<HTMLButtonElement>(null);
   const mobileCommandTriggerRef = useRef<HTMLButtonElement>(null);
   const commandReturnFocusRef = useRef<HTMLElement | null>(null);
+  const commandDismissFocusRef = useRef<HTMLElement | null>(null);
   const closeAuth = useCallback(() => setShowAuth(false), []);
 
   useEffect(() => {
@@ -264,9 +265,18 @@ export default function AppShell({ children, publicWhileLoading = false, activeT
   }, [coursesDrawer, legalBlocked, supportDrawer]);
 
   const closeCommand = useCallback(() => {
+    commandDismissFocusRef.current = commandReturnFocusRef.current;
     setCommandOpen(false);
-    requestAnimationFrame(() => commandReturnFocusRef.current?.focus());
   }, []);
+
+  useEffect(() => {
+    if (commandOpen) return;
+    // The modal has left the DOM. Restore focus after that commit, without
+    // depending on animation frames that WebKit may defer for clipped dialogs.
+    const target = commandDismissFocusRef.current;
+    commandDismissFocusRef.current = null;
+    target?.focus();
+  }, [commandOpen]);
 
   const signOutToLanding = useCallback(async () => {
     await signOut();

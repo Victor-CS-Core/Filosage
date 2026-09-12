@@ -220,9 +220,15 @@ test.describe("desktop application shell", () => {
     await commandSearch.fill("private decision");
     await expect(commandPalette.getByRole("option", { name: /Decision quality/ })).toHaveCount(0);
     await expect(commandPalette.getByText("No matching destination")).toBeVisible();
+    // WebKit can defer frames after a clipped modal closes. Returning keyboard
+    // focus must follow the close commit rather than wait for another paint.
+    const originalAnimationFrame = await page.evaluateHandle(() => window.requestAnimationFrame);
+    await page.evaluate(() => { window.requestAnimationFrame = () => 2_147_483_647; });
     await page.keyboard.press("Escape");
     await expect(commandPalette).toBeHidden();
     await expect(commandTrigger).toBeFocused();
+    await page.evaluate((original) => { window.requestAnimationFrame = original; }, originalAnimationFrame);
+    await originalAnimationFrame.dispose();
 
     await commandTrigger.click();
     await commandPalette.getByRole("option", { name: /My courses/ }).click();
@@ -296,7 +302,14 @@ test.describe("desktop application shell", () => {
     await expect(commandTrigger).toBeFocused();
 
     await commandTrigger.click();
+    // The owned development server may still be compiling this route. Wait for
+    // its real navigation response before asserting the committed destination.
+    const supportNavigation = page.waitForResponse((response) =>
+      new URL(response.url()).pathname === "/support" && response.request().headers()["rsc"] === "1",
+    );
     await commandPalette.getByRole("option", { name: /Support/ }).click();
+    const supportResponse = await supportNavigation;
+    expect(supportResponse.ok()).toBe(true);
     await expect(page).toHaveURL(/\/support$/);
   });
 
