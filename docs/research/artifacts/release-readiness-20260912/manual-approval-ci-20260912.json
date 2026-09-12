@@ -1,0 +1,84 @@
+{
+  "observedAt": "2026-09-12T19:54:40.339272+00:00",
+  "sourceSha": "974987bc193448e491592a779e4cf8fbb4b9dda2",
+  "pr": "https://github.com/Victor-CS-Core/Filosage/pull/25",
+  "state": "OPEN",
+  "mergeStateStatus": "CLEAN",
+  "requiredChecks": [
+    {
+      "name": "static-and-release-contracts",
+      "status": "COMPLETED",
+      "conclusion": "SUCCESS",
+      "completedAt": "2026-09-12T19:49:04Z",
+      "detailsUrl": "https://github.com/Victor-CS-Core/Filosage/actions/runs/34715060699/job/103610717275"
+    },
+    {
+      "name": "Semgrep CE security gate",
+      "status": "COMPLETED",
+      "conclusion": "SUCCESS",
+      "completedAt": "2026-09-12T19:45:46Z",
+      "detailsUrl": "https://github.com/Victor-CS-Core/Filosage/actions/runs/34715060665/job/103610717231"
+    },
+    {
+      "name": "validate",
+      "status": "COMPLETED",
+      "conclusion": "SUCCESS",
+      "completedAt": "2026-09-12T19:45:02Z",
+      "detailsUrl": "https://github.com/Victor-CS-Core/Filosage/actions/runs/34715060683/job/103610717215"
+    },
+    {
+      "name": "postgres-transactions",
+      "status": "COMPLETED",
+      "conclusion": "SUCCESS",
+      "completedAt": "2026-09-12T19:46:30Z",
+      "detailsUrl": "https://github.com/Victor-CS-Core/Filosage/actions/runs/34715060699/job/103610717316"
+    },
+    {
+      "name": "browser-smoke",
+      "status": "COMPLETED",
+      "conclusion": "SUCCESS",
+      "completedAt": "2026-09-12T19:53:27Z",
+      "detailsUrl": "https://github.com/Victor-CS-Core/Filosage/actions/runs/34715060699/job/103611257079"
+    }
+  ],
+  "workflowRuns": [
+    {
+      "conclusion": "success",
+      "databaseId": 34715060699,
+      "headSha": "974987bc193448e491592a779e4cf8fbb4b9dda2",
+      "status": "completed",
+      "updatedAt": "2026-09-12T19:53:27Z",
+      "url": "https://github.com/Victor-CS-Core/Filosage/actions/runs/34715060699"
+    },
+    {
+      "conclusion": "success",
+      "databaseId": 34715060665,
+      "headSha": "974987bc193448e491592a779e4cf8fbb4b9dda2",
+      "status": "completed",
+      "updatedAt": "2026-09-12T19:45:46Z",
+      "url": "https://github.com/Victor-CS-Core/Filosage/actions/runs/34715060665"
+    },
+    {
+      "conclusion": "success",
+      "databaseId": 34715060683,
+      "headSha": "974987bc193448e491592a779e4cf8fbb4b9dda2",
+      "status": "completed",
+      "updatedAt": "2026-09-12T19:45:03Z",
+      "url": "https://github.com/Victor-CS-Core/Filosage/actions/runs/34715060683"
+    }
+  ],
+  "localContractResults": {
+    "passed": 482,
+    "failed": 0,
+    "skipped": 0,
+    "retries": 0
+  },
+  "independentFocusedResults": {
+    "passed": 20,
+    "failed": 0
+  },
+  "newFullBrowserRegressionPerformed": false,
+  "mainIntegration": "awaiting explicit merge approval",
+  "deploymentPerformed": false,
+  "artifactContentsVerified": false
+}
