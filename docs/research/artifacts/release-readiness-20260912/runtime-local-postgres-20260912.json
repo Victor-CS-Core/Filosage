@@ -1,0 +1,24 @@
+{
+  "observedAt": "2026-09-12T21:18:35.827949+00:00",
+  "sourceSha": "f5940145df0294ad86f830e7a0785a00c4a58f03",
+  "postgresVersion": "16.15",
+  "postgresArchiveSha256": "c1575341fa7bd40f5274ea465b34390f4dc64cdd0770af327005caaeb9f6b7ed",
+  "officialChecksumVerified": true,
+  "loopbackOnly": true,
+  "temporaryServerStopped": true,
+  "productionChanged": false,
+  "postgres": {
+    "tests": 23,
+    "pass": 23,
+    "fail": 0,
+    "skipped": 0,
+    "cancelled": 0
+  },
+  "billing": {
+    "tests": 32,
+    "pass": 32,
+    "fail": 0,
+    "skipped": 0,
+    "cancelled": 0
+  }
+}

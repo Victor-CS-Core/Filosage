@@ -1,0 +1,68 @@
+{
+  "actions": [],
+  "errors": [],
+  "observedAt": "2026-09-12T21:30:10.151389Z",
+  "policy": {
+    "checkPolicy": "all",
+    "configPath": null,
+    "requiredReviewers": [],
+    "source": "defaults",
+    "strictChangesRequested": false
+  },
+  "schemaVersion": 1,
+  "state": "ready",
+  "targets": [
+    {
+      "actions": [],
+      "checks": {
+        "fail": [],
+        "malformed": [],
+        "pass": [
+          "postgres-transactions",
+          "browser-smoke",
+          "static-and-release-contracts",
+          "Semgrep CE security gate",
+          "validate"
+        ],
+        "pending": [],
+        "skipping": [
+          "Supabase Preview"
+        ],
+        "total": 6,
+        "unknown": []
+      },
+      "kind": "explicit",
+      "landingAuthorization": null,
+      "path": "/home/ktr0nn/Work/Filosage/.worktrees/database-budget-pr-20260912",
+      "pending": [],
+      "pr": {
+        "autoMerge": null,
+        "autoMergeEnabled": false,
+        "baseRefName": "main",
+        "baseSha": "1bacb608c671bed5ab091c2ae0720cdbfaa6b366",
+        "headRefName": "codex/database-connection-budget-20260912",
+        "headSha": "f5940145df0294ad86f830e7a0785a00c4a58f03",
+        "isMergeQueueEnabled": false,
+        "mergeQueueEntry": null,
+        "mergeStateStatus": "CLEAN",
+        "mergeable": "MERGEABLE",
+        "number": 27,
+        "reviewDecision": null,
+        "state": "OPEN",
+        "url": "https://github.com/Victor-CS-Core/Filosage/pull/27"
+      },
+      "repository": "Victor-CS-Core/Filosage",
+      "repositoryPolicy": {
+        "mergeCommitAllowed": true,
+        "rebaseMergeAllowed": true,
+        "squashMergeAllowed": true
+      },
+      "reviews": {
+        "missingRequiredReviewers": [],
+        "requiredReviewers": [],
+        "unresolvedThreadCount": 0
+      },
+      "state": "ready"
+    }
+  ]
+}
