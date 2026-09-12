@@ -1,6 +1,6 @@
 # Filosage audit and visitor experience handoff
 
-Last updated: 2026-09-12, 11:00 UTC. Owner: Codex coordinator. Status: active release goal; QA recovered and Stripe TEST runtime binding verified; hosted account/theme and full billing lifecycle gates remain open.
+Last updated: 2026-09-12, 12:22 UTC. Owner: Codex coordinator. Status: release goal blocked on remaining hosted acceptance; QA recovered and Stripe TEST runtime binding verified; hosted account/theme and full billing lifecycle gates remain open.
 Branch: `codex/visitor-experience-20260911`. Starting commit: `96559246b89b81f5b3cebcc36147932400c8cc4c`.
 
 ## Read first
@@ -30,12 +30,12 @@ Complete one baseline audit and fix the recorded in-scope findings, including re
 
 ## Work ownership and next actions
 
-- Coordinator owns the complete A–K outcome, integration and handoff. Victor reaffirmed full permissions for the presented QA correction and release work; do not repeat general permission requests. Missing credentials/session capabilities are technical dependencies. Multica tool/CLI remains unavailable, with no verified delivered item/event. Reuse intended primary key `filosage-visitor-audit-20260911` and related QA key `filosage-public-release-2026-09-11`.
-- Existing draft [PR #22](https://github.com/Victor-CS-Core/Filosage/pull/22) contains the app work. All five required jobs passed on pushed `81b37acd03bfb3d3d07054a484fcd02bee4945c8`. The pinned offline scanner repair, reviewed test fixture and earlier QA evidence are committed. The QA image still contains exact c7 app source; subsequent checkpoints changed tests/documentation only.
+- Coordinator owns the complete A–K outcome, integration and handoff. Victor reaffirmed full permissions for the presented QA correction and release work; do not repeat general permission requests. Missing credentials/session capabilities are technical dependencies. Track this outcome in this handoff, its persistent checklist and PR22. Victor removed the mandatory Multica dependency; no tracker connection, item, synchronization event or availability report is required.
+- Existing draft [PR #22](https://github.com/Victor-CS-Core/Filosage/pull/22) contains the app work. All five required jobs passed on pushed `eb0e60386639936132113ba28af1823da92a5ef6` before this policy checkpoint. The pinned offline scanner repair, reviewed test fixture and earlier QA evidence are committed. The QA image still contains exact c7 app source; subsequent checkpoints changed tests/documentation only.
 - QA revision `filosageqa-app--qa-stripe-test-1` serves immutable digest `sha256:3d33eacc178c4e6323c957ab9fd1d81c2dd2f8e149b3b43bbe44e9b09a76bf14`. Runtime login, rolled-back DML, least-privilege database checks, startup guard and exact health passed. Auth configuration is unchanged and billing remains closed. Public production remains on old `93f60f24`; application changes are not merged or publicly deployed.
 - Supported Debian 12/WebKit ran the six pending cases (4 passed, 2 failed); the unchanged focused diagnostic passed 2/2. The subsequent real QA production-asset check passed the two focused modal/recovery cases with no retries in 12.6 seconds, using a reviewed controlled session fixture. Initial test-container config and CA-bundle issues are preserved as failed attempts. No real account authentication is implied. All test jobs and the owned rootless builder are stopped.
 - QA secret access is limited to eight exact required secret scopes, including the newly bound TEST API key. The actual `qa-stripe-test-1` managed-identity probe proves eight successful required reads and five denied owner/admin/production reads. Canonical retained-revision comparisons prove the original runtime environment plus the seven reviewed Stripe additions and unchanged container/scale template. Auth fingerprint matches; application secrets and identity role IDs equal the saved baseline plus the single TEST key binding/grant. Earlier transitional 8/4 and owner-retirement 7/5 evidence remains historical. The retired owner credential stays inaccessible; do not rerun completed one-shot helpers.
-- Next source checkpoint: include the new recovery and Stripe binding evidence in one validated documentation commit/push to PR22, then read fresh exact-head CI with a bounded deadline. Preserve earlier matrix evidence and main `ae1abe3`. PR23's merged CI controls remain intact; full regression and CodeQL are manual only and were not dispatched.
+- The recovery and Stripe binding evidence is committed/pushed in `eb0e603`, with all five required CI jobs passed. This policy checkpoint requires its own commit/push and fresh exact-head CI with a bounded deadline. Preserve earlier matrix evidence and main `ae1abe3`. PR23's merged CI controls remain intact; full regression and CodeQL are manual only and were not dispatched.
 - Hosted appearance requires the fixed-theme visual probe and identity-compatible implementation from the hosted-theme plan. The authenticated Azure browser now opens the exact QA tenant's branding controls. CLI branding authorization is still limited, and the browser CSS file chooser timed out. No new hosted clients/themes were created. Actual sign-in, recovery and selected-lesson return still need an owned learner session; the working QA tab is retained.
 - Stripe plugin reads work and existing TEST Prices/webhook/Portal are reused. The TEST API credential is saved, account/price-verified and bound to the healthy QA revision. The existing QA signing secret is retained. The four-offer hosted lifecycle still needs an owned account session and its remaining acceptance gates. Live Portal/tax-integration evidence, final integration and production verification remain open. No live billing activation, account creation or public promotion occurred. Victor's Kbot cleanup has completed; do not repeat deletion.
 
@@ -59,9 +59,15 @@ Complete one baseline audit and fix the recorded in-scope findings, including re
 - Previous main engineering/browser success is historical evidence, not validation of this work.
 - Application fixes are under review in isolated worktrees and the c7 candidate is deployed to isolated QA. Public production deployment, real account creation, and public production verification have not been performed.
 - Azure may impose hosted-page capabilities or require tenant configuration; inspect official documentation and actual configured flow before claiming preservation of theme.
-- Multica tool and CLI unavailable in this session at initial discovery. No external item was created. Stable intended sync key: `filosage-visitor-audit-20260911`; do not create duplicate tracking items if tooling becomes available.
+- Multica is optional at Victor's direction. Older synchronization notes below are historical evidence, not remaining tasks or release dependencies.
 
 ## Activity / checkpoints
+
+### September 12 — mandatory Multica dependency removed
+
+Victor explicitly removed the Multica dependency requirement. The primary checkout and active PR22 worktree now use repository handoff records and the task conversation for scope, ownership, progress and evidence. Automatic external item creation, lifecycle synchronization, CLI/tool prerequisites and fixed tracking footers are removed. Multica is used only if Victor explicitly requests it; this supersedes mandatory language in older integration plans and logs. Historical provider records and integrations are preserved.
+
+The complete A–K release scope, Next.js guidance, existing authorizations, verification rules and bounded CI policy remain. Missing Multica access is not a blocker. The actual QA Terms-review and branding CSS-upload gates remain; neither user consent nor a successful upload is implied by this policy change. Existing `eb0e603` is pushed with all five required CI jobs green. This documentation checkpoint will be validated, committed and pushed separately. The matching primary-checkout instruction edit remains local until normal integration, without moving main or deploying application code.
 
 ### September 12, 11:00 UTC — closed Stripe TEST binding and webhook transport verified
 

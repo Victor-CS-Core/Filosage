@@ -1,6 +1,6 @@
 # Subscription readiness, September 11, 2026
 
-Owner: billing agent; coordinator owns integrated release evidence, Multica synchronization, provider configuration, and deployment. Branch: `codex/visitor-billing-20260911`. This work implements item J in `docs/AGENT_PROGRESS.md` and preserves the approved immediate prorated plan-change and period-end cancellation policy.
+Owner: billing agent; coordinator owns integrated release evidence, repository handoff tracking, provider configuration, and deployment. Branch: `codex/visitor-billing-20260911`. This work implements item J in `docs/AGENT_PROGRESS.md` and preserves the approved immediate prorated plan-change and period-end cancellation policy.
 
 ## Findings and fixes
 
@@ -42,4 +42,4 @@ Owner-confirmed tax information is preserved as given; it is not treated as proo
 
 Independent source review checked account expiry, recovery, manual/owner grants, archived prices, cancellation ownership, and old/new client compatibility. It identified cancellation scheduled beyond the current paid period being mislabeled as cancellation this period; a failing signed-event regression reproduced it. The flag now applies only when cancellation is within the current period, preserving intervening renewals and never extending verified paid access. No other actionable findings were reported; the reviewer did not rerun the suites.
 
-Coordinator owns final integration and overall outcome tracking. No Multica item ID is invented while synchronization is unavailable. Commit/push status will be reported with the actual checkpoint hash. Deployment: none. Production purchase/subscription verification: not performed. Remaining approvals: live configuration, billing activation, and any deployment remain with Victor and the coordinator.
+Coordinator owns final integration and overall outcome tracking. Multica is optional and is not an integration or release prerequisite. Commit/push status will be reported with the actual checkpoint hash. Deployment: none. Production purchase/subscription verification: not performed. Remaining approvals: live configuration, billing activation, and any deployment remain with Victor and the coordinator.

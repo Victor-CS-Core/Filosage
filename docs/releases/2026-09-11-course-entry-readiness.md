@@ -18,4 +18,4 @@ Before this change, anonymous production GET requests returned 200 for the catal
 
 Five existing focused browser checks passed during that audit. The complete published-course browser flow failed its five-second route-heading assertions, including a retry. The retry trace recorded a 3.94-second lesson-route response followed by a successful lesson API response; this does not establish a navigation defect or a passing full flow. The coordinator will rerun the complete flow against the optimized integrated candidate.
 
-Coordinator owns the shared progress log, Multica synchronization, integration, deployment, and production verification. This checkpoint does not deploy the change or verify hosted signup.
+Coordinator owns the shared progress log, integration, deployment, and production verification. This checkpoint does not deploy the change or verify hosted signup.
