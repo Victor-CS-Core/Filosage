@@ -6,7 +6,7 @@ export default defineSupportArticle({
   summary: "Use a course credit to build a private learning path around a specific professional outcome.",
   category: "courses",
   keywords: ["create course", "private course", "course credit", "outcome", "pace", "teaching approach", "sources", "generation"],
-  reviewedOn: "2026-09-06",
+  reviewedOn: "2026-09-12",
   sources: ["src/app/create/page.tsx", "src/app/api/generate-course/route.ts", "src/lib/course-credits.ts", "src/lib/membership-plans.ts"],
   body: `
 ## Check that creation is available
@@ -16,6 +16,8 @@ Private AI course creation requires a signed-in membership with course creation 
 ## Define the outcome
 
 Open **Create course** and describe the skill or subject, the observable result you need, and the work that could prove it. Optional work context, constraints, exclusions, and a representative situation help keep examples relevant and the course focused.
+
+The course creation steps show your current stage. Use **Tab** to reach an available step button and **Enter** to select it, or use the page's next-step control. Review the selected stage before entering or changing its details.
 
 Do not include passwords, confidential customer data, payment details, or information you are not authorized to process.
 

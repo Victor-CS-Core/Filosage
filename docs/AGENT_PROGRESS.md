@@ -70,6 +70,13 @@ Progress: re-read current policies/handoff; fresh local main is clean at a99e1f9
 - Maintenance transition packet is prepared and independently reviewed as preparation. Native gates, exact ingress enforcement/vantages, current restore/RPO/RTO, distinct database runtime and exact modern baseline/candidate identities remain open. No maintenance, deployment, promotion, QA retirement or live billing activation occurred.
 - Operations package integrated as `6027bc7` after independent source review and 81 passing release contracts, lint/types/Python/secret checks. QA, UI and operations worker worktrees are clean and their owned processes stopped. Coordinator now owns combined verification/PR integration; no worker watchers remain.
 
+### September 12, 15:42 UTC — PR and first integrated CI finding
+
+- [PR24](https://github.com/Victor-CS-Core/Filosage/pull/24) opened at pushed `b03a17c`. Integrated source remains separate from main/deployment. Engineering run34702890179 and offline security34702890189 started; support wiki34702890177 failed its actual PR change-impact gate because mapped UI changes lacked article updates.
+- Corrected the profile guide's outdated **Customize dashboard** label to the actual **Change dashboard view**, documented Escape focus return, and added keyboard guidance for navigation/course steps. Local integrity/change-impact validation with the exact pending article paths passes; the committed-base check must be repeated after commit. This resolves a real documentation gap without changing runtime behavior.
+- Combined secret scan caught the QA helper test's synthetic DSN without an explicit fixture marker. The test now uses the scanner's explicit `testfixture` convention and existing narrow fixture annotation; three effective-driver tests and the unchanged scanner pass. No credential was exposed or scanner rule relaxed.
+- CI observation is bounded: latest integrated engineering/security runs will be checked through 16:05 UTC with a final read; failures trigger bounded diagnosis, not an unattended watcher. The full release regression is still reserved for the final frozen release SHA; no successful full-regression or production claim is made.
+
 ---
 
 # Historical visitor experience handoff
