@@ -175,6 +175,12 @@ Progress: re-read current policies/handoff; fresh local main is clean at a99e1f9
 - R2 bounded read-only query of seven-day console logs from exact production green93f60f24 found17,901rows but zero parsed structured pipeline/model/duration/cost events. No raw logs, prompts, responses or account identifiers were exported; no paid call or provider configuration change occurred. The CLI automatically installed its local log-analytics preview extension for the query. Sanitized aggregate evidence is linked from the system report. This absence is not zero usage/cost and does not exclude database receipts, other formatting/destinations or periods; model latency/cost remains unmeasured.
 - Full34707824138 is still in the browser matrix; engineering/security/wiki on3a0e772 are already verified successful. Maintain18:30UTC final-read deadline. Evidence checkpointa90f072 was pushed; source3a0e772 and maina99e1f9 remain fixed, production93f60f24 remains live and QA retained. No worker/local watcher or provider mutation is active.
 
+### September 12, 17:48 UTC — bounded matrix and accounting follow-up
+
+- Full34707824138 remains in_progress at Browser matrix as of17:48:06UTC; no final pass/failure is inferred. All preceding lanes and exact3a0e772 engineering/security/wiki pass. Maintain18:30UTC final-read bound; source3a0e772, maina99e1f9 and production93f60f24 unchanged. Evidence checkpoint0251201 is pushed.
+- Existing operations worker independently traced deployed93 accounting storage: request snapshots, nested samples and month shards repeat the same estimates and must not be combined. Retried snapshots can be overwritten; recorded rates/fixed charges are application estimates, not invoice totals. No actual call timestamps exist, so latency cannot be derived from reservation/finalization times.
+- Coordinator reviewed exact aggregate SQL31229d3b63c439f649adfc3d9eb78709cc9f1f3fdaf7c10a590458e1ff59ff53 against deployed source. It returns closed aggregate groups only under repeatable-read/READ ONLY/ROLLBACK with strict target, row/time/array limits; no IDs/content. A private adapter and negative output/connection tests are being prepared in the isolated ops worktree for independent review before any new database probe. This preparation is bounded to17:56UTC, with an18:00UTC hardstop including any subsequently reviewed single120sread. No DB call or paid model request occurred in this follow-up yet.
+
 ---
 
 # Historical visitor experience handoff
