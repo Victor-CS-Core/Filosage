@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { appName, appOrigin, identityId, image, prefix, recoveryAppPacket, recoveryAuthPacket, verifyRecoveryAuth } from './recovery-app-packet.mjs';
+import { appName, appOrigin, identityId, image, prefix, recoveryAppPacket, recoveryAuthPacket, verifyRecoveryAuth, canonical, recoveryIngressMatches } from './recovery-app-packet.mjs';
 
 // Coordinator supplies private reviewed recovery credentials. Never echo input/provider output.
 const subscription = 'bfc8f890-2681-43dc-8eac-51644341ae12';
@@ -19,11 +19,7 @@ function az(args, timeout = 30000) {
   if (response.status !== 0 || response.error) throw new Error('Provider call failed; private output suppressed.');
   return JSON.parse(response.stdout || 'null');
 }
-function canonical(value) {
-  if (Array.isArray(value)) return value.map(canonical);
-  if (value && typeof value === 'object') return Object.fromEntries(Object.entries(value).sort(([a], [b]) => a.localeCompare(b)).map(([k, v]) => [k, canonical(v)]));
-  return value;
-}
+
 const appFingerprint = app => createHash('sha256').update(JSON.stringify(canonical({ identity: app.identity,
   configuration: app.properties.configuration, template: app.properties.template, environment: app.properties.managedEnvironmentId }))).digest('hex');
 let directory;
@@ -49,7 +45,7 @@ try {
   az(['rest', '--method', 'put', '--url', `https://management.azure.com${appId}?api-version=2025-01-01`, '--body', `@${body}`], 120000);
   const observed = az(['containerapp', 'show', '-g', group, '-n', appName]);
   if (observed.id.toLowerCase() !== appId.toLowerCase() || observed.properties.configuration.ingress.fqdn !== new URL(appOrigin).hostname
-    || observed.properties.template.containers[0].image !== image || JSON.stringify(observed.properties.configuration.ingress.ipSecurityRestrictions) !== JSON.stringify(packet.properties.configuration.ingress.ipSecurityRestrictions)) throw new Error('Created resource identity/configuration needs reconciliation.');
+    || observed.properties.template.containers[0].image !== image || !recoveryIngressMatches(observed.properties.configuration.ingress.ipSecurityRestrictions, packet.properties.configuration.ingress.ipSecurityRestrictions)) throw new Error('Created resource identity/configuration needs reconciliation.');
   if (!observed.properties.configuration.secrets.some(secret => secret.name === 'google-oauth-secret')) throw new Error('Google secret reference missing.');
   const beforeAuth = appFingerprint(observed);
   const authBody = join(directory, 'auth.json');

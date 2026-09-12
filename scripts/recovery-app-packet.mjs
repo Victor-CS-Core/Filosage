@@ -71,3 +71,14 @@ export function recoveryAppPacket(input) {
         { name: 'DATABASE_URL', secretRef: 'recovery-database-url' }, { name: 'ACTIVITY_RECEIPT_SECRET', secretRef: 'recovery-activity-receipt' },
         { name: 'IDENTITY_LINK_HMAC_SECRET', secretRef: 'recovery-identity-link' }] }], scale: { minReplicas: 0, maxReplicas: 1 } } } };
 }
+
+export function canonical(value) {
+  if (Array.isArray(value)) return value.map(canonical);
+  if (value && typeof value === 'object') return Object.fromEntries(Object.entries(value).sort(([a], [b]) => a.localeCompare(b)).map(([k, v]) => [k, canonical(v)]));
+  return value;
+}
+
+export function recoveryIngressMatches(observed, expected) {
+  return Array.isArray(observed) && Array.isArray(expected)
+    && JSON.stringify(canonical(observed)) === JSON.stringify(canonical(expected));
+}
