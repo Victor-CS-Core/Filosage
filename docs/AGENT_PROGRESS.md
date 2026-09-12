@@ -1,3 +1,21 @@
+## Active CI usage optimization — September 12
+
+Status: started. Owner: current CI coordinator; isolated branch `codex/ci-usage-20260912`. This outcome supplements and preserves the release checklist below.
+
+- [x] C1. Identify automatic triggers, previous controls and required-check/release contracts.
+- [x] C2. Implement conservative documentation-only PR checks, full main/manual quality, and batch-push guidance; retain security, wiki and recovery obligations.
+- [x] C3. Prove lightweight success cannot satisfy full release evidence; test unknown paths, renames, missing comparison data and code changes.
+- [ ] C4. Independently review, validate locally, commit/push one coherent checkpoint and obtain bounded CI evidence.
+- [ ] C5. Present exact reviewed PR for explicit merge approval; verify main definitions after approved merge.
+
+Scope/acceptance: reduce costly work for docs-only PRs without workflow-level path skipping/pending required checks; source/config/dependency/test changes remain fully tested. Main and manual quality remain full. No visibility, billing, production, secrets or schedule changes. Unknown/missing diff evidence selects full testing. Plan: dependency-free Git classifier in existing static job, job conditions for expensive work, exact executed-job release proof, focused regression tests and operating guidance. Risks: incomplete diffs and green skipped jobs; both require negative tests. User approved optimization; merge remains an explicit approval gate under AGENTS.md. Worker `release_evidence` owns only release-proof helper/tests in isolated `codex/ci-evidence-20260912`; coordinator owns workflows/classifier/shared record.
+
+Evidence: 50 September12 workflow runs at investigation read: 39 PR, 6 main push, 4 dispatch, 1 daily backup schedule. Current quality has no change filtering; full regression already manual-only. main branch-protection endpoint returned404 and effective rules endpoint returned empty list; preserve existing job identities regardless. Initial tree clean at3a0e772. No remote mutation at that initial read.
+
+Verification milestone: 24 Node CI/evidence tests pass, including independent path fixtures, code-to-doc rename, executable/symlink docs, cumulative code PRs, >300-file diffs, missing evidence, and skipped/mismatched job proof. All480 local contract tests pass; TypeScript, lint (four existing navigation warnings), YAML parsing, secret/wiki and whitespace checks pass. Independent worker review found one test-isolation weakness; corrected and rerun. Existing full hosted engineering34710208910 attempt1 passes the new job validator in a read-only check. Worker commit00db894 integrated asa127cc5; coordinator changes are being committed and pushed as one batch. No full browser dispatch, deployment, billing or visibility change. CI observation after PR creation has a20-minute bound with final status read; merge approval remains required.
+
+---
+
 # Filosage release readiness and production testing
 
 ## Active approved outcome — September 12 release
