@@ -4,7 +4,7 @@ import pg from 'pg';
 import inventory from './qa-retirement-readonly.cjs';
 const { connectionConfig } = inventory;
 const sha = 'c7d9c2c274bfcaee805332a83d94a208af32f09e';
-const base = 'postgresql://filosageqa_runtime:synthetic%21fixture@filosagestg-p4ujucgnxq3gs-pg.postgres.database.azure.com/filosageqa?sslmode=verify-full';
+const base = 'postgresql://filosageqa_runtime:testfixture%21local@filosagestg-p4ujucgnxq3gs-pg.postgres.database.azure.com/filosageqa?sslmode=verify-full'; // secret-scan: allow-test-fixture
 
 test('validated connection parameters retain exact target, TLS and read-only defaults without connecting', () => {
   const config = connectionConfig(base, sha);
@@ -14,7 +14,7 @@ test('validated connection parameters retain exact target, TLS and read-only def
   assert.equal(actual.port, 5432);
   assert.equal(actual.database, 'filosageqa');
   assert.equal(actual.user, 'filosageqa_runtime');
-  assert.equal(actual.password, 'synthetic!fixture');
+  assert.equal(actual.password, 'testfixture!local');
   assert.equal(actual.ssl.rejectUnauthorized, true);
   assert.equal(actual.options, '-c default_transaction_read_only=on');
 });

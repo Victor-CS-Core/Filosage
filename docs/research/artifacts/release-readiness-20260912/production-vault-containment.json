@@ -1,0 +1,170 @@
+{
+  "observedAt": "2026-09-12T15:36:10.468595+00:00",
+  "operation": "production-secret-scope-containment",
+  "providerMutation": true,
+  "passed": true,
+  "databaseLeastPrivilege": false,
+  "firstImmediatePostRemovalCheck": "failed; individual statuses unavailable; later read-only verification passed; exact cause unproven",
+  "removedAssignments": [
+    "/subscriptions/bfc8f890-2681-43dc-8eac-51644341ae12/resourcegroups/filosage-staging-central-rg/providers/Microsoft.KeyVault/vaults/filosagestg-p4ujucgnxq3g/providers/Microsoft.Authorization/roleAssignments/767eec1e-c898-5743-ae0c-90c1f8ed4d5a"
+  ],
+  "addedAssignments": [
+    {
+      "condition": null,
+      "id": "/subscriptions/bfc8f890-2681-43dc-8eac-51644341ae12/resourceGroups/filosage-staging-central-rg/providers/Microsoft.KeyVault/vaults/filosagestg-p4ujucgnxq3g/secrets/activity-receipt-secret/providers/Microsoft.Authorization/roleAssignments/9043c7e4-26df-5f85-88d2-f1238f78b95a",
+      "principalId": "ed1a4afb-922a-4a2f-a70e-37602cad5dbf",
+      "roleDefinitionId": "/subscriptions/bfc8f890-2681-43dc-8eac-51644341ae12/providers/Microsoft.Authorization/roleDefinitions/4633458b-17de-408a-b874-0445c86b69e6",
+      "scope": "/subscriptions/bfc8f890-2681-43dc-8eac-51644341ae12/resourceGroups/filosage-staging-central-rg/providers/Microsoft.KeyVault/vaults/filosagestg-p4ujucgnxq3g/secrets/activity-receipt-secret"
+    },
+    {
+      "condition": null,
+      "id": "/subscriptions/bfc8f890-2681-43dc-8eac-51644341ae12/resourceGroups/filosage-staging-central-rg/providers/Microsoft.KeyVault/vaults/filosagestg-p4ujucgnxq3g/secrets/database-url/providers/Microsoft.Authorization/roleAssignments/353dc70c-614f-5df9-8163-954be81d9121",
+      "principalId": "ed1a4afb-922a-4a2f-a70e-37602cad5dbf",
+      "roleDefinitionId": "/subscriptions/bfc8f890-2681-43dc-8eac-51644341ae12/providers/Microsoft.Authorization/roleDefinitions/4633458b-17de-408a-b874-0445c86b69e6",
+      "scope": "/subscriptions/bfc8f890-2681-43dc-8eac-51644341ae12/resourceGroups/filosage-staging-central-rg/providers/Microsoft.KeyVault/vaults/filosagestg-p4ujucgnxq3g/secrets/database-url"
+    },
+    {
+      "condition": null,
+      "id": "/subscriptions/bfc8f890-2681-43dc-8eac-51644341ae12/resourceGroups/filosage-staging-central-rg/providers/Microsoft.KeyVault/vaults/filosagestg-p4ujucgnxq3g/secrets/external-id-client-secret/providers/Microsoft.Authorization/roleAssignments/0dddbbe4-2632-546e-80a1-38c089745608",
+      "principalId": "ed1a4afb-922a-4a2f-a70e-37602cad5dbf",
+      "roleDefinitionId": "/subscriptions/bfc8f890-2681-43dc-8eac-51644341ae12/providers/Microsoft.Authorization/roleDefinitions/4633458b-17de-408a-b874-0445c86b69e6",
+      "scope": "/subscriptions/bfc8f890-2681-43dc-8eac-51644341ae12/resourceGroups/filosage-staging-central-rg/providers/Microsoft.KeyVault/vaults/filosagestg-p4ujucgnxq3g/secrets/external-id-client-secret"
+    },
+    {
+      "condition": null,
+      "id": "/subscriptions/bfc8f890-2681-43dc-8eac-51644341ae12/resourceGroups/filosage-staging-central-rg/providers/Microsoft.KeyVault/vaults/filosagestg-p4ujucgnxq3g/secrets/google-easy-auth-client-secret/providers/Microsoft.Authorization/roleAssignments/a3b2eba8-8e77-5c8c-9718-b1b53c18c352",
+      "principalId": "ed1a4afb-922a-4a2f-a70e-37602cad5dbf",
+      "roleDefinitionId": "/subscriptions/bfc8f890-2681-43dc-8eac-51644341ae12/providers/Microsoft.Authorization/roleDefinitions/4633458b-17de-408a-b874-0445c86b69e6",
+      "scope": "/subscriptions/bfc8f890-2681-43dc-8eac-51644341ae12/resourceGroups/filosage-staging-central-rg/providers/Microsoft.KeyVault/vaults/filosagestg-p4ujucgnxq3g/secrets/google-easy-auth-client-secret"
+    },
+    {
+      "condition": null,
+      "id": "/subscriptions/bfc8f890-2681-43dc-8eac-51644341ae12/resourceGroups/filosage-staging-central-rg/providers/Microsoft.KeyVault/vaults/filosagestg-p4ujucgnxq3g/secrets/identity-link-hmac-secret/providers/Microsoft.Authorization/roleAssignments/d02b04ef-c475-58f6-85b5-8ae7a902a562",
+      "principalId": "ed1a4afb-922a-4a2f-a70e-37602cad5dbf",
+      "roleDefinitionId": "/subscriptions/bfc8f890-2681-43dc-8eac-51644341ae12/providers/Microsoft.Authorization/roleDefinitions/4633458b-17de-408a-b874-0445c86b69e6",
+      "scope": "/subscriptions/bfc8f890-2681-43dc-8eac-51644341ae12/resourceGroups/filosage-staging-central-rg/providers/Microsoft.KeyVault/vaults/filosagestg-p4ujucgnxq3g/secrets/identity-link-hmac-secret"
+    },
+    {
+      "condition": null,
+      "id": "/subscriptions/bfc8f890-2681-43dc-8eac-51644341ae12/resourceGroups/filosage-staging-central-rg/providers/Microsoft.KeyVault/vaults/filosagestg-p4ujucgnxq3g/secrets/migrated-owner-uid/providers/Microsoft.Authorization/roleAssignments/aeee5d60-69a8-57d2-86e3-2cb148dccc91",
+      "principalId": "ed1a4afb-922a-4a2f-a70e-37602cad5dbf",
+      "roleDefinitionId": "/subscriptions/bfc8f890-2681-43dc-8eac-51644341ae12/providers/Microsoft.Authorization/roleDefinitions/4633458b-17de-408a-b874-0445c86b69e6",
+      "scope": "/subscriptions/bfc8f890-2681-43dc-8eac-51644341ae12/resourceGroups/filosage-staging-central-rg/providers/Microsoft.KeyVault/vaults/filosagestg-p4ujucgnxq3g/secrets/migrated-owner-uid"
+    },
+    {
+      "condition": null,
+      "id": "/subscriptions/bfc8f890-2681-43dc-8eac-51644341ae12/resourceGroups/filosage-staging-central-rg/providers/Microsoft.KeyVault/vaults/filosagestg-p4ujucgnxq3g/secrets/openai-api-key/providers/Microsoft.Authorization/roleAssignments/f41b7eb7-8f4b-5c07-b738-5916ac15097a",
+      "principalId": "ed1a4afb-922a-4a2f-a70e-37602cad5dbf",
+      "roleDefinitionId": "/subscriptions/bfc8f890-2681-43dc-8eac-51644341ae12/providers/Microsoft.Authorization/roleDefinitions/4633458b-17de-408a-b874-0445c86b69e6",
+      "scope": "/subscriptions/bfc8f890-2681-43dc-8eac-51644341ae12/resourceGroups/filosage-staging-central-rg/providers/Microsoft.KeyVault/vaults/filosagestg-p4ujucgnxq3g/secrets/openai-api-key"
+    }
+  ],
+  "unrelatedAssignmentsUnchanged": true,
+  "configurationUnchanged": true,
+  "configurationFingerprint": "d83b689f1c76492a65d91ac5372fbf73e86e7e7e5aa045acd4649525ef301814",
+  "beforeFingerprint": "0f6b8c6ae18cbcbf45b4e1062766b5327f99e31b8ca8afd2d42a8643e1125bad",
+  "afterFingerprint": "4914f96b22a5f06b36451a886ae0a893b4dcecc4f5f88d61c11bbec217696f3d",
+  "runtimeAccess": {
+    "sourceSha": "93f60f24afe59b19b6a592f455a09e8e813f1f84",
+    "revision": "filosagestg-app--green-93f60f24-1",
+    "checks": [
+      {
+        "name": "activity-receipt-secret",
+        "status": 200,
+        "expected": 200
+      },
+      {
+        "name": "database-url",
+        "status": 200,
+        "expected": 200
+      },
+      {
+        "name": "external-id-client-secret",
+        "status": 200,
+        "expected": 200
+      },
+      {
+        "name": "google-easy-auth-client-secret",
+        "status": 200,
+        "expected": 200
+      },
+      {
+        "name": "identity-link-hmac-secret",
+        "status": 200,
+        "expected": 200
+      },
+      {
+        "name": "migrated-owner-uid",
+        "status": 200,
+        "expected": 200
+      },
+      {
+        "name": "openai-api-key",
+        "status": 200,
+        "expected": 200
+      },
+      {
+        "name": "activity-receipt-secret-qa",
+        "status": 403,
+        "expected": 403
+      },
+      {
+        "name": "database-admin-url",
+        "status": 403,
+        "expected": 403
+      },
+      {
+        "name": "database-url-qa",
+        "status": 403,
+        "expected": 403
+      },
+      {
+        "name": "database-url-qa-runtime-v2",
+        "status": 403,
+        "expected": 403
+      },
+      {
+        "name": "external-id-client-secret-qa",
+        "status": 403,
+        "expected": 403
+      },
+      {
+        "name": "identity-link-hmac-secret-qa",
+        "status": 403,
+        "expected": 403
+      },
+      {
+        "name": "postgres-admin-password",
+        "status": 403,
+        "expected": 403
+      },
+      {
+        "name": "postgres-app-password",
+        "status": 403,
+        "expected": 403
+      }
+    ],
+    "passed": true,
+    "probeSourceSha256": "c3475cd8e722380582d9f837794fa17cb1f87c4f450c17aaceb226f300ddb0cc"
+  },
+  "health": [
+    {
+      "url": "https://filosage.com/api/health",
+      "finalUrl": "https://filosage.com/api/health",
+      "status": 200,
+      "ok": true,
+      "version": "93f60f24afe59b19b6a592f455a09e8e813f1f84",
+      "configuration": true,
+      "datastore": true
+    },
+    {
+      "url": "https://www.filosage.com/api/health",
+      "finalUrl": "https://www.filosage.com/api/health",
+      "status": 200,
+      "ok": true,
+      "version": "93f60f24afe59b19b6a592f455a09e8e813f1f84",
+      "configuration": true,
+      "datastore": true
+    }
+  ]
+}

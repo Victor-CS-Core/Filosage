@@ -50,7 +50,7 @@ Port origin/Fetch Metadata checks and bounded JSON parsing from `api-security.ts
 
 ### Data and concurrent writers
 
-`postgres-document-store.ts` stores JSONB documents with stable paths, versions and collection indexes. It implements bounded transactions, advisory/row locks, optimistic checks and connection discard after uncertain commit outcomes. Domain wrappers enforce account generations, publication epochs/proofs, immutable generation attempts and atomic lesson/result/accounting settlement.
+`postgres-document-store.ts` stores JSONB documents with stable paths, versions and collection indexes. It implements bounded transactions, advisory/row locks and connection discard after uncertain commit outcomes. Domain guards enforce optimistic fingerprints, account generations, publication epochs/proofs, immutable generation attempts and atomic lesson/result/accounting settlement; the generic upsert increments a version without an expected-version predicate.
 
 A C# implementation must reproduce these semantics and JSON/date/null/number/error contracts; replacing the adapter with an ORM alone does not do so. Preserve SQL lock namespaces/order and the actual database schema initially. Prove Node↔.NET overlap using separate clients, including account deletion versus late saves, revocation versus lesson access/publication, duplicate requests, lease takeover, cancellation and timeout during COMMIT. Never dual-write billing, lessons or usage as a migration shortcut. Keep one implementation authoritative for each write family until cross-runtime compatibility passes.
 
