@@ -89,7 +89,7 @@
   border-right: 1px solid var(--line);
   background: transparent;
   padding: 14px 16px;
-  color: var(--ink-muted);
+  color: var(--ink-secondary);
   text-align: left;
   cursor: pointer;
   transition: background var(--motion-state) var(--ease-out), color var(--motion-state) var(--ease-out);

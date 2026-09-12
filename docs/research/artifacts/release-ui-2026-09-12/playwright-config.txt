@@ -1,0 +1,17 @@
+import { defineConfig, devices } from '@playwright/test';
+export default defineConfig({
+  testDir: '../../tests',
+  testMatch: ['visitor-release.spec.ts', 'auth-accessibility.spec.ts'],
+  workers: 1,
+  retries: 0,
+  timeout: 60000,
+  reporter: [['line'], ['json', { outputFile: '.filosage-local/release-ui/browser-results.json' }]],
+  outputDir: '.filosage-local/release-ui/browser-artifacts',
+  use: { baseURL: 'http://127.0.0.1:3217', trace: 'retain-on-failure', storageState: { cookies: [], origins: [{ origin: 'http://127.0.0.1:3217', localStorage: [{ name: 'filosage:analytics:consent:v1', value: 'declined' }] }] } },
+  projects: [
+    { name: 'desktop-chromium', use: { ...devices['Desktop Chrome'] } },
+    { name: 'mobile-chromium', use: { ...devices['Pixel 7'] } },
+    { name: 'desktop-webkit', use: { ...devices['Desktop Safari'], launchOptions: process.env.FILOSAGE_UI_WEBKIT_EXECUTABLE ? { executablePath: process.env.FILOSAGE_UI_WEBKIT_EXECUTABLE } : undefined } },
+    { name: 'mobile-webkit', use: { ...devices['iPhone 13'], launchOptions: process.env.FILOSAGE_UI_WEBKIT_EXECUTABLE ? { executablePath: process.env.FILOSAGE_UI_WEBKIT_EXECUTABLE } : undefined } },
+  ],
+});

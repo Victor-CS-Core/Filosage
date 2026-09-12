@@ -1,0 +1,1880 @@
+{
+  "baselineSha": "40f02c753cbc811024d5024ebafb03830683033c",
+  "nextBuildId": "tXKfiXXCy132bV5In3_gE",
+  "sourceBlobs": {
+    "src/app/create/create.module.css": "9f4b58456e51807f00f9b7a60aeaa5ce76edb30b",
+    "src/app/globals.css": "f328c2814b34b02c128400f5715533fd8dceac56",
+    "src/components/AppDrawer.tsx": "423aa2a3d09e8ad6c5fefdbbc907f6cd5dad52ae",
+    "src/components/DashboardCustomizer.tsx": "5815ac137450eda6bbdd6984f42b74f6cc5cba18",
+    "tests/auth-accessibility.spec.ts": "102ff00d31468ca9fd85c3620acdd5f802e8319b"
+  },
+  "host": "Omarchy/Arch Linux; current WebKit Ubuntu24.04 fallback binary with retained user-space ABI libraries",
+  "versions": {
+    "node": "26.8.1",
+    "next": "16.3.4",
+    "playwright": "1.63.0",
+    "axePlaywright": "4.13.0",
+    "webkit": "26.6",
+    "chromium": "153.0.8010.12"
+  },
+  "matrix": {
+    "desktop": "1440x900",
+    "mobileChromium": "Pixel7,412x839",
+    "mobileWebKit": "iPhone13,390x664",
+    "themes": [
+      "light",
+      "dark"
+    ],
+    "reducedMotion": true
+  },
+  "finalRecords": [
+    {
+      "engine": "chromium",
+      "device": "desktop",
+      "theme": "light",
+      "persona": "guest",
+      "name": "landing",
+      "path": "/",
+      "geometry": {
+        "width": 1440,
+        "scrollWidth": 1440,
+        "heading": "Learn something you can use.",
+        "theme": "light"
+      },
+      "violations": [],
+      "pageErrors": [],
+      "unexpectedRequests": []
+    },
+    {
+      "engine": "chromium",
+      "device": "desktop",
+      "theme": "light",
+      "persona": "guest",
+      "name": "catalog",
+      "path": "/library",
+      "geometry": {
+        "width": 1440,
+        "scrollWidth": 1440,
+        "heading": "Find your next course.",
+        "theme": "light"
+      },
+      "violations": [],
+      "pageErrors": [],
+      "unexpectedRequests": []
+    },
+    {
+      "engine": "chromium",
+      "device": "desktop",
+      "theme": "light",
+      "persona": "guest",
+      "name": "outline",
+      "path": "/course/Decision%20quality?id=published-course-flow",
+      "geometry": {
+        "width": 1440,
+        "scrollWidth": 1440,
+        "heading": "Decision quality",
+        "theme": "light"
+      },
+      "violations": [],
+      "pageErrors": [],
+      "unexpectedRequests": []
+    },
+    {
+      "engine": "chromium",
+      "device": "desktop",
+      "theme": "light",
+      "persona": "guest",
+      "name": "pricing",
+      "path": "/pricing",
+      "geometry": {
+        "width": 1440,
+        "scrollWidth": 1440,
+        "heading": "Choose your plan.",
+        "theme": "light"
+      },
+      "violations": [],
+      "pageErrors": [],
+      "unexpectedRequests": []
+    },
+    {
+      "engine": "chromium",
+      "device": "desktop",
+      "theme": "light",
+      "persona": "guest",
+      "name": "support",
+      "path": "/support",
+      "geometry": {
+        "width": 1440,
+        "scrollWidth": 1440,
+        "heading": "What do you need help with?",
+        "theme": "light"
+      },
+      "violations": [],
+      "pageErrors": [],
+      "unexpectedRequests": []
+    },
+    {
+      "engine": "chromium",
+      "device": "desktop",
+      "theme": "light",
+      "persona": "learner",
+      "name": "profile",
+      "path": "/profile",
+      "geometry": {
+        "width": 1440,
+        "scrollWidth": 1440,
+        "heading": "Release Learner",
+        "theme": "light"
+      },
+      "violations": [],
+      "pageErrors": [],
+      "unexpectedRequests": []
+    },
+    {
+      "engine": "chromium",
+      "device": "desktop",
+      "theme": "light",
+      "persona": "learner",
+      "name": "progress",
+      "path": "/progress",
+      "geometry": {
+        "width": 1440,
+        "scrollWidth": 1440,
+        "heading": "Your progress",
+        "theme": "light"
+      },
+      "violations": [],
+      "pageErrors": [],
+      "unexpectedRequests": []
+    },
+    {
+      "engine": "chromium",
+      "device": "desktop",
+      "theme": "light",
+      "persona": "learner",
+      "name": "lesson",
+      "path": "/course/Decision%20quality/lesson/0-0?id=published-course-flow",
+      "geometry": {
+        "width": 1440,
+        "scrollWidth": 1440,
+        "heading": "Evidence before inference",
+        "theme": "light"
+      },
+      "violations": [],
+      "pageErrors": [],
+      "unexpectedRequests": []
+    },
+    {
+      "engine": "chromium",
+      "device": "desktop",
+      "theme": "light",
+      "persona": "owner",
+      "name": "owner-outline",
+      "path": "/course/Decision%20quality?id=published-course-flow",
+      "geometry": {
+        "width": 1440,
+        "scrollWidth": 1440,
+        "heading": "Decision quality",
+        "theme": "light"
+      },
+      "violations": [],
+      "pageErrors": [],
+      "unexpectedRequests": []
+    },
+    {
+      "engine": "chromium",
+      "device": "desktop",
+      "theme": "light",
+      "persona": "owner",
+      "name": "create",
+      "path": "/create",
+      "geometry": {
+        "width": 1440,
+        "scrollWidth": 1440,
+        "heading": "Build toward a real outcome.",
+        "theme": "light"
+      },
+      "violations": [],
+      "pageErrors": [],
+      "unexpectedRequests": []
+    },
+    {
+      "engine": "chromium",
+      "device": "desktop",
+      "theme": "light",
+      "persona": "owner",
+      "name": "admin-retry",
+      "path": "/admin",
+      "geometry": {
+        "width": 1440,
+        "scrollWidth": 1440,
+        "heading": "Control room",
+        "theme": "light"
+      },
+      "violations": [],
+      "pageErrors": [],
+      "unexpectedRequests": []
+    },
+    {
+      "engine": "chromium",
+      "device": "desktop",
+      "theme": "dark",
+      "persona": "guest",
+      "name": "landing",
+      "path": "/",
+      "geometry": {
+        "width": 1440,
+        "scrollWidth": 1440,
+        "heading": "Learn something you can use.",
+        "theme": "dark"
+      },
+      "violations": [],
+      "pageErrors": [],
+      "unexpectedRequests": []
+    },
+    {
+      "engine": "chromium",
+      "device": "desktop",
+      "theme": "dark",
+      "persona": "guest",
+      "name": "catalog",
+      "path": "/library",
+      "geometry": {
+        "width": 1440,
+        "scrollWidth": 1440,
+        "heading": "Find your next course.",
+        "theme": "dark"
+      },
+      "violations": [],
+      "pageErrors": [],
+      "unexpectedRequests": []
+    },
+    {
+      "engine": "chromium",
+      "device": "desktop",
+      "theme": "dark",
+      "persona": "guest",
+      "name": "outline",
+      "path": "/course/Decision%20quality?id=published-course-flow",
+      "geometry": {
+        "width": 1440,
+        "scrollWidth": 1440,
+        "heading": "Decision quality",
+        "theme": "dark"
+      },
+      "violations": [],
+      "pageErrors": [],
+      "unexpectedRequests": []
+    },
+    {
+      "engine": "chromium",
+      "device": "desktop",
+      "theme": "dark",
+      "persona": "guest",
+      "name": "pricing",
+      "path": "/pricing",
+      "geometry": {
+        "width": 1440,
+        "scrollWidth": 1440,
+        "heading": "Choose your plan.",
+        "theme": "dark"
+      },
+      "violations": [],
+      "pageErrors": [],
+      "unexpectedRequests": []
+    },
+    {
+      "engine": "chromium",
+      "device": "desktop",
+      "theme": "dark",
+      "persona": "guest",
+      "name": "support",
+      "path": "/support",
+      "geometry": {
+        "width": 1440,
+        "scrollWidth": 1440,
+        "heading": "What do you need help with?",
+        "theme": "dark"
+      },
+      "violations": [],
+      "pageErrors": [],
+      "unexpectedRequests": []
+    },
+    {
+      "engine": "chromium",
+      "device": "desktop",
+      "theme": "dark",
+      "persona": "learner",
+      "name": "profile",
+      "path": "/profile",
+      "geometry": {
+        "width": 1440,
+        "scrollWidth": 1440,
+        "heading": "Release Learner",
+        "theme": "dark"
+      },
+      "violations": [],
+      "pageErrors": [],
+      "unexpectedRequests": []
+    },
+    {
+      "engine": "chromium",
+      "device": "desktop",
+      "theme": "dark",
+      "persona": "learner",
+      "name": "progress",
+      "path": "/progress",
+      "geometry": {
+        "width": 1440,
+        "scrollWidth": 1440,
+        "heading": "Your progress",
+        "theme": "dark"
+      },
+      "violations": [],
+      "pageErrors": [],
+      "unexpectedRequests": []
+    },
+    {
+      "engine": "chromium",
+      "device": "desktop",
+      "theme": "dark",
+      "persona": "learner",
+      "name": "lesson",
+      "path": "/course/Decision%20quality/lesson/0-0?id=published-course-flow",
+      "geometry": {
+        "width": 1440,
+        "scrollWidth": 1440,
+        "heading": "Evidence before inference",
+        "theme": "dark"
+      },
+      "violations": [],
+      "pageErrors": [],
+      "unexpectedRequests": []
+    },
+    {
+      "engine": "chromium",
+      "device": "desktop",
+      "theme": "dark",
+      "persona": "owner",
+      "name": "owner-outline",
+      "path": "/course/Decision%20quality?id=published-course-flow",
+      "geometry": {
+        "width": 1440,
+        "scrollWidth": 1440,
+        "heading": "Decision quality",
+        "theme": "dark"
+      },
+      "violations": [],
+      "pageErrors": [],
+      "unexpectedRequests": []
+    },
+    {
+      "engine": "chromium",
+      "device": "desktop",
+      "theme": "dark",
+      "persona": "owner",
+      "name": "create",
+      "path": "/create",
+      "geometry": {
+        "width": 1440,
+        "scrollWidth": 1440,
+        "heading": "Build toward a real outcome.",
+        "theme": "dark"
+      },
+      "violations": [],
+      "pageErrors": [],
+      "unexpectedRequests": []
+    },
+    {
+      "engine": "chromium",
+      "device": "desktop",
+      "theme": "dark",
+      "persona": "owner",
+      "name": "admin-retry",
+      "path": "/admin",
+      "geometry": {
+        "width": 1440,
+        "scrollWidth": 1440,
+        "heading": "Control room",
+        "theme": "dark"
+      },
+      "violations": [],
+      "pageErrors": [],
+      "unexpectedRequests": []
+    },
+    {
+      "engine": "chromium",
+      "device": "mobile",
+      "theme": "light",
+      "persona": "guest",
+      "name": "landing",
+      "path": "/",
+      "geometry": {
+        "width": 412,
+        "scrollWidth": 412,
+        "heading": "Learn something you can use.",
+        "theme": "light"
+      },
+      "violations": [],
+      "pageErrors": [],
+      "unexpectedRequests": []
+    },
+    {
+      "engine": "chromium",
+      "device": "mobile",
+      "theme": "light",
+      "persona": "guest",
+      "name": "catalog",
+      "path": "/library",
+      "geometry": {
+        "width": 412,
+        "scrollWidth": 412,
+        "heading": "Find your next course.",
+        "theme": "light"
+      },
+      "violations": [],
+      "pageErrors": [],
+      "unexpectedRequests": []
+    },
+    {
+      "engine": "chromium",
+      "device": "mobile",
+      "theme": "light",
+      "persona": "guest",
+      "name": "outline",
+      "path": "/course/Decision%20quality?id=published-course-flow",
+      "geometry": {
+        "width": 412,
+        "scrollWidth": 412,
+        "heading": "Decision quality",
+        "theme": "light"
+      },
+      "violations": [],
+      "pageErrors": [],
+      "unexpectedRequests": []
+    },
+    {
+      "engine": "chromium",
+      "device": "mobile",
+      "theme": "light",
+      "persona": "guest",
+      "name": "pricing",
+      "path": "/pricing",
+      "geometry": {
+        "width": 412,
+        "scrollWidth": 412,
+        "heading": "Choose your plan.",
+        "theme": "light"
+      },
+      "violations": [],
+      "pageErrors": [],
+      "unexpectedRequests": []
+    },
+    {
+      "engine": "chromium",
+      "device": "mobile",
+      "theme": "light",
+      "persona": "guest",
+      "name": "support",
+      "path": "/support",
+      "geometry": {
+        "width": 412,
+        "scrollWidth": 412,
+        "heading": "What do you need help with?",
+        "theme": "light"
+      },
+      "violations": [],
+      "pageErrors": [],
+      "unexpectedRequests": []
+    },
+    {
+      "engine": "chromium",
+      "device": "mobile",
+      "theme": "light",
+      "persona": "learner",
+      "name": "profile",
+      "path": "/profile",
+      "geometry": {
+        "width": 412,
+        "scrollWidth": 412,
+        "heading": "Release Learner",
+        "theme": "light"
+      },
+      "violations": [],
+      "pageErrors": [],
+      "unexpectedRequests": []
+    },
+    {
+      "engine": "chromium",
+      "device": "mobile",
+      "theme": "light",
+      "persona": "learner",
+      "name": "progress",
+      "path": "/progress",
+      "geometry": {
+        "width": 412,
+        "scrollWidth": 412,
+        "heading": "Your progress",
+        "theme": "light"
+      },
+      "violations": [],
+      "pageErrors": [],
+      "unexpectedRequests": []
+    },
+    {
+      "engine": "chromium",
+      "device": "mobile",
+      "theme": "light",
+      "persona": "learner",
+      "name": "lesson",
+      "path": "/course/Decision%20quality/lesson/0-0?id=published-course-flow",
+      "geometry": {
+        "width": 412,
+        "scrollWidth": 412,
+        "heading": "Evidence before inference",
+        "theme": "light"
+      },
+      "violations": [],
+      "pageErrors": [],
+      "unexpectedRequests": []
+    },
+    {
+      "engine": "chromium",
+      "device": "mobile",
+      "theme": "light",
+      "persona": "owner",
+      "name": "owner-outline",
+      "path": "/course/Decision%20quality?id=published-course-flow",
+      "geometry": {
+        "width": 412,
+        "scrollWidth": 412,
+        "heading": "Decision quality",
+        "theme": "light"
+      },
+      "violations": [],
+      "pageErrors": [],
+      "unexpectedRequests": []
+    },
+    {
+      "engine": "chromium",
+      "device": "mobile",
+      "theme": "light",
+      "persona": "owner",
+      "name": "create",
+      "path": "/create",
+      "geometry": {
+        "width": 412,
+        "scrollWidth": 412,
+        "heading": "Build toward a real outcome.",
+        "theme": "light"
+      },
+      "violations": [],
+      "pageErrors": [],
+      "unexpectedRequests": []
+    },
+    {
+      "engine": "chromium",
+      "device": "mobile",
+      "theme": "light",
+      "persona": "owner",
+      "name": "admin-retry",
+      "path": "/admin",
+      "geometry": {
+        "width": 412,
+        "scrollWidth": 412,
+        "heading": "Control room",
+        "theme": "light"
+      },
+      "violations": [],
+      "pageErrors": [],
+      "unexpectedRequests": []
+    },
+    {
+      "engine": "chromium",
+      "device": "mobile",
+      "theme": "dark",
+      "persona": "guest",
+      "name": "landing",
+      "path": "/",
+      "geometry": {
+        "width": 412,
+        "scrollWidth": 412,
+        "heading": "Learn something you can use.",
+        "theme": "dark"
+      },
+      "violations": [],
+      "pageErrors": [],
+      "unexpectedRequests": []
+    },
+    {
+      "engine": "chromium",
+      "device": "mobile",
+      "theme": "dark",
+      "persona": "guest",
+      "name": "catalog",
+      "path": "/library",
+      "geometry": {
+        "width": 412,
+        "scrollWidth": 412,
+        "heading": "Find your next course.",
+        "theme": "dark"
+      },
+      "violations": [],
+      "pageErrors": [],
+      "unexpectedRequests": []
+    },
+    {
+      "engine": "chromium",
+      "device": "mobile",
+      "theme": "dark",
+      "persona": "guest",
+      "name": "outline",
+      "path": "/course/Decision%20quality?id=published-course-flow",
+      "geometry": {
+        "width": 412,
+        "scrollWidth": 412,
+        "heading": "Decision quality",
+        "theme": "dark"
+      },
+      "violations": [],
+      "pageErrors": [],
+      "unexpectedRequests": []
+    },
+    {
+      "engine": "chromium",
+      "device": "mobile",
+      "theme": "dark",
+      "persona": "guest",
+      "name": "pricing",
+      "path": "/pricing",
+      "geometry": {
+        "width": 412,
+        "scrollWidth": 412,
+        "heading": "Choose your plan.",
+        "theme": "dark"
+      },
+      "violations": [],
+      "pageErrors": [],
+      "unexpectedRequests": []
+    },
+    {
+      "engine": "chromium",
+      "device": "mobile",
+      "theme": "dark",
+      "persona": "guest",
+      "name": "support",
+      "path": "/support",
+      "geometry": {
+        "width": 412,
+        "scrollWidth": 412,
+        "heading": "What do you need help with?",
+        "theme": "dark"
+      },
+      "violations": [],
+      "pageErrors": [],
+      "unexpectedRequests": []
+    },
+    {
+      "engine": "chromium",
+      "device": "mobile",
+      "theme": "dark",
+      "persona": "learner",
+      "name": "profile",
+      "path": "/profile",
+      "geometry": {
+        "width": 412,
+        "scrollWidth": 412,
+        "heading": "Release Learner",
+        "theme": "dark"
+      },
+      "violations": [],
+      "pageErrors": [],
+      "unexpectedRequests": []
+    },
+    {
+      "engine": "chromium",
+      "device": "mobile",
+      "theme": "dark",
+      "persona": "learner",
+      "name": "progress",
+      "path": "/progress",
+      "geometry": {
+        "width": 412,
+        "scrollWidth": 412,
+        "heading": "Your progress",
+        "theme": "dark"
+      },
+      "violations": [],
+      "pageErrors": [],
+      "unexpectedRequests": []
+    },
+    {
+      "engine": "chromium",
+      "device": "mobile",
+      "theme": "dark",
+      "persona": "learner",
+      "name": "lesson",
+      "path": "/course/Decision%20quality/lesson/0-0?id=published-course-flow",
+      "geometry": {
+        "width": 412,
+        "scrollWidth": 412,
+        "heading": "Evidence before inference",
+        "theme": "dark"
+      },
+      "violations": [],
+      "pageErrors": [],
+      "unexpectedRequests": []
+    },
+    {
+      "engine": "chromium",
+      "device": "mobile",
+      "theme": "dark",
+      "persona": "owner",
+      "name": "owner-outline",
+      "path": "/course/Decision%20quality?id=published-course-flow",
+      "geometry": {
+        "width": 412,
+        "scrollWidth": 412,
+        "heading": "Decision quality",
+        "theme": "dark"
+      },
+      "violations": [],
+      "pageErrors": [],
+      "unexpectedRequests": []
+    },
+    {
+      "engine": "chromium",
+      "device": "mobile",
+      "theme": "dark",
+      "persona": "owner",
+      "name": "create",
+      "path": "/create",
+      "geometry": {
+        "width": 412,
+        "scrollWidth": 412,
+        "heading": "Build toward a real outcome.",
+        "theme": "dark"
+      },
+      "violations": [],
+      "pageErrors": [],
+      "unexpectedRequests": []
+    },
+    {
+      "engine": "chromium",
+      "device": "mobile",
+      "theme": "dark",
+      "persona": "owner",
+      "name": "admin-retry",
+      "path": "/admin",
+      "geometry": {
+        "width": 412,
+        "scrollWidth": 412,
+        "heading": "Control room",
+        "theme": "dark"
+      },
+      "violations": [],
+      "pageErrors": [],
+      "unexpectedRequests": []
+    },
+    {
+      "engine": "webkit",
+      "device": "desktop",
+      "theme": "light",
+      "persona": "guest",
+      "name": "landing",
+      "path": "/",
+      "geometry": {
+        "width": 1440,
+        "scrollWidth": 1440,
+        "heading": "Learn something you can use.",
+        "theme": "light"
+      },
+      "violations": [],
+      "pageErrors": [],
+      "unexpectedRequests": []
+    },
+    {
+      "engine": "webkit",
+      "device": "desktop",
+      "theme": "light",
+      "persona": "guest",
+      "name": "catalog",
+      "path": "/library",
+      "geometry": {
+        "width": 1440,
+        "scrollWidth": 1440,
+        "heading": "Find your next course.",
+        "theme": "light"
+      },
+      "violations": [],
+      "pageErrors": [],
+      "unexpectedRequests": []
+    },
+    {
+      "engine": "webkit",
+      "device": "desktop",
+      "theme": "light",
+      "persona": "guest",
+      "name": "outline",
+      "path": "/course/Decision%20quality?id=published-course-flow",
+      "geometry": {
+        "width": 1440,
+        "scrollWidth": 1440,
+        "heading": "Decision quality",
+        "theme": "light"
+      },
+      "violations": [],
+      "pageErrors": [],
+      "unexpectedRequests": []
+    },
+    {
+      "engine": "webkit",
+      "device": "desktop",
+      "theme": "light",
+      "persona": "guest",
+      "name": "pricing",
+      "path": "/pricing",
+      "geometry": {
+        "width": 1440,
+        "scrollWidth": 1440,
+        "heading": "Choose your plan.",
+        "theme": "light"
+      },
+      "violations": [],
+      "pageErrors": [],
+      "unexpectedRequests": []
+    },
+    {
+      "engine": "webkit",
+      "device": "desktop",
+      "theme": "light",
+      "persona": "guest",
+      "name": "support",
+      "path": "/support",
+      "geometry": {
+        "width": 1440,
+        "scrollWidth": 1440,
+        "heading": "What do you need help with?",
+        "theme": "light"
+      },
+      "violations": [],
+      "pageErrors": [],
+      "unexpectedRequests": []
+    },
+    {
+      "engine": "webkit",
+      "device": "desktop",
+      "theme": "light",
+      "persona": "learner",
+      "name": "profile",
+      "path": "/profile",
+      "geometry": {
+        "width": 1440,
+        "scrollWidth": 1440,
+        "heading": "Release Learner",
+        "theme": "light"
+      },
+      "violations": [],
+      "pageErrors": [],
+      "unexpectedRequests": []
+    },
+    {
+      "engine": "webkit",
+      "device": "desktop",
+      "theme": "light",
+      "persona": "learner",
+      "name": "progress",
+      "path": "/progress",
+      "geometry": {
+        "width": 1440,
+        "scrollWidth": 1440,
+        "heading": "Your progress",
+        "theme": "light"
+      },
+      "violations": [],
+      "pageErrors": [],
+      "unexpectedRequests": []
+    },
+    {
+      "engine": "webkit",
+      "device": "desktop",
+      "theme": "light",
+      "persona": "learner",
+      "name": "lesson",
+      "path": "/course/Decision%20quality/lesson/0-0?id=published-course-flow",
+      "geometry": {
+        "width": 1440,
+        "scrollWidth": 1440,
+        "heading": "Evidence before inference",
+        "theme": "light"
+      },
+      "violations": [],
+      "pageErrors": [],
+      "unexpectedRequests": []
+    },
+    {
+      "engine": "webkit",
+      "device": "desktop",
+      "theme": "light",
+      "persona": "owner",
+      "name": "owner-outline",
+      "path": "/course/Decision%20quality?id=published-course-flow",
+      "geometry": {
+        "width": 1440,
+        "scrollWidth": 1440,
+        "heading": "Decision quality",
+        "theme": "light"
+      },
+      "violations": [],
+      "pageErrors": [],
+      "unexpectedRequests": []
+    },
+    {
+      "engine": "webkit",
+      "device": "desktop",
+      "theme": "light",
+      "persona": "owner",
+      "name": "create",
+      "path": "/create",
+      "geometry": {
+        "width": 1440,
+        "scrollWidth": 1440,
+        "heading": "Build toward a real outcome.",
+        "theme": "light"
+      },
+      "violations": [],
+      "pageErrors": [],
+      "unexpectedRequests": []
+    },
+    {
+      "engine": "webkit",
+      "device": "desktop",
+      "theme": "light",
+      "persona": "owner",
+      "name": "admin-retry",
+      "path": "/admin",
+      "geometry": {
+        "width": 1440,
+        "scrollWidth": 1440,
+        "heading": "Control room",
+        "theme": "light"
+      },
+      "violations": [],
+      "pageErrors": [],
+      "unexpectedRequests": []
+    },
+    {
+      "engine": "webkit",
+      "device": "desktop",
+      "theme": "dark",
+      "persona": "guest",
+      "name": "landing",
+      "path": "/",
+      "geometry": {
+        "width": 1440,
+        "scrollWidth": 1440,
+        "heading": "Learn something you can use.",
+        "theme": "dark"
+      },
+      "violations": [],
+      "pageErrors": [],
+      "unexpectedRequests": []
+    },
+    {
+      "engine": "webkit",
+      "device": "desktop",
+      "theme": "dark",
+      "persona": "guest",
+      "name": "catalog",
+      "path": "/library",
+      "geometry": {
+        "width": 1440,
+        "scrollWidth": 1440,
+        "heading": "Find your next course.",
+        "theme": "dark"
+      },
+      "violations": [],
+      "pageErrors": [],
+      "unexpectedRequests": []
+    },
+    {
+      "engine": "webkit",
+      "device": "desktop",
+      "theme": "dark",
+      "persona": "guest",
+      "name": "outline",
+      "path": "/course/Decision%20quality?id=published-course-flow",
+      "geometry": {
+        "width": 1440,
+        "scrollWidth": 1440,
+        "heading": "Decision quality",
+        "theme": "dark"
+      },
+      "violations": [],
+      "pageErrors": [],
+      "unexpectedRequests": []
+    },
+    {
+      "engine": "webkit",
+      "device": "desktop",
+      "theme": "dark",
+      "persona": "guest",
+      "name": "pricing",
+      "path": "/pricing",
+      "geometry": {
+        "width": 1440,
+        "scrollWidth": 1440,
+        "heading": "Choose your plan.",
+        "theme": "dark"
+      },
+      "violations": [],
+      "pageErrors": [],
+      "unexpectedRequests": []
+    },
+    {
+      "engine": "webkit",
+      "device": "desktop",
+      "theme": "dark",
+      "persona": "guest",
+      "name": "support",
+      "path": "/support",
+      "geometry": {
+        "width": 1440,
+        "scrollWidth": 1440,
+        "heading": "What do you need help with?",
+        "theme": "dark"
+      },
+      "violations": [],
+      "pageErrors": [],
+      "unexpectedRequests": []
+    },
+    {
+      "engine": "webkit",
+      "device": "desktop",
+      "theme": "dark",
+      "persona": "learner",
+      "name": "profile",
+      "path": "/profile",
+      "geometry": {
+        "width": 1440,
+        "scrollWidth": 1440,
+        "heading": "Release Learner",
+        "theme": "dark"
+      },
+      "violations": [],
+      "pageErrors": [],
+      "unexpectedRequests": []
+    },
+    {
+      "engine": "webkit",
+      "device": "desktop",
+      "theme": "dark",
+      "persona": "learner",
+      "name": "progress",
+      "path": "/progress",
+      "geometry": {
+        "width": 1440,
+        "scrollWidth": 1440,
+        "heading": "Your progress",
+        "theme": "dark"
+      },
+      "violations": [],
+      "pageErrors": [],
+      "unexpectedRequests": []
+    },
+    {
+      "engine": "webkit",
+      "device": "desktop",
+      "theme": "dark",
+      "persona": "learner",
+      "name": "lesson",
+      "path": "/course/Decision%20quality/lesson/0-0?id=published-course-flow",
+      "geometry": {
+        "width": 1440,
+        "scrollWidth": 1440,
+        "heading": "Evidence before inference",
+        "theme": "dark"
+      },
+      "violations": [],
+      "pageErrors": [],
+      "unexpectedRequests": []
+    },
+    {
+      "engine": "webkit",
+      "device": "desktop",
+      "theme": "dark",
+      "persona": "owner",
+      "name": "owner-outline",
+      "path": "/course/Decision%20quality?id=published-course-flow",
+      "geometry": {
+        "width": 1440,
+        "scrollWidth": 1440,
+        "heading": "Decision quality",
+        "theme": "dark"
+      },
+      "violations": [],
+      "pageErrors": [],
+      "unexpectedRequests": []
+    },
+    {
+      "engine": "webkit",
+      "device": "desktop",
+      "theme": "dark",
+      "persona": "owner",
+      "name": "create",
+      "path": "/create",
+      "geometry": {
+        "width": 1440,
+        "scrollWidth": 1440,
+        "heading": "Build toward a real outcome.",
+        "theme": "dark"
+      },
+      "violations": [],
+      "pageErrors": [],
+      "unexpectedRequests": []
+    },
+    {
+      "engine": "webkit",
+      "device": "desktop",
+      "theme": "dark",
+      "persona": "owner",
+      "name": "admin-retry",
+      "path": "/admin",
+      "geometry": {
+        "width": 1440,
+        "scrollWidth": 1440,
+        "heading": "Control room",
+        "theme": "dark"
+      },
+      "violations": [],
+      "pageErrors": [],
+      "unexpectedRequests": []
+    },
+    {
+      "engine": "webkit",
+      "device": "mobile",
+      "theme": "light",
+      "persona": "guest",
+      "name": "landing",
+      "path": "/",
+      "geometry": {
+        "width": 390,
+        "scrollWidth": 390,
+        "heading": "Learn something you can use.",
+        "theme": "light"
+      },
+      "violations": [],
+      "pageErrors": [],
+      "unexpectedRequests": []
+    },
+    {
+      "engine": "webkit",
+      "device": "mobile",
+      "theme": "light",
+      "persona": "guest",
+      "name": "catalog",
+      "path": "/library",
+      "geometry": {
+        "width": 390,
+        "scrollWidth": 390,
+        "heading": "Find your next course.",
+        "theme": "light"
+      },
+      "violations": [],
+      "pageErrors": [],
+      "unexpectedRequests": []
+    },
+    {
+      "engine": "webkit",
+      "device": "mobile",
+      "theme": "light",
+      "persona": "guest",
+      "name": "outline",
+      "path": "/course/Decision%20quality?id=published-course-flow",
+      "geometry": {
+        "width": 390,
+        "scrollWidth": 390,
+        "heading": "Decision quality",
+        "theme": "light"
+      },
+      "violations": [],
+      "pageErrors": [],
+      "unexpectedRequests": []
+    },
+    {
+      "engine": "webkit",
+      "device": "mobile",
+      "theme": "light",
+      "persona": "guest",
+      "name": "pricing",
+      "path": "/pricing",
+      "geometry": {
+        "width": 390,
+        "scrollWidth": 390,
+        "heading": "Choose your plan.",
+        "theme": "light"
+      },
+      "violations": [],
+      "pageErrors": [],
+      "unexpectedRequests": []
+    },
+    {
+      "engine": "webkit",
+      "device": "mobile",
+      "theme": "light",
+      "persona": "guest",
+      "name": "support",
+      "path": "/support",
+      "geometry": {
+        "width": 390,
+        "scrollWidth": 390,
+        "heading": "What do you need help with?",
+        "theme": "light"
+      },
+      "violations": [],
+      "pageErrors": [],
+      "unexpectedRequests": []
+    },
+    {
+      "engine": "webkit",
+      "device": "mobile",
+      "theme": "light",
+      "persona": "learner",
+      "name": "profile",
+      "path": "/profile",
+      "geometry": {
+        "width": 390,
+        "scrollWidth": 390,
+        "heading": "Release Learner",
+        "theme": "light"
+      },
+      "violations": [],
+      "pageErrors": [],
+      "unexpectedRequests": []
+    },
+    {
+      "engine": "webkit",
+      "device": "mobile",
+      "theme": "light",
+      "persona": "learner",
+      "name": "progress",
+      "path": "/progress",
+      "geometry": {
+        "width": 390,
+        "scrollWidth": 390,
+        "heading": "Your progress",
+        "theme": "light"
+      },
+      "violations": [],
+      "pageErrors": [],
+      "unexpectedRequests": []
+    },
+    {
+      "engine": "webkit",
+      "device": "mobile",
+      "theme": "light",
+      "persona": "learner",
+      "name": "lesson",
+      "path": "/course/Decision%20quality/lesson/0-0?id=published-course-flow",
+      "geometry": {
+        "width": 390,
+        "scrollWidth": 390,
+        "heading": "Evidence before inference",
+        "theme": "light"
+      },
+      "violations": [],
+      "pageErrors": [],
+      "unexpectedRequests": []
+    },
+    {
+      "engine": "webkit",
+      "device": "mobile",
+      "theme": "light",
+      "persona": "owner",
+      "name": "owner-outline",
+      "path": "/course/Decision%20quality?id=published-course-flow",
+      "geometry": {
+        "width": 390,
+        "scrollWidth": 390,
+        "heading": "Decision quality",
+        "theme": "light"
+      },
+      "violations": [],
+      "pageErrors": [],
+      "unexpectedRequests": []
+    },
+    {
+      "engine": "webkit",
+      "device": "mobile",
+      "theme": "light",
+      "persona": "owner",
+      "name": "create",
+      "path": "/create",
+      "geometry": {
+        "width": 390,
+        "scrollWidth": 390,
+        "heading": "Build toward a real outcome.",
+        "theme": "light"
+      },
+      "violations": [],
+      "pageErrors": [],
+      "unexpectedRequests": []
+    },
+    {
+      "engine": "webkit",
+      "device": "mobile",
+      "theme": "light",
+      "persona": "owner",
+      "name": "admin-retry",
+      "path": "/admin",
+      "geometry": {
+        "width": 390,
+        "scrollWidth": 390,
+        "heading": "Control room",
+        "theme": "light"
+      },
+      "violations": [],
+      "pageErrors": [],
+      "unexpectedRequests": []
+    },
+    {
+      "engine": "webkit",
+      "device": "mobile",
+      "theme": "dark",
+      "persona": "guest",
+      "name": "landing",
+      "path": "/",
+      "geometry": {
+        "width": 390,
+        "scrollWidth": 390,
+        "heading": "Learn something you can use.",
+        "theme": "dark"
+      },
+      "violations": [],
+      "pageErrors": [],
+      "unexpectedRequests": []
+    },
+    {
+      "engine": "webkit",
+      "device": "mobile",
+      "theme": "dark",
+      "persona": "guest",
+      "name": "catalog",
+      "path": "/library",
+      "geometry": {
+        "width": 390,
+        "scrollWidth": 390,
+        "heading": "Find your next course.",
+        "theme": "dark"
+      },
+      "violations": [],
+      "pageErrors": [],
+      "unexpectedRequests": []
+    },
+    {
+      "engine": "webkit",
+      "device": "mobile",
+      "theme": "dark",
+      "persona": "guest",
+      "name": "outline",
+      "path": "/course/Decision%20quality?id=published-course-flow",
+      "geometry": {
+        "width": 390,
+        "scrollWidth": 390,
+        "heading": "Decision quality",
+        "theme": "dark"
+      },
+      "violations": [],
+      "pageErrors": [],
+      "unexpectedRequests": []
+    },
+    {
+      "engine": "webkit",
+      "device": "mobile",
+      "theme": "dark",
+      "persona": "guest",
+      "name": "pricing",
+      "path": "/pricing",
+      "geometry": {
+        "width": 390,
+        "scrollWidth": 390,
+        "heading": "Choose your plan.",
+        "theme": "dark"
+      },
+      "violations": [],
+      "pageErrors": [],
+      "unexpectedRequests": []
+    },
+    {
+      "engine": "webkit",
+      "device": "mobile",
+      "theme": "dark",
+      "persona": "guest",
+      "name": "support",
+      "path": "/support",
+      "geometry": {
+        "width": 390,
+        "scrollWidth": 390,
+        "heading": "What do you need help with?",
+        "theme": "dark"
+      },
+      "violations": [],
+      "pageErrors": [],
+      "unexpectedRequests": []
+    },
+    {
+      "engine": "webkit",
+      "device": "mobile",
+      "theme": "dark",
+      "persona": "learner",
+      "name": "profile",
+      "path": "/profile",
+      "geometry": {
+        "width": 390,
+        "scrollWidth": 390,
+        "heading": "Release Learner",
+        "theme": "dark"
+      },
+      "violations": [],
+      "pageErrors": [],
+      "unexpectedRequests": []
+    },
+    {
+      "engine": "webkit",
+      "device": "mobile",
+      "theme": "dark",
+      "persona": "learner",
+      "name": "progress",
+      "path": "/progress",
+      "geometry": {
+        "width": 390,
+        "scrollWidth": 390,
+        "heading": "Your progress",
+        "theme": "dark"
+      },
+      "violations": [],
+      "pageErrors": [],
+      "unexpectedRequests": []
+    },
+    {
+      "engine": "webkit",
+      "device": "mobile",
+      "theme": "dark",
+      "persona": "learner",
+      "name": "lesson",
+      "path": "/course/Decision%20quality/lesson/0-0?id=published-course-flow",
+      "geometry": {
+        "width": 390,
+        "scrollWidth": 390,
+        "heading": "Evidence before inference",
+        "theme": "dark"
+      },
+      "violations": [],
+      "pageErrors": [],
+      "unexpectedRequests": []
+    },
+    {
+      "engine": "webkit",
+      "device": "mobile",
+      "theme": "dark",
+      "persona": "owner",
+      "name": "owner-outline",
+      "path": "/course/Decision%20quality?id=published-course-flow",
+      "geometry": {
+        "width": 390,
+        "scrollWidth": 390,
+        "heading": "Decision quality",
+        "theme": "dark"
+      },
+      "violations": [],
+      "pageErrors": [],
+      "unexpectedRequests": []
+    },
+    {
+      "engine": "webkit",
+      "device": "mobile",
+      "theme": "dark",
+      "persona": "owner",
+      "name": "create",
+      "path": "/create",
+      "geometry": {
+        "width": 390,
+        "scrollWidth": 390,
+        "heading": "Build toward a real outcome.",
+        "theme": "dark"
+      },
+      "violations": [],
+      "pageErrors": [],
+      "unexpectedRequests": []
+    },
+    {
+      "engine": "webkit",
+      "device": "mobile",
+      "theme": "dark",
+      "persona": "owner",
+      "name": "admin-retry",
+      "path": "/admin",
+      "geometry": {
+        "width": 390,
+        "scrollWidth": 390,
+        "heading": "Control room",
+        "theme": "dark"
+      },
+      "violations": [],
+      "pageErrors": [],
+      "unexpectedRequests": []
+    }
+  ],
+  "baselineIssues": [
+    {
+      "engine": "chromium",
+      "device": "desktop",
+      "theme": "light",
+      "persona": "owner",
+      "name": "admin-retry",
+      "path": "/admin",
+      "geometry": {
+        "width": 1440,
+        "scrollWidth": 1440,
+        "heading": "Control room",
+        "theme": "light"
+      },
+      "violations": [
+        {
+          "id": "color-contrast",
+          "impact": "serious",
+          "nodes": [
+            {
+              "target": [
+                ".is-active"
+              ],
+              "summary": "Fix any of the following:\n  Element has insufficient color contrast of 4.31 (foreground color: #0f766e, background color: #d9e8e0, font size: 9.4pt (12.48px), font weight: bold). Expected contrast ratio of 4.5:1"
+            }
+          ]
+        }
+      ],
+      "pageErrors": [],
+      "unexpectedRequests": []
+    },
+    {
+      "engine": "chromium",
+      "device": "desktop",
+      "theme": "dark",
+      "persona": "learner",
+      "name": "profile",
+      "path": "/profile",
+      "geometry": {
+        "width": 1440,
+        "scrollWidth": 1440,
+        "heading": "Release Learner",
+        "theme": "dark"
+      },
+      "violations": [
+        {
+          "id": "color-contrast",
+          "impact": "serious",
+          "nodes": [
+            {
+              "target": [
+                ".profile-preferences:nth-child(2) > button"
+              ],
+              "summary": "Fix any of the following:\n  Element has insufficient color contrast of 4.46 (foreground color: #f3eadc, background color: #6b6b6b, font size: 12.0pt (16px), font weight: normal). Expected contrast ratio of 4.5:1"
+            }
+          ]
+        }
+      ],
+      "pageErrors": [],
+      "unexpectedRequests": []
+    },
+    {
+      "engine": "chromium",
+      "device": "mobile",
+      "theme": "light",
+      "persona": "owner",
+      "name": "admin-retry",
+      "path": "/admin",
+      "geometry": {
+        "width": 412,
+        "scrollWidth": 412,
+        "heading": "Control room",
+        "theme": "light"
+      },
+      "violations": [
+        {
+          "id": "color-contrast",
+          "impact": "serious",
+          "nodes": [
+            {
+              "target": [
+                ".is-active"
+              ],
+              "summary": "Fix any of the following:\n  Element has insufficient color contrast of 4.31 (foreground color: #0f766e, background color: #d9e8e0, font size: 9.4pt (12.48px), font weight: bold). Expected contrast ratio of 4.5:1"
+            }
+          ]
+        }
+      ],
+      "pageErrors": [],
+      "unexpectedRequests": []
+    },
+    {
+      "engine": "webkit",
+      "device": "desktop",
+      "theme": "light",
+      "persona": "owner",
+      "name": "admin-retry",
+      "path": "/admin",
+      "geometry": {
+        "width": 1440,
+        "scrollWidth": 1440,
+        "heading": "Control room",
+        "theme": "light"
+      },
+      "violations": [
+        {
+          "id": "color-contrast",
+          "impact": "serious",
+          "nodes": [
+            {
+              "target": [
+                ".is-active"
+              ],
+              "summary": "Fix any of the following:\n  Element has insufficient color contrast of 4.31 (foreground color: #0f766e, background color: #d9e8e0, font size: 9.4pt (12.48px), font weight: bold). Expected contrast ratio of 4.5:1"
+            }
+          ]
+        }
+      ],
+      "pageErrors": [],
+      "unexpectedRequests": []
+    },
+    {
+      "engine": "webkit",
+      "device": "desktop",
+      "theme": "dark",
+      "persona": "learner",
+      "name": "profile",
+      "path": "/profile",
+      "geometry": {
+        "width": 1440,
+        "scrollWidth": 1440,
+        "heading": "Release Learner",
+        "theme": "dark"
+      },
+      "violations": [
+        {
+          "id": "color-contrast",
+          "impact": "serious",
+          "nodes": [
+            {
+              "target": [
+                ".profile-preferences:nth-child(2) > button"
+              ],
+              "summary": "Fix any of the following:\n  Element has insufficient color contrast of 1.52 (foreground color: #f3eadc, background color: #c0c0c0, font size: 12.0pt (16px), font weight: normal). Expected contrast ratio of 4.5:1"
+            }
+          ]
+        }
+      ],
+      "pageErrors": [],
+      "unexpectedRequests": []
+    },
+    {
+      "engine": "webkit",
+      "device": "mobile",
+      "theme": "light",
+      "persona": "owner",
+      "name": "admin-retry",
+      "path": "/admin",
+      "geometry": {
+        "width": 390,
+        "scrollWidth": 390,
+        "heading": "Control room",
+        "theme": "light"
+      },
+      "violations": [
+        {
+          "id": "color-contrast",
+          "impact": "serious",
+          "nodes": [
+            {
+              "target": [
+                ".is-active"
+              ],
+              "summary": "Fix any of the following:\n  Element has insufficient color contrast of 4.31 (foreground color: #0f766e, background color: #d9e8e0, font size: 9.4pt (12.48px), font weight: bold). Expected contrast ratio of 4.5:1"
+            }
+          ]
+        }
+      ],
+      "pageErrors": [],
+      "unexpectedRequests": []
+    }
+  ],
+  "intermediateIssues": [
+    {
+      "engine": "chromium",
+      "device": "desktop",
+      "theme": "light",
+      "persona": "owner",
+      "name": "create",
+      "path": "/create",
+      "geometry": {
+        "width": 1440,
+        "scrollWidth": 1440,
+        "heading": "Build toward a real outcome.",
+        "theme": "light"
+      },
+      "violations": [
+        {
+          "id": "color-contrast",
+          "impact": "serious",
+          "nodes": [
+            {
+              "target": [
+                "button[data-complete=\"false\"]:nth-child(2) > span:nth-child(2) > strong"
+              ],
+              "summary": "Fix any of the following:\n  Element has insufficient color contrast of 4.41 (foreground color: #676b72, background color: #f2e8d9, font size: 9.8pt (13.12px), font weight: bold). Expected contrast ratio of 4.5:1"
+            },
+            {
+              "target": [
+                "button[data-complete=\"false\"]:nth-child(2) > span:nth-child(2) > small"
+              ],
+              "summary": "Fix any of the following:\n  Element has insufficient color contrast of 4.41 (foreground color: #676b72, background color: #f2e8d9, font size: 8.3pt (11.04px), font weight: normal). Expected contrast ratio of 4.5:1"
+            },
+            {
+              "target": [
+                "button[data-complete=\"false\"]:nth-child(3) > span:nth-child(2) > strong"
+              ],
+              "summary": "Fix any of the following:\n  Element has insufficient color contrast of 4.41 (foreground color: #676b72, background color: #f2e8d9, font size: 9.8pt (13.12px), font weight: bold). Expected contrast ratio of 4.5:1"
+            },
+            {
+              "target": [
+                "button[data-complete=\"false\"]:nth-child(3) > span:nth-child(2) > small"
+              ],
+              "summary": "Fix any of the following:\n  Element has insufficient color contrast of 4.41 (foreground color: #676b72, background color: #f2e8d9, font size: 8.3pt (11.04px), font weight: normal). Expected contrast ratio of 4.5:1"
+            }
+          ]
+        }
+      ],
+      "pageErrors": [],
+      "unexpectedRequests": []
+    },
+    {
+      "engine": "chromium",
+      "device": "mobile",
+      "theme": "light",
+      "persona": "owner",
+      "name": "create",
+      "path": "/create",
+      "geometry": {
+        "width": 412,
+        "scrollWidth": 412,
+        "heading": "Build toward a real outcome.",
+        "theme": "light"
+      },
+      "violations": [
+        {
+          "id": "color-contrast",
+          "impact": "serious",
+          "nodes": [
+            {
+              "target": [
+                "button[data-complete=\"false\"]:nth-child(2) > span:nth-child(2) > strong"
+              ],
+              "summary": "Fix any of the following:\n  Element has insufficient color contrast of 4.41 (foreground color: #676b72, background color: #f2e8d9, font size: 8.9pt (11.84px), font weight: bold). Expected contrast ratio of 4.5:1"
+            },
+            {
+              "target": [
+                "button[data-complete=\"false\"]:nth-child(3) > span:nth-child(2) > strong"
+              ],
+              "summary": "Fix any of the following:\n  Element has insufficient color contrast of 4.41 (foreground color: #676b72, background color: #f2e8d9, font size: 8.9pt (11.84px), font weight: bold). Expected contrast ratio of 4.5:1"
+            }
+          ]
+        }
+      ],
+      "pageErrors": [],
+      "unexpectedRequests": []
+    },
+    {
+      "engine": "webkit",
+      "device": "desktop",
+      "theme": "light",
+      "persona": "owner",
+      "name": "create",
+      "path": "/create",
+      "geometry": {
+        "width": 1440,
+        "scrollWidth": 1440,
+        "heading": "Build toward a real outcome.",
+        "theme": "light"
+      },
+      "violations": [
+        {
+          "id": "color-contrast",
+          "impact": "serious",
+          "nodes": [
+            {
+              "target": [
+                "button[data-complete=\"false\"]:nth-child(2) > span:nth-child(2) > strong"
+              ],
+              "summary": "Fix any of the following:\n  Element has insufficient color contrast of 4.41 (foreground color: #676b72, background color: #f2e8d9, font size: 9.8pt (13.12px), font weight: bold). Expected contrast ratio of 4.5:1"
+            },
+            {
+              "target": [
+                "button[data-complete=\"false\"]:nth-child(2) > span:nth-child(2) > small"
+              ],
+              "summary": "Fix any of the following:\n  Element has insufficient color contrast of 4.41 (foreground color: #676b72, background color: #f2e8d9, font size: 8.3pt (11.04px), font weight: normal). Expected contrast ratio of 4.5:1"
+            },
+            {
+              "target": [
+                "button[data-complete=\"false\"]:nth-child(3) > span:nth-child(2) > strong"
+              ],
+              "summary": "Fix any of the following:\n  Element has insufficient color contrast of 4.41 (foreground color: #676b72, background color: #f2e8d9, font size: 9.8pt (13.12px), font weight: bold). Expected contrast ratio of 4.5:1"
+            },
+            {
+              "target": [
+                "button[data-complete=\"false\"]:nth-child(3) > span:nth-child(2) > small"
+              ],
+              "summary": "Fix any of the following:\n  Element has insufficient color contrast of 4.41 (foreground color: #676b72, background color: #f2e8d9, font size: 8.3pt (11.04px), font weight: normal). Expected contrast ratio of 4.5:1"
+            }
+          ]
+        }
+      ],
+      "pageErrors": [],
+      "unexpectedRequests": []
+    },
+    {
+      "engine": "webkit",
+      "device": "mobile",
+      "theme": "light",
+      "persona": "owner",
+      "name": "create",
+      "path": "/create",
+      "geometry": {
+        "width": 390,
+        "scrollWidth": 390,
+        "heading": "Build toward a real outcome.",
+        "theme": "light"
+      },
+      "violations": [
+        {
+          "id": "color-contrast",
+          "impact": "serious",
+          "nodes": [
+            {
+              "target": [
+                "button[data-complete=\"false\"]:nth-child(2) > span:nth-child(2) > strong"
+              ],
+              "summary": "Fix any of the following:\n  Element has insufficient color contrast of 4.41 (foreground color: #676b72, background color: #f2e8d9, font size: 8.9pt (11.84px), font weight: bold). Expected contrast ratio of 4.5:1"
+            },
+            {
+              "target": [
+                "button[data-complete=\"false\"]:nth-child(3) > span:nth-child(2) > strong"
+              ],
+              "summary": "Fix any of the following:\n  Element has insufficient color contrast of 4.41 (foreground color: #676b72, background color: #f2e8d9, font size: 8.9pt (11.84px), font weight: bold). Expected contrast ratio of 4.5:1"
+            }
+          ]
+        }
+      ],
+      "pageErrors": [],
+      "unexpectedRequests": []
+    }
+  ]
+}

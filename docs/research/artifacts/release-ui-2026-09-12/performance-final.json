@@ -1,0 +1,126 @@
+{
+  "label": "final",
+  "conditions": {
+    "browser": "153.0.8010.12",
+    "viewport": "390x844",
+    "cpuSlowdown": 4,
+    "latencyMs": 150,
+    "downloadBitsPerSecond": 1600000,
+    "uploadBitsPerSecond": 750000,
+    "sessionDelayMs": 750,
+    "catalog": "empty controlled response",
+    "samples": 3,
+    "httpCache": "disabled by route interception; fresh context per navigation",
+    "server": "local optimized Next webpack production build on loopback; not field CWV or hosted API/DB latency"
+  },
+  "pages": [
+    {
+      "path": "/",
+      "attempt": 1,
+      "ttfbMs": 5,
+      "fcpMs": 1796,
+      "observedLcpMs": 1872,
+      "uiReadyMs": 2946,
+      "scriptCount": 14,
+      "scriptTransferBytes": 198058,
+      "scriptDecodedBytes": 631520,
+      "totalResourceTransferBytes": 401582
+    },
+    {
+      "path": "/",
+      "attempt": 2,
+      "ttfbMs": 7,
+      "fcpMs": 1832,
+      "observedLcpMs": 1936,
+      "uiReadyMs": 3088,
+      "scriptCount": 14,
+      "scriptTransferBytes": 198058,
+      "scriptDecodedBytes": 631520,
+      "totalResourceTransferBytes": 401582
+    },
+    {
+      "path": "/",
+      "attempt": 3,
+      "ttfbMs": 10,
+      "fcpMs": 1848,
+      "observedLcpMs": 1988,
+      "uiReadyMs": 3131,
+      "scriptCount": 14,
+      "scriptTransferBytes": 198058,
+      "scriptDecodedBytes": 631520,
+      "totalResourceTransferBytes": 401585
+    },
+    {
+      "path": "/library",
+      "attempt": 1,
+      "ttfbMs": 11,
+      "fcpMs": 1856,
+      "observedLcpMs": 1960,
+      "uiReadyMs": 3200,
+      "scriptCount": 15,
+      "scriptTransferBytes": 204477,
+      "scriptDecodedBytes": 649701,
+      "totalResourceTransferBytes": 405051
+    },
+    {
+      "path": "/library",
+      "attempt": 2,
+      "ttfbMs": 7,
+      "fcpMs": 1848,
+      "observedLcpMs": 1956,
+      "uiReadyMs": 3141,
+      "scriptCount": 15,
+      "scriptTransferBytes": 204477,
+      "scriptDecodedBytes": 649701,
+      "totalResourceTransferBytes": 405052
+    },
+    {
+      "path": "/library",
+      "attempt": 3,
+      "ttfbMs": 12,
+      "fcpMs": 1848,
+      "observedLcpMs": 1940,
+      "uiReadyMs": 3116,
+      "scriptCount": 15,
+      "scriptTransferBytes": 204477,
+      "scriptDecodedBytes": 649701,
+      "totalResourceTransferBytes": 405050
+    },
+    {
+      "path": "/pricing",
+      "attempt": 1,
+      "ttfbMs": 14,
+      "fcpMs": 1848,
+      "observedLcpMs": 2024,
+      "uiReadyMs": 3212,
+      "scriptCount": 14,
+      "scriptTransferBytes": 201917,
+      "scriptDecodedBytes": 644787,
+      "totalResourceTransferBytes": 400534
+    },
+    {
+      "path": "/pricing",
+      "attempt": 2,
+      "ttfbMs": 9,
+      "fcpMs": 1860,
+      "observedLcpMs": 2036,
+      "uiReadyMs": 3166,
+      "scriptCount": 14,
+      "scriptTransferBytes": 201917,
+      "scriptDecodedBytes": 644787,
+      "totalResourceTransferBytes": 400534
+    },
+    {
+      "path": "/pricing",
+      "attempt": 3,
+      "ttfbMs": 10,
+      "fcpMs": 1828,
+      "observedLcpMs": 1992,
+      "uiReadyMs": 3196,
+      "scriptCount": 14,
+      "scriptTransferBytes": 201917,
+      "scriptDecodedBytes": 644787,
+      "totalResourceTransferBytes": 400535
+    }
+  ]
+}

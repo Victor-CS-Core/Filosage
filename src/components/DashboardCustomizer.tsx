@@ -68,7 +68,7 @@ export default function DashboardCustomizer({ open, preferences, syncStatus, onC
   const [dragging, setDragging] = useState<{ key: DashboardMainSection | DashboardSideSection; group: "main" | "side" } | null>(null);
   const [reorderStatus, setReorderStatus] = useState("");
 
-  if (!open) return null;
+  // Keep AppDrawer mounted so closing restores focus to the invoking control.
 
   const toggleSection = (key: DashboardMainSection | DashboardSideSection) => {
     setDraft((current) => ({

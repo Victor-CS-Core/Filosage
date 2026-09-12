@@ -1,0 +1,100 @@
+import { chromium, webkit, devices, expect } from '@playwright/test';
+import AxeBuilder from '@axe-core/playwright';
+import { mkdirSync, writeFileSync } from 'node:fs';
+import { exactLearnerAccount } from '../../tests/fixtures/local-learner';
+import { EMPTY_LEARNER_STATE } from '../../src/lib/learner-state';
+import { course, lessonOne } from './course-fixture';
+const root = process.cwd()+ '/.filosage-local/release-ui';
+const base = 'http://127.0.0.1:3217';
+const records = [];
+const session = { recentAuthentication: true, authentication: { primaryProvider: 'filosage', externalIdAvailable: true, externalIdNewAccountsAvailable: true, legacyGoogleAvailable: true }, user: { uid: 'release-ui-controlled-learner', displayName: 'Release Learner', email: 'release@example.com', photoURL: null, authenticationProvider: 'filosage' } };
+mkdirSync(root+'/screenshots', {recursive: true});
+for (const engine of ['chromium', 'webkit'] as const) {
+ const browser = await (engine === 'chromium' ? chromium.launch() : webkit.launch({ executablePath: root+'/webkit.sh' }));
+ for (const device of ['desktop', 'mobile'] as const) for (const theme of ['light', 'dark'] as const) {
+  const context = await browser.newContext({ ...(device === 'mobile' ? devices[engine === 'chromium' ? 'Pixel 7' : 'iPhone 13'] : { viewport: { width: 1440, height: 900 } }), colorScheme: theme, reducedMotion: 'reduce' });
+  await context.addInitScript(() => localStorage.setItem('filosage:analytics:consent:v1','declined'));
+  const page = await context.newPage();
+  let persona = 'guest';
+  const pageErrors: string[] = [];
+  const unexpectedRequests: string[] = [];
+  page.on('pageerror', e => pageErrors.push(e.message));
+  await page.route('**/api/**', async route => {
+   const u = new URL(route.request().url());
+   const path = u.pathname;
+   let json: unknown;
+   let status=200;
+   if (path === '/api/auth/session') json = {...session,user: persona === 'guest' ? null : session.user};
+   else if (path === '/api/account') json = persona === 'owner' ? exactLearnerAccount({isOwner: true, displayName: 'Release Owner'}) : exactLearnerAccount({displayName: 'Release Learner'});
+   else if (path === '/api/learner-state') json = EMPTY_LEARNER_STATE;
+   else if (path === '/api/progress') json = {progress: u.searchParams.has('courseId') ? null : []};
+   else if (path === '/api/generation-operations') json = {operations: []};
+   else if (path === '/api/mastery') json = {plan: null,evidence: []};
+   else if (path === '/api/courses') json = {courses: [course]};
+   else if (path === '/api/courses/published-course-flow') json = course;
+   else if (path === '/api/courses/published-course-flow/lessons/0-0') json = persona === 'guest' ? {error: 'Sign in to open lessons.'} : lessonOne;
+   else if (path === '/api/billing/status') json = { enabled: false, rolloutMode: 'closed', ready: false, checkoutReady: false, managementReady: false };
+   else if (path === '/api/support/articles') { await route.continue(); return; }
+   else if (path === '/api/support/capabilities') json = {submissionEnabled: false,historyEnabled: true};
+   else if (path === '/api/admin/overview') { json = {error: 'Temporary audit service failure'}; status=503; }
+   else if (path === '/api/product-events' || path === '/api/analytics/events') json = {saved: true};
+   else if (path.startsWith('/api/course-banners/')) { await route.fulfill({status:404,body:''}); return; }
+   else {unexpectedRequests.push(path); json = {error:'No audit fixture for this endpoint'}; status=503;}
+   await route.fulfill({status,json});
+  });
+  const surfaces = [
+    ['guest','landing','/'],['guest','catalog','/library'],['guest','outline','/course/Decision%20quality?id=published-course-flow'],
+    ['guest','pricing','/pricing'],['guest','support','/support'],
+    ['learner','profile','/profile'],['learner','progress','/progress'],['learner','lesson','/course/Decision%20quality/lesson/0-0?id=published-course-flow'],
+    ['owner','owner-outline','/course/Decision%20quality?id=published-course-flow'],['owner','create','/create'],['owner','admin-retry','/admin'],
+  ];
+  for (const [identity,name,path] of surfaces) {
+   persona=identity;
+   const errorsBefore=pageErrors.length;
+   const unknownBefore=unexpectedRequests.length;
+   await page.goto(base+path);
+   await page.locator('h1').first().waitFor({state:'visible',timeout:15000});
+   await page.waitForFunction(() => !document.querySelector('[aria-label="Restoring your Filosage session"]'));
+   await page.evaluate(() => document.fonts.ready);
+   // Wait for two rendered frames after all controlled, immediate API replies.
+   await page.evaluate(() => new Promise<void>(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))));
+   if (name === 'profile') await expect(page.getByRole('heading',{name:'Release Learner',exact:true})).toBeVisible();
+   if (name === 'lesson') await expect(page.getByRole('heading',{name:'Evidence before inference',exact:true})).toBeVisible();
+   if (name === 'admin-retry') { await expect(page.getByText('Temporary audit service failure')).toBeVisible(); await page.getByRole('button',{name:'Try again',exact:true}).click(); await expect(page.getByRole('button',{name:'Try again',exact:true})).toBeVisible(); }
+   if (name === 'profile') {
+    const dashboard = page.getByRole('button',{name:'Change dashboard view',exact:true});
+    await dashboard.scrollIntoViewIfNeeded();
+    await dashboard.screenshot({path:root+`/screenshots/${engine}-${device}-${theme}-profile-action.png`});
+    await dashboard.press('Enter');
+    await expect(page.getByRole('dialog',{name:'Choose what helps you focus.'})).toBeVisible();
+    await page.getByRole('dialog',{name:'Choose what helps you focus.'}).screenshot({path:root+`/screenshots/${engine}-${device}-${theme}-profile-drawer.png`});
+    await page.keyboard.press('Escape');
+    await expect(dashboard).toBeFocused();
+   }
+   if (name === 'support') {
+    const trigger = page.getByRole('button',{name:'Open Support Center'});
+    await trigger.click();
+    const dialog = page.getByRole('dialog',{name:'Support center'});
+    await expect(dialog).toBeVisible();
+    await dialog.getByRole('searchbox',{name:'Search help guides'}).fill('privacy');
+    await expect(dialog.getByText('Privacy controls')).toBeVisible();
+    await dialog.getByRole('tab',{name:'Contact support',exact:true}).click();
+    await expect(dialog.getByRole('heading',{name:'Contact support by email'})).toBeVisible();
+    await expect(dialog.getByRole('link',{name:/Email support@filosage.com/})).toHaveAttribute('href',/mailto:support@filosage\.com/);
+    await dialog.screenshot({path:root+`/screenshots/${engine}-${device}-${theme}-support-panel.png`});
+    await page.keyboard.press('Escape');
+    await expect(dialog).toBeHidden();
+    await expect(trigger).toBeFocused();
+   }
+   const a11y = await new AxeBuilder({page}).withTags(['wcag2a','wcag2aa','wcag21aa','wcag22aa']).analyze();
+   const geometry = await page.evaluate(() => ({width: document.documentElement.clientWidth,scrollWidth: document.documentElement.scrollWidth,heading:document.querySelector('h1')?.textContent,theme:document.documentElement.dataset.theme}));
+   const record = { engine, device, theme, persona, name, path, geometry, violations:a11y.violations.map(v=>({id:v.id,impact:v.impact,nodes:v.nodes.map(n=>({target:n.target,summary:n.failureSummary}))})), pageErrors:pageErrors.slice(errorsBefore), unexpectedRequests:unexpectedRequests.slice(unknownBefore) };
+   records.push(record);
+   await page.screenshot({path:root+`/screenshots/${engine}-${device}-${theme}-${name}.png`,fullPage:true});
+   writeFileSync(root+'/surfaces-results.json',JSON.stringify(records,null,2));
+   console.log(JSON.stringify({engine,device,theme,name,violations:record.violations.map(v=>v.id),overflow:geometry.scrollWidth-geometry.width,errors:record.pageErrors,unknown:record.unexpectedRequests}));
+  }
+  await context.close();
+ }
+ await browser.close();
+}

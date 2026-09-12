@@ -331,6 +331,22 @@ test("profile name editing remains keyboard reachable and reflows at 200 percent
   await page.route("**/api/courses?scope=mine", (route) => route.fulfill({ status: 200, json: { courses: [] } }));
 
   await page.goto("/profile");
+  for (const theme of ["light", "dark"] as const) {
+    await page.emulateMedia({ colorScheme: theme });
+    await expect(page.locator("html")).toHaveAttribute("data-theme", theme);
+    const dashboardView = page.getByRole("button", { name: "Change dashboard view" });
+    await expect(dashboardView).toBeVisible();
+    expect(await dashboardView.evaluate((node) => node.getBoundingClientRect().height)).toBeGreaterThanOrEqual(44);
+    const profileAccessibility = await new AxeBuilder({ page })
+      .include(".profile-side")
+      .withTags(["wcag2a", "wcag2aa", "wcag21aa", "wcag22aa"])
+      .analyze();
+    expect(profileAccessibility.violations).toEqual([]);
+    await dashboardView.press("Enter");
+    await expect(page.getByRole("dialog", { name: "Choose what helps you focus." })).toBeVisible();
+    await page.keyboard.press("Escape");
+    await expect(dashboardView).toBeFocused();
+  }
   const profileHeader = page.locator(".profile-identity");
   await profileHeader.getByRole("button", { name: "Edit name" }).click();
   const input = profileHeader.getByRole("textbox", { name: "Name shown in Filosage" });
@@ -463,3 +479,49 @@ for (const gate of ["legal", "identity"] as const) {
     expect(prematureReads).toEqual([]);
   });
 }
+
+
+test("owner navigation stays readable in both themes while a failed overview can be retried", { tag: ["@mobile", "@webkit"] }, async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await page.route("**/api/auth/session", (route) => route.fulfill({ json: {
+    ...signedOutManagedSession,
+    recentAuthentication: true,
+    user: { uid: "navigation-audit-owner", displayName: "Navigation Owner", email: "navigation@example.com", photoURL: null, authenticationProvider: "filosage" },
+  } }));
+  await page.route("**/api/account", (route) => route.fulfill({ json: exactLearnerAccount({ isOwner: true }) }));
+  await page.route("**/api/learner-state", (route) => route.fulfill({ json: EMPTY_LEARNER_STATE }));
+  await page.route("**/api/progress", (route) => route.fulfill({ json: { progress: [] } }));
+  await page.route("**/api/courses?scope=mine", (route) => route.fulfill({ json: { courses: [] } }));
+  let attempts = 0;
+  await page.route("**/api/admin/overview?**", (route) => {
+    attempts += 1;
+    return route.fulfill({ status: 503, json: { error: "Overview is temporarily unavailable." } });
+  });
+  await page.goto("/admin");
+  await expect(page.getByText("Overview is temporarily unavailable.")).toBeVisible();
+  const beforeRetry = attempts;
+  await page.getByRole("button", { name: "Try again", exact: true }).click();
+  await expect.poll(() => attempts).toBe(beforeRetry + 1);
+  for (const theme of ["light", "dark"] as const) {
+    await page.emulateMedia({ colorScheme: theme });
+    await expect(page.locator("html")).toHaveAttribute("data-theme", theme);
+    const accessibility = await new AxeBuilder({ page })
+      .include(".admin-tabs")
+      .withTags(["wcag2a", "wcag2aa", "wcag21aa", "wcag22aa"])
+      .analyze();
+    expect(accessibility.violations).toEqual([]);
+  }
+  await page.route("**/api/generation-operations", (route) => route.fulfill({ json: { operations: [] } }));
+  await page.goto("/create");
+  const steps = page.getByRole("navigation", { name: "Course creation steps" });
+  await expect(steps).toBeVisible();
+  for (const theme of ["light", "dark"] as const) {
+    await page.emulateMedia({ colorScheme: theme });
+    await expect(page.locator("html")).toHaveAttribute("data-theme", theme);
+    const accessibility = await new AxeBuilder({ page })
+      .include('nav[aria-label="Course creation steps"]')
+      .withTags(["wcag2a", "wcag2aa", "wcag21aa", "wcag22aa"])
+      .analyze();
+    expect(accessibility.violations).toEqual([]);
+  }
+});

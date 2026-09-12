@@ -365,8 +365,11 @@ export default function AppDrawer({
     // Release the modal focus trap immediately so another control can be used
     // while the surface finishes its visual exit as a non-modal dialog.
     dialog.close();
+    const restoredFocus = document.activeElement;
     dialog.show();
     dialog.inert = true;
+    // show() focuses the exiting surface again; preserve the native close target.
+    if (restoredFocus instanceof HTMLElement && !dialog.contains(restoredFocus)) restoredFocus.focus();
     openFrameRef.current = requestAnimationFrame(() => {
       delete dialog.dataset.motionStarted;
       delete dialog.dataset.motionSettled;

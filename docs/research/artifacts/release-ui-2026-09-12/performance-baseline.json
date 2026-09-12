@@ -1,0 +1,126 @@
+{
+  "label": "baseline",
+  "conditions": {
+    "browser": "153.0.8010.12",
+    "viewport": "390x844",
+    "cpuSlowdown": 4,
+    "latencyMs": 150,
+    "downloadBitsPerSecond": 1600000,
+    "uploadBitsPerSecond": 750000,
+    "sessionDelayMs": 750,
+    "catalog": "empty controlled response",
+    "samples": 3,
+    "httpCache": "disabled by route interception; fresh context per navigation",
+    "server": "local optimized Next webpack production build on loopback; not field CWV or hosted API/DB latency"
+  },
+  "pages": [
+    {
+      "path": "/",
+      "attempt": 1,
+      "ttfbMs": 15,
+      "fcpMs": 1820,
+      "observedLcpMs": 1920,
+      "uiReadyMs": 3045,
+      "scriptCount": 14,
+      "scriptTransferBytes": 198022,
+      "scriptDecodedBytes": 631426,
+      "totalResourceTransferBytes": 401546
+    },
+    {
+      "path": "/",
+      "attempt": 2,
+      "ttfbMs": 9,
+      "fcpMs": 1808,
+      "observedLcpMs": 1896,
+      "uiReadyMs": 2981,
+      "scriptCount": 14,
+      "scriptTransferBytes": 198022,
+      "scriptDecodedBytes": 631426,
+      "totalResourceTransferBytes": 401545
+    },
+    {
+      "path": "/",
+      "attempt": 3,
+      "ttfbMs": 6,
+      "fcpMs": 1816,
+      "observedLcpMs": 1888,
+      "uiReadyMs": 2971,
+      "scriptCount": 14,
+      "scriptTransferBytes": 198022,
+      "scriptDecodedBytes": 631426,
+      "totalResourceTransferBytes": 401543
+    },
+    {
+      "path": "/library",
+      "attempt": 1,
+      "ttfbMs": 8,
+      "fcpMs": 1812,
+      "observedLcpMs": 1888,
+      "uiReadyMs": 3046,
+      "scriptCount": 15,
+      "scriptTransferBytes": 204441,
+      "scriptDecodedBytes": 649607,
+      "totalResourceTransferBytes": 405012
+    },
+    {
+      "path": "/library",
+      "attempt": 2,
+      "ttfbMs": 9,
+      "fcpMs": 1836,
+      "observedLcpMs": 1892,
+      "uiReadyMs": 3036,
+      "scriptCount": 15,
+      "scriptTransferBytes": 204441,
+      "scriptDecodedBytes": 649607,
+      "totalResourceTransferBytes": 405011
+    },
+    {
+      "path": "/library",
+      "attempt": 3,
+      "ttfbMs": 5,
+      "fcpMs": 1808,
+      "observedLcpMs": 1876,
+      "uiReadyMs": 2993,
+      "scriptCount": 15,
+      "scriptTransferBytes": 204441,
+      "scriptDecodedBytes": 649607,
+      "totalResourceTransferBytes": 405012
+    },
+    {
+      "path": "/pricing",
+      "attempt": 1,
+      "ttfbMs": 7,
+      "fcpMs": 1848,
+      "observedLcpMs": 2028,
+      "uiReadyMs": 3208,
+      "scriptCount": 14,
+      "scriptTransferBytes": 201881,
+      "scriptDecodedBytes": 644693,
+      "totalResourceTransferBytes": 400495
+    },
+    {
+      "path": "/pricing",
+      "attempt": 2,
+      "ttfbMs": 6,
+      "fcpMs": 1844,
+      "observedLcpMs": 1964,
+      "uiReadyMs": 3062,
+      "scriptCount": 14,
+      "scriptTransferBytes": 201881,
+      "scriptDecodedBytes": 644693,
+      "totalResourceTransferBytes": 400494
+    },
+    {
+      "path": "/pricing",
+      "attempt": 3,
+      "ttfbMs": 5,
+      "fcpMs": 1816,
+      "observedLcpMs": 1928,
+      "uiReadyMs": 3039,
+      "scriptCount": 14,
+      "scriptTransferBytes": 201881,
+      "scriptDecodedBytes": 644693,
+      "totalResourceTransferBytes": 400496
+    }
+  ]
+}

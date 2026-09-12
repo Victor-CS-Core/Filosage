@@ -1,0 +1,389 @@
+{
+  "conditions": "Three sequential local process starts; OS filesystem cache not flushed. No database/provider settings. Five sequential anonymous warm GET samples per endpoint after first session200. HTTP401 proves rejection at this local server boundary only; no real account identity or hosted authorization claim.",
+  "results": [
+    {
+      "attempt": 1,
+      "startupToFirstSessionResponseMs": 633,
+      "nextReportedReadyMs": 143,
+      "rssKiB": 191324,
+      "samples": [
+        {
+          "path": "/api/auth/session",
+          "attempt": 1,
+          "status": 200,
+          "latencyMs": 117.1
+        },
+        {
+          "path": "/api/auth/session",
+          "attempt": 2,
+          "status": 200,
+          "latencyMs": 7
+        },
+        {
+          "path": "/api/auth/session",
+          "attempt": 3,
+          "status": 200,
+          "latencyMs": 6.3
+        },
+        {
+          "path": "/api/auth/session",
+          "attempt": 4,
+          "status": 200,
+          "latencyMs": 4.5
+        },
+        {
+          "path": "/api/auth/session",
+          "attempt": 5,
+          "status": 200,
+          "latencyMs": 5.3
+        },
+        {
+          "path": "/api/account",
+          "attempt": 1,
+          "status": 401,
+          "latencyMs": 10.9
+        },
+        {
+          "path": "/api/account",
+          "attempt": 2,
+          "status": 401,
+          "latencyMs": 5.9
+        },
+        {
+          "path": "/api/account",
+          "attempt": 3,
+          "status": 401,
+          "latencyMs": 6.4
+        },
+        {
+          "path": "/api/account",
+          "attempt": 4,
+          "status": 401,
+          "latencyMs": 6.6
+        },
+        {
+          "path": "/api/account",
+          "attempt": 5,
+          "status": 401,
+          "latencyMs": 4.9
+        },
+        {
+          "path": "/api/courses?scope=mine",
+          "attempt": 1,
+          "status": 401,
+          "latencyMs": 7.6
+        },
+        {
+          "path": "/api/courses?scope=mine",
+          "attempt": 2,
+          "status": 401,
+          "latencyMs": 3.6
+        },
+        {
+          "path": "/api/courses?scope=mine",
+          "attempt": 3,
+          "status": 401,
+          "latencyMs": 4.3
+        },
+        {
+          "path": "/api/courses?scope=mine",
+          "attempt": 4,
+          "status": 401,
+          "latencyMs": 4.4
+        },
+        {
+          "path": "/api/courses?scope=mine",
+          "attempt": 5,
+          "status": 401,
+          "latencyMs": 4
+        },
+        {
+          "path": "/api/courses/audit-private/lessons/0-0",
+          "attempt": 1,
+          "status": 401,
+          "latencyMs": 9.2
+        },
+        {
+          "path": "/api/courses/audit-private/lessons/0-0",
+          "attempt": 2,
+          "status": 401,
+          "latencyMs": 4.9
+        },
+        {
+          "path": "/api/courses/audit-private/lessons/0-0",
+          "attempt": 3,
+          "status": 401,
+          "latencyMs": 2.8
+        },
+        {
+          "path": "/api/courses/audit-private/lessons/0-0",
+          "attempt": 4,
+          "status": 401,
+          "latencyMs": 5.3
+        },
+        {
+          "path": "/api/courses/audit-private/lessons/0-0",
+          "attempt": 5,
+          "status": 401,
+          "latencyMs": 6
+        }
+      ]
+    },
+    {
+      "attempt": 2,
+      "startupToFirstSessionResponseMs": 581,
+      "nextReportedReadyMs": 135,
+      "rssKiB": 176768,
+      "samples": [
+        {
+          "path": "/api/auth/session",
+          "attempt": 1,
+          "status": 200,
+          "latencyMs": 95.5
+        },
+        {
+          "path": "/api/auth/session",
+          "attempt": 2,
+          "status": 200,
+          "latencyMs": 6.4
+        },
+        {
+          "path": "/api/auth/session",
+          "attempt": 3,
+          "status": 200,
+          "latencyMs": 6
+        },
+        {
+          "path": "/api/auth/session",
+          "attempt": 4,
+          "status": 200,
+          "latencyMs": 6.4
+        },
+        {
+          "path": "/api/auth/session",
+          "attempt": 5,
+          "status": 200,
+          "latencyMs": 5.7
+        },
+        {
+          "path": "/api/account",
+          "attempt": 1,
+          "status": 401,
+          "latencyMs": 11
+        },
+        {
+          "path": "/api/account",
+          "attempt": 2,
+          "status": 401,
+          "latencyMs": 6.1
+        },
+        {
+          "path": "/api/account",
+          "attempt": 3,
+          "status": 401,
+          "latencyMs": 5.5
+        },
+        {
+          "path": "/api/account",
+          "attempt": 4,
+          "status": 401,
+          "latencyMs": 5.9
+        },
+        {
+          "path": "/api/account",
+          "attempt": 5,
+          "status": 401,
+          "latencyMs": 5.9
+        },
+        {
+          "path": "/api/courses?scope=mine",
+          "attempt": 1,
+          "status": 401,
+          "latencyMs": 6.4
+        },
+        {
+          "path": "/api/courses?scope=mine",
+          "attempt": 2,
+          "status": 401,
+          "latencyMs": 3.7
+        },
+        {
+          "path": "/api/courses?scope=mine",
+          "attempt": 3,
+          "status": 401,
+          "latencyMs": 4.8
+        },
+        {
+          "path": "/api/courses?scope=mine",
+          "attempt": 4,
+          "status": 401,
+          "latencyMs": 5.2
+        },
+        {
+          "path": "/api/courses?scope=mine",
+          "attempt": 5,
+          "status": 401,
+          "latencyMs": 4.6
+        },
+        {
+          "path": "/api/courses/audit-private/lessons/0-0",
+          "attempt": 1,
+          "status": 401,
+          "latencyMs": 7.6
+        },
+        {
+          "path": "/api/courses/audit-private/lessons/0-0",
+          "attempt": 2,
+          "status": 401,
+          "latencyMs": 4.6
+        },
+        {
+          "path": "/api/courses/audit-private/lessons/0-0",
+          "attempt": 3,
+          "status": 401,
+          "latencyMs": 5.8
+        },
+        {
+          "path": "/api/courses/audit-private/lessons/0-0",
+          "attempt": 4,
+          "status": 401,
+          "latencyMs": 4.5
+        },
+        {
+          "path": "/api/courses/audit-private/lessons/0-0",
+          "attempt": 5,
+          "status": 401,
+          "latencyMs": 5.2
+        }
+      ]
+    },
+    {
+      "attempt": 3,
+      "startupToFirstSessionResponseMs": 569,
+      "nextReportedReadyMs": 120,
+      "rssKiB": 191388,
+      "samples": [
+        {
+          "path": "/api/auth/session",
+          "attempt": 1,
+          "status": 200,
+          "latencyMs": 109.6
+        },
+        {
+          "path": "/api/auth/session",
+          "attempt": 2,
+          "status": 200,
+          "latencyMs": 5.8
+        },
+        {
+          "path": "/api/auth/session",
+          "attempt": 3,
+          "status": 200,
+          "latencyMs": 5.4
+        },
+        {
+          "path": "/api/auth/session",
+          "attempt": 4,
+          "status": 200,
+          "latencyMs": 5.3
+        },
+        {
+          "path": "/api/auth/session",
+          "attempt": 5,
+          "status": 200,
+          "latencyMs": 6
+        },
+        {
+          "path": "/api/account",
+          "attempt": 1,
+          "status": 401,
+          "latencyMs": 7.3
+        },
+        {
+          "path": "/api/account",
+          "attempt": 2,
+          "status": 401,
+          "latencyMs": 5.3
+        },
+        {
+          "path": "/api/account",
+          "attempt": 3,
+          "status": 401,
+          "latencyMs": 4.5
+        },
+        {
+          "path": "/api/account",
+          "attempt": 4,
+          "status": 401,
+          "latencyMs": 4.7
+        },
+        {
+          "path": "/api/account",
+          "attempt": 5,
+          "status": 401,
+          "latencyMs": 7.2
+        },
+        {
+          "path": "/api/courses?scope=mine",
+          "attempt": 1,
+          "status": 401,
+          "latencyMs": 6.8
+        },
+        {
+          "path": "/api/courses?scope=mine",
+          "attempt": 2,
+          "status": 401,
+          "latencyMs": 3.1
+        },
+        {
+          "path": "/api/courses?scope=mine",
+          "attempt": 3,
+          "status": 401,
+          "latencyMs": 3.3
+        },
+        {
+          "path": "/api/courses?scope=mine",
+          "attempt": 4,
+          "status": 401,
+          "latencyMs": 3.1
+        },
+        {
+          "path": "/api/courses?scope=mine",
+          "attempt": 5,
+          "status": 401,
+          "latencyMs": 3.2
+        },
+        {
+          "path": "/api/courses/audit-private/lessons/0-0",
+          "attempt": 1,
+          "status": 401,
+          "latencyMs": 6.1
+        },
+        {
+          "path": "/api/courses/audit-private/lessons/0-0",
+          "attempt": 2,
+          "status": 401,
+          "latencyMs": 3.7
+        },
+        {
+          "path": "/api/courses/audit-private/lessons/0-0",
+          "attempt": 3,
+          "status": 401,
+          "latencyMs": 2
+        },
+        {
+          "path": "/api/courses/audit-private/lessons/0-0",
+          "attempt": 4,
+          "status": 401,
+          "latencyMs": 2.7
+        },
+        {
+          "path": "/api/courses/audit-private/lessons/0-0",
+          "attempt": 5,
+          "status": 401,
+          "latencyMs": 4
+        }
+      ]
+    }
+  ]
+}
