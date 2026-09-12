@@ -1,5 +1,7 @@
 # FiloSage Release Legal Exposure Gauntlet
 
+> Current production is Azure Container Apps + Easy Auth (Google) + Azure PostgreSQL + Blob. Retired datastore files named below were leftover deny-all source rules and are not the live datastore.
+
 **Purpose:** Run this task against the FiloSage repository and deployed release candidate before commercial launch. The goal is to reduce preventable legal, privacy, subscription, security, AI-safety, advertising, accessibility, and user-content exposure through verifiable engineering controls and release evidence.
 
 **Important:** This is an engineering/compliance hardening task, not a substitute for legal advice. Do not invent legal conclusions. When a requirement depends on facts that cannot be determined from code or authoritative sources, create a clearly labeled **OWNER/COUNSEL DECISION REQUIRED** blocker rather than guessing.

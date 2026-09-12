@@ -25,7 +25,7 @@ Every new paid Checkout requires the versioned age, U.S.-residency, and automati
 Do not enable billing until all of the following are true:
 
 1. Production health checks pass against the intended release version.
-2. Managed Azure PostgreSQL backups are configured and a restore rehearsal has been completed in a non-production target.
+2. Azure Database for PostgreSQL automated backups are in the required recovery window, `.github/workflows/azure-backup-evidence.yml` has recorded that window, and a point-in-time restore rehearsal has been completed on a separate non-production recovery server. The evidence workflow does not restore data.
 3. Critical operational alerts reach an independently monitored destination.
 4. Stripe Live products, monthly and annual prices, webhook endpoint, explicit customer-portal configuration ID and four-Price catalog, tax behavior, and statement descriptor have been reviewed.
 5. The full lifecycle test matrix below passes with Stripe test objects.
@@ -119,7 +119,7 @@ This is the persistent outcome checklist for the August 25 release-readiness exe
 
 ## Course-generation release acceptance
 
-Before deploying a course-schema or generation-prompt change, use production-like Azure and OpenAI credentials to create one private flagship course through the user interface. Record the course ID, release SHA, models, reviewer, and test time without copying secrets or private learner text. The acceptance record must confirm:
+Before deploying a course-schema or generation-prompt change, use production-like Azure PostgreSQL, Azure Blob, Easy Auth, and OpenAI credentials to create one private flagship course through the user interface. Record the course ID, release SHA, models, reviewer, and test time without copying secrets or private learner text. The acceptance record must confirm:
 
 1. The outline passes the current course quality gate and visibly advances one artifact through distinct milestones.
 2. At least one generated lesson for each of the six teaching modes opens, reloads, preserves its draft, and stores meaningful active-lesson evidence at completion.

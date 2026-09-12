@@ -1,5 +1,7 @@
 # Release Evidence
 
+> Historical record from 2026-08-11 on the former Sites host and its retired document store. Current production is Azure Container Apps + Easy Auth (Google) + Azure PostgreSQL. Details below describe the environment at the time of the evidence, not current production.
+
 Date: 2026-08-11. Decision: **ready for an owner-only production canary, not for general release**. Decision-changing V2 behavior is account-scoped, dependency-checked, and owner-only by default. Billing remains disabled.
 
 ## Executed local gates
@@ -60,7 +62,7 @@ Owner-scoped flags enforce dependencies. `COURSE_PUBLICATION_V2` cannot activate
 - Automatic provider research, server source classification, outline grounding, and lesson claim-to-evidence evaluation are implemented for private creation as of 2026-08-14. Live calibration across adversarial factual domains is still required before describing the system as infallible or removing separate high-stakes publication controls.
 - The 100-request corpus proves deterministic routing/applicability invariants, not 100 live generated courses.
 - A certified request-bound research snapshot is persisted before outline generation and reused after a restart; incomplete or rejected provider research is never persisted as eligible evidence. Lessons remain independently resumable by saved lesson.
-- document transaction callbacks are behaviorally covered, but a dedicated emulator race suite is still recommended.
+- Document-store transaction callbacks are behaviorally covered, but a dedicated hosted PostgreSQL race suite is still recommended.
 - An operator timeline API exists; measured alerts, shadow baselines, and general-cohort thresholds still require real traffic.
 
 These are blockers for cohort/general expansion, not hidden omissions. The canary must stay owner-only until they are resolved or supported by measured evidence.

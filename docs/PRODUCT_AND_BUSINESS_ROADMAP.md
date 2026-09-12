@@ -304,7 +304,7 @@ Likely implementation areas:
 - Generation APIs and prompts
 - New source-ingestion and report APIs
 - Owner admin review surfaces
-- PostgreSQL access policies and Blob storage policies
+- Azure PostgreSQL authorization and Blob storage policies
 - Legal and privacy documentation
 
 ### 4. Curated launch catalog

@@ -620,6 +620,11 @@ test("staging builds once after engineering evidence and promotion never rebuild
 test("custom-domain releases prove their canonical origin and redirect www to the apex", () => {
   expect(healthRouteSource).toContain("origin,");
   expect(healthRouteSource).toContain("checks: {");
+  expect(healthRouteSource).toContain("Azure PostgreSQL document store");
+  expect(healthRouteSource).not.toContain(RETIRED_SYSTEM_NAMES[1]);
+  expect(healthRouteSource).not.toContain("CF_PAGES_COMMIT_SHA");
+  expect(healthRouteSource).not.toContain("VERCEL_GIT_COMMIT_SHA");
+  expect(healthRouteSource).toContain("SITE_VERSION");
   expect(healthVerifierSource).toContain("EXPECTED_SITE_ORIGIN");
   expect(healthVerifierSource).toContain("body?.origin === expectedOrigin");
   expect(proxySource).toContain('host === "www.filosage.com"');

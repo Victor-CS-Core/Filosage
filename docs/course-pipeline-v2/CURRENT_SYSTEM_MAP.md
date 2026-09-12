@@ -16,7 +16,7 @@ Verified against the repository on 2026-08-11.
 | V2 validation | `GET /api/courses/[courseId]/validation` | Exact aggregate snapshot, expected modes, typed diagnostics, explicit manual gates for unexecuted lanes, snapshot-atomic readiness transition | V2 regressions |
 | Deterministic repair | `POST /api/courses/[courseId]/repair` | Allowlisted path operations, document fingerprints, document transaction, full revalidation, audit diff, stale-safe undo | V2 regressions; emulator concurrency proof pending |
 | Manual review | owner API under `api/admin/.../manual-review` | Recent-owner auth, exact snapshot/contract, evidence selection for high-risk approval, approval/rejection audit | focused API/UI tests; operational assignment queue pending |
-| Banner | banner API and R2 helper | Optional decorative asset and distinct usage event; never instructional support | banner suites |
+| Banner | banner API and Azure Blob helper | Optional decorative asset and distinct usage event; never instructional support | banner suites |
 | Publication preflight | `reviewCourseForPublication()` | V1 assessment plus guarded V2 contract; V2 manual resolution honored only for the identical snapshot | publication suites |
 | Publication transaction | `publishCourseWithReview()` | Transaction reloads every document, rechecks fingerprints, enforces retry key, and writes an immutable learner-facing release copy | focused publication tests; emulator race proof pending |
 | Operations | `coursePipelineEvents` and owner timeline API | Privacy-safe actor hash, correlation, decision/rule/hash/version/flag data, durable V1/V2 shadow comparison | source assertions; live shadow run pending |

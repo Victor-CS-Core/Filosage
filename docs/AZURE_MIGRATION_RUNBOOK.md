@@ -2,6 +2,8 @@
 
 Status: Azure is the active host for `filosage.com` and `www.filosage.com`. Production uses immutable blue/green revisions. Permanent QA uses the separate scale-to-zero `filosageqa-app` at `qa.filosage.com`, an isolated `filosageqa` database, and the private `qa-course-banners` container. Azure Easy Auth with Google is the only application sign-in provider in both environments. The former Sites host is retired.
 
+The Azure PostgreSQL document store is the live runtime. The `migrate:azure:*` npm scripts are one-off importers for the completed authored-course migration; they are not a production data path.
+
 ## Approved decisions
 
 - Target: Azure Container Apps with built-in Google authentication (Easy Auth), Azure Database for PostgreSQL Flexible Server, Azure Blob Storage, Key Vault, Container Registry, Log Analytics, and Azure Monitor.

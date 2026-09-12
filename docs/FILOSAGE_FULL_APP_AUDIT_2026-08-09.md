@@ -1,5 +1,7 @@
 # Filosage full-app audit and pricing-tier readiness report
 
+> Historical record from 2026-08-09. Current production is Azure Container Apps + Easy Auth (Google) + Azure PostgreSQL. Retired document-store details below describe the environment at the time of the audit, not current production.
+
 Audit date: 2026-08-09
 
 Scope: public, account, learning, authoring, subscription, legal, limits, responsive UI, and server authorization

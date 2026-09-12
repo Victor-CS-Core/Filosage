@@ -12,7 +12,7 @@ Replace the current prose-coupled publication gate with one versioned contract t
 - Lesson creation is a separate single-request workflow with one whole-lesson fallback regeneration in `src/app/api/generate-lesson/route.ts`.
 - Publication readiness and publication review share schema and lesson-quality checks, but their diagnostics are string arrays and all pedagogical quality findings prevent ordinary publication.
 - At least two current rules encode enrichment or style as publication failures: a 1,500-character explanation threshold and a minimum of three teaching modes in courses with four or more lessons.
-- Publication itself already reloads course and lesson documents in a document transaction and compares stable fingerprints, so stale publication protection exists and must be retained.
+- Publication itself already reloads course and lesson documents in a document-store transaction and compares stable fingerprints, so stale publication protection exists and must be retained.
 - The existing whole-lesson repair can overwrite an author's edited lesson because it does not apply a path-scoped patch or require the edited lesson's base hash.
 - Real private denial records are unavailable in this checkout. The preserved July 2026 incident proves an earlier readiness/review mismatch, while current representative fixtures are required for reproducible V2 work.
 
