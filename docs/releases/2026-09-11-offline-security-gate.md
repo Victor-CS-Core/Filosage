@@ -6,6 +6,14 @@ The later approved security policy retains the automatic [Semgrep CE gate](2026-
 
 The later shared diagram expression and deterministic operation-count regressions are retained alongside this branch's unique notation, line-boundary, and bounded large-input tests. Named type-only imports remain to support the pinned OpenGrep parser. Both CodeQL action components are consolidated at verified v4.37.9 commit `cdf488f595d80d6e07e03d4674febd5ab45fa938`, with dispatch remaining manual.
 
+## Consolidation verification — September 12
+
+The reconciled source at `e0adf5128a413cc9e0057125f4366f9ffb51ff03` passed 35 language/pedagogy contracts, five security/workflow/cost-policy contracts, eight OpenGrep behavioral tests, ten Semgrep report tests, focused Oxlint/ESLint, TypeScript, tracked-file secret checks and whitespace checks. All three merged security branch tips are retained as Git ancestors. Original OpenGrep rule, license, fixture and runner bytes are unchanged; the automatic Semgrep implementation and later availability fixes are unchanged.
+
+The actual verified OpenGrep 1.30.0 binary ran in an unprivileged Linux user/network namespace. All 83 rules validated; three vulnerable fixtures produced exactly three expected findings; three sanitized fixtures produced zero findings/errors. The application scan hit its unchanged 300-second process deadline and failed closed with exit 2 (306.361 seconds overall), without a repository JSON report. No current OpenGrep coverage or clean-scan result is established. Detailed scanner output stayed private and the timed-out process group was terminated.
+
+Initial Python/Playwright checks encountered the host's `/tmp` quota; the unchanged tests passed using a task-owned temporary directory on the home filesystem. The system Docker socket denies this user, so the real pinned Semgrep image was not executed locally during this consolidation. Its ten report tests passed, while exact integrated-image CI remains separate required evidence. No workflow was dispatched, source pushed, or deployment performed by this security worker.
+
 ## Original branch record
 
 This continuation starts from `origin/main` at
