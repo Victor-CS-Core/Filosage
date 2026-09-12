@@ -1,3 +1,4 @@
+import { qualityJobsPassed, qualityWorkflowPath } from "./workflow-quality-evidence.mjs";
 import { spawnSync } from "node:child_process";
 import { mkdirSync, readFileSync, writeFileSync, existsSync } from "node:fs";
 import { join } from "node:path";
@@ -43,6 +44,14 @@ const requireRun = (id, path) => {
   if (!/^[1-9][0-9]*$/.test(String(id))) throw new Error("An exact successful workflow run is required.");
   const result = api(`actions/runs/${id}`);
   if (result.head_sha !== sha || result.path !== path || result.status !== "completed" || result.conclusion !== "success" || result.head_repository?.full_name !== repository) throw new Error("Workflow evidence identity or success mismatched.");
+  if (path === qualityWorkflowPath) {
+    if (!Number.isSafeInteger(result.run_attempt) || result.run_attempt < 1 || String(result.id) !== String(id)) throw new Error("Workflow attempt identity is unavailable.");
+    const jobs = api(`actions/runs/${id}/attempts/${result.run_attempt}/jobs?per_page=100`);
+    if (!qualityJobsPassed(result, jobs)) throw new Error("Full engineering jobs must pass for release evidence.");
+    const latest = api(`actions/runs/${id}`);
+    if (latest.run_attempt !== result.run_attempt || latest.head_sha !== sha || latest.path !== path
+      || latest.status !== "completed" || latest.conclusion !== "success" || latest.head_repository?.full_name !== repository) throw new Error("Workflow evidence changed during verification.");
+  }
   return { id: String(id), path, sha };
 };
 const download = (runId, artifact, destination) => {
