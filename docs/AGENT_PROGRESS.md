@@ -170,6 +170,11 @@ Progress: re-read current policies/handoff; fresh local main is clean at a99e1f9
 - Corrected an evidence-count error: actual PostgreSQL billing TAP has32total,30passed,2skipped,0failed. The two authenticated account/Portal route-wrapper tests explicitly skip when pgFixture is used; both run in the passing32-case standalone billing lane. Earlier50c0bfe raw logs confirm the same30/2/32split, and the historical record is corrected rather than calling all32database passes. No test/skip change was made. This remains simulated Stripe transport and isolated database coverage, not hosted payment or real identity proof.
 - Full34707824138 remains in the browser matrix; all preceding lanes passed. Its18:30UTC observation deadline remains active. Only that release-owned CI run is still pending. Evidence records are on the evidence branch; source3a0e772, maina99e1f9 and production93f60f24 are unchanged.
 
+### September 12, 17:38 UTC — aggregate model telemetry availability checked
+
+- R2 bounded read-only query of seven-day console logs from exact production green93f60f24 found17,901rows but zero parsed structured pipeline/model/duration/cost events. No raw logs, prompts, responses or account identifiers were exported; no paid call or provider configuration change occurred. The CLI automatically installed its local log-analytics preview extension for the query. Sanitized aggregate evidence is linked from the system report. This absence is not zero usage/cost and does not exclude database receipts, other formatting/destinations or periods; model latency/cost remains unmeasured.
+- Full34707824138 is still in the browser matrix; engineering/security/wiki on3a0e772 are already verified successful. Maintain18:30UTC final-read deadline. Evidence checkpointa90f072 was pushed; source3a0e772 and maina99e1f9 remain fixed, production93f60f24 remains live and QA retained. No worker/local watcher or provider mutation is active.
+
 ---
 
 # Historical visitor experience handoff
