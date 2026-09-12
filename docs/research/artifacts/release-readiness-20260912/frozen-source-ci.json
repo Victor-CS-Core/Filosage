@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "observedAt": "2026-09-12T18:07:44.730260+00:00",
+  "observedAt": "2026-09-12T18:19:26.448411+00:00",
   "sourceSha": "3a0e772fbb41a16396cf6761274e75b65f175f02",
   "sourceFrozen": true,
   "candidateAccepted": false,
@@ -86,7 +86,38 @@
     "localAndRemoteVerified": true,
     "postPushQualityRun": 34710208910,
     "postPushSecurityRun": 34710208872,
-    "postPushChecks": "in_progress",
-    "observationDeadline": "2026-09-12T18:30:00Z"
+    "postPushChecks": "success",
+    "observationDeadline": "2026-09-12T18:30:00Z",
+    "postPushCompletedAt": "2026-09-12T18:17:16Z",
+    "observationClosed": true,
+    "apiAndSmoke": {
+      "passed": 45,
+      "skipped": 0,
+      "failed": 0,
+      "flaky": 0
+    },
+    "verifiedArtifacts": [
+      {
+        "id": 10303246499,
+        "name": "release-contract-evidence",
+        "digest": "sha256:8e5ea4b042fbcc3b050f3fadc817a008e8b57fe8f54c49f5705d659c36aaa013",
+        "archiveDigestVerified": true,
+        "embeddedSourceShaVerified": true
+      },
+      {
+        "id": 10302917913,
+        "name": "postgres-transaction-evidence",
+        "digest": "sha256:edf23c3d96c818c50ce57c377f85bfdbc53d1b05f5b4510cfe077b0c60857968",
+        "archiveDigestVerified": true,
+        "embeddedSourceShaVerified": true
+      },
+      {
+        "id": 10302514205,
+        "name": "browser-smoke-evidence",
+        "digest": "sha256:06a003389a1c1d0e05c5587efdbdc850b1c8cb05c5463ebea8976edde18fedc4",
+        "archiveDigestVerified": true,
+        "embeddedSourceShaVerified": true
+      }
+    ]
   }
 }
