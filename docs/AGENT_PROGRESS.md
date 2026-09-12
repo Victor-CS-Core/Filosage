@@ -16,6 +16,26 @@ Status: PR25 merged; native GitHub reviewer/Enterprise prerequisite removed from
 - [x] R8. Deliver React/.NET feasibility report: current Next BFF, incremental .NET, and React SPA served by ASP.NET Core; map handlers/security/data/AI/billing/rendering, reuse, contract tests, sequence, effort and cost. [Independently reviewed report](releases/2026-09-12-react-dotnet-feasibility.md) delivered; no migration in this release.
 - [ ] R9. Final fresh checklist/Git/CI/process/deployment/provider readback; updated runbooks and handoff distinguish local, committed, pushed, deployed, production-verified and retired states. No unbounded watchers or unreported outstanding gate.
 
+### September 12 — recovery rehearsal started
+
+Victor instructed “proceed then” after the proposed private temporary restore and verification against RPO≤15minutes/RTO≤60minutes. R3 recovery is now the active step; all R1–R9 outcomes remain in scope. Coordinator owns target selection/execution and this record. Preserve source/main17c9f30, live/QA traffic, shared owners, credentials, content, and closed checkout. Do not modify production data or routing. Prepare and independently review exact bounded restore/isolation/validation/cleanup operations before any mutation; reuse existing authorization for the described isolated rehearsal, but expose any materially different operation or new unresolved requirement.
+
+Recovery acceptance within R3:
+- [ ] Fresh source-server backup/network/storage inventory and exact isolated target, access, cost/time and cleanup bounds.
+- [ ] Reviewed operation and read-only validation plan; distinguish database restore from usable-service recovery and unsupported RPO claims.
+- [ ] Actual restore with private isolation, retained timestamps/operation identity and successful bounded data/Blob consistency validation.
+- [ ] Report measured recovery loss/time against approved limits; preserve sanitized evidence and remove only owned temporary rehearsal resources after validation.
+- [ ] Verify production configuration/health remained intact, update handoff and commit/push evidence; leave unmet acceptance explicitly open.
+
+Plan: read provider metadata and official restore constraints; derive a minimal private recovery path using existing authorized access; inspect data/reference invariants; prepare exact resource operations and review before running; retain only sanitized metadata/counts/hashes. Risks include restoring shared production/QA data into a clone, accidental external access or outbound side effects, inaccurate recovery-time claims, and orphan compute. No production write probes, password rotation, live callbacks/model/payment calls or broad networking/IAM changes are part of the rehearsal.
+
+### September 12, 20:16 UTC — recovery scope inventoried
+
+- Fresh source metadata confirms private VNet networking, B1ms/32GiB, seven-day backups and no existing recovery clone. Blob versioning/seven-day soft delete are enabled; production inventory contains15 current objects/727010bytes with no version IDs or deleted entries returned. This is inventory, not asset recovery. [Exact temporary database packet](releases/2026-09-12-recovery-rehearsal.md) fixes source/destination, isolation, read-only validation,60-minute measurement,2-hour intended lifetime, approximately USD0.05 database list-price estimate and USD1 operational allowance; no hard billing cap is claimed.
+- Source pg_cron is loaded with jobs enabled in postgres. Before clone creation, reviewed catalog inspection must exclude scheduled work with sufficient visibility; missing access is not a passing empty inventory. Existing isolated worker approval_docs is preparing the safe source/clone probe and independently reviewing the provider packet. Coordinator owns provider operation and shared record. No resource creation/restore, app deployment, production write or networking change has occurred.
+- [Sanitized preflight metadata](research/artifacts/release-readiness-20260912/recovery-preflight-20260912.json) retains source/network/backup metadata and production configuration/template fingerprints for final comparison. Read-only current data fingerprint comparison will not substitute for committed-marker RPO proof or full candidate-service RTO; those, Blob recovery and learner checks remain explicit acceptance requirements.
+- Fresh main engineering34716044527 is now terminal SUCCESS, as is security34716044546. This closes the new-main automatic CI observation; prior PR checks remain attributed to974987b and final full browser regression remains open under R4. No watcher remains for those runs.
+
 ### September 12 — PR25 merged; next blocker is recovery proof
 
 - Victor's explicit merge approval was used for unchanged PR25 head974987b. The skill's fresh read-only readiness assessment was `ready`, and its digest-bound normal landing helper requested merge without bypass. A fresh single-read observer returned `merged` with matching authorized head. GitHub records merge at20:05:08UTC, merge commit `17c9f30103490e48e58d195c6707b7ecb4f77732`. [Sanitized merge/readback evidence](research/artifacts/release-readiness-20260912/pr25-merged-20260912.json) records the exact identities and main workflow statuses.

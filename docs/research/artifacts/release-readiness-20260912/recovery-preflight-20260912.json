@@ -1,0 +1,68 @@
+{
+  "schemaVersion": 1,
+  "observedAt": "2026-09-12T20:16:14.352597+00:00",
+  "operation": "recovery-preflight-metadata",
+  "restoreRehearsal": false,
+  "source": {
+    "id": "/subscriptions/bfc8f890-2681-43dc-8eac-51644341ae12/resourceGroups/filosage-staging-central-rg/providers/Microsoft.DBforPostgreSQL/flexibleServers/filosagestg-p4ujucgnxq3gs-pg",
+    "name": "filosagestg-p4ujucgnxq3gs-pg",
+    "state": "Ready",
+    "location": "Central US",
+    "version": "16",
+    "sku": {
+      "name": "Standard_B1ms",
+      "tier": "Burstable"
+    },
+    "storage": {
+      "autoGrow": "Enabled",
+      "iops": 120,
+      "storageSizeGb": 32,
+      "throughput": null,
+      "tier": "P4",
+      "type": "Premium_LRS"
+    },
+    "backup": {
+      "backupRetentionDays": 7,
+      "earliestRestoreDate": "2026-09-06T00:07:39.641251+00:00",
+      "geoRedundantBackup": "Disabled"
+    },
+    "network": {
+      "delegatedSubnetResourceId": "/subscriptions/bfc8f890-2681-43dc-8eac-51644341ae12/resourceGroups/filosage-staging-central-rg/providers/Microsoft.Network/virtualNetworks/filosagestg-vnet/subnets/postgres",
+      "privateDnsZoneArmResourceId": "/subscriptions/bfc8f890-2681-43dc-8eac-51644341ae12/resourceGroups/filosage-staging-central-rg/providers/Microsoft.Network/privateDnsZones/filosagestg.private.postgres.database.azure.com",
+      "publicNetworkAccess": "Disabled"
+    }
+  },
+  "blob": {
+    "isVersioningEnabled": true,
+    "deleteRetentionPolicy": {
+      "allowPermanentDelete": false,
+      "days": 7,
+      "enabled": true
+    },
+    "containerDeleteRetentionPolicy": {
+      "allowPermanentDelete": null,
+      "days": 7,
+      "enabled": true
+    },
+    "restorePolicy": null,
+    "changeFeed": null
+  },
+  "production": {
+    "id": "/subscriptions/bfc8f890-2681-43dc-8eac-51644341ae12/resourceGroups/filosage-staging-central-rg/providers/Microsoft.App/containerapps/filosagestg-app",
+    "traffic": [
+      {
+        "label": "blue",
+        "revisionName": "filosagestg-app--blue-7abae96f-1",
+        "weight": 0
+      },
+      {
+        "label": "green",
+        "revisionName": "filosagestg-app--green-93f60f24-1",
+        "weight": 100
+      }
+    ],
+    "configurationSha256": "e0229e5d801143adc4ee73668f065a20bc6fa2253010c23ef46ca4ad75a14e8e",
+    "templateSha256": "f40ee7b2f9aee1c72f4d5f9ac7c321a8196e78036514032f43edbdb6baa823cb"
+  },
+  "qaPresent": true
+}

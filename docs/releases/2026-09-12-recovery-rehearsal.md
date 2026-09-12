@@ -1,0 +1,33 @@
+# September 12 private recovery rehearsal
+
+Status: preparation; no restore or resource creation yet. Victor instructed “proceed then” after the private temporary restore proposal with RPO≤15 minutes and RTO≤60 minutes. Coordinator owns execution and cleanup; independent helper review precedes the live operation. Full R1–R9 remains active in AGENT_PROGRESS.
+
+## Exact scope and bounds
+
+Subscription `bfc8f890-2681-43dc-8eac-51644341ae12`; resource group `filosage-staging-central-rg`; region Central US. Source PostgreSQL `filosagestg-p4ujucgnxq3gs-pg`, version16, Standard_B1ms,32GiB Premium_LRS, no HA, seven-day local backup retention. Earliest recovery point observed September6 00:07:39.641251UTC. Source contains shared production and QA databases; preserve all original resources and credentials.
+
+Destination server: `filosage-recovery-20260912-a` in the same group. Exact resource ID is subscription/group above plus `/providers/Microsoft.DBforPostgreSQL/flexibleServers/filosage-recovery-20260912-a`. It is absent at preflight. Use existing `filosagestg-vnet/subnets/postgres` (10.20.2.0/28, delegated PostgreSQL) and private DNS zone `filosagestg.private.postgres.database.azure.com`. Public access must be Disabled on readback; no firewall, subnet, security-group or shared DNS-link change. Never change production/QA connection strings or deploy an app against the clone. No candidate app, worker, webhook, email, model or payment execution in this database milestone.
+
+Select a UTC recovery point immediately after the reviewed source snapshot has completed, within the fresh backup window, and record it before dispatch. Normal PITR replays WAL; do not use fast snapshot restore. Record client UTC and monotonic start, provider resource identity/activity event, ready/connect/validation times. Stop validation at60 minutes after restore request and begin owned-resource cleanup; total intended lifetime at most2 hours including provisioning/deletion. A slow provider deletion may exceed that intention and must remain explicitly tracked, never claimed complete.
+
+Azure Retail Prices API currently lists Central US B1MS at USD0.01921/hour and Flexible Server storage at USD0.13/GB/month: two hours of32GiB plus compute is approximately USD0.05 using730hours/month. These are list-price estimates, not a billing cap. Operational allowance USD1 for this bounded database milestone, including small ancillary charges; no budget/account/billing settings change. No larger SKU or extended retention is authorized by this packet.
+
+## Isolation and preflight
+
+Source `shared_preload_libraries` includes pg_cron and pg_stat_statements; `cron.database_name=postgres`, `cron.launch_active_jobs=on`, azure.extensions is empty. Before restoring, independently reviewed read-only catalog inspection must establish that no restored scheduled jobs can execute. Inaccessible/filtered job inventory is inconclusive, not zero. Any active job is a stop condition until a private restore approach that prevents duplicate execution is reviewed. Azure does not copy source parameter values automatically; inspect destination parameters explicitly before validation.
+
+A reviewed probe may use the already-authorized exact live production revision only as a private-network transport, retaining credentials inside that container. Validate its source SHA93f60f24afe59b19b6a592f455a09e8e813f1f84 and digest sha256:0c006852322a91d5e2540cfd27ab58e47dad33a3a1f793fd6afc1e2240bbadf2. Explicitly construct TLS-verified connections to either the exact source or exact recovery hostname; reject all DSN option overrides. Every query is inside a bounded READ ONLY transaction. This does not establish a dedicated DML-only recovery credential; that and candidate startup/learner behavior remain later acceptance gates.
+
+## Evidence and limits
+
+Retain source and clone aggregate counts, keyed fingerprints and schema/role/extension flags, with no document identifiers/content, credentials, fingerprint key or raw provider/runtime logs in tracked files. Source/clone equality can establish equality of observed snapshots, but cannot prove absence of lost committed work if new writes occurred after the source snapshot. No production write canary or maintenance boundary is part of this milestone. Report RPO unresolved unless actual committed-marker evidence supports a measured bound. Provider-ready and successful SQL-read times are database recovery stages, not validated-service RTO.
+
+Blob account `filosagestp4ujucgnxq3gss` has versioning and seven-day Blob/container soft delete enabled; no restore policy/change feed observed. Read-only production course-banners inventory returned15 objects,727010bytes, no version IDs/deleted objects. That is current metadata, not recovered assets. Separate isolated Blob destination, replaced/deleted object recovery, database ownership/reference checks and isolated candidate learner checks remain required by RECOVERY_REHEARSAL.md before full recovery acceptance. Do not silently mark those passed from a database restore.
+
+## Reviewed operation and cleanup
+
+After preflight/review, call Azure CLI restore with the full pinned source ID, exact absent destination name/group/subscription, selected restore-time, full existing subnet/private-DNS IDs and --no-wait. Poll bounded reads; record errors without raw private output. Do not retry an uncertain create under a new name. Read back the exact destination first.
+
+Cleanup is limited to the exact server created by this operation after validating its resource ID, creation/activity evidence, and unchanged intended target. Use explicit exact server deletion with normal confirmation supplied by this approved temporary-resource scope. Never delete resources by prefix, delete the shared group/network/DNS zone, or purge source backups. Check the clone DNS record after server deletion and remove only a task-created exact dangling record if proven owned. Finally verify original server Ready/private, unchanged production revision/image/traffic/auth bindings, QA still present, and public baseline health. Commit/push sanitized evidence and this record; retain any failed or incomplete acceptance honestly.
+
+References: [Microsoft restore constraints](https://learn.microsoft.com/en-us/azure/postgresql/backup-restore/concepts-backup-restore), [Azure restore CLI](https://learn.microsoft.com/en-us/cli/azure/postgres/flexible-server?view=azure-cli-latest#az-postgres-flexible-server-restore), [Azure retail pricing API](https://learn.microsoft.com/en-us/rest/api/cost-management/retail-prices/azure-retail-prices).
