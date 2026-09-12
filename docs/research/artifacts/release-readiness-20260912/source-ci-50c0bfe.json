@@ -10,13 +10,15 @@
     "conclusion": "success",
     "contractsPassed": 480,
     "postgresTestsPassed": 23,
-    "signedDatabaseBillingTestsPassed": 32,
+    "signedDatabaseBillingTestsPassed": 30,
     "apiAndSmoke": {
       "passed": 45,
       "skipped": 0,
       "failed": 0,
       "flaky": 0
-    }
+    },
+    "signedDatabaseBillingTestsSkipped": 2,
+    "standaloneBillingTestsPassed": 32
   },
   "security": {
     "runId": 34704519576,
@@ -64,5 +66,6 @@
       "embeddedSourceShaVerified": true
     }
   ],
-  "candidateAccepted": false
+  "candidateAccepted": false,
+  "coverageCorrection": "2026-09-12T17:30Z: inspected actual TAP summary;32total means30database passes and2explicit route-wrapper skips, with32standalone passes."
 }

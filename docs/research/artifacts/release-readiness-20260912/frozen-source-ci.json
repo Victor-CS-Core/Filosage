@@ -1,19 +1,31 @@
 {
   "schemaVersion": 1,
-  "observedAt": "2026-09-12T17:19:28.811896+00:00",
+  "observedAt": "2026-09-12T17:29:28.218016+00:00",
   "sourceSha": "3a0e772fbb41a16396cf6761274e75b65f175f02",
   "sourceFrozen": true,
   "candidateAccepted": false,
   "productionDeployed": false,
   "quality": {
     "runId": 34707820480,
-    "status": "in_progress",
-    "conclusion": null
+    "status": "completed",
+    "conclusion": "success",
+    "contractsPassed": 480,
+    "postgresTestsPassed": 23,
+    "signedDatabaseBillingTestsPassed": 30,
+    "signedDatabaseBillingTestsSkipped": 2,
+    "standaloneBillingTestsPassed": 32,
+    "apiAndSmoke": {
+      "passed": 45,
+      "skipped": 0,
+      "failed": 0,
+      "flaky": 0
+    },
+    "billingSkipReason": "Two authenticated route-wrapper tests explicitly skip with pgFixture; both run in the successful32-case standalone lane. Real PostgreSQL billing coverage is30passed, not32."
   },
   "security": {
     "runId": 34707820471,
-    "status": "in_progress",
-    "conclusion": null
+    "status": "completed",
+    "conclusion": "success"
   },
   "supportWiki": {
     "runId": 34707820470,
@@ -26,6 +38,28 @@
     "conclusion": null,
     "observationDeadline": "2026-09-12T18:30:00Z"
   },
-  "verifiedArtifacts": [],
+  "verifiedArtifacts": [
+    {
+      "id": 10302816168,
+      "name": "browser-smoke-evidence",
+      "digest": "sha256:60569dc639db852c7b51ca4083659d7f9e00aa163e03237012cea8e35bd57f29",
+      "archiveDigestVerified": true,
+      "embeddedSourceShaVerified": true
+    },
+    {
+      "id": 10302432396,
+      "name": "release-contract-evidence",
+      "digest": "sha256:16642a0c984ced21ec8170f88d420687c2dcddf367daf142faf64c56caf1bd75",
+      "archiveDigestVerified": true,
+      "embeddedSourceShaVerified": true
+    },
+    {
+      "id": 10301782259,
+      "name": "postgres-transaction-evidence",
+      "digest": "sha256:f275da6f6d14345d10fd561ac9386f8ea4cb9fe2df7af97a059a2e4e3182bb10",
+      "archiveDigestVerified": true,
+      "embeddedSourceShaVerified": true
+    }
+  ],
   "previousRejectedSource": "source-ci-50c0bfe.json"
 }
