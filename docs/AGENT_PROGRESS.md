@@ -6,10 +6,12 @@ Status: review_ready. Existing release worker owns `codex/hosted-theme-contrast-
 - [x] Correct only hosted CSS, regenerate fixed assets and update the suite inventory; preserve app code, identity clients and original brand assets.
 - [x] Coordinator independently approve minimal CSS scope; pass eight focused checks, generated-asset verification, lint and whitespace.
 - [x] Push PR34; hold landing after actual provider sanitizer rejected ID/qualified selectors.
-- [ ] Validate the corrected plain `ext-*` selectors through provider readback/rendering and rerun exact-head CI before guarded landing.
-- [ ] Coordinator upload exact reviewed CSS and verify actual hosted appearance. App-selected versus OS-theme parity remains explicitly unproved.
+- [x] Coordinator verify exact final CSS readback and actual dark sign-in/signup/error rendering; original logos and input/explanation contrast pass.
+- [ ] Finish final exact-head PR34 CI and guarded landing.
+- [x] Coordinator upload exact reviewed CSS and verify actual dark hosted appearance.
+- [ ] Actual hosted light-mode observation (browser security policy blocked appearance setting) and app-selected versus OS-theme parity remain explicitly unproved.
 
-Actual first upload retained only the boilerplate correction: provider sanitizer rejected IDs, element-qualified logo classes, descendant links and placeholders. The follow-up removes these unsupported rules and tests retained plain classes after a simulated sanitizer; second hosted readback proves navy canvas, both logo backings and explanatory contrast. Supported compound text-box styling now addresses the remaining transparent input/fixed-gray placeholder; its final hosted check remains pending. See `docs/AUTH_APPEARANCE_AUDIT_2026-09-11.md` for actual wrapper evidence and scope. No full regression, app image build or provider change was performed by this worker. Existing source main0f and its successful promoted candidate remain unchanged by this provider-asset preparation.
+Actual first upload retained only the boilerplate correction: provider sanitizer rejected IDs, element-qualified logo classes, descendant links and placeholders. The follow-up removes these unsupported rules and tests retained plain classes after a simulated sanitizer; second hosted readback proves navy canvas, both logo backings and explanatory contrast. Supported compound text-box styling now addresses the remaining transparent input/fixed-gray placeholder; its final hosted sign-in/signup/error check passed. Actual light-mode observation remains blocked by browser security policy; local light checks are passing and are not substituted for hosted proof. See `docs/AUTH_APPEARANCE_AUDIT_2026-09-11.md` for actual wrapper evidence and scope. No full regression, app image build or provider change was performed by this worker. Existing source main0f and its successful promoted candidate remain unchanged by this provider-asset preparation.
 
 ---
 
