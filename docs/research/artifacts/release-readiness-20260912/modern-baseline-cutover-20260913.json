@@ -1,0 +1,199 @@
+{
+  "observedAt": "2026-09-13T04:35:57.079493+00:00",
+  "status": "maintenance_active_green_healthy_learner_pending",
+  "productionIngressRestricted": true,
+  "publicReopened": false,
+  "legacyRollbackProhibited": true,
+  "evidence": {
+    "entry-intent": {
+      "startedAt": "2026-09-13T04:19:31.269940+00:00",
+      "patchHash": "eeea5194ea8a1098d706559e3e8ce265988acd85354926da4306d65323a00518",
+      "approved": true,
+      "plannedMinutes": 90,
+      "preWriteAbortMinutes": 30
+    },
+    "fence-readback": {
+      "observedAt": "2026-09-13T04:20:45.097833+00:00",
+      "configurationOnlyExpectedRule": true,
+      "templateIdentityAuthUnchanged": true,
+      "initialAsyncReadNotSettled": true
+    },
+    "drain-verified": {
+      "at": "2026-09-13T04:28:16.261966+00:00",
+      "drainVerified": true,
+      "revisionShutdown": {
+        "at": "2026-09-13T04:26:26.041303+00:00",
+        "revisions": [
+          {
+            "name": "filosagestg-app--blue-7abae96f-1",
+            "active": false,
+            "replicas": 0
+          },
+          {
+            "name": "filosagestg-app--green-93f60f24-1",
+            "active": false,
+            "replicas": 0
+          }
+        ],
+        "zeroReplicas": true
+      },
+      "samples": [
+        {
+          "schemaVersion": 1,
+          "operation": "transition-drain-sample",
+          "observedAt": "2026-09-13T04:27:02.037Z",
+          "sessions": {
+            "clients": 0,
+            "active": 0,
+            "idle": 0,
+            "idle_transaction": 0,
+            "unknown_backend": 0,
+            "nonclient_backends": 0
+          },
+          "work": {
+            "documents": 526,
+            "futureLeaseFields": 0,
+            "expiredLeaseFields": 0,
+            "malformedLeaseFields": 0,
+            "pendingProviderCalls": 0,
+            "inFlightProviderCalls": 0,
+            "uncertainProviderCalls": 0,
+            "unknownProviderCalls": 0,
+            "unfinishedGeneration": 0,
+            "unresolvedAiRequests": 0,
+            "generatingBannerKeys": 0,
+            "uploadingBannerAssets": 0,
+            "unfinishedDeletion": 0,
+            "unfinishedCheckout": 0,
+            "unknownWorkStates": 0,
+            "reservedAccountingRows": 34,
+            "uncertainAccountingRows": 0
+          },
+          "databaseClientsZero": true,
+          "drainVerified": false,
+          "oldReplicaShutdownVerified": false,
+          "externalWriterFenceVerified": false,
+          "sample": 29,
+          "observerSourceSha": "7c48bc02ff6623a81fee382b194864f1d04b76c0"
+        },
+        {
+          "schemaVersion": 1,
+          "operation": "transition-drain-sample",
+          "observedAt": "2026-09-13T04:27:12.170Z",
+          "sessions": {
+            "clients": 0,
+            "active": 0,
+            "idle": 0,
+            "idle_transaction": 0,
+            "unknown_backend": 0,
+            "nonclient_backends": 0
+          },
+          "work": {
+            "documents": 526,
+            "futureLeaseFields": 0,
+            "expiredLeaseFields": 0,
+            "malformedLeaseFields": 0,
+            "pendingProviderCalls": 0,
+            "inFlightProviderCalls": 0,
+            "uncertainProviderCalls": 0,
+            "unknownProviderCalls": 0,
+            "unfinishedGeneration": 0,
+            "unresolvedAiRequests": 0,
+            "generatingBannerKeys": 0,
+            "uploadingBannerAssets": 0,
+            "unfinishedDeletion": 0,
+            "unfinishedCheckout": 0,
+            "unknownWorkStates": 0,
+            "reservedAccountingRows": 34,
+            "uncertainAccountingRows": 0
+          },
+          "databaseClientsZero": true,
+          "drainVerified": false,
+          "oldReplicaShutdownVerified": false,
+          "externalWriterFenceVerified": false,
+          "sample": 30,
+          "observerSourceSha": "7c48bc02ff6623a81fee382b194864f1d04b76c0"
+        }
+      ],
+      "executionImageCommandVerified": true,
+      "providerDefaultEphemeralStoragePresent": true,
+      "fenceStillVerified": true,
+      "historicalReservationsPreserved": true
+    },
+    "observer-cleaned": {
+      "at": "2026-09-13T04:28:16.606212+00:00",
+      "jobAbsent": true,
+      "immediateDeletionReadWasPending": true
+    },
+    "refs-verified": {
+      "at": "2026-09-13T04:28:50.224846+00:00",
+      "expectedFieldsOnly": true,
+      "provisioningState": "Succeeded"
+    },
+    "green-verified": {
+      "at": "2026-09-13T04:29:35.821280+00:00",
+      "expectedFieldsOnly": true,
+      "provisioningState": "Succeeded"
+    },
+    "green-health": {
+      "at": "2026-09-13T04:31:03.439222+00:00",
+      "health": {
+        "ok": true,
+        "version": "7c48bc02ff6623a81fee382b194864f1d04b76c0",
+        "imageDigest": "sha256:95cc9529e6abcfdef5918f39996cfed55703e5b29b82d75304a69765c844b344",
+        "capabilities": {
+          "flashcardDecks": false,
+          "flashcardGeneration": false,
+          "lessonVisuals": false,
+          "commandCenter": false,
+          "commandCenterDrafts": false,
+          "commandCenterV2": false,
+          "pipelineV2": true,
+          "validationV2": true,
+          "repairV2": true,
+          "labsV2": false,
+          "visualsV2": false,
+          "publicationV2": true,
+          "pipelineShadowMode": false,
+          "pipelineOwnerOnly": true,
+          "pipelineCohortPercent": 0
+        },
+        "origin": "https://filosage.com",
+        "authenticationMode": "migration-dual",
+        "checks": {
+          "configuration": true,
+          "datastore": true,
+          "flashcardDecks": false,
+          "flashcardGeneration": false
+        }
+      }
+    },
+    "green-startup": {
+      "at": "2026-09-13T04:32:09.309764+00:00",
+      "schemaVerificationMarkerObserved": true,
+      "revision": "filosagestg-app--green-7c48bc02ff66-baseline-1",
+      "rawLogsPersisted": false
+    },
+    "provisional-verified": {
+      "at": "2026-09-13T04:33:14.784337+00:00",
+      "exactTrafficChangeOnly": true,
+      "authFencePreserved": true
+    },
+    "provisional-fence-reconciled": {
+      "at": "2026-09-13T04:34:19.005109+00:00",
+      "activeOrigins403": true,
+      "activeChecks": 80,
+      "inactiveOriginsVerifiedZeroReplicas": 3,
+      "inactive404NotCountedAsDenial": true,
+      "fenceVerified": true
+    }
+  },
+  "remaining": [
+    "real non-owner learner acceptance",
+    "modern blue fallback acceptance",
+    "old secret reference/grant cleanup and actual denial",
+    "public reopening and30minuteobservation"
+  ],
+  "finalCandidateB5NotStaged": true,
+  "qaRetirementNotPerformed": true
+}
