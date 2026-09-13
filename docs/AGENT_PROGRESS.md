@@ -1,3 +1,16 @@
+## Hosted candidate evidence producer — September 13
+
+Status: review_ready. Owner: existing release worker on `codex/candidate-proof-producer-20260913`, isolated from PR31. Victor authorized proceeding through release readiness and in-scope PR landing; coordinator owns remote and provider operations. Preserve full R1–R9 and Flashcards, with completed production transition evidence on `codex/release-evidence-20260912` at `9dc9a95`.
+
+- [x] Confirm the existing seven-gate consumer had no corresponding artifact producer.
+- [x] Add minimal reviewed-source packaging after existing immutable stage download, live candidate readback and smoke; preserve review/promotion consumers unchanged.
+- [x] Independently review and validate four producer contracts, 25 existing release contracts, ESLint, workflow YAML, secret/wiki and whitespace checks.
+- [ ] Coordinator integrate/push/CI/land; collect actual hosted candidate observations and execute packaging/review on the final exact source before promotion.
+
+`azure-candidate-evidence.yml` accepts the bounded sanitized packet described in `docs/BLUE_GREEN_BFF_OPERATIONS.md`, uses the existing main-only environment/concurrency and emits one consumer-compatible artifact per existing gate. Each binds stage artifact identity/digest, candidate SHA/image/revision/auth/manifest, actual reviewer/method/time, embedded observed/expected/source records and their canonical SHA-256. Separate live smoke/readback does not replace supplied gate evidence. Operator assertions remain labelled as reviewed assertions; packaging does not perform the seven scenarios, verify remote reference contents or establish approval. Failed/missing/changed records block packaging; unsuccessful workflow artifacts cannot satisfy existing consumers. No new gates, dependencies, image build, dispatch, provider mutation, push or merge was performed by the worker. Initial new tests failed on the missing producer; all targeted checks now pass. Coordinator review found no actionable issue.
+
+---
+
 ## Active Flashcards release selection — September 13
 
 Status: review_ready. Victor explicitly requested making Flashcards active under lesson Study tools. Owner: flashcards worker on `codex/flashcards-release-20260913`, based on main `ed538d20f10dcb999114c793dd200061c52b00e8`; coordinator owns push/PR/landing and hosted release execution. Preserve the complete R1–R9 release outcome and actual production transition evidence on `codex/release-evidence-20260912` at `9dc9a95`; this bounded feature checkpoint does not replace them.
