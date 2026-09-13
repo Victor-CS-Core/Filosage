@@ -1,6 +1,6 @@
 # Alert receiver and maintenance runner access
 
-Status: the explicitly approved receiver is deployed and healthy. Signed delivery, durable receipts, duplicate/rejection behavior, both monitor firings and actual inbox delivery are verified. The live Azure409duplicate correction is independently reviewed with five passing CI checks in [PR29](https://github.com/Victor-CS-Core/Filosage/pull/29); its merge approval is pending. Production/QA app configuration and traffic are unchanged. The heartbeat alert automatically resolved and its recovery email arrived; critical-test automatic clearing was not yet observed at final read. The full release checklist remains open; frozen7c48bc0/image95cc9529 recovery evidence is preserved.
+Status: the explicitly approved receiver is deployed and healthy. Signed delivery, durable receipts, duplicate/rejection behavior, both monitor firings and actual inbox delivery are verified. The live Azure409duplicate correction is independently reviewed with five passing CI checks in [PR29](https://github.com/Victor-CS-Core/Filosage/pull/29); it was explicitly approved and merged to mainb5ba580. Production/QA app configuration and traffic are unchanged. Both alerts automatically resolved and both recovery emails were verified in Inbox/Updates. The full release checklist remains open; frozen7c48bc0/image95cc9529 recovery evidence is preserved.
 
 ## Receiver behavior
 
@@ -61,4 +61,4 @@ The first critical test was accepted/logged but no event alert was observed. The
 
 Both private baseline templates now have the verified receiver URL and immutable signing-secret reference. Their actual frozen7c runtime validator reports zero issues with secret values substituted only for offline validation. This prepares configuration; no baseline patch was applied to the live legacy app. The separately approved maintenance/drain/cutover, actual production-hosted acceptance and QA retirement remain outstanding.
 
-The heartbeat alert resolved at03:28:46UTC and its recovery email arrived at03:28:52UTC. The critical test alert was still Fired at03:29 readback; its automatic clearing is not claimed. No receiver outage remains, and no unbounded observer is running.
+The heartbeat alert resolved at03:28:46UTC and its recovery email arrived at03:28:52UTC. The critical test alert was still Fired at03:29 readback; follow-up confirmed resolution03:33:06UTC and its recovery email03:33:09UTC. No receiver outage remains, and no unbounded observer is running.

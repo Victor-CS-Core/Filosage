@@ -1,16 +1,17 @@
 {
   "observedAt": "2026-09-13T03:30:27.765072+00:00",
   "operation": "approved-operations-alert-receiver-deployment-and-notification-verification",
-  "status": "receiver_deployed_and_outage_recovery_verified_fix_merge_pending",
+  "status": "receiver_deployed_verified_and_fix_merged",
   "source": {
     "initialMergedMain": "a0c1f1e4f9893036daec2297916ddc01e5ae16a7",
     "receiverCorrectionCommit": "28569092327e655193eb5d4a22aa8eb564164cb0",
     "correctionPR": "https://github.com/Victor-CS-Core/Filosage/pull/29",
-    "correctionMerged": false,
+    "correctionMerged": true,
     "imageDigest": "sha256:95cc9529e6abcfdef5918f39996cfed55703e5b29b82d75304a69765c844b344",
     "imageSource": "7c48bc02ff6623a81fee382b194864f1d04b76c0",
     "receiverCommandSeparatelyPinned": true,
-    "receiverScriptSha256": "b0a530fbb5ec7883a9da2e5f148e6c9974c9b9c424ea97e9b8169797efad29d6"
+    "receiverScriptSha256": "b0a530fbb5ec7883a9da2e5f148e6c9974c9b9c424ea97e9b8169797efad29d6",
+    "mergedMain": "b5ba5803c2205922bf68d7fa740d1c660312ee71"
   },
   "resources": {
     "verifiedAt": "2026-09-13T03:25:07.203427+00:00",
@@ -93,6 +94,17 @@
     },
     "alerts": [
       {
+        "id": "/subscriptions/bfc8f890-2681-43dc-8eac-51644341ae12/resourcegroups/filosage-staging-central-rg/providers/microsoft.operationalinsights/workspaces/filosagestg-logs/providers/Microsoft.AlertsManagement/alerts/0ee1d9cb-446a-b32b-61b0-3725d8240002",
+        "essentials": {
+          "alertRule": "/subscriptions/bfc8f890-2681-43dc-8eac-51644341ae12/resourceGroups/filosage-staging-central-rg/providers/microsoft.insights/scheduledqueryrules/filosage-ops-alerts-events",
+          "monitorCondition": "Resolved",
+          "alertState": "New",
+          "startDateTime": "2026-09-13T03:17:06.9548114Z",
+          "lastModifiedDateTime": "2026-09-13T03:33:06.7275478Z",
+          "severity": "Sev1"
+        }
+      },
+      {
         "id": "/subscriptions/bfc8f890-2681-43dc-8eac-51644341ae12/resourcegroups/filosage-staging-central-rg/providers/microsoft.operationalinsights/workspaces/filosagestg-logs/providers/Microsoft.AlertsManagement/alerts/ff37c787-76af-862d-9ec5-87d992a40002",
         "essentials": {
           "alertRule": "/subscriptions/bfc8f890-2681-43dc-8eac-51644341ae12/resourceGroups/filosage-staging-central-rg/providers/microsoft.insights/scheduledqueryrules/filosage-ops-alerts-heartbeat",
@@ -100,17 +112,6 @@
           "alertState": "New",
           "startDateTime": "2026-09-13T03:12:46.1484781Z",
           "lastModifiedDateTime": "2026-09-13T03:28:46.6464582Z",
-          "severity": "Sev1"
-        }
-      },
-      {
-        "id": "/subscriptions/bfc8f890-2681-43dc-8eac-51644341ae12/resourcegroups/filosage-staging-central-rg/providers/microsoft.operationalinsights/workspaces/filosagestg-logs/providers/Microsoft.AlertsManagement/alerts/0ee1d9cb-446a-b32b-61b0-3725d8240002",
-        "essentials": {
-          "alertRule": "/subscriptions/bfc8f890-2681-43dc-8eac-51644341ae12/resourceGroups/filosage-staging-central-rg/providers/microsoft.insights/scheduledqueryrules/filosage-ops-alerts-events",
-          "monitorCondition": "Fired",
-          "alertState": "New",
-          "startDateTime": "2026-09-13T03:17:06.9548114Z",
-          "lastModifiedDateTime": "2026-09-13T03:17:06.9548114Z",
           "severity": "Sev1"
         }
       }
@@ -219,7 +220,14 @@
       "heartbeatRecoveryEmailVerified": true
     },
     "heartbeatAutoResolved": true,
-    "criticalEventAutoResolutionObserved": false
+    "criticalEventAutoResolutionObserved": true,
+    "criticalRecoveryEmail": {
+      "receivedAt": "2026-09-13T03:33:09+00:00",
+      "inbox": true,
+      "categoryUpdates": true,
+      "senderMicrosoftAzure": true,
+      "readOnlyConnectorVerified": true
+    }
   },
   "baselineConfiguration": {
     "observedAt": "2026-09-13T03:02:06.795Z",
@@ -267,9 +275,8 @@
     "billingFlags": true
   },
   "pending": [
-    "PR29 explicit merge approval",
-    "critical test alert automatic clearing not yet observed; receiver healthy",
     "separately approved maintenance and production hosted acceptance"
   ],
-  "finalReadAt": "2026-09-13T03:30:27.780809+00:00"
+  "finalReadAt": "2026-09-13T03:30:27.780809+00:00",
+  "followupVerifiedAt": "2026-09-13T03:41:21.486404+00:00"
 }
