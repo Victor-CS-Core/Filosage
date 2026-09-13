@@ -1,0 +1,57 @@
+{
+  "observedAt": "2026-09-13T00:59:53.501636+00:00",
+  "region": "centralus",
+  "currency": "USD",
+  "source": "https://prices.azure.com/api/retail/prices",
+  "selectedMeters": [
+    {
+      "service": "Azure Container Apps",
+      "meter": "Standard Requests",
+      "product": "Azure Container Apps",
+      "price": 0.4,
+      "unit": "1M"
+    },
+    {
+      "service": "Azure Container Apps",
+      "meter": "Standard vCPU Active Usage",
+      "product": "Azure Container Apps",
+      "price": 2.4e-05,
+      "unit": "1 Second"
+    },
+    {
+      "service": "Azure Container Apps",
+      "meter": "Standard vCPU Idle Usage",
+      "product": "Azure Container Apps",
+      "price": 3e-06,
+      "unit": "1 Second"
+    },
+    {
+      "service": "Azure Container Apps",
+      "meter": "Standard Memory Idle Usage",
+      "product": "Azure Container Apps",
+      "price": 3e-06,
+      "unit": "1 GiB Second"
+    },
+    {
+      "service": "Azure Container Apps",
+      "meter": "Standard Memory Active Usage",
+      "product": "Azure Container Apps",
+      "price": 3e-06,
+      "unit": "1 GiB Second"
+    }
+  ],
+  "receiverReplicas": 1,
+  "vcpu": 0.25,
+  "memoryGiB": 0.5,
+  "thirtyDayComputeBeforeFreeGrant": {
+    "idleUsd": 5.832,
+    "continuouslyActiveUsd": 19.44
+  },
+  "excluded": [
+    "Log alert rules and Log Analytics ingestion",
+    "Blob storage and operations",
+    "External requests",
+    "Applicable shared free grants and discounts"
+  ],
+  "estimateNotSpendingCap": true
+}

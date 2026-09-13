@@ -1,0 +1,21 @@
+{
+  "receiver": {
+    "absent": true,
+    "readSucceeded": false
+  },
+  "identity": {
+    "absent": true,
+    "readSucceeded": false
+  },
+  "container": {
+    "absent": true,
+    "readSucceeded": false
+  },
+  "signingSecret": {
+    "absent": true
+  },
+  "observedAt": "2026-09-13T01:02:56.747013+00:00",
+  "readOnly": true,
+  "existingActionGroupEnabled": true,
+  "existingActionGroupEmailReceivers": 1
+}

@@ -1,0 +1,53 @@
+# Alert receiver and maintenance runner access
+
+Status: implemented and independently reviewed locally; no receiver resources, signing secret, grants, notifications or maintenance rules have been created. The full release checklist remains open. The completed recovery and online observer evidence stays attributed to frozen baseline7c48bc0/image95cc9529.
+
+## Receiver behavior
+
+The [standalone receiver](../../scripts/operations-alert-receiver.mjs) implements Filosage's existing signed alert envelope without changing the application. It runs with the already-built immutable image as a Node interpreter; the deployment template embeds the reviewed receiver source as its command. Image provenance and command-source provenance are separate and both require actual readback.
+
+POST `/alerts` accepts only the v1 HMAC-SHA256 signature over the exact body, matching alert ID/idempotency/timestamp headers, bounded schema and a timestamp no more than five minutes old or one minute ahead. Body size is limited to16KiB; at most eight requests execute concurrently and stalled connections have a ten-second deadline. Invalid requests never write storage. Logs contain only receipt ID/code/severity, dependency status and heartbeat; no message, context, signature, token or secret is logged.
+
+The receiver creates `operations-alerts/alerts/<alert-id>.json` atomically with `If-None-Match:*`. It acknowledges only after Azure returns201 or a412 duplicate is followed by a successful HEAD verifying receipt ID/schema/bounded length. IDs intentionally deduplicate alerts within the sender's time bucket, so later signed duplicate content need not equal the original body. Storage failure returns503, allowing the existing sender retry behavior. This uses documented [Blob conditional writes](https://learn.microsoft.com/en-us/rest/api/storageservices/specifying-conditional-headers-for-blob-service-operations) and [managed-identity authorization](https://learn.microsoft.com/en-us/rest/api/storageservices/put-blob).
+
+GET/HEAD `/health` checks private storage accessibility. A successful storage check emits a heartbeat every minute. Azure Monitor evaluates receiver warnings/critical alerts/dependency failures and missing five-minute heartbeats independently, using the existing enabled `filosage-essential-ops-ag` action group with its one configured email receiver. Monitoring has ingestion/evaluation latency; neither a202 response nor a heartbeat alone proves email delivery. No new email address or external notification account is selected.
+
+## Exact proposed Azure changes
+
+The [Bicep template](../../infra/azure/operations-alert-receiver.bicep) is limited to subscription `bfc8f890-2681-43dc-8eac-51644341ae12`, existing group `filosage-staging-central-rg` through the approved execution command. It references existing environment `filosagestg-environment`, registry `filosagestp4ujucgnxq3gsacr`, storage `filosagestp4ujucgnxq3gss`, vault `filosagestg-p4ujucgnxq3g`, workspace `filosagestg-logs` and action group `filosage-essential-ops-ag`.
+
+New resources:
+
+- Container App `filosage-ops-alerts`, HTTPS ingress on8080, single revision, CPU0.25/memory0.5Gi, min1/max1. One warm replica reduces cold-start loss against the existing sender's three-second timeout. Its command starts only the receiver, and its environment has no database, AI, billing or application credentials.
+- User-assigned identity `filosage-ops-alerts-identity`; only registry AcrPull, Blob Data Contributor on the new private container, and Key Vault Secrets User on the new signing-secret scope.
+- Private container `operations-alerts`. Preserve its stored receipts; this deployment adds no deletion policy or changes to shared storage retention/versioning.
+- New signing secret `operations-alert-hmac-v1`, generated once as32random bytes represented in hexadecimal, stored as a new immutable vault version. Existing secrets are preserved. The template accepts the exact32character version ID, never a secret value.
+- One exact signing-secret read grant for the existing production identity. This prepares future sender access; it does not change the live app's configuration or runtime binding. QA receives no signing-secret access.
+- Monitor rules `filosage-ops-alerts-events` and `filosage-ops-alerts-heartbeat`. Initially disabled; enable only after receiver health/log ingestion and explicit notification-test approval.
+
+Read-only inventory confirms the receiver app, identity, container and signing-secret name are absent. Existing action-group recipients and unrelated grants/settings are preserved. Fresh absence/ownership and unchanged production checks are required immediately before execution.
+
+## Execution and verification after explicit approval
+
+1. Re-read the exact targets, production configuration/authentication/identity, the existing action group and current role assignments. Refuse unexpected pre-existing targets; retain a private0700 ownership journal with before snapshots/hashes. Pin the reviewed source and compiled template hashes.
+2. Generate one signing key in an owned0600 private file only after approval. If execution is uncertain, retain/reuse it. Use `az keyvault secret set --vault-name filosagestg-p4ujucgnxq3g --name operations-alert-hmac-v1 --file <owned-private-file> --output none` with logs/telemetry disabled and the subscription pinned. Compare the saved value privately once, retain only the version URL/hash metadata and remove the private value after persistence is verified. Never print values, overwrite an unrelated secret or rotate to hide an uncertain result.
+3. Compile the template; review an incremental deployment what-if. Permit only the exact new resources/four scoped grants above. Deploy `infra/azure/operations-alert-receiver.bicep` under name `filosage-ops-alerts-20260913`, parameters `signingSecretVersion=<verified-version>` and `enableMonitoring=false`. No main application or shared environment deployment is included. Bound deployment/readiness to15minutes; reconcile uncertain provider state before retrying.
+4. Read back exact receiver image, embedded command, identity, environment, ingress, probes, min/max replicas and secret version. Confirm required scoped access and absence of database/other-vault permissions; production/QA configuration and unrelated grants remain unchanged. Check actual receiver HTTPS health and observed workspace heartbeat, not only ARM provisioning status.
+5. Send a clearly labeled synthetic signed alert to this receiver only; verify202 plus the corresponding private stored receipt. Repeat its ID to verify deduplication, and send altered-signature/stale cases that must fail without new blobs. Verify the configured receiver with the actual Filosage sender. Do not invoke the application sender test with a production database URL, since that would also write application evidence.
+6. Enable only the two new monitor rules after heartbeat ingestion. Send one labeled synthetic critical alert to test the existing operations email path; verify Azure Monitor firing and receiver receipt separately, and record recipient confirmation when available. A controlled receiver heartbeat interruption/recovery may generate a second test alert plus recovery notices; these notification tests require explicit approval and occur before the main app uses this receiver. Never report sender202 as delivered email or durable-monitoring proof.
+7. Populate the private modern baseline patches from the verified receiver URL and exact signing-secret reference, retaining `STRIPE_TAX_READY=false` and `OPERATIONS_ENVIRONMENT=production`. Run the actual frozen runtime validator; the two missing production bindings must clear. Do not apply those patches to the current legacy app.
+8. Final readback distinguishes resource deployment, receipt persistence, monitoring, notification delivery, prepared baseline configuration and production deployment. On failure stop only newly owned receiver compute if needed, retain signing material/receipts for idempotent recovery and report exact remaining resources. Never delete shared services, purge vault secrets or change live traffic as cleanup.
+
+The complete operation has a45minute observation deadline with a final status read and no unbounded watcher. Receiver readiness, real notification delivery and private baseline validation remain unverified until that approved execution.
+
+## Cost and limits
+
+The [dated retail-price calculation](../research/artifacts/release-readiness-20260912/alert-receiver-cost-preparation-20260913.json) uses Central US USD prices from Microsoft's [Retail Prices API](https://learn.microsoft.com/en-us/rest/api/cost-management/retail-prices/azure-retail-prices). For30days at the single-replica cap, compute is about$5.83 if idle throughout or$19.44 if active throughout, before shared free allowances. Monitoring rules, log ingestion, Blob storage/operations and external requests are additional; this is not a spending cap. The main app's existing scaling is unchanged. Azure documents [idle billing conditions](https://learn.microsoft.com/en-us/azure/container-apps/billing); one warm replica is not a high-availability guarantee.
+
+## Workflow runner access
+
+The deployment workflows prepare a sanitized ownership intent and upload it before adding any rule. During the exact operator-only maintenance state, the helper admits only the current runner's observed public IPv4 `/32`, named by run ID/attempt. It verifies that only the ingress restriction list changed and preserves authentication, template, identity and traffic. Empty restrictions are a normal-deployment no-op; broad, unknown or stale runner rules fail closed.
+
+The shared workflow concurrency lock and exclusive operator control remain required. Cleanup runs with `always()` and removes only the exact owned name/hash, preserving other current rules. A killed runner cannot guarantee cleanup: the uploaded intent supports explicit hash-guarded cleanup on the pinned app. Failed HTTP preflight never counts as proof of access. The existing candidate snapshot binds traffic/authentication, so these separately verified temporary restrictions do not falsify candidate evidence.
+
+This workflow fix requires its own PR/CI and explicit merge approval before hosted use. It does not authorize maintenance, weaken protected environments or replace any candidate proof. The frozen baseline image remains reusable; any later candidate at a new source SHA still needs its own source-bound release evidence. No full browser dispatch or application rebuild is requested by this preparation checkpoint.
