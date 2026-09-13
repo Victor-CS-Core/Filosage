@@ -1,3 +1,4 @@
+import { spawnSync } from "node:child_process";
 import { expect, test } from "@playwright/test";
 import { releaseEnvironment, type ReleaseEvidence } from "../src/lib/release-capabilities";
 import { readFileSync } from "node:fs";
@@ -106,4 +107,15 @@ test("promoted readback accepts only the verified candidate at 100 and its captu
   expect(() => assertCandidateReadback(candidate, promoted, revision, state())).toThrow();
   promoted.traffic[0].revisionName = "filosage-app--unapproved-rollback";
   expect(() => assertCandidateReadback(candidate, promoted, revision, state(), true)).toThrow();
+});
+
+
+test("staging permits only the observed stable label browser origins behind the canonical proxy", () => {
+  const script = readFileSync("scripts/azure-blue-green.mjs", "utf8");
+  expect(script).toContain('ALLOWED_ORIGINS: [labelOrigin(before, "blue"), labelOrigin(before, "green")].join(",")');
+  const result = spawnSync(process.execPath, ["--conditions=react-server", "--import", "tsx", "--test", "tests/fixtures/candidate-mutation-origins.ts"], {
+    encoding: "utf8",
+    env: { ...process.env, NODE_ENV: "production", NEXT_PUBLIC_SITE_URL: "https://filosage.com", ALLOWED_ORIGINS: [labelOrigin(state(), "blue"), labelOrigin(state(), "green")].join(",") },
+  });
+  expect(result.status, result.stderr + result.stdout).toBe(0);
 });

@@ -1,3 +1,17 @@
+## Candidate stable-label mutation origin correction — September 13
+
+Status: review_ready. Owner: existing release worker on `codex/candidate-origins-20260913`, based on exact main `9f1c08ed9b055e8742c28601b2e3b5334632cc3f`. Coordinator owns remote and provider execution. Preserve full R1–R9, Flashcards and actual production/recovery evidence on `codex/release-evidence-20260912`; this checkpoint does not replace hosted acceptance.
+
+- [x] Diagnose real signed-in candidate Flashcards generation 403: browser stable-blue origin was absent from allowed origins behind the canonical proxy.
+- [x] Set staged runtime `ALLOWED_ORIGINS` to exactly the observed application's blue and green stable-label origins via existing validated `labelOrigin`; preserve canonical URL and application security code.
+- [x] Reproduce missing configuration with a failing deployment contract; verify actual production mutation guard rejects the unfixed proxy request, accepts configured labels/canonical, and still rejects unrelated origins, cross-site requests and missing origin metadata.
+- [x] Pass 48 focused release/infrastructure/capability contracts, scoped ESLint, secret scan and whitespace checks.
+- [ ] Coordinator review, integrate and execute exact-source candidate release; repeat actual hosted Flashcards acceptance before any promotion.
+
+No app behavior code, provider settings, source pushes, image build or deployment was changed by this worker. The existing staged candidate remains evidence of the identified failure, not a passing Flashcards generation claim.
+
+---
+
 ## Hosted candidate evidence producer — September 13
 
 Status: review_ready. Owner: existing release worker on `codex/candidate-proof-producer-20260913`, isolated from PR31. Victor authorized proceeding through release readiness and in-scope PR landing; coordinator owns remote and provider operations. Preserve full R1–R9 and Flashcards, with completed production transition evidence on `codex/release-evidence-20260912` at `9dc9a95`.
