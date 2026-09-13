@@ -1,6 +1,6 @@
 {
-  "observedAt": "2026-09-13T05:03:29.529666+00:00",
-  "status": "public_reopened_observation_active",
+  "observedAt": "2026-09-13T05:32:40.172982+00:00",
+  "status": "approved_baseline_cutover_completed",
   "productionIngressRestricted": false,
   "publicReopened": true,
   "legacyRollbackProhibited": true,
@@ -386,8 +386,21 @@
     "public-observation": {
       "startedAt": "2026-09-13T05:00:46.312544+00:00",
       "deadline": "2026-09-13T05:30:46.312544+00:00",
-      "status": "started",
-      "maximumFinalReadDelayMinutes": 5
+      "status": "completed",
+      "maximumFinalReadDelayMinutes": 5,
+      "completedAt": "2026-09-13T05:32:40.172704+00:00",
+      "passingSamples": 30,
+      "firstSampleAt": "2026-09-13T05:04:51.498434+00:00",
+      "lastSampleAt": "2026-09-13T05:30:46.312710+00:00",
+      "maximumSampleGapSeconds": 89.332079,
+      "allSamplesPassed": true,
+      "initialAndFinalIndependentPublicChecksPassed": true,
+      "independentChecksPerRun": 35,
+      "containerRestarts": 0,
+      "recordedServerErrors": 0,
+      "metricsMayLag": true,
+      "localSamplerRestartRecorded": true,
+      "finalAuthenticatedBrowserProgressPercent": 8
     },
     "greenVaultAfter": {
       "passed": true,
@@ -712,11 +725,728 @@
       "featuredCourseExplicitlyUnset": true,
       "independentPublicChecks": 35,
       "independentPublicPassed": true
-    }
+    },
+    "final-provider-state": {
+      "at": "2026-09-13T05:31:10.118531+00:00",
+      "exactConfigurationTemplateIdentityAuthPreserved": true,
+      "originalPublicIngressRestored": true,
+      "exactModernLabels": [
+        {
+          "label": "green",
+          "revisionName": "filosagestg-app--green-7c48bc02ff66-baseline-1",
+          "weight": 100
+        },
+        {
+          "label": "blue",
+          "revisionName": "filosagestg-app--blue-7c48bc02ff66-baseline-1",
+          "weight": 0
+        }
+      ],
+      "activeModernOnly": true,
+      "bothHealthy": true,
+      "legacyInactiveZeroReplicas": true,
+      "revisionInventoryPages": 2,
+      "qaUnchanged": true,
+      "jobsAbsent": true,
+      "bothReceiverMonitorsEnabled": true,
+      "firedAlertsInResourceGroupLastHour": 0
+    },
+    "normal-signin-retest": {
+      "at": "2026-09-13T05:13:38.670916+00:00",
+      "normalUiSignout": true,
+      "signedOutHomeObserved": true,
+      "normalExistingGoogleButton": true,
+      "sameNonOwnerAccountSelected": true,
+      "authenticatedHomeReturned": true,
+      "savedCourseProgressPercent": 8,
+      "specialRetryUrlUsed": false,
+      "authConfigurationChanged": false
+    },
+    "public-exception-categories": {
+      "at": "2026-09-13T05:21:35.323223+00:00",
+      "aggregate": {
+        "tables": [
+          {
+            "name": "PrimaryResult",
+            "columns": [
+              {
+                "name": "exceptionType",
+                "type": "string"
+              },
+              {
+                "name": "diagnosticCode",
+                "type": "string"
+              },
+              {
+                "name": "container",
+                "type": "string"
+              },
+              {
+                "name": "entries",
+                "type": "long"
+              },
+              {
+                "name": "latest",
+                "type": "datetime"
+              }
+            ],
+            "rows": [
+              [
+                "Microsoft.IdentityModel.Tokens.SecurityTokenMalformedException",
+                "IDX12741",
+                "http-auth",
+                10,
+                "2026-09-13T05:13:19.7848681Z"
+              ]
+            ]
+          }
+        ]
+      }
+    },
+    "baseline-cutover-completed": {
+      "at": "2026-09-13T05:32:40.172830+00:00",
+      "completed": true,
+      "scope": "approved-modern-baseline-maintenance-only",
+      "finalCandidateStaged": false,
+      "qaRetired": false,
+      "noBackgroundObservationRemaining": true
+    },
+    "publicFinal": {
+      "schemaVersion": 1,
+      "operation": "qa-public-verification",
+      "sourceSha": "c7d9c2c274bfcaee805332a83d94a208af32f09e",
+      "startedAt": "2026-09-13T05:31:38.381Z",
+      "finishedAt": "2026-09-13T05:31:39.196Z",
+      "differentFromOperator": true,
+      "checks": [
+        {
+          "origin": "https://filosage.com",
+          "path": "/api/health",
+          "status": 200,
+          "passed": true,
+          "health": {
+            "ok": true,
+            "sourceMatches": true,
+            "digestMatches": true,
+            "configuration": true,
+            "datastore": true,
+            "originMatches": true,
+            "authenticationModeMatches": true
+          }
+        },
+        {
+          "origin": "https://filosage.com",
+          "path": "/api/auth/session",
+          "status": 200,
+          "passed": true,
+          "anonymousUserNull": true
+        },
+        {
+          "origin": "https://filosage.com",
+          "path": "/api/account",
+          "status": 401,
+          "passed": true
+        },
+        {
+          "origin": "https://filosage.com",
+          "path": "/api/progress",
+          "status": 401,
+          "passed": true
+        },
+        {
+          "origin": "https://filosage.com",
+          "path": "/api/courses?scope=mine",
+          "status": 401,
+          "passed": true
+        },
+        {
+          "origin": "https://filosagestg-app---blue.salmontree-eb10220f.centralus.azurecontainerapps.io",
+          "path": "/api/health",
+          "status": 200,
+          "passed": true,
+          "health": {
+            "ok": true,
+            "sourceMatches": true,
+            "digestMatches": true,
+            "configuration": true,
+            "datastore": true,
+            "originMatches": true,
+            "authenticationModeMatches": true
+          }
+        },
+        {
+          "origin": "https://filosagestg-app---blue.salmontree-eb10220f.centralus.azurecontainerapps.io",
+          "path": "/api/auth/session",
+          "status": 200,
+          "passed": true,
+          "anonymousUserNull": true
+        },
+        {
+          "origin": "https://filosagestg-app---blue.salmontree-eb10220f.centralus.azurecontainerapps.io",
+          "path": "/api/account",
+          "status": 401,
+          "passed": true
+        },
+        {
+          "origin": "https://filosagestg-app---blue.salmontree-eb10220f.centralus.azurecontainerapps.io",
+          "path": "/api/progress",
+          "status": 401,
+          "passed": true
+        },
+        {
+          "origin": "https://filosagestg-app---blue.salmontree-eb10220f.centralus.azurecontainerapps.io",
+          "path": "/api/courses?scope=mine",
+          "status": 401,
+          "passed": true
+        },
+        {
+          "origin": "https://filosagestg-app---green.salmontree-eb10220f.centralus.azurecontainerapps.io",
+          "path": "/api/health",
+          "status": 200,
+          "passed": true,
+          "health": {
+            "ok": true,
+            "sourceMatches": true,
+            "digestMatches": true,
+            "configuration": true,
+            "datastore": true,
+            "originMatches": true,
+            "authenticationModeMatches": true
+          }
+        },
+        {
+          "origin": "https://filosagestg-app---green.salmontree-eb10220f.centralus.azurecontainerapps.io",
+          "path": "/api/auth/session",
+          "status": 200,
+          "passed": true,
+          "anonymousUserNull": true
+        },
+        {
+          "origin": "https://filosagestg-app---green.salmontree-eb10220f.centralus.azurecontainerapps.io",
+          "path": "/api/account",
+          "status": 401,
+          "passed": true
+        },
+        {
+          "origin": "https://filosagestg-app---green.salmontree-eb10220f.centralus.azurecontainerapps.io",
+          "path": "/api/progress",
+          "status": 401,
+          "passed": true
+        },
+        {
+          "origin": "https://filosagestg-app---green.salmontree-eb10220f.centralus.azurecontainerapps.io",
+          "path": "/api/courses?scope=mine",
+          "status": 401,
+          "passed": true
+        },
+        {
+          "origin": "https://filosagestg-app--blue-7c48bc02ff66-baseline-1.salmontree-eb10220f.centralus.azurecontainerapps.io",
+          "path": "/api/health",
+          "status": 200,
+          "passed": true,
+          "health": {
+            "ok": true,
+            "sourceMatches": true,
+            "digestMatches": true,
+            "configuration": true,
+            "datastore": true,
+            "originMatches": true,
+            "authenticationModeMatches": true
+          }
+        },
+        {
+          "origin": "https://filosagestg-app--blue-7c48bc02ff66-baseline-1.salmontree-eb10220f.centralus.azurecontainerapps.io",
+          "path": "/api/auth/session",
+          "status": 200,
+          "passed": true,
+          "anonymousUserNull": true
+        },
+        {
+          "origin": "https://filosagestg-app--blue-7c48bc02ff66-baseline-1.salmontree-eb10220f.centralus.azurecontainerapps.io",
+          "path": "/api/account",
+          "status": 401,
+          "passed": true
+        },
+        {
+          "origin": "https://filosagestg-app--blue-7c48bc02ff66-baseline-1.salmontree-eb10220f.centralus.azurecontainerapps.io",
+          "path": "/api/progress",
+          "status": 401,
+          "passed": true
+        },
+        {
+          "origin": "https://filosagestg-app--blue-7c48bc02ff66-baseline-1.salmontree-eb10220f.centralus.azurecontainerapps.io",
+          "path": "/api/courses?scope=mine",
+          "status": 401,
+          "passed": true
+        },
+        {
+          "origin": "https://filosagestg-app--green-7c48bc02ff66-baseline-1.salmontree-eb10220f.centralus.azurecontainerapps.io",
+          "path": "/api/health",
+          "status": 200,
+          "passed": true,
+          "health": {
+            "ok": true,
+            "sourceMatches": true,
+            "digestMatches": true,
+            "configuration": true,
+            "datastore": true,
+            "originMatches": true,
+            "authenticationModeMatches": true
+          }
+        },
+        {
+          "origin": "https://filosagestg-app--green-7c48bc02ff66-baseline-1.salmontree-eb10220f.centralus.azurecontainerapps.io",
+          "path": "/api/auth/session",
+          "status": 200,
+          "passed": true,
+          "anonymousUserNull": true
+        },
+        {
+          "origin": "https://filosagestg-app--green-7c48bc02ff66-baseline-1.salmontree-eb10220f.centralus.azurecontainerapps.io",
+          "path": "/api/account",
+          "status": 401,
+          "passed": true
+        },
+        {
+          "origin": "https://filosagestg-app--green-7c48bc02ff66-baseline-1.salmontree-eb10220f.centralus.azurecontainerapps.io",
+          "path": "/api/progress",
+          "status": 401,
+          "passed": true
+        },
+        {
+          "origin": "https://filosagestg-app--green-7c48bc02ff66-baseline-1.salmontree-eb10220f.centralus.azurecontainerapps.io",
+          "path": "/api/courses?scope=mine",
+          "status": 401,
+          "passed": true
+        },
+        {
+          "origin": "https://filosagestg-app.salmontree-eb10220f.centralus.azurecontainerapps.io",
+          "path": "/api/health",
+          "status": 200,
+          "passed": true,
+          "health": {
+            "ok": true,
+            "sourceMatches": true,
+            "digestMatches": true,
+            "configuration": true,
+            "datastore": true,
+            "originMatches": true,
+            "authenticationModeMatches": true
+          }
+        },
+        {
+          "origin": "https://filosagestg-app.salmontree-eb10220f.centralus.azurecontainerapps.io",
+          "path": "/api/auth/session",
+          "status": 200,
+          "passed": true,
+          "anonymousUserNull": true
+        },
+        {
+          "origin": "https://filosagestg-app.salmontree-eb10220f.centralus.azurecontainerapps.io",
+          "path": "/api/account",
+          "status": 401,
+          "passed": true
+        },
+        {
+          "origin": "https://filosagestg-app.salmontree-eb10220f.centralus.azurecontainerapps.io",
+          "path": "/api/progress",
+          "status": 401,
+          "passed": true
+        },
+        {
+          "origin": "https://filosagestg-app.salmontree-eb10220f.centralus.azurecontainerapps.io",
+          "path": "/api/courses?scope=mine",
+          "status": 401,
+          "passed": true
+        },
+        {
+          "origin": "https://www.filosage.com",
+          "path": "/api/health",
+          "status": 200,
+          "passed": true,
+          "health": {
+            "ok": true,
+            "sourceMatches": true,
+            "digestMatches": true,
+            "configuration": true,
+            "datastore": true,
+            "originMatches": true,
+            "authenticationModeMatches": true
+          }
+        },
+        {
+          "origin": "https://www.filosage.com",
+          "path": "/api/auth/session",
+          "status": 200,
+          "passed": true,
+          "anonymousUserNull": true
+        },
+        {
+          "origin": "https://www.filosage.com",
+          "path": "/api/account",
+          "status": 401,
+          "passed": true
+        },
+        {
+          "origin": "https://www.filosage.com",
+          "path": "/api/progress",
+          "status": 401,
+          "passed": true
+        },
+        {
+          "origin": "https://www.filosage.com",
+          "path": "/api/courses?scope=mine",
+          "status": 401,
+          "passed": true
+        }
+      ],
+      "passed": true,
+      "drainVerified": false,
+      "revision": "filosageqa-app--qa-stripe-test-1",
+      "imageDigest": "sha256:3d33eacc178c4e6323c957ab9fd1d81c2dd2f8e149b3b43bbe44e9b09a76bf14",
+      "probeSourceSha256": "a5152cd23b67be53278f7c7f89c50b94f720e977d3881289ad46b95f0e1d32d8"
+    },
+    "publicSampling": [
+      {
+        "at": "2026-09-13T05:04:51.498434+00:00",
+        "passed": true,
+        "healthLatencyMs": [
+          158,
+          187
+        ],
+        "readyContainers": 4,
+        "containerRestarts": 0,
+        "recordedServerErrors": 0
+      },
+      {
+        "at": "2026-09-13T05:05:40.822849+00:00",
+        "passed": true,
+        "healthLatencyMs": [
+          157,
+          152
+        ],
+        "readyContainers": 4,
+        "containerRestarts": 0,
+        "recordedServerErrors": 0
+      },
+      {
+        "at": "2026-09-13T05:06:33.393449+00:00",
+        "passed": true,
+        "healthLatencyMs": [
+          165,
+          168
+        ],
+        "readyContainers": 4,
+        "containerRestarts": 0,
+        "recordedServerErrors": 0
+      },
+      {
+        "at": "2026-09-13T05:07:26.324336+00:00",
+        "passed": true,
+        "healthLatencyMs": [
+          169,
+          153
+        ],
+        "readyContainers": 4,
+        "containerRestarts": 0,
+        "recordedServerErrors": 0
+      },
+      {
+        "at": "2026-09-13T05:08:19.277708+00:00",
+        "passed": true,
+        "healthLatencyMs": [
+          153,
+          152
+        ],
+        "readyContainers": 4,
+        "containerRestarts": 0,
+        "recordedServerErrors": 0
+      },
+      {
+        "at": "2026-09-13T05:09:11.834627+00:00",
+        "passed": true,
+        "healthLatencyMs": [
+          166,
+          167
+        ],
+        "readyContainers": 4,
+        "containerRestarts": 0,
+        "recordedServerErrors": 0
+      },
+      {
+        "at": "2026-09-13T05:10:04.649476+00:00",
+        "passed": true,
+        "healthLatencyMs": [
+          157,
+          176
+        ],
+        "readyContainers": 4,
+        "containerRestarts": 0,
+        "recordedServerErrors": 0
+      },
+      {
+        "at": "2026-09-13T05:10:57.438931+00:00",
+        "passed": true,
+        "healthLatencyMs": [
+          144,
+          155
+        ],
+        "readyContainers": 4,
+        "containerRestarts": 0,
+        "recordedServerErrors": 0
+      },
+      {
+        "at": "2026-09-13T05:11:50.026893+00:00",
+        "passed": true,
+        "healthLatencyMs": [
+          150,
+          147
+        ],
+        "readyContainers": 4,
+        "containerRestarts": 0,
+        "recordedServerErrors": 0
+      },
+      {
+        "at": "2026-09-13T05:12:43.580663+00:00",
+        "passed": true,
+        "healthLatencyMs": [
+          174,
+          160
+        ],
+        "readyContainers": 4,
+        "containerRestarts": 0,
+        "recordedServerErrors": 0
+      },
+      {
+        "at": "2026-09-13T05:13:37.132403+00:00",
+        "passed": true,
+        "healthLatencyMs": [
+          164,
+          155
+        ],
+        "readyContainers": 4,
+        "containerRestarts": 0,
+        "recordedServerErrors": 0
+      },
+      {
+        "at": "2026-09-13T05:14:29.693704+00:00",
+        "passed": true,
+        "healthLatencyMs": [
+          145,
+          164
+        ],
+        "readyContainers": 4,
+        "containerRestarts": 0,
+        "recordedServerErrors": 0
+      },
+      {
+        "at": "2026-09-13T05:15:22.687995+00:00",
+        "passed": true,
+        "healthLatencyMs": [
+          161,
+          191
+        ],
+        "readyContainers": 4,
+        "containerRestarts": 0,
+        "recordedServerErrors": 0
+      },
+      {
+        "at": "2026-09-13T05:16:15.656613+00:00",
+        "passed": true,
+        "healthLatencyMs": [
+          161,
+          156
+        ],
+        "readyContainers": 4,
+        "containerRestarts": 0,
+        "recordedServerErrors": 0
+      },
+      {
+        "at": "2026-09-13T05:17:08.118201+00:00",
+        "passed": true,
+        "healthLatencyMs": [
+          166,
+          169
+        ],
+        "readyContainers": 4,
+        "containerRestarts": 0,
+        "recordedServerErrors": 0
+      },
+      {
+        "at": "2026-09-13T05:18:01.015491+00:00",
+        "passed": true,
+        "healthLatencyMs": [
+          151,
+          155
+        ],
+        "readyContainers": 4,
+        "containerRestarts": 0,
+        "recordedServerErrors": 0
+      },
+      {
+        "at": "2026-09-13T05:18:53.994841+00:00",
+        "passed": true,
+        "healthLatencyMs": [
+          153,
+          171
+        ],
+        "readyContainers": 4,
+        "containerRestarts": 0,
+        "recordedServerErrors": 0
+      },
+      {
+        "at": "2026-09-13T05:19:46.642599+00:00",
+        "passed": true,
+        "healthLatencyMs": [
+          170,
+          155
+        ],
+        "readyContainers": 4,
+        "containerRestarts": 0,
+        "recordedServerErrors": 0
+      },
+      {
+        "at": "2026-09-13T05:21:15.974678+00:00",
+        "passed": true,
+        "healthLatencyMs": [
+          185,
+          247
+        ],
+        "readyContainers": 4,
+        "containerRestarts": 0,
+        "recordedServerErrors": 0
+      },
+      {
+        "at": "2026-09-13T05:22:09.196257+00:00",
+        "passed": true,
+        "healthLatencyMs": [
+          177,
+          171
+        ],
+        "readyContainers": 4,
+        "containerRestarts": 0,
+        "recordedServerErrors": 0
+      },
+      {
+        "at": "2026-09-13T05:23:02.297610+00:00",
+        "passed": true,
+        "healthLatencyMs": [
+          150,
+          166
+        ],
+        "readyContainers": 4,
+        "containerRestarts": 0,
+        "recordedServerErrors": 0
+      },
+      {
+        "at": "2026-09-13T05:23:55.148010+00:00",
+        "passed": true,
+        "healthLatencyMs": [
+          167,
+          157
+        ],
+        "readyContainers": 4,
+        "containerRestarts": 0,
+        "recordedServerErrors": 0
+      },
+      {
+        "at": "2026-09-13T05:24:47.682183+00:00",
+        "passed": true,
+        "healthLatencyMs": [
+          169,
+          168
+        ],
+        "readyContainers": 4,
+        "containerRestarts": 0,
+        "recordedServerErrors": 0
+      },
+      {
+        "at": "2026-09-13T05:25:40.578857+00:00",
+        "passed": true,
+        "healthLatencyMs": [
+          158,
+          169
+        ],
+        "readyContainers": 4,
+        "containerRestarts": 0,
+        "recordedServerErrors": 0
+      },
+      {
+        "at": "2026-09-13T05:26:33.144507+00:00",
+        "passed": true,
+        "healthLatencyMs": [
+          165,
+          207
+        ],
+        "readyContainers": 4,
+        "containerRestarts": 0,
+        "recordedServerErrors": 0
+      },
+      {
+        "at": "2026-09-13T05:27:26.023837+00:00",
+        "passed": true,
+        "healthLatencyMs": [
+          155,
+          164
+        ],
+        "readyContainers": 4,
+        "containerRestarts": 0,
+        "recordedServerErrors": 0
+      },
+      {
+        "at": "2026-09-13T05:28:19.278617+00:00",
+        "passed": true,
+        "healthLatencyMs": [
+          153,
+          151
+        ],
+        "readyContainers": 4,
+        "containerRestarts": 0,
+        "recordedServerErrors": 0
+      },
+      {
+        "at": "2026-09-13T05:29:12.095583+00:00",
+        "passed": true,
+        "healthLatencyMs": [
+          170,
+          163
+        ],
+        "readyContainers": 4,
+        "containerRestarts": 0,
+        "recordedServerErrors": 0
+      },
+      {
+        "at": "2026-09-13T05:30:04.758037+00:00",
+        "passed": true,
+        "healthLatencyMs": [
+          148,
+          152
+        ],
+        "readyContainers": 4,
+        "containerRestarts": 0,
+        "recordedServerErrors": 0
+      },
+      {
+        "at": "2026-09-13T05:30:46.312710+00:00",
+        "passed": true,
+        "healthLatencyMs": [
+          168,
+          169
+        ],
+        "readyContainers": 4,
+        "containerRestarts": 0,
+        "recordedServerErrors": 0
+      }
+    ],
+    "finalBrowser": {
+      "authenticated": true,
+      "progressPercent": 8,
+      "verifiedAfterReload": true
+    },
+    "authDiagnosticInterpretation": "Managed http-auth token parsing diagnostics ended around the successful normal sign-in retest; no later recurrence in final aggregate. No application exception type found. Exact cause unproven; raw logs not exported."
   },
-  "remaining": [
-    "independent public verification and 30-minute observation"
-  ],
+  "remaining": [],
   "finalCandidateB5NotStaged": true,
-  "qaRetirementNotPerformed": true
+  "qaRetirementNotPerformed": true,
+  "fullReleaseCompleted": false
 }
