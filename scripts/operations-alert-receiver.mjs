@@ -75,7 +75,8 @@ export function createBlobStore({ accountUrl, container, token, request = fetch 
         'If-None-Match': '*', 'x-ms-meta-alertid': envelope.id, 'x-ms-meta-schemaversion': '1' } });
       await response.body?.cancel();
       if (response.status === 201) return { duplicate: false };
-      if (response.status !== 412) throw Error('Storage acceptance failed.');
+      const alreadyExists = response.status === 409 && response.headers.get('x-ms-error-code') === 'BlobAlreadyExists';
+      if (response.status !== 412 && !alreadyExists) throw Error('Storage acceptance failed.');
       const existing = await send(url, 'HEAD'); await existing.body?.cancel();
       const length = Number(existing.headers.get('content-length'));
       if (existing.status !== 200 || existing.headers.get('x-ms-meta-alertid') !== envelope.id
