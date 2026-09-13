@@ -560,35 +560,31 @@ test("operator runbook preserves identity gates in the one-app blue/green topolo
   expect(history).toContain("### Phase B: New-account acceptance");
 });
 
-test("actual hosted canvas wrappers cannot retain a light illustration behind a dark form", async ({ page }) => {
+test("hosted sanitizer keeps plain extension classes needed for dark illustration and logo contrast", async ({ page }) => {
+  // Actual provider CSSOM drops IDs, element-qualified classes, descendant selectors
+  // and placeholder pseudo-elements. Simulate that filter before computed-style assertions.
   await page.emulateMedia({ colorScheme: "dark" });
-  await page.setContent(`<style>
-    #background-container { background-color: rgb(250,250,247); }
-    #background-image { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'/%3E"); }
-    #lightbox-cover { background-color: white; }
-    .ext-boilerplate-text { background-color: rgb(242,242,242); }
-    ${css}
-  </style><div id="background-container"><div id="background-image" class="ext-background-image"></div>
-    <header class="ext-header"><img class="ext-header-logo" alt="Filosage"></header>
-    <div id="lightbox-cover"><section id="inner" class="ext-sign-in-box"><img class="ext-banner-logo" alt="Filosage">Sign in
-    <input class="ext-input" placeholder="Email address"><div class="ext-boilerplate-text"><p>Use a private email code.</p></div>
-    </section></div><footer class="ext-footer"><a href="#privacy">Privacy</a></footer></div>`);
-  await expect(page.locator("#background-container")).toHaveCSS("background-color", "rgb(0, 13, 35)");
-  await expect(page.locator("#background-image")).toHaveCSS("background-image", "none");
-  await expect(page.locator("#lightbox-cover")).toHaveCSS("background-color", "rgb(0, 13, 35)");
-  const contrast = await page.evaluate(() => {
-    const text = getComputedStyle(document.querySelector(".ext-boilerplate-text")!);
-    const logo = getComputedStyle(document.querySelector(".ext-banner-logo")!);
-    const input = document.querySelector(".ext-input")!;
-    return { color: text.color, background: text.backgroundColor, logo: logo.backgroundColor,
-      placeholder: getComputedStyle(input, "::placeholder").color, input: getComputedStyle(input).backgroundColor };
+  await page.setContent(`<style id="provider">.ext-background-image { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'/%3E"); }
+    .ext-boilerplate-text { background-color: rgb(242,242,242); }</style><style id="custom">${css}</style>
+    <div class="ext-background-image"><header class="ext-header"><img class="ext-header-logo" alt="Filosage"></header>
+    <section class="ext-sign-in-box"><img class="ext-banner-logo" alt="Filosage"><div class="ext-boilerplate-text"><p>Use a private email code.</p></div></section></div>`);
+  await page.evaluate(() => {
+    const prune = (sheet: CSSStyleSheet | CSSMediaRule) => {
+      for (let index = sheet.cssRules.length - 1; index >= 0; index--) {
+        const rule = sheet.cssRules[index];
+        if (rule instanceof CSSMediaRule) prune(rule);
+        else if (rule instanceof CSSStyleRule && /#|img\.|::placeholder|\.ext-[\w-]+\s+[a-z]/.test(rule.selectorText)) sheet.deleteRule(index);
+      }
+    };
+    prune((document.querySelector("#custom") as HTMLStyleElement).sheet!);
   });
-  expect(contrastRatio(contrast.color, contrast.background)).toBeGreaterThanOrEqual(4.5);
-  expect(contrastRatio(contrast.placeholder, contrast.input)).toBeGreaterThanOrEqual(4.5);
-  expect(contrast.logo).toBe("rgb(255, 249, 240)");
+  await expect(page.locator(".ext-background-image")).toHaveCSS("background-image", "none");
+  await expect(page.locator(".ext-background-image")).toHaveCSS("background-color", "rgb(0, 13, 35)");
   await expect(page.locator(".ext-header-logo")).toHaveCSS("background-color", "rgb(255, 249, 240)");
-  await expect(page.locator(".ext-footer a")).toHaveCSS("color", "rgb(45, 212, 191)");
+  await expect(page.locator(".ext-banner-logo")).toHaveCSS("background-color", "rgb(255, 249, 240)");
+  const text = await page.locator(".ext-boilerplate-text").evaluate(element => ({color:getComputedStyle(element).color,background:getComputedStyle(element).backgroundColor}));
+  expect(contrastRatio(text.color, text.background)).toBeGreaterThanOrEqual(4.5);
   await page.emulateMedia({ colorScheme: "light" });
-  await expect(page.locator("#background-container")).toHaveCSS("background-color", "rgb(231, 221, 206)");
-  await expect(page.locator("#lightbox-cover")).toHaveCSS("background-color", "rgb(231, 221, 206)");
+  await expect(page.locator(".ext-background-image")).toHaveCSS("background-color", "rgb(231, 221, 206)");
+  expect(await page.locator(".ext-background-image").evaluate(element => getComputedStyle(element).backgroundImage)).toContain("url(");
 });

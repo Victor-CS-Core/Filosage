@@ -5,10 +5,11 @@ Status: review_ready. Existing release worker owns `codex/hosted-theme-contrast-
 - [x] Trace actual provider wrapper/background/boilerplate/logo contrast defects; reproduce with a failing actual-markup fixture.
 - [x] Correct only hosted CSS, regenerate fixed assets and update the suite inventory; preserve app code, identity clients and original brand assets.
 - [x] Coordinator independently approve minimal CSS scope; pass eight focused checks, generated-asset verification, lint and whitespace.
-- [ ] Push scoped PR and verify bounded CI/landing under existing AFK authorization.
+- [x] Push PR34; hold landing after actual provider sanitizer rejected ID/qualified selectors.
+- [ ] Validate the corrected plain `ext-*` selectors through provider readback/rendering and rerun exact-head CI before guarded landing.
 - [ ] Coordinator upload exact reviewed CSS and verify actual hosted appearance. App-selected versus OS-theme parity remains explicitly unproved.
 
-See `docs/AUTH_APPEARANCE_AUDIT_2026-09-11.md` for actual wrapper evidence and scope. No full regression, app image build or provider change was performed by this worker. Existing source main0f and its successful promoted candidate remain unchanged by this provider-asset preparation.
+Actual first upload retained only the boilerplate correction: provider sanitizer rejected IDs, element-qualified logo classes, descendant links and placeholders. The follow-up removes these unsupported rules and tests retained plain classes after a simulated sanitizer; full hosted contrast remains pending. See `docs/AUTH_APPEARANCE_AUDIT_2026-09-11.md` for actual wrapper evidence and scope. No full regression, app image build or provider change was performed by this worker. Existing source main0f and its successful promoted candidate remain unchanged by this provider-asset preparation.
 
 ---
 
