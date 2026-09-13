@@ -1,0 +1,75 @@
+{
+  "observedAt": "2026-09-13T08:35:36.702169+00:00",
+  "database": {
+    "schemaVersion": 1,
+    "operation": "candidate-performance-readonly",
+    "observedAt": "2026-09-13T08:34:30.337Z",
+    "session": {
+      "own_role_sessions": 3,
+      "other_active_own_role_sessions": 0
+    },
+    "accounting": {
+      "snapshots": 2,
+      "completed": 1,
+      "failed": 0,
+      "accounting_observed": 1,
+      "other_status": 0,
+      "attempt_mirrors": 1,
+      "observed_attempt_cost_micros": 11021,
+      "missing_cost": 0,
+      "estimated_cost_micros": 22042,
+      "input_tokens": 7660,
+      "output_tokens": 2078
+    },
+    "collectionLookup": {
+      "executionMs": 0.052,
+      "planningMs": 0.083
+    },
+    "limitations": [
+      "One low-load read-only collection lookup; not request latency or capacity",
+      "Own-role session visibility only; new dedicated probe connection, not application pool queue measurement",
+      "Retained Flashcards requests in fixed08:00-08:30UTC window; not unique proof of UI request attribution",
+      "Stored cost is application estimate, not invoice; missing sums stay null",
+      "Provider-only latency unavailable: reservation/update interval includes app work and retries",
+      "No scale-from-zero, load, new generation or configuration change"
+    ],
+    "sourceSha": "0fcb5f502de1159c36c31785e4796b283c7b9a02",
+    "revision": "filosagestg-app--blue-0fcb5f502de1-34747001741-1",
+    "imageDigest": "sha256:dae13abacb841400d649ec892f4b6455e25e61a49547f937269417e65c8987af",
+    "probeSourceSha256": "9d3056af33377eb138d1b7edd491a97d4c750dafc5773c91bad7fd3ce42d2236"
+  },
+  "resources": {
+    "start": "2026-09-13T08:23:56.895736+00:00",
+    "end": "2026-09-13T08:34:16.848345+00:00",
+    "scope": "Whole production app including candidate and rollback replicas, not candidate-attributed",
+    "metricsMayLag": true,
+    "metrics": {
+      "UsageNanoCores": {
+        "unit": "NanoCores",
+        "samples": 11,
+        "meanOfAvailableMinuteAverages": 9844099.272727273,
+        "maximum": 166652782
+      },
+      "WorkingSetBytes": {
+        "unit": "Bytes",
+        "samples": 11,
+        "meanOfAvailableMinuteAverages": 342214004.3636364,
+        "maximum": 399843328
+      }
+    }
+  },
+  "warmHealth": {
+    "samples": 30,
+    "maxMs": 191,
+    "scope": "Public candidate and compatible green health checks; includes network, low-load samples only"
+  },
+  "uniqueObservedAttemptCostUsd": 0.011021,
+  "limits": [
+    "Stored model cost is an application estimate, not provider invoice",
+    "Root plus attempt mirror must not be summed as spend or token usage",
+    "Provider-only model latency is not present in stored receipt schema",
+    "No deliberate scale-from-zero or load test performed on public serving revision",
+    "CPU and memory cover whole application including compatible predecessor; not per-request attribution",
+    "Prior local optimized browser/JavaScript/startup measurements remain source-specific historical evidence"
+  ]
+}
