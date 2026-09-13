@@ -79,3 +79,21 @@ test('HTTP acknowledgment waits for storage; invalid signatures never write; sto
     assert.equal(JSON.stringify(logs).includes('Synthetic test'), false);
   } finally { await new Promise(resolve => server.close(resolve)); }
 });
+
+test('Azure BlobAlreadyExists conflicts require a verified receipt; other conflicts fail closed', async () => {
+  const s = await signed();
+  for (const code of ['BlobAlreadyExists', 'LeaseIdMissing', null]) {
+    let heads = 0;
+    const store = createBlobStore({ accountUrl: 'https://filosagestp4ujucgnxq3gss.blob.core.windows.net', container: 'operations-alerts', token: async () => 'synthetic-token', request: async (_url, options) => {
+      if (options.method === 'PUT') return new Response(null, { status: 409, headers: code ? { 'x-ms-error-code': code } : {} });
+      heads++; return new Response(null, { status: 200, headers: { 'x-ms-meta-alertid': s.envelope.id, 'x-ms-meta-schemaversion': '1', 'content-length': String(s.raw.length) } });
+    } });
+    if (code === 'BlobAlreadyExists') {
+      assert.deepEqual(await store.persist(s.envelope, s.raw), { duplicate: true }); assert.equal(heads, 1);
+    } else { await assert.rejects(store.persist(s.envelope, s.raw)); assert.equal(heads, 0); }
+  }
+  const invalid = createBlobStore({ accountUrl: 'https://filosagestp4ujucgnxq3gss.blob.core.windows.net', container: 'operations-alerts', token: async () => 'synthetic-token', request: async (_url, options) => options.method === 'PUT'
+    ? new Response(null, { status: 409, headers: { 'x-ms-error-code': 'BlobAlreadyExists' } })
+    : new Response(null, { status: 200, headers: { 'content-length': String(s.raw.length) } }) });
+  await assert.rejects(invalid.persist(s.envelope, s.raw));
+});
