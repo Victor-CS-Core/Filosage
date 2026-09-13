@@ -1,3 +1,16 @@
+## September 13 — subscription UI review and mockup ready
+
+Actual publicpricing annual/monthlyswitch and settledlight/dark rendering verified; originaldark/annualpreferences restored. Sourcebillingstates reviewed; nofinancial/account/emailmutation. Existingplanprices andallowances preserved in proposedlight/darkmockup with visiblecheckoutclosure, shortercomparisonincludingFlashcards and illustrative currentsubscriptionmanagement. Reviewandprimaryproductsources in `releases/2026-09-13-subscription-ui-proposal.md`; generatedmockup stored withartifact. Minorimagecopytypo and decorativeextra tagline explicitly excluded from implementation. NoUIcode implemented; proposalawaitsuserreview. F1 remainsopen: actualhostedlight requiresuserbrowser/systemchange, requestedasynchronously; no answer/automaticworkaround. R1manualthemeparity/R2limits/R7dataretention remainopen.
+
+## Active follow-up — final checks and subscription UI proposal
+
+Victor asks to proceed with remaining checks, then review subscription UI against other products and show a mockup before UI changes. Preserve full release R1–R9, retained QA data and theme follow-up. Bounded review of existing pricing/subscription flow; no billing activation, purchase, cancellation or production UI implementation.
+
+- [ ] F1: Complete available final release checks; actual hosted light mode awaits user setting browser/system Light (requested asynchronously); do not circumvent blocked browser settings or claim manual app-toggle parity.
+- [x] F2: Inspect live pricing/subscription UI and source states; compare primary product/Stripe sources.
+- [x] F3: Produce concrete light/dark mockup with actual plan terms and clearly illustrative billing states; document prioritized functionality changes and verification limits.
+- [x] F4: Show mockup and findings for user review; checkpoint evidence and preserve unresolved release work.
+
 ## September 13 — approved QA infrastructure retirement complete
 
 Verified QA app, custom domain, dedicated certificate, CNAME/TXT, four dedicated metric alerts, ten exclusive grants and exclusive identity absent. Shared deployer QA-app grant had cascaded absent; all other role assignment objects unchanged. Both shared log alerts retain all production predicates/settings, with only QA selector removed (provider also advances createdWithApiVersion metadata). Exact identity deletion followed fresh zero resourceGraph consumers, direct apps/jobs consumers, grants and federation. Production custom domain/traffic/configuration/template/auth equal fresh pre-retirement snapshots; publichealth200. Actual signed-in learner reload retains1course/8%progress, lessonloads and Flashcards shows saved8-carddeck/quota99 unchanged. Bothauthoritative servers confirm no QA CNAME or ownershipTXT.
