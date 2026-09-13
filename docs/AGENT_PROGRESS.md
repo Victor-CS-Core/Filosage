@@ -7,7 +7,7 @@ Status: review_ready. Existing release worker owns `codex/hosted-theme-contrast-
 - [x] Coordinator independently approve minimal CSS scope; pass eight focused checks, generated-asset verification, lint and whitespace.
 - [x] Push PR34; hold landing after actual provider sanitizer rejected ID/qualified selectors.
 - [x] Coordinator verify exact final CSS readback and actual dark sign-in/signup/error rendering; original logos and input/explanation contrast pass.
-- [ ] Finish final exact-head PR34 CI and guarded landing.
+- [ ] Finish final exact-head PR34 CI and guarded landing. CI exposed the separate total browser inventory cap425 after adding one desktop-only regression; update426 retains mobile45/52 limits and exact suite ownership. No CSS or provider change follows this test bookkeeping correction.
 - [x] Coordinator upload exact reviewed CSS and verify actual dark hosted appearance.
 - [ ] Actual hosted light-mode observation (browser security policy blocked appearance setting) and app-selected versus OS-theme parity remain explicitly unproved.
 

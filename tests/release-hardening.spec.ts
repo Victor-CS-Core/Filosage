@@ -487,7 +487,8 @@ test("mobile projects execute only explicitly owned cross-device behavior", () =
   // Keep bounded budgets as well as exact suite ownership so mobile coverage cannot grow unnoticed.
   expect(mobileChromium.count).toBeLessThanOrEqual(45);
   expect(mobileWebkit.count).toBeLessThanOrEqual(52);
-  expect(chromium.count + mobileChromium.count + mobileWebkit.count).toBeLessThanOrEqual(425);
+  // September 13: one desktop-only hosted CSS sanitizer regression adds one case.
+  expect(chromium.count + mobileChromium.count + mobileWebkit.count).toBeLessThanOrEqual(426);
 });
 
 test("release workflows accept only exact successful workflow evidence", () => {
