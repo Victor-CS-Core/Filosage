@@ -18,7 +18,7 @@ The approved maintenance transition uses source `7c48bc02ff6623a81fee382b194864f
 | `regression_run_id` | `34743308180` |
 | `featured_course_id` | `none` |
 
-Exact-source engineering34743287595, security34743287591 and full regression34743308180 are running. Require their actual success and verify the regression artifact source/checksum before dispatch. Earlier b5 results remain historical evidence only. Do not rebuild the accepted baseline.
+Exact-source engineering34743287595, security34743287591 and full regression34743308180 passed. Regression artifact10313464129 source/checksum verified:458passed,9declaredskips,0unexpected,0flaky. Stage run34744428417 dispatched once at07:07UTC; acceptance remains pending. Earlier b5 results remain historical evidence only. Do not rebuild the accepted baseline.
 
 ## Acceptance and limits
 
