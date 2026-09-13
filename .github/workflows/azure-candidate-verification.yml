@@ -53,12 +53,25 @@ jobs:
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: 22
+      - name: Verify maintenance access safety contracts
+        run: node --test tests/maintenance-access/*.test.mjs
       - name: Sign in to Azure with GitHub OIDC
         uses: azure/login@7ddb5af1ef8758cf1353cf3b42f940aee27ba21c # v3.0.2
         with:
           client-id: ${{ secrets.AZURE_CLIENT_ID }}
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      - name: Prepare optional exact maintenance runner access
+        run: node scripts/maintenance-runner-access.mjs prepare
+      - name: Persist owned access intent before any ingress mutation
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: maintenance-access-intent-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/maintenance-access-evidence/intent.json
+          if-no-files-found: error
+          retention-days: 30
+      - name: Admit only this runner during an existing operator-only maintenance fence
+        run: node scripts/maintenance-runner-access.mjs apply
       - name: Recheck candidate and referenced successful immutable hosted evidence
         run: node scripts/azure-blue-green.mjs review
       - name: Retain the explicit human review separately from automated smoke
@@ -66,5 +79,16 @@ jobs:
         with:
           name: candidate-verification-${{ inputs.expected_sha }}
           path: ${{ runner.temp }}/blue-green-evidence/candidate-verification.json
+          if-no-files-found: error
+          retention-days: 30
+      - name: Remove only this run's owned maintenance access rule
+        if: always()
+        run: node scripts/maintenance-runner-access.mjs cleanup
+      - name: Retain access and cleanup evidence including uncertain outcomes
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: maintenance-access-final-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/maintenance-access-evidence/*.json
           if-no-files-found: error
           retention-days: 30
