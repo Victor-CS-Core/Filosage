@@ -1,8 +1,8 @@
 # Final source candidate staging
 
-Status: approved staging resumed after PR30 merged. The first staging run34740853590 failed before image build; no candidate was deployed. The new source is undergoing fresh verification.
+Status: approved staging resumed after PR30, PR31 and PR32 merged. The first staging run34740853590 failed before image build; no candidate was deployed. The new source is undergoing fresh verification.
 
-The approved maintenance transition uses source `7c48bc02ff6623a81fee382b194864f1d04b76c0` and image `sha256:95cc9529e6abcfdef5918f39996cfed55703e5b29b82d75304a69765c844b344`. The next operation stages final main source `ed538d20f10dcb999114c793dd200061c52b00e8` through the standard workflow. These are distinct source identities; retain their separate evidence.
+The approved maintenance transition uses source `7c48bc02ff6623a81fee382b194864f1d04b76c0` and image `sha256:95cc9529e6abcfdef5918f39996cfed55703e5b29b82d75304a69765c844b344`. The next operation stages final main source `9f1c08ed9b055e8742c28601b2e3b5334632cc3f` through the standard workflow. These are distinct source identities; retain their separate evidence.
 
 ## Concrete operation
 
@@ -12,13 +12,13 @@ The approved maintenance transition uses source `7c48bc02ff6623a81fee382b194864f
 
 | Input | Value |
 | --- | --- |
-| `expected_sha` | `ed538d20f10dcb999114c793dd200061c52b00e8` |
+| `expected_sha` | `9f1c08ed9b055e8742c28601b2e3b5334632cc3f` |
 | `expected_auth_mode` | `migration-dual` |
-| `quality_run_id` | `34741934982` |
-| `regression_run_id` | `34741952936` |
+| `quality_run_id` | `34743287595` |
+| `regression_run_id` | `34743308180` |
 | `featured_course_id` | `none` |
 
-Exact-source engineering34741934982, security34741934994 and full regression34741952936 are running. Require their actual success and verify the regression artifact source/checksum before dispatch. Earlier b5 results remain historical evidence only. Do not rebuild the accepted baseline.
+Exact-source engineering34743287595, security34743287591 and full regression34743308180 are running. Require their actual success and verify the regression artifact source/checksum before dispatch. Earlier b5 results remain historical evidence only. Do not rebuild the accepted baseline.
 
 ## Acceptance and limits
 
@@ -26,4 +26,4 @@ Staging success requires the immutable final-source candidate artifact, passing 
 
 After staging, collect actual exact-candidate evidence for BFF authentication/privacy, learner journey, publication, billing containment, operations/alerts, recovery/rollback and data-write compatibility. Baseline evidence supports context but does not stand in for candidate evidence. Run the candidate-verification workflow with the reviewed packet and actual stage run ID. Present the verified candidate and promotion operation for approval, reuse its immutable image, and perform the prescribed public observation after promotion.
 
-The main changes from baseline to final source are the receiver and maintenance-runner implementation, associated workflow integration, tests and documentation. There are no application `src/` changes in that range; the workflow still requires evidence tied to the exact final SHA.
+The main changes from baseline to final source are the receiver and maintenance-runner implementation, runner build repair, hosted-evidence packaging, explicitly requested Flashcards activation, tests and documentation. There are no application `src/` changes in that range; the workflow still requires evidence tied to the exact final SHA.
