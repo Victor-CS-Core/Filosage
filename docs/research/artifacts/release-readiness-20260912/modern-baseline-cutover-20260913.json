@@ -186,6 +186,41 @@
       "inactiveOriginsVerifiedZeroReplicas": 3,
       "inactive404NotCountedAsDenial": true,
       "fenceVerified": true
+    },
+    "greenInfoReceipt": {
+      "at": "2026-09-13T04:36:37.861953+00:00",
+      "alertId": "fa_3da95f655e24b60fefe219eaa4b8e6ce",
+      "runtimeSource": "7c48bc02ff6623a81fee382b194864f1d04b76c0",
+      "actualRuntimeDelivery202": true,
+      "privateBlobReceiptVerified": true,
+      "size": 361,
+      "infoOnly": true
+    },
+    "anonymousPrivacy": {
+      "at": "2026-09-13T04:38:26.199409+00:00",
+      "checks": [
+        {
+          "path": "/api/auth/session",
+          "status": 200,
+          "anonymousUser": true
+        },
+        {
+          "path": "/api/account",
+          "status": 401,
+          "anonymousUser": true
+        },
+        {
+          "path": "/api/progress",
+          "status": 401,
+          "anonymousUser": true
+        },
+        {
+          "path": "/api/courses?scope=mine",
+          "status": 401,
+          "anonymousUser": true
+        }
+      ],
+      "privateEndpointsProtected": true
     }
   },
   "remaining": [
