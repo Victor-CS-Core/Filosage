@@ -878,3 +878,16 @@ PR33 five hostedchecks pass oncf1fe221 (engineering34745031473, security34745031
 ### September 13, 07:40 UTC — corrected-source verification continues
 
 Exact0fcb5f5 engineering34745378588 and security34745378586 attempt1 pass; actualfulljobs validated with existingqualityJobsPassed andmetadata savedprivately. Fullregression34745404231 remainsbrowsermatrix withnofailedsteps reported; existing08:35UTC boundretained. No competingbuild/dispatch orproviderchange. Preparedexistingread-onlyworkprobe andstopcontrol with exact9f/6f pins forzero-blue replacement; notexecuted yet. Freshworkinventory/unchangedproviderstate willprecededeactivation andcorrectedstage. FullR1–R9 andrealFlashcardsgeneration remainactive.
+
+### September 13, 07:50 UTC — corrected candidate wait remains bounded
+
+Fullregression34745404231 isstillinbrowsermatrix withnofailedsteps reported; final0f engineering/security alreadyaccepted. No newimage, trafficchange, authchange, OAuthentrychange orUIgenerationretry. Currentcandidate9f/6f remainsblue0; baseline7c/95 servesgreen100. Existing08:35UTC regressiondeadline remains, and nootherwatcher runs. Preparedexactreplacementcontrols remainunexecuted untilsuccess/freshworkreadback. Continueonlynecessaryreleaseexecution underAFKauthorization; no expansionbeyondrequestedFlashcards andactualblockerfixes.
+
+
+### September 13, 08:01 UTC — corrected regression accepted and replacement preflight started
+
+Corrected0f fullregression34745404231 attempt1 passed458,9declaredskips,0unexpected,0flaky. Artifact10314132689 checksumverifiedbff2ed4ee87a2501aa85e16552c932b603db4a015d0f8d11a945d910c19da310; containedsourceexact0f. Mainmatches; completeactive/pendingruninventoryempty. Capturedexactblue9fzero/green7c100 andunchangedauth privately. Existingboundedreadonlyworkprobe nowtargetsexact9f/6f beforezero-blue deactivation. No mutationyet; preservepublicgreen andallimages.
+
+### September 13, 08:09 UTC — idle replica diagnosis and approved candidate replacement
+
+Read-only work probe transport failures were caused by no running replica (Azure explicit error), not database rejection. Health request woke existingzero-blue; unchanged reviewed probe then passed08:08:39UTC:540documents, all unresolved/inflight work zero,34historical reserved rows retained. Fresh guard validated provider/auth snapshots and approved deactivation of exact9f/6f blue only. Readback inactive; one terminatingreplica remains, so staging awaits actualzero. Publicgreen7c health/configuration preserved. Corrected0f main remains exact; engineering/security/fullregression pass. No additional sourcechange or approvalneeded underAFKdelegation.

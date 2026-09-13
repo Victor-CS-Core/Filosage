@@ -1,0 +1,18 @@
+{
+  "runId": "34745404231",
+  "artifactId": 10314132689,
+  "name": "full-regression-evidence",
+  "digest": "sha256:bff2ed4ee87a2501aa85e16552c932b603db4a015d0f8d11a945d910c19da310",
+  "sha": "0fcb5f502de1159c36c31785e4796b283c7b9a02",
+  "stats": {
+    "startTime": "2026-09-13T07:31:31.554Z",
+    "duration": 1712450.962890625,
+    "expected": 458,
+    "skipped": 9,
+    "unexpected": 0,
+    "flaky": 0
+  },
+  "status": "passed",
+  "qualityRunId": "34745378588",
+  "securityRunId": "34745378586"
+}
