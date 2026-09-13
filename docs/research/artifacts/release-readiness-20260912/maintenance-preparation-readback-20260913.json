@@ -1,0 +1,43 @@
+{
+  "observedAt": "2026-09-13T00:22:41.314587+00:00",
+  "configurationUnchanged": true,
+  "templateUnchanged": true,
+  "authenticationUnchanged": true,
+  "activeRevisions": [
+    {
+      "name": "filosagestg-app--blue-7abae96f-1",
+      "active": true,
+      "runningState": "ScaledToZero",
+      "fqdn": "filosagestg-app--blue-7abae96f-1.salmontree-eb10220f.centralus.azurecontainerapps.io"
+    },
+    {
+      "name": "filosagestg-app--green-93f60f24-1",
+      "active": true,
+      "runningState": "Running",
+      "fqdn": "filosagestg-app--green-93f60f24-1.salmontree-eb10220f.centralus.azurecontainerapps.io"
+    }
+  ],
+  "resourceTypes": {
+    "Microsoft.App/containerApps": 2,
+    "Microsoft.App/managedEnvironments": 1,
+    "Microsoft.App/managedEnvironments/managedCertificates": 3,
+    "Microsoft.AzureActiveDirectory/ciamDirectories": 2,
+    "Microsoft.ContainerRegistry/registries": 1,
+    "Microsoft.DBforPostgreSQL/flexibleServers": 1,
+    "Microsoft.Insights/actiongroups": 1,
+    "Microsoft.Insights/activityLogAlerts": 1,
+    "Microsoft.Insights/metricalerts": 10,
+    "Microsoft.Insights/scheduledqueryrules": 2,
+    "Microsoft.KeyVault/vaults": 1,
+    "Microsoft.ManagedIdentity/userAssignedIdentities": 2,
+    "Microsoft.Network/loadBalancers": 1,
+    "Microsoft.Network/networkWatchers": 2,
+    "Microsoft.Network/privateDnsZones": 1,
+    "Microsoft.Network/privateDnsZones/virtualNetworkLinks": 1,
+    "Microsoft.Network/publicIPAddresses": 1,
+    "Microsoft.Network/virtualNetworks": 1,
+    "Microsoft.OperationalInsights/workspaces": 1,
+    "Microsoft.Storage/storageAccounts": 1
+  },
+  "maintenanceExecuted": false
+}

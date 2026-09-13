@@ -1,0 +1,10 @@
+{
+  "observedAt": "2026-09-13T00:24:57.193810+00:00",
+  "vnetCount": 1,
+  "peerings": 0,
+  "privateEndpointCount": 0,
+  "postgresPublicNetworkAccess": "Disabled",
+  "containerAppJobs": 0,
+  "unknownExternalOperatorActivityExcluded": false,
+  "readOnly": true
+}

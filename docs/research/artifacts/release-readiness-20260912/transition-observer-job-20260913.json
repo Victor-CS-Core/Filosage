@@ -1,0 +1,69 @@
+{
+  "location": "centralus",
+  "tags": {
+    "purpose": "release-readonly-drain",
+    "owner": "release-coordinator",
+    "source": "7c48bc02ff6623a81fee382b194864f1d04b76c0"
+  },
+  "identity": {
+    "type": "UserAssigned",
+    "userAssignedIdentities": {
+      "/subscriptions/bfc8f890-2681-43dc-8eac-51644341ae12/resourcegroups/filosage-staging-central-rg/providers/Microsoft.ManagedIdentity/userAssignedIdentities/filosagestg-app-identity": {}
+    }
+  },
+  "properties": {
+    "environmentId": "/subscriptions/bfc8f890-2681-43dc-8eac-51644341ae12/resourceGroups/filosage-staging-central-rg/providers/Microsoft.App/managedEnvironments/filosagestg-environment",
+    "configuration": {
+      "triggerType": "Manual",
+      "replicaTimeout": 900,
+      "replicaRetryLimit": 0,
+      "manualTriggerConfig": {
+        "parallelism": 1,
+        "replicaCompletionCount": 1
+      },
+      "secrets": [
+        {
+          "identity": "/subscriptions/bfc8f890-2681-43dc-8eac-51644341ae12/resourceGroups/filosage-staging-central-rg/providers/Microsoft.ManagedIdentity/userAssignedIdentities/filosagestg-app-identity",
+          "keyVaultUrl": "https://filosagestg-p4ujucgnxq3g.vault.azure.net/secrets/database-url/cfe74c3b15524d8b90100a5844acd8e0",
+          "name": "database-url"
+        }
+      ],
+      "registries": [
+        {
+          "server": "filosagestp4ujucgnxq3gsacr.azurecr.io",
+          "identity": "/subscriptions/bfc8f890-2681-43dc-8eac-51644341ae12/resourcegroups/filosage-staging-central-rg/providers/Microsoft.ManagedIdentity/userAssignedIdentities/filosagestg-app-identity"
+        }
+      ]
+    },
+    "template": {
+      "containers": [
+        {
+          "name": "readonly-drain",
+          "image": "filosagestp4ujucgnxq3gsacr.azurecr.io/filosage@sha256:95cc9529e6abcfdef5918f39996cfed55703e5b29b82d75304a69765c844b344",
+          "command": [
+            "node"
+          ],
+          "args": [
+            "--input-type=module",
+            "-e",
+            "import { createRequire } from 'node:module';\nexport function runtimeDatabaseOptions(connectionString, sslMode) {\n  const target = new URL(connectionString);\n  if (![\"postgres:\", \"postgresql:\"].includes(target.protocol)\n    || target.hostname !== \"filosagestg-p4ujucgnxq3gs-pg.postgres.database.azure.com\"\n    || target.pathname !== \"/filosage\" || !target.username || !target.password || target.hash\n    || (target.port && target.port !== \"5432\") || sslMode === \"disable\") throw new Error(\"Unapproved database target.\");\n  const options = [...target.searchParams];\n  if (options.length > 1 || options.some(([key, value]) => key !== \"sslmode\" || ![\"require\", \"verify-full\"].includes(value))) throw new Error(\"Unapproved database URL options.\");\n  // No connectionString reaches pg: it can override host, port, credentials and\n  // the explicit SSL object with query parameters after our URL checks.\n  return { host: target.hostname, port: 5432, database: \"filosage\", user: decodeURIComponent(target.username), password: decodeURIComponent(target.password),\n    connectionTimeoutMillis: 15000, query_timeout: 20000, ssl: { rejectUnauthorized: true }, application_name: \"filosage-readonly-release-inventory\" };\n}\n\n\n// Legacy93f: top-level usage activeUntil, reserved aiRequests, banner generating/leaseUntil.\n// Modern7c: ai-usage-lock resourceLocks.*.activeUntil; generation pendingCalls/receipt calls;\n// stripe-server billingReconciliation numeric expiresAt; account-deletion leaseUntil.\nexport function classifyDrainWork(rows, now) {\n if (!Array.isArray(rows) || rows.length > 10000 || !Number.isFinite(now) || Buffer.byteLength(JSON.stringify(rows)) > 2000000) throw Error('Work observation bound.');\n const counts = Object.fromEntries(['documents','futureLeaseFields','expiredLeaseFields','malformedLeaseFields','pendingProviderCalls','inFlightProviderCalls','uncertainProviderCalls','unknownProviderCalls','unfinishedGeneration','unresolvedAiRequests','generatingBannerKeys','uploadingBannerAssets','unfinishedDeletion','unfinishedCheckout','unknownWorkStates','reservedAccountingRows','uncertainAccountingRows'].map(k => [k, 0]));\n counts.documents = rows.length;\n for (const row of rows) {\n  if (!Array.isArray(row.leases) || !Array.isArray(row.calls) || !Number.isSafeInteger(row.pending) || row.pending < 0) throw Error('Invalid projected work.');\n  for (const lease of row.leases) {\n   if (lease === null) continue;\n   if (typeof lease !== 'string' || !Number.isFinite(Date.parse(lease))) counts.malformedLeaseFields++;\n   else counts[Date.parse(lease) > now ? 'futureLeaseFields' : 'expiredLeaseFields']++;\n  }\n  if (row.bad_lock_shape) counts.malformedLeaseFields++;\n  if (row.billing_expiry !== undefined && row.billing_expiry !== null) {\n   if (typeof row.billing_expiry !== 'number' || !Number.isFinite(row.billing_expiry) || row.billing_expiry < 0) counts.malformedLeaseFields++;\n   else counts[row.billing_expiry > now ? 'futureLeaseFields' : 'expiredLeaseFields']++;\n  }\n  if (row.bad_work_shape) counts.unknownWorkStates++;\n  if (row.reserved_accounting) counts.reservedAccountingRows++;\n  if (row.uncertain_accounting) counts.uncertainAccountingRows++;\n  counts.pendingProviderCalls += row.pending;\n  for (const status of row.calls) {\n   if (status === 'in_flight') counts.inFlightProviderCalls++;\n   else if (status === 'uncertain') counts.uncertainProviderCalls++;\n   else if (status !== 'observed') counts.unknownProviderCalls++;\n  }\n  const state = (known, unfinished, key) => { if (!known.includes(row.status)) counts.unknownWorkStates++; else if (unfinished.includes(row.status)) counts[key]++; };\n  if (row.collection === 'generationOperations') state(['running','pending','completed','failed'], ['running','pending'], 'unfinishedGeneration');\n  if (row.collection === 'aiRequests') state(['reserved','accounting_reserved','accounting_observed','accounting_uncertain','completed','failed','not_admitted','in_flight','uncertain'], ['reserved','accounting_reserved','accounting_uncertain','in_flight','uncertain'], 'unresolvedAiRequests');\n  if (row.collection === 'courseBannerKeys') state(['generating','ready','failed'], ['generating'], 'generatingBannerKeys');\n  if (row.collection === 'courseBannerAssets' && row.status === 'uploading') counts.uploadingBannerAssets++;\n  if (row.collection === 'accountDeletionJobs' && row.active_data_removed !== true) counts.unfinishedDeletion++;\n  if (row.collection === 'billingCheckout') state(['creating','replacing','open','completed','canceled','expired','failed'], ['creating','replacing'], 'unfinishedCheckout');\n }\n return counts;\n}\nexport async function collectDrainSample(client) {\n await client.query('BEGIN ISOLATION LEVEL REPEATABLE READ READ ONLY');\n try {\n  await client.query(\"SET LOCAL statement_timeout='15000'; SET LOCAL lock_timeout='3000'; SET LOCAL row_security=off\");\n  const meta = (await client.query(\"SELECT current_database()='filosage' AS correct_database, current_setting('transaction_read_only')='on' AS read_only, clock_timestamp() AS observed_at\")).rows[0];\n  if (meta?.correct_database !== true || meta.read_only !== true) throw Error('Wrong read-only database.');\n  const observedAt = new Date(meta.observed_at).toISOString();\n  const sessions = (await client.query(`SELECT\n   count(*) FILTER (WHERE backend_type='client backend')::int AS clients,\n   count(*) FILTER (WHERE backend_type='client backend' AND state='active')::int AS active,\n   count(*) FILTER (WHERE backend_type='client backend' AND state='idle')::int AS idle,\n   count(*) FILTER (WHERE backend_type='client backend' AND state IN ('idle in transaction','idle in transaction (aborted)'))::int AS idle_transaction,\n   count(*) FILTER (WHERE backend_type IS NULL)::int AS unknown_backend,\n   count(*) FILTER (WHERE backend_type IS NOT NULL AND backend_type<>'client backend')::int AS nonclient_backends\n   FROM pg_stat_activity WHERE datname='filosage' AND pid<>pg_backend_pid()`)).rows[0];\n  if (!sessions || Object.values(sessions).some(v => !Number.isSafeInteger(v) || v < 0)) throw Error('Incomplete session observation.');\n  const rows = (await client.query(`SELECT collection_id AS collection, data->>'status' AS status,\n   jsonb_build_array(data->'leaseUntil',data->'activeUntil') || CASE WHEN jsonb_typeof(data->'resourceLocks')='object'\n    THEN (SELECT coalesce(jsonb_agg(value->'activeUntil'),'[]'::jsonb) FROM jsonb_each(data->'resourceLocks')) ELSE '[]'::jsonb END AS leases,\n   (data ? 'resourceLocks' AND jsonb_typeof(data->'resourceLocks') IS DISTINCT FROM 'object') AS bad_lock_shape,\n   CASE WHEN collection_id='billingReconciliation' THEN data->'expiresAt' ELSE NULL END AS billing_expiry,\n   CASE WHEN jsonb_typeof(data->'pendingCalls')='array' THEN jsonb_array_length(data->'pendingCalls') ELSE 0 END AS pending,\n   CASE WHEN collection_id='generationUsageReceipts' AND jsonb_typeof(data->'calls')='object'\n    THEN (SELECT coalesce(jsonb_agg(value->'status'),'[]'::jsonb) FROM jsonb_each(data->'calls')) ELSE '[]'::jsonb END AS calls,\n   ((data ? 'pendingCalls' AND jsonb_typeof(data->'pendingCalls') IS DISTINCT FROM 'array')\n     OR (collection_id='generationUsageReceipts' AND data ? 'calls' AND jsonb_typeof(data->'calls') IS DISTINCT FROM 'object')) AS bad_work_shape,\n   CASE WHEN jsonb_typeof(data->'reservedCostMicros')='number' THEN (data->>'reservedCostMicros')::numeric > 0 ELSE false END\n    OR CASE WHEN jsonb_typeof(data->'remainingReserveMicros')='number' THEN (data->>'remainingReserveMicros')::numeric > 0 ELSE false END AS reserved_accounting,\n   CASE WHEN jsonb_typeof(data->'uncertainCostMicros')='number' THEN (data->>'uncertainCostMicros')::numeric > 0 ELSE false END AS uncertain_accounting,\n   data->'activeDataRemoved' AS active_data_removed\n   FROM public.filosage_documents LIMIT 10001`)).rows;\n  const work = classifyDrainWork(rows, Date.parse(observedAt));\n  return { schemaVersion: 1, operation: 'transition-drain-sample', observedAt, sessions, work,\n   databaseClientsZero: sessions.clients === 0 && sessions.unknown_backend === 0,\n   drainVerified: false, oldReplicaShutdownVerified: false, externalWriterFenceVerified: false };\n } finally { await client.query('ROLLBACK'); }\n}\n/** Job wrapper controls finite repeats; this never starts the app or imports server code. */\nexport async function runDrainSample() {\n const options = runtimeDatabaseOptions(process.env.DATABASE_URL, process.env.DATABASE_SSL);\n const require = createRequire(`${process.cwd()}/package.json`); const pg = require('pg');\n const client = new pg.Client({ ...options, application_name: 'filosage-readonly-transition-drain',\n  options: '-c default_transaction_read_only=on -c statement_timeout=15000 -c lock_timeout=3000 -c idle_in_transaction_session_timeout=15000' });\n try { await client.connect(); return await collectDrainSample(client); }\n finally { await client.end().catch(() => undefined); }\n}\n\nconst deadline = setTimeout(() => { console.log(JSON.stringify({operation:'transition-drain-ended',reason:'deadline',drainVerified:false})); process.exit(124); }, 840000);\ntry {\n for (let sample=0; sample<72; sample++) {\n  console.log(JSON.stringify({...await runDrainSample(),sample,observerSourceSha:'7c48bc02ff6623a81fee382b194864f1d04b76c0'}));\n  if(sample<71) await new Promise(resolve=>setTimeout(resolve,10000));\n }\n} catch { console.log(JSON.stringify({operation:'transition-drain-ended',reason:'observation-failed',drainVerified:false})); process.exitCode=1; }\nfinally { clearTimeout(deadline); }\n"
+          ],
+          "env": [
+            {
+              "name": "DATABASE_URL",
+              "secretRef": "database-url"
+            },
+            {
+              "name": "DATABASE_SSL",
+              "value": "require"
+            }
+          ],
+          "resources": {
+            "cpu": 0.25,
+            "memory": "0.5Gi"
+          }
+        }
+      ]
+    }
+  }
+}

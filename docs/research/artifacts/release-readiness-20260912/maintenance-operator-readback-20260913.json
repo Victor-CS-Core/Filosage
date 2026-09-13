@@ -1,0 +1,9 @@
+{
+  "observedAt": "2026-09-13T00:25:08.862445+00:00",
+  "operatorAddressMatchesPreparedRule": true,
+  "ruleName": "release-maintenance-operator-20260912",
+  "action": "Allow",
+  "operatorIpv4Sha256": "e7e4e20d3c09af3cb13a8346b393c79c51dec1e1a9ffb822fa572894fecadf6d",
+  "ruleScope": "properties.configuration.ingress.ipSecurityRestrictions",
+  "operationsExecuted": false
+}

@@ -1,0 +1,17 @@
+{
+  "runtime-reference.private.json": "7d8fa3a2238b280dc23699a264672d10dfda2a01274c8e1c60dcae3cff9e8647",
+  "green-baseline-template.private.json": "fb35e9d79220863e99f084c6110cf382ac5f120c94efb7c11ba21e51a65e82a2",
+  "blue-baseline-template.private.json": "7896f69884ddb7bda98ab748bb0fc1b856ddb2a7c587cb51ab95dc931866d08c",
+  "modern-labels.private.json": "5b7c3f70c501f6a10dc74c8c2503d568eefaa32d4aae3796306ba2e5bf67008a",
+  "legacy-labels.private.json": "c6738de1a4f3527b4e5058f1573461fc5b07b553ed4205708788173363a9a23f",
+  "restricted-references.private.json": "c50b9d807409201b1aa614c8f105178842d13d888947fb6f19b29dc3e1ce0e8c",
+  "sourceSha": "7c48bc02ff6623a81fee382b194864f1d04b76c0",
+  "imageDigest": "sha256:95cc9529e6abcfdef5918f39996cfed55703e5b29b82d75304a69765c844b344",
+  "operationsExecuted": false,
+  "scope": "Proposed patches; runtime binding and modern revision startup require explicit approval after fence and drain.",
+  "baselineRuntimeReady": false,
+  "remainingRuntimeBindings": [
+    "OPERATIONS_ALERT_WEBHOOK_URL",
+    "OPERATIONS_ALERT_WEBHOOK_SECRET"
+  ]
+}

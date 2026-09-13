@@ -1,0 +1,26 @@
+{
+  "observedAt": "2026-09-13T00:31:50.059Z",
+  "operation": "offline-baseline-runtime-validation",
+  "sourceSha": "7c48bc02ff6623a81fee382b194864f1d04b76c0",
+  "secretValuesReplacedWithSyntheticPlaceholders": true,
+  "providerReadOrWritePerformed": false,
+  "baselineRuntimeReady": false,
+  "records": [
+    {
+      "template": "blue-baseline-template.private.json",
+      "issues": [
+        "OPERATIONS_ALERT_WEBHOOK_URL is required for production operations",
+        "OPERATIONS_ALERT_WEBHOOK_SECRET is required for production operations"
+      ],
+      "duplicateEnvironmentNames": 0
+    },
+    {
+      "template": "green-baseline-template.private.json",
+      "issues": [
+        "OPERATIONS_ALERT_WEBHOOK_URL is required for production operations",
+        "OPERATIONS_ALERT_WEBHOOK_SECRET is required for production operations"
+      ],
+      "duplicateEnvironmentNames": 0
+    }
+  ]
+}
