@@ -137,6 +137,7 @@ try {
     // Copy the observed live template; do not mutate shared auth, secrets, identity,
     // ingress, or revision mode. Existing explicit revision weights stay pinned.
     const settings = { ...releaseEnvironment(manifest), SITE_VERSION: sha, RELEASE_IMAGE_DIGEST: digest,
+      ALLOWED_ORIGINS: [labelOrigin(before, "blue"), labelOrigin(before, "green")].join(","),
       DATABASE_POOL_MAX: String(modernDatabasePoolMax), NEXT_PUBLIC_SITE_URL: env.PUBLIC_SITE_URL, BILLING_ENABLED: "false", BILLING_ROLLOUT_MODE: "closed", DEPLOYMENT_SLOT: inactive.label };
     if (featured !== "none") settings.LANDING_FEATURED_COURSE_ID = featured;
     connectionBudget(true);
