@@ -1,6 +1,6 @@
 # Proposed modern-baseline cutover
 
-Status: preparation only; no maintenance or production app change is authorized by PR29 merge. The receiver and runner fixes are integrated. Receiver signed storage, both alert firings, actual inbox delivery and both automatic resolutions have been verified. The final source regression is running before any outage.
+Status: preparation only; no maintenance or production app change is authorized by PR29 merge. The receiver and runner fixes are integrated. Receiver signed storage, both alert firings, actual inbox delivery and both automatic resolutions have been verified. Final source b5 engineering, security and full regression passed. The downloaded regression artifact checksum and embedded source match: 458 passed, 9 declared skips, zero unexpected failures or flaky tests. Preparation is ready for explicit maintenance approval; production remains unchanged.
 
 ## Scope and pinned inputs
 

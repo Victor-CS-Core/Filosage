@@ -1,0 +1,45 @@
+{
+  "observedAt": "2026-09-13T04:10:03.445382+00:00",
+  "sourceSha": "b5ba5803c2205922bf68d7fa740d1c660312ee71",
+  "runs": {
+    "engineering": {
+      "id": 34735888733,
+      "status": "completed",
+      "conclusion": "success",
+      "attempt": 1,
+      "path": ".github/workflows/quality-gate.yml"
+    },
+    "security": {
+      "id": 34735888723,
+      "status": "completed",
+      "conclusion": "success",
+      "attempt": 1,
+      "path": ".github/workflows/security-scan.yml"
+    },
+    "regression": {
+      "id": 34735947262,
+      "status": "completed",
+      "conclusion": "success",
+      "attempt": 1,
+      "path": ".github/workflows/full-regression.yml"
+    }
+  },
+  "fullEngineeringJobsVerified": true,
+  "regressionArtifact": {
+    "id": 10311088865,
+    "digest": "sha256:7e77723a56b56027a443984a1a65504f00ff919ade18fabfab385091c4e1dfd3",
+    "size": 17481385,
+    "archiveDigestVerified": true,
+    "embeddedSourceVerified": true
+  },
+  "stats": {
+    "startTime": "2026-09-13T03:38:45.443Z",
+    "duration": 1750807.2739257812,
+    "expected": 458,
+    "skipped": 9,
+    "unexpected": 0,
+    "flaky": 0
+  },
+  "manualRegressionDispatches": 1,
+  "productionChanged": false
+}

@@ -20,7 +20,7 @@ Verification milestone: 24 Node CI/evidence tests pass, including independent pa
 
 ## Active approved outcome — September 12 release
 
-Status: release remains in progress after approvedPR25/PR27 merged. Frozen baseline main7c48bc02ff6623a81fee382b194864f1d04b76c0 has exact engineering/security/fullregression evidence and immutable95cc9529 image. Selected-point recovery passed22.712secondcoverageage/23minute13secondlearnerrecovery; ten-sample onlineobserver trial passed and its job was deleted. Production remains original93f60f24; no maintenance/promotion/QAretirement. Current coordinator uses the existing `.worktrees/release-ready-20260912` worktree, now on `codex/receiver-evidence-20260913` to checkpoint execution without changing the verified PR29 head2856909. PR28 and PR29 merged; finalmainb5 regression and maintenance approval preparation are active. The full historical execution/handoff record is preserved on `codex/release-evidence-20260912` atb57f8cf; no historical helpers are folded into this PR. Preserve all R1–R9 below.
+Status: release remains in progress after approvedPR25/PR27 merged. Frozen baseline main7c48bc02ff6623a81fee382b194864f1d04b76c0 has exact engineering/security/fullregression evidence and immutable95cc9529 image. Selected-point recovery passed22.712secondcoverageage/23minute13secondlearnerrecovery; ten-sample onlineobserver trial passed and its job was deleted. Production remains original93f60f24; no maintenance/promotion/QAretirement. Current coordinator uses the existing `.worktrees/release-ready-20260912` worktree, now on `codex/receiver-evidence-20260913` to checkpoint execution without changing the verified PR29 head2856909. PR28 and PR29 merged; finalmainb5 regression passed and the reviewed maintenance packet awaits explicit outage approval. The full historical execution/handoff record is preserved on `codex/release-evidence-20260912` atb57f8cf; no historical helpers are folded into this PR. Preserve all R1–R9 below.
 
 ### September13 — focused receiver and runner PR preparation
 
@@ -32,7 +32,7 @@ Current preparation checklist within R3–R5:
 - [ ] M3. Knownwriter/origin inventory and onlineobservertransport pass; runner-access implementation merged in PR28; actualfence/drain and hostedrunner proof remain pending.
 - [ ] M4. Receiver deployment/durable delivery/two monitor firings/inbox delivery verified; both prepared baseline bindings pass frozen runtime validation. Productionhosted acceptance remains pending.
 - [x] M5. Selected-point recovery and representative non-owner learner prerequisites pass; no repeat rehearsal needed.
-- [ ] M6. PR28 merged; authorized receiver operation executed, PR29 duplicate correction merged to mainb5 after five passing checks. Maintenance itself remains unapproved.
+- [ ] M6. PR28 merged; authorized receiver operation executed, PR29 duplicate correction merged to mainb5 after five passing checks. Final b5 engineering/security/full regression passed; reviewed maintenance packet is ready. Maintenance itself remains unapproved.
 
 Receiver5f8ad2e reuses pinnedimage asNodeinterpreter with separately reviewedcommandsource, HMAC/body/freshness/header validation, conditionalprivateBlobdurability/duplicateHEAD, bounded HTTP/MIcache and noDBaccess. Bicep compiles and five focusedtests pass. Existing actiongroup is enabled with oneemailrecipient; newapp/MI/container/signingsecret names are absent. Proposedwarm .25CPU/.5Gi single replica adds roughlyUSD5.83idle–19.44fullyactive monthlycompute beforeallowances plus monitoring/storage. Packet:`docs/releases/2026-09-13-alert-receiver-and-runner.md`. Actual storage/monitor/email proof remains unverified.
 
@@ -105,6 +105,20 @@ Preparation finding: azure-blue-green.mjs requires EXPECTED_SHA===GITHUB_SHA, an
 Prepared `docs/releases/2026-09-13-cutover-approval.md` with exact targets, ordered fence/drain/observer cleanup, restricted modern startup, legacy credential removal, compatible fallback, bounded recovery decisions and a planned90-minute maintenance window plus30-minute public observation. Existing independent reviewer found no actionable ordering or scope issue. The window is not a guaranteed outage maximum after modern writes. Production approval remains pending; preparation is not execution. Fresh private readback03:40:47 verifies production configuration/identity/auth unchanged, zero Container App jobs and current operator address matching the prepared fence.
 
 Final-main b5 engineering34735888733 and security34735888723 passed. Exactly one full regression34735947262 was dispatched on verified main=b5; an earlier full-SHA ref request returned422 and created no run. Regression is still in its browser matrix at03:48UTC; observation deadline04:22UTC with final read. Successful report/archive digest/embedded source verification is required before presenting maintenance approval. No duplicate regression, baseline rebuild or production mutation. Critical recovery email03:33:09 is now verified read-only in Inbox/Updates, completing all four firing/recovery deliveries. Evidence records both alert resolutions and merged PR29.
+
+### September 13, 03:58 UTC — bounded regression observation
+
+Reviewed cutover packet and complete receiver follow-up are committed/pushed as a78f0e18d4b60da6da9fb07a3e36fa42e48a7cec on the dedicated evidence branch; remote readback matches and tracked secret/wiki/whitespace checks pass. Main remains b5. Regression34735947262 is still running the browser matrix, started03:42:03; prior baseline matrix took36minutes11seconds, so no failure is inferred from current duration. Deadline04:22UTC remains unchanged, with no duplicate dispatch or provider mutation. Availability for non-owner sign-in was requested separately from future production approval.
+
+### September 13, 04:08 UTC — regression observation continues
+
+Exact-b5 regression34735947262 remains in progress at Browser matrix, with no final conclusion. Engineering/security remain passed. No repeat dispatch, source change or production operation; the final observation deadline remains04:22UTC. Maintenance approval and actual hosted verification remain open.
+
+### September 13, 04:10 UTC — exact-main regression verified; maintenance review ready
+
+Finalmain b5 engineering34735888733, security34735888723 and fullregression34735947262 all completed successfully on attempt1. The actual quality job validator passes. Downloaded artifact10311088865 SHA256 `7e77723a56b56027a443984a1a65504f00ff919ade18fabfab385091c4e1dfd3` matches the published digest and its embedded source is exactb5. Report:458 passed,9 declared skips,0 unexpected failures,0 flaky tests, no report errors. Sanitized evidence: docs/research/artifacts/release-readiness-20260912/final-main-b5-regression-20260913.json. Exactly one manual full regression; no baseline rebuild. Observation ended successfully before04:22 deadline, no local watcher remains.
+
+The independently reviewed docs/releases/2026-09-13-cutover-approval.md is ready for Victor's explicit maintenance approval and non-owner sign-in availability. Reserve90minutes planned maintenance, with possible extension if modern validation fails after writes, then30minutes public observation. Authorization requested covers the concrete legacy-to-modern baseline procedure, not separate finalb5 candidate staging/promotion or QA retirement. Production remains unchanged. FullR1–R9 and remainingM3/M4/M6 stay open; source CI success does not prove hosted acceptance. Commit/push the sanitized report and current handoff after secret/wiki/whitespace checks, then verify remote evidence branch and unchanged mainb5.
 
 ### Single outcome checklist
 
