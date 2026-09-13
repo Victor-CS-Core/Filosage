@@ -1,6 +1,6 @@
 # Modern baseline and maintenance preparation
 
-Status: replacement image is built and verified; maintenance has not started. This packet implements preparation approved by Victor and preserves the full R1–R9 checklist. It supplements the [transition sequence](2026-09-12-maintenance-transition.md). The exact read-only observer operation is now ready for independent review in [the execution procedure](2026-09-13-maintenance-execution.md). Live fence/drain and modern cutover are separate execution gates.
+Status: replacement image is built and verified; maintenance has not started. This packet implements preparation approved by Victor and preserves the full R1–R9 checklist. It supplements the [transition sequence](2026-09-12-maintenance-transition.md). The approved read-only observer operation passed and is cleaned up; see [the execution procedure](2026-09-13-maintenance-execution.md). Live fence/drain and modern cutover are separate execution gates.
 
 ## Frozen replacement
 
@@ -74,7 +74,7 @@ The [selected-point recovery artifact](../research/artifacts/release-readiness-2
 
 The baseline templates also need real production operations-alert receiver URL/signing-secret bindings before runtime validation can pass; corrected fixed values are `STRIPE_TAX_READY=false` and `OPERATIONS_ENVIRONMENT=production`. No production template is declared ready.
 
-The remaining transport issue has a concrete proposed solution: one finite Manual job, `filosage-drain-20260913`, with the already-built image, reviewed read-only command, existing production identity and existing versioned database reference. It has no ingress or schedule and adds no grants. It can observe the database after old app replicas stop without giving QA production credentials. Creating/running it needs explicit approval; the first run is online and observational, not a maintenance outage or drain pass.
+The remaining transport issue has a concrete proposed solution: one finite Manual job, `filosage-drain-20260913`, with the already-built image, reviewed read-only command, existing production identity and existing versioned database reference. It has no ingress or schedule and adds no grants. It can observe the database after old app replicas stop without giving QA production credentials. Victor approved its first online run; ten validated samples proved transport, then the execution was stopped and the exact job deleted. This is not a maintenance outage or drain pass, and another preparation trial is unnecessary.
 
 Actual restriction coverage, zero old replicas plus zero remaining production client sessions, unresolved provider work disposition and modern hosted acceptance are checked at execution. A 15-minute observer timeout is not an outage guarantee. Before maintenance, resolve how the standard candidate workflow's ephemeral runner reaches the operator-only ingress: an exact independently verified runner /32 must be included in the reviewed fence before its preflight, or the runner must use a separately reviewed controlled vantage. No GitHub-wide/Azure-wide ranges, weakened preflight, fabricated stage artifacts or false blocked-request success are permitted. That workflow-access decision is still open; no outage should start while it is unresolved.
 
