@@ -1,8 +1,8 @@
 {
   "schemaVersion": 1,
   "capabilities": {
-    "flashcardDecks": false,
-    "flashcardGeneration": false,
+    "flashcardDecks": true,
+    "flashcardGeneration": true,
     "lessonVisuals": false,
     "commandCenter": false,
     "commandCenterDrafts": false,

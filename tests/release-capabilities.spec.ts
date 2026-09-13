@@ -37,13 +37,13 @@ test("capabilities reject missing, nonboolean, unexpected, opposite, and invalid
   for (const value of [null, [], {}, { flashcardDecks: false }, { flashcardDecks: "false", flashcardGeneration: false }, { flashcardDecks: false, flashcardGeneration: true }]) {
     expect(releaseCapabilitiesMatch(manifest.capabilities, value)).toBe(false);
   }
-  for (const change of [{ flashcardDecks: true }, { flashcardGeneration: true }, { pipelineV2: "false" }, { labsV2: true }, { unexpected: false }, { pipelineCohortPercent: "0" }]) {
+  for (const change of [{ flashcardDecks: !manifest.capabilities.flashcardDecks }, { flashcardGeneration: !manifest.capabilities.flashcardGeneration }, { pipelineV2: "false" }, { labsV2: true }, { unexpected: false }, { pipelineCohortPercent: "0" }]) {
     expect(releaseSelectionMatches(manifest.capabilities, { ...manifest.capabilities, ...change })).toBe(false);
   }
   for (const value of ["", "TRUE", "0", " false ", undefined]) {
     expect(releaseSelectionMatches(manifest.capabilities, observedReleaseCapabilities({ ...releaseEnvironment(manifest), FLASHCARD_DECKS_ENABLED: value }))).toBe(false);
   }
-  expect(validReleaseManifest({ ...manifest, capabilities: { ...manifest.capabilities, flashcardGeneration: true } })).toBe(false);
+  expect(validReleaseManifest({ ...manifest, capabilities: { ...manifest.capabilities, flashcardDecks: false, flashcardGeneration: true } })).toBe(false);
   const invalid = { flashcardDecks: false, flashcardGeneration: true };
   expect(releaseCapabilitiesMatch(invalid, invalid)).toBe(false);
   expect(releaseCapabilitiesMatch({ flashcardDecks: "false", flashcardGeneration: false } as never, manifest.capabilities)).toBe(false);
@@ -51,7 +51,7 @@ test("capabilities reject missing, nonboolean, unexpected, opposite, and invalid
 
 test("evidence binds the reviewed manifest to the exact SHA, digest, origins, and shared application authentication", () => {
   expect(releaseEvidenceMatches(evidence, sha, manifest, origin)).toBe(true);
-  for (const changed of [null, {}, { ...evidence, sha: "c".repeat(40) }, { ...evidence, imageDigest: "latest" }, { ...evidence, manifest: { ...manifest, capabilities: { ...manifest.capabilities, flashcardDecks: true } } }, { ...evidence, productionOrigin: "https://other.example" }, { ...evidence, candidateOrigin: "https://qa.example/path" }, { ...evidence, authenticationMode: "unexpected" }]) {
+  for (const changed of [null, {}, { ...evidence, sha: "c".repeat(40) }, { ...evidence, imageDigest: "latest" }, { ...evidence, manifest: { ...manifest, capabilities: { ...manifest.capabilities, flashcardDecks: !manifest.capabilities.flashcardDecks } } }, { ...evidence, productionOrigin: "https://other.example" }, { ...evidence, candidateOrigin: "https://qa.example/path" }, { ...evidence, authenticationMode: "unexpected" }]) {
     expect(releaseEvidenceMatches(changed, sha, manifest, origin)).toBe(false);
   }
 });
@@ -82,7 +82,7 @@ test("candidate CLI creates and checks evidence without permitting a different d
 test("build refuses unselected, missing, or invalid runtime switches before Next builds", () => {
   const environment = { ...process.env, ...releaseEnvironment(manifest) };
   expect(run(["check-environment"], environment).status).toBe(0);
-  for (const changed of [{ FLASHCARD_AI_GENERATION_ENABLED: "true" }, { COURSE_LABS_V2: "true" }, { COMMAND_CENTER_ENABLED: "true" }, { COURSE_PIPELINE_V2_OWNER_ONLY: "" }, { COURSE_PIPELINE_V2_COHORT_PERCENT: "0.0" }]) {
+  for (const changed of [{ FLASHCARD_AI_GENERATION_ENABLED: String(!manifest.capabilities.flashcardGeneration) }, { COURSE_LABS_V2: "true" }, { COMMAND_CENTER_ENABLED: "true" }, { COURSE_PIPELINE_V2_OWNER_ONLY: "" }, { COURSE_PIPELINE_V2_COHORT_PERCENT: "0.0" }]) {
     expect(run(["check-environment"], { ...environment, ...changed }).status).toBe(1);
   }
 });
@@ -99,4 +99,25 @@ test("the approved owner canary keeps V2 decisions enabled without enrolling non
   }
   expect(environment.COURSE_PIPELINE_V2_OWNER_ONLY).toBe("true");
   expect(environment.COURSE_PIPELINE_V2_COHORT_PERCENT).toBe("0");
+});
+
+
+test("approved lesson flashcards release enables both decks and grounded generation", () => {
+  expect(manifest.capabilities.flashcardDecks).toBe(true);
+  expect(manifest.capabilities.flashcardGeneration).toBe(true);
+  const result = run(["environment"]);
+  expect(result.status, result.stderr).toBe(0);
+  expect(result.stdout.split(String.fromCharCode(10))).toEqual(expect.arrayContaining([
+    "FLASHCARD_DECKS_ENABLED=true", "FLASHCARD_AI_GENERATION_ENABLED=true",
+  ]));
+});
+
+test("production release flashcards preserve tier, suspension and quota contracts", () => {
+  const result = spawnSync(process.execPath, ["--conditions=react-server", "--import", "tsx", "--test", "--test-reporter=tap", "tests/fixtures/flashcard-release-behavior.ts"], {
+    encoding: "utf8", timeout: 30_000,
+    env: { ...process.env, ...releaseEnvironment(manifest), NODE_ENV: "production", DATABASE_URL: "" },
+  });
+  expect(result.status, `${result.stdout}\n${result.stderr}`).toBe(0);
+  expect(result.stdout).toContain("# pass 2");
+  expect(result.stdout).toContain("# fail 0");
 });
