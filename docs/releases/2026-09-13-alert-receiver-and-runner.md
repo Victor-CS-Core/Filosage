@@ -1,6 +1,6 @@
 # Alert receiver and maintenance runner access
 
-Status: implemented and independently reviewed locally; no receiver resources, signing secret, grants, notifications or maintenance rules have been created. The full release checklist remains open. The completed recovery and online observer evidence stays attributed to frozen baseline7c48bc0/image95cc9529.
+Status: the explicitly approved receiver is deployed and healthy. Signed delivery, durable receipts, duplicate/rejection behavior, both monitor firings and actual inbox delivery are verified. The live Azure409duplicate correction is independently reviewed with five passing CI checks in [PR29](https://github.com/Victor-CS-Core/Filosage/pull/29); its merge approval is pending. Production/QA app configuration and traffic are unchanged. The heartbeat alert automatically resolved and its recovery email arrived; critical-test automatic clearing was not yet observed at final read. The full release checklist remains open; frozen7c48bc0/image95cc9529 recovery evidence is preserved.
 
 ## Receiver behavior
 
@@ -25,7 +25,7 @@ New resources:
 - One exact signing-secret read grant for the existing production identity. This prepares future sender access; it does not change the live app's configuration or runtime binding. QA receives no signing-secret access.
 - Monitor rules `filosage-ops-alerts-events` and `filosage-ops-alerts-heartbeat`. Initially disabled; enable only after receiver health/log ingestion and explicit notification-test approval.
 
-Read-only inventory confirms the receiver app, identity, container and signing-secret name are absent. Existing action-group recipients and unrelated grants/settings are preserved. Fresh absence/ownership and unchanged production checks are required immediately before execution.
+Pre-deployment read-only inventory confirmed the receiver app, identity, container and signing-secret name were absent; the approved execution subsequently created them. Existing action-group recipients and unrelated grants/settings are preserved. Fresh absence/ownership and unchanged production checks are required immediately before execution.
 
 ## Execution and verification after explicit approval
 
@@ -38,7 +38,7 @@ Read-only inventory confirms the receiver app, identity, container and signing-s
 7. Populate the private modern baseline patches from the verified receiver URL and exact signing-secret reference, retaining `STRIPE_TAX_READY=false` and `OPERATIONS_ENVIRONMENT=production`. Run the actual frozen runtime validator; the two missing production bindings must clear. Do not apply those patches to the current legacy app.
 8. Final readback distinguishes resource deployment, receipt persistence, monitoring, notification delivery, prepared baseline configuration and production deployment. On failure stop only newly owned receiver compute if needed, retain signing material/receipts for idempotent recovery and report exact remaining resources. Never delete shared services, purge vault secrets or change live traffic as cleanup.
 
-The complete operation has a45minute observation deadline with a final status read and no unbounded watcher. Receiver readiness, real notification delivery and private baseline validation remain unverified until that approved execution.
+The complete operation has a45minute observation deadline with a final status read and no unbounded watcher. Receiver readiness, real notification delivery and private baseline validation passed during the approved execution; this procedure remains the reusable specification, not authorization for a repeat deployment.
 
 ## Cost and limits
 
@@ -50,4 +50,15 @@ The deployment workflows prepare a sanitized ownership intent and upload it befo
 
 The shared workflow concurrency lock and exclusive operator control remain required. Cleanup runs with `always()` and removes only the exact owned name/hash, preserving other current rules. A killed runner cannot guarantee cleanup: the uploaded intent supports explicit hash-guarded cleanup on the pinned app. Failed HTTP preflight never counts as proof of access. The existing candidate snapshot binds traffic/authentication, so these separately verified temporary restrictions do not falsify candidate evidence.
 
-This workflow fix requires its own PR/CI and explicit merge approval before hosted use. It does not authorize maintenance, weaken protected environments or replace any candidate proof. The frozen baseline image remains reusable; any later candidate at a new source SHA still needs its own source-bound release evidence. No full browser dispatch or application rebuild is requested by this preparation checkpoint.
+This workflow fix passed PR28 CI and was explicitly approved and merged before hosted use. It does not authorize maintenance, weaken protected environments or replace any candidate proof. The frozen baseline image remains reusable; any later candidate at a new source SHA still needs its own source-bound release evidence. No full browser dispatch or application rebuild is requested by this preparation checkpoint.
+
+
+## September13 approved execution
+
+[Sanitized execution evidence](../research/artifacts/release-readiness-20260912/operations-receiver-execution-20260913.json) distinguishes resource/source verification, durable transport, monitor firing, inbox delivery, prepared baseline validation and production state. The first live duplicate exposed Azure409/BlobAlreadyExists; only that exact conflict now enters the existing mandatory receipt HEAD verification. The correction was tested against real Azure, independently reviewed and deployed as a receiver-only command update within the authorized operation. No new application image was built.
+
+The first critical test was accepted/logged but no event alert was observed. The repeated labeled test after receiver recovery fired at03:17:06UTC. The deliberate receiver interruption fired the missing-heartbeat rule at03:12:46UTC; the receiver was restarted and healthy by03:14:43UTC. Both action-group executions are recorded. A read-only Gmail search confirmed the matching Microsoft Azure emails in Inbox/Updates at03:13:09 and03:17:16UTC; no mailbox content or labels were modified.
+
+Both private baseline templates now have the verified receiver URL and immutable signing-secret reference. Their actual frozen7c runtime validator reports zero issues with secret values substituted only for offline validation. This prepares configuration; no baseline patch was applied to the live legacy app. The separately approved maintenance/drain/cutover, actual production-hosted acceptance and QA retirement remain outstanding.
+
+The heartbeat alert resolved at03:28:46UTC and its recovery email arrived at03:28:52UTC. The critical test alert was still Fired at03:29 readback; its automatic clearing is not claimed. No receiver outage remains, and no unbounded observer is running.

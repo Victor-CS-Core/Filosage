@@ -1,0 +1,275 @@
+{
+  "observedAt": "2026-09-13T03:30:27.765072+00:00",
+  "operation": "approved-operations-alert-receiver-deployment-and-notification-verification",
+  "status": "receiver_deployed_and_outage_recovery_verified_fix_merge_pending",
+  "source": {
+    "initialMergedMain": "a0c1f1e4f9893036daec2297916ddc01e5ae16a7",
+    "receiverCorrectionCommit": "28569092327e655193eb5d4a22aa8eb564164cb0",
+    "correctionPR": "https://github.com/Victor-CS-Core/Filosage/pull/29",
+    "correctionMerged": false,
+    "imageDigest": "sha256:95cc9529e6abcfdef5918f39996cfed55703e5b29b82d75304a69765c844b344",
+    "imageSource": "7c48bc02ff6623a81fee382b194864f1d04b76c0",
+    "receiverCommandSeparatelyPinned": true,
+    "receiverScriptSha256": "b0a530fbb5ec7883a9da2e5f148e6c9974c9b9c424ea97e9b8169797efad29d6"
+  },
+  "resources": {
+    "verifiedAt": "2026-09-13T03:25:07.203427+00:00",
+    "url": "https://filosage-ops-alerts.salmontree-eb10220f.centralus.azurecontainerapps.io/alerts",
+    "imageAndCommandVerified": true,
+    "isolatedIdentityAndFourGrantsVerified": true,
+    "unchanged": {
+      "production": true,
+      "production-auth": true,
+      "qa": true
+    },
+    "healthStatus": 200,
+    "replicas": [
+      {
+        "name": "filosage-ops-alerts--an125ww",
+        "active": false,
+        "running": "Stopped",
+        "healthy": "Healthy",
+        "replicas": 0,
+        "correctedSource": false
+      },
+      {
+        "name": "filosage-ops-alerts--0000001",
+        "active": true,
+        "running": "RunningAtMaxScale",
+        "healthy": "Healthy",
+        "replicas": 1,
+        "correctedSource": true
+      }
+    ]
+  },
+  "deployment": {
+    "initialSucceeded": true,
+    "newIdentity": true,
+    "newPrivateContainer": true,
+    "signingSecretPersistedAndPrivatelyReadBack": true,
+    "temporaryKeyFileRemoved": true,
+    "fourExactScopedGrants": true,
+    "twoEnabledMonitorRules": true,
+    "existingActionGroupPreserved": true
+  },
+  "transport": {
+    "delivery": {
+      "ok": true,
+      "alertId": "fa_6ef3fcefbd59bf68b452acdfbc1e9dce",
+      "occurredAt": "2026-09-13T03:00:40.479Z",
+      "attempts": 1,
+      "status": 202,
+      "error": null
+    },
+    "duplicateStatus": 202,
+    "tamperedStatus": 401,
+    "staleStatus": 401
+  },
+  "durability": {
+    "validReceiptVerified": true,
+    "duplicateOriginalContentPreserved": true,
+    "staleReceiptAbsent": true,
+    "criticalReceiptsVerified": true,
+    "retentionUnchanged": true
+  },
+  "liveFailureAndRepair": {
+    "initialDuplicateStatus": 503,
+    "azureConditionalConflictStatus": 409,
+    "azureErrorCode": "BlobAlreadyExists",
+    "newRegressionFailedBeforeCorrection": true,
+    "localReceiverTestsPassed": 6,
+    "independentReview": "no findings",
+    "realAzureCorrectedStorePassed": true,
+    "rolloutProbeRetriedAfterOldRevisionDeprovisioning": true
+  },
+  "monitoring": {
+    "stop": {
+      "at": "2026-09-13T03:04:07.047009+00:00",
+      "runningStatus": "Stopped"
+    },
+    "start": {
+      "at": "2026-09-13T03:13:52.945232+00:00",
+      "runningStatus": "Running"
+    },
+    "alerts": [
+      {
+        "id": "/subscriptions/bfc8f890-2681-43dc-8eac-51644341ae12/resourcegroups/filosage-staging-central-rg/providers/microsoft.operationalinsights/workspaces/filosagestg-logs/providers/Microsoft.AlertsManagement/alerts/ff37c787-76af-862d-9ec5-87d992a40002",
+        "essentials": {
+          "alertRule": "/subscriptions/bfc8f890-2681-43dc-8eac-51644341ae12/resourceGroups/filosage-staging-central-rg/providers/microsoft.insights/scheduledqueryrules/filosage-ops-alerts-heartbeat",
+          "monitorCondition": "Resolved",
+          "alertState": "New",
+          "startDateTime": "2026-09-13T03:12:46.1484781Z",
+          "lastModifiedDateTime": "2026-09-13T03:28:46.6464582Z",
+          "severity": "Sev1"
+        }
+      },
+      {
+        "id": "/subscriptions/bfc8f890-2681-43dc-8eac-51644341ae12/resourcegroups/filosage-staging-central-rg/providers/microsoft.operationalinsights/workspaces/filosagestg-logs/providers/Microsoft.AlertsManagement/alerts/0ee1d9cb-446a-b32b-61b0-3725d8240002",
+        "essentials": {
+          "alertRule": "/subscriptions/bfc8f890-2681-43dc-8eac-51644341ae12/resourceGroups/filosage-staging-central-rg/providers/microsoft.insights/scheduledqueryrules/filosage-ops-alerts-events",
+          "monitorCondition": "Fired",
+          "alertState": "New",
+          "startDateTime": "2026-09-13T03:17:06.9548114Z",
+          "lastModifiedDateTime": "2026-09-13T03:17:06.9548114Z",
+          "severity": "Sev1"
+        }
+      }
+    ],
+    "actionHistory": [
+      {
+        "alertId": "0ee1d9cb-446a-b32b-61b0-3725d8240002",
+        "rule": "filosage-ops-alerts-events",
+        "events": [
+          {
+            "event": "ActionsTriggered",
+            "at": "2026-09-13T03:17:07.2096765Z",
+            "actionGroupExecuted": true
+          },
+          {
+            "event": "AlertCreated",
+            "at": "2026-09-13T03:17:06.9548114Z",
+            "actionGroupExecuted": false
+          }
+        ]
+      },
+      {
+        "alertId": "ff37c787-76af-862d-9ec5-87d992a40002",
+        "rule": "filosage-ops-alerts-heartbeat",
+        "events": [
+          {
+            "event": "ActionsTriggered",
+            "at": "2026-09-13T03:12:46.3636382Z",
+            "actionGroupExecuted": true
+          },
+          {
+            "event": "AlertCreated",
+            "at": "2026-09-13T03:12:46.1484781Z",
+            "actionGroupExecuted": false
+          }
+        ]
+      }
+    ],
+    "emailDelivery": {
+      "observedAt": "2026-09-13T03:19:00Z",
+      "mailboxMatchesConfiguredRecipient": true,
+      "messages": [
+        {
+          "rule": "filosage-ops-alerts-events",
+          "receivedAt": "2026-09-13T03:17:16+00:00",
+          "inbox": true,
+          "unread": true,
+          "categoryUpdates": true,
+          "senderMicrosoftAzure": true
+        },
+        {
+          "rule": "filosage-ops-alerts-heartbeat",
+          "receivedAt": "2026-09-13T03:13:09+00:00",
+          "inbox": true,
+          "unread": true,
+          "categoryUpdates": true,
+          "senderMicrosoftAzure": true
+        }
+      ],
+      "emailDeliveryVerified": true
+    },
+    "recipientInitiallyReportedNotReceived": true,
+    "gmailReadOnlyConfirmedInboxUpdates": true,
+    "firstCriticalEventFiringNotObserved": true,
+    "repeatCriticalEventReceipt": {
+      "id": "fa_b86e89b1e565f5cb5dd1a28828d24ce7",
+      "metadata": {
+        "alertid": "fa_b86e89b1e565f5cb5dd1a28828d24ce7",
+        "schemaversion": "1"
+      },
+      "size": 436,
+      "etag": "\"0x8DF11452B747951\"",
+      "actualSenderAccepted": true,
+      "negativeCasesPassed": false
+    },
+    "heartbeatRecoveryQuery": {
+      "observedAt": "2026-09-13T03:19:45.363963+00:00",
+      "rule": "heartbeat",
+      "window": "PT5M",
+      "result": {
+        "tables": [
+          {
+            "name": "PrimaryResult",
+            "columns": [
+              {
+                "name": "healthy",
+                "type": "long"
+              }
+            ],
+            "rows": []
+          }
+        ]
+      }
+    },
+    "recoveryEmail": {
+      "recordedAt": "2026-09-13T03:30:27.677Z",
+      "messages": [
+        {
+          "rule": "filosage-ops-alerts-heartbeat",
+          "receivedAt": "2026-09-13T03:28:52+00:00",
+          "inbox": true,
+          "categoryUpdates": true,
+          "senderMicrosoftAzure": true
+        }
+      ],
+      "heartbeatRecoveryEmailVerified": true
+    },
+    "heartbeatAutoResolved": true,
+    "criticalEventAutoResolutionObserved": false
+  },
+  "baselineConfiguration": {
+    "observedAt": "2026-09-13T03:02:06.795Z",
+    "sourceSha": "7c48bc02ff6623a81fee382b194864f1d04b76c0",
+    "operation": "offline-baseline-runtime-validation",
+    "secretValuesReplacedWithSyntheticPlaceholders": true,
+    "providerReadOrWritePerformed": false,
+    "realReceiverBindingsPrepared": true,
+    "baselineRuntimeReady": true,
+    "records": [
+      {
+        "template": "blue-baseline-template.private.json",
+        "issues": [],
+        "duplicateEnvironmentNames": 0
+      },
+      {
+        "template": "green-baseline-template.private.json",
+        "issues": [],
+        "duplicateEnvironmentNames": 0
+      }
+    ]
+  },
+  "preparedPatchSha256": {
+    "blue-baseline-template.private.json": "56da7ab9b49113208b77c2c9cdbfe742bab3b1e22661b84c1ca6080c124e3789",
+    "green-baseline-template.private.json": "de21e8c5a20d126d3787b20f704470b8e652bc13d0954ef13eac568c62ddc8b2",
+    "runtime-reference.private.json": "70490f7063ef16f697ab57882970ab50e23d6b76622981d8ae89ed50ad639725",
+    "restricted-references.private.json": "c4f4028c9b87a7ac020c289d324316afc3dcbb4bb9a176b31a6ffeb1a915e5fb"
+  },
+  "ci": {
+    "mainEngineering": 34731078068,
+    "mainSecurity": 34731078071,
+    "mainPassed": true,
+    "correctionEngineering": 34734331557,
+    "correctionSecurity": 34734331540,
+    "correctionWiki": 34734331572,
+    "correctionFiveChecksPassed": true,
+    "fullManualRegressionDispatched": false
+  },
+  "unchanged": {
+    "productionApp": true,
+    "productionAuth": true,
+    "qaApp": true,
+    "publicTraffic": true,
+    "mainAppRuntimeBindings": true,
+    "billingFlags": true
+  },
+  "pending": [
+    "PR29 explicit merge approval",
+    "critical test alert automatic clearing not yet observed; receiver healthy",
+    "separately approved maintenance and production hosted acceptance"
+  ],
+  "finalReadAt": "2026-09-13T03:30:27.780809+00:00"
+}
