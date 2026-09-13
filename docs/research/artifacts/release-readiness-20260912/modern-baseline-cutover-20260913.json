@@ -407,6 +407,311 @@
       "courseLessons": 12,
       "synced": true,
       "progressPercent": 8
+    },
+    "publicInitial": {
+      "schemaVersion": 1,
+      "operation": "qa-public-verification",
+      "sourceSha": "c7d9c2c274bfcaee805332a83d94a208af32f09e",
+      "startedAt": "2026-09-13T05:03:03.353Z",
+      "finishedAt": "2026-09-13T05:03:04.360Z",
+      "differentFromOperator": true,
+      "checks": [
+        {
+          "origin": "https://filosage.com",
+          "path": "/api/health",
+          "status": 200,
+          "passed": true,
+          "health": {
+            "ok": true,
+            "sourceMatches": true,
+            "digestMatches": true,
+            "configuration": true,
+            "datastore": true,
+            "originMatches": true,
+            "authenticationModeMatches": true
+          }
+        },
+        {
+          "origin": "https://filosage.com",
+          "path": "/api/auth/session",
+          "status": 200,
+          "passed": true,
+          "anonymousUserNull": true
+        },
+        {
+          "origin": "https://filosage.com",
+          "path": "/api/account",
+          "status": 401,
+          "passed": true
+        },
+        {
+          "origin": "https://filosage.com",
+          "path": "/api/progress",
+          "status": 401,
+          "passed": true
+        },
+        {
+          "origin": "https://filosage.com",
+          "path": "/api/courses?scope=mine",
+          "status": 401,
+          "passed": true
+        },
+        {
+          "origin": "https://filosagestg-app---blue.salmontree-eb10220f.centralus.azurecontainerapps.io",
+          "path": "/api/health",
+          "status": 200,
+          "passed": true,
+          "health": {
+            "ok": true,
+            "sourceMatches": true,
+            "digestMatches": true,
+            "configuration": true,
+            "datastore": true,
+            "originMatches": true,
+            "authenticationModeMatches": true
+          }
+        },
+        {
+          "origin": "https://filosagestg-app---blue.salmontree-eb10220f.centralus.azurecontainerapps.io",
+          "path": "/api/auth/session",
+          "status": 200,
+          "passed": true,
+          "anonymousUserNull": true
+        },
+        {
+          "origin": "https://filosagestg-app---blue.salmontree-eb10220f.centralus.azurecontainerapps.io",
+          "path": "/api/account",
+          "status": 401,
+          "passed": true
+        },
+        {
+          "origin": "https://filosagestg-app---blue.salmontree-eb10220f.centralus.azurecontainerapps.io",
+          "path": "/api/progress",
+          "status": 401,
+          "passed": true
+        },
+        {
+          "origin": "https://filosagestg-app---blue.salmontree-eb10220f.centralus.azurecontainerapps.io",
+          "path": "/api/courses?scope=mine",
+          "status": 401,
+          "passed": true
+        },
+        {
+          "origin": "https://filosagestg-app---green.salmontree-eb10220f.centralus.azurecontainerapps.io",
+          "path": "/api/health",
+          "status": 200,
+          "passed": true,
+          "health": {
+            "ok": true,
+            "sourceMatches": true,
+            "digestMatches": true,
+            "configuration": true,
+            "datastore": true,
+            "originMatches": true,
+            "authenticationModeMatches": true
+          }
+        },
+        {
+          "origin": "https://filosagestg-app---green.salmontree-eb10220f.centralus.azurecontainerapps.io",
+          "path": "/api/auth/session",
+          "status": 200,
+          "passed": true,
+          "anonymousUserNull": true
+        },
+        {
+          "origin": "https://filosagestg-app---green.salmontree-eb10220f.centralus.azurecontainerapps.io",
+          "path": "/api/account",
+          "status": 401,
+          "passed": true
+        },
+        {
+          "origin": "https://filosagestg-app---green.salmontree-eb10220f.centralus.azurecontainerapps.io",
+          "path": "/api/progress",
+          "status": 401,
+          "passed": true
+        },
+        {
+          "origin": "https://filosagestg-app---green.salmontree-eb10220f.centralus.azurecontainerapps.io",
+          "path": "/api/courses?scope=mine",
+          "status": 401,
+          "passed": true
+        },
+        {
+          "origin": "https://filosagestg-app--blue-7c48bc02ff66-baseline-1.salmontree-eb10220f.centralus.azurecontainerapps.io",
+          "path": "/api/health",
+          "status": 200,
+          "passed": true,
+          "health": {
+            "ok": true,
+            "sourceMatches": true,
+            "digestMatches": true,
+            "configuration": true,
+            "datastore": true,
+            "originMatches": true,
+            "authenticationModeMatches": true
+          }
+        },
+        {
+          "origin": "https://filosagestg-app--blue-7c48bc02ff66-baseline-1.salmontree-eb10220f.centralus.azurecontainerapps.io",
+          "path": "/api/auth/session",
+          "status": 200,
+          "passed": true,
+          "anonymousUserNull": true
+        },
+        {
+          "origin": "https://filosagestg-app--blue-7c48bc02ff66-baseline-1.salmontree-eb10220f.centralus.azurecontainerapps.io",
+          "path": "/api/account",
+          "status": 401,
+          "passed": true
+        },
+        {
+          "origin": "https://filosagestg-app--blue-7c48bc02ff66-baseline-1.salmontree-eb10220f.centralus.azurecontainerapps.io",
+          "path": "/api/progress",
+          "status": 401,
+          "passed": true
+        },
+        {
+          "origin": "https://filosagestg-app--blue-7c48bc02ff66-baseline-1.salmontree-eb10220f.centralus.azurecontainerapps.io",
+          "path": "/api/courses?scope=mine",
+          "status": 401,
+          "passed": true
+        },
+        {
+          "origin": "https://filosagestg-app--green-7c48bc02ff66-baseline-1.salmontree-eb10220f.centralus.azurecontainerapps.io",
+          "path": "/api/health",
+          "status": 200,
+          "passed": true,
+          "health": {
+            "ok": true,
+            "sourceMatches": true,
+            "digestMatches": true,
+            "configuration": true,
+            "datastore": true,
+            "originMatches": true,
+            "authenticationModeMatches": true
+          }
+        },
+        {
+          "origin": "https://filosagestg-app--green-7c48bc02ff66-baseline-1.salmontree-eb10220f.centralus.azurecontainerapps.io",
+          "path": "/api/auth/session",
+          "status": 200,
+          "passed": true,
+          "anonymousUserNull": true
+        },
+        {
+          "origin": "https://filosagestg-app--green-7c48bc02ff66-baseline-1.salmontree-eb10220f.centralus.azurecontainerapps.io",
+          "path": "/api/account",
+          "status": 401,
+          "passed": true
+        },
+        {
+          "origin": "https://filosagestg-app--green-7c48bc02ff66-baseline-1.salmontree-eb10220f.centralus.azurecontainerapps.io",
+          "path": "/api/progress",
+          "status": 401,
+          "passed": true
+        },
+        {
+          "origin": "https://filosagestg-app--green-7c48bc02ff66-baseline-1.salmontree-eb10220f.centralus.azurecontainerapps.io",
+          "path": "/api/courses?scope=mine",
+          "status": 401,
+          "passed": true
+        },
+        {
+          "origin": "https://filosagestg-app.salmontree-eb10220f.centralus.azurecontainerapps.io",
+          "path": "/api/health",
+          "status": 200,
+          "passed": true,
+          "health": {
+            "ok": true,
+            "sourceMatches": true,
+            "digestMatches": true,
+            "configuration": true,
+            "datastore": true,
+            "originMatches": true,
+            "authenticationModeMatches": true
+          }
+        },
+        {
+          "origin": "https://filosagestg-app.salmontree-eb10220f.centralus.azurecontainerapps.io",
+          "path": "/api/auth/session",
+          "status": 200,
+          "passed": true,
+          "anonymousUserNull": true
+        },
+        {
+          "origin": "https://filosagestg-app.salmontree-eb10220f.centralus.azurecontainerapps.io",
+          "path": "/api/account",
+          "status": 401,
+          "passed": true
+        },
+        {
+          "origin": "https://filosagestg-app.salmontree-eb10220f.centralus.azurecontainerapps.io",
+          "path": "/api/progress",
+          "status": 401,
+          "passed": true
+        },
+        {
+          "origin": "https://filosagestg-app.salmontree-eb10220f.centralus.azurecontainerapps.io",
+          "path": "/api/courses?scope=mine",
+          "status": 401,
+          "passed": true
+        },
+        {
+          "origin": "https://www.filosage.com",
+          "path": "/api/health",
+          "status": 200,
+          "passed": true,
+          "health": {
+            "ok": true,
+            "sourceMatches": true,
+            "digestMatches": true,
+            "configuration": true,
+            "datastore": true,
+            "originMatches": true,
+            "authenticationModeMatches": true
+          }
+        },
+        {
+          "origin": "https://www.filosage.com",
+          "path": "/api/auth/session",
+          "status": 200,
+          "passed": true,
+          "anonymousUserNull": true
+        },
+        {
+          "origin": "https://www.filosage.com",
+          "path": "/api/account",
+          "status": 401,
+          "passed": true
+        },
+        {
+          "origin": "https://www.filosage.com",
+          "path": "/api/progress",
+          "status": 401,
+          "passed": true
+        },
+        {
+          "origin": "https://www.filosage.com",
+          "path": "/api/courses?scope=mine",
+          "status": 401,
+          "passed": true
+        }
+      ],
+      "passed": true,
+      "drainVerified": false,
+      "revision": "filosageqa-app--qa-stripe-test-1",
+      "imageDigest": "sha256:3d33eacc178c4e6323c957ab9fd1d81c2dd2f8e149b3b43bbe44e9b09a76bf14",
+      "probeSourceSha256": "a5152cd23b67be53278f7c7f89c50b94f720e977d3881289ad46b95f0e1d32d8"
+    },
+    "postReopenSmoke": {
+      "at": "2026-09-13T05:08:01.576470+00:00",
+      "releaseSafetyPassed": true,
+      "newCheckoutClosed": true,
+      "googleRedirectActive": true,
+      "bffForgeryAndSplitProbesPassed": true,
+      "featuredCourseExplicitlyUnset": true,
+      "independentPublicChecks": 35,
+      "independentPublicPassed": true
     }
   },
   "remaining": [
