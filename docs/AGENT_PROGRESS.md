@@ -1,3 +1,11 @@
+## September 13, 14:30 UTC — hosted theme PR merged
+
+PR34 merged14:29:58UTC at `7ecc20854db6e9cc64eeac2885d737564f7d0c80` after all5requiredchecks SUCCESS and zero unresolved review threads; guarded landing verified exacthead `bcf5a7ef2b3340d062d948a6659edb3a03a851b2`. CSSbytes match already published and actualdarkverified `af60adb2e669d4b6a03438508829bbc53caa934accc9fe52caac753ef1006aac`. No new application deployment implied by source merge. Existing worker terminal/no watcher. Actual hosted light and manual app-theme parity remain open; current browser-preferring visual correction is live. Root evidence checkpoint pushed before yielding to the finite DNS-window task continuation.
+
+## September 13 — post-integration production check
+
+Production health200 in5.117seconds, actual browser homepage reload renders correctly, Azure blueHealthy/Running/1replica and greenHealthy/ScaledToZero/0replicas. Initial CLI homepage probe hit15-second readtimeout and is not a pass; subsequent distinct health/browser evidence confirms reachability. No container configuration mutated. Final signed-in learner check remains with retirement completion. No active shell helper remains.
+
 ## September 13 — QA cache-window continuation checkpoint
 
 Both authoritative GoDaddy nameservers ns15/ns16 now return authoritative no-CNAME forqa.filosage.com; publicGoogle resolver also noCNAME. Compute deletion remains time-gated until15:25UTC despite freshresolverabsence. App task heartbeat `finish-approved-qa-retirement` created ACTIVE atapproximately14:29UTC with one-hour interval and finiteCOUNT2; next future follow-up resumes this same task after the cache deadline, re-reads this record and exactproviders, then performs remaining approved infrastructure cleanup. No shell watcher left running. Retain allQAdata/recoveryresources pendingdisposition. Execution evidence `qa-retirement-execution-20260913.json` records completedsteps andremaining gates. User neednot repeat approval or prompt continuation.

@@ -63,5 +63,15 @@
     "source": "0fcb5f502de1159c36c31785e4796b283c7b9a02",
     "greenWeight": 0,
     "unchanged": true
+  },
+  "productionAfterIntegrationCleanup": {
+    "checkedAtUtc": "2026-09-13T14:30:41.781296+00:00",
+    "healthHttp": 200,
+    "healthSeconds": 5.117106,
+    "browserHomepageLoaded": true,
+    "azureBlue": "Healthy/Running/1 replica",
+    "azureGreen": "Healthy/ScaledToZero/0 replicas",
+    "initialHomepageProbe": "15-second read timeout; not counted as passing",
+    "freshSignedInLearnerCheck": "pending final retirement"
   }
 }
