@@ -1,24 +1,24 @@
 # Final source candidate staging
 
-Status: prepared for approval after the modern baseline's public observation passes. No workflow dispatch or final-source image build has occurred.
+Status: approved staging resumed after PR30 merged. The first staging run34740853590 failed before image build; no candidate was deployed. The new source is undergoing fresh verification.
 
-The approved maintenance transition uses source `7c48bc02ff6623a81fee382b194864f1d04b76c0` and image `sha256:95cc9529e6abcfdef5918f39996cfed55703e5b29b82d75304a69765c844b344`. The next operation stages final main source `b5ba5803c2205922bf68d7fa740d1c660312ee71` through the standard workflow. These are distinct source identities; retain their separate evidence.
+The approved maintenance transition uses source `7c48bc02ff6623a81fee382b194864f1d04b76c0` and image `sha256:95cc9529e6abcfdef5918f39996cfed55703e5b29b82d75304a69765c844b344`. The next operation stages final main source `ed538d20f10dcb999114c793dd200061c52b00e8` through the standard workflow. These are distinct source identities; retain their separate evidence.
 
 ## Concrete operation
 
 1. Require successful public observation, fresh exact main and provider readback, no competing deployment, and preserved serving green100 on the accepted baseline. Verify that the zero-traffic modern blue has no unexplained work, then deactivate only `filosagestg-app--blue-7c48bc02ff66-baseline-1` and verify zero replicas. Keep its metadata. The workflow's connection budget permits at most two active production revisions including the future candidate; it does not deactivate the previous blue automatically.
-2. Dispatch `.github/workflows/azure-staging.yml` on `main` with the exact inputs below. It builds the final source once in ACR and pins the resulting digest. The workflow copies the serving template, verifies the candidate revision, and binds only blue0. Public green100, shared authentication, identity, secrets and ingress restrictions must remain unchanged. Normal ingress makes the optional maintenance-runner rule a no-op.
+2. Dispatch `.github/workflows/azure-staging.yml` on `main` with the exact inputs below. It builds the final source once on the GitHub runner and pushes to ACR and pins the resulting digest. The workflow copies the serving template, verifies the candidate revision, and binds only blue0. Public green100, shared authentication, identity, secrets and ingress restrictions must remain unchanged. Normal ingress makes the optional maintenance-runner rule a no-op.
 3. Read the terminal workflow result within its 40-minute job bound plus five minutes for final artifact retrieval. Download and checksum the exact `release-candidate-<full SHA>` artifact, verify source/digest/readback and candidate/previous revision identity. A failed run is not approval to rebuild blindly; reconcile its build and deployment evidence first.
 
 | Input | Value |
 | --- | --- |
-| `expected_sha` | `b5ba5803c2205922bf68d7fa740d1c660312ee71` |
+| `expected_sha` | `ed538d20f10dcb999114c793dd200061c52b00e8` |
 | `expected_auth_mode` | `migration-dual` |
-| `quality_run_id` | `34735888733` |
-| `regression_run_id` | `34735947262` |
+| `quality_run_id` | `34741934982` |
+| `regression_run_id` | `34741952936` |
 | `featured_course_id` | `none` |
 
-Exact-source engineering, security and full regression have passed. The regression artifact's source and checksum are verified: 458 passed, nine declared skips, zero unexpected failures or flaky tests. Do not rerun them without a new reason, and do not rebuild the accepted baseline.
+Exact-source engineering34741934982, security34741934994 and full regression34741952936 are running. Require their actual success and verify the regression artifact source/checksum before dispatch. Earlier b5 results remain historical evidence only. Do not rebuild the accepted baseline.
 
 ## Acceptance and limits
 
