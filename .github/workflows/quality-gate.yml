@@ -48,7 +48,7 @@ jobs:
       - name: Verify CI scope and release evidence safeguards
         run: node --test tests/ci/*.test.mjs tests/workflow-quality-evidence.test.mjs
       - name: Verify alert receiver and maintenance access contracts
-        run: node --test tests/maintenance-access/*.test.mjs tests/recovery/alert-receiver.test.mjs tests/runner-build/*.test.mjs
+        run: node --test tests/maintenance-access/*.test.mjs tests/recovery/alert-receiver.test.mjs tests/runner-build/*.test.mjs tests/candidate-proof/*.test.mjs
       - run: npm ci
         if: steps.scope.outputs.full == 'true'
       - run: npm run lint

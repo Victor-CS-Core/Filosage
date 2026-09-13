@@ -172,11 +172,24 @@ try {
     smoke(candidate, labelOrigin(before, inactive.label));
     save(join(directory, "release-candidate.json"), candidate);
     console.log("Inactive revision verified; public traffic remains on the previous revision. Hosted review gates remain pending.");
-  } else if (command === "review" || command === "promote") {
+  } else if (command === "review" || command === "promote" || command === "package-evidence") {
     const { candidate, artifact } = loadCandidate();
     const observed = verify(candidate);
     smoke(candidate);
-    if (command === "review") {
+    if (command === "package-evidence") {
+      const packetText = env.HOSTED_PACKET || "";
+      if (Buffer.byteLength(packetText) > 32 * 1024) throw new Error("Hosted packet is too large.");
+      const { packageHostedProofs } = await import("./package-candidate-proof.mjs");
+      const proofs = packageHostedProofs(JSON.parse(packetText), candidate, artifact);
+      for (const { proof, source } of proofs) {
+        const target = join(directory, "hosted", proof.gate);
+        mkdirSync(target, { recursive: true });
+        save(join(target, "candidate-proof.json"), { ...proof, packagingRunId: env.GITHUB_RUN_ID, packagedBy: env.GITHUB_ACTOR });
+        save(join(target, "reviewed-source.json"), source);
+        save(join(target, "candidate-readback.json"), { state: observed, smoke: "passed", observedAt: new Date().toISOString() });
+      }
+      console.log("Reviewed observations packaged; live smoke is separate from the supplied hosted gate evidence.");
+    } else if (command === "review") {
       const packetText = env.REVIEW_PACKET || "";
       if (Buffer.byteLength(packetText) > 32 * 1024) throw new Error("Review packet is too large.");
       const packet = JSON.parse(packetText);

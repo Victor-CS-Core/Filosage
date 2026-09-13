@@ -1,0 +1,136 @@
+name: Package reviewed exact-candidate hosted evidence
+
+on:
+  workflow_dispatch:
+    inputs:
+      expected_sha:
+        description: Full candidate SHA; execute this workflow from that exact ref
+        required: true
+        type: string
+      expected_auth_mode:
+        description: Preserve the observed shared application authentication mode
+        required: true
+        type: choice
+        options: [direct-google, migration-dual]
+      candidate_run_id:
+        description: Successful azure-staging workflow that produced the immutable candidate
+        required: true
+        type: string
+      hosted_packet:
+        description: Bounded sanitized actual observations and source hashes; see blue-green runbook
+        required: true
+        type: string
+
+permissions:
+  actions: read
+  contents: read
+  id-token: write
+
+# One lock covers staging, verification and promotion for the same application.
+concurrency:
+  group: azure-blue-green-${{ vars.AZURE_CONTAINER_APP_NAME }}
+  cancel-in-progress: false
+
+jobs:
+  review:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    # Reuse main-only OIDC configuration; native GitHub reviewer rules are not required.
+    # Retain actual evidence review attribution in the packet and release handoff.
+    environment: azure-staging
+    env:
+      GH_TOKEN: ${{ github.token }}
+      EXPECTED_SHA: ${{ inputs.expected_sha }}
+      EXPECTED_AUTH_MODE: ${{ inputs.expected_auth_mode }}
+      PUBLIC_SITE_URL: https://filosage.com
+      AZURE_RESOURCE_GROUP: ${{ vars.AZURE_RESOURCE_GROUP }}
+      AZURE_CONTAINER_APP_NAME: ${{ vars.AZURE_CONTAINER_APP_NAME }}
+      AZURE_ACR_NAME: ${{ vars.AZURE_ACR_NAME }}
+      CANDIDATE_RUN_ID: ${{ inputs.candidate_run_id }}
+      HOSTED_PACKET: ${{ inputs.hosted_packet }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 22
+      - name: Verify maintenance access safety contracts
+        run: node --test tests/maintenance-access/*.test.mjs tests/candidate-proof/*.test.mjs
+      - name: Sign in to Azure with GitHub OIDC
+        uses: azure/login@7ddb5af1ef8758cf1353cf3b42f940aee27ba21c # v3.0.2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      - name: Prepare optional exact maintenance runner access
+        run: node scripts/maintenance-runner-access.mjs prepare
+      - name: Persist owned access intent before any ingress mutation
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: maintenance-access-intent-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/maintenance-access-evidence/intent.json
+          if-no-files-found: error
+          retention-days: 30
+      - name: Admit only this runner during an existing operator-only maintenance fence
+        run: node scripts/maintenance-runner-access.mjs apply
+      - name: Recheck candidate and referenced successful immutable hosted evidence
+        run: node scripts/azure-blue-green.mjs package-evidence
+      - name: Retain reviewed bff-auth-privacy evidence
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: candidate-proof-bff-auth-privacy
+          path: ${{ runner.temp }}/blue-green-evidence/hosted/bff-auth-privacy/*.json
+          if-no-files-found: error
+          retention-days: 30
+      - name: Retain reviewed learner-journey evidence
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: candidate-proof-learner-journey
+          path: ${{ runner.temp }}/blue-green-evidence/hosted/learner-journey/*.json
+          if-no-files-found: error
+          retention-days: 30
+      - name: Retain reviewed publication evidence
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: candidate-proof-publication
+          path: ${{ runner.temp }}/blue-green-evidence/hosted/publication/*.json
+          if-no-files-found: error
+          retention-days: 30
+      - name: Retain reviewed billing-containment evidence
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: candidate-proof-billing-containment
+          path: ${{ runner.temp }}/blue-green-evidence/hosted/billing-containment/*.json
+          if-no-files-found: error
+          retention-days: 30
+      - name: Retain reviewed operations-probes-alerts evidence
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: candidate-proof-operations-probes-alerts
+          path: ${{ runner.temp }}/blue-green-evidence/hosted/operations-probes-alerts/*.json
+          if-no-files-found: error
+          retention-days: 30
+      - name: Retain reviewed recovery-rollback evidence
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: candidate-proof-recovery-rollback
+          path: ${{ runner.temp }}/blue-green-evidence/hosted/recovery-rollback/*.json
+          if-no-files-found: error
+          retention-days: 30
+      - name: Retain reviewed data-write-compatibility evidence
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: candidate-proof-data-write-compatibility
+          path: ${{ runner.temp }}/blue-green-evidence/hosted/data-write-compatibility/*.json
+          if-no-files-found: error
+          retention-days: 30
+      - name: Remove only this run's owned maintenance access rule
+        if: always()
+        run: node scripts/maintenance-runner-access.mjs cleanup
+      - name: Retain access and cleanup evidence including uncertain outcomes
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: maintenance-access-final-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/maintenance-access-evidence/*.json
+          if-no-files-found: error
+          retention-days: 30
