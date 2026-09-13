@@ -74,3 +74,11 @@ test("non-landing membership surfaces keep the three-tier and closed-launch cont
   expect(source("src/app/api/waitlist/route.ts")).toContain("paid membership launch");
   expect(source("src/content/support/owner-documentation.ts")).toContain("Plus adds two complete private AI course credits monthly");
 });
+
+test("pricing presents closed-launch state and flashcard allowances before checkout", () => {
+  const pricing = source("src/app/pricing/page.tsx");
+  expect(pricing).toContain("Paid memberships are not open yet");
+  expect(pricing).toContain("Notify me about ${plan.shortName}");
+  expect(pricing).toContain("flashcardDeckGenerationsPerMonth");
+  expect(pricing).toContain("Your subscription");
+});

@@ -70,6 +70,7 @@ export default function PricingPage() {
   const [selectedPlanOverride, setSelectedPlanOverride] = useState<PaidLearnerPlan | null>(null);
   const selectedPlan = selectedPlanOverride ?? pricingContext.plan;
   const [billingReady, setBillingReady] = useState(false);
+  const [billingStatusResolved, setBillingStatusResolved] = useState(false);
   const [billingManagementReady, setBillingManagementReady] = useState(false);
   const [billingBusy, setBillingBusy] = useState(false);
   const [billingPendingAction, setBillingPendingAction] = useState<"checkout" | BillingPortalAction | null>(null);
@@ -99,10 +100,12 @@ export default function PricingPage() {
         if (!active) return;
         setBillingReady(status.ready === true);
         setBillingManagementReady(status.managementReady === true);
+        setBillingStatusResolved(true);
       } catch {
         if (!active) return;
         setBillingReady(false);
         setBillingManagementReady(false);
+        setBillingStatusResolved(true);
       }
     })();
     return () => { active = false; };
@@ -279,6 +282,16 @@ export default function PricingPage() {
           <p>Free connects published learning and practice. Plus adds private course creation. Pro adds advanced capstone analysis, portable evidence reports, revocable sharing, and publishing tools.</p>
         </header>
 
+        {billingStatusResolved && !billingReady && (
+          <section className="pricing-availability-note" role="status" aria-live="polite" aria-labelledby="pricing-availability-title">
+            <div>
+              <p className="overline">Paid memberships</p>
+              <h2 id="pricing-availability-title">Paid memberships are not open yet.</h2>
+              <p>Join the launch list below—no payment or subscription is created today.</p>
+            </div>
+          </section>
+        )}
+
         {pricingContext.from !== "direct" && (
           <section className="pricing-context-note" aria-label="Plan comparison context">
             <div>
@@ -345,7 +358,7 @@ export default function PricingPage() {
                     <small>{interval === "annual" ? `${formatUsd(plan.prices!.annual.amountMinor)} billed yearly · save ${formatUsd(annualSavingsMinor(paidPlanId))}` : "Billed monthly"}</small>
                   </p>
                 ) : <p className="plan-price"><strong>$0</strong><span>no subscription</span><small>Published learning stays available.</small></p>}
-                <ul>{plan.includedFeatures.map((feature) => <li key={feature}><Check size={16} /> {feature}</li>)}</ul>
+                <ul>{[...plan.includedFeatures, `${plan.limits.flashcardDeckGenerationsPerMonth} flashcard deck generations each month`].map((feature) => <li key={feature}><Check size={16} /> {feature}</li>)}</ul>
                 {plan.restrictedFeatures.length > 0 && <ul className="plan-restrictions" aria-label={`${plan.name} exclusions`}>{plan.restrictedFeatures.map((feature) => <li key={feature}><X size={16} /> {feature}</li>)}</ul>}
 
                 {isCurrent ? (
@@ -359,13 +372,13 @@ export default function PricingPage() {
                     icon={CreditCard}
                   />
                 ) : paidPlanId && !user ? (
-                  <button className={selectedPlan === paidPlanId ? "button button-secondary" : "button button-quiet"} type="button" onClick={() => setSelectedPlanOverride(paidPlanId)}>{selectedPlan === paidPlanId ? `${plan.shortName} selected` : `Choose ${plan.shortName}`}</button>
+                  <button className={selectedPlan === paidPlanId ? "button button-secondary" : "button button-quiet"} type="button" onClick={() => setSelectedPlanOverride(paidPlanId)}>{selectedPlan === paidPlanId ? `${plan.shortName} selected` : `Notify me about ${plan.shortName}`}</button>
                 ) : paidPlanId && billingReady && account?.plan === "free" && !subscriptionRequiresManagement ? (
                   <button className="button button-primary" type="button" disabled={billingBusy || !checkoutEligibilityReady} onClick={() => void openBilling("checkout", paidPlanId)}>
                     {billingBusy ? <LoaderCircle className="spin" size={16} /> : <CreditCard size={16} />}{billingBusy ? "Opening Stripe Checkout…" : checkoutEligibilityReady ? `Continue to Stripe Checkout — ${plan.shortName} ${interval === "annual" ? "annual" : "monthly"}` : "Confirm eligibility to continue"}
                   </button>
                 ) : paidPlanId && !billingReady && account?.plan === "free" && !subscriptionRequiresManagement ? (
-                  <button className={selectedPlan === paidPlanId ? "button button-secondary" : "button button-quiet"} type="button" onClick={() => setSelectedPlanOverride(paidPlanId)}>{selectedPlan === paidPlanId ? `${plan.shortName} selected` : `Choose ${plan.shortName}`}</button>
+                  <button className={selectedPlan === paidPlanId ? "button button-secondary" : "button button-quiet"} type="button" onClick={() => setSelectedPlanOverride(paidPlanId)}>{selectedPlan === paidPlanId ? `${plan.shortName} selected` : `Notify me about ${plan.shortName}`}</button>
                 ) : null}
               </section>
             );
@@ -384,6 +397,7 @@ export default function PricingPage() {
         {subscriptionRequiresManagement && (
           <section className="pricing-account-action" aria-labelledby="manage-membership-title">
             <div>
+              <p className="overline">Your subscription</p>
               <h2 id="manage-membership-title">Manage your membership in Stripe</h2>
               {(account?.subscriptionStatus === "active" || account?.subscriptionStatus === "trialing")
                 && !account?.legalAcceptanceRequired && account?.accountStatus !== "suspended" ? (

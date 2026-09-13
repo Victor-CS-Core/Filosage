@@ -11,6 +11,12 @@ Victor asks to proceed with remaining checks, then review subscription UI agains
 - [x] F3: Produce concrete light/dark mockup with actual plan terms and clearly illustrative billing states; document prioritized functionality changes and verification limits.
 - [x] F4: Show mockup and findings for user review; checkpoint evidence and preserve unresolved release work.
 
+## September 13 — subscription UI implementation checkpoint
+
+Victor approved the subscription mockup for implementation. Pricing now shows a resolved closed-launch notice before plan cards, uses explicit “Notify me about Plus/Pro” labels while billing is closed, includes each plan’s Flashcards generation allowance, and labels the existing Stripe management area “Your subscription.” Existing prices, eligibility confirmations, checkout/portal routes, cancellation timing, waitlist consent, and billing fail-closed behavior are unchanged. No checkout, payment, cancellation, billing activation, or external account mutation occurred.
+
+Verification: new contract test was observed failing before the UI change and now passes with the existing seven contracts (8/8). `tests/pricing-mobile.spec.ts` passes 4/4 on Chromium at 320px, including checkout eligibility, mobile Stripe controls, and scheduled cancellation in light/dark. `npm run lint` passes with four pre-existing `window.location.assign` warnings and zero errors. Secret scan, support wiki, diff check and `npx next build --webpack` pass. Default `npm run build` remains environment-blocked by Next/Turbopack rejecting the worktree’s node_modules symlink outside the filesystem root; the webpack build completes successfully.
+
 ## September 13 — approved QA infrastructure retirement complete
 
 Verified QA app, custom domain, dedicated certificate, CNAME/TXT, four dedicated metric alerts, ten exclusive grants and exclusive identity absent. Shared deployer QA-app grant had cascaded absent; all other role assignment objects unchanged. Both shared log alerts retain all production predicates/settings, with only QA selector removed (provider also advances createdWithApiVersion metadata). Exact identity deletion followed fresh zero resourceGraph consumers, direct apps/jobs consumers, grants and federation. Production custom domain/traffic/configuration/template/auth equal fresh pre-retirement snapshots; publichealth200. Actual signed-in learner reload retains1course/8%progress, lessonloads and Flashcards shows saved8-carddeck/quota99 unchanged. Bothauthoritative servers confirm no QA CNAME or ownershipTXT.

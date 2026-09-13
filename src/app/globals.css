@@ -998,6 +998,9 @@ button:disabled { cursor: not-allowed; opacity: 0.55; }
 .pricing-header { max-width: 780px; }
 .pricing-header h1 { font-size: 3.25rem; max-width: 18ch; margin-top: 10px; }
 .pricing-header > p:last-child { color: var(--ink-secondary); font-size: 1rem; line-height: 1.75; margin-top: 18px; max-width: 68ch; }
+.pricing-availability-note { display: flex; align-items: center; justify-content: space-between; gap: 20px; margin-top: 26px; border: 1px solid color-mix(in oklch, var(--brand-teal) 42%, var(--line-strong)); border-radius: var(--radius-md); padding: 17px 20px; background: var(--accent-soft); }
+.pricing-availability-note h2 { margin-top: 4px; font-size: 1rem; }
+.pricing-availability-note p:last-child { margin-top: 4px; color: var(--ink-secondary); font-size: 0.78rem; line-height: 1.5; }
 .pricing-context-note { margin-top: 24px; border: 1px solid var(--line-strong); border-radius: var(--radius-md); padding: 20px 22px; background: var(--accent-soft); }
 .pricing-context-note h2 { margin-top: 5px; font-size: 1.05rem; }
 .pricing-context-note p:last-child { max-width: 70ch; margin-top: 7px; color: var(--ink-secondary); font-size: 0.82rem; line-height: 1.55; }
@@ -1049,6 +1052,7 @@ button:disabled { cursor: not-allowed; opacity: 0.55; }
 .pricing-account-actions { display: flex; flex: 0 1 auto; flex-wrap: wrap; justify-content: flex-end; gap: 10px; min-width: 0; }
 .pricing-account-actions .button { min-height: 40px; white-space: normal; }
 .pricing-account-action h2, .pricing-launch-action h2 { font-size: 1rem; }
+.pricing-account-action .overline { margin-bottom: 2px; }
 .pricing-account-action p, .pricing-launch-action > div p { margin-top: 5px; color: var(--ink-secondary); font-size: 0.78rem; line-height: 1.55; }
 .pricing-launch-action.pricing-intent-form, .pricing-launch-action.waitlist-form { display: grid; max-width: 700px; gap: 14px; }
 .waitlist-form { display: grid; gap: 12px; padding-top: 18px; border-top: 1px solid var(--line); }
