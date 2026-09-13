@@ -1,0 +1,391 @@
+{
+  "schemaVersion": 1,
+  "candidate": {
+    "schemaVersion": 2,
+    "sha": "0fcb5f502de1159c36c31785e4796b283c7b9a02",
+    "imageDigest": "sha256:dae13abacb841400d649ec892f4b6455e25e61a49547f937269417e65c8987af",
+    "manifest": {
+      "schemaVersion": 1,
+      "capabilities": {
+        "flashcardDecks": true,
+        "flashcardGeneration": true,
+        "lessonVisuals": false,
+        "commandCenter": false,
+        "commandCenterDrafts": false,
+        "commandCenterV2": false,
+        "pipelineV2": true,
+        "validationV2": true,
+        "repairV2": true,
+        "labsV2": false,
+        "visualsV2": false,
+        "publicationV2": true,
+        "pipelineShadowMode": false,
+        "pipelineOwnerOnly": true,
+        "pipelineCohortPercent": 0
+      }
+    },
+    "productionOrigin": "https://filosage.com",
+    "candidateOrigin": "https://filosagestg-app--blue-0fcb5f502de1-34747001741-1.salmontree-eb10220f.centralus.azurecontainerapps.io",
+    "authenticationMode": "migration-dual",
+    "appId": "/subscriptions/bfc8f890-2681-43dc-8eac-51644341ae12/resourceGroups/filosage-staging-central-rg/providers/Microsoft.App/containerapps/filosagestg-app",
+    "revision": "filosagestg-app--blue-0fcb5f502de1-34747001741-1",
+    "label": "blue",
+    "authConfigSha256": "9bf95fcfbfd064ecbbae1fe88db80f071572ddbc772d714d99da5c9e7ba1aee6",
+    "before": {
+      "appId": "/subscriptions/bfc8f890-2681-43dc-8eac-51644341ae12/resourceGroups/filosage-staging-central-rg/providers/Microsoft.App/containerapps/filosagestg-app",
+      "location": "centralus",
+      "mode": "Multiple",
+      "fqdn": "filosagestg-app.salmontree-eb10220f.centralus.azurecontainerapps.io",
+      "traffic": [
+        {
+          "label": "blue",
+          "revisionName": "filosagestg-app--blue-9f1c08ed9b05-34744428417-1",
+          "weight": 0
+        },
+        {
+          "label": "green",
+          "revisionName": "filosagestg-app--green-7c48bc02ff66-baseline-1",
+          "weight": 100
+        }
+      ],
+      "authConfigSha256": "9bf95fcfbfd064ecbbae1fe88db80f071572ddbc772d714d99da5c9e7ba1aee6"
+    },
+    "afterDeployment": {
+      "appId": "/subscriptions/bfc8f890-2681-43dc-8eac-51644341ae12/resourceGroups/filosage-staging-central-rg/providers/Microsoft.App/containerapps/filosagestg-app",
+      "location": "centralus",
+      "mode": "Multiple",
+      "fqdn": "filosagestg-app.salmontree-eb10220f.centralus.azurecontainerapps.io",
+      "traffic": [
+        {
+          "label": "blue",
+          "revisionName": "filosagestg-app--blue-9f1c08ed9b05-34744428417-1",
+          "weight": 0
+        },
+        {
+          "label": "green",
+          "revisionName": "filosagestg-app--green-7c48bc02ff66-baseline-1",
+          "weight": 100
+        }
+      ],
+      "authConfigSha256": "9bf95fcfbfd064ecbbae1fe88db80f071572ddbc772d714d99da5c9e7ba1aee6"
+    },
+    "previous": {
+      "revision": "filosagestg-app--green-7c48bc02ff66-baseline-1",
+      "label": "green",
+      "sha": "7c48bc02ff6623a81fee382b194864f1d04b76c0",
+      "image": "filosagestp4ujucgnxq3gsacr.azurecr.io/filosage@sha256:95cc9529e6abcfdef5918f39996cfed55703e5b29b82d75304a69765c844b344",
+      "imageDigest": "sha256:95cc9529e6abcfdef5918f39996cfed55703e5b29b82d75304a69765c844b344",
+      "manifest": {
+        "schemaVersion": 1,
+        "capabilities": {
+          "flashcardDecks": false,
+          "flashcardGeneration": false,
+          "lessonVisuals": false,
+          "commandCenter": false,
+          "commandCenterDrafts": false,
+          "commandCenterV2": false,
+          "pipelineV2": true,
+          "validationV2": true,
+          "repairV2": true,
+          "labsV2": false,
+          "visualsV2": false,
+          "publicationV2": true,
+          "pipelineShadowMode": false,
+          "pipelineOwnerOnly": true,
+          "pipelineCohortPercent": 0
+        }
+      },
+      "productionOrigin": "https://filosage.com",
+      "candidateOrigin": "https://filosage.com",
+      "authenticationMode": "migration-dual",
+      "featuredCourseId": "none"
+    },
+    "engineering": [
+      {
+        "id": "34745378588",
+        "path": ".github/workflows/quality-gate.yml",
+        "sha": "0fcb5f502de1159c36c31785e4796b283c7b9a02"
+      },
+      {
+        "id": "34745404231",
+        "path": ".github/workflows/full-regression.yml",
+        "sha": "0fcb5f502de1159c36c31785e4796b283c7b9a02"
+      }
+    ],
+    "stageRunId": "34747001741",
+    "featuredCourseId": "none",
+    "compatibility": "Pending exact-candidate hosted verification and compatible rollback review",
+    "after": {
+      "appId": "/subscriptions/bfc8f890-2681-43dc-8eac-51644341ae12/resourceGroups/filosage-staging-central-rg/providers/Microsoft.App/containerapps/filosagestg-app",
+      "location": "centralus",
+      "mode": "Multiple",
+      "fqdn": "filosagestg-app.salmontree-eb10220f.centralus.azurecontainerapps.io",
+      "traffic": [
+        {
+          "label": "blue",
+          "revisionName": "filosagestg-app--blue-0fcb5f502de1-34747001741-1",
+          "weight": 0
+        },
+        {
+          "label": "green",
+          "revisionName": "filosagestg-app--green-7c48bc02ff66-baseline-1",
+          "weight": 100
+        }
+      ],
+      "authConfigSha256": "9bf95fcfbfd064ecbbae1fe88db80f071572ddbc772d714d99da5c9e7ba1aee6"
+    }
+  },
+  "stage": {
+    "runId": "34747001741",
+    "artifactId": 10314641437,
+    "artifactDigest": "sha256:2d16867e37a8410d41b6ed10de3ab09c2526bb89606b39bfbed35715b4be9291"
+  },
+  "readonly": {
+    "observedAt": "2026-09-13T08:13:58.393062+00:00",
+    "candidateSha": "0fcb5f502de1159c36c31785e4796b283c7b9a02",
+    "candidateDigest": "sha256:dae13abacb841400d649ec892f4b6455e25e61a49547f937269417e65c8987af",
+    "metadataFailures": {},
+    "stageRunId": "34747001741",
+    "routing": [
+      {
+        "label": "blue",
+        "revisionName": "filosagestg-app--blue-0fcb5f502de1-34747001741-1",
+        "weight": 0
+      },
+      {
+        "label": "green",
+        "revisionName": "filosagestg-app--green-7c48bc02ff66-baseline-1",
+        "weight": 100
+      }
+    ],
+    "publicIngressUnrestricted": true,
+    "authFingerprintMatches": true,
+    "revision": {
+      "active": true,
+      "imageMatches": true,
+      "sourceMatches": true,
+      "restrictedRuntimeBinding": true,
+      "poolMax2": true,
+      "stableLabelOriginsExact": true,
+      "modernCommandUnmodified": true
+    },
+    "previous": {
+      "active": true,
+      "imageMatches": true,
+      "sourceMatches": true,
+      "restrictedRuntimeBinding": true,
+      "poolMax2": true,
+      "stableLabelOriginsExact": false,
+      "modernCommandUnmodified": true
+    },
+    "monitors": {
+      "events": {
+        "enabled": true,
+        "provisioningState": null
+      },
+      "heartbeat": {
+        "enabled": true,
+        "provisioningState": null
+      }
+    },
+    "receiverAlertObservation": {
+      "timeRange": "1h",
+      "nextPagePresent": false,
+      "matchingAlerts": 0,
+      "fired": 0,
+      "resolved": 0,
+      "notAnAllIncidentProof": true
+    },
+    "candidateHttp": [
+      {
+        "path": "/api/health",
+        "status": 200,
+        "health": {
+          "ok": true,
+          "version": "0fcb5f502de1159c36c31785e4796b283c7b9a02",
+          "imageDigest": "sha256:dae13abacb841400d649ec892f4b6455e25e61a49547f937269417e65c8987af",
+          "origin": "https://filosage.com",
+          "authenticationMode": "migration-dual",
+          "capabilities": {
+            "flashcardDecks": true,
+            "flashcardGeneration": true,
+            "lessonVisuals": false,
+            "commandCenter": false,
+            "commandCenterDrafts": false,
+            "commandCenterV2": false,
+            "pipelineV2": true,
+            "validationV2": true,
+            "repairV2": true,
+            "labsV2": false,
+            "visualsV2": false,
+            "publicationV2": true,
+            "pipelineShadowMode": false,
+            "pipelineOwnerOnly": true,
+            "pipelineCohortPercent": 0
+          },
+          "checks": {
+            "configuration": true,
+            "datastore": true,
+            "flashcardDecks": true,
+            "flashcardGeneration": true
+          }
+        }
+      },
+      {
+        "path": "/api/auth/session",
+        "status": 200,
+        "anonymousUserNull": true
+      },
+      {
+        "path": "/api/account",
+        "status": 401,
+        "privateDenied": true
+      },
+      {
+        "path": "/api/progress",
+        "status": 401,
+        "privateDenied": true
+      },
+      {
+        "path": "/api/courses?scope=mine",
+        "status": 401,
+        "privateDenied": true
+      },
+      {
+        "path": "/api/flashcards/decks",
+        "status": 401,
+        "privateDenied": true
+      },
+      {
+        "path": "/api/billing/status",
+        "status": 200,
+        "closed": true
+      },
+      {
+        "path": "/api/courses",
+        "status": 200,
+        "publicCourseCount": 8,
+        "allExplicitlyPublic": true
+      }
+    ],
+    "previousHealth": {
+      "path": "/api/health",
+      "status": 200,
+      "health": {
+        "ok": true,
+        "version": "7c48bc02ff6623a81fee382b194864f1d04b76c0",
+        "imageDigest": "sha256:95cc9529e6abcfdef5918f39996cfed55703e5b29b82d75304a69765c844b344",
+        "origin": "https://filosage.com",
+        "authenticationMode": "migration-dual",
+        "capabilities": {
+          "flashcardDecks": false,
+          "flashcardGeneration": false,
+          "lessonVisuals": false,
+          "commandCenter": false,
+          "commandCenterDrafts": false,
+          "commandCenterV2": false,
+          "pipelineV2": true,
+          "validationV2": true,
+          "repairV2": true,
+          "labsV2": false,
+          "visualsV2": false,
+          "publicationV2": true,
+          "pipelineShadowMode": false,
+          "pipelineOwnerOnly": true,
+          "pipelineCohortPercent": 0
+        },
+        "checks": {
+          "configuration": true,
+          "datastore": true,
+          "flashcardDecks": false,
+          "flashcardGeneration": false
+        }
+      }
+    },
+    "srcTrees": {
+      "0fcb5f502de1159c36c31785e4796b283c7b9a02": "22fd1ef8c0af9cbbf34141028ecefab4beffc72e",
+      "7c48bc02ff6623a81fee382b194864f1d04b76c0": "22fd1ef8c0af9cbbf34141028ecefab4beffc72e"
+    },
+    "sameApplicationSourceTree": true,
+    "historicalEvidence": [
+      {
+        "reference": "docs/research/artifacts/release-readiness-20260912/modern-baseline-cutover-20260913.json",
+        "sha256": "a22bfc7cf5dad070d58db30b1462d64e042ed0059e7cc1ab44a665b7babc92a6",
+        "attribution": "Historical earlier runtime/recovery/receiver observations; not rerun against this candidate"
+      },
+      {
+        "reference": "docs/research/artifacts/release-readiness-20260912/operations-receiver-execution-20260913.json",
+        "sha256": "5369756d94c3129fb0c4c1a17f862a0a8fde8448e7d3b51c87c65b4ac649828e",
+        "attribution": "Historical earlier runtime/recovery/receiver observations; not rerun against this candidate"
+      }
+    ]
+  },
+  "probes": [
+    {
+      "probe": "check-bff-boundary.mjs",
+      "passed": true,
+      "exitCode": 0,
+      "observedAt": "2026-09-13T08:13:57.998895+00:00"
+    },
+    {
+      "probe": "check-release-safety.mjs",
+      "passed": true,
+      "exitCode": 0,
+      "observedAt": "2026-09-13T08:13:58.113577+00:00"
+    }
+  ],
+  "independentReview": {
+    "reviewedAt": "2026-09-13T08:14:23.604772+00:00",
+    "reviewer": "Codex independent release worker approval_docs",
+    "candidateSha": "0fcb5f502de1159c36c31785e4796b283c7b9a02",
+    "candidateDigest": "sha256:dae13abacb841400d649ec892f4b6455e25e61a49547f937269417e65c8987af",
+    "method": "Read-only live observations plus explicitly historical source-compatible evidence review",
+    "artifactHashes": {
+      "observations.json": "7b92a76288a2b9899f78b8e51900c78da4e20277dc3a73671899f3c21db2f50c",
+      "existing-probes.json": "d8ef0b1fec10fd8506d003743dd01d22012aac2e388a74e63261014e601470b7"
+    },
+    "conclusions": {
+      "bff-auth-privacy": "Anonymous user null; four private endpoints401; forged-principal and split-health probes passed. Real account/recent-auth evidence belongs to coordinator.",
+      "learner-journey": "Flashcards capabilities true and exact stable origins configured; actual signed-in generation/persistence remains coordinator evidence, not established by these reads.",
+      "publication": "Eight returned course summaries explicitly public. This read proves public listing containment, not a new publication mutation or full publication flow.",
+      "billing-containment": "Runtime billing closed and existing release safety probe passed; no checkout or billing change performed.",
+      "operations-probes-alerts": "Candidate and predecessor healthy; split probes pass; both existing receiver monitors enabled and complete one-hour query has no matching Fired alerts. Prior delivery/escalation/recovery evidence is historical; no new notification or dependency-loss drill.",
+      "recovery-rollback": "Retained selected-point522-document recovery and13 referenced assets demonstrate22.711992s coverage age and1393.229658s learner recovery. Not rerun. Captured modern green7c/95 is freshly healthy and remains the compatible rollback; no legacy rollback or database rollback is implied.",
+      "data-write-compatibility": "Candidate and modern predecessor have identical application src tree and unchanged package/package-lock/Dockerfile. Existing schema, deletion, publication, accounting and in-flight fence implementations match. Flashcards enables existing storage protocol; fallback disables availability through old manifest without changing data format. Actual candidate writes remain coordinator acceptance."
+    },
+    "limits": [
+      "Not independent proof of every hosted gate scenario",
+      "Previous stableLabelOriginsExact=false is expected unchanged baseline configuration; canonical predecessor health passes",
+      "No provider mutation, source change, rerun recovery drill or promotion"
+    ]
+  },
+  "realLearner": {
+    "observedAt": "2026-09-13T08:17:37.277375+00:00",
+    "candidateSha": "0fcb5f502de1159c36c31785e4796b283c7b9a02",
+    "candidateDigest": "sha256:dae13abacb841400d649ec892f4b6455e25e61a49547f937269417e65c8987af",
+    "account": "Previously approved existing non-owner account; identifiers omitted",
+    "sessionRestored": true,
+    "lessonPrivateContentLoaded": true,
+    "studyToolsFlashcardsVisible": true,
+    "realGeneration": {
+      "requests": 1,
+      "cardsCreated": 8,
+      "quotaBefore": 100,
+      "quotaAfter": 99
+    },
+    "answerRevealed": true,
+    "reviewAccepted": true,
+    "reviewResult": "Again accepted; advanced from card1 to card2",
+    "afterReload": {
+      "deckPresent": true,
+      "cards": 8,
+      "quota": 99,
+      "deckLibraryPresent": true
+    },
+    "limits": [
+      "Study position resets on reload; independent database scheduling readback not performed",
+      "No course completion changed",
+      "Prior stable-blue Google sign-in occurred on9f; session restored successfully on corrected0f"
+    ]
+  }
+}

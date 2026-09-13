@@ -891,3 +891,13 @@ Corrected0f fullregression34745404231 attempt1 passed458,9declaredskips,0unexpec
 ### September 13, 08:09 UTC — idle replica diagnosis and approved candidate replacement
 
 Read-only work probe transport failures were caused by no running replica (Azure explicit error), not database rejection. Health request woke existingzero-blue; unchanged reviewed probe then passed08:08:39UTC:540documents, all unresolved/inflight work zero,34historical reserved rows retained. Fresh guard validated provider/auth snapshots and approved deactivation of exact9f/6f blue only. Readback inactive; one terminatingreplica remains, so staging awaits actualzero. Publicgreen7c health/configuration preserved. Corrected0f main remains exact; engineering/security/fullregression pass. No additional sourcechange or approvalneeded underAFKdelegation.
+
+### September 13, 08:15 UTC — corrected image staged successfully
+
+Zero-blue9f inactive/zero confirmed08:09:35UTC. One-shot staging34747001741 succeeded on0fcb5f5; image builtonce digestsha256:dae13abacb841400d649ec892f4b6455e25e61a49547f937269417e65c8987af. Artifact10314641437 checksumverified2d16867e37a8410d41b6ed10de3ab09c2526bb89606b39bfbed35715b4be9291. Newrevisionfilosagestg-app--blue-0fcb5f502de1-34747001741-1; acceptedgreen7c/95 predecessor andauthhash unchanged. Realnonowner sessionrestored andlessonloaded; root verifiesFlashcardswritewhileexistingreviewer refreshesreadonlygates. No promotionyet.
+
+### September 13, 08:19 UTC — actual Flashcards acceptance and independent gate review pass
+
+Correctedcandidate realnonowner session restores; private lesson andStudytoolsFlashcards load. One realgeneration created8checkedcards, quota100to99; revealpassed; Againreviewaccepted andadvancedcard1to2. Reload/decklibrary retain8cards and99quota. No newlessoncompletion orsecondgeneration; studypositionreset isnotclaimedpersistedreview scheduling. Fresh independentreadonlychecks pass exactidentity/configuration/privacy/publiclisting/closedbilling/monitors/healthyrollback. Sameappcode supports historical recovery andwritecompatibility review; historicalprovider/drill evidence isexplicitlyattributed.
+
+Concrete seven-gatepacket independently reviewed withnomaterialunsupportedclaims; hashes validated. Sanitized final-candidate-0fcb5f5-hosted-20260913.json recordsactualevidenceandlimits. Dispatched existingimmutableevidencepackaging workflow once, bounded08:45UTC. Subsequent reviewworkflow andapprovedexactimagepromotion remainpending; no publicswap yet.
