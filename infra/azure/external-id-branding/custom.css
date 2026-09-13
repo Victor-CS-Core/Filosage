@@ -25,6 +25,7 @@ a:focus, .ext-link:focus { outline: 3px solid #1d4ed8; outline-offset: 3px; bord
   box-shadow: 0 1px 0 #b7a990;
 }
 .ext-input { min-height: 44px; border: 1px solid #8c795f; border-radius: 7px; color: #0d1b3d; background-color: #fff9f0; }
+.ext-input.ext-text-box { color: #0d1b3d; background-color: #ffffff; }
 .ext-input:focus { outline: 3px solid #1d4ed8; outline-offset: 1px; border-color: #0f766e; }
 .ext-button { min-height: 44px; border-radius: 7px; font-weight: 700; }
 .ext-button.ext-primary { color: #f3eadc; background-color: #0d1b3d; border-color: #0d1b3d; }

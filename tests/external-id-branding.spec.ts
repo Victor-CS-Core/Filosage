@@ -565,9 +565,11 @@ test("hosted sanitizer keeps plain extension classes needed for dark illustratio
   // and placeholder pseudo-elements. Simulate that filter before computed-style assertions.
   await page.emulateMedia({ colorScheme: "dark" });
   await page.setContent(`<style id="provider">.ext-background-image { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'/%3E"); }
-    .ext-boilerplate-text { background-color: rgb(242,242,242); }</style><style id="custom">${css}</style>
+    .ext-boilerplate-text { background-color: rgb(242,242,242); }
+    .ext-input.ext-text-box { background-color: transparent; }
+    .ext-input::placeholder { color: rgb(117,117,117); }</style><style id="custom">${css}</style>
     <div class="ext-background-image"><header class="ext-header"><img class="ext-header-logo" alt="Filosage"></header>
-    <section class="ext-sign-in-box"><img class="ext-banner-logo" alt="Filosage"><div class="ext-boilerplate-text"><p>Use a private email code.</p></div></section></div>`);
+    <section class="ext-sign-in-box"><img class="ext-banner-logo" alt="Filosage"><input class="ext-input ext-text-box" placeholder="Email address"><div class="ext-boilerplate-text"><p>Use a private email code.</p></div></section></div>`);
   await page.evaluate(() => {
     const prune = (sheet: CSSStyleSheet | CSSMediaRule) => {
       for (let index = sheet.cssRules.length - 1; index >= 0; index--) {
@@ -582,9 +584,15 @@ test("hosted sanitizer keeps plain extension classes needed for dark illustratio
   await expect(page.locator(".ext-background-image")).toHaveCSS("background-color", "rgb(0, 13, 35)");
   await expect(page.locator(".ext-header-logo")).toHaveCSS("background-color", "rgb(255, 249, 240)");
   await expect(page.locator(".ext-banner-logo")).toHaveCSS("background-color", "rgb(255, 249, 240)");
+  await expect(page.locator(".ext-input.ext-text-box")).toHaveCSS("background-color", "rgb(255, 255, 255)");
+  await expect(page.locator(".ext-input.ext-text-box")).toHaveCSS("color", "rgb(13, 27, 61)");
+  expect(contrastRatio("rgb(117, 117, 117)", "rgb(255, 255, 255)")).toBeGreaterThanOrEqual(4.5);
   const text = await page.locator(".ext-boilerplate-text").evaluate(element => ({color:getComputedStyle(element).color,background:getComputedStyle(element).backgroundColor}));
   expect(contrastRatio(text.color, text.background)).toBeGreaterThanOrEqual(4.5);
   await page.emulateMedia({ colorScheme: "light" });
   await expect(page.locator(".ext-background-image")).toHaveCSS("background-color", "rgb(231, 221, 206)");
   expect(await page.locator(".ext-background-image").evaluate(element => getComputedStyle(element).backgroundImage)).toContain("url(");
+  await expect(page.locator(".ext-input.ext-text-box")).toHaveCSS("background-color", "rgb(255, 255, 255)");
+  await page.locator(".ext-input.ext-text-box").focus();
+  await expect(page.locator(".ext-input.ext-text-box")).toHaveCSS("color", "rgb(13, 27, 61)");
 });
