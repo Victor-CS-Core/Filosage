@@ -1,0 +1,67 @@
+{
+  "status": "infrastructure-retirement-in-progress-data-retained",
+  "explicitUserApproval": true,
+  "checkpointAtUtc": "2026-09-13T14:28:57.245683+00:00",
+  "completed": {
+    "stripeTestWebhook": {
+      "id": "we_1UENu8RANh4Mnfmav0d4Pf8k",
+      "status": "disabled",
+      "readback": true
+    },
+    "stripeTestPortal": {
+      "id": "bpc_1UENu8RANh4Mnfmafj0zDVuU",
+      "active": false,
+      "readback": true
+    },
+    "googleQaOriginsRemoved": 2,
+    "googleQaCallbacksRemoved": 2,
+    "googleProductionOriginsPreserved": 5,
+    "googleProductionCallbacksPreserved": 5,
+    "entraQaWebCallbacksRemoved": 1,
+    "entraSpaCallbacksPreserved": 6,
+    "githubQaVariablesRemoved": [
+      "AZURE_QA_CONTAINER_APP_NAME",
+      "AZURE_QA_URL"
+    ],
+    "allOtherGithubVariablesUnchanged": true,
+    "qaCnameRemoved": true,
+    "authoritativeNameserversConfirmNoCname": [
+      "ns15.domaincontrol.com",
+      "ns16.domaincontrol.com"
+    ],
+    "publicResolverNoCname": true
+  },
+  "dnsCacheWindow": {
+    "oldTtlSeconds": 3600,
+    "deletionConservativeTimestampUtc": "2026-09-13T14:25:00Z",
+    "doNotRemoveComputeBeforeUtc": "2026-09-13T15:25:00Z"
+  },
+  "continuation": {
+    "automationId": "finish-approved-qa-retirement",
+    "kind": "thread-heartbeat",
+    "status": "ACTIVE",
+    "purpose": "Resume approved remaining infrastructure retirement after DNS cache window; re-read exact state first."
+  },
+  "remaining": [
+    "QA custom domain unbind and compute/certificate removal after cache window",
+    "QA TXT ownership removal after unbind",
+    "Dedicated QA alerts and only QA selectors in shared alerts",
+    "Exact QA identity grants and app-scoped deployment grant removal",
+    "Fresh zero-consumer proof before exclusive identity retirement",
+    "Final production and signed-in learner verification"
+  ],
+  "retained": [
+    "QA database filosageqa",
+    "QA Blob container qa-course-banners",
+    "Shared owner role filosageqa_app OID25351",
+    "Both customer tenants and shared identity clients",
+    "All production/shared infrastructure",
+    "Recovery-required credentials and TEST processor history"
+  ],
+  "productionAtCheckpoint": {
+    "blueWeight": 100,
+    "source": "0fcb5f502de1159c36c31785e4796b283c7b9a02",
+    "greenWeight": 0,
+    "unchanged": true
+  }
+}
