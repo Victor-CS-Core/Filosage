@@ -1,3 +1,18 @@
+## Active Flashcards release selection — September 13
+
+Status: review_ready. Victor explicitly requested making Flashcards active under lesson Study tools. Owner: flashcards worker on `codex/flashcards-release-20260913`, based on main `ed538d20f10dcb999114c793dd200061c52b00e8`; coordinator owns push/PR/landing and hosted release execution. Preserve the complete R1–R9 release outcome and actual production transition evidence on `codex/release-evidence-20260912` at `9dc9a95`; this bounded feature checkpoint does not replace them.
+
+- [x] Trace the hidden tab and complete existing deck experience; identify authoritative manifest controls.
+- [x] Enable `flashcardDecks` and `flashcardGeneration` together in `config/release-capabilities.json`; preserve all other selections and application code.
+- [x] Verify release/build propagation, active/suspended account behavior, Free/Plus/Pro entitlements, quotas, private deck reads and accounting; independently review the scoped diff.
+- [ ] Coordinator push/PR/exact-source CI and explicit merge approval, then build/stage the new selected source and verify actual hosted Flashcards before promotion.
+
+Acceptance/design: the account capability makes the existing Flashcards tab visible for active entitled learners. Both flags are necessary because Free learners use course-grounded generation; custom decks remain Plus/Pro. Existing accepted-account, source-course access, private user storage, quality checks, idempotency, AI spending limits and monthly generation quotas (5/40/100) remain unchanged. Production defaults and sample configuration stay fail-closed; the reviewed manifest supplies explicit build/runtime values. No UI redesign, provider write, secret, billing activation or account creation was performed.
+
+Verification: the new release-selection regression failed on the original false/false manifest, then passed after enabling both flags. Negative capability tests now change the actual selected value instead of assuming a disabled release. All 489 contract tests pass, including a production-mode fixture proving active-tier visibility, suspension denial, custom-deck restrictions, quotas and missing-configuration shutdown. All nine existing Chromium flashcard-system cases pass, including private nested storage and retry/refund settlement. The focused lesson case passes (12.4 seconds): Study tools opens Flashcards, generates a mocked lesson deck and exercises study while retaining wrong-answer completion protection. TypeScript, focused ESLint, secret scan and whitespace pass. Coordinator independent review found no actionable issue. Local provider/model responses in browser tests are fixtures; actual hosted AI generation and candidate acceptance remain unverified. No new image, dispatch, push, merge or production deployment occurred in this worker task.
+
+---
+
 ## Active release workflow repair — September13
 
 Status: review_ready locally; owner coordinator with existingreviewer inisolatedcodex/runner-build-20260913. FullR1–R9 requestedoutcome is preserved in current evidencebranch codex/receiver-evidence-20260913 (checkpoint5816c6d) and existingreleaseworktree. Baseline7c/95 maintenance/realnonownerprogress/credentialcleanup/public30minuteobservation completed; publicgreen remainshealthy100. Victor approved finalcandidate staging; run34740853590 onmainb5 passedpreflight thenfailedregistrydiscovery beforeACRbuild. Exactcandidate tag isabsent; checksumverifiedcandidatearchive containsonlypreflight, no deployment. Modernblue remainsinactivezero; auth/settings/QA unchanged.
