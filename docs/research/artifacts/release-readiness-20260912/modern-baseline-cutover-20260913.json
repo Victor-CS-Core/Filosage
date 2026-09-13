@@ -1,8 +1,8 @@
 {
-  "observedAt": "2026-09-13T04:35:57.079493+00:00",
-  "status": "maintenance_active_green_healthy_learner_pending",
-  "productionIngressRestricted": true,
-  "publicReopened": false,
+  "observedAt": "2026-09-13T05:03:29.529666+00:00",
+  "status": "public_reopened_observation_active",
+  "productionIngressRestricted": false,
+  "publicReopened": true,
   "legacyRollbackProhibited": true,
   "evidence": {
     "entry-intent": {
@@ -221,13 +221,196 @@
         }
       ],
       "privateEndpointsProtected": true
+    },
+    "green-learner-database": {
+      "schemaVersion": 1,
+      "operation": "modern-learner-readonly-proof",
+      "observedAt": "2026-09-13T04:54:23.389Z",
+      "matchingRows": 1,
+      "completedRows": 1,
+      "sampleRows": 1,
+      "nonOwnerRows": 1,
+      "passed": true,
+      "sourceSha": "7c48bc02ff6623a81fee382b194864f1d04b76c0",
+      "revision": "filosagestg-app--green-7c48bc02ff66-baseline-1",
+      "imageDigest": "sha256:95cc9529e6abcfdef5918f39996cfed55703e5b29b82d75304a69765c844b344",
+      "probeSourceSha256": "1bdbe97c31e655fd6c23747964cc89e7a0c68e7e21954034920a42758510ebaf"
+    },
+    "blue-learner-database": {
+      "schemaVersion": 1,
+      "operation": "modern-learner-readonly-proof",
+      "observedAt": "2026-09-13T04:56:23.069Z",
+      "matchingRows": 1,
+      "completedRows": 1,
+      "sampleRows": 1,
+      "nonOwnerRows": 1,
+      "passed": true,
+      "sourceSha": "7c48bc02ff6623a81fee382b194864f1d04b76c0",
+      "revision": "filosagestg-app--blue-7c48bc02ff66-baseline-1",
+      "imageDigest": "sha256:95cc9529e6abcfdef5918f39996cfed55703e5b29b82d75304a69765c844b344",
+      "probeSourceSha256": "1bdbe97c31e655fd6c23747964cc89e7a0c68e7e21954034920a42758510ebaf"
+    },
+    "blue-health": {
+      "at": "2026-09-13T04:56:06.676995+00:00",
+      "health": {
+        "ok": true,
+        "version": "7c48bc02ff6623a81fee382b194864f1d04b76c0",
+        "imageDigest": "sha256:95cc9529e6abcfdef5918f39996cfed55703e5b29b82d75304a69765c844b344",
+        "capabilities": {
+          "flashcardDecks": false,
+          "flashcardGeneration": false,
+          "lessonVisuals": false,
+          "commandCenter": false,
+          "commandCenterDrafts": false,
+          "commandCenterV2": false,
+          "pipelineV2": true,
+          "validationV2": true,
+          "repairV2": true,
+          "labsV2": false,
+          "visualsV2": false,
+          "publicationV2": true,
+          "pipelineShadowMode": false,
+          "pipelineOwnerOnly": true,
+          "pipelineCohortPercent": 0
+        },
+        "origin": "https://filosage.com",
+        "authenticationMode": "migration-dual",
+        "checks": {
+          "configuration": true,
+          "datastore": true,
+          "flashcardDecks": false,
+          "flashcardGeneration": false
+        }
+      }
+    },
+    "blue-startup": {
+      "at": "2026-09-13T04:56:09.980974+00:00",
+      "schemaVerificationMarkerObserved": true,
+      "revision": "filosagestg-app--blue-7c48bc02ff66-baseline-1",
+      "rawLogsPersisted": false
+    },
+    "blue-verified": {
+      "at": "2026-09-13T04:55:11.296306+00:00",
+      "expectedFieldsOnly": true,
+      "provisioningState": "Succeeded"
+    },
+    "learnerUi": {
+      "freshGoogleSignIn": true,
+      "bookmarkPersistedAfterReload": true,
+      "lessonActivitiesCompleted": 4,
+      "completedLessonsAfterReload": 1,
+      "courseLessonCount": 12,
+      "progressPercentAfterReload": 8,
+      "courseOverviewSynced": true
+    },
+    "blueFence": {
+      "checks": 20,
+      "all403": true,
+      "independentQaVantage": true
+    },
+    "bluePrivacy": {
+      "at": "2026-09-13T04:56:55.154077+00:00",
+      "privateEndpointsProtected": true,
+      "checks": [
+        {
+          "path": "/api/auth/session",
+          "status": 200
+        },
+        {
+          "path": "/api/account",
+          "status": 401
+        },
+        {
+          "path": "/api/progress",
+          "status": 401
+        },
+        {
+          "path": "/api/courses?scope=mine",
+          "status": 401
+        }
+      ]
+    },
+    "final-labels-verified": {
+      "at": "2026-09-13T04:58:49.786568+00:00",
+      "expectedFieldOnly": true
+    },
+    "cleanup-refs-verified": {
+      "at": "2026-09-13T04:59:17.819204+00:00",
+      "onlyOldReferenceRemoved": true
+    },
+    "cleanup-role-verified": {
+      "at": "2026-09-13T04:59:39.838581+00:00",
+      "onlyCapturedGrantRemoved": true,
+      "otherProductionGrantsPreserved": true
+    },
+    "reopen-intent": {
+      "at": "2026-09-13T05:00:26.515287+00:00",
+      "operation": "reopen",
+      "approvedScope": true
+    },
+    "reopen-verified": {
+      "at": "2026-09-13T05:00:46.312544+00:00",
+      "expectedFieldOnly": true
+    },
+    "legacy-final-readback": {
+      "at": "2026-09-13T05:02:16.357102+00:00",
+      "revisions": [
+        {
+          "revision": "filosagestg-app--blue-7abae96f-1",
+          "active": false,
+          "replicas": 0
+        },
+        {
+          "revision": "filosagestg-app--green-93f60f24-1",
+          "active": false,
+          "replicas": 0
+        }
+      ],
+      "listReadReconciledWithDirectEndpoints": true
+    },
+    "all-revisions-readback": {
+      "at": "2026-09-13T05:02:46.291994+00:00",
+      "pages": 2,
+      "total": 40,
+      "active": [
+        {
+          "name": "filosagestg-app--green-7c48bc02ff66-baseline-1",
+          "health": "Healthy"
+        },
+        {
+          "name": "filosagestg-app--blue-7c48bc02ff66-baseline-1",
+          "health": "Healthy"
+        }
+      ]
+    },
+    "public-observation": {
+      "startedAt": "2026-09-13T05:00:46.312544+00:00",
+      "deadline": "2026-09-13T05:30:46.312544+00:00",
+      "status": "started",
+      "maximumFinalReadDelayMinutes": 5
+    },
+    "greenVaultAfter": {
+      "passed": true,
+      "allowed": 8,
+      "denied": 9,
+      "oldDatabaseSecretStatus": 403
+    },
+    "blueVaultAfter": {
+      "passed": true,
+      "allowed": 8,
+      "denied": 9,
+      "oldDatabaseSecretStatus": 403
+    },
+    "postReopenBrowser": {
+      "authenticatedSessionRestored": true,
+      "completedLessons": 1,
+      "courseLessons": 12,
+      "synced": true,
+      "progressPercent": 8
     }
   },
   "remaining": [
-    "real non-owner learner acceptance",
-    "modern blue fallback acceptance",
-    "old secret reference/grant cleanup and actual denial",
-    "public reopening and30minuteobservation"
+    "independent public verification and 30-minute observation"
   ],
   "finalCandidateB5NotStaged": true,
   "qaRetirementNotPerformed": true
