@@ -1,5 +1,5 @@
 {
-  "status": "infrastructure-retirement-in-progress-data-retained",
+  "status": "approved-infrastructure-retirement-complete-data-retained",
   "explicitUserApproval": true,
   "checkpointAtUtc": "2026-09-13T14:28:57.245683+00:00",
   "completed": {
@@ -29,7 +29,20 @@
       "ns15.domaincontrol.com",
       "ns16.domaincontrol.com"
     ],
-    "publicResolverNoCname": true
+    "publicResolverNoCname": true,
+    "qaCustomDomainUnbound": true,
+    "qaStoppedAndZeroReplicasBeforeDelete": true,
+    "qaAppAbsent": true,
+    "qaDedicatedCertificateAbsent": true,
+    "qaOwnershipTxtAbsent": true,
+    "fourQaMetricAlertsAbsent": true,
+    "twoSharedQueriesQaSelectorRemoved": true,
+    "sharedQueryProviderMetadataChange": "createdWithApiVersion advanced to 2023-12-01; all other non-query properties verified unchanged",
+    "tenQaIdentityGrantsRemoved": true,
+    "qaScopedDeploymentGrantAlreadyCascadedAbsent": true,
+    "allOtherRoleAssignmentsUnchanged": true,
+    "qaIdentityAbsent": true,
+    "qaIdentityZeroConsumersGrantsFederationBeforeDeletion": true
   },
   "dnsCacheWindow": {
     "oldTtlSeconds": 3600,
@@ -39,16 +52,11 @@
   "continuation": {
     "automationId": "finish-approved-qa-retirement",
     "kind": "thread-heartbeat",
-    "status": "ACTIVE",
+    "status": "PAUSED",
     "purpose": "Resume approved remaining infrastructure retirement after DNS cache window; re-read exact state first."
   },
   "remaining": [
-    "QA custom domain unbind and compute/certificate removal after cache window",
-    "QA TXT ownership removal after unbind",
-    "Dedicated QA alerts and only QA selectors in shared alerts",
-    "Exact QA identity grants and app-scoped deployment grant removal",
-    "Fresh zero-consumer proof before exclusive identity retirement",
-    "Final production and signed-in learner verification"
+    "QA data preservation/disposition and recovery-dependent role/secret retirement remain separately open; no data purge authorized by this execution"
   ],
   "retained": [
     "QA database filosageqa",
@@ -73,5 +81,41 @@
     "azureGreen": "Healthy/ScaledToZero/0 replicas",
     "initialHomepageProbe": "15-second read timeout; not counted as passing",
     "freshSignedInLearnerCheck": "pending final retirement"
+  },
+  "finalVerification": {
+    "productionConfigurationTemplateAuthUnchanged": true,
+    "qaDatabaseRetained": true,
+    "qaBlobContainerRetained": true,
+    "healthHttp": 200,
+    "dns": [
+      {
+        "name": "qa.filosage.com",
+        "server": "ns15.domaincontrol.com",
+        "absent": true
+      },
+      {
+        "name": "qa.filosage.com",
+        "server": "ns16.domaincontrol.com",
+        "absent": true
+      },
+      {
+        "name": "asuid.qa.filosage.com",
+        "server": "ns15.domaincontrol.com",
+        "absent": true
+      },
+      {
+        "name": "asuid.qa.filosage.com",
+        "server": "ns16.domaincontrol.com",
+        "absent": true
+      }
+    ],
+    "checkedAtUtc": "2026-09-13T15:38:18.598072+00:00",
+    "realLearnerReload": true,
+    "savedProgressPercent": 8,
+    "activeCourses": 1,
+    "flashcardsTabVisible": true,
+    "savedDeckCards": 8,
+    "generationQuotaRemaining": 99,
+    "newDeckGenerated": false
   }
 }
