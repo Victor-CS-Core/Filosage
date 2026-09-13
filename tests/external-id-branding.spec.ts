@@ -559,3 +559,36 @@ test("operator runbook preserves identity gates in the one-app blue/green topolo
   expect(history).toContain("### Phase A: Existing-account readiness");
   expect(history).toContain("### Phase B: New-account acceptance");
 });
+
+test("actual hosted canvas wrappers cannot retain a light illustration behind a dark form", async ({ page }) => {
+  await page.emulateMedia({ colorScheme: "dark" });
+  await page.setContent(`<style>
+    #background-container { background-color: rgb(250,250,247); }
+    #background-image { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'/%3E"); }
+    #lightbox-cover { background-color: white; }
+    .ext-boilerplate-text { background-color: rgb(242,242,242); }
+    ${css}
+  </style><div id="background-container"><div id="background-image" class="ext-background-image"></div>
+    <header class="ext-header"><img class="ext-header-logo" alt="Filosage"></header>
+    <div id="lightbox-cover"><section id="inner" class="ext-sign-in-box"><img class="ext-banner-logo" alt="Filosage">Sign in
+    <input class="ext-input" placeholder="Email address"><div class="ext-boilerplate-text"><p>Use a private email code.</p></div>
+    </section></div><footer class="ext-footer"><a href="#privacy">Privacy</a></footer></div>`);
+  await expect(page.locator("#background-container")).toHaveCSS("background-color", "rgb(0, 13, 35)");
+  await expect(page.locator("#background-image")).toHaveCSS("background-image", "none");
+  await expect(page.locator("#lightbox-cover")).toHaveCSS("background-color", "rgb(0, 13, 35)");
+  const contrast = await page.evaluate(() => {
+    const text = getComputedStyle(document.querySelector(".ext-boilerplate-text")!);
+    const logo = getComputedStyle(document.querySelector(".ext-banner-logo")!);
+    const input = document.querySelector(".ext-input")!;
+    return { color: text.color, background: text.backgroundColor, logo: logo.backgroundColor,
+      placeholder: getComputedStyle(input, "::placeholder").color, input: getComputedStyle(input).backgroundColor };
+  });
+  expect(contrastRatio(contrast.color, contrast.background)).toBeGreaterThanOrEqual(4.5);
+  expect(contrastRatio(contrast.placeholder, contrast.input)).toBeGreaterThanOrEqual(4.5);
+  expect(contrast.logo).toBe("rgb(255, 249, 240)");
+  await expect(page.locator(".ext-header-logo")).toHaveCSS("background-color", "rgb(255, 249, 240)");
+  await expect(page.locator(".ext-footer a")).toHaveCSS("color", "rgb(45, 212, 191)");
+  await page.emulateMedia({ colorScheme: "light" });
+  await expect(page.locator("#background-container")).toHaveCSS("background-color", "rgb(231, 221, 206)");
+  await expect(page.locator("#lightbox-cover")).toHaveCSS("background-color", "rgb(231, 221, 206)");
+});

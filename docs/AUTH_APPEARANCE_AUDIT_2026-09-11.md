@@ -66,3 +66,14 @@ Use `mobile-chromium` or `mobile-webkit` for both project settings to run the sa
 - [ID token claims](https://learn.microsoft.com/en-us/entra/identity-platform/id-token-claims-reference): pairwise `sub` versus stable tenant/object identifiers.
 - [Native authentication React quickstart](https://learn.microsoft.com/en-us/entra/identity-platform/quickstart-native-authentication-single-page-app-react-sign-in): registration permissions, public/native flows and CORS proxy requirements.
 - [Choosing the authentication approach](https://learn.microsoft.com/en-us/entra/external-id/customers/concept-choose-authentication-approach): framework support and social sign-in/fallback boundaries.
+
+
+## September 13 — actual hosted wrapper contrast correction
+
+The coordinator reproduced the reported Microsoft-hosted contrast defect: body and form adopted dark colors, but `#background-container` retained a near-white fill, `#background-image.ext-background-image` still painted the provider's light illustration, and `#lightbox-cover` stayed white. `.ext-boilerplate-text` inherited light text over a light-gray provider background. The original dark-ink header/banner logos lacked a contrasting backing. The earlier simplified CSS fixture did not represent those wrappers.
+
+The reviewed CSS now explicitly colors the observed background/cover wrappers in both modes, suppresses the illustration only in dark mode, supplies contrasting boilerplate/placeholder/footer-link colors, and gives only `img.ext-header-logo` and `img.ext-banner-logo` a light backing. The original brand asset bytes and geometry remain unchanged; social-provider marks are unaffected. Fixed light/dark probe assets are regenerated from this same stylesheet.
+
+A new actual-markup regression failed on the original near-white background, then passed. Eight self-contained branding checks pass, including the existing responsive/fixed-theme/accessibility matrix and new boilerplate/placeholder contrast checks. Two unrelated application-navigation cases were not included in this no-server check. Actual hosted upload and rendered verification are coordinator-owned and were not performed by the CSS worker.
+
+This corrects contrast within the existing provider configuration. Hosted automatic appearance still follows `prefers-color-scheme` (browser/OS); it cannot read Filosage's origin-local appearance preference. Explicit app choice versus opposite OS preference is not established. No new client, identity mapping, authentication/session change or app rebuild is part of this correction; the earlier two-client proposal remains historical, not an implementation prerequisite for this CSS fix.
