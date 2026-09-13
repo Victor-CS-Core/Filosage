@@ -1,24 +1,24 @@
 # Final source candidate staging
 
-Status: approved staging resumed after PR30, PR31 and PR32 merged. The first staging run34740853590 failed before image build; no candidate was deployed. The new source is undergoing fresh verification.
+Status: approved staging resumed after PR30 through PR33 merged. The first staging run34740853590 failed before image build; no candidate was deployed. Candidate9f/6f staged successfully but real Flashcards writes exposed the missing owned-slot origins. Corrected0f source is undergoing fresh verification.
 
-The approved maintenance transition uses source `7c48bc02ff6623a81fee382b194864f1d04b76c0` and image `sha256:95cc9529e6abcfdef5918f39996cfed55703e5b29b82d75304a69765c844b344`. The next operation stages final main source `9f1c08ed9b055e8742c28601b2e3b5334632cc3f` through the standard workflow. These are distinct source identities; retain their separate evidence.
+The approved maintenance transition uses source `7c48bc02ff6623a81fee382b194864f1d04b76c0` and image `sha256:95cc9529e6abcfdef5918f39996cfed55703e5b29b82d75304a69765c844b344`. The next operation stages final main source `0fcb5f502de1159c36c31785e4796b283c7b9a02` through the standard workflow. These are distinct source identities; retain their separate evidence.
 
 ## Concrete operation
 
-1. Require successful public observation, fresh exact main and provider readback, no competing deployment, and preserved serving green100 on the accepted baseline. Verify that the zero-traffic modern blue has no unexplained work, then deactivate only `filosagestg-app--blue-7c48bc02ff66-baseline-1` and verify zero replicas. Keep its metadata. The workflow's connection budget permits at most two active production revisions including the future candidate; it does not deactivate the previous blue automatically.
+1. Require successful public observation, fresh exact main and provider readback, no competing deployment, and preserved serving green100 on the accepted baseline. Verify that the zero-traffic modern blue has no unexplained work, then deactivate only `filosagestg-app--blue-9f1c08ed9b05-34744428417-1` and verify zero replicas. Keep its metadata. The workflow's connection budget permits at most two active production revisions including the future candidate; it does not deactivate the previous blue automatically.
 2. Dispatch `.github/workflows/azure-staging.yml` on `main` with the exact inputs below. It builds the final source once on the GitHub runner and pushes to ACR and pins the resulting digest. The workflow copies the serving template, verifies the candidate revision, and binds only blue0. Public green100, shared authentication, identity, secrets and ingress restrictions must remain unchanged. Normal ingress makes the optional maintenance-runner rule a no-op.
 3. Read the terminal workflow result within its 40-minute job bound plus five minutes for final artifact retrieval. Download and checksum the exact `release-candidate-<full SHA>` artifact, verify source/digest/readback and candidate/previous revision identity. A failed run is not approval to rebuild blindly; reconcile its build and deployment evidence first.
 
 | Input | Value |
 | --- | --- |
-| `expected_sha` | `9f1c08ed9b055e8742c28601b2e3b5334632cc3f` |
+| `expected_sha` | `0fcb5f502de1159c36c31785e4796b283c7b9a02` |
 | `expected_auth_mode` | `migration-dual` |
-| `quality_run_id` | `34743287595` |
-| `regression_run_id` | `34743308180` |
+| `quality_run_id` | `34745378588` |
+| `regression_run_id` | `34745404231` |
 | `featured_course_id` | `none` |
 
-Exact-source engineering34743287595, security34743287591 and full regression34743308180 passed. Regression artifact10313464129 source/checksum verified:458passed,9declaredskips,0unexpected,0flaky. Stage run34744428417 dispatched once at07:07UTC; acceptance remains pending. Earlier b5 results remain historical evidence only. Do not rebuild the accepted baseline.
+Corrected-source engineering34745378588, security34745378586 and full regression34745404231 are running. Require actual success and artifact/source verification before staging. Previous9f regression and successfulstage34744428417 remain distinct evidence; its actual Flashcards write-origin failure requires the one-line ALLOWED_ORIGINS correction. Preserve its image and stop only that zero-traffic candidate after fresh work inventory; never rebuild the accepted baseline.
 
 ## Acceptance and limits
 
