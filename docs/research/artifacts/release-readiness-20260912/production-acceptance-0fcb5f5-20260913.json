@@ -1,0 +1,2488 @@
+{
+  "schemaVersion": 1,
+  "observedAt": "2026-09-13T08:56:41.240253+00:00",
+  "productionAccepted": true,
+  "fullRequestedChecklistComplete": false,
+  "sourceSha": "0fcb5f502de1159c36c31785e4796b283c7b9a02",
+  "imageDigest": "sha256:dae13abacb841400d649ec892f4b6455e25e61a49547f937269417e65c8987af",
+  "revision": "filosagestg-app--blue-0fcb5f502de1-34747001741-1",
+  "compatiblePredecessor": {
+    "revision": "filosagestg-app--green-7c48bc02ff66-baseline-1",
+    "label": "green",
+    "sha": "7c48bc02ff6623a81fee382b194864f1d04b76c0",
+    "image": "filosagestp4ujucgnxq3gsacr.azurecr.io/filosage@sha256:95cc9529e6abcfdef5918f39996cfed55703e5b29b82d75304a69765c844b344",
+    "imageDigest": "sha256:95cc9529e6abcfdef5918f39996cfed55703e5b29b82d75304a69765c844b344",
+    "manifest": {
+      "schemaVersion": 1,
+      "capabilities": {
+        "flashcardDecks": false,
+        "flashcardGeneration": false,
+        "lessonVisuals": false,
+        "commandCenter": false,
+        "commandCenterDrafts": false,
+        "commandCenterV2": false,
+        "pipelineV2": true,
+        "validationV2": true,
+        "repairV2": true,
+        "labsV2": false,
+        "visualsV2": false,
+        "publicationV2": true,
+        "pipelineShadowMode": false,
+        "pipelineOwnerOnly": true,
+        "pipelineCohortPercent": 0
+      }
+    },
+    "productionOrigin": "https://filosage.com",
+    "candidateOrigin": "https://filosage.com",
+    "authenticationMode": "migration-dual",
+    "featuredCourseId": "none"
+  },
+  "workflowReadback": {
+    "at": "2026-09-13T08:52:31.412391+00:00",
+    "main": "0fcb5f502de1159c36c31785e4796b283c7b9a02",
+    "runs": [
+      {
+        "id": 34745378588,
+        "status": "completed",
+        "conclusion": "success",
+        "head_sha": "0fcb5f502de1159c36c31785e4796b283c7b9a02",
+        "run_attempt": 1
+      },
+      {
+        "id": 34745378586,
+        "status": "completed",
+        "conclusion": "success",
+        "head_sha": "0fcb5f502de1159c36c31785e4796b283c7b9a02",
+        "run_attempt": 1
+      },
+      {
+        "id": 34745404231,
+        "status": "completed",
+        "conclusion": "success",
+        "head_sha": "0fcb5f502de1159c36c31785e4796b283c7b9a02",
+        "run_attempt": 1
+      },
+      {
+        "id": 34747001741,
+        "status": "completed",
+        "conclusion": "success",
+        "head_sha": "0fcb5f502de1159c36c31785e4796b283c7b9a02",
+        "run_attempt": 1
+      },
+      {
+        "id": 34747371438,
+        "status": "completed",
+        "conclusion": "success",
+        "head_sha": "0fcb5f502de1159c36c31785e4796b283c7b9a02",
+        "run_attempt": 1
+      },
+      {
+        "id": 34747467753,
+        "status": "completed",
+        "conclusion": "success",
+        "head_sha": "0fcb5f502de1159c36c31785e4796b283c7b9a02",
+        "run_attempt": 1
+      },
+      {
+        "id": 34747532646,
+        "status": "completed",
+        "conclusion": "success",
+        "head_sha": "0fcb5f502de1159c36c31785e4796b283c7b9a02",
+        "run_attempt": 1
+      }
+    ],
+    "evidenceHeadBeforeFinalCheckpoint": "8b9204767a9a0d63619617049a5ace554ddcaf65"
+  },
+  "proofArtifacts": [
+    {
+      "runId": "34747371438",
+      "artifactId": 10313979460,
+      "name": "candidate-proof-bff-auth-privacy",
+      "digest": "sha256:37cab372dcf2aca118011f7b2f0096df55d38a27555a072e78274fe5def261e3",
+      "files": [
+        "candidate-proof.json",
+        "candidate-readback.json",
+        "reviewed-source.json"
+      ]
+    },
+    {
+      "runId": "34747371438",
+      "artifactId": 10313934573,
+      "name": "candidate-proof-learner-journey",
+      "digest": "sha256:dd438dd380336408b2d3933ac036dcda44d00aca1cbe07bdea353f5a319d6046",
+      "files": [
+        "candidate-proof.json",
+        "candidate-readback.json",
+        "reviewed-source.json"
+      ]
+    },
+    {
+      "runId": "34747371438",
+      "artifactId": 10314348677,
+      "name": "candidate-proof-publication",
+      "digest": "sha256:50a43a1020a3cd3b6d71c832102a6d12647d683d7067299c1dc8efe37b479f61",
+      "files": [
+        "candidate-proof.json",
+        "candidate-readback.json",
+        "reviewed-source.json"
+      ]
+    },
+    {
+      "runId": "34747371438",
+      "artifactId": 10313859820,
+      "name": "candidate-proof-billing-containment",
+      "digest": "sha256:3e5cb9af1024a1e5523a8a713978e2c822caca3dbd3d12d802f3b2f745fa234a",
+      "files": [
+        "candidate-proof.json",
+        "candidate-readback.json",
+        "reviewed-source.json"
+      ]
+    },
+    {
+      "runId": "34747371438",
+      "artifactId": 10314253764,
+      "name": "candidate-proof-operations-probes-alerts",
+      "digest": "sha256:0a62adccc09580a691cf0b2e240cc1be45d9fddeb787212e70d91202428d6614",
+      "files": [
+        "candidate-proof.json",
+        "candidate-readback.json",
+        "reviewed-source.json"
+      ]
+    },
+    {
+      "runId": "34747371438",
+      "artifactId": 10314263744,
+      "name": "candidate-proof-recovery-rollback",
+      "digest": "sha256:56350f5eab6e0335506da126786cb7098cf8650deee70d4e1c39b91963378805",
+      "files": [
+        "candidate-proof.json",
+        "candidate-readback.json",
+        "reviewed-source.json"
+      ]
+    },
+    {
+      "runId": "34747371438",
+      "artifactId": 10313924485,
+      "name": "candidate-proof-data-write-compatibility",
+      "digest": "sha256:e2cf7f1fad9ef3c44f254d2af20ef2d639eb5bc9381fea831bfad96b0c8926b6",
+      "files": [
+        "candidate-proof.json",
+        "candidate-readback.json",
+        "reviewed-source.json"
+      ]
+    }
+  ],
+  "verificationArtifact": {
+    "runId": "34747467753",
+    "artifactId": 10314144390,
+    "digest": "sha256:e6956780b542419488b07461f6ed5af8472a5af5c90734a0e78e83a06eb05cfc"
+  },
+  "promotionArtifact": {
+    "runId": "34747532646",
+    "artifactId": 10314304104,
+    "digest": "sha256:79688e0de9f130b0c9e66e162adf4ef68199c35f19e83802ad7d05a5463cd9bd"
+  },
+  "window": {
+    "startedAt": "2026-09-13T08:23:56.895736+00:00",
+    "deadline": "2026-09-13T08:53:56.895736+00:00",
+    "sourceSha": "0fcb5f502de1159c36c31785e4796b283c7b9a02",
+    "imageDigest": "sha256:dae13abacb841400d649ec892f4b6455e25e61a49547f937269417e65c8987af"
+  },
+  "observationSummary": {
+    "samples": 36,
+    "fullyPassingSamples": 34,
+    "allHealthChecksPassed": true,
+    "initialIncompleteMetricsSamples": 2,
+    "initialMetricsFailure": "Azure rejected timespans shorter than one minute; later cumulative metrics cover observation start",
+    "maxSampleGapSeconds": 53.239602,
+    "healthMaxMs": 206,
+    "healthMedianMs": 163.5,
+    "lastMetrics": {
+      "2xx": 210,
+      "3xx": 8,
+      "4xx": 5,
+      "0xx": 0
+    },
+    "noObserved5xxOrRestarts": true,
+    "metricsMayLag": true,
+    "continuousInstrumentationClaimed": false,
+    "boundedObserverExited": 0
+  },
+  "samples": [
+    {
+      "at": "2026-09-13T08:23:56.937187+00:00",
+      "health": [
+        {
+          "origin": "https://filosage.com",
+          "passed": true,
+          "elapsedMs": 168
+        },
+        {
+          "origin": "https://filosagestg-app---green.salmontree-eb10220f.centralus.azurecontainerapps.io",
+          "passed": true,
+          "elapsedMs": 186
+        }
+      ],
+      "replicas": [
+        {
+          "revision": "filosagestg-app--blue-0fcb5f502de1-34747001741-1",
+          "count": 2,
+          "containers": [
+            {
+              "ready": true,
+              "restartCount": 0
+            },
+            {
+              "ready": true,
+              "restartCount": 0
+            },
+            {
+              "ready": true,
+              "restartCount": 0
+            },
+            {
+              "ready": true,
+              "restartCount": 0
+            }
+          ],
+          "passed": true
+        },
+        {
+          "revision": "filosagestg-app--green-7c48bc02ff66-baseline-1",
+          "count": 1,
+          "containers": [
+            {
+              "ready": true,
+              "restartCount": 0
+            },
+            {
+              "ready": true,
+              "restartCount": 0
+            }
+          ],
+          "passed": true
+        }
+      ],
+      "failures": [
+        {
+          "kind": "metrics",
+          "errorType": "RuntimeError"
+        }
+      ],
+      "passed": false
+    },
+    {
+      "at": "2026-09-13T08:24:18.135692+00:00",
+      "health": [
+        {
+          "origin": "https://filosage.com",
+          "passed": true,
+          "elapsedMs": 162
+        },
+        {
+          "origin": "https://filosagestg-app---green.salmontree-eb10220f.centralus.azurecontainerapps.io",
+          "passed": true,
+          "elapsedMs": 164
+        }
+      ],
+      "replicas": [
+        {
+          "revision": "filosagestg-app--blue-0fcb5f502de1-34747001741-1",
+          "count": 1,
+          "containers": [
+            {
+              "ready": true,
+              "restartCount": 0
+            },
+            {
+              "ready": true,
+              "restartCount": 0
+            }
+          ],
+          "passed": true
+        },
+        {
+          "revision": "filosagestg-app--green-7c48bc02ff66-baseline-1",
+          "count": 1,
+          "containers": [
+            {
+              "ready": true,
+              "restartCount": 0
+            },
+            {
+              "ready": true,
+              "restartCount": 0
+            }
+          ],
+          "passed": true
+        }
+      ],
+      "failures": [
+        {
+          "kind": "metrics",
+          "errorType": "RuntimeError"
+        }
+      ],
+      "passed": false
+    },
+    {
+      "at": "2026-09-13T08:25:00.379342+00:00",
+      "health": [
+        {
+          "origin": "https://filosage.com",
+          "passed": true,
+          "elapsedMs": 173
+        },
+        {
+          "origin": "https://filosagestg-app---green.salmontree-eb10220f.centralus.azurecontainerapps.io",
+          "passed": true,
+          "elapsedMs": 160
+        }
+      ],
+      "replicas": [
+        {
+          "revision": "filosagestg-app--blue-0fcb5f502de1-34747001741-1",
+          "count": 1,
+          "containers": [
+            {
+              "ready": true,
+              "restartCount": 0
+            },
+            {
+              "ready": true,
+              "restartCount": 0
+            }
+          ],
+          "passed": true
+        },
+        {
+          "revision": "filosagestg-app--green-7c48bc02ff66-baseline-1",
+          "count": 1,
+          "containers": [
+            {
+              "ready": true,
+              "restartCount": 0
+            },
+            {
+              "ready": true,
+              "restartCount": 0
+            }
+          ],
+          "passed": true
+        }
+      ],
+      "failures": [],
+      "requestMetrics": {
+        "2xx": 12,
+        "4xx": 4,
+        "3xx": 3,
+        "0xx": 0
+      },
+      "metricsMayLag": true,
+      "metricsIncludePartialFirstMinute": true,
+      "passed": true
+    },
+    {
+      "at": "2026-09-13T08:25:53.006056+00:00",
+      "health": [
+        {
+          "origin": "https://filosage.com",
+          "passed": true,
+          "elapsedMs": 164
+        },
+        {
+          "origin": "https://filosagestg-app---green.salmontree-eb10220f.centralus.azurecontainerapps.io",
+          "passed": true,
+          "elapsedMs": 159
+        }
+      ],
+      "replicas": [
+        {
+          "revision": "filosagestg-app--blue-0fcb5f502de1-34747001741-1",
+          "count": 1,
+          "containers": [
+            {
+              "ready": true,
+              "restartCount": 0
+            },
+            {
+              "ready": true,
+              "restartCount": 0
+            }
+          ],
+          "passed": true
+        },
+        {
+          "revision": "filosagestg-app--green-7c48bc02ff66-baseline-1",
+          "count": 1,
+          "containers": [
+            {
+              "ready": true,
+              "restartCount": 0
+            },
+            {
+              "ready": true,
+              "restartCount": 0
+            }
+          ],
+          "passed": true
+        }
+      ],
+      "failures": [],
+      "requestMetrics": {
+        "2xx": 12,
+        "4xx": 4,
+        "3xx": 3,
+        "0xx": 0
+      },
+      "metricsMayLag": true,
+      "metricsIncludePartialFirstMinute": true,
+      "passed": true
+    },
+    {
+      "at": "2026-09-13T08:26:45.475203+00:00",
+      "health": [
+        {
+          "origin": "https://filosage.com",
+          "passed": true,
+          "elapsedMs": 172
+        },
+        {
+          "origin": "https://filosagestg-app---green.salmontree-eb10220f.centralus.azurecontainerapps.io",
+          "passed": true,
+          "elapsedMs": 152
+        }
+      ],
+      "replicas": [
+        {
+          "revision": "filosagestg-app--blue-0fcb5f502de1-34747001741-1",
+          "count": 1,
+          "containers": [
+            {
+              "ready": true,
+              "restartCount": 0
+            },
+            {
+              "ready": true,
+              "restartCount": 0
+            }
+          ],
+          "passed": true
+        },
+        {
+          "revision": "filosagestg-app--green-7c48bc02ff66-baseline-1",
+          "count": 1,
+          "containers": [
+            {
+              "ready": true,
+              "restartCount": 0
+            },
+            {
+              "ready": true,
+              "restartCount": 0
+            }
+          ],
+          "passed": true
+        }
+      ],
+      "failures": [],
+      "requestMetrics": {
+        "2xx": 75,
+        "4xx": 4,
+        "3xx": 3,
+        "0xx": 0
+      },
+      "metricsMayLag": true,
+      "metricsIncludePartialFirstMinute": true,
+      "passed": true
+    },
+    {
+      "at": "2026-09-13T08:27:38.297745+00:00",
+      "health": [
+        {
+          "origin": "https://filosage.com",
+          "passed": true,
+          "elapsedMs": 167
+        },
+        {
+          "origin": "https://filosagestg-app---green.salmontree-eb10220f.centralus.azurecontainerapps.io",
+          "passed": true,
+          "elapsedMs": 160
+        }
+      ],
+      "replicas": [
+        {
+          "revision": "filosagestg-app--blue-0fcb5f502de1-34747001741-1",
+          "count": 1,
+          "containers": [
+            {
+              "ready": true,
+              "restartCount": 0
+            },
+            {
+              "ready": true,
+              "restartCount": 0
+            }
+          ],
+          "passed": true
+        },
+        {
+          "revision": "filosagestg-app--green-7c48bc02ff66-baseline-1",
+          "count": 1,
+          "containers": [
+            {
+              "ready": true,
+              "restartCount": 0
+            },
+            {
+              "ready": true,
+              "restartCount": 0
+            }
+          ],
+          "passed": true
+        }
+      ],
+      "failures": [],
+      "requestMetrics": {
+        "2xx": 100,
+        "4xx": 4,
+        "3xx": 3,
+        "0xx": 0
+      },
+      "metricsMayLag": true,
+      "metricsIncludePartialFirstMinute": true,
+      "passed": true
+    },
+    {
+      "at": "2026-09-13T08:28:31.258887+00:00",
+      "health": [
+        {
+          "origin": "https://filosage.com",
+          "passed": true,
+          "elapsedMs": 158
+        },
+        {
+          "origin": "https://filosagestg-app---green.salmontree-eb10220f.centralus.azurecontainerapps.io",
+          "passed": true,
+          "elapsedMs": 166
+        }
+      ],
+      "replicas": [
+        {
+          "revision": "filosagestg-app--blue-0fcb5f502de1-34747001741-1",
+          "count": 1,
+          "containers": [
+            {
+              "ready": true,
+              "restartCount": 0
+            },
+            {
+              "ready": true,
+              "restartCount": 0
+            }
+          ],
+          "passed": true
+        },
+        {
+          "revision": "filosagestg-app--green-7c48bc02ff66-baseline-1",
+          "count": 1,
+          "containers": [
+            {
+              "ready": true,
+              "restartCount": 0
+            },
+            {
+              "ready": true,
+              "restartCount": 0
+            }
+          ],
+          "passed": true
+        }
+      ],
+      "failures": [],
+      "requestMetrics": {
+        "2xx": 105,
+        "4xx": 4,
+        "3xx": 3,
+        "0xx": 0
+      },
+      "metricsMayLag": true,
+      "metricsIncludePartialFirstMinute": true,
+      "passed": true
+    },
+    {
+      "at": "2026-09-13T08:29:24.038256+00:00",
+      "health": [
+        {
+          "origin": "https://filosage.com",
+          "passed": true,
+          "elapsedMs": 164
+        },
+        {
+          "origin": "https://filosagestg-app---green.salmontree-eb10220f.centralus.azurecontainerapps.io",
+          "passed": true,
+          "elapsedMs": 189
+        }
+      ],
+      "replicas": [
+        {
+          "revision": "filosagestg-app--blue-0fcb5f502de1-34747001741-1",
+          "count": 1,
+          "containers": [
+            {
+              "ready": true,
+              "restartCount": 0
+            },
+            {
+              "ready": true,
+              "restartCount": 0
+            }
+          ],
+          "passed": true
+        },
+        {
+          "revision": "filosagestg-app--green-7c48bc02ff66-baseline-1",
+          "count": 1,
+          "containers": [
+            {
+              "ready": true,
+              "restartCount": 0
+            },
+            {
+              "ready": true,
+              "restartCount": 0
+            }
+          ],
+          "passed": true
+        }
+      ],
+      "failures": [],
+      "requestMetrics": {
+        "2xx": 150,
+        "3xx": 8,
+        "4xx": 4,
+        "0xx": 0
+      },
+      "metricsMayLag": true,
+      "metricsIncludePartialFirstMinute": true,
+      "passed": true
+    },
+    {
+      "at": "2026-09-13T08:30:17.238186+00:00",
+      "health": [
+        {
+          "origin": "https://filosage.com",
+          "passed": true,
+          "elapsedMs": 166
+        },
+        {
+          "origin": "https://filosagestg-app---green.salmontree-eb10220f.centralus.azurecontainerapps.io",
+          "passed": true,
+          "elapsedMs": 147
+        }
+      ],
+      "replicas": [
+        {
+          "revision": "filosagestg-app--blue-0fcb5f502de1-34747001741-1",
+          "count": 1,
+          "containers": [
+            {
+              "ready": true,
+              "restartCount": 0
+            },
+            {
+              "ready": true,
+              "restartCount": 0
+            }
+          ],
+          "passed": true
+        },
+        {
+          "revision": "filosagestg-app--green-7c48bc02ff66-baseline-1",
+          "count": 1,
+          "containers": [
+            {
+              "ready": true,
+              "restartCount": 0
+            },
+            {
+              "ready": true,
+              "restartCount": 0
+            }
+          ],
+          "passed": true
+        }
+      ],
+      "failures": [],
+      "requestMetrics": {
+        "2xx": 154,
+        "3xx": 8,
+        "4xx": 4,
+        "0xx": 0
+      },
+      "metricsMayLag": true,
+      "metricsIncludePartialFirstMinute": true,
+      "passed": true
+    },
+    {
+      "at": "2026-09-13T08:31:09.900892+00:00",
+      "health": [
+        {
+          "origin": "https://filosage.com",
+          "passed": true,
+          "elapsedMs": 155
+        },
+        {
+          "origin": "https://filosagestg-app---green.salmontree-eb10220f.centralus.azurecontainerapps.io",
+          "passed": true,
+          "elapsedMs": 153
+        }
+      ],
+      "replicas": [
+        {
+          "revision": "filosagestg-app--blue-0fcb5f502de1-34747001741-1",
+          "count": 1,
+          "containers": [
+            {
+              "ready": true,
+              "restartCount": 0
+            },
+            {
+              "ready": true,
+              "restartCount": 0
+            }
+          ],
+          "passed": true
+        },
+        {
+          "revision": "filosagestg-app--green-7c48bc02ff66-baseline-1",
+          "count": 1,
+          "containers": [
+            {
+              "ready": true,
+              "restartCount": 0
+            },
+            {
+              "ready": true,
+              "restartCount": 0
+            }
+          ],
+          "passed": true
+        }
+      ],
+      "failures": [],
+      "requestMetrics": {
+        "2xx": 156,
+        "3xx": 8,
+        "4xx": 5,
+        "0xx": 0
+      },
+      "metricsMayLag": true,
+      "metricsIncludePartialFirstMinute": true,
+      "passed": true
+    },
+    {
+      "at": "2026-09-13T08:32:02.595188+00:00",
+      "health": [
+        {
+          "origin": "https://filosage.com",
+          "passed": true,
+          "elapsedMs": 172
+        },
+        {
+          "origin": "https://filosagestg-app---green.salmontree-eb10220f.centralus.azurecontainerapps.io",
+          "passed": true,
+          "elapsedMs": 165
+        }
+      ],
+      "replicas": [
+        {
+          "revision": "filosagestg-app--blue-0fcb5f502de1-34747001741-1",
+          "count": 1,
+          "containers": [
+            {
+              "ready": true,
+              "restartCount": 0
+            },
+            {
+              "ready": true,
+              "restartCount": 0
+            }
+          ],
+          "passed": true
+        },
+        {
+          "revision": "filosagestg-app--green-7c48bc02ff66-baseline-1",
+          "count": 1,
+          "containers": [
+            {
+              "ready": true,
+              "restartCount": 0
+            },
+            {
+              "ready": true,
+              "restartCount": 0
+            }
+          ],
+          "passed": true
+        }
+      ],
+      "failures": [],
+      "requestMetrics": {
+        "2xx": 158,
+        "3xx": 8,
+        "4xx": 5,
+        "0xx": 0
+      },
+      "metricsMayLag": true,
+      "metricsIncludePartialFirstMinute": true,
+      "passed": true
+    },
+    {
+      "at": "2026-09-13T08:32:55.143309+00:00",
+      "health": [
+        {
+          "origin": "https://filosage.com",
+          "passed": true,
+          "elapsedMs": 153
+        },
+        {
+          "origin": "https://filosagestg-app---green.salmontree-eb10220f.centralus.azurecontainerapps.io",
+          "passed": true,
+          "elapsedMs": 184
+        }
+      ],
+      "replicas": [
+        {
+          "revision": "filosagestg-app--blue-0fcb5f502de1-34747001741-1",
+          "count": 1,
+          "containers": [
+            {
+              "ready": true,
+              "restartCount": 0
+            },
+            {
+              "ready": true,
+              "restartCount": 0
+            }
+          ],
+          "passed": true
+        },
+        {
+          "revision": "filosagestg-app--green-7c48bc02ff66-baseline-1",
+          "count": 1,
+          "containers": [
+            {
+              "ready": true,
+              "restartCount": 0
+            },
+            {
+              "ready": true,
+              "restartCount": 0
+            }
+          ],
+          "passed": true
+        }
+      ],
+      "failures": [],
+      "requestMetrics": {
+        "2xx": 158,
+        "3xx": 8,
+        "4xx": 5,
+        "0xx": 0
+      },
+      "metricsMayLag": true,
+      "metricsIncludePartialFirstMinute": true,
+      "passed": true
+    },
+    {
+      "at": "2026-09-13T08:33:47.920413+00:00",
+      "health": [
+        {
+          "origin": "https://filosage.com",
+          "passed": true,
+          "elapsedMs": 160
+        },
+        {
+          "origin": "https://filosagestg-app---green.salmontree-eb10220f.centralus.azurecontainerapps.io",
+          "passed": true,
+          "elapsedMs": 148
+        }
+      ],
+      "replicas": [
+        {
+          "revision": "filosagestg-app--blue-0fcb5f502de1-34747001741-1",
+          "count": 1,
+          "containers": [
+            {
+              "ready": true,
+              "restartCount": 0
+            },
+            {
+              "ready": true,
+              "restartCount": 0
+            }
+          ],
+          "passed": true
+        },
+        {
+          "revision": "filosagestg-app--green-7c48bc02ff66-baseline-1",
+          "count": 1,
+          "containers": [
+            {
+              "ready": true,
+              "restartCount": 0
+            },
+            {
+              "ready": true,
+              "restartCount": 0
+            }
+          ],
+          "passed": true
+        }
+      ],
+      "failures": [],
+      "requestMetrics": {
+        "2xx": 161,
+        "3xx": 8,
+        "4xx": 5,
+        "0xx": 0
+      },
+      "metricsMayLag": true,
+      "metricsIncludePartialFirstMinute": true,
+      "passed": true
+    },
+    {
+      "at": "2026-09-13T08:34:40.297102+00:00",
+      "health": [
+        {
+          "origin": "https://filosage.com",
+          "passed": true,
+          "elapsedMs": 181
+        },
+        {
+          "origin": "https://filosagestg-app---green.salmontree-eb10220f.centralus.azurecontainerapps.io",
+          "passed": true,
+          "elapsedMs": 191
+        }
+      ],
+      "replicas": [
+        {
+          "revision": "filosagestg-app--blue-0fcb5f502de1-34747001741-1",
+          "count": 1,
+          "containers": [
+            {
+              "ready": true,
+              "restartCount": 0
+            },
+            {
+              "ready": true,
+              "restartCount": 0
+            }
+          ],
+          "passed": true
+        },
+        {
+          "revision": "filosagestg-app--green-7c48bc02ff66-baseline-1",
+          "count": 1,
+          "containers": [
+            {
+              "ready": true,
+              "restartCount": 0
+            },
+            {
+              "ready": true,
+              "restartCount": 0
+            }
+          ],
+          "passed": true
+        }
+      ],
+      "failures": [],
+      "requestMetrics": {
+        "2xx": 164,
+        "3xx": 8,
+        "4xx": 5,
+        "0xx": 0
+      },
+      "metricsMayLag": true,
+      "metricsIncludePartialFirstMinute": true,
+      "passed": true
+    },
+    {
+      "at": "2026-09-13T08:35:32.716321+00:00",
+      "health": [
+        {
+          "origin": "https://filosage.com",
+          "passed": true,
+          "elapsedMs": 154
+        },
+        {
+          "origin": "https://filosagestg-app---green.salmontree-eb10220f.centralus.azurecontainerapps.io",
+          "passed": true,
+          "elapsedMs": 163
+        }
+      ],
+      "replicas": [
+        {
+          "revision": "filosagestg-app--blue-0fcb5f502de1-34747001741-1",
+          "count": 1,
+          "containers": [
+            {
+              "ready": true,
+              "restartCount": 0
+            },
+            {
+              "ready": true,
+              "restartCount": 0
+            }
+          ],
+          "passed": true
+        },
+        {
+          "revision": "filosagestg-app--green-7c48bc02ff66-baseline-1",
+          "count": 1,
+          "containers": [
+            {
+              "ready": true,
+              "restartCount": 0
+            },
+            {
+              "ready": true,
+              "restartCount": 0
+            }
+          ],
+          "passed": true
+        }
+      ],
+      "failures": [],
+      "requestMetrics": {
+        "2xx": 168,
+        "3xx": 8,
+        "4xx": 5,
+        "0xx": 0
+      },
+      "metricsMayLag": true,
+      "metricsIncludePartialFirstMinute": true,
+      "passed": true
+    },
+    {
+      "at": "2026-09-13T08:36:25.827916+00:00",
+      "health": [
+        {
+          "origin": "https://filosage.com",
+          "passed": true,
+          "elapsedMs": 167
+        },
+        {
+          "origin": "https://filosagestg-app---green.salmontree-eb10220f.centralus.azurecontainerapps.io",
+          "passed": true,
+          "elapsedMs": 168
+        }
+      ],
+      "replicas": [
+        {
+          "revision": "filosagestg-app--blue-0fcb5f502de1-34747001741-1",
+          "count": 1,
+          "containers": [
+            {
+              "ready": true,
+              "restartCount": 0
+            },
+            {
+              "ready": true,
+              "restartCount": 0
+            }
+          ],
+          "passed": true
+        },
+        {
+          "revision": "filosagestg-app--green-7c48bc02ff66-baseline-1",
+          "count": 1,
+          "containers": [
+            {
+              "ready": true,
+              "restartCount": 0
+            },
+            {
+              "ready": true,
+              "restartCount": 0
+            }
+          ],
+          "passed": true
+        }
+      ],
+      "failures": [],
+      "requestMetrics": {
+        "2xx": 171,
+        "3xx": 8,
+        "4xx": 5,
+        "0xx": 0
+      },
+      "metricsMayLag": true,
+      "metricsIncludePartialFirstMinute": true,
+      "passed": true
+    },
+    {
+      "at": "2026-09-13T08:37:18.673341+00:00",
+      "health": [
+        {
+          "origin": "https://filosage.com",
+          "passed": true,
+          "elapsedMs": 167
+        },
+        {
+          "origin": "https://filosagestg-app---green.salmontree-eb10220f.centralus.azurecontainerapps.io",
+          "passed": true,
+          "elapsedMs": 155
+        }
+      ],
+      "replicas": [
+        {
+          "revision": "filosagestg-app--blue-0fcb5f502de1-34747001741-1",
+          "count": 1,
+          "containers": [
+            {
+              "ready": true,
+              "restartCount": 0
+            },
+            {
+              "ready": true,
+              "restartCount": 0
+            }
+          ],
+          "passed": true
+        },
+        {
+          "revision": "filosagestg-app--green-7c48bc02ff66-baseline-1",
+          "count": 1,
+          "containers": [
+            {
+              "ready": true,
+              "restartCount": 0
+            },
+            {
+              "ready": true,
+              "restartCount": 0
+            }
+          ],
+          "passed": true
+        }
+      ],
+      "failures": [],
+      "requestMetrics": {
+        "2xx": 173,
+        "3xx": 8,
+        "4xx": 5,
+        "0xx": 0
+      },
+      "metricsMayLag": true,
+      "metricsIncludePartialFirstMinute": true,
+      "passed": true
+    },
+    {
+      "at": "2026-09-13T08:38:11.736921+00:00",
+      "health": [
+        {
+          "origin": "https://filosage.com",
+          "passed": true,
+          "elapsedMs": 157
+        },
+        {
+          "origin": "https://filosagestg-app---green.salmontree-eb10220f.centralus.azurecontainerapps.io",
+          "passed": true,
+          "elapsedMs": 155
+        }
+      ],
+      "replicas": [
+        {
+          "revision": "filosagestg-app--blue-0fcb5f502de1-34747001741-1",
+          "count": 1,
+          "containers": [
+            {
+              "ready": true,
+              "restartCount": 0
+            },
+            {
+              "ready": true,
+              "restartCount": 0
+            }
+          ],
+          "passed": true
+        },
+        {
+          "revision": "filosagestg-app--green-7c48bc02ff66-baseline-1",
+          "count": 1,
+          "containers": [
+            {
+              "ready": true,
+              "restartCount": 0
+            },
+            {
+              "ready": true,
+              "restartCount": 0
+            }
+          ],
+          "passed": true
+        }
+      ],
+      "failures": [],
+      "requestMetrics": {
+        "2xx": 175,
+        "3xx": 8,
+        "4xx": 5,
+        "0xx": 0
+      },
+      "metricsMayLag": true,
+      "metricsIncludePartialFirstMinute": true,
+      "passed": true
+    },
+    {
+      "at": "2026-09-13T08:39:04.434188+00:00",
+      "health": [
+        {
+          "origin": "https://filosage.com",
+          "passed": true,
+          "elapsedMs": 157
+        },
+        {
+          "origin": "https://filosagestg-app---green.salmontree-eb10220f.centralus.azurecontainerapps.io",
+          "passed": true,
+          "elapsedMs": 162
+        }
+      ],
+      "replicas": [
+        {
+          "revision": "filosagestg-app--blue-0fcb5f502de1-34747001741-1",
+          "count": 1,
+          "containers": [
+            {
+              "ready": true,
+              "restartCount": 0
+            },
+            {
+              "ready": true,
+              "restartCount": 0
+            }
+          ],
+          "passed": true
+        },
+        {
+          "revision": "filosagestg-app--green-7c48bc02ff66-baseline-1",
+          "count": 1,
+          "containers": [
+            {
+              "ready": true,
+              "restartCount": 0
+            },
+            {
+              "ready": true,
+              "restartCount": 0
+            }
+          ],
+          "passed": true
+        }
+      ],
+      "failures": [],
+      "requestMetrics": {
+        "2xx": 177,
+        "3xx": 8,
+        "4xx": 5,
+        "0xx": 0
+      },
+      "metricsMayLag": true,
+      "metricsIncludePartialFirstMinute": true,
+      "passed": true
+    },
+    {
+      "at": "2026-09-13T08:39:57.222821+00:00",
+      "health": [
+        {
+          "origin": "https://filosage.com",
+          "passed": true,
+          "elapsedMs": 171
+        },
+        {
+          "origin": "https://filosagestg-app---green.salmontree-eb10220f.centralus.azurecontainerapps.io",
+          "passed": true,
+          "elapsedMs": 206
+        }
+      ],
+      "replicas": [
+        {
+          "revision": "filosagestg-app--blue-0fcb5f502de1-34747001741-1",
+          "count": 1,
+          "containers": [
+            {
+              "ready": true,
+              "restartCount": 0
+            },
+            {
+              "ready": true,
+              "restartCount": 0
+            }
+          ],
+          "passed": true
+        },
+        {
+          "revision": "filosagestg-app--green-7c48bc02ff66-baseline-1",
+          "count": 1,
+          "containers": [
+            {
+              "ready": true,
+              "restartCount": 0
+            },
+            {
+              "ready": true,
+              "restartCount": 0
+            }
+          ],
+          "passed": true
+        }
+      ],
+      "failures": [],
+      "requestMetrics": {
+        "2xx": 177,
+        "3xx": 8,
+        "4xx": 5,
+        "0xx": 0
+      },
+      "metricsMayLag": true,
+      "metricsIncludePartialFirstMinute": true,
+      "passed": true
+    },
+    {
+      "at": "2026-09-13T08:40:49.999337+00:00",
+      "health": [
+        {
+          "origin": "https://filosage.com",
+          "passed": true,
+          "elapsedMs": 174
+        },
+        {
+          "origin": "https://filosagestg-app---green.salmontree-eb10220f.centralus.azurecontainerapps.io",
+          "passed": true,
+          "elapsedMs": 160
+        }
+      ],
+      "replicas": [
+        {
+          "revision": "filosagestg-app--blue-0fcb5f502de1-34747001741-1",
+          "count": 1,
+          "containers": [
+            {
+              "ready": true,
+              "restartCount": 0
+            },
+            {
+              "ready": true,
+              "restartCount": 0
+            }
+          ],
+          "passed": true
+        },
+        {
+          "revision": "filosagestg-app--green-7c48bc02ff66-baseline-1",
+          "count": 1,
+          "containers": [
+            {
+              "ready": true,
+              "restartCount": 0
+            },
+            {
+              "ready": true,
+              "restartCount": 0
+            }
+          ],
+          "passed": true
+        }
+      ],
+      "failures": [],
+      "requestMetrics": {
+        "2xx": 179,
+        "3xx": 8,
+        "4xx": 5,
+        "0xx": 0
+      },
+      "metricsMayLag": true,
+      "metricsIncludePartialFirstMinute": true,
+      "passed": true
+    },
+    {
+      "at": "2026-09-13T08:41:42.552123+00:00",
+      "health": [
+        {
+          "origin": "https://filosage.com",
+          "passed": true,
+          "elapsedMs": 162
+        },
+        {
+          "origin": "https://filosagestg-app---green.salmontree-eb10220f.centralus.azurecontainerapps.io",
+          "passed": true,
+          "elapsedMs": 154
+        }
+      ],
+      "replicas": [
+        {
+          "revision": "filosagestg-app--blue-0fcb5f502de1-34747001741-1",
+          "count": 1,
+          "containers": [
+            {
+              "ready": true,
+              "restartCount": 0
+            },
+            {
+              "ready": true,
+              "restartCount": 0
+            }
+          ],
+          "passed": true
+        },
+        {
+          "revision": "filosagestg-app--green-7c48bc02ff66-baseline-1",
+          "count": 1,
+          "containers": [
+            {
+              "ready": true,
+              "restartCount": 0
+            },
+            {
+              "ready": true,
+              "restartCount": 0
+            }
+          ],
+          "passed": true
+        }
+      ],
+      "failures": [],
+      "requestMetrics": {
+        "2xx": 181,
+        "3xx": 8,
+        "4xx": 5,
+        "0xx": 0
+      },
+      "metricsMayLag": true,
+      "metricsIncludePartialFirstMinute": true,
+      "passed": true
+    },
+    {
+      "at": "2026-09-13T08:42:35.108625+00:00",
+      "health": [
+        {
+          "origin": "https://filosage.com",
+          "passed": true,
+          "elapsedMs": 155
+        },
+        {
+          "origin": "https://filosagestg-app---green.salmontree-eb10220f.centralus.azurecontainerapps.io",
+          "passed": true,
+          "elapsedMs": 154
+        }
+      ],
+      "replicas": [
+        {
+          "revision": "filosagestg-app--blue-0fcb5f502de1-34747001741-1",
+          "count": 1,
+          "containers": [
+            {
+              "ready": true,
+              "restartCount": 0
+            },
+            {
+              "ready": true,
+              "restartCount": 0
+            }
+          ],
+          "passed": true
+        },
+        {
+          "revision": "filosagestg-app--green-7c48bc02ff66-baseline-1",
+          "count": 1,
+          "containers": [
+            {
+              "ready": true,
+              "restartCount": 0
+            },
+            {
+              "ready": true,
+              "restartCount": 0
+            }
+          ],
+          "passed": true
+        }
+      ],
+      "failures": [],
+      "requestMetrics": {
+        "2xx": 185,
+        "3xx": 8,
+        "4xx": 5,
+        "0xx": 0
+      },
+      "metricsMayLag": true,
+      "metricsIncludePartialFirstMinute": true,
+      "passed": true
+    },
+    {
+      "at": "2026-09-13T08:43:27.784208+00:00",
+      "health": [
+        {
+          "origin": "https://filosage.com",
+          "passed": true,
+          "elapsedMs": 168
+        },
+        {
+          "origin": "https://filosagestg-app---green.salmontree-eb10220f.centralus.azurecontainerapps.io",
+          "passed": true,
+          "elapsedMs": 159
+        }
+      ],
+      "replicas": [
+        {
+          "revision": "filosagestg-app--blue-0fcb5f502de1-34747001741-1",
+          "count": 1,
+          "containers": [
+            {
+              "ready": true,
+              "restartCount": 0
+            },
+            {
+              "ready": true,
+              "restartCount": 0
+            }
+          ],
+          "passed": true
+        },
+        {
+          "revision": "filosagestg-app--green-7c48bc02ff66-baseline-1",
+          "count": 1,
+          "containers": [
+            {
+              "ready": true,
+              "restartCount": 0
+            },
+            {
+              "ready": true,
+              "restartCount": 0
+            }
+          ],
+          "passed": true
+        }
+      ],
+      "failures": [],
+      "requestMetrics": {
+        "2xx": 187,
+        "3xx": 8,
+        "4xx": 5,
+        "0xx": 0
+      },
+      "metricsMayLag": true,
+      "metricsIncludePartialFirstMinute": true,
+      "passed": true
+    },
+    {
+      "at": "2026-09-13T08:44:20.793287+00:00",
+      "health": [
+        {
+          "origin": "https://filosage.com",
+          "passed": true,
+          "elapsedMs": 160
+        },
+        {
+          "origin": "https://filosagestg-app---green.salmontree-eb10220f.centralus.azurecontainerapps.io",
+          "passed": true,
+          "elapsedMs": 168
+        }
+      ],
+      "replicas": [
+        {
+          "revision": "filosagestg-app--blue-0fcb5f502de1-34747001741-1",
+          "count": 1,
+          "containers": [
+            {
+              "ready": true,
+              "restartCount": 0
+            },
+            {
+              "ready": true,
+              "restartCount": 0
+            }
+          ],
+          "passed": true
+        },
+        {
+          "revision": "filosagestg-app--green-7c48bc02ff66-baseline-1",
+          "count": 1,
+          "containers": [
+            {
+              "ready": true,
+              "restartCount": 0
+            },
+            {
+              "ready": true,
+              "restartCount": 0
+            }
+          ],
+          "passed": true
+        }
+      ],
+      "failures": [],
+      "requestMetrics": {
+        "2xx": 189,
+        "3xx": 8,
+        "4xx": 5,
+        "0xx": 0
+      },
+      "metricsMayLag": true,
+      "metricsIncludePartialFirstMinute": true,
+      "passed": true
+    },
+    {
+      "at": "2026-09-13T08:45:13.492271+00:00",
+      "health": [
+        {
+          "origin": "https://filosage.com",
+          "passed": true,
+          "elapsedMs": 186
+        },
+        {
+          "origin": "https://filosagestg-app---green.salmontree-eb10220f.centralus.azurecontainerapps.io",
+          "passed": true,
+          "elapsedMs": 182
+        }
+      ],
+      "replicas": [
+        {
+          "revision": "filosagestg-app--blue-0fcb5f502de1-34747001741-1",
+          "count": 1,
+          "containers": [
+            {
+              "ready": true,
+              "restartCount": 0
+            },
+            {
+              "ready": true,
+              "restartCount": 0
+            }
+          ],
+          "passed": true
+        },
+        {
+          "revision": "filosagestg-app--green-7c48bc02ff66-baseline-1",
+          "count": 1,
+          "containers": [
+            {
+              "ready": true,
+              "restartCount": 0
+            },
+            {
+              "ready": true,
+              "restartCount": 0
+            }
+          ],
+          "passed": true
+        }
+      ],
+      "failures": [],
+      "requestMetrics": {
+        "2xx": 191,
+        "3xx": 8,
+        "4xx": 5,
+        "0xx": 0
+      },
+      "metricsMayLag": true,
+      "metricsIncludePartialFirstMinute": true,
+      "passed": true
+    },
+    {
+      "at": "2026-09-13T08:46:06.265744+00:00",
+      "health": [
+        {
+          "origin": "https://filosage.com",
+          "passed": true,
+          "elapsedMs": 157
+        },
+        {
+          "origin": "https://filosagestg-app---green.salmontree-eb10220f.centralus.azurecontainerapps.io",
+          "passed": true,
+          "elapsedMs": 163
+        }
+      ],
+      "replicas": [
+        {
+          "revision": "filosagestg-app--blue-0fcb5f502de1-34747001741-1",
+          "count": 1,
+          "containers": [
+            {
+              "ready": true,
+              "restartCount": 0
+            },
+            {
+              "ready": true,
+              "restartCount": 0
+            }
+          ],
+          "passed": true
+        },
+        {
+          "revision": "filosagestg-app--green-7c48bc02ff66-baseline-1",
+          "count": 1,
+          "containers": [
+            {
+              "ready": true,
+              "restartCount": 0
+            },
+            {
+              "ready": true,
+              "restartCount": 0
+            }
+          ],
+          "passed": true
+        }
+      ],
+      "failures": [],
+      "requestMetrics": {
+        "2xx": 193,
+        "3xx": 8,
+        "4xx": 5,
+        "0xx": 0
+      },
+      "metricsMayLag": true,
+      "metricsIncludePartialFirstMinute": true,
+      "passed": true
+    },
+    {
+      "at": "2026-09-13T08:46:58.860800+00:00",
+      "health": [
+        {
+          "origin": "https://filosage.com",
+          "passed": true,
+          "elapsedMs": 167
+        },
+        {
+          "origin": "https://filosagestg-app---green.salmontree-eb10220f.centralus.azurecontainerapps.io",
+          "passed": true,
+          "elapsedMs": 159
+        }
+      ],
+      "replicas": [
+        {
+          "revision": "filosagestg-app--blue-0fcb5f502de1-34747001741-1",
+          "count": 1,
+          "containers": [
+            {
+              "ready": true,
+              "restartCount": 0
+            },
+            {
+              "ready": true,
+              "restartCount": 0
+            }
+          ],
+          "passed": true
+        },
+        {
+          "revision": "filosagestg-app--green-7c48bc02ff66-baseline-1",
+          "count": 1,
+          "containers": [
+            {
+              "ready": true,
+              "restartCount": 0
+            },
+            {
+              "ready": true,
+              "restartCount": 0
+            }
+          ],
+          "passed": true
+        }
+      ],
+      "failures": [],
+      "requestMetrics": {
+        "2xx": 195,
+        "3xx": 8,
+        "4xx": 5,
+        "0xx": 0
+      },
+      "metricsMayLag": true,
+      "metricsIncludePartialFirstMinute": true,
+      "passed": true
+    },
+    {
+      "at": "2026-09-13T08:47:52.100402+00:00",
+      "health": [
+        {
+          "origin": "https://filosage.com",
+          "passed": true,
+          "elapsedMs": 168
+        },
+        {
+          "origin": "https://filosagestg-app---green.salmontree-eb10220f.centralus.azurecontainerapps.io",
+          "passed": true,
+          "elapsedMs": 157
+        }
+      ],
+      "replicas": [
+        {
+          "revision": "filosagestg-app--blue-0fcb5f502de1-34747001741-1",
+          "count": 1,
+          "containers": [
+            {
+              "ready": true,
+              "restartCount": 0
+            },
+            {
+              "ready": true,
+              "restartCount": 0
+            }
+          ],
+          "passed": true
+        },
+        {
+          "revision": "filosagestg-app--green-7c48bc02ff66-baseline-1",
+          "count": 1,
+          "containers": [
+            {
+              "ready": true,
+              "restartCount": 0
+            },
+            {
+              "ready": true,
+              "restartCount": 0
+            }
+          ],
+          "passed": true
+        }
+      ],
+      "failures": [],
+      "requestMetrics": {
+        "2xx": 195,
+        "3xx": 8,
+        "4xx": 5,
+        "0xx": 0
+      },
+      "metricsMayLag": true,
+      "metricsIncludePartialFirstMinute": true,
+      "passed": true
+    },
+    {
+      "at": "2026-09-13T08:48:44.703576+00:00",
+      "health": [
+        {
+          "origin": "https://filosage.com",
+          "passed": true,
+          "elapsedMs": 170
+        },
+        {
+          "origin": "https://filosagestg-app---green.salmontree-eb10220f.centralus.azurecontainerapps.io",
+          "passed": true,
+          "elapsedMs": 163
+        }
+      ],
+      "replicas": [
+        {
+          "revision": "filosagestg-app--blue-0fcb5f502de1-34747001741-1",
+          "count": 1,
+          "containers": [
+            {
+              "ready": true,
+              "restartCount": 0
+            },
+            {
+              "ready": true,
+              "restartCount": 0
+            }
+          ],
+          "passed": true
+        },
+        {
+          "revision": "filosagestg-app--green-7c48bc02ff66-baseline-1",
+          "count": 1,
+          "containers": [
+            {
+              "ready": true,
+              "restartCount": 0
+            },
+            {
+              "ready": true,
+              "restartCount": 0
+            }
+          ],
+          "passed": true
+        }
+      ],
+      "failures": [],
+      "requestMetrics": {
+        "2xx": 198,
+        "3xx": 8,
+        "4xx": 5,
+        "0xx": 0
+      },
+      "metricsMayLag": true,
+      "metricsIncludePartialFirstMinute": true,
+      "passed": true
+    },
+    {
+      "at": "2026-09-13T08:49:37.259909+00:00",
+      "health": [
+        {
+          "origin": "https://filosage.com",
+          "passed": true,
+          "elapsedMs": 166
+        },
+        {
+          "origin": "https://filosagestg-app---green.salmontree-eb10220f.centralus.azurecontainerapps.io",
+          "passed": true,
+          "elapsedMs": 163
+        }
+      ],
+      "replicas": [
+        {
+          "revision": "filosagestg-app--blue-0fcb5f502de1-34747001741-1",
+          "count": 1,
+          "containers": [
+            {
+              "ready": true,
+              "restartCount": 0
+            },
+            {
+              "ready": true,
+              "restartCount": 0
+            }
+          ],
+          "passed": true
+        },
+        {
+          "revision": "filosagestg-app--green-7c48bc02ff66-baseline-1",
+          "count": 1,
+          "containers": [
+            {
+              "ready": true,
+              "restartCount": 0
+            },
+            {
+              "ready": true,
+              "restartCount": 0
+            }
+          ],
+          "passed": true
+        }
+      ],
+      "failures": [],
+      "requestMetrics": {
+        "2xx": 202,
+        "3xx": 8,
+        "4xx": 5,
+        "0xx": 0
+      },
+      "metricsMayLag": true,
+      "metricsIncludePartialFirstMinute": true,
+      "passed": true
+    },
+    {
+      "at": "2026-09-13T08:50:30.162881+00:00",
+      "health": [
+        {
+          "origin": "https://filosage.com",
+          "passed": true,
+          "elapsedMs": 149
+        },
+        {
+          "origin": "https://filosagestg-app---green.salmontree-eb10220f.centralus.azurecontainerapps.io",
+          "passed": true,
+          "elapsedMs": 191
+        }
+      ],
+      "replicas": [
+        {
+          "revision": "filosagestg-app--blue-0fcb5f502de1-34747001741-1",
+          "count": 1,
+          "containers": [
+            {
+              "ready": true,
+              "restartCount": 0
+            },
+            {
+              "ready": true,
+              "restartCount": 0
+            }
+          ],
+          "passed": true
+        },
+        {
+          "revision": "filosagestg-app--green-7c48bc02ff66-baseline-1",
+          "count": 1,
+          "containers": [
+            {
+              "ready": true,
+              "restartCount": 0
+            },
+            {
+              "ready": true,
+              "restartCount": 0
+            }
+          ],
+          "passed": true
+        }
+      ],
+      "failures": [],
+      "requestMetrics": {
+        "2xx": 204,
+        "3xx": 8,
+        "4xx": 5,
+        "0xx": 0
+      },
+      "metricsMayLag": true,
+      "metricsIncludePartialFirstMinute": true,
+      "passed": true
+    },
+    {
+      "at": "2026-09-13T08:51:22.895422+00:00",
+      "health": [
+        {
+          "origin": "https://filosage.com",
+          "passed": true,
+          "elapsedMs": 167
+        },
+        {
+          "origin": "https://filosagestg-app---green.salmontree-eb10220f.centralus.azurecontainerapps.io",
+          "passed": true,
+          "elapsedMs": 163
+        }
+      ],
+      "replicas": [
+        {
+          "revision": "filosagestg-app--blue-0fcb5f502de1-34747001741-1",
+          "count": 1,
+          "containers": [
+            {
+              "ready": true,
+              "restartCount": 0
+            },
+            {
+              "ready": true,
+              "restartCount": 0
+            }
+          ],
+          "passed": true
+        },
+        {
+          "revision": "filosagestg-app--green-7c48bc02ff66-baseline-1",
+          "count": 1,
+          "containers": [
+            {
+              "ready": true,
+              "restartCount": 0
+            },
+            {
+              "ready": true,
+              "restartCount": 0
+            }
+          ],
+          "passed": true
+        }
+      ],
+      "failures": [],
+      "requestMetrics": {
+        "2xx": 206,
+        "3xx": 8,
+        "4xx": 5,
+        "0xx": 0
+      },
+      "metricsMayLag": true,
+      "metricsIncludePartialFirstMinute": true,
+      "passed": true
+    },
+    {
+      "at": "2026-09-13T08:52:15.614857+00:00",
+      "health": [
+        {
+          "origin": "https://filosage.com",
+          "passed": true,
+          "elapsedMs": 171
+        },
+        {
+          "origin": "https://filosagestg-app---green.salmontree-eb10220f.centralus.azurecontainerapps.io",
+          "passed": true,
+          "elapsedMs": 169
+        }
+      ],
+      "replicas": [
+        {
+          "revision": "filosagestg-app--blue-0fcb5f502de1-34747001741-1",
+          "count": 1,
+          "containers": [
+            {
+              "ready": true,
+              "restartCount": 0
+            },
+            {
+              "ready": true,
+              "restartCount": 0
+            }
+          ],
+          "passed": true
+        },
+        {
+          "revision": "filosagestg-app--green-7c48bc02ff66-baseline-1",
+          "count": 1,
+          "containers": [
+            {
+              "ready": true,
+              "restartCount": 0
+            },
+            {
+              "ready": true,
+              "restartCount": 0
+            }
+          ],
+          "passed": true
+        }
+      ],
+      "failures": [],
+      "requestMetrics": {
+        "2xx": 208,
+        "3xx": 8,
+        "4xx": 5,
+        "0xx": 0
+      },
+      "metricsMayLag": true,
+      "metricsIncludePartialFirstMinute": true,
+      "passed": true
+    },
+    {
+      "at": "2026-09-13T08:53:08.470544+00:00",
+      "health": [
+        {
+          "origin": "https://filosage.com",
+          "passed": true,
+          "elapsedMs": 151
+        },
+        {
+          "origin": "https://filosagestg-app---green.salmontree-eb10220f.centralus.azurecontainerapps.io",
+          "passed": true,
+          "elapsedMs": 169
+        }
+      ],
+      "replicas": [
+        {
+          "revision": "filosagestg-app--blue-0fcb5f502de1-34747001741-1",
+          "count": 1,
+          "containers": [
+            {
+              "ready": true,
+              "restartCount": 0
+            },
+            {
+              "ready": true,
+              "restartCount": 0
+            }
+          ],
+          "passed": true
+        },
+        {
+          "revision": "filosagestg-app--green-7c48bc02ff66-baseline-1",
+          "count": 1,
+          "containers": [
+            {
+              "ready": true,
+              "restartCount": 0
+            },
+            {
+              "ready": true,
+              "restartCount": 0
+            }
+          ],
+          "passed": true
+        }
+      ],
+      "failures": [],
+      "requestMetrics": {
+        "2xx": 210,
+        "3xx": 8,
+        "4xx": 5,
+        "0xx": 0
+      },
+      "metricsMayLag": true,
+      "metricsIncludePartialFirstMinute": true,
+      "passed": true
+    },
+    {
+      "at": "2026-09-13T08:53:56.895898+00:00",
+      "health": [
+        {
+          "origin": "https://filosage.com",
+          "passed": true,
+          "elapsedMs": 164
+        },
+        {
+          "origin": "https://filosagestg-app---green.salmontree-eb10220f.centralus.azurecontainerapps.io",
+          "passed": true,
+          "elapsedMs": 163
+        }
+      ],
+      "replicas": [
+        {
+          "revision": "filosagestg-app--blue-0fcb5f502de1-34747001741-1",
+          "count": 1,
+          "containers": [
+            {
+              "ready": true,
+              "restartCount": 0
+            },
+            {
+              "ready": true,
+              "restartCount": 0
+            }
+          ],
+          "passed": true
+        },
+        {
+          "revision": "filosagestg-app--green-7c48bc02ff66-baseline-1",
+          "count": 1,
+          "containers": [
+            {
+              "ready": true,
+              "restartCount": 0
+            },
+            {
+              "ready": true,
+              "restartCount": 0
+            }
+          ],
+          "passed": true
+        }
+      ],
+      "failures": [],
+      "requestMetrics": {
+        "2xx": 210,
+        "3xx": 8,
+        "4xx": 5,
+        "0xx": 0
+      },
+      "metricsMayLag": true,
+      "metricsIncludePartialFirstMinute": true,
+      "passed": true
+    }
+  ],
+  "finalProviderReadback": {
+    "observedAt": "2026-09-13T08:54:44.996363+00:00",
+    "candidateSha": "0fcb5f502de1159c36c31785e4796b283c7b9a02",
+    "candidateDigest": "sha256:dae13abacb841400d649ec892f4b6455e25e61a49547f937269417e65c8987af",
+    "metadataFailures": {},
+    "stageRunId": "34747001741",
+    "routing": [
+      {
+        "label": "blue",
+        "revisionName": "filosagestg-app--blue-0fcb5f502de1-34747001741-1",
+        "weight": 100
+      },
+      {
+        "label": "green",
+        "revisionName": "filosagestg-app--green-7c48bc02ff66-baseline-1",
+        "weight": 0
+      }
+    ],
+    "publicIngressUnrestricted": true,
+    "authFingerprintMatches": true,
+    "revision": {
+      "active": true,
+      "imageMatches": true,
+      "sourceMatches": true,
+      "restrictedRuntimeBinding": true,
+      "poolMax2": true,
+      "stableLabelOriginsExact": true,
+      "modernCommandUnmodified": true
+    },
+    "previous": {
+      "active": true,
+      "imageMatches": true,
+      "sourceMatches": true,
+      "restrictedRuntimeBinding": true,
+      "poolMax2": true,
+      "stableLabelOriginsExact": false,
+      "modernCommandUnmodified": true
+    },
+    "monitors": {
+      "events": {
+        "enabled": true,
+        "provisioningState": null
+      },
+      "heartbeat": {
+        "enabled": true,
+        "provisioningState": null
+      }
+    },
+    "receiverAlertObservation": {
+      "timeRange": "1h",
+      "nextPagePresent": false,
+      "matchingAlerts": 0,
+      "fired": 0,
+      "resolved": 0,
+      "notAnAllIncidentProof": true
+    },
+    "candidateHttp": [
+      {
+        "path": "/api/health",
+        "status": 200,
+        "health": {
+          "ok": true,
+          "version": "0fcb5f502de1159c36c31785e4796b283c7b9a02",
+          "imageDigest": "sha256:dae13abacb841400d649ec892f4b6455e25e61a49547f937269417e65c8987af",
+          "origin": "https://filosage.com",
+          "authenticationMode": "migration-dual",
+          "capabilities": {
+            "flashcardDecks": true,
+            "flashcardGeneration": true,
+            "lessonVisuals": false,
+            "commandCenter": false,
+            "commandCenterDrafts": false,
+            "commandCenterV2": false,
+            "pipelineV2": true,
+            "validationV2": true,
+            "repairV2": true,
+            "labsV2": false,
+            "visualsV2": false,
+            "publicationV2": true,
+            "pipelineShadowMode": false,
+            "pipelineOwnerOnly": true,
+            "pipelineCohortPercent": 0
+          },
+          "checks": {
+            "configuration": true,
+            "datastore": true,
+            "flashcardDecks": true,
+            "flashcardGeneration": true
+          }
+        }
+      },
+      {
+        "path": "/api/auth/session",
+        "status": 200,
+        "anonymousUserNull": true
+      },
+      {
+        "path": "/api/account",
+        "status": 401,
+        "privateDenied": true
+      },
+      {
+        "path": "/api/progress",
+        "status": 401,
+        "privateDenied": true
+      },
+      {
+        "path": "/api/courses?scope=mine",
+        "status": 401,
+        "privateDenied": true
+      },
+      {
+        "path": "/api/flashcards/decks",
+        "status": 401,
+        "privateDenied": true
+      },
+      {
+        "path": "/api/billing/status",
+        "status": 200,
+        "closed": true
+      },
+      {
+        "path": "/api/courses",
+        "status": 200,
+        "publicCourseCount": 8,
+        "allExplicitlyPublic": true
+      }
+    ],
+    "previousHealth": {
+      "path": "/api/health",
+      "status": 200,
+      "health": {
+        "ok": true,
+        "version": "7c48bc02ff6623a81fee382b194864f1d04b76c0",
+        "imageDigest": "sha256:95cc9529e6abcfdef5918f39996cfed55703e5b29b82d75304a69765c844b344",
+        "origin": "https://filosage.com",
+        "authenticationMode": "migration-dual",
+        "capabilities": {
+          "flashcardDecks": false,
+          "flashcardGeneration": false,
+          "lessonVisuals": false,
+          "commandCenter": false,
+          "commandCenterDrafts": false,
+          "commandCenterV2": false,
+          "pipelineV2": true,
+          "validationV2": true,
+          "repairV2": true,
+          "labsV2": false,
+          "visualsV2": false,
+          "publicationV2": true,
+          "pipelineShadowMode": false,
+          "pipelineOwnerOnly": true,
+          "pipelineCohortPercent": 0
+        },
+        "checks": {
+          "configuration": true,
+          "datastore": true,
+          "flashcardDecks": false,
+          "flashcardGeneration": false
+        }
+      }
+    },
+    "srcTrees": {
+      "0fcb5f502de1159c36c31785e4796b283c7b9a02": "22fd1ef8c0af9cbbf34141028ecefab4beffc72e",
+      "7c48bc02ff6623a81fee382b194864f1d04b76c0": "22fd1ef8c0af9cbbf34141028ecefab4beffc72e"
+    },
+    "sameApplicationSourceTree": true,
+    "historicalEvidence": [
+      {
+        "reference": "docs/research/artifacts/release-readiness-20260912/modern-baseline-cutover-20260913.json",
+        "sha256": "a22bfc7cf5dad070d58db30b1462d64e042ed0059e7cc1ab44a665b7babc92a6",
+        "attribution": "Historical earlier runtime/recovery/receiver observations; not rerun against this candidate"
+      },
+      {
+        "reference": "docs/research/artifacts/release-readiness-20260912/operations-receiver-execution-20260913.json",
+        "sha256": "5369756d94c3129fb0c4c1a17f862a0a8fde8448e7d3b51c87c65b4ac649828e",
+        "attribution": "Historical earlier runtime/recovery/receiver observations; not rerun against this candidate"
+      }
+    ]
+  },
+  "publicLearner": {
+    "observedAt": "2026-09-13T08:29:29.150492+00:00",
+    "origin": "https://filosage.com",
+    "sourceSha": "0fcb5f502de1159c36c31785e4796b283c7b9a02",
+    "restoredSession": true,
+    "courseProgressPercent": 8,
+    "completedLessons": 1,
+    "totalLessons": 12,
+    "privateLessonLoaded": true,
+    "flashcardsTabVisible": true,
+    "savedDeckCards": 8,
+    "generationQuotaRemaining": 99,
+    "answerRevealPassed": true,
+    "publicReviewWriteAccepted": true,
+    "freshSignIn": {
+      "normalUiLogout": true,
+      "visitorStateShown": true,
+      "existingGoogleFlow": true,
+      "sameApprovedNonOwnerSelected": true,
+      "signedInHomeReturned": true,
+      "progressRetained": true
+    },
+    "testLimits": [
+      "No second generation or new course completion",
+      "One browser click reported transport timeout during successful navigation; actual signed-in home readback passed"
+    ]
+  },
+  "finalBrowserReadback": "Reload after observation retained same Pro account,1of12lessons and8percent progress",
+  "remaining": {
+    "R2": [
+      "Provider-only model latency absent from stored receipt schema",
+      "Deliberate candidate scale-from-zero timing not measured; no forced production cold start"
+    ],
+    "R7": [
+      "GoDaddy exact DNS management opens sign-in; no authenticated session supplied",
+      "QA Entra callback and consumer readback unavailable",
+      "QA data disposition/preservation required before data deletion; shared owner and recovery references retained"
+    ]
+  },
+  "qaRetired": false,
+  "billingActivationPerformed": false
+}
