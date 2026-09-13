@@ -1,6 +1,6 @@
 # September 13 production release
 
-**Production accepted. Full requested cleanup remains incomplete.**
+**Application deployment accepted; hosted theme acceptance and requested cleanup remain incomplete.**
 
 Filosage.com serves source `0fcb5f502de1159c36c31785e4796b283c7b9a02` and immutable image `sha256:dae13abacb841400d649ec892f4b6455e25e61a49547f937269417e65c8987af`. The reviewed candidate was built once and promoted without rebuilding. Engineering, security, full regression, staging, evidence packaging, candidate verification and promotion all passed on this source. Full regression:458passed,9declaredskips,0unexpected,0flaky.
 
@@ -10,7 +10,8 @@ Public observation ran08:23:56–08:53:56UTC. All72sampled public/rollback healt
 
 ## Remaining work
 
-- **QA retirement:** exact GoDaddy DNS management needs an authenticated session, and QA Entra callback/consumer access remains unavailable. QA data needs recorded preservation/disposition before deletion. QA and all shared data, owner roles and recovery references remain intact; no retirement success is claimed.
+- **Hosted authentication:** the reported white canvas and unreadable logos/text are corrected on actual Microsoft sign-in and sign-up in dark mode. Live light-mode verification and exact synchronization with the landing theme toggle remain open. See [theme evidence](../research/artifacts/release-readiness-20260912/hosted-theme-contrast-20260913.json).
+- **QA retirement:** GoDaddy is authenticated and the exact QA CNAME is verified; QA Entra application readback now succeeds. The identity app also contains production SPA callbacks, which must be preserved. QA data needs recorded preservation/disposition before deletion. QA and all shared data, owner roles and recovery references remain intact; no retirement success is claimed.
 - **Measurement limits:** provider-only model latency is absent from stored receipts; a deliberate production scale-from-zero benchmark was not performed. Actual DB/resource/cost measurements are recorded in the [system report](2026-09-12-system-optimization.md). No performance gain or capacity guarantee is claimed.
 
 Victor's AFK approval remains valid for agreed release/retirement execution once these dependencies are satisfied. No repeated general release approval is needed.

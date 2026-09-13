@@ -1,0 +1,60 @@
+{
+  "verifiedAtUtc": "2026-09-13T14:15:00Z",
+  "scope": "Existing production External ID default customCSS only",
+  "sourceCommit": "e6669a9",
+  "cssSha256": "af60adb2e669d4b6a03438508829bbc53caa934accc9fe52caac753ef1006aac",
+  "graphReadbackMatches": true,
+  "changedBrandingMetadataKeys": [
+    "customCSSRelativeUrl"
+  ],
+  "actualHostedDark": {
+    "signIn": true,
+    "signUp": true,
+    "canvas": {
+      "background": "#000d23",
+      "backgroundImage": "none"
+    },
+    "headerAndBannerLogos": {
+      "background": "#fff9f0",
+      "visible": true
+    },
+    "boilerplate": {
+      "text": "#c5cede",
+      "background": "#0d1b3d"
+    },
+    "emailField": {
+      "background": "#ffffff",
+      "text": "#0d1b3d",
+      "placeholder": "#757575",
+      "placeholderContrastAtLeast4_5": true
+    },
+    "emptyEmailValidation": {
+      "text": "#ff9b8d",
+      "background": "#4a2530",
+      "visible": true
+    }
+  },
+  "verificationLimits": [
+    "Actual hosted light mode not verified: browser security policy blocked appearance settings; no workaround attempted.",
+    "Local light/dark fixture checks pass; fixtures do not substitute for actual hosted checks.",
+    "Manual Filosage theme-toggle synchronization remains open; current hosted CSS follows browser preference.",
+    "No personal details entered, account created or full External ID sign-in completed."
+  ],
+  "priorAttempts": [
+    {
+      "source": "57d56a6",
+      "result": "Raw upload matched but provider stripped unsupported selectors; only boilerplate corrected."
+    },
+    {
+      "source": "4ce1017",
+      "result": "Actual dark canvas and both logos corrected; placeholder required separate supported textbox rule."
+    }
+  ],
+  "qaAccess": {
+    "godaddyAuthenticated": true,
+    "exactQaCnameVerified": true,
+    "qaTenantGraphReadSucceeded": true,
+    "productionSpaCallbacksPresent": true,
+    "retirementPerformed": false
+  }
+}
