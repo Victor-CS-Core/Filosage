@@ -1,3 +1,11 @@
+# Current release handoff — September 13, 08:32 UTC
+
+The corrected release is **deployed to https://filosage.com**. Source `0fcb5f502de1159c36c31785e4796b283c7b9a02`, immutable image `sha256:dae13abacb841400d649ec892f4b6455e25e61a49547f937269417e65c8987af`; promotion run `34747532646` passed. Flashcards is active under Study tools, with actual generation, saved deck, answer reveal and review verified. Fresh non-owner Google sign-in and existing lesson progress pass.
+
+The required public observation ends **08:53:56 UTC** and is still running. Complete final provider/readback and measurement evidence before release acceptance. QA retirement is **blocked on access**, not another approval: exact GoDaddy DNS management has no signed-in session, and QA Entra consumer readback remains unavailable. Preserve QA content, shared owner role and all recovery resources. Do not claim R7 complete.
+
+Victor explicitly authorized in-scope PR landing, release execution and agreed retirement while AFK. Do not request those approvals again. Keep work efficient; no further feature changes or repeated regression/builds absent a demonstrated blocker. Coordinator owns `codex/receiver-evidence-20260913` in this worktree; application main stays frozen at0f. The single R1–R9 checklist below remains authoritative. Earlier status sections and deployment failures are historical and are superseded by this handoff and the latest dated milestones.
+
 ## Active CI usage optimization — September 12
 
 Status: started. Owner: current CI coordinator; isolated branch `codex/ci-usage-20260912`. This outcome supplements and preserves the release checklist below.
@@ -212,11 +220,11 @@ Downloadedandchecksumverifiedallthreeartifacts; candidate-namedarchive contains 
 
 ### Single outcome checklist
 
-- [ ] R1. Audit core visitor/learner/account/support/enabled-owner journeys on desktop/mobile, Chromium/WebKit, both themes; include real non-owner learner, hosted auth appearance, keyboard/accessibility, cancellation, loading/errors/retries and anonymous/private enforcement. Record reproducible findings/screenshots and fix release friction without redesign.
+- [x] R1. Audit core visitor/learner/account/support/enabled-owner journeys on desktop/mobile, Chromium/WebKit, both themes; include real non-owner learner, hosted auth appearance, keyboard/accessibility, cancellation, loading/errors/retries and anonymous/private enforcement. Record reproducible findings/screenshots and fix release friction without redesign.
 - [ ] R2. Measure production-build page loading/JavaScript, API latency, cold/warm startup, CPU/memory/restarts, DB connections/query plans and model latency/cost. Apply measured improvements; retain current scaling initially and report warm-replica cost/benefit.
-- [ ] R3. Resolve actual release prerequisites: protected workflow environments, backup observation inputs, production least-privilege runtime and database allow/deny evidence, current recovery and compatible predecessor/write-protocol checks.
-- [ ] R4. Review and integrate fixes, commit/push validated checkpoints, freeze exact SHA, pass required engineering/security/PostgreSQL/billing/browser gates including one full regression on the frozen SHA.
-- [ ] R5. Build once, pin digest, stage zero-public-traffic candidate without changing live routing/auth/flags; collect exact-candidate hosted learner/privacy/publication/operations/billing-containment evidence. New checkout remains closed; verify existing subscriber obligations. Historical paid-launch lifecycle/tax activation stays deferred and unclaimed.
+- [x] R3. Resolve actual release prerequisites: protected workflow environments, backup observation inputs, production least-privilege runtime and database allow/deny evidence, current recovery and compatible predecessor/write-protocol checks.
+- [x] R4. Review and integrate fixes, commit/push validated checkpoints, freeze exact SHA, pass required engineering/security/PostgreSQL/billing/browser gates including one full regression on the frozen SHA.
+- [x] R5. Build once, pin digest, stage zero-public-traffic candidate without changing live routing/auth/flags; collect exact-candidate hosted learner/privacy/publication/operations/billing-containment evidence. New checkout remains closed; verify existing subscriber obligations. Historical paid-launch lifecycle/tax activation stays deferred and unclaimed.
 - [ ] R6. Promote verified image 100/0, verify canonical routing/SHA/digest/health, real sign-in, lesson access/progress and monitoring; observe 30 minutes with bounded reads and compatible rollback on specified failures. Retain predecessor through retirement.
 - [ ] R7. Inventory exact QA resource/dependency/content/retention disposition; preserve required content/recovery evidence, then after production acceptance retire exclusive integrations/site/compute/access/data/identity. Verify production and absence of resources/dangling references; preserve shared consumers and configured recovery/holds.
 - [x] R8. Deliver React/.NET feasibility report: current Next BFF, incremental .NET, and React SPA served by ASP.NET Core; map handlers/security/data/AI/billing/rendering, reuse, contract tests, sequence, effort and cost. [Independently reviewed report](releases/2026-09-12-react-dotnet-feasibility.md) delivered; no migration in this release.
@@ -901,3 +909,15 @@ Zero-blue9f inactive/zero confirmed08:09:35UTC. One-shot staging34747001741 succ
 Correctedcandidate realnonowner session restores; private lesson andStudytoolsFlashcards load. One realgeneration created8checkedcards, quota100to99; revealpassed; Againreviewaccepted andadvancedcard1to2. Reload/decklibrary retain8cards and99quota. No newlessoncompletion orsecondgeneration; studypositionreset isnotclaimedpersistedreview scheduling. Fresh independentreadonlychecks pass exactidentity/configuration/privacy/publiclisting/closedbilling/monitors/healthyrollback. Sameappcode supports historical recovery andwritecompatibility review; historicalprovider/drill evidence isexplicitlyattributed.
 
 Concrete seven-gatepacket independently reviewed withnomaterialunsupportedclaims; hashes validated. Sanitized final-candidate-0fcb5f5-hosted-20260913.json recordsactualevidenceandlimits. Dispatched existingimmutableevidencepackaging workflow once, bounded08:45UTC. Subsequent reviewworkflow andapprovedexactimagepromotion remainpending; no publicswap yet.
+
+### September 13, 08:26 UTC — reviewed exact image promoted; public observation underway
+
+Packaging34747371438 passed; all7downloadedproofartifacts checksums andsourcehashes match reviewedpacket. Verification34747467753 passed; artifact10314144390 digeste6956780b542419488b07461f6ed5af8472a5af5c90734a0e78e83a06eb05cfc verified. UnderVictor'sAFKauthorization, dispatchedpromotion34747532646 once; succeeded. Promotionartifact10314304104 checksum79688e0de9f130b0c9e66e162adf4ef68199c35f19e83802ad7d05a5463cd9bd verified. Publicexact0f/dae13healthpasses; publicsignedinsession restores, existing8%/1of12progressretained andprivate lessonloads. StudytoolsFlashcardstabvisible oncanonicalhost.
+
+Thirtyminuteobservation08:23:56.895736to08:53:56.895736UTC. Initialtwohealth/replicachecks pass butmetrics query rejectedbecauseAzure requiresatleastone-minutespan; actualBadRequest retainedprivately. No applicationfailure. Subsequent08:25sample fullypasses, no5xx/restarts. Boundedobserver resumed againstsamewindow, withfailedmetrics samplesretained; notcontinuousmetricsfromfirstsecond. Root completescanonicalFlashcards/auth andfinalread. NoQAretirementyet; independentreview confirmsremainingauthoritativeGoDaddyDNS andQAEntra consumerreadaccess gaps. Data/sharedowner/recoveryreferencespreserved.
+
+### September 13, 08:29 UTC — canonical Flashcards and fresh Google sign-in pass; QA access boundary confirmed
+
+Publicfilosage.com StudytoolsFlashcards loads saved8carddeck/99quota, answerreveal passes, publicAgainreview saves andadvancestocard2. NormalUIlogout showsvisitor; existingGoogleflow selectsapprovednonowner andreturns signed-inhome with8%/1of12progress. Oneclicktransporttimeout occurredduringactualsuccessfulnavigation; finalDOMconfirms signedin, notfailedOAuth. No furthergeneration orlessoncompletion.
+
+DirectexactGoDaddyfilosage.com DNSmanagement opens unauthenticatedsign-in, no existingsession/credentials supplied. No login/account/terms acceptance attempted. This is concreteunresolvedDNSaccess; retain QA/no destructivecleanup. QAEntra consumerread and requiredprivatepreservation remain asrecorded. ExistingGooglecallbackregistryaccess isresolved, but orderedQAretirement cannotcompletewithoutDNS prerequisite. UserAFKgeneralapproval isretained; no repeatapprovalprompt. Continueproductionwindow through08:53:56UTC.
