@@ -1,3 +1,18 @@
+## Active release workflow repair — September13
+
+Status: review_ready locally; owner coordinator with existingreviewer inisolatedcodex/runner-build-20260913. FullR1–R9 requestedoutcome is preserved in current evidencebranch codex/receiver-evidence-20260913 (checkpoint5816c6d) and existingreleaseworktree. Baseline7c/95 maintenance/realnonownerprogress/credentialcleanup/public30minuteobservation completed; publicgreen remainshealthy100. Victor approved finalcandidate staging; run34740853590 onmainb5 passedpreflight thenfailedregistrydiscovery beforeACRbuild. Exactcandidate tag isabsent; checksumverifiedcandidatearchive containsonlypreflight, no deployment. Modernblue remainsinactivezero; auth/settings/QA unchanged.
+
+Boundedrepair scope/acceptance: build exactmainruntime/linuxamd64 imageonce onGitHubrunner usingauthoritative15capabilities, authenticate/pushwith existingregistryAcrPush, comparepushdigest toauthenticatedregistryreadback. Pin source/checkout/subscription/registry/origin, refuseexistingtag, keepcredentialinstdin/privateDockerconfig anddeleteconfigfinally; emitsafestagediagnostics only. No ACRTasks, IAMexpansion, appfeaturechange, productionmutation, CIproofrelaxation orpromotion.
+
+Localcommits4e1aaaa/7ddb26a reviewedbycoordinator.17focusedrunner/access tests and37infrastructure/bluegreencontracts pass; lint/YAML/secret/whitespacepass. Independent testsuseactual15linecapabilitystdout and fullCLIwithofflinecommands, prove17buildargs andrealLF GITHUB_ENV output/privateconfigcleanup. Apparentescapingconcernwasdisplayonly, withdrawn afterbyte/testproof; no speculativechange. Actualhostedrunnerbuild/push unverified untilintegration. NextpushonefocusedPR, bounded20minuteCI/readiness thenrequestexplicitPRmergeapproval beforelanding; successfulnewmainrequiresfreshsourceboundCI/regression/staging, b5evidencekeptdistinct. No buildretry orwatcher dispatchedhere.
+
+- [x] W1. Diagnose failedrun and preserve publicstate/evidence.
+- [x] W2. Implement minimalrunnerbuild and validate source/credential/digest failurecontracts.
+- [ ] W3. PushfocusedPR; verifyexact-headhostedCI/review.
+- [ ] W4. ObtainexplicitPRlandingapproval, merge, thenresumeapprovedstagingwithfreshsourceevidence.
+
+---
+
 ## Active CI usage optimization — September 12
 
 Status: started. Owner: current CI coordinator; isolated branch `codex/ci-usage-20260912`. This outcome supplements and preserves the release checklist below.

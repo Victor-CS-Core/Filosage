@@ -596,8 +596,10 @@ test("one immutable application image owns the approved features at build and ru
     expect(stage).toContain("ENV FLASHCARD_DECKS_ENABLED=$FLASHCARD_DECKS_ENABLED");
     expect(stage).toContain("ENV FLASHCARD_AI_GENERATION_ENABLED=$FLASHCARD_AI_GENERATION_ENABLED");
   }
-  expect(stagingWorkflowSource).toContain('"${BUILD_ARGS[@]}"');
-  expect(stagingWorkflowSource).toContain('--target runtime');
+  const runnerBuildSource = readFileSync("scripts/build-release-image.mjs", "utf8");
+  expect(runnerBuildSource).toContain("'scripts/release-capabilities.mjs', 'environment'");
+  expect(runnerBuildSource).toContain("'--target', 'runtime'");
+  expect(runnerBuildSource).toContain("args.push('--build-arg', value)");
   expect(dockerfileSource).toContain("node scripts/release-capabilities.mjs check-environment");
   expect(readFileSync("scripts/azure-blue-green.mjs", "utf8")).toContain("...releaseEnvironment(manifest)");
   expect(healthRouteSource).toContain("flashcardFeatureConfiguration");
@@ -608,7 +610,8 @@ test("one immutable application image owns the approved features at build and ru
 test("staging builds once after engineering evidence and promotion never rebuilds", () => {
   expect(stagingWorkflowSource).toContain("quality_run_id:");
   expect(stagingWorkflowSource).toContain("regression_run_id:");
-  expect(stagingWorkflowSource).toContain("az acr build");
+  expect(stagingWorkflowSource).toContain("node scripts/build-release-image.mjs");
+  expect(stagingWorkflowSource).not.toContain("az acr build");
   expect(stagingWorkflowSource).toContain("node scripts/azure-blue-green.mjs preflight");
   expect(stagingWorkflowSource).toContain("node scripts/azure-blue-green.mjs stage");
   expect(promotionWorkflowSource).not.toContain("az acr build");
