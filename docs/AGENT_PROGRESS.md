@@ -1,3 +1,20 @@
+## Hosted Microsoft contrast correction — September 13
+
+Status: review_ready. Existing release worker owns `codex/hosted-theme-contrast-20260913`; coordinator owns live branding upload, hosted verification and the full R1–R9/QA retirement record on the evidence branch. Victor reported broken hosted contrast after final candidate promotion; this bounded styling correction preserves that full outcome.
+
+- [x] Trace actual provider wrapper/background/boilerplate/logo contrast defects; reproduce with a failing actual-markup fixture.
+- [x] Correct only hosted CSS, regenerate fixed assets and update the suite inventory; preserve app code, identity clients and original brand assets.
+- [x] Coordinator independently approve minimal CSS scope; pass eight focused checks, generated-asset verification, lint and whitespace.
+- [x] Push PR34; hold landing after actual provider sanitizer rejected ID/qualified selectors.
+- [x] Coordinator verify exact final CSS readback and actual dark sign-in/signup/error rendering; original logos and input/explanation contrast pass.
+- [ ] Finish final exact-head PR34 CI and guarded landing. CI exposed the separate total browser inventory cap425 after adding one desktop-only regression; update426 retains mobile45/52 limits and exact suite ownership. No CSS or provider change follows this test bookkeeping correction.
+- [x] Coordinator upload exact reviewed CSS and verify actual dark hosted appearance.
+- [ ] Actual hosted light-mode observation (browser security policy blocked appearance setting) and app-selected versus OS-theme parity remain explicitly unproved.
+
+Actual first upload retained only the boilerplate correction: provider sanitizer rejected IDs, element-qualified logo classes, descendant links and placeholders. The follow-up removes these unsupported rules and tests retained plain classes after a simulated sanitizer; second hosted readback proves navy canvas, both logo backings and explanatory contrast. Supported compound text-box styling now addresses the remaining transparent input/fixed-gray placeholder; its final hosted sign-in/signup/error check passed. Actual light-mode observation remains blocked by browser security policy; local light checks are passing and are not substituted for hosted proof. See `docs/AUTH_APPEARANCE_AUDIT_2026-09-11.md` for actual wrapper evidence and scope. No full regression, app image build or provider change was performed by this worker. Existing source main0f and its successful promoted candidate remain unchanged by this provider-asset preparation.
+
+---
+
 ## Candidate stable-label mutation origin correction — September 13
 
 Status: review_ready. Owner: existing release worker on `codex/candidate-origins-20260913`, based on exact main `9f1c08ed9b055e8742c28601b2e3b5334632cc3f`. Coordinator owns remote and provider execution. Preserve full R1–R9, Flashcards and actual production/recovery evidence on `codex/release-evidence-20260912`; this checkpoint does not replace hosted acceptance.

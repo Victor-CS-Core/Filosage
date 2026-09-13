@@ -129,7 +129,7 @@ export const browserSuiteEstimatedTestLoad: Record<BrowserProjectName, Record<st
     "tests/command-center.spec.ts": 14,
     "tests/course-learning-flow.spec.ts": 6,
     "tests/example.spec.ts": 76,
-    "tests/external-id-branding.spec.ts": 9,
+    "tests/external-id-branding.spec.ts": 10,
     "tests/flashcard-system.spec.ts": 9,
     "tests/flashcard-visual.spec.ts": 1,
     "tests/landing-motion.spec.ts": 2,
