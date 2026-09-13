@@ -1,0 +1,149 @@
+{
+  "status": "stage_passed_hosted_write_origin_blocked",
+  "candidate": {
+    "schemaVersion": 2,
+    "sha": "9f1c08ed9b055e8742c28601b2e3b5334632cc3f",
+    "imageDigest": "sha256:6f5d95a9ca5cd133ea37de1d1e0464a92e99838e872cc5716b992a01b121b026",
+    "manifest": {
+      "schemaVersion": 1,
+      "capabilities": {
+        "flashcardDecks": true,
+        "flashcardGeneration": true,
+        "lessonVisuals": false,
+        "commandCenter": false,
+        "commandCenterDrafts": false,
+        "commandCenterV2": false,
+        "pipelineV2": true,
+        "validationV2": true,
+        "repairV2": true,
+        "labsV2": false,
+        "visualsV2": false,
+        "publicationV2": true,
+        "pipelineShadowMode": false,
+        "pipelineOwnerOnly": true,
+        "pipelineCohortPercent": 0
+      }
+    },
+    "productionOrigin": "https://filosage.com",
+    "candidateOrigin": "https://filosagestg-app--blue-9f1c08ed9b05-34744428417-1.salmontree-eb10220f.centralus.azurecontainerapps.io",
+    "authenticationMode": "migration-dual",
+    "appId": "/subscriptions/bfc8f890-2681-43dc-8eac-51644341ae12/resourceGroups/filosage-staging-central-rg/providers/Microsoft.App/containerapps/filosagestg-app",
+    "revision": "filosagestg-app--blue-9f1c08ed9b05-34744428417-1",
+    "label": "blue",
+    "authConfigSha256": "9bf95fcfbfd064ecbbae1fe88db80f071572ddbc772d714d99da5c9e7ba1aee6",
+    "before": {
+      "appId": "/subscriptions/bfc8f890-2681-43dc-8eac-51644341ae12/resourceGroups/filosage-staging-central-rg/providers/Microsoft.App/containerapps/filosagestg-app",
+      "location": "centralus",
+      "mode": "Multiple",
+      "fqdn": "filosagestg-app.salmontree-eb10220f.centralus.azurecontainerapps.io",
+      "traffic": [
+        {
+          "label": "blue",
+          "revisionName": "filosagestg-app--blue-7c48bc02ff66-baseline-1",
+          "weight": 0
+        },
+        {
+          "label": "green",
+          "revisionName": "filosagestg-app--green-7c48bc02ff66-baseline-1",
+          "weight": 100
+        }
+      ],
+      "authConfigSha256": "9bf95fcfbfd064ecbbae1fe88db80f071572ddbc772d714d99da5c9e7ba1aee6"
+    },
+    "afterDeployment": {
+      "appId": "/subscriptions/bfc8f890-2681-43dc-8eac-51644341ae12/resourceGroups/filosage-staging-central-rg/providers/Microsoft.App/containerapps/filosagestg-app",
+      "location": "centralus",
+      "mode": "Multiple",
+      "fqdn": "filosagestg-app.salmontree-eb10220f.centralus.azurecontainerapps.io",
+      "traffic": [
+        {
+          "label": "blue",
+          "revisionName": "filosagestg-app--blue-7c48bc02ff66-baseline-1",
+          "weight": 0
+        },
+        {
+          "label": "green",
+          "revisionName": "filosagestg-app--green-7c48bc02ff66-baseline-1",
+          "weight": 100
+        }
+      ],
+      "authConfigSha256": "9bf95fcfbfd064ecbbae1fe88db80f071572ddbc772d714d99da5c9e7ba1aee6"
+    },
+    "previous": {
+      "revision": "filosagestg-app--green-7c48bc02ff66-baseline-1",
+      "label": "green",
+      "sha": "7c48bc02ff6623a81fee382b194864f1d04b76c0",
+      "image": "filosagestp4ujucgnxq3gsacr.azurecr.io/filosage@sha256:95cc9529e6abcfdef5918f39996cfed55703e5b29b82d75304a69765c844b344",
+      "imageDigest": "sha256:95cc9529e6abcfdef5918f39996cfed55703e5b29b82d75304a69765c844b344",
+      "manifest": {
+        "schemaVersion": 1,
+        "capabilities": {
+          "flashcardDecks": false,
+          "flashcardGeneration": false,
+          "lessonVisuals": false,
+          "commandCenter": false,
+          "commandCenterDrafts": false,
+          "commandCenterV2": false,
+          "pipelineV2": true,
+          "validationV2": true,
+          "repairV2": true,
+          "labsV2": false,
+          "visualsV2": false,
+          "publicationV2": true,
+          "pipelineShadowMode": false,
+          "pipelineOwnerOnly": true,
+          "pipelineCohortPercent": 0
+        }
+      },
+      "productionOrigin": "https://filosage.com",
+      "candidateOrigin": "https://filosage.com",
+      "authenticationMode": "migration-dual",
+      "featuredCourseId": "none"
+    },
+    "engineering": [
+      {
+        "id": "34743287595",
+        "path": ".github/workflows/quality-gate.yml",
+        "sha": "9f1c08ed9b055e8742c28601b2e3b5334632cc3f"
+      },
+      {
+        "id": "34743308180",
+        "path": ".github/workflows/full-regression.yml",
+        "sha": "9f1c08ed9b055e8742c28601b2e3b5334632cc3f"
+      }
+    ],
+    "stageRunId": "34744428417",
+    "featuredCourseId": "none",
+    "compatibility": "Pending exact-candidate hosted verification and compatible rollback review",
+    "after": {
+      "appId": "/subscriptions/bfc8f890-2681-43dc-8eac-51644341ae12/resourceGroups/filosage-staging-central-rg/providers/Microsoft.App/containerapps/filosagestg-app",
+      "location": "centralus",
+      "mode": "Multiple",
+      "fqdn": "filosagestg-app.salmontree-eb10220f.centralus.azurecontainerapps.io",
+      "traffic": [
+        {
+          "label": "blue",
+          "revisionName": "filosagestg-app--blue-9f1c08ed9b05-34744428417-1",
+          "weight": 0
+        },
+        {
+          "label": "green",
+          "revisionName": "filosagestg-app--green-7c48bc02ff66-baseline-1",
+          "weight": 100
+        }
+      ],
+      "authConfigSha256": "9bf95fcfbfd064ecbbae1fe88db80f071572ddbc772d714d99da5c9e7ba1aee6"
+    }
+  },
+  "stageArtifactId": 10313569173,
+  "stageArtifactDigest": "sha256:56a5670fa029f44a5a82be4c47ffe1186f4ae0a7018bb03df184fd42714e3c9e",
+  "realNonownerSignIn": "passed_on_registered_stable_blue_url",
+  "lessonReadAndSavedProgress": "passed",
+  "flashcardTab": "visible",
+  "flashcardGeneration": "403_origin_rejected_before_generation",
+  "quotaBefore": 100,
+  "quotaAfter": 100,
+  "oauthConfigurationChanged": false,
+  "promoted": false,
+  "publicBaselineFreshHealth": "passed_after_one_retained_15s_timeout"
+}
