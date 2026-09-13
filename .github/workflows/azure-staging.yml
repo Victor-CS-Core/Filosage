@@ -60,7 +60,7 @@ jobs:
         with:
           node-version: 22
       - name: Verify maintenance access safety contracts
-        run: node --test tests/maintenance-access/*.test.mjs
+        run: node --test tests/maintenance-access/*.test.mjs tests/runner-build/*.test.mjs
       - name: Sign in to Azure with GitHub OIDC
         uses: azure/login@7ddb5af1ef8758cf1353cf3b42f940aee27ba21c # v3.0.2
         with:
@@ -80,18 +80,8 @@ jobs:
         run: node scripts/maintenance-runner-access.mjs apply
       - name: Require exact engineering evidence and observed 100/0 routing
         run: node scripts/azure-blue-green.mjs preflight
-      - name: Build the selected application image once
-        shell: bash
-        run: |
-          set -euo pipefail
-          node scripts/release-capabilities.mjs environment > "$RUNNER_TEMP/release-capabilities.env"
-          BUILD_ARGS=(--build-arg "SITE_VERSION=$EXPECTED_SHA" --build-arg "NEXT_PUBLIC_SITE_URL=$PUBLIC_SITE_URL")
-          while IFS= read -r value; do BUILD_ARGS+=(--build-arg "$value"); done < "$RUNNER_TEMP/release-capabilities.env"
-          IMAGE_TAG="filosage:${EXPECTED_SHA}-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
-          az acr build --registry "$AZURE_ACR_NAME" --image "$IMAGE_TAG" --target runtime --file Dockerfile "${BUILD_ARGS[@]}" --no-logs --output none .
-          DIGEST="$(az acr repository show --name "$AZURE_ACR_NAME" --image "$IMAGE_TAG" --query digest --output tsv)"
-          if [[ ! "$DIGEST" =~ ^sha256:[a-f0-9]{64}$ ]]; then exit 1; fi
-          echo "EXPECTED_IMAGE_DIGEST=$DIGEST" >> "$GITHUB_ENV"
+      - name: Build the selected application image once on the runner
+        run: node scripts/build-release-image.mjs
       - name: Deploy zero-public-traffic candidate and verify revision then inactive label
         run: node scripts/azure-blue-green.mjs stage
       - name: Retain immutable candidate evidence
