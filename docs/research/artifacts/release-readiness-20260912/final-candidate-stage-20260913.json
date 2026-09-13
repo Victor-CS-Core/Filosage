@@ -1,6 +1,6 @@
 {
-  "at": "2026-09-13T05:40:43.225602+00:00",
-  "status": "stage_in_progress",
+  "at": "2026-09-13T05:46:57.784475+00:00",
+  "status": "workflow_failed_before_build_repair_in_progress",
   "evidence": {
     "preflight": {
       "at": "2026-09-13T05:37:19.817835+00:00",
@@ -79,6 +79,65 @@
       "url": "https://github.com/Victor-CS-Core/Filosage/actions/runs/34740853590",
       "sha": "b5ba5803c2205922bf68d7fa740d1c660312ee71",
       "attempt": 1
+    },
+    "failedArtifacts": [
+      {
+        "id": 10312890037,
+        "name": "release-candidate-b5ba5803c2205922bf68d7fa740d1c660312ee71",
+        "digest": "sha256:2aae25c1aa65b0ac4422c98b01d3f2bb1cb3654a14f5f70218163435fad433a6",
+        "checksumVerified": true,
+        "files": [
+          "preflight.json"
+        ]
+      },
+      {
+        "id": 10312254192,
+        "name": "maintenance-access-intent-34740853590-1",
+        "digest": "sha256:de68ace51ca75c0f6b5a23ccb9d107c19f2144c00711d12de6567443e5ac6240",
+        "checksumVerified": true,
+        "files": [
+          "intent.json"
+        ]
+      },
+      {
+        "id": 10312169413,
+        "name": "maintenance-access-final-34740853590-1",
+        "digest": "sha256:6fea3011328e58faed274c44b3d011a4ad1b916a1c9aa95fed4faca1dcde0e90",
+        "checksumVerified": true,
+        "files": [
+          "apply.json",
+          "cleanup.json",
+          "intent.json"
+        ]
+      }
+    ],
+    "runnerAccess": {
+      "prepareEnabled": false,
+      "applyEnabled": false,
+      "cleanupEnabled": false,
+      "publicIngressUnchanged": true
+    },
+    "failedRun": {
+      "runId": 34740853590,
+      "conclusion": "failure",
+      "failedStep": "Build the selected application image once",
+      "error": "Registry could not be discovered in deployment subscription",
+      "candidateArtifactContainsPreflightOnly": true,
+      "candidateDeployed": false,
+      "retryDispatched": false
+    },
+    "postFailurePublicState": {
+      "at": "2026-09-13T05:45:16.133093+00:00",
+      "revision": "filosagestg-app--blue-7c48bc02ff66-baseline-1",
+      "active": false,
+      "replicas": 0,
+      "publicConfigurationPreserved": true,
+      "publicHealthPassed": true,
+      "readyForStage": true
+    },
+    "candidateTagReadback": {
+      "returncode": 3,
+      "candidateTagAbsent": true
     }
   },
   "publicGreenServing": true,

@@ -204,6 +204,12 @@ Freshmainb5/quality/security/regression success retained; no competingworkflow a
 
 Dispatchedexactmainb5 azure-staging.yml once: run34740853590 attempt1, created05:39:51UTC. Inputsquality34735888733/regression34735947262/migration-dual/featurednone. Finalobservationdeadline06:24:50UTC (45minutesfromdispatch);40minutejobboundplus5minfinalartifactread. Actualsafetycontractspass; OIDClogin underway. No imagebuild/candidatedeployment successclaimyet. Green7c/95 remainsserving100, oldmodernblueinactive0; promotion/QAretirementexcluded.
 
+### September13, 05:46 UTC — staging failed before build; workflow repair started
+
+Run34740853590 attempt1 terminalfailure inazacrbuildregistrydiscovery at05:40:23. OIDC/safety/access-noop/engineering+100/0preflight passed. Error saysknownregistry couldnotbefoundinsubscription; operatorreadconfirms exactregistry exists. ActualdeploymentSP6a25b4c2 hasAcrPush atregistry, noassignedregistrymanagement/build role; installedCLIbuildwithoutresourcegroup enumeratessubscriptionresources. HistoricalSeptember11readinessrecordalso reportsACRTasks deniedbysubscriptionpolicy. No providerpermissionexpansion attempted.
+
+Downloadedandchecksumverifiedallthreeartifacts; candidate-namedarchive contains onlypreflight.json, neveracceptedascandidate. Accessintent/apply/cleanupareallnormal-ingressdisablednoops. Fresh05:45:16 publicstatepasses unchangedconfig/template/auth/identity, green7cserving100, blueinactivezero. No rerun/rebuild/promotion. Boundedworkflowobservation endedonterminalfailure before06:24deadline. Existingreviewerimplementsfocusedrepair inisolatedcodex/runner-build-20260913: DockerbuildonGitHubrunner,pushwithexistingAcrPush, authenticateddigestreadback; retainexactsource/capabilities/buildonce/runtime/immutablecontracts. Coordinatorreconcilesfailureandwillindependentlyreview/tests/PR. Scopeisnecessaryreleaseworkflowrepair; noapplicationfeaturechange ornewIAMgrant. FullR1–R9/S3–S4 remainopen; newworkflowcommitwillrequireitsownfinalsourceCI ratherthanrelabelb5evidence.
+
 ### Single outcome checklist
 
 - [ ] R1. Audit core visitor/learner/account/support/enabled-owner journeys on desktop/mobile, Chromium/WebKit, both themes; include real non-owner learner, hosted auth appearance, keyboard/accessibility, cancellation, loading/errors/retries and anonymous/private enforcement. Record reproducible findings/screenshots and fix release friction without redesign.
