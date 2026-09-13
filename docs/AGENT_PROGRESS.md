@@ -188,6 +188,22 @@ Freshproviderread05:31:10 confirms exactmodern7c/95 green100/blue0, originalpubl
 
 This completesonlytheexplicitlyapprovedmodernbaselineoperation, notfullR1–R9. Evidence remainsatfrozenbaseline7c, withfinalmainb5CI separatelyverified. Nextconcretereviewedapprovalpacket: docs/releases/2026-09-13-final-candidate-stage.md — drain/deactivateonlyzero-trafficmodernblue, buildfinalb5 once andstageblue0 usingquality34735888733/regression34735947262. Preserve servinggreen ascompatiblepredecessor; no finalcandidatebuild/dispatch/promotion orQAretirement done. Packetindependentlyreviewedwithnomaterialfindings. Commit/pushfinalsanitizedcheckpoint afterchecks andverifyexactremote/main.
 
+### September13, 05:36 UTC — final candidate staging approved and started
+
+Victor explicitly approved docs/releases/2026-09-13-final-candidate-stage.md. Coordinator owns execution inexistingrelease worktree/evidencebranch; existingreviewer preparesboundedread-onlyblueworkinventory. PreservefullR1–R9. Scope: freshprovider/Git/runchecks, verify no unexplainedbluework, deactivateonlyzero-trafficmodernblueandverifyzeroreplicas, dispatchmainb5stage once, reconcileexactbuild/digest/candidateartifact andunchangedpublicgreen/auth/settings. No promotion, QAretirement orbillingactivation. Risk: failedbuild/stage leavesgreenservingwithoutwarmblue untilreconciled; neverrebuildblindly. Privatejournal .filosage-local/final-stage-20260913. Acceptance: exactsuccessfulstageartifact andprovider/hostedsmoke; bound40minutejob plus5minute finalread fromdispatch.
+
+Staging checklist within R5:
+- [x] S1. Fresh state, exactsource/CI and no unexplainedwork verified.
+- [x] S2. Only zero-traffic modernblue stopped andzero replicas verified.
+- [ ] S3. Dispatch exactb5once; immutable build andsuccessfulcandidateartifact verified.
+- [ ] S4. Publicgreen/auth/settings preserved, evidence committed/pushed; identifycandidatehostedreview next.
+
+### September13, 05:40 UTC — final candidate workflow dispatched once
+
+Freshmainb5/quality/security/regression success retained; no competingworkflow acrossqueued/inprogress/waiting/pending/requested states. Providerstate/auth/QA unchanged; bothreceivermonitorsenabled/nofiredalerts/nojobs. Exactblue runtime readonlyshared-workaggregate at05:38:03 has540documents,34terminalreservedrows andallunresolved/unknown/uncertain counts0. It is globalabsenceobservedfromblue, notper-revisionattribution orcontinuousfence. Approvedzero-trafficblue deactivatedonce;05:39:26 readbackinactive/zeroreplicas, fullappconfig/template/auth/identitypreserved andpublicgreenhealth200.
+
+Dispatchedexactmainb5 azure-staging.yml once: run34740853590 attempt1, created05:39:51UTC. Inputsquality34735888733/regression34735947262/migration-dual/featurednone. Finalobservationdeadline06:24:50UTC (45minutesfromdispatch);40minutejobboundplus5minfinalartifactread. Actualsafetycontractspass; OIDClogin underway. No imagebuild/candidatedeployment successclaimyet. Green7c/95 remainsserving100, oldmodernblueinactive0; promotion/QAretirementexcluded.
+
 ### Single outcome checklist
 
 - [ ] R1. Audit core visitor/learner/account/support/enabled-owner journeys on desktop/mobile, Chromium/WebKit, both themes; include real non-owner learner, hosted auth appearance, keyboard/accessibility, cancellation, loading/errors/retries and anonymous/private enforcement. Record reproducible findings/screenshots and fix release friction without redesign.

@@ -1,0 +1,88 @@
+{
+  "at": "2026-09-13T05:40:43.225602+00:00",
+  "status": "stage_in_progress",
+  "evidence": {
+    "preflight": {
+      "at": "2026-09-13T05:37:19.817835+00:00",
+      "exactGreen100Blue0": true,
+      "publicHealthPassed": true,
+      "competingWorkflows": 0,
+      "mainSha": "b5ba5803c2205922bf68d7fa740d1c660312ee71",
+      "qualityRun": 34735888733,
+      "regressionRun": 34735947262
+    },
+    "blue-work": {
+      "schemaVersion": 1,
+      "operation": "modern-blue-work-inventory",
+      "observedAt": "2026-09-13T05:38:03.925Z",
+      "work": {
+        "documents": 540,
+        "futureLeaseFields": 0,
+        "expiredLeaseFields": 0,
+        "malformedLeaseFields": 0,
+        "pendingProviderCalls": 0,
+        "inFlightProviderCalls": 0,
+        "uncertainProviderCalls": 0,
+        "unknownProviderCalls": 0,
+        "unfinishedGeneration": 0,
+        "unresolvedAiRequests": 0,
+        "generatingBannerKeys": 0,
+        "uploadingBannerAssets": 0,
+        "unfinishedDeletion": 0,
+        "unfinishedCheckout": 0,
+        "unknownWorkStates": 0,
+        "reservedAccountingRows": 34,
+        "uncertainAccountingRows": 0
+      },
+      "noUnresolvedWorkObserved": true,
+      "sharedDatabaseObservation": true,
+      "revisionWorkAttribution": false,
+      "globalSessionsZeroRequired": false,
+      "drainVerified": false,
+      "sourceSha": "7c48bc02ff6623a81fee382b194864f1d04b76c0",
+      "revision": "filosagestg-app--blue-7c48bc02ff66-baseline-1",
+      "imageDigest": "sha256:95cc9529e6abcfdef5918f39996cfed55703e5b29b82d75304a69765c844b344",
+      "probeSourceSha256": "7dadfb83bb53b647db549a64cdc5a46641c81b7565f5e4739bc481b8667c5f73"
+    },
+    "blue-stop-intent": {
+      "at": "2026-09-13T05:38:45.746458+00:00",
+      "revision": "filosagestg-app--blue-7c48bc02ff66-baseline-1",
+      "approved": true,
+      "workSnapshotAt": "2026-09-13T05:38:03.925Z"
+    },
+    "blue-stop-readback": {
+      "at": "2026-09-13T05:39:26.504289+00:00",
+      "revision": "filosagestg-app--blue-7c48bc02ff66-baseline-1",
+      "active": false,
+      "replicas": 0,
+      "publicConfigurationPreserved": true,
+      "publicHealthPassed": true,
+      "readyForStage": true
+    },
+    "stage-dispatch-intent": {
+      "at": "2026-09-13T05:39:50.173598+00:00",
+      "deadline": "2026-09-13T06:24:50.173598+00:00",
+      "workflow": "azure-staging.yml",
+      "ref": "main",
+      "expectedSha": "b5ba5803c2205922bf68d7fa740d1c660312ee71",
+      "approved": true,
+      "inputs": {
+        "expected_sha": "b5ba5803c2205922bf68d7fa740d1c660312ee71",
+        "expected_auth_mode": "migration-dual",
+        "quality_run_id": "34735888733",
+        "regression_run_id": "34735947262",
+        "featured_course_id": "none"
+      }
+    },
+    "stage-run": {
+      "runId": 34740853590,
+      "url": "https://github.com/Victor-CS-Core/Filosage/actions/runs/34740853590",
+      "sha": "b5ba5803c2205922bf68d7fa740d1c660312ee71",
+      "attempt": 1
+    }
+  },
+  "publicGreenServing": true,
+  "finalCandidateVerified": false,
+  "promotionPerformed": false,
+  "qaRetirementPerformed": false
+}
