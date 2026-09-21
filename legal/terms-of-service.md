@@ -1,6 +1,6 @@
 # FiloSage — Terms of Service
 
-> **DRAFT — prepared 2026-09-21.** Working draft transcribed from the in-app Terms of Service (filosage.com/terms) for owner and attorney review. This is not legal advice and must be reviewed by a qualified attorney before launch.
+> **Owner-reviewed 2026-09-21.** Transcribed from the in-app Terms of Service (filosage.com/terms) and reviewed to the best of the operator's knowledge. This is not legal advice; professional legal review is recommended before paid launch.
 
 **Effective date:** August 11, 2026 (in-app document version: 2026-08-11)
 
@@ -10,12 +10,12 @@ These terms govern your access to FiloSage, including public lessons, learner ac
 
 These Terms form a binding agreement between you and Filosage, the operator of filosage.com and the FiloSage learning service ("Filosage," "we," "us," or "our"). By creating an account, clicking to accept, purchasing a subscription, or using an account-only feature, you agree to these Terms and the Acceptable Use Policy. The Privacy Notice explains our data practices. If you do not agree, do not create an account or use account-only features; you may still read public material where available.
 
-> **Paid-launch disclosure pending.** Paid subscriptions must remain disabled until the owner approves the formal operator name, business address, governing jurisdiction, and billing-support address for publication. Paid checkout is currently unavailable pre-launch.
+> **Paid-launch disclosure.** Paid checkout is currently unavailable pre-launch and must remain disabled until the business address below is published and the operator details are confirmed.
 >
-> - Legal operator: [OPERATOR LEGAL NAME]
-> - Business address: [OPERATOR BUSINESS ADDRESS]
-> - Governing jurisdiction: [GOVERNING JURISDICTION]
-> - Billing support: [BILLING SUPPORT EMAIL]
+> - Legal operator: FiloSage (trade name; substitute the registered entity name if one exists)
+> - Business address: [TO BE PUBLISHED — insert the business mailing address before paid launch]
+> - Governing jurisdiction: Florida (see §15; update together with the forum clause if operating elsewhere)
+> - Billing support: support@filosage.com
 
 ## 2. Eligibility
 
@@ -79,4 +79,4 @@ We may improve, change, or discontinue features. If we materially change these T
 
 ## 15. General terms
 
-These Terms and incorporated policies are the entire agreement about FiloSage. If one provision is unenforceable, the rest remains effective and the provision will be enforced to the maximum lawful extent. A failure to enforce a term is not a waiver. You may not assign this agreement without our consent; we may assign it as part of a reorganization, financing, or transfer of the service. Neither party is liable for delay caused by events reasonably beyond its control. These Terms are governed by the laws of [GOVERNING JURISDICTION] and applicable United States federal law, without regard to conflict-of-law rules. A dispute may be brought in a court of competent jurisdiction in Florida, except where non-waivable consumer law permits or requires a different forum or law. Nothing in these Terms waives a consumer protection that cannot lawfully be waived.
+These Terms and incorporated policies are the entire agreement about FiloSage. If one provision is unenforceable, the rest remains effective and the provision will be enforced to the maximum lawful extent. A failure to enforce a term is not a waiver. You may not assign this agreement without our consent; we may assign it as part of a reorganization, financing, or transfer of the service. Neither party is liable for delay caused by events reasonably beyond its control. These Terms are governed by the laws of the State of Florida and applicable United States federal law, without regard to conflict-of-law rules. A dispute may be brought in a court of competent jurisdiction in Florida, except where non-waivable consumer law permits or requires a different forum or law. Nothing in these Terms waives a consumer protection that cannot lawfully be waived.

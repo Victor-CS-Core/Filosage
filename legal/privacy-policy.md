@@ -1,6 +1,6 @@
 # FiloSage — Privacy Notice
 
-> **DRAFT — prepared 2026-09-21.** Working draft transcribed from the in-app Privacy Notice (filosage.com/privacy) for owner and attorney review. This is not legal advice and must be reviewed by a qualified attorney before launch.
+> **Owner-reviewed 2026-09-21.** Transcribed from the in-app Privacy Notice (filosage.com/privacy) and reviewed to the best of the operator's knowledge. This is not legal advice; professional legal review is recommended before paid launch.
 
 **Effective date:** August 18, 2026 (in-app document version: 2026-08-18)
 
@@ -10,12 +10,12 @@ This notice explains what FiloSage collects, why it is used, where it is process
 
 Filosage's legal operator controls the personal information described here when you use filosage.com or the FiloSage service. Privacy questions and requests may be sent to legal@filosage.com. This notice does not cover third-party sites or services you visit independently.
 
-> **Paid-launch disclosure pending.** Paid subscriptions must remain disabled until the owner approves the formal operator name, business address, governing jurisdiction, and billing-support address for publication. If the law where you live requires those details before account use, do not create an account until they are posted.
+> **Paid-launch disclosure.** Paid checkout is currently unavailable pre-launch and must remain disabled until the business address below is published and the operator details are confirmed. If the law where you live requires those details before account use, do not create an account until they are posted.
 >
-> - Legal operator: [OPERATOR LEGAL NAME]
-> - Business address: [OPERATOR BUSINESS ADDRESS]
-> - Governing jurisdiction: [GOVERNING JURISDICTION]
-> - Billing support: [BILLING SUPPORT EMAIL]
+> - Legal operator: FiloSage (trade name; substitute the registered entity name if one exists)
+> - Business address: [TO BE PUBLISHED — insert the business mailing address before paid launch]
+> - Governing jurisdiction: Florida (see Terms §15; update together with the forum clause if operating elsewhere)
+> - Billing support: support@filosage.com
 
 ## 2. Information we collect
 
@@ -52,7 +52,7 @@ Filosage uses essential browser storage to remember your theme and support authe
 
 Account and learning information is generally kept while your account is active. Waitlist contact information is used while requested updates remain relevant or until consent is withdrawn. After withdrawal, Filosage may retain a limited suppression and consent-history record so the address is not contacted again without a new request. Product events are retained long enough to evaluate acquisition, activation, learning, and retention trends, then deleted or de-identified when no longer reasonably needed. When you request deletion of an eligible account, Filosage closes it to new writes and records a resumable deletion request. Unconfirmed subscription cancellation, incomplete inventory, uncertain asset ownership, or interrupted work remains pending; a request is not described as complete while these checks remain unresolved. Limited legal-acceptance, completed billing-consent, payment-processor, safety, report, and enforcement records may be retained only as needed to comply with law, resolve disputes, document consent, account for transactions, or prevent abuse. AI usage and idempotency records are otherwise kept as needed to enforce limits and investigate failures. Billing records, after paid plans launch, may be retained for applicable tax, accounting, and consumer-protection periods. Hosting, authentication, and security providers may retain logs or backups under their policies.
 
-Expired or consumed identity-link intents become eligible for pruning after 30 days. Removal currently requires an approved identity-maintenance run; no automatic pruning schedule is enabled. Authentication security events use bounded categories and pseudonymous actor keys under the current 30-day Azure Log Analytics retention. Immutable account-generation tombstones and deletion jobs remain to prevent old sessions and delayed writes from recreating deleted data and to support privacy recovery. [EXACT RETENTION DURATIONS AND HOLDS — PENDING OWNER AND PRIVACY REVIEW.] Automated removal of active data is reported separately from complete erasure; the app does not claim every record was erased. Shared course-banner assets and other learners' work are retained under their ownership policy; exclusively owned assets are removed only after upload outcomes and surviving references are verified. Identity links remain while needed to keep approved sign-in methods attached to the same account. Identity-link deletion is not part of automated learning-data deletion because removing a mapping can disconnect account recovery; a separately verified identity request and reviewed deletion process are required.
+Expired or consumed identity-link intents become eligible for pruning after 30 days. Removal currently requires an approved identity-maintenance run; no automatic pruning schedule is enabled. Authentication security events use bounded categories and pseudonymous actor keys under the current 30-day Azure Log Analytics retention. Immutable account-generation tombstones and deletion jobs remain to prevent old sessions and delayed writes from recreating deleted data and to support privacy recovery. Detailed retention schedules are pending the owner's privacy review and will be published here when complete. Until then, the practices described above apply: account and learning data are kept while an account is active; product events are deleted or de-identified when no longer reasonably needed; and legal, billing, safety, and enforcement records are kept only as long as required by law or legitimate need. Automated removal of active data is reported separately from complete erasure; the app does not claim every record was erased. Shared course-banner assets and other learners' work are retained under their ownership policy; exclusively owned assets are removed only after upload outcomes and surviving references are verified. Identity links remain while needed to keep approved sign-in methods attached to the same account. Identity-link deletion is not part of automated learning-data deletion because removing a mapping can disconnect account recovery; a separately verified identity request and reviewed deletion process are required.
 
 ## 9. Security
 
