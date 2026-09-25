@@ -38,12 +38,12 @@ test("required evidence sources recover independently and optional recommendatio
     unavailable.delete("mastery"); await page.getByRole("button", { name: "Retry learning evidence", exact: true }).click();
     await expect(page.getByRole("region", { name: "Learning evidence summary" })).toBeVisible();
     await expect(page.getByText("Share links unavailable", { exact: true })).toBeVisible();
-    await expect(page.getByText("Capstone analysis unavailable", { exact: true })).toBeVisible();
+    await expect(page.getByText("Final-project analysis unavailable", { exact: true })).toBeVisible();
     await expect(page.getByRole("link", { name: "Add portable export with Pro" })).toHaveCount(0);
     unavailable.delete("shares"); await page.getByRole("button", { name: "Retry share links", exact: true }).click();
-    unavailable.delete("analysis"); await page.getByRole("button", { name: "Retry capstone analysis", exact: true }).click();
+    unavailable.delete("analysis"); await page.getByRole("button", { name: "Retry final-project analysis", exact: true }).click();
     await expect(page.getByText("Share links unavailable", { exact: true })).toHaveCount(0);
-    await expect(page.getByText("Capstone analysis unavailable", { exact: true })).toHaveCount(0);
+    await expect(page.getByText("Final-project analysis unavailable", { exact: true })).toHaveCount(0);
     await expect(page.getByText("No observed evidence yet.", { exact: true })).toBeVisible();
   } finally { releaseRecommendations(); }
 });
