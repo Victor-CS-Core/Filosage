@@ -733,8 +733,8 @@ test("completes a published course from discovery through evidence", async ({ pa
     },
   });
 
-  await page.getByRole("button", { name: "Ask Filosage" }).click();
-  const tutor = page.getByRole("dialog", { name: "Ask Filosage" });
+  await page.getByRole("button", { name: "Ask the tutor" }).click();
+  const tutor = page.getByRole("dialog", { name: "Ask the tutor" });
   await tutor.getByLabel("Ask about this lesson").fill("How is an inference different from evidence?");
   await tutor.getByRole("button", { name: "Send question" }).click();
   await expect(tutor.getByText("Evidence is observed; an inference is the explanation added to it.")).toBeVisible();
@@ -796,7 +796,7 @@ test("completes a published course from discovery through evidence", async ({ pa
   await page.getByLabel("Revise and resubmit your capstone").fill(revisedCapstone);
   await page.getByRole("button", { name: "Submit for assessment" }).click();
   const capstone = page.locator(".course-capstone");
-  await expect(capstone.getByText("Capstone passed", { exact: true })).toBeVisible();
+  await expect(capstone.getByText("Final project passed", { exact: true })).toBeVisible();
   await expect(capstone.getByText("The revised brief supports a proportionate, reversible action with explicit evidence.")).toBeVisible();
   await expect(capstone.getByText("View revision history (2 attempts)")).toHaveCount(0);
   expect(capstoneSubmissions).toEqual([firstCapstone, revisedCapstone]);

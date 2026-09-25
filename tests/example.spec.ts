@@ -1066,9 +1066,9 @@ test("keeps Plus and Pro generation visibly metered", async ({ page }) => {
 
   await expect(page.getByRole("heading", { name: "Filosage Plus" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Filosage Pro" })).toBeVisible();
-  await expect(page.getByText("Two complete AI course credits added each month")).toBeVisible();
-  await expect(page.getByText("Five complete AI course credits added each month")).toBeVisible();
-  await expect(page.getByText("Each credit includes the approved outline and every planned lesson")).toBeVisible();
+  await expect(page.getByText("2 course credits a month — 1 credit builds 1 complete course (the full outline plus every lesson in it)")).toBeVisible();
+  await expect(page.getByText("5 course credits a month — bank up to 60")).toBeVisible();
+  await expect(page.getByText("Detailed final-project feedback — see how each attempt improved, requirement by requirement")).toBeVisible();
   await expect(page.getByText("Advanced capstone history and criterion-level analysis")).toBeVisible();
   await expect(page.getByText("Downloadable evidence reports and expiring share links")).toBeVisible();
   await expect(page.getByText("Unused credits roll over, up to 24.")).toBeVisible();
@@ -1365,11 +1365,11 @@ test("does not complete a lesson after a wrong answer", async ({ page }) => {
   await studyTools.getByRole("tab", { name: "Flashcards" }).click();
   await expect(studyTools.getByRole("combobox", { name: "Study deck" })).toHaveValue("lesson-deck-0001");
   await studyTools.getByRole("button", { name: "Close study tools" }).click();
-  await page.getByRole("button", { name: "Ask Filosage" }).click();
-  const tutor = page.getByRole("dialog", { name: "Ask Filosage" });
+  await page.getByRole("button", { name: "Ask the tutor" }).click();
+  const tutor = page.getByRole("dialog", { name: "Ask the tutor" });
   await expect(tutor).toHaveAttribute("data-presentation", floatingLessonTools ? "floating" : "modal");
   expect(await tutor.evaluate((element) => element.matches(":modal"))).toBe(!floatingLessonTools);
-  const tutorMoveHandle = tutor.getByRole("button", { name: "Move Ask Filosage window" });
+  const tutorMoveHandle = tutor.getByRole("button", { name: "Move Ask the tutor" });
   if (floatingLessonTools) await expect(tutorMoveHandle).toBeVisible();
   else await expect(tutorMoveHandle).toBeHidden();
   await expect(tutor.locator(".app-drawer-surface")).toHaveCSS("background-image", /svg/);
@@ -1937,14 +1937,14 @@ test("builds recognizable tactile course banners from the complete course meanin
   };
   const prompt = buildCourseBannerPrompt(input);
 
-  expect(COURSE_BANNER_STYLE_VERSION).toBe(5);
+  expect(COURSE_BANNER_STYLE_VERSION).toBe(6);
   expect(prompt).toContain(input.outcome);
   expect(prompt).toContain(input.mission);
   expect(prompt).toContain("recognizable subject anchor");
   expect(prompt).toContain("relationship motif");
-  expect(prompt).toContain("museum-exhibition geometry");
-  expect(prompt).toContain("large circles, partial discs, arcs, fine axes");
-  expect(prompt).toContain("deep midnight navy");
+  expect(prompt).toContain("fine line engraving");
+  expect(prompt).toContain("warm oatmeal paper");
+  expect(prompt).toContain("centered in the frame");
   expect(prompt).toContain("partially covered deck card");
   expect(prompt).toContain("no more than seven major shapes");
   expect(prompt).toContain("Absolute text ban");

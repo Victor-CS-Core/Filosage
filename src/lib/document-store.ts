@@ -1,7 +1,7 @@
 import "server-only";
 import { createHash, randomUUID } from "node:crypto";
 import { accountFenceReadPaths, assertAccountMutation } from "@/lib/account-write-fence";
-import type { Course, LessonMode } from "@/lib/course-types";
+import type { Course, CourseBanner, CourseIllustration, LessonMode } from "@/lib/course-types";
 import type { AiReservation } from "@/lib/ai-usage";
 import type { CourseStage, RepairOperation, ValidationReport } from "@/lib/course-pipeline/contract";
 import { expectedLessonIds as outlinedLessonIds } from "@/lib/course-progress";
@@ -264,6 +264,65 @@ export async function updateCourseBanner(
     },
   );
   if (!document) throw new Error("The document store did not return the updated course.");
+  return parseDocument(document);
+}
+
+/**
+ * Attach Tier B/C media assets to a course: the hero banner plus per-module
+ * illustrations. Runs in a transaction so concurrent lesson-generation writes
+ * to the course document are not clobbered. Only fills slots that are empty.
+ */
+export async function setCourseIllustrations(
+  courseId: string,
+  actorUid: string,
+  media: {
+    banner?: CourseBanner;
+    moduleIllustrations?: Array<{ moduleIndex: number; illustration: CourseIllustration }>;
+  },
+) {
+  const coursePath = `courses/${courseId}`;
+  return runStoredDocumentTransaction([coursePath], (documents) => {
+    const course = documents[coursePath];
+    if (!course) throw new Error("The course could not be reopened.");
+    if (course.authorId !== actorUid) throw new Error("This course belongs to another account.");
+    const now = new Date().toISOString();
+    const next: Record<string, unknown> = { ...course, updatedAt: now };
+    if (media.banner && !course.banner) next.banner = media.banner;
+    if (media.moduleIllustrations?.length) {
+      const modules = Array.isArray(course.modules) ? [...course.modules] : [];
+      for (const { moduleIndex, illustration } of media.moduleIllustrations) {
+        const target = modules[moduleIndex];
+        if (target && typeof target === "object" && !(target as { illustration?: unknown }).illustration) {
+          modules[moduleIndex] = { ...target, illustration };
+        }
+      }
+      next.modules = modules;
+    }
+    return { writes: [{ path: coursePath, data: next }], result: undefined };
+  });
+}
+
+/**
+ * Attach a Tier C lesson illustration to an already-committed lesson.
+ * Illustration failure never blocks lesson generation: this runs after the
+ * lesson commit and is safe to skip on error.
+ */
+export async function setLessonIllustration(
+  courseId: string,
+  lessonId: string,
+  illustration: CourseIllustration,
+) {
+  const updatedAt = new Date();
+  const document = await documentStoreJson<DocumentRecord>(
+    `/documents/${encodeDocumentPath(`courses/${courseId}/lessons/${lessonId}`)}?updateMask.fieldPaths=illustration&updateMask.fieldPaths=updatedAt`,
+    {
+      method: "PATCH",
+      body: JSON.stringify({
+        fields: toDocumentFields({ illustration, updatedAt }),
+      }),
+    },
+  );
+  if (!document) throw new Error("The document store did not return the updated lesson.");
   return parseDocument(document);
 }
 

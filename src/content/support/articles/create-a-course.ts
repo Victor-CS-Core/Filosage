@@ -37,6 +37,10 @@ Starting generation reserves one course credit. A successfully saved course rede
 
 Filosage researches suitable released sources and checks supported claims when trustworthy evidence is available. If suitable claim-level sources are scarce, the course can still be created with model-knowledge labels rather than invented citations. Review those labels before relying on the material for important work.
 
+## Illustrated courses
+
+After your outline is ready, Filosage generates custom artwork for the course in the background: a cover plus an illustration for every module on Plus, and an illustration for every lesson on Pro. The artwork is text-free by design — the lesson text stays the authoritative explanation — and a course works fully while its art is still generating. If an illustration is missing, reopening the course retries it automatically.
+
 ## Recover from an interruption
 
 Reopen **Create course** to check a saved request. When **Resume course request** is offered, continue that request; completed stages stay saved and its reserved credit covers recovery. **Open course** returns to a completed result. Avoid starting a new request merely because a response was delayed.

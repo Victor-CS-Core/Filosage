@@ -28,6 +28,7 @@ import {
   X,
 } from "lucide-react";
 import AppDrawer, { useAppDrawer } from "@/components/AppDrawer";
+import CourseIllustrationImage from "@/components/CourseIllustrationImage";
 import AppShell from "@/components/AppShell";
 import AccountEntryButton, { useAccountEntryMode } from "@/components/AccountEntryButton";
 import { useAuth } from "@/components/AuthProvider";
@@ -1395,7 +1396,7 @@ export default function LessonView() {
             </button>
             {user ? (
               <button className={`button button-secondary button-small ${tutorOpen ? "is-active" : ""}`} onClick={tutorDrawer.toggleDrawer} aria-expanded={tutorOpen} aria-describedby={reviewRecallLocked ? "review-cues-locked" : undefined} disabled={reviewRecallLocked}>
-                <MessageSquareText size={16} /> {tutorOpen ? "Close Filosage" : "Ask Filosage"}
+                <MessageSquareText size={16} /> {tutorOpen ? "Close tutor" : "Ask the tutor"}
               </button>
             ) : (
               <span className="owner-only-note"><LockKeyhole size={14} /> Sign in for lesson help</span>
@@ -1415,6 +1416,11 @@ export default function LessonView() {
                   ? <p>Complete the recall check before reviewing the lesson summary.</p>
                   : <p>{lesson.concept}</p>}
               </header>
+              <CourseIllustrationImage
+                illustration={lessonData?.illustration}
+                alt={`Illustration for the lesson “${lesson.title}”`}
+                className="lesson-illustration"
+              />
 
               <div className="lesson-mode-tabs" role="tablist" aria-label="Lesson workspace">
                 <button id="lesson-learn-tab" type="button" role="tab" aria-selected={lessonPane === "learn"} aria-controls="lesson-pane-content" aria-describedby={reviewRecallLocked ? "review-cues-locked" : undefined} disabled={reviewRecallLocked} tabIndex={lessonPane === "learn" ? 0 : -1} className={lessonPane === "learn" ? "is-active" : ""} onClick={() => selectLessonPane("learn")} onKeyDown={handleLessonPaneKeyDown}>
@@ -1722,11 +1728,11 @@ export default function LessonView() {
           )}
 
           {!reviewRecallLocked && user && tutorOpen && (
-            <AppDrawer open={tutorOpen} onClose={tutorDrawer.closeDrawer} labelledBy="tutor-title" size="medium" mobilePlacement="full" desktopPresentation="floating" draggable dragLabel="Ask Filosage window" className="tutor-app-drawer">
+            <AppDrawer open={tutorOpen} onClose={tutorDrawer.closeDrawer} labelledBy="tutor-title" size="medium" mobilePlacement="full" desktopPresentation="floating" draggable dragLabel="Ask the tutor" className="tutor-app-drawer">
             <aside className="tutor-drawer">
               <header className="tutor-header">
                 <span className="tutor-avatar"><FilosageMark /></span>
-                <div className="tutor-heading"><span>Lesson tutor</span><strong id="tutor-title">Ask Filosage</strong><small>Grounded in “{lesson.title}”</small></div>
+                <div className="tutor-heading"><span>Lesson tutor</span><strong id="tutor-title">Ask the tutor</strong><small>Grounded in “{lesson.title}”</small></div>
                 <span className="tutor-grounded-status"><span aria-hidden="true" /> Lesson-aware</span>
                 <button className="icon-button" onClick={tutorDrawer.closeDrawer} aria-label="Close tutor"><X size={18} /></button>
               </header>

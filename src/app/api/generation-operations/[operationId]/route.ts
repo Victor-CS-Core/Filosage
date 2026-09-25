@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { authorizationResponse, requireAcceptedAccount, withAccountRequest } from "@/lib/auth-server";
-import { getGenerationOperation, generationOperationStatus, abandonGenerationOperation } from "@/lib/generation-operations";
+import { getGenerationOperation, generationOperationStatus, abandonGenerationOperation, reconcileGenerationOperation } from "@/lib/generation-operations";
 import { readEvaluationBudgetEvidence, runWithEvaluationRequest } from "@/lib/evaluation-budget";
 import { EvaluationBudgetError, evaluationBudgetErrorFrom } from "@/lib/evaluation-errors";
 import { POST as generateLesson } from "@/app/api/generate-lesson/route";
@@ -13,8 +13,15 @@ async function getOperation(request: Request, context: Context) {
   try {
     const account = await requireAcceptedAccount(request);
     const { operationId } = await context.params;
-    const operation = await getGenerationOperation(account.uid, operationId);
+    let operation = await getGenerationOperation(account.uid, operationId);
     if (!operation) return NextResponse.json({ error: "Generation operation not found." }, { status: 404, headers });
+    // Lazily settle orphaned operations (e.g. a server that died mid-call):
+    // expired leases are released, reservations restored, and late usage
+    // reconciled, so a stuck operation cannot brick its key or lock forever.
+    const reconciled = await reconcileGenerationOperation(operation, true).catch(() => null);
+    if (reconciled && reconciled.action !== "none") {
+      operation = await getGenerationOperation(account.uid, operationId) ?? operation;
+    }
     if (request.headers.has("x-filosage-model-evaluation")) {
       if (!account.isOwner) throw new EvaluationBudgetError("EVALUATION_OWNER_REQUIRED");
       return await runWithEvaluationRequest(request.headers, async () => NextResponse.json({ ...generationOperationStatus(operation), evaluation: await readEvaluationBudgetEvidence(operationId) }, { headers }));

@@ -59,6 +59,14 @@ export default function PricingPage() {
   const { user, account, loading: authLoading, sessionResolved, acceptLegalTerms, refreshAccount } = useAuth();
   const courseCredits = account?.courseCredits;
   const subscriptionRequiresManagement = subscriptionBlocksCheckout(account?.subscriptionStatus);
+  // The owner account is comped to Pro without a Stripe subscription, so the
+  // plan check alone would hide checkout forever. Let the owner run a real
+  // canary purchase while they hold no subscription; the comp keeps their
+  // plan Pro regardless, and the portal takes over once a subscription exists.
+  const ownerCanaryPurchase = account?.isOwner === true
+    && (account?.subscriptionStatus ?? "none") === "none";
+  const canStartCheckout = (account?.plan === "free" || ownerCanaryPurchase)
+    && !subscriptionRequiresManagement;
   const [email, setEmail] = useState("");
   const [consent, setConsent] = useState(false);
   const [joining, setJoining] = useState(false);
@@ -276,7 +284,7 @@ export default function PricingPage() {
       <div className="pricing-page">
         <header className="pricing-header">
           <h1>Choose your plan.</h1>
-          <p>Free connects published learning and practice. Plus adds private course creation. Pro adds advanced capstone analysis, portable evidence reports, revocable sharing, and publishing tools.</p>
+          <p>Free covers learning from the public course library. Plus builds custom courses around your goals — 2 full courses a month. Pro adds detailed project feedback, shareable progress reports, and publishing.</p>
         </header>
 
         {pricingContext.from !== "direct" && (
@@ -316,7 +324,7 @@ export default function PricingPage() {
           <button type="button" className={interval === "annual" ? "is-selected" : ""} aria-pressed={interval === "annual"} onClick={() => setInterval("annual")}>Annual <span>Save 33%</span></button>
         </div>
 
-        {billingReady && user && account?.plan === "free" && !subscriptionRequiresManagement && (
+        {billingReady && user && canStartCheckout && (
           <fieldset className="pricing-checkout-eligibility">
             <legend>Confirm before continuing to Stripe Checkout</legend>
             <p>These confirmations are recorded with the selected offer before Stripe opens its hosted checkout page.</p>
@@ -360,11 +368,11 @@ export default function PricingPage() {
                   />
                 ) : paidPlanId && !user ? (
                   <button className={selectedPlan === paidPlanId ? "button button-secondary" : "button button-quiet"} type="button" onClick={() => setSelectedPlanOverride(paidPlanId)}>{selectedPlan === paidPlanId ? `${plan.shortName} selected` : `Choose ${plan.shortName}`}</button>
-                ) : paidPlanId && billingReady && account?.plan === "free" && !subscriptionRequiresManagement ? (
+                ) : paidPlanId && billingReady && canStartCheckout ? (
                   <button className="button button-primary" type="button" disabled={billingBusy || !checkoutEligibilityReady} onClick={() => void openBilling("checkout", paidPlanId)}>
                     {billingBusy ? <LoaderCircle className="spin" size={16} /> : <CreditCard size={16} />}{billingBusy ? "Opening Stripe Checkout…" : checkoutEligibilityReady ? `Continue to Stripe Checkout — ${plan.shortName} ${interval === "annual" ? "annual" : "monthly"}` : "Confirm eligibility to continue"}
                   </button>
-                ) : paidPlanId && !billingReady && account?.plan === "free" && !subscriptionRequiresManagement ? (
+                ) : paidPlanId && !billingReady && canStartCheckout ? (
                   <button className={selectedPlan === paidPlanId ? "button button-secondary" : "button button-quiet"} type="button" onClick={() => setSelectedPlanOverride(paidPlanId)}>{selectedPlan === paidPlanId ? `${plan.shortName} selected` : `Choose ${plan.shortName}`}</button>
                 ) : null}
               </section>
@@ -372,8 +380,10 @@ export default function PricingPage() {
           })}
         </div>
 
+        <p className="pricing-credit-footnote">One credit builds one complete course: the approved outline plus every lesson it plans — a longer course never costs extra credits. Courses build as you go: finish the current lesson&apos;s activities to generate the next one. Delete a course within 24 hours of creating it and the credit comes back automatically (up to twice a month). Every course is illustrated: Plus adds a custom cover and an illustration for every module; Pro adds an illustration for every lesson. Tutor question allowances renew monthly and don&apos;t roll over. Annual plans receive credits monthly, not all at once.</p>
+
         <section className="pricing-credit-guide" aria-labelledby="course-credit-title">
-          <div><p className="overline">Course credits, in context</p><h2 id="course-credit-title">One credit builds the course the goal requires.</h2><p>An approved outline redeems one credit. Every lesson planned in that outline is included, so a longer course is not penalized with a separate lesson quota.</p></div>
+          <div><p className="overline">Course credits, in context</p><h2 id="course-credit-title">One credit = one complete course.</h2><p>An approved outline redeems one credit. Every lesson planned in that outline is included, so a longer course is not penalized with a separate lesson quota.</p></div>
           <dl>
             <div><dt>Plus</dt><dd><strong>2 monthly</strong><span>Unused credits roll over, up to 24.</span></dd></div>
             <div><dt>Pro</dt><dd><strong>5 monthly</strong><span>Unused credits roll over, up to 60.</span></dd></div>
@@ -387,7 +397,7 @@ export default function PricingPage() {
               <h2 id="manage-membership-title">Manage your membership in Stripe</h2>
               {(account?.subscriptionStatus === "active" || account?.subscriptionStatus === "trialing")
                 && !account?.legalAcceptanceRequired && account?.accountStatus !== "suspended" ? (
-                <p>Change plan or billing interval in Stripe; the change takes effect immediately and Stripe calculates the prorated invoice; cancellation takes effect at the end of the current paid period.</p>
+                <p>Change plan or billing interval in Stripe; the change takes effect immediately, and Stripe shows you the adjusted price before you confirm; cancellation takes effect at the end of the current paid period.</p>
               ) : (
                 <p>Update your payment method or cancel at the end of the paid period in Stripe. These recovery actions do not require accepting new Terms. Plan changes require an active account, a current payment, and current Terms acceptance.</p>
               )}

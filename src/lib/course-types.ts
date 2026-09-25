@@ -175,11 +175,26 @@ export interface CourseModule {
     evidence: string;
   };
   lessons: LessonSummary[];
+  /** AI-generated module illustration (Plus and Pro). Set by the media wave. */
+  illustration?: CourseIllustration;
 }
 
 export interface CourseBanner {
   assetId: string;
   version: 1;
+  generatedAt?: string;
+}
+
+/**
+ * AI-generated raster illustration attached to a course, module, or lesson.
+ * Distinct from the structured LessonVisual diagrams: this is a cached
+ * image asset (WebP) generated once per subject and served from blob storage.
+ * The course hero continues to use CourseBanner; modules and lessons use this.
+ */
+export interface CourseIllustration {
+  assetId: string;
+  version: 1;
+  kind: "module" | "lesson";
   generatedAt?: string;
 }
 
@@ -197,6 +212,12 @@ export interface Course {
   }>;
   /** Server-side ownership field. Public API responses omit this value. */
   authorId?: string;
+  /**
+   * Plan of the account that created the course ("plus" | "pro"). Stamped at
+   * generation time and surfaced so the UI can show a creator-tier seal.
+   * Absent for free-tier and legacy courses (no seal).
+   */
+  creatorTier?: "plus" | "pro";
   authorName?: string;
   canManage?: boolean;
   isPublic?: boolean;
@@ -332,6 +353,11 @@ export interface LessonData {
    * intentionally excluded: lessons now render only this safe visual grammar.
    */
   visuals?: LessonVisual[];
+  /**
+   * AI-generated lesson illustration (Pro). Cached image asset set after
+   * lesson generation; rendering is decorative and never load-bearing.
+   */
+  illustration?: CourseIllustration;
   /** Safe, optional practice widgets selected from the app's interaction grammar. */
   interactions?: LessonInteraction[];
   citations?: LessonCitation[];

@@ -7,7 +7,7 @@ export default function MarketingHero() {
     <section className="marketing-hero" aria-labelledby="marketing-hero-title">
       <div className="marketing-hero-copy">
         <h1 id="marketing-hero-title">Learn something you can use<b aria-hidden="true">.</b></h1>
-        <p className="marketing-hero-lead">Clear explanations. A chance to practice. A place to pick up where you left off.</p>
+        <p className="marketing-hero-lead">FiloSage builds a complete course around your goal — clear explanations, guided practice, and a real project at the end. Start free with the public library.</p>
         <div className="marketing-hero-actions">
           <Link className="button button-primary" href="/library">Explore courses <ArrowRight size={17} /></Link>
           <Link className="marketing-text-link" href="#how-it-works">How it works <ArrowRight size={15} /></Link>

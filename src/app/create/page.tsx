@@ -36,7 +36,7 @@ const examples = [
 const courseStyles = [
   { value: "Balanced", title: "Balanced", description: "Move between concise explanations, worked examples, and practice." },
   { value: "Concept-first", title: "Concept-first", description: "Build a durable mental model before applying it to realistic situations." },
-  { value: "Project-led", title: "Project-led", description: "Use one concrete deliverable to organize the learning sequence." },
+  { value: "Project-led", title: "Project-led", description: "Use one concrete final project to organize the learning sequence." },
 ] as const;
 
 const steps = [
@@ -96,7 +96,7 @@ function CreateCourseForm() {
   const [targetWeeks, setTargetWeeks] = useState(4);
   const [courseStyle, setCourseStyle] = useState<(typeof courseStyles)[number]["value"]>("Balanced");
   const [submitting, setSubmitting] = useState(false);
-  const [generationStage, setGenerationStage] = useState("Researching and planning the Capability Cycle");
+  const [generationStage, setGenerationStage] = useState("Researching and planning your course");
   const [error, setError] = useState<string | null>(null);
   const requestIdentityRef = useRef<CreationIdentity | null>(null);
   const [recoverable, setRecoverable] = useState<CourseCreationResponse | null>(null);
@@ -199,7 +199,7 @@ function CreateCourseForm() {
         }
         const courseId = data.courseId ?? data.resultId;
         if (!courseId) throw new Error("The course destination is missing. Check this saved request to reopen it.");
-        setGenerationStage("Your course map is ready");
+        setGenerationStage("Your outline is ready.");
         removeLearnerStorage(user.uid, "generation-operation");
         requestIdentityRef.current = null;
         window.dispatchEvent(new Event("filosage:courses-changed"));
@@ -251,23 +251,23 @@ function CreateCourseForm() {
     return <AppShell><div className="center-state">
       <Sparkles size={26} /><h1>{completed ? "Your course is ready to reopen." : failed ? "This course request has ended." : "Continue your saved course request."}</h1>
       <p role="status" aria-live="polite">{submitting ? generationStage : recoverable?.stage ?? "Checking saved course requests…"}</p>
-      <p>{failed ? recoverable.recovery ?? "The unused course credit has been restored. You can start a new request." : "Completed stages are saved. Reopening continues the request; your reserved course credit covers recovery."}</p>
+      <p>{failed ? recoverable.recovery ?? "The unused course credit has been restored. You can start a new request." : "Your progress is saved — pick up where you left off and you won't spend another credit."}</p>
       {recoverable?.retryAt && !submitting && <p>The current attempt can be checked again after {new Date(recoverable.retryAt).toLocaleTimeString()}.</p>}
       {error && <p role="alert">{error}</p>}
       <div className="state-actions">
         {recoveryLoadFailed && <button className="button button-primary" onClick={() => window.location.reload()}>Check saved requests again</button>}
         {!failed && !recoveryLoadFailed && <button className="button button-primary" disabled={submitting || !recoverable} onClick={() => void runCreation(requestIdentityRef.current, recoverable?.operationId)}>{submitting ? "Working on the current stage…" : completed ? "Open course" : "Resume course request"}</button>}
-        {recoverable?.operationId && !completed && <button className="button button-secondary" disabled={submitting} onClick={() => void endRequest()}>{failed ? "Start a new request" : "End request and restore credit"}</button>}
+        {recoverable?.operationId && !completed && <button className="button button-secondary" disabled={submitting} onClick={() => void endRequest()}>{failed ? "Start a new request" : "Cancel and get my credit back"}</button>}
       </div>
     </div></AppShell>;
   }
 
   if (!canCreateCourses) {
-    return <AppShell><div className="center-state"><Sparkles size={26} /><h1>Create a private course for your goal.</h1><p>Filosage Plus and Pro include complete AI course credits that cover an approved outline and every lesson it plans.</p><Link className="button button-primary" href="/pricing">Compare plans</Link></div></AppShell>;
+    return <AppShell><div className="center-state"><Sparkles size={26} /><h1>Create a private course for your goal.</h1><p>Plus and Pro include course credits. One credit builds one complete course: the full outline plus every lesson in it.</p><Link className="button button-primary" href="/pricing">Compare plans</Link></div></AppShell>;
   }
 
   if (account?.courseCredits?.balance === 0) {
-    return <AppShell><div className="center-state"><Sparkles size={26} /><h1>Your next course credit is still ahead.</h1><p>Every existing course and all lessons in its approved outline remain available. Wait for the next monthly credit or compare Pro&apos;s larger rollover allowance.</p><div className="state-actions"><Link className="button button-secondary" href="/library">Open my courses</Link><Link className="button button-primary" href="/pricing">Compare plans</Link></div></div></AppShell>;
+    return <AppShell><div className="center-state"><Sparkles size={26} /><h1>You&apos;re out of course credits for now.</h1><p>Every existing course and all lessons in its approved outline remain available. Wait for the next monthly credit or compare Pro&apos;s larger rollover allowance.</p><div className="state-actions"><Link className="button button-secondary" href="/library">Open my courses</Link><Link className="button button-primary" href="/pricing">Compare plans</Link></div></div></AppShell>;
   }
 
   const plannedHours = Math.max(1, Math.round((weeklyMinutes * targetWeeks) / 60));
@@ -290,7 +290,7 @@ function CreateCourseForm() {
         <header className={styles.intro}>
           <div>
             <h1>Build toward a real outcome.</h1>
-            <p>Give Filosage the result you need, the time you have, and how you learn best. Filosage researches reputable released sources where available, builds a private course map around the Capability Cycle, and clearly labels any lesson that relies on AI general knowledge.</p>
+            <p>Give Filosage the result you need, the time you have, and how you learn best. Filosage researches reputable released sources where available, builds a private outline around the Capability Cycle, and clearly labels any lesson that relies on AI general knowledge.</p>
           </div>
           <div className={styles.introMeta} aria-label="Course creation details">
             <span><LockKeyhole size={15} /> Private draft</span>
@@ -435,12 +435,12 @@ function CreateCourseForm() {
 
                     <div className={styles.reviewNote}>
                       <ShieldCheck size={18} />
-                      <div><strong>Research and source validation are automatic.</strong><span>Filosage verifies suitable API-cited evidence and catalog metadata for further reading. If trustworthy claim-level sources are scarce, your course is still created without invented citations.</span></div>
+                      <div><strong>Research and source validation are automatic.</strong><span>FiloSage looks for trustworthy sources to back up its claims, and lists them for further reading. If trustworthy claim-level sources are scarce, your course is still created without invented citations.</span></div>
                     </div>
 
                     <div className={styles.reviewNote}>
                       <CheckCircle2 size={18} />
-                      <div><strong>Your first result is a private Capability Cycle.</strong><span>The course map binds every lesson to one focused win. Source-backed lessons receive automatic claim checks; model-knowledge lessons are labeled and remain citation-free.</span></div>
+                      <div><strong>Your first result is a private course plan.</strong><span>The outline binds every lesson to one focused win. Source-backed lessons receive automatic claim checks; model-knowledge lessons are labeled and remain citation-free.</span></div>
                     </div>
                   </section>
                 )}
@@ -480,7 +480,7 @@ function CreateCourseForm() {
 
           <aside className={styles.snapshot} aria-label="Course snapshot">
             <div className={styles.snapshotHeader}>
-              <span><LockKeyhole size={14} /> Private course map</span>
+              <span><LockKeyhole size={14} /> Private outline</span>
               <h2>{topic.trim() || "Your course takes shape here"}</h2>
               <p>{goal.trim() || "Define a specific outcome and this snapshot will keep the course anchored to it."}</p>
             </div>
@@ -489,7 +489,7 @@ function CreateCourseForm() {
               <div><dt>Rhythm</dt><dd>{targetWeeks} weeks · {weeklySessions} sessions/week</dd></div>
               <div><dt>Teaching style</dt><dd>{courseStyle}</dd></div>
               <div><dt>Language</dt><dd>{language}</dd></div>
-              <div><dt>Evidence</dt><dd>{artifactPreference.trim() || "Add a concrete deliverable"}</dd></div>
+              <div><dt>Evidence</dt><dd>{artifactPreference.trim() || "Add a concrete final project"}</dd></div>
             </dl>
             <div className={styles.snapshotReadiness}>
               <div><strong>{formReady ? "Ready to build" : outcomeComplete ? "Complete the course brief" : "Start with the outcome"}</strong><span>{activeStep + 1} of {steps.length}</span></div>

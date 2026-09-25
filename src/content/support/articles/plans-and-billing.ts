@@ -17,14 +17,14 @@ Paid checkout remains closed for this release until separate commercial approval
 ## Memberships
 
 - **Free** opens published courses, progress, review scheduling, and five tutor questions each month.
-- **Filosage Plus** builds private courses around goals the published library does not cover. It adds two complete AI course credits and forty tutor questions each membership month. Unused course credits roll over up to twenty-four.
-- **Filosage Pro** extends Plus with five complete AI course credits and one hundred tutor questions each membership month, with credit rollover up to sixty. Pro also includes full capstone revision history, criterion-level progression analysis, downloadable portable evidence reports, expiring and revocable evidence-share links, and course publishing after review.
+- **Filosage Plus** builds private courses around goals the published library does not cover. It adds two complete AI course credits and forty tutor questions each membership month. Unused course credits roll over up to twenty-four. Every Plus course is illustrated with a custom cover and an illustration for every module.
+- **Filosage Pro** extends Plus with five complete AI course credits and one hundred tutor questions each membership month, with credit rollover up to sixty. Pro courses are richly illustrated: a custom cover plus an illustration for every lesson. Pro also includes full capstone revision history, criterion-level progression analysis, downloadable portable evidence reports, expiring and revocable evidence-share links, and course publishing after review.
 
 Flashcard decks and AI-assisted flashcard generation are separate, feature-gated capabilities. They appear in the learning interface only when their runtime flags are enabled; the Plans page does not promise them as currently available without that verification.
 
 A complete AI course credit covers one approved outline and every lesson planned in that outline. The learning goal determines the course length; there is no separate generated-lesson quota and paid accounts can keep every course they create. Annual subscribers receive course credits monthly rather than all at once. Tutor-question allowances renew monthly and do not roll over.
 
-Unused course credits remain available up to the plan ceiling. If paid access ends, the balance is frozen for twelve months and becomes usable again if paid access resumes during that period. Starting an outline reserves a credit; a failed creation releases it, while a successfully saved course redeems it.
+Unused course credits remain available up to the plan ceiling. If paid access ends, the balance is frozen for twelve months and becomes usable again if paid access resumes during that period. Starting an outline reserves a credit; a failed creation releases it, while a successfully saved course redeems it. Delete a course within 24 hours of creating it and the credit is restored automatically, up to twice per calendar month.
 
 ## Downgrades preserve your work
 

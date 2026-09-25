@@ -13,6 +13,7 @@ export const contractSuites = [
   "tests/content-language.spec.ts",
   "tests/course-deck-velocity.spec.ts",
   "tests/course-deletion-indexes.spec.ts",
+  "tests/course-illustrations.spec.ts",
   "tests/course-pipeline-v2-regressions.spec.ts",
   "tests/course-research.spec.ts",
   "tests/generation-operations.spec.ts",

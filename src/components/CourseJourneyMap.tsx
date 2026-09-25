@@ -3,6 +3,7 @@
 import { useId, useMemo, useState } from "react";
 import { ArrowRight, Check, ChevronDown, Flag, LockKeyhole, Route } from "lucide-react";
 import type { Course } from "@/lib/course-types";
+import CourseIllustrationImage from "@/components/CourseIllustrationImage";
 
 export default function CourseJourneyMap({
   course,
@@ -48,6 +49,11 @@ export default function CourseJourneyMap({
           <div id={panelId} className={`journey-stage-reveal ${isExpanded ? "is-open" : ""}`} aria-hidden={!isExpanded} inert={!isExpanded}>
             <div className="journey-stage-reveal-inner">
               <div className="journey-stage-detail">
+                <CourseIllustrationImage
+                  illustration={courseModule.illustration}
+                  alt={`Illustration for the stage “${courseModule.title}”`}
+                  className="journey-stage-illustration"
+                />
                 <div className="journey-stage-outcome"><Flag size={17} /><div className="journey-stage-outcome-copy"><small>{courseModule.milestone ? "Evidence produced" : "Stage challenge"}</small><strong>{courseModule.milestone?.deliverable ?? courseModule.challenge?.prompt ?? courseModule.description}</strong>{courseModule.milestone?.evidence && <p>{courseModule.milestone.evidence}</p>}{courseModule.milestone && courseModule.challenge && <div className="journey-stage-challenge"><small>Stage challenge</small><strong>{courseModule.challenge.title}</strong><p>{courseModule.challenge.prompt}</p></div>}</div></div>
                 <div className="journey-lesson-links">
                   {courseModule.lessons.map((lesson, lessonIndex) => {

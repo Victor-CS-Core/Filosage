@@ -27,9 +27,9 @@ Choose a saved lesson deck, think before revealing the answer, then rate recall 
 
 The Next steps tab can open lesson checks or, when Tutor is available to your account, start a teach-back or fresh-example prompt. Tutor practice requires sign-in and may be unavailable when account access or usage limits do not allow it.
 
-## Ask Filosage about the lesson
+## Ask the tutor about the lesson
 
-Open **Ask Filosage** for the full lesson-grounded Tutor. You can ask a question, request a hint, try a short quiz, or ask for another example. In the message box, **Enter sends** and **Shift+Enter** starts a new line.
+Open **Ask the tutor** for the full lesson-grounded Tutor. You can ask a question, request a hint, try a short quiz, or ask for another example. In the message box, **Enter sends** and **Shift+Enter** starts a new line.
 
 The Tutor is an AI aid grounded in the open lesson, not an authority. Read the warning shown in the drawer and verify important answers against cited lesson material or another reliable source. If a usage limit or account restriction blocks a request, use the displayed recovery action rather than repeatedly resending it.
 `,

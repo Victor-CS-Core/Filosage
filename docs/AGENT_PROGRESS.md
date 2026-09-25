@@ -1,3 +1,36 @@
+## Tier C illustrated courses + gpt-image-2.5 model adoption — September 25
+
+Status: in_progress (local implementation only). No source push, deployment, Azure mutation, billing activation, or public-course publication. Working tree: local snapshot of `47e4f5576f1332805786bbcf170bd44cc21f1d37` without `.git`.
+
+Victor approved paid-launch Tier C as specced ("Free beta is not an option"): Plus gets course hero + one illustration per module (~$0.10/course originally), Pro gets hero + one illustration per lesson (~$0.22/course originally), 2 Plus / 5 Pro credits per month, and deleting a course within 24h restores its credit (cap 2 refunds/calendar month, exactly once).
+
+What was built locally (2026-09-25):
+- `src/lib/course-illustrations.ts`: hero/module/lesson generation with deterministic fingerprints, generation leases, reuse/dedup, WebP storage, AI-usage reservation/finalization. Failure returns null so course/lesson creation never depends on imagery.
+- `src/lib/course-illustration-prompt.ts`: text-free museum-exhibition visual grammar, one-concept-per-image, no photorealistic people.
+- `POST /api/courses/[courseId]/media`: idempotent media wave (Plus: hero + module art; Pro: hero only — lesson art is created by lesson generation after the atomic lesson commit).
+- `generate-lesson` attempts Pro lesson artwork after the atomic commit; course page lazily invokes the media route when expected artwork is missing.
+- Rendering: `CourseIllustrationImage`, module art in `CourseJourneyMap`, lesson art below lesson titles.
+- `refundCourseCreditForDeletedCourse` in `src/lib/course-credits.ts`: 24h window, 2/month UTC cap, per-course refund doc + monthly counter in one transaction. Deletion drawer explains the policy.
+- Support/pricing copy updated (`membership-plans.ts`, pricing page, plans-and-billing / create-a-course / manage-and-publish-a-course articles). Pro marketed as "richly illustrated courses".
+- Contract tests: `tests/course-illustrations.spec.ts` (new), tiered-media contract in `tests/tier-consistency-contracts.spec.ts`.
+
+gpt-image-2.5 adoption (2026-09-25, Victor-approved after probe): 2.5 launched 2026-09-08 (past training cutoff); Victor asked why not use it. Probe via local openai-proxy (Response API tool_usage, ~$0.05 total): `gpt-image-2.5-flare` low 1024x1024 = $0.0063/image, `gpt-image-2.5-sunburst` medium 1536x1024 = $0.0107/image. Five flare-low subjects, zero text artifacts, visually near-identical to medium. Wired in: hero default `gpt-image-2.5-sunburst` (costMicros 10_700), module/lesson default `gpt-image-2.5-flare` at low quality (costMicros 6_300); `ai-usage.ts` course_banner fallback updated; both contract tests re-pinned. Revised image economics: Tier B ≈ $0.036/course (was $0.10), Tier C ≈ $0.086/course (was $0.22). Probe images: `~/workspace/filosage-eval/image-gen-2.5-probe/`.
+
+Verification (2026-09-25): `tsc --noEmit` clean; 12/12 contract tests pass (tier-consistency + illustrations); oxlint 0 warnings/errors on touched files; eslint clean.
+
+Open gaps (not yet done, do not present as complete):
+- Hero serving mismatch: new heroes live under `courseIllustrationAssets`/illustration blob prefix, but `CourseBanner` still loads `/api/course-banners/[assetId]` (`courseBannerAssets`).
+- No hard per-course image spend caps yet (only per-image estimates).
+- Delete-then-refund is not atomic; exactly-once under races unverified.
+- Failure path finalizes usage with `providerOutcome: "not_started"` even when a provider call may have been dispatched.
+- New `course-illustrations` Azure container assumed but never created/verified.
+- Illustration assets not integrated into course/account deletion cleanup; `illustration-receipt` write-fence scope unaudited.
+- Lesson DTO/publication artifact exposure unverified; alt text synthesized in components, not persisted; safety-critical decorative-only restriction not implemented.
+- Behavioral/race tests still missing (leases, idempotency, spend caps, refund races, 24h boundary, monthly cap, cleanup).
+- Sunburst $0.0107 rests on API-reported tokens (343 output tokens — surprisingly low); sanity-check against the first real invoice.
+
+---
+
 ## Hosted Microsoft contrast correction — September 13
 
 Status: review_ready. Existing release worker owns `codex/hosted-theme-contrast-20260913`; coordinator owns live branding upload, hosted verification and the full R1–R9/QA retirement record on the evidence branch. Victor reported broken hosted contrast after final candidate promotion; this bounded styling correction preserves that full outcome.
@@ -723,3 +756,137 @@ Source checkpoint comprises only the independently reviewed recovery-session tes
 Checkpoint5ebaf9fc123d9fa43ae093fe20d54862733b1e8b was committed and pushed to PR22. Fresh security34668117733, wiki34668117833 and PostgreSQL passed. Engineering34668117717 reached457/458 passing contract cases; the sole failure was the tracked retired-name guard matching a vendor label in a historical handoff sentence. Browser smoke was skipped after that failure. The guard correctly remains unchanged. The sentence now says “external preview,” preserving its skipped-state meaning. An isolated worker reproduced the failure and the minimal wording correction passes all three focused guard cases. The coordinator reviewed the patch independently. This correction changes documentation only; QA remains on verifiedc7. Observe the new checkpoint’s own CI before claiming it green.
 
 The source worktree and isolated fixture worktree were clean after the earlier integrated fixture was preserved in5ebaf9f; this current one-sentence worker edit is also integrated. Local build/browser helpers are stopped. Fresh public health at02:39UTC remains200 on93f60f24, baseline only. The active goal remains incomplete at the owned-account, hosted-theme/identity, TEST runtime-key and full billing lifecycle gates. No general permission is missing, no public promotion or live activation occurred, and Multica remains unavailable.
+
+---
+
+## Paid-launch readiness: canary checkout, copy, smoke test — September 24
+
+Status: started. Owner decided paid launch (free beta rejected). Three workstreams:
+
+- [x] Billing canary unblocked (local, NOT pushed): the owner account is comped to Pro with no Stripe subscription, and `src/app/pricing/page.tsx` only rendered checkout buttons when `account.plan === "free"`, so the owner could never test checkout. Added `ownerCanaryPurchase` (owner + no subscription) and `canStartCheckout` flag; replaced the three `plan === "free"` gates (eligibility checkboxes, checkout button, not-ready select). Server-side `/api/billing/checkout` already had no plan check — only `billingCheckoutAllowedForAccount` + `subscriptionBlocksCheckout` — so no API change needed. After purchase, `subscriptionRequiresManagement` flips true and the Stripe portal takes over; the comp keeps plan Pro regardless. Verified: `tsc --noEmit` clean, ESLint clean (checked against the Sept-21 snapshot's node_modules; file otherwise identical). REQUIRED BEFORE CANARY: push approval, plus Azure env `BILLING_ROLLOUT_MODE=canary` and owner UID in `BILLING_CANARY_UIDS` (env change needs explicit approval; not read yet).
+- [ ] Smoke test: one full course + 2 lessons generated locally and judged for quality (delegated, running).
+- [ ] Generation-lock leak diagnosis: dead/orphaned ops holding the course lock and 429ing new work (delegated, running).
+- [ ] Copy humanization + promise audit: AI slop rewrite and claim-vs-reality check across landing/pricing/app, incl. subscription value clarity (delegated, running).
+
+No push, no deploy, no billing activation, no env change performed. Local diff is exactly the pricing page change above.
+
+### Copy audit completed (2026-09-24)
+
+- Report: `~/workspace/filosage-eval/copy-audit-20260924.md` (read-only audit; repo untouched).
+- Verdict: no AI-slop vocabulary problem (zero classic slop words codebase-wide); the issue is translation — internal jargon shipped as UI copy ("capstone/artifact/deliverable" for one thing, "course map" vs "outline", "AI course credits" undefined at buy point), hedging ("Are paid memberships open?"), and motivational filler.
+- Promise audit: product is honest — credit math, plan gates, 30-day share expiry, 12-month credit freeze, 7-day refund, downgrade-never-deletes all trace to code. Real gaps: landing page never mentions the paid product; "tutor questions" never defined; publish-every-lesson precondition needs one verification pass pre-launch.
+- Subscription value can be stated honestly: exact replacement copy delivered for plan cards (Plus $9.99/mo, Pro $14.99/mo), pricing header, hero lead, and a "1 credit = 1 complete course" footnote — no invented benefits.
+- Awaiting owner approval to apply the rewrites to the working copy.
+
+### Lock investigation completed (2026-09-24)
+
+- Read-only; repo untouched.
+- Q1 (abandon path): NOT a leak. The 429-after-DELETE was a correct no-op release: the abandon's release refused because the period lock had already been legitimately rewritten by the new admission (ead5516a, valid until 18:06:31). Note: DELETE-abandon of a live op is refused 409 while its lease is unexpired (by design).
+- Q2 (OUTCOME_UNKNOWN orphan): CONFIRMED. When a provider call throws outcome-unknown, `generate-course/route.ts:1095` skips settlement (`!(error instanceof GenerationOperationError)`), so the op stays `running` forever, the key is bricked permanently (every retry hits the line-165 `pendingCalls` guard), and the reservation stays `reserved`. Lesson route does NOT share this bug. Minimal fix: also settle this code with `{ failed: true, reason: "provider_outcome_unknown" }` and no `reconcile` flag.
+- Q3 (server death): locks self-heal (time-compared), but dead ops' keys brick permanently via the same line-165 check. Design note: `aiUsageConflictingUntil` takes `Math.max` across legacy + all keyed locks, making outline/lesson serialization effectively global.
+- Q4 (sweeper): CONFIRMED absent. `reconcileGenerationOperation` (generation-operations.ts:367-380) exists but has zero callers. Minimal fix: invoke it lazily in the GET handler of `api/generation-operations/[operationId]/route.ts` before returning status — no new infra.
+- Fixes NOT yet applied; awaiting owner approval.
+
+### Smoke test completed (2026-09-24)
+
+- Full course generated locally ("Everyday knife skills for home cooks"): 4 modules, 12 lessons, 480 min, valid JSON; first 2 lessons generated and inspected. Artifacts: `~/workspace/filosage-eval/results/smoke-20260924-*`.
+- Content verdict: genuinely good — safe, correct technique, strong pedagogy (prediction prompts, misconception targeting, per-option quiz feedback, transfer tasks, spaced retrieval), mild AI-slop only. Worth the price. Weaknesses: no verified sources (bibliography machinery produced nothing; all model-knowledge), text+quiz only (no visuals), thin explanations (~200 words/18 min), no top-level course title on the DTO.
+- Bug found (infra, FIXED, kept): `~/workspace/skills/openai/bin/openai-proxy.mjs` forwarded upstream `content-encoding: gzip`/`content-length` after its own fetch had already decompressed the body — every OpenAI SDK call through the proxy died with `TypeError: terminated`/`incorrect header check`. This was the true root cause of the earlier GENERATION_OUTCOME_UNKNOWN failures, not stale locks. Fix: strip both headers on proxied responses. SDK calls now complete.
+- Bug found (product, NOT fixed): `LESSON_GENERATION_TOTAL_BUDGET_MS = 48_000` (src/lib/lesson-generation-runtime.ts:1). Lesson 0-0's primary model call needed ~50s; client timeout fired → OUTCOME_UNKNOWN → op stranded running + lease expired + in-flight call → reconcile-failed. Real-world latency will spuriously kill paid lesson generations. Recommend raising (e.g. 120s) before launch.
+- Verified: frontend `runCreation` (src/app/create/page.tsx:166-199) DOES implement pause-resume correctly — loops on 202 re-POSTing the same Idempotency-Key for up to 12 waves / 20 min. Stale-lock reconciliation path works (failed ops restore credit).
+- No commits, pushes, or deploys. Dev server (:3000) and proxy (:4100) left running.
+
+### Fixes applied to working copy (2026-09-24, owner-approved)
+
+Owner said "Proceed with the fixes." All changes are LOCAL to ~/workspace/filosage-repo/repo — no commit, no push, no deploy, no Azure/billing change.
+
+**Code fixes:**
+1. `src/app/api/generate-course/route.ts` — GENERATION_OUTCOME_UNKNOWN is now settled immediately as `{ failed: true, reason: "provider_outcome_unknown" }` (no `reconcile` flag; this request owns the fresh lease). The op, its idempotency key, and its lock no longer brick forever. The 409 response for this code now returns the course-specific message "The provider result could not be confirmed. Your course credit was restored; start a new course request." (the shared lib's "check after its lease expires" advice is stale here since settlement is immediate).
+2. `src/app/api/generation-operations/[operationId]/route.ts` — GET handler now calls `reconcileGenerationOperation(operation, true)` lazily before returning status; expired leases release, reservations restore, late usage reconciles. Orphaned ops (e.g. server death mid-call) self-heal on next status poll.
+3. `src/lib/lesson-generation-runtime.ts` — `LESSON_GENERATION_TOTAL_BUDGET_MS` raised 48s → 120s (smoke test showed a normal primary call taking ~50s).
+
+**Copy rewrites (from copy-audit-20260924.md):**
+- `src/lib/membership-plans.ts` — plan taglines + feature bullets rewritten (Free/Plus/Pro); "1 credit builds 1 complete course" now stated in the Plus card; "final project" replaces "advanced capstone analysis"; "progress reports" replaces "evidence reports"; "Publish finished courses to the public library".
+- `src/app/pricing/page.tsx` — header paragraph rewritten; new `pricing-credit-footnote` under the plan cards with the 1-credit exchange rate, build-as-you-go behavior, tutor-question non-rollover, and annual monthly accrual; credit-guide header → "One credit = one complete course."; Stripe handoff → "Stripe shows you the adjusted price before you confirm".
+- `src/components/marketing/MarketingHero.tsx` — hero lead now names the paid product: "FiloSage builds a complete course around your goal…"
+- `LandingPage.tsx` — "Progress that stays honest" plain-language rewrite; closing CTA → "Browse the library."
+- `MarketingFooter.tsx` — tagline → "Short lessons and guided practice, built around a real outcome."
+- `MarketingFAQ.tsx` — free-account answer de-jargoned; paid-membership answer now plainly says "in final testing" (checkout currently closed).
+- `src/app/create/page.tsx` — loading labels, "Your outline is ready.", source-research copy, "private course plan", recovery copy ("Cancel and get my credit back"), paywall empty state with exchange rate, zero-credit empty state → "You're out of course credits for now.", "course map" → "outline" everywhere, "deliverable" → "final project".
+- `src/components/AuthModal.tsx` — Google flow no longer names Microsoft; "private email code" → "one-time code emailed to you".
+- `src/app/course/[topic]/page.tsx` — "Final artifact"/"Course capstone"/"Capstone passed"/"Deliverable:" → "Final project" family; assessment error/placeholder copy updated.
+- `src/app/course/[topic]/lesson/[lessonId]/page.tsx` — "Ask Filosage"/"Ask Filosage window" → "Ask the tutor".
+- `src/app/evidence/[courseId]/page.tsx`, `src/app/pricing/layout.tsx`, `src/content/support/articles/use-study-tools.ts`, `src/components/LearnerHome.tsx`, `src/app/standard/page.tsx` — matching terminology sweep.
+- Deliberately NOT renamed: `/evidence/` route paths, legal terms text, support-article slugs, internal identifiers (capstone in code/API), admin-dashboard analytics labels, analytics event labels.
+
+**Tests updated to match:** tests/app-shell.spec.ts, tests/billing-lifecycle.spec.ts, tests/course-learning-flow.spec.ts, tests/example.spec.ts.
+
+**Verification:** `tsc --noEmit` clean; `npm run lint` 0 errors (4 pre-existing warnings on untouched lines); `tests/fixtures/generation-operations-behavior.ts` 84 pass / 0 fail. Visual copy review of landing + pricing via live browser task: delegated, pending.
+
+## 2026-09-24 — copy-review follow-up (local verification, post browser-task failure)
+
+The delegated live-browser visual review failed: the browser runs on a leased VM whose 127.0.0.1 is itself, so http://127.0.0.1:3001 was unreachable (no tunnel approved). Local Chromium 152 also blocks loopback navigation via Local Network Access checks, and the machine's LAN IP (198.19.0.2) NATs to a gateway that doesn't serve the app — so no pixel-level render (truncation/overflow at 1440px) was possible in this environment. Did a full rendered-copy verification instead via SSR HTML from the dev server (port 3001):
+
+- Pricing + landing rendered text: zero hits for capstone / course map / AI course credits / prorated invoice / Ask Filosage / evidence report / deliverable / artifact.
+- New copy confirmed rendering: "One credit = one complete course.", "Detailed final-project feedback", "progress report", hero "builds a complete course around your goal".
+
+Found and fixed 5 leftover user-facing "capstone" strings the first sweep missed (audit rule: "Final project" everywhere in UI; code/API identifiers stay):
+1. `src/lib/membership-plans.ts` — Plus exclusions "Advanced capstone progression analysis" → "Detailed final-project feedback" (mirrors the Pro feature name).
+2. `src/app/course/[topic]/page.tsx` — SpeakButton read-aloud `Capstone: …` → `Final project: …`.
+3. Same file — submit label "Revise and resubmit your capstone" / "Submit your capstone for assessment" → "final project" versions.
+4. `src/app/evidence/[courseId]/page.tsx` — copied share summary `Final capstone: X%` → `Final project: X%`; explainer "same capstone criteria" → "same final-project criteria".
+5. `src/app/standard/page.tsx` — "the capstone is assessed separately" → "the final project is assessed separately".
+
+Deliberately left: admin analytics labels, API routes, analytics event labels (`capstone_submitted` etc.), CSS classNames, capability keys.
+
+Verification after fixes: `tsc --noEmit` clean; pricing page re-curled post-edit confirms "Detailed final-project feedback" renders and no old terms remain. No test asserted the changed strings (grep clean).
+
+Remaining gap: true pixel-level layout review (truncation/overflow/overlap at desktop width) still unperformed — needs either a tunnel exposing the dev server to the leased browser VM (user approval required) or a browser build without LNA navigation enforcement.
+
+## 2026-09-25 — Hard per-course illustration spend caps (Tier B/C)
+
+At the user's direction ("take on next what you mentioned above"), implemented the hard per-course image spend caps that the approved Tier C design called for but the first pass omitted (previously only per-image fixed-cost accounting existed).
+
+Design:
+- New `src/lib/course-illustration-budget-policy.ts` (pure, no server-only): `COURSE_ILLUSTRATION_BUDGET_MICROS = { plus: 100_000, pro: 220_000 }` — the originally approved ~$0.10 / ~$0.22 per-course envelopes, preserved as hard caps. Measured 2.5-model spend (Plus ≈ $0.036, Pro ≈ $0.086) lands far under; headroom covers unusually large courses plus one full regeneration (new fingerprints after a house art-style change). `budgetTierForAccount(plan, isOwner)` maps plans; owners are comped Pro.
+- New `src/lib/course-illustration-budget.ts` (server-only): per-course ledger `courseIllustrationBudgets/{courseId}` with `{ tier, capMicros, reservations, spentMicros }`. `reserveCourseIllustrationBudget` check-and-reserves in one document transaction (concurrent lesson generations cannot jointly overshoot); returns null over cap. `settleCourseIllustrationBudget(id, "spent"|"released")` is idempotent; unknown ids ignored. `getCourseIllustrationBudget` read-only view for admin/diagnostics.
+- `createOrReuseCourseIllustration` accepts `courseId` + `budgetTier`; reserves after winning the generate claim and BEFORE `reserveAiUsage`, so an over-cap course never touches provider spend or quota. Over-cap throws `CourseIllustrationBudgetExceededError` → subject marked failed (waiters stop), illustration skipped, course/lesson still succeeds. Success settles "spent"; any failure path settles "released". Dedupe/reuse hits cost nothing and skip the budget.
+- Call sites: media wave (hero + module illustrations) and generate-lesson (per-lesson) both pass `courseId` and `budgetTierForAccount(account.plan, account.isOwner)`.
+
+Verification: tsc clean; eslint + oxlint clean (one `no-useless-assignment` fixed); `tests/course-illustrations.spec.ts` 8/8 pass (4 new: cap values pinned, tier mapping, reserve-before-provider wiring, call-site attachment). Still local-only; nothing pushed/deployed. Style-direction examples (hero art) generating in parallel.
+
+## 2026-09-25 — House art direction locked in: A+C "engraved plate on warm paper"
+
+At the user's pick, the constant hero art direction is the middle ground between direction A (House Editorial) and direction C (Blueprint), with content centered per the user's follow-up.
+
+Locked grammar (all three prompt builders):
+- Warm oatmeal paper (#E7DDCE) ground, locked (no longer a choice of four grounds).
+- Subject anchor rendered as a fine navy (#0D1B3D) line engraving — hairline strokes, delicate hatching, simplified essential forms.
+- Surrounding poster language: one or two solid coral (#FF8A65) / teal (#14B8A6) ink shapes (disc, arc, partial circle) plus restrained dotted signal paths. Flat solid inks, no gradients, no photorealism.
+- Composition: focal system CENTERED in the frame with balanced quiet margins (replaces the old right-weighted "central and right two-thirds / quiet lower-left" rule). Centered is also strictly more crop-safe across hero/card/thumbnail crops.
+- Kept: absolute text ban, ≤7 major shapes (hero) / ≤5 (module/lesson), thumbnail tests.
+
+Changes:
+- `src/lib/course-banner-prompt.ts`: rewritten to the engraved-plate grammar; `COURSE_BANNER_STYLE_VERSION` 5 → 6. "Devices" dropped from the exclusion list (the anchor is often an object; the single-anchor rule does the real work).
+- `src/lib/course-illustration-prompt.ts`: SHARED_GRAMMAR rewritten to match; module/lesson compositions centered; `COURSE_ILLUSTRATION_STYLE_VERSION` 1 → 2.
+- Fingerprint bumps mean existing art keys no longer match: the next media-wave run for a course mints fresh keys and generates in the new style (spend counts against the new per-course caps, which were sized for one full regeneration).
+- Tests: `tests/example.spec.ts` banner test re-pinned (v6, engraving/oatmeal/centered assertions, 1/1 pass); `tests/course-illustrations.spec.ts` 9/9 pass incl. a new locked-direction test. tsc/eslint/oxlint clean.
+
+Open decision for the user: existing courses/lessons keep their old art (media route skips subjects that already have art). Regenerating them in the new style requires clearing existing banner/illustration fields first — needs explicit approval; nothing deleted or regenerated yet.
+
+## 2026-09-25 — Plus/Pro creator-tier seal + knife-skills artwork regeneration
+
+At the user's approval ("Yes go ahead. I also want a small seal on the corner of the course somewhere you better decide that identifies the course created by a plus or pro account"):
+
+**Seal (Yanco's placement decision: top-right corner of course artwork).** Small engraved-plate disc — navy disc, cream lettering, teal ring for Plus, coral ring for Pro — rendered on library cards, the home course deck, the course-page hero, and the public marketing course card; hidden in the tiny compact AppShell treatment. Free-tier and unstamped legacy courses show no seal.
+- `src/lib/course-types.ts`: `Course.creatorTier?: "plus" | "pro"`. New course creation stamps pro for Owner/Pro authors, plus for Plus, absent for Free.
+- `src/lib/course-dto.ts`: exposes only `plus`/`pro` (never leaks other tiers).
+- New `src/components/TierSeal.tsx`, integrated into `CourseBanner`, `CourseDeck`, `LearnerHome` (+ existing CourseBanner placements inherit it); seal styling in `src/app/globals.css`.
+- Verification: tsc/oxlint/eslint clean; `tests/course-illustrations.spec.ts` 10/10 incl. creator-tier DTO validation ("course DTO carries the creator-tier seal signal, plus/pro only").
+
+**Regeneration of the local knife-skills course** ("Everyday knife skills for home cooks", `d71662388764d99c4257a603a4374f9624acdee2d94903bb84d4896a548db3d7`) in the locked-in A+C style via one-off `~/workspace/scripts/regen-course-art.mts`:
+- First attempt failed: the app was pointed at `OPENAI_BASE_URL=http://127.0.0.1:4100` (missing `/v1`, so the SDK hit `POST /images/generations` → 404), then the proxy died mid-run (it had been piped through `head`, which closed the pipe). 0/7 images, $0 spend, reservations released. Nothing was attached — the script skips attaching deterministic fallback art.
+- Per the user's explicit "Yes, restart the proxy and finish the regen": restarted the proxy with durable logging to `~/workspace/openai-proxy.log` (no `head` pipe) and reran with `OPENAI_BASE_URL=http://127.0.0.1:4100/v1`. Result: **7/7 generated and attached** — hero via `gpt-image-2.5-sunburst` medium 1536x1024 ($0.0107), 4 module + 2 lesson illustrations via `gpt-image-2.5-flare` low 1024x1024 ($0.0063 each). Total **$0.0485**, settled against the Pro $0.22 per-course cap (reservations empty). `creatorTier: "pro"` confirmed on the course. Visual check of hero/module-0/lesson-0-0: engraved-plate grammar, centered composition, zero text artifacts. Inspection copies: `~/workspace/regen-inspection/`.
+- Note: hero assets from the unified illustration pipeline stamp `styleVersion: 2` (the pipeline version); the v6 banner style version still participates via `courseBannerFingerprintMaterial`, so future banner style bumps change fingerprints and regenerate — no staleness hole.
+
+Still local-only; nothing pushed or deployed. Open Tier C gaps unchanged (hero serving mismatch, atomic delete-refund, provider-outcome accounting, Azure container, deletion cleanup, DTO/publication proof, persisted alt text, runtime decorative-only enforcement).

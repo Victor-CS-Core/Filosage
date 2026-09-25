@@ -81,7 +81,7 @@ export default function TeachingStandardPage() {
             <h2>Completion, attempts, and demonstrated capability stay separate</h2>
             <p>
               Finishing a lesson completes part of the instructional sequence. A self-check records an attempt, verified
-              practice can demonstrate a lesson criterion, and the capstone is assessed separately against its own success
+              practice can demonstrate a lesson criterion, and the final project is assessed separately against its own success
               criteria. Filosage does not turn exposure or confidence into an invented mastery score.
             </p>
           </div>
@@ -104,7 +104,7 @@ export default function TeachingStandardPage() {
           <div>
             <h2>Private creation is automatic; public publication is reviewed</h2>
             <p>
-              A private course map and its lessons do not wait for a person. They are generated with automated safety,
+              A private outline and its lessons do not wait for a person. They are generated with automated safety,
               language, structure, evidence, accessibility, and Capability Cycle checks. Making a course public is a
               separate action that requires review of the exact draft. These controls reduce mistakes but cannot guarantee
               factual accuracy; consequential claims still require current authoritative guidance. Reports can trigger

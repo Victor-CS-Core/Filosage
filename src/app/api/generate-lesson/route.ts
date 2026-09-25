@@ -7,7 +7,7 @@ import { LessonSaveError, lessonCourseFingerprint, lessonPublicationState } from
 import { createGenerationSafetyProof } from "@/lib/publication-proofs";
 import { isLocalMode } from "@/lib/local-mode";
 import { serverEnvironment } from "@/lib/runtime-environment";
-import { AccountLifecycleError } from "@/lib/account-lifecycle";
+import { AccountLifecycleError, captureAccountGeneration, runWithAccountGeneration } from "@/lib/account-lifecycle";
 import { withAccountRequest } from "@/lib/auth-server";
 import { NextResponse } from "next/server";
 import { aiClient } from "@/lib/local-ai";
@@ -21,7 +21,11 @@ import {
   recoverCommittedLesson,
   saveLesson,
   saveLessonWithEvidenceDowngrade,
+  setLessonIllustration,
 } from "@/lib/document-store";
+import { createOrReuseCourseIllustration } from "@/lib/course-illustrations";
+import { buildLessonIllustrationPrompt, lessonIllustrationFingerprintMaterial } from "@/lib/course-illustration-prompt";
+import { budgetTierForAccount } from "@/lib/course-illustration-budget";
 import {
   aiUsageRequestId,
   aiQuotaResponse,
@@ -870,6 +874,49 @@ async function handlePOST(request: Request) {
     // Usage, result binding and lesson were committed atomically. A later
     // telemetry/HTTP failure cannot refund or regenerate the committed result.
     reservation = null;
+    // Tier C: Pro courses get one illustration per lesson. The lesson is
+    // already committed, so illustration failure is absorbed and the lesson
+    // response is never blocked by it.
+    if (account.isOwner || account.plan === "pro") {
+      try {
+        const illustrationResult = await runWithAccountGeneration(
+          await captureAccountGeneration(account.uid),
+          () => {
+            const target = lessonId.match(/^(\d+)-(\d+)$/);
+            const moduleIndex = target ? Number(target[1]) : 0;
+            const outlineModule = course.modules?.[moduleIndex];
+            const outlineLesson = Array.isArray(outlineModule?.lessons) && target
+              ? outlineModule.lessons[Number(target[2])]
+              : undefined;
+            const promptInput = {
+              courseTopic: String(topic ?? ""),
+              moduleTitle: String(outlineModule?.title ?? `Module ${moduleIndex + 1}`),
+              lessonTitle: String(outlineLesson?.title ?? (lessonData.title as string | undefined) ?? "Lesson"),
+              lessonConcept: typeof lessonData.learningObjective === "string" ? lessonData.learningObjective : undefined,
+              learningObjective: typeof outlineLesson?.objective === "string" ? outlineLesson.objective : undefined,
+              keyTakeaways: Array.isArray(lessonData.keyTakeaways)
+                ? (lessonData.keyTakeaways as unknown[]).filter((takeaway): takeaway is string => typeof takeaway === "string").slice(0, 3)
+                : [],
+            };
+            return createOrReuseCourseIllustration(client, account, {
+              kind: "lesson",
+              subjectKey: `lesson:${lessonId}`,
+              prompt: buildLessonIllustrationPrompt(promptInput),
+              fingerprintMaterial: lessonIllustrationFingerprintMaterial(promptInput),
+              safetyIdentifier,
+              courseId,
+              budgetTier: budgetTierForAccount(account.plan, account.isOwner),
+            });
+          },
+        );
+        const illustration = illustrationResult?.illustration;
+        if (illustration && "kind" in illustration && illustration.kind === "lesson") {
+          await setLessonIllustration(courseId, lessonId, illustration);
+        }
+      } catch (illustrationError) {
+        console.error("Pro lesson illustration skipped:", illustrationError instanceof Error ? illustrationError.message : illustrationError);
+      }
+    }
     if (pipelineV2Active) {
       await recordCoursePipelineEvent({
         event: "course_stage_completed",

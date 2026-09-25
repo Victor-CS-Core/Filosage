@@ -101,6 +101,7 @@ export default function CourseMap() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
+  const [creditBackNotice, setCreditBackNotice] = useState<string | null>(null);
   const [updating, setUpdating] = useState(false);
   const [publicationFailures, setPublicationFailures] = useState<PublicationLessonFailure[]>([]);
   const [publicationAssessment, setPublicationAssessment] = useState<PublicationAssessmentState | null>(null);
@@ -135,6 +136,7 @@ export default function CourseMap() {
   const publicationRequestKeysRef = useRef(new Map<string, string>());
   const overrideRequestKeysRef = useRef(new Map<string, string>());
   const manualReviewRequestKeysRef = useRef(new Map<string, string>());
+  const mediaWaveRef = useRef<string | null>(null);
 
   const request = useCallback(async (input: string, init: RequestInit = {}) => {
     if (!isCurrentLearnerSession(session)) throw new Error("Your learning session changed. Sign in again to continue.");
@@ -256,6 +258,33 @@ export default function CourseMap() {
       oncePerSession: true,
     });
   }, [course, courseId, isOwner]);
+
+  // Tier B/C media wave: once a manageable course loads without its expected
+  // art, kick off generation in the background. Plus expects hero + module
+  // art; Pro expects hero + per-lesson art (lessons illustrate on generation).
+  // The endpoint is idempotent, so this is safe to re-trigger on later visits
+  // if art is still missing. Illustrations are enhancement-only and never block
+  // the course.
+  useEffect(() => {
+    if (!course?.canManage || !courseId) return;
+    const modules = Array.isArray(course.modules) ? course.modules : [];
+    const expectsModuleArt = account?.plan === "plus";
+    const needsMedia = !course.banner || (expectsModuleArt && modules.some((courseModule) => !courseModule.illustration));
+    if (!needsMedia || mediaWaveRef.current === courseId) return;
+    mediaWaveRef.current = courseId;
+    void (async () => {
+      try {
+        const wave = await request(`/api/courses/${encodeURIComponent(courseId)}/media`, { method: "POST" });
+        if (!wave.ok) return;
+        const refreshed = await request(`/api/courses/${encodeURIComponent(courseId)}`, { cache: "no-store" });
+        if (!refreshed.ok || !isCurrentLearnerSession(session)) return;
+        const data = await refreshed.json();
+        setCourseRecord({ key: courseViewKey, value: { ...data, id: courseId, courseId } });
+      } catch {
+        // The course works fine without generated art.
+      }
+    })();
+  }, [account?.plan, course, courseId, courseViewKey, request, session]);
 
   useEffect(() => {
     if (!courseId) return;
@@ -682,6 +711,18 @@ export default function CourseMap() {
       if (!isCurrentView()) return;
       if (!response.ok) throw new Error(data.error || "The course could not be deleted.");
       clearLocalCourseData(operationCourseId, user?.uid ?? null);
+      if (data.creditBack?.refunded) {
+        // Self-service credit protection: confirm the restored credit before leaving.
+        setCreditBackNotice("Course deleted. Your course credit was restored.");
+        setUpdating(false);
+        window.setTimeout(() => {
+          if (isCurrentView()) {
+            deleteDrawer.closeDrawer();
+            router.push("/");
+          }
+        }, 2600);
+        return;
+      }
       deleteDrawer.closeDrawer();
       router.push("/");
     } catch (deleteError) {
@@ -710,7 +751,7 @@ export default function CourseMap() {
       });
       const data = await response.json();
       if (!isCurrentView()) return;
-      if (!response.ok) throw new Error(data.error || "The capstone could not be assessed.");
+      if (!response.ok) throw new Error(data.error || "The final project could not be assessed.");
       const assessment = data.assessment as CapstoneAssessment;
       setCapstoneAssessment(assessment);
       trackProductEvent("capstone_submitted", {
@@ -752,7 +793,7 @@ export default function CourseMap() {
         });
       });
     } catch (assessError) {
-      if (isCurrentView()) setCapstoneError(assessError instanceof Error ? assessError.message : "The capstone could not be assessed.");
+      if (isCurrentView()) setCapstoneError(assessError instanceof Error ? assessError.message : "The final project could not be assessed.");
     } finally {
       if (isCurrentView()) setCapstoneBusy(false);
     }
@@ -815,7 +856,7 @@ export default function CourseMap() {
                     `${topic}.`,
                     course.mission ?? "",
                     course.outcome ? `Course outcome: ${course.outcome}.` : "",
-                    course.capstone ? `Capstone: ${course.capstone.brief}` : "",
+                    course.capstone ? `Final project: ${course.capstone.brief}` : "",
                   ].filter(Boolean).join("\n\n")}
                 />
               </div>
@@ -832,7 +873,7 @@ export default function CourseMap() {
             {nextLesson && (
               <aside className="course-resume-card" aria-label={courseComplete ? "Course review" : "Next lesson"}>
                 <div className="course-resume-heading">
-                  <span>{capstoneAssessment?.status === "passed" ? "Capstone passed" : courseComplete ? "Lessons finished" : validCompletedLessons.length ? "Continue learning" : "Begin here"}</span>
+                  <span>{capstoneAssessment?.status === "passed" ? "Final project passed" : courseComplete ? "Lessons finished" : validCompletedLessons.length ? "Continue learning" : "Begin here"}</span>
                   <strong>{progress}%</strong>
                 </div>
                 <p className="course-resume-module">{courseComplete ? "Review the key ideas" : nextLesson.moduleTitle}</p>
@@ -902,7 +943,7 @@ export default function CourseMap() {
                 : "See how this course classifies its references."}
             >
               {hasApprenticeship && <div className="course-apprenticeship-grid">
-                {course.artifact && <article className="artifact-preview"><span><Flag size={18} /> Final artifact</span><h3>{course.artifact.title}</h3><p>{course.artifact.description}</p><small>Format: {course.artifact.format}</small></article>}
+                {course.artifact && <article className="artifact-preview"><span><Flag size={18} /> Final project</span><h3>{course.artifact.title}</h3><p>{course.artifact.description}</p><small>Format: {course.artifact.format}</small></article>}
                 {course.scenario && <article><span><Layers3 size={18} /> Scenario spine</span><h3>{course.scenario.title}</h3><p>{course.scenario.context}</p><small>Why it matters: {course.scenario.stakes}</small></article>}
                 {course.modules[0]?.lessons[0]?.activityPreview && <article><span><Target size={18} /> First active move</span><h3>{course.modules[0].lessons[0].title}</h3><p>{course.modules[0].lessons[0].activityPreview}</p><small>{course.modules[0].lessons[0].artifactContribution}</small></article>}
               </div>}
@@ -1186,15 +1227,15 @@ export default function CourseMap() {
             <section className="course-capstone" aria-labelledby="capstone-title">
               <Flag size={20} />
               <div>
-                <p className="overline">Course capstone</p>
+                <p className="overline">Final project</p>
                 <h3 id="capstone-title">{course.capstone.title}</h3>
                 <p>{course.capstone.brief}</p>
-                <strong>Deliverable: {course.capstone.deliverable}</strong>
+                <strong>Your final project: {course.capstone.deliverable}</strong>
                 <ul>{course.capstone.successCriteria.map((criterion) => <li key={criterion}>{criterion}</li>)}</ul>
 
                 {capstoneAssessment?.status === "passed" ? (
                   <div className="capstone-verdict is-passed" role="status">
-                    <div className="capstone-verdict-heading"><CheckCircle2 size={19} /><strong>Capstone passed</strong><small>Assessed {new Date(capstoneAssessment.assessedAt).toLocaleDateString()}</small></div>
+                    <div className="capstone-verdict-heading"><CheckCircle2 size={19} /><strong>Final project passed</strong><small>Assessed {new Date(capstoneAssessment.assessedAt).toLocaleDateString()}</small></div>
                     <p>{capstoneAssessment.summary}</p>
                     <ul>{capstoneAssessment.criteria.map((criterion) => <li key={criterion.criterion} className="is-met"><Check size={14} /><span><strong>{criterion.criterion}</strong><small>{criterion.feedback}</small></span></li>)}</ul>
                     {account?.capabilities?.advancedCapstoneAnalysis && capstoneAssessment.history && capstoneAssessment.history.length > 1 && (
@@ -1221,14 +1262,14 @@ export default function CourseMap() {
                     )}
                     {courseComplete ? (
                       <>
-                        <label htmlFor="capstone-submission">{capstoneAssessment ? "Revise and resubmit your capstone" : "Submit your capstone for assessment"}</label>
+                        <label htmlFor="capstone-submission">{capstoneAssessment ? "Revise and resubmit your final project" : "Submit your final project for assessment"}</label>
                         <p className="capstone-submit-hint">Describe what you built or worked through and how it meets each success criterion. Your submission is assessed against the criteria above. This uses one tutor question.</p>
                         <textarea
                           id="capstone-submission"
                           value={capstoneSubmission}
                           onChange={(event) => setCapstoneSubmission(event.target.value)}
                           rows={6}
-                          placeholder="Walk through your deliverable, decision by decision…"
+                          placeholder="Walk through your final project, decision by decision…"
                         />
                         <div className="capstone-submit-actions">
                           <button className="button button-primary" onClick={submitCapstone} disabled={capstoneBusy || capstoneSubmission.trim().length < 120}>
@@ -1245,9 +1286,9 @@ export default function CourseMap() {
                   </div>
                 ) : (
                   <p className="capstone-submit-hint">{entryMode === "create"
-                    ? "Create a free account to open lessons, save progress, and submit this capstone for assessment."
+                    ? "Create a free account to open lessons, save progress, and submit this final project for assessment."
                     : entryMode === "sign-in"
-                      ? "Sign in to your existing account to open lessons, save progress, and submit this capstone for assessment."
+                      ? "Sign in to your existing account to open lessons, save progress, and submit this final project for assessment."
                       : "Account sign-in is unavailable right now. You can still inspect this public course outline."}</p>
                 )}
               </div>
@@ -1332,7 +1373,10 @@ export default function CourseMap() {
         <AppDrawer
             open={deleteDrawer.open}
             onClose={() => {
-              if (!updating) deleteDrawer.closeDrawer();
+              if (!updating) {
+                setCreditBackNotice(null);
+                deleteDrawer.closeDrawer();
+              }
             }}
             labelledBy="course-delete-drawer-title"
             size="compact"
@@ -1364,6 +1408,8 @@ export default function CourseMap() {
                   </div>
                 </div>
                 <p className="course-delete-library-note">The course banner will disappear from the app. Its reusable source asset may remain in the shared visual library when another course can use it.</p>
+                <p className="course-delete-library-note">Created this course in the last 24 hours? Deleting it now restores your course credit automatically (up to twice a month).</p>
+                {creditBackNotice && <p className="form-success" role="status">{creditBackNotice}</p>}
                 {actionError && <p className="form-error" role="alert"><Circle size={14} /> {actionError}</p>}
               </div>
               {!course.isPublic && !canPublishCourses && <p className="owner-action-hint">This private course remains available to you. Publishing to the public library is included with Filosage Pro. <Link href="/pricing">Compare plans</Link>.</p>}

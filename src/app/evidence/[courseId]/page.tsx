@@ -159,7 +159,7 @@ export default function EvidenceReportPage() {
       journey.plan ? `Outcome: ${journey.plan.desiredOutcome}` : "",
       `Observed objective evidence: ${observedMastery}% (${demonstrated} of ${objectives.length} module objectives demonstrated)`,
       assessedBaseline !== null ? `Assessed baseline: ${assessedBaseline}%` : "",
-      assessedFinal !== null ? `Final capstone: ${assessedFinal}%` : "",
+      assessedFinal !== null ? `Final project: ${assessedFinal}%` : "",
       verifiedImprovement !== null ? `Verified improvement: ${verifiedImprovement >= 0 ? "+" : ""}${verifiedImprovement} percentage points` : "",
       `Explore the course: ${courseUrl.toString()}`,
     ].filter(Boolean).join("\n");
@@ -261,7 +261,7 @@ export default function EvidenceReportPage() {
             <h2 id="professional-evidence-title">Carry a bounded report beyond the app</h2>
             <p>{account?.capabilities?.exportEvidenceReport || account?.capabilities?.shareEvidenceReport
               ? "Use the portable tools available on this account. Shared snapshots never include your account identity, notes, or raw responses."
-              : "On-screen evidence remains available on this plan. Pro adds printable reports, revocable snapshot links, and cross-attempt capstone analysis."}</p>
+              : "On-screen evidence remains available on this plan. Pro adds printable progress reports, revocable share links, and cross-attempt final-project analysis."}</p>
           </div>
           {account?.capabilities?.exportEvidenceReport || account?.capabilities?.shareEvidenceReport ? <div className="professional-evidence-actions">
             {account?.capabilities?.exportEvidenceReport && <button className="button button-secondary" type="button" onClick={() => void exportProfessionalReport()} disabled={professionalBusy !== null}>
@@ -272,7 +272,7 @@ export default function EvidenceReportPage() {
             </button>}
           </div> : <Link className="button button-secondary" href={"/pricing?plan=pro&from=evidence-portable"} onClick={() => trackProductEvent("upgrade_prompt_selected", { route: "/evidence", surface: "evidence_portable", courseId })}>Add portable export with Pro</Link>}
           {account?.capabilities?.shareEvidenceReport && <LearnerSourceNotice label="Share links" {...sharesSource} />}
-          {account?.capabilities?.advancedCapstoneAnalysis && <LearnerSourceNotice label="Capstone analysis" {...analysisSource} />}
+          {account?.capabilities?.advancedCapstoneAnalysis && <LearnerSourceNotice label="Final-project analysis" {...analysisSource} />}
           {professionalError && <p className="form-error" role="alert">{professionalError}</p>}
           {shares.length > 0 && <div className="professional-share-list">
             <strong>Share links</strong>
@@ -283,7 +283,7 @@ export default function EvidenceReportPage() {
         <section className="evidence-metrics" aria-label="Learning evidence summary">
           <article><span><Gauge size={20} /></span><div><small>Starting estimate</small><strong>{selfReportedBaseline === null ? "Pending" : `${selfReportedBaseline}%`}</strong><p>Self-reported diagnostic, used only to choose a route.</p></div></article>
           <article><span><ShieldCheck size={20} /></span><div><small>Observed objective evidence</small><strong>{observedMastery}%</strong><p>Calculated from completed practice, transfer, and assessed criteria.</p></div></article>
-          <article><span><FileCheck2 size={20} /></span><div><small>Verified improvement</small><strong>{verifiedImprovement === null ? "Pending" : `${verifiedImprovement >= 0 ? "+" : ""}${verifiedImprovement} pts`}</strong><p>{verifiedImprovement === null ? "Submit a baseline and final capstone for a comparable measure." : `${assessedBaseline}% baseline to ${assessedFinal}% final.`}</p></div></article>
+          <article><span><FileCheck2 size={20} /></span><div><small>Verified improvement</small><strong>{verifiedImprovement === null ? "Pending" : `${verifiedImprovement >= 0 ? "+" : ""}${verifiedImprovement} pts`}</strong><p>{verifiedImprovement === null ? "Submit a baseline and final project for a comparable measure." : `${assessedBaseline}% baseline to ${assessedFinal}% final.`}</p></div></article>
         </section>
 
         {!journey.plan && (
@@ -295,7 +295,7 @@ export default function EvidenceReportPage() {
         )}
 
         <section className="mastery-ledger" aria-labelledby="mastery-ledger-title">
-          <div className="section-heading"><div><p className="overline">Evidence model v1</p><h2 id="mastery-ledger-title">Evidence by objective</h2></div><p>Self-report never marks an objective as demonstrated. Only transfer or assessed capstone evidence can do that.</p></div>
+          <div className="section-heading"><div><p className="overline">Evidence model v1</p><h2 id="mastery-ledger-title">Evidence by objective</h2></div><p>Self-report never marks an objective as demonstrated. Only transfer or assessed final-project evidence can do that.</p></div>
           <div>
             {course.modules.map((courseModule, moduleIndex) => {
               const objective = objectives[moduleIndex];
@@ -341,7 +341,7 @@ export default function EvidenceReportPage() {
 
         <footer className="evidence-method">
           <strong>How to read this report</strong>
-          <p>The starting estimate is self-reported. The observed percentage is a progression signal, not a credential. Verified improvement appears only when the same capstone criteria have been assessed before and after study.</p>
+          <p>The starting estimate is self-reported. The observed percentage is a progression signal, not a credential. Verified improvement appears only when the same final-project criteria have been assessed before and after study.</p>
         </footer>
         {totalLessons > 0 && evidencedLessons >= totalLessons && (
           <OutcomeUsefulness

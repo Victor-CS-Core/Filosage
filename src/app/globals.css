@@ -322,8 +322,9 @@ button:disabled { cursor: not-allowed; opacity: 0.55; }
 .course-banner-tone-1 { --art-ground: #07505A; --art-field: #0A3945; --art-line: #E9DDCA; --art-teal: #28A69B; --art-coral: #DF674D; }
 .course-banner-tone-2 { --art-ground: #E7DDCE; --art-field: #B94F3A; --art-line: #16223A; --art-teal: #075C62; --art-coral: #B94F3A; }
 .course-banner-tone-3 { --art-ground: #B9533F; --art-field: #7F342B; --art-line: #F0E4D2; --art-teal: #075D61; --art-coral: #F0A082; }
+.course-banner-art { position: absolute; inset: 0; }
 .course-artwork,
-.course-banner > img { position: absolute; inset: 0; width: 100%; height: 100%; }
+.course-banner-art > img { position: absolute; inset: 0; width: 100%; height: 100%; }
 .course-artwork { opacity: 0.9; transform-origin: center; shape-rendering: geometricPrecision; transition: opacity 180ms var(--ease-out), transform 220ms var(--ease-out); }
 .course-artwork-ground { fill: var(--art-ground); }
 .course-artwork-field { fill: var(--art-field); opacity: 0.74; }
@@ -343,7 +344,7 @@ button:disabled { cursor: not-allowed; opacity: 0.55; }
 .course-artwork-coral { stroke: var(--art-coral); stroke-width: 2.5; }
 .course-artwork-coral-ring { stroke: var(--art-coral); stroke-width: 5; }
 .course-artwork-fine { stroke: var(--art-teal); stroke-width: 1.5; opacity: 0.58; }
-.course-banner > img { z-index: 1; object-fit: cover; }
+.course-banner-art > img { z-index: 1; object-fit: cover; }
 .course-banner::after {
   content: "";
   position: absolute;
@@ -354,6 +355,29 @@ button:disabled { cursor: not-allowed; opacity: 0.55; }
   mix-blend-mode: soft-light;
   opacity: 0.68;
 }
+/* Creator-tier seal: a small engraved-plate stamp on the artwork corner. */
+.tier-seal {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  z-index: 3;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 999px;
+  background: #0D1B3D;
+  color: #F4EBDC;
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  border: 2px solid var(--tier-seal-ring, #14B8A6);
+  box-shadow: inset 0 0 0 1.5px rgb(244 235 220 / 0.55), 0 2px 8px rgb(13 27 61 / 0.35);
+  pointer-events: none;
+}
+.tier-seal-plus { --tier-seal-ring: #14B8A6; }
+.tier-seal-pro { --tier-seal-ring: #FF8A65; }
 .course-statuses { display: flex; align-items: center; justify-content: flex-end; flex-wrap: wrap; gap: 8px; }
 .status-badge { min-height: 28px; display: inline-flex; align-items: center; gap: 6px; padding: 5px 9px; border-radius: 999px; font-size: 0.72rem; font-weight: 700; }
 .ai-disclosure-badge { min-height: 28px; display: inline-flex; align-items: center; gap: 6px; padding: 5px 9px; border: 1px solid color-mix(in oklch, var(--brand-blue) 34%, var(--line)); border-radius: 999px; color: var(--brand-blue-ink); background: color-mix(in oklch, var(--accent-soft) 72%, var(--surface)); font-size: 0.72rem; font-weight: 700; }
@@ -469,6 +493,11 @@ button:disabled { cursor: not-allowed; opacity: 0.55; }
 .lesson-title-block { padding: 52px 0 34px; }
 .lesson-title-block h1 { max-width: 22ch; margin-top: 10px; font-size: 3rem; letter-spacing: -0.035em; text-wrap: balance; }
 .lesson-title-block > p:last-child { color: var(--ink-secondary); font-size: 1rem; line-height: 1.7; max-width: 62ch; margin-top: 17px; }
+/* Tier B/C generated artwork: text-free by design, decorative support for the lesson text. */
+.course-illustration { margin: 0; }
+.course-illustration img { display: block; width: 100%; height: auto; border-radius: 14px; border: 1px solid var(--line); }
+.lesson-illustration { max-width: 460px; margin: 6px 0 30px; }
+.journey-stage-illustration { max-width: 300px; margin: 0 0 18px; }
 .lesson-mode-tabs { position: sticky; top: 58px; z-index: 1; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); border-block: 1px solid var(--line); background: var(--surface); }
 .public-shell .lesson-mode-tabs { top: 134px; }
 .lesson-mode-tabs > button { min-width: 0; min-height: 64px; display: grid; grid-template-columns: 24px minmax(0, 1fr); gap: 10px; align-items: center; border: 0; border-bottom: 3px solid transparent; background: transparent; padding: 10px 14px; color: var(--ink-muted); font: inherit; text-align: left; cursor: pointer; transition: background var(--motion-state) var(--ease-out), border-color var(--motion-state) var(--ease-out), color var(--motion-state) var(--ease-out); }

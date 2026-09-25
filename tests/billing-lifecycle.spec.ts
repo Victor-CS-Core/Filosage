@@ -827,7 +827,7 @@ test("an active subscriber gets explicit Stripe-hosted manage, plan-change, and 
   await expect(changePlan).toBeEnabled();
   await expect(manage).toBeEnabled();
   await expect(cancel).toBeEnabled();
-  await expect(page.getByText(/takes effect immediately and Stripe calculates the prorated invoice/)).toBeVisible();
+  await expect(page.getByText(/takes effect immediately, and Stripe shows you the adjusted price before you confirm/)).toBeVisible();
   await expect(page.getByText(/cancellation takes effect at the end of the current paid period/)).toBeVisible();
 
   await changePlan.click();

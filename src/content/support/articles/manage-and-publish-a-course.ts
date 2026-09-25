@@ -27,6 +27,8 @@ Choose **Publish** only after every blocker is resolved and the preview represen
 
 Course deletion is permanent deletion, not unpublishing. The confirmation describes linked course and lesson data, learner progress and reviews, bookmarks, notes, evidence, feedback, and open reports that can be removed. For a published or shared course, this can affect all learners who used it, not only the creator.
 
+If you delete a course within 24 hours of creating it, the course credit is restored automatically (up to twice per calendar month). The confirmation tells you when a credit will come back.
+
 Export or preserve any records you are authorized to retain, resolve open safety or rights reports, and prefer **Unpublish** when temporary removal is enough. Continue only when you understand the full impact shown in the confirmation.
 
 ## If publication stops during review

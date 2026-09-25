@@ -8,6 +8,7 @@ export type AccountLifecycle = AccountGeneration & { state: "active" | "deleting
 type Scope = (AccountGeneration & { kind: "account" | "initialize" })
   | (AccountGeneration & { kind: "deletion" | "billing-containment"; jobId: string; leaseToken?: string })
   | (AccountGeneration & { kind: "banner-receipt"; assetId: string; claimId?: string })
+  | (AccountGeneration & { kind: "illustration-receipt"; assetId: string; claimId?: string })
   | { kind: "global-usage" };
 const accountScope = new AsyncLocalStorage<Readonly<Scope>>();
 export class AccountLifecycleError extends Error {
@@ -62,4 +63,9 @@ export async function captureAccountGeneration(uid: string): Promise<AccountLife
 // even if deletion fenced the account while Azure was responding.
 export function runWithBannerUploadReceipt<T>(asset: AccountGeneration & { assetId: string; claimId?: string }, work: () => T): T {
   return accountScope.run(Object.freeze({ ...asset, kind: "banner-receipt" }), work);
+}
+
+// Same guarantee for Tier B/C course illustrations (module + lesson art).
+export function runWithIllustrationUploadReceipt<T>(asset: AccountGeneration & { assetId: string; claimId?: string }, work: () => T): T {
+  return accountScope.run(Object.freeze({ ...asset, kind: "illustration-receipt" }), work);
 }

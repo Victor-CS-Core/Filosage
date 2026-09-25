@@ -17,13 +17,38 @@ test("Control Room reporting names and aggregates Plus and Pro explicitly", () =
   expect(page).not.toContain("Pro contribution model");
 });
 
-test("new courses use deterministic covers without an automatic paid banner workflow", () => {
+test("course imagery follows the tiered media policy (hero + module art for Plus/Pro, per-lesson art for Pro)", () => {
   const courseGeneration = source("src/app/api/generate-course/route.ts");
-  const storage = source("src/lib/document-store.ts");
-  expect(courseGeneration).not.toContain("createOrReuseCourseBanner");
-  expect(existsSync(resolve(root, "src/app/api/courses/[courseId]/banner/route.ts"))).toBe(false);
-  expect(storage).not.toContain("claimCourseBannerRegeneration");
-  expect(storage).not.toContain("finishCourseBannerRegeneration");
+  const lessonGeneration = source("src/app/api/generate-lesson/route.ts");
+  const plans = source("src/lib/membership-plans.ts");
+  // The media wave is a separate idempotent endpoint: outline creation stays
+  // fast and never depends on image generation succeeding.
+  expect(courseGeneration).not.toContain("createOrReuseCourseIllustration");
+  expect(existsSync(resolve(root, "src/app/api/courses/[courseId]/media/route.ts"))).toBe(true);
+  expect(existsSync(resolve(root, "src/app/api/course-illustrations/[assetId]/route.ts"))).toBe(true);
+  // Pro lesson generation wires per-lesson illustrations after the atomic commit.
+  expect(lessonGeneration).toContain("createOrReuseCourseIllustration");
+  expect(lessonGeneration).toContain("setLessonIllustration");
+  // Tier gating lives in the plan capabilities: Plus and Pro illustrate, Free does not.
+  expect(plans).toContain("course_illustrations");
+  expect(plans).toMatch(/free:[\s\S]*?course_illustrations: false/);
+  expect(plans).toMatch(/plus:[\s\S]*?course_illustrations: true/);
+  expect(plans).toMatch(/pro:[\s\S]*?course_illustrations: true/);
+  // Image economics are pinned: hero $0.0107 (gpt-image-2.5-sunburst medium
+  // landscape), module/lesson illustrations $0.0063 (gpt-image-2.5-flare low
+  // square). Both measured 2026-09-25 via Responses API tool_usage.
+  const illustrations = source("src/lib/course-illustrations.ts");
+  expect(illustrations).toContain("costMicros: 10_700");
+  expect(illustrations).toContain("costMicros: 6_300");
+});
+
+test("course deletion restores the credit inside 24 hours, capped at two per month", () => {
+  const credits = source("src/lib/course-credits.ts");
+  const deletion = source("src/app/api/courses/[courseId]/route.ts");
+  expect(credits).toContain("refundCourseCreditForDeletedCourse");
+  expect(credits).toContain("COURSE_CREDIT_BACK_WINDOW_MS");
+  expect(credits).toContain("COURSE_CREDIT_BACK_MONTHLY_CAP = 2");
+  expect(deletion).toContain("refundCourseCreditForDeletedCourse");
 });
 
 test("billing events retain tier, interval, offer, and raw lifecycle dimensions", () => {

@@ -135,8 +135,60 @@ export function courseGenerationGrantAllows(course: Course, lessonId: string) {
   return grant.status === "active" && Array.isArray(grant.lessonIds) && grant.lessonIds.map(String).includes(lessonId);
 }
 
-export async function storedCourseCreditSummary(uid: string) {
-  const ledger = await getStoredDocument(`users/${uid}/courseCredits/current`);
+export const COURSE_CREDIT_BACK_WINDOW_MS = 24 * 60 * 60 * 1000;
+export const COURSE_CREDIT_BACK_MONTHLY_CAP = 2;
+
+export type CourseCreditBackResult =
+  | { refunded: true; balance: number }
+  | { refunded: false; reason: "owner" | "ineligible" | "outside_window" | "already_refunded" | "monthly_cap_reached" };
+
+function courseCreditBackMonthKey(now: Date) {
+  return `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, "0")}`;
+}
+
+/**
+ * Self-service credit protection: deleting a course within 24 hours of its
+ * creation restores the course credit, capped at two refunds per calendar
+ * month. Exactly-once per course via the refund claim document; the monthly
+ * counter lives in the same transaction so concurrent deletes cannot exceed
+ * the cap.
+ */
+export async function refundCourseCreditForDeletedCourse(
+  account: ServerAccount,
+  course: { id: string; redeemedAt?: string },
+): Promise<CourseCreditBackResult> {
+  if (account.isOwner) return { refunded: false, reason: "owner" };
+  const redeemedAt = course.redeemedAt ? Date.parse(course.redeemedAt) : NaN;
+  if (!Number.isFinite(redeemedAt)) return { refunded: false, reason: "ineligible" };
+  const now = new Date();
+  if (now.getTime() - redeemedAt > COURSE_CREDIT_BACK_WINDOW_MS) {
+    return { refunded: false, reason: "outside_window" };
+  }
+  const ledgerPath = `users/${account.uid}/courseCredits/current`;
+  const refundPath = `users/${account.uid}/courseCreditRefunds/${course.id}`;
+  const monthKey = courseCreditBackMonthKey(now);
+  const monthPath = `users/${account.uid}/courseCreditRefundMonths/${monthKey}`;
+  return runStoredDocumentTransaction([ledgerPath, refundPath, monthPath], (documents) => {
+    if (documents[refundPath]) return { writes: [], result: { refunded: false, reason: "already_refunded" } as CourseCreditBackResult };
+    const ledger = reconcileCourseCreditLedger(documents[ledgerPath], account, now);
+    const used = courseCreditInteger(documents[monthPath]?.refunds);
+    if (used >= COURSE_CREDIT_BACK_MONTHLY_CAP) {
+      return { writes: [{ path: ledgerPath, data: ledger }], result: { refunded: false, reason: "monthly_cap_reached" } as CourseCreditBackResult };
+    }
+    const balance = Math.min(ledger.balanceCap, courseCreditInteger(ledger.balance) + 1);
+    const refundedAt = now.toISOString();
+    return {
+      writes: [
+        { path: ledgerPath, data: { ...ledger, balance, updatedAt: refundedAt } },
+        { path: refundPath, data: { uid: account.uid, courseId: course.id, refundedAt, monthKey, updatedAt: refundedAt } },
+        { path: monthPath, data: { uid: account.uid, monthKey, refunds: used + 1, updatedAt: refundedAt } },
+      ],
+      result: { refunded: true, balance } as CourseCreditBackResult,
+    };
+  });
+}
+
+export async function storedCourseCreditSummary(uid: string) {  const ledger = await getStoredDocument(`users/${uid}/courseCredits/current`);
   if (!ledger) return null;
   return {
     balance: courseCreditInteger(ledger.balance),

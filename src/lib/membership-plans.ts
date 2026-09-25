@@ -9,7 +9,8 @@ export type PlanCapability =
   | "publish_course"
   | "advanced_capstone_analysis"
   | "export_evidence_report"
-  | "share_evidence_report";
+  | "share_evidence_report"
+  | "course_illustrations";
 
 export interface MembershipPlan {
   id: LearnerPlan;
@@ -41,7 +42,7 @@ export const MEMBERSHIP_PLANS = {
     id: "free",
     name: "Free learner",
     shortName: "Free",
-    description: "Learn from published courses and keep your progress in sync.",
+    description: "Learn from the public library.",
     sortOrder: 0,
     active: true,
     currency: "usd",
@@ -61,12 +62,12 @@ export const MEMBERSHIP_PLANS = {
       advanced_capstone_analysis: false,
       export_evidence_report: false,
       share_evidence_report: false,
+      course_illustrations: false,
     },
     includedFeatures: [
-      "Open every published lesson with a free account",
-      "Complete lessons and retrieval practice",
-      "Cloud progress and review scheduling",
-      "Five tutor questions each month",
+      "Every published lesson, free",
+      "Progress, notes, and review scheduling across devices",
+      "5 tutor questions a month — ask the AI tutor about your lessons",
     ],
     restrictedFeatures: [
       "Private AI-assisted course creation",
@@ -77,7 +78,7 @@ export const MEMBERSHIP_PLANS = {
     id: "plus",
     name: "Filosage Plus",
     shortName: "Plus",
-    description: "Build private courses around goals the published library does not cover.",
+    description: "Build private courses around your own goals.",
     sortOrder: 1,
     active: true,
     currency: "usd",
@@ -100,19 +101,20 @@ export const MEMBERSHIP_PLANS = {
       advanced_capstone_analysis: false,
       export_evidence_report: false,
       share_evidence_report: false,
+      course_illustrations: true,
     },
     includedFeatures: [
       "Everything in Free",
-      "Two complete AI course credits added each month",
-      "Unused course credits roll over, up to twenty-four",
-      "Each credit includes the approved outline and every planned lesson",
-      "Keep every private course you create",
-      "Complete the current lesson activities before generating the next lesson",
-      "Forty tutor questions each month",
+      "2 course credits a month — 1 credit builds 1 complete course (the full outline plus every lesson in it)",
+      "Unused credits roll over — bank up to 24",
+      "40 tutor questions a month",
+      "Your courses stay private to you",
+      "Keep every course you create, even if you cancel",
+      "Illustrated courses — a custom cover plus an illustration for every module",
     ],
     restrictedFeatures: [
       "Publishing courses to the public library",
-      "Advanced capstone progression analysis",
+      "Detailed final-project feedback",
       "Portable evidence exports and share links",
     ],
   },
@@ -120,7 +122,7 @@ export const MEMBERSHIP_PLANS = {
     id: "pro",
     name: "Filosage Pro",
     shortName: "Pro",
-    description: "Add advanced portable evidence, revocable sharing, and publishing tools.",
+    description: "Everything in Plus, plus proof of your work.",
     sortOrder: 2,
     active: true,
     currency: "usd",
@@ -143,15 +145,16 @@ export const MEMBERSHIP_PLANS = {
       advanced_capstone_analysis: true,
       export_evidence_report: true,
       share_evidence_report: true,
+      course_illustrations: true,
     },
     includedFeatures: [
       "Everything in Plus",
-      "Five complete AI course credits added each month",
-      "Unused course credits roll over, up to sixty",
-      "Advanced capstone history and criterion-level analysis",
-      "Downloadable evidence reports and expiring share links",
-      "One hundred tutor questions each month",
-      "Publish generated courses after completing every lesson",
+      "5 course credits a month — bank up to 60",
+      "100 tutor questions a month",
+      "Detailed final-project feedback — see how each attempt improved, requirement by requirement",
+      "Downloadable progress reports, plus private share links (expire after 30 days) you can revoke anytime",
+      "Richly illustrated courses — a custom cover plus an illustration for every lesson",
+      "Publish finished courses to the public library",
     ],
     restrictedFeatures: [],
   },

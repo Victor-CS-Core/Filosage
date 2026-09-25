@@ -125,6 +125,7 @@ export function toCourseDto(value: Record<string, unknown> | Course, canManage =
         })
       : undefined,
     authorName: typeof safe.authorName === "string" ? safe.authorName : undefined,
+    creatorTier: raw.creatorTier === "plus" || raw.creatorTier === "pro" ? raw.creatorTier : undefined,
     isPublic: raw.isPublic === true,
     level: raw.level as Course["level"],
     estimatedMinutes: typeof raw.estimatedMinutes === "number" ? raw.estimatedMinutes : undefined,

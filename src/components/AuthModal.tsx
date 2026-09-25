@@ -44,12 +44,12 @@ export default function AuthModal({ onClose, returnFocus, returnPath }: AuthModa
   const identityCopy = primaryProvider === "filosage"
     ? authentication.externalIdNewAccountsAvailable
       ? authentication.legacyGoogleAvailable
-        ? "Choose Google or a private email code on the next secure Filosage screen"
-        : "Choose a private email code on the next secure Filosage screen"
-      : "Sign in to an existing Filosage account with a private email code on the next secure screen"
+        ? "Choose Google, or we'll email you a one-time code, on the next secure screen"
+        : "We'll email you a one-time code on the next secure screen"
+      : "Sign in to an existing Filosage account with a one-time code emailed to you, on the next secure screen"
     : primaryProvider === "google"
       ? externalExistingAlternate
-        ? "Continue with Google to create an account, or use a private email code for an existing account"
+        ? "Continue with Google to create an account, or use a one-time code emailed to you for an existing account"
         : "Continue with Google on the next secure screen"
       : "Secure sign-in is temporarily unavailable";
 
@@ -145,7 +145,7 @@ export default function AuthModal({ onClose, returnFocus, returnPath }: AuthModa
       <p className="auth-redirect-help">{primaryProvider === "filosage"
         ? "Microsoft securely manages sign-in. Filosage never sees your password or one-time code."
         : primaryProvider === "google"
-          ? "Microsoft securely manages sign-in. Filosage never sees your Google password."
+          ? "Google handles sign-in securely. Filosage never sees your password."
           : "Your learning data has not changed. You can keep browsing published course outlines."}</p>
       {googleAlternate && (
         <button className="button button-google auth-redirect" onClick={() => void handleExistingGoogle()} disabled={redirecting}>

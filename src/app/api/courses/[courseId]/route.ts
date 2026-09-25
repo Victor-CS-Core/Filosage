@@ -22,6 +22,7 @@ import {
   reviewCourseForPublication,
 } from "@/lib/publication-review";
 import { planAllows } from "@/lib/membership-plans";
+import { refundCourseCreditForDeletedCourse, type CourseCreditBackResult } from "@/lib/course-credits";
 import { openAiSafetyIdentifier } from "@/lib/ai-usage";
 import { coursePipelineFeatureFlags } from "@/lib/feature-flags";
 import { recordCoursePipelineEvent } from "@/lib/course-pipeline/observability";
@@ -308,7 +309,19 @@ async function handleDELETE(request: Request, { params }: RouteParams) {
 
     await deleteCourse(courseId);
 
-    return NextResponse.json({ success: true });
+    // Self-service credit protection: a course deleted within 24 hours of
+    // creation restores its credit (max two per month). Runs after the delete
+    // commits so a failed delete never mints a credit.
+    let creditBack: CourseCreditBackResult | undefined;
+    if (course.authorId === account.uid) {
+      const grant = (course as unknown as Course & { generationGrant?: { redeemedAt?: string } }).generationGrant;
+      creditBack = await refundCourseCreditForDeletedCourse(account, {
+        id: courseId,
+        redeemedAt: typeof grant?.redeemedAt === "string" ? grant.redeemedAt : undefined,
+      });
+    }
+
+    return NextResponse.json({ success: true, ...(creditBack ? { creditBack } : {}) });
   } catch (error: unknown) {
     const requestResponse = apiRequestErrorResponse(error);
     if (requestResponse) return requestResponse;

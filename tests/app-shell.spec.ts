@@ -1136,7 +1136,7 @@ test.describe("desktop application shell", () => {
     await page.goto("/");
 
     const activeCard = page.locator(".course-deck-card.is-active");
-    await expect(activeCard).toContainText("Review the course map");
+    await expect(activeCard).toContainText("Review the outline");
     await expect(activeCard).not.toContainText("Course complete");
     await expect(activeCard.getByRole("link", { name: /Continue/ })).toHaveAttribute("href", "/course/Morse%20Code?id=morse-shell-course");
   });

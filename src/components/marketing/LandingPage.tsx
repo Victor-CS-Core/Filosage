@@ -18,12 +18,12 @@ export default function LandingPage() {
         <dl>
           <div><dt>Work you can revisit</dt><dd>Your notes, practice, and progress stay in your account.</dd></div>
           <div><dt>Sources you can inspect</dt><dd>Lessons distinguish source-backed material from AI general knowledge. A reference alone does not verify a claim.</dd></div>
-          <div><dt>Progress that stays honest</dt><dd>Completed practice, assessed work, and unchecked attempts are shown separately.</dd></div>
+          <div><dt>Progress that stays honest</dt><dd>Finished work, graded work, and attempts you haven&apos;t reviewed are shown separately — your progress is never inflated.</dd></div>
         </dl>
       </section>
       <MarketingFAQ />
       <section className="marketing-section visitor-next" aria-labelledby="visitor-next-title">
-        <div><h2 id="visitor-next-title">See what you could learn.</h2><p>Start with a course outline. Sign up when you’re ready for the lessons.</p></div>
+        <div><h2 id="visitor-next-title">Browse the library.</h2><p>Read any course outline free. Create an account when you want the lessons.</p></div>
         <Link className="button button-primary" href="/library">Explore courses <ArrowRight size={16} /></Link>
       </section>
     </div>

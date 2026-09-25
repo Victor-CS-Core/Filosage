@@ -39,6 +39,7 @@ export interface CourseDeckItem {
   topic: string;
   category?: string;
   banner?: Course["banner"];
+  creatorTier?: Course["creatorTier"];
   href: string;
   nextLessonTitle: string;
   completedLessons: number;
@@ -370,7 +371,7 @@ function CourseDeckCard({
     >
       <div className="course-deck-card-face" aria-hidden={!active} inert={!active}>
         <div className="course-deck-cover">
-          <CourseBanner course={{ id: item.id, topic: item.topic, category: item.category, banner: item.banner }} variant="deck" eager={active} />
+          <CourseBanner course={{ id: item.id, topic: item.topic, category: item.category, banner: item.banner, creatorTier: item.creatorTier }} variant="deck" eager={active} />
         </div>
         <div className="course-deck-card-body">
           <div className="course-deck-card-copy">

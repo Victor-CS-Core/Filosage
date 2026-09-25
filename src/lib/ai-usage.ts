@@ -773,7 +773,7 @@ export function extractOpenAiUsage(
 function defaultModelFor(feature: AiFeature) {
   if (feature === "command_center_draft") return serverEnvironment.OPENAI_COMMAND_CENTER_MODEL || serverEnvironment.OPENAI_MODEL || "gpt-5.6-terra";
   if (feature === "tutor" || feature === "flashcard_generation") return serverEnvironment.OPENAI_TUTOR_MODEL || "gpt-5.6-luna";
-  if (feature === "course_banner") return serverEnvironment.OPENAI_COURSE_IMAGE_MODEL || "gpt-image-1-mini";
+  if (feature === "course_banner") return serverEnvironment.OPENAI_COURSE_IMAGE_MODEL || "gpt-image-2.5-flare";
   if (feature === "lesson_generation") return serverEnvironment.OPENAI_LESSON_MODEL || "gpt-5.6-luna";
   return serverEnvironment.OPENAI_COURSE_MODEL || serverEnvironment.OPENAI_MODEL || "gpt-5.6-terra";
 }
