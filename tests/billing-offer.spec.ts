@@ -84,21 +84,22 @@ test("the capability matrix stays explicit without advertising flag-gated tools 
     advanced_capstone_analysis: false,
     export_evidence_report: false,
     share_evidence_report: false,
+    course_illustrations: false,
   });
   expect(MEMBERSHIP_PLANS.plus).toMatchObject({
     limits: { courseCreditsPerMonth: 2, courseCreditBalanceCap: 24, tutorQuestions: 40, flashcardDeckGenerationsPerMonth: 40 },
-    capabilities: { create_course: true, generate_lesson: true, create_custom_flashcard_deck: true, publish_course: false, advanced_capstone_analysis: false, export_evidence_report: false, share_evidence_report: false },
+    capabilities: { create_course: true, generate_lesson: true, create_custom_flashcard_deck: true, publish_course: false, advanced_capstone_analysis: false, export_evidence_report: false, share_evidence_report: false, course_illustrations: true },
   });
   expect(MEMBERSHIP_PLANS.pro).toMatchObject({
     limits: { courseCreditsPerMonth: 5, courseCreditBalanceCap: 60, tutorQuestions: 100, flashcardDeckGenerationsPerMonth: 100 },
-    capabilities: { create_course: true, generate_lesson: true, create_custom_flashcard_deck: true, publish_course: true, advanced_capstone_analysis: true, export_evidence_report: true, share_evidence_report: true },
+    capabilities: { create_course: true, generate_lesson: true, create_custom_flashcard_deck: true, publish_course: true, advanced_capstone_analysis: true, export_evidence_report: true, share_evidence_report: true, course_illustrations: true },
   });
   const publicPlanCopy = Object.values(MEMBERSHIP_PLANS)
     .flatMap((plan) => [plan.description, ...plan.includedFeatures, ...plan.restrictedFeatures])
     .join(" ");
   expect(publicPlanCopy).not.toMatch(/flashcard/i);
-  expect(MEMBERSHIP_PLANS.plus.description).toContain("goals the published library does not cover");
-  expect(MEMBERSHIP_PLANS.pro.description).toContain("portable evidence");
+  expect(MEMBERSHIP_PLANS.plus.description).toContain("Build private courses around your own goals.");
+  expect(MEMBERSHIP_PLANS.pro.description).toContain("plus proof of your work");
 });
 
 test("the offline course fixture satisfies the production course-quality gate", () => {

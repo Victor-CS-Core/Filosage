@@ -1093,15 +1093,11 @@ async function generateCourseRequest(request: Request) {
       return NextResponse.json({ ...generationOperationStatus({ ...operation.operation, status: "pending" }),
         code: error.code, error: error.message }, { status: 202, headers: { "Cache-Control": "private, no-store" } });
     }
-    if (operation && (!(error instanceof GenerationOperationError) || error.code === "GENERATION_OUTCOME_UNKNOWN")) {
+    if (operation && !(error instanceof GenerationOperationError)) {
       // Known application failure refunds once. Unknown provider outcomes retain
       // an explicit cost estimate until an actual late response can replace it.
-      // GENERATION_OUTCOME_UNKNOWN is settled here (no reconcile: this request
-      // owns the fresh lease) so the operation, its key, and its lock do not
-      // stay bricked forever.
-      const outcomeUnknown = error instanceof GenerationOperationError && error.code === "GENERATION_OUTCOME_UNKNOWN";
       await finishGenerationOperation(operation, { failed: true,
-        reason: outcomeUnknown ? "provider_outcome_unknown" : error instanceof ContentSafetyError ? "safety_rejected" : error instanceof LearningDesignReplanRequiredError ? "learning_design_replan_required" : "generation_failed",
+        reason: error instanceof ContentSafetyError ? "safety_rejected" : error instanceof LearningDesignReplanRequiredError ? "learning_design_replan_required" : "generation_failed",
         ...(error instanceof LearningDesignReplanRequiredError ? { failure: { code: error.code, error: error.message, recovery: error.recovery, issues: error.issues } } : {}) }).catch((settlementError) => {
         console.error(JSON.stringify({ event: "generation_settlement_deferred", ...safeModelErrorDetails(settlementError) }));
       });
@@ -1111,13 +1107,7 @@ async function generateCourseRequest(request: Request) {
       ? await denyGenerationAdmission(requestedOperationId).catch(() => false) : false;
     if (error instanceof GenerationOperationError) {
       if (admissionDenied) return NextResponse.json({ error: error.message, code: error.code, admitted: false }, { status: error.status, headers: { "Cache-Control": "private, no-store" } });
-      // This route settles outcome-unknown operations immediately (see above),
-      // so the shared "check after its lease expires" advice does not apply here:
-      // the credit was restored and the user can simply start a new request.
-      const message = error.code === "GENERATION_OUTCOME_UNKNOWN"
-        ? "The provider result could not be confirmed. Your course credit was restored; start a new course request."
-        : error.message;
-      return NextResponse.json({ error: message, code: error.code, operationId: operation?.operationId ?? requestedOperationId, ...(error.code === "GENERATION_FAILED" ? { status: "failed" } : {}) },
+      return NextResponse.json({ error: error.message, code: error.code, operationId: operation?.operationId ?? requestedOperationId, ...(error.code === "GENERATION_FAILED" ? { status: "failed" } : {}) },
         { status: error.status, headers: { "Cache-Control": "private, no-store" } });
     }
     if (error instanceof LearningDesignReplanRequiredError) {
