@@ -1163,14 +1163,14 @@ test("entry actions remain truthful and usable for every provider availability t
     {
       name: "existing External ID only",
       authentication: { primaryProvider: "filosage", externalIdAvailable: true, externalIdNewAccountsAvailable: false, legacyGoogleAvailable: false },
-      identityCopy: "Sign in to an existing Filosage account with a private email code on the next secure screen",
+      identityCopy: "Sign in to an existing Filosage account with a one-time code emailed to you, on the next secure screen",
       primaryAction: "Sign in with email code",
       createsAccount: false,
     },
     {
       name: "Google creation with existing External ID alternate",
       authentication: { primaryProvider: "google", externalIdAvailable: true, externalIdNewAccountsAvailable: false, legacyGoogleAvailable: true },
-      identityCopy: "Continue with Google to create an account, or use a private email code for an existing account",
+      identityCopy: "Continue with Google to create an account, or use a one-time code emailed to you for an existing account",
       primaryAction: "Continue with Google",
       alternateAction: "Use email code for an existing account",
       createsAccount: true,
@@ -1178,14 +1178,14 @@ test("entry actions remain truthful and usable for every provider availability t
     {
       name: "External ID creation only",
       authentication: { primaryProvider: "filosage", externalIdAvailable: true, externalIdNewAccountsAvailable: true, legacyGoogleAvailable: false },
-      identityCopy: "Choose a private email code on the next secure Filosage screen",
+      identityCopy: "We'll email you a one-time code on the next secure screen",
       primaryAction: "Continue securely",
       createsAccount: true,
     },
     {
       name: "External ID creation with Google option",
       authentication: { primaryProvider: "filosage", externalIdAvailable: true, externalIdNewAccountsAvailable: true, legacyGoogleAvailable: true },
-      identityCopy: "Choose Google or a private email code on the next secure Filosage screen",
+      identityCopy: "Choose Google, or we'll email you a one-time code, on the next secure screen",
       primaryAction: "Continue securely",
       alternateAction: "Use my existing Google sign-in",
       createsAccount: true,
