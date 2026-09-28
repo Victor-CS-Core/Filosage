@@ -784,10 +784,10 @@ test("completes a published course from discovery through evidence", async ({ pa
 
   await page.locator(".lesson-toolbar nav").getByRole("link", { name: topic }).click();
   await expect(page.getByRole("progressbar", { name: "Course progress" })).toHaveAttribute("aria-valuenow", "100");
-  await expect(page.getByLabel("Submit your capstone for assessment")).toBeVisible();
+  await expect(page.getByLabel("Submit your final project for assessment")).toBeVisible();
 
   const firstCapstone = "The observed evidence is that three of ten users abandoned onboarding after the release. Confusing copy is an inference. I would pilot revised copy with one segment because this limits downside, but the first draft does not yet define a measurable rollback threshold.";
-  await page.getByLabel("Submit your capstone for assessment").fill(firstCapstone);
+  await page.getByLabel("Submit your final project for assessment").fill(firstCapstone);
   await page.getByRole("button", { name: "Submit for assessment" }).click();
   await expect(page.getByText("Not there yet · attempt 1")).toBeVisible();
   await expect(page.getByText("Add a measurable rollback condition.")).toBeVisible();

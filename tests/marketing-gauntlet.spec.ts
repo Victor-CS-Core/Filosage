@@ -56,7 +56,7 @@ test("public positioning keeps learner access, AI sourcing, and paid availabilit
   await expect(practice.getByText("Sources you can inspect", { exact: true })).toBeVisible();
   await expect(practice.getByText(/A reference alone does not verify a claim/)).toBeVisible();
   await expect(practice.getByText("Your notes, practice, and progress stay in your account.", { exact: true })).toBeVisible();
-  await expect(page.getByRole("region", { name: "See what you could learn." }).getByRole("link", { name: "Explore courses" })).toHaveAttribute("href", "/library");
+  await expect(page.getByRole("region", { name: "Browse the library." }).getByRole("link", { name: "Explore courses" })).toHaveAttribute("href", "/library");
   await page.getByText("Can I inspect a course before creating an account?").click();
   await expect(page.getByText(/published outcomes.*assessment structure remain public/i)).toBeVisible();
   await page.getByText("How does Filosage use AI?").click();

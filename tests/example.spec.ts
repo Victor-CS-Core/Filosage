@@ -748,8 +748,8 @@ test("describes guest access and Pro publishing consistently across public pages
     await pricing.goto("/pricing");
     await expect(pricing).toHaveTitle("Plans and Pricing | Filosage");
     await expect(pricing.getByRole("heading", { level: 1, name: "Choose your plan." })).toBeVisible();
-    await expect(pricing.getByText("Publish generated courses after completing every lesson")).toBeVisible();
-    await expect(pricing.getByText("complete the current lesson activities before generating the next", { exact: false })).toBeVisible();
+    await expect(pricing.getByText("Publish finished courses to the public library")).toBeVisible();
+    await expect(pricing.getByText("finish the current lesson's activities to generate the next one", { exact: false })).toBeVisible();
     await expect(pricing.getByText("Secure checkout shows the selected membership", { exact: false })).toBeVisible();
     await expect(pricing.locator(".auth-boot-shell, .learner-shell, .plan-status")).toHaveCount(0);
     await expect(pricing.locator(".marketing-sign-in")).toBeDisabled();
@@ -1069,14 +1069,13 @@ test("keeps Plus and Pro generation visibly metered", async ({ page }) => {
   await expect(page.getByText("2 course credits a month — 1 credit builds 1 complete course (the full outline plus every lesson in it)")).toBeVisible();
   await expect(page.getByText("5 course credits a month — bank up to 60")).toBeVisible();
   await expect(page.getByText("Detailed final-project feedback — see how each attempt improved, requirement by requirement")).toBeVisible();
-  await expect(page.getByText("Advanced capstone history and criterion-level analysis")).toBeVisible();
-  await expect(page.getByText("Downloadable evidence reports and expiring share links")).toBeVisible();
+  await expect(page.getByText("Downloadable progress reports, plus private share links (expire after 30 days) you can revoke anytime")).toBeVisible();
   await expect(page.getByText("Unused credits roll over, up to 24.")).toBeVisible();
   await expect(page.getByText("Unused credits roll over, up to 60.")).toBeVisible();
   await expect(page.getByText("$6.66")).toBeVisible();
   await expect(page.getByText("$39.96", { exact: false })).toBeVisible();
   await expect(page.getByText("$119.88", { exact: false })).toBeVisible();
-  await expect(page.getByText("Five tutor questions each month")).toBeVisible();
+  await expect(page.getByText("5 tutor questions a month — ask the AI tutor about your lessons")).toBeVisible();
   await expect(page.getByRole("button", { name: "Plus selected" })).toBeVisible();
   await page.getByRole("button", { name: "Choose Pro" }).click();
   await expect(page.getByRole("button", { name: "Pro selected" })).toBeVisible();

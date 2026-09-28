@@ -1189,7 +1189,7 @@ test.describe("desktop application shell", () => {
     await expect(page.getByRole("heading", { name: "Choose how the learning should unfold." })).toBeVisible();
     expect(generationRequests).toBe(0);
     await expect(page.getByText("Research and source validation are automatic.")).toBeVisible();
-    await expect(page.getByText(/verifies suitable API-cited evidence and catalog metadata for further reading/)).toBeVisible();
+    await expect(page.getByText(/looks for trustworthy sources to back up its claims, and lists them for further reading/)).toBeVisible();
     await expect(page.getByText(/your course is still created without invented citations/)).toBeVisible();
     const teachingStep = page.getByRole("button", { name: /Teaching plan/ });
     const createButton = page.getByRole("button", { name: "Create private course" });
