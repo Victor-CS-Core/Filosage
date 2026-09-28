@@ -793,7 +793,7 @@ test("completes a published course from discovery through evidence", async ({ pa
   await expect(page.getByText("Add a measurable rollback condition.")).toBeVisible();
 
   const revisedCapstone = "The observed evidence is that three of ten users abandoned onboarding after the release. Confusing copy is an inference. I would pilot revised copy with one segment for two weeks, compare completion and support demand, and roll back if completion falls by five percent or support demand rises by ten percent.";
-  await page.getByLabel("Revise and resubmit your capstone").fill(revisedCapstone);
+  await page.getByLabel("Revise and resubmit your final project").fill(revisedCapstone);
   await page.getByRole("button", { name: "Submit for assessment" }).click();
   const capstone = page.locator(".course-capstone");
   await expect(capstone.getByText("Final project passed", { exact: true })).toBeVisible();
