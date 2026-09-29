@@ -569,6 +569,7 @@ resource app 'Microsoft.App/containerApps@2025-01-01' = if (deployApplication) {
       scale: {
         minReplicas: 0
         maxReplicas: 3
+        cooldownPeriod: 60
         rules: [{ name: 'http', http: { metadata: { concurrentRequests: '50' } } }]
       }
     }
