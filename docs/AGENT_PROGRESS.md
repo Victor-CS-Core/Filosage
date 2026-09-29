@@ -1,12 +1,13 @@
 ## Azure cost baseline (Paperclip KRO-3) — September 29
 
-Status: review_ready (owner approval pending). Owner: Filosage Engineer (Paperclip). All reads were read-only: no Azure resource, budget, alert or scale change was made.
+Status: review_ready (owner decisions pending on revision 2). Owner: Filosage Engineer (Paperclip). All reads were read-only: no Azure resource, budget, alert or scale change was made.
 
 - [x] Attribute subscription spend by resource from the Cost Management query API (month-to-date, monthly and daily), meter quantities and Azure retail prices.
 - [x] Forecast launch cost scenarios and recommend a budget and alert thresholds. Full baseline is in the Paperclip issue document `cost-baseline` on KRO-3.
-- [ ] Owner decision on the recommended budget ($60/month scoped to Filosage resource groups, alerts at 50/80/100% actual and 100% forecast, plus a $75 subscription backstop and anomaly alert). Apply only after approval; Cost Management objects add no monthly cost.
+- [x] Revision 1 ($60 budget, warm replica, re-enabled log alerts) was rejected by Victor: cost must stay as low as possible with must-have resources only. Revision 2 withdraws every cost-adding recommendation.
+- [ ] Owner decisions pending in Paperclip: keep the $30 budget and add a free actual-100% notification plus an anomaly alert; optional reductions (cooldown 300→60 s, ACR→GHCR, `www` redirect outside the app); and whether to study a Cloudflare migration. Nothing is applied before approval.
 
-Evidence summary: steady-state run rate is ~$26/month (Container App $17.02, ACR Basic $5.06, environment public IP $3.65, private DNS $0.49). September closes near $32–33 because of one-off spend that has already stopped, so the current $30 unfiltered budget is exceeded. Postgres B1ms and Blob Storage are billed on 12-month free meters (inferred end ~2027-08, +$18/month afterwards). Launch forecast is $37–53/month with a warm replica and re-enabled log alerts. The hard ceiling at `maxReplicas` 3 is ~$132/month. OpenAI and Stripe costs are not Azure spend.
+Evidence summary: Victor's cuts (QA teardown 09-13, alert receiver deleted and log alerts disabled 09-22) are already in the ~$26/month minimal-footprint run rate (Container App $17.02, ACR Basic $5.06, environment public IP $3.65, private DNS $0.49). The Container App bills ~10 active hours/day with no users because ~1,050 bot/crawler requests/day cause ~69 scale-from-zero wakes, each held for the 300 s cooldown. Postgres B1ms and Blob Storage are on 12-month free meters (inferred end ~2027-08, +$18/month afterwards). Cloudflare's free Workers plan (10 ms CPU/request) cannot run the app. Workers Paid (~$5/month) would need an auth, blob, database-connectivity and CI/CD migration, so the recommendation is to revisit it after launch. OpenAI and Stripe costs are not Azure spend.
 
 ---
 
