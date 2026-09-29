@@ -3,6 +3,7 @@ import "server-only";
 import { serverEnvironment } from "@/lib/runtime-environment";
 import {
   deliverOperationalAlert,
+  operationalAlertLogLine,
   type OperationalAlertEvent,
 } from "@/lib/operational-alert-core";
 
@@ -10,6 +11,9 @@ const lastAlertAt = new Map<string, number>();
 const ALERT_DEDUPLICATION_MS = 5 * 60_000;
 
 export async function reportOperationalEvent(event: OperationalAlertEvent) {
+  const line = operationalAlertLogLine(event);
+  if (event.severity === "critical" || event.severity === "warning") console.error(line);
+  else console.info(line);
   const webhook = serverEnvironment.OPERATIONS_ALERT_WEBHOOK_URL?.trim();
   const secret = serverEnvironment.OPERATIONS_ALERT_WEBHOOK_SECRET?.trim();
   if (!webhook || !secret) {
