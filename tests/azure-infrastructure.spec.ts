@@ -620,6 +620,22 @@ test("staging builds once after engineering evidence and promotion never rebuild
   expect(promotionWorkflowSource).toContain("verification_run_id:");
 });
 
+test("new release images publish to public GHCR with the workflow token while ACR stays pullable for rollback", () => {
+  expect(stagingWorkflowSource).toContain("\npermissions:\n  actions: read\n  contents: read\n  id-token: write\n  packages: write\n");
+  expect(stagingWorkflowSource).toContain("        env:\n          GITHUB_TOKEN: ${{ github.token }}\n        run: node scripts/build-release-image.mjs");
+  for (const workflow of ["azure-staging", "azure-promote-staging", "azure-candidate-verification", "azure-candidate-evidence"]) {
+    expect(readFileSync(`.github/workflows/${workflow}.yml`, "utf8")).not.toContain("AZURE_ACR_NAME");
+  }
+  const runnerBuildSource = readFileSync("scripts/build-release-image.mjs", "utf8");
+  expect(runnerBuildSource).toContain("const registryPath = 'victor-cs-core/filosage';");
+  expect(runnerBuildSource).not.toMatch(/azurecr|'az'/);
+  const app = compiledProductionTemplate.resources.find((r) => r.type === "Microsoft.App/containerApps");
+  expect(JSON.stringify((app?.properties?.configuration as Record<string, unknown> | undefined)?.registries)).toContain("loginServer");
+  expect(compiledProductionTemplate.resources.filter((r) => r.type === "Microsoft.ContainerRegistry/registries")).toHaveLength(1);
+  const job = compileBicep("infra/azure/bootstrap.bicep").resources.find((r) => r.type === "Microsoft.App/jobs");
+  expect((job?.properties?.configuration as Record<string, unknown> | undefined)?.registries).toMatch(/^\[if\(startsWith\(parameters\('bootstrapImage'\), format\('\{0\}\/', reference\(resourceId\('Microsoft\.ContainerRegistry\/registries'/);
+});
+
 test("custom-domain releases prove their canonical origin and redirect www to the apex", () => {
   expect(healthRouteSource).toContain("origin,");
   expect(healthRouteSource).toContain("checks: {");
