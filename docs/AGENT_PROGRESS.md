@@ -1,3 +1,20 @@
+## Release-blocker code fixes (KRO-5) — September 29
+
+Status: fixes committed on `paperclip/kro-5-release-blockers` (off `main` `7ba0730`); PR review and owner merge approval pending. No deploy, Azure, Stripe, DNS or production change.
+
+Fixed (each with a test that fails on the old code and passes now):
+- Account deletion parked every Plus/Pro user with Tier C art in manual review (`ACCOUNT_DELETION_UNKNOWN_RECORD_CLASS`), and every user who ever received a credit-back (`…_UNKNOWN_SUBCOLLECTION`). Now inventories and removes `courseIllustrationAssets` (blob then record, after upload and reference checks), `courseIllustrationKeys`, `courseIllustrationBudgets`, `users/*/courseCreditRefunds` and `courseCreditRefundMonths`. `illustration-receipt` gets the banner-receipt fence rule. Fixture: `tests/fixtures/tier-c-deletion-behavior.mjs`.
+- Credit-back now commits in the course-root delete transaction (`deleteCourse(courseId, rootDeletion)`); an interrupted delete neither loses nor mints a credit, and concurrent deletes refund once.
+- `/api/course-banners/[assetId]` serves uploaded Tier B/C heroes stored as `courseIllustrationAssets` (previously 404). Fixture: `course-hero-serving-behavior.mjs`.
+- A dispatched illustration call is no longer finalized as `not_started`; returned images are billed to AI usage and the per-course cap. Fixture: `illustration-accounting-behavior.mjs`.
+- `reportOperationalEvent` always writes one sanitized `component=operational-alert` JSON line (stderr for critical/warning), so log alerts can catch `billing.webhook_failed` without the deleted receiver.
+
+Verification (local, Node 26): `tsc --noEmit` clean; oxlint + eslint clean on touched files; `test:billing` 32/32; `test:contracts` 503/504 (only the known `operations-scripts.spec.ts:71` mise/`az` shim quirk, P2-6).
+
+Still open (not code; owner decisions in KRO-6/KRO-7): Stripe sandbox lifecycle run, alert rule enablement, blue/green relabel and staging `main`, tax posture, `course-illustrations` container, Stripe Dashboard emails/dunning, legal review. Remaining Tier C items not addressed here: persisted alt text, runtime decorative-only enforcement, lesson DTO/publication exposure proof.
+
+---
+
 ## Tier C illustrated courses + gpt-image-2.5 model adoption — September 25
 
 Status: in_progress (local implementation only). No source push, deployment, Azure mutation, billing activation, or public-course publication. Working tree: local snapshot of `47e4f5576f1332805786bbcf170bd44cc21f1d37` without `.git`.
