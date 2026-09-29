@@ -89,6 +89,13 @@ export function validReleaseOrigin(value: unknown): value is string {
 export const releaseAuthenticationModes = ["direct-google", "external-id", "migration-dual"] as const;
 export const validReleaseSha = (value: unknown): value is string => typeof value === "string" && /^[a-f0-9]{40}$/.test(value);
 export const validReleaseDigest = (value: unknown): value is string => typeof value === "string" && /^sha256:[a-f0-9]{64}$/.test(value);
+/** New candidates are published only to this public GHCR repository. */
+export const releaseImageRepository = "ghcr.io/victor-cs-core/filosage";
+/** Accepted only for live, predecessor and rollback revisions until the ACR retirement is approved. */
+export const legacyReleaseImageRepository = "filosagestp4ujucgnxq3gsacr.azurecr.io/filosage";
+export const releaseImageRepositories: readonly string[] = [releaseImageRepository, legacyReleaseImageRepository];
+export const validReleaseImage = (value: unknown): value is string => typeof value === "string"
+  && /^(?:ghcr\.io\/victor-cs-core|filosagestp4ujucgnxq3gsacr\.azurecr\.io)\/filosage@sha256:[a-f0-9]{64}$/.test(value);
 
 export interface ReleaseEvidence {
   schemaVersion: 2;

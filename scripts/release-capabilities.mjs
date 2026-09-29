@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import {
   observedReleaseCapabilities, releaseEnvironment, releaseEvidenceMatches,
-  releaseSelectionMatches, validReleaseDigest,
+  releaseSelectionMatches, validReleaseDigest, releaseImageRepositories,
 } from "../src/lib/release-capabilities.ts";
 import { readReleaseManifest } from "./release-manifest.mjs";
 
@@ -29,7 +29,7 @@ try {
     console.log(`CANDIDATE_ORIGIN=${evidence.candidateOrigin}`);
   } else if (command === "check-image") {
     const [repository, digest, observed] = args;
-    if (!/^[a-z0-9]+\.azurecr\.io\/filosage$/.test(repository ?? "") || !validReleaseDigest(digest) || observed !== `${repository}@${digest}`) throw new Error();
+    if (!releaseImageRepositories.includes(repository ?? "") || !validReleaseDigest(digest) || observed !== `${repository}@${digest}`) throw new Error();
     console.log("Deployed image matches the candidate-approved digest.");
   } else {
     throw new Error();

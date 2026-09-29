@@ -69,9 +69,14 @@ test("candidate CLI creates and checks evidence without permitting a different d
     expect(verified.stdout).toContain(`EXPECTED_IMAGE_DIGEST=${digest}`);
     expect(verified.stdout).toContain("EXPECTED_AUTH_MODE=migration-dual");
     expect(run(["verify-evidence", path, "c".repeat(40), origin]).status).toBe(1);
-    expect(run(["check-image", "registry.azurecr.io/filosage", digest, `registry.azurecr.io/filosage@${digest}`]).status).toBe(0);
-    expect(run(["check-image", "registry.azurecr.io/filosage", digest, `registry.azurecr.io/filosage@sha256:${"e".repeat(64)}`]).status).toBe(1);
-    expect(run(["check-image", "registry.azurecr.io/filosage", digest, `registry.azurecr.io/filosage:${sha}`]).status).toBe(1);
+    for (const repository of ["ghcr.io/victor-cs-core/filosage", "filosagestp4ujucgnxq3gsacr.azurecr.io/filosage"]) {
+      expect(run(["check-image", repository, digest, `${repository}@${digest}`]).status).toBe(0);
+      expect(run(["check-image", repository, digest, `${repository}@sha256:${"e".repeat(64)}`]).status).toBe(1);
+      expect(run(["check-image", repository, digest, `${repository}:${sha}`]).status).toBe(1);
+    }
+    for (const repository of ["registry.azurecr.io/filosage", "ghcr.io/other-owner/filosage", "ghcr.io/victor-cs-core/filosage-other", "GHCR.IO/victor-cs-core/filosage"]) {
+      expect(run(["check-image", repository, digest, `${repository}@${digest}`]).status).toBe(1);
+    }
     writeFileSync(path, JSON.stringify({ ...evidence, authenticationMode: "secret-do-not-print" }));
     const rejected = run(["verify-evidence", path, sha, origin]);
     expect(rejected.status).toBe(1);

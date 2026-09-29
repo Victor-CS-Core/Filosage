@@ -15,7 +15,7 @@ const protectedEnvironment = {
   deployment_branch_policy: { protected_branches: false, custom_branch_policies: true },
 };
 const branches = { total_count: 1, branch_policies: [{ name: "main", type: "branch" }] };
-const variables = ["AZURE_RESOURCE_GROUP", "AZURE_CONTAINER_APP_NAME", "AZURE_ACR_NAME"];
+const variables = ["AZURE_RESOURCE_GROUP", "AZURE_CONTAINER_APP_NAME"];
 const secrets = ["AZURE_CLIENT_ID", "AZURE_TENANT_ID", "AZURE_SUBSCRIPTION_ID"];
 
 test("maintenance inventory includes direct app, both labels and every active revision without claiming drain", () => {
@@ -86,12 +86,18 @@ test("missing or unrestricted deployment configuration remains blocked", () => {
 
 test("legacy healthy responses never pass immutable predecessor identity and capability checks", () => {
   const env = Object.entries({ ...releaseEnvironment(manifest), SITE_VERSION: sha, NEXT_PUBLIC_SITE_URL: "https://filosage.com", RELEASE_IMAGE_DIGEST: digest }).map(([name, value]) => ({ name, value }));
-  const revision = { properties: { active: true, template: { containers: [{ image: `registry.azurecr.io/filosage@${digest}`, env }] } } };
+  const revision = { properties: { active: true, template: { containers: [{ image: `filosagestp4ujucgnxq3gsacr.azurecr.io/filosage@${digest}`, env }] } } };
   const health = { ok: true, version: sha, imageDigest: digest, origin: "https://filosage.com", authenticationMode: "migration-dual", capabilities: manifest.capabilities,
     checks: { configuration: true, datastore: true, flashcardDecks: manifest.capabilities.flashcardDecks, flashcardGeneration: manifest.capabilities.flashcardGeneration } };
   expect(predecessorReadiness(revision, 200, health, "migration-dual").contractReady).toBe(true);
   for (const changed of [{ imageDigest: undefined }, { capabilities: undefined }, { version: "b".repeat(40) }, { ok: false }, { checks: {} }]) {
     expect(predecessorReadiness(revision, 200, { ...health, ...changed }, "migration-dual").contractReady).toBe(false);
+  }
+  const ghcr = structuredClone(revision); ghcr.properties.template.containers[0].image = `ghcr.io/victor-cs-core/filosage@${digest}`;
+  expect(predecessorReadiness(ghcr, 200, health, "migration-dual").contractReady).toBe(true);
+  for (const image of [`registry.azurecr.io/filosage@${digest}`, `ghcr.io/other-owner/filosage@${digest}`, `ghcr.io/victor-cs-core/filosage:${sha}`]) {
+    const changed = structuredClone(revision); changed.properties.template.containers[0].image = image;
+    expect(predecessorReadiness(changed, 200, health, "migration-dual").immutableImage).toBe(false);
   }
   expect(predecessorReadiness(revision, 503, health, "migration-dual").contractReady).toBe(false);
   expect(predecessorReadiness(revision, 200, health, "direct-google").contractReady).toBe(false);

@@ -6,7 +6,7 @@ import { assertBlueGreenState, assertCandidateReadback, authConfigurationHash, f
 import { assertRevisionConnectionBudget, assertQaConnectionBudget } from "./database-connection-budget.ts";
 import { modernDatabasePoolMax } from "../src/lib/database-connection-budget.ts";
 import { readReleaseManifest } from "./release-manifest.mjs";
-import { releaseEnvironment, releaseEvidenceMatches, validReleaseSha, validReleaseDigest, observedReleaseCapabilities, validReleaseManifest } from "../src/lib/release-capabilities.ts";
+import { releaseEnvironment, releaseEvidenceMatches, validReleaseSha, validReleaseDigest, validReleaseImage, releaseImageRepository, observedReleaseCapabilities, validReleaseManifest } from "../src/lib/release-capabilities.ts";
 
 // All process arguments remain separate. Never print provider bodies, environment
 // contents, auth configuration, or CLI error output into logs/artifacts.
@@ -113,7 +113,7 @@ try {
     const container = liveRevision.properties?.template?.containers?.[0];
     const liveSha = container?.env?.find((entry) => entry.name === "SITE_VERSION")?.value;
     if (liveRevision.properties?.active !== true || liveRevision.properties.template.containers.length !== 1 || !validReleaseSha(liveSha)
-      || !/^[a-z0-9]+\.azurecr\.io\/filosage@sha256:[a-f0-9]{64}$/.test(container.image)) throw new Error("Inventory and pin the previous compatible revision before staging.");
+      || !validReleaseImage(container.image)) throw new Error("Inventory and pin the previous compatible revision before staging.");
     if (container.env?.some((entry) => /^(DATABASE_ADMIN_URL|POSTGRES_.*PASSWORD)$/.test(entry.name))) throw new Error("Complete the separately approved bootstrap/runtime privilege cutover before staging.");
     const liveEnvironment = Object.fromEntries(container.env.map((entry) => [entry.name, entry.value]));
     const previousManifest = { schemaVersion: 1, capabilities: observedReleaseCapabilities(liveEnvironment) };
@@ -129,7 +129,7 @@ try {
     if (canonical(before) !== canonical(preflight.before)) throw new Error("Traffic or shared auth changed during the build.");
     const { live, candidate: inactive } = assertBlueGreenState(before);
     const digest = env.EXPECTED_IMAGE_DIGEST;
-    if (!validReleaseDigest(digest) || !/^[a-z0-9]+$/.test(env.AZURE_ACR_NAME || "") || !/^[1-9][0-9]*$/.test(env.GITHUB_RUN_ID || "") || !/^[1-9][0-9]*$/.test(env.GITHUB_RUN_ATTEMPT || "")) throw new Error("Invalid immutable build identity.");
+    if (!validReleaseDigest(digest) || !/^[1-9][0-9]*$/.test(env.GITHUB_RUN_ID || "") || !/^[1-9][0-9]*$/.test(env.GITHUB_RUN_ATTEMPT || "")) throw new Error("Invalid immutable build identity.");
     const featured = env.FEATURED_COURSE_ID;
     if (featured !== "none" && !/^[a-f0-9]{64}$/.test(featured || "")) throw new Error("Select one exact featured course or none.");
     const suffix = `${inactive.label}-${sha.slice(0, 12)}-${env.GITHUB_RUN_ID}-${env.GITHUB_RUN_ATTEMPT}`;
@@ -141,7 +141,7 @@ try {
       DATABASE_POOL_MAX: String(modernDatabasePoolMax), NEXT_PUBLIC_SITE_URL: env.PUBLIC_SITE_URL, BILLING_ENABLED: "false", BILLING_ROLLOUT_MODE: "closed", DEPLOYMENT_SLOT: inactive.label };
     if (featured !== "none") settings.LANDING_FEATURED_COURSE_ID = featured;
     connectionBudget(true);
-    mutate(["containerapp", "revision", "copy", ...appArgs, "--from-revision", live.revisionName, "--image", `${env.AZURE_ACR_NAME}.azurecr.io/filosage@${digest}`, "--revision-suffix", suffix,
+    mutate(["containerapp", "revision", "copy", ...appArgs, "--from-revision", live.revisionName, "--image", `${releaseImageRepository}@${digest}`, "--revision-suffix", suffix,
       ...(featured === "none" ? ["--remove-env-vars", "LANDING_FEATURED_COURSE_ID"] : []), "--set-env-vars", ...Object.entries(settings).map(([key, value]) => `${key}=${value}`)]);
     const afterDeployment = snapshot();
     if (canonical(afterDeployment) !== canonical(before)) throw new Error("Public routing changed during zero-traffic deployment; operator review required.");
