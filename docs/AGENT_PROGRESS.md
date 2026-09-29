@@ -1,3 +1,15 @@
+## Release access matrix (Paperclip KRO-2) — September 29
+
+Status: completed (read-only verification). Owner: Filosage Engineer (Paperclip). No resource, secret, billing, DNS, provider or workflow mutation; no dispatch, push to main or deployment.
+
+- [x] Verify capability for GitHub, build tooling, Azure resources and cost data, deployment pipeline, Stripe, authentication, email, DNS, secrets, monitoring and backups.
+- [x] Record the full matrix, findings and owner-action gaps in the private Paperclip issue document `access-matrix` on KRO-2 (kept out of this public repository because it describes security posture).
+- [x] Owner actions routed to Yanco (Paperclip KRO-6): least-privilege Azure read identity, External ID tenant read access, Stripe sandbox key, and DNS correction.
+
+Evidence summary: local `npm ci`, `tsc --noEmit` and `check:secrets` pass on Node 26 (CI uses Node 22); main engineering, security and full regression passed 2026-09-28. The latest inactive-revision staging run (2026-09-28 19:46 UTC) failed closed on the routing precondition because live traffic is on an unlabeled revision; the next candidate needs labeled routing restored first.
+
+---
+
 ## Tier C illustrated courses + gpt-image-2.5 model adoption — September 25
 
 Status: in_progress (local implementation only). No source push, deployment, Azure mutation, billing activation, or public-course publication. Working tree: local snapshot of `47e4f5576f1332805786bbcf170bd44cc21f1d37` without `.git`.
