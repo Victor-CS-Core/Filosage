@@ -1,11 +1,15 @@
 ## Azure cost baseline (Paperclip KRO-3) — September 29
 
-Status: review_ready (owner decisions pending on revision 2). Owner: Filosage Engineer (Paperclip). All reads were read-only: no Azure resource, budget, alert or scale change was made.
+Status: in_progress (R1 applied live; Bicep PR awaiting owner merge; R2 and Cloudflare feasibility tracked separately). Owner: Filosage Engineer (Paperclip). All reads were read-only: no Azure resource, budget, alert or scale change was made.
 
 - [x] Attribute subscription spend by resource from the Cost Management query API (month-to-date, monthly and daily), meter quantities and Azure retail prices.
 - [x] Forecast launch cost scenarios and recommend a budget and alert thresholds. Full baseline is in the Paperclip issue document `cost-baseline` on KRO-3.
 - [x] Revision 1 ($60 budget, warm replica, re-enabled log alerts) was rejected by Victor: cost must stay as low as possible with must-have resources only. Revision 2 withdraws every cost-adding recommendation.
-- [ ] Owner decisions pending in Paperclip: keep the $30 budget and add a free actual-100% notification plus an anomaly alert; optional reductions (cooldown 300→60 s, ACR→GHCR, `www` redirect outside the app); and whether to study a Cloudflare migration. Nothing is applied before approval.
+- [x] Owner decisions (2026-09-29): keep the $30 budget unchanged; prepare R1 (cooldown) and R2 (GHCR); open a Cloudflare feasibility study (Paperclip KRO-8).
+- [x] R1 applied live after approval: revision `filosagestg-app--cooldown60-1790651443` has 100% traffic, `cooldownPeriod 60`, the same image digest, and is Healthy. The config diff (env, resources, probes, secret names, ingress, registries, identity) is identical; Easy Auth is still on; the apex returns 200. It needed Container Apps API `2025-07-01` and a new `revisionSuffix`.
+- [ ] R1 Bicep sync PR #50 (`paperclip/kro-3-r1-cooldown`): `az bicep build` and 60/60 related contracts pass locally, and all PR checks pass. Merge awaits owner approval.
+- [ ] R2 ACR→GHCR on a branch with a PR only (Paperclip KRO-9). Live/previous image checks must accept both ACR and GHCR during the transition.
+- [ ] Read back R1 savings in Cost Management after 2026-10-03 (baseline $0.56/day).
 
 Evidence summary: Victor's cuts (QA teardown 09-13, alert receiver deleted and log alerts disabled 09-22) are already in the ~$26/month minimal-footprint run rate (Container App $17.02, ACR Basic $5.06, environment public IP $3.65, private DNS $0.49). The Container App bills ~10 active hours/day with no users because ~1,050 bot/crawler requests/day cause ~69 scale-from-zero wakes, each held for the 300 s cooldown. Postgres B1ms and Blob Storage are on 12-month free meters (inferred end ~2027-08, +$18/month afterwards). Cloudflare's free Workers plan (10 ms CPU/request) cannot run the app. Workers Paid (~$5/month) would need an auth, blob, database-connectivity and CI/CD migration, so the recommendation is to revisit it after launch. OpenAI and Stripe costs are not Azure spend.
 
