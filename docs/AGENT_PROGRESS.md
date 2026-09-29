@@ -1,3 +1,14 @@
+## Paid-account release audit (Paperclip KRO-4) — September 29
+
+Status: completed (read-only audit). Owner: Filosage Engineer (Paperclip). No Stripe object, identity, Azure, DNS, workflow or deployment mutation. The prioritized blocker list and evidence live in the private Paperclip document `release-audit` on KRO-4, because they describe operational posture. Owner decisions are routed to Yanco (KRO-6, KRO-7), and fixes continue in KRO-5.
+
+- [x] Exercise billing lifecycle, entitlements and webhook handling with the existing suites: `test:billing` 32/32; `test:e2e` for billing-lifecycle, auth-linking and account-onboarding 85/85 (Chromium); `test:contracts` 500/501. The one failure is a local `az`-stub PATH quirk in `operations-scripts.spec.ts:71`; CI passed the same SHA.
+- [x] Read-only live Stripe review: the webhook's enabled events match the handler cases; the portal is restricted to the four active prices; production price IDs match the live catalog; zero subscriptions; checkout closed.
+- [x] Signup/login entry points and backup posture reviewed. The 2026-09-12 restore rehearsal remains the latest restore proof.
+- [ ] Open (tracked in Paperclip): a signed Stripe sandbox lifecycle run on current code, operational alerting, labeled routing so `main` can stage, tax posture, and Tier C deployment prerequisites.
+
+---
+
 ## Release access matrix (Paperclip KRO-2) — September 29
 
 Status: completed (read-only verification). Owner: Filosage Engineer (Paperclip). No resource, secret, billing, DNS, provider or workflow mutation; no dispatch, push to main or deployment.
