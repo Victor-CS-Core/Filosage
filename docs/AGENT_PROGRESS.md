@@ -1,3 +1,15 @@
+## Azure cost baseline (Paperclip KRO-3) — September 29
+
+Status: review_ready (owner approval pending). Owner: Filosage Engineer (Paperclip). All reads were read-only: no Azure resource, budget, alert or scale change was made.
+
+- [x] Attribute subscription spend by resource from the Cost Management query API (month-to-date, monthly and daily), meter quantities and Azure retail prices.
+- [x] Forecast launch cost scenarios and recommend a budget and alert thresholds. Full baseline is in the Paperclip issue document `cost-baseline` on KRO-3.
+- [ ] Owner decision on the recommended budget ($60/month scoped to Filosage resource groups, alerts at 50/80/100% actual and 100% forecast, plus a $75 subscription backstop and anomaly alert). Apply only after approval; Cost Management objects add no monthly cost.
+
+Evidence summary: steady-state run rate is ~$26/month (Container App $17.02, ACR Basic $5.06, environment public IP $3.65, private DNS $0.49). September closes near $32–33 because of one-off spend that has already stopped, so the current $30 unfiltered budget is exceeded. Postgres B1ms and Blob Storage are billed on 12-month free meters (inferred end ~2027-08, +$18/month afterwards). Launch forecast is $37–53/month with a warm replica and re-enabled log alerts. The hard ceiling at `maxReplicas` 3 is ~$132/month. OpenAI and Stripe costs are not Azure spend.
+
+---
+
 ## Release access matrix (Paperclip KRO-2) — September 29
 
 Status: completed (read-only verification). Owner: Filosage Engineer (Paperclip). No resource, secret, billing, DNS, provider or workflow mutation; no dispatch, push to main or deployment.
