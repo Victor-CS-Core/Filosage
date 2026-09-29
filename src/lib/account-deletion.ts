@@ -8,6 +8,7 @@ import { accountDeletionRequiresStripeReconciliation, checkoutClaimRequiresDelet
 import { billingConfiguration } from "@/lib/runtime-config";
 import { cancelStripeBillingForAccountDeletion } from "@/lib/stripe-server";
 import { deleteExclusiveCourseBannerObject } from "@/lib/course-banner-storage";
+import { deleteExclusiveCourseIllustrationObject } from "@/lib/course-illustration-storage";
 import { abandonGenerationUsage } from "@/lib/generation-operations";
 import { abandonAiUsage } from "@/lib/ai-usage";
 
@@ -15,15 +16,30 @@ type Stage = "checkout" | "inventory" | "billing" | "documents" | "assets" | "ve
 export interface AccountDeletionJob extends Record<string, unknown> {
   uid: string; generation: string; jobId: string; stage: Stage;
   status: "running" | "pending" | "manual_review" | "retention_review";
-  documentPaths: string[]; assetIds: string[]; retainedPaths: string[];
+  documentPaths: string[]; assetIds: string[]; illustrationAssetIds?: string[]; retainedPaths: string[];
   billingCustomerId?: string; billingSubscriptionId?: string;
   subscriptionStatus: string; billingRawStatus?: string;
   cancellationConfirmed: boolean; activeDataRemoved: boolean;
   leaseToken?: string; leaseUntil?: string; issue?: string;
 }
-const KNOWN_USER_COLLECTIONS = new Set(["learningData", "lessonNotes", "lessonActivity", "lessonInteraction", "lessonInteractionMutations", "courseProgress", "learningOutcomes", "masteryEvidence", "flashcardDecks", "flashcards", "flashcardReviewState", "evidenceShareRefs", "courseCredits", "courseCreditClaims", "billingCheckout", "billingReconciliation", "billingTransitions"]);
+const KNOWN_USER_COLLECTIONS = new Set(["learningData", "lessonNotes", "lessonActivity", "lessonInteraction", "lessonInteractionMutations", "courseProgress", "learningOutcomes", "masteryEvidence", "flashcardDecks", "flashcards", "flashcardReviewState", "evidenceShareRefs", "courseCredits", "courseCreditClaims", "courseCreditRefunds", "courseCreditRefundMonths", "billingCheckout", "billingReconciliation", "billingTransitions"]);
 const RETAINED_USER_COLLECTIONS = new Set(["legalAcceptances", "billingConsents"]);
-const ACTIVE_COLLECTIONS = new Set(["billingTransitions", "users", "courses", "courseReleases", "coursePipelineEvents", "courseRepairs", "courseManualReviewMutations", "outcomeFeedback", "generationOperations", "generationStages", "aiRequests", "usagePeriods", "userAiBudgets", "userEngagement", "pricingIntents", "productEvents", "referralCodes", "courseResearchArtifacts", "evidenceShares", "courseBannerKeys", "courseBannerAssets"]);
+const ACTIVE_COLLECTIONS = new Set(["billingTransitions", "users", "courses", "courseReleases", "coursePipelineEvents", "courseRepairs", "courseManualReviewMutations", "outcomeFeedback", "generationOperations", "generationStages", "aiRequests", "usagePeriods", "userAiBudgets", "userEngagement", "pricingIntents", "productEvents", "referralCodes", "courseResearchArtifacts", "evidenceShares", "courseBannerKeys", "courseBannerAssets", "courseIllustrationKeys", "courseIllustrationAssets", "courseIllustrationBudgets"]);
+// Blob-backed asset records: the remote object is removed before its record.
+// Banner ids stay in `assetIds` so jobs saved before illustrations still resume.
+const ASSET_KINDS = [
+  {
+    collection: "courseBannerAssets", jobField: "assetIds", deleteObject: deleteExclusiveCourseBannerObject,
+    referenced: (path: string, data: StoredDocument, assetId: string) => !path.startsWith("accountDeletionJobs/") && (data.banner as { assetId?: string } | undefined)?.assetId === assetId,
+  },
+  {
+    collection: "courseIllustrationAssets", jobField: "illustrationAssetIds", deleteObject: deleteExclusiveCourseIllustrationObject,
+    // Illustration ids are unique 32-hex values, so a textual match is a sound,
+    // conservative reference test across hero, module and lesson fields.
+    referenced: (path: string, data: StoredDocument, assetId: string) => (path.startsWith("courses/") || path.startsWith("courseReleases/")) && JSON.stringify(data).includes(assetId),
+  },
+] as const;
+const assetIdsOf = (job: Pick<AccountDeletionJob, "assetIds" | "illustrationAssetIds">, kind: (typeof ASSET_KINDS)[number]) => job[kind.jobField] ?? [];
 const RETAINED_COLLECTIONS = new Set(["userSafety", "safetyEvents", "contentReports", "adminEvents", "commandCenterTickets", "commandCenterApprovals", "commandCenterDrafts", "commandCenterAuditEvents", "commandCenterTicketRequests", "commandCenterPublicReplyRequests", "commandCenterApprovalReviewRequests", "identityLinks", "identityEmails", "identityEmailOwners", "identityLinkIntents", "identityLinkEvents", "accountLifecycles", "accountDeletionJobs"]);
 const now = () => new Date().toISOString();
 const jobPath = (jobId: string) => `accountDeletionJobs/${jobId}`;
@@ -89,7 +105,7 @@ export async function inventoryAccountDeletion(job: AccountDeletionJob) {
   const releaseIds = new Set(scan.documents.filter((row) => row.path.startsWith("courseReleases/") && typeof row.data.courseId === "string" && courseIds.has(row.data.courseId)).map((row) => row.path.split("/")[1]));
   for (const path of job.documentPaths) if (/^courseReleases\/[^/]+$/.test(path)) releaseIds.add(path.split("/")[1]);
   const authoredPaths = [...courseIds].map((id) => `courses/${id}`).concat([...releaseIds].map((id) => `courseReleases/${id}`));
-  const documentPaths: string[] = []; const assetIds: string[] = []; const retainedPaths: string[] = [];
+  const documentPaths: string[] = []; const assetIds: string[] = []; const illustrationAssetIds: string[] = []; const retainedPaths: string[] = [];
   for (const row of scan.documents) {
     const parts = row.path.split("/");
     const ownUserPath = parts[0] === "users" && parts[1] === job.uid;
@@ -108,6 +124,7 @@ export async function inventoryAccountDeletion(job: AccountDeletionJob) {
     if (ownUserPath && parts.length > 2 && (!KNOWN_USER_COLLECTIONS.has(parts[2]) || parts.length !== 4)) return { issue: "ACCOUNT_DELETION_UNKNOWN_SUBCOLLECTION" } as const;
     if (!ACTIVE_COLLECTIONS.has(parts[0]) && row.path !== job.waitlistPath) return { issue: "ACCOUNT_DELETION_UNKNOWN_RECORD_CLASS" } as const;
     if (parts[0] === "courseBannerAssets") { assetIds.push(parts[1]); continue; }
+    if (parts[0] === "courseIllustrationAssets") { illustrationAssetIds.push(parts[1]); continue; }
     documentPaths.push(row.path);
   }
   // Legacy shared fingerprints have no owner metadata. Keep them under an
@@ -116,7 +133,7 @@ export async function inventoryAccountDeletion(job: AccountDeletionJob) {
     const banner = row.data.banner as { assetId?: string } | undefined;
     if (banner?.assetId && !assetIds.includes(banner.assetId)) retainedPaths.push(`courseBannerAssets/${banner.assetId}`);
   }
-  return { documentPaths, assetIds, retainedPaths, scan: scan.documents };
+  return { documentPaths, assetIds, illustrationAssetIds, retainedPaths, scan: scan.documents };
 }
 export async function resumeAccountDeletion(initial: AccountDeletionJob): Promise<{ status: number; body: ReturnType<typeof summarize> }> {
   return runWithAccountDeletion(initial, async () => {
@@ -158,7 +175,7 @@ export async function resumeAccountDeletion(initial: AccountDeletionJob): Promis
       if (job!.stage === "inventory") {
         const inventory = await inventoryAccountDeletion(job!);
         if (inventory.issue) return await pending(inventory.issue, true);
-        await save({ stage: "billing", documentPaths: inventory.documentPaths, assetIds: inventory.assetIds, retainedPaths: inventory.retainedPaths });
+        await save({ stage: "billing", documentPaths: inventory.documentPaths, assetIds: inventory.assetIds, illustrationAssetIds: inventory.illustrationAssetIds, retainedPaths: inventory.retainedPaths });
       }
       if (job!.stage === "billing") {
         const needsStripe = accountDeletionRequiresStripeReconciliation(job!);
@@ -192,20 +209,21 @@ export async function resumeAccountDeletion(initial: AccountDeletionJob): Promis
         await save({ stage: "assets" });
       }
       if (job!.stage === "assets") {
-        for (const assetId of job!.assetIds) {
-          const asset = await getStoredDocument(`courseBannerAssets/${assetId}`);
+        for (const kind of ASSET_KINDS) for (const assetId of assetIdsOf(job!, kind)) {
+          const assetPath = `${kind.collection}/${assetId}`;
+          const asset = await getStoredDocument(assetPath);
           if (!asset) continue;
           if (asset.status === "uploading") return await pending("ACCOUNT_DELETION_WAITING_FOR_ASSET_UPLOAD");
           const scan = await scanStoredDocuments();
           if (!scan.complete) return await pending("ACCOUNT_DELETION_ASSET_INVENTORY_OVERFLOW", true);
-          const referenced = scan.documents.some(({ data, path }) => !path.startsWith("accountDeletionJobs/") && (data.banner as { assetId?: string } | undefined)?.assetId === assetId);
+          const referenced = scan.documents.some(({ data, path }) => kind.referenced(path, data, assetId));
           if (asset.ownerUid !== job!.uid || asset.accountGeneration !== job!.generation || asset.ownership !== "exclusive" || referenced) {
-            await save({ retainedPaths: [...new Set([...job!.retainedPaths, `courseBannerAssets/${assetId}`])] }); continue;
+            await save({ retainedPaths: [...new Set([...job!.retainedPaths, assetPath])] }); continue;
           }
-          try { await deleteExclusiveCourseBannerObject(assetId, asset); }
+          try { await kind.deleteObject(assetId, asset); }
           catch { return await pending("ACCOUNT_DELETION_ASSET_CLEANUP_UNCONFIRMED"); }
-          await save({ documentPaths: [...new Set([...job!.documentPaths, `courseBannerAssets/${assetId}`])] });
-          await runWithAccountDeletion({ ...job!, leaseToken: token }, () => deleteStoredDocuments([`courseBannerAssets/${assetId}`]));
+          await save({ documentPaths: [...new Set([...job!.documentPaths, assetPath])] });
+          await runWithAccountDeletion({ ...job!, leaseToken: token }, () => deleteStoredDocuments([assetPath]));
         }
         await save({ stage: "verify" });
       }
@@ -213,7 +231,8 @@ export async function resumeAccountDeletion(initial: AccountDeletionJob): Promis
         const inventory = await inventoryAccountDeletion(job!);
         if (inventory.issue) return await pending(inventory.issue, true);
         const remaining = inventory.documentPaths.filter((path) => !job!.retainedPaths.includes(path));
-        if (remaining.length || inventory.assetIds.some((id) => !job!.retainedPaths.includes(`courseBannerAssets/${id}`))) return await pending("ACCOUNT_DELETION_ACTIVE_RECORDS_REMAIN", true);
+        const remainingAssets = ASSET_KINDS.some((kind) => assetIdsOf(inventory, kind).some((id) => !job!.retainedPaths.includes(`${kind.collection}/${id}`)));
+        if (remaining.length || remainingAssets) return await pending("ACCOUNT_DELETION_ACTIVE_RECORDS_REMAIN", true);
         await save({ stage: "retention_review", status: "retention_review", activeDataRemoved: true, issue: "ACCOUNT_DELETION_RETENTION_REVIEW_PENDING", retainedPaths: [...new Set([...job!.retainedPaths, ...inventory.retainedPaths])] });
         await runStoredDocumentTransaction([accountLifecyclePath(job!.uid)], (documents) => ({
           writes: [{ path: accountLifecyclePath(job!.uid), data: { ...documents[accountLifecyclePath(job!.uid)], state: "deleted", generation: job!.generation, updatedAt: now() } }], result: undefined,

@@ -48,7 +48,8 @@ test("course deletion restores the credit inside 24 hours, capped at two per mon
   expect(credits).toContain("refundCourseCreditForDeletedCourse");
   expect(credits).toContain("COURSE_CREDIT_BACK_WINDOW_MS");
   expect(credits).toContain("COURSE_CREDIT_BACK_MONTHLY_CAP = 2");
-  expect(deletion).toContain("refundCourseCreditForDeletedCourse");
+  // The credit-back commits in the course-root delete transaction.
+  expect(deletion).toContain("deleteCourse(courseId, refundCourseCreditForDeletedCourse(");
 });
 
 test("billing events retain tier, interval, offer, and raw lifecycle dimensions", () => {

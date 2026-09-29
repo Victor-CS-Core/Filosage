@@ -211,6 +211,21 @@ export async function createOrReuseCourseIllustration(
       fingerprint,
     );
     let responseId: string | undefined;
+    let providerReturned = false;
+    let usageFinalized = false;
+    const billedUsage = () => ({
+      model: spec.model,
+      usageSamples: [{
+        model: spec.model,
+        inputTokens: 0,
+        cachedInputTokens: 0,
+        cacheWriteTokens: 0,
+        outputTokens: 0,
+        fixedCostMicros: spec.costMicros,
+        promptVersion: String(STYLE_VERSION),
+      }],
+      ...(responseId ? { responseId } : {}),
+    });
     try {
       const response = await client.images.generate({
         model: spec.model,
@@ -224,6 +239,7 @@ export async function createOrReuseCourseIllustration(
         output_compression: 65,
         user: input.safetyIdentifier,
       });
+      providerReturned = true;
       responseId = typeof response.created !== "undefined" ? `img_${assetId}` : undefined;
       const data = response.data?.[0]?.b64_json;
       if (!data) throw new Error("The image provider returned no illustration data.");
@@ -258,20 +274,8 @@ export async function createOrReuseCourseIllustration(
       await runWithIllustrationUploadReceipt({ ...generation, assetId, claimId }, () => runStoredDocumentTransaction([assetPath], (documents) => ({
         writes: [{ path: assetPath, data: { ...documents[assetPath], status: "uploaded", ...(objectStorage ? { storage: objectStorage } : { data }), updatedAt: createdAt } }], result: undefined,
       })));
-      await finalizeAiUsage(reservation, {
-        model: spec.model,
-        usageSamples: [{
-          model: spec.model,
-          inputTokens: 0,
-          cachedInputTokens: 0,
-          cacheWriteTokens: 0,
-          outputTokens: 0,
-          fixedCostMicros: spec.costMicros,
-          promptVersion: String(STYLE_VERSION),
-        }],
-        ...(responseId ? { responseId } : {}),
-        resultId: assetId,
-      });
+      await finalizeAiUsage(reservation, { ...billedUsage(), resultId: assetId });
+      usageFinalized = true;
       if (budgetReservation && input.courseId) {
         await settleCourseIllustrationBudget(input.courseId, budgetReservation, "spent").catch(() => undefined);
         budgetReservation = null;
@@ -292,8 +296,16 @@ export async function createOrReuseCourseIllustration(
         : { assetId, version: 1, kind: input.kind, generatedAt: createdAt };
       return { illustration, generated: true, model: spec.model, costMicros: spec.costMicros };
     } catch (error) {
-      // Release the unused budget reservation on provider failure.
-      await finalizeAiUsage(reservation, { failed: true, providerOutcome: "not_started", model: spec.model }).catch(() => undefined);
+      // Once dispatched, a failure is never certified as "not_started": a
+      // returned image was billed, and an unanswered call stays uncertain
+      // until usage reconciliation settles it.
+      if (!usageFinalized) {
+        await finalizeAiUsage(reservation, providerReturned ? { ...billedUsage(), failed: true } : { failed: true, model: spec.model }).catch(() => undefined);
+      }
+      if (providerReturned && budgetReservation && input.courseId) {
+        await settleCourseIllustrationBudget(input.courseId, budgetReservation, "spent").catch(() => undefined);
+        budgetReservation = null;
+      }
       throw error;
     }
   } catch (error) {

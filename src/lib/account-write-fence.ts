@@ -7,7 +7,7 @@ export type FenceMutation = { writes: Array<{ path: string; data: Record<string,
 const OWNER_FIELDS = ["uid", "ownerUid", "authorId", "actorId", "reporterUid", "relatedUserId", "targetUid", "actorUid", "publishedBy", "canonicalUid"] as const;
 const UID_COLLECTIONS = new Set(["users", "userEngagement", "pricingIntents", "userSafety"]);
 export const GLOBAL_USAGE_COLLECTIONS = new Set(["generationUsageReceipts", "systemUsageShards"]);
-export const AUTHOR_ARTIFACT_COLLECTIONS = new Set(["courseReleases", "coursePipelineEvents", "courseRepairs", "courseManualReviewMutations"]);
+export const AUTHOR_ARTIFACT_COLLECTIONS = new Set(["courseReleases", "coursePipelineEvents", "courseRepairs", "courseManualReviewMutations", "courseIllustrationBudgets"]);
 // A course reference is not ownership: learner evidence, feedback and shares
 // remain the learner's work when the course author closes their account.
 export function accountDeletionOwnsDocument(path: string, data: Document, uid: string, inventoriedPaths: readonly string[]) {
@@ -85,12 +85,13 @@ export function assertAccountMutation(documents: FenceDocuments, mutation: Fence
     return;
   }
   const lifecycle = scope && "uid" in scope ? documents[accountLifecyclePath(scope.uid)] : null;
-  if (scope?.kind === "banner-receipt") {
+  if (scope?.kind === "banner-receipt" || scope?.kind === "illustration-receipt") {
     if (!lifecycle || lifecycle.generation !== scope.generation || changed.length !== 1) throw new AccountLifecycleError();
     const receipt = changed[0];
     const before = documents[receipt.path];
     const fields = new Set(["status", "storage", "data", "updatedAt"]);
-    if (receipt.deleting || receipt.path !== `courseBannerAssets/${scope.assetId}` || !before || !receipt.data
+    const assetCollection = scope.kind === "banner-receipt" ? "courseBannerAssets" : "courseIllustrationAssets";
+    if (receipt.deleting || receipt.path !== `${assetCollection}/${scope.assetId}` || !before || !receipt.data
       || before.status !== "uploading" || before.ownerUid !== scope.uid || before.accountGeneration !== scope.generation
       || before.claimId !== scope.claimId
       || !["uploaded", "failed"].includes(String(receipt.data.status))
