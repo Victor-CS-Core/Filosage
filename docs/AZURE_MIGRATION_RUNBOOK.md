@@ -108,7 +108,7 @@ Restore evidence: on 2026-08-12, Azure restored the 2026-08-13T01:28:00Z point i
 4. Run **Stage QA-approved image for production** (`.github/workflows/azure-staging.yml`) with the same `expected_sha` and the currently inactive `target_slot`. It refuses a SHA that is not healthy on QA, resolves the ACR digest, updates only the 0% production slot, and verifies the slot before any traffic change.
 5. Run **Promote Azure staging slot** (`.github/workflows/azure-promote-staging.yml`) with that exact SHA and slot only after acceptance. The promoted slot becomes 100%; the former live slot remains at 0% for rollback.
 
-Required GitHub environment `azure-staging` variables are `AZURE_ACR_NAME`, `AZURE_RESOURCE_GROUP`, `AZURE_CONTAINER_APP_NAME`, `AZURE_STAGING_URL`, `AZURE_BLUE_URL`, `AZURE_GREEN_URL`, `AZURE_QA_CONTAINER_APP_NAME`, and `AZURE_QA_URL`. OIDC credentials remain encrypted environment secrets. Any agent can run the workflows, but no agent should copy or expose those secrets.
+Release workflows no longer read `AZURE_ACR_NAME`; new images publish to public GHCR. Keep the variable until ACR retirement so a revert remains possible. Required GitHub environment `azure-staging` variables are `AZURE_RESOURCE_GROUP`, `AZURE_CONTAINER_APP_NAME`, `AZURE_STAGING_URL`, `AZURE_BLUE_URL`, `AZURE_GREEN_URL`, `AZURE_QA_CONTAINER_APP_NAME`, and `AZURE_QA_URL`. OIDC credentials remain encrypted environment secrets. Any agent can run the workflows, but no agent should copy or expose those secrets.
 
 ## Gate 7: domain cutover
 

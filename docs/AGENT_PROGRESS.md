@@ -1,3 +1,18 @@
+## KRO-9 deploy images from ACR to GHCR (branch + PR only) — September 29
+
+Status: review_ready (PR open; merge is Victor's decision). Owner: Filosage Engineer on `paperclip/kro-9-ghcr-images`, based on main `c408acf`. Approved on KRO-3 option `r2_branch`: code switch only. No merge, workflow dispatch, deploy, Azure change, package-visibility change or ACR deletion was performed. Hold the production switch until KRO-8 (Cloudflare feasibility) decides the platform and KRO-5 restores routing.
+
+- [x] Build script pushes `ghcr.io/victor-cs-core/filosage:<sha>-<run>-<attempt>` with the workflow `GITHUB_TOKEN` (`packages: write`). It keeps the fail-closed checks: the tag must be absent (OCI manifest 404), the push returns exactly one digest, and authenticated registry readback equals it. A new anonymous readback by digest fails the build before any Container App change if the package is not public. No `az` call remains in the build.
+- [x] One shared validator `validReleaseImage` accepts only `ghcr.io/victor-cs-core/filosage@sha256:<64 hex>` or `filosagestp4ujucgnxq3gsacr.azurecr.io/filosage@sha256:<64 hex>`. The former wildcard `[a-z0-9]+.azurecr.io` form is now pinned to the real registry. It is used for the preflight live pin, candidate readback, predecessor readiness and `check-image`. The production inventory script accepts both exact forms. Stage pins new candidates to GHCR only.
+- [x] `AZURE_ACR_NAME` was removed from the four release workflows and `deploymentVariables`. The GitHub variable itself is kept so a revert still works.
+- [x] Bicep: the app keeps its ACR `registries` entry and AcrPull. The live ACR revision scales to zero and re-pulls on cold start, so removing them would break rollback. Bootstrap job registries now apply only when the bootstrap image is in ACR. The registry resource is unchanged.
+- [ ] After merge (owner): the first staging run creates the private package and fails closed at the public check. Make the package public, then re-dispatch. The authenticated `GITHUB_TOKEN` token exchange and push can only be verified in that hosted run.
+- [ ] Before any ACR deletion: `infra/azure/operations-alert-receiver.bicep` still pins an ACR image with AcrPull. The receiver must move to GHCR first, or ACR deletion breaks it.
+
+Verification (local, 2026-09-29): 9/9 runner-build, 23/23 node tests (maintenance-access, runner-build, candidate-proof), 67/67 focused contracts (blue-green, release-capabilities, release-prerequisites, azure-infrastructure), full contracts 502/503. The one failure, `operations-scripts.spec.ts:71` (`az: command not found`), also fails on unmodified main locally. `tsc --noEmit` clean, oxlint and ESLint clean on touched files, tracked-secret scan and `git diff --check` pass. `az bicep build` succeeds for `main.bicep` (one `listKeys` linter warning that already exists on main) and `bootstrap.bicep`. The real GHCR API was probed with the script's exact curl flags against a public image: existing tag 200, absent tag 404, one `docker-content-digest` that matches by tag and by digest. The Python inventory validator accepts both exact forms and rejects other registries, owners and digests.
+
+---
+
 ## Tier C illustrated courses + gpt-image-2.5 model adoption — September 25
 
 Status: in_progress (local implementation only). No source push, deployment, Azure mutation, billing activation, or public-course publication. Working tree: local snapshot of `47e4f5576f1332805786bbcf170bd44cc21f1d37` without `.git`.
