@@ -1,5 +1,6 @@
 import { getStoredDocument } from "@/lib/document-store";
 import { readCourseBannerObject } from "@/lib/course-banner-storage";
+import { readCourseIllustrationObject } from "@/lib/course-illustration-storage";
 
 interface RouteParams {
   params: Promise<{ assetId: string }>;
@@ -22,7 +23,12 @@ export async function GET(request: Request, { params }: RouteParams) {
   }
 
   try {
-    const asset = await getStoredDocument(`courseBannerAssets/${assetId}`);
+    // Tier B/C heroes are stored with the other course illustrations but are
+    // still referenced as `course.banner`.
+    const bannerAsset = await getStoredDocument(`courseBannerAssets/${assetId}`);
+    const heroAsset = bannerAsset ? null : await getStoredDocument(`courseIllustrationAssets/${assetId}`);
+    const asset = bannerAsset
+      ?? (heroAsset?.kind === "hero" && (!heroAsset.status || heroAsset.status === "uploaded") ? heroAsset : null);
     if (!asset || asset.contentType !== "image/webp") {
       return Response.json({ error: "Banner not found." }, { status: 404 });
     }
@@ -32,7 +38,7 @@ export async function GET(request: Request, { params }: RouteParams) {
       return Response.json({ error: "Banner not found." }, { status: 404 });
     }
     const bytes = asset.storage === "azure-blob"
-      ? await readCourseBannerObject(assetId)
+      ? await (bannerAsset ? readCourseBannerObject(assetId) : readCourseIllustrationObject(assetId))
       : typeof asset.data === "string"
         ? decodeBase64(asset.data)
         : null;

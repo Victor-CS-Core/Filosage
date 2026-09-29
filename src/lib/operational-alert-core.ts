@@ -54,6 +54,24 @@ function sanitizedContext(context: OperationalAlertContext | undefined) {
   );
 }
 
+function sanitizedCode(code: string) {
+  return code.replace(/[^A-Za-z0-9_.-]/g, "_").slice(0, 80) || "operations.unknown";
+}
+
+/**
+ * One structured console line per operational event, independent of webhook
+ * delivery, so log-based alert rules can match `component == "operational-alert"`.
+ */
+export function operationalAlertLogLine(event: OperationalAlertEvent) {
+  return JSON.stringify({
+    component: "operational-alert",
+    severity: event.severity,
+    code: sanitizedCode(event.code),
+    message: event.message.slice(0, 300),
+    context: sanitizedContext(event.context),
+  });
+}
+
 async function sha256(value: string) {
   const digest = new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(value)));
   return Array.from(digest, (byte) => byte.toString(16).padStart(2, "0")).join("");
@@ -78,7 +96,7 @@ export async function createOperationalAlertEnvelope(
   deduplicationMs = DEFAULT_DEDUPLICATION_MS,
 ): Promise<OperationalAlertEnvelope> {
   const environmentName = environment.name?.trim().slice(0, 40) || "unknown";
-  const code = event.code.replace(/[^A-Za-z0-9_.-]/g, "_").slice(0, 80) || "operations.unknown";
+  const code = sanitizedCode(event.code);
   const deduplicationBucket = Math.floor(occurredAt.getTime() / deduplicationMs);
   const deduplicationMaterial = [
     "filosage",

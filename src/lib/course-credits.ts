@@ -2,7 +2,7 @@ import "server-only";
 
 import type { ServerAccount } from "@/lib/account-server";
 import type { Course } from "@/lib/course-types";
-import { getStoredDocument, runStoredDocumentTransaction } from "@/lib/document-store";
+import { getStoredDocument, runStoredDocumentTransaction, type CourseRootDeletion } from "@/lib/document-store";
 import {
   COURSE_CREDIT_SCHEMA_VERSION,
   courseCreditInteger,
@@ -151,24 +151,26 @@ function courseCreditBackMonthKey(now: Date) {
  * creation restores the course credit, capped at two refunds per calendar
  * month. Exactly-once per course via the refund claim document; the monthly
  * counter lives in the same transaction so concurrent deletes cannot exceed
- * the cap.
+ * the cap. The refund commits in the course-root delete transaction, so a
+ * failed or interrupted delete neither mints nor loses a credit.
  */
-export async function refundCourseCreditForDeletedCourse(
+export function refundCourseCreditForDeletedCourse(
   account: ServerAccount,
   course: { id: string; redeemedAt?: string },
-): Promise<CourseCreditBackResult> {
-  if (account.isOwner) return { refunded: false, reason: "owner" };
+  now = new Date(),
+): CourseRootDeletion<CourseCreditBackResult> {
+  const immediate = (result: CourseCreditBackResult): CourseRootDeletion<CourseCreditBackResult> => ({ paths: [], apply: () => ({ writes: [], result }) });
+  if (account.isOwner) return immediate({ refunded: false, reason: "owner" });
   const redeemedAt = course.redeemedAt ? Date.parse(course.redeemedAt) : NaN;
-  if (!Number.isFinite(redeemedAt)) return { refunded: false, reason: "ineligible" };
-  const now = new Date();
+  if (!Number.isFinite(redeemedAt)) return immediate({ refunded: false, reason: "ineligible" });
   if (now.getTime() - redeemedAt > COURSE_CREDIT_BACK_WINDOW_MS) {
-    return { refunded: false, reason: "outside_window" };
+    return immediate({ refunded: false, reason: "outside_window" });
   }
   const ledgerPath = `users/${account.uid}/courseCredits/current`;
   const refundPath = `users/${account.uid}/courseCreditRefunds/${course.id}`;
   const monthKey = courseCreditBackMonthKey(now);
   const monthPath = `users/${account.uid}/courseCreditRefundMonths/${monthKey}`;
-  return runStoredDocumentTransaction([ledgerPath, refundPath, monthPath], (documents) => {
+  return { paths: [ledgerPath, refundPath, monthPath], apply: (documents) => {
     if (documents[refundPath]) return { writes: [], result: { refunded: false, reason: "already_refunded" } as CourseCreditBackResult };
     const ledger = reconcileCourseCreditLedger(documents[ledgerPath], account, now);
     const used = courseCreditInteger(documents[monthPath]?.refunds);
@@ -185,7 +187,7 @@ export async function refundCourseCreditForDeletedCourse(
       ],
       result: { refunded: true, balance } as CourseCreditBackResult,
     };
-  });
+  } };
 }
 
 export async function storedCourseCreditSummary(uid: string) {  const ledger = await getStoredDocument(`users/${uid}/courseCredits/current`);

@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { spawnSync } from "node:child_process";
 import {
   createOperationalAlertEnvelope,
   deliverOperationalAlert,
@@ -137,4 +138,21 @@ test("legacy HTTP success cannot establish receiver readiness and failure observ
     const observation = { status, alertId: "fa_fixture" };
     expect(operationalAlertSenderObservation(observation)).toEqual(observation);
   }
+});
+
+test("every operational event leaves one structured log line even with no receiver configured", () => {
+  const environment = { ...process.env };
+  delete environment.OPERATIONS_ALERT_WEBHOOK_URL;
+  delete environment.OPERATIONS_ALERT_WEBHOOK_SECRET;
+  const result = spawnSync(process.execPath, ["--conditions=react-server", "--import", "tsx", "--input-type=module", "-e", `
+    const { reportOperationalEvent } = await import('./src/lib/operational-alerts.ts');
+    await reportOperationalEvent({ severity: 'critical', code: 'billing.webhook_failed', message: 'A verified Stripe event failed.', deduplicationKey: 'evt_1', context: { eventId: 'evt_1', 'bad key!': 'x'.repeat(500) } });
+  `], { cwd: process.cwd(), encoding: "utf8", env: environment, timeout: 30_000 });
+  expect(result.status, result.stderr).toBe(0);
+  const lines = result.stderr.split("\n").filter((line) => line.startsWith("{"));
+  expect(lines).toHaveLength(1);
+  const logged = JSON.parse(lines[0]);
+  expect(logged).toMatchObject({ component: "operational-alert", severity: "critical", code: "billing.webhook_failed" });
+  expect(logged.context.eventId).toBe("evt_1");
+  expect(logged.context.badkey).toHaveLength(240);
 });

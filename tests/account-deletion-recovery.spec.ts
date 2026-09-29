@@ -19,6 +19,15 @@ test("deletion stages, concurrent request scopes, inventory limits, billing and 
   expect(result.stdout).toContain("ACCOUNT_LIFECYCLE_BEHAVIOR_OK");
 });
 
+test("Tier C illustrations, spend ledgers and credit-back receipts delete cleanly; credit-back commits with the course delete", () => {
+  const result = spawnSync(process.execPath, [
+    "--conditions=react-server", "--experimental-test-module-mocks", "--import", "tsx",
+    "tests/fixtures/tier-c-deletion-behavior.mjs",
+  ], { cwd: process.cwd(), encoding: "utf8", timeout: 60_000 });
+  expect(result.status, `${result.stdout}\n${result.stderr}`).toBe(0);
+  expect(result.stdout).toContain("TIER_C_DELETION_BEHAVIOR_OK");
+});
+
 test("expired banner attempts cannot recreate remote data after deletion completes", () => {
   const result = spawnSync(process.execPath, [
     "--conditions=react-server", "--experimental-test-module-mocks", "--import", "tsx",

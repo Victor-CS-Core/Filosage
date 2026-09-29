@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { execFileSync } from "node:child_process";
+import { execFileSync, spawnSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import {
   buildLessonIllustrationPrompt,
@@ -170,4 +170,22 @@ test("course DTO carries the creator-tier seal signal, plus/pro only", () => {
   expect(result.missing).toBeNull();
   expect(result.free).toBeNull();
   expect(result.bogus).toBeNull();
+});
+
+function runFixture(path: string, mocks = false) {
+  return spawnSync(process.execPath, [
+    "--conditions=react-server", ...(mocks ? ["--experimental-test-module-mocks"] : []), "--import", "tsx", path,
+  ], { cwd: process.cwd(), encoding: "utf8", timeout: 60_000 });
+}
+
+test("Tier B/C heroes are served through the course banner route", () => {
+  const result = runFixture("tests/fixtures/course-hero-serving-behavior.mjs");
+  expect(result.status, `${result.stdout}\n${result.stderr}`).toBe(0);
+  expect(result.stdout).toContain("COURSE_HERO_SERVING_BEHAVIOR_OK");
+});
+
+test("dispatched illustration failures are never certified as not started, and billed images count against the course cap", () => {
+  const result = runFixture("tests/fixtures/illustration-accounting-behavior.mjs", true);
+  expect(result.status, `${result.stdout}\n${result.stderr}`).toBe(0);
+  expect(result.stdout).toContain("ILLUSTRATION_ACCOUNTING_BEHAVIOR_OK");
 });

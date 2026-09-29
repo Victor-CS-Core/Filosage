@@ -1584,7 +1584,20 @@ export async function getCoursePublishReadiness(
   return inspectCoursePublishReadiness(lessons, expectedLessonIds, topic, expectedModesByLessonId, instructionLanguage);
 }
 
-export async function deleteCourse(courseId: string) {
+/**
+ * Extra writes committed in the same transaction as the course-root delete.
+ * `apply` runs only while the root still exists, so its effect happens
+ * exactly when (and only if) this call removes the course.
+ */
+export interface CourseRootDeletion<T> {
+  paths: string[];
+  apply: (documents: Record<string, StoredDocument | null>) => {
+    writes: Array<{ path: string; data: Record<string, unknown> }>;
+    result: T;
+  };
+}
+
+export async function deleteCourse<T = never>(courseId: string, rootDeletion?: CourseRootDeletion<T>) {
   const notePrefix = `${courseId}:`;
   const courseScopedDocuments = (collectionId: string) => runLocatedQuery({
     from: collectionGroupFrom(collectionId),
@@ -1763,9 +1776,14 @@ export async function deleteCourse(courseId: string) {
   // Delete dependents first and the course record last. If cleanup is
   // interrupted, retrying the operation safely completes the remaining work.
   await commitWrites(dependentWrites);
-  await commitWrites([{ delete: fullDocumentName(`courses/${courseId}`) }]);
+  const rootPath = `courses/${courseId}`;
+  const rootResult = await runStoredDocumentTransaction([rootPath, ...(rootDeletion?.paths ?? [])], (documents) => {
+    const extra = rootDeletion && documents[rootPath] ? rootDeletion.apply(documents) : undefined;
+    return { writes: extra?.writes ?? [], deletes: [rootPath], result: extra?.result };
+  });
 
   return {
+    rootResult,
     lessons: lessons.length,
     progressRecords: progressDocuments.length,
     notes: noteDocuments.length,
