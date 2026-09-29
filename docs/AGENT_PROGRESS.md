@@ -11,6 +11,8 @@ Fixed (each with a test that fails on the old code and passes now):
 
 Verification (local, Node 26): `tsc --noEmit` clean; oxlint + eslint clean on touched files; `test:billing` 32/32; `test:contracts` 503/504 (only the known `operations-scripts.spec.ts:71` mise/`az` shim quirk, P2-6).
 
+CI on PR #52 at `0ce1289`: static-and-release-contracts, Semgrep CE security gate, browser-smoke and postgres-transactions passed. Support-wiki `validate` failed on the original PR body (no wiki-impact declaration); body now declares `Wiki impact: none` with rationale (`check:support-wiki` passes locally) and this commit re-triggers it. Launch/rollback checklist saved on KRO-5 as `launch-rollback-checklist`.
+
 Still open (not code; owner decisions in KRO-6/KRO-7): Stripe sandbox lifecycle run, alert rule enablement, blue/green relabel and staging `main`, tax posture, `course-illustrations` container, Stripe Dashboard emails/dunning, legal review. Remaining Tier C items not addressed here: persisted alt text, runtime decorative-only enforcement, lesson DTO/publication exposure proof.
 
 ---
