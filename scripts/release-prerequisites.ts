@@ -1,9 +1,9 @@
-import { observedReleaseCapabilities, releaseCapabilitiesMatch, releaseSelectionMatches, validReleaseDigest, validReleaseManifest, validReleaseSha } from "../src/lib/release-capabilities.ts";
+import { observedReleaseCapabilities, releaseCapabilitiesMatch, releaseSelectionMatches, validReleaseDigest, validReleaseImage, validReleaseManifest, validReleaseSha } from "../src/lib/release-capabilities.ts";
 import { assertBlueGreenState, fingerprint, labelOrigin } from "./blue-green-contract.ts";
 
 type RecordValue = Record<string, unknown>;
 const record = (value: unknown): value is RecordValue => Boolean(value) && typeof value === "object" && !Array.isArray(value);
-export const deploymentVariables = ["AZURE_RESOURCE_GROUP", "AZURE_CONTAINER_APP_NAME", "AZURE_ACR_NAME"];
+export const deploymentVariables = ["AZURE_RESOURCE_GROUP", "AZURE_CONTAINER_APP_NAME"];
 export const deploymentSecrets = ["AZURE_CLIENT_ID", "AZURE_TENANT_ID", "AZURE_SUBSCRIPTION_ID"];
 // Manual stage, evidence review and promotion share the existing scoped OIDC environment.
 export const releaseEnvironments = ["azure-staging"];
@@ -72,7 +72,7 @@ export function predecessorReadiness(value: unknown, status: number, body: unkno
     environment[entry.name] = typeof entry.value === "string" ? entry.value : undefined;
   }
   const image = typeof container.image === "string" ? container.image : "";
-  const immutableImage = /^[a-z0-9]+\.azurecr\.io\/filosage@sha256:[a-f0-9]{64}$/.test(image);
+  const immutableImage = validReleaseImage(image);
   const sha = environment.SITE_VERSION;
   const digest = image.split("@")[1];
   const manifest = { schemaVersion: 1, capabilities: observedReleaseCapabilities(environment) };

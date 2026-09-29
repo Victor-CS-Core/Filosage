@@ -4,7 +4,7 @@ param location string = resourceGroup().location
 param environmentName string
 param registryName string
 param keyVaultName string
-@description('Immutable image built from the Dockerfile bootstrap target, never the application target.')
+@description('Immutable image built from the Dockerfile bootstrap target, never the application target. Public GHCR or legacy ACR.')
 param bootstrapImage string
 param postgresAppLogin string = 'filosage_app'
 param postgresAppDatabase string = 'filosage'
@@ -43,7 +43,7 @@ resource bootstrapJob 'Microsoft.App/jobs@2025-01-01' = {
       replicaRetryLimit: 0
       replicaTimeout: 600
       manualTriggerConfig: { parallelism: 1, replicaCompletionCount: 1 }
-      registries: [{ server: registry.properties.loginServer, identity: bootstrapIdentity.id }]
+      registries: startsWith(bootstrapImage, '${registry.properties.loginServer}/') ? [{ server: registry.properties.loginServer, identity: bootstrapIdentity.id }] : []
       secrets: [
         { name: 'database-admin-url', keyVaultUrl: 'https://${vault.name}${environment().suffixes.keyvaultDns}/secrets/database-admin-url', identity: bootstrapIdentity.id }
         { name: 'postgres-app-password', keyVaultUrl: 'https://${vault.name}${environment().suffixes.keyvaultDns}/secrets/postgres-app-password', identity: bootstrapIdentity.id }

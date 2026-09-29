@@ -20,6 +20,7 @@ SUBSCRIPTION = "bfc8f890-2681-43dc-8eac-51644341ae12"
 GROUP = "filosage-staging-central-rg"
 APP = "filosagestg-app"
 APP_ID = f"/subscriptions/{SUBSCRIPTION}/resourceGroups/{GROUP}/providers/Microsoft.App/containerApps/{APP}".lower()
+IMAGE_REPOSITORIES = ("ghcr.io/victor-cs-core/filosage", "filosagestp4ujucgnxq3gsacr.azurecr.io/filosage")
 TRANSPORT_SHA = "ebf0b21413caea1127f81cfc398547b0460d4c2bef73b77e972e595fd2de1f40"
 TRANSPORT_PATH = "/home/ktr0nn/Work/Filosage/.worktrees/visitor-resume/.superpowers/sdd/outcome-checklist/qa-bootstrap/qa_bootstrap.py"
 
@@ -38,7 +39,7 @@ def validate_revision(app: dict, revision: dict, name: str, sha: str, digest: st
     if str(app.get("id", "")).lower() != APP_ID or revision.get("name") != name or revision.get("properties", {}).get("active") is not True:
         raise RuntimeError("Active revision target mismatch.")
     containers = revision.get("properties", {}).get("template", {}).get("containers", [])
-    if len(containers) != 1 or containers[0].get("image") != f"filosagestp4ujucgnxq3gsacr.azurecr.io/filosage@{digest}":
+    if len(containers) != 1 or containers[0].get("image") not in {f"{repository}@{digest}" for repository in IMAGE_REPOSITORIES}:
         raise RuntimeError("Immutable image target mismatch.")
     entries = containers[0].get("env", [])
     versions = [item.get("value") for item in entries if item.get("name") == "SITE_VERSION"]

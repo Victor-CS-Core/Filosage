@@ -1,6 +1,6 @@
 import { modernDatabasePoolMax } from "../src/lib/database-connection-budget.ts";
 import { createHash } from "node:crypto";
-import { releaseEvidenceMatches, releaseEnvironment, type ReleaseEvidence } from "../src/lib/release-capabilities.ts";
+import { releaseEvidenceMatches, releaseEnvironment, validReleaseImage, type ReleaseEvidence } from "../src/lib/release-capabilities.ts";
 
 const object = (value: unknown): value is Record<string, unknown> => Boolean(value) && typeof value === "object" && !Array.isArray(value);
 export const canonical = (value: unknown): string => JSON.stringify(value, (_, item: unknown) => object(item) ? Object.fromEntries(Object.keys(item).sort().map((key) => [key, item[key]])) : item);
@@ -52,7 +52,7 @@ export function assertCandidateReadback(evidence: ReleaseEvidence, observed: unk
     || `https://${revision.properties.fqdn}` !== evidence.candidateOrigin || !object(revision.properties.template) || !Array.isArray(revision.properties.template.containers)
     || revision.properties.template.containers.length !== 1) throw new Error("Candidate revision readback is invalid.");
   const container = revision.properties.template.containers[0];
-  if (!object(container) || typeof container.image !== "string" || !/^[a-z0-9]+\.azurecr\.io\/filosage@sha256:[a-f0-9]{64}$/.test(container.image)
+  if (!object(container) || !validReleaseImage(container.image)
     || !container.image.endsWith(`@${evidence.imageDigest}`) || !Array.isArray(container.env)) throw new Error("Candidate image is not the approved immutable image.");
   const environment = new Map<string, unknown>();
   for (const entry of container.env) {

@@ -6,10 +6,10 @@ param prefix string
 @description('Azure region for the single BFF application and its durable services.')
 param location string = resourceGroup().location
 
-@description('Reviewed immutable ACR application image, including its sha256 digest.')
+@description('Reviewed immutable application image by sha256 digest: public GHCR for new releases, or the legacy ACR image during rollback.')
 param containerImage string
 
-@description('Deploy the application after its immutable image exists in ACR.')
+@description('Deploy the application after its immutable image exists in its registry.')
 param deployApplication bool = false
 
 @description('Exact reviewed revision traffic readback. Never use latestRevision or implicit traffic.')
@@ -526,6 +526,7 @@ resource app 'Microsoft.App/containerApps@2025-01-01' = if (deployApplication) {
         transport: 'auto'
         traffic: revisionTraffic
       }
+      // Public GHCR images need no credential; keep ACR pull access until no live or rollback revision uses ACR.
       registries: [{ server: registry.properties.loginServer, identity: identity.id }]
       secrets: appSecrets
     }

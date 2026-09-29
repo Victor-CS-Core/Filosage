@@ -1,13 +1,14 @@
 import { spawnSync } from "node:child_process";
 import { expect, test } from "@playwright/test";
-import { releaseEnvironment, type ReleaseEvidence } from "../src/lib/release-capabilities";
+import { releaseEnvironment, validReleaseImage, type ReleaseEvidence } from "../src/lib/release-capabilities";
 import { readFileSync } from "node:fs";
 import { assertBlueGreenState, assertCandidateReadback, authConfigurationHash, candidateTraffic, labelOrigin, azureLocationName } from "../scripts/blue-green-contract";
 
 const appId = "/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/release/providers/Microsoft.App/containerApps/filosage-app";
 const sha = "a".repeat(40);
 const digest = `sha256:${"d".repeat(64)}`;
-const image = `registry.azurecr.io/filosage@${digest}`;
+const image = `ghcr.io/victor-cs-core/filosage@${digest}`;
+const legacyImage = `filosagestp4ujucgnxq3gsacr.azurecr.io/filosage@${digest}`;
 const manifest = JSON.parse(readFileSync("config/release-capabilities.json", "utf8"));
 const auth = { platform: { enabled: true }, httpSettings: { requireHttps: true }, identityProviders: { google: { enabled: true }, customOpenIdConnectProviders: { filosage: { enabled: true } } } };
 const state = () => ({ appId, location: "westus", mode: "Multiple", fqdn: "filosage-app.region.azurecontainerapps.io", authConfigSha256: authConfigurationHash(auth, "migration-dual"), traffic: [
@@ -66,13 +67,33 @@ test("candidate readback binds exact runtime image, manifest, SHA, canonical ori
   expect(() => assertCandidateReadback(candidate, state(), changedPool, previous)).toThrow();
   const changedLive = state(); changedLive.traffic[0].revisionName = "filosage-app--different";
   expect(() => assertCandidateReadback(candidate, changedLive, revision, previous)).toThrow();
+  const legacy = structuredClone(revision); legacy.properties.template.containers[0].image = legacyImage;
+  expect(() => assertCandidateReadback(candidate, state(), legacy, previous)).not.toThrow();
+  for (const other of [`registry.azurecr.io/filosage@${digest}`, `ghcr.io/other-owner/filosage@${digest}`, `ghcr.io/victor-cs-core/filosage:${sha}`, `ghcr.io/victor-cs-core/filosage@sha256:${"e".repeat(64)}`]) {
+    const changed = structuredClone(revision); changed.properties.template.containers[0].image = other;
+    expect(() => assertCandidateReadback(candidate, state(), changed, previous)).toThrow();
+  }
+});
+
+test("release images are exact digest pins in the public GHCR repository or the retained legacy ACR repository", () => {
+  expect(validReleaseImage(image)).toBe(true);
+  expect(validReleaseImage(legacyImage)).toBe(true);
+  for (const value of [
+    `registry.azurecr.io/filosage@${digest}`, `filosagestp4ujucgnxq3gsacrx.azurecr.io/filosage@${digest}`, `ghcr.io/other-owner/filosage@${digest}`,
+    `ghcr.io/Victor-CS-Core/filosage@${digest}`, `ghcr.io/victor-cs-core/filosage-web@${digest}`, `docker.io/victor-cs-core/filosage@${digest}`,
+    `ghcr.io/victor-cs-core/filosage:${sha}`, `ghcr.io/victor-cs-core/filosage@sha256:${"d".repeat(63)}`, ` ${image}`, `${image}\n`, undefined,
+  ]) expect(validReleaseImage(value)).toBe(false);
+  const deployment = readFileSync("scripts/azure-blue-green.mjs", "utf8");
+  expect(deployment).toContain('"--image", `${releaseImageRepository}@${digest}`');
+  expect(deployment).toContain("!validReleaseImage(container.image)");
+  expect(deployment).not.toContain("AZURE_ACR_NAME");
 });
 
 test("hosted review requires every exact-candidate artifact and compatible predecessor", async () => {
   const { validateHostedReview, hostedGates } = await import("../scripts/blue-green-review");
   const { fingerprint } = await import("../scripts/blue-green-contract");
   const candidate = { schemaVersion: 2 as const, sha, imageDigest: digest, manifest, productionOrigin: "https://filosage.com", candidateOrigin: "https://filosage-app--candidate.region.azurecontainerapps.io", authenticationMode: "migration-dual", appId, revision: "filosage-app--candidate", label: "green", authConfigSha256: state().authConfigSha256,
-    previous: { sha: "b".repeat(40), revision: "filosage-app--old", image: `registry.azurecr.io/filosage@sha256:${"e".repeat(64)}` } };
+    previous: { sha: "b".repeat(40), revision: "filosage-app--old", image: `filosagestp4ujucgnxq3gsacr.azurecr.io/filosage@sha256:${"e".repeat(64)}` } };
   const packet = { schemaVersion: 1, candidateFingerprint: fingerprint(candidate), operator: "Operator fixture", reviewedBy: "Reviewer fixture", rollbackTrigger: "Signed-in smoke or monitored error regression", testDataPolicy: "approved-accounts-and-data-only", writeCompatibility: "overlapping-readers-writers-and-inflight-fences-verified", minimumSafeRollbackSha: candidate.previous.sha, rollbackRevision: candidate.previous.revision, rollbackImage: candidate.previous.image, rollbackAuthorized: true,
     evidence: hostedGates.map((gate) => ({ gate, runId: "123", workflow: ".github/workflows/hosted-fixture.yml", artifact: gate, artifactDigest: digest, candidateFingerprint: fingerprint(candidate), result: "passed", method: "Observed hosted fixture transcript", reviewedBy: "Reviewer fixture", observedAt: "2026-09-01T10:00:00Z" })) };
   expect(() => validateHostedReview(packet, candidate)).not.toThrow();
