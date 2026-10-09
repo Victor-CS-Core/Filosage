@@ -23,6 +23,7 @@ import {
   NotebookPen,
   RotateCcw,
   Send,
+  Sparkles,
   Target,
   Waypoints,
   X,
@@ -69,6 +70,7 @@ import {
   type InteractionEvidence,
 } from "@/lib/lesson-interactions";
 import { createClientId, deferClientTask } from "@/lib/browser-compat";
+import SparkWorkspace, { useSparkCourseState } from "@/components/SparkWorkspace";
 
 interface Message {
   id: string;
@@ -130,7 +132,7 @@ interface QuizResult {
   receipt?: string;
 }
 
-type LessonPane = "learn" | "activities";
+type LessonPane = "learn" | "activities" | "spark";
 type ActivitySectionId = "experience" | "lab" | "guided" | "transfer" | "checks";
 
 interface ActivitySection {
@@ -292,6 +294,7 @@ export default function LessonView() {
   const lessonId = params.lessonId;
   const courseId = searchParams.get("id");
   const reviewMode = searchParams.get("review") === "1";
+  const sparkRequested = searchParams.get("spark") === "1";
   const requestedCheck = searchParams.get("check");
   const reviewKind: ReviewKind = requestedCheck === "day7"
     ? "delayed-7"
@@ -300,6 +303,7 @@ export default function LessonView() {
       : "spaced";
   const [moduleIndex, lessonIndex] = lessonId.split("-").map(Number);
   const { user, isOwner, canGenerateLessons, loading: authLoading } = useAuth();
+  const sparkCourse = useSparkCourseState(user, courseId, lessonId);
   const session = useMemo(() => learnerSessionSnapshot(user?.uid ?? null), [user?.uid]);
   const entryMode = useAccountEntryMode();
   const masteryJourney = useMasteryJourney(courseId, user);
@@ -425,7 +429,15 @@ export default function LessonView() {
   const interactionComplete = reviewMode || !practiceInteraction || Boolean(
     interactionEvidence?.interactionId === practiceInteraction.id && interactionEvidence.completed,
   );
-  const lessonPane = lessonPaneState.key === lessonViewKey ? lessonPaneState.pane : reviewMode ? "activities" : "learn";
+  const sparkAvailable = !reviewMode && sparkCourse.state?.featureEnabled === true;
+  const requestedPane = lessonPaneState.key === lessonViewKey
+    ? lessonPaneState.pane
+    : sparkRequested && sparkAvailable
+      ? "spark"
+      : reviewMode ? "activities" : "learn";
+  const lessonPane = requestedPane === "spark" && !sparkAvailable
+    ? reviewMode ? "activities" : "learn"
+    : requestedPane;
   const reviewRecallLocked = reviewMode && !(reviewCommitState.key === lessonViewKey && reviewCommitState.committed);
   const guidedPracticeComplete = reviewMode || !lessonData?.guidedPractice
     || (guidedPracticeState.key === noteKey && guidedPracticeState.complete);
@@ -485,8 +497,17 @@ export default function LessonView() {
   const handleLessonPaneKeyDown = (event: React.KeyboardEvent<HTMLButtonElement>) => {
     if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return;
     event.preventDefault();
-    const nextPane = event.key === "ArrowLeft" || event.key === "Home" ? "learn" : "activities";
-    if (nextPane === "learn" && reviewRecallLocked) return;
+    const panes: LessonPane[] = [
+      ...(!reviewRecallLocked ? ["learn" as const] : []),
+      "activities",
+      ...(sparkAvailable ? ["spark" as const] : []),
+    ];
+    const currentIndex = Math.max(0, panes.indexOf(lessonPane));
+    const nextPane = event.key === "Home"
+      ? panes[0]
+      : event.key === "End"
+        ? panes.at(-1)!
+        : panes[(currentIndex + (event.key === "ArrowRight" ? 1 : -1) + panes.length) % panes.length];
     focusLessonPane(nextPane);
   };
 
@@ -1422,13 +1443,18 @@ export default function LessonView() {
                 className="lesson-illustration"
               />
 
-              <div className="lesson-mode-tabs" role="tablist" aria-label="Lesson workspace">
+              <div className={`lesson-mode-tabs ${sparkAvailable ? "has-spark" : ""}`} role="tablist" aria-label="Lesson workspace">
                 <button id="lesson-learn-tab" type="button" role="tab" aria-selected={lessonPane === "learn"} aria-controls="lesson-pane-content" aria-describedby={reviewRecallLocked ? "review-cues-locked" : undefined} disabled={reviewRecallLocked} tabIndex={lessonPane === "learn" ? 0 : -1} className={lessonPane === "learn" ? "is-active" : ""} onClick={() => selectLessonPane("learn")} onKeyDown={handleLessonPaneKeyDown}>
                   <BookOpenText size={17} /><span><strong>Learn</strong><small>Explanation and key ideas</small></span>
                 </button>
                 <button id="lesson-activities-tab" type="button" role="tab" aria-selected={lessonPane === "activities"} aria-controls="lesson-pane-content" tabIndex={lessonPane === "activities" ? 0 : -1} className={lessonPane === "activities" ? "is-active" : ""} onClick={() => selectLessonPane("activities")} onKeyDown={handleLessonPaneKeyDown}>
                   <ListChecks size={17} /><span><strong>Activities</strong><small>{completedActivityCount} of {activitySections.length} complete</small></span>
                 </button>
+                {sparkAvailable && (
+                  <button id="lesson-spark-tab" type="button" role="tab" aria-selected={lessonPane === "spark"} aria-controls="lesson-pane-content" tabIndex={lessonPane === "spark" ? 0 : -1} className={lessonPane === "spark" ? "is-active" : ""} onClick={() => selectLessonPane("spark")} onKeyDown={handleLessonPaneKeyDown}>
+                    <Sparkles size={17} /><span><strong>Spark</strong><small>Explain, practice, transfer</small></span>
+                  </button>
+                )}
               </div>
 
               {lessonPane === "activities" && (
@@ -1449,7 +1475,7 @@ export default function LessonView() {
                 </div>
               )}
 
-              <div key={lessonPane === "learn" ? "learn" : `activities-${activeActivityId}`} id="lesson-pane-content" className="lesson-pane-content" role="tabpanel" aria-labelledby={lessonPane === "learn" ? "lesson-learn-tab" : "lesson-activities-tab"}>
+              <div key={lessonPane === "learn" ? "learn" : lessonPane === "spark" ? "spark" : `activities-${activeActivityId}`} id="lesson-pane-content" className="lesson-pane-content" role="tabpanel" aria-labelledby={`lesson-${lessonPane}-tab`}>
 
               {lessonPane === "learn" && lessonData.aiAssisted && (
                 <aside className="lesson-ai-notice" data-ai-generated="true">
@@ -1661,6 +1687,23 @@ export default function LessonView() {
                   <button className="button button-secondary button-small" onClick={() => void markComplete()}>Mark learned</button>
                 )}
               </div>}
+
+              {lessonPane === "spark" && user && sparkCourse.state && (
+                <SparkWorkspace
+                  user={user}
+                  state={sparkCourse.state}
+                  canPrepare={isOwner || course.authorId === user.uid}
+                  reloadState={sparkCourse.reload}
+                />
+              )}
+
+              {lessonPane === "spark" && sparkCourse.loading && (
+                <div className="spark-loading" aria-live="polite"><LoaderCircle className="spin" size={19} /> Opening Spark</div>
+              )}
+
+              {lessonPane === "spark" && sparkCourse.error && (
+                <div className="spark-empty" role="alert"><CircleAlert size={24} /><h2>Spark could not open.</h2><p>{sparkCourse.error}</p><button className="button button-secondary" type="button" onClick={sparkCourse.reload}>Try again</button></div>
+              )}
 
               {lessonPane === "learn" && courseId && (
                 <LessonIntegrityPanel

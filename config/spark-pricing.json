@@ -1,0 +1,19 @@
+{
+  "version": "2026-10-09-openai-gpt-4.1-mini-v1",
+  "verifiedAt": "2026-10-09T00:00:00.000Z",
+  "expiresAt": "2026-11-09T00:00:00.000Z",
+  "models": {
+    "gpt-4.1-mini-2025-04-14": {
+      "provider": "openai",
+      "inputMicrosPerToken": 0.4,
+      "cachedInputMicrosPerToken": 0.1,
+      "outputMicrosPerToken": 1.6,
+      "maximumInputTokens": 4000,
+      "maximumOutputTokens": 900
+    }
+  },
+  "sources": [
+    "https://developers.openai.com/api/docs/models/gpt-4.1-mini",
+    "https://developers.cloudflare.com/workers/platform/pricing/"
+  ]
+}

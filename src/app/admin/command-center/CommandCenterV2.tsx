@@ -56,6 +56,7 @@ import type {
   CommandCenterTicketStatus,
 } from "@/lib/command-center-types";
 import styles from "./command-center-v2.module.css";
+import SparkOperationsPanel from "./SparkOperationsPanel";
 
 type View = "work" | "reviews" | "activity" | "system";
 type ReviewSelection = { kind: "draft" | "approval"; id: string };
@@ -1186,6 +1187,7 @@ export default function CommandCenterV2() {
                 <section className={styles.futureAgents} aria-labelledby="future-agents-title"><header><h3 id="future-agents-title">Future agents</h3><p>Visible for boundary clarity, locked off by schema.</p></header><div className={styles.agentTableWrap}><table className={styles.agentTable}><thead><tr><th>Agent</th><th>Purpose</th><th>Compatible inputs</th><th>Review-only output</th><th>Explicit prohibition</th><th>State</th></tr></thead><tbody>{futureAgentContracts.map((contract) => <tr key={contract.name}><th scope="row" data-label="Agent"><span className={styles.agentIdentity}><ShieldAlert aria-hidden="true" size={19} /><strong>{contract.name}</strong></span></th><td data-label="Purpose">{contract.purpose}</td><td data-label="Compatible inputs">{contract.inputs}</td><td data-label="Review-only output">{contract.output}</td><td data-label="Explicit prohibition">{contract.prohibition}</td><td data-label="State" className={styles.agentState}><em>Locked off</em><small>Not available in this release.</small></td></tr>)}</tbody></table></div></section>
               </section>
             </div>
+            <SparkOperationsPanel />
             <section className={styles.futureSection}><h3>Future boundary</h3><p>Providers, email, external effect execution, and autonomous actions are not configured. Enabling a draft contract does not change that boundary.</p></section>
             {data.warnings.length > 0 && <section className={styles.warningSection}><h3><AlertTriangle aria-hidden="true" size={17} />Snapshot warnings</h3><p>{data.warnings.length} malformed record{data.warnings.length === 1 ? " was" : "s were"} omitted. Warning details expose paths and codes only, never rejected values.</p><ul>{data.warnings.map((warning) => <li key={`${warning.section}-${warning.recordId}`}><code>{warning.section}/{warning.recordId}</code><span>{warning.issues.map((issue) => `${issue.path || "record"}: ${issue.code}`).join(", ")}</span></li>)}</ul></section>}
           </section>

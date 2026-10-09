@@ -24,7 +24,7 @@ import {
   type PanInfo,
 } from "motion/react";
 import * as m from "motion/react-m";
-import { ArrowLeft, ArrowRight, BookOpenCheck, CircleHelp, Clock3, Play } from "lucide-react";
+import { ArrowLeft, ArrowRight, BookOpenCheck, CircleHelp, Clock3, Play, Sparkles } from "lucide-react";
 import CourseBanner from "@/components/CourseBanner";
 import { hashCourseIdentity } from "@/components/CourseArtwork";
 import {
@@ -41,6 +41,7 @@ export interface CourseDeckItem {
   banner?: Course["banner"];
   creatorTier?: Course["creatorTier"];
   href: string;
+  sparkHref?: string;
   nextLessonTitle: string;
   completedLessons: number;
   totalLessons?: number;
@@ -395,12 +396,15 @@ function CourseDeckCard({
               aria-valuemax={100}
               aria-valuenow={item.progressPercent ?? undefined}
             ><i style={{ transform: `scaleX(${(item.progressPercent ?? 0) / 100})` }} /></span>
-            <Link
-              className="button course-deck-primary"
-              href={item.href}
-              tabIndex={active ? undefined : -1}
-              onKeyDown={(event) => event.stopPropagation()}
-            ><Play size={16} fill="currentColor" /> Continue</Link>
+            <div className="course-deck-actions">
+              <Link
+                className="button course-deck-primary"
+                href={item.sparkHref ?? item.href}
+                tabIndex={active ? undefined : -1}
+                onKeyDown={(event) => event.stopPropagation()}
+              >{item.sparkHref ? <Sparkles size={16} /> : <Play size={16} fill="currentColor" />} {item.sparkHref ? "Continue with Spark" : "Continue"}</Link>
+              {item.sparkHref && <Link className="course-deck-secondary" href={item.href} tabIndex={active ? undefined : -1} onKeyDown={(event) => event.stopPropagation()}><BookOpenCheck size={15} /> Read lesson</Link>}
+            </div>
           </div>
         </div>
       </div>

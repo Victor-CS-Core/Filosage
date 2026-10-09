@@ -1,3 +1,32 @@
+# Historical agent execution log
+
+> This file preserves prior execution and handoff evidence. It is not the current application status and may contain superseded branches, deployments, blockers, and next steps. Read `docs/CURRENT_STATE.md` for the canonical living snapshot. Add new current-state facts there; keep detailed dated evidence in focused documents rather than extending this log.
+
+## FiloSage Spark end-to-end implementation — October 9, 2026
+
+**Status: DETERMINISTIC/PRACTICE-ONLY SOURCE APPROVED; LIVE AND HOSTED ACCEPTANCE BLOCKED.** The complete local feature is implemented behind disabled flags. Delegated AI engineering review approved local deterministic behavior, migration rehearsal, pricing, privacy implementation, and two-account server isolation. Checkout stays closed. No Cloudflare resource creation, paid-service purchase, secret change, remote migration, deployment, metered provider evaluation, or production enablement was performed.
+
+- [x] Audit the current learner journey, tutor allowance/accounting, activity/evidence/review systems, D1/R2 bindings, operator surfaces, and production UI.
+- [x] Define typed Spark manifests, trusted component schemas, feature policy, price/config sheet, and durable document contracts without duplicating existing course/evidence semantics.
+- [x] Implement versioned Spark state/session/turn/attempt/revision/preparation repositories with access checks, idempotency, pagination, and retained-version behavior.
+- [x] Implement budget-first Spark admission and settlement for tutoring, preparation, assessment, summary, retry, and embedding categories; preserve unknown reservations and prove monetary conservation under concurrency.
+- [x] Implement saved-lesson preparation, bounded lexical retrieval, manifest validation/fallback, invalidation, and idempotent retryable jobs; keep semantic retrieval disabled by default.
+- [x] Implement the trusted component registry, deterministic server grading, accessible ordering/matching/numeric/choice/retrieval/step-through activities, and neuron/linear/compound explorers.
+- [x] Implement bounded course-grounded orchestration and AI short-response assessment with provenance, schema validation, one-call limits, existing 5/40/100 tutor allowances, and no model-authored executable content.
+- [x] Integrate Spark into authenticated home/course UX, reading fallback, course outline, notes/evidence, mobile navigation, creator preparation status, and command-center budget controls.
+- [x] Add additive migration/configuration, privacy and deletion behavior, retention execution, operator runbook, rollback strategy, 40 reviewed evaluation fixtures, budget/security tests, accessibility checks, and exact local verification evidence.
+- [x] Produce a staging-ready source handoff and delegated decision record. Metered provider evaluation, remote migration/deployment, complete hosted two-account acceptance, and production rollout remain evidence-gated external operations.
+
+Acceptance: flags default off; existing course, billing, publication, tutor, and evidence behavior remains compatible; no billable Spark call bypasses admission; deterministic saved activities and reading remain usable when live AI is off or budget-limited; client payloads cannot grant evidence, change prices/caps, or cross course ownership; retained work survives rollback.
+
+Known decision: `docs/SPARK_IMPLEMENTATION_PLAN.md` records a pilot-first owner note, while the full handoff requires budget authority before live inference. This implementation follows the safer full-handoff order and may still expose a deterministic pilot while `SPARK_LIVE_AI_ENABLED=false`.
+
+Implementation evidence: `docs/SPARK_INTEGRATION_MAP.md` records actual reuse decisions; `docs/SPARK_OPERATIONS_RUNBOOK.md` records configuration, monitoring, retention, incident, price-sheet, migration, and rollback procedures; `docs/SPARK_RELEASE_APPROVAL_2026-10-09.md` records the delegated review, observed evidence, limitations, and remaining gates. All production and staging Spark flags remain false.
+
+Local verification (2026-10-09): `npm run test:spark` passes 21/21, including fresh-month fail-closed controls, 100-way one-cent admission, unknown reservation containment, concurrency, kill switch, private-course/session isolation, stale lesson versions, immutable idempotent attempts, exact evidence, schema, and retention contracts. `npm run eval:spark-quality` reports 40 balanced fixed cases, 5 system assertions, 3 execution surfaces, zero provider calls, and delegated expert review `2026-10-09-owner-delegated-v1`. `npm run test:spark:ui` passes 5 server/browser checks with 3 intentional cross-project skips: four viewport/Axe runs plus one real-server two-account isolation run. The account privacy/export/deletion API contract passes 9/9 and the course-deletion contract passes 3/3. Isolated Wrangler D1 rehearsal applied 12 commands and read back 4 tables, 3 indexes, 8 triggers, and disabled controls. `npx tsc --noEmit --pretty false`, tracked-secret scanning, and `git diff --check` pass. Full lint completes with zero errors and four pre-existing Next.js navigation warnings. `npm run build` compiles and generates 93 pages successfully.
+
+---
+
 ## Retire Azure-specific alert receiver — October 9, 2026
 
 **Status: COMPLETE.** Azure is no longer an application provider. This change removes only the obsolete Azure alert-receiver implementation and its live CI/release references; the provider-neutral application alert sender and historical migration evidence remain intact.

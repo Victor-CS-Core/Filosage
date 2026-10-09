@@ -101,6 +101,7 @@ export const dedicatedSuiteConfigs = {
   "tests/command-center-v2-contract.spec.ts": "playwright.command-center-v2.config.ts",
   "tests/command-center-v2-ui.spec.ts": "playwright.command-center-v2-ui.config.ts",
   "tests/shared-evidence-ui.spec.ts": "playwright.shared-evidence.config.ts",
+  "tests/spark-ui.spec.ts": "playwright.spark.config.ts",
 } as const;
 
 export const dedicatedSuites = Object.keys(dedicatedSuiteConfigs) as Array<keyof typeof dedicatedSuiteConfigs>;

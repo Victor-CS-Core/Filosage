@@ -29,6 +29,7 @@ import AppShell from "@/components/AppShell";
 import AccountEntryButton, { openAccountEntry, useAccountEntryMode } from "@/components/AccountEntryButton";
 import CourseBanner from "@/components/CourseBanner";
 import CourseDisclosure from "@/components/CourseDisclosure";
+import CreatorSparkStatus from "@/components/CreatorSparkStatus";
 import CourseJourneyMap from "@/components/CourseJourneyMap";
 import OutcomePlanner from "@/components/OutcomePlanner";
 import SpeakButton from "@/components/SpeakButton";
@@ -1030,6 +1031,7 @@ export default function CourseMap() {
                   <Trash2 size={16} /> Delete course
                 </button>
               </div>
+              {process.env.NEXT_PUBLIC_SPARK_ENABLED === "true" && user && courseId && <CreatorSparkStatus user={user} courseId={courseId} topic={topic} />}
               {!course.isPublic && <p className="owner-action-hint">Complete every lesson, validate the draft, and resolve its review findings before publishing. Existing safety evidence is reused when it still matches this version.</p>}
               {!course.isPublic && course.aiAssisted !== true && isOwner && !publicationAssessment && (
                 <p className="owner-action-hint">If review finds only teaching or language warnings, an owner-only quality override will appear here. Safety and structure failures cannot be bypassed.</p>

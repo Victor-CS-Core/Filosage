@@ -3,6 +3,7 @@ import { readFileSync } from "node:fs";
 import { expect, test } from "@playwright/test";
 import { supportArticles } from "../src/content/support/articles";
 import {
+  ACCEPTABLE_USE_VERSION,
   LEGAL_EFFECTIVE_DATE,
   PRIVACY_EFFECTIVE_DATE,
   PRIVACY_VERSION,
@@ -266,15 +267,30 @@ test("banner preserves the complete approved logo geometry with transparent edge
   expect(banner.alphaBounds.width / banner.alphaBounds.height).toBeCloseTo(179 / 43, 1);
 });
 
-test("versions only the revised Privacy Notice", () => {
+test("versions the revised Spark legal policies and matches their disclosures to behavior", () => {
   expect({ version: PRIVACY_VERSION, effectiveDate: PRIVACY_EFFECTIVE_DATE }).toEqual({
-    version: "2026-08-18",
-    effectiveDate: "August 18, 2026",
+    version: "2026-10-09",
+    effectiveDate: "October 9, 2026",
   });
   expect({ version: TERMS_VERSION, effectiveDate: LEGAL_EFFECTIVE_DATE }).toEqual({
-    version: "2026-08-11",
-    effectiveDate: "August 11, 2026",
+    version: "2026-10-09",
+    effectiveDate: "October 9, 2026",
   });
+  expect(ACCEPTABLE_USE_VERSION).toBe("2026-10-09");
+
+  const privacy = readFileSync("src/app/privacy/page.tsx", "utf8");
+  const terms = readFileSync("src/app/terms/page.tsx", "utf8");
+  const acceptableUse = readFileSync("src/app/acceptable-use/page.tsx", "utf8");
+
+  expect(privacy).toContain("sends OpenAI the response, applicable rubric criteria, and a bounded excerpt of the lesson");
+  expect(privacy).toContain("not used to make decisions that produce legal or similarly significant effects");
+  expect(privacy).toContain("does not currently provide a human-review workflow for Spark assessments");
+  expect(privacy).toContain("Cloudflare for application delivery and hosting");
+  expect(privacy).not.toContain("Microsoft Entra External ID, for customer identity, email one-time-code delivery and verification, application hosting");
+  expect(terms).toContain("not an institutional grade, credential, admissions or placement decision");
+  expect(terms).toContain("creates no mastery evidence, and does not trigger automatic human review");
+  expect(acceptableUse).toContain("assessment responses to manipulate the tutor or an assessment");
+  expect(acceptableUse).toContain("falsify or tamper with attempts, assessment results, learning evidence, or progress");
 });
 
 test("custom CSS parses into the supported responsive and accessible portal surface", async ({ page }, testInfo) => {

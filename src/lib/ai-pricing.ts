@@ -19,6 +19,7 @@ interface ModelRates {
 }
 
 const MODEL_RATES: Record<string, ModelRates> = {
+  "gpt-4.1-mini": { input: 0.4, cachedInput: 0.1, output: 1.6 },
   "gpt-5.6-sol": { input: 5, cachedInput: 0.5, output: 30 },
   "gpt-5.6-terra": { input: 2.5, cachedInput: 0.25, output: 15 },
   "gpt-5.6-luna": { input: 1, cachedInput: 0.1, output: 6 },

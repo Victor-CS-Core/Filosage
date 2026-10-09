@@ -7,7 +7,10 @@ export type FenceMutation = { writes: Array<{ path: string; data: Record<string,
 const OWNER_FIELDS = ["uid", "ownerUid", "authorId", "actorId", "reporterUid", "relatedUserId", "targetUid", "actorUid", "publishedBy", "canonicalUid"] as const;
 const UID_COLLECTIONS = new Set(["users", "userEngagement", "pricingIntents", "userSafety"]);
 export const GLOBAL_USAGE_COLLECTIONS = new Set(["generationUsageReceipts", "systemUsageShards"]);
-export const AUTHOR_ARTIFACT_COLLECTIONS = new Set(["courseReleases", "coursePipelineEvents", "courseRepairs", "courseManualReviewMutations"]);
+export const AUTHOR_ARTIFACT_COLLECTIONS = new Set([
+  "courseReleases", "coursePipelineEvents", "courseRepairs", "courseManualReviewMutations",
+  "sparkManifests", "sparkChunks", "sparkTasks", "sparkPreparationJobs",
+]);
 // A course reference is not ownership: learner evidence, feedback and shares
 // remain the learner's work when the course author closes their account.
 export function accountDeletionOwnsDocument(path: string, data: Document, uid: string, inventoriedPaths: readonly string[]) {

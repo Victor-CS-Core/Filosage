@@ -7,7 +7,7 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "oxlint --react-plugin --jsx-a11y-plugin --import-plugin --deny-warnings src tests scripts next.config.ts playwright.config.ts playwright.api.config.ts playwright.contracts.config.ts playwright.command-center-v2.config.ts playwright.command-center-v2-ui.config.ts playwright.shared-evidence.config.ts && eslint src tests scripts next.config.ts playwright.config.ts playwright.api.config.ts playwright.contracts.config.ts playwright.command-center-v2.config.ts playwright.command-center-v2-ui.config.ts playwright.shared-evidence.config.ts",
+    "lint": "oxlint --react-plugin --jsx-a11y-plugin --import-plugin --deny-warnings src tests scripts next.config.ts playwright.config.ts playwright.api.config.ts playwright.contracts.config.ts playwright.command-center-v2.config.ts playwright.command-center-v2-ui.config.ts playwright.shared-evidence.config.ts playwright.spark.config.ts && eslint src tests scripts next.config.ts playwright.config.ts playwright.api.config.ts playwright.contracts.config.ts playwright.command-center-v2.config.ts playwright.command-center-v2-ui.config.ts playwright.shared-evidence.config.ts playwright.spark.config.ts",
     "test:e2e": "node --experimental-strip-types scripts/run-playwright-suites.mjs",
     "test:postgres": "node --conditions=react-server --import tsx --test --test-concurrency=1 --test-reporter=tap tests/postgres/*.test.ts",
     "test:d1": "node --conditions=react-server --import tsx --test --test-concurrency=1 --test-reporter=tap tests/d1/*.test.ts",
@@ -20,6 +20,7 @@
     "test:command-center:v2:ui": "playwright test --config=playwright.command-center-v2-ui.config.ts",
     "test:shared-evidence:ui": "playwright test --config=playwright.shared-evidence.config.ts",
     "eval:model-quality": "node --conditions=react-server --import tsx scripts/evaluate-model-quality.ts",
+    "eval:spark-quality": "node --import tsx scripts/evaluate-spark-quality.ts --dry-run",
     "test:eval-harness": "node --import tsx --test tests/evals/*.test.ts",
     "eval:command-center": "node --experimental-strip-types scripts/evaluate-command-center-drafts.ts",
     "check:release": "node scripts/check-release-env.mjs",
@@ -32,6 +33,7 @@
     "test:operations-alert": "node --experimental-strip-types scripts/test-operational-alert.ts",
     "migrate:identity-links": "node --conditions=react-server --import tsx scripts/backfill-identity-links.ts",
     "maintenance:identity-link-intents": "node --conditions=react-server --import tsx scripts/prune-identity-link-intents.ts",
+    "maintenance:spark-turns": "node --conditions=react-server --import tsx scripts/prune-spark-turns.ts",
     "migrate:azure:database": "node --experimental-strip-types scripts/migrate-azure-database.ts",
     "migrate:azure:complete-courses": "node --experimental-strip-types scripts/complete-azure-course-bundle.ts",
     "migrate:azure:import-courses": "node --experimental-strip-types scripts/import-azure-authored-courses.ts",
@@ -39,6 +41,8 @@
     "test:evaluation-budget": "node --conditions=react-server --import tsx --test --test-concurrency=1 --test-reporter=tap tests/evaluation-budget/*.test.ts",
     "test:lesson-integrity": "node --conditions=react-server --import tsx --experimental-test-module-mocks --test --test-concurrency=1 --test-reporter=tap tests/lesson-integrity/*.test.ts",
     "test:lesson-operations": "node --conditions=react-server --import tsx --experimental-test-module-mocks --test --test-concurrency=1 --test-reporter=tap tests/lesson-operations/*.test.ts",
+    "test:spark": "node --conditions=react-server --import tsx --test --test-concurrency=1 --test-reporter=tap tests/spark/*.test.ts",
+    "test:spark:ui": "playwright test --config=playwright.spark.config.ts",
     "build:cloudflare": "node scripts/build-cloudflare.mjs"
   },
   "dependencies": {

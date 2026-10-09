@@ -138,6 +138,9 @@ async function collectAccountData(uid: string, isOwner = false) {
   const authorIds = new Set(courseAuthorIdsForAccount({ uid, isOwner }));
   const scannedCourses = completeInventory.documents.filter(({ path, data }) => /^courses\/[^/]+$/.test(path) && typeof data.authorId === "string" && authorIds.has(data.authorId));
   if (scannedCourses.length !== courses.length) throw new Error("The authored-course export requires a manual inventory review. Contact legal@filosage.com.");
+  const authoredCourseIds = new Set(scannedCourses.map(({ path }) => path.split("/")[1]));
+  const sparkRecords = completeInventory.documents.filter(({ path, data }) => path.startsWith("spark")
+    && (data.ownerUid === uid || (typeof data.courseId === "string" && authoredCourseIds.has(data.courseId))));
   const learnerSupportTickets = commandCenterTickets
     .filter((ticket) => ticket.source === "user_support")
     .map((ticket) => learnerSupportTicketDetail(ticket as unknown as CommandCenterTicket));
@@ -194,6 +197,13 @@ async function collectAccountData(uid: string, isOwner = false) {
     contentReports,
     adminActionRecords,
     commandCenterTickets: learnerSupportTickets,
+    spark: {
+      sessions: sparkRecords.filter(({ path, data }) => path.startsWith("sparkSessions/") && data.ownerUid === uid),
+      turns: sparkRecords.filter(({ path, data }) => path.startsWith("sparkTurns/") && data.ownerUid === uid),
+      attempts: sparkRecords.filter(({ path, data }) => path.startsWith("sparkAttempts/") && data.ownerUid === uid),
+      assessments: sparkRecords.filter(({ path, data }) => path.startsWith("sparkAssessments/") && data.ownerUid === uid),
+      authoredPreparation: sparkRecords.filter(({ path }) => /^(sparkManifests|sparkChunks|sparkTasks|sparkPreparationJobs)\//.test(path)),
+    },
     // Owner notes, drafts, approvals, and audit records are operational records,
     // not learner-visible support content. Keep the v2 export keys stable without
     // exposing staff identities, internal analysis, or control-plane metadata.

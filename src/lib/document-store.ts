@@ -1623,6 +1623,14 @@ export async function deleteCourse(courseId: string) {
     flashcardDeckDocuments,
     flashcardDocuments,
     flashcardReviewDocuments,
+    sparkSessionDocuments,
+    sparkTurnDocuments,
+    sparkAttemptDocuments,
+    sparkAssessmentDocuments,
+    sparkManifestDocuments,
+    sparkChunkDocuments,
+    sparkTaskDocuments,
+    sparkPreparationJobDocuments,
   ] = await Promise.all([
     listLessons(courseId),
     courseScopedDocuments(COURSE_SCOPED_COLLECTION_GROUPS.progress),
@@ -1669,6 +1677,14 @@ export async function deleteCourse(courseId: string) {
     courseScopedDocuments(COURSE_SCOPED_COLLECTION_GROUPS.flashcardDecks),
     courseScopedDocuments(COURSE_SCOPED_COLLECTION_GROUPS.flashcards),
     courseScopedDocuments(COURSE_SCOPED_COLLECTION_GROUPS.flashcardReviewState),
+    courseScopedDocuments(COURSE_SCOPED_COLLECTION_GROUPS.sparkSessions),
+    courseScopedDocuments(COURSE_SCOPED_COLLECTION_GROUPS.sparkTurns),
+    courseScopedDocuments(COURSE_SCOPED_COLLECTION_GROUPS.sparkAttempts),
+    courseScopedDocuments(COURSE_SCOPED_COLLECTION_GROUPS.sparkAssessments),
+    courseScopedDocuments(COURSE_SCOPED_COLLECTION_GROUPS.sparkManifests),
+    courseScopedDocuments(COURSE_SCOPED_COLLECTION_GROUPS.sparkChunks),
+    courseScopedDocuments(COURSE_SCOPED_COLLECTION_GROUPS.sparkTasks),
+    courseScopedDocuments(COURSE_SCOPED_COLLECTION_GROUPS.sparkPreparationJobs),
   ]);
 
   const updatedAt = new Date().toISOString();
@@ -1762,6 +1778,14 @@ export async function deleteCourse(courseId: string) {
     ...lessonInteractionMutationDocuments.map(({ path }) => ({ delete: fullDocumentName(path) })),
     ...evidenceShareDocuments.map(({ path }) => ({ delete: fullDocumentName(path) })),
     ...evidenceShareReferenceDocuments.map(({ path }) => ({ delete: fullDocumentName(path) })),
+    ...sparkSessionDocuments.map(({ path }) => ({ delete: fullDocumentName(path) })),
+    ...sparkTurnDocuments.map(({ path }) => ({ delete: fullDocumentName(path) })),
+    ...sparkAttemptDocuments.map(({ path }) => ({ delete: fullDocumentName(path) })),
+    ...sparkAssessmentDocuments.map(({ path }) => ({ delete: fullDocumentName(path) })),
+    ...sparkManifestDocuments.map(({ path }) => ({ delete: fullDocumentName(path) })),
+    ...sparkChunkDocuments.map(({ path }) => ({ delete: fullDocumentName(path) })),
+    ...sparkTaskDocuments.map(({ path }) => ({ delete: fullDocumentName(path) })),
+    ...sparkPreparationJobDocuments.map(({ path }) => ({ delete: fullDocumentName(path) })),
     ...flashcardRecoveryWrites,
     ...preferenceUpdates,
   ];
@@ -1792,5 +1816,13 @@ export async function deleteCourse(courseId: string) {
     flashcardDecks: flashcardDeckDocuments.length,
     flashcardCards: flashcardDocuments.length,
     flashcardReviewStates: flashcardReviewDocuments.length,
+    sparkSessions: sparkSessionDocuments.length,
+    sparkTurns: sparkTurnDocuments.length,
+    sparkAttempts: sparkAttemptDocuments.length,
+    sparkAssessments: sparkAssessmentDocuments.length,
+    sparkManifests: sparkManifestDocuments.length,
+    sparkChunks: sparkChunkDocuments.length,
+    sparkTasks: sparkTaskDocuments.length,
+    sparkPreparationJobs: sparkPreparationJobDocuments.length,
   };
 }

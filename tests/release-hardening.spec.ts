@@ -196,6 +196,7 @@ test("the general browser matrix excludes suites that require dedicated seeded s
   expect(suiteManifest).toContain("command-center-v2-contract.spec.ts");
   expect(suiteManifest).toContain("command-center-v2-ui.spec.ts");
   expect(suiteManifest).toContain("shared-evidence-ui.spec.ts");
+  expect(suiteManifest).toContain("spark-ui.spec.ts");
   expect(playwrightConfig).toContain("workers: 1");
   expect(playwrightConfig).not.toContain("workers: process.env.CI ? 1 : 2");
 });
@@ -225,7 +226,7 @@ test("every Playwright spec belongs to exactly one execution lane", async () => 
   expect(apiSuites).toHaveLength(2);
   expect(singleEngineSuites).toHaveLength(19);
   expect(deviceSensitiveSuites).toHaveLength(9);
-  expect(dedicatedSuites).toHaveLength(3);
+  expect(dedicatedSuites).toHaveLength(4);
 });
 
 test("keeps separate-value Playwright grep options out of suite routing", async () => {
@@ -651,6 +652,8 @@ test("small uppercase marketing notes use the higher-contrast text token", () =>
 test("the privacy notice describes the automated account export honestly", () => {
   expect(privacyNotice).toContain("Operational owner drafts and internal notes are not included in the automated learner export");
   expect(privacyNotice).not.toContain("Drafts linked to your account are included in your account-data export");
+  expect(privacyNotice).toContain("Raw Spark tutor messages stored by Filosage are retained for 30 days by default");
+  expect(privacyNotice).toContain("Committed attempts and educational evidence remain with the learning record");
 });
 
 test("the README describes the current visitor and paid-plan contracts", () => {

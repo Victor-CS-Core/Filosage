@@ -41,6 +41,8 @@ import {
 } from "@/lib/validation";
 import { expectedLessonIds, findCourseLesson } from "@/lib/course-progress";
 import type { Course, LessonData } from "@/lib/course-types";
+import { sparkFeaturePolicy } from "@/lib/spark/config";
+import { prepareSparkLesson } from "@/lib/spark/preparation";
 import { AI_SAFETY_POLICY, assertSafeContent, ContentSafetyError } from "@/lib/content-safety";
 import { apiRequestErrorResponse, readJsonBody } from "@/lib/api-security";
 import { openAiSafetyIdentifier } from "@/lib/ai-usage";
@@ -874,6 +876,18 @@ async function handlePOST(request: Request) {
     // Usage, result binding and lesson were committed atomically. A later
     // telemetry/HTTP failure cannot refund or regenerate the committed result.
     reservation = null;
+    if (sparkFeaturePolicy().sparkEnabled && sparkFeaturePolicy().prepareEnabled) {
+      try {
+        await prepareSparkLesson(account, courseId, lessonId, instructionLanguage);
+      } catch (sparkError) {
+        console.error(JSON.stringify({
+          event: "spark_lesson_preparation_failed",
+          courseId,
+          lessonId,
+          message: sparkError instanceof Error ? sparkError.message : "unknown",
+        }));
+      }
+    }
     // Tier C: Pro courses get one illustration per lesson. The lesson is
     // already committed, so illustration failure is absorbed and the lesson
     // response is never blocked by it.

@@ -51,6 +51,7 @@ function nextReviewLabel(lessons: LessonProgress[], dueCount: number, now: numbe
 }
 
 function buildDeckItems(progress: CourseProgress[], publicCourses: Course[], ownedCourses: Course[]): CourseDeckItem[] {
+  const sparkVisible = process.env.NEXT_PUBLIC_SPARK_ENABLED === "true";
   const coursesById = new Map<string, Course>();
   for (const course of [...publicCourses, ...ownedCourses]) {
     const id = course.id ?? course.courseId;
@@ -79,6 +80,7 @@ function buildDeckItems(progress: CourseProgress[], publicCourses: Course[], own
         banner: course?.banner,
         creatorTier: course?.creatorTier,
         href,
+        sparkHref: sparkVisible && item.nextLessonId ? `${href}&spark=1` : undefined,
         nextLessonTitle: item.nextLessonTitle ?? (item.capstone?.status === "needs_revision" ? "Revise your final project" : "Review the outline"),
         completedLessons: item.completedLessonIds.length,
         totalLessons,

@@ -21,6 +21,14 @@ export const COURSE_DELETION_COLLECTION_GROUP_INDEXES = [
   { collectionGroup: "flashcardDecks", fieldPath: "courseId" },
   { collectionGroup: "flashcards", fieldPath: "courseId" },
   { collectionGroup: "flashcardReviewState", fieldPath: "courseId" },
+  { collectionGroup: "sparkSessions", fieldPath: "courseId" },
+  { collectionGroup: "sparkTurns", fieldPath: "courseId" },
+  { collectionGroup: "sparkAttempts", fieldPath: "courseId" },
+  { collectionGroup: "sparkAssessments", fieldPath: "courseId" },
+  { collectionGroup: "sparkManifests", fieldPath: "courseId" },
+  { collectionGroup: "sparkChunks", fieldPath: "courseId" },
+  { collectionGroup: "sparkTasks", fieldPath: "courseId" },
+  { collectionGroup: "sparkPreparationJobs", fieldPath: "courseId" },
   { collectionGroup: "lessonNotes", fieldPath: "key" },
 ] as const;
 
@@ -42,6 +50,14 @@ export const COURSE_SCOPED_COLLECTION_GROUPS = {
   flashcardDecks: "flashcardDecks",
   flashcards: "flashcards",
   flashcardReviewState: "flashcardReviewState",
+  sparkSessions: "sparkSessions",
+  sparkTurns: "sparkTurns",
+  sparkAttempts: "sparkAttempts",
+  sparkAssessments: "sparkAssessments",
+  sparkManifests: "sparkManifests",
+  sparkChunks: "sparkChunks",
+  sparkTasks: "sparkTasks",
+  sparkPreparationJobs: "sparkPreparationJobs",
 } as const;
 
 function removePrefixedKeys(value: unknown, prefix: string) {

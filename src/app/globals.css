@@ -410,6 +410,20 @@ button:disabled { cursor: not-allowed; opacity: 0.55; }
 .course-owner-controls { margin-top: 22px; padding-top: 20px; border-top: 1px solid var(--line); }
 .course-owner-controls .course-disclosure-content { padding-top: 18px; }
 .course-owner-controls .course-owner-actions { margin-top: 0; }
+.creator-spark-status { max-width: 760px; margin-top: 18px; border-top: 1px solid var(--line); padding-top: 16px; }
+.creator-spark-status > header { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
+.creator-spark-status > header span { display: inline-flex; align-items: center; gap: 7px; color: var(--accent-strong); font-size: 0.7rem; font-weight: 760; text-transform: uppercase; }
+.creator-spark-status h3 { margin-top: 4px; font-size: 0.92rem; }
+.creator-spark-status > header > small { color: var(--ink-secondary); font-size: 0.69rem; }
+.creator-spark-status > ul { display: grid; gap: 8px; margin: 13px 0 0; padding: 0; list-style: none; }
+.creator-spark-status > ul > li { display: flex; align-items: center; justify-content: space-between; gap: 14px; border: 1px solid var(--line); border-radius: var(--radius-md); padding: 10px 12px; }
+.creator-spark-lesson { min-width: 0; display: grid; gap: 3px; }
+.creator-spark-lesson > span { display: inline-flex; align-items: center; gap: 5px; color: var(--ink-secondary); font-size: 0.67rem; }
+.creator-spark-lesson > span.is-ready { color: var(--success); }
+.creator-spark-lesson strong { overflow-wrap: anywhere; font-size: 0.78rem; }
+.creator-spark-lesson small { color: var(--ink-secondary); font-size: 0.65rem; }
+.creator-spark-actions { flex: 0 0 auto; display: flex; gap: 7px; }
+.creator-spark-loading { min-height: 48px; display: flex; align-items: center; gap: 7px; color: var(--ink-secondary); font-size: 0.75rem; }
 .publication-attestation { display: grid; grid-template-columns: 18px minmax(0, 1fr); align-items: start; gap: 10px; max-width: 68ch; margin-bottom: 14px; color: var(--ink-secondary); font-size: 0.78rem; line-height: 1.5; cursor: pointer; }
 .publication-attestation input { width: 17px; height: 17px; margin-top: 1px; accent-color: var(--brand-teal); }
 .owner-action-hint { margin-top: 9px; color: var(--ink-muted); font-size: 0.78rem; }
@@ -499,6 +513,7 @@ button:disabled { cursor: not-allowed; opacity: 0.55; }
 .lesson-illustration { max-width: 460px; margin: 6px 0 30px; }
 .journey-stage-illustration { max-width: 300px; margin: 0 0 18px; }
 .lesson-mode-tabs { position: sticky; top: 58px; z-index: 1; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); border-block: 1px solid var(--line); background: var(--surface); }
+.lesson-mode-tabs.has-spark { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 .public-shell .lesson-mode-tabs { top: 134px; }
 .lesson-mode-tabs > button { min-width: 0; min-height: 64px; display: grid; grid-template-columns: 24px minmax(0, 1fr); gap: 10px; align-items: center; border: 0; border-bottom: 3px solid transparent; background: transparent; padding: 10px 14px; color: var(--ink-muted); font: inherit; text-align: left; cursor: pointer; transition: background var(--motion-state) var(--ease-out), border-color var(--motion-state) var(--ease-out), color var(--motion-state) var(--ease-out); }
 .lesson-mode-tabs > button + button { border-left: 1px solid var(--line); }
@@ -549,6 +564,103 @@ button:disabled { cursor: not-allowed; opacity: 0.55; }
 .lesson-ai-notice p { display: flex; flex-direction: column; gap: 2px; margin: 0; }
 .lesson-ai-notice strong { font-size: 0.78rem; }
 .lesson-ai-notice span { color: var(--ink-secondary); font-size: 0.72rem; line-height: 1.5; }
+
+/* Spark */
+.spark-workspace { padding: 34px 0 24px; }
+.spark-workspace-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 28px; padding-bottom: 24px; border-bottom: 1px solid var(--line); }
+.spark-workspace-header h2, .spark-empty h2 { margin-top: 5px; font-size: 1.55rem; }
+.spark-workspace-header > div:first-child > p:last-child, .spark-empty > p:not(.overline) { max-width: 62ch; margin-top: 8px; color: var(--ink-secondary); font-size: 0.8rem; line-height: 1.6; }
+.spark-workspace-status { flex: 0 0 auto; display: flex; gap: 20px; }
+.spark-workspace-status span { display: flex; flex-direction: column; color: var(--ink-muted); font-size: 0.64rem; text-align: right; }
+.spark-workspace-status strong { color: var(--ink); font-size: 1.05rem; font-variant-numeric: tabular-nums; }
+.spark-stage-rail { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); margin: 24px 0 0; padding: 0; list-style: none; }
+.spark-stage-rail li { position: relative; display: grid; justify-items: center; gap: 6px; color: var(--ink-muted); font-size: 0.64rem; font-weight: 700; text-align: center; }
+.spark-stage-rail li::before { position: absolute; top: 12px; right: 50%; left: -50%; height: 1px; background: var(--line-strong); content: ""; }
+.spark-stage-rail li:first-child::before { display: none; }
+.spark-stage-rail li > span { position: relative; z-index: 1; width: 25px; height: 25px; display: grid; place-items: center; border: 1px solid var(--line-strong); border-radius: 50%; background: var(--surface); font-size: 0.62rem; }
+.spark-stage-rail li.is-complete, .spark-stage-rail li.is-current { color: var(--accent-ink); }
+.spark-stage-rail li.is-complete > span { border-color: var(--success); background: var(--success-fill); color: var(--brand-navy); }
+.spark-stage-rail li.is-current > span { border-color: var(--accent); background: var(--accent); color: var(--accent-contrast); }
+.spark-availability, .spark-loading { display: flex; align-items: flex-start; gap: 10px; margin-top: 24px; padding: 13px 0; border-block: 1px solid var(--line); color: var(--ink-secondary); }
+.spark-availability svg, .spark-loading svg { flex: 0 0 auto; color: var(--accent-ink); }
+.spark-availability p { display: flex; flex-direction: column; gap: 2px; margin: 0; font-size: 0.74rem; line-height: 1.5; }
+.spark-availability strong { color: var(--ink); }
+.spark-block-stream { margin-top: 26px; }
+.spark-block { padding: 30px 0; border-top: 1px solid var(--line); }
+.spark-block:first-child { border-top: 0; }
+.spark-block > header { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 10px; }
+.spark-block > header > span:first-child { color: var(--accent-ink); font-size: 0.67rem; font-weight: 800; text-transform: uppercase; }
+.spark-block h3 { max-width: 44ch; font-size: 1.2rem; line-height: 1.35; }
+.spark-provenance { display: inline-flex; align-items: center; gap: 5px; color: var(--ink-muted); font-size: 0.63rem; }
+.spark-provenance.is-grounded { color: var(--success); }
+.spark-markdown { max-width: 68ch; margin-top: 15px; color: var(--ink-secondary); font-family: var(--font-reading); font-size: 1rem; line-height: 1.75; }
+.spark-markdown p + p { margin-top: 1em; }
+.spark-explanation > ol, .spark-criteria { display: grid; gap: 8px; max-width: 68ch; margin: 18px 0 0; padding-left: 22px; color: var(--ink-secondary); font-size: 0.78rem; line-height: 1.55; }
+.spark-step-track { height: 3px; margin-top: 20px; overflow: hidden; background: var(--surface-active); }
+.spark-step-track span { display: block; width: 100%; height: 100%; transform-origin: left; background: var(--accent); transition: transform var(--motion-layout) var(--ease-out); }
+.spark-step-content { min-height: 150px; display: grid; align-content: center; gap: 8px; padding: 24px 0; }
+.spark-step-content small { color: var(--ink-muted); font-size: 0.68rem; }
+.spark-step-content strong { font-size: 1rem; }
+.spark-step-content p, .spark-explorer > p { max-width: 68ch; color: var(--ink-secondary); font-size: 0.82rem; line-height: 1.6; }
+.spark-step-actions { display: flex; justify-content: space-between; gap: 12px; }
+.spark-step-through details { margin-top: 18px; color: var(--ink-secondary); font-size: 0.74rem; line-height: 1.6; }
+.spark-step-through summary { width: fit-content; cursor: pointer; color: var(--accent-ink); font-weight: 700; }
+.spark-explorer-layout { display: grid; grid-template-columns: minmax(0, 1fr) 210px; gap: 32px; align-items: stretch; margin-top: 24px; }
+.spark-controls { display: grid; gap: 16px; }
+.spark-range { display: grid; gap: 8px; }
+.spark-range > span { display: flex; justify-content: space-between; gap: 16px; color: var(--ink-secondary); font-size: 0.72rem; font-weight: 700; }
+.spark-range output { color: var(--ink); font-variant-numeric: tabular-nums; }
+.spark-range input { width: 100%; accent-color: var(--accent); }
+.spark-output { min-height: 150px; display: grid; place-content: center; gap: 10px; border: 1px solid var(--line-strong); border-radius: 8px; background: var(--surface-subtle); text-align: center; }
+.spark-output small { color: var(--ink-secondary); font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: 0.68rem; }
+.spark-output strong { color: var(--accent-ink); font-size: 1.45rem; font-variant-numeric: tabular-nums; }
+.spark-disclaimer { color: var(--ink-muted); font-size: 0.64rem; line-height: 1.45; }
+.spark-task > .button { margin-top: 18px; }
+.spark-options { display: grid; gap: 8px; margin: 20px 0 0; border: 0; padding: 0; }
+.spark-options label { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 10px; align-items: center; min-height: 46px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 7px; cursor: pointer; }
+.spark-options label:has(input:checked) { border-color: var(--accent); background: var(--accent-soft); }
+.spark-options input { accent-color: var(--accent); }
+.spark-numeric, .spark-response { display: grid; gap: 8px; margin-top: 20px; color: var(--ink-secondary); font-size: 0.72rem; font-weight: 700; }
+.spark-numeric > span:last-child { display: flex; align-items: center; gap: 10px; }
+.spark-numeric input { width: min(240px, 100%); }
+.spark-numeric small, .spark-response small { color: var(--ink-muted); font-size: 0.66rem; font-weight: 500; }
+.spark-ordering { display: grid; gap: 8px; margin: 20px 0 0; padding: 0; list-style: none; counter-reset: spark-order; }
+.spark-ordering li { min-height: 52px; display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 8px 10px 8px 15px; border: 1px solid var(--line); border-radius: 7px; counter-increment: spark-order; }
+.spark-ordering li > span:first-child::before { margin-right: 10px; color: var(--ink-muted); content: counter(spark-order) "."; font-variant-numeric: tabular-nums; }
+.spark-ordering li > span:last-child { display: flex; gap: 4px; }
+.spark-matching { display: grid; gap: 10px; margin-top: 20px; }
+.spark-matching label { display: grid; grid-template-columns: minmax(0, 1fr) minmax(180px, 0.8fr); gap: 16px; align-items: center; }
+.spark-matching label > span { color: var(--ink-secondary); font-size: 0.78rem; line-height: 1.45; }
+.spark-flashcard { display: grid; justify-items: start; gap: 14px; min-height: 160px; align-content: center; margin-top: 18px; padding: 24px; border-block: 1px solid var(--line-strong); }
+.spark-flashcard p { max-width: 62ch; color: var(--ink-secondary); line-height: 1.6; }
+.spark-response textarea { width: 100%; resize: vertical; }
+.spark-attempt-feedback { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 10px; margin-top: 18px; padding: 14px; border-left: 3px solid var(--warning); background: var(--surface-subtle); }
+.spark-attempt-feedback.is-demonstrated { border-left-color: var(--success); }
+.spark-attempt-feedback.is-pending { border-left-color: var(--accent); }
+.spark-attempt-feedback svg { margin-top: 1px; }
+.spark-attempt-feedback strong { font-size: 0.78rem; }
+.spark-attempt-feedback p, .spark-attempt-feedback li { margin-top: 4px; color: var(--ink-secondary); font-size: 0.72rem; line-height: 1.5; }
+.spark-attempt-feedback ul { margin: 7px 0 0; padding-left: 18px; }
+.spark-inline-error { display: flex; align-items: flex-start; gap: 7px; margin-top: 14px; color: var(--danger); font-size: 0.72rem; line-height: 1.5; }
+.spark-inline-error svg { flex: 0 0 auto; margin-top: 2px; }
+.spark-turn { border-top: 2px solid var(--line-strong); }
+.spark-learner-turn { display: grid; grid-template-columns: 72px minmax(0, 1fr); gap: 14px; padding: 22px 0; }
+.spark-learner-turn span { color: var(--ink-muted); font-size: 0.67rem; font-weight: 800; text-transform: uppercase; }
+.spark-learner-turn p { color: var(--ink); font-size: 0.84rem; line-height: 1.6; }
+.spark-composer { position: sticky; bottom: 12px; z-index: 1; display: grid; gap: 14px; margin-top: 30px; padding: 18px; border: 1px solid var(--line-strong); border-radius: 8px; background: color-mix(in oklch, var(--surface) 94%, transparent); box-shadow: var(--shadow-md); backdrop-filter: blur(12px); }
+.spark-composer > div:first-child { display: flex; align-items: flex-start; gap: 10px; }
+.spark-composer > div:first-child > svg { color: var(--accent-ink); }
+.spark-composer > div:first-child span { display: flex; flex-direction: column; gap: 2px; }
+.spark-composer strong { font-size: 0.8rem; }
+.spark-composer small { color: var(--ink-muted); font-size: 0.66rem; line-height: 1.4; }
+.spark-action-options { display: flex; flex-wrap: wrap; gap: 6px; }
+.spark-action-options button { min-height: 34px; border: 1px solid var(--line); border-radius: 7px; background: var(--surface); padding: 6px 10px; color: var(--ink-secondary); font: inherit; font-size: 0.68rem; font-weight: 700; cursor: pointer; }
+.spark-action-options button.is-active { border-color: var(--accent); background: var(--accent-soft); color: var(--accent-ink); }
+.spark-composer-input { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 10px; align-items: end; }
+.spark-composer-input textarea { min-height: 78px; resize: vertical; }
+.spark-empty { display: grid; justify-items: start; padding: 56px 0; }
+.spark-empty > svg { margin-bottom: 18px; color: var(--accent-ink); }
+.spark-empty .button { margin-top: 22px; }
 .lesson-contract { margin-top: 24px; border-block: 1px solid var(--line); }
 .lesson-contract > div { display: grid; grid-template-columns: 32px minmax(0, 1fr); gap: 12px; align-items: start; padding: 17px 2px; }
 .lesson-contract > div + div { border-top: 1px solid var(--line); }
@@ -1230,6 +1342,8 @@ button:disabled { cursor: not-allowed; opacity: 0.55; }
   .course-facts > div:nth-child(4) { border-top: 1px solid var(--line); }
   .course-resume-card { min-height: 240px; padding: 22px; }
   .course-owner-actions { flex-direction: column; align-items: stretch; }
+  .creator-spark-status > header, .creator-spark-status > ul > li { align-items: stretch; flex-direction: column; }
+  .creator-spark-actions .button { flex: 1; }
   .publication-failures > ul > li, .publication-override-offer { align-items: stretch; flex-direction: column; }
   .publication-failures .button, .publication-override-offer .button { width: 100%; }
   .lesson-toolbar { min-height: 0; flex-wrap: wrap; padding: 8px 12px; gap: 7px 10px; }
@@ -1255,6 +1369,18 @@ button:disabled { cursor: not-allowed; opacity: 0.55; }
   .activity-panel-next { align-items: stretch; margin-left: 0; text-align: center; }
   .lesson-pane-continue { align-items: stretch; flex-direction: column; }
   .lesson-pane-continue .button { width: 100%; }
+  .spark-workspace-header { flex-direction: column; gap: 16px; }
+  .spark-workspace-status { width: 100%; justify-content: space-between; }
+  .spark-workspace-status span { text-align: left; }
+  .spark-stage-rail { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px 0; }
+  .spark-stage-rail li:nth-child(4)::before { display: none; }
+  .spark-explorer-layout { grid-template-columns: 1fr; }
+  .spark-output { min-height: 112px; }
+  .spark-matching label { grid-template-columns: 1fr; gap: 6px; }
+  .spark-composer { bottom: 8px; padding: 14px; }
+  .spark-composer-input { grid-template-columns: 1fr; }
+  .spark-composer-input .button { width: 100%; }
+  .spark-provenance { align-items: flex-start; }
   .markdown-content { font-size: 1.05rem; }
   .lesson-visual { margin: 34px 0; padding: 24px 0; }
   .visual-contrast, .visual-trace-layout { grid-template-columns: 1fr; }
@@ -2091,6 +2217,9 @@ html[data-environment="qa"] .environment-pill { display: inline-flex; }
 .course-deck-primary { margin-top: 22px; background: var(--brand-coral); color: var(--brand-navy); box-shadow: 0 6px 16px rgb(2 8 23 / 0.18), 0 14px 28px rgb(2 8 23 / 0.12); }
 .course-deck-primary:hover { background: #FF9D7F; }
 .course-deck-card-action .course-deck-primary { width: 100%; }
+.course-deck-actions { display: grid; gap: 8px; }
+.course-deck-secondary { min-height: 34px; display: inline-flex; align-items: center; justify-content: center; gap: 7px; color: var(--deck-muted); font-size: 0.7rem; font-weight: 730; text-decoration: none; }
+.course-deck-secondary:hover { color: var(--deck-ink); text-decoration: underline; text-underline-offset: 3px; }
 .course-deck-controls { min-height: 48px; display: flex; align-items: center; justify-content: center; gap: 14px; margin-top: 16px; }
 .course-deck-controls > button { width: 44px; height: 44px; display: grid; place-items: center; border: 1px solid var(--control-outline); border-radius: 50%; background: var(--surface); color: var(--ink); cursor: pointer; box-shadow: var(--shadow-control); transition: background var(--motion-state) var(--ease-out), border-color var(--motion-state) var(--ease-out), transform var(--motion-feedback) var(--ease-out); }
 .course-deck-controls > button:hover { border-color: var(--brand-teal); background: var(--surface-active); }

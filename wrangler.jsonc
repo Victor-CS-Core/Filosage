@@ -49,7 +49,17 @@
     "COURSE_PUBLICATION_V2": "true",
     "COURSE_PIPELINE_SHADOW_MODE": "false",
     "COURSE_PIPELINE_V2_OWNER_ONLY": "true",
-    "COURSE_PIPELINE_V2_COHORT_PERCENT": "0"
+    "COURSE_PIPELINE_V2_COHORT_PERCENT": "0",
+    "SPARK_ENABLED": "false",
+    "NEXT_PUBLIC_SPARK_ENABLED": "false",
+    "SPARK_LIVE_AI_ENABLED": "false",
+    "SPARK_PREPARE_ENABLED": "false",
+    "SPARK_SEMANTIC_RETRIEVAL_ENABLED": "false",
+    "OPENAI_SPARK_MODEL": "gpt-4.1-mini-2025-04-14",
+    "SPARK_MAX_INPUT_TOKENS": "4000",
+    "SPARK_MAX_OUTPUT_TOKENS": "900",
+    "SPARK_GLOBAL_CONCURRENCY": "4",
+    "SPARK_TURNS_PER_MINUTE": "6"
   },
   "env": {
     "staging": {
@@ -94,7 +104,17 @@
         "COURSE_PUBLICATION_V2": "true",
         "COURSE_PIPELINE_SHADOW_MODE": "false",
         "COURSE_PIPELINE_V2_OWNER_ONLY": "true",
-        "COURSE_PIPELINE_V2_COHORT_PERCENT": "0"
+        "COURSE_PIPELINE_V2_COHORT_PERCENT": "0",
+        "SPARK_ENABLED": "false",
+        "NEXT_PUBLIC_SPARK_ENABLED": "false",
+        "SPARK_LIVE_AI_ENABLED": "false",
+        "SPARK_PREPARE_ENABLED": "false",
+        "SPARK_SEMANTIC_RETRIEVAL_ENABLED": "false",
+        "OPENAI_SPARK_MODEL": "gpt-4.1-mini-2025-04-14",
+        "SPARK_MAX_INPUT_TOKENS": "4000",
+        "SPARK_MAX_OUTPUT_TOKENS": "900",
+        "SPARK_GLOBAL_CONCURRENCY": "4",
+        "SPARK_TURNS_PER_MINUTE": "6"
       }
     }
   }

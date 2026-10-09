@@ -22,6 +22,10 @@ export interface AccountDeletionInventory {
   accountLinkedProductEvents: IdentifiedAccountDocument[];
   referralCodes: IdentifiedAccountDocument[];
   courseResearchArtifacts: IdentifiedAccountDocument[];
+  sparkSessions?: IdentifiedAccountDocument[];
+  sparkTurns?: IdentifiedAccountDocument[];
+  sparkAttempts?: IdentifiedAccountDocument[];
+  sparkAssessments?: IdentifiedAccountDocument[];
 }
 
 export const ACCOUNT_DELETION_POLICY_REVIEW = {
@@ -95,6 +99,10 @@ export function accountDeletionDocumentPaths(
     ...documentPaths("productEvents", inventory.accountLinkedProductEvents),
     ...documentPaths("referralCodes", inventory.referralCodes),
     ...documentPaths("courseResearchArtifacts", inventory.courseResearchArtifacts),
+    ...documentPaths("sparkSessions", inventory.sparkSessions ?? []),
+    ...documentPaths("sparkTurns", inventory.sparkTurns ?? []),
+    ...documentPaths("sparkAttempts", inventory.sparkAttempts ?? []),
+    ...documentPaths("sparkAssessments", inventory.sparkAssessments ?? []),
     `userEngagement/${uid}`,
     `pricingIntents/${uid}`,
     ...(waitlistPath ? [waitlistPath] : []),
