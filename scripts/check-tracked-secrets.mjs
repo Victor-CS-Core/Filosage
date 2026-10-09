@@ -39,7 +39,8 @@ for (const path of trackedFiles()) {
   let bytes;
   try {
     bytes = readFileSync(path);
-  } catch {
+  } catch (error) {
+    if (error && typeof error === "object" && "code" in error && error.code === "ENOENT") continue;
     findings.push(`${path}:0 [unreadable-tracked-file]`);
     continue;
   }

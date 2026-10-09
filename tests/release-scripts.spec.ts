@@ -77,6 +77,11 @@ test("tracked secret scanning fails without echoing the credential and permits a
     expect(allowed.status, allowed.stderr).toBe(0);
     expect(allowed.stdout).toBe("Tracked-file secret scan passed.\n");
 
+    rmSync(join(directory, "candidate.txt"));
+    const deleted = spawnSync(process.execPath, [trackedSecretScript], { cwd: directory, encoding: "utf8" });
+    expect(deleted.status, deleted.stderr).toBe(0);
+    expect(deleted.stdout).toBe("Tracked-file secret scan passed.\n");
+
     writeFileSync(join(directory, "candidate.txt"), "security corpus sentinel sk-live-CANARYSECRET123456\n", "utf8");
     const sentinel = spawnSync(process.execPath, [trackedSecretScript], { cwd: directory, encoding: "utf8" });
     expect(sentinel.status, sentinel.stderr).toBe(0);

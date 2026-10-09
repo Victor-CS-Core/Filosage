@@ -42,5 +42,8 @@ export async function postgresDocumentStoreJson<T>(
   _init: RequestInit = {},
   _allowNotFound = false,
 ): Promise<T | null> {
+  void _requestPath;
+  void _init;
+  void _allowNotFound;
   return unavailable();
 }

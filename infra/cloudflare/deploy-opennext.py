@@ -10,7 +10,8 @@ Replicates `wrangler deploy [--env ...]` for the OpenNext build output:
      D1/R2/vars/assets bindings)
   4. creates a deployment routing 100% of traffic to the new version
 
-Auth uses the stored `custom.cloudflare` connector via authd surrogates.
+Auth uses the stored `custom.cloudflare` connector via authd surrogates when
+available, or an existing Wrangler OAuth session as a local fallback.
 Staging deploys do NOT need user approval. Production deploys DO.
 """
 import base64
@@ -19,18 +20,23 @@ import mimetypes
 import os
 import subprocess
 import sys
+import tempfile
 import time
 import urllib.request
 import urllib.error
 
 sys.path.insert(0, "/opt/hatch/skills/skill-creator/bin")
-from dynamic_credentials import add_surrogate_to_request, read_response_body
+try:
+    from dynamic_credentials import add_surrogate_to_request, read_response_body
+except ModuleNotFoundError:
+    add_surrogate_to_request = None
+    read_response_body = None
 
 API = "https://api.cloudflare.com"
 ALLOWED = ["api.cloudflare.com"]
 CREDENTIAL = "custom.cloudflare"
 ACCOUNT_ID = "447a556505dd5e72b66e7c1c63d754ae"
-REPO = os.path.expanduser("~/workspace/filosage-push/merge")
+REPO = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 BIN = os.path.expanduser("~/workspace/skills/cloudflare/bin")
 
 ENVS = {
@@ -38,23 +44,11 @@ ENVS = {
         "script": "filosage-staging",
         "d1": {"binding": "FILOSAGE_D1", "database_id": "6805f7f9-610a-4699-9253-65bdfc88de40"},
         "r2": {"binding": "FILOSAGE_R2", "bucket_name": "filosage-assets-staging"},
-        "vars": {
-            "CLOUDFLARE_D1_ENABLED": "true",
-            "CLOUDFLARE_R2_ENABLED": "true",
-            "NODE_ENV": "production",
-            "DEPLOYMENT_ENVIRONMENT": "qa",
-        },
     },
     "production": {
         "script": "filosage",
         "d1": {"binding": "FILOSAGE_D1", "database_id": "5fa98a30-1ece-4d6a-8771-db4b2f0aad34"},
         "r2": {"binding": "FILOSAGE_R2", "bucket_name": "filosage-assets"},
-        "vars": {
-            "CLOUDFLARE_D1_ENABLED": "true",
-            "CLOUDFLARE_R2_ENABLED": "true",
-            "NODE_ENV": "production",
-            "DEPLOYMENT_ENVIRONMENT": "production",
-        },
     },
 }
 
@@ -70,6 +64,8 @@ def api_request(method, path, body=None, headers=None, credential=True):
         data = body
     req = urllib.request.Request(url, data=data, method=method, headers=req_headers)
     if credential:
+        if add_surrogate_to_request is None:
+            raise RuntimeError("Cloudflare surrogate credentials are unavailable")
         add_surrogate_to_request(req, CREDENTIAL, allowed_hosts=ALLOWED)
     try:
         with urllib.request.urlopen(req, timeout=180) as resp:
@@ -167,6 +163,53 @@ def current_secret_names(script):
         raise
 
 
+def load_worker_config(env_name):
+    with open(os.path.join(REPO, "wrangler.jsonc")) as f:
+        root = json.load(f)
+    env = root if env_name == "production" else root.get("env", {}).get(env_name, {})
+    if env_name != "production" and not env:
+        raise RuntimeError(f"wrangler config missing environment: {env_name}")
+    return {
+        "vars": env.get("vars", root.get("vars", {})),
+        "assets": env.get("assets", root.get("assets", {})),
+        "compatibility_date": env.get("compatibility_date", root.get("compatibility_date")),
+        "compatibility_flags": env.get("compatibility_flags", root.get("compatibility_flags", [])),
+    }
+
+
+def build_worker_bundle(env_name):
+    wrangler = os.path.join(REPO, "node_modules", ".bin", "wrangler")
+    if not os.path.isfile(wrangler):
+        raise RuntimeError(f"wrangler missing: {wrangler} (run npm install first)")
+    with tempfile.TemporaryDirectory(prefix="filosage-wrangler-") as outdir:
+        command = [wrangler, "deploy", "--dry-run", "--outdir", outdir]
+        if env_name != "production":
+            command.extend(["--env", env_name])
+        subprocess.run(command, cwd=REPO, check=True)
+        bundle = os.path.join(outdir, "worker.js")
+        if not os.path.isfile(bundle):
+            raise RuntimeError("wrangler dry run did not produce worker.js")
+        with open(bundle, "rb") as f:
+            return f.read()
+
+
+def deploy_with_wrangler(env_name, message):
+    wrangler = os.path.join(REPO, "node_modules", ".bin", "wrangler")
+    command = [
+        wrangler,
+        "deploy",
+        "--x-autoconfig=false",
+        "--config",
+        os.path.join(REPO, "wrangler.jsonc"),
+        "--message",
+        message,
+    ]
+    if env_name != "production":
+        command.extend(["--env", env_name])
+    subprocess.run(command, cwd=REPO, check=True)
+    print("DEPLOY_OK wrangler-oauth")
+
+
 def deploy(env_name, message):
     cfg = ENVS[env_name]
     script = cfg["script"]
@@ -177,77 +220,47 @@ def deploy(env_name, message):
     if not os.path.isdir(asset_dir):
         raise RuntimeError(f"asset dir missing: {asset_dir}")
 
+    if add_surrogate_to_request is None:
+        deploy_with_wrangler(env_name, message)
+        return
+
+    worker_config = load_worker_config(env_name)
+    worker_src = build_worker_bundle(env_name)
+    print(f"wrangler worker bundle: {len(worker_src)} bytes")
     assets_jwt = sync_assets(script, asset_dir)
 
     bindings = [
         {"name": cfg["d1"]["binding"], "type": "d1", "id": cfg["d1"]["database_id"]},
         {"name": cfg["r2"]["binding"], "type": "r2_bucket", "bucket_name": cfg["r2"]["bucket_name"]},
     ]
-    for name, text in cfg["vars"].items():
+    assets_binding = worker_config["assets"].get("binding")
+    if assets_binding:
+        bindings.append({"name": assets_binding, "type": "assets"})
+    for name, text in worker_config["vars"].items():
         bindings.append({"name": name, "type": "plain_text", "text": text})
     for name in current_secret_names(script):
         bindings.append({"name": name, "type": "inherit"})
         print(f"inheriting secret binding: {name}")
 
+    asset_config = {
+        name: worker_config["assets"][name]
+        for name in ("html_handling", "not_found_handling", "run_worker_first")
+        if name in worker_config["assets"]
+    }
+    for name, filename in (("_headers", "_headers"), ("_redirects", "_redirects")):
+        path = os.path.join(asset_dir, filename)
+        if os.path.isfile(path):
+            with open(path) as f:
+                asset_config[name] = f.read()
     metadata = {
         "main_module": "worker.js",
         "bindings": bindings,
-        "compatibility_date": "2026-09-01",
-        "compatibility_flags": ["nodejs_compat"],
-        "assets": {"jwt": assets_jwt, "config": {"not_found_handling": "single-page-application"}},
+        "compatibility_date": worker_config["compatibility_date"],
+        "compatibility_flags": worker_config["compatibility_flags"],
+        "assets": {"jwt": assets_jwt, "config": asset_config},
         "observability": {"enabled": True, "head_sampling_rate": 0.1},
     }
-    with open(worker_js, "rb") as f:
-        worker_src = f.read()
-    print(f"worker bundle: {len(worker_src)} bytes")
-
-    # The worker entry imports sibling modules that wrangler normally
-    # resolves; upload them as additional modules. Recursively discover
-    # all relative imports starting from worker.js.
-    import re
-    open_next_dir = os.path.join(REPO, ".open-next")
-    discovered = set()
-    to_visit = ["worker.js"]
-    import_re = re.compile(r'''(?:import|export)[^'"]*?from\s*['"](\./[^'"]+)['"]|import\s*\(\s*['"](\./[^'"]+)['"]\s*\)''')
-    while to_visit:
-        rel = to_visit.pop()
-        if rel in discovered:
-            continue
-        discovered.add(rel)
-        path = os.path.join(open_next_dir, rel)
-        if not os.path.exists(path):
-            print(f"warning: imported module not found: {rel}")
-            continue
-        try:
-            with open(path, "r", errors="ignore") as f:
-                src = f.read()
-        except OSError:
-            continue
-        base = os.path.dirname(rel)
-        for m in import_re.finditer(src):
-            imp = m.group(1) or m.group(2)
-            # Resolve relative to importing file, strip trailing / if any
-            target = os.path.normpath(os.path.join(base, imp))
-            # Skip directory imports ("./") and non-js
-            if target.endswith("/"):
-                continue
-            # Try with extensions if no exact match
-            if not os.path.exists(os.path.join(open_next_dir, target)):
-                for ext in (".js", ".mjs", ".cjs"):
-                    if os.path.exists(os.path.join(open_next_dir, target + ext)):
-                        target = target + ext
-                        break
-            to_visit.append(target)
-    print(f"discovered {len(discovered)} worker modules")
     fields = [("metadata", json.dumps(metadata), None, "text/plain")]
-    for rel in sorted(discovered):
-        if rel == "worker.js":
-            continue
-        path = os.path.join(open_next_dir, rel)
-        if not os.path.exists(path) or not os.path.isfile(path):
-            continue
-        with open(path, "rb") as f:
-            fields.append((rel, f.read(), rel, "application/javascript+module"))
     fields.append(("worker.js", worker_src, "worker.js", "application/javascript+module"))
     data, boundary = encode_multipart(fields)
     version = api_request(

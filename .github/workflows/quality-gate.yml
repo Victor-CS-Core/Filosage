@@ -47,8 +47,8 @@ jobs:
         run: node scripts/ci-change-scope.mjs
       - name: Verify CI scope and release evidence safeguards
         run: node --test tests/ci/*.test.mjs tests/workflow-quality-evidence.test.mjs
-      - name: Verify alert receiver and maintenance access contracts
-        run: node --test tests/maintenance-access/*.test.mjs tests/recovery/alert-receiver.test.mjs tests/runner-build/*.test.mjs tests/candidate-proof/*.test.mjs
+      - name: Verify maintenance access and release contracts
+        run: node --test tests/maintenance-access/*.test.mjs tests/runner-build/*.test.mjs tests/candidate-proof/*.test.mjs
       - run: npm ci
         if: steps.scope.outputs.full == 'true'
       - run: npm run lint
@@ -71,12 +71,6 @@ jobs:
         if: steps.scope.outputs.full == 'true'
       - run: npm run check:secrets
       - run: npm run check:support-wiki
-      - name: Install pinned Bicep compiler
-        if: steps.scope.outputs.full == 'true'
-        run: az bicep install --version v0.46.1
-      - name: Compile isolated alert receiver deployment
-        if: steps.scope.outputs.full == 'true'
-        run: az bicep build --file infra/azure/operations-alert-receiver.bicep --outfile "$RUNNER_TEMP/operations-alert-receiver.json"
       - run: npm run test:contracts -- --output=test-results/contracts --reporter=line,blob
         if: steps.scope.outputs.full == 'true'
         env:

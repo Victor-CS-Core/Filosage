@@ -1,3 +1,35 @@
+## Retire Azure-specific alert receiver — October 9, 2026
+
+**Status: COMPLETE.** Azure is no longer an application provider. This change removes only the obsolete Azure alert-receiver implementation and its live CI/release references; the provider-neutral application alert sender and historical migration evidence remain intact.
+
+- [x] Trace every live reference to the Azure receiver implementation, deployment, tests, and CI steps.
+- [x] Remove the Azure Container Apps/Blob/managed-identity receiver, deployment template, tests, and release packet.
+- [x] Remove receiver-specific Bicep compilation and test invocation from the quality gate.
+- [x] Verify no live references remain, the workflow parses, and the remaining focused CI tests pass.
+
+Acceptance: no executable or active release path references the retired Azure receiver, no unrelated Azure migration history is rewritten, and `src/lib/operational-alerts.ts` remains available for the future Cloudflare receiver.
+
+Verification (2026-10-09): 23/23 remaining maintenance/release contracts and 24/24 workflow-policy tests pass; the focused tracked-secret regression passes; scoped Oxlint and ESLint are clean; workflow diagnostics and whitespace checks are clean; the tracked-secret scan passes; and no live `.github`, `infra`, `scripts`, `tests`, or `docs/releases` reference to the retired receiver remains. The secret scanner now skips only `ENOENT` files intentionally deleted from the working tree while preserving all other unreadable-file failures.
+
+---
+
+## External HetrixTools uptime monitoring — October 9, 2026
+
+**Status: COMPLETE for external monitoring; account security follow-up required.** Victor explicitly authorized implementing HetrixTools monitoring. Scope was external monitoring configuration only; no production deployment, application mutation, billing activation, or secret change occurred.
+
+- [x] Confirm the canonical production origin and probe the homepage, liveness, startup, readiness, and aggregate health endpoints.
+- [x] Create one-minute HTTPS monitors for `https://filosage.com/api/health/live` and `https://filosage.com/`, with outage and recovery notifications delivered outside Cloudflare.
+- [x] Prepare but do not enable a readiness monitor for `https://filosage.com/api/health/ready` while its intentional operations-alert configuration gap returns 503.
+- [x] Verify each active monitor from multiple HetrixTools locations, trigger a provider test notification, and record sanitized provider evidence.
+
+Configuration: `Filosage Production Liveness` requires HTTP 200 plus `"status":"live"`; `Filosage Production Homepage` requires HTTP 200 plus the production page title. Both check every minute from New York, Amsterdam, Singapore, and Sao Paulo, require two tries and a 3-of-4 regional quorum, verify TLS, and notify `Default Contact` directly by email. `Filosage Production Readiness - Pending Receiver` has the same check mechanics but no contact list and is paused until the operations-alert receiver makes readiness return 200.
+
+Provider evidence (2026-10-09): the account is verified; HetrixTools reports both active monitors up after initial multi-region checks and confirms `Monitor paused` for readiness. HetrixTools returned `Notification Sent` for two email tests to the configured iCloud recipient; Victor confirmed the second test arrived in the spam folder, proving delivery but leaving a mail-classification risk until it is marked as not junk. Victor received the SMS test, the SMS number is saved on `Default Contact`, and both active monitors are confirmed bound to that contact list. The account now reports zero SMS credits, so the successful test does not establish future outage delivery until credits are purchased; a free chat/push route such as Telegram remains preferred and requires Victor's direct chat ID. Fresh direct probes return 200 for `/` and `/api/health/live`, and the expected 503 for `/api/health/ready`.
+
+Security follow-up: HetrixTools two-factor authentication is confirmed enabled. The password entered during registration appeared in a browser-automation snapshot, and the provider exposes no evidence that it has been changed. Its value is not recorded here, but Victor must change that HetrixTools password and any reused copy immediately; provider configuration does not depend on retaining it.
+
+---
+
 ## Azure to Cloudflare migration — October 2026
 
 **Status: COMPLETE (2026-10-08).** Production cutover done: filosage.com live on Cloudflare Workers. Azure decommission authorized — user deleting resources via Azure Portal.
@@ -61,7 +93,6 @@ Status: review_ready (PR open; merge is Victor's decision). Owner: Filosage Engi
 - [x] `AZURE_ACR_NAME` was removed from the four release workflows and `deploymentVariables`. The GitHub variable itself is kept so a revert still works.
 - [x] Bicep: the app keeps its ACR `registries` entry and AcrPull. The live ACR revision scales to zero and re-pulls on cold start, so removing them would break rollback. Bootstrap job registries now apply only when the bootstrap image is in ACR. The registry resource is unchanged.
 - [ ] After merge (owner): the first staging run creates the private package and fails closed at the public check. Make the package public, then re-dispatch. The authenticated `GITHUB_TOKEN` token exchange and push can only be verified in that hosted run.
-- [ ] Before any ACR deletion: `infra/azure/operations-alert-receiver.bicep` still pins an ACR image with AcrPull. The receiver must move to GHCR first, or ACR deletion breaks it.
 
 Verification (local, 2026-09-29): 9/9 runner-build, 23/23 node tests (maintenance-access, runner-build, candidate-proof), 67/67 focused contracts (blue-green, release-capabilities, release-prerequisites, azure-infrastructure), full contracts 502/503. The one failure, `operations-scripts.spec.ts:71` (`az: command not found`), also fails on unmodified main locally. `tsc --noEmit` clean, oxlint and ESLint clean on touched files, tracked-secret scan and `git diff --check` pass. `az bicep build` succeeds for `main.bicep` (one `listKeys` linter warning that already exists on main) and `bootstrap.bicep`. The real GHCR API was probed with the script's exact curl flags against a public image: existing tag 200, absent tag 404, one `docker-content-digest` that matches by tag and by digest. The Python inventory validator accepts both exact forms and rejects other registries, owners and digests.
 
