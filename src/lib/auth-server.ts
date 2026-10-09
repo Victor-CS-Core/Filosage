@@ -29,6 +29,13 @@ export class AuthorizationError extends Error {
 
 export async function getVerifiedUser(request: Request): Promise<VerifiedUser | null> {
   if (!isLocalMode()) {
+    // On Cloudflare Workers there is no Azure Easy Auth; check the standalone
+    // Google OAuth session cookie first.
+    const { getCloudflareVerifiedUser } = await import("@/lib/cloudflare-google-auth");
+    const cloudflareUser = await getCloudflareVerifiedUser(request);
+    if (cloudflareUser) {
+      return requestAccountMatchesVerifiedUid(request.headers, cloudflareUser.uid) ? cloudflareUser : null;
+    }
     const user = await verifiedEasyAuthUser(request);
     return user && requestAccountMatchesVerifiedUid(request.headers, user.uid) ? user : null;
   }

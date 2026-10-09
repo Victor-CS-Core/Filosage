@@ -59,7 +59,12 @@ export function authenticationReadinessIssues(
   })) as Record<(typeof authenticationBooleanNames)[number], boolean | null>;
 
   if (parsed.AZURE_EASY_AUTH_ENABLED === false) {
-    issues.push("AZURE_EASY_AUTH_ENABLED must be exactly true");
+    // On Cloudflare Workers there is no Easy Auth; direct Google auth is the
+    // primary provider. Allow Easy Auth to be disabled in that environment.
+    const onCloudflare = environment.CLOUDFLARE_D1_ENABLED?.trim().toLowerCase() === "true";
+    if (!onCloudflare) {
+      issues.push("AZURE_EASY_AUTH_ENABLED must be exactly true");
+    }
   }
   if (parsed.DIRECT_GOOGLE_AUTH_ENABLED !== null
     && parsed.EXTERNAL_ID_AUTH_ENABLED !== null
@@ -151,8 +156,20 @@ export const optionalRuntimeConfiguration = [
 
 export function missingRuntimeConfiguration() {
   if (serverEnvironment.NODE_ENV !== "production") return [] as string[];
+  const onCloudflare = serverEnvironment.CLOUDFLARE_D1_ENABLED?.trim().toLowerCase() === "true";
+  // On Cloudflare, Azure-specific variables are replaced by bindings:
+  // DATABASE_URL -> D1, AZURE_STORAGE_* -> R2, Easy Auth -> direct auth.
+  const cloudflareReplaced = new Set([
+    "DATABASE_URL",
+    "AZURE_EASY_AUTH_ENABLED",
+    "AZURE_STORAGE_ACCOUNT_URL",
+    "AZURE_STORAGE_BANNER_CONTAINER",
+    "AZURE_POSTGRES_SERVER_NAME",
+    "AZURE_RESOURCE_GROUP",
+  ]);
   const issues: string[] = requiredInProduction
-    .filter((name) => !serverEnvironment[name]?.trim());
+    .filter((name) => !serverEnvironment[name]?.trim())
+    .filter((name) => !onCloudflare || !cloudflareReplaced.has(name));
   issues.push(...operationsReadinessIssues(serverEnvironment));
   issues.push(...authenticationReadinessIssues(serverEnvironment)
     .map((issue) => issue.startsWith("IDENTITY_LINK_HMAC_SECRET") ? issue : `authentication: ${issue}`));

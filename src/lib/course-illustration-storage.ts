@@ -3,6 +3,7 @@ import "server-only";
 import { DefaultAzureCredential } from "@azure/identity";
 import { BlobServiceClient } from "@azure/storage-blob";
 import { serverEnvironment } from "@/lib/runtime-environment";
+import { deleteR2Object, isR2Enabled, readR2Object, storeR2Object } from "@/lib/r2-storage";
 
 const OBJECT_PREFIX = "course-illustrations";
 
@@ -32,6 +33,7 @@ function objectKey(assetId: string) {
 }
 
 export async function storeCourseIllustrationObject(assetId: string, bytes: Uint8Array) {
+  if (isR2Enabled()) return storeR2Object(objectKey(assetId), bytes);
   const client = blobService();
   if (!client) return null;
   const blob = client.getContainerClient(containerName()).getBlockBlobClient(objectKey(assetId));
@@ -44,7 +46,8 @@ export async function storeCourseIllustrationObject(assetId: string, bytes: Uint
   return "azure-blob" as const;
 }
 
-export async function readCourseIllustrationObject(assetId: string) {
+export async function readCourseIllustrationObject(assetId: string): Promise<Uint8Array<ArrayBuffer> | null> {
+  if (isR2Enabled()) return readR2Object(objectKey(assetId));
   const client = blobService();
   if (!client) return null;
   const blob = client.getContainerClient(containerName()).getBlockBlobClient(objectKey(assetId));
@@ -56,7 +59,7 @@ export async function readCourseIllustrationObject(assetId: string) {
   }
   const length = chunks.reduce((total, chunk) => total + chunk.byteLength, 0);
   if (!length) return null;
-  const bytes = new Uint8Array(length);
+  const bytes = new Uint8Array(new ArrayBuffer(length));
   let offset = 0;
   for (const chunk of chunks) {
     bytes.set(chunk, offset);
@@ -66,9 +69,14 @@ export async function readCourseIllustrationObject(assetId: string) {
 }
 
 // Caller proves the asset is exclusive and no surviving course references it.
-// Azure deletion is idempotent; an unknown remote result keeps the durable job.
+// Deletion is idempotent; an unknown remote result keeps the durable job.
 export async function deleteExclusiveCourseIllustrationObject(assetId: string, asset: Record<string, unknown>) {
   if (!/^[a-f0-9]{32}$/.test(assetId) || asset.ownership !== "exclusive" || typeof asset.ownerUid !== "string") throw new Error("Illustration ownership is unverified.");
+  if (isR2Enabled()) {
+    if (asset.storage !== "r2") return;
+    await deleteR2Object(objectKey(assetId));
+    return;
+  }
   if (asset.storage !== "azure-blob") return;
   const client = blobService();
   if (!client) throw new Error("Illustration storage is unavailable for deletion.");

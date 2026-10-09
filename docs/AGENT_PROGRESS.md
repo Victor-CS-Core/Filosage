@@ -1,3 +1,57 @@
+## Azure to Cloudflare migration — October 2026
+
+**Status: COMPLETE (2026-10-08).** Production cutover done: filosage.com live on Cloudflare Workers. Azure decommission authorized — user deleting resources via Azure Portal.
+
+**Production (live):**
+- Worker `filosage` at https://filosage.com (apex + www via Worker routes)
+- D1 `filosage-db` (5fa98a30-1ece-4d6a-8771-db4b2f0aad34), R2 `filosage-assets`
+- Google OAuth: standalone PKCE flow, redirect URIs for staging + filosage.com
+- Health: ok:false only due to intentionally unconfigured operations webhook (user-approved)
+- Secrets: OPENAI_API_KEY (vault), OWNER_EMAIL, fresh HMAC secrets, Google OAuth client
+
+**Staging (verified):**
+- Worker `filosage-staging` at https://filosage-staging.ktr0nn.workers.dev
+- D1 `filosage-db-staging`, R2 `filosage-assets-staging`
+- Health ok:true, direct-google auth, D1 round-trip verified, user sign-in confirmed
+
+**DNS:** Cloudflare zone active; GoDaddy nameservers → elsa.ns.cloudflare.com, yevgen.ns.cloudflare.com
+
+Victor reported Azure forecast at $33/mo (2026-10-01, vs his ~$7-8/mo ceiling) and authorized abandoning existing application data: "I'm ok with cutting my loses and just migrating the app it self and setting up db in Cloudflare in a more convenient and economic way." Fresh empty database on Cloudflare; no user accounts, progress, courses, or blobs migrated. Owner account must be recreated. Billing stays disabled (BILLING_ENABLED=false, BILLING_ROLLOUT_MODE=closed). No commit, GitHub push, production DNS change, or Azure shutdown has occurred.
+
+Cloudflare resources (account 447a556505dd5e72b66e7c1c63d754ae):
+- D1 `filosage-db` (5fa98a30-1ece-4d6a-8771-db4b2f0aad34) — production, schema applied
+- D1 `filosage-db-staging` (6805f7f9-610a-4699-9253-65bdfc88de40) — staging, schema applied
+- R2 `filosage-assets` — production bucket (user enabled R2 in dashboard 2026-10-08 after API 403/code 10042 "Please enable R2 through the Cloudflare Dashboard")
+- R2 `filosage-assets-staging` — staging bucket
+- Worker `filosage-staging` live at https://filosage-staging.ktr0nn.workers.dev (verified 2026-10-08)
+
+What was built (working tree ~/workspace/filosage-push/merge, uncommitted):
+- `src/lib/d1-document-store.ts` + `infra/cloudflare/d1/001_document_store.sql`: D1 backend for the document store, routed by CLOUDFLARE_D1_ENABLED. 3/3 local contract tests pass; full write/read/delete round trip verified live on the staging worker.
+- `src/lib/r2-storage.ts`, `src/lib/cloudflare-context.ts`: R2 via FILOSAGE_R2 binding, D1/R2 resolved through getCloudflareContext(). Banner/illustration storage routes to R2 when CLOUDFLARE_R2_ENABLED=true.
+- `src/middleware.cloudflare.ts` + `scripts/build-cloudflare.mjs` (`npm run build:cloudflare`): Next 16 runs proxy.ts on Node.js unconditionally (setting runtime throws E1031), which @opennextjs/cloudflare 1.19.11 rejects. Fix: build script temporarily swaps proxy.ts -> edge middleware.ts (full security-header set preserved, QA robots tag via build-time DEPLOYMENT_ENVIRONMENT) and swaps postgres-document-store.ts -> stub (keeps unbundlable `pg` out of the worker; real module restored after build). Azure/Node builds unaffected.
+- `wrangler.jsonc`: production + staging envs (separate D1/R2), `CLOUDFLARE_D1_ENABLED`/`CLOUDFLARE_R2_ENABLED` vars, account_id set (required for wrangler auth via vaulted token).
+- `infra/cloudflare/deploy-opennext.py`: staging deploys via REST API (wrangler deploy also works now); refuses production without explicit approval.
+- `pg-cloudflare` added as dependency (satisfies pg's workerd export condition during bundling; pg never executes on Workers).
+- Auth: Azure Easy Auth requirement relaxed for Cloudflare; app defaults to direct Google auth (unchanged modes preserved, billing closed).
+
+Staging verification (2026-10-08): homepage 200, /api/health responds, middleware sets full CSP+nonce/HSTS/X-Robots-Tag(noindex on staging), D1 write/read/delete round trip passes through the app's document-store.ts, D1/R2 bindings resolve.
+
+Secrets configured on staging (2026-10-08, user-approved): OPENAI_API_KEY (from vaulted custom.openai), ACTIVITY_RECEIPT_SECRET + IDENTITY_LINK_HMAC_SECRET (freshly generated, 64 chars each), OWNER_EMAIL=viticopq12@gmail.com (user-provided). Plain vars in wrangler.jsonc: NEXT_PUBLIC_SITE_URL, auth flags (DIRECT_GOOGLE_AUTH_ENABLED=true, EXTERNAL_ID_*=false, AZURE_EASY_AUTH_ENABLED=false), billing closed, and all 15 release-capability flags matching config/release-capabilities.json. /api/health now reports ok:true, authenticationMode:direct-google, all checks true. Generated secrets saved to ~/workspace/filosage-push/staging-secrets-reference.txt (outside git).
+
+Known gap: production auth on Cloudflare has no Azure Easy Auth; `getVerifiedUser` in production mode only reads Easy Auth headers. A standalone Google OAuth flow (redirect + callback + session cookies) is not yet implemented — sign-in will not work on Cloudflare until this is built. Requires a Google Cloud OAuth client and the redirect URI for the Cloudflare domain.
+
+Standalone Google OAuth implemented (2026-10-08, user-approved): `src/lib/cloudflare-google-auth.ts` (OAuth state + PKCE, code exchange, ID token verification via Google JWKS with WebCrypto, HMAC-signed session cookies), `src/app/api/auth/google/route.ts` (flow start), `src/app/api/auth/google/callback/route.ts` (callback + session creation), `src/app/api/auth/google/logout/route.ts` (sign-out). `getVerifiedUser` in auth-server.ts checks the Cloudflare session cookie before Easy Auth headers. Cloudflare middleware intercepts `/.auth/login/google` and `/.auth/logout` and rewrites them to the new routes, so the client sign-in flow works unchanged. GOOGLE_CLIENT_ID + GOOGLE_CLIENT_SECRET set on staging from user-provided values (used transiently, not stored). Verified: /api/auth/google 302-redirects to Google, callback rejects invalid state with redirect to /?auth=error. Full sign-in requires the user to authenticate in a browser; not yet tested end-to-end.
+
+Open gaps / blockers:
+- Secrets not yet configured on staging or production (OPENAI_API_KEY, OWNER_EMAIL, ACTIVITY_RECEIPT_SECRET, IDENTITY_LINK_HMAC_SECRET, auth flags). App boots without them; health reports configuration:false.
+- Production worker not created/deployed; no custom domain; no DNS cutover. Each needs explicit approval.
+- Azure resources still running ($33/mo burn continues until decommission, needs explicit approval).
+- D1 transaction parity vs PostgreSQL not yet hardened (prototype-level optimistic transactions); more concurrency tests needed before production.
+- node_modules minimatch patch (brace-expansion named import) is not durable; needs pin/patch-package or Node version fix.
+- /tmp credential files from September still need deletion (az-token.py, secrets.json, etc.); Azure SP secret rotation still owed.
+
+---
+
 ## KRO-9 deploy images from ACR to GHCR (branch + PR only) — September 29
 
 Status: review_ready (PR open; merge is Victor's decision). Owner: Filosage Engineer on `paperclip/kro-9-ghcr-images`, based on main `c408acf`. Approved on KRO-3 option `r2_branch`: code switch only. No merge, workflow dispatch, deploy, Azure change, package-visibility change or ACR deletion was performed. Hold the production switch until KRO-8 (Cloudflare feasibility) decides the platform and KRO-5 restores routing.
@@ -905,3 +959,14 @@ At the user's approval ("Yes go ahead. I also want a small seal on the corner of
 - Note: hero assets from the unified illustration pipeline stamp `styleVersion: 2` (the pipeline version); the v6 banner style version still participates via `courseBannerFingerprintMaterial`, so future banner style bumps change fingerprints and regenerate — no staleness hole.
 
 Still local-only; nothing pushed or deployed. Open Tier C gaps unchanged (hero serving mismatch, atomic delete-refund, provider-outcome accounting, Azure container, deletion cleanup, DTO/publication proof, persisted alt text, runtime decorative-only enforcement).
+
+## 2026-09-25 — quality-gate failure diagnosis + fix-up commit (local doc entry, not pushed)
+
+The 12:26 EDT quality-gate re-run (after the repo went public, which lifted the Actions budget block) actually ran and failed on 5 contract tests — all caused by the Tier C tree:
+
+1. `tests/openai-generation-profiles.spec.ts:159` — the tree had raised `LESSON_GENERATION_TOTAL_BUDGET_MS` from 48s to 120s, violating the "synchronous lesson generation inside the Worker deadline (<60s)" release contract. The raise was incidental (image-timing experiments), not a design decision — **reverted to 48_000**.
+2. `tests/course-research.spec.ts:731` x2 — the tree's generate-course route settled `GENERATION_OUTCOME_UNKNOWN` immediately as failed; the pause/resume recovery contract requires the operation to stay resumable after the 409. Reproduced locally, confirmed passing on the pristine base. **Reverted to base behavior** (lease-expiry reconciliation in `reconcileGenerationOperation` remains the safety net for genuinely abandoned operations).
+3. `tests/billing-offer.spec.ts:78` — the new `course_illustrations` capability wasn't pinned in the matrix test, and the Tier C plan-copy rewrite changed the pinned Plus/Pro descriptions. Test updated: capability explicit on all three tiers (false/true/true), copy assertions re-pinned to the approved new descriptions.
+4. `tests/release-hardening.spec.ts:203` — `contractSuites` length 40 -> 41 for the new `tests/course-illustrations.spec.ts` lane registration.
+
+Fix-up commit `6744acbe6cea4415b2070f2d6a6f89436d67843b` pushed via `~/workspace/push-filosage-fix.py` (Git Data API, 4 files). Local validation before push: tsc clean, oxlint clean, contracts 464/464 pass (azure-infrastructure spec excluded locally — needs the az CLI; runs in CI), node test suites 24/24 and 27/27 pass. The push re-triggered quality-gate; **it passed** (completed success 12:44 EDT). Full regression dispatched on the exact SHA (run 36162926425) — in progress.

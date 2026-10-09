@@ -86,11 +86,17 @@ async function rawDocumentStoreJson<T>(
     const { localDocumentStoreJson } = await import("@/lib/local-store");
     return localDocumentStoreJson<T>(path, init, allowNotFound);
   }
+  // Cloudflare D1 takes precedence when its binding is configured, so the same
+  // build can run on Workers without a PostgreSQL DATABASE_URL.
+  if (serverEnvironment.CLOUDFLARE_D1_ENABLED?.trim().toLowerCase() === "true") {
+    const { d1DocumentStoreJson } = await import("@/lib/d1-document-store");
+    return d1DocumentStoreJson<T>(path, init, allowNotFound);
+  }
   if (serverEnvironment.DATABASE_URL?.trim()) {
     const { postgresDocumentStoreJson } = await import("@/lib/postgres-document-store");
     return postgresDocumentStoreJson<T>(path, init, allowNotFound);
   }
-  throw new Error("Azure PostgreSQL is required outside local development.");
+  throw new Error("A document store backend is required outside local development.");
 }
 
 // Every mutation uses the same transaction boundary, including legacy PATCH,

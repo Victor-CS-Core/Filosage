@@ -1,0 +1,101 @@
+{
+  "$schema": "https://developers.cloudflare.com/schema/wrangler.jsonc",
+  "name": "filosage",
+  "main": ".open-next/worker.js",
+  "account_id": "447a556505dd5e72b66e7c1c63d754ae",
+  "compatibility_date": "2026-09-01",
+  "compatibility_flags": ["nodejs_compat"],
+  "assets": {
+    "directory": ".open-next/assets",
+    "binding": "ASSETS"
+  },
+  "d1_databases": [
+    {
+      "binding": "FILOSAGE_D1",
+      "database_name": "filosage-db",
+      "database_id": "5fa98a30-1ece-4d6a-8771-db4b2f0aad34"
+    }
+  ],
+  "r2_buckets": [
+    {
+      "binding": "FILOSAGE_R2",
+      "bucket_name": "filosage-assets"
+    }
+  ],
+  "vars": {
+    "CLOUDFLARE_D1_ENABLED": "true",
+    "CLOUDFLARE_R2_ENABLED": "true",
+    "NODE_ENV": "production",
+    "DEPLOYMENT_ENVIRONMENT": "production",
+    "NEXT_PUBLIC_SITE_URL": "https://filosage.com",
+    "AZURE_EASY_AUTH_ENABLED": "false",
+    "DIRECT_GOOGLE_AUTH_ENABLED": "true",
+    "EXTERNAL_ID_AUTH_ENABLED": "false",
+    "EXTERNAL_ID_NEW_ACCOUNTS_ENABLED": "false",
+    "BILLING_ENABLED": "false",
+    "BILLING_ROLLOUT_MODE": "closed",
+    "STRIPE_TAX_READY": "false",
+    "FLASHCARD_DECKS_ENABLED": "true",
+    "FLASHCARD_AI_GENERATION_ENABLED": "true",
+    "LESSON_VISUALS_ENABLED": "false",
+    "COMMAND_CENTER_ENABLED": "false",
+    "COMMAND_CENTER_DRAFTS_ENABLED": "false",
+    "NEXT_PUBLIC_COMMAND_CENTER_V2": "false",
+    "COURSE_PIPELINE_V2": "true",
+    "COURSE_VALIDATION_V2": "true",
+    "COURSE_REPAIR_V2": "true",
+    "COURSE_LABS_V2": "false",
+    "COURSE_VISUALS_V2": "false",
+    "COURSE_PUBLICATION_V2": "true",
+    "COURSE_PIPELINE_SHADOW_MODE": "false",
+    "COURSE_PIPELINE_V2_OWNER_ONLY": "true",
+    "COURSE_PIPELINE_V2_COHORT_PERCENT": "0"
+  },
+  "env": {
+    "staging": {
+      "name": "filosage-staging",
+      "d1_databases": [
+        {
+          "binding": "FILOSAGE_D1",
+          "database_name": "filosage-db-staging",
+          "database_id": "6805f7f9-610a-4699-9253-65bdfc88de40"
+        }
+      ],
+      "r2_buckets": [
+        {
+          "binding": "FILOSAGE_R2",
+          "bucket_name": "filosage-assets-staging"
+        }
+      ],
+      "vars": {
+        "CLOUDFLARE_D1_ENABLED": "true",
+        "CLOUDFLARE_R2_ENABLED": "true",
+        "NODE_ENV": "production",
+        "DEPLOYMENT_ENVIRONMENT": "qa",
+        "NEXT_PUBLIC_SITE_URL": "https://filosage-staging.ktr0nn.workers.dev",
+        "AZURE_EASY_AUTH_ENABLED": "false",
+        "DIRECT_GOOGLE_AUTH_ENABLED": "true",
+        "EXTERNAL_ID_AUTH_ENABLED": "false",
+        "EXTERNAL_ID_NEW_ACCOUNTS_ENABLED": "false",
+        "BILLING_ENABLED": "false",
+        "BILLING_ROLLOUT_MODE": "closed",
+        "STRIPE_TAX_READY": "false",
+        "FLASHCARD_DECKS_ENABLED": "true",
+        "FLASHCARD_AI_GENERATION_ENABLED": "true",
+        "LESSON_VISUALS_ENABLED": "false",
+        "COMMAND_CENTER_ENABLED": "false",
+        "COMMAND_CENTER_DRAFTS_ENABLED": "false",
+        "NEXT_PUBLIC_COMMAND_CENTER_V2": "false",
+        "COURSE_PIPELINE_V2": "true",
+        "COURSE_VALIDATION_V2": "true",
+        "COURSE_REPAIR_V2": "true",
+        "COURSE_LABS_V2": "false",
+        "COURSE_VISUALS_V2": "false",
+        "COURSE_PUBLICATION_V2": "true",
+        "COURSE_PIPELINE_SHADOW_MODE": "false",
+        "COURSE_PIPELINE_V2_OWNER_ONLY": "true",
+        "COURSE_PIPELINE_V2_COHORT_PERCENT": "0"
+      }
+    }
+  }
+}
