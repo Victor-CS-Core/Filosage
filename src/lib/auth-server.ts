@@ -29,6 +29,14 @@ export class AuthorizationError extends Error {
 
 export async function getVerifiedUser(request: Request): Promise<VerifiedUser | null> {
   if (!isLocalMode()) {
+    // Native apps authenticate with a bearer token instead of the cookie. When
+    // one is present it is the ONLY credential considered: no cookie fallback,
+    // which is what lets assertTrustedMutation skip browser origin checks.
+    const { hasMobileBearer, getMobileVerifiedUser } = await import("@/lib/mobile-auth");
+    if (hasMobileBearer(request)) {
+      const mobileUser = await getMobileVerifiedUser(request);
+      return mobileUser && requestAccountMatchesVerifiedUid(request.headers, mobileUser.uid) ? mobileUser : null;
+    }
     // On Cloudflare Workers there is no Azure Easy Auth; check the standalone
     // Google OAuth session cookie first.
     const { getCloudflareVerifiedUser } = await import("@/lib/cloudflare-google-auth");

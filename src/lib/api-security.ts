@@ -37,10 +37,15 @@ export function assertTrustedMutation(request: Request) {
   if (origin && !allowedOrigins(request).has(origin)) {
     throw new ApiRequestError(403, "This request did not originate from Filosage.");
   }
+  // Native apps send an explicit bearer token (never attached automatically by
+  // a browser, so not CSRF-able) and carry no Origin. getVerifiedUser ignores
+  // cookies whenever this bearer is present, so ambient credentials can't ride along.
+  const hasNativeBearer = /^Bearer\s+fsm1\./i.test(request.headers.get("authorization") ?? "");
   // Browsers send Origin for JSON POSTs and/or an unforgeable Fetch Metadata
   // header. In production, accepting neither would let non-browser clients
   // bypass the documented same-origin boundary accidentally.
   if (serverEnvironment.NODE_ENV === "production"
+    && !hasNativeBearer
     && !origin
     && fetchSite !== "same-origin"
     && fetchSite !== "same-site") {
