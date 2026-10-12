@@ -245,3 +245,158 @@ test("D1 document store commits transactions atomically", async () => {
     await fixture.close();
   }
 });
+
+test("D1 concurrent transactions: second update to same document fails", async () => {
+  const fixture = await createD1Fixture();
+  try {
+    const { d1DocumentStoreJson } = fixture.store;
+
+    // Create initial document
+    await d1DocumentStoreJson("/documents/users?documentId=concurrent", {
+      method: "POST",
+      body: JSON.stringify({
+        fields: { counter: { integerValue: "0" } },
+      }),
+    });
+
+    // Begin two transactions reading the same document
+    const begun1 = await d1DocumentStoreJson<Array<{ transaction?: string }>>("/documents:batchGet", {
+      method: "POST",
+      body: JSON.stringify({ documents: [docName("users/concurrent")] }),
+    });
+    const begun2 = await d1DocumentStoreJson<Array<{ transaction?: string }>>("/documents:batchGet", {
+      method: "POST",
+      body: JSON.stringify({ documents: [docName("users/concurrent")] }),
+    });
+    const tx1 = begun1?.[0]?.transaction;
+    const tx2 = begun2?.[0]?.transaction;
+    assert.ok(tx1 && tx2);
+
+    // First transaction commits successfully
+    await d1DocumentStoreJson("/documents:commit", {
+      method: "POST",
+      body: JSON.stringify({
+        transaction: tx1,
+        writes: [{ update: { name: docName("users/concurrent"), fields: { counter: { integerValue: "1" } } } }],
+      }),
+    });
+
+    // Second transaction should fail with version conflict
+    await assert.rejects(
+      d1DocumentStoreJson("/documents:commit", {
+        method: "POST",
+        body: JSON.stringify({
+          transaction: tx2,
+          writes: [{ update: { name: docName("users/concurrent"), fields: { counter: { integerValue: "2" } } } }],
+        }),
+      }),
+      /conflict/i,
+    );
+
+    // Verify first write won
+    const read = await d1DocumentStoreJson<{ fields: Record<string, { integerValue?: string }> }>(
+      "/documents/users/concurrent",
+      { method: "GET" },
+    );
+    assert.equal(read?.fields?.counter?.integerValue, "1");
+  } finally {
+    await fixture.close();
+  }
+});
+
+test("D1 concurrent transactions: second create of same document fails", async () => {
+  const fixture = await createD1Fixture();
+  try {
+    const { d1DocumentStoreJson } = fixture.store;
+
+    // Begin two transactions for a non-existent document
+    const begun1 = await d1DocumentStoreJson<Array<{ transaction?: string }>>("/documents:batchGet", {
+      method: "POST",
+      body: JSON.stringify({ documents: [docName("users/newdoc")] }),
+    });
+    const begun2 = await d1DocumentStoreJson<Array<{ transaction?: string }>>("/documents:batchGet", {
+      method: "POST",
+      body: JSON.stringify({ documents: [docName("users/newdoc")] }),
+    });
+    const tx1 = begun1?.[0]?.transaction;
+    const tx2 = begun2?.[0]?.transaction;
+    assert.ok(tx1 && tx2);
+
+    // First creates successfully
+    await d1DocumentStoreJson("/documents:commit", {
+      method: "POST",
+      body: JSON.stringify({
+        transaction: tx1,
+        writes: [{ update: { name: docName("users/newdoc"), fields: { v: { integerValue: "1" } } } }],
+      }),
+    });
+
+    // Second create should fail
+    await assert.rejects(
+      d1DocumentStoreJson("/documents:commit", {
+        method: "POST",
+        body: JSON.stringify({
+          transaction: tx2,
+          writes: [{ update: { name: docName("users/newdoc"), fields: { v: { integerValue: "2" } } } }],
+        }),
+      }),
+      /conflict/i,
+    );
+  } finally {
+    await fixture.close();
+  }
+});
+
+test("D1 concurrent transactions: delete fails if document was modified", async () => {
+  const fixture = await createD1Fixture();
+  try {
+    const { d1DocumentStoreJson } = fixture.store;
+
+    await d1DocumentStoreJson("/documents/users?documentId=todelete", {
+      method: "POST",
+      body: JSON.stringify({ fields: { v: { integerValue: "0" } } }),
+    });
+
+    const begun1 = await d1DocumentStoreJson<Array<{ transaction?: string }>>("/documents:batchGet", {
+      method: "POST",
+      body: JSON.stringify({ documents: [docName("users/todelete")] }),
+    });
+    const begun2 = await d1DocumentStoreJson<Array<{ transaction?: string }>>("/documents:batchGet", {
+      method: "POST",
+      body: JSON.stringify({ documents: [docName("users/todelete")] }),
+    });
+    const tx1 = begun1?.[0]?.transaction;
+    const tx2 = begun2?.[0]?.transaction;
+    assert.ok(tx1 && tx2);
+
+    // tx1 updates the document
+    await d1DocumentStoreJson("/documents:commit", {
+      method: "POST",
+      body: JSON.stringify({
+        transaction: tx1,
+        writes: [{ update: { name: docName("users/todelete"), fields: { v: { integerValue: "1" } } } }],
+      }),
+    });
+
+    // tx2 tries to delete with stale version — should fail
+    await assert.rejects(
+      d1DocumentStoreJson("/documents:commit", {
+        method: "POST",
+        body: JSON.stringify({
+          transaction: tx2,
+          writes: [{ delete: docName("users/todelete") }],
+        }),
+      }),
+      /conflict/i,
+    );
+
+    // Document should still exist with tx1's update
+    const read = await d1DocumentStoreJson<{ fields: Record<string, { integerValue?: string }> }>(
+      "/documents/users/todelete",
+      { method: "GET" },
+    );
+    assert.equal(read?.fields?.v?.integerValue, "1");
+  } finally {
+    await fixture.close();
+  }
+});

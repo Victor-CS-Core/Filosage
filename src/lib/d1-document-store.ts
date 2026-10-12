@@ -304,6 +304,17 @@ async function applyWrites(
   for (const write of writes) {
     if (typeof write.delete === "string") {
       const path = pathFromName(write.delete);
+      const expectedVersion = versions?.get(path);
+      if (expectedVersion !== undefined) {
+        // Version-guarded delete: atomic check-and-delete.
+        const result = await db.prepare(
+          "DELETE FROM filosage_documents WHERE path = ? AND version = ?",
+        ).bind(path, expectedVersion).run();
+        if ((result.meta.changes ?? 0) === 0) {
+          throw new Error("Document transaction conflict: the document changed before its delete.");
+        }
+        continue;
+      }
       statements.push(db.prepare("DELETE FROM filosage_documents WHERE path = ?").bind(path));
       continue;
     }
@@ -334,6 +345,20 @@ async function applyWrites(
       ).bind(payload, path, expectedVersion).run();
       if ((result.meta.changes ?? 0) === 0) {
         throw new Error("Document transaction conflict: the document changed before its update.");
+      }
+      continue;
+    }
+    if (versions) {
+      // Transactional create: document did not exist at begin time.
+      // Fail if it was created concurrently (ON CONFLICT DO NOTHING + check).
+      const result = await db.prepare(
+        `INSERT INTO filosage_documents
+          (path, collection_id, collection_path, document_id, data, version)
+         VALUES (?, ?, ?, ?, ?, 1)
+         ON CONFLICT (path) DO NOTHING`,
+      ).bind(path, coordinates.collectionId, coordinates.collectionPath, coordinates.documentId, payload).run();
+      if ((result.meta.changes ?? 0) === 0) {
+        throw new Error("Document transaction conflict: the document was created concurrently.");
       }
       continue;
     }
@@ -404,15 +429,10 @@ async function finishTransaction(id: string, writes: Array<Record<string, unknow
   clearTimeout(active.timeout);
   if (!writes) return; // rollback: nothing was written yet under optimistic mode
   const db = await d1();
-  // Re-read versions to detect conflicts before the atomic batch.
-  for (const [path, version] of active.versions) {
-    const row = await db.prepare("SELECT version FROM filosage_documents WHERE path = ?")
-      .bind(path).first<{ version: number }>();
-    if ((row?.version ?? -1) !== version) {
-      throw new Error("Document transaction conflict: the document changed before its update.");
-    }
-  }
-  await applyWrites(db, writes);
+  // Pass versions for atomic version-guarded updates. Each UPDATE includes
+  // the version check in its WHERE clause, making comparison and mutation
+  // a single atomic operation. applyWrites throws on version mismatch.
+  await applyWrites(db, writes, active.versions);
 }
 
 // ---------------------------------------------------------------------------
