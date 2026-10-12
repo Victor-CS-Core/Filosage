@@ -68,7 +68,7 @@ async function handlePOST(request: Request) {
       [progressPath, engagementPath, dailyEngagementPath],
       (documents) => {
         const previous = documents[progressPath]
-          ? asCourseProgress(documents[progressPath] as Record<string, unknown>)
+          ? asCourseProgress(documents[progressPath] as Record<string, unknown>, true)
           : null;
 
         // Idempotent: re-sending a completion (offline retry, second device)
@@ -114,6 +114,12 @@ async function handlePOST(request: Request) {
           completedLessonIds,
           lessons: { ...(previous?.lessons ?? {}), [submitted.lessonId]: lessonProgress },
           totalLessons: course.modules.reduce((sum, courseModule) => sum + courseModule.lessons.length, 0),
+          // The mobile write replaces the whole document, so web-owned
+          // fields must be carried forward explicitly or a phone completion
+          // would erase the learner's capstone assessment and the web
+          // route's idempotency ledger.
+          ...(previous?.capstone ? { capstone: previous.capstone } : {}),
+          ...(previous?.recentOperations ? { recentOperations: previous.recentOperations } : {}),
           lastActivityAt: observedAt,
           startedAt: previous?.startedAt ?? observedAt,
           studyMinutes: (previous?.studyMinutes ?? 0) + studyMinutesAdded,
