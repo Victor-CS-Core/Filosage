@@ -1,5 +1,7 @@
 "use client";
 
+/* oxlint-disable react/purity -- date computations for display; re-renders recompute intentionally */
+
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { ArrowRight, CalendarClock, CalendarDays, Flame, Lightbulb, RefreshCw, Share2, Target, TrendingUp } from "lucide-react";

@@ -1,5 +1,7 @@
 "use client";
 
+/* oxlint-disable react/purity -- date computations for display; stable per mount via useMemo */
+
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import {
@@ -63,6 +65,7 @@ export default function OutcomePlanner({
   const [baselineSubmission, setBaselineSubmission] = useState("");
   const [baselineBusy, setBaselineBusy] = useState(false);
   const [baselineError, setBaselineError] = useState<string | null>(null);
+  const todayIso = useMemo(() => new Date().toISOString().slice(0, 10), []);
 
   const updateDiagnostic = (objectiveId: string, level: BaselineLevel) => {
     if (!diagnosticTracked) {
@@ -292,7 +295,7 @@ export default function OutcomePlanner({
               </select>
             </label>
             <label>Target date <small>Optional</small>
-              <input name="targetDate" type="date" value={targetDate} min={new Date().toISOString().slice(0, 10)} onChange={(event) => setTargetDate(event.target.value)} />
+              <input name="targetDate" type="date" value={targetDate} min={todayIso} onChange={(event) => setTargetDate(event.target.value)} />
             </label>
           </div>
         </div>

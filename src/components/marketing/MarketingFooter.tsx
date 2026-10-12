@@ -1,6 +1,8 @@
 import Link from "next/link";
 import BrandLogo from "@/components/marketing/BrandLogo";
 
+const CURRENT_YEAR = new Date().getFullYear();
+
 export default function MarketingFooter() {
   return (
     <footer className="marketing-footer">
@@ -14,7 +16,7 @@ export default function MarketingFooter() {
         <div><strong>Support</strong><Link href="/support">Support</Link><Link href="/privacy-center">Privacy choices</Link><Link href="/copyright">Copyright</Link></div>
         <div><strong>Legal</strong><Link href="/terms">Terms</Link><Link href="/privacy">Privacy</Link><Link href="/acceptable-use">Acceptable use</Link></div>
       </div>
-      <div className="marketing-footer-meta"><span>© {new Date().getFullYear()} Filosage</span><span>filosage.com</span></div>
+      <div className="marketing-footer-meta"><span>© {CURRENT_YEAR} Filosage</span><span>filosage.com</span></div>
     </footer>
   );
 }
