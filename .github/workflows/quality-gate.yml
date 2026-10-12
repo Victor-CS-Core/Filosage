@@ -35,7 +35,7 @@ jobs:
           mkdir -p test-results/release
           printf '%s\n' "$actual_sha" > test-results/release/source-sha.txt
           test "$actual_sha" = "$EXPECTED_RELEASE_SHA"
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 22
           cache: npm
@@ -129,7 +129,7 @@ jobs:
           mkdir -p test-results/release
           printf '%s\n' "$actual_sha" > test-results/release/source-sha.txt
           test "$actual_sha" = "$EXPECTED_RELEASE_SHA"
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 22
           cache: npm
@@ -207,7 +207,7 @@ jobs:
           mkdir -p test-results/postgres
           printf '%s\n' "$actual_sha" > test-results/postgres/source-sha.txt
           test "$actual_sha" = "$EXPECTED_RELEASE_SHA"
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 22
           cache: npm
