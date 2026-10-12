@@ -14,6 +14,21 @@ async function signedIn(page: Page) {
   await page.route("**/api/learner-state", (route) => route.fulfill({ json: route.request().method() === "GET" ? EMPTY_LEARNER_STATE : { success: true } }));
   await page.route("**/api/courses?*", (route) => route.fulfill({ json: { courses: [] } }));
   await page.route("**/api/courses/recovery-course", (route) => route.fulfill({ json: course }));
+  // Same Spark-state probe as the storage-isolation fixture: mock the
+  // disabled-feature 200 so the request cannot reach the dev server and
+  // invalidate the fixture session with a 401.
+  await page.route("**/api/spark/courses/*/state*", (route) => route.fulfill({ json: {
+    featureEnabled: false,
+    availability: "saved_only",
+    course: { id: course.id, topic: course.topic },
+    lesson: { id: "0-0", title: "Inspect evidence", version: "test", content: "" },
+    currentStage: "define",
+    manifest: null,
+    preparation: "not_prepared",
+    evidence: { records: 0, demonstrated: 0 },
+    review: { due: false, nextReviewAt: null },
+    entitlement: { questionsRemaining: null, resetAt: null },
+  } }));
 }
 
 test("required evidence sources recover independently and optional recommendations do not block the report", { tag: "@smoke" }, async ({ page }) => {

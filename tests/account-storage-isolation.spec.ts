@@ -46,6 +46,23 @@ async function fixture(context: BrowserContext) {
   await context.route("**/api/courses?*", (route) => route.fulfill({ json: { courses: [course] } }));
   await context.route(`**/api/courses/${courseId}`, (route) => route.fulfill({ json: course }));
   await context.route(`**/api/courses/${courseId}/lessons/*`, (route) => route.fulfill({ json: lesson }));
+  // The lesson page probes Spark state for any signed-in user. Spark is
+  // disabled, and the real route answers 200 with featureEnabled: false for
+  // an accepted account. Leaving this route unmocked lets the request reach
+  // the dev server, whose 401 for this fixture-only session makes
+  // learnerRequest invalidate the whole session mid-test.
+  await context.route("**/api/spark/courses/*/state*", (route) => route.fulfill({ json: {
+    featureEnabled: false,
+    availability: "saved_only",
+    course: { id: courseId, topic },
+    lesson: { id: "0-0", title: "Inspect evidence", version: "test", content: lesson.content },
+    currentStage: "define",
+    manifest: null,
+    preparation: "not_prepared",
+    evidence: { records: 0, demonstrated: 0 },
+    review: { due: false, nextReviewAt: null },
+    entitlement: { questionsRemaining: null, resetAt: null },
+  } }));
   await context.route(/\/api\/(learner-state|mastery|progress)(\?|$)/, async (route) => {
     const request = route.request();
     const path = new URL(request.url()).pathname;
