@@ -25,7 +25,7 @@ This is the canonical living snapshot for the repository. Read it before startin
 
 1. **Lockfile / install blocker — fixed.** `package-lock.json` regenerated with Node 22.18.0 / npm 10.9.3 (CI versions); clean `npm ci` verified locally and in CI. Related repairs: Next.js 16.4.0 (critical RCE), esbuild override, oxlint react/purity cleanup, `python`→`python3` in tests, generation-operations subprocess timeouts raised.
 2. **CI deterministic failure — fixed in this checkpoint.** At `10ec81ef` the quality gate failed during contract-test *collection*: `tests/operations-scripts.spec.ts` read `.github/workflows/azure-backup-evidence.yml`, which the schedule retirement had deleted, so no contract test ran and build/browser jobs were skipped. The obsolete contract and its dead validator (`scripts/validate-backup-observation.mjs`) are retired, the suite manifest and lane count updated, and the new D1/unit tests are wired into the quality gate (`test:d1`, `test:unit` steps). A pre-existing retired-name failure (a retired datastore name in a code comment and the migration analysis doc) was fixed by rewording both files.
-3. **D1 transaction atomicity — partial, rework is next.** Version-guarded writes exist, but `applyWrites()` executes them individually, so a later conflict leaves earlier writes committed; documents read but not written (account-lifecycle and publication guards) are no longer validated at commit, and deleting a document that was absent at transaction start is unguarded. Required: atomic validation of the entire read set plus all mutations in one batch, with multi-document rollback and failure-injection tests.
+3. **D1 transaction atomicity — fixed locally, awaiting exact-SHA CI.** `finishTransaction()` now commits through `applyTransactionalWrites()`: the entire read set (versions of existing documents, non-existence of absent ones — including documents read but never written, such as account-lifecycle and publication guards) is validated by assertion statements inside the SAME atomic D1 batch as every mutation, so a conflict or mid-batch failure commits nothing. Conflicts surface as the retryable `Document store request failed (409)` contract the other backends use. Five new tests cover multi-document rollback on a later conflict, read-only guard changes, concurrent creation of an absent read document, delete of a document created after the transaction began, and mid-batch failure injection; the D1 suite is 11/11. Known residual: the begin-time snapshot is read path-by-path (optimistic model), so validation is atomic at commit, not a serializable snapshot.
 4. **AI-assessed evidence — partial.** Spark assessment now writes `authority: "ai-assessed"` and mastery scoring no longer lets it grant demonstrated mastery. Still open: the mastery API schema accepts only the two old authorities (stored `ai-assessed` records are rejected on read), and evidence reports relabel AI evidence as learner-reported. Client-submitted evidence must remain untrusted.
 5. **PR #52 port — partial.** Tier C account-deletion inventory ported (illustration assets/keys/budgets, credit-refund collections, shared asset cleanup). Still open: `courseIllustrationBudgets` ownership/fence (`AUTHOR_ARTIFACT_COLLECTIONS` omits them, so they are retained, not deleted) with behavioral deletion tests; atomic course deletion + credit refund (`CourseRootDeletion`) — sequenced *after* the D1 fix; hero-serving, illustration-cost accounting, and lesson-DTO changes from PR #52.
 6. **Mobile progress — partial.** Shared normalization extracted to `src/lib/progress-normalization.ts`; web and mobile routes both use it. The mobile route is on `main` as of `10ec81ef`. Still open: the mobile mutation replaces the progress document without preserving `capstone` or `recentOperations`, and there are no real web→mobile→web route tests yet (the normalization tests only exercise the shared functions).
@@ -39,21 +39,22 @@ Local, exact-candidate tree of `10ec81ef` plus this checkpoint's fixes, October 
 - `npm run lint`: 0 errors (4 pre-existing warnings). `npx tsc --noEmit`: clean.
 - Node suites: eval-harness 22/22, evaluation-budget 27/27, lesson-integrity 22/22, lesson-operations 11/11, billing 32/32, D1 document store 6/6, unit (mastery authority + progress normalization) 8/8.
 - CI/workflow tests 24/24; maintenance/runner/candidate-proof 23/23; tracked-secret scan and support-wiki checks pass.
-- Not yet evidence: the quality gate at this checkpoint's exact SHA (must be green before the candidate is considered verified), a fresh full browser regression (last full pass September 28, 2026 on an older SHA), and any deployment of the remediation sequence.
+- Exact-SHA CI for the CI-fix checkpoint `ca80d604`: the `static-and-release-contracts` job (install, lint, all node suites including the new `test:d1`/`test:unit` steps, TypeScript, audits, contracts, build) and the `postgres-transactions` job both completed **success**; the `browser-smoke` job was still running when the next checkpoint superseded the run, so a fully green quality gate remains unclaimed.
+- D1 atomicity checkpoint (this commit): `npm run test:d1` 11/11 locally (5 new atomicity tests), TypeScript clean, lint 0 errors.
+- Not yet evidence: a fully green quality gate at one exact SHA, a fresh full browser regression (last full pass September 28, 2026 on an older SHA), and any deployment of the remediation sequence.
 
 Earlier Spark checkpoint evidence (October 9) is recorded in `docs/SPARK_RELEASE_APPROVAL_2026-10-09.md` and remains valid for the Spark source as of that date.
 
 ## Pending items, in order
 
-1. **D1 transaction integrity** (item 3 above), then re-verify the exact SHA in CI.
-2. **Tier C illustration-budget ownership/fence** + behavioral deletion tests (item 5).
-3. **AI authority through the API/report path** (item 4).
-4. **Mobile progress preservation** (`capstone`, `recentOperations`) + real web→mobile→web route tests (item 6).
-5. **CourseRootDeletion credit atomicity** on top of the fixed datastore: failed deletion preserves the credit, successful deletion refunds exactly once, concurrent retries cannot double-refund, interrupted operations recover.
-6. **Production readiness diagnosis** (read-only): why configuration and datastore checks return false on the deployed version.
-7. **D1/R2 backup and restore verification** designed and proven separately.
-8. **Release gates still ahead:** green quality gate at the exact candidate SHA, fresh full browser regression on the frozen candidate, then separate explicit approvals for staging deployment, Spark staging evaluation, and any production decision. Legal/provider counsel review also remains open.
-9. **iOS lesson-sync end-to-end test** on the owner's iPhone against production.
+1. **Tier C illustration-budget ownership/fence** + behavioral deletion tests (item 5).
+2. **AI authority through the API/report path** (item 4).
+3. **Mobile progress preservation** (`capstone`, `recentOperations`) + real web→mobile→web route tests (item 6).
+4. **CourseRootDeletion credit atomicity** on top of the fixed datastore: failed deletion preserves the credit, successful deletion refunds exactly once, concurrent retries cannot double-refund, interrupted operations recover.
+5. **Production readiness diagnosis** (read-only): why configuration and datastore checks return false on the deployed version.
+6. **D1/R2 backup and restore verification** designed and proven separately.
+7. **Release gates still ahead:** green quality gate at the exact candidate SHA, fresh full browser regression on the frozen candidate, then separate explicit approvals for staging deployment, Spark staging evaluation, and any production decision. Legal/provider counsel review also remains open.
+8. **iOS lesson-sync end-to-end test** on the owner's iPhone against production.
 
 ## Standing constraints
 

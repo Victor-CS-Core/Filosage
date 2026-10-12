@@ -19,9 +19,13 @@ import {
  * - Upsert: SQLite supports `ON CONFLICT DO UPDATE` natively
  * - Timestamps: `datetime('now')` instead of `now()`
  * - Transactions: D1 batches are atomic; interactive transactions with
- *   advisory locks are replaced by optimistic version checking. The
- *   transaction ID pattern is preserved for API compatibility, but locks
- *   are not acquired — writes use `WHERE version = ?` guards.
+ *   advisory locks are replaced by optimistic concurrency. At commit, the
+ *   entire read set (existing documents' versions and absent documents'
+ *   non-existence) and every mutation are placed in ONE batch, with an
+ *   assertion statement per read-set entry that fails the batch if the
+ *   state changed since the transaction began. A failed batch commits
+ *   nothing. The transaction ID pattern is preserved for API
+ *   compatibility, but locks are not acquired.
  *
  * The D1 database binding is resolved via the Cloudflare context. In local
  * development / tests without a binding, this module throws on first use.
@@ -52,7 +56,10 @@ interface StructuredQuery {
 }
 
 interface ActiveTransaction {
+  /** Documents that existed when the transaction began, with their versions. */
   versions: Map<string, number>;
+  /** Documents that did NOT exist when the transaction began. */
+  absent: Set<string>;
   timeout: ReturnType<typeof setTimeout>;
 }
 
@@ -296,26 +303,17 @@ async function createDocument(db: D1Database, path: string, data: Record<string,
 async function applyWrites(
   db: D1Database,
   writes: Array<Record<string, unknown>>,
-  versions?: Map<string, number>,
 ) {
-  // D1 batches are atomic: the whole batch commits or the whole batch rolls back.
+  // Non-transactional commit: every write goes into one batch, and D1
+  // batches are atomic — the whole batch commits or the whole batch rolls
+  // back. No read set exists here, so writes are unconditional upserts and
+  // deletes, matching the non-transactional contract of the other backends.
   const statements: D1PreparedStatement[] = [];
-  const versioned: Array<{ path: string; version: number }> = [];
   for (const write of writes) {
     if (typeof write.delete === "string") {
-      const path = pathFromName(write.delete);
-      const expectedVersion = versions?.get(path);
-      if (expectedVersion !== undefined) {
-        // Version-guarded delete: atomic check-and-delete.
-        const result = await db.prepare(
-          "DELETE FROM filosage_documents WHERE path = ? AND version = ?",
-        ).bind(path, expectedVersion).run();
-        if ((result.meta.changes ?? 0) === 0) {
-          throw new Error("Document transaction conflict: the document changed before its delete.");
-        }
-        continue;
-      }
-      statements.push(db.prepare("DELETE FROM filosage_documents WHERE path = ?").bind(path));
+      statements.push(
+        db.prepare("DELETE FROM filosage_documents WHERE path = ?").bind(pathFromName(write.delete)),
+      );
       continue;
     }
     const update = write.update as { name?: string; fields?: Record<string, DocumentValue> } | undefined;
@@ -332,36 +330,6 @@ async function applyWrites(
       for (const field of mask) next[field] = data[field];
       data = next;
     }
-    const payload = JSON.stringify(data);
-    const expectedVersion = versions?.get(path);
-    if (expectedVersion !== undefined) {
-      // Version-guarded update cannot run inside a blind batch; run it now.
-      // The batch below stays atomic for the remaining writes.
-      versioned.push({ path, version: expectedVersion });
-      const result = await db.prepare(
-        `UPDATE filosage_documents
-         SET data = ?, version = version + 1, updated_at = datetime('now')
-         WHERE path = ? AND version = ?`,
-      ).bind(payload, path, expectedVersion).run();
-      if ((result.meta.changes ?? 0) === 0) {
-        throw new Error("Document transaction conflict: the document changed before its update.");
-      }
-      continue;
-    }
-    if (versions) {
-      // Transactional create: document did not exist at begin time.
-      // Fail if it was created concurrently (ON CONFLICT DO NOTHING + check).
-      const result = await db.prepare(
-        `INSERT INTO filosage_documents
-          (path, collection_id, collection_path, document_id, data, version)
-         VALUES (?, ?, ?, ?, ?, 1)
-         ON CONFLICT (path) DO NOTHING`,
-      ).bind(path, coordinates.collectionId, coordinates.collectionPath, coordinates.documentId, payload).run();
-      if ((result.meta.changes ?? 0) === 0) {
-        throw new Error("Document transaction conflict: the document was created concurrently.");
-      }
-      continue;
-    }
     statements.push(db.prepare(
       `INSERT INTO filosage_documents
         (path, collection_id, collection_path, document_id, data)
@@ -370,9 +338,141 @@ async function applyWrites(
          data = excluded.data,
          version = filosage_documents.version + 1,
          updated_at = datetime('now')`,
-    ).bind(path, coordinates.collectionId, coordinates.collectionPath, coordinates.documentId, payload));
+    ).bind(path, coordinates.collectionId, coordinates.collectionPath, coordinates.documentId, JSON.stringify(data)));
   }
   if (statements.length) await db.batch(statements);
+}
+
+/**
+ * An assertion statement that is a no-op while `conditionSql` holds and
+ * fails with a NOT NULL constraint error when it does not. The attempted
+ * row has NULL in every explicitly NOT NULL column, so it can only ever be
+ * inserted when the guard condition has already failed — at which point
+ * the constraint error aborts the whole batch and nothing commits.
+ * Placing assertions and mutations in the same batch is what makes
+ * validation atomic: D1 executes a batch as one transaction, so no other
+ * writer can interleave between the check and the mutation.
+ */
+function assertionStatement(db: D1Database, conditionSql: string, ...binds: unknown[]) {
+  return db.prepare(
+    `INSERT INTO filosage_documents
+       (path, collection_id, collection_path, document_id, data, version)
+     SELECT NULL, NULL, NULL, NULL, NULL, NULL
+     WHERE NOT (${conditionSql})`,
+  ).bind(...binds);
+}
+
+function assertVersionStatement(db: D1Database, path: string, version: number) {
+  return assertionStatement(
+    db,
+    "EXISTS (SELECT 1 FROM filosage_documents WHERE path = ? AND version = ?)",
+    path,
+    version,
+  );
+}
+
+function assertAbsentStatement(db: D1Database, path: string) {
+  return assertionStatement(
+    db,
+    "NOT EXISTS (SELECT 1 FROM filosage_documents WHERE path = ?)",
+    path,
+  );
+}
+
+async function applyTransactionalWrites(
+  db: D1Database,
+  writes: Array<Record<string, unknown>>,
+  active: ActiveTransaction,
+) {
+  const statements: D1PreparedStatement[] = [];
+  const asserted = new Set<string>();
+  const assertVersionOnce = (path: string, version: number) => {
+    const key = `v:${path}`;
+    if (asserted.has(key)) return;
+    asserted.add(key);
+    statements.push(assertVersionStatement(db, path, version));
+  };
+  const assertAbsentOnce = (path: string) => {
+    const key = `a:${path}`;
+    if (asserted.has(key)) return;
+    asserted.add(key);
+    statements.push(assertAbsentStatement(db, path));
+  };
+
+  // 1. Validate the ENTIRE read set first — including documents that were
+  //    only read (account-lifecycle and publication guards) and documents
+  //    that were absent when the transaction began.
+  for (const [path, version] of active.versions) assertVersionOnce(path, version);
+  for (const path of active.absent) assertAbsentOnce(path);
+
+  // 2. Mutations, still inside the same atomic batch.
+  for (const write of writes) {
+    if (typeof write.delete === "string") {
+      const path = pathFromName(write.delete);
+      if (active.absent.has(path)) continue; // asserted absent above; nothing to delete
+      // Deletes of read documents are covered by their read-set assertion;
+      // deletes of unread documents keep plain delete semantics.
+      statements.push(db.prepare("DELETE FROM filosage_documents WHERE path = ?").bind(path));
+      continue;
+    }
+    const update = write.update as { name?: string; fields?: Record<string, DocumentValue> } | undefined;
+    if (!update?.name) continue;
+    const path = pathFromName(update.name);
+    const mask = (write.updateMask as { fieldPaths?: string[] } | undefined)?.fieldPaths;
+    const coordinates = documentCoordinates(path);
+    // Resolve masked merge against the current row before batching. If the
+    // row changed since the transaction began, its read-set assertion
+    // fails the batch, the caller retries, and the merge is recomputed
+    // against fresh state — so merging against the latest row is safe.
+    let data = documentData(update.fields);
+    if (mask?.length) {
+      const current = await db.prepare("SELECT data FROM filosage_documents WHERE path = ?")
+        .bind(path).first<{ data: string }>();
+      const next = { ...((current ? JSON.parse(current.data) : {}) as Record<string, unknown>) };
+      for (const field of mask) next[field] = data[field];
+      data = next;
+    }
+    const payload = JSON.stringify(data);
+    const expectedVersion = active.versions.get(path);
+    if (expectedVersion !== undefined) {
+      statements.push(db.prepare(
+        `UPDATE filosage_documents
+         SET data = ?, version = version + 1, updated_at = datetime('now')
+         WHERE path = ? AND version = ?`,
+      ).bind(payload, path, expectedVersion));
+      continue;
+    }
+    // Create: the document did not exist when the transaction began (or was
+    // never read). A plain INSERT fails on the primary key if it exists by
+    // commit time, aborting the batch; the absence assertion above covers
+    // documents that were part of the read set.
+    if (!active.absent.has(path)) assertAbsentOnce(path);
+    statements.push(db.prepare(
+      `INSERT INTO filosage_documents
+        (path, collection_id, collection_path, document_id, data, version)
+       VALUES (?, ?, ?, ?, ?, 1)`,
+    ).bind(path, coordinates.collectionId, coordinates.collectionPath, coordinates.documentId, payload));
+  }
+
+  if (!statements.length) return;
+  try {
+    await db.batch(statements);
+  } catch (error) {
+    // Assertion failures surface as constraint errors. Any constraint
+    // failure in this batch means the validated state no longer holds (or
+    // a create raced), so report a retryable transaction conflict — the
+    // same 409 contract the PostgreSQL and local backends use, which
+    // runStoredDocumentTransaction retries with backoff. The batch rolled
+    // back atomically: no write from this transaction was committed.
+    if (error instanceof Error && /constraint/i.test(error.message)) {
+      throw new Error(
+        "Document store request failed (409): document transaction conflict — " +
+        "a document in the transaction's read set or write set changed concurrently; nothing was committed.",
+        { cause: error },
+      );
+    }
+    throw error;
+  }
 }
 
 async function runStructuredQuery(query: StructuredQuery) {
@@ -398,6 +498,7 @@ async function beginTransaction(documentNames: string[]) {
   const id = crypto.randomUUID();
   const paths = [...new Set(documentNames.map(pathFromName))].sort();
   const versions = new Map<string, number>();
+  const absent = new Set<string>();
   const found = new Map<string, DocumentRow>();
   for (const path of paths) {
     const row = await db.prepare("SELECT path, data, version FROM filosage_documents WHERE path = ?")
@@ -405,13 +506,18 @@ async function beginTransaction(documentNames: string[]) {
     if (row) {
       versions.set(path, row.version);
       found.set(path, row);
+    } else {
+      // Absence is part of the read set: if the document is created before
+      // commit, the transaction must fail rather than proceed on the stale
+      // assumption that it does not exist.
+      absent.add(path);
     }
   }
   const timeout = setTimeout(() => {
     transactions().delete(id);
   }, TRANSACTION_TTL_MS);
   timeout.unref?.();
-  transactions().set(id, { versions, timeout });
+  transactions().set(id, { versions, absent, timeout });
   return documentNames.map((name, index) => {
     const path = pathFromName(name);
     const row = found.get(path);
@@ -429,10 +535,10 @@ async function finishTransaction(id: string, writes: Array<Record<string, unknow
   clearTimeout(active.timeout);
   if (!writes) return; // rollback: nothing was written yet under optimistic mode
   const db = await d1();
-  // Pass versions for atomic version-guarded updates. Each UPDATE includes
-  // the version check in its WHERE clause, making comparison and mutation
-  // a single atomic operation. applyWrites throws on version mismatch.
-  await applyWrites(db, writes, active.versions);
+  // One atomic batch validates the entire read set and applies every
+  // mutation — see applyTransactionalWrites. Either everything commits or
+  // nothing does.
+  await applyTransactionalWrites(db, writes, active);
 }
 
 // ---------------------------------------------------------------------------

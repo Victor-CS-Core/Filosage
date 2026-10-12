@@ -400,3 +400,173 @@ test("D1 concurrent transactions: delete fails if document was modified", async 
     await fixture.close();
   }
 });
+
+// ---------------------------------------------------------------------------
+// Transaction-wide atomicity: the whole read set is validated and every
+// mutation commits or none does. These cover the partial-commit defect in
+// the previous implementation, which executed guarded writes one by one.
+// ---------------------------------------------------------------------------
+
+async function seedDoc(
+  store: Awaited<ReturnType<typeof createD1Fixture>>["store"],
+  id: string,
+  value: string,
+) {
+  await store.d1DocumentStoreJson("/documents/users?documentId=" + id, {
+    method: "POST",
+    body: JSON.stringify({ fields: { v: { stringValue: value } } }),
+  });
+}
+
+async function beginTx(
+  store: Awaited<ReturnType<typeof createD1Fixture>>["store"],
+  paths: string[],
+) {
+  const begun = await store.d1DocumentStoreJson<Array<{ transaction?: string }>>(
+    "/documents:batchGet",
+    { method: "POST", body: JSON.stringify({ documents: paths.map(docName) }) },
+  );
+  const tx = begun?.find((entry) => entry.transaction)?.transaction;
+  assert.ok(tx, "transaction id returned");
+  return tx;
+}
+
+async function commitTx(
+  store: Awaited<ReturnType<typeof createD1Fixture>>["store"],
+  tx: string,
+  writes: Array<Record<string, unknown>>,
+) {
+  return store.d1DocumentStoreJson("/documents:commit", {
+    method: "POST",
+    body: JSON.stringify({ transaction: tx, writes }),
+  });
+}
+
+function updateWrite(path: string, value: string) {
+  return { update: { name: docName(path), fields: { v: { stringValue: value } } } };
+}
+
+async function readValue(
+  store: Awaited<ReturnType<typeof createD1Fixture>>["store"],
+  path: string,
+) {
+  const read = await store.d1DocumentStoreJson<{ fields: Record<string, { stringValue?: string }> }>(
+    `/documents/${path}`,
+    { method: "GET" },
+    true,
+  );
+  return read?.fields?.v?.stringValue ?? null;
+}
+
+test("D1 transaction rolls back every write when a later write conflicts", async () => {
+  const fixture = await createD1Fixture();
+  try {
+    const { store } = fixture;
+    await seedDoc(store, "multi-a", "a0");
+    await seedDoc(store, "multi-b", "b0");
+
+    const tx = await beginTx(store, ["users/multi-a", "users/multi-b"]);
+    // Concurrent commit changes B after tx began.
+    const other = await beginTx(store, ["users/multi-b"]);
+    await commitTx(store, other, [updateWrite("users/multi-b", "b1")]);
+
+    // tx writes A first, then B. The batch must fail on B's guard and A
+    // must NOT stay committed.
+    await assert.rejects(
+      commitTx(store, tx, [updateWrite("users/multi-a", "a1"), updateWrite("users/multi-b", "b2")]),
+      /Document store request failed \(409\): document transaction conflict/i,
+    );
+    assert.equal(await readValue(store, "users/multi-a"), "a0", "earlier write rolled back");
+    assert.equal(await readValue(store, "users/multi-b"), "b1", "concurrent write preserved");
+  } finally {
+    await fixture.close();
+  }
+});
+
+test("D1 transaction fails when a read-only guard document changes", async () => {
+  const fixture = await createD1Fixture();
+  try {
+    const { store } = fixture;
+    await seedDoc(store, "guard", "g0");
+    await seedDoc(store, "target", "t0");
+
+    // The transaction reads the guard (e.g. an account-lifecycle or
+    // publication record) but only writes the target.
+    const tx = await beginTx(store, ["users/guard", "users/target"]);
+    const other = await beginTx(store, ["users/guard"]);
+    await commitTx(store, other, [updateWrite("users/guard", "g1")]);
+
+    await assert.rejects(
+      commitTx(store, tx, [updateWrite("users/target", "t1")]),
+      /conflict/i,
+    );
+    assert.equal(await readValue(store, "users/target"), "t0", "guarded write not committed");
+    assert.equal(await readValue(store, "users/guard"), "g1");
+  } finally {
+    await fixture.close();
+  }
+});
+
+test("D1 transaction fails when a document absent at begin is created concurrently", async () => {
+  const fixture = await createD1Fixture();
+  try {
+    const { store } = fixture;
+    await seedDoc(store, "witness", "w0");
+
+    // tx reads a missing document (absence is part of its read set) and an
+    // existing one it intends to write.
+    const tx = await beginTx(store, ["users/appears", "users/witness"]);
+    await seedDoc(store, "appears", "created-concurrently");
+
+    await assert.rejects(
+      commitTx(store, tx, [updateWrite("users/witness", "w1")]),
+      /conflict/i,
+    );
+    assert.equal(await readValue(store, "users/witness"), "w0", "write rolled back on absence-guard failure");
+    assert.equal(await readValue(store, "users/appears"), "created-concurrently");
+  } finally {
+    await fixture.close();
+  }
+});
+
+test("D1 transaction cannot delete a document created after it began", async () => {
+  const fixture = await createD1Fixture();
+  try {
+    const { store } = fixture;
+    // tx begins while the document is absent, then plans to delete it.
+    const tx = await beginTx(store, ["users/late"]);
+    await seedDoc(store, "late", "keep-me");
+
+    await assert.rejects(
+      commitTx(store, tx, [{ delete: docName("users/late") }]),
+      /conflict/i,
+    );
+    assert.equal(await readValue(store, "users/late"), "keep-me", "concurrently created document survives");
+  } finally {
+    await fixture.close();
+  }
+});
+
+test("D1 transaction rolls back earlier writes when a later statement errors (failure injection)", async () => {
+  const fixture = await createD1Fixture();
+  try {
+    const { store } = fixture;
+    await seedDoc(store, "atomic-a", "a0");
+    await seedDoc(store, "atomic-existing", "here");
+
+    const tx = await beginTx(store, ["users/atomic-a"]);
+    // Second write creates a document that already exists outside the
+    // read set: its plain INSERT hits the primary key mid-batch.
+    await assert.rejects(
+      commitTx(store, tx, [
+        updateWrite("users/atomic-a", "a1"),
+        updateWrite("users/atomic-existing", "overwrite"),
+      ]),
+      /conflict/i,
+    );
+    assert.equal(await readValue(store, "users/atomic-a"), "a0", "earlier write rolled back after mid-batch failure");
+    assert.equal(await readValue(store, "users/atomic-existing"), "here");
+  } finally {
+    await fixture.close();
+  }
+});
