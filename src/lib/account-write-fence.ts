@@ -10,6 +10,9 @@ export const GLOBAL_USAGE_COLLECTIONS = new Set(["generationUsageReceipts", "sys
 export const AUTHOR_ARTIFACT_COLLECTIONS = new Set([
   "courseReleases", "coursePipelineEvents", "courseRepairs", "courseManualReviewMutations",
   "sparkManifests", "sparkChunks", "sparkTasks", "sparkPreparationJobs",
+  // Per-course illustration spend ledgers carry only a courseId (no direct
+  // owner), so they are owned through their course like other author artifacts.
+  "courseIllustrationBudgets",
 ]);
 // A course reference is not ownership: learner evidence, feedback and shares
 // remain the learner's work when the course author closes their account.
@@ -88,12 +91,13 @@ export function assertAccountMutation(documents: FenceDocuments, mutation: Fence
     return;
   }
   const lifecycle = scope && "uid" in scope ? documents[accountLifecyclePath(scope.uid)] : null;
-  if (scope?.kind === "banner-receipt") {
+  if (scope?.kind === "banner-receipt" || scope?.kind === "illustration-receipt") {
     if (!lifecycle || lifecycle.generation !== scope.generation || changed.length !== 1) throw new AccountLifecycleError();
     const receipt = changed[0];
     const before = documents[receipt.path];
     const fields = new Set(["status", "storage", "data", "updatedAt"]);
-    if (receipt.deleting || receipt.path !== `courseBannerAssets/${scope.assetId}` || !before || !receipt.data
+    const assetCollection = scope.kind === "banner-receipt" ? "courseBannerAssets" : "courseIllustrationAssets";
+    if (receipt.deleting || receipt.path !== `${assetCollection}/${scope.assetId}` || !before || !receipt.data
       || before.status !== "uploading" || before.ownerUid !== scope.uid || before.accountGeneration !== scope.generation
       || before.claimId !== scope.claimId
       || !["uploaded", "failed"].includes(String(receipt.data.status))
