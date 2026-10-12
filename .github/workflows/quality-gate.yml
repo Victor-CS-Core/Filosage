@@ -70,7 +70,8 @@ jobs:
       # GHSA-vfj7-8cjw-p6xm (braces): dev-only DoS in file-globbing, all versions
       # flagged, fix requires downgrading Next.js. Accepted risk; not exploitable
       # in CI/production. Fails on any OTHER high+ advisory.
-      - run: npm audit --audit-level=high --json | python3 -c "
+      - run: |
+          npm audit --audit-level=high --json | python3 -c "
           import json,sys
           d=json.load(sys.stdin)
           vulns=d.get('vulnerabilities',{})
