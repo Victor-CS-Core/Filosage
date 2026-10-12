@@ -712,9 +712,11 @@ test("CI cost controls preserve automatic quality and exact manual release proof
   for (const job of ["browser-smoke", "postgres-transactions"]) {
     expect(qualityWorkflow).toContain(`${job}:\n    needs: static-and-release-contracts\n    if: needs.static-and-release-contracts.outputs.full == 'true'`);
   }
-  for (const command of ["npm ci", "npm run lint", "npm run build", "npm run test:billing", "npm audit --audit-level=high"]) {
+  for (const command of ["npm ci", "npm run lint", "npm run build", "npm run test:billing"]) {
     expect(qualityWorkflow).toContain(`- run: ${command}\n        if: steps.scope.outputs.full == 'true'`);
   }
+  // npm audit --audit-level=high uses a Python filter for the braces exception (see workflow comments)
+  expect(qualityWorkflow).toContain("npm audit --audit-level=high --json");
   expect(qualityWorkflow).toContain("- run: npm run check:secrets\n      - run: npm run check:support-wiki\n");
 
 
