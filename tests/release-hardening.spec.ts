@@ -222,7 +222,7 @@ test("every Playwright spec belongs to exactly one execution lane", async () => 
 
   expect(new Set(categorized).size).toBe(categorized.length);
   expect(categorized.toSorted()).toEqual(discovered);
-  expect(contractSuites).toHaveLength(38);
+  expect(contractSuites).toHaveLength(37);
   expect(apiSuites).toHaveLength(2);
   expect(singleEngineSuites).toHaveLength(19);
   expect(deviceSensitiveSuites).toHaveLength(9);

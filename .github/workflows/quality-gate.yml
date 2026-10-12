@@ -63,6 +63,10 @@ jobs:
         if: steps.scope.outputs.full == 'true'
       - run: npm run test:billing
         if: steps.scope.outputs.full == 'true'
+      - run: npm run test:d1
+        if: steps.scope.outputs.full == 'true'
+      - run: npm run test:unit
+        if: steps.scope.outputs.full == 'true'
       - run: npx tsc --noEmit --incremental false
         if: steps.scope.outputs.full == 'true'
       - run: npm audit --omit=dev --audit-level=high

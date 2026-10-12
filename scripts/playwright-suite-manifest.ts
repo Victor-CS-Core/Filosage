@@ -24,7 +24,6 @@ export const contractSuites = [
   "tests/membership-analytics.spec.ts",
   "tests/openai-generation-profiles.spec.ts",
   "tests/operational-alerts.spec.ts",
-  "tests/operations-scripts.spec.ts",
   "tests/pro-evidence-course-credits.spec.ts",
   "tests/publication-proofs.spec.ts",
   "tests/release-hardening.spec.ts",

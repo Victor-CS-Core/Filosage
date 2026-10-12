@@ -11,7 +11,7 @@ import {
 /**
  * Cloudflare D1 document store backend.
  *
- * Implements the same Firestore-like JSON API as postgres-document-store.ts,
+ * Implements the same document-store JSON API as postgres-document-store.ts,
  * but against D1 (SQLite) instead of PostgreSQL. Key translations:
  *
  * - Placeholders: `?` instead of `$1`, `$2`, ...

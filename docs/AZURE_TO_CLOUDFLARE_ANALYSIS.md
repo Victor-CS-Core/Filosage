@@ -49,7 +49,7 @@ The two biggest costs are **PostgreSQL** (~$18) and **Container Registry** ($5).
 - **Risk:** 10ms CPU limit on free tier is tight for Next.js SSR. Realistic plan needs Workers Paid ($5/mo).
 
 ### 2. PostgreSQL → D1 (High — biggest risk)
-- The app uses a Firestore-like document abstraction over PostgreSQL JSONB (`postgres-document-store.ts`, ~large file)
+- The app uses a document-oriented abstraction over PostgreSQL JSONB (`postgres-document-store.ts`, ~large file)
 - Uses: JSONB operators (`@>`, `#>>`), `pg` connection pooling, transactions with lock/statement timeouts, structured queries
 - D1 is SQLite: has JSON1 functions but **different syntax**, no `pg` protocol, different transaction model
 - Requires rewriting the document store implementation (~significant work)
