@@ -129,7 +129,7 @@ export async function assessSparkAttempt(input: {
         label: parsed.data.outcome === "demonstrated" ? "Spark transfer AI-assessed" : "Spark transfer needs revision",
         observedAt: now,
         lessonId: input.context.lessonId,
-        authority: "server-verified",
+        authority: "ai-assessed",
         score: parsed.data.outcome === "demonstrated" ? 1 : 0,
         criterion: task.data.taskId,
         sparkAttemptId: id,

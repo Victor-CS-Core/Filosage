@@ -9,7 +9,7 @@ export type BaselineLevel = (typeof BASELINE_LEVELS)[number];
 export const EVIDENCE_TYPES = ["lesson", "retrieval", "transfer", "capstone"] as const;
 export type EvidenceType = (typeof EVIDENCE_TYPES)[number];
 export type EvidenceResult = "attempted" | "passed" | "needs_work";
-export type MasteryEvidenceAuthority = "learner-reported" | "server-verified";
+export type MasteryEvidenceAuthority = "learner-reported" | "ai-assessed" | "server-verified";
 export type MasteryState = "not_started" | "introduced" | "practicing" | "needs_review" | "demonstrated";
 
 export interface DiagnosticItem {
@@ -132,7 +132,8 @@ export function explainPlan(diagnostics: DiagnosticItem[], weeklyMinutes: number
 
 function evidenceStrength(evidence: MasteryEvidence): number {
   // A browser can report that work was attempted, but only server-verified
-  // evidence may advance an objective beyond introduction.
+  // evidence may advance an objective beyond introduction. AI-assessed evidence
+  // is explicitly marked and cannot independently advance verified mastery.
   if (evidence.authority !== "server-verified") return 1;
   if (evidence.result === "needs_work") return evidence.type === "lesson" ? 1 : 0;
   if (evidence.type === "capstone" && evidence.result === "passed") return 3;
@@ -225,9 +226,12 @@ export function normalizeStoredMasteryEvidence(
     ...evidence,
     objectiveId: normalizeObjectiveId(evidence.objectiveId) ?? evidence.objectiveId,
   };
-  return normalized.authority === "server-verified"
-    ? normalized
-    : normalizeLearnerReportedMasteryEvidence(normalized);
+  // Preserve the authority tier: server-verified and ai-assessed are distinct
+  // from learner-reported. Only unknown/missing authorities fall back.
+  if (normalized.authority === "server-verified" || normalized.authority === "ai-assessed") {
+    return normalized;
+  }
+  return normalizeLearnerReportedMasteryEvidence(normalized);
 }
 
 interface LocalMasteryJourney {
