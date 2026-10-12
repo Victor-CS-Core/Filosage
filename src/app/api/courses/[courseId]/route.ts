@@ -22,7 +22,7 @@ import {
   reviewCourseForPublication,
 } from "@/lib/publication-review";
 import { planAllows } from "@/lib/membership-plans";
-import { refundCourseCreditForDeletedCourse, type CourseCreditBackResult } from "@/lib/course-credits";
+import { recordCourseCreditRefundIntent, refundCourseCreditForDeletedCourse, settlePendingCourseCreditRefund, type CourseCreditBackResult } from "@/lib/course-credits";
 import { openAiSafetyIdentifier } from "@/lib/ai-usage";
 import { coursePipelineFeatureFlags } from "@/lib/feature-flags";
 import { recordCoursePipelineEvent } from "@/lib/course-pipeline/observability";
@@ -302,23 +302,38 @@ async function handleDELETE(request: Request, { params }: RouteParams) {
     assertTrustedMutation(request);
     const account = await requireAcceptedAccount(request);
     const course = await getCourse(courseId);
-    if (!course) return NextResponse.json({ error: "Course not found." }, { status: 404 });
+    if (!course) {
+      // Recovery: an earlier delete committed the course removal but was
+      // interrupted before its credit-back settled. A durable intent was
+      // recorded before that deletion, so a retry finishes exactly the
+      // refund step instead of losing the credit with the course.
+      const recovered = await settlePendingCourseCreditRefund(account, courseId);
+      if (recovered) {
+        return NextResponse.json({ success: true, creditBack: recovered, recovered: true });
+      }
+      return NextResponse.json({ error: "Course not found." }, { status: 404 });
+    }
     if (course.authorId !== account.uid && !account.isOwner) {
       return NextResponse.json({ error: "You do not own this course." }, { status: 403 });
     }
 
-    await deleteCourse(courseId);
-
     // Self-service credit protection: a course deleted within 24 hours of
-    // creation restores its credit (max two per month). Runs after the delete
-    // commits so a failed delete never mints a credit.
+    // creation restores its credit (max two per month). The intent is
+    // recorded BEFORE the delete commits; the refund runs after, so a
+    // failed delete never mints a credit, and an interruption between the
+    // two leaves a pending intent the next request can settle.
     let creditBack: CourseCreditBackResult | undefined;
     if (course.authorId === account.uid) {
       const grant = (course as unknown as Course & { generationGrant?: { redeemedAt?: string } }).generationGrant;
-      creditBack = await refundCourseCreditForDeletedCourse(account, {
+      const creditCourse = {
         id: courseId,
         redeemedAt: typeof grant?.redeemedAt === "string" ? grant.redeemedAt : undefined,
-      });
+      };
+      await recordCourseCreditRefundIntent(account, creditCourse);
+      await deleteCourse(courseId);
+      creditBack = await refundCourseCreditForDeletedCourse(account, creditCourse);
+    } else {
+      await deleteCourse(courseId);
     }
 
     return NextResponse.json({ success: true, ...(creditBack ? { creditBack } : {}) });

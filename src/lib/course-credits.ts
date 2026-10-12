@@ -140,10 +140,45 @@ export const COURSE_CREDIT_BACK_MONTHLY_CAP = 2;
 
 export type CourseCreditBackResult =
   | { refunded: true; balance: number }
-  | { refunded: false; reason: "owner" | "ineligible" | "outside_window" | "already_refunded" | "monthly_cap_reached" };
+  | { refunded: false; reason: "owner" | "ineligible" | "outside_window" | "already_refunded" | "monthly_cap_reached" | "course_not_deleted" };
 
 function courseCreditBackMonthKey(now: Date) {
   return `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, "0")}`;
+}
+
+function courseCreditRefundIntentPath(uid: string, courseId: string) {
+  return `users/${uid}/courseCreditRefundIntents/${courseId}`;
+}
+
+/**
+ * Durable credit-back intent, recorded before a course deletion commits.
+ * Course deletion and the refund cannot share one transaction (deletion is
+ * a multi-commit sweep), so the intent is the recovery record: if the
+ * process is interrupted after the course is gone but before the refund
+ * settles, a later request re-drives settlement from the intent instead of
+ * losing the credit. The refund document remains the exactly-once marker;
+ * the intent only proves a deletion was in flight and when it began.
+ */
+export async function recordCourseCreditRefundIntent(
+  account: ServerAccount,
+  course: { id: string; redeemedAt?: string },
+): Promise<void> {
+  if (account.isOwner) return;
+  const redeemedAt = course.redeemedAt ? Date.parse(course.redeemedAt) : NaN;
+  if (!Number.isFinite(redeemedAt)) return;
+  const intentPath = courseCreditRefundIntentPath(account.uid, course.id);
+  await runStoredDocumentTransaction([intentPath], (documents) => {
+    const existing = documents[intentPath];
+    // A pending intent keeps its original recordedAt (the deletion time the
+    // 24-hour window is judged against). A settled intent belongs to an
+    // earlier lifecycle of this course id and may be replaced.
+    if (existing && existing.status === "pending") return { writes: [], result: undefined };
+    const recordedAt = new Date().toISOString();
+    return {
+      writes: [{ path: intentPath, data: { uid: account.uid, courseId: course.id, redeemedAt: course.redeemedAt, recordedAt, status: "pending", updatedAt: recordedAt } }],
+      result: undefined,
+    };
+  });
 }
 
 /**
@@ -151,7 +186,9 @@ function courseCreditBackMonthKey(now: Date) {
  * creation restores the course credit, capped at two refunds per calendar
  * month. Exactly-once per course via the refund claim document; the monthly
  * counter lives in the same transaction so concurrent deletes cannot exceed
- * the cap.
+ * the cap. When a durable intent exists, the window is judged from the
+ * intent's recordedAt (when deletion began), not from settlement time, so
+ * an interrupted refund recovered later is not denied by its own delay.
  */
 export async function refundCourseCreditForDeletedCourse(
   account: ServerAccount,
@@ -160,20 +197,32 @@ export async function refundCourseCreditForDeletedCourse(
   if (account.isOwner) return { refunded: false, reason: "owner" };
   const redeemedAt = course.redeemedAt ? Date.parse(course.redeemedAt) : NaN;
   if (!Number.isFinite(redeemedAt)) return { refunded: false, reason: "ineligible" };
+  const intentPath = courseCreditRefundIntentPath(account.uid, course.id);
+  const intent = await getStoredDocument(intentPath);
+  const intentRecordedAt = intent && intent.status === "pending" && typeof intent.recordedAt === "string"
+    ? Date.parse(intent.recordedAt)
+    : NaN;
   const now = new Date();
-  if (now.getTime() - redeemedAt > COURSE_CREDIT_BACK_WINDOW_MS) {
+  const deletedAt = Number.isFinite(intentRecordedAt) ? intentRecordedAt : now.getTime();
+  if (deletedAt - redeemedAt > COURSE_CREDIT_BACK_WINDOW_MS) {
     return { refunded: false, reason: "outside_window" };
   }
   const ledgerPath = `users/${account.uid}/courseCredits/current`;
   const refundPath = `users/${account.uid}/courseCreditRefunds/${course.id}`;
   const monthKey = courseCreditBackMonthKey(now);
   const monthPath = `users/${account.uid}/courseCreditRefundMonths/${monthKey}`;
-  return runStoredDocumentTransaction([ledgerPath, refundPath, monthPath], (documents) => {
-    if (documents[refundPath]) return { writes: [], result: { refunded: false, reason: "already_refunded" } as CourseCreditBackResult };
+  return runStoredDocumentTransaction([ledgerPath, refundPath, monthPath, intentPath], (documents) => {
+    const liveIntent = documents[intentPath] && documents[intentPath]?.status === "pending"
+      ? documents[intentPath]
+      : null;
+    const settleIntent = (outcome: string) => liveIntent
+      ? [{ path: intentPath, data: { ...liveIntent, status: "settled", outcome, settledAt: now.toISOString(), updatedAt: now.toISOString() } }]
+      : [];
+    if (documents[refundPath]) return { writes: settleIntent("already_refunded"), result: { refunded: false, reason: "already_refunded" } as CourseCreditBackResult };
     const ledger = reconcileCourseCreditLedger(documents[ledgerPath], account, now);
     const used = courseCreditInteger(documents[monthPath]?.refunds);
     if (used >= COURSE_CREDIT_BACK_MONTHLY_CAP) {
-      return { writes: [{ path: ledgerPath, data: ledger }], result: { refunded: false, reason: "monthly_cap_reached" } as CourseCreditBackResult };
+      return { writes: [{ path: ledgerPath, data: ledger }, ...settleIntent("monthly_cap_reached")], result: { refunded: false, reason: "monthly_cap_reached" } as CourseCreditBackResult };
     }
     const balance = Math.min(ledger.balanceCap, courseCreditInteger(ledger.balance) + 1);
     const refundedAt = now.toISOString();
@@ -182,9 +231,32 @@ export async function refundCourseCreditForDeletedCourse(
         { path: ledgerPath, data: { ...ledger, balance, updatedAt: refundedAt } },
         { path: refundPath, data: { uid: account.uid, courseId: course.id, refundedAt, monthKey, updatedAt: refundedAt } },
         { path: monthPath, data: { uid: account.uid, monthKey, refunds: used + 1, updatedAt: refundedAt } },
+        ...settleIntent("refunded"),
       ],
       result: { refunded: true, balance } as CourseCreditBackResult,
     };
+  });
+}
+
+/**
+ * Recovery entry point for an interrupted course deletion: settles the
+ * credit-back for a course that is already gone. Returns null when no
+ * pending intent exists (nothing to recover). Refuses to refund while the
+ * course document still exists, so a failed deletion can never mint a
+ * credit through the recovery path either.
+ */
+export async function settlePendingCourseCreditRefund(
+  account: ServerAccount,
+  courseId: string,
+): Promise<CourseCreditBackResult | null> {
+  if (account.isOwner) return null;
+  const intent = await getStoredDocument(courseCreditRefundIntentPath(account.uid, courseId));
+  if (!intent || intent.status !== "pending") return null;
+  const course = await getStoredDocument(`courses/${courseId}`);
+  if (course) return { refunded: false, reason: "course_not_deleted" };
+  return refundCourseCreditForDeletedCourse(account, {
+    id: courseId,
+    redeemedAt: typeof intent.redeemedAt === "string" ? intent.redeemedAt : undefined,
   });
 }
 
