@@ -64,7 +64,12 @@ const evidenceSchema = z.object({
   observedAt: z.string().datetime(),
   lessonId: z.string().regex(/^\d+-\d+$/).optional(),
   lessonTitle: z.string().trim().min(1).max(160).optional(),
-  authority: z.enum(["learner-reported", "server-verified"]).optional(),
+  // All three authority tiers are parseable so stored records (including
+  // Spark's ai-assessed evidence) survive reads. Parsing is not trust: a
+  // client submission is always downgraded by
+  // normalizeLearnerReportedMasteryEvidence before it is stored, and only
+  // server code paths can mint ai-assessed or server-verified records.
+  authority: z.enum(["learner-reported", "ai-assessed", "server-verified"]).optional(),
   confidence: z.enum(["low", "medium", "high"]).optional(),
   score: z.number().min(0).max(1).optional(),
   criterion: z.string().trim().min(1).max(300).optional(),
@@ -167,11 +172,16 @@ async function handlePOST(request: Request) {
       if (existing.success && existing.data.courseId !== parsed.data.courseId) {
         throw new MasteryEvidenceConflictError();
       }
-      const next = existing.success && existing.data.authority === "server-verified"
+      // Server-minted records (server-verified and ai-assessed) are not
+      // client-writable: a submission reusing their id returns the stored
+      // record unchanged instead of downgrading or replacing it.
+      const serverMinted = existing.success
+        && (existing.data.authority === "server-verified" || existing.data.authority === "ai-assessed");
+      const next = serverMinted
         ? normalizeStoredMasteryEvidence(existing.data)
         : normalizeLearnerReportedMasteryEvidence(parsed.data);
       return {
-        writes: existing.success && existing.data.authority === "server-verified"
+        writes: serverMinted
           ? []
           : [{ path, data: { ...next } }],
         result: next,

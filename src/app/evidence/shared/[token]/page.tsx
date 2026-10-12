@@ -142,7 +142,7 @@ export default async function SharedEvidencePage({ params }: PageProps) {
               <dl>
                 <div><dt>Type</dt><dd>{EVIDENCE_TYPE_LABELS[item.type]}</dd></div>
                 <div><dt>Result</dt><dd>{EVIDENCE_RESULT_LABELS[item.result]}</dd></div>
-                <div><dt>Authority</dt><dd>{item.authority === "server-verified" ? "Server-verified" : "Learner-reported"}</dd></div>
+                <div><dt>Authority</dt><dd>{item.authority === "server-verified" ? "Server-verified" : item.authority === "ai-assessed" ? "AI-assessed" : "Learner-reported"}</dd></div>
                 <div><dt>Observed</dt><dd><time dateTime={item.observedAt}>{formatDate(item.observedAt)}</time></dd></div>
               </dl>
             </li>

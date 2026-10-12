@@ -50,7 +50,7 @@ export interface EvidenceReportV1 {
     result: MasteryEvidence["result"];
     label: string;
     observedAt: string;
-    authority: "learner-reported" | "server-verified";
+    authority: "learner-reported" | "ai-assessed" | "server-verified";
     confidence?: "low" | "medium" | "high";
     criterion?: string;
   }>;
@@ -172,7 +172,10 @@ export async function buildEvidenceReport(
       result: item.result,
       label: stringValue(item.label),
       observedAt: stringValue(item.observedAt),
-      authority: item.authority === "server-verified" ? "server-verified" : "learner-reported",
+      // Preserve the stored tier exactly: ai-assessed evidence is graded by
+      // a model under a rubric and must not be relabeled as learner-reported
+      // or upgraded to server-verified.
+      authority: item.authority === "server-verified" ? "server-verified" : item.authority === "ai-assessed" ? "ai-assessed" : "learner-reported",
       ...(item.confidence ? { confidence: item.confidence } : {}),
       ...(item.criterion ? { criterion: stringValue(item.criterion) } : {}),
     })),
@@ -182,6 +185,7 @@ export async function buildEvidenceReport(
       : null,
     methodology: [
       "Self-reported diagnostics describe a starting estimate and never count as demonstrated mastery.",
+      "AI-assessed evidence is graded by a model against a rubric; it is formative evidence and is labeled separately from server-verified results.",
       "Observed mastery is a progression signal derived from saved learning evidence, not an accredited credential.",
       "Verified improvement appears only when comparable baseline and final assessment criteria are available.",
     ],
@@ -191,7 +195,7 @@ export async function buildEvidenceReport(
 
 export function evidenceReportHasMeaningfulEvidence(report: EvidenceReportV1) {
   return report.summary.completedLessons > 0
-    || report.evidence.some((item) => item.authority === "server-verified")
+    || report.evidence.some((item) => item.authority === "server-verified" || item.authority === "ai-assessed")
     || Boolean(report.capstone);
 }
 

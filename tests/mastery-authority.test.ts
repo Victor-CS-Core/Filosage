@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { spawnSync } from "node:child_process";
 import { test } from "node:test";
 import {
   deriveObjectiveMastery,
@@ -51,4 +52,17 @@ test("normalizeStoredMasteryEvidence preserves server-verified authority", () =>
   const evidence = makeEvidence({ authority: "server-verified" });
   const normalized = normalizeStoredMasteryEvidence(evidence);
   assert.equal(normalized.authority, "server-verified");
+});
+
+test("ai-assessed authority survives the mastery API and evidence report paths", { timeout: 120_000 }, () => {
+  // Route-level behavior against the real local store: GET must not drop
+  // stored ai-assessed records, forged client tiers are downgraded,
+  // server-minted records are not client-overwritable, and reports label
+  // the tier ai-assessed. See tests/fixtures/mastery-authority-behavior.mjs.
+  const result = spawnSync(process.execPath, [
+    "--conditions=react-server", "--experimental-test-module-mocks", "--import", "tsx",
+    "tests/fixtures/mastery-authority-behavior.mjs",
+  ], { cwd: process.cwd(), encoding: "utf8", timeout: 110_000 });
+  assert.equal(result.status, 0, `${result.stdout}\n${result.stderr}`);
+  assert.match(result.stdout, /MASTERY_AUTHORITY_BEHAVIOR_OK/);
 });
