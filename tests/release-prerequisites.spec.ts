@@ -169,7 +169,7 @@ for rows in [[],[dict(broad,id='other')],[dict(broad,principalId='other')],[dict
  except RuntimeError:pass
  else:raise AssertionError('unsafe assignment accepted')
 `;
-  const result = spawnSync("python", ["-c", code], { encoding: "utf8", timeout: 3000 });
+  const result = spawnSync("python3", ["-c", code], { encoding: "utf8", timeout: 3000 });
   expect(result.status, result.stderr).toBe(0);
 });
 
@@ -216,7 +216,7 @@ for change in [{'checks':checks+checks[:1]},{'checks':[dict(row,status='private-
  except RuntimeError:pass
  else:raise AssertionError('invalid matrix accepted')
 `;
-  const result = spawnSync("python", ["-c", code], { encoding: "utf8", timeout: 3000 });
+  const result = spawnSync("python3", ["-c", code], { encoding: "utf8", timeout: 3000 });
   expect(result.status, result.stderr).toBe(0);
 });
 
