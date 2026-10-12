@@ -7,7 +7,7 @@ import {
   runStoredDocumentTransaction,
 } from "@/lib/document-store";
 import { progressUpdateSchema, validationMessage } from "@/lib/validation";
-import type { CapstoneAssessment, CourseProgress, LessonProgress } from "@/lib/learning-types";
+import type { CourseProgress, LessonProgress } from "@/lib/learning-types";
 import type { Course, LessonData } from "@/lib/course-types";
 import { findCourseLesson, findNextLesson } from "@/lib/course-progress";
 import { apiRequestErrorResponse, readJsonBody } from "@/lib/api-security";
@@ -25,47 +25,10 @@ import { safeModelErrorDetails } from "@/lib/model-fallback";
 import { canonicalLessonObjectiveId } from "@/lib/course-pipeline/relationships";
 import { retrievalVariantsForQuizBank } from "@/lib/retrieval-planning";
 import { capabilitiesForAccount } from "@/lib/membership-access";
+import { stableShard, asCourseProgress } from "@/lib/progress-normalization";
 
 function numberValue(value: unknown) {
   return typeof value === "number" && Number.isFinite(value) ? value : 0;
-}
-
-function stableShard(value: string, shardCount: number) {
-  let hash = 2166136261;
-  for (const character of value) {
-    hash ^= character.charCodeAt(0);
-    hash = Math.imul(hash, 16777619);
-  }
-  return (hash >>> 0) % shardCount;
-}
-
-function asCourseProgress(value: Record<string, unknown>, includePrivateOperations = false): CourseProgress {
-  const lessons = value.lessons && typeof value.lessons === "object" ? value.lessons as Record<string, LessonProgress> : {};
-  const inferredMinutes = Object.values(lessons).reduce(
-    (sum, lesson) => sum + (lesson.estimatedMinutes ?? 0),
-    0,
-  );
-  return {
-    id: typeof value.id === "string" ? value.id : undefined,
-    courseId: String(value.courseId ?? value.id ?? ""),
-    topic: String(value.topic ?? ""),
-    lastLessonId: String(value.lastLessonId ?? ""),
-    lastLessonTitle: String(value.lastLessonTitle ?? "Continue learning"),
-    nextLessonId: typeof value.nextLessonId === "string" ? value.nextLessonId : null,
-    nextLessonTitle: typeof value.nextLessonTitle === "string" ? value.nextLessonTitle : null,
-    completedLessonIds: Array.isArray(value.completedLessonIds) ? value.completedLessonIds.map(String) : [],
-    lessons,
-    totalLessons: typeof value.totalLessons === "number" ? value.totalLessons : undefined,
-    lastActivityAt: String(value.lastActivityAt ?? ""),
-    startedAt: String(value.startedAt ?? value.lastActivityAt ?? ""),
-    studyMinutes: typeof value.studyMinutes === "number" && value.studyMinutes > 0 ? value.studyMinutes : inferredMinutes,
-    capstone: value.capstone && typeof value.capstone === "object" ? value.capstone as CapstoneAssessment : undefined,
-    ...(includePrivateOperations && Array.isArray(value.recentOperations) ? {
-      recentOperations: value.recentOperations
-        .filter((item): item is NonNullable<CourseProgress["recentOperations"]>[number] => Boolean(item) && typeof item === "object")
-        .slice(-50),
-    } : {}),
-  };
 }
 
 function progressForAccount(progress: CourseProgress, advancedCapstoneAnalysis: boolean): CourseProgress {
