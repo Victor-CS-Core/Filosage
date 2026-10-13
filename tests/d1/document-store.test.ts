@@ -570,3 +570,56 @@ test("D1 transaction rolls back earlier writes when a later statement errors (fa
     await fixture.close();
   }
 });
+
+function setEnv(name: string, value: string | undefined) {
+  const env = process.env as Record<string, string | undefined>;
+  if (value === undefined) delete env[name];
+  else env[name] = value;
+}
+
+test("readiness probes D1 when D1 is enabled without DATABASE_URL (Workers shape)", async () => {
+  const fixture = await createD1Fixture();
+  const saved = {
+    NODE_ENV: process.env.NODE_ENV,
+    CLOUDFLARE_D1_ENABLED: process.env.CLOUDFLARE_D1_ENABLED,
+    DATABASE_URL: process.env.DATABASE_URL,
+  };
+  try {
+    // The exact staging/production worker configuration: production mode,
+    // D1 dispatch on, no PostgreSQL URL. Before the D1 branch existed,
+    // readiness threw "Azure PostgreSQL is required" here while the store
+    // itself served reads through the D1 dispatch.
+    setEnv("NODE_ENV", "production");
+    setEnv("CLOUDFLARE_D1_ENABLED", "true");
+    setEnv("DATABASE_URL", undefined);
+    const { checkDocumentStoreReadiness } = await import("@/lib/document-store");
+    await checkDocumentStoreReadiness();
+  } finally {
+    for (const [key, value] of Object.entries(saved)) setEnv(key, value);
+    await fixture.close();
+  }
+});
+
+test("readiness fails when the enabled D1 backend is unavailable", async () => {
+  const saved = {
+    NODE_ENV: process.env.NODE_ENV,
+    CLOUDFLARE_D1_ENABLED: process.env.CLOUDFLARE_D1_ENABLED,
+    DATABASE_URL: process.env.DATABASE_URL,
+  };
+  const { setTestBindings, clearTestBindings } = await import("@/lib/cloudflare-context");
+  try {
+    setEnv("NODE_ENV", "production");
+    setEnv("CLOUDFLARE_D1_ENABLED", "true");
+    setEnv("DATABASE_URL", undefined);
+    const unavailable = {
+      prepare() { throw new Error("D1 unavailable (injected)"); },
+      batch() { throw new Error("D1 unavailable (injected)"); },
+    };
+    setTestBindings({ FILOSAGE_D1: unavailable as never });
+    const { checkDocumentStoreReadiness } = await import("@/lib/document-store");
+    await assert.rejects(checkDocumentStoreReadiness(), /D1 unavailable/);
+  } finally {
+    for (const [key, value] of Object.entries(saved)) setEnv(key, value);
+    clearTestBindings();
+  }
+});

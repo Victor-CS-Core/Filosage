@@ -111,10 +111,11 @@ export function useSparkCourseState(user: LearnerStorageUser | null, courseId: s
       user,
       `/api/spark/courses/${encodeURIComponent(courseId)}/state?lessonId=${encodeURIComponent(lessonId)}&locale=${encodeURIComponent(locale())}`,
       { cache: "no-store", signal: controller.signal },
+      { verifySessionOnUnauthorized: true },
     ).then(apiJson<SparkCourseState>)
       .then((value) => setRecord({ key: requestKey, state: value, error: null }))
-      .catch((reason) => {
-        if (!controller.signal.aborted) setRecord({ key: requestKey, state: null, error: reason instanceof Error ? reason.message : "Spark is temporarily unavailable." });
+      .catch(() => {
+        if (!controller.signal.aborted) setRecord({ key: requestKey, state: null, error: "Spark couldn’t connect. You can continue reading or retry." });
       });
     return () => controller.abort();
   }, [courseId, lessonId, requestKey, user]);
@@ -421,7 +422,7 @@ export default function SparkWorkspace({ user, state, canPrepare, reloadState }:
   const startedKey = useRef<string | null>(null);
   const attemptRequestIds = useRef(new Map<string, string>());
   const turnRequest = useRef<{ fingerprint: string; id: string } | null>(null);
-  const startupRequest = useEffectEvent((input: string, init: RequestInit) => learnerRequest(user, input, init));
+  const startupRequest = useEffectEvent((input: string, init: RequestInit) => learnerRequest(user, input, init, { verifySessionOnUnauthorized: true }));
 
   useEffect(() => {
     const manifest = state.manifest;
@@ -463,7 +464,7 @@ export default function SparkWorkspace({ user, state, canPrepare, reloadState }:
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ courseId: state.course.id, lessonId: state.lesson.id, locale: locale() }),
-      });
+      }, { verifySessionOnUnauthorized: true });
       await apiJson(response);
       reloadState();
     } catch (reason) {
@@ -485,7 +486,7 @@ export default function SparkWorkspace({ user, state, canPrepare, reloadState }:
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ requestId, sessionId: session.id, lessonVersion: state.manifest.lessonVersion, taskId: block.taskId, taskVersion: block.taskVersion, answer }),
-    });
+    }, { verifySessionOnUnauthorized: true });
     const result = await apiJson<SparkAttemptResult>(response);
     attemptRequestIds.current.delete(requestKey);
     setAttempts((current) => ({ ...current, [block.taskVersion]: result }));
@@ -504,7 +505,7 @@ export default function SparkWorkspace({ user, state, canPrepare, reloadState }:
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ requestId, lessonVersion: state.manifest.lessonVersion, action, message: trimmed, locale: locale() }),
-      });
+      }, { verifySessionOnUnauthorized: true });
       const turn = await apiJson<SparkTurnResponse>(response);
       setTurns((current) => [...current, { id: requestId, message: trimmed, response: turn }]);
       setSuggestedActions(turn.suggestedActions.length ? turn.suggestedActions : suggestedActions);

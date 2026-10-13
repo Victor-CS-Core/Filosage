@@ -39,7 +39,7 @@ export default function CreatorSparkStatus({ user, courseId, topic }: {
 
   useEffect(() => {
     const controller = new AbortController();
-    void learnerRequest(user, `/api/spark/courses/${encodeURIComponent(courseId)}/preparation`, { cache: "no-store", signal: controller.signal })
+    void learnerRequest(user, `/api/spark/courses/${encodeURIComponent(courseId)}/preparation`, { cache: "no-store", signal: controller.signal }, { verifySessionOnUnauthorized: true })
       .then(async (response) => {
         const body = await response.json() as PreparationSummary & { error?: string };
         if (!response.ok) throw new Error(body.error || "Spark preparation status could not be loaded.");
@@ -59,7 +59,7 @@ export default function CreatorSparkStatus({ user, courseId, topic }: {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ courseId, lessonId, locale: navigator.language || "en" }),
-      });
+      }, { verifySessionOnUnauthorized: true });
       const body = await response.json() as { error?: string };
       if (!response.ok) throw new Error(body.error || "Spark preparation could not finish.");
       setRevision((value) => value + 1);

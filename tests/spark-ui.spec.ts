@@ -161,3 +161,84 @@ test("Spark denies private course and session reads across two authenticated acc
   expect(deniedSession.status()).toBe(403);
   expect(await deniedSession.json()).toMatchObject({ code: "SPARK_SESSION_FORBIDDEN" });
 });
+const sparkStatePayload = {
+  featureEnabled: true,
+  availability: "practice_only",
+  course: { id: course.id, topic: course.topic },
+  lesson: { id: "0-0", title: "A first neuron", version: manifest.lessonVersion, content: lesson.content },
+  currentStage: "practice",
+  manifest,
+  preparation: "ready",
+  evidence: { records: 0, demonstrated: 0 },
+  review: { due: false, nextReviewAt: null },
+  entitlement: { questionsRemaining: 5, resetAt: "2026-11-01T00:00:00.000Z" },
+} as const;
+
+test("a Spark 401 with a valid central session keeps the learner signed in and offers retry", async ({ page }) => {
+  await restoreLocalLearner(page);
+  await page.route("**/api/courses/spark-ui-course", (route) => route.fulfill({ json: course }));
+  await page.route("**/api/courses/spark-ui-course/lessons/0-0", (route) => route.fulfill({ json: lesson }));
+  let stateCalls = 0;
+  await page.route("**/api/spark/courses/spark-ui-course/state*", (route) => {
+    stateCalls += 1;
+    if (stateCalls === 1) return route.fulfill({ status: 401, json: { error: "Unauthorized" } });
+    return route.fulfill({ json: sparkStatePayload });
+  });
+  await page.route("**/api/spark/sessions", (route) => route.fulfill({ json: { session: { id: "session-ui", lessonVersion: manifest.lessonVersion, stage: "practice" }, manifest } }));
+  await page.route("**/api/spark/sessions/session-ui?*", (route) => route.fulfill({ json: { session: { id: "session-ui" }, turns: [], nextCursor: null } }));
+
+  await page.goto(`/course/${encodeURIComponent(course.topic)}/lesson/0-0?id=${course.id}&spark=1`);
+  // The feature failure surfaces the product copy inside the Spark pane only.
+  await expect(page.getByText("Spark couldn’t connect. You can continue reading or retry.")).toBeVisible();
+  // The session survives: no signed-out shell, same lesson location.
+  await expect(page.getByRole("button", { name: "Sign in" })).toHaveCount(0);
+  await expect(page).toHaveURL(/spark=1/);
+  // The learner can keep reading the lesson.
+  await page.locator("#lesson-learn-tab").click();
+  await expect(page.getByRole("heading", { name: "Weighted inputs" })).toBeVisible();
+  // Retry recovers Spark once the probe succeeds.
+  await page.locator("#lesson-spark-tab").click();
+  await page.getByRole("button", { name: "Try again" }).click();
+  await expect(page.getByRole("heading", { name: "Learn by doing" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Sign in" })).toHaveCount(0);
+});
+
+test("a Spark 401 with an ended central session asks for sign-in without leaving the lesson", async ({ page }) => {
+  await restoreLocalLearner(page);
+  // Serve the real session until expiry is armed, then the same body with a
+  // null user: the central endpoint definitively reporting no session.
+  let sessionBody: unknown = null;
+  let expired = false;
+  await page.route("**/api/auth/session", async (route) => {
+    if (expired) {
+      const body = structuredClone(sessionBody) as { user: unknown };
+      body.user = null;
+      return route.fulfill({ json: body });
+    }
+    const response = await route.fetch();
+    sessionBody = await response.json();
+    return route.fulfill({ response });
+  });
+  await page.route("**/api/courses/spark-ui-course", (route) => route.fulfill({ json: course }));
+  await page.route("**/api/courses/spark-ui-course/lessons/0-0", (route) => route.fulfill({ json: lesson }));
+  // Hold the Spark probe until the session is armed as expired, so the 401
+  // and the session check happen in a deterministic order.
+  let releaseState!: () => void;
+  const stateHeld = new Promise<void>((resolve) => { releaseState = resolve; });
+  await page.route("**/api/spark/courses/spark-ui-course/state*", async (route) => {
+    await stateHeld;
+    return route.fulfill({ status: 401, json: { error: "Unauthorized" } });
+  });
+
+  const lessonUrl = `/course/${encodeURIComponent(course.topic)}/lesson/0-0?id=${course.id}&spark=1`;
+  await page.goto(lessonUrl);
+  // Boot completed signed in (the lesson panes only render for the learner).
+  await expect(page.locator("#lesson-spark-tab")).toBeVisible();
+  await expect(page.getByRole("button", { name: "Sign in" })).toHaveCount(0);
+  expired = true;
+  releaseState();
+  // Only now — confirmed session invalidation — is the learner asked to sign
+  // in, and the lesson location is preserved.
+  await expect(page.locator(".marketing-nav-shell").getByRole("button", { name: "Sign in" })).toBeVisible();
+  await expect(page).toHaveURL(/spark=1/);
+});

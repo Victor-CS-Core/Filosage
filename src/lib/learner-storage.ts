@@ -99,7 +99,62 @@ export function removeLearnerStorage(uid: string | null, family: LearnerStorageF
   try { localStorage.removeItem(learnerStorageKey(uid, family, resourceId)); } catch { /* Storage is optional. */ }
 }
 
-export async function learnerRequest(user: LearnerStorageUser | null, input: string, init: RequestInit = {}) {
+export type LearnerSessionVerdict = "valid" | "invalid" | "unknown";
+
+const SESSION_CHECK_TIMEOUT_MS = 5_000;
+
+/**
+ * One bounded check of the central session endpoint, used before a
+ * feature-scoped 401 is allowed to end the session. "invalid" is returned
+ * only when the endpoint definitively reports no session for this user
+ * (401, an explicit null user, or a different user's session); network
+ * failures, timeouts, and unexpected responses are "unknown" and must
+ * never sign the user out.
+ */
+export async function checkLearnerSessionOnce(uid: string): Promise<LearnerSessionVerdict> {
+  try {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), SESSION_CHECK_TIMEOUT_MS);
+    let response: Response;
+    try {
+      response = await fetch("/api/auth/session", {
+        cache: "no-store",
+        credentials: "same-origin",
+        headers: { Accept: "application/json" },
+        signal: controller.signal,
+      });
+    } finally {
+      clearTimeout(timeout);
+    }
+    if (response.status === 401) return "invalid";
+    if (!response.ok) return "unknown";
+    const body = (await response.json().catch(() => null)) as
+      | { user?: { uid?: unknown } | null }
+      | null;
+    if (!body || typeof body !== "object") return "unknown";
+    if (body.user === null) return "invalid";
+    const sessionUid = body.user && typeof body.user === "object" ? body.user.uid : undefined;
+    if (typeof sessionUid === "string" && sessionUid) {
+      return sessionUid === uid ? "valid" : "invalid";
+    }
+    return "unknown";
+  } catch {
+    return "unknown";
+  }
+}
+
+export interface LearnerRequestOptions {
+  /**
+   * Feature-scoped requests (Spark) set this so a feature 401 alone cannot
+   * end the session: the central session is checked once, and only a
+   * definitively invalid verdict invalidates it. Product rule: only
+   * confirmed session invalidation ends a session; an individual feature
+   * failure does not.
+   */
+  verifySessionOnUnauthorized?: boolean;
+}
+
+export async function learnerRequest(user: LearnerStorageUser | null, input: string, init: RequestInit = {}, options: LearnerRequestOptions = {}) {
   const session = learnerSessionSnapshot();
   const assertCurrent = () => {
     if (!user || session.uid !== user.uid || !isCurrentLearnerSession(session)) {
@@ -120,7 +175,13 @@ export async function learnerRequest(user: LearnerStorageUser | null, input: str
   const generationUnavailable = response.status === 403
     && (await response.clone().json().catch(() => ({}))).code === "ACCOUNT_GENERATION_UNAVAILABLE";
   assertCurrent();
-  if (response.status === 401 || generationUnavailable) invalidateLearnerSession();
+  if (response.status === 401 || generationUnavailable) {
+    let confirmedInvalid = true;
+    if (response.status === 401 && options.verifySessionOnUnauthorized) {
+      confirmedInvalid = (await checkLearnerSessionOnce(user!.uid)) === "invalid";
+    }
+    if (confirmedInvalid) invalidateLearnerSession();
+  }
   return response;
 }
 

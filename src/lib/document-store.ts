@@ -442,6 +442,14 @@ export async function checkDocumentStoreReadiness() {
     await getStoredDocument("system/health");
     return;
   }
+  // Mirror the data-path dispatch precedence: D1 before PostgreSQL, so a
+  // Workers deployment without DATABASE_URL probes the store it actually
+  // uses instead of failing on the PostgreSQL requirement.
+  if (serverEnvironment.CLOUDFLARE_D1_ENABLED?.trim().toLowerCase() === "true") {
+    const { checkD1DocumentStoreReadiness } = await import("@/lib/d1-document-store");
+    await checkD1DocumentStoreReadiness();
+    return;
+  }
   if (serverEnvironment.DATABASE_URL?.trim()) {
     const { checkPostgresDocumentStoreReadiness } = await import("@/lib/postgres-document-store");
     await checkPostgresDocumentStoreReadiness();
