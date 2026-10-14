@@ -175,6 +175,46 @@ jobs:
           if-no-files-found: ignore
           retention-days: 14
 
+  worker-bundle-smoke:
+    needs: static-and-release-contracts
+    if: needs.static-and-release-contracts.outputs.full == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      NODE_OPTIONS: --max-old-space-size=3072
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - name: Verify release source SHA
+        shell: bash
+        env:
+          EXPECTED_RELEASE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          set -euo pipefail
+          actual_sha="$(git rev-parse HEAD)"
+          test "$actual_sha" = "$EXPECTED_RELEASE_SHA"
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      # Deployability gate: build the exact bundle the deployer uploads and
+      # run it in a local Workers runtime (SSR page, dynamic API, 404,
+      # readiness against local D1). next dev suites cannot catch bundle
+      # loader failures (opennextjs/opennextjs-cloudflare#1355).
+      - name: Workers bundle smoke test
+        run: npm run test:worker-smoke
+      - name: Upload bundle smoke evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: worker-bundle-smoke-evidence
+          path: |
+            .worker-smoke/
+          if-no-files-found: ignore
+          retention-days: 14
+
   postgres-transactions:
     needs: static-and-release-contracts
     if: needs.static-and-release-contracts.outputs.full == 'true'

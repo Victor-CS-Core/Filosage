@@ -489,7 +489,10 @@ test("mobile projects execute only explicitly owned cross-device behavior", () =
   expect(mobileChromium.count).toBeLessThanOrEqual(45);
   expect(mobileWebkit.count).toBeLessThanOrEqual(52);
   // September 13: one desktop-only hosted CSS sanitizer regression adds one case.
-  expect(chromium.count + mobileChromium.count + mobileWebkit.count).toBeLessThanOrEqual(426);
+  // October 14: the owner course-creation recovery regression (a saved owner
+  // request retries without evaluation headers, preserving its idempotency
+  // key) adds one desktop case.
+  expect(chromium.count + mobileChromium.count + mobileWebkit.count).toBeLessThanOrEqual(427);
 });
 
 test("release workflows accept only exact successful workflow evidence", () => {
@@ -702,7 +705,7 @@ test("CI cost controls preserve automatic quality and exact manual release proof
   const jobs = qualityWorkflow.replaceAll("\r\n", "\n").split("\njobs:\n")[1] ?? "";
   const timeouts = Object.fromEntries([...jobs.matchAll(/^ {2}([\w-]+):\n((?: {4}[^\n]*\n|\n)+)/gm)]
     .map(([, job, body]) => [job, Number(body.match(/^ {4}timeout-minutes: (\d+)$/m)?.[1])]));
-  expect(timeouts).toEqual({ "static-and-release-contracts": 15, "browser-smoke": 20, "postgres-transactions": 10 });
+  expect(timeouts).toEqual({ "static-and-release-contracts": 15, "browser-smoke": 20, "worker-bundle-smoke": 25, "postgres-transactions": 10 });
   expect(qualityWorkflow).toContain("cancel-in-progress: true");
   expect(qualityWorkflow).toContain("workflow_dispatch:");
   expect(qualityWorkflow).not.toMatch(/^\s+paths(?:-ignore)?:/m);

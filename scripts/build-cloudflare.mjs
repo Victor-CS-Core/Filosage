@@ -19,6 +19,14 @@
  * Both swaps are restored after the build. Set DEPLOYMENT_ENVIRONMENT in the
  * build environment to control the middleware's QA robots tag (inlined at
  * build time).
+ *
+ * After the OpenNext build, one fail-closed output patch is applied:
+ * scripts/preview-props-patch.mjs injects the build's own
+ * server/preview-props.json into the generated loadManifest registry
+ * (workaround for opennextjs/opennextjs-cloudflare#1355 — Next 16.4 loads
+ * that file unconditionally and the adapter's registry omits it, which
+ * otherwise kills the worker on every request). See that module for the
+ * pinned versions and the upstream removal condition.
  */
 import { copyFileSync, rmSync, renameSync, existsSync, readFileSync, writeFileSync } from "node:fs";
 import { execSync } from "node:child_process";
@@ -76,6 +84,17 @@ try {
   console.log(`[build:cloudflare] stripped CSP from ${NEXT_CONFIG}`);
   sh("npx opennextjs-cloudflare build");
   console.log("[build:cloudflare] OpenNext build succeeded");
+  // Workaround for opennextjs/opennextjs-cloudflare#1355 (see
+  // scripts/preview-props-patch.mjs for versions and the removal
+  // condition): Next 16.4 loads server/preview-props.json unconditionally
+  // at server construction, but the adapter's inlined loadManifest
+  // registry omits it, so an unpatched bundle throws on every request.
+  // Inject the file this build generated into the registry; the patch is
+  // fail-closed (missing/invalid file or registry anchor != 1 fails the
+  // build). Awaited inside the try so the swaps are restored either way.
+  const { applyPreviewPropsPatch } = await import("./preview-props-patch.mjs");
+  const patchResult = applyPreviewPropsPatch(".open-next");
+  console.log(`[build:cloudflare] preview-props registry patch applied (${patchResult.patched} handler)`);
 } finally {
   restore();
 }
