@@ -1,6 +1,20 @@
 # Filosage current state
 
-Last materially updated: October 13, 2026
+Last materially updated: October 14, 2026
+
+## Active outcome: owner course creation recovery
+
+Owner explicitly authorized fixing, pushing and deploying this defect to production on October 14. Preserve billing/Spark disabled and evaluation admission safeguards.
+
+- [x] Diagnose: the ordinary create form incorrectly sends the controlled-evaluation header for owners, causing `EVALUATION_APPROVAL_REQUIRED` before admission.
+- [x] Add a behavioral regression proving a saved owner request retries without evaluation headers and preserves its idempotency key. It reproduced the exact approval-error screen before the fix and passes afterwards.
+- [x] Remove automatic evaluation selection and validate locally: recovery browser tests 4/4, course-research contracts 33/33, evaluation-budget 27/27, lesson-operations 11/11, TypeScript clean, lint zero errors (four existing Next navigation warnings). Browser execution used temporary Chromium 153 because the standard Playwright download returned truncated archives. Server evaluation enforcement is unchanged.
+- [ ] Push this validated checkpoint and collect exact-SHA CI evidence.
+- [ ] Verify the production Workers artifact, deploy, and check the live result. Deployment access is not present in this workspace; the previous agent's unpushed Workers compatibility changes are also absent from remote main. These are release dependencies, not completed work.
+
+Acceptance: ordinary owner creation/recovery uses the normal generation path; genuine evaluation operations remain approval-gated; retries preserve request identity. Do not claim production recovery from source tests alone.
+
+Deployment blocker verified October 14: `wrangler whoami` reports unauthenticated, the repository's surrogate-credential helper is absent, and integration discovery returned no Cloudflare plugin. CLI Git push also lacks authentication; use the connected GitHub app for the checkpoint. The reported OpenNext compatibility fixes remain unpushed elsewhere, so this checkpoint alone is not a deployable Workers candidate. No deployment, credential changes, live provider generation, or billing/Spark activation occurred in this workspace.
 
 This is the canonical living snapshot for the repository. Read it before starting or resuming work. The source identity for this snapshot is the commit that contains this file; verify remote `main` and the exact CI run before relying on it for release decisions.
 

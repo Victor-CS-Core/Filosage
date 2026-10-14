@@ -562,7 +562,7 @@ test("normal course creation UI delegates source research to the server", async 
   expect(source).not.toContain("sourcePack,");
   expect(source).toContain("Researching trusted sources and further reading");
   expect(source).toContain("Research and source validation are automatic.");
-  expect(source).toContain('account?.isOwner ? { "x-filosage-model-evaluation": "1" }');
+  expect(source).not.toContain('"x-filosage-model-evaluation"');
   expect(source).toContain("Validation diagnostic:");
 });
 

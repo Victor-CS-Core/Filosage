@@ -169,7 +169,6 @@ function CreateCourseForm() {
           method: "POST", headers: {
             "Content-Type": "application/json",
             ...(identity ? { "Idempotency-Key": identity.key } : {}),
-            ...(account?.isOwner ? { "x-filosage-model-evaluation": "1" } : {}),
           },
           body: operationId ? undefined : identity?.signature,
           signal: AbortSignal.timeout(GENERATION_CLIENT_REQUEST_MS),

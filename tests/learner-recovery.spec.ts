@@ -31,6 +31,28 @@ async function signedIn(page: Page) {
   } }));
 }
 
+test("an owner's saved course request resumes as ordinary generation with its original identity", { tag: "@smoke" }, async ({ page }) => {
+  await signedIn(page);
+  await page.route("**/api/account", (route) => route.fulfill({ json: exactLearnerAccount({ isOwner: true }) }));
+  await page.route("**/api/generation-operations", (route) => route.fulfill({ json: { operations: [] } }));
+  const identity = { key: "owner-saved-request-123", signature: JSON.stringify({ topic: "Recovery evidence" }) };
+  await page.addInitScript((saved) => {
+    localStorage.setItem("filosage:learner:v1:recovery-A:generation-operation:all", JSON.stringify(saved));
+  }, identity);
+  const requests: Array<{ evaluation: string | undefined; key: string | undefined; body: string | null }> = [];
+  await page.route("**/api/generate-course", (route) => {
+    const headers = route.request().headers();
+    requests.push({ evaluation: headers["x-filosage-model-evaluation"], key: headers["idempotency-key"], body: route.request().postData() });
+    return route.fulfill(headers["x-filosage-model-evaluation"]
+      ? { status: 409, json: { error: "EVALUATION_APPROVAL_REQUIRED" } }
+      : { json: { courseId: course.id } });
+  });
+  await page.goto("/create");
+  await page.getByRole("button", { name: "Resume course request", exact: true }).click();
+  await expect(page).toHaveURL(/\/course\//);
+  expect(requests).toEqual([{ evaluation: undefined, key: identity.key, body: identity.signature }]);
+});
+
 test("required evidence sources recover independently and optional recommendations do not block the report", { tag: "@smoke" }, async ({ page }) => {
   await signedIn(page);
   const unavailable = new Set(["progress", "mastery", "shares", "analysis"]);
