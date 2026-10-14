@@ -70,7 +70,7 @@ jobs:
       - name: Prepare optional exact maintenance runner access
         run: node scripts/maintenance-runner-access.mjs prepare
       - name: Persist owned access intent before any ingress mutation
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: maintenance-access-intent-${{ github.run_id }}-${{ github.run_attempt }}
           path: ${{ runner.temp }}/maintenance-access-evidence/intent.json
@@ -88,7 +88,7 @@ jobs:
         run: node scripts/azure-blue-green.mjs stage
       - name: Retain immutable candidate evidence
         if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: release-candidate-${{ inputs.expected_sha }}
           path: ${{ runner.temp }}/blue-green-evidence/*.json
@@ -99,7 +99,7 @@ jobs:
         run: node scripts/maintenance-runner-access.mjs cleanup
       - name: Retain access and cleanup evidence including uncertain outcomes
         if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: maintenance-access-final-${{ github.run_id }}-${{ github.run_attempt }}
           path: ${{ runner.temp }}/maintenance-access-evidence/*.json

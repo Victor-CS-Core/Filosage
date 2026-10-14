@@ -63,7 +63,7 @@ jobs:
       - name: Prepare optional exact maintenance runner access
         run: node scripts/maintenance-runner-access.mjs prepare
       - name: Persist owned access intent before any ingress mutation
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: maintenance-access-intent-${{ github.run_id }}-${{ github.run_attempt }}
           path: ${{ runner.temp }}/maintenance-access-evidence/intent.json
@@ -74,49 +74,49 @@ jobs:
       - name: Recheck candidate and referenced successful immutable hosted evidence
         run: node scripts/azure-blue-green.mjs package-evidence
       - name: Retain reviewed bff-auth-privacy evidence
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: candidate-proof-bff-auth-privacy
           path: ${{ runner.temp }}/blue-green-evidence/hosted/bff-auth-privacy/*.json
           if-no-files-found: error
           retention-days: 30
       - name: Retain reviewed learner-journey evidence
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: candidate-proof-learner-journey
           path: ${{ runner.temp }}/blue-green-evidence/hosted/learner-journey/*.json
           if-no-files-found: error
           retention-days: 30
       - name: Retain reviewed publication evidence
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: candidate-proof-publication
           path: ${{ runner.temp }}/blue-green-evidence/hosted/publication/*.json
           if-no-files-found: error
           retention-days: 30
       - name: Retain reviewed billing-containment evidence
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: candidate-proof-billing-containment
           path: ${{ runner.temp }}/blue-green-evidence/hosted/billing-containment/*.json
           if-no-files-found: error
           retention-days: 30
       - name: Retain reviewed operations-probes-alerts evidence
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: candidate-proof-operations-probes-alerts
           path: ${{ runner.temp }}/blue-green-evidence/hosted/operations-probes-alerts/*.json
           if-no-files-found: error
           retention-days: 30
       - name: Retain reviewed recovery-rollback evidence
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: candidate-proof-recovery-rollback
           path: ${{ runner.temp }}/blue-green-evidence/hosted/recovery-rollback/*.json
           if-no-files-found: error
           retention-days: 30
       - name: Retain reviewed data-write-compatibility evidence
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: candidate-proof-data-write-compatibility
           path: ${{ runner.temp }}/blue-green-evidence/hosted/data-write-compatibility/*.json
@@ -127,7 +127,7 @@ jobs:
         run: node scripts/maintenance-runner-access.mjs cleanup
       - name: Retain access and cleanup evidence including uncertain outcomes
         if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: maintenance-access-final-${{ github.run_id }}-${{ github.run_attempt }}
           path: ${{ runner.temp }}/maintenance-access-evidence/*.json
