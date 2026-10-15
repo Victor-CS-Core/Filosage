@@ -88,6 +88,7 @@
   },
   "overrides": {
     "@node-minify/core": {
+      "glob": "^10.5.0",
       "minimatch": {
         "brace-expansion": "2.1.7"
       }

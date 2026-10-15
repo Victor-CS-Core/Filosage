@@ -1,6 +1,8 @@
 # Filosage current state
 
-Last materially updated: October 14, 2026
+Last materially updated: October 15, 2026
+
+October 15 audit correction: `e4078310` passed security but its quality gate stopped at the non-exempt glob advisory GHSA-5j98-mcp5-4vw2; this three-file follow-up scopes `glob ^10.5.0` to `@node-minify/core`, retains adapter 1.20.11 and the existing braces exemption, and locally passes clean installation, the audit gate (no non-exempt high/critical findings), production audit (zero vulnerabilities), unit tests 20/20, release-hardening 26/26, fresh Workers build and Wrangler dry-run, with exact-SHA CI and HTTP bundle smoke still required before deployment because this workspace's local Workers server previously failed at host interface enumeration.
 
 ## Active outcome: owner course creation recovery
 
