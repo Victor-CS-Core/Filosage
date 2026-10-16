@@ -258,7 +258,14 @@ def deploy(env_name, message):
         "compatibility_date": worker_config["compatibility_date"],
         "compatibility_flags": worker_config["compatibility_flags"],
         "assets": {"jwt": assets_jwt, "config": asset_config},
-        "observability": {"enabled": True, "head_sampling_rate": 0.1},
+        # Full logs configuration: the top-level flag alone does not persist
+        # invocation logs (the 2026-10-16 staging incident left no queryable
+        # worker logs for a failed course generation). invocation_logs +
+        # persist keep console output and exceptions queryable after the fact.
+        "observability": {
+            "enabled": True,
+            "logs": {"enabled": True, "invocation_logs": True, "persist": True, "head_sampling_rate": 1},
+        },
     }
     fields = [("metadata", json.dumps(metadata), None, "text/plain")]
     fields.append(("worker.js", worker_src, "worker.js", "application/javascript+module"))

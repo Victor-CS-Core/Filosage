@@ -9,6 +9,7 @@ import { summarizeAiUsage, type AiUsageSample } from "@/lib/ai-pricing";
 import { courseCreditPaths, generationCreditReservationWrites, generationCreditSettlementWrites, generationLessonGrant } from "@/lib/course-credits";
 import { aiUsageLock, aiUsageLockWrite, aiUsageReleaseLock, aiUsageConflictingUntil } from "@/lib/ai-usage-lock";
 import { isEvaluationPreDispatchError } from "@/lib/evaluation-errors";
+import { safeModelErrorDetails } from "@/lib/model-fallback";
 import { assertEvaluationOperationLedger, assertEvaluationOperationRequest, evaluationUsageSamples } from "@/lib/evaluation-budget";
 import type { LessonSavePipelineGuard } from "@/lib/course-pipeline/lesson-save";
 import { webSearchCallCount } from "@/lib/source-research";
@@ -272,6 +273,18 @@ export async function runGenerationProviderCall<T>(lease: GenerationLease, input
       });
       throw error;
     }
+    // The generic outcome-unknown error intentionally replaces the provider
+    // exception for the client; emit a sanitized record (error name/status/
+    // code/type and the provider request id only — never prompts, payloads,
+    // credentials, or personal data) so the failure stays diagnosable in the
+    // worker logs under its operation id.
+    console.error(JSON.stringify({
+      event: "generation_provider_outcome_unknown",
+      operationId: lease.operationId,
+      callId,
+      stage,
+      ...safeModelErrorDetails(error),
+    }));
     throw new GenerationOperationError("GENERATION_OUTCOME_UNKNOWN", "The provider result is unconfirmed. Check this operation after its lease expires; the same paid call will not be repeated automatically.");
   }
   const observedAt = new Date().toISOString();
