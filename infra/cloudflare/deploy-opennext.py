@@ -259,13 +259,11 @@ def deploy(env_name, message):
         "compatibility_flags": worker_config["compatibility_flags"],
         "assets": {"jwt": assets_jwt, "config": asset_config},
         # Full logs configuration: the top-level flag alone does not persist
-        # invocation logs (the 2026-10-16 staging incident left no queryable
-        # worker logs for a failed course generation). invocation_logs +
-        # persist keep console output and exceptions queryable after the fact.
-        "observability": {
-            "enabled": True,
-            "logs": {"enabled": True, "invocation_logs": True, "persist": True, "head_sampling_rate": 1},
-        },
+        # NOTE: observability is deliberately NOT set here — the Versions API
+        # silently ignores it in version-upload metadata (verified
+        # 2026-10-16). It is applied after deployment via the script
+        # settings PATCH below, which is the path that actually persists
+        # invocation logs.
     }
     fields = [("metadata", json.dumps(metadata), None, "text/plain")]
     fields.append(("worker.js", worker_src, "worker.js", "application/javascript+module"))
@@ -286,6 +284,23 @@ def deploy(env_name, message):
          "annotations": {"workers/message": message}},
     )
     print(f"deployment live: {json.dumps(deployment)[:300]}")
+    # Persist invocation logs (console output + exceptions) so failures stay
+    # diagnosable after the fact — the 2026-10-16 staging incident left no
+    # queryable worker logs for a failed course generation because only the
+    # (ignored) version metadata carried observability. The settings PATCH
+    # creates a settings-carrying version of the same bundle and deploys it.
+    settings = {"observability": {
+        "enabled": True,
+        "logs": {"enabled": True, "invocation_logs": True, "persist": True, "head_sampling_rate": 1},
+    }}
+    sdata, sboundary = encode_multipart([("settings", json.dumps(settings), None, "application/json")])
+    api_request(
+        "PATCH",
+        f"/client/v4/accounts/{ACCOUNT_ID}/workers/scripts/{script}/settings",
+        sdata,
+        {"Content-Type": f"multipart/form-data; boundary={sboundary}"},
+    )
+    print("observability settings applied (invocation logs persisted)")
     print("DEPLOY_OK", version_id)
 
 
