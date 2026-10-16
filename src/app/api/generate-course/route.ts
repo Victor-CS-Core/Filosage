@@ -109,11 +109,13 @@ async function generateCourseRequest(request: Request) {
   let pipelineCorrelationId: string | undefined;
   let pipelineActorHash: string | undefined;
   let accountIsOwner = false;
+  let operationAccountUid: string | undefined;
   const ownerEvaluationRequested = request.headers.get("x-filosage-model-evaluation") === "1";
   let generationPhase = "authorization";
   try {
     const account = await requireAcceptedAccount(request);
     accountIsOwner = account.isOwner;
+    operationAccountUid = account.uid;
     const idempotencyKey = request.headers.get("idempotency-key");
     if (idempotencyKey && idempotencyKey.length >= 12 && idempotencyKey.length <= 200) requestedOperationId = generationOperationId(account.uid, idempotencyKey);
     pipelineFlags = coursePipelineFeatureFlags(account);
@@ -1107,7 +1109,16 @@ async function generateCourseRequest(request: Request) {
       ? await denyGenerationAdmission(requestedOperationId).catch(() => false) : false;
     if (error instanceof GenerationOperationError) {
       if (admissionDenied) return NextResponse.json({ error: error.message, code: error.code, admitted: false }, { status: error.status, headers: { "Cache-Control": "private, no-store" } });
-      return NextResponse.json({ error: error.message, code: error.code, operationId: operation?.operationId ?? requestedOperationId, ...(error.code === "GENERATION_FAILED" ? { status: "failed" } : {}) },
+      // Carry the operation's current status: errors such as
+      // GENERATION_OUTCOME_UNKNOWN are thrown after the operation has been
+      // reconciled to a terminal state, and omitting that state leaves the
+      // client showing a stale resumable request (the lesson route already
+      // re-reads and spreads the status the same way).
+      const statusOperationId = operation?.operationId ?? requestedOperationId;
+      const current = statusOperationId && operationAccountUid
+        ? await getGenerationOperation(operationAccountUid, statusOperationId).catch(() => null)
+        : null;
+      return NextResponse.json({ ...(current ? generationOperationStatus(current) : {}), error: error.message, code: error.code, operationId: statusOperationId, ...(error.code === "GENERATION_FAILED" && !current ? { status: "failed" } : {}) },
         { status: error.status, headers: { "Cache-Control": "private, no-store" } });
     }
     if (error instanceof LearningDesignReplanRequiredError) {
