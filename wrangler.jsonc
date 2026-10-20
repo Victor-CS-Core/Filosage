@@ -5,6 +5,10 @@
   "account_id": "447a556505dd5e72b66e7c1c63d754ae",
   "compatibility_date": "2026-09-01",
   "compatibility_flags": ["nodejs_compat"],
+  "observability": {
+    "enabled": true,
+    "logs": { "enabled": true, "invocation_logs": true, "persist": true, "head_sampling_rate": 1 }
+  },
   "assets": {
     "directory": ".open-next/assets",
     "binding": "ASSETS"
@@ -64,6 +68,10 @@
   },
   "env": {
     "staging": {
+      "observability": {
+        "enabled": true,
+        "logs": { "enabled": true, "invocation_logs": true, "persist": true, "head_sampling_rate": 1 }
+      },
       "name": "filosage-staging",
       "d1_databases": [
         {

@@ -379,7 +379,7 @@ async function createCheckoutSessionInGeneration(
     creationMayExist = true;
     const session = await stripe.checkout.sessions.create({
       mode: "subscription",
-      payment_method_types: ["card"],
+      allowed_payment_method_types: ["card"],
       integration_identifier: "filosage_checkout_qmvtzkrp",
       line_items: [{ price, quantity: 1 }],
       success_url: `${baseUrl}/pricing?checkout=success`,

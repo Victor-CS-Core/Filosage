@@ -12,7 +12,7 @@
     "test:postgres": "node --conditions=react-server --import tsx --test --test-concurrency=1 --test-reporter=tap tests/postgres/*.test.ts",
     "test:d1": "node --conditions=react-server --import tsx --test --test-concurrency=1 --test-reporter=tap tests/d1/*.test.ts",
     "test:billing": "node --conditions=react-server --import tsx --experimental-test-module-mocks --test --test-concurrency=1 --test-reporter=tap tests/billing/*.test.mjs tests/billing/*.test.ts",
-    "test:unit": "node --conditions=react-server --import tsx --test --test-concurrency=1 --test-reporter=tap tests/mastery-authority.test.ts tests/progress-normalization.test.ts tests/course-credit-refund.test.ts tests/build-cloudflare-patch.test.ts tests/generation-recovery-status.test.ts",
+    "test:unit": "node --conditions=react-server --import tsx --test --test-concurrency=1 --test-reporter=tap tests/mastery-authority.test.ts tests/progress-normalization.test.ts tests/course-credit-refund.test.ts tests/build-cloudflare-patch.test.ts tests/generation-recovery-status.test.ts && python3 -m unittest discover -s tests/cloudflare -p 'test_*.py'",
     "test:contracts": "playwright test --config=playwright.contracts.config.ts",
     "test:api": "playwright test --config=playwright.api.config.ts",
     "test:browser": "node --experimental-strip-types scripts/run-playwright-matrix.mjs",

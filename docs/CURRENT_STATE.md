@@ -1,6 +1,19 @@
 # Filosage current state
 
-Last materially updated: October 16, 2026
+## October 20 audit remediation checkpoint
+
+Scope: restore Stripe 23 Checkout compatibility while preserving card-only offers, and ensure both Cloudflare deployment authentication paths configure persisted invocation logs; no deployment or billing/Spark activation is authorized by this checkpoint.
+
+- [x] Confirm both findings against remote main `ff24459f` and the installed Stripe 23 changelog/types.
+- [x] Update Checkout to Stripe 23's `allowed_payment_method_types` and verify all four offers still restrict to card; the updated transport assertion failed before the rename and billing tests pass 32/32 afterwards.
+- [x] Configure persisted invocation logs explicitly for both Wrangler environments and use that configuration for the REST settings PATCH; three Python regression tests failed before the fixes and pass afterwards, including the OAuth command path and REST payload.
+- [x] Replace the OAuth command's unsupported `--x-autoconfig=false` with the installed Wrangler's supported `--autoconfig=false`; the native configuration dry-run succeeds with a temporary fixture worker (not the application bundle).
+- [x] Validate the checkpoint locally: clean dependency installation, billing 32/32, existing unit 21/21 plus the three new deployment tests, TypeScript over all materialized dependencies and targeted oxlint checks pass; the new Python tests run from `test:unit` in CI.
+- [ ] Exact-SHA full repository CI and application Workers smoke remain required after push; no deployment or live logging verification occurred here.
+
+Validation environment: Git clone has no credential; source is retrieved through the GitHub app into a local dependency-complete subset for billing tests, rather than represented as a full checkout.
+
+Last materially updated: October 20, 2026
 
 October 15 audit correction: `e4078310` passed security but its quality gate stopped at the non-exempt glob advisory GHSA-5j98-mcp5-4vw2; this three-file follow-up scopes `glob ^10.5.0` to `@node-minify/core`, retains adapter 1.20.11 and the existing braces exemption, and locally passes clean installation, the audit gate (no non-exempt high/critical findings), production audit (zero vulnerabilities), unit tests 20/20, release-hardening 26/26, fresh Workers build and Wrangler dry-run, with exact-SHA CI and HTTP bundle smoke still required before deployment because this workspace's local Workers server previously failed at host interface enumeration.
 

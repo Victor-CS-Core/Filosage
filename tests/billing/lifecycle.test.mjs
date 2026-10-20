@@ -417,8 +417,9 @@ test('four Checkout offers restrict methods to card and signed completion record
     const url = await billing.createCheckoutSession(account, offer.plan, offer.interval, { version: 'paid-checkout-eligibility-v1', age18OrOlder: true, usResident: true, automaticRenewalAccepted: true });
     assert.equal(url, 'https://checkout.stripe.com/c/pay/fixture');
     const params = new URLSearchParams(calls.findLast(call => call.method === 'POST' && call.path === '/v1/checkout/sessions').body);
-    assert.equal(params.get('payment_method_types[0]'), 'card');
-    assert.equal(params.get('payment_method_types[1]'), null);
+    assert.equal(params.get('allowed_payment_method_types[0]'), 'card');
+    assert.equal(params.get('allowed_payment_method_types[1]'), null);
+    assert.equal(params.get('payment_method_types[0]'), null, 'Stripe 23 removed the legacy Checkout parameter');
     assert.equal(params.get('line_items[0][price]'), offer.price);
     const metadata = Object.fromEntries([...params].filter(([key]) => key.startsWith('metadata[')).map(([key, value]) => [key.slice(9, -1), value]));
     assert.ok(metadata.filosage_account_generation);

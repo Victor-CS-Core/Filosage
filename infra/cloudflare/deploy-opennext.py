@@ -174,6 +174,7 @@ def load_worker_config(env_name):
         "assets": env.get("assets", root.get("assets", {})),
         "compatibility_date": env.get("compatibility_date", root.get("compatibility_date")),
         "compatibility_flags": env.get("compatibility_flags", root.get("compatibility_flags", [])),
+        "observability": env.get("observability", root.get("observability", {})),
     }
 
 
@@ -198,7 +199,7 @@ def deploy_with_wrangler(env_name, message):
     command = [
         wrangler,
         "deploy",
-        "--x-autoconfig=false",
+        "--autoconfig=false",
         "--config",
         os.path.join(REPO, "wrangler.jsonc"),
         "--message",
@@ -289,10 +290,9 @@ def deploy(env_name, message):
     # queryable worker logs for a failed course generation because only the
     # (ignored) version metadata carried observability. The settings PATCH
     # creates a settings-carrying version of the same bundle and deploys it.
-    settings = {"observability": {
-        "enabled": True,
-        "logs": {"enabled": True, "invocation_logs": True, "persist": True, "head_sampling_rate": 1},
-    }}
+    # Wrangler consumes this configuration directly on the OAuth path; the
+    # Versions API needs the same configuration applied via script settings.
+    settings = {"observability": worker_config["observability"]}
     sdata, sboundary = encode_multipart([("settings", json.dumps(settings), None, "application/json")])
     api_request(
         "PATCH",
