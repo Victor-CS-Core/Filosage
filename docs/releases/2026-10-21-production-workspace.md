@@ -2,7 +2,7 @@
 
 Scope: complete local checkout, Node 22 lockfile installation, documented local environment, Wrangler browser authentication, exact-candidate release checks, authorized production deployment and verification. Preserve secrets, routing, production storage, user data, saved request identities, billing closed and Spark disabled. No destructive migrations or unrelated refactoring.
 
-Candidate: b6cbb06dab72ed657dfc69ba84b3304cf475c265 (remote main verified October 21; unchanged from historical reference). Existing clean checkout fast-forwarded from 654c3c8. GitHub normal keyring login available.
+Candidate: b6cbb06dab72ed657dfc69ba84b3304cf475c265 (remote main verified at session start October 21; unchanged from historical reference). Later documentation-only checkpoints advance main and are distinct from this tested application candidate. Existing clean checkout fast-forwarded from 654c3c8. GitHub normal keyring login available.
 
 - [x] Locate checkout, preserve work, read AGENTS and current state, fetch main.
 - [x] Verify complete tracked assets and install Node 22/dependencies from lockfile: 1,421 files, 152 binary files, no Git blob mismatches; Node 22.18.0/npm 10.9.3; npm ci succeeds.
@@ -13,7 +13,7 @@ Candidate: b6cbb06dab72ed657dfc69ba84b3304cf475c265 (remote main verified Octobe
 - [x] Run actual production-shaped OpenNext Workers bundle smoke locally: all four checks pass after excluding development environment file; bundled worker SHA-256 `b6cd0fe74a87a9e1c47ea2653485b218b543ce60080de822e55b62636f0c83c6`.
 - [ ] Deploy committed candidate through supported deployment path (owner explicitly authorized October 21).
 - [ ] Verify active version, homepage/assets, health/readiness, billing/Spark and deployed client fix. Authenticated generation requires separate evidence.
-- [ ] Update current-state evidence, commit and push validated documentation separately from deployed source SHA.
+- [x] Update current-state evidence and push validated documentation checkpoint at the concrete blocker, separately from the tested application candidate. Deployment/post-deployment documentation remains pending.
 
 Risks: old checkout/builds cannot establish current deployability; no bypass of evaluation approval, idempotency or credit accounting is allowed. Production is held until all release gates pass.
 
