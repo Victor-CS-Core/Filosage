@@ -64,7 +64,9 @@
     "SPARK_MAX_INPUT_TOKENS": "4000",
     "SPARK_MAX_OUTPUT_TOKENS": "900",
     "SPARK_GLOBAL_CONCURRENCY": "4",
-    "SPARK_TURNS_PER_MINUTE": "6"
+    "SPARK_TURNS_PER_MINUTE": "6",
+    "OPERATIONS_ENVIRONMENT": "production",
+    "OPERATIONS_ALERT_WEBHOOK_URL": "https://filosage-operations.ktr0nn.workers.dev/alerts"
   },
   "env": {
     "staging": {

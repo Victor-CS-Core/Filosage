@@ -47,3 +47,22 @@ Production remains unchanged at rollback version `a086abd4-b244-487e-9b58-f509b0
 Local Chromium owner recovery passes; Chromium/WebKit archives downloaded, but local WebKit reports missing system dependencies (`libicu74`, `libxml2`, `libflite1`) on this Arch host. Chromium works; the full hosted regression installs its required Linux dependencies. This is a local WebKit limitation, not passing local full-browser evidence.
 
 Resume only after an approved real operational receiver is available and production configuration can be verified without dummy values. Re-check main/candidate identity, engineering/security/full-regression evidence, local bundle, production version/bindings/routes and standing flags. Production authorization from October 21 remains recorded. After deployment verify active version, served asset hash, public health/readiness/billing/Spark; authenticated generation requires direct evidence.
+
+## Approved continuation: Cloudflare operational alert receiver
+
+Owner confirmed the Azure receiver/configuration was removed during migration and explicitly requested reimplementation in Cloudflare if feasible. Owner selected the Cloudflare account email as notification destination; verification requested through Cloudflare's normal email flow. Scope adds an isolated signed receiver Worker and operations-only D1 database, durable deduplication and notification retry state, and Cloudflare-native email delivery. Preserve application data, secrets, domain routing, billing/Spark and generation safeguards. Do not remove readiness requirements or use dummy production settings. Validate signature/replay/body bounds, durable acknowledgement, duplicate conflicts, database/notification failures and retries; verify hosted receiver acceptance and notification evidence before application deployment. A code/config candidate change requires fresh exact-SHA engineering/security/full regression and bundle smoke.
+
+- [x] Inspect existing sender contract and current Cloudflare Workers/Email Service documentation.
+- [x] Select notification destination with owner and request verification email.
+- [ ] Implement and test isolated receiver and durable retry/retention schema.
+- [ ] Provision dedicated Cloudflare operations resources, keep generated signing secret private, deploy committed receiver and verify actual notification transport.
+- [ ] Configure production application operations settings, requalify exact application candidate, deploy and verify original release outcome.
+
+## Receiver implementation validation checkpoint
+
+- Isolated D1 `filosage-operations` created (`8b75b7b7-4e40-4a1e-8f1a-b5bdc5af5e83`); idempotent operations-only schema applied remotely. No application DB/storage touched.
+- Cloudflare reports account notification destination verified; Email Routing subdomain `alerts.filosage.com` enabled and ready without changing apex/www website DNS or routes. Email Sending beta API returned Unauthorized (2036); native Routing EmailMessage binding is the supported fallback.
+- Receiver tests initially failed, then 9/9 passed. Independent review found timestamp/body deduplication mismatch with the existing sender and stale per-batch delivery leases. Both new regressions failed before fixes and pass afterwards. Final receiver suite 12/12; no blocking re-review findings.
+- Existing unit 21/21, deployment Python 3/3, focused operational/release contracts 33/33, TypeScript clean and full lint zero errors (four pre-existing navigation warnings). Receiver actual local Worker: health 200, signed acceptance 202, repeat 200 and local email-binding acceptance. No real email test yet.
+- Current-date receiver compatibility was refused by pinned workerd (supports through October 19), so receiver config uses 2026-10-19. No dependency upgrade or runtime check bypass.
+- Prior full regression at b6cbb06 canceled after code/config scope changed; new frozen candidate requires its own engineering/security, full regression and actual application bundle smoke. Production app remains on recorded October 10 version.

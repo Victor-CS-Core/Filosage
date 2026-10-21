@@ -7,12 +7,12 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "oxlint --react-plugin --jsx-a11y-plugin --import-plugin --deny-warnings src tests scripts next.config.ts playwright.config.ts playwright.api.config.ts playwright.contracts.config.ts playwright.command-center-v2.config.ts playwright.command-center-v2-ui.config.ts playwright.shared-evidence.config.ts playwright.spark.config.ts && eslint src tests scripts next.config.ts playwright.config.ts playwright.api.config.ts playwright.contracts.config.ts playwright.command-center-v2.config.ts playwright.command-center-v2-ui.config.ts playwright.shared-evidence.config.ts playwright.spark.config.ts",
+    "lint": "oxlint --react-plugin --jsx-a11y-plugin --import-plugin --deny-warnings src tests scripts infra/cloudflare/operations next.config.ts playwright.config.ts playwright.api.config.ts playwright.contracts.config.ts playwright.command-center-v2.config.ts playwright.command-center-v2-ui.config.ts playwright.shared-evidence.config.ts playwright.spark.config.ts && eslint src tests scripts infra/cloudflare/operations next.config.ts playwright.config.ts playwright.api.config.ts playwright.contracts.config.ts playwright.command-center-v2.config.ts playwright.command-center-v2-ui.config.ts playwright.shared-evidence.config.ts playwright.spark.config.ts",
     "test:e2e": "node --experimental-strip-types scripts/run-playwright-suites.mjs",
     "test:postgres": "node --conditions=react-server --import tsx --test --test-concurrency=1 --test-reporter=tap tests/postgres/*.test.ts",
     "test:d1": "node --conditions=react-server --import tsx --test --test-concurrency=1 --test-reporter=tap tests/d1/*.test.ts",
     "test:billing": "node --conditions=react-server --import tsx --experimental-test-module-mocks --test --test-concurrency=1 --test-reporter=tap tests/billing/*.test.mjs tests/billing/*.test.ts",
-    "test:unit": "node --conditions=react-server --import tsx --test --test-concurrency=1 --test-reporter=tap tests/mastery-authority.test.ts tests/progress-normalization.test.ts tests/course-credit-refund.test.ts tests/build-cloudflare-patch.test.ts tests/generation-recovery-status.test.ts && python3 -m unittest discover -s tests/cloudflare -p 'test_*.py'",
+    "test:unit": "node --conditions=react-server --import tsx --test --test-concurrency=1 --test-reporter=tap tests/mastery-authority.test.ts tests/progress-normalization.test.ts tests/course-credit-refund.test.ts tests/build-cloudflare-patch.test.ts tests/generation-recovery-status.test.ts && python3 -m unittest discover -s tests/cloudflare -p 'test_*.py' && npm run test:operations-receiver",
     "test:contracts": "playwright test --config=playwright.contracts.config.ts",
     "test:api": "playwright test --config=playwright.api.config.ts",
     "test:browser": "node --experimental-strip-types scripts/run-playwright-matrix.mjs",
@@ -45,7 +45,8 @@
     "test:spark": "node --conditions=react-server --import tsx --test --test-concurrency=1 --test-reporter=tap tests/spark/*.test.ts",
     "test:spark:ui": "playwright test --config=playwright.spark.config.ts",
     "build:cloudflare": "node scripts/build-cloudflare.mjs",
-    "test:worker-smoke": "node scripts/smoke-worker-bundle.mjs"
+    "test:worker-smoke": "node scripts/smoke-worker-bundle.mjs",
+    "test:operations-receiver": "node --import tsx --test tests/operations-receiver/*.test.mjs"
   },
   "dependencies": {
     "@azure/identity": "^4.13.2",
