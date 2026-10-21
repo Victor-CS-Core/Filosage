@@ -129,5 +129,387 @@
         "last_error": null
       }
     ]
+  },
+  "release_gates": {
+    "source": "e3c5c711734ef6699f36fa9d063242dcb41248a3",
+    "engineering": "success",
+    "security": "success",
+    "full_browser_regression": "success",
+    "browser_flaky_tests": 3,
+    "browser_skipped_tests": 4,
+    "notes": [
+      "Course evidence navigation exceeded 5-second URL assertion on first attempt; retry passed.",
+      "Admin touch-target height first measured 43.999969px versus 44px assertion; retry passed.",
+      "Owner handbook heading exceeded 5-second visibility assertion on first attempt; retry passed.",
+      "Root causes of navigation/visibility timing are not established; no checks or retry settings were weakened."
+    ]
+  },
+  "production_release": {
+    "version": "7c1ca966-3d06-423d-b545-414f074d07d7",
+    "deployment": "7280a183-7e19-4e09-9883-7a6e8dfad7ee",
+    "created_on": "2026-10-21T19:52:23.05631Z",
+    "traffic_percent": 100,
+    "source": "e3c5c711734ef6699f36fa9d063242dcb41248a3",
+    "secret_names": [
+      "ACTIVITY_RECEIPT_SECRET",
+      "GOOGLE_CLIENT_ID",
+      "GOOGLE_CLIENT_SECRET",
+      "IDENTITY_LINK_HMAC_SECRET",
+      "OPENAI_API_KEY",
+      "OPERATIONS_ALERT_WEBHOOK_SECRET",
+      "OWNER_EMAIL"
+    ],
+    "production_storage": [
+      {
+        "database_id": "5fa98a30-1ece-4d6a-8771-db4b2f0aad34",
+        "id": "5fa98a30-1ece-4d6a-8771-db4b2f0aad34",
+        "name": "FILOSAGE_D1",
+        "type": "d1"
+      },
+      {
+        "bucket_name": "filosage-assets",
+        "name": "FILOSAGE_R2",
+        "type": "r2_bucket"
+      }
+    ],
+    "flags": {
+      "BILLING_ENABLED": "false",
+      "BILLING_ROLLOUT_MODE": "closed",
+      "NEXT_PUBLIC_SPARK_ENABLED": "false",
+      "SPARK_ENABLED": "false",
+      "SPARK_GLOBAL_CONCURRENCY": "4",
+      "SPARK_LIVE_AI_ENABLED": "false",
+      "SPARK_MAX_INPUT_TOKENS": "4000",
+      "SPARK_MAX_OUTPUT_TOKENS": "900",
+      "SPARK_PREPARE_ENABLED": "false",
+      "SPARK_SEMANTIC_RETRIEVAL_ENABLED": "false",
+      "SPARK_TURNS_PER_MINUTE": "6",
+      "STRIPE_TAX_READY": "false"
+    },
+    "routes_unchanged": true,
+    "workers_dev_unchanged": true,
+    "application_migrations_run": false,
+    "public_evidence": {
+      "source": "e3c5c711734ef6699f36fa9d063242dcb41248a3",
+      "public": {
+        "/": {
+          "status": 200,
+          "title": "Filosage \u2014 Turn curiosity into understanding"
+        },
+        "/api/health": {
+          "status": 200,
+          "ok": true,
+          "version": "e3c5c711734ef6699f36fa9d063242dcb41248a3",
+          "imageDigest": null,
+          "capabilities": {
+            "flashcardDecks": true,
+            "flashcardGeneration": true,
+            "lessonVisuals": false,
+            "commandCenter": false,
+            "commandCenterDrafts": false,
+            "commandCenterV2": false,
+            "pipelineV2": true,
+            "validationV2": true,
+            "repairV2": true,
+            "labsV2": false,
+            "visualsV2": false,
+            "publicationV2": true,
+            "pipelineShadowMode": false,
+            "pipelineOwnerOnly": true,
+            "pipelineCohortPercent": 0
+          },
+          "origin": "https://filosage.com",
+          "authenticationMode": "direct-google",
+          "checks": {
+            "configuration": true,
+            "datastore": true,
+            "flashcardDecks": true,
+            "flashcardGeneration": true
+          }
+        },
+        "/api/health/ready": {
+          "status": "ready",
+          "ok": true,
+          "checks": {
+            "configuration": true,
+            "datastore": true
+          }
+        },
+        "/api/health/live": {
+          "status": "live",
+          "ok": true
+        },
+        "/api/billing/status": {
+          "status": 200,
+          "provider": "none",
+          "rolloutMode": "closed",
+          "enabled": false,
+          "apiReady": false,
+          "webhookReady": false,
+          "portalReady": false,
+          "managementReady": false,
+          "taxReady": false,
+          "configured": false,
+          "checkoutReady": false,
+          "ready": false,
+          "plans": [
+            {
+              "id": "free",
+              "name": "Free learner",
+              "shortName": "Free",
+              "description": "Learn from the public library.",
+              "sortOrder": 0,
+              "active": true,
+              "currency": "usd",
+              "prices": null,
+              "annualMonthlyEquivalentMinor": null,
+              "annualSavingsMinor": null,
+              "annualSavingsPercent": null,
+              "limits": {
+                "courseCreditsPerMonth": 0,
+                "courseCreditBalanceCap": 0,
+                "tutorQuestions": 5,
+                "flashcardDeckGenerationsPerMonth": 5
+              },
+              "capabilities": {
+                "create_course": false,
+                "generate_lesson": false,
+                "create_custom_flashcard_deck": false,
+                "publish_course": false,
+                "advanced_capstone_analysis": false,
+                "export_evidence_report": false,
+                "share_evidence_report": false,
+                "course_illustrations": false
+              },
+              "includedFeatures": [
+                "Every published lesson, free",
+                "Progress, notes, and review scheduling across devices",
+                "5 tutor questions a month \u2014 ask the AI tutor about your lessons"
+              ],
+              "restrictedFeatures": [
+                "Private AI-assisted course creation",
+                "Course publishing"
+              ]
+            },
+            {
+              "id": "plus",
+              "name": "Filosage Plus",
+              "shortName": "Plus",
+              "description": "Build private courses around your own goals.",
+              "sortOrder": 1,
+              "active": true,
+              "currency": "usd",
+              "prices": {
+                "monthly": {
+                  "amountMinor": 999,
+                  "recurringInterval": "month",
+                  "recurringIntervalCount": 1
+                },
+                "annual": {
+                  "amountMinor": 7992,
+                  "recurringInterval": "year",
+                  "recurringIntervalCount": 1
+                }
+              },
+              "annualMonthlyEquivalentMinor": 666,
+              "annualSavingsMinor": 3996,
+              "annualSavingsPercent": 33,
+              "limits": {
+                "courseCreditsPerMonth": 2,
+                "courseCreditBalanceCap": 24,
+                "tutorQuestions": 40,
+                "flashcardDeckGenerationsPerMonth": 40
+              },
+              "capabilities": {
+                "create_course": true,
+                "generate_lesson": true,
+                "create_custom_flashcard_deck": true,
+                "publish_course": false,
+                "advanced_capstone_analysis": false,
+                "export_evidence_report": false,
+                "share_evidence_report": false,
+                "course_illustrations": true
+              },
+              "includedFeatures": [
+                "Everything in Free",
+                "2 course credits a month \u2014 1 credit builds 1 complete course (the full outline plus every lesson in it)",
+                "Unused credits roll over \u2014 bank up to 24",
+                "40 tutor questions a month",
+                "Your courses stay private to you",
+                "Keep every course you create, even if you cancel",
+                "Illustrated courses \u2014 a custom cover plus an illustration for every module"
+              ],
+              "restrictedFeatures": [
+                "Publishing courses to the public library",
+                "Detailed final-project feedback",
+                "Portable evidence exports and share links"
+              ]
+            },
+            {
+              "id": "pro",
+              "name": "Filosage Pro",
+              "shortName": "Pro",
+              "description": "Everything in Plus, plus proof of your work.",
+              "sortOrder": 2,
+              "active": true,
+              "currency": "usd",
+              "prices": {
+                "monthly": {
+                  "amountMinor": 1499,
+                  "recurringInterval": "month",
+                  "recurringIntervalCount": 1
+                },
+                "annual": {
+                  "amountMinor": 11988,
+                  "recurringInterval": "year",
+                  "recurringIntervalCount": 1
+                }
+              },
+              "annualMonthlyEquivalentMinor": 999,
+              "annualSavingsMinor": 6000,
+              "annualSavingsPercent": 33,
+              "limits": {
+                "courseCreditsPerMonth": 5,
+                "courseCreditBalanceCap": 60,
+                "tutorQuestions": 100,
+                "flashcardDeckGenerationsPerMonth": 100
+              },
+              "capabilities": {
+                "create_course": true,
+                "generate_lesson": true,
+                "create_custom_flashcard_deck": true,
+                "publish_course": true,
+                "advanced_capstone_analysis": true,
+                "export_evidence_report": true,
+                "share_evidence_report": true,
+                "course_illustrations": true
+              },
+              "includedFeatures": [
+                "Everything in Plus",
+                "5 course credits a month \u2014 bank up to 60",
+                "100 tutor questions a month",
+                "Detailed final-project feedback \u2014 see how each attempt improved, requirement by requirement",
+                "Downloadable progress reports, plus private share links (expire after 30 days) you can revoke anytime",
+                "Richly illustrated courses \u2014 a custom cover plus an illustration for every lesson",
+                "Publish finished courses to the public library"
+              ],
+              "restrictedFeatures": []
+            }
+          ]
+        }
+      },
+      "assets": [
+        {
+          "path": "/_next/static/chunks/06csg2celf3qb.css?dpl=e3c5c711734ef6699f36fa9d063242dcb41248a3",
+          "sha256": "8a93225e8005114c9cabe961c2f13f0e56b9bb310103a2afcc399116806579c8",
+          "status": 200
+        },
+        {
+          "path": "/_next/static/chunks/0cz1d0mv5g_q7.js?dpl=e3c5c711734ef6699f36fa9d063242dcb41248a3",
+          "sha256": "0973c1d64c88adc8e3c950410cb58b288f72118d5965b78049438deb8f2f9683",
+          "status": 200
+        },
+        {
+          "path": "/_next/static/chunks/0gkuv263jogyr.js?dpl=e3c5c711734ef6699f36fa9d063242dcb41248a3",
+          "sha256": "6092bf845215730ea774f46a2198eb229b8f8d82b695e249de0de744b69f4e68",
+          "status": 200
+        },
+        {
+          "path": "/_next/static/chunks/0o_iu04f6t0e7.js?dpl=e3c5c711734ef6699f36fa9d063242dcb41248a3",
+          "sha256": "b2606ff7d7fa1a72ce93ffc7be4c78439614e0248cb9cc3b1a19827651d1d0f7",
+          "status": 200
+        },
+        {
+          "path": "/_next/static/chunks/0wia2rd5ewmak.js?dpl=e3c5c711734ef6699f36fa9d063242dcb41248a3",
+          "sha256": "6b0f6ae6e0b85119e58a0a832540536e847aac969a517eb75275631c169b7b28",
+          "status": 200
+        },
+        {
+          "path": "/_next/static/chunks/0xgskps93sb05.js?dpl=e3c5c711734ef6699f36fa9d063242dcb41248a3",
+          "sha256": "be68d2d805063788f05b37f2d6c5cfcabf3714749f80cc73fa4a7a22efb1d69a",
+          "status": 200
+        },
+        {
+          "path": "/_next/static/chunks/11h6iu0eib45i.js?dpl=e3c5c711734ef6699f36fa9d063242dcb41248a3",
+          "sha256": "0aa38ca06b62da20031a4930dc186cda0a4c9a1ba0dffe1be4b4b18691b8265d",
+          "status": 200
+        },
+        {
+          "path": "/_next/static/chunks/154rsi6l15_e-.css?dpl=e3c5c711734ef6699f36fa9d063242dcb41248a3",
+          "sha256": "95ee550a793e9cf0b379601386a6d25df652fdd4b569479b4b5e75aba18f2c7d",
+          "status": 200
+        },
+        {
+          "path": "/_next/static/chunks/1c-hp713-7_a9.js?dpl=e3c5c711734ef6699f36fa9d063242dcb41248a3",
+          "sha256": "c070ef6b7d4b5dff87d23e9a3e758fc241a66d2dab45674a02f515420c0c8ba6",
+          "status": 200
+        },
+        {
+          "path": "/_next/static/chunks/1em_nfd7tmd0d.js?dpl=e3c5c711734ef6699f36fa9d063242dcb41248a3",
+          "sha256": "52236f689f680148c28e961bcb9df9be35783461f85a0ee7ec1647ad3cf5e5f9",
+          "status": 200
+        },
+        {
+          "path": "/_next/static/chunks/1p7mu3g-t83ni.js?dpl=e3c5c711734ef6699f36fa9d063242dcb41248a3",
+          "sha256": "1c7635ec063b51eee625170e1e3e2f834e5d234de409c1adaad628a61f8d0b6d",
+          "status": 200
+        },
+        {
+          "path": "/_next/static/chunks/1sp3tp1f4p-xi.css?dpl=e3c5c711734ef6699f36fa9d063242dcb41248a3",
+          "sha256": "78a062d709c315dbdeb602ab8b03eafff22c030474af76019d582bf3a8957979",
+          "status": 200
+        },
+        {
+          "path": "/_next/static/chunks/2wf14iwa-go4k.js?dpl=e3c5c711734ef6699f36fa9d063242dcb41248a3",
+          "sha256": "1c7d6419f6a8d0185670f757d75d45a494527ec120c042f6200be6c21979edd6",
+          "status": 200
+        },
+        {
+          "path": "/_next/static/chunks/3205ah_qp16xv.css?dpl=e3c5c711734ef6699f36fa9d063242dcb41248a3",
+          "sha256": "1f0994b0b58e769925a8531419797a9603b343da6ddf0aea523b8fce1d020f6f",
+          "status": 200
+        },
+        {
+          "path": "/_next/static/chunks/3e80b68wjc6at.css?dpl=e3c5c711734ef6699f36fa9d063242dcb41248a3",
+          "sha256": "861dccdb6d6c6bc55405975a49e14dde30613a0ee2dc5510b8a07018e1a01820",
+          "status": 200
+        },
+        {
+          "path": "/_next/static/chunks/3nfamjqt7wq-7.js?dpl=e3c5c711734ef6699f36fa9d063242dcb41248a3",
+          "sha256": "002f88e72f376b214dbc1dba12b29762b3861107ebc83ab56fec59041b1d9eba",
+          "status": 200
+        },
+        {
+          "path": "/_next/static/chunks/3wv1qkmkh7_1s.js?dpl=e3c5c711734ef6699f36fa9d063242dcb41248a3",
+          "sha256": "717eb8c561ad482da98c421147f6e7c7ed46be83f2e982931d4c79f1577f09ad",
+          "status": 200
+        },
+        {
+          "path": "/_next/static/chunks/40bythrfs8psm.js?dpl=e3c5c711734ef6699f36fa9d063242dcb41248a3",
+          "sha256": "d59af89402e8b9f6f90174db10a7979b4d47b96e3f186cce9c620fd78f4d7614",
+          "status": 200
+        },
+        {
+          "path": "/_next/static/chunks/429c9plgbh97r.css?dpl=e3c5c711734ef6699f36fa9d063242dcb41248a3",
+          "sha256": "1a32e48a5a266a96157e929b68334c3d21a3d25e1356770e08cfcb00f6941b55",
+          "status": 200
+        },
+        {
+          "path": "/_next/static/chunks/turbopack-3-ry682tkyiqk.js?dpl=e3c5c711734ef6699f36fa9d063242dcb41248a3",
+          "sha256": "8bbb58cbfd4633c1d828c6bc37bc32abc768a149c01b1dfc4f5131fd81274551",
+          "status": 200
+        }
+      ],
+      "authenticatedCourseGenerationVerified": false,
+      "courseCreateClient": [
+        {
+          "path": "/_next/static/chunks/0svqi9c3khxvn.js",
+          "sha256": "1a17429d19daad193d4f26e90d83ad99042561f8d1c8e73e20a218e537976782",
+          "evaluationHeaderPresent": false,
+          "idempotencyHeaderPresent": true
+        }
+      ],
+      "unknownRouteStatus": 404
+    }
   }
 }

@@ -2,20 +2,21 @@
 
 Scope: complete local checkout, Node 22 lockfile installation, documented local environment, Wrangler browser authentication, exact-candidate release checks, authorized production deployment and verification. Preserve secrets, routing, production storage, user data, saved request identities, billing closed and Spark disabled. No destructive migrations or unrelated refactoring.
 
-Candidate: b6cbb06dab72ed657dfc69ba84b3304cf475c265 (remote main verified at session start October 21; unchanged from historical reference). Later documentation-only checkpoints advance main and are distinct from this tested application candidate. Existing clean checkout fast-forwarded from 654c3c8. GitHub normal keyring login available.
+Frozen release candidate: `e3c5c711734ef6699f36fa9d063242dcb41248a3`. Initial main was `b6cbb06dab72ed657dfc69ba84b3304cf475c265`; later documentation commits are distinct from deployed source. The sections below retain the investigation chronology; this checklist is the current outcome record.
 
-- [x] Locate checkout, preserve work, read AGENTS and current state, fetch main.
-- [x] Verify complete tracked assets and install Node 22/dependencies from lockfile: 1,421 files, 152 binary files, no Git blob mismatches; Node 22.18.0/npm 10.9.3; npm ci succeeds.
-- [x] Configure ignored local environment from examples; `.env.local` mode 0600; `.mise.local.toml` pins Node 22.18.0.
-- [x] Wrangler 4.151.0 normal browser OAuth login completed; account and production/staging deployment history accessible.
-- [x] Production rollback version `a086abd4-b244-487e-9b58-f509b0a6b5a5`, deployment `b87904e0-42bc-4c2f-8008-c8c2e42609f0` (October 10). D1 `5fa98a30-1ece-4d6a-8771-db4b2f0aad34`, R2 `filosage-assets`; six secret names recorded without values. Routes `filosage.com/*` and `www.filosage.com/*` point to `filosage`. Billing false/closed/tax false and all five Spark activation flags false.
-- [ ] Verify exact-SHA engineering and security gates; run required full regression after engineering success.
-- [x] Run actual production-shaped OpenNext Workers bundle smoke locally: all four checks pass after excluding development environment file; bundled worker SHA-256 `b6cd0fe74a87a9e1c47ea2653485b218b543ce60080de822e55b62636f0c83c6`.
-- [ ] Deploy committed candidate through supported deployment path (owner explicitly authorized October 21).
-- [ ] Verify active version, homepage/assets, health/readiness, billing/Spark and deployed client fix. Authenticated generation requires separate evidence.
-- [x] Update current-state evidence and push validated documentation checkpoint at the concrete blocker, separately from the tested application candidate. Deployment/post-deployment documentation remains pending.
+- [x] Locate complete checkout, preserve work, read instructions/current state, fetch main and verify binary assets.
+- [x] Install Node 22.18.0/npm 10.9.3 and lockfile dependencies; configure ignored local examples with private permissions.
+- [x] Authenticate GitHub and Wrangler through normal flows; verify account, production/staging and outbound access.
+- [x] Record production rollback version, existing secret names, routes and production D1/R2; retain billing/Spark constraints.
+- [x] Implement, review, test and deploy isolated Cloudflare operations receiver; verify durable alarm, signed delivery and owner-confirmed inbox receipt.
+- [x] Pass exact-SHA engineering and security gates.
+- [x] Pass full browser regression `39657130756` at the frozen SHA.
+- [x] Build actual OpenNext bundle and pass local Workers smoke 4/4; production dry run emits identical worker SHA-256 `f33df78d5034305d067b241e63bd64952209b9d0dbbab7a5f9c07743552d6f48`.
+- [x] Add only the new signing secret, deploy committed candidate through supported native Wrangler path under explicit authorization.
+- [x] Verify active version, homepage/static assets, public health/readiness, billing/Spark, preserved bindings/routes/secrets and deployed course-create client fix.
+- [x] Push final validated release documentation separately from deployed source SHA.
 
-Risks: old checkout/builds cannot establish current deployability; no bypass of evaluation approval, idempotency or credit accounting is allowed. Production is held until all release gates pass.
+Authenticated course generation remains unverified unless direct evidence is collected. Preserve saved request identities and all evaluation/idempotency/credit safeguards. No destructive application migrations or staging storage changes are authorized.
 
 ## Release checks and checkpoint status
 
@@ -54,9 +55,9 @@ Owner confirmed the Azure receiver/configuration was removed during migration an
 
 - [x] Inspect existing sender contract and current Cloudflare Workers/Email Service documentation.
 - [x] Select notification destination with owner and request verification email.
-- [ ] Implement and test isolated receiver and durable retry/retention schema.
-- [ ] Provision dedicated Cloudflare operations resources, keep generated signing secret private, deploy committed receiver and verify actual notification transport.
-- [ ] Configure production application operations settings, requalify exact application candidate, deploy and verify original release outcome.
+- [x] Implement and test isolated receiver and durable retry/retention schema.
+- [x] Provision dedicated Cloudflare operations resources, keep generated signing secret private, deploy committed receiver and verify actual notification transport.
+- [x] Configure production application operations settings, requalify exact application candidate, deploy and verify original release outcome.
 
 ## Receiver implementation validation checkpoint
 
@@ -82,3 +83,13 @@ Final frozen candidate `e3c5c711734ef6699f36fa9d063242dcb41248a3` passes enginee
 The durable-alarm receiver deployed successfully; live receiver version `41a301ca-3a3e-45b5-8f58-9d02735b5892` includes its privately configured signing/recipient secrets. Signed probe returned 202/200/200/401/401/409 for new/duplicate/fresh-timestamp repeat/tamper/stale/conflict. One durable record has state accepted, attempts 1 and no error. Native email transport accepted the notification; owner explicitly confirmed inbox receipt. Hosted AlertScheduler alarm ran at 2:59 p.m. EDT and is recorded in persisted Cloudflare telemetry. No application production secret/configuration/deployment change has occurred yet.
 
 Clean release source is `/home/victor/Projects/Filosage/releases/production`, detached at the exact candidate; later local documentation updates are excluded from deployment. New namespace migration and retention affect only dedicated operations state. Existing account schedules, plan, app D1/R2, production secrets, web routes, billing and Spark remain unchanged.
+
+## Completed production release
+
+All three required remote gates passed on frozen source `e3c5c711734ef6699f36fa9d063242dcb41248a3`, including full regression `39657130756`. The matrix had three flaky Chromium tests that passed configured retries: published-course evidence navigation (5-second URL wait), admin touch-target rounding (43.999969px versus 44px), and owner handbook visibility (5-second wait). Four existing-suite skips remain. Timing root causes are unestablished; no check, timeout or retry setting was weakened.
+
+Production deployment `7280a183-7e19-4e09-9883-7a6e8dfad7ee` activated version `7c1ca966-3d06-423d-b545-414f074d07d7` at 100% on October 21, 3:52 p.m. EDT. The supported native Wrangler OAuth path deployed the clean frozen worktree, preserved vars/secrets and supplied the exact SITE_VERSION. Default Python production refusal remains intact. Six prior secrets remain; one new signing secret was privately added. D1/R2, domain routes and Workers.dev settings match the recorded baseline; no application migration ran.
+
+Public verification passed homepage, health, readiness, liveness, billing status and unknown-route 404. Twenty referenced static assets match the local tested bundle byte for byte. `/create` serves candidate chunk `0svqi9c3khxvn.js` with no evaluation header and preserved Idempotency-Key. Live version confirms billing false/closed/tax false and all five Spark activation flags false. Successful authenticated course generation remains unverified; no saved request identities were reset. Rollback version remains `a086abd4-b244-487e-9b58-f509b0a6b5a5`.
+
+The earlier blocker/handoff sections above are historical investigation evidence; this completed outcome and CURRENT_STATE supersede them. Final documentation is committed/pushed separately from deployed source.
