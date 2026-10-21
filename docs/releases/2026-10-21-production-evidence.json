@@ -1,0 +1,104 @@
+{
+  "candidate": "b6cbb06dab72ed657dfc69ba84b3304cf475c265",
+  "rollback_version": "a086abd4-b244-487e-9b58-f509b0a6b5a5",
+  "prior_deployment": {
+    "id": "b87904e0-42bc-4c2f-8008-c8c2e42609f0",
+    "source": "api",
+    "strategy": "percentage",
+    "annotations": {
+      "workers/message": "feat: POST /api/progress/mobile (PR #59)",
+      "workers/triggered_by": "deployment"
+    },
+    "versions": [
+      {
+        "version_id": "a086abd4-b244-487e-9b58-f509b0a6b5a5",
+        "percentage": 100
+      }
+    ],
+    "created_on": "2026-10-10T05:08:12.592183Z"
+  },
+  "production_storage": [
+    {
+      "database_id": "5fa98a30-1ece-4d6a-8771-db4b2f0aad34",
+      "id": "5fa98a30-1ece-4d6a-8771-db4b2f0aad34",
+      "name": "FILOSAGE_D1",
+      "type": "d1"
+    },
+    {
+      "bucket_name": "filosage-assets",
+      "name": "FILOSAGE_R2",
+      "type": "r2_bucket"
+    }
+  ],
+  "secret_names": [
+    "ACTIVITY_RECEIPT_SECRET",
+    "GOOGLE_CLIENT_ID",
+    "GOOGLE_CLIENT_SECRET",
+    "IDENTITY_LINK_HMAC_SECRET",
+    "OPENAI_API_KEY",
+    "OWNER_EMAIL"
+  ],
+  "flags_before": {
+    "BILLING_ENABLED": "false",
+    "BILLING_ROLLOUT_MODE": "closed",
+    "NEXT_PUBLIC_SPARK_ENABLED": "false",
+    "SPARK_ENABLED": "false",
+    "SPARK_GLOBAL_CONCURRENCY": "4",
+    "SPARK_LIVE_AI_ENABLED": "false",
+    "SPARK_MAX_INPUT_TOKENS": "4000",
+    "SPARK_MAX_OUTPUT_TOKENS": "900",
+    "SPARK_PREPARE_ENABLED": "false",
+    "SPARK_SEMANTIC_RETRIEVAL_ENABLED": "false",
+    "SPARK_TURNS_PER_MINUTE": "6",
+    "STRIPE_TAX_READY": "false"
+  },
+  "routes_before": [
+    {
+      "id": "ad74a97b21d843428cb965b4c5fde62e",
+      "pattern": "filosage.com/*",
+      "script": "filosage",
+      "request_limit_fail_open": false
+    },
+    {
+      "id": "6aa4c94044294897b4168ad2f7eb83ea",
+      "pattern": "www.filosage.com/*",
+      "script": "filosage",
+      "request_limit_fail_open": false
+    }
+  ],
+  "old_client": [
+    {
+      "asset": "/_next/static/chunks/0ar1jc2udojm8.js",
+      "sha256": "6a98ee08df4a4c0802d23a290df562069d4b32e3cc93976d274676f8385390dc",
+      "automatic_evaluation_header_present": true,
+      "course_request_present": true
+    }
+  ],
+  "workers_smoke": {
+    "passed": 4,
+    "failed": 0,
+    "bundle_sha256": "b6cd0fe74a87a9e1c47ea2653485b218b543ce60080de822e55b62636f0c83c6",
+    "production_dryrun_sha256": "b6cd0fe74a87a9e1c47ea2653485b218b543ce60080de822e55b62636f0c83c6"
+  },
+  "candidate_client_assets": [
+    {
+      "asset": "/_next/static/chunks/0svqi9c3khxvn.js",
+      "sha256": "1a17429d19daad193d4f26e90d83ad99042561f8d1c8e73e20a218e537976782",
+      "evaluation_header_present": false,
+      "idempotency_header_present": true
+    }
+  ],
+  "production_preflight": {
+    "actual_config_health_status": 503,
+    "actual_config_readiness_status": 503,
+    "missing_settings": [
+      "OPERATIONS_ENVIRONMENT",
+      "OPERATIONS_ALERT_WEBHOOK_URL",
+      "OPERATIONS_ALERT_WEBHOOK_SECRET"
+    ],
+    "dummy_local_only_config_health_status": 200,
+    "dummy_local_only_config_readiness_status": 200,
+    "production_mutations": false,
+    "receiver_delivery_verified": false
+  }
+}
