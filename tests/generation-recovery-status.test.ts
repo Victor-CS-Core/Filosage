@@ -199,3 +199,16 @@ test("authentication rejection retains sibling uncertainty and accounts for a la
     assert.equal((await getStoredDocument(`users/${uid}/courseCredits/current`))?.balance, 5);
   }
 });
+
+test("an explicit structured-schema rejection releases the request without claiming an unknown paid outcome", async () => {
+  const { beginGenerationOperation, runGenerationProviderCall } = await import("../src/lib/generation-operations.ts");
+  const account = { uid: "schema-rejected-learner", plan: "pro", access: "pro", isOwner: false, accountStatus: "active", subscriptionStatus: "active" } as const;
+  const lease = await beginGenerationOperation(account, "schema-rejected-request", { topic: "Evidence" });
+  await assert.rejects(runGenerationProviderCall(lease, { model: "fixture" }, async () => {
+    throw Object.assign(new Error("private schema details"), { status: 400, code: "invalid_json_schema", param: "text.format.schema" });
+  }), (error: unknown) => (error as { code?: string }).code === "GENERATION_PROVIDER_UNAVAILABLE");
+  const receipt = await getStoredDocument(lease.receiptPath);
+  assert.equal(receipt?.uncertainCostMicros, 0);
+  assert.equal((await getStoredDocument(lease.operationPath))?.status, "failed");
+  assert.equal((await getStoredDocument(`users/${account.uid}/courseCredits/current`))?.balance, 5);
+});

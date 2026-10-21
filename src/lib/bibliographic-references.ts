@@ -282,7 +282,7 @@ export const bibliographicDiscoverySchema = z.object({
     metadataProvider: z.enum(["open-library", "google-books"]),
     // Validate URL/host/record identity during certification; Responses does not
     // support JSON Schema format: uri in structured output.
-    catalogUrl: z.string().startsWith("https://").max(1_000),
+    catalogUrl: z.string().regex(/^https:\/\//).max(1_000),
   }).strict()).max(5),
 }).strict();
 

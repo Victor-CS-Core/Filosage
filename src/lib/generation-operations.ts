@@ -259,9 +259,10 @@ export async function runGenerationProviderCall<T>(lease: GenerationLease, input
   let response: T;
   try { response = await provider(); } catch (error) {
     const details = safeModelErrorDetails(error);
-    // A confirmed authentication rejection did not run the model. Do not
+    // Confirmed authentication/schema rejections did not run the model. Do not
     // confuse it with transport failure, where a paid outcome is ambiguous.
-    if (details.status === 401 && details.code === "invalid_api_key") {
+    if ((details.status === 401 && details.code === "invalid_api_key")
+      || (details.status === 400 && details.code === "invalid_json_schema" && details.param === "text.format.schema")) {
       // Confirm zero usage globally before touching personal state. This also
       // replaces an uncertainty estimate if a sibling already closed the lease.
       await recordProviderUsage(lease, callId, []);
@@ -281,7 +282,7 @@ export async function runGenerationProviderCall<T>(lease: GenerationLease, input
         if (!(ownershipError instanceof GenerationOperationError) || ownershipError.code !== "GENERATION_OWNERSHIP_LOST") throw ownershipError;
         throw new GenerationOperationError(failure.code, failure.error, 503);
       }
-      await finishGenerationOperation(lease, { failed: true, reason: "provider_authentication_rejected", failure });
+      await finishGenerationOperation(lease, { failed: true, reason: "provider_request_rejected", failure });
       throw new GenerationOperationError(failure.code, failure.error, 503);
     }
     if (isEvaluationPreDispatchError(error)) {

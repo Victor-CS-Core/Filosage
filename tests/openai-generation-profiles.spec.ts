@@ -9,6 +9,8 @@ import {
   openAiExecutionProfile,
   stablePromptCacheKey,
 } from "../src/lib/openai-generation";
+import { sourceResearchSchema, sourceEvidenceValidationSchema } from "../src/lib/source-research";
+import { bibliographicDiscoverySchema } from "../src/lib/bibliographic-references";
 import { lessonGenerationSchema } from "../src/lib/validation";
 import { commandCenterDraftContentSchema } from "../src/lib/command-center-draft-schema";
 import {
@@ -21,6 +23,7 @@ import {
 function findUnsupportedLessonSchemaShape(value: unknown, path = "$schema"): string | null {
   if (!value || typeof value !== "object") return null;
   const record = value as Record<string, unknown>;
+  if (typeof record.format === "string" && !["date-time", "time", "date", "duration", "email", "hostname", "ipv4", "ipv6", "uuid"].includes(record.format)) return `${path}.format:${record.format}`;
   if (Object.hasOwn(record, "default")) return `${path}.default`;
   if (Array.isArray(record.items)) return `${path}.items`;
   for (const [key, child] of Object.entries(record)) {
@@ -187,3 +190,9 @@ test("bounds the final task key while preserving long model and prompt identitie
   expect(bibliography).toHaveLength(64);
   expect(bibliography).toMatch(/^[a-z0-9:._-]+:[a-f0-9]{16}$/);
 });
+
+for (const [name, schema] of Object.entries({ course_research: sourceResearchSchema, course_bibliography: bibliographicDiscoverySchema, source_evidence_validation: sourceEvidenceValidationSchema })) {
+  test(`${name} uses only supported Structured Outputs formats`, () => {
+    expect(findUnsupportedLessonSchemaShape(zodTextFormat(schema, name).schema)).toBeNull();
+  });
+}

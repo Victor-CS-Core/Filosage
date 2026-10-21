@@ -101,7 +101,7 @@ export const sourceResearchSchema = z.object({
     // OpenAI Structured Outputs does not support JSON Schema's `format: "uri"`.
     // Keep the schema compatible and perform full URL, host, and deep-link
     // validation in the server certification step below.
-    url: z.string().startsWith("https://").max(500),
+    url: z.string().regex(/^https:\/\//).max(500),
     author: z.string().trim().max(160).nullable(),
     publisher: z.string().trim().min(2).max(160),
     publicationDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable(),
@@ -121,7 +121,7 @@ export type SourceResearchResult = z.infer<typeof sourceResearchSchema>;
 
 export const sourceEvidenceValidationSchema = z.object({
   sources: z.array(z.object({
-    url: z.string().startsWith("https://").max(500),
+    url: z.string().regex(/^https:\/\//).max(500),
     statusVerdict: z.enum(["released-no-withdrawal-found", "unverified"]),
     claims: z.array(z.object({
       evidenceClaimId: z.string().trim().regex(/^evidence-[a-z0-9-]{1,80}$/),
