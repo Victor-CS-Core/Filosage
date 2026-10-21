@@ -66,3 +66,11 @@ Owner confirmed the Azure receiver/configuration was removed during migration an
 - Existing unit 21/21, deployment Python 3/3, focused operational/release contracts 33/33, TypeScript clean and full lint zero errors (four pre-existing navigation warnings). Receiver actual local Worker: health 200, signed acceptance 202, repeat 200 and local email-binding acceptance. No real email test yet.
 - Current-date receiver compatibility was refused by pinned workerd (supports through October 19), so receiver config uses 2026-10-19. No dependency upgrade or runtime check bypass.
 - Prior full regression at b6cbb06 canceled after code/config scope changed; new frozen candidate requires its own engineering/security, full regression and actual application bundle smoke. Production app remains on recorded October 10 version.
+
+## Live Cron capacity correction
+
+`cfc0628` passed exact-SHA engineering `39653118227` (all four jobs) and security `39653118211`. Full regression `39654559312` was started after engineering success and canceled before its matrix when receiver scheduling required a code correction. Receiver upload succeeded, but Cron registration failed with Cloudflare 10072: all five free-account Cron slots are occupied. No unrelated schedule was changed and no account upgrade was made. Receiver secrets/application operations settings were not activated.
+
+The correction uses a dedicated SQLite Durable Object alarm and private RPC binding. Successful alert acknowledgement waits for durable alarm creation. Each two-minute alarm persists the next alarm before draining; delivery failure cannot stop the timer. Fifteen behavioral tests pass (three alarm tests failed before implementation); independent review finds no blocking issues. Real local Worker/DO execution and the hosted alarm remain qualification requirements. Existing D1 durable outbox, leases, retry bounds, data minimization and mail-acceptance semantics are preserved.
+
+A separate clean release worktree avoids incorporating later documentation changes. Turbopack rejected an external dependency symlink; it was removed and the lockfile installed directly there. Rebuild/smoke occurs on the final corrected candidate, without altering build safeguards.

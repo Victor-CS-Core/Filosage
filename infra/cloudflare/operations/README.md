@@ -17,7 +17,11 @@ to the owner's verified Cloudflare account email (a runtime secret, not in Git).
 Email Routing is configured only on `alerts.filosage.com`; existing apex/www
 website routes and application storage are unchanged. No email API key is used.
 
-Delivery runs after acceptance with `waitUntil`, backed by a two-minute Cron retry.
+Delivery runs after acceptance with `waitUntil`, backed by a SQLite-backed Durable Object alarm every two minutes.
+The account's five free Cron slots are occupied by other Workers; no existing
+schedules are changed and no paid upgrade is required. Successful acknowledgement
+requires both D1 persistence and a durable retry alarm. Each alarm re-arms itself
+before attempting delivery, so transient failures do not stop the timer.
 Atomic D1 leases prevent concurrent claims within their five-minute lease.
 Every claim and retry delay uses its actual current time. Sends have a 60-second
 wait deadline; unknown outcomes are not retried before the prior lease expires.

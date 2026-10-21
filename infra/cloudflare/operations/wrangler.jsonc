@@ -7,14 +7,42 @@
   "workers_dev": true,
   "observability": {
     "enabled": true,
-    "logs": { "enabled": true, "invocation_logs": true, "persist": true, "head_sampling_rate": 1 }
+    "logs": {
+      "enabled": true,
+      "invocation_logs": true,
+      "persist": true,
+      "head_sampling_rate": 1
+    }
   },
-  "d1_databases": [{
-    "binding": "DB",
-    "database_name": "filosage-operations",
-    "database_id": "8b75b7b7-4e40-4a1e-8f1a-b5bdc5af5e83"
-  }],
-  "send_email": [{ "name": "EMAIL" }],
-  "vars": { "ALERT_FROM": "operations@alerts.filosage.com" },
-  "triggers": { "crons": ["*/2 * * * *"] }
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "filosage-operations",
+      "database_id": "8b75b7b7-4e40-4a1e-8f1a-b5bdc5af5e83"
+    }
+  ],
+  "send_email": [
+    {
+      "name": "EMAIL"
+    }
+  ],
+  "vars": {
+    "ALERT_FROM": "operations@alerts.filosage.com"
+  },
+  "durable_objects": {
+    "bindings": [
+      {
+        "name": "SCHEDULER",
+        "class_name": "AlertScheduler"
+      }
+    ]
+  },
+  "migrations": [
+    {
+      "tag": "v1",
+      "new_sqlite_classes": [
+        "AlertScheduler"
+      ]
+    }
+  ]
 }

@@ -1,3 +1,5 @@
+import { DurableObject } from "cloudflare:workers";
+import { armRetryAlarm, runRetryAlarm, scheduleAcceptance } from "./scheduler.mjs";
 import { EmailMessage } from "cloudflare:email";
 import { receiveAlert, dispatchPending, receiverHealth } from "./receiver.mjs";
 
@@ -17,14 +19,24 @@ async function drain(env) {
   try { await dispatchPending(env, row => sendNotification(env, row)); }
   catch { console.error(JSON.stringify({ code: "operations_receiver.dispatch_unavailable" })); }
 }
+export class AlertScheduler extends DurableObject {
+  async ensureAlarm() { await armRetryAlarm(this.ctx.storage); }
+  async alarm() {
+    await runRetryAlarm(this.ctx.storage, async () => {
+      console.log(JSON.stringify({ code: "operations_receiver.retry_alarm_ran" }));
+      await drain(this.env);
+    });
+  }
+}
 export default {
   async fetch(request, env, ctx) {
     const path = new URL(request.url).pathname;
+    if (!env.SCHEDULER?.getByName) return new Response(null, { status: 503 });
     if (request.method === "GET" && path === "/health") return receiverHealth(env);
     if (request.method !== "POST" || path !== "/alerts") return new Response(null, { status: 404 });
-    const response = await receiveAlert(request, env);
+    const received = await receiveAlert(request, env);
+    const response = await scheduleAcceptance(received, env.SCHEDULER.getByName("production-alerts"));
     if (response.ok) ctx.waitUntil(drain(env));
     return response;
   },
-  async scheduled(_controller, env, ctx) { ctx.waitUntil(drain(env)); },
 };
