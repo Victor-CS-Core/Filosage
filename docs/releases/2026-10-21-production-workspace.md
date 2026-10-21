@@ -74,3 +74,11 @@ Owner confirmed the Azure receiver/configuration was removed during migration an
 The correction uses a dedicated SQLite Durable Object alarm and private RPC binding. Successful alert acknowledgement waits for durable alarm creation. Each two-minute alarm persists the next alarm before draining; delivery failure cannot stop the timer. Fifteen behavioral tests pass (three alarm tests failed before implementation); independent review finds no blocking issues. Real local Worker/DO execution and the hosted alarm remain qualification requirements. Existing D1 durable outbox, leases, retry bounds, data minimization and mail-acceptance semantics are preserved.
 
 A separate clean release worktree avoids incorporating later documentation changes. Turbopack rejected an external dependency symlink; it was removed and the lockfile installed directly there. Rebuild/smoke occurs on the final corrected candidate, without altering build safeguards.
+
+## Hosted receiver qualified; application held for full regression
+
+Final frozen candidate `e3c5c711734ef6699f36fa9d063242dcb41248a3` passes engineering `39655302871` (all four jobs), security `39655302867`, a clean OpenNext build and 4/4 actual Workers bundle smoke; production dry run is byte-identical. Full regression `39657130756` is running on that exact SHA.
+
+The durable-alarm receiver deployed successfully; live receiver version `41a301ca-3a3e-45b5-8f58-9d02735b5892` includes its privately configured signing/recipient secrets. Signed probe returned 202/200/200/401/401/409 for new/duplicate/fresh-timestamp repeat/tamper/stale/conflict. One durable record has state accepted, attempts 1 and no error. Native email transport accepted the notification; owner explicitly confirmed inbox receipt. Hosted AlertScheduler alarm ran at 2:59 p.m. EDT and is recorded in persisted Cloudflare telemetry. No application production secret/configuration/deployment change has occurred yet.
+
+Clean release source is `/home/victor/Projects/Filosage/releases/production`, detached at the exact candidate; later local documentation updates are excluded from deployment. New namespace migration and retention affect only dedicated operations state. Existing account schedules, plan, app D1/R2, production secrets, web routes, billing and Spark remain unchanged.

@@ -1,5 +1,5 @@
 {
-  "candidate": "b6cbb06dab72ed657dfc69ba84b3304cf475c265",
+  "candidate": "e3c5c711734ef6699f36fa9d063242dcb41248a3",
   "rollback_version": "a086abd4-b244-487e-9b58-f509b0a6b5a5",
   "prior_deployment": {
     "id": "b87904e0-42bc-4c2f-8008-c8c2e42609f0",
@@ -77,8 +77,8 @@
   "workers_smoke": {
     "passed": 4,
     "failed": 0,
-    "bundle_sha256": "b6cd0fe74a87a9e1c47ea2653485b218b543ce60080de822e55b62636f0c83c6",
-    "production_dryrun_sha256": "b6cd0fe74a87a9e1c47ea2653485b218b543ce60080de822e55b62636f0c83c6"
+    "bundle_sha256": "f33df78d5034305d067b241e63bd64952209b9d0dbbab7a5f9c07743552d6f48",
+    "production_dryrun_sha256": "f33df78d5034305d067b241e63bd64952209b9d0dbbab7a5f9c07743552d6f48"
   },
   "candidate_client_assets": [
     {
@@ -100,5 +100,34 @@
     "dummy_local_only_config_readiness_status": 200,
     "production_mutations": false,
     "receiver_delivery_verified": false
+  },
+  "engineering_run": 39655302871,
+  "security_run": 39655302867,
+  "full_regression_run": 39657130756,
+  "receiver": {
+    "source": "e3c5c711734ef6699f36fa9d063242dcb41248a3",
+    "alertId": "fa_d67fccfe961a147308ab5ab9ecaed273",
+    "startedAt": "2026-10-21T18:57:21.143Z",
+    "accepted": 202,
+    "duplicate": 200,
+    "freshTimestampDuplicate": 200,
+    "tamper": 401,
+    "stale": 401,
+    "conflict": 409,
+    "ownerInboxReceiptConfirmed": true,
+    "recipientSelection": "Cloudflare account email, owner approved",
+    "version": "41a301ca-3a3e-45b5-8f58-9d02735b5892",
+    "alarmObservedAt": "2026-10-21T18:59:21.778Z",
+    "persistedTelemetryVerified": true,
+    "rows": [
+      {
+        "id": "fa_d67fccfe961a147308ab5ab9ecaed273",
+        "code": "operations.signed_test",
+        "state": "accepted",
+        "attempts": 1,
+        "accepted_at": 1792609048859,
+        "last_error": null
+      }
+    ]
   }
 }
