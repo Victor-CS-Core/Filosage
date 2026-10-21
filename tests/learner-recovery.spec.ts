@@ -143,3 +143,58 @@ test("a note draft survives a failed save and explicit retry syncs it without re
   await page.getByRole("button", { name: "Study tools", exact: true }).click();
   await expect(notes).toHaveValue("My preserved private draft");
 });
+
+test("active course creation shows progress while preserving its saved request", { tag: "@smoke" }, async ({ page }) => {
+  await signedIn(page);
+  await page.route("**/api/generation-operations", (route) => route.fulfill({ json: { operations: [] } }));
+  const identity = { key: "progress-saved-request-123", signature: JSON.stringify({ topic: "Recovery evidence" }) };
+  await page.addInitScript((saved) => localStorage.setItem("filosage:learner:v1:recovery-A:generation-operation:all", JSON.stringify(saved)), identity);
+  let release!: () => void;
+  const hold = new Promise<void>((resolve) => { release = resolve; });
+  await page.route("**/api/generate-course", async (route) => {
+    await hold;
+    await route.fulfill({ json: { courseId: course.id } });
+  });
+  try {
+    await page.goto("/create");
+    await page.getByRole("button", { name: "Resume course request", exact: true }).click();
+    await expect(page.getByRole("heading", { name: "Creating your course." })).toBeVisible();
+    await expect(page.getByRole("progressbar", { name: "Course generation in progress" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Continue your saved course request." })).toHaveCount(0);
+    expect(await page.evaluate(() => JSON.parse(localStorage.getItem("filosage:learner:v1:recovery-A:generation-operation:all")!).key)).toBe(identity.key);
+    release();
+    await expect(page).toHaveURL(/\/course\//);
+  } finally { release(); }
+});
+
+test("uncertain requests check status automatically and show the reconciled refund without redispatch", { tag: "@smoke" }, async ({ page }) => {
+  await signedIn(page);
+  const operationId = "uncertain-operation";
+  await page.route("**/api/generation-operations", (route) => route.fulfill({ json: { operations: [{ operationId, status: "running", stage: "Course generation", retryAt: new Date(Date.now() - 1000).toISOString() }] } }));
+  let checks = 0;
+  let posts = 0;
+  await page.route(`**/api/generation-operations/${operationId}`, (route) => {
+    if (route.request().method() === "POST") posts += 1;
+    checks += 1;
+    return route.fulfill({ json: { operationId, status: "failed", stage: "Course creation ended", recovery: "Your course credit has been restored." } });
+  });
+  await page.goto("/create");
+  await expect(page.getByRole("heading", { name: "This course request has ended." })).toBeVisible({ timeout: 10000 });
+  await expect(page.getByText("Your course credit has been restored.", { exact: true })).toBeVisible();
+  expect(checks).toBeGreaterThan(0);
+  expect(posts).toBe(0);
+});
+
+test("status checks follow the listed running operation instead of a stale saved identity", { tag: "@smoke" }, async ({ page }) => {
+  await signedIn(page);
+  await page.addInitScript(() => localStorage.setItem("filosage:learner:v1:recovery-A:generation-operation:all", JSON.stringify({ key: "stale-key-123", signature: "{}", operationId: "old-operation" })));
+  await page.route("**/api/generation-operations", (route) => route.fulfill({ json: { operations: [{ operationId: "current-operation", status: "running", stage: "Planning lessons" }] } }));
+  const requested: string[] = [];
+  await page.route("**/api/generation-operations/*", (route) => {
+    requested.push(`${route.request().method()} ${new URL(route.request().url()).pathname}`);
+    return route.fulfill({ json: { operationId: "current-operation", status: "failed", recovery: "Your course credit has been restored." } });
+  });
+  await page.goto("/create");
+  await expect(page.getByRole("heading", { name: "This course request has ended." })).toBeVisible({ timeout: 10000 });
+  expect(requested).toEqual(["GET /api/generation-operations/current-operation"]);
+});

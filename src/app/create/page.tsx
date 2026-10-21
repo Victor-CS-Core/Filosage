@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import {
   ArrowLeft,
@@ -79,6 +80,7 @@ export default function CreateCoursePage() {
 }
 
 function CreateCourseForm() {
+  const router = useRouter();
   const { user, canCreateCourses, account, refreshAccount } = useAuth();
   const [activeStep, setActiveStep] = useState(0);
   const [visitedSteps, setVisitedSteps] = useState([true, false, false]);
@@ -130,20 +132,32 @@ function CreateCourseForm() {
   }, [user]);
 
   useEffect(() => {
-    if (!submitting || !user) return;
+    if (!user || (!submitting && recoverable?.status !== "running")) return;
     const session = learnerSessionSnapshot(user.uid);
+    let stopped = false;
+    let checking = false;
     const timer = window.setInterval(() => {
-      const operationId = requestIdentityRef.current?.operationId ?? recoverable?.operationId;
-      if (!operationId) return;
+      const operationId = recoverable?.operationId ?? requestIdentityRef.current?.operationId;
+      if (!operationId || checking) return;
+      checking = true;
       void learnerRequest(user, `/api/generation-operations/${operationId}`, { signal: AbortSignal.timeout(5_000) })
         .then(async (response) => {
           if (!response.ok) return;
           const state = await response.json() as CourseCreationResponse;
-          if (isCurrentLearnerSession(session) && state.stage) setGenerationStage(state.stage);
-        }).catch(() => { /* The active request still supplies its final status. */ });
+          if (stopped || !isCurrentLearnerSession(session)) return;
+          if (state.stage) setGenerationStage(state.stage);
+          setRecoverable(state);
+          if (!submitting && (state.status === "failed" || state.status === "completed")) setError(null);
+          if (!submitting && state.status === "completed" && state.resultId) {
+            removeLearnerStorage(user.uid, "generation-operation");
+            requestIdentityRef.current = null;
+            router.push(`/course/${encodeURIComponent(state.topic || "Course")}?id=${encodeURIComponent(state.resultId)}`);
+          }
+        }).catch(() => { /* Retain the saved identity; a status read never redispatches work. */ })
+        .finally(() => { checking = false; });
     }, 3_000);
-    return () => window.clearInterval(timer);
-  }, [submitting, user, recoverable?.operationId]);
+    return () => { stopped = true; window.clearInterval(timer); };
+  }, [submitting, user, recoverable?.operationId, recoverable?.status, router]);
 
   const goToStep = (nextStep: number) => {
     setVisitedSteps((current) => current.map((visited, index) => visited || index === nextStep));
@@ -247,10 +261,12 @@ function CreateCourseForm() {
   if (recoverable || recoveryLoadFailed || (!recoveryChecked && user)) {
     const completed = recoverable?.status === "completed";
     const failed = recoverable?.status === "failed";
+    const working = submitting || (recoverable?.status === "running" && !error);
     return <AppShell><div className="center-state">
-      <Sparkles size={26} /><h1>{completed ? "Your course is ready to reopen." : failed ? "This course request has ended." : "Continue your saved course request."}</h1>
+      {working ? <LoaderCircle className="spin" size={26} /> : <Sparkles size={26} />}<h1>{working ? "Creating your course." : completed ? "Your course is ready to reopen." : failed ? "This course request has ended." : "Continue your saved course request."}</h1>
       <p role="status" aria-live="polite">{submitting ? generationStage : recoverable?.stage ?? "Checking saved course requests…"}</p>
-      <p>{failed ? recoverable.recovery ?? "The unused course credit has been restored. You can start a new request." : "Your progress is saved — pick up where you left off and you won't spend another credit."}</p>
+      {working && <div className={styles.generationProgress}><progress aria-label="Course generation in progress" /><p>Researching suitable sources, planning focused lessons, and checking the course. Completed stages are saved as we go.</p></div>}
+      <p>{failed ? recoverable.recovery ?? "The unused course credit has been restored. You can start a new request." : working ? "You can stay here while your course is created. This saved request uses the same course credit." : "Your progress is saved — pick up where you left off and you won't spend another credit."}</p>
       {recoverable?.retryAt && !submitting && <p>The current attempt can be checked again after {new Date(recoverable.retryAt).toLocaleTimeString()}.</p>}
       {error && <p role="alert">{error}</p>}
       <div className="state-actions">

@@ -100,3 +100,102 @@ test("a reconciled provider failure reports the terminal status and logs the san
     errorSpy.mock.restore();
   }
 });
+
+test("an explicit invalid-key rejection ends immediately without uncertain cost or a repeated call", async () => {
+  const key = "invalid-key-rejection-fixture";
+  const id = generationOperationId("local-owner", key);
+  let calls = 0;
+  const fetchSpy = mock.method(globalThis, "fetch", async () => {
+    calls += 1;
+    return new Response(JSON.stringify({ error: { message: "private-key-text", type: "invalid_request_error", code: "invalid_api_key" } }), {
+      status: 401, headers: { "Content-Type": "application/json", "x-request-id": "req_rejected_fixture" },
+    });
+  });
+  const rejectedRequest = () => new Request("https://fixture.invalid/api/generate-course", {
+    method: "POST", headers: { Authorization: "Bearer local-dev-token", "Content-Type": "application/json", "Idempotency-Key": key }, body,
+  });
+  try {
+    const response = await POST(rejectedRequest());
+    const result = await response.json() as Record<string, unknown>;
+    assert.equal(response.status, 503);
+    assert.equal(result.code, "GENERATION_PROVIDER_UNAVAILABLE");
+    assert.equal(result.status, "failed");
+    assert.ok(!JSON.stringify(result).includes("private-key-text"));
+    const operation = await getStoredDocument(`generationOperations/${id}`);
+    assert.equal(operation?.status, "failed");
+    assert.deepEqual(operation?.pendingCalls, []);
+    const receipt = await getStoredDocument(`generationUsageReceipts/${id}`);
+    assert.equal(receipt?.uncertainCostMicros, 0);
+    assert.equal(receipt?.remainingReserveMicros, 0);
+    await POST(rejectedRequest());
+    assert.equal(calls, 1, "a terminal saved identity must not redispatch");
+  } finally { fetchSpy.mock.restore(); }
+});
+
+test("invalid-key rejection restores a paid learner's reserved course credit exactly once", async () => {
+  const { beginGenerationOperation, runGenerationProviderCall, finishGenerationOperation } = await import("../src/lib/generation-operations.ts");
+  const uid = "rejected-paid-learner";
+  const account = { uid, plan: "pro", access: "pro", isOwner: false, accountStatus: "active", subscriptionStatus: "active" } as const;
+  const lease = await beginGenerationOperation(account, "paid-rejected-request", { topic: "Evidence" });
+  const balance = async () => (await getStoredDocument(`users/${uid}/courseCredits/current`))?.balance;
+  assert.equal(await balance(), 4);
+  await assert.rejects(runGenerationProviderCall(lease, { model: "fixture" }, async () => {
+    throw Object.assign(new Error("private credential text"), { status: 401, code: "invalid_api_key" });
+  }), (error: unknown) => (error as { code?: string }).code === "GENERATION_PROVIDER_UNAVAILABLE");
+  assert.equal(await balance(), 5);
+  await finishGenerationOperation(lease, { failed: true });
+  assert.equal(await balance(), 5);
+});
+
+test("concurrent authentication rejections clear late uncertainty without double refunds", async () => {
+  const { beginGenerationOperation, runGenerationProviderCall } = await import("../src/lib/generation-operations.ts");
+  const uid = "concurrent-rejected-learner";
+  const account = { uid, plan: "pro", access: "pro", isOwner: false, accountStatus: "active", subscriptionStatus: "active" } as const;
+  const lease = await beginGenerationOperation(account, "concurrent-auth-rejected", { topic: "Evidence" });
+  let rejectLate!: (error: Error) => void;
+  let started!: () => void;
+  const ready = new Promise<void>((resolve) => { started = resolve; });
+  const lateProvider = new Promise<never>((_, reject) => { rejectLate = reject; });
+  const late = runGenerationProviderCall(lease, { model: "fixture-late" }, () => { started(); return lateProvider; });
+  const lateResult = assert.rejects(late, (error: unknown) => (error as { code?: string }).code === "GENERATION_PROVIDER_UNAVAILABLE");
+  await ready;
+  const rejection = () => Object.assign(new Error("private credential"), { status: 401, code: "invalid_api_key" });
+  await assert.rejects(runGenerationProviderCall(lease, { model: "fixture-first" }, async () => { throw rejection(); }));
+  assert.ok(Number((await getStoredDocument(lease.receiptPath))?.uncertainCostMicros) > 0);
+  rejectLate(rejection());
+  await lateResult;
+  for (const path of [lease.receiptPath, lease.operation.accounting.globalPath, lease.operation.accounting.userBudgetPath, lease.operation.accounting.periodPath]) {
+    assert.equal((await getStoredDocument(path))?.uncertainCostMicros, 0, path);
+  }
+  assert.equal((await getStoredDocument(`users/${uid}/courseCredits/current`))?.balance, 5);
+});
+
+test("authentication rejection retains sibling uncertainty and accounts for a late success", async () => {
+  const { beginGenerationOperation, runGenerationProviderCall } = await import("../src/lib/generation-operations.ts");
+  for (const outcome of ["success", "timeout"] as const) {
+    const uid = `rejection-with-late-${outcome}`;
+    const account = { uid, plan: "pro", access: "pro", isOwner: false, accountStatus: "active", subscriptionStatus: "active" } as const;
+    const lease = await beginGenerationOperation(account, `reject-late-${outcome}`, { topic: "Evidence" });
+    let resolveLate!: (value: { id: string; usage: { input_tokens: number; output_tokens: number } }) => void;
+    let rejectLate!: (error: Error) => void;
+    let started!: () => void;
+    const ready = new Promise<void>((resolve) => { started = resolve; });
+    const provider = new Promise<{ id: string; usage: { input_tokens: number; output_tokens: number } }>((resolve, reject) => { resolveLate = resolve; rejectLate = reject; });
+    const late = runGenerationProviderCall(lease, { model: "gpt-5.6-luna" }, () => { started(); return provider; });
+    const lateResult = assert.rejects(late);
+    await ready;
+    await assert.rejects(runGenerationProviderCall(lease, { model: "auth-rejected" }, async () => {
+      throw Object.assign(new Error("rejected"), { status: 401, code: "invalid_api_key" });
+    }));
+    assert.ok(Number((await getStoredDocument(lease.receiptPath))?.uncertainCostMicros) > 0);
+    if (outcome === "success") resolveLate({ id: "late-success", usage: { input_tokens: 100, output_tokens: 50 } });
+    else rejectLate(new Error("transport timeout"));
+    await lateResult;
+    const receipt = await getStoredDocument(lease.receiptPath);
+    if (outcome === "success") {
+      assert.equal(receipt?.uncertainCostMicros, 0);
+      assert.ok(Number(receipt?.actualCostMicros) > 0);
+    } else assert.ok(Number(receipt?.uncertainCostMicros) > 0, "unknown sibling outcome must remain reserved as uncertainty");
+    assert.equal((await getStoredDocument(`users/${uid}/courseCredits/current`))?.balance, 5);
+  }
+});

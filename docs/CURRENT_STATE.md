@@ -2,6 +2,10 @@
 
 Last materially updated: October 21, 2026.
 
+## Active outcome: generation failure and progress recovery
+
+Owner authorized fixing the reported provider-outcome-unknown failure and progress UI, including real course/lesson end-to-end tests. [Outcome checklist](releases/2026-10-21-generation-recovery.md). Production telemetry establishes OpenAI 401 invalid_api_key; owner confirmed the secret was replaced/deployed privately. Local corrections distinguish explicit rejection from unknown paid outcomes and restore active progress/status polling. Local unit25/25, receiver15/15, recovery browser7/7, TypeScript/lint/secret/wiki checks pass; independent re-review has no blocking findings. Committed Workers bundle and exact remote gates remain pending. No new production code deployed. Preserve existing production constraints and saved identities. Prior release evidence below remains valid but did not prove authenticated generation.
+
 ## Active outcome: local workspace and authorized production release
 
 Owner authorized production deployment after required checks, then explicitly authorized replacing the retired Azure operational-alert receiver in Cloudflare. The [persistent release checklist](releases/2026-10-21-production-workspace.md) and [sanitized evidence](releases/2026-10-21-production-evidence.json) track the complete scope. **Production release is deployed and publicly verified** at the frozen source below. Successful authenticated course generation remains unverified.

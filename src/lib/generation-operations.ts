@@ -258,6 +258,32 @@ export async function runGenerationProviderCall<T>(lease: GenerationLease, input
   }
   let response: T;
   try { response = await provider(); } catch (error) {
+    const details = safeModelErrorDetails(error);
+    // A confirmed authentication rejection did not run the model. Do not
+    // confuse it with transport failure, where a paid outcome is ambiguous.
+    if (details.status === 401 && details.code === "invalid_api_key") {
+      // Confirm zero usage globally before touching personal state. This also
+      // replaces an uncertainty estimate if a sibling already closed the lease.
+      await recordProviderUsage(lease, callId, []);
+      await reconcileGenerationPersonalUsage(lease).catch(() => undefined);
+      const failure = { code: "GENERATION_PROVIDER_UNAVAILABLE", error: "Course generation is temporarily unavailable. Please try a new request after the service is restored.", recovery: lease.operation.kind === "lesson" ? "This lesson request has ended. You can try again after the service is restored." : "This request has ended and its course credit has been restored. You can try again after the service is restored." };
+      console.error(JSON.stringify({ event: "generation_provider_rejected", operationId: lease.operationId, callId, stage, ...details }));
+      try { await runGenerationTransaction(lease, [stagePath, lease.receiptPath], (documents) => {
+        const existing = documents[stagePath];
+        const receipt = documents[lease.receiptPath] as Receipt;
+        const operation = documents[lease.operationPath] as GenerationOperation;
+        if (existing?.attemptToken !== lease.attemptToken || existing.status !== "in_flight" || receipt.calls[callId]?.status !== "observed") throw new GenerationOperationError("GENERATION_OWNERSHIP_LOST", "Provider rejection ownership changed.");
+        return { writes: [
+          { path: stagePath, data: { ...existing, status: "rejected", rejectedAt: new Date().toISOString() } },
+          { path: lease.operationPath, data: { ...operation, pendingCalls: operation.pendingCalls.filter((id) => id !== callId) } },
+        ], result: undefined };
+      }); } catch (ownershipError) {
+        if (!(ownershipError instanceof GenerationOperationError) || ownershipError.code !== "GENERATION_OWNERSHIP_LOST") throw ownershipError;
+        throw new GenerationOperationError(failure.code, failure.error, 503);
+      }
+      await finishGenerationOperation(lease, { failed: true, reason: "provider_authentication_rejected", failure });
+      throw new GenerationOperationError(failure.code, failure.error, 503);
+    }
     if (isEvaluationPreDispatchError(error)) {
       await runGenerationTransaction(lease, [stagePath, lease.receiptPath], (documents) => {
         const existing = documents[stagePath];
