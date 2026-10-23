@@ -134,6 +134,8 @@ function validOutline() {
     masteryCriteria: `Correctly classify evidence in ${title.toLowerCase()}.`,
     activityPreview: `Classify a ${title.toLowerCase()} example.`,
     artifactContribution: `Add the ${title.toLowerCase()} decision.`,
+    sourceIds: [],
+    contentBasis: "model-knowledge" as const,
   });
   return {
     topic: "Evidence-based product decisions",

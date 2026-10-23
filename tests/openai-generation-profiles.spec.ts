@@ -11,7 +11,8 @@ import {
 } from "../src/lib/openai-generation";
 import { sourceResearchSchema, sourceEvidenceValidationSchema } from "../src/lib/source-research";
 import { bibliographicDiscoverySchema } from "../src/lib/bibliographic-references";
-import { lessonGenerationSchema } from "../src/lib/validation";
+import { courseGroundingSchema, lessonGroundingSchema } from "../src/lib/source-grounding";
+import { courseOutlineSchema, lessonGenerationSchema } from "../src/lib/validation";
 import { commandCenterDraftContentSchema } from "../src/lib/command-center-draft-schema";
 import {
   LESSON_GENERATION_TOTAL_BUDGET_MS,
@@ -191,7 +192,7 @@ test("bounds the final task key while preserving long model and prompt identitie
   expect(bibliography).toMatch(/^[a-z0-9:._-]+:[a-f0-9]{16}$/);
 });
 
-for (const [name, schema] of Object.entries({ course_research: sourceResearchSchema, course_bibliography: bibliographicDiscoverySchema, source_evidence_validation: sourceEvidenceValidationSchema })) {
+for (const [name, schema] of Object.entries({ course_research: sourceResearchSchema, course_bibliography: bibliographicDiscoverySchema, source_evidence_validation: sourceEvidenceValidationSchema, course_outline: courseOutlineSchema, course_grounding: courseGroundingSchema, lesson_grounding: lessonGroundingSchema })) {
   test(`${name} uses only supported Structured Outputs formats`, () => {
     expect(findUnsupportedLessonSchemaShape(zodTextFormat(schema, name).schema)).toBeNull();
   });

@@ -97,8 +97,8 @@ export const courseOutlineSchema = z.object({
               masteryCriteria: z.string().trim().min(1).max(300),
               activityPreview: z.string().trim().min(1).max(300),
               artifactContribution: z.string().trim().min(1).max(300),
-              sourceIds: z.array(z.string().trim().regex(/^source-[a-z0-9-]{1,40}$/)).max(5).optional().default([]),
-              contentBasis: z.enum(["verified-source", "model-knowledge"]).optional().default("model-knowledge"),
+              sourceIds: z.array(z.string().trim().regex(/^source-[a-z0-9-]{1,40}$/)).max(5),
+              contentBasis: z.enum(["verified-source", "model-knowledge"]),
             }),
           )
           .min(1)

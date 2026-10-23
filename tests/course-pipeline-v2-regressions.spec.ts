@@ -88,6 +88,8 @@ function validOutline() {
     masteryCriteria: `Correctly classify evidence in ${title.toLowerCase()}.`,
     activityPreview: `Classify a ${title.toLowerCase()} example.`,
     artifactContribution: `Add the ${title.toLowerCase()} decision.`,
+    sourceIds: [],
+    contentBasis: "model-knowledge" as const,
   });
   return {
     topic: "Evidence-based product decisions",
@@ -967,6 +969,11 @@ test("a coherent one-lesson course is structurally valid without padding", () =>
     }],
   };
   expect(courseOutlineSchema.safeParse(shortOutline).success).toBe(true);
+  for (const field of ["sourceIds", "contentBasis"] as const) {
+    const incomplete = structuredClone(shortOutline);
+    Reflect.deleteProperty(incomplete.modules[0].lessons[0], field);
+    expect(courseOutlineSchema.safeParse(incomplete).success).toBe(false);
+  }
 });
 
 test("capstone criteria remain separate and support six explicit requirements", () => {

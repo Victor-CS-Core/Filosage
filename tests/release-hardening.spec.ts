@@ -450,7 +450,8 @@ test("the required quality gate runs a bounded Chromium smoke suite while exhaus
   expect(smokeRunner).toContain('"--grep=@smoke"');
   const smokeTests = discoverBrowserTests("chromium", smokePlan.batchesByProject.chromium.flat());
   expect(smokeTests.count).toBeGreaterThanOrEqual(14);
-  expect(smokeTests.count).toBeLessThanOrEqual(37);
+  // October 21: three generation-progress/reconciliation regressions remain in smoke.
+  expect(smokeTests.count).toBeLessThanOrEqual(40);
   expect(qualityWorkflow).toContain("needs: static-and-release-contracts");
   expect(qualityWorkflow).toContain("npm run test:api -- --output=test-results/api --reporter=line,blob");
   expect(qualityWorkflow).toContain("run: npm run test:browser:smoke");
@@ -492,7 +493,8 @@ test("mobile projects execute only explicitly owned cross-device behavior", () =
   // October 14: the owner course-creation recovery regression (a saved owner
   // request retries without evaluation headers, preserving its idempotency
   // key) adds one desktop case.
-  expect(chromium.count + mobileChromium.count + mobileWebkit.count).toBeLessThanOrEqual(427);
+  // October 21: active progress, automatic reconciliation and stale-ID polling add three desktop cases.
+  expect(chromium.count + mobileChromium.count + mobileWebkit.count).toBeLessThanOrEqual(430);
 });
 
 test("release workflows accept only exact successful workflow evidence", () => {

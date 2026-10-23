@@ -1,10 +1,16 @@
 # Filosage current state
 
-Last materially updated: October 21, 2026.
+Last materially updated: October 23, 2026.
 
 ## Active outcome: generation failure and progress recovery
 
-Owner authorized fixing the reported provider-outcome-unknown failure and progress UI, including real course/lesson end-to-end tests. [Outcome checklist](releases/2026-10-21-generation-recovery.md). Production telemetry establishes OpenAI 401 invalid_api_key; owner confirmed the secret was replaced/deployed privately. Local corrections distinguish explicit rejection from unknown paid outcomes and restore active progress/status polling. Real authenticated test confirms the new key works but reveals400 invalid_json_schema in research/bibliography: Zod emitted unsupported format starts_with. Equivalent HTTPS regex fixes three response schemas; explicit schema rejection now also settles as confirmed zero usage. Local unit26/26, receiver15/15, recovery browser7/7, source/profile/bibliography contracts45/45, TypeScript/lint/secret/wiki checks pass; independent re-review has no blocking findings. Candidate8f40699 is superseded before deployment/full regression; new committed bundle and exact remote gates remain pending. Successful real course/lesson generation remains unverified. No new production code deployed. Preserve existing production constraints and saved identities. Prior release evidence below remains valid but did not prove authenticated generation.
+Owner authorized fixing generation/recovery UI and real course/lesson tests. [Outcome checklist](releases/2026-10-21-generation-recovery.md). On October 23 the work resumed with uncommitted final schema/test-inventory corrections preserved.
+
+- OpenAI originally returned401 invalid_api_key. Owner privately replaced/deployed the key; the real authenticated test then reached research/bibliography and returned400 invalid_json_schema. Unsupported Zod format starts_with was replaced with equivalent HTTPS regex constraints.
+- Source30f3077 contains progress polling and confirmed-rejection accounting fixes but has not been deployed. Its engineering39669021616 failed two browser-count ceilings because three new regressions expanded coverage; security39669021462 passed. Count budgets/manifest are updated without disabling any test. A fresh candidate and complete exact-SHA gates remain required; no full browser run has been dispatched for these fixes.
+- Owner explicitly confirmed there are no old courses and requested removing the outline defaults. Both sourceIds/contentBasis are now required directly; no compatibility schema is retained. Expanded provider-schema checks caught those defaults before deployment. Valid test fixtures explicitly state model-knowledge/empty source IDs; the structural test rejects omission of either field.
+- Prior local validation passed unit26/26, receiver15/15 and recovery browser7/7. Fresh full contracts459/459, unit26/26, receiver15/15, Python3/3, types/lint/secrets/wiki pass after the final schema change (lint has four pre-existing navigation warnings). Independent review found no important issue; real successful course and lesson generation remain unverified.
+- Current production is still source e3c5c71 with the owner's credential update: version df1a44f0-298b-44b7-914f-89dd67734f89, deployment321298d4-bdfb-4c91-8f66-386ed4a8fe12. This is the immediate rollback target with the working key. No production app code has changed since the previous release. Preserve all standing constraints and saved identities.
 
 ## Active outcome: local workspace and authorized production release
 
@@ -18,7 +24,7 @@ Owner authorized production deployment after required checks, then explicitly au
 
 ## Actual application deployments and rollback
 
-- Production `filosage` now serves version `7c1ca966-3d06-423d-b545-414f074d07d7`, deployment `7280a183-7e19-4e09-9883-7a6e8dfad7ee`, 100% traffic, deployed October 21 at 3:52 p.m. EDT. `SITE_VERSION` and public health report source `e3c5c711734ef6699f36fa9d063242dcb41248a3`.
+- The October 21 code release activated version `7c1ca966-3d06-423d-b545-414f074d07d7`, deployment `7280a183-7e19-4e09-9883-7a6e8dfad7ee`, 100% traffic at 3:52 p.m. EDT; the later owner credential update/current version is recorded above. `SITE_VERSION` and public health report source `e3c5c711734ef6699f36fa9d063242dcb41248a3`.
 - Rollback version `a086abd4-b244-487e-9b58-f509b0a6b5a5` (October 10), prior deployment `b87904e0-42bc-4c2f-8008-c8c2e42609f0`, is retained.
 - Production D1 `5fa98a30-1ece-4d6a-8771-db4b2f0aad34`, R2 `filosage-assets`, both website routes and Workers.dev configuration are unchanged. All six prior secret bindings remain; only `OPERATIONS_ALERT_WEBHOOK_SECRET` was added privately. No application migration ran.
 - Aggregate health, readiness and liveness return 200; configuration/datastore checks pass. Homepage and 20 referenced static assets return 200 and match local release bytes. Billing status is disabled/closed/tax false; live version confirms all five Spark activation flags false. Unknown route returns 404.
@@ -43,7 +49,7 @@ Owner authorized production deployment after required checks, then explicitly au
 - Receiver/scheduler tests 15/15 pass, with failing-then-passing regressions for sender timestamp deduplication, slow delivery and durable alarm acceptance; the bounded hung-delivery test also passes. Independent reviews found no remaining blocking issues. Existing unit 21/21, Python deployment 3/3, focused operations/release contracts 33/33, TypeScript and lint pass (four pre-existing navigation warnings). Tracked-secret scan passes.
 - Local Chromium owner saved-request test passes 1/1. Local WebKit archives require missing system libraries on this Arch host; hosted full regression installs its own Chromium/WebKit dependencies. No local full-browser success is claimed.
 - Supported native Wrangler OAuth deployment used the clean committed release worktree, `--keep-vars` and exact SITE_VERSION. The Python helper's default production refusal remains unchanged; owner authorization covered this native production path. Later documentation commits were excluded from the artifact.
-- Required release work is complete. Authenticated generation, unrelated acceptance gates below and intermittent browser timing remain explicit limits; no provider generation was attempted or user request identity reset.
+- Required release work is complete. Authenticated generation, unrelated acceptance gates below and intermittent browser timing remain explicit limits; no provider generation was attempted or user request identity reset during that prior release. The later real test is recorded above.
 
 
 ## Standing constraints
