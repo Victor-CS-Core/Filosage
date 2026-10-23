@@ -1,6 +1,8 @@
-export const LESSON_GENERATION_TOTAL_BUDGET_MS = 48_000;
+// HTTP Workers do not have a 60-second wall-clock deadline. Keep lesson work
+// below the shared 150-second request and 180-second ownership lease instead.
+export const LESSON_GENERATION_TOTAL_BUDGET_MS = 120_000;
 export const LESSON_GENERATION_CLEANUP_BUDGET_MS = 6_000;
-export const LESSON_GENERATION_MAX_ATTEMPT_MS = 40_000;
+export const LESSON_GENERATION_MAX_ATTEMPT_MS = 90_000;
 export const LESSON_GENERATION_MIN_REPAIR_BUDGET_MS = 14_000;
 
 export function lessonGenerationRemainingMs(startedAt: number, now = Date.now()) {

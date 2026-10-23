@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { APIConnectionTimeoutError } from "openai";
 import { mkdir, readdir, readFile } from "node:fs/promises";
 import { RETIRED_SYSTEM_NAMES } from "./fixtures/retired-system-names";
 import { extname, join } from "node:path";
@@ -284,6 +285,9 @@ test("uses the configured fallback when the primary lesson model rejects a reque
     param: undefined,
     requestId: "req_test_123",
   });
+  const timeoutDetails = safeModelErrorDetails(new APIConnectionTimeoutError({ message: "PRIVATE_PROVIDER_MESSAGE" }));
+  expect(timeoutDetails).toMatchObject({ providerFailure: "timeout" });
+  expect(JSON.stringify(timeoutDetails)).not.toContain("PRIVATE_PROVIDER_MESSAGE");
 });
 
 test("binds creator activity receipts to the exact user, course, lesson, and quiz", async () => {

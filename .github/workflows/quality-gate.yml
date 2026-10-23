@@ -139,6 +139,15 @@ jobs:
           cache: npm
       - run: npm ci
         id: dependencies
+      - name: Use upstream Ubuntu mirror for browser dependencies
+        shell: bash
+        run: |
+          set -euo pipefail
+          for source_file in /etc/apt/sources.list /etc/apt/sources.list.d/*.sources /etc/apt/sources.list.d/*.list; do
+            test -f "$source_file" || continue
+            sudo sed -i 's|http://azure.archive.ubuntu.com/ubuntu|https://archive.ubuntu.com/ubuntu|g' "$source_file"
+          done
+          printf 'Acquire::Retries "2"; Acquire::http::Timeout "30"; Acquire::https::Timeout "30";\n' | sudo tee /etc/apt/apt.conf.d/80filosage-downloads >/dev/null
       - run: npx playwright install --with-deps --only-shell chromium
         id: browsers
       - name: API regression

@@ -32,7 +32,8 @@
       "operation_id": "c9d0e851e2a7af7f79c3dcc12aae2ae9ab95bf6eb9b9c1665cb353bddfbb754d",
       "server_stage_pause_exposed_client_bug": true,
       "later_outcome": "provider unconfirmed/nameError/no status; no redispatch",
-      "successful": false
+      "successful": false,
+      "terminal_status": "failed/provider_outcome_unknown; uncertain call preserved; supported same-identity reconciliation, no redispatch"
     }
   },
   "worker_bundle": {
@@ -402,6 +403,34 @@
     "contracts_passed": 459,
     "review": "unmount finding reproduced and corrected; re-review clear",
     "deployed": false,
-    "remote_gates": "pending new candidate"
+    "remote_gates": "pending new candidate",
+    "source": "73c6f6640b5beb9d83f8da5464f5db705aed6642",
+    "engineering_run": 40011803373,
+    "engineering_status": "success",
+    "security_run": 40011803293,
+    "security_status": "success",
+    "worker_bundle": {
+      "source": "73c6f6640b5beb9d83f8da5464f5db705aed6642",
+      "passed": 4,
+      "bundle_sha256": "0afd3f5263f8d5ce3f9a04e43f5e673418f3423a518f96c42e32fbfc03af7668",
+      "production_dryrun_identical": true
+    },
+    "full_regression_run": 40012742615,
+    "full_regression_status": "attempt1_failed_download_attempt2_cancelled_after28min_dependencies_candidate_superseded",
+    "full_regression_dispatched_at": "2026-10-23T19:36:36Z",
+    "full_regression_attempt1_failure": "Pinned Bicep download IncompleteRead:75497472bytes received/29436368missing; no browser tests started. Same-SHA failed-job retry authorized by demonstrated transient failure."
+  },
+  "runtime_followup": {
+    "status": "local_validation",
+    "lesson_total_ms": 120000,
+    "provider_attempt_ms": 90000,
+    "cleanup_ms": 6000,
+    "request_ms": 150000,
+    "lease_ms": 180000,
+    "diagnosis": "failure42.1seconds afterattemptstart matches old40sprovider/48stotal; SDKtimeoutnameError; exactpastconstructor unrecorded",
+    "contracts_passed": 459,
+    "diagnostic_browser_passed": 1,
+    "review": "no important findings",
+    "ci_download_correction": "upstream signedUbuntuHTTPSmirror; boundedAPT/Bicepdownloads; allchecksretained"
   }
 }

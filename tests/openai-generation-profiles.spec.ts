@@ -160,13 +160,15 @@ test("keeps command-center drafts inside the strict structured-output subset", (
   ]));
 });
 
-test("keeps synchronous lesson generation inside the Worker deadline", () => {
+test("allows a slow provider lesson within bounded Workers request and lease deadlines", () => {
   const startedAt = 1_000_000;
-  expect(LESSON_GENERATION_TOTAL_BUDGET_MS).toBeLessThan(60_000);
-  expect(lessonGenerationAttemptTimeoutMs(startedAt, startedAt)).toBe(40_000);
-  expect(lessonGenerationAttemptTimeoutMs(startedAt, startedAt + 35_000)).toBe(7_000);
-  expect(canAttemptLessonRepair(startedAt, startedAt + 34_000)).toBe(true);
-  expect(canAttemptLessonRepair(startedAt, startedAt + 34_001)).toBe(false);
+  expect(LESSON_GENERATION_TOTAL_BUDGET_MS).toBeLessThan(150_000);
+  expect(lessonGenerationAttemptTimeoutMs(startedAt, startedAt)).toBeGreaterThan(60_000);
+  expect(lessonGenerationAttemptTimeoutMs(startedAt, startedAt)).toBe(90_000);
+  expect(lessonGenerationAttemptTimeoutMs(startedAt, startedAt + 35_000)).toBe(79_000);
+  expect(canAttemptLessonRepair(startedAt, startedAt + 106_000)).toBe(true);
+  expect(canAttemptLessonRepair(startedAt, startedAt + 106_001)).toBe(false);
+  expect(lessonGenerationAttemptTimeoutMs(startedAt, startedAt + 120_000)).toBe(1);
   expect(isLessonGenerationTimeout(Object.assign(new Error("Request timed out"), { name: "APIConnectionTimeoutError" }))).toBe(true);
 });
 

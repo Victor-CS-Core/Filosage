@@ -38,7 +38,25 @@ jobs:
       - run: npm ci
         id: dependencies
       - name: Install pinned Bicep compiler
-        run: az bicep install --version v0.46.1
+        shell: bash
+        run: |
+          set -euo pipefail
+          for download_attempt in 1 2 3; do
+            if timeout 180s az bicep install --version v0.46.1; then exit 0; fi
+            test "$download_attempt" -lt 3 || exit 1
+            # Discard only the failed compiler download on this disposable runner.
+            rm -f "$HOME/.azure/bin/bicep"
+            sleep 2
+          done
+      - name: Use upstream Ubuntu mirror for browser dependencies
+        shell: bash
+        run: |
+          set -euo pipefail
+          for source_file in /etc/apt/sources.list /etc/apt/sources.list.d/*.sources /etc/apt/sources.list.d/*.list; do
+            test -f "$source_file" || continue
+            sudo sed -i 's|http://azure.archive.ubuntu.com/ubuntu|https://archive.ubuntu.com/ubuntu|g' "$source_file"
+          done
+          printf 'Acquire::Retries "2"; Acquire::http::Timeout "30"; Acquire::https::Timeout "30";\n' | sudo tee /etc/apt/apt.conf.d/80filosage-downloads >/dev/null
       - run: npx playwright install --with-deps chromium webkit
         id: browsers
       - name: Tier contracts

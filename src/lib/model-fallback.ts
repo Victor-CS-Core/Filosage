@@ -1,3 +1,5 @@
+import { APIConnectionError, APIConnectionTimeoutError } from "openai";
+
 export interface ModelFallbackResult<T> {
   model: string;
   result: T;
@@ -34,7 +36,10 @@ export async function runWithModelFallback<T>({
   }
 }
 
-export function safeModelErrorDetails(error: unknown) {
+export function safeModelErrorDetails(error: unknown): {
+  name: string; status?: number; code?: string; type?: string; param?: string;
+  requestId?: string; providerFailure?: "timeout" | "connection";
+} {
   if (!error || typeof error !== "object") return { name: "UnknownError" };
   const value = error as Record<string, unknown>;
   return {
@@ -43,6 +48,8 @@ export function safeModelErrorDetails(error: unknown) {
     code: typeof value.code === "string" ? value.code : undefined,
     type: typeof value.type === "string" ? value.type : undefined,
     param: typeof value.param === "string" ? value.param : undefined,
+    ...(error instanceof APIConnectionTimeoutError ? { providerFailure: "timeout" }
+      : error instanceof APIConnectionError ? { providerFailure: "connection" } : {}),
     requestId: typeof value.request_id === "string"
       ? value.request_id
       : typeof value.requestID === "string"
