@@ -192,9 +192,9 @@ test("status checks follow the listed running operation instead of a stale saved
   const requested: string[] = [];
   await page.route("**/api/generation-operations/*", (route) => {
     requested.push(`${route.request().method()} ${new URL(route.request().url()).pathname}`);
-    return route.fulfill({ json: { operationId: "current-operation", status: "failed", recovery: "Your course credit has been restored." } });
+    return route.fulfill({ json: { operationId: "current-operation", status: "completed", resultId: course.id, topic: course.topic } });
   });
   await page.goto("/create");
-  await expect(page.getByRole("heading", { name: "This course request has ended." })).toBeVisible({ timeout: 10000 });
+  await expect(page).toHaveURL(/\/course\/Recovery%20evidence\?id=recovery-course/, { timeout: 15000 });
   expect(requested).toEqual(["GET /api/generation-operations/current-operation"]);
 });

@@ -1,0 +1,42 @@
+{
+  "candidate": "f8c92293e925adc151caf12fc996fa5e69697259",
+  "rollback_version": "df1a44f0-298b-44b7-914f-89dd67734f89",
+  "rollback_deployment": "321298d4-bdfb-4c91-8f66-386ed4a8fe12",
+  "engineering_run": 39963348870,
+  "security_run": 39963348629,
+  "full_regression_run": null,
+  "local_verification": {
+    "contracts_passed": 459,
+    "core_units_passed": 26,
+    "receiver_passed": 15,
+    "python_deployment_passed": 3,
+    "recovery_browser_passed": 7,
+    "typescript_errors": 0,
+    "lint_errors": 0,
+    "lint_existing_warnings": 4,
+    "production_dependency_vulnerabilities": 0,
+    "chromium_smoke_passed": 38
+  },
+  "real_generation": {
+    "successful_course": false,
+    "successful_lesson": false,
+    "prior_failure_operation": "e56f6606abe197d1ad9adda01bdb32c5843be8147e7e174972ca84c2268adc5e",
+    "prior_failure": "400 invalid_json_schema, both research schemas",
+    "reconciled_terminal_in_ui": true
+  },
+  "worker_bundle": {
+    "source": "f8c92293e925adc151caf12fc996fa5e69697259",
+    "passed": 4,
+    "bundle_sha256": "3c9af70edfe041889f2e0147160779945cf253546656618b0460af64e1a797a4",
+    "production_dryrun_identical": true
+  },
+  "security_status": "success",
+  "engineering_status": "failure",
+  "engineering_completed_jobs": [
+    "static-and-release-contracts",
+    "postgres-transactions",
+    "worker-bundle-smoke"
+  ],
+  "engineering_failure": "existing release-sensitive full-document navigation contract; corrected locally, requalification pending",
+  "navigation_correction": "locally validated, independent review clear; new exact-source gates pending"
+}

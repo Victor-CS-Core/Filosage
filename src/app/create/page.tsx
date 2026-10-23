@@ -1,7 +1,6 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import {
   ArrowLeft,
@@ -73,6 +72,11 @@ type CourseCreationResponse = {
 
 const GENERATION_CLIENT_REQUEST_MS = 170_000;
 
+// A fresh document avoids carrying stale release assets into a new course.
+function openCreatedCourse(topic: string, courseId: string) {
+  window.location.assign(`/course/${encodeURIComponent(topic || "Course")}?id=${encodeURIComponent(courseId)}`);
+}
+
 export default function CreateCoursePage() {
   const { user } = useAuth();
   const generation = user && "accountGeneration" in user ? String(user.accountGeneration) : "legacy";
@@ -80,7 +84,6 @@ export default function CreateCoursePage() {
 }
 
 function CreateCourseForm() {
-  const router = useRouter();
   const { user, canCreateCourses, account, refreshAccount } = useAuth();
   const [activeStep, setActiveStep] = useState(0);
   const [visitedSteps, setVisitedSteps] = useState([true, false, false]);
@@ -151,13 +154,13 @@ function CreateCourseForm() {
           if (!submitting && state.status === "completed" && state.resultId) {
             removeLearnerStorage(user.uid, "generation-operation");
             requestIdentityRef.current = null;
-            router.push(`/course/${encodeURIComponent(state.topic || "Course")}?id=${encodeURIComponent(state.resultId)}`);
+            openCreatedCourse(state.topic || "Course", state.resultId);
           }
         }).catch(() => { /* Retain the saved identity; a status read never redispatches work. */ })
         .finally(() => { checking = false; });
     }, 3_000);
     return () => { stopped = true; window.clearInterval(timer); };
-  }, [submitting, user, recoverable?.operationId, recoverable?.status, router]);
+  }, [submitting, user, recoverable?.operationId, recoverable?.status]);
 
   const goToStep = (nextStep: number) => {
     setVisitedSteps((current) => current.map((visited, index) => visited || index === nextStep));
@@ -218,7 +221,7 @@ function CreateCourseForm() {
         window.dispatchEvent(new Event("filosage:courses-changed"));
         const courseTopic = data.topic ?? recoverable?.topic ?? (identity ? (JSON.parse(identity.signature) as { topic?: string }).topic : undefined) ?? topic;
         assertCurrent();
-        window.location.assign(`/course/${encodeURIComponent(courseTopic || "Course")}?id=${encodeURIComponent(courseId)}`);
+        openCreatedCourse(courseTopic || "Course", courseId);
         return;
       }
       throw new Error("Your completed stages are saved. Resume this request when you are ready to continue.");
