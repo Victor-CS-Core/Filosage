@@ -15,7 +15,7 @@
  * opennextjs/opennextjs-cloudflare issue #1355.
  *
  * Versions this workaround was written and verified against:
- *   next 16.4.0 (retained — it carries a critical RCE fix; do not downgrade)
+ *   next 16.4.2 (security patch; reverified with the actual Workers bundle)
  *   @opennextjs/cloudflare 1.20.11 (verified: its load-manifest registry
  *   still omits preview-props.json; 1.20.11 DID fix the separate Next 16.3+
  *   loadCustomCacheHandlers orphaned-bindings bug, which is why the repo
