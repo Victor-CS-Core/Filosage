@@ -1,10 +1,10 @@
 {
-  "candidate": "f8c92293e925adc151caf12fc996fa5e69697259",
+  "candidate": "258f8053bcaead9a5bded7e436322ffbcd4af474",
   "rollback_version": "df1a44f0-298b-44b7-914f-89dd67734f89",
   "rollback_deployment": "321298d4-bdfb-4c91-8f66-386ed4a8fe12",
-  "engineering_run": 39963348870,
-  "security_run": 39963348629,
-  "full_regression_run": null,
+  "engineering_run": 39967728300,
+  "security_run": 39967728083,
+  "full_regression_run": 40004995604,
   "local_verification": {
     "contracts_passed": 459,
     "core_units_passed": 26,
@@ -18,25 +18,390 @@
     "chromium_smoke_passed": 38
   },
   "real_generation": {
-    "successful_course": false,
+    "successful_course": true,
     "successful_lesson": false,
     "prior_failure_operation": "e56f6606abe197d1ad9adda01bdb32c5843be8147e7e174972ca84c2268adc5e",
     "prior_failure": "400 invalid_json_schema, both research schemas",
-    "reconciled_terminal_in_ui": true
+    "reconciled_terminal_in_ui": true,
+    "course_id": "35d02bbe0b13ed54d17bda7655c3e97d08d5c9232c6e6e0fdbe1f386ae462d00",
+    "modules": 2,
+    "lessons_in_outline": 6,
+    "course_recovery_limit": "A non-JSON response interrupted source evidence validation. No pending provider call existed; normal same-identity resume after lease retained completed stages and opened the completed course. Interruption root cause remains under investigation.",
+    "first_lesson": {
+      "lesson_id": "0-0",
+      "operation_id": "c9d0e851e2a7af7f79c3dcc12aae2ae9ab95bf6eb9b9c1665cb353bddfbb754d",
+      "server_stage_pause_exposed_client_bug": true,
+      "later_outcome": "provider unconfirmed/nameError/no status; no redispatch",
+      "successful": false
+    }
   },
   "worker_bundle": {
-    "source": "f8c92293e925adc151caf12fc996fa5e69697259",
+    "source": "258f8053bcaead9a5bded7e436322ffbcd4af474",
     "passed": 4,
-    "bundle_sha256": "3c9af70edfe041889f2e0147160779945cf253546656618b0460af64e1a797a4",
+    "bundle_sha256": "810f8c99daeb12b1e4bf4ceb810eb42f3e1866dbeef7f1d10dec8287fc0ecce4",
     "production_dryrun_identical": true
   },
   "security_status": "success",
-  "engineering_status": "failure",
+  "engineering_status": "success",
   "engineering_completed_jobs": [
     "static-and-release-contracts",
     "postgres-transactions",
     "worker-bundle-smoke"
   ],
-  "engineering_failure": "existing release-sensitive full-document navigation contract; corrected locally, requalification pending",
-  "navigation_correction": "locally validated, independent review clear; new exact-source gates pending"
+  "engineering_failure": null,
+  "navigation_correction": "committed/pushed, local Chromium38/38, independent review clear",
+  "superseded_candidate": "f8c92293e925adc151caf12fc996fa5e69697259",
+  "full_regression_status": "success",
+  "full_regression_dispatched_at": "2026-10-23T18:38:46Z",
+  "full_regression_results": {
+    "matrix_passed": 424,
+    "matrix_flaky_passed_on_retry": 2,
+    "matrix_existing_skips": 4,
+    "dedicated_command_center_ui_passed": 4,
+    "dedicated_command_center_ui_project_skips": 5,
+    "tier_contracts_passed": 8,
+    "command_center_contracts_passed": 9,
+    "shared_evidence_ui_passed": 6,
+    "api_passed": 11,
+    "flaky_details": [
+      "existing touch-target assertion:43.999969482421875 versus44, retry passed",
+      "existing published-course navigation: heading absent at5seconds, retry passed; timing cause unestablished"
+    ]
+  },
+  "production": {
+    "source": "258f8053bcaead9a5bded7e436322ffbcd4af474",
+    "version": "a6bd3b73-aa7f-4d3d-aad4-a334a7a5823d",
+    "deployment": "e809dc5a-98d4-43d0-869f-2a981b33bbc0",
+    "all_other_bindings_identical": true,
+    "routes_and_subdomain_unchanged": true,
+    "public_checks": {
+      "source": "258f8053bcaead9a5bded7e436322ffbcd4af474",
+      "public": {
+        "/": {
+          "status": 200,
+          "title": "Filosage \u2014 Turn curiosity into understanding"
+        },
+        "/api/health": {
+          "status": 200,
+          "ok": true,
+          "version": "258f8053bcaead9a5bded7e436322ffbcd4af474",
+          "imageDigest": null,
+          "capabilities": {
+            "flashcardDecks": true,
+            "flashcardGeneration": true,
+            "lessonVisuals": false,
+            "commandCenter": false,
+            "commandCenterDrafts": false,
+            "commandCenterV2": false,
+            "pipelineV2": true,
+            "validationV2": true,
+            "repairV2": true,
+            "labsV2": false,
+            "visualsV2": false,
+            "publicationV2": true,
+            "pipelineShadowMode": false,
+            "pipelineOwnerOnly": true,
+            "pipelineCohortPercent": 0
+          },
+          "origin": "https://filosage.com",
+          "authenticationMode": "direct-google",
+          "checks": {
+            "configuration": true,
+            "datastore": true,
+            "flashcardDecks": true,
+            "flashcardGeneration": true
+          }
+        },
+        "/api/health/ready": {
+          "status": "ready",
+          "ok": true,
+          "checks": {
+            "configuration": true,
+            "datastore": true
+          }
+        },
+        "/api/health/live": {
+          "status": "live",
+          "ok": true
+        },
+        "/api/billing/status": {
+          "status": 200,
+          "provider": "none",
+          "rolloutMode": "closed",
+          "enabled": false,
+          "apiReady": false,
+          "webhookReady": false,
+          "portalReady": false,
+          "managementReady": false,
+          "taxReady": false,
+          "configured": false,
+          "checkoutReady": false,
+          "ready": false,
+          "plans": [
+            {
+              "id": "free",
+              "name": "Free learner",
+              "shortName": "Free",
+              "description": "Learn from the public library.",
+              "sortOrder": 0,
+              "active": true,
+              "currency": "usd",
+              "prices": null,
+              "annualMonthlyEquivalentMinor": null,
+              "annualSavingsMinor": null,
+              "annualSavingsPercent": null,
+              "limits": {
+                "courseCreditsPerMonth": 0,
+                "courseCreditBalanceCap": 0,
+                "tutorQuestions": 5,
+                "flashcardDeckGenerationsPerMonth": 5
+              },
+              "capabilities": {
+                "create_course": false,
+                "generate_lesson": false,
+                "create_custom_flashcard_deck": false,
+                "publish_course": false,
+                "advanced_capstone_analysis": false,
+                "export_evidence_report": false,
+                "share_evidence_report": false,
+                "course_illustrations": false
+              },
+              "includedFeatures": [
+                "Every published lesson, free",
+                "Progress, notes, and review scheduling across devices",
+                "5 tutor questions a month \u2014 ask the AI tutor about your lessons"
+              ],
+              "restrictedFeatures": [
+                "Private AI-assisted course creation",
+                "Course publishing"
+              ]
+            },
+            {
+              "id": "plus",
+              "name": "Filosage Plus",
+              "shortName": "Plus",
+              "description": "Build private courses around your own goals.",
+              "sortOrder": 1,
+              "active": true,
+              "currency": "usd",
+              "prices": {
+                "monthly": {
+                  "amountMinor": 999,
+                  "recurringInterval": "month",
+                  "recurringIntervalCount": 1
+                },
+                "annual": {
+                  "amountMinor": 7992,
+                  "recurringInterval": "year",
+                  "recurringIntervalCount": 1
+                }
+              },
+              "annualMonthlyEquivalentMinor": 666,
+              "annualSavingsMinor": 3996,
+              "annualSavingsPercent": 33,
+              "limits": {
+                "courseCreditsPerMonth": 2,
+                "courseCreditBalanceCap": 24,
+                "tutorQuestions": 40,
+                "flashcardDeckGenerationsPerMonth": 40
+              },
+              "capabilities": {
+                "create_course": true,
+                "generate_lesson": true,
+                "create_custom_flashcard_deck": true,
+                "publish_course": false,
+                "advanced_capstone_analysis": false,
+                "export_evidence_report": false,
+                "share_evidence_report": false,
+                "course_illustrations": true
+              },
+              "includedFeatures": [
+                "Everything in Free",
+                "2 course credits a month \u2014 1 credit builds 1 complete course (the full outline plus every lesson in it)",
+                "Unused credits roll over \u2014 bank up to 24",
+                "40 tutor questions a month",
+                "Your courses stay private to you",
+                "Keep every course you create, even if you cancel",
+                "Illustrated courses \u2014 a custom cover plus an illustration for every module"
+              ],
+              "restrictedFeatures": [
+                "Publishing courses to the public library",
+                "Detailed final-project feedback",
+                "Portable evidence exports and share links"
+              ]
+            },
+            {
+              "id": "pro",
+              "name": "Filosage Pro",
+              "shortName": "Pro",
+              "description": "Everything in Plus, plus proof of your work.",
+              "sortOrder": 2,
+              "active": true,
+              "currency": "usd",
+              "prices": {
+                "monthly": {
+                  "amountMinor": 1499,
+                  "recurringInterval": "month",
+                  "recurringIntervalCount": 1
+                },
+                "annual": {
+                  "amountMinor": 11988,
+                  "recurringInterval": "year",
+                  "recurringIntervalCount": 1
+                }
+              },
+              "annualMonthlyEquivalentMinor": 999,
+              "annualSavingsMinor": 6000,
+              "annualSavingsPercent": 33,
+              "limits": {
+                "courseCreditsPerMonth": 5,
+                "courseCreditBalanceCap": 60,
+                "tutorQuestions": 100,
+                "flashcardDeckGenerationsPerMonth": 100
+              },
+              "capabilities": {
+                "create_course": true,
+                "generate_lesson": true,
+                "create_custom_flashcard_deck": true,
+                "publish_course": true,
+                "advanced_capstone_analysis": true,
+                "export_evidence_report": true,
+                "share_evidence_report": true,
+                "course_illustrations": true
+              },
+              "includedFeatures": [
+                "Everything in Plus",
+                "5 course credits a month \u2014 bank up to 60",
+                "100 tutor questions a month",
+                "Detailed final-project feedback \u2014 see how each attempt improved, requirement by requirement",
+                "Downloadable progress reports, plus private share links (expire after 30 days) you can revoke anytime",
+                "Richly illustrated courses \u2014 a custom cover plus an illustration for every lesson",
+                "Publish finished courses to the public library"
+              ],
+              "restrictedFeatures": []
+            }
+          ]
+        }
+      },
+      "assets": [
+        {
+          "path": "/_next/static/chunks/06csg2celf3qb.css?dpl=258f8053bcaead9a5bded7e436322ffbcd4af474",
+          "status": 200,
+          "sha256": "8a93225e8005114c9cabe961c2f13f0e56b9bb310103a2afcc399116806579c8"
+        },
+        {
+          "path": "/_next/static/chunks/0cz1d0mv5g_q7.js?dpl=258f8053bcaead9a5bded7e436322ffbcd4af474",
+          "status": 200,
+          "sha256": "0973c1d64c88adc8e3c950410cb58b288f72118d5965b78049438deb8f2f9683"
+        },
+        {
+          "path": "/_next/static/chunks/0o_iu04f6t0e7.js?dpl=258f8053bcaead9a5bded7e436322ffbcd4af474",
+          "status": 200,
+          "sha256": "b2606ff7d7fa1a72ce93ffc7be4c78439614e0248cb9cc3b1a19827651d1d0f7"
+        },
+        {
+          "path": "/_next/static/chunks/0wia2rd5ewmak.js?dpl=258f8053bcaead9a5bded7e436322ffbcd4af474",
+          "status": 200,
+          "sha256": "6b0f6ae6e0b85119e58a0a832540536e847aac969a517eb75275631c169b7b28"
+        },
+        {
+          "path": "/_next/static/chunks/0xgskps93sb05.js?dpl=258f8053bcaead9a5bded7e436322ffbcd4af474",
+          "status": 200,
+          "sha256": "be68d2d805063788f05b37f2d6c5cfcabf3714749f80cc73fa4a7a22efb1d69a"
+        },
+        {
+          "path": "/_next/static/chunks/11h6iu0eib45i.js?dpl=258f8053bcaead9a5bded7e436322ffbcd4af474",
+          "status": 200,
+          "sha256": "0aa38ca06b62da20031a4930dc186cda0a4c9a1ba0dffe1be4b4b18691b8265d"
+        },
+        {
+          "path": "/_next/static/chunks/154rsi6l15_e-.css?dpl=258f8053bcaead9a5bded7e436322ffbcd4af474",
+          "status": 200,
+          "sha256": "95ee550a793e9cf0b379601386a6d25df652fdd4b569479b4b5e75aba18f2c7d"
+        },
+        {
+          "path": "/_next/static/chunks/194sr_qt0u9td.js?dpl=258f8053bcaead9a5bded7e436322ffbcd4af474",
+          "status": 200,
+          "sha256": "9ed470a6836e6e727258df9b99eb22d6298f410bf7539b03192c3d8c8edda601"
+        },
+        {
+          "path": "/_next/static/chunks/1em_nfd7tmd0d.js?dpl=258f8053bcaead9a5bded7e436322ffbcd4af474",
+          "status": 200,
+          "sha256": "52236f689f680148c28e961bcb9df9be35783461f85a0ee7ec1647ad3cf5e5f9"
+        },
+        {
+          "path": "/_next/static/chunks/1p7mu3g-t83ni.js?dpl=258f8053bcaead9a5bded7e436322ffbcd4af474",
+          "status": 200,
+          "sha256": "1c7635ec063b51eee625170e1e3e2f834e5d234de409c1adaad628a61f8d0b6d"
+        },
+        {
+          "path": "/_next/static/chunks/1sp3tp1f4p-xi.css?dpl=258f8053bcaead9a5bded7e436322ffbcd4af474",
+          "status": 200,
+          "sha256": "78a062d709c315dbdeb602ab8b03eafff22c030474af76019d582bf3a8957979"
+        },
+        {
+          "path": "/_next/static/chunks/1vk-uc307vw8v.js?dpl=258f8053bcaead9a5bded7e436322ffbcd4af474",
+          "status": 200,
+          "sha256": "98ad001b1003aaf7d1e45c8a69a603903bb06e5578ab2707b2a510e4e19ea6bd"
+        },
+        {
+          "path": "/_next/static/chunks/2h0jrdro6vnyu.js?dpl=258f8053bcaead9a5bded7e436322ffbcd4af474",
+          "status": 200,
+          "sha256": "4aa13b751734eb1319939bc26b578db4eef9fe21b56d4b2d1d59e1c169b1f6e3"
+        },
+        {
+          "path": "/_next/static/chunks/2wf14iwa-go4k.js?dpl=258f8053bcaead9a5bded7e436322ffbcd4af474",
+          "status": 200,
+          "sha256": "1c7d6419f6a8d0185670f757d75d45a494527ec120c042f6200be6c21979edd6"
+        },
+        {
+          "path": "/_next/static/chunks/2y77sz_ht7m9f.css?dpl=258f8053bcaead9a5bded7e436322ffbcd4af474",
+          "status": 200,
+          "sha256": "3262bf9fdacd12fbdf9235f61f90b260c718f3685a1c163731511b1ea65e8811"
+        },
+        {
+          "path": "/_next/static/chunks/3205ah_qp16xv.css?dpl=258f8053bcaead9a5bded7e436322ffbcd4af474",
+          "status": 200,
+          "sha256": "1f0994b0b58e769925a8531419797a9603b343da6ddf0aea523b8fce1d020f6f"
+        },
+        {
+          "path": "/_next/static/chunks/3e80b68wjc6at.css?dpl=258f8053bcaead9a5bded7e436322ffbcd4af474",
+          "status": 200,
+          "sha256": "861dccdb6d6c6bc55405975a49e14dde30613a0ee2dc5510b8a07018e1a01820"
+        },
+        {
+          "path": "/_next/static/chunks/3wv1qkmkh7_1s.js?dpl=258f8053bcaead9a5bded7e436322ffbcd4af474",
+          "status": 200,
+          "sha256": "717eb8c561ad482da98c421147f6e7c7ed46be83f2e982931d4c79f1577f09ad"
+        },
+        {
+          "path": "/_next/static/chunks/40bythrfs8psm.js?dpl=258f8053bcaead9a5bded7e436322ffbcd4af474",
+          "status": 200,
+          "sha256": "d59af89402e8b9f6f90174db10a7979b4d47b96e3f186cce9c620fd78f4d7614"
+        },
+        {
+          "path": "/_next/static/chunks/turbopack-3-ry682tkyiqk.js?dpl=258f8053bcaead9a5bded7e436322ffbcd4af474",
+          "status": 200,
+          "sha256": "8bbb58cbfd4633c1d828c6bc37bc32abc768a149c01b1dfc4f5131fd81274551"
+        }
+      ],
+      "course_create_client": [
+        {
+          "path": "/_next/static/chunks/2ehal1g2ajs7j.js",
+          "sha256": "c63f61b2c21230e279692c9e53e71deca0f00dbc9e8a79eb477b7aaa407785ee",
+          "evaluation_header_present": false,
+          "idempotency_header_present": true,
+          "progress_ui_present": true
+        }
+      ],
+      "unknown_route_status": 404
+    }
+  },
+  "lesson_followup": {
+    "local_lesson_browser_passed": 8,
+    "contracts_passed": 459,
+    "review": "unmount finding reproduced and corrected; re-review clear",
+    "deployed": false,
+    "remote_gates": "pending new candidate"
+  }
 }

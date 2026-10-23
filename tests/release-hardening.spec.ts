@@ -494,7 +494,7 @@ test("mobile projects execute only explicitly owned cross-device behavior", () =
   // request retries without evaluation headers, preserving its idempotency
   // key) adds one desktop case.
   // October 21: active progress, automatic reconciliation and stale-ID polling add three desktop cases.
-  expect(chromium.count + mobileChromium.count + mobileWebkit.count).toBeLessThanOrEqual(430);
+  expect(chromium.count + mobileChromium.count + mobileWebkit.count).toBeLessThanOrEqual(431);
 });
 
 test("release workflows accept only exact successful workflow evidence", () => {

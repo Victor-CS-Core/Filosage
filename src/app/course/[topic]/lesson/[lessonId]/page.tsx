@@ -652,6 +652,9 @@ export default function LessonView() {
       setProgressSyncError(null);
       generationRequestRef.current = null;
     });
+    return () => {
+      if (activeLessonViewRef.current === lessonViewKey) activeLessonViewRef.current = "";
+    };
   }, [closeStudyToolsDrawer, closeTutorDrawer, lessonViewKey]);
 
   useEffect(() => {
@@ -733,39 +736,48 @@ export default function LessonView() {
       if (generationRequestRef.current?.lessonKey !== generationKey) {
         generationRequestRef.current = { lessonKey: generationKey, requestId: createClientId() };
       }
-      const generationResponse = await learnerRequest(user, "/api/generate-lesson", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Idempotency-Key": generationRequestRef.current.requestId,
-        },
-        body: JSON.stringify({
-          topic,
-          lessonTitle: lesson.title,
-          lessonConcept: lesson.concept,
-          courseId,
-          lessonId,
-        }),
-      });
-      const generated = await generationResponse.json() as {
-        error?: string;
-        code?: string;
-        resetAt?: string;
-        diagnostic?: string[];
-      } & LessonData;
-      if (!isCurrentView()) return;
-      if (!generationResponse.ok) {
-        if (generated.code === "GENERATION_IN_PROGRESS" && generated.resetAt) {
-          const waitSeconds = Math.max(1, Math.ceil((Date.parse(generated.resetAt) - Date.now()) / 1_000));
-          throw new Error(`A previous lesson attempt is still closing. Try again in about ${waitSeconds} seconds.`);
+      const requestId = generationRequestRef.current.requestId;
+      const requestBody = JSON.stringify({ topic, lessonTitle: lesson.title, lessonConcept: lesson.concept, courseId, lessonId });
+      let endpoint = "/api/generate-lesson";
+      let completedLesson: (Partial<LessonData> & { error?: string; code?: string; resetAt?: string; diagnostic?: string[]; operationId?: string; status?: string }) | undefined;
+      const startedAt = Date.now();
+      for (let wave = 0; wave < 12 && Date.now() - startedAt < 20 * 60_000; wave += 1) {
+        if (!isCurrentView()) return;
+        const generationResponse = await learnerRequest(user, endpoint, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "Idempotency-Key": requestId },
+          body: endpoint === "/api/generate-lesson" ? requestBody : undefined,
+          signal: AbortSignal.timeout(170_000),
+        });
+        const generated = await generationResponse.json() as NonNullable<typeof completedLesson>;
+        if (!isCurrentView()) return;
+        if (generationResponse.status === 202) {
+          // Only the server's explicitly paused stage may continue automatically.
+          // Unknown provider outcomes must never be treated as lesson content or redispatched.
+          if (generated.code === "GENERATION_RESUME_REQUIRED" && generated.status === "pending" && generated.operationId) {
+            endpoint = `/api/generation-operations/${encodeURIComponent(generated.operationId)}`;
+            continue;
+          }
+          throw new Error(generated.error || "This lesson request is saved and awaiting confirmation. Check it again before continuing.");
         }
-        const diagnostic = isOwner && generated.diagnostic?.length
-          ? ` Diagnostic: ${generated.diagnostic.join(" · ")}`
-          : "";
-        throw new Error(`${generated.error || "The lesson could not be generated."}${diagnostic}`);
+        if (!generationResponse.ok) {
+          if (generated.code === "GENERATION_IN_PROGRESS" && generated.resetAt) {
+            const waitSeconds = Math.max(1, Math.ceil((Date.parse(generated.resetAt) - Date.now()) / 1_000));
+            throw new Error(`A previous lesson attempt is still closing. Try again in about ${waitSeconds} seconds.`);
+          }
+          const diagnostic = isOwner && generated.diagnostic?.length
+            ? ` Diagnostic: ${generated.diagnostic.join(" · ")}` : "";
+          throw new Error(`${generated.error || "The lesson could not be generated."}${diagnostic}`);
+        }
+        if (!Array.isArray(generated.quizzes) || typeof generated.content !== "string") {
+          throw new Error("The lesson result could not be confirmed. Check this saved request before continuing.");
+        }
+        completedLesson = generated;
+        break;
       }
+      if (!completedLesson) throw new Error("Your completed lesson stages are saved. Try again to continue this same request.");
       setGenerationProgress(100);
-      setLessonDataRecord({ key: requestViewKey, value: randomizeQuizAnswers(generated as LessonData) });
+      setLessonDataRecord({ key: requestViewKey, value: randomizeQuizAnswers(completedLesson as LessonData) });
       generationRequestRef.current = null;
     } catch (loadError) {
       if (isCurrentView()) setError(loadError instanceof Error ? loadError.message : "The lesson could not be opened.");

@@ -345,11 +345,20 @@ test("starts one resilient generation request for an owner-only lesson", async (
 
   let generated = false;
   let generationRequests = 0;
+  const requestKeys: (string | undefined)[] = [];
+  let resumeRequests = 0;
   await page.route(`**/api/courses/${courseId}/lessons/0-0`, (route) => generated
     ? route.fulfill({ json: lessonOne })
     : route.fulfill({ status: 404, json: { error: "This lesson has not been published yet." } }));
   await page.route("**/api/generate-lesson", async (route) => {
     generationRequests += 1;
+    requestKeys.push(route.request().headers()["idempotency-key"]);
+    await new Promise((resolve) => setTimeout(resolve, 450));
+    return route.fulfill({ status: 202, json: { operationId: "lesson-wave-operation", status: "pending", code: "GENERATION_RESUME_REQUIRED", recovery: "resume_generation" } });
+  });
+  await page.route("**/api/generation-operations/lesson-wave-operation", async (route) => {
+    resumeRequests += 1;
+    requestKeys.push(route.request().headers()["idempotency-key"]);
     await new Promise((resolve) => setTimeout(resolve, 450));
     generated = true;
     return route.fulfill({ json: lessonOne });
@@ -358,7 +367,39 @@ test("starts one resilient generation request for an owner-only lesson", async (
   await page.goto(`/course/${encodeURIComponent(topic)}/lesson/0-0?id=${courseId}`);
   await expect(page.getByText("Preparing your next lesson")).toBeVisible();
   await expect(page.getByRole("heading", { name: "Evidence before inference" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Inspect the record" })).toBeVisible();
   expect(generationRequests).toBe(1);
+  expect(resumeRequests).toBe(1);
+  expect(requestKeys[0]).toBeTruthy();
+  expect(new Set(requestKeys).size).toBe(1);
+});
+
+test("leaving a lesson stops automatic continuation of its saved stage", async ({ page }) => {
+  await restoreLocalLearner(page);
+  await mockOwnerLearnerAccount(page);
+  await page.route("**/api/courses?scope=mine", (route) => route.fulfill({ json: { courses: [] } }));
+  await page.route(`**/api/courses/${courseId}`, (route) => route.fulfill({ json: { ...course, isPublic: false, canManage: true } }));
+  await page.route(`**/api/courses/${courseId}/lessons/0-0`, (route) => route.fulfill({ status: 404, json: { error: "Not generated." } }));
+  let release!: () => void;
+  const heldResponse = new Promise<void>((resolve) => { release = resolve; });
+  let resumed = 0;
+  await page.route("**/api/generate-lesson", async (route) => {
+    await heldResponse;
+    return route.fulfill({ status: 202, json: { operationId: "unmounted-operation", status: "pending", code: "GENERATION_RESUME_REQUIRED" } });
+  });
+  await page.route("**/api/generation-operations/unmounted-operation", (route) => {
+    resumed += 1;
+    return route.fulfill({ json: lessonOne });
+  });
+  await page.goto(`/course/${encodeURIComponent(topic)}/lesson/0-0?id=${courseId}`);
+  await expect(page.getByText("Preparing your next lesson")).toBeVisible();
+  await page.getByRole("link", { name: "Filosage home", exact: true }).click();
+  await expect(page).toHaveURL("/");
+  const responseReceived = page.waitForResponse("**/api/generate-lesson");
+  release();
+  await responseReceived;
+  await page.waitForTimeout(400);
+  expect(resumed).toBe(0);
 });
 
 test("opens and generates the next lesson in a fresh document", async ({ page }) => {
@@ -404,17 +445,33 @@ test("explains a short-lived generation lock instead of hiding the 429", async (
     status: 404,
     json: { error: "This lesson has not been published yet." },
   }));
-  await page.route("**/api/generate-lesson", (route) => route.fulfill({
+  let uncertain = false;
+  let generationRequests = 0;
+  await page.route("**/api/generate-lesson", (route) => {
+    generationRequests += 1;
+    if (uncertain) return route.fulfill({ status: 202, json: { operationId: "uncertain-operation", status: "running", code: "GENERATION_OUTCOME_UNKNOWN" } });
+    return route.fulfill({
     status: 429,
     json: {
       error: "Another AI request is already in progress for this feature.",
       code: "GENERATION_IN_PROGRESS",
       resetAt: new Date(Date.now() + 30_000).toISOString(),
     },
-  }));
+    });
+  });
 
   await page.goto(`/course/${encodeURIComponent(topic)}/lesson/0-0?id=${courseId}`);
   await expect(page.getByText(/A previous lesson attempt is still closing\. Try again in about \d+ seconds\./)).toBeVisible();
+  uncertain = true;
+  let resumed = 0;
+  await page.route("**/api/generation-operations/uncertain-operation", (route) => {
+    resumed += 1;
+    return route.fulfill({ json: lessonOne });
+  });
+  await page.getByRole("button", { name: "Try again", exact: true }).click();
+  await expect(page.getByText("This lesson request is saved and awaiting confirmation. Check it again before continuing.")).toBeVisible();
+  expect(generationRequests).toBe(2);
+  expect(resumed).toBe(0);
 });
 
 test("completes a published course from discovery through evidence", async ({ page }) => {

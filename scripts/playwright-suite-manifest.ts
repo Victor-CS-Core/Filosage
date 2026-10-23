@@ -125,7 +125,7 @@ export const browserSuiteEstimatedTestLoad: Record<BrowserProjectName, Record<st
     "tests/auth-linking.spec.ts": 47,
     "tests/billing-lifecycle.spec.ts": 23,
     "tests/command-center.spec.ts": 14,
-    "tests/course-learning-flow.spec.ts": 6,
+    "tests/course-learning-flow.spec.ts": 7,
     "tests/example.spec.ts": 76,
     "tests/external-id-branding.spec.ts": 10,
     "tests/flashcard-system.spec.ts": 9,
