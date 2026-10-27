@@ -6,7 +6,7 @@ Owner requested diagnosis/fix of provider-outcome-unknown course creation and re
 - [x] Add failing regression tests for the diagnosed provider issue and active-progress/recovery behavior.
 - [x] Implement minimal fixes; preserve paid-call uncertainty safeguards.
 - [x] Validate local unit/browser/actual Workers bundle behavior and obtain review.
-- [ ] Commit/push candidate; pass exact engineering/security/full browser release gates.
+- [x] Commit/push candidate; pass exact engineering/security/full browser release gates.
 - [ ] Deploy validated committed source, verify production and real authenticated course/lesson creation where session access permits.
 - [ ] Record evidence, limitations and final documentation separately from deployed SHA.
 
@@ -81,3 +81,13 @@ Full40012742615attempt1 failed before browser tests: pinned Bicep downloadIncomp
 Source73c6f66 is superseded before deployment. Full40012742615attempt2 spent28minutes in Ubuntu dependency downloads viaazure.archive.ubuntu.com (libflite1,13.6MB,took5minutes). Stopped after collecting a new necessary runtime diagnosis; no full-regression proof claimed. CI uses upstreamUbuntuHTTPSmirror, signedpackages/pinnedversions unchanged, APT2retries/30secondconnectiontimeouts, Bicepv0.46.1 bounded3downloads180secondseach.
 
 Actual lesson unknown outcome occurred42.1seconds after attempt start, matching40-second provider/48-secondtotal limits. SDKtimeout inheritsnameError; added fixed timeout/connection classifications without rawmessages. HistoricalSept24smoke had independently recorded50-secondlesson calls failing this bound; historical notes do not replace current acceptance. Cloudflare HTTP Workers duration docs confirm no60-secondwalllimit while connected (https://developers.cloudflare.com/workers/platform/limits/#duration). Deliberate platform-aware bound:120-secondlesson,90-secondattempt,6-secondcleanup, below existing150-secondrequest/180-secondlease/client170seconds. Existing retriesdisabled, checkpoints/evaluation/credit/uncertainty fences unchanged. Updatedcontract now checks realrequest/cleanup/repair/expiry bounds; test failed40,000versusexpected>60,000 beforefix, then fullcontracts459pass. SafeSDKtimeoutdiagnostic test failedbeforeclassification, thenbrowser1/1passes withprivatemessageexclusion. Independent review noimportantfindings. Fresh committed-source release gates required.
+
+Revised frozen source52f3cc4e384881beac9ea5b7801298316e992a56 committed/pushed. Exact engineering40017465857 running/security40017465846passed; production OpenNext build and actual Worker4/4pass, dry-run-identical SHA-2561bea98e9b5b88a61498d48239214ea7a20680a9a6f72bedb5095b0f9af684ca6. Full regression awaits engineering.
+
+Final candidate52f3cc4 exact engineering40017465857/all4jobs and security40017465846passed; Chromium38/38 without retries. Browser installation completed promptly with upstreamUbuntu mirror. Required full40018545140 dispatched once20:21:11Z on exact52f3cc4e384881beac9ea5b7801298316e992a56,60-minute execution deadline; running.
+
+## October27 final deployment and acceptance limit
+
+Source52f3cc4 exact full40018545140passed (427matrixpass/4existing skips/no retries; dedicatedUI4pass/5projectskips), engineering40017465857/security40017465846passed. Deployedversionf941ab28-5447-4676-b18d-ba5f6eea1e90/deploymentdaaee0c4-49b4-44a2-b12b-e375634750db. Rollbacka6bd3b73-aa7f-4d3d-aad4-a334a7a5823d recorded. Public health/readiness/liveness/billing/homepage20assets/create+lessonclientbytes/404pass. All non-version bindings and routes preserved.
+
+Real lesson0-0 now generated and rendered after automatic saved-stage continuation. However its content explicitly declares insufficient atomic evidence for the synthetic calculation outputs and scored feedback, requesting replanning. This is a concrete content-quality acceptance blocker; successful lesson transport is NOT a successful full learning flow. No publication, grounding bypass or synthetic success claim. Requires investigation of replan-required artifact admission and the evidence treatment of valid synthetic arithmetic. Final documentation is committed separately from deployed source.
