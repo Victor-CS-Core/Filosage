@@ -11,7 +11,7 @@ import {
   outlineSourceCoverageIssues,
   sourcePackPromptBlock,
 } from "../src/lib/source-safety";
-import { groundedLessonFinalBoundary, groundedLessonInstruction } from "../src/lib/grounded-lesson-contract";
+import { groundedLessonFinalBoundary, groundedLessonInstruction, syntheticCalculationBoundary } from "../src/lib/grounded-lesson-contract";
 import { lessonGroundingIssues, lessonGroundingSchema } from "../src/lib/source-grounding";
 import { supportsStructuredSourcePolicy } from "../src/lib/course-pipeline/contract";
 import { courseRequestSchema, lessonDataSchema } from "../src/lib/validation";
@@ -96,6 +96,16 @@ test("grounded lesson generation maps every factual assertion and exposes owner-
   expect(groundedLessonInstruction).toContain("Calling a scenario hypothetical does not make domain interpretations evidence-free");
   expect(groundedLessonInstruction).toContain("do not claim suitability, sufficiency, causal explanation, diagnostic meaning, recommendation");
   expect(groundedLessonFinalBoundary).toContain("require explicit replanning");
+  for (const instruction of [groundedLessonInstruction, groundedLessonFinalBoundary]) {
+    expect(instruction).toContain(syntheticCalculationBoundary);
+    expect(instruction).toContain("Except for checked synthetic calculations");
+  }
+  expect(syntheticCalculationBoundary).toContain("all explicitly supplied synthetic values");
+  expect(syntheticCalculationBoundary).toContain("rule that is itself supported by an assigned atomic evidence claim and cited");
+  expect(syntheticCalculationBoundary).toContain("incorrect results, missing inputs or working, and unsupported rules fail verification");
+  expect(routeSource).toContain("Recompute each synthetic calculation");
+  expect(routeSource).toContain("in unsupportedClaims; never mark those as supported");
+
   expect(routeSource).not.toContain("Write exactly one externally verifiable");
   expect(routeSource).not.toContain("narrow and reframe the generated learning objective");
   expect(routeSource).not.toContain("write 450 to 750 words");

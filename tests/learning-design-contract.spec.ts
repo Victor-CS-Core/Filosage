@@ -430,6 +430,31 @@ test("new generation cannot silently replace the planned capability with source-
   expect(lessonDesignOutputIssues(lesson, plan, { preservePlannedObjective: true }))
     .toContainEqual(expect.objectContaining({ code: "LD_REPLAN_001", severity: "blocker", path: "lesson.learningObjective" }));
   expect(lessonDesignOutputIssues({ ...lesson, learningObjective: plan.scopeBudget.singleWin }, plan, { preservePlannedObjective: true })).toEqual([]);
+  const ready = { ...lesson, learningObjective: plan.scopeBudget.singleWin };
+  for (const content of [
+    "This lesson cannot fully deliver its saved calculation objective under the supplied evidence boundary.",
+    "Explicit replanning is required before this lesson can provide a grounded scored calculation, model answer, or application quiz.",
+  ]) {
+    expect(lessonDesignOutputIssues({ ...ready, content }, plan))
+      .toContainEqual(expect.objectContaining({ code: "LD_REPLAN_001", severity: "blocker" }));
+    expect(lessonDesignOutputIssues({ ...ready, guidedPractice: { prompt: content } }, plan))
+      .toContainEqual(expect.objectContaining({ code: "LD_REPLAN_001", severity: "blocker" }));
+  }
+  for (const content of [
+    "A mean cannot establish causality. Compare the observed values before interpreting them.",
+    "This lesson does not provide medical advice.",
+    "This lesson cannot support a causal conclusion.",
+    "> This lesson cannot deliver its saved objective.\n\nCalculate using the supplied values.",
+    "```text\nThis lesson cannot deliver its saved objective.\n```\nCalculate using the supplied values.",
+  ]) expect(lessonDesignOutputIssues({ ...ready, content }, plan)).toEqual([]);
+  const refusal = "This lesson cannot provide the planned assessment.";
+  const unavailableFeedback = { ...ready, quizzes: [{ assessmentId: "assessment-claim-check", feedback: refusal }] };
+  const unavailableModel = { ...ready, guidedPractice: { prompt: "Compare the first wording with the source.", modelResponse: refusal } };
+  for (const unavailable of [unavailableFeedback, unavailableModel]) {
+    expect(lessonDesignOutputIssues(unavailable, plan))
+      .toContainEqual(expect.objectContaining({ code: "LD_REPLAN_001", severity: "blocker" }));
+  }
+
 });
 
 test("requires every feedback assessment and rubric criterion to bind exactly once", () => {

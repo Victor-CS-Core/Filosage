@@ -91,3 +91,17 @@ Final candidate52f3cc4 exact engineering40017465857/all4jobs and security4001746
 Source52f3cc4 exact full40018545140passed (427matrixpass/4existing skips/no retries; dedicatedUI4pass/5projectskips), engineering40017465857/security40017465846passed. Deployedversionf941ab28-5447-4676-b18d-ba5f6eea1e90/deploymentdaaee0c4-49b4-44a2-b12b-e375634750db. Rollbacka6bd3b73-aa7f-4d3d-aad4-a334a7a5823d recorded. Public health/readiness/liveness/billing/homepage20assets/create+lessonclientbytes/404pass. All non-version bindings and routes preserved.
 
 Real lesson0-0 now generated and rendered after automatic saved-stage continuation. However its content explicitly declares insufficient atomic evidence for the synthetic calculation outputs and scored feedback, requesting replanning. This is a concrete content-quality acceptance blocker; successful lesson transport is NOT a successful full learning flow. No publication, grounding bypass or synthetic success claim. Requires investigation of replan-required artifact admission and the evidence treatment of valid synthetic arithmetic. Final documentation is committed separately from deployed source.
+
+## October27 content-quality blocker resolution — started
+
+Owner explicitly requests resolving the remaining blocker. Acceptance: derived calculations from declared synthetic inputs may teach a source-supported rule without invented citations; external factual/domain assertions remain grounded; a self-declared unable-to-deliver/replan-required artifact must never be saved as a ready lesson. Preserve existing data and saved identities, disabled billing/Spark, evaluation/idempotency/accounting fences.
+
+- [x] Reproduce rejected/accepted boundary in failing regressions.
+- [x] Align generation/verifier policy for transparent synthetic arithmetic; add fail-closed readiness guard.
+- [x] Run local verification and independent review; coherent candidate prepared for commit/push.
+- [ ] Pass exact engineering/security/full browser and actual Workers smoke before authorized deployment.
+- [ ] Verify live settings/assets and fresh real lesson learning flow; record source and later documentation SHA separately.
+
+Diagnosis: generation prompt requires a separate atomic evidence claim for every factual sentence, including synthetic worked-example outputs. Independent grounding exempts hypotheticalscenarios but does not explain derivations. Readiness checks validate matching objective text/fieldbindings without detecting a lesson explicitly declaring the planned teaching unavailable. Proposed approach fixes both policy mismatch and admission; no automaticgroundingdowngrade or fictitioussourceclaims.
+
+Local checkpoint: final contracts459/459, types/lint (four existing warnings), units26/Python3/receiver15, tracked-secret scan pass. Independent review clear after narrowing the guard to promised capabilities. Regressions cover unchanged-objective refusals, practice/model responses/feedback, valid domain disclaimers and quoted/code examples. Shared policy explicitly reaches generator/final boundary/verifier; arithmetic failures use unsupportedClaims. Grounding evaluator v5 distinguishes this policy. Real arithmetic acceptance still requires a fresh generated lesson; prompt contracts are not numerical proof.

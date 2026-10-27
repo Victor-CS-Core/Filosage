@@ -830,6 +830,19 @@ function promptTokenSimilarity(left: string, right: string) {
   return shared / Math.max(leftTokens.size, rightTokens.size);
 }
 
+// Reject an explicitly unavailable teaching artifact even when its labels and
+// assessment IDs match the plan. Quoted examples and ordinary domain limitations
+// are not declarations that this lesson itself is unavailable.
+function declaresUnavailableTeaching(value: unknown): boolean {
+  if (typeof value === "string") {
+    const prose = value.replace(/```[\s\S]*?```/g, "").replace(/^\s*>.*$/gm, "");
+    return /(?:^|[.!?]\s+)(?:this (?:lesson|draft|activity|assessment) (?:cannot|can't|does not|doesn't) (?:fully )?(?:deliver|teach|provide|support|meet) (?:its |the |this |a |an |our |your |planned |saved |required |intended |complete |grounded |scored |calculation |learning |single-win ){0,8}(?:objective|capability|lesson|teaching|assessment|practice|model answer|application quiz|learning outcome)\b|(?:explicit )?replanning is required before (?:this|the) (?:lesson|draft|activity|assessment) can\b)/im.test(prose);
+  }
+  if (Array.isArray(value)) return value.some(declaresUnavailableTeaching);
+  if (value && typeof value === "object") return Object.values(value).some(declaresUnavailableTeaching);
+  return false;
+}
+
 export function lessonDesignOutputIssues(
   lesson: {
     learningObjective?: string;
@@ -849,6 +862,12 @@ export function lessonDesignOutputIssues(
     message: "No lesson was returned for its learning-design plan.",
   }];
   const issues: LearningDesignIssue[] = [];
+  const teaching = lesson as typeof lesson & { keyTakeaways?: unknown };
+  if ([teaching.content, teaching.keyTakeaways, teaching.guidedPractice, teaching.transferTask,
+    teaching.quizzes, teaching.experience].some(declaresUnavailableTeaching)) {
+    issues.push({ code: "LD_REPLAN_001", severity: "blocker", path: "lesson.content",
+      message: "The lesson declares that it cannot deliver the planned teaching or assessment. Provide a complete, solvable lesson, or explicitly replan the linked course before saving; a refusal is not ready lesson content." });
+  }
   if (options.preservePlannedObjective
     && normalizedText(lesson.learningObjective ?? "").toLowerCase().replace(/[.!。]+$/u, "")
       !== normalizedText(plan.scopeBudget.singleWin).toLowerCase().replace(/[.!。]+$/u, "")) {
