@@ -467,6 +467,26 @@ test("the required quality gate runs a bounded Chromium smoke suite while exhaus
   expect(fullRegressionWorkflow).toContain("npm run test:command-center:v2:ui");
   expect(fullRegressionWorkflow).toContain("npm run test:shared-evidence:ui");
   expect(fullRegressionWorkflow.match(/runs-on:/g)).toHaveLength(1);
+  for (const workflow of [qualityWorkflow, fullRegressionWorkflow]) {
+    const fixture = mkdtempSync(resolve(process.cwd(), ".apt-mirror-check-"));
+    try {
+      mkdirSync(resolve(fixture, "apt.conf.d"));
+      mkdirSync(resolve(fixture, "sources.list.d"));
+      const mirror = resolve(fixture, "apt-mirrors.txt");
+      const sources = resolve(fixture, "sources.list.d/ubuntu.sources");
+      writeFileSync(mirror, "http://azure.archive.ubuntu.com/ubuntu\n");
+      writeFileSync(sources, "URIs: mirror+file:/etc/apt/apt-mirrors.txt\nOther: https://packages.microsoft.com/ubuntu\n");
+      const block = workflow.split("- name: Use upstream Ubuntu mirror for browser dependencies")[1]
+        ?.split("run: |\n")[1]?.split(/\n {6}- /)[0];
+      expect(block).toBeTruthy();
+      const execution = spawnSync("bash", ["-c", `sudo() { "$@"; }\n${block!.replaceAll("/etc/apt", fixture)}`], { encoding: "utf8" });
+      expect(execution.status, execution.stderr).toBe(0);
+      expect(read(mirror)).toBe("https://archive.ubuntu.com/ubuntu\n");
+      expect(read(sources)).toContain("https://packages.microsoft.com/ubuntu");
+    } finally {
+      rmSync(fixture, { recursive: true, force: true });
+    }
+  }
 });
 
 test("mobile projects execute only explicitly owned cross-device behavior", () => {
