@@ -412,7 +412,7 @@ export default function AppShell({ children, publicWhileLoading = false, activeT
             <span>{account?.plan === "pro" ? "Pro" : account?.plan === "plus" ? "Plus" : "Free"}</span>
             <BookOpen className="command-indicator" size={15} aria-hidden="true" />
           </button>
-          <button ref={mobileCommandTriggerRef} className="mobile-command-trigger" type="button" onClick={() => openCommand(mobileCommandTriggerRef.current)} aria-expanded={commandOpen} aria-controls="command-palette" aria-haspopup="dialog" aria-label="Open Command Center"><Command size={17} aria-hidden="true" /></button>
+          <button ref={mobileCommandTriggerRef} className="mobile-command-trigger" type="button" onClick={() => openCommand(mobileCommandTriggerRef.current)} aria-expanded={commandOpen} aria-controls="command-palette" aria-haspopup="dialog" aria-label="Search and navigation"><Search size={18} aria-hidden="true" /></button>
         </div>
       </header>
 
@@ -447,7 +447,7 @@ export default function AppShell({ children, publicWhileLoading = false, activeT
         {primaryNav.slice(0, 2).map(({ href, label, icon: Icon }) => (
           <Link key={href} className={pathname === href ? "is-active" : ""} href={href} aria-current={pathname === href ? "page" : undefined}><Icon size={20} aria-hidden="true" /><span>{label}</span></Link>
         ))}
-        <Link className={`mobile-create ${pathname === (canCreateCourses ? "/create" : "/pricing") ? "is-active" : ""}`} href={canCreateCourses ? "/create" : "/pricing"} aria-label={canCreateCourses ? "Create course" : "Compare memberships"} aria-current={pathname === (canCreateCourses ? "/create" : "/pricing") ? "page" : undefined}><Plus size={22} aria-hidden="true" /></Link>
+        <Link className={`mobile-create ${pathname === (canCreateCourses ? "/create" : "/pricing") ? "is-active" : ""}`} href={canCreateCourses ? "/create" : "/pricing"} aria-label={canCreateCourses ? "Create course" : "Compare memberships"} aria-current={pathname === (canCreateCourses ? "/create" : "/pricing") ? "page" : undefined}>{canCreateCourses ? <Plus size={22} aria-hidden="true" /> : <Crown size={22} aria-hidden="true" />}<span>{canCreateCourses ? "Create" : "Plans"}</span></Link>
         {primaryNav.slice(2).map(({ href, label, icon: Icon }) => (
           <Link key={href} className={pathname === href || pathname.startsWith(`${href}/`) ? "is-active" : ""} href={href} aria-current={pathname === href || pathname.startsWith(`${href}/`) ? "page" : undefined}><Icon size={20} aria-hidden="true" /><span>{label}</span></Link>
         ))}

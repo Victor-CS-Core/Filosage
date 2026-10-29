@@ -3,7 +3,7 @@ import AxeBuilder from "@axe-core/playwright";
 import type { Course } from "../src/lib/course-types";
 import type { CourseProgress } from "../src/lib/learning-types";
 import { PRIVACY_VERSION, TERMS_VERSION } from "../src/lib/legal";
-import { restoreLocalLearner } from "./fixtures/local-learner";
+import { exactLearnerAccount, restoreLocalLearner } from "./fixtures/local-learner";
 
 const ownedCourses: Course[] = [
   {
@@ -1226,6 +1226,64 @@ test.describe("desktop application shell", () => {
 test.describe("mobile application shell", () => {
   test.use({ viewport: { width: 390, height: 844 } });
 
+  test("names the phone create action and keeps phone controls comfortable", { tag: ["@mobile", "@webkit"] }, async ({ page }) => {
+    await prepareOwnerShell(page);
+    await page.goto("/create");
+    const navigation = page.getByRole("navigation", { name: "Mobile navigation" });
+    await expect(navigation.getByRole("link", { name: "Create course" })).toHaveText("Create");
+    const search = page.getByRole("button", { name: "Search and navigation", exact: true });
+    await expect(search).toBeVisible();
+    expect((await search.boundingBox())!.height).toBeGreaterThanOrEqual(44);
+    const examples = page.locator('[aria-label="Topic examples"] button');
+    for (const example of await examples.all()) expect((await example.boundingBox())!.height).toBeGreaterThanOrEqual(44);
+    await expect(page.getByLabel("Subject or skill")).toHaveCSS("font-size", "16px");
+    await expect(page.getByLabel("What will you be able to do?")).toHaveCSS("font-size", "16px");
+    await expect(page.locator('.create-studio > header > div > p')).toHaveCSS("font-size", "16px");
+    await expectNoHorizontalPageOverflow(page);
+  });
+
+  test("names the phone membership action for a free learner", { tag: ["@mobile", "@webkit"] }, async ({ page }) => {
+    await page.setViewportSize({ width: 320, height: 568 });
+    await prepareOwnerShell(page);
+    await page.route("**/api/account", route => route.fulfill({ json: exactLearnerAccount({ plan: "free" }) }));
+    await page.goto("/library");
+    const plans = page.getByRole("navigation", { name: "Mobile navigation" }).getByRole("link", { name: "Compare memberships" });
+    await expect(plans).toHaveText("Plans");
+    await expect(plans).toHaveAttribute("href", "/pricing");
+    await page.locator(".library-filter-trigger").click();
+    const filters = page.getByRole("dialog", { name: "Find the right course" });
+    await expect(filters.getByLabel("Search published courses")).toHaveCSS("font-size", "16px");
+    await expect(filters.getByLabel("Time commitment")).toHaveCSS("font-size", "16px");
+    await filters.getByRole("button", { name: "Close course filters" }).click();
+    await expectNoHorizontalPageOverflow(page);
+  });
+
+  test("keeps review and progress guidance readable on a phone", { tag: ["@mobile", "@webkit"] }, async ({ page }) => {
+    await prepareOwnerShell(page);
+    await page.goto("/progress");
+    await expect(page.locator(".progress-next-action small")).toHaveCSS("font-size", "14px");
+    await expect(page.locator(".progress-next-action p")).toHaveCSS("font-size", "14px");
+    await expect(page.locator(".progress-health-summary small").first()).toHaveCSS("font-size", "14px");
+    await page.goto("/review");
+    await expect(page.locator(".review-count")).toHaveCSS("font-size", "14px");
+    await expect(page.locator(".review-item small").first()).toHaveCSS("font-size", "14px");
+    await expect(page.locator(".review-item em").first()).toHaveCSS("font-size", "14px");
+    await expectNoHorizontalPageOverflow(page);
+  });
+
+  test("reserves mobile chrome space and keeps supporting copy readable in short landscape", { tag: ["@mobile", "@webkit"] }, async ({ page }) => {
+    await page.setViewportSize({ width: 740, height: 360 });
+    await prepareOwnerShell(page);
+    await page.goto("/");
+    const main = page.locator(".learner-shell .app-main");
+    const navigation = page.getByRole("navigation", { name: "Mobile navigation" });
+    const clearance = await main.evaluate(element => Number.parseFloat(getComputedStyle(element).paddingBottom));
+    expect(clearance).toBeGreaterThanOrEqual((await navigation.boundingBox())!.height);
+    await page.goto("/profile");
+    await expect(page.locator(".profile-capability-bands p").first()).toHaveCSS("font-size", "14px");
+    await expectNoHorizontalPageOverflow(page);
+  });
+
   test("opens My Courses from the mobile profile and keeps the Command Center separately reachable", { tag: ["@mobile", "@webkit"] }, async ({ page }) => {
     await prepareOwnerShell(page);
     await page.goto("/library");
@@ -1247,7 +1305,7 @@ test.describe("mobile application shell", () => {
     }
     await coursesDialog.getByRole("button", { name: "Close course menu" }).click();
 
-    await page.getByRole("button", { name: "Open Command Center", exact: true }).click();
+    await page.getByRole("button", { name: "Search and navigation", exact: true }).click();
     const commandCenter = page.getByRole("dialog", { name: "Filosage Command Center" });
     await expect(commandCenter.getByRole("option", { name: /Learning profile/ })).toBeVisible();
     await expect(commandCenter.getByRole("option", { name: /Control room/ })).toBeVisible();
@@ -1509,6 +1567,7 @@ test.describe("mobile application shell", () => {
             && labelRect.bottom <= navigationRect.bottom + 0.5,
           overflow: style.overflow,
           textOverflow: style.textOverflow,
+          fullyReadable: label.scrollWidth <= label.clientWidth,
           whiteSpace: style.whiteSpace,
         };
       });
@@ -1525,7 +1584,7 @@ test.describe("mobile application shell", () => {
     expect(metrics.navigationRight).toBe(metrics.viewportWidth);
     expect(metrics.labels).toHaveLength(4);
     expect(metrics.labels.every((label) => label.contained)).toBe(true);
-    expect(metrics.labels.every((label) => label.overflow === "hidden" && label.textOverflow === "ellipsis" && label.whiteSpace === "nowrap")).toBe(true);
+    expect(metrics.labels.every((label) => label.fullyReadable && label.whiteSpace === "nowrap"), JSON.stringify(metrics.labels)).toBe(true);
     expect(metrics.activeBackgroundImage).toContain("data:image/svg+xml");
     await expectNoHorizontalPageOverflow(page);
     if (process.env.CAPTURE_DASHBOARD === "1") {

@@ -304,11 +304,11 @@ function CreateCourseForm() {
 
   return (
     <AppShell>
-      <div className={styles.page}>
+      <div className={`${styles.page} create-studio`}>
         <header className={styles.intro}>
           <div>
             <h1>Build toward a real outcome.</h1>
-            <p>Give Filosage the result you need, the time you have, and how you learn best. Filosage researches reputable released sources where available, builds a private outline around the Capability Cycle, and clearly labels any lesson that relies on AI general knowledge.</p>
+            <p>Choose a goal and a pace. Build a private course with source status shown for every lesson.</p>
           </div>
           <div className={styles.introMeta} aria-label="Course creation details">
             <span><LockKeyhole size={15} /> Private draft</span>
