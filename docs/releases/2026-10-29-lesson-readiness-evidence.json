@@ -1,0 +1,58 @@
+{
+  "verified_date": "2026-10-29",
+  "deployed_source": "65ab93219628dcc598d15d44bf15dc6348f758f5",
+  "active_version": "78653d77-6107-4b5f-a80b-feabae06f0d5",
+  "deployment": "911f4ceb-d9a1-46cc-8c9e-208dd65e863a",
+  "rollback_version": "f941ab28-5447-4676-b18d-ba5f6eea1e90",
+  "gates": {
+    "engineering": 40569739479,
+    "security": 40569739427,
+    "full_browser": 40570851568,
+    "matrix_first_attempt_passed": 426,
+    "matrix_flaky_passed": 1,
+    "matrix_existing_skips": 4,
+    "worker_smoke_passed": 4,
+    "contracts_passed": 459,
+    "supplemental_chromium_contrast_passed": 5
+  },
+  "worker_sha256": "ecbf7541aa74fcdef7c3b4adec9846c18892c881445474f151accbfdbbbe2e39",
+  "production": {
+    "public_checks_passed": true,
+    "byte_matched_assets": 20,
+    "non_version_bindings_unchanged": true,
+    "routes_unchanged": true,
+    "subdomain_unchanged": true,
+    "billing_enabled": false,
+    "billing_rollout_mode": "closed",
+    "stripe_tax_ready": false,
+    "all_five_spark_flags": false
+  },
+  "authenticated": {
+    "course_id": "439d26d48a8b1044a97274d8912575c36efe5c20226217d56daddec2233bf1e2",
+    "lesson_id": "0-1",
+    "operation_id": "148e97731851a8f89be5a343b6431b8e39fa3817d8fa26ea1cbe1338118daa91",
+    "operation_status": "completed",
+    "terminal_reason": "lesson_committed",
+    "pending_calls": 0,
+    "arithmetic_checked": [
+      "35 / 5 = 7",
+      "30 / 5 = 6",
+      "25 / 5 = 5",
+      "40 / 5 = 8"
+    ],
+    "wrong_answer_rejected": true,
+    "correct_answer_accepted": true,
+    "activities_complete": 4,
+    "completion_synced_and_survives_reload": true,
+    "whole_course_or_capstone_complete": false,
+    "published": false,
+    "old_request_identities_preserved": true
+  },
+  "limits": [
+    "One existing WebKit theme contrast assertion passed on configured retry; specific root cause unconfirmed.",
+    "Three moderate UUID-chain dependency findings at October27 audit.",
+    "Transfer comparison is a model-answer comparison, not independent AI grading.",
+    "Existing earlier replan-required private lesson is not retroactively accepted."
+  ],
+  "documentation": "Later documentation commit is excluded from deployed source."
+}

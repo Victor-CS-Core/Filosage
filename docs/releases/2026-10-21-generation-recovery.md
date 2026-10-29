@@ -7,8 +7,8 @@ Owner requested diagnosis/fix of provider-outcome-unknown course creation and re
 - [x] Implement minimal fixes; preserve paid-call uncertainty safeguards.
 - [x] Validate local unit/browser/actual Workers bundle behavior and obtain review.
 - [x] Commit/push candidate; pass exact engineering/security/full browser release gates.
-- [ ] Deploy validated committed source, verify production and real authenticated course/lesson creation where session access permits.
-- [ ] Record evidence, limitations and final documentation separately from deployed SHA.
+- [x] Deploy validated committed source, verify production and real authenticated course/lesson creation.
+- [x] Record evidence, limitations and final documentation separately from deployed SHA.
 
 Current observation: create immediately sets recoverable state, which selects the recovery return before the older progress UI. The specific quoted error originates from the provider-call catch, which emits sanitized generation_provider_outcome_unknown telemetry. The provider causes and later real test are established in the evidence below.
 
@@ -92,15 +92,15 @@ Source52f3cc4 exact full40018545140passed (427matrixpass/4existing skips/no retr
 
 Real lesson0-0 now generated and rendered after automatic saved-stage continuation. However its content explicitly declares insufficient atomic evidence for the synthetic calculation outputs and scored feedback, requesting replanning. This is a concrete content-quality acceptance blocker; successful lesson transport is NOT a successful full learning flow. No publication, grounding bypass or synthetic success claim. Requires investigation of replan-required artifact admission and the evidence treatment of valid synthetic arithmetic. Final documentation is committed separately from deployed source.
 
-## October27 content-quality blocker resolution — started
+## October27 content-quality blocker resolution — completed October29
 
 Owner explicitly requests resolving the remaining blocker. Acceptance: derived calculations from declared synthetic inputs may teach a source-supported rule without invented citations; external factual/domain assertions remain grounded; a self-declared unable-to-deliver/replan-required artifact must never be saved as a ready lesson. Preserve existing data and saved identities, disabled billing/Spark, evaluation/idempotency/accounting fences.
 
 - [x] Reproduce rejected/accepted boundary in failing regressions.
 - [x] Align generation/verifier policy for transparent synthetic arithmetic; add fail-closed readiness guard.
 - [x] Run local verification and independent review; coherent candidate prepared for commit/push.
-- [ ] Pass exact engineering/security/full browser and actual Workers smoke before authorized deployment.
-- [ ] Verify live settings/assets and fresh real lesson learning flow; record source and later documentation SHA separately.
+- [x] Pass exact engineering/security/full browser and actual Workers smoke before authorized deployment.
+- [x] Verify live settings/assets and fresh real lesson learning flow; record source and later documentation separately.
 
 Diagnosis: generation prompt requires a separate atomic evidence claim for every factual sentence, including synthetic worked-example outputs. Independent grounding exempts hypotheticalscenarios but does not explain derivations. Readiness checks validate matching objective text/fieldbindings without detecting a lesson explicitly declaring the planned teaching unavailable. Proposed approach fixes both policy mismatch and admission; no automaticgroundingdowngrade or fictitioussourceclaims.
 
@@ -115,3 +115,19 @@ Exactfa20c3d engineering40566756900/all4jobs and security40566756781 pass. Clean
 Full40568025484 canceled after concrete live-log evidence: setup still downloaded from Azure because this runner resolves mirror:/etc/apt/apt-mirrors.txt, not only conventional source files. Both full/engineering workflows now rewrite that exact mirror-list too. No tests/security/retry thresholds changed. New regression failed before correction; final local validation and new candidate required. fa20c3d superseded before deployment, not full-regression-qualified.
 
 Mirror correction locally validated: contracts459/459; actual workflow setup script against isolated runner mirror-list fixture updates only expectedUbuntu mirror; types/lint/secrets pass, four existing warnings. Independent review clear. Azure mirror is solely the GitHub runner package-download source, not application hosting; application remains Cloudflare.
+
+Replacement frozen65ab93219628dcc598d15d44bf15dc6348f758f5 committed/pushed; engineering40569739479/security40569739427 and clean productionartifact qualification running. Full dispatch waits for engineering success. Production unchanged52f3cc4.
+
+Exact65ab932 engineering40569739479/all4jobs and security40569739427 pass; clean production OpenNext/actualWorkers4/4 and byte-identical productiondryrun pass, workerSHA-256ecbf7541aa74fcdef7c3b4adec9846c18892c881445474f151accbfdbbbe2e39. Full40570851568 dispatched19:37:53Z October27 after engineering, exact65ab932; final statusdeadline20:43Z. Production remains52f3cc4, rollbackf941ab28.
+
+During full regression, real owner UI created private arithmetic test course439d26d48a8b1044a97274d8912575c36efe5c20226217d56daddec2233bf1e2, two modules/five outlines. Saved-stage progress completed normally under production52f3cc4; no old identity reset. No new-course lesson generated yet; post-deploy target1.2 is a complete five-number worked mean (invented4,6,8,10,12→sum40/count5/mean8). Remains private/unpublished.
+
+Full40570851568 succeeded at exact65ab932 (source-sha artifact verified), matrix426passes +1configuredretry-success, four existing skips. Dedicated tier/command-center/UI/shared-evidence/API lanes pass. Existing owner-navigation WebKit accessibility test initially sampled darkforeground#f3eadc against lightsurface#f8f1e6 (contrast1.06; otherbuttons1.3); retrypassed. Independent review: transient theme/style sampling plausible, root cause unconfirmed; no persistent defect established. This is an open accessibility follow-up, not a no-retry result; no assertions/retries weakened. Supplemental local5Chromium repeats pending. Clean release preflight validates disabledbilling/Spark and exact productionD1/R2; rollbackf941ab28 remains current before deploy.
+
+## Final deployed acceptance — October29
+
+Deployed source65ab93219628dcc598d15d44bf15dc6348f758f5, activeversion78653d77-6107-4b5f-a80b-feabae06f0d5, deployment911f4ceb-d9a1-46cc-8c9e-208dd65e863a/100%. Rollbackf941ab28-5447-4676-b18d-ba5f6eea1e90 retained. Exact engineering40569739479/security40569739427/full40570851568 succeeded; full matrix426 first-attempt passes +1configuredretry-success/4existing skips. Supplemental Chromium contrast5/5 passed; WebKit-specific first-attempt contrast cause remains open. No test/assertion/retry policy bypass.
+
+Actual clean OpenNext Worker4/4 and byte-identical production dryrun qualified. Native authorized deployment used keep-vars and exact SITE_VERSION; default production refusal remains unchanged. Fresh public checks and20byte-matched assets pass. All non-version bindings/routes/subdomain deep-match predeploy snapshots, including seven secrets, productionD1/R2 and disabled billing/tax/Spark.
+
+Real private course439d26d… lesson0-1 generated complete worked arithmetic under a source-backed rule. Checked worked35/5=7, guided30/5=6, transfer25/5=5 and quiz40/5=8. Normal UI saved active/transfer responses and showed model answers; wrong-count quiz rejected, correct answer accepted, confidence completed. All4activities complete; lesson progress synced/review scheduled and evidence survives reload. Operation148e9773… terminalcompleted/lesson_committed, zero pending calls. Existing request identities/data intact; no publication or whole-course/capstone acceptance claimed. [Sanitized evidence](2026-10-29-lesson-readiness-evidence.json). Later documentation checkpoint is excluded from deployed65ab932.
