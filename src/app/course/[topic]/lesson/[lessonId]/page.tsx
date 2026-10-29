@@ -347,7 +347,6 @@ export default function LessonView() {
   const closeStudyToolsDrawer = studyToolsDrawer.closeDrawer;
   const tutorOpen = tutorDrawer.open;
   const studyToolsOpen = studyToolsDrawer.open;
-  const openTutorDrawer = tutorDrawer.openDrawer;
   const [activePracticeState, setActivePracticeState] = useState<{ key: string; index: number }>({ key: "", index: 0 });
   const [reviewVariantState, setReviewVariantState] = useState<{ key: string; id: string | null }>({ key: "", id: null });
   const [reviewCommitState, setReviewCommitState] = useState<{ key: string; committed: boolean }>({ key: "", committed: false });
@@ -516,15 +515,6 @@ export default function LessonView() {
       setGuidedPracticeState({ key: noteKey, complete: true });
     }
     setActivitySectionState({ key: lessonViewKey, id });
-  };
-
-  const openLessonChecks = () => {
-    selectLessonPane("activities");
-    setActivitySectionState({ key: lessonViewKey, id: "checks" });
-    closeStudyToolsDrawer();
-    window.setTimeout(() => {
-      document.getElementById("activity-checks-tab")?.scrollIntoView({ behavior: "smooth", block: "center" });
-    }, 180);
   };
 
   const handleActivityKeyDown = (event: React.KeyboardEvent<HTMLButtonElement>, index: number) => {
@@ -1197,13 +1187,6 @@ export default function LessonView() {
     requestAnimationFrame(() => tutorInputRef.current?.focus());
   };
 
-  const openTutorWithPrompt = (prompt: string) => {
-    setChatInput(prompt);
-    closeStudyToolsDrawer();
-    openTutorDrawer();
-    window.setTimeout(() => tutorInputRef.current?.focus(), 180);
-  };
-
   const updateExperienceEvidence = useCallback((value: LessonExperienceState) => {
     if (!isCurrentLearnerSession(session)) return;
     setExperienceState({ key: noteKey, value });
@@ -1428,8 +1411,8 @@ export default function LessonView() {
               <NotebookPen size={16} /> {studyToolsOpen ? "Close tools" : "Study tools"}
             </button>
             {user ? (
-              <button className={`button button-secondary button-small ${tutorOpen ? "is-active" : ""}`} onClick={tutorDrawer.toggleDrawer} aria-expanded={tutorOpen} aria-describedby={reviewRecallLocked ? "review-cues-locked" : undefined} disabled={reviewRecallLocked}>
-                <MessageSquareText size={16} /> {tutorOpen ? "Close tutor" : "Ask the tutor"}
+              <button className={`button button-secondary button-small ${tutorOpen ? "is-active" : ""}`} onClick={tutorDrawer.toggleDrawer} aria-label={tutorOpen ? "Close tutor" : "Ask the tutor"} aria-expanded={tutorOpen} aria-describedby={reviewRecallLocked ? "review-cues-locked" : undefined} disabled={reviewRecallLocked}>
+                <MessageSquareText size={16} /> <span className="lesson-tutor-label">{tutorOpen ? "Close tutor" : "Ask the tutor"}</span><span className="lesson-tutor-phone-label" aria-hidden="true">Tutor</span>
               </button>
             ) : (
               <span className="owner-only-note"><LockKeyhole size={14} /> Sign in for lesson help</span>
@@ -1751,33 +1734,16 @@ export default function LessonView() {
           {!reviewRecallLocked && !tutorOpen && studyToolsOpen && (
             <AppDrawer open={studyToolsOpen} onClose={studyToolsDrawer.closeDrawer} labelledBy="study-tools-title" size="medium" mobilePlacement="bottom" desktopPresentation="floating" draggable dragLabel="Study workspace window" className="lesson-study-app-drawer">
               <LessonStudyTools
-                lessonKey={noteKey}
                 courseId={courseId!}
                 courseTopic={topic}
                 lessonId={lessonId}
                 moduleIndex={moduleIndex}
-                lessonTitle={lesson.title}
                 lessonConcept={lesson.concept}
-                lessonContent={lessonData.content}
-                learningObjective={lessonData.learningObjective}
-                keyTakeaways={lessonData.keyTakeaways}
-                quizzes={lessonData.quizzes}
-                quizOutcomes={quizResults}
                 noteDraft={noteDraft}
                 onNoteChange={updateNoteDraft}
                 noteStatus={noteDeviceSaved === false && learnerSyncStatus !== "saved" ? "This browser could not save your draft. Keep this page open." : noteDraft !== (learnerState.notes[noteKey] ?? "") ? "Saved on this device" : learnerSyncStatus === "saving" ? "Saving…" : learnerSyncStatus === "error" ? learnerSyncError ?? "Could not save" : learnerSyncStatus === "saved" ? "Saved" : user ? "Synced" : "On this device"}
                 noteStatusIsError={learnerSyncStatus === "error"}
-                canUseTutor={Boolean(user)}
-                experienceAvailable={Boolean(lessonData.experience)}
-                experienceComplete={experienceComplete}
-                guidedPracticeAvailable={Boolean(lessonData.guidedPractice)}
-                guidedPracticeComplete={guidedPracticeComplete}
-                transferAvailable={Boolean(lessonData.transferTask)}
-                transferComplete={transferComplete}
-                checksComplete={checksComplete}
                 onClose={studyToolsDrawer.closeDrawer}
-                onOpenTutor={openTutorWithPrompt}
-                onOpenChecks={openLessonChecks}
               />
             </AppDrawer>
           )}

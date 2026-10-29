@@ -1,0 +1,36 @@
+/* Lesson-specific phone layout; desktop and study state are unchanged. */
+.lesson-tutor-phone-label { display: none; }
+@media (max-width: 640px) {
+  .lesson-page .lesson-toolbar { padding: 4px 12px; gap: 4px; }
+  .lesson-page .lesson-toolbar nav { min-height: 24px; font-size: 0.875rem; }
+  .lesson-page .lesson-toolbar-actions { gap: 6px; }
+  .lesson-page .lesson-toolbar-actions .button { padding-inline: 6px; gap: 4px; font-size: 0.875rem; white-space: nowrap; }
+  .lesson-page .lesson-tutor-label { display: none; }
+  .lesson-page .lesson-tutor-phone-label { display: inline; }
+  .lesson-page .reading-column { width: calc(100% - 32px); padding-bottom: 32px; }
+  .lesson-page .lesson-title-block { padding: 20px 0 16px; }
+  .lesson-page .lesson-title-block h1 { font-size: 1.8rem; line-height: 1.2; }
+  .lesson-page .lesson-mode-tabs > button { min-height: 48px; }
+  .lesson-page .lesson-activities-header { padding-top: 16px; }
+  .lesson-page .lesson-activities-header > header h2 { font-size: 1.125rem; }
+  .lesson-page .lesson-activities-header > header span { font-size: 0.875rem; }
+  .lesson-page .activity-section-tabs { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; overflow: visible; }
+  .lesson-page .activity-section-tabs > button { min-width: 0; min-height: 48px; padding: 8px; display: flex; align-items: center; gap: 8px; }
+  .lesson-page .activity-section-tabs strong { font-size: 0.875rem; }
+  .lesson-page .activity-section-tabs small { display: none; }
+  .lesson-study-panel .study-panel-heading { min-height: 64px; padding-block: 10px; }
+  .lesson-study-panel .study-tool-tabs > button { min-height: 48px; font-size: 1rem; }
+  .lesson-study-panel .study-tool-panel { padding: 16px max(16px, env(safe-area-inset-right)) max(20px, env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left)); }
+  .lesson-study-panel .study-section-intro { flex-wrap: wrap; gap: 8px; }
+  .lesson-study-panel .study-section-intro p,
+  .lesson-study-panel .study-key-point p { font-size: 1rem; }
+  .lesson-study-panel .study-save-state { font-size: 0.875rem; }
+  .lesson-study-panel .lesson-note-section textarea { min-height: 160px; height: 26dvh; font-size: 1rem; }
+  .tutor-drawer .tutor-header { min-height: 68px; padding-block: 10px; }
+  .tutor-drawer .tutor-message > div { font-size: 1rem; }
+  .tutor-drawer .tutor-starters strong { font-size: 1rem; }
+  .tutor-drawer .tutor-starters small,
+  .tutor-drawer .tutor-composer label,
+  .tutor-drawer .tutor-composer-meta small { font-size: 0.875rem; }
+  .tutor-drawer .tutor-composer textarea { min-height: 72px; font-size: 1rem; }
+}

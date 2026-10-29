@@ -1132,3 +1132,53 @@ test("completes a due seven-day retention check from the review queue", async ({
     },
   });
 });
+
+test("phone lesson keeps tools readable and activity choices compact", async ({ page }) => {
+  await page.setViewportSize({ width: 360, height: 640 });
+  await restoreLocalLearner(page);
+  await mockOwnerLearnerAccount(page);
+  await page.route(`**/api/courses/${courseId}`, (route) => route.fulfill({ json: { ...course, canManage: true } }));
+  await page.route(`**/api/courses/${courseId}/lessons/0-0`, (route) => route.fulfill({ json: lessonOne }));
+  await page.goto(`/course/${encodeURIComponent(topic)}/lesson/0-0?id=${courseId}`);
+  await expect(page.getByRole("heading", { level: 1, name: "Evidence before inference" })).toBeVisible();
+  for (const width of [320, 360, 430]) {
+    await page.setViewportSize({ width, height: 640 });
+    await expect.poll(() => page.locator(".lesson-toolbar").evaluate((node) => node.getBoundingClientRect().height)).toBeLessThanOrEqual(84);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+  }
+  await page.setViewportSize({ width: 360, height: 640 });
+  await page.getByRole("tab", { name: /Activities/ }).click();
+  const activities = page.getByRole("tablist", { name: "Lesson activities" });
+  await expect(activities).toBeVisible();
+  await expect.poll(() => activities.evaluate((node) => node.scrollWidth <= node.clientWidth)).toBe(true);
+  await expect.poll(() => activities.evaluate((node) => node.getBoundingClientRect().height)).toBeLessThanOrEqual(112);
+  await page.getByRole("button", { name: "Study tools", exact: true }).click();
+  await expect(page.getByRole("tab", { name: "Next steps", exact: true })).toHaveCount(0);
+  const note = page.getByRole("textbox", { name: "Your notes", exact: true });
+  await expect(note).toBeVisible();
+  await expect.poll(() => note.evaluate((node) => parseFloat(getComputedStyle(node).fontSize))).toBeGreaterThanOrEqual(16);
+  await note.fill("Keep my phone note.");
+  await page.getByRole("button", { name: "Close study tools", exact: true }).click();
+  await page.getByRole("button", { name: "Study tools", exact: true }).click();
+  await expect(note).toHaveValue("Keep my phone note.");
+  await page.getByRole("button", { name: "Close study tools", exact: true }).click();
+  await page.getByRole("button", { name: "Ask the tutor", exact: true }).click();
+  const tutor = page.getByRole("dialog", { name: "Ask the tutor", exact: true });
+  await expect(tutor).toBeVisible();
+  await page.evaluate(() => {
+    const viewport = window.visualViewport!;
+    Object.defineProperty(viewport, "height", { configurable: true, get: () => 330 });
+    Object.defineProperty(viewport, "offsetTop", { configurable: true, get: () => 24 });
+    viewport.dispatchEvent(new Event("resize"));
+    viewport.dispatchEvent(new Event("scroll"));
+  });
+  const input = tutor.getByRole("textbox", { name: "Ask about this lesson", exact: true });
+  await input.fill("Help me compare the evidence.");
+  await expect.poll(() => input.evaluate((node) => parseFloat(getComputedStyle(node).fontSize))).toBeGreaterThanOrEqual(16);
+  for (const action of [tutor.getByRole("button", { name: "Send question", exact: true }), tutor.getByRole("button", { name: "Close tutor", exact: true })]) {
+    await expect.poll(() => action.evaluate((node) => {
+      const bounds = node.getBoundingClientRect();
+      return bounds.top >= 24 && bounds.bottom <= 354;
+    })).toBe(true);
+  }
+});
