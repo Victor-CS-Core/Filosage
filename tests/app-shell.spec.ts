@@ -1584,9 +1584,19 @@ test.describe("mobile application shell", () => {
     expect(metrics.navigationRight).toBe(metrics.viewportWidth);
     expect(metrics.labels).toHaveLength(4);
     expect(metrics.labels.every((label) => label.contained)).toBe(true);
-    expect(metrics.labels.every((label) => label.fullyReadable && label.whiteSpace === "nowrap"), JSON.stringify(metrics.labels)).toBe(true);
+    expect(metrics.labels.every((label) => label.fullyReadable), JSON.stringify(metrics.labels)).toBe(true);
     expect(metrics.activeBackgroundImage).toContain("data:image/svg+xml");
     await expectNoHorizontalPageOverflow(page);
+    await page.evaluate(() => { document.documentElement.style.fontSize = "200%"; });
+    await expect.poll(() => navigation.evaluate((node) => [...node.querySelectorAll("a > span")].every((label) => label.scrollWidth <= label.clientWidth))).toBe(true);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(320);
+    const brand = await page.locator(".brand-mobile > .brand-wordmark").boundingBox();
+    const actions = await page.locator(".learner-mobile-actions").boundingBox();
+    expect(brand!.x + brand!.width).toBeLessThanOrEqual(actions!.x);
+
+    const mainClearance = await page.locator(".app-main").evaluate((node) => parseFloat(getComputedStyle(node).paddingBottom));
+    expect(mainClearance).toBeGreaterThanOrEqual((await navigation.boundingBox())!.height);
+
     if (process.env.CAPTURE_DASHBOARD === "1") {
       await page.screenshot({ path: ".impeccable/review/mobile-bottom-navigation.png", fullPage: false });
     }

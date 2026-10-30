@@ -1,6 +1,10 @@
 # Filosage current state
 
-Last materially updated: October 29, 2026.
+Last materially updated: October 30, 2026.
+
+## Active request: phone UX improvements, followed by Spark review and activation
+
+Owner explicitly requested broad phone-layout/UX fixes, then Spark readiness review/activation and reduction of unnecessary redundancy. [Persistent outcome checklist](releases/2026-10-29-mobile-ux-spark.md). Audit/research complete; lesson/shell changes are integrated as local commits e589a37 and 6477afb, with shared overlays and final phone regressions validated locally. 459 contracts and 15 selected Chromium phone/learning-flow checks pass; final lesson follow-up1/1, types/lint/wiki/units pass (four existing lint warnings, three moderate dependency findings). Independent review findings on Support keyboard placement and 200% wordmark overlap are fixed and tested. Local WebKit lacks host libraries; hosted full WebKit remains required. Preparing a frozen release candidate; nothing from this request is deployed yet. No production change yet. [Implementation plan](superpowers/plans/2026-10-29-phone-ux.md). Existing deployed lesson release below is the verified baseline. Spark's prior disabled constraint is superseded only for this explicitly authorized, readiness-gated activation; billing remains disabled/closed/tax false. Preserve all data, secrets/routes and evaluation/idempotency/credit controls. Mobile improvement release precedes Spark activation.
 
 ## Current outcome: lesson-quality blocker resolved, deployed and authenticated flow verified
 
@@ -32,7 +36,7 @@ Fresh authenticated course creation and one complete worked lesson are verified 
 
 ## Standing constraints
 
-Keep `BILLING_ENABLED=false`, `BILLING_ROLLOUT_MODE=closed`, `STRIPE_TAX_READY=false` and all five Spark activation flags false. Preserve production secrets, routing, application D1/R2, user data and saved request identities. Never bypass evaluation approval, generation idempotency or credit controls; never deploy uncommitted source, mix staging/production storage, perform destructive application migrations or unrelated refactoring. Public health and simulated/client regressions do not prove authenticated generation. Real authenticated course creation and one complete lesson/activity/scored-check flow are verified above. Whole-course/capstone acceptance is not claimed. Separate paid/Spark legal/provider/evaluation gates, iOS lesson-sync acceptance and D1/R2 backup/restore proof remain open. Do not alter Azure resources or OpenAI proxy.
+Keep `BILLING_ENABLED=false`, `BILLING_ROLLOUT_MODE=closed`, `STRIPE_TAX_READY=false`. Spark stays disabled until the newly authorized mobile-first readiness/activation work satisfies its gates. Preserve production secrets, routing, application D1/R2, user data and saved request identities. Never bypass evaluation approval, generation idempotency or credit controls; never deploy uncommitted source, mix staging/production storage, perform destructive application migrations or unrelated refactoring. Public health and simulated/client regressions do not prove authenticated generation. Real authenticated course creation and one complete lesson/activity/scored-check flow are verified above. Whole-course/capstone acceptance is not claimed. Separate paid/Spark legal/provider/evaluation gates, iOS lesson-sync acceptance and D1/R2 backup/restore proof remain open. Do not alter Azure resources or OpenAI proxy.
 
 ## Maintenance contract
 

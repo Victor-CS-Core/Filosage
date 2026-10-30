@@ -2,7 +2,7 @@
 @media (max-width: 900px) {
   .learner-shell {
     --mobile-header-height: calc(58px + env(safe-area-inset-top, 0px));
-    --mobile-nav-height: calc(68px + max(6px, env(safe-area-inset-bottom, 0px)));
+    --mobile-nav-height: calc(max(68px, 3.75rem) + max(6px, env(safe-area-inset-bottom, 0px)));
     --mobile-content-clearance: calc(var(--mobile-nav-height) + 24px);
   }
 
@@ -19,6 +19,11 @@
     scroll-padding-top: 16px;
   }
 
+  .learner-shell .brand-mobile { min-width: 0; }
+  .learner-shell .brand-mobile > .brand-wordmark { min-width: 0; overflow: hidden; }
+  .learner-shell .brand-mobile .brand-wordmark { white-space: nowrap; }
+  .learner-shell .learner-mobile-actions { flex-shrink: 0; }
+
   .learner-shell .mobile-command-trigger { width: 44px; height: 44px; }
   .learner-shell .mobile-account-trigger { min-height: 44px; }
   .learner-shell .mobile-bottom-nav { padding-inline: max(8px, env(safe-area-inset-left, 0px)) max(8px, env(safe-area-inset-right, 0px)); }
@@ -33,7 +38,7 @@
     box-shadow: inset 0 0 0 1px #E4866E;
   }
   .learner-shell .mobile-bottom-nav > .mobile-create.is-active { box-shadow: inset 0 0 0 2px #28C7B5; }
-  .learner-shell .mobile-bottom-nav > a > span { padding-inline: 0; text-overflow: clip; }
+  .learner-shell .mobile-bottom-nav > a > span { padding-inline: 0; white-space: normal; overflow: visible; overflow-wrap: anywhere; text-overflow: clip; line-height: 1.2; }
 
   :is(.library-page, .profile-page, .admin-page, .create-studio) :is(.button, .text-button),
   .library-job-starts button,

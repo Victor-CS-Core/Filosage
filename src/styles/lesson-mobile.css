@@ -15,8 +15,8 @@
   .lesson-page .lesson-activities-header > header h2 { font-size: 1.125rem; }
   .lesson-page .lesson-activities-header > header span { font-size: 0.875rem; }
   .lesson-page .activity-section-tabs { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; overflow: visible; }
-  .lesson-page .activity-section-tabs > button { min-width: 0; min-height: 48px; padding: 8px; display: flex; align-items: center; gap: 8px; }
-  .lesson-page .activity-section-tabs strong { font-size: 0.875rem; }
+  .lesson-page .activity-section-tabs > button { min-width: 0; min-height: 48px; padding: 6px; display: flex; align-items: center; gap: 8px; }
+  .lesson-page .activity-section-tabs strong { font-size: 0.875rem; white-space: normal; overflow: visible; text-overflow: clip; line-height: 1.25; }
   .lesson-page .activity-section-tabs small { display: none; }
   .lesson-study-panel .study-panel-heading { min-height: 64px; padding-block: 10px; }
   .lesson-study-panel .study-tool-tabs > button { min-height: 48px; font-size: 1rem; }

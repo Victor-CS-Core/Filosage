@@ -68,6 +68,7 @@ export const singleEngineSuites = [
 ] as const;
 
 export const deviceSensitiveSuites = [
+  "tests/mobile-overlays.spec.ts",
   "tests/visitor-release.spec.ts",
   "tests/analytics-consent.spec.ts",
   "tests/app-shell.spec.ts",
@@ -115,17 +116,18 @@ export const browserSuitesByProject: Record<BrowserProjectName, readonly string[
 
 export const browserSuiteEstimatedTestLoad: Record<BrowserProjectName, Record<string, number>> = {
   chromium: {
+    "tests/mobile-overlays.spec.ts": 3,
     "tests/visitor-release.spec.ts": 8,
     "tests/account-storage-isolation.spec.ts": 5,
     "tests/account-onboarding.spec.ts": 7,
     "tests/admin-research-layout.spec.ts": 2,
     "tests/analytics-consent.spec.ts": 3,
-    "tests/app-shell.spec.ts": 32,
+    "tests/app-shell.spec.ts": 36,
     "tests/auth-accessibility.spec.ts": 7,
     "tests/auth-linking.spec.ts": 47,
     "tests/billing-lifecycle.spec.ts": 23,
     "tests/command-center.spec.ts": 14,
-    "tests/course-learning-flow.spec.ts": 7,
+    "tests/course-learning-flow.spec.ts": 8,
     "tests/example.spec.ts": 76,
     "tests/external-id-branding.spec.ts": 10,
     "tests/flashcard-system.spec.ts": 9,
@@ -145,20 +147,22 @@ export const browserSuiteEstimatedTestLoad: Record<BrowserProjectName, Record<st
     "tests/tier-consistency-ui.spec.ts": 1,
   },
   "mobile-chromium": {
+    "tests/mobile-overlays.spec.ts": 3,
     "tests/visitor-release.spec.ts": 7,
     "tests/analytics-consent.spec.ts": 1,
-    "tests/app-shell.spec.ts": 13,
+    "tests/app-shell.spec.ts": 17,
     "tests/auth-accessibility.spec.ts": 7,
     "tests/example.spec.ts": 7,
     "tests/landing-motion.spec.ts": 2,
     "tests/pricing-mobile.spec.ts": 1,
   },
   "mobile-webkit": {
+    "tests/mobile-overlays.spec.ts": 3,
     "tests/visitor-release.spec.ts": 7,
     "tests/analytics-consent.spec.ts": 3,
-    "tests/app-shell.spec.ts": 15,
+    "tests/app-shell.spec.ts": 19,
     "tests/auth-accessibility.spec.ts": 7,
-    "tests/course-learning-flow.spec.ts": 1,
+    "tests/course-learning-flow.spec.ts": 2,
     "tests/example.spec.ts": 8,
     "tests/landing-motion.spec.ts": 2,
     "tests/pricing-mobile.spec.ts": 1,

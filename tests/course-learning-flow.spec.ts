@@ -1,4 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
+import { EMPTY_LEARNER_STATE } from "../src/lib/learner-state";
 import type { Course, LessonData } from "../src/lib/course-types";
 import type { CapstoneAssessment, CourseProgress, ProgressUpdate } from "../src/lib/learning-types";
 import type { LearningOutcomePlan, MasteryEvidence } from "../src/lib/mastery";
@@ -1133,7 +1134,9 @@ test("completes a due seven-day retention check from the review queue", async ({
   });
 });
 
-test("phone lesson keeps tools readable and activity choices compact", async ({ page }) => {
+test("phone lesson keeps tools readable and activity choices compact", { tag: "@webkit" }, async ({ page }, testInfo) => {
+  await page.route("**/api/learner-state", (route) => route.fulfill({ json: EMPTY_LEARNER_STATE }));
+  await page.route("**/api/progress*", (route) => route.fulfill({ json: { progress: new URL(route.request().url()).searchParams.has("courseId") ? null : [] } }));
   await page.setViewportSize({ width: 360, height: 640 });
   await restoreLocalLearner(page);
   await mockOwnerLearnerAccount(page);
@@ -1150,8 +1153,15 @@ test("phone lesson keeps tools readable and activity choices compact", async ({ 
   await page.getByRole("tab", { name: /Activities/ }).click();
   const activities = page.getByRole("tablist", { name: "Lesson activities" });
   await expect(activities).toBeVisible();
+  await page.setViewportSize({ width: 320, height: 640 });
+  for (const label of await activities.locator("strong").all()) {
+    expect(await label.evaluate((node) => node.scrollWidth <= node.clientWidth)).toBe(true);
+  }
   await expect.poll(() => activities.evaluate((node) => node.scrollWidth <= node.clientWidth)).toBe(true);
   await expect.poll(() => activities.evaluate((node) => node.getBoundingClientRect().height)).toBeLessThanOrEqual(112);
+  await page.setViewportSize({ width: 390, height: 844 });
+  await expect.poll(async () => (await page.locator("#lesson-active-activity").boundingBox())!.y).toBeLessThan(700);
+  await page.screenshot({ path: testInfo.outputPath("phone-lesson-activities.png"), fullPage: false });
   await page.getByRole("button", { name: "Study tools", exact: true }).click();
   await expect(page.getByRole("tab", { name: "Next steps", exact: true })).toHaveCount(0);
   const note = page.getByRole("textbox", { name: "Your notes", exact: true });

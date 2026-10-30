@@ -225,7 +225,7 @@ test("every Playwright spec belongs to exactly one execution lane", async () => 
   expect(contractSuites).toHaveLength(37);
   expect(apiSuites).toHaveLength(2);
   expect(singleEngineSuites).toHaveLength(19);
-  expect(deviceSensitiveSuites).toHaveLength(9);
+  expect(deviceSensitiveSuites).toHaveLength(10);
   expect(dedicatedSuites).toHaveLength(4);
 });
 
@@ -507,14 +507,16 @@ test("mobile projects execute only explicitly owned cross-device behavior", () =
   // The audited owner-navigation/creation contrast and retry regression adds
   // exactly one explicitly owned case to each existing project inventory.
   // Keep bounded budgets as well as exact suite ownership so mobile coverage cannot grow unnoticed.
-  expect(mobileChromium.count).toBeLessThanOrEqual(45);
-  expect(mobileWebkit.count).toBeLessThanOrEqual(52);
+  expect(mobileChromium.count).toBeLessThanOrEqual(52);
+  expect(mobileWebkit.count).toBeLessThanOrEqual(60);
   // September 13: one desktop-only hosted CSS sanitizer regression adds one case.
   // October 14: the owner course-creation recovery regression (a saved owner
   // request retries without evaluation headers, preserving its idempotency
   // key) adds one desktop case.
   // October 21: active progress, automatic reconciliation and stale-ID polling add three desktop cases.
-  expect(chromium.count + mobileChromium.count + mobileWebkit.count).toBeLessThanOrEqual(431);
+  // October 30 phone UX: four shell cases in all three projects, three
+  // visible-viewport cases in all three, and one lesson case in Chromium/WebKit.
+  expect(chromium.count + mobileChromium.count + mobileWebkit.count).toBeLessThanOrEqual(454);
 });
 
 test("release workflows accept only exact successful workflow evidence", () => {

@@ -1,0 +1,29 @@
+/* Visible-viewport dimensions are scoped to each open overlay, never the page. */
+@media (max-width: 900px) {
+  .app-drawer {
+    top: auto;
+    bottom: var(--overlay-bottom, 0px);
+    max-height: calc(var(--overlay-height, 100dvh) - 16px);
+  }
+  .app-drawer-mobile-full {
+    height: calc(100dvh - var(--mobile-header-height, 58px));
+  }
+  .command-palette {
+    position: fixed;
+    inset: var(--overlay-top, 0px) 0 auto;
+    height: var(--overlay-height, 100dvh);
+    padding: max(12px, env(safe-area-inset-top)) max(10px, env(safe-area-inset-right)) max(12px, env(safe-area-inset-bottom)) max(10px, env(safe-area-inset-left));
+  }
+  .command-palette-surface { max-height: 100%; }
+  .command-palette-results { min-height: 0; }
+  .command-palette-search { min-height: 60px; gap: 8px; padding-inline: 12px; }
+  .command-palette-search kbd { display: none; }
+  .command-palette-close { width: 44px; height: 44px; flex: 0 0 auto; }
+  .command-palette-row strong { font-size: 1rem; }
+  .command-palette-row small { font-size: 0.875rem; white-space: normal; }
+  .command-palette-row > p, .command-palette-footer { font-size: 0.875rem; }
+  .app-drawer-header { padding: 16px; }
+  .app-drawer-header p { font-size: 0.875rem; }
+  .app-drawer-body { padding: 16px; scroll-padding-block: 16px; }
+  .app-drawer :is(input, textarea, select) { font-size: 1rem; }
+}

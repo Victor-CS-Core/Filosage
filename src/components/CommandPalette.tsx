@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { ArrowRight, Moon, Search, Sun, X, type LucideIcon } from "lucide-react";
+import { useVisibleViewport } from "@/components/hooks/useVisibleViewport";
 import { matchesSearchQuery } from "@/lib/search";
 
 export interface CommandPaletteItem {
@@ -31,6 +32,7 @@ function commandOptionId(itemId: string) {
 
 export default function CommandPalette({ open, items, theme, onClose, onSelect, onToggleTheme }: CommandPaletteProps) {
   const dialogRef = useRef<HTMLDialogElement>(null);
+  useVisibleViewport(dialogRef, open);
   const inputRef = useRef<HTMLInputElement>(null);
   const [query, setQuery] = useState("");
   const [activeIndex, setActiveIndex] = useState(0);

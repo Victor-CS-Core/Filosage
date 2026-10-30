@@ -623,13 +623,13 @@
   .tooltip { display: none; }
 
   .drawer:global(.app-drawer-mobile-bottom) {
-    inset: auto 0 0;
+    inset: auto 0 var(--overlay-bottom, 0px);
     width: 100%;
     height: min(82dvh, calc(100dvh - 58px - env(safe-area-inset-bottom)));
   }
 
   .drawer.withMobileNav:global(.app-drawer-mobile-bottom) {
-    inset-block-end: calc(72px + env(safe-area-inset-bottom));
+    inset-block-end: max(var(--overlay-bottom, 0px), calc(72px + env(safe-area-inset-bottom)));
     height: min(82dvh, calc(100dvh - 58px - 72px - env(safe-area-inset-bottom)));
   }
 

@@ -68,7 +68,7 @@ test("documents the complete lesson workspace, interactive practice, bookmarks, 
   expect(articleBody("complete-a-lesson")).toContain("guided practice");
   expect(articleBody("complete-a-lesson")).toContain("focused retry");
   expect(articleBody("complete-a-lesson")).toContain("Bookmark lesson");
-  expect(articleBody("use-study-tools")).toContain("Notes, Flashcards, and Next steps");
+  expect(articleBody("use-study-tools")).toContain("Notes and Flashcards");
   expect(articleBody("use-study-tools")).toContain("Enter sends");
   expect(articleBody("use-study-tools")).toContain("Shift+Enter");
   expect(articleBody("use-study-tools")).toContain("verify important answers");

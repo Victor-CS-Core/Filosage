@@ -1454,7 +1454,7 @@ export default function LessonView() {
 
               {lessonPane === "activities" && (
                 <div className="lesson-activities-header">
-                  <header><div><p>Practice studio</p><h2>Turn the lesson into evidence</h2><span>Complete one focused activity at a time. Your drafts stay private.</span></div><strong>{completedActivityCount}/{activitySections.length}</strong></header>
+                  <header><div><h2>Practice activities</h2><span>Your drafts stay private.</span></div><strong>{completedActivityCount}/{activitySections.length}</strong></header>
                   {activitySections.length > 0 && (
                     <div className="activity-section-tabs" role="tablist" aria-label="Lesson activities">
                       {activitySections.map((section, index) => {

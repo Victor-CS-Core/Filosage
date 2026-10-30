@@ -3,15 +3,15 @@ import { defineSupportArticle } from "../types";
 export default defineSupportArticle({
   slug: "use-study-tools",
   title: "Use lesson study tools",
-  summary: "Take notes, generate a grounded lesson deck on command, and choose the next practice action.",
+  summary: "Take notes and generate a grounded lesson deck on command.",
   category: "practice",
-  keywords: ["study tools", "notes", "flashcards", "recall", "tutor", "ask Filosage", "next steps"],
-  reviewedOn: "2026-08-16",
+  keywords: ["study tools", "notes", "flashcards", "recall", "tutor", "ask Filosage", "activities"],
+  reviewedOn: "2026-10-29",
   sources: ["src/components/LessonStudyTools.tsx", "src/components/flashcards/FlashcardStudio.tsx", "src/components/flashcards/FlashcardReviewer.tsx", "src/app/course/[topic]/lesson/[lessonId]/page.tsx"],
   body: `
 ## Open the study workspace
 
-Choose **Study tools** from an open lesson. The workspace contains **Notes, Flashcards, and Next steps** when the lesson provides the required material.
+Choose **Study tools** from an open lesson. The workspace contains **Notes and Flashcards** when your account includes lesson flashcards.
 
 ## Take notes
 
@@ -25,7 +25,7 @@ Choose a saved lesson deck, think before revealing the answer, then rate recall 
 
 ## Choose a next step
 
-The Next steps tab can open lesson checks or, when Tutor is available to your account, start a teach-back or fresh-example prompt. Tutor practice requires sign-in and may be unavailable when account access or usage limits do not allow it.
+Open **Activities** in the lesson for scored checks and practice. For a teach-back or fresh example, use **Ask the tutor** directly. Tutor practice requires sign-in and may be unavailable when account access or usage limits do not allow it.
 
 ## Ask the tutor about the lesson
 

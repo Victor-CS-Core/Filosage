@@ -10,6 +10,7 @@ import {
   useState,
   type ReactNode,
 } from "react";
+import { useVisibleViewport } from "@/components/hooks/useVisibleViewport";
 import { GripHorizontal } from "lucide-react";
 
 type DrawerPlacement = "end" | "bottom";
@@ -123,6 +124,7 @@ export default function AppDrawer({
   children,
 }: AppDrawerProps) {
   const dialogRef = useRef<HTMLDialogElement>(null);
+  useVisibleViewport(dialogRef, open);
   const onCloseRef = useRef(onClose);
   const closeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const settleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
