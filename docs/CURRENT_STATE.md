@@ -1,5 +1,9 @@
 # Filosage current state
 
+## November 8: incomplete draft validation correction
+
+Owner authorized fixing, committing, pushing and deploying the missing-lesson validation bug. See [release checklist](releases/2026-11-08-validation-missing-lessons.md). Route-level regression reproduced the reported 409; missing lesson fingerprints now use null consistently with transaction reads. Publication fixture41/41 passes including partial drafts and concurrent creation refusal. TypeScript/lint and unit checks pass; four prior navigation warnings remain. OpenNext build succeeds; local Worker smoke is blocked by host uv_interface_addresses. Wrangler and CLI Git lack authentication in this workspace. No production changes occurred; remote release gates and deployment remain pending.
+
 Last materially updated: October 30, 2026.
 
 ## Active request: phone UX improvements, followed by Spark review and activation

@@ -53,7 +53,7 @@ async function handleGET(
           course: publicationContentFingerprint(course),
           lessons: Object.fromEntries(lessonIds.map((lessonId) => [
             lessonId,
-            publicationContentFingerprint(lessonById.get(lessonId)),
+            publicationContentFingerprint(lessonById.get(lessonId) ?? null),
           ])),
         },
         nextStage,

@@ -577,3 +577,34 @@ test("proof token identity survives JSONB object-key ordering without dropping e
   assert.equal(publicationProofIsCurrent(reordered(value.course) as Record<string, unknown>,
     value.lessons.map((lesson) => reordered(lesson) as Record<string, unknown>), value.ids, value.proof.snapshotHash, storedProof), true);
 });
+
+test("outline-only and partial drafts return missing-lesson reports instead of stale snapshots", async () => {
+  const headers = await proofTokenOwner();
+  const { GET } = await import("../../src/app/api/courses/[courseId]/validation/route.ts");
+  for (const count of [0, 1]) {
+    const value = candidate();
+    value.course.id = `incomplete-proof-${count}`;
+    await putStoredDocument(`courses/${value.course.id}`, value.course);
+    for (const lesson of value.lessons.slice(0, count)) await putStoredDocument(`courses/${value.course.id}/lessons/${lesson.id}`, lesson);
+    const response = await GET(new Request(`http://localhost:3000/api/courses/${value.course.id}/validation`, { headers }), { params: Promise.resolve({ courseId: String(value.course.id) }) });
+    const body = await response.json();
+    assert.equal(response.status, 200, JSON.stringify(body));
+    assert.equal(body.validationReport.publishable, false);
+    assert(body.validationReport.issues.some((issue: { message: string }) => issue.message === "The outlined lesson has not been generated."));
+    const stored = await getStoredDocument(`courses/${value.course.id}`);
+    assert.equal(stored?.pipelineStage, "needs_repair");
+    assert.notEqual(stored?.isPublic, true);
+  }
+});
+
+test("a lesson created after an absent snapshot still invalidates validation", async () => {
+  const value = candidate();
+  value.course.id = "concurrent-missing-proof";
+  const { publicationContentFingerprint } = await import("../../src/lib/publication-content.ts");
+  const { commitCourseValidationStage } = await import("../../src/lib/document-store.ts");
+  await putStoredDocument(`courses/${value.course.id}`, value.course);
+  const fingerprints = { course: publicationContentFingerprint(value.course), lessons: Object.fromEntries(value.ids.map(id => [id, publicationContentFingerprint(null)])) };
+  await putStoredDocument(`courses/${value.course.id}/lessons/${value.lessons[0].id}`, value.lessons[0]);
+  await assert.rejects(commitCourseValidationStage(String(value.course.id), value.ids, fingerprints, "needs_repair", { decision: "blocked", snapshotHash: "old-snapshot" }), /STALE_VALIDATION_SNAPSHOT/);
+  assert.equal((await getStoredDocument(`courses/${value.course.id}`))?.publicationProof, undefined);
+});
