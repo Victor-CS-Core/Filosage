@@ -23,9 +23,9 @@
   width: 32px;
   height: 32px;
   overflow: visible;
-  fill: currentColor;
-  stroke: var(--brand-navy);
-  stroke-width: 1.75px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2px;
   stroke-linejoin: round;
   paint-order: stroke fill;
   transition: transform var(--motion-feedback) var(--ease-out);

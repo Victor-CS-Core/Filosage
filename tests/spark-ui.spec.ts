@@ -2,7 +2,7 @@ import AxeBuilder from "@axe-core/playwright";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import { expect, test } from "@playwright/test";
-import { restoreLocalLearner } from "./fixtures/local-learner";
+import { mockOwnerLearnerAccount, restoreLocalLearner } from "./fixtures/local-learner";
 import { PRIVACY_VERSION, TERMS_VERSION } from "../src/lib/legal";
 
 const course = {
@@ -42,6 +42,7 @@ const manifest = {
 } as const;
 
 test("Spark remains usable, accessible, and contained without live AI", async ({ page }, testInfo) => {
+  test.skip(process.env.SPARK_UI_PUBLIC_ENABLED === "false", "Enabled Spark flows run in the enabled-public build.");
   let tutorTurnRequests = 0;
   await restoreLocalLearner(page);
   await page.route("**/api/courses/spark-ui-course", (route) => route.fulfill({ json: course }));
@@ -175,7 +176,10 @@ const sparkStatePayload = {
 } as const;
 
 test("a Spark 401 with a valid central session keeps the learner signed in and offers retry", async ({ page }) => {
+  test.skip(process.env.SPARK_UI_PUBLIC_ENABLED === "false", "Enabled Spark flows run in the enabled-public build.");
   await restoreLocalLearner(page);
+  // Local auth uses a bearer-backed learner rather than a browser session cookie.
+  await page.route("**/api/auth/session", route => route.fulfill({ json: { user: { uid: "local-owner" } } }));
   await page.route("**/api/courses/spark-ui-course", (route) => route.fulfill({ json: course }));
   await page.route("**/api/courses/spark-ui-course/lessons/0-0", (route) => route.fulfill({ json: lesson }));
   let stateCalls = 0;
@@ -204,21 +208,15 @@ test("a Spark 401 with a valid central session keeps the learner signed in and o
 });
 
 test("a Spark 401 with an ended central session asks for sign-in without leaving the lesson", async ({ page }) => {
+  test.skip(process.env.SPARK_UI_PUBLIC_ENABLED === "false", "Enabled Spark flows run in the enabled-public build.");
   await restoreLocalLearner(page);
   // Serve the real session until expiry is armed, then the same body with a
   // null user: the central endpoint definitively reporting no session.
-  let sessionBody: unknown = null;
   let expired = false;
-  await page.route("**/api/auth/session", async (route) => {
-    if (expired) {
-      const body = structuredClone(sessionBody) as { user: unknown };
-      body.user = null;
-      return route.fulfill({ json: body });
-    }
-    const response = await route.fetch();
-    sessionBody = await response.json();
-    return route.fulfill({ response });
-  });
+  await page.route("**/api/auth/session", route => route.fulfill({ json: {
+    user: expired ? null : { uid: "local-owner" },
+    authentication: { primaryProvider: "filosage", externalIdAvailable: true, externalIdNewAccountsAvailable: true, legacyGoogleAvailable: false },
+  } }));
   await page.route("**/api/courses/spark-ui-course", (route) => route.fulfill({ json: course }));
   await page.route("**/api/courses/spark-ui-course/lessons/0-0", (route) => route.fulfill({ json: lesson }));
   // Hold the Spark probe until the session is armed as expired, so the 401
@@ -239,6 +237,141 @@ test("a Spark 401 with an ended central session asks for sign-in without leaving
   releaseState();
   // Only now — confirmed session invalidation — is the learner asked to sign
   // in, and the lesson location is preserved.
-  await expect(page.locator(".marketing-nav-shell").getByRole("button", { name: "Sign in" })).toBeVisible();
+  // This local server has external sign-in disabled. Verify the signed-out
+  // lesson gate rather than a desktop-only marketing navigation button.
+  await expect(page.getByRole("heading", { name: "Open the lesson when you’re signed in" })).toBeVisible();
+  await expect(page.getByRole("button", { name: /Open My Courses/ })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Sign-in unavailable" })).toBeVisible();
   await expect(page).toHaveURL(/spark=1/);
+});
+
+
+async function mockSparkEntry(page: import("@playwright/test").Page, availability: "live" | "practice_only" = "live") {
+  await restoreLocalLearner(page);
+  await mockOwnerLearnerAccount(page);
+  await page.route("**/api/courses/spark-ui-course", route => route.fulfill({ json: course }));
+  await page.route("**/api/courses/spark-ui-course/lessons/0-0", route => route.fulfill({ json: lesson }));
+  let stateRequests = 0;
+  await page.route("**/api/spark/courses/spark-ui-course/state*", route => {
+    stateRequests++;
+    return route.fulfill({ json: { featureEnabled: true, availability, course: { id: course.id, topic: course.topic }, lesson: { id: "0-0", title: "A first neuron", version: manifest.lessonVersion, content: lesson.content }, currentStage: "practice", manifest, preparation: "ready", evidence: { records: 0, demonstrated: 0 }, review: { due: false, nextReviewAt: null }, entitlement: { questionsRemaining: 5, resetAt: null } } });
+  });
+  await page.route("**/api/spark/sessions", route => route.fulfill({ json: { session: { id: "session-ui", lessonVersion: manifest.lessonVersion, stage: "practice" }, manifest } }));
+  await page.route("**/api/spark/sessions/session-ui?*", route => route.fulfill({ json: { session: { id: "session-ui" }, turns: [], nextCursor: null } }));
+  return () => stateRequests;
+}
+
+const lessonUrl = `/course/${encodeURIComponent(course.topic)}/lesson/0-0?id=${course.id}`;
+
+test("public flag off hides Spark without requesting lesson state", async ({ page }) => {
+  test.skip(process.env.SPARK_UI_PUBLIC_ENABLED !== "false", "Requires the disabled-public browser build.");
+  const stateRequests = await mockSparkEntry(page);
+  await page.goto(`${lessonUrl}&spark=1`);
+  await expect(page.getByRole("tab", { name: /Learn/ })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Ask the tutor", exact: true })).toBeVisible();
+  await expect(page.getByRole("tab", { name: /Spark/ })).toHaveCount(0);
+  expect(stateRequests()).toBe(0);
+});
+
+test("live Spark replaces Tutor only after its private session is ready", async ({ page }) => {
+  test.skip(process.env.SPARK_UI_PUBLIC_ENABLED === "false", "Enabled Spark flows run in the enabled-public build.");
+  await mockSparkEntry(page);
+  await page.goto(lessonUrl);
+  await expect(page.getByRole("button", { name: "Ask the tutor", exact: true })).toBeVisible();
+  await page.getByRole("tab", { name: /Spark/ }).click();
+  await expect(page.locator(".spark-composer")).toBeVisible();
+  await expect(page.getByRole("button", { name: "Open Support Center" }).locator(".lucide-circle-question-mark")).toHaveCount(1);
+  await expect(page.getByRole("button", { name: "Ask the tutor", exact: true })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Ask Spark", exact: true })).toBeVisible();
+  await page.getByRole("tab", { name: /Learn/ }).click();
+  await expect(page.getByRole("button", { name: "Ask Spark", exact: true })).toBeVisible();
+});
+
+test("practice-only Spark preserves the original Tutor fallback", async ({ page }) => {
+  test.skip(process.env.SPARK_UI_PUBLIC_ENABLED === "false", "Enabled Spark flows run in the enabled-public build.");
+  await mockSparkEntry(page, "practice_only");
+  await page.goto(`${lessonUrl}&spark=1`);
+  await expect(page.getByRole("heading", { name: "Learn by doing" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Ask the tutor", exact: true })).toBeVisible();
+});
+
+test("failed Spark startup retains the original Tutor fallback", async ({ page }) => {
+  test.skip(process.env.SPARK_UI_PUBLIC_ENABLED === "false", "Enabled Spark flows run in the enabled-public build.");
+  await mockSparkEntry(page);
+  await page.route("**/api/spark/sessions", route => route.fulfill({ status: 503, json: { error: "Startup unavailable" } }));
+  await page.goto(`${lessonUrl}&spark=1`);
+  await expect(page.getByText("Startup unavailable", { exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Ask the tutor", exact: true })).toBeVisible();
+});
+
+for (const code of ["SPARK_INPUT_COUNT_UNAVAILABLE", "SPARK_REQUEST_NOT_STARTED", "SPARK_PROVIDER_UNCERTAIN"]) {
+  const retryWithNewRequest = code !== "SPARK_PROVIDER_UNCERTAIN";
+  test(`Spark ${code} ${retryWithNewRequest ? "releases an undispatched" : "retains an unknown"} turn identity only on a manual retry`, async ({ page }) => {
+  test.skip(process.env.SPARK_UI_PUBLIC_ENABLED === "false", "Enabled Spark flows run in the enabled-public build.");
+    await mockSparkEntry(page);
+    const identities: string[] = [];
+    await page.route("**/api/spark/sessions/session-ui/turns", route => {
+      identities.push((route.request().postDataJSON() as { requestId: string }).requestId);
+      return route.fulfill({ status: 503, json: { error: "Turn did not complete", code, ...(retryWithNewRequest ? { retryWithNewRequest: true } : {}) } });
+    });
+    await page.goto(`${lessonUrl}&spark=1`);
+    await page.getByLabel("Question for Spark").fill("Explain the role of a weight.");
+    await page.getByRole("button", { name: "Ask", exact: true }).click();
+    await expect(page.getByText("Turn did not complete", { exact: true })).toBeVisible();
+    expect(identities).toHaveLength(1);
+    await page.getByRole("button", { name: "Ask", exact: true }).click();
+    await expect.poll(() => identities.length).toBe(2);
+    if (retryWithNewRequest) expect(identities[1]).not.toBe(identities[0]);
+    else expect(identities[1]).toBe(identities[0]);
+  });
+}
+
+test("owner AI operations exposes Spark controls without opening the command center", async ({ page }) => {
+  await restoreLocalLearner(page);
+  await mockOwnerLearnerAccount(page);
+  let budgetRequests = 0;
+  await page.route("**/api/admin/spark/budget", route => {
+    budgetRequests++;
+    return route.fulfill({ json: {
+      month: { month_key: "2026-10", configuration_version: 1, ai_cap_microusd: 1000000, committed_microusd: 0, reserved_microusd: 0, unknown_microusd: 0, mode: "practice_only", live_ai_enabled: 0, preparation_enabled: 0, concurrency_limit: 1 },
+      categories: ["tutoring", "preparation", "assessment", "summary", "embedding"].map(category => ({ category, cap_microusd: 100000, committed_microusd: 0, reserved_microusd: 0, unknown_microusd: 0 })),
+      usage: [], runtime: { sparkEnabled: false, liveAiEnabled: false, prepareEnabled: false, semanticRetrievalEnabled: false, model: "test-model", provider: "openai", priceVersion: "test", limits: { maximumInputTokens: 4000, maximumOutputTokens: 900, globalConcurrency: 1, turnsPerMinute: 1 } },
+      preparation: { total: 0, ready: 0, pending: 0, failed: 0, truncated: false, recent: [] },
+    } });
+  });
+  await page.goto("/admin");
+  await page.getByRole("button", { name: "AI operations", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "Budget and runtime authority" })).toBeVisible();
+  const refresh = page.getByRole("button", { name: "Refresh Spark operations" });
+  await expect(refresh).toBeVisible();
+  expect((await refresh.boundingBox())!.height).toBeGreaterThanOrEqual(44);
+  expect((await page.getByRole("button", { name: "Save audited control" }).boundingBox())!.height).toBeGreaterThanOrEqual(44);
+  await expect(page.getByRole("combobox", { name: "Mode", exact: true })).toHaveCSS("font-size", "16px");
+  expect(budgetRequests).toBe(1);
+  await expect(page).toHaveURL(/\/admin$/);
+});
+
+test("unknown Spark turn identity survives a lesson reload without retaining the question", async ({ page }) => {
+  test.skip(process.env.SPARK_UI_PUBLIC_ENABLED === "false", "Enabled Spark flows run in the enabled-public build.");
+  await mockSparkEntry(page);
+  const identities: string[] = [];
+  const question = "PRIVATE question text that must not persist";
+  await page.route("**/api/spark/sessions/session-ui/turns", route => {
+    identities.push((route.request().postDataJSON() as { requestId: string }).requestId);
+    return route.fulfill({ status: 503, json: { error: "Outcome unknown", code: "SPARK_PROVIDER_UNCERTAIN" } });
+  });
+  await page.goto(`${lessonUrl}&spark=1`);
+  await page.getByLabel("Question for Spark").fill(question);
+  await page.getByRole("button", { name: "Ask", exact: true }).click();
+  await expect(page.getByText("Outcome unknown", { exact: true })).toBeVisible();
+  const saved = await page.evaluate(() => Object.entries(localStorage).filter(([key]) => key.includes("spark-turn")));
+  expect(saved.length).toBeGreaterThan(0);
+  expect(JSON.stringify(saved)).not.toContain(question);
+  await page.reload();
+  await expect(page.getByLabel("Question for Spark")).toBeVisible();
+  expect(identities).toHaveLength(1);
+  await page.getByLabel("Question for Spark").fill(question);
+  await page.getByRole("button", { name: "Ask", exact: true }).click();
+  await expect.poll(() => identities.length).toBe(2);
+  expect(identities[1]).toBe(identities[0]);
 });

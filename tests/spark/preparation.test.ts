@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { createHash } from "node:crypto";
 import type { SparkLessonContext } from "../../src/lib/spark/access.ts";
 import { buildSparkPreparation, chunkSparkLesson, sparkManifestFromDocument } from "../../src/lib/spark/preparation.ts";
 
@@ -44,6 +45,15 @@ test("manifest identity changes with locale without changing server task keys", 
   assert.notEqual(english.manifest.id, spanish.manifest.id);
   assert.equal(english.manifest.id, buildSparkPreparation(lesson, "en-US", "2026-10-09T00:00:00.000Z").manifest.id);
   assert.equal(english.taskRecords[0]?.taskVersion, spanish.taskRecords[0]?.taskVersion);
+});
+
+test("a long single paragraph is split without losing lesson words or mismatching source hashes", () => {
+  const words = Array.from({ length: 1_301 }, (_, index) => `concept${index}`);
+  const chunks = chunkSparkLesson(context(words.join(" ")));
+  assert.ok(chunks.length >= 3);
+  assert.ok(chunks.every((chunk) => chunk.text.trim().split(/\s+/).length <= 600));
+  assert.deepEqual(chunks.flatMap((chunk) => chunk.text.trim().split(/\s+/)), words);
+  for (const chunk of chunks) assert.equal(chunk.contentHash, createHash("sha256").update(chunk.text).digest("hex"));
 });
 
 test("a persisted manifest remains readable through the strict learner contract", () => {

@@ -27,6 +27,7 @@ export interface SparkBudgetReservation {
 }
 
 export class SparkBudgetError extends Error {
+  retryWithNewRequest = false;
   constructor(
     public readonly code: string,
     message: string,
@@ -215,6 +216,24 @@ export async function reserveSparkBudget(input: {
   return reservationFromRow(created, false);
 }
 
+/** Only the invocation that created the reservation may dispatch or release it. */
+export async function claimSparkBudget(input: Parameters<typeof reserveSparkBudget>[0]) {
+  const reservation = await reserveSparkBudget(input);
+  if (reservation.recovered) {
+    if (reservation.status === "released") {
+      throw new SparkBudgetError("SPARK_REQUEST_NOT_STARTED", "This request stopped before AI dispatch. Send it again to make a new attempt.", 409);
+    }
+    throw new SparkBudgetError(
+      reservation.status === "reserved" ? "SPARK_REQUEST_IN_PROGRESS" : "SPARK_RECONCILIATION_REQUIRED",
+      reservation.status === "reserved"
+        ? "This Spark request is already in progress. Wait for its saved result."
+        : "This Spark request has already been processed and requires its saved result or reconciliation.",
+      409,
+    );
+  }
+  return reservation;
+}
+
 async function transition(
   requestId: string,
   sql: string,
@@ -395,7 +414,7 @@ export async function configureSparkBudget(input: {
 export function sparkBudgetErrorResponse(error: unknown) {
   if (!(error instanceof SparkBudgetError)) return null;
   return Response.json(
-    { error: error.message, code: error.code, availability: "practice_only" },
+    { error: error.message, code: error.code, availability: "practice_only", retryWithNewRequest: error.retryWithNewRequest },
     { status: error.status, headers: { "Cache-Control": "private, no-store" } },
   );
 }

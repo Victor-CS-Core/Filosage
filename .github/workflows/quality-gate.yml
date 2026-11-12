@@ -65,6 +65,10 @@ jobs:
         if: steps.scope.outputs.full == 'true'
       - run: npm run test:d1
         if: steps.scope.outputs.full == 'true'
+      - run: npm run test:spark
+        if: steps.scope.outputs.full == 'true'
+      - run: npm run eval:spark-quality
+        if: steps.scope.outputs.full == 'true'
       - run: npm run test:unit
         if: steps.scope.outputs.full == 'true'
       - run: npx tsc --noEmit --incremental false

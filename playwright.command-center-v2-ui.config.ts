@@ -50,6 +50,7 @@ export default defineConfig({
       HOSTNAME: "127.0.0.1",
       PORT: String(server.port),
       OPENAI_API_KEY: "",
+      COMMAND_CENTER_ENABLED: "true",
       COMMAND_CENTER_DRAFTS_ENABLED: "true",
       NEXT_PUBLIC_COMMAND_CENTER_V2: "true",
     },

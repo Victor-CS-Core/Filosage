@@ -320,6 +320,9 @@ export default function LessonView() {
   } = useLearnerState();
   const noteKey = courseId ? `${courseId}:${lessonId}` : `${topic}:${lessonId}`;
   const lessonViewKey = `${user?.uid ?? "guest"}:${noteKey}:${reviewKind}:${reviewMode ? "review" : "learn"}`;
+  const sparkReadinessKey = `${lessonViewKey}:${user?.accountGeneration ?? "legacy"}:${sparkCourse.state?.lesson.version ?? ""}`;
+  const [sparkReadyRecord, setSparkReadyRecord] = useState<{ key: string; ready: boolean }>({ key: "", ready: false });
+  const updateSparkReady = useCallback((ready: boolean) => setSparkReadyRecord(current => current.key === sparkReadinessKey && current.ready === ready ? current : { key: sparkReadinessKey, ready }), [sparkReadinessKey]);
   const [courseRecord, setCourseRecord] = useState<{ key: string; value: Course | null }>({ key: lessonViewKey, value: null });
   const [lessonDataRecord, setLessonDataRecord] = useState<{ key: string; value: LessonData | null }>({ key: lessonViewKey, value: null });
   const course = courseRecord.key === lessonViewKey ? courseRecord.value : null;
@@ -428,7 +431,9 @@ export default function LessonView() {
   const interactionComplete = reviewMode || !practiceInteraction || Boolean(
     interactionEvidence?.interactionId === practiceInteraction.id && interactionEvidence.completed,
   );
-  const sparkAvailable = !reviewMode && sparkCourse.state?.featureEnabled === true;
+  const sparkAvailable = !reviewMode && sparkCourse.enabled && sparkCourse.state?.featureEnabled !== false;
+  const liveSparkReady = sparkAvailable && sparkCourse.state?.availability === "live"
+    && sparkCourse.state.preparation === "ready" && sparkReadyRecord.key === sparkReadinessKey && sparkReadyRecord.ready;
   const requestedPane = lessonPaneState.key === lessonViewKey
     ? lessonPaneState.pane
     : sparkRequested && sparkAvailable
@@ -1410,7 +1415,11 @@ export default function LessonView() {
             >
               <NotebookPen size={16} /> {studyToolsOpen ? "Close tools" : "Study tools"}
             </button>
-            {user ? (
+            {user ? liveSparkReady ? (
+              <button className="button button-secondary button-small" type="button" onClick={() => selectLessonPane("spark")} aria-label="Ask Spark" aria-controls="lesson-pane-content">
+                <Sparkles size={16} /> <span className="lesson-tutor-label">Ask Spark</span><span className="lesson-tutor-phone-label" aria-hidden="true">Spark</span>
+              </button>
+            ) : (
               <button className={`button button-secondary button-small ${tutorOpen ? "is-active" : ""}`} onClick={tutorDrawer.toggleDrawer} aria-label={tutorOpen ? "Close tutor" : "Ask the tutor"} aria-expanded={tutorOpen} aria-describedby={reviewRecallLocked ? "review-cues-locked" : undefined} disabled={reviewRecallLocked}>
                 <MessageSquareText size={16} /> <span className="lesson-tutor-label">{tutorOpen ? "Close tutor" : "Ask the tutor"}</span><span className="lesson-tutor-phone-label" aria-hidden="true">Tutor</span>
               </button>
@@ -1689,6 +1698,7 @@ export default function LessonView() {
                   state={sparkCourse.state}
                   canPrepare={isOwner || course.authorId === user.uid}
                   reloadState={sparkCourse.reload}
+                  onLiveReadyChange={updateSparkReady}
                 />
               )}
 
@@ -1748,7 +1758,7 @@ export default function LessonView() {
             </AppDrawer>
           )}
 
-          {!reviewRecallLocked && user && tutorOpen && (
+          {!reviewRecallLocked && user && !liveSparkReady && tutorOpen && (
             <AppDrawer open={tutorOpen} onClose={tutorDrawer.closeDrawer} labelledBy="tutor-title" size="medium" mobilePlacement="full" desktopPresentation="floating" draggable dragLabel="Ask the tutor" className="tutor-app-drawer">
             <aside className="tutor-drawer">
               <header className="tutor-header">

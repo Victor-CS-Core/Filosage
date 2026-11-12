@@ -25,6 +25,7 @@ import { sparkPreparationAdmissionEnabled } from "@/lib/spark/budget";
 
 const TARGET_CHUNK_WORDS = 450;
 const MAXIMUM_CHUNK_WORDS = 600;
+const MAXIMUM_CHUNK_CHARACTERS = 12_000;
 const MAXIMUM_CHUNKS = 16;
 
 const LOCALE_ALIASES: Record<string, string> = {
@@ -64,17 +65,35 @@ function terms(value: string) {
   )).slice(0, 200);
 }
 
+function boundedParagraphs(paragraph: string): string[] {
+  const parts: string[] = [];
+  let remaining = paragraph;
+  while (remaining) {
+    const wordBoundary = Array.from(remaining.matchAll(/\S+/g))[MAXIMUM_CHUNK_WORDS]?.index ?? remaining.length;
+    let end = Math.min(wordBoundary, MAXIMUM_CHUNK_CHARACTERS, remaining.length);
+    if (end < wordBoundary && end < remaining.length) {
+      const whitespace = remaining.slice(0, end).search(/\s+\S*$/);
+      if (whitespace > 0) end = whitespace;
+    }
+    parts.push(remaining.slice(0, end).trim());
+    remaining = remaining.slice(end).trimStart();
+  }
+  return parts;
+}
+
 export function chunkSparkLesson(context: Pick<SparkLessonContext, "courseId" | "lessonId" | "lessonVersion" | "contentHash" | "lesson">) {
   const paragraphs = context.lesson.content
     .split(/\n{2,}/)
     .map((paragraph) => paragraph.trim())
-    .filter(Boolean);
+    .filter(Boolean)
+    .flatMap(boundedParagraphs);
   const groups: string[] = [];
   let pending: string[] = [];
   let pendingWords = 0;
   for (const paragraph of paragraphs) {
     const paragraphWords = paragraph.split(/\s+/).length;
-    if (pending.length && pendingWords + paragraphWords > MAXIMUM_CHUNK_WORDS) {
+    if (pending.length && (pendingWords + paragraphWords > MAXIMUM_CHUNK_WORDS
+      || pending.join("\n\n").length + paragraph.length + 2 > MAXIMUM_CHUNK_CHARACTERS)) {
       groups.push(pending.join("\n\n"));
       pending = [];
       pendingWords = 0;
@@ -96,7 +115,7 @@ export function chunkSparkLesson(context: Pick<SparkLessonContext, "courseId" | 
     lessonVersion: context.lessonVersion,
     contentHash: hash(text),
     ordinal,
-    text: text.slice(0, 12_000),
+    text,
     lexicalTerms: terms(text),
   }));
 }

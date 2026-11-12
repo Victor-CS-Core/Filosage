@@ -43,7 +43,7 @@ export default defineConfig({
       PORT: String(server.port),
       OPENAI_API_KEY: "",
       SPARK_ENABLED: "true",
-      NEXT_PUBLIC_SPARK_ENABLED: "true",
+      NEXT_PUBLIC_SPARK_ENABLED: process.env.SPARK_UI_PUBLIC_ENABLED ?? "true",
       SPARK_LIVE_AI_ENABLED: "false",
       SPARK_PREPARE_ENABLED: "false",
       SPARK_SEMANTIC_RETRIEVAL_ENABLED: "false",

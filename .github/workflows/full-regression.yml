@@ -84,6 +84,17 @@ jobs:
         run: npm run test:api -- --output=test-results/api --reporter=line,blob
         env:
           PLAYWRIGHT_BLOB_OUTPUT_DIR: playwright-report/api/blob
+      - name: Spark enabled UI
+        if: ${{ !cancelled() && steps.browsers.outcome == 'success' }}
+        run: npm run test:spark:ui -- --output=test-results/spark-enabled --reporter=line,blob
+        env:
+          PLAYWRIGHT_BLOB_OUTPUT_DIR: playwright-report/spark-enabled/blob
+      - name: Spark disabled UI
+        if: ${{ !cancelled() && steps.browsers.outcome == 'success' }}
+        run: npm run test:spark:ui -- --output=test-results/spark-disabled --reporter=line,blob
+        env:
+          SPARK_UI_PUBLIC_ENABLED: "false"
+          PLAYWRIGHT_BLOB_OUTPUT_DIR: playwright-report/spark-disabled/blob
       - name: Browser matrix
         if: ${{ !cancelled() && steps.browsers.outcome == 'success' }}
         run: npm run test:browser

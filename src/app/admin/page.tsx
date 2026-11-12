@@ -34,6 +34,7 @@ import AppShell from "@/components/AppShell";
 import { useAuth } from "@/components/AuthProvider";
 import type { AdminOverview, AdminUserSummary, OperationalReadinessState } from "@/lib/admin-types";
 import { matchesSearchQuery } from "@/lib/search";
+import SparkOperationsPanel from "./command-center/SparkOperationsPanel";
 import { AuthenticationInventorySummary } from "./AuthenticationInventorySummary";
 
 type AdminTab = "overview" | "costs" | "research" | "launch" | "users" | "ai" | "safety";
@@ -774,6 +775,7 @@ export default function AdminPage() {
 
         {data && tab === "ai" && (
           <div className="admin-workspace">
+            <SparkOperationsPanel />
             <section className="admin-ai-summary">
               <div className="admin-capacity-inline"><span><Gauge size={19} /> Monthly capacity</span><strong>{currency(data.budget.spentUsd + data.budget.reservedUsd)} / {currency(data.budget.limitUsd)}</strong><i><b style={{ width: `${data.budget.percentUsed}%` }} /></i><small>{data.budget.percentUsed.toFixed(1)}% used in {data.budget.month}</small></div>
               <div><span>Input tokens</span><strong>{compactNumber(data.summary.inputTokens)}</strong><small>{compactNumber(data.summary.cachedInputTokens)} cache reads · {compactNumber(data.summary.cacheWriteTokens)} writes</small></div>

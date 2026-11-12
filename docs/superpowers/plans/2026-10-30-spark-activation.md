@@ -1,0 +1,22 @@
+# Spark qualification and activation plan
+
+Goal: qualify and activate Spark after the mobile release, retaining billing closures, existing request identities and budget/evidence safeguards. Owner's current activation request supersedes old no-deployment authorization statements, not engineering/quality/evidence safeguards. No new legal terms or automatic acceptance.
+
+Baseline: mobile candidate d07c88f has engineering/security passes and actual OpenNext Worker4/4; full browser pending. Spark21 unit tests pass but do not prove live readiness. Read-only Cloudflare inventory found no Spark ledger tables in production or staging. Staging has its own existing OpenAI secret; local key was independently checked and returns401 invalid_api_key. Owner asked to configure a valid local key directly outside chat for isolated capped evaluations.
+
+Observed release gaps:
+- Installed SDK rejects the existing live turn schema because objectiveIds/steps are optional; the ledger marks dispatch before schema construction, wrongly containing this local failure as uncertain exposure.
+- Prompt input count is not enforced before the fixed4000-token reservation; long paragraphs create chunks beyond the claimed600-word bound. Provider token preflight must include structured-output schema and fail before paid dispatch on error/over-limit.
+- Public UI flag is not honored by the lesson state hook/entry point; disabled Spark still makes redundant state requests.
+- Spark operator controls live only inside disabled CommandCenterV2. Reuse the same panel in the existing owner AI-operations view, preserving all unrelated Command Center closures.
+- Existing Tutor and live Ask Spark overlap. When Spark's live session is ready, use its lesson entry for questions; preserve original Tutor when Spark is unavailable and keep scored lesson Activities distinct. Clarify Support's floating help icon so it does not impersonate Spark.
+
+Primary model research reverified November12: official GPT4.1 mini pricing remains0.40/0.10/1.60 dollars per million input/cached/output tokens, and Cloudflare retains the $5 Workers Paid baseline. The pinned snapshot is deprecated with shutdown January14,2027; OpenAI now recommends `gpt-6-luna`. Retain the reviewed model for this bounded qualification through the refreshed December12 price-sheet expiry, and qualify the replacement before shutdown rather than silently changing provider behavior. Missing or stale pricing continues to fail closed. Sources: https://developers.openai.com/api/docs/models/gpt-4.1-mini , https://developers.openai.com/api/docs/deprecations , and https://developers.cloudflare.com/workers/platform/pricing/ .
+
+- [ ] Add regressions that exercise the real SDK formatter, long-paragraph preparation, exact token admission, UI flag and nonredundant entry points; observe failures.
+- [ ] Reuse trusted block contracts with provider-required fields, validate/count before marking dispatch, preserve reservations and no-auto-repeat behavior. Bound chunks without dropping source text or claiming external verification.
+- [ ] Expose existing owner controls without activating unrelated systems; keep phone controls readable; narrow duplicate help paths with truthful degradation.
+- [ ] Pass local contracts/types/lint/Spark UI; independently review and freeze exact Spark candidate. Preserve mobile candidate and deploy it first after its gates.
+- [ ] Rehearse additive migration, apply only reviewed staging schema, retain readback, deploy isolated staging with public/live disabled initially, then deterministic preparation and bounded live qualification. Use the existing capped ledger (max4000/900 tokens, no SDK inference retries). Evaluation planning:9 live tutor cases,28 prepared activity cases,3 saved fallbacks plus5 system invariants; at most16 inference calls with total maximum50000 microUSD, no calls after ceiling/unknown/failure. Review actual outputs; never call dry-run provider evidence.
+- [ ] Hosted two-account isolation plus saved/session/idempotency/downgrade/stale-version/export/kill-switch acceptance. Never delete real user data; test-only records stay isolated on staging.
+- [ ] Exact-source release gates and actual Workers bundle, then additive production migration/flag activation only for qualified capabilities, preserving semantic retrieval=false/billing closures and rollback. Verify actual production and distinguish deterministic/practice-only from live AI acceptance. Record any genuine unmet prerequisite.

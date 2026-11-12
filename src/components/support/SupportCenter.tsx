@@ -1,6 +1,5 @@
 "use client";
 
-import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
@@ -10,6 +9,7 @@ import {
   Check,
   ChevronRight,
   CircleAlert,
+  CircleHelp,
   Clock3,
   ExternalLink,
   FileText,
@@ -426,7 +426,7 @@ export default function SupportCenter({ onRequestSignIn, onBeforeOpen }: Support
           aria-controls="global-support-center-drawer"
           onClick={() => openSupport("help", triggerRef.current)}
         >
-          <SupportSparkIcon />
+          <CircleHelp className={styles.triggerIcon} aria-hidden="true" />
         </button>
         <span id="support-center-tooltip" role="tooltip" className={styles.tooltip}>Support center</span>
       </div>
@@ -446,7 +446,7 @@ export default function SupportCenter({ onRequestSignIn, onBeforeOpen }: Support
       >
         <section className={styles.panel} aria-describedby="support-center-description">
           <header className={styles.header}>
-            <span className={styles.headerSpark} aria-hidden="true"><Image src="/brand/icons/spark.svg" alt="" width={32} height={32} /></span>
+            <span className={styles.headerSpark} aria-hidden="true"><CircleHelp size={25} /></span>
             <div><h2 id="support-center-title">Support center</h2><p id="support-center-description">Find an answer or contact Filosage support.</p></div>
             <button className={styles.iconButton} type="button" onClick={closeSupport} aria-label="Close Support Center"><X size={20} aria-hidden="true" /></button>
           </header>
@@ -561,13 +561,6 @@ function SupportSkeleton({ label, rows }: { label: string; rows: number }) {
   return <div className={styles.loadingSkeleton} role="status" aria-label={label}>{Array.from({ length: rows }, (_, index) => <span key={index}><i /><b /><em /></span>)}</div>;
 }
 
-function SupportSparkIcon() {
-  return (
-    <svg className={styles.triggerIcon} viewBox="7.6 7.6 32.8 32.8" aria-hidden="true" focusable="false">
-      <path d="M24 7.6c2.4 9.6 6.8 14 16.4 16.4C30.8 26.4 26.4 30.8 24 40.4 21.6 30.8 17.2 26.4 7.6 24 17.2 21.6 21.6 17.2 24 7.6Z" />
-    </svg>
-  );
-}
 
 function TicketDetail({ ticket, loading, error, onBack, onRetry }: { ticket: LearnerSupportTicketDetail | null; loading: boolean; error: string | null; onBack: () => void; onRetry: () => void }) {
   if (loading) return <><button className={styles.backButton} type="button" onClick={onBack}><ArrowLeft size={16} aria-hidden="true" />Back to requests</button><SupportSkeleton label="Loading request details" rows={3} /></>;

@@ -20,6 +20,7 @@ import {
 import type { SparkAttemptRequest, SparkBlock, SparkManifest, SparkSuggestedAction, SparkTurnResponse } from "@/lib/spark/contracts";
 import type { LearnerStorageUser } from "@/lib/learner-storage";
 import { learnerRequest } from "@/lib/learner-storage";
+import { clearSavedSparkTurnIdentity, savedSparkTurnIdentity } from "@/lib/spark-turn-identity";
 
 interface SparkCourseState {
   featureEnabled: boolean;
@@ -65,6 +66,14 @@ interface SparkTurnView {
 interface ApiErrorBody {
   error?: string;
   code?: string;
+  retryWithNewRequest?: boolean;
+}
+
+class SparkApiError extends Error {
+  constructor(message: string, readonly code: string | undefined, readonly retryWithNewRequest: boolean) {
+    super(message);
+    this.name = "SparkApiError";
+  }
 }
 
 const ACTION_LABELS: Record<SparkSuggestedAction, string> = {
@@ -87,7 +96,7 @@ const STAGE_LABELS: Array<{ id: SparkTurnResponse["stage"]; label: string }> = [
 
 async function apiJson<T>(response: Response): Promise<T> {
   const body = await response.json().catch(() => ({})) as T & ApiErrorBody;
-  if (!response.ok) throw new Error(body.error || `Spark request failed with ${response.status}.`);
+  if (!response.ok) throw new SparkApiError(body.error || `Spark request failed with ${response.status}.`, body.code, body.retryWithNewRequest === true);
   return body;
 }
 
@@ -96,8 +105,9 @@ function locale() {
 }
 
 export function useSparkCourseState(user: LearnerStorageUser | null, courseId: string | null, lessonId: string) {
+  const enabled = process.env.NEXT_PUBLIC_SPARK_ENABLED === "true";
   const [revision, setRevision] = useState(0);
-  const requestKey = `${user?.uid ?? "guest"}:${courseId ?? "none"}:${lessonId}:${revision}`;
+  const requestKey = `${user?.uid ?? "guest"}:${user?.accountGeneration ?? "legacy"}:${courseId ?? "none"}:${lessonId}:${revision}`;
   const [record, setRecord] = useState<{
     key: string;
     state: SparkCourseState | null;
@@ -105,7 +115,7 @@ export function useSparkCourseState(user: LearnerStorageUser | null, courseId: s
   }>({ key: "", state: null, error: null });
 
   useEffect(() => {
-    if (!user || !courseId) return;
+    if (!enabled || !user || !courseId) return;
     const controller = new AbortController();
     void learnerRequest(
       user,
@@ -118,14 +128,15 @@ export function useSparkCourseState(user: LearnerStorageUser | null, courseId: s
         if (!controller.signal.aborted) setRecord({ key: requestKey, state: null, error: "Spark couldn’t connect. You can continue reading or retry." });
       });
     return () => controller.abort();
-  }, [courseId, lessonId, requestKey, user]);
+  }, [courseId, enabled, lessonId, requestKey, user]);
 
   const reload = useCallback(() => setRevision((value) => value + 1), []);
   const current = record.key === requestKey ? record : null;
   return {
-    state: user && courseId ? current?.state ?? null : null,
-    loading: Boolean(user && courseId && !current),
-    error: user && courseId ? current?.error ?? null : null,
+    enabled: enabled && Boolean(user && courseId),
+    state: enabled && user && courseId ? current?.state ?? null : null,
+    loading: Boolean(enabled && user && courseId && !current),
+    error: enabled && user && courseId ? current?.error ?? null : null,
     reload,
   };
 }
@@ -403,11 +414,12 @@ function SparkBlockView({ block, result, commit }: {
   return <TaskBlock block={block} result={result} commit={(answer, revisesAttemptId) => commit(block, answer, revisesAttemptId)} />;
 }
 
-export default function SparkWorkspace({ user, state, canPrepare, reloadState }: {
+export default function SparkWorkspace({ user, state, canPrepare, reloadState, onLiveReadyChange }: {
   user: LearnerStorageUser;
   state: SparkCourseState;
   canPrepare: boolean;
   reloadState: () => void;
+  onLiveReadyChange?: (ready: boolean) => void;
 }) {
   const [session, setSession] = useState<SparkSession | null>(null);
   const [turns, setTurns] = useState<SparkTurnView[]>([]);
@@ -419,9 +431,13 @@ export default function SparkWorkspace({ user, state, canPrepare, reloadState }:
   const [message, setMessage] = useState("");
   const [action, setAction] = useState<SparkSuggestedAction>("explain_differently");
   const [suggestedActions, setSuggestedActions] = useState<SparkSuggestedAction[]>(["explain_differently", "give_example", "practice"]);
+  const notifyLiveReady = useEffectEvent((ready: boolean) => onLiveReadyChange?.(ready));
+  useEffect(() => {
+    notifyLiveReady(state.availability === "live" && state.preparation === "ready" && Boolean(session) && !starting && !error);
+  }, [error, session, starting, state.availability, state.preparation]);
   const startedKey = useRef<string | null>(null);
   const attemptRequestIds = useRef(new Map<string, string>());
-  const turnRequest = useRef<{ fingerprint: string; id: string } | null>(null);
+  const turnRequest = useRef<Awaited<ReturnType<typeof savedSparkTurnIdentity>> | null>(null);
   const startupRequest = useEffectEvent((input: string, init: RequestInit) => learnerRequest(user, input, init, { verifySessionOnUnauthorized: true }));
 
   useEffect(() => {
@@ -495,12 +511,12 @@ export default function SparkWorkspace({ user, state, canPrepare, reloadState }:
   const sendTurn = async () => {
     const trimmed = message.trim();
     if (!session || !state.manifest || !trimmed || sending) return;
-    const fingerprint = `${session.id}:${action}:${trimmed}`;
-    const requestId = turnRequest.current?.fingerprint === fingerprint ? turnRequest.current.id : crypto.randomUUID();
-    turnRequest.current = { fingerprint, id: requestId };
     setSending(true);
     setError(null);
     try {
+      const identity = await savedSparkTurnIdentity(user, session.id, state.manifest.lessonVersion, action, trimmed);
+      turnRequest.current = identity;
+      const requestId = identity.id;
       const response = await learnerRequest(user, `/api/spark/sessions/${encodeURIComponent(session.id)}/turns`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -510,8 +526,16 @@ export default function SparkWorkspace({ user, state, canPrepare, reloadState }:
       setTurns((current) => [...current, { id: requestId, message: trimmed, response: turn }]);
       setSuggestedActions(turn.suggestedActions.length ? turn.suggestedActions : suggestedActions);
       setMessage("");
+      clearSavedSparkTurnIdentity(user, identity);
       turnRequest.current = null;
     } catch (reason) {
+      // Only explicit, verified undispatched failures permit a new identity.
+      // Unknown network/provider outcomes retain the saved ID for reconciliation.
+      if (reason instanceof SparkApiError && reason.retryWithNewRequest
+        && ["SPARK_INPUT_LIMIT", "SPARK_INPUT_COUNT_UNAVAILABLE", "SPARK_REQUEST_NOT_STARTED"].includes(reason.code ?? "") && turnRequest.current) {
+        clearSavedSparkTurnIdentity(user, turnRequest.current);
+        turnRequest.current = null;
+      }
       setError(reason instanceof Error ? reason.message : "Spark could not answer this turn.");
     } finally {
       setSending(false);

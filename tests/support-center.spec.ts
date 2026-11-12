@@ -430,15 +430,17 @@ test("fits the required desktop, tablet, and mobile viewport matrix", async ({ p
         const trigger = document.querySelector<HTMLElement>('button[aria-label="Open Support Center"]')!;
         const spark = trigger.getBoundingClientRect();
         const icon = trigger.querySelector<SVGGraphicsElement>("svg")!;
-        const artwork = icon.querySelector<SVGGraphicsElement>("path")!.getBBox();
+        const artwork = icon.getBoundingClientRect();
         const navigation = document.querySelector<HTMLElement>(".mobile-bottom-nav")!.getBoundingClientRect();
         const style = getComputedStyle(trigger);
         return {
           sparkBottom: Math.round(spark.bottom),
           navigationTop: Math.round(navigation.top),
           rightGap: Math.round(innerWidth - spark.right),
-          artworkCenterX: artwork.x + artwork.width / 2,
-          artworkCenterY: artwork.y + artwork.height / 2,
+          artworkCenterX: artwork.left + artwork.width / 2 - spark.left,
+          artworkCenterY: artwork.top + artwork.height / 2 - spark.top,
+          triggerCenterX: spark.width / 2,
+          triggerCenterY: spark.height / 2,
           background: style.backgroundColor,
           borderWidth: style.borderTopWidth,
           iconStroke: getComputedStyle(icon).stroke,
@@ -446,8 +448,8 @@ test("fits the required desktop, tablet, and mobile viewport matrix", async ({ p
       });
       expect(placement.sparkBottom).toBeLessThan(placement.navigationTop);
       expect(placement.rightGap).toBe(24);
-      expect(placement.artworkCenterX).toBeCloseTo(24, 4);
-      expect(placement.artworkCenterY).toBeCloseTo(24, 4);
+      expect(placement.artworkCenterX).toBeCloseTo(placement.triggerCenterX, 4);
+      expect(placement.artworkCenterY).toBeCloseTo(placement.triggerCenterY, 4);
       expect(placement.background).toBe("rgba(0, 0, 0, 0)");
       expect(placement.borderWidth).toBe("0px");
       expect(placement.iconStroke).not.toBe("rgba(0, 0, 0, 0)");

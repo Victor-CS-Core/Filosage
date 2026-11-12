@@ -1,6 +1,5 @@
 import "server-only";
 
-import { z } from "zod";
 import { zodTextFormat } from "openai/helpers/zod";
 import type { ServerAccount } from "@/lib/account-server";
 import {
@@ -21,18 +20,16 @@ import {
   markSparkBudgetDispatched,
   markSparkBudgetUnknown,
   releaseUndispatchedSparkBudget,
-  reserveSparkBudget,
+  claimSparkBudget,
   settleSparkBudgetObserved,
   sparkBudgetErrorResponse,
+  SparkBudgetError,
   type SparkBudgetReservation,
 } from "@/lib/spark/budget";
 import { sparkPrice, sparkRuntimeLimits, sparkUsageCostMicros } from "@/lib/spark/config";
 import {
   SPARK_SCHEMA_VERSION,
   savedTextFallback,
-  sparkBlockSchema,
-  sparkStageSchema,
-  sparkSuggestedActionSchema,
   sparkTurnResponseSchema,
   type SparkTurnResponse,
 } from "@/lib/spark/contracts";
@@ -40,19 +37,11 @@ import {
   appendSparkTurn,
   readSparkSessionPage,
   readSparkTurnByRequest,
+  SparkRepositoryError,
   type SparkSessionRecord,
 } from "@/lib/spark/repository";
+import { assertSparkInputBudget, normalizedSparkProviderBlocks, sparkProviderTurnSchema, SparkInputBudgetError } from "@/lib/spark/provider-contracts";
 import { retrieveSparkChunks } from "@/lib/spark/retrieval";
-
-const generatedTurnSchema = z.object({
-  stage: sparkStageSchema,
-  blocks: z.array(sparkBlockSchema).min(1).max(4),
-  suggestedActions: z.array(sparkSuggestedActionSchema).max(4),
-}).strict();
-
-function unsupportedGeneratedTask(block: z.infer<typeof sparkBlockSchema>) {
-  return "taskId" in block;
-}
 
 function responseFromSavedLesson(context: SparkLessonContext) {
   return savedTextFallback(context.lessonVersion, context.lesson.content);
@@ -64,9 +53,9 @@ function validatedResponse(
   authorizedSourceIds: Set<string>,
   questionsRemaining: number | null,
 ): SparkTurnResponse | null {
-  const generated = generatedTurnSchema.safeParse(value);
-  if (!generated.success || generated.data.blocks.some(unsupportedGeneratedTask)) return null;
-  const blocks = generated.data.blocks.map((block) => {
+  const generated = sparkProviderTurnSchema.safeParse(value);
+  if (!generated.success) return null;
+  const blocks = normalizedSparkProviderBlocks(generated.data).map((block) => {
     const validSources = block.sourceRefs.every((sourceId) => authorizedSourceIds.has(sourceId));
     if (validSources && block.sourceRefs.length) return block;
     return { ...block, sourceRefs: [], evidenceStatus: "ai_general_knowledge" as const };
@@ -120,7 +109,17 @@ export async function orchestrateSparkTurn(input: {
   message: string;
 }) {
   const replay = await readSparkTurnByRequest(input.account.uid, input.requestId);
-  if (replay?.assistant) return { response: replay.assistant as SparkTurnResponse, replayed: true };
+  if (replay) {
+    if (replay.sessionId !== input.session.id || replay.lessonVersion !== input.context.lessonVersion
+      || publicationContentFingerprint(replay.user) !== publicationContentFingerprint({ action: input.action, message: input.message })) {
+      throw new SparkRepositoryError(409, "IDEMPOTENCY_CONFLICT", "This Spark request identity belongs to a different question or lesson.");
+    }
+    const saved = sparkTurnResponseSchema.safeParse(replay.assistant);
+    if (!saved.success || saved.data.lessonVersion !== input.context.lessonVersion) {
+      throw new SparkRepositoryError(409, "SPARK_SAVED_RESULT_INVALID", "This saved Spark response requires review before it can be replayed.");
+    }
+    return { response: saved.data, replayed: true };
+  }
 
   const chunks = await retrieveSparkChunks(input.context, input.message);
   const history = await readSparkSessionPage(input.account, input.session.id, { limit: 2 });
@@ -139,34 +138,29 @@ export async function orchestrateSparkTurn(input: {
   const price = sparkPrice();
   try {
     allowance = await reserveAiUsage(input.account, "tutor", input.requestId, fingerprint);
-    budget = await reserveSparkBudget({
+    budget = await claimSparkBudget({
       requestId: input.requestId,
       category: "tutoring",
       uid: input.account.uid,
       sessionId: input.session.id,
       payloadFingerprint: fingerprint,
     });
-    if (budget.recovered && budget.status !== "reserved") {
-      throw new Error("SPARK_RECONCILIATION_REQUIRED");
-    }
     const client = aiClient();
-    await assertSafeContent(client, input.message, { uid: input.account.uid, feature: "tutor", stage: "input" });
-    budget = await markSparkBudgetDispatched(input.requestId);
-    dispatched = true;
     const prompt = promptFor({ ...input, chunks, recentTurns: history.turns });
-    const generated = await client.responses.parse({
+    const providerRequest = {
       model: price.model,
       store: false,
       instructions: prompt.instructions,
       input: prompt.input,
-      text: { format: zodTextFormat(generatedTurnSchema, "spark_turn"), verbosity: "low" },
+      text: { format: zodTextFormat(sparkProviderTurnSchema, "spark_turn") },
       max_output_tokens: sparkRuntimeLimits().maximumOutputTokens,
       safety_identifier: await openAiSafetyIdentifier(input.account.uid),
-    }, {
-      maxRetries: 0,
-      timeout: 15_000,
-      signal: input.request.signal,
-    });
+    };
+    await assertSparkInputBudget(client.responses.inputTokens, providerRequest, sparkRuntimeLimits().maximumInputTokens, input.request.signal);
+    await assertSafeContent(client, input.message, { uid: input.account.uid, feature: "tutor", stage: "input" });
+    budget = await markSparkBudgetDispatched(input.requestId);
+    dispatched = true;
+    const generated = await client.responses.parse(providerRequest, { maxRetries: 0, timeout: 15_000, signal: input.request.signal });
     observedUsage = extractOpenAiUsage(generated);
     responseId = generated.id;
     const actualMicros = sparkUsageCostMicros(observedUsage, price);
@@ -208,11 +202,14 @@ export async function orchestrateSparkTurn(input: {
     allowance = null;
     return { response, replayed: false };
   } catch (error) {
+    let undispatchedReleased = false;
     if (budget && !sparkSettled) {
       if (dispatched) await markSparkBudgetUnknown(input.requestId).catch((settlementError) => {
         console.error(JSON.stringify({ event: "spark_budget_unknown_failed", ...safeModelErrorDetails(settlementError) }));
       });
-      else await releaseUndispatchedSparkBudget(input.requestId).catch((settlementError) => {
+      else await releaseUndispatchedSparkBudget(input.requestId).then((released) => {
+        undispatchedReleased = released.status === "released";
+      }).catch((settlementError) => {
         console.error(JSON.stringify({ event: "spark_budget_release_failed", ...safeModelErrorDetails(settlementError) }));
       });
     }
@@ -223,6 +220,9 @@ export async function orchestrateSparkTurn(input: {
         responseId,
         failed: true,
         ...(!dispatched ? { providerOutcome: "not_started" as const } : {}),
+      }).then(() => {
+        if (error instanceof SparkInputBudgetError && undispatchedReleased) error.retryWithNewRequest = true;
+        if (error instanceof SparkBudgetError && error.code === "SPARK_REQUEST_NOT_STARTED") error.retryWithNewRequest = true;
       }).catch((settlementError) => {
         console.error(JSON.stringify({ event: "spark_allowance_settlement_failed", ...safeModelErrorDetails(settlementError) }));
       });
@@ -232,7 +232,10 @@ export async function orchestrateSparkTurn(input: {
 }
 
 export function sparkOrchestrationErrorResponse(error: unknown) {
-  return sparkBudgetErrorResponse(error)
+  return (error instanceof SparkInputBudgetError
+    ? Response.json({ error: error.message, code: error.code, availability: "practice_only", retryWithNewRequest: error.retryWithNewRequest }, { status: error.code === "SPARK_INPUT_LIMIT" ? 413 : 503 })
+    : null)
+    ?? sparkBudgetErrorResponse(error)
     ?? aiQuotaResponse(error)
     ?? (error instanceof ContentSafetyError
       ? Response.json({ error: error.message, code: "CONTENT_NOT_ALLOWED", retryAt: error.retryAt }, { status: 422 })

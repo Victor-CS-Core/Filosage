@@ -30,15 +30,79 @@ const taskBase = {
 
 const optionSchema = z.object({ id, text: shortText }).strict();
 
-export const sparkBlockSchema = z.union([
-  z.object({
+export const sparkExplanationSchema = z.object({
     ...blockBase,
     type: z.literal("explanation"),
     title: shortText,
     text,
     style: z.enum(["concise", "analogy", "worked_example", "misconception"]),
     steps: z.array(shortText).max(8).optional(),
-  }).strict(),
+  }).strict();
+
+export const sparkStepThroughSchema = z.object({
+    ...blockBase,
+    type: z.literal("step_through"),
+    title: shortText,
+    steps: z.array(z.object({ id, label: shortText, detail: text }).strict()).min(2).max(12),
+    textEquivalent: text,
+  }).strict();
+
+export const sparkNeuronSchema = z.object({
+    ...blockBase,
+    type: z.literal("parameter_explorer"),
+    title: shortText,
+    prompt: shortText,
+    template: z.literal("neuron-v1"),
+    config: z.object({
+      x1: finiteNumber,
+      x2: finiteNumber,
+      weight1: finiteNumber,
+      weight2: finiteNumber,
+      bias: finiteNumber,
+      x1Label: shortText,
+      x2Label: shortText,
+      minimum: finiteNumber,
+      maximum: finiteNumber,
+      step: finiteNumber.positive(),
+    }).strict(),
+  }).strict();
+
+export const sparkLinearSchema = z.object({
+    ...blockBase,
+    type: z.literal("parameter_explorer"),
+    title: shortText,
+    prompt: shortText,
+    template: z.literal("linear-v1"),
+    config: z.object({
+      x: finiteNumber,
+      slope: finiteNumber,
+      intercept: finiteNumber,
+      xLabel: shortText,
+      yLabel: shortText,
+      minimum: finiteNumber,
+      maximum: finiteNumber,
+      step: finiteNumber.positive(),
+    }).strict(),
+  }).strict();
+
+export const sparkCompoundGrowthSchema = z.object({
+    ...blockBase,
+    type: z.literal("parameter_explorer"),
+    title: shortText,
+    prompt: shortText,
+    template: z.literal("compound-growth-v1"),
+    config: z.object({
+      principal: finiteNumber.nonnegative(),
+      ratePercent: finiteNumber,
+      periods: z.number().int().min(1).max(600),
+      contribution: finiteNumber.nonnegative().default(0),
+      currencyLabel: z.string().trim().min(1).max(12).default("units"),
+      disclaimer: z.literal("Illustrative math activity, not financial advice."),
+    }).strict(),
+  }).strict();
+
+export const sparkBlockSchema = z.union([
+  sparkExplanationSchema,
   z.object({
     ...taskBase,
     type: z.literal("single_choice"),
@@ -84,64 +148,10 @@ export const sparkBlockSchema = z.union([
     maximumCharacters: z.number().int().min(20).max(8_000).default(2_000),
     grading: z.literal("ai_rubric"),
   }).strict(),
-  z.object({
-    ...blockBase,
-    type: z.literal("step_through"),
-    title: shortText,
-    steps: z.array(z.object({ id, label: shortText, detail: text }).strict()).min(2).max(12),
-    textEquivalent: text,
-  }).strict(),
-  z.object({
-    ...blockBase,
-    type: z.literal("parameter_explorer"),
-    title: shortText,
-    prompt: shortText,
-    template: z.literal("neuron-v1"),
-    config: z.object({
-      x1: finiteNumber,
-      x2: finiteNumber,
-      weight1: finiteNumber,
-      weight2: finiteNumber,
-      bias: finiteNumber,
-      x1Label: shortText,
-      x2Label: shortText,
-      minimum: finiteNumber,
-      maximum: finiteNumber,
-      step: finiteNumber.positive(),
-    }).strict(),
-  }).strict(),
-  z.object({
-    ...blockBase,
-    type: z.literal("parameter_explorer"),
-    title: shortText,
-    prompt: shortText,
-    template: z.literal("linear-v1"),
-    config: z.object({
-      x: finiteNumber,
-      slope: finiteNumber,
-      intercept: finiteNumber,
-      xLabel: shortText,
-      yLabel: shortText,
-      minimum: finiteNumber,
-      maximum: finiteNumber,
-      step: finiteNumber.positive(),
-    }).strict(),
-  }).strict(),
-  z.object({
-    ...blockBase,
-    type: z.literal("parameter_explorer"),
-    title: shortText,
-    prompt: shortText,
-    template: z.literal("compound-growth-v1"),
-    config: z.object({
-      principal: finiteNumber.nonnegative(),
-      ratePercent: finiteNumber,
-      periods: z.number().int().min(1).max(600),
-      contribution: finiteNumber.nonnegative().default(0),
-      currencyLabel: z.string().trim().min(1).max(12).default("units"),
-      disclaimer: z.literal("Illustrative math activity, not financial advice."),
-    }).strict(),
-  }).strict(),
+  sparkStepThroughSchema,
+  sparkNeuronSchema,
+  sparkLinearSchema,
+  sparkCompoundGrowthSchema,
   z.object({
     ...taskBase,
     type: z.literal("project_checkpoint"),

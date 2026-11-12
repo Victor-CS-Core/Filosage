@@ -7,7 +7,7 @@ Status: deterministic/practice-only source approved by delegated AI engineering 
 Gate status on 2026-10-09:
 
 1. **Local migration rehearsal complete.** Apply `infra/cloudflare/d1/002_spark_budget.sql` to remote staging only after freezing the source candidate. Retain remote schema/readback evidence.
-2. **Price sheet verified.** The official model page matches `config/spark-pricing.json`; rotate or revalidate it by 2026-11-09. Missing or stale pricing fails closed.
+2. **Price sheet reverified November 12.** Official OpenAI pricing still matches `config/spark-pricing.json`, and Cloudflare still documents the $5 Workers Paid baseline. Revalidate by 2026-12-12; missing or stale pricing fails closed. The pinned `gpt-4.1-mini-2025-04-14` snapshot is deprecated and shuts down January 14, 2027. Qualify the recommended `gpt-6-luna` replacement before that date rather than changing the model without provider and learning-quality evidence.
 3. **Spark envelope approved.** The $30 assignment does not claim to cap unrelated existing application spend. Checkout remains closed and published 5/40/100 allowances remain authoritative.
 4. **Delegated expert catalog review complete.** The 40-case decision is identified as AI owner-delegate review, not independent human-instructor evidence. See `docs/SPARK_RELEASE_APPROVAL_2026-10-09.md`.
 5. **Metered staging evaluation blocked.** No local OpenAI credential exists. Do not claim provider quality until a ledger-admitted capped run records actual tokens, cost, grounding, component selection, and grading findings.
